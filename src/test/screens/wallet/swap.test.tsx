@@ -56,10 +56,12 @@ function renderSwap({
   flow = {},
   swap = {},
   config = {},
+  wallet = {},
 }: {
   flow?: Record<string, unknown>
   swap?: Record<string, unknown>
   config?: Record<string, unknown>
+  wallet?: Record<string, unknown>
 } = {}) {
   const navigate = vi.fn()
   const goBack = vi.fn()
@@ -100,6 +102,7 @@ function renderSwap({
                       ],
                       assetMetadataCache,
                       availableBalance: 100_000,
+                      ...wallet,
                     } as any
                   }
                 >
@@ -149,6 +152,19 @@ describe('Wallet swap flow', () => {
     expect(screen.getByText('BRL')).toBeInTheDocument()
     expect(screen.queryByText('USDT')).not.toBeInTheDocument()
     expect(screen.queryByText('DEPIX')).not.toBeInTheDocument()
+  })
+
+  it('keeps the BRL identity and flag after spending the full DePix balance', () => {
+    renderSwap({
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      wallet: { assetBalances: [{ assetId: USDT_ID, amount: BigInt(15_000) }] },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+
+    expect(screen.getByText('BRL')).toBeInTheDocument()
+    expect(screen.queryByText(/DePix|DEPIX/)).not.toBeInTheDocument()
+    expect(document.querySelector('#br-flag-circle')).not.toBeNull()
   })
 
   it('finds Bitcoin when searching "btc", even though its swap-entry ticker is sats', async () => {
@@ -294,6 +310,46 @@ describe('Wallet swap flow', () => {
     expect(createSwap.mock.calls[0][1].fromFiatAmount).toBeCloseTo(4.99, 2)
   })
 
+  it('snapshots a fiat entry at the rate the entry was converted with, not the solver-rate reconstruction', async () => {
+    // same mismatched feeds as above (market $50k, wallet's own feed $100k),
+    // but the amount is typed in fiat: the user committed €50, converted to
+    // sats at the wallet's own rate — the persisted volume must echo that
+    // €50.00 back, not re-value the deposit at the solver's rate (~€24.9)
+    fetchMocker.mockResponse(JSON.stringify({ bitcoin: { usd: 50_000 }, price: '500000' }))
+    renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    for (const key of ['5', '0']) {
+      await userEvent.click(screen.getByRole('button', { name: key }))
+    }
+
+    const continueButton = screen.getByRole('button', { name: 'Continue' })
+    await waitFor(() => expect(continueButton).toBeEnabled(), { timeout: 3_000 })
+    fireEvent.click(continueButton)
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+
+    await waitFor(() => expect(createSwap).toHaveBeenCalledOnce())
+    expect(createSwap.mock.calls[0][1].fromFiatAmount).toBeCloseTo(50, 2)
+  })
+
+  it('promotes the converted value when toggling denominations, not the raw digits (#839)', async () => {
+    renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    // €50 typed in fiat mode is 50,000 sats at the $100k feed
+    for (const key of ['5', '0']) {
+      await userEvent.click(screen.getByRole('button', { name: key }))
+    }
+    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+
+    // the sats side must carry the converted 50,000 over — rereading the "50"
+    // digits as 50 sats would show €0.05 here (and, from a Max entry, trip
+    // Insufficient balance as in the issue report)
+    await waitFor(() => expect(screen.getByText('€50.00')).toBeInTheDocument())
+  })
+
   it('funds the whole balance when the balance under the from-asset is tapped', async () => {
     renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
 
@@ -392,7 +448,9 @@ describe('Wallet swap flow', () => {
     }
 
     await waitFor(() => expect(screen.getByText(/^Minimum /)).toBeInTheDocument())
-    expect(screen.getByText(/^Minimum \S+ sats$/)).toBeInTheDocument()
+    // the market card's 1,000-sat give-side floor outranks the smaller
+    // converted receive-side minimum, and a 0-decimal unit shows whole sats
+    expect(screen.getByText('Minimum 1,000 sats')).toBeInTheDocument()
 
     // the suggested bound rounds UP to the display precision, so entering
     // exactly the displayed minimum clears the error — round-to-nearest used
@@ -504,13 +562,10 @@ describe('Wallet swap flow', () => {
     errorSpy.mockRestore()
   })
 
-  it('keeps PR 784 pending-swap cancellation available', async () => {
-    renderSwap({
-      config: { unit: Unit.BIP177 },
-      swap: { swaps: [{ ...pendingSwap, quote: { ...pendingSwap.quote!, fromTicker: 'sats' } }] },
-    })
-    expect(screen.getByText('BTC to USD')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-    await waitFor(() => expect(cancelSwap).toHaveBeenCalledWith('funding-txid'))
+  it('keeps swap history out of the swap composer', () => {
+    renderSwap({ swap: { swaps: [pendingSwap] } })
+    expect(screen.queryByText('Your swaps')).not.toBeInTheDocument()
+    expect(screen.queryByText('BTC to USD')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
   })
 })

@@ -53,7 +53,7 @@ export default function UpsellsSection() {
         <UpsellCard
           icon={<CoinsIcon size={20} />}
           title='Buy or sell bitcoin'
-          description='Convert between bitcoin and your local currency.'
+          description='Use a bank transfer in CHF or EUR via SEPA.'
           testId='upsell-buy-sell'
           onClick={handleBuySell}
         />

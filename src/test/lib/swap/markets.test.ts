@@ -153,6 +153,13 @@ describe('validatePlan', () => {
     expect(validatePlan(plan('base', BigInt(6_000_000)), BigInt(10_000_000), BigInt(330))).toBe('above-max')
   })
 
+  it('enforces the card give-side floor the SDK limits omit', () => {
+    // 700 sats pays out ~$0.70 — above the converted receive minimum ($0.50),
+    // but below the card's 1,000-sat min_base_amount; the solver would reject
+    // this at fill, so the wallet must flag it up front
+    expect(validatePlan(plan('base', BigInt(700)), BigInt(20_000), BigInt(330))).toBe('below-min')
+  })
+
   it('flags a btc side below dust', () => {
     // giving quote: the received btc must be a viable VTXO
     const p = plan('quote', BigInt(152)) // -> 1515 sats, within limits

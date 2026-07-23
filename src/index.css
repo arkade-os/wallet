@@ -879,6 +879,57 @@ iframe {
   width: 100%;
 }
 
+.activity-filter {
+  position: relative;
+  display: inline-flex;
+  min-height: 2.75rem;
+  margin-bottom: 0.5rem;
+  border-radius: var(--radius-full);
+  background: var(--neutral-50);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 6%, transparent);
+}
+
+.activity-filter__option {
+  position: relative;
+  display: inline-flex;
+  min-width: 4.5rem;
+  min-height: 2.75rem;
+  border: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: color-mix(in srgb, var(--fg) 64%, transparent);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.activity-filter__option[aria-pressed='true'] {
+  color: var(--fg);
+}
+
+.activity-filter__option:focus-visible {
+  outline: 2px solid var(--purple-700);
+  outline-offset: 2px;
+}
+
+.activity-filter__selection {
+  position: absolute;
+  inset: 0.25rem;
+  border-radius: inherit;
+  background: var(--bg);
+  box-shadow: var(--shadow-sm);
+}
+
+.activity-filter__label {
+  position: relative;
+  z-index: 1;
+}
+
 .activity-list--compact {
   margin-top: -0.125rem;
 }
@@ -1086,6 +1137,14 @@ iframe {
   color: color-mix(in srgb, var(--red-700) 76%, var(--fg));
 }
 
+.activity-row__amount--cancelled {
+  color: color-mix(in srgb, var(--fg) 55%, transparent);
+}
+
+.activity-row__amount--cancelled .privacy-amount__value {
+  text-decoration: line-through;
+}
+
 .palette-dark .home-section-action {
   color: color-mix(in srgb, var(--purple-200) 86%, var(--fg));
 }
@@ -1122,6 +1181,10 @@ iframe {
   color: color-mix(in srgb, var(--red-400) 78%, var(--fg));
 }
 
+.palette-dark .activity-row__amount--cancelled {
+  color: color-mix(in srgb, var(--fg) 58%, transparent);
+}
+
 .transaction-asset-logo {
   display: inline-flex;
   width: 1rem;
@@ -1136,12 +1199,32 @@ iframe {
   height: 100%;
 }
 
-.transaction-detail__assets {
+.transaction-amount-summary {
   display: flex;
   width: 100%;
   flex-direction: column;
-  gap: 0.625rem;
-  margin-bottom: 1rem;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 1rem 0 1.5rem;
+  text-align: center;
+}
+
+.transaction-amount-summary__label {
+  color: color-mix(in srgb, var(--fg) 52%, transparent);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  line-height: var(--text-sm-line);
+}
+
+.transaction-amount-summary__value {
+  max-width: 100%;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.palette-dark .transaction-amount-summary__label {
+  color: color-mix(in srgb, var(--fg) 58%, transparent);
 }
 
 .swap-transaction-summary {
@@ -1190,60 +1273,6 @@ iframe {
   letter-spacing: var(--heading-xl-tracking);
   line-height: var(--heading-xl-line);
   font-variant-numeric: tabular-nums;
-}
-
-.transaction-detail-asset {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.25rem 0;
-}
-
-.transaction-detail-asset__logo {
-  display: inline-flex;
-  width: 2.25rem;
-  height: 2.25rem;
-  min-width: 2.25rem;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--neutral-50);
-}
-
-.transaction-detail-asset__logo svg {
-  width: 100%;
-  height: 100%;
-}
-
-.transaction-detail-asset__copy {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 0.125rem;
-}
-
-.transaction-detail-asset__amount {
-  overflow: hidden;
-  color: var(--fg);
-  font-family: var(--font-body);
-  font-size: var(--text-lg);
-  font-weight: 500;
-  line-height: var(--text-lg-line);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-.transaction-detail-asset__name {
-  overflow: hidden;
-  color: color-mix(in srgb, var(--fg) 50%, transparent);
-  font-family: var(--font-body);
-  font-size: var(--text-sm);
-  font-weight: 400;
-  line-height: var(--text-sm-line);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .table--receipt {
@@ -1345,10 +1374,6 @@ iframe {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
-}
-
-.palette-dark .transaction-detail-asset__name {
-  color: color-mix(in srgb, var(--fg) 58%, transparent);
 }
 
 .palette-dark .table--receipt {
@@ -1599,11 +1624,21 @@ html.palette-dark .input-shell:focus-within {
   line-height: 1.125rem;
 }
 
+/* long balances keep every digit; the short label side truncates instead */
+.send-asset-trigger__name,
+.send-asset-option__name,
+.send-asset-trigger__balance {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .send-asset-option__amount {
-  color: var(--fg);
+  color: color-mix(in srgb, var(--fg) 52%, transparent);
   font-size: 0.9375rem;
-  font-weight: 500;
   line-height: 1.25rem;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .send-asset-trigger__chevron {
@@ -1943,7 +1978,8 @@ html.palette-dark .send-asset-menu {
 .swap-amount-display > .swap-amount-value {
   color: var(--fg);
   font-family: var(--font-family-heading);
-  font-size: var(--heading-2xl-size);
+  /* --swap-amount-scale steps down for long amounts (set inline per length) */
+  font-size: calc(var(--heading-2xl-size) * var(--swap-amount-scale, 1));
   font-weight: 500;
   letter-spacing: var(--heading-2xl-tracking);
   line-height: var(--heading-2xl-line);
@@ -2196,7 +2232,7 @@ html.palette-dark .send-asset-menu {
 
 @media (max-width: 380px) {
   .swap-amount-display > .swap-amount-value {
-    font-size: var(--heading-xl-size);
+    font-size: calc(var(--heading-xl-size) * var(--swap-amount-scale, 1));
     line-height: var(--heading-xl-line);
   }
 }
@@ -4005,26 +4041,4 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
   }
-}
-
-.swap-cancel-button {
-  border: 0;
-  flex: 0 0 auto;
-  min-height: 2rem;
-  border-radius: 999px;
-  background: var(--neutral-50);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 5%, transparent);
-  color: color-mix(in srgb, var(--fg) 72%, transparent);
-  font: inherit;
-  font-size: var(--text-xs);
-  font-weight: 500;
-  line-height: 1;
-  padding: 0 0.75rem;
-  cursor: pointer;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.swap-cancel-button:disabled {
-  opacity: 0.5;
 }

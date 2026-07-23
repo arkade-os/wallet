@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { useState } from 'react'
+import userEvent from '@testing-library/user-event'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import Transaction from '../../../screens/Wallet/Transaction'
 import { FlowContext } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
@@ -23,8 +25,135 @@ import { FiatContext } from '../../../providers/fiat'
 import { Currencies } from '../../../lib/types'
 import { AssetsContext } from '../../../providers/assets'
 import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
+import { AssetSwapsContext } from '../../../providers/assetSwaps'
+import type { AssetSwap } from '../../../lib/swap/store'
+
+const pendingSwapTx = {
+  ...mockTxInfo,
+  amount: 0,
+  boardingTxid: '',
+  assetSwap: {
+    fromAmount: BigInt(10_000),
+    fromAssetId: 'btc',
+    fromDecimals: 0,
+    fromTicker: 'sats',
+    toAmount: BigInt(500),
+    toAssetId: 'asset-beta',
+    toDecimals: 2,
+    toTicker: 'BET',
+    status: 'pending' as const,
+    fundingTxid: 'funding-txid',
+  },
+  preconfirmed: true,
+  redeemTxid: 'funding-txid',
+  roundTxid: '',
+  settled: false,
+  type: 'swap',
+}
+
+const pendingSwap: AssetSwap = {
+  id: 'funding-txid',
+  fromAsset: 'btc',
+  toAsset: 'asset-beta',
+  fromAmount: '10000',
+  toAmount: '500',
+  swapAddress: 'tark1q...',
+  swapPkScript: `5120${'ab'.repeat(32)}`,
+  offerHex: '0100',
+  fundingTxid: 'funding-txid',
+  status: 'pending',
+  createdAt: 1,
+}
+
+function CancellationHarness({
+  cancel,
+  reconciled = false,
+}: {
+  cancel: (id: string) => Promise<void>
+  reconciled?: boolean
+}) {
+  const [swaps, setSwaps] = useState([pendingSwap])
+  const cancelledSwap = { ...pendingSwap, status: 'cancelled' as const, spentTxid: 'cancel-txid' }
+  const cancelSwap = async (id: string) => {
+    await cancel(id)
+    setSwaps([cancelledSwap])
+  }
+
+  return (
+    <NavigationContext.Provider value={mockNavigationContextValue}>
+      <ConfigContext.Provider value={mockConfigContextValue}>
+        <FiatContext.Provider value={mockFiatContextValue}>
+          <AspContext.Provider value={mockAspContextValue}>
+            <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: pendingSwapTx }}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [pendingSwapTx] } as any}>
+                <AssetSwapsContext.Provider value={{ swaps: reconciled ? [cancelledSwap] : swaps, cancelSwap } as any}>
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <Transaction />
+                  </LimitsContext.Provider>
+                </AssetSwapsContext.Provider>
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </AspContext.Provider>
+        </FiatContext.Provider>
+      </ConfigContext.Provider>
+    </NavigationContext.Provider>
+  )
+}
 
 describe('Transaction screen', () => {
+  it('confirms a pending swap cancellation and stays on the updated receipt', async () => {
+    let finishCancel: () => void = () => {}
+    const cancel = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishCancel = resolve
+        }),
+    )
+    render(<CancellationHarness cancel={cancel} />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel swap' }))
+    const dialog = screen.getByRole('alertdialog')
+    expect(within(dialog).getByRole('heading', { name: 'Cancel swap?' })).toBeInTheDocument()
+    expect(within(dialog).getByText(/return its locked funds to your wallet/)).toBeInTheDocument()
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel swap' }))
+    expect(cancel).toHaveBeenCalledWith('funding-txid')
+    expect(screen.getByRole('button', { name: 'Cancelling…' })).toBeDisabled()
+
+    await act(async () => finishCancel())
+
+    await waitFor(() => expect(screen.queryByRole('button', { name: /cancel swap/i })).not.toBeInTheDocument())
+    expect(screen.getByRole('heading', { name: 'Swap' })).toBeInTheDocument()
+    expect(screen.getByTestId('Status')).toHaveTextContent('Cancelled')
+    expect(screen.getByTestId('Cancelled')).toHaveTextContent('cancel-txid')
+  })
+
+  it('surfaces a failed cancellation and offers a retry', async () => {
+    const cancel = vi.fn().mockRejectedValue(new Error('Cancellation unavailable'))
+    render(<CancellationHarness cancel={cancel} />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel swap' }))
+    await userEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancel swap' }))
+
+    expect(await screen.findByText('Cancellation unavailable')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retry cancel' })).toBeInTheDocument()
+  })
+
+  it('clears a cancellation error when reconciliation reaches a terminal state', async () => {
+    const cancel = vi.fn().mockRejectedValue(new Error('Cancellation status unknown'))
+    const view = render(<CancellationHarness cancel={cancel} />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel swap' }))
+    await userEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancel swap' }))
+    expect(await screen.findByText('Cancellation status unknown')).toBeInTheDocument()
+
+    view.rerender(<CancellationHarness cancel={cancel} reconciled />)
+
+    expect(screen.queryByText('Cancellation status unknown')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /cancel swap/i })).not.toBeInTheDocument()
+    expect(screen.getByTestId('Status')).toHaveTextContent('Cancelled')
+  })
+
   it('renders the settled transaction screen correctly', async () => {
     render(
       <NavigationContext.Provider value={mockNavigationContextValue}>
@@ -43,7 +172,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('Network fees')).toBeInTheDocument()
     expect(screen.getByText('Transaction')).toBeInTheDocument()
     expect(screen.getByText('Direction')).toBeInTheDocument()
-    expect(screen.getByText('Amount')).toBeInTheDocument()
+    expect(screen.getByText('Asset amount')).toBeInTheDocument()
     expect(screen.getByText('Total')).toBeInTheDocument()
     expect(screen.getByText('Date')).toBeInTheDocument()
     expect(screen.getByText('When')).toBeInTheDocument()
@@ -83,7 +212,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('Network fees')).toBeInTheDocument()
     expect(screen.getByText('Transaction')).toBeInTheDocument()
     expect(screen.getByText('Direction')).toBeInTheDocument()
-    expect(screen.getByText('Amount')).toBeInTheDocument()
+    expect(screen.getByText('Asset amount')).toBeInTheDocument()
     expect(screen.getByText('Total')).toBeInTheDocument()
     expect(screen.getByText('Date')).toBeInTheDocument()
     expect(screen.getByText('When')).toBeInTheDocument()
@@ -120,7 +249,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('Network fees')).toBeInTheDocument()
     expect(screen.getByText('Transaction')).toBeInTheDocument()
     expect(screen.getByText('Direction')).toBeInTheDocument()
-    expect(screen.getByText('Amount')).toBeInTheDocument()
+    expect(screen.getByText('Asset amount')).toBeInTheDocument()
     expect(screen.getByText('Total')).toBeInTheDocument()
     expect(screen.getByText('Date')).toBeInTheDocument()
     expect(screen.getByText('When')).toBeInTheDocument()
@@ -157,7 +286,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('Network fees')).toBeInTheDocument()
     expect(screen.getByText('Transaction')).toBeInTheDocument()
     expect(screen.getByText('Direction')).toBeInTheDocument()
-    expect(screen.getByText('Amount')).toBeInTheDocument()
+    expect(screen.getByText('Asset amount')).toBeInTheDocument()
     expect(screen.getByText('Total')).toBeInTheDocument()
     expect(screen.getByText('Date')).toBeInTheDocument()
     expect(screen.getByText('When')).toBeInTheDocument()
@@ -194,7 +323,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('Network fees')).toBeInTheDocument()
     expect(screen.getByText('Transaction')).toBeInTheDocument()
     expect(screen.getByText('Direction')).toBeInTheDocument()
-    expect(screen.getByText('Amount')).toBeInTheDocument()
+    expect(screen.getByText('Asset amount')).toBeInTheDocument()
     expect(screen.getByText('Total')).toBeInTheDocument()
     expect(screen.getByText('Date')).toBeInTheDocument()
     expect(screen.getByText('When')).toBeInTheDocument()
@@ -233,7 +362,7 @@ describe('Transaction screen', () => {
     expect(screen.getByText('Network fees')).toBeInTheDocument()
     expect(screen.getByText('Transaction')).toBeInTheDocument()
     expect(screen.getByText('Direction')).toBeInTheDocument()
-    expect(screen.getByText('Amount')).toBeInTheDocument()
+    expect(screen.getByText('Asset amount')).toBeInTheDocument()
     expect(screen.getByText('Total')).toBeInTheDocument()
     expect(screen.getByText('Date')).toBeInTheDocument()
     expect(screen.getByText('When')).toBeInTheDocument()
@@ -462,19 +591,17 @@ describe('Transaction screen', () => {
       assetAmount: BigInt(10_000),
       assetLabel: '100.00 USD',
       direction: 'Received',
-      total: '$100.00',
       type: 'received',
     },
     {
       assetAmount: BigInt(-10_000),
-      assetLabel: '-100.00 USD',
+      assetLabel: '100.00 USD',
       direction: 'Sent',
-      total: '$100.00',
       type: 'sent',
     },
   ])(
     'values a $direction USD transaction from its absolute account amount instead of its bitcoin dust amount',
-    ({ assetAmount, assetLabel, direction, total, type }) => {
+    ({ assetAmount, assetLabel, direction, type }) => {
       const assetId = MUTINYNET_USDT_ASSET_ID
       const txInfo = {
         ...mockTxInfo,
@@ -502,6 +629,7 @@ describe('Transaction screen', () => {
         ...mockFiatContextValue,
         fromFiatAmount: (amount: number) => amount * 100,
         toFiat: (satoshis?: number) => (satoshis ?? 0) / 100,
+        toFiatAmount: (satoshis: number) => satoshis / 100,
       }
 
       render(
@@ -544,9 +672,10 @@ describe('Transaction screen', () => {
       )
 
       expect(screen.getByText(direction)).toBeInTheDocument()
-      expect(screen.getByText(assetLabel)).toBeInTheDocument()
-      expect(screen.getByTestId('Amount')).toHaveTextContent('$100.00')
-      expect(screen.getByTestId('Total')).toHaveTextContent(total)
+      expect(screen.getByTestId('primary-amount')).toHaveTextContent('$100.00')
+      expect(screen.getByTestId('Asset amount')).toHaveTextContent(assetLabel)
+      expect(screen.getByTestId('Value')).toHaveTextContent('$100.00')
+      expect(screen.queryByTestId('Total')).not.toBeInTheDocument()
       expect(screen.queryByText('Tether USD')).not.toBeInTheDocument()
     },
   )

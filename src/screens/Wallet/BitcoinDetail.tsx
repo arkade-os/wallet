@@ -2,19 +2,20 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Liveline, type HoverPoint, type LivelinePoint } from 'liveline'
 import { ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import AssetAvatar from '../../components/AssetAvatar'
+import ActivityFilter, { type ActivityFilterValue } from '../../components/ActivityFilter'
 import Content from '../../components/Content'
 import Header from '../../components/Header'
 import Padded from '../../components/Padded'
 import { PrivacyAmount } from '../../components/PrivacyAmount'
 import SwapComingSoonSheet from '../../components/SwapComingSoonSheet'
 import TokenLogo, { accountTickerForAssetTicker, tokenLogoTickerForTicker } from '../../components/TokenLogo'
-import TransactionsList from '../../components/TransactionsList'
+import TransactionsList, { matchesAssetFilter, shouldHideDevAssetTx } from '../../components/TransactionsList'
 import { usePortfolioFiat, type PortfolioRow } from '../../hooks/usePortfolioFiat'
 import ReceiveIcon from '../../icons/Receive'
 import ScanIcon from '../../icons/Scan'
 import SendIcon from '../../icons/Send'
 import SwapIcon from '../../icons/Swap'
-import { walletLoadInChild, walletLoadInContainer } from '../../lib/animations'
+import { EASE_OUT_QUINT_TUPLE, walletLoadInChild, walletLoadInContainer } from '../../lib/animations'
 import {
   prettyBitcoinAmount,
   prettyBitcoinHide,
@@ -36,6 +37,7 @@ import { FlowContext, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { buildConstantMarketSeries, buildCrossRatePoints, fetchHistoricalMarketData } from '../../lib/marketData'
 import { accountChartColorToken } from '../../lib/accountAssets'
+import { WalletContext } from '../../providers/wallet'
 
 const CHART_WINDOWS = [
   { label: '1H', secs: 3_600 },
@@ -67,12 +69,14 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
   const { fromFiatAmount, toFiatAmount } = useContext(FiatContext)
   const { setRecvInfo, setSendInfo, setSwapFromAssetId } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { swapAvailable, swaps } = useContext(AssetSwapsContext)
+  const { swapAvailable } = useContext(AssetSwapsContext)
+  const { assetMetadataCache, txs } = useContext(WalletContext)
   const { rows } = usePortfolioFiat()
   const prefersReduced = useReducedMotion()
 
   const [chartWindow, setChartWindow] = useState(CHART_WINDOWS[2].secs)
   const [chartInteracting, setChartInteracting] = useState(false)
+  const [activityFilter, setActivityFilter] = useState<ActivityFilterValue>('all')
   const [swapSheetOpen, setSwapSheetOpen] = useState(false)
   const chartHapticState = useRef({ lastPointTime: 0, lastTriggerTime: 0 })
 
@@ -144,6 +148,17 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
       : undefined
   const tokenLogoTicker = tokenLogoTickerForTicker(accountTicker ?? row.ticker)
   const activityAssetFilter = isBitcoin ? 'btc' : row.assetId
+  const hasAssetSwaps = txs.some(
+    (tx) =>
+      !shouldHideDevAssetTx(tx, assetMetadataCache) &&
+      tx.type === 'swap' &&
+      matchesAssetFilter(tx, activityAssetFilter),
+  )
+  const activeActivityFilter = hasAssetSwaps ? activityFilter : 'all'
+
+  useEffect(() => {
+    if (!hasAssetSwaps && activityFilter !== 'all') setActivityFilter('all')
+  }, [activityFilter, hasAssetSwaps])
   const priceText =
     currentUnitPrice === undefined
       ? 'Price unavailable'
@@ -189,9 +204,7 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
 
   const handleSwap = () => {
     hapticLight()
-    // existing swaps stay reachable during outages so pending funds
-    // remain cancellable from the swap screen
-    if (swapAvailable || swaps.length > 0) {
+    if (swapAvailable) {
       setSwapFromAssetId(row.assetId)
       navigate(Pages.WalletSwap)
     } else {
@@ -415,7 +428,23 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
               <div className='asset-detail-section-header'>
                 <strong>Recent activity</strong>
               </div>
-              <TransactionsList mode='static' assetIdFilter={activityAssetFilter} limit={5} />
+              {hasAssetSwaps ? <ActivityFilter value={activityFilter} onChange={setActivityFilter} /> : null}
+              <AnimatePresence mode='wait' initial={false}>
+                <motion.div
+                  key={activeActivityFilter}
+                  initial={prefersReduced ? false : { opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={prefersReduced ? undefined : { opacity: 0, y: 2 }}
+                  transition={prefersReduced ? { duration: 0 } : { duration: 0.16, ease: EASE_OUT_QUINT_TUPLE }}
+                >
+                  <TransactionsList
+                    mode='static'
+                    assetIdFilter={activityAssetFilter}
+                    typeFilter={activeActivityFilter === 'swaps' ? 'swap' : undefined}
+                    limit={5}
+                  />
+                </motion.div>
+              </AnimatePresence>
             </motion.section>
           </motion.div>
         </Padded>

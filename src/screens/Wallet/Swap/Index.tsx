@@ -18,17 +18,11 @@ import SwapIcon from '../../../icons/Swap'
 import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
 import { centsToUnits } from '../../../lib/assets'
 import { extractError } from '../../../lib/error'
-import {
-  formatFiatAmountParts,
-  normalizeBitcoinUnit,
-  prettyCurrencyAssetAmount,
-  prettyFiatAmount,
-  prettyNumber,
-} from '../../../lib/format'
+import { formatFiatAmountParts, normalizeBitcoinUnit, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
 import { swapRouteTicker } from '../../../lib/swapDisplay'
 import { BTC_ASSET_ID, findMarket, makeCachedFeedFetch, QUOTE_OPTIONS, validatePlan } from '../../../lib/swap/markets'
-import { type AssetSwap, type AssetSwapQuoteSnapshot, type AssetSwapStatus } from '../../../lib/swap/store'
+import { type AssetSwapQuoteSnapshot } from '../../../lib/swap/store'
 import { Currencies, Unit } from '../../../lib/types'
 import { AspContext } from '../../../providers/asp'
 import { AssetSwapsContext } from '../../../providers/assetSwaps'
@@ -39,6 +33,7 @@ import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import { usePortfolioFiat, type PortfolioRow } from '../../../hooks/usePortfolioFiat'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
+import { verifiedDesignatedCurrency } from '../../../lib/accountAssets'
 
 type AssetTarget = 'from' | 'to'
 type DrawerState = 'to' | 'review' | null
@@ -70,6 +65,7 @@ interface SwapQuote {
   rateLabel: string
   fromFiatValue: number
   toFiatValue: number
+  giveFiatValue: number
 }
 
 interface ExitingAmountCharacter {
@@ -81,13 +77,6 @@ interface ExitingAmountCharacter {
 const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'Back']
 const rateNote = 'Rates are dynamic and may update before you confirm.'
 const rateNoteAutoDismissMs = 2400
-const statusLabels: Record<AssetSwapStatus, string> = {
-  pending: 'Pending',
-  cancelling: 'Cancelling',
-  fulfilled: 'Completed',
-  cancelled: 'Cancelled',
-  recoverable: 'Recoverable',
-}
 const emptySwapAsset: SwapAsset = {
   assetId: 'swap-empty',
   name: 'Asset',
@@ -99,16 +88,14 @@ const emptySwapAsset: SwapAsset = {
 
 export default function WalletSwap() {
   const { aspInfo } = useContext(AspContext)
-  const { cancelSwap, createSwap, markets, swapAvailable, swaps } = useContext(AssetSwapsContext)
+  const { createSwap, markets, swapAvailable } = useContext(AssetSwapsContext)
   const { config } = useContext(ConfigContext)
   const { fiatDecimals, fromFiatAmount, toFiat, toFiatAmount } = useContext(FiatContext)
   const { swapFromAssetId, setSwapFromAssetId } = useContext(FlowContext)
   const { goBack, navigate } = useContext(NavigationContext)
-  const { assetBalances, assetMetadataCache, availableBalance } = useContext(WalletContext)
+  const { assetBalances, assetMetadataCache, availableBalance, isVerifiedAsset } = useContext(WalletContext)
   const { rows } = usePortfolioFiat()
   const prefersReduced = useReducedMotion()
-
-  const [cancelling, setCancelling] = useState('')
 
   const btcUnit = normalizeBitcoinUnit(config.unit)
   const swapAssets = useMemo<SwapAsset[]>(() => {
@@ -143,10 +130,11 @@ export default function WalletSwap() {
 
       const row = rows.find((candidate) => candidate.assetId === asset.id)
       const owned = assetBalances.find((balance) => balance.assetId === asset.id)
+      const designatedCurrency = verifiedDesignatedCurrency(aspInfo.network, asset.id, isVerifiedAsset)
       return {
         assetId: asset.id,
-        name: row?.name ?? asset.name,
-        ticker: row?.ticker ?? asset.ticker,
+        name: row?.name ?? designatedCurrency ?? asset.name,
+        ticker: row?.ticker ?? designatedCurrency ?? asset.ticker,
         decimals: asset.decimals,
         balance: BigInt(owned?.amount ?? 0),
         fiatText: row?.hasFiatPrice
@@ -159,11 +147,13 @@ export default function WalletSwap() {
   }, [
     assetBalances,
     assetMetadataCache,
+    aspInfo.network,
     availableBalance,
     btcUnit,
     config.currency,
     config.unit,
     fromFiatAmount,
+    isVerifiedAsset,
     markets,
     rows,
     toFiat,
@@ -340,6 +330,15 @@ export default function WalletSwap() {
 
   const toggleAmountMode = () => {
     hapticLight()
+    // promote the value the secondary pill was showing — flipping only the
+    // unit would reread "115 BRL" as "€115" (#839). The fiat figure floors at
+    // display precision so a Max entry can't round above the balance.
+    const scale = Math.pow(10, fiatDecimals())
+    const converted =
+      amountMode === 'asset'
+        ? prettyNumber(Math.floor(quote.fromFiatValue * scale) / scale, fiatDecimals(), false)
+        : assetAmount
+    setAmount(Number(converted) > 0 ? converted : '0')
     setAmountMode((current) => (current === 'asset' ? 'fiat' : 'asset'))
   }
 
@@ -390,19 +389,6 @@ export default function WalletSwap() {
     }
   }
 
-  const handleCancelSwap = async (swap: AssetSwap) => {
-    if (cancelling) return
-    hapticLight()
-    setCancelling(swap.id)
-    try {
-      await cancelSwap(swap.id)
-    } catch (error) {
-      setConfirmError(extractError(error))
-    } finally {
-      setCancelling('')
-    }
-  }
-
   const receiveAssets = swapAssets.filter((asset) =>
     Boolean(findMarket(markets, fromAsset.assetId, asset.assetId)?.market),
   )
@@ -435,15 +421,6 @@ export default function WalletSwap() {
                   ) : (
                     <SwapUnavailableState />
                   )}
-                  {swaps.length ? (
-                    <PendingSwaps
-                      swaps={swaps}
-                      assets={swapAssets}
-                      cancelling={cancelling}
-                      error={confirmError}
-                      onCancel={handleCancelSwap}
-                    />
-                  ) : null}
                 </motion.section>
               ) : (
                 <motion.section
@@ -522,66 +499,6 @@ function SwapUnavailableState() {
         <p>Swaps are unavailable</p>
         <span>Add another supported asset to swap between balances.</span>
       </div>
-    </div>
-  )
-}
-
-function PendingSwaps({
-  swaps,
-  assets,
-  cancelling,
-  error,
-  onCancel,
-}: {
-  swaps: AssetSwap[]
-  assets: SwapAsset[]
-  cancelling: string
-  error: string
-  onCancel: (swap: AssetSwap) => void
-}) {
-  const assetById = (assetId: string) => assets.find((asset) => asset.assetId === assetId)
-  const formatAmount = (assetId: string, atomic: string) => {
-    const asset = assetById(assetId)
-    return asset ? `${prettyCurrencyAssetAmount(BigInt(atomic), asset.decimals, asset.ticker)} ${asset.ticker}` : atomic
-  }
-
-  return (
-    <div className='swap-asset-list-panel'>
-      <div className='swap-step-heading'>
-        <p>Your swaps</p>
-      </div>
-      <div className='swap-token-list'>
-        {swaps.map((swap) => {
-          const from = assetById(swap.fromAsset)
-          const to = assetById(swap.toAsset)
-          const cancellable = swap.status === 'pending' || swap.status === 'cancelling'
-          return (
-            <div key={swap.id} className='swap-token-row'>
-              <span className='swap-token-row__copy'>
-                <span>
-                  {swapRouteTicker(swap.fromAsset, swap.quote?.fromTicker ?? from?.ticker) ?? '?'} to{' '}
-                  {swapRouteTicker(swap.toAsset, swap.quote?.toTicker ?? to?.ticker) ?? '?'}
-                </span>
-                <small>
-                  {formatAmount(swap.fromAsset, swap.fromAmount)} for ≥ {formatAmount(swap.toAsset, swap.toAmount)}
-                </small>
-              </span>
-              {cancellable ? (
-                <button
-                  type='button'
-                  className='swap-cancel-button'
-                  disabled={Boolean(cancelling)}
-                  onClick={() => onCancel(swap)}
-                >
-                  {cancelling === swap.id ? 'Cancelling…' : swap.status === 'cancelling' ? 'Retry cancel' : 'Cancel'}
-                </button>
-              ) : null}
-              <strong>{statusLabels[swap.status]}</strong>
-            </div>
-          )
-        })}
-      </div>
-      {error ? <p className='swap-confirm-error'>{error}</p> : null}
     </div>
   )
 }
@@ -826,7 +743,11 @@ function AnimatedAmountValue({ value, reducedMotion }: { value: string; reducedM
   }, [value])
 
   return (
-    <span className='swap-amount-value' aria-label={value}>
+    <span
+      className='swap-amount-value'
+      aria-label={value}
+      style={{ '--swap-amount-scale': amountFontScale(value.length) } as React.CSSProperties}
+    >
       <AnimatePresence initial={false}>
         {characters.map((character, characterIndex) => {
           const characterChanged = previousCharacters[characterIndex] !== character
@@ -874,6 +795,17 @@ function AnimatedAmountValue({ value, reducedMotion }: { value: string; reducedM
       ))}
     </span>
   )
+}
+
+/** Long amounts (a full-precision balance plus ticker) shrink in steps so
+ * they stay inside the card — stepped rather than fit-to-width so the
+ * per-character animation keeps stable metrics while typing. */
+function amountFontScale(length: number): number {
+  if (length <= 12) return 1
+  if (length <= 16) return 0.8
+  if (length <= 20) return 0.66
+  if (length <= 26) return 0.54
+  return 0.44
 }
 
 function amountCharacterSlotKey(character: string, characterIndex: number, source: string[]): string {
@@ -1273,6 +1205,12 @@ function buildQuoteFromPlan(
     rateLabel: prettyNumber(rate, swapAmountDecimals(rate)),
     fromFiatValue: selectedCurrencyAmount,
     toFiatValue: receivedCurrencyAmount,
+    // what the persisted receipt echoes as the trade's volume: in fiat entry
+    // the user committed a fiat figure converted at the wallet's own rate, so
+    // echo it back (a "$5" swap reads $5.00 in activity, not a solver-rate
+    // $4.99); in unit entry the solver-priced give label is what they saw
+    // next to their amount and confirmed
+    giveFiatValue: mode === 'fiat' ? giveEstimate : selectedCurrencyAmount,
   }
 }
 
@@ -1370,14 +1308,34 @@ function formatLimitMessage(
   // priceDisplay is quote-per-base; convert the receive-side limit back to
   // the give side using whichever side the plan actually gives
   const giveProtocol = (plan.give === 'base' ? limitReceiveProtocol / price : limitReceiveProtocol * price) * grossUp
-  const raw = giveProtocol * protocolToDisplayScale(fromAsset)
+  // the market card also bounds the give side directly (atomic units of the
+  // deposit asset); the user must satisfy whichever constraint is tighter —
+  // e.g. a 1,000-sat card floor outranks a smaller converted receive minimum
+  const isMin = label === 'Minimum'
+  const giveCardAtomic = Number(
+    isMin
+      ? plan.give === 'base'
+        ? plan.market.min_base_amount
+        : plan.market.min_quote_amount
+      : plan.give === 'base'
+        ? plan.market.max_base_amount
+        : plan.market.max_quote_amount,
+  )
+  const giveCardProtocol = giveCardAtomic / Math.pow(10, plan.deposit.asset.decimals)
+  const combinedProtocol = isMin
+    ? Math.max(giveProtocol, giveCardProtocol)
+    : Math.min(giveProtocol, giveCardProtocol || Infinity)
+  const raw = combinedProtocol * protocolToDisplayScale(fromAsset)
   // round the bound so the displayed amount actually satisfies it: a minimum
   // rounds up, a maximum rounds down — round-to-nearest could display a
   // minimum one atomic unit short of clearing the check, so entering exactly
-  // the suggested amount still failed (the epsilon absorbs float noise)
-  const scale = Math.pow(10, swapAmountDecimals(raw))
-  const value = label === 'Minimum' ? Math.ceil(raw * scale - 1e-9) / scale : Math.floor(raw * scale + 1e-9) / scale
-  return `${label} ${prettyNumber(value, swapAmountDecimals(raw))} ${fromAsset.ticker}`.trim()
+  // the suggested amount still failed (the epsilon absorbs float noise). The
+  // bound can never be finer than the asset's own precision: a 0-decimal
+  // sats/₿ unit ceils to whole units, never "296.3665 sats"
+  const decimals = Math.min(swapAmountDecimals(raw), fromAsset.decimals)
+  const scale = Math.pow(10, decimals)
+  const value = isMin ? Math.ceil(raw * scale - 1e-9) / scale : Math.floor(raw * scale + 1e-9) / scale
+  return `${label} ${prettyNumber(value, decimals)} ${fromAsset.ticker}`.trim()
 }
 
 function buildQuoteSnapshot(plan: OfferPlan, quote: SwapQuote, currency: Currencies): AssetSwapQuoteSnapshot {
@@ -1396,7 +1354,7 @@ function buildQuoteSnapshot(plan: OfferPlan, quote: SwapQuote, currency: Currenc
     // depends on the bitcoin-unit setting at swap time). Skip persisting it
     // next time the store shape changes.
     fiatCurrency: currency,
-    fromFiatAmount: quote.fromFiatValue,
+    fromFiatAmount: quote.giveFiatValue > 0 ? quote.giveFiatValue : quote.fromFiatValue,
   }
 }
 

@@ -134,6 +134,15 @@ export const validatePlan = (plan: OfferPlan, giveBalance: bigint, dust: bigint)
   // limits bound the receive side; null bounds mean the solver cannot pay it out
   const { min, max, withinLimits } = plan.limits
   if (!min || !max) return 'side-disabled'
+  // the SDK's plan.limits only covers the receive side, but the market card
+  // bounds BOTH sides — enforce the give side (min/max_*_amount, atomic units
+  // of the deposit asset) or the solver rejects the offer at fill time
+  const giveSide = plan.give === 'base'
+  const giveMin = BigInt(giveSide ? plan.market.min_base_amount : plan.market.min_quote_amount)
+  const giveMax = BigInt(giveSide ? plan.market.max_base_amount : plan.market.max_quote_amount)
+  if (giveMax === BigInt(0)) return 'side-disabled'
+  if (plan.deposit.atomic < giveMin) return 'below-min'
+  if (plan.deposit.atomic > giveMax) return 'above-max'
   if (!withinLimits) return plan.receive.atomic < min.atomic ? 'below-min' : 'above-max'
   // the BTC side must survive as a VTXO: deposit when giving BTC, fill output otherwise
   const btcSide = plan.give === 'base' ? plan.deposit.atomic : plan.receive.atomic

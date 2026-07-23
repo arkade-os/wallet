@@ -4,7 +4,7 @@ import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Padded from '../../components/Padded'
 import { WalletContext } from '../../providers/wallet'
 import { FlowContext } from '../../providers/flow'
-import { isBurn, isIssuance, prettyAgo, prettyCurrencyAssetAmount, prettyDate } from '../../lib/format'
+import { isBurn, isIssuance, prettyAgo, prettyDate } from '../../lib/format'
 import { defaultFee } from '../../lib/constants'
 import ErrorMessage from '../../components/Error'
 import { extractError } from '../../lib/error'
@@ -15,9 +15,7 @@ import FlexCol from '../../components/FlexCol'
 import WaitingForRound from '../../components/WaitingForRound'
 import { sleep } from '../../lib/sleep'
 import Text, { TextSecondary } from '../../components/Text'
-import AssetAvatar from '../../components/AssetAvatar'
 import Details, { DetailsProps } from '../../components/Details'
-import TokenLogo, { tokenLogoTickerForTicker, trustedAssetTickers } from '../../components/TokenLogo'
 import VtxosIcon from '../../icons/Vtxos'
 import CheckMarkIcon from '../../icons/CheckMark'
 import { AspContext } from '../../providers/asp'
@@ -25,21 +23,63 @@ import Reminder from '../../components/Reminder'
 import { LimitsContext } from '../../providers/limits'
 import { getInputsToSettle } from '../../lib/asp'
 import SwapTransactionSummary from '../../components/SwapTransactionSummary'
-import { formatSwapAssetAmount, swapFeeAmount, swapPriceRateLabel, swapStatusLabel } from '../../lib/swapDisplay'
-import { FiatContext } from '../../providers/fiat'
-import { designatedAccountCurrency, fiatAccountAssetSatoshis } from '../../lib/accountAssets'
-import UnverifiedBadge from '../../components/UnverifiedBadge'
+import {
+  formatSwapAssetAmount,
+  swapFeeAmount,
+  swapPriceRateLabel,
+  swapStatusLabel,
+  type SwapStatus,
+} from '../../lib/swapDisplay'
+import { AssetSwapsContext } from '../../providers/assetSwaps'
+import { hapticTap } from '../../lib/haptics'
+import { useTransactionAmountDisplay } from '../../hooks/useTransactionAmountDisplay'
+import TransactionAmountSummary from '../../components/TransactionAmountSummary'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../../components/ui/alert-dialog'
 
 export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo } = useContext(FlowContext)
-  const { fromFiatAmount } = useContext(FiatContext)
+  const { cancelSwap, swaps } = useContext(AssetSwapsContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
-  const { assetMetadataCache, isVerifiedAsset, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } =
-    useContext(WalletContext)
+  const { assetMetadataCache, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } = useContext(WalletContext)
 
-  const tx = txInfo
+  const liveSwap = txInfo?.assetSwap?.fundingTxid
+    ? swaps.find((swap) => swap.fundingTxid === txInfo.assetSwap?.fundingTxid)
+    : undefined
+  const liveSwapStatus: SwapStatus | undefined = liveSwap
+    ? liveSwap.status === 'fulfilled'
+      ? 'completed'
+      : liveSwap.status === 'cancelled'
+        ? 'cancelled'
+        : liveSwap.status === 'recoverable'
+          ? 'recoverable'
+          : 'pending'
+    : undefined
+  const tx =
+    txInfo && txInfo.assetSwap && liveSwap && liveSwapStatus
+      ? {
+          ...txInfo,
+          preconfirmed: liveSwapStatus === 'pending',
+          settled: liveSwapStatus === 'completed' || liveSwapStatus === 'cancelled',
+          redeemTxid: liveSwap.spentTxid ?? txInfo.redeemTxid,
+          assetSwap: {
+            ...txInfo.assetSwap,
+            status: liveSwapStatus,
+            fillTxid: liveSwap.spentTxid,
+          },
+        }
+      : txInfo
   const swapTx = tx?.type === 'swap'
+  const amountDisplay = useTransactionAmountDisplay(tx)
   const issuanceTx = tx ? isIssuance(tx) : false
   const burnTx = tx ? isBurn(tx) : false
   const boardingTx = Boolean(tx?.boardingTxid)
@@ -58,6 +98,9 @@ export default function Transaction() {
   const [settleSuccess, setSettleSuccess] = useState(false)
   const [settling, setSettling] = useState(false)
   const [startTime, setStartTime] = useState(0)
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false)
+  const [cancelFailed, setCancelFailed] = useState(false)
+  const [cancellingSwap, setCancellingSwap] = useState(false)
 
   useEffect(() => {
     setButtonLabel(settling ? 'Settling...' : defaultButtonLabel)
@@ -97,19 +140,24 @@ export default function Transaction() {
     setSettling(false)
   }
 
-  if (!tx) return <></>
+  const handleCancelSwap = async () => {
+    if (!liveSwap || cancellingSwap) return
+    hapticTap()
+    setCancelConfirmOpen(false)
+    setCancelFailed(false)
+    setError('')
+    setCancellingSwap(true)
+    try {
+      await cancelSwap(liveSwap.id)
+    } catch (err) {
+      setError(extractError(err))
+      setCancelFailed(true)
+    } finally {
+      setCancellingSwap(false)
+    }
+  }
 
-  const accountAssetValues = tx.assets?.map((asset) => {
-    const metadata = assetMetadataCache.get(asset.assetId)?.metadata
-    const currency = isVerifiedAsset(asset.assetId)
-      ? designatedAccountCurrency(aspInfo.network, asset.assetId)
-      : undefined
-    return fiatAccountAssetSatoshis(BigInt(asset.amount), metadata?.decimals ?? 8, currency, fromFiatAmount)
-  })
-  const accountValueSatoshis =
-    accountAssetValues?.length && accountAssetValues.every((value) => value !== undefined)
-      ? accountAssetValues.reduce((total, value) => total + value, 0)
-      : undefined
+  if (!tx) return <></>
 
   const status = expiredBoardingTx
     ? 'Expired'
@@ -122,12 +170,17 @@ export default function Transaction() {
           : 'Preconfirmed'
 
   const fees = tx.type === 'sent' ? defaultFee : 0
-  // on asset transfers tx.amount is just the dust carrying the asset — showing
-  // it as Amount/Total reads as a fiat price for the asset, so hide both rows
-  // unless the asset resolves to a designated account value
+  // On asset transfers tx.amount is only the data carrier, not the asset value.
+  // The asset-aware rows below replace the legacy Amount/Total rows.
   const assetTransfer = Boolean(tx.assets?.length)
-  const accountTransferSatoshis = accountValueSatoshis === undefined ? undefined : Math.abs(accountValueSatoshis)
-  const transferSatoshis = accountTransferSatoshis ?? (tx.type === 'sent' ? tx.amount - defaultFee : tx.amount)
+  const transferSatoshis = tx.type === 'sent' ? tx.amount - defaultFee : tx.amount
+  const summaryLabel = issuanceTx
+    ? 'Amount issued'
+    : burnTx
+      ? 'Amount burned'
+      : tx.type === 'sent'
+        ? 'Amount sent'
+        : 'Amount received'
   const when = tx.createdAt ? prettyAgo(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed'
   const date = tx.createdAt ? prettyDate(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed'
   const txid = tx.boardingTxid || tx.redeemTxid || tx.roundTxid || ''
@@ -149,14 +202,15 @@ export default function Transaction() {
         when,
       }
     : {
+        amountDisplay,
         assetId: tx.assets?.[0]?.assetId,
         date,
         direction: issuanceTx ? 'Issuance' : burnTx ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received',
         fees,
         isOffchainTx: !tx.boardingTxid && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid)),
-        satoshis: accountTransferSatoshis ?? (assetTransfer ? undefined : transferSatoshis),
+        satoshis: assetTransfer ? undefined : transferSatoshis,
         status,
-        total: accountTransferSatoshis !== undefined ? transferSatoshis + fees : assetTransfer ? undefined : tx.amount,
+        total: assetTransfer ? undefined : tx.amount,
         txid,
         type: boardingTx ? 'Boarding' : 'Offchain',
         wallet,
@@ -169,12 +223,14 @@ export default function Transaction() {
   const swapToIcon = tx.assetSwap?.toAssetId
     ? assetMetadataCache.get(tx.assetSwap.toAssetId)?.metadata?.icon
     : undefined
+  const showCancelSwap = swapTx && liveSwap && (liveSwap.status === 'pending' || liveSwap.status === 'cancelling')
+  const visibleError = cancelFailed && !showCancelSwap ? '' : error
 
   const Body = () => (
     <Content>
       <Padded>
         <FlexCol>
-          <ErrorMessage error={Boolean(error)} text={error} />
+          <ErrorMessage error={Boolean(visibleError)} text={visibleError} />
           {expiredBoardingTx ? (
             <Info color='red' icon={<VtxosIcon />} title='Expired'>
               <Text wrap>Boarding transaction expired.</Text>
@@ -196,44 +252,7 @@ export default function Transaction() {
           {swapTx && tx.assetSwap ? (
             <SwapTransactionSummary fromIcon={swapFromIcon} toIcon={swapToIcon} tx={tx} />
           ) : null}
-          {!swapTx && tx.assets?.length ? (
-            <div className='transaction-detail__assets'>
-              {tx.assets.map((a) => {
-                const meta = assetMetadataCache.get(a.assetId)?.metadata
-                const ticker = meta?.ticker
-                const name = meta?.name
-                const icon = meta?.icon
-                const decimals = meta?.decimals ?? 8
-                // only verified asset IDs get currency treatment for their ticker
-                const trusted = isVerifiedAsset(a.assetId)
-                const designatedCurrency = trusted ? designatedAccountCurrency(aspInfo.network, a.assetId) : undefined
-                const { accountTicker, trustedTicker } = trustedAssetTickers(designatedCurrency ?? ticker, trusted)
-                const label = accountTicker ?? trustedTicker ?? name ?? `${a.assetId.slice(0, 8)}...`
-                const amountLabel = accountTicker ?? trustedTicker
-                const tokenLogoTicker = tokenLogoTickerForTicker(trustedTicker)
-                return (
-                  <div key={a.assetId} className='transaction-detail-asset'>
-                    <span className='transaction-detail-asset__logo'>
-                      {tokenLogoTicker ? (
-                        <TokenLogo ticker={tokenLogoTicker} />
-                      ) : (
-                        <AssetAvatar icon={icon} ticker={ticker} size={36} assetId={a.assetId} clickable />
-                      )}
-                    </span>
-                    <div className='transaction-detail-asset__copy'>
-                      <span className='transaction-detail-asset__amount'>
-                        {prettyCurrencyAssetAmount(BigInt(a.amount), decimals, amountLabel)} {label}
-                        {!trusted ? <UnverifiedBadge /> : null}
-                      </span>
-                      {name && ticker && !accountTicker ? (
-                        <span className='transaction-detail-asset__name'>{name}</span>
-                      ) : null}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          ) : null}
+          {amountDisplay ? <TransactionAmountSummary amount={amountDisplay} label={summaryLabel} /> : null}
           <Details details={details} variant='receipt' />
         </FlexCol>
       </Padded>
@@ -253,7 +272,40 @@ export default function Transaction() {
     !settling
 
   const Buttons = () =>
-    showSettleButtons ? (
+    showCancelSwap ? (
+      <>
+        <ButtonsOnBottom>
+          <Button
+            variant='destructive'
+            label={
+              cancellingSwap
+                ? 'Cancelling…'
+                : cancelFailed || liveSwap.status === 'cancelling'
+                  ? 'Retry cancel'
+                  : 'Cancel swap'
+            }
+            disabled={cancellingSwap}
+            onClick={() => setCancelConfirmOpen(true)}
+          />
+        </ButtonsOnBottom>
+        <AlertDialog open={cancelConfirmOpen} onOpenChange={setCancelConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Cancel swap?</AlertDialogTitle>
+              <AlertDialogDescription>
+                If the swap is still pending, this will return its locked funds to your wallet.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className='min-h-11'>Keep swap</AlertDialogCancel>
+              <AlertDialogAction className='min-h-11' variant='destructive' onClick={handleCancelSwap}>
+                Cancel swap
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
+    ) : showSettleButtons ? (
       <>
         <ButtonsOnBottom>
           <Button onClick={handleSettle} label={buttonLabel} disabled={settling} />
