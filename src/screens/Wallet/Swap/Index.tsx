@@ -9,14 +9,23 @@ import Content from '../../../components/Content'
 import Header from '../../../components/Header'
 import Padded from '../../../components/Padded'
 import TokenLogo, { tokenLogoTickerForAsset } from '../../../components/TokenLogo'
+import { toast } from '../../../components/Toast'
 import WalletSuccessSplash from '../../../components/WalletSuccessSplash'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../../../components/ui/drawer'
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from '../../../components/ui/popover'
 import ArrowUpDownIcon from '../../../icons/ArrowUpDown'
 import ChevronDownIcon from '../../../icons/ChevronDown'
 import InfoIcon from '../../../icons/Info'
 import SwapIcon from '../../../icons/Swap'
 import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
-import { centsToUnits } from '../../../lib/assets'
+import { centsToUnits, unitsToCents } from '../../../lib/assets'
 import { extractError } from '../../../lib/error'
 import { formatFiatAmountParts, normalizeBitcoinUnit, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
@@ -40,6 +49,7 @@ type DrawerState = 'to' | 'review' | null
 type SwapStep = 'select-from' | 'compose'
 type AmountMode = 'asset' | 'fiat'
 type SwapValidationState = 'idle' | 'insufficient-balance' | 'quote-unavailable'
+type SwapValidationVariant = 'sonner' | 'inline'
 
 interface SwapAsset {
   assetId: string
@@ -173,6 +183,7 @@ export default function WalletSwap() {
   const [confirming, setConfirming] = useState(false)
   const [confirmError, setConfirmError] = useState('')
   const [successQuote, setSuccessQuote] = useState<SwapQuote>()
+  const [validationVariant, setValidationVariant] = useState<SwapValidationVariant>('sonner')
 
   const fromAsset =
     swapAssets.find((asset) => asset.assetId === fromAssetId) ??
@@ -205,8 +216,10 @@ export default function WalletSwap() {
 
   const quoteStale = quotedAmount !== amount
   const planError = plan ? validatePlan(plan, assetBalanceAtomic(fromAsset), aspInfo.dust) : undefined
+  const exceedsBalance = unitsToCents(assetAmount, fromAsset.decimals) > assetBalanceAtomic(fromAsset)
   const validationMessage = swapValidationMessage({
     amount,
+    exceedsBalance,
     fromAsset,
     pairAvailable: toAsset ? Boolean(pair?.market) : undefined,
     plan,
@@ -271,6 +284,21 @@ export default function WalletSwap() {
     hapticSubtle()
     setInvalidPulse((current) => current + 1)
   }, [validationState])
+
+  useEffect(() => {
+    if (validationVariant !== 'sonner' || !validationMessage) {
+      toast.dismiss('swap-validation')
+      return
+    }
+    toast.error(validationMessage, { id: 'swap-validation' })
+  }, [amount, validationMessage, validationVariant])
+
+  useEffect(
+    () => () => {
+      toast.dismiss('swap-validation')
+    },
+    [],
+  )
 
   const openDrawer = (nextDrawer: DrawerState) => {
     hapticLight()
@@ -446,6 +474,7 @@ export default function WalletSwap() {
                     onUseMaxBalance={useMaxBalance}
                     validationState={validationState}
                     validationText={validationMessage}
+                    validationVariant={validationVariant}
                     invalidPulse={invalidPulse}
                     quoteLoading={quoteLoading}
                     swapTurn={swapTurn}
@@ -458,6 +487,10 @@ export default function WalletSwap() {
           </div>
         </Padded>
       </Content>
+
+      {step === 'compose' ? (
+        <ValidationVariantSwitcher variant={validationVariant} onChange={setValidationVariant} />
+      ) : null}
 
       <AssetPickerDrawer
         open={drawer === 'to'}
@@ -576,6 +609,7 @@ function SwapComposer({
   onUseMaxBalance,
   validationState,
   validationText,
+  validationVariant,
   invalidPulse,
   quoteLoading,
   swapTurn,
@@ -594,6 +628,7 @@ function SwapComposer({
   onUseMaxBalance: () => void
   validationState: SwapValidationState
   validationText: string
+  validationVariant: SwapValidationVariant
   invalidPulse: number
   quoteLoading: boolean
   swapTurn: number
@@ -603,7 +638,17 @@ function SwapComposer({
     amountMode === 'fiat' ? formatCurrencyInputAmount(amount, currency, bitcoinUnit) : `${amount} ${fromAsset.ticker}`
   const subAmountLabel = amountMode === 'fiat' ? `${quote.fromAmount} ${fromAsset.ticker}` : quote.fromFiat
   const nextAmountModeLabel = amountMode === 'fiat' ? 'asset amount' : `${currency} amount`
-  const validationMessage = validationText
+  const inlineValidation = validationVariant === 'inline' ? validationText : ''
+  const secondaryTransition = {
+    duration: prefersReduced ? 0 : 0.16,
+    ease: EASE_OUT_QUINT_TUPLE,
+  }
+  const secondaryMotion = {
+    initial: prefersReduced ? false : { opacity: 0, y: 4, scale: 0.97 },
+    animate: { opacity: 1, y: 0, scale: 1 },
+    exit: prefersReduced ? undefined : { opacity: 0, y: -4, scale: 0.97 },
+    transition: secondaryTransition,
+  }
 
   return (
     <div className='swap-composer'>
@@ -633,40 +678,46 @@ function SwapComposer({
           >
             <AnimatedAmountValue value={amountLabel} reducedMotion={prefersReduced} />
           </motion.button>
-          <AnimatePresence initial={false}>
-            {validationMessage ? (
-              <motion.p
-                key={validationMessage}
-                className='swap-input-error'
-                initial={prefersReduced ? false : { opacity: 0, y: 4, scale: 0.96 }}
-                animate={prefersReduced ? undefined : { opacity: 1, y: 0, scale: 1 }}
-                exit={prefersReduced ? undefined : { opacity: 0, y: 4, scale: 0.96 }}
-                transition={{ duration: prefersReduced ? 0 : 0.16, ease: EASE_OUT_QUINT_TUPLE }}
+        </div>
+        <div className='swap-amount-secondary-slot' aria-live='polite'>
+          <AnimatePresence mode='wait' initial={false}>
+            {inlineValidation === 'Insufficient balance' ? (
+              <motion.button
+                key='max'
+                type='button'
+                className='swap-inline-validation swap-inline-validation--action'
+                onClick={onUseMaxBalance}
+                aria-label={`Use maximum ${formatAssetBalance(fromAsset)}`}
+                {...secondaryMotion}
               >
-                {validationMessage}
-              </motion.p>
-            ) : null}
+                Max {formatAssetBalance(fromAsset)}
+              </motion.button>
+            ) : inlineValidation ? (
+              <motion.span key={inlineValidation} className='swap-inline-validation' role='status' {...secondaryMotion}>
+                {inlineValidation}
+              </motion.span>
+            ) : (
+              <motion.button
+                key='amount'
+                type='button'
+                className='swap-amount-secondary'
+                onClick={onModeToggle}
+                aria-label={`Show ${nextAmountModeLabel} first`}
+                {...secondaryMotion}
+              >
+                <AnimatedSecondaryAmountValue value={subAmountLabel} reducedMotion={prefersReduced} />
+                <motion.span
+                  className='swap-amount-secondary__icon'
+                  animate={{ rotate: amountMode === 'fiat' ? 0 : 180 }}
+                  transition={{ duration: prefersReduced ? 0 : 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }}
+                  aria-hidden='true'
+                >
+                  <ArrowUpDownIcon />
+                </motion.span>
+              </motion.button>
+            )}
           </AnimatePresence>
         </div>
-        <motion.button
-          type='button'
-          className='swap-amount-secondary'
-          layout
-          onClick={onModeToggle}
-          aria-label={`Show ${nextAmountModeLabel} first`}
-          transition={{ duration: prefersReduced ? 0 : 0.18, ease: EASE_IN_OUT_QUINT_TUPLE }}
-        >
-          <AnimatedSecondaryAmountValue value={subAmountLabel} reducedMotion={prefersReduced} />
-          <motion.span
-            className='swap-amount-secondary__icon'
-            layout='position'
-            animate={{ rotate: amountMode === 'fiat' ? 0 : 180 }}
-            transition={{ duration: prefersReduced ? 0 : 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }}
-            aria-hidden='true'
-          >
-            <ArrowUpDownIcon />
-          </motion.span>
-        </motion.button>
       </div>
 
       <motion.button
@@ -705,6 +756,64 @@ function SwapComposer({
         )}
       </button>
     </div>
+  )
+}
+
+function ValidationVariantSwitcher({
+  variant,
+  onChange,
+}: {
+  variant: SwapValidationVariant
+  onChange: (variant: SwapValidationVariant) => void
+}) {
+  const [open, setOpen] = useState(false)
+
+  const selectVariant = (nextVariant: SwapValidationVariant) => {
+    hapticLight()
+    onChange(nextVariant)
+    setOpen(false)
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger className='swap-variant-trigger' aria-label='Choose validation variant' onClick={hapticLight}>
+        {variant === 'sonner' ? 'V1' : 'V2'}
+      </PopoverTrigger>
+      <PopoverContent className='swap-variant-popover' side='top' align='end' sideOffset={8}>
+        <PopoverHeader>
+          <PopoverTitle>Validation feedback</PopoverTitle>
+          <PopoverDescription>Compare how swap errors appear.</PopoverDescription>
+        </PopoverHeader>
+        <div className='swap-variant-options' role='radiogroup' aria-label='Validation feedback variant'>
+          <button
+            type='button'
+            className='swap-variant-option'
+            role='radio'
+            aria-checked={variant === 'sonner'}
+            onClick={() => selectVariant('sonner')}
+          >
+            <span className='swap-variant-option__badge'>V1</span>
+            <span>
+              <strong>Sonner toast</strong>
+              <small>Temporary message above the screen.</small>
+            </span>
+          </button>
+          <button
+            type='button'
+            className='swap-variant-option'
+            role='radio'
+            aria-checked={variant === 'inline'}
+            onClick={() => selectVariant('inline')}
+          >
+            <span className='swap-variant-option__badge'>V2</span>
+            <span>
+              <strong>Inline max</strong>
+              <small>Replaces the conversion pill.</small>
+            </span>
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -1249,6 +1358,7 @@ function amountForQuote(amount: string, fromAsset: SwapAsset): string {
 
 function swapValidationMessage({
   amount,
+  exceedsBalance,
   fromAsset,
   pairAvailable,
   plan,
@@ -1257,6 +1367,7 @@ function swapValidationMessage({
   status,
 }: {
   amount: string
+  exceedsBalance: boolean
   fromAsset: SwapAsset
   pairAvailable: boolean | undefined
   plan: OfferPlan | null
@@ -1265,6 +1376,7 @@ function swapValidationMessage({
   status: string
 }): string {
   if (!Number(amount)) return ''
+  if (exceedsBalance) return 'Insufficient balance'
   if (pairAvailable === undefined) return ''
   if (!pairAvailable || solvable === false) return 'Swap unavailable for this pair'
   if (status === 'error') return 'Quote unavailable'
