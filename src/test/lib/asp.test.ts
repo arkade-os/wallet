@@ -25,7 +25,22 @@ vi.mock('@arkade-os/sdk', async (importOriginal) => {
   }
 })
 
-import { getAspInfo, aspErrorText, emptyAspInfo } from '../../lib/asp'
+import { getAspInfo, aspErrorText, emptyAspInfo, byExpiryAsc } from '../../lib/asp'
+
+describe('byExpiryAsc', () => {
+  it('sorts known expiries ascending and places missing expiry last', () => {
+    const items = [
+      { id: 'no-expiry', expiresAt: undefined },
+      { id: 'later', expiresAt: new Date(2000) },
+      { id: 'null-expiry', expiresAt: null },
+      { id: 'earlier', expiresAt: new Date(1000) },
+    ]
+
+    const sorted = [...items].sort(byExpiryAsc).map((i) => i.id)
+
+    expect(sorted).toEqual(['earlier', 'later', 'no-expiry', 'null-expiry'])
+  })
+})
 
 describe('aspErrorText', () => {
   it('returns the caller fallback when not outdated', () => {
