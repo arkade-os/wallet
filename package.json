@@ -67,7 +67,7 @@
     "format:check": "prettier --check src",
     "git-info": "node scripts/git-commit-info.js",
     "build:markets": "node scripts/build-markets-json.mjs",
-    "regtest:start": "node regtest/regtest.mjs start --env .env.regtest && docker compose -f docker-compose.nak.yml up -d",
+    "regtest:start": "node regtest/regtest.mjs start --env .env.regtest && docker compose -f docker-compose.nak.yml up -d && pnpm build:markets",
     "regtest:stop": "docker compose -f docker-compose.nak.yml down && node regtest/regtest.mjs stop --env .env.regtest",
     "regtest:clean": "docker compose -f docker-compose.nak.yml down -v && node regtest/regtest.mjs clean --env .env.regtest",
     "regtest:setup": "node src/test/setup.mjs"
