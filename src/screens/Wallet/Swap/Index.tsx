@@ -8,9 +8,16 @@ import Button from '../../../components/Button'
 import Content from '../../../components/Content'
 import Header from '../../../components/Header'
 import Padded from '../../../components/Padded'
+import SwapVariantSwitcher from '../../../components/SwapVariantSwitcher'
 import TokenLogo, { tokenLogoTickerForAsset } from '../../../components/TokenLogo'
 import WalletSuccessSplash from '../../../components/WalletSuccessSplash'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../../../components/ui/drawer'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../../components/ui/dropdown-menu'
 import ArrowUpDownIcon from '../../../icons/ArrowUpDown'
 import ChevronDownIcon from '../../../icons/ChevronDown'
 import InfoIcon from '../../../icons/Info'
@@ -28,7 +35,7 @@ import { AspContext } from '../../../providers/asp'
 import { AssetSwapsContext } from '../../../providers/assetSwaps'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
-import { FlowContext } from '../../../providers/flow'
+import { FlowContext, type SwapVariant } from '../../../providers/flow'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import { usePortfolioFiat, type PortfolioRow } from '../../../hooks/usePortfolioFiat'
@@ -36,8 +43,8 @@ import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import { verifiedDesignatedCurrency } from '../../../lib/accountAssets'
 
 type AssetTarget = 'from' | 'to'
-type DrawerState = 'to' | 'amount' | 'review' | null
-type SwapStep = 'select-from' | 'compose'
+type DrawerState = 'from' | 'to' | 'amount' | 'review' | null
+type SwapStep = 'select-intent' | 'select-from' | 'select-to' | 'compose'
 type AmountMode = 'asset' | 'fiat'
 type AmountInput = 'give' | 'want'
 type SwapValidationState = 'idle' | 'insufficient-balance' | 'quote-unavailable'
@@ -92,7 +99,7 @@ export default function WalletSwap() {
   const { createSwap, markets, swapAvailable } = useContext(AssetSwapsContext)
   const { config } = useContext(ConfigContext)
   const { fiatDecimals, fromFiatAmount, toFiat, toFiatAmount } = useContext(FiatContext)
-  const { swapFromAssetId, setSwapFromAssetId } = useContext(FlowContext)
+  const { swapFromAssetId, setSwapFromAssetId, swapVariant, setSwapVariant } = useContext(FlowContext)
   const { goBack, navigate } = useContext(NavigationContext)
   const { assetBalances, assetMetadataCache, availableBalance, isVerifiedAsset } = useContext(WalletContext)
   const { rows } = usePortfolioFiat()
@@ -162,7 +169,7 @@ export default function WalletSwap() {
   ])
   const initialFromAssetId = resolveInitialFromAssetId(swapAssets, swapFromAssetId)
   const openedWithPreselectedAsset = useRef(Boolean(swapFromAssetId))
-  const [step, setStep] = useState<SwapStep>(swapFromAssetId && initialFromAssetId ? 'compose' : 'select-from')
+  const [step, setStep] = useState<SwapStep>(firstSwapStep(swapVariant, Boolean(swapFromAssetId && initialFromAssetId)))
   const [search, setSearch] = useState('')
   const [amount, setAmount] = useState('0')
   const [amountMode, setAmountMode] = useState<AmountMode>('fiat')
@@ -198,9 +205,9 @@ export default function WalletSwap() {
     amountInput === 'give'
       ? amountForQuote(amountInAssetUnits(amount, amountMode, fromAsset, unitOfAccountUsd), fromAsset)
       : toAsset
-        ? amountForQuote(amount, toAsset)
+        ? amountForQuote(amountInAssetUnits(amount, amountMode, toAsset, unitOfAccountUsd), toAsset)
         : ''
-  const quoteRequestKey = `${amountInput}:${fromAsset.assetId}:${toAsset?.assetId ?? ''}:${amount}`
+  const quoteRequestKey = `${amountInput}:${amountMode}:${fromAsset.assetId}:${toAsset?.assetId ?? ''}:${amount}`
   const [quotedRequestKey, setQuotedRequestKey] = useState('')
 
   useEffect(() => {
@@ -255,6 +262,21 @@ export default function WalletSwap() {
   const stageTransition = prefersReduced ? { duration: 0 } : { duration: 0.28, ease: EASE_IN_OUT_QUINT_TUPLE }
 
   const filteredAssets = useMemo(() => filterAssets(swapAssets, search), [search, swapAssets])
+  const receiveFirstAssets = useMemo(
+    () =>
+      swapAssets.filter((receiveAsset) =>
+        swapAssets.some(
+          (sendAsset) =>
+            sendAsset.assetId !== receiveAsset.assetId &&
+            Boolean(findMarket(markets, sendAsset.assetId, receiveAsset.assetId)?.market),
+        ),
+      ),
+    [markets, swapAssets],
+  )
+  const filteredReceiveFirstAssets = useMemo(
+    () => filterAssets(receiveFirstAssets, search),
+    [receiveFirstAssets, search],
+  )
 
   useEffect(() => {
     if (swapAssets.length === 0) return
@@ -317,6 +339,14 @@ export default function WalletSwap() {
     setAmountMode(nextMode)
   }
 
+  const selectHeaderAmountInput = (nextInput: AmountInput) => {
+    selectAmountInput(nextInput, nextInput === amountInput ? amountMode : 'asset')
+    if (step === 'compose') return
+
+    setSearch('')
+    setStep(nextInput === 'give' ? 'select-from' : 'select-to')
+  }
+
   const openReceiveAmountDrawer = () => {
     if (receiveAmountDisabled) return
     hapticLight()
@@ -324,17 +354,19 @@ export default function WalletSwap() {
     if (amountInput !== 'want') {
       setAmount(
         hasPositiveAmount
-          ? inputAmountFromQuote(plan, quote, 'want', amountMode, fromAsset, toAsset, fiatDecimals())
+          ? inputAmountFromQuote(plan, quote, 'want', 'asset', fromAsset, toAsset, fiatDecimals())
           : '0',
       )
       setAmountInput('want')
     }
+    setAmountMode('asset')
     setDrawer('amount')
   }
 
   const selectFromAsset = (asset: SwapAsset) => {
     hapticLight()
     focusFromAsset(asset.assetId)
+    setDrawer(null)
   }
 
   const selectToAsset = (_target: AssetTarget, asset: SwapAsset) => {
@@ -350,6 +382,24 @@ export default function WalletSwap() {
     setDrawer(null)
   }
 
+  const selectInitialToAsset = (asset: SwapAsset) => {
+    hapticLight()
+    const compatibleSendAssets = swapAssets.filter(
+      (candidate) =>
+        candidate.assetId !== asset.assetId && Boolean(findMarket(markets, candidate.assetId, asset.assetId)?.market),
+    )
+    const nextFromAsset = firstPositiveBalanceAsset(compatibleSendAssets) ?? compatibleSendAssets[0]
+    if (!nextFromAsset) return
+
+    setFromAssetId(nextFromAsset.assetId)
+    setToAssetId(asset.assetId)
+    setAmount('0')
+    setAmountInput('want')
+    setAmountMode('asset')
+    setSearch('')
+    setStep('compose')
+  }
+
   const swapSides = () => {
     if (!toAsset) return
     hapticLight()
@@ -363,11 +413,11 @@ export default function WalletSwap() {
     setToAssetId(fromAsset.assetId)
   }
 
-  const pressKey = (key: string, targetInput: AmountInput = amountInput) => {
+  const pressKey = (key: string, targetInput: AmountInput = amountInput, targetMode: AmountMode = amountMode) => {
     setConfirmError('')
     const targetAsset = targetInput === 'want' && toAsset ? toAsset : fromAsset
-    const maxDecimals = targetInput === 'give' && amountMode === 'fiat' ? fiatDecimals() : targetAsset.decimals
-    const currentAmount = targetInput === amountInput ? amount : '0'
+    const maxDecimals = targetMode === 'fiat' ? fiatDecimals() : targetAsset.decimals
+    const currentAmount = targetInput === amountInput && targetMode === amountMode ? amount : '0'
     const canApplyKey = (current: string) => {
       if (key === 'Back') return current !== '0'
       const base = current === '0' && key !== '.' ? '' : current
@@ -380,6 +430,7 @@ export default function WalletSwap() {
     hapticTap()
 
     if (targetInput !== amountInput) setAmountInput(targetInput)
+    if (targetMode !== amountMode) setAmountMode(targetMode)
 
     if (key === 'Back') {
       setAmount(currentAmount.slice(0, -1) || '0')
@@ -394,8 +445,32 @@ export default function WalletSwap() {
     })
   }
 
-  const toggleAmountMode = () => {
-    selectAmountInput('give', amountMode === 'asset' ? 'fiat' : 'asset')
+  const typeNativeAmount = (value: string, targetInput: AmountInput, targetMode: AmountMode) => {
+    const targetAsset = targetInput === 'want' && toAsset ? toAsset : fromAsset
+    setConfirmError('')
+    setAmount(normalizeNativeAmount(value, targetMode === 'fiat' ? fiatDecimals() : targetAsset.decimals))
+    setAmountInput(targetInput)
+    setAmountMode(targetMode)
+  }
+
+  const toggleAmountMode = (targetInput: AmountInput = amountInput) => {
+    const nextMode = targetInput === amountInput && amountMode === 'fiat' ? 'asset' : 'fiat'
+    selectAmountInput(targetInput, nextMode)
+  }
+
+  const selectSwapVariant = (nextVariant: SwapVariant) => {
+    setSwapVariant(nextVariant)
+    openedWithPreselectedAsset.current = false
+    setDrawer(null)
+    setConfirmError('')
+    setSearch('')
+    setToAssetId(undefined)
+    setAmount('0')
+    setGiveAmount('')
+    setWantAmount('')
+    setAmountInput(nextVariant === 'receive-first' ? 'want' : 'give')
+    setAmountMode(nextVariant === 'current' ? 'fiat' : 'asset')
+    setStep(firstSwapStep(nextVariant, false))
   }
 
   const useMaxBalance = () => {
@@ -412,7 +487,13 @@ export default function WalletSwap() {
 
   const handleBack = () => {
     if (step === 'compose' && !openedWithPreselectedAsset.current) {
-      setStep('select-from')
+      setSearch('')
+      setStep(firstSwapStep(swapVariant, false))
+      return
+    }
+    if ((step === 'select-from' || step === 'select-to') && swapVariant === 'segmented') {
+      setSearch('')
+      setStep('select-intent')
       return
     }
     goBack()
@@ -449,15 +530,69 @@ export default function WalletSwap() {
   const receiveAssets = swapAssets.filter((asset) =>
     Boolean(findMarket(markets, fromAsset.assetId, asset.assetId)?.market),
   )
+  const sendAssets = swapAssets.filter(
+    (asset) =>
+      asset.assetId !== toAsset?.assetId && (!toAsset || findMarket(markets, asset.assetId, toAsset.assetId)?.market),
+  )
 
   return (
     <>
-      <Header text='Swap' back={handleBack} />
+      <Header
+        text={
+          swapVariant === 'primary-menu' ? (
+            <SwapAmountDirectionTitle amountInput={amountInput} onSelect={selectHeaderAmountInput} />
+          ) : (
+            'Swap'
+          )
+        }
+        back={handleBack}
+      />
       <Content className='asset-swap-content'>
         <Padded>
           <div className='asset-swap-lab'>
             <AnimatePresence mode='wait' initial={false}>
-              {step === 'select-from' ? (
+              {step === 'select-intent' ? (
+                <motion.section
+                  key='select-intent'
+                  className='swap-flow-stage'
+                  initial={prefersReduced ? false : { opacity: 0, x: -16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={prefersReduced ? undefined : { opacity: 0, x: -16 }}
+                  transition={stageTransition}
+                >
+                  <div className='swap-asset-list-panel'>
+                    <div className='swap-step-heading'>
+                      <p>Start with</p>
+                      <span>Choose which side of the swap you want to set first.</span>
+                    </div>
+                    <div className='swap-intent-control' aria-label='Swap intent'>
+                      <button
+                        type='button'
+                        aria-pressed='false'
+                        onClick={() => {
+                          hapticLight()
+                          setAmountInput('give')
+                          setStep('select-from')
+                        }}
+                      >
+                        You send
+                      </button>
+                      <button
+                        type='button'
+                        aria-pressed='false'
+                        onClick={() => {
+                          hapticLight()
+                          setAmountInput('want')
+                          setAmountMode('asset')
+                          setStep('select-to')
+                        }}
+                      >
+                        You receive
+                      </button>
+                    </div>
+                  </div>
+                </motion.section>
+              ) : step === 'select-from' ? (
                 <motion.section
                   key='select-from'
                   className='swap-flow-stage'
@@ -469,11 +604,35 @@ export default function WalletSwap() {
                   {swapAvailable ? (
                     <SwapAssetList
                       title='Choose asset to swap'
+                      description='Select the asset you want to trade from.'
                       search={search}
                       assets={filteredAssets}
                       empty={filteredAssets.length === 0}
                       onSearch={setSearch}
                       onSelect={selectFromAsset}
+                    />
+                  ) : (
+                    <SwapUnavailableState />
+                  )}
+                </motion.section>
+              ) : step === 'select-to' ? (
+                <motion.section
+                  key='select-to'
+                  className='swap-flow-stage'
+                  initial={prefersReduced ? false : { opacity: 0, x: -16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={prefersReduced ? undefined : { opacity: 0, x: -16 }}
+                  transition={stageTransition}
+                >
+                  {swapAvailable ? (
+                    <SwapAssetList
+                      title='Choose asset to receive'
+                      description='Select the asset you want to receive.'
+                      search={search}
+                      assets={filteredReceiveFirstAssets}
+                      empty={filteredReceiveFirstAssets.length === 0}
+                      onSearch={setSearch}
+                      onSelect={selectInitialToAsset}
                     />
                   ) : (
                     <SwapUnavailableState />
@@ -489,18 +648,23 @@ export default function WalletSwap() {
                   transition={stageTransition}
                 >
                   <SwapComposer
+                    variant={swapVariant}
                     amount={amount}
                     amountInput={amountInput}
                     amountMode={amountMode}
                     currency={config.currency}
                     bitcoinUnit={config.unit}
+                    fiatInputDecimals={fiatDecimals()}
                     quote={quote}
                     fromAsset={fromAsset}
                     toAsset={toAsset}
                     onAmountFocus={() => {}}
                     onModeToggle={toggleAmountMode}
+                    onOpenSendPicker={() => openDrawer('from')}
                     onOpenReceiveDrawer={() => openDrawer('to')}
                     onOpenReceiveAmountDrawer={openReceiveAmountDrawer}
+                    onAmountInputChange={selectAmountInput}
+                    onNativeAmountChange={typeNativeAmount}
                     receiveAmountDisabled={receiveAmountDisabled}
                     onSwapSides={swapSides}
                     onUseMaxBalance={useMaxBalance}
@@ -510,10 +674,18 @@ export default function WalletSwap() {
                     quoteLoading={quoteLoading}
                     swapTurn={swapTurn}
                   />
-                  <Keypad
-                    amount={amountInput === 'give' ? amount : quote.fromAmount}
-                    onPress={(key) => pressKey(key, 'give')}
-                  />
+                  {swapVariant !== 'native' ? (
+                    <Keypad
+                      amount={swapVariant === 'current' && amountInput === 'want' ? quote.fromAmount : amount}
+                      onPress={(key) =>
+                        pressKey(
+                          key,
+                          swapVariant === 'current' ? 'give' : amountInput,
+                          swapVariant === 'current' && amountInput === 'want' ? 'fiat' : amountMode,
+                        )
+                      }
+                    />
+                  ) : null}
                   <Button label='Continue' disabled={!canContinue} onClick={() => openDrawer('review')} />
                 </motion.section>
               )}
@@ -521,6 +693,19 @@ export default function WalletSwap() {
           </div>
         </Padded>
       </Content>
+
+      {swapAvailable ? <SwapVariantSwitcher selected={swapVariant} onSelect={selectSwapVariant} /> : null}
+
+      <AssetPickerDrawer
+        open={drawer === 'from'}
+        target='from'
+        assets={sendAssets}
+        selectedId={fromAsset.assetId}
+        onOpenChange={(open) => {
+          if (!open) setDrawer(null)
+        }}
+        onSelect={(_target, asset) => selectFromAsset(asset)}
+      />
 
       <AssetPickerDrawer
         open={drawer === 'to'}
@@ -534,7 +719,7 @@ export default function WalletSwap() {
       />
 
       <ReceiveAmountDrawer
-        open={drawer === 'amount'}
+        open={drawer === 'amount' && swapVariant === 'current'}
         amount={amount}
         asset={toAsset}
         quote={quote}
@@ -543,7 +728,7 @@ export default function WalletSwap() {
         onOpenChange={(open) => {
           if (!open) setDrawer(null)
         }}
-        onPress={(key) => pressKey(key, 'want')}
+        onPress={(key) => pressKey(key, 'want', 'asset')}
         onDone={() => {
           hapticLight()
           setDrawer(null)
@@ -585,6 +770,7 @@ function SwapUnavailableState() {
 
 function SwapAssetList({
   title,
+  description,
   search,
   assets,
   empty,
@@ -593,6 +779,7 @@ function SwapAssetList({
   onSelect,
 }: {
   title: string
+  description: string
   search: string
   assets: SwapAsset[]
   empty: boolean
@@ -606,7 +793,7 @@ function SwapAssetList({
     <div className='swap-asset-list-panel'>
       <div className='swap-step-heading'>
         <p>{title}</p>
-        <span>Select the asset you want to trade from.</span>
+        <span>{description}</span>
       </div>
       <label className='swap-search-field'>
         <span>Search assets</span>
@@ -642,18 +829,23 @@ function SwapAssetList({
 }
 
 function SwapComposer({
+  variant,
   amount,
   amountInput,
   amountMode,
   currency,
   bitcoinUnit,
+  fiatInputDecimals,
   quote,
   fromAsset,
   toAsset,
   onAmountFocus,
   onModeToggle,
+  onOpenSendPicker,
   onOpenReceiveDrawer,
   onOpenReceiveAmountDrawer,
+  onAmountInputChange,
+  onNativeAmountChange,
   receiveAmountDisabled,
   onSwapSides,
   onUseMaxBalance,
@@ -663,18 +855,23 @@ function SwapComposer({
   quoteLoading,
   swapTurn,
 }: {
+  variant: SwapVariant
   amount: string
   amountInput: AmountInput
   amountMode: AmountMode
   currency: Currencies
   bitcoinUnit: Unit
+  fiatInputDecimals: number
   quote: SwapQuote
   fromAsset: SwapAsset
   toAsset?: SwapAsset
   onAmountFocus: () => void
-  onModeToggle: () => void
+  onModeToggle: (input?: AmountInput) => void
+  onOpenSendPicker: () => void
   onOpenReceiveDrawer: () => void
   onOpenReceiveAmountDrawer: () => void
+  onAmountInputChange: (input: AmountInput, mode?: AmountMode) => void
+  onNativeAmountChange: (value: string, input: AmountInput, mode: AmountMode) => void
   receiveAmountDisabled: boolean
   onSwapSides: () => void
   onUseMaxBalance: () => void
@@ -688,31 +885,53 @@ function SwapComposer({
   const amountLabel =
     amountInput === 'want'
       ? Number(amount) > 0
-        ? amountMode === 'fiat'
-          ? quote.fromFiat
-          : `${quote.fromAmount} ${fromAsset.ticker}`
-        : amountMode === 'fiat'
-          ? formatCurrencyInputAmount('0', currency, bitcoinUnit)
-          : `0 ${fromAsset.ticker}`
+        ? quote.fromFiat
+        : formatCurrencyInputAmount('0', currency, bitcoinUnit)
       : amountMode === 'fiat'
         ? formatCurrencyInputAmount(amount, currency, bitcoinUnit)
         : `${amount} ${fromAsset.ticker}`
   const subAmountLabel =
     amountInput === 'want'
       ? Number(amount) > 0
-        ? amountMode === 'fiat'
-          ? `${quote.fromAmount} ${fromAsset.ticker}`
-          : quote.fromFiat
-        : amountMode === 'fiat'
-          ? `0 ${fromAsset.ticker}`
-          : formatCurrencyInputAmount('0', currency, bitcoinUnit)
+        ? `${quote.fromAmount} ${fromAsset.ticker}`
+        : `0 ${fromAsset.ticker}`
       : amountMode === 'fiat'
         ? `${quote.fromAmount} ${fromAsset.ticker}`
         : quote.fromFiat
-  const nextAmountModeLabel = amountMode === 'fiat' ? 'asset amount' : `${currency} amount`
+  const currentDisplayMode: AmountMode = amountInput === 'want' ? 'fiat' : amountMode
+  const nextAmountModeLabel = currentDisplayMode === 'fiat' ? 'asset amount' : `${currency} amount`
   const rate = Number(quote.rateLabel.replace(/,/g, ''))
     ? `1 ${quote.rateFromTicker} = ${quote.rateLabel} ${quote.rateToTicker}`
     : ''
+
+  if (variant !== 'current') {
+    return (
+      <AlternativeSwapComposer
+        variant={variant}
+        amount={amount}
+        amountInput={amountInput}
+        amountMode={amountMode}
+        currency={currency}
+        bitcoinUnit={bitcoinUnit}
+        fiatInputDecimals={fiatInputDecimals}
+        quote={quote}
+        fromAsset={fromAsset}
+        toAsset={toAsset}
+        rate={rate}
+        onModeToggle={onModeToggle}
+        onOpenSendPicker={onOpenSendPicker}
+        onOpenReceiveDrawer={onOpenReceiveDrawer}
+        onAmountInputChange={onAmountInputChange}
+        onNativeAmountChange={onNativeAmountChange}
+        onUseMaxBalance={onUseMaxBalance}
+        validationText={validationText}
+        quoteLoading={quoteLoading}
+        receiveAmountDisabled={receiveAmountDisabled}
+        onSwapSides={onSwapSides}
+        swapTurn={swapTurn}
+      />
+    )
+  }
 
   return (
     <div className='swap-composer'>
@@ -762,7 +981,7 @@ function SwapComposer({
           type='button'
           className='swap-amount-secondary'
           layout
-          onClick={onModeToggle}
+          onClick={() => (amountInput === 'want' ? onAmountInputChange('give', 'asset') : onModeToggle('give'))}
           aria-label={`Show ${nextAmountModeLabel} first`}
           transition={{ duration: prefersReduced ? 0 : 0.18, ease: EASE_IN_OUT_QUINT_TUPLE }}
         >
@@ -770,7 +989,7 @@ function SwapComposer({
           <motion.span
             className='swap-amount-secondary__icon'
             layout='position'
-            animate={{ rotate: amountMode === 'fiat' ? 0 : 180 }}
+            animate={{ rotate: currentDisplayMode === 'fiat' ? 0 : 180 }}
             transition={{ duration: prefersReduced ? 0 : 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }}
             aria-hidden='true'
           >
@@ -805,7 +1024,393 @@ function SwapComposer({
   )
 }
 
+function AlternativeSwapComposer({
+  variant,
+  amount,
+  amountInput,
+  amountMode,
+  currency,
+  bitcoinUnit,
+  fiatInputDecimals,
+  quote,
+  fromAsset,
+  toAsset,
+  rate,
+  onModeToggle,
+  onOpenSendPicker,
+  onOpenReceiveDrawer,
+  onAmountInputChange,
+  onNativeAmountChange,
+  onUseMaxBalance,
+  validationText,
+  quoteLoading,
+  receiveAmountDisabled,
+  onSwapSides,
+  swapTurn,
+}: {
+  variant: Exclude<SwapVariant, 'current'>
+  amount: string
+  amountInput: AmountInput
+  amountMode: AmountMode
+  currency: Currencies
+  bitcoinUnit: Unit
+  fiatInputDecimals: number
+  quote: SwapQuote
+  fromAsset: SwapAsset
+  toAsset?: SwapAsset
+  rate: string
+  onModeToggle: (input: AmountInput) => void
+  onOpenSendPicker: () => void
+  onOpenReceiveDrawer: () => void
+  onAmountInputChange: (input: AmountInput, mode?: AmountMode) => void
+  onNativeAmountChange: (value: string, input: AmountInput, mode: AmountMode) => void
+  onUseMaxBalance: () => void
+  validationText: string
+  quoteLoading: boolean
+  receiveAmountDisabled: boolean
+  onSwapSides: () => void
+  swapTurn: number
+}) {
+  const receiveFocused = variant === 'receive-first' || amountInput === 'want'
+  const sendAmount =
+    amountInput === 'give'
+      ? amountMode === 'fiat'
+        ? formatCurrencyInputAmount(amount, currency, bitcoinUnit)
+        : `${amount} ${fromAsset.ticker}`
+      : `${quote.fromAmount} ${fromAsset.ticker}`
+  const sendFiat =
+    amountInput === 'give' && amountMode === 'fiat' ? `${quote.fromAmount} ${fromAsset.ticker}` : quote.fromFiat
+  const receiveAmount =
+    amountInput === 'want'
+      ? amountMode === 'fiat'
+        ? formatCurrencyInputAmount(amount, currency, bitcoinUnit)
+        : `${amount} ${toAsset?.ticker ?? ''}`.trim()
+      : `${quote.toAmount} ${toAsset?.ticker ?? ''}`.trim()
+  const receiveFiat =
+    amountInput === 'want' && amountMode === 'fiat' ? `${quote.toAmount} ${toAsset?.ticker ?? ''}`.trim() : quote.toFiat
+  const selectInput = (input: AmountInput) => onAmountInputChange(input, input === amountInput ? amountMode : 'asset')
+  const modeFor = (input: AmountInput): AmountMode => (input === amountInput ? amountMode : 'asset')
+  const nextModeLabel = (input: AmountInput) => (modeFor(input) === 'fiat' ? 'asset amount' : `${currency} amount`)
+
+  if (variant === 'equal' || variant === 'native') {
+    const useNativeKeyboard = variant === 'native'
+    return (
+      <div
+        className={
+          useNativeKeyboard
+            ? 'swap-composer swap-composer--equal swap-composer--native'
+            : 'swap-composer swap-composer--equal'
+        }
+      >
+        <SwapVariantAmountCard
+          label='You send'
+          asset={fromAsset}
+          amount={sendAmount}
+          secondary={sendFiat}
+          selected={amountInput === 'give'}
+          compact
+          loading={Boolean(quoteLoading && amountInput === 'want')}
+          onAmount={() => selectInput('give')}
+          onBalance={onUseMaxBalance}
+          balance={formatAssetBalance(fromAsset)}
+          validationText={amountInput === 'give' ? validationText : ''}
+          onSecondary={() => onModeToggle('give')}
+          secondaryLabel={`Show ${nextModeLabel('give')} first`}
+          nativeValue={useNativeKeyboard ? (amountInput === 'give' ? amount : quote.fromAmount) : undefined}
+          nativeTicker={modeFor('give') === 'fiat' ? currency : fromAsset.ticker}
+          nativeMaxDecimals={modeFor('give') === 'fiat' ? fiatInputDecimals : fromAsset.decimals}
+          onNativeChange={
+            useNativeKeyboard ? (value) => onNativeAmountChange(value, 'give', modeFor('give')) : undefined
+          }
+        />
+        <motion.button
+          type='button'
+          className='swap-flip-button'
+          aria-label='Switch swap direction'
+          animate={{ rotate: swapTurn * 180 }}
+          transition={{ duration: 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }}
+          disabled={!toAsset}
+          onClick={onSwapSides}
+        >
+          <SwapIcon />
+        </motion.button>
+        <SwapVariantAmountCard
+          label='You receive'
+          asset={toAsset}
+          amount={receiveAmount}
+          secondary={receiveFiat}
+          selected={amountInput === 'want'}
+          compact
+          loading={quoteLoading}
+          disabled={receiveAmountDisabled}
+          onAmount={() => selectInput('want')}
+          onChooseAsset={onOpenReceiveDrawer}
+          validationText={amountInput === 'want' ? validationText : ''}
+          onSecondary={() => onModeToggle('want')}
+          secondaryLabel={`Show ${nextModeLabel('want')} first`}
+          nativeValue={
+            useNativeKeyboard ? (amountInput === 'want' ? amount : quote.toAmount.replaceAll(',', '')) : undefined
+          }
+          nativeTicker={modeFor('want') === 'fiat' ? currency : toAsset?.ticker}
+          nativeMaxDecimals={modeFor('want') === 'fiat' ? fiatInputDecimals : toAsset?.decimals}
+          onNativeChange={
+            useNativeKeyboard ? (value) => onNativeAmountChange(value, 'want', modeFor('want')) : undefined
+          }
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className='swap-composer'>
+      {variant === 'segmented' ? (
+        <div className='swap-intent-control' aria-label='Amount input'>
+          <button type='button' aria-pressed={amountInput === 'give'} onClick={() => selectInput('give')}>
+            You send
+          </button>
+          <button
+            type='button'
+            aria-pressed={amountInput === 'want'}
+            disabled={!toAsset || receiveAmountDisabled}
+            onClick={() => selectInput('want')}
+          >
+            You receive
+          </button>
+        </div>
+      ) : null}
+
+      <SwapVariantAmountCard
+        label={receiveFocused ? 'You receive' : 'You send'}
+        asset={receiveFocused ? toAsset : fromAsset}
+        amount={receiveFocused ? receiveAmount : sendAmount}
+        secondary={receiveFocused ? receiveFiat : sendFiat}
+        balance={receiveFocused ? undefined : formatAssetBalance(fromAsset)}
+        loading={Boolean(quoteLoading && receiveFocused)}
+        onChooseAsset={receiveFocused ? onOpenReceiveDrawer : undefined}
+        onBalance={receiveFocused ? undefined : onUseMaxBalance}
+        onSecondary={() => onModeToggle(receiveFocused ? 'want' : 'give')}
+        secondaryLabel={`Show ${nextModeLabel(receiveFocused ? 'want' : 'give')} first`}
+        onAmount={() => {}}
+        validationText={validationText}
+      />
+
+      {variant === 'promote' ? (
+        <motion.button
+          type='button'
+          className='swap-flip-button'
+          aria-label={receiveFocused ? 'Promote send amount' : 'Promote receive amount'}
+          disabled={!toAsset || (amountInput === 'give' && receiveAmountDisabled)}
+          onClick={() => selectInput(receiveFocused ? 'give' : 'want')}
+          animate={{ rotate: receiveFocused ? 180 : 0 }}
+          transition={{ duration: 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }}
+        >
+          <SwapIcon />
+        </motion.button>
+      ) : (
+        <motion.button
+          type='button'
+          className='swap-flip-button'
+          aria-label='Switch swap direction'
+          animate={{ rotate: swapTurn * 180 }}
+          transition={{ duration: 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }}
+          disabled={!toAsset}
+          onClick={onSwapSides}
+        >
+          <SwapIcon />
+        </motion.button>
+      )}
+
+      <SwapCounterpartCard
+        label={receiveFocused ? 'You send' : 'You receive'}
+        asset={receiveFocused ? fromAsset : toAsset}
+        amount={receiveFocused ? quote.fromAmount : quote.toAmount}
+        fiat={receiveFocused ? quote.fromFiat : receiveFiat}
+        rate={rate}
+        loading={quoteLoading}
+        editDisabled={receiveFocused || receiveAmountDisabled}
+        onChooseReceive={receiveFocused ? onOpenSendPicker : onOpenReceiveDrawer}
+        onEdit={() => selectInput(receiveFocused ? 'give' : 'want')}
+        editOpensDialog={false}
+      />
+    </div>
+  )
+}
+
+function SwapAmountDirectionTitle({
+  amountInput,
+  onSelect,
+}: {
+  amountInput: AmountInput
+  onSelect: (input: AmountInput) => void
+}) {
+  const direction = amountInput === 'give' ? 'from' : 'to'
+
+  return (
+    <span className='swap-header-direction'>
+      <span>Swap</span>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          type='button'
+          className='swap-header-direction__trigger'
+          aria-label={`Choose swap amount direction, currently ${direction}`}
+          onClick={hapticLight}
+        >
+          <span>{direction}</span>
+          <ChevronDownIcon />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className='swap-header-direction__menu' align='center' side='bottom' sideOffset={4}>
+          <DropdownMenuItem
+            className='swap-header-direction__option'
+            aria-current={amountInput === 'give' ? 'true' : undefined}
+            onClick={() => onSelect('give')}
+          >
+            from
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className='swap-header-direction__option'
+            aria-current={amountInput === 'want' ? 'true' : undefined}
+            onClick={() => onSelect('want')}
+          >
+            to
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </span>
+  )
+}
+
+function SwapVariantAmountCard({
+  label,
+  asset,
+  amount,
+  secondary,
+  balance,
+  loading,
+  onChooseAsset,
+  onBalance,
+  onSecondary,
+  secondaryLabel,
+  onAmount,
+  validationText,
+  selected,
+  compact,
+  disabled,
+  nativeValue,
+  nativeTicker,
+  nativeMaxDecimals,
+  onNativeChange,
+}: {
+  label: string
+  asset?: SwapAsset
+  amount: string
+  secondary: string
+  balance?: string
+  loading: boolean
+  onChooseAsset?: () => void
+  onBalance?: () => void
+  onSecondary?: () => void
+  secondaryLabel?: string
+  onAmount: () => void
+  validationText?: string
+  selected?: boolean
+  compact?: boolean
+  disabled?: boolean
+  nativeValue?: string
+  nativeTicker?: string
+  nativeMaxDecimals?: number
+  onNativeChange?: (value: string) => void
+}) {
+  const prefersReduced = useReducedMotion()
+
+  return (
+    <div className={compact ? 'swap-input-card swap-input-card--equal' : 'swap-input-card'}>
+      <div className='swap-input-card__asset'>
+        {asset ? <TokenAvatar asset={asset} size={36} /> : <span className='swap-receive-card__empty'>+</span>}
+        <div className='swap-input-card__asset-copy'>
+          <span>{label}</span>
+          {balance && onBalance ? (
+            <button type='button' className='swap-input-card__balance' onClick={onBalance}>
+              {balance}
+            </button>
+          ) : (
+            <small>{asset?.name ?? 'Choose asset'}</small>
+          )}
+        </div>
+        {onChooseAsset ? (
+          <button type='button' onClick={onChooseAsset} aria-label={`Choose ${label.toLowerCase()} asset`}>
+            {asset?.ticker ?? 'Choose'} <ChevronDownIcon />
+          </button>
+        ) : null}
+      </div>
+      <div className='swap-amount-stack'>
+        {nativeValue !== undefined && onNativeChange ? (
+          <label
+            className='swap-amount-display swap-amount-display--native'
+            style={
+              {
+                '--native-amount-length': Math.max(nativeValue.length, 1),
+                '--swap-amount-scale': amountFontScale(`${nativeValue} ${nativeTicker ?? ''}`.length),
+              } as React.CSSProperties
+            }
+          >
+            <span className='swap-amount-value'>
+              <input
+                aria-label={`${label} amount`}
+                autoComplete='off'
+                className='swap-native-amount-input'
+                data-1p-ignore
+                data-lpignore='true'
+                disabled={disabled}
+                inputMode={nativeMaxDecimals === 0 ? 'numeric' : 'decimal'}
+                maxLength={10}
+                onChange={(event) => onNativeChange(event.currentTarget.value)}
+                onFocus={(event) => {
+                  onAmount()
+                  event.currentTarget.select()
+                }}
+                pattern={nativeMaxDecimals === 0 ? '[0-9]*' : '[0-9]*[.,]?[0-9]*'}
+                spellCheck={false}
+                value={nativeValue}
+              />
+              <span aria-hidden='true'>{nativeTicker}</span>
+            </span>
+          </label>
+        ) : (
+          <button
+            type='button'
+            className='swap-amount-display'
+            aria-label={`${label} amount`}
+            aria-pressed={selected}
+            disabled={disabled}
+            onClick={onAmount}
+          >
+            {loading ? (
+              <span className='swap-amount-value'>
+                <SwapSkeletonText width='8rem' />
+              </span>
+            ) : (
+              <AnimatedAmountValue value={amount} reducedMotion={prefersReduced} />
+            )}
+          </button>
+        )}
+        {validationText ? <p className='swap-input-error'>{validationText}</p> : null}
+      </div>
+      {onSecondary ? (
+        <button type='button' className='swap-amount-secondary' aria-label={secondaryLabel} onClick={onSecondary}>
+          <AnimatedSecondaryAmountValue value={secondary} reducedMotion={prefersReduced} />
+          <span className='swap-amount-secondary__icon' aria-hidden='true'>
+            <ArrowUpDownIcon />
+          </span>
+        </button>
+      ) : (
+        <span className='swap-amount-secondary swap-amount-secondary--static'>{secondary}</span>
+      )}
+    </div>
+  )
+}
+
 function SwapCounterpartCard({
+  label = 'Receive',
   asset,
   amount,
   fiat,
@@ -814,7 +1419,9 @@ function SwapCounterpartCard({
   editDisabled,
   onChooseReceive,
   onEdit,
+  editOpensDialog = true,
 }: {
+  label?: string
   asset?: SwapAsset
   amount: string
   fiat: string
@@ -823,13 +1430,16 @@ function SwapCounterpartCard({
   editDisabled: boolean
   onChooseReceive: () => void
   onEdit: () => void
+  editOpensDialog?: boolean
 }) {
+  const inputLabel = label.replace(/^You /, '').toLowerCase()
+
   if (!asset) {
     return (
       <button type='button' className='swap-receive-card' onClick={onChooseReceive}>
         <span className='swap-receive-card__empty'>+</span>
         <div>
-          <span>Receive</span>
+          <span>{label}</span>
           <small>Choose asset</small>
         </div>
         <ChevronDownIcon />
@@ -843,11 +1453,13 @@ function SwapCounterpartCard({
         type='button'
         className='swap-receive-card__asset-button'
         onClick={onChooseReceive}
-        aria-label={`Choose receive asset, currently ${asset.ticker}`}
+        aria-label={`Choose ${inputLabel} asset, currently ${asset.ticker}`}
       >
         <TokenAvatar asset={asset} size={36} />
         <span>
-          <span>Receive {asset.ticker}</span>
+          <span>
+            {label} {asset.ticker}
+          </span>
           {rate ? <small className='swap-receive-card__rate'>{rate}</small> : null}
         </span>
       </button>
@@ -857,8 +1469,8 @@ function SwapCounterpartCard({
         aria-busy={loading}
         disabled={editDisabled}
         onClick={onEdit}
-        aria-haspopup='dialog'
-        aria-label={`Set receive amount, currently ${amount} ${asset.ticker}`}
+        aria-haspopup={editOpensDialog ? 'dialog' : undefined}
+        aria-label={`Set ${inputLabel} amount, currently ${amount} ${asset.ticker}`}
       >
         <strong>{loading ? <SwapSkeletonText width='5.75rem' /> : `${amount} ${asset.ticker}`}</strong>
         <small className='swap-receive-card__fiat'>{loading ? '' : fiat}</small>
@@ -1388,7 +2000,13 @@ function buildQuoteFromPlan(
         : parsed / fromScale
       : 0
   const fromUnitsProtocol = plan ? Number(plan.deposit.display) : estimatedFromUnitsProtocol
-  const receivedProtocol = plan && toAsset ? Number(plan.receive.display) : input === 'want' ? parsed / toScale : 0
+  const estimatedReceiveUnits =
+    input === 'want' && toAsset
+      ? mode === 'fiat'
+        ? (assetUnitsFromFiatAmount(amount, toAsset, unitOfAccountUsd) ?? 0)
+        : parsed
+      : 0
+  const receivedProtocol = plan && toAsset ? Number(plan.receive.display) : estimatedReceiveUnits / toScale
   const fromUnits = fromUnitsProtocol * fromScale
   const received = receivedProtocol * toScale
   const receivedCurrencyAmount = unitOfAccountUsd > 0 ? (receivedProtocol * toUsd) / unitOfAccountUsd : 0
@@ -1480,7 +2098,11 @@ function inputAmountFromQuote(
   fiatDecimals: number,
 ): string {
   if (!plan) return '0'
-  if (input === 'want') return toAsset ? offerAmountForInput(plan.receive.display, toAsset) : '0'
+  if (input === 'want') {
+    if (mode === 'asset') return toAsset ? offerAmountForInput(plan.receive.display, toAsset) : '0'
+    if (!Number.isFinite(quote.toFiatValue)) return '0'
+    return trimInputZeros(new Decimal(quote.toFiatValue).toFixed(fiatDecimals, Decimal.ROUND_DOWN))
+  }
   if (mode === 'asset') return offerAmountForInput(plan.deposit.display, fromAsset)
   if (!Number.isFinite(quote.fromFiatValue)) return '0'
   return trimInputZeros(new Decimal(quote.fromFiatValue).toFixed(fiatDecimals))
@@ -1495,6 +2117,17 @@ function offerAmountForInput(displayAmount: string, asset: SwapAsset): string {
 function trimInputZeros(value: string): string {
   if (!value.includes('.')) return value || '0'
   return value.replace(/0+$/, '').replace(/\.$/, '') || '0'
+}
+
+function normalizeNativeAmount(value: string, maxDecimals: number): string {
+  const [whole = '', ...fractionParts] = value
+    .replace(',', '.')
+    .replace(/[^\d.]/g, '')
+    .split('.')
+  const normalizedWhole = whole.replace(/^0+(?=\d)/, '') || '0'
+  if (maxDecimals === 0 || fractionParts.length === 0) return normalizedWhole.slice(0, 10)
+  const fraction = fractionParts.join('').slice(0, maxDecimals)
+  return `${normalizedWhole}.${fraction}`.slice(0, 10)
 }
 
 function swapValidationMessage({
@@ -1676,6 +2309,13 @@ function filterAssets(assets: SwapAsset[], query: string): SwapAsset[] {
 function resolveInitialFromAssetId(assets: SwapAsset[], requestedAssetId?: string): string | undefined {
   if (requestedAssetId) return assets.find((asset) => asset.assetId === requestedAssetId)?.assetId
   return firstPositiveBalanceAsset(assets)?.assetId ?? assets[0]?.assetId
+}
+
+function firstSwapStep(variant: SwapVariant, hasPreselectedAsset: boolean): SwapStep {
+  if (hasPreselectedAsset) return 'compose'
+  if (variant === 'receive-first') return 'select-to'
+  if (variant === 'segmented') return 'select-intent'
+  return 'select-from'
 }
 
 /** The asset's atomic balance as a bigint, whichever way SwapAsset.balance holds it. */

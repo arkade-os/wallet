@@ -15,6 +15,7 @@ import { AssetSwapsContext } from '../../../providers/assetSwaps'
 import { AssetsContext } from '../../../providers/assets'
 import { AspContext } from '../../../providers/asp'
 import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
+import { FlowProvider } from '../../../providers/flow'
 
 describe('Wallet screen', () => {
   it('renders the wallet screen with the correct elements', async () => {
@@ -56,6 +57,23 @@ describe('Wallet screen', () => {
 
     expect(navigate).not.toHaveBeenCalledWith(Pages.WalletSwap)
     expect(screen.getByText(/Swaps are coming soon/i)).toBeInTheDocument()
+  })
+
+  it('lets the swap variant be chosen before the swap flow starts', async () => {
+    render(
+      <FlowProvider>
+        <NavigationContext.Provider value={mockNavigationContextValue}>
+          <AssetSwapsContext.Provider value={{ swapAvailable: true, swaps: [] } as any}>
+            <Wallet />
+          </AssetSwapsContext.Provider>
+        </NavigationContext.Provider>
+      </FlowProvider>,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: 'Choose swap flow variant' }))
+    await userEvent.click(screen.getByRole('radio', { name: /Receive first/ }))
+
+    expect(screen.getByRole('button', { name: 'Choose swap flow variant' })).toHaveTextContent('V2')
   })
 
   it('opens the bitcoin detail page from the bitcoin asset row', async () => {
