@@ -1,6 +1,6 @@
 import { test, expect, createWallet, fundWallet, navigateToSwaps, createWalletWithFiat } from './utils'
 
-test('swap BTC -> RGT using BTC as currency', async ({ page }) => {
+test('swap BTC <-> RGT using BTC as currency', async ({ page }) => {
   await createWallet(page)
   await fundWallet(page, 5000)
 
@@ -10,16 +10,16 @@ test('swap BTC -> RGT using BTC as currency', async ({ page }) => {
   // select BTC as asset to swap from
   await expect(page.getByText('Bitcoin')).toBeVisible()
   await expect(page.getByText('Regtest Asset')).toBeVisible()
-  await page.getByText('Bitcoin').click()
+  await page.getByTestId('swap-asset-row-sats').click()
 
   // select RGT as asset to swap to
   page.locator('.swap-receive-card').first().click()
-  page.locator('button.swap-token-row').first().click()
+  await page.getByTestId('swap-asset-row-rgt').click()
 
-  // insert 1000 sats to swap
-  await page.locator('[aria-label="1"]').click()
+  // insert 2100 sats to swap
+  await page.locator('[aria-label="2"]').click()
   await expect(page.getByText('Amount too small')).toBeVisible()
-  await page.locator('[aria-label="0"]').click()
+  await page.locator('[aria-label="1"]').click()
   await expect(page.getByText('Amount too small')).toBeVisible()
   await page.locator('[aria-label="0"]').click()
   await expect(page.getByText('Amount too small')).toBeVisible()
@@ -40,11 +40,14 @@ test('swap BTC -> RGT using BTC as currency', async ({ page }) => {
   // select RGT as asset to swap from
   await expect(page.getByText('Bitcoin')).toBeVisible()
   await expect(page.getByText('Regtest Asset')).toBeVisible()
-  await page.getByText('Regtest Asset').click()
+  await page.getByTestId('swap-asset-row-rgt').click()
 
   // select BTC as asset to swap to
   page.locator('.swap-receive-card').first().click()
-  page.locator('button.swap-token-row').first().click()
+  await page.getByTestId('swap-asset-row-sats').click()
+
+  // change to amount in RGT
+  await page.getByTestId('swap-amount-toggle').click()
 
   // insert 1000 RGT to swap
   await page.locator('[aria-label="1"]').click()
@@ -76,11 +79,11 @@ test('swap BTC <-> RGT using USD as currency', async ({ page }) => {
   // select BTC as asset to swap from
   await expect(page.getByText('Bitcoin')).toBeVisible()
   await expect(page.getByText('Regtest Asset')).toBeVisible()
-  await page.getByText('Bitcoin').click()
+  await page.getByTestId('swap-asset-row-sats').click()
 
   // select RGT as asset to swap to
   page.locator('.swap-receive-card').first().click()
-  page.locator('button.swap-token-row').first().click()
+  await page.getByTestId('swap-asset-row-rgt').click()
 
   // insert 1 USD to swap
   await page.locator('[aria-label="1"]').click()
@@ -100,14 +103,23 @@ test('swap BTC <-> RGT using USD as currency', async ({ page }) => {
   // select RGT as asset to swap from
   await expect(page.getByText('Bitcoin')).toBeVisible()
   await expect(page.getByText('Regtest Asset')).toBeVisible()
-  await page.getByText('Regtest Asset').click()
+  await page.getByTestId('swap-asset-row-rgt').click()
 
   // select BTC as asset to swap to
-  page.locator('.swap-receive-card').first().click()
-  page.locator('button.swap-token-row').first().click()
+  await page.locator('.swap-receive-card').first().click()
+  await page.getByTestId('swap-asset-row-sats').click()
 
-  // insert 1 USD to swap
+  // change to amount in RGT
+  await page.getByTestId('swap-amount-toggle').click()
+
+  // insert 1000 RGT to swap
   await page.locator('[aria-label="1"]').click()
+  await expect(page.getByText('Amount too small')).toBeVisible()
+  await page.locator('[aria-label="0"]').click()
+  await expect(page.getByText('Amount too small')).toBeVisible()
+  await page.locator('[aria-label="0"]').click()
+  await expect(page.getByText('Amount too small')).toBeVisible()
+  await page.locator('[aria-label="0"]').click()
   await expect(page.getByText('Amount too small')).not.toBeVisible()
 
   await page.getByText('Continue').click()
