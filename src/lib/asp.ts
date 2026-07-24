@@ -119,7 +119,7 @@ export const collaborativeExitWithFees = async (
   let selectedAmount = 0
 
   // sort vtxos by batch expiry ascending
-  const vtxosSorted = vtxos.sort((a, b) => (a.virtualStatus.batchExpiry ?? 0) - (b.virtualStatus.batchExpiry ?? 0))
+  const vtxosSorted = vtxos.sort((a, b) => (a.expiresAt?.getTime() ?? 0) - (b.expiresAt?.getTime() ?? 0))
 
   for (const vtxo of vtxosSorted) {
     if (selectedAmount >= inputAmount) break
