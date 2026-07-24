@@ -1,5 +1,12 @@
 #!/usr/bin/env node
 
+// This script fetches the solver card from the solver API and generates the discovery and registry JSON files.
+// It is intended to be run in the regtest environment, where the solver API is running locally.
+// The generated JSON files are used by the wallet to discover available solvers and their markets.
+// Files are written to the public directory so that they can be served by the wallet's web server, no CORS issues.
+// - http://localhost:3002/solver-registry/regtest.json
+// - http://localhost:3002/asset-registry/regtest.json
+
 import { writeFile } from 'node:fs/promises'
 
 const options = {
@@ -21,8 +28,8 @@ function normalizeCard(json) {
   const addSolverToMarkets = (obj) => {
     if (obj.markets) {
       obj.markets = obj.markets.map((market) => ({
-        ...market,
         solver: obj.name,
+        ...market,
       }))
     }
     return obj
