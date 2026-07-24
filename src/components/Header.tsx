@@ -14,7 +14,7 @@ interface HeaderProps {
   auxIcon?: JSX.Element
   back?: (() => void) | boolean
   heading?: boolean
-  text: string
+  text: React.ReactNode
 }
 
 export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, auxIcon }: HeaderProps) {

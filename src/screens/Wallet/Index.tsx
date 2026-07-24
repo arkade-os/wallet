@@ -25,11 +25,16 @@ import UpsellsSection from './UpsellsSection'
 import RecentActivitySection from './RecentActivitySection'
 import { usePortfolioBalanceDisplay } from '../../hooks/usePortfolioBalanceDisplay'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
+import SwapVariantSwitcher from '../../components/SwapVariantSwitcher'
+import { AssetSwapsContext } from '../../providers/assetSwaps'
+import { FlowContext } from '../../providers/flow'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
   const { announcement } = useContext(AnnouncementContext)
   const { config, updateConfig } = useContext(ConfigContext)
+  const { swapAvailable } = useContext(AssetSwapsContext)
+  const { swapVariant, setSwapVariant } = useContext(FlowContext)
   const { isInitialLoad } = useContext(NavigationContext)
   const { nudge, nudgeCheckComplete } = useContext(NudgeContext)
 
@@ -179,6 +184,7 @@ export default function Wallet() {
           </WalletStaggerContainer>
         </Padded>
       </Content>
+      {swapAvailable ? <SwapVariantSwitcher selected={swapVariant} onSelect={setSwapVariant} /> : null}
     </>
   )
 }
