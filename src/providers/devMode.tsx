@@ -12,8 +12,20 @@ export const DevModeContext = createContext<DevModeContextProps>({
   handleTap: () => {},
 })
 
+// Enable/disable dev mode via ?dev=true / ?dev=false. Persisted to localStorage,
+// so it stays sticky until explicitly cleared (?dev=false or toggling off).
+function readInitialDevMode(): boolean {
+  const param = new URLSearchParams(window.location.search).get('dev')
+  if (param === 'true' || param === 'false') {
+    const enabled = param === 'true'
+    localStorage.setItem(DEV_MODE_KEY, String(enabled))
+    return enabled
+  }
+  return localStorage.getItem(DEV_MODE_KEY) === 'true'
+}
+
 export function DevModeProvider({ children }: { children: ReactNode }) {
-  const [devMode, setDevMode] = useState(() => localStorage.getItem(DEV_MODE_KEY) === 'true')
+  const [devMode, setDevMode] = useState(readInitialDevMode)
   const tapCountRef = useRef(0)
   const tapTimerRef = useRef<ReturnType<typeof setTimeout>>()
 
