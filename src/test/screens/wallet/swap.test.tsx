@@ -180,7 +180,7 @@ describe('Wallet swap flow', () => {
     const setSwapFromAssetId = vi.fn()
     renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId } })
 
-    expect(screen.getByLabelText('Swap amount')).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Swap amount,/)).toBeInTheDocument()
     expect(screen.getByText('Bitcoin')).toBeInTheDocument()
     expect(screen.queryByText('Choose asset to swap')).not.toBeInTheDocument()
     expect(setSwapFromAssetId).toHaveBeenCalledWith(undefined)
@@ -188,7 +188,7 @@ describe('Wallet swap flow', () => {
 
   it('does not report an unavailable pair before the receive asset is selected', async () => {
     renderSwap({ flow: { swapFromAssetId: USDT_ID, setSwapFromAssetId: vi.fn() } })
-    expect(screen.getByLabelText('Swap amount')).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Swap amount,/)).toBeInTheDocument()
     expect(screen.getAllByText('USD').length).toBeGreaterThan(0)
 
     await userEvent.click(screen.getByRole('button', { name: '1' }))
@@ -657,6 +657,26 @@ describe('Wallet swap flow', () => {
     expect(amountLabel).toMatch(/\sBTC$/)
   })
 
+  it('never assigns the same React key to two occurrences of the same letter in the amount label', async () => {
+    // "sats" has two 's' — a naive per-character key collapses them, which
+    // React reports as a duplicate-key warning and the animated renderer
+    // then smears the repeated glyph
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+
+    // asset mode appends the ticker suffix ("1000 sats") to the amount label
+    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+    for (const key of ['1', '0', '0', '0']) {
+      await userEvent.click(screen.getByRole('button', { name: key }))
+    }
+
+    const duplicateKeyWarning = errorSpy.mock.calls.some((call) =>
+      String(call[0]).includes('Encountered two children with the same key'),
+    )
+    expect(duplicateKeyWarning).toBe(false)
+    errorSpy.mockRestore()
+  })
+
   it('preserves the entered value when the denomination blocks swap places', async () => {
     renderSwap({
       config: { currency: Currencies.USD, unit: Unit.SATS },
@@ -669,13 +689,12 @@ describe('Wallet swap flow', () => {
 
     expect(document.querySelector('.swap-amount-value--primary')).toHaveAttribute('aria-label', '$10')
     expect(document.querySelectorAll('.swap-amount-value--primary .swap-amount-character').length).toBeGreaterThan(0)
-    expect(document.querySelector('.swap-amount-secondary__label-reserve')).toHaveAttribute(
-      'data-reserve-width',
-      '10000 sats',
-    )
+    expect(document.querySelector('.swap-amount-secondary__label')).toHaveTextContent('10000 sats')
+    expect(screen.getByRole('button', { name: 'Swap amount, $10' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
     expect(document.querySelector('.swap-amount-value--primary')).toHaveAttribute('aria-label', '10000 sats')
-    expect(document.querySelector('.swap-amount-secondary__label-reserve')).toHaveAttribute('data-reserve-width', '$10')
+    expect(document.querySelector('.swap-amount-secondary__label')).toHaveTextContent('$10')
+    expect(screen.getByRole('button', { name: 'Swap amount, 10000 sats' })).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
     expect(document.querySelector('.swap-amount-value--primary')).toHaveAttribute('aria-label', '$10')
@@ -686,14 +705,14 @@ describe('Wallet swap flow', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
     fireEvent.click(screen.getByRole('button', { name: /USD/i }))
-    const amountValues = document.querySelector('.swap-amount-values')
+    const amountValue = document.querySelector('.swap-amount-value-shake')
 
     for (const key of ['1', '2', '2']) {
       await userEvent.click(screen.getByRole('button', { name: key }))
     }
 
     await screen.findByText('Insufficient balance', {}, { timeout: 3_000 })
-    expect(document.querySelector('.swap-amount-values')).toBe(amountValues)
+    expect(document.querySelector('.swap-amount-value-shake')).toBe(amountValue)
   })
 
   it('keeps swap history out of the swap composer', () => {

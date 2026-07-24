@@ -1,5 +1,5 @@
 import Decimal from 'decimal.js'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, LayoutGroup, motion } from 'framer-motion'
 import { fromAtomic, type OfferPlan } from '@arkade-os/solver-discovery'
 import { useOfferQuote } from '@arkade-os/solver-discovery/react'
 import { type ReactNode, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
@@ -652,13 +652,12 @@ function SwapComposer({
       : quote.fromFiat
   const assetAmountLabel = `${assetAmount} ${fromAsset.ticker}`
   const secondaryAmountLabel = amountMode === 'fiat' ? assetAmountLabel : fiatAmountLabel
+  const primaryAmountLabel = amountMode === 'fiat' ? fiatAmountLabel : assetAmountLabel
+  const secondaryAmountMode = amountMode === 'fiat' ? 'asset' : 'fiat'
   const nextAmountModeLabel = amountMode === 'fiat' ? 'asset amount' : `${currency} amount`
   const validationMessage = validationText
   const amountValueTransition = prefersReduced ? { duration: 0 } : { duration: 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }
-  const amountValues = [
-    { label: fiatAmountLabel, mode: 'fiat' as const },
-    { label: assetAmountLabel, mode: 'asset' as const },
-  ]
+  const amountLayoutId = useId()
 
   return (
     <div className='swap-composer'>
@@ -676,90 +675,77 @@ function SwapComposer({
           ) : null}
         </div>
         <div className='swap-amount-stack'>
-          <div className='swap-amount-stage'>
-            <button
-              type='button'
-              className={
-                validationState === 'idle' ? 'swap-amount-display' : 'swap-amount-display swap-amount-display--invalid'
-              }
-              onClick={onAmountFocus}
-              aria-label='Swap amount'
-            />
-            <motion.div
-              className='swap-amount-values'
-              animate={prefersReduced || validationState === 'idle' ? undefined : { x: [0, -7, 6, -4, 2, 0] }}
-              transition={
-                prefersReduced || validationState === 'idle'
-                  ? undefined
-                  : { duration: 0.32, ease: EASE_OUT_QUINT_TUPLE }
-              }
-              aria-hidden='true'
-            >
-              {amountValues.map((value) => {
-                const primary = value.mode === amountMode
-                return (
-                  <motion.span
-                    key={value.mode}
-                    className='swap-amount-value-row'
-                    initial={false}
-                    animate={{
-                      transform: primary
-                        ? 'translate3d(-50%, -50%, 0) translateY(-27px)'
-                        : 'translate3d(-50%, -50%, 0) translateY(25px)',
-                    }}
-                    transition={amountValueTransition}
-                  >
-                    <motion.span
-                      className='swap-amount-value-scale'
-                      initial={false}
-                      animate={{ transform: primary ? 'scale(1)' : 'scale(0.3)' }}
-                      transition={amountValueTransition}
-                    >
-                      {primary ? (
-                        <AnimatedAmountValue
-                          value={value.label}
-                          reducedMotion={prefersReduced}
-                          className={
-                            validationState === 'idle'
-                              ? 'swap-amount-value--primary'
-                              : 'swap-amount-value--primary swap-amount-value--invalid'
-                          }
-                        />
-                      ) : (
-                        <span className='swap-amount-value swap-amount-value--secondary'>{value.label}</span>
-                      )}
-                    </motion.span>
-                  </motion.span>
-                )
-              })}
-            </motion.div>
-            <button
-              type='button'
-              className='swap-amount-secondary'
-              onClick={onModeToggle}
-              aria-label={`Show ${nextAmountModeLabel} first`}
-            >
-              <motion.span
-                className='swap-amount-secondary__background'
-                layout
-                transition={{ layout: amountValueTransition }}
-                aria-hidden='true'
-              />
-              <span
-                className='swap-amount-secondary__label-reserve'
-                data-reserve-width={secondaryAmountLabel}
-                aria-hidden='true'
-              />
-              <motion.span
-                className='swap-amount-secondary__icon'
-                layout='position'
-                transition={{ layout: amountValueTransition }}
-                aria-hidden='true'
+          <LayoutGroup id={amountLayoutId}>
+            <div className='swap-amount-stage'>
+              <button
+                type='button'
+                className={
+                  validationState === 'idle'
+                    ? 'swap-amount-display'
+                    : 'swap-amount-display swap-amount-display--invalid'
+                }
+                onClick={onAmountFocus}
+                aria-label={`Swap amount, ${primaryAmountLabel}`}
               >
-                <ArrowUpDownIcon />
-              </motion.span>
-            </button>
-          </div>
+                <motion.span
+                  className='swap-amount-value-shake'
+                  animate={prefersReduced || validationState === 'idle' ? undefined : { x: [0, -7, 6, -4, 2, 0] }}
+                  transition={
+                    prefersReduced || validationState === 'idle'
+                      ? undefined
+                      : { duration: 0.32, ease: EASE_OUT_QUINT_TUPLE }
+                  }
+                >
+                  <motion.span
+                    key={amountMode}
+                    layoutId={`swap-amount-${amountMode}`}
+                    className='swap-amount-value-row'
+                    transition={{ layout: amountValueTransition }}
+                  >
+                    <AnimatedAmountValue
+                      value={primaryAmountLabel}
+                      reducedMotion={prefersReduced}
+                      className={
+                        validationState === 'idle'
+                          ? 'swap-amount-value--primary'
+                          : 'swap-amount-value--primary swap-amount-value--invalid'
+                      }
+                    />
+                  </motion.span>
+                </motion.span>
+              </button>
+              <button
+                type='button'
+                className='swap-amount-secondary'
+                onClick={onModeToggle}
+                aria-label={`Show ${nextAmountModeLabel} first`}
+              >
+                <motion.span
+                  className='swap-amount-secondary__background'
+                  layout
+                  transition={{ layout: amountValueTransition }}
+                  aria-hidden='true'
+                />
+                <motion.span
+                  key={secondaryAmountMode}
+                  layoutId={`swap-amount-${secondaryAmountMode}`}
+                  className='swap-amount-secondary__label swap-amount-value--secondary'
+                  transition={{ layout: amountValueTransition }}
+                  aria-hidden='true'
+                >
+                  {secondaryAmountLabel}
+                </motion.span>
+                <motion.span
+                  className='swap-amount-secondary__icon'
+                  layout='position'
+                  transition={{ layout: amountValueTransition }}
+                  aria-hidden='true'
+                >
+                  <ArrowUpDownIcon />
+                </motion.span>
+              </button>
+            </div>
+          </LayoutGroup>
           <div className='swap-input-error-slot'>
             <AnimatePresence initial={false}>
               {validationMessage ? (
@@ -935,6 +921,8 @@ function amountCharacterSlotKey(character: string, characterIndex: number, sourc
   if (character === '.') return 'decimal-point'
   if (character === ' ')
     return `space-${source.slice(0, characterIndex).filter((candidate) => candidate === ' ').length}`
+  // a repeated letter in the ticker suffix (e.g. the two 's' in "sats") must
+  // not collapse onto the same React key, or the animated renderer smears it
   return `symbol-${character}-${source.slice(0, characterIndex).filter((candidate) => candidate === character).length}`
 }
 

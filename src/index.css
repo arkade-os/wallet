@@ -2037,9 +2037,9 @@ html.palette-dark .send-asset-menu {
   transform-origin: center;
 }
 
-.swap-amount-value-scale {
+.swap-amount-value-row,
+.swap-amount-value-shake {
   display: inline-flex;
-  transform-origin: center;
 }
 
 .swap-amount-character-slot {
@@ -2073,20 +2073,6 @@ html.palette-dark .send-asset-menu {
 
 .swap-amount-character--exiting {
   animation: swap-amount-character-out 170ms cubic-bezier(0.23, 1, 0.32, 1) both;
-}
-
-.swap-amount-values {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  contain: layout style paint;
-}
-
-.swap-amount-value-row {
-  position: absolute;
-  top: 50%;
-  left: 50%;
 }
 
 .swap-amount-value--primary {
@@ -2163,19 +2149,10 @@ html.palette-dark .send-asset-menu {
   height: 1rem;
 }
 
-.swap-amount-secondary__label-reserve {
+.swap-amount-secondary__label {
+  position: relative;
+  z-index: 1;
   grid-column: 2;
-}
-
-.swap-amount-secondary__label-reserve::before {
-  display: block;
-  content: attr(data-reserve-width);
-  font-family: var(--font-family-heading);
-  font-size: calc(var(--heading-2xl-size) * 0.3);
-  font-weight: 500;
-  letter-spacing: var(--heading-2xl-tracking);
-  line-height: 1;
-  visibility: hidden;
   white-space: nowrap;
 }
 
@@ -2313,10 +2290,6 @@ html.palette-dark .send-asset-menu {
   .swap-amount-value {
     font-size: calc(var(--heading-xl-size) * var(--swap-amount-scale, 1));
     line-height: var(--heading-xl-line);
-  }
-
-  .swap-amount-secondary__label-reserve::before {
-    font-size: calc(var(--heading-xl-size) * 0.3);
   }
 }
 
