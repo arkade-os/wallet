@@ -1881,7 +1881,6 @@ html.palette-dark .send-asset-menu {
   display: flex;
   min-height: 12.75rem;
   flex-direction: column;
-  justify-content: space-between;
   padding: 0.875rem 1rem 1.125rem;
 }
 
@@ -1915,8 +1914,8 @@ html.palette-dark .send-asset-menu {
   line-height: var(--text-xs-line);
 }
 
-.swap-input-card__asset button {
-  min-height: 2rem;
+.swap-input-card__asset button:not(.swap-input-card__max) {
+  min-height: var(--size-touch-min);
   border-radius: 999px;
   background: var(--neutral-50);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 5%, transparent);
@@ -1927,46 +1926,64 @@ html.palette-dark .send-asset-menu {
   padding: 0 0.75rem;
 }
 
-/* the balance reads as the muted sub-label, but tapping it funds the whole
-   balance — a dotted underline hints it is interactive without a heavy pill */
-.swap-input-card__asset button.swap-input-card__balance {
-  min-height: 0;
+.swap-input-card__balance {
+  display: block;
   width: fit-content;
   max-width: 100%;
-  border-radius: 0.25rem;
-  background: transparent;
-  box-shadow: none;
-  color: color-mix(in srgb, var(--fg) 46%, transparent);
-  font-size: var(--text-xs);
-  font-weight: 400;
-  line-height: var(--text-xs-line);
-  padding: 0;
-  text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  text-decoration: underline dotted;
-  text-underline-offset: 0.15rem;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
 }
 
-.swap-input-card__asset button.swap-input-card__balance:active {
-  color: color-mix(in srgb, var(--fg) 72%, transparent);
+.swap-input-card__asset button.swap-input-card__max {
+  min-width: var(--size-touch-min);
+  min-height: var(--size-touch-min);
+  flex: 0 0 auto;
+  margin-left: auto;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--purple-700);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: var(--text-sm-line);
+  padding: 0 0.25rem;
+  transition:
+    color 150ms ease,
+    transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .swap-input-card__asset button.swap-input-card__max:hover {
+    color: color-mix(in srgb, var(--purple-700) 82%, var(--fg));
+  }
 }
 
 .swap-amount-stack {
+  display: flex;
+  flex: 1;
+  min-height: 7.75rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+}
+
+.swap-amount-stage {
   position: relative;
   display: flex;
+  width: 100%;
   min-height: 5.875rem;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 0.375rem;
 }
 
 .swap-amount-display {
   width: 100%;
   display: flex;
+  min-height: var(--size-touch-min);
   flex-direction: column;
   align-items: center;
   gap: 0.375rem;
@@ -1975,31 +1992,15 @@ html.palette-dark .send-asset-menu {
   text-align: center;
 }
 
-.swap-amount-display > .swap-amount-value {
-  color: var(--fg);
-  font-family: var(--font-family-heading);
-  /* --swap-amount-scale steps down for long amounts (set inline per length) */
-  font-size: calc(var(--heading-2xl-size) * var(--swap-amount-scale, 1));
-  font-weight: 500;
-  letter-spacing: var(--heading-2xl-tracking);
-  line-height: var(--heading-2xl-line);
-  outline: none;
-  font-variant-numeric: tabular-nums;
-}
-
-.swap-amount-display--invalid > .swap-amount-value {
+.swap-amount-value--invalid {
   color: color-mix(in srgb, var(--red-700) 84%, var(--fg));
 }
 
 .swap-input-error {
-  position: absolute;
-  bottom: calc(50% + 2.375rem);
-  left: 0;
-  right: 0;
   width: max-content;
   max-width: 100%;
   min-height: var(--text-sm-line);
-  margin: 0 auto;
+  margin: 0;
   border-radius: 999px;
   background: color-mix(in srgb, var(--red-700) 10%, var(--bg));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red-700) 14%, transparent);
@@ -2012,17 +2013,39 @@ html.palette-dark .send-asset-menu {
   transform-origin: center bottom;
 }
 
+.swap-input-error-slot {
+  display: flex;
+  min-height: 1.5rem;
+  align-items: center;
+  justify-content: center;
+}
+
 .swap-amount-value {
   display: inline-flex;
   align-items: baseline;
   justify-content: center;
+  color: var(--fg);
+  font-family: var(--font-family-heading);
+  /* --swap-amount-scale steps down for long amounts (set inline per length) */
+  font-size: calc(var(--heading-2xl-size) * var(--swap-amount-scale, 1));
+  font-weight: 500;
+  letter-spacing: var(--heading-2xl-tracking);
+  line-height: var(--heading-2xl-line);
+  outline: none;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transform-origin: center;
+}
+
+.swap-amount-value-row,
+.swap-amount-value-shake {
+  display: inline-flex;
 }
 
 .swap-amount-character-slot {
   display: inline-grid;
-  place-items: center;
   min-width: 0.36em;
+  place-items: center;
 }
 
 .swap-amount-character-slot--digit {
@@ -2038,8 +2061,8 @@ html.palette-dark .send-asset-menu {
 }
 
 .swap-amount-character {
-  grid-area: 1 / 1;
   display: inline-block;
+  grid-area: 1 / 1;
   white-space: pre;
   will-change: transform, opacity;
 }
@@ -2052,25 +2075,27 @@ html.palette-dark .send-asset-menu {
   animation: swap-amount-character-out 170ms cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
+.swap-amount-value--primary {
+  color: var(--fg);
+}
+
 .swap-amount-value--secondary {
-  color: inherit;
-  font: inherit;
-  line-height: inherit;
+  color: color-mix(in srgb, var(--fg) 54%, transparent);
 }
 
 .swap-amount-secondary {
-  align-self: center;
-  display: inline-flex;
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: 1rem auto 1rem;
   min-height: 2rem;
   align-items: center;
   justify-content: center;
-  gap: 0.375rem;
+  column-gap: 0.5rem;
   border: 0;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--fg) 3.5%, var(--bg));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 5%, transparent);
+  background: transparent;
   color: color-mix(in srgb, var(--fg) 54%, transparent);
-  padding: 0 0.625rem 0 0.75rem;
+  padding: 0 0.625rem;
   font-size: var(--text-sm);
   font-weight: 500;
   line-height: var(--text-sm-line);
@@ -2081,23 +2106,54 @@ html.palette-dark .send-asset-menu {
     transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
+.swap-amount-secondary__background {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg) 3.5%, var(--bg));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 5%, transparent);
+  pointer-events: none;
+}
+
+.swap-amount-secondary::before {
+  width: 1rem;
+  content: '';
+}
+
+.swap-amount-secondary::after {
+  position: absolute;
+  inset-block: calc((var(--size-touch-min) - 2rem) / -2);
+  inset-inline: -0.25rem;
+  content: '';
+}
+
 .swap-amount-secondary:active {
   transform: scale(0.97);
 }
 
 .swap-amount-secondary__icon {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
+  grid-column: 3;
   width: 1rem;
   height: 1rem;
   align-items: center;
   justify-content: center;
   color: currentcolor;
-  will-change: transform;
 }
 
 .swap-amount-secondary__icon svg {
   width: 1rem;
   height: 1rem;
+}
+
+.swap-amount-secondary__label {
+  position: relative;
+  z-index: 1;
+  grid-column: 2;
+  white-space: nowrap;
 }
 
 .swap-receive-card {
@@ -2231,7 +2287,7 @@ html.palette-dark .send-asset-menu {
 }
 
 @media (max-width: 380px) {
-  .swap-amount-display > .swap-amount-value {
+  .swap-amount-value {
     font-size: calc(var(--heading-xl-size) * var(--swap-amount-scale, 1));
     line-height: var(--heading-xl-line);
   }
