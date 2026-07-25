@@ -19,6 +19,10 @@ function readInitialDevMode(): boolean {
   if (param === 'true' || param === 'false') {
     const enabled = param === 'true'
     localStorage.setItem(DEV_MODE_KEY, String(enabled))
+    // Remove the param from the URL (without reloading) so it isn't re-read on refresh.
+    const url = new URL(window.location.href)
+    url.searchParams.delete('dev')
+    window.history.replaceState(null, '', url)
     return enabled
   }
   return localStorage.getItem(DEV_MODE_KEY) === 'true'
