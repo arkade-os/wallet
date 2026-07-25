@@ -1408,7 +1408,9 @@ iframe {
   isolation: isolate;
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
-  padding-top: env(safe-area-inset-top, 0px);
+  /* no safe-area padding here: .page already offsets the whole app by
+     env(safe-area-inset-top) — repeating it doubled the gap in installed
+     PWAs (invisible in browser Safari, where the inset is 0) */
 }
 
 .home-header > div {
