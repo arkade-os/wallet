@@ -82,6 +82,24 @@ body,
   background-color: var(--background-color, #fff);
 }
 
+/* Installed-PWA only: iOS standalone can letterbox the bottom home-indicator
+   zone out of the containing block that the absolute .page sizes against,
+   leaving a dead band under the content. Pin the shell to the full dynamic
+   viewport and make #root the containing block so .page reaches the physical
+   bottom. Inert in browsers (100dvh == 100% there). */
+@media (display-mode: standalone) {
+  html,
+  body,
+  #root {
+    /* lvh, not dvh: the large viewport includes the home-indicator zone the
+       letterboxed containing block excludes */
+    height: 100lvh;
+  }
+  #root {
+    position: relative;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
