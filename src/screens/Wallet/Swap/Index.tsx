@@ -703,6 +703,7 @@ function SwapComposer({
                 className='swap-amount-secondary'
                 onClick={onModeToggle}
                 aria-label={`Show ${nextAmountModeLabel} first`}
+                data-testid='swap-amount-toggle'
                 {...secondaryMotion}
               >
                 <AnimatedSecondaryAmountValue value={subAmountLabel} reducedMotion={prefersReduced} />
@@ -961,6 +962,7 @@ function SwapAssetRow({ asset, active, onClick }: { asset: SwapAsset; active?: b
     <button
       type='button'
       className={active ? 'swap-token-row swap-token-row--active' : 'swap-token-row'}
+      data-testid={`swap-asset-row-${asset.ticker.toLowerCase()}`}
       onClick={onClick}
     >
       <TokenAvatar asset={asset} size={40} />

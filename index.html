@@ -8,6 +8,11 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
     <meta name="theme-color" content="#fff" />
+    <!-- Both metas are required for iOS to run the true fullscreen standalone
+         path: with only the manifest's display:standalone, iOS letterboxes the
+         home-indicator zone as a dead black band under the content. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <!--
       Theme bootstrap: MUST run as inline script before first paint to prevent

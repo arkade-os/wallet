@@ -43,11 +43,11 @@ const DELEGATE_URL: Record<Network, string | null> = {
 
 // solver registry indexes for asset swaps (see arkade-os/solver-registry)
 const SOLVER_REGISTRY_URL: Record<Network, string | null> = {
-  bitcoin: null,
+  bitcoin: 'https://arkade-os.github.io/solver-registry/bitcoin.json',
   mutinynet: 'https://arkade-os.github.io/solver-registry/mutinynet.json',
   signet: null,
-  regtest: null,
-  testnet: null,
+  regtest: 'http://localhost:3002/solver-registry/regtest.json',
+  testnet: 'https://arkade-os.github.io/solver-registry/testnet.json',
 }
 
 // env override first (any network), then the per-network table

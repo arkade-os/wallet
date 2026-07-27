@@ -9,9 +9,11 @@ import { gitCommit } from '../../_gitCommit'
 import { prettyDelta } from '../../lib/format'
 import FlexCol from '../../components/FlexCol'
 import ErrorMessage from '../../components/Error'
+import { ConfigContext } from '@/providers/config'
 
 export default function About() {
   const { aspInfo } = useContext(AspContext)
+  const { config } = useContext(ConfigContext)
 
   const [error, setError] = useState(false)
 
@@ -28,6 +30,7 @@ export default function About() {
     ['Session duration', prettyDelta(Number(aspInfo.sessionDuration), true)],
     ['Boarding exit delay', prettyDelta(Number(aspInfo.boardingExitDelay), true)],
     ['Unilateral exit delay', prettyDelta(Number(aspInfo.unilateralExitDelay), true)],
+    ['Wallet mode', config.walletMode],
     ['Git commit hash', gitCommit],
   ]
 
