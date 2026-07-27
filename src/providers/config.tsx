@@ -7,6 +7,7 @@ import { BackupProvider } from '../lib/backup'
 import { consoleError } from '../lib/logs'
 import { setHapticsEnabled } from '../lib/haptics'
 import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
+import { getCurrency } from '@/lib/language'
 
 const defaultConfig: Config = {
   announcementsSeen: [],
@@ -14,7 +15,7 @@ const defaultConfig: Config = {
   aspUrl: defaultArkServer(),
   dismissedBanners: [],
   delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
-  currency: Currencies.USD,
+  currency: getCurrency(navigator.language),
   importedAssets: [],
   haptics: true,
   nostrBackup: false,

@@ -28,20 +28,21 @@ export const calcNextRollover = async (vtxos: Vtxo[], wallet: IWallet, aspInfo: 
     return minBlockTime + expiration
   }
   return vtxos.reduce((acc: number, cur) => {
-    if (!cur.virtualStatus.batchExpiry) return acc
-    const unixtimestamp = Math.floor(cur.virtualStatus.batchExpiry / 1000)
+    const expiryMs = cur.expiresAt?.getTime()
+    if (!expiryMs) return acc
+    const unixtimestamp = Math.floor(expiryMs / 1000)
     return unixtimestamp < acc || acc === 0 ? unixtimestamp : acc
   }, 0)
 }
 
 export const calcBatchLifetimeMs = async (vtxos: Vtxo[], indexer: Indexer): Promise<number> => {
-  const sampleVtxo = vtxos.find((vtxo) => vtxo.virtualStatus.batchExpiry && vtxo.virtualStatus.commitmentTxIds)
-  if (!sampleVtxo || !sampleVtxo.virtualStatus.batchExpiry || !sampleVtxo.virtualStatus.commitmentTxIds?.[0]) return 0
+  const sampleVtxo = vtxos.find((vtxo) => vtxo.expiresAt && vtxo.commitmentTxIds?.length)
+  if (!sampleVtxo?.expiresAt || !sampleVtxo.commitmentTxIds?.[0]) return 0
 
-  const batchStart = await indexer.getAndUpdateCommitmentTxCreatedAt(sampleVtxo.virtualStatus.commitmentTxIds[0])
+  const batchStart = await indexer.getAndUpdateCommitmentTxCreatedAt(sampleVtxo.commitmentTxIds[0])
   if (!batchStart) return 0
   const batchStartMs = batchStart * 1000
 
-  const batchExpiryMs = sampleVtxo.virtualStatus.batchExpiry
+  const batchExpiryMs = sampleVtxo.expiresAt.getTime()
   return batchExpiryMs - batchStartMs
 }
