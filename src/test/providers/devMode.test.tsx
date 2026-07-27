@@ -16,7 +16,10 @@ function Harness() {
 
 describe('DevModeProvider', () => {
   beforeEach(() => localStorage.clear())
-  afterEach(() => localStorage.clear())
+  afterEach(() => {
+    localStorage.clear()
+    window.history.replaceState({}, '', '/')
+  })
 
   it('starts with dev mode off', () => {
     render(
@@ -29,6 +32,40 @@ describe('DevModeProvider', () => {
 
   it('reads initial state from localStorage', () => {
     localStorage.setItem('dev_mode', 'true')
+    render(
+      <DevModeProvider>
+        <Harness />
+      </DevModeProvider>,
+    )
+    expect(screen.getByTestId('status').textContent).toBe('on')
+  })
+
+  it('enables dev mode from ?dev=true and persists it', () => {
+    window.history.replaceState({}, '', '/?dev=true')
+    render(
+      <DevModeProvider>
+        <Harness />
+      </DevModeProvider>,
+    )
+    expect(screen.getByTestId('status').textContent).toBe('on')
+    expect(localStorage.getItem('dev_mode')).toBe('true')
+  })
+
+  it('disables dev mode from ?dev=false even if previously enabled', () => {
+    localStorage.setItem('dev_mode', 'true')
+    window.history.replaceState({}, '', '/?dev=false')
+    render(
+      <DevModeProvider>
+        <Harness />
+      </DevModeProvider>,
+    )
+    expect(screen.getByTestId('status').textContent).toBe('off')
+    expect(localStorage.getItem('dev_mode')).toBe('false')
+  })
+
+  it('ignores an unrelated dev value and falls back to localStorage', () => {
+    localStorage.setItem('dev_mode', 'true')
+    window.history.replaceState({}, '', '/?dev=maybe')
     render(
       <DevModeProvider>
         <Harness />
