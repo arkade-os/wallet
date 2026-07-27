@@ -12,14 +12,6 @@ import TokenLogo, { tokenLogoTickerForAsset } from '../../../components/TokenLog
 import { toast } from '../../../components/Toast'
 import WalletSuccessSplash from '../../../components/WalletSuccessSplash'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../../../components/ui/drawer'
-import {
-  Popover,
-  PopoverContent,
-  PopoverDescription,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-} from '../../../components/ui/popover'
 import ArrowUpDownIcon from '../../../icons/ArrowUpDown'
 import ChevronDownIcon from '../../../icons/ChevronDown'
 import InfoIcon from '../../../icons/Info'
@@ -49,14 +41,6 @@ type DrawerState = 'to' | 'review' | null
 type SwapStep = 'select-from' | 'compose'
 type AmountMode = 'asset' | 'fiat'
 type SwapValidationState = 'idle' | 'insufficient-balance' | 'quote-unavailable'
-type SwapValidationVariant = 'sonner' | 'inline' | 'balance' | 'limits'
-
-const validationVariantLabels: Record<SwapValidationVariant, string> = {
-  sonner: 'V1',
-  inline: 'V2',
-  balance: 'V3',
-  limits: 'V4',
-}
 
 interface SwapAsset {
   assetId: string
@@ -190,7 +174,6 @@ export default function WalletSwap() {
   const [confirming, setConfirming] = useState(false)
   const [confirmError, setConfirmError] = useState('')
   const [successQuote, setSuccessQuote] = useState<SwapQuote>()
-  const [validationVariant, setValidationVariant] = useState<SwapValidationVariant>('sonner')
 
   const fromAsset =
     swapAssets.find((asset) => asset.assetId === fromAssetId) ??
@@ -246,9 +229,7 @@ export default function WalletSwap() {
       : validationMessage === 'Insufficient balance'
         ? 'insufficient-balance'
         : 'idle'
-  const balanceValidation =
-    validationVariant === 'balance' || (validationVariant === 'limits' && isBalanceLimitValidation(validationMessage))
-  const sonnerValidation = validationVariant === 'sonner' || (validationVariant === 'limits' && !balanceValidation)
+  const balanceValidation = isBalanceLimitValidation(validationMessage) ? validationMessage : ''
   const quoteLoading = status === 'loading' || (quoteStale && hasPositiveAmount)
   const canContinue = Boolean(toAsset && plan && status === 'success' && !planError && !quoteStale)
 
@@ -296,12 +277,12 @@ export default function WalletSwap() {
   }, [validationState])
 
   useEffect(() => {
-    if (!sonnerValidation || !validationMessage) {
+    if (balanceValidation || !validationMessage) {
       toast.dismiss('swap-validation')
       return
     }
     toast.error(validationMessage, { id: 'swap-validation' })
-  }, [amount, validationMessage, sonnerValidation])
+  }, [amount, balanceValidation, validationMessage])
 
   useEffect(
     () => () => {
@@ -483,8 +464,7 @@ export default function WalletSwap() {
                     onSwapSides={swapSides}
                     onUseMaxBalance={useMaxBalance}
                     validationState={validationState}
-                    validationText={validationMessage}
-                    validationVariant={validationVariant}
+                    balanceValidation={balanceValidation}
                     invalidPulse={invalidPulse}
                     quoteLoading={quoteLoading}
                     swapTurn={swapTurn}
@@ -497,10 +477,6 @@ export default function WalletSwap() {
           </div>
         </Padded>
       </Content>
-
-      {step === 'compose' ? (
-        <ValidationVariantSwitcher variant={validationVariant} onChange={setValidationVariant} />
-      ) : null}
 
       <AssetPickerDrawer
         open={drawer === 'to'}
@@ -618,8 +594,7 @@ function SwapComposer({
   onSwapSides,
   onUseMaxBalance,
   validationState,
-  validationText,
-  validationVariant,
+  balanceValidation,
   invalidPulse,
   quoteLoading,
   swapTurn,
@@ -637,8 +612,7 @@ function SwapComposer({
   onSwapSides: () => void
   onUseMaxBalance: () => void
   validationState: SwapValidationState
-  validationText: string
-  validationVariant: SwapValidationVariant
+  balanceValidation: string
   invalidPulse: number
   quoteLoading: boolean
   swapTurn: number
@@ -648,11 +622,6 @@ function SwapComposer({
     amountMode === 'fiat' ? formatCurrencyInputAmount(amount, currency, bitcoinUnit) : `${amount} ${fromAsset.ticker}`
   const subAmountLabel = amountMode === 'fiat' ? `${quote.fromAmount} ${fromAsset.ticker}` : quote.fromFiat
   const nextAmountModeLabel = amountMode === 'fiat' ? 'asset amount' : `${currency} amount`
-  const inlineValidation = validationVariant === 'inline' ? validationText : ''
-  const balanceValidation =
-    validationVariant === 'balance' || (validationVariant === 'limits' && isBalanceLimitValidation(validationText))
-      ? validationText
-      : ''
   const secondaryTransition = {
     duration: prefersReduced ? 0 : 0.16,
     ease: EASE_OUT_QUINT_TUPLE,
@@ -671,10 +640,7 @@ function SwapComposer({
           <TokenAvatar asset={fromAsset} size={36} />
           <div className='swap-input-card__asset-copy'>
             <span>{fromAsset.name}</span>
-            <div
-              className='swap-input-card__balance-slot'
-              aria-live={validationVariant === 'balance' || validationVariant === 'limits' ? 'polite' : undefined}
-            >
+            <div className='swap-input-card__balance-slot' aria-live='polite'>
               <AnimatePresence mode='wait' initial={false}>
                 {balanceValidation === 'Insufficient balance' ? (
                   <motion.button
@@ -723,46 +689,26 @@ function SwapComposer({
             <AnimatedAmountValue value={amountLabel} reducedMotion={prefersReduced} />
           </motion.button>
         </div>
-        <div className='swap-amount-secondary-slot' aria-live='polite'>
-          <AnimatePresence mode='wait' initial={false}>
-            {inlineValidation === 'Insufficient balance' ? (
-              <motion.button
-                key='max'
-                type='button'
-                className='swap-inline-validation swap-inline-validation--action'
-                onClick={onUseMaxBalance}
-                aria-label={`Use maximum ${formatAssetBalance(fromAsset)}`}
-                {...secondaryMotion}
-              >
-                Max {formatAssetBalance(fromAsset)}
-              </motion.button>
-            ) : inlineValidation ? (
-              <motion.span key={inlineValidation} className='swap-inline-validation' role='status' {...secondaryMotion}>
-                {inlineValidation}
-              </motion.span>
-            ) : (
-              <motion.button
-                key='amount'
-                type='button'
-                className='swap-amount-secondary'
-                onClick={onModeToggle}
-                aria-label={`Show ${nextAmountModeLabel} first`}
-                data-testid='swap-amount-toggle'
-                {...secondaryMotion}
-              >
-                <AnimatedSecondaryAmountValue value={subAmountLabel} reducedMotion={prefersReduced} />
-                <motion.span
-                  className='swap-amount-secondary__icon'
-                  animate={{ rotate: amountMode === 'fiat' ? 0 : 180 }}
-                  transition={{ duration: prefersReduced ? 0 : 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }}
-                  aria-hidden='true'
-                >
-                  <ArrowUpDownIcon />
-                </motion.span>
-              </motion.button>
-            )}
-          </AnimatePresence>
-        </div>
+        <motion.button
+          type='button'
+          className='swap-amount-secondary'
+          layout
+          onClick={onModeToggle}
+          aria-label={`Show ${nextAmountModeLabel} first`}
+          data-testid='swap-amount-toggle'
+          transition={{ duration: prefersReduced ? 0 : 0.18, ease: EASE_IN_OUT_QUINT_TUPLE }}
+        >
+          <AnimatedSecondaryAmountValue value={subAmountLabel} reducedMotion={prefersReduced} />
+          <motion.span
+            className='swap-amount-secondary__icon'
+            layout='position'
+            animate={{ rotate: amountMode === 'fiat' ? 0 : 180 }}
+            transition={{ duration: prefersReduced ? 0 : 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }}
+            aria-hidden='true'
+          >
+            <ArrowUpDownIcon />
+          </motion.span>
+        </motion.button>
       </div>
 
       <motion.button
@@ -801,90 +747,6 @@ function SwapComposer({
         )}
       </button>
     </div>
-  )
-}
-
-function ValidationVariantSwitcher({
-  variant,
-  onChange,
-}: {
-  variant: SwapValidationVariant
-  onChange: (variant: SwapValidationVariant) => void
-}) {
-  const [open, setOpen] = useState(false)
-
-  const selectVariant = (nextVariant: SwapValidationVariant) => {
-    hapticLight()
-    onChange(nextVariant)
-    setOpen(false)
-  }
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger className='swap-variant-trigger' aria-label='Choose validation variant' onClick={hapticLight}>
-        {validationVariantLabels[variant]}
-      </PopoverTrigger>
-      <PopoverContent className='swap-variant-popover' side='top' align='end' sideOffset={8}>
-        <PopoverHeader>
-          <PopoverTitle>Validation feedback</PopoverTitle>
-          <PopoverDescription>Compare how swap errors appear.</PopoverDescription>
-        </PopoverHeader>
-        <div className='swap-variant-options' role='radiogroup' aria-label='Validation feedback variant'>
-          <button
-            type='button'
-            className='swap-variant-option'
-            role='radio'
-            aria-checked={variant === 'sonner'}
-            onClick={() => selectVariant('sonner')}
-          >
-            <span className='swap-variant-option__badge'>V1</span>
-            <span>
-              <strong>Sonner toast</strong>
-              <small>Temporary message above the screen.</small>
-            </span>
-          </button>
-          <button
-            type='button'
-            className='swap-variant-option'
-            role='radio'
-            aria-checked={variant === 'inline'}
-            onClick={() => selectVariant('inline')}
-          >
-            <span className='swap-variant-option__badge'>V2</span>
-            <span>
-              <strong>Inline max</strong>
-              <small>Replaces the conversion pill.</small>
-            </span>
-          </button>
-          <button
-            type='button'
-            className='swap-variant-option'
-            role='radio'
-            aria-checked={variant === 'balance'}
-            onClick={() => selectVariant('balance')}
-          >
-            <span className='swap-variant-option__badge'>V3</span>
-            <span>
-              <strong>Balance line</strong>
-              <small>All errors replace available balance.</small>
-            </span>
-          </button>
-          <button
-            type='button'
-            className='swap-variant-option'
-            role='radio'
-            aria-checked={variant === 'limits'}
-            onClick={() => selectVariant('limits')}
-          >
-            <span className='swap-variant-option__badge'>V4</span>
-            <span>
-              <strong>Limits + Sonner</strong>
-              <small>Limits replace balance; other errors toast.</small>
-            </span>
-          </button>
-        </div>
-      </PopoverContent>
-    </Popover>
   )
 }
 
