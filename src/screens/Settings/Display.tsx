@@ -9,7 +9,7 @@ import { SettingsOptions, Themes } from '../../lib/types'
 import { OptionsContext } from '../../providers/options'
 import { hapticSubtle } from '../../lib/haptics'
 
-export default function General() {
+export default function Display() {
   const { config, systemTheme } = useContext(ConfigContext)
   const { setOption } = useContext(OptionsContext)
 
