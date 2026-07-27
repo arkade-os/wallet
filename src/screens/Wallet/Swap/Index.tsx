@@ -49,7 +49,14 @@ type DrawerState = 'to' | 'review' | null
 type SwapStep = 'select-from' | 'compose'
 type AmountMode = 'asset' | 'fiat'
 type SwapValidationState = 'idle' | 'insufficient-balance' | 'quote-unavailable'
-type SwapValidationVariant = 'sonner' | 'inline'
+type SwapValidationVariant = 'sonner' | 'inline' | 'balance' | 'limits'
+
+const validationVariantLabels: Record<SwapValidationVariant, string> = {
+  sonner: 'V1',
+  inline: 'V2',
+  balance: 'V3',
+  limits: 'V4',
+}
 
 interface SwapAsset {
   assetId: string
@@ -239,6 +246,9 @@ export default function WalletSwap() {
       : validationMessage === 'Insufficient balance'
         ? 'insufficient-balance'
         : 'idle'
+  const balanceValidation =
+    validationVariant === 'balance' || (validationVariant === 'limits' && isBalanceLimitValidation(validationMessage))
+  const sonnerValidation = validationVariant === 'sonner' || (validationVariant === 'limits' && !balanceValidation)
   const quoteLoading = status === 'loading' || (quoteStale && hasPositiveAmount)
   const canContinue = Boolean(toAsset && plan && status === 'success' && !planError && !quoteStale)
 
@@ -286,12 +296,12 @@ export default function WalletSwap() {
   }, [validationState])
 
   useEffect(() => {
-    if (validationVariant !== 'sonner' || !validationMessage) {
+    if (!sonnerValidation || !validationMessage) {
       toast.dismiss('swap-validation')
       return
     }
     toast.error(validationMessage, { id: 'swap-validation' })
-  }, [amount, validationMessage, validationVariant])
+  }, [amount, validationMessage, sonnerValidation])
 
   useEffect(
     () => () => {
@@ -639,6 +649,10 @@ function SwapComposer({
   const subAmountLabel = amountMode === 'fiat' ? `${quote.fromAmount} ${fromAsset.ticker}` : quote.fromFiat
   const nextAmountModeLabel = amountMode === 'fiat' ? 'asset amount' : `${currency} amount`
   const inlineValidation = validationVariant === 'inline' ? validationText : ''
+  const balanceValidation =
+    validationVariant === 'balance' || (validationVariant === 'limits' && isBalanceLimitValidation(validationText))
+      ? validationText
+      : ''
   const secondaryTransition = {
     duration: prefersReduced ? 0 : 0.16,
     ease: EASE_OUT_QUINT_TUPLE,
@@ -657,9 +671,39 @@ function SwapComposer({
           <TokenAvatar asset={fromAsset} size={36} />
           <div className='swap-input-card__asset-copy'>
             <span>{fromAsset.name}</span>
-            <button type='button' className='swap-input-card__balance' onClick={onUseMaxBalance}>
-              {formatAssetBalance(fromAsset)}
-            </button>
+            <div
+              className='swap-input-card__balance-slot'
+              aria-live={validationVariant === 'balance' || validationVariant === 'limits' ? 'polite' : undefined}
+            >
+              <AnimatePresence mode='wait' initial={false}>
+                {balanceValidation === 'Insufficient balance' ? (
+                  <motion.button
+                    key='max'
+                    type='button'
+                    className='swap-input-card__balance swap-input-card__balance--max'
+                    onClick={onUseMaxBalance}
+                    aria-label={`Use maximum ${formatAssetBalance(fromAsset)}`}
+                    {...secondaryMotion}
+                  >
+                    Max {formatAssetBalance(fromAsset)}
+                  </motion.button>
+                ) : balanceValidation ? (
+                  <motion.span key={balanceValidation} className='swap-input-card__balance-error' {...secondaryMotion}>
+                    {balanceValidation}
+                  </motion.span>
+                ) : (
+                  <motion.button
+                    key='balance'
+                    type='button'
+                    className='swap-input-card__balance'
+                    onClick={onUseMaxBalance}
+                    {...secondaryMotion}
+                  >
+                    {formatAssetBalance(fromAsset)}
+                  </motion.button>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
         <div className='swap-amount-stack'>
@@ -778,7 +822,7 @@ function ValidationVariantSwitcher({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger className='swap-variant-trigger' aria-label='Choose validation variant' onClick={hapticLight}>
-        {variant === 'sonner' ? 'V1' : 'V2'}
+        {validationVariantLabels[variant]}
       </PopoverTrigger>
       <PopoverContent className='swap-variant-popover' side='top' align='end' sideOffset={8}>
         <PopoverHeader>
@@ -810,6 +854,32 @@ function ValidationVariantSwitcher({
             <span>
               <strong>Inline max</strong>
               <small>Replaces the conversion pill.</small>
+            </span>
+          </button>
+          <button
+            type='button'
+            className='swap-variant-option'
+            role='radio'
+            aria-checked={variant === 'balance'}
+            onClick={() => selectVariant('balance')}
+          >
+            <span className='swap-variant-option__badge'>V3</span>
+            <span>
+              <strong>Balance line</strong>
+              <small>All errors replace available balance.</small>
+            </span>
+          </button>
+          <button
+            type='button'
+            className='swap-variant-option'
+            role='radio'
+            aria-checked={variant === 'limits'}
+            onClick={() => selectVariant('limits')}
+          >
+            <span className='swap-variant-option__badge'>V4</span>
+            <span>
+              <strong>Limits + Sonner</strong>
+              <small>Limits replace balance; other errors toast.</small>
             </span>
           </button>
         </div>
@@ -1397,6 +1467,10 @@ function swapValidationMessage({
     default:
       return ''
   }
+}
+
+function isBalanceLimitValidation(message: string): boolean {
+  return message === 'Insufficient balance' || message.startsWith('Minimum ') || message.startsWith('Maximum ')
 }
 
 /** plan.limits bound the RECEIVE side (see validatePlan), but the user is

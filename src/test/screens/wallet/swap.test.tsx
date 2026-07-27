@@ -212,12 +212,41 @@ describe('Wallet swap flow', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Choose validation variant' }))
     await userEvent.click(screen.getByRole('radio', { name: /Inline max/i }))
 
-    const useMaxButton = await screen.findByRole('button', { name: 'Use maximum 0.00100000 BTC' })
-    expect(useMaxButton).toBeInTheDocument()
-    await userEvent.click(useMaxButton)
+    expect(await screen.findByRole('button', { name: 'Use maximum 0.00100000 BTC' })).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Choose validation variant' }))
+    await userEvent.click(screen.getByRole('radio', { name: /Balance line/i }))
+
+    await waitFor(() => expect(container.querySelector('.swap-input-card__balance--max')).not.toBeNull())
+    const useMaxButton = container.querySelector('.swap-input-card__balance--max') as HTMLButtonElement
+    expect(useMaxButton).toHaveClass('swap-input-card__balance--max')
+    expect(useMaxButton).toHaveAccessibleName('Use maximum 0.00100000 BTC')
+    expect(container.querySelector('.swap-amount-secondary')).not.toBeNull()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Choose validation variant' }))
+    await userEvent.click(screen.getByRole('radio', { name: /Limits \+ Sonner/i }))
+
+    const limitsUseMaxButton = container.querySelector('.swap-input-card__balance--max') as HTMLButtonElement
+    expect(limitsUseMaxButton).toHaveClass('swap-input-card__balance--max')
+    await userEvent.click(limitsUseMaxButton)
 
     await waitFor(() => expect(screen.getByLabelText('Swap amount')).toHaveTextContent('0.001 BTC'))
     await waitFor(() => expect(container.querySelector('.swap-amount-display--invalid')).toBeNull())
+  })
+
+  it('keeps non-limit Variant 4 errors in Sonner', async () => {
+    fetchMocker.mockRejectOnce(new Error('feed unavailable'))
+    const { container } = renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'Choose validation variant' }))
+    await userEvent.click(screen.getByRole('radio', { name: /Limits \+ Sonner/i }))
+    await userEvent.click(screen.getByRole('button', { name: '5' }))
+
+    await waitFor(() => expect(screen.getByText('Quote unavailable')).toBeInTheDocument(), { timeout: 3_000 })
+    expect(screen.getByRole('button', { name: '0.00100000 BTC' })).toBeInTheDocument()
+    expect(container.querySelector('.swap-input-card__balance-error')).toBeNull()
   })
 
   it('submits the live PR 784 offer plan and a historical display snapshot', async () => {
