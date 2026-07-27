@@ -19,12 +19,14 @@ export const AssetsProvider = ({ children }: { children: ReactNode }) => {
 
   const getRegistryUrl = (network: string): string => {
     if (!getRegistryFileName(network)) return ''
-    return `${repo}/${getRegistryFileName(network)}`
+    const host = network === 'regtest' ? '/asset-registry' : repo
+    return `${host}/${getRegistryFileName(network)}`
   }
 
   const getRegistryFileName = (network: string): string => {
     if (network === 'bitcoin') return 'mainnet.json'
     if (network === 'mutinynet') return 'mutinynet.json'
+    if (network === 'regtest') return 'regtest.json'
     if (network === 'signet') return 'signet.json'
     return ''
   }

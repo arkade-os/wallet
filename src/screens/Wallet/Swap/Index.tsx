@@ -956,6 +956,7 @@ function SwapAssetRow({ asset, active, onClick }: { asset: SwapAsset; active?: b
     <button
       type='button'
       className={active ? 'swap-token-row swap-token-row--active' : 'swap-token-row'}
+      data-testid={`swap-asset-row-${asset.ticker.toLowerCase()}`}
       onClick={onClick}
     >
       <TokenAvatar asset={asset} size={40} />

@@ -108,6 +108,10 @@ export const collaborativeExit = async (wallet: IWallet, amount: number, address
   }
 }
 
+// Compare by batch expiry ascending; VTXOs without an expiry sort last.
+export const byExpiryAsc = (a: { expiresAt?: Date | null }, b: { expiresAt?: Date | null }): number =>
+  (a.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY) - (b.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY)
+
 export const collaborativeExitWithFees = async (
   wallet: IWallet,
   inputAmount: number,
@@ -118,8 +122,8 @@ export const collaborativeExitWithFees = async (
   const selectedVtxos = []
   let selectedAmount = 0
 
-  // sort vtxos by batch expiry ascending
-  const vtxosSorted = vtxos.sort((a, b) => (a.virtualStatus.batchExpiry ?? 0) - (b.virtualStatus.batchExpiry ?? 0))
+  // sort vtxos by batch expiry ascending; missing expiry sorts last
+  const vtxosSorted = vtxos.sort(byExpiryAsc)
 
   for (const vtxo of vtxosSorted) {
     if (selectedAmount >= inputAmount) break
