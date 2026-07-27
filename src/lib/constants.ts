@@ -47,7 +47,7 @@ const SOLVER_REGISTRY_URL: Record<Network, string | null> = {
   mutinynet: 'https://arkade-os.github.io/solver-registry/mutinynet.json',
   signet: null,
   regtest: null,
-  testnet: null,
+  testnet: 'https://arkade-os.github.io/solver-registry/testnet.json',
 }
 
 // env override first (any network), then the per-network table
