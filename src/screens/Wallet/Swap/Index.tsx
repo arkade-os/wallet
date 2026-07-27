@@ -240,8 +240,7 @@ export default function WalletSwap() {
     setFromAssetId(resolveInitialFromAssetId(swapAssets, swapFromAssetId) ?? swapAssets[0]?.assetId ?? 'btc')
   }, [fromAssetId, swapAssets, swapFromAssetId])
 
-  // an unpriced give asset (#857) cannot seed a currency-mode entry — the
-  // conversion yields nothing, so no quote would ever fire. Pin asset units.
+  // unpriced give asset: currency entry can never produce a quote
   useEffect(() => {
     if (!estimateSwapUsd(fromAsset)) setAmountMode('asset')
   }, [fromAsset])
@@ -335,9 +334,6 @@ export default function WalletSwap() {
   }
 
   const toggleAmountMode = () => {
-    // an unpriced give asset (#857 — e.g. an asset↔asset market of unknown
-    // coins) has no currency conversion: fiat entry would be a dead end, so
-    // the toggle no-ops. #834's identity/unpriced work hides it properly.
     if (!estimateSwapUsd(fromAsset)) return
     hapticLight()
     // promote the value the secondary pill was showing — flipping only the
@@ -1365,8 +1361,7 @@ function buildQuoteSnapshot(plan: OfferPlan, quote: SwapQuote, currency: Currenc
     // the BTC leg's sats directly, since the snapshot's sats-vs-BTC meaning
     // depends on the bitcoin-unit setting at swap time). Skip persisting it
     // next time the store shape changes.
-    // no fabricated zero for unpriceable trades (#857 asset↔asset): omit the
-    // fiat snapshot entirely so receipts fall back instead of showing €0.00
+    // unpriceable trade: omit rather than persist a fabricated zero
     ...(quote.giveFiatValue > 0 || quote.fromFiatValue > 0
       ? {
           fiatCurrency: currency,

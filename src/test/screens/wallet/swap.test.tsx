@@ -356,11 +356,8 @@ describe('Wallet swap flow', () => {
       flow: { swapFromAssetId: MARAT_ID, setSwapFromAssetId: vi.fn() },
     })
 
-    // unpriced give asset: entry is pinned to asset units, not a dead
-    // currency mode (the composer would otherwise never fire a quote)
     await waitFor(() => expect(screen.getByLabelText('Swap amount')).toHaveTextContent(/MARAT/))
 
-    // the paired asset must appear as a receive option (was empty pre-fix)
     fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
     expect(await screen.findByRole('button', { name: /NAPO/i })).toBeInTheDocument()
   })

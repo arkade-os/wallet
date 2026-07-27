@@ -48,13 +48,10 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   const [emulatorUrl, setEmulatorUrl] = useState<string>()
   const [swaps, setSwaps] = useState<AssetSwap[]>(getAssetSwaps)
 
-  // discover markets and probe the emulator once the network is known;
-  // stale results from a previous network must never land after a switch.
-  // Re-run on tab return: a long-lived PWA otherwise never re-discovers
-  // (Louis hit this — the registry looked create/restore-only). The 1h TTL
-  // cache inside discoverMarkets is the rate limiter, so the listener can
-  // fire on every visibilitychange without hammering the registry; the
-  // emulator re-probe rides along, healing "emulator was down at boot".
+  // discover markets and probe the emulator once the network is known, and
+  // again on every tab return (discoverMarkets' TTL cache is the rate
+  // limiter); stale results from a previous network must never land after a
+  // switch
   useEffect(() => {
     setMarkets([])
     setEmulatorUrl(undefined)

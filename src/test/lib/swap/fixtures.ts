@@ -21,7 +21,7 @@ export const btcUsdt: DiscoveredMarket = {
   sourceType: 'registry',
 }
 
-// Louis's asset↔asset registry card (#857): neither side is BTC
+// an asset↔asset market: neither side is BTC
 export const MARAT_ID = 'aad4ace7f70c0f197cafc707fc1026de38b15556e80566ade6354cbc4054fd3a0000'
 export const NAPO_ID = 'c23471d3d8be2e1a342118aa7c79f67e329097b746ab0552a53295598b1e98880000'
 

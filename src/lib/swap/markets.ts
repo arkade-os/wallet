@@ -102,12 +102,9 @@ export const discoverMarkets = async (network: Network): Promise<DiscoveredMarke
   return markets
 }
 
-/**
- * Best market for a from/to pair, in either orientation — BTC legs and
- * asset↔asset pairs alike (#857). `give` names the side the sender deposits:
- * base when fromId is the market's base asset, quote when it is the quote
- * asset. `wantSide` skips markets whose receive side is disabled (max = "0").
- */
+/** Best market for a from/to pair, in either orientation. `give` is the side
+ * the sender deposits; `wantSide` skips markets whose receive side is
+ * disabled (max = "0"). */
 export const findMarket = (
   markets: DiscoveredMarket[],
   fromId: string,
