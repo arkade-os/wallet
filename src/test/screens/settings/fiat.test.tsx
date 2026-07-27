@@ -1,14 +1,14 @@
 import { ConfigContext } from '../../../providers/config'
 import { render, screen } from '@testing-library/react'
 import { mockConfigContextValue } from '../mocks'
-import Fiat from '../../../screens/Settings/Fiat'
+import Currency from '../../../screens/Settings/Currency'
 import { describe, expect, it } from 'vitest'
 
 describe('Fiat screen', () => {
   it('renders the currency screen with the correct elements', () => {
     render(
       <ConfigContext.Provider value={mockConfigContextValue as any}>
-        <Fiat />
+        <Currency />
       </ConfigContext.Provider>,
     )
     expect(screen.getAllByText('Currency')).toHaveLength(2)
@@ -30,7 +30,7 @@ describe('Fiat screen', () => {
   it('renders the fiat screen with the correct default selection', () => {
     render(
       <ConfigContext.Provider value={mockConfigContextValue as any}>
-        <Fiat />
+        <Currency />
       </ConfigContext.Provider>,
     )
     expect(

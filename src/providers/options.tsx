@@ -1,5 +1,6 @@
 import { ReactElement, ReactNode, createContext, useCallback, useEffect, useRef, useState } from 'react'
 import BackupIcon from '../icons/Backup'
+import CurrencyIcon from '../icons/CurrencyIcon'
 import InfoIcon from '../icons/Info'
 import NotificationIcon from '../icons/Notification'
 import ResetIcon from '../icons/Reset'
@@ -65,34 +66,39 @@ export const options: Option[] = [
     section: SettingsSections.Advanced,
   },
   {
+    icon: <CurrencyIcon />,
+    option: SettingsOptions.Currency,
+    section: SettingsSections.General,
+  },
+  {
     icon: <CogIcon />,
     option: SettingsOptions.Display,
-    section: SettingsSections.Display,
+    section: SettingsSections.General,
   },
   {
     icon: <NotificationIcon />,
     option: SettingsOptions.Notifications,
-    section: SettingsSections.Display,
+    section: SettingsSections.General,
   },
   {
     icon: <NotesIcon />,
     option: SettingsOptions.Notes,
-    section: SettingsSections.Display,
+    section: SettingsSections.General,
   },
   {
     icon: <InfoIcon />,
     option: SettingsOptions.About,
-    section: SettingsSections.Display,
+    section: SettingsSections.General,
   },
   {
     icon: <SupportIcon />,
     option: SettingsOptions.Support,
-    section: SettingsSections.Display,
+    section: SettingsSections.General,
   },
   {
     icon: <PuzzleIcon />,
     option: SettingsOptions.Advanced,
-    section: SettingsSections.Display,
+    section: SettingsSections.General,
   },
   {
     icon: <BackupIcon />,
@@ -112,22 +118,17 @@ export const options: Option[] = [
   {
     icon: <></>,
     option: SettingsOptions.BitcoinUnit,
-    section: SettingsSections.Config,
-  },
-  {
-    icon: <></>,
-    option: SettingsOptions.Currency,
-    section: SettingsSections.Config,
+    section: SettingsSections.Display,
   },
   {
     icon: <></>,
     option: SettingsOptions.Haptics,
-    section: SettingsSections.Config,
+    section: SettingsSections.Display,
   },
   {
     icon: <></>,
     option: SettingsOptions.Theme,
-    section: SettingsSections.Config,
+    section: SettingsSections.Display,
   },
 ]
 
@@ -136,7 +137,7 @@ export interface SectionResponse {
   options: Option[]
 }
 
-const allOptions: SectionResponse[] = [SettingsSections.Display, SettingsSections.Security].map((section) => {
+const allOptions: SectionResponse[] = [SettingsSections.General, SettingsSections.Security].map((section) => {
   return {
     section,
     options: options.filter((o) => o.section === section),
@@ -171,14 +172,14 @@ export const OptionsProvider = ({ children }: { children: ReactNode }) => {
   const historyDepth = useRef(0)
 
   const optionSection = (opt: SettingsOptions): SettingsSections => {
-    return options.find((o) => o.option === opt)?.section || SettingsSections.Display
+    return options.find((o) => o.option === opt)?.section || SettingsSections.General
   }
 
   const getParentOption = (current: SettingsOptions): SettingsOptions => {
     const section = optionSection(current)
     return section === SettingsSections.Advanced
       ? SettingsOptions.Advanced
-      : section === SettingsSections.Config
+      : section === SettingsSections.Display
         ? SettingsOptions.Display
         : SettingsOptions.Menu
   }
