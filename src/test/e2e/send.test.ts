@@ -83,7 +83,7 @@ test('should send usds (some and max) to ark address', async ({ page, isMobile }
     'h6u2nredqtn0cr4p4zqz53gsmhju4l9t7x47kzleesa9dprx7e56xhzlen'
 
   // send page
-  await prePay(page, someArkAddress, isMobile, usdsToSend, true)
+  await prePay(page, someArkAddress, isMobile, usdsToSend)
 
   // details page
   await expect(page.getByTestId('Network fees')).toContainText('$0.00')
@@ -108,8 +108,7 @@ test('should send usds (some and max) to ark address', async ({ page, isMobile }
   await page.locator('input[name="send-address"]').fill(someArkAddress)
 
   // switch entry to the display currency, then click max
-  await page.waitForSelector('text=/sats available/', { timeout: 2100 })
-  await page.getByTestId('input-amount-switch').click()
+  await page.waitForSelector(`text=$${usdsRemaining} available`, { timeout: 2100 })
   await page.getByTestId('input-amount-max').click()
   const inputAmount = await page.locator('input[name="send-amount"]').inputValue()
   expect(Number(inputAmount).toFixed(2)).toBe(usdsRemaining)
@@ -293,7 +292,7 @@ test('should send usds (some and max) to onchain address with chain swap', async
   const someOnchainAddress = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
 
   // send page
-  await prePay(page, someOnchainAddress, isMobile, usdsToSend, true)
+  await prePay(page, someOnchainAddress, isMobile, usdsToSend)
 
   // details page
   await expect(page.getByTestId('Amount')).toContainText(`$${usdsToSend.toFixed(2)}`)
