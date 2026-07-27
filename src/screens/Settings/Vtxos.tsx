@@ -22,7 +22,7 @@ import LoadingLogo from '../../components/LoadingLogo'
 import { LimitsContext } from '../../providers/limits'
 import { EmptyCoinsList } from '../../components/Empty'
 import WarningBox from '../../components/Warning'
-import { ExtendedCoin, ExtendedVirtualCoin, isVtxoExpiringSoon } from '@arkade-os/sdk'
+import { ExtendedCoin, ExtendedVirtualCoin, isVtxoExpiringSoon, canRecoverOnchain, TimeHeight } from '@arkade-os/sdk'
 import { consoleError } from '../../lib/logs'
 import * as Sentry from '@sentry/react'
 import Grid from '../../components/Grid'
@@ -272,8 +272,8 @@ export default function Vtxos() {
   }
 
   const VtxoLine = ({ vtxo }: { vtxo: Vtxo }) => {
-    const now = Date.now()
-    const expired = vtxo.virtualStatus?.batchExpiry ? now > vtxo.virtualStatus.batchExpiry : false
+    const now: TimeHeight = { timestamp: new Date() }
+    const expiryMs = vtxo.expiresAt?.getTime()
     const satsAmount = config.showBalance ? prettyNumber(vtxo.value) : prettyHide(vtxo.value)
     const assetsAmounts = vtxo.assets?.length
       ? vtxo.assets.map((a) => {
@@ -284,16 +284,16 @@ export default function Vtxos() {
           return { text: `${prettyAssetAmount(a.amount, decimals)} ${label}`, assetId: a.assetId }
         })
       : []
-    const expiry = vtxo.virtualStatus?.batchExpiry ? prettyAgo(vtxo.virtualStatus.batchExpiry) : 'Unknown'
+    const expiry = expiryMs ? prettyAgo(expiryMs) : 'Unknown'
     const tags = (
       <FlexRow centered>
         {vtxo.value < aspInfo.dust
           ? Tags.subdust
-          : vtxo.virtualStatus?.state === 'swept' || expired
+          : canRecoverOnchain(vtxo, now)
             ? Tags.swept
             : wallet.thresholdMs && isVtxoExpiringSoon(vtxo, wallet.thresholdMs)
               ? Tags.expiring
-              : vtxo.virtualStatus?.state === 'settled'
+              : !vtxo.isSpent && !vtxo.isSwept && !vtxo.isPreconfirmed
                 ? Tags.settled
                 : null}
       </FlexRow>
