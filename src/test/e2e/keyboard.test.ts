@@ -13,7 +13,6 @@ async function openKeyboard(page: Page) {
 // helper function to change the display currency in settings
 async function changeCurrency(page: Page, currency: Currencies) {
   await navigateToSettings(page)
-  await page.getByText('display', { exact: true }).click()
   await page.getByText('currency').click()
   await page.getByText(currency).click()
   await page.getByLabel('Go back').click()

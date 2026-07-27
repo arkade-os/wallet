@@ -1,14 +1,14 @@
 import { ConfigContext } from '../../../providers/config'
-import Display from '../../../screens/Settings/Display'
+import BitcoinUnit from '../../../screens/Settings/BitcoinUnit'
 import { render, screen } from '@testing-library/react'
 import { mockConfigContextValue } from '../mocks'
 import { describe, expect, it } from 'vitest'
 
-describe('Display screen', () => {
-  it('renders the display screen with the correct elements', () => {
+describe('BitcoinUnit screen', () => {
+  it('renders the bitcoin unit screen with the correct elements', () => {
     render(
       <ConfigContext.Provider value={mockConfigContextValue as any}>
-        <Display />
+        <BitcoinUnit />
       </ConfigContext.Provider>,
     )
     expect(screen.getByTestId('select-option-0')).toBeInTheDocument()
@@ -19,10 +19,10 @@ describe('Display screen', () => {
     expect(screen.getByTestId('select-option-2').querySelector('p')?.textContent).toBe('₿')
   })
 
-  it('renders the display screen with the correct default selection', () => {
+  it('renders the bitcoin unit screen with the correct default selection', () => {
     render(
       <ConfigContext.Provider value={mockConfigContextValue as any}>
-        <Display />
+        <BitcoinUnit />
       </ConfigContext.Provider>,
     )
     expect(screen.getByTestId('select-option-0').querySelector('svg')).toBeInTheDocument()

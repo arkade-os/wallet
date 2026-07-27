@@ -148,7 +148,6 @@ export async function createWallet(page: Page): Promise<void> {
 export async function createWalletWithFiat(page: Page): Promise<void> {
   await createWallet(page)
   await navigateToSettings(page)
-  await page.getByText('display', { exact: true }).click()
   await page.getByText('currency').click()
   await page.getByText('USD').click()
   await page.getByLabel('Go back').click()
