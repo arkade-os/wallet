@@ -11,7 +11,7 @@ interface SettingsMenuProps {
 }
 
 export default function SettingsMenu({ backFunc }: SettingsMenuProps) {
-  const displayRows = options.filter((o) => o.section === SettingsSections.Display)
+  const displayRows = options.filter((o) => o.section === SettingsSections.General)
   const securityRows = options.filter((o) => o.section === SettingsSections.Security)
 
   return (
@@ -21,7 +21,7 @@ export default function SettingsMenu({ backFunc }: SettingsMenuProps) {
         <Padded>
           <FlexCol gap='1.25rem' className='settings-page'>
             <section className='settings-section'>
-              <p className='settings-section-label'>Display</p>
+              <p className='settings-section-label'>General</p>
               <Menu rows={displayRows} styled />
             </section>
             <section className='settings-section'>
