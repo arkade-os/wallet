@@ -168,6 +168,7 @@ export default function WalletSwap() {
   const [search, setSearch] = useState('')
   const [amount, setAmount] = useState('0')
   const [selectedAmountMode, setSelectedAmountMode] = useState<AmountMode>('fiat')
+  // Any path that changes the effective give amount must clear this pair.
   const [preservedAmountPair, setPreservedAmountPair] = useState<{
     assetId: string
     assetAmount: string
@@ -195,8 +196,11 @@ export default function WalletSwap() {
   const amountMode = currencyConversionUseful ? selectedAmountMode : 'asset'
 
   useEffect(() => {
-    if (!currencyConversionUseful) setSelectedAmountMode('asset')
-  }, [currencyConversionUseful])
+    if (currencyConversionUseful || selectedAmountMode !== 'fiat') return
+    setPreservedAmountPair(undefined)
+    setAmount('0')
+    setSelectedAmountMode('asset')
+  }, [currencyConversionUseful, selectedAmountMode])
 
   const pair = toAsset ? findMarket(markets, fromAsset.assetId, toAsset.assetId) : undefined
   // per-mount cache: a burst of keystroke-debounced quotes reuses one feed
@@ -1353,7 +1357,7 @@ function amountInAssetUnits(amount: string, mode: AmountMode, fromAsset: SwapAss
   if (units === undefined) return ''
   // this string is parsed by Number()/BigInt downstream (the quote debounce
   // gate, amountForQuote, the solver's giveAmount) — no thousands separators
-  return prettyNumber(units, fromAsset.decimals, false)
+  return prettyNumber(fromAsset.decimals === 0 ? Math.floor(units) : units, fromAsset.decimals, false)
 }
 
 function amountForQuote(amount: string, fromAsset: SwapAsset): string {

@@ -148,7 +148,6 @@ export async function createWallet(page: Page): Promise<void> {
 export async function createWalletWithFiat(page: Page): Promise<void> {
   await createWallet(page)
   await navigateToSettings(page)
-  await page.getByText('display', { exact: true }).click()
   await page.getByText('currency').click()
   await page.getByText('USD').click()
   await page.getByLabel('Go back').click()
@@ -203,7 +202,7 @@ export async function getInvoiceFromLND(amount = 2100): Promise<string> {
   return invoice
 }
 
-export async function prePay(page: Page, address: string, isMobile = false, amount = 0, fiat = false): Promise<void> {
+export async function prePay(page: Page, address: string, isMobile = false, amount = 0): Promise<void> {
   // go to send page
   await navigateHome(page)
   await page.getByText('Send').click()
@@ -217,10 +216,8 @@ export async function prePay(page: Page, address: string, isMobile = false, amou
     if (isMobile) {
       await page.locator('input[name="send-amount"]').click()
       await page.waitForSelector('text=Save', { state: 'visible' })
-      if (fiat) await page.getByLabel('Toggle currency').click()
       await handleKeyboardInput(page, amount)
     } else {
-      if (fiat) await page.getByTestId('input-amount-switch').click()
       await page.locator('input[name="send-amount"]').fill(amount.toString())
     }
   }

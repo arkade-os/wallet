@@ -19,7 +19,7 @@ import InputAmount, { type InputAmountMode } from '../../../components/InputAmou
 import InputAddress from '../../../components/InputAddress'
 import Header from '../../../components/Header'
 import { WalletContext } from '../../../providers/wallet'
-import { fromSatoshis, prettyAmount, prettyNumber, toSatoshis } from '../../../lib/format'
+import { fromSatoshis, prettyAmount, prettyFiatAmount, prettyNumber, toSatoshis } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
@@ -188,15 +188,23 @@ export default function SendForm() {
     setError(str === '' ? (aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '') : str)
   }
 
-  // Bitcoin amounts enter in the wallet's unit by default; the input's ⇅
-  // switch flips to display-currency entry (fiatEntry) on demand.
-  const [entryMode, setEntryMode] = useState<InputAmountMode>('unit')
+  // Prefer display-currency entry when conversion is available; otherwise
+  // fall back to the wallet's bitcoin unit without reinterpreting the text.
   const currencyConversionUseful = config.currency !== Currencies.BTC && toFiat(100_000_000) > 0 && fromFiat(1) > 0
+  const [entryMode, setEntryMode] = useState<InputAmountMode>(useFiat && currencyConversionUseful ? 'fiat' : 'unit')
   const fiatEntry = entryMode === 'fiat' && useFiat && currencyConversionUseful
 
   useEffect(() => {
-    if (!currencyConversionUseful) setEntryMode('unit')
-  }, [currencyConversionUseful])
+    if (currencyConversionUseful || entryMode !== 'fiat') return
+    setEntryMode('unit')
+    setAmountTextValue(
+      sendInfo.satoshis
+        ? config.unit === Unit.BTC
+          ? prettyNumber(fromSatoshis(sendInfo.satoshis), 8, false)
+          : prettyNumber(sendInfo.satoshis, 0, false)
+        : '',
+    )
+  }, [config.unit, currencyConversionUseful, entryMode, sendInfo.satoshis])
 
   const getTextValue = (sats: number) =>
     fiatEntry
@@ -802,10 +810,14 @@ export default function SendForm() {
       )
     }
 
+    const amount = fiatEntry
+      ? prettyFiatAmount(liquidBalance ? toFiat(liquidBalance) : 0, config.currency)
+      : prettyUnitBalance(liquidBalance)
+
     return (
       <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
         <Text color='neutral-500' smaller>
-          {`${prettyUnitBalance(liquidBalance)} available`}
+          {`${amount} available`}
         </Text>
       </div>
     )

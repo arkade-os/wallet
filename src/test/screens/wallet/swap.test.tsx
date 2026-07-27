@@ -326,6 +326,29 @@ describe('Wallet swap flow', () => {
     expect(createSwap.mock.calls[0][0].deposit.atomic).toBe(BigInt(100_000_000_000))
   })
 
+  it('clears a currency amount when its price conversion becomes unavailable', async () => {
+    let priceAvailable = true
+    renderSwap({
+      config: { currency: Currencies.USD, unit: Unit.SATS },
+      fiat: {
+        fromFiatAmount: (amount: number) => (priceAvailable ? amount : 0),
+        toFiatAmount: (amount: number) => (priceAvailable ? amount : 0),
+      },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    for (const key of ['1', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
+    expect(primaryAmount()).toHaveAccessibleName('Swap amount, $10')
+
+    priceAvailable = false
+    await userEvent.click(screen.getByRole('button', { name: '0' }))
+
+    await waitFor(() => expect(primaryAmount()).toHaveAccessibleName('Swap amount, 0 sats'))
+    expect(screen.queryByRole('button', { name: /^Show .+ first/ })).not.toBeInTheDocument()
+  })
+
   it('submits the live PR 784 offer plan and a historical display snapshot', async () => {
     renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
 

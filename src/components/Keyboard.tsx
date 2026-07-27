@@ -1,6 +1,6 @@
 import Header from './Header'
 import Content from './Content'
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import Text, { TextSecondary } from './Text'
 import { FiatContext } from '../providers/fiat'
 import { fromSatoshis, prettyAmount, prettyFiatAmount, prettyNumber, toSatoshis } from '../lib/format'
@@ -48,18 +48,25 @@ export default function Keyboard({
   const [inputMode, setInputMode] = useState<KeyboardInputMode>('sats')
   const [textValue, setTextValue] = useState('')
   const currencyConversionUseful = config.currency !== Currencies.BTC && toFiat(100_000_000) > 0 && fromFiat(1) > 0
+  const previousCurrencyConversionUseful = useRef(currencyConversionUseful)
+  const defaultInputMode: KeyboardInputMode = asset?.assetId
+    ? 'asset'
+    : currencyConversionUseful
+      ? (defaultMode ?? (useFiat ? 'fiat' : config.unit === Unit.BTC ? 'btc' : 'sats'))
+      : config.unit === Unit.BTC
+        ? 'btc'
+        : 'sats'
 
   useEffect(() => {
-    setInputMode(
-      asset?.assetId
-        ? 'asset'
-        : currencyConversionUseful
-          ? (defaultMode ?? (useFiat ? 'fiat' : config.unit === Unit.BTC ? 'btc' : 'sats'))
-          : config.unit === Unit.BTC
-            ? 'btc'
-            : 'sats',
-    )
-  }, [asset, currencyConversionUseful, defaultMode, useFiat, config.unit])
+    setInputMode(defaultInputMode)
+  }, [defaultInputMode])
+
+  useEffect(() => {
+    if (previousCurrencyConversionUseful.current !== currencyConversionUseful && inputMode !== defaultInputMode) {
+      setTextValue('')
+    }
+    previousCurrencyConversionUseful.current = currencyConversionUseful
+  }, [currencyConversionUseful, defaultInputMode, inputMode])
 
   useEffect(() => {
     if (initialValue && inputMode && toFiat && fiatDecimals) {
