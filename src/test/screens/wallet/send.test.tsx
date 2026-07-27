@@ -183,13 +183,14 @@ describe('Send screen', () => {
     }
     const configValue = {
       ...mockConfigContextValue,
-      useFiat: false,
+      useFiat: true,
       config: { ...mockConfigContextValue.config, currency: Currencies.BTC, unit: Unit.SATS },
     }
 
     renderSendForm({ configContext: configValue, walletContext: walletValue })
 
     await waitFor(() => screen.getByText('12,128 sats available'), { timeout: 2000 })
+    expect(screen.queryByTestId('input-amount-switch')).not.toBeInTheDocument()
     expect(screen.queryByText('0.00012128 BTC available')).not.toBeInTheDocument()
     expect(screen.queryByText('12,128 sats available')).toBeInTheDocument()
   })
@@ -225,6 +226,39 @@ describe('Send screen', () => {
 
     expect(await screen.findByText('0.00010000 BTC')).toBeInTheDocument()
     expect(screen.queryByText('10,000 sats')).not.toBeInTheDocument()
+  })
+
+  it('keeps send in bitcoin units when currency conversion is unavailable', () => {
+    const configValue = {
+      ...mockConfigContextValue,
+      useFiat: true,
+      config: { ...mockConfigContextValue.config, currency: Currencies.USD, unit: Unit.SATS },
+    }
+    const unavailableCurrency = {
+      ...mockFiatContextValue,
+      toFiat: () => 0,
+      fromFiat: () => 0,
+      fromFiatAmount: () => 0,
+      toFiatAmount: () => 0,
+    }
+
+    renderSendForm({
+      configContext: configValue,
+      fiatContext: unavailableCurrency,
+      walletContext: {
+        ...mockWalletContextValue,
+        assetBalances: [],
+        svcWallet: {
+          ...mockSvcWallet,
+          getAddress: () => 'tark1mockoffchain',
+          getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+        } as any,
+      },
+    })
+
+    expect(screen.queryByTestId('input-amount-switch')).not.toBeInTheDocument()
+    expect(screen.getByText('sats')).toBeInTheDocument()
+    expect(document.body).not.toHaveTextContent(/[$€]/)
   })
 
   it('converts typed BTC send amounts to satoshis before updating send state', async () => {

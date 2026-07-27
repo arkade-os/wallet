@@ -45,6 +45,7 @@ interface SwapAsset {
   assetId: string
   name: string
   ticker: string
+  currency?: Currencies
   decimals: number
   balance: number | bigint
   fiatText?: string
@@ -56,16 +57,16 @@ interface SwapQuote {
   fromAsset: SwapAsset
   toAsset?: SwapAsset
   fromAmount: string
-  fromFiat: string
+  fromCurrency: string
   toAmount: string
-  toFiat: string
+  toCurrency: string
   feeLabel: string
   rateFromTicker: string
   rateToTicker: string
   rateLabel: string
-  fromFiatValue: number
-  toFiatValue: number
-  giveFiatValue: number
+  fromCurrencyValue: number
+  toCurrencyValue: number
+  giveCurrencyValue: number
 }
 
 interface ExitingAmountCharacter {
@@ -117,6 +118,7 @@ export default function WalletSwap() {
           // BTC enters/displays in whatever unit the wallet's bitcoin-unit
           // setting picks (sats/BTC/₿), same as the rest of the wallet
           ticker: btcUnit === Unit.BTC ? 'BTC' : btcUnit,
+          currency: Currencies.BTC,
           decimals: btcUnit === Unit.BTC ? 8 : 0,
           balance: BigInt(availableBalance),
           fiatText: bitcoinRow?.hasFiatPrice
@@ -135,6 +137,7 @@ export default function WalletSwap() {
         assetId: asset.id,
         name: row?.name ?? designatedCurrency ?? asset.name,
         ticker: row?.ticker ?? designatedCurrency ?? asset.ticker,
+        currency: designatedCurrency,
         decimals: asset.decimals,
         balance: BigInt(owned?.amount ?? 0),
         fiatText: row?.hasFiatPrice
@@ -164,11 +167,11 @@ export default function WalletSwap() {
   const [step, setStep] = useState<SwapStep>(swapFromAssetId && initialFromAssetId ? 'compose' : 'select-from')
   const [search, setSearch] = useState('')
   const [amount, setAmount] = useState('0')
-  const [amountMode, setAmountMode] = useState<AmountMode>('fiat')
+  const [selectedAmountMode, setSelectedAmountMode] = useState<AmountMode>('fiat')
   const [preservedAmountPair, setPreservedAmountPair] = useState<{
     assetId: string
     assetAmount: string
-    fiatAmount: string
+    currencyAmount: string
     entryMode: AmountMode
   }>()
   const [fromAssetId, setFromAssetId] = useState(initialFromAssetId ?? swapAssets[0]?.assetId ?? 'btc')
@@ -188,6 +191,13 @@ export default function WalletSwap() {
     ? swapAssets.find((asset) => asset.assetId === toAssetId && asset.assetId !== fromAsset.assetId)
     : undefined
   const unitOfAccountUsd = toFiatAmount(fromFiatAmount(1, config.currency), Currencies.USD)
+  const currencyConversionUseful = hasDistinctCurrencyConversion(fromAsset, config.currency, unitOfAccountUsd)
+  const amountMode = currencyConversionUseful ? selectedAmountMode : 'asset'
+
+  useEffect(() => {
+    if (!currencyConversionUseful) setSelectedAmountMode('asset')
+  }, [currencyConversionUseful])
+
   const pair = toAsset ? findMarket(markets, fromAsset.assetId, toAsset.assetId) : undefined
   // per-mount cache: a burst of keystroke-debounced quotes reuses one feed
   // value instead of getting rate-limited into "Quote unavailable"
@@ -212,7 +222,7 @@ export default function WalletSwap() {
     plan && new Decimal(plan.deposit.display).eq(amountForQuote(assetAmount, fromAsset) || '0'),
   )
   const currentPlan = status === 'success' && planMatchesAssetAmount ? plan : null
-  const quoteStale = Number(assetAmount) > 0 && !currentPlan
+  const quoteStale = Boolean(toAsset && Number(assetAmount) > 0 && !currentPlan)
   const planError = currentPlan ? validatePlan(currentPlan, assetBalanceAtomic(fromAsset), aspInfo.dust) : undefined
   const validationMessage = swapValidationMessage({
     amount,
@@ -247,15 +257,12 @@ export default function WalletSwap() {
       unitOfAccountUsd,
     ],
   )
-  const currentFiatValue =
-    currentPlan && quote.fromFiatValue > 0
-      ? quote.fromFiatValue
-      : fiatValueFromAssetAmount(assetAmount, fromAsset, unitOfAccountUsd)
-  const alternateFiatAmount =
+  const currentCurrencyValue = quote.fromCurrencyValue > 0 ? quote.fromCurrencyValue : undefined
+  const alternateCurrencyAmount =
     Number(assetAmount) === 0
       ? '0'
-      : currentFiatValue !== undefined && currentFiatValue > 0
-        ? prettyNumber(currentFiatValue, fiatDecimals(), false, fiatDecimals())
+      : currentCurrencyValue !== undefined
+        ? prettyNumber(currentCurrencyValue, fiatDecimals(), false, fiatDecimals())
         : undefined
   const hasPositiveAmount = Number(amount) > 0
   const validationState: SwapValidationState =
@@ -372,17 +379,17 @@ export default function WalletSwap() {
     const nextAmount =
       amountMode === 'fiat'
         ? (preservedAmounts?.assetAmount ?? amountInAssetUnits(amount, amountMode, fromAsset, unitOfAccountUsd))
-        : (preservedAmounts?.fiatAmount ?? alternateFiatAmount)
+        : (preservedAmounts?.currencyAmount ?? alternateCurrencyAmount)
     if (nextAmount === undefined) return
     hapticLight()
     setPreservedAmountPair({
       assetId: fromAsset.assetId,
       assetAmount: amountMode === 'asset' ? amount : nextAmount,
-      fiatAmount: amountMode === 'fiat' ? amount : nextAmount,
+      currencyAmount: amountMode === 'fiat' ? amount : nextAmount,
       entryMode: preservedAmounts?.entryMode ?? amountMode,
     })
     setAmount(nextAmount)
-    setAmountMode((current) => (current === 'asset' ? 'fiat' : 'asset'))
+    setSelectedAmountMode((current) => (current === 'asset' ? 'fiat' : 'asset'))
   }
 
   const useMaxBalance = () => {
@@ -393,7 +400,7 @@ export default function WalletSwap() {
     setPreservedAmountPair(undefined)
     // enter the exact balance in the asset's own units — sidestep the fiat
     // round-trip so "max" funds the whole balance to the last atomic unit
-    setAmountMode('asset')
+    setSelectedAmountMode('asset')
     setAmount(centsToUnits(rawBalance, fromAsset.decimals))
   }
 
@@ -481,7 +488,8 @@ export default function WalletSwap() {
                     amountMode={amountMode}
                     currency={config.currency}
                     bitcoinUnit={config.unit}
-                    alternateFiatAmount={preservedAmounts?.fiatAmount ?? alternateFiatAmount}
+                    alternateCurrencyAmount={preservedAmounts?.currencyAmount ?? alternateCurrencyAmount}
+                    currencyConversionUseful={currencyConversionUseful}
                     quote={quote}
                     fromAsset={fromAsset}
                     toAsset={toAsset}
@@ -612,7 +620,8 @@ function SwapComposer({
   amountMode,
   currency,
   bitcoinUnit,
-  alternateFiatAmount,
+  alternateCurrencyAmount,
+  currencyConversionUseful,
   quote,
   fromAsset,
   toAsset,
@@ -631,7 +640,8 @@ function SwapComposer({
   amountMode: AmountMode
   currency: Currencies
   bitcoinUnit: Unit
-  alternateFiatAmount?: string
+  alternateCurrencyAmount?: string
+  currencyConversionUseful: boolean
   quote: SwapQuote
   fromAsset: SwapAsset
   toAsset?: SwapAsset
@@ -646,13 +656,17 @@ function SwapComposer({
   swapTurn: number
 }) {
   const prefersReduced = useReducedMotion()
-  const fiatAmountLabel =
-    amountMode === 'fiat' || alternateFiatAmount !== undefined
-      ? formatCurrencyInputAmount(amountMode === 'fiat' ? amount : alternateFiatAmount || '0', currency, bitcoinUnit)
-      : quote.fromFiat
+  const currencyAmountLabel =
+    amountMode === 'fiat' || alternateCurrencyAmount !== undefined
+      ? formatCurrencyInputAmount(
+          amountMode === 'fiat' ? amount : alternateCurrencyAmount || '0',
+          currency,
+          bitcoinUnit,
+        )
+      : quote.fromCurrency
   const assetAmountLabel = `${assetAmount} ${fromAsset.ticker}`
-  const secondaryAmountLabel = amountMode === 'fiat' ? assetAmountLabel : fiatAmountLabel
-  const primaryAmountLabel = amountMode === 'fiat' ? fiatAmountLabel : assetAmountLabel
+  const secondaryAmountLabel = amountMode === 'fiat' ? assetAmountLabel : currencyAmountLabel
+  const primaryAmountLabel = amountMode === 'fiat' ? currencyAmountLabel : assetAmountLabel
   const secondaryAmountMode = amountMode === 'fiat' ? 'asset' : 'fiat'
   const nextAmountModeLabel = amountMode === 'fiat' ? 'asset amount' : `${currency} amount`
   const validationMessage = validationText
@@ -689,6 +703,7 @@ function SwapComposer({
               >
                 <motion.span
                   className='swap-amount-value-shake'
+                  data-testid='swap-amount-value-shake'
                   animate={prefersReduced || validationState === 'idle' ? undefined : { x: [0, -7, 6, -4, 2, 0] }}
                   transition={
                     prefersReduced || validationState === 'idle'
@@ -714,39 +729,41 @@ function SwapComposer({
                   </motion.span>
                 </motion.span>
               </button>
-              <button
-                type='button'
-                className='swap-amount-secondary'
-                onClick={onModeToggle}
-                aria-label={`Show ${nextAmountModeLabel} first`}
-              >
-                <motion.span
-                  className='swap-amount-secondary__background'
-                  layout
-                  transition={{ layout: amountValueTransition }}
-                  aria-hidden='true'
-                />
-                <motion.span
-                  key={secondaryAmountMode}
-                  layoutId={`swap-amount-${secondaryAmountMode}`}
-                  className='swap-amount-secondary__label swap-amount-value--secondary'
-                  transition={{ layout: amountValueTransition }}
-                  aria-hidden='true'
+              {currencyConversionUseful ? (
+                <button
+                  type='button'
+                  className='swap-amount-secondary'
+                  onClick={onModeToggle}
+                  aria-label={`Show ${nextAmountModeLabel} first`}
                 >
-                  {secondaryAmountLabel}
-                </motion.span>
-                <motion.span
-                  className='swap-amount-secondary__icon'
-                  layout='position'
-                  transition={{ layout: amountValueTransition }}
-                  aria-hidden='true'
-                >
-                  <ArrowUpDownIcon />
-                </motion.span>
-              </button>
+                  <motion.span
+                    className='swap-amount-secondary__background'
+                    layout
+                    transition={{ layout: amountValueTransition }}
+                    aria-hidden='true'
+                  />
+                  <motion.span
+                    key={secondaryAmountMode}
+                    layoutId={`swap-amount-${secondaryAmountMode}`}
+                    className='swap-amount-secondary__label swap-amount-value--secondary'
+                    transition={{ layout: amountValueTransition }}
+                    aria-hidden='true'
+                  >
+                    {secondaryAmountLabel}
+                  </motion.span>
+                  <motion.span
+                    className='swap-amount-secondary__icon'
+                    layout='position'
+                    transition={{ layout: amountValueTransition }}
+                    aria-hidden='true'
+                  >
+                    <ArrowUpDownIcon />
+                  </motion.span>
+                </button>
+              ) : null}
             </div>
           </LayoutGroup>
-          <div className='swap-input-error-slot'>
+          <div className='swap-input-error-slot' data-testid='swap-input-error-slot'>
             <AnimatePresence initial={false}>
               {validationMessage ? (
                 <motion.p
@@ -770,7 +787,7 @@ function SwapComposer({
         className='swap-flip-button'
         aria-label='Switch swap direction'
         animate={{ rotate: swapTurn * 180 }}
-        transition={{ duration: 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }}
+        transition={prefersReduced ? { duration: 0 } : { duration: 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }}
         disabled={!toAsset}
         onClick={onSwapSides}
       >
@@ -787,7 +804,9 @@ function SwapComposer({
                 {quoteLoading ? <SwapSkeletonText width='5.75rem' /> : `${quote.toAmount} ${toAsset.ticker}`}
               </small>
             </div>
-            <strong>{quoteLoading ? <SwapSkeletonText width='3.75rem' /> : quote.toFiat}</strong>
+            {quote.toCurrency ? (
+              <strong>{quoteLoading ? <SwapSkeletonText width='3.75rem' /> : quote.toCurrency}</strong>
+            ) : null}
           </>
         ) : (
           <>
@@ -962,13 +981,15 @@ function TokenAvatar({ asset, size }: { asset: SwapAsset; size: number }) {
 }
 
 function Keypad({ amount, onPress }: { amount: string; onPress: (key: string) => void }) {
+  const prefersReduced = useReducedMotion()
+
   return (
     <motion.div
       className='swap-keypad-shell'
       aria-label={`Swap keypad for ${amount || '0'}`}
-      initial={{ opacity: 0, y: 14 }}
+      initial={prefersReduced ? false : { opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22, ease: EASE_OUT_QUINT_TUPLE }}
+      transition={prefersReduced ? { duration: 0 } : { duration: 0.22, ease: EASE_OUT_QUINT_TUPLE }}
     >
       <div className='swap-keypad'>
         {keypadKeys.map((key) => (
@@ -1006,7 +1027,11 @@ function AssetPickerDrawer({
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className='swap-drawer-content swap-review-drawer-content'>
+      <DrawerContent
+        className='swap-drawer-content swap-review-drawer-content'
+        initialFocus={(openType) => openType === 'keyboard'}
+        finalFocus={(closeType) => closeType === 'keyboard'}
+      >
         <DrawerHeader className='swap-picker-header'>
           <DrawerTitle>{target === 'from' ? 'Choose asset to swap' : 'Choose asset to receive'}</DrawerTitle>
           <DrawerDescription>Pick the asset for this side of the swap.</DrawerDescription>
@@ -1058,6 +1083,8 @@ function ReviewDrawer({
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
 }) {
+  const prefersReduced = useReducedMotion()
+
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className='swap-drawer-content'>
@@ -1074,10 +1101,10 @@ function ReviewDrawer({
             {error ? (
               <motion.p
                 className='swap-confirm-error'
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 6 }}
-                transition={{ duration: 0.2, ease: EASE_OUT_QUINT_TUPLE }}
+                initial={prefersReduced ? false : { opacity: 0, y: 6 }}
+                animate={prefersReduced ? undefined : { opacity: 1, y: 0 }}
+                exit={prefersReduced ? undefined : { opacity: 0, y: 6 }}
+                transition={prefersReduced ? { duration: 0 } : { duration: 0.2, ease: EASE_OUT_QUINT_TUPLE }}
               >
                 {error}
               </motion.p>
@@ -1250,7 +1277,9 @@ function buildQuoteFromPlan(
   const receivedProtocol = plan && toAsset ? Number(plan.receive.display) : 0
   const fromUnits = fromUnitsProtocol * fromScale
   const received = receivedProtocol * toScale
-  const receivedCurrencyAmount = unitOfAccountUsd > 0 ? (receivedProtocol * toUsd) / unitOfAccountUsd : 0
+  const fromCurrencyAvailable = hasCurrencyConversion(fromAsset, unitOfAccountUsd)
+  const toCurrencyAvailable = Boolean(toAsset && hasCurrencyConversion(toAsset, unitOfAccountUsd))
+  const receivedCurrencyAmount = toCurrencyAvailable ? (receivedProtocol * toUsd) / unitOfAccountUsd : 0
   const feeFraction = (plan?.market.fee_bps ?? 0) / 10_000
   // received amounts are net of the fee; grossUp recovers the pre-fee total
   const grossUp = feeFraction < 1 ? 1 / (1 - feeFraction) : 0
@@ -1262,7 +1291,7 @@ function buildQuoteFromPlan(
   // estimate before a quote exists, OR when the receive asset has no price
   // feed (receivedCurrencyAmount 0) — otherwise a priced give side would read
   // $0 just because the receive side can't be valued.
-  const giveEstimate = unitOfAccountUsd > 0 ? (fromUnitsProtocol * fromUsd) / unitOfAccountUsd : 0
+  const giveEstimate = fromCurrencyAvailable ? (fromUnitsProtocol * fromUsd) / unitOfAccountUsd : 0
   const selectedCurrencyAmount =
     plan && toAsset && grossUp > 0 && receivedCurrencyAmount > 0 ? receivedCurrencyAmount * grossUp : giveEstimate
   const rate = fromUnitsProtocol > 0 ? receivedProtocol / fromUnitsProtocol : 0
@@ -1276,23 +1305,23 @@ function buildQuoteFromPlan(
     fromAsset,
     toAsset,
     fromAmount: formatAssetQuantity(fromUnits, fromAsset.decimals),
-    fromFiat: prettyFiatAmount(selectedCurrencyAmount, currency, formatOptions),
+    fromCurrency: fromCurrencyAvailable ? prettyFiatAmount(selectedCurrencyAmount, currency, formatOptions) : '',
     toAmount: toAsset ? formatAssetQuantity(received, toAsset.decimals) : '0',
-    toFiat: prettyFiatAmount(receivedCurrencyAmount, currency, formatOptions),
+    toCurrency: toCurrencyAvailable ? prettyFiatAmount(receivedCurrencyAmount, currency, formatOptions) : '',
     feeLabel: toAsset ? `${formatAssetQuantity(feeReceived, toAsset.decimals)} ${toAsset.ticker}` : '',
     // the rate is always quoted per whole BTC even though amounts display in
     // sats — "1 sats = 0.0000006 USD" is technically correct but unreadable
     rateFromTicker: swapRouteTicker(fromAsset.assetId, fromAsset.ticker) ?? '',
     rateToTicker: toAsset ? (swapRouteTicker(toAsset.assetId, toAsset.ticker) ?? '') : '',
     rateLabel: prettyNumber(rate, swapAmountDecimals(rate)),
-    fromFiatValue: selectedCurrencyAmount,
-    toFiatValue: receivedCurrencyAmount,
+    fromCurrencyValue: fromCurrencyAvailable ? selectedCurrencyAmount : 0,
+    toCurrencyValue: receivedCurrencyAmount,
     // what the persisted receipt echoes as the trade's volume: in fiat entry
     // the user committed a fiat figure converted at the wallet's own rate, so
     // echo it back (a "$5" swap reads $5.00 in activity, not a solver-rate
     // $4.99); in unit entry the solver-priced give label is what they saw
     // next to their amount and confirmed
-    giveFiatValue: entryMode === 'fiat' ? giveEstimate : selectedCurrencyAmount,
+    giveCurrencyValue: fromCurrencyAvailable ? (entryMode === 'fiat' ? giveEstimate : selectedCurrencyAmount) : 0,
   }
 }
 
@@ -1305,27 +1334,21 @@ function protocolToDisplayScale(asset: SwapAsset): number {
   return asset.assetId === BTC_ASSET_ID && asset.decimals === 0 ? 1e8 : 1
 }
 
-/** USD-fiat amount converted into the asset's entry/display scale (sats for
+/** Currency amount converted into the asset's entry/display scale (sats for
  * BTC, the asset's own decimals otherwise). Returns undefined with no price feed. */
-function assetUnitsFromFiatAmount(amount: string, fromAsset: SwapAsset, unitOfAccountUsd: number): number | undefined {
-  const assetUsd = estimateSwapUsd(fromAsset)
-  if (!assetUsd) return undefined
-  return (((Number(amount) || 0) * unitOfAccountUsd) / assetUsd) * protocolToDisplayScale(fromAsset)
-}
-
-function fiatValueFromAssetAmount(
-  assetAmount: string,
+function assetUnitsFromCurrencyAmount(
+  amount: string,
   fromAsset: SwapAsset,
   unitOfAccountUsd: number,
 ): number | undefined {
   const assetUsd = estimateSwapUsd(fromAsset)
   if (!assetUsd || !unitOfAccountUsd) return undefined
-  return new Decimal(assetAmount).div(protocolToDisplayScale(fromAsset)).mul(assetUsd).div(unitOfAccountUsd).toNumber()
+  return (((Number(amount) || 0) * unitOfAccountUsd) / assetUsd) * protocolToDisplayScale(fromAsset)
 }
 
 function amountInAssetUnits(amount: string, mode: AmountMode, fromAsset: SwapAsset, unitOfAccountUsd: number): string {
   if (mode === 'asset') return amount
-  const units = assetUnitsFromFiatAmount(amount, fromAsset, unitOfAccountUsd)
+  const units = assetUnitsFromCurrencyAmount(amount, fromAsset, unitOfAccountUsd)
   if (units === undefined) return ''
   // this string is parsed by Number()/BigInt downstream (the quote debounce
   // gate, amountForQuote, the solver's giveAmount) — no thousands separators
@@ -1446,7 +1469,11 @@ function buildQuoteSnapshot(plan: OfferPlan, quote: SwapQuote, currency: Currenc
     // depends on the bitcoin-unit setting at swap time). Skip persisting it
     // next time the store shape changes.
     fiatCurrency: currency,
-    fromFiatAmount: quote.giveFiatValue > 0 ? quote.giveFiatValue : quote.fromFiatValue,
+    ...(quote.giveCurrencyValue > 0 || quote.fromCurrencyValue > 0
+      ? {
+          fromFiatAmount: quote.giveCurrencyValue > 0 ? quote.giveCurrencyValue : quote.fromCurrencyValue,
+        }
+      : {}),
   }
 }
 
@@ -1478,6 +1505,14 @@ function formatAssetQuantity(value: number | string | Decimal, decimals: number)
 
 function estimateSwapUsd(asset: SwapAsset): number {
   return Number.isFinite(asset.usdPrice) ? (asset.usdPrice ?? 0) : 0
+}
+
+function hasCurrencyConversion(asset: SwapAsset, unitOfAccountUsd: number): boolean {
+  return Boolean(estimateSwapUsd(asset) && unitOfAccountUsd)
+}
+
+function hasDistinctCurrencyConversion(asset: SwapAsset, currency: Currencies, unitOfAccountUsd: number): boolean {
+  return asset.currency !== currency && hasCurrencyConversion(asset, unitOfAccountUsd)
 }
 
 function estimateRowUsdPrice(

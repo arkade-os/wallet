@@ -29,7 +29,7 @@ import Shadow from '../../../components/Shadow'
 import Scanner from '../../../components/Scanner'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
-import { Addresses, AssetOption, SettingsOptions, Themes, Unit } from '../../../lib/types'
+import { Addresses, AssetOption, Currencies, SettingsOptions, Themes, Unit } from '../../../lib/types'
 import { aspErrorText, getReceivingAddresses } from '../../../lib/asp'
 import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
@@ -191,7 +191,12 @@ export default function SendForm() {
   // Bitcoin amounts enter in the wallet's unit by default; the input's ⇅
   // switch flips to display-currency entry (fiatEntry) on demand.
   const [entryMode, setEntryMode] = useState<InputAmountMode>('unit')
-  const fiatEntry = entryMode === 'fiat' && useFiat
+  const currencyConversionUseful = config.currency !== Currencies.BTC && toFiat(100_000_000) > 0 && fromFiat(1) > 0
+  const fiatEntry = entryMode === 'fiat' && useFiat && currencyConversionUseful
+
+  useEffect(() => {
+    if (!currencyConversionUseful) setEntryMode('unit')
+  }, [currencyConversionUseful])
 
   const getTextValue = (sats: number) =>
     fiatEntry

@@ -5,7 +5,7 @@ import { ConfigContext } from '../providers/config'
 import { fromSatoshis, prettyNumber, toSatoshis } from '../lib/format'
 import { FIAT_SYMBOLS } from '../lib/fiat'
 import { LimitsContext } from '../providers/limits'
-import { AssetOption, Unit } from '../lib/types'
+import { AssetOption, Currencies, Unit } from '../lib/types'
 import { TextSecondary } from './Text'
 import { hapticLight } from '../lib/haptics'
 import { fiatAccountAssetSatoshis } from '../lib/accountAssets'
@@ -71,7 +71,8 @@ export default function InputAmount({
   // control the mode so other entry surfaces — the mobile keyboard — stay on
   // the same denomination); a plain one follows the wallet-wide useFiat flag.
   const mode = controlledMode ?? internalMode
-  const fiatEntry = switchable ? mode === 'fiat' && useFiat : useFiat
+  const currencyConversionUseful = config.currency !== Currencies.BTC && toFiat(100_000_000) > 0 && fromFiat(1) > 0
+  const fiatEntry = switchable ? mode === 'fiat' && useFiat && currencyConversionUseful : useFiat
 
   const toSats = (value: number): number => {
     return config.unit === Unit.BTC ? toSatoshis(value) : value
@@ -151,17 +152,21 @@ export default function InputAmount({
         )
       : undefined
   const assetFiatLabel =
-    assetSatoshis !== undefined && useFiat ? `${prettyNumber(toFiat(assetSatoshis), fiatDecimals())} ${fiatLabel}` : ''
+    assetSatoshis !== undefined && useFiat && currencyConversionUseful
+      ? `${prettyNumber(toFiat(assetSatoshis), fiatDecimals())} ${fiatLabel}`
+      : ''
 
   const leftLabel = asset?.assetId ? asset.ticker : fiatEntry ? fiatLabel : config.unit
   const rightLabel = asset?.assetId
     ? assetFiatLabel
     : fiatEntry
       ? `${otherValue} ${config.unit}`
-      : switchable && useFiat
+      : switchable && useFiat && currencyConversionUseful
         ? `${otherValue} ${fiatLabel}`
         : ''
-  const showSwitch = Boolean(switchable && useFiat && !asset?.assetId && !disabled && !readOnly)
+  const showSwitch = Boolean(
+    switchable && useFiat && currencyConversionUseful && !asset?.assetId && !disabled && !readOnly,
+  )
   const bottomLeft =
     minimumSats && satsValue !== undefined && satsValue < minimumSats
       ? `Min: ${prettyNumber(minimumSats)} ${minimumSats === 1 ? 'sat' : 'sats'}`
