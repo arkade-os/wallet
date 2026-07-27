@@ -46,7 +46,7 @@ const SOLVER_REGISTRY_URL: Record<Network, string | null> = {
   bitcoin: 'https://arkade-os.github.io/solver-registry/bitcoin.json',
   mutinynet: 'https://arkade-os.github.io/solver-registry/mutinynet.json',
   signet: null,
-  regtest: null,
+  regtest: 'http://localhost:3002/solver-registry/regtest.json',
   testnet: 'https://arkade-os.github.io/solver-registry/testnet.json',
 }
 

@@ -372,3 +372,9 @@ export async function getFeesFromDetails(page: Page): Promise<number> {
   const txtValue = await page.getByTestId('Network fees').textContent()
   return parseInt(txtValue?.replace(' sats', '').replaceAll(',', '') || '0')
 }
+
+export async function navigateToSwaps(page: Page): Promise<void> {
+  await navigateHome(page)
+  await page.getByTestId('home-action-swap').click()
+  await page.waitForSelector('text=Choose asset to swap', { timeout: 2000 })
+}
