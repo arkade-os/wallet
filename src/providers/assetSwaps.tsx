@@ -49,29 +49,42 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   const [swaps, setSwaps] = useState<AssetSwap[]>(getAssetSwaps)
 
   // discover markets and probe the emulator once the network is known;
-  // stale results from a previous network must never land after a switch
+  // stale results from a previous network must never land after a switch.
+  // Re-run on tab return: a long-lived PWA otherwise never re-discovers
+  // (Louis hit this — the registry looked create/restore-only). The 1h TTL
+  // cache inside discoverMarkets is the rate limiter, so the listener can
+  // fire on every visibilitychange without hammering the registry; the
+  // emulator re-probe rides along, healing "emulator was down at boot".
   useEffect(() => {
     setMarkets([])
     setEmulatorUrl(undefined)
     if (!aspInfo.network) return
     let cancelled = false
     const network = aspInfo.network as Network
-    discoverMarkets(network)
-      .then((found) => {
-        if (!cancelled) setMarkets(found)
-      })
-      .catch((err) => consoleError(err, 'solver discovery failed'))
-    const url = getEmulatorUrlForNetwork(network)
-    if (url) {
-      new RestEmulatorProvider(url)
-        .getInfo()
-        .then(() => {
-          if (!cancelled) setEmulatorUrl(url)
+    const runDiscovery = () => {
+      discoverMarkets(network)
+        .then((found) => {
+          if (!cancelled) setMarkets(found)
         })
-        .catch((err) => consoleError(err, 'swap emulator unreachable'))
+        .catch((err) => consoleError(err, 'solver discovery failed'))
+      const url = getEmulatorUrlForNetwork(network)
+      if (url) {
+        new RestEmulatorProvider(url)
+          .getInfo()
+          .then(() => {
+            if (!cancelled) setEmulatorUrl(url)
+          })
+          .catch((err) => consoleError(err, 'swap emulator unreachable'))
+      }
     }
+    runDiscovery()
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') runDiscovery()
+    }
+    document.addEventListener('visibilitychange', onVisible)
     return () => {
       cancelled = true
+      document.removeEventListener('visibilitychange', onVisible)
     }
   }, [aspInfo.network])
 
