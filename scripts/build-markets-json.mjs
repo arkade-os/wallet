@@ -7,7 +7,8 @@
 // - http://localhost:3002/solver-registry/regtest.json
 // - http://localhost:3002/asset-registry/regtest.json
 
-import { writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { dirname } from 'node:path'
 
 const options = {
   solverApiUrl: 'http://localhost:7091/v1/card?name=frenchman',
@@ -48,6 +49,9 @@ function normalizeCard(json) {
 async function main() {
   const solverCard = await fetchJson(options.solverApiUrl)
   const normalized = normalizeCard(solverCard)
+
+  await mkdir(dirname(options.filenames.discovery), { recursive: true })
+  await mkdir(dirname(options.filenames.registry), { recursive: true })
 
   const solverRegistry = JSON.stringify(normalized, null, 2)
   await writeFile(options.filenames.discovery, solverRegistry, 'utf8')
