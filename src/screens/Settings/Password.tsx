@@ -4,19 +4,21 @@ import { consoleLog } from '../../lib/logs'
 import Button from '../../components/Button'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
-import Success from '../../components/Success'
+import Success, { SuccessDoneButton } from '../../components/Success'
 import { defaultPassword } from '../../lib/constants'
 import { WalletContext } from '../../providers/wallet'
 import NewPassword from '../../components/NewPassword'
 import { useContext, useEffect, useState } from 'react'
 import NeedsPassword from '../../components/NeedsPassword'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
+import { NavigationContext, Pages } from '../../providers/navigation'
 import { isBiometricsSupported, registerUser } from '../../lib/biometrics'
 import { getPrivateKey, isValidPassword, noUserDefinedPassword, setPrivateKey } from '../../lib/privateKey'
 import { hasMnemonic, getMnemonic, setMnemonic } from '../../lib/mnemonic'
 
 export default function Password() {
   const { updateWallet, wallet } = useContext(WalletContext)
+  const { navigate } = useContext(NavigationContext)
 
   const [authenticated, setAuthenticated] = useState(false)
   const [oldPassword, setOldPassword] = useState('')
@@ -98,7 +100,9 @@ export default function Password() {
           </Padded>
         )}
       </Content>
-      {successText ? null : (
+      {successText ? (
+        <SuccessDoneButton onClick={() => navigate(Pages.Wallet)} />
+      ) : (
         <ButtonsOnBottom>
           <Button onClick={handleContinue} label={label} disabled={newPassword === null || saving} loading={saving} />
           {wallet.lockedByBiometrics || !isBiometricsSupported() ? null : (
