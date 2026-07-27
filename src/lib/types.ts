@@ -54,9 +54,9 @@ export enum Currencies {
 
 export enum SettingsSections {
   Advanced = 'Advanced',
-  Display = 'Display',
+  General = 'General',
   Security = 'Security',
-  Config = 'Config',
+  Display = 'Display',
 }
 
 export enum SettingsOptions {
@@ -65,12 +65,13 @@ export enum SettingsOptions {
   Advanced = 'advanced',
   ArkadeMint = 'Arkade Mint',
   Backup = 'backup',
+  BitcoinUnit = 'bitcoin unit',
   Boltz = 'Boltz',
   Contracts = 'contracts',
-  Delegates = 'delegates',
-  BitcoinUnit = 'bitcoin unit',
-  Display = 'display',
   Currency = 'Currency',
+  Delegates = 'delegates',
+  Display = 'display',
+  General = 'general',
   Haptics = 'haptic feedback',
   Lock = 'lock wallet',
   Logs = 'logs',

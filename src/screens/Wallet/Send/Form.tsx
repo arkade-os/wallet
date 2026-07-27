@@ -19,7 +19,7 @@ import InputAmount, { type InputAmountMode } from '../../../components/InputAmou
 import InputAddress from '../../../components/InputAddress'
 import Header from '../../../components/Header'
 import { WalletContext } from '../../../providers/wallet'
-import { fromSatoshis, prettyAmount, prettyNumber, toSatoshis } from '../../../lib/format'
+import { fromSatoshis, prettyAmount, prettyFiatAmount, prettyNumber, toSatoshis } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
@@ -190,7 +190,7 @@ export default function SendForm() {
 
   // Bitcoin amounts enter in the wallet's unit by default; the input's ⇅
   // switch flips to display-currency entry (fiatEntry) on demand.
-  const [entryMode, setEntryMode] = useState<InputAmountMode>('unit')
+  const [entryMode, setEntryMode] = useState<InputAmountMode>(useFiat ? 'fiat' : 'unit')
   const fiatEntry = entryMode === 'fiat' && useFiat
 
   const getTextValue = (sats: number) =>
@@ -797,10 +797,14 @@ export default function SendForm() {
       )
     }
 
+    const amount = fiatEntry
+      ? prettyFiatAmount(liquidBalance ? toFiat(liquidBalance) : 0, config.currency)
+      : prettyUnitBalance(liquidBalance)
+
     return (
       <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
         <Text color='neutral-500' smaller>
-          {`${prettyUnitBalance(liquidBalance)} available`}
+          {`${amount} available`}
         </Text>
       </div>
     )

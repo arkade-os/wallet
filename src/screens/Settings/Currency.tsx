@@ -7,7 +7,7 @@ import { ConfigContext } from '../../providers/config'
 import Header from './Header'
 import TokenLogo, { tokenLogoTickerForTicker } from '../../components/TokenLogo'
 
-export default function Fiat() {
+export default function Currency() {
   const { backupConfig, config, updateConfig } = useContext(ConfigContext)
 
   const handleChange = async (currency: string) => {

@@ -244,6 +244,11 @@ export default function WalletSwap() {
     setFromAssetId(resolveInitialFromAssetId(swapAssets, swapFromAssetId) ?? swapAssets[0]?.assetId ?? 'btc')
   }, [fromAssetId, swapAssets, swapFromAssetId])
 
+  // unpriced give asset: currency entry can never produce a quote
+  useEffect(() => {
+    if (!estimateSwapUsd(fromAsset)) setAmountMode('asset')
+  }, [fromAsset])
+
   const focusFromAsset = useCallback(
     (assetId: string) => {
       setFromAssetId(assetId)
@@ -348,6 +353,7 @@ export default function WalletSwap() {
   }
 
   const toggleAmountMode = () => {
+    if (!estimateSwapUsd(fromAsset)) return
     hapticLight()
     // promote the value the secondary pill was showing — flipping only the
     // unit would reread "115 BRL" as "€115" (#839). The fiat figure floors at
@@ -1403,8 +1409,13 @@ function buildQuoteSnapshot(plan: OfferPlan, quote: SwapQuote, currency: Currenc
     // the BTC leg's sats directly, since the snapshot's sats-vs-BTC meaning
     // depends on the bitcoin-unit setting at swap time). Skip persisting it
     // next time the store shape changes.
-    fiatCurrency: currency,
-    fromFiatAmount: quote.giveFiatValue > 0 ? quote.giveFiatValue : quote.fromFiatValue,
+    // unpriceable trade: omit rather than persist a fabricated zero
+    ...(quote.giveFiatValue > 0 || quote.fromFiatValue > 0
+      ? {
+          fiatCurrency: currency,
+          fromFiatAmount: quote.giveFiatValue > 0 ? quote.giveFiatValue : quote.fromFiatValue,
+        }
+      : {}),
   }
 }
 
