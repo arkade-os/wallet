@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import createFetchMock from 'vitest-fetch-mock'
 import { planOffer, quoteOffer } from '@arkade-os/solver-discovery'
 import { discoverMarkets, findMarket, QUOTE_OPTIONS, validatePlan } from '../../../lib/swap/markets'
-import { btcDepix, btcUsdt, DEPIX_ID, USDT_ID } from './fixtures'
+import { btcDepix, btcUsdt, DEPIX_ID, MARAT_ID, maratNapo, NAPO_ID, USDT_ID } from './fixtures'
 
 const fetchMocker = createFetchMock(vi)
 fetchMocker.enableMocks()
@@ -19,8 +19,14 @@ describe('findMarket', () => {
     expect(findMarket(markets, USDT_ID, 'btc')).toEqual({ market: btcUsdt, give: 'quote' })
   })
 
-  it('has no market for asset<->asset or same-asset pairs', () => {
-    expect(findMarket(markets, USDT_ID, DEPIX_ID)).toBeUndefined()
+  it('maps asset<->asset pairs in both orientations (#857)', () => {
+    const withShitcoins = [...markets, maratNapo]
+    expect(findMarket(withShitcoins, MARAT_ID, NAPO_ID)).toEqual({ market: maratNapo, give: 'base' })
+    expect(findMarket(withShitcoins, NAPO_ID, MARAT_ID)).toEqual({ market: maratNapo, give: 'quote' })
+  })
+
+  it('has no market for unserved asset<->asset pairs, none at all for same-asset', () => {
+    expect(findMarket(markets, USDT_ID, DEPIX_ID)?.market).toBeNull()
     expect(findMarket(markets, 'btc', 'btc')).toBeUndefined()
   })
 

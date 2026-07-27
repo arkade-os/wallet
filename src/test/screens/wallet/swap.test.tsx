@@ -21,7 +21,7 @@ import {
   mockNavigationContextValue,
   mockWalletContextValue,
 } from '../mocks'
-import { btcDepix, btcUsdt, DEPIX_ID, USDT_ID } from '../../lib/swap/fixtures'
+import { btcDepix, btcUsdt, DEPIX_ID, MARAT_ID, maratNapo, USDT_ID } from '../../lib/swap/fixtures'
 
 const fetchMocker = createFetchMock(vi)
 fetchMocker.enableMocks()
@@ -348,6 +348,21 @@ describe('Wallet swap flow', () => {
     // digits as 50 sats would show €0.05 here (and, from a Max entry, trip
     // Insufficient balance as in the issue report)
     await waitFor(() => expect(screen.getByText('€50.00')).toBeInTheDocument())
+  })
+
+  it('lists the receive side of an asset↔asset market and pins asset-unit entry (#857)', async () => {
+    renderSwap({
+      swap: { markets: [btcUsdt, btcDepix, maratNapo] },
+      flow: { swapFromAssetId: MARAT_ID, setSwapFromAssetId: vi.fn() },
+    })
+
+    // unpriced give asset: entry is pinned to asset units, not a dead
+    // currency mode (the composer would otherwise never fire a quote)
+    await waitFor(() => expect(screen.getByLabelText('Swap amount')).toHaveTextContent(/MARAT/))
+
+    // the paired asset must appear as a receive option (was empty pre-fix)
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    expect(await screen.findByRole('button', { name: /NAPO/i })).toBeInTheDocument()
   })
 
   it('funds the whole balance when the balance under the from-asset is tapped', async () => {
