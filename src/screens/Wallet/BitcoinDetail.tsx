@@ -5,6 +5,7 @@ import Content from '../../components/Content'
 import Header from '../../components/Header'
 import Padded from '../../components/Padded'
 import { PrivacyAmount } from '../../components/PrivacyAmount'
+import ScanModal from '../../components/ScanModal'
 import SwapComingSoonSheet from '../../components/SwapComingSoonSheet'
 import TokenLogo from '../../components/TokenLogo'
 import TransactionsList from '../../components/TransactionsList'
@@ -55,6 +56,7 @@ export default function BitcoinDetail() {
 
   const [chartWindow, setChartWindow] = useState(CHART_WINDOWS[2].secs)
   const [chartInteracting, setChartInteracting] = useState(false)
+  const [scanOpen, setScanOpen] = useState(false)
   const [swapSheetOpen, setSwapSheetOpen] = useState(false)
   const chartHapticState = useRef({ lastPointTime: 0, lastTriggerTime: 0 })
 
@@ -101,7 +103,11 @@ export default function BitcoinDetail() {
 
   const handleScan = () => {
     hapticLight()
-    setSendInfo({ ...emptySendInfo, scan: true })
+    setScanOpen(true)
+  }
+
+  const handleScanCapture = (data: string) => {
+    setSendInfo({ ...emptySendInfo, scannedData: data })
     navigate(Pages.SendForm)
   }
 
@@ -286,6 +292,12 @@ export default function BitcoinDetail() {
           </motion.div>
         </Padded>
       </Content>
+      <ScanModal
+        isOpen={scanOpen}
+        label='Scan QR code'
+        onCapture={handleScanCapture}
+        onClose={() => setScanOpen(false)}
+      />
       <SwapComingSoonSheet isOpen={swapSheetOpen} onClose={() => setSwapSheetOpen(false)} />
     </>
   )

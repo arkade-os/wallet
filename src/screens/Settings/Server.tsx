@@ -11,7 +11,7 @@ import Header from './Header'
 import WarningBox from '../../components/Warning'
 import InputUrl from '../../components/InputUrl'
 import FlexCol from '../../components/FlexCol'
-import Scanner from '../../components/Scanner'
+import ScanModal from '../../components/ScanModal'
 import { AspContext, AspInfo } from '../../providers/asp'
 import { consoleError } from '../../lib/logs'
 import LoadingLogo from '../../components/LoadingLogo'
@@ -72,8 +72,6 @@ export default function Server() {
     handleConnect()
   }
 
-  if (scan) return <Scanner close={() => setScan(false)} label='Server URL' onData={setAspUrl} onError={setError} />
-
   return (
     <>
       <Header text='Server' back />
@@ -102,6 +100,13 @@ export default function Server() {
           loading={loading}
         />
       </ButtonsOnBottom>
+      <ScanModal
+        isOpen={scan}
+        label='Server URL'
+        onCapture={setAspUrl}
+        onClose={() => setScan(false)}
+        onError={setError}
+      />
     </>
   )
 }

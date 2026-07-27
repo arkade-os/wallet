@@ -9,7 +9,7 @@ import { isArkNote } from '../../../lib/arknote'
 import { ConfigContext } from '../../../providers/config'
 import Header from '../../../components/Header'
 import InputNote from '../../../components/InputNote'
-import Scanner from '../../../components/Scanner'
+import ScanModal from '../../../components/ScanModal'
 import { OptionsContext } from '../../../providers/options'
 import { extractError } from '../../../lib/error'
 import FlexCol from '../../../components/FlexCol'
@@ -54,8 +54,6 @@ export default function NotesForm() {
     navigate(Pages.Settings)
   }
 
-  if (scan) return <Scanner close={() => setScan(false)} label='Ark note' onData={setNote} onError={setError} />
-
   return (
     <>
       <Header text='Note' back={handleBack} />
@@ -67,6 +65,7 @@ export default function NotesForm() {
           </FlexCol>
         </Padded>
       </Content>
+      <ScanModal isOpen={scan} label='Ark note' onCapture={setNote} onClose={() => setScan(false)} onError={setError} />
     </>
   )
 }
