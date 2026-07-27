@@ -41,7 +41,6 @@ test('should save config to nostr', async ({ page }) => {
 
   // change currency to euro
   await page.getByLabel('Go back').click()
-  await page.getByText('display', { exact: true }).click()
   await page.getByText('currency').click()
   await page.getByText('EUR').click()
   await page.waitForTimeout(500)
@@ -57,7 +56,6 @@ test('should save config to nostr', async ({ page }) => {
 
   // change currency to usd
   await page.getByLabel('Go back').click()
-  await page.getByText('display', { exact: true }).click()
   await page.getByText('currency').click()
   await page.getByText('USD').click()
 
