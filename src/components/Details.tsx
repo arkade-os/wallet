@@ -36,7 +36,6 @@ export interface DetailsProps {
   direction?: string
   expiry?: string
   fees?: number
-  feesLabel?: string
   fundedTxid?: string
   invoice?: string
   isOffchainTx?: boolean
@@ -51,7 +50,6 @@ export interface DetailsProps {
   swapTo?: SwapDisplayAmount
   total?: number
   txid?: string
-  txidLabel?: string
   type?: string
   wallet?: Wallet
   when?: string
@@ -73,7 +71,6 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     destination,
     expiry,
     fees,
-    feesLabel,
     fundedTxid,
     invoice,
     isOffchainTx,
@@ -87,7 +84,6 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     swapId,
     swapTo,
     txid,
-    txidLabel,
     type,
     total,
     wallet,
@@ -172,7 +168,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     ['Destination', destination, <TypeIcon key='destination-icon' />],
     ['Funded', fundedTxid, <HashIcon key='funded-icon' />, offchainTxOnClick(fundedTxid)],
     [spendLabel ?? 'Completed', spendTxid, <HashIcon key='spend-icon' />, offchainTxOnClick(spendTxid)],
-    ['Transaction ID', txid || txidLabel, <HashIcon key='txid-icon' />, showTxidLink ? txidOnClick : undefined],
+    ['Transaction ID', txid, <HashIcon key='txid-icon' />, showTxidLink ? txidOnClick : undefined],
     ['Asset ID', assetId, <InfoIcon key='asset-id-icon' />, assetIdOnClick],
     ['Direction', direction, <DirectionIcon key='direction-icon' />],
     ['Type', type, <TypeIcon key='type-icon' />],
@@ -182,7 +178,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     ['Expiry', expiry, <DateIcon key='expiry-icon' />],
     ...amountRows,
     ['Price rate', priceRate, <ArrowUpDownIcon key='price-rate-icon' />],
-    ['Network fees', fees === undefined ? feesLabel : formatAmount(fees), <FeesIcon key='fees-icon' />],
+    ['Network fees', fees === undefined ? undefined : formatAmount(fees), <FeesIcon key='fees-icon' />],
     ['Swap fees', formatSensitiveDetail(swapFees), <FeesIcon key='swap-fees-icon' />],
     ['Total', formatAmount(total), <TotalIcon key='total-icon' />],
   ]
