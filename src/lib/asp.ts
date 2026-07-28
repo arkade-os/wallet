@@ -20,6 +20,7 @@ import { getConfirmedAndNotExpiredUtxos } from './utxo'
 import * as Sentry from '@sentry/react'
 import { hex } from '@scure/base'
 import { toXOnlyHex } from './keys'
+import { readTransactionActivityMetadata } from './storage'
 
 const emptyFees: FeeInfo = {
   intentFee: { offchainInput: '', offchainOutput: '', onchainInput: '', onchainOutput: '' },
@@ -198,14 +199,18 @@ export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
       const { key, settled, type, amount } = tx
       const explorable = key.boardingTxid ? key.boardingTxid : key.commitmentTxid ? key.commitmentTxid : undefined
       const assets = tx.assets?.map((a) => ({ assetId: a.assetId, amount: a.amount }))
+      const activityMetadata = readTransactionActivityMetadata([key.arkTxid, key.boardingTxid, key.commitmentTxid])
       txs.push({
         amount: Math.abs(amount),
+        assetAction: activityMetadata?.assetAction,
         assets,
         boardingTxid: key.boardingTxid,
+        destination: type === 'SENT' ? activityMetadata?.destination : undefined,
         redeemTxid: key.arkTxid,
         roundTxid: key.commitmentTxid,
         createdAt: unix,
         explorable,
+        networkFee: activityMetadata?.networkFee,
         preconfirmed: !settled,
         settled: type === 'SENT' ? true : settled, // show all sent tx as settled
         type: type.toLowerCase(),

@@ -4,7 +4,7 @@ import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Padded from '../../components/Padded'
 import { WalletContext } from '../../providers/wallet'
 import { FlowContext } from '../../providers/flow'
-import { isBurn, isIssuance, prettyAgo, prettyDate } from '../../lib/format'
+import { isBurn, isIssuance, prettyDate } from '../../lib/format'
 import { defaultFee } from '../../lib/constants'
 import ErrorMessage from '../../components/Error'
 import { extractError } from '../../lib/error'
@@ -25,6 +25,7 @@ import { getInputsToSettle } from '../../lib/asp'
 import SwapTransactionSummary from '../../components/SwapTransactionSummary'
 import {
   formatSwapAssetAmount,
+  swapAmountBeforeFee,
   swapFeeAmount,
   swapPriceRateLabel,
   swapStatusLabel,
@@ -50,7 +51,8 @@ export default function Transaction() {
   const { txInfo } = useContext(FlowContext)
   const { cancelSwap, swaps } = useContext(AssetSwapsContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
-  const { assetMetadataCache, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, isVerifiedAsset, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } =
+    useContext(WalletContext)
 
   const liveSwap = txInfo?.assetSwap?.fundingTxid
     ? swaps.find((swap) => swap.fundingTxid === txInfo.assetSwap?.fundingTxid)
@@ -80,8 +82,10 @@ export default function Transaction() {
       : txInfo
   const swapTx = tx?.type === 'swap'
   const amountDisplay = useTransactionAmountDisplay(tx)
-  const issuanceTx = tx ? isIssuance(tx) : false
-  const burnTx = tx ? isBurn(tx) : false
+  const issuanceTx = tx
+    ? tx.assetAction === 'issued' || tx.assetAction === 'reissued' || (!tx.assetAction && isIssuance(tx))
+    : false
+  const burnTx = tx ? tx.assetAction === 'burned' || (!tx.assetAction && isBurn(tx)) : false
   const boardingTx = Boolean(tx?.boardingTxid)
   const defaultButtonLabel = 'Settle transaction'
   const boardingExitDelay = Number(aspInfo?.boardingExitDelay || 0)
@@ -169,24 +173,57 @@ export default function Transaction() {
           ? 'Settled'
           : 'Preconfirmed'
 
-  const fees = tx.type === 'sent' ? defaultFee : 0
+  const fees = tx.networkFee ?? (tx.type === 'sent' ? defaultFee : 0)
   // On asset transfers tx.amount is only the data carrier, not the asset value.
   // The asset-aware rows below replace the legacy Amount/Total rows.
   const assetTransfer = Boolean(tx.assets?.length)
   const transferSatoshis = tx.type === 'sent' ? tx.amount - defaultFee : tx.amount
-  const summaryLabel = issuanceTx
-    ? 'Amount issued'
-    : burnTx
-      ? 'Amount burned'
-      : tx.type === 'sent'
-        ? 'Amount sent'
-        : 'Amount received'
-  const when = tx.createdAt ? prettyAgo(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed'
+  const summaryLabel =
+    tx.assetAction === 'reissued'
+      ? 'Amount reissued'
+      : issuanceTx
+        ? 'Amount issued'
+        : burnTx
+          ? 'Amount burned'
+          : tx.type === 'sent'
+            ? 'Amount sent'
+            : 'Amount received'
   const date = tx.createdAt ? prettyDate(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed'
   const txid = tx.boardingTxid || tx.redeemTxid || tx.roundTxid || ''
+  const displayedAssets = amountDisplay?.raw.filter((amount) => amount.assetId) ?? []
+  const assetIds = displayedAssets.map((amount) => ({
+    assetId: amount.assetId!,
+    label:
+      displayedAssets.length === 1
+        ? `Asset ID${amount.unverified ? ' (unverified)' : ''}`
+        : `Asset ID (${amount.ticker}${amount.unverified ? ', unverified' : ''})`,
+  }))
+  const assetTotals = assetTransfer
+    ? amountDisplay?.raw.map((amount) => ({
+        ...amount,
+        label: amountDisplay.raw.length === 1 ? 'Total' : `Total (${amount.ticker})`,
+      }))
+    : undefined
+  const swapAssetIds = [
+    tx.assetSwap?.fromAssetId && tx.assetSwap.fromAssetId !== 'btc'
+      ? {
+          assetId: tx.assetSwap.fromAssetId,
+          label: `From asset ID${isVerifiedAsset(tx.assetSwap.fromAssetId) ? '' : ' (unverified)'}`,
+        }
+      : undefined,
+    tx.assetSwap?.toAssetId && tx.assetSwap.toAssetId !== 'btc'
+      ? {
+          assetId: tx.assetSwap.toAssetId,
+          label: `To asset ID${isVerifiedAsset(tx.assetSwap.toAssetId) ? '' : ' (unverified)'}`,
+        }
+      : undefined,
+  ].filter((entry): entry is { assetId: string; label: string } => Boolean(entry))
+  const swapReceived = swapTx ? formatSwapAssetAmount(tx, 'to') : undefined
 
   const details: DetailsProps = swapTx
     ? {
+        assetIds: swapAssetIds,
+        assetTotals: swapReceived ? [{ ...swapReceived, label: 'Total received' }] : undefined,
         date,
         fees: 0,
         fundedTxid: tx.assetSwap?.fundingTxid,
@@ -196,25 +233,23 @@ export default function Transaction() {
         status: swapStatusLabel(tx),
         swapFees: swapFeeAmount(tx),
         swapFrom: formatSwapAssetAmount(tx, 'from'),
-        swapTo: formatSwapAssetAmount(tx, 'to'),
-        type: 'Swap',
+        swapTo: swapAmountBeforeFee(tx),
         wallet,
-        when,
       }
     : {
         amountDisplay,
-        assetId: tx.assets?.[0]?.assetId,
+        assetIds,
+        assetTotals,
         date,
-        direction: issuanceTx ? 'Issuance' : burnTx ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received',
+        destination: tx.type === 'sent' && !boardingTx && !issuanceTx && !burnTx ? tx.destination : undefined,
         fees,
         isOffchainTx: !tx.boardingTxid && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid)),
         satoshis: assetTransfer ? undefined : transferSatoshis,
         status,
         total: assetTransfer ? undefined : tx.amount,
         txid,
-        type: boardingTx ? 'Boarding' : 'Offchain',
+        type: boardingTx ? 'Boarding' : undefined,
         wallet,
-        when,
       }
 
   const swapFromIcon = tx.assetSwap?.fromAssetId

@@ -171,13 +171,13 @@ describe('Transaction screen', () => {
     // left side of the table
     expect(screen.getByText('Network fees')).toBeInTheDocument()
     expect(screen.getByText('Transaction')).toBeInTheDocument()
-    expect(screen.getByText('Direction')).toBeInTheDocument()
+    expect(screen.queryByText('Direction')).not.toBeInTheDocument()
     expect(screen.getByText('Asset amount')).toBeInTheDocument()
     expect(screen.getByText('Total')).toBeInTheDocument()
     expect(screen.getByText('Date')).toBeInTheDocument()
-    expect(screen.getByText('When')).toBeInTheDocument()
+    expect(screen.queryByText('When')).not.toBeInTheDocument()
     // right side of the table
-    expect(await screen.findByText('Received')).toBeInTheDocument()
+    expect(await screen.findByText('Amount received')).toBeInTheDocument()
     expect(await screen.findByText('0 BTC')).toBeInTheDocument()
   })
 
@@ -211,13 +211,13 @@ describe('Transaction screen', () => {
     // left side of the table
     expect(screen.getByText('Network fees')).toBeInTheDocument()
     expect(screen.getByText('Transaction')).toBeInTheDocument()
-    expect(screen.getByText('Direction')).toBeInTheDocument()
+    expect(screen.queryByText('Direction')).not.toBeInTheDocument()
     expect(screen.getByText('Asset amount')).toBeInTheDocument()
     expect(screen.getByText('Total')).toBeInTheDocument()
     expect(screen.getByText('Date')).toBeInTheDocument()
-    expect(screen.getByText('When')).toBeInTheDocument()
+    expect(screen.queryByText('When')).not.toBeInTheDocument()
     // right side of the table
-    expect(screen.getByText('Received')).toBeInTheDocument()
+    expect(screen.getByText('Amount received')).toBeInTheDocument()
     expect(screen.getByText('0 BTC')).toBeInTheDocument()
     // buttons
     expect(screen.queryByText('Settle transaction')).not.toBeInTheDocument()
@@ -248,13 +248,13 @@ describe('Transaction screen', () => {
     // left side of the table
     expect(screen.getByText('Network fees')).toBeInTheDocument()
     expect(screen.getByText('Transaction')).toBeInTheDocument()
-    expect(screen.getByText('Direction')).toBeInTheDocument()
+    expect(screen.queryByText('Direction')).not.toBeInTheDocument()
     expect(screen.getByText('Asset amount')).toBeInTheDocument()
     expect(screen.getByText('Total')).toBeInTheDocument()
     expect(screen.getByText('Date')).toBeInTheDocument()
-    expect(screen.getByText('When')).toBeInTheDocument()
+    expect(screen.queryByText('When')).not.toBeInTheDocument()
     // right side of the table
-    expect(screen.getByText('Received')).toBeInTheDocument()
+    expect(screen.getByText('Amount received')).toBeInTheDocument()
     expect(screen.getByText('0 BTC')).toBeInTheDocument()
     // buttons should not be present
     expect(screen.queryByText('Settle transaction')).not.toBeInTheDocument()
@@ -285,13 +285,13 @@ describe('Transaction screen', () => {
     // left side of the table
     expect(screen.getByText('Network fees')).toBeInTheDocument()
     expect(screen.getByText('Transaction')).toBeInTheDocument()
-    expect(screen.getByText('Direction')).toBeInTheDocument()
+    expect(screen.queryByText('Direction')).not.toBeInTheDocument()
     expect(screen.getByText('Asset amount')).toBeInTheDocument()
     expect(screen.getByText('Total')).toBeInTheDocument()
     expect(screen.getByText('Date')).toBeInTheDocument()
-    expect(screen.getByText('When')).toBeInTheDocument()
+    expect(screen.queryByText('When')).not.toBeInTheDocument()
     // right side of the table
-    expect(screen.getByText('Received')).toBeInTheDocument()
+    expect(screen.getByText('Amount received')).toBeInTheDocument()
     expect(screen.getByText('0 BTC')).toBeInTheDocument()
     // buttons should be present
     expect(screen.queryByText('Settle transaction')).not.toBeInTheDocument()
@@ -322,11 +322,11 @@ describe('Transaction screen', () => {
     // left side of the table
     expect(screen.getByText('Network fees')).toBeInTheDocument()
     expect(screen.getByText('Transaction')).toBeInTheDocument()
-    expect(screen.getByText('Direction')).toBeInTheDocument()
+    expect(screen.queryByText('Direction')).not.toBeInTheDocument()
     expect(screen.getByText('Asset amount')).toBeInTheDocument()
     expect(screen.getByText('Total')).toBeInTheDocument()
     expect(screen.getByText('Date')).toBeInTheDocument()
-    expect(screen.getByText('When')).toBeInTheDocument()
+    expect(screen.queryByText('When')).not.toBeInTheDocument()
     // right side of the table
     // expect(screen.getByText('Received')).toBeInTheDocument()
     expect(screen.getByText('0 BTC')).toBeInTheDocument()
@@ -361,20 +361,20 @@ describe('Transaction screen', () => {
     // left side of the table
     expect(screen.getByText('Network fees')).toBeInTheDocument()
     expect(screen.getByText('Transaction')).toBeInTheDocument()
-    expect(screen.getByText('Direction')).toBeInTheDocument()
+    expect(screen.queryByText('Direction')).not.toBeInTheDocument()
     expect(screen.getByText('Asset amount')).toBeInTheDocument()
     expect(screen.getByText('Total')).toBeInTheDocument()
     expect(screen.getByText('Date')).toBeInTheDocument()
-    expect(screen.getByText('When')).toBeInTheDocument()
+    expect(screen.queryByText('When')).not.toBeInTheDocument()
     // right side of the table
-    expect(screen.getByText('Received')).toBeInTheDocument()
+    expect(screen.getByText('Amount received')).toBeInTheDocument()
     expect(screen.getByText('0 BTC')).toBeInTheDocument()
     // buttons should not be present
     expect(screen.queryByText('Settle transaction')).not.toBeInTheDocument()
     expect(screen.queryByText('Add reminder')).not.toBeInTheDocument()
   })
 
-  it('renders issuance transaction with correct direction and amounts', async () => {
+  it('labels an issuance with the exact action and hides the direction row', async () => {
     const localFlowContextValue = { ...mockFlowContextValue, txInfo: mockIssuanceTxInfo }
     const localWalletContextValue = { ...mockWalletContextValue, txs: [mockIssuanceTxInfo] }
 
@@ -394,12 +394,12 @@ describe('Transaction screen', () => {
       </NavigationContext.Provider>,
     )
 
-    // Should show "Issuance" instead of "Sent"
-    expect(screen.getByText('Issuance')).toBeInTheDocument()
-    expect(screen.queryByText('Sent')).not.toBeInTheDocument()
+    expect(screen.getByText('Amount issued')).toBeInTheDocument()
+    expect(screen.queryByText('Direction')).not.toBeInTheDocument()
+    expect(screen.getByTestId('Total')).toHaveTextContent('0.0001')
   })
 
-  it('renders burn transaction with correct direction', async () => {
+  it('labels a burn with the exact action and hides the direction row', async () => {
     const mockBurnTxInfo = {
       ...mockIssuanceTxInfo,
       assets: [
@@ -425,9 +425,28 @@ describe('Transaction screen', () => {
       </NavigationContext.Provider>,
     )
 
-    // Should show "Burn" instead of "Sent"
-    expect(screen.getByText('Burn')).toBeInTheDocument()
-    expect(screen.queryByText('Sent')).not.toBeInTheDocument()
+    expect(screen.getByText('Amount burned')).toBeInTheDocument()
+    expect(screen.queryByText('Direction')).not.toBeInTheDocument()
+  })
+
+  it('labels a persisted reissue with the exact action', () => {
+    const txInfo = { ...mockIssuanceTxInfo, assetAction: 'reissued' as const }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
+            <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [txInfo] }}>
+              <LimitsContext.Provider value={mockLimitsContextValue}>
+                <Transaction />
+              </LimitsContext.Provider>
+            </WalletContext.Provider>
+          </FlowContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByText('Amount reissued')).toBeInTheDocument()
   })
 
   it('renders a swap as an asset-pair receipt without send-only fields', () => {
@@ -487,12 +506,14 @@ describe('Transaction screen', () => {
     expect(screen.getByRole('heading', { name: 'Swap' })).toBeInTheDocument()
     expect(screen.getByText('ALP to BET')).toBeInTheDocument()
     expect(screen.getByText('$100.00')).toBeInTheDocument()
-    expect(screen.getByTestId('From')).toHaveTextContent('123.45 ALP')
-    expect(screen.getByTestId('To')).toHaveTextContent('67.89 BET')
+    expect(screen.getByTestId('Swap from')).toHaveTextContent('123.45 ALP')
+    expect(screen.getByTestId('Swap to')).toHaveTextContent('68.094 BET')
     expect(screen.getByTestId('Status')).toHaveTextContent('Completed')
-    expect(screen.getByTestId('Type')).toHaveTextContent('Swap')
+    expect(screen.queryByTestId('Type')).not.toBeInTheDocument()
     expect(screen.getByTestId('Funded')).toHaveTextContent('funding-txid')
     expect(screen.getByTestId('Completed')).toHaveTextContent('fill-txid')
+    expect(screen.getByTestId('From asset ID (unverified)')).toHaveTextContent('asset-alpha')
+    expect(screen.getByTestId('To asset ID (unverified)')).toHaveTextContent('asset-beta')
     expect(screen.queryByTestId('Transaction ID')).not.toBeInTheDocument()
     expect(screen.queryByText('Direction')).not.toBeInTheDocument()
     expect(screen.queryByText('Amount')).not.toBeInTheDocument()
@@ -501,7 +522,48 @@ describe('Transaction screen', () => {
     // the fee is shown in the receive asset (like the live composer), not a
     // bare percentage — 67.89 BET received net of a 0.30% fee is a 0.204 BET fee
     expect(screen.getByTestId('Swap fees')).toHaveTextContent('0.204 BET')
-    expect(screen.queryByText('Total')).not.toBeInTheDocument()
+    expect(screen.getByTestId('Total received')).toHaveTextContent('67.89 BET')
+  })
+
+  it('shows a zero swap fee and reconciles it with the total received', () => {
+    const swapTxInfo = {
+      ...mockTxInfo,
+      amount: 0,
+      boardingTxid: '',
+      assetSwap: {
+        fromAmount: BigInt(12_345),
+        fromAssetId: 'asset-alpha',
+        fromDecimals: 2,
+        fromTicker: 'ALP',
+        toAmount: BigInt(67_890),
+        toAssetId: 'asset-beta',
+        toDecimals: 3,
+        toTicker: 'BET',
+        feeBps: 0,
+        status: 'completed' as const,
+      },
+      roundTxid: 'fill-txid',
+      settled: true,
+      type: 'swap',
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: swapTxInfo }}>
+            <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [swapTxInfo] }}>
+              <LimitsContext.Provider value={mockLimitsContextValue}>
+                <Transaction />
+              </LimitsContext.Provider>
+            </WalletContext.Provider>
+          </FlowContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByTestId('Swap to')).toHaveTextContent('67.89 BET')
+    expect(screen.getByTestId('Swap fees')).toHaveTextContent('0 BET')
+    expect(screen.getByTestId('Total received')).toHaveTextContent('67.89 BET')
   })
 
   it('masks swap asset amounts when balances are hidden', () => {
@@ -549,9 +611,10 @@ describe('Transaction screen', () => {
       </NavigationContext.Provider>,
     )
 
-    expect(screen.getByTestId('From')).toHaveTextContent('········ ALP')
-    expect(screen.getByTestId('To')).toHaveTextContent('········ BET')
+    expect(screen.getByTestId('Swap from')).toHaveTextContent('········ ALP')
+    expect(screen.getByTestId('Swap to')).toHaveTextContent('········ BET')
     expect(screen.getByTestId('Swap fees')).toHaveTextContent('········ BET')
+    expect(screen.getByTestId('Total received')).toHaveTextContent('········ BET')
     expect(screen.queryByText('123.45 ALP')).not.toBeInTheDocument()
     expect(screen.queryByText('67.89 BET')).not.toBeInTheDocument()
     expect(screen.queryByText('0.204 BET')).not.toBeInTheDocument()
@@ -607,6 +670,8 @@ describe('Transaction screen', () => {
         ...mockTxInfo,
         amount: 330,
         assets: [{ assetId, amount: assetAmount }],
+        boardingTxid: '',
+        destination: type === 'sent' ? 'tark1destination' : undefined,
         type,
       }
       const walletContextValue = {
@@ -671,16 +736,25 @@ describe('Transaction screen', () => {
         </ConfigContext.Provider>,
       )
 
-      expect(screen.getByText(direction)).toBeInTheDocument()
+      expect(screen.getByText(`Amount ${direction.toLowerCase()}`)).toBeInTheDocument()
       expect(screen.getByTestId('primary-amount')).toHaveTextContent('$100.00')
       expect(screen.getByTestId('Asset amount')).toHaveTextContent(assetLabel)
       expect(screen.getByTestId('Value')).toHaveTextContent('$100.00')
-      expect(screen.queryByTestId('Total')).not.toBeInTheDocument()
+      expect(screen.getByTestId('Total')).toHaveTextContent(assetLabel)
+      expect(screen.getByTestId('Asset ID')).toHaveTextContent(/^f121ac9b765.*cb9791a0000$/)
+      expect(screen.queryByTestId('Direction')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('Type')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('When')).not.toBeInTheDocument()
+      if (type === 'sent') {
+        expect(screen.getByTestId('Destination')).toHaveTextContent('tark1destination')
+      } else {
+        expect(screen.queryByTestId('Destination')).not.toBeInTheDocument()
+      }
       expect(screen.queryByText('Tether USD')).not.toBeInTheDocument()
     },
   )
 
-  it('hides Amount and Total when a mixed asset cannot be valued as an account', () => {
+  it('shows each raw total and asset ID when a mixed asset cannot be valued as an account', () => {
     const txInfo = {
       ...mockTxInfo,
       amount: 330,
@@ -734,10 +808,13 @@ describe('Transaction screen', () => {
       </ConfigContext.Provider>,
     )
 
-    // master semantics: an asset transfer's dust must not read as a price,
-    // so Amount/Total are hidden when the asset can't be valued as an account
+    // The carrier dust must not read as a price, but each actual asset amount
+    // remains visible and independently identified.
     expect(screen.queryByTestId('Amount')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('Total')).not.toBeInTheDocument()
+    expect(screen.getByTestId('Total (USDT)')).toHaveTextContent('100 USDT')
+    expect(screen.getByTestId('Total (unknown-…)')).toHaveTextContent('0.0000005 unknown-…')
+    expect(screen.getByTestId('Asset ID (USDT, unverified)')).toHaveTextContent('usdt-asset')
+    expect(screen.getByTestId('Asset ID (unknown-…, unverified)')).toHaveTextContent('unknown-asset')
     expect(screen.queryByText('€100.00')).not.toBeInTheDocument()
   })
 })
