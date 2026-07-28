@@ -7,12 +7,13 @@ import { swapPriceRateLabel } from '../../../lib/swapDisplay'
 import type { Tx } from '../../../lib/types'
 
 const ASSET_ID = 'f1'.repeat(34)
+const OTHER_ASSET_ID = 'a2'.repeat(34)
 const SWAP_PK_SCRIPT = '5120' + 'ab'.repeat(32)
 
-const makeOffer = (side: 'btc-to-asset' | 'asset-to-btc', wantAmount: bigint): Offer => ({
+const makeOffer = (side: 'want-asset' | 'want-btc', wantAmount: bigint): Offer => ({
   swapPkScript: hex.decode(SWAP_PK_SCRIPT),
   wantAmount,
-  ...(side === 'btc-to-asset'
+  ...(side === 'want-asset'
     ? { wantAsset: asset.AssetId.fromString(ASSET_ID) }
     : { offerAsset: asset.AssetId.fromString(ASSET_ID) }),
   makerPkScript: hex.decode('5120' + 'cd'.repeat(32)),
@@ -66,7 +67,7 @@ const spentVtxo = (txid: string, spentBy: string) => ({
 
 describe('restoreAssetSwaps', () => {
   it('rebuilds a fulfilled BTC->asset swap from the funding tx offer packet and its spend', async () => {
-    const offer = makeOffer('btc-to-asset', BigInt(992))
+    const offer = makeOffer('want-asset', BigInt(992))
     const payload = encodeOffer(offer)
     const { psbt, txid } = fundingPsbt(payload)
     const txs = [
@@ -98,7 +99,7 @@ describe('restoreAssetSwaps', () => {
   })
 
   it('recomputes the covenant price rate from the restored amounts', async () => {
-    const offer = makeOffer('btc-to-asset', BigInt(500))
+    const offer = makeOffer('want-asset', BigInt(500))
     const { psbt, txid } = fundingPsbt(encodeOffer(offer))
     const indexer = makeIndexer([psbt], [spentVtxo(txid, 'fill-txid')])
 
@@ -122,7 +123,7 @@ describe('restoreAssetSwaps', () => {
   })
 
   it('marks a spend that returned no want-asset as cancelled', async () => {
-    const offer = makeOffer('btc-to-asset', BigInt(992))
+    const offer = makeOffer('want-asset', BigInt(992))
     const { psbt, txid } = fundingPsbt(encodeOffer(offer))
     // the spend credited sats back, no asset delivered: our cancel
     const txs = [walletTx(txid, 'sent'), walletTx('cancel-txid', 'received', { amount: 10_000 })]
@@ -137,7 +138,7 @@ describe('restoreAssetSwaps', () => {
   })
 
   it('rebuilds an asset->BTC swap with the deposit amount from the covenant vtxo assets', async () => {
-    const offer = makeOffer('asset-to-btc', BigInt(21_000))
+    const offer = makeOffer('want-btc', BigInt(21_000))
     const { psbt, txid } = fundingPsbt(encodeOffer(offer))
     const txs = [walletTx(txid, 'sent'), walletTx('fill-txid', 'received', { amount: 21_000 })]
     const vtxo = { ...spentVtxo(txid, 'fill-txid'), assets: [{ assetId: ASSET_ID, amount: BigInt(500) }] }
@@ -156,8 +157,33 @@ describe('restoreAssetSwaps', () => {
     })
   })
 
+  it('rebuilds an asset<->asset swap, deposit identified by the funding rider', async () => {
+    // a want-asset offer whose funding vtxo carries a different asset: the
+    // TLV names no deposit, so its identity comes from the vtxo's own rider
+    const offer = makeOffer('want-asset', BigInt(992)) // wants ASSET_ID
+    const { psbt, txid } = fundingPsbt(encodeOffer(offer))
+    const txs = [
+      walletTx(txid, 'sent'),
+      walletTx('fill-txid', 'received', { assets: [{ assetId: ASSET_ID, amount: BigInt(992) }] as any }),
+    ]
+    const vtxo = { ...spentVtxo(txid, 'fill-txid'), assets: [{ assetId: OTHER_ASSET_ID, amount: BigInt(500) }] }
+    const indexer = makeIndexer([psbt], [vtxo])
+
+    const {
+      restored: [restored],
+    } = await restoreAssetSwaps(indexer, txs, new Set())
+
+    expect(restored).toMatchObject({
+      fromAsset: OTHER_ASSET_ID,
+      toAsset: ASSET_ID,
+      fromAmount: '500',
+      toAmount: '992',
+      status: 'fulfilled',
+    })
+  })
+
   it('marks an asset->BTC spend that returned the deposit asset as cancelled', async () => {
-    const offer = makeOffer('asset-to-btc', BigInt(21_000))
+    const offer = makeOffer('want-btc', BigInt(21_000))
     const { psbt, txid } = fundingPsbt(encodeOffer(offer))
     const txs = [
       walletTx(txid, 'sent'),
@@ -174,7 +200,7 @@ describe('restoreAssetSwaps', () => {
   })
 
   it('keeps an unspent deposit pending and a swept one recoverable', async () => {
-    const offer = makeOffer('btc-to-asset', BigInt(992))
+    const offer = makeOffer('want-asset', BigInt(992))
     const { psbt, txid } = fundingPsbt(encodeOffer(offer))
     for (const [state, status] of [
       ['settled', 'pending'],
@@ -191,7 +217,7 @@ describe('restoreAssetSwaps', () => {
   })
 
   it('skips sent txs without an offer packet and already-known swaps', async () => {
-    const offer = makeOffer('btc-to-asset', BigInt(992))
+    const offer = makeOffer('want-asset', BigInt(992))
     const { psbt, txid } = fundingPsbt(encodeOffer(offer))
     const plainTx = new Transaction({ allowUnknownOutputs: true })
     plainTx.addInput({ txid: new Uint8Array(32), index: 1 })
@@ -215,7 +241,7 @@ describe('restoreAssetSwaps', () => {
   })
 
   it('never re-fetches txids that already got an authoritative answer', async () => {
-    const { psbt, txid } = fundingPsbt(encodeOffer(makeOffer('btc-to-asset', BigInt(992))))
+    const { psbt, txid } = fundingPsbt(encodeOffer(makeOffer('want-asset', BigInt(992))))
     const indexer = makeIndexer([psbt], [])
 
     const result = await restoreAssetSwaps(indexer, [walletTx(txid, 'sent')], new Set(), new Set([txid]))
@@ -227,7 +253,7 @@ describe('restoreAssetSwaps', () => {
   it('leaves a txid unscanned when its psbt is missing from the response', async () => {
     // two candidates requested, the indexer answers for only one: the missing
     // txid must stay unscanned or its swap could never be restored
-    const offer = makeOffer('btc-to-asset', BigInt(992))
+    const offer = makeOffer('want-asset', BigInt(992))
     const { psbt, txid } = fundingPsbt(encodeOffer(offer))
     const indexer = makeIndexer([psbt], [spentVtxo(txid, 'fill-txid')])
 
@@ -240,7 +266,7 @@ describe('restoreAssetSwaps', () => {
   it('leaves a txid unscanned while its funding vtxo is not yet indexed', async () => {
     // the offer packet is there but getVtxos lags behind the tx feed: marking
     // the txid scanned now would permanently orphan a still-pending swap
-    const offer = makeOffer('btc-to-asset', BigInt(992))
+    const offer = makeOffer('want-asset', BigInt(992))
     const { psbt, txid } = fundingPsbt(encodeOffer(offer))
     const indexer = makeIndexer([psbt], [])
 
@@ -256,7 +282,7 @@ describe('restoreAssetSwaps', () => {
   })
 
   it('leaves a failed fetch unscanned so it retries on a later scan', async () => {
-    const { txid } = fundingPsbt(encodeOffer(makeOffer('btc-to-asset', BigInt(992))))
+    const { txid } = fundingPsbt(encodeOffer(makeOffer('want-asset', BigInt(992))))
     const indexer = {
       getVirtualTxs: async () => {
         throw new Error('indexer down')

@@ -144,11 +144,16 @@ export async function restoreAssetSwaps(
       continue
     }
 
-    const fromAsset = offer.offerAsset?.toString() ?? 'btc'
+    // the TLV names the deposit only for want-BTC offers; otherwise the
+    // funding vtxo's own rider identifies it (asset↔asset swaps deposit an
+    // asset under a want-asset offer, plain BTC deposits carry no rider)
+    const depositRider = vtxo.assets?.find((a) => a.amount > BigInt(0))
+    const fromAsset = offer.offerAsset?.toString() ?? depositRider?.assetId ?? 'btc'
     const toAsset = offer.wantAsset?.toString() ?? 'btc'
-    const fromAmount = offer.offerAsset
-      ? (vtxo.assets?.find((a) => a.assetId === fromAsset)?.amount ?? BigInt(0)).toString()
-      : String(vtxo.value)
+    const fromAmount =
+      fromAsset === 'btc'
+        ? String(vtxo.value)
+        : (vtxo.assets?.find((a) => a.assetId === fromAsset)?.amount ?? BigInt(0)).toString()
 
     const state = vtxo.virtualStatus.state
     const spentTxid = state === 'spent' ? (vtxo.arkTxId ?? vtxo.spentBy) : undefined

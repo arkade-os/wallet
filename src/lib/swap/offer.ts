@@ -1,16 +1,19 @@
 /**
  * Banco swap — an atomic-swap covenant on Arkade.
  *
- * The contracts are the two JSON files, one per swap direction:
- *   banco-btc-to-asset.program.json  maker deposits BTC, wants an asset
- *   banco-asset-to-btc.program.json  maker deposits an asset, wants BTC
+ * The contracts are the two JSON files, one per WANT side:
+ *   banco-want-asset.program.json  the fill must deliver an asset
+ *   banco-want-btc.program.json    the fill must deliver sats
  *
  * Coins locked by a contract can only be spent by a transaction that delivers
  * `$wantAmount` (of `$wantAssetTxid`, or of BTC) to `$makerWP` — the `fulfill`
  * covenant, co-signed by the Arkade signer only after executing that script —
- * or cooperatively by the maker (`cancel`). This file is just plumbing: bind
- * an offer's values to the program's `$param`s, and speak the solver's TLV
- * offer-discovery format.
+ * or cooperatively by the maker (`cancel`). The deposit side is whatever the
+ * funding tx put in the offer vtxo (sats, or any asset riding a dust carrier)
+ * — the covenant never inspects it, which is what lets asset↔asset swaps ride
+ * the want-asset program. This file is just plumbing: bind an offer's values
+ * to the program's `$param`s, and speak the solver's TLV offer-discovery
+ * format.
  */
 import { hex } from '@scure/base'
 import {
@@ -25,22 +28,24 @@ import {
   type NetworkName,
 } from '@arkade-os/sdk'
 
-import btcToAsset from './banco-btc-to-asset.program.json'
-import assetToBtc from './banco-asset-to-btc.program.json'
+import wantAssetProgram from './banco-want-asset.program.json'
+import wantBtcProgram from './banco-want-btc.program.json'
 
 // json imports widen "type": "pubkey" to string; parseArtifact validates at runtime
 type Artifact = Parameters<typeof arkade.parseArtifact>[0]
 
 /** The contracts — pure data, shared verbatim with any other implementation. */
 export const bancoPrograms = {
-  btcToAsset: arkade.parseArtifact(btcToAsset as Artifact),
-  assetToBtc: arkade.parseArtifact(assetToBtc as Artifact),
+  wantAsset: arkade.parseArtifact(wantAssetProgram as Artifact),
+  wantBtc: arkade.parseArtifact(wantBtcProgram as Artifact),
 }
 
 // ── Offer ────────────────────────────────────────────────────────────────────
 
-/** A full-fill offer. Exactly one side is an asset: `wantAsset` set = the
- * maker deposits BTC and wants that asset; `offerAsset` set = the reverse. */
+/** A full-fill offer. Exactly one field names an asset: `wantAsset` set = the
+ * fill must deliver that asset (the deposit may be BTC or another asset,
+ * identified by the funding vtxo itself); `offerAsset` set = the maker
+ * deposits that asset and wants sats. */
 export interface Offer {
   /** The scriptPubKey of the swap contract. */
   swapPkScript: Uint8Array
@@ -63,7 +68,7 @@ export interface Offer {
  * change here changes the derived swap addresses — see the golden test). */
 function bancoProgramBinding(offer: Omit<Offer, 'swapPkScript'>, serverPubkey: Uint8Array) {
   return {
-    program: offer.wantAsset ? bancoPrograms.btcToAsset : bancoPrograms.assetToBtc,
+    program: offer.wantAsset ? bancoPrograms.wantAsset : bancoPrograms.wantBtc,
     args: {
       makerWP: offer.makerPkScript.subarray(2),
       wantAmount: offer.wantAmount,

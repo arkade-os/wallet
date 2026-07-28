@@ -172,4 +172,35 @@ describe('validatePlan', () => {
     expect(validatePlan(p, BigInt(1_000), BigInt(2_000))).toBe('below-dust')
     expect(validatePlan(p, BigInt(1_000), BigInt(330))).toBeUndefined()
   })
+
+  it('skips the dust check when neither leg is BTC (#857)', () => {
+    // both atomic sides sit under the sat dust number, but neither is sats:
+    // asset deposits and fills ride the SDK's own dust carriers, so there is
+    // no BTC leg for the wallet to protect
+    const p = planOffer({ market: maratNapo, give: 'base', feedValue: 1, giveAmount: BigInt(200), safetyBps: 0 })
+    expect(validatePlan(p, BigInt(1_000), BigInt(330))).toBeUndefined()
+  })
+
+  it('picks the dust leg by asset id, not market orientation', () => {
+    // a registry may publish BTC as the QUOTE asset; giving base then means
+    // depositing the token, and dust must bound the received btc side
+    const usdtBtc = {
+      ...btcUsdt,
+      pair: 'USDT/BTC',
+      base_asset: btcUsdt.quote_asset,
+      quote_asset: btcUsdt.base_asset,
+      min_base_amount: btcUsdt.min_quote_amount,
+      max_base_amount: btcUsdt.max_quote_amount,
+      min_quote_amount: btcUsdt.min_base_amount,
+      max_quote_amount: btcUsdt.max_base_amount,
+      price_decimals: 0,
+    }
+    // 1 USDT-cent -> 10 sats: 200 cents receives ~1994 sats (post-fee)
+    const p = planOffer({ market: usdtBtc, give: 'base', feedValue: 10, giveAmount: BigInt(200), safetyBps: 0 })
+    // deposit atomic (200) is below the 330-sat dust number, but the btc leg
+    // (~1994 sats) is fine — orientation-based selection would false-reject
+    expect(validatePlan(p, BigInt(1_000), BigInt(330))).toBeUndefined()
+    // and a genuinely sub-dust btc receive is still caught
+    expect(validatePlan(p, BigInt(1_000), BigInt(2_500))).toBe('below-dust')
+  })
 })

@@ -134,8 +134,15 @@ export const validatePlan = (plan: OfferPlan, giveBalance: bigint, dust: bigint)
   if (plan.deposit.atomic < giveMin) return 'below-min'
   if (plan.deposit.atomic > giveMax) return 'above-max'
   if (!withinLimits) return plan.receive.atomic < min.atomic ? 'below-min' : 'above-max'
-  // the BTC side must survive as a VTXO: deposit when giving BTC, fill output otherwise
-  const btcSide = plan.give === 'base' ? plan.deposit.atomic : plan.receive.atomic
-  if (btcSide < dust) return 'below-dust'
+  // a BTC side must survive as a VTXO — picked by asset id, not market
+  // orientation, since a registry may publish BTC as base or quote. An
+  // asset↔asset plan has no BTC leg to protect: both sides ride the SDK's
+  // own dust-sat carriers.
+  const depositIsBtc = plan.deposit.asset.id === BTC_ASSET_ID
+  const receiveIsBtc = plan.receive.asset.id === BTC_ASSET_ID
+  if (depositIsBtc || receiveIsBtc) {
+    const btcSide = depositIsBtc ? plan.deposit.atomic : plan.receive.atomic
+    if (btcSide < dust) return 'below-dust'
+  }
   return undefined
 }

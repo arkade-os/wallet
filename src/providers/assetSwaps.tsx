@@ -150,11 +150,16 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     if (!svcWallet) throw new Error('wallet not available')
     if (!emulatorUrl) throw new Error('swap service unavailable')
     const depositIsBtc = plan.deposit.asset.id === BTC_ASSET_ID
+    // the covenant constrains only what the fill must deliver; the deposit is
+    // whatever the funding tx puts in the offer vtxo. Keyed on the RECEIVE
+    // side: keying on the deposit would push an asset↔asset plan into the
+    // want-btc branch, binding the receive asset's atomic amount as a sat
+    // want the solver could fill for dust.
     const offer = await createOffer(svcWallet, aspInfo.url, emulatorUrl, {
       wantAmount: plan.receive.atomic,
-      ...(depositIsBtc
-        ? { wantAsset: asset.AssetId.fromString(plan.receive.asset.id) }
-        : { offerAsset: asset.AssetId.fromString(plan.deposit.asset.id) }),
+      ...(plan.receive.asset.id === BTC_ASSET_ID
+        ? { offerAsset: asset.AssetId.fromString(plan.deposit.asset.id) }
+        : { wantAsset: asset.AssetId.fromString(plan.receive.asset.id) }),
     })
     const txid = await svcWallet.send({
       address: offer.address,
