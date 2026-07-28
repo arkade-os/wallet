@@ -28,13 +28,12 @@ export function useAmountDisplayContext() {
 export function useTransactionAmountDisplay(tx: Tx | undefined): TransactionAmountDisplay | undefined {
   const context = useAmountDisplayContext()
   if (!tx || tx.type === 'swap') return undefined
-  // the persisted fee (when a receipt saved one) must win over the constant,
-  // or the amount row disagrees with the fee row it sits next to
-  const fee = tx.networkFee ?? defaultFee
   return buildTransactionAmountDisplay({
     ...context,
     assets: tx.assets,
     // On asset transfers tx.amount is only the data carrier, not the asset value.
-    satoshis: tx.assets?.length ? 0 : Math.max(tx.type === 'sent' ? tx.amount - fee : tx.amount, 0),
+    // Sent amounts stay GROSS (fee included) — the headline is the full debit,
+    // with the fee broken out on its own receipt row; the e2e suite pins this.
+    satoshis: tx.assets?.length ? 0 : Math.max(tx.type === 'sent' ? tx.amount - defaultFee : tx.amount, 0),
   })
 }

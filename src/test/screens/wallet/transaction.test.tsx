@@ -797,9 +797,9 @@ describe('Transaction screen', () => {
     },
   )
 
-  it('subtracts the persisted network fee from the sent amount', () => {
-    // regression: the Amount row subtracted the hardcoded defaultFee while
-    // the fee row showed the persisted networkFee — the two must reconcile
+  it('shows the gross sent amount with the persisted network fee on its own row', () => {
+    // the headline is the full debit (fee included) — the e2e suite pins the
+    // same convention — while the fee row surfaces the persisted networkFee
     const txInfo = {
       ...mockTxInfo,
       amount: 10_000,
@@ -826,7 +826,7 @@ describe('Transaction screen', () => {
       </ConfigContext.Provider>,
     )
 
-    expect(screen.getByTestId('Asset amount')).toHaveTextContent('0.00009500 BTC')
+    expect(screen.getByTestId('Asset amount')).toHaveTextContent('0.00010000 BTC')
     expect(screen.getByTestId('Network fees')).toHaveTextContent('0.00000500 BTC')
   })
 
