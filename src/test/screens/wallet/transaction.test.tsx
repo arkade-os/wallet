@@ -797,6 +797,39 @@ describe('Transaction screen', () => {
     },
   )
 
+  it('subtracts the persisted network fee from the sent amount', () => {
+    // regression: the Amount row subtracted the hardcoded defaultFee while
+    // the fee row showed the persisted networkFee — the two must reconcile
+    const txInfo = {
+      ...mockTxInfo,
+      amount: 10_000,
+      boardingTxid: '',
+      redeemTxid: 'send-txid',
+      networkFee: 500,
+      settled: true,
+      type: 'sent',
+    }
+
+    render(
+      <ConfigContext.Provider value={{ ...mockConfigContextValue, useFiat: false }}>
+        <NavigationContext.Provider value={mockNavigationContextValue}>
+          <AspContext.Provider value={mockAspContextValue}>
+            <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [txInfo] }}>
+                <LimitsContext.Provider value={mockLimitsContextValue}>
+                  <Transaction />
+                </LimitsContext.Provider>
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </AspContext.Provider>
+        </NavigationContext.Provider>
+      </ConfigContext.Provider>,
+    )
+
+    expect(screen.getByTestId('Asset amount')).toHaveTextContent('0.00009500 BTC')
+    expect(screen.getByTestId('Network fees')).toHaveTextContent('0.00000500 BTC')
+  })
+
   it('shows each raw total and asset ID when a mixed asset cannot be valued as an account', () => {
     const txInfo = {
       ...mockTxInfo,
