@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import createFetchMock from 'vitest-fetch-mock'
 import WalletSwap from '../../../screens/Wallet/Swap/Index'
+import { ToastProvider } from '../../../components/Toast'
 import { AspContext } from '../../../providers/asp'
 import { AssetsContext } from '../../../providers/assets'
 import { AssetSwapsContext } from '../../../providers/assetSwaps'
@@ -118,7 +119,9 @@ function renderSwap({
                       } as any
                     }
                   >
-                    <WalletSwap />
+                    <ToastProvider>
+                      <WalletSwap />
+                    </ToastProvider>
                   </AssetSwapsContext.Provider>
                 </WalletContext.Provider>
               </FlowContext.Provider>
@@ -194,6 +197,40 @@ describe('Wallet swap flow', () => {
     await userEvent.click(screen.getByRole('button', { name: '1' }))
 
     expect(screen.queryByText('Swap unavailable for this pair')).not.toBeInTheDocument()
+  })
+
+  it('replaces the available balance with a max action for insufficient balance', async () => {
+    const { container } = renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+
+    for (const key of ['9', '9', '9']) {
+      await userEvent.click(screen.getByRole('button', { name: key }))
+    }
+
+    expect(container.querySelector('.swap-amount-display--invalid')).not.toBeNull()
+
+    await waitFor(() => expect(container.querySelector('.swap-input-card__balance--max')).not.toBeNull())
+    const useMaxButton = container.querySelector('.swap-input-card__balance--max') as HTMLButtonElement
+    expect(useMaxButton).toHaveClass('swap-input-card__balance--max')
+    expect(useMaxButton).toHaveAccessibleName('Use maximum 0.00100000 BTC')
+    expect(container.querySelector('.swap-amount-secondary')).not.toBeNull()
+    await userEvent.click(useMaxButton)
+
+    await waitFor(() => expect(screen.getByLabelText('Swap amount')).toHaveTextContent('0.001 BTC'))
+    await waitFor(() => expect(container.querySelector('.swap-amount-display--invalid')).toBeNull())
+  })
+
+  it('keeps non-limit validation errors in Sonner', async () => {
+    fetchMocker.mockRejectOnce(new Error('feed unavailable'))
+    const { container } = renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    await userEvent.click(screen.getByRole('button', { name: '5' }))
+
+    await waitFor(() => expect(screen.getByText('Quote unavailable')).toBeInTheDocument(), { timeout: 3_000 })
+    expect(screen.getByText('Quote unavailable').closest('[data-sonner-toast]')).not.toBeNull()
+    expect(screen.getByRole('button', { name: '0.00100000 BTC' })).toBeInTheDocument()
+    expect(container.querySelector('.swap-input-card__balance-error')).toBeNull()
   })
 
   it('submits the live PR 784 offer plan and a historical display snapshot', async () => {
@@ -460,6 +497,8 @@ describe('Wallet swap flow', () => {
     }
 
     await waitFor(() => expect(screen.getByText(/^Minimum /)).toBeInTheDocument())
+    expect(screen.getByText(/^Minimum /).closest('.swap-input-card__balance-error')).not.toBeNull()
+    expect(screen.getByText(/^Minimum /).closest('[data-sonner-toast]')).toBeNull()
     // the market card's 1,000-sat give-side floor outranks the smaller
     // converted receive-side minimum, and a 0-decimal unit shows whole sats
     expect(screen.getByText('Minimum 1,000 sats')).toBeInTheDocument()
