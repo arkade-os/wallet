@@ -128,9 +128,26 @@ describe('asset utilities', () => {
       expect(unitsToCents('1', NaN)).toBe(BigInt(1))
     })
 
-    it('returns units unchanged for decimals beyond MAX_DECIMALS', () => {
+    it('returns units unchanged for decimals beyond 18', () => {
       expect(unitsToCents('1', 19)).toBe(BigInt(1))
       expect(unitsToCents('1', 309)).toBe(BigInt(1))
+    })
+
+    it('never throws on fractional input, even with garbage decimals', () => {
+      // BigInt('1.5') would throw; previously crashed the swap and send screens
+      expect(unitsToCents('1.5', 19)).toBe(BigInt(1))
+      expect(unitsToCents('1.5', NaN)).toBe(BigInt(1))
+    })
+
+    // ---- discovered assets: solver-discovery permits up to 18 decimals ----
+
+    it('converts fractional amounts exactly for 9-decimal assets', () => {
+      expect(unitsToCents('1.5', 9)).toBe(BigInt(1_500_000_000))
+    })
+
+    it('converts fractional amounts exactly for 18-decimal assets', () => {
+      expect(unitsToCents('1.5', 18)).toBe(BigInt('1500000000000000000'))
+      expect(unitsToCents('0.000000000000000001', 18)).toBe(BigInt(1))
     })
   })
 
@@ -162,8 +179,20 @@ describe('asset utilities', () => {
       expect(centsToUnits(BigInt(1), NaN)).toBe('1')
     })
 
-    it('returns cents unchanged for decimals beyond MAX_DECIMALS', () => {
+    it('returns cents unchanged for decimals beyond 18', () => {
       expect(centsToUnits(BigInt(100_000_000), 19)).toBe('100000000')
+    })
+
+    it('formats 9- and 18-decimal assets and round-trips with unitsToCents', () => {
+      expect(centsToUnits(BigInt(1_500_000_000), 9)).toBe('1.5')
+      expect(centsToUnits(BigInt('1500000000000000000'), 18)).toBe('1.5')
+      expect(centsToUnits(BigInt(1), 18)).toBe('0.000000000000000001')
+      expect(unitsToCents(centsToUnits(BigInt(123_456_789), 9), 9)).toBe(BigInt(123_456_789))
+    })
+
+    it('keeps the fractional part beyond Number.MAX_SAFE_INTEGER', () => {
+      // 2^53 + 1 sats-scale atomic value: the old Decimal/number paths truncated
+      expect(centsToUnits(BigInt('9007199254740993'), 8)).toBe('90071992.54740993')
     })
   })
 
@@ -237,12 +266,13 @@ describe('asset utilities', () => {
     })
 
     it('preserves precision beyond Number.MAX_SAFE_INTEGER', () => {
-      // 9_007_199_254_740_993 is 2^53 + 1 — not representable as a Number.
-      expect(prettyAssetAmount(BigInt(9_007_199_254_740_993), 8)).toBe('90,071,992')
+      // 2^53 + 1 is not representable as a Number (as a number literal it
+      // would silently round to 2^53); the fraction survives exactly.
+      expect(prettyAssetAmount(BigInt('9007199254740993'), 8)).toBe('90,071,992.54740993')
     })
 
     it('formats when tidy=false (default)', () => {
-      expect(prettyAssetAmount(BigInt(9_007_199_254_740_993), 8, false)).toBe('90,071,992')
+      expect(prettyAssetAmount(BigInt('9007199254740993'), 8, false)).toBe('90,071,992.54740993')
       expect(prettyAssetAmount(BigInt(150_000_000), 8, false)).toBe('1.5')
       expect(prettyAssetAmount(BigInt(1_234_567), 0, false)).toBe('1,234,567')
     })
