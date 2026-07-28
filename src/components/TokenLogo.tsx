@@ -1,3 +1,5 @@
+import { walletAccountTicker, type WalletAccountTicker } from '../lib/accountAssets'
+
 export type TokenLogoTicker = 'BTC' | 'USD' | 'USDT' | 'USDC' | 'CHF' | 'BRL' | 'CNY' | 'EUR' | 'GBP' | 'JPY'
 
 export function tokenLogoTickerForTicker(ticker: string | undefined): TokenLogoTicker | undefined {
@@ -18,14 +20,20 @@ export function tokenLogoTickerForTicker(ticker: string | undefined): TokenLogoT
   }
 }
 
-export function accountTickerForAssetTicker(ticker: string | undefined): TokenLogoTicker | undefined {
-  const normalized = ticker?.trim().toUpperCase()
-  if (normalized === 'BTC') return 'BTC'
-  if (normalized === 'USD' || normalized === 'AUSD') return 'USD'
-  if (normalized === 'USDT') return 'USDT'
-  if (normalized === 'USDC') return 'USDC'
-  if (normalized === 'CHF') return 'CHF'
-  if (normalized === 'BRL' || normalized === 'DPIX' || normalized === 'DEPIX') return 'BRL'
+export function accountTickerForAssetTicker(ticker: string | undefined): WalletAccountTicker | undefined {
+  return walletAccountTicker(ticker)
+}
+
+/** Resolves the token logo for an asset, treating the wallet's native 'btc'
+ * asset id as Bitcoin regardless of what string rides along as its ticker —
+ * the swap screen's BTC leg carries the display unit ('sats'/'₿'), not a
+ * real ticker, and would otherwise fall back to a lettered avatar. */
+export function tokenLogoTickerForAsset(
+  assetId: string | undefined,
+  ticker: string | undefined,
+): TokenLogoTicker | undefined {
+  if (assetId === 'btc') return 'BTC'
+  return tokenLogoTickerForTicker(ticker)
 }
 
 // A ticker only earns currency treatment (official logo, fiat-style formatting)

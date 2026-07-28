@@ -1,0 +1,38 @@
+{
+  "version": 0,
+  "name": "banco-btc-to-asset",
+  "params": [
+    { "name": "makerWP", "type": "pubkey" },
+    { "name": "wantAmount", "type": "int" },
+    { "name": "wantAssetTxid", "type": "hash" },
+    { "name": "wantAssetGroupIndex", "type": "int" },
+    { "name": "server", "type": "pubkey" },
+    { "name": "user", "type": "pubkey" }
+  ],
+  "functions": {
+    "fulfill": {
+      "tapscript": { "signers": ["$server"] },
+      "arkadeScript": {
+        "asm": [
+          0,
+          "$wantAssetTxid",
+          "$wantAssetGroupIndex",
+          "INSPECTOUTASSETLOOKUP",
+          "VERIFY",
+          "$wantAmount",
+          "GREATERTHANOREQUAL",
+          "VERIFY",
+          0,
+          "INSPECTOUTPUTSCRIPTPUBKEY",
+          1,
+          "EQUALVERIFY",
+          "$makerWP",
+          "EQUAL"
+        ]
+      }
+    },
+    "cancel": {
+      "tapscript": { "signers": ["$user", "$server"] }
+    }
+  }
+}

@@ -93,18 +93,33 @@ export enum Themes {
 
 export type Tx = {
   amount: number
+  assetAction?: 'issued' | 'reissued' | 'burned'
   assets?: Asset[]
   boardingTxid: string
   createdAt: number
+  destination?: string
   explorable: string | undefined
+  networkFee?: number
   preconfirmed: boolean
   redeemTxid: string
   roundTxid: string
   settled: boolean
   type: string
-  prototypeSwap?: {
+  assetSwap?: {
+    fromAssetId?: string
     fromTicker: string
+    fromDecimals?: number
+    fromAmount?: bigint
+    toAssetId?: string
     toTicker: string
+    toDecimals?: number
+    toAmount?: bigint
+    fiatAmount?: number
+    status?: 'pending' | 'failed' | 'completed' | 'cancelled' | 'recoverable'
+    feeBps?: number
+    fiatCurrency?: string
+    fundingTxid?: string
+    fillTxid?: string
   }
 }
 
@@ -132,4 +147,7 @@ export interface AssetOption {
   balance: bigint
   decimals: number
   icon?: string
+  /** id-verified via the asset registry; a self-reported ticker must never
+   * earn currency treatment (pricing, fiat formatting) without this */
+  trusted?: boolean
 }

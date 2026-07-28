@@ -5,6 +5,8 @@ import {
   CachedAssetDetails,
   ASSET_METADATA_TTL_MS,
   clearStorage,
+  readTransactionActivityMetadata,
+  saveTransactionActivityMetadata,
 } from '../../lib/storage'
 
 describe('asset metadata storage', () => {
@@ -71,6 +73,26 @@ describe('asset metadata storage', () => {
     expect(loaded!.size).toBe(1)
     expect(loaded!.has('a')).toBe(false)
     expect(loaded!.get('b')?.metadata?.name).toBe('Second')
+  })
+})
+
+describe('transaction activity metadata storage', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('roundtrips destination, network fee, and asset action by transaction ID', () => {
+    saveTransactionActivityMetadata('ark-txid', {
+      assetAction: 'reissued',
+      destination: 'tark1destination',
+      networkFee: 0,
+    })
+
+    expect(readTransactionActivityMetadata(['missing', 'ark-txid'])).toMatchObject({
+      assetAction: 'reissued',
+      destination: 'tark1destination',
+      networkFee: 0,
+    })
   })
 })
 

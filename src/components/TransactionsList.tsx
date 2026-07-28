@@ -2,16 +2,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { useContext, useRef } from 'react'
 import { WalletContext } from '../providers/wallet'
 import { Currencies, Tx } from '../lib/types'
-import {
-  isBurn,
-  isIssuance,
-  prettyCurrencyAssetAmount,
-  prettyBitcoinAmount,
-  prettyDate,
-  prettyFiatAmount,
-  prettyFiatHide,
-  prettyHide,
-} from '../lib/format'
+import { isBurn, isIssuance, prettyDate } from '../lib/format'
 import AssetAvatar from './AssetAvatar'
 import ReceivedIcon from '../icons/Received'
 import SentIcon from '../icons/Sent'
@@ -23,14 +14,12 @@ import { FiatContext } from '../providers/fiat'
 import PreconfirmedIcon from '../icons/Preconfirmed'
 import Focusable from './Focusable'
 import { hapticSubtle } from '../lib/haptics'
-import TokenLogo, {
-  accountTickerForAssetTicker,
-  tokenLogoTickerForTicker,
-  trustedAssetTickers,
-  type TokenLogoTicker,
-} from './TokenLogo'
+import TokenLogo, { tokenLogoTickerForTicker, trustedAssetTickers } from './TokenLogo'
 import { PrivacyAmount } from './PrivacyAmount'
+import SwapRouteIcon from './SwapRouteIcon'
+import { swapRouteLabel, swapStatusForTx, swapStatusLabel, swapUnitOfAccountAmount } from '../lib/swapDisplay'
 import UnverifiedBadge from './UnverifiedBadge'
+import { useTransactionAmountDisplay } from '../hooks/useTransactionAmountDisplay'
 
 const border = '1px solid color-mix(in srgb, var(--fg) 6%, transparent)'
 
@@ -46,34 +35,41 @@ const TransactionLine = ({
   mode: 'virtual' | 'static'
 }) => {
   const { config } = useContext(ConfigContext)
-  const { toFiat } = useContext(FiatContext)
-  const { assetMetadataCache, isVerifiedAsset } = useContext(WalletContext)
+  const { fromFiatAmount, toFiatAmount } = useContext(FiatContext)
+  const { assetMetadataCache } = useContext(WalletContext)
 
-  const prefix = tx.type === 'sent' ? '-' : '+'
   const date = tx.createdAt ? prettyDate(tx.createdAt) : tx.boardingTxid ? 'Unconfirmed' : 'Unknown'
-  const asAssets = Boolean(tx.assets?.length)
   const swap = tx.type === 'swap'
+  const swapStatus = swap ? swapStatusForTx(tx) : undefined
   const issuance = isIssuance(tx)
   const burn = isBurn(tx)
+  const prefix = issuance ? '+' : burn || tx.type === 'sent' ? '-' : '+'
+  const amountDisplay = useTransactionAmountDisplay(tx)
 
-  const Currency = () => {
-    if (issuance || burn || swap) return null
-    const value = toFiat(tx.amount)
-    const statusClassName = tx.boardingTxid && tx.preconfirmed ? ' activity-row__amount--pending' : ''
-    const secondaryClassName = asAssets ? ' activity-row__amount--secondary' : ''
-    return (
-      <span className={`activity-row__amount${statusClassName}${secondaryClassName}`}>
-        <PrivacyAmount masked={prettyFiatHide(value, config.currency, { bitcoinUnit: config.unit })}>
-          {prettyFiatAmount(value, config.currency, { bitcoinUnit: config.unit })}
-        </PrivacyAmount>
-      </span>
-    )
-  }
-
-  const iconTone = tx.preconfirmed && tx.boardingTxid ? 'pending' : burn ? 'burn' : swap ? 'pending' : 'default'
+  const iconTone =
+    tx.preconfirmed && tx.boardingTxid
+      ? 'pending'
+      : burn || swapStatus === 'failed' || swapStatus === 'cancelled'
+        ? 'burn'
+        : swapStatus === 'pending'
+          ? 'pending'
+          : 'default'
   const Icon = () => {
     const icon = swap ? (
-      <SwapRouteIcon fromTicker={tx.prototypeSwap?.fromTicker} toTicker={tx.prototypeSwap?.toTicker} />
+      <SwapRouteIcon
+        from={{
+          assetId: tx.assetSwap?.fromAssetId,
+          icon: tx.assetSwap?.fromAssetId
+            ? assetMetadataCache.get(tx.assetSwap.fromAssetId)?.metadata?.icon
+            : undefined,
+          ticker: tx.assetSwap?.fromTicker,
+        }}
+        to={{
+          assetId: tx.assetSwap?.toAssetId,
+          icon: tx.assetSwap?.toAssetId ? assetMetadataCache.get(tx.assetSwap.toAssetId)?.metadata?.icon : undefined,
+          ticker: tx.assetSwap?.toTicker,
+        }}
+      />
     ) : issuance ? (
       <ReceivedIcon />
     ) : burn ? (
@@ -88,47 +84,53 @@ const TransactionLine = ({
     return <span className={`activity-row__icon activity-row__icon--${iconTone}`}>{icon}</span>
   }
 
-  const kind = swap ? 'Swap' : issuance ? 'Issuance' : burn ? 'Burn' : tx.type === 'sent' ? 'Sent' : 'Received'
+  const kind = swap
+    ? swapStatus === 'pending'
+      ? 'Swap pending'
+      : swapStatus === 'failed'
+        ? 'Swap failed'
+        : swapStatus === 'cancelled'
+          ? 'Swap cancelled'
+          : swapStatus === 'recoverable'
+            ? 'Swap recoverable'
+            : 'Swap'
+    : issuance
+      ? 'Issuance'
+      : burn
+        ? 'Burn'
+        : tx.type === 'sent'
+          ? 'Sent'
+          : 'Received'
   const Kind = () => <span className='activity-row__kind'>{kind}</span>
 
-  const When = () => <span className='activity-row__meta'>{date}</span>
+  const swapRoute = swap ? swapRouteLabel(tx) : ''
+  const When = () => <span className='activity-row__meta'>{swapRoute ? `${swapRoute} · ${date}` : date}</span>
 
-  const Bitcoin = () =>
-    issuance || burn ? null : (
-      <span
-        className={`activity-row__amount${tx.preconfirmed && tx.boardingTxid ? ' activity-row__amount--pending' : ''}${
-          asAssets ? ' activity-row__amount--secondary' : ''
-        }`}
-      >
-        <PrivacyAmount
-          masked={`${prefix} ${prettyFiatHide(toFiat(tx.amount), config.currency, { bitcoinUnit: config.unit })}`}
-        >{`${prefix} ${prettyBitcoinAmount(tx.amount, config.unit)}`}</PrivacyAmount>
-      </span>
-    )
+  const RawAmounts = () => {
+    const configured = amountDisplay?.configured
+    const rawToRender = configured
+      ? amountDisplay.raw.filter((amount) => amount.assetId || amount.value !== configured.value)
+      : amountDisplay?.raw.slice(1)
+    if (!rawToRender?.length) return null
 
-  const AssetInfo = () => {
-    if (!tx.assets?.length) return null
     return (
       <>
-        {tx.assets.map((a) => {
-          const accountInfo = accountInfoForAssetId(a.assetId)
-          const meta = assetMetadataCache.get(a.assetId)?.metadata
-          const ticker = accountInfo?.ticker ?? meta?.ticker
-          const icon = meta?.icon
-          const decimals = accountInfo?.decimals ?? meta?.decimals ?? 8
-          // internal account rows are wallet-defined; anything else must be a verified
-          // asset ID before its ticker earns currency treatment (logo, fiat formatting)
-          const trusted = Boolean(accountInfo) || isVerifiedAsset(a.assetId)
-          const { accountTicker, trustedTicker } = trustedAssetTickers(ticker, trusted)
-          const label = accountInfo?.label ?? accountTicker ?? ticker ?? meta?.name ?? `${a.assetId.slice(0, 8)}...`
+        {rawToRender.map((amount) => {
+          const meta = amount.assetId ? assetMetadataCache.get(amount.assetId)?.metadata : undefined
+          const { trustedTicker } = trustedAssetTickers(amount.ticker, amount.trusted === true)
           return (
-            <FlexRow key={a.assetId} gap='0.375rem' end>
-              <TransactionAssetAvatar icon={icon} ticker={ticker} trustedTicker={trustedTicker} assetId={a.assetId} />
-              <span className='activity-row__amount'>
-                <PrivacyAmount masked={prettyHide(a.amount, label)}>
-                  {`${prettyCurrencyAssetAmount(a.amount, decimals, trustedTicker)} ${label}`}
-                </PrivacyAmount>
-                {!trusted ? <UnverifiedBadge /> : null}
+            <FlexRow key={amount.assetId ?? amount.ticker} gap='0.375rem' end>
+              {amount.assetId ? (
+                <TransactionAssetAvatar
+                  icon={meta?.icon}
+                  ticker={amount.ticker}
+                  trustedTicker={trustedTicker}
+                  assetId={amount.assetId}
+                />
+              ) : null}
+              <span className='activity-row__amount activity-row__amount--secondary'>
+                <PrivacyAmount masked={`${prefix} ${amount.masked}`}>{`${prefix} ${amount.value}`}</PrivacyAmount>
+                {amount.unverified ? <UnverifiedBadge /> : null}
               </span>
             </FlexRow>
           )
@@ -149,14 +151,26 @@ const TransactionLine = ({
 
   const Right = () => (
     <div className='activity-row__right'>
-      {tx.assets?.length ? (
+      {swap ? (
+        <SwapAmountInfo
+          configFiat={config.currency}
+          fromFiatAmount={fromFiatAmount}
+          toFiatAmount={toFiatAmount}
+          tx={tx}
+        />
+      ) : amountDisplay?.primary ? (
         <>
-          <AssetInfo />
-          {config.currency === Currencies.BTC ? <Bitcoin /> : <Currency />}
+          <span
+            className={`activity-row__amount${tx.preconfirmed && tx.boardingTxid ? ' activity-row__amount--pending' : ''}`}
+          >
+            <PrivacyAmount masked={`${prefix} ${amountDisplay.primary.masked}`}>
+              {`${prefix} ${amountDisplay.primary.value}`}
+            </PrivacyAmount>
+            {!amountDisplay.configured && amountDisplay.raw[0]?.unverified ? <UnverifiedBadge /> : null}
+          </span>
+          <RawAmounts />
         </>
-      ) : (
-        <>{config.currency === Currencies.BTC ? <Bitcoin /> : <Currency />}</>
-      )}
+      ) : null}
     </div>
   )
 
@@ -172,22 +186,64 @@ const TransactionLine = ({
   )
 }
 
+function SwapAmountInfo({
+  configFiat,
+  fromFiatAmount,
+  toFiatAmount,
+  tx,
+}: {
+  configFiat: Currencies
+  fromFiatAmount: (amount: number, currency: Currencies) => number
+  toFiatAmount: (satoshis: number, currency: Currencies) => number
+  tx: Tx
+}) {
+  const status = swapStatusForTx(tx)
+  const amount = swapUnitOfAccountAmount({
+    currency: configFiat,
+    fromFiatAmount,
+    toFiatAmount,
+    tx,
+  })
+  const statusClassName =
+    status === 'pending'
+      ? ' activity-row__amount--pending'
+      : status === 'failed'
+        ? ' activity-row__amount--failed'
+        : status === 'cancelled'
+          ? ' activity-row__amount--cancelled'
+          : ''
+
+  return (
+    <span className={`activity-row__amount${statusClassName}`}>
+      {amount ? <PrivacyAmount masked={amount.masked}>{amount.value}</PrivacyAmount> : swapStatusLabel(tx)}
+    </span>
+  )
+}
+
 interface TransactionsListProps {
   /** Show only transactions for a specific asset. Use 'btc' for bitcoin-only activity. */
   assetIdFilter?: string | string[]
+  /** Show only transactions of this type. */
+  typeFilter?: Tx['type']
   /** 'virtual' (default) uses virtualization; 'static' renders a simple list. */
   mode?: 'virtual' | 'static'
   /** Max number of transactions to show (only applies when mode='static'). */
   limit?: number
 }
 
-export default function TransactionsList({ assetIdFilter, mode = 'virtual', limit }: TransactionsListProps) {
+export default function TransactionsList({
+  assetIdFilter,
+  typeFilter,
+  mode = 'virtual',
+  limit,
+}: TransactionsListProps) {
   const { setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { assetMetadataCache, txs: allTxs } = useContext(WalletContext)
   const visibleTxs = allTxs
-    .filter((tx) => !shouldHideDevPrototypeTx(tx, assetMetadataCache))
+    .filter((tx) => !shouldHideDevAssetTx(tx, assetMetadataCache))
     .filter((tx) => matchesAssetFilter(tx, assetIdFilter))
+    .filter((tx) => !typeFilter || tx.type === typeFilter)
   const txs = mode === 'static' && limit ? visibleTxs.slice(0, limit) : visibleTxs
 
   const focusedRef = useRef(false)
@@ -327,30 +383,21 @@ export default function TransactionsList({ assetIdFilter, mode = 'virtual', limi
   )
 }
 
-function matchesAssetFilter(tx: Tx, assetIdFilter?: string | string[]): boolean {
+export function matchesAssetFilter(tx: Tx, assetIdFilter?: string | string[]): boolean {
   if (!assetIdFilter) return true
+  if (tx.type === 'swap' && tx.assetSwap) {
+    const swapAssetIds = [tx.assetSwap.fromAssetId, tx.assetSwap.toAssetId].filter((assetId): assetId is string =>
+      Boolean(assetId),
+    )
+    if (Array.isArray(assetIdFilter)) return swapAssetIds.some((assetId) => assetIdFilter.includes(assetId))
+    return swapAssetIds.includes(assetIdFilter)
+  }
   if (Array.isArray(assetIdFilter)) {
     if (!assetIdFilter.length) return false
     return tx.assets?.some((asset) => assetIdFilter.includes(asset.assetId)) ?? false
   }
   if (assetIdFilter === 'btc') return !tx.assets?.length && tx.amount !== 0
   return tx.assets?.some((asset) => asset.assetId === assetIdFilter) ?? false
-}
-
-function SwapRouteIcon({ fromTicker, toTicker }: { fromTicker?: string; toTicker?: string }) {
-  const from = accountTickerForAssetTicker(fromTicker) ?? 'BTC'
-  const to = accountTickerForAssetTicker(toTicker) ?? 'USD'
-
-  return (
-    <span className='activity-swap-route-icon' aria-hidden='true'>
-      <span>
-        <TokenLogo ticker={from} />
-      </span>
-      <span>
-        <TokenLogo ticker={to} />
-      </span>
-    </span>
-  )
 }
 
 function TransactionAssetAvatar({
@@ -376,15 +423,7 @@ function TransactionAssetAvatar({
   return <AssetAvatar icon={icon} ticker={ticker} size={16} assetId={assetId} clickable />
 }
 
-function accountInfoForAssetId(
-  assetId: string,
-): { ticker: TokenLogoTicker; label: string; decimals: number } | undefined {
-  if (assetId === 'account:usd') return { ticker: 'USD', label: 'USD', decimals: 2 }
-  if (assetId === 'account:chf') return { ticker: 'CHF', label: 'CHF', decimals: 2 }
-  if (assetId === 'account:brl') return { ticker: 'BRL', label: 'BRL', decimals: 2 }
-}
-
-function shouldHideDevPrototypeTx(
+export function shouldHideDevAssetTx(
   tx: Tx,
   assetMetadataCache: Map<string, { metadata?: { name?: string; ticker?: string } }>,
 ): boolean {

@@ -40,7 +40,7 @@ test('should prioritize Arkade addresses over others', async ({ page, isMobile }
   // details page
   await expect(page.getByTestId('Direction')).toContainText('Paying inside Arkade')
   await expect(page.getByTestId('Network fees')).toContainText('0 sats')
-  await expect(page.getByTestId('Amount')).toContainText('2,000 sats')
+  await expect(page.getByTestId('primary-amount')).toContainText('2,000 sats')
   await expect(page.getByTestId('Total')).toContainText('2,000 sats')
 })
 
@@ -120,5 +120,5 @@ test('should keep entered amount when BIP-21 has no amount parameter', async ({ 
   const continueBtn = page.getByRole('button', { name: 'Continue' })
   await expect(continueBtn).toBeEnabled()
   await continueBtn.click()
-  await expect(page.getByTestId('Amount')).toContainText('2,100 sats')
+  await expect(page.getByTestId('primary-amount')).toContainText('2,100 sats')
 })

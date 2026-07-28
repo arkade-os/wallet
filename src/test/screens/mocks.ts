@@ -161,6 +161,7 @@ export const mockWalletContextValue = {
   svcWallet: undefined,
   isLocked: () => Promise.resolve(true),
   balance: 0,
+  availableBalance: 0,
   assetBalances: [],
   assetMetadataCache: new Map(),
   setCacheEntry: () => ({ cachedAt: 0 }) as any,
@@ -176,6 +177,7 @@ export const mockWalletContextValue = {
 export const mockFlowContextValue = {
   txInfo: mockTxInfo,
   swapInfo: undefined,
+  swapFromAssetId: undefined,
   initInfo: emptyInitInfo,
   noteInfo: emptyNoteInfo,
   recvInfo: emptyRecvInfo,
@@ -185,6 +187,7 @@ export const mockFlowContextValue = {
   setRecvInfo: () => {},
   setSendInfo: () => {},
   setSwapInfo: () => {},
+  setSwapFromAssetId: () => {},
   setTxInfo: () => {},
   assetInfo: { assetId: '', supply: BigInt(0) },
   setAssetInfo: () => {},

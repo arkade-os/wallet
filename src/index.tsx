@@ -15,6 +15,7 @@ import { LimitsProvider } from './providers/limits'
 import { NudgeProvider } from './providers/nudge'
 import * as Sentry from '@sentry/react'
 import { SwapsProvider } from './providers/swaps'
+import { AssetSwapsProvider } from './providers/assetSwaps'
 import { LnurlProvider } from './providers/lnurl'
 import { shouldInitializeSentry } from './lib/sentry'
 import { FeesProvider } from './providers/fees'
@@ -71,23 +72,25 @@ root.render(
                 <FlowProvider>
                   <WalletProvider>
                     <SwapsProvider>
-                      <LnurlProvider>
-                        <LimitsProvider>
-                          <FeesProvider>
-                            <OptionsProvider>
-                              <NudgeProvider>
-                                <AnnouncementProvider>
-                                  <ToastProvider>
-                                    <ErrorBoundary>
-                                      <App />
-                                    </ErrorBoundary>
-                                  </ToastProvider>
-                                </AnnouncementProvider>
-                              </NudgeProvider>
-                            </OptionsProvider>
-                          </FeesProvider>
-                        </LimitsProvider>
-                      </LnurlProvider>
+                      <AssetSwapsProvider>
+                        <LnurlProvider>
+                          <LimitsProvider>
+                            <FeesProvider>
+                              <OptionsProvider>
+                                <NudgeProvider>
+                                  <AnnouncementProvider>
+                                    <ToastProvider>
+                                      <ErrorBoundary>
+                                        <App />
+                                      </ErrorBoundary>
+                                    </ToastProvider>
+                                  </AnnouncementProvider>
+                                </NudgeProvider>
+                              </OptionsProvider>
+                            </FeesProvider>
+                          </LimitsProvider>
+                        </LnurlProvider>
+                      </AssetSwapsProvider>
                     </SwapsProvider>
                   </WalletProvider>
                 </FlowProvider>

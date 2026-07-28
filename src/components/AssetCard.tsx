@@ -18,6 +18,10 @@ interface AssetCardProps {
   name?: string
   /** Asset ticker (e.g. "BTC"). */
   ticker?: string
+  /** Ticker used only to pick the flag/logo (e.g. a designated currency);
+   * defaults to `ticker`. Lets a designated-currency asset show its currency's
+   * flag while the balance stays denominated in the real underlying asset. */
+  logoTicker?: string
   /** Fiat-value text shown on the right (e.g. "$7.29"). */
   fiatText?: string
   onClick?: () => void
@@ -34,6 +38,7 @@ export default function AssetCard({
   icon,
   name,
   ticker,
+  logoTicker,
   fiatText,
   onClick,
 }: AssetCardProps) {
@@ -66,7 +71,11 @@ export default function AssetCard({
       }
     : undefined
 
-  const tokenLogoTicker = tokenLogoTickerForTicker(trustedTicker)
+  // the logo lookup is decoupled from the amount ticker so a designated
+  // currency can show its flag while the balance stays asset-denominated;
+  // still gated on verification, same as the amount-side trustedTicker
+  const trustedLogoTicker = !assetId || isVerifiedAsset(assetId) ? (logoTicker ?? tokenTick) : undefined
+  const tokenLogoTicker = tokenLogoTickerForTicker(trustedLogoTicker)
   const renderedAvatar = tokenLogoTicker ? (
     <span className='asset-card__logo' aria-hidden='true'>
       <TokenLogo ticker={tokenLogoTicker} />

@@ -18,6 +18,7 @@ import { FlowContext } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
+import { saveTransactionActivityMetadata } from '../../../lib/storage'
 import type { AssetDetails, IssuanceParams, KnownMetadata } from '@arkade-os/sdk'
 import Input from '../../../components/Input'
 import AssetCard from '../../../components/AssetCard'
@@ -141,6 +142,7 @@ export default function AppAssetMint() {
           amount: ctrlRawAmount,
           metadata: ctrlMeta,
         })
+        saveTransactionActivityMetadata(ctrlResult.arkTxId, { assetAction: 'issued' })
         resolvedControlAssetId = ctrlResult.assetId
         iconApprovalManager.approve(resolvedControlAssetId)
 
@@ -162,6 +164,7 @@ export default function AppAssetMint() {
       if (resolvedControlAssetId) params.controlAssetId = resolvedControlAssetId
 
       const result = await svcWallet.assetManager.issue(params)
+      saveTransactionActivityMetadata(result.arkTxId, { assetAction: 'issued' })
       const newAssetId = result.assetId
       iconApprovalManager.approve(newAssetId)
 

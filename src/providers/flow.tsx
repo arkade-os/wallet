@@ -2,6 +2,7 @@ import { BoltzSwap } from '@arkade-os/boltz-swap'
 import { ReactNode, createContext, useState } from 'react'
 import type { Asset, AssetDetails, ServiceWorkerWalletMode } from '@arkade-os/sdk'
 import { Tx } from '../lib/types'
+import type { FiatAccountSend } from '../lib/accountAssets'
 
 export interface InitInfo {
   password?: string
@@ -36,6 +37,7 @@ export interface RecvInfo {
 }
 
 export type SendInfo = {
+  account?: FiatAccountSend
   address?: string
   assets?: Asset[]
   arkAddress?: string
@@ -64,6 +66,7 @@ interface FlowContextProps {
   recvInfo: RecvInfo
   sendInfo: SendInfo
   swapInfo: SwapInfo
+  swapFromAssetId: string | undefined
   txInfo: TxInfo
   setInitInfo: (arg0: InitInfo) => void
   setNoteInfo: (arg0: NoteInfo) => void
@@ -71,6 +74,7 @@ interface FlowContextProps {
   setRecvInfo: (arg0: RecvInfo) => void
   setSendInfo: (arg0: SendInfo) => void
   setSwapInfo: (arg0: SwapInfo) => void
+  setSwapFromAssetId: (arg0: string | undefined) => void
   setTxInfo: (arg0: TxInfo) => void
   assetInfo: AssetDetails
   setAssetInfo: (arg0: AssetDetails) => void
@@ -113,6 +117,7 @@ export const FlowContext = createContext<FlowContextProps>({
   recvInfo: emptyRecvInfo,
   sendInfo: emptySendInfo,
   swapInfo: undefined,
+  swapFromAssetId: undefined,
   txInfo: undefined,
   setInitInfo: () => {},
   setNoteInfo: () => {},
@@ -120,6 +125,7 @@ export const FlowContext = createContext<FlowContextProps>({
   setRecvInfo: () => {},
   setSendInfo: () => {},
   setSwapInfo: () => {},
+  setSwapFromAssetId: () => {},
   setTxInfo: () => {},
   assetInfo: emptyAssetInfo,
   setAssetInfo: () => {},
@@ -134,6 +140,7 @@ export const FlowProvider = ({ children }: { children: ReactNode }) => {
   const [recvInfo, setRecvInfo] = useState(emptyRecvInfo)
   const [sendInfo, setSendInfo] = useState(emptySendInfo)
   const [swapInfo, setSwapInfo] = useState<SwapInfo>()
+  const [swapFromAssetId, setSwapFromAssetId] = useState<string | undefined>()
   const [txInfo, setTxInfo] = useState<TxInfo>()
   const [assetInfo, setAssetInfo] = useState<AssetDetails>(emptyAssetInfo)
   const [lnurlInfo, setLnurlInfo] = useState<LnUrlInfo>()
@@ -148,6 +155,7 @@ export const FlowProvider = ({ children }: { children: ReactNode }) => {
         recvInfo,
         sendInfo,
         swapInfo,
+        swapFromAssetId,
         txInfo,
         setInitInfo,
         setNoteInfo,
@@ -155,6 +163,7 @@ export const FlowProvider = ({ children }: { children: ReactNode }) => {
         setRecvInfo,
         setSendInfo,
         setSwapInfo,
+        setSwapFromAssetId,
         setTxInfo,
         assetInfo,
         setAssetInfo,
