@@ -566,6 +566,49 @@ describe('Transaction screen', () => {
     expect(screen.getByTestId('Total received')).toHaveTextContent('67.89 BET')
   })
 
+  it('keeps the Swap to row for restored swaps without a backfilled fee rate', () => {
+    // a restore scan with an unreachable market card leaves feeBps undefined:
+    // the gross/fee reconciliation is impossible, but the receipt must still
+    // show what was received rather than dropping the Swap to row
+    const swapTxInfo = {
+      ...mockTxInfo,
+      amount: 0,
+      boardingTxid: '',
+      assetSwap: {
+        fromAmount: BigInt(12_345),
+        fromAssetId: 'asset-alpha',
+        fromDecimals: 2,
+        fromTicker: 'ALP',
+        toAmount: BigInt(67_890),
+        toAssetId: 'asset-beta',
+        toDecimals: 3,
+        toTicker: 'BET',
+        status: 'completed' as const,
+      },
+      roundTxid: 'fill-txid',
+      settled: true,
+      type: 'swap',
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: swapTxInfo }}>
+            <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [swapTxInfo] }}>
+              <LimitsContext.Provider value={mockLimitsContextValue}>
+                <Transaction />
+              </LimitsContext.Provider>
+            </WalletContext.Provider>
+          </FlowContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByTestId('Swap to')).toHaveTextContent('67.89 BET')
+    expect(screen.getByTestId('Total received')).toHaveTextContent('67.89 BET')
+    expect(screen.queryByTestId('Swap fees')).not.toBeInTheDocument()
+  })
+
   it('masks swap asset amounts when balances are hidden', () => {
     const swapTxInfo = {
       ...mockTxInfo,

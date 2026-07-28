@@ -177,7 +177,7 @@ export default function Transaction() {
   // On asset transfers tx.amount is only the data carrier, not the asset value.
   // The asset-aware rows below replace the legacy Amount/Total rows.
   const assetTransfer = Boolean(tx.assets?.length)
-  const transferSatoshis = tx.type === 'sent' ? tx.amount - defaultFee : tx.amount
+  const transferSatoshis = tx.type === 'sent' ? tx.amount - fees : tx.amount
   const summaryLabel =
     tx.assetAction === 'reissued'
       ? 'Amount reissued'
@@ -233,7 +233,9 @@ export default function Transaction() {
         status: swapStatusLabel(tx),
         swapFees: swapFeeAmount(tx),
         swapFrom: formatSwapAssetAmount(tx, 'from'),
-        swapTo: swapAmountBeforeFee(tx),
+        // restored swaps may lack feeBps (market card unreachable during the
+        // scan): show the net received amount rather than dropping the row
+        swapTo: swapAmountBeforeFee(tx) ?? swapReceived,
         wallet,
       }
     : {
