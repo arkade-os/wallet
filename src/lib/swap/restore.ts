@@ -87,22 +87,28 @@ export async function restoreAssetSwaps(
   for (let i = 0; i < candidates.length; i += TXS_PER_REQUEST) {
     chunks.push(candidates.slice(i, i + TXS_PER_REQUEST).map((tx) => tx.redeemTxid))
   }
-  const chunkResults = await Promise.allSettled(
-    chunks.map(async (txids) => ({ txids, psbts: (await indexer.getVirtualTxs(txids)).txs })),
-  )
+  const chunkResults = await Promise.allSettled(chunks.map(async (txids) => (await indexer.getVirtualTxs(txids)).txs))
 
   const fetchedTxids: string[] = []
   const found: { fundingTx: Tx; offer: Offer; offerHex: string }[] = []
   for (const result of chunkResults) {
     if (result.status !== 'fulfilled') continue
-    const { txids, psbts } = result.value
-    fetchedTxids.push(...txids)
-    for (const psbt of psbts) {
+    for (const psbt of result.value) {
+      let parsed: Transaction
       try {
-        const parsed = Transaction.fromPSBT(base64.decode(psbt), { allowUnknown: true, allowUnknownOutputs: true })
+        parsed = Transaction.fromPSBT(base64.decode(psbt), { allowUnknown: true, allowUnknownOutputs: true })
+      } catch {
+        continue // unattributable blob: its txid stays unscanned and retries
+      }
+      const fundingTx = byTxid.get(parsed.id)
+      if (!fundingTx) continue
+      // only a txid whose psbt actually came back is answered — a chunk may
+      // return fewer than requested, and blanket-marking the request would
+      // orphan the missing ones forever (scans skip answered txids)
+      fetchedTxids.push(parsed.id)
+      try {
         const packet = Extension.fromTx(parsed).getPacketByType(OFFER_PACKET_TYPE)
-        const fundingTx = packet && byTxid.get(parsed.id)
-        if (!packet || !fundingTx) continue
+        if (!packet) continue
         const payload = packet.serialize()
         found.push({ fundingTx, offer: decodeOffer(payload), offerHex: hex.encode(payload) })
       } catch {
@@ -126,10 +132,17 @@ export async function restoreAssetSwaps(
   }
 
   const restored: AssetSwap[] = []
+  const unresolved = new Set<string>()
   for (const { fundingTx, offer, offerHex } of found) {
     const swapPkScript = hex.encode(offer.swapPkScript)
     const vtxo = vtxos.find((v) => v.script === swapPkScript && v.txid === fundingTx.redeemTxid)
-    if (!vtxo) continue // deposit unknown to the indexer: nothing to bind
+    if (!vtxo) {
+      // the funding tx carries an offer but its deposit isn't listed yet
+      // (indexer sync lag): leave the txid unscanned so a later scan retries
+      // — the deposit vtxo must exist for a tx the wallet itself funded
+      unresolved.add(fundingTx.redeemTxid)
+      continue
+    }
 
     const fromAsset = offer.offerAsset?.toString() ?? 'btc'
     const toAsset = offer.wantAsset?.toString() ?? 'btc'
@@ -168,5 +181,5 @@ export async function restoreAssetSwaps(
       ...(status === 'fulfilled' && spendTx?.createdAt ? { completedAt: spendTx.createdAt * 1000 } : {}),
     })
   }
-  return { restored, scannedTxids: fetchedTxids }
+  return { restored, scannedTxids: fetchedTxids.filter((id) => !unresolved.has(id)) }
 }

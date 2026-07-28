@@ -224,6 +224,37 @@ describe('restoreAssetSwaps', () => {
     expect(indexer.calls).toEqual([])
   })
 
+  it('leaves a txid unscanned when its psbt is missing from the response', async () => {
+    // two candidates requested, the indexer answers for only one: the missing
+    // txid must stay unscanned or its swap could never be restored
+    const offer = makeOffer('btc-to-asset', BigInt(992))
+    const { psbt, txid } = fundingPsbt(encodeOffer(offer))
+    const indexer = makeIndexer([psbt], [spentVtxo(txid, 'fill-txid')])
+
+    const result = await restoreAssetSwaps(indexer, [walletTx(txid, 'sent'), walletTx('unanswered', 'sent')], new Set())
+
+    expect(result.restored).toHaveLength(1)
+    expect(result.scannedTxids).toEqual([txid])
+  })
+
+  it('leaves a txid unscanned while its funding vtxo is not yet indexed', async () => {
+    // the offer packet is there but getVtxos lags behind the tx feed: marking
+    // the txid scanned now would permanently orphan a still-pending swap
+    const offer = makeOffer('btc-to-asset', BigInt(992))
+    const { psbt, txid } = fundingPsbt(encodeOffer(offer))
+    const indexer = makeIndexer([psbt], [])
+
+    const result = await restoreAssetSwaps(indexer, [walletTx(txid, 'sent')], new Set())
+
+    expect(result).toEqual({ restored: [], scannedTxids: [] })
+
+    // once the indexer catches up, the same candidate restores normally
+    const caughtUp = makeIndexer([psbt], [spentVtxo(txid, 'fill-txid')])
+    const retry = await restoreAssetSwaps(caughtUp, [walletTx(txid, 'sent')], new Set())
+    expect(retry.restored).toHaveLength(1)
+    expect(retry.scannedTxids).toEqual([txid])
+  })
+
   it('leaves a failed fetch unscanned so it retries on a later scan', async () => {
     const { txid } = fundingPsbt(encodeOffer(makeOffer('btc-to-asset', BigInt(992))))
     const indexer = {
