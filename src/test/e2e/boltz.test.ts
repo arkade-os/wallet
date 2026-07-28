@@ -36,7 +36,7 @@ async function expectSwapDetails(page: Page, extraLabels: string[], values: Reco
     await expect(page.getByText(label, { exact: label === 'Invoice' })).toBeVisible()
   }
   for (const [testId, value] of Object.entries(values)) {
-    expect(await page.getByTestId(testId).textContent()).toBe(value)
+    await expect(page.getByTestId(testId)).toHaveText(value)
   }
 }
 

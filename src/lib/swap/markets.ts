@@ -102,25 +102,18 @@ export const discoverMarkets = async (network: Network): Promise<DiscoveredMarke
   return markets
 }
 
-/**
- * Best market for a from/to pair. All registry markets are BTC-based, so
- * `give` maps directly: paying BTC deposits the base side, receiving BTC
- * deposits the quote side. `wantSide` skips markets whose receive side is
- * disabled (max = "0"). No market for asset↔asset pairs.
- */
+/** Best market for a from/to pair, in either orientation. `give` is the side
+ * the sender deposits; `wantSide` skips markets whose receive side is
+ * disabled (max = "0"). */
 export const findMarket = (
   markets: DiscoveredMarket[],
   fromId: string,
   toId: string,
 ): { market: DiscoveredMarket | null; give: Side } | undefined => {
   if (fromId === toId) return undefined
-  if (fromId === BTC_ASSET_ID) {
-    return { market: bestMarket(markets, { baseId: fromId, quoteId: toId, wantSide: 'quote' }), give: 'base' }
-  }
-  if (toId === BTC_ASSET_ID) {
-    return { market: bestMarket(markets, { baseId: toId, quoteId: fromId, wantSide: 'base' }), give: 'quote' }
-  }
-  return undefined
+  const givingBase = bestMarket(markets, { baseId: fromId, quoteId: toId, wantSide: 'quote' })
+  if (givingBase) return { market: givingBase, give: 'base' }
+  return { market: bestMarket(markets, { baseId: toId, quoteId: fromId, wantSide: 'base' }), give: 'quote' }
 }
 
 export type PlanError = 'insufficient-balance' | 'side-disabled' | 'below-min' | 'above-max' | 'below-dust'

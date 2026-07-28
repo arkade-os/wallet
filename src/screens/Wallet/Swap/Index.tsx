@@ -9,6 +9,7 @@ import Content from '../../../components/Content'
 import Header from '../../../components/Header'
 import Padded from '../../../components/Padded'
 import TokenLogo, { tokenLogoTickerForAsset } from '../../../components/TokenLogo'
+import { toast } from '../../../components/Toast'
 import WalletSuccessSplash from '../../../components/WalletSuccessSplash'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../../../components/ui/drawer'
 import ArrowUpDownIcon from '../../../icons/ArrowUpDown'
@@ -16,7 +17,7 @@ import ChevronDownIcon from '../../../icons/ChevronDown'
 import InfoIcon from '../../../icons/Info'
 import SwapIcon from '../../../icons/Swap'
 import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
-import { centsToUnits } from '../../../lib/assets'
+import { centsToUnits, unitsToCents } from '../../../lib/assets'
 import { extractError } from '../../../lib/error'
 import { formatFiatAmountParts, normalizeBitcoinUnit, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
@@ -228,8 +229,10 @@ export default function WalletSwap() {
   const currentPlan = status === 'success' && planMatchesAssetAmount ? plan : null
   const quoteStale = Boolean(toAsset && Number(assetAmount) > 0 && !currentPlan)
   const planError = currentPlan ? validatePlan(currentPlan, assetBalanceAtomic(fromAsset), aspInfo.dust) : undefined
+  const exceedsBalance = unitsToCents(assetAmount, fromAsset.decimals) > assetBalanceAtomic(fromAsset)
   const validationMessage = swapValidationMessage({
     amount,
+    exceedsBalance,
     fromAsset,
     pairAvailable: toAsset ? Boolean(pair?.market) : undefined,
     plan: currentPlan,
@@ -275,6 +278,8 @@ export default function WalletSwap() {
       : validationMessage === 'Insufficient balance'
         ? 'insufficient-balance'
         : 'idle'
+  const balanceValidation = isBalanceLimitValidation(validationMessage) ? validationMessage : ''
+
   const quoteLoading = status === 'loading' || (quoteStale && hasPositiveAmount)
   const canContinue = Boolean(toAsset && currentPlan && !planError)
 
@@ -319,6 +324,21 @@ export default function WalletSwap() {
     if (validationState === 'idle') return
     hapticSubtle()
   }, [validationState])
+
+  useEffect(() => {
+    if (balanceValidation || !validationMessage) {
+      toast.dismiss('swap-validation')
+      return
+    }
+    toast.error(validationMessage, { id: 'swap-validation' })
+  }, [amount, balanceValidation, validationMessage])
+
+  useEffect(
+    () => () => {
+      toast.dismiss('swap-validation')
+    },
+    [],
+  )
 
   const openDrawer = (nextDrawer: DrawerState) => {
     hapticLight()
@@ -503,7 +523,7 @@ export default function WalletSwap() {
                     onSwapSides={swapSides}
                     onUseMaxBalance={useMaxBalance}
                     validationState={validationState}
-                    validationText={validationMessage}
+                    balanceValidation={balanceValidation}
                     quoteLoading={quoteLoading}
                     swapTurn={swapTurn}
                   />
@@ -635,7 +655,7 @@ function SwapComposer({
   onSwapSides,
   onUseMaxBalance,
   validationState,
-  validationText,
+  balanceValidation,
   quoteLoading,
   swapTurn,
 }: {
@@ -655,7 +675,7 @@ function SwapComposer({
   onSwapSides: () => void
   onUseMaxBalance: () => void
   validationState: SwapValidationState
-  validationText: string
+  balanceValidation: string
   quoteLoading: boolean
   swapTurn: number
 }) {
@@ -673,9 +693,14 @@ function SwapComposer({
   const primaryAmountLabel = amountMode === 'fiat' ? currencyAmountLabel : assetAmountLabel
   const secondaryAmountMode = amountMode === 'fiat' ? 'asset' : 'fiat'
   const nextAmountModeLabel = amountMode === 'fiat' ? 'asset amount' : `${currency} amount`
-  const validationMessage = validationText
   const amountValueTransition = prefersReduced ? { duration: 0 } : { duration: 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }
   const amountLayoutId = useId()
+  const secondaryMotion = {
+    initial: prefersReduced ? false : { opacity: 0, y: 4, scale: 0.97 },
+    animate: { opacity: 1, y: 0, scale: 1 },
+    exit: prefersReduced ? undefined : { opacity: 0, y: -4, scale: 0.97 },
+    transition: { duration: prefersReduced ? 0 : 0.16, ease: EASE_OUT_QUINT_TUPLE },
+  }
 
   return (
     <div className='swap-composer'>
@@ -684,13 +709,37 @@ function SwapComposer({
           <TokenAvatar asset={fromAsset} size={36} />
           <div className='swap-input-card__asset-copy'>
             <span>{fromAsset.name}</span>
-            <small className='swap-input-card__balance'>{formatAssetBalance(fromAsset)}</small>
+            <div className='swap-input-card__balance-slot' aria-live='polite'>
+              <AnimatePresence mode='wait' initial={false}>
+                {balanceValidation === 'Insufficient balance' ? (
+                  <motion.button
+                    key='max'
+                    type='button'
+                    className='swap-input-card__balance swap-input-card__balance--max'
+                    onClick={onUseMaxBalance}
+                    aria-label={`Use maximum ${formatAssetBalance(fromAsset)}`}
+                    {...secondaryMotion}
+                  >
+                    Max {formatAssetBalance(fromAsset)}
+                  </motion.button>
+                ) : balanceValidation ? (
+                  <motion.span key={balanceValidation} className='swap-input-card__balance-error' {...secondaryMotion}>
+                    {balanceValidation}
+                  </motion.span>
+                ) : (
+                  <motion.button
+                    key='balance'
+                    type='button'
+                    className='swap-input-card__balance'
+                    onClick={onUseMaxBalance}
+                    {...secondaryMotion}
+                  >
+                    {formatAssetBalance(fromAsset)}
+                  </motion.button>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
-          {assetBalanceAtomic(fromAsset) > BigInt(0) ? (
-            <button type='button' className='swap-input-card__max' onClick={onUseMaxBalance}>
-              Use max
-            </button>
-          ) : null}
         </div>
         <div className='swap-amount-stack'>
           <LayoutGroup id={amountLayoutId}>
@@ -767,22 +816,6 @@ function SwapComposer({
               ) : null}
             </div>
           </LayoutGroup>
-          <div className='swap-input-error-slot' data-testid='swap-input-error-slot'>
-            <AnimatePresence initial={false}>
-              {validationMessage ? (
-                <motion.p
-                  key={validationMessage}
-                  className='swap-input-error'
-                  initial={prefersReduced ? false : { opacity: 0, y: 4, scale: 0.96 }}
-                  animate={prefersReduced ? undefined : { opacity: 1, y: 0, scale: 1 }}
-                  exit={prefersReduced ? undefined : { opacity: 0, y: 4, scale: 0.96 }}
-                  transition={{ duration: prefersReduced ? 0 : 0.16, ease: EASE_OUT_QUINT_TUPLE }}
-                >
-                  {validationMessage}
-                </motion.p>
-              ) : null}
-            </AnimatePresence>
-          </div>
         </div>
       </div>
 
@@ -1369,6 +1402,7 @@ function amountForQuote(amount: string, fromAsset: SwapAsset): string {
 
 function swapValidationMessage({
   amount,
+  exceedsBalance,
   fromAsset,
   pairAvailable,
   plan,
@@ -1377,6 +1411,7 @@ function swapValidationMessage({
   status,
 }: {
   amount: string
+  exceedsBalance: boolean
   fromAsset: SwapAsset
   pairAvailable: boolean | undefined
   plan: OfferPlan | null
@@ -1385,6 +1420,7 @@ function swapValidationMessage({
   status: string
 }): string {
   if (!Number(amount)) return ''
+  if (exceedsBalance) return 'Insufficient balance'
   if (pairAvailable === undefined) return ''
   if (!pairAvailable || solvable === false) return 'Swap unavailable for this pair'
   if (status === 'error') return 'Quote unavailable'
@@ -1403,6 +1439,10 @@ function swapValidationMessage({
     default:
       return ''
   }
+}
+
+function isBalanceLimitValidation(message: string): boolean {
+  return message === 'Insufficient balance' || message.startsWith('Minimum ') || message.startsWith('Maximum ')
 }
 
 /** plan.limits bound the RECEIVE side (see validatePlan), but the user is
@@ -1473,9 +1513,10 @@ function buildQuoteSnapshot(plan: OfferPlan, quote: SwapQuote, currency: Currenc
     // the BTC leg's sats directly, since the snapshot's sats-vs-BTC meaning
     // depends on the bitcoin-unit setting at swap time). Skip persisting it
     // next time the store shape changes.
-    fiatCurrency: currency,
+    // unpriceable trade: omit rather than persist a fabricated zero
     ...(quote.giveCurrencyValue > 0 || quote.fromCurrencyValue > 0
       ? {
+          fiatCurrency: currency,
           fromFiatAmount: quote.giveCurrencyValue > 0 ? quote.giveCurrencyValue : quote.fromCurrencyValue,
         }
       : {}),

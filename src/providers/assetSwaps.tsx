@@ -48,30 +48,40 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   const [emulatorUrl, setEmulatorUrl] = useState<string>()
   const [swaps, setSwaps] = useState<AssetSwap[]>(getAssetSwaps)
 
-  // discover markets and probe the emulator once the network is known;
-  // stale results from a previous network must never land after a switch
+  // discover markets and probe the emulator once the network is known, and
+  // again on every tab return (discoverMarkets' TTL cache is the rate
+  // limiter); stale results from a previous network must never land after a
+  // switch
   useEffect(() => {
     setMarkets([])
     setEmulatorUrl(undefined)
     if (!aspInfo.network) return
     let cancelled = false
     const network = aspInfo.network as Network
-    discoverMarkets(network)
-      .then((found) => {
-        if (!cancelled) setMarkets(found)
-      })
-      .catch((err) => consoleError(err, 'solver discovery failed'))
-    const url = getEmulatorUrlForNetwork(network)
-    if (url) {
-      new RestEmulatorProvider(url)
-        .getInfo()
-        .then(() => {
-          if (!cancelled) setEmulatorUrl(url)
+    const runDiscovery = () => {
+      discoverMarkets(network)
+        .then((found) => {
+          if (!cancelled) setMarkets(found)
         })
-        .catch((err) => consoleError(err, 'swap emulator unreachable'))
+        .catch((err) => consoleError(err, 'solver discovery failed'))
+      const url = getEmulatorUrlForNetwork(network)
+      if (url) {
+        new RestEmulatorProvider(url)
+          .getInfo()
+          .then(() => {
+            if (!cancelled) setEmulatorUrl(url)
+          })
+          .catch((err) => consoleError(err, 'swap emulator unreachable'))
+      }
     }
+    runDiscovery()
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') runDiscovery()
+    }
+    document.addEventListener('visibilitychange', onVisible)
     return () => {
       cancelled = true
+      document.removeEventListener('visibilitychange', onVisible)
     }
   }, [aspInfo.network])
 
