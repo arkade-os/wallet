@@ -144,4 +144,7 @@ export interface AssetOption {
   balance: bigint
   decimals: number
   icon?: string
+  /** id-verified via the asset registry; a self-reported ticker must never
+   * earn currency treatment (pricing, fiat formatting) without this */
+  trusted?: boolean
 }

@@ -169,6 +169,8 @@ export default function SendForm() {
             decimals: sendInfo.account.decimals,
             name: sendInfo.account.ticker,
             ticker: sendInfo.account.ticker,
+            // currency accounts only exist for id-verified designated assets
+            trusted: true,
           }
         : null,
     [sendInfo.account],
@@ -269,6 +271,7 @@ export default function SendForm() {
           ticker: presentation.ticker,
           icon: presentation.icon,
           decimals: meta?.metadata?.decimals ?? 8,
+          trusted: isVerifiedAsset(ab.assetId),
         })
       }
       setAssetOptions(options)
@@ -325,6 +328,7 @@ export default function SendForm() {
               ticker: presentation.ticker,
               icon: presentation.icon,
               decimals: meta?.metadata?.decimals ?? 8,
+              trusted: isVerifiedAsset(assetId),
             }
           }
           setSelectedAsset(found)

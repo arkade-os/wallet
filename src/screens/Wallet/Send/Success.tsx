@@ -129,8 +129,11 @@ export default function SendSuccess() {
   }, [isLnSwapSend, pendingSwap, swapManager, getSwapHistory])
 
   const totalSats = sendInfo.total ?? 0
+  // currency formatting keys on the ticker string; a spoofed "USD" mint must
+  // not earn it (account sends are designated, hence verified by id)
+  const trustedTicker = sendInfo.account || (assetId && isVerifiedAsset(assetId)) ? assetTicker : undefined
   const displayAmount = isAssetSend
-    ? `${prettyCurrencyAssetAmount(assetAmountValue, assetDecimals, assetTicker)} ${assetTicker}`
+    ? `${prettyCurrencyAssetAmount(assetAmountValue, assetDecimals, trustedTicker)} ${assetTicker}`
     : useFiat
       ? prettyFiatAmount(toFiat(totalSats), config.currency, { bitcoinUnit: config.unit })
       : prettyAmount(totalSats)

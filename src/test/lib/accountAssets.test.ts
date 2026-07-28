@@ -7,6 +7,7 @@ import {
   walletAccountTicker,
   walletAssetLabel,
   walletAssetPresentation,
+  walletAssetPresentationForId,
 } from '../../lib/accountAssets'
 
 describe('wallet account asset presentation', () => {
@@ -55,5 +56,29 @@ describe('wallet account asset presentation', () => {
     const presentation = walletAssetPresentation(undefined, 'asset-id')
 
     expect(walletAssetLabel(presentation)).toBe('asset-id')
+  })
+
+  it('never renames an unregistered asset to a currency, whatever it calls itself', () => {
+    // anyone can mint an asset tickered "USD"; without registry verification
+    // it must keep its own metadata identity, not the currency's
+    const spoof = { name: 'Totally Real Dollars', ticker: 'USD' }
+    expect(walletAssetPresentationForId('mutinynet', 'ff'.repeat(34), () => false, spoof)).toEqual({
+      name: 'Totally Real Dollars',
+      ticker: 'USD',
+      icon: undefined,
+    })
+  })
+
+  it('renames a registered currency-tickered asset and designates by id', () => {
+    const spoofFree = { name: 'US Dollar', ticker: 'USD' }
+    expect(walletAssetPresentationForId('mutinynet', 'aa'.repeat(34), () => true, spoofFree)).toEqual({
+      name: 'USD',
+      ticker: 'USD',
+    })
+    expect(walletAssetPresentationForId('mutinynet', MUTINYNET_DEPIX_ASSET_ID, () => true, spoofFree)).toEqual({
+      name: 'BRL',
+      ticker: 'BRL',
+      icon: undefined,
+    })
   })
 })

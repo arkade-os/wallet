@@ -101,10 +101,12 @@ export function walletAssetPresentationForId(
   metadata: { name?: string; ticker?: string; icon?: string } | undefined,
   fallbackName = 'Asset',
 ): { name: string; ticker: string; icon?: string } {
-  const currency = assetId && isRegistered(assetId) ? designatedAccountCurrency(network, assetId) : undefined
-  return currency
-    ? { name: currency, ticker: currency, icon: metadata?.icon }
-    : walletAssetPresentation(metadata, fallbackName)
+  const registered = Boolean(assetId && isRegistered(assetId))
+  const currency = registered && assetId ? designatedAccountCurrency(network, assetId) : undefined
+  if (currency) return { name: currency, ticker: currency, icon: metadata?.icon }
+  // the bare-ticker currency rename is spoofable (any mint can call itself
+  // "USD"); only a registered asset id may claim it
+  return registered ? walletAssetPresentation(metadata, fallbackName) : rawAssetPresentation(metadata, fallbackName)
 }
 
 export function walletAssetLabel(presentation: { name: string; ticker: string }): string {

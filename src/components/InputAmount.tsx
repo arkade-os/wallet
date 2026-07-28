@@ -139,11 +139,11 @@ export default function InputAmount({
 
   // designated-currency assets (USD/BRL accounts) can price their amount in
   // the display currency; other assets have no rate, so no conversion shows.
-  // Only plain decimal text converts — a number input can hold "1e5", which
-  // unitsToCents' BigInt would throw on.
+  // Only trusted (id-verified) assets convert — the ticker is self-reported
+  // metadata, and a spoofed "USD" must not borrow the real dollar rate.
   const plainDecimalValue = value && /^\d*\.?\d*$/.test(value) ? value : ''
   const assetSatoshis =
-    asset?.assetId && plainDecimalValue
+    asset?.assetId && asset.trusted && plainDecimalValue
       ? fiatAccountAssetSatoshis(
           unitsToCents(plainDecimalValue, asset.decimals),
           asset.decimals,

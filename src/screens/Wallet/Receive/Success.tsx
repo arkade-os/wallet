@@ -22,7 +22,9 @@ function formatAssetLabel(
   const meta = details?.metadata
   const presentation = walletAssetPresentationForId(network, a.assetId, isRegistered, meta, 'assets')
   const ticker = presentation.ticker || presentation.name
-  const amount = prettyCurrencyAssetAmount(a.amount, meta?.decimals ?? 0, ticker)
+  // fiat-style formatting keys on the ticker string, which unregistered
+  // assets self-report — only a registered id earns currency treatment
+  const amount = prettyCurrencyAssetAmount(a.amount, meta?.decimals ?? 0, isRegistered(a.assetId) ? ticker : undefined)
   return `${amount} ${ticker}`
 }
 
