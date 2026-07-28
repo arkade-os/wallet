@@ -1,14 +1,17 @@
 import { useContext } from 'react'
 import userEvent from '@testing-library/user-event'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { planOffer, type OfferPlan } from '@arkade-os/solver-discovery'
 import { AspContext } from '../../providers/asp'
 import { AssetSwapsContext, AssetSwapsProvider } from '../../providers/assetSwaps'
 import { WalletContext } from '../../providers/wallet'
 import { addAssetSwap, getAssetSwaps, type AssetSwap, updateAssetSwap } from '../../lib/swap/store'
+import { btcUsdt, maratNapo, MARAT_ID, NAPO_ID, USDT_ID } from '../lib/swap/fixtures'
 import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
 
 const cancelOffer = vi.hoisted(() => vi.fn())
+const createOffer = vi.hoisted(() => vi.fn())
 const getVtxos = vi.hoisted(() => vi.fn())
 
 vi.mock('@arkade-os/sdk', async (importOriginal) => ({
@@ -16,11 +19,21 @@ vi.mock('@arkade-os/sdk', async (importOriginal) => ({
   RestIndexerProvider: class {
     getVtxos = getVtxos
   },
+  RestEmulatorProvider: class {
+    getInfo = async () => ({})
+  },
 }))
 
 vi.mock('../../lib/swap/offer', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/swap/offer')>()),
   cancelOffer,
+  createOffer,
+}))
+
+// keep the discovery effect off the network; these tests hand plans in directly
+vi.mock('../../lib/swap/markets', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/swap/markets')>()),
+  discoverMarkets: async () => [],
 }))
 
 const pendingSwap: AssetSwap = {
@@ -56,6 +69,91 @@ function renderProvider(reloadWallet = vi.fn().mockResolvedValue(undefined)) {
   )
   return reloadWallet
 }
+
+function CreateHarness({ plan }: { plan: OfferPlan }) {
+  const { createSwap } = useContext(AssetSwapsContext)
+  return <button onClick={() => createSwap(plan).catch(() => {})}>Create</button>
+}
+
+function renderCreateProvider(plan: OfferPlan) {
+  const send = vi.fn().mockResolvedValue('funding-txid-2')
+  render(
+    // mutinynet so the emulator probe (mocked above) resolves and arms createSwap
+    <AspContext.Provider
+      value={
+        { ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet', url: '' } } as any
+      }
+    >
+      <WalletContext.Provider
+        value={
+          {
+            ...mockWalletContextValue,
+            reloadWallet: vi.fn().mockResolvedValue(undefined),
+            svcWallet: { identity: {}, send },
+          } as any
+        }
+      >
+        <AssetSwapsProvider>
+          <CreateHarness plan={plan} />
+        </AssetSwapsProvider>
+      </WalletContext.Provider>
+    </AspContext.Provider>,
+  )
+  return send
+}
+
+describe('AssetSwapsProvider createSwap offer encoding', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    createOffer.mockReset().mockResolvedValue({
+      address: 'tark1swap',
+      payload: new Uint8Array([1]),
+      swapPkScript: new Uint8Array(34),
+      offerHex: '0100',
+    })
+  })
+
+  afterEach(() => localStorage.clear())
+
+  it('keys the offer on the receive side: asset<->asset wants the receive asset', async () => {
+    // the fork that mis-encoded asset<->asset as a sat want when keyed on the
+    // deposit side: a MARAT->NAPO plan must produce a want-asset offer
+    const plan = planOffer({ market: maratNapo, give: 'base', feedValue: 1, giveAmount: BigInt(500), safetyBps: 0 })
+    const send = renderCreateProvider(plan)
+
+    // the emulator probe resolves async; retry the click until createSwap arms
+    await waitFor(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+      expect(createOffer).toHaveBeenCalled()
+    })
+
+    const options = createOffer.mock.calls[0][3]
+    expect(options.offerAsset).toBeUndefined()
+    expect(options.wantAsset?.toString()).toBe(NAPO_ID)
+    expect(options.wantAmount).toBe(plan.receive.atomic)
+    // the deposit rides the funding tx as an asset, not as sats
+    await waitFor(() => expect(send).toHaveBeenCalled())
+    expect(send.mock.calls[0][0]).toMatchObject({
+      amount: undefined,
+      assets: [{ assetId: MARAT_ID, amount: plan.deposit.atomic }],
+    })
+  })
+
+  it('wants sats when the receive side is BTC', async () => {
+    const plan = planOffer({ market: btcUsdt, give: 'quote', feedValue: 100000, giveAmount: BigInt(152), safetyBps: 0 })
+    renderCreateProvider(plan)
+
+    await waitFor(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+      expect(createOffer).toHaveBeenCalled()
+    })
+
+    const options = createOffer.mock.calls[0][3]
+    expect(options.wantAsset).toBeUndefined()
+    expect(options.offerAsset?.toString()).toBe(USDT_ID)
+    expect(options.wantAmount).toBe(plan.receive.atomic)
+  })
+})
 
 describe('AssetSwapsProvider cancellation', () => {
   beforeEach(() => {

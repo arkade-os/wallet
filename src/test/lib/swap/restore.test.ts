@@ -250,6 +250,18 @@ describe('restoreAssetSwaps', () => {
     expect(indexer.calls).toEqual([])
   })
 
+  it('leaves a txid unscanned while the declared deposit asset is missing from the vtxo', async () => {
+    // a want-btc offer's TLV names the deposit asset; if the indexer hasn't
+    // attached the rider yet, persisting now would burn a zero-amount record
+    const offer = makeOffer('want-btc', BigInt(21_000))
+    const { psbt, txid } = fundingPsbt(encodeOffer(offer))
+    const indexer = makeIndexer([psbt], [spentVtxo(txid, 'fill-txid')]) // vtxo without assets
+
+    const result = await restoreAssetSwaps(indexer, [walletTx(txid, 'sent')], new Set())
+
+    expect(result).toEqual({ restored: [], scannedTxids: [] })
+  })
+
   it('leaves a txid unscanned when its psbt is missing from the response', async () => {
     // two candidates requested, the indexer answers for only one: the missing
     // txid must stay unscanned or its swap could never be restored

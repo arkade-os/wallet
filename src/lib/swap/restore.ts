@@ -146,14 +146,21 @@ export async function restoreAssetSwaps(
 
     // the TLV names the deposit only for want-BTC offers; otherwise the
     // funding vtxo's own rider identifies it (asset↔asset swaps deposit an
-    // asset under a want-asset offer, plain BTC deposits carry no rider)
+    // asset under a want-asset offer, plain BTC deposits carry no rider).
+    // Covenant deposits carry at most one rider today; if that ever changes
+    // this picks the first non-zero one.
     const depositRider = vtxo.assets?.find((a) => a.amount > BigInt(0))
     const fromAsset = offer.offerAsset?.toString() ?? depositRider?.assetId ?? 'btc'
     const toAsset = offer.wantAsset?.toString() ?? 'btc'
-    const fromAmount =
-      fromAsset === 'btc'
-        ? String(vtxo.value)
-        : (vtxo.assets?.find((a) => a.assetId === fromAsset)?.amount ?? BigInt(0)).toString()
+    const depositAmount =
+      fromAsset === 'btc' ? BigInt(vtxo.value) : vtxo.assets?.find((a) => a.assetId === fromAsset)?.amount
+    if (depositAmount === undefined) {
+      // the TLV declares a deposit asset the indexer hasn't attached to the
+      // vtxo yet: retry later rather than persisting a zero-amount record
+      unresolved.add(fundingTx.redeemTxid)
+      continue
+    }
+    const fromAmount = depositAmount.toString()
 
     const state = vtxo.virtualStatus.state
     const spentTxid = state === 'spent' ? (vtxo.arkTxId ?? vtxo.spentBy) : undefined
