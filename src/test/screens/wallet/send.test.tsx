@@ -64,8 +64,6 @@ describe('Send screen', () => {
     expect(screen.getByText('Max')).toBeInTheDocument()
     expect(screen.getByText('Send')).toBeInTheDocument()
     expect(screen.getByText('Amount')).toBeInTheDocument()
-    // entry defaults to the display currency when one is configured, and the
-    // available label follows the entry denomination
     expect(screen.getByText('€0.00 available')).toBeInTheDocument()
     expect(screen.getByText('Recipient address')).toBeInTheDocument()
     expect(screen.getByText('Continue')).toBeInTheDocument()
@@ -97,8 +95,8 @@ describe('Send screen', () => {
     }
     renderSendForm({ flowContext: flowValue, walletContext: walletValue })
     // amount input is bound to amountTextValue; before the fix it stayed
-    // empty. Entry defaults to the display currency (EUR in the mock config,
-    // identity toFiat), so the 21 fixed sats read as their fiat equivalent.
+    // empty. Entry defaults to the display currency when conversion is
+    // available, so the mock's 1:1 rate renders the fixed 21 sats as 21.
     const amountInput = await waitFor(() => screen.getByDisplayValue('21'))
     expect(amountInput).toHaveAttribute('name', 'send-amount')
     expect(amountInput).toHaveAttribute('readonly')
@@ -184,13 +182,14 @@ describe('Send screen', () => {
     }
     const configValue = {
       ...mockConfigContextValue,
-      useFiat: false,
+      useFiat: true,
       config: { ...mockConfigContextValue.config, currency: Currencies.BTC, unit: Unit.SATS },
     }
 
     renderSendForm({ configContext: configValue, walletContext: walletValue })
 
     await waitFor(() => screen.getByText('12,128 sats available'), { timeout: 2000 })
+    expect(screen.queryByTestId('input-amount-switch')).not.toBeInTheDocument()
     expect(screen.queryByText('0.00012128 BTC available')).not.toBeInTheDocument()
     expect(screen.queryByText('12,128 sats available')).toBeInTheDocument()
   })
@@ -219,12 +218,44 @@ describe('Send screen', () => {
 
     renderSendForm({ configContext: configValue, fiatContext: fiatValue, walletContext: walletValue })
 
-    // entry starts on the display currency when one is configured
     const amountInput = document.querySelector('input[name="send-amount"]') as HTMLInputElement
     fireEvent.change(amountInput, { target: { value: '10' } })
 
     expect(await screen.findByText('0.00010000 BTC')).toBeInTheDocument()
     expect(screen.queryByText('10,000 sats')).not.toBeInTheDocument()
+  })
+
+  it('keeps send in bitcoin units when currency conversion is unavailable', () => {
+    const configValue = {
+      ...mockConfigContextValue,
+      useFiat: true,
+      config: { ...mockConfigContextValue.config, currency: Currencies.USD, unit: Unit.SATS },
+    }
+    const unavailableCurrency = {
+      ...mockFiatContextValue,
+      toFiat: () => 0,
+      fromFiat: () => 0,
+      fromFiatAmount: () => 0,
+      toFiatAmount: () => 0,
+    }
+
+    renderSendForm({
+      configContext: configValue,
+      fiatContext: unavailableCurrency,
+      walletContext: {
+        ...mockWalletContextValue,
+        assetBalances: [],
+        svcWallet: {
+          ...mockSvcWallet,
+          getAddress: () => 'tark1mockoffchain',
+          getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+        } as any,
+      },
+    })
+
+    expect(screen.queryByTestId('input-amount-switch')).not.toBeInTheDocument()
+    expect(screen.getByText('sats')).toBeInTheDocument()
+    expect(document.body).not.toHaveTextContent(/[$€]/)
   })
 
   it('converts typed BTC send amounts to satoshis before updating send state', async () => {
