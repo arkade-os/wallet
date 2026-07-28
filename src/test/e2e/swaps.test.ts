@@ -46,9 +46,6 @@ test('swap BTC <-> RGT using BTC as currency', async ({ page }) => {
   page.locator('.swap-receive-card').first().click()
   await page.getByTestId('swap-asset-row-sats').click()
 
-  // change to amount in RGT
-  await page.getByTestId('swap-amount-toggle').click()
-
   // insert 1000 RGT to swap
   await page.locator('[aria-label="1"]').click()
   await expect(page.getByText('Amount too small')).toBeVisible()
@@ -108,9 +105,6 @@ test('swap BTC <-> RGT using USD as currency', async ({ page }) => {
   // select BTC as asset to swap to
   await page.locator('.swap-receive-card').first().click()
   await page.getByTestId('swap-asset-row-sats').click()
-
-  // change to amount in RGT
-  await page.getByTestId('swap-amount-toggle').click()
 
   // insert 1000 RGT to swap
   await page.locator('[aria-label="1"]').click()
