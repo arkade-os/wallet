@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
 
 // Keep the real SDK (so ArkError stays a real class for the instanceof check in
 // getAspInfo) and only override RestArkProvider to control what getInfo throws.
@@ -25,7 +25,12 @@ vi.mock('@arkade-os/sdk', async (importOriginal) => {
   }
 })
 
-import { getAspInfo, aspErrorText, emptyAspInfo, byExpiryAsc } from '../../lib/asp'
+import { getAspInfo, aspErrorText, emptyAspInfo, byExpiryAsc, getTxHistory } from '../../lib/asp'
+import { saveTransactionActivityMetadata } from '../../lib/storage'
+
+beforeEach(() => {
+  localStorage.clear()
+})
 
 describe('byExpiryAsc', () => {
   it('sorts known expiries ascending and places missing expiry last', () => {
@@ -74,5 +79,35 @@ describe('getAspInfo', () => {
     const info = await getAspInfo('down.example.com')
     expect(info.unreachable).toBe(true)
     expect(info.outdated).toBeFalsy()
+  })
+})
+
+describe('getTxHistory', () => {
+  it('restores locally persisted receipt details for a sent transaction', async () => {
+    saveTransactionActivityMetadata('ark-txid', {
+      assetAction: 'reissued',
+      destination: 'tark1destination',
+      networkFee: 0,
+    })
+    const wallet = {
+      getTransactionHistory: async () => [
+        {
+          amount: 0,
+          assets: [{ assetId: 'asset-id', amount: BigInt(100) }],
+          createdAt: Date.now(),
+          key: { arkTxid: 'ark-txid', boardingTxid: '', commitmentTxid: '' },
+          settled: true,
+          type: 'SENT',
+        },
+      ],
+    }
+
+    const [tx] = await getTxHistory(wallet as any)
+
+    expect(tx).toMatchObject({
+      assetAction: 'reissued',
+      destination: 'tark1destination',
+      networkFee: 0,
+    })
   })
 })

@@ -30,6 +30,8 @@ export interface DetailsProps {
   address?: string
   arknote?: string
   assetId?: string
+  assetIds?: { assetId: string; label: string }[]
+  assetTotals?: (SwapDisplayAmount & { label: string })[]
   amountDisplay?: TransactionAmountDisplay
   date?: string
   destination?: string
@@ -65,6 +67,8 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     address,
     arknote,
     assetId,
+    assetIds,
+    assetTotals,
     amountDisplay,
     date,
     direction,
@@ -151,16 +155,24 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
   const offchainTxOnClick = (id?: string) =>
     wallet && id && getOffchainTxURL(id, wallet) ? () => openOffchainTxInNewTab(id, wallet) : undefined
 
-  const assetIdOnClick =
-    wallet && assetId && getAssetURL(assetId, wallet)
+  const assetIdOnClick = (id: string) =>
+    wallet && getAssetURL(id, wallet)
       ? () => {
-          openAssetInNewTab(assetId, wallet)
+          openAssetInNewTab(id, wallet)
         }
       : undefined
+  const assetIdRows: TableData = (assetIds ?? (assetId ? [{ assetId, label: 'Asset ID' }] : [])).map(
+    ({ assetId: id, label }) => [label, id, <InfoIcon key={`${label}-${id}`} />, assetIdOnClick(id)],
+  )
+  const assetTotalRows: TableData = (assetTotals ?? []).map(({ label, ...amount }) => [
+    label,
+    formatSensitiveDetail(amount),
+    <TotalIcon key={`${label}-${amount.value}`} />,
+  ])
 
   const data: TableData = [
-    ['From', formatSensitiveDetail(swapFrom), <ArrowUpDownIcon key='swap-from-icon' />],
-    ['To', formatSensitiveDetail(swapTo), <ArrowUpDownIcon key='swap-to-icon' />],
+    ['Swap from', formatSensitiveDetail(swapFrom), <ArrowUpDownIcon key='swap-from-icon' />],
+    ['Swap to', formatSensitiveDetail(swapTo), <ArrowUpDownIcon key='swap-to-icon' />],
     ['Address', address, <TypeIcon key='address-icon' />],
     ['Arknote', arknote, <NotesIcon key='notes-icon' small />],
     ['Invoice', invoice, <TypeIcon key='invoice-icon' />],
@@ -169,7 +181,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     ['Funded', fundedTxid, <HashIcon key='funded-icon' />, offchainTxOnClick(fundedTxid)],
     [spendLabel ?? 'Completed', spendTxid, <HashIcon key='spend-icon' />, offchainTxOnClick(spendTxid)],
     ['Transaction ID', txid, <HashIcon key='txid-icon' />, showTxidLink ? txidOnClick : undefined],
-    ['Asset ID', assetId, <InfoIcon key='asset-id-icon' />, assetIdOnClick],
+    ...assetIdRows,
     ['Direction', direction, <DirectionIcon key='direction-icon' />],
     ['Type', type, <TypeIcon key='type-icon' />],
     ['Status', status, <StatusIcon key='status-icon' />],
@@ -180,6 +192,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     ['Price rate', priceRate, <ArrowUpDownIcon key='price-rate-icon' />],
     ['Network fees', fees === undefined ? undefined : formatAmount(fees), <FeesIcon key='fees-icon' />],
     ['Swap fees', formatSensitiveDetail(swapFees), <FeesIcon key='swap-fees-icon' />],
+    ...assetTotalRows,
     ['Total', formatAmount(total), <TotalIcon key='total-icon' />],
   ]
 

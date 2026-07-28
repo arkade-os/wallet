@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { swapRouteLabel, swapUnitOfAccountAmount } from '../../lib/swapDisplay'
+import { swapAmountBeforeFee, swapFeeAmount, swapRouteLabel, swapUnitOfAccountAmount } from '../../lib/swapDisplay'
 import { Currencies, Tx, Unit } from '../../lib/types'
 
 const PRICE = 63_750 // USD per whole BTC
@@ -52,6 +52,24 @@ describe('swapRouteLabel', () => {
       toTicker: 'sats',
     }
     expect(swapRouteLabel(reverse)).toBe('USD to BTC')
+  })
+})
+
+describe('swap receipt amounts', () => {
+  it('shows a zero fee and keeps the total received equal to the before-fee amount', () => {
+    const tx = btcCurrencySwap()
+
+    expect(swapFeeAmount(tx)?.value).toBe('0.00 USD')
+    expect(swapAmountBeforeFee(tx)?.value).toBe('1.02 USD')
+  })
+
+  it('reconciles the before-fee amount, fee, and received total', () => {
+    const tx = btcCurrencySwap()
+    tx.assetSwap!.feeBps = 200
+    tx.assetSwap!.toAmount = BigInt(645_000_000)
+
+    expect(swapFeeAmount(tx)?.value).toBe('0.13 USD')
+    expect(swapAmountBeforeFee(tx)?.value).toBe('6.58 USD')
   })
 })
 

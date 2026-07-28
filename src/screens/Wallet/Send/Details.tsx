@@ -23,6 +23,7 @@ import { FeesContext } from '../../../providers/fees'
 import { buildTransactionAmountDisplay } from '../../../lib/transactionAmountDisplay'
 import { useAmountDisplayContext } from '../../../hooks/useTransactionAmountDisplay'
 import TransactionAmountSummary from '../../../components/TransactionAmountSummary'
+import { saveTransactionActivityMetadata } from '../../../lib/storage'
 
 export default function SendDetails() {
   const displayContext = useAmountDisplayContext()
@@ -124,6 +125,10 @@ export default function SendDetails() {
 
   const handleTxid = (txid: string) => {
     if (!txid) return handleError('Error sending transaction')
+    saveTransactionActivityMetadata(txid, {
+      destination: details?.destination,
+      networkFee: details?.fees,
+    })
     setSendInfo({ ...sendInfo, total: details?.total, txid })
     setSendDone(true)
   }

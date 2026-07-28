@@ -68,22 +68,40 @@ export function formatSwapAssetAmount(tx: Tx, side: 'from' | 'to'): SwapDisplayA
   return swapAssetDisplayAmount(amount, decimals, ticker)
 }
 
+function swapFeeAtomic(tx: Tx): bigint | undefined {
+  const swap = tx.assetSwap
+  if (!swap) return undefined
+  const { toAmount, feeBps } = swap
+  if (toAmount === undefined || feeBps === undefined) return undefined
+  if (toAmount <= BigInt(0) || feeBps < 0 || feeBps >= 10_000) return undefined
+  if (feeBps === 0) return BigInt(0)
+  return BigInt(
+    new Decimal(toAmount.toString())
+      .mul(feeBps)
+      .div(10_000 - feeBps)
+      .toFixed(0),
+  )
+}
+
 /** The market fee, in the receive asset — same unit as the live composer's
  * Fees row. The stored toAmount is net of the fee, so the fee is the
  * gross-minus-net gap: toAmount × feeBps / (10000 − feeBps). */
 export function swapFeeAmount(tx: Tx): SwapDisplayAmount | undefined {
   const swap = tx.assetSwap
   if (!swap) return undefined
-  const { toAmount, toDecimals, toTicker, feeBps } = swap
-  if (toAmount === undefined || toDecimals === undefined || !toTicker || feeBps === undefined) return undefined
-  if (toAmount <= BigInt(0) || feeBps <= 0 || feeBps >= 10_000) return undefined
-  const feeAtomic = BigInt(
-    new Decimal(toAmount.toString())
-      .mul(feeBps)
-      .div(10_000 - feeBps)
-      .toFixed(0),
-  )
-  return swapAssetDisplayAmount(feeAtomic, toDecimals, toTicker)
+  const { toDecimals, toTicker } = swap
+  const fee = swapFeeAtomic(tx)
+  if (fee === undefined || toDecimals === undefined || !toTicker) return undefined
+  return swapAssetDisplayAmount(fee, toDecimals, toTicker)
+}
+
+export function swapAmountBeforeFee(tx: Tx): SwapDisplayAmount | undefined {
+  const swap = tx.assetSwap
+  if (!swap) return undefined
+  const { toAmount, toDecimals, toTicker } = swap
+  const fee = swapFeeAtomic(tx)
+  if (toAmount === undefined || fee === undefined || toDecimals === undefined || !toTicker) return undefined
+  return swapAssetDisplayAmount(toAmount + fee, toDecimals, toTicker)
 }
 
 /** Rate the covenant enforced: receive-asset units bought by one unit of the

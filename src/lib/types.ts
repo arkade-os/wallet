@@ -93,10 +93,13 @@ export enum Themes {
 
 export type Tx = {
   amount: number
+  assetAction?: 'issued' | 'reissued' | 'burned'
   assets?: Asset[]
   boardingTxid: string
   createdAt: number
+  destination?: string
   explorable: string | undefined
+  networkFee?: number
   preconfirmed: boolean
   redeemTxid: string
   roundTxid: string

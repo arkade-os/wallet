@@ -19,6 +19,7 @@ import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
 import Input from '../../../components/Input'
 import { prettyAssetAmount, unitsToCents } from '../../../lib/assets'
+import { saveTransactionActivityMetadata } from '../../../lib/storage'
 
 export default function AppAssetReissue() {
   const { replace } = useContext(NavigationContext)
@@ -64,7 +65,8 @@ export default function AppAssetReissue() {
     setError('')
 
     try {
-      await svcWallet.assetManager.reissue({ assetId: assetInfo.assetId, amount })
+      const txid = await svcWallet.assetManager.reissue({ assetId: assetInfo.assetId, amount })
+      saveTransactionActivityMetadata(txid, { assetAction: 'reissued' })
       await reloadWallet()
       pendingNav.current = () => replace(Pages.AppAssetDetail, Pages.AppAssets)
       setOpDone(true)
