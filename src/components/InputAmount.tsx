@@ -116,18 +116,13 @@ export default function InputAmount({
     setSatsValue(fiatEntry ? fromFiat(value) : toSats(value))
   }
 
-  const unitText = (sats: number) =>
-    config.unit === Unit.BTC ? prettyNumber(fromSatoshis(sats), 8, false) : prettyNumber(sats, 0, false)
-
   const handleModeSwitch = () => {
     hapticLight()
     const nextMode: InputAmountMode = mode === 'unit' ? 'fiat' : 'unit'
-    // re-express the current amount in the new denomination so the typed text
-    // and the parent's parse of it stay in sync
-    if (satsValue) {
-      onChange(nextMode === 'fiat' ? prettyNumber(toFiat(satsValue), fiatDecimals(), false) : unitText(satsValue))
-    }
     setInternalMode(nextMode)
+    // the parent re-expresses the value itself from its authoritative sats:
+    // pushing re-denominated text through onChange here would be parsed by
+    // the parent's pre-switch mode closure — a wrong-amount hazard
     onModeChange?.(nextMode)
   }
 

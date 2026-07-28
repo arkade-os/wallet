@@ -147,6 +147,87 @@ describe('Send screen', () => {
     }
   })
 
+  it('never re-parses the toggled amount with the previous denomination', async () => {
+    // regression: the ⇅ switch used to push re-expressed text through
+    // onChange before the parent's mode state updated, so a $10 entry
+    // re-parsed as raw sats (or vice versa) and signed a wrong amount
+    const setSendInfo = vi.fn()
+    const flowValue = { ...mockFlowContextValue, sendInfo: { ...emptySendInfo }, setSendInfo }
+    const configValue = {
+      ...mockConfigContextValue,
+      useFiat: true,
+      config: { ...mockConfigContextValue.config, currency: Currencies.USD, unit: Unit.SATS },
+    }
+    const fiatValue = {
+      ...mockFiatContextValue,
+      toFiat: (satoshis?: number) => Number(((satoshis ?? 0) / 1000).toFixed(2)),
+      fromFiat: (fiat?: number) => Math.floor((fiat ?? 0) * 1000),
+      fiatDecimals: () => 2,
+    }
+    const walletValue = {
+      ...mockWalletContextValue,
+      availableBalance: 1_000_000,
+      svcWallet: {
+        ...mockSvcWallet,
+        getAddress: () => 'tark1mockoffchain',
+        getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+      } as any,
+    }
+    renderSendForm({
+      configContext: configValue,
+      fiatContext: fiatValue,
+      flowContext: flowValue,
+      walletContext: walletValue,
+    })
+
+    // entry defaults to the display currency: typing 10 means $10 -> 10,000 sats
+    const amountInput = document.querySelector('input[name="send-amount"]') as HTMLInputElement
+    fireEvent.change(amountInput, { target: { value: '10' } })
+    expect(setSendInfo).toHaveBeenCalledWith(expect.objectContaining({ satoshis: 10_000 }))
+
+    fireEvent.click(screen.getByTestId('input-amount-switch'))
+    const storedSatoshis = setSendInfo.mock.calls.map(([payload]) => payload?.satoshis)
+    expect(storedSatoshis).not.toContain(10_000_000) // the fiat text parsed as sats
+    expect(storedSatoshis).toEqual([10_000]) // the toggle itself stores nothing
+  })
+
+  it('re-expresses the field from the stored satoshis when toggling denomination', async () => {
+    const setSendInfo = vi.fn()
+    const flowValue = { ...mockFlowContextValue, sendInfo: { ...emptySendInfo, satoshis: 10_000 }, setSendInfo }
+    const configValue = {
+      ...mockConfigContextValue,
+      useFiat: true,
+      config: { ...mockConfigContextValue.config, currency: Currencies.USD, unit: Unit.SATS },
+    }
+    const fiatValue = {
+      ...mockFiatContextValue,
+      toFiat: (satoshis?: number) => Number(((satoshis ?? 0) / 1000).toFixed(2)),
+      fromFiat: (fiat?: number) => Math.floor((fiat ?? 0) * 1000),
+      fiatDecimals: () => 2,
+    }
+    const walletValue = {
+      ...mockWalletContextValue,
+      availableBalance: 1_000_000,
+      svcWallet: {
+        ...mockSvcWallet,
+        getAddress: () => 'tark1mockoffchain',
+        getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+      } as any,
+    }
+    renderSendForm({
+      configContext: configValue,
+      fiatContext: fiatValue,
+      flowContext: flowValue,
+      walletContext: walletValue,
+    })
+
+    // fiat entry starts empty; switching to unit derives the text from the
+    // authoritative sats without touching what will be sent
+    fireEvent.click(screen.getByTestId('input-amount-switch'))
+    await waitFor(() => screen.getByDisplayValue('10000'))
+    expect(setSendInfo).not.toHaveBeenCalled()
+  })
+
   it('shows BTC units on the send amount field when currency and bitcoin unit are BTC', async () => {
     const walletValue = {
       ...mockWalletContextValue,

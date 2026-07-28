@@ -199,21 +199,26 @@ export default function SendForm() {
   useEffect(() => {
     if (currencyConversionUseful || entryMode !== 'fiat') return
     setEntryMode('unit')
-    setAmountTextValue(
-      sendInfo.satoshis
-        ? config.unit === Unit.BTC
-          ? prettyNumber(fromSatoshis(sendInfo.satoshis), 8, false)
-          : prettyNumber(sendInfo.satoshis, 0, false)
-        : '',
-    )
+    setAmountTextValue(sendInfo.satoshis ? getTextValue(sendInfo.satoshis, false) : '')
   }, [config.unit, currencyConversionUseful, entryMode, sendInfo.satoshis])
 
-  const getTextValue = (sats: number) =>
-    fiatEntry
+  const getTextValue = (sats: number, fiat = fiatEntry) =>
+    fiat
       ? prettyNumber(toFiat(sats), fiatDecimals(), false)
       : config.unit === Unit.BTC
         ? prettyNumber(fromSatoshis(sats), 8, false)
         : prettyNumber(sats, 0, false)
+
+  const handleEntryModeChange = (mode: InputAmountMode) => {
+    setEntryMode(mode)
+    // re-express the field text from the authoritative sats, which the toggle
+    // never changes — parsing re-expressed text with the previous mode's
+    // closure once stored a fiat string as raw sats (a wrong-amount send)
+    const sats = sendInfo.satoshis
+    if (!sats) return
+    setAmountTextValue(getTextValue(sats, mode === 'fiat' && useFiat && currencyConversionUseful))
+    setValueSats(sats)
+  }
 
   const prettyUnitBalance = (sats: number) =>
     config.unit === Unit.BTC ? prettyAmount(fromSatoshis(sats), config.unit, 8) : prettyAmount(sats)
@@ -1093,7 +1098,7 @@ export default function SendForm() {
                   value={amountTextValue}
                   readOnly={amountIsReadOnly}
                   onChange={handleAmountChange}
-                  onModeChange={setEntryMode}
+                  onModeChange={handleEntryModeChange}
                   mode={entryMode}
                   switchable
                   min={lnUrlResponse?.minSendable}
