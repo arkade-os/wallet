@@ -394,6 +394,7 @@ export default function ReceiveQRCode() {
     balance: BigInt(0),
     decimals: assetMeta?.metadata?.decimals ?? 0,
     icon: assetPresentation.icon,
+    trusted: Boolean(assetId && isRegistered(assetId)),
   }
 
   const data = { title: 'Receive', text: qrCodeValue }

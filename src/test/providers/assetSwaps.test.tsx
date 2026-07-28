@@ -141,7 +141,7 @@ describe('AssetSwapsProvider createSwap offer encoding', () => {
 
   it('wants sats when the receive side is BTC', async () => {
     const plan = planOffer({ market: btcUsdt, give: 'quote', feedValue: 100000, giveAmount: BigInt(152), safetyBps: 0 })
-    renderCreateProvider(plan)
+    const send = renderCreateProvider(plan)
 
     await waitFor(() => {
       fireEvent.click(screen.getByRole('button', { name: 'Create' }))
@@ -152,6 +152,33 @@ describe('AssetSwapsProvider createSwap offer encoding', () => {
     expect(options.wantAsset).toBeUndefined()
     expect(options.offerAsset?.toString()).toBe(USDT_ID)
     expect(options.wantAmount).toBe(plan.receive.atomic)
+    await waitFor(() => expect(send).toHaveBeenCalled())
+    expect(send.mock.calls[0][0]).toMatchObject({
+      amount: undefined,
+      assets: [{ assetId: USDT_ID, amount: plan.deposit.atomic }],
+    })
+  })
+
+  it('sends a sat amount, not an asset rider, when depositing BTC', async () => {
+    const plan = planOffer({
+      market: btcUsdt,
+      give: 'base',
+      feedValue: 100000,
+      giveAmount: BigInt(10_000),
+      safetyBps: 0,
+    })
+    const send = renderCreateProvider(plan)
+
+    await waitFor(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+      expect(createOffer).toHaveBeenCalled()
+    })
+
+    const options = createOffer.mock.calls[0][3]
+    expect(options.offerAsset).toBeUndefined()
+    expect(options.wantAsset?.toString()).toBe(USDT_ID)
+    await waitFor(() => expect(send).toHaveBeenCalled())
+    expect(send.mock.calls[0][0]).toMatchObject({ amount: Number(plan.deposit.atomic), assets: undefined })
   })
 })
 

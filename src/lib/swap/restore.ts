@@ -147,9 +147,9 @@ export async function restoreAssetSwaps(
     // the TLV names the deposit only for want-BTC offers; otherwise the
     // funding vtxo's own rider identifies it (asset↔asset swaps deposit an
     // asset under a want-asset offer, plain BTC deposits carry no rider).
-    // Covenant deposits carry at most one rider today; if that ever changes
-    // this picks the first non-zero one.
-    const depositRider = vtxo.assets?.find((a) => a.amount > BigInt(0))
+    // Only an unambiguous single rider is authoritative — anything else
+    // (out-of-spec extra riders) falls back to the BTC reading.
+    const depositRider = vtxo.assets?.length === 1 && vtxo.assets[0].amount > BigInt(0) ? vtxo.assets[0] : undefined
     const fromAsset = offer.offerAsset?.toString() ?? depositRider?.assetId ?? 'btc'
     const toAsset = offer.wantAsset?.toString() ?? 'btc'
     const depositAmount =
