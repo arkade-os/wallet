@@ -177,7 +177,6 @@ export default function Transaction() {
   // On asset transfers tx.amount is only the data carrier, not the asset value.
   // The asset-aware rows below replace the legacy Amount/Total rows.
   const assetTransfer = Boolean(tx.assets?.length)
-  const transferSatoshis = tx.type === 'sent' ? tx.amount - fees : tx.amount
   const summaryLabel =
     tx.assetAction === 'reissued'
       ? 'Amount reissued'
@@ -246,7 +245,9 @@ export default function Transaction() {
         destination: tx.type === 'sent' && !boardingTx && !issuanceTx && !burnTx ? tx.destination : undefined,
         fees,
         isOffchainTx: !tx.boardingTxid && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid)),
-        satoshis: assetTransfer ? undefined : transferSatoshis,
+        // Details' fallback row only (amountDisplay owns the rendered rows):
+        // gross, matching the hook's convention
+        satoshis: assetTransfer ? undefined : tx.amount,
         status,
         total: assetTransfer ? undefined : tx.amount,
         txid,
