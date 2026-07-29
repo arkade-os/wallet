@@ -1,6 +1,7 @@
 import { AssetDetails } from '@arkade-os/sdk'
 import { Config, Wallet } from '../lib/types'
 import { consoleError } from './logs'
+import { LocalCardInput } from '@arkade-os/solver-discovery'
 
 // clear localStorage but persist config (with asset data reset)
 export async function clearStorage(): Promise<void> {
@@ -122,4 +123,12 @@ export const readAssetMetadataFromStorage = (): Map<string, CachedAssetDetails> 
     Object.values(obj).forEach((x) => (x.supply = BigInt(x.supply)))
     return new Map(Object.entries(obj))
   })
+}
+
+export const saveSolverCardsToStorage = (cards: LocalCardInput[]): void => {
+  setStorageItem('solverCards', JSON.stringify(cards))
+}
+
+export const readSolverCardsFromStorage = (): LocalCardInput[] | undefined => {
+  return getStorageItem('solverCards', undefined, (val) => JSON.parse(val))
 }

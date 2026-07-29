@@ -23,6 +23,7 @@ import SettingsPageTransition from '../../components/SettingsPageTransition'
 import Haptics from './Haptics'
 import Contracts from './Contracts'
 import { NavigationContext, Pages } from '../../providers/navigation'
+import Swaps from './Swaps'
 
 function settingsContent(option: SettingsOptions, menuBack?: () => void): JSX.Element {
   switch (option) {
@@ -62,6 +63,8 @@ function settingsContent(option: SettingsOptions, menuBack?: () => void): JSX.El
       return <Server />
     case SettingsOptions.Support:
       return <Support />
+    case SettingsOptions.Swaps:
+      return <Swaps />
     case SettingsOptions.Theme:
       return <Theme />
     case SettingsOptions.Vtxos:

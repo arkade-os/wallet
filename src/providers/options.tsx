@@ -66,6 +66,11 @@ export const options: Option[] = [
     section: SettingsSections.Advanced,
   },
   {
+    icon: <SwapIcon />,
+    option: SettingsOptions.Swaps,
+    section: SettingsSections.Advanced,
+  },
+  {
     icon: <CurrencyIcon />,
     option: SettingsOptions.Currency,
     section: SettingsSections.General,

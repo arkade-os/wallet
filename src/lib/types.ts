@@ -81,6 +81,7 @@ export enum SettingsOptions {
   Reset = 'reset wallet',
   Server = 'server',
   Support = 'support',
+  Swaps = 'swaps',
   Theme = 'theme',
   Vtxos = 'coin control',
 }
