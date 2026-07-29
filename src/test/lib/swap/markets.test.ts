@@ -1,7 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import createFetchMock from 'vitest-fetch-mock'
 import { planOffer, quoteOffer } from '@arkade-os/solver-discovery'
-import { discoverMarkets, findMarket, QUOTE_OPTIONS, validatePlan } from '../../../lib/swap/markets'
+import {
+  addUserRegistry,
+  clearMarketsCache,
+  discoverMarkets,
+  findMarket,
+  getUserRegistries,
+  QUOTE_OPTIONS,
+  removeUserRegistry,
+  validatePlan,
+} from '../../../lib/swap/markets'
 import { pinSolverCard } from '../../../lib/swap/solverCards'
 import {
   asCardMarket,
@@ -233,6 +242,67 @@ describe('discoverMarkets with pinned solver cards', () => {
     const markets = await discoverMarkets('mutinynet')
     expect(fetchMocker).toHaveBeenCalledTimes(1)
     expect(markets).toHaveLength(2)
+  })
+})
+
+describe('user registries', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    fetchMocker.resetMocks()
+  })
+
+  it('follows a registry, normalizing a bare host to https, and rejects junk', () => {
+    expect(addUserRegistry('mutinynet', 'registry.example.com/mutinynet.json')).toBeUndefined()
+    expect(getUserRegistries('mutinynet')).toEqual(['https://registry.example.com/mutinynet.json'])
+    expect(addUserRegistry('mutinynet', 'not a url')).toMatch(/not a valid/i)
+  })
+
+  it('refuses the default registry and an already-followed one', () => {
+    expect(addUserRegistry('mutinynet', 'https://arkade-os.github.io/solver-registry/mutinynet.json')).toMatch(
+      /default/,
+    )
+    addUserRegistry('mutinynet', 'https://r.example.com/m.json')
+    expect(addUserRegistry('mutinynet', 'https://r.example.com/m.json')).toMatch(/already/)
+    expect(getUserRegistries('mutinynet')).toEqual(['https://r.example.com/m.json'])
+  })
+
+  it('removes a followed registry', () => {
+    addUserRegistry('mutinynet', 'https://r.example.com/m.json')
+    removeUserRegistry('mutinynet', 'https://r.example.com/m.json')
+    expect(getUserRegistries('mutinynet')).toEqual([])
+  })
+
+  it('discovers across the default and followed registries, deduped and ranked', async () => {
+    addUserRegistry('mutinynet', 'https://r.example.com/m.json')
+    // both registries list btcUsdt (collapses to one entry); the followed one
+    // adds a cheaper rival for the same pair, which ranks first
+    const rival = { ...indexMarket, fee_bps: 10 }
+    fetchMocker.mockResponses(
+      JSON.stringify(registryIndex()),
+      JSON.stringify({ ...registryIndex(), markets: [indexMarket, rival] }),
+    )
+    const found = await discoverMarkets('mutinynet')
+    expect(fetchMocker).toHaveBeenCalledTimes(2)
+    expect(found.map((m) => m.fee_bps)).toEqual([10, 30])
+    expect(found.map((m) => m.sourceType)).toEqual(['registry', 'registry'])
+  })
+
+  it('a changed registry set misses the single-registry cache and refetches', async () => {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ markets: [btcUsdt], fetchedAt: Date.now() }))
+    addUserRegistry('mutinynet', 'https://r.example.com/m.json')
+    fetchMocker.mockResponses(JSON.stringify(registryIndex()), JSON.stringify(registryIndex()))
+    await discoverMarkets('mutinynet')
+    expect(fetchMocker).toHaveBeenCalledTimes(2)
+  })
+
+  it('clearMarketsCache drops every cached set for the network only', () => {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ markets: [btcUsdt], fetchedAt: Date.now() }))
+    localStorage.setItem('swapMarkets-mutinynet-other', '{}')
+    localStorage.setItem('swapMarkets-bitcoin-x', '{}')
+    clearMarketsCache('mutinynet')
+    expect(localStorage.getItem(CACHE_KEY)).toBeNull()
+    expect(localStorage.getItem('swapMarkets-mutinynet-other')).toBeNull()
+    expect(localStorage.getItem('swapMarkets-bitcoin-x')).not.toBeNull()
   })
 })
 

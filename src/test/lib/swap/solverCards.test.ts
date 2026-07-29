@@ -5,6 +5,7 @@ import {
   MAX_CARD_JSON_BYTES,
   MAX_PINNED_CARDS_PER_NETWORK,
   pinSolverCard,
+  unpinAllSolverCards,
   unpinSolverCard,
 } from '../../../lib/swap/solverCards'
 import { asCardMarket, btcDepix, solverCard } from './fixtures'
@@ -52,6 +53,15 @@ describe('pinned solver cards', () => {
     pinSolverCard('mutinynet', solverCard('other'))
     unpinSolverCard('mutinynet', 'privateer')
     expect(getPinnedSolverCards('mutinynet').map((p) => p.card.name)).toEqual(['other'])
+  })
+
+  it('unpins all cards for one network, leaving other networks alone', () => {
+    pinSolverCard('mutinynet', solverCard())
+    pinSolverCard('mutinynet', solverCard('other'))
+    pinSolverCard('bitcoin', solverCard('elsewhere'))
+    unpinAllSolverCards('mutinynet')
+    expect(getPinnedSolverCards('mutinynet')).toEqual([])
+    expect(getPinnedSolverCards('bitcoin').map((p) => p.card.name)).toEqual(['elsewhere'])
   })
 
   it('survives a corrupt storage blob and drops unshaped entries', () => {

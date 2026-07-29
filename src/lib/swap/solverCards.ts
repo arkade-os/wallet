@@ -96,3 +96,7 @@ export const pinSolverCard = (network: Network, input: unknown): PinSolverCardRe
 export const unpinSolverCard = (network: Network, name: string): void => {
   writeAll(readAll().filter((pinned) => !(pinned.network === network && pinned.card.name === name)))
 }
+
+export const unpinAllSolverCards = (network: Network): void => {
+  writeAll(readAll().filter((pinned) => pinned.network !== network))
+}

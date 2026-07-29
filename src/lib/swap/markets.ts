@@ -10,7 +10,8 @@ import {
 } from '@arkade-os/solver-discovery'
 import { getSolverRegistryUrl } from '../constants'
 import { consoleLog } from '../logs'
-import { getStorageItem } from '../storage'
+import { getStorageItem, setStorageItemSafely } from '../storage'
+import { isValidUrl } from '../validators'
 import { getPinnedSolverCards, type PinnedSolverCard } from './solverCards'
 import { Network } from '@arkade-os/boltz-swap'
 
@@ -52,9 +53,54 @@ interface MarketsCacheEntry {
   fetchedAt: number
 }
 
-// keyed by network AND registry so a redeployed registry override never
-// serves markets cached from a different registry
+// keyed by network AND the followed registry set, so a redeployed registry
+// override — or a user adding/removing a registry — never serves markets
+// cached from a different set
 const cacheKey = (network: Network, registry: string) => `${MARKETS_CACHE_KEY}-${network}-${registry}`
+
+/** Drop every cached market set for `network`; the next discovery refetches
+ * from the followed registries. */
+export const clearMarketsCache = (network: Network): void => {
+  for (const key of Object.keys(localStorage)) {
+    if (key.startsWith(`${MARKETS_CACHE_KEY}-${network}-`)) localStorage.removeItem(key)
+  }
+}
+
+const USER_REGISTRIES_KEY = 'solverRegistries'
+
+const readUserRegistries = (): Record<string, string[]> =>
+  getStorageItem<Record<string, string[]>>(USER_REGISTRIES_KEY, {}, (blob) => {
+    const parsed = JSON.parse(blob)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('malformed registries')
+    return parsed
+  })
+
+const writeUserRegistries = (all: Record<string, string[]>): boolean =>
+  setStorageItemSafely(USER_REGISTRIES_KEY, JSON.stringify(all), 'Failed to save solver registries')
+
+/** Extra registry indexes the user follows (Settings > Solvers), per network. */
+export const getUserRegistries = (network: Network): string[] =>
+  (readUserRegistries()[network] ?? []).filter((url) => typeof url === 'string')
+
+/** Follow another registry index for `network` — its markets join discovery,
+ * deduped and ranked against the default registry's by the SDK. Returns an
+ * error message, or undefined on success. */
+export const addUserRegistry = (network: Network, url: string): string | undefined => {
+  if (!url || !isValidUrl(url)) return 'not a valid registry URL'
+  const normalized = /^https?:\/\//.test(url) ? url : `https://${url}`
+  if (normalized === getSolverRegistryUrl(network)) return 'that is the default registry'
+  const all = readUserRegistries()
+  const list = all[network] ?? []
+  if (list.includes(normalized)) return 'registry already followed'
+  if (!writeUserRegistries({ ...all, [network]: [...list, normalized] })) {
+    return 'could not save the registry — storage is full or unavailable'
+  }
+}
+
+export const removeUserRegistry = (network: Network, url: string): void => {
+  const all = readUserRegistries()
+  writeUserRegistries({ ...all, [network]: (all[network] ?? []).filter((stored) => stored !== url) })
+}
 
 const isMarketShaped = (m: unknown): boolean => {
   const market = m as DiscoveredMarket | null
@@ -140,27 +186,34 @@ const mergeMarkets = (registryMarkets: DiscoveredMarket[], localMarkets: Discove
 }
 
 /**
- * Markets from the network's solver registry plus the user's pinned solver
- * cards; [] when neither is configured. Registry content changes rarely, so
- * registry results are cached for an hour and a stale cache backstops an
- * unreachable registry (quotes stay live either way). Pinned cards live in
- * local storage and are merged fresh on every call, so pinning or removing a
- * solver takes effect without waiting out the registry cache.
+ * Markets from the network's default solver registry, any registries the user
+ * follows, and the user's pinned solver cards; [] when none is configured.
+ * Registry content changes rarely, so registry results are cached for an hour
+ * and a stale cache backstops an unreachable registry (quotes stay live
+ * either way). Pinned cards live in local storage and are merged fresh on
+ * every call, so pinning or removing a solver takes effect without waiting
+ * out the registry cache.
  */
 export const discoverMarkets = async (network: Network): Promise<DiscoveredMarket[]> => {
   if (!isNetwork(network)) return []
-  const registry = getSolverRegistryUrl(network)
+  const builtin = getSolverRegistryUrl(network)
+  const registries = [...(builtin ? [builtin] : []), ...getUserRegistries(network)]
   const localMarkets = await discoverLocalMarkets(network)
-  if (!registry) return localMarkets
-  const cached = readMarketsCache(network, registry)
+  if (registries.length === 0) return localMarkets
+  const registrySet = registries.join(' ')
+  const cached = readMarketsCache(network, registrySet)
   if (cached && Date.now() - cached.fetchedAt < MARKETS_CACHE_TTL_MS) return mergeMarkets(cached.markets, localMarkets)
-  const { markets, sources, warnings } = await discover({ registries: [registry], network })
+  const { markets, sources, warnings } = await discover({ registries, network })
   if (warnings.length) consoleLog('solver discovery:', ...warnings)
-  // an unreachable registry (fetch/validation failure) falls back to the stale
-  // cache; a reachable registry is authoritative even when it emptied out
+  // an unreachable registry set (every source failing) falls back to the
+  // stale cache; any reachable registry is authoritative even when it
+  // emptied out.
+  // ponytail: reachability is per set, so markets from a temporarily
+  // unreachable secondary registry drop out until it recovers; add
+  // per-registry stale-merge if that ever bites
   const reachable = sources.some((source) => source.ok)
   if (!reachable && cached) return mergeMarkets(cached.markets, localMarkets)
-  if (reachable) writeMarketsCache(network, registry, markets)
+  if (reachable) writeMarketsCache(network, registrySet, markets)
   return mergeMarkets(markets, localMarkets)
 }
 

@@ -6,6 +6,7 @@ import Content from '../../components/Content'
 import ErrorMessage from '../../components/Error'
 import FlexCol from '../../components/FlexCol'
 import FlexRow from '../../components/FlexRow'
+import Input from '../../components/Input'
 import Padded from '../../components/Padded'
 import Paste from '../../components/Paste'
 import Shadow from '../../components/Shadow'
@@ -15,8 +16,16 @@ import { Textarea } from '@/components/ui/textarea'
 import { AspContext } from '../../providers/asp'
 import { AssetSwapsContext } from '../../providers/assetSwaps'
 import { useToast } from '../../components/Toast'
+import { getSolverRegistryUrl } from '../../lib/constants'
 import { prettyAgo } from '../../lib/format'
-import { getPinnedSolverCards, pinSolverCard, unpinSolverCard, type PinnedSolverCard } from '../../lib/swap/solverCards'
+import { addUserRegistry, clearMarketsCache, getUserRegistries, removeUserRegistry } from '../../lib/swap/markets'
+import {
+  getPinnedSolverCards,
+  pinSolverCard,
+  unpinAllSolverCards,
+  unpinSolverCard,
+  type PinnedSolverCard,
+} from '../../lib/swap/solverCards'
 import { isNetwork } from '@arkade-os/solver-discovery'
 
 // hero component to explain what manual solver registration is for
@@ -53,6 +62,14 @@ function PinnedCard({ pinned, onRemove }: { pinned: PinnedSolverCard; onRemove: 
             <Text tiny>Remove</Text>
           </button>
         </FlexRow>
+        <details>
+          <summary className='cursor-pointer'>
+            <Text tiny color='neutral-500'>
+              View card.json
+            </Text>
+          </summary>
+          <pre className='max-h-60 overflow-auto font-mono text-xs'>{JSON.stringify(card, null, 2)}</pre>
+        </details>
       </FlexCol>
     </Shadow>
   )
@@ -70,11 +87,15 @@ export default function Solvers() {
 
   const [cardJson, setCardJson] = useState('')
   const [error, setError] = useState('')
+  const [registryUrl, setRegistryUrl] = useState('')
+  const [registryError, setRegistryError] = useState('')
   // derived, not held as state: keyed on the network because aspInfo.network
-  // resolves async on boot (the list must not freeze at the mount-time value),
-  // and on a revision counter the mutation handlers bump after a pin/remove
+  // resolves async on boot (the lists must not freeze at the mount-time value),
+  // and on a revision counter the mutation handlers bump after any change
   const [storageRev, setStorageRev] = useState(0)
   const pinned = useMemo(() => (network ? getPinnedSolverCards(network) : []), [network, storageRev])
+  const userRegistries = useMemo(() => (network ? getUserRegistries(network) : []), [network, storageRev])
+  const defaultRegistry = network ? getSolverRegistryUrl(network) : undefined
 
   const handleAdd = () => {
     if (!network) return
@@ -108,6 +129,38 @@ export default function Solvers() {
   const handleInput = (data: string) => {
     setError('')
     setCardJson(data)
+  }
+
+  const handleRegistryInput = (data: string) => {
+    setRegistryError('')
+    setRegistryUrl(data)
+  }
+
+  const handleAddRegistry = () => {
+    if (!network || !registryUrl.trim()) return
+    const addError = addUserRegistry(network, registryUrl.trim())
+    if (addError) return setRegistryError(addError)
+    setRegistryUrl('')
+    setStorageRev((rev) => rev + 1)
+    refreshMarkets()
+    toast('Registry added')
+  }
+
+  const handleRemoveRegistry = (url: string) => {
+    if (!network) return
+    removeUserRegistry(network, url)
+    setStorageRev((rev) => rev + 1)
+    refreshMarkets()
+    toast('Registry removed')
+  }
+
+  const handleReset = () => {
+    if (!network) return
+    unpinAllSolverCards(network)
+    clearMarketsCache(network)
+    setStorageRev((rev) => rev + 1)
+    refreshMarkets()
+    toast('Solvers reset, markets refreshed from registry')
   }
 
   if (!network) {
@@ -156,11 +209,49 @@ export default function Solvers() {
               <ErrorMessage error={Boolean(error)} text={error} />
             </FlexCol>
             <WarningBox text='Only add cards from solvers you trust: prices come from the feed URL the card advertises.' />
+            <FlexCol gap='0.5rem'>
+              <Text small>Followed registries</Text>
+              {defaultRegistry ? (
+                <FlexRow between>
+                  <Text small thin wrap>
+                    {defaultRegistry}
+                  </Text>
+                  <Text color='neutral-500' tiny>
+                    default
+                  </Text>
+                </FlexRow>
+              ) : null}
+              {userRegistries.map((url) => (
+                <FlexRow between key={url}>
+                  <Text small thin wrap>
+                    {url}
+                  </Text>
+                  <button type='button' onClick={() => handleRemoveRegistry(url)} aria-label={`Remove registry ${url}`}>
+                    <Text tiny>Remove</Text>
+                  </button>
+                </FlexRow>
+              ))}
+              <Input
+                error={registryError}
+                label='Add a registry index URL'
+                onChange={handleRegistryInput}
+                onEnter={handleAddRegistry}
+                placeholder={`https://…/${network}.json`}
+                right={
+                  <button type='button' onClick={handleAddRegistry} aria-label='Add registry'>
+                    <Text tiny>Add</Text>
+                  </button>
+                }
+                testId='registry-url'
+                value={registryUrl}
+              />
+            </FlexCol>
           </FlexCol>
         </Padded>
       </Content>
       <ButtonsOnBottom>
         <Button onClick={handleAdd} label='Add solver' disabled={!cardJson.trim()} />
+        <Button onClick={handleReset} label='Reset from registry' secondary disabled={!pinned.length} />
       </ButtonsOnBottom>
     </>
   )
