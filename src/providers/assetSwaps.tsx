@@ -19,8 +19,10 @@ const STREAM_RETRY_MS = 5_000
 const SAFETY_RECONCILE_MS = 60_000
 
 interface AssetSwapsContextProps {
-  /** Markets from the network's solver registry. */
+  /** Markets from the network's solver registry and the user's pinned cards. */
   markets: DiscoveredMarket[]
+  /** Re-runs discovery now — call after pinning/removing a solver card. */
+  refreshMarkets: () => void
   /** True when there are markets and the covenant co-signer is reachable. */
   swapAvailable: boolean
   swaps: AssetSwap[]
@@ -30,6 +32,7 @@ interface AssetSwapsContextProps {
 
 export const AssetSwapsContext = createContext<AssetSwapsContextProps>({
   markets: [],
+  refreshMarkets: () => {},
   swapAvailable: false,
   swaps: [],
   createSwap: async () => {
@@ -45,13 +48,18 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   const { dataReady, svcWallet, reloadWallet, txs } = useContext(WalletContext)
 
   const [markets, setMarkets] = useState<DiscoveredMarket[]>([])
+  const [marketsNonce, setMarketsNonce] = useState(0)
   const [emulatorUrl, setEmulatorUrl] = useState<string>()
   const [swaps, setSwaps] = useState<AssetSwap[]>(getAssetSwaps)
 
-  // discover markets and probe the emulator once the network is known, and
-  // again on every tab return (discoverMarkets' TTL cache is the rate
-  // limiter); stale results from a previous network must never land after a
-  // switch
+  // pinned solver cards bypass the registry cache, so re-running discovery is
+  // enough for a pin/remove in Settings to land immediately
+  const refreshMarkets = () => setMarketsNonce((nonce) => nonce + 1)
+
+  // discover markets and probe the emulator once the network is known, again
+  // on every tab return (discoverMarkets' TTL cache is the rate limiter), and
+  // on demand via refreshMarkets; stale results from a previous network must
+  // never land after a switch
   useEffect(() => {
     setMarkets([])
     setEmulatorUrl(undefined)
@@ -83,7 +91,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
       cancelled = true
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [aspInfo.network])
+  }, [aspInfo.network, marketsNonce])
 
   // After a restore the swap store is empty while the funding/fill txs are
   // back in history, so swaps would show as bare sent/received rows. Scan the
@@ -361,7 +369,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
 
   const swapAvailable = markets.length > 0 && Boolean(emulatorUrl)
   const value = useMemo(
-    () => ({ markets, swapAvailable, swaps, createSwap, cancelSwap }),
+    () => ({ markets, refreshMarkets, swapAvailable, swaps, createSwap, cancelSwap }),
     // createSwap/cancelSwap close over these
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [markets, swapAvailable, swaps, svcWallet, emulatorUrl, aspInfo.url],

@@ -2,7 +2,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import createFetchMock from 'vitest-fetch-mock'
 import { planOffer, quoteOffer } from '@arkade-os/solver-discovery'
 import { discoverMarkets, findMarket, QUOTE_OPTIONS, validatePlan } from '../../../lib/swap/markets'
-import { btcDepix, btcUsdt, DEPIX_ID, MARAT_ID, maratNapo, NAPO_ID, USDT_ID } from './fixtures'
+import { pinSolverCard } from '../../../lib/swap/solverCards'
+import {
+  asCardMarket,
+  btcDepix,
+  btcUsdt,
+  DEPIX_ID,
+  MARAT_ID,
+  maratNapo,
+  NAPO_ID,
+  solverCard,
+  USDT_ID,
+} from './fixtures'
 
 const fetchMocker = createFetchMock(vi)
 fetchMocker.enableMocks()
@@ -139,6 +150,92 @@ describe('discoverMarkets caching', () => {
     expect(markets).toHaveLength(1)
     expect(fetchMocker).toHaveBeenCalledTimes(1)
     expect(JSON.parse(localStorage.getItem(CACHE_KEY)!).markets).toHaveLength(1)
+  })
+})
+
+describe('discoverMarkets with pinned solver cards', () => {
+  const CACHE_KEY = 'swapMarkets-mutinynet-https://arkade-os.github.io/solver-registry/mutinynet.json'
+  const indexMarket: Record<string, unknown> = { ...btcUsdt }
+  delete indexMarket.source
+  delete indexMarket.sourceType
+  const registryIndex = () => ({
+    version: 0,
+    network: 'mutinynet',
+    generated_at: Math.floor(Date.now() / 1000),
+    commit: 'a'.repeat(40),
+    markets: [indexMarket],
+  })
+
+  beforeEach(() => {
+    localStorage.clear()
+    fetchMocker.resetMocks()
+  })
+
+  it('merges pinned-card markets with a fresh registry cache without fetching', async () => {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ markets: [btcUsdt], fetchedAt: Date.now() }))
+    pinSolverCard('mutinynet', solverCard('privateer', [asCardMarket(btcDepix)]))
+    const markets = await discoverMarkets('mutinynet')
+    expect(fetchMocker).not.toHaveBeenCalled()
+    expect(markets).toHaveLength(2)
+    const local = markets.find((m) => m.sourceType === 'local')
+    expect(local?.pair).toBe('BTC/DePix')
+    expect(local?.solver).toBe('privateer')
+    expect(local?.source).toBe('local:privateer')
+  })
+
+  it('keeps the registry cache free of pinned-card markets', async () => {
+    fetchMocker.mockResponseOnce(JSON.stringify(registryIndex()))
+    pinSolverCard('mutinynet', solverCard('privateer', [asCardMarket(btcDepix)]))
+    const markets = await discoverMarkets('mutinynet')
+    expect(markets).toHaveLength(2)
+    // otherwise a removed solver would keep serving quotes until the TTL runs out
+    expect(JSON.parse(localStorage.getItem(CACHE_KEY)!).markets).toHaveLength(1)
+  })
+
+  it('serves pinned cards on a network with no registry, with no fetch', async () => {
+    pinSolverCard('signet', solverCard())
+    const markets = await discoverMarkets('signet')
+    expect(fetchMocker).not.toHaveBeenCalled()
+    expect(markets).toHaveLength(1)
+    expect(markets[0].sourceType).toBe('local')
+  })
+
+  it('dedupes a pinned card the registry also lists, registry entry winning', async () => {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ markets: [btcUsdt], fetchedAt: Date.now() }))
+    pinSolverCard('mutinynet', solverCard('frenchman'))
+    const markets = await discoverMarkets('mutinynet')
+    expect(markets).toHaveLength(1)
+    expect(markets[0].sourceType).toBe('registry')
+  })
+
+  it('ranks a cheaper pinned market above the registry market for the same pair', async () => {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ markets: [btcUsdt], fetchedAt: Date.now() }))
+    pinSolverCard('mutinynet', solverCard('cheapskate', [{ ...asCardMarket(btcUsdt), fee_bps: 10 }]))
+    const markets = await discoverMarkets('mutinynet')
+    expect(markets.map((m) => m.fee_bps)).toEqual([10, 30])
+    expect(markets[0].sourceType).toBe('local')
+  })
+
+  it('skips a pinned card that turned invalid in storage without breaking discovery', async () => {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ markets: [btcUsdt], fetchedAt: Date.now() }))
+    localStorage.setItem(
+      'pinnedSolverCards',
+      JSON.stringify([
+        { network: 'mutinynet', addedAt: 1, card: { version: 1, name: 'bad', markets: [asCardMarket(btcDepix)] } },
+      ]),
+    )
+    const markets = await discoverMarkets('mutinynet')
+    expect(markets).toHaveLength(1)
+    expect(markets[0].pair).toBe('BTC/USDT')
+  })
+
+  it('merges pinned cards with the stale cache when the registry is unreachable', async () => {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ markets: [btcUsdt], fetchedAt: 0 }))
+    pinSolverCard('mutinynet', solverCard('privateer', [asCardMarket(btcDepix)]))
+    fetchMocker.mockRejectOnce(new Error('network down'))
+    const markets = await discoverMarkets('mutinynet')
+    expect(fetchMocker).toHaveBeenCalledTimes(1)
+    expect(markets).toHaveLength(2)
   })
 })
 

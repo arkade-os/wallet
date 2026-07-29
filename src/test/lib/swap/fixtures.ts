@@ -1,4 +1,4 @@
-import type { DiscoveredMarket } from '@arkade-os/solver-discovery'
+import type { Card, DiscoveredMarket, Market } from '@arkade-os/solver-discovery'
 
 // the two mutinynet registry markets, in the 0.1.3 registry schema
 export const USDT_ID = 'f121ac9b7656797cc68d1e8fecacfbaa2069ec1461edf0bf2f3c37404cb9791a0000'
@@ -51,3 +51,22 @@ export const btcDepix: DiscoveredMarket = {
   max_quote_amount: '100000000000',
   solver: 'jpmorgan',
 }
+
+/** The card-schema shape of a discovered market: cards carry the market
+ * fields alone — `solver` comes from the card name, provenance from discovery.
+ * Keys are really deleted, not undefined: the strict card schema rejects them. */
+export const asCardMarket = (market: DiscoveredMarket): Market => {
+  const cardMarket = { ...market } as Partial<DiscoveredMarket>
+  delete cardMarket.solver
+  delete cardMarket.source
+  delete cardMarket.sourceType
+  return cardMarket as Market
+}
+
+/** A schema-valid card.json as a solver would publish it (strict schema:
+ * version 0, lowercase name, market fields only). */
+export const solverCard = (name = 'privateer', markets: Market[] = [asCardMarket(btcUsdt)]): Card => ({
+  version: 0,
+  name,
+  markets,
+})

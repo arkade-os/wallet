@@ -9,6 +9,7 @@ import {
 import { getSolverRegistryUrl } from '../constants'
 import { consoleLog } from '../logs'
 import { getStorageItem } from '../storage'
+import { getPinnedSolverCards } from './solverCards'
 import { Network } from '@arkade-os/boltz-swap'
 
 export const BTC_ASSET_ID = 'btc'
@@ -82,24 +83,81 @@ const writeMarketsCache = (network: Network, registry: string, markets: Discover
   }
 }
 
+/** Markets from the user's pinned solver cards (Settings > Solvers). Purely
+ * local — with no registries, discover() only schema-validates the cards, so
+ * a card that turned invalid in storage is skipped with a warning instead of
+ * breaking discovery. */
+const discoverLocalMarkets = async (network: Network): Promise<DiscoveredMarket[]> => {
+  if (!isNetwork(network)) return []
+  const localCards = getPinnedSolverCards(network).map(({ card }) => ({ card, network }))
+  if (localCards.length === 0) return []
+  const { markets, warnings } = await discover({ registries: [], localCards, network })
+  if (warnings.length) consoleLog('solver discovery (pinned cards):', ...warnings)
+  return markets
+}
+
+/** Canonical JSON (sorted keys, no whitespace) — the identity discover() uses
+ * to dedupe across sources; the SDK does not export its stableStringify. */
+const sortedStringify = (value: unknown): string => {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value)
+  if (Array.isArray(value)) return `[${value.map(sortedStringify).join(',')}]`
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, v]) => v !== undefined)
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .map(([k, v]) => `${JSON.stringify(k)}:${sortedStringify(v)}`)
+  return `{${entries.join(',')}}`
+}
+
+// dedupe on the market fields alone: provenance differs by construction
+// (registry URL vs local:<name>), the listing is what must not double up —
+// undefined-valued keys are dropped by sortedStringify
+const marketIdentity = (market: DiscoveredMarket): string =>
+  sortedStringify({ ...market, source: undefined, sourceType: undefined })
+
+/** Merge registry and pinned-card markets the way a single discover() call
+ * would: byte-identical entries collapse (a pinned solver that is also listed
+ * publicly), then rank per id pair by fee_bps with input order — registry
+ * first — as the tiebreak. Needed because registry markets may come from the
+ * cache while pinned cards are always read live. */
+const mergeMarkets = (registryMarkets: DiscoveredMarket[], localMarkets: DiscoveredMarket[]): DiscoveredMarket[] => {
+  if (localMarkets.length === 0) return registryMarkets
+  const seen = new Set(registryMarkets.map(marketIdentity))
+  const merged = [...registryMarkets]
+  for (const market of localMarkets) {
+    const key = marketIdentity(market)
+    if (seen.has(key)) continue
+    seen.add(key)
+    merged.push(market)
+  }
+  const withKey = merged.map((market) => ({ market, key: `${market.base_asset.id}/${market.quote_asset.id}` }))
+  // stable sort, so equal (pair, fee) keys keep registry-first input order
+  withKey.sort((a, b) => (a.key !== b.key ? (a.key < b.key ? -1 : 1) : a.market.fee_bps - b.market.fee_bps))
+  return withKey.map(({ market }) => market)
+}
+
 /**
- * Markets from the network's solver registry; [] when none is configured.
- * Registry content changes rarely, so results are cached for an hour and a
- * stale cache backstops an unreachable registry (quotes stay live either way).
+ * Markets from the network's solver registry plus the user's pinned solver
+ * cards; [] when neither is configured. Registry content changes rarely, so
+ * registry results are cached for an hour and a stale cache backstops an
+ * unreachable registry (quotes stay live either way). Pinned cards live in
+ * local storage and are merged fresh on every call, so pinning or removing a
+ * solver takes effect without waiting out the registry cache.
  */
 export const discoverMarkets = async (network: Network): Promise<DiscoveredMarket[]> => {
+  if (!isNetwork(network)) return []
   const registry = getSolverRegistryUrl(network)
-  if (!registry || !isNetwork(network)) return []
+  const localMarkets = await discoverLocalMarkets(network)
+  if (!registry) return localMarkets
   const cached = readMarketsCache(network, registry)
-  if (cached && Date.now() - cached.fetchedAt < MARKETS_CACHE_TTL_MS) return cached.markets
+  if (cached && Date.now() - cached.fetchedAt < MARKETS_CACHE_TTL_MS) return mergeMarkets(cached.markets, localMarkets)
   const { markets, sources, warnings } = await discover({ registries: [registry], network })
   if (warnings.length) consoleLog('solver discovery:', ...warnings)
   // an unreachable registry (fetch/validation failure) falls back to the stale
   // cache; a reachable registry is authoritative even when it emptied out
   const reachable = sources.some((source) => source.ok)
-  if (!reachable && cached) return cached.markets
+  if (!reachable && cached) return mergeMarkets(cached.markets, localMarkets)
   if (reachable) writeMarketsCache(network, registry, markets)
-  return markets
+  return mergeMarkets(markets, localMarkets)
 }
 
 /** Best market for a from/to pair, in either orientation. `give` is the side

@@ -7,6 +7,7 @@ import About from './About'
 import Vtxos from './Vtxos'
 import NotesForm from '../Wallet/Notes/Form'
 import Server from './Server'
+import Solvers from './Solvers'
 import Support from './Support'
 import { OptionsContext } from '../../providers/options'
 import SettingsMenu from './Menu'
@@ -60,6 +61,8 @@ function settingsContent(option: SettingsOptions, menuBack?: () => void): JSX.El
       return <Reset />
     case SettingsOptions.Server:
       return <Server />
+    case SettingsOptions.Solvers:
+      return <Solvers />
     case SettingsOptions.Support:
       return <Support />
     case SettingsOptions.Theme:
