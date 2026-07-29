@@ -2,6 +2,7 @@ import {
   bestMarket,
   discover,
   isNetwork,
+  stableStringify,
   type DiscoveredMarket,
   type OfferPlan,
   type Side,
@@ -97,22 +98,15 @@ const discoverLocalMarkets = async (network: Network): Promise<DiscoveredMarket[
 }
 
 /** Canonical JSON (sorted keys, no whitespace) — the identity discover() uses
- * to dedupe across sources; the SDK does not export its stableStringify. */
-const sortedStringify = (value: unknown): string => {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value)
-  if (Array.isArray(value)) return `[${value.map(sortedStringify).join(',')}]`
-  const entries = Object.entries(value as Record<string, unknown>)
-    .filter(([, v]) => v !== undefined)
-    .sort(([a], [b]) => (a < b ? -1 : 1))
-    .map(([k, v]) => `${JSON.stringify(k)}:${sortedStringify(v)}`)
-  return `{${entries.join(',')}}`
+ * to dedupe across sources: provenance differs by construction (registry URL
+ * vs local:<name>), the listing is what must not double up. Keys are really
+ * deleted so the string matches what discover() hashes pre-provenance. */
+const marketIdentity = (market: DiscoveredMarket): string => {
+  const listing = { ...market } as Partial<DiscoveredMarket>
+  delete listing.source
+  delete listing.sourceType
+  return stableStringify(listing)
 }
-
-// dedupe on the market fields alone: provenance differs by construction
-// (registry URL vs local:<name>), the listing is what must not double up —
-// undefined-valued keys are dropped by sortedStringify
-const marketIdentity = (market: DiscoveredMarket): string =>
-  sortedStringify({ ...market, source: undefined, sourceType: undefined })
 
 /** Merge registry and pinned-card markets the way a single discover() call
  * would: byte-identical entries collapse (a pinned solver that is also listed
