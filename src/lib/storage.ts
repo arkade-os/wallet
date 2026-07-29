@@ -27,12 +27,15 @@ const setStorageItem = (key: string, value: string): void => {
 }
 
 /** For non-critical persistence where a failed write (quota, private mode)
- * should degrade silently rather than fail the caller. */
-export const setStorageItemSafely = (key: string, value: string, context: string): void => {
+ * should degrade gracefully rather than throw at the caller. Returns whether
+ * the write landed, for callers that must not report a phantom success. */
+export const setStorageItemSafely = (key: string, value: string, context: string): boolean => {
   try {
     setStorageItem(key, value)
+    return true
   } catch (err) {
     consoleError(err, context)
+    return false
   }
 }
 

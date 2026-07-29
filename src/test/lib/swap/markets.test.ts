@@ -20,6 +20,19 @@ fetchMocker.enableMocks()
 
 const markets = [btcUsdt, btcDepix]
 
+const CACHE_KEY = 'swapMarkets-mutinynet-https://arkade-os.github.io/solver-registry/mutinynet.json'
+// a valid registry index entry: btcUsdt without the fields discover() adds
+const indexMarket: Record<string, unknown> = { ...btcUsdt }
+delete indexMarket.source
+delete indexMarket.sourceType
+const registryIndex = () => ({
+  version: 0,
+  network: 'mutinynet',
+  generated_at: Math.floor(Date.now() / 1000),
+  commit: 'a'.repeat(40),
+  markets: [indexMarket],
+})
+
 describe('findMarket', () => {
   it('maps btc->asset to giving the base side', () => {
     expect(findMarket(markets, 'btc', USDT_ID)).toEqual({ market: btcUsdt, give: 'base' })
@@ -85,19 +98,6 @@ describe('quoteOffer with the wallet quote options', () => {
 })
 
 describe('discoverMarkets caching', () => {
-  const CACHE_KEY = 'swapMarkets-mutinynet-https://arkade-os.github.io/solver-registry/mutinynet.json'
-  // a valid registry index entry: btcUsdt without the fields discover() adds
-  const indexMarket: Record<string, unknown> = { ...btcUsdt }
-  delete indexMarket.source
-  delete indexMarket.sourceType
-  const registryIndex = () => ({
-    version: 0,
-    network: 'mutinynet',
-    generated_at: Math.floor(Date.now() / 1000),
-    commit: 'a'.repeat(40),
-    markets: [indexMarket],
-  })
-
   beforeEach(() => {
     localStorage.clear()
     fetchMocker.resetMocks()
@@ -154,18 +154,6 @@ describe('discoverMarkets caching', () => {
 })
 
 describe('discoverMarkets with pinned solver cards', () => {
-  const CACHE_KEY = 'swapMarkets-mutinynet-https://arkade-os.github.io/solver-registry/mutinynet.json'
-  const indexMarket: Record<string, unknown> = { ...btcUsdt }
-  delete indexMarket.source
-  delete indexMarket.sourceType
-  const registryIndex = () => ({
-    version: 0,
-    network: 'mutinynet',
-    generated_at: Math.floor(Date.now() / 1000),
-    commit: 'a'.repeat(40),
-    markets: [indexMarket],
-  })
-
   beforeEach(() => {
     localStorage.clear()
     fetchMocker.resetMocks()

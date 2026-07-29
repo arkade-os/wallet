@@ -241,10 +241,14 @@ export default function WalletSwap() {
     solvable: solvable ?? undefined,
     status,
   })
+  // the market fed to the quote hook: stable per (markets, asset selection),
+  // unlike `pair` itself which findMarket rebuilds every render
+  const pairMarket = pair?.market ?? null
   const quote = useMemo(
     () =>
       buildQuoteFromPlan(
         currentPlan,
+        pairMarket,
         assetAmount,
         preservedAmounts?.entryMode ?? amountMode,
         fromAsset,
@@ -260,6 +264,7 @@ export default function WalletSwap() {
       config.unit,
       currentPlan,
       fromAsset,
+      pairMarket,
       preservedAmounts?.entryMode,
       toAsset,
       unitOfAccountUsd,
@@ -1296,6 +1301,7 @@ function MetricRow({ label, value, loading }: { label: ReactNode; value: string;
 
 function buildQuoteFromPlan(
   plan: OfferPlan | null,
+  market: DiscoveredMarket | null,
   assetAmount: string,
   entryMode: AmountMode,
   fromAsset: SwapAsset,
@@ -1321,9 +1327,6 @@ function buildQuoteFromPlan(
   const toCurrencyAvailable = Boolean(toAsset && hasCurrencyConversion(toAsset, unitOfAccountUsd))
   const receivedCurrencyAmount = toCurrencyAvailable ? (receivedProtocol * toUsd) / unitOfAccountUsd : 0
   const feeFraction = (plan?.market.fee_bps ?? 0) / 10_000
-  // the plan's market is the DiscoveredMarket the quote hook was fed, so the
-  // discovery provenance is there even though OfferPlan types it as Market
-  const planMarket = plan?.market as DiscoveredMarket | undefined
   // received amounts are net of the fee; grossUp recovers the pre-fee total
   const grossUp = feeFraction < 1 ? 1 / (1 - feeFraction) : 0
   // once a live quote exists, price the give side off that SAME quote (via
@@ -1353,10 +1356,11 @@ function buildQuoteFromPlan(
     toCurrency: toCurrencyAvailable ? prettyFiatAmount(receivedCurrencyAmount, currency, formatOptions) : '',
     feeLabel: toAsset ? `${formatAssetQuantity(feeReceived, toAsset.decimals)} ${toAsset.ticker}` : '',
     // who serves the quote — a card the user pinned by hand is flagged so a
-    // manual solver can never pass itself off as a registry-vetted one
-    solverLabel: planMarket
-      ? `${planMarket.solver}${planMarket.sourceType === 'local' ? ' · added manually' : ''}`
-      : '',
+    // manual solver can never pass itself off as a registry-vetted one. The
+    // quote hook never exposes a plan computed for a market other than the
+    // one it was fed this render, so `market` IS the plan's market — with its
+    // discovery provenance typed, where plan.market erases it to Market
+    solverLabel: plan && market ? `${market.solver}${market.sourceType === 'local' ? ' · added manually' : ''}` : '',
     // the rate is always quoted per whole BTC even though amounts display in
     // sats — "1 sats = 0.0000006 USD" is technically correct but unreadable
     rateFromTicker: swapRouteTicker(fromAsset.assetId, fromAsset.ticker) ?? '',

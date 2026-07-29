@@ -24,19 +24,25 @@ export const getInfoLogs = (): LogLine[] => getLogs().filter((l) => l.level === 
 export const clearLogs = () => localStorage.removeItem(itemName)
 
 const addLog = (level: LogLevel, args: string[]) => {
-  const logs = getLogs()
-  logs.push({
-    level,
-    msg: args.join(' '),
-    time: new Date().toString(),
-  })
+  try {
+    const logs = getLogs()
+    logs.push({
+      level,
+      msg: args.join(' '),
+      time: new Date().toString(),
+    })
 
-  // Remove oldest logs if we exceed the limit
-  if (logs.length > MAX_LOGS) {
-    logs.splice(0, logs.length - MAX_LOGS)
+    // Remove oldest logs if we exceed the limit
+    if (logs.length > MAX_LOGS) {
+      logs.splice(0, logs.length - MAX_LOGS)
+    }
+
+    localStorage.setItem(itemName, JSON.stringify(logs))
+  } catch {
+    // persisting is best effort: a full or corrupt log store must never make
+    // the logger itself throw and mask the very error being reported — the
+    // console output in the callers below still lands
   }
-
-  localStorage.setItem(itemName, JSON.stringify(logs))
 }
 
 export const consoleLog = (...args: any[]) => {

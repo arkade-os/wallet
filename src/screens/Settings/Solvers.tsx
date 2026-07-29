@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useMemo, useState } from 'react'
 import Header from './Header'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
@@ -70,13 +70,11 @@ export default function Solvers() {
 
   const [cardJson, setCardJson] = useState('')
   const [error, setError] = useState('')
-  const [pinned, setPinned] = useState<PinnedSolverCard[]>([])
-
-  // aspInfo.network resolves async on boot, so the list must re-read when it
-  // lands (or changes) rather than freeze whatever value the screen mounted with
-  useEffect(() => {
-    setPinned(network ? getPinnedSolverCards(network) : [])
-  }, [network])
+  // derived, not held as state: keyed on the network because aspInfo.network
+  // resolves async on boot (the list must not freeze at the mount-time value),
+  // and on a revision counter the mutation handlers bump after a pin/remove
+  const [storageRev, setStorageRev] = useState(0)
+  const pinned = useMemo(() => (network ? getPinnedSolverCards(network) : []), [network, storageRev])
 
   const handleAdd = () => {
     if (!network) return
@@ -94,7 +92,7 @@ export default function Solvers() {
     }
     setError('')
     setCardJson('')
-    setPinned(getPinnedSolverCards(network))
+    setStorageRev((rev) => rev + 1)
     refreshMarkets()
     toast(`Solver "${result.card.name}" added`)
   }
@@ -102,12 +100,12 @@ export default function Solvers() {
   const handleRemove = (name: string) => {
     if (!network) return
     unpinSolverCard(network, name)
-    setPinned(getPinnedSolverCards(network))
+    setStorageRev((rev) => rev + 1)
     refreshMarkets()
     toast(`Solver "${name}" removed`)
   }
 
-  const handlePaste = (data: string) => {
+  const handleInput = (data: string) => {
     setError('')
     setCardJson(data)
   }
@@ -146,15 +144,12 @@ export default function Solvers() {
             <FlexCol gap='0.5rem'>
               <FlexRow between>
                 <Text small>Solver card.json for {network}</Text>
-                <Paste onPaste={handlePaste} />
+                <Paste onPaste={handleInput} />
               </FlexRow>
               <Textarea
                 aria-label='Solver card JSON'
                 className='min-h-40 font-mono'
-                onChange={(event) => {
-                  setError('')
-                  setCardJson(event.target.value)
-                }}
+                onChange={(event) => handleInput(event.target.value)}
                 placeholder='{ "version": 0, "name": "my-solver", "markets": [ … ] }'
                 value={cardJson}
               />

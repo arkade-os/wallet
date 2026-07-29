@@ -1,6 +1,5 @@
 import { isNetwork, validateCard, type Card, type Network } from '@arkade-os/solver-discovery'
-import { consoleError } from '../logs'
-import { getStorageItem } from '../storage'
+import { getStorageItem, setStorageItemSafely } from '../storage'
 
 /** A solver card the user pinned by hand: solver operators who prefer not to
  * list in the public registry hand their card.json to users directly, and the
@@ -36,31 +35,38 @@ const isPinnedShaped = (entry: unknown): entry is PinnedSolverCard => {
 // unshaped entries are dropped rather than failing the read: one hand-edited
 // blob must not take every pinned solver down with it. Full schema validation
 // happens again at discovery time, where a bad card is skipped with a warning.
-const readAll = (): PinnedSolverCard[] =>
-  getStorageItem<PinnedSolverCard[]>(PINNED_CARDS_KEY, [], (blob) => {
-    const entries = JSON.parse(blob)
-    if (!Array.isArray(entries)) throw new Error('malformed pinned cards')
-    return entries.filter(isPinnedShaped)
-  })
-
-// a failed write (quota, private mode) must reach the caller: reporting a pin
-// as saved while storage rejected it would leave a phantom solver in the UI
-const writeAll = (entries: PinnedSolverCard[]): boolean => {
+const parseEntries = (blob: string | null): PinnedSolverCard[] => {
+  if (blob === null) return []
   try {
-    localStorage.setItem(PINNED_CARDS_KEY, JSON.stringify(entries))
-    return true
-  } catch (err) {
-    try {
-      consoleError(err, 'Failed to save pinned solver cards')
-    } catch {
-      // the log writer persists to the same full localStorage
-    }
-    return false
+    const entries = JSON.parse(blob)
+    return Array.isArray(entries) ? entries.filter(isPinnedShaped) : []
+  } catch {
+    return []
   }
 }
 
-export const getPinnedSolverCards = (network: Network): PinnedSolverCard[] =>
-  readAll().filter((pinned) => pinned.network === network)
+const readBlob = (): string | null => getStorageItem<string | null>(PINNED_CARDS_KEY, null, (blob) => blob)
+
+const readAll = (): PinnedSolverCard[] => parseEntries(readBlob())
+
+// a failed write (quota, private mode) must reach the caller: reporting a pin
+// as saved while storage rejected it would leave a phantom solver in the UI
+const writeAll = (entries: PinnedSolverCard[]): boolean =>
+  setStorageItemSafely(PINNED_CARDS_KEY, JSON.stringify(entries), 'Failed to save pinned solver cards')
+
+// single-entry memo: discovery re-reads the pinned list on every call (mount,
+// tab return, refresh), so an unchanged blob should cost a string compare, not
+// a re-parse — and the stable array identity lets discovery skip re-validating
+// cards that did not change
+let readCache: { blob: string | null; network: Network; cards: PinnedSolverCard[] } | undefined
+
+export const getPinnedSolverCards = (network: Network): PinnedSolverCard[] => {
+  const blob = readBlob()
+  if (readCache && readCache.blob === blob && readCache.network === network) return readCache.cards
+  const cards = parseEntries(blob).filter((pinned) => pinned.network === network)
+  readCache = { blob, network, cards }
+  return cards
+}
 
 export type PinSolverCardResult = { ok: true; card: Card } | { ok: false; errors: string[] }
 

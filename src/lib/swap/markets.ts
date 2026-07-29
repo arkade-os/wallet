@@ -4,13 +4,14 @@ import {
   isNetwork,
   stableStringify,
   type DiscoveredMarket,
+  type Network as SolverNetwork,
   type OfferPlan,
   type Side,
 } from '@arkade-os/solver-discovery'
 import { getSolverRegistryUrl } from '../constants'
 import { consoleLog } from '../logs'
 import { getStorageItem } from '../storage'
-import { getPinnedSolverCards } from './solverCards'
+import { getPinnedSolverCards, type PinnedSolverCard } from './solverCards'
 import { Network } from '@arkade-os/boltz-swap'
 
 export const BTC_ASSET_ID = 'btc'
@@ -87,13 +88,18 @@ const writeMarketsCache = (network: Network, registry: string, markets: Discover
 /** Markets from the user's pinned solver cards (Settings > Solvers). Purely
  * local — with no registries, discover() only schema-validates the cards, so
  * a card that turned invalid in storage is skipped with a warning instead of
- * breaking discovery. */
-const discoverLocalMarkets = async (network: Network): Promise<DiscoveredMarket[]> => {
-  if (!isNetwork(network)) return []
-  const localCards = getPinnedSolverCards(network).map(({ card }) => ({ card, network }))
-  if (localCards.length === 0) return []
+ * breaking discovery. Memoized on the pinned list's identity (stable while
+ * storage is unchanged), so calls between pins — every mount, tab return and
+ * refresh — skip re-validating cards that did not change. */
+let localMarketsCache: { pinned: PinnedSolverCard[]; markets: DiscoveredMarket[] } | undefined
+const discoverLocalMarkets = async (network: SolverNetwork): Promise<DiscoveredMarket[]> => {
+  const pinned = getPinnedSolverCards(network)
+  if (pinned.length === 0) return []
+  if (localMarketsCache?.pinned === pinned) return localMarketsCache.markets
+  const localCards = pinned.map(({ card }) => ({ card, network }))
   const { markets, warnings } = await discover({ registries: [], localCards, network })
   if (warnings.length) consoleLog('solver discovery (pinned cards):', ...warnings)
+  localMarketsCache = { pinned, markets }
   return markets
 }
 
@@ -123,10 +129,14 @@ const mergeMarkets = (registryMarkets: DiscoveredMarket[], localMarkets: Discove
     seen.add(key)
     merged.push(market)
   }
-  const withKey = merged.map((market) => ({ market, key: `${market.base_asset.id}/${market.quote_asset.id}` }))
+  const pairKey = (market: DiscoveredMarket) => `${market.base_asset.id}/${market.quote_asset.id}`
   // stable sort, so equal (pair, fee) keys keep registry-first input order
-  withKey.sort((a, b) => (a.key !== b.key ? (a.key < b.key ? -1 : 1) : a.market.fee_bps - b.market.fee_bps))
-  return withKey.map(({ market }) => market)
+  merged.sort((a, b) => {
+    const keyA = pairKey(a)
+    const keyB = pairKey(b)
+    return keyA !== keyB ? (keyA < keyB ? -1 : 1) : a.fee_bps - b.fee_bps
+  })
+  return merged
 }
 
 /**
