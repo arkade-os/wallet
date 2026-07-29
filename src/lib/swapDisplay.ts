@@ -104,8 +104,12 @@ export function swapAmountBeforeFee(tx: Tx): SwapDisplayAmount | undefined {
   return swapAssetDisplayAmount(toAmount + fee, toDecimals, toTicker)
 }
 
-/** Rate the covenant enforced: receive-asset units bought by one unit of the
- * sent asset, recomputed from the stored atomic amounts. */
+/** Rate the swap was priced at, quoted pre-fee like the live composer's Rate
+ * row: the covenant pins the net payout, so gross it back up by the stored
+ * feeBps — the receipt's Swap fees row itemizes that same fee, and a
+ * net-derived rate would count it twice. Restored swaps may lack feeBps;
+ * then the net rate is all we have (matching the net Swap to row shown in
+ * that case). */
 export function swapPriceRateLabel(tx: Tx): string | undefined {
   const swap = tx.assetSwap
   if (!swap) return undefined
@@ -113,13 +117,14 @@ export function swapPriceRateLabel(tx: Tx): string | undefined {
   if (fromAmount === undefined || toAmount === undefined || fromDecimals === undefined || toDecimals === undefined)
     return undefined
   if (fromAmount <= BigInt(0) || toAmount <= BigInt(0)) return undefined
+  const grossToAmount = toAmount + (swapFeeAtomic(tx) ?? BigInt(0))
   // BTC always displays in sats (0 decimals) elsewhere on the receipt, but a
   // rate quoted per satoshi ("1 sats = 0.0000006 USD") is unreadable — quote
   // it per whole BTC instead, same as the live composer's rate line.
   const fromRateDecimals = swap.fromAssetId === 'btc' ? 8 : fromDecimals
   const toRateDecimals = swap.toAssetId === 'btc' ? 8 : toDecimals
   const fromUnits = new Decimal(fromAmount.toString()).div(Decimal.pow(10, fromRateDecimals))
-  const toUnits = new Decimal(toAmount.toString()).div(Decimal.pow(10, toRateDecimals))
+  const toUnits = new Decimal(grossToAmount.toString()).div(Decimal.pow(10, toRateDecimals))
   const rate = toUnits.div(fromUnits)
   const fromTicker = swapRouteTicker(swap.fromAssetId, swap.fromTicker)
   const toTicker = swapRouteTicker(swap.toAssetId, swap.toTicker)

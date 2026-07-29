@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import createFetchMock from 'vitest-fetch-mock'
-import { planOffer, quoteOffer } from '@arkade-os/solver-discovery'
-import { discoverMarkets, findMarket, QUOTE_OPTIONS, validatePlan } from '../../../lib/swap/markets'
+import { planOffer, quoteOffer, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+import { discoverMarkets, findMarket, preFeeDisplayRate, QUOTE_OPTIONS, validatePlan } from '../../../lib/swap/markets'
 import { btcDepix, btcUsdt, DEPIX_ID, MARAT_ID, maratNapo, NAPO_ID, USDT_ID } from './fixtures'
 
 const fetchMocker = createFetchMock(vi)
@@ -70,6 +70,38 @@ describe('quoteOffer with the wallet quote options', () => {
     // 10_000 sats * 600_000 depix-atomic/sat * 9970bps = 59.82 DePix
     expect(plan.receive.atomic).toBe(BigInt(5_982_000_000))
     expect(plan.receive.display).toBe('59.82')
+  })
+})
+
+describe('preFeeDisplayRate', () => {
+  it('quotes the feed price giving the base side and its inverse giving the quote side', () => {
+    const base = planOffer({ market: btcUsdt, give: 'base', giveAmount: BigInt(10_000), feedValue: 100_000 })
+    expect(preFeeDisplayRate(base)).toBe(100_000)
+    const quote = planOffer({ market: btcUsdt, give: 'quote', giveAmount: BigInt(1_000), feedValue: 100_000 })
+    expect(preFeeDisplayRate(quote)).toBe(0.00001)
+  })
+
+  it('survives display prices below the 8-decimal floor of plan.priceDisplay', () => {
+    // a registry may publish BTC as the QUOTE asset; a base token worth under
+    // a satoshi then has a display price that priceDisplay truncates to
+    // "0.00000000" — the exact rational must still price the Rate row
+    const tokenBtc: DiscoveredMarket = {
+      ...btcUsdt,
+      pair: 'TOKEN/BTC',
+      base_asset: { id: 'aa'.repeat(34), name: 'Token', ticker: 'TOK', decimals: 8 },
+      quote_asset: { id: 'btc', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+      price_decimals: 0,
+    }
+    const base = planOffer({
+      market: tokenBtc,
+      give: 'base',
+      giveAmount: BigInt(100_000_000),
+      feedValue: '0.000000005',
+    })
+    expect(Number(base.priceDisplay)).toBe(0)
+    expect(preFeeDisplayRate(base)).toBe(5e-9)
+    const quote = planOffer({ market: tokenBtc, give: 'quote', giveAmount: BigInt(1_000), feedValue: '0.000000005' })
+    expect(preFeeDisplayRate(quote)).toBe(200_000_000)
   })
 })
 
