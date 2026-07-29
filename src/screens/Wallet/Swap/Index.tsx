@@ -1332,7 +1332,11 @@ function buildQuoteFromPlan(
   const giveEstimate = fromCurrencyAvailable ? (fromUnitsProtocol * fromUsd) / unitOfAccountUsd : 0
   const selectedCurrencyAmount =
     plan && toAsset && grossUp > 0 && receivedCurrencyAmount > 0 ? receivedCurrencyAmount * grossUp : giveEstimate
-  const rate = fromUnitsProtocol > 0 ? receivedProtocol / fromUnitsProtocol : 0
+  // the Fees row on the same card itemizes the fee, so the Rate row quotes
+  // the market feed's pre-fee price — the number a user checks against the
+  // exchange; deriving it from the net receive amount baked the fee into the
+  // rate, reading as a price consistently fee_bps below the market
+  const rate = plan && toAsset ? preFeeDisplayRate(plan) : 0
   // the market fee is deducted from the payout, so show it in the receive
   // asset (like the Swap/Receive rows), not the wallet's fiat display currency:
   // the fee is the gross-minus-net gap
@@ -1361,6 +1365,15 @@ function buildQuoteFromPlan(
     // next to their amount and confirmed
     giveCurrencyValue: fromCurrencyAvailable ? (entryMode === 'fiat' ? giveEstimate : selectedCurrencyAmount) : 0,
   }
+}
+
+/** The market feed's pre-fee price oriented from→to: plan.priceDisplay is
+ * always quote-per-base (whole display units), flipped when the user gives
+ * the quote side. */
+function preFeeDisplayRate(plan: OfferPlan): number {
+  const price = Number(plan.priceDisplay)
+  if (!price || !Number.isFinite(price)) return 0
+  return plan.give === 'base' ? price : 1 / price
 }
 
 /** BTC's USD price and the solver's plan.*.display are both in whole-BTC

@@ -425,8 +425,11 @@ describe('Wallet swap flow', () => {
     await waitFor(() => expect(continueButton).toBeEnabled(), { timeout: 3_000 })
     fireEvent.click(continueButton)
     expect(screen.getByRole('heading', { name: 'BTC to USD' })).toBeInTheDocument()
-    // the review drawer's rate is quoted per whole BTC, not per satoshi
-    expect(screen.getByText(/^1 BTC = /)).toBeInTheDocument()
+    // the review drawer's rate is quoted per whole BTC, not per satoshi, and
+    // shows the feed's pre-fee price — the fee is itemized on its own row, so
+    // the rate must read $100,000 (the feed), not the net 99,700 that baking
+    // the fee in would show
+    expect(screen.getByText('1 BTC = 100,000 USD')).toBeInTheDocument()
     // the fee is shown in the receive asset (USD), not the wallet's display
     // currency — 9.97 received net of a 0.30% fee means a 0.03 USD fee
     expect(screen.getByText('0.03 USD')).toBeInTheDocument()
