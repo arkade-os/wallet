@@ -3,31 +3,30 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Solvers from '../../../screens/Settings/Solvers'
 import { AspContext } from '../../../providers/asp'
 import { AssetSwapsContext } from '../../../providers/assetSwaps'
-import { getPinnedSolverCards } from '../../../lib/swap/solverCards'
+import { getPinnedSolverCards, pinSolverCard } from '../../../lib/swap/solverCards'
 import { mockAspContextValue } from '../mocks'
 import { solverCard } from '../../lib/swap/fixtures'
 
 const refreshMarkets = vi.fn()
 
-const renderSolvers = (network = 'mutinynet') =>
-  render(
-    <AspContext.Provider
-      value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network } } as any}
+const solversAt = (network: string) => (
+  <AspContext.Provider value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network } } as any}>
+    <AssetSwapsContext.Provider
+      value={{
+        markets: [],
+        refreshMarkets,
+        swapAvailable: false,
+        swaps: [],
+        createSwap: vi.fn(),
+        cancelSwap: vi.fn(),
+      }}
     >
-      <AssetSwapsContext.Provider
-        value={{
-          markets: [],
-          refreshMarkets,
-          swapAvailable: false,
-          swaps: [],
-          createSwap: vi.fn(),
-          cancelSwap: vi.fn(),
-        }}
-      >
-        <Solvers />
-      </AssetSwapsContext.Provider>
-    </AspContext.Provider>,
-  )
+      <Solvers />
+    </AssetSwapsContext.Provider>
+  </AspContext.Provider>
+)
+
+const renderSolvers = (network = 'mutinynet') => render(solversAt(network))
 
 const typeCard = (value: string) => fireEvent.change(screen.getByLabelText('Solver card JSON'), { target: { value } })
 const addButton = () => screen.getByRole('button', { name: /add solver/i })
@@ -78,5 +77,20 @@ describe('Solvers settings screen', () => {
   it('disables the add button while the input is empty', () => {
     renderSolvers()
     expect((addButton() as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('loads the pinned list once the network resolves after mount', () => {
+    pinSolverCard('mutinynet', solverCard())
+    const { rerender } = render(solversAt(''))
+    expect(screen.getByText(/connect to a server first/i)).toBeTruthy()
+    expect(screen.queryByTestId('pinned-solver-privateer')).toBeNull()
+    rerender(solversAt('mutinynet'))
+    expect(screen.getByTestId('pinned-solver-privateer')).toBeTruthy()
+  })
+
+  it('blocks networks solver discovery does not support instead of taking dead pins', () => {
+    renderSolvers('testnet')
+    expect(screen.getByText('Solver cards are not supported on this network.')).toBeTruthy()
+    expect(screen.queryByLabelText('Solver card JSON')).toBeNull()
   })
 })

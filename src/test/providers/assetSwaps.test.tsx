@@ -13,6 +13,8 @@ import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
 const cancelOffer = vi.hoisted(() => vi.fn())
 const createOffer = vi.hoisted(() => vi.fn())
 const getVtxos = vi.hoisted(() => vi.fn())
+const getEmulatorInfo = vi.hoisted(() => vi.fn(async () => ({})))
+const discoverMarkets = vi.hoisted(() => vi.fn(async (): Promise<unknown[]> => []))
 
 vi.mock('@arkade-os/sdk', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@arkade-os/sdk')>()),
@@ -20,7 +22,7 @@ vi.mock('@arkade-os/sdk', async (importOriginal) => ({
     getVtxos = getVtxos
   },
   RestEmulatorProvider: class {
-    getInfo = async () => ({})
+    getInfo = getEmulatorInfo
   },
 }))
 
@@ -30,10 +32,11 @@ vi.mock('../../lib/swap/offer', async (importOriginal) => ({
   createOffer,
 }))
 
-// keep the discovery effect off the network; these tests hand plans in directly
+// keep the discovery effect off the network; most tests hand plans in
+// directly, the refresh tests script discoverMarkets per call
 vi.mock('../../lib/swap/markets', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/swap/markets')>()),
-  discoverMarkets: async () => [],
+  discoverMarkets,
 }))
 
 const pendingSwap: AssetSwap = {
@@ -216,5 +219,74 @@ describe('AssetSwapsProvider cancellation', () => {
     resolveVtxos({ vtxos: [{ txid: pendingSwap.fundingTxid, virtualStatus: { state: 'settled' } }] })
 
     await waitFor(() => expect(getAssetSwaps()[0].status).toBe('fulfilled'))
+  })
+})
+
+function MarketsHarness() {
+  const { markets, refreshMarkets, swapAvailable } = useContext(AssetSwapsContext)
+  return (
+    <>
+      <span data-testid='market-count'>{markets.length}</span>
+      <span data-testid='swap-available'>{String(swapAvailable)}</span>
+      <button onClick={refreshMarkets}>Refresh</button>
+    </>
+  )
+}
+
+function renderMarketsProvider() {
+  render(
+    // mutinynet so the emulator probe (mocked above) arms swapAvailable
+    <AspContext.Provider
+      value={
+        { ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet', url: '' } } as any
+      }
+    >
+      <WalletContext.Provider
+        value={
+          {
+            ...mockWalletContextValue,
+            reloadWallet: vi.fn().mockResolvedValue(undefined),
+            svcWallet: { identity: {} },
+          } as any
+        }
+      >
+        <AssetSwapsProvider>
+          <MarketsHarness />
+        </AssetSwapsProvider>
+      </WalletContext.Provider>
+    </AspContext.Provider>,
+  )
+}
+
+describe('AssetSwapsProvider market discovery refresh', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    discoverMarkets.mockImplementation(async () => [])
+    getEmulatorInfo.mockImplementation(async () => ({}))
+  })
+
+  afterEach(() => localStorage.clear())
+
+  it('re-runs discovery when refreshMarkets is called (the Settings pin/remove wiring)', async () => {
+    renderMarketsProvider()
+    await waitFor(() => expect(discoverMarkets).toHaveBeenCalledTimes(1))
+    expect(screen.getByTestId('market-count').textContent).toBe('0')
+
+    discoverMarkets.mockResolvedValueOnce([btcUsdt])
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    await waitFor(() => expect(screen.getByTestId('market-count').textContent).toBe('1'))
+  })
+
+  it('keeps the verified emulator when a refresh re-probe fails', async () => {
+    discoverMarkets.mockImplementation(async () => [btcUsdt])
+    renderMarketsProvider()
+    await waitFor(() => expect(screen.getByTestId('swap-available').textContent).toBe('true'))
+
+    // a pin/remove refresh with a transiently failing probe must not flip
+    // swaps off — the co-signer did not change
+    getEmulatorInfo.mockRejectedValueOnce(new Error('probe down'))
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    await waitFor(() => expect(discoverMarkets).toHaveBeenCalledTimes(2))
+    expect(screen.getByTestId('swap-available').textContent).toBe('true')
   })
 })

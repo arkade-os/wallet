@@ -1,6 +1,6 @@
-import { validateCard, type Card } from '@arkade-os/solver-discovery'
-import { Network } from '@arkade-os/boltz-swap'
-import { getStorageItem, setStorageItemSafely } from '../storage'
+import { isNetwork, validateCard, type Card, type Network } from '@arkade-os/solver-discovery'
+import { consoleError } from '../logs'
+import { getStorageItem } from '../storage'
 
 /** A solver card the user pinned by hand: solver operators who prefer not to
  * list in the public registry hand their card.json to users directly, and the
@@ -15,6 +15,11 @@ export interface PinnedSolverCard {
 }
 
 const PINNED_CARDS_KEY = 'pinnedSolverCards'
+
+/** Caps so pasted cards cannot crowd out the wallet's own persistence in the
+ * ~5 MB localStorage budget: real cards are a few KB with a handful of markets. */
+export const MAX_PINNED_CARDS_PER_NETWORK = 10
+export const MAX_CARD_JSON_BYTES = 64 * 1024
 
 const isPinnedShaped = (entry: unknown): entry is PinnedSolverCard => {
   const pinned = entry as PinnedSolverCard | null
@@ -38,8 +43,21 @@ const readAll = (): PinnedSolverCard[] =>
     return entries.filter(isPinnedShaped)
   })
 
-const writeAll = (entries: PinnedSolverCard[]): void =>
-  setStorageItemSafely(PINNED_CARDS_KEY, JSON.stringify(entries), 'Failed to save pinned solver cards')
+// a failed write (quota, private mode) must reach the caller: reporting a pin
+// as saved while storage rejected it would leave a phantom solver in the UI
+const writeAll = (entries: PinnedSolverCard[]): boolean => {
+  try {
+    localStorage.setItem(PINNED_CARDS_KEY, JSON.stringify(entries))
+    return true
+  } catch (err) {
+    try {
+      consoleError(err, 'Failed to save pinned solver cards')
+    } catch {
+      // the log writer persists to the same full localStorage
+    }
+    return false
+  }
+}
 
 export const getPinnedSolverCards = (network: Network): PinnedSolverCard[] =>
   readAll().filter((pinned) => pinned.network === network)
@@ -50,13 +68,25 @@ export type PinSolverCardResult = { ok: true; card: Card } | { ok: false; errors
  * identity, so re-pinning the same name replaces the previous version (the
  * normal way to take a solver's updated card). */
 export const pinSolverCard = (network: Network, input: unknown): PinSolverCardResult => {
+  // defense in depth for untyped callers: discovery ignores cards pinned
+  // under a network the SDK does not know, so refuse to persist them at all
+  if (!isNetwork(network)) return { ok: false, errors: [`solver cards are not supported on network "${network}"`] }
   const result = validateCard(input)
   if (!result.ok || !result.value) return { ok: false, errors: result.errors }
   const card = result.value
+  if (JSON.stringify(card).length > MAX_CARD_JSON_BYTES) {
+    return { ok: false, errors: [`card is too large (max ${MAX_CARD_JSON_BYTES / 1024} KB)`] }
+  }
   const others = readAll().filter((pinned) => !(pinned.network === network && pinned.card.name === card.name))
-  writeAll([...others, { network, card, addedAt: Date.now() }])
+  if (others.filter((pinned) => pinned.network === network).length >= MAX_PINNED_CARDS_PER_NETWORK) {
+    return { ok: false, errors: [`at most ${MAX_PINNED_CARDS_PER_NETWORK} solvers can be pinned — remove one first`] }
+  }
+  if (!writeAll([...others, { network, card, addedAt: Date.now() }])) {
+    return { ok: false, errors: ['could not save the card — storage is full or unavailable'] }
+  }
   return { ok: true, card }
 }
 
-export const unpinSolverCard = (network: Network, name: string): void =>
+export const unpinSolverCard = (network: Network, name: string): void => {
   writeAll(readAll().filter((pinned) => !(pinned.network === network && pinned.card.name === name)))
+}

@@ -56,13 +56,19 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   // enough for a pin/remove in Settings to land immediately
   const refreshMarkets = () => setMarketsNonce((nonce) => nonce + 1)
 
-  // discover markets and probe the emulator once the network is known, again
-  // on every tab return (discoverMarkets' TTL cache is the rate limiter), and
-  // on demand via refreshMarkets; stale results from a previous network must
-  // never land after a switch
+  // stale results from a previous network must never land after a switch;
+  // keyed on the network alone so a nonce-driven refresh keeps the last good
+  // markets and verified emulator (a pin/remove invalidates neither, and one
+  // failed re-probe must not flip swapAvailable off mid-session)
   useEffect(() => {
     setMarkets([])
     setEmulatorUrl(undefined)
+  }, [aspInfo.network])
+
+  // discover markets and probe the emulator once the network is known, again
+  // on every tab return (discoverMarkets' TTL cache is the rate limiter), and
+  // on demand via refreshMarkets
+  useEffect(() => {
     if (!aspInfo.network) return
     let cancelled = false
     const network = aspInfo.network as Network

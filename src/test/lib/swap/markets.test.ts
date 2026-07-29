@@ -216,6 +216,15 @@ describe('discoverMarkets with pinned solver cards', () => {
     expect(markets[0].sourceType).toBe('local')
   })
 
+  it('breaks a (pair, fee) tie in favor of the registry market', async () => {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ markets: [btcUsdt], fetchedAt: Date.now() }))
+    // same pair and fee, different feed URL so dedupe keeps both entries
+    const rival = { ...asCardMarket(btcUsdt), price_feed: 'https://feeds.example.com/btcusd' }
+    pinSolverCard('mutinynet', solverCard('copycat', [rival]))
+    const markets = await discoverMarkets('mutinynet')
+    expect(markets.map((m) => m.sourceType)).toEqual(['registry', 'local'])
+  })
+
   it('skips a pinned card that turned invalid in storage without breaking discovery', async () => {
     localStorage.setItem(CACHE_KEY, JSON.stringify({ markets: [btcUsdt], fetchedAt: Date.now() }))
     localStorage.setItem(

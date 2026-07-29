@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import Header from './Header'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
@@ -17,7 +17,7 @@ import { AssetSwapsContext } from '../../providers/assetSwaps'
 import { useToast } from '../../components/Toast'
 import { prettyAgo } from '../../lib/format'
 import { getPinnedSolverCards, pinSolverCard, unpinSolverCard, type PinnedSolverCard } from '../../lib/swap/solverCards'
-import { Network } from '@arkade-os/boltz-swap'
+import { isNetwork } from '@arkade-os/solver-discovery'
 
 // hero component to explain what manual solver registration is for
 function Hero() {
@@ -63,13 +63,23 @@ export default function Solvers() {
   const { refreshMarkets } = useContext(AssetSwapsContext)
   const { toast } = useToast()
 
-  const network = aspInfo.network as Network
+  // discovery only understands the SDK's network names — anything else (e.g.
+  // a testnet ASP) must not offer the form, or pins would persist but never
+  // produce a market
+  const network = isNetwork(aspInfo.network) ? aspInfo.network : undefined
 
   const [cardJson, setCardJson] = useState('')
   const [error, setError] = useState('')
-  const [pinned, setPinned] = useState<PinnedSolverCard[]>(() => (network ? getPinnedSolverCards(network) : []))
+  const [pinned, setPinned] = useState<PinnedSolverCard[]>([])
+
+  // aspInfo.network resolves async on boot, so the list must re-read when it
+  // lands (or changes) rather than freeze whatever value the screen mounted with
+  useEffect(() => {
+    setPinned(network ? getPinnedSolverCards(network) : [])
+  }, [network])
 
   const handleAdd = () => {
+    if (!network) return
     let parsed: unknown
     try {
       parsed = JSON.parse(cardJson)
@@ -90,6 +100,7 @@ export default function Solvers() {
   }
 
   const handleRemove = (name: string) => {
+    if (!network) return
     unpinSolverCard(network, name)
     setPinned(getPinnedSolverCards(network))
     refreshMarkets()
@@ -107,7 +118,13 @@ export default function Solvers() {
         <Header text='Solvers' back />
         <Content>
           <Padded>
-            <WarningBox text='Connect to a server first to manage solvers for its network.' />
+            <WarningBox
+              text={
+                aspInfo.network
+                  ? 'Solver cards are not supported on this network.'
+                  : 'Connect to a server first to manage solvers for its network.'
+              }
+            />
           </Padded>
         </Content>
       </>
