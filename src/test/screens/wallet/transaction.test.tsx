@@ -517,7 +517,9 @@ describe('Transaction screen', () => {
     expect(screen.queryByTestId('Transaction ID')).not.toBeInTheDocument()
     expect(screen.queryByText('Direction')).not.toBeInTheDocument()
     expect(screen.queryByText('Amount')).not.toBeInTheDocument()
-    expect(screen.getByTestId('Price rate')).toHaveTextContent('1 ALP = 0.5499')
+    // the rate is pre-fee like the live composer's Rate row — the gross
+    // 68.094 BET over 123.45 ALP, not the net 67.89-derived 0.5499
+    expect(screen.getByTestId('Price rate')).toHaveTextContent('1 ALP = 0.55159174')
     expect(screen.getByTestId('Network fees')).toHaveTextContent('$0.00')
     // the fee is shown in the receive asset (like the live composer), not a
     // bare percentage — 67.89 BET received net of a 0.30% fee is a 0.204 BET fee

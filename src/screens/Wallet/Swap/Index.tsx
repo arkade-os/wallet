@@ -22,7 +22,14 @@ import { extractError } from '../../../lib/error'
 import { formatFiatAmountParts, normalizeBitcoinUnit, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
 import { swapRouteTicker } from '../../../lib/swapDisplay'
-import { BTC_ASSET_ID, findMarket, makeCachedFeedFetch, QUOTE_OPTIONS, validatePlan } from '../../../lib/swap/markets'
+import {
+  BTC_ASSET_ID,
+  findMarket,
+  makeCachedFeedFetch,
+  preFeeDisplayRate,
+  QUOTE_OPTIONS,
+  validatePlan,
+} from '../../../lib/swap/markets'
 import { type AssetSwapQuoteSnapshot } from '../../../lib/swap/store'
 import { Currencies, Unit } from '../../../lib/types'
 import { AspContext } from '../../../providers/asp'
@@ -1332,7 +1339,10 @@ function buildQuoteFromPlan(
   const giveEstimate = fromCurrencyAvailable ? (fromUnitsProtocol * fromUsd) / unitOfAccountUsd : 0
   const selectedCurrencyAmount =
     plan && toAsset && grossUp > 0 && receivedCurrencyAmount > 0 ? receivedCurrencyAmount * grossUp : giveEstimate
-  const rate = fromUnitsProtocol > 0 ? receivedProtocol / fromUnitsProtocol : 0
+  // the review drawer's Fees row itemizes the fee, so the Rate row quotes the
+  // market feed's pre-fee price — a net-derived rate would count the fee
+  // twice and read consistently fee_bps below the market
+  const rate = plan ? preFeeDisplayRate(plan) : 0
   // the market fee is deducted from the payout, so show it in the receive
   // asset (like the Swap/Receive rows), not the wallet's fiat display currency:
   // the fee is the gross-minus-net gap
@@ -1457,17 +1467,17 @@ function formatLimitMessage(
   fromAsset: SwapAsset,
 ): string {
   if (!limit) return ''
-  const price = Number(plan.priceDisplay)
-  if (!price) return ''
+  const rate = preFeeDisplayRate(plan)
+  if (!rate) return ''
   const limitReceiveProtocol = Number(limit.display)
-  // the limits bound the NET receive side (post-fee), but priceDisplay is the
-  // pre-fee rate — gross the bound up by the market fee or the suggested give
-  // amount pays out just under the minimum
+  // the limits bound the NET receive side (post-fee), but the rate is the
+  // pre-fee price — gross the bound up by the market fee or the suggested
+  // give amount pays out just under the minimum
   const feeFraction = plan.market.fee_bps / 10_000
   const grossUp = feeFraction < 1 ? 1 / (1 - feeFraction) : 1
-  // priceDisplay is quote-per-base; convert the receive-side limit back to
-  // the give side using whichever side the plan actually gives
-  const giveProtocol = (plan.give === 'base' ? limitReceiveProtocol / price : limitReceiveProtocol * price) * grossUp
+  // the rate is oriented give→receive, so dividing the receive-side limit by
+  // it lands back on the give side in both market orientations
+  const giveProtocol = (limitReceiveProtocol / rate) * grossUp
   // the market card also bounds the give side directly (atomic units of the
   // deposit asset); the user must satisfy whichever constraint is tighter —
   // e.g. a 1,000-sat card floor outranks a smaller converted receive minimum

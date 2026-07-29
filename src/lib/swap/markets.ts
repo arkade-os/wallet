@@ -1,6 +1,7 @@
 import {
   bestMarket,
   discover,
+  displayPrice,
   isNetwork,
   type DiscoveredMarket,
   type OfferPlan,
@@ -114,6 +115,21 @@ export const findMarket = (
   const givingBase = bestMarket(markets, { baseId: fromId, quoteId: toId, wantSide: 'quote' })
   if (givingBase) return { market: givingBase, give: 'base' }
   return { market: bestMarket(markets, { baseId: toId, quoteId: fromId, wantSide: 'base' }), give: 'quote' }
+}
+
+/** The market feed's pre-fee price oriented give→receive, in whole display
+ * units. Derived from the plan's exact price rational — plan.priceDisplay
+ * truncates at 8 fraction digits, which zeroes or skews small prices, and the
+ * give-quote inversion would amplify that loss. Assumes the wallet's
+ * safetyBps of 0 (QUOTE_OPTIONS): fee_bps is then the only gap between this
+ * rate and the plan's net payout. */
+export const preFeeDisplayRate = (plan: OfferPlan): number => {
+  const { num, den } = displayPrice(plan.price, {
+    baseDecimals: plan.market.base_asset.decimals,
+    quoteDecimals: plan.market.quote_asset.decimals,
+  })
+  const rate = plan.give === 'base' ? Number(num) / Number(den) : Number(den) / Number(num)
+  return Number.isFinite(rate) && rate > 0 ? rate : 0
 }
 
 export type PlanError = 'insufficient-balance' | 'side-disabled' | 'below-min' | 'above-max' | 'below-dust'
