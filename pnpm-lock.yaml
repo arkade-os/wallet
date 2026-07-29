@@ -248,7 +248,7 @@ packages:
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
   '@arkade-os/boltz-swap@file:vendor/arkade-os-boltz-swap-0.3.57.tgz':
-    resolution: {integrity: sha512-JijwbZlSEng9k0yiQq/PNotTGOvjcEEl2UveDjSN/NxbhY4Ji7RZ7z3ESWN/5DhnOv8abBQBrVTzUO9vaCP/Kg==, tarball: file:vendor/arkade-os-boltz-swap-0.3.57.tgz}
+    resolution: {integrity: sha512-8C1+r3NabC+NNNK5OPnB7aX4fkWFlYmfXZhEDYGoNnToWS5vu0Yfk99aumQNuoaqQTSe8jWfv9j3N4rTOHjpvw==, tarball: file:vendor/arkade-os-boltz-swap-0.3.57.tgz}
     version: 0.3.57
     peerDependencies:
       expo-background-task: '>=0.1.0'
@@ -260,7 +260,7 @@ packages:
         optional: true
 
   '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.52.tgz':
-    resolution: {integrity: sha512-LBihmLUoxTX6+INRiVyZz5VjZrNifc8WrqBdD+I/1JLj73Dnl+FvZtoZLAsIZSOUXi6g6CNCWuZ14DW1YFijig==, tarball: file:vendor/arkade-os-sdk-0.4.52.tgz}
+    resolution: {integrity: sha512-1Z3y9DdjaUqy7/nD/6piDL+Iky+5teR3rsApwCVZzFWXDQ+tZwVpRH40IkV75/jeunkbQBM8A7CfgnOIvDbo8A==, tarball: file:vendor/arkade-os-sdk-0.4.52.tgz}
     version: 0.4.52
     engines: {node: '>=22.12.0 <25'}
     peerDependencies:
