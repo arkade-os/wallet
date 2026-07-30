@@ -88,7 +88,7 @@ const writeMarketsCache = (network: Network, registry: string, markets: Discover
  * stale cache backstops an unreachable registry (quotes stay live either way).
  */
 export const discoverMarkets = async (network: Network): Promise<DiscoveredMarket[]> => {
-  const localCards = readSolverCardsFromStorage()?.filter((c) => c.network === network) ?? []
+  const localCards = readSolverCardsFromStorage().filter((c) => c.network === network)
   const registry = getSolverRegistryUrl(network)
   if (!registry || !isNetwork(network)) return []
   const cached = readMarketsCache(network, registry)

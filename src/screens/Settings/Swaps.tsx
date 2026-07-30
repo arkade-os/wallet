@@ -13,13 +13,13 @@ import Shadow from '@/components/Shadow'
 import Modal from '@/components/Modal'
 
 const addSolverCard = (input: LocalCardInput) => {
-  const existingCards = readSolverCardsFromStorage() ?? []
+  const existingCards = readSolverCardsFromStorage()
   const withoutSameCard = existingCards.filter((card) => card.label !== input.label)
   saveSolverCardsToStorage([...withoutSameCard, input])
 }
 
 const removeSolverCard = (input: LocalCardInput) => {
-  const existingCards = readSolverCardsFromStorage() ?? []
+  const existingCards = readSolverCardsFromStorage()
   const withoutSameCard = existingCards.filter((card) => card.label !== input.label)
   saveSolverCardsToStorage(withoutSameCard)
 }
@@ -43,7 +43,7 @@ export default function Swaps() {
 
   useEffect(() => {
     if (!aspInfo.network) return
-    setLocalCards(readSolverCardsFromStorage() ?? [])
+    setLocalCards(readSolverCardsFromStorage())
   }, [aspInfo.network])
 
   const clearError = () => setError('')
@@ -80,7 +80,7 @@ export default function Swaps() {
       removeSolverCard({ network: aspInfo.network as Network, label: olderCard.name, card: olderCard })
     }
     addSolverCard(input)
-    setLocalCards(readSolverCardsFromStorage() ?? [])
+    setLocalCards(readSolverCardsFromStorage())
   }
 
   const title =
@@ -138,7 +138,7 @@ export default function Swaps() {
 
     const handleRemove = () => {
       removeSolverCard({ network: input.network as Network, label: input.label, card: input.card as Card })
-      setLocalCards(readSolverCardsFromStorage() ?? [])
+      setLocalCards(readSolverCardsFromStorage())
     }
 
     const card = input.card as Card

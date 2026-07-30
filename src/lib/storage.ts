@@ -129,6 +129,6 @@ export const saveSolverCardsToStorage = (cards: LocalCardInput[]): void => {
   setStorageItem('solverCards', JSON.stringify(cards))
 }
 
-export const readSolverCardsFromStorage = (): LocalCardInput[] | undefined => {
-  return getStorageItem('solverCards', undefined, (val) => JSON.parse(val))
+export const readSolverCardsFromStorage = (): LocalCardInput[] => {
+  return getStorageItem('solverCards', [], (val) => JSON.parse(val))
 }
