@@ -357,7 +357,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     () => ({ markets, swapAvailable, swaps, runDiscovery, createSwap, cancelSwap }),
     // createSwap/cancelSwap close over these
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [markets, swapAvailable, swaps, svcWallet, emulatorUrl, aspInfo.url],
+    [markets, swapAvailable, swaps, svcWallet, emulatorUrl, aspInfo.url, aspInfo.network],
   )
 
   return <AssetSwapsContext.Provider value={value}>{children}</AssetSwapsContext.Provider>

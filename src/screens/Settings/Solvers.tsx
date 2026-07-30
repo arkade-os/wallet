@@ -122,6 +122,7 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
 
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [showEditor, setShowEditor] = useState(false)
+  const [error, setError] = useState<string>('')
 
   const card = input.card as Card
   const pairs = card.markets?.map((m) => m.pair).join(', ') ?? ''
@@ -140,29 +141,38 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
       card: input.card as Card,
       label: input.label,
     }
-    removeSolverCard(cardInput)
-    onChange()
+    try {
+      removeSolverCard(cardInput)
+      onChange()
+    } catch (err) {
+      consoleError(err, 'failed to remove solver card')
+      setError('Failed to remove card: storage is full or unavailable.')
+    }
   }
 
   return (
     <Shadow>
       <Modal open={confirmRemove} onOpenChange={setConfirmRemove}>
-        <div role='dialog' aria-modal='true'>
-          <FlexCol gap='1.5rem'>
-            <FlexCol centered gap='0.5rem'>
-              <Text big bold>
-                Confirm Remove
-              </Text>
-              <Text centered wrap color='neutral-500'>
-                Are you sure you want to remove the card "{input.label}"? This action cannot be undone.
-              </Text>
+        {error ? (
+          <ErrorMessage error={Boolean(error)} text={error} />
+        ) : (
+          <div role='dialog' aria-modal='true'>
+            <FlexCol gap='1.5rem'>
+              <FlexCol centered gap='0.5rem'>
+                <Text big bold>
+                  Confirm Remove
+                </Text>
+                <Text centered wrap color='neutral-500'>
+                  Are you sure you want to remove the card "{input.label}"? This action cannot be undone.
+                </Text>
+              </FlexCol>
+              <FlexRow centered gap='1rem'>
+                <Button onClick={() => setConfirmRemove(false)} text='Cancel' />
+                <Button onClick={handleRemove} text='Remove' />
+              </FlexRow>
             </FlexCol>
-            <FlexRow centered gap='1rem'>
-              <Button onClick={() => setConfirmRemove(false)} text='Cancel' />
-              <Button onClick={handleRemove} text='Remove' />
-            </FlexRow>
-          </FlexCol>
-        </div>
+          </div>
+        )}
       </Modal>
       <FlexCol padding='8px' gap='8px'>
         <FlexRow between>
