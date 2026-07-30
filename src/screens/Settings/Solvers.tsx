@@ -25,6 +25,10 @@ const removeSolverCard = (input: LocalCardInput) => {
   saveSolverCardsToStorage(withoutSameCard)
 }
 
+const getCardsForNetwork = (network: Network): LocalCardInput[] => {
+  return readSolverCardsFromStorage().filter((c) => c.network === network)
+}
+
 function Button({ onClick, text }: { onClick?: () => void; text: string }) {
   return (
     <button type='button' className='pill-base' onClick={onClick}>
@@ -33,54 +37,26 @@ function Button({ onClick, text }: { onClick?: () => void; text: string }) {
   )
 }
 
-export default function Solvers() {
+function Editor({ card, toClose, onChange }: { card?: Card; toClose: () => void; onChange: () => void }) {
   const { aspInfo } = useContext(AspContext)
-  const { runDiscovery } = useContext(AssetSwapsContext)
 
   const [error, setError] = useState<string>('')
-  const [localCards, setLocalCards] = useState<LocalCardInput[]>()
-  const [showEditor, setShowEditor] = useState(false)
 
   const editorRef = useRef<HTMLTextAreaElement>(null)
-  const dirtyRef = useRef(false)
 
-  // force refetch (with no cache) on unmount if cards were changed
-  useEffect(() => {
-    return () => {
-      if (dirtyRef.current) runDiscovery(false)
-    }
-  }, [])
-
-  // fetch local cards whenever the network changes
-  useEffect(() => {
-    if (!aspInfo.network) return
-    setLocalCards(readSolverCardsFromStorage())
-  }, [aspInfo.network])
-
-  const clearError = () => setError('')
-
-  const handleAddCard = () => {
-    const res = saveCard()
-    if (res.ok) setShowEditor(false)
-    else setError(res.err)
-  }
-
-  const handleCancelEditor = () => {
-    setShowEditor(false)
-    clearError()
-  }
-
-  const saveCard = (olderCard?: Card): { ok: boolean; err: string } => {
-    if (!editorRef.current) return { ok: false, err: 'editor not ready' }
+  const saveCard = (olderCard?: Card) => {
+    if (!editorRef.current) return
     const inputValue = editorRef.current.value.trim()
-    if (!inputValue) return { ok: false, err: 'empty card' }
+    if (!inputValue) return
     let card: Card
     try {
       card = JSON.parse(inputValue)
       const result = validateCard(card)
       if (!result.ok) throw new Error(`invalid card: ${result.errors.join('; ')}`)
     } catch (err) {
-      return { ok: false, err: `invalid JSON: ${(err as Error).message}` }
+      console.log('invalid card JSON:', err)
+      setError(`invalid JSON: ${(err as Error).message}`)
+      return
     }
     // if the card name changed, remove the old card so it doesn't linger in storage
     if (olderCard && olderCard.name !== card.name) {
@@ -98,125 +74,130 @@ export default function Solvers() {
       card,
     }
     addSolverCard(input)
-    setLocalCards(readSolverCardsFromStorage())
-    dirtyRef.current = true
-    return { ok: true, err: '' }
+    onChange()
+    toClose()
+  }
+
+  const cssStyle = {
+    width: '100%',
+    padding: '8px',
+    fontSize: '14px',
+    borderRadius: '4px',
+    fontFamily: 'monospace',
+    border: '1px solid #ccc',
+  }
+
+  return (
+    <FlexCol>
+      <ErrorMessage error={Boolean(error)} text={error} />
+      <textarea
+        rows={21}
+        ref={editorRef}
+        style={cssStyle}
+        onFocus={() => setError('')}
+        placeholder='{ version: 0, name: "My Card", markets: [...] }'
+        defaultValue={card ? JSON.stringify(card, null, 2) : ''}
+      />
+      <FlexRow>
+        <Button onClick={() => toClose()} text='Cancel' />
+        <Button onClick={() => saveCard(card)} text='Save' />
+      </FlexRow>
+    </FlexCol>
+  )
+}
+
+function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => void }) {
+  const { aspInfo } = useContext(AspContext)
+
+  const [confirmRemove, setConfirmRemove] = useState(false)
+  const [showEditor, setShowEditor] = useState(false)
+
+  const card = input.card as Card
+  const pairs = card.markets?.map((m) => m.pair).join(', ') ?? ''
+
+  const handleConfirmRemove = () => {
+    setConfirmRemove(true)
+  }
+
+  const handleEdit = () => {
+    setShowEditor((e) => !e)
+  }
+
+  const handleRemove = () => {
+    const cardInput: LocalCardInput = {
+      network: aspInfo.network as Network,
+      card: input.card as Card,
+      label: input.label,
+    }
+    removeSolverCard(cardInput)
+    onChange()
+  }
+
+  return (
+    <Shadow>
+      <Modal open={confirmRemove} onOpenChange={setConfirmRemove}>
+        <FlexCol gap='1.5rem'>
+          <FlexCol centered gap='0.5rem'>
+            <Text big bold>
+              Confirm Remove
+            </Text>
+            <Text centered wrap color='neutral-500'>
+              Are you sure you want to remove the card "{input.label}"? This action cannot be undone.
+            </Text>
+          </FlexCol>
+          <FlexRow centered gap='1rem'>
+            <Button onClick={() => setConfirmRemove(false)} text='Cancel' />
+            <Button onClick={handleRemove} text='Remove' />
+          </FlexRow>
+        </FlexCol>
+      </Modal>
+      <FlexCol padding='8px' gap='8px'>
+        <FlexRow between>
+          <FlexCol gap='4px'>
+            <Text>{input.label}</Text>
+            <TextSecondary>{pairs}</TextSecondary>
+          </FlexCol>
+          <FlexRow end>
+            <Button onClick={handleEdit} text='Edit' />
+            <Button onClick={handleConfirmRemove} text='Remove' />
+          </FlexRow>
+        </FlexRow>
+        {showEditor ? <Editor card={card} toClose={() => setShowEditor(false)} onChange={onChange} /> : null}
+      </FlexCol>
+    </Shadow>
+  )
+}
+
+export default function Solvers() {
+  const { aspInfo } = useContext(AspContext)
+  const { runDiscovery } = useContext(AssetSwapsContext)
+
+  const [localCards, setLocalCards] = useState<LocalCardInput[]>()
+  const [showEditor, setShowEditor] = useState(false)
+  const [reload, setReload] = useState(false)
+
+  // if something changed, run discovery when the component unmounts
+  useEffect(() => {
+    return () => {
+      if (reload) runDiscovery(false)
+    }
+  }, [reload, runDiscovery])
+
+  // fetch local cards whenever the network changes
+  useEffect(() => {
+    if (!aspInfo.network) return
+    setLocalCards(getCardsForNetwork(aspInfo.network as Network))
+  }, [aspInfo.network])
+
+  const handleChange = () => {
+    setLocalCards(getCardsForNetwork(aspInfo.network as Network))
+    setReload(true)
   }
 
   const title =
     localCards && localCards.length > 0
       ? `You have ${localCards.length} solver card${localCards.length > 1 ? 's' : ''} stored in your wallet.`
       : 'You have no solver cards stored in your wallet.'
-
-  function Editor({
-    card,
-    error,
-    onSave,
-    onCancel,
-  }: {
-    card?: Card
-    error: string
-    onSave?: () => void
-    onCancel?: () => void
-  }) {
-    const cssStyle = {
-      width: '100%',
-      padding: '8px',
-      fontSize: '14px',
-      borderRadius: '4px',
-      fontFamily: 'monospace',
-      border: '1px solid #ccc',
-    }
-    return (
-      <FlexCol>
-        <ErrorMessage error={Boolean(error)} text={error} />
-        <textarea
-          rows={21}
-          ref={editorRef}
-          style={cssStyle}
-          onFocus={clearError}
-          placeholder='{ version: 0, name: "My Card", markets: [...] }'
-          defaultValue={card ? JSON.stringify(card, null, 2) : ''}
-        />
-        <FlexRow>
-          <Button onClick={onCancel} text='Cancel' />
-          <Button onClick={onSave} text='Save' />
-        </FlexRow>
-      </FlexCol>
-    )
-  }
-
-  function CardLine({ input }: { input: LocalCardInput }) {
-    const [confirmRemove, setConfirmRemove] = useState(false)
-    const [showEditor, setShowEditor] = useState(false)
-    const [error, setError] = useState<string>('')
-
-    const card = input.card as Card
-    const pairs = card.markets?.map((m) => m.pair).join(', ') ?? ''
-
-    const handleSave = () => {
-      const res = saveCard(card)
-      if (res.ok) setShowEditor(false)
-      else setError(res.err)
-    }
-
-    const handleCancel = () => {
-      setShowEditor(false)
-    }
-
-    const handleConfirmRemove = () => {
-      setConfirmRemove(true)
-    }
-
-    const handleEdit = () => {
-      setShowEditor((e) => !e)
-    }
-
-    const handleRemove = () => {
-      const cardInput: LocalCardInput = {
-        network: aspInfo.network as Network,
-        card: input.card as Card,
-        label: input.label,
-      }
-      removeSolverCard(cardInput)
-      setLocalCards(readSolverCardsFromStorage())
-      dirtyRef.current = true
-    }
-
-    return (
-      <Shadow>
-        <Modal open={confirmRemove} onOpenChange={setConfirmRemove}>
-          <FlexCol gap='1.5rem'>
-            <FlexCol centered gap='0.5rem'>
-              <Text big bold>
-                Confirm Remove
-              </Text>
-              <Text centered wrap color='neutral-500'>
-                Are you sure you want to remove the card "{input.label}"? This action cannot be undone.
-              </Text>
-            </FlexCol>
-            <FlexRow centered gap='1rem'>
-              <Button onClick={() => setConfirmRemove(false)} text='Cancel' />
-              <Button onClick={handleRemove} text='Remove' />
-            </FlexRow>
-          </FlexCol>
-        </Modal>
-        <FlexCol padding='8px' gap='8px'>
-          <FlexRow between>
-            <FlexCol gap='4px'>
-              <Text>{input.label}</Text>
-              <TextSecondary>{pairs}</TextSecondary>
-            </FlexCol>
-            <FlexRow end>
-              <Button onClick={handleEdit} text='Edit' />
-              <Button onClick={handleConfirmRemove} text='Remove' />
-            </FlexRow>
-          </FlexRow>
-          {showEditor ? <Editor card={card} error={error} onSave={handleSave} onCancel={handleCancel} /> : null}
-        </FlexCol>
-      </Shadow>
-    )
-  }
 
   return (
     <>
@@ -228,11 +209,11 @@ export default function Solvers() {
               <Text>{title}</Text>
               <Button onClick={() => setShowEditor(true)} text='+ Add new' />
             </FlexRow>
-            {showEditor ? <Editor error={error} onSave={handleAddCard} onCancel={handleCancelEditor} /> : null}
+            {showEditor ? <Editor toClose={() => setShowEditor(false)} onChange={handleChange} /> : null}
             {localCards && localCards.length > 0 ? (
               <FlexCol>
                 {localCards.map((input) => (
-                  <CardLine key={input.label} input={input} />
+                  <CardLine key={input.label} input={input} onChange={handleChange} />
                 ))}
               </FlexCol>
             ) : null}
