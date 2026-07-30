@@ -42,14 +42,16 @@ export default function Swaps() {
   const [showEditor, setShowEditor] = useState(false)
 
   const editorRef = useRef<HTMLTextAreaElement>(null)
+  const dirtyRef = useRef(false)
 
-  // run discovery on unmount to ensure markets are up to date
+  // force refetch (with no cache) on unmount if cards were changed
   useEffect(() => {
     return () => {
-      runDiscovery()
+      if (dirtyRef.current) runDiscovery(false)
     }
   }, [])
 
+  // fetch local cards whenever the network changes
   useEffect(() => {
     if (!aspInfo.network) return
     setLocalCards(readSolverCardsFromStorage())
@@ -58,8 +60,9 @@ export default function Swaps() {
   const clearError = () => setError('')
 
   const handleAddCard = () => {
-    saveCard()
-    setShowEditor(false)
+    const res = saveCard()
+    if (res.ok) setShowEditor(false)
+    else setError(res.err)
   }
 
   const handleCancelEditor = () => {
@@ -67,29 +70,37 @@ export default function Swaps() {
     clearError()
   }
 
-  const saveCard = (olderCard?: Card) => {
-    if (!editorRef.current) return
+  const saveCard = (olderCard?: Card): { ok: boolean; err: string } => {
+    if (!editorRef.current) return { ok: false, err: 'editor not ready' }
     const inputValue = editorRef.current.value.trim()
-    if (!inputValue) return
+    if (!inputValue) return { ok: false, err: 'empty card' }
     let card: Card
     try {
       card = JSON.parse(inputValue)
       const result = validateCard(card)
       if (!result.ok) throw new Error(`invalid card: ${result.errors.join('; ')}`)
     } catch (err) {
-      setError(`invalid JSON: ${(err as Error).message}`)
-      return
+      return { ok: false, err: `invalid JSON: ${(err as Error).message}` }
     }
+    // if the card name changed, remove the old card so it doesn't linger in storage
+    if (olderCard && olderCard.name !== card.name) {
+      const oldInput: LocalCardInput = {
+        network: aspInfo.network as Network,
+        label: olderCard.name,
+        card: olderCard,
+      }
+      removeSolverCard(oldInput)
+    }
+    // save the new card
     const input: LocalCardInput = {
       network: aspInfo.network as Network,
       label: card.name,
       card,
     }
-    if (olderCard && olderCard.name !== card.name) {
-      removeSolverCard({ network: aspInfo.network as Network, label: olderCard.name, card: olderCard })
-    }
     addSolverCard(input)
     setLocalCards(readSolverCardsFromStorage())
+    dirtyRef.current = true
+    return { ok: true, err: '' }
   }
 
   const title =
@@ -97,23 +108,34 @@ export default function Swaps() {
       ? `You have ${localCards.length} swap card${localCards.length > 1 ? 's' : ''} stored in your wallet.`
       : 'You have no swap cards stored in your wallet.'
 
-  function Editor({ card, onSave, onCancel }: { card?: Card; onSave?: () => void; onCancel?: () => void }) {
+  function Editor({
+    card,
+    error,
+    onSave,
+    onCancel,
+  }: {
+    card?: Card
+    error: string
+    onSave?: () => void
+    onCancel?: () => void
+  }) {
     const cssStyle = {
       width: '100%',
-      fontFamily: 'monospace',
-      fontSize: '14px',
       padding: '8px',
+      fontSize: '14px',
       borderRadius: '4px',
+      fontFamily: 'monospace',
       border: '1px solid #ccc',
     }
     return (
       <FlexCol>
+        <ErrorMessage error={Boolean(error)} text={error} />
         <textarea
           rows={21}
           ref={editorRef}
           style={cssStyle}
           onFocus={clearError}
-          placeholder='Enter card data here...'
+          placeholder='{ version: 0, name: "My Card", markets: [...] }'
           defaultValue={card ? JSON.stringify(card, null, 2) : ''}
         />
         <FlexRow>
@@ -125,12 +147,17 @@ export default function Swaps() {
   }
 
   function CardLine({ input }: { input: LocalCardInput }) {
-    const [showEditor, setShowEditor] = useState(false)
     const [confirmRemove, setConfirmRemove] = useState(false)
+    const [showEditor, setShowEditor] = useState(false)
+    const [error, setError] = useState<string>('')
+
+    const card = input.card as Card
+    const pairs = card.markets.map((m) => m.pair).join(', ')
 
     const handleSave = () => {
-      saveCard(input.card as Card)
-      setShowEditor(false)
+      const res = saveCard(card)
+      if (res.ok) setShowEditor(false)
+      else setError(res.err)
     }
 
     const handleCancel = () => {
@@ -146,12 +173,14 @@ export default function Swaps() {
     }
 
     const handleRemove = () => {
-      removeSolverCard({ network: input.network as Network, label: input.label, card: input.card as Card })
+      const cardInput: LocalCardInput = {
+        network: aspInfo.network as Network,
+        card: input.card as Card,
+        label: input.label,
+      }
+      removeSolverCard(cardInput)
       setLocalCards(readSolverCardsFromStorage())
     }
-
-    const card = input.card as Card
-    const pairs = card.markets.map((m) => m.pair).join(', ')
 
     return (
       <Shadow>
@@ -182,7 +211,7 @@ export default function Swaps() {
               <Button onClick={handleConfirmRemove} text='Remove' />
             </FlexRow>
           </FlexRow>
-          {showEditor ? <Editor card={card} onSave={handleSave} onCancel={handleCancel} /> : null}
+          {showEditor ? <Editor card={card} error={error} onSave={handleSave} onCancel={handleCancel} /> : null}
         </FlexCol>
       </Shadow>
     )
@@ -194,12 +223,11 @@ export default function Swaps() {
       <Content>
         <Padded>
           <FlexCol>
-            <ErrorMessage error={Boolean(error)} text={error} />
             <FlexRow between>
               <Text>{title}</Text>
               <Button onClick={() => setShowEditor(true)} text='+ Add new' />
             </FlexRow>
-            {showEditor ? <Editor onSave={handleAddCard} onCancel={handleCancelEditor} /> : null}
+            {showEditor ? <Editor error={error} onSave={handleAddCard} onCancel={handleCancelEditor} /> : null}
             {localCards && localCards.length > 0 ? (
               <FlexCol>
                 {localCards.map((input) => (
