@@ -12,6 +12,7 @@ import ErrorMessage from '@/components/Error'
 import Shadow from '@/components/Shadow'
 import Modal from '@/components/Modal'
 import { AssetSwapsContext } from '@/providers/assetSwaps'
+import { consoleError } from '@/lib/logs'
 
 const addSolverCard = (input: LocalCardInput) => {
   const existingCards = readSolverCardsFromStorage()
@@ -72,7 +73,13 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose: () => void;
       label: card.name,
       card,
     }
-    addSolverCard(input)
+    try {
+      addSolverCard(input)
+    } catch (err) {
+      consoleError(err, 'failed to save solver card')
+      setError('Failed to save card: storage is full or unavailable.')
+      return
+    }
     onChange()
     toClose()
   }
