@@ -54,7 +54,6 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose: () => void;
       const result = validateCard(card)
       if (!result.ok) throw new Error(`invalid card: ${result.errors.join('; ')}`)
     } catch (err) {
-      console.log('invalid card JSON:', err)
       setError(`invalid JSON: ${(err as Error).message}`)
       return
     }
