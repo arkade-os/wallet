@@ -11,6 +11,7 @@ import FlexCol from '@/components/FlexCol'
 import ErrorMessage from '@/components/Error'
 import Shadow from '@/components/Shadow'
 import Modal from '@/components/Modal'
+import { AssetSwapsContext } from '@/providers/assetSwaps'
 
 const addSolverCard = (input: LocalCardInput) => {
   const existingCards = readSolverCardsFromStorage()
@@ -34,12 +35,20 @@ function Button({ onClick, text }: { onClick?: () => void; text: string }) {
 
 export default function Swaps() {
   const { aspInfo } = useContext(AspContext)
+  const { runDiscovery } = useContext(AssetSwapsContext)
 
   const [error, setError] = useState<string>('')
   const [localCards, setLocalCards] = useState<LocalCardInput[]>()
   const [showEditor, setShowEditor] = useState(false)
 
   const editorRef = useRef<HTMLTextAreaElement>(null)
+
+  // run discovery on unmount to ensure markets are up to date
+  useEffect(() => {
+    return () => {
+      runDiscovery()
+    }
+  }, [])
 
   useEffect(() => {
     if (!aspInfo.network) return
