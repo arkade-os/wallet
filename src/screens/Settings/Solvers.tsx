@@ -52,10 +52,15 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose: () => void;
     let card: Card
     try {
       card = JSON.parse(inputValue)
-      const result = validateCard(card)
-      if (!result.ok) throw new Error(`invalid card: ${result.errors.join('; ')}`)
     } catch (err) {
       setError(`invalid JSON: ${(err as Error).message}`)
+      return
+    }
+    try {
+      const result = validateCard(card)
+      if (!result.ok) throw new Error(result.errors.join('; '))
+    } catch (err) {
+      setError(`invalid card: ${(err as Error).message}`)
       return
     }
     // if the card name changed, remove the old card so it doesn't linger in storage
@@ -142,20 +147,22 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
   return (
     <Shadow>
       <Modal open={confirmRemove} onOpenChange={setConfirmRemove}>
-        <FlexCol gap='1.5rem'>
-          <FlexCol centered gap='0.5rem'>
-            <Text big bold>
-              Confirm Remove
-            </Text>
-            <Text centered wrap color='neutral-500'>
-              Are you sure you want to remove the card "{input.label}"? This action cannot be undone.
-            </Text>
+        <div role='dialog' aria-modal='true'>
+          <FlexCol gap='1.5rem'>
+            <FlexCol centered gap='0.5rem'>
+              <Text big bold>
+                Confirm Remove
+              </Text>
+              <Text centered wrap color='neutral-500'>
+                Are you sure you want to remove the card "{input.label}"? This action cannot be undone.
+              </Text>
+            </FlexCol>
+            <FlexRow centered gap='1rem'>
+              <Button onClick={() => setConfirmRemove(false)} text='Cancel' />
+              <Button onClick={handleRemove} text='Remove' />
+            </FlexRow>
           </FlexCol>
-          <FlexRow centered gap='1rem'>
-            <Button onClick={() => setConfirmRemove(false)} text='Cancel' />
-            <Button onClick={handleRemove} text='Remove' />
-          </FlexRow>
-        </FlexCol>
+        </div>
       </Modal>
       <FlexCol padding='8px' gap='8px'>
         <FlexRow between>
