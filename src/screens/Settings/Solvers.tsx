@@ -152,7 +152,7 @@ export default function Solvers() {
     const [error, setError] = useState<string>('')
 
     const card = input.card as Card
-    const pairs = card.markets.map((m) => m.pair).join(', ')
+    const pairs = card.markets?.map((m) => m.pair).join(', ') ?? ''
 
     const handleSave = () => {
       const res = saveCard(card)
