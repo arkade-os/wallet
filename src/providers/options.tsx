@@ -17,6 +17,7 @@ import PuzzleIcon from '../icons/Puzzle'
 import CoinsIcon from '../icons/Coins'
 import HashIcon from '../icons/Hash'
 import SwapIcon from '../icons/Swap'
+import SolverIcon from '@/icons/Solver'
 
 export interface Option {
   icon: ReactElement
@@ -63,6 +64,11 @@ export const options: Option[] = [
   {
     icon: <ServerIcon />,
     option: SettingsOptions.Server,
+    section: SettingsSections.Advanced,
+  },
+  {
+    icon: <SolverIcon />,
+    option: SettingsOptions.Solvers,
     section: SettingsSections.Advanced,
   },
   {

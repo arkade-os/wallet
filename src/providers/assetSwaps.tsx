@@ -24,6 +24,7 @@ interface AssetSwapsContextProps {
   /** True when there are markets and the covenant co-signer is reachable. */
   swapAvailable: boolean
   swaps: AssetSwap[]
+  runDiscovery: (useCache?: boolean) => void
   createSwap: (plan: OfferPlan, quote?: AssetSwapQuoteSnapshot) => Promise<AssetSwap>
   cancelSwap: (id: string) => Promise<void>
 }
@@ -32,6 +33,9 @@ export const AssetSwapsContext = createContext<AssetSwapsContextProps>({
   markets: [],
   swapAvailable: false,
   swaps: [],
+  runDiscovery: () => {
+    throw new Error('asset swaps not initialized')
+  },
   createSwap: async () => {
     throw new Error('asset swaps not initialized')
   },
@@ -52,37 +56,26 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   // again on every tab return (discoverMarkets' TTL cache is the rate
   // limiter); stale results from a previous network must never land after a
   // switch
-  useEffect(() => {
-    setMarkets([])
-    setEmulatorUrl(undefined)
+
+  const runDiscovery = (useCache = true) => {
     if (!aspInfo.network) return
-    let cancelled = false
     const network = aspInfo.network as Network
-    const runDiscovery = () => {
-      discoverMarkets(network)
-        .then((found) => {
-          if (!cancelled) setMarkets(found)
-        })
-        .catch((err) => consoleError(err, 'solver discovery failed'))
-      const url = getEmulatorUrlForNetwork(network)
-      if (url) {
-        new RestEmulatorProvider(url)
-          .getInfo()
-          .then(() => {
-            if (!cancelled) setEmulatorUrl(url)
-          })
-          .catch((err) => consoleError(err, 'swap emulator unreachable'))
-      }
+    discoverMarkets(network, useCache)
+      .then(setMarkets)
+      .catch((err) => consoleError(err, 'solver discovery failed'))
+    const url = getEmulatorUrlForNetwork(network)
+    if (url) {
+      new RestEmulatorProvider(url)
+        .getInfo()
+        .then(() => setEmulatorUrl(url))
+        .catch((err) => consoleError(err, 'swap emulator unreachable'))
     }
+  }
+
+  useEffect(() => {
+    setEmulatorUrl(undefined)
+    setMarkets([])
     runDiscovery()
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') runDiscovery()
-    }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => {
-      cancelled = true
-      document.removeEventListener('visibilitychange', onVisible)
-    }
   }, [aspInfo.network])
 
   // After a restore the swap store is empty while the funding/fill txs are
@@ -361,10 +354,10 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
 
   const swapAvailable = markets.length > 0 && Boolean(emulatorUrl)
   const value = useMemo(
-    () => ({ markets, swapAvailable, swaps, createSwap, cancelSwap }),
+    () => ({ markets, swapAvailable, swaps, runDiscovery, createSwap, cancelSwap }),
     // createSwap/cancelSwap close over these
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [markets, swapAvailable, swaps, svcWallet, emulatorUrl, aspInfo.url],
+    [markets, swapAvailable, swaps, svcWallet, emulatorUrl, aspInfo.url, aspInfo.network],
   )
 
   return <AssetSwapsContext.Provider value={value}>{children}</AssetSwapsContext.Provider>
