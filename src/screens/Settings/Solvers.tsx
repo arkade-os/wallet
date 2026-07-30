@@ -136,13 +136,8 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
   }
 
   const handleRemove = () => {
-    const cardInput: LocalCardInput = {
-      network: aspInfo.network as Network,
-      card: input.card as Card,
-      label: input.label,
-    }
     try {
-      removeSolverCard(cardInput)
+      removeSolverCard(input)
       onChange()
     } catch (err) {
       consoleError(err, 'failed to remove solver card')
