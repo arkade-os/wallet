@@ -16,13 +16,13 @@ import { consoleError } from '@/lib/logs'
 
 const addSolverCard = (input: LocalCardInput) => {
   const existingCards = readSolverCardsFromStorage()
-  const withoutSameCard = existingCards.filter((card) => card.label !== input.label)
+  const withoutSameCard = existingCards.filter((card) => card.label !== input.label || card.network !== input.network)
   saveSolverCardsToStorage([...withoutSameCard, input])
 }
 
 const removeSolverCard = (input: LocalCardInput) => {
   const existingCards = readSolverCardsFromStorage()
-  const withoutSameCard = existingCards.filter((card) => card.label !== input.label)
+  const withoutSameCard = existingCards.filter((card) => card.label !== input.label || card.network !== input.network)
   saveSolverCardsToStorage(withoutSameCard)
 }
 
