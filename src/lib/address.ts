@@ -13,9 +13,6 @@ export const decodeArkAddress = (addr: string) => {
 
 export const getDefaultAddress = (pubKey: string, aspInfo: AspInfo) => {
   try {
-    // toXOnlySignerHex rejects anything that isn't a 32- or 33-byte key; the
-    // helper it replaced took the last 64 chars of any longer string, which
-    // turned malformed input into a plausible-looking wrong key
     const xOnlyPubKey = toXOnlySignerHex(pubKey)
     const xOnlySignerPubKey = toXOnlySignerHex(aspInfo.signerPubkey)
     const hrp = aspInfo.network === 'bitcoin' ? 'ark' : 'tark'

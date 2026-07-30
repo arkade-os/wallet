@@ -353,9 +353,6 @@ export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> 
     return
   }
 
-  // the delegate pubkey is loop-invariant and comes off the wire, so normalize
-  // it once: toXOnlySignerHex throws on a malformed key rather than passing it
-  // through, and a throw inside the filter would sink the whole delegation
   let delegateInfoPubKey: string
   try {
     delegateInfoPubKey = toXOnlySignerHex(delegateInfo.pubkey)
