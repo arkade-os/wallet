@@ -180,6 +180,7 @@ export default function Solvers() {
       }
       removeSolverCard(cardInput)
       setLocalCards(readSolverCardsFromStorage())
+      dirtyRef.current = true
     }
 
     return (
