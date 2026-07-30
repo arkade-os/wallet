@@ -33,7 +33,7 @@ function Button({ onClick, text }: { onClick?: () => void; text: string }) {
   )
 }
 
-export default function Swaps() {
+export default function Solvers() {
   const { aspInfo } = useContext(AspContext)
   const { runDiscovery } = useContext(AssetSwapsContext)
 
@@ -105,8 +105,8 @@ export default function Swaps() {
 
   const title =
     localCards && localCards.length > 0
-      ? `You have ${localCards.length} swap card${localCards.length > 1 ? 's' : ''} stored in your wallet.`
-      : 'You have no swap cards stored in your wallet.'
+      ? `You have ${localCards.length} solver card${localCards.length > 1 ? 's' : ''} stored in your wallet.`
+      : 'You have no solver cards stored in your wallet.'
 
   function Editor({
     card,
@@ -219,7 +219,7 @@ export default function Swaps() {
 
   return (
     <>
-      <Header text='Swaps' back />
+      <Header text='Solvers' back />
       <Content>
         <Padded>
           <FlexCol>

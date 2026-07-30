@@ -80,8 +80,8 @@ export enum SettingsOptions {
   Password = 'change password',
   Reset = 'reset wallet',
   Server = 'server',
+  Solvers = 'solvers',
   Support = 'support',
-  Swaps = 'swaps',
   Theme = 'theme',
   Vtxos = 'coin control',
 }
