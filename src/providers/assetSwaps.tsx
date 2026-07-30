@@ -24,7 +24,7 @@ interface AssetSwapsContextProps {
   /** True when there are markets and the covenant co-signer is reachable. */
   swapAvailable: boolean
   swaps: AssetSwap[]
-  runDiscovery: () => void
+  runDiscovery: (useCache?: boolean) => void
   createSwap: (plan: OfferPlan, quote?: AssetSwapQuoteSnapshot) => Promise<AssetSwap>
   cancelSwap: (id: string) => Promise<void>
 }
@@ -57,11 +57,10 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   // limiter); stale results from a previous network must never land after a
   // switch
 
-  const runDiscovery = () => {
+  const runDiscovery = (useCache = true) => {
     if (!aspInfo.network) return
-    console.log('discovering markets for', aspInfo.network)
     const network = aspInfo.network as Network
-    discoverMarkets(network)
+    discoverMarkets(network, useCache)
       .then(setMarkets)
       .catch((err) => consoleError(err, 'solver discovery failed'))
     const url = getEmulatorUrlForNetwork(network)

@@ -87,12 +87,12 @@ const writeMarketsCache = (network: Network, registry: string, markets: Discover
  * Registry content changes rarely, so results are cached for an hour and a
  * stale cache backstops an unreachable registry (quotes stay live either way).
  */
-export const discoverMarkets = async (network: Network): Promise<DiscoveredMarket[]> => {
+export const discoverMarkets = async (network: Network, useCache = true): Promise<DiscoveredMarket[]> => {
   const localCards = readSolverCardsFromStorage().filter((c) => c.network === network)
   const registry = getSolverRegistryUrl(network)
   if (!registry || !isNetwork(network)) return []
   const cached = readMarketsCache(network, registry)
-  if (cached && Date.now() - cached.fetchedAt < MARKETS_CACHE_TTL_MS) return cached.markets
+  if (useCache && cached && Date.now() - cached.fetchedAt < MARKETS_CACHE_TTL_MS) return cached.markets
   const { markets, sources, warnings } = await discover({ registries: [registry], localCards, network })
   if (warnings.length) consoleLog('solver discovery:', ...warnings)
   // an unreachable registry (fetch/validation failure) falls back to the stale
