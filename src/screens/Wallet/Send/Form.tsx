@@ -6,13 +6,7 @@ import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext } from '../../../providers/flow'
 import Padded from '../../../components/Padded'
-import {
-  isArkAddress,
-  isBTCAddress,
-  decodeArkAddress,
-  isLightningInvoice,
-  isURLWithLightningQueryString,
-} from '../../../lib/address'
+import { isBTCAddress, decodeArkAddress, isLightningInvoice, isURLWithLightningQueryString } from '../../../lib/address'
 import { AspContext } from '../../../providers/asp'
 import { isArkNote } from '../../../lib/arknote'
 import InputAmount, { type InputAmountMode } from '../../../components/InputAmount'
@@ -35,7 +29,7 @@ import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
-import { ArkNote, AssetDetails } from '@arkade-os/sdk'
+import { ArkNote, AssetDetails, isValidArkAddress } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
 import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl, LnUrlResponse } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
@@ -360,7 +354,7 @@ export default function SendForm() {
         if (satoshis) setAmountTextValue(getTextValue(satoshis))
         return
       }
-      if (isArkAddress(lowerCaseData)) {
+      if (isValidArkAddress(lowerCaseData)) {
         return setSendInfo({ ...sendInfo, arkAddress: lowerCaseData })
       }
       if (isLightningInvoice(lowerCaseData)) {
@@ -744,7 +738,7 @@ export default function SendForm() {
         if (arkMethod) {
           // Fetch Ark address instead of Lightning invoice
           const arkResponse = await fetchArkAddress(sendInfo.lnUrl)
-          if (!isArkAddress(arkResponse.address)) {
+          if (!isValidArkAddress(arkResponse.address)) {
             handleError('Invalid Arkade address received from LNURL')
             return
           }

@@ -17,7 +17,8 @@ import { getDelegateForNetwork, getDelegateUrlForNetwork } from '../../lib/const
 import { useContext, useEffect, useState } from 'react'
 import { OptionsContext } from '../../providers/options'
 import Text, { TextSecondary } from '../../components/Text'
-import { decodeArkAddress, isArkAddress } from '../../lib/address'
+import { decodeArkAddress } from '../../lib/address'
+import { isValidArkAddress } from '@arkade-os/sdk'
 import { Network } from '@arkade-os/boltz-swap'
 import { copyToClipboard } from '../../lib/clipboard'
 import { useToast } from '../../components/Toast'
@@ -67,7 +68,7 @@ const testConnection = (aspInfo: DelegateConnectionInfo): Promise<Delegate | und
             if (data.pubkey.length !== 66) return reject(new Error('Invalid delegate pubkey size'))
             if (!/^[0-9a-fA-F]{66}$/.test(data.pubkey)) return reject(new Error('Invalid delegate pubkey hex'))
             if (!data.delegatorAddress) return reject(new Error('Missing delegate address'))
-            if (!isArkAddress(data.delegatorAddress)) return reject(new Error('Invalid delegate address'))
+            if (!isValidArkAddress(data.delegatorAddress)) return reject(new Error('Invalid delegate address'))
             const { serverPubKey } = decodeArkAddress(data.delegatorAddress)
             if (!possibleXOnlyPubkeys.includes(serverPubKey)) return reject(new Error('Invalid delegate server key'))
             resolve({ ...delegate, address: data.delegatorAddress, pubkey: data.pubkey, fee: parseInt(data.fee, 10) })

@@ -11,8 +11,8 @@ import * as secp from '@noble/secp256k1'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { hmac } from '@noble/hashes/hmac.js'
 import { collaborativeExit, getReceivingAddresses } from '../../../lib/asp'
-import { Transaction } from '@arkade-os/sdk'
-import { isArkAddress, isBTCAddress } from '../../../lib/address'
+import { Transaction, isValidArkAddress } from '@arkade-os/sdk'
+import { isBTCAddress } from '../../../lib/address'
 import { NavigationContext, Pages } from '@/providers/navigation'
 
 const { bytesToHex, hexToBytes } = utils
@@ -73,7 +73,7 @@ export default function AppLendasat() {
 
           switch (asset) {
             case 'bitcoin':
-              if (isArkAddress(address)) {
+              if (isValidArkAddress(address)) {
                 const txId = await svcWallet?.send({ amount, address })
                 if (txId) {
                   return txId

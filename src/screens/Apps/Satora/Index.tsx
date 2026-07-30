@@ -6,7 +6,8 @@ import FlexCol from '../../../components/FlexCol'
 import { WalletContext } from '../../../providers/wallet'
 import { WalletProvider, type LoanAsset, AddressType } from '@lendasat/lendasat-wallet-bridge'
 import { collaborativeExit, getReceivingAddresses } from '../../../lib/asp'
-import { isArkAddress, isBTCAddress } from '../../../lib/address'
+import { isBTCAddress } from '../../../lib/address'
+import { isValidArkAddress } from '@arkade-os/sdk'
 
 const IFRAME_URL = import.meta.env.VITE_SATORA_IFRAME_URL || 'https://app.satora.io'
 const DEFAULT_SWAP_PATH = '/arkade:BTC/polygon:USDC'
@@ -77,7 +78,7 @@ export default function AppSatora() {
 
           switch (asset) {
             case 'bitcoin':
-              if (isArkAddress(address)) {
+              if (isValidArkAddress(address)) {
                 const txId = await svcWallet?.send({ amount, address })
                 if (txId) {
                   return txId

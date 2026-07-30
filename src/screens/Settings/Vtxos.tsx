@@ -22,7 +22,14 @@ import LoadingLogo from '../../components/LoadingLogo'
 import { LimitsContext } from '../../providers/limits'
 import { EmptyCoinsList } from '../../components/Empty'
 import WarningBox from '../../components/Warning'
-import { ExtendedCoin, ExtendedVirtualCoin, isVtxoExpiringSoon, canRecoverOnchain, TimeHeight } from '@arkade-os/sdk'
+import {
+  ExtendedCoin,
+  ExtendedVirtualCoin,
+  isVtxoExpiringSoon,
+  canRecoverOnchain,
+  isSubdust,
+  TimeHeight,
+} from '@arkade-os/sdk'
 import { consoleError } from '../../lib/logs'
 import * as Sentry from '@sentry/react'
 import Grid from '../../components/Grid'
@@ -287,7 +294,7 @@ export default function Vtxos() {
     const expiry = expiryMs ? prettyAgo(expiryMs) : 'Unknown'
     const tags = (
       <FlexRow centered>
-        {vtxo.value < aspInfo.dust
+        {isSubdust(vtxo, aspInfo.dust)
           ? Tags.subdust
           : canRecoverOnchain(vtxo, now)
             ? Tags.swept
@@ -309,7 +316,7 @@ export default function Vtxos() {
     const expiry = utxo.status.block_time ? prettyAgo(utxo.status.block_time + expiration) : ''
     const tags = (
       <FlexRow centered>
-        {!utxo.status.block_time ? Tags.unconfirmed : utxo.value < aspInfo.dust ? Tags.subdust : null}
+        {!utxo.status.block_time ? Tags.unconfirmed : isSubdust(utxo, aspInfo.dust) ? Tags.subdust : null}
       </FlexRow>
     )
     return <CoinLine amount={`${amount} sats`} tags={tags} expiry={expiry} />
