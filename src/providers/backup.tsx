@@ -63,6 +63,7 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
   const backupConfig = async (config: Config) => {
     const data: NostrStorageData = { config }
     await nostrStorage.current?.save(JSON.stringify(data))
+    if (!config.nostrBackup) nostrStorage.current = null
   }
 
   /**
