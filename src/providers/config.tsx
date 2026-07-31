@@ -3,6 +3,7 @@ import { readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
 import { defaultArkServer, devServer } from '../lib/constants'
 import { Config, Currencies, Themes, Unit } from '../lib/types'
 import { normalizeBitcoinUnit } from '../lib/format'
+import { setSystemBarsStyle } from '../lib/device'
 import { BackupProvider } from '../lib/backup'
 import { consoleError } from '../lib/logs'
 import { setHapticsEnabled } from '../lib/haptics'
@@ -117,6 +118,10 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
 
     const themeColor = resolved === Themes.Dark ? '#101010' : '#fff'
     document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.setAttribute('content', themeColor)
+
+    // Native equivalent of the theme-color meta tag: keep the status and
+    // navigation bar icons legible against the app background. No-op on web.
+    setSystemBarsStyle(resolved === Themes.Dark ? 'dark' : 'light')
   }
 
   // TODO: the full-object contract is a stale-closure hazard — a caller that

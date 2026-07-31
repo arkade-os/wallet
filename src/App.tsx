@@ -1,5 +1,6 @@
 import { AnimatePresence } from 'framer-motion'
 import { ConfigContext } from './providers/config'
+import { reloadApp } from './lib/device'
 import { NavigationContext, pageComponent, Pages, type NavigationDirection } from './providers/navigation'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { isInAppBrowser } from './lib/browser'
@@ -18,7 +19,7 @@ import { consoleError } from './lib/logs'
 
 const PASSWORDLESS_AUTO_RELOAD_KEY = 'passwordless-auto-reload-attempted'
 export const appReloader = {
-  reload: () => window.location.reload(),
+  reload: () => reloadApp(),
 }
 
 function PageAnimWrapper({

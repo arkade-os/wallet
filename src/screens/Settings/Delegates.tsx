@@ -1,7 +1,7 @@
 import Header from './Header'
 import ArrowIcon from '../../icons/Arrow'
 import { prettyAgo, prettyAmount, prettyLongText } from '../../lib/format'
-import { openExternal } from '../../lib/device'
+import { openExternal, reloadApp } from '../../lib/device'
 import Toggle from '../../components/Toggle'
 import Shadow from '../../components/Shadow'
 import Padded from '../../components/Padded'
@@ -243,7 +243,7 @@ export default function Delegates() {
     const nextDelegate = !config.delegate
     updateConfig({ ...config, delegate: nextDelegate })
     // Full page reload ensures service worker and wallet are re-instantiated with the new delegator setting.
-    window.location.reload()
+    reloadApp()
   }
 
   // text to show on warning box

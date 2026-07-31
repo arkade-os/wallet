@@ -2,6 +2,7 @@ import { useContext, useEffect, useState } from 'react'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Content from '../../components/Content'
+import { reloadApp } from '../../lib/device'
 import Padded from '../../components/Padded'
 import ErrorMessage from '../../components/Error'
 import { ConfigContext } from '../../providers/config'
@@ -59,7 +60,7 @@ export default function Server() {
       const newConfig = { ...config, aspUrl: info.url }
       if (config.nostrBackup) await backupConfig(newConfig)
       updateConfig(newConfig)
-      location.reload() // reload app or else weird things happen
+      reloadApp() // reload app or else weird things happen
     } catch (err) {
       consoleError(err)
     } finally {

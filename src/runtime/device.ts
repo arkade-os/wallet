@@ -183,6 +183,20 @@ export const nativeDevice: DeviceRuntimeAdapter = {
   },
 
   /**
+   * `SystemBars` is built into `@capacitor/core` (it supersedes the old
+   * `@capacitor/status-bar` plugin) and already handles edge-to-edge safe-area
+   * insets as CSS, which is why `index.html` carries `viewport-fit=cover`.
+   * Only the bar *style* needs driving from the app's theme.
+   *
+   * The enum reads backwards at first glance: `Dark` means light-colored bar
+   * content, which is what a dark app background needs.
+   */
+  setSystemBarsStyle: async (appearance) => {
+    const { SystemBars, SystemBarsStyle } = await import('@capacitor/core')
+    await SystemBars.setStyle({ style: appearance === 'dark' ? SystemBarsStyle.Dark : SystemBarsStyle.Light })
+  },
+
+  /**
    * Write to the app's Cache directory, then hand the file URI to the share
    * sheet so the user can save it or send it somewhere they can reach. Cache
    * (rather than Documents) because the file only needs to outlive the share

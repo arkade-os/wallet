@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { reloadApp } from '../lib/device'
 import ButtonsOnBottom from './ButtonsOnBottom'
 import Text, { TextSecondary } from './Text'
 import CenterScreen from './CenterScreen'
@@ -32,7 +33,7 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   handleReload = () => {
-    window.location.reload()
+    reloadApp()
   }
 
   render() {

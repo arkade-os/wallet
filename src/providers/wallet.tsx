@@ -56,6 +56,7 @@ import { AssetIconApprovalManager } from '../lib/assetIconApproval'
 import { Indexer } from '../lib/indexer'
 import { Network } from '@arkade-os/boltz-swap'
 import { useRuntime } from '../runtime/RuntimeContext'
+import { reloadApp } from '../lib/device'
 import {
   NormalizedRuntimeLink,
   Unsubscribe,
@@ -314,7 +315,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           navigator.serviceWorker
             ?.getRegistration()
             .then((reg) => reg?.unregister())
-            .finally(() => window.location.reload())
+            .finally(() => reloadApp())
         }, DEV_AUTO_INIT_TIMEOUT_MS)
         if (cancelled) return
         clearTimeout(watchdog)
@@ -764,7 +765,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (!ok) return
     } catch (err) {
       consoleError(err, 'Wallet reinit failed; falling back to full reload')
-      window.location.reload()
+      reloadApp()
     } finally {
       reinitInProgress.current = false
     }

@@ -32,3 +32,21 @@ export const openExternal = (url: string): void => {
 /** Hands a generated file to the user (browser download / native share sheet). */
 export const exportFile = (file: { name: string; mimeType: string; content: string }): Promise<void> =>
   current.exportFile(file)
+
+/** Matches the native system bars to the app appearance; no-op on the web. */
+export const setSystemBarsStyle = (appearance: 'light' | 'dark'): void => {
+  current.setSystemBarsStyle?.(appearance).catch(() => {})
+}
+
+/**
+ * Restarts the app.
+ *
+ * Every `window.location.reload()` in the app routes through here. On the web
+ * it is exactly that. On native it reloads `capacitor://localhost`, which does
+ * work, but going through one helper means the native restart strategy can
+ * change in one place rather than in eight call sites — and makes the reload
+ * points greppable (see CAPACITOR.plan.md § Settings Parity Inventory item 6).
+ */
+export const reloadApp = (): void => {
+  window.location.reload()
+}

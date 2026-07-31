@@ -104,6 +104,12 @@ export interface DeviceRuntimeAdapter {
    * `<a download>` does not save an accessible file in a WebView).
    */
   exportFile(file: { name: string; mimeType: string; content: string }): Promise<void>
+  /**
+   * Native-only: match the system bars (status / navigation) to the app's
+   * current appearance, so their icons stay legible when the theme changes.
+   * Absent on the web, where the `theme-color` meta tag plays this role.
+   */
+  setSystemBarsStyle?(appearance: 'light' | 'dark'): Promise<void>
 }
 
 export interface SecurityRuntimeAdapter {

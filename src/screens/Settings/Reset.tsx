@@ -2,6 +2,7 @@ import { useContext, useState } from 'react'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { WalletContext } from '../../providers/wallet'
+import { reloadApp } from '../../lib/device'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import Header from './Header'
@@ -32,7 +33,7 @@ export default function Reset() {
         // stop swap manager polling and clear swap data
         arkadeSwaps?.reset(),
       ])
-      location.reload()
+      reloadApp()
     } catch (err) {
       consoleError(err)
       setLoading(false)
