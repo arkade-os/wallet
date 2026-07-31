@@ -20,6 +20,7 @@ import InputAddress from '../../../components/InputAddress'
 import Header from '../../../components/Header'
 import { WalletContext } from '../../../providers/wallet'
 import { fromSatoshis, prettyAmount, prettyFiatAmount, prettyNumber, toSatoshis } from '../../../lib/format'
+import { openExternal } from '../../../lib/device'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
@@ -1014,6 +1015,13 @@ export default function SendForm() {
                         href={brantaVerifyUrl}
                         target='_blank'
                         rel='noreferrer'
+                        // The href stays for accessibility, but navigation goes through the
+                        // runtime adapter: on native, target=_blank would open inside the
+                        // wallet's own WebView instead of the system browser.
+                        onClick={(e) => {
+                          e.preventDefault()
+                          openExternal(e.currentTarget.href)
+                        }}
                         style={{ textDecoration: 'none', display: 'block', cursor: 'pointer' }}
                       >
                         {card}

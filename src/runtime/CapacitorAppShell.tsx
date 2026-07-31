@@ -2,7 +2,6 @@ import { ReactNode, useMemo } from 'react'
 import type { PluginListenerHandle } from '@capacitor/core'
 import { RuntimeContext } from './RuntimeContext'
 import {
-  DeviceRuntimeAdapter,
   LifecycleRuntimeAdapter,
   LinkRuntimeAdapter,
   NotificationRuntimeAdapter,
@@ -14,7 +13,9 @@ import {
 import { nativeWalletEvents, nativeWalletFactory } from './wallet/nativeWallet'
 import { nativeSwapFactory } from './swaps/nativeSwaps'
 import { nativeSecretStorage } from './secretStorage'
+import { nativeDevice } from './device'
 import { setSecretStore } from '../lib/secretStore'
+import { setDeviceRuntime } from '../lib/device'
 
 /**
  * Phase 1 native shell.
@@ -79,14 +80,6 @@ const nativeLifecycle: LifecycleRuntimeAdapter = {
   onBackButton: (handler) => subscribeAppEvent((App) => App.addListener('backButton', () => handler())),
 }
 
-const nativeDevice: DeviceRuntimeAdapter = {
-  scanQrCode: () => notImplemented('device.scanQrCode'),
-  copyToClipboard: () => notImplemented('device.copyToClipboard'),
-  share: () => notImplemented('device.share'),
-  haptic: () => notImplemented('device.haptic'),
-  openExternal: () => notImplemented('device.openExternal'),
-}
-
 const nativeNotifications: NotificationRuntimeAdapter = {
   requestPermission: async () => false,
   send: () => notImplemented('notifications.send'),
@@ -111,6 +104,10 @@ const nativeSecurity: SecurityRuntimeAdapter = {
 // CAPACITOR.plan.md § Storage and Secrets). Set eagerly at module load so any
 // secret access during bootstrap uses the right store.
 setSecretStore(nativeSecretStorage)
+// Same for device capabilities (clipboard, share, haptics, external links,
+// scanning): src/lib/{clipboard,haptics,share,explorers} route through this
+// seam, so those call sites need no native-specific branching.
+setDeviceRuntime(nativeDevice)
 
 export function CapacitorAppShell({ children }: { children: ReactNode }) {
   const value = useMemo<RuntimeContextValue>(

@@ -41,6 +41,8 @@ export const mockRuntimeContextValue: RuntimeContextValue = {
   lifecycle: { onResume: () => () => {}, onPause: () => () => {}, onBackButton: () => () => {} },
   device: {
     copyToClipboard: async () => {},
+    pasteFromClipboard: async () => '',
+    canShare: () => true,
     share: async () => {},
     haptic: async () => {},
     openExternal: async () => {},

@@ -26,6 +26,7 @@ import ExternalLinkIcon from '../../icons/ExternalLink'
 import { WalletContext } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
 import { prettyAgo, prettyLongText } from '../../lib/format'
+import { openExternal } from '../../lib/device'
 import { getVmempoolURL, getWebExplorerURL } from '../../lib/explorers'
 import { isBTCAddress } from '../../lib/address'
 import { copyToClipboard } from '../../lib/clipboard'
@@ -115,7 +116,7 @@ function CopyRow({ label, value, link }: { label: string; value: string; link?: 
               style={{ display: 'flex' }}
               onClick={(e) => {
                 e.stopPropagation()
-                window.open(link, '_blank', 'noreferrer')
+                openExternal(link)
               }}
             >
               <ExternalLinkIcon small />

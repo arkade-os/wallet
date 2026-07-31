@@ -1,4 +1,4 @@
-import { pasteFromClipboard, queryPastePermission } from '../lib/clipboard'
+import { pasteFromClipboard } from '../lib/clipboard'
 import { PasteButtonOnInput } from './Button'
 
 interface PasteProps {
@@ -7,12 +7,10 @@ interface PasteProps {
 
 export default function Paste({ onPaste }: PasteProps) {
   const handleClick = () => {
-    queryPastePermission().then((state) => {
-      if (['prompt', 'granted'].includes(state)) {
-        pasteFromClipboard().then((data) => {
-          if (data) onPaste(data)
-        })
-      }
+    // Permission handling lives in the runtime device adapter: the browser one
+    // still checks 'clipboard-read' and yields nothing when denied.
+    pasteFromClipboard().then((data) => {
+      if (data) onPaste(data)
     })
   }
 

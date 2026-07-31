@@ -1,7 +1,6 @@
 import { ReactNode, useEffect, useMemo } from 'react'
 import { RuntimeContext } from './RuntimeContext'
 import {
-  DeviceRuntimeAdapter,
   LifecycleRuntimeAdapter,
   LinkRuntimeAdapter,
   NotificationRuntimeAdapter,
@@ -12,7 +11,9 @@ import {
 import { serviceWorkerWalletEvents, serviceWorkerWalletFactory } from './wallet/serviceWorkerWallet'
 import { serviceWorkerSwapFactory } from './swaps/serviceWorkerSwaps'
 import { localStorageSecretStorage } from './secretStorage'
+import { browserDevice } from './device'
 import { setSecretStore } from '../lib/secretStore'
+import { setDeviceRuntime } from '../lib/device'
 
 /**
  * Registers a service worker updatefound listener to reload the page when a
@@ -76,27 +77,6 @@ const pwaLifecycle: LifecycleRuntimeAdapter = {
   onBackButton: () => () => {},
 }
 
-const HAPTIC_PATTERNS: Record<Parameters<DeviceRuntimeAdapter['haptic']>[0], number | number[]> = {
-  subtle: 10,
-  warning: [30, 40, 30],
-  success: [10, 30, 10],
-}
-
-const pwaDevice: DeviceRuntimeAdapter = {
-  copyToClipboard: async (value) => {
-    await navigator.clipboard.writeText(value)
-  },
-  share: async (data) => {
-    await navigator.share(data)
-  },
-  haptic: async (kind) => {
-    if (typeof navigator.vibrate === 'function') navigator.vibrate(HAPTIC_PATTERNS[kind])
-  },
-  openExternal: async (url) => {
-    window.open(url, '_blank', 'noopener,noreferrer')
-  },
-}
-
 const pwaNotifications: NotificationRuntimeAdapter = {
   requestPermission: async () => {
     if (typeof Notification === 'undefined') return false
@@ -145,6 +125,9 @@ const pwaSecurity: SecurityRuntimeAdapter = {
 // original substrate). Set eagerly at module load so any secret access during
 // bootstrap, before the shell effect runs, uses the right store.
 setSecretStore(localStorageSecretStorage)
+// Same for device capabilities (clipboard, share, haptics, external links):
+// src/lib/{clipboard,haptics,share,explorers} route through this seam.
+setDeviceRuntime(browserDevice)
 
 export function PwaAppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
@@ -161,7 +144,7 @@ export function PwaAppShell({ children }: { children: ReactNode }) {
       secretStorage: localStorageSecretStorage,
       links: pwaLinks,
       lifecycle: pwaLifecycle,
-      device: pwaDevice,
+      device: browserDevice,
       notifications: pwaNotifications,
       security: pwaSecurity,
     }),

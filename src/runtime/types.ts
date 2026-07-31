@@ -67,11 +67,25 @@ export interface LifecycleRuntimeAdapter {
   onBackButton(handler: () => void): Unsubscribe
 }
 
-export type HapticKind = 'subtle' | 'warning' | 'success'
+/**
+ * The app's actual haptic vocabulary (`src/lib/haptics.ts`), which is the
+ * `web-haptics` pattern set. CAPACITOR.plan.md proposed
+ * `'subtle' | 'warning' | 'success'`; the existing call sites won, since
+ * renaming them would have been churn with no behavior change.
+ */
+export type HapticKind = 'selection' | 'light' | 'medium'
 
 export interface DeviceRuntimeAdapter {
-  scanQrCode?(): Promise<string>
+  /**
+   * Native-only: scan a QR code with the system barcode scanner. Absent on the
+   * PWA, which uses the in-page `Scanner` component (`qr-scanner` +
+   * `getUserMedia`) instead. Resolves `undefined` when the user cancels.
+   */
+  scanQrCode?(): Promise<string | undefined>
   copyToClipboard(value: string): Promise<void>
+  pasteFromClipboard(): Promise<string>
+  /** Synchronous because it gates a button's disabled state during render. */
+  canShare(data: ShareData): boolean
   share(data: ShareData): Promise<void>
   haptic(kind: HapticKind): Promise<void>
   openExternal(url: string): Promise<void>

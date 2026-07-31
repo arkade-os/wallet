@@ -1,5 +1,6 @@
 import { NetworkName } from '@arkade-os/sdk/'
 import { Wallet } from '../lib/types'
+import { openExternal } from './device'
 
 type ExplorerURLs = {
   api?: string
@@ -68,15 +69,15 @@ export const getAssetURL = (assetId: string, wallet: Wallet) => {
 }
 
 export const openInNewTab = (txid: string, wallet: Wallet) => {
-  window.open(getTxIdURL(txid, wallet), '_blank', 'noreferrer')
+  openExternal(getTxIdURL(txid, wallet))
 }
 
 export const openOffchainTxInNewTab = (txid: string, wallet: Wallet) => {
   const url = getOffchainTxURL(txid, wallet)
-  if (url) window.open(url, '_blank', 'noreferrer')
+  if (url) openExternal(url)
 }
 
 export const openAssetInNewTab = (assetId: string, wallet: Wallet) => {
   const url = getAssetURL(assetId, wallet)
-  if (url) window.open(url, '_blank', 'noreferrer')
+  if (url) openExternal(url)
 }

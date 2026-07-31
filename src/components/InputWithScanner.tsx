@@ -1,6 +1,8 @@
 import InputContainer from './InputContainer'
 import { useRef, useEffect, ChangeEventHandler } from 'react'
 import { hapticLight } from '../lib/haptics'
+import { getDeviceRuntime } from '../lib/device'
+import { consoleError } from '../lib/logs'
 import Paste from './Paste'
 import { ClearButtonOnInput, ScanButtonOnInput } from './Button'
 import FlexRow from './FlexRow'
@@ -47,9 +49,22 @@ export default function InputWithScanner({
     onChange('')
   }
 
+  /**
+   * On native the system barcode scanner replaces the in-page `Scanner`
+   * component, so `openScan()` (which swaps the parent screen for `Scanner`)
+   * is never called and the parent's scan state simply stays false. The
+   * adapter's `scanQrCode` is optional and only defined on native, so its
+   * presence is the capability check — no runtime context needed here.
+   */
   const handleScan = () => {
     hapticLight()
-    openScan()
+    const scanQrCode = getDeviceRuntime().scanQrCode
+    if (!scanQrCode) return openScan()
+    scanQrCode()
+      .then((data) => {
+        if (data) onChange(data)
+      })
+      .catch((err) => consoleError(err, 'error scanning QR code'))
   }
 
   const hasValue = Boolean(value && value.length > 0)

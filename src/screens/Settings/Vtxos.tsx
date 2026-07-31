@@ -18,6 +18,7 @@ import LoadingIcon from '../../icons/Loading'
 import { AspContext } from '../../providers/asp'
 import Reminder from '../../components/Reminder'
 import { aspErrorText } from '../../lib/asp'
+import { openExternal } from '../../lib/device'
 import LoadingLogo from '../../components/LoadingLogo'
 import { LimitsContext } from '../../providers/limits'
 import { EmptyCoinsList } from '../../components/Empty'
@@ -212,10 +213,7 @@ export default function Vtxos() {
   }
 
   const ExplorerLinkIcon = ({ url }: { url: string }) => (
-    <span
-      onClick={() => window.open(url, '_blank', 'noreferrer')}
-      style={{ cursor: 'pointer', color: 'var(--neutral-500)' }}
-    >
+    <span onClick={() => openExternal(url)} style={{ cursor: 'pointer', color: 'var(--neutral-500)' }}>
       <ExternalLinkIcon small />
     </span>
   )

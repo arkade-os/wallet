@@ -1,6 +1,7 @@
 import Header from './Header'
 import ArrowIcon from '../../icons/Arrow'
 import { prettyAgo, prettyAmount, prettyLongText } from '../../lib/format'
+import { openExternal } from '../../lib/device'
 import Toggle from '../../components/Toggle'
 import Shadow from '../../components/Shadow'
 import Padded from '../../components/Padded'
@@ -91,6 +92,13 @@ function Hero() {
           href='https://docs.arkadeos.com/learn/pillars/batch-expiry#delegation-solutions'
           target='_blank'
           rel='noopener noreferrer'
+          // The href stays for accessibility, but navigation goes through the
+          // runtime adapter: on native, target=_blank would open inside the
+          // wallet's own WebView instead of the system browser.
+          onClick={(e) => {
+            e.preventDefault()
+            openExternal(e.currentTarget.href)
+          }}
           style={{
             marginTop: '1rem',
             padding: '0.75rem',

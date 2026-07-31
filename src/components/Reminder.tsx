@@ -1,4 +1,5 @@
 import { prettyDate } from '../lib/format'
+import { openExternal } from '../lib/device'
 import {
   CalendarEvent,
   generateAppleCalendarUrl,
@@ -27,19 +28,19 @@ export default function Reminder({ callback, duration, name, isOpen, startTime }
 
   const handleApple = () => {
     const url = generateAppleCalendarUrl(calendarEvent)
-    window.open(url, '_blank')
+    openExternal(url)
     callback()
   }
 
   const handleGoogle = () => {
     const url = generateGoogleCalendarUrl(calendarEvent)
-    window.open(url, '_blank')
+    openExternal(url)
     callback()
   }
 
   const handleOutlook = () => {
     const url = generateOutlookCalendarUrl(calendarEvent)
-    window.open(url, '_blank')
+    openExternal(url)
     callback()
   }
 
