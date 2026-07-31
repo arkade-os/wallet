@@ -50,16 +50,8 @@ export default function Transaction() {
   const { txInfo } = useContext(FlowContext)
   const { cancelSwap, swaps } = useContext(AssetSwapsContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
-  const {
-    assetMetadataCache,
-    isVerifiedAsset,
-    settlePreconfirmed,
-    vtxos,
-    vtxoManager,
-    wallet,
-    walletReady,
-    advanced,
-  } = useContext(WalletContext)
+  const { assetMetadataCache, isVerifiedAsset, settlePreconfirmed, vtxos, vtxoManager, wallet, walletReady, advanced } =
+    useContext(WalletContext)
 
   const liveSwap = txInfo?.assetSwap?.fundingTxid
     ? swaps.find((swap) => swap.fundingTxid === txInfo.assetSwap?.fundingTxid)

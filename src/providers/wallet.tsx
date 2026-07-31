@@ -270,7 +270,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const isVerifiedAsset = (assetId: string): boolean =>
     Boolean(assetId) && (iconApprovalManager.isVerified(assetId) || isRegistered(assetId))
 
-
   const setCacheEntry = (assetId: string, details: AssetDetails): CachedAssetDetails => {
     const hasIcon = !!details.metadata?.icon
     const moderated =
