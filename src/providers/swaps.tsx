@@ -23,6 +23,7 @@ import { sendOffChain } from '../lib/asp'
 import { fromRuntimeEnv } from '../lib/constants'
 import { ArkAddress, RestIndexerProvider } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
+import { BackupContext } from './backup'
 
 const BASE_URLS: Record<Network, string | null> = {
   bitcoin: fromRuntimeEnv(import.meta.env.VITE_BOLTZ_URL) ?? null,
@@ -94,7 +95,8 @@ export const SwapsContext = createContext<SwapsContextProps>({
 export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { svcWallet } = useContext(WalletContext)
-  const { config, updateConfig, backupConfig } = useContext(ConfigContext)
+  const { backupConfig } = useContext(BackupContext)
+  const { config, updateConfig } = useContext(ConfigContext)
 
   const [arkToBtcFees, setArkToBtcFees] = useState<ChainFeesResponse | null>(null)
   const [btcToArkFees, setBtcToArkFees] = useState<ChainFeesResponse | null>(null)

@@ -4,10 +4,12 @@ import Select from '../../components/Select'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import { ConfigContext, resolveTheme } from '../../providers/config'
+import { BackupContext } from '@/providers/backup'
 import Header from './Header'
 
 export default function Theme() {
-  const { backupConfig, config, effectiveTheme, systemTheme, updateConfig } = useContext(ConfigContext)
+  const { backupConfig } = useContext(BackupContext)
+  const { config, effectiveTheme, systemTheme, updateConfig } = useContext(ConfigContext)
   const clickCoords = useRef<{ x: number; y: number } | null>(null)
 
   const handleChange = async (theme: string) => {

@@ -4,9 +4,11 @@ import Padded from '../../components/Padded'
 import Toggle from '../../components/Toggle'
 import Content from '../../components/Content'
 import { ConfigContext } from '../../providers/config'
+import { BackupContext } from '@/providers/backup'
 
 export default function Haptics() {
-  const { backupConfig, config, updateConfig } = useContext(ConfigContext)
+  const { backupConfig } = useContext(BackupContext)
+  const { config, updateConfig } = useContext(ConfigContext)
 
   const handleChange = async () => {
     const newConfig = { ...config, haptics: !config.haptics }

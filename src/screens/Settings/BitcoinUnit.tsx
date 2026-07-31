@@ -5,9 +5,11 @@ import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import { ConfigContext } from '../../providers/config'
 import Header from './Header'
+import { BackupContext } from '@/providers/backup'
 
 export default function Display() {
-  const { backupConfig, config, updateConfig } = useContext(ConfigContext)
+  const { backupConfig } = useContext(BackupContext)
+  const { config, updateConfig } = useContext(ConfigContext)
 
   const handleChange = async (value: string) => {
     const unit = value as Unit

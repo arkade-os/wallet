@@ -1,5 +1,6 @@
 import { useContext } from 'react'
 import { ConfigContext } from '../../providers/config'
+import { BackupContext } from '../../providers/backup'
 import Padded from '../../components/Padded'
 import { notificationApiSupport, requestPermission, sendTestNotification } from '../../lib/notifications'
 import Header from './Header'
@@ -7,7 +8,8 @@ import Content from '../../components/Content'
 import Toggle from '../../components/Toggle'
 
 export default function Notifications() {
-  const { backupConfig, config, updateConfig } = useContext(ConfigContext)
+  const { backupConfig } = useContext(BackupContext)
+  const { config, updateConfig } = useContext(ConfigContext)
 
   const handleChange = async () => {
     if (!notificationApiSupport) return

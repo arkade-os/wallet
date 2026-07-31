@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
+import { BackupContext } from '../../providers/backup'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Content from '../../components/Content'
@@ -18,7 +19,8 @@ import LoadingLogo from '../../components/LoadingLogo'
 
 export default function Server() {
   const { aspInfo } = useContext(AspContext)
-  const { backupConfig, config, updateConfig } = useContext(ConfigContext)
+  const { backupConfig } = useContext(BackupContext)
+  const { config, updateConfig } = useContext(ConfigContext)
   const { svcWallet, resetWallet } = useContext(WalletContext)
 
   const [aspUrl, setAspUrl] = useState('')

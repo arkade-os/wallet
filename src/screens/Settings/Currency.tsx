@@ -6,9 +6,11 @@ import Content from '../../components/Content'
 import { ConfigContext } from '../../providers/config'
 import Header from './Header'
 import TokenLogo, { tokenLogoTickerForTicker } from '../../components/TokenLogo'
+import { BackupContext } from '@/providers/backup'
 
 export default function Currency() {
-  const { backupConfig, config, updateConfig } = useContext(ConfigContext)
+  const { backupConfig } = useContext(BackupContext)
+  const { config, updateConfig } = useContext(ConfigContext)
 
   const handleChange = async (currency: string) => {
     const newConfig = { ...config, currency: currency as Currencies }
