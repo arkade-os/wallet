@@ -2,7 +2,7 @@
 // bitcoin:<address>[?amount=<amount>][?label=<label>][?message=<message>]
 
 import { fromSatoshis, prettyNumber, toSatoshis } from './format'
-import { isArkAddress } from './address'
+import { isValidArkAddress } from '@arkade-os/sdk'
 import { centsToUnits } from './assets'
 
 export interface Bip21Decoded {
@@ -55,7 +55,7 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
     }
 
     const arkAddress = getParam('ark')
-    if (arkAddress && isArkAddress(arkAddress)) result.arkAddress = arkAddress
+    if (arkAddress && isValidArkAddress(arkAddress)) result.arkAddress = arkAddress
 
     const assetId = getParam('assetid')
     if (assetId) result.assetId = assetId

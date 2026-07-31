@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   decodeArkAddress,
-  isArkAddress,
   isBTCAddress,
   isEmailAddress,
   isLightningInvoice,
@@ -9,6 +8,7 @@ import {
 } from '../../lib/address'
 import fixtures from '../fixtures.json'
 import { isValidLnUrl } from '../../lib/lnurl'
+import { isValidArkAddress } from '@arkade-os/sdk'
 
 describe('address utilities', () => {
   describe('decodeAddress', () => {
@@ -23,13 +23,14 @@ describe('address utilities', () => {
     })
   })
 
-  describe('isArkAddress', () => {
+  // guards the SDK validator against the wallet's own address fixtures
+  describe('isValidArkAddress', () => {
     it('should return true for a valid address', () => {
-      expect(isArkAddress(fixtures.lib.address.ark[0].address)).toBe(true)
+      expect(isValidArkAddress(fixtures.lib.address.ark[0].address)).toBe(true)
     })
 
     it('should return false for an invalid address', () => {
-      expect(isArkAddress('invalidAddress')).toBe(false)
+      expect(isValidArkAddress('invalidAddress')).toBe(false)
     })
   })
 

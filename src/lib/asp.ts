@@ -12,6 +12,7 @@ import {
   Asset,
   ArkError,
   DelegateInfo,
+  toXOnlySignerHex,
 } from '@arkade-os/sdk'
 import { Addresses, Tx, Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
@@ -19,7 +20,6 @@ import { consoleError } from './logs'
 import { getConfirmedAndNotExpiredUtxos } from './utxo'
 import * as Sentry from '@sentry/react'
 import { hex } from '@scure/base'
-import { toXOnlyHex } from './keys'
 import { readTransactionActivityMetadata } from './storage'
 
 const emptyFees: FeeInfo = {
@@ -353,12 +353,19 @@ export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> 
     return
   }
 
+  let delegateInfoPubKey: string
+  try {
+    delegateInfoPubKey = toXOnlySignerHex(delegateInfo.pubkey)
+  } catch (error) {
+    consoleError(error, 'Invalid delegate pubkey')
+    return
+  }
+
   const vtxosToDelegate = contractWithVtxos
     .filter(({ contract, vtxos }) => {
       if (vtxos.length === 0) return false
       const contractParams = DelegateContractHandler.deserializeParams(contract.params)
       const contractDelegatePubKey = hex.encode(contractParams.delegatePubKey) // x-only (32 bytes)
-      const delegateInfoPubKey = toXOnlyHex(delegateInfo.pubkey)
       return contractDelegatePubKey === delegateInfoPubKey
     })
     .flatMap((_) => _.vtxos)

@@ -1,6 +1,6 @@
 import { hex } from '@scure/base'
 import { isValidInvoice } from './bolt11'
-import { ArkAddress, DefaultVtxo } from '@arkade-os/sdk'
+import { ArkAddress, DefaultVtxo, toXOnlySignerHex } from '@arkade-os/sdk'
 import { AspInfo } from '../providers/asp'
 
 export const decodeArkAddress = (addr: string) => {
@@ -12,15 +12,9 @@ export const decodeArkAddress = (addr: string) => {
 }
 
 export const getDefaultAddress = (pubKey: string, aspInfo: AspInfo) => {
-  const toXonly = (key: string) => {
-    const length = key.length
-    const xOnly = length > 64 ? key.slice(length - 64, length) : key
-    if (xOnly.length !== 64) throw new Error('Invalid public key length')
-    return xOnly
-  }
   try {
-    const xOnlyPubKey = toXonly(pubKey)
-    const xOnlySignerPubKey = toXonly(aspInfo.signerPubkey)
+    const xOnlyPubKey = toXOnlySignerHex(pubKey)
+    const xOnlySignerPubKey = toXOnlySignerHex(aspInfo.signerPubkey)
     const hrp = aspInfo.network === 'bitcoin' ? 'ark' : 'tark'
 
     return new DefaultVtxo.Script({
@@ -34,15 +28,6 @@ export const getDefaultAddress = (pubKey: string, aspInfo: AspInfo) => {
     console.error('Error encoding default Arkade address:', err)
     throw err
   }
-}
-
-export const isArkAddress = (data: string): boolean => {
-  try {
-    decodeArkAddress(data) // will throw if not valid
-  } catch {
-    return false
-  }
-  return true
 }
 
 export const isBTCAddress = (data: string): boolean => {

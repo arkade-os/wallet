@@ -3,6 +3,7 @@ import {
   discover,
   displayPrice,
   isNetwork,
+  sideLimits,
   type DiscoveredMarket,
   type OfferPlan,
   type Side,
@@ -142,14 +143,13 @@ export const validatePlan = (plan: OfferPlan, giveBalance: bigint, dust: bigint)
   const { min, max, withinLimits } = plan.limits
   if (!min || !max) return 'side-disabled'
   // the SDK's plan.limits only covers the receive side, but the market card
-  // bounds BOTH sides — enforce the give side (min/max_*_amount, atomic units
-  // of the deposit asset) or the solver rejects the offer at fill time
-  const giveSide = plan.give === 'base'
-  const giveMin = BigInt(giveSide ? plan.market.min_base_amount : plan.market.min_quote_amount)
-  const giveMax = BigInt(giveSide ? plan.market.max_base_amount : plan.market.max_quote_amount)
-  if (giveMax === BigInt(0)) return 'side-disabled'
-  if (plan.deposit.atomic < giveMin) return 'below-min'
-  if (plan.deposit.atomic > giveMax) return 'above-max'
+  // bounds BOTH sides — enforce the give side (atomic units of the deposit
+  // asset) or the solver rejects the offer at fill time. sideLimits reads a
+  // disabled or malformed bound as null, so a bad feed fails safe here.
+  const giveLimits = sideLimits(plan.market, plan.give)
+  if (!giveLimits) return 'side-disabled'
+  if (plan.deposit.atomic < giveLimits.min) return 'below-min'
+  if (plan.deposit.atomic > giveLimits.max) return 'above-max'
   if (!withinLimits) return plan.receive.atomic < min.atomic ? 'below-min' : 'above-max'
   // a BTC side must survive as a VTXO — picked by asset id, not market
   // orientation, since a registry may publish BTC as base or quote. An
