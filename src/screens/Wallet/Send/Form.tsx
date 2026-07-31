@@ -20,7 +20,7 @@ import InputAddress from '../../../components/InputAddress'
 import Header from '../../../components/Header'
 import { WalletContext } from '../../../providers/wallet'
 import { fromSatoshis, prettyAmount, prettyFiatAmount, prettyNumber, toSatoshis } from '../../../lib/format'
-import { openExternal } from '../../../lib/device'
+import { getDeviceRuntime, openExternal } from '../../../lib/device'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
@@ -233,13 +233,30 @@ export default function SendForm() {
   const prettyUnitBalance = (sats: number) =>
     config.unit === Unit.BTC ? prettyAmount(fromSatoshis(sats), config.unit, 8) : prettyAmount(sats)
 
+  // Entering Send already scanning (home quick action, BitcoinDetail). This
+  // bypasses InputWithScanner, so it has to make the same native-vs-web
+  // scanner choice itself: `scanQrCode` exists only on the native adapter, and
+  // opening the in-page web scanner there would use WebView getUserMedia.
   useEffect(() => {
     if (!sendInfo.scan) return
     const nextSendInfo = { ...sendInfo }
     delete nextSendInfo.scan
     setKeys(false)
-    setScan(true)
     setSendInfo(nextSendInfo)
+
+    const scanQrCode = getDeviceRuntime().scanQrCode
+    if (!scanQrCode) {
+      setScan(true)
+      return
+    }
+    scanQrCode()
+      .then((data) => {
+        if (!data) return
+        setRecipient(data)
+        setRawScanData(data)
+        setReadyToParse(true)
+      })
+      .catch((err) => consoleError(err, 'error scanning QR code'))
   }, [sendInfo.scan])
 
   // cleanup debounce timeout on unmount
