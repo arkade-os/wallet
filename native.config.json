@@ -1,0 +1,58 @@
+{
+  "$comment": [
+    "Committed source of truth for native project configuration.",
+    "",
+    "/ios and /android are generated scaffold and stay gitignored, so anything",
+    "hand-edited inside them would be lost on the next `npx cap add`. This file",
+    "holds those settings instead; `scripts/cap-configure.mjs` applies them",
+    "after every `cap sync` (wired into the cap:sync package scripts).",
+    "",
+    "See CAPACITOR.plan.md Phase 4 for the list of features that depend on these."
+  ],
+
+  "urlScheme": "arkade",
+
+  "deepLinkDomains": {
+    "$comment": [
+      "iOS Universal Links + Android App Links. Disabled until the domain files",
+      "are hosted (CAPACITOR.plan.md Phase 0: apple-app-site-association and",
+      "assetlinks.json on arkade.money) AND the Associated Domains capability is",
+      "enabled on the Apple app ID — an entitlement for a capability the",
+      "provisioning profile lacks fails the iOS build. The custom scheme above",
+      "works standalone and needs neither.",
+      "",
+      "Flip `enabled` to true once both are in place."
+    ],
+    "enabled": false,
+    "hosts": ["arkade.money"]
+  },
+
+  "ios": {
+    "infoPlist": {
+      "NSCameraUsageDescription": "Arkade Wallet uses the camera to scan QR codes for addresses, invoices, notes and asset IDs.",
+      "NSFaceIDUsageDescription": "Arkade Wallet uses Face ID to unlock your wallet without typing your password.",
+      "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"],
+      "UISupportedInterfaceOrientations~ipad": ["UIInterfaceOrientationPortrait", "UIInterfaceOrientationPortraitUpsideDown"]
+    }
+  },
+
+  "android": {
+    "$comment": [
+      "minSdkVersion 26 is required by @capacitor/barcode-scanner and is a",
+      "Phase 0 decision; the Capacitor template ships 24, so it must be patched.",
+      "POST_NOTIFICATIONS is Android 13+ (API 33) and is requested at runtime by",
+      "@capacitor/local-notifications, but must still be declared here."
+    ],
+    "variables": {
+      "minSdkVersion": 26,
+      "targetSdkVersion": 36
+    },
+    "permissions": [
+      "android.permission.CAMERA",
+      "android.permission.POST_NOTIFICATIONS",
+      "android.permission.USE_BIOMETRIC",
+      "android.permission.VIBRATE"
+    ],
+    "screenOrientation": "portrait"
+  }
+}

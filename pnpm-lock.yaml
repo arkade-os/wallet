@@ -205,6 +205,9 @@ importers:
       '@types/node':
         specifier: ^24.1.0
         version: 24.10.0
+      '@types/plist':
+        specifier: ^3.0.5
+        version: 3.0.5
       '@types/react':
         specifier: ^18.3.21
         version: 18.3.26
@@ -265,6 +268,9 @@ importers:
       jsdom:
         specifier: ^26.1.0
         version: 26.1.0
+      plist:
+        specifier: ^5.0.0
+        version: 5.0.0
       prettier:
         specifier: ^3.6.2
         version: 3.6.2
@@ -1717,6 +1723,9 @@ packages:
 
   '@types/offscreencanvas@2019.7.3':
     resolution: {integrity: sha512-ieXiYmgSRXUDeOntE1InxjWyvEelZGP63M+cGuquuRLuIKKT1osnkXjxev9B7d1nXSug5vpunx+gNlbVxMlC9A==}
+
+  '@types/plist@3.0.5':
+    resolution: {integrity: sha512-E6OCaRmAe4WDmWNsL/9RMqdkkzDCY1etutkflWk4c+AcjDU07Pcz1fQwTX0TQz+Pxqn9i4L1TU3UFpjnrcDgxA==}
 
   '@types/prop-types@15.7.15':
     resolution: {integrity: sha512-F6bEyamV9jKGAFBEmlQnesRPGOQqS2+Uwi0Em15xenOxHaf2hv6L8YCVn3rPdPJOiJfPiCnLIRyvwVaqMY3MIw==}
@@ -3865,6 +3874,10 @@ packages:
   plist@3.1.1:
     resolution: {integrity: sha512-ZIfcLJC+7E7FBFnDxm9MPmt7D+DidyQ26lewieO75AdhA2ayMtsJSES0iWzqJQbcVRSrTufQoy0DR94xHue0oA==}
     engines: {node: '>=10.4.0'}
+
+  plist@5.0.0:
+    resolution: {integrity: sha512-20N+g1DvMm/DFRbsvER7tT4wDryq0WunK7VMkDaiJcKNapAnUMkTsAnacFYf8n420F4Hf6/hefgmJRkMb1M0fg==}
+    engines: {node: '>=18'}
 
   pngjs@6.0.0:
     resolution: {integrity: sha512-TRzzuFRRmEoSW/p1KVAmiOgPco2Irlah+bGFCeNfJXxxYGwSw7YwAOAcd7X28K/m5bjBWKsC29KyoMfHbypayg==}
@@ -6419,6 +6432,11 @@ snapshots:
 
   '@types/offscreencanvas@2019.7.3': {}
 
+  '@types/plist@3.0.5':
+    dependencies:
+      '@types/node': 24.10.0
+      xmlbuilder: 15.1.1
+
   '@types/prop-types@15.7.15': {}
 
   '@types/react-dom@18.3.7(@types/react@18.3.26)':
@@ -8705,6 +8723,11 @@ snapshots:
     dependencies:
       '@xmldom/xmldom': 0.9.10
       base64-js: 1.5.1
+      xmlbuilder: 15.1.1
+
+  plist@5.0.0:
+    dependencies:
+      '@xmldom/xmldom': 0.9.10
       xmlbuilder: 15.1.1
 
   pngjs@6.0.0: {}
