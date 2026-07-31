@@ -89,6 +89,12 @@ export interface DeviceRuntimeAdapter {
   share(data: ShareData): Promise<void>
   haptic(kind: HapticKind): Promise<void>
   openExternal(url: string): Promise<void>
+  /**
+   * Hands a generated file to the user: a browser download on the PWA, a file
+   * written to app storage and passed to the share sheet on native (an
+   * `<a download>` does not save an accessible file in a WebView).
+   */
+  exportFile(file: { name: string; mimeType: string; content: string }): Promise<void>
 }
 
 export interface SecurityRuntimeAdapter {

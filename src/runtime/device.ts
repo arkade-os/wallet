@@ -73,6 +73,18 @@ export const browserDevice: DeviceRuntimeAdapter = {
   openExternal: async (url) => {
     window.open(url, '_blank', 'noopener,noreferrer')
   },
+
+  // Unchanged from the original inline implementation in Settings/Logs: an
+  // anchor with a data URI, appended to the body because Firefox requires it.
+  exportFile: async ({ name, mimeType, content }) => {
+    const anchor = document.createElement('a')
+    anchor.href = `data:${mimeType};charset=utf-8,` + encodeURI(content)
+    anchor.target = '_blank'
+    anchor.download = name
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+  },
 }
 
 // --- Native / Capacitor -----------------------------------------------------
@@ -102,6 +114,9 @@ const browserPlugin = () => (browserModule ??= import('@capacitor/browser'))
 
 let scannerModule: Promise<typeof import('@capacitor/barcode-scanner')> | undefined
 const scannerPlugin = () => (scannerModule ??= import('@capacitor/barcode-scanner'))
+
+let filesystemModule: Promise<typeof import('@capacitor/filesystem')> | undefined
+const filesystemPlugin = () => (filesystemModule ??= import('@capacitor/filesystem'))
 
 export const nativeDevice: DeviceRuntimeAdapter = {
   /**
@@ -165,5 +180,31 @@ export const nativeDevice: DeviceRuntimeAdapter = {
    */
   openExternal: async (url) => {
     await (await browserPlugin()).Browser.open({ url })
+  },
+
+  /**
+   * Write to the app's Cache directory, then hand the file URI to the share
+   * sheet so the user can save it or send it somewhere they can reach. Cache
+   * (rather than Documents) because the file only needs to outlive the share
+   * sheet — the OS may reclaim it afterwards.
+   */
+  // `mimeType` is unused here: both platforms infer it from the file
+  // extension. It stays in the signature for the browser adapter's data URI.
+  exportFile: async ({ name, content }) => {
+    const { Filesystem, Directory, Encoding } = await filesystemPlugin()
+    await Filesystem.writeFile({
+      path: name,
+      data: content,
+      directory: Directory.Cache,
+      encoding: Encoding.UTF8,
+    })
+    const { uri } = await Filesystem.getUri({ path: name, directory: Directory.Cache })
+    await (
+      await sharePlugin()
+    ).Share.share({
+      title: name,
+      files: [uri],
+      dialogTitle: `Export ${name}`,
+    })
   },
 }

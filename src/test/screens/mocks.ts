@@ -46,6 +46,7 @@ export const mockRuntimeContextValue: RuntimeContextValue = {
     share: async () => {},
     haptic: async () => {},
     openExternal: async () => {},
+    exportFile: async () => {},
   },
   notifications: {
     requestPermission: async () => true,

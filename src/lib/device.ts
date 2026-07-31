@@ -28,3 +28,7 @@ export const getDeviceRuntime = (): DeviceRuntimeAdapter => current
 export const openExternal = (url: string): void => {
   current.openExternal(url).catch(() => {})
 }
+
+/** Hands a generated file to the user (browser download / native share sheet). */
+export const exportFile = (file: { name: string; mimeType: string; content: string }): Promise<void> =>
+  current.exportFile(file)

@@ -4,7 +4,6 @@ import { RuntimeContext } from './RuntimeContext'
 import {
   LifecycleRuntimeAdapter,
   LinkRuntimeAdapter,
-  NotificationRuntimeAdapter,
   RuntimeCapabilities,
   RuntimeContextValue,
   SecurityRuntimeAdapter,
@@ -14,6 +13,7 @@ import { nativeWalletEvents, nativeWalletFactory } from './wallet/nativeWallet'
 import { nativeSwapFactory } from './swaps/nativeSwaps'
 import { nativeSecretStorage } from './secretStorage'
 import { nativeDevice } from './device'
+import { nativeNotifications } from './notifications'
 import { setSecretStore } from '../lib/secretStore'
 import { setDeviceRuntime } from '../lib/device'
 
@@ -78,14 +78,6 @@ const nativeLifecycle: LifecycleRuntimeAdapter = {
   onResume: (handler) => subscribeAppEvent((App) => App.addListener('resume', handler)),
   onPause: (handler) => subscribeAppEvent((App) => App.addListener('pause', handler)),
   onBackButton: (handler) => subscribeAppEvent((App) => App.addListener('backButton', () => handler())),
-}
-
-const nativeNotifications: NotificationRuntimeAdapter = {
-  requestPermission: async () => false,
-  send: () => notImplemented('notifications.send'),
-  notifyPaymentReceived: () => notImplemented('notifications.notifyPaymentReceived'),
-  notifyTxSettled: () => notImplemented('notifications.notifyTxSettled'),
-  notifyNewUpdateAvailable: () => notImplemented('notifications.notifyNewUpdateAvailable'),
 }
 
 const nativeSecurity: SecurityRuntimeAdapter = {

@@ -3,7 +3,8 @@ import Text from '../../components/Text'
 import Content from '../../components/Content'
 import { useEffect, useState } from 'react'
 import { prettyAgo, prettyLongText } from '../../lib/format'
-import { clearLogs, getLogs, LogLine } from '../../lib/logs'
+import { clearLogs, consoleError, getLogs, LogLine } from '../../lib/logs'
+import { exportFile } from '../../lib/device'
 import FlexCol from '../../components/FlexCol'
 import FlexRow from '../../components/FlexRow'
 import Button from '../../components/Button'
@@ -113,12 +114,11 @@ export default function Logs() {
           .join(','),
       )
       .join('\n')
-    const hiddenElement = document.createElement('a')
-    hiddenElement.href = 'data:text/csv;charset=utf-8,' + encodeURI(csvHeader + csvBody)
-    hiddenElement.target = '_blank'
-    hiddenElement.download = 'arkade_logs.csv'
-    document.body.appendChild(hiddenElement) // required for firefox
-    hiddenElement.click()
+    // Browser download on the PWA; file + share sheet on native, where an
+    // <a download> does not produce a file the user can reach.
+    exportFile({ name: 'arkade_logs.csv', mimeType: 'text/csv', content: csvHeader + csvBody }).catch((err) =>
+      consoleError(err, 'error exporting logs'),
+    )
   }
 
   return (
