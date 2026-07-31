@@ -126,7 +126,7 @@ export const readAssetMetadataFromStorage = (): Map<string, CachedAssetDetails> 
 }
 
 export const saveSolverCardsToStorage = (cards: LocalCardInput[]): void => {
-  const data = cards.filter(isLocalCardInput)
+  const data = Array.isArray(cards) ? cards.filter(isLocalCardInput) : []
   setStorageItem('solverCards', JSON.stringify(data))
 }
 
