@@ -10,6 +10,7 @@ import {
   navigateToBoltz,
   navigateToSettings,
   getInvoiceFromLND,
+  mockSolverCard,
 } from './utils'
 import { exec } from 'child_process'
 import { promisify } from 'util'
@@ -75,6 +76,42 @@ test('should save config to nostr', async ({ page }) => {
   await page.getByText('currency').click()
   const hopeIsEur = await page.locator('input[checked]').getAttribute('value')
   expect(hopeIsEur).toBe('EUR')
+})
+
+test('should save solver cards to nostr', async ({ page }) => {
+  test.setTimeout(60000)
+  // create wallet
+  await createWallet(page)
+
+  // navigate to solvers
+  await navigateToSettings(page)
+  await page.getByText('advanced', { exact: true }).click()
+  await page.getByText('solvers', { exact: true }).click()
+
+  // add a solver card
+  await page.getByRole('button', { name: '+ Add new' }).click()
+  await page.locator('textarea').fill(JSON.stringify(mockSolverCard))
+  await page.getByRole('button', { name: 'Save' }).click()
+
+  // verify solver card is added
+  await expect(page.getByText('You have 1 solver card stored in your wallet.')).toBeVisible()
+  await expect(page.getByText(mockSolverCard.name)).toBeVisible()
+
+  // enable nostr backups
+  await page.getByLabel('Go back').click()
+  await page.getByLabel('Go back').click()
+  await page.getByText('backup', { exact: true }).click()
+  await page.getByTestId('toggle-backup').click()
+
+  // restore wallet
+  await resetAndRestoreWallet(page)
+
+  // verify currency is euro
+  await navigateToSettings(page)
+  await page.getByText('advanced', { exact: true }).click()
+  await page.getByText('solvers', { exact: true }).click()
+  await expect(page.getByText('You have 1 solver card stored in your wallet.')).toBeVisible()
+  await expect(page.getByText(mockSolverCard.name)).toBeVisible()
 })
 
 test('should save swaps to nostr', async ({ page, isMobile }) => {
