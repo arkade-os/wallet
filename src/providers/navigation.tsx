@@ -1,4 +1,5 @@
-import { ReactNode, createContext, useCallback, useEffect, useRef, useState } from 'react'
+import { ReactNode, createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { RuntimeContext } from '../runtime/RuntimeContext'
 import Init from '../screens/Init/Init'
 import InitConnect from '../screens/Init/Connect'
 import InitRestore from '../screens/Init/Restore'
@@ -258,12 +259,36 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
     return () => window.removeEventListener('popstate', handlePopState)
   }, [handlePopState])
 
+  const canGoBack = () => backStack.current.length > 0 || subNavHandler.canGoBack()
+
   const goBack = useCallback(() => {
-    if (backStack.current.length > 0 || subNavHandler.canGoBack()) {
+    if (canGoBack()) {
       isButtonBack.current = true
       history.back()
     }
   }, [])
+
+  /**
+   * Android hardware/gesture back.
+   *
+   * Registering any `backButton` listener replaces Capacitor's default
+   * handling, which calls `webView.goBack()` and otherwise swallows the press
+   * — so without this, back is dead on the root screen instead of closing the
+   * app the way every other Android app does.
+   *
+   * `RuntimeContext` is read directly rather than through `useRuntime()`
+   * because this provider is also rendered without a shell in unit tests; no
+   * shell simply means no hardware back button.
+   */
+  const runtime = useContext(RuntimeContext)
+
+  useEffect(() => {
+    if (!runtime) return
+    return runtime.lifecycle.onBackButton(() => {
+      if (canGoBack()) goBack()
+      else runtime.lifecycle.exitApp().catch(() => {})
+    })
+  }, [runtime, goBack])
 
   const navigate = useCallback((page: Pages) => {
     if (page === screenRef.current && backStack.current.length === 0 && subNavHandler.getDepth() === 0) return

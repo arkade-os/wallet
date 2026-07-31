@@ -38,7 +38,12 @@ export const mockRuntimeContextValue: RuntimeContextValue = {
     removeItem: async () => {},
   },
   links: { getInitialLink: async () => undefined, subscribe: () => () => {} },
-  lifecycle: { onResume: () => () => {}, onPause: () => () => {}, onBackButton: () => () => {} },
+  lifecycle: {
+    onResume: () => () => {},
+    onPause: () => () => {},
+    onBackButton: () => () => {},
+    exitApp: async () => {},
+  },
   device: {
     copyToClipboard: async () => {},
     pasteFromClipboard: async () => '',

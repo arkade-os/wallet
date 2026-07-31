@@ -64,7 +64,16 @@ export interface LinkRuntimeAdapter {
 export interface LifecycleRuntimeAdapter {
   onResume(handler: () => void): Unsubscribe
   onPause(handler: () => void): Unsubscribe
+  /**
+   * Android hardware/gesture back. Registering a handler *replaces* Capacitor's
+   * default, which only calls `webView.goBack()` and otherwise swallows the
+   * press — leaving back dead on the app's root screen. The handler is
+   * therefore responsible for exiting via {@link exitApp} when there is
+   * nowhere left to go back to.
+   */
   onBackButton(handler: () => void): Unsubscribe
+  /** Closes the app. No-op on the web, where the tab is not ours to close. */
+  exitApp(): Promise<void>
 }
 
 /**

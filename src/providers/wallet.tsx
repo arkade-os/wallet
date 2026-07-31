@@ -1,4 +1,4 @@
-import { ReactNode, createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArkNote,
   NetworkName,
@@ -40,8 +40,6 @@ import { AspContext } from './asp'
 import { AssetsContext } from './assets'
 import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
-import { arkNoteInUrl } from '../lib/arknote'
-import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { Addresses, Tx, Vtxo, Wallet } from '../lib/types'
 import { mergeAssetSwapActivity } from '../lib/swapDisplay'
@@ -59,6 +57,7 @@ import { Indexer } from '../lib/indexer'
 import { Network } from '@arkade-os/boltz-swap'
 import { useRuntime } from '../runtime/RuntimeContext'
 import {
+  NormalizedRuntimeLink,
   Unsubscribe,
   WalletAdvancedActions,
   WalletAssetActions,
@@ -469,22 +468,41 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       .catch((err) => consoleError(err, 'Failed to fetch verified assets'))
   }, [initialized])
 
-  // if ark note is present in the URL, decode it and set the note info
-  useEffect(() => {
-    const dlInfo = deepLinkInUrl()
-    if (dlInfo) {
-      setDeepLinkInfo(dlInfo)
+  /**
+   * Ingests app links and Ark notes through the runtime link adapter: the
+   * `window.location.hash` protocol handler on the PWA, the `arkade://` scheme
+   * on native. Both produce the same normalized link, and dispatch (the effect
+   * below) is shared.
+   *
+   * Native also gets warm links — the app is already running when the OS hands
+   * it a URL — which the PWA has no equivalent for.
+   */
+  const handleRuntimeLink = useCallback((link: NormalizedRuntimeLink) => {
+    if (link.type === 'app') {
+      setDeepLinkInfo({ appId: link.appId, query: link.query ?? '' })
+      return
     }
-    const note = arkNoteInUrl()
-    if (note) {
+    if (link.type === 'note') {
       try {
-        const { value } = ArkNote.fromString(note)
-        setNoteInfo({ note, satoshis: value })
+        const { value } = ArkNote.fromString(link.note)
+        setNoteInfo({ note: link.note, satoshis: value })
       } catch (err) {
         consoleError(err, 'error decoding ark note ')
       }
     }
-    window.location.hash = ''
+  }, [])
+
+  useEffect(() => {
+    runtime.links
+      .getInitialLink()
+      .then((link) => {
+        if (link) handleRuntimeLink(link)
+        runtime.links.clearConsumedLink?.()
+      })
+      .catch((err) => consoleError(err, 'error reading initial link'))
+
+    return runtime.links.subscribe(handleRuntimeLink)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {

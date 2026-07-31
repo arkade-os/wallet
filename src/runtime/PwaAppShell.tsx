@@ -2,7 +2,6 @@ import { ReactNode, useEffect, useMemo } from 'react'
 import { RuntimeContext } from './RuntimeContext'
 import {
   LifecycleRuntimeAdapter,
-  LinkRuntimeAdapter,
   NotificationRuntimeAdapter,
   RuntimeCapabilities,
   RuntimeContextValue,
@@ -12,6 +11,7 @@ import { serviceWorkerWalletEvents, serviceWorkerWalletFactory } from './wallet/
 import { serviceWorkerSwapFactory } from './swaps/serviceWorkerSwaps'
 import { localStorageSecretStorage } from './secretStorage'
 import { browserDevice } from './device'
+import { browserLinks } from './links'
 import { setSecretStore } from '../lib/secretStore'
 import { setDeviceRuntime } from '../lib/device'
 
@@ -50,14 +50,6 @@ const pwaCapabilities: RuntimeCapabilities = {
   appUrlOpen: false,
 }
 
-// Link ingestion stays in the existing PWA code paths (src/lib/deepLink.ts,
-// src/lib/arknote.ts, src/providers/wallet.tsx hash parsing) until a later
-// phase routes them through this adapter; expose a no-op surface for now.
-const pwaLinks: LinkRuntimeAdapter = {
-  getInitialLink: async () => undefined,
-  subscribe: () => () => {},
-}
-
 const pwaLifecycle: LifecycleRuntimeAdapter = {
   onResume: (handler) => {
     const listener = () => {
@@ -75,6 +67,9 @@ const pwaLifecycle: LifecycleRuntimeAdapter = {
   },
   // No hardware back button on the web; nothing to subscribe to.
   onBackButton: () => () => {},
+  // A web page cannot close its own tab (window.close() only works for windows
+  // the script opened), so there is nothing meaningful to do here.
+  exitApp: async () => {},
 }
 
 const pwaNotifications: NotificationRuntimeAdapter = {
@@ -142,7 +137,7 @@ export function PwaAppShell({ children }: { children: ReactNode }) {
       walletEvents: serviceWorkerWalletEvents,
       swaps: serviceWorkerSwapFactory,
       secretStorage: localStorageSecretStorage,
-      links: pwaLinks,
+      links: browserLinks,
       lifecycle: pwaLifecycle,
       device: browserDevice,
       notifications: pwaNotifications,

@@ -3,7 +3,6 @@ import type { PluginListenerHandle } from '@capacitor/core'
 import { RuntimeContext } from './RuntimeContext'
 import {
   LifecycleRuntimeAdapter,
-  LinkRuntimeAdapter,
   RuntimeCapabilities,
   RuntimeContextValue,
   SecurityRuntimeAdapter,
@@ -13,6 +12,7 @@ import { nativeWalletEvents, nativeWalletFactory } from './wallet/nativeWallet'
 import { nativeSwapFactory } from './swaps/nativeSwaps'
 import { nativeSecretStorage } from './secretStorage'
 import { nativeDevice } from './device'
+import { nativeLinks } from './links'
 import { nativeNotifications } from './notifications'
 import { setSecretStore } from '../lib/secretStore'
 import { setDeviceRuntime } from '../lib/device'
@@ -46,11 +46,6 @@ const nativeCapabilities: RuntimeCapabilities = {
   appUrlOpen: true,
 }
 
-const nativeLinks: LinkRuntimeAdapter = {
-  getInitialLink: async () => undefined,
-  subscribe: () => () => {},
-}
-
 // Bridge a @capacitor/app event to a runtime lifecycle handler. The plugin is
 // loaded via dynamic import so it stays out of the PWA bundle's eager graph
 // (this shell module is statically reachable from both builds). addListener is
@@ -78,6 +73,10 @@ const nativeLifecycle: LifecycleRuntimeAdapter = {
   onResume: (handler) => subscribeAppEvent((App) => App.addListener('resume', handler)),
   onPause: (handler) => subscribeAppEvent((App) => App.addListener('pause', handler)),
   onBackButton: (handler) => subscribeAppEvent((App) => App.addListener('backButton', () => handler())),
+  exitApp: async () => {
+    const { App } = await import('@capacitor/app')
+    await App.exitApp()
+  },
 }
 
 const nativeSecurity: SecurityRuntimeAdapter = {
