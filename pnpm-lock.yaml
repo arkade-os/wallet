@@ -248,7 +248,7 @@ packages:
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
   '@arkade-os/boltz-swap@file:vendor/arkade-os-boltz-swap-0.3.57.tgz':
-    resolution: {integrity: sha512-8C1+r3NabC+NNNK5OPnB7aX4fkWFlYmfXZhEDYGoNnToWS5vu0Yfk99aumQNuoaqQTSe8jWfv9j3N4rTOHjpvw==, tarball: file:vendor/arkade-os-boltz-swap-0.3.57.tgz}
+    resolution: {integrity: sha512-Jocj+B9Gu49Fww+jIB51E3UchprqshhQV2GwAe0Ai4sNCK02x+I+gAUfYnqkIgppRlmyrNxzEVPoIDcUhJRgYw==, tarball: file:vendor/arkade-os-boltz-swap-0.3.57.tgz}
     version: 0.3.57
     peerDependencies:
       expo-background-task: '>=0.1.0'
