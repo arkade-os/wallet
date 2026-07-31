@@ -10,12 +10,15 @@ import { NostrStorage } from './nostr'
 import { Config } from './types'
 import { consoleError } from './logs'
 import { toXOnlyHex } from './keys'
+import { LocalCardInput } from '@arkade-os/solver-discovery'
+import { readSolverCardsFromStorage, saveSolverCardsToStorage } from './storage'
 
 type NostrStorageData = {
   config?: Config
   reverseSwaps?: BoltzReverseSwap[]
   submarineSwaps?: BoltzSubmarineSwap[]
   chainSwaps?: BoltzChainSwap[]
+  solverCards?: LocalCardInput[]
 }
 export class BackupProvider {
   private nostrStorage: NostrStorage
@@ -83,16 +86,28 @@ export class BackupProvider {
   }
 
   /**
+   * Backup solver cards to Nostr
+   * @param solverCards LocalCardInput[] to backup
+   */
+  backupSolverCards = async (solverCards: LocalCardInput[]) => {
+    const data: NostrStorageData = { solverCards }
+    await this.nostrStorage.save(JSON.stringify(data))
+  }
+
+  /**
    * Does a full backup of config and swaps to Nostr
    * If data size is larger than 65kb, splits into multiple events
    * @param config
    */
   fullBackup = async (config: Config, arkadeSwaps?: ServiceWorkerArkadeSwaps) => {
-    if (!arkadeSwaps) return this.backupConfig(config)
+    const allSwaps = arkadeSwaps ? await arkadeSwaps.getSwapHistory() : []
+    const solverCards = readSolverCardsFromStorage()
 
-    const allSwaps = await arkadeSwaps.getSwapHistory()
+    if (!allSwaps.length && !solverCards.length) return this.backupConfig(config)
+
     const data: NostrStorageData = {
       config,
+      solverCards,
       chainSwaps: allSwaps.filter((s) => s.type === 'chain'),
       reverseSwaps: allSwaps.filter((s) => s.type === 'reverse'),
       submarineSwaps: allSwaps.filter((s) => s.type === 'submarine'),
@@ -102,6 +117,8 @@ export class BackupProvider {
 
     if (dataSize > 65000) {
       if (config) await this.backupConfig(config)
+
+      if (solverCards) await this.backupSolverCards(solverCards)
 
       for (const reverseSwap of data.reverseSwaps ?? []) {
         await this.backupReverseSwap(reverseSwap)
@@ -128,6 +145,8 @@ export class BackupProvider {
 
     if (data?.config) updateConfig(data.config)
 
+    if (data?.solverCards) saveSolverCardsToStorage(data.solverCards)
+
     // TODO: restore as contracts via ad-hoc utils in boltz-swap
 
     for (const swap of data?.reverseSwaps ?? []) {
@@ -153,6 +172,7 @@ export class BackupProvider {
   private loadData = async (): Promise<NostrStorageData> => {
     const loaded = {
       config: null as Config | null,
+      solverCards: [] as LocalCardInput[],
       chainSwaps: new Map<string, BoltzChainSwap>(),
       reverseSwaps: new Map<string, BoltzReverseSwap>(),
       submarineSwaps: new Map<string, BoltzSubmarineSwap>(),
@@ -177,6 +197,8 @@ export class BackupProvider {
 
       if (data.config) loaded.config = data.config
 
+      if (data.solverCards) loaded.solverCards = data.solverCards
+
       for (const swap of data.reverseSwaps ?? []) {
         loaded.reverseSwaps.set(swap.id, swap)
       }
@@ -192,6 +214,7 @@ export class BackupProvider {
 
     return {
       config: loaded.config ?? undefined,
+      solverCards: loaded.solverCards,
       chainSwaps: Array.from(loaded.chainSwaps.values()),
       reverseSwaps: Array.from(loaded.reverseSwaps.values()),
       submarineSwaps: Array.from(loaded.submarineSwaps.values()),

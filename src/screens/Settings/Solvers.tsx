@@ -118,8 +118,6 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose: () => void;
 }
 
 function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => void }) {
-  const { aspInfo } = useContext(AspContext)
-
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [showEditor, setShowEditor] = useState(false)
   const [error, setError] = useState<string>('')

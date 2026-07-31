@@ -375,3 +375,28 @@ export async function navigateToSwaps(page: Page): Promise<void> {
   await page.getByTestId('home-action-swap').click()
   await page.waitForSelector('text=Choose asset to swap', { timeout: 2000 })
 }
+
+export const mockSolverCard = {
+  version: 0,
+  name: 'my-card',
+  markets: [
+    {
+      pair: 'BTC/USDT',
+      base_asset: { id: 'btc', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+      quote_asset: {
+        id: 'a'.repeat(68),
+        name: 'Tether',
+        ticker: 'USDT',
+        decimals: 8,
+      },
+      price_feed: 'https://example.com/price',
+      price_feed_schema: { type: 'json', price_path: '/price' },
+      price_decimals: 2,
+      fee_bps: 1,
+      min_base_amount: '1',
+      max_base_amount: '100',
+      min_quote_amount: '1',
+      max_quote_amount: '100',
+    },
+  ],
+}
