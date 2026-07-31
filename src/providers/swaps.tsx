@@ -95,8 +95,8 @@ export const SwapsContext = createContext<SwapsContextProps>({
 export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { svcWallet } = useContext(WalletContext)
-  const { backupConfig } = useContext(BackupContext)
   const { config, updateConfig } = useContext(ConfigContext)
+  const { backupChainSwap, backupConfig, backupReverseSwap, backupSubmarineSwap } = useContext(BackupContext)
 
   const [arkToBtcFees, setArkToBtcFees] = useState<ChainFeesResponse | null>(null)
   const [btcToArkFees, setBtcToArkFees] = useState<ChainFeesResponse | null>(null)
@@ -173,11 +173,32 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       .catch((err) => consoleError(err, 'Failed to fetch BTC to ARK fees'))
   }, [arkadeSwaps])
 
-  const setConnected = (value: boolean, backup: boolean) => {
+  const setConnected = (value: boolean) => {
     const newConfig = { ...config }
     newConfig.apps.boltz.connected = value
     updateConfig(newConfig)
-    if (backup) backupConfig(newConfig)
+    backupConfig(newConfig)
+  }
+
+  const getSwapFromRepo = async (swapId: string): Promise<BoltzSwap | null> => {
+    if (!arkadeSwaps) return null
+    const swaps = await arkadeSwaps.swapRepository.getAllSwaps({ id: swapId })
+    return swaps.length > 0 ? swaps[0] : null
+  }
+
+  const saveChainSwap = async (swapId: string) => {
+    const swap = (await getSwapFromRepo(swapId)) as BoltzChainSwap | null
+    if (swap) backupChainSwap(swap).catch()
+  }
+
+  const saveReverseSwap = async (swapId: string) => {
+    const swap = (await getSwapFromRepo(swapId)) as BoltzReverseSwap | null
+    if (swap) backupReverseSwap(swap).catch()
+  }
+
+  const saveSubmarineSwap = async (swapId: string) => {
+    const swap = (await getSwapFromRepo(swapId)) as BoltzSubmarineSwap | null
+    if (swap) backupSubmarineSwap(swap).catch()
   }
 
   const calcArkToBtcSwapFee = (satoshis: number): number => {
@@ -208,42 +229,49 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     return Math.ceil((satoshis * percentage) / 100 + minerFees)
   }
 
-  const toggleConnection = () => setConnected(!connected, true)
+  const toggleConnection = () => setConnected(!connected)
 
   // Helper methods that delegate to arkadeSwaps
   const createArkToBtcSwap = async (btcAddress: string, sats: number): Promise<ArkToBtcResponse | null> => {
     if (!arkadeSwaps || !svcWallet) return null
-    return arkadeSwaps.arkToBtc({ btcAddress, receiverLockAmount: sats })
+    const response = await arkadeSwaps.arkToBtc({ btcAddress, receiverLockAmount: sats })
+    saveChainSwap(response.pendingSwap.response.id).catch()
+    return response
   }
 
   const createBtcToArkSwap = async (sats: number): Promise<BtcToArkResponse | null> => {
     if (!arkadeSwaps || !svcWallet) return null
-    return arkadeSwaps.btcToArk({ senderLockAmount: sats })
+    const response = await arkadeSwaps.btcToArk({ senderLockAmount: sats })
+    saveChainSwap(response.pendingSwap.response.id).catch()
+    return response
   }
 
   const claimArk = async (swap: BoltzChainSwap): Promise<void> => {
     if (!arkadeSwaps) return
     await arkadeSwaps.claimArk(swap)
+    saveChainSwap(swap.response.id).catch()
   }
 
   const claimBtc = async (swap: BoltzChainSwap): Promise<void> => {
     if (!arkadeSwaps) return
     await arkadeSwaps.claimBtc(swap)
+    saveChainSwap(swap.response.id).catch()
   }
 
   const refundArk = async (swap: BoltzChainSwap): Promise<void> => {
     if (!arkadeSwaps) return
     await arkadeSwaps.refundArk(swap)
+    saveChainSwap(swap.response.id).catch()
   }
 
-  const payBtc = async (pendingSwap: BoltzChainSwap): Promise<{ txid: string }> => {
+  const payBtc = async (swap: BoltzChainSwap): Promise<{ txid: string }> => {
     if (!arkadeSwaps || !svcWallet) throw new Error('Chain swap not initialized')
-    if (!pendingSwap) throw new Error('No pending swap found')
-    if (!pendingSwap.response.lockupDetails.lockupAddress) throw new Error('No swap address found')
-    if (!pendingSwap.response.lockupDetails.amount) throw new Error('No swap amount found')
+    if (!swap) throw new Error('No pending swap found')
+    if (!swap.response.lockupDetails.lockupAddress) throw new Error('No swap address found')
+    if (!swap.response.lockupDetails.amount) throw new Error('No swap amount found')
 
-    const satoshis = pendingSwap.response.lockupDetails.amount
-    const swapAddress = pendingSwap.response.lockupDetails.lockupAddress
+    const satoshis = swap.response.lockupDetails.amount
+    const swapAddress = swap.response.lockupDetails.lockupAddress
 
     // Prevent double-funding: check that the swap address has no existing VTXOs
     await assertSwapAddressUnfunded(aspInfo.url, swapAddress)
@@ -252,7 +280,9 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     if (!txid) throw new Error('Failed to send offchain payment')
 
     try {
-      return await arkadeSwaps.waitAndClaimBtc(pendingSwap)
+      const response = await arkadeSwaps.waitAndClaimBtc(swap)
+      saveChainSwap(swap.response.id).catch()
+      return response
     } catch (e: unknown) {
       consoleError(e, 'Swap failed')
       throw new Error('Swap failed')
@@ -262,22 +292,28 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   // Helper methods that delegate to lightning swaps in arkadeSwaps
   const createSubmarineSwap = async (invoice: string): Promise<BoltzSubmarineSwap | null> => {
     if (!arkadeSwaps) return null
-    return arkadeSwaps.createSubmarineSwap({ invoice })
+    const response = await arkadeSwaps.createSubmarineSwap({ invoice })
+    saveSubmarineSwap(response.response.id).catch()
+    return response
   }
 
   const createReverseSwap = async (sats: number): Promise<BoltzReverseSwap | null> => {
     if (!arkadeSwaps) return null
-    return arkadeSwaps.createReverseSwap({ amount: sats, description: 'Lightning Invoice' })
+    const response = await arkadeSwaps.createReverseSwap({ amount: sats, description: 'Lightning Invoice' })
+    saveReverseSwap(response.response.id).catch()
+    return response
   }
 
   const claimVHTLC = async (swap: BoltzReverseSwap): Promise<void> => {
     if (!arkadeSwaps) return
     await arkadeSwaps.claimVHTLC(swap)
+    saveReverseSwap(swap.response.id).catch()
   }
 
   const refundVHTLC = async (swap: BoltzSubmarineSwap): Promise<void> => {
     if (!arkadeSwaps) return
     await arkadeSwaps.refundVHTLC(swap)
+    saveSubmarineSwap(swap.response.id).catch()
   }
 
   const payInvoice = async (pendingSwap: BoltzSubmarineSwap): Promise<{ txid: string }> => {
@@ -300,6 +336,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       // observed (funds committed, swap refundable from here). Settlement keeps
       // being monitored in the background and the stored swap stays up to date.
       await arkadeSwaps.waitForSwapFunded(pendingSwap)
+      saveSubmarineSwap(pendingSwap.response.id).catch()
       return { txid }
     } catch (e: unknown) {
       consoleError(e, 'Swap failed')
