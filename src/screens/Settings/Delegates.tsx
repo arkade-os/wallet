@@ -36,8 +36,10 @@ const formatUrl = (host: string, path: string): string => {
   return `${prefix}${host}/${path}`
 }
 
+type DelegateConnectionInfo = Pick<AspInfo, 'deprecatedSigners' | 'network' | 'signerPubkey'>
+
 // test connection to delegate by fetching delegate info and validating the response
-const testConnection = (aspInfo: AspInfo): Promise<Delegate | undefined> => {
+const testConnection = (aspInfo: DelegateConnectionInfo): Promise<Delegate | undefined> => {
   return new Promise((resolve, reject) => {
     // ensure expected pubkeys are in xonly format
     const now = Math.floor(Date.now() / 1000)
@@ -136,26 +138,39 @@ function DelegateCard() {
   const [active, setActive] = useState(false)
   const [delegate, setDelegate] = useState<Delegate>()
 
-  // populate delegate info
-  useEffect(() => {
-    if (!config.delegate || !aspInfo.network) return
-    setDelegate(getDelegateForNetwork(aspInfo.network as Network))
-  }, [config.delegate, aspInfo.network])
+  const { deprecatedSigners, network, signerPubkey } = aspInfo
 
-  // test connection to delegate and update status
+  // populate delegate info, then test the connection once for the current network/ASP signer
   useEffect(() => {
-    if (!delegate?.url || !aspInfo.signerPubkey) return
-    testConnection(aspInfo)
-      .then((delegate) => {
-        if (!delegate) return
-        setDelegate(delegate)
+    if (!config.delegate || !network) {
+      setDelegate(undefined)
+      setActive(false)
+      return
+    }
+
+    const networkDelegate = getDelegateForNetwork(network as Network)
+    setDelegate(networkDelegate)
+    setActive(false)
+
+    if (!networkDelegate?.url || !signerPubkey) return
+
+    let cancelled = false
+    testConnection({ deprecatedSigners, network, signerPubkey })
+      .then((testedDelegate) => {
+        if (cancelled || !testedDelegate) return
+        setDelegate(testedDelegate)
         setActive(true)
       })
       .catch((error) => {
+        if (cancelled) return
         consoleError(error, 'Error testing delegate connection:')
         setActive(false)
       })
-  }, [delegate, aspInfo.signerPubkey])
+
+    return () => {
+      cancelled = true
+    }
+  }, [config.delegate, deprecatedSigners, network, signerPubkey])
 
   if (!config.delegate) return null
 

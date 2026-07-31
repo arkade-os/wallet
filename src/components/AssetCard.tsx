@@ -6,6 +6,8 @@ import { PrivacyAmount, maskedFiat } from './PrivacyAmount'
 import { prettyBitcoinAmount, prettyBitcoinHide, prettyCurrencyAssetAmount } from '../lib/format'
 import { useContext } from 'react'
 import { ConfigContext } from '../providers/config'
+import { WalletContext } from '../providers/wallet'
+import UnverifiedBadge from './UnverifiedBadge'
 
 interface AssetCardProps {
   assetId: string
@@ -16,6 +18,10 @@ interface AssetCardProps {
   name?: string
   /** Asset ticker (e.g. "BTC"). */
   ticker?: string
+  /** Ticker used only to pick the flag/logo (e.g. a designated currency);
+   * defaults to `ticker`. Lets a designated-currency asset show its currency's
+   * flag while the balance stays denominated in the real underlying asset. */
+  logoTicker?: string
   /** Fiat-value text shown on the right (e.g. "$7.29"). */
   fiatText?: string
   onClick?: () => void
@@ -32,10 +38,12 @@ export default function AssetCard({
   icon,
   name,
   ticker,
+  logoTicker,
   fiatText,
   onClick,
 }: AssetCardProps) {
   const { config } = useContext(ConfigContext)
+  const { isVerifiedAsset } = useContext(WalletContext)
   const assetName = name || truncatedAssetId(assetId) || 'Asset'
   const tokenTick = ticker ?? 'TKN'
   const rawBalance =
@@ -45,10 +53,13 @@ export default function AssetCard({
         ? BigInt(balance)
         : BigInt(0)
   const bitcoinUnit = config.unit
-  const isBitcoin = tokenTick.toUpperCase() === 'BTC'
+  // an empty assetId means the native bitcoin row; any other asset only gets
+  // currency treatment (official logo, fiat-style formatting) when its ID is verified
+  const trustedTicker = !assetId || isVerifiedAsset(assetId) ? tokenTick : undefined
+  const isBitcoin = trustedTicker?.toUpperCase() === 'BTC'
   const prettyBalance = isBitcoin
     ? prettyBitcoinAmount(Number(rawBalance), bitcoinUnit)
-    : prettyCurrencyAssetAmount(rawBalance, decimals ?? 8, tokenTick)
+    : prettyCurrencyAssetAmount(rawBalance, decimals ?? 8, trustedTicker)
   const leftSecondary = isBitcoin ? prettyBalance : `${prettyBalance} ${tokenTick}`
   const maskedBalance = isBitcoin ? prettyBitcoinHide(Number(rawBalance), bitcoinUnit) : `•••• ${tokenTick}`
   const maskedFiatText = maskedFiatUnit(fiatText)
@@ -60,7 +71,11 @@ export default function AssetCard({
       }
     : undefined
 
-  const tokenLogoTicker = tokenLogoTickerForTicker(tokenTick)
+  // the logo lookup is decoupled from the amount ticker so a designated
+  // currency can show its flag while the balance stays asset-denominated;
+  // still gated on verification, same as the amount-side trustedTicker
+  const trustedLogoTicker = !assetId || isVerifiedAsset(assetId) ? (logoTicker ?? tokenTick) : undefined
+  const tokenLogoTicker = tokenLogoTickerForTicker(trustedLogoTicker)
   const renderedAvatar = tokenLogoTicker ? (
     <span className='asset-card__logo' aria-hidden='true'>
       <TokenLogo ticker={tokenLogoTicker} />
@@ -74,7 +89,10 @@ export default function AssetCard({
       <div className='asset-card__identity'>
         {renderedAvatar}
         <div className='asset-card__copy'>
-          <span className='asset-card__name'>{assetName}</span>
+          <span className='asset-card__name'>
+            {assetName}
+            {trustedTicker === undefined ? <UnverifiedBadge /> : null}
+          </span>
           <PrivacyAmount className='asset-card__balance' masked={maskedBalance}>
             {leftSecondary}
           </PrivacyAmount>

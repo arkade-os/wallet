@@ -41,14 +41,15 @@ test('should save config to nostr', async ({ page }) => {
 
   // change currency to euro
   await page.getByLabel('Go back').click()
-  await page.getByText('display', { exact: true }).click()
   await page.getByText('currency').click()
   await page.getByText('EUR').click()
   await page.waitForTimeout(500)
 
   // verify currency is euro
   await page.getByLabel('Go back').click()
-  await expect(page.getByText('EUR')).toBeVisible({ timeout: 2000 })
+  await page.getByText('currency').click()
+  const shouldBeEuro = await page.locator('input[checked]').getAttribute('value')
+  expect(shouldBeEuro).toBe('EUR')
 
   // disable nostr backups
   await page.getByLabel('Go back').click()
@@ -57,21 +58,23 @@ test('should save config to nostr', async ({ page }) => {
 
   // change currency to usd
   await page.getByLabel('Go back').click()
-  await page.getByText('display', { exact: true }).click()
   await page.getByText('currency').click()
   await page.getByText('USD').click()
 
   // verify currency is usd
   await page.getByLabel('Go back').click()
-  await expect(page.getByText('USD')).toBeVisible()
+  await page.getByText('currency').click()
+  const shouldBeUsd = await page.locator('input[checked]').getAttribute('value')
+  expect(shouldBeUsd).toBe('USD')
 
   // restore wallet
   await resetAndRestoreWallet(page)
 
   // verify currency is euro
   await navigateToSettings(page)
-  await page.getByText('display', { exact: true }).click()
-  await expect(page.getByText('EUR')).toBeVisible()
+  await page.getByText('currency').click()
+  const hopeIsEur = await page.locator('input[checked]').getAttribute('value')
+  expect(hopeIsEur).toBe('EUR')
 })
 
 test('should save swaps to nostr', async ({ page, isMobile }) => {

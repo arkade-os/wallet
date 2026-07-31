@@ -37,12 +37,14 @@ import {
   getInputsToSettle,
 } from '../lib/asp'
 import { AspContext } from './asp'
+import { AssetsContext } from './assets'
 import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
 import { arkNoteInUrl } from '../lib/arknote'
 import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { Addresses, Tx, Vtxo, Wallet } from '../lib/types'
+import { mergeAssetSwapActivity } from '../lib/swapDisplay'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
 import { resolveWalletMode } from '../lib/walletMode'
@@ -99,10 +101,12 @@ interface WalletContextProps {
   txs: Tx[]
   vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
   balance: WalletBalance['total']
+  availableBalance: WalletBalance['available']
   assetBalances: WalletBalance['assets']
   assetMetadataCache: Map<string, CachedAssetDetails>
   setCacheEntry: (assetId: string, details: AssetDetails) => CachedAssetDetails
   iconApprovalManager: AssetIconApprovalManager
+  isVerifiedAsset: (assetId: string) => boolean
   dataReady: boolean
   loadError: string | null
   dismissLoadError: () => void
@@ -169,10 +173,12 @@ export const WalletContext = createContext<WalletContextProps>({
   vtxoManager: undefined,
   isLocked: () => Promise.resolve(true),
   balance: 0,
+  availableBalance: 0,
   assetBalances: [],
   assetMetadataCache: new Map(),
   setCacheEntry: () => ({ cachedAt: 0 }) as CachedAssetDetails,
   iconApprovalManager: new AssetIconApprovalManager(),
+  isVerifiedAsset: () => false,
   dataReady: false,
   loadError: null,
   dismissLoadError: () => {},
@@ -207,6 +213,7 @@ export const useWalletRuntime = (): WalletRuntimeInstance | undefined => useCont
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const runtime = useRuntime()
   const { aspInfo } = useContext(AspContext)
+  const { isRegistered } = useContext(AssetsContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { navigate } = useContext(NavigationContext)
   const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo, setLnurlInfo } = useContext(FlowContext)
@@ -214,6 +221,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const [txs, setTxs] = useState<Tx[]>([])
   const [balance, setBalance] = useState(0)
+  const [availableBalance, setAvailableBalance] = useState(0)
   const [wallet, setWallet] = useState(() => readWalletFromStorage() ?? defaultWallet)
   const walletLoaded = true
   const [initialized, setInitialized] = useState<boolean>(false)
@@ -234,6 +242,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const reinitInProgress = useRef(false)
   const initAbortRef = useRef<AbortController | null>(null)
   const reinitWalletRef = useRef<(() => Promise<void>) | null>(null)
+  // reloadWallet runs from long-lived listeners (service-worker messages, the
+  // swap SSE monitor) whose closures captured an early `config` — theme still
+  // the default Themes.Auto. Read the live config through a ref so the assets-
+  // app auto-enable write below never spreads a stale snapshot and resets the
+  // user's saved theme (applyTheme(Auto) then falls back to the OS palette).
+  const configRef = useRef(config)
+  configRef.current = config
 
   // Each init gets its own AbortSignal; lock/reset aborts the current signal
   // with 'lock-reset' so stale paths can decide whether to tear down the wallet.
@@ -248,6 +263,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     initAbortRef.current?.abort('lock-reset')
     initAbortRef.current = null
   }
+
+  // Currency identity (flags, fiat rates, fiat-style formatting) must be pinned to
+  // asset IDs present in a curated list — never inferred from self-reported tickers,
+  // which anyone can mint.
+  const isVerifiedAsset = (assetId: string): boolean =>
+    Boolean(assetId) && (iconApprovalManager.isVerified(assetId) || isRegistered(assetId))
+
 
   const setCacheEntry = (assetId: string, details: AssetDetails): CachedAssetDetails => {
     const hasIcon = !!details.metadata?.icon
@@ -510,7 +532,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (isFirstLoad) setLoadingStatus('Fetching transactions...')
       const txs = await getTxHistory(swWallet)
       if (isFirstLoad) setLoadingStatus('Updating balance...')
-      const { total, assets } = await getBalance(swWallet)
+      const { total, available, assets } = await getBalance(swWallet)
       // prefetch asset metadata before triggering re-renders
       if (isFirstLoad && assets.length > 0) setLoadingStatus('Loading asset metadata...')
       for (const ab of assets) {
@@ -524,12 +546,16 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         }
       }
       setBalance(total)
+      setAvailableBalance(available)
       setAssetBalances(assets)
-      if (assets.length > 0 && !config.apps.assets.enabled) {
-        updateConfig({ ...config, apps: { ...config.apps, assets: { enabled: true } } })
+      if (assets.length > 0 && !configRef.current.apps.assets.enabled) {
+        const live = configRef.current
+        updateConfig({ ...live, apps: { ...live.apps, assets: { enabled: true } } })
       }
       setVtxos(vtxos)
-      setTxs(txs)
+      setTxs(
+        mergeAssetSwapActivity(txs, undefined, aspInfo.network, (id) => assetMetadataCache.current.get(id)?.metadata),
+      )
       if (!hasLoadedOnce.current) {
         hasLoadedOnce.current = true
         setDataReady(true)
@@ -872,10 +898,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         restartWallet,
         txs,
         balance,
+        availableBalance,
         assetBalances,
         assetMetadataCache: assetMetadataCache.current,
         setCacheEntry,
         iconApprovalManager,
+        isVerifiedAsset,
         dataReady,
         loadError,
         dismissLoadError,

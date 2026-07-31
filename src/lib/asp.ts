@@ -19,6 +19,7 @@ import { getConfirmedAndNotExpiredUtxos } from './utxo'
 import * as Sentry from '@sentry/react'
 import { hex } from '@scure/base'
 import { toXOnlyHex } from './keys'
+import { readTransactionActivityMetadata } from './storage'
 
 const emptyFees: FeeInfo = {
   intentFee: { offchainInput: '', offchainOutput: '', onchainInput: '', onchainOutput: '' },
@@ -107,6 +108,10 @@ export const collaborativeExit = async (wallet: IWallet, amount: number, address
   }
 }
 
+// Compare by batch expiry ascending; VTXOs without an expiry sort last.
+export const byExpiryAsc = (a: { expiresAt?: Date | null }, b: { expiresAt?: Date | null }): number =>
+  (a.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY) - (b.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY)
+
 export const collaborativeExitWithFees = async (
   wallet: IWallet,
   inputAmount: number,
@@ -117,8 +122,8 @@ export const collaborativeExitWithFees = async (
   const selectedVtxos = []
   let selectedAmount = 0
 
-  // sort vtxos by batch expiry ascending
-  const vtxosSorted = vtxos.sort((a, b) => (a.virtualStatus.batchExpiry ?? 0) - (b.virtualStatus.batchExpiry ?? 0))
+  // sort vtxos by batch expiry ascending; missing expiry sorts last
+  const vtxosSorted = vtxos.sort(byExpiryAsc)
 
   for (const vtxo of vtxosSorted) {
     if (selectedAmount >= inputAmount) break
@@ -193,14 +198,18 @@ export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
       const { key, settled, type, amount } = tx
       const explorable = key.boardingTxid ? key.boardingTxid : key.commitmentTxid ? key.commitmentTxid : undefined
       const assets = tx.assets?.map((a) => ({ assetId: a.assetId, amount: a.amount }))
+      const activityMetadata = readTransactionActivityMetadata([key.arkTxid, key.boardingTxid, key.commitmentTxid])
       txs.push({
         amount: Math.abs(amount),
+        assetAction: activityMetadata?.assetAction,
         assets,
         boardingTxid: key.boardingTxid,
+        destination: type === 'SENT' ? activityMetadata?.destination : undefined,
         redeemTxid: key.arkTxid,
         roundTxid: key.commitmentTxid,
         createdAt: unix,
         explorable,
+        networkFee: activityMetadata?.networkFee,
         preconfirmed: !settled,
         settled: type === 'SENT' ? true : settled, // show all sent tx as settled
         type: type.toLowerCase(),

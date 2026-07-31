@@ -54,9 +54,9 @@ export enum Currencies {
 
 export enum SettingsSections {
   Advanced = 'Advanced',
-  Display = 'Display',
+  General = 'General',
   Security = 'Security',
-  Config = 'Config',
+  Display = 'Display',
 }
 
 export enum SettingsOptions {
@@ -65,12 +65,13 @@ export enum SettingsOptions {
   Advanced = 'advanced',
   ArkadeMint = 'Arkade Mint',
   Backup = 'backup',
+  BitcoinUnit = 'bitcoin unit',
   Boltz = 'Boltz',
   Contracts = 'contracts',
-  Delegates = 'delegates',
-  BitcoinUnit = 'bitcoin unit',
-  Display = 'display',
   Currency = 'Currency',
+  Delegates = 'delegates',
+  Display = 'display',
+  General = 'general',
   Haptics = 'haptic feedback',
   Lock = 'lock wallet',
   Logs = 'logs',
@@ -79,6 +80,7 @@ export enum SettingsOptions {
   Password = 'change password',
   Reset = 'reset wallet',
   Server = 'server',
+  Solvers = 'solvers',
   Support = 'support',
   Theme = 'theme',
   Vtxos = 'coin control',
@@ -92,18 +94,33 @@ export enum Themes {
 
 export type Tx = {
   amount: number
+  assetAction?: 'issued' | 'reissued' | 'burned'
   assets?: Asset[]
   boardingTxid: string
   createdAt: number
+  destination?: string
   explorable: string | undefined
+  networkFee?: number
   preconfirmed: boolean
   redeemTxid: string
   roundTxid: string
   settled: boolean
   type: string
-  prototypeSwap?: {
+  assetSwap?: {
+    fromAssetId?: string
     fromTicker: string
+    fromDecimals?: number
+    fromAmount?: bigint
+    toAssetId?: string
     toTicker: string
+    toDecimals?: number
+    toAmount?: bigint
+    fiatAmount?: number
+    status?: 'pending' | 'failed' | 'completed' | 'cancelled' | 'recoverable'
+    feeBps?: number
+    fiatCurrency?: string
+    fundingTxid?: string
+    fillTxid?: string
   }
 }
 
@@ -131,4 +148,7 @@ export interface AssetOption {
   balance: bigint
   decimals: number
   icon?: string
+  /** id-verified via the asset registry; a self-reported ticker must never
+   * earn currency treatment (pricing, fiat formatting) without this */
+  trusted?: boolean
 }

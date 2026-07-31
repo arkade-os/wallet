@@ -1,6 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 /src/_gitCommit.ts
+/public/asset-registry/*json
+/public/solver-registry/*json
 /public/wallet-service-worker.mjs
 
 # dependencies

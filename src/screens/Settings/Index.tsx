@@ -13,16 +13,17 @@ import SettingsMenu from './Menu'
 import Logs from './Logs'
 import { SettingsOptions } from '../../lib/types'
 import Advanced from './Advanced'
-import General from './General'
-import Theme from './Theme'
-import Fiat from './Fiat'
 import Display from './Display'
+import Theme from './Theme'
+import Currency from './Currency'
+import BitcoinUnit from './BitcoinUnit'
 import Password from './Password'
 import Delegates from './Delegates'
 import SettingsPageTransition from '../../components/SettingsPageTransition'
 import Haptics from './Haptics'
 import Contracts from './Contracts'
 import { NavigationContext, Pages } from '../../providers/navigation'
+import Solvers from './Solvers'
 
 function settingsContent(option: SettingsOptions, menuBack?: () => void): JSX.Element {
   switch (option) {
@@ -39,11 +40,11 @@ function settingsContent(option: SettingsOptions, menuBack?: () => void): JSX.El
     case SettingsOptions.Delegates:
       return <Delegates />
     case SettingsOptions.BitcoinUnit:
-      return <Display />
+      return <BitcoinUnit />
     case SettingsOptions.Display:
-      return <General />
+      return <Display />
     case SettingsOptions.Currency:
-      return <Fiat />
+      return <Currency />
     case SettingsOptions.Haptics:
       return <Haptics />
     case SettingsOptions.Lock:
@@ -62,6 +63,8 @@ function settingsContent(option: SettingsOptions, menuBack?: () => void): JSX.El
       return <Server />
     case SettingsOptions.Support:
       return <Support />
+    case SettingsOptions.Solvers:
+      return <Solvers />
     case SettingsOptions.Theme:
       return <Theme />
     case SettingsOptions.Vtxos:

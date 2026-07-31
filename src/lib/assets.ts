@@ -2,27 +2,37 @@ import Decimal from 'decimal.js'
 
 export const MAX_DECIMALS = 8 // Arbitrary value to allow at least 1 sat/asset
 
+// discovered assets may carry up to 18 decimals (solver-discovery's cap);
+// conversions must stay exact for them even though displays default to 8
+const MAX_CONVERSION_DECIMALS = 18
+
 export function isValidAssetId(id: string) {
   return /^[0-9a-fA-F]{68}$/.test(id)
 }
 
 export const isValidDecimals = (d: number): boolean => Number.isInteger(d) && d >= 0 && d <= MAX_DECIMALS
 
+// garbage decimals (negative, fractional, NaN, beyond the cap) degrade to 0 so
+// amounts pass through as integers instead of throwing mid-render
+const conversionDecimals = (d: number): number =>
+  Number.isInteger(d) && d >= 0 && d <= MAX_CONVERSION_DECIMALS ? d : 0
+
 export function unitsToCents(units: string, decimals = MAX_DECIMALS): bigint {
   if (!units || units === '') return BigInt(0)
-  if (!isValidDecimals(decimals)) return BigInt(units)
-  const [integer, fraction = ''] = units.split('.')
-  const paddedFraction = fraction.padEnd(decimals, '0').slice(0, decimals)
-  return BigInt(integer + paddedFraction) // string + string
+  const safeDecimals = conversionDecimals(decimals)
+  const negative = units.startsWith('-')
+  const [integer, fraction = ''] = (negative ? units.slice(1) : units).split('.')
+  const digits = (integer || '0') + fraction.padEnd(safeDecimals, '0').slice(0, safeDecimals)
+  return negative ? -BigInt(digits) : BigInt(digits)
 }
 
 export function centsToUnits(cents: bigint, decimals = MAX_DECIMALS): string {
-  if (!isValidDecimals(decimals)) return cents.toString()
-  if (cents < BigInt(Number.MAX_SAFE_INTEGER) && cents > BigInt(Number.MIN_SAFE_INTEGER)) {
-    const str = Decimal.div(cents, Decimal.pow(10, decimals)).toFixed(decimals)
-    return str.includes('.') ? str.replace(/\.?0+$/, '') : str // remove trailing zeros and optional dot
-  }
-  return (cents / BigInt(10) ** BigInt(decimals)).toString() // TODO: prevent truncation
+  const safeDecimals = conversionDecimals(decimals)
+  if (safeDecimals === 0) return cents.toString()
+  const negative = cents < BigInt(0)
+  const digits = (negative ? -cents : cents).toString().padStart(safeDecimals + 1, '0')
+  const fraction = digits.slice(-safeDecimals).replace(/0+$/, '')
+  return `${negative ? '-' : ''}${digits.slice(0, -safeDecimals)}${fraction ? `.${fraction}` : ''}`
 }
 
 export const truncatedAssetId = (id: string): string => {
@@ -58,7 +68,7 @@ export const prettyAssetNumber = (num?: string | number, maximumFractionDigits =
 }
 
 export const prettyAssetAmount = (cents: bigint, decimals: number, tidy = false): string => {
-  const realDecimals = isValidDecimals(decimals) ? decimals : 0
+  const realDecimals = conversionDecimals(decimals)
 
   if (!tidy) return prettyAssetNumber(centsToUnits(cents, realDecimals), realDecimals)
 

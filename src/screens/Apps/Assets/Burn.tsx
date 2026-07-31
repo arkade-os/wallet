@@ -18,6 +18,7 @@ import { extractError } from '../../../lib/error'
 import Input from '../../../components/Input'
 import AssetCard from '../../../components/AssetCard'
 import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
+import { saveTransactionActivityMetadata } from '../../../lib/storage'
 
 export default function AppAssetBurn() {
   const { replace } = useContext(NavigationContext)
@@ -63,7 +64,8 @@ export default function AppAssetBurn() {
     setError('')
 
     try {
-      await assetManager.burn({ assetId: assetInfo.assetId, amount })
+      const txid = await assetManager.burn({ assetId: assetInfo.assetId, amount })
+      saveTransactionActivityMetadata(txid, { assetAction: 'burned' })
       await reloadWallet()
       pendingNav.current = () => replace(Pages.AppAssetDetail, Pages.AppAssets)
       setOpDone(true)

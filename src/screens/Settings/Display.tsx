@@ -1,32 +1,55 @@
 import { useContext } from 'react'
-import { Unit } from '../../lib/types'
-import Select from '../../components/Select'
-import Padded from '../../components/Padded'
-import Content from '../../components/Content'
 import { ConfigContext } from '../../providers/config'
+import Content from '../../components/Content'
+import Padded from '../../components/Padded'
 import Header from './Header'
+import FlexCol from '../../components/FlexCol'
+import ArrowIcon from '../../icons/Arrow'
+import { SettingsOptions, Themes } from '../../lib/types'
+import { OptionsContext } from '../../providers/options'
+import { hapticSubtle } from '../../lib/haptics'
 
 export default function Display() {
-  const { backupConfig, config, updateConfig } = useContext(ConfigContext)
+  const { config, systemTheme } = useContext(ConfigContext)
+  const { setOption } = useContext(OptionsContext)
 
-  const handleChange = async (value: string) => {
-    const unit = value as Unit
-    const newConfig = { ...config, unit }
-    if (config.nostrBackup) await backupConfig(newConfig)
-    updateConfig(newConfig)
-  }
+  const Row = ({ option, value }: { option: SettingsOptions; value: string }) => (
+    <button
+      type='button'
+      className='settings-row settings-row--value'
+      onClick={() => {
+        hapticSubtle()
+        setOption(option)
+      }}
+    >
+      <span className='settings-row__label'>{option}</span>
+      <span className='settings-row__side'>
+        <span>{value}</span>
+        <span className='settings-row__chevron' aria-hidden='true'>
+          <ArrowIcon />
+        </span>
+      </span>
+    </button>
+  )
 
   return (
     <>
-      <Header text='Bitcoin unit' back />
+      <Header text='Display' back />
       <Content>
         <Padded>
-          <div className='settings-page'>
+          <FlexCol gap='1rem' className='settings-page'>
             <section className='settings-section'>
-              <p className='settings-section-label'>Bitcoin unit</p>
-              <Select onChange={handleChange} options={[Unit.BTC, Unit.SATS, Unit.BIP177]} selected={config.unit} />
+              <p className='settings-section-label'>Preferences</p>
+              <div className='settings-row-group'>
+                <Row option={SettingsOptions.BitcoinUnit} value={config.unit} />
+                <Row option={SettingsOptions.Haptics} value={config.haptics ? 'On' : 'Off'} />
+                <Row
+                  option={SettingsOptions.Theme}
+                  value={config.theme === Themes.Auto ? `Auto (${systemTheme})` : config.theme}
+                />
+              </div>
             </section>
-          </div>
+          </FlexCol>
         </Padded>
       </Content>
     </>

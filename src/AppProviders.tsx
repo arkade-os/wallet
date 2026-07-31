@@ -11,6 +11,7 @@ import { OptionsProvider } from './providers/options'
 import { LimitsProvider } from './providers/limits'
 import { NudgeProvider } from './providers/nudge'
 import { SwapsProvider } from './providers/swaps'
+import { AssetSwapsProvider } from './providers/assetSwaps'
 import { LnurlProvider } from './providers/lnurl'
 import { FeesProvider } from './providers/fees'
 import { AnnouncementProvider } from './providers/announcements'
@@ -37,23 +38,25 @@ export default function AppProviders() {
                   <FlowProvider>
                     <WalletProvider>
                       <SwapsProvider>
-                        <LnurlProvider>
-                          <LimitsProvider>
-                            <FeesProvider>
-                              <OptionsProvider>
-                                <NudgeProvider>
-                                  <AnnouncementProvider>
-                                    <ToastProvider>
-                                      <ErrorBoundary>
-                                        <App />
-                                      </ErrorBoundary>
-                                    </ToastProvider>
-                                  </AnnouncementProvider>
-                                </NudgeProvider>
-                              </OptionsProvider>
-                            </FeesProvider>
-                          </LimitsProvider>
-                        </LnurlProvider>
+                        <AssetSwapsProvider>
+                          <LnurlProvider>
+                            <LimitsProvider>
+                              <FeesProvider>
+                                <OptionsProvider>
+                                  <NudgeProvider>
+                                    <AnnouncementProvider>
+                                      <ToastProvider>
+                                        <ErrorBoundary>
+                                          <App />
+                                        </ErrorBoundary>
+                                      </ToastProvider>
+                                    </AnnouncementProvider>
+                                  </NudgeProvider>
+                                </OptionsProvider>
+                              </FeesProvider>
+                            </LimitsProvider>
+                          </LnurlProvider>
+                        </AssetSwapsProvider>
                       </SwapsProvider>
                     </WalletProvider>
                   </FlowProvider>

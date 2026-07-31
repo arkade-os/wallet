@@ -9,13 +9,14 @@ interface ImportMetaEnv {
   readonly VITE_DEV_NSEC?: string
   readonly VITE_DEV_RESET_WALLET_ON_BOOT?: string
   readonly VITE_DEV_AUTO_INIT?: string
-  readonly VITE_DEV_MNEMONIC?: string
   readonly VITE_BOLTZ_URL?: string
   readonly VITE_DELEGATOR_URL?: string
   // Selects the top-level app shell at build time. Unset (PWA) defaults to
   // 'web-pwa'; the Capacitor build defines it as 'native-capacitor'.
   readonly VITE_RUNTIME?: 'web-pwa' | 'native-capacitor'
   readonly VITE_LNURL_SERVER_URL?: string
+  readonly VITE_EMULATOR_URL?: string
+  readonly VITE_SOLVER_REGISTRY_URL?: string
   // Add other env variables as needed
 }
 

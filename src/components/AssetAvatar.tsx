@@ -16,11 +16,16 @@ interface AssetAvatarProps {
 export default function AssetAvatar({ icon, ticker, name, size, onError, assetId, clickable }: AssetAvatarProps) {
   const { setAssetInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
+  // min AND max: a flex parent must be able to neither squash nor stretch the
+  // avatar (a grow rule like `.swap-receive-card > div { flex: 1 }` would
+  // otherwise widen the iconless letter fallback into an ellipse)
   const avatarStyle = {
     width: size,
     height: size,
     minWidth: size,
     minHeight: size,
+    maxWidth: size,
+    maxHeight: size,
     borderRadius: '50%',
     flexShrink: 0,
   } as const

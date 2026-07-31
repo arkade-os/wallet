@@ -7,6 +7,7 @@ import { BackupProvider } from '../lib/backup'
 import { consoleError } from '../lib/logs'
 import { setHapticsEnabled } from '../lib/haptics'
 import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
+import { getCurrency } from '@/lib/language'
 
 const defaultConfig: Config = {
   announcementsSeen: [],
@@ -14,7 +15,7 @@ const defaultConfig: Config = {
   aspUrl: defaultArkServer(),
   dismissedBanners: [],
   delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
-  currency: Currencies.USD,
+  currency: getCurrency(navigator.language),
   importedAssets: [],
   haptics: true,
   nostrBackup: false,
@@ -118,6 +119,12 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.setAttribute('content', themeColor)
   }
 
+  // TODO: the full-object contract is a stale-closure hazard — a caller that
+  // spreads an old `config` (captured before storage loaded) silently reverts
+  // every field it didn't mean to touch; the post-swap theme reset came from
+  // exactly this (see configRef in providers/wallet.tsx for the workaround).
+  // If it bites again, switch to partial updates deep-merged onto current
+  // state (updateConfig({ apps: ... })) so callers never supply a base.
   const updateConfig = async (incoming: Config, save = true) => {
     // merge with defaults so newly added fields are always present
     const config = updateDefaultConfig(incoming)

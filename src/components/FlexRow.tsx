@@ -10,6 +10,7 @@ interface FlexRowProps {
   end?: boolean
   gap?: string
   main?: boolean
+  minWidth?: string
   onClick?: () => void
   padding?: string
   testId?: string
@@ -25,6 +26,7 @@ export default function FlexRow({
   end,
   gap,
   main,
+  minWidth,
   onClick,
   padding,
   testId,
@@ -39,6 +41,7 @@ export default function FlexRow({
     gap: gap ?? '.5rem',
     justifyContent,
     minHeight: main ? '20px' : undefined,
+    minWidth,
     padding,
     width: end ? undefined : '100%',
   }

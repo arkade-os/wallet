@@ -7,8 +7,35 @@ on:
     branches: [master, next]
 jobs:
   test:
-    timeout-minutes: 45
+    name: E2E (${{ matrix.group }} / ${{ matrix.project }})
+    timeout-minutes: 30
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ["Mobile Chrome", "Google Chrome"]
+        group: [assets-send, core]
+        include:
+          - group: assets-send
+            test_files: >-
+              src/test/e2e/asset.test.ts
+              src/test/e2e/send.test.ts
+          - group: core
+            test_files: >-
+              src/test/e2e/backup.test.ts
+              src/test/e2e/bip21.test.ts
+              src/test/e2e/delegate.test.ts
+              src/test/e2e/form.test.ts
+              src/test/e2e/init.test.ts
+              src/test/e2e/keyboard.test.ts
+              src/test/e2e/lnurl.test.ts
+              src/test/e2e/lock.test.ts
+              src/test/e2e/nostr.test.ts
+              src/test/e2e/pwa.test.ts
+              src/test/e2e/receive.test.ts
+              src/test/e2e/restore.test.ts
+              src/test/e2e/serverdown.test.ts
+              src/test/e2e/swap.test.ts
     steps:
     - uses: actions/checkout@v4
       with:
@@ -30,7 +57,7 @@ jobs:
     - name: Verify environment
       run: pnpm regtest:setup
     - name: Run Playwright tests
-      run: sleep 5 && pnpm run test:e2e
+      run: sleep 5 && pnpm run test:e2e --project="${{ matrix.project }}" ${{ matrix.test_files }}
       env:
         CI: true
     - name: Capture logs on failure
