@@ -1,12 +1,18 @@
 import { AssetDetails } from '@arkade-os/sdk'
 import { Config, Wallet } from '../lib/types'
 import { consoleError } from './logs'
+import { clearSecrets } from './secretStore'
+import { clearBiometricUnlock } from './biometricUnlock'
 import { LocalCardInput, validateCard } from '@arkade-os/solver-discovery'
 
 // clear localStorage but persist config (with asset data reset)
 export async function clearStorage(): Promise<void> {
   const config = readConfigFromStorage()
   localStorage.clear()
+  // Secrets are not necessarily in localStorage: on native they live in the
+  // Keychain/Keystore, so they need clearing explicitly. Biometric unlock goes
+  // with them — its stored secret decrypts the wallet that just went away.
+  await Promise.all([clearSecrets(), clearBiometricUnlock()])
   if (config) {
     config.importedAssets = []
     config.apps.assets.enabled = false

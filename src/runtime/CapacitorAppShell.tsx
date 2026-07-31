@@ -1,34 +1,27 @@
 import { ReactNode, useMemo } from 'react'
 import type { PluginListenerHandle } from '@capacitor/core'
 import { RuntimeContext } from './RuntimeContext'
-import {
-  LifecycleRuntimeAdapter,
-  RuntimeCapabilities,
-  RuntimeContextValue,
-  SecurityRuntimeAdapter,
-  Unsubscribe,
-} from './types'
+import { LifecycleRuntimeAdapter, RuntimeCapabilities, RuntimeContextValue, Unsubscribe } from './types'
 import { nativeWalletEvents, nativeWalletFactory } from './wallet/nativeWallet'
 import { nativeSwapFactory } from './swaps/nativeSwaps'
 import { nativeSecretStorage } from './secretStorage'
 import { nativeDevice } from './device'
 import { nativeLinks } from './links'
+import { nativeSecurity } from './security'
 import { nativeNotifications } from './notifications'
 import { setSecretStore } from '../lib/secretStore'
 import { setDeviceRuntime } from '../lib/device'
+import { setSecurityRuntime } from '../lib/biometricUnlock'
 
 /**
- * Phase 1 native shell.
+ * Native shell. Boots the shared app tree without any service-worker
+ * dependency and provides the Capacitor-backed runtime services.
  *
- * The native projects, plugins, and adapter implementations land in later
- * phases (see CAPACITOR.plan.md § Phased Plan). For now this shell compiles,
- * boots the shared app tree without touching `navigator.serviceWorker`, and
- * exposes placeholder adapters that fail loudly for anything not yet wired.
- * Each placeholder is tracked in the parity map with its target phase.
+ * Every adapter is implemented; the plugin-backed ones live in sibling modules
+ * (`device`, `links`, `notifications`, `security`, `secretStorage`,
+ * `wallet/nativeWallet`, `swaps/nativeSwaps`) so this file stays a wiring
+ * point.
  */
-const notImplemented = (feature: string): Promise<never> =>
-  Promise.reject(new Error(`[CapacitorAppShell] ${feature} is not implemented yet`))
-
 // Reflects the intended native capability set; individual adapters below are
 // wired plugin-by-plugin in later phases.
 const nativeCapabilities: RuntimeCapabilities = {
@@ -79,13 +72,6 @@ const nativeLifecycle: LifecycleRuntimeAdapter = {
   },
 }
 
-const nativeSecurity: SecurityRuntimeAdapter = {
-  isBiometricUnlockAvailable: async () => false,
-  saveBiometricUnlockSecret: () => notImplemented('security.saveBiometricUnlockSecret'),
-  getBiometricUnlockSecret: () => notImplemented('security.getBiometricUnlockSecret'),
-  clearBiometricUnlockSecret: () => notImplemented('security.clearBiometricUnlockSecret'),
-}
-
 /**
  * Native Capacitor app shell. Boots the shared app tree without any
  * service-worker dependency and exposes (currently placeholder) native runtime
@@ -99,6 +85,9 @@ setSecretStore(nativeSecretStorage)
 // scanning): src/lib/{clipboard,haptics,share,explorers} route through this
 // seam, so those call sites need no native-specific branching.
 setDeviceRuntime(nativeDevice)
+// Biometric unlock replaces WebAuthn on native, whose relying-party id and
+// origin check are bound to a hostname Capacitor does not have.
+setSecurityRuntime(nativeSecurity)
 
 export function CapacitorAppShell({ children }: { children: ReactNode }) {
   const value = useMemo<RuntimeContextValue>(

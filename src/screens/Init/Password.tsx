@@ -7,7 +7,7 @@ import NewPassword from '../../components/NewPassword'
 import { FlowContext } from '../../providers/flow'
 import Content from '../../components/Content'
 import Header from '../../components/Header'
-import { isBiometricsSupported, registerUser } from '../../lib/biometrics'
+import { isBiometricUnlockSupported, registerBiometricUnlock } from '../../lib/biometricUnlock'
 import { WalletContext } from '../../providers/wallet'
 import CenterScreen from '../../components/CenterScreen'
 import Text from '../../components/Text'
@@ -31,7 +31,7 @@ export default function InitPassword() {
   const [password, setPassword] = useState<string | null>(null)
 
   const registerUserBiometrics = () => {
-    registerUser()
+    registerBiometricUnlock()
       .then(({ password, passkeyId }) => {
         updateWallet({ ...wallet, lockedByBiometrics: true, passkeyId })
         setInitInfo({ ...initInfo, password, restoring: false })
@@ -82,7 +82,7 @@ export default function InitPassword() {
         {method === Method.Password ? (
           <>
             <Button onClick={handleContinue} label={label} />
-            {isBiometricsSupported() ? (
+            {isBiometricUnlockSupported() ? (
               <Button onClick={() => setMethod(Method.Biometrics)} label='Use biometrics' secondary />
             ) : null}
           </>

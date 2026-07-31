@@ -25,7 +25,7 @@ import Modal from '../../components/Modal'
 import InputFake from '../../components/InputFake'
 import OkIcon from '../../icons/Ok'
 import { WalletContext } from '../../providers/wallet'
-import { authenticateUser } from '../../lib/biometrics'
+import { authenticateBiometricUnlock } from '../../lib/biometricUnlock'
 import FingerprintIcon from '../../icons/Fingerprint'
 import InputPassword from '../../components/InputPassword'
 import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
@@ -77,7 +77,7 @@ export default function Backup() {
   const showPrivateKey = async () => {
     if (!secret) {
       const password = wallet.lockedByBiometrics
-        ? await authenticateUser(wallet.passkeyId).catch(setError)
+        ? await authenticateBiometricUnlock(wallet.passkeyId).catch(setError)
         : enteredPassword.current
       if (!password) return
       const result = await verifyPassword(password)

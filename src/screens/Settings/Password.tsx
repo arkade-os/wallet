@@ -11,7 +11,7 @@ import NewPassword from '../../components/NewPassword'
 import { useContext, useEffect, useState } from 'react'
 import NeedsPassword from '../../components/NeedsPassword'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
-import { isBiometricsSupported, registerUser } from '../../lib/biometrics'
+import { isBiometricUnlockSupported, registerBiometricUnlock } from '../../lib/biometricUnlock'
 import { getPrivateKey, isValidPassword, noUserDefinedPassword, setPrivateKey } from '../../lib/privateKey'
 import { hasMnemonic, getMnemonic, setMnemonic } from '../../lib/mnemonic'
 
@@ -70,7 +70,7 @@ export default function Password() {
   }
 
   const registerUserBiometrics = () => {
-    registerUser()
+    registerBiometricUnlock()
       .then(({ password, passkeyId }) => {
         updateWallet({ ...wallet, lockedByBiometrics: true, passkeyId })
         saveNewPassword(password, true)
@@ -101,7 +101,7 @@ export default function Password() {
       {successText ? null : (
         <ButtonsOnBottom>
           <Button onClick={handleContinue} label={label} disabled={newPassword === null || saving} loading={saving} />
-          {wallet.lockedByBiometrics || !isBiometricsSupported() ? null : (
+          {wallet.lockedByBiometrics || !isBiometricUnlockSupported() ? null : (
             <Button onClick={registerUserBiometrics} label='Use biometrics' secondary />
           )}
         </ButtonsOnBottom>

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { getSecretStore, setSecretStore } from '../../lib/secretStore'
+import { clearSecrets, getSecretStore, setSecretStore } from '../../lib/secretStore'
 import { hasMnemonic, setMnemonic } from '../../lib/mnemonic'
 import type { SecretStorageAdapter } from '../../runtime/types'
 
@@ -53,5 +53,35 @@ describe('secret store routing', () => {
     expect(mem.has('encrypted_mnemonic')).toBe(true)
     expect(localStorage.getItem('encrypted_mnemonic')).toBeNull()
     expect(await hasMnemonic()).toBe(true)
+  })
+
+  // Regression: clearStorage() wipes localStorage, which cleared the secrets
+  // back when localStorage was the only substrate. Once native moved them to
+  // the Keychain/Keystore, a wallet reset left the encrypted mnemonic on the
+  // device unless the store is cleared explicitly.
+  it('clears secrets from a non-localStorage store, which localStorage.clear() cannot reach', async () => {
+    const mem = new Map<string, string>()
+    setSecretStore({
+      getItem: async (k) => mem.get(k) ?? null,
+      setItem: async (k, v) => {
+        mem.set(k, v)
+      },
+      removeItem: async (k) => {
+        mem.delete(k)
+      },
+    })
+
+    await setMnemonic(
+      'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
+      'pw',
+    )
+    expect(await hasMnemonic()).toBe(true)
+
+    localStorage.clear()
+    expect(await hasMnemonic()).toBe(true)
+
+    await clearSecrets()
+    expect(await hasMnemonic()).toBe(false)
+    expect(mem.size).toBe(0)
   })
 })

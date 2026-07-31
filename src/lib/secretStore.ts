@@ -1,4 +1,5 @@
 import { SecretStorageAdapter } from '../runtime/types'
+import { MNEMONIC_STORAGE_KEY, NSEC_STORAGE_KEY } from './storageKeys'
 
 /**
  * Injectable seam for encrypted-secret persistence.
@@ -27,3 +28,14 @@ export const setSecretStore = (store: SecretStorageAdapter): void => {
 }
 
 export const getSecretStore = (): SecretStorageAdapter => current
+
+/**
+ * Removes every encrypted secret blob.
+ *
+ * `clearStorage()` wipes `localStorage`, which used to be the whole story. It
+ * no longer is: on native the blobs live in the Keychain/Keystore, so a wallet
+ * reset would otherwise leave the encrypted mnemonic behind on the device.
+ */
+export const clearSecrets = async (): Promise<void> => {
+  await Promise.all([current.removeItem(MNEMONIC_STORAGE_KEY), current.removeItem(NSEC_STORAGE_KEY)])
+}
