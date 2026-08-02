@@ -215,7 +215,7 @@ describe('Navbar visibility', () => {
     renderApp({
       authState: 'authenticated',
       initialized: true,
-      screen: Pages.WalletSettings,
+      screen: Pages.Settings,
       option: SettingsOptions.Menu,
     })
 

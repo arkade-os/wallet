@@ -5,18 +5,18 @@ import { SettingsSections } from '../../lib/types'
 import Menu from '../../components/Menu'
 import FlexCol from '../../components/FlexCol'
 import Padded from '../../components/Padded'
+import { NavigationContext, Pages } from '@/providers/navigation'
+import { useContext } from 'react'
 
-interface SettingsMenuProps {
-  backFunc?: () => void
-}
+export default function SettingsMenu() {
+  const { navigate } = useContext(NavigationContext)
 
-export default function SettingsMenu({ backFunc }: SettingsMenuProps) {
   const displayRows = options.filter((o) => o.section === SettingsSections.General)
   const securityRows = options.filter((o) => o.section === SettingsSections.Security)
 
   return (
     <>
-      <Header text='Settings' backFunc={backFunc} />
+      <Header text='Settings' backFunc={() => navigate(Pages.Wallet)} />
       <Content>
         <Padded>
           <FlexCol gap='1.25rem' className='settings-page'>

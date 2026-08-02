@@ -22,13 +22,12 @@ import Delegates from './Delegates'
 import SettingsPageTransition from '../../components/SettingsPageTransition'
 import Haptics from './Haptics'
 import Contracts from './Contracts'
-import { NavigationContext, Pages } from '../../providers/navigation'
 import Solvers from './Solvers'
 
-function settingsContent(option: SettingsOptions, menuBack?: () => void): JSX.Element {
+function settingsContent(option: SettingsOptions): JSX.Element {
   switch (option) {
     case SettingsOptions.Menu:
-      return <SettingsMenu backFunc={menuBack} />
+      return <SettingsMenu />
     case SettingsOptions.About:
       return <About />
     case SettingsOptions.Advanced:
@@ -76,12 +75,10 @@ function settingsContent(option: SettingsOptions, menuBack?: () => void): JSX.El
 
 export default function Settings() {
   const { option, direction } = useContext(OptionsContext)
-  const { goBack: navigationBack, screen } = useContext(NavigationContext)
-  const menuBack = screen === Pages.WalletSettings ? navigationBack : undefined
 
   return (
     <SettingsPageTransition direction={direction} optionKey={String(option)}>
-      {settingsContent(option, menuBack)}
+      {settingsContent(option)}
     </SettingsPageTransition>
   )
 }

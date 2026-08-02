@@ -81,12 +81,11 @@ export enum Pages {
   Unlock,
   Vtxos,
   Wallet,
-  WalletSettings,
   WalletSwap,
 }
 
 // Root pages - switches between these get no animation
-const ROOT_PAGES = new Set([Pages.Wallet, Pages.Settings])
+const ROOT_PAGES = new Set([Pages.Wallet])
 
 // Coordination point for sub-navigation (e.g., Settings options)
 // Sub-navigation providers register here so the main popstate handler can delegate
@@ -181,8 +180,6 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <Vtxos />
     case Pages.Wallet:
       return <Wallet />
-    case Pages.WalletSettings:
-      return <Settings />
     case Pages.WalletSwap:
       return <WalletSwap />
     default:
@@ -229,7 +226,7 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
     }
 
     // delegate to sub-navigation (e.g., Settings options) if it can handle this
-    if ([Pages.Settings, Pages.WalletSettings].includes(screenRef.current) && subNavHandler.canGoBack()) {
+    if ([Pages.Settings].includes(screenRef.current) && subNavHandler.canGoBack()) {
       subNavHandler.goBack(fromButton)
       return
     }
