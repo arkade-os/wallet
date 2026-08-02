@@ -233,18 +233,18 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const createArkToBtcSwap = async (btcAddress: string, sats: number): Promise<ArkToBtcResponse | null> => {
     if (!arkadeSwaps || !svcWallet) return null
     const response = await arkadeSwaps.arkToBtc({ btcAddress, receiverLockAmount: sats })
-    saveChainSwap(response.pendingSwap.response.id).catch((err) =>
-      consoleError(err, `Failed to save chain swap ${response.pendingSwap.response.id}:`),
-    )
+    if (response.pendingSwap) {
+      backupChainSwap(response.pendingSwap).catch((err) => consoleError(err, 'backupChainSwap:'))
+    }
     return response
   }
 
   const createBtcToArkSwap = async (sats: number): Promise<BtcToArkResponse | null> => {
     if (!arkadeSwaps || !svcWallet) return null
     const response = await arkadeSwaps.btcToArk({ senderLockAmount: sats })
-    saveChainSwap(response.pendingSwap.response.id).catch((err) =>
-      consoleError(err, `Failed to save chain swap ${response.pendingSwap.response.id}:`),
-    )
+    if (response.pendingSwap) {
+      backupChainSwap(response.pendingSwap).catch((err) => consoleError(err, 'Failed to backup chain swap:'))
+    }
     return response
   }
 
@@ -296,20 +296,24 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   // Helper methods that delegate to lightning swaps in arkadeSwaps
   const createSubmarineSwap = async (invoice: string): Promise<BoltzSubmarineSwap | null> => {
     if (!arkadeSwaps) return null
-    const response = await arkadeSwaps.createSubmarineSwap({ invoice })
-    saveSubmarineSwap(response.response.id).catch((err) =>
-      consoleError(err, `Failed to save submarine swap ${response.response.id}:`),
-    )
-    return response
+    const pendingSwap = await arkadeSwaps.createSubmarineSwap({ invoice })
+    if (pendingSwap) {
+      backupSubmarineSwap(pendingSwap).catch((err) =>
+        consoleError(err, `Failed to backup submarine swap ${pendingSwap.response.id}:`),
+      )
+    }
+    return pendingSwap
   }
 
   const createReverseSwap = async (sats: number): Promise<BoltzReverseSwap | null> => {
     if (!arkadeSwaps) return null
-    const response = await arkadeSwaps.createReverseSwap({ amount: sats, description: 'Lightning Invoice' })
-    saveReverseSwap(response.response.id).catch((err) =>
-      consoleError(err, `Failed to save reverse swap ${response.response.id}:`),
-    )
-    return response
+    const pendingSwap = await arkadeSwaps.createReverseSwap({ amount: sats, description: 'Lightning Invoice' })
+    if (pendingSwap) {
+      backupReverseSwap(pendingSwap).catch((err) =>
+        consoleError(err, `Failed to backup reverse swap ${pendingSwap.response.id}:`),
+      )
+    }
+    return pendingSwap
   }
 
   const claimVHTLC = async (swap: BoltzReverseSwap): Promise<void> => {

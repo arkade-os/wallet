@@ -6,15 +6,16 @@ import Content from '../../components/Content'
 import { ConfigContext, resolveTheme } from '../../providers/config'
 import { BackupContext } from '@/providers/backup'
 import Header from './Header'
+import { consoleError } from '@/lib/logs'
 
 export default function Theme() {
-  const { backupAndUpdateConfig } = useContext(BackupContext)
-  const { config, effectiveTheme, systemTheme } = useContext(ConfigContext)
+  const { backupConfig } = useContext(BackupContext)
+  const { config, effectiveTheme, systemTheme, updateConfig } = useContext(ConfigContext)
   const clickCoords = useRef<{ x: number; y: number } | null>(null)
 
   const handleChange = async (theme: string) => {
     const newConfig = { ...config, theme: theme as Themes }
-    backupAndUpdateConfig(newConfig)
+    backupConfig(newConfig).catch((err) => consoleError(err, 'Failed to backup config:'))
 
     const coords = clickCoords.current
     const newEffective = resolveTheme(newConfig.theme)
@@ -32,12 +33,12 @@ export default function Theme() {
       root.style.setProperty('--ripple-y', `${y}px`)
       root.style.setProperty('--ripple-radius', `${radius}px`)
       root.style.viewTransitionName = 'theme-ripple'
-      const transition = document.startViewTransition(() => backupAndUpdateConfig(newConfig))
+      const transition = document.startViewTransition(() => updateConfig(newConfig))
       transition.finished.then(() => {
         root.style.viewTransitionName = ''
       })
     } else {
-      backupAndUpdateConfig(newConfig)
+      updateConfig(newConfig)
     }
   }
 

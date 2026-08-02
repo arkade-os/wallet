@@ -69,7 +69,7 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const backupAndUpdateConfig = (config: Config) => {
-    backupConfig(config)
+    backupConfig(config).catch((err) => consoleError(err, 'backupAndUpdateConfig:'))
     updateConfig(config)
   }
 

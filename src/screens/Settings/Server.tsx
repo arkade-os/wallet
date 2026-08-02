@@ -19,7 +19,7 @@ import LoadingLogo from '../../components/LoadingLogo'
 
 export default function Server() {
   const { aspInfo } = useContext(AspContext)
-  const { backupAndUpdateConfig } = useContext(BackupContext)
+  const { backupConfig } = useContext(BackupContext)
   const { config } = useContext(ConfigContext)
   const { svcWallet, resetWallet } = useContext(WalletContext)
 
@@ -58,7 +58,7 @@ export default function Server() {
     try {
       if (!info) return
       await resetWallet()
-      backupAndUpdateConfig({ ...config, aspUrl: info.url })
+      await backupConfig({ ...config, aspUrl: info.url })
       location.reload() // reload app or else weird things happen
     } catch (err) {
       consoleError(err)
