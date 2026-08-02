@@ -8,13 +8,13 @@ import { BackupContext } from '@/providers/backup'
 import Header from './Header'
 
 export default function Theme() {
-  const { backupConfig } = useContext(BackupContext)
-  const { config, effectiveTheme, systemTheme, updateConfig } = useContext(ConfigContext)
+  const { backupAndUpdateConfig } = useContext(BackupContext)
+  const { config, effectiveTheme, systemTheme } = useContext(ConfigContext)
   const clickCoords = useRef<{ x: number; y: number } | null>(null)
 
   const handleChange = async (theme: string) => {
     const newConfig = { ...config, theme: theme as Themes }
-    if (config.nostrBackup) await backupConfig(newConfig)
+    backupAndUpdateConfig(newConfig)
 
     const coords = clickCoords.current
     const newEffective = resolveTheme(newConfig.theme)
@@ -32,12 +32,12 @@ export default function Theme() {
       root.style.setProperty('--ripple-y', `${y}px`)
       root.style.setProperty('--ripple-radius', `${radius}px`)
       root.style.viewTransitionName = 'theme-ripple'
-      const transition = document.startViewTransition(() => updateConfig(newConfig))
+      const transition = document.startViewTransition(() => backupAndUpdateConfig(newConfig))
       transition.finished.then(() => {
         root.style.viewTransitionName = ''
       })
     } else {
-      updateConfig(newConfig)
+      backupAndUpdateConfig(newConfig)
     }
   }
 

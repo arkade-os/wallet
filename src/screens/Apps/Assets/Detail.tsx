@@ -17,10 +17,12 @@ import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import type { AssetDetails } from '@arkade-os/sdk'
 import { prettyAssetAmount } from '../../../lib/assets'
+import { BackupContext } from '@/providers/backup'
 
 export default function AppAssetDetail() {
+  const { config } = useContext(ConfigContext)
+  const { backupAndUpdateConfig } = useContext(BackupContext)
   const { navigate, replace } = useContext(NavigationContext)
-  const { config, updateConfig } = useContext(ConfigContext)
   const { assetInfo, setAssetInfo, setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { assetBalances, svcWallet, assetMetadataCache, setCacheEntry, iconApprovalManager } = useContext(WalletContext)
 
@@ -100,7 +102,7 @@ export default function AppAssetDetail() {
 
   const handleRemove = () => {
     const updated = config.importedAssets.filter((id) => id !== assetInfo.assetId)
-    updateConfig({ ...config, importedAssets: updated })
+    backupAndUpdateConfig({ ...config, importedAssets: updated })
     replace(Pages.AppAssets, [Pages.Settings, Pages.WalletSettings])
   }
 

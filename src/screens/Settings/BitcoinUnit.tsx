@@ -8,14 +8,12 @@ import Header from './Header'
 import { BackupContext } from '@/providers/backup'
 
 export default function Display() {
-  const { backupConfig } = useContext(BackupContext)
-  const { config, updateConfig } = useContext(ConfigContext)
+  const { config } = useContext(ConfigContext)
+  const { backupAndUpdateConfig } = useContext(BackupContext)
 
   const handleChange = async (value: string) => {
     const unit = value as Unit
-    const newConfig = { ...config, unit }
-    if (config.nostrBackup) await backupConfig(newConfig)
-    updateConfig(newConfig)
+    backupAndUpdateConfig({ ...config, unit })
   }
 
   return (

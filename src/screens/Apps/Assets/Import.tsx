@@ -16,10 +16,12 @@ import { extractError } from '../../../lib/error'
 import InputAssetId from '../../../components/InputAssetId'
 import Scanner from '../../../components/Scanner'
 import { isValidAssetId } from '../../../lib/assets'
+import { BackupContext } from '@/providers/backup'
 
 export default function AppAssetImport() {
+  const { backupAndUpdateConfig } = useContext(BackupContext)
   const { replace } = useContext(NavigationContext)
-  const { config, updateConfig } = useContext(ConfigContext)
+  const { config } = useContext(ConfigContext)
   const { setAssetInfo } = useContext(FlowContext)
   const { svcWallet, setCacheEntry } = useContext(WalletContext)
 
@@ -46,7 +48,7 @@ export default function AppAssetImport() {
 
       // Add to imported assets if not already there
       if (!config.importedAssets.includes(assetId)) {
-        updateConfig({ ...config, importedAssets: [...config.importedAssets, assetId] })
+        backupAndUpdateConfig({ ...config, importedAssets: [...config.importedAssets, assetId] })
       }
 
       setAssetInfo(moderated)

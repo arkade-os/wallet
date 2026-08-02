@@ -22,6 +22,7 @@ type NostrStorageData = {
 }
 
 type BackupContextProps = {
+  backupAndUpdateConfig: (config: Config) => void
   backupConfig: (config: Config) => Promise<void>
   backupChainSwap: (chainSwap: BoltzChainSwap) => Promise<void>
   backupSolverCards: (solverCards: LocalCardInput[]) => Promise<void>
@@ -33,6 +34,7 @@ type BackupContextProps = {
 
 export const BackupContext = createContext<BackupContextProps>({
   backupConfig: async () => {},
+  backupAndUpdateConfig: () => {},
   backupChainSwap: async () => {},
   backupSolverCards: async () => {},
   backupReverseSwap: async () => {},
@@ -64,6 +66,11 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
     const data: NostrStorageData = { config }
     await nostrStorage.current?.save(JSON.stringify(data))
     if (!config.nostrBackup) nostrStorage.current = null
+  }
+
+  const backupAndUpdateConfig = (config: Config) => {
+    backupConfig(config)
+    updateConfig(config)
   }
 
   /**
@@ -253,6 +260,7 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
         backupSolverCards,
         backupReverseSwap,
         backupSubmarineSwap,
+        backupAndUpdateConfig,
         fullBackup,
         restore,
       }}

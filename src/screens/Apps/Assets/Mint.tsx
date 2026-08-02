@@ -26,6 +26,7 @@ import { MAX_DECIMALS, unitsToCents } from '../../../lib/assets'
 import { isInvalidDecimals, isInvalidMintAmount, isValidUrl } from '../../../lib/validators'
 import InputAssetAmount from '@/components/InputAssetAmount'
 import InputAssetDecimals from '@/components/InputAssetDecimals'
+import { BackupContext } from '@/providers/backup'
 
 interface KnownAssetOption {
   assetId: string
@@ -35,8 +36,9 @@ interface KnownAssetOption {
 }
 
 export default function AppAssetMint() {
+  const { backupAndUpdateConfig } = useContext(BackupContext)
   const { replace } = useContext(NavigationContext)
-  const { config, updateConfig } = useContext(ConfigContext)
+  const { config } = useContext(ConfigContext)
   const { setAssetInfo } = useContext(FlowContext)
   const { svcWallet, assetBalances, assetMetadataCache, setCacheEntry, iconApprovalManager } = useContext(WalletContext)
 
@@ -175,7 +177,7 @@ export default function AppAssetMint() {
       if (!importedAssets.includes(newAssetId)) {
         importedAssets.push(newAssetId)
       }
-      updateConfig({ ...config, importedAssets })
+      backupAndUpdateConfig({ ...config, importedAssets })
 
       const assetDetails = {
         assetId: newAssetId,

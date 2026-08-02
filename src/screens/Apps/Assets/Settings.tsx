@@ -1,4 +1,5 @@
 import { useContext } from 'react'
+import { BackupContext } from '@/providers/backup'
 import Padded from '../../../components/Padded'
 import Header from '../../../components/Header'
 import Toggle from '../../../components/Toggle'
@@ -8,12 +9,13 @@ import { ConfigContext } from '../../../providers/config'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 
 export default function AppAssetsSettings() {
-  const { config, updateConfig } = useContext(ConfigContext)
+  const { config } = useContext(ConfigContext)
   const { replace } = useContext(NavigationContext)
+  const { backupAndUpdateConfig } = useContext(BackupContext)
 
   const toggleConnection = () => {
     const enabling = !config.apps.assets.enabled
-    updateConfig({ ...config, apps: { ...config.apps, assets: { enabled: enabling } } })
+    backupAndUpdateConfig({ ...config, apps: { ...config.apps, assets: { enabled: enabling } } })
     if (enabling) replace(Pages.AppAssets, [Pages.Settings, Pages.WalletSettings])
   }
 

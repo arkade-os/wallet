@@ -95,8 +95,8 @@ export const SwapsContext = createContext<SwapsContextProps>({
 export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { svcWallet } = useContext(WalletContext)
-  const { config, updateConfig } = useContext(ConfigContext)
-  const { backupChainSwap, backupConfig, backupReverseSwap, backupSubmarineSwap } = useContext(BackupContext)
+  const { config } = useContext(ConfigContext)
+  const { backupChainSwap, backupAndUpdateConfig, backupReverseSwap, backupSubmarineSwap } = useContext(BackupContext)
 
   const [arkToBtcFees, setArkToBtcFees] = useState<ChainFeesResponse | null>(null)
   const [btcToArkFees, setBtcToArkFees] = useState<ChainFeesResponse | null>(null)
@@ -174,10 +174,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   }, [arkadeSwaps])
 
   const setConnected = (value: boolean) => {
-    const newConfig = { ...config }
-    newConfig.apps.boltz.connected = value
-    updateConfig(newConfig)
-    backupConfig(newConfig)
+    const newConfig = { ...config, apps: { ...config.apps, boltz: { ...config.apps.boltz, connected: value } } }
+    backupAndUpdateConfig(newConfig)
   }
 
   const getSwapFromRepo = async (swapId: string): Promise<BoltzSwap | null> => {

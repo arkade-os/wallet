@@ -25,11 +25,13 @@ import UpsellsSection from './UpsellsSection'
 import RecentActivitySection from './RecentActivitySection'
 import { usePortfolioBalanceDisplay } from '../../hooks/usePortfolioBalanceDisplay'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
+import { BackupContext } from '@/providers/backup'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
   const { announcement } = useContext(AnnouncementContext)
-  const { config, updateConfig } = useContext(ConfigContext)
+  const { config } = useContext(ConfigContext)
+  const { backupAndUpdateConfig } = useContext(BackupContext)
   const { isInitialLoad } = useContext(NavigationContext)
   const { nudge, nudgeCheckComplete } = useContext(NudgeContext)
 
@@ -66,7 +68,7 @@ export default function Wallet() {
   const dismissPwaBanner = () => {
     if (!config) return
     const dismissedBanners = [...(config.dismissedBanners ?? []), 'pwa-install']
-    updateConfig({ ...config, dismissedBanners })
+    backupAndUpdateConfig({ ...config, dismissedBanners })
   }
 
   useEffect(() => {

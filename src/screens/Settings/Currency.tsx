@@ -9,13 +9,11 @@ import TokenLogo, { tokenLogoTickerForTicker } from '../../components/TokenLogo'
 import { BackupContext } from '@/providers/backup'
 
 export default function Currency() {
-  const { backupConfig } = useContext(BackupContext)
-  const { config, updateConfig } = useContext(ConfigContext)
+  const { backupAndUpdateConfig } = useContext(BackupContext)
+  const { config } = useContext(ConfigContext)
 
   const handleChange = async (currency: string) => {
-    const newConfig = { ...config, currency: currency as Currencies }
-    if (config.nostrBackup) await backupConfig(newConfig)
-    updateConfig(newConfig)
+    backupAndUpdateConfig({ ...config, currency: currency as Currencies })
   }
 
   return (
