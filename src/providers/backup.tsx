@@ -161,7 +161,8 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
 
     const data = (await loadData(provider)) as NostrStorageData
 
-    if (data?.config) updateConfig(data.config)
+    // we enforce delegates on restore
+    if (data?.config) updateConfig({ ...data.config, delegate: true })
 
     if (data?.solverCards) saveSolverCardsToStorage(data.solverCards)
 
