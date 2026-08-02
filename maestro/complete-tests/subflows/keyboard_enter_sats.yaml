@@ -1,0 +1,7 @@
+appId: com.android.chrome
+---
+# Amount keyboard — coordinate taps (reliable on Chrome mobile).
+
+- extendedWaitUntil:
+    visible: "Save"
+    timeout: 20000
