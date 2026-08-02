@@ -2,7 +2,6 @@ import { ReactNode, createContext, useContext, useEffect, useState } from 'react
 import { WalletContext } from './wallet'
 import { noUserDefinedPassword } from '../lib/privateKey'
 import { minSatsToNudge } from '../lib/constants'
-import { NavigationContext, Pages } from './navigation'
 import { OptionsContext } from './options'
 import { SettingsOptions } from '../lib/types'
 import DismissibleBanner from '../components/DismissibleBanner'
@@ -23,7 +22,6 @@ export const NudgeContext = createContext<NudgeContextProps>({
 export const NudgeProvider = ({ children }: { children: ReactNode }) => {
   const { balance, wallet } = useContext(WalletContext)
   const { setOption } = useContext(OptionsContext)
-  const { navigate } = useContext(NavigationContext)
 
   const [dismissed, setDismissed] = useState(false)
   const [shouldShow, setShouldShow] = useState(false)
@@ -31,7 +29,6 @@ export const NudgeProvider = ({ children }: { children: ReactNode }) => {
 
   const navigateToSettings = () => {
     setOption(SettingsOptions.Password)
-    navigate(Pages.Settings)
     setDismissed(true)
   }
 
