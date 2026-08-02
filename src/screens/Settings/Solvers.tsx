@@ -198,9 +198,9 @@ export default function Solvers() {
   useEffect(() => {
     return () => {
       if (reload) runDiscovery(false)
-      if (localCards) backupSolverCards(localCards).catch()
+      if (localCards) backupSolverCards(localCards).catch((err) => consoleError(err, 'failed to backup solver cards'))
     }
-  }, [reload, runDiscovery])
+  }, [localCards?.length, reload, runDiscovery])
 
   // fetch local cards whenever the network changes
   useEffect(() => {
