@@ -379,6 +379,48 @@ iframe {
   margin-top: 0.25rem;
 }
 
+.lightning-swap-notice {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.875rem;
+  border-radius: 1rem;
+  background: var(--orangebg);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--orange) 24%, transparent),
+    var(--elevation-sm);
+}
+
+.lightning-swap-notice__icon {
+  display: flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.625rem;
+  background: color-mix(in srgb, var(--orange) 16%, transparent);
+  color: var(--orange);
+}
+
+.lightning-swap-notice__title,
+.lightning-swap-notice__description {
+  font-size: var(--text-sm-size);
+  line-height: var(--text-sm-line);
+}
+
+.lightning-swap-notice__title {
+  color: var(--fg);
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+.lightning-swap-notice__description {
+  margin-top: 0.125rem;
+  color: var(--neutral-700);
+  text-wrap: pretty;
+}
+
 .home-quick-actions {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

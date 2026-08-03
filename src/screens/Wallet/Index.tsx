@@ -26,6 +26,7 @@ import RecentActivitySection from './RecentActivitySection'
 import { usePortfolioBalanceDisplay } from '../../hooks/usePortfolioBalanceDisplay'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { BackupContext } from '@/providers/backup'
+import BoltOutlineIcon from '../../icons/BoltOutline'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
@@ -133,6 +134,23 @@ export default function Wallet() {
             <WalletStaggerChild animate={shouldStagger} className='home-stack__actions'>
               <HomeQuickActions />
             </WalletStaggerChild>
+            {aspInfo.network === 'bitcoin' ? (
+              <WalletStaggerChild animate={shouldStagger}>
+                <section aria-labelledby='lightning-swap-notice-title' className='lightning-swap-notice' role='status'>
+                  <span aria-hidden='true' className='lightning-swap-notice__icon'>
+                    <BoltOutlineIcon />
+                  </span>
+                  <div>
+                    <p className='lightning-swap-notice__title' id='lightning-swap-notice-title'>
+                      Lightning swaps are temporarily unavailable
+                    </p>
+                    <p className='lightning-swap-notice__description'>
+                      We are working to restore service as soon as possible.
+                    </p>
+                  </div>
+                </section>
+              </WalletStaggerChild>
+            ) : null}
             {hasHomeNotices ? (
               <WalletStaggerChild animate={shouldStagger}>
                 <FlexCol gap='0.75rem'>
