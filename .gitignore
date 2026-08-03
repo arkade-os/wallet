@@ -50,6 +50,7 @@ node_modules/
 
 # plans
 docs/plans/
+plans/
 # Claude Code
 .claude/
 CLAUDE.md

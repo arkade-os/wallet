@@ -21,6 +21,7 @@ import { getConfirmedAndNotExpiredUtxos } from './utxo'
 import * as Sentry from '@sentry/react'
 import { hex } from '@scure/base'
 import { readTransactionActivityMetadata } from './storage'
+import { walletFingerprint } from './sentry'
 
 const emptyFees: FeeInfo = {
   intentFee: { offchainInput: '', offchainOutput: '', onchainInput: '', onchainOutput: '' },
@@ -100,10 +101,8 @@ export const collaborativeExit = async (wallet: IWallet, amount: number, address
   } catch (error) {
     await captureSettleError(error, wallet, 'collaborativeExit', {
       amount,
-      address,
-      selectedAmount,
       changeAmount,
-      selectedVtxos: serializeForSentry(selectedVtxos),
+      ...summarizeInputs(selectedVtxos),
     })
     throw error
   }
@@ -151,10 +150,8 @@ export const collaborativeExitWithFees = async (
     await captureSettleError(error, wallet, 'collaborativeExitWithFees', {
       inputAmount,
       outputAmount,
-      address,
-      selectedAmount,
       changeAmount,
-      selectedVtxos: serializeForSentry(selectedVtxos),
+      ...summarizeInputs(selectedVtxos),
     })
     throw error
   }
@@ -263,12 +260,7 @@ export const redeemNotes = async (wallet: IWallet, notes: string[]): Promise<voi
       outputs: [{ address: offchainAddr, amount }],
     })
   } catch (error) {
-    await captureSettleError(error, wallet, 'redeemNotes', {
-      notesCount: notes.length,
-      amount: amount.toString(),
-      offchainAddr,
-      inputs: serializeForSentry(inputs),
-    })
+    await captureSettleError(error, wallet, 'redeemNotes', summarizeInputs(inputs))
     throw error
   }
 }
@@ -317,10 +309,9 @@ export const settleVtxos = async (
     await wallet.settle({ inputs, outputs }, console.log)
   } catch (error) {
     await captureSettleError(error, wallet, 'settleVtxos', {
-      amount: amount.toString(),
-      dustAmount: dustAmount.toString(),
+      dustAmount: Number(dustAmount),
       thresholdMs,
-      inputs: serializeForSentry(inputs),
+      ...summarizeInputs(inputs),
     })
     throw error
   }
@@ -378,25 +369,26 @@ export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> 
   }
 }
 
-const serializeForSentry = (value: any): string => {
-  return JSON.stringify(value, (key, val) => (typeof val === 'bigint' ? val.toString() : val))
-}
+// Settle diagnostics are limited to shape and size; inputs are never serialized.
+const summarizeInputs = (inputs: { value: number }[]): { count: number; totalValue: number } => ({
+  count: inputs.length,
+  totalValue: inputs.reduce((sum, input) => sum + input.value, 0),
+})
 
 const captureSettleError = async (
   error: unknown,
   wallet: IWallet,
   functionName: string,
-  baseContext: Record<string, any>,
+  context: Record<string, number | undefined>,
 ): Promise<void> => {
-  const settleContext: Record<string, any> = { ...baseContext }
+  const settle: Record<string, number | string | undefined> = { ...context }
   try {
-    settleContext.walletAddress = await wallet.getAddress()
+    settle.wallet = walletFingerprint(await wallet.getAddress())
   } catch {
-    // Ignore if getAddress fails
+    // report without it if the address is unavailable
   }
   Sentry.captureException(error, {
     tags: { function: functionName },
-    contexts: { settle: settleContext },
+    contexts: { settle },
   })
-  throw error
 }

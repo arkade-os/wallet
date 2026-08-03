@@ -1,5 +1,8 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest'
 
+const { captureException } = vi.hoisted(() => ({ captureException: vi.fn() }))
+vi.mock('@sentry/react', () => ({ captureException }))
+
 // Keep the real SDK (so ArkError stays a real class for the instanceof check in
 // getAspInfo) and only override RestArkProvider to control what getInfo throws.
 vi.mock('@arkade-os/sdk', async (importOriginal) => {
@@ -25,11 +28,15 @@ vi.mock('@arkade-os/sdk', async (importOriginal) => {
   }
 })
 
-import { getAspInfo, aspErrorText, emptyAspInfo, byExpiryAsc, getTxHistory } from '../../lib/asp'
+import { ArkNote } from '@arkade-os/sdk'
+import { getAspInfo, aspErrorText, emptyAspInfo, byExpiryAsc, getTxHistory, redeemNotes } from '../../lib/asp'
 import { saveTransactionActivityMetadata } from '../../lib/storage'
+import { walletFingerprint } from '../../lib/sentry'
+import fixtures from '../fixtures.json'
 
 beforeEach(() => {
   localStorage.clear()
+  captureException.mockClear()
 })
 
 describe('byExpiryAsc', () => {
@@ -79,6 +86,32 @@ describe('getAspInfo', () => {
     const info = await getAspInfo('down.example.com')
     expect(info.unreachable).toBe(true)
     expect(info.outdated).toBeFalsy()
+  })
+})
+
+describe('settle failure reporting', () => {
+  const failingWallet = {
+    getAddress: async () => fixtures.lib.address.ark[0].address,
+    getBoardingAddress: async () => fixtures.lib.address.btc[0],
+    settle: async () => {
+      throw new Error('settle failed')
+    },
+  }
+
+  it('reports input count, total and a wallet fingerprint only', async () => {
+    const note = new ArkNote(new Uint8Array(32).fill(7), 1000).toString()
+
+    await expect(redeemNotes(failingWallet as any, [note])).rejects.toThrow('settle failed')
+
+    const [, options] = captureException.mock.calls[0]
+    const { settle } = options.contexts
+
+    expect(settle).toEqual({
+      count: 1,
+      totalValue: 1000,
+      wallet: walletFingerprint(fixtures.lib.address.ark[0].address),
+    })
+    expect(JSON.stringify(settle)).not.toMatch(/[0-9a-f]{20,}/i)
   })
 })
 
