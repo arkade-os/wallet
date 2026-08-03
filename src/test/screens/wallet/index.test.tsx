@@ -58,6 +58,32 @@ describe('Wallet screen', () => {
     expect(screen.getByText(/Swaps are coming soon/i)).toBeInTheDocument()
   })
 
+  it('shows the Lightning service notice on bitcoin mainnet only', () => {
+    const mainnetAspContext = {
+      ...mockAspContextValue,
+      aspInfo: { ...mockAspContextValue.aspInfo, network: 'bitcoin' as const },
+    }
+    const { rerender } = render(
+      <AspContext.Provider value={mainnetAspContext}>
+        <Wallet />
+      </AspContext.Provider>,
+    )
+
+    expect(screen.getByRole('status', { name: 'Lightning swaps are temporarily unavailable' })).toHaveTextContent(
+      'We are working to restore service as soon as possible.',
+    )
+
+    rerender(
+      <AspContext.Provider value={mockAspContextValue}>
+        <Wallet />
+      </AspContext.Provider>,
+    )
+
+    expect(
+      screen.queryByRole('status', { name: 'Lightning swaps are temporarily unavailable' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('opens the bitcoin detail page from the bitcoin asset row', async () => {
     const user = userEvent.setup()
     const navigate = vi.fn()
