@@ -1,6 +1,10 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import { setMnemonic, getMnemonic, hasMnemonic, deriveNostrKeyFromMnemonic } from '../../lib/mnemonic'
 import { NSEC_STORAGE_KEY } from '@/lib/storageKeys'
+import { MnemonicIdentity } from '@arkade-os/sdk'
+import { getPublicKey } from 'nostr-tools'
+import { hex } from '@scure/base'
+import { toXOnlyHex } from '@/lib/keys'
 
 const testMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
 const testPassword = 'testpassword'
@@ -66,6 +70,13 @@ describe('mnemonic storage', () => {
 
     it('should throw on invalid mnemonic', () => {
       expect(() => deriveNostrKeyFromMnemonic('invalid words here', false)).toThrow('Invalid mnemonic phrase')
+    })
+
+    // the p tag on backup events is config.pubkey, which comes from the identity
+    it.each([true, false])('should match the wallet identity key (mainnet: %s)', async (isMainnet) => {
+      const identity = MnemonicIdentity.fromMnemonic(testMnemonic, { isMainnet })
+      const identityPubkey = toXOnlyHex(hex.encode(await identity.compressedPublicKey()))
+      expect(getPublicKey(deriveNostrKeyFromMnemonic(testMnemonic, isMainnet))).toBe(identityPubkey)
     })
   })
 })

@@ -1,7 +1,19 @@
-import { finalizeEvent, generateSecretKey, getPublicKey, nip44, SimplePool, UnsignedEvent, Event } from 'nostr-tools'
+import {
+  finalizeEvent,
+  generateSecretKey,
+  getPublicKey,
+  nip44,
+  SimplePool,
+  UnsignedEvent,
+  Event,
+  verifyEvent,
+} from 'nostr-tools'
 import { EncryptedDirectMessage } from 'nostr-tools/kinds'
 import { consoleError } from './logs'
 import { toXOnlyHex } from './keys'
+
+/** A loaded event, with the local time it arrived at (seconds). */
+export type BackupEvent = Event & { receivedAt: number }
 
 const nostrAppName = 'arkade_backup'
 const defaultRelays = ['wss://relay.damus.io', 'wss://relay.primal.net', 'wss://nostr.arkade.sh']
@@ -74,23 +86,28 @@ export class NostrStorage {
    * Load last message from Nostr
    * @returns the decrypted message
    */
-  async load(): Promise<Event[]> {
+  async load(): Promise<BackupEvent[]> {
     const self = this
-    const events: Event[] = []
+    const events: BackupEvent[] = []
     let timeoutHandler: ReturnType<typeof setTimeout>
 
     if (!this.seckey) throw new Error('Secret key is required for loading data')
 
     return Promise.race([
-      new Promise<Event[]>((resolve) => {
+      new Promise<BackupEvent[]>((resolve) => {
         const sub = this.pool.subscribeMany(
           this.relays,
           { kinds: [4], '#p': [this.pubkey], '#t': [nostrAppName] },
           {
             onevent(event: Event) {
+              // relays are not trusted to have checked the signature themselves
+              if (!verifyEvent(event)) {
+                consoleError(new Error(`Invalid signature on event ${event.id}`), 'Skipped event')
+                return
+              }
               try {
                 const content = self.decryptEvent(event)
-                events.push({ ...event, content })
+                events.push({ ...event, content, receivedAt: Math.floor(Date.now() / 1000) })
               } catch (error) {
                 consoleError(error, 'Failed to decrypt event')
               }
@@ -103,7 +120,7 @@ export class NostrStorage {
           },
         )
       }),
-      new Promise<Event[]>((resolve) => {
+      new Promise<BackupEvent[]>((resolve) => {
         timeoutHandler = setTimeout(() => {
           consoleError(new Error('Load timeout'), 'Failed to load backup data')
           resolve([])
