@@ -37,6 +37,7 @@ RUN echo "export const gitCommit = '${GIT_COMMIT}'" > src/_gitCommit.ts && \
 
 FROM nginx:alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx-security-headers.conf /etc/nginx/security-headers.conf
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 COPY --from=builder /app/dist /usr/share/nginx/html
