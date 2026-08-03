@@ -7,6 +7,7 @@ import {
   mockAspContextValue,
   mockConfigContextValue,
   mockNavigationContextValue,
+  mockSwapsContextValue,
   mockWalletContextValue,
 } from '../mocks'
 import { ConfigContext } from '../../../providers/config'
@@ -15,6 +16,7 @@ import { AssetSwapsContext } from '../../../providers/assetSwaps'
 import { AssetsContext } from '../../../providers/assets'
 import { AspContext } from '../../../providers/asp'
 import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
+import { SwapsContext } from '../../../providers/swaps'
 
 describe('Wallet screen', () => {
   it('renders the wallet screen with the correct elements', async () => {
@@ -58,14 +60,16 @@ describe('Wallet screen', () => {
     expect(screen.getByText(/Swaps are coming soon/i)).toBeInTheDocument()
   })
 
-  it('shows the Lightning service notice on bitcoin mainnet only', () => {
+  it('shows the Lightning service notice only when the mainnet Boltz endpoint is unavailable', () => {
     const mainnetAspContext = {
       ...mockAspContextValue,
       aspInfo: { ...mockAspContextValue.aspInfo, network: 'bitcoin' as const },
     }
     const { rerender } = render(
       <AspContext.Provider value={mainnetAspContext}>
-        <Wallet />
+        <SwapsContext.Provider value={{ ...mockSwapsContextValue, getApiUrl: () => null }}>
+          <Wallet />
+        </SwapsContext.Provider>
       </AspContext.Provider>,
     )
 
@@ -74,8 +78,22 @@ describe('Wallet screen', () => {
     )
 
     rerender(
+      <AspContext.Provider value={mainnetAspContext}>
+        <SwapsContext.Provider value={{ ...mockSwapsContextValue, getApiUrl: () => 'https://boltz.test' }}>
+          <Wallet />
+        </SwapsContext.Provider>
+      </AspContext.Provider>,
+    )
+
+    expect(
+      screen.queryByRole('status', { name: 'Lightning swaps are temporarily unavailable' }),
+    ).not.toBeInTheDocument()
+
+    rerender(
       <AspContext.Provider value={mockAspContextValue}>
-        <Wallet />
+        <SwapsContext.Provider value={{ ...mockSwapsContextValue, getApiUrl: () => null }}>
+          <Wallet />
+        </SwapsContext.Provider>
       </AspContext.Provider>,
     )
 
