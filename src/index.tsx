@@ -17,7 +17,7 @@ import * as Sentry from '@sentry/react'
 import { SwapsProvider } from './providers/swaps'
 import { AssetSwapsProvider } from './providers/assetSwaps'
 import { LnurlProvider } from './providers/lnurl'
-import { shouldInitializeSentry } from './lib/sentry'
+import { beforeSend, scrubBreadcrumb, shouldInitializeSentry } from './lib/sentry'
 import { FeesProvider } from './providers/fees'
 import { AnnouncementProvider } from './providers/announcements'
 import { ToastProvider } from './components/Toast'
@@ -44,18 +44,8 @@ if (shouldInitializeSentry(sentryDsn)) {
     enableLogs: true,
     ignoreErrors: [/null is not an object.*a\[je\]/i, /translate\.googleapis\.com.*translate_http/],
     denyUrls: [/translate\.google\.com\/translate_a\/element\.js/, /translate\.googleapis\.com/],
-    beforeSend(event, hint) {
-      const error = hint.originalException
-      const isTranslateOrigin =
-        (error instanceof Error && error.stack?.includes('translate.google.com')) ||
-        event.exception?.values?.some((v) =>
-          v.stacktrace?.frames?.some((f) => f.filename?.includes('translate.googleapis.com')),
-        )
-      if (isTranslateOrigin) {
-        return null
-      }
-      return event
-    },
+    beforeSend,
+    beforeBreadcrumb: scrubBreadcrumb,
   })
 }
 

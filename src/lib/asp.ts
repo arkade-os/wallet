@@ -98,13 +98,7 @@ export const collaborativeExit = async (wallet: IWallet, amount: number, address
   try {
     return await wallet.settle({ inputs: selectedVtxos, outputs })
   } catch (error) {
-    await captureSettleError(error, wallet, 'collaborativeExit', {
-      amount,
-      address,
-      selectedAmount,
-      changeAmount,
-      selectedVtxos: serializeForSentry(selectedVtxos),
-    })
+    captureSettleError(error, 'collaborativeExit', { amount, changeAmount, ...summarizeInputs(selectedVtxos) })
     throw error
   }
 }
@@ -148,13 +142,11 @@ export const collaborativeExitWithFees = async (
   try {
     return await wallet.settle({ inputs: selectedVtxos, outputs })
   } catch (error) {
-    await captureSettleError(error, wallet, 'collaborativeExitWithFees', {
+    captureSettleError(error, 'collaborativeExitWithFees', {
       inputAmount,
       outputAmount,
-      address,
-      selectedAmount,
       changeAmount,
-      selectedVtxos: serializeForSentry(selectedVtxos),
+      ...summarizeInputs(selectedVtxos),
     })
     throw error
   }
@@ -263,12 +255,7 @@ export const redeemNotes = async (wallet: IWallet, notes: string[]): Promise<voi
       outputs: [{ address: offchainAddr, amount }],
     })
   } catch (error) {
-    await captureSettleError(error, wallet, 'redeemNotes', {
-      notesCount: notes.length,
-      amount: amount.toString(),
-      offchainAddr,
-      inputs: serializeForSentry(inputs),
-    })
+    captureSettleError(error, 'redeemNotes', summarizeInputs(inputs))
     throw error
   }
 }
@@ -316,11 +303,10 @@ export const settleVtxos = async (
   try {
     await wallet.settle({ inputs, outputs }, console.log)
   } catch (error) {
-    await captureSettleError(error, wallet, 'settleVtxos', {
-      amount: amount.toString(),
-      dustAmount: dustAmount.toString(),
+    captureSettleError(error, 'settleVtxos', {
+      dustAmount: Number(dustAmount),
       thresholdMs,
-      inputs: serializeForSentry(inputs),
+      ...summarizeInputs(inputs),
     })
     throw error
   }
@@ -378,25 +364,19 @@ export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> 
   }
 }
 
-const serializeForSentry = (value: any): string => {
-  return JSON.stringify(value, (key, val) => (typeof val === 'bigint' ? val.toString() : val))
-}
+// Settle diagnostics are limited to shape and size; inputs are never serialized.
+const summarizeInputs = (inputs: { value: number }[]): { count: number; totalValue: number } => ({
+  count: inputs.length,
+  totalValue: inputs.reduce((sum, input) => sum + input.value, 0),
+})
 
-const captureSettleError = async (
+const captureSettleError = (
   error: unknown,
-  wallet: IWallet,
   functionName: string,
-  baseContext: Record<string, any>,
-): Promise<void> => {
-  const settleContext: Record<string, any> = { ...baseContext }
-  try {
-    settleContext.walletAddress = await wallet.getAddress()
-  } catch {
-    // Ignore if getAddress fails
-  }
+  context: Record<string, number | undefined>,
+): void => {
   Sentry.captureException(error, {
     tags: { function: functionName },
-    contexts: { settle: settleContext },
+    contexts: { settle: context },
   })
-  throw error
 }
