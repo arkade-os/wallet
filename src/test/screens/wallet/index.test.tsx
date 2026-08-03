@@ -61,10 +61,10 @@ describe('Wallet screen', () => {
   it('shows the Lightning service notice on bitcoin mainnet only', () => {
     const mainnetAspContext = {
       ...mockAspContextValue,
-      aspInfo: { ...mockAspContextValue.aspInfo, network: 'bitcoin' },
+      aspInfo: { ...mockAspContextValue.aspInfo, network: 'bitcoin' as const },
     }
     const { rerender } = render(
-      <AspContext.Provider value={mainnetAspContext as any}>
+      <AspContext.Provider value={mainnetAspContext}>
         <Wallet />
       </AspContext.Provider>,
     )
@@ -74,7 +74,7 @@ describe('Wallet screen', () => {
     )
 
     rerender(
-      <AspContext.Provider value={mockAspContextValue as any}>
+      <AspContext.Provider value={mockAspContextValue}>
         <Wallet />
       </AspContext.Provider>,
     )
