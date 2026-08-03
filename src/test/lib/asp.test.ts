@@ -31,6 +31,7 @@ vi.mock('@arkade-os/sdk', async (importOriginal) => {
 import { ArkNote } from '@arkade-os/sdk'
 import { getAspInfo, aspErrorText, emptyAspInfo, byExpiryAsc, getTxHistory, redeemNotes } from '../../lib/asp'
 import { saveTransactionActivityMetadata } from '../../lib/storage'
+import { walletFingerprint } from '../../lib/sentry'
 import fixtures from '../fixtures.json'
 
 beforeEach(() => {
@@ -97,7 +98,7 @@ describe('settle failure reporting', () => {
     },
   }
 
-  it('reports input count and total only', async () => {
+  it('reports input count, total and a wallet fingerprint only', async () => {
     const note = new ArkNote(new Uint8Array(32).fill(7), 1000).toString()
 
     await expect(redeemNotes(failingWallet as any, [note])).rejects.toThrow('settle failed')
@@ -105,7 +106,11 @@ describe('settle failure reporting', () => {
     const [, options] = captureException.mock.calls[0]
     const { settle } = options.contexts
 
-    expect(settle).toEqual({ count: 1, totalValue: 1000 })
+    expect(settle).toEqual({
+      count: 1,
+      totalValue: 1000,
+      wallet: walletFingerprint(fixtures.lib.address.ark[0].address),
+    })
     expect(JSON.stringify(settle)).not.toMatch(/[0-9a-f]{20,}/i)
   })
 })

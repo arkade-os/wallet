@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import type { ErrorEvent } from '@sentry/react'
-import { isProduction, scrubBreadcrumb, scrubEvent, shouldInitializeSentry } from '../../lib/sentry'
+import { isProduction, scrubBreadcrumb, scrubEvent, shouldInitializeSentry, walletFingerprint } from '../../lib/sentry'
 import fixtures from '../fixtures.json'
 
 describe('Sentry utilities', () => {
@@ -182,6 +182,26 @@ describe('Sentry utilities', () => {
       const event = { contexts: { app: { app_version: '1.2.3' } } } as unknown as ErrorEvent
 
       expect(scrubEvent(event).contexts?.app).toEqual({ app_version: '1.2.3' })
+    })
+  })
+
+  describe('walletFingerprint', () => {
+    const [first, second] = fixtures.lib.address.ark
+
+    it('is stable, short and does not contain the address', () => {
+      expect(walletFingerprint(first.address)).toBe(walletFingerprint(first.address))
+      expect(walletFingerprint(first.address)).toMatch(/^[0-9a-f]{16}$/)
+      expect(first.address).not.toContain(walletFingerprint(first.address))
+    })
+
+    it('separates wallets', () => {
+      expect(walletFingerprint(first.address)).not.toBe(walletFingerprint(second.address))
+    })
+
+    it('survives scrubbing', () => {
+      const event = { contexts: { settle: { wallet: walletFingerprint(first.address) } } } as unknown as ErrorEvent
+
+      expect(scrubEvent(event).contexts?.settle).toEqual({ wallet: walletFingerprint(first.address) })
     })
   })
 

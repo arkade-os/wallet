@@ -21,6 +21,7 @@ import { getConfirmedAndNotExpiredUtxos } from './utxo'
 import * as Sentry from '@sentry/react'
 import { hex } from '@scure/base'
 import { readTransactionActivityMetadata } from './storage'
+import { walletFingerprint } from './sentry'
 
 const emptyFees: FeeInfo = {
   intentFee: { offchainInput: '', offchainOutput: '', onchainInput: '', onchainOutput: '' },
@@ -98,7 +99,11 @@ export const collaborativeExit = async (wallet: IWallet, amount: number, address
   try {
     return await wallet.settle({ inputs: selectedVtxos, outputs })
   } catch (error) {
-    captureSettleError(error, 'collaborativeExit', { amount, changeAmount, ...summarizeInputs(selectedVtxos) })
+    await captureSettleError(error, wallet, 'collaborativeExit', {
+      amount,
+      changeAmount,
+      ...summarizeInputs(selectedVtxos),
+    })
     throw error
   }
 }
@@ -142,7 +147,7 @@ export const collaborativeExitWithFees = async (
   try {
     return await wallet.settle({ inputs: selectedVtxos, outputs })
   } catch (error) {
-    captureSettleError(error, 'collaborativeExitWithFees', {
+    await captureSettleError(error, wallet, 'collaborativeExitWithFees', {
       inputAmount,
       outputAmount,
       changeAmount,
@@ -255,7 +260,7 @@ export const redeemNotes = async (wallet: IWallet, notes: string[]): Promise<voi
       outputs: [{ address: offchainAddr, amount }],
     })
   } catch (error) {
-    captureSettleError(error, 'redeemNotes', summarizeInputs(inputs))
+    await captureSettleError(error, wallet, 'redeemNotes', summarizeInputs(inputs))
     throw error
   }
 }
@@ -303,7 +308,7 @@ export const settleVtxos = async (
   try {
     await wallet.settle({ inputs, outputs }, console.log)
   } catch (error) {
-    captureSettleError(error, 'settleVtxos', {
+    await captureSettleError(error, wallet, 'settleVtxos', {
       dustAmount: Number(dustAmount),
       thresholdMs,
       ...summarizeInputs(inputs),
@@ -370,13 +375,20 @@ const summarizeInputs = (inputs: { value: number }[]): { count: number; totalVal
   totalValue: inputs.reduce((sum, input) => sum + input.value, 0),
 })
 
-const captureSettleError = (
+const captureSettleError = async (
   error: unknown,
+  wallet: IWallet,
   functionName: string,
   context: Record<string, number | undefined>,
-): void => {
+): Promise<void> => {
+  const settle: Record<string, number | string | undefined> = { ...context }
+  try {
+    settle.wallet = walletFingerprint(await wallet.getAddress())
+  } catch {
+    // report without it if the address is unavailable
+  }
   Sentry.captureException(error, {
     tags: { function: functionName },
-    contexts: { settle: context },
+    contexts: { settle },
   })
 }
