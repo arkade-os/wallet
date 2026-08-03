@@ -48,6 +48,11 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
 
   const nostrStorage = useRef<NostrStorage | null>(null)
 
+  // restore() awaits the network for up to 10s, so a closed-over config can still
+  // be the pre-hydration default by the time it resolves (see wallet.tsx)
+  const configRef = useRef(config)
+  configRef.current = config
+
   // initialize NostrStorage when we have a pubkey and nostrBackup is enabled
   useEffect(() => {
     if (!config.pubkey || !config.nostrBackup) return
@@ -161,8 +166,8 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
 
     const data = (await loadData(provider)) as NostrStorageData
 
-    // we enforce delegates on restore
-    if (data?.config) updateConfig({ ...data.config, delegate: true })
+    // we enforce delegates on restore, and the server stays the locally configured one
+    if (data?.config) updateConfig({ ...data.config, aspUrl: configRef.current.aspUrl, delegate: true })
 
     if (data?.solverCards) saveSolverCardsToStorage(data.solverCards)
 
