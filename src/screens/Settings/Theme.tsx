@@ -4,15 +4,18 @@ import Select from '../../components/Select'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import { ConfigContext, resolveTheme } from '../../providers/config'
+import { BackupContext } from '@/providers/backup'
 import Header from './Header'
+import { consoleError } from '@/lib/logs'
 
 export default function Theme() {
-  const { backupConfig, config, effectiveTheme, systemTheme, updateConfig } = useContext(ConfigContext)
+  const { backupConfig } = useContext(BackupContext)
+  const { config, effectiveTheme, systemTheme, updateConfig } = useContext(ConfigContext)
   const clickCoords = useRef<{ x: number; y: number } | null>(null)
 
   const handleChange = async (theme: string) => {
     const newConfig = { ...config, theme: theme as Themes }
-    if (config.nostrBackup) await backupConfig(newConfig)
+    backupConfig(newConfig).catch((err) => consoleError(err, 'Failed to backup config:'))
 
     const coords = clickCoords.current
     const newEffective = resolveTheme(newConfig.theme)

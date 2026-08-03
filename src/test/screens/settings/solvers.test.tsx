@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Solvers from '../../../screens/Settings/Solvers'
 import { AspContext } from '../../../providers/asp'
 import { AssetSwapsContext } from '../../../providers/assetSwaps'
+import { BackupContext } from '../../../providers/backup'
 import { mockAspContextValue } from '../mocks'
 import { readSolverCardsFromStorage } from '../../../lib/storage'
 
@@ -15,12 +16,25 @@ vi.mock('@arkade-os/solver-discovery', async () => {
 })
 
 function renderSolvers() {
+  const backupContextValue = {
+    backupAndUpdateConfig: vi.fn(),
+    backupConfig: vi.fn().mockResolvedValue(undefined),
+    backupChainSwap: vi.fn().mockResolvedValue(undefined),
+    backupSolverCards: vi.fn().mockResolvedValue(undefined),
+    backupReverseSwap: vi.fn().mockResolvedValue(undefined),
+    backupSubmarineSwap: vi.fn().mockResolvedValue(undefined),
+    fullBackup: vi.fn().mockResolvedValue(undefined),
+    restore: vi.fn().mockResolvedValue(undefined),
+  }
+
   return render(
     <AspContext.Provider
       value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network: 'regtest' } } as any}
     >
       <AssetSwapsContext.Provider value={{ runDiscovery: vi.fn() } as any}>
-        <Solvers />
+        <BackupContext.Provider value={backupContextValue as any}>
+          <Solvers />
+        </BackupContext.Provider>
       </AssetSwapsContext.Provider>
     </AspContext.Provider>,
   )

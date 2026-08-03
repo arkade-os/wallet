@@ -3,6 +3,7 @@ import { mockConfigContextValue } from '../mocks'
 import Backup from '../../../screens/Settings/Backup'
 import { render, screen } from '@testing-library/react'
 import { ConfigContext } from '../../../providers/config'
+import { BackupContext } from '../../../providers/backup'
 import * as privateKeyModule from '../../../lib/privateKey'
 import * as mnemonicModule from '../../../lib/mnemonic'
 import { hex } from '@scure/base'
@@ -14,6 +15,27 @@ const seckey = {
 
 const testMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
 
+function renderBackup() {
+  const backupContextValue = {
+    backupAndUpdateConfig: vi.fn(),
+    backupConfig: vi.fn().mockResolvedValue(undefined),
+    backupChainSwap: vi.fn().mockResolvedValue(undefined),
+    backupSolverCards: vi.fn().mockResolvedValue(undefined),
+    backupReverseSwap: vi.fn().mockResolvedValue(undefined),
+    backupSubmarineSwap: vi.fn().mockResolvedValue(undefined),
+    fullBackup: vi.fn().mockResolvedValue(undefined),
+    restore: vi.fn().mockResolvedValue(undefined),
+  }
+
+  return render(
+    <ConfigContext.Provider value={mockConfigContextValue as any}>
+      <BackupContext.Provider value={backupContextValue as any}>
+        <Backup />
+      </BackupContext.Provider>
+    </ConfigContext.Provider>,
+  )
+}
+
 describe('Backup screen with legacy private key', () => {
   beforeEach(() => {
     vi.resetAllMocks()
@@ -22,11 +44,7 @@ describe('Backup screen with legacy private key', () => {
   })
 
   it('renders the backup screen with the correct elements', async () => {
-    render(
-      <ConfigContext.Provider value={mockConfigContextValue as any}>
-        <Backup />
-      </ConfigContext.Provider>,
-    )
+    renderBackup()
 
     await screen.findByText('Private key')
 
@@ -37,11 +55,7 @@ describe('Backup screen with legacy private key', () => {
   })
 
   it('renders the backup screen with the correct toggle', async () => {
-    render(
-      <ConfigContext.Provider value={mockConfigContextValue as any}>
-        <Backup />
-      </ConfigContext.Provider>,
-    )
+    renderBackup()
 
     await screen.findByText('Private key')
 
@@ -58,11 +72,7 @@ describe('Backup screen with mnemonic wallet', () => {
   })
 
   it('shows recovery phrase labels instead of private key', async () => {
-    render(
-      <ConfigContext.Provider value={mockConfigContextValue as any}>
-        <Backup />
-      </ConfigContext.Provider>,
-    )
+    renderBackup()
 
     await screen.findByText('Recovery phrase')
 

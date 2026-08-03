@@ -23,6 +23,7 @@ import { Network } from '@arkade-os/boltz-swap'
 import { copyToClipboard } from '../../lib/clipboard'
 import { useToast } from '../../components/Toast'
 import { consoleError } from '../../lib/logs'
+import { BackupContext } from '@/providers/backup'
 
 // format the URL to ensure it has the correct protocol and no trailing slashes
 const formatUrl = (host: string, path: string): string => {
@@ -227,14 +228,15 @@ function DelegateCard() {
 export default function Delegates() {
   const { aspInfo } = useContext(AspContext)
   const { goBack } = useContext(OptionsContext)
-  const { config, updateConfig } = useContext(ConfigContext)
+  const { config } = useContext(ConfigContext)
+  const { backupAndUpdateConfig } = useContext(BackupContext)
 
   const noDelegateFound = getDelegateUrlForNetwork(aspInfo.network as Network) === undefined
 
   // toggle delegate
   const handleToggle = () => {
     const nextDelegate = !config.delegate
-    updateConfig({ ...config, delegate: nextDelegate })
+    backupAndUpdateConfig({ ...config, delegate: nextDelegate })
     // Full page reload ensures service worker and wallet are re-instantiated with the new delegator setting.
     window.location.reload()
   }

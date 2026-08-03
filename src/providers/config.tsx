@@ -3,10 +3,7 @@ import { readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
 import { defaultArkServer, devServer } from '../lib/constants'
 import { Config, Currencies, Themes, Unit } from '../lib/types'
 import { normalizeBitcoinUnit } from '../lib/format'
-import { BackupProvider } from '../lib/backup'
-import { consoleError } from '../lib/logs'
 import { setHapticsEnabled } from '../lib/haptics'
-import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
 import { getCurrency } from '@/lib/language'
 
 const defaultConfig: Config = {
@@ -28,7 +25,6 @@ const defaultConfig: Config = {
 }
 
 interface ConfigContextProps {
-  backupConfig: (c: Config) => Promise<void>
   config: Config
   configLoaded: boolean
   effectiveTheme: Themes.Dark | Themes.Light
@@ -40,7 +36,6 @@ interface ConfigContextProps {
 }
 
 export const ConfigContext = createContext<ConfigContextProps>({
-  backupConfig: async () => {},
   config: defaultConfig,
   configLoaded: false,
   effectiveTheme: Themes.Dark,
@@ -97,13 +92,6 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     resolveTheme(defaultConfig.theme),
   )
   const [systemTheme, setSystemTheme] = useState<Themes.Dark | Themes.Light>(() => resolveTheme(Themes.Auto))
-
-  const backupConfig = async (config: Config) => {
-    const backupProvider = new BackupProvider({ pubkey: config.pubkey }, new IndexedDbSwapRepository())
-    await backupProvider.backupConfig(config).catch((error) => {
-      consoleError(error, 'Backup to Nostr failed')
-    })
-  }
 
   const toggleShowConfig = () => setShowConfig(!showConfig)
 
@@ -172,7 +160,6 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
   return (
     <ConfigContext.Provider
       value={{
-        backupConfig,
         config,
         configLoaded,
         effectiveTheme,

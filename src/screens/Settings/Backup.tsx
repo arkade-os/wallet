@@ -1,4 +1,5 @@
 import { useToast } from '../../components/Toast'
+import { BackupContext } from '../../providers/backup'
 import { useState, useEffect, useContext, useRef } from 'react'
 import Button from '../../components/Button'
 import Padded from '../../components/Padded'
@@ -14,7 +15,6 @@ import Shadow from '../../components/Shadow'
 import { defaultPassword } from '../../lib/constants'
 import { ConfigContext } from '../../providers/config'
 import Toggle from '../../components/Toggle'
-import { BackupProvider } from '../../lib/backup'
 import ErrorMessage from '../../components/Error'
 import SafeIcon from '../../icons/Safe'
 import FlexRow from '../../components/FlexRow'
@@ -28,13 +28,13 @@ import { WalletContext } from '../../providers/wallet'
 import { authenticateUser } from '../../lib/biometrics'
 import FingerprintIcon from '../../icons/Fingerprint'
 import InputPassword from '../../components/InputPassword'
-import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
 import { SwapsContext } from '../../providers/swaps'
 
 export default function Backup() {
   const { wallet } = useContext(WalletContext)
   const { arkadeSwaps } = useContext(SwapsContext)
-  const { backupConfig, config, updateConfig } = useContext(ConfigContext)
+  const { config, updateConfig } = useContext(ConfigContext)
+  const { backupConfig, fullBackup } = useContext(BackupContext)
 
   const { toast } = useToast()
 
@@ -99,8 +99,7 @@ export default function Backup() {
     const newConfig = { ...config, nostrBackup: !config.nostrBackup }
     updateConfig(newConfig)
     if (newConfig.nostrBackup) {
-      const backupProvider = new BackupProvider({ pubkey: config.pubkey }, new IndexedDbSwapRepository())
-      await backupProvider.fullBackup(newConfig, arkadeSwaps ?? undefined).catch((error) => {
+      await fullBackup(newConfig, arkadeSwaps ?? undefined).catch((error) => {
         consoleError(error, 'Backup to Nostr failed')
         setError('Backup to Nostr failed')
         return

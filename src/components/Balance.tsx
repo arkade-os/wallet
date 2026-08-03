@@ -7,14 +7,16 @@ import FlexCol from './FlexCol'
 import FlexRow from './FlexRow'
 import EyeIcon from '../icons/Eye'
 import { ConfigContext } from '../providers/config'
+import { BackupContext } from '@/providers/backup'
 
 interface BalanceProps {
   amount: number
 }
 
 export default function Balance({ amount }: BalanceProps) {
-  const { config, updateConfig } = useContext(ConfigContext)
+  const { config } = useContext(ConfigContext)
   const { toFiat, fiatDecimals } = useContext(FiatContext)
+  const { backupAndUpdateConfig } = useContext(BackupContext)
 
   const currencyAmount = toFiat(amount)
   const mainValue = config.showBalance
@@ -26,7 +28,7 @@ export default function Balance({ amount }: BalanceProps) {
         })
     : prettyFiatHide(currencyAmount, config.currency, { bitcoinUnit: config.unit })
   const [mainBalance, mainUnit = ''] = mainValue.split(' ')
-  const toggleShow = () => updateConfig({ ...config, showBalance: !config.showBalance })
+  const toggleShow = () => backupAndUpdateConfig({ ...config, showBalance: !config.showBalance })
 
   return (
     <FlexCol gap='0' margin='2.5rem 0 1rem 0'>
