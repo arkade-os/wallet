@@ -83,8 +83,13 @@ test('should save solver cards to nostr', async ({ page }) => {
   // create wallet
   await createWallet(page)
 
-  // navigate to solvers
+  // enable nostr backups
   await navigateToSettings(page)
+  await page.getByText('backup', { exact: true }).click()
+  await page.getByTestId('toggle-backup').click()
+
+  // navigate to solvers
+  await page.getByLabel('Go back').click()
   await page.getByText('advanced', { exact: true }).click()
   await page.getByText('solvers', { exact: true }).click()
 
@@ -96,12 +101,6 @@ test('should save solver cards to nostr', async ({ page }) => {
   // verify solver card is added
   await expect(page.getByText('You have 1 solver card stored in your wallet.')).toBeVisible()
   await expect(page.getByText(mockSolverCard.name)).toBeVisible()
-
-  // enable nostr backups
-  await page.getByLabel('Go back').click()
-  await page.getByLabel('Go back').click()
-  await page.getByText('backup', { exact: true }).click()
-  await page.getByTestId('toggle-backup').click()
 
   // restore wallet
   await resetAndRestoreWallet(page)
@@ -118,6 +117,12 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   test.setTimeout(60000)
   // create wallet
   await createWallet(page)
+
+  // enable nostr backups
+  await navigateToSettings(page)
+  await page.getByText('backup', { exact: true }).click()
+  await page.getByTestId('toggle-backup').click()
+  await sleep(3000) // wait for backup to complete
 
   // copy invoice
   const receiveInvoice = await receiveLightning(page, isMobile, 5000)
@@ -181,10 +186,6 @@ test('should save swaps to nostr', async ({ page, isMobile }) => {
   await expect(page.getByText('Arkade to Bitcoin', { exact: true })).toBeVisible()
   await page.getByLabel('Go back').click()
 
-  // enable nostr backups
-  await navigateToSettings(page)
-  await page.getByText('backup', { exact: true }).click()
-  await page.getByTestId('toggle-backup').click()
   await sleep(3000) // wait for backup to complete
 
   // restore wallet

@@ -3,8 +3,6 @@ import { invalidPrivateKey, nsecToPrivateKey } from '../../lib/privateKey'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { useContext, useEffect, useState } from 'react'
-import { ConfigContext } from '../../providers/config'
-import { BackupProvider } from '../../lib/backup'
 import { defaultPassword } from '../../lib/constants'
 import { FlowContext } from '../../providers/flow'
 import ErrorMessage from '../../components/Error'
@@ -20,13 +18,13 @@ import Text, { TextSecondary } from '../../components/Text'
 import SegmentedControl from '../../components/SegmentedControl'
 import { DevModeContext } from '../../providers/devMode'
 import { hex } from '@scure/base'
-import { IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
 import { OnboardStaggerContainer, OnboardStaggerChild } from '../../components/OnboardLoadIn'
 import { validateMnemonic } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import { deriveNostrKeyFromMnemonic } from '../../lib/mnemonic'
 import { AspContext } from '../../providers/asp'
 import InputNsec from '../../components/InputNsec'
+import { BackupContext } from '@/providers/backup'
 
 type RotationChoice = 'Inherit' | 'Static' | 'HD'
 
@@ -40,11 +38,11 @@ const ROTATION_TO_MODE: Record<RotationChoice, ServiceWorkerWalletMode | undefin
 }
 
 export default function InitRestore() {
-  const { updateConfig } = useContext(ConfigContext)
   const { navigate } = useContext(NavigationContext)
   const { setInitInfo } = useContext(FlowContext)
-  const { aspInfo } = useContext(AspContext)
   const { devMode } = useContext(DevModeContext)
+  const { restore } = useContext(BackupContext)
+  const { aspInfo } = useContext(AspContext)
 
   const buttonLabel = 'Continue'
 
@@ -121,11 +119,7 @@ export default function InitRestore() {
       setInitInfo({ privateKey, password: defaultPassword, restoring: true })
       seckey = privateKey!
     }
-    new BackupProvider({ seckey }, new IndexedDbSwapRepository())
-      .restore((conf) =>
-        // we enforce delegates on restore
-        updateConfig({ ...conf, delegate: true }),
-      )
+    restore(seckey)
       .catch((err) => consoleError(err, 'Error restoring from nostr'))
       .finally(() => setRestoreDone(true))
   }

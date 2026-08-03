@@ -13,6 +13,7 @@ import Shadow from '@/components/Shadow'
 import Modal from '@/components/Modal'
 import { AssetSwapsContext } from '@/providers/assetSwaps'
 import { consoleError } from '@/lib/logs'
+import { BackupContext } from '@/providers/backup'
 
 const addSolverCard = (input: LocalCardInput) => {
   const existingCards = readSolverCardsFromStorage()
@@ -187,6 +188,7 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
 export default function Solvers() {
   const { aspInfo } = useContext(AspContext)
   const { runDiscovery } = useContext(AssetSwapsContext)
+  const { backupSolverCards } = useContext(BackupContext)
 
   const [localCards, setLocalCards] = useState<LocalCardInput[]>()
   const [showEditor, setShowEditor] = useState(false)
@@ -196,8 +198,9 @@ export default function Solvers() {
   useEffect(() => {
     return () => {
       if (reload) runDiscovery(false)
+      if (localCards) backupSolverCards(localCards).catch((err) => consoleError(err, 'failed to backup solver cards'))
     }
-  }, [reload, runDiscovery])
+  }, [localCards, reload, runDiscovery])
 
   // fetch local cards whenever the network changes
   useEffect(() => {

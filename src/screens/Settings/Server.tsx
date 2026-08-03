@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
+import { BackupContext } from '../../providers/backup'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Content from '../../components/Content'
@@ -18,7 +19,8 @@ import LoadingLogo from '../../components/LoadingLogo'
 
 export default function Server() {
   const { aspInfo } = useContext(AspContext)
-  const { backupConfig, config, updateConfig } = useContext(ConfigContext)
+  const { backupConfig } = useContext(BackupContext)
+  const { config } = useContext(ConfigContext)
   const { svcWallet, resetWallet } = useContext(WalletContext)
 
   const [aspUrl, setAspUrl] = useState('')
@@ -56,9 +58,7 @@ export default function Server() {
     try {
       if (!info) return
       await resetWallet()
-      const newConfig = { ...config, aspUrl: info.url }
-      if (config.nostrBackup) await backupConfig(newConfig)
-      updateConfig(newConfig)
+      await backupConfig({ ...config, aspUrl: info.url })
       location.reload() // reload app or else weird things happen
     } catch (err) {
       consoleError(err)

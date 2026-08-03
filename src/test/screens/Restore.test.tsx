@@ -1,11 +1,12 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import Restore from '../../screens/Init/Restore'
 import { ConfigContext } from '../../providers/config'
 import { NavigationContext } from '../../providers/navigation'
 import { FlowContext } from '../../providers/flow'
 import { AspContext } from '../../providers/asp'
 import { DevModeContext } from '../../providers/devMode'
+import { BackupContext } from '../../providers/backup'
 import {
   mockConfigContextValue,
   mockNavigationContextValue,
@@ -18,13 +19,19 @@ const validMnemonic = 'abandon abandon abandon abandon abandon abandon abandon a
 const privateKeyHex = 'aa'.repeat(32)
 
 function renderRestore(devMode: boolean) {
+  const backupContextValue = {
+    restore: vi.fn().mockResolvedValue(undefined),
+  }
+
   return render(
     <DevModeContext.Provider value={{ ...mockDevModeContextValue, devMode }}>
       <ConfigContext.Provider value={mockConfigContextValue as any}>
         <AspContext.Provider value={mockAspContextValue as any}>
           <NavigationContext.Provider value={mockNavigationContextValue as any}>
             <FlowContext.Provider value={mockFlowContextValue as any}>
-              <Restore />
+              <BackupContext.Provider value={backupContextValue as any}>
+                <Restore />
+              </BackupContext.Provider>
             </FlowContext.Provider>
           </NavigationContext.Provider>
         </AspContext.Provider>

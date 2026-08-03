@@ -1,4 +1,5 @@
 import { ConfigContext } from './config'
+import { BackupContext } from './backup'
 import { ReactNode, createContext, useContext, useEffect, useRef, useState } from 'react'
 import {
   BoltzAnnouncement,
@@ -29,7 +30,8 @@ export const AnnouncementContext = createContext<AnnouncementContextProps>({
 })
 
 export const AnnouncementProvider = ({ children }: { children: ReactNode }) => {
-  const { config, updateConfig } = useContext(ConfigContext)
+  const { backupAndUpdateConfig } = useContext(BackupContext)
+  const { config } = useContext(ConfigContext)
 
   const [announcement, setAnnouncement] = useState<React.ReactNode | null>(null)
 
@@ -44,7 +46,7 @@ export const AnnouncementProvider = ({ children }: { children: ReactNode }) => {
         if (announcementComp) {
           const handleClose = (id: string) => {
             const announcementsSeen = [...config.announcementsSeen, id]
-            updateConfig({ ...config, announcementsSeen })
+            backupAndUpdateConfig({ ...config, announcementsSeen })
             setAnnouncement(null)
             seen.current = true
           }
@@ -54,7 +56,7 @@ export const AnnouncementProvider = ({ children }: { children: ReactNode }) => {
         }
       }
     }
-  }, [config, updateConfig])
+  }, [config, backupAndUpdateConfig])
 
   return <AnnouncementContext.Provider value={{ announcement }}>{children}</AnnouncementContext.Provider>
 }
