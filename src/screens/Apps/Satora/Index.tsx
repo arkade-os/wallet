@@ -8,12 +8,17 @@ import { WalletProvider, type LoanAsset, AddressType } from '@lendasat/lendasat-
 import { collaborativeExit, getReceivingAddresses } from '../../../lib/asp'
 import { isBTCAddress } from '../../../lib/address'
 import { isValidArkAddress } from '@arkade-os/sdk'
+import { isValidSendAmount, sendConfirmation } from '../../../lib/appRequest'
+import { useBridgeConfirmation } from '../../../hooks/useBridgeConfirmation'
+import BridgeConfirmSheet from '../../../components/BridgeConfirmSheet'
 
 const IFRAME_URL = import.meta.env.VITE_SATORA_IFRAME_URL || 'https://app.satora.io'
 const DEFAULT_SWAP_PATH = '/arkade:BTC/polygon:USDC'
+const APP_NAME = 'Satora'
 
 export default function AppSatora() {
   const { svcWallet } = useContext(WalletContext)
+  const { approve, reject, request, requestConfirmation } = useBridgeConfirmation()
   const [arkAddress, setArkAddress] = useState<string | null>(null)
 
   const iframeRef = useRef<HTMLIFrameElement>(null)
@@ -72,24 +77,24 @@ export default function AppSatora() {
             throw Error('Wallet not initialized')
           }
 
-          if (!Number.isFinite(amount) || !Number.isInteger(amount) || amount <= 0) {
+          if (!isValidSendAmount(amount)) {
             throw new Error('Invalid amount')
           }
 
           switch (asset) {
-            case 'bitcoin':
-              if (isValidArkAddress(address)) {
-                const txId = await svcWallet?.send({ amount, address })
-                if (txId) {
-                  return txId
-                } else {
-                  throw new Error('Unable to send bitcoin')
-                }
-              } else if (isBTCAddress(address)) {
-                return await collaborativeExit(svcWallet, amount, address)
-              } else {
-                throw Error(`Unsupported address ${address}`)
-              }
+            case 'bitcoin': {
+              const offchain = isValidArkAddress(address)
+              if (!offchain && !isBTCAddress(address)) throw Error(`Unsupported address ${address}`)
+
+              const approved = await requestConfirmation(sendConfirmation(APP_NAME, address, amount, offchain))
+              if (!approved) throw new Error('Payment declined')
+
+              if (!offchain) return await collaborativeExit(svcWallet, amount, address)
+
+              const txId = await svcWallet.send({ amount, address })
+              if (!txId) throw new Error('Unable to send bitcoin')
+              return txId
+            }
             case 'UsdcPol':
             case 'UsdtPol':
             case 'UsdcEth':
@@ -116,7 +121,7 @@ export default function AppSatora() {
     return () => {
       provider.destroy()
     }
-  }, [svcWallet, arkAddress])
+  }, [svcWallet, arkAddress, requestConfirmation])
 
   return (
     <>
@@ -135,6 +140,7 @@ export default function AppSatora() {
           </FlexCol>
         </Padded>
       </Content>
+      <BridgeConfirmSheet request={request} onApprove={approve} onReject={reject} />
     </>
   )
 }
