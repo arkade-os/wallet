@@ -51,7 +51,9 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
   // restore() awaits the network for up to 10s, so a closed-over config can still
   // be the pre-hydration default by the time it resolves (see wallet.tsx)
   const configRef = useRef(config)
-  configRef.current = config
+  useEffect(() => {
+    configRef.current = config
+  }, [config])
 
   // initialize NostrStorage when we have a pubkey and nostrBackup is enabled
   useEffect(() => {

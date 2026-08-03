@@ -5,9 +5,10 @@ import { BackupContext, BackupProvider } from '../../providers/backup'
 import { ConfigContext } from '../../providers/config'
 import { mockConfigContextValue } from '../screens/mocks'
 import type { Config } from '../../lib/types'
+import type { BackupEvent } from '../../lib/nostr'
 
 const mocks = vi.hoisted(() => ({
-  events: [] as any[],
+  events: [] as BackupEvent[],
   saveSwap: vi.fn(),
 }))
 
@@ -29,8 +30,8 @@ vi.mock('@arkade-os/boltz-swap', () => ({
 const localConfig: Config = { ...mockConfigContextValue.config, aspUrl: 'https://local.server' }
 
 let counter = 0
-const makeEvent = (data: unknown, created_at: number, receivedAt: number) => ({
-  id: `event-${counter++}`,
+const makeEvent = (data: unknown, created_at: number, receivedAt: number, id = `event-${counter++}`): BackupEvent => ({
+  id,
   kind: 4,
   pubkey: 'pubkey',
   sig: 'sig',
@@ -101,5 +102,20 @@ describe('BackupProvider restore', () => {
     expect(updateConfig.mock.calls[0][0]).toMatchObject({ showBalance: true })
     // the event is ranked lower, not dropped
     expect(mocks.saveSwap).toHaveBeenCalledWith({ id: 'swap-a' })
+  })
+
+  it('breaks ties on event id, whatever order the relay delivers them in', async () => {
+    const updateConfig = vi.fn()
+    const now = Math.floor(Date.now() / 1000)
+    mocks.events = [
+      makeEvent({ config: { ...localConfig, showBalance: true } }, now, now, 'event-b'),
+      makeEvent({ config: { ...localConfig, showBalance: false } }, now, now, 'event-a'),
+    ]
+
+    renderProvider(updateConfig)
+    await restore(new Uint8Array(32))
+
+    await waitFor(() => expect(updateConfig).toHaveBeenCalledTimes(1))
+    expect(updateConfig.mock.calls[0][0]).toMatchObject({ showBalance: true })
   })
 })
