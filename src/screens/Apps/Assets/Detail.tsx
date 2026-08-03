@@ -103,7 +103,7 @@ export default function AppAssetDetail() {
   const handleRemove = () => {
     const updated = config.importedAssets.filter((id) => id !== assetInfo.assetId)
     backupAndUpdateConfig({ ...config, importedAssets: updated })
-    replace(Pages.AppAssets, [Pages.Settings, Pages.WalletSettings])
+    replace(Pages.AppAssets, [Pages.Settings, Pages.Settings])
   }
 
   return (

@@ -16,7 +16,7 @@ export default function AppAssetsSettings() {
   const toggleConnection = () => {
     const enabling = !config.apps.assets.enabled
     backupAndUpdateConfig({ ...config, apps: { ...config.apps, assets: { enabled: enabling } } })
-    if (enabling) replace(Pages.AppAssets, [Pages.Settings, Pages.WalletSettings])
+    if (enabling) replace(Pages.AppAssets, [Pages.Settings])
   }
 
   return (

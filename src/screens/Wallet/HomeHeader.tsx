@@ -35,7 +35,7 @@ const HomeHeader = forwardRef<HTMLDivElement, HomeHeaderProps>(function HomeHead
   const handleSettings = () => {
     hapticLight()
     setOption(SettingsOptions.Menu)
-    navigate(Pages.WalletSettings)
+    navigate(Pages.Settings)
   }
 
   const actionClassName =
