@@ -215,7 +215,9 @@ export default function ReceiveQRCode() {
 
     setSwapsTimedOut(false)
 
-    Promise.allSettled([createBtcAddress(), createLightningInvoice()]).then(([btc, lightning]) => {
+    const lightningInvoice = lnExpected ? createLightningInvoice() : Promise.resolve(null)
+
+    Promise.allSettled([createBtcAddress(), lightningInvoice]).then(([btc, lightning]) => {
       if (btc.status === 'fulfilled') {
         const pendingSwap = btc.value as BoltzChainSwap
         const btcAddr = pendingSwap.response.lockupDetails.lockupAddress
@@ -230,7 +232,7 @@ export default function ReceiveQRCode() {
             consoleError(error, 'Error claiming chain swap:')
           })
       }
-      if (lightning.status === 'fulfilled') {
+      if (lightning.status === 'fulfilled' && lightning.value) {
         const pendingSwap = lightning.value as BoltzReverseSwap
         const inv = pendingSwap.response.invoice
         setInvoice(inv)

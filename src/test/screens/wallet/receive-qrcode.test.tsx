@@ -193,6 +193,32 @@ describe('Receive QR Code screen', () => {
     expect(screen.queryByText(/sats min for Lightning/)).not.toBeInTheDocument()
   })
 
+  it('does not create a Lightning invoice from a stale swap instance when the endpoint is unavailable', async () => {
+    const createReverseSwap = vi.fn()
+
+    renderReceiveQrCode({
+      swaps: {
+        connected: true,
+        arkadeSwaps: {} as any,
+        createReverseSwap,
+        getApiUrl: () => null,
+      },
+      flow: {
+        recvInfo: {
+          ...mockFlowContextValue.recvInfo,
+          satoshis: 50000,
+          offchainAddr: 'ark1testaddr',
+          boardingAddr: 'bc1testaddr',
+        },
+      },
+      wallet: { svcWallet: mockSvcWallet as any },
+    })
+
+    await act(async () => {})
+
+    expect(createReverseSwap).not.toHaveBeenCalled()
+  })
+
   it('shows the Lightning minimum only when a Boltz endpoint is configured', () => {
     const { rerender } = render(buildTree(tapFixture()))
 
