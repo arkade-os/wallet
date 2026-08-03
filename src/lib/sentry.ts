@@ -25,8 +25,9 @@ const REDACTED = '[redacted]'
 // 40 hex chars = 20 bytes (HASH160): the shortest bitcoin-sized value.
 const HEX_RUN = /[0-9a-f]{40,}/gi
 // 6 chars = the bech32 checksum, the minimum after the separator (BIP173).
-const BECH32 = /\b(?:bc|tb|bcrt|ark|tark)1[02-9ac-hj-np-z]{6,}/gi
-const SENSITIVE_KEY = /preimage|secret|seckey|priv|mnemonic|seed|addr|script|pubkey|outpoint/i
+const BECH32 = /\b(?:bc|tb|bcrt|ark|tark|nsec)1[02-9ac-hj-np-z]{6,}/gi
+const SENSITIVE_KEY =
+  /preimage|secret|seckey|priv|mnemonic|seed|addr|script|pubkey|outpoint|auth|cookie|token|password|passphrase|api[-_]?key|session/i
 
 const scrubString = (value: string): string => value.replace(HEX_RUN, REDACTED).replace(BECH32, REDACTED)
 

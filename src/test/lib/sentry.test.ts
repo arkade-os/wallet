@@ -178,6 +178,30 @@ describe('Sentry utilities', () => {
       expect(scrubEvent(event).exception?.values?.[0].value).toBe('settle failed for [redacted]')
     })
 
+    it('removes credentials from nested request headers', () => {
+      const event = {
+        request: {
+          url: 'https://arkade.money/',
+          headers: { Authorization: 'Bearer s3cr3t', Cookie: 'session=abc', 'X-API-Key': 'k-123' },
+        },
+      } as unknown as ErrorEvent
+
+      const request = JSON.stringify(scrubEvent(event).request)
+
+      expect(request).not.toContain('s3cr3t')
+      expect(request).not.toContain('abc')
+      expect(request).not.toContain('k-123')
+      expect(request).toContain('https://arkade.money/')
+    })
+
+    it('removes an nsec carried under a benign key', () => {
+      const event = {
+        contexts: { restore: { input: `entered ${fixtures.lib.privatekey.secret.nsec}` } },
+      } as unknown as ErrorEvent
+
+      expect(scrubEvent(event).contexts?.restore).toEqual({ input: 'entered [redacted]' })
+    })
+
     it('leaves an unrelated event untouched', () => {
       const event = { contexts: { app: { app_version: '1.2.3' } } } as unknown as ErrorEvent
 
