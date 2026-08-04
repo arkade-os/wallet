@@ -67,12 +67,20 @@ const brantaClient = new BrantaService({
   privacy: 'strict',
 })
 
-const isPlainOnchainTypedRecipient = (value: string): boolean => {
+export const isPlainOnchainTypedRecipient = (value: string): boolean => {
   if (isBTCAddress(value)) return true
   if (!isBip21(value.toLowerCase())) return false
 
   try {
-    return Boolean(decodeBip21(value).address)
+    const decoded = decodeBip21(value)
+    return Boolean(
+      decoded.address &&
+        isBTCAddress(decoded.address) &&
+        !decoded.arkAddress &&
+        !decoded.invoice &&
+        !decoded.lnUrl &&
+        !decoded.assetId,
+    )
   } catch {
     return false
   }
