@@ -49,6 +49,7 @@ import { ConfigContext } from './config'
 import {
   defaultPassword,
   getDelegateUrlForNetwork,
+  isMainnet,
   maxPercentage,
   mutinynetMinCheckpointExitDelaySeconds,
 } from '../lib/constants'
@@ -730,9 +731,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       throw err
     }
   }
-
-  const isMainnet = (network: NetworkName | string): boolean =>
-    network !== 'testnet' && network !== 'mutinynet' && network !== 'signet' && network !== 'regtest'
 
   const minCheckpointExitDelaySecondsForNetwork = (network: NetworkName | string): bigint | undefined =>
     network === 'mutinynet' ? mutinynetMinCheckpointExitDelaySeconds : network === 'regtest' ? 512n : undefined
