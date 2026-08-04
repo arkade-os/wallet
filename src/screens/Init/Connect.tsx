@@ -44,8 +44,9 @@ export default function InitConnect() {
   }, [])
 
   useEffect(() => {
-    if (!initialized || !arkadeSwaps) return
+    if (!initialized) return
     if (!initInfo.restoring) return setConnectDone(true)
+    if (!arkadeSwaps) return
     setLoadingStatus('Restoring swaps...')
     restoreSwaps()
       .then((count) => count && consoleLog(`Restored ${count} swaps from network`))
