@@ -104,7 +104,7 @@ describe('Send screen', () => {
     expect(screen.queryByText('Unable to create swap')).not.toBeInTheDocument()
   })
 
-  it('detects a pasted Lightning invoice without showing an outage error', async () => {
+  it('explains why a pasted Lightning invoice is unavailable', async () => {
     vi.useFakeTimers()
     try {
       const setSendInfo = vi.fn()
@@ -130,7 +130,7 @@ describe('Send screen', () => {
           satoshis: fixtures.lib.bolt11.amountSats,
         }),
       )
-      expect(screen.queryByText(/Lightning swaps not enabled|Unable to create swap/)).not.toBeInTheDocument()
+      expect(screen.getByText('Lightning is temporarily unavailable')).toBeInTheDocument()
     } finally {
       vi.useRealTimers()
     }
@@ -219,6 +219,33 @@ describe('Send screen', () => {
 
     await waitFor(() => screen.getByDisplayValue('21'))
     expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled()
+    fetchMocker.disableMocks()
+  })
+
+  it('explains when an LNURL only supports unavailable Lightning', async () => {
+    const fetchMocker = createFetchMock(vi)
+    fetchMocker.enableMocks()
+    fetchMocker.mockResponseOnce(
+      JSON.stringify({
+        callback: 'https://pay.staging.galoy.io/.well-known/lnurlp/testing',
+        minSendable: 21000,
+        maxSendable: 21000,
+        metadata: 'mock-metadata',
+      }),
+    )
+    const lnUrl = fixtures.lib.lnurl[0].lnUrlOrAddress
+
+    renderSendForm({
+      flowContext: {
+        ...mockFlowContextValue,
+        sendInfo: { ...emptySendInfo, lnUrl, recipient: lnUrl, satoshis: 21 },
+      },
+      swapsContext: { ...mockSwapsContextValue, getApiUrl: () => null },
+      walletContext: readyWalletContext,
+    })
+
+    expect(await screen.findByText('Lightning is temporarily unavailable')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
     fetchMocker.disableMocks()
   })
 

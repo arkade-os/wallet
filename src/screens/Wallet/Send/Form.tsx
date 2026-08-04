@@ -61,6 +61,7 @@ import { testDomains } from '../../../lib/constants'
 import UnverifiedBadge from '../../../components/UnverifiedBadge'
 
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
+const LIGHTNING_UNAVAILABLE_MESSAGE = 'Lightning is temporarily unavailable'
 
 const brantaClient = new BrantaService({
   baseUrl: isProductionEnv ? 'Production' : 'Staging',
@@ -174,6 +175,13 @@ export default function SendForm() {
   const lightningSwapsAvailable = Boolean(getApiUrl())
   const lnUrlArkMethod = lnUrlResponse?.transferAmounts?.find((method) => method.method === 'Ark' && method.available)
   const lnUrlSupportsArkade = Boolean(lnUrlArkMethod)
+  const pastedLightningInvoice = !isAssetSend && isLightningInvoice(recipient.toLowerCase().replace(/^lightning:/, ''))
+  const lightningOnlyRecipient =
+    !lightningSwapsAvailable &&
+    !sendInfo.address &&
+    !sendInfo.arkAddress &&
+    Boolean(sendInfo.invoice || pastedLightningInvoice || (sendInfo.lnUrl && lnUrlResponse && !lnUrlSupportsArkade))
+  const recipientErrorMessage = lightningOnlyRecipient ? LIGHTNING_UNAVAILABLE_MESSAGE : recipientError
 
   const DUST_AMOUNT = 330
   const RECIPIENT_DEBOUNCE_MS = 800
@@ -958,7 +966,7 @@ export default function SendForm() {
             <FlexCol gap='1.25rem' className='send-form-stack'>
               <ErrorMessage error={Boolean(error)} text={error} />
               <InputAddress
-                error={recipientError}
+                error={recipientErrorMessage}
                 focus={focus === 'recipient'}
                 label='Recipient address'
                 name='send-address'
