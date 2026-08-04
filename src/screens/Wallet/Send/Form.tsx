@@ -67,6 +67,17 @@ const brantaClient = new BrantaService({
   privacy: 'strict',
 })
 
+const isPlainOnchainTypedRecipient = (value: string): boolean => {
+  if (isBTCAddress(value)) return true
+  if (!isBip21(value.toLowerCase())) return false
+
+  try {
+    return Boolean(decodeBip21(value).address)
+  } catch {
+    return false
+  }
+}
+
 function AssetIcon({ asset }: { asset: AssetOption | null }) {
   const { aspInfo } = useContext(AspContext)
   const { isVerifiedAsset } = useContext(WalletContext)
@@ -408,6 +419,12 @@ export default function SendForm() {
 
     setBrantaPayment(null)
     setBrantaVerifyUrl(undefined)
+
+    if (!rawScanData && isPlainOnchainTypedRecipient(typed)) {
+      setBrantaLoading(false)
+      return
+    }
+
     let cancelled = false
 
     const runLookup = () => {
