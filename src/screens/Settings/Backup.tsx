@@ -105,7 +105,7 @@ export default function Backup() {
         return
       })
     } else {
-      backupConfig(newConfig)
+      backupConfig(newConfig, true)
     }
     toast('Nostr backup updated')
   }

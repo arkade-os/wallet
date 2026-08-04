@@ -23,12 +23,13 @@ type NostrStorageData = {
 
 type BackupContextProps = {
   backupAndUpdateConfig: (config: Config) => void
-  backupConfig: (config: Config) => Promise<void>
+  backupConfig: (config: Config, force?: boolean) => Promise<void>
   backupChainSwap: (chainSwap: BoltzChainSwap) => Promise<void>
   backupSolverCards: (solverCards: LocalCardInput[]) => Promise<void>
   backupReverseSwap: (reverseSwap: BoltzReverseSwap) => Promise<void>
   backupSubmarineSwap: (submarineSwap: BoltzSubmarineSwap) => Promise<void>
   fullBackup: (config: Config, arkadeSwaps?: ServiceWorkerArkadeSwaps) => Promise<void>
+  initialiseNostrBackup: (secKey: Uint8Array) => void
   restore: (secKey: Uint8Array) => Promise<void>
 }
 
@@ -39,6 +40,7 @@ export const BackupContext = createContext<BackupContextProps>({
   backupSolverCards: async () => {},
   backupReverseSwap: async () => {},
   backupSubmarineSwap: async () => {},
+  initialiseNostrBackup: () => {},
   fullBackup: async () => {},
   restore: async () => {},
 })
@@ -55,36 +57,39 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
     configRef.current = config
   }, [config])
 
-  // initialize NostrStorage when we have a pubkey and nostrBackup is enabled
-  useEffect(() => {
-    if (!config.pubkey || !config.nostrBackup) return
+  const initialiseNostrBackup = (seckey: Uint8Array) => {
     try {
-      nostrStorage.current = new NostrStorage({ pubkey: config.pubkey })
+      nostrStorage.current = new NostrStorage(seckey)
     } catch (err) {
       consoleError(err, 'Failed to initialize NostrStorage:')
     }
-  }, [config.pubkey, config.nostrBackup])
+  }
 
   /**
    * backup config to Nostr
    * @param config Config to backup
    */
-  const backupConfig = async (config: Config) => {
+  const backupConfig = async (config: Config, force = false) => {
+    if (!config.nostrBackup && !force) return
     const data: NostrStorageData = { config }
     await nostrStorage.current?.save(JSON.stringify(data))
-    if (!config.nostrBackup) nostrStorage.current = null
   }
 
+  /**
+   * backup and update config
+   * @param config Config to backup and update
+   */
   const backupAndUpdateConfig = (config: Config) => {
     backupConfig(config).catch((err) => consoleError(err, 'backupAndUpdateConfig:'))
     updateConfig(config)
   }
 
   /**
-   * backup a submarine swap to Nostr
-   * @param submarineSwap BoltzSubmarineSwap to backup
+   * backup a chain swap to Nostr
+   * @param chainSwap BoltzChainSwap to backup
    */
   const backupChainSwap = async (chainSwap: BoltzChainSwap) => {
+    if (!config.nostrBackup) return
     const data: NostrStorageData = { chainSwaps: [chainSwap] }
     await nostrStorage.current?.save(JSON.stringify(data))
   }
@@ -94,6 +99,7 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
    * @param reverseSwap BoltzReverseSwap to backup
    */
   const backupReverseSwap = async (reverseSwap: BoltzReverseSwap) => {
+    if (!config.nostrBackup) return
     const data: NostrStorageData = { reverseSwaps: [reverseSwap] }
     await nostrStorage.current?.save(JSON.stringify(data))
   }
@@ -103,6 +109,7 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
    * @param solverCards LocalCardInput[] to backup
    */
   const backupSolverCards = async (solverCards: LocalCardInput[]) => {
+    if (!config.nostrBackup) return
     const data: NostrStorageData = { solverCards }
     await nostrStorage.current?.save(JSON.stringify(data))
   }
@@ -112,6 +119,7 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
    * @param submarineSwap BoltzSubmarineSwap to backup
    */
   const backupSubmarineSwap = async (submarineSwap: BoltzSubmarineSwap) => {
+    if (!config.nostrBackup) return
     const data: NostrStorageData = { submarineSwaps: [submarineSwap] }
     await nostrStorage.current?.save(JSON.stringify(data))
   }
@@ -164,7 +172,7 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
    * @param seckey secKey to restore data from Nostr
    */
   const restore = async (seckey: Uint8Array) => {
-    const provider = new NostrStorage({ seckey })
+    const provider = new NostrStorage(seckey)
 
     const data = (await loadData(provider)) as NostrStorageData
 
@@ -271,6 +279,7 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
         backupReverseSwap,
         backupSubmarineSwap,
         backupAndUpdateConfig,
+        initialiseNostrBackup,
         fullBackup,
         restore,
       }}
