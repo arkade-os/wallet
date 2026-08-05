@@ -1,0 +1,130 @@
+/**
+ * The wallet's boundary onto the Arkade RFQ swap client — the send leg of
+ * `arkade:BTC -> lightning:BTC`.
+ *
+ * Two jobs, both of which belong to the wallet rather than the swap client:
+ *
+ * 1. Turn a user-supplied BOLT11 string into the `InvoiceFacts` the client
+ *    requires, rejecting invoices the wallet can already prove unusable. The
+ *    client gates on expiry too, but it can only do so because the wallet hands
+ *    it an ABSOLUTE `expiresAt` — BOLT11 encodes expiry as a delta from the
+ *    invoice's creation time, so that field only exists thanks to the decoder
+ *    exposing `timestamp` (see `bolt11.ts`).
+ * 2. Map the RFQ lifecycle onto the four states this wallet's swap history
+ *    renders. The two vocabularies do not line up and are owned by different
+ *    codebases, so the mapping is explicit here rather than assumed to match.
+ *
+ * Everything the swap client itself does — deriving the lockup covenant
+ * locally, refusing to fund on an address mismatch, gating on `valid_until`
+ * and refund headroom — stays in the client. This file adds no policy of its
+ * own beyond the checks above.
+ *
+ * The client is currently vendored (see `arkadeSwap/VENDORED.md`). This module
+ * is the seam that keeps that temporary: when `@arkade-os/swap` is published,
+ * only the import below changes.
+ */
+import type { NetworkName } from '@arkade-os/sdk'
+import { decodeInvoice, invoiceMatchesNetwork, isInvoiceExpired, type DecodedInvoice } from './bolt11'
+import { RFQ_TERMINAL_STATES, type InvoiceFacts } from './arkadeSwap/rfq'
+
+/**
+ * The four states swap history renders. Exported so the RFQ mapping below and
+ * the list component agree by construction instead of by two copies of the
+ * same union drifting apart.
+ */
+export type SwapStatusUI = 'Successful' | 'Pending' | 'Failed' | 'Refunded'
+
+/** Why an invoice cannot start a swap. A closed set, so callers can branch. */
+export type InvoiceRejection = 'unparseable' | 'wrong_network' | 'expired' | 'zero_amount' | 'no_payment_hash'
+
+/** An invoice the wallet refuses before any solver is contacted. */
+export class InvoiceRejected extends Error {
+  readonly reason: InvoiceRejection
+
+  constructor(reason: InvoiceRejection, message: string) {
+    super(message)
+    this.name = 'InvoiceRejected'
+    this.reason = reason
+  }
+}
+
+/**
+ * Decode a BOLT11 string into the facts the swap client needs, refusing
+ * anything the wallet can already tell is unusable.
+ *
+ * These checks are deliberately local: contacting a solver with an invoice
+ * that cannot be paid burns a quote and leaks the invoice to a third party for
+ * nothing. The wrong-network check matters most — an invoice for another chain
+ * is not merely unpayable here, it would be quoted against the wrong asset.
+ */
+export const toInvoiceFacts = (
+  invoice: string,
+  network: NetworkName,
+  nowSeconds = Math.floor(Date.now() / 1000),
+): InvoiceFacts => {
+  let decoded: DecodedInvoice
+  try {
+    decoded = decodeInvoice(invoice)
+  } catch {
+    throw new InvoiceRejected('unparseable', 'not a valid BOLT11 invoice')
+  }
+
+  if (!invoiceMatchesNetwork(decoded, network)) {
+    throw new InvoiceRejected('wrong_network', `invoice is not for ${network}`)
+  }
+  // isInvoiceExpired treats a missing timestamp as expired: an invoice whose
+  // liveness cannot be proven must not be paid.
+  if (isInvoiceExpired(decoded, nowSeconds)) {
+    throw new InvoiceRejected('expired', 'invoice has expired')
+  }
+  // The lockup amount IS the invoice amount, so a zero-amount (donation)
+  // invoice has nothing to fund and the solver cannot quote it.
+  if (decoded.amountSats <= 0) {
+    throw new InvoiceRejected('zero_amount', 'invoice does not specify an amount')
+  }
+  if (!decoded.paymentHash) {
+    throw new InvoiceRejected('no_payment_hash', 'invoice carries no payment hash')
+  }
+
+  return {
+    raw: invoice,
+    paymentHash: decoded.paymentHash,
+    amountSats: decoded.amountSats,
+    expiresAt: decoded.expiresAt,
+  }
+}
+
+/**
+ * The terminal RFQ states and how each reads to a user.
+ *
+ * Keyed by the client's own terminal-state tuple, so a state added upstream
+ * becomes a compile error here rather than silently falling through to
+ * "Pending" and showing a finished swap as still running.
+ *
+ * `stuck` is terminal for the negotiation, not a verdict on the funds: the
+ * covenant's refund path is still the backstop. It reads as Failed because it
+ * is the case that needs a human to look, and this vocabulary has no
+ * "needs attention" state of its own.
+ */
+const TERMINAL_STATUS: Record<(typeof RFQ_TERMINAL_STATES)[number], SwapStatusUI> = {
+  settled: 'Successful',
+  refused: 'Failed',
+  expired: 'Failed',
+  refunded: 'Refunded',
+  stuck: 'Failed',
+}
+
+/**
+ * Map an RFQ state onto swap history's vocabulary.
+ *
+ * The client types `state` as an open string because the solver owns the
+ * intermediate names and may add to them. Only the terminal set is closed, so
+ * that is what is mapped exhaustively; anything else is by definition still in
+ * flight and reads as Pending. A new intermediate state therefore shows up as
+ * a running swap rather than as a crash or a spurious failure.
+ */
+export const rfqStatusUI = (state: string): SwapStatusUI =>
+  TERMINAL_STATUS[state as (typeof RFQ_TERMINAL_STATES)[number]] ?? 'Pending'
+
+/** Whether an RFQ state is one after which nothing further will happen. */
+export const isRfqTerminal = (state: string): boolean => (RFQ_TERMINAL_STATES as readonly string[]).includes(state)

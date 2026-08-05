@@ -1,0 +1,45 @@
+{
+  "version": 0,
+  "name": "lightning-send",
+  "params": [
+    { "name": "receiver", "type": "pubkey" },
+    { "name": "server", "type": "pubkey" },
+    { "name": "preimageHash", "type": "hash" },
+    { "name": "refundLocktime", "type": "int" },
+    { "name": "claimDelay", "type": "int" },
+    { "name": "refundKey", "type": "pubkey" }
+  ],
+  "functions": {
+    "claim": {
+      "tapscript": {
+        "signers": ["$receiver", "$server"],
+        "asm": ["HASH160", "$preimageHash", "EQUAL"]
+      }
+    },
+    "refund": {
+      "tapscript": { "signers": ["$server"], "cltv": "$refundLocktime" },
+      "arkadeScript": {
+        "asm": [
+          "PUSHCURRENTINPUTINDEX",
+          "DUP",
+          "INSPECTOUTPUTSCRIPTPUBKEY",
+          1,
+          "EQUALVERIFY",
+          "$refundKey",
+          "EQUALVERIFY",
+          "INSPECTOUTPUTVALUE",
+          "PUSHCURRENTINPUTINDEX",
+          "INSPECTINPUTVALUE",
+          "GREATERTHANOREQUAL"
+        ]
+      }
+    },
+    "unilateralClaim": {
+      "tapscript": {
+        "signers": ["$receiver"],
+        "asm": ["HASH160", "$preimageHash", "EQUAL"],
+        "csv": { "type": "seconds", "value": "$claimDelay" }
+      }
+    }
+  }
+}
