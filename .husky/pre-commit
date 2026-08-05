@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+set -e
 pnpm format:check
 pnpm lint
 pnpm csp:check
