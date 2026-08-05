@@ -87,6 +87,10 @@ Pages. Both are static, so:
   `script-src` in the file your deployment uses.
 - The inline theme bootstrap in `index.html` is allowed by hash. `pnpm csp:check` (run on pre-commit and before
   `pnpm build`) verifies it; `pnpm csp:fix` updates it after editing that block.
+- `public/_headers` allows `https://static.cloudflareinsights.com` because Cloudflare Web Analytics injects its
+  beacon into HTML responses at the edge, so the script is not in the build. Beware of Cloudflare features that
+  inject _inline_ script — Rocket Loader, Email Obfuscation — which the hash-only `script-src` blocks and
+  `pnpm csp:check` cannot catch, since it only sees the built `index.html`.
 
 ## Getting Started
 
