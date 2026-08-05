@@ -25,7 +25,7 @@
  */
 import type { NetworkName } from '@arkade-os/sdk'
 import { decodeInvoice, invoiceMatchesNetwork, isInvoiceExpired, type DecodedInvoice } from './bolt11'
-import { RFQ_TERMINAL_STATES, type InvoiceFacts } from './arkadeSwap/rfq'
+import { RFQ_TERMINAL_STATES, requestLightningSend, type InvoiceFacts, type RfqTransport } from './arkadeSwap/rfq'
 
 /**
  * The four states swap history renders. Exported so the RFQ mapping below and
@@ -128,3 +128,65 @@ export const rfqStatusUI = (state: string): SwapStatusUI =>
 
 /** Whether an RFQ state is one after which nothing further will happen. */
 export const isRfqTerminal = (state: string): boolean => (RFQ_TERMINAL_STATES as readonly string[]).includes(state)
+
+/**
+ * What the send flow needs in order to pay: an address the wallet derived
+ * itself and an amount. Deliberately no swap object to "execute" later —
+ * see `requestLnSend`.
+ */
+export interface LnSendRequest {
+  /** Negotiation id, for correlating status lookups. */
+  rfqId: string
+  /** The wallet's OWN derivation of the lockup covenant. Fund only this. */
+  address: string
+  /** Sats the lockup must carry. */
+  fundAmount: number
+  /** The covenant scriptPubKey, for watching the lockup and its spend. */
+  swapPkScript: Uint8Array
+  /** Where a failed swap provably refunds, without wallet keys or state. */
+  refundAddress: string
+  /** Unix seconds after which the quote is dead and must not be funded. */
+  validUntil: number
+}
+
+/**
+ * Negotiate a Lightning-send quote and return what the caller must fund.
+ *
+ * This performs no payment. That is the point of the design rather than an
+ * omission: there is no accept message in the protocol, so **funding the
+ * returned address IS acceptance**. The caller pays it with an ordinary Ark
+ * send, which is why the send flow needs no swap-specific execute step and no
+ * counterpart to Boltz's `payInvoice`.
+ *
+ * The address returned is the wallet's own derivation, not the solver's claim
+ * of one; the client refuses (`AddressMismatch`) rather than returning a
+ * mismatched address, so funding it cannot pay a solver-chosen script.
+ *
+ * `transport` is injected so the send flow can be tested without a solver, and
+ * so switching from HTTP to a relay — or to Nostr, the stated production
+ * target — changes only the caller.
+ */
+export const requestLnSend = async (
+  args: {
+    wallet: Parameters<typeof requestLightningSend>[0]
+    arkServerUrl: string
+    emulatorUrl: string
+    transport: RfqTransport
+    invoice: string
+    network: NetworkName
+  },
+  nowSeconds = Math.floor(Date.now() / 1000),
+): Promise<LnSendRequest> => {
+  const invoice = toInvoiceFacts(args.invoice, args.network, nowSeconds)
+  const result = await requestLightningSend(args.wallet, args.arkServerUrl, args.emulatorUrl, args.transport, {
+    invoice,
+  })
+  return {
+    rfqId: result.rfqId,
+    address: result.address,
+    fundAmount: result.fundAmount,
+    swapPkScript: result.swapPkScript,
+    refundAddress: result.refundAddress,
+    validUntil: result.quote.valid_until,
+  }
+}

@@ -57,6 +57,22 @@ const serviceUrlForNetwork = (envValue: string | undefined, table: Record<Networ
 export const getSolverRegistryUrl = (network: Network): string | undefined =>
   serviceUrlForNetwork(import.meta.env.VITE_SOLVER_REGISTRY_URL, SOLVER_REGISTRY_URL, network)
 
+// the Arkade RFQ swap service serving arkade:BTC -> lightning:BTC
+// (see arkade-os/lightning-swap-service). Every entry is null on purpose: no
+// endpoint has been confirmed for any network, so the RFQ send path stays off
+// until one is supplied here or through VITE_LN_SWAP_URL. Guessing a host
+// would send real invoices somewhere nobody has verified.
+const LN_SWAP_URL: Record<Network, string | null> = {
+  bitcoin: null,
+  mutinynet: null,
+  signet: null,
+  regtest: null,
+  testnet: null,
+}
+
+export const getLnSwapUrlForNetwork = (network: Network): string | undefined =>
+  serviceUrlForNetwork(import.meta.env.VITE_LN_SWAP_URL, LN_SWAP_URL, network)
+
 // the arkade signer co-signing banco swap covenants (separate service from arkd)
 const EMULATOR_URL: Record<Network, string | null> = {
   bitcoin: null,
