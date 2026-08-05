@@ -16,11 +16,11 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: 0.3.60
-        version: 0.3.60
+        specifier: 0.3.61
+        version: 0.3.61
       '@arkade-os/sdk':
-        specifier: 0.4.55
-        version: 0.4.55
+        specifier: 0.4.56
+        version: 0.4.56
       '@arkade-os/solver-discovery':
         specifier: 0.1.4
         version: 0.1.4
@@ -253,8 +253,8 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/boltz-swap@0.3.60':
-    resolution: {integrity: sha512-nnwv1jYqwO7uabloGIQHkoSFww42gVn/6kC/rXnpcTgmlsCqvKbvhNmlq8kq5yDdWHPUXp5KNjHgcfMh+UKCKA==}
+  '@arkade-os/boltz-swap@0.3.61':
+    resolution: {integrity: sha512-bXdZgCuTgjd4vvJFi+dNSbRlAk39abfl/rYcvFhoi2A2srZWweWv32s8ULbnc/HZzgTUsD63rvSHc0RHVALkag==}
     peerDependencies:
       expo-background-task: '>=0.1.0'
       expo-task-manager: '>=3.0.0'
@@ -264,8 +264,8 @@ packages:
       expo-task-manager:
         optional: true
 
-  '@arkade-os/sdk@0.4.55':
-    resolution: {integrity: sha512-MSntbGPCJLrp8zG46uCYmxTsDV2NBEX58vU8P/I6LxD2xATRe9sNFD9ZVYt59DwoD9RhS+cxXiV/PRTXOMpZaA==}
+  '@arkade-os/sdk@0.4.56':
+    resolution: {integrity: sha512-cg64msS92yDu5UI18xzhNsnplpN5cYUxBzc/y1wKlZwvWohs5FST0rK8eOfkpi5otcrDSYCyg2Kj4yK4mRzPhQ==}
     engines: {node: '>=22.12.0 <25'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -4345,9 +4345,9 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/boltz-swap@0.3.60':
+  '@arkade-os/boltz-swap@0.3.61':
     dependencies:
-      '@arkade-os/sdk': 0.4.55
+      '@arkade-os/sdk': 0.4.56
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
@@ -4365,7 +4365,7 @@ snapshots:
       - expo-sqlite
       - utf-8-validate
 
-  '@arkade-os/sdk@0.4.55':
+  '@arkade-os/sdk@0.4.56':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 8.0.0
