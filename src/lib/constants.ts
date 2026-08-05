@@ -1,5 +1,6 @@
 import { Delegate } from './types'
 import { Network } from '@arkade-os/boltz-swap'
+import { NetworkName } from '@arkade-os/sdk'
 
 export const arknoteHRP = 'arknote'
 export const defaultFee = 0
@@ -32,6 +33,9 @@ export const defaultArkServer = () => {
   }
   return mainServer
 }
+
+export const isMainnet = (network: NetworkName | string): boolean =>
+  network !== 'testnet' && network !== 'mutinynet' && network !== 'signet' && network !== 'regtest'
 
 const DELEGATE_URL: Record<Network, string | null> = {
   bitcoin: 'https://delegate.arkade.money',

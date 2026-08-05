@@ -45,7 +45,7 @@ import { setLoadingStatus } from '../lib/loadingStatus'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
-import { defaultPassword, getDelegateUrlForNetwork, maxPercentage } from '../lib/constants'
+import { defaultPassword, getDelegateUrlForNetwork, isMainnet, maxPercentage } from '../lib/constants'
 import { AssetIconApprovalManager } from '../lib/assetIconApproval'
 import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { Indexer } from '../lib/indexer'
@@ -704,9 +704,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       throw err
     }
   }
-
-  const isMainnet = (network: NetworkName | string): boolean =>
-    network !== 'testnet' && network !== 'mutinynet' && network !== 'signet' && network !== 'regtest'
 
   const initWallet = async (credentials: {
     mnemonic?: string
