@@ -16,8 +16,8 @@ importers:
   .:
     dependencies:
       '@arkade-os/sdk':
-        specifier: 0.4.53
-        version: 0.4.53
+        specifier: 0.4.56
+        version: 0.4.56
       '@arkade-os/solver-discovery':
         specifier: 0.2.1
         version: 0.2.1
@@ -250,8 +250,8 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/sdk@0.4.53':
-    resolution: {integrity: sha512-e+ddKze2JO79bo+pJE5zh89RGVFINNCxeruBiZl/rBulClZ4/2Ex3B0HHRKx26gj8fd2jX8ridxQfyVlrb9jpQ==}
+  '@arkade-os/sdk@0.4.56':
+    resolution: {integrity: sha512-cg64msS92yDu5UI18xzhNsnplpN5cYUxBzc/y1wKlZwvWohs5FST0rK8eOfkpi5otcrDSYCyg2Kj4yK4mRzPhQ==}
     engines: {node: '>=22.12.0 <25'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -4331,7 +4331,7 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/sdk@0.4.53':
+  '@arkade-os/sdk@0.4.56':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 8.0.0

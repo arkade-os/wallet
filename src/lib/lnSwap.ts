@@ -213,8 +213,7 @@ export interface LnSendRequest {
  * This performs no payment. That is the point of the design rather than an
  * omission: there is no accept message in the protocol, so **funding the
  * returned address IS acceptance**. The caller pays it with an ordinary Ark
- * send, which is why the send flow needs no swap-specific execute step and no
- * counterpart to Boltz's `payInvoice`.
+ * send, which is why the send flow needs no swap-specific execute step.
  *
  * The address returned is the wallet's own derivation, not the solver's claim
  * of one; the client refuses (`AddressMismatch`) rather than returning a

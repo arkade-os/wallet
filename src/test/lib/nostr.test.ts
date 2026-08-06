@@ -30,8 +30,7 @@ vi.mock('nostr-tools', async (importOriginal) => {
 const seckey = generateSecretKey()
 const pubkey = getPublicKey(seckey)
 
-const makeEvent = (payload: string, createdAt = Math.floor(Date.now() / 1000)): Event => {
-  const sk = generateSecretKey()
+const makeEvent = (payload: string, sk = seckey): Event => {
   return finalizeEvent(
     {
       kind: EncryptedDirectMessage,
@@ -39,7 +38,7 @@ const makeEvent = (payload: string, createdAt = Math.floor(Date.now() / 1000)): 
         ['p', pubkey],
         ['t', 'arkade_backup'],
       ],
-      created_at: createdAt,
+      created_at: Math.floor(Date.now() / 1000),
       content: nip44.encrypt(payload, nip44.getConversationKey(sk, pubkey)),
     },
     sk,
@@ -57,31 +56,37 @@ describe('NostrStorage.load', () => {
   it('returns decrypted events', async () => {
     relayEvents = [asDelivered(makeEvent('{"hello":"world"}'))]
 
-    const events = await new NostrStorage({ seckey }).load()
+    const events = await new NostrStorage(seckey).load()
 
     expect(events).toHaveLength(1)
     expect(events[0].content).toBe('{"hello":"world"}')
     expect(events[0].receivedAt).toBeGreaterThan(0)
   })
 
+  it('skips an event not signed by us', async () => {
+    const sk = generateSecretKey() // ephemeral secret key
+    const tampered = { ...asDelivered(makeEvent('{"hello":"world"}', sk)) }
+    relayEvents = [tampered]
+
+    expect(await new NostrStorage(seckey).load()).toHaveLength(0)
+  })
+
   it('skips an event whose signature does not match', async () => {
     const tampered = { ...asDelivered(makeEvent('{"hello":"world"}')), sig: '00'.repeat(64) }
     relayEvents = [tampered]
 
-    expect(await new NostrStorage({ seckey }).load()).toHaveLength(0)
+    expect(await new NostrStorage(seckey).load()).toHaveLength(0)
   })
 
-  it('keeps valid events alongside an invalid one', async () => {
+  it('keeps valid events alongside invalid ones', async () => {
+    const sk = generateSecretKey()
     const valid = asDelivered(makeEvent('{"keep":true}'))
-    const tampered = { ...asDelivered(makeEvent('{"drop":true}')), sig: '00'.repeat(64) }
-    relayEvents = [tampered, valid]
+    const signedByOther = { ...asDelivered(makeEvent('{"drop":true"}', sk)) }
+    const invalidSig = { ...asDelivered(makeEvent('{"drop":true}')), sig: '00'.repeat(64) }
+    relayEvents = [signedByOther, invalidSig, valid]
 
-    const events = await new NostrStorage({ seckey }).load()
+    const events = await new NostrStorage(seckey).load()
 
     expect(events.map((e) => e.content)).toEqual(['{"keep":true}'])
-  })
-
-  it('requires a secret key', async () => {
-    await expect(new NostrStorage({ pubkey }).load()).rejects.toThrow('Secret key is required')
   })
 })

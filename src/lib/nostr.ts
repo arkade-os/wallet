@@ -1,16 +1,6 @@
-import {
-  finalizeEvent,
-  generateSecretKey,
-  getPublicKey,
-  nip44,
-  SimplePool,
-  UnsignedEvent,
-  Event,
-  verifyEvent,
-} from 'nostr-tools'
+import { finalizeEvent, getPublicKey, nip44, SimplePool, UnsignedEvent, Event, verifyEvent } from 'nostr-tools'
 import { EncryptedDirectMessage } from 'nostr-tools/kinds'
 import { consoleError } from './logs'
-import { toXOnlyHex } from './keys'
 
 /** A loaded event, with the local time it arrived at (seconds). */
 export type BackupEvent = Event & { receivedAt: number }
@@ -27,24 +17,13 @@ export class NostrStorage {
 
   /**
    * Initialize NostrStorage with either a secret key or public key
-   * @param options.seckey - Optional secret key (Uint8Array). If provided, pubkey is derived.
-   * @param options.pubkey - Optional public key (hex string, with or without '0x' prefix). Required if seckey not provided.
-   * @param options.relays - Optional array of relay URLs. Defaults to hardcoded relay list.
-   * @throws Error if neither seckey nor pubkey is provided, or if pubkey format is invalid
    */
-  constructor(options: { seckey?: Uint8Array; pubkey?: string; relays?: string[] }) {
+  constructor(seckey?: Uint8Array) {
+    if (!seckey) throw new Error('Secret key must be provided')
+    this.pubkey = getPublicKey(seckey)
     this.pool = new SimplePool()
-    this.relays = options.relays || relays
-    if (options.seckey) {
-      this.pubkey = getPublicKey(options.seckey)
-      this.seckey = options.seckey
-    } else if (options.pubkey) {
-      this.pubkey = toXOnlyHex(options.pubkey)
-      if (this.pubkey.length !== 64) throw new Error('Invalid pubkey length')
-      this.seckey = null
-    } else {
-      throw new Error('Either seckey or pubkey must be provided')
-    }
+    this.seckey = seckey
+    this.relays = relays
   }
 
   /**
@@ -52,8 +31,8 @@ export class NostrStorage {
    * @param payload data to save
    */
   async save(payload: string): Promise<void> {
-    const sk = generateSecretKey()
-    const pk = getPublicKey(sk)
+    const sk = this.seckey!
+    const pk = this.pubkey!
 
     const event: UnsignedEvent = {
       kind: EncryptedDirectMessage,
@@ -100,6 +79,10 @@ export class NostrStorage {
           { kinds: [4], '#p': [this.pubkey], '#t': [nostrAppName] },
           {
             onevent(event: Event) {
+              if (event.pubkey !== self.pubkey) {
+                consoleError('Received nostr event from wrong pubkey')
+                return
+              }
               // relays are not trusted to have checked the signature themselves
               if (!verifyEvent(event)) {
                 consoleError(new Error(`Invalid signature on event ${event.id}`), 'Skipped event')

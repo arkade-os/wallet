@@ -11,11 +11,17 @@ import * as secp from '@noble/secp256k1'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { hmac } from '@noble/hashes/hmac.js'
 import { collaborativeExit, getReceivingAddresses } from '../../../lib/asp'
-import { Transaction, isValidArkAddress } from '@arkade-os/sdk'
+import { Transaction, isValidArkAddress, type NetworkName } from '@arkade-os/sdk'
 import { isBTCAddress } from '../../../lib/address'
+import { isValidSendAmount, sendConfirmation, signConfirmation, summarizePsbt } from '../../../lib/appRequest'
+import { useBridgeConfirmation } from '../../../hooks/useBridgeConfirmation'
+import BridgeConfirmSheet from '../../../components/BridgeConfirmSheet'
+import { AspContext } from '../../../providers/asp'
 import { NavigationContext, Pages } from '@/providers/navigation'
 
 const { bytesToHex, hexToBytes } = utils
+
+const APP_NAME = 'Lendasat'
 
 // Set up SHA256 for @noble/secp256k1
 secp.hashes.sha256 = sha256
@@ -24,6 +30,10 @@ secp.hashes.hmacSha256 = (key, msg) => hmac(sha256, key, msg)
 export default function AppLendasat() {
   const { wallet, svcWallet } = useContext(WalletContext)
   const { navigate } = useContext(NavigationContext)
+  const { aspInfo } = useContext(AspContext)
+  const { approve, reject, request, requestConfirmation } = useBridgeConfirmation()
+
+  const network = aspInfo.network as NetworkName
 
   const [arkAddress, setArkAddress] = useState<string | null>(null)
   const [boardingAddress, setBoardingAddress] = useState<string | null>(null)
@@ -72,19 +82,21 @@ export default function AppLendasat() {
           }
 
           switch (asset) {
-            case 'bitcoin':
-              if (isValidArkAddress(address)) {
-                const txId = await svcWallet?.send({ amount, address })
-                if (txId) {
-                  return txId
-                } else {
-                  throw new Error('Unable to send bitcoin')
-                }
-              } else if (isBTCAddress(address)) {
-                return await collaborativeExit(svcWallet, amount, address)
-              } else {
-                throw Error(`Unsupported address ${address}`)
-              }
+            case 'bitcoin': {
+              if (!isValidSendAmount(amount)) throw new Error('Invalid amount')
+
+              const offchain = isValidArkAddress(address)
+              if (!offchain && !isBTCAddress(address)) throw Error(`Unsupported address ${address}`)
+
+              const approved = await requestConfirmation(sendConfirmation(APP_NAME, address, amount, offchain))
+              if (!approved) throw new Error('Payment declined')
+
+              if (!offchain) return await collaborativeExit(svcWallet, amount, address)
+
+              const txId = await svcWallet.send({ amount, address })
+              if (!txId) throw new Error('Unable to send bitcoin')
+              return txId
+            }
             case 'UsdcPol':
             case 'UsdtPol':
             case 'UsdcEth':
@@ -143,6 +155,13 @@ export default function AppLendasat() {
           if (!svcWallet) {
             throw Error('Wallet not initialized')
           }
+
+          const summary = summarizePsbt(psbt, network)
+          if (!summary) throw new Error('Unable to describe this transaction')
+
+          const approved = await requestConfirmation(signConfirmation(APP_NAME, summary))
+          if (!approved) throw new Error('Signature declined')
+
           const psbtBytes = hexToBytes(psbt)
           const tx = Transaction.fromPSBT(psbtBytes)
           const signedTx = await svcWallet.identity.sign(tx)
@@ -175,7 +194,7 @@ export default function AppLendasat() {
     return () => {
       provider.destroy()
     }
-  }, [wallet.pubkey, svcWallet, arkAddress, boardingAddress])
+  }, [wallet.pubkey, svcWallet, arkAddress, boardingAddress, network, requestConfirmation])
 
   return (
     <>
@@ -194,6 +213,7 @@ export default function AppLendasat() {
           </FlexCol>
         </Padded>
       </Content>
+      <BridgeConfirmSheet request={request} onApprove={approve} onReject={reject} />
     </>
   )
 }
