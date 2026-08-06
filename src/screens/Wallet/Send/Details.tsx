@@ -13,6 +13,8 @@ import { prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { collaborativeExitWithFees, sendAssets, sendOffChain } from '../../../lib/asp'
+import { awaitLnSendOutcome, type LnSendRequest } from '../../../lib/lnSwap'
+import { nostrRfqTransport } from '../../../lib/nostrRfq'
 import { extractError } from '../../../lib/error'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
@@ -131,6 +133,42 @@ export default function SendDetails() {
     setSendDone(true)
   }
 
+  /**
+   * Fund the covenant, then wait for the solver to actually pay the invoice.
+   *
+   * The funding txid is NOT the end of the payment. It only proves the
+   * covenant is funded; the solver still has to pay the invoice and claim, and
+   * if it cannot, the covenant refunds. Reporting success on the txid alone
+   * would tell the user "Sent" for a payment that may never arrive — so the
+   * loader stays up until the solver reaches a terminal state.
+   *
+   * A wait that runs out is reported as sent, not as an error: the funds are
+   * committed, the refund path is unconditional, and calling an unknown
+   * outcome a failure would be as wrong in the other direction.
+   */
+  const payLightning = async (request: LnSendRequest) => {
+    const txid = await sendOffChain(svcWallet!, request.fundAmount, request.address)
+    if (!txid) return handleError('Error sending transaction')
+
+    const transport = nostrRfqTransport({
+      relays: request.rendezvous.relays,
+      solverPubkey: request.rendezvous.solverPubkey,
+    })
+    try {
+      const outcome = await awaitLnSendOutcome(request.rfqId, transport)
+      if (outcome.kind === 'failed') {
+        return handleError(
+          outcome.state === 'refunded'
+            ? 'The solver could not pay the invoice; your funds have been refunded'
+            : `The solver could not pay the invoice (${outcome.state}); the covenant refunds automatically`,
+        )
+      }
+    } finally {
+      await transport.close().catch(() => {})
+    }
+    handleTxid(txid)
+  }
+
   const handleContinue = async () => {
     if (!details || !svcWallet) return
     if (!isAssetSend && (!details.total || !details.satoshis)) return
@@ -161,9 +199,7 @@ export default function SendDetails() {
       if (Math.floor(Date.now() / 1000) >= pendingLnSend.validUntil) {
         return handleError('Quote expired — go back and try again')
       }
-      sendOffChain(svcWallet, pendingLnSend.fundAmount, pendingLnSend.address)
-        .then((txId: string) => handleTxid(txId))
-        .catch(handleError)
+      payLightning(pendingLnSend).catch(handleError)
     } else if (address) {
       if (!details.total) return handleError('Missing total amount')
       if (!details.satoshis) return handleError('Missing satoshis amount')

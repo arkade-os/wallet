@@ -194,6 +194,17 @@ export interface LnSendRequest {
   refundAddress: string
   /** Unix seconds after which the quote is dead and must not be funded. */
   validUntil: number
+  /**
+   * Where to reach the solver again after funding.
+   *
+   * Carried on the request because settlement is not observable from the
+   * funding transaction: the Ark txid only proves the covenant is funded, and
+   * whether the invoice actually got paid is a question only the solver can
+   * answer. Status lookups are keyed by `rfqId` alone and need no
+   * authentication, so a fresh transport can ask — the negotiating one does
+   * not have to be kept alive across screens.
+   */
+  rendezvous: LnSendRendezvous
 }
 
 /**
@@ -221,6 +232,7 @@ export const requestLnSend = async (
     transport: RfqTransport
     invoice: string
     network: NetworkName
+    rendezvous: LnSendRendezvous
   },
   nowSeconds = Math.floor(Date.now() / 1000),
 ): Promise<LnSendRequest> => {
@@ -235,5 +247,54 @@ export const requestLnSend = async (
     swapPkScript: result.swapPkScript,
     refundAddress: result.refundAddress,
     validUntil: result.quote.valid_until,
+    rendezvous: args.rendezvous,
+  }
+}
+
+/** How a funded Lightning send ended, from the wallet's point of view. */
+export type LnSendOutcome =
+  /** The solver paid the invoice and claimed. The only success. */
+  | { kind: 'settled' }
+  /** Terminal, but not paid. `state` is the RFQ state that ended it. */
+  | { kind: 'failed'; state: string }
+  /** Still in flight when we stopped waiting — NOT a failure. */
+  | { kind: 'pending' }
+
+/**
+ * Watch a funded send until the solver reaches a terminal state.
+ *
+ * Funding is acceptance, not completion: at the moment the funding txid lands,
+ * the invoice has not been paid yet. Treating that txid as success would tell
+ * the user "Sent" while the payment may still fail — after which the covenant
+ * refunds and their balance quietly returns. So the wallet asks the solver.
+ *
+ * Giving up is deliberately NOT a failure. The covenant is funded either way
+ * and the refund path is unconditional, so an unanswered poll means "unknown",
+ * which the caller must present as still-in-flight rather than as an error.
+ *
+ * Polls rather than subscribes: the solver pushes nothing, so status is a
+ * request/response either way, and polling keeps the state here rather than in
+ * a subscription that has to survive a screen change.
+ */
+export const awaitLnSendOutcome = async (
+  rfqId: string,
+  transport: RfqTransport,
+  options: { timeoutMs?: number; pollMs?: number; now?: () => number; sleep?: (ms: number) => Promise<void> } = {},
+): Promise<LnSendOutcome> => {
+  const timeoutMs = options.timeoutMs ?? 90_000
+  const pollMs = options.pollMs ?? 3_000
+  const now = options.now ?? (() => Date.now())
+  const sleep = options.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)))
+  const deadline = now() + timeoutMs
+
+  for (;;) {
+    // A failed lookup is not a verdict: the solver may be restarting, and the
+    // covenant is funded regardless. Keep asking until the deadline.
+    const status = await transport.status(rfqId).catch(() => null)
+    const state = status?.state
+    if (state === 'settled') return { kind: 'settled' }
+    if (state && isRfqTerminal(state)) return { kind: 'failed', state }
+    if (now() >= deadline) return { kind: 'pending' }
+    await sleep(pollMs)
   }
 }

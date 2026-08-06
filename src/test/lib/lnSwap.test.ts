@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { InvoiceRejected, isRfqTerminal, rfqStatusUI, toInvoiceFacts, type SwapStatusUI } from '../../lib/lnSwap'
+import {
+  InvoiceRejected,
+  awaitLnSendOutcome,
+  isRfqTerminal,
+  rfqStatusUI,
+  toInvoiceFacts,
+  type SwapStatusUI,
+} from '../../lib/lnSwap'
 import { RFQ_TERMINAL_STATES } from '../../lib/arkadeSwap/rfq'
 import fixtures from '../fixtures.json'
 
@@ -99,5 +106,67 @@ describe('lnSwap', () => {
       for (const state of RFQ_TERMINAL_STATES) expect(isRfqTerminal(state)).toBe(true)
       for (const state of ['quoted', 'funded', 'paying', '']) expect(isRfqTerminal(state)).toBe(false)
     })
+  })
+})
+
+describe('awaitLnSendOutcome', () => {
+  const transport = (states: (string | null)[]) => {
+    let i = 0
+    return {
+      requestQuote: async () => {
+        throw new Error('unused')
+      },
+      status: async () => {
+        const state = states[Math.min(i++, states.length - 1)]
+        return state === null ? null : ({ v: 1, type: 'rfq_status', rfq_id: 'x', state, profile: {} } as never)
+      },
+      close: async () => {},
+    }
+  }
+  const fast = { pollMs: 0, sleep: async () => {} }
+
+  it('settles only on `settled`', async () => {
+    const outcome = await awaitLnSendOutcome('x', transport(['funded', 'filling', 'settled']), fast)
+    expect(outcome).toEqual({ kind: 'settled' })
+  })
+
+  it('reports a terminal non-settled state as failed, naming it', async () => {
+    // The user funded a covenant; being told which way it ended is the
+    // difference between "wait for the refund" and "try again".
+    expect(await awaitLnSendOutcome('x', transport(['refunded']), fast)).toEqual({
+      kind: 'failed',
+      state: 'refunded',
+    })
+  })
+
+  it('gives up as pending, never as failed', async () => {
+    // The covenant is funded and refundable either way, so an unknown outcome
+    // must not be presented as a failed payment.
+    let clock = 0
+    const outcome = await awaitLnSendOutcome('x', transport(['funded']), {
+      ...fast,
+      timeoutMs: 10,
+      now: () => (clock += 6),
+    })
+    expect(outcome).toEqual({ kind: 'pending' })
+  })
+
+  it('keeps asking when a status lookup fails, rather than calling it a verdict', async () => {
+    // A restarting solver answers nothing; that is not evidence the payment
+    // failed, and the covenant is already funded.
+    let calls = 0
+    const flaky = {
+      requestQuote: async () => {
+        throw new Error('unused')
+      },
+      status: async () => {
+        calls++
+        if (calls < 3) throw new Error('connection reset')
+        return { v: 1, type: 'rfq_status', rfq_id: 'x', state: 'settled', profile: {} } as never
+      },
+      close: async () => {},
+    }
+    expect(await awaitLnSendOutcome('x', flaky, fast)).toEqual({ kind: 'settled' })
+    expect(calls).toBe(3)
   })
 })

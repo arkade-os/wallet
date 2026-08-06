@@ -604,6 +604,7 @@ export default function SendForm() {
             transport,
             invoice: sendInfo.invoice!,
             network,
+            rendezvous,
           })
           setSendInfo({ ...sendInfo, pendingLnSend })
         } finally {
