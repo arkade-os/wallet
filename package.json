@@ -64,6 +64,7 @@
     "lint:fix": "eslint \"src/**/*.{ts,tsx,js,jsx}\" --fix",
     "format": "prettier --write src",
     "format:check": "prettier --check src",
+    "probe:solver": "node scripts/probe-rfq-solver.mjs",
     "git-info": "node scripts/git-commit-info.js",
     "build:markets": "node scripts/build-markets-json.mjs",
     "regtest:start": "node regtest/regtest.mjs start --env .env.regtest && docker compose -f docker-compose.nak.yml up -d && pnpm build:markets",
