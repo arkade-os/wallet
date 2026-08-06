@@ -22,8 +22,8 @@ importers:
         specifier: 0.4.53
         version: 0.4.53
       '@arkade-os/solver-discovery':
-        specifier: 0.1.4
-        version: 0.1.4
+        specifier: 0.2.0
+        version: 0.2.0
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -285,8 +285,8 @@ packages:
       expo-task-manager:
         optional: true
 
-  '@arkade-os/solver-discovery@0.1.4':
-    resolution: {integrity: sha512-xksH+DerDgmsLhXtWka6j9/Y3Giy/70THEPkRaVOhrHxSHg2OjutzcLFHHTuqKFZvVsOVIDqU6eQKk9ZMrebPg==}
+  '@arkade-os/solver-discovery@0.2.0':
+    resolution: {integrity: sha512-vNi207O0oGICGVgndlpatCWeZ+T8gcNWlk6JI3Aka6Fz7s3Is5CU2ZYTJGaUBbH//rkxKI4bU5mbo6jOL+FnIg==}
     engines: {node: '>=18'}
 
   '@asamuzakjp/css-color@3.2.0':
@@ -4384,7 +4384,7 @@ snapshots:
       - ecpair
       - utf-8-validate
 
-  '@arkade-os/solver-discovery@0.1.4': {}
+  '@arkade-os/solver-discovery@0.2.0': {}
 
   '@asamuzakjp/css-color@3.2.0':
     dependencies:

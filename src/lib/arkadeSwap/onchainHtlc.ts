@@ -38,8 +38,29 @@ export const ONCHAIN_CLAIM_MARGIN_SECONDS = 90 * 60;
 export const MAX_MIN_CONFIRMATIONS = 6;
 /** Conservative block interval for converting depths into wall-clock time. */
 export const ONCHAIN_SECONDS_PER_BLOCK = 600;
-/** Outputs below this are unspendable in practice; builders refuse them. */
-export const ONCHAIN_DUST_SATS = 546n;
+/**
+ * Outputs below this are unspendable in practice; builders refuse them.
+ *
+ * 330, not 546: Bitcoin Core's dust threshold is a function of the OUTPUT
+ * type, and 546 is the P2PKH figure. Both payout scripts on this corridor are
+ * taproot — the claim pays the maker's Arkade-side L1 address and the refund
+ * pays the trader's — for which the threshold is 330 (the same number
+ * `FALLBACK_WALLET_DUST_AMOUNT` already uses in the core SDK). Holding the
+ * P2PKH number here rejects payouts between 330 and 546 that the network
+ * would relay perfectly well, which on a refund path means refusing to return
+ * funds that could have been returned.
+ *
+ * Should a caller ever pass a legacy `payoutPkScript`, this floor is too low
+ * for that output and the spend would be non-standard; the threshold would
+ * then have to be derived from the script rather than fixed.
+ *
+ * `BigInt(330)` rather than a `330n` literal, matching the rest of the
+ * package: a bigint literal needs an ES2020 target, and this source is read
+ * directly by consumers that target lower — forcing every one of them to
+ * raise their own target for a single constant. The compiled output is
+ * identical.
+ */
+export const ONCHAIN_DUST_SATS = BigInt(330);
 
 // ── Preimage utilities ───────────────────────────────────────────────────────
 

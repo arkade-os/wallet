@@ -6,7 +6,7 @@ These files are copied **verbatim** from the Arkade SDK monorepo. Do not edit th
 | --- | --- |
 | Source repo | `arkade-os/ts-sdk` |
 | Source branch | `claude/arkade-intents-swap-extraction-nb5420` (PR [#667](https://github.com/arkade-os/ts-sdk/pull/667)) |
-| Pinned commit | `0a23683` |
+| Pinned commit | `36bf317` |
 | Source path | `packages/swap/src/` |
 | Files | `rfq.ts`, `onchainHtlc.ts`, `swap-lightning-send.program.json` |
 

@@ -130,6 +130,53 @@ export const rfqStatusUI = (state: string): SwapStatusUI =>
 export const isRfqTerminal = (state: string): boolean => (RFQ_TERMINAL_STATES as readonly string[]).includes(state)
 
 /**
+ * The Lightning-send rendezvous, discovered rather than configured: which
+ * solver to address (pubkey), where (relays), and the card's quoted bounds.
+ *
+ * There is deliberately no URL here. The RFQ protocol addresses solvers by
+ * x-only pubkey over relays, both sides outbound-only, so a fleet of solvers
+ * is a card change, not a config change.
+ */
+export interface LnSendRendezvous {
+  solverPubkey: string
+  relays: string[]
+  /** Card bounds on the Lightning side, sats. Indicative; the quote binds. */
+  minSats: number
+  maxSats: number
+}
+
+/**
+ * Pick the Lightning-send rendezvous out of discovered markets.
+ *
+ * A corridor market's card MUST carry `discovery_pubkey` and `relays` (they
+ * are the rendezvous, and the registry signs them); a corridor market that
+ * reaches us without them is malformed and skipped rather than trusted.
+ * Returns undefined when no solver serves the corridor — the caller treats
+ * that as "RFQ send unavailable", not as an error.
+ */
+export const lnSendRendezvous = (
+  markets: {
+    quote_corridor?: string
+    discovery_pubkey?: string
+    relays?: string[]
+    min_quote_amount?: string
+    max_quote_amount?: string
+  }[],
+): LnSendRendezvous | undefined => {
+  for (const market of markets) {
+    if (market.quote_corridor !== 'lightning') continue
+    if (!market.discovery_pubkey || !market.relays?.length) continue
+    return {
+      solverPubkey: market.discovery_pubkey,
+      relays: market.relays,
+      minSats: Number(market.min_quote_amount ?? '0'),
+      maxSats: Number(market.max_quote_amount ?? '0'),
+    }
+  }
+  return undefined
+}
+
+/**
  * What the send flow needs in order to pay: an address the wallet derived
  * itself and an amount. Deliberately no swap object to "execute" later —
  * see `requestLnSend`.
