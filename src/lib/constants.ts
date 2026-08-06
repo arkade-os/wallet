@@ -1,5 +1,5 @@
 import { Delegate } from './types'
-import { Network } from '@arkade-os/boltz-swap'
+import { NetworkName } from '@arkade-os/sdk'
 
 export const arknoteHRP = 'arknote'
 export const defaultFee = 0
@@ -33,7 +33,7 @@ export const defaultArkServer = () => {
   return mainServer
 }
 
-const DELEGATE_URL: Record<Network, string | null> = {
+const DELEGATE_URL: Record<NetworkName, string | null> = {
   bitcoin: 'https://delegate.arkade.money',
   mutinynet: `https://delegator.mutinynet.arkade.sh`,
   signet: null,
@@ -42,7 +42,7 @@ const DELEGATE_URL: Record<Network, string | null> = {
 }
 
 // solver registry indexes for asset swaps (see arkade-os/solver-registry)
-const SOLVER_REGISTRY_URL: Record<Network, string | null> = {
+const SOLVER_REGISTRY_URL: Record<NetworkName, string | null> = {
   bitcoin: 'https://arkade-os.github.io/solver-registry/bitcoin.json',
   mutinynet: 'https://arkade-os.github.io/solver-registry/mutinynet.json',
   signet: null,
@@ -51,10 +51,13 @@ const SOLVER_REGISTRY_URL: Record<Network, string | null> = {
 }
 
 // env override first (any network), then the per-network table
-const serviceUrlForNetwork = (envValue: string | undefined, table: Record<Network, string | null>, network: Network) =>
-  fromRuntimeEnv(envValue) ?? table[network] ?? undefined
+const serviceUrlForNetwork = (
+  envValue: string | undefined,
+  table: Record<NetworkName, string | null>,
+  network: NetworkName,
+) => fromRuntimeEnv(envValue) ?? table[network] ?? undefined
 
-export const getSolverRegistryUrl = (network: Network): string | undefined =>
+export const getSolverRegistryUrl = (network: NetworkName): string | undefined =>
   serviceUrlForNetwork(import.meta.env.VITE_SOLVER_REGISTRY_URL, SOLVER_REGISTRY_URL, network)
 
 // the Arkade RFQ swap service serving arkade:BTC -> lightning:BTC
@@ -62,7 +65,7 @@ export const getSolverRegistryUrl = (network: Network): string | undefined =>
 // endpoint has been confirmed for any network, so the RFQ send path stays off
 // until one is supplied here or through VITE_LN_SWAP_URL. Guessing a host
 // would send real invoices somewhere nobody has verified.
-const LN_SWAP_URL: Record<Network, string | null> = {
+const LN_SWAP_URL: Record<NetworkName, string | null> = {
   bitcoin: null,
   mutinynet: null,
   signet: null,
@@ -70,11 +73,11 @@ const LN_SWAP_URL: Record<Network, string | null> = {
   testnet: null,
 }
 
-export const getLnSwapUrlForNetwork = (network: Network): string | undefined =>
+export const getLnSwapUrlForNetwork = (network: NetworkName): string | undefined =>
   serviceUrlForNetwork(import.meta.env.VITE_LN_SWAP_URL, LN_SWAP_URL, network)
 
 // the arkade signer co-signing banco swap covenants (separate service from arkd)
-const EMULATOR_URL: Record<Network, string | null> = {
+const EMULATOR_URL: Record<NetworkName, string | null> = {
   bitcoin: null,
   // ponytail: unverified guess following the delegator subdomain convention;
   // the provider probes it at startup and disables swaps if unreachable
@@ -84,14 +87,14 @@ const EMULATOR_URL: Record<Network, string | null> = {
   testnet: null,
 }
 
-export const getEmulatorUrlForNetwork = (network: Network): string | undefined =>
+export const getEmulatorUrlForNetwork = (network: NetworkName): string | undefined =>
   serviceUrlForNetwork(import.meta.env.VITE_EMULATOR_URL, EMULATOR_URL, network)
 
-export const getDelegateUrlForNetwork = (network: Network): string | undefined => {
+export const getDelegateUrlForNetwork = (network: NetworkName): string | undefined => {
   return DELEGATE_URL[network] ?? undefined
 }
 
-export const getDelegateForNetwork = (network: Network): Delegate | undefined => {
+export const getDelegateForNetwork = (network: NetworkName): Delegate | undefined => {
   const url = getDelegateUrlForNetwork(network)
   if (!url) return undefined
   return {

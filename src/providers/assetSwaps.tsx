@@ -1,8 +1,7 @@
 import { ReactNode, createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { hex } from '@scure/base'
-import { asset, RestEmulatorProvider, RestIndexerProvider, type VirtualCoin } from '@arkade-os/sdk'
+import { asset, RestEmulatorProvider, RestIndexerProvider, type NetworkName, type VirtualCoin } from '@arkade-os/sdk'
 import { DiscoveredMarket, OfferPlan } from '@arkade-os/solver-discovery'
-import { Network } from '@arkade-os/boltz-swap'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import { cancelOffer, createOffer, decodeOffer, OFFER_PACKET_TYPE } from '../lib/swap/offer'
@@ -59,7 +58,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
 
   const runDiscovery = (useCache = true) => {
     if (!aspInfo.network) return
-    const network = aspInfo.network as Network
+    const network = aspInfo.network as NetworkName
     discoverMarkets(network, useCache)
       .then(setMarkets)
       .catch((err) => consoleError(err, 'solver discovery failed'))

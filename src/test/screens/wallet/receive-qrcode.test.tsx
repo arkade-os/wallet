@@ -7,7 +7,6 @@ import {
   mockConfigContextValue,
   mockFiatContextValue,
   mockFlowContextValue,
-  mockSwapsContextValue,
   mockLimitsContextValue,
   mockNavigationContextValue,
   mockSvcWallet,
@@ -18,22 +17,14 @@ import { WalletContext } from '../../../providers/wallet'
 import { NavigationContext } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
-import { SwapsContext } from '../../../providers/swaps'
 import { NotificationsContext } from '../../../providers/notifications'
 import { ToastProvider } from '../../../components/Toast'
-import { LnurlContext } from '../../../providers/lnurl'
 import ReceiveQRCode, { resolveQrValue } from '../../../screens/Wallet/Receive/QrCode'
 
 // Mock qr module used by QrCode component
 vi.mock('qr', () => ({
   default: () => Array.from({ length: 21 }, () => new Uint8Array(21).fill(1)),
 }))
-
-// Provide a configured LNURL server URL so the amountless-LNURL path activates
-vi.mock('../../../lib/constants', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../lib/constants')>()
-  return { ...actual, lnurlServerUrl: 'https://lnurl.test' }
-})
 
 // Mock clipboard helper so we can assert it was called with the QR value
 const copyToClipboardMock = vi.fn((v) => Promise.resolve(v))
@@ -74,22 +65,16 @@ const mockNotificationsContextValue = {
   requestPermission: () => Promise.resolve(),
 }
 
-type LnurlValue = { lnurl: string; active: boolean; error: string | undefined }
-
 type RenderOverrides = {
-  swaps?: Partial<typeof mockSwapsContextValue>
   flow?: Partial<typeof mockFlowContextValue>
   wallet?: Partial<typeof mockWalletContextValue>
   config?: Partial<typeof mockConfigContextValue>
-  lnurl?: Partial<LnurlValue>
 }
 
 function buildTree(overrides?: RenderOverrides) {
-  const swaps = { ...mockSwapsContextValue, ...overrides?.swaps }
   const flow = { ...mockFlowContextValue, ...overrides?.flow }
   const wallet = { ...mockWalletContextValue, ...overrides?.wallet }
   const config = { ...mockConfigContextValue, ...overrides?.config }
-  const lnurl: LnurlValue = { lnurl: '', active: false, error: undefined, ...overrides?.lnurl }
 
   return (
     <ToastProvider>
@@ -98,17 +83,13 @@ function buildTree(overrides?: RenderOverrides) {
           <ConfigContext.Provider value={config as any}>
             <FiatContext.Provider value={mockFiatContextValue as any}>
               <NotificationsContext.Provider value={mockNotificationsContextValue as any}>
-                <SwapsContext.Provider value={swaps as any}>
-                  <FlowContext.Provider value={flow as any}>
-                    <WalletContext.Provider value={wallet as any}>
-                      <LimitsContext.Provider value={mockLimitsContextValue}>
-                        <LnurlContext.Provider value={lnurl}>
-                          <ReceiveQRCode />
-                        </LnurlContext.Provider>
-                      </LimitsContext.Provider>
-                    </WalletContext.Provider>
-                  </FlowContext.Provider>
-                </SwapsContext.Provider>
+                <FlowContext.Provider value={flow as any}>
+                  <WalletContext.Provider value={wallet as any}>
+                    <LimitsContext.Provider value={mockLimitsContextValue}>
+                      <ReceiveQRCode />
+                    </LimitsContext.Provider>
+                  </WalletContext.Provider>
+                </FlowContext.Provider>
               </NotificationsContext.Provider>
             </FiatContext.Provider>
           </ConfigContext.Provider>
@@ -122,10 +103,9 @@ function renderReceiveQrCode(overrides?: RenderOverrides) {
   return render(buildTree(overrides))
 }
 
-// Shared fixture for the tap-to-copy tests: disconnected swaps, no amount,
+// Shared fixture for the tap-to-copy tests: no amount,
 // both addresses populated so the screen renders the QR immediately.
 const tapFixture = (addrs = { off: 'ark1testaddr', bd: 'bc1testaddr' }): RenderOverrides => ({
-  swaps: { connected: false, arkadeSwaps: null },
   flow: {
     recvInfo: {
       ...mockFlowContextValue.recvInfo,
@@ -150,60 +130,6 @@ describe('Receive QR Code screen', () => {
   })
 
   // UX Constraint 1: When LN is not expected (disconnected), show QR immediately
-  // No waiting, no warning
-  it('shows QR immediately when Boltz is disconnected (LN not expected)', async () => {
-    renderReceiveQrCode({
-      swaps: { connected: false, arkadeSwaps: null },
-      flow: {
-        recvInfo: {
-          ...mockFlowContextValue.recvInfo,
-          satoshis: 50000,
-          offchainAddr: 'ark1testaddr',
-          boardingAddr: 'bc1testaddr',
-        },
-      },
-      wallet: { svcWallet: mockSvcWallet as any },
-    })
-
-    // Should show QR immediately, not the loader
-    expect(screen.queryByText('Generating QR code...')).not.toBeInTheDocument()
-    // Should NOT show the LN unavailable warning (constraint 1a)
-    expect(
-      screen.queryByText(
-        'Lightning is temporarily unavailable. This QR code only supports Arkade and on-chain payments.',
-      ),
-    ).not.toBeInTheDocument()
-  })
-
-  // UX Constraint 2c: When LN init already failed, don't wait — show QR + warning immediately
-  it('shows QR immediately with warning when swapsInitError is set (no 5s wait)', async () => {
-    renderReceiveQrCode({
-      swaps: {
-        connected: true,
-        arkadeSwaps: null,
-        swapsInitError: 'SwapManager not supported',
-      },
-      flow: {
-        recvInfo: {
-          ...mockFlowContextValue.recvInfo,
-          satoshis: 50000,
-          offchainAddr: 'ark1testaddr',
-          boardingAddr: 'bc1testaddr',
-        },
-      },
-      wallet: { svcWallet: mockSvcWallet as any },
-    })
-
-    // Should show QR immediately (not loader), because error is already known
-    expect(screen.queryByText('Generating QR code...')).not.toBeInTheDocument()
-    // Should show the warning (constraint 2a)
-    expect(
-      screen.getByText(
-        'Lightning is temporarily unavailable. This QR code only supports Arkade and on-chain payments.',
-      ),
-    ).toBeInTheDocument()
-  })
-
   // UX Constraint 2b: When LN expected but still initializing, show loader (waiting up to 5s)
   // SKIP: pre-existing failure on master (git blame pre-dates this PR). React 18 +
   // RTL flush effects before the initial `getByTestId('loading-logo')` assert, so
@@ -213,76 +139,11 @@ describe('Receive QR Code screen', () => {
   // `act(() => { render(...) })` split from the first assert, or mount with
   // `svcWallet: undefined` first and then update to trigger the loader->QR
   // transition inside an `act`. Not done here to keep this PR scoped to the
-  // tap-to-copy feature.
-  it.skip('shows loader while waiting for arkadeSwaps to initialize', () => {
-    renderReceiveQrCode({
-      swaps: {
-        connected: true,
-        arkadeSwaps: null,
-        swapsInitError: null,
-      },
-      flow: {
-        recvInfo: {
-          ...mockFlowContextValue.recvInfo,
-          satoshis: 50000,
-          offchainAddr: 'ark1testaddr',
-          boardingAddr: 'bc1testaddr',
-        },
-      },
-      wallet: { svcWallet: mockSvcWallet as any },
-    })
-
-    // Should show the loader while waiting for swaps to initialize
-    expect(screen.getByTestId('loading-logo')).toBeInTheDocument()
-  })
-
   // UX Constraint 2b: After timeout, show QR with warning
   // SKIP: same root cause as the sibling skip above (pre-existing, React 18 +
-  // RTL flush effects before the loader can be observed). Same unskip plan.
-  it.skip('shows QR with warning after 5s timeout when arkadeSwaps never initializes', async () => {
-    vi.useFakeTimers()
-
-    renderReceiveQrCode({
-      swaps: {
-        connected: true,
-        arkadeSwaps: null,
-        swapsInitError: null,
-      },
-      flow: {
-        recvInfo: {
-          ...mockFlowContextValue.recvInfo,
-          satoshis: 50000,
-          offchainAddr: 'ark1testaddr',
-          boardingAddr: 'bc1testaddr',
-        },
-      },
-      wallet: { svcWallet: mockSvcWallet as any },
-    })
-
-    // Initially should show loader
-    expect(screen.getByTestId('loading-logo')).toBeInTheDocument()
-
-    // Advance past the 5s timeout
-    await act(async () => {
-      vi.advanceTimersByTime(5_000)
-    })
-
-    // Now should show QR, not the loader
-    expect(screen.queryByText('Generating QR code...')).not.toBeInTheDocument()
-    // Should show the warning
-    expect(
-      screen.getByText(
-        'Lightning is temporarily unavailable. This QR code only supports Arkade and on-chain payments.',
-      ),
-    ).toBeInTheDocument()
-
-    vi.useRealTimers()
-  })
-
   // No amount → show QR immediately (no swaps needed)
   it('shows QR immediately when no amount is set', () => {
     renderReceiveQrCode({
-      swaps: { connected: true, arkadeSwaps: null },
       flow: {
         recvInfo: {
           ...mockFlowContextValue.recvInfo,
@@ -367,21 +228,8 @@ describe('Receive QR Code screen', () => {
     expect(copied).toContain('ark1testaddr')
   })
 
-  // Bug 2: amountless LNURL belongs in the QR; with an amount it must not.
-  it('includes the LNURL in the QR when no amount is set', async () => {
-    renderReceiveQrCode({ ...tapFixture(), lnurl: { lnurl: 'LNURL1TESTXYZ', active: true } })
-
-    const qrButton = await screen.findByRole('button', { name: 'Copy QR code' })
-    await act(async () => {
-      fireEvent.click(qrButton)
-    })
-
-    expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).toContain('LNURL1TESTXYZ')
-  })
-
-  it('drops the LNURL from the QR once an amount is set', async () => {
+  it('carries the requested amount in the QR once one is set', async () => {
     renderReceiveQrCode({
-      swaps: { connected: false, arkadeSwaps: null },
       flow: {
         recvInfo: {
           ...mockFlowContextValue.recvInfo,
@@ -391,7 +239,6 @@ describe('Receive QR Code screen', () => {
         },
       },
       wallet: { svcWallet: mockSvcWallet as any },
-      lnurl: { lnurl: 'LNURL1TESTXYZ', active: true },
     })
 
     const qrButton = await screen.findByRole('button', { name: 'Copy QR code' })
@@ -400,13 +247,12 @@ describe('Receive QR Code screen', () => {
     })
 
     const copied = copyToClipboardMock.mock.calls.at(-1)?.[0]
-    expect(copied).not.toContain('LNURL1TESTXYZ')
     expect(copied).toContain('amount=')
   })
 })
 
 describe('resolveQrValue', () => {
-  const opts = { bip21: 'bitcoin:unified', btc: 'bc1addr', ark: 'ark1addr', invoice: 'lnbc1inv', lnurl: 'LNURL1x' }
+  const opts = { bip21: 'bitcoin:unified', btc: 'bc1addr', ark: 'ark1addr' }
 
   it('defaults to the unified BIP21 URI when nothing is selected', () => {
     expect(resolveQrValue('', opts)).toBe('bitcoin:unified')
@@ -414,12 +260,12 @@ describe('resolveQrValue', () => {
 
   it('keeps an explicit selection that is still on offer', () => {
     expect(resolveQrValue('ark1addr', opts)).toBe('ark1addr')
-    expect(resolveQrValue('lnbc1inv', opts)).toBe('lnbc1inv')
+    expect(resolveQrValue('bc1addr', opts)).toBe('bc1addr')
   })
 
   it('falls back to the unified URI when the selection is no longer offered', () => {
-    // e.g. the previously-selected invoice was regenerated / cleared
-    expect(resolveQrValue('lnbc1stale', opts)).toBe('bitcoin:unified')
+    // e.g. the previously-selected address was regenerated / cleared
+    expect(resolveQrValue('ark1stale', opts)).toBe('bitcoin:unified')
     expect(resolveQrValue('ark1addr', { ...opts, ark: '' })).toBe('bitcoin:unified')
   })
 })

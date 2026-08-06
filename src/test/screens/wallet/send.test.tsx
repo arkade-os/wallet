@@ -8,7 +8,6 @@ import {
   mockConfigContextValue,
   mockFiatContextValue,
   mockFlowContextValue,
-  mockSwapsContextValue,
   mockLimitsContextValue,
   mockNavigationContextValue,
   mockOptionsContextValue,
@@ -21,7 +20,6 @@ import { NavigationContext } from '../../../providers/navigation'
 import SendForm from '../../../screens/Wallet/Send/Form'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
-import { SwapsContext } from '../../../providers/swaps'
 import { OptionsContext } from '../../../providers/options'
 import { Currencies, Unit } from '../../../lib/types'
 
@@ -37,17 +35,15 @@ describe('Send screen', () => {
         <AspContext.Provider value={mockAspContextValue}>
           <ConfigContext.Provider value={configContext as any}>
             <FiatContext.Provider value={fiatContext as any}>
-              <SwapsContext.Provider value={mockSwapsContextValue as any}>
-                <OptionsContext.Provider value={mockOptionsContextValue as any}>
-                  <FlowContext.Provider value={flowContext as any}>
-                    <WalletContext.Provider value={walletContext as any}>
-                      <LimitsContext.Provider value={mockLimitsContextValue}>
-                        <SendForm />
-                      </LimitsContext.Provider>
-                    </WalletContext.Provider>
-                  </FlowContext.Provider>
-                </OptionsContext.Provider>
-              </SwapsContext.Provider>
+              <OptionsContext.Provider value={mockOptionsContextValue as any}>
+                <FlowContext.Provider value={flowContext as any}>
+                  <WalletContext.Provider value={walletContext as any}>
+                    <LimitsContext.Provider value={mockLimitsContextValue}>
+                      <SendForm />
+                    </LimitsContext.Provider>
+                  </WalletContext.Provider>
+                </FlowContext.Provider>
+              </OptionsContext.Provider>
             </FiatContext.Provider>
           </ConfigContext.Provider>
         </AspContext.Provider>

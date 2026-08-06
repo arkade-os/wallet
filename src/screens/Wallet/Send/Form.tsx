@@ -29,12 +29,14 @@ import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
-import { ArkNote, AssetDetails, isValidArkAddress } from '@arkade-os/sdk'
+import { ArkNote, AssetDetails, isValidArkAddress, type NetworkName } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
 import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl, LnUrlResponse } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
-import { getInvoiceSatoshis } from '@arkade-os/boltz-swap'
-import { SwapsContext } from '../../../providers/swaps'
+import { decodeInvoice } from '../../../lib/bolt11'
+import { lnSendRendezvous, requestLnSend } from '../../../lib/lnSwap'
+import { nostrRfqTransport } from '../../../lib/nostrRfq'
+import { discoverMarkets } from '../../../lib/swap/markets'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
 import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
@@ -57,7 +59,7 @@ import {
   DropdownMenuTrigger,
 } from '../../../components/ui/dropdown-menu'
 import { hapticLight } from '../../../lib/haptics'
-import { testDomains } from '../../../lib/constants'
+import { getEmulatorUrlForNetwork, testDomains } from '../../../lib/constants'
 import UnverifiedBadge from '../../../components/UnverifiedBadge'
 
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
@@ -107,17 +109,7 @@ export default function SendForm() {
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const { toFiat, fromFiat, fiatDecimals } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
-  const { calcSubmarineSwapFee, calcArkToBtcSwapFee, createArkToBtcSwap, createSubmarineSwap, connected, getApiUrl } =
-    useContext(SwapsContext)
-  const {
-    amountIsAboveMaxLimit,
-    amountIsBelowMinLimit,
-    minSwapAllowed,
-    maxSwapAllowed,
-    utxoTxsAllowed,
-    vtxoTxsAllowed,
-    validArkToBtc,
-  } = useContext(LimitsContext)
+  const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
   const { assetBalances, assetMetadataCache, availableBalance, balance, isVerifiedAsset, setCacheEntry, svcWallet } =
@@ -133,7 +125,6 @@ export default function SendForm() {
   const [label, setLabel] = useState('')
   const [lnUrlResponse, setLnUrlResponse] = useState<LnUrlResponse>()
   const [keys, setKeys] = useState(false)
-  const [nudgeBoltz, setNudgeBoltz] = useState(false)
   const [proceed, setProceed] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [readyToParse, setReadyToParse] = useState(false)
@@ -297,7 +288,6 @@ export default function SendForm() {
     if (!readyToParse) return
     setRecipientError('')
     const parseRecipient = async () => {
-      setNudgeBoltz(false)
       if (!recipient) return
       const lowerCaseData = recipient.toLowerCase().replace(/^lightning:/, '')
       if (isURLWithLightningQueryString(recipient)) {
@@ -361,11 +351,14 @@ export default function SendForm() {
         if (isAssetSend) {
           return setRecipientError('Assets can only be sent to Arkade addresses')
         }
-        if (!connected) {
-          setRecipientError('Lightning swaps not enabled')
-          return setNudgeBoltz(true)
+        // Amount from the wallet's own decoder; expiry and chain are re-checked
+        // by the RFQ client before any solver sees the invoice.
+        let satoshis = 0
+        try {
+          satoshis = decodeInvoice(lowerCaseData).amountSats
+        } catch {
+          return setRecipientError('Unable to decode invoice')
         }
-        const satoshis = getInvoiceSatoshis(lowerCaseData)
         if (!satoshis) return setRecipientError('Invoice must have amount defined')
         setSendInfo({ ...sendInfo, invoice: lowerCaseData, satoshis })
         setAmountTextValue(getTextValue(satoshis))
@@ -517,15 +510,6 @@ export default function SendForm() {
     if (!address && (arkAddress || invoice || lnUrl) && !vtxoTxsAllowed()) {
       return setRecipientError('Sending offchain not allowed')
     }
-    // check swap limits for lightning transactions
-    if (!address && !arkAddress && invoice) {
-      const min = minSwapAllowed()
-      const max = maxSwapAllowed()
-      if (min === 0 && max === 0) return // limits not loaded yet
-      const amountSats = getInvoiceSatoshis(invoice)
-      if (amountSats < min) return setRecipientError(`Invoice amount below min of ${prettyNumber(min)} sats`)
-      if (amountSats > max) return setRecipientError(`Invoice amount above max of ${prettyNumber(max)} sats`)
-    }
     // check if server key is valid
     if (arkAddress && arkAddress.length > 0) {
       const { serverPubKey } = decodeArkAddress(arkAddress)
@@ -593,26 +577,44 @@ export default function SendForm() {
   useEffect(() => {
     if (!proceed) return
     if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice) return
-    if (sendInfo.arkAddress || sendInfo.pendingSwap) return navigate(Pages.SendDetails)
+    if (sendInfo.arkAddress || sendInfo.pendingLnSend) return navigate(Pages.SendDetails)
     if (sendInfo.invoice) {
-      createSubmarineSwap(sendInfo.invoice)
-        .then((pendingSwap) => {
-          if (!pendingSwap) return handleError('Unable to create swap')
-          setSendInfo({ ...sendInfo, pendingSwap })
-        })
-        .catch(handleError)
-    } else if (satoshis && sendInfo.address) {
-      const amountForSwap = deductFromAmount ? satoshis - calcArkToBtcSwapFee(satoshis) : satoshis
-      if (amountForSwap < 1) return handleError('Amount too low to cover fees')
-      if (!validArkToBtc(amountForSwap)) return navigate(Pages.SendDetails)
-      createArkToBtcSwap(sendInfo.address, amountForSwap)
-        .then((result) => {
-          if (!result) return navigate(Pages.SendDetails)
-          setSendInfo({ ...sendInfo, pendingSwap: result.pendingSwap })
-        })
-        .catch(() => navigate(Pages.SendDetails))
+      // RFQ Lightning send: negotiate a quote over Nostr, derive the covenant
+      // locally, verify, and carry the address+amount to the pay screen. The
+      // negotiation is the only interactive step — funding IS acceptance.
+      const negotiate = async () => {
+        if (!svcWallet) return handleError('Wallet not ready')
+        const network = aspInfo.network as NetworkName
+        const emulatorUrl = getEmulatorUrlForNetwork(network)
+        if (!emulatorUrl) return handleError('Swap co-signer not configured for this network')
+        const rendezvous = lnSendRendezvous(await discoverMarkets(network))
+        if (!rendezvous) return handleError('No Lightning solver available')
+        const sats = sendInfo.satoshis ?? 0
+        if (sats < rendezvous.minSats || sats > rendezvous.maxSats) {
+          return handleError(
+            `Amount outside solver bounds (${prettyNumber(rendezvous.minSats)}-${prettyNumber(rendezvous.maxSats)} sats)`,
+          )
+        }
+        const transport = nostrRfqTransport({ relays: rendezvous.relays, solverPubkey: rendezvous.solverPubkey })
+        try {
+          const pendingLnSend = await requestLnSend({
+            wallet: svcWallet,
+            arkServerUrl: aspInfo.url,
+            emulatorUrl,
+            transport,
+            invoice: sendInfo.invoice!,
+            network,
+          })
+          setSendInfo({ ...sendInfo, pendingLnSend })
+        } finally {
+          await transport.close().catch(() => {})
+        }
+      }
+      negotiate().catch(handleError)
+    } else if (sendInfo.address) {
+      navigate(Pages.SendDetails)
     }
-  }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingSwap])
+  }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingLnSend])
 
   // deal with fees deduction from amount
   useEffect(() => {
@@ -620,11 +622,8 @@ export default function SendForm() {
     const onlyBtcAddress = sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice
     if (sendInfo.arkAddress) {
       setDeductFromAmount(false)
-    } else if (sendInfo.lnUrl) {
-      const fees = calcSubmarineSwapFee(satoshis)
-      setDeductFromAmount(satoshis + fees > liquidBalance)
     } else if (onlyBtcAddress) {
-      const fees = validArkToBtc(satoshis) ? calcArkToBtcSwapFee(satoshis) : calcOnchainOutputFee()
+      const fees = calcOnchainOutputFee()
       setDeductFromAmount(satoshis + fees > liquidBalance)
     } else {
       setDeductFromAmount(false)
@@ -632,10 +631,6 @@ export default function SendForm() {
   }, [liquidBalance, sendInfo.satoshis, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.lnUrl])
 
   if (!svcWallet) return <LoadingLogo text='Loading...' />
-
-  const gotoBoltzApp = () => {
-    navigate(Pages.AppBoltzSettings)
-  }
 
   const gotoRollover = () => {
     setOption(SettingsOptions.Vtxos)
@@ -744,11 +739,10 @@ export default function SendForm() {
           }
           setSendInfo({ ...sendInfo, arkAddress: arkResponse.address, invoice: undefined })
         } else {
-          // Fallback to Lightning invoice
-          const amountForInvoice = deductFromAmount ? satoshis - calcSubmarineSwapFee(satoshis) : satoshis
-          if (amountForInvoice < 1) return handleError('Amount too low to cover fees')
-          if (amountForInvoice > BigInt(Number.MAX_SAFE_INTEGER)) return handleError('Amount too large')
-          const invoice = await fetchInvoice(sendInfo.lnUrl, Number(amountForInvoice), '')
+          // No Ark method: fetch a BOLT11 and pay it through the RFQ Lightning
+          // path (exact-out, zero spread — no fee to deduct from the amount)
+          if (satoshis < 1) return handleError('Amount too low')
+          const invoice = await fetchInvoice(sendInfo.lnUrl, Number(satoshis), '')
           setSendInfo({ ...sendInfo, invoice, arkAddress: undefined })
         }
       } else {
@@ -1106,13 +1100,6 @@ export default function SendForm() {
                 <div style={{ width: '100%' }}>
                   <Text centered color='neutral-500' small>
                     Did you mean <a onClick={gotoRollover}>roll over your VTXOs</a>?
-                  </Text>
-                </div>
-              ) : null}
-              {nudgeBoltz && getApiUrl() ? (
-                <div style={{ width: '100%' }}>
-                  <Text centered color='neutral-500' small>
-                    Enable <a onClick={gotoBoltzApp}>Lightning swaps</a> to pay
                   </Text>
                 </div>
               ) : null}

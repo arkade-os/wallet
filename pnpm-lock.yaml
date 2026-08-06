@@ -15,9 +15,6 @@ importers:
 
   .:
     dependencies:
-      '@arkade-os/boltz-swap':
-        specifier: 0.3.58
-        version: 0.3.58
       '@arkade-os/sdk':
         specifier: 0.4.53
         version: 0.4.53
@@ -252,17 +249,6 @@ packages:
 
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
-
-  '@arkade-os/boltz-swap@0.3.58':
-    resolution: {integrity: sha512-8oQJhVz/g+tJhpnRueCOs3TM8SexNltQTFwRwTJZD50UEH8uHsHWCA3/96j6CTeQEmPIuiPu0fGXZnuECgo3hw==}
-    peerDependencies:
-      expo-background-task: '>=0.1.0'
-      expo-task-manager: '>=3.0.0'
-    peerDependenciesMeta:
-      expo-background-task:
-        optional: true
-      expo-task-manager:
-        optional: true
 
   '@arkade-os/sdk@0.4.53':
     resolution: {integrity: sha512-e+ddKze2JO79bo+pJE5zh89RGVFINNCxeruBiZl/rBulClZ4/2Ex3B0HHRKx26gj8fd2jX8ridxQfyVlrb9jpQ==}
@@ -4344,26 +4330,6 @@ packages:
 snapshots:
 
   '@adobe/css-tools@4.4.4': {}
-
-  '@arkade-os/boltz-swap@0.3.58':
-    dependencies:
-      '@arkade-os/sdk': 0.4.53
-      '@noble/curves': 2.0.1
-      '@noble/hashes': 2.0.1
-      '@scure/base': 2.0.0
-      '@scure/btc-signer': 2.0.1
-      bip68: 1.0.4
-      light-bolt11-decoder: 3.2.0
-    transitivePeerDependencies:
-      - '@ledgerhq/ledger-bitcoin'
-      - '@react-native-async-storage/async-storage'
-      - bip32
-      - bitcoinjs-lib
-      - bufferutil
-      - ecpair
-      - expo
-      - expo-sqlite
-      - utf-8-validate
 
   '@arkade-os/sdk@0.4.53':
     dependencies:

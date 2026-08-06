@@ -6,15 +6,13 @@ import LoadingLogo from '../../components/LoadingLogo'
 import Header from '../../components/Header'
 import { setPrivateKey } from '../../lib/privateKey'
 import { setMnemonic } from '../../lib/mnemonic'
-import { consoleError, consoleLog } from '../../lib/logs'
-import { SwapsContext } from '../../providers/swaps'
+import { consoleError } from '../../lib/logs'
 import { useLoadingStatus } from '../../hooks/useLoadingStatus'
 import { setLoadingStatus } from '../../lib/loadingStatus'
 import { NavigationContext, Pages } from '../../providers/navigation'
 
 export default function InitConnect() {
   const { initInfo, setInitInfo } = useContext(FlowContext)
-  const { arkadeSwaps, restoreSwaps } = useContext(SwapsContext)
   const { navigate } = useContext(NavigationContext)
   const { initWallet } = useContext(WalletContext)
 
@@ -44,14 +42,8 @@ export default function InitConnect() {
   }, [])
 
   useEffect(() => {
-    if (!initialized || !arkadeSwaps) return
-    if (!initInfo.restoring) return setConnectDone(true)
-    setLoadingStatus('Restoring swaps...')
-    restoreSwaps()
-      .then((count) => count && consoleLog(`Restored ${count} swaps from network`))
-      .catch((err) => consoleError(err, 'Error restoring swaps:'))
-      .finally(() => setConnectDone(true))
-  }, [arkadeSwaps, initialized, initInfo.restoring])
+    if (initialized) setConnectDone(true)
+  }, [initialized])
 
   const handleExitComplete = () => {
     setInitInfo({ ...initInfo, password: undefined, privateKey: undefined, mnemonic: undefined, walletMode: undefined })

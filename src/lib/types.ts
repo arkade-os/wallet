@@ -11,9 +11,6 @@ export type Config = {
     assets: {
       enabled: boolean
     }
-    boltz: {
-      connected: boolean
-    }
   }
   aspUrl: string
   currency: Currencies
@@ -66,7 +63,6 @@ export enum SettingsOptions {
   ArkadeMint = 'Arkade Mint',
   Backup = 'backup',
   BitcoinUnit = 'bitcoin unit',
-  Boltz = 'Boltz',
   Contracts = 'contracts',
   Currency = 'Currency',
   Delegates = 'delegates',

@@ -9,7 +9,6 @@ import { FiatContext } from '../../../providers/fiat'
 import { FlowContext, type SendInfo } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import { NavigationContext } from '../../../providers/navigation'
-import { SwapsContext } from '../../../providers/swaps'
 import { WalletContext } from '../../../providers/wallet'
 import {
   mockAspContextValue,
@@ -19,7 +18,6 @@ import {
   mockLimitsContextValue,
   mockNavigationContextValue,
   mockSvcWallet,
-  mockSwapsContextValue,
   mockWalletContextValue,
 } from '../mocks'
 
@@ -43,32 +41,30 @@ describe('Send details amount hierarchy', () => {
                 aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet' },
               }}
             >
-              <SwapsContext.Provider value={mockSwapsContextValue}>
-                <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo }}>
-                  <WalletContext.Provider
-                    value={{
-                      ...mockWalletContextValue,
-                      assetMetadataCache: new Map([
-                        [
-                          MUTINYNET_USDT_ASSET_ID,
-                          {
-                            assetId: MUTINYNET_USDT_ASSET_ID,
-                            cachedAt: 0,
-                            metadata,
-                            supply: BigInt(1_000),
-                          },
-                        ],
-                      ]),
-                      isVerifiedAsset: (assetId) => assetId === MUTINYNET_USDT_ASSET_ID,
-                      svcWallet: mockSvcWallet as any,
-                    }}
-                  >
-                    <LimitsContext.Provider value={mockLimitsContextValue}>
-                      <SendDetails />
-                    </LimitsContext.Provider>
-                  </WalletContext.Provider>
-                </FlowContext.Provider>
-              </SwapsContext.Provider>
+              <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo }}>
+                <WalletContext.Provider
+                  value={{
+                    ...mockWalletContextValue,
+                    assetMetadataCache: new Map([
+                      [
+                        MUTINYNET_USDT_ASSET_ID,
+                        {
+                          assetId: MUTINYNET_USDT_ASSET_ID,
+                          cachedAt: 0,
+                          metadata,
+                          supply: BigInt(1_000),
+                        },
+                      ],
+                    ]),
+                    isVerifiedAsset: (assetId) => assetId === MUTINYNET_USDT_ASSET_ID,
+                    svcWallet: mockSvcWallet as any,
+                  }}
+                >
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <SendDetails />
+                  </LimitsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
             </AspContext.Provider>
           </FiatContext.Provider>
         </ConfigContext.Provider>

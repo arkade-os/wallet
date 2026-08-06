@@ -6,7 +6,6 @@ import {
   mockConfigContextValue,
   mockFiatContextValue,
   mockFlowContextValue,
-  mockSwapsContextValue,
   mockLimitsContextValue,
   mockNavigationContextValue,
   mockSvcWallet,
@@ -16,10 +15,8 @@ import { WalletContext } from '../../../providers/wallet'
 import { NavigationContext } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
-import { SwapsContext } from '../../../providers/swaps'
 import { NotificationsContext } from '../../../providers/notifications'
 import { ToastProvider } from '../../../components/Toast'
-import { LnurlContext } from '../../../providers/lnurl'
 import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
 
 // Mock qr module used by the QrCode component
@@ -84,8 +81,6 @@ function renderReceiveWithAmount(setRecvInfo: (info: unknown) => void) {
     setRecvInfo,
   }
   const wallet = { ...mockWalletContextValue, svcWallet: mockSvcWallet as any }
-  const swaps = { ...mockSwapsContextValue, connected: false, arkadeSwaps: null }
-  const lnurl = { lnurl: '', active: false, error: undefined }
 
   return render(
     <ToastProvider>
@@ -93,17 +88,13 @@ function renderReceiveWithAmount(setRecvInfo: (info: unknown) => void) {
         <ConfigContext.Provider value={mockConfigContextValue as any}>
           <FiatContext.Provider value={mockFiatContextValue as any}>
             <NotificationsContext.Provider value={mockNotificationsContextValue as any}>
-              <SwapsContext.Provider value={swaps as any}>
-                <FlowContext.Provider value={flow as any}>
-                  <WalletContext.Provider value={wallet as any}>
-                    <LimitsContext.Provider value={mockLimitsContextValue}>
-                      <LnurlContext.Provider value={lnurl}>
-                        <ReceiveQRCode />
-                      </LnurlContext.Provider>
-                    </LimitsContext.Provider>
-                  </WalletContext.Provider>
-                </FlowContext.Provider>
-              </SwapsContext.Provider>
+              <FlowContext.Provider value={flow as any}>
+                <WalletContext.Provider value={wallet as any}>
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <ReceiveQRCode />
+                  </LimitsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
             </NotificationsContext.Provider>
           </FiatContext.Provider>
         </ConfigContext.Provider>

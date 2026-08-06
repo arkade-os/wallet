@@ -8,12 +8,10 @@ import Button from '../../components/Button'
 import { WalletContext } from '../../providers/wallet'
 import { ConfigContext } from '../../providers/config'
 import { AspContext } from '../../providers/asp'
-import { SwapsContext } from '../../providers/swaps'
 import { getReceivingAddresses } from '../../lib/asp'
 import { Addresses } from '../../lib/types'
 import { getWebExplorerURL } from '../../lib/explorers'
 import { buildVersion, sdkVersion, NetworkName } from '@arkade-os/sdk'
-import { sdkVersion as boltzSwapVersion } from '@arkade-os/boltz-swap'
 import ChatwootWidget from '../../components/ChatWoot'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import ErrorMessage from '../../components/Error'
@@ -24,7 +22,6 @@ import { gitCommit } from '../../_gitCommit'
 export default function Support() {
   const { aspInfo } = useContext(AspContext)
   const { config } = useContext(ConfigContext)
-  const { getApiUrl } = useContext(SwapsContext)
   const { wallet, svcWallet } = useContext(WalletContext)
 
   const [error, setError] = useState('')
@@ -90,7 +87,6 @@ export default function Support() {
       location_origin: window.location.origin,
       default_address: defaultAddress,
       ark_address: addresses.offchainAddr || 'not available',
-      boltz_url: getApiUrl() || 'not available',
       indexer_url: aspInfo.url || config.aspUrl || 'not available',
       btc_boarding_address: addresses.boardingAddr || 'not available',
       ark_server_url: aspInfo.url || config.aspUrl || 'not available',
@@ -100,7 +96,6 @@ export default function Support() {
       explorer_url: wallet.network ? getWebExplorerURL(wallet.network as NetworkName) : 'not available',
       build_version: buildVersion,
       sdk_version: sdkVersion,
-      boltz_swap_version: boltzSwapVersion,
       git_commit: gitCommit,
     })
   }, [addresses, wallet.pubkey, supportChatLoaded])

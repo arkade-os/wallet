@@ -9,7 +9,6 @@ import type { BackupEvent } from '../../lib/nostr'
 
 const mocks = vi.hoisted(() => ({
   events: [] as BackupEvent[],
-  saveSwap: vi.fn(),
 }))
 
 vi.mock('@/lib/nostr', () => ({
@@ -18,12 +17,6 @@ vi.mock('@/lib/nostr', () => ({
       return mocks.events
     }
     async save() {}
-  },
-}))
-
-vi.mock('@arkade-os/boltz-swap', () => ({
-  IndexedDbSwapRepository: class {
-    saveSwap = mocks.saveSwap
   },
 }))
 
@@ -62,7 +55,6 @@ function renderProvider(updateConfig: (c: Config) => void) {
 describe('BackupProvider restore', () => {
   beforeEach(() => {
     mocks.events = []
-    mocks.saveSwap.mockClear()
     localStorage.clear()
   })
 
@@ -87,11 +79,7 @@ describe('BackupProvider restore', () => {
     const updateConfig = vi.fn()
     const now = Math.floor(Date.now() / 1000)
     mocks.events = [
-      makeEvent(
-        { config: { ...localConfig, showBalance: false }, reverseSwaps: [{ id: 'swap-a' }] },
-        now + 1_000_000,
-        now - 60,
-      ),
+      makeEvent({ config: { ...localConfig, showBalance: false } }, now + 1_000_000, now - 60),
       makeEvent({ config: { ...localConfig, showBalance: true } }, now - 10, now),
     ]
 
@@ -100,8 +88,6 @@ describe('BackupProvider restore', () => {
 
     await waitFor(() => expect(updateConfig).toHaveBeenCalledTimes(1))
     expect(updateConfig.mock.calls[0][0]).toMatchObject({ showBalance: true })
-    // the event is ranked lower, not dropped
-    expect(mocks.saveSwap).toHaveBeenCalledWith({ id: 'swap-a' })
   })
 
   it('breaks ties on event id, whatever order the relay delivers them in', async () => {

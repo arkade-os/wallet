@@ -5,13 +5,15 @@ import {
   isNetwork,
   sideLimits,
   type DiscoveredMarket,
+  type LocalCardInput,
   type OfferPlan,
   type Side,
 } from '@arkade-os/solver-discovery'
+import arklabsLightningCard from '../arkadeSwap/arklabs-lightning.card.json'
 import { getSolverRegistryUrl } from '../constants'
 import { consoleLog } from '../logs'
 import { getStorageItem, readSolverCardsFromStorage } from '../storage'
-import { Network } from '@arkade-os/boltz-swap'
+import type { NetworkName } from '@arkade-os/sdk'
 
 export const BTC_ASSET_ID = 'btc'
 
@@ -43,6 +45,22 @@ export const makeCachedFeedFetch = (ttlMs = 30_000): typeof fetch => {
   }
 }
 
+/**
+ * Solver cards shipped with the wallet.
+ *
+ * The Arkade Labs Lightning solver is the counterparty for the RFQ send leg
+ * (`arkade:BTC -> lightning:BTC`) and is not published in the solver registry
+ * yet, so without this the corridor simply does not exist and Lightning send
+ * is unavailable. Bundled rather than configured because the card carries its
+ * own registry signature and its rendezvous (pubkey + relays) — there is no
+ * URL to point at.
+ *
+ * Scoped to mainnet on purpose: the pubkey and relay in the card are the
+ * production solver's, and offering it on regtest/signet would quote a
+ * mainnet counterparty for testnet coins.
+ */
+const BUNDLED_CARDS: LocalCardInput[] = [{ card: arklabsLightningCard as LocalCardInput['card'], network: 'bitcoin' }]
+
 const MARKETS_CACHE_KEY = 'swapMarkets'
 const MARKETS_CACHE_TTL_MS = 60 * 60 * 1000
 
@@ -53,7 +71,7 @@ interface MarketsCacheEntry {
 
 // keyed by network AND registry so a redeployed registry override never
 // serves markets cached from a different registry
-const cacheKey = (network: Network, registry: string) => `${MARKETS_CACHE_KEY}-${network}-${registry}`
+const cacheKey = (network: NetworkName, registry: string) => `${MARKETS_CACHE_KEY}-${network}-${registry}`
 
 const isMarketShaped = (m: unknown): boolean => {
   const market = m as DiscoveredMarket | null
@@ -68,7 +86,7 @@ const isMarketShaped = (m: unknown): boolean => {
   )
 }
 
-const readMarketsCache = (network: Network, registry: string): MarketsCacheEntry | undefined =>
+const readMarketsCache = (network: NetworkName, registry: string): MarketsCacheEntry | undefined =>
   getStorageItem<MarketsCacheEntry | undefined>(cacheKey(network, registry), undefined, (blob) => {
     const entry = JSON.parse(blob)
     if (!Array.isArray(entry?.markets) || typeof entry?.fetchedAt !== 'number') throw new Error('malformed cache')
@@ -76,7 +94,7 @@ const readMarketsCache = (network: Network, registry: string): MarketsCacheEntry
     return entry
   })
 
-const writeMarketsCache = (network: Network, registry: string, markets: DiscoveredMarket[]): void => {
+const writeMarketsCache = (network: NetworkName, registry: string, markets: DiscoveredMarket[]): void => {
   try {
     localStorage.setItem(cacheKey(network, registry), JSON.stringify({ markets, fetchedAt: Date.now() }))
   } catch {
@@ -89,8 +107,8 @@ const writeMarketsCache = (network: Network, registry: string, markets: Discover
  * Registry content changes rarely, so results are cached for an hour and a
  * stale cache backstops an unreachable registry (quotes stay live either way).
  */
-export const discoverMarkets = async (network: Network, useCache = true): Promise<DiscoveredMarket[]> => {
-  const localCards = readSolverCardsFromStorage().filter((c) => c.network === network)
+export const discoverMarkets = async (network: NetworkName, useCache = true): Promise<DiscoveredMarket[]> => {
+  const localCards = [...BUNDLED_CARDS, ...readSolverCardsFromStorage()].filter((c) => c.network === network)
   const registry = getSolverRegistryUrl(network)
   if (!registry || !isNetwork(network)) return []
   const cached = readMarketsCache(network, registry)

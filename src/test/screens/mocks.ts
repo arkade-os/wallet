@@ -56,7 +56,7 @@ export const mockAspContextValue = {
 export const mockConfigContextValue = {
   config: {
     announcementsSeen: [],
-    apps: { assets: { enabled: true }, boltz: { connected: true } },
+    apps: { assets: { enabled: true } },
     aspUrl: 'http://asp.local',
     dismissedBanners: [],
     delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
@@ -93,36 +93,6 @@ export const mockFiatContextValue = {
   fiatDecimals: () => 2,
   fromFiatAmount: (amount: number) => amount,
   toFiatAmount: (amount: number) => amount,
-}
-
-export const mockSwapsContextValue = {
-  arkadeSwaps: null,
-  swapManager: null,
-  swapsInitError: null as string | null,
-  connected: false,
-  calcArkToBtcSwapFee: () => 0,
-  calcBtcToArkSwapFee: () => 0,
-  calcSubmarineSwapFee: () => 0,
-  calcReverseSwapFee: () => 0,
-  createArkToBtcSwap: async () => null,
-  createBtcToArkSwap: async () => null,
-  createSubmarineSwap: async () => null,
-  createReverseSwap: async () => null,
-  claimArk: async () => {},
-  claimBtc: async () => {},
-  claimVHTLC: async () => {},
-  refundArk: async () => {},
-  refundVHTLC: async () => {},
-  payBtc: async () => {
-    throw new Error('Chain swap not initialized')
-  },
-  payInvoice: async () => {
-    throw new Error('Lightning not initialized')
-  },
-  getSwapHistory: async () => [],
-  getApiUrl: () => null,
-  restoreSwaps: async () => 0,
-  toggleConnection: () => {},
 }
 
 export const mockOptionsContextValue = {
@@ -193,25 +163,15 @@ export const mockFlowContextValue = {
   setAssetInfo: () => {},
   deepLinkInfo: undefined,
   setDeepLinkInfo: () => {},
-  lnurlInfo: undefined,
-  setLnurlInfo: () => {},
 }
 
 export const mockLimitsContextValue = {
   amountIsAboveMaxLimit: () => false,
   amountIsBelowMinLimit: () => false,
-  validArkToBtc: () => true,
-  validBtcToArk: () => true,
-  lnSwapsAllowed: () => true,
   utxoTxsAllowed: () => true,
   vtxoTxsAllowed: () => true,
-  validLnSwap: () => true,
   validUtxoTx: () => true,
   validVtxoTx: () => true,
-  arkToBtcAllowed: () => true,
-  btcToArkAllowed: () => true,
-  minSwapAllowed: () => 0,
-  maxSwapAllowed: () => 0,
 }
 
 export const mockSvcWallet = {

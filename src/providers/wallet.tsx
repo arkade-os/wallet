@@ -38,7 +38,7 @@ import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { mergeAssetSwapActivity } from '../lib/swapDisplay'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
-import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
+import { hasMnemonic, getMnemonic } from '../lib/mnemonic'
 import { resolveWalletMode } from '../lib/walletMode'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
 import { setLoadingStatus } from '../lib/loadingStatus'
@@ -49,7 +49,6 @@ import { defaultPassword, getDelegateUrlForNetwork, maxPercentage } from '../lib
 import { AssetIconApprovalManager } from '../lib/assetIconApproval'
 import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { Indexer } from '../lib/indexer'
-import { IndexedDbSwapRepository, migrateToSwapRepository, Network } from '@arkade-os/boltz-swap'
 
 const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
 const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
@@ -147,7 +146,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { isRegistered } = useContext(AssetsContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { navigate } = useContext(NavigationContext)
-  const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo, setLnurlInfo } = useContext(FlowContext)
+  const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo } = useContext(FlowContext)
   const { notifyTxSettled } = useContext(NotificationsContext)
 
   const [txs, setTxs] = useState<Tx[]>([])
@@ -418,9 +417,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     // if app url is present, navigate to it
     if (!deepLinkInfo?.appId) return
     switch (deepLinkInfo?.appId) {
-      case 'boltz':
-        navigate(Pages.AppBoltz)
-        break
       case 'lendasat':
         navigate(Pages.AppLendasat)
         break
@@ -576,7 +572,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
                 throw err
               }
             }
-            await migrateToSwapRepository(oldStorage, new IndexedDbSwapRepository())
           }
         } catch (err) {
           consoleError(err, 'Error migrating wallet repository')
@@ -732,14 +727,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         requested: credentials.walletMode,
         persisted: config.walletMode,
       })
-      const secret = deriveNostrKeyFromMnemonic(credentials.mnemonic, isMainnet(network))
-      setLnurlInfo(secret)
       updateConfig({ ...config, pubkey, walletMode })
     } else if (credentials.privateKey) {
       identity = SingleKey.fromPrivateKey(credentials.privateKey)
       pubkey = hex.encode(secp.getPublicKey(credentials.privateKey))
       walletMode = 'static'
-      setLnurlInfo(credentials.privateKey)
       updateConfig({ ...config, pubkey, walletMode })
     } else {
       throw new Error('Either mnemonic or privateKey must be provided')
@@ -787,7 +779,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const identity = svcWallet.identity as Identity
     const arkServerUrl = aspInfo.url
     const esploraUrl = getRestApiExplorerURL(aspInfo.network as NetworkName) ?? ''
-    const delegatorUrl = delegateEnabled ? getDelegateUrlForNetwork(aspInfo.network as Network) : undefined
+    const delegatorUrl = delegateEnabled ? getDelegateUrlForNetwork(aspInfo.network as NetworkName) : undefined
     await initSvcWorkerWallet({
       identity,
       arkServerUrl,
@@ -809,7 +801,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     try {
       const arkServerUrl = aspInfo.url
       const esploraUrl = getRestApiExplorerURL(aspInfo.network as NetworkName) ?? ''
-      const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(aspInfo.network as Network) : undefined
+      const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(aspInfo.network as NetworkName) : undefined
       const initialized = await initSvcWorkerWallet({
         identity,
         arkServerUrl,

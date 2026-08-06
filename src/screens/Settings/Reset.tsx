@@ -11,11 +11,9 @@ import { consoleError } from '../../lib/logs'
 import { WalletAlternativeIcon } from '../../icons/Wallet'
 import CenterScreen from '../../components/CenterScreen'
 import FlexCol from '../../components/FlexCol'
-import { SwapsContext } from '../../providers/swaps'
 
 export default function Reset() {
   const { resetWallet } = useContext(WalletContext)
-  const { arkadeSwaps } = useContext(SwapsContext)
 
   const [disabled, setDisabled] = useState(true)
   const [loading, setLoading] = useState(false)
@@ -27,11 +25,7 @@ export default function Reset() {
   const handleReset = async () => {
     setLoading(true)
     try {
-      await Promise.all([
-        resetWallet(),
-        // stop swap manager polling and clear swap data
-        arkadeSwaps?.reset(),
-      ])
+      await resetWallet()
       location.reload()
     } catch (err) {
       consoleError(err)

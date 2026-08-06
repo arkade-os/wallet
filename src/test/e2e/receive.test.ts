@@ -9,7 +9,6 @@ import {
   readClipboard,
   createWalletWithFiat,
   navigateHome,
-  navigateToBoltz,
 } from './utils'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
@@ -167,21 +166,4 @@ test('changing amount should update the invoice (fiat mode)', async ({ page, isM
 
   // invoices should be different
   expect(invoice).not.toEqual(newInvoice)
-})
-
-test('receive without amount should not create swaps', async ({ page }) => {
-  // create wallet
-  await createWallet(page)
-
-  // get offchain address
-  const arkAddress = await receiveOffchain(page)
-  expect(arkAddress).toBeDefined()
-  expect(arkAddress).toBeTruthy()
-
-  await faucetOffchain(arkAddress, 1000)
-  await waitForPaymentReceived(page)
-
-  // check that no swap was created
-  await navigateToBoltz(page)
-  await expect(page.getByTestId('empty-template')).toBeVisible()
 })
