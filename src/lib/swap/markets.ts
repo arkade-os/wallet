@@ -1,6 +1,7 @@
 import {
   bestMarket,
   discover,
+  displayPrice,
   isNetwork,
   sideLimits,
   type DiscoveredMarket,
@@ -125,14 +126,10 @@ export const findMarket = (
  * safetyBps of 0 (QUOTE_OPTIONS): fee_bps is then the only gap between this
  * rate and the plan's net payout. */
 export const preFeeDisplayRate = (plan: OfferPlan): number => {
-  // solver-discovery 0.2.0 dropped its displayPrice helper; this is the same
-  // math inlined. The atomic price is quote-atomic per base-atomic, so the
-  // display-unit price scales it by 10^(baseDecimals - quoteDecimals) —
-  // applied to whichever side keeps both operands integers.
-  const scale = plan.market.base_asset.decimals - plan.market.quote_asset.decimals
-  let { num, den } = plan.price
-  if (scale >= 0) num *= BigInt(10) ** BigInt(scale)
-  else den *= BigInt(10) ** BigInt(-scale)
+  const { num, den } = displayPrice(plan.price, {
+    baseDecimals: plan.market.base_asset.decimals,
+    quoteDecimals: plan.market.quote_asset.decimals,
+  })
   const rate = plan.give === 'base' ? Number(num) / Number(den) : Number(den) / Number(num)
   return Number.isFinite(rate) && rate > 0 ? rate : 0
 }
