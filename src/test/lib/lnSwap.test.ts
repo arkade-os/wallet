@@ -1,6 +1,6 @@
+import { RFQ_TERMINAL_STATES } from '@arkade-os/swap'
 import { describe, it, expect } from 'vitest'
 import { InvoiceRejected, awaitLnSendOutcome, isRfqTerminal, toInvoiceFacts } from '../../lib/lnSwap'
-import { RFQ_TERMINAL_STATES } from '../../lib/arkadeSwap/rfq'
 import fixtures from '../fixtures.json'
 
 describe('lnSwap', () => {

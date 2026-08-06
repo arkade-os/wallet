@@ -36,7 +36,7 @@ const KIND = 4859
 const WAIT_MS = 20_000
 
 const here = dirname(fileURLToPath(import.meta.url))
-const card = JSON.parse(readFileSync(join(here, '../src/lib/arkadeSwap/arklabs-lightning.card.json'), 'utf8'))
+const card = JSON.parse(readFileSync(join(here, '../src/lib/swap/arklabs-lightning.card.json'), 'utf8'))
 const solver = card.discovery_pubkey
 const relay = process.argv[2] ?? card.relays[0]
 

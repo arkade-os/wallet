@@ -1,5 +1,9 @@
 onlyBuiltDependencies:
   - '@arkade-os/sdk'
+# @arkade-os/swap is installed from git, so pnpm has to build it from source
+# (its prepack runs tsup); a git dependency may only do that if allowed here.
+allowBuilds:
+  '@arkade-os/swap': true
 ignoredBuiltDependencies:
   - esbuild
 overrides:
