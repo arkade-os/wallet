@@ -3,10 +3,10 @@
 // `instanceof Uint8Array` check; under jsdom the encoder's output comes from
 // another realm and fails it ("Uint8Array expected"). The transport itself is
 // environment-agnostic, so the test runs under node where realms agree.
+import { SwapRefusal } from '@arkade-os/swap'
 import { describe, it, expect } from 'vitest'
 import { generateSecretKey, getPublicKey, nip44, type Event } from 'nostr-tools'
 import { RFQ_DIRECTED_KIND, RelayUnavailable, nostrRfqTransport } from '../../lib/nostrRfq'
-import { SwapRefusal } from '../../lib/arkadeSwap/rfq'
 
 /**
  * A stand-in for SimplePool that behaves like a relay the solver is also on:

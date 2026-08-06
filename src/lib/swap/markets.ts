@@ -9,7 +9,7 @@ import {
   type OfferPlan,
   type Side,
 } from '@arkade-os/solver-discovery'
-import arklabsLightningCard from '../arkadeSwap/arklabs-lightning.card.json'
+import arklabsLightningCard from './arklabs-lightning.card.json'
 import { getSolverRegistryUrl } from '../constants'
 import { consoleLog } from '../logs'
 import { getStorageItem, readSolverCardsFromStorage } from '../storage'

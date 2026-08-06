@@ -20,8 +20,8 @@
  * satisfies the same `RfqTransport` interface, so the maker flow
  * (`requestLightningSend`) is identical whichever transport it is handed.
  */
+import { SwapRefusal, type RfqQuote, type RfqStatus, type RfqTransport } from '@arkade-os/swap'
 import { finalizeEvent, generateSecretKey, getPublicKey, nip44, SimplePool, type Event } from 'nostr-tools'
-import { SwapRefusal, type RfqQuote, type RfqStatus, type RfqTransport } from './arkadeSwap/rfq'
 
 /** Directed RFQ traffic. Provisional in the spec; kept in one place. */
 export const RFQ_DIRECTED_KIND = 4859

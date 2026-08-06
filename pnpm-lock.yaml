@@ -21,6 +21,9 @@ importers:
       '@arkade-os/solver-discovery':
         specifier: 0.2.1
         version: 0.2.1
+      '@arkade-os/swap':
+        specifier: github:arkade-os/ts-sdk#feat/arkade-swap&path:/packages/swap
+        version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/7d94e46bc10c8182a6e59c52b726444f170fbb95#path:/packages/swap
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -274,6 +277,10 @@ packages:
   '@arkade-os/solver-discovery@0.2.1':
     resolution: {integrity: sha512-OKZI4X063bDxBKQ0pN4lFJFVufZ4JIXcdt2TWIlUQhg9C7AzuZxr2AGcUSg41EYzOS0P6OL+uOoiurvx2LYs5w==}
     engines: {node: '>=18'}
+
+  '@arkade-os/swap@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/7d94e46bc10c8182a6e59c52b726444f170fbb95#path:/packages/swap':
+    resolution: {path: /packages/swap, tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/7d94e46bc10c8182a6e59c52b726444f170fbb95}
+    version: 0.0.1
 
   '@asamuzakjp/css-color@3.2.0':
     resolution: {integrity: sha512-K1A6z8tS3XsmCMM86xoWdn7Fkdn9m6RSVtocUrJYIwZnFVkng/PvkEoWtOWmP+Scc6saYWHWZYbndEEXxl24jw==}
@@ -4351,6 +4358,27 @@ snapshots:
       - utf-8-validate
 
   '@arkade-os/solver-discovery@0.2.1': {}
+
+  '@arkade-os/swap@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/7d94e46bc10c8182a6e59c52b726444f170fbb95#path:/packages/swap':
+    dependencies:
+      '@arkade-os/sdk': 0.4.56
+      '@arkade-os/solver-discovery': 0.2.1
+      '@noble/curves': 2.0.1
+      '@noble/hashes': 2.0.1
+      '@scure/base': 2.0.0
+      '@scure/btc-signer': 2.0.1
+    transitivePeerDependencies:
+      - '@ledgerhq/ledger-bitcoin'
+      - '@react-native-async-storage/async-storage'
+      - bip32
+      - bitcoinjs-lib
+      - bufferutil
+      - ecpair
+      - expo
+      - expo-background-task
+      - expo-sqlite
+      - expo-task-manager
+      - utf-8-validate
 
   '@asamuzakjp/css-color@3.2.0':
     dependencies:

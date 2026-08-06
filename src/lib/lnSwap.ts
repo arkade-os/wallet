@@ -19,13 +19,12 @@
  * and refund headroom — stays in the client. This file adds no policy of its
  * own beyond the checks above.
  *
- * The client is currently vendored (see `arkadeSwap/VENDORED.md`). This module
- * is the seam that keeps that temporary: when `@arkade-os/swap` is published,
- * only the import below changes.
+ * The client comes from `@arkade-os/swap`, which this wallet takes straight
+ * from the ts-sdk monorepo until that package is published to npm.
  */
 import type { NetworkName } from '@arkade-os/sdk'
+import { RFQ_TERMINAL_STATES, requestLightningSend, type InvoiceFacts, type RfqTransport } from '@arkade-os/swap'
 import { decodeInvoice, invoiceMatchesNetwork, isInvoiceExpired, type DecodedInvoice } from './bolt11'
-import { RFQ_TERMINAL_STATES, requestLightningSend, type InvoiceFacts, type RfqTransport } from './arkadeSwap/rfq'
 
 /**
  * The four states swap history renders. Exported so the RFQ mapping below and
