@@ -159,7 +159,10 @@ export const nostrRfqTransport = (options: NostrRfqOptions): RfqTransport => {
     new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         waiters.delete(rfqId)
-        reject(new Error(`no solver reply within ${timeoutMs}ms`))
+        // User-facing: handleError surfaces this verbatim. RelayUnavailable
+        // already covers a dead relay, so reaching here means the relay took our
+        // request and the solver did not answer it.
+        reject(new Error(`Lightning solver is not responding (waited ${timeoutMs / 1000}s) — try again later`))
       }, timeoutMs)
       waiters.set(rfqId, {
         resolve: (payload) => {

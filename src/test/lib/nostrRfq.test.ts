@@ -93,14 +93,14 @@ describe('nostrRfqTransport', () => {
     const { transport, clientPubkey, solverReplies } = build()
     const pending = transport.requestQuote({ v: 1, type: 'rfq_request', rfq_id: 'mine' })
     solverReplies(clientPubkey, { v: 1, type: 'rfq_quote', rfq_id: 'someone-else' })
-    await expect(pending).rejects.toThrow(/no solver reply/)
+    await expect(pending).rejects.toThrow(/solver is not responding/)
     await transport.close()
   })
 
   it('times out rather than hanging when the solver never answers', async () => {
     const { transport } = build()
     await expect(transport.requestQuote({ v: 1, type: 'rfq_request', rfq_id: 'abc' })).rejects.toThrow(
-      /no solver reply/,
+      /solver is not responding/,
     )
     await transport.close()
   })
