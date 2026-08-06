@@ -170,8 +170,6 @@ export const mockLimitsContextValue = {
   amountIsBelowMinLimit: () => false,
   utxoTxsAllowed: () => true,
   vtxoTxsAllowed: () => true,
-  validUtxoTx: () => true,
-  validVtxoTx: () => true,
 }
 
 export const mockSvcWallet = {

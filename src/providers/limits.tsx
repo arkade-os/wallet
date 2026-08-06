@@ -10,8 +10,6 @@ enum TxType {
 type LimitsContextProps = {
   amountIsAboveMaxLimit: (sats: number) => boolean
   amountIsBelowMinLimit: (sats: number) => boolean
-  validUtxoTx: (sats: number) => boolean
-  validVtxoTx: (sats: number) => boolean
   utxoTxsAllowed: () => boolean
   vtxoTxsAllowed: () => boolean
 }
@@ -28,8 +26,6 @@ export const LimitsContext = createContext<LimitsContextProps>({
   amountIsBelowMinLimit: () => false,
   utxoTxsAllowed: () => false,
   vtxoTxsAllowed: () => false,
-  validUtxoTx: () => false,
-  validVtxoTx: () => false,
 })
 
 export const LimitsProvider = ({ children }: { children: ReactNode }) => {
@@ -55,15 +51,6 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
       max: Number(import.meta.env.VITE_VTXO_MAX_AMOUNT || aspInfo.vtxoMaxAmount || -1),
     }
   }, [aspInfo.network, svcWallet])
-
-  const validAmount = (sats: number, txtype: TxType): boolean => {
-    if (!sats) return true
-    const { min, max } = limits.current[txtype]
-    return sats >= min && (max === -1 ? true : sats <= max)
-  }
-
-  const validUtxoTx = (sats: number): boolean => validAmount(sats, TxType.utxo)
-  const validVtxoTx = (sats: number): boolean => validAmount(sats, TxType.vtxo)
 
   /**
    * Calculates the maximum allowed amount based on UTXO and VTXO limits.
@@ -135,8 +122,6 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
         amountIsBelowMinLimit,
         utxoTxsAllowed,
         vtxoTxsAllowed,
-        validUtxoTx,
-        validVtxoTx,
       }}
     >
       {children}

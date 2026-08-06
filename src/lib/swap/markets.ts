@@ -9,7 +9,7 @@ import {
   type OfferPlan,
   type Side,
 } from '@arkade-os/solver-discovery'
-import arklabsLightningCard from '../arkadeSwap/arklabs-lightning.card.json'
+import arklabsLightningCard from './arklabs-lightning.card.json'
 import { getSolverRegistryUrl } from '../constants'
 import { consoleLog } from '../logs'
 import { getStorageItem, readSolverCardsFromStorage } from '../storage'
@@ -108,11 +108,13 @@ const writeMarketsCache = (network: NetworkName, registry: string, markets: Disc
  * stale cache backstops an unreachable registry (quotes stay live either way).
  */
 export const discoverMarkets = async (network: NetworkName, useCache = true): Promise<DiscoveredMarket[]> => {
-  const localCards = [...BUNDLED_CARDS, ...readSolverCardsFromStorage()].filter((c) => c.network === network)
   const registry = getSolverRegistryUrl(network)
   if (!registry || !isNetwork(network)) return []
   const cached = readMarketsCache(network, registry)
   if (useCache && cached && Date.now() - cached.fetchedAt < MARKETS_CACHE_TTL_MS) return cached.markets
+  // read after the guards above: on the no-registry and cache-hit paths the
+  // storage read and its parse would be thrown away
+  const localCards = [...BUNDLED_CARDS, ...readSolverCardsFromStorage()].filter((c) => c.network === network)
   const { markets, sources, warnings } = await discover({ registries: [registry], localCards, network })
   if (warnings.length) consoleLog('solver discovery:', ...warnings)
   // an unreachable registry (fetch/validation failure) falls back to the stale

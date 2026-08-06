@@ -26,9 +26,6 @@ import { SwapRefusal, type RfqQuote, type RfqStatus, type RfqTransport } from '.
 /** Directed RFQ traffic. Provisional in the spec; kept in one place. */
 export const RFQ_DIRECTED_KIND = 4859
 
-/** Indicative solver advertisement — never binding; only a quote binds. */
-export const RFQ_AD_KIND = 38859
-
 const DEFAULT_TIMEOUT_MS = 30_000
 
 /**
@@ -206,5 +203,27 @@ export const nostrRfqTransport = (options: NostrRfqOptions): RfqTransport => {
       // the caller and may still be serving other swaps.
       if (ownsPool) pool.close(relays)
     },
+  }
+}
+
+/**
+ * Run one negotiation over a transport that is disposed either way.
+ *
+ * Every caller builds a transport from a rendezvous, uses it once, and must
+ * close it — and a missed `close()` leaks a relay connection and its
+ * subscription for the tab's lifetime. Owning that lifecycle here means a new
+ * call site cannot forget it, and the `catch` on close is deliberate: a
+ * teardown failure must not mask the negotiation's own result.
+ */
+export const withRfqTransport = async <T>(
+  rendezvous: { relays: string[]; solverPubkey: string },
+  fn: (transport: RfqTransport) => Promise<T>,
+  options: { timeoutMs?: number } = {},
+): Promise<T> => {
+  const transport = nostrRfqTransport({ ...rendezvous, ...options })
+  try {
+    return await fn(transport)
+  } finally {
+    await transport.close().catch(() => {})
   }
 }

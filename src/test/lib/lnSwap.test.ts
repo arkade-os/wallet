@@ -1,12 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import {
-  InvoiceRejected,
-  awaitLnSendOutcome,
-  isRfqTerminal,
-  rfqStatusUI,
-  toInvoiceFacts,
-  type SwapStatusUI,
-} from '../../lib/lnSwap'
+import { InvoiceRejected, awaitLnSendOutcome, isRfqTerminal, toInvoiceFacts } from '../../lib/lnSwap'
 import { RFQ_TERMINAL_STATES } from '../../lib/arkadeSwap/rfq'
 import fixtures from '../fixtures.json'
 
@@ -66,37 +59,6 @@ describe('lnSwap', () => {
         expect.unreachable('garbage was accepted')
       } catch (e) {
         expect((e as InvoiceRejected).reason).toBe('unparseable')
-      }
-    })
-  })
-
-  describe('rfqStatusUI', () => {
-    it('maps every terminal state explicitly', () => {
-      const expected: Record<string, SwapStatusUI> = {
-        settled: 'Successful',
-        refused: 'Failed',
-        expired: 'Failed',
-        refunded: 'Refunded',
-        stuck: 'Failed',
-      }
-      // Driven off the client's own tuple: if it gains a state, this fails.
-      for (const state of RFQ_TERMINAL_STATES) {
-        expect(rfqStatusUI(state)).toBe(expected[state])
-      }
-      expect(Object.keys(expected).sort()).toEqual([...RFQ_TERMINAL_STATES].sort())
-    })
-
-    it('reads any non-terminal state as still running', () => {
-      // The solver owns the intermediate names and may add to them; an unknown
-      // one must render as in-flight rather than as a spurious failure.
-      for (const state of ['quoted', 'funded', 'paying', 'a_state_invented_later', '']) {
-        expect(rfqStatusUI(state)).toBe('Pending')
-      }
-    })
-
-    it('does not treat a terminal state as pending', () => {
-      for (const state of RFQ_TERMINAL_STATES) {
-        expect(rfqStatusUI(state)).not.toBe('Pending')
       }
     })
   })

@@ -14,7 +14,7 @@ import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { collaborativeExitWithFees, sendAssets, sendOffChain } from '../../../lib/asp'
 import { awaitLnSendOutcome, type LnSendRequest } from '../../../lib/lnSwap'
-import { nostrRfqTransport } from '../../../lib/nostrRfq'
+import { withRfqTransport } from '../../../lib/nostrRfq'
 import { extractError } from '../../../lib/error'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
@@ -150,21 +150,20 @@ export default function SendDetails() {
     const txid = await sendOffChain(svcWallet!, request.fundAmount, request.address)
     if (!txid) return handleError('Error sending transaction')
 
-    const transport = nostrRfqTransport({
-      relays: request.rendezvous.relays,
-      solverPubkey: request.rendezvous.solverPubkey,
-    })
-    try {
-      const outcome = await awaitLnSendOutcome(request.rfqId, transport)
-      if (outcome.kind === 'failed') {
-        return handleError(
-          outcome.state === 'refunded'
-            ? 'The solver could not pay the invoice; your funds have been refunded'
-            : `The solver could not pay the invoice (${outcome.state}); the covenant refunds automatically`,
-        )
-      }
-    } finally {
-      await transport.close().catch(() => {})
+    // The per-status timeout is deliberately far below the transport default:
+    // awaitLnSendOutcome awaits each lookup before sleeping, so a 30s reply
+    // window would spend the whole watch budget on three unanswered attempts.
+    const outcome = await withRfqTransport(
+      request.rendezvous,
+      (transport) => awaitLnSendOutcome(request.rfqId, transport),
+      { timeoutMs: 10_000 },
+    )
+    if (outcome.kind === 'failed') {
+      return handleError(
+        outcome.state === 'refunded'
+          ? 'The solver could not pay the invoice; your funds have been refunded'
+          : `The solver could not pay the invoice (${outcome.state}); the covenant refunds automatically`,
+      )
     }
     handleTxid(txid)
   }

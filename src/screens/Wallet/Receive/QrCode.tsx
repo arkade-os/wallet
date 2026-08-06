@@ -93,7 +93,6 @@ export default function ReceiveQRCode() {
   const [noPaymentMethods, setNoPaymentMethods] = useState(false)
   const [arkAddress, setArkAddress] = useState(offchainAddr)
   const [btcAddress, setBtcAddress] = useState(boardingAddr)
-  const [showQrCode, setShowQrCode] = useState(!satoshis)
   const [qrCodeValue, setQrCodeValue] = useState('')
   const [selectedValue, setSelectedValue] = useState('')
   const [bip21Uri, setBip21Uri] = useState('')
@@ -130,15 +129,9 @@ export default function ReceiveQRCode() {
     return { ark, btc, bip21 }
   }
 
-  // Nothing to negotiate any more: both receive addresses are derived locally,
-  // so the QR is ready as soon as they have loaded.
-  useEffect(() => {
-    if (addressesLoaded) setShowQrCode(true)
-  }, [addressesLoaded])
-
   // Build BIP21 URI
   useEffect(() => {
-    if (!addressesLoaded && !showQrCode) return
+    if (!addressesLoaded) return
 
     const { ark, btc, bip21 } = createBip21()
 
@@ -149,15 +142,7 @@ export default function ReceiveQRCode() {
     // Preserve an explicit copy-sheet selection across rebuilds; only fall back
     // to the unified URI when the selected value is no longer one we offer.
     setQrCodeValue(resolveQrValue(selectedValue, { bip21, btc, ark }))
-  }, [
-    assetAmount,
-    addressesLoaded,
-    selectedValue,
-    recvInfo.offchainAddr,
-    recvInfo.boardingAddr,
-    recvInfo.satoshis,
-    showQrCode,
-  ])
+  }, [assetAmount, addressesLoaded, selectedValue, recvInfo.offchainAddr, recvInfo.boardingAddr, recvInfo.satoshis])
 
   // Payment listener
   useEffect(() => {

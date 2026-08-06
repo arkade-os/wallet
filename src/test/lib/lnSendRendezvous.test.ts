@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
-import { discover } from '@arkade-os/solver-discovery'
-import arklabsCard from '../../lib/arkadeSwap/arklabs-lightning.card.json'
+import { discover, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+import arklabsCard from '../../lib/swap/arklabs-lightning.card.json'
 import { lnSendRendezvous } from '../../lib/lnSwap'
 
 /**
@@ -43,23 +43,34 @@ describe('bundled Arkade Labs solver card', () => {
 })
 
 describe('lnSendRendezvous', () => {
-  const good = {
-    quote_corridor: 'lightning',
-    discovery_pubkey: 'aa'.repeat(32),
-    relays: ['wss://relay.test'],
-    min_quote_amount: '500',
-    max_quote_amount: '1000',
-  }
+  // Only the corridor, the rendezvous and the quote-side bounds take part in
+  // the selection; the rest of DiscoveredMarket is irrelevant to it, so these
+  // cases carry just those fields rather than a full market fixture.
+  const market = (overrides: Record<string, unknown> = {}): DiscoveredMarket =>
+    ({
+      quote_corridor: 'lightning',
+      discovery_pubkey: 'aa'.repeat(32),
+      relays: ['wss://relay.test'],
+      min_quote_amount: '500',
+      max_quote_amount: '1000',
+      ...overrides,
+    }) as unknown as DiscoveredMarket
 
   it('skips markets that are not the lightning corridor', () => {
-    expect(lnSendRendezvous([{ ...good, quote_corridor: 'onchain' }])).toBeUndefined()
+    expect(lnSendRendezvous([market({ quote_corridor: 'onchain' })])).toBeUndefined()
   })
 
   it('skips a corridor market with no rendezvous rather than trusting it', () => {
     // The registry signs the pubkey and relays; a corridor market reaching us
     // without them is malformed, and guessing a counterparty is not an option.
-    expect(lnSendRendezvous([{ ...good, discovery_pubkey: undefined }])).toBeUndefined()
-    expect(lnSendRendezvous([{ ...good, relays: [] }])).toBeUndefined()
+    expect(lnSendRendezvous([market({ discovery_pubkey: undefined })])).toBeUndefined()
+    expect(lnSendRendezvous([market({ relays: [] })])).toBeUndefined()
+  })
+
+  it('treats a disabled quote side as no solver, not a zero-width range', () => {
+    // max "0" means the solver cannot pay that side out. Reporting it as
+    // bounds 0..0 would tell the user their amount is out of range.
+    expect(lnSendRendezvous([market({ max_quote_amount: '0' })])).toBeUndefined()
   })
 
   it('returns undefined when nothing serves the corridor', () => {
@@ -67,7 +78,7 @@ describe('lnSendRendezvous', () => {
   })
 
   it('picks the first market that serves the corridor with a rendezvous', () => {
-    const rendezvous = lnSendRendezvous([{ ...good, quote_corridor: 'onchain' }, good])
-    expect(rendezvous?.solverPubkey).toBe(good.discovery_pubkey)
+    const rendezvous = lnSendRendezvous([market({ quote_corridor: 'onchain' }), market()])
+    expect(rendezvous?.solverPubkey).toBe('aa'.repeat(32))
   })
 })

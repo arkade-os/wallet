@@ -23,16 +23,11 @@
  * is the seam that keeps that temporary: when `@arkade-os/swap` is published,
  * only the import below changes.
  */
+import { sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
 import type { NetworkName } from '@arkade-os/sdk'
+import { sleep as defaultSleep } from './sleep'
 import { decodeInvoice, invoiceMatchesNetwork, isInvoiceExpired, type DecodedInvoice } from './bolt11'
 import { RFQ_TERMINAL_STATES, requestLightningSend, type InvoiceFacts, type RfqTransport } from './arkadeSwap/rfq'
-
-/**
- * The four states swap history renders. Exported so the RFQ mapping below and
- * the list component agree by construction instead of by two copies of the
- * same union drifting apart.
- */
-export type SwapStatusUI = 'Successful' | 'Pending' | 'Failed' | 'Refunded'
 
 /** Why an invoice cannot start a swap. A closed set, so callers can branch. */
 export type InvoiceRejection = 'unparseable' | 'wrong_network' | 'expired' | 'zero_amount' | 'no_payment_hash'
@@ -94,38 +89,6 @@ export const toInvoiceFacts = (
   }
 }
 
-/**
- * The terminal RFQ states and how each reads to a user.
- *
- * Keyed by the client's own terminal-state tuple, so a state added upstream
- * becomes a compile error here rather than silently falling through to
- * "Pending" and showing a finished swap as still running.
- *
- * `stuck` is terminal for the negotiation, not a verdict on the funds: the
- * covenant's refund path is still the backstop. It reads as Failed because it
- * is the case that needs a human to look, and this vocabulary has no
- * "needs attention" state of its own.
- */
-const TERMINAL_STATUS: Record<(typeof RFQ_TERMINAL_STATES)[number], SwapStatusUI> = {
-  settled: 'Successful',
-  refused: 'Failed',
-  expired: 'Failed',
-  refunded: 'Refunded',
-  stuck: 'Failed',
-}
-
-/**
- * Map an RFQ state onto swap history's vocabulary.
- *
- * The client types `state` as an open string because the solver owns the
- * intermediate names and may add to them. Only the terminal set is closed, so
- * that is what is mapped exhaustively; anything else is by definition still in
- * flight and reads as Pending. A new intermediate state therefore shows up as
- * a running swap rather than as a crash or a spurious failure.
- */
-export const rfqStatusUI = (state: string): SwapStatusUI =>
-  TERMINAL_STATUS[state as (typeof RFQ_TERMINAL_STATES)[number]] ?? 'Pending'
-
 /** Whether an RFQ state is one after which nothing further will happen. */
 export const isRfqTerminal = (state: string): boolean => (RFQ_TERMINAL_STATES as readonly string[]).includes(state)
 
@@ -154,23 +117,21 @@ export interface LnSendRendezvous {
  * Returns undefined when no solver serves the corridor — the caller treats
  * that as "RFQ send unavailable", not as an error.
  */
-export const lnSendRendezvous = (
-  markets: {
-    quote_corridor?: string
-    discovery_pubkey?: string
-    relays?: string[]
-    min_quote_amount?: string
-    max_quote_amount?: string
-  }[],
-): LnSendRendezvous | undefined => {
+export const lnSendRendezvous = (markets: DiscoveredMarket[]): LnSendRendezvous | undefined => {
   for (const market of markets) {
     if (market.quote_corridor !== 'lightning') continue
     if (!market.discovery_pubkey || !market.relays?.length) continue
+    // sideLimits is the registry's own parser: it reads a disabled side
+    // (max "0") or a malformed bound as null. Parsing the raw strings here
+    // instead would turn a disabled side into a 0..0 range and report it to
+    // the user as "amount outside solver bounds" rather than "no solver".
+    const bounds = sideLimits(market, 'quote')
+    if (!bounds) continue
     return {
       solverPubkey: market.discovery_pubkey,
       relays: market.relays,
-      minSats: Number(market.min_quote_amount ?? '0'),
-      maxSats: Number(market.max_quote_amount ?? '0'),
+      minSats: Number(bounds.min),
+      maxSats: Number(bounds.max),
     }
   }
   return undefined
@@ -188,10 +149,6 @@ export interface LnSendRequest {
   address: string
   /** Sats the lockup must carry. */
   fundAmount: number
-  /** The covenant scriptPubKey, for watching the lockup and its spend. */
-  swapPkScript: Uint8Array
-  /** Where a failed swap provably refunds, without wallet keys or state. */
-  refundAddress: string
   /** Unix seconds after which the quote is dead and must not be funded. */
   validUntil: number
   /**
@@ -243,8 +200,6 @@ export const requestLnSend = async (
     rfqId: result.rfqId,
     address: result.address,
     fundAmount: result.fundAmount,
-    swapPkScript: result.swapPkScript,
-    refundAddress: result.refundAddress,
     validUntil: result.quote.valid_until,
     rendezvous: args.rendezvous,
   }
@@ -283,7 +238,7 @@ export const awaitLnSendOutcome = async (
   const timeoutMs = options.timeoutMs ?? 90_000
   const pollMs = options.pollMs ?? 3_000
   const now = options.now ?? (() => Date.now())
-  const sleep = options.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)))
+  const sleep = options.sleep ?? defaultSleep
   const deadline = now() + timeoutMs
 
   for (;;) {
