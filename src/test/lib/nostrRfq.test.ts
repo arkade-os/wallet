@@ -5,7 +5,7 @@
 // environment-agnostic, so the test runs under node where realms agree.
 import { describe, it, expect } from 'vitest'
 import { generateSecretKey, getPublicKey, nip44, type Event } from 'nostr-tools'
-import { RFQ_DIRECTED_KIND, nostrRfqTransport } from '../../lib/nostrRfq'
+import { RFQ_DIRECTED_KIND, RelayUnavailable, nostrRfqTransport } from '../../lib/nostrRfq'
 import { SwapRefusal } from '../../lib/arkadeSwap/rfq'
 
 /**
@@ -14,10 +14,16 @@ import { SwapRefusal } from '../../lib/arkadeSwap/rfq'
  */
 const fakePool = (solverSecret: Uint8Array, clientPubkeyOf: (e: Event) => string) => {
   let onevent: ((e: Event) => void) | undefined
+  let onclose: ((reasons: string[]) => void) | undefined
   const published: unknown[] = []
   const pool = {
-    subscribeMany(_relays: string[], _filter: unknown, params: { onevent: (e: Event) => void }) {
+    subscribeMany(
+      _relays: string[],
+      _filter: unknown,
+      params: { onevent: (e: Event) => void; onclose?: (reasons: string[]) => void },
+    ) {
       onevent = params.onevent
+      onclose = params.onclose
       return { close: () => {} }
     },
     publish(_relays: string[], event: Event) {
@@ -40,7 +46,9 @@ const fakePool = (solverSecret: Uint8Array, clientPubkeyOf: (e: Event) => string
       sig: 'x',
     } as unknown as Event)
   }
-  return { pool, published, solverReplies, clientPubkeyOf }
+  /** The relay drops every connection, as the live relay was observed to do. */
+  const relaysDrop = (reasons: string[] = ['connection failed']) => onclose?.(reasons)
+  return { pool, published, solverReplies, relaysDrop, clientPubkeyOf }
 }
 
 describe('nostrRfqTransport', () => {
@@ -95,6 +103,25 @@ describe('nostrRfqTransport', () => {
       /no solver reply/,
     )
     await transport.close()
+  })
+
+  it('blames the relay, not the solver, when every connection drops', async () => {
+    // A dropped subscription is silent: nothing will ever arrive on it. Waiting
+    // out the timeout would report this as solver silence, which sends whoever
+    // debugs the failed payment after the wrong party.
+    const { transport, relaysDrop } = build()
+    const pending = transport.requestQuote({ v: 1, type: 'rfq_request', rfq_id: 'abc' })
+    relaysDrop(['wss://relay.test: connection failed'])
+    await expect(pending).rejects.toBeInstanceOf(RelayUnavailable)
+    await transport.close()
+  })
+
+  it('does not reject in-flight work when the caller closes the transport', async () => {
+    // close() closes the subscription, which fires the same onclose. A
+    // deliberate teardown must not masquerade as a lost relay.
+    const { transport, relaysDrop } = build()
+    await transport.close()
+    expect(() => relaysDrop()).not.toThrow()
   })
 
   it('reports no status when the solver has forgotten the negotiation', async () => {

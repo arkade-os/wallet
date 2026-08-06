@@ -32,6 +32,26 @@ export const RFQ_AD_KIND = 38859
 const DEFAULT_TIMEOUT_MS = 30_000
 
 /**
+ * Every relay dropped the subscription, so no reply can arrive on it.
+ *
+ * Distinct from a timeout on purpose. Both look like "no answer", but they
+ * mean opposite things: a timeout says the solver did not respond, while this
+ * says we were never in a position to hear it. Verified against the live
+ * relay — a dropped subscription is silent, so without this the transport
+ * would wait out the full timeout and then blame the solver for a failure on
+ * our own side of the wire.
+ */
+export class RelayUnavailable extends Error {
+  readonly reasons: string[]
+
+  constructor(reasons: string[]) {
+    super(`lost every relay connection: ${reasons.join('; ') || 'connection closed'}`)
+    this.name = 'RelayUnavailable'
+    this.reasons = reasons
+  }
+}
+
+/**
  * Discriminate a decrypted reply, mirroring the client's own rule: a refusal
  * carries a closed-set reason and is thrown as `SwapRefusal`; anything that is
  * not a quote for THIS negotiation is an error rather than a value.
@@ -83,8 +103,12 @@ export const nostrRfqTransport = (options: NostrRfqOptions): RfqTransport => {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
   const conversationKey = nip44.v2.utils.getConversationKey(secretKey, solverPubkey)
 
-  /** Waiters keyed by rfq_id, resolved by whichever reply type arrives first. */
-  const waiters = new Map<string, (payload: unknown) => void>()
+  // close() closes the subscription, which fires onclose; that is a deliberate
+  // teardown, not a lost relay, so it must not reject anything.
+  let closed = false
+
+  /** Waiters keyed by rfq_id, settled by a reply or by the subscription dying. */
+  const waiters = new Map<string, { resolve: (payload: unknown) => void; reject: (error: Error) => void }>()
 
   // One subscription for the whole transport. Opened eagerly so a fast solver
   // cannot answer into a subscription that does not exist yet.
@@ -101,7 +125,16 @@ export const nostrRfqTransport = (options: NostrRfqOptions): RfqTransport => {
         }
         const rfqId = (payload as { rfq_id?: string } | null)?.rfq_id
         if (!rfqId) return
-        waiters.get(rfqId)?.(payload)
+        waiters.get(rfqId)?.resolve(payload)
+      },
+      // subscribeMany calls this once every relay has closed. Nothing will
+      // arrive after it, so failing now beats waiting out the timeout — and it
+      // names the real cause instead of implicating the solver.
+      onclose(reasons: string[]) {
+        if (closed) return
+        const error = new RelayUnavailable(reasons)
+        for (const waiter of waiters.values()) waiter.reject(error)
+        waiters.clear()
       },
     },
   )
@@ -131,10 +164,17 @@ export const nostrRfqTransport = (options: NostrRfqOptions): RfqTransport => {
         waiters.delete(rfqId)
         reject(new Error(`no solver reply within ${timeoutMs}ms`))
       }, timeoutMs)
-      waiters.set(rfqId, (payload) => {
-        clearTimeout(timer)
-        waiters.delete(rfqId)
-        resolve(payload)
+      waiters.set(rfqId, {
+        resolve: (payload) => {
+          clearTimeout(timer)
+          waiters.delete(rfqId)
+          resolve(payload)
+        },
+        reject: (error) => {
+          clearTimeout(timer)
+          waiters.delete(rfqId)
+          reject(error)
+        },
       })
     })
 
@@ -159,6 +199,7 @@ export const nostrRfqTransport = (options: NostrRfqOptions): RfqTransport => {
     },
 
     async close() {
+      closed = true
       subscription.close()
       waiters.clear()
       // Only tear down a pool this transport created; a shared one belongs to
