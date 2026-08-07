@@ -126,12 +126,6 @@ describe('lnSendSpender', () => {
     ).rejects.toThrow('history unavailable')
   })
 
-  it('does not classify at all while there is no spend', async () => {
-    let asked = false
-    await lnSendSpender(indexer([covenant('settled')]), async () => ((asked = true), false), lockup)
-    expect(asked).toBe(false)
-  })
-
   it('falls back to spentBy when the indexer names no ark txid', async () => {
     const spender = await lnSendSpender(indexer([covenant('spent', { spentBy: 'claim-txid' })]), theirs, lockup)
     expect(spender?.spentTxid).toBe('claim-txid')

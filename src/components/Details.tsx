@@ -177,14 +177,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     ['Destination', destination, <TypeIcon key='destination-icon' />],
     ['Funded', fundedTxid, <HashIcon key='funded-icon' />, offchainTxOnClick(fundedTxid)],
     [spendLabel ?? 'Completed', spendTxid, <HashIcon key='spend-icon' />, offchainTxOnClick(spendTxid)],
-    // A two-leg receipt names its funding tx on the Funded row, so a
-    // Transaction ID row would only repeat it under a vaguer label.
-    [
-      'Transaction ID',
-      fundedTxid ? undefined : txid,
-      <HashIcon key='txid-icon' />,
-      showTxidLink ? txidOnClick : undefined,
-    ],
+    ['Transaction ID', txid, <HashIcon key='txid-icon' />, showTxidLink ? txidOnClick : undefined],
     ...assetIdRows,
     ['Direction', direction, <DirectionIcon key='direction-icon' />],
     ['Type', type, <TypeIcon key='type-icon' />],

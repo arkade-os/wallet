@@ -250,7 +250,9 @@ export const lnSendSpender = async (
   lockup: { fundingTxid: string; swapPkScript: string },
 ): Promise<LnSendSpend | undefined> => {
   const { vtxos } = await indexer.getVtxos({ scripts: [lockup.swapPkScript] })
-  const funded = vtxos.find((v) => v.script === lockup.swapPkScript && v.txid === lockup.fundingTxid)
+  // The query is already scoped to the one script, so the funding txid is what
+  // distinguishes this deposit — identical quotes derive the same address.
+  const funded = vtxos.find((v) => v.txid === lockup.fundingTxid)
   if (funded?.virtualStatus.state !== 'spent') return undefined
   const spentTxid = funded.arkTxId ?? funded.spentBy
   if (!spentTxid) return undefined

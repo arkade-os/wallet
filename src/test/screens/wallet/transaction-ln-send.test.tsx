@@ -13,6 +13,7 @@ import {
   mockFlowContextValue,
   mockLimitsContextValue,
   mockNavigationContextValue,
+  mockSvcWallet,
   mockTxInfo,
   mockWalletContextValue,
 } from '../mocks'
@@ -25,11 +26,6 @@ vi.mock('@arkade-os/sdk', async (importOriginal) => ({
   RestIndexerProvider: class {
     getVtxos = getVtxos
   },
-}))
-
-vi.mock('../../../lib/asp', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../../lib/asp')>()),
-  getInputsToSettle: async () => ({ inputs: [] }),
 }))
 
 const swapPkScript = `5120${'ab'.repeat(32)}`
@@ -48,21 +44,14 @@ const sentTx: Tx = {
 
 const lnSendTx = (lnSend: LnSendActivity): Tx => ({ ...sentTx, lnSend })
 
-const withSvcWallet = { ...mockWalletContextValue, svcWallet: { getTransactionHistory } as never }
-
-/** A wallet that can answer "is this one of my transactions?" */
-const walletWith = (ownTxids: string[] = []) => {
-  getTransactionHistory.mockResolvedValue(
-    ownTxids.map((arkTxid) => ({ key: { arkTxid, boardingTxid: '', commitmentTxid: '' } })),
-  )
-  return withSvcWallet
+/** A wallet whose history read is under the test's control. */
+const withSvcWallet = {
+  ...mockWalletContextValue,
+  svcWallet: { ...mockSvcWallet, getTransactionHistory } as never,
 }
 
-/** A wallet whose history read fails, so ownership cannot be determined. */
-const walletThatCannotAnswer = () => {
-  getTransactionHistory.mockRejectedValue(new Error('history unavailable'))
-  return withSvcWallet
-}
+/** One of the wallet's own transactions, as the raw SDK reports it. */
+const ownTx = (arkTxid: string) => ({ key: { arkTxid, boardingTxid: '', commitmentTxid: '' } })
 
 const renderReceipt = (tx: Tx, wallet = mockWalletContextValue) =>
   render(
@@ -122,7 +111,7 @@ describe('Lightning send receipt', () => {
 
   it('resolves the second leg on open and remembers it', async () => {
     getVtxos.mockResolvedValue(spentCovenant('claim-txid'))
-    renderReceipt(lnSendTx({ swapPkScript }), walletWith())
+    renderReceipt(lnSendTx({ swapPkScript }), withSvcWallet)
 
     expect(await screen.findByTestId('Completed')).toHaveTextContent('claim-txid')
     expect(getVtxos).toHaveBeenCalledWith({ scripts: [swapPkScript] })
@@ -140,7 +129,7 @@ describe('Lightning send receipt', () => {
     saveTransactionActivityMetadata(fundingTxid, {
       lnSend: { swapPkScript, spend: { spentTxid: 'claim-txid', outcome: 'completed' } },
     })
-    renderReceipt(lnSendTx({ swapPkScript }), walletWith())
+    renderReceipt(lnSendTx({ swapPkScript }), withSvcWallet)
 
     expect(await screen.findByTestId('Completed')).toHaveTextContent('claim-txid')
     expect(getVtxos).not.toHaveBeenCalled()
@@ -148,7 +137,8 @@ describe('Lightning send receipt', () => {
 
   it('reads a spend that is one of our own transactions as the refund', async () => {
     getVtxos.mockResolvedValue(spentCovenant('refund-txid'))
-    renderReceipt(lnSendTx({ swapPkScript }), walletWith(['refund-txid']))
+    getTransactionHistory.mockResolvedValue([ownTx('refund-txid')])
+    renderReceipt(lnSendTx({ swapPkScript }), withSvcWallet)
 
     expect(await screen.findByTestId('Refunded')).toHaveTextContent('refund-txid')
   })
@@ -157,7 +147,8 @@ describe('Lightning send receipt', () => {
     // A history read that failed must not read as "not ours" and be persisted
     // as a completed payment — that would report returned money as paid.
     getVtxos.mockResolvedValue(spentCovenant('refund-txid'))
-    renderReceipt(lnSendTx({ swapPkScript }), walletThatCannotAnswer())
+    getTransactionHistory.mockRejectedValue(new Error('history unavailable'))
+    renderReceipt(lnSendTx({ swapPkScript }), withSvcWallet)
 
     expect(await screen.findByTestId('Funded')).toHaveTextContent(fundingTxid)
     await waitFor(() => expect(getTransactionHistory).toHaveBeenCalled())
@@ -167,7 +158,7 @@ describe('Lightning send receipt', () => {
 
   it('leaves the funding row alone when the indexer lookup fails', async () => {
     getVtxos.mockRejectedValue(new Error('indexer unreachable'))
-    renderReceipt(lnSendTx({ swapPkScript }), walletWith())
+    renderReceipt(lnSendTx({ swapPkScript }), withSvcWallet)
 
     expect(await screen.findByTestId('Funded')).toHaveTextContent(fundingTxid)
     await waitFor(() => expect(getVtxos).toHaveBeenCalled())
