@@ -227,12 +227,19 @@ export const requestLnSend = async (
  * and still remembering the negotiation.
  *
  * `paidUs` is asked rather than handed a history so the read happens AFTER the
- * indexer has reported the spend, never from a copy taken before it. That
- * ordering is what makes a "no" mean something: a lookup issued after the
- * indexer saw the spend sees at least as much as it did. It must also FAIL
- * rather than answer "no" when it cannot tell — a `false` that really means
- * "could not check" would call a refund a paid invoice, which is the one error
- * here that misreports money.
+ * indexer has reported the spend, never from a copy taken before it, and it
+ * must FAIL rather than answer "no" when it cannot tell — a `false` that really
+ * means "could not check" would call a refund a paid invoice, which is the one
+ * error here that misreports money.
+ *
+ * Neither of those makes a "no" conclusive, and it is worth being exact about
+ * what is left. The wallet's own view and the indexer are separate stores, so
+ * asking second does not guarantee seeing as much: a wallet a sync cycle behind
+ * can still miss a refund that the indexer already knows about, and the answer
+ * persists. What the two rules buy is the removal of the avoidable half — a
+ * stale snapshot, and a failure disguised as a verdict. The residual is the
+ * trade-off `assetSwaps` already accepts for the same question, and it narrows
+ * on its own as the refund ages, which is when a receipt is usually read.
  *
  * Returns undefined while the lockup is unspent, and for a swept one: neither
  * has a spender to name, and both are still the funding tx's story alone.
