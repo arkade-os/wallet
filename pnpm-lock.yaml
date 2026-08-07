@@ -5,25 +5,21 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  js-yaml@<4: '>=3.15.0 <4.0.0'
-  js-yaml@>=4: '>=4.2.0 <5.0.0'
-  picomatch@<4: '>=2.3.2 <4.0.0'
-  picomatch@>=4: '>=4.0.4'
-  '@babel/core': '>=7.29.6 <8.0.0'
+  '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.4.57-pr691-752ed57.tgz
 
 importers:
 
   .:
     dependencies:
       '@arkade-os/sdk':
-        specifier: 0.4.56
-        version: 0.4.56
+        specifier: file:vendor/arkade-os-sdk-0.4.57-pr691-752ed57.tgz
+        version: file:vendor/arkade-os-sdk-0.4.57-pr691-752ed57.tgz
       '@arkade-os/solver-discovery':
         specifier: 0.2.1
         version: 0.2.1
       '@arkade-os/swap':
-        specifier: github:arkade-os/ts-sdk#feat/arkade-swap&path:/packages/swap
-        version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/7d94e46bc10c8182a6e59c52b726444f170fbb95#path:/packages/swap
+        specifier: file:vendor/arkade-os-swap-0.0.1-pr691-752ed57.tgz
+        version: file:vendor/arkade-os-swap-0.0.1-pr691-752ed57.tgz
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -253,8 +249,9 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/sdk@0.4.56':
-    resolution: {integrity: sha512-cg64msS92yDu5UI18xzhNsnplpN5cYUxBzc/y1wKlZwvWohs5FST0rK8eOfkpi5otcrDSYCyg2Kj4yK4mRzPhQ==}
+  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.57-pr691-752ed57.tgz':
+    resolution: {integrity: sha512-MOsvkiUEiB22RgvT1bo+i0A+V6EnK7L9U4n4rQl+PPChoaVicbRXrenKQ0Cwv2jyONcdlwA7uMAz/nbs81PUMA==, tarball: file:vendor/arkade-os-sdk-0.4.57-pr691-752ed57.tgz}
+    version: 0.4.57
     engines: {node: '>=22.12.0 <25'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -278,8 +275,8 @@ packages:
     resolution: {integrity: sha512-OKZI4X063bDxBKQ0pN4lFJFVufZ4JIXcdt2TWIlUQhg9C7AzuZxr2AGcUSg41EYzOS0P6OL+uOoiurvx2LYs5w==}
     engines: {node: '>=18'}
 
-  '@arkade-os/swap@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/7d94e46bc10c8182a6e59c52b726444f170fbb95#path:/packages/swap':
-    resolution: {path: /packages/swap, tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/7d94e46bc10c8182a6e59c52b726444f170fbb95}
+  '@arkade-os/swap@file:vendor/arkade-os-swap-0.0.1-pr691-752ed57.tgz':
+    resolution: {integrity: sha512-AuoqTp4XIzDfazk20ROJ00Vpk2aXW2KGP9ov3orr0rJGevxYH5A4jk4JShbvPhVAsARLAB0RCjuCcIJQuJhm3A==, tarball: file:vendor/arkade-os-swap-0.0.1-pr691-752ed57.tgz}
     version: 0.0.1
 
   '@asamuzakjp/css-color@3.2.0':
@@ -329,7 +326,7 @@ packages:
     resolution: {integrity: sha512-RpLYy2sb51oNLjuu1iD3bwBqCBWUzjO0ocp+iaCP/lJtb2CPLcnC2Fftw+4sAzaMELGeWTgExSKADbdo0GFVzA==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': '>=7.29.6 <8.0.0'
+      '@babel/core': ^7.0.0
 
   '@babel/helper-globals@7.28.0':
     resolution: {integrity: sha512-+W6cISkXFa1jXsDEdYA8HeevQT/FULhxzR99pxphltZcVaugps53THCeiWA8SguxxpSp3gKPiuYfSWopkLQ4hw==}
@@ -355,13 +352,13 @@ packages:
     resolution: {integrity: sha512-67oXFAYr2cDLDVGLXTEABjdBJZ6drElUSI7WKp70NrpyISso3plG9SAGEF6y7zbha/wOzUByWWTJvEDVNIUGcA==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': '>=7.29.6 <8.0.0'
+      '@babel/core': ^7.0.0
 
   '@babel/helper-module-transforms@7.29.7':
     resolution: {integrity: sha512-UPUVSyXbOh627KiCIGQSgwWzGeBKLkaJ9PJEdrngIwMSzxLR4jS4+f1f1jb7VzBbg8nFLaYotvVPFCTqdrmTAg==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': '>=7.29.6 <8.0.0'
+      '@babel/core': ^7.0.0
 
   '@babel/helper-optimise-call-expression@7.27.1':
     resolution: {integrity: sha512-URMGH08NzYFhubNSGJrpUEphGKQwMQYBySzat5cAByY1/YgIRkULnIy3tAMeszlL/so2HbeilYloUmSpd7GdVw==}
@@ -379,7 +376,7 @@ packages:
     resolution: {integrity: sha512-mq8e+laIk94/yFec3DxSjCRD2Z0TAjhVbEJY3UQrlwVo15Lmt7C2wAUbK4bjnTs4APkwsYLTahXRraQXhb1WCg==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': '>=7.29.6 <8.0.0'
+      '@babel/core': ^7.0.0
 
   '@babel/helper-skip-transparent-expression-wrappers@7.27.1':
     resolution: {integrity: sha512-Tub4ZKEXqbPjXgWLl2+3JpQAYBJ8+ikpQ2Ocj/q/r0LwE3UhENh7EUabyHjz2kCEsrRY83ew2DQdHluuiDQFzg==}
@@ -432,43 +429,43 @@ packages:
     resolution: {integrity: sha512-wgEmr06G6sIpqr8YDwA2dSRTE3bJ+V0IfpzfSY3Lfgd7YWOaAdlykvJi13ZKBt8cZHfgH1IXN+CL656W3uUa4w==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': '>=7.29.6 <8.0.0'
+      '@babel/core': ^7.0.0-0
 
   '@babel/plugin-syntax-typescript@7.28.6':
     resolution: {integrity: sha512-+nDNmQye7nlnuuHDboPbGm00Vqg3oO8niRRL27/4LYHUsHYh0zJ1xWOz0uRwNFmM1Avzk8wZbc6rdiYhomzv/A==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': '>=7.29.6 <8.0.0'
+      '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-modules-commonjs@7.28.6':
     resolution: {integrity: sha512-jppVbf8IV9iWWwWTQIxJMAJCWBuuKx71475wHwYytrRGQ2CWiDvYlADQno3tcYpS/T2UUWFQp3nVtYfK/YBQrA==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': '>=7.29.6 <8.0.0'
+      '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-react-jsx-self@7.27.1':
     resolution: {integrity: sha512-6UzkCs+ejGdZ5mFFC/OCUrv028ab2fp1znZmCZjAOBKiBK2jXD1O+BPSfX8X2qjJ75fZBMSnQn3Rq2mrBJK2mw==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': '>=7.29.6 <8.0.0'
+      '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-react-jsx-source@7.27.1':
     resolution: {integrity: sha512-zbwoTsBruTeKB9hSq73ha66iFeJHuaFkUbwvqElnygoNbj/jHRsSeokowZFN3CZ64IvEqcmmkVe89OPXc7ldAw==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': '>=7.29.6 <8.0.0'
+      '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-typescript@7.28.6':
     resolution: {integrity: sha512-0YWL2RFxOqEm9Efk5PvreamxPME8OyY0wM5wh5lHjF+VtVhdneCWGzZeSqzOfiobVqQaNCd2z0tQvnI9DaPWPw==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': '>=7.29.6 <8.0.0'
+      '@babel/core': ^7.0.0-0
 
   '@babel/preset-typescript@7.28.5':
     resolution: {integrity: sha512-+bQy5WOI2V6LJZpPVxY+yp66XdZ2yifu0Mc1aP5CQKgjn4QM5IN2i5fAZ4xKop47pr8rpVhiAeu+nDQa12C8+g==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': '>=7.29.6 <8.0.0'
+      '@babel/core': ^7.0.0-0
 
   '@babel/runtime@7.28.4':
     resolution: {integrity: sha512-Q/N6JNWvIvPnLDvjlE1OUBLPQHH6l3CltCEsHIujp45zQUSSh8K+gHnaEX45yAT1nyngnINhvWtzN+Nb9D8RAQ==}
@@ -2404,7 +2401,7 @@ packages:
     resolution: {integrity: sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==}
     engines: {node: '>=12.0.0'}
     peerDependencies:
-      picomatch: '>=2.3.2 <4.0.0'
+      picomatch: ^3 || ^4
     peerDependenciesMeta:
       picomatch:
         optional: true
@@ -3397,9 +3394,9 @@ packages:
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
 
-  picomatch@3.0.2:
-    resolution: {integrity: sha512-cfDHL6LStTEKlNilboNtobT/kEa30PtAf2Q1OgszfrG/rpVl1xaFWT9ktfkS306GmHgmnad1Sw4wabhlvFtsTw==}
-    engines: {node: '>=10'}
+  picomatch@2.3.2:
+    resolution: {integrity: sha512-V7+vQEJ06Z+c5tSye8S+nHUfI51xoXIXjHQ99cQtKUkQqqO1kO/KCJUfZXuB47h/YBlDhah2H3hdUGXn8ie0oA==}
+    engines: {node: '>=8.6'}
 
   picomatch@4.0.5:
     resolution: {integrity: sha512-RvwwcruNjI1ncT5xRakeyS9Lf8lcItv34KD+aif+VH9kduAyfYBipGh12274xtenIPZ119/R9BdTBa8gAwSh0A==}
@@ -4338,7 +4335,7 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/sdk@0.4.56':
+  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.57-pr691-752ed57.tgz':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 8.0.0
@@ -4359,9 +4356,9 @@ snapshots:
 
   '@arkade-os/solver-discovery@0.2.1': {}
 
-  '@arkade-os/swap@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/7d94e46bc10c8182a6e59c52b726444f170fbb95#path:/packages/swap':
+  '@arkade-os/swap@file:vendor/arkade-os-swap-0.0.1-pr691-752ed57.tgz':
     dependencies:
-      '@arkade-os/sdk': 0.4.56
+      '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.4.57-pr691-752ed57.tgz
       '@arkade-os/solver-discovery': 0.2.1
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
@@ -5122,7 +5119,7 @@ snapshots:
   '@rollup/pluginutils@4.2.1':
     dependencies:
       estree-walker: 2.0.2
-      picomatch: 3.0.2
+      picomatch: 2.3.2
 
   '@rollup/rollup-android-arm-eabi@4.52.5':
     optional: true
@@ -7304,7 +7301,7 @@ snapshots:
   micromatch@4.0.8:
     dependencies:
       braces: 3.0.3
-      picomatch: 3.0.2
+      picomatch: 2.3.2
 
   mime-db@1.52.0: {}
 
@@ -7563,7 +7560,7 @@ snapshots:
 
   picocolors@1.1.1: {}
 
-  picomatch@3.0.2: {}
+  picomatch@2.3.2: {}
 
   picomatch@4.0.5: {}
 
