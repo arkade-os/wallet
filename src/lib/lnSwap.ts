@@ -216,10 +216,13 @@ export type LnSendOutcome =
 /**
  * Watch a funded send until the solver reaches a terminal state.
  *
- * Funding is acceptance, not completion: at the moment the funding txid lands,
- * the invoice has not been paid yet. Treating that txid as success would tell
- * the user "Sent" while the payment may still fail — after which the covenant
- * refunds and their balance quietly returns. So the wallet asks the solver.
+ * NOT on the send critical path: the send flow reports "on the way" as soon as
+ * the covenant is funded, because funding is acceptance and the outcome
+ * resolves — settled or refunded — without anything further from the wallet.
+ * Blocking the user on this meant a spinner through the solver's whole
+ * pipeline for something they cannot influence. Kept because learning a swap's
+ * real outcome is still wanted (history, reconciliation, the receive leg); it
+ * simply must not be what the user waits on.
  *
  * Giving up is deliberately NOT a failure. The covenant is funded either way
  * and the refund path is unconditional, so an unanswered poll means "unknown",
