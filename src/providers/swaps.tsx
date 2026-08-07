@@ -106,7 +106,6 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const connected = config.apps.boltz.connected
   const apiUrl = BASE_URLS[aspInfo.network as Network] ?? null
 
-  // create ArkadeSwaps with SwapManager on first run with svcWallet
   useEffect(() => {
     setArkadeSwaps(null)
     setFees(null)
@@ -152,7 +151,6 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       warn: (...args: unknown[]) => consoleLog(...args),
     })
 
-    // Cleanup on unmount
     return () => {
       cancelled = true
       if (disposeArkadeSwaps) disposeArkadeSwaps().catch(consoleError)
