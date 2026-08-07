@@ -22,16 +22,13 @@
  * The client comes from `@arkade-os/swap`, which this wallet takes straight
  * from the ts-sdk monorepo until that package is published to npm.
  */
-import type { NetworkName } from '@arkade-os/sdk'
+import { hex } from '@scure/base'
+import { sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+import type { NetworkName, RestIndexerProvider } from '@arkade-os/sdk'
 import { RFQ_TERMINAL_STATES, requestLightningSend, type InvoiceFacts, type RfqTransport } from '@arkade-os/swap'
+import { sleep as defaultSleep } from './sleep'
 import { decodeInvoice, invoiceMatchesNetwork, isInvoiceExpired, type DecodedInvoice } from './bolt11'
-
-/**
- * The four states swap history renders. Exported so the RFQ mapping below and
- * the list component agree by construction instead of by two copies of the
- * same union drifting apart.
- */
-export type SwapStatusUI = 'Successful' | 'Pending' | 'Failed' | 'Refunded'
+import type { LnSendSpend } from './types'
 
 /** Why an invoice cannot start a swap. A closed set, so callers can branch. */
 export type InvoiceRejection = 'unparseable' | 'wrong_network' | 'expired' | 'zero_amount' | 'no_payment_hash'
@@ -93,38 +90,6 @@ export const toInvoiceFacts = (
   }
 }
 
-/**
- * The terminal RFQ states and how each reads to a user.
- *
- * Keyed by the client's own terminal-state tuple, so a state added upstream
- * becomes a compile error here rather than silently falling through to
- * "Pending" and showing a finished swap as still running.
- *
- * `stuck` is terminal for the negotiation, not a verdict on the funds: the
- * covenant's refund path is still the backstop. It reads as Failed because it
- * is the case that needs a human to look, and this vocabulary has no
- * "needs attention" state of its own.
- */
-const TERMINAL_STATUS: Record<(typeof RFQ_TERMINAL_STATES)[number], SwapStatusUI> = {
-  settled: 'Successful',
-  refused: 'Failed',
-  expired: 'Failed',
-  refunded: 'Refunded',
-  stuck: 'Failed',
-}
-
-/**
- * Map an RFQ state onto swap history's vocabulary.
- *
- * The client types `state` as an open string because the solver owns the
- * intermediate names and may add to them. Only the terminal set is closed, so
- * that is what is mapped exhaustively; anything else is by definition still in
- * flight and reads as Pending. A new intermediate state therefore shows up as
- * a running swap rather than as a crash or a spurious failure.
- */
-export const rfqStatusUI = (state: string): SwapStatusUI =>
-  TERMINAL_STATUS[state as (typeof RFQ_TERMINAL_STATES)[number]] ?? 'Pending'
-
 /** Whether an RFQ state is one after which nothing further will happen. */
 export const isRfqTerminal = (state: string): boolean => (RFQ_TERMINAL_STATES as readonly string[]).includes(state)
 
@@ -153,23 +118,21 @@ export interface LnSendRendezvous {
  * Returns undefined when no solver serves the corridor — the caller treats
  * that as "RFQ send unavailable", not as an error.
  */
-export const lnSendRendezvous = (
-  markets: {
-    quote_corridor?: string
-    discovery_pubkey?: string
-    relays?: string[]
-    min_quote_amount?: string
-    max_quote_amount?: string
-  }[],
-): LnSendRendezvous | undefined => {
+export const lnSendRendezvous = (markets: DiscoveredMarket[]): LnSendRendezvous | undefined => {
   for (const market of markets) {
     if (market.quote_corridor !== 'lightning') continue
     if (!market.discovery_pubkey || !market.relays?.length) continue
+    // sideLimits is the registry's own parser: it reads a disabled side
+    // (max "0") or a malformed bound as null. Parsing the raw strings here
+    // instead would turn a disabled side into a 0..0 range and report it to
+    // the user as "amount outside solver bounds" rather than "no solver".
+    const bounds = sideLimits(market, 'quote')
+    if (!bounds) continue
     return {
       solverPubkey: market.discovery_pubkey,
       relays: market.relays,
-      minSats: Number(market.min_quote_amount ?? '0'),
-      maxSats: Number(market.max_quote_amount ?? '0'),
+      minSats: Number(bounds.min),
+      maxSats: Number(bounds.max),
     }
   }
   return undefined
@@ -187,10 +150,15 @@ export interface LnSendRequest {
   address: string
   /** Sats the lockup must carry. */
   fundAmount: number
-  /** The covenant scriptPubKey, for watching the lockup and its spend. */
-  swapPkScript: Uint8Array
-  /** Where a failed swap provably refunds, without wallet keys or state. */
-  refundAddress: string
+  /**
+   * Hex pkScript of that covenant.
+   *
+   * Kept because the funding txid is only half the story: the covenant's
+   * spender — the solver's claim or the refund — is a transaction the wallet
+   * never signs, so its own history cannot name it. This script is the
+   * indexer key that can. See `lnSendSpender`.
+   */
+  swapPkScript: string
   /** Unix seconds after which the quote is dead and must not be funded. */
   validUntil: number
   /**
@@ -242,11 +210,53 @@ export const requestLnSend = async (
     rfqId: result.rfqId,
     address: result.address,
     fundAmount: result.fundAmount,
-    swapPkScript: result.swapPkScript,
-    refundAddress: result.refundAddress,
+    swapPkScript: hex.encode(result.swapPkScript),
     validUntil: result.quote.valid_until,
     rendezvous: args.rendezvous,
   }
+}
+
+/**
+ * Find the transaction that spent a funded lockup, and say which spend it was.
+ *
+ * The two outcomes are told apart by who got paid, which the wallet can settle
+ * on its own: the refund path pays the refund address the client handed the
+ * solver — our address — so a refund is a transaction of the wallet's own,
+ * while the solver's claim pays the solver and never will. Asking the solver
+ * instead would make the receipt depend on a third party still being reachable
+ * and still remembering the negotiation.
+ *
+ * `paidUs` is asked rather than handed a history so the read happens AFTER the
+ * indexer has reported the spend, never from a copy taken before it, and it
+ * must FAIL rather than answer "no" when it cannot tell — a `false` that really
+ * means "could not check" would call a refund a paid invoice, which is the one
+ * error here that misreports money.
+ *
+ * Neither of those makes a "no" conclusive, and it is worth being exact about
+ * what is left. The wallet's own view and the indexer are separate stores, so
+ * asking second does not guarantee seeing as much: a wallet a sync cycle behind
+ * can still miss a refund that the indexer already knows about, and the answer
+ * persists. What the two rules buy is the removal of the avoidable half — a
+ * stale snapshot, and a failure disguised as a verdict. The residual is the
+ * trade-off `assetSwaps` already accepts for the same question, and it narrows
+ * on its own as the refund ages, which is when a receipt is usually read.
+ *
+ * Returns undefined while the lockup is unspent, and for a swept one: neither
+ * has a spender to name, and both are still the funding tx's story alone.
+ */
+export const lnSendSpender = async (
+  indexer: Pick<RestIndexerProvider, 'getVtxos'>,
+  paidUs: (txid: string) => Promise<boolean>,
+  lockup: { fundingTxid: string; swapPkScript: string },
+): Promise<LnSendSpend | undefined> => {
+  const { vtxos } = await indexer.getVtxos({ scripts: [lockup.swapPkScript] })
+  // The query is already scoped to the one script, so the funding txid is what
+  // distinguishes this deposit — identical quotes derive the same address.
+  const funded = vtxos.find((v) => v.txid === lockup.fundingTxid)
+  if (funded?.virtualStatus.state !== 'spent') return undefined
+  const spentTxid = funded.arkTxId ?? funded.spentBy
+  if (!spentTxid) return undefined
+  return { spentTxid, outcome: (await paidUs(spentTxid)) ? 'refunded' : 'completed' }
 }
 
 /** How a funded Lightning send ended, from the wallet's point of view. */
@@ -261,10 +271,13 @@ export type LnSendOutcome =
 /**
  * Watch a funded send until the solver reaches a terminal state.
  *
- * Funding is acceptance, not completion: at the moment the funding txid lands,
- * the invoice has not been paid yet. Treating that txid as success would tell
- * the user "Sent" while the payment may still fail — after which the covenant
- * refunds and their balance quietly returns. So the wallet asks the solver.
+ * NOT on the send critical path: the send flow reports "on the way" as soon as
+ * the covenant is funded, because funding is acceptance and the outcome
+ * resolves — settled or refunded — without anything further from the wallet.
+ * Blocking the user on this meant a spinner through the solver's whole
+ * pipeline for something they cannot influence. Kept because learning a swap's
+ * real outcome is still wanted (history, reconciliation, the receive leg); it
+ * simply must not be what the user waits on.
  *
  * Giving up is deliberately NOT a failure. The covenant is funded either way
  * and the refund path is unconditional, so an unanswered poll means "unknown",
@@ -282,7 +295,7 @@ export const awaitLnSendOutcome = async (
   const timeoutMs = options.timeoutMs ?? 90_000
   const pollMs = options.pollMs ?? 3_000
   const now = options.now ?? (() => Date.now())
-  const sleep = options.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)))
+  const sleep = options.sleep ?? defaultSleep
   const deadline = now() + timeoutMs
 
   for (;;) {

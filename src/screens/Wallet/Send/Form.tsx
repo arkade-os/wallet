@@ -35,7 +35,7 @@ import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl, LnUr
 import { extractError } from '../../../lib/error'
 import { decodeInvoice } from '../../../lib/bolt11'
 import { lnSendRendezvous, requestLnSend } from '../../../lib/lnSwap'
-import { nostrRfqTransport } from '../../../lib/nostrRfq'
+import { withRfqTransport } from '../../../lib/nostrRfq'
 import { discoverMarkets } from '../../../lib/swap/markets'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
@@ -602,8 +602,11 @@ export default function SendForm() {
   useEffect(() => {
     if (!proceed) return
     if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice) return
-    if (sendInfo.arkAddress || sendInfo.pendingLnSend) return navigate(Pages.SendDetails)
-    if (sendInfo.invoice) {
+    // Everything except an un-negotiated invoice goes straight through: an ark
+    // address, an on-chain address, and an invoice whose quote is already in
+    // hand all have all they need to be signed on the next screen.
+    if (!sendInfo.invoice || sendInfo.pendingLnSend) return navigate(Pages.SendDetails)
+    {
       // RFQ Lightning send: negotiate a quote over Nostr, derive the covenant
       // locally, verify, and carry the address+amount to the pay screen. The
       // negotiation is the only interactive step — funding IS acceptance.
@@ -620,8 +623,7 @@ export default function SendForm() {
             `Amount outside solver bounds (${prettyNumber(rendezvous.minSats)}-${prettyNumber(rendezvous.maxSats)} sats)`,
           )
         }
-        const transport = nostrRfqTransport({ relays: rendezvous.relays, solverPubkey: rendezvous.solverPubkey })
-        try {
+        await withRfqTransport(rendezvous, async (transport) => {
           const pendingLnSend = await requestLnSend({
             wallet: svcWallet,
             arkServerUrl: aspInfo.url,
@@ -632,13 +634,9 @@ export default function SendForm() {
             rendezvous,
           })
           setSendInfo({ ...sendInfo, pendingLnSend })
-        } finally {
-          await transport.close().catch(() => {})
-        }
+        })
       }
       negotiate().catch(handleError)
-    } else if (sendInfo.address) {
-      navigate(Pages.SendDetails)
     }
   }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingLnSend])
 

@@ -20,8 +20,6 @@ export const enableChainSwapsReceive = import.meta.env.VITE_CHAIN_SWAPS_RECEIVE_
 export const fromRuntimeEnv = (value: string | undefined): string | undefined =>
   value && !value.startsWith('__VITE_') ? value : undefined
 
-export const lnurlServerUrl: string | undefined = fromRuntimeEnv(import.meta.env.VITE_LNURL_SERVER_URL)
-
 export const defaultArkServer = () => {
   const arkServer = fromRuntimeEnv(import.meta.env.VITE_ARK_SERVER)
   if (arkServer) return arkServer
@@ -59,22 +57,6 @@ const serviceUrlForNetwork = (
 
 export const getSolverRegistryUrl = (network: NetworkName): string | undefined =>
   serviceUrlForNetwork(import.meta.env.VITE_SOLVER_REGISTRY_URL, SOLVER_REGISTRY_URL, network)
-
-// the Arkade RFQ swap service serving arkade:BTC -> lightning:BTC
-// (see arkade-os/lightning-swap-service). Every entry is null on purpose: no
-// endpoint has been confirmed for any network, so the RFQ send path stays off
-// until one is supplied here or through VITE_LN_SWAP_URL. Guessing a host
-// would send real invoices somewhere nobody has verified.
-const LN_SWAP_URL: Record<NetworkName, string | null> = {
-  bitcoin: null,
-  mutinynet: null,
-  signet: null,
-  regtest: null,
-  testnet: null,
-}
-
-export const getLnSwapUrlForNetwork = (network: NetworkName): string | undefined =>
-  serviceUrlForNetwork(import.meta.env.VITE_LN_SWAP_URL, LN_SWAP_URL, network)
 
 // the arkade signer co-signing banco swap covenants (separate service from arkd)
 const EMULATOR_URL: Record<NetworkName, string | null> = {

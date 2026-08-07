@@ -13,8 +13,7 @@ import { prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { collaborativeExitWithFees, sendAssets, sendOffChain } from '../../../lib/asp'
-import { awaitLnSendOutcome, type LnSendRequest } from '../../../lib/lnSwap'
-import { nostrRfqTransport } from '../../../lib/nostrRfq'
+import { type LnSendRequest } from '../../../lib/lnSwap'
 import { extractError } from '../../../lib/error'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
@@ -24,6 +23,7 @@ import { buildTransactionAmountDisplay } from '../../../lib/transactionAmountDis
 import { useAmountDisplayContext } from '../../../hooks/useTransactionAmountDisplay'
 import TransactionAmountSummary from '../../../components/TransactionAmountSummary'
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
+import type { LnSendActivity } from '../../../lib/types'
 
 export default function SendDetails() {
   const displayContext = useAmountDisplayContext()
@@ -112,10 +112,11 @@ export default function SendDetails() {
     }
   }, [sendInfo])
 
-  const handleTxid = (txid: string) => {
+  const handleTxid = (txid: string, lnSend?: LnSendActivity) => {
     if (!txid) return handleError('Error sending transaction')
     saveTransactionActivityMetadata(txid, {
       destination: details?.destination,
+      lnSend,
       networkFee: details?.fees,
     })
     setSendInfo({ ...sendInfo, total: details?.total, txid })
@@ -134,39 +135,27 @@ export default function SendDetails() {
   }
 
   /**
-   * Fund the covenant, then wait for the solver to actually pay the invoice.
+   * Fund the covenant. That is the whole of the wallet's job.
    *
-   * The funding txid is NOT the end of the payment. It only proves the
-   * covenant is funded; the solver still has to pay the invoice and claim, and
-   * if it cannot, the covenant refunds. Reporting success on the txid alone
-   * would tell the user "Sent" for a payment that may never arrive — so the
-   * loader stays up until the solver reaches a terminal state.
+   * Funding IS acceptance — the protocol has no accept message — so once the
+   * covenant is funded the payment is committed and under way: the solver pays
+   * the invoice and claims, and if it cannot, the covenant refunds without
+   * needing anything further from us. Waiting here for the solver to finish
+   * meant the user watched a spinner through the solver's whole pipeline
+   * (notice the funding, route the payment, claim) for an outcome they cannot
+   * influence and that resolves in their favour either way.
    *
-   * A wait that runs out is reported as sent, not as an error: the funds are
-   * committed, the refund path is unconditional, and calling an unknown
-   * outcome a failure would be as wrong in the other direction.
+   * The success screen says "on the way" rather than "sent" for exactly this
+   * reason: at this instant the invoice is not paid yet, and the wording has to
+   * match what is actually true.
    */
   const payLightning = async (request: LnSendRequest) => {
     const txid = await sendOffChain(svcWallet!, request.fundAmount, request.address)
     if (!txid) return handleError('Error sending transaction')
-
-    const transport = nostrRfqTransport({
-      relays: request.rendezvous.relays,
-      solverPubkey: request.rendezvous.solverPubkey,
-    })
-    try {
-      const outcome = await awaitLnSendOutcome(request.rfqId, transport)
-      if (outcome.kind === 'failed') {
-        return handleError(
-          outcome.state === 'refunded'
-            ? 'The solver could not pay the invoice; your funds have been refunded'
-            : `The solver could not pay the invoice (${outcome.state}); the covenant refunds automatically`,
-        )
-      }
-    } finally {
-      await transport.close().catch(() => {})
-    }
-    handleTxid(txid)
+    // Record the covenant against the funding txid: it is the only handle on
+    // the spend that ends this swap, and it stops being derivable the moment
+    // this screen unmounts — the quote is gone and nothing else stores it.
+    handleTxid(txid, { swapPkScript: request.swapPkScript })
   }
 
   const handleContinue = async () => {

@@ -26,9 +26,6 @@ import { finalizeEvent, generateSecretKey, getPublicKey, nip44, SimplePool, type
 /** Directed RFQ traffic. Provisional in the spec; kept in one place. */
 export const RFQ_DIRECTED_KIND = 4859
 
-/** Indicative solver advertisement — never binding; only a quote binds. */
-export const RFQ_AD_KIND = 38859
-
 const DEFAULT_TIMEOUT_MS = 30_000
 
 /**
@@ -162,7 +159,10 @@ export const nostrRfqTransport = (options: NostrRfqOptions): RfqTransport => {
     new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         waiters.delete(rfqId)
-        reject(new Error(`no solver reply within ${timeoutMs}ms`))
+        // User-facing: handleError surfaces this verbatim. RelayUnavailable
+        // already covers a dead relay, so reaching here means the relay took our
+        // request and the solver did not answer it.
+        reject(new Error(`Lightning solver is not responding (waited ${timeoutMs / 1000}s) — try again later`))
       }, timeoutMs)
       waiters.set(rfqId, {
         resolve: (payload) => {
@@ -200,11 +200,36 @@ export const nostrRfqTransport = (options: NostrRfqOptions): RfqTransport => {
 
     async close() {
       closed = true
-      subscription.close()
       waiters.clear()
-      // Only tear down a pool this transport created; a shared one belongs to
-      // the caller and may still be serving other swaps.
+      // Exactly one of these. pool.close() already closes every subscription on
+      // its relays, so closing ours first makes nostr-tools send a second CLOSE
+      // frame — on a socket the relay has usually dropped by now, which the
+      // browser logs as "WebSocket is already in CLOSING or CLOSED state".
+      // A shared pool is the caller's to close, so there we close only our own.
       if (ownsPool) pool.close(relays)
+      else subscription.close()
     },
+  }
+}
+
+/**
+ * Run one negotiation over a transport that is disposed either way.
+ *
+ * Every caller builds a transport from a rendezvous, uses it once, and must
+ * close it — and a missed `close()` leaks a relay connection and its
+ * subscription for the tab's lifetime. Owning that lifecycle here means a new
+ * call site cannot forget it, and the `catch` on close is deliberate: a
+ * teardown failure must not mask the negotiation's own result.
+ */
+export const withRfqTransport = async <T>(
+  rendezvous: { relays: string[]; solverPubkey: string },
+  fn: (transport: RfqTransport) => Promise<T>,
+  options: { timeoutMs?: number } = {},
+): Promise<T> => {
+  const transport = nostrRfqTransport({ ...rendezvous, ...options })
+  try {
+    return await fn(transport)
+  } finally {
+    await transport.close().catch(() => {})
   }
 }

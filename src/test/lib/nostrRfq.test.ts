@@ -12,7 +12,7 @@ import { RFQ_DIRECTED_KIND, RelayUnavailable, nostrRfqTransport } from '../../li
  * A stand-in for SimplePool that behaves like a relay the solver is also on:
  * it decrypts what the client publishes and lets the test answer as the solver.
  */
-const fakePool = (solverSecret: Uint8Array, clientPubkeyOf: (e: Event) => string) => {
+const fakePool = (solverSecret: Uint8Array) => {
   let onevent: ((e: Event) => void) | undefined
   let onclose: ((reasons: string[]) => void) | undefined
   const published: unknown[] = []
@@ -48,7 +48,7 @@ const fakePool = (solverSecret: Uint8Array, clientPubkeyOf: (e: Event) => string
   }
   /** The relay drops every connection, as the live relay was observed to do. */
   const relaysDrop = (reasons: string[] = ['connection failed']) => onclose?.(reasons)
-  return { pool, published, solverReplies, relaysDrop, clientPubkeyOf }
+  return { pool, published, solverReplies, relaysDrop }
 }
 
 describe('nostrRfqTransport', () => {
@@ -58,7 +58,7 @@ describe('nostrRfqTransport', () => {
   const build = () => {
     const clientSecret = generateSecretKey()
     const clientPubkey = getPublicKey(clientSecret)
-    const f = fakePool(solverSecret, (e) => e.pubkey)
+    const f = fakePool(solverSecret)
     const transport = nostrRfqTransport({
       relays: ['wss://relay.test'],
       solverPubkey,
@@ -93,14 +93,14 @@ describe('nostrRfqTransport', () => {
     const { transport, clientPubkey, solverReplies } = build()
     const pending = transport.requestQuote({ v: 1, type: 'rfq_request', rfq_id: 'mine' })
     solverReplies(clientPubkey, { v: 1, type: 'rfq_quote', rfq_id: 'someone-else' })
-    await expect(pending).rejects.toThrow(/no solver reply/)
+    await expect(pending).rejects.toThrow(/solver is not responding/)
     await transport.close()
   })
 
   it('times out rather than hanging when the solver never answers', async () => {
     const { transport } = build()
     await expect(transport.requestQuote({ v: 1, type: 'rfq_request', rfq_id: 'abc' })).rejects.toThrow(
-      /no solver reply/,
+      /solver is not responding/,
     )
     await transport.close()
   })
