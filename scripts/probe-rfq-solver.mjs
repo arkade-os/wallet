@@ -38,7 +38,7 @@ const WAIT_MS = 20_000
 const here = dirname(fileURLToPath(import.meta.url))
 const card = JSON.parse(readFileSync(join(here, '../src/lib/swap/arklabs-lightning.card.json'), 'utf8'))
 const solver = card.discovery_pubkey
-const relay = process.argv[2] ?? card.relays[0]
+const relay = process.argv[2] ?? card.transports.nostr.relays[0]
 
 const sk = generateSecretKey()
 const pk = getPublicKey(sk)

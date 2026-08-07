@@ -24,14 +24,14 @@ describe('bundled Arkade Labs solver card', () => {
   })
 
   it('carries the rendezvous through discovery, so the maker can address the solver', async () => {
-    // discovery_pubkey and relays live on the CARD; the market is what the
-    // wallet actually holds, so the reducer has to propagate them or the
-    // negotiation has no counterparty and no relay to reach it on.
+    // discovery_pubkey and the transports map live on the CARD; the market is
+    // what the wallet actually holds, so the reducer has to propagate them or
+    // the negotiation has no counterparty and no relay to reach it on.
     const { markets } = await load()
     const rendezvous = lnSendRendezvous(markets)
     expect(rendezvous).toBeDefined()
     expect(rendezvous?.solverPubkey).toBe(arklabsCard.discovery_pubkey)
-    expect(rendezvous?.relays).toEqual(arklabsCard.relays)
+    expect(rendezvous?.relays).toEqual(arklabsCard.transports.nostr.relays)
   })
 
   it('reports the card bounds on the Lightning side', async () => {
@@ -50,7 +50,7 @@ describe('lnSendRendezvous', () => {
     ({
       quote_corridor: 'lightning',
       discovery_pubkey: 'aa'.repeat(32),
-      relays: ['wss://relay.test'],
+      transports: { nostr: { relays: ['wss://relay.test'] } },
       min_quote_amount: '500',
       max_quote_amount: '1000',
       ...overrides,
@@ -61,10 +61,14 @@ describe('lnSendRendezvous', () => {
   })
 
   it('skips a corridor market with no rendezvous rather than trusting it', () => {
-    // The registry signs the pubkey and relays; a corridor market reaching us
-    // without them is malformed, and guessing a counterparty is not an option.
+    // The registry signs the pubkey and the transports map; a corridor market
+    // reaching us without them is malformed, and guessing a counterparty is
+    // not an option. A transports map that names only protocols we do not
+    // speak is the same thing: no way to reach the solver.
     expect(lnSendRendezvous([market({ discovery_pubkey: undefined })])).toBeUndefined()
-    expect(lnSendRendezvous([market({ relays: [] })])).toBeUndefined()
+    expect(lnSendRendezvous([market({ transports: undefined })])).toBeUndefined()
+    expect(lnSendRendezvous([market({ transports: { nostr: { relays: [] } } })])).toBeUndefined()
+    expect(lnSendRendezvous([market({ transports: { somethingElse: { relays: ['wss://x'] } } })])).toBeUndefined()
   })
 
   it('treats a disabled quote side as no solver, not a zero-width range', () => {

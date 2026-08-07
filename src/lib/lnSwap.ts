@@ -110,16 +110,22 @@ export interface LnSendRendezvous {
 /**
  * Pick the Lightning-send rendezvous out of discovered markets.
  *
- * A corridor market's card MUST carry `discovery_pubkey` and `relays` (they
- * are the rendezvous, and the registry signs them); a corridor market that
- * reaches us without them is malformed and skipped rather than trusted.
+ * A corridor market's card MUST carry `discovery_pubkey` and a nostr transport
+ * (they are the rendezvous, and the registry signs them); a corridor market
+ * that reaches us without them is malformed and skipped rather than trusted.
  * Returns undefined when no solver serves the corridor — the caller treats
  * that as "RFQ send unavailable", not as an error.
+ *
+ * The relays sit under `transports.nostr` rather than at the card's top level:
+ * the registry schema moved them there so a second transport is a new key in
+ * that map instead of a breaking change. Nostr is the only protocol defined in
+ * v0, and it is the one this wallet speaks, so it is read by name.
  */
 export const lnSendRendezvous = (markets: DiscoveredMarket[]): LnSendRendezvous | undefined => {
   for (const market of markets) {
     if (market.quote_corridor !== 'lightning') continue
-    if (!market.discovery_pubkey || !market.relays?.length) continue
+    const relays = market.transports?.nostr?.relays
+    if (!market.discovery_pubkey || !relays?.length) continue
     // sideLimits is the registry's own parser: it reads a disabled side
     // (max "0") or a malformed bound as null. Parsing the raw strings here
     // instead would turn a disabled side into a 0..0 range and report it to
@@ -128,7 +134,7 @@ export const lnSendRendezvous = (markets: DiscoveredMarket[]): LnSendRendezvous 
     if (!bounds) continue
     return {
       solverPubkey: market.discovery_pubkey,
-      relays: market.relays,
+      relays,
       minSats: Number(bounds.min),
       maxSats: Number(bounds.max),
     }
