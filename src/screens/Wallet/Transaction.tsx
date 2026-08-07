@@ -34,6 +34,7 @@ import {
 import { AssetSwapsContext } from '../../providers/assetSwaps'
 import { hapticTap } from '../../lib/haptics'
 import { useTransactionAmountDisplay } from '../../hooks/useTransactionAmountDisplay'
+import { useLnSendReceipt } from '../../hooks/useLnSendReceipt'
 import TransactionAmountSummary from '../../components/TransactionAmountSummary'
 import {
   AlertDialog,
@@ -82,6 +83,7 @@ export default function Transaction() {
       : txInfo
   const swapTx = tx?.type === 'swap'
   const amountDisplay = useTransactionAmountDisplay(tx)
+  const lnSendReceipt = useLnSendReceipt(tx)
   const issuanceTx = tx
     ? tx.assetAction === 'issued' || tx.assetAction === 'reissued' || (!tx.assetAction && isIssuance(tx))
     : false
@@ -244,13 +246,20 @@ export default function Transaction() {
         date,
         destination: tx.type === 'sent' && !boardingTx && !issuanceTx && !burnTx ? tx.destination : undefined,
         fees,
+        // A Lightning send is two txs, so it gets the same pair of rows an
+        // asset swap does — funding, then the spend that ended it — in place
+        // of a lone "Transaction ID" that would name only the first and say
+        // nothing about whether the invoice was ever paid.
+        fundedTxid: lnSendReceipt?.fundedTxid,
         isOffchainTx: !tx.boardingTxid && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid)),
         // Details' fallback row only (amountDisplay owns the rendered rows):
         // gross, matching the hook's convention
         satoshis: assetTransfer ? undefined : tx.amount,
+        spendLabel: lnSendReceipt?.spendLabel,
+        spendTxid: lnSendReceipt?.spentTxid,
         status,
         total: assetTransfer ? undefined : tx.amount,
-        txid,
+        txid: lnSendReceipt ? undefined : txid,
         type: boardingTx ? 'Boarding' : undefined,
         wallet,
       }

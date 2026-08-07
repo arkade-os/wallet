@@ -23,6 +23,7 @@ import { buildTransactionAmountDisplay } from '../../../lib/transactionAmountDis
 import { useAmountDisplayContext } from '../../../hooks/useTransactionAmountDisplay'
 import TransactionAmountSummary from '../../../components/TransactionAmountSummary'
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
+import type { LnSendActivity } from '../../../lib/types'
 
 export default function SendDetails() {
   const displayContext = useAmountDisplayContext()
@@ -111,10 +112,11 @@ export default function SendDetails() {
     }
   }, [sendInfo])
 
-  const handleTxid = (txid: string) => {
+  const handleTxid = (txid: string, lnSend?: LnSendActivity) => {
     if (!txid) return handleError('Error sending transaction')
     saveTransactionActivityMetadata(txid, {
       destination: details?.destination,
+      lnSend,
       networkFee: details?.fees,
     })
     setSendInfo({ ...sendInfo, total: details?.total, txid })
@@ -150,7 +152,10 @@ export default function SendDetails() {
   const payLightning = async (request: LnSendRequest) => {
     const txid = await sendOffChain(svcWallet!, request.fundAmount, request.address)
     if (!txid) return handleError('Error sending transaction')
-    handleTxid(txid)
+    // Record the covenant against the funding txid: it is the only handle on
+    // the spend that ends this swap, and it stops being derivable the moment
+    // this screen unmounts — the quote is gone and nothing else stores it.
+    handleTxid(txid, { swapPkScript: request.swapPkScript })
   }
 
   const handleContinue = async () => {

@@ -1,6 +1,6 @@
 import { RFQ_TERMINAL_STATES } from '@arkade-os/swap'
 import { describe, it, expect } from 'vitest'
-import { InvoiceRejected, awaitLnSendOutcome, isRfqTerminal, toInvoiceFacts } from '../../lib/lnSwap'
+import { InvoiceRejected, awaitLnSendOutcome, isRfqTerminal, lnSendSpender, toInvoiceFacts } from '../../lib/lnSwap'
 import fixtures from '../fixtures.json'
 
 describe('lnSwap', () => {
@@ -68,6 +68,81 @@ describe('lnSwap', () => {
       for (const state of RFQ_TERMINAL_STATES) expect(isRfqTerminal(state)).toBe(true)
       for (const state of ['quoted', 'funded', 'paying', '']) expect(isRfqTerminal(state)).toBe(false)
     })
+  })
+})
+
+describe('lnSendSpender', () => {
+  const swapPkScript = `5120${'ab'.repeat(32)}`
+  const fundingTxid = 'funding-txid'
+  const lockup = { fundingTxid, swapPkScript }
+  const asTx = (redeemTxid: string) => ({ boardingTxid: '', redeemTxid, roundTxid: '' }) as never
+  const indexer = (vtxos: unknown[]) => ({ getVtxos: async () => ({ vtxos }) }) as never
+  const covenant = (state: string, spend?: Record<string, string>) => ({
+    script: swapPkScript,
+    txid: fundingTxid,
+    virtualStatus: { state },
+    ...spend,
+  })
+
+  it('reads a spend the wallet never signed as the solver claiming', async () => {
+    // The claim pays the solver, so it cannot appear in our history — that
+    // absence IS the evidence the invoice was paid.
+    const spender = await lnSendSpender(indexer([covenant('spent', { arkTxId: 'claim-txid' })]), async () => [], lockup)
+    expect(spender).toEqual({ spentTxid: 'claim-txid', outcome: 'completed' })
+  })
+
+  it('reads a spend that paid us as the refund', async () => {
+    const spender = await lnSendSpender(
+      indexer([covenant('spent', { arkTxId: 'refund-txid' })]),
+      async () => [asTx('refund-txid')],
+      lockup,
+    )
+    expect(spender).toEqual({ spentTxid: 'refund-txid', outcome: 'refunded' })
+  })
+
+  it('reads history only after the indexer has reported the spend', async () => {
+    // Ordering is the whole safeguard: a history read issued afterwards sees
+    // at least what the indexer just saw, so a refund cannot be missed and
+    // read as a completed payment. A snapshot taken earlier could be.
+    const seen: string[] = []
+    await lnSendSpender(
+      {
+        getVtxos: async () => {
+          seen.push('indexer')
+          return { vtxos: [covenant('spent', { arkTxId: 'refund-txid' })] }
+        },
+      } as never,
+      async () => {
+        seen.push('history')
+        return [asTx('refund-txid')]
+      },
+      lockup,
+    )
+    expect(seen).toEqual(['indexer', 'history'])
+  })
+
+  it('does not ask for history at all while there is no spend to classify', async () => {
+    let asked = false
+    await lnSendSpender(indexer([covenant('settled')]), async () => ((asked = true), []), lockup)
+    expect(asked).toBe(false)
+  })
+
+  it('falls back to spentBy when the indexer names no ark txid', async () => {
+    const spender = await lnSendSpender(indexer([covenant('spent', { spentBy: 'claim-txid' })]), async () => [], lockup)
+    expect(spender?.spentTxid).toBe('claim-txid')
+  })
+
+  it('has no answer while the lockup is unspent, or once it is swept', async () => {
+    for (const state of ['settled', 'preconfirmed', 'swept']) {
+      expect(await lnSendSpender(indexer([covenant(state)]), async () => [], lockup)).toBeUndefined()
+    }
+  })
+
+  it('ignores a covenant funded by some other transaction', async () => {
+    // Identical quotes derive the same address, so the script alone does not
+    // identify this swap's deposit — only the funding txid does.
+    const other = { ...covenant('spent', { arkTxId: 'claim-txid' }), txid: 'another-funding-txid' }
+    expect(await lnSendSpender(indexer([other]), async () => [], lockup)).toBeUndefined()
   })
 })
 

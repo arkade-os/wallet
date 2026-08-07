@@ -22,11 +22,13 @@
  * The client comes from `@arkade-os/swap`, which this wallet takes straight
  * from the ts-sdk monorepo until that package is published to npm.
  */
+import { hex } from '@scure/base'
 import { sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
-import type { NetworkName } from '@arkade-os/sdk'
+import type { NetworkName, RestIndexerProvider } from '@arkade-os/sdk'
 import { RFQ_TERMINAL_STATES, requestLightningSend, type InvoiceFacts, type RfqTransport } from '@arkade-os/swap'
 import { sleep as defaultSleep } from './sleep'
 import { decodeInvoice, invoiceMatchesNetwork, isInvoiceExpired, type DecodedInvoice } from './bolt11'
+import type { Tx } from './types'
 
 /** Why an invoice cannot start a swap. A closed set, so callers can branch. */
 export type InvoiceRejection = 'unparseable' | 'wrong_network' | 'expired' | 'zero_amount' | 'no_payment_hash'
@@ -148,6 +150,15 @@ export interface LnSendRequest {
   address: string
   /** Sats the lockup must carry. */
   fundAmount: number
+  /**
+   * Hex pkScript of that covenant.
+   *
+   * Kept because the funding txid is only half the story: the covenant's
+   * spender — the solver's claim or the refund — is a transaction the wallet
+   * never signs, so its own history cannot name it. This script is the
+   * indexer key that can. See `lnSendSpender`.
+   */
+  swapPkScript: string
   /** Unix seconds after which the quote is dead and must not be funded. */
   validUntil: number
   /**
@@ -199,9 +210,44 @@ export const requestLnSend = async (
     rfqId: result.rfqId,
     address: result.address,
     fundAmount: result.fundAmount,
+    swapPkScript: hex.encode(result.swapPkScript),
     validUntil: result.quote.valid_until,
     rendezvous: args.rendezvous,
   }
+}
+
+/**
+ * Find the transaction that spent a funded lockup, and say which spend it was.
+ *
+ * The two outcomes are told apart by who got paid, which the wallet can settle
+ * on its own: the refund path pays the refund address the client handed the
+ * solver — our address — so a refund lands in the wallet's own tx history,
+ * while the solver's claim pays the solver and never will. Asking the solver
+ * instead would make the receipt depend on a third party still being reachable
+ * and still remembering the negotiation.
+ *
+ * `history` is a thunk rather than a value so it is read AFTER the indexer has
+ * reported the spend, never from a copy taken before it. That ordering is what
+ * makes the absence of a matching tx mean something: a history read issued
+ * after the indexer saw the spend sees at least as much as it did. Deciding
+ * off an earlier snapshot could miss a refund and call it a paid invoice,
+ * which is the one error here that misreports money.
+ *
+ * Returns undefined while the lockup is unspent, and for a swept one: neither
+ * has a spender to name, and both are still the funding tx's story alone.
+ */
+export const lnSendSpender = async (
+  indexer: Pick<RestIndexerProvider, 'getVtxos'>,
+  history: () => Promise<Tx[]>,
+  lockup: { fundingTxid: string; swapPkScript: string },
+): Promise<{ spentTxid: string; outcome: 'completed' | 'refunded' } | undefined> => {
+  const { vtxos } = await indexer.getVtxos({ scripts: [lockup.swapPkScript] })
+  const funded = vtxos.find((v) => v.script === lockup.swapPkScript && v.txid === lockup.fundingTxid)
+  if (funded?.virtualStatus.state !== 'spent') return undefined
+  const spentTxid = funded.arkTxId ?? funded.spentBy
+  if (!spentTxid) return undefined
+  const ours = (await history()).some((tx) => [tx.boardingTxid, tx.redeemTxid, tx.roundTxid].includes(spentTxid))
+  return { spentTxid, outcome: ours ? 'refunded' : 'completed' }
 }
 
 /** How a funded Lightning send ended, from the wallet's point of view. */
