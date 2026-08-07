@@ -1,12 +1,12 @@
 import { render, screen, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Transaction from '../../../screens/Wallet/Transaction'
 import { AspContext } from '../../../providers/asp'
 import { FlowContext } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import { NavigationContext } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
-import { readTransactionActivityMetadata } from '../../../lib/storage'
+import { readTransactionActivityMetadata, saveTransactionActivityMetadata } from '../../../lib/storage'
 import type { LnSendActivity, Tx } from '../../../lib/types'
 import {
   mockAspContextValue,
@@ -18,7 +18,7 @@ import {
 } from '../mocks'
 
 const getVtxos = vi.hoisted(() => vi.fn())
-const getTxHistory = vi.hoisted(() => vi.fn())
+const getTransactionHistory = vi.hoisted(() => vi.fn())
 
 vi.mock('@arkade-os/sdk', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@arkade-os/sdk')>()),
@@ -29,7 +29,6 @@ vi.mock('@arkade-os/sdk', async (importOriginal) => ({
 
 vi.mock('../../../lib/asp', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../lib/asp')>()),
-  getTxHistory,
   getInputsToSettle: async () => ({ inputs: [] }),
 }))
 
@@ -48,6 +47,22 @@ const sentTx: Tx = {
 }
 
 const lnSendTx = (lnSend: LnSendActivity): Tx => ({ ...sentTx, lnSend })
+
+const withSvcWallet = { ...mockWalletContextValue, svcWallet: { getTransactionHistory } as never }
+
+/** A wallet that can answer "is this one of my transactions?" */
+const walletWith = (ownTxids: string[] = []) => {
+  getTransactionHistory.mockResolvedValue(
+    ownTxids.map((arkTxid) => ({ key: { arkTxid, boardingTxid: '', commitmentTxid: '' } })),
+  )
+  return withSvcWallet
+}
+
+/** A wallet whose history read fails, so ownership cannot be determined. */
+const walletThatCannotAnswer = () => {
+  getTransactionHistory.mockRejectedValue(new Error('history unavailable'))
+  return withSvcWallet
+}
 
 const renderReceipt = (tx: Tx, wallet = mockWalletContextValue) =>
   render(
@@ -73,18 +88,15 @@ describe('Lightning send receipt', () => {
   beforeEach(() => {
     localStorage.clear()
     getVtxos.mockReset()
-    getTxHistory.mockReset().mockResolvedValue([])
+    getTransactionHistory.mockReset().mockResolvedValue([])
   })
-
-  afterEach(() => vi.clearAllMocks())
 
   it('names the funding tx rather than showing one anonymous transaction id', async () => {
     // A wallet with no service worker cannot resolve the second leg, which is
     // also what an in-flight send looks like: the funding row stands alone.
     renderReceipt(lnSendTx({ swapPkScript }))
 
-    expect(await screen.findByText('Funded')).toBeInTheDocument()
-    expect(screen.getByTestId('Funded')).toHaveTextContent(fundingTxid)
+    expect(await screen.findByTestId('Funded')).toHaveTextContent(fundingTxid)
     expect(screen.queryByText('Transaction ID')).not.toBeInTheDocument()
     // Nothing has spent the covenant, so claiming either outcome would be a lie.
     expect(screen.queryByText('Completed')).not.toBeInTheDocument()
@@ -92,17 +104,16 @@ describe('Lightning send receipt', () => {
   })
 
   it('shows both legs once the solver has claimed', async () => {
-    renderReceipt(lnSendTx({ swapPkScript, spentTxid: 'claim-txid', outcome: 'completed' }))
+    renderReceipt(lnSendTx({ swapPkScript, spend: { spentTxid: 'claim-txid', outcome: 'completed' } }))
 
-    expect(await screen.findByText('Funded')).toBeInTheDocument()
-    expect(screen.getByTestId('Funded')).toHaveTextContent(fundingTxid)
+    expect(await screen.findByTestId('Funded')).toHaveTextContent(fundingTxid)
     expect(screen.getByTestId('Completed')).toHaveTextContent('claim-txid')
   })
 
   it('calls the second leg a refund, not a cancellation, when the funds came back', async () => {
     // Nobody cancelled anything: the solver could not pay the invoice and the
     // covenant returned the money on its own.
-    renderReceipt(lnSendTx({ swapPkScript, spentTxid: 'refund-txid', outcome: 'refunded' }))
+    renderReceipt(lnSendTx({ swapPkScript, spend: { spentTxid: 'refund-txid', outcome: 'refunded' } }))
 
     expect(await screen.findByTestId('Refunded')).toHaveTextContent('refund-txid')
     expect(screen.queryByText('Completed')).not.toBeInTheDocument()
@@ -111,32 +122,52 @@ describe('Lightning send receipt', () => {
 
   it('resolves the second leg on open and remembers it', async () => {
     getVtxos.mockResolvedValue(spentCovenant('claim-txid'))
-    renderReceipt(lnSendTx({ swapPkScript }), { ...mockWalletContextValue, svcWallet: {} as never })
+    renderReceipt(lnSendTx({ swapPkScript }), walletWith())
 
     expect(await screen.findByTestId('Completed')).toHaveTextContent('claim-txid')
     expect(getVtxos).toHaveBeenCalledWith({ scripts: [swapPkScript] })
-    // Persisted, so a later visit reads the answer instead of asking again —
-    // and still has it once the covenant is swept and the indexer forgets.
-    await waitFor(() =>
-      expect(readTransactionActivityMetadata([fundingTxid])?.lnSend).toEqual({
-        swapPkScript,
-        spentTxid: 'claim-txid',
-        outcome: 'completed',
-      }),
-    )
+    expect(readTransactionActivityMetadata([fundingTxid])?.lnSend).toEqual({
+      swapPkScript,
+      spend: { spentTxid: 'claim-txid', outcome: 'completed' },
+    })
   })
 
-  it('reads a spend that landed back in our own history as the refund', async () => {
+  it('reads the remembered answer instead of asking again', async () => {
+    // The tx itself only carries the answer after a wallet reload has rebuilt
+    // history from storage, so without this a revisit re-pays for the lookup —
+    // and a swept covenant, which the indexer can no longer answer for, would
+    // lose its outcome entirely.
+    saveTransactionActivityMetadata(fundingTxid, {
+      lnSend: { swapPkScript, spend: { spentTxid: 'claim-txid', outcome: 'completed' } },
+    })
+    renderReceipt(lnSendTx({ swapPkScript }), walletWith())
+
+    expect(await screen.findByTestId('Completed')).toHaveTextContent('claim-txid')
+    expect(getVtxos).not.toHaveBeenCalled()
+  })
+
+  it('reads a spend that is one of our own transactions as the refund', async () => {
     getVtxos.mockResolvedValue(spentCovenant('refund-txid'))
-    getTxHistory.mockResolvedValue([{ boardingTxid: '', redeemTxid: 'refund-txid', roundTxid: '' }])
-    renderReceipt(lnSendTx({ swapPkScript }), { ...mockWalletContextValue, svcWallet: {} as never })
+    renderReceipt(lnSendTx({ swapPkScript }), walletWith(['refund-txid']))
 
     expect(await screen.findByTestId('Refunded')).toHaveTextContent('refund-txid')
   })
 
-  it('leaves the funding row alone when the lookup fails', async () => {
+  it('leaves the swap unresolved when the wallet cannot say whose the spend was', async () => {
+    // A history read that failed must not read as "not ours" and be persisted
+    // as a completed payment — that would report returned money as paid.
+    getVtxos.mockResolvedValue(spentCovenant('refund-txid'))
+    renderReceipt(lnSendTx({ swapPkScript }), walletThatCannotAnswer())
+
+    expect(await screen.findByTestId('Funded')).toHaveTextContent(fundingTxid)
+    await waitFor(() => expect(getTransactionHistory).toHaveBeenCalled())
+    expect(screen.queryByText('Completed')).not.toBeInTheDocument()
+    expect(readTransactionActivityMetadata([fundingTxid])).toBeUndefined()
+  })
+
+  it('leaves the funding row alone when the indexer lookup fails', async () => {
     getVtxos.mockRejectedValue(new Error('indexer unreachable'))
-    renderReceipt(lnSendTx({ swapPkScript }), { ...mockWalletContextValue, svcWallet: {} as never })
+    renderReceipt(lnSendTx({ swapPkScript }), walletWith())
 
     expect(await screen.findByTestId('Funded')).toHaveTextContent(fundingTxid)
     await waitFor(() => expect(getVtxos).toHaveBeenCalled())

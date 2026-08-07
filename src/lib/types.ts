@@ -100,10 +100,15 @@ export enum Themes {
 export type LnSendActivity = {
   /** Hex pkScript of the lockup covenant — the indexer's watch key. */
   swapPkScript: string
-  /** The tx that spent the lockup, once it has one. */
-  spentTxid?: string
-  /** What that spend was. Set together with `spentTxid`, never before it. */
-  outcome?: 'completed' | 'refunded'
+  /** The tx that ended the swap, absent until one exists. */
+  spend?: LnSendSpend
+}
+
+/** The tx that spent a lockup, and which of the two spends it was. One type
+ * because neither half means anything alone. */
+export type LnSendSpend = {
+  spentTxid: string
+  outcome: 'completed' | 'refunded'
 }
 
 export type Tx = {

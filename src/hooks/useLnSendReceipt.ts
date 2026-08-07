@@ -2,11 +2,10 @@ import { useContext, useEffect, useState } from 'react'
 import { RestIndexerProvider } from '@arkade-os/sdk'
 import { AspContext } from '../providers/asp'
 import { WalletContext } from '../providers/wallet'
-import { getTxHistory } from '../lib/asp'
 import { lnSendSpender } from '../lib/lnSwap'
 import { consoleError } from '../lib/logs'
-import { saveTransactionActivityMetadata } from '../lib/storage'
-import { Tx } from '../lib/types'
+import { readTransactionActivityMetadata, saveTransactionActivityMetadata } from '../lib/storage'
+import { LnSendSpend, Tx } from '../lib/types'
 
 /** The two txids a Lightning-send receipt shows, and what to call the second. */
 export interface LnSendReceipt {
@@ -42,32 +41,44 @@ export interface LnSendReceipt {
 export function useLnSendReceipt(tx: Tx | undefined): LnSendReceipt | undefined {
   const { aspInfo } = useContext(AspContext)
   const { svcWallet } = useContext(WalletContext)
-  const [resolved, setResolved] = useState<{ spentTxid: string; outcome: 'completed' | 'refunded' }>()
+  // Seeded from storage because `tx` only carries the answer once a wallet
+  // reload has rebuilt history from it; without this, revisiting a resolved
+  // receipt in the same session would pay for the whole lookup again — and
+  // once the covenant is swept the indexer can no longer answer it at all.
+  const [resolved, setResolved] = useState<LnSendSpend | undefined>(
+    () => readTransactionActivityMetadata([tx?.redeemTxid])?.lnSend?.spend,
+  )
 
   const lnSend = tx?.lnSend
   const fundedTxid = tx?.redeemTxid
-  const spend = lnSend?.spentTxid ? { spentTxid: lnSend.spentTxid, outcome: lnSend.outcome } : resolved
-  // Only a swap with no spend on record has anything left to look up.
-  const pending = lnSend && !spend ? { fundingTxid: fundedTxid, swapPkScript: lnSend.swapPkScript } : undefined
+  const spend = lnSend?.spend ?? resolved
+  // The only thing left to look up: a covenant with no spend on record.
+  const unresolvedPkScript = spend ? undefined : lnSend?.swapPkScript
 
   useEffect(() => {
-    const { fundingTxid, swapPkScript } = pending ?? {}
-    if (!fundingTxid || !swapPkScript || !svcWallet || !aspInfo.url) return
+    if (!fundedTxid || !unresolvedPkScript || !svcWallet || !aspInfo.url) return
     let live = true
-    lnSendSpender(new RestIndexerProvider(aspInfo.url), () => getTxHistory(svcWallet), { fundingTxid, swapPkScript })
+    // Deliberately the raw SDK read, not getTxHistory: that one reports a
+    // failure as an empty history, which here would read as "no refund of
+    // ours" and persist a refunded swap as a completed payment.
+    const paidUs = async (txid: string) => {
+      const history = await svcWallet.getTransactionHistory()
+      return Boolean(history?.some(({ key }) => [key.arkTxid, key.boardingTxid, key.commitmentTxid].includes(txid)))
+    }
+    lnSendSpender(new RestIndexerProvider(aspInfo.url), paidUs, {
+      fundingTxid: fundedTxid,
+      swapPkScript: unresolvedPkScript,
+    })
       .then((spender) => {
         if (!live || !spender) return
-        // Persist so every later visit reads the answer instead of re-deriving
-        // it: the spend is terminal, and once the covenant vtxo is swept the
-        // indexer stops being able to answer at all.
-        saveTransactionActivityMetadata(fundingTxid, { lnSend: { swapPkScript, ...spender } })
+        saveTransactionActivityMetadata(fundedTxid, { lnSend: { swapPkScript: unresolvedPkScript, spend: spender } })
         setResolved(spender)
       })
       .catch(consoleError)
     return () => {
       live = false
     }
-  }, [pending?.fundingTxid, pending?.swapPkScript, svcWallet, aspInfo.url])
+  }, [fundedTxid, unresolvedPkScript, svcWallet, aspInfo.url])
 
   if (!lnSend || !fundedTxid) return undefined
   return {

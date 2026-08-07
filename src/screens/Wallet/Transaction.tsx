@@ -247,9 +247,10 @@ export default function Transaction() {
         destination: tx.type === 'sent' && !boardingTx && !issuanceTx && !burnTx ? tx.destination : undefined,
         fees,
         // A Lightning send is two txs, so it gets the same pair of rows an
-        // asset swap does — funding, then the spend that ended it — in place
-        // of a lone "Transaction ID" that would name only the first and say
-        // nothing about whether the invoice was ever paid.
+        // asset swap does — funding, then the spend that ended it — instead of
+        // a lone "Transaction ID" that would name only the first and say
+        // nothing about whether the invoice was ever paid. Details drops that
+        // row on its own once a funding tx is named.
         fundedTxid: lnSendReceipt?.fundedTxid,
         isOffchainTx: !tx.boardingTxid && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid)),
         // Details' fallback row only (amountDisplay owns the rendered rows):
@@ -259,7 +260,7 @@ export default function Transaction() {
         spendTxid: lnSendReceipt?.spentTxid,
         status,
         total: assetTransfer ? undefined : tx.amount,
-        txid: lnSendReceipt ? undefined : txid,
+        txid,
         type: boardingTx ? 'Boarding' : undefined,
         wallet,
       }

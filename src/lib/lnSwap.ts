@@ -28,7 +28,7 @@ import type { NetworkName, RestIndexerProvider } from '@arkade-os/sdk'
 import { RFQ_TERMINAL_STATES, requestLightningSend, type InvoiceFacts, type RfqTransport } from '@arkade-os/swap'
 import { sleep as defaultSleep } from './sleep'
 import { decodeInvoice, invoiceMatchesNetwork, isInvoiceExpired, type DecodedInvoice } from './bolt11'
-import type { Tx } from './types'
+import type { LnSendSpend } from './types'
 
 /** Why an invoice cannot start a swap. A closed set, so callers can branch. */
 export type InvoiceRejection = 'unparseable' | 'wrong_network' | 'expired' | 'zero_amount' | 'no_payment_hash'
@@ -221,33 +221,33 @@ export const requestLnSend = async (
  *
  * The two outcomes are told apart by who got paid, which the wallet can settle
  * on its own: the refund path pays the refund address the client handed the
- * solver — our address — so a refund lands in the wallet's own tx history,
+ * solver — our address — so a refund is a transaction of the wallet's own,
  * while the solver's claim pays the solver and never will. Asking the solver
  * instead would make the receipt depend on a third party still being reachable
  * and still remembering the negotiation.
  *
- * `history` is a thunk rather than a value so it is read AFTER the indexer has
- * reported the spend, never from a copy taken before it. That ordering is what
- * makes the absence of a matching tx mean something: a history read issued
- * after the indexer saw the spend sees at least as much as it did. Deciding
- * off an earlier snapshot could miss a refund and call it a paid invoice,
- * which is the one error here that misreports money.
+ * `paidUs` is asked rather than handed a history so the read happens AFTER the
+ * indexer has reported the spend, never from a copy taken before it. That
+ * ordering is what makes a "no" mean something: a lookup issued after the
+ * indexer saw the spend sees at least as much as it did. It must also FAIL
+ * rather than answer "no" when it cannot tell — a `false` that really means
+ * "could not check" would call a refund a paid invoice, which is the one error
+ * here that misreports money.
  *
  * Returns undefined while the lockup is unspent, and for a swept one: neither
  * has a spender to name, and both are still the funding tx's story alone.
  */
 export const lnSendSpender = async (
   indexer: Pick<RestIndexerProvider, 'getVtxos'>,
-  history: () => Promise<Tx[]>,
+  paidUs: (txid: string) => Promise<boolean>,
   lockup: { fundingTxid: string; swapPkScript: string },
-): Promise<{ spentTxid: string; outcome: 'completed' | 'refunded' } | undefined> => {
+): Promise<LnSendSpend | undefined> => {
   const { vtxos } = await indexer.getVtxos({ scripts: [lockup.swapPkScript] })
   const funded = vtxos.find((v) => v.script === lockup.swapPkScript && v.txid === lockup.fundingTxid)
   if (funded?.virtualStatus.state !== 'spent') return undefined
   const spentTxid = funded.arkTxId ?? funded.spentBy
   if (!spentTxid) return undefined
-  const ours = (await history()).some((tx) => [tx.boardingTxid, tx.redeemTxid, tx.roundTxid].includes(spentTxid))
-  return { spentTxid, outcome: ours ? 'refunded' : 'completed' }
+  return { spentTxid, outcome: (await paidUs(spentTxid)) ? 'refunded' : 'completed' }
 }
 
 /** How a funded Lightning send ended, from the wallet's point of view. */
