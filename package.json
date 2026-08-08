@@ -4,7 +4,7 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/solver-discovery": "0.2.1",
+    "@arkade-os/solver-discovery": "file:vendor/arkade-os-solver-discovery-0.2.2-master-fae0e06.tgz",
     "@arkade-os/sdk": "file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz",
     "@arkade-os/swap": "file:vendor/arkade-os-swap-0.0.1-pr718-975ed0f.tgz",
     "@base-ui/react": "^1.4.1",
@@ -133,7 +133,8 @@
   },
   "pnpm": {
     "overrides": {
-      "@arkade-os/sdk": "file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz"
+      "@arkade-os/sdk": "file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz",
+      "@arkade-os/solver-discovery": "file:vendor/arkade-os-solver-discovery-0.2.2-master-fae0e06.tgz"
     }
   }
 }
