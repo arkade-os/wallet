@@ -1,6 +1,6 @@
 import { ReactNode, createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { hex } from '@scure/base'
-import { asset, RestEmulatorProvider, RestIndexerProvider, type NetworkName, type VirtualCoin } from '@arkade-os/sdk'
+import { asset, RestIndexerProvider, type NetworkName, type VirtualCoin } from '@arkade-os/sdk'
 import { DiscoveredMarket, OfferPlan } from '@arkade-os/solver-discovery'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
@@ -9,7 +9,7 @@ import { BTC_ASSET_ID, discoverMarkets, findMarket } from '../lib/swap/markets'
 import { getScannedTxids, isCancelSpend, markTxidsScanned, restoreAssetSwaps } from '../lib/swap/restore'
 import { addAssetSwap, AssetSwap, type AssetSwapQuoteSnapshot, getAssetSwaps, updateAssetSwap } from '../lib/swap/store'
 import { getTxHistory } from '../lib/asp'
-import { getEmulatorUrlForNetwork } from '../lib/constants'
+import { getEmulatorPubkeyForNetwork } from '../lib/constants'
 import { consoleError } from '../lib/logs'
 import { sleep } from '../lib/sleep'
 import { toast } from '../components/Toast'
@@ -20,7 +20,7 @@ const SAFETY_RECONCILE_MS = 60_000
 interface AssetSwapsContextProps {
   /** Markets from the network's solver registry. */
   markets: DiscoveredMarket[]
-  /** True when there are markets and the covenant co-signer is reachable. */
+  /** True when there are markets and the covenant co-signer's key is known. */
   swapAvailable: boolean
   swaps: AssetSwap[]
   runDiscovery: (useCache?: boolean) => void
@@ -48,13 +48,19 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   const { dataReady, svcWallet, reloadWallet, txs } = useContext(WalletContext)
 
   const [markets, setMarkets] = useState<DiscoveredMarket[]>([])
-  const [emulatorUrl, setEmulatorUrl] = useState<string>()
+  const [emulatorPubkey, setEmulatorPubkey] = useState<Uint8Array>()
   const [swaps, setSwaps] = useState<AssetSwap[]>(getAssetSwaps)
 
-  // discover markets and probe the emulator once the network is known, and
-  // again on every tab return (discoverMarkets' TTL cache is the rate
-  // limiter); stale results from a previous network must never land after a
-  // switch
+  // discover markets and read the covenant co-signer's key once the network is
+  // known, and again on every tab return (discoverMarkets' TTL cache is the
+  // rate limiter); stale results from a previous network must never land after
+  // a switch.
+  //
+  // The key is read from config, not fetched: clients have no network path to
+  // the emulator, so the old reachability probe would fail in any correct
+  // deployment and hide swaps entirely. Config presence is the honest gate —
+  // it answers the question the UI actually needs ("can we derive a covenant
+  // at all?") rather than one about the client's own connectivity.
 
   const runDiscovery = (useCache = true) => {
     if (!aspInfo.network) return
@@ -62,17 +68,11 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     discoverMarkets(network, useCache)
       .then(setMarkets)
       .catch((err) => consoleError(err, 'solver discovery failed'))
-    const url = getEmulatorUrlForNetwork(network)
-    if (url) {
-      new RestEmulatorProvider(url)
-        .getInfo()
-        .then(() => setEmulatorUrl(url))
-        .catch((err) => consoleError(err, 'swap emulator unreachable'))
-    }
+    setEmulatorPubkey(getEmulatorPubkeyForNetwork(network))
   }
 
   useEffect(() => {
-    setEmulatorUrl(undefined)
+    setEmulatorPubkey(undefined)
     setMarkets([])
     runDiscovery()
   }, [aspInfo.network])
@@ -140,14 +140,14 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
 
   const createSwap = async (plan: OfferPlan, quote?: AssetSwapQuoteSnapshot): Promise<AssetSwap> => {
     if (!svcWallet) throw new Error('wallet not available')
-    if (!emulatorUrl) throw new Error('swap service unavailable')
+    if (!emulatorPubkey) throw new Error('swap service unavailable')
     const depositIsBtc = plan.deposit.asset.id === BTC_ASSET_ID
     // the covenant constrains only what the fill must deliver; the deposit is
     // whatever the funding tx puts in the offer vtxo. Keyed on the RECEIVE
     // side: keying on the deposit would push an asset↔asset plan into the
     // want-btc branch, binding the receive asset's atomic amount as a sat
     // want the solver could fill for dust.
-    const offer = await createOffer(svcWallet, aspInfo.url, emulatorUrl, {
+    const offer = await createOffer(svcWallet, aspInfo.url, emulatorPubkey, {
       wantAmount: plan.receive.atomic,
       ...(plan.receive.asset.id === BTC_ASSET_ID
         ? { offerAsset: asset.AssetId.fromString(plan.deposit.asset.id) }
@@ -351,12 +351,12 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchedScripts, aspInfo.url, visible, svcWallet])
 
-  const swapAvailable = markets.length > 0 && Boolean(emulatorUrl)
+  const swapAvailable = markets.length > 0 && Boolean(emulatorPubkey)
   const value = useMemo(
     () => ({ markets, swapAvailable, swaps, runDiscovery, createSwap, cancelSwap }),
     // createSwap/cancelSwap close over these
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [markets, swapAvailable, swaps, svcWallet, emulatorUrl, aspInfo.url, aspInfo.network],
+    [markets, swapAvailable, swaps, svcWallet, emulatorPubkey, aspInfo.url, aspInfo.network],
   )
 
   return <AssetSwapsContext.Provider value={value}>{children}</AssetSwapsContext.Provider>

@@ -226,7 +226,9 @@ export const requestLnSend = async (
   args: {
     wallet: Parameters<typeof requestLightningSend>[0]
     arkServerUrl: string
-    emulatorUrl: string
+    /** The solver's covenant co-signer key, supplied by the caller — the
+     * client has no network path to the emulator and never fetches it. */
+    emulatorPubkey: Uint8Array
     transport: RfqTransport
     invoice: string
     network: NetworkName
@@ -235,7 +237,7 @@ export const requestLnSend = async (
   nowSeconds = Math.floor(Date.now() / 1000),
 ): Promise<LnSendRequest> => {
   const invoice = toInvoiceFacts(args.invoice, args.network, nowSeconds)
-  const result = await requestLightningSend(args.wallet, args.arkServerUrl, args.emulatorUrl, args.transport, {
+  const result = await requestLightningSend(args.wallet, args.arkServerUrl, args.emulatorPubkey, args.transport, {
     invoice,
   })
   return {

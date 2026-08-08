@@ -1,3 +1,4 @@
+import { hex } from '@scure/base'
 import { Delegate } from './types'
 import { NetworkName } from '@arkade-os/sdk'
 
@@ -76,19 +77,52 @@ const LN_SWAP_URL: Record<NetworkName, string | null> = {
 export const getLnSwapUrlForNetwork = (network: NetworkName): string | undefined =>
   serviceUrlForNetwork(import.meta.env.VITE_LN_SWAP_URL, LN_SWAP_URL, network)
 
-// the arkade signer co-signing banco swap covenants (separate service from arkd)
-const EMULATOR_URL: Record<NetworkName, string | null> = {
+// The x-only key of the arkade signer co-signing swap covenants (a separate
+// service from arkd). This is a fact about the SOLVER's deployment, not a
+// value the client may look up: clients have no network path to the emulator,
+// only the solver and covclaimd do, so `@arkade-os/swap` deliberately neither
+// fetches nor verifies it (arkade-os/ts-sdk#691) and takes it from the caller.
+//
+// TODO: source this from the discovered market instead. The authoritative
+// value is the solver's signed registry card (`emulator_pubkey`,
+// arkade-os/solver-registry#18) — which `discoverMarkets` already fetches —
+// but no published @arkade-os/solver-discovery carries that field yet (0.2.2,
+// the latest, predates the merge), so it is pinned per network until one does.
+const EMULATOR_PUBKEY: Record<NetworkName, string | null> = {
+  // null on purpose: no key has been checked against a signed solver card for
+  // these networks, and guessing one derives a covenant the solver can never
+  // fill. Swaps stay off rather than funding an address nobody can settle.
   bitcoin: null,
-  // ponytail: unverified guess following the delegator subdomain convention;
-  // the provider probes it at startup and disables swaps if unreachable
-  mutinynet: 'https://emulator.mutinynet.arkade.sh',
+  // read from https://emulator.mutinynet.arkade.sh/v1/info on 2026-08-07 —
+  // the same value the client used to fetch live at swap time, stored in the
+  // endpoint's own compressed form so it can be re-checked with a plain curl.
+  // Pinning does not make it more trusted; it makes it reviewable, and stops
+  // the host swapping it under a running client.
+  mutinynet: '03f823b9b2febc81f4af967e77aed2f541cbd3397c6d8f5a72e32eb7b471af889a',
   signet: null,
-  regtest: 'http://localhost:7073',
+  // per-deployment: a local stack generates its own co-signer key, so there is
+  // no constant to pin. Set VITE_EMULATOR_PUBKEY to your emulator's
+  // `/v1/info` signerPubkey.
+  regtest: null,
   testnet: null,
 }
 
-export const getEmulatorUrlForNetwork = (network: NetworkName): string | undefined =>
-  serviceUrlForNetwork(import.meta.env.VITE_EMULATOR_URL, EMULATOR_URL, network)
+/** The covenant co-signer's x-only key (32 bytes), or undefined when this
+ * network has none configured. Compressed (33-byte) values are accepted and
+ * narrowed, matching the SDK's own normalization. A malformed value reads as
+ * absent: failing closed disables swaps, where passing garbage through would
+ * derive a covenant the solver cannot fill. */
+export const getEmulatorPubkeyForNetwork = (network: NetworkName): Uint8Array | undefined => {
+  const configured = serviceUrlForNetwork(import.meta.env.VITE_EMULATOR_PUBKEY, EMULATOR_PUBKEY, network)
+  if (!configured) return undefined
+  try {
+    const key = hex.decode(configured)
+    if (key.length === 33) return key.slice(1)
+    return key.length === 32 ? key : undefined
+  } catch {
+    return undefined
+  }
+}
 
 export const getDelegateUrlForNetwork = (network: NetworkName): string | undefined => {
   return DELEGATE_URL[network] ?? undefined
