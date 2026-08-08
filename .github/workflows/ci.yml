@@ -44,5 +44,14 @@ jobs:
     - name: Run linter
       run: pnpm lint
 
+    # src/_gitCommit.ts is gitignored and generated; the unit tests import it
+    # transitively, so it must exist before vitest runs (pnpm build does this
+    # itself, but the tests run first).
+    - name: Generate git commit info
+      run: pnpm git-info
+
+    - name: Run unit tests
+      run: pnpm test:unit
+
     - name: Run build
       run: pnpm build 
