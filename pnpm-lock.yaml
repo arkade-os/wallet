@@ -6,6 +6,7 @@ settings:
 
 overrides:
   '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.4.57-pr691-752ed57.tgz
+  '@arkade-os/solver-discovery': file:vendor/arkade-os-solver-discovery-0.2.2-master-fae0e06.tgz
 
 importers:
 
@@ -15,8 +16,8 @@ importers:
         specifier: file:vendor/arkade-os-sdk-0.4.57-pr691-752ed57.tgz
         version: file:vendor/arkade-os-sdk-0.4.57-pr691-752ed57.tgz
       '@arkade-os/solver-discovery':
-        specifier: 0.2.1
-        version: 0.2.1
+        specifier: file:vendor/arkade-os-solver-discovery-0.2.2-master-fae0e06.tgz
+        version: file:vendor/arkade-os-solver-discovery-0.2.2-master-fae0e06.tgz
       '@arkade-os/swap':
         specifier: file:vendor/arkade-os-swap-0.0.1-pr691-752ed57.tgz
         version: file:vendor/arkade-os-swap-0.0.1-pr691-752ed57.tgz
@@ -271,8 +272,9 @@ packages:
       expo-task-manager:
         optional: true
 
-  '@arkade-os/solver-discovery@0.2.1':
-    resolution: {integrity: sha512-OKZI4X063bDxBKQ0pN4lFJFVufZ4JIXcdt2TWIlUQhg9C7AzuZxr2AGcUSg41EYzOS0P6OL+uOoiurvx2LYs5w==}
+  '@arkade-os/solver-discovery@file:vendor/arkade-os-solver-discovery-0.2.2-master-fae0e06.tgz':
+    resolution: {integrity: sha512-9uhTEqNmwyB381dyYOamymdHSo8jlBKngBaZ127zY7eyYoCJKCrJIBou9hukY+4bVw8UHNIimL+kTALiB59+wA==, tarball: file:vendor/arkade-os-solver-discovery-0.2.2-master-fae0e06.tgz}
+    version: 0.2.2
     engines: {node: '>=18'}
 
   '@arkade-os/swap@file:vendor/arkade-os-swap-0.0.1-pr691-752ed57.tgz':
@@ -4354,12 +4356,12 @@ snapshots:
       - ecpair
       - utf-8-validate
 
-  '@arkade-os/solver-discovery@0.2.1': {}
+  '@arkade-os/solver-discovery@file:vendor/arkade-os-solver-discovery-0.2.2-master-fae0e06.tgz': {}
 
   '@arkade-os/swap@file:vendor/arkade-os-swap-0.0.1-pr691-752ed57.tgz':
     dependencies:
       '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.4.57-pr691-752ed57.tgz
-      '@arkade-os/solver-discovery': 0.2.1
+      '@arkade-os/solver-discovery': file:vendor/arkade-os-solver-discovery-0.2.2-master-fae0e06.tgz
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
