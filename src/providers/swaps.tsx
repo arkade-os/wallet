@@ -103,17 +103,19 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const [arkadeSwaps, setArkadeSwaps] = useState<ServiceWorkerArkadeSwaps | null>(null)
   const [swapsInitError, setSwapsInitError] = useState<string | null>(null)
   const [fees, setFees] = useState<FeesResponse | null>(null)
-  const [apiUrl, setApiUrl] = useState<string | null>(null)
-
   const connected = config.apps.boltz.connected
+  const apiUrl = BASE_URLS[aspInfo.network as Network] ?? null
 
-  // create ArkadeSwaps with SwapManager on first run with svcWallet
   useEffect(() => {
+    setArkadeSwaps(null)
+    setFees(null)
+    setArkToBtcFees(null)
+    setBtcToArkFees(null)
+    setSwapsInitError(null)
+
     if (!aspInfo.network || !svcWallet) return
     const baseUrl = BASE_URLS[aspInfo.network as Network]
     if (!baseUrl) return // No boltz server for this network
-
-    setApiUrl(baseUrl)
 
     const network = aspInfo.network as Network
     const swapProvider = new BoltzSwapProvider({ apiUrl: baseUrl, network, referralId: 'arkade-money' })
@@ -149,7 +151,6 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       warn: (...args: unknown[]) => consoleLog(...args),
     })
 
-    // Cleanup on unmount
     return () => {
       cancelled = true
       if (disposeArkadeSwaps) disposeArkadeSwaps().catch(consoleError)

@@ -24,12 +24,24 @@ import { FiatContext } from '../../../providers/fiat'
 import { SwapsContext } from '../../../providers/swaps'
 import { OptionsContext } from '../../../providers/options'
 import { Currencies, Unit } from '../../../lib/types'
+import fixtures from '../../fixtures.json'
 
 describe('Send screen', () => {
+  const readyWalletContext = {
+    ...mockWalletContextValue,
+    availableBalance: 1_000_000,
+    svcWallet: {
+      ...mockSvcWallet,
+      getAddress: () => 'tark1mockoffchain',
+      getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+    } as any,
+  }
+
   const renderSendForm = ({
     configContext = mockConfigContextValue,
     fiatContext = mockFiatContextValue,
     flowContext = mockFlowContextValue,
+    swapsContext = mockSwapsContextValue,
     walletContext = { ...mockWalletContextValue, svcWallet: mockSvcWallet as any },
   } = {}) =>
     render(
@@ -37,7 +49,7 @@ describe('Send screen', () => {
         <AspContext.Provider value={mockAspContextValue}>
           <ConfigContext.Provider value={configContext as any}>
             <FiatContext.Provider value={fiatContext as any}>
-              <SwapsContext.Provider value={mockSwapsContextValue as any}>
+              <SwapsContext.Provider value={swapsContext as any}>
                 <OptionsContext.Provider value={mockOptionsContextValue as any}>
                   <FlowContext.Provider value={flowContext as any}>
                     <WalletContext.Provider value={walletContext as any}>
@@ -68,6 +80,79 @@ describe('Send screen', () => {
     expect(screen.getByText('Recipient address')).toBeInTheDocument()
     expect(screen.getByText('Continue')).toBeInTheDocument()
   })
+
+  it('blocks a Lightning-only payment before attempting a swap when the Boltz endpoint is unavailable', () => {
+    const createSubmarineSwap = vi.fn()
+    const invoice = fixtures.lib.bolt11.invoice
+
+    renderSendForm({
+      flowContext: {
+        ...mockFlowContextValue,
+        sendInfo: { ...emptySendInfo, invoice, recipient: invoice, satoshis: fixtures.lib.bolt11.amountSats },
+      },
+      swapsContext: {
+        ...mockSwapsContextValue,
+        connected: true,
+        createSubmarineSwap,
+        getApiUrl: () => null,
+      },
+      walletContext: readyWalletContext,
+    })
+
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+    expect(createSubmarineSwap).not.toHaveBeenCalled()
+    expect(screen.queryByText('Unable to create swap')).not.toBeInTheDocument()
+  })
+
+  it('explains why a pasted Lightning invoice is unavailable', async () => {
+    vi.useFakeTimers()
+    try {
+      const setSendInfo = vi.fn()
+      const invoice = fixtures.lib.bolt11.invoice
+
+      renderSendForm({
+        flowContext: { ...mockFlowContextValue, sendInfo: { ...emptySendInfo }, setSendInfo },
+        swapsContext: { ...mockSwapsContextValue, connected: true, getApiUrl: () => null },
+        walletContext: readyWalletContext,
+      })
+
+      fireEvent.change(document.querySelector('input[name="send-address"]') as HTMLInputElement, {
+        target: { value: invoice },
+      })
+      await act(async () => vi.advanceTimersByTimeAsync(1_000))
+
+      expect(setSendInfo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          address: '',
+          arkAddress: '',
+          invoice,
+          lnUrl: '',
+          satoshis: fixtures.lib.bolt11.amountSats,
+        }),
+      )
+      expect(screen.getByText('Lightning is temporarily unavailable')).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('keeps a non-Lightning route available from a mixed payment request during the outage', () => {
+    renderSendForm({
+      flowContext: {
+        ...mockFlowContextValue,
+        sendInfo: {
+          ...emptySendInfo,
+          address: 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7',
+          invoice: fixtures.lib.bolt11.invoice,
+          satoshis: fixtures.lib.bolt11.amountSats,
+        },
+      },
+      swapsContext: { ...mockSwapsContextValue, getApiUrl: () => null },
+      walletContext: readyWalletContext,
+    })
+
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled()
+  })
   it('fills the amount field when an LNURL resolves to a fixed amount', async () => {
     // regression: a fixed-amount LNURL (minSendable === maxSendable) must
     // populate the read-only amount input instead of leaving it blank
@@ -82,9 +167,10 @@ describe('Send screen', () => {
       }),
     )
     const lnUrl = 'lnurl1dp68gurn8ghj7urp0yh8xarpva5kueewvaskcmme9e5k7tewwajkcmpdddhx7amw9akxuatjd3cz7ar9wd6xjmn8h9qlv7'
-    const flowValue = { ...mockFlowContextValue, sendInfo: { ...emptySendInfo, lnUrl, recipient: lnUrl } }
+    const flowValue = { ...mockFlowContextValue, sendInfo: { ...emptySendInfo, lnUrl, recipient: lnUrl, satoshis: 21 } }
     const walletValue = {
       ...mockWalletContextValue,
+      availableBalance: 1_000_000,
       balance: 1_000_000,
       svcWallet: {
         ...mockSvcWallet,
@@ -100,6 +186,66 @@ describe('Send screen', () => {
     const amountInput = await waitFor(() => screen.getByDisplayValue('21'))
     expect(amountInput).toHaveAttribute('name', 'send-amount')
     expect(amountInput).toHaveAttribute('readonly')
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+    fetchMocker.disableMocks()
+  })
+
+  it('keeps an Arkade-capable LNURL available without a Boltz endpoint', async () => {
+    const fetchMocker = createFetchMock(vi)
+    fetchMocker.enableMocks()
+    fetchMocker.mockResponseOnce(
+      JSON.stringify({
+        callback: 'https://pay.staging.galoy.io/.well-known/lnurlp/testing',
+        minSendable: 21000,
+        maxSendable: 21000,
+        metadata: 'mock-metadata',
+        transferAmounts: [{ method: 'Ark', available: true }],
+      }),
+    )
+    const lnUrl = fixtures.lib.lnurl[0].lnUrlOrAddress
+    const flowValue = { ...mockFlowContextValue, sendInfo: { ...emptySendInfo, lnUrl, recipient: lnUrl, satoshis: 21 } }
+    const walletValue = {
+      ...mockWalletContextValue,
+      availableBalance: 1_000_000,
+      balance: 1_000_000,
+      svcWallet: {
+        ...mockSvcWallet,
+        getAddress: () => 'tark1mockoffchain',
+        getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+      } as any,
+    }
+
+    renderSendForm({ flowContext: flowValue, walletContext: walletValue })
+
+    await waitFor(() => screen.getByDisplayValue('21'))
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled()
+    fetchMocker.disableMocks()
+  })
+
+  it('explains when an LNURL only supports unavailable Lightning', async () => {
+    const fetchMocker = createFetchMock(vi)
+    fetchMocker.enableMocks()
+    fetchMocker.mockResponseOnce(
+      JSON.stringify({
+        callback: 'https://pay.staging.galoy.io/.well-known/lnurlp/testing',
+        minSendable: 21000,
+        maxSendable: 21000,
+        metadata: 'mock-metadata',
+      }),
+    )
+    const lnUrl = fixtures.lib.lnurl[0].lnUrlOrAddress
+
+    renderSendForm({
+      flowContext: {
+        ...mockFlowContextValue,
+        sendInfo: { ...emptySendInfo, lnUrl, recipient: lnUrl, satoshis: 21 },
+      },
+      swapsContext: { ...mockSwapsContextValue, getApiUrl: () => null },
+      walletContext: readyWalletContext,
+    })
+
+    expect(await screen.findByText('Lightning is temporarily unavailable')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
     fetchMocker.disableMocks()
   })
 

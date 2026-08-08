@@ -61,6 +61,7 @@ import { testDomains } from '../../../lib/constants'
 import UnverifiedBadge from '../../../components/UnverifiedBadge'
 
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
+const LIGHTNING_UNAVAILABLE_MESSAGE = 'Lightning is temporarily unavailable'
 
 const brantaClient = new BrantaService({
   baseUrl: isProductionEnv ? 'Production' : 'Staging',
@@ -190,6 +191,16 @@ export default function SendForm() {
   )
   const activeAsset = accountAsset ?? selectedAsset
   const isAssetSend = activeAsset !== null
+  const lightningSwapsAvailable = Boolean(getApiUrl())
+  const lnUrlArkMethod = lnUrlResponse?.transferAmounts?.find((method) => method.method === 'Ark' && method.available)
+  const lnUrlSupportsArkade = Boolean(lnUrlArkMethod)
+  const pastedLightningInvoice = !isAssetSend && isLightningInvoice(recipient.toLowerCase().replace(/^lightning:/, ''))
+  const lightningOnlyRecipient =
+    !lightningSwapsAvailable &&
+    !sendInfo.address &&
+    !sendInfo.arkAddress &&
+    Boolean(sendInfo.invoice || pastedLightningInvoice || (sendInfo.lnUrl && lnUrlResponse && !lnUrlSupportsArkade))
+  const recipientErrorMessage = lightningOnlyRecipient ? LIGHTNING_UNAVAILABLE_MESSAGE : recipientError
 
   const DUST_AMOUNT = 330
   const RECIPIENT_DEBOUNCE_MS = 800
@@ -380,11 +391,17 @@ export default function SendForm() {
         if (isAssetSend) {
           return setRecipientError('Assets can only be sent to Arkade addresses')
         }
+        const satoshis = getInvoiceSatoshis(lowerCaseData)
+        if (!lightningSwapsAvailable) {
+          setSendInfo({ ...sendInfo, address: '', arkAddress: '', invoice: lowerCaseData, lnUrl: '', satoshis })
+          if (satoshis) setAmountTextValue(getTextValue(satoshis))
+          setAmountIsReadOnly(Boolean(satoshis))
+          return
+        }
         if (!connected) {
           setRecipientError('Lightning swaps not enabled')
           return setNudgeBoltz(true)
         }
-        const satoshis = getInvoiceSatoshis(lowerCaseData)
         if (!satoshis) return setRecipientError('Invoice must have amount defined')
         setSendInfo({ ...sendInfo, invoice: lowerCaseData, satoshis })
         setAmountTextValue(getTextValue(satoshis))
@@ -407,13 +424,16 @@ export default function SendForm() {
         }
       }
       if (isValidLnUrl(lowerCaseData)) {
+        if (!lightningSwapsAvailable) {
+          return setSendInfo({ ...sendInfo, address: '', arkAddress: '', invoice: '', lnUrl: lowerCaseData })
+        }
         return setSendInfo({ ...sendInfo, lnUrl: lowerCaseData })
       }
       setRecipientError('Invalid recipient address')
       setReadyToParse(false)
     }
     parseRecipient()
-  }, [recipient, isAssetSend, readyToParse])
+  }, [recipient, isAssetSend, readyToParse, lightningSwapsAvailable])
 
   // fetch branta payment info for the current recipient (SDK strict mode gates non-ZK)
   useEffect(() => {
@@ -619,7 +639,7 @@ export default function SendForm() {
     if (!proceed) return
     if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice) return
     if (sendInfo.arkAddress || sendInfo.pendingSwap) return navigate(Pages.SendDetails)
-    if (sendInfo.invoice) {
+    if (sendInfo.invoice && lightningSwapsAvailable) {
       createSubmarineSwap(sendInfo.invoice)
         .then((pendingSwap) => {
           if (!pendingSwap) return handleError('Unable to create swap')
@@ -637,7 +657,7 @@ export default function SendForm() {
         })
         .catch(() => navigate(Pages.SendDetails))
     }
-  }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingSwap])
+  }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingSwap, lightningSwapsAvailable])
 
   // deal with fees deduction from amount
   useEffect(() => {
@@ -753,14 +773,12 @@ export default function SendForm() {
   }
 
   const handleContinue = async () => {
+    if (lightningOnlyPayment) return
     setProcessing(true)
     const satoshis = sendInfo.satoshis ?? 0
     try {
-      if (sendInfo.lnUrl && lnUrlResponse) {
-        // Check if Ark method is available
-        const arkMethod = lnUrlResponse.transferAmounts?.find((method) => method.method === 'Ark' && method.available)
-
-        if (arkMethod) {
+      if (sendInfo.lnUrl && lnUrlResponse && (lightningSwapsAvailable || lnUrlSupportsArkade)) {
+        if (lnUrlArkMethod) {
           // Fetch Ark address instead of Lightning invoice
           const arkResponse = await fetchArkAddress(sendInfo.lnUrl)
           if (!isValidArkAddress(arkResponse.address)) {
@@ -852,6 +870,8 @@ export default function SendForm() {
   }
 
   const { address, arkAddress, lnUrl, invoice, satoshis } = sendInfo
+  const lightningOnlyPayment =
+    !lightningSwapsAvailable && !address && !arkAddress && Boolean(invoice || (lnUrl && !lnUrlSupportsArkade))
 
   const assetAmt = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
 
@@ -863,7 +883,8 @@ export default function SendForm() {
       tryingToSelfSend ||
       Boolean(error) ||
       processing
-    : !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
+    : lightningOnlyPayment ||
+      !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
       (lnUrlResponse?.maxSendable && satoshis > lnUrlResponse.maxSendable) ||
       (lnUrlResponse?.minSendable && satoshis < lnUrlResponse.minSendable) ||
       amountIsAboveMaxLimit(satoshis) ||
@@ -970,7 +991,7 @@ export default function SendForm() {
             <FlexCol gap='1.25rem' className='send-form-stack'>
               <ErrorMessage error={Boolean(error)} text={error} />
               <InputAddress
-                error={recipientError}
+                error={recipientErrorMessage}
                 focus={focus === 'recipient'}
                 label='Recipient address'
                 name='send-address'

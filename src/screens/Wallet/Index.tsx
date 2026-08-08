@@ -27,6 +27,7 @@ import { usePortfolioBalanceDisplay } from '../../hooks/usePortfolioBalanceDispl
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { BackupContext } from '@/providers/backup'
 import BoltOutlineIcon from '../../icons/BoltOutline'
+import { SwapsContext } from '../../providers/swaps'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
@@ -35,6 +36,7 @@ export default function Wallet() {
   const { backupAndUpdateConfig } = useContext(BackupContext)
   const { isInitialLoad } = useContext(NavigationContext)
   const { nudge, nudgeCheckComplete } = useContext(NudgeContext)
+  const { getApiUrl } = useContext(SwapsContext)
 
   const [error, setError] = useState(false)
   const [homeScrolled, setHomeScrolled] = useState(false)
@@ -134,7 +136,7 @@ export default function Wallet() {
             <WalletStaggerChild animate={shouldStagger} className='home-stack__actions'>
               <HomeQuickActions />
             </WalletStaggerChild>
-            {aspInfo.network === 'bitcoin' ? (
+            {aspInfo.network === 'bitcoin' && !getApiUrl() ? (
               <WalletStaggerChild animate={shouldStagger}>
                 <section aria-labelledby='lightning-swap-notice-title' className='lightning-swap-notice' role='status'>
                   <span aria-hidden='true' className='lightning-swap-notice__icon'>

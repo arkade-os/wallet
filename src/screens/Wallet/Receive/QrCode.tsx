@@ -70,7 +70,8 @@ export default function ReceiveQRCode() {
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
-  const { arkadeSwaps, swapsInitError, connected, createBtcToArkSwap, createReverseSwap } = useContext(SwapsContext)
+  const { arkadeSwaps, swapsInitError, connected, createBtcToArkSwap, createReverseSwap, getApiUrl } =
+    useContext(SwapsContext)
   const { assetMetadataCache, svcWallet } = useContext(WalletContext)
   const { minSwapAllowed, validBtcToArk, validLnSwap, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
 
@@ -98,6 +99,7 @@ export default function ReceiveQRCode() {
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
   const isAssetReceive = assetId && assetId !== ''
   const hasError = Boolean(addressError)
+  const lightningSwapsAvailable = Boolean(getApiUrl())
 
   const [noPaymentMethods, setNoPaymentMethods] = useState(false)
   const [arkAddress, setArkAddress] = useState(offchainAddr)
@@ -133,7 +135,8 @@ export default function ReceiveQRCode() {
   }, [svcWallet])
 
   const lnurlSession = useContext(LnurlContext)
-  const isAmountlessLnurl = !satoshis && !isAssetReceive && !!lnurlServerUrl && lnurlSession.active
+  const isAmountlessLnurl =
+    lightningSwapsAvailable && !satoshis && !isAssetReceive && !!lnurlServerUrl && lnurlSession.active
   // LNURL is amountless by nature: only surface it when no amount is set. The
   // session keeps running underneath — we just hide it from the QR + copy list.
   const displayLnurl = isAmountlessLnurl ? lnurlSession.lnurl : ''
@@ -192,7 +195,7 @@ export default function ReceiveQRCode() {
       return
     }
 
-    const lnExpected = connected && !isAssetReceive
+    const lnExpected = lightningSwapsAvailable && connected && !isAssetReceive
 
     if (!arkadeSwaps) {
       if (!lnExpected || swapsInitError) {
@@ -212,7 +215,9 @@ export default function ReceiveQRCode() {
 
     setSwapsTimedOut(false)
 
-    Promise.allSettled([createBtcAddress(), createLightningInvoice()]).then(([btc, lightning]) => {
+    const lightningInvoice = lnExpected ? createLightningInvoice() : Promise.resolve(null)
+
+    Promise.allSettled([createBtcAddress(), lightningInvoice]).then(([btc, lightning]) => {
       if (btc.status === 'fulfilled') {
         const pendingSwap = btc.value as BoltzChainSwap
         const btcAddr = pendingSwap.response.lockupDetails.lockupAddress
@@ -227,7 +232,7 @@ export default function ReceiveQRCode() {
             consoleError(error, 'Error claiming chain swap:')
           })
       }
-      if (lightning.status === 'fulfilled') {
+      if (lightning.status === 'fulfilled' && lightning.value) {
         const pendingSwap = lightning.value as BoltzReverseSwap
         const inv = pendingSwap.response.invoice
         setInvoice(inv)
@@ -243,7 +248,7 @@ export default function ReceiveQRCode() {
       }
       setShowQrCode(true)
     })
-  }, [satoshis, svcWallet, arkadeSwaps, swapsInitError, addressesLoaded])
+  }, [satoshis, svcWallet, arkadeSwaps, swapsInitError, addressesLoaded, lightningSwapsAvailable])
 
   // Build BIP21 URI
   useEffect(() => {
@@ -474,7 +479,7 @@ export default function ReceiveQRCode() {
                   Requesting {prettyNumber(satoshis, 0)} {unitLabel}
                 </Text>
               ) : null}
-              {(!satoshis || satoshis < minSwapAllowed()) && !isAssetReceive ? (
+              {lightningSwapsAvailable && (!satoshis || satoshis < minSwapAllowed()) && !isAssetReceive ? (
                 <Text small color='neutral-500'>
                   {minSwapAllowed()} sats min for Lightning
                 </Text>

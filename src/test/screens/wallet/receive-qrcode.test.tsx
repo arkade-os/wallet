@@ -175,6 +175,60 @@ describe('Receive QR Code screen', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('shows QR immediately when the Boltz endpoint is unavailable, even if swaps are enabled', () => {
+    renderReceiveQrCode({
+      swaps: { connected: true, arkadeSwaps: null, getApiUrl: () => null },
+      flow: {
+        recvInfo: {
+          ...mockFlowContextValue.recvInfo,
+          satoshis: 50000,
+          offchainAddr: 'ark1testaddr',
+          boardingAddr: 'bc1testaddr',
+        },
+      },
+      wallet: { svcWallet: mockSvcWallet as any },
+    })
+
+    expect(screen.queryByText('Generating QR code...')).not.toBeInTheDocument()
+    expect(screen.queryByText(/sats min for Lightning/)).not.toBeInTheDocument()
+  })
+
+  it('does not create a Lightning invoice from a stale swap instance when the endpoint is unavailable', async () => {
+    const createReverseSwap = vi.fn()
+
+    renderReceiveQrCode({
+      swaps: {
+        connected: true,
+        arkadeSwaps: {} as any,
+        createReverseSwap,
+        getApiUrl: () => null,
+      },
+      flow: {
+        recvInfo: {
+          ...mockFlowContextValue.recvInfo,
+          satoshis: 50000,
+          offchainAddr: 'ark1testaddr',
+          boardingAddr: 'bc1testaddr',
+        },
+      },
+      wallet: { svcWallet: mockSvcWallet as any },
+    })
+
+    await act(async () => {})
+
+    expect(createReverseSwap).not.toHaveBeenCalled()
+  })
+
+  it('shows the Lightning minimum only when a Boltz endpoint is configured', () => {
+    const { rerender } = render(buildTree(tapFixture()))
+
+    expect(screen.queryByText(/sats min for Lightning/)).not.toBeInTheDocument()
+
+    rerender(buildTree({ ...tapFixture(), swaps: { getApiUrl: () => 'https://boltz.test' } }))
+
+    expect(screen.getByText('0 sats min for Lightning')).toBeInTheDocument()
+  })
+
   // UX Constraint 2c: When LN init already failed, don't wait — show QR + warning immediately
   it('shows QR immediately with warning when swapsInitError is set (no 5s wait)', async () => {
     renderReceiveQrCode({
@@ -182,6 +236,7 @@ describe('Receive QR Code screen', () => {
         connected: true,
         arkadeSwaps: null,
         swapsInitError: 'SwapManager not supported',
+        getApiUrl: () => 'https://boltz.test',
       },
       flow: {
         recvInfo: {
@@ -369,7 +424,11 @@ describe('Receive QR Code screen', () => {
 
   // Bug 2: amountless LNURL belongs in the QR; with an amount it must not.
   it('includes the LNURL in the QR when no amount is set', async () => {
-    renderReceiveQrCode({ ...tapFixture(), lnurl: { lnurl: 'LNURL1TESTXYZ', active: true } })
+    renderReceiveQrCode({
+      ...tapFixture(),
+      swaps: { connected: false, arkadeSwaps: null, getApiUrl: () => 'https://boltz.test' },
+      lnurl: { lnurl: 'LNURL1TESTXYZ', active: true },
+    })
 
     const qrButton = await screen.findByRole('button', { name: 'Copy QR code' })
     await act(async () => {
@@ -381,7 +440,7 @@ describe('Receive QR Code screen', () => {
 
   it('drops the LNURL from the QR once an amount is set', async () => {
     renderReceiveQrCode({
-      swaps: { connected: false, arkadeSwaps: null },
+      swaps: { connected: false, arkadeSwaps: null, getApiUrl: () => 'https://boltz.test' },
       flow: {
         recvInfo: {
           ...mockFlowContextValue.recvInfo,
