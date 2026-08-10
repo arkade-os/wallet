@@ -1,0 +1,33 @@
+appId: com.android.chrome
+---
+# Copy sheet — recordings/taps-20260609-152620.log taps 5–13
+
+- runFlow: tap_receive_copy.yaml
+- runFlow: wait_5s.yaml
+- tapOn:
+    point: "84%, 63%"
+    waitToSettleTimeoutMs: 800
+- tapOn:
+    point: "90%, 89%"
+    waitToSettleTimeoutMs: 800
+- runFlow: wait_1s.yaml
+- tapOn:
+    point: "79%, 85%"
+    waitToSettleTimeoutMs: 800
+- runFlow: wait_2s.yaml
+- tapOn:
+    point: "92%, 82%"
+    waitToSettleTimeoutMs: 800
+- runFlow: wait_4s.yaml
+- runFlow: tap_receive_copy_sheet_row.yaml
+- runFlow: wait_2s.yaml
+- tapOn:
+    point: "19%, 58%"
+    waitToSettleTimeoutMs: 800
+- runFlow: wait_2s.yaml
+- tapOn:
+    point: "3%, 49%"
+    waitToSettleTimeoutMs: 800
+- runFlow: wait_2s.yaml
+- runFlow: dismiss_clipboard_permission.yaml
+- runFlow: close_copy_sheet.yaml

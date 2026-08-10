@@ -1,0 +1,8 @@
+appId: com.android.chrome
+---
+# recordings/taps-20260609-154741.log gesture 18 (scroll before lower rows)
+
+- swipe:
+    start: "9%, 61%"
+    end: "6%, 48%"
+    duration: 450
