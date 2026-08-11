@@ -45,11 +45,17 @@ import { setLoadingStatus } from '../lib/loadingStatus'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
-import { defaultPassword, getDelegateUrlForNetwork, maxPercentage } from '../lib/constants'
+import {
+  defaultPassword,
+  getDelegateUrlForNetwork,
+  maxPercentage,
+  mutinynetMinCheckpointExitDelaySeconds,
+} from '../lib/constants'
 import { AssetIconApprovalManager } from '../lib/assetIconApproval'
 import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { Indexer } from '../lib/indexer'
 import { IndexedDbSwapRepository, migrateToSwapRepository, Network } from '@arkade-os/boltz-swap'
+import { BackupContext } from './backup'
 
 const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
 const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
@@ -67,6 +73,7 @@ interface InitSvcWorkerWalletParams {
   delegatorUrl?: string
   walletMode?: ServiceWorkerWalletMode
   restoring?: boolean
+  minCheckpointExitDelaySeconds?: bigint
 }
 
 const defaultWallet: Wallet = {
@@ -145,6 +152,7 @@ export const WalletContext = createContext<WalletContextProps>({
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { isRegistered } = useContext(AssetsContext)
+  const { initialiseNostrBackup } = useContext(BackupContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { navigate } = useContext(NavigationContext)
   const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo, setLnurlInfo } = useContext(FlowContext)
@@ -505,6 +513,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       delegatorUrl,
       walletMode,
       restoring = false,
+      minCheckpointExitDelaySeconds,
     } = params
     try {
       setLoadingStatus('Starting wallet...')
@@ -547,6 +556,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         esploraUrl,
         delegatorUrl,
         walletMode: walletMode ?? config.walletMode ?? 'static',
+        minCheckpointExitDelaySeconds,
         storage: { walletRepository, contractRepository },
         serviceWorkerActivationTimeoutMs: SERVICE_WORKER_ACTIVATION_TIMEOUT_MS,
         messageBusTimeoutMs: MESSAGE_BUS_INIT_TIMEOUT_MS,
@@ -706,6 +716,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const isMainnet = (network: NetworkName | string): boolean =>
     network !== 'testnet' && network !== 'mutinynet' && network !== 'signet' && network !== 'regtest'
 
+  const minCheckpointExitDelaySecondsForNetwork = (network: NetworkName | string): bigint | undefined =>
+    network === 'mutinynet' ? mutinynetMinCheckpointExitDelaySeconds : undefined
+
   const initWallet = async (credentials: {
     mnemonic?: string
     privateKey?: Uint8Array
@@ -734,12 +747,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       })
       const secret = deriveNostrKeyFromMnemonic(credentials.mnemonic, isMainnet(network))
       setLnurlInfo(secret)
+      initialiseNostrBackup(secret)
       updateConfig({ ...config, pubkey, walletMode })
     } else if (credentials.privateKey) {
       identity = SingleKey.fromPrivateKey(credentials.privateKey)
       pubkey = hex.encode(secp.getPublicKey(credentials.privateKey))
       walletMode = 'static'
       setLnurlInfo(credentials.privateKey)
+      initialiseNostrBackup(credentials.privateKey)
       updateConfig({ ...config, pubkey, walletMode })
     } else {
       throw new Error('Either mnemonic or privateKey must be provided')
@@ -752,6 +767,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       delegatorUrl,
       walletMode,
       restoring: credentials.restoring,
+      minCheckpointExitDelaySeconds: minCheckpointExitDelaySecondsForNetwork(network),
     })
     if (!didInit) return
     updateWallet({ ...wallet, network, pubkey })
@@ -794,6 +810,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       esploraUrl,
       delegatorUrl,
       skipMigration: true,
+      minCheckpointExitDelaySeconds: minCheckpointExitDelaySecondsForNetwork(aspInfo.network),
     })
   }
 
@@ -816,6 +833,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         esploraUrl,
         delegatorUrl,
         skipMigration: true,
+        minCheckpointExitDelaySeconds: minCheckpointExitDelaySecondsForNetwork(aspInfo.network),
       })
       if (!initialized) return
     } catch (err) {
