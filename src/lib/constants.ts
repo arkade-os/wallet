@@ -60,7 +60,8 @@ export const getSolverRegistryUrl = (network: NetworkName): string | undefined =
 
 // the arkade signer co-signing banco swap covenants (separate service from arkd)
 const EMULATOR_URL: Record<NetworkName, string | null> = {
-  bitcoin: null,
+  // verified live: getInfo() answers with the co-signer key
+  bitcoin: 'https://emulator.arkade.computer',
   // ponytail: unverified guess following the delegator subdomain convention;
   // the provider probes it at startup and disables swaps if unreachable
   mutinynet: 'https://emulator.mutinynet.arkade.sh',
