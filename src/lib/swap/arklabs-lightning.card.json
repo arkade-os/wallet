@@ -1,6 +1,6 @@
 {
   "version": 0,
-  "name": "arklabs-lightning",
+  "name": "warren-buffet",
   "discovery_pubkey": "66422c952f8dcb96e4d0c3f049cd1e265b8461b916d9913c65c2494b64b4e3ce",
   "relays": ["wss://nostr.arkade.sh"],
   "markets": [
@@ -26,5 +26,5 @@
       "max_quote_amount": "1000"
     }
   ],
-  "sig": "f86aa8ebc1ca607e2b9c80cf4b8bfe4486458d853497bcec2a195bd7c633a5040301d58749cdbefffb73fe78640a92ba52d2abfab3765fdafc0ac03f9451094c"
+  "sig": "84fcde3f1d2652140cfbddc47504bbaacdd4498efb8ab06829e6d900e8ec0bd5ba45090175452d26a9e8b9405de23983cea68fda62e636cb23295aa26f6ce897"
 }

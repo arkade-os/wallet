@@ -24,7 +24,7 @@
  */
 import { hex } from '@scure/base'
 import { sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
-import type { NetworkName, RestIndexerProvider } from '@arkade-os/sdk'
+import { RestEmulatorProvider, type NetworkName, type RestIndexerProvider } from '@arkade-os/sdk'
 import { RFQ_TERMINAL_STATES, requestLightningSend, type InvoiceFacts, type RfqTransport } from '@arkade-os/swap'
 import { sleep as defaultSleep } from './sleep'
 import { decodeInvoice, invoiceMatchesNetwork, isInvoiceExpired, type DecodedInvoice } from './bolt11'
@@ -203,9 +203,19 @@ export const requestLnSend = async (
   nowSeconds = Math.floor(Date.now() / 1000),
 ): Promise<LnSendRequest> => {
   const invoice = toInvoiceFacts(args.invoice, args.network, nowSeconds)
-  const result = await requestLightningSend(args.wallet, args.arkServerUrl, args.emulatorUrl, args.transport, {
-    invoice,
-  })
+  // The client takes the covenant co-signer's x-only key rather than a URL
+  // since ts-sdk feat/arkade-swap dropped the in-client fetch; resolve it here
+  // the same way the asset-swap path does (`offer.ts`). The slice normalizes a
+  // 33-byte compressed key to x-only.
+  const { signerPubkey } = await new RestEmulatorProvider(args.emulatorUrl).getInfo()
+  const emulatorPubkey = hex.decode(signerPubkey)
+  const result = await requestLightningSend(
+    args.wallet,
+    args.arkServerUrl,
+    emulatorPubkey.length === 33 ? emulatorPubkey.slice(1) : emulatorPubkey,
+    args.transport,
+    { invoice },
+  )
   return {
     rfqId: result.rfqId,
     address: result.address,
