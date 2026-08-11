@@ -1,5 +1,5 @@
 /*
   X-Frame-Options: DENY
-  Content-Security-Policy: frame-ancestors 'none'; base-uri 'none'; object-src 'none'; worker-src 'self' blob:; script-src 'self' 'sha256-Orm8FfZCwWbK3HaU50UqLKl9Xtx+nqvAMVi3irFAc64=' https://plausible.io https://app.chatwoot.com https://static.cloudflareinsights.com; script-src-attr 'none'; frame-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; font-src 'self'; manifest-src 'self'
+  Content-Security-Policy: frame-ancestors 'none'; base-uri 'none'; object-src 'none'; worker-src 'self' blob:; script-src 'self' 'sha256-Orm8FfZCwWbK3HaU50UqLKl9Xtx+nqvAMVi3irFAc64=' https://plausible.io https://app.chatwoot.com https://static.cloudflareinsights.com; script-src-attr 'none'; frame-src 'self' https://app.chatwoot.com/; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; font-src 'self'; manifest-src 'self'
   Referrer-Policy: strict-origin-when-cross-origin
   X-Content-Type-Options: nosniff
