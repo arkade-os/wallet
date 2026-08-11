@@ -32,7 +32,7 @@ import { dirname, join } from 'node:path'
 import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure'
 import { getConversationKey, encrypt, decrypt } from 'nostr-tools/nip44'
 
-const KIND = 4859
+const KIND = 24859
 const WAIT_MS = 20_000
 
 const here = dirname(fileURLToPath(import.meta.url))

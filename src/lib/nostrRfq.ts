@@ -6,11 +6,18 @@
  * which is the production transport: `docs/rfq-protocol.md` § 3.1 in
  * arkade-os/lightning-swap-service.
  *
- * **Kind 4859, directed.** One kind for the whole message family. `content` is
+ * **Kind 24859, directed.** One kind for the whole message family. `content` is
  * the NIP-44-encrypted payload; a `p` tag names the recipient. Both sides are
  * outbound-only — each dials relays, neither listens — which is what lets a
  * solver sit behind NAT with no public endpoint. No URL for the solver appears
  * anywhere: it is addressed purely by x-only pubkey.
+ *
+ * The kind is EPHEMERAL (NIP-01's 20000–29999), so a conforming relay does not
+ * retain it. That is the point: a request nobody answered inside the timeout
+ * below, and a quote past its `valid_until`, are worthless to everyone, while a
+ * stored copy is a permanent record of who negotiated what with whom. The cost
+ * is no store-and-forward — a request sent while the solver is disconnected is
+ * dropped rather than queued — which the timeout and the caller's retry cover.
  *
  * Not to be confused with the discovery spec's kind 38173 appendix, which is a
  * dormant *broadcast pricing* layer for spot markets. The RFQ message family is
@@ -23,10 +30,21 @@
 import { SwapRefusal, type RfqQuote, type RfqStatus, type RfqTransport } from '@arkade-os/swap'
 import { finalizeEvent, generateSecretKey, getPublicKey, nip44, SimplePool, type Event } from 'nostr-tools'
 
-/** Directed RFQ traffic. Provisional in the spec; kept in one place. */
-export const RFQ_DIRECTED_KIND = 4859
+/**
+ * Directed RFQ traffic. Provisional in the spec; kept in one place.
+ *
+ * MUST stay inside NIP-01's ephemeral range and MUST match the solver's
+ * `NOSTR_KIND_DIRECTED` — the two subscribe by `kinds`, so a mismatch is not an
+ * error either side can report. They simply never see each other.
+ */
+export const RFQ_DIRECTED_KIND = 24859
 
-/** Indicative solver advertisement — never binding; only a quote binds. */
+/**
+ * Indicative solver advertisement — never binding; only a quote binds.
+ *
+ * Addressable rather than ephemeral, deliberately: an ad is standing state a
+ * relay should keep the current version of, not a message in a negotiation.
+ */
 export const RFQ_AD_KIND = 38859
 
 const DEFAULT_TIMEOUT_MS = 30_000
@@ -87,7 +105,7 @@ export interface NostrRfqOptions {
 }
 
 /**
- * Build an `RfqTransport` speaking kind-4859 directed traffic.
+ * Build an `RfqTransport` speaking kind-24859 directed traffic.
  *
  * Sends are fire-and-forget publishes; replies arrive on a single long-lived
  * subscription filtered to this transport key, so a reply that arrives before

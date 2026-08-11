@@ -6,7 +6,7 @@
 import { SwapRefusal } from '@arkade-os/swap'
 import { describe, it, expect } from 'vitest'
 import { generateSecretKey, getPublicKey, nip44, type Event } from 'nostr-tools'
-import { RFQ_DIRECTED_KIND, RelayUnavailable, nostrRfqTransport } from '../../lib/nostrRfq'
+import { RFQ_AD_KIND, RFQ_DIRECTED_KIND, RelayUnavailable, nostrRfqTransport } from '../../lib/nostrRfq'
 
 /**
  * A stand-in for SimplePool that behaves like a relay the solver is also on:
@@ -50,6 +50,34 @@ const fakePool = (solverSecret: Uint8Array, clientPubkeyOf: (e: Event) => string
   const relaysDrop = (reasons: string[] = ['connection failed']) => onclose?.(reasons)
   return { pool, published, solverReplies, relaysDrop, clientPubkeyOf }
 }
+
+describe('RFQ kinds', () => {
+  /**
+   * The RANGE, not the digits.
+   *
+   * The exact numbers are provisional in the RFQ spec and may still move by
+   * agreement. The range may not: NIP-01 makes 20000–29999 ephemeral, and that
+   * is what stops a relay retaining a negotiation. Drifting back into a stored
+   * range breaks nothing an eye would catch — every other test in this file
+   * goes through the constant and would follow it anywhere — while quietly
+   * reinstating a permanent record of who negotiated what with whom.
+   */
+  it('keeps directed traffic inside the NIP-01 ephemeral range', () => {
+    expect(RFQ_DIRECTED_KIND).toBeGreaterThanOrEqual(20_000)
+    expect(RFQ_DIRECTED_KIND).toBeLessThan(30_000)
+  })
+
+  /**
+   * The ad is standing state rather than a message, so it belongs in the
+   * addressable range where a relay keeps the current version per solver.
+   * Asserted beside the one above so the contrast is on the record: these two
+   * kinds want OPPOSITE retention, and neither is a typo of the other.
+   */
+  it('keeps the solver ad addressable, not ephemeral', () => {
+    expect(RFQ_AD_KIND).toBeGreaterThanOrEqual(30_000)
+    expect(RFQ_AD_KIND).toBeLessThan(40_000)
+  })
+})
 
 describe('nostrRfqTransport', () => {
   const solverSecret = generateSecretKey()
