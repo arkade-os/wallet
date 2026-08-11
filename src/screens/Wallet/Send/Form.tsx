@@ -35,7 +35,7 @@ import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl, LnUr
 import { extractError } from '../../../lib/error'
 import { decodeInvoice } from '../../../lib/bolt11'
 import { lnSendRendezvous, requestLnSend } from '../../../lib/lnSwap'
-import { nostrRfqTransport } from '../../../lib/nostrRfq'
+import { nostrRfqTransport } from '@arkade-os/swap/nostr'
 import { discoverMarkets } from '../../../lib/swap/markets'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'

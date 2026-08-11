@@ -5,21 +5,21 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.4.57-pr691-752ed57.tgz
+  '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz
 
 importers:
 
   .:
     dependencies:
       '@arkade-os/sdk':
-        specifier: file:vendor/arkade-os-sdk-0.4.57-pr691-752ed57.tgz
-        version: file:vendor/arkade-os-sdk-0.4.57-pr691-752ed57.tgz
+        specifier: file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz
+        version: file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz
       '@arkade-os/solver-discovery':
         specifier: 0.2.1
         version: 0.2.1
       '@arkade-os/swap':
-        specifier: file:vendor/arkade-os-swap-0.0.1-pr691-752ed57.tgz
-        version: file:vendor/arkade-os-swap-0.0.1-pr691-752ed57.tgz
+        specifier: file:vendor/arkade-os-swap-0.0.1-pr718-975ed0f.tgz
+        version: file:vendor/arkade-os-swap-0.0.1-pr718-975ed0f.tgz(nostr-tools@2.17.2(typescript@5.9.3))
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -249,10 +249,10 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.57-pr691-752ed57.tgz':
-    resolution: {integrity: sha512-MOsvkiUEiB22RgvT1bo+i0A+V6EnK7L9U4n4rQl+PPChoaVicbRXrenKQ0Cwv2jyONcdlwA7uMAz/nbs81PUMA==, tarball: file:vendor/arkade-os-sdk-0.4.57-pr691-752ed57.tgz}
-    version: 0.4.57
-    engines: {node: '>=22.12.0 <25'}
+  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz':
+    resolution: {integrity: sha512-hVi+ZWAn1tvRb6Smx3jCi/MWST9fLhY84otitarvTTbKIsBo1tk1wnNY5Z3joOAKeFkNlGQT/ZhLY2m89gv0XA==, tarball: file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz}
+    version: 0.4.58
+    engines: {node: '>=22.12.0 <27'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
       expo: '>=54.0.0'
@@ -275,9 +275,14 @@ packages:
     resolution: {integrity: sha512-OKZI4X063bDxBKQ0pN4lFJFVufZ4JIXcdt2TWIlUQhg9C7AzuZxr2AGcUSg41EYzOS0P6OL+uOoiurvx2LYs5w==}
     engines: {node: '>=18'}
 
-  '@arkade-os/swap@file:vendor/arkade-os-swap-0.0.1-pr691-752ed57.tgz':
-    resolution: {integrity: sha512-AuoqTp4XIzDfazk20ROJ00Vpk2aXW2KGP9ov3orr0rJGevxYH5A4jk4JShbvPhVAsARLAB0RCjuCcIJQuJhm3A==, tarball: file:vendor/arkade-os-swap-0.0.1-pr691-752ed57.tgz}
+  '@arkade-os/swap@file:vendor/arkade-os-swap-0.0.1-pr718-975ed0f.tgz':
+    resolution: {integrity: sha512-tSXUH+DPdAhc4+bmkSMNhxGKPXhqyT0bplLPRaCpV9B095IJ0B5d58Vrf+WjsHo4rpvP0KNR/x7fO9eVOHEO9Q==, tarball: file:vendor/arkade-os-swap-0.0.1-pr718-975ed0f.tgz}
     version: 0.0.1
+    peerDependencies:
+      nostr-tools: ^2.12.0
+    peerDependenciesMeta:
+      nostr-tools:
+        optional: true
 
   '@asamuzakjp/css-color@3.2.0':
     resolution: {integrity: sha512-K1A6z8tS3XsmCMM86xoWdn7Fkdn9m6RSVtocUrJYIwZnFVkng/PvkEoWtOWmP+Scc6saYWHWZYbndEEXxl24jw==}
@@ -4335,7 +4340,7 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.57-pr691-752ed57.tgz':
+  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 8.0.0
@@ -4356,14 +4361,16 @@ snapshots:
 
   '@arkade-os/solver-discovery@0.2.1': {}
 
-  '@arkade-os/swap@file:vendor/arkade-os-swap-0.0.1-pr691-752ed57.tgz':
+  '@arkade-os/swap@file:vendor/arkade-os-swap-0.0.1-pr718-975ed0f.tgz(nostr-tools@2.17.2(typescript@5.9.3))':
     dependencies:
-      '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.4.57-pr691-752ed57.tgz
+      '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz
       '@arkade-os/solver-discovery': 0.2.1
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
       '@scure/btc-signer': 2.0.1
+    optionalDependencies:
+      nostr-tools: 2.17.2(typescript@5.9.3)
     transitivePeerDependencies:
       - '@ledgerhq/ledger-bitcoin'
       - '@react-native-async-storage/async-storage'
