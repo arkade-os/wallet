@@ -32,7 +32,9 @@ import { dirname, join } from 'node:path'
 import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure'
 import { getConversationKey, encrypt, decrypt } from 'nostr-tools/nip44'
 
-const KIND = 4859
+import { RFQ_DIRECTED_KIND } from '@arkade-os/swap/nostr'
+
+const KIND = RFQ_DIRECTED_KIND
 const WAIT_MS = 20_000
 
 const here = dirname(fileURLToPath(import.meta.url))
