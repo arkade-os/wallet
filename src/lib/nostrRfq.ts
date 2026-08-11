@@ -68,7 +68,7 @@ const asQuote = (payload: unknown, rfqId: string): RfqQuote => {
 
 export interface NostrRfqOptions {
   /** Relay URLs from the solver's card. The rendezvous, not solver endpoints. */
-  relays: string[]
+  transports: { nostr: { relays: string[] } }
   /** The card's `discovery_pubkey`, x-only hex — who we address. */
   solverPubkey: string
   /**
@@ -91,7 +91,7 @@ export interface NostrRfqOptions {
  * the publish promise settles is not missed.
  */
 export const nostrRfqTransport = (options: NostrRfqOptions): RfqTransport => {
-  const relays = options.relays
+  const relays = options.transports.nostr.relays
   const solverPubkey = options.solverPubkey
   const secretKey = options.secretKey ?? generateSecretKey()
   const pubkey = getPublicKey(secretKey)
@@ -222,7 +222,7 @@ export const nostrRfqTransport = (options: NostrRfqOptions): RfqTransport => {
  * teardown failure must not mask the negotiation's own result.
  */
 export const withRfqTransport = async <T>(
-  rendezvous: { relays: string[]; solverPubkey: string },
+  rendezvous: { transports: { nostr: { relays: string[] } }; solverPubkey: string },
   fn: (transport: RfqTransport) => Promise<T>,
   options: { timeoutMs?: number } = {},
 ): Promise<T> => {

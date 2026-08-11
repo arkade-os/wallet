@@ -60,7 +60,7 @@ describe('nostrRfqTransport', () => {
     const clientPubkey = getPublicKey(clientSecret)
     const f = fakePool(solverSecret)
     const transport = nostrRfqTransport({
-      relays: ['wss://relay.test'],
+      transports: { nostr: { relays: ['wss://relay.test'] } },
       solverPubkey,
       secretKey: clientSecret,
       pool: f.pool as never,

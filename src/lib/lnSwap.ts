@@ -103,20 +103,47 @@ export const isRfqTerminal = (state: string): boolean => (RFQ_TERMINAL_STATES as
  */
 export interface LnSendRendezvous {
   solverPubkey: string
-  relays: string[]
+  transports: { nostr: { relays: string[] } }
+  /**
+   * The card's `emulator_pubkey`: the x-only key of the covenant co-signer the
+   * SOLVER's deployment uses, as 64 lowercase hex chars.
+   *
+   * A deployment fact rather than a per-swap one, which is why it rides the
+   * signed card instead of the quote — and why it has to come from the card at
+   * all: the two non-interactive leaves are built around this key, so the
+   * wallet cannot derive the covenant, and therefore cannot check the solver's
+   * `lockup_address` against its own, without it. There is no URL to fetch it
+   * from either; clients have no network path to the emulator.
+   *
+   * Note the card only says which key the solver uses — it does not vouch for
+   * that key. A wallet holding an independently trusted value should compare
+   * before funding; this wallet's anchor is the card it pins at build time.
+   */
+  emulatorPubkey: string
   /** Card bounds on the Lightning side, sats. Indicative; the quote binds. */
   minSats: number
   maxSats: number
 }
 
+/** 64 lowercase hex chars — the registry's own `emulator_pubkey` pattern. */
+const XONLY_HEX = /^[0-9a-f]{64}$/
+
 /**
  * Pick the Lightning-send rendezvous out of discovered markets.
  *
- * A corridor market's card MUST carry `discovery_pubkey` and a nostr transport
- * (they are the rendezvous, and the registry signs them); a corridor market
- * that reaches us without them is malformed and skipped rather than trusted.
- * Returns undefined when no solver serves the corridor — the caller treats
- * that as "RFQ send unavailable", not as an error.
+ * A corridor market's card MUST carry `discovery_pubkey`, a nostr transport
+ * (they are the rendezvous, and the registry signs them) and `emulator_pubkey`;
+ * a corridor market that reaches us without them is malformed and skipped
+ * rather than trusted. Returns undefined when no solver serves the corridor —
+ * the caller treats that as "RFQ send unavailable", not as an error.
+ *
+ * `emulator_pubkey` joins that MUST rather than defaulting to anything, because
+ * every fallback is worse than not offering the corridor. Guessing it derives a
+ * different covenant than the solver's, so `verifyLockupAddress` refuses and the
+ * negotiation dies after a quote was burned and the invoice was handed to a
+ * third party; omitting it leaves the two non-interactive leaves out of the
+ * script, which changes the address the same way. Skipping here costs one
+ * unavailable corridor and tells the user so up front.
  *
  * The relays sit under `transports.nostr` rather than at the card's top level:
  * the registry schema moved them there so a second transport is a new key in
@@ -126,8 +153,19 @@ export interface LnSendRendezvous {
 export const lnSendRendezvous = (markets: DiscoveredMarket[]): LnSendRendezvous | undefined => {
   for (const market of markets) {
     if (market.quote_corridor !== 'lightning') continue
-    const relays = market.transports?.nostr?.relays
-    if (!market.discovery_pubkey || !relays?.length) continue
+    const transports = {
+      nostr: {
+        relays: market.transports?.nostr?.relays ?? [],
+      },
+    }
+    if (!market.discovery_pubkey || !transports.nostr.relays?.length) continue
+    // Read off the market rather than the type: `emulator_pubkey` postdates the
+    // pinned @arkade-os/solver-discovery, so DiscoveredMarket does not declare
+    // it yet even though the registry schema, its validator and its reducer all
+    // carry it (arkade-os/solver-registry#18). The shape check below is what
+    // makes reading an undeclared field safe.
+    const emulatorPubkey = (market as { emulator_pubkey?: unknown }).emulator_pubkey
+    if (typeof emulatorPubkey !== 'string' || !XONLY_HEX.test(emulatorPubkey)) continue
     // sideLimits is the registry's own parser: it reads a disabled side
     // (max "0") or a malformed bound as null. Parsing the raw strings here
     // instead would turn a disabled side into a 0..0 range and report it to
@@ -136,7 +174,8 @@ export const lnSendRendezvous = (markets: DiscoveredMarket[]): LnSendRendezvous 
     if (!bounds) continue
     return {
       solverPubkey: market.discovery_pubkey,
-      relays,
+      transports,
+      emulatorPubkey,
       minSats: Number(bounds.min),
       maxSats: Number(bounds.max),
     }
@@ -200,7 +239,6 @@ export const requestLnSend = async (
   args: {
     wallet: Parameters<typeof requestLightningSend>[0]
     arkServerUrl: string
-    emulatorUrl: string
     transport: RfqTransport
     invoice: string
     network: NetworkName
@@ -209,9 +247,19 @@ export const requestLnSend = async (
   nowSeconds = Math.floor(Date.now() / 1000),
 ): Promise<LnSendRequest> => {
   const invoice = toInvoiceFacts(args.invoice, args.network, nowSeconds)
-  const result = await requestLightningSend(args.wallet, args.arkServerUrl, args.emulatorUrl, args.transport, {
-    invoice,
-  })
+  // The emulator's x-only KEY, not the emulator's URL. The client has no
+  // network path to that service and never dials it — the key is a covenant
+  // parameter, one of the eight leaves' inputs, so it can only come from the
+  // solver's signed card. It is taken from the rendezvous rather than accepted
+  // as a separate argument so no call site can pair one solver's card with
+  // another's co-signer.
+  const result = await requestLightningSend(
+    args.wallet,
+    args.arkServerUrl,
+    hex.decode(args.rendezvous.emulatorPubkey),
+    args.transport,
+    { invoice },
+  )
   return {
     rfqId: result.rfqId,
     address: result.address,

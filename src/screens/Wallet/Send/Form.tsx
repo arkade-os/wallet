@@ -59,7 +59,7 @@ import {
   DropdownMenuTrigger,
 } from '../../../components/ui/dropdown-menu'
 import { hapticLight } from '../../../lib/haptics'
-import { getEmulatorUrlForNetwork, testDomains } from '../../../lib/constants'
+import { testDomains } from '../../../lib/constants'
 import UnverifiedBadge from '../../../components/UnverifiedBadge'
 
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
@@ -613,8 +613,10 @@ export default function SendForm() {
       const negotiate = async () => {
         if (!svcWallet) return handleError('Wallet not ready')
         const network = aspInfo.network as NetworkName
-        const emulatorUrl = getEmulatorUrlForNetwork(network)
-        if (!emulatorUrl) return handleError('Swap co-signer not configured for this network')
+        // No emulator URL is looked up here: this corridor needs the co-signer's
+        // x-only KEY, which rides the solver's own card (see LnSendRendezvous),
+        // not the wallet's per-network emulator endpoint. A card without it
+        // yields no rendezvous, which the line below already reports.
         const rendezvous = lnSendRendezvous(await discoverMarkets(network))
         if (!rendezvous) return handleError('No Lightning solver available')
         const sats = sendInfo.satoshis ?? 0
@@ -627,7 +629,6 @@ export default function SendForm() {
           const pendingLnSend = await requestLnSend({
             wallet: svcWallet,
             arkServerUrl: aspInfo.url,
-            emulatorUrl,
             transport,
             invoice: sendInfo.invoice!,
             network,
