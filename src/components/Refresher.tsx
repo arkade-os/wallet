@@ -12,26 +12,33 @@ export default function Refresher() {
   const triggeredRef = useRef(false)
   const touchstartYRef = useRef(0)
 
-  const handleTouchStart = (e: TouchEvent) => {
+  const handleTouchStart: EventListener = (event) => {
+    const e = event as TouchEvent
     touchstartYRef.current = e.touches[0].clientY
   }
 
-  const handleTouchMove = (e: TouchEvent) => {
+  const handleTouchMove: EventListener = (event) => {
+    const distToTop = document.querySelector('.content')?.scrollTop ?? window.scrollY
+    const e = event as TouchEvent
     if (touchstartYRef.current > 180) return
     const touchY = e.touches[0].clientY
     const touchDiff = touchY - touchstartYRef.current
-    if (touchDiff > 100 && window.scrollY === 0) {
+    if (touchDiff > 100 && distToTop === 0) {
       setShowRefresh(true)
       if (e.cancelable) e.preventDefault()
       triggeredRef.current = true
     }
   }
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd: EventListener = () => {
     if (triggeredRef.current) {
       triggeredRef.current = false
       handleRefresh()
     }
+  }
+
+  const handleTouchCancel: EventListener = () => {
+    triggeredRef.current = false
   }
 
   const handleRefresh = async () => {
@@ -50,11 +57,13 @@ export default function Refresher() {
     document.addEventListener('touchmove', handleTouchMove, { passive: false })
     document.addEventListener('touchstart', handleTouchStart)
     document.addEventListener('touchend', handleTouchEnd)
+    document.addEventListener('touchcancel', handleTouchCancel)
 
     return () => {
       document.removeEventListener('touchstart', handleTouchStart)
       document.removeEventListener('touchmove', handleTouchMove)
       document.removeEventListener('touchend', handleTouchEnd)
+      document.removeEventListener('touchcancel', handleTouchCancel)
     }
   }, [])
 
