@@ -6,16 +6,23 @@ import { notificationApiSupport, requestPermission, sendTestNotification } from 
 import Header from './Header'
 import Content from '../../components/Content'
 import Toggle from '../../components/Toggle'
+import { useToast } from '../../components/Toast'
 
 export default function Notifications() {
   const { backupAndUpdateConfig } = useContext(BackupContext)
   const { config } = useContext(ConfigContext)
 
+  const { toast } = useToast()
+
   const handleChange = async () => {
-    if (!notificationApiSupport) return
+    if (!notificationApiSupport) {
+      toast('Notifications API not supported')
+      return
+    }
     if (!config.notifications) {
       requestPermission().then(async (notifications) => {
         if (notifications) sendTestNotification()
+        else toast('Notifications permission denied')
         backupAndUpdateConfig({ ...config, notifications })
       })
     } else {
