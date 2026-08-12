@@ -23,9 +23,9 @@
  * from the ts-sdk monorepo until that package is published to npm.
  */
 import { hex } from '@scure/base'
-import { sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+import { sideLimits, type DiscoveredMarket, type Side } from '@arkade-os/solver-discovery'
 import type { NetworkName, RestIndexerProvider } from '@arkade-os/sdk'
-import { RFQ_TERMINAL_STATES, requestLightningSend, type InvoiceFacts, type RfqTransport } from '@arkade-os/swap'
+import { isRfqTerminal, requestLightningSend, type InvoiceFacts, type RfqTransport } from '@arkade-os/swap'
 import { sleep as defaultSleep } from './sleep'
 import { decodeInvoice, invoiceMatchesNetwork, isInvoiceExpired, type DecodedInvoice } from './bolt11'
 import type { LnSendSpend } from './types'
@@ -90,8 +90,14 @@ export const toInvoiceFacts = (
   }
 }
 
-/** Whether an RFQ state is one after which nothing further will happen. */
-export const isRfqTerminal = (state: string): boolean => (RFQ_TERMINAL_STATES as readonly string[]).includes(state)
+/**
+ * Whether an RFQ state is one after which nothing further will happen.
+ *
+ * Re-exported rather than reimplemented: the client owns `RFQ_TERMINAL_STATES`,
+ * so a locally maintained copy of this predicate is a second place for the set
+ * to drift from the states the solver actually reports.
+ */
+export { isRfqTerminal }
 
 /**
  * The Lightning-send rendezvous, discovered rather than configured: which
@@ -150,7 +156,22 @@ const XONLY_HEX = /^[0-9a-f]{64}$/
  * that map instead of a breaking change. Nostr is the only protocol defined in
  * v0, and it is the one this wallet speaks, so it is read by name.
  */
-export const lnSendRendezvous = (markets: DiscoveredMarket[]): LnSendRendezvous | undefined => {
+export const lnSendRendezvous = (markets: DiscoveredMarket[]): LnSendRendezvous | undefined =>
+  lnRendezvous(markets, 'quote')
+
+/**
+ * The receive direction of the same market.
+ *
+ * A side's bounds are what the SOLVER pays out on it, so the Lightning corridor's
+ * two directions live on the two sides of one market: quote (Lightning) is the
+ * send leg, base (arkade) the receive leg. A card whose base side is disabled
+ * advertises no receive corridor, which is the current published state — see
+ * arkade-os/lightning-swap-service#64.
+ */
+export const lnReceiveRendezvous = (markets: DiscoveredMarket[]): LnSendRendezvous | undefined =>
+  lnRendezvous(markets, 'base')
+
+const lnRendezvous = (markets: DiscoveredMarket[], side: Side): LnSendRendezvous | undefined => {
   for (const market of markets) {
     if (market.quote_corridor !== 'lightning') continue
     const transports = {
@@ -170,7 +191,7 @@ export const lnSendRendezvous = (markets: DiscoveredMarket[]): LnSendRendezvous 
     // (max "0") or a malformed bound as null. Parsing the raw strings here
     // instead would turn a disabled side into a 0..0 range and report it to
     // the user as "amount outside solver bounds" rather than "no solver".
-    const bounds = sideLimits(market, 'quote')
+    const bounds = sideLimits(market, side)
     if (!bounds) continue
     return {
       solverPubkey: market.discovery_pubkey,

@@ -6,7 +6,7 @@
  * which is the production transport: `docs/rfq-protocol.md` § 3.1 in
  * arkade-os/lightning-swap-service.
  *
- * **Kind 4859, directed.** One kind for the whole message family. `content` is
+ * **Kind 24859, directed.** One kind for the whole message family. `content` is
  * the NIP-44-encrypted payload; a `p` tag names the recipient. Both sides are
  * outbound-only — each dials relays, neither listens — which is what lets a
  * solver sit behind NAT with no public endpoint. No URL for the solver appears
@@ -23,8 +23,28 @@
 import { SwapRefusal, type RfqQuote, type RfqStatus, type RfqTransport } from '@arkade-os/swap'
 import { finalizeEvent, generateSecretKey, getPublicKey, nip44, SimplePool, type Event } from 'nostr-tools'
 
-/** Directed RFQ traffic. Provisional in the spec; kept in one place. */
-export const RFQ_DIRECTED_KIND = 4859
+/**
+ * Directed RFQ traffic. Provisional in the spec; kept in one place.
+ *
+ * In NIP-01's EPHEMERAL range (20000 ≤ n < 30000), which is the point rather
+ * than an arbitrary number: a relay does not store these, and RFQ traffic is a
+ * negotiation whose messages are worthless once stale — a request nobody
+ * answered inside the 30s timeout, or a quote past its `valid_until`. In the
+ * regular range this started in (4859) a relay keeps them and serves them to
+ * any subscriber forever, which made every negotiation's metadata — who traded
+ * with whom, when, how often — a permanent public record no client-side care
+ * could retract.
+ *
+ * The cost, honestly: no store-and-forward, so a request sent while the solver
+ * is disconnected is dropped rather than queued. `awaitReply`'s timeout is what
+ * covers that, and a quote from a request the solver never saw would have been
+ * refused as stale anyway.
+ *
+ * A hard cutover on both sides — the solver does not dual-listen — so this must
+ * match its deployment exactly: on the wrong kind a negotiation is not refused,
+ * it is met with silence until the timeout.
+ */
+export const RFQ_DIRECTED_KIND = 24859
 
 const DEFAULT_TIMEOUT_MS = 30_000
 
@@ -84,7 +104,7 @@ export interface NostrRfqOptions {
 }
 
 /**
- * Build an `RfqTransport` speaking kind-4859 directed traffic.
+ * Build an `RfqTransport` speaking kind-24859 directed traffic.
  *
  * Sends are fire-and-forget publishes; replies arrive on a single long-lived
  * subscription filtered to this transport key, so a reply that arrives before

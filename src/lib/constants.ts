@@ -72,6 +72,26 @@ const EMULATOR_URL: Record<NetworkName, string | null> = {
 export const getEmulatorUrlForNetwork = (network: NetworkName): string | undefined =>
   serviceUrlForNetwork(import.meta.env.VITE_EMULATOR_URL, EMULATOR_URL, network)
 
+// covclaimd, the service that can claim a Lightning-receive lockup on the
+// wallet's behalf. Only its PUBKEY is used here — the claim packet is sealed to
+// it so an offline wallet could still be paid — and there is no discovery path
+// for that key, so the URL has to be configured. No default outside regtest:
+// no public deployment is known, and guessing one would seal the packet to a
+// key nobody holds.
+const COVCLAIMD_URL: Record<NetworkName, string | null> = {
+  // No public deployment found: covclaimd.arkade.{sh,computer} do not resolve.
+  bitcoin: null,
+  // Reports the same emulator key that emulator.mutinynet.arkade.sh serves,
+  // which is the pair the covenant is built from.
+  mutinynet: 'https://covclaimd.mutinynet.arkade.sh',
+  signet: null,
+  regtest: 'http://localhost:7271',
+  testnet: null,
+}
+
+export const getCovclaimdUrlForNetwork = (network: NetworkName): string | undefined =>
+  serviceUrlForNetwork(import.meta.env.VITE_COVCLAIMD_URL, COVCLAIMD_URL, network)
+
 export const getDelegateUrlForNetwork = (network: NetworkName): string | undefined => {
   return DELEGATE_URL[network] ?? undefined
 }

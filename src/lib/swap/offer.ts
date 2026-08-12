@@ -20,7 +20,6 @@ import {
   ArkAddress,
   RestArkProvider,
   RestIndexerProvider,
-  RestEmulatorProvider,
   arkade,
   asset,
   getNetwork,
@@ -191,12 +190,12 @@ export function decodeOffer(data: Uint8Array): Offer {
  * you deposit, embedding the payload, and the solver does the rest:
  *
  *   // BTC -> asset
- *   const o = await createOffer(wallet, ARK, EMU, { wantAmount: 1000n, wantAsset })
+ *   const o = await createOffer(wallet, ARK, EMU_PUBKEY, { wantAmount: 1000n, wantAsset })
  *   await wallet.send({ address: o.address, amount: 1000,
  *                       extensions: [{ type: OFFER_PACKET_TYPE, payload: o.payload }] })
  *
  *   // asset -> BTC (the sats are the VTXO carrier for the asset)
- *   const o = await createOffer(wallet, ARK, EMU, { wantAmount: 1000n, offerAsset })
+ *   const o = await createOffer(wallet, ARK, EMU_PUBKEY, { wantAmount: 1000n, offerAsset })
  *   await wallet.send({ address: o.address, amount: 500,
  *                       assets: [{ assetId, amount: 1000n }],
  *                       extensions: [{ type: OFFER_PACKET_TYPE, payload: o.payload }] })
@@ -204,20 +203,28 @@ export function decodeOffer(data: Uint8Array): Offer {
 export async function createOffer(
   wallet: IWallet,
   arkServerUrl: string,
-  emulatorUrl: string,
+  /**
+   * Covenant co-signer (emulator) key, compressed or x-only.
+   *
+   * A KEY, never a URL, and deliberately not read from the emulator's own
+   * `/v1/info`: asking the co-signer to name itself lets whatever answers that
+   * endpoint pick the key the covenant is built around, which is the one input
+   * here that decides who can co-sign a spend. The caller supplies a value it
+   * trusts independently — `defaultEmulatorPubkey(network)` pins one per
+   * network — matching `@arkade-os/swap`'s own `createOffer`.
+   */
+  emulatorPubkey: Uint8Array,
   params: { wantAmount: bigint; wantAsset?: asset.AssetId; offerAsset?: asset.AssetId },
 ): Promise<{ offerHex: string; payload: Uint8Array; address: string; swapPkScript: Uint8Array }> {
   if (!params.wantAsset === !params.offerAsset) {
     throw new Error('set exactly one of wantAsset (BTC->asset) or offerAsset (asset->BTC)')
   }
-  const [info, emulatorInfo, makerAddress, makerPublicKey] = await Promise.all([
+  const [info, makerAddress, makerPublicKey] = await Promise.all([
     new RestArkProvider(arkServerUrl).getInfo(),
-    new RestEmulatorProvider(emulatorUrl).getInfo(),
     wallet.getAddress(),
     wallet.identity.xOnlyPublicKey(),
   ])
   const serverPubKey = hex.decode(info.signerPubkey).slice(1)
-  const emuKey = hex.decode(emulatorInfo.signerPubkey)
 
   const offer: Offer = {
     swapPkScript: new Uint8Array(0), // placeholder, computed below
@@ -226,7 +233,8 @@ export async function createOffer(
     offerAsset: params.offerAsset,
     makerPkScript: ArkAddress.decode(makerAddress).pkScript,
     makerPublicKey,
-    emulatorPubkey: emuKey.length === 33 ? emuKey.slice(1) : emuKey,
+    // the TLV record is x-only (32 bytes); a compressed key drops its prefix
+    emulatorPubkey: emulatorPubkey.length === 33 ? emulatorPubkey.slice(1) : emulatorPubkey,
   }
   const script = offerVtxoScript(offer, serverPubKey)
   offer.swapPkScript = script.pkScript

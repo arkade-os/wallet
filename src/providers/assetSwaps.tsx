@@ -1,6 +1,14 @@
 import { ReactNode, createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { hex } from '@scure/base'
-import { asset, RestEmulatorProvider, RestIndexerProvider, type NetworkName, type VirtualCoin } from '@arkade-os/sdk'
+import {
+  asset,
+  defaultEmulatorPubkey,
+  getNetwork,
+  RestEmulatorProvider,
+  RestIndexerProvider,
+  type NetworkName,
+  type VirtualCoin,
+} from '@arkade-os/sdk'
 import { DiscoveredMarket, OfferPlan } from '@arkade-os/solver-discovery'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
@@ -151,7 +159,13 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     // side: keying on the deposit would push an asset↔asset plan into the
     // want-btc branch, binding the receive asset's atomic amount as a sat
     // want the solver could fill for dust.
-    const offer = await createOffer(svcWallet, aspInfo.url, emulatorUrl, {
+    // The co-signer key comes from the SDK's per-network pin, not from the
+    // emulator's own /v1/info: the covenant is built around this key, so
+    // letting the service name it would let whatever answers that URL choose
+    // who can co-sign a spend. Every network with an emulator URL above is
+    // pinned, so this cannot throw on a path that reaches here.
+    const emulatorPubkey = hex.decode(defaultEmulatorPubkey(getNetwork(aspInfo.network as NetworkName)))
+    const offer = await createOffer(svcWallet, aspInfo.url, emulatorPubkey, {
       wantAmount: plan.receive.atomic,
       ...(plan.receive.asset.id === BTC_ASSET_ID
         ? { offerAsset: asset.AssetId.fromString(plan.deposit.asset.id) }

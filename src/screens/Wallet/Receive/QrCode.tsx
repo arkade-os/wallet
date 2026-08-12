@@ -13,13 +13,19 @@ import { canBrowserShareData, shareData } from '../../../lib/share'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
 import { LimitsContext } from '../../../providers/limits'
-import { Asset, Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
+import { Asset, Coin, ExtendedVirtualCoin, RestArkProvider, type NetworkName } from '@arkade-os/sdk'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
 import { unitsToCents } from '../../../lib/assets'
 import ErrorMessage from '../../../components/Error'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
+import { claimLnReceive, covclaimdPubkey, requestLnReceive } from '../../../lib/lnReceive'
+import { lnReceiveRendezvous } from '../../../lib/lnSwap'
+import { withRfqTransport } from '../../../lib/nostrRfq'
+import { discoverMarkets } from '../../../lib/swap/markets'
+import { getCovclaimdUrlForNetwork } from '../../../lib/constants'
+import { Indexer } from '../../../lib/indexer'
 import InputAmount from '../../../components/InputAmount'
 import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
 import SheetModal from '../../../components/SheetModal'
@@ -96,6 +102,7 @@ export default function ReceiveQRCode() {
   const [qrCodeValue, setQrCodeValue] = useState('')
   const [selectedValue, setSelectedValue] = useState('')
   const [bip21Uri, setBip21Uri] = useState('')
+  const [lnReceiveError, setLnReceiveError] = useState('')
 
   // Fetch addresses on mount
   useEffect(() => {
@@ -124,10 +131,101 @@ export default function ReceiveQRCode() {
     const btc = utxoTxsAllowed() ? recvInfo.boardingAddr : ''
     const bip21 = isAssetReceive
       ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals)
-      : encodeBip21(btc, ark, '', satoshis, '')
+      : encodeBip21(btc, ark, recvInfo.invoice ?? '', satoshis, '')
 
     return { ark, btc, bip21 }
   }
+
+  /**
+   * Negotiate a Lightning receive once an amount is set.
+   *
+   * Gated on an amount because the corridor requires one: the solver mints the
+   * invoice, so nothing else implies what it is for. An amount outside the
+   * card's bounds, an unserved corridor or an unconfigured covclaimd all leave
+   * the other payment methods working — this is an EXTRA way to be paid, so a
+   * failure here must not take the ark and on-chain addresses down with it.
+   */
+  useEffect(() => {
+    if (!svcWallet || isAssetReceive || satoshis <= 0) return
+    if (recvInfo.pendingLnReceive?.payAmount && recvInfo.invoice) return
+    const network = aspInfo.network as NetworkName
+    const covclaimdUrl = getCovclaimdUrlForNetwork(network)
+    if (!covclaimdUrl) return setLnReceiveError('Lightning receive is not configured for this network')
+
+    let abandoned = false
+    const negotiate = async () => {
+      const rendezvous = lnReceiveRendezvous(await discoverMarkets(network))
+      if (!rendezvous) throw new Error('No Lightning solver available')
+      if (satoshis < rendezvous.minSats || satoshis > rendezvous.maxSats) {
+        throw new Error(
+          `Amount outside solver bounds (${prettyNumber(rendezvous.minSats)}-${prettyNumber(rendezvous.maxSats)} sats)`,
+        )
+      }
+      const covclaimd = await covclaimdPubkey(covclaimdUrl)
+      const pending = await withRfqTransport(rendezvous, (transport) =>
+        requestLnReceive({
+          wallet: svcWallet,
+          arkServerUrl: aspInfo.url,
+          transport,
+          rendezvous,
+          covclaimdPubkey: covclaimd,
+          network,
+          amountSats: satoshis,
+        }),
+      )
+      if (abandoned) return
+      setLnReceiveError('')
+      setRecvInfo({ ...recvInfo, invoice: pending.invoice, pendingLnReceive: pending })
+    }
+
+    setLnReceiveError('')
+    negotiate().catch((err) => {
+      if (abandoned) return
+      const error = extractError(err)
+      consoleError(error, 'error negotiating lightning receive')
+      setLnReceiveError(error)
+    })
+    // The amount changed under an in-flight negotiation, so its invoice would
+    // be for the wrong number. Nothing to cancel on the solver — an unpaid hold
+    // invoice simply expires.
+    return () => {
+      abandoned = true
+    }
+  }, [svcWallet, satoshis, isAssetReceive, aspInfo.network])
+
+  /**
+   * Claim what the solver funds once the payer pays.
+   *
+   * Unavoidably the wallet's own job: covclaimd cannot claim this covenant yet
+   * and `RfqSwapManager` does not cover the receive corridor, so leaving the
+   * screen before this resolves loses the payment to the solver's refund path.
+   * The claim pays the wallet's own address, so the VTXO listener above is what
+   * actually reports success.
+   */
+  useEffect(() => {
+    const pending = recvInfo.pendingLnReceive
+    if (!svcWallet || !pending) return
+    let abandoned = false
+    claimLnReceive(
+      {
+        wallet: svcWallet,
+        indexer: new Indexer(aspInfo).provider,
+        ark: new RestArkProvider(aspInfo.url),
+        request: pending,
+        // Outlive the invoice: the payer has until invoiceExpiresAt, and the
+        // lockup only appears after that payment.
+      },
+      { deadline: pending.invoiceExpiresAt + 600 },
+    ).catch((err) => {
+      if (abandoned) return
+      const error = extractError(err)
+      consoleError(error, 'error claiming lightning receive')
+      setLnReceiveError(error)
+    })
+    return () => {
+      abandoned = true
+    }
+  }, [svcWallet, recvInfo.pendingLnReceive?.rfqId])
 
   // Build BIP21 URI
   useEffect(() => {
@@ -142,7 +240,15 @@ export default function ReceiveQRCode() {
     // Preserve an explicit copy-sheet selection across rebuilds; only fall back
     // to the unified URI when the selected value is no longer one we offer.
     setQrCodeValue(resolveQrValue(selectedValue, { bip21, btc, ark }))
-  }, [assetAmount, addressesLoaded, selectedValue, recvInfo.offchainAddr, recvInfo.boardingAddr, recvInfo.satoshis])
+  }, [
+    assetAmount,
+    addressesLoaded,
+    selectedValue,
+    recvInfo.offchainAddr,
+    recvInfo.boardingAddr,
+    recvInfo.satoshis,
+    recvInfo.invoice,
+  ])
 
   // Payment listener
   useEffect(() => {
@@ -303,6 +409,7 @@ export default function ReceiveQRCode() {
             <p>No valid payment methods available for this amount</p>
           ) : (
             <FlexCol gap='0.5rem' centered>
+              {lnReceiveError ? <TextSecondary>{`Lightning unavailable: ${lnReceiveError}`}</TextSecondary> : null}
               <button
                 type='button'
                 onClick={() => handleCopy(qrCodeValue)}
@@ -385,6 +492,7 @@ export default function ReceiveQRCode() {
             bip21Uri={bip21Uri}
             btcAddress={btcAddress}
             arkAddress={arkAddress}
+            invoice={recvInfo.invoice ?? ''}
             onCopy={handleCopy}
             onSelect={(v) => {
               setSelectedValue(v)
@@ -403,6 +511,7 @@ function AddressList({
   bip21Uri,
   btcAddress,
   arkAddress,
+  invoice,
   onCopy,
   onSelect,
   copied,
@@ -410,6 +519,7 @@ function AddressList({
   bip21Uri: string
   btcAddress: string
   arkAddress: string
+  invoice: string
   onCopy: (value: string) => void
   onSelect: (value: string) => void
   copied: string
@@ -441,6 +551,16 @@ function AddressList({
           testId='btc'
           title='Bitcoin address'
           value={btcAddress}
+          onCopy={onCopy}
+          onSelect={onSelect}
+          copied={copied}
+        />
+      ) : null}
+      {invoice ? (
+        <AddressLine
+          testId='invoice'
+          title='Lightning invoice'
+          value={invoice}
           onCopy={onCopy}
           onSelect={onSelect}
           copied={copied}
