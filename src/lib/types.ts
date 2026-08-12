@@ -1,3 +1,4 @@
+import type { rfqSecretsToRecord } from '@arkade-os/swap'
 import { Asset, NetworkName, type ExtendedVirtualCoin, type ServiceWorkerWalletMode } from '@arkade-os/sdk'
 
 export type Addresses = {
@@ -97,9 +98,20 @@ export enum Themes {
  * first is the wallet's own, so nothing in tx history can name the second; the
  * covenant's script is what lets the receipt find it.
  */
+/**
+ * The swap package's JSON-safe secrets record (`rfqSecretsToRecord`). On an
+ * HD wallet it holds only a public signing descriptor; when the wallet
+ * cannot allocate one, it holds the raw sender key — the material every
+ * interactive refund leaf needs, existing nowhere else. Same trust domain
+ * as the rest of this storage, same precedent as the Boltz swap records.
+ */
+export type LnSendSecretsRecord = ReturnType<typeof rfqSecretsToRecord>
+
 export type LnSendActivity = {
   /** Hex pkScript of the lockup covenant — the indexer's watch key. */
   swapPkScript: string
+  /** How the refund signer is recovered after a restart. */
+  secretsRecord?: LnSendSecretsRecord
   /** The tx that ended the swap, absent until one exists. */
   spend?: LnSendSpend
 }

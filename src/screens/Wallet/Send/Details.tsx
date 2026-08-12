@@ -155,7 +155,7 @@ export default function SendDetails() {
     // Record the covenant against the funding txid: it is the only handle on
     // the spend that ends this swap, and it stops being derivable the moment
     // this screen unmounts — the quote is gone and nothing else stores it.
-    handleTxid(txid, { swapPkScript: request.swapPkScript })
+    handleTxid(txid, { swapPkScript: request.swapPkScript, secretsRecord: request.secretsRecord })
   }
 
   const handleContinue = async () => {

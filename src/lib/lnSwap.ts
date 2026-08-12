@@ -25,10 +25,10 @@
 import { hex } from '@scure/base'
 import { sideLimits, type DiscoveredMarket, type Side } from '@arkade-os/solver-discovery'
 import type { NetworkName, RestIndexerProvider } from '@arkade-os/sdk'
-import { isRfqTerminal, requestLightningSend, type InvoiceFacts, type RfqTransport } from '@arkade-os/swap'
+import { isRfqTerminal, requestLightningSend, rfqSecretsToRecord, type InvoiceFacts, type RfqTransport } from '@arkade-os/swap'
 import { sleep as defaultSleep } from './sleep'
 import { decodeInvoice, invoiceMatchesNetwork, isInvoiceExpired, type DecodedInvoice } from './bolt11'
-import type { LnSendSpend } from './types'
+import type { LnSendSecretsRecord, LnSendSpend } from './types'
 
 /** Why an invoice cannot start a swap. A closed set, so callers can branch. */
 export type InvoiceRejection = 'unparseable' | 'wrong_network' | 'expired' | 'zero_amount' | 'no_payment_hash'
@@ -255,6 +255,9 @@ export interface LnSendRequest {
   swapPkScript: string
   /** Unix seconds after which the quote is dead and must not be funded. */
   validUntil: number
+  /** How the refund signer is recovered after a restart — see
+   * `LnSendSecretsRecord`. */
+  secretsRecord: LnSendSecretsRecord
   /**
    * Where to reach the solver again after funding.
    *
@@ -310,6 +313,10 @@ export const requestLnSend = async (
     swapPkScript: hex.encode(result.swapPkScript),
     validUntil: result.quote.valid_until,
     rendezvous: args.rendezvous,
+    // JSON-safe by construction: a public descriptor on the HD arm, the raw
+    // sender key when the wallet cannot allocate one. The pay screen persists
+    // it with the funding tx — losing it there loses the interactive refund.
+    secretsRecord: rfqSecretsToRecord(result.secrets),
   }
 }
 
