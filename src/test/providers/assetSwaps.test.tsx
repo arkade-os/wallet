@@ -143,7 +143,7 @@ describe('AssetSwapsProvider createSwap offer encoding', () => {
       expect(createOffer).toHaveBeenCalled()
     })
 
-    const options = createOffer.mock.calls[0][3]
+    const options = createOffer.mock.calls[0][2]
     expect(options.offerAsset).toBeUndefined()
     expect(options.wantAsset?.toString()).toBe(NAPO_ID)
     expect(options.wantAmount).toBe(plan.receive.atomic)
@@ -177,7 +177,7 @@ describe('AssetSwapsProvider createSwap offer encoding', () => {
       expect(createOffer).toHaveBeenCalled()
     })
 
-    const options = createOffer.mock.calls[0][3]
+    const options = createOffer.mock.calls[0][2]
     expect(options.wantAsset).toBeUndefined()
     expect(options.offerAsset?.toString()).toBe(USDT_ID)
     expect(options.wantAmount).toBe(plan.receive.atomic)
@@ -203,7 +203,7 @@ describe('AssetSwapsProvider createSwap offer encoding', () => {
       expect(createOffer).toHaveBeenCalled()
     })
 
-    const options = createOffer.mock.calls[0][3]
+    const options = createOffer.mock.calls[0][2]
     expect(options.offerAsset).toBeUndefined()
     expect(options.wantAsset?.toString()).toBe(USDT_ID)
     await waitFor(() => expect(send).toHaveBeenCalled())

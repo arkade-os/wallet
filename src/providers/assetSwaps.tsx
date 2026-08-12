@@ -22,7 +22,7 @@ import { discoverMarkets } from '../lib/swapMarkets'
 import { assetSwapRepository, type AssetSwapQuoteSnapshot, type WalletAssetSwap } from '../lib/swapRepository'
 import { isCancelSpend } from '../lib/swapSpend'
 import { getTxHistory } from '../lib/asp'
-import { getEmulatorPubkeyForNetwork } from '../lib/constants'
+import { getEmulatorPubkeyForNetwork, getEmulatorPubkeyHexForNetwork } from '../lib/constants'
 import { consoleError } from '../lib/logs'
 import { toast } from '../components/Toast'
 
@@ -199,11 +199,15 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     // side: keying on the deposit would push an asset↔asset plan into the
     // want-btc branch, binding the receive asset's atomic amount as a sat
     // want the solver could fill for dust.
-    const offer = await createOffer(svcWallet, aspInfo.url, emulatorPubkey, {
+    const offer = await createOffer(svcWallet, aspInfo.url, {
       wantAmount: plan.receive.atomic,
       ...(plan.receive.asset.id === BTC_ASSET_ID
         ? { offerAsset: asset.AssetId.fromString(plan.deposit.asset.id) }
         : { wantAsset: asset.AssetId.fromString(plan.receive.asset.id) }),
+      // Since 0.0.3 the package resolves the co-signer key from its own
+      // per-network pin; the wallet's configured value still overrides it, so a
+      // deployment the package has no pin for keeps working.
+      emulatorPubkey: getEmulatorPubkeyHexForNetwork(aspInfo.network as NetworkName),
     })
     // the record is keyed by the funding txid, so it cannot exist before the
     // send; createOffer has already registered the covenant, and a crash in

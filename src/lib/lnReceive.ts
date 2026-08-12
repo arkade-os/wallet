@@ -27,7 +27,6 @@ import {
   type SwapSecrets,
 } from '@arkade-os/swap'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
-import { hex } from '@scure/base'
 import { toInvoiceFacts, type LnSendRendezvous } from './lnSwap'
 
 /**
@@ -95,22 +94,18 @@ export const requestLnReceive = async (args: {
   network: NetworkName
   amountSats: number
 }): Promise<LnReceiveRequest> => {
-  const result = await requestLightningReceive(
-    args.wallet,
-    args.arkServerUrl,
-    hex.decode(args.rendezvous.emulatorPubkey),
-    args.transport,
-    {
-      amount: args.amountSats,
-      amountSide: 'to',
-      covclaimdPubkey: sealingKey(),
-      // The wallet's own decoder, applied to the SOLVER's invoice inside the
-      // package's own gate (ts-sdk#728 reinstated the parameter): it throws
-      // `InvoiceRejected` on a wrong network or an already-expired hold
-      // invoice, and skipping it is what loses the payment.
-      decodeInvoice: (bolt11: string) => toInvoiceFacts(bolt11, args.network),
-    },
-  )
+  // 0.0.3: the co-signer key resolves inside the package (per-network pin);
+  // the positional argument is gone.
+  const result = await requestLightningReceive(args.wallet, args.arkServerUrl, args.transport, {
+    amount: args.amountSats,
+    amountSide: 'to',
+    covclaimdPubkey: sealingKey(),
+    // The wallet's own decoder, applied to the SOLVER's invoice inside the
+    // package's own gate (ts-sdk#728 reinstated the parameter): it throws
+    // `InvoiceRejected` on a wrong network or an already-expired hold
+    // invoice, and skipping it is what loses the payment.
+    decodeInvoice: (bolt11: string) => toInvoiceFacts(bolt11, args.network),
+  })
   const facts = toInvoiceFacts(result.invoice, args.network)
   return {
     rfqId: result.rfqId,

@@ -71,13 +71,5 @@ export const withRfqTransport = async <T>(
     return await fn(transport)
   } catch (error) {
     throw friendlier(error, timeoutMs)
-  } finally {
-    // Closing the transport it owns emits a redundant CLOSE frame: the package
-    // closes the subscription and then the pool, and `pool.close()` already
-    // closes every subscription on those relays, so the browser logs
-    // "WebSocket is already in CLOSING or CLOSED state". Noise only — the
-    // negotiation is over — but it belongs upstream in @arkade-os/swap, not in
-    // a fork of the transport here.
-    await transport.close().catch(() => {})
   }
 }

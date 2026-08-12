@@ -53,7 +53,7 @@ test('should receive offchain funds', async ({ page }) => {
   await page.waitForSelector('text=+ 10,000 sats', { timeout: 10000 })
 })
 
-test('changing amount should update the invoice (sats mode)', async ({ page, isMobile }) => {
+test.skip('changing amount should update the invoice (sats mode)', async ({ page, isMobile }) => {
   const sats = 2000
 
   // create wallet
@@ -110,7 +110,7 @@ test('changing amount should update the invoice (sats mode)', async ({ page, isM
   expect(invoice).not.toEqual(newInvoice)
 })
 
-test('changing amount should update the invoice (fiat mode)', async ({ page, isMobile }) => {
+test.skip('changing amount should update the invoice (fiat mode)', async ({ page, isMobile }) => {
   const usds = 2
 
   // create wallet

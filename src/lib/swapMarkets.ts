@@ -12,7 +12,7 @@ import {
   type OfferPlan,
 } from '@arkade-os/solver-discovery'
 import type { NetworkName } from '@arkade-os/sdk'
-import arklabsLightningCard from './arklabs-lightning.card.json'
+import betaSolverCard from './beta-solver.card.json'
 import { getSolverRegistryUrl } from './constants'
 import { consoleLog } from './logs'
 import { readSolverCardsFromStorage } from './storage'
@@ -39,9 +39,7 @@ import { assetSwapRepository } from './swapRepository'
  */
 // Exported so the Solvers settings screen can show built-in cards — a pinned
 // solver invisible in Settings reads as "no solver at all".
-export const BUNDLED_CARDS: LocalCardInput[] = [
-  { card: arklabsLightningCard as LocalCardInput['card'], network: 'bitcoin' },
-]
+export const BUNDLED_CARDS: LocalCardInput[] = [{ card: betaSolverCard as LocalCardInput['card'], network: 'bitcoin' }]
 
 /**
  * Markets from the network's solver registry; [] when none is configured.

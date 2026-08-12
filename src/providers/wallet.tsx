@@ -727,7 +727,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     network !== 'testnet' && network !== 'mutinynet' && network !== 'signet' && network !== 'regtest'
 
   const minCheckpointExitDelaySecondsForNetwork = (network: NetworkName | string): bigint | undefined =>
-    network === 'mutinynet' ? mutinynetMinCheckpointExitDelaySeconds : undefined
+    network === 'mutinynet' ? mutinynetMinCheckpointExitDelaySeconds : network === 'regtest' ? 512n : undefined
 
   const initWallet = async (credentials: {
     mnemonic?: string

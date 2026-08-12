@@ -92,13 +92,21 @@ const EMULATOR_PUBKEY: Record<NetworkName, string | null> = {
   testnet: null,
 }
 
+/** The configured co-signer key as configured — compressed hex for every pin
+ * above, which is the shape `@arkade-os/swap` takes as its override. Since
+ * 0.0.3 the package resolves the key from its own per-network pin, so this is
+ * only passed where the wallet has a value of its own: a deployment with no
+ * package pin (regtest) has nowhere else to get one. */
+export const getEmulatorPubkeyHexForNetwork = (network: NetworkName): string | undefined =>
+  serviceUrlForNetwork(import.meta.env.VITE_EMULATOR_PUBKEY, EMULATOR_PUBKEY, network)
+
 /** The covenant co-signer's x-only key (32 bytes), or undefined when this
  * network has none configured. Compressed (33-byte) values are accepted and
  * narrowed, matching the SDK's own normalization. A malformed value reads as
  * absent: failing closed disables swaps, where passing garbage through would
  * derive a covenant the solver cannot fill. */
 export const getEmulatorPubkeyForNetwork = (network: NetworkName): Uint8Array | undefined => {
-  const configured = serviceUrlForNetwork(import.meta.env.VITE_EMULATOR_PUBKEY, EMULATOR_PUBKEY, network)
+  const configured = getEmulatorPubkeyHexForNetwork(network)
   if (!configured) return undefined
   try {
     const key = hex.decode(configured)

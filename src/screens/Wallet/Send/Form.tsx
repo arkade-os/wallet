@@ -614,7 +614,7 @@ export default function SendForm() {
     // Everything except an un-negotiated invoice goes straight through: an ark
     // address, an on-chain address, and an invoice whose quote is already in
     // hand all have all they need to be signed on the next screen.
-    if (!sendInfo.invoice || sendInfo.pendingLnSend) return navigate(Pages.SendDetails)
+    if (!sendInfo.invoice || sendInfo.pendingLnSend || sendInfo.arkAddress) return navigate(Pages.SendDetails)
     {
       // RFQ Lightning send: negotiate a quote over Nostr, derive the covenant
       // locally, verify, and carry the address+amount to the pay screen. The
