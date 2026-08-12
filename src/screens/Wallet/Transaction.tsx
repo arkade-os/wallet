@@ -246,6 +246,9 @@ export default function Transaction() {
         date,
         destination: tx.type === 'sent' && !boardingTx && !issuanceTx && !burnTx ? tx.destination : undefined,
         fees,
+        // What a Lightning send pays over the invoice is the solver's spread,
+        // not a network fee — same number, and the wrong word for it.
+        feesLabel: lnSendReceipt ? 'Swap fees' : undefined,
         isOffchainTx: !tx.boardingTxid && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid)),
         // Details' fallback row only (amountDisplay owns the rendered rows):
         // gross, matching the hook's convention
