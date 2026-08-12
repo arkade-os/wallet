@@ -6,7 +6,8 @@
  * which is the production transport: `docs/rfq-protocol.md` § 3.1 in
  * arkade-os/lightning-swap-service.
  *
- * **Kind 4859, directed.** One kind for the whole message family. `content` is
+ * **Kind 24859, directed.** One ephemeral-range kind for the whole message
+ * family — relays deliver to live subscribers without storing. `content` is
  * the NIP-44-encrypted payload; a `p` tag names the recipient. Both sides are
  * outbound-only — each dials relays, neither listens — which is what lets a
  * solver sit behind NAT with no public endpoint. No URL for the solver appears
@@ -24,7 +25,7 @@ import { SwapRefusal, type RfqQuote, type RfqStatus, type RfqTransport } from '@
 import { finalizeEvent, generateSecretKey, getPublicKey, nip44, SimplePool, type Event } from 'nostr-tools'
 
 /** Directed RFQ traffic. Provisional in the spec; kept in one place. */
-export const RFQ_DIRECTED_KIND = 4859
+export const RFQ_DIRECTED_KIND = 24859
 
 const DEFAULT_TIMEOUT_MS = 30_000
 
@@ -84,7 +85,7 @@ export interface NostrRfqOptions {
 }
 
 /**
- * Build an `RfqTransport` speaking kind-4859 directed traffic.
+ * Build an `RfqTransport` speaking kind-24859 directed traffic.
  *
  * Sends are fire-and-forget publishes; replies arrive on a single long-lived
  * subscription filtered to this transport key, so a reply that arrives before
