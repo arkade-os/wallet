@@ -130,10 +130,5 @@
   "engines": {
     "node": ">=24.15.0",
     "pnpm": ">=8"
-  },
-  "pnpm": {
-    "overrides": {
-      "@arkade-os/sdk": "file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz"
-    }
   }
 }

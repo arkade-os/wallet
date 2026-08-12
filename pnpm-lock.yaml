@@ -5,21 +5,27 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz
+  '@arkade-os/sdk': link:../ts-sdk/packages/ts-sdk
+  '@arkade-os/swap': link:../ts-sdk/packages/swap
+  '@babel/core': '>=7.29.6 <8.0.0'
+  js-yaml@<4: '>=3.15.0 <4.0.0'
+  js-yaml@>=4: '>=4.2.0 <5.0.0'
+  picomatch@<4: '>=2.3.2 <4.0.0'
+  picomatch@>=4: '>=4.0.4'
 
 importers:
 
   .:
     dependencies:
       '@arkade-os/sdk':
-        specifier: file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz
-        version: file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz
+        specifier: link:../ts-sdk/packages/ts-sdk
+        version: link:../ts-sdk/packages/ts-sdk
       '@arkade-os/solver-discovery':
         specifier: 0.2.2
         version: 0.2.2
       '@arkade-os/swap':
-        specifier: 0.0.1
-        version: 0.0.1(nostr-tools@2.17.2(typescript@5.9.3))
+        specifier: link:../ts-sdk/packages/swap
+        version: link:../ts-sdk/packages/swap
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -249,43 +255,9 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz':
-    resolution: {integrity: sha512-hVi+ZWAn1tvRb6Smx3jCi/MWST9fLhY84otitarvTTbKIsBo1tk1wnNY5Z3joOAKeFkNlGQT/ZhLY2m89gv0XA==, tarball: file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz}
-    version: 0.4.58
-    engines: {node: '>=22.12.0 <27'}
-    peerDependencies:
-      '@react-native-async-storage/async-storage': '>=1.0.0'
-      expo: '>=54.0.0'
-      expo-background-task: ~1.0.10 || >=55.0.0
-      expo-sqlite: ~16.0.10 || >=55.0.0
-      expo-task-manager: ~14.0.9 || >=55.0.0
-    peerDependenciesMeta:
-      '@react-native-async-storage/async-storage':
-        optional: true
-      expo:
-        optional: true
-      expo-background-task:
-        optional: true
-      expo-sqlite:
-        optional: true
-      expo-task-manager:
-        optional: true
-
-  '@arkade-os/solver-discovery@0.2.1':
-    resolution: {integrity: sha512-OKZI4X063bDxBKQ0pN4lFJFVufZ4JIXcdt2TWIlUQhg9C7AzuZxr2AGcUSg41EYzOS0P6OL+uOoiurvx2LYs5w==}
-    engines: {node: '>=18'}
-
   '@arkade-os/solver-discovery@0.2.2':
     resolution: {integrity: sha512-E6Eg0ltswFHTbT0egooTwQhYpRDO69RDHTNI9ehldBgjUhyPMD8pbwNNcW2EBLmj162p7fP2REo9BvpVzrfXQA==}
     engines: {node: '>=18'}
-
-  '@arkade-os/swap@0.0.1':
-    resolution: {integrity: sha512-fz6FKowNoS1ktP8Wj9KsHYY7oqcrnr1vHxPyi3OeUP1y1F6FaI2zWkr4f/MQXpbLtawaWe/C/NX/K2qWEfGsIw==}
-    peerDependencies:
-      nostr-tools: ^2.12.0
-    peerDependenciesMeta:
-      nostr-tools:
-        optional: true
 
   '@asamuzakjp/css-color@3.2.0':
     resolution: {integrity: sha512-K1A6z8tS3XsmCMM86xoWdn7Fkdn9m6RSVtocUrJYIwZnFVkng/PvkEoWtOWmP+Scc6saYWHWZYbndEEXxl24jw==}
@@ -334,7 +306,7 @@ packages:
     resolution: {integrity: sha512-RpLYy2sb51oNLjuu1iD3bwBqCBWUzjO0ocp+iaCP/lJtb2CPLcnC2Fftw+4sAzaMELGeWTgExSKADbdo0GFVzA==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.0.0
+      '@babel/core': '>=7.29.6 <8.0.0'
 
   '@babel/helper-globals@7.28.0':
     resolution: {integrity: sha512-+W6cISkXFa1jXsDEdYA8HeevQT/FULhxzR99pxphltZcVaugps53THCeiWA8SguxxpSp3gKPiuYfSWopkLQ4hw==}
@@ -360,13 +332,13 @@ packages:
     resolution: {integrity: sha512-67oXFAYr2cDLDVGLXTEABjdBJZ6drElUSI7WKp70NrpyISso3plG9SAGEF6y7zbha/wOzUByWWTJvEDVNIUGcA==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.0.0
+      '@babel/core': '>=7.29.6 <8.0.0'
 
   '@babel/helper-module-transforms@7.29.7':
     resolution: {integrity: sha512-UPUVSyXbOh627KiCIGQSgwWzGeBKLkaJ9PJEdrngIwMSzxLR4jS4+f1f1jb7VzBbg8nFLaYotvVPFCTqdrmTAg==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.0.0
+      '@babel/core': '>=7.29.6 <8.0.0'
 
   '@babel/helper-optimise-call-expression@7.27.1':
     resolution: {integrity: sha512-URMGH08NzYFhubNSGJrpUEphGKQwMQYBySzat5cAByY1/YgIRkULnIy3tAMeszlL/so2HbeilYloUmSpd7GdVw==}
@@ -384,7 +356,7 @@ packages:
     resolution: {integrity: sha512-mq8e+laIk94/yFec3DxSjCRD2Z0TAjhVbEJY3UQrlwVo15Lmt7C2wAUbK4bjnTs4APkwsYLTahXRraQXhb1WCg==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.0.0
+      '@babel/core': '>=7.29.6 <8.0.0'
 
   '@babel/helper-skip-transparent-expression-wrappers@7.27.1':
     resolution: {integrity: sha512-Tub4ZKEXqbPjXgWLl2+3JpQAYBJ8+ikpQ2Ocj/q/r0LwE3UhENh7EUabyHjz2kCEsrRY83ew2DQdHluuiDQFzg==}
@@ -437,43 +409,43 @@ packages:
     resolution: {integrity: sha512-wgEmr06G6sIpqr8YDwA2dSRTE3bJ+V0IfpzfSY3Lfgd7YWOaAdlykvJi13ZKBt8cZHfgH1IXN+CL656W3uUa4w==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.0.0-0
+      '@babel/core': '>=7.29.6 <8.0.0'
 
   '@babel/plugin-syntax-typescript@7.28.6':
     resolution: {integrity: sha512-+nDNmQye7nlnuuHDboPbGm00Vqg3oO8niRRL27/4LYHUsHYh0zJ1xWOz0uRwNFmM1Avzk8wZbc6rdiYhomzv/A==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.0.0-0
+      '@babel/core': '>=7.29.6 <8.0.0'
 
   '@babel/plugin-transform-modules-commonjs@7.28.6':
     resolution: {integrity: sha512-jppVbf8IV9iWWwWTQIxJMAJCWBuuKx71475wHwYytrRGQ2CWiDvYlADQno3tcYpS/T2UUWFQp3nVtYfK/YBQrA==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.0.0-0
+      '@babel/core': '>=7.29.6 <8.0.0'
 
   '@babel/plugin-transform-react-jsx-self@7.27.1':
     resolution: {integrity: sha512-6UzkCs+ejGdZ5mFFC/OCUrv028ab2fp1znZmCZjAOBKiBK2jXD1O+BPSfX8X2qjJ75fZBMSnQn3Rq2mrBJK2mw==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.0.0-0
+      '@babel/core': '>=7.29.6 <8.0.0'
 
   '@babel/plugin-transform-react-jsx-source@7.27.1':
     resolution: {integrity: sha512-zbwoTsBruTeKB9hSq73ha66iFeJHuaFkUbwvqElnygoNbj/jHRsSeokowZFN3CZ64IvEqcmmkVe89OPXc7ldAw==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.0.0-0
+      '@babel/core': '>=7.29.6 <8.0.0'
 
   '@babel/plugin-transform-typescript@7.28.6':
     resolution: {integrity: sha512-0YWL2RFxOqEm9Efk5PvreamxPME8OyY0wM5wh5lHjF+VtVhdneCWGzZeSqzOfiobVqQaNCd2z0tQvnI9DaPWPw==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.0.0-0
+      '@babel/core': '>=7.29.6 <8.0.0'
 
   '@babel/preset-typescript@7.28.5':
     resolution: {integrity: sha512-+bQy5WOI2V6LJZpPVxY+yp66XdZ2yifu0Mc1aP5CQKgjn4QM5IN2i5fAZ4xKop47pr8rpVhiAeu+nDQa12C8+g==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.0.0-0
+      '@babel/core': '>=7.29.6 <8.0.0'
 
   '@babel/runtime@7.28.4':
     resolution: {integrity: sha512-Q/N6JNWvIvPnLDvjlE1OUBLPQHH6l3CltCEsHIujp45zQUSSh8K+gHnaEX45yAT1nyngnINhvWtzN+Nb9D8RAQ==}
@@ -549,51 +521,6 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
-
-  '@bitcoinerlab/descriptors-core@3.1.7':
-    resolution: {integrity: sha512-7VccUDvKcHK7RF07Vo19Obax9jO3wlPWIXtvXy61GBqXptKv156O9Z4+sm2py1CuxPRpTXHlvH70G4KVVDoKlw==}
-    engines: {node: '>=20.19.0'}
-    peerDependencies:
-      '@ledgerhq/ledger-bitcoin': ^0.3.1
-      '@noble/curves': ^2.0.1
-      '@noble/hashes': ^2.0.1
-      '@scure/base': ^2.0.0
-      '@scure/bip32': ^2.0.1
-      '@scure/btc-signer': ^2.0.1
-      bip32: ^5.0.1
-      bitcoinjs-lib: ^7.0.1
-      ecpair: ^3.0.1
-    peerDependenciesMeta:
-      '@ledgerhq/ledger-bitcoin':
-        optional: true
-      '@noble/curves':
-        optional: true
-      '@noble/hashes':
-        optional: true
-      '@scure/base':
-        optional: true
-      '@scure/bip32':
-        optional: true
-      '@scure/btc-signer':
-        optional: true
-      bip32:
-        optional: true
-      bitcoinjs-lib:
-        optional: true
-      ecpair:
-        optional: true
-
-  '@bitcoinerlab/descriptors-scure@3.1.7':
-    resolution: {integrity: sha512-jeyi8L3hzOquJn3t5w+NY3G93B/amZw83xeF8hrpwe7w4FMt2SH2o9rithEydQ2tP3Tlqfog+LnJOOChmfFPWw==}
-    engines: {node: '>=20.19.0'}
-    peerDependencies:
-      '@ledgerhq/ledger-bitcoin': ^0.3.1
-    peerDependenciesMeta:
-      '@ledgerhq/ledger-bitcoin':
-        optional: true
-
-  '@bitcoinerlab/miniscript@2.0.0':
-    resolution: {integrity: sha512-P8yyubPf6lphmIZfyD/ZbhT/umJX7zH1mKjGql7z0Qt+xuffnz2AueQqq2/01VE2rTIq80VM0oRFdJClGBYx/g==}
 
   '@branta-ops/branta@3.1.3':
     resolution: {integrity: sha512-rcyDBYnYD+cmvQWylJ+n3JdR65FiHP1tVPtWQMhKLmcXx56czL8Ez7+I9jy7pmLBIVwP6mS1EsUqSrvQi22v1w==}
@@ -923,11 +850,6 @@ packages:
   '@lendasat/lendasat-wallet-bridge@0.0.90':
     resolution: {integrity: sha512-VfgM5vUx81vVWlggtOReUkaC8VVOFVavIMixQM0G/ZI0L/nMi10fmkIBvXOVI4Jmsu9A5z6wHSUrERxD3a/Juw==}
 
-  '@marcbachmann/cel-js@8.0.0':
-    resolution: {integrity: sha512-oaTrAziGr3zDLFiMt/yLU3nZuRMawyWQB5X1a0I7s9eGy3JYzX9l8ZXXHyMd64nzbeVFZTewuUShwsZQdK6UCA==}
-    engines: {node: '>=20.19.0'}
-    hasBin: true
-
   '@modelcontextprotocol/sdk@1.29.0':
     resolution: {integrity: sha512-zo37mZA9hJWpULgkRpowewez1y6ML5GsXJPY8FI0tBBCd77HEvza4jDqRKOXgHNn867PVGCyTdzqpz0izu5ZjQ==}
     engines: {node: '>=18'}
@@ -1178,17 +1100,11 @@ packages:
   '@scure/bip32@2.0.0':
     resolution: {integrity: sha512-V24pyBWzKQqhB0CrV3Xz7JZr/cC2Nhp9LuIr9gOHkAKxSGwYqTIs8u0AkZgKA7HFqRiyoNg/PymiXOExm+3KlQ==}
 
-  '@scure/bip32@2.0.1':
-    resolution: {integrity: sha512-4Md1NI5BzoVP+bhyJaY3K6yMesEFzNS1sE/cP+9nuvE7p/b0kx9XbpDHHFl8dHtufcbdHRUUQdRqLIPHN/s7yA==}
-
   '@scure/bip39@1.2.1':
     resolution: {integrity: sha512-Z3/Fsz1yr904dduJD0NpiyRHhRYHdcnyh73FZWiV+/qhWi83wNJ3NWolYqCEN+ZWsUz2TWwajJggcRE9r1zUYg==}
 
   '@scure/bip39@2.0.0':
     resolution: {integrity: sha512-F2Tza4KyTSFO/13JymY6a6UHfSLzx0YGbkQGz7wjGx2BYJLyG/qXELKnFFsDfeIK+WfV2v2+5XOQftvL4d8RBA==}
-
-  '@scure/bip39@2.0.1':
-    resolution: {integrity: sha512-PsxdFj/d2AcJcZDX1FXN3dDgitDDTmwf78rKZq1a6c1P1Nan1X/Sxc7667zU3U+AN60g7SxxP0YCVw2H/hBycg==}
 
   '@scure/btc-signer@2.0.1':
     resolution: {integrity: sha512-vk5a/16BbSFZkhh1JIJ0+4H9nceZVo5WzKvJGGWiPp3sQOExeW+L53z3dI6u0adTPoE8ZbL+XEb6hEGzVZSvvQ==}
@@ -1723,10 +1639,6 @@ packages:
     resolution: {integrity: sha512-AjYpR78kDWAY3Efj+cDTFH9t9SCoL7OoTp1BOb0mQV7S+6CiLwnWM3FyxhJtdPufDFKzmCSFoUncKjWgJEZTCQ==}
     engines: {node: '>=6.0.0'}
     hasBin: true
-
-  bip68@1.0.4:
-    resolution: {integrity: sha512-O1htyufFTYy3EO0JkHg2CLykdXEtV2ssqw47Gq9A0WByp662xpJnMEB9m43LZjsSDjIAOozWRExlFQk2hlV1XQ==}
-    engines: {node: '>=4.5.0'}
 
   body-parser@2.2.2:
     resolution: {integrity: sha512-oP5VkATKlNwcgvxi0vM0p/D3n2C3EReYVX+DNYs5TjZFn/oQt2j+4sVJtSMr18pdRr8wjTcBl6LoV+FUwzPmNA==}
@@ -2409,7 +2321,7 @@ packages:
     resolution: {integrity: sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==}
     engines: {node: '>=12.0.0'}
     peerDependencies:
-      picomatch: ^3 || ^4
+      picomatch: '>=2.3.2 <4.0.0'
     peerDependenciesMeta:
       picomatch:
         optional: true
@@ -2908,11 +2820,6 @@ packages:
     resolution: {integrity: sha512-6B3tLtFqtQS4ekarvLVMZ+X+VlvQekbe4taUkf/rhVO3d/h0M2rfARm/pXLcPEsjjMsFgrFgSrhQIxcSVrBz8w==}
     engines: {node: '>=18'}
 
-  isomorphic-ws@5.0.0:
-    resolution: {integrity: sha512-muId7Zzn9ywDsyXgTIafTry2sV3nySZeUDe6YedVd1Hvuuep5AsIlqK+XefWpYTyJG5e503F2xIuT2lcU6rCSw==}
-    peerDependencies:
-      ws: '*'
-
   iterator.prototype@1.1.5:
     resolution: {integrity: sha512-H0dkQoCa3b2VEeKQBOxFph+JAbcrQdE7KC0UkqwpLmv2EC4P41QXP+rqo9wYodACiG5/WM5s9oDApTU8utwj9g==}
     engines: {node: '>= 0.4'}
@@ -3089,9 +2996,6 @@ packages:
   locate-path@6.0.0:
     resolution: {integrity: sha512-iPZK6eYjbxRu3uB4/WZ3EsEIMJFMqAoopl3R+zuq0UjcAm/MO6KCweDgPfP3elTztoKP3KtnVHxTn2NHBSDVUw==}
     engines: {node: '>=10'}
-
-  lodash.memoize@4.1.2:
-    resolution: {integrity: sha512-t7j+NzmgnQzTAYXcsHYLgimltOV1MXHtlOWf6GjL9Kj8GK5FInw5JotxvbOs+IvV1/Dzo04/fCGfLVs7aXb4Ag==}
 
   lodash.merge@4.6.2:
     resolution: {integrity: sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ==}
@@ -4009,14 +3913,6 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
-  uint8array-tools@0.0.8:
-    resolution: {integrity: sha512-xS6+s8e0Xbx++5/0L+yyexukU7pz//Yg6IHg3BKhXotg1JcYtgxVcUctQ0HxLByiJzpAkNFawz1Nz5Xadzo82g==}
-    engines: {node: '>=14.0.0'}
-
-  uint8array-tools@0.0.9:
-    resolution: {integrity: sha512-9vqDWmoSXOoi+K14zNaf6LBV51Q8MayF0/IiQs3GlygIKUYtog603e6virExkjjFosfJUBI4LhbQK1iq8IG11A==}
-    engines: {node: '>=14.0.0'}
-
   unbox-primitive@1.1.0:
     resolution: {integrity: sha512-nWJ91DjeOkej/TA8pXQ3myruKpKEYgqvpw9lz4OPHj/NWFNluYrjbz9j01CJ8yKQd2g4jFoOkINCTW2I5LEEyw==}
     engines: {node: '>= 0.4'}
@@ -4079,9 +3975,6 @@ packages:
   validate-npm-package-name@7.0.2:
     resolution: {integrity: sha512-hVDIBwsRruT73PbK7uP5ebUt+ezEtCmzZz3F59BSr2F6OVFnJ/6h8liuvdLrQ88Xmnk6/+xGGuq+pG9WwTuy3A==}
     engines: {node: ^20.17.0 || >=22.9.0}
-
-  varuint-bitcoin@2.0.0:
-    resolution: {integrity: sha512-6QZbU/rHO2ZQYpWFDALCDSRsXbAs1VOEmXAxtbtjLtKuMJ/FQ8YbhfxlaiKv5nklci0M6lZtlZyxo9Q+qNnyog==}
 
   vary@1.1.2:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
@@ -4274,10 +4167,6 @@ packages:
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
-  ws-electrumx-client@1.0.5:
-    resolution: {integrity: sha512-pBjfFqb9j2FBz7NPbnd8r2lOYanEw8ACzfKxOtHCgEGqre5QiTax5XHLVgbsiOvST0vmsHAiMtkJPvsZm77PIQ==}
-    engines: {node: '>=10'}
-
   ws@8.18.3:
     resolution: {integrity: sha512-PEIGCY5tSlUt50cqyMXfCzX+oOPqN0vuGqWzbcJ2xvnkzkq46oOpz7dQaTDBdfICb4N14+GARUDw2XV2N4tvzg==}
     engines: {node: '>=10.0.0'}
@@ -4343,51 +4232,7 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz':
-    dependencies:
-      '@bitcoinerlab/descriptors-scure': 3.1.7
-      '@marcbachmann/cel-js': 8.0.0
-      '@noble/curves': 2.0.1
-      '@noble/secp256k1': 3.0.0
-      '@scure/base': 2.0.0
-      '@scure/bip39': 2.0.1
-      '@scure/btc-signer': 2.0.1
-      bip68: 1.0.4
-      ws-electrumx-client: 1.0.5
-    transitivePeerDependencies:
-      - '@ledgerhq/ledger-bitcoin'
-      - bip32
-      - bitcoinjs-lib
-      - bufferutil
-      - ecpair
-      - utf-8-validate
-
-  '@arkade-os/solver-discovery@0.2.1': {}
-
   '@arkade-os/solver-discovery@0.2.2': {}
-
-  '@arkade-os/swap@0.0.1(nostr-tools@2.17.2(typescript@5.9.3))':
-    dependencies:
-      '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz
-      '@arkade-os/solver-discovery': 0.2.1
-      '@noble/curves': 2.0.1
-      '@noble/hashes': 2.0.1
-      '@scure/base': 2.0.0
-      '@scure/btc-signer': 2.0.1
-    optionalDependencies:
-      nostr-tools: 2.17.2(typescript@5.9.3)
-    transitivePeerDependencies:
-      - '@ledgerhq/ledger-bitcoin'
-      - '@react-native-async-storage/async-storage'
-      - bip32
-      - bitcoinjs-lib
-      - bufferutil
-      - ecpair
-      - expo
-      - expo-background-task
-      - expo-sqlite
-      - expo-task-manager
-      - utf-8-validate
 
   '@asamuzakjp/css-color@3.2.0':
     dependencies:
@@ -4732,36 +4577,6 @@ snapshots:
     optionalDependencies:
       '@types/react': 18.3.26
 
-  '@bitcoinerlab/descriptors-core@3.1.7(@noble/curves@2.0.1)(@noble/hashes@2.0.1)(@scure/base@2.0.0)(@scure/bip32@2.0.1)(@scure/btc-signer@2.0.1)':
-    dependencies:
-      '@bitcoinerlab/miniscript': 2.0.0
-      lodash.memoize: 4.1.2
-      uint8array-tools: 0.0.9
-      varuint-bitcoin: 2.0.0
-    optionalDependencies:
-      '@noble/curves': 2.0.1
-      '@noble/hashes': 2.0.1
-      '@scure/base': 2.0.0
-      '@scure/bip32': 2.0.1
-      '@scure/btc-signer': 2.0.1
-
-  '@bitcoinerlab/descriptors-scure@3.1.7':
-    dependencies:
-      '@bitcoinerlab/descriptors-core': 3.1.7(@noble/curves@2.0.1)(@noble/hashes@2.0.1)(@scure/base@2.0.0)(@scure/bip32@2.0.1)(@scure/btc-signer@2.0.1)
-      '@noble/curves': 2.0.1
-      '@noble/hashes': 2.0.1
-      '@scure/base': 2.0.0
-      '@scure/bip32': 2.0.1
-      '@scure/btc-signer': 2.0.1
-    transitivePeerDependencies:
-      - bip32
-      - bitcoinjs-lib
-      - ecpair
-
-  '@bitcoinerlab/miniscript@2.0.0':
-    dependencies:
-      bip68: 1.0.4
-
   '@branta-ops/branta@3.1.3': {}
 
   '@csstools/color-helpers@5.1.0': {}
@@ -5001,8 +4816,6 @@ snapshots:
 
   '@lendasat/lendasat-wallet-bridge@0.0.90': {}
 
-  '@marcbachmann/cel-js@8.0.0': {}
-
   '@modelcontextprotocol/sdk@1.29.0(zod@3.25.76)':
     dependencies:
       '@hono/node-server': 1.19.14(hono@4.12.18)
@@ -5217,12 +5030,6 @@ snapshots:
       '@noble/hashes': 2.0.0
       '@scure/base': 2.0.0
 
-  '@scure/bip32@2.0.1':
-    dependencies:
-      '@noble/curves': 2.0.1
-      '@noble/hashes': 2.0.1
-      '@scure/base': 2.0.0
-
   '@scure/bip39@1.2.1':
     dependencies:
       '@noble/hashes': 1.3.2
@@ -5231,11 +5038,6 @@ snapshots:
   '@scure/bip39@2.0.0':
     dependencies:
       '@noble/hashes': 2.0.0
-      '@scure/base': 2.0.0
-
-  '@scure/bip39@2.0.1':
-    dependencies:
-      '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
 
   '@scure/btc-signer@2.0.1':
@@ -5820,8 +5622,6 @@ snapshots:
   baseline-browser-mapping@2.10.16: {}
 
   baseline-browser-mapping@2.10.43: {}
-
-  bip68@1.0.4: {}
 
   body-parser@2.2.2:
     dependencies:
@@ -7098,10 +6898,6 @@ snapshots:
 
   isexe@3.1.5: {}
 
-  isomorphic-ws@5.0.0(ws@8.18.3):
-    dependencies:
-      ws: 8.18.3
-
   iterator.prototype@1.1.5:
     dependencies:
       define-data-property: 1.1.4
@@ -7264,8 +7060,6 @@ snapshots:
   locate-path@6.0.0:
     dependencies:
       p-locate: 5.0.0
-
-  lodash.memoize@4.1.2: {}
 
   lodash.merge@4.6.2: {}
 
@@ -8300,10 +8094,6 @@ snapshots:
 
   typescript@5.9.3: {}
 
-  uint8array-tools@0.0.8: {}
-
-  uint8array-tools@0.0.9: {}
-
   unbox-primitive@1.1.0:
     dependencies:
       call-bound: 1.0.4
@@ -8355,10 +8145,6 @@ snapshots:
   util-deprecate@1.0.2: {}
 
   validate-npm-package-name@7.0.2: {}
-
-  varuint-bitcoin@2.0.0:
-    dependencies:
-      uint8array-tools: 0.0.8
 
   vary@1.1.2: {}
 
@@ -8574,14 +8360,6 @@ snapshots:
       strip-ansi: 6.0.1
 
   wrappy@1.0.2: {}
-
-  ws-electrumx-client@1.0.5:
-    dependencies:
-      isomorphic-ws: 5.0.0(ws@8.18.3)
-      ws: 8.18.3
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
 
   ws@8.18.3: {}
 
