@@ -12,7 +12,7 @@ import { FiatContext } from '../../../providers/fiat'
 import { FlowContext } from '../../../providers/flow'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
-import type { AssetSwap } from '../../../lib/swap/store'
+import type { WalletAssetSwap as AssetSwap } from '../../../lib/swapRepository'
 import { Currencies, Unit } from '../../../lib/types'
 import {
   mockAspContextValue,
@@ -22,7 +22,7 @@ import {
   mockNavigationContextValue,
   mockWalletContextValue,
 } from '../mocks'
-import { btcDepix, btcUsdt, DEPIX_ID, MARAT_ID, maratNapo, USDT_ID } from '../../lib/swap/fixtures'
+import { btcDepix, btcUsdt, DEPIX_ID, MARAT_ID, maratNapo, USDT_ID } from '../../lib/swapFixtures'
 
 const fetchMocker = createFetchMock(vi)
 fetchMocker.enableMocks()

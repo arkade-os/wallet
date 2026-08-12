@@ -1,4 +1,4 @@
-import { ReactNode, createContext, useContext, useEffect, useRef, useState } from 'react'
+import { ReactNode, createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArkNote,
   ServiceWorkerWallet,
@@ -37,6 +37,7 @@ import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { mergeAssetSwapActivity } from '../lib/swapDisplay'
+import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
 import { resolveWalletMode } from '../lib/walletMode'
@@ -102,6 +103,10 @@ interface WalletContextProps {
   svcWallet: ServiceWorkerWallet | undefined
   vtxoManager: IVtxoManager | undefined
   txs: Tx[]
+  /** Set by the asset-swaps provider, which owns the records. This provider
+   * merges them into `txs`; the dependency runs one way, so they travel up
+   * rather than being read back down. */
+  setAssetSwaps: (swaps: WalletAssetSwap[]) => void
   vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
   balance: WalletBalance['total']
   availableBalance: WalletBalance['available']
@@ -144,6 +149,7 @@ export const WalletContext = createContext<WalletContextProps>({
   dismissLoadError: () => {},
   authState: 'unknown',
   txs: [],
+  setAssetSwaps: () => {},
   vtxos: { spendable: [], spent: [] },
   devAutoInitFailed: false,
 })
@@ -157,7 +163,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo } = useContext(FlowContext)
   const { notifyTxSettled } = useContext(NotificationsContext)
 
-  const [txs, setTxs] = useState<Tx[]>([])
+  const [rawTxs, setRawTxs] = useState<Tx[]>([])
+  const [assetSwaps, setAssetSwaps] = useState<WalletAssetSwap[]>([])
   const [balance, setBalance] = useState(0)
   const [availableBalance, setAvailableBalance] = useState(0)
   const [wallet, setWallet] = useState(() => readWalletFromStorage() ?? defaultWallet)
@@ -175,6 +182,16 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const hasLoadedOnce = useRef(false)
   const assetMetadataCache = useRef<Map<string, CachedAssetDetails>>(readAssetMetadataFromStorage() ?? new Map())
   const iconApprovalManager = useRef(new AssetIconApprovalManager()).current
+
+  // Derived rather than merged once at load: the swap records are read from
+  // IndexedDB, so they can arrive after the first history load — recomputing on
+  // either input is what keeps a cold start from flashing bare funding rows.
+  const txs = useMemo(
+    () =>
+      mergeAssetSwapActivity(rawTxs, assetSwaps, aspInfo.network, (id) => assetMetadataCache.current.get(id)?.metadata),
+    [rawTxs, assetSwaps, aspInfo.network],
+  )
+
   const verifiedAssetsFetched = useRef(false)
   const statusPingInterval = useRef<ReturnType<typeof setInterval>>()
   const reloadTimerRef = useRef<ReturnType<typeof setTimeout>>()
@@ -467,9 +484,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         updateConfig({ ...live, apps: { ...live.apps, assets: { enabled: true } } })
       }
       setVtxos(vtxos)
-      setTxs(
-        mergeAssetSwapActivity(txs, undefined, aspInfo.network, (id) => assetMetadataCache.current.get(id)?.metadata),
-      )
+      setRawTxs(txs)
       if (!hasLoadedOnce.current) {
         hasLoadedOnce.current = true
         setDataReady(true)
@@ -864,6 +879,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     removeServiceWorkerMessageHandler()
     if (!svcWallet) throw new Error('Service worker not initialized')
     await clearStorage()
+    // swap records outlive localStorage now: without this a reset leaves the
+    // previous wallet's swaps in the activity list
+    await assetSwapRepository.clear()
+    setAssetSwaps([])
     await svcWallet.clear()
     await svcWallet.walletRepository.clear()
     await svcWallet.contractRepository.clear()
@@ -913,6 +932,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         lockWallet,
         restartWallet,
         txs,
+        setAssetSwaps,
         balance,
         availableBalance,
         assetBalances,

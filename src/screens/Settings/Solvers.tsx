@@ -14,7 +14,7 @@ import Modal from '@/components/Modal'
 import { AssetSwapsContext } from '@/providers/assetSwaps'
 import { consoleError } from '@/lib/logs'
 import { BackupContext } from '@/providers/backup'
-import { BUNDLED_CARDS } from '@/lib/swap/markets'
+import { BUNDLED_CARDS } from '@/lib/swapMarkets'
 
 const addSolverCard = (input: LocalCardInput) => {
   const existingCards = readSolverCardsFromStorage()
