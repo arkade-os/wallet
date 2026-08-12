@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
 import { discover, sideLimits, validateCard, type DiscoveredMarket } from '@arkade-os/solver-discovery'
-import arklabsCard from '../../lib/swap/arklabs-lightning.card.json'
+import arklabsCard from '../../lib/swap/beta-solver.card.json'
 import { lnSendRendezvous } from '../../lib/lnSwap'
 
 /**
