@@ -72,6 +72,12 @@ const EMULATOR_URL: Record<NetworkName, string | null> = {
 export const getEmulatorUrlForNetwork = (network: NetworkName): string | undefined =>
   serviceUrlForNetwork(import.meta.env.VITE_EMULATOR_URL, EMULATOR_URL, network)
 
+// covclaimd — the service that could claim a Lightning-receive lockup for an
+// OFFLINE wallet — is deliberately not configured here. The receive screen
+// stays open and claims with its own covenant `receiver` key, so no deployment
+// needs to exist for the corridor to work; see `sealingKey` in lib/lnReceive.
+// Re-adding a URL table here is only worth it alongside a background claimer.
+
 export const getDelegateUrlForNetwork = (network: NetworkName): string | undefined => {
   return DELEGATE_URL[network] ?? undefined
 }

@@ -52,8 +52,15 @@ export const makeCachedFeedFetch = (ttlMs = 30_000): typeof fetch => {
  * (`arkade:BTC -> lightning:BTC`) and is not published in the solver registry
  * yet, so without this the corridor simply does not exist and Lightning send
  * is unavailable. Bundled rather than configured because the card carries its
- * own registry signature and its rendezvous (pubkey + relays) — there is no
- * URL to point at.
+ * own rendezvous (pubkey + nostr relays) — there is no URL to point at.
+ *
+ * It carries no `sig`. The signature it shipped with covered the superseded
+ * card shape (top-level `relays`, now `transports.nostr.relays`), so keeping it
+ * across the reshape would have asserted a signature over content it does not
+ * cover. `sig` is optional for a local card — this client never verifies one,
+ * and pinning a card is the user's own trust decision — but the registry's
+ * reducer does demand it, so this card must be replaced by the solver's own
+ * `cli card` output before it can be listed.
  *
  * Scoped to mainnet on purpose: the pubkey and relay in the card are the
  * production solver's, and offering it on regtest/signet would quote a
