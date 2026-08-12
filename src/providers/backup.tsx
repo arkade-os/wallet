@@ -20,7 +20,7 @@ type NostrStorageData = {
 type BackupContextProps = {
   backupAndUpdateConfig: (config: Config) => void
   backupConfig: (config: Config, force?: boolean) => Promise<void>
-  backupSolverCards: (solverCards: LocalCardInput[]) => Promise<void>
+  backupSolverCards: (solverCards: LocalCardInput[], configOverride?: Config) => Promise<void>
   fullBackup: (config: Config) => Promise<void>
   initialiseNostrBackup: (secKey: Uint8Array) => void
   restore: (secKey: Uint8Array) => Promise<void>
@@ -78,8 +78,9 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
    * backup solver cards to Nostr
    * @param solverCards LocalCardInput[] to backup
    */
-  const backupSolverCards = async (solverCards: LocalCardInput[]) => {
-    if (!config.nostrBackup) return
+  const backupSolverCards = async (solverCards: LocalCardInput[], configOverride?: Config) => {
+    const effectiveConfig = configOverride ?? config
+    if (!effectiveConfig.nostrBackup) return
     const data: NostrStorageData = { solverCards }
     await nostrStorage.current?.save(JSON.stringify(data))
   }
@@ -92,7 +93,7 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
     const solverCards = readSolverCardsFromStorage()
     if (!solverCards.length) return backupConfig(config)
     await backupConfig(config)
-    await backupSolverCards(solverCards)
+    await backupSolverCards(solverCards, config)
   }
 
   /**
