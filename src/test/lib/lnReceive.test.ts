@@ -1,8 +1,9 @@
 // @vitest-environment node
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import type { DiscoveredMarket } from '@arkade-os/solver-discovery'
+import { sealClaimPacket } from '@arkade-os/swap'
 import { lnReceiveRendezvous, lnSendRendezvous } from '../../lib/lnSwap'
-import { covclaimdPubkey } from '../../lib/lnReceive'
+import { sealingKey } from '../../lib/lnReceive'
 
 /**
  * The two Lightning directions ride the two SIDES of one market: a side bounds
@@ -49,31 +50,20 @@ describe('lnReceiveRendezvous', () => {
   })
 })
 
-describe('covclaimdPubkey', () => {
-  const respond = (body: unknown, ok = true) =>
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
-      ok,
-      status: ok ? 200 : 503,
-      json: async () => body,
-    } as Response)
-
-  afterEach(() => vi.restoreAllMocks())
-
-  it('returns the compressed key the claim packet seals to', async () => {
-    const key = `02${'ab'.repeat(32)}`
-    respond({ covclaimd_pub_key: key, emulator_pub_key: `03${'cd'.repeat(32)}` })
-    expect(await covclaimdPubkey('http://covclaimd.test/')).toEqual(Uint8Array.from(Buffer.from(key, 'hex')))
+describe('sealingKey', () => {
+  it('is a 33-byte compressed point, the only form ECIES can seal to', async () => {
+    const key = sealingKey()
+    expect(key).toHaveLength(33)
+    expect([0x02, 0x03]).toContain(key[0])
+    // The check is the seal itself: sealClaimPacket ECDHs against this key, so
+    // a merely well-shaped non-point would fail at request time instead.
+    await expect(sealClaimPacket({ preimage: new Uint8Array(32).fill(7), covclaimdPubkey: key })).resolves.toBeDefined()
   })
 
-  it('rejects an x-only key, which ECIES cannot seal to', async () => {
-    // The covenant keys ARE x-only, so the wrong one of the two is easy to
-    // wire up and would fail much later, inside the seal.
-    respond({ covclaimd_pub_key: 'ab'.repeat(32) })
-    await expect(covclaimdPubkey('http://covclaimd.test')).rejects.toThrow(/malformed/)
-  })
-
-  it('fails loudly when covclaimd is unreachable', async () => {
-    respond({}, false)
-    await expect(covclaimdPubkey('http://covclaimd.test')).rejects.toThrow(/unreachable/)
+  it('is fresh per receive, so two lockups are not linkable by their packet', () => {
+    // Not an AEAD concern — sealClaimPacket draws its own ephemeral key and
+    // nonce each call — but a reused recipient key would tag every receive of
+    // this wallet as one payee to anyone collecting RFQ requests.
+    expect(sealingKey()).not.toEqual(sealingKey())
   })
 })

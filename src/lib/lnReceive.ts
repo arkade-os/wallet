@@ -9,11 +9,12 @@
  * which means signing after the payer has already paid.
  *
  * That claim is the wallet's own job here. `RfqSwapManager` covers the send
- * corridors only (`RfqSwap = LightningSendSwap | OnchainSendSwap`), and
- * covclaimd cannot yet claim this covenant on an offline wallet's behalf, so
- * an unclaimed lockup is reclaimed by the solver at `refund_locktime` and the
+ * corridors only (`RfqSwap = LightningSendSwap | OnchainSendSwap`), so an
+ * unclaimed lockup is reclaimed by the solver at `refund_locktime` and the
  * payer refunded. Staying online until `claimLnReceive` resolves is therefore
  * part of the flow, not an optimisation.
+ *
+ * Which is exactly why covclaimd plays no part in it — see `sealingKey`.
  */
 import { ArkAddress, type NetworkName, type RestArkProvider, type RestIndexerProvider } from '@arkade-os/sdk'
 import {
@@ -25,34 +26,31 @@ import {
   type RfqTransport,
   type SwapSecrets,
 } from '@arkade-os/swap'
+import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { hex } from '@scure/base'
 import { toInvoiceFacts, type LnSendRendezvous } from './lnSwap'
 
-/** covclaimd publishes its own key and the emulator's, both compressed hex. */
-interface CovclaimdPubKeys {
-  covclaimd_pub_key: string
-  emulator_pub_key: string
-}
-
 /**
- * Fetch covclaimd's pubkey, which the claim packet is sealed to.
+ * A throwaway key for the claim packet — its secret is discarded right here.
  *
- * Required by the SDK even though nothing decrypts the packet today: it is
- * what a future offline claim would need, and it is bound into the request
- * before the invoice is publishable.
+ * The RFQ profile carries `P` sealed to covclaimd so that a wallet which goes
+ * offline after paying can still be claimed for. This wallet does not go
+ * offline: it holds the covenant's `receiver` role through its own
+ * `payoutPubkey` and claims the lockup itself in `claimLnReceive`. So there is
+ * nothing for covclaimd to do, and reaching a covclaimd deployment to ask for
+ * its key would be a network dependency — and a failure mode — bought for
+ * nothing.
+ *
+ * Sealing to a key nobody holds is the honest encoding of that: the field stays
+ * well-formed for solvers that expect it, while `P` provably cannot be read
+ * early by the solver, by covclaimd, or by us. Nothing derives from this key —
+ * `deriveLightningReceive` commits to the payment hash, payout key, server and
+ * emulator keys, and never to the packet — so it cannot move the lockup address.
+ *
+ * Restoring the offline path means sealing to a real covclaimd key here; the
+ * wire format does not change.
  */
-export const covclaimdPubkey = async (url: string, signal?: AbortSignal): Promise<Uint8Array> => {
-  const response = await fetch(`${url.replace(/\/$/, '')}/v1/preimage/covclaimd-pubkey`, { signal })
-  if (!response.ok) throw new Error(`covclaimd is unreachable (${response.status})`)
-  const body = (await response.json()) as Partial<CovclaimdPubKeys>
-  const key = body.covclaimd_pub_key
-  // 33-byte compressed, as sealClaimPacket's ECIES requires — not the x-only
-  // form the covenant keys use, so a 64-char value here is the wrong key.
-  if (typeof key !== 'string' || !/^0[23][0-9a-f]{64}$/.test(key)) {
-    throw new Error('covclaimd returned a malformed pubkey')
-  }
-  return hex.decode(key)
-}
+export const sealingKey = (): Uint8Array => secp256k1.getPublicKey(secp256k1.utils.randomSecretKey(), true)
 
 /**
  * A negotiated receive, everything the caller must keep until it is claimed.
@@ -94,7 +92,6 @@ export const requestLnReceive = async (args: {
   arkServerUrl: string
   transport: RfqTransport
   rendezvous: LnSendRendezvous
-  covclaimdPubkey: Uint8Array
   network: NetworkName
   amountSats: number
 }): Promise<LnReceiveRequest> => {
@@ -106,7 +103,7 @@ export const requestLnReceive = async (args: {
     {
       amount: args.amountSats,
       amountSide: 'to',
-      covclaimdPubkey: args.covclaimdPubkey,
+      covclaimdPubkey: sealingKey(),
       // The wallet's own decoder, applied to the SOLVER's invoice — the SDK
       // requires it rather than offering it, since skipping this check is what
       // loses the payment.

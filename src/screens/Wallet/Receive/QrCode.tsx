@@ -20,11 +20,10 @@ import { unitsToCents } from '../../../lib/assets'
 import ErrorMessage from '../../../components/Error'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
-import { claimLnReceive, covclaimdPubkey, requestLnReceive } from '../../../lib/lnReceive'
+import { claimLnReceive, requestLnReceive } from '../../../lib/lnReceive'
 import { lnReceiveRendezvous } from '../../../lib/lnSwap'
 import { withRfqTransport } from '../../../lib/nostrRfq'
 import { discoverMarkets } from '../../../lib/swap/markets'
-import { getCovclaimdUrlForNetwork } from '../../../lib/constants'
 import { Indexer } from '../../../lib/indexer'
 import InputAmount from '../../../components/InputAmount'
 import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
@@ -141,16 +140,18 @@ export default function ReceiveQRCode() {
    *
    * Gated on an amount because the corridor requires one: the solver mints the
    * invoice, so nothing else implies what it is for. An amount outside the
-   * card's bounds, an unserved corridor or an unconfigured covclaimd all leave
-   * the other payment methods working — this is an EXTRA way to be paid, so a
-   * failure here must not take the ark and on-chain addresses down with it.
+   * card's bounds or an unserved corridor leaves the other payment methods
+   * working — this is an EXTRA way to be paid, so a failure here must not take
+   * the ark and on-chain addresses down with it.
+   *
+   * A solver serving the corridor is the only requirement: this screen claims
+   * the lockup itself (below), so no covclaimd needs to be deployed or reachable
+   * for the corridor to be offered.
    */
   useEffect(() => {
     if (!svcWallet || isAssetReceive || satoshis <= 0) return
     if (recvInfo.pendingLnReceive?.payAmount && recvInfo.invoice) return
     const network = aspInfo.network as NetworkName
-    const covclaimdUrl = getCovclaimdUrlForNetwork(network)
-    if (!covclaimdUrl) return setLnReceiveError('Lightning receive is not configured for this network')
 
     let abandoned = false
     const negotiate = async () => {
@@ -161,14 +162,12 @@ export default function ReceiveQRCode() {
           `Amount outside solver bounds (${prettyNumber(rendezvous.minSats)}-${prettyNumber(rendezvous.maxSats)} sats)`,
         )
       }
-      const covclaimd = await covclaimdPubkey(covclaimdUrl)
       const pending = await withRfqTransport(rendezvous, (transport) =>
         requestLnReceive({
           wallet: svcWallet,
           arkServerUrl: aspInfo.url,
           transport,
           rendezvous,
-          covclaimdPubkey: covclaimd,
           network,
           amountSats: satoshis,
         }),
@@ -196,8 +195,8 @@ export default function ReceiveQRCode() {
   /**
    * Claim what the solver funds once the payer pays.
    *
-   * Unavoidably the wallet's own job: covclaimd cannot claim this covenant yet
-   * and `RfqSwapManager` does not cover the receive corridor, so leaving the
+   * Unavoidably the wallet's own job: `RfqSwapManager` does not cover the
+   * receive corridor and no third party is delegated the claim, so leaving the
    * screen before this resolves loses the payment to the solver's refund path.
    * The claim pays the wallet's own address, so the VTXO listener above is what
    * actually reports success.
