@@ -1,6 +1,6 @@
 import type { LnSendRequest } from '../lib/lnSwap'
 import type { LnReceiveRequest } from '../lib/lnReceive'
-import { ReactNode, createContext, useState } from 'react'
+import { ReactNode, SetStateAction, createContext, useState } from 'react'
 import type { Asset, AssetDetails, ServiceWorkerWalletMode } from '@arkade-os/sdk'
 import { Tx } from '../lib/types'
 import type { FiatAccountSend } from '../lib/accountAssets'
@@ -68,8 +68,8 @@ interface FlowContextProps {
   setInitInfo: (arg0: InitInfo) => void
   setNoteInfo: (arg0: NoteInfo) => void
   setDeepLinkInfo: (arg0: DeepLinkInfo) => void
-  setRecvInfo: (arg0: RecvInfo) => void
-  setSendInfo: (arg0: SendInfo) => void
+  setRecvInfo: (arg0: SetStateAction<RecvInfo>) => void
+  setSendInfo: (arg0: SetStateAction<SendInfo>) => void
   setSwapFromAssetId: (arg0: string | undefined) => void
   setTxInfo: (arg0: TxInfo) => void
   assetInfo: AssetDetails

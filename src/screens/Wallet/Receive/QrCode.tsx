@@ -177,7 +177,7 @@ export default function ReceiveQRCode() {
       )
       if (abandoned) return
       setLnReceiveError('')
-      setRecvInfo({ ...recvInfo, invoice: pending.invoice, pendingLnReceive: pending })
+      setRecvInfo((prev) => ({ ...prev, invoice: pending.invoice, pendingLnReceive: pending }))
     }
 
     setLnReceiveError('')

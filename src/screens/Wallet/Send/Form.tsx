@@ -635,7 +635,7 @@ export default function SendForm() {
             network,
             rendezvous,
           })
-          setSendInfo({ ...sendInfo, pendingLnSend })
+          setSendInfo((prev) => ({ ...prev, pendingLnSend }))
         })
       }
       negotiate().catch(handleError)
