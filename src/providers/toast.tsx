@@ -20,8 +20,9 @@ function getNotchSize() {
   return topInset + rightInset
 }
 
+const notchSize = getNotchSize()
+
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const notchSize = getNotchSize()
   return (
     <>
       {children}
