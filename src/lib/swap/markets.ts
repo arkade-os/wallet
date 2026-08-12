@@ -9,7 +9,7 @@ import {
   type OfferPlan,
   type Side,
 } from '@arkade-os/solver-discovery'
-import arklabsLightningCard from './beta-solver.card.json'
+import betaSolverCard from './beta-solver.card.json'
 import { getSolverRegistryUrl } from '../constants'
 import { consoleLog } from '../logs'
 import { getStorageItem, readSolverCardsFromStorage } from '../storage'
@@ -66,9 +66,7 @@ export const makeCachedFeedFetch = (ttlMs = 30_000): typeof fetch => {
  */
 // Exported so the Solvers settings screen can show built-in cards — a pinned
 // solver invisible in Settings reads as "no solver at all".
-export const BUNDLED_CARDS: LocalCardInput[] = [
-  { card: arklabsLightningCard as LocalCardInput['card'], network: 'bitcoin' },
-]
+export const BUNDLED_CARDS: LocalCardInput[] = [{ card: betaSolverCard as LocalCardInput['card'], network: 'bitcoin' }]
 
 const MARKETS_CACHE_KEY = 'swapMarkets'
 const MARKETS_CACHE_TTL_MS = 60 * 60 * 1000
