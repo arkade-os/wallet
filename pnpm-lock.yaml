@@ -5,6 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  '@arkade-os/solver-discovery': 0.2.2
   '@babel/core': '>=7.29.6 <8.0.0'
   js-yaml@<4: '>=3.15.0 <4.0.0'
   js-yaml@>=4: '>=4.2.0 <5.0.0'
@@ -273,10 +274,6 @@ packages:
         optional: true
       expo-task-manager:
         optional: true
-
-  '@arkade-os/solver-discovery@0.2.1':
-    resolution: {integrity: sha512-OKZI4X063bDxBKQ0pN4lFJFVufZ4JIXcdt2TWIlUQhg9C7AzuZxr2AGcUSg41EYzOS0P6OL+uOoiurvx2LYs5w==}
-    engines: {node: '>=18'}
 
   '@arkade-os/solver-discovery@0.2.2':
     resolution: {integrity: sha512-E6Eg0ltswFHTbT0egooTwQhYpRDO69RDHTNI9ehldBgjUhyPMD8pbwNNcW2EBLmj162p7fP2REo9BvpVzrfXQA==}
@@ -4376,14 +4373,12 @@ snapshots:
       - ecpair
       - utf-8-validate
 
-  '@arkade-os/solver-discovery@0.2.1': {}
-
   '@arkade-os/solver-discovery@0.2.2': {}
 
   '@arkade-os/swap@0.0.3(nostr-tools@2.17.2(typescript@5.9.3))':
     dependencies:
       '@arkade-os/sdk': 0.4.60
-      '@arkade-os/solver-discovery': 0.2.1
+      '@arkade-os/solver-discovery': 0.2.2
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0

@@ -38,7 +38,7 @@ const KIND = RFQ_DIRECTED_KIND
 const WAIT_MS = 20_000
 
 const here = dirname(fileURLToPath(import.meta.url))
-const card = JSON.parse(readFileSync(join(here, '../src/lib/swap/beta-solver.card.json'), 'utf8'))
+const card = JSON.parse(readFileSync(join(here, '../src/lib/beta-solver.card.json'), 'utf8'))
 const solver = card.discovery_pubkey
 const relay = process.argv[2] ?? card.transports.nostr.relays[0]
 

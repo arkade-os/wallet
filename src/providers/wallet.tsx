@@ -880,8 +880,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (!svcWallet) throw new Error('Service worker not initialized')
     await clearStorage()
     // swap records outlive localStorage now: without this a reset leaves the
-    // previous wallet's swaps in the activity list
-    await assetSwapRepository.clear()
+    // previous wallet's swaps in the activity list. Never fatal — a reset that
+    // aborted here would leave the wallet itself half-cleared, which is worse
+    // than stale swap rows.
+    await assetSwapRepository.clear().catch((err) => consoleError(err, 'failed to clear swap records'))
     setAssetSwaps([])
     await svcWallet.clear()
     await svcWallet.walletRepository.clear()
