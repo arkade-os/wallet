@@ -5,21 +5,25 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz
+  '@babel/core': '>=7.29.6 <8.0.0'
+  js-yaml@<4: '>=3.15.0 <4.0.0'
+  js-yaml@>=4: '>=4.2.0 <5.0.0'
+  picomatch@<4: '>=2.3.2 <4.0.0'
+  picomatch@>=4: '>=4.0.4'
 
 importers:
 
   .:
     dependencies:
       '@arkade-os/sdk':
-        specifier: file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz
-        version: file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz
+        specifier: 0.4.60
+        version: 0.4.60
       '@arkade-os/solver-discovery':
-        specifier: 0.2.1
-        version: 0.2.1
+        specifier: 0.2.2
+        version: 0.2.2
       '@arkade-os/swap':
-        specifier: file:vendor/arkade-os-swap-0.0.1-pr718-975ed0f.tgz
-        version: file:vendor/arkade-os-swap-0.0.1-pr718-975ed0f.tgz(nostr-tools@2.17.2(typescript@5.9.3))
+        specifier: 0.0.2
+        version: 0.0.2(nostr-tools@2.17.2(typescript@5.9.3))
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -249,9 +253,8 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz':
-    resolution: {integrity: sha512-hVi+ZWAn1tvRb6Smx3jCi/MWST9fLhY84otitarvTTbKIsBo1tk1wnNY5Z3joOAKeFkNlGQT/ZhLY2m89gv0XA==, tarball: file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz}
-    version: 0.4.58
+  '@arkade-os/sdk@0.4.60':
+    resolution: {integrity: sha512-SznfNVfdOzLAza9/yZIzKUX+QE97eUwsCvFNUgO4O+tb3K4mjF9eX75mp2cZgm/qG42LaET1XCkvz4uwYCOzDQ==}
     engines: {node: '>=22.12.0 <27'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -275,9 +278,12 @@ packages:
     resolution: {integrity: sha512-OKZI4X063bDxBKQ0pN4lFJFVufZ4JIXcdt2TWIlUQhg9C7AzuZxr2AGcUSg41EYzOS0P6OL+uOoiurvx2LYs5w==}
     engines: {node: '>=18'}
 
-  '@arkade-os/swap@file:vendor/arkade-os-swap-0.0.1-pr718-975ed0f.tgz':
-    resolution: {integrity: sha512-tSXUH+DPdAhc4+bmkSMNhxGKPXhqyT0bplLPRaCpV9B095IJ0B5d58Vrf+WjsHo4rpvP0KNR/x7fO9eVOHEO9Q==, tarball: file:vendor/arkade-os-swap-0.0.1-pr718-975ed0f.tgz}
-    version: 0.0.1
+  '@arkade-os/solver-discovery@0.2.2':
+    resolution: {integrity: sha512-E6Eg0ltswFHTbT0egooTwQhYpRDO69RDHTNI9ehldBgjUhyPMD8pbwNNcW2EBLmj162p7fP2REo9BvpVzrfXQA==}
+    engines: {node: '>=18'}
+
+  '@arkade-os/swap@0.0.2':
+    resolution: {integrity: sha512-MkrDpzXuPNXhLH6t3O1D/RaxPTV7QHhzJsRex+D40NmAZFmiR6F1E9FcI77ml0U1Lq63OEJBhQyc7RVXSR7x+Q==}
     peerDependencies:
       nostr-tools: ^2.12.0
     peerDependenciesMeta:
@@ -331,7 +337,7 @@ packages:
     resolution: {integrity: sha512-RpLYy2sb51oNLjuu1iD3bwBqCBWUzjO0ocp+iaCP/lJtb2CPLcnC2Fftw+4sAzaMELGeWTgExSKADbdo0GFVzA==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.0.0
+      '@babel/core': '>=7.29.6 <8.0.0'
 
   '@babel/helper-globals@7.28.0':
     resolution: {integrity: sha512-+W6cISkXFa1jXsDEdYA8HeevQT/FULhxzR99pxphltZcVaugps53THCeiWA8SguxxpSp3gKPiuYfSWopkLQ4hw==}
@@ -357,13 +363,13 @@ packages:
     resolution: {integrity: sha512-67oXFAYr2cDLDVGLXTEABjdBJZ6drElUSI7WKp70NrpyISso3plG9SAGEF6y7zbha/wOzUByWWTJvEDVNIUGcA==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.0.0
+      '@babel/core': '>=7.29.6 <8.0.0'
 
   '@babel/helper-module-transforms@7.29.7':
     resolution: {integrity: sha512-UPUVSyXbOh627KiCIGQSgwWzGeBKLkaJ9PJEdrngIwMSzxLR4jS4+f1f1jb7VzBbg8nFLaYotvVPFCTqdrmTAg==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.0.0
+      '@babel/core': '>=7.29.6 <8.0.0'
 
   '@babel/helper-optimise-call-expression@7.27.1':
     resolution: {integrity: sha512-URMGH08NzYFhubNSGJrpUEphGKQwMQYBySzat5cAByY1/YgIRkULnIy3tAMeszlL/so2HbeilYloUmSpd7GdVw==}
@@ -381,7 +387,7 @@ packages:
     resolution: {integrity: sha512-mq8e+laIk94/yFec3DxSjCRD2Z0TAjhVbEJY3UQrlwVo15Lmt7C2wAUbK4bjnTs4APkwsYLTahXRraQXhb1WCg==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.0.0
+      '@babel/core': '>=7.29.6 <8.0.0'
 
   '@babel/helper-skip-transparent-expression-wrappers@7.27.1':
     resolution: {integrity: sha512-Tub4ZKEXqbPjXgWLl2+3JpQAYBJ8+ikpQ2Ocj/q/r0LwE3UhENh7EUabyHjz2kCEsrRY83ew2DQdHluuiDQFzg==}
@@ -434,43 +440,43 @@ packages:
     resolution: {integrity: sha512-wgEmr06G6sIpqr8YDwA2dSRTE3bJ+V0IfpzfSY3Lfgd7YWOaAdlykvJi13ZKBt8cZHfgH1IXN+CL656W3uUa4w==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.0.0-0
+      '@babel/core': '>=7.29.6 <8.0.0'
 
   '@babel/plugin-syntax-typescript@7.28.6':
     resolution: {integrity: sha512-+nDNmQye7nlnuuHDboPbGm00Vqg3oO8niRRL27/4LYHUsHYh0zJ1xWOz0uRwNFmM1Avzk8wZbc6rdiYhomzv/A==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.0.0-0
+      '@babel/core': '>=7.29.6 <8.0.0'
 
   '@babel/plugin-transform-modules-commonjs@7.28.6':
     resolution: {integrity: sha512-jppVbf8IV9iWWwWTQIxJMAJCWBuuKx71475wHwYytrRGQ2CWiDvYlADQno3tcYpS/T2UUWFQp3nVtYfK/YBQrA==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.0.0-0
+      '@babel/core': '>=7.29.6 <8.0.0'
 
   '@babel/plugin-transform-react-jsx-self@7.27.1':
     resolution: {integrity: sha512-6UzkCs+ejGdZ5mFFC/OCUrv028ab2fp1znZmCZjAOBKiBK2jXD1O+BPSfX8X2qjJ75fZBMSnQn3Rq2mrBJK2mw==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.0.0-0
+      '@babel/core': '>=7.29.6 <8.0.0'
 
   '@babel/plugin-transform-react-jsx-source@7.27.1':
     resolution: {integrity: sha512-zbwoTsBruTeKB9hSq73ha66iFeJHuaFkUbwvqElnygoNbj/jHRsSeokowZFN3CZ64IvEqcmmkVe89OPXc7ldAw==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.0.0-0
+      '@babel/core': '>=7.29.6 <8.0.0'
 
   '@babel/plugin-transform-typescript@7.28.6':
     resolution: {integrity: sha512-0YWL2RFxOqEm9Efk5PvreamxPME8OyY0wM5wh5lHjF+VtVhdneCWGzZeSqzOfiobVqQaNCd2z0tQvnI9DaPWPw==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.0.0-0
+      '@babel/core': '>=7.29.6 <8.0.0'
 
   '@babel/preset-typescript@7.28.5':
     resolution: {integrity: sha512-+bQy5WOI2V6LJZpPVxY+yp66XdZ2yifu0Mc1aP5CQKgjn4QM5IN2i5fAZ4xKop47pr8rpVhiAeu+nDQa12C8+g==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
-      '@babel/core': ^7.0.0-0
+      '@babel/core': '>=7.29.6 <8.0.0'
 
   '@babel/runtime@7.28.4':
     resolution: {integrity: sha512-Q/N6JNWvIvPnLDvjlE1OUBLPQHH6l3CltCEsHIujp45zQUSSh8K+gHnaEX45yAT1nyngnINhvWtzN+Nb9D8RAQ==}
@@ -964,6 +970,10 @@ packages:
     resolution: {integrity: sha512-vs1Az2OOTBiP4q0pwjW5aF0xp9n4MxVrmkFBxc6EKZc6ddYx5gaZiAsZoq0uRRXWbi3AT/sBqn05eRPtn1JCPw==}
     engines: {node: '>= 20.19.0'}
 
+  '@noble/curves@2.3.0':
+    resolution: {integrity: sha512-v7cY+4oWYPQszRj6ZFGzTVL7uP2TaLo1xMhWHzYC5wj0ZhOXQ5x+sBre8rF3hi8cAoi0bh1qXoovoOkdFtvqEg==}
+    engines: {node: '>= 20.19.0'}
+
   '@noble/hashes@1.3.1':
     resolution: {integrity: sha512-EbqwksQwz9xDRGfDST86whPBgM65E0OH/pCgqW0GBVzO22bNE+NuIbeTb714+IfSjU3aRk47EUvXIb5bTsenKA==}
     engines: {node: '>= 16'}
@@ -982,6 +992,10 @@ packages:
 
   '@noble/hashes@2.0.1':
     resolution: {integrity: sha512-XlOlEbQcE9fmuXxrVTXCTlG2nlRXa9Rj3rr5Ue/+tX+nmkgbX720YHh0VR3hBF9xDvwnb8D2shVGOwNx+ulArw==}
+    engines: {node: '>= 20.19.0'}
+
+  '@noble/hashes@2.3.0':
+    resolution: {integrity: sha512-oN+QwyX7VSHotibwubG3kpzbwKrfnyR6OOO+3Nk/53ADL7FmgHHz4TgrbaYKvvOw09u6QTx0oiH1cNCIOuN0CQ==}
     engines: {node: '>= 20.19.0'}
 
   '@noble/secp256k1@3.0.0':
@@ -1169,14 +1183,17 @@ packages:
   '@scure/base@2.0.0':
     resolution: {integrity: sha512-3E1kpuZginKkek01ovG8krQ0Z44E3DHPjc5S2rjJw9lZn3KSQOs8S7wqikF/AH7iRanHypj85uGyxk0XAyC37w==}
 
+  '@scure/base@2.3.0':
+    resolution: {integrity: sha512-NsG6Y03tY6R5BUis4FdVtHVkur0U6FOzskgs9ZXNl78CUc9fkZ78HmENUle1nSOkCasDmbubmWD9qwB7mm4PZA==}
+
   '@scure/bip32@1.3.1':
     resolution: {integrity: sha512-osvveYtyzdEVbt3OfwwXFr4P2iVBL5u1Q3q4ONBfDY/UpOuXmOlbgwc1xECEboY8wIays8Yt6onaWMUdUbfl0A==}
 
   '@scure/bip32@2.0.0':
     resolution: {integrity: sha512-V24pyBWzKQqhB0CrV3Xz7JZr/cC2Nhp9LuIr9gOHkAKxSGwYqTIs8u0AkZgKA7HFqRiyoNg/PymiXOExm+3KlQ==}
 
-  '@scure/bip32@2.0.1':
-    resolution: {integrity: sha512-4Md1NI5BzoVP+bhyJaY3K6yMesEFzNS1sE/cP+9nuvE7p/b0kx9XbpDHHFl8dHtufcbdHRUUQdRqLIPHN/s7yA==}
+  '@scure/bip32@2.3.0':
+    resolution: {integrity: sha512-mMPjNcXxJsvNveIgRIXrnwd4omu0wdXo4JowAUZO7/82+/bpAwVltclx6MG6nv2M3dA6IbfVv4xwWxaREm3OcA==}
 
   '@scure/bip39@1.2.1':
     resolution: {integrity: sha512-Z3/Fsz1yr904dduJD0NpiyRHhRYHdcnyh73FZWiV+/qhWi83wNJ3NWolYqCEN+ZWsUz2TWwajJggcRE9r1zUYg==}
@@ -2406,7 +2423,7 @@ packages:
     resolution: {integrity: sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==}
     engines: {node: '>=12.0.0'}
     peerDependencies:
-      picomatch: ^3 || ^4
+      picomatch: '>=2.3.2 <4.0.0'
     peerDependenciesMeta:
       picomatch:
         optional: true
@@ -4340,7 +4357,7 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz':
+  '@arkade-os/sdk@0.4.60':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 8.0.0
@@ -4361,9 +4378,11 @@ snapshots:
 
   '@arkade-os/solver-discovery@0.2.1': {}
 
-  '@arkade-os/swap@file:vendor/arkade-os-swap-0.0.1-pr718-975ed0f.tgz(nostr-tools@2.17.2(typescript@5.9.3))':
+  '@arkade-os/solver-discovery@0.2.2': {}
+
+  '@arkade-os/swap@0.0.2(nostr-tools@2.17.2(typescript@5.9.3))':
     dependencies:
-      '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.4.58-pr718-975ed0f.tgz
+      '@arkade-os/sdk': 0.4.60
       '@arkade-os/solver-discovery': 0.2.1
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
@@ -4727,26 +4746,26 @@ snapshots:
     optionalDependencies:
       '@types/react': 18.3.26
 
-  '@bitcoinerlab/descriptors-core@3.1.7(@noble/curves@2.0.1)(@noble/hashes@2.0.1)(@scure/base@2.0.0)(@scure/bip32@2.0.1)(@scure/btc-signer@2.0.1)':
+  '@bitcoinerlab/descriptors-core@3.1.7(@noble/curves@2.3.0)(@noble/hashes@2.3.0)(@scure/base@2.0.0)(@scure/bip32@2.3.0)(@scure/btc-signer@2.0.1)':
     dependencies:
       '@bitcoinerlab/miniscript': 2.0.0
       lodash.memoize: 4.1.2
       uint8array-tools: 0.0.9
       varuint-bitcoin: 2.0.0
     optionalDependencies:
-      '@noble/curves': 2.0.1
-      '@noble/hashes': 2.0.1
+      '@noble/curves': 2.3.0
+      '@noble/hashes': 2.3.0
       '@scure/base': 2.0.0
-      '@scure/bip32': 2.0.1
+      '@scure/bip32': 2.3.0
       '@scure/btc-signer': 2.0.1
 
   '@bitcoinerlab/descriptors-scure@3.1.7':
     dependencies:
-      '@bitcoinerlab/descriptors-core': 3.1.7(@noble/curves@2.0.1)(@noble/hashes@2.0.1)(@scure/base@2.0.0)(@scure/bip32@2.0.1)(@scure/btc-signer@2.0.1)
-      '@noble/curves': 2.0.1
-      '@noble/hashes': 2.0.1
+      '@bitcoinerlab/descriptors-core': 3.1.7(@noble/curves@2.3.0)(@noble/hashes@2.3.0)(@scure/base@2.0.0)(@scure/bip32@2.3.0)(@scure/btc-signer@2.0.1)
+      '@noble/curves': 2.3.0
+      '@noble/hashes': 2.3.0
       '@scure/base': 2.0.0
-      '@scure/bip32': 2.0.1
+      '@scure/bip32': 2.3.0
       '@scure/btc-signer': 2.0.1
     transitivePeerDependencies:
       - bip32
@@ -5053,6 +5072,10 @@ snapshots:
     dependencies:
       '@noble/hashes': 2.0.1
 
+  '@noble/curves@2.3.0':
+    dependencies:
+      '@noble/hashes': 2.3.0
+
   '@noble/hashes@1.3.1': {}
 
   '@noble/hashes@1.3.2': {}
@@ -5062,6 +5085,8 @@ snapshots:
   '@noble/hashes@2.0.0': {}
 
   '@noble/hashes@2.0.1': {}
+
+  '@noble/hashes@2.3.0': {}
 
   '@noble/secp256k1@3.0.0': {}
 
@@ -5200,6 +5225,8 @@ snapshots:
 
   '@scure/base@2.0.0': {}
 
+  '@scure/base@2.3.0': {}
+
   '@scure/bip32@1.3.1':
     dependencies:
       '@noble/curves': 1.1.0
@@ -5212,11 +5239,11 @@ snapshots:
       '@noble/hashes': 2.0.0
       '@scure/base': 2.0.0
 
-  '@scure/bip32@2.0.1':
+  '@scure/bip32@2.3.0':
     dependencies:
-      '@noble/curves': 2.0.1
-      '@noble/hashes': 2.0.1
-      '@scure/base': 2.0.0
+      '@noble/curves': 2.3.0
+      '@noble/hashes': 2.3.0
+      '@scure/base': 2.3.0
 
   '@scure/bip39@1.2.1':
     dependencies:

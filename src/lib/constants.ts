@@ -21,8 +21,6 @@ export const enableChainSwapsReceive = import.meta.env.VITE_CHAIN_SWAPS_RECEIVE_
 export const fromRuntimeEnv = (value: string | undefined): string | undefined =>
   value && !value.startsWith('__VITE_') ? value : undefined
 
-export const lnurlServerUrl: string | undefined = fromRuntimeEnv(import.meta.env.VITE_LNURL_SERVER_URL)
-
 export const defaultArkServer = () => {
   const arkServer = fromRuntimeEnv(import.meta.env.VITE_ARK_SERVER)
   if (arkServer) return arkServer
@@ -61,48 +59,31 @@ const serviceUrlForNetwork = (
 export const getSolverRegistryUrl = (network: NetworkName): string | undefined =>
   serviceUrlForNetwork(import.meta.env.VITE_SOLVER_REGISTRY_URL, SOLVER_REGISTRY_URL, network)
 
-// the Arkade RFQ swap service serving arkade:BTC -> lightning:BTC
-// (see arkade-os/lightning-swap-service). Every entry is null on purpose: no
-// endpoint has been confirmed for any network, so the RFQ send path stays off
-// until one is supplied here or through VITE_LN_SWAP_URL. Guessing a host
-// would send real invoices somewhere nobody has verified.
-const LN_SWAP_URL: Record<NetworkName, string | null> = {
-  bitcoin: null,
-  mutinynet: null,
-  signet: null,
-  regtest: null,
-  testnet: null,
-}
-
-export const getLnSwapUrlForNetwork = (network: NetworkName): string | undefined =>
-  serviceUrlForNetwork(import.meta.env.VITE_LN_SWAP_URL, LN_SWAP_URL, network)
-
 // The x-only key of the arkade signer co-signing swap covenants (a separate
 // service from arkd). This is a fact about the SOLVER's deployment, not a
 // value the client may look up: clients have no network path to the emulator,
 // only the solver and covclaimd do, so `@arkade-os/swap` deliberately neither
 // fetches nor verifies it (arkade-os/ts-sdk#691) and takes it from the caller.
 //
-// TODO: source this from the discovered market instead. The authoritative
-// value is the solver's signed registry card (`emulator_pubkey`,
-// arkade-os/solver-registry#18) — which `discoverMarkets` already fetches —
-// but no published @arkade-os/solver-discovery carries that field yet (0.2.2,
-// the latest, predates the merge), so it is pinned per network until one does.
+// This table is now the FALLBACK, not the only source. A corridor market whose
+// card carries `emulator_pubkey` (arkade-os/solver-registry#18) is authoritative
+// and `lnSendRendezvous` prefers it; the pins below keep a network working until
+// its solver publishes one, and are what a wallet compares the card against.
 const EMULATOR_PUBKEY: Record<NetworkName, string | null> = {
-  // null on purpose: no key has been checked against a signed solver card for
-  // these networks, and guessing one derives a covenant the solver can never
-  // fill. Swaps stay off rather than funding an address nobody can settle.
-  bitcoin: null,
-  // read from https://emulator.mutinynet.arkade.sh/v1/info on 2026-08-07 —
-  // the same value the client used to fetch live at swap time, stored in the
-  // endpoint's own compressed form so it can be re-checked with a plain curl.
-  // Pinning does not make it more trusted; it makes it reviewable, and stops
-  // the host swapping it under a running client.
+  // Matches the SDK's own per-network pin (BITCOIN_EMULATOR_PUBKEY, ts-sdk
+  // networks.ts), re-checked against the deployment's own signer key; a
+  // mainnet Lightning send against this key settled end to end on
+  // 2026-08-12.
+  bitcoin: '0239c196415da47b26456a101daaa12ba9e445bfe153197f1e2b750bf40e52092e',
+  // read from the mutinynet deployment's own signer key on 2026-08-07 — the
+  // same value the client used to fetch live at swap time, stored in its
+  // compressed form. Pinning does not make it more trusted; it makes it
+  // reviewable, and stops the host swapping it under a running client.
   mutinynet: '03f823b9b2febc81f4af967e77aed2f541cbd3397c6d8f5a72e32eb7b471af889a',
   signet: null,
   // per-deployment: a local stack generates its own co-signer key, so there is
-  // no constant to pin. Set VITE_EMULATOR_PUBKEY to your emulator's
-  // `/v1/info` signerPubkey.
+  // no constant to pin. Set VITE_EMULATOR_PUBKEY to your emulator's signer
+  // key.
   regtest: null,
   testnet: null,
 }
@@ -123,6 +104,12 @@ export const getEmulatorPubkeyForNetwork = (network: NetworkName): Uint8Array | 
     return undefined
   }
 }
+
+// covclaimd — the service that could claim a Lightning-receive lockup for an
+// OFFLINE wallet — is deliberately not configured here. The receive screen
+// stays open and claims with its own covenant `receiver` key, so no deployment
+// needs to exist for the corridor to work; see `sealingKey` in lib/lnReceive.
+// Re-adding a URL table here is only worth it alongside a background claimer.
 
 export const getDelegateUrlForNetwork = (network: NetworkName): string | undefined => {
   return DELEGATE_URL[network] ?? undefined

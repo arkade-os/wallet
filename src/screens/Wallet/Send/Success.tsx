@@ -59,6 +59,14 @@ export default function SendSuccess() {
       ? prettyFiatAmount(toFiat(totalSats), config.currency, { bitcoinUnit: config.unit })
       : prettyAmount(totalSats)
 
+  // A Lightning send is committed, not completed: the covenant is funded and
+  // the solver still has to pay the invoice. It settles or it refunds, both
+  // without us, so this is not a pending-failure warning — it is simply the
+  // accurate word. An Arkade send, by contrast, really is sent.
+  const isLightningSend = Boolean(sendInfo.invoice)
+  const headline = isLightningSend ? 'Payment is on the way' : 'Payment sent'
+  const detail = isLightningSend ? `${displayAmount} on the way` : `${displayAmount} sent successfully`
+
   if (isAssetSend && assetId) {
     return (
       <>
@@ -94,9 +102,9 @@ export default function SendSuccess() {
 
   return (
     <WalletSuccessSplash
-      headline='Payment sent'
-      text={`${displayAmount} sent successfully`}
-      ariaLabel='Payment sent successfully. Tap to go home.'
+      headline={headline}
+      text={detail}
+      ariaLabel={`${headline}. Tap to go home.`}
       onDone={() => navigate(Pages.Wallet)}
     />
   )

@@ -66,7 +66,11 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     if (!aspInfo.network) return
     const network = aspInfo.network as NetworkName
     discoverMarkets(network, useCache)
-      .then(setMarkets)
+      // Corridor (RFQ) markets — the bundled Lightning-send card — are not
+      // tradeable here: this provider builds offers, and a corridor is
+      // negotiated with a solver instead. Keeping them would let one Lightning
+      // card turn the whole swap surface on with nothing behind it.
+      .then((all) => setMarkets(all.filter((m) => !m.quote_corridor)))
       .catch((err) => consoleError(err, 'solver discovery failed'))
     setEmulatorPubkey(getEmulatorPubkeyForNetwork(network))
   }

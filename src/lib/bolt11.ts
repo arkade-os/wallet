@@ -73,15 +73,6 @@ export const isInvoiceExpired = (invoice: DecodedInvoice, nowSeconds = Math.floo
   return nowSeconds >= invoice.expiresAt
 }
 
-/** Seconds left before the invoice expires; 0 once it has. */
-export const invoiceSecondsRemaining = (
-  invoice: DecodedInvoice,
-  nowSeconds = Math.floor(Date.now() / 1000),
-): number => {
-  if (!invoice.timestamp) return 0
-  return Math.max(0, invoice.expiresAt - nowSeconds)
-}
-
 /** True when the invoice was issued for the given Ark network. */
 export const invoiceMatchesNetwork = (invoice: DecodedInvoice, network: NetworkName): boolean =>
   invoice.network === NETWORK_PREFIXES[network]

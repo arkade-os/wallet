@@ -88,6 +88,29 @@ export enum Themes {
   Light = 'Light',
 }
 
+/**
+ * The lockup leg of a Lightning send, recorded against its funding txid.
+ *
+ * A Lightning send is two transactions, not one: the tx the wallet signs funds
+ * the lockup covenant, and a second tx spends it — the solver's claim once it
+ * has paid the invoice, or the refund back to us when it could not. Only the
+ * first is the wallet's own, so nothing in tx history can name the second; the
+ * covenant's script is what lets the receipt find it.
+ */
+export type LnSendActivity = {
+  /** Hex pkScript of the lockup covenant — the indexer's watch key. */
+  swapPkScript: string
+  /** The tx that ended the swap, absent until one exists. */
+  spend?: LnSendSpend
+}
+
+/** The tx that spent a lockup, and which of the two spends it was. One type
+ * because neither half means anything alone. */
+export type LnSendSpend = {
+  spentTxid: string
+  outcome: 'completed' | 'refunded'
+}
+
 export type Tx = {
   amount: number
   assetAction?: 'issued' | 'reissued' | 'burned'
@@ -96,6 +119,9 @@ export type Tx = {
   createdAt: number
   destination?: string
   explorable: string | undefined
+  /** Present only on a Lightning send: its lockup covenant and that
+   * covenant's spender, which is a second tx the wallet never signed. */
+  lnSend?: LnSendActivity
   networkFee?: number
   preconfirmed: boolean
   redeemTxid: string

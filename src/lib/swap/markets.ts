@@ -52,14 +52,23 @@ export const makeCachedFeedFetch = (ttlMs = 30_000): typeof fetch => {
  * (`arkade:BTC -> lightning:BTC`) and is not published in the solver registry
  * yet, so without this the corridor simply does not exist and Lightning send
  * is unavailable. Bundled rather than configured because the card carries its
- * own registry signature and its rendezvous (pubkey + relays) — there is no
- * URL to point at.
+ * own rendezvous (pubkey + nostr relays) — there is no URL to point at.
+ *
+ * The card is the solver's own `cli card` output, signature included — it
+ * signs the current `transports.nostr.relays` shape. This client never
+ * verifies the signature (pinning a card is the user's own trust decision),
+ * but carrying the real one keeps the bundle byte-identical to what the
+ * registry will list.
  *
  * Scoped to mainnet on purpose: the pubkey and relay in the card are the
  * production solver's, and offering it on regtest/signet would quote a
  * mainnet counterparty for testnet coins.
  */
-const BUNDLED_CARDS: LocalCardInput[] = [{ card: arklabsLightningCard as LocalCardInput['card'], network: 'bitcoin' }]
+// Exported so the Solvers settings screen can show built-in cards — a pinned
+// solver invisible in Settings reads as "no solver at all".
+export const BUNDLED_CARDS: LocalCardInput[] = [
+  { card: arklabsLightningCard as LocalCardInput['card'], network: 'bitcoin' },
+]
 
 const MARKETS_CACHE_KEY = 'swapMarkets'
 const MARKETS_CACHE_TTL_MS = 60 * 60 * 1000
@@ -108,11 +117,13 @@ const writeMarketsCache = (network: NetworkName, registry: string, markets: Disc
  * stale cache backstops an unreachable registry (quotes stay live either way).
  */
 export const discoverMarkets = async (network: NetworkName, useCache = true): Promise<DiscoveredMarket[]> => {
-  const localCards = [...BUNDLED_CARDS, ...readSolverCardsFromStorage()].filter((c) => c.network === network)
   const registry = getSolverRegistryUrl(network)
   if (!registry || !isNetwork(network)) return []
   const cached = readMarketsCache(network, registry)
   if (useCache && cached && Date.now() - cached.fetchedAt < MARKETS_CACHE_TTL_MS) return cached.markets
+  // read after the guards above: on the no-registry and cache-hit paths the
+  // storage read and its parse would be thrown away
+  const localCards = [...BUNDLED_CARDS, ...readSolverCardsFromStorage()].filter((c) => c.network === network)
   const { markets, sources, warnings } = await discover({ registries: [registry], localCards, network })
   if (warnings.length) consoleLog('solver discovery:', ...warnings)
   // an unreachable registry (fetch/validation failure) falls back to the stale

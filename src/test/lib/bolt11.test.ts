@@ -1,11 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import {
-  decodeInvoice,
-  invoiceMatchesNetwork,
-  invoiceSecondsRemaining,
-  isInvoiceExpired,
-  isValidInvoice,
-} from '../../lib/bolt11'
+import { decodeInvoice, invoiceMatchesNetwork, isInvoiceExpired, isValidInvoice } from '../../lib/bolt11'
 import fixtures from '../fixtures.json'
 
 describe('bolt11 utilities', () => {
@@ -56,20 +50,17 @@ describe('bolt11 utilities', () => {
     it('should report an invoice as live one second before it expires', () => {
       const decoded = decodeInvoice(invoice)
       expect(isInvoiceExpired(decoded, decoded.expiresAt - 1)).toBe(false)
-      expect(invoiceSecondsRemaining(decoded, decoded.expiresAt - 1)).toBe(1)
     })
 
     it('should report an invoice as expired at and after its expiry', () => {
       const decoded = decodeInvoice(invoice)
       expect(isInvoiceExpired(decoded, decoded.expiresAt)).toBe(true)
       expect(isInvoiceExpired(decoded, decoded.expiresAt + 1)).toBe(true)
-      expect(invoiceSecondsRemaining(decoded, decoded.expiresAt + 60)).toBe(0)
     })
 
     it('should treat an invoice with no timestamp as expired', () => {
       const decoded = { ...decodeInvoice(invoice), timestamp: 0 }
       expect(isInvoiceExpired(decoded, 0)).toBe(true)
-      expect(invoiceSecondsRemaining(decoded, 0)).toBe(0)
     })
   })
 

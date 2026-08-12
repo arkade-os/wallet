@@ -35,7 +35,7 @@ import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl, LnUr
 import { extractError } from '../../../lib/error'
 import { decodeInvoice } from '../../../lib/bolt11'
 import { lnSendRendezvous, requestLnSend } from '../../../lib/lnSwap'
-import { nostrRfqTransport } from '@arkade-os/swap/nostr'
+import { withRfqTransport } from '../../../lib/nostrRfq'
 import { discoverMarkets } from '../../../lib/swap/markets'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
@@ -602,17 +602,23 @@ export default function SendForm() {
   useEffect(() => {
     if (!proceed) return
     if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice) return
-    if (sendInfo.arkAddress || sendInfo.pendingLnSend) return navigate(Pages.SendDetails)
-    if (sendInfo.invoice) {
+    // Everything except an un-negotiated invoice goes straight through: an ark
+    // address, an on-chain address, and an invoice whose quote is already in
+    // hand all have all they need to be signed on the next screen.
+    if (!sendInfo.invoice || sendInfo.pendingLnSend) return navigate(Pages.SendDetails)
+    {
       // RFQ Lightning send: negotiate a quote over Nostr, derive the covenant
       // locally, verify, and carry the address+amount to the pay screen. The
       // negotiation is the only interactive step — funding IS acceptance.
       const negotiate = async () => {
         if (!svcWallet) return handleError('Wallet not ready')
         const network = aspInfo.network as NetworkName
-        const emulatorPubkey = getEmulatorPubkeyForNetwork(network)
-        if (!emulatorPubkey) return handleError('Swap co-signer not configured for this network')
-        const rendezvous = lnSendRendezvous(await discoverMarkets(network))
+        // No emulator URL is looked up here: this corridor needs the co-signer's
+        // x-only KEY, never an endpoint. It rides the solver's own card; the
+        // per-network pin is passed as the fallback for cards that predate the
+        // field (see lnSendRendezvous). Neither available yields no rendezvous,
+        // which the line below already reports.
+        const rendezvous = lnSendRendezvous(await discoverMarkets(network), getEmulatorPubkeyForNetwork(network))
         if (!rendezvous) return handleError('No Lightning solver available')
         const sats = sendInfo.satoshis ?? 0
         if (sats < rendezvous.minSats || sats > rendezvous.maxSats) {
@@ -620,25 +626,19 @@ export default function SendForm() {
             `Amount outside solver bounds (${prettyNumber(rendezvous.minSats)}-${prettyNumber(rendezvous.maxSats)} sats)`,
           )
         }
-        const transport = nostrRfqTransport({ relays: rendezvous.relays, solverPubkey: rendezvous.solverPubkey })
-        try {
+        await withRfqTransport(rendezvous, async (transport) => {
           const pendingLnSend = await requestLnSend({
             wallet: svcWallet,
             arkServerUrl: aspInfo.url,
-            emulatorPubkey,
             transport,
             invoice: sendInfo.invoice!,
             network,
             rendezvous,
           })
           setSendInfo({ ...sendInfo, pendingLnSend })
-        } finally {
-          await transport.close().catch(() => {})
-        }
+        })
       }
       negotiate().catch(handleError)
-    } else if (sendInfo.address) {
-      navigate(Pages.SendDetails)
     }
   }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingLnSend])
 

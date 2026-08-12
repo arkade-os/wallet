@@ -230,6 +230,7 @@ export async function createOffer(
     offerAsset: params.offerAsset,
     makerPkScript: ArkAddress.decode(makerAddress).pkScript,
     makerPublicKey,
+    // the TLV record is x-only (32 bytes); a compressed key drops its prefix
     emulatorPubkey: emulatorPubkey.length === 33 ? emulatorPubkey.slice(1) : emulatorPubkey,
   }
   const script = offerVtxoScript(offer, serverPubKey)

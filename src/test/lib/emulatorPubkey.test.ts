@@ -19,10 +19,16 @@ describe('getEmulatorPubkeyForNetwork', () => {
     expect(hex.encode(key!)).toBe('f823b9b2febc81f4af967e77aed2f541cbd3397c6d8f5a72e32eb7b471af889a')
   })
 
+  it('supplies the mainnet pin, matching the SDK and the live deployment', () => {
+    // pinned after the key was verified three ways: the SDK's own
+    // BITCOIN_EMULATOR_PUBKEY, the live /v1/info answer, and a mainnet
+    // Lightning send settled against it on 2026-08-12
+    expect(hex.encode(getEmulatorPubkeyForNetwork('bitcoin')!)).toBe(
+      '39c196415da47b26456a101daaa12ba9e445bfe153197f1e2b750bf40e52092e',
+    )
+  })
+
   it('reports no key for networks with none pinned, so swaps stay off', () => {
-    // mainnet deliberately has no key: guessing one would derive a covenant the
-    // solver can never fill, with real funds in it
-    expect(getEmulatorPubkeyForNetwork('bitcoin')).toBeUndefined()
     expect(getEmulatorPubkeyForNetwork('signet')).toBeUndefined()
     expect(getEmulatorPubkeyForNetwork('testnet')).toBeUndefined()
     // regtest keys are per-deployment; a dev supplies one via VITE_EMULATOR_PUBKEY
@@ -47,7 +53,7 @@ describe('getEmulatorPubkeyForNetwork', () => {
       vi.stubEnv('VITE_EMULATOR_PUBKEY', value)
       expect(getEmulatorPubkeyForNetwork('regtest')).toBeUndefined()
       // and it must not fall back to another network's pinned key either
-      expect(getEmulatorPubkeyForNetwork('bitcoin')).toBeUndefined()
+      expect(getEmulatorPubkeyForNetwork('signet')).toBeUndefined()
     })
   })
 })

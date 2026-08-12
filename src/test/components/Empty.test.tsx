@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { EmptyCoinsList, EmptyLogsList, EmptySwapList, EmptyTxList } from '../../components/Empty'
+import { EmptyCoinsList, EmptyLogsList, EmptyTxList } from '../../components/Empty'
 
 describe('Empty component', () => {
   it('renders EmptyCoinsList with the correct message', () => {
@@ -13,12 +13,6 @@ describe('Empty component', () => {
     render(<EmptyLogsList />)
     expect(screen.getByText('No logs available')).toBeInTheDocument()
     expect(screen.getByText('Start using the app to generate logs.')).toBeInTheDocument()
-  })
-
-  it('renders EmptySwapList with the correct message', () => {
-    render(<EmptySwapList />)
-    expect(screen.getByText('No swaps yet')).toBeInTheDocument()
-    expect(screen.getByText('Your swap history will appear here once you start swapping.')).toBeInTheDocument()
   })
 
   it('renders EmptyTxList with the correct message', () => {

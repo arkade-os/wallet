@@ -48,7 +48,6 @@ export interface DetailsProps {
   status?: string
   swapFees?: SwapDisplayAmount
   swapFrom?: SwapDisplayAmount
-  swapId?: string
   swapTo?: SwapDisplayAmount
   total?: number
   txid?: string
@@ -85,7 +84,6 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     status,
     swapFees,
     swapFrom,
-    swapId,
     swapTo,
     txid,
     type,
@@ -176,7 +174,6 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     ['Address', address, <TypeIcon key='address-icon' />],
     ['Arknote', arknote, <NotesIcon key='notes-icon' small />],
     ['Invoice', invoice, <TypeIcon key='invoice-icon' />],
-    ['Swap ID', swapId, <InfoIcon key='swap-id-icon' />],
     ['Destination', destination, <TypeIcon key='destination-icon' />],
     ['Funded', fundedTxid, <HashIcon key='funded-icon' />, offchainTxOnClick(fundedTxid)],
     [spendLabel ?? 'Completed', spendTxid, <HashIcon key='spend-icon' />, offchainTxOnClick(spendTxid)],

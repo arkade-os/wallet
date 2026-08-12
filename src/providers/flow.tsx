@@ -1,4 +1,5 @@
 import type { LnSendRequest } from '../lib/lnSwap'
+import type { LnReceiveRequest } from '../lib/lnReceive'
 import { ReactNode, createContext, useState } from 'react'
 import type { Asset, AssetDetails, ServiceWorkerWalletMode } from '@arkade-os/sdk'
 import { Tx } from '../lib/types'
@@ -26,7 +27,9 @@ export interface RecvInfo {
   boardingAddr: string
   offchainAddr: string
   onchainAddr?: string
+  /** The solver's hold invoice, once an RFQ receive has been negotiated. */
   invoice?: string
+  pendingLnReceive?: LnReceiveRequest
   satoshis: number
   txid?: string
   addressError?: string
