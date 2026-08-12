@@ -24,7 +24,7 @@
  */
 import { hex } from '@scure/base'
 import { sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
-import { RestEmulatorProvider, type NetworkName, type RestIndexerProvider } from '@arkade-os/sdk'
+import { defaultEmulatorPubkey, getNetwork, type NetworkName, type RestIndexerProvider } from '@arkade-os/sdk'
 import { RFQ_TERMINAL_STATES, requestLightningSend, type InvoiceFacts, type RfqTransport } from '@arkade-os/swap'
 import { sleep as defaultSleep } from './sleep'
 import { decodeInvoice, invoiceMatchesNetwork, isInvoiceExpired, type DecodedInvoice } from './bolt11'
@@ -194,7 +194,6 @@ export const requestLnSend = async (
   args: {
     wallet: Parameters<typeof requestLightningSend>[0]
     arkServerUrl: string
-    emulatorUrl: string
     transport: RfqTransport
     invoice: string
     network: NetworkName
@@ -203,16 +202,15 @@ export const requestLnSend = async (
   nowSeconds = Math.floor(Date.now() / 1000),
 ): Promise<LnSendRequest> => {
   const invoice = toInvoiceFacts(args.invoice, args.network, nowSeconds)
-  // The client takes the covenant co-signer's x-only key rather than a URL
-  // since ts-sdk feat/arkade-swap dropped the in-client fetch; resolve it here
-  // the same way the asset-swap path does (`offer.ts`). The slice normalizes a
-  // 33-byte compressed key to x-only.
-  const { signerPubkey } = await new RestEmulatorProvider(args.emulatorUrl).getInfo()
-  const emulatorPubkey = hex.decode(signerPubkey)
+  // The covenant co-signer key is pinned per network in the SDK (which
+  // deliberately stopped fetching it from the emulator URL — whoever answered
+  // that URL chose the key). Throws for networks with no pinned emulator,
+  // which the caller surfaces as "unavailable". Slice: compressed → x-only.
+  const emulatorPubkey = hex.decode(defaultEmulatorPubkey(getNetwork(args.network)))
   const result = await requestLightningSend(
     args.wallet,
     args.arkServerUrl,
-    emulatorPubkey.length === 33 ? emulatorPubkey.slice(1) : emulatorPubkey,
+    emulatorPubkey.slice(1),
     args.transport,
     { invoice },
   )

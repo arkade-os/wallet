@@ -59,7 +59,7 @@ import {
   DropdownMenuTrigger,
 } from '../../../components/ui/dropdown-menu'
 import { hapticLight } from '../../../lib/haptics'
-import { getEmulatorUrlForNetwork, testDomains } from '../../../lib/constants'
+import { testDomains } from '../../../lib/constants'
 import UnverifiedBadge from '../../../components/UnverifiedBadge'
 
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
@@ -613,8 +613,8 @@ export default function SendForm() {
       const negotiate = async () => {
         if (!svcWallet) return handleError('Wallet not ready')
         const network = aspInfo.network as NetworkName
-        const emulatorUrl = getEmulatorUrlForNetwork(network)
-        if (!emulatorUrl) return handleError('Swap co-signer not configured for this network')
+        // The covenant co-signer key comes from the SDK's per-network pin;
+        // requestLnSend throws for networks with no emulator deployment.
         const rendezvous = lnSendRendezvous(await discoverMarkets(network))
         if (!rendezvous) return handleError('No Lightning solver available')
         const sats = sendInfo.satoshis ?? 0
@@ -627,7 +627,6 @@ export default function SendForm() {
           const pendingLnSend = await requestLnSend({
             wallet: svcWallet,
             arkServerUrl: aspInfo.url,
-            emulatorUrl,
             transport,
             invoice: sendInfo.invoice!,
             network,
