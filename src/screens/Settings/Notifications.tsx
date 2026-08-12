@@ -20,7 +20,7 @@ export default function Notifications() {
       return
     }
     if (!config.notifications) {
-      requestPermission().then(async (notifications) => {
+      requestPermission().then((notifications) => {
         if (notifications) sendTestNotification()
         else toast('Notifications permission denied')
         backupAndUpdateConfig({ ...config, notifications })
