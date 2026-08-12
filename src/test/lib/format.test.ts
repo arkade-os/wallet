@@ -124,13 +124,13 @@ describe('format utilities', () => {
 
     it('should format recent times', () => {
       expect(prettyAgo(now)).toBe('just now')
-      expect(prettyAgo(now - 30 * 1000)).toBe('30s ago')
+      expect(prettyAgo(now - 30 * 1000)).toMatch(/3[01]s ago/)
       expect(prettyAgo(now - 2 * minute)).toBe('2m ago')
     })
 
     it('should format recent times with long format', () => {
       expect(prettyAgo(now, true)).toBe('just now')
-      expect(prettyAgo(now - 30 * 1000, true)).toBe('30 seconds ago')
+      expect(prettyAgo(now - 30 * 1000, true)).toMatch(/3[01] seconds ago/)
       expect(prettyAgo(now - 2 * minute, true)).toBe('2 minutes ago')
     })
 

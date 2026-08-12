@@ -4,9 +4,7 @@
   "discovery_pubkey": "66422c952f8dcb96e4d0c3f049cd1e265b8461b916d9913c65c2494b64b4e3ce",
   "transports": {
     "nostr": {
-      "relays": [
-        "wss://nostr.arkade.sh"
-      ]
+      "relays": ["wss://nostr.arkade.sh"]
     }
   },
   "markets": [
