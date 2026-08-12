@@ -75,16 +75,15 @@ const EMULATOR_PUBKEY: Record<NetworkName, string | null> = {
   // mainnet Lightning send against this key settled end to end on
   // 2026-08-12.
   bitcoin: '0239c196415da47b26456a101daaa12ba9e445bfe153197f1e2b750bf40e52092e',
-  // read from https://emulator.mutinynet.arkade.sh/v1/info on 2026-08-07 —
-  // the same value the client used to fetch live at swap time, stored in the
-  // endpoint's own compressed form so it can be re-checked with a plain curl.
-  // Pinning does not make it more trusted; it makes it reviewable, and stops
-  // the host swapping it under a running client.
+  // read from the mutinynet deployment's own signer key on 2026-08-07 — the
+  // same value the client used to fetch live at swap time, stored in its
+  // compressed form. Pinning does not make it more trusted; it makes it
+  // reviewable, and stops the host swapping it under a running client.
   mutinynet: '03f823b9b2febc81f4af967e77aed2f541cbd3397c6d8f5a72e32eb7b471af889a',
   signet: null,
   // per-deployment: a local stack generates its own co-signer key, so there is
-  // no constant to pin. Set VITE_EMULATOR_PUBKEY to your emulator's
-  // `/v1/info` signerPubkey.
+  // no constant to pin. Set VITE_EMULATOR_PUBKEY to your emulator's signer
+  // key.
   regtest: null,
   testnet: null,
 }
