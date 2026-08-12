@@ -296,18 +296,13 @@ export const requestLnSend = async (
   nowSeconds = Math.floor(Date.now() / 1000),
 ): Promise<LnSendRequest> => {
   const invoice = toInvoiceFacts(args.invoice, args.network, nowSeconds)
-  // The emulator's x-only KEY, not the emulator's URL. The client has no
-  // network path to that service and never dials it — the key is a covenant
-  // parameter, one of the eight leaves' inputs. It is taken from the rendezvous
-  // rather than accepted as a separate argument so no call site can pair one
-  // solver's card with another's co-signer.
-  const result = await requestLightningSend(
-    args.wallet,
-    args.arkServerUrl,
-    hex.decode(args.rendezvous.emulatorPubkey),
-    args.transport,
-    { invoice },
-  )
+  // Since @arkade-os/swap 0.0.3 the covenant co-signer key resolves inside
+  // the package from its per-network pin — there is no positional argument.
+  // Passing the old five-argument shape shifted every parameter one slot and
+  // died reading `params.invoice.raw` off the transport.
+  const result = await requestLightningSend(args.wallet, args.arkServerUrl, args.transport, {
+    invoice,
+  })
   return {
     rfqId: result.rfqId,
     address: result.address,

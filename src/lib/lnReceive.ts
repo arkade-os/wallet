@@ -27,7 +27,6 @@ import {
   type SwapSecrets,
 } from '@arkade-os/swap'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
-import { hex } from '@scure/base'
 import { toInvoiceFacts, type LnSendRendezvous } from './lnSwap'
 
 /**
@@ -95,10 +94,11 @@ export const requestLnReceive = async (args: {
   network: NetworkName
   amountSats: number
 }): Promise<LnReceiveRequest> => {
+  // 0.0.3: the co-signer key resolves inside the package (per-network pin);
+  // the positional argument is gone.
   const result = await requestLightningReceive(
     args.wallet,
     args.arkServerUrl,
-    hex.decode(args.rendezvous.emulatorPubkey),
     args.transport,
     {
       amount: args.amountSats,
