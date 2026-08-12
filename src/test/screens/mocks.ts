@@ -142,6 +142,7 @@ export const mockWalletContextValue = {
   dataReady: false,
   loadError: null,
   dismissLoadError: () => {},
+  setAssetSwaps: () => {},
 }
 
 export const mockFlowContextValue = {

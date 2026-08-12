@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
 import { discover, sideLimits, validateCard, type DiscoveredMarket } from '@arkade-os/solver-discovery'
-import arklabsCard from '../../lib/swap/beta-solver.card.json'
+import betaSolverCard from '../../lib/beta-solver.card.json'
 import { lnSendRendezvous } from '../../lib/lnSwap'
 
 /**
@@ -14,7 +14,11 @@ import { lnSendRendezvous } from '../../lib/lnSwap'
  */
 describe('bundled Arkade Labs solver card', () => {
   const load = async () =>
-    discover({ registries: [], localCards: [{ card: arklabsCard as never, network: 'bitcoin' }], network: 'bitcoin' })
+    discover({
+      registries: [],
+      localCards: [{ card: betaSolverCard as never, network: 'bitcoin' }],
+      network: 'bitcoin',
+    })
 
   it('survives discovery and yields a lightning corridor market', async () => {
     const { markets, warnings } = await load()
@@ -28,14 +32,14 @@ describe('bundled Arkade Labs solver card', () => {
     // what the wallet actually holds, so the reducer has to propagate them or
     // the negotiation has no counterparty and no relay to reach it on.
     const { markets } = await load()
-    expect(markets[0].discovery_pubkey).toBe(arklabsCard.discovery_pubkey)
-    expect(markets[0].transports?.nostr?.relays).toEqual(arklabsCard.transports.nostr.relays)
+    expect(markets[0].discovery_pubkey).toBe(betaSolverCard.discovery_pubkey)
+    expect(markets[0].transports?.nostr?.relays).toEqual(betaSolverCard.transports.nostr.relays)
   })
 
   it('reports the card bounds on the Lightning side', async () => {
     const { markets } = await load()
-    expect(sideLimits(markets[0], 'quote')?.min).toBe(BigInt(arklabsCard.markets[0].min_quote_amount))
-    expect(sideLimits(markets[0], 'quote')?.max).toBe(BigInt(arklabsCard.markets[0].max_quote_amount))
+    expect(sideLimits(markets[0], 'quote')?.min).toBe(BigInt(betaSolverCard.markets[0].min_quote_amount))
+    expect(sideLimits(markets[0], 'quote')?.max).toBe(BigInt(betaSolverCard.markets[0].max_quote_amount))
   })
 
   /**
@@ -59,7 +63,7 @@ describe('bundled Arkade Labs solver card', () => {
    * burning a quote and handing the invoice to a third party for nothing.
    */
   it('has no rendezvous yet: the card carries no emulator_pubkey', async () => {
-    expect(arklabsCard).not.toHaveProperty('emulator_pubkey')
+    expect(betaSolverCard).not.toHaveProperty('emulator_pubkey')
     const { markets } = await load()
     expect(lnSendRendezvous(markets)).toBeUndefined()
   })
@@ -67,7 +71,7 @@ describe('bundled Arkade Labs solver card', () => {
   it('cannot carry emulator_pubkey until solver-discovery accepts it', async () => {
     // Pins blocker 2. When this flips to ok, bump the dep and add the field to
     // the card — the assertions above are what then start failing.
-    const result = validateCard({ ...arklabsCard, emulator_pubkey: 'c'.repeat(64) })
+    const result = validateCard({ ...betaSolverCard, emulator_pubkey: 'c'.repeat(64) })
     expect(result.ok).toBe(false)
     expect(result.errors.join()).toMatch(/emulator_pubkey/)
   })

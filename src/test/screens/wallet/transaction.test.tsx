@@ -26,7 +26,7 @@ import { Currencies } from '../../../lib/types'
 import { AssetsContext } from '../../../providers/assets'
 import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
 import { AssetSwapsContext } from '../../../providers/assetSwaps'
-import type { AssetSwap } from '../../../lib/swap/store'
+import type { WalletAssetSwap as AssetSwap } from '../../../lib/swapRepository'
 
 const pendingSwapTx = {
   ...mockTxInfo,
