@@ -70,10 +70,11 @@ export const getSolverRegistryUrl = (network: NetworkName): string | undefined =
 // and `lnSendRendezvous` prefers it; the pins below keep a network working until
 // its solver publishes one, and are what a wallet compares the card against.
 const EMULATOR_PUBKEY: Record<NetworkName, string | null> = {
-  // null on purpose: no key has been checked against a signed solver card for
-  // these networks, and guessing one derives a covenant the solver can never
-  // fill. Swaps stay off rather than funding an address nobody can settle.
-  bitcoin: null,
+  // Matches the SDK's own per-network pin (BITCOIN_EMULATOR_PUBKEY, ts-sdk
+  // networks.ts), re-checked against the deployment's own signer key; a
+  // mainnet Lightning send against this key settled end to end on
+  // 2026-08-12.
+  bitcoin: '0239c196415da47b26456a101daaa12ba9e445bfe153197f1e2b750bf40e52092e',
   // read from https://emulator.mutinynet.arkade.sh/v1/info on 2026-08-07 —
   // the same value the client used to fetch live at swap time, stored in the
   // endpoint's own compressed form so it can be re-checked with a plain curl.

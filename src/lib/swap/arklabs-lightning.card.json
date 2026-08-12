@@ -1,8 +1,14 @@
 {
   "version": 0,
-  "name": "arklabs-lightning",
+  "name": "beta-solver",
   "discovery_pubkey": "66422c952f8dcb96e4d0c3f049cd1e265b8461b916d9913c65c2494b64b4e3ce",
-  "transports": { "nostr": { "relays": ["wss://nostr.arkade.sh"] } },
+  "transports": {
+    "nostr": {
+      "relays": [
+        "wss://nostr.arkade.sh"
+      ]
+    }
+  },
   "markets": [
     {
       "pair": "BTC/lightning:BTC",
@@ -25,5 +31,6 @@
       "min_quote_amount": "500",
       "max_quote_amount": "1000"
     }
-  ]
+  ],
+  "sig": "261af262631818ca72718efdd5a175c30dd02b3735ef498d42ab78d8da03c82692fb3e7dde89a645579acf60852fc4a98798afba877f92e24c77938cedf103bd"
 }

@@ -54,19 +54,21 @@ export const makeCachedFeedFetch = (ttlMs = 30_000): typeof fetch => {
  * is unavailable. Bundled rather than configured because the card carries its
  * own rendezvous (pubkey + nostr relays) — there is no URL to point at.
  *
- * It carries no `sig`. The signature it shipped with covered the superseded
- * card shape (top-level `relays`, now `transports.nostr.relays`), so keeping it
- * across the reshape would have asserted a signature over content it does not
- * cover. `sig` is optional for a local card — this client never verifies one,
- * and pinning a card is the user's own trust decision — but the registry's
- * reducer does demand it, so this card must be replaced by the solver's own
- * `cli card` output before it can be listed.
+ * The card is the solver's own `cli card` output, signature included — it
+ * signs the current `transports.nostr.relays` shape. This client never
+ * verifies the signature (pinning a card is the user's own trust decision),
+ * but carrying the real one keeps the bundle byte-identical to what the
+ * registry will list.
  *
  * Scoped to mainnet on purpose: the pubkey and relay in the card are the
  * production solver's, and offering it on regtest/signet would quote a
  * mainnet counterparty for testnet coins.
  */
-const BUNDLED_CARDS: LocalCardInput[] = [{ card: arklabsLightningCard as LocalCardInput['card'], network: 'bitcoin' }]
+// Exported so the Solvers settings screen can show built-in cards — a pinned
+// solver invisible in Settings reads as "no solver at all".
+export const BUNDLED_CARDS: LocalCardInput[] = [
+  { card: arklabsLightningCard as LocalCardInput['card'], network: 'bitcoin' },
+]
 
 const MARKETS_CACHE_KEY = 'swapMarkets'
 const MARKETS_CACHE_TTL_MS = 60 * 60 * 1000

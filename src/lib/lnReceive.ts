@@ -104,13 +104,13 @@ export const requestLnReceive = async (args: {
       amount: args.amountSats,
       amountSide: 'to',
       covclaimdPubkey: sealingKey(),
+      // The wallet's own decoder, applied to the SOLVER's invoice inside the
+      // package's own gate (ts-sdk#728 reinstated the parameter): it throws
+      // `InvoiceRejected` on a wrong network or an already-expired hold
+      // invoice, and skipping it is what loses the payment.
+      decodeInvoice: (bolt11: string) => toInvoiceFacts(bolt11, args.network),
     },
   )
-  // The wallet's own decoder, applied to the SOLVER's invoice. The package used
-  // to take this as a `decodeInvoice` parameter and no longer does, so the check
-  // moved out here rather than lapsing: it throws `InvoiceRejected` on a wrong
-  // network or an already-expired hold invoice, and skipping it is what loses
-  // the payment.
   const facts = toInvoiceFacts(result.invoice, args.network)
   return {
     rfqId: result.rfqId,
@@ -158,12 +158,13 @@ export const claimLnReceive = async (
   // the `vtxos` its own wait produces (@arkade-os/swap, claim.ts) — passing a
   // placeholder to satisfy that would read as if it meant something.
   const vtxos = await awaitLockupFunding(args.indexer, request.swapPkScript, options)
-  // Enforced here because `pushClaim` stopped taking `expectedAmount`. This is
-  // the one check standing between a dust-funded lockup and a published
-  // preimage that settles the payer's HTLC in full: the claim reveals `P`, so a
-  // short-funded lockup claimed anyway pays the solver everything and the
-  // wallet almost nothing. Refusing leaves the lockup to `refund_locktime`,
-  // which refunds the payer — the correct outcome for a solver that underfunded.
+  // Checked here AND passed to `pushClaim` (ts-sdk#728 reinstated the
+  // parameter). This is the one check standing between a dust-funded lockup
+  // and a published preimage that settles the payer's HTLC in full: the claim
+  // reveals `P`, so a short-funded lockup claimed anyway pays the solver
+  // everything and the wallet almost nothing. Refusing leaves the lockup to
+  // `refund_locktime`, which refunds the payer — the correct outcome for a
+  // solver that underfunded.
   const funded = vtxos.reduce((total, vtxo) => total + vtxo.value, 0)
   if (funded < request.expectedAmount) {
     throw new Error(`lockup underfunded: ${funded} sats at the covenant, expected ${request.expectedAmount}`)
@@ -174,5 +175,6 @@ export const claimLnReceive = async (
     preimage,
     vtxos,
     destinationPkScript: ArkAddress.decode(request.payoutAddress).pkScript,
+    expectedAmount: request.expectedAmount,
   })
 }

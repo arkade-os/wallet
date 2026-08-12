@@ -116,7 +116,7 @@ describe('lnSendRendezvous', () => {
     // Uppercase is off-pattern for the registry, and hex.decode rejects it.
     expect(lnSendRendezvous([market({ emulator_pubkey: 'CC'.repeat(32) })])).toBeUndefined()
     // A URL is the specific confusion this corridor already shipped once.
-    expect(lnSendRendezvous([market({ emulator_pubkey: 'https://emulator.arkade.computer' })])).toBeUndefined()
+    expect(lnSendRendezvous([market({ emulator_pubkey: 'https://not-a-pubkey.example' })])).toBeUndefined()
   })
 
   it('carries the emulator pubkey through, so the covenant can be derived', () => {
