@@ -8,8 +8,6 @@ onlyBuiltDependencies:
   - '@arkade-os/sdk'
 
 overrides:
-  '@arkade-os/sdk': link:../ts-sdk/packages/ts-sdk
-  '@arkade-os/swap': link:../ts-sdk/packages/swap
   '@babel/core': '>=7.29.6 <8.0.0'
   js-yaml@<4: '>=3.15.0 <4.0.0'
   js-yaml@>=4: '>=4.2.0 <5.0.0'
