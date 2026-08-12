@@ -20,7 +20,7 @@ import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { SwapsContext } from '../../../providers/swaps'
 import { NotificationsContext } from '../../../providers/notifications'
-import { ToastProvider } from '../../../components/Toast'
+import { ToastProvider } from '../../../providers/toast'
 import { LnurlContext } from '../../../providers/lnurl'
 import ReceiveQRCode, { resolveQrValue } from '../../../screens/Wallet/Receive/QrCode'
 

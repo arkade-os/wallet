@@ -5,7 +5,7 @@ import AppBoltzSwap from '../../../screens/Apps/Boltz/Swap'
 import { ConfigContext } from '../../../providers/config'
 import { FlowContext } from '../../../providers/flow'
 import { SwapsContext } from '../../../providers/swaps'
-import { ToastProvider } from '../../../components/Toast'
+import { ToastProvider } from '../../../providers/toast'
 import { mockConfigContextValue, mockFlowContextValue, mockSwapsContextValue } from '../mocks'
 
 const baseChainSwap = {
