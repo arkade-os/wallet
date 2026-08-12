@@ -341,30 +341,34 @@ export default function SendForm() {
           }
           setSelectedAsset(found)
           const rawAmount = assetAmount ? unitsToCents(assetAmount, found.decimals) : BigInt(0)
-          return setSendInfo({
+          return setSendInfo((prev) => ({
+            ...prev,
             address,
             arkAddress,
             invoice,
             recipient,
             satoshis: 0,
             assets: [{ assetId, amount: rawAmount }],
-          })
+            pendingLnSend: invoice === prev.invoice ? prev.pendingLnSend : undefined,
+          }))
         }
-        setSendInfo({
-          account: sendInfo.account,
+        setSendInfo((prev) => ({
+          ...prev,
+          account: prev.account,
           address,
           arkAddress,
-          assets: sendInfo.assets,
+          assets: prev.assets,
           invoice,
           lnUrl,
           recipient,
-          satoshis: satoshis ?? sendInfo.satoshis,
-        })
+          satoshis: satoshis ?? prev.satoshis,
+          pendingLnSend: invoice === prev.invoice ? prev.pendingLnSend : undefined,
+        }))
         if (satoshis) setAmountTextValue(getTextValue(satoshis))
         return
       }
       if (isValidArkAddress(lowerCaseData)) {
-        return setSendInfo({ ...sendInfo, arkAddress: lowerCaseData })
+        return setSendInfo((prev) => ({ ...prev, arkAddress: lowerCaseData, pendingLnSend: undefined }))
       }
       if (isLightningInvoice(lowerCaseData)) {
         if (isAssetSend) {
@@ -379,7 +383,12 @@ export default function SendForm() {
           return setRecipientError('Unable to decode invoice')
         }
         if (!satoshis) return setRecipientError('Invoice must have amount defined')
-        setSendInfo({ ...sendInfo, invoice: lowerCaseData, satoshis })
+        setSendInfo((prev) => ({
+          ...prev,
+          invoice: lowerCaseData,
+          satoshis,
+          pendingLnSend: lowerCaseData === prev.invoice ? prev.pendingLnSend : undefined,
+        }))
         setAmountTextValue(getTextValue(satoshis))
         setAmountIsReadOnly(true)
         return
@@ -763,13 +772,23 @@ export default function SendForm() {
             handleError('Invalid Arkade address received from LNURL')
             return
           }
-          setSendInfo({ ...sendInfo, arkAddress: arkResponse.address, invoice: undefined })
+          setSendInfo((prev) => ({
+            ...prev,
+            arkAddress: arkResponse.address,
+            invoice: undefined,
+            pendingLnSend: undefined,
+          }))
         } else {
           // No Ark method: fetch a BOLT11 and pay it through the RFQ Lightning
           // path (exact-out, zero spread — no fee to deduct from the amount)
           if (satoshis < 1) return handleError('Amount too low')
           const invoice = await fetchInvoice(sendInfo.lnUrl, Number(satoshis), '')
-          setSendInfo({ ...sendInfo, invoice, arkAddress: undefined })
+          setSendInfo((prev) => ({
+            ...prev,
+            arkAddress: undefined,
+            invoice,
+            pendingLnSend: invoice === prev.invoice ? prev.pendingLnSend : undefined,
+          }))
         }
       } else {
         setSendInfo({ ...sendInfo, satoshis })
