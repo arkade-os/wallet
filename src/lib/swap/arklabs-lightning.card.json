@@ -27,7 +27,7 @@
       "min_base_amount": "0",
       "max_base_amount": "0",
       "min_quote_amount": "500",
-      "max_quote_amount": "1000"
+      "max_quote_amount": "50000"
     }
   ],
   "sig": "261af262631818ca72718efdd5a175c30dd02b3735ef498d42ab78d8da03c82692fb3e7dde89a645579acf60852fc4a98798afba877f92e24c77938cedf103bd"
