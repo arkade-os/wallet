@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
-import { discover, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+import { discover, sideLimits, validateCard, type DiscoveredMarket } from '@arkade-os/solver-discovery'
 import arklabsCard from '../../lib/swap/arklabs-lightning.card.json'
 import { lnSendRendezvous } from '../../lib/lnSwap'
 
@@ -24,21 +24,52 @@ describe('bundled Arkade Labs solver card', () => {
   })
 
   it('carries the rendezvous through discovery, so the maker can address the solver', async () => {
-    // discovery_pubkey and relays live on the CARD; the market is what the
-    // wallet actually holds, so the reducer has to propagate them or the
-    // negotiation has no counterparty and no relay to reach it on.
+    // discovery_pubkey and the transports map live on the CARD; the market is
+    // what the wallet actually holds, so the reducer has to propagate them or
+    // the negotiation has no counterparty and no relay to reach it on.
     const { markets } = await load()
-    const rendezvous = lnSendRendezvous(markets)
-    expect(rendezvous).toBeDefined()
-    expect(rendezvous?.solverPubkey).toBe(arklabsCard.discovery_pubkey)
-    expect(rendezvous?.relays).toEqual(arklabsCard.relays)
+    expect(markets[0].discovery_pubkey).toBe(arklabsCard.discovery_pubkey)
+    expect(markets[0].transports?.nostr?.relays).toEqual(arklabsCard.transports.nostr.relays)
   })
 
   it('reports the card bounds on the Lightning side', async () => {
     const { markets } = await load()
-    const rendezvous = lnSendRendezvous(markets)
-    expect(rendezvous?.minSats).toBe(Number(arklabsCard.markets[0].min_quote_amount))
-    expect(rendezvous?.maxSats).toBe(Number(arklabsCard.markets[0].max_quote_amount))
+    expect(sideLimits(markets[0], 'quote')?.min).toBe(BigInt(arklabsCard.markets[0].min_quote_amount))
+    expect(sideLimits(markets[0], 'quote')?.max).toBe(BigInt(arklabsCard.markets[0].max_quote_amount))
+  })
+
+  /**
+   * The card predates `emulator_pubkey` and cannot yet carry it, so the
+   * corridor is deliberately unavailable rather than negotiable-but-unfundable.
+   *
+   * Both halves below are blockers OUTSIDE this repo, and each is pinned by a
+   * test so the day it lifts is a red test rather than a discovery:
+   *
+   *  1. The solver must publish a card carrying its `emulator_pubkey`
+   *     (`cli card` already emits one — arkade-os/solver-registry#18).
+   *  2. `@arkade-os/solver-discovery` must ship a release that ACCEPTS that
+   *     field on a card and propagates it onto the market. At the pinned 0.2.2
+   *     it does neither, and its card validator is allow-list strict, so adding
+   *     the field early would not degrade — it would reject the whole card and
+   *     take the corridor with it.
+   *
+   * Until both land the wallet declines the corridor up front, which beats
+   * quoting: a covenant derived without the solver's real co-signer key is a
+   * different address, so the client would refuse to fund it anyway — after
+   * burning a quote and handing the invoice to a third party for nothing.
+   */
+  it('has no rendezvous yet: the card carries no emulator_pubkey', async () => {
+    expect(arklabsCard).not.toHaveProperty('emulator_pubkey')
+    const { markets } = await load()
+    expect(lnSendRendezvous(markets)).toBeUndefined()
+  })
+
+  it('cannot carry emulator_pubkey until solver-discovery accepts it', async () => {
+    // Pins blocker 2. When this flips to ok, bump the dep and add the field to
+    // the card — the assertions above are what then start failing.
+    const result = validateCard({ ...arklabsCard, emulator_pubkey: 'c'.repeat(64) })
+    expect(result.ok).toBe(false)
+    expect(result.errors.join()).toMatch(/emulator_pubkey/)
   })
 })
 
@@ -50,7 +81,8 @@ describe('lnSendRendezvous', () => {
     ({
       quote_corridor: 'lightning',
       discovery_pubkey: 'aa'.repeat(32),
-      relays: ['wss://relay.test'],
+      emulator_pubkey: 'cc'.repeat(32),
+      transports: { nostr: { relays: ['wss://relay.test'] } },
       min_quote_amount: '500',
       max_quote_amount: '1000',
       ...overrides,
@@ -61,10 +93,34 @@ describe('lnSendRendezvous', () => {
   })
 
   it('skips a corridor market with no rendezvous rather than trusting it', () => {
-    // The registry signs the pubkey and relays; a corridor market reaching us
-    // without them is malformed, and guessing a counterparty is not an option.
+    // The registry signs the pubkey and the transports map; a corridor market
+    // reaching us without them is malformed, and guessing a counterparty is
+    // not an option. A transports map that names only protocols we do not
+    // speak is the same thing: no way to reach the solver.
     expect(lnSendRendezvous([market({ discovery_pubkey: undefined })])).toBeUndefined()
-    expect(lnSendRendezvous([market({ relays: [] })])).toBeUndefined()
+    expect(lnSendRendezvous([market({ transports: undefined })])).toBeUndefined()
+    expect(lnSendRendezvous([market({ transports: { nostr: { relays: [] } } })])).toBeUndefined()
+    expect(lnSendRendezvous([market({ transports: { somethingElse: { relays: ['wss://x'] } } })])).toBeUndefined()
+  })
+
+  it('skips a corridor market with no usable emulator_pubkey', () => {
+    // The co-signer key is a covenant PARAMETER — two of the eight leaves are
+    // built around it — so without a well-formed one the wallet cannot derive
+    // the lockup, and cannot check the solver's address against its own. Every
+    // malformed shape lands on the same answer as a missing one: no corridor.
+    expect(lnSendRendezvous([market({ emulator_pubkey: undefined })])).toBeUndefined()
+    expect(lnSendRendezvous([market({ emulator_pubkey: '' })])).toBeUndefined()
+    expect(lnSendRendezvous([market({ emulator_pubkey: 'deadbeef' })])).toBeUndefined()
+    // 33-byte compressed key, not the 32-byte x-only one the covenant takes.
+    expect(lnSendRendezvous([market({ emulator_pubkey: `02${'cc'.repeat(32)}` })])).toBeUndefined()
+    // Uppercase is off-pattern for the registry, and hex.decode rejects it.
+    expect(lnSendRendezvous([market({ emulator_pubkey: 'CC'.repeat(32) })])).toBeUndefined()
+    // A URL is the specific confusion this corridor already shipped once.
+    expect(lnSendRendezvous([market({ emulator_pubkey: 'https://emulator.arkade.computer' })])).toBeUndefined()
+  })
+
+  it('carries the emulator pubkey through, so the covenant can be derived', () => {
+    expect(lnSendRendezvous([market()])?.emulatorPubkey).toBe('cc'.repeat(32))
   })
 
   it('treats a disabled quote side as no solver, not a zero-width range', () => {

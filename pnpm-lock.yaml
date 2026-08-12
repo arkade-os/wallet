@@ -15,8 +15,8 @@ importers:
         specifier: file:vendor/arkade-os-sdk-0.4.58-arkade-swap-53278fd2.tgz
         version: file:vendor/arkade-os-sdk-0.4.58-arkade-swap-53278fd2.tgz
       '@arkade-os/solver-discovery':
-        specifier: 0.2.1
-        version: 0.2.1
+        specifier: 0.2.2
+        version: 0.2.2
       '@arkade-os/swap':
         specifier: file:vendor/arkade-os-swap-0.0.1-arkade-swap-53278fd2.tgz
         version: file:vendor/arkade-os-swap-0.0.1-arkade-swap-53278fd2.tgz(nostr-tools@2.17.2(typescript@5.9.3))
@@ -273,6 +273,10 @@ packages:
 
   '@arkade-os/solver-discovery@0.2.1':
     resolution: {integrity: sha512-OKZI4X063bDxBKQ0pN4lFJFVufZ4JIXcdt2TWIlUQhg9C7AzuZxr2AGcUSg41EYzOS0P6OL+uOoiurvx2LYs5w==}
+    engines: {node: '>=18'}
+
+  '@arkade-os/solver-discovery@0.2.2':
+    resolution: {integrity: sha512-E6Eg0ltswFHTbT0egooTwQhYpRDO69RDHTNI9ehldBgjUhyPMD8pbwNNcW2EBLmj162p7fP2REo9BvpVzrfXQA==}
     engines: {node: '>=18'}
 
   '@arkade-os/swap@file:vendor/arkade-os-swap-0.0.1-arkade-swap-53278fd2.tgz':
@@ -4360,6 +4364,8 @@ snapshots:
       - utf-8-validate
 
   '@arkade-os/solver-discovery@0.2.1': {}
+
+  '@arkade-os/solver-discovery@0.2.2': {}
 
   '@arkade-os/swap@file:vendor/arkade-os-swap-0.0.1-arkade-swap-53278fd2.tgz(nostr-tools@2.17.2(typescript@5.9.3))':
     dependencies:
