@@ -35,17 +35,22 @@ describe('withRfqTransport', () => {
     })
   })
 
-  it('closes the transport on success and on failure', async () => {
+  it('leaves teardown to the transport, on success and on failure', async () => {
+    // Deliberate, and the reason belongs here rather than in a commit message
+    // nobody re-reads: closing the transport we own made the package emit a
+    // redundant CLOSE frame — it closes the subscription and then the pool,
+    // and `pool.close()` has already closed every subscription on those relays
+    // — so the browser logged "WebSocket is already in CLOSING or CLOSED
+    // state" after every negotiation.
+    //
+    // The cost of not closing is a relay connection and its subscription held
+    // for the tab's lifetime, one per negotiation. That is the accepted
+    // tradeoff until the package closes the pool OR the subscription rather
+    // than both (arkade-os/ts-sdk#736). When it does, restore the `finally`
+    // and this test flips back to asserting close was called.
     await withRfqTransport(rendezvous, async () => 'ok')
-    expect(close).toHaveBeenCalledTimes(1)
-
     await expect(withRfqTransport(rendezvous, async () => Promise.reject(new Error('boom')))).rejects.toThrow('boom')
-    expect(close).toHaveBeenCalledTimes(2)
-  })
-
-  it('does not let a teardown failure mask the result', async () => {
-    close.mockRejectedValue(new Error('relay already gone'))
-    await expect(withRfqTransport(rendezvous, async () => 'ok')).resolves.toBe('ok')
+    expect(close).not.toHaveBeenCalled()
   })
 
   it('rewrites the package timeout into something a user can act on', async () => {

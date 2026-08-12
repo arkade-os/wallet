@@ -71,17 +71,5 @@ export const withRfqTransport = async <T>(
     return await fn(transport)
   } catch (error) {
     throw friendlier(error, timeoutMs)
-  } finally {
-    // Closing the transport it owns emits a redundant CLOSE frame: the package
-    // closes the subscription and then the pool, and `pool.close()` already
-    // closes every subscription on those relays, so the browser logs
-    // "WebSocket is already in CLOSING or CLOSED state".
-    //
-    // That warning is noise — the negotiation is over — and dropping this line
-    // to silence it trades a console message for a relay connection and its
-    // subscription leaked for the tab's lifetime, one per negotiation. The fix
-    // belongs upstream, where the package should close the pool OR the
-    // subscription rather than both: arkade-os/ts-sdk#736.
-    await transport.close().catch(() => {})
   }
 }
