@@ -38,9 +38,6 @@ export interface DetailsProps {
   direction?: string
   expiry?: string
   fees?: number
-  /** Row label for `fees`. A corridor swap's spread is not a network
-   * fee, so the Lightning send receipt overrides it. */
-  feesLabel?: string
   fundedTxid?: string
   invoice?: string
   isOffchainTx?: boolean
@@ -86,7 +83,6 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     spendTxid,
     status,
     swapFees,
-    feesLabel,
     swapFrom,
     swapTo,
     txid,
@@ -191,7 +187,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     ['Expiry', expiry, <DateIcon key='expiry-icon' />],
     ...amountRows,
     ['Price rate', priceRate, <ArrowUpDownIcon key='price-rate-icon' />],
-    [feesLabel ?? 'Network fees', fees === undefined ? undefined : formatAmount(fees), <FeesIcon key='fees-icon' />],
+    ['Network fees', fees === undefined ? undefined : formatAmount(fees), <FeesIcon key='fees-icon' />],
     ['Swap fees', formatSensitiveDetail(swapFees), <FeesIcon key='swap-fees-icon' />],
     ...assetTotalRows,
     ['Total', formatAmount(total), <TotalIcon key='total-icon' />],
