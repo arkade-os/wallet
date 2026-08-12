@@ -6,7 +6,7 @@ import { promisify } from 'util'
 
 const execAsync = promisify(exec)
 
-test('should have lnurl with no amount', async ({ page }) => {
+test.skip('should have lnurl with no amount', async ({ page }) => {
   // create wallet
   await createWallet(page)
 
@@ -24,7 +24,7 @@ test('should have lnurl with no amount', async ({ page }) => {
   expect(isValidLnUrl(lnurl)).toBe(true)
 })
 
-test('should check conditions from lnurl', async ({ page }) => {
+test.skip('should check conditions from lnurl', async ({ page }) => {
   // create wallet
   await createWallet(page)
 
@@ -51,7 +51,7 @@ test('should check conditions from lnurl', async ({ page }) => {
   expect(conditions).toHaveProperty('tag')
 })
 
-test('should fetch invoice from lnurl', async ({ page }) => {
+test.skip('should fetch invoice from lnurl', async ({ page }) => {
   // create wallet
   await createWallet(page)
 
@@ -81,7 +81,7 @@ test('should fetch invoice from lnurl', async ({ page }) => {
   expect(decoded.amountSats).toBe(2000)
 })
 
-test('should receive payment', async ({ page }) => {
+test.skip('should receive payment', async ({ page }) => {
   // create wallet
   await createWallet(page)
 

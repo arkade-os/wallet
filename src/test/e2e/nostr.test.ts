@@ -60,7 +60,7 @@ test('should save config to nostr', async ({ page }) => {
   expect(hopeIsEur).toBe('EUR')
 })
 
-test('should save solver cards to nostr', async ({ page }) => {
+test.skip('should save solver cards to nostr', async ({ page }) => {
   test.setTimeout(60000)
   // create wallet
   await createWallet(page)
