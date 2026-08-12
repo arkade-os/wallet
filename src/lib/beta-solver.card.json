@@ -23,12 +23,12 @@
         "decimals": 8
       },
       "quote_corridor": "lightning",
-      "fee_bps": 0,
+      "fee_bps": 30,
       "min_base_amount": "0",
       "max_base_amount": "0",
       "min_quote_amount": "500",
       "max_quote_amount": "50000"
     }
   ],
-  "sig": "166cc03ad37cdcd5f39277d07071ccedc437f71455a9fda8e88b7d4a2cc61559af80521a7608a91646438ca72e97ad2064a14d0970d9c5ac40da24d51abe7f31"
+  "sig": "d46becad2e325adf6e87b53e271e7faf21c0a49ba9dd249b4c0f6865f42f55fa93035fc953003578810f89af54f0d913382df26556ec9e616d7d606669b36e1f"
 }
