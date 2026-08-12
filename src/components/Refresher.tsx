@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { WalletContext } from '../providers/wallet'
 import { consoleError } from '../lib/logs'
 import SpinnerIcon from '../icons/Spinner'
@@ -9,26 +9,29 @@ export default function Refresher() {
 
   const [showRefresh, setShowRefresh] = useState(false)
 
-  let touchstartY = 0
-  let triggered = false
+  const triggeredRef = useRef(false)
+  const touchstartYRef = useRef(0)
 
   const handleTouchStart = (e: TouchEvent) => {
-    touchstartY = e.touches[0].clientY
+    touchstartYRef.current = e.touches[0].clientY
   }
 
   const handleTouchMove = (e: TouchEvent) => {
-    if (touchstartY > 180) return
+    if (touchstartYRef.current > 180) return
     const touchY = e.touches[0].clientY
-    const touchDiff = touchY - touchstartY
+    const touchDiff = touchY - touchstartYRef.current
     if (touchDiff > 100 && window.scrollY === 0) {
       setShowRefresh(true)
       if (e.cancelable) e.preventDefault()
-      triggered = true
+      triggeredRef.current = true
     }
   }
 
   const handleTouchEnd = () => {
-    if (triggered) handleRefresh()
+    if (triggeredRef.current) {
+      triggeredRef.current = false
+      handleRefresh()
+    }
   }
 
   const handleRefresh = async () => {
