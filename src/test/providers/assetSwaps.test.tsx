@@ -19,9 +19,6 @@ vi.mock('@arkade-os/sdk', async (importOriginal) => ({
   RestIndexerProvider: class {
     getVtxos = getVtxos
   },
-  RestEmulatorProvider: class {
-    getInfo = async () => ({})
-  },
 }))
 
 vi.mock('../../lib/swap/offer', async (importOriginal) => ({
@@ -78,7 +75,7 @@ function CreateHarness({ plan }: { plan: OfferPlan }) {
 function renderCreateProvider(plan: OfferPlan) {
   const send = vi.fn().mockResolvedValue('funding-txid-2')
   render(
-    // mutinynet so the emulator probe (mocked above) resolves and arms createSwap
+    // mutinynet is the network with a pinned co-signer key, which arms createSwap
     <AspContext.Provider
       value={
         { ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet', url: '' } } as any
@@ -121,7 +118,7 @@ describe('AssetSwapsProvider createSwap offer encoding', () => {
     const plan = planOffer({ market: maratNapo, give: 'base', feedValue: 1, giveAmount: BigInt(500), safetyBps: 0 })
     const send = renderCreateProvider(plan)
 
-    // the emulator probe resolves async; retry the click until createSwap arms
+    // discovery still settles async; retry the click until createSwap arms
     await waitFor(() => {
       fireEvent.click(screen.getByRole('button', { name: 'Create' }))
       expect(createOffer).toHaveBeenCalled()

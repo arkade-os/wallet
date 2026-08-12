@@ -1,235 +1,50 @@
 /**
- * Nostr transport for the Arkade RFQ maker side.
+ * Wallet-side lifecycle around `@arkade-os/swap`'s Nostr RFQ transport.
  *
- * The swap client is the MAKER — it posts and funds the intent; the solver is
- * the TAKER that fills it. This module carries that negotiation over Nostr,
- * which is the production transport: `docs/rfq-protocol.md` § 3.1 in
- * arkade-os/lightning-swap-service.
- *
- * **Kind 24859, directed.** One kind for the whole message family. `content` is
- * the NIP-44-encrypted payload; a `p` tag names the recipient. Both sides are
- * outbound-only — each dials relays, neither listens — which is what lets a
- * solver sit behind NAT with no public endpoint. No URL for the solver appears
- * anywhere: it is addressed purely by x-only pubkey.
- *
- * Not to be confused with the discovery spec's kind 38173 appendix, which is a
- * dormant *broadcast pricing* layer for spot markets. The RFQ message family is
- * specified separately, and this implements that.
- *
- * Everything above the codec is unchanged from the HTTP transport: this
- * satisfies the same `RfqTransport` interface, so the maker flow
- * (`requestLightningSend`) is identical whichever transport it is handed.
+ * The transport itself no longer lives here. arkade-os/ts-sdk#718 moved it into
+ * `@arkade-os/swap/nostr`, beside `httpTransport` and `relayTransport`, and this
+ * repo's local copy was deleted with it — the kind constant now has exactly one
+ * definition on this side of the wire. What remains is the part that is this
+ * wallet's problem rather than the package's: owning the transport's lifetime,
+ * and translating one error into something a user can act on.
  */
-import { SwapRefusal, type RfqQuote, type RfqStatus, type RfqTransport } from '@arkade-os/swap'
-import { finalizeEvent, generateSecretKey, getPublicKey, nip44, SimplePool, type Event } from 'nostr-tools'
+import type { RfqTransport } from '@arkade-os/swap'
+import { nostrRfqTransport } from '@arkade-os/swap/nostr'
 
-/**
- * Directed RFQ traffic. Provisional in the spec; kept in one place.
- *
- * In NIP-01's EPHEMERAL range (20000 ≤ n < 30000), which is the point rather
- * than an arbitrary number: a relay does not store these, and RFQ traffic is a
- * negotiation whose messages are worthless once stale — a request nobody
- * answered inside the 30s timeout, or a quote past its `valid_until`. In the
- * regular range this started in (4859) a relay keeps them and serves them to
- * any subscriber forever, which made every negotiation's metadata — who traded
- * with whom, when, how often — a permanent public record no client-side care
- * could retract.
- *
- * The cost, honestly: no store-and-forward, so a request sent while the solver
- * is disconnected is dropped rather than queued. `awaitReply`'s timeout is what
- * covers that, and a quote from a request the solver never saw would have been
- * refused as stale anyway.
- *
- * A hard cutover on both sides — the solver does not dual-listen — so this must
- * match its deployment exactly: on the wrong kind a negotiation is not refused,
- * it is met with silence until the timeout.
- */
-export const RFQ_DIRECTED_KIND = 24859
-
+/** The package's own default; mirrored so the timeout message can name it. */
 const DEFAULT_TIMEOUT_MS = 30_000
 
 /**
- * Every relay dropped the subscription, so no reply can arrive on it.
- *
- * Distinct from a timeout on purpose. Both look like "no answer", but they
- * mean opposite things: a timeout says the solver did not respond, while this
- * says we were never in a position to hear it. Verified against the live
- * relay — a dropped subscription is silent, so without this the transport
- * would wait out the full timeout and then blame the solver for a failure on
- * our own side of the wire.
+ * The shape both corridors' rendezvous share — a solver's card reduced to who
+ * to address and where to meet. `LnSendRendezvous` and `LnReceiveRendezvous`
+ * both satisfy it structurally, which is why this takes neither by name.
  */
-export class RelayUnavailable extends Error {
-  readonly reasons: string[]
-
-  constructor(reasons: string[]) {
-    super(`lost every relay connection: ${reasons.join('; ') || 'connection closed'}`)
-    this.name = 'RelayUnavailable'
-    this.reasons = reasons
-  }
-}
-
-/**
- * Discriminate a decrypted reply, mirroring the client's own rule: a refusal
- * carries a closed-set reason and is thrown as `SwapRefusal`; anything that is
- * not a quote for THIS negotiation is an error rather than a value.
- *
- * The `rfq_id` check is what stops a reply to one negotiation being accepted as
- * the answer to another — on a shared relay the solver's events all arrive on
- * the same subscription.
- */
-const asQuote = (payload: unknown, rfqId: string): RfqQuote => {
-  const p = payload as { type?: string; reason?: string; rfq_id?: string } | null
-  if (p?.type === 'rfq_refusal') throw new SwapRefusal(p.reason ?? 'unknown', p.rfq_id ?? rfqId)
-  if (p?.type !== 'rfq_quote' || p.rfq_id !== rfqId) {
-    throw new Error(`unexpected reply: ${p?.type ?? 'no payload'}`)
-  }
-  return payload as RfqQuote
-}
-
-export interface NostrRfqOptions {
-  /** Relay URLs from the solver's card. The rendezvous, not solver endpoints. */
-  transports: { nostr: { relays: string[] } }
-  /** The card's `discovery_pubkey`, x-only hex — who we address. */
+export interface RfqRendezvous {
   solverPubkey: string
-  /**
-   * Transport key. Defaults to a FRESH key per transport, deliberately: the
-   * negotiation should not be linkable to the wallet's long-term identity, and
-   * nothing in the protocol needs a stable client key — the quote binds to the
-   * covenant, not to who asked for it.
-   */
-  secretKey?: Uint8Array
-  /** Injectable for tests; a caller may also share one pool across swaps. */
-  pool?: SimplePool
-  timeoutMs?: number
+  transports: { nostr: { relays: string[] } }
 }
 
 /**
- * Build an `RfqTransport` speaking kind-24859 directed traffic.
+ * The package rejects a timed-out request with `no solver reply within 30000ms`,
+ * which `handleError` puts in front of a user verbatim. Rewrite it: the number
+ * of milliseconds is not the point, and the string does not say what to do next.
  *
- * Sends are fire-and-forget publishes; replies arrive on a single long-lived
- * subscription filtered to this transport key, so a reply that arrives before
- * the publish promise settles is not missed.
+ * Matched rather than typed because the package throws a plain `Error` here —
+ * `RelayUnavailable` is the only failure it gives a class to. A miss is
+ * survivable (the original message still surfaces), so this must not widen into
+ * catching errors it cannot identify: a refusal or a bad quote has to keep its
+ * own message.
+ *
+ * TODO: drop this once the package carries a user-facing message or a typed
+ * timeout of its own.
  */
-export const nostrRfqTransport = (options: NostrRfqOptions): RfqTransport => {
-  const relays = options.transports.nostr.relays
-  const solverPubkey = options.solverPubkey
-  const secretKey = options.secretKey ?? generateSecretKey()
-  const pubkey = getPublicKey(secretKey)
-  const pool = options.pool ?? new SimplePool()
-  const ownsPool = !options.pool
-  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
-  const conversationKey = nip44.v2.utils.getConversationKey(secretKey, solverPubkey)
-
-  // close() closes the subscription, which fires onclose; that is a deliberate
-  // teardown, not a lost relay, so it must not reject anything.
-  let closed = false
-
-  /** Waiters keyed by rfq_id, settled by a reply or by the subscription dying. */
-  const waiters = new Map<string, { resolve: (payload: unknown) => void; reject: (error: Error) => void }>()
-
-  // One subscription for the whole transport. Opened eagerly so a fast solver
-  // cannot answer into a subscription that does not exist yet.
-  const subscription = pool.subscribeMany(
-    relays,
-    { kinds: [RFQ_DIRECTED_KIND], '#p': [pubkey], authors: [solverPubkey] },
-    {
-      onevent(event: Event) {
-        let payload: unknown
-        try {
-          payload = JSON.parse(nip44.v2.decrypt(event.content, conversationKey))
-        } catch {
-          return // not for us, or malformed: silence, never a throw on the socket
-        }
-        const rfqId = (payload as { rfq_id?: string } | null)?.rfq_id
-        if (!rfqId) return
-        waiters.get(rfqId)?.resolve(payload)
-      },
-      // subscribeMany calls this once every relay has closed. Nothing will
-      // arrive after it, so failing now beats waiting out the timeout — and it
-      // names the real cause instead of implicating the solver.
-      onclose(reasons: string[]) {
-        if (closed) return
-        const error = new RelayUnavailable(reasons)
-        for (const waiter of waiters.values()) waiter.reject(error)
-        waiters.clear()
-      },
-    },
-  )
-
-  const send = async (payload: Record<string, unknown>): Promise<void> => {
-    const event = finalizeEvent(
-      {
-        kind: RFQ_DIRECTED_KIND,
-        created_at: Math.floor(Date.now() / 1000),
-        tags: [['p', solverPubkey]],
-        content: nip44.v2.encrypt(JSON.stringify(payload), conversationKey),
-      },
-      secretKey,
-    )
-    // Publishing to several relays: one accepting is enough, so a single
-    // rejecting relay must not fail the negotiation.
-    const results = await Promise.allSettled(pool.publish(relays, event))
-    if (!results.some((r) => r.status === 'fulfilled')) {
-      throw new Error('no relay accepted the RFQ message')
-    }
+const friendlier = (error: unknown, timeoutMs: number): unknown => {
+  if (error instanceof Error && /^no solver reply within \d+ms$/.test(error.message)) {
+    // RelayUnavailable already covers a dead relay, so reaching here means the
+    // relay took our request and the solver did not answer it.
+    return new Error(`Lightning solver is not responding (waited ${timeoutMs / 1000}s) — try again later`)
   }
-
-  /** Await the reply for one rfq_id, with a timeout and guaranteed cleanup. */
-  const awaitReply = (rfqId: string): Promise<unknown> =>
-    new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        waiters.delete(rfqId)
-        // User-facing: handleError surfaces this verbatim. RelayUnavailable
-        // already covers a dead relay, so reaching here means the relay took our
-        // request and the solver did not answer it.
-        reject(new Error(`Lightning solver is not responding (waited ${timeoutMs / 1000}s) — try again later`))
-      }, timeoutMs)
-      waiters.set(rfqId, {
-        resolve: (payload) => {
-          clearTimeout(timer)
-          waiters.delete(rfqId)
-          resolve(payload)
-        },
-        reject: (error) => {
-          clearTimeout(timer)
-          waiters.delete(rfqId)
-          reject(error)
-        },
-      })
-    })
-
-  return {
-    async requestQuote(payload) {
-      const rfqId = String(payload.rfq_id)
-      // Register the waiter BEFORE publishing: the reply can land while the
-      // publish promise is still settling.
-      const reply = awaitReply(rfqId)
-      await send(payload)
-      return asQuote(await reply, rfqId)
-    },
-
-    async status(rfqId) {
-      const reply = awaitReply(rfqId)
-      await send({ v: 1, type: 'rfq_status_request', rfq_id: rfqId })
-      const payload = (await reply) as { type?: string } | null
-      // A solver that has forgotten the negotiation answers nothing useful;
-      // null means "no status", matching the HTTP transport's 404.
-      if (payload?.type !== 'rfq_status') return null
-      return payload as RfqStatus
-    },
-
-    async close() {
-      closed = true
-      waiters.clear()
-      // Exactly one of these. pool.close() already closes every subscription on
-      // its relays, so closing ours first makes nostr-tools send a second CLOSE
-      // frame — on a socket the relay has usually dropped by now, which the
-      // browser logs as "WebSocket is already in CLOSING or CLOSED state".
-      // A shared pool is the caller's to close, so there we close only our own.
-      if (ownsPool) pool.close(relays)
-      else subscription.close()
-    },
-  }
+  return error
 }
 
 /**
@@ -242,14 +57,27 @@ export const nostrRfqTransport = (options: NostrRfqOptions): RfqTransport => {
  * teardown failure must not mask the negotiation's own result.
  */
 export const withRfqTransport = async <T>(
-  rendezvous: { transports: { nostr: { relays: string[] } }; solverPubkey: string },
+  rendezvous: RfqRendezvous,
   fn: (transport: RfqTransport) => Promise<T>,
   options: { timeoutMs?: number } = {},
 ): Promise<T> => {
-  const transport = nostrRfqTransport({ ...rendezvous, ...options })
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
+  const transport = nostrRfqTransport({
+    relays: rendezvous.transports.nostr.relays,
+    solverPubkey: rendezvous.solverPubkey,
+    timeoutMs,
+  })
   try {
     return await fn(transport)
+  } catch (error) {
+    throw friendlier(error, timeoutMs)
   } finally {
+    // Closing the transport it owns emits a redundant CLOSE frame: the package
+    // closes the subscription and then the pool, and `pool.close()` already
+    // closes every subscription on those relays, so the browser logs
+    // "WebSocket is already in CLOSING or CLOSED state". Noise only — the
+    // negotiation is over — but it belongs upstream in @arkade-os/swap, not in
+    // a fork of the transport here.
     await transport.close().catch(() => {})
   }
 }

@@ -22,6 +22,7 @@ import { getReceivingAddresses } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
 import { claimLnReceive, requestLnReceive } from '../../../lib/lnReceive'
 import { lnReceiveRendezvous } from '../../../lib/lnSwap'
+import { getEmulatorPubkeyForNetwork } from '../../../lib/constants'
 import { withRfqTransport } from '../../../lib/nostrRfq'
 import { discoverMarkets } from '../../../lib/swap/markets'
 import { Indexer } from '../../../lib/indexer'
@@ -155,7 +156,9 @@ export default function ReceiveQRCode() {
 
     let abandoned = false
     const negotiate = async () => {
-      const rendezvous = lnReceiveRendezvous(await discoverMarkets(network))
+      // per-network pin as the fallback co-signer key, for solver cards that
+      // predate `emulator_pubkey` — the card's own value wins where it has one.
+      const rendezvous = lnReceiveRendezvous(await discoverMarkets(network), getEmulatorPubkeyForNetwork(network))
       if (!rendezvous) throw new Error('No Lightning solver available')
       if (satoshis < rendezvous.minSats || satoshis > rendezvous.maxSats) {
         throw new Error(

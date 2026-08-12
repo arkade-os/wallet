@@ -104,18 +104,26 @@ export const requestLnReceive = async (args: {
       amount: args.amountSats,
       amountSide: 'to',
       covclaimdPubkey: sealingKey(),
-      // The wallet's own decoder, applied to the SOLVER's invoice — the SDK
-      // requires it rather than offering it, since skipping this check is what
-      // loses the payment.
-      decodeInvoice: (bolt11) => toInvoiceFacts(bolt11, args.network),
     },
   )
+  // The wallet's own decoder, applied to the SOLVER's invoice. The package used
+  // to take this as a `decodeInvoice` parameter and no longer does, so the check
+  // moved out here rather than lapsing: it throws `InvoiceRejected` on a wrong
+  // network or an already-expired hold invoice, and skipping it is what loses
+  // the payment.
+  const facts = toInvoiceFacts(result.invoice, args.network)
   return {
     rfqId: result.rfqId,
     invoice: result.invoice,
     payAmount: result.payAmount,
-    expectedAmount: result.expectedAmount,
-    invoiceExpiresAt: result.invoiceExpiresAt,
+    // The quote's `to_amount` IS the expected amount: the arkade side of a
+    // corridor the wallet asked for `amountSide: 'to'` on. Read once, here,
+    // rather than at claim time — see the interface's note.
+    expectedAmount: result.quote.to_amount,
+    // Whichever comes first genuinely ends the window: paying after the quote
+    // lapses buys a lockup the solver no longer owes, and the invoice's own
+    // expiry needs no explanation.
+    invoiceExpiresAt: Math.min(facts.expiresAt, result.quote.valid_until),
     address: result.address,
     swapPkScript: result.swapPkScript,
     script: result.script,
@@ -150,12 +158,21 @@ export const claimLnReceive = async (
   // the `vtxos` its own wait produces (@arkade-os/swap, claim.ts) — passing a
   // placeholder to satisfy that would read as if it meant something.
   const vtxos = await awaitLockupFunding(args.indexer, request.swapPkScript, options)
+  // Enforced here because `pushClaim` stopped taking `expectedAmount`. This is
+  // the one check standing between a dust-funded lockup and a published
+  // preimage that settles the payer's HTLC in full: the claim reveals `P`, so a
+  // short-funded lockup claimed anyway pays the solver everything and the
+  // wallet almost nothing. Refusing leaves the lockup to `refund_locktime`,
+  // which refunds the payer — the correct outcome for a solver that underfunded.
+  const funded = vtxos.reduce((total, vtxo) => total + vtxo.value, 0)
+  if (funded < request.expectedAmount) {
+    throw new Error(`lockup underfunded: ${funded} sats at the covenant, expected ${request.expectedAmount}`)
+  }
   return pushClaim(args.ark, {
     script: request.script,
     receiver,
     preimage,
     vtxos,
     destinationPkScript: ArkAddress.decode(request.payoutAddress).pkScript,
-    expectedAmount: request.expectedAmount,
   })
 }

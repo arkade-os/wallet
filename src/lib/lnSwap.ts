@@ -143,21 +143,32 @@ const XONLY_HEX = /^[0-9a-f]{64}$/
  * rather than trusted. Returns undefined when no solver serves the corridor —
  * the caller treats that as "RFQ send unavailable", not as an error.
  *
- * `emulator_pubkey` joins that MUST rather than defaulting to anything, because
- * every fallback is worse than not offering the corridor. Guessing it derives a
+ * The co-signer key must be RIGHT, not merely present: a wrong one derives a
  * different covenant than the solver's, so `verifyLockupAddress` refuses and the
  * negotiation dies after a quote was burned and the invoice was handed to a
- * third party; omitting it leaves the two non-interactive leaves out of the
- * script, which changes the address the same way. Skipping here costs one
- * unavailable corridor and tells the user so up front.
+ * third party. Omitting it leaves the two non-interactive leaves out of the
+ * script, which changes the address the same way. So it is never guessed — but
+ * it may come from either of two sources the wallet already trusts:
+ *
+ *  - the market's `emulator_pubkey`, which rides the registry-signed card and is
+ *    authoritative once a solver publishes it;
+ *  - `fallbackEmulatorPubkey`, the per-network value pinned in `constants.ts`
+ *    (or set through `VITE_EMULATOR_PUBKEY`), for cards that predate the field.
+ *
+ * Passing no fallback keeps the strict behaviour: no card key, no corridor. When
+ * both exist and DISAGREE the market is skipped rather than resolved in either
+ * direction — that is a solver rotating its co-signer or a card being served by
+ * someone else, and neither is a thing to pick a winner for silently.
  *
  * The relays sit under `transports.nostr` rather than at the card's top level:
  * the registry schema moved them there so a second transport is a new key in
  * that map instead of a breaking change. Nostr is the only protocol defined in
  * v0, and it is the one this wallet speaks, so it is read by name.
  */
-export const lnSendRendezvous = (markets: DiscoveredMarket[]): LnSendRendezvous | undefined =>
-  lnRendezvous(markets, 'quote')
+export const lnSendRendezvous = (
+  markets: DiscoveredMarket[],
+  fallbackEmulatorPubkey?: Uint8Array,
+): LnSendRendezvous | undefined => lnRendezvous(markets, 'quote', fallbackEmulatorPubkey)
 
 /**
  * The receive direction of the same market.
@@ -168,10 +179,17 @@ export const lnSendRendezvous = (markets: DiscoveredMarket[]): LnSendRendezvous 
  * advertises no receive corridor, which is the current published state — see
  * arkade-os/lightning-swap-service#64.
  */
-export const lnReceiveRendezvous = (markets: DiscoveredMarket[]): LnSendRendezvous | undefined =>
-  lnRendezvous(markets, 'base')
+export const lnReceiveRendezvous = (
+  markets: DiscoveredMarket[],
+  fallbackEmulatorPubkey?: Uint8Array,
+): LnSendRendezvous | undefined => lnRendezvous(markets, 'base', fallbackEmulatorPubkey)
 
-const lnRendezvous = (markets: DiscoveredMarket[], side: Side): LnSendRendezvous | undefined => {
+const lnRendezvous = (
+  markets: DiscoveredMarket[],
+  side: Side,
+  fallbackEmulatorPubkey?: Uint8Array,
+): LnSendRendezvous | undefined => {
+  const pinned = fallbackEmulatorPubkey ? hex.encode(fallbackEmulatorPubkey) : undefined
   for (const market of markets) {
     if (market.quote_corridor !== 'lightning') continue
     const transports = {
@@ -185,8 +203,18 @@ const lnRendezvous = (markets: DiscoveredMarket[], side: Side): LnSendRendezvous
     // it yet even though the registry schema, its validator and its reducer all
     // carry it (arkade-os/solver-registry#18). The shape check below is what
     // makes reading an undeclared field safe.
-    const emulatorPubkey = (market as { emulator_pubkey?: unknown }).emulator_pubkey
-    if (typeof emulatorPubkey !== 'string' || !XONLY_HEX.test(emulatorPubkey)) continue
+    const advertised = (market as { emulator_pubkey?: unknown }).emulator_pubkey
+    // Absent is the card predating the field, which the pin covers. Present but
+    // malformed is a different thing — a corrupt or hostile card — and falling
+    // back there would paper over it, so it fails closed even with a pin.
+    const emulatorPubkey =
+      advertised === undefined || advertised === null || advertised === ''
+        ? pinned
+        : typeof advertised === 'string' && XONLY_HEX.test(advertised)
+          ? advertised
+          : undefined
+    if (!emulatorPubkey) continue
+    if (pinned && emulatorPubkey !== pinned) continue
     // sideLimits is the registry's own parser: it reads a disabled side
     // (max "0") or a malformed bound as null. Parsing the raw strings here
     // instead would turn a disabled side into a 0..0 range and report it to
@@ -270,10 +298,9 @@ export const requestLnSend = async (
   const invoice = toInvoiceFacts(args.invoice, args.network, nowSeconds)
   // The emulator's x-only KEY, not the emulator's URL. The client has no
   // network path to that service and never dials it — the key is a covenant
-  // parameter, one of the eight leaves' inputs, so it can only come from the
-  // solver's signed card. It is taken from the rendezvous rather than accepted
-  // as a separate argument so no call site can pair one solver's card with
-  // another's co-signer.
+  // parameter, one of the eight leaves' inputs. It is taken from the rendezvous
+  // rather than accepted as a separate argument so no call site can pair one
+  // solver's card with another's co-signer.
   const result = await requestLightningSend(
     args.wallet,
     args.arkServerUrl,
