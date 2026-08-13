@@ -5,8 +5,9 @@ import ErrorMessage from './Error'
 import Header from './Header'
 import Padded from './Padded'
 import { QRCanvas, frameLoop, frontalCamera } from 'qr/dom.js'
-import { useRef, useEffect, useState } from 'react'
+import { useCallback, useRef, useEffect, useState } from 'react'
 import { extractError } from '../lib/error'
+import { bytesToLatin1 } from '../lib/seedQr'
 import QrScanner from 'qr-scanner'
 
 const videoStyle: React.CSSProperties = {
@@ -15,6 +16,14 @@ const videoStyle: React.CSSProperties = {
 }
 
 interface ScannerProps {
+  /**
+   * Decode byte-mode payloads losslessly instead of as UTF-8, and pass them up
+   * latin1-encoded (one character per byte). Needed by CompactSeedQR, which is
+   * raw entropy: a UTF-8 decoder replaces invalid sequences with U+FFFD and
+   * destroys the seed. Binary mode pins the engine, so there is nothing to
+   * switch between and the aux button disappears.
+   */
+  binary?: boolean
   close: () => void
   label: string
   onData: (arg0: string) => void
@@ -23,7 +32,7 @@ interface ScannerProps {
   calculateScanRegion?: (v: HTMLVideoElement) => QrScanner.ScanRegion
 }
 
-export default function Scanner({ close, label, onData, onError }: ScannerProps) {
+export default function Scanner({ binary, close, label, onData, onError }: ScannerProps) {
   const [currentImplementation, setCurrentImplementation] = useState<'qr' | 'qrmini' | 'mills'>('qr')
 
   const handleSwitch = () => {
@@ -31,6 +40,8 @@ export default function Scanner({ close, label, onData, onError }: ScannerProps)
       currentImplementation === 'qr' ? 'qrmini' : currentImplementation === 'qrmini' ? 'mills' : 'qr',
     )
   }
+
+  if (binary) return <ScannerMills binary close={close} label={label} onData={onData} onError={onError} />
 
   return currentImplementation === 'qr' ? (
     <ScannerQr close={close} label={label} onData={onData} onError={onError} onSwitch={handleSwitch} />
@@ -41,42 +52,61 @@ export default function Scanner({ close, label, onData, onError }: ScannerProps)
   )
 }
 
-function ScannerMills({ close, label, onData, onError, onSwitch }: ScannerProps) {
+function ScannerMills({ binary, close, label, onData, onError, onSwitch }: ScannerProps) {
   const [error, setError] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
 
-  let camera: any
-  let canvas: QRCanvas
-  let cancel: () => void
+  // Held in refs, not locals: the camera is started once inside an effect, but
+  // every later render rebuilt plain locals as undefined, so closing the scanner
+  // from a re-rendered tree left the stream running.
+  const cameraRef = useRef<Awaited<ReturnType<typeof frontalCamera>> | null>(null)
+  const cancelRef = useRef<(() => void) | null>(null)
+
+  // Callers pass inline closures, so read them through a ref: in the deps array
+  // they would tear down and restart the camera on every parent render.
+  const handlers = useRef({ close, onData, onError })
+  handlers.current = { close, onData, onError }
+
+  const stopScan = useCallback(() => {
+    cancelRef.current?.()
+    cancelRef.current = null
+    cameraRef.current?.stop()
+    cameraRef.current = null
+  }, [])
 
   useEffect(() => {
+    let unmounted = false
+
     const startCameraCapture = async () => {
       if (!videoRef.current) return
       try {
-        if (canvas) canvas.clear()
-        canvas = new QRCanvas()
-        camera = await frontalCamera(videoRef.current)
-        const devices = await camera.listDevices()
-        await camera.setDevice(devices[devices.length - 1].deviceId)
-        cancel = frameLoop(() => {
+        // Byte segments come back latin1-encoded so raw payloads survive intact;
+        // ASCII (mnemonics, UR Bytewords, SeedQR digits) is unaffected by it.
+        const canvas = new QRCanvas(undefined, binary ? { textDecoder: bytesToLatin1 } : undefined)
+        const camera = await frontalCamera(videoRef.current)
+        if (unmounted) return camera.stop()
+        cameraRef.current = camera
+        cancelRef.current = frameLoop(() => {
           const res = camera.readFrame(canvas)
           if (res) {
-            onData(res)
-            handleClose()
+            stopScan()
+            handlers.current.onData(res)
+            handlers.current.close()
           }
         })
       } catch (e) {
-        onError(extractError(e))
+        if (unmounted) return
+        handlers.current.onError(extractError(e))
         setError(true)
       }
     }
-    startCameraCapture()
-  }, [videoRef])
 
-  const stopScan = () => {
-    if (cancel) cancel()
-    if (camera) camera.stop()
-  }
+    startCameraCapture()
+    return () => {
+      unmounted = true
+      stopScan()
+    }
+  }, [binary, stopScan])
 
   const handleClose = () => {
     stopScan()
@@ -90,7 +120,12 @@ function ScannerMills({ close, label, onData, onError, onSwitch }: ScannerProps)
 
   return (
     <>
-      <Header auxFunc={handleSwitch} auxText='M' text={label} back={handleClose} />
+      <Header
+        auxFunc={onSwitch ? handleSwitch : undefined}
+        auxText={onSwitch ? 'M' : undefined}
+        text={label}
+        back={handleClose}
+      />
       <Content>
         <Padded>
           <ErrorMessage error={error} text='Camera not available' />
