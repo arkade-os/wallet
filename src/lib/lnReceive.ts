@@ -16,16 +16,16 @@
  *
  * Which is exactly why covclaimd plays no part in it — see `sealingKey`.
  */
-import { ArkAddress, type NetworkName, type RestArkProvider, type RestIndexerProvider } from '@arkade-os/sdk'
 import {
-  awaitLockupFunding,
-  preimageForRfqSecrets,
-  pushClaim,
-  requestLightningReceive,
-  senderIdentityForRfqSecrets,
-  type RfqTransport,
-  type SwapSecrets,
-} from '@arkade-os/swap'
+  ArkAddress,
+  contractSigner,
+  contractPreimage,
+  type NetworkName,
+  type RestArkProvider,
+  type RestIndexerProvider,
+  type ProvisionedClaimSecret,
+} from '@arkade-os/sdk'
+import { awaitLockupFunding, pushClaim, requestLightningReceive, type RfqTransport } from '@arkade-os/swap'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { toInvoiceFacts, type LnSendRendezvous } from './lnSwap'
 
@@ -76,7 +76,7 @@ export interface LnReceiveRequest {
   swapPkScript: Uint8Array
   script: Parameters<typeof pushClaim>[1]['script']
   payoutAddress: string
-  secrets: SwapSecrets
+  secrets: ProvisionedClaimSecret
 }
 
 /**
@@ -146,8 +146,8 @@ export const claimLnReceive = async (
 ): Promise<{ arkTxid: string; amount: number }> => {
   const { request } = args
   const [preimage, receiver] = await Promise.all([
-    preimageForRfqSecrets(args.wallet, request.secrets),
-    senderIdentityForRfqSecrets(args.wallet, request.secrets),
+    contractPreimage(args.wallet, request.secrets.descriptor),
+    contractSigner(args.wallet, request.secrets.descriptor),
   ])
   // Spelled out rather than via `claimReceiveLockup`, whose input type demands
   // the `vtxos` its own wait produces (@arkade-os/swap, claim.ts) — passing a
