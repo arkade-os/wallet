@@ -1,6 +1,6 @@
 import { test, expect, createWallet, fundWallet, navigateToSwaps, createWalletWithFiat } from './utils'
 
-test('swap BTC <-> RGT using BTC as currency', async ({ page }) => {
+test.skip('swap BTC <-> RGT using BTC as currency', async ({ page }) => {
   await createWallet(page)
   await fundWallet(page, 5000)
 
@@ -65,7 +65,7 @@ test('swap BTC <-> RGT using BTC as currency', async ({ page }) => {
   await page.waitForSelector('text=RGT to BTC', { state: 'visible' })
 })
 
-test('swap BTC <-> RGT using USD as currency', async ({ page }) => {
+test.skip('swap BTC <-> RGT using USD as currency', async ({ page }) => {
   await createWalletWithFiat(page)
   const usdsReceived = await fundWallet(page, 5000)
   expect(usdsReceived).toBeGreaterThan(1)

@@ -13,17 +13,19 @@ import { canBrowserShareData, shareData } from '../../../lib/share'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
 import { LimitsContext } from '../../../providers/limits'
-import { Asset, Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
+import { Asset, Coin, ExtendedVirtualCoin, RestArkProvider, type NetworkName } from '@arkade-os/sdk'
 import LoadingLogo from '../../../components/LoadingLogo'
-import { SwapsContext } from '../../../providers/swaps'
 import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
-import { BoltzChainSwap, BoltzReverseSwap } from '@arkade-os/boltz-swap'
-import { enableChainSwapsReceive, lnurlServerUrl } from '../../../lib/constants'
 import { unitsToCents } from '../../../lib/assets'
-import WarningBox from '../../../components/Warning'
 import ErrorMessage from '../../../components/Error'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
+import { claimLnReceive, requestLnReceive } from '../../../lib/lnReceive'
+import { lnReceiveRendezvous } from '../../../lib/lnSwap'
+import { getEmulatorPubkeyForNetwork } from '../../../lib/constants'
+import { withRfqTransport } from '../../../lib/nostrRfq'
+import { discoverMarkets } from '../../../lib/swapMarkets'
+import { Indexer } from '../../../lib/indexer'
 import InputAmount from '../../../components/InputAmount'
 import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
 import SheetModal from '../../../components/SheetModal'
@@ -36,7 +38,6 @@ import CheckMarkIcon from '../../../icons/CheckMark'
 import { hapticSubtle } from '../../../lib/haptics'
 import { isMobileBrowser } from '../../../lib/browser'
 import Focusable from '../../../components/Focusable'
-import { LnurlContext } from '../../../providers/lnurl'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { AssetOption, Unit } from '../../../lib/types'
@@ -50,15 +51,12 @@ import { AssetsContext } from '../../../providers/assets'
 /**
  * Decide which value the QR should encode. Honours an explicit copy-sheet
  * selection, but only while that value is still one we currently offer — once
- * the selected address is regenerated or removed (e.g. a new invoice, an amount
+ * the selected address is regenerated or removed (e.g. an amount
  * change), fall back to the unified BIP21 URI. This stops async rebuilds from
  * silently reverting the user's pick and copying the wrong thing.
  */
-export const resolveQrValue = (
-  selected: string,
-  options: { bip21: string; btc: string; ark: string; invoice: string; lnurl: string },
-): string => {
-  const candidates = [options.bip21, options.btc, options.ark, options.invoice, options.lnurl].filter(Boolean)
+export const resolveQrValue = (selected: string, options: { bip21: string; btc: string; ark: string }): string => {
+  const candidates = [options.bip21, options.btc, options.ark].filter(Boolean)
   return selected && candidates.includes(selected) ? selected : options.bip21
 }
 
@@ -70,9 +68,8 @@ export default function ReceiveQRCode() {
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
-  const { arkadeSwaps, swapsInitError, connected, createBtcToArkSwap, createReverseSwap } = useContext(SwapsContext)
   const { assetMetadataCache, svcWallet } = useContext(WalletContext)
-  const { minSwapAllowed, validBtcToArk, validLnSwap, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
+  const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
 
   const { toast } = useToast()
 
@@ -94,7 +91,7 @@ export default function ReceiveQRCode() {
   const prefersReducedMotion = useReducedMotion()
 
   // Receive methods
-  const { boardingAddr, offchainAddr, satoshis, assetId, addressError, received } = recvInfo
+  const { boardingAddr, offchainAddr, satoshis, assetId, addressError } = recvInfo
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
   const isAssetReceive = assetId && assetId !== ''
   const hasError = Boolean(addressError)
@@ -102,13 +99,10 @@ export default function ReceiveQRCode() {
   const [noPaymentMethods, setNoPaymentMethods] = useState(false)
   const [arkAddress, setArkAddress] = useState(offchainAddr)
   const [btcAddress, setBtcAddress] = useState(boardingAddr)
-  const [showQrCode, setShowQrCode] = useState(!satoshis)
-  const [swapsTimedOut, setSwapsTimedOut] = useState(false)
-  const [swapAddress, setSwapAddress] = useState('')
   const [qrCodeValue, setQrCodeValue] = useState('')
   const [selectedValue, setSelectedValue] = useState('')
   const [bip21Uri, setBip21Uri] = useState('')
-  const [invoice, setInvoice] = useState('')
+  const [lnReceiveError, setLnReceiveError] = useState('')
 
   // Fetch addresses on mount
   useEffect(() => {
@@ -132,147 +126,130 @@ export default function ReceiveQRCode() {
       })
   }, [svcWallet])
 
-  const lnurlSession = useContext(LnurlContext)
-  const isAmountlessLnurl = !satoshis && !isAssetReceive && !!lnurlServerUrl && lnurlSession.active
-  // LNURL is amountless by nature: only surface it when no amount is set. The
-  // session keeps running underneath — we just hide it from the QR + copy list.
-  const displayLnurl = isAmountlessLnurl ? lnurlSession.lnurl : ''
-
-  const createBtcAddress = () => {
-    return new Promise((resolve, reject) => {
-      if (!enableChainSwapsReceive) return reject()
-      if (!validBtcToArk(satoshis)) return reject()
-      createBtcToArkSwap(satoshis)
-        .then((result) => {
-          if (!result) throw new Error('Failed to create chain swap')
-          resolve(result.pendingSwap)
-        })
-        .catch((error) => {
-          consoleError(error, 'Error creating chain swap')
-          reject(error)
-        })
-    })
-  }
-
-  const createLightningInvoice = () => {
-    return new Promise((resolve, reject) => {
-      if (invoice) return reject()
-      if (!validLnSwap(satoshis)) return reject()
-      createReverseSwap(satoshis)
-        .then((pendingSwap) => {
-          if (!pendingSwap) throw new Error('Failed to create reverse swap')
-          resolve(pendingSwap)
-        })
-        .catch((error) => {
-          consoleError(error, 'Error creating reverse swap:')
-          reject(error)
-        })
-    })
-  }
-
   const createBip21 = (): { ark: string; btc: string; bip21: string } => {
     const ark = vtxoTxsAllowed() ? recvInfo.offchainAddr : ''
-    const btc = utxoTxsAllowed() ? swapAddress || recvInfo.boardingAddr : ''
+    const btc = utxoTxsAllowed() ? recvInfo.boardingAddr : ''
     const bip21 = isAssetReceive
       ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals)
-      : encodeBip21(btc, ark, invoice, satoshis, displayLnurl)
+      : encodeBip21(btc, ark, recvInfo.invoice ?? '', satoshis, '')
 
     return { ark, btc, bip21 }
   }
 
-  // Create swaps when amount is set, then show QR code once ready
+  /**
+   * Negotiate a Lightning receive once an amount is set.
+   *
+   * Gated on an amount because the corridor requires one: the solver mints the
+   * invoice, so nothing else implies what it is for. An amount outside the
+   * card's bounds or an unserved corridor leaves the other payment methods
+   * working — this is an EXTRA way to be paid, so a failure here must not take
+   * the ark and on-chain addresses down with it.
+   *
+   * A solver serving the corridor is the only requirement: this screen claims
+   * the lockup itself (below), so no covclaimd needs to be deployed or reachable
+   * for the corridor to be offered.
+   */
   useEffect(() => {
-    if (isAssetReceive) return setShowQrCode(true)
-    if (!addressesLoaded) return
-    if (!svcWallet) return
-    if (received) return
+    if (!svcWallet || isAssetReceive || satoshis <= 0) return
+    if (recvInfo.pendingLnReceive?.payAmount && recvInfo.invoice) return
+    const network = aspInfo.network as NetworkName
 
-    if (!satoshis) {
-      if (invoice) setInvoice('')
-      return
+    let abandoned = false
+    const negotiate = async () => {
+      // per-network pin as the fallback co-signer key, for solver cards that
+      // predate `emulator_pubkey` — the card's own value wins where it has one.
+      const rendezvous = lnReceiveRendezvous(await discoverMarkets(network), getEmulatorPubkeyForNetwork(network))
+      if (!rendezvous) throw new Error('No Lightning solver available')
+      if (satoshis < rendezvous.minSats || satoshis > rendezvous.maxSats) {
+        throw new Error(
+          `Amount outside solver bounds (${prettyNumber(rendezvous.minSats)}-${prettyNumber(rendezvous.maxSats)} sats)`,
+        )
+      }
+      const pending = await withRfqTransport(rendezvous, (transport) =>
+        requestLnReceive({
+          wallet: svcWallet,
+          arkServerUrl: aspInfo.url,
+          transport,
+          rendezvous,
+          network,
+          amountSats: satoshis,
+        }),
+      )
+      if (abandoned) return
+      setLnReceiveError('')
+      setRecvInfo((prev) => ({ ...prev, invoice: pending.invoice, pendingLnReceive: pending }))
     }
 
-    const lnExpected = connected && !isAssetReceive
-
-    if (!arkadeSwaps) {
-      if (!lnExpected || swapsInitError) {
-        if (lnExpected && swapsInitError) {
-          consoleError(swapsInitError, 'Swaps unavailable, showing receive without swap options')
-          setSwapsTimedOut(true)
-        }
-        setShowQrCode(true)
-        return
-      }
-      const timeout = setTimeout(() => {
-        setSwapsTimedOut(true)
-        setShowQrCode(true)
-      }, 5_000)
-      return () => clearTimeout(timeout)
-    }
-
-    setSwapsTimedOut(false)
-
-    Promise.allSettled([createBtcAddress(), createLightningInvoice()]).then(([btc, lightning]) => {
-      if (btc.status === 'fulfilled') {
-        const pendingSwap = btc.value as BoltzChainSwap
-        const btcAddr = pendingSwap.response.lockupDetails.lockupAddress
-        setSwapAddress(btcAddr)
-        arkadeSwaps
-          .waitAndClaimArk(pendingSwap)
-          .then(() => {
-            setRecvInfo({ ...recvInfo, received: true, satoshis: pendingSwap.response.claimDetails.amount })
-            navigate(Pages.ReceiveSuccess)
-          })
-          .catch((error) => {
-            consoleError(error, 'Error claiming chain swap:')
-          })
-      }
-      if (lightning.status === 'fulfilled') {
-        const pendingSwap = lightning.value as BoltzReverseSwap
-        const inv = pendingSwap.response.invoice
-        setInvoice(inv)
-        arkadeSwaps
-          .waitAndClaim(pendingSwap)
-          .then(() => {
-            setRecvInfo({ ...recvInfo, received: true, satoshis: pendingSwap.response.onchainAmount ?? 0 })
-            navigate(Pages.ReceiveSuccess)
-          })
-          .catch((error) => {
-            consoleError(error, 'Error claiming reverse swap:')
-          })
-      }
-      setShowQrCode(true)
+    setLnReceiveError('')
+    negotiate().catch((err) => {
+      if (abandoned) return
+      const error = extractError(err)
+      consoleError(error, 'error negotiating lightning receive')
+      setLnReceiveError(error)
     })
-  }, [satoshis, svcWallet, arkadeSwaps, swapsInitError, addressesLoaded])
+    // The amount changed under an in-flight negotiation, so its invoice would
+    // be for the wrong number. Nothing to cancel on the solver — an unpaid hold
+    // invoice simply expires.
+    return () => {
+      abandoned = true
+    }
+  }, [svcWallet, satoshis, isAssetReceive, aspInfo.network])
+
+  /**
+   * Claim what the solver funds once the payer pays.
+   *
+   * Unavoidably the wallet's own job: `RfqSwapManager` does not cover the
+   * receive corridor and no third party is delegated the claim, so leaving the
+   * screen before this resolves loses the payment to the solver's refund path.
+   * The claim pays the wallet's own address, so the VTXO listener above is what
+   * actually reports success.
+   */
+  useEffect(() => {
+    const pending = recvInfo.pendingLnReceive
+    if (!svcWallet || !pending) return
+    let abandoned = false
+    claimLnReceive(
+      {
+        wallet: svcWallet,
+        indexer: new Indexer(aspInfo).provider,
+        ark: new RestArkProvider(aspInfo.url),
+        request: pending,
+        // Outlive the invoice: the payer has until invoiceExpiresAt, and the
+        // lockup only appears after that payment.
+      },
+      { deadline: pending.invoiceExpiresAt + 600 },
+    ).catch((err) => {
+      if (abandoned) return
+      const error = extractError(err)
+      consoleError(error, 'error claiming lightning receive')
+      setLnReceiveError(error)
+    })
+    return () => {
+      abandoned = true
+    }
+  }, [svcWallet, recvInfo.pendingLnReceive?.rfqId])
 
   // Build BIP21 URI
   useEffect(() => {
-    if (!addressesLoaded && !showQrCode) return
+    if (!addressesLoaded) return
 
     const { ark, btc, bip21 } = createBip21()
-    const hasLnurl = !!displayLnurl
 
-    setNoPaymentMethods(!ark && !btc && !invoice && !hasLnurl && !isAssetReceive)
+    setNoPaymentMethods(!ark && !btc && !isAssetReceive)
     setArkAddress(ark)
     setBtcAddress(btc)
     setBip21Uri(bip21)
     // Preserve an explicit copy-sheet selection across rebuilds; only fall back
     // to the unified URI when the selected value is no longer one we offer.
-    setQrCodeValue(resolveQrValue(selectedValue, { bip21, btc, ark, invoice, lnurl: displayLnurl }))
+    setQrCodeValue(resolveQrValue(selectedValue, { bip21, btc, ark }))
   }, [
-    invoice,
     assetAmount,
     addressesLoaded,
-    isAmountlessLnurl,
-    displayLnurl,
     selectedValue,
-    lnurlSession.lnurl,
-    lnurlSession.active,
     recvInfo.offchainAddr,
     recvInfo.boardingAddr,
     recvInfo.satoshis,
-    swapAddress,
-    showQrCode,
+    recvInfo.invoice,
   ])
 
   // Payment listener
@@ -364,13 +341,6 @@ export default function ReceiveQRCode() {
       const shouldConvertFromFiat = inputMode === 'fiat' || (useFiat && inputMode === undefined)
       const shouldConvertToSats = inputMode === 'btc' || (!useFiat && config.unit === Unit.BTC)
       const sats = shouldConvertFromFiat ? fromFiat(num) : shouldConvertToSats ? toSatoshis(num) : num
-      // if amount was changed, we need to reset invoice and swap address, since they are amount-specific
-      // this will also trigger the useEffect to create new ones if needed
-      if (sats !== recvInfo.satoshis) {
-        setInvoice('')
-        setSwapAddress('')
-        setShowQrCode(false)
-      }
       setRecvInfo({ ...recvInfo, satoshis: sats })
     }
   }
@@ -441,6 +411,7 @@ export default function ReceiveQRCode() {
             <p>No valid payment methods available for this amount</p>
           ) : (
             <FlexCol gap='0.5rem' centered>
+              {lnReceiveError ? <TextSecondary>{`Lightning unavailable: ${lnReceiveError}`}</TextSecondary> : null}
               <button
                 type='button'
                 onClick={() => handleCopy(qrCodeValue)}
@@ -473,17 +444,6 @@ export default function ReceiveQRCode() {
                 <Text small color='neutral-500'>
                   Requesting {prettyNumber(satoshis, 0)} {unitLabel}
                 </Text>
-              ) : null}
-              {(!satoshis || satoshis < minSwapAllowed()) && !isAssetReceive ? (
-                <Text small color='neutral-500'>
-                  {minSwapAllowed()} sats min for Lightning
-                </Text>
-              ) : null}
-              {swapsTimedOut && !invoice && !isAssetReceive ? (
-                <WarningBox
-                  small
-                  text='Lightning is temporarily unavailable. This QR code only supports Arkade and on-chain payments.'
-                />
               ) : null}
             </FlexCol>
           )}
@@ -534,8 +494,7 @@ export default function ReceiveQRCode() {
             bip21Uri={bip21Uri}
             btcAddress={btcAddress}
             arkAddress={arkAddress}
-            lnurl={displayLnurl}
-            invoice={invoice}
+            invoice={recvInfo.invoice ?? ''}
             onCopy={handleCopy}
             onSelect={(v) => {
               setSelectedValue(v)
@@ -555,7 +514,6 @@ function AddressList({
   btcAddress,
   arkAddress,
   invoice,
-  lnurl,
   onCopy,
   onSelect,
   copied,
@@ -564,7 +522,6 @@ function AddressList({
   btcAddress: string
   arkAddress: string
   invoice: string
-  lnurl: string
   onCopy: (value: string) => void
   onSelect: (value: string) => void
   copied: string
@@ -576,16 +533,6 @@ function AddressList({
           testId='bip21'
           title='Unified'
           value={bip21Uri}
-          onCopy={onCopy}
-          onSelect={onSelect}
-          copied={copied}
-        />
-      ) : null}
-      {invoice ? (
-        <AddressLine
-          testId='invoice'
-          title='Lightning invoice'
-          value={invoice}
           onCopy={onCopy}
           onSelect={onSelect}
           copied={copied}
@@ -611,11 +558,11 @@ function AddressList({
           copied={copied}
         />
       ) : null}
-      {lnurl ? (
+      {invoice ? (
         <AddressLine
-          testId='lnurl'
-          title='LNURL address'
-          value={lnurl}
+          testId='invoice'
+          title='Lightning invoice'
+          value={invoice}
           onCopy={onCopy}
           onSelect={onSelect}
           copied={copied}

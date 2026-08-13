@@ -16,7 +16,6 @@ import LockIcon from '../icons/Lock'
 import PuzzleIcon from '../icons/Puzzle'
 import CoinsIcon from '../icons/Coins'
 import HashIcon from '../icons/Hash'
-import SwapIcon from '../icons/Swap'
 import SolverIcon from '@/icons/Solver'
 
 export interface Option {
@@ -29,11 +28,6 @@ export const options: Option[] = [
   {
     icon: <CoinsIcon />,
     option: SettingsOptions.ArkadeMint,
-    section: SettingsSections.Advanced,
-  },
-  {
-    icon: <SwapIcon />,
-    option: SettingsOptions.Boltz,
     section: SettingsSections.Advanced,
   },
   {

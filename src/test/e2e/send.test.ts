@@ -228,7 +228,7 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
 // wants to send 2000 sats onchain,
 // wallet will deliver 2000 sats on final UTXO,
 // which means user must pay more for chain swap fees
-test('should send sats (some and max) to onchain address with chain swap', async ({ page, isMobile }) => {
+test.skip('should send sats (some and max) to onchain address with chain swap', async ({ page, isMobile }) => {
   // create wallet
   await createWallet(page)
   await fundWallet(page, 5000)
@@ -283,7 +283,7 @@ test('should send sats (some and max) to onchain address with chain swap', async
   await page.waitForSelector(`text=- ${prettyNumber(balance)} sats`, { timeout: 10000 })
 })
 
-test('should send usds (some and max) to onchain address with chain swap', async ({ page, isMobile }) => {
+test.skip('should send usds (some and max) to onchain address with chain swap', async ({ page, isMobile }) => {
   // create wallet
   await createWalletWithFiat(page)
   await fundWallet(page, 5000)

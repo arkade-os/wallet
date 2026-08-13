@@ -1,7 +1,7 @@
 import Decimal from 'decimal.js'
 import { prettyCurrencyAssetAmount, prettyFiatAmount, prettyFiatHide, prettyHide, prettyNumber } from './format'
 import { designatedAccountCurrency, walletAccountTicker } from './accountAssets'
-import { getAssetSwaps } from './swap/store'
+import type { WalletAssetSwap } from './swapRepository'
 import { Currencies, Tx, Unit } from './types'
 
 export type SwapStatus = 'pending' | 'failed' | 'completed' | 'cancelled' | 'recoverable'
@@ -181,7 +181,7 @@ export function swapUnitOfAccountAmount({
  * possible; the quote snapshot only fills what cannot be recomputed. */
 export const mergeAssetSwapActivity = (
   txs: Tx[],
-  swaps = getAssetSwaps(),
+  swaps: WalletAssetSwap[],
   network?: string,
   assetDisplay?: (assetId: string) => { ticker?: string; decimals?: number } | undefined,
 ): Tx[] => {
@@ -194,6 +194,9 @@ export const mergeAssetSwapActivity = (
       return match
     })
     const quote = swap.quote
+    // the package's AssetSwapStatus also covers its RFQ and onchain corridors
+    // (awaiting_fill, claimable, claimed, refunded_l1); an offer swap never
+    // carries those, and anything unrecognised reads as still in flight
     const status =
       swap.status === 'fulfilled'
         ? 'completed'

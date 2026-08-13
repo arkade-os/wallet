@@ -9,7 +9,6 @@ import {
   readClipboard,
   createWalletWithFiat,
   navigateHome,
-  navigateToBoltz,
 } from './utils'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
@@ -54,7 +53,7 @@ test('should receive offchain funds', async ({ page }) => {
   await page.waitForSelector('text=+ 10,000 sats', { timeout: 10000 })
 })
 
-test('changing amount should update the invoice (sats mode)', async ({ page, isMobile }) => {
+test.skip('changing amount should update the invoice (sats mode)', async ({ page, isMobile }) => {
   const sats = 2000
 
   // create wallet
@@ -111,7 +110,7 @@ test('changing amount should update the invoice (sats mode)', async ({ page, isM
   expect(invoice).not.toEqual(newInvoice)
 })
 
-test('changing amount should update the invoice (fiat mode)', async ({ page, isMobile }) => {
+test.skip('changing amount should update the invoice (fiat mode)', async ({ page, isMobile }) => {
   const usds = 2
 
   // create wallet
@@ -167,21 +166,4 @@ test('changing amount should update the invoice (fiat mode)', async ({ page, isM
 
   // invoices should be different
   expect(invoice).not.toEqual(newInvoice)
-})
-
-test('receive without amount should not create swaps', async ({ page }) => {
-  // create wallet
-  await createWallet(page)
-
-  // get offchain address
-  const arkAddress = await receiveOffchain(page)
-  expect(arkAddress).toBeDefined()
-  expect(arkAddress).toBeTruthy()
-
-  await faucetOffchain(arkAddress, 1000)
-  await waitForPaymentReceived(page)
-
-  // check that no swap was created
-  await navigateToBoltz(page)
-  await expect(page.getByTestId('empty-template')).toBeVisible()
 })

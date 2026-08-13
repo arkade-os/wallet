@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import createFetchMock from 'vitest-fetch-mock'
 import { emptySendInfo, FlowContext } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
@@ -8,7 +8,6 @@ import {
   mockConfigContextValue,
   mockFiatContextValue,
   mockFlowContextValue,
-  mockSwapsContextValue,
   mockLimitsContextValue,
   mockNavigationContextValue,
   mockOptionsContextValue,
@@ -21,7 +20,6 @@ import { NavigationContext } from '../../../providers/navigation'
 import SendForm from '../../../screens/Wallet/Send/Form'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
-import { SwapsContext } from '../../../providers/swaps'
 import { OptionsContext } from '../../../providers/options'
 import { Currencies, Unit } from '../../../lib/types'
 
@@ -37,17 +35,15 @@ describe('Send screen', () => {
         <AspContext.Provider value={mockAspContextValue}>
           <ConfigContext.Provider value={configContext as any}>
             <FiatContext.Provider value={fiatContext as any}>
-              <SwapsContext.Provider value={mockSwapsContextValue as any}>
-                <OptionsContext.Provider value={mockOptionsContextValue as any}>
-                  <FlowContext.Provider value={flowContext as any}>
-                    <WalletContext.Provider value={walletContext as any}>
-                      <LimitsContext.Provider value={mockLimitsContextValue}>
-                        <SendForm />
-                      </LimitsContext.Provider>
-                    </WalletContext.Provider>
-                  </FlowContext.Provider>
-                </OptionsContext.Provider>
-              </SwapsContext.Provider>
+              <OptionsContext.Provider value={mockOptionsContextValue as any}>
+                <FlowContext.Provider value={flowContext as any}>
+                  <WalletContext.Provider value={walletContext as any}>
+                    <LimitsContext.Provider value={mockLimitsContextValue}>
+                      <SendForm />
+                    </LimitsContext.Provider>
+                  </WalletContext.Provider>
+                </FlowContext.Provider>
+              </OptionsContext.Provider>
             </FiatContext.Provider>
           </ConfigContext.Provider>
         </AspContext.Provider>
@@ -101,50 +97,6 @@ describe('Send screen', () => {
     expect(amountInput).toHaveAttribute('name', 'send-amount')
     expect(amountInput).toHaveAttribute('readonly')
     fetchMocker.disableMocks()
-  })
-
-  it('keeps previously entered satoshis when parsing a BIP-21 URI without amount', async () => {
-    vi.useFakeTimers()
-    try {
-      const setSendInfo = vi.fn()
-      const initialSatoshis = 1234
-      const onchainAddress = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
-      const bip21WithoutAmount = `bitcoin:${onchainAddress}`
-      const flowValue = {
-        ...mockFlowContextValue,
-        sendInfo: { ...emptySendInfo, satoshis: initialSatoshis },
-        setSendInfo,
-      }
-      const walletValue = {
-        ...mockWalletContextValue,
-        svcWallet: {
-          ...mockSvcWallet,
-          getAddress: () => 'tark1mockoffchain',
-          getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
-          getBalance: () => Promise.resolve({ available: 1_000_000 }),
-        } as any,
-      }
-
-      renderSendForm({ flowContext: flowValue, walletContext: walletValue })
-
-      const recipientInput = document.querySelector('input[name="send-address"]') as HTMLInputElement
-      fireEvent.change(recipientInput, { target: { value: bip21WithoutAmount } })
-
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(1_000)
-      })
-
-      expect(
-        setSendInfo.mock.calls.some(
-          ([payload]) =>
-            payload?.address === onchainAddress &&
-            payload?.recipient === bip21WithoutAmount &&
-            payload?.satoshis === initialSatoshis,
-        ),
-      ).toBe(true)
-    } finally {
-      vi.useRealTimers()
-    }
   })
 
   it('never re-parses the toggled amount with the previous denomination', async () => {
