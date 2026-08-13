@@ -96,7 +96,7 @@ export default function WalletSwap() {
   const { fiatDecimals, fromFiatAmount, toFiat, toFiatAmount } = useContext(FiatContext)
   const { swapFromAssetId, setSwapFromAssetId } = useContext(FlowContext)
   const { goBack, navigate } = useContext(NavigationContext)
-  const { assetBalances, assetMetadataCache, availableBalance, isVerifiedAsset } = useContext(WalletContext)
+  const { assetMetadataCache, availableAssetBalances, availableBalance, isVerifiedAsset } = useContext(WalletContext)
   const { rows } = usePortfolioFiat()
   const prefersReduced = useReducedMotion()
 
@@ -133,7 +133,8 @@ export default function WalletSwap() {
       }
 
       const row = rows.find((candidate) => candidate.assetId === asset.id)
-      const owned = assetBalances.find((balance) => balance.assetId === asset.id)
+      // spendable, not owned: the composer offers this as a max
+      const spendable = availableAssetBalances.find((balance) => balance.assetId === asset.id)
       const designatedCurrency = verifiedDesignatedCurrency(aspInfo.network, asset.id, isVerifiedAsset)
       return {
         assetId: asset.id,
@@ -141,7 +142,7 @@ export default function WalletSwap() {
         ticker: row?.ticker ?? designatedCurrency ?? asset.ticker,
         currency: designatedCurrency,
         decimals: asset.decimals,
-        balance: BigInt(owned?.amount ?? 0),
+        balance: BigInt(spendable?.amount ?? 0),
         fiatText: row?.hasFiatPrice
           ? prettyFiatAmount(row.fiatAmount, config.currency, { bitcoinUnit: config.unit })
           : undefined,
@@ -150,9 +151,9 @@ export default function WalletSwap() {
       }
     })
   }, [
-    assetBalances,
     assetMetadataCache,
     aspInfo.network,
+    availableAssetBalances,
     availableBalance,
     btcUnit,
     config.currency,

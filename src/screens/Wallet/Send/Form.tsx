@@ -131,8 +131,16 @@ export default function SendForm() {
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
-  const { assetBalances, assetMetadataCache, availableBalance, balance, isVerifiedAsset, setCacheEntry, svcWallet } =
-    useContext(WalletContext)
+  const {
+    assetBalances,
+    availableAssetBalances,
+    assetMetadataCache,
+    availableBalance,
+    balance,
+    isVerifiedAsset,
+    setCacheEntry,
+    svcWallet,
+  } = useContext(WalletContext)
 
   const [amount, setAmount] = useState<number>()
   const [amountTextValue, setAmountTextValue] = useState('')
@@ -275,7 +283,9 @@ export default function SendForm() {
         const presentation = rawAssetPresentation(meta?.metadata, `${ab.assetId.slice(0, 8)}...`)
         options.push({
           assetId: ab.assetId,
-          balance: ab.amount,
+          // list membership follows owned assets so one fully in escrow still
+          // appears, but the amount offered is only ever the spendable part
+          balance: availableAssetBalances.find((a) => a.assetId === ab.assetId)?.amount ?? BigInt(0),
           name: presentation.name,
           ticker: presentation.ticker,
           icon: presentation.icon,
@@ -286,7 +296,7 @@ export default function SendForm() {
       setAssetOptions(options)
     }
     loadOptions()
-  }, [svcWallet, assetBalances, config.apps.assets.enabled])
+  }, [svcWallet, assetBalances, availableAssetBalances, config.apps.assets.enabled])
 
   // initialize selected asset from pre-set sendInfo.assets (e.g. from Asset Detail page)
   useEffect(() => {
