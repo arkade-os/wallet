@@ -11,7 +11,7 @@ import FlexCol from '../../components/FlexCol'
 import { extractError } from '../../lib/error'
 import LoadingLogo from '../../components/LoadingLogo'
 import { consoleError } from '../../lib/logs'
-import Button from '../../components/Button'
+import Button, { ClearButtonOnInput } from '../../components/Button'
 import Header from '../../components/Header'
 import Padded from '../../components/Padded'
 import Text, { TextSecondary } from '../../components/Text'
@@ -23,8 +23,48 @@ import { validateMnemonic } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import { deriveNostrKeyFromMnemonic } from '../../lib/mnemonic'
 import { AspContext } from '../../providers/asp'
-import InputNsec from '../../components/InputNsec'
+import InputWithScanner from '../../components/InputWithScanner'
+import InputContainer from '../../components/InputContainer'
+import FlexRow from '../../components/FlexRow'
+import Scanner from '../../components/Scanner'
+import OkIcon from '../../icons/Ok'
+import { AnimatePresence, motion } from 'framer-motion'
+import { overlaySlideUp, overlayStyle } from '../../lib/animations'
+import { useReducedMotion } from '../../hooks/useReducedMotion'
+import { decodeSeedQr, SEED_QR_FORMAT_LABEL, SeedQrError, type SeedQrScan } from '../../lib/seedQr'
 import { BackupContext } from '@/providers/backup'
+
+const scanOverlayStyle = { ...overlayStyle, position: 'fixed' as const, zIndex: 20 }
+
+/** A scanned payload we hand to the existing key validator instead of rejecting. */
+const looksLikePrivateKey = (text: string) => /^nsec1[02-9ac-hj-np-z]{58}$/.test(text) || /^[0-9a-f]{64}$/i.test(text)
+
+const INPUT_LABEL = 'Recovery phrase or private key'
+
+/**
+ * Stands in for the input once a QR has been read. The phrase itself stays off
+ * screen — scanning it is the one restore path where the words never have to be
+ * displayed, and showing them back would give that up for no gain. The format
+ * and word count are enough to confirm the right backup was scanned.
+ */
+function ScannedSeed({ onClear, scanned }: { onClear: () => void; scanned: SeedQrScan }) {
+  return (
+    <InputContainer label={INPUT_LABEL}>
+      <FlexRow gap='0.5rem'>
+        <span style={{ color: 'var(--green-500)', display: 'flex' }}>
+          <OkIcon />
+        </span>
+        <FlexCol gap='0'>
+          <Text small>Recovery phrase scanned</Text>
+          <TextSecondary smaller>
+            {scanned.words} words · {SEED_QR_FORMAT_LABEL[scanned.format]}
+          </TextSecondary>
+        </FlexCol>
+      </FlexRow>
+      <ClearButtonOnInput onClick={onClear} />
+    </InputContainer>
+  )
+}
 
 type RotationChoice = 'Inherit' | 'Static' | 'HD'
 
@@ -54,6 +94,11 @@ export default function InitRestore() {
   const [restoreDone, setRestoreDone] = useState(false)
   const [someKey, setSomeKey] = useState<string>()
   const [rotationChoice, setRotationChoice] = useState<RotationChoice>('Inherit')
+  const [scan, setScan] = useState(false)
+  const [scanned, setScanned] = useState<SeedQrScan | null>(null)
+  const [scanError, setScanError] = useState('')
+
+  const prefersReducedMotion = useReducedMotion()
 
   useEffect(() => {
     const trimmed = someKey?.trim() ?? ''
@@ -99,6 +144,37 @@ export default function InitRestore() {
 
   const handleCancel = () => navigate(Pages.Init)
 
+  const handleTyping = (value: string) => {
+    setScanError('')
+    setScanned(null)
+    setSomeKey(value)
+  }
+
+  const handleClearScan = () => {
+    setScanned(null)
+    setSomeKey('')
+  }
+
+  /**
+   * Turns a scanned QR into something the validator below already understands.
+   * Seed backups become a mnemonic; an nsec or raw hex key is passed through
+   * untouched so the one restore path stays the one restore path.
+   */
+  const handleScanData = (data: string) => {
+    setScanError('')
+    try {
+      const result = decodeSeedQr(data)
+      setScanned(result)
+      setSomeKey(result.mnemonic)
+    } catch (err) {
+      const trimmed = data.trim()
+      if (looksLikePrivateKey(trimmed)) return handleTyping(trimmed)
+      setScanned(null)
+      setSomeKey('')
+      setScanError(err instanceof SeedQrError ? err.message : extractError(err))
+    }
+  }
+
   const handleProceed = () => {
     setRestoring(true)
     let seckey: Uint8Array
@@ -141,6 +217,38 @@ export default function InitRestore() {
       />
     )
 
+  // `binary` keeps byte-mode payloads intact — CompactSeedQR is raw entropy.
+  const Scan = () => (
+    <Scanner
+      binary
+      close={() => setScan(false)}
+      label='Scan recovery QR'
+      onData={handleScanData}
+      onError={setScanError}
+    />
+  )
+
+  if (scan) {
+    return prefersReducedMotion ? (
+      <div style={scanOverlayStyle}>
+        <Scan />
+      </div>
+    ) : (
+      <AnimatePresence>
+        <motion.div
+          key='scanner'
+          variants={overlaySlideUp}
+          initial='initial'
+          animate='animate'
+          exit='exit'
+          style={scanOverlayStyle}
+        >
+          <Scan />
+        </motion.div>
+      </AnimatePresence>
+    )
+  }
+
   return (
     <>
       <Header text='Restore wallet' back />
@@ -150,8 +258,19 @@ export default function InitRestore() {
             <OnboardStaggerChild>
               <FlexCol between>
                 <FlexCol>
-                  <InputNsec onChange={setSomeKey} />
-                  <ErrorMessage error={Boolean(error)} text={error} />
+                  {scanned ? (
+                    <ScannedSeed onClear={handleClearScan} scanned={scanned} />
+                  ) : (
+                    <InputWithScanner
+                      label={INPUT_LABEL}
+                      name='private-key'
+                      onChange={handleTyping}
+                      openScan={() => setScan(true)}
+                      placeholder='Type or scan...'
+                      value={someKey ?? ''}
+                    />
+                  )}
+                  <ErrorMessage error={Boolean(error || scanError)} text={error || scanError} />
                   {devMode && mnemonic ? (
                     <FlexCol gap='0.5rem'>
                       <Text thin>Address rotation</Text>
@@ -169,8 +288,8 @@ export default function InitRestore() {
                   ) : null}
                 </FlexCol>
                 <TextSecondary wrap>
-                  Enter your 12-word recovery phrase, or a private key starting with 'nsec' or a raw hex key. Do not
-                  share it with anyone.
+                  Scan a SeedQR, CompactSeedQR or UR seed backup, or type your 12-word recovery phrase. A private key
+                  starting with 'nsec' or a raw hex key works too. Do not share any of them with anyone.
                 </TextSecondary>
               </FlexCol>
             </OnboardStaggerChild>
