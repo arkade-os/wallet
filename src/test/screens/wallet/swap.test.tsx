@@ -72,6 +72,20 @@ function renderSwap({
     [USDT_ID, { metadata: { name: 'USDT', ticker: 'USDT', decimals: 2 } }],
     [DEPIX_ID, { metadata: { name: 'Decentralized Pix', ticker: 'DEPIX', decimals: 8 } }],
   ])
+  const walletValue: Record<string, unknown> = {
+    ...mockWalletContextValue,
+    isVerifiedAsset: () => true,
+    balance: 250_000,
+    assetBalances: [
+      { assetId: USDT_ID, amount: BigInt(15_000) },
+      { assetId: DEPIX_ID, amount: BigInt(2_000_000_000) },
+    ],
+    assetMetadataCache,
+    availableBalance: 100_000,
+    ...wallet,
+  }
+  // nothing escrowed unless a test says so, so every owned unit is spendable
+  if (!('availableAssetBalances' in wallet)) walletValue.availableAssetBalances = walletValue.assetBalances
 
   const view = render(
     <AspContext.Provider
@@ -94,22 +108,7 @@ function renderSwap({
               }
             >
               <FlowContext.Provider value={{ ...mockFlowContextValue, ...flow } as any}>
-                <WalletContext.Provider
-                  value={
-                    {
-                      ...mockWalletContextValue,
-                      isVerifiedAsset: () => true,
-                      balance: 250_000,
-                      assetBalances: [
-                        { assetId: USDT_ID, amount: BigInt(15_000) },
-                        { assetId: DEPIX_ID, amount: BigInt(2_000_000_000) },
-                      ],
-                      assetMetadataCache,
-                      availableBalance: 100_000,
-                      ...wallet,
-                    } as any
-                  }
-                >
+                <WalletContext.Provider value={walletValue as any}>
                   <AssetSwapsContext.Provider
                     value={
                       {
@@ -635,6 +634,34 @@ describe('Wallet swap flow', () => {
 
     await waitFor(() => expect(createSwap).toHaveBeenCalledOnce())
     expect(createSwap.mock.calls[0][0].deposit.atomic).toBe(BigInt(100_000))
+  })
+
+  it('offers only the spendable part of an asset held partly in swap escrow', async () => {
+    // a covenant VTXO stays owned but generic spending refuses it, so the
+    // composer must cap at availableAssets — offering the owned total builds a
+    // swap coin selection cannot fund
+    renderSwap({
+      config: { unit: Unit.SATS },
+      flow: { swapFromAssetId: USDT_ID, setSwapFromAssetId: vi.fn() },
+      wallet: {
+        assetBalances: [{ assetId: USDT_ID, amount: BigInt(15_000) }],
+        availableAssetBalances: [{ assetId: USDT_ID, amount: BigInt(10_000) }],
+      },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /Bitcoin/i }))
+
+    await userEvent.click(await screen.findByRole('button', { name: '100.00 USD' }))
+    expect(screen.queryByRole('button', { name: '150.00 USD' })).not.toBeInTheDocument()
+
+    const continueButton = screen.getByRole('button', { name: 'Continue' })
+    await waitFor(() => expect(continueButton).toBeEnabled(), { timeout: 3_000 })
+    fireEvent.click(continueButton)
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+
+    await waitFor(() => expect(createSwap).toHaveBeenCalledOnce())
+    expect(createSwap.mock.calls[0][0].deposit.atomic).toBe(BigInt(10_000))
   })
 
   it('hides Use max when the selected asset has no balance', () => {

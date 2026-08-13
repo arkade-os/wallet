@@ -66,6 +66,7 @@ describe('Account detail screen', () => {
                         ...mockWalletContextValue,
                         isVerifiedAsset: (assetId: string) => assetId === sourceAssetId,
                         assetBalances: [{ assetId: sourceAssetId, amount: BigInt(200_000_000_000) }],
+                        availableAssetBalances: [{ assetId: sourceAssetId, amount: BigInt(200_000_000_000) }],
                         assetMetadataCache: new Map([
                           [
                             sourceAssetId,
@@ -144,6 +145,7 @@ describe('Account detail screen', () => {
                         ...mockWalletContextValue,
                         isVerifiedAsset: (assetId: string) => assetId === sourceAssetId,
                         assetBalances: [{ assetId: sourceAssetId, amount: BigInt(10_000) }],
+                        availableAssetBalances: [{ assetId: sourceAssetId, amount: BigInt(10_000) }],
                         assetMetadataCache: new Map([
                           [
                             sourceAssetId,

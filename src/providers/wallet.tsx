@@ -110,7 +110,12 @@ interface WalletContextProps {
   vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
   balance: WalletBalance['total']
   availableBalance: WalletBalance['available']
+  /** Everything the wallet owns, including assets escrowed in a swap covenant,
+   * intent-locked or awaiting recovery. Reporting only. */
   assetBalances: WalletBalance['assets']
+  /** The subset generic spending will accept — the asset analogue of
+   * `availableBalance`. Any selectable amount must come from here. */
+  availableAssetBalances: WalletBalance['availableAssets']
   assetMetadataCache: Map<string, CachedAssetDetails>
   setCacheEntry: (assetId: string, details: AssetDetails) => CachedAssetDetails
   iconApprovalManager: AssetIconApprovalManager
@@ -140,6 +145,7 @@ export const WalletContext = createContext<WalletContextProps>({
   balance: 0,
   availableBalance: 0,
   assetBalances: [],
+  availableAssetBalances: [],
   assetMetadataCache: new Map(),
   setCacheEntry: () => ({ cachedAt: 0 }) as CachedAssetDetails,
   iconApprovalManager: new AssetIconApprovalManager(),
@@ -176,6 +182,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [authState, setAuthState] = useState<WalletAuthState>('unknown')
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
   const [assetBalances, setAssetBalances] = useState<WalletBalance['assets']>([])
+  const [availableAssetBalances, setAvailableAssetBalances] = useState<WalletBalance['availableAssets']>([])
 
   const [vtxoManager, setVtxoManager] = useState<IVtxoManager>()
 
@@ -463,7 +470,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (isFirstLoad) setLoadingStatus('Fetching transactions...')
       const txs = await getTxHistory(swWallet)
       if (isFirstLoad) setLoadingStatus('Updating balance...')
-      const { total, available, assets } = await getBalance(swWallet)
+      const { total, available, assets, availableAssets } = await getBalance(swWallet)
       // prefetch asset metadata before triggering re-renders
       if (isFirstLoad && assets.length > 0) setLoadingStatus('Loading asset metadata...')
       for (const ab of assets) {
@@ -479,6 +486,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       setBalance(total)
       setAvailableBalance(available)
       setAssetBalances(assets)
+      setAvailableAssetBalances(availableAssets)
       if (assets.length > 0 && !configRef.current.apps.assets.enabled) {
         const live = configRef.current
         updateConfig({ ...live, apps: { ...live.apps, assets: { enabled: true } } })
@@ -938,6 +946,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         balance,
         availableBalance,
         assetBalances,
+        availableAssetBalances,
         assetMetadataCache: assetMetadataCache.current,
         setCacheEntry,
         iconApprovalManager,
