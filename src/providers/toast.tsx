@@ -1,6 +1,9 @@
 import { Toaster } from 'sonner'
+import { useEffect, useState } from 'react'
 
 function getNotchSize() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return 0
+
   const el = document.createElement('div')
   // Assign safe area insets to temporary element
   el.style.paddingTop = 'env(safe-area-inset-top)'
@@ -20,9 +23,23 @@ function getNotchSize() {
   return topInset + rightInset
 }
 
-const notchSize = getNotchSize()
-
 export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const [notchSize, setNotchSize] = useState(() => getNotchSize())
+
+  useEffect(() => {
+    const updateNotchSize = () => setNotchSize(getNotchSize())
+
+    window.addEventListener('orientationchange', updateNotchSize)
+    window.addEventListener('resize', updateNotchSize)
+    window.screen.orientation?.addEventListener('change', updateNotchSize)
+
+    return () => {
+      window.removeEventListener('orientationchange', updateNotchSize)
+      window.removeEventListener('resize', updateNotchSize)
+      window.screen.orientation?.removeEventListener('change', updateNotchSize)
+    }
+  }, [])
+
   return (
     <>
       {children}
