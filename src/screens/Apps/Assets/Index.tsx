@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
+import { BTC_ASSET_ID } from '@arkade-os/swap'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import Header from '../../../components/Header'
@@ -11,6 +12,8 @@ import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import { ConfigContext } from '../../../providers/config'
 import { FlowContext } from '../../../providers/flow'
+import { OrderBookContext } from '../../../providers/orderBook'
+import { baseOf, displayPrice, pairKeyOf, quoteOf, ratioToNumber } from '../../../lib/book/types'
 import { consoleError } from '../../../lib/logs'
 import { SettingsIconLight } from '../../../icons/Settings'
 import { EmptyAssetsList } from '../../../components/Empty'
@@ -26,15 +29,25 @@ interface AssetListItem {
   decimals?: number
 }
 
+// prices are read at a glance, so they get significant digits rather than fixed
+// ones: a 4-sat market and a 4M-sat market both stay one short number.
+const priceFmt = new Intl.NumberFormat(undefined, { maximumSignificantDigits: 4 })
+const pctFmt = new Intl.NumberFormat(undefined, { maximumSignificantDigits: 2 })
+
 export default function AppAssets() {
   const { goBack, navigate } = useContext(NavigationContext)
   const { assetBalances, balance, svcWallet, assetMetadataCache, setCacheEntry } = useContext(WalletContext)
   const { config } = useContext(ConfigContext)
   const { setAssetInfo } = useContext(FlowContext)
   const { aspInfo } = useContext(AspContext)
+  const { pairs, bookFor, ready } = useContext(OrderBookContext)
 
   const [assets, setAssets] = useState<AssetListItem[]>([])
   const [loading, setLoading] = useState(true)
+
+  // depend on the pair identities, not the array: the provider rebuilds `pairs`
+  // as the tx stream moves, and an identity dep would re-run this on every tick.
+  const pairsKey = pairs.map((p) => p.pairKey).join(',')
 
   useEffect(() => {
     const loadAssets = async () => {
@@ -46,6 +59,14 @@ export default function AppAssets() {
       const allIds = new Set<string>()
       for (const ab of assetBalances) allIds.add(ab.assetId)
       for (const id of config.importedAssets) allIds.add(id)
+      // a market list that only shows your own bags is not a market list. `pairs`
+      // is busiest-first and a Set keeps insertion order, so appending here is the
+      // whole sort: what you hold, then everything else by activity.
+      // ponytail: BTC-quoted pairs only — the rows price in sats. Asset/asset
+      // books get a row when there is a second quote unit to render.
+      for (const { pairKey } of pairs) {
+        if (quoteOf(pairKey) === BTC_ASSET_ID) allIds.add(baseOf(pairKey))
+      }
 
       const missingIds = [...allIds].filter((id) => !assetMetadataCache.get(id))
       const results = await Promise.allSettled(missingIds.map((id) => svcWallet.assetManager.getAssetDetails(id)))
@@ -76,14 +97,44 @@ export default function AppAssets() {
     }
 
     loadAssets()
-  }, [svcWallet, assetBalances, config.importedAssets])
+  }, [svcWallet, assetBalances, config.importedAssets, pairsKey])
 
   const handleAssetClick = (assetId: string) => {
     setAssetInfo({ assetId, supply: BigInt(0) })
     navigate(Pages.AppAssetDetail)
   }
 
-  if (loading) return <LoadingLogo text='Loading assets...' />
+  /**
+   * The market half of a row: best ask on top, what the rest of the book says
+   * below. Priced in sats per whole unit — the book's own unit, and the only one
+   * that keeps a token price a readable number.
+   */
+  const marketCell = (assetId: string, decimals: number) => {
+    if (!ready) return undefined
+    const book = bookFor(pairKeyOf(assetId, BTC_ASSET_ID))
+    const ask = book?.asks?.[0]
+    const bid = book?.bids?.[0]
+    const top = ask ?? bid
+    if (!top) return <span className='asset-card__balance block'>no book</span>
+
+    const spreadPct = ask && book.spread ? (ratioToNumber(book.spread) / ratioToNumber(ask.price)) * 100 : undefined
+    const note = !ask
+      ? 'bid only'
+      : spreadPct !== undefined
+        ? `${pctFmt.format(spreadPct)}% spread`
+        : bid
+          ? 'crossed'
+          : 'no bids'
+
+    return (
+      <span className='flex flex-col items-end gap-0.5'>
+        <span>{priceFmt.format(displayPrice(top.price, decimals, 0))} sats</span>
+        <span className='asset-card__balance block'>{note}</span>
+      </span>
+    )
+  }
+
+  if (loading) return <LoadingLogo text='Loading markets...' />
 
   const goToSettings = () => navigate(Pages.AppAssetsSettings)
 
@@ -97,18 +148,29 @@ export default function AppAssets() {
               {assets.length === 0 ? (
                 <EmptyAssetsList />
               ) : (
-                assets.map((asset) => (
-                  <AssetCard
-                    key={asset.assetId}
-                    assetId={asset.assetId}
-                    balance={asset.balance}
-                    name={asset.name}
-                    ticker={asset.ticker}
-                    icon={asset.icon}
-                    decimals={asset.decimals}
-                    onClick={() => handleAssetClick(asset.assetId)}
-                  />
-                ))
+                <>
+                  <div className='flex items-center justify-between px-4'>
+                    <Text color='neutral-500' smaller>
+                      market
+                    </Text>
+                    <Text color='neutral-500' smaller>
+                      best ask
+                    </Text>
+                  </div>
+                  {assets.map((asset) => (
+                    <AssetCard
+                      key={asset.assetId}
+                      assetId={asset.assetId}
+                      balance={asset.balance}
+                      name={asset.name}
+                      ticker={asset.ticker}
+                      icon={asset.icon}
+                      decimals={asset.decimals}
+                      valueSlot={marketCell(asset.assetId, asset.decimals ?? 8)}
+                      onClick={() => handleAssetClick(asset.assetId)}
+                    />
+                  ))}
+                </>
               )}
             </FlexCol>
           ) : (

@@ -4,7 +4,7 @@ import { truncatedAssetId } from '../lib/assets'
 import { hapticLight } from '../lib/haptics'
 import { PrivacyAmount, maskedFiat } from './PrivacyAmount'
 import { prettyBitcoinAmount, prettyBitcoinHide, prettyCurrencyAssetAmount } from '../lib/format'
-import { useContext } from 'react'
+import { ReactNode, useContext } from 'react'
 import { ConfigContext } from '../providers/config'
 import { WalletContext } from '../providers/wallet'
 import UnverifiedBadge from './UnverifiedBadge'
@@ -24,6 +24,10 @@ interface AssetCardProps {
   logoTicker?: string
   /** Fiat-value text shown on the right (e.g. "$7.29"). */
   fiatText?: string
+  /** Right-column content, replacing `fiatText`. Rendered as-is, without the
+   * privacy mask: for public data (market prices), which hiding balances must
+   * not hide. */
+  valueSlot?: ReactNode
   onClick?: () => void
 }
 
@@ -40,6 +44,7 @@ export default function AssetCard({
   ticker,
   logoTicker,
   fiatText,
+  valueSlot,
   onClick,
 }: AssetCardProps) {
   const { config } = useContext(ConfigContext)
@@ -98,9 +103,9 @@ export default function AssetCard({
           </PrivacyAmount>
         </div>
       </div>
-      {fiatText ? (
+      {valueSlot || fiatText ? (
         <div className='asset-card__value'>
-          <PrivacyAmount masked={maskedFiatText}>{fiatText}</PrivacyAmount>
+          {valueSlot ?? <PrivacyAmount masked={maskedFiatText}>{fiatText}</PrivacyAmount>}
         </div>
       ) : null}
     </>

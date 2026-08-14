@@ -1,4 +1,7 @@
 import { useContext, useEffect, useState } from 'react'
+import { BTC_ASSET_ID } from '@arkade-os/swap'
+import BookLadder from '../../../components/BookLadder'
+import PostRungSheet from '../../../components/PostRungSheet'
 import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Content from '../../../components/Content'
@@ -18,16 +21,25 @@ import { consoleError } from '../../../lib/logs'
 import type { AssetDetails } from '@arkade-os/sdk'
 import { prettyAssetAmount } from '../../../lib/assets'
 import { BackupContext } from '@/providers/backup'
+import { AspContext } from '../../../providers/asp'
+import { OrderBookContext } from '../../../providers/orderBook'
+import { displayPrice, pairKeyOf, type BookRow } from '../../../lib/book'
+import { extractError } from '../../../lib/error'
+import { toast } from '../../../components/Toast'
 
 export default function AppAssetDetail() {
   const { config } = useContext(ConfigContext)
   const { backupAndUpdateConfig } = useContext(BackupContext)
   const { navigate, replace } = useContext(NavigationContext)
   const { assetInfo, setAssetInfo, setRecvInfo, setSendInfo } = useContext(FlowContext)
-  const { assetBalances, svcWallet, assetMetadataCache, setCacheEntry, iconApprovalManager } = useContext(WalletContext)
+  const { assetBalances, availableBalance, svcWallet, assetMetadataCache, setCacheEntry, iconApprovalManager } =
+    useContext(WalletContext)
+  const { aspInfo } = useContext(AspContext)
+  const { bookFor, ready: bookReady, takeable, place, take, pull } = useContext(OrderBookContext)
 
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [posting, setPosting] = useState(false)
 
   const cachedEntry = assetMetadataCache.get(assetInfo.assetId)
   const hasIcon = cachedEntry?.hasIcon ?? false
@@ -82,6 +94,37 @@ export default function AppAssetDetail() {
   const isImported = config.importedAssets.includes(assetInfo.assetId)
   const canRemove = isImported && balance === BigInt(0)
 
+  // This asset priced in sats. Both directions of the market group under one
+  // key, so a bid and an ask on the same asset land in the same book.
+  const pairKey = pairKeyOf(assetInfo.assetId, BTC_ASSET_ID)
+  const book = bookFor(pairKey)
+  // what a taker would pay right now — the prefill a composer opens on
+  const bestAsk = book.asks[0] ? displayPrice(book.asks[0].price, decimals, 0) : undefined
+  const bestBid = book.bids[0] ? displayPrice(book.bids[0].price, decimals, 0) : undefined
+  const referencePrice = bestAsk ?? bestBid
+
+  const handleTake = async (row: BookRow) => {
+    try {
+      await take(row.id)
+    } catch (err) {
+      // a fill racing a pull is normal: the row is gone, nothing broke
+      toast.error(extractError(err))
+    }
+  }
+
+  const handlePull = async (row: BookRow) => {
+    try {
+      await pull(row.id)
+    } catch (err) {
+      toast.error(extractError(err))
+    }
+  }
+
+  const handlePost = async (params: Parameters<typeof place>[0]) => {
+    await place(params)
+    setPosting(false)
+  }
+
   const handleSend = () => {
     setSendInfo({ ...emptySendInfo, assets: [{ assetId: assetInfo.assetId, amount: BigInt(0) }] })
     navigate(Pages.SendForm)
@@ -120,6 +163,19 @@ export default function AppAssetDetail() {
               </Text>
               <TextSecondary centered>{name}</TextSecondary>
             </FlexCol>
+
+            <BookLadder
+              book={book}
+              baseTicker={ticker || 'units'}
+              baseDecimals={decimals}
+              takeable={takeable}
+              takeDisabledReason='taking needs an emulator endpoint — post and pull still work'
+              onTake={handleTake}
+              onPull={handlePull}
+              loading={!bookReady}
+            />
+
+            <Button label='Post a rung' onClick={() => setPosting(true)} />
 
             <FlexCol gap='0.25rem' centered>
               <Text copy={assetInfo.assetId} color='neutral-500' smaller centered>
@@ -220,6 +276,18 @@ export default function AppAssetDetail() {
         </FlexRow>
         {canRemove ? <Button label='Remove' onClick={handleRemove} secondary /> : null}
       </ButtonsOnBottom>
+      <PostRungSheet
+        isOpen={posting}
+        onClose={() => setPosting(false)}
+        baseTicker={ticker || 'units'}
+        baseAssetId={assetInfo.assetId}
+        baseDecimals={decimals}
+        satsBalance={BigInt(availableBalance)}
+        assetBalance={balance}
+        referencePrice={referencePrice}
+        dust={BigInt(aspInfo.dust)}
+        onSubmit={handlePost}
+      />
     </>
   )
 }

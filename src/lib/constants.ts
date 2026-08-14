@@ -117,6 +117,26 @@ export const getEmulatorPubkeyForNetwork = (network: NetworkName): Uint8Array | 
   }
 }
 
+// The emulator endpoint, needed only to TAKE an order. `fulfill` is a covenant
+// spend, so it is submitted to the emulator rather than to arkd — posting and
+// pulling need none of this, which is why an unset value disables taking rather
+// than the whole book.
+//
+// Deliberately empty per network: no deployment has published a
+// browser-reachable emulator yet (see the pubkey note above — clients have
+// historically had no path to it at all). Set VITE_EMULATOR_URL to point the
+// wallet at one; regtest stacks serve it on http://localhost:7073.
+const EMULATOR_URL: Record<NetworkName, string | null> = {
+  bitcoin: null,
+  mutinynet: null,
+  signet: null,
+  regtest: null,
+  testnet: null,
+}
+
+export const getEmulatorUrlForNetwork = (network: NetworkName): string | undefined =>
+  serviceUrlForNetwork(import.meta.env.VITE_EMULATOR_URL, EMULATOR_URL, network)
+
 // covclaimd — the service that could claim a Lightning-receive lockup for an
 // OFFLINE wallet — is deliberately not configured here. The receive screen
 // stays open and claims with its own covenant `receiver` key, so no deployment

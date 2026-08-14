@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BTC_ASSET_ID } from '@arkade-os/swap'
-import { buildBook, cmpRatio, pairKeyOf, pairsOf, toRow, type BookOrder } from '../../lib/offerBook'
+import { buildBook, cmpRatio, pairKeyOf, pairsOf, toRow, type BookOrder } from '../../lib/book'
 
 const SEED = 'aa'.repeat(34)
 const OTHER = 'bb'.repeat(34)
@@ -15,6 +15,7 @@ const order = (o: Partial<BookOrder> & Pick<BookOrder, 'id' | 'give' | 'want'>):
   offerHex: '00',
   swapPkScript: '51'.repeat(17),
   makerPkScript: THEIRS,
+  depositSats: 330n,
   createdAt: 0,
   ...o,
 })
