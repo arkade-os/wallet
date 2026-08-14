@@ -196,13 +196,14 @@ export default function AppAssetDetail() {
               loading={!bookReady}
             />
 
-            {/* Everything that is not the market, folded away. Name, ticker and
-                supply are deliberately absent: the header, the subtitle and the
-                stat grid already carry them, and printing a figure twice on one
-                screen is what made this page feel crowded. */}
+            {/* Everything that is not the market, folded away: the facts, and
+                the wallet-side actions. pools.trade ends its mobile page in one
+                action; six stacked buttons was the thing least like it. Name,
+                ticker and supply are absent because the header and stat grid
+                already carry them. */}
             <Collapsible className='w-full'>
               <CollapsibleTrigger className='flex w-full items-center justify-between py-3'>
-                <TextSecondary>Details</TextSecondary>
+                <TextSecondary>More</TextSecondary>
                 <TextSecondary>{'\u2304'}</TextSecondary>
               </CollapsibleTrigger>
               <CollapsibleContent>
@@ -271,6 +272,21 @@ export default function AppAssetDetail() {
                       secondary
                     />
                   ) : null}
+                  <div className='mt-2 border-t border-[var(--neutral-100)] pt-3'>
+                    <FlexCol gap='0.75rem'>
+                      <FlexRow gap='0.75rem'>
+                        <Button label='Send' onClick={handleSend} disabled={balance === BigInt(0)} secondary />
+                        <Button label='Receive' onClick={handleReceive} secondary />
+                      </FlexRow>
+                      {holdsControlAsset || balance > 0 ? (
+                        <FlexRow gap='0.75rem'>
+                          {holdsControlAsset ? <Button label='Reissue' onClick={handleReissue} secondary /> : null}
+                          {balance > 0 ? <Button label='Burn' onClick={handleBurn} secondary /> : null}
+                        </FlexRow>
+                      ) : null}
+                      {canRemove ? <Button label='Remove' onClick={handleRemove} secondary /> : null}
+                    </FlexCol>
+                  </div>
                 </FlexCol>
               </CollapsibleContent>
             </Collapsible>
@@ -278,24 +294,10 @@ export default function AppAssetDetail() {
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        {/* Buy and Sell lead: this is a market screen first and a holding
-            screen second. Send/Receive keep their place below rather than
-            competing for the primary slot. */}
         <FlexRow gap='0.75rem'>
           <Button label='Buy' onClick={() => openTrade('buy')} />
           <Button label='Sell' onClick={() => openTrade('sell')} disabled={balance === BigInt(0)} secondary />
         </FlexRow>
-        <FlexRow gap='0.75rem'>
-          <Button label='Send' onClick={handleSend} disabled={balance === BigInt(0)} secondary />
-          <Button label='Receive' onClick={handleReceive} secondary />
-        </FlexRow>
-        {holdsControlAsset || balance > 0 ? (
-          <FlexRow gap='0.75rem'>
-            {holdsControlAsset ? <Button label='Reissue' onClick={handleReissue} secondary /> : null}
-            {balance > 0 ? <Button label='Burn' onClick={handleBurn} secondary /> : null}
-          </FlexRow>
-        ) : null}
-        {canRemove ? <Button label='Remove' onClick={handleRemove} secondary /> : null}
       </ButtonsOnBottom>
       <TradeSheet
         isOpen={tradeSide !== undefined}
