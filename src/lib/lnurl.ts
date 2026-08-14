@@ -1,6 +1,4 @@
-import { bech32, hex, utf8 } from '@scure/base'
-import { sha256 } from '@noble/hashes/sha2.js'
-import { hmac } from '@noble/hashes/hmac.js'
+import { bech32, utf8 } from '@scure/base'
 
 const emailRegex =
   /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
@@ -100,17 +98,6 @@ export const fetchInvoice = (lnurl: string, sats: number, note: string): Promise
       .then(resolve)
       .catch(reject)
   })
-}
-
-export interface LnurlSessionCredentials {
-  token: string
-}
-
-export const deriveLnurlCredentials = (privateKeyHex: string): LnurlSessionCredentials => {
-  const key = hex.decode(privateKeyHex)
-  const tag = new TextEncoder().encode('lnurl-session')
-  const token = hex.encode(hmac(sha256, key, tag))
-  return { token }
 }
 
 export const fetchArkAddress = (lnurl: string): Promise<ArkMethodResponse> => {

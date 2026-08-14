@@ -203,6 +203,7 @@ export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
         assets,
         boardingTxid: key.boardingTxid,
         destination: type === 'SENT' ? activityMetadata?.destination : undefined,
+        lnSend: type === 'SENT' ? activityMetadata?.lnSend : undefined,
         redeemTxid: key.arkTxid,
         roundTxid: key.commitmentTxid,
         createdAt: unix,

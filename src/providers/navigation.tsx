@@ -22,10 +22,7 @@ import AccountDetail from '../screens/Wallet/AccountDetail'
 import WalletSwap from '../screens/Wallet/Swap/Index'
 import Settings from '../screens/Settings/Index'
 
-import AppBoltz from '../screens/Apps/Boltz/Index'
-import AppBoltzSettings from '../screens/Apps/Boltz/Settings'
 import InitSuccess from '../screens/Init/Success'
-import AppBoltzSwap from '../screens/Apps/Boltz/Swap'
 import AppLendasat from '../screens/Apps/Lendasat/Index'
 import AppSatora from '../screens/Apps/Satora/Index'
 import AppAssets from '../screens/Apps/Assets/Index'
@@ -46,9 +43,6 @@ export enum Pages {
   Activity,
   AccountDetail,
   BitcoinDetail,
-  AppBoltz,
-  AppBoltzSettings,
-  AppBoltzSwap,
   AppLendasat,
   AppSatora,
   AppAssets,
@@ -110,12 +104,6 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <AccountDetail />
     case Pages.BitcoinDetail:
       return <BitcoinDetail />
-    case Pages.AppBoltz:
-      return <AppBoltz />
-    case Pages.AppBoltzSettings:
-      return <AppBoltzSettings />
-    case Pages.AppBoltzSwap:
-      return <AppBoltzSwap />
     case Pages.AppLendasat:
       return <AppLendasat />
     case Pages.AppSatora:

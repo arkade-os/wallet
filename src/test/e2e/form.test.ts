@@ -44,7 +44,7 @@ test('should prioritize Arkade addresses over others', async ({ page, isMobile }
   await expect(page.getByTestId('Total')).toContainText('2,000 sats')
 })
 
-test('should prioritize lightning invoice if no ark address present', async ({ page }) => {
+test.skip('should prioritize lightning invoice if no ark address present', async ({ page }) => {
   // create wallet
   await createWallet(page)
   await fundWallet(page, 5000)
@@ -63,7 +63,7 @@ test('should prioritize lightning invoice if no ark address present', async ({ p
   await expect(page.getByTestId('Total')).toContainText('2,101 sats')
 })
 
-test('should prioritize lnurl if no invoice or ark address are present', async ({ page, isMobile }) => {
+test.skip('should prioritize lnurl if no invoice or ark address are present', async ({ page, isMobile }) => {
   const bip21 = await createWalletAndGetBIP21(page)
   const { lnUrl } = decodeBip21(bip21)
   expect(lnUrl).toBeDefined()

@@ -1,5 +1,5 @@
 import { AssetDetails } from '@arkade-os/sdk'
-import { Config, Wallet } from '../lib/types'
+import { Config, LnSendActivity, Wallet } from '../lib/types'
 import { consoleError } from './logs'
 import { LocalCardInput, validateCard } from '@arkade-os/solver-discovery'
 
@@ -56,6 +56,7 @@ export const readWalletFromStorage = (): Wallet | undefined => {
 export type TransactionActivityMetadata = {
   assetAction?: 'issued' | 'reissued' | 'burned'
   destination?: string
+  lnSend?: LnSendActivity
   networkFee?: number
   savedAt: number
 }

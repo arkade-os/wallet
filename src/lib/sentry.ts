@@ -26,10 +26,17 @@ const REDACTED = '[redacted]'
 const HEX_RUN = /[0-9a-f]{40,}/gi
 // 6 chars = the bech32 checksum, the minimum after the separator (BIP173).
 const BECH32 = /\b(?:bc|tb|bcrt|ark|tark|nsec)1[02-9ac-hj-np-z]{6,}/gi
+// BOLT11 needs its own pattern: BECH32 cannot reach the 'bc' inside 'lnbc…'
+// because \b requires a boundary, and n→b is word-to-word. The amount field
+// ([0-9]*[munp]?) sits between the prefix and the '1' separator.
+const BOLT11 = /\b(?:lnbc|lntb|lntbs|lnbcrt|lnsb)[0-9]*[munp]?1[02-9ac-hj-np-z]{20,}/gi
 const SENSITIVE_KEY =
   /preimage|secret|seckey|priv|mnemonic|seed|addr|script|pubkey|outpoint|auth|cookie|token|password|passphrase|api[-_]?key|session/i
 
-const scrubString = (value: string): string => value.replace(HEX_RUN, REDACTED).replace(BECH32, REDACTED)
+// BOLT11 first: an invoice can contain a 40+ char [0-9a-f] run, and letting
+// HEX_RUN punch a hole in it would leave the rest of the invoice in the clear.
+const scrubString = (value: string): string =>
+  value.replace(BOLT11, REDACTED).replace(HEX_RUN, REDACTED).replace(BECH32, REDACTED)
 
 const scrubValue = (value: unknown, seen: WeakSet<object> = new WeakSet()): unknown => {
   if (typeof value === 'string') return scrubString(value)

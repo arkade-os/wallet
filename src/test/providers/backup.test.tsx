@@ -4,12 +4,13 @@ import { useContext } from 'react'
 import { BackupContext, BackupProvider } from '../../providers/backup'
 import { ConfigContext } from '../../providers/config'
 import { mockConfigContextValue } from '../screens/mocks'
+import { saveSolverCardsToStorage } from '../../lib/storage'
 import type { Config } from '../../lib/types'
 import type { BackupEvent } from '../../lib/nostr'
 
 const mocks = vi.hoisted(() => ({
   events: [] as BackupEvent[],
-  saveSwap: vi.fn(),
+  save: vi.fn(),
 }))
 
 vi.mock('@/lib/nostr', () => ({
@@ -17,17 +18,13 @@ vi.mock('@/lib/nostr', () => ({
     async load() {
       return mocks.events
     }
-    async save() {}
+    async save(data: string) {
+      mocks.save(data)
+    }
   },
 }))
 
-vi.mock('@arkade-os/boltz-swap', () => ({
-  IndexedDbSwapRepository: class {
-    saveSwap = mocks.saveSwap
-  },
-}))
-
-const localConfig: Config = { ...mockConfigContextValue.config, aspUrl: 'https://local.server' }
+let localConfig: Config = { ...mockConfigContextValue.config, aspUrl: 'https://local.server' }
 
 let counter = 0
 const makeEvent = (data: unknown, created_at: number, receivedAt: number, id = `event-${counter++}`): BackupEvent => ({
@@ -42,9 +39,11 @@ const makeEvent = (data: unknown, created_at: number, receivedAt: number, id = `
 })
 
 let restore: (seckey: Uint8Array) => Promise<void>
+let fullBackup: (config: Config) => Promise<void>
+let initialiseNostrBackup: (seckey: Uint8Array) => void
 
 function Capture() {
-  restore = useContext(BackupContext).restore
+  ;({ restore, fullBackup, initialiseNostrBackup } = useContext(BackupContext))
   return null
 }
 
@@ -62,8 +61,48 @@ function renderProvider(updateConfig: (c: Config) => void) {
 describe('BackupProvider restore', () => {
   beforeEach(() => {
     mocks.events = []
-    mocks.saveSwap.mockClear()
+    mocks.save.mockReset()
     localStorage.clear()
+    localConfig = { ...mockConfigContextValue.config, aspUrl: 'https://local.server' }
+  })
+
+  it('backs up existing solver cards when enabling Nostr backups before fullBackup', async () => {
+    const cards = [
+      {
+        network: 'regtest',
+        label: 'my-card',
+        card: {
+          version: 0,
+          name: 'my-card',
+          markets: [
+            {
+              pair: 'BTC/USDT',
+              base_asset: { id: 'btc', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+              quote_asset: { id: 'a'.repeat(68), name: 'Tether', ticker: 'USDT', decimals: 8 },
+              price_feed: 'https://example.com/price',
+              price_feed_schema: { type: 'json', price_path: '/price' },
+              price_decimals: 2,
+              fee_bps: 1,
+              min_base_amount: '1',
+              max_base_amount: '100',
+              min_quote_amount: '1',
+              max_quote_amount: '100',
+            },
+          ],
+        },
+      },
+    ] as any
+    saveSolverCardsToStorage(cards)
+
+    const updatedConfig = { ...localConfig, nostrBackup: true }
+    renderProvider(() => undefined)
+    initialiseNostrBackup(new Uint8Array(32))
+
+    await fullBackup(updatedConfig)
+
+    expect(mocks.save).toHaveBeenCalledTimes(2)
+    expect(mocks.save).toHaveBeenNthCalledWith(1, JSON.stringify({ config: updatedConfig }))
+    expect(mocks.save).toHaveBeenNthCalledWith(2, JSON.stringify({ solverCards: cards }))
   })
 
   it('keeps the local server and applies the rest of the restored config', async () => {
@@ -87,11 +126,7 @@ describe('BackupProvider restore', () => {
     const updateConfig = vi.fn()
     const now = Math.floor(Date.now() / 1000)
     mocks.events = [
-      makeEvent(
-        { config: { ...localConfig, showBalance: false }, reverseSwaps: [{ id: 'swap-a' }] },
-        now + 1_000_000,
-        now - 60,
-      ),
+      makeEvent({ config: { ...localConfig, showBalance: false } }, now + 1_000_000, now - 60),
       makeEvent({ config: { ...localConfig, showBalance: true } }, now - 10, now),
     ]
 
@@ -100,8 +135,6 @@ describe('BackupProvider restore', () => {
 
     await waitFor(() => expect(updateConfig).toHaveBeenCalledTimes(1))
     expect(updateConfig.mock.calls[0][0]).toMatchObject({ showBalance: true })
-    // the event is ranked lower, not dropped
-    expect(mocks.saveSwap).toHaveBeenCalledWith({ id: 'swap-a' })
   })
 
   it('breaks ties on event id, whatever order the relay delivers them in', async () => {

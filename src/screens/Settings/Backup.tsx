@@ -28,11 +28,9 @@ import { WalletContext } from '../../providers/wallet'
 import { authenticateUser } from '../../lib/biometrics'
 import FingerprintIcon from '../../icons/Fingerprint'
 import InputPassword from '../../components/InputPassword'
-import { SwapsContext } from '../../providers/swaps'
 
 export default function Backup() {
   const { wallet } = useContext(WalletContext)
-  const { arkadeSwaps } = useContext(SwapsContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { backupConfig, fullBackup } = useContext(BackupContext)
 
@@ -99,7 +97,7 @@ export default function Backup() {
     const newConfig = { ...config, nostrBackup: !config.nostrBackup }
     updateConfig(newConfig)
     if (newConfig.nostrBackup) {
-      await fullBackup(newConfig, arkadeSwaps ?? undefined).catch((error) => {
+      await fullBackup(newConfig).catch((error) => {
         consoleError(error, 'Backup to Nostr failed')
         setError('Backup to Nostr failed')
         return

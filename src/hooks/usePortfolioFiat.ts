@@ -14,8 +14,14 @@ export interface PortfolioRow {
   ticker: string
   icon?: string
   decimals: number
-  /** Raw balance in the asset's smallest unit (sats for BTC, minor units otherwise). */
+  /** Raw balance in the asset's smallest unit (sats for BTC, minor units otherwise).
+   * Everything the wallet owns, escrow and awaiting-recovery included — this is
+   * the reporting figure, not a spending limit. */
   balance: number | bigint
+  /** The spendable subset of {@link balance}, same denomination. Funds locked in
+   * a swap covenant, intent-locked or awaiting recovery are excluded, so this is
+   * what any selectable amount must be capped at. */
+  spendableBalance: number | bigint
   /** Fiat value in the user's selected currency (0 if no price feed). */
   fiatAmount: number
   /** Equivalent value in satoshis, computed via the live BTC price feed. */
@@ -41,7 +47,8 @@ export interface PortfolioFiat {
  */
 export function usePortfolioFiat(): PortfolioFiat {
   const { aspInfo } = useContext(AspContext)
-  const { balance, assetBalances, assetMetadataCache, isVerifiedAsset } = useContext(WalletContext)
+  const { balance, availableBalance, assetBalances, availableAssetBalances, assetMetadataCache, isVerifiedAsset } =
+    useContext(WalletContext)
   const { fromFiatAmount, toFiat } = useContext(FiatContext)
   const convertToSelectedFiat = (amount: number, from: Currencies) => toFiat(fromFiatAmount(amount, from))
 
@@ -56,6 +63,7 @@ export function usePortfolioFiat(): PortfolioFiat {
     ticker: 'BTC',
     decimals: 8,
     balance,
+    spendableBalance: availableBalance,
     fiatAmount: toFiat(balance),
     satsEquivalent: balance,
     hasFiatPrice: true,
@@ -65,17 +73,23 @@ export function usePortfolioFiat(): PortfolioFiat {
   for (const ab of assetBalances) {
     const meta = assetMetadataCache.get(ab.assetId)?.metadata
     const assetDecimals = meta?.decimals ?? 8
+    // absent from availableAssets means every unit of it is escrowed, locked or
+    // awaiting recovery — owned, but nothing of it is selectable
+    const spendableAmount = availableAssetBalances.find((a) => a.assetId === ab.assetId)?.amount ?? BigInt(0)
     // only verified asset IDs may claim currency-account treatment
     const sourceFiat = isVerifiedAsset(ab.assetId) ? designatedAccountCurrency(aspInfo.network, ab.assetId) : undefined
 
     if (sourceFiat) {
       const accountDecimals = fiatDecimalsFor(sourceFiat)
+      // the backing asset fulfills sends, so it carries the spendable amount;
+      // the row's own `balance` stays owned for display and the fiat total
       const sourceAsset: FiatAccountSourceAsset = {
         assetId: ab.assetId,
-        balance: BigInt(ab.amount),
+        balance: BigInt(spendableAmount),
         decimals: assetDecimals,
       }
-      const minorUnits = normalizeAssetMinorUnits(sourceAsset.balance, assetDecimals, accountDecimals)
+      const minorUnits = normalizeAssetMinorUnits(BigInt(ab.amount), assetDecimals, accountDecimals)
+      const spendableMinorUnits = normalizeAssetMinorUnits(sourceAsset.balance, assetDecimals, accountDecimals)
       const amount = Decimal.div(minorUnits.toString(), Decimal.pow(10, accountDecimals)).toNumber()
       const fiatAmount = convertToSelectedFiat(amount, sourceFiat)
       const satsEquivalent = fromFiatAmount(amount, sourceFiat)
@@ -86,6 +100,7 @@ export function usePortfolioFiat(): PortfolioFiat {
         ticker: sourceFiat,
         decimals: accountDecimals,
         balance: minorUnits,
+        spendableBalance: spendableMinorUnits,
         fiatAmount,
         satsEquivalent,
         hasFiatPrice: true,
@@ -102,6 +117,7 @@ export function usePortfolioFiat(): PortfolioFiat {
       icon: meta?.icon,
       decimals: assetDecimals,
       balance: ab.amount,
+      spendableBalance: spendableAmount,
       fiatAmount: 0,
       satsEquivalent: 0,
       hasFiatPrice: false,
