@@ -1,9 +1,14 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import SuccessIcon from '../icons/Success'
 import { EASE_OUT_QUINT_TUPLE } from '../lib/animations'
+import { activateDocumentSurface } from '../lib/documentSurface'
 import { hapticLight } from '../lib/haptics'
 import { useReducedMotion } from '../hooks/useReducedMotion'
+
+const SUCCESS_SURFACE_CLASS = 'wallet-success-surface-active'
+const SUCCESS_THEME_COLOR = '#5528d4'
 
 interface WalletSuccessSplashProps {
   show?: boolean
@@ -21,32 +26,40 @@ export default function WalletSuccessSplash({
   onDone,
 }: WalletSuccessSplashProps) {
   const prefersReduced = useReducedMotion()
+  const releaseSurfaceRef = useRef<(() => void) | undefined>()
+
   useEffect(() => {
     if (show) hapticLight()
   }, [show])
 
-  // The splash must read full-bleed: the OS bars around it (Android PWA
-  // status/nav bars, iOS status-bar backdrop) are painted from the
-  // theme-color meta, which is white in light mode — leaving white bands
-  // above and below the purple. Match it to the splash while shown.
-  useEffect(() => {
-    if (!show) return
-    const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
-    if (!meta) return
-    const previous = meta.getAttribute('content')
-    meta.setAttribute('content', '#5528d4') // --purple-600, the gradient's top
-    return () => {
-      if (previous) meta.setAttribute('content', previous)
-    }
+  useLayoutEffect(() => {
+    if (!show || releaseSurfaceRef.current) return
+    releaseSurfaceRef.current = activateDocumentSurface({
+      className: SUCCESS_SURFACE_CLASS,
+      themeColor: SUCCESS_THEME_COLOR,
+    })
   }, [show])
+
+  useLayoutEffect(
+    () => () => {
+      releaseSurfaceRef.current?.()
+      releaseSurfaceRef.current = undefined
+    },
+    [],
+  )
+
+  const releaseSurface = () => {
+    releaseSurfaceRef.current?.()
+    releaseSurfaceRef.current = undefined
+  }
 
   const handleDone = () => {
     hapticLight()
     onDone()
   }
 
-  return (
-    <AnimatePresence>
+  return createPortal(
+    <AnimatePresence onExitComplete={releaseSurface}>
       {show ? (
         <motion.button
           type='button'
@@ -79,6 +92,7 @@ export default function WalletSuccessSplash({
           </motion.span>
         </motion.button>
       ) : null}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }
