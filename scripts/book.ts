@@ -26,7 +26,12 @@
  *   EMULATOR_URL     emulator endpoint; only `take` needs it
  */
 import { hex } from '@scure/base'
+// Browsers have EventSource; node does not, and the SDK's stream is SSE. Without
+// this every command that follows the stream dies on EventSourceUnavailableError
+// — which is exactly what happened the first time this script met a real server.
+import { EventSource } from 'eventsource'
 import {
+  configureEventSource,
   EsploraProvider,
   InMemoryContractRepository,
   InMemoryWalletRepository,
@@ -47,6 +52,8 @@ import {
   takeOrder,
   type BookOrder,
 } from '../src/lib/book/index.ts'
+
+configureEventSource((url: string) => new EventSource(url) as never)
 
 const ARK_URL = process.env.ARK_URL ?? 'http://localhost:7070'
 const ESPLORA_URL = process.env.ESPLORA_URL ?? 'http://localhost:3000/api'

@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState } from 'react'
 import { BTC_ASSET_ID } from '@arkade-os/swap'
+import BookDepth from '../../../components/BookDepth'
 import BookLadder from '../../../components/BookLadder'
 import TradeSheet from '../../../components/TradeSheet'
 import Button from '../../../components/Button'
@@ -181,6 +182,8 @@ export default function AppAssetDetail() {
               <Stat label='Best bid' value={bestBid ? `${prettyNumber(bestBid)} sats` : '—'} />
               <Stat label='Supply' value={prettyAssetAmount(supply, decimals) ?? 'Unknown'} />
             </div>
+
+            <BookDepth book={book} baseTicker={ticker || 'units'} baseDecimals={decimals} />
 
             <BookLadder
               book={book}

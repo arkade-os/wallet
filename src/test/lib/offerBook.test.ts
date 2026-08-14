@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BTC_ASSET_ID } from '@arkade-os/swap'
 import { asset } from '@arkade-os/sdk'
-import { bindOrder, buildBook, cmpRatio, pairKeyOf, pairsOf, toRow, type BookOrder } from '../../lib/book'
+import { bindOrder, buildBook, cmpRatio, depthCurve, pairKeyOf, pairsOf, toRow, type BookOrder } from '../../lib/book'
 
 const SEED = 'aa'.repeat(34)
 const OTHER = 'bb'.repeat(34)
@@ -183,26 +183,59 @@ describe('bindOrder', () => {
     emulatorPubkey: new Uint8Array(32),
   } as never
 
-  it('sizes an asset deposit from the vtxo, not from its sat carrier', () => {
-    const order = bindOrder(askOffer, '00', vtxo([{ assetId, amount: '100000000' }]))
+  it('sizes an asset deposit from the tx packet, not from its sat carrier', () => {
+    // the stream reports assets: null on every vtxo, so the size arrives
+    // separately — read from the funding tx's own asset packet
+    const order = bindOrder(askOffer, '00', vtxo(undefined), 100_000_000n)
     expect(order?.give).toEqual({ assetId, amount: 100_000_000n })
     expect(order?.want.assetId).toBe(BTC_ASSET_ID)
     // the carrier is recorded, but it is NOT the size
     expect(order?.depositSats).toBe(330n)
   })
 
-  it('skips an asset deposit whose assets have not been indexed yet', () => {
-    // the regression: falling back to BTC here made give=btc/want=btc, which
+  it('never falls back to BTC for an asset deposit it cannot size', () => {
+    // the first regression: falling back to BTC made give=btc/want=btc, which
     // priced the maker's want against the 330-sat carrier and surfaced a
-    // phantom "btc/btc" market at ~30 billion sats
-    expect(bindOrder(askOffer, '00', vtxo(undefined))).toBeUndefined()
-    expect(bindOrder(askOffer, '00', vtxo([]))).toBeUndefined()
-    expect(bindOrder(askOffer, '00', vtxo([{ assetId: 'bb'.repeat(34), amount: '5' }]))).toBeUndefined()
+    // phantom "btc/btc" market at ~30 billion sats. Skipping is correct here —
+    // the size is missing, not zero.
+    expect(bindOrder(askOffer, '00', vtxo(undefined), undefined)).toBeUndefined()
+    expect(bindOrder(askOffer, '00', vtxo(undefined), 0n)).toBeUndefined()
   })
 
   it('refuses an order whose two legs are the same asset', () => {
     const degenerate = { ...(askOffer as object), offerAsset: undefined } as never
     // no offerAsset and no assets on the vtxo => give reads BTC, want is BTC
     expect(bindOrder(degenerate, '00', vtxo(undefined))).toBeUndefined()
+  })
+})
+
+describe('depthCurve', () => {
+  const pair = pairKeyOf(SEED, BTC_ASSET_ID)
+  // 100 SEED at 6dp is 100_000_000 atomic, so each rung is 100 display units
+  const book = buildBook(
+    [ask('a1:0', 5_050n), ask('a2:0', 5_150n), bid('b1:0', 4_950n), bid('b2:0', 4_850n)],
+    pair,
+    nobody,
+  )
+
+  it('accumulates outward from the middle, in whole base units', () => {
+    const curve = depthCurve(book, 6, 0)
+    // ascending by price: worst bid, best bid, best ask, worst ask
+    expect(curve.map((p) => p.price)).toEqual([48.5, 49.5, 50.5, 51.5])
+    // bids accumulate walking DOWN from the best, asks walking UP
+    expect(curve.map((p) => p.bid)).toEqual([200, 100, undefined, undefined])
+    expect(curve.map((p) => p.ask)).toEqual([undefined, undefined, 100, 200])
+  })
+
+  it('leaves the spread as a gap rather than joining the sides', () => {
+    // every point carries exactly one side, so a chart drawn with
+    // connectNulls={false} renders the spread as empty space
+    for (const point of depthCurve(book, 6, 0)) {
+      expect(point.bid === undefined || point.ask === undefined).toBe(true)
+    }
+  })
+
+  it('is empty for an empty book', () => {
+    expect(depthCurve(buildBook([], pair, nobody), 6, 0)).toEqual([])
   })
 })

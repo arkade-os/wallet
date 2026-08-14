@@ -138,6 +138,52 @@ export const buildBook = (orders: Iterable<BookOrder>, pairKey: string, myPkScri
   return { pairKey, asks, bids, spread }
 }
 
+/** One step of the depth curve. A price with the size resting at or better
+ * than it, on whichever side reaches that far. */
+export interface DepthPoint {
+  price: number
+  bid?: number
+  ask?: number
+}
+
+/**
+ * The book as a depth curve, ascending by price.
+ *
+ * This is the one chart an order book can honestly draw. A price chart needs
+ * trade history — which fills happened, when — and resting covenants record
+ * none of that. Depth needs only the book as it stands right now, so it is
+ * exact rather than accumulated.
+ *
+ * The two sides deliberately do not meet: bids stop at the best bid and asks
+ * start at the best ask, leaving the spread as a literal gap in the middle.
+ * Rendered with `connectNulls={false}` that gap is the point of the picture.
+ *
+ * Sizes are the BASE asset, cumulative outward from the middle — walking down
+ * the bids or up the asks — which is what makes the curve read as "how much
+ * could I fill before the price moves this far".
+ */
+export const depthCurve = (book: Book, baseDecimals: number, quoteDecimals = 0): DepthPoint[] => {
+  const scale = 10 ** baseDecimals
+  // an ask deposits the base asset; a bid asks for it
+  const baseSize = (row: BookRow) => (row.side === 'ask' ? row.give.amount : row.want.amount)
+
+  // Cumulative sums stay exact in bigint and only become numbers at the edge,
+  // where a chart pixel cannot tell the difference anyway.
+  const walk = (rows: BookRow[], side: 'bid' | 'ask'): DepthPoint[] => {
+    let cumulative = 0n
+    return rows.map((row) => {
+      cumulative += baseSize(row)
+      return {
+        price: displayPrice(row.price, baseDecimals, quoteDecimals),
+        [side]: Number(cumulative) / scale,
+      } as DepthPoint
+    })
+  }
+
+  // bids arrive highest-first, so reversing puts the whole curve in price order
+  return [...walk(book.bids, 'bid')].reverse().concat(walk(book.asks, 'ask'))
+}
+
 /** Every pair with at least one resting order, most orders first. */
 export const pairsOf = (orders: Iterable<BookOrder>): { pairKey: string; count: number }[] => {
   const counts = new Map<string, number>()

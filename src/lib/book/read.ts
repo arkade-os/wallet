@@ -22,7 +22,7 @@
  * leaf that was actually taken.
  */
 import { base64, hex } from '@scure/base'
-import { Extension, Transaction, type ArkProvider, type IndexerProvider, type Vtxo } from '@arkade-os/sdk'
+import { asset, Extension, Transaction, type ArkProvider, type IndexerProvider, type Vtxo } from '@arkade-os/sdk'
 import { BTC_ASSET_ID, decodeOffer, OFFER_PACKET_TYPE, type Offer } from '@arkade-os/swap'
 import type { BookOrder } from './types.ts'
 
@@ -67,25 +67,32 @@ const createdAtMs = (raw: string | undefined): number => {
  * its VTXO carrier; the asset is the substance, and a taker gets the carrier
  * along with it.
  */
-export const bindOrder = (offer: Offer, offerHex: string, vtxo: Vtxo): BookOrder | undefined => {
+export const bindOrder = (
+  offer: Offer,
+  offerHex: string,
+  vtxo: Vtxo,
+  /** The deposit's asset size, read from the funding tx's own asset packet.
+   * Required whenever the offer names an `offerAsset` — see below. */
+  depositAssetAmount?: bigint,
+): BookOrder | undefined => {
   const sats = BigInt(vtxo.amount)
 
   // `offerAsset` names the deposit and is covenant-bound, so it decides WHICH
-  // asset rests here — never the vtxo, whose asset list may not be populated
-  // yet. Only the amount has to come off the vtxo, because the covenant does
-  // not inspect its own deposit.
+  // asset rests here. The vtxo cannot answer either question: the /v1/txs
+  // stream returns `assets: null` on every vtxo it reports, so an asset
+  // deposit is indistinguishable from a bare sat deposit by that route.
   //
-  // Inferring this from the vtxo alone is what produced phantom markets: an
-  // asset deposit whose assets had not been indexed read as BTC, so an ask
-  // became give=btc/want=btc and priced the maker's want against the 330-sat
-  // carrier. A row we cannot size is not a row — skip it and let a later
-  // notification carry it.
+  // Reading the vtxo anyway is what produced phantom markets — an asset ask
+  // read as BTC, becoming give=btc/want=btc and pricing the maker's want
+  // against the 330-sat carrier. Skipping it instead produced the opposite
+  // bug: no asset order ever reached the book. Both come from asking the wrong
+  // source. The size lives in the funding tx's asset packet, alongside the
+  // offer packet itself, which is why the caller passes it in.
   const depositAssetId = offer.offerAsset?.toString()
   let give: { assetId: string; amount: bigint }
   if (depositAssetId) {
-    const entry = vtxo.assets?.find((a) => a.assetId === depositAssetId)
-    if (!entry) return undefined
-    give = { assetId: depositAssetId, amount: BigInt(entry.amount) }
+    if (depositAssetAmount === undefined || depositAssetAmount <= 0n) return undefined
+    give = { assetId: depositAssetId, amount: depositAssetAmount }
   } else {
     const deposited = vtxo.assets?.[0]
     give = deposited
@@ -144,7 +151,35 @@ export const orderFromNotification = (
   // derivation broadcast without its deposit, not an order
   if (!deposit) return undefined
 
-  return bindOrder(found.offer, found.offerHex, deposit)
+  const depositAssetId = found.offer.offerAsset?.toString()
+  const assetAmount = depositAssetId ? assetAmountAt(tx, depositAssetId, deposit.outpoint.vout) : undefined
+
+  return bindOrder(found.offer, found.offerHex, deposit, assetAmount)
+}
+
+/**
+ * How much of `assetId` a transaction pays to one of its outputs.
+ *
+ * Every Arkade asset movement rides an asset packet in the same OP_RETURN
+ * extension that carries the offer, so a funding transaction states its own
+ * deposit size. That makes this the authoritative source and, usefully, a free
+ * one: the transaction is already parsed and in hand, so reading the size costs
+ * no extra round trip — which is what keeps the reader free of lookups.
+ */
+export const assetAmountAt = (tx: Transaction, assetId: string, vout: number): bigint | undefined => {
+  try {
+    const packet = Extension.fromTx(tx).getPacketByType(asset.Packet.PACKET_TYPE)
+    if (!packet) return undefined
+    for (const group of asset.Packet.fromBytes(packet.serialize()).groups) {
+      // a group with no id is a fresh issuance, which cannot be a deposit
+      if (group.assetId?.toString() !== assetId) continue
+      for (const out of group.outputs) if (out.vout === vout) return out.amount
+    }
+  } catch {
+    // no extension, or a packet shape we cannot read: the caller treats an
+    // unsized asset deposit as not-yet-an-order rather than guessing
+  }
+  return undefined
 }
 
 export interface BookReaderParams {
