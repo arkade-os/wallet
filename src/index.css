@@ -115,6 +115,18 @@ body::before {
   pointer-events: none;
 }
 
+/* Full-bleed success surfaces are portaled to body, outside the safe-area page
+   shell. Paint the document canvas as a fallback for PWA system areas that sit
+   beyond the dynamic viewport. */
+html.wallet-success-surface-active,
+html.wallet-success-surface-active body {
+  background-color: var(--purple-800);
+}
+
+html.wallet-success-surface-active body::before {
+  background-color: var(--purple-600);
+}
+
 body {
   margin: 0;
   font-family:
@@ -3927,14 +3939,16 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
 .wallet-success-splash {
   position: fixed;
   inset: 0;
-  /* above the body::before status-bar backdrop strip (99999), which would
-   * otherwise paint a theme-colored band over the splash's safe-area top */
+  /* Portaled to body so fixed positioning resolves against the viewport and
+   * this root-level z-index sits above the status-bar backdrop strip. */
   z-index: 100000;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 1.25rem;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
   border: 0;
   background:
     radial-gradient(circle at 50% 34%, color-mix(in srgb, var(--purple-500) 28%, transparent), transparent 32%),
