@@ -10,8 +10,13 @@ export default function Refresher() {
   const [showRefresh, setShowRefresh] = useState(false)
 
   const refresherRef = useRef<HTMLDivElement | null>(null)
+  const reloadWalletRef = useRef(reloadWallet)
+  const svcWalletRef = useRef(svcWallet)
   const triggeredRef = useRef(false)
   const touchstartYRef = useRef(0)
+
+  reloadWalletRef.current = reloadWallet
+  svcWalletRef.current = svcWallet
 
   const handleTouchStart: EventListener = (event) => {
     const e = event as TouchEvent
@@ -46,8 +51,8 @@ export default function Refresher() {
 
   const handleRefresh = async () => {
     try {
-      await svcWallet?.reload()
-      await reloadWallet()
+      await svcWalletRef.current?.reload()
+      await reloadWalletRef.current()
     } catch (err) {
       consoleError(err, 'Failed to reload wallet')
     } finally {
