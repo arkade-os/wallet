@@ -946,23 +946,19 @@ export default function SendForm() {
     )
   }
 
-  const Scan = () => (
-    <Scanner
-      close={() => setScan(false)}
-      label='Recipient address'
-      onData={(data) => {
-        setRecipient(data)
-        setRawScanData(data)
-        setReadyToParse(true)
-      }}
-      onError={smartSetError}
-    />
-  )
-
   if (scan) {
     return prefersReducedMotion ? (
       <div style={sendOverlayStyle}>
-        <Scan />
+        <Scanner
+          close={() => setScan(false)}
+          label='Recipient address'
+          onData={(data) => {
+            setRecipient(data)
+            setRawScanData(data)
+            setReadyToParse(true)
+          }}
+          onError={smartSetError}
+        />
       </div>
     ) : (
       <AnimatePresence>
@@ -974,7 +970,16 @@ export default function SendForm() {
           exit='exit'
           style={sendOverlayStyle}
         >
-          <Scan />
+          <Scanner
+            close={() => setScan(false)}
+            label='Recipient address'
+            onData={(data) => {
+              setRecipient(data)
+              setRawScanData(data)
+              setReadyToParse(true)
+            }}
+            onError={smartSetError}
+          />
         </motion.div>{' '}
       </AnimatePresence>
     )
