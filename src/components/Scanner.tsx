@@ -128,14 +128,19 @@ function ScannerQr({ calculateScanRegion, close, label, onData, onError, onSwitc
         calculateScanRegion,
       },
     )
+    let cancelled = false
     qrScanner.current.start().catch(async () => {
       // qr-scanner throws the same 'Camera not found.' whatever went wrong,
       // so the permission is what tells us if the user blocked the camera
       const text = cameraErrorText(await queryCameraPermission())
+      if (cancelled) return
       onError(text)
       setError(text)
     })
-    return () => stopScan()
+    return () => {
+      cancelled = true
+      stopScan()
+    }
   }, [attempt])
 
   const stopScan = () => {
