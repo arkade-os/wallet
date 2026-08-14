@@ -138,6 +138,13 @@ const sh = (cmd) => {
   return out
 }
 
+/**
+ * Bounded wait on the SDK wallet's OWN state converging — the faucet landing,
+ * an issuance appearing in its balance. Deliberately not used for anything the
+ * chain reports: rung confirmation rides `subscribeForScripts` below, because
+ * "is my order in the book" is a question the server pushes the answer to.
+ * These two have no such event — the wallet syncs on its own schedule.
+ */
 const waitFor = async (fn, { timeout = 60_000, interval = 500 } = {}) => {
   const start = Date.now()
   while (Date.now() - start < timeout) {
@@ -214,8 +221,12 @@ const main = async () => {
   }
 
   const assetIdObj = asset.AssetId.fromString(assetId)
-  const seeded = []
 
+  // Derive every covenant BEFORE funding any of it. `createOffer` broadcasts
+  // nothing — it only derives and registers — so the whole book's scripts are
+  // known while the chain is still untouched. That is what lets the confirmation
+  // below be a subscription rather than a poll.
+  const derived = []
   for (const r of plan.rungs) {
     // The covenant is keyed on the RECEIVE side: wanting sats is the want-btc
     // program with the deposit named by `offerAsset`; wanting the asset is the
@@ -225,8 +236,33 @@ const main = async () => {
       r.side === 'ask'
         ? { wantAmount: r.sats, offerAsset: assetIdObj }
         : { wantAmount: r.assetAtomic, wantAsset: assetIdObj }
-    const offer = await createOffer(wallet, ARK_URL, params)
+    derived.push({ r, offer: await createOffer(wallet, ARK_URL, params) })
+  }
 
+  // Subscribe to the covenant scripts first, so no rung can land in the gap
+  // between funding and watching. Every confirmation below is a pushed event.
+  const subscriptionId = await indexer.subscribeForScripts(derived.map((d) => hex.encode(d.offer.swapPkScript)))
+  const abort = new AbortController()
+  const expiry = setTimeout(() => abort.abort(), 120_000)
+
+  const pending = new Set() // funding txids not yet reported resting
+  let sealed = false // every rung has been funded; nothing more will be added
+  let settle, fail
+  const allResting = new Promise((resolve, reject) => {
+    settle = resolve
+    fail = reject
+  })
+
+  const consumer = (async () => {
+    for await (const event of indexer.getSubscription(subscriptionId, abort.signal)) {
+      for (const vtxo of event.newVtxos ?? []) pending.delete(vtxo.txid)
+      if (sealed && pending.size === 0) return settle()
+    }
+    throw new Error('subscription closed before every rung was resting')
+  })().catch(fail)
+
+  const seeded = []
+  for (const { r, offer } of derived) {
     const fundingTxid = await wallet.send({
       address: offer.address,
       // asset deposits ride the SDK's default dust sat carrier when amount is omitted
@@ -234,6 +270,7 @@ const main = async () => {
       assets: r.side === 'ask' ? [{ assetId, amount: r.assetAtomic }] : undefined,
       extensions: [offer.extension],
     })
+    pending.add(fundingTxid)
 
     seeded.push({
       side: r.side,
@@ -255,15 +292,19 @@ const main = async () => {
     )
   }
 
-  // A funded covenant the indexer has not caught up to is not an order anyone
-  // can find. Match on the funding txid, not the count: identical offers share
-  // an address, so a stale deposit at the same script would otherwise pass.
-  const scripts = seeded.map((s) => s.swapPkScript)
-  await waitFor(async () => {
-    const { vtxos } = await indexer.getVtxos({ scripts, spendableOnly: true })
-    const live = new Set(vtxos.map((v) => v.txid))
-    return seeded.every((s) => live.has(s.fundingTxid))
-  })
+  // A rung reported before the last send returned is already out of `pending`,
+  // so the condition has to be re-checked once nothing more can be added.
+  sealed = true
+  if (pending.size === 0) settle()
+
+  try {
+    await allResting
+  } finally {
+    clearTimeout(expiry)
+    abort.abort()
+    await consumer.catch(() => {})
+    await indexer.unsubscribeForScripts(subscriptionId).catch(() => {})
+  }
 
   writeFileSync(outFile, JSON.stringify({ assetId, maker: address, rungs: seeded }, null, 2))
 
