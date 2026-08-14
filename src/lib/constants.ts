@@ -119,16 +119,23 @@ export const getEmulatorPubkeyForNetwork = (network: NetworkName): Uint8Array | 
 
 // The emulator endpoint, needed only to TAKE an order. `fulfill` is a covenant
 // spend, so it is submitted to the emulator rather than to arkd — posting and
-// pulling need none of this, which is why an unset value disables taking rather
-// than the whole book.
+// cancelling need none of this, which is why an unset value disables taking
+// rather than the whole book.
 //
-// Deliberately empty per network: no deployment has published a
-// browser-reachable emulator yet (see the pubkey note above — clients have
-// historically had no path to it at all). Set VITE_EMULATOR_URL to point the
-// wallet at one; regtest stacks serve it on http://localhost:7073.
+// This is the one place the "clients have no network path to the emulator" note
+// above no longer holds: mutinynet publishes one, and it answers `/v1/info`
+// with `access-control-allow-origin: *`, so a browser wallet can reach it.
+// Verified 2026-08-14 — its `signerPubkey` is byte-identical to the mutinynet
+// pin above, which is what makes a covenant built against that pin fillable
+// here. If the two ever diverge, offers stop being takeable rather than
+// mis-spending: the reader drops any offer naming a co-signer it does not know.
+//
+// Regtest stacks serve their own on http://localhost:7073, but each generates a
+// fresh key, so that one comes from VITE_EMULATOR_URL alongside
+// VITE_EMULATOR_PUBKEY rather than being pinned.
 const EMULATOR_URL: Record<NetworkName, string | null> = {
   bitcoin: null,
-  mutinynet: null,
+  mutinynet: 'https://emulator.mutinynet.arkade.sh',
   signet: null,
   regtest: null,
   testnet: null,
