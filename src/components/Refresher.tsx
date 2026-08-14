@@ -39,6 +39,7 @@ export default function Refresher() {
 
   const handleTouchCancel: EventListener = () => {
     triggeredRef.current = false
+    setShowRefresh(false)
   }
 
   const handleRefresh = async () => {
