@@ -28,14 +28,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const updateNotchSize = () => setNotchSize(getNotchSize())
-
-    window.addEventListener('orientationchange', updateNotchSize)
-    window.addEventListener('resize', updateNotchSize)
     window.screen.orientation?.addEventListener('change', updateNotchSize)
-
     return () => {
-      window.removeEventListener('orientationchange', updateNotchSize)
-      window.removeEventListener('resize', updateNotchSize)
       window.screen.orientation?.removeEventListener('change', updateNotchSize)
     }
   }, [])
