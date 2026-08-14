@@ -13,17 +13,17 @@ import { prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { collaborativeExitWithFees, sendAssets, sendOffChain } from '../../../lib/asp'
+import { type LnSendRequest } from '../../../lib/lnSwap'
 import { extractError } from '../../../lib/error'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
 import { LimitsContext } from '../../../providers/limits'
-import { SwapsContext } from '../../../providers/swaps'
-import { isPendingChainSwap, isPendingSubmarineSwap } from '@arkade-os/boltz-swap'
 import { FeesContext } from '../../../providers/fees'
 import { buildTransactionAmountDisplay } from '../../../lib/transactionAmountDisplay'
 import { useAmountDisplayContext } from '../../../hooks/useTransactionAmountDisplay'
 import TransactionAmountSummary from '../../../components/TransactionAmountSummary'
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
+import type { LnSendActivity } from '../../../lib/types'
 
 export default function SendDetails() {
   const displayContext = useAmountDisplayContext()
@@ -31,8 +31,7 @@ export default function SendDetails() {
   const { sendInfo, setSendInfo } = useContext(FlowContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
-  const { lnSwapsAllowed, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
-  const { payInvoice, payBtc } = useContext(SwapsContext)
+  const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { assetMetadataCache, balance, svcWallet } = useContext(WalletContext)
 
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
@@ -46,20 +45,18 @@ export default function SendDetails() {
   const [sending, setSending] = useState(false)
   const [sendDone, setSendDone] = useState(false)
 
-  const { address, arkAddress, invoice, pendingSwap, satoshis } = sendInfo
-  const amountDisplay = pendingSwap
-    ? undefined
-    : buildTransactionAmountDisplay({
-        ...displayContext,
-        assets: sendInfo.account
-          ? [{ assetId: sendInfo.account.assetId, amount: sendInfo.account.amount }]
-          : sendInfo.assets,
-        metadataForAsset: (id) => {
-          const metadata = assetMetadataCache.get(id)?.metadata
-          return id === assetId ? { ...metadata, decimals: assetDecimals } : metadata
-        },
-        satoshis: details?.satoshis ?? satoshis ?? 0,
-      })
+  const { address, arkAddress, invoice, pendingLnSend, satoshis } = sendInfo
+  const amountDisplay = buildTransactionAmountDisplay({
+    ...displayContext,
+    assets: sendInfo.account
+      ? [{ assetId: sendInfo.account.assetId, amount: sendInfo.account.amount }]
+      : sendInfo.assets,
+    metadataForAsset: (id) => {
+      const metadata = assetMetadataCache.get(id)?.metadata
+      return id === assetId ? { ...metadata, decimals: assetDecimals } : metadata
+    },
+    satoshis: details?.satoshis ?? satoshis ?? 0,
+  })
 
   useEffect(() => {
     if (!address && !arkAddress && !invoice) return setError('Missing address')
@@ -82,7 +79,7 @@ export default function SendDetails() {
     const destination =
       arkAddress && vtxoTxsAllowed()
         ? arkAddress
-        : invoice && pendingSwap && lnSwapsAllowed()
+        : invoice && pendingLnSend && vtxoTxsAllowed()
           ? invoice
           : address && utxoTxsAllowed()
             ? address
@@ -91,28 +88,20 @@ export default function SendDetails() {
       destination === arkAddress
         ? 'Paying inside Arkade'
         : destination === invoice
-          ? 'Swapping to Lightning'
-          : pendingSwap?.type === 'chain'
-            ? 'Swapping to mainnet'
-            : destination === address
-              ? 'Paying to mainnet'
-              : ''
-    const total = pendingSwap
-      ? pendingSwap.type === 'chain'
-        ? pendingSwap.response.lockupDetails.amount
-        : pendingSwap.type === 'submarine'
-          ? pendingSwap.response.expectedAmount
-          : satoshis
-      : satoshis
+          ? 'Paying to Lightning'
+          : destination === address
+            ? 'Paying to mainnet'
+            : ''
+    // The RFQ lockup carries exactly the invoice amount (exact-out, fee_bps
+    // from the card; 0 today), so total == satoshis on the Lightning path.
+    const total = pendingLnSend ? pendingLnSend.fundAmount : satoshis
     const amount = direction === 'Paying to mainnet' ? satoshis - calcOnchainOutputFee() : satoshis
     const fees = total - amount > 0 ? total - amount : 0
-    const swapId = pendingSwap?.id
     setDetails({
       destination,
       direction,
       fees,
       satoshis: amount,
-      swapId,
       total,
     })
     if (balance < total) {
@@ -123,10 +112,11 @@ export default function SendDetails() {
     }
   }, [sendInfo])
 
-  const handleTxid = (txid: string) => {
+  const handleTxid = (txid: string, lnSend?: LnSendActivity) => {
     if (!txid) return handleError('Error sending transaction')
     saveTransactionActivityMetadata(txid, {
       destination: details?.destination,
+      lnSend,
       networkFee: details?.fees,
     })
     setSendInfo({ ...sendInfo, total: details?.total, txid })
@@ -142,6 +132,30 @@ export default function SendDetails() {
     consoleError(err, 'error sending payment')
     setError(extractError(err))
     setSendDone(true)
+  }
+
+  /**
+   * Fund the covenant. That is the whole of the wallet's job.
+   *
+   * Funding IS acceptance — the protocol has no accept message — so once the
+   * covenant is funded the payment is committed and under way: the solver pays
+   * the invoice and claims, and if it cannot, the covenant refunds without
+   * needing anything further from us. Waiting here for the solver to finish
+   * meant the user watched a spinner through the solver's whole pipeline
+   * (notice the funding, route the payment, claim) for an outcome they cannot
+   * influence and that resolves in their favour either way.
+   *
+   * The success screen says "on the way" rather than "sent" for exactly this
+   * reason: at this instant the invoice is not paid yet, and the wording has to
+   * match what is actually true.
+   */
+  const payLightning = async (request: LnSendRequest) => {
+    const txid = await sendOffChain(svcWallet!, request.fundAmount, request.address)
+    if (!txid) return handleError('Error sending transaction')
+    // Record the covenant against the funding txid: it is the only handle on
+    // the spend that ends this swap, and it stops being derivable the moment
+    // this screen unmounts — the quote is gone and nothing else stores it.
+    handleTxid(txid, { swapPkScript: request.swapPkScript })
   }
 
   const handleContinue = async () => {
@@ -165,26 +179,22 @@ export default function SendDetails() {
       sendOffChain(svcWallet, details.total, arkAddress)
         .then((txId: string) => handleTxid(txId))
         .catch(handleError)
-    } else if (invoice && pendingSwap && isPendingSubmarineSwap(pendingSwap)) {
-      const swapAddress = pendingSwap.response.address
-      if (!swapAddress) return handleError('Swap address not available')
-      // Resolves optimistically once the swap is funded; settlement is
-      // monitored in the background and surfaced on the success screen.
-      payInvoice(pendingSwap)
-        .then(({ txid }) => handleTxid(txid))
-        .catch(handleError)
-    } else if (address) {
-      if (pendingSwap && isPendingChainSwap(pendingSwap)) {
-        payBtc(pendingSwap)
-          .then(({ txid }) => handleTxid(txid))
-          .catch(handleError)
-      } else {
-        if (!details.total) return handleError('Missing total amount')
-        if (!details.satoshis) return handleError('Missing satoshis amount')
-        collaborativeExitWithFees(svcWallet, details.total, details.satoshis, address)
-          .then((txId: string) => handleTxid(txId))
-          .catch(handleError)
+    } else if (invoice && pendingLnSend) {
+      // RFQ Lightning send. The address below is the wallet's OWN derivation
+      // of the lockup covenant (the client refuses a mismatched quote), so
+      // funding it IS the acceptance — no further message exists. The solver
+      // observes the funding, pays the invoice, and claims with the preimage;
+      // a failed swap refunds by covenant.
+      if (Math.floor(Date.now() / 1000) >= pendingLnSend.validUntil) {
+        return handleError('Quote expired — go back and try again')
       }
+      payLightning(pendingLnSend).catch(handleError)
+    } else if (address) {
+      if (!details.total) return handleError('Missing total amount')
+      if (!details.satoshis) return handleError('Missing satoshis amount')
+      collaborativeExitWithFees(svcWallet, details.total, details.satoshis, address)
+        .then((txId: string) => handleTxid(txId))
+        .catch(handleError)
     }
   }
 

@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { swapAmountBeforeFee, swapFeeAmount, swapRouteLabel, swapUnitOfAccountAmount } from '../../lib/swapDisplay'
+import {
+  mergeAssetSwapActivity,
+  swapAmountBeforeFee,
+  swapFeeAmount,
+  swapRouteLabel,
+  swapUnitOfAccountAmount,
+} from '../../lib/swapDisplay'
+import type { WalletAssetSwap } from '../../lib/swapRepository'
+import { MUTINYNET_USDT_ASSET_ID } from '../../lib/accountAssets'
 import { Currencies, Tx, Unit } from '../../lib/types'
 
 const PRICE = 63_750 // USD per whole BTC
@@ -108,5 +116,98 @@ describe('swapUnitOfAccountAmount', () => {
     tx.assetSwap!.fiatAmount = 1.02
     const result = swapUnitOfAccountAmount({ currency: Currencies.USD, fromFiatAmount, toFiatAmount, tx })
     expect(result?.value).toBe('$1.02')
+  })
+})
+
+const swap = (id: string): WalletAssetSwap => ({
+  id,
+  fromAsset: 'btc',
+  toAsset: 'f1'.repeat(34),
+  fromAmount: '10000',
+  toAmount: '992',
+  swapAddress: 'tark1q...',
+  swapPkScript: '5120' + 'ab'.repeat(32),
+  offerHex: '0100',
+  fundingTxid: id,
+  status: 'pending',
+  createdAt: 1,
+})
+
+describe('mergeAssetSwapActivity', () => {
+  it('collapses linked funding and fill rows into one swap activity with the actual fill and quote metadata', () => {
+    const fulfilled = {
+      ...swap('funding-txid'),
+      status: 'fulfilled' as const,
+      createdAt: 2_000,
+      spentTxid: 'fill-txid',
+      completedAt: 2_000,
+      quote: {
+        fromTicker: 'USD',
+        fromDecimals: 2,
+        toTicker: 'BRL',
+        toDecimals: 2,
+        feeBps: 30,
+        fiatCurrency: 'USD',
+        fromFiatAmount: 100,
+      },
+    }
+    const tx = (redeemTxid: string, assets?: Tx['assets']): Tx => ({
+      amount: 330,
+      assets,
+      boardingTxid: '',
+      createdAt: 1,
+      explorable: redeemTxid,
+      preconfirmed: false,
+      redeemTxid,
+      roundTxid: '',
+      settled: true,
+      type: 'received',
+    })
+    const fillAmount = BigInt(54_321)
+    const unrelated = tx('unrelated-txid')
+
+    const activity = mergeAssetSwapActivity(
+      [tx('funding-txid'), tx('fill-txid', [{ assetId: fulfilled.toAsset, amount: fillAmount }]), unrelated],
+      [fulfilled],
+    )
+
+    expect(activity).toHaveLength(2)
+    expect(activity[0]).toMatchObject({
+      type: 'swap',
+      redeemTxid: 'fill-txid',
+      assetSwap: {
+        fromTicker: 'USD',
+        toTicker: 'BRL',
+        toAmount: fillAmount,
+        feeBps: 30,
+        fiatAmount: 100,
+        status: 'completed',
+        fundingTxid: 'funding-txid',
+        fillTxid: 'fill-txid',
+      },
+    })
+    expect(activity[1]).toBe(unrelated)
+  })
+
+  it('labels older Mutinynet swap records from their designated asset IDs', () => {
+    const legacySwap = { ...swap('funding-txid'), toAsset: MUTINYNET_USDT_ASSET_ID }
+    const [activity] = mergeAssetSwapActivity([], [legacySwap], 'mutinynet')
+
+    expect(activity.assetSwap).toMatchObject({ fromTicker: 'sats', toTicker: 'USD' })
+  })
+
+  it('prefers the currency designation over the asset metadata ticker', () => {
+    const restoredSwap = { ...swap('funding-txid'), toAsset: MUTINYNET_USDT_ASSET_ID }
+    const [activity] = mergeAssetSwapActivity([], [restoredSwap], 'mutinynet', () => ({ ticker: 'USDT', decimals: 2 }))
+
+    expect(activity.assetSwap).toMatchObject({ fromTicker: 'sats', toTicker: 'USD', toDecimals: 2 })
+  })
+
+  it('reads an unrecognised package status as still in flight', () => {
+    // the package's AssetSwapStatus covers corridors an offer swap never uses
+    const claimable = { ...swap('funding-txid'), status: 'claimable' as const }
+    const [activity] = mergeAssetSwapActivity([], [claimable])
+
+    expect(activity.assetSwap).toMatchObject({ status: 'pending' })
   })
 })

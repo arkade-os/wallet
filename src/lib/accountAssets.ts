@@ -17,6 +17,8 @@ const DESIGNATED_ACCOUNT_ASSETS: Record<string, Partial<Record<string, Currencie
 
 export interface FiatAccountSourceAsset {
   assetId: string
+  /** Spendable amount, not the owned total — this asset fulfills the send, so
+   * escrowed and locked units must not reach it. */
   balance: bigint
   decimals: number
 }
@@ -24,6 +26,7 @@ export interface FiatAccountSourceAsset {
 export interface FiatAccountSend {
   assetId: string
   ticker: WalletAccountTicker
+  /** Spendable amount in account minor units; caps what the composer accepts. */
   balance: bigint
   decimals: number
   amount: bigint

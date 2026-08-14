@@ -1,4 +1,3 @@
-import { ArkadeSwapsMessageHandler, IndexedDbSwapRepository } from '@arkade-os/boltz-swap'
 import {
   IndexedDBWalletRepository,
   IndexedDBContractRepository,
@@ -17,7 +16,6 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
 
 const walletRepository = new IndexedDBWalletRepository()
 const contractRepository = new IndexedDBContractRepository()
-const swapRepository = new IndexedDbSwapRepository()
 
 // Allow the page to force activation of a newly installed worker.
 self.addEventListener('message', (event: ExtendableMessageEvent) => {
@@ -27,7 +25,7 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
 })
 
 const worker = new MessageBus(walletRepository, contractRepository, {
-  messageHandlers: [new WalletMessageHandler(), new ArkadeSwapsMessageHandler(swapRepository)],
+  messageHandlers: [new WalletMessageHandler()],
   tickIntervalMs: 5000,
   messageTimeoutMs: 60_000,
 })

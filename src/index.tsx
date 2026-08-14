@@ -14,9 +14,7 @@ import { OptionsProvider } from './providers/options'
 import { LimitsProvider } from './providers/limits'
 import { NudgeProvider } from './providers/nudge'
 import * as Sentry from '@sentry/react'
-import { SwapsProvider } from './providers/swaps'
 import { AssetSwapsProvider } from './providers/assetSwaps'
-import { LnurlProvider } from './providers/lnurl'
 import { beforeSend, scrubBreadcrumb, shouldInitializeSentry } from './lib/sentry'
 import { FeesProvider } from './providers/fees'
 import { AnnouncementProvider } from './providers/announcements'
@@ -63,27 +61,23 @@ root.render(
                 <FiatProvider>
                   <FlowProvider>
                     <WalletProvider>
-                      <SwapsProvider>
-                        <AssetSwapsProvider>
-                          <LnurlProvider>
-                            <LimitsProvider>
-                              <FeesProvider>
-                                <OptionsProvider>
-                                  <NudgeProvider>
-                                    <AnnouncementProvider>
-                                      <ToastProvider>
-                                        <ErrorBoundary>
-                                          <App />
-                                        </ErrorBoundary>
-                                      </ToastProvider>
-                                    </AnnouncementProvider>
-                                  </NudgeProvider>
-                                </OptionsProvider>
-                              </FeesProvider>
-                            </LimitsProvider>
-                          </LnurlProvider>
-                        </AssetSwapsProvider>
-                      </SwapsProvider>
+                      <AssetSwapsProvider>
+                        <LimitsProvider>
+                          <FeesProvider>
+                            <OptionsProvider>
+                              <NudgeProvider>
+                                <AnnouncementProvider>
+                                  <ToastProvider>
+                                    <ErrorBoundary>
+                                      <App />
+                                    </ErrorBoundary>
+                                  </ToastProvider>
+                                </AnnouncementProvider>
+                              </NudgeProvider>
+                            </OptionsProvider>
+                          </FeesProvider>
+                        </LimitsProvider>
+                      </AssetSwapsProvider>
                     </WalletProvider>
                   </FlowProvider>
                 </FiatProvider>

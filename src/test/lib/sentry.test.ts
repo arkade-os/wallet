@@ -207,6 +207,25 @@ describe('Sentry utilities', () => {
 
       expect(scrubEvent(event).contexts?.app).toEqual({ app_version: '1.2.3' })
     })
+
+    it.each([
+      ['mainnet', fixtures.lib.bolt11.invoice],
+      ['regtest', fixtures.lib.bip21.invoice],
+    ])('removes a %s lightning invoice', (_network, invoice) => {
+      const event = {
+        contexts: { swap: { request: `paying ${invoice}` } },
+      } as unknown as ErrorEvent
+
+      expect(scrubEvent(event).contexts?.swap).toEqual({ request: 'paying [redacted]' })
+    })
+
+    it('removes an invoice from an exception message', () => {
+      const event = {
+        exception: { values: [{ value: `swap failed for ${fixtures.lib.bolt11.invoice}` }] },
+      } as unknown as ErrorEvent
+
+      expect(scrubEvent(event).exception?.values?.[0].value).toBe('swap failed for [redacted]')
+    })
   })
 
   describe('walletFingerprint', () => {

@@ -50,7 +50,9 @@ function wrapper({
             {
               ...mockWalletContextValue,
               balance: 500,
+              availableBalance: 500,
               assetBalances,
+              availableAssetBalances: assetBalances,
               assetMetadataCache,
               isVerifiedAsset: () => verified,
             } as any
@@ -81,7 +83,9 @@ const makeChfWrapper = (isVerifiedAsset: (assetId: string) => boolean) => {
             {
               ...mockWalletContextValue,
               balance: 1000,
+              availableBalance: 1000,
               assetBalances: [{ assetId: 'chf-asset', amount: BigInt(2000) }],
+              availableAssetBalances: [{ assetId: 'chf-asset', amount: BigInt(2000) }],
               assetMetadataCache: new Map([['chf-asset', assetDetails('chf-asset', 'CHF')]]),
               isVerifiedAsset,
             } as any
@@ -94,7 +98,85 @@ const makeChfWrapper = (isVerifiedAsset: (assetId: string) => boolean) => {
   )
 }
 
+/** Owned exceeds spendable — the shape a swap covenant produces, where the
+ * escrowed VTXO is still the wallet's but generic spending refuses it. */
+function escrowWrapper({ children }: { children: ReactNode }) {
+  return (
+    <AspContext.Provider
+      value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet' } } as any}
+    >
+      <FiatContext.Provider
+        value={{
+          ...mockFiatContextValue,
+          fromFiatAmount: (amount: number, currency: Currencies) => (currency === Currencies.USD ? amount * 1_000 : 0),
+          toFiat: (sats?: number) => sats ?? 0,
+        }}
+      >
+        <WalletContext.Provider
+          value={
+            {
+              ...mockWalletContextValue,
+              balance: 500,
+              availableBalance: 200,
+              assetBalances: [{ assetId: MUTINYNET_USDT_ASSET_ID, amount: BigInt(1_234) }],
+              availableAssetBalances: [{ assetId: MUTINYNET_USDT_ASSET_ID, amount: BigInt(1_000) }],
+              assetMetadataCache: new Map([[MUTINYNET_USDT_ASSET_ID, assetDetails(MUTINYNET_USDT_ASSET_ID, 'USDT')]]),
+              isVerifiedAsset: () => true,
+            } as any
+          }
+        >
+          {children}
+        </WalletContext.Provider>
+      </FiatContext.Provider>
+    </AspContext.Provider>
+  )
+}
+
 describe('usePortfolioFiat', () => {
+  it('reports owned holdings but caps the spendable figure at what generic spending accepts', () => {
+    const { result } = renderHook(() => usePortfolioFiat(), { wrapper: escrowWrapper })
+
+    const btcRow = result.current.rows.find((row) => row.assetId === 'btc')
+    expect(btcRow?.balance).toBe(500)
+    expect(btcRow?.spendableBalance).toBe(200)
+
+    // the account's backing asset fulfills sends, so it carries the spendable
+    // amount; the row keeps reporting the full holding
+    expect(result.current.rows.find((row) => row.assetId === MUTINYNET_USDT_ASSET_ID)).toMatchObject({
+      balance: BigInt(1_234),
+      spendableBalance: BigInt(1_000),
+      sourceAsset: { assetId: MUTINYNET_USDT_ASSET_ID, balance: BigInt(1_000), decimals: 2 },
+    })
+
+    // escrow is still the wallet's money, so the portfolio total keeps it
+    expect(result.current.totalSats).toBe(500 + 12_340)
+  })
+
+  it('treats an asset absent from availableAssets as entirely unspendable', () => {
+    const lockedWrapper = ({ children }: { children: ReactNode }) => (
+      <WalletContext.Provider
+        value={
+          {
+            ...mockWalletContextValue,
+            balance: 500,
+            availableBalance: 500,
+            assetBalances: [{ assetId: 'locked-asset', amount: BigInt(9_000) }],
+            availableAssetBalances: [],
+            assetMetadataCache: new Map([['locked-asset', assetDetails('locked-asset', 'LOCK')]]),
+            isVerifiedAsset: () => true,
+          } as any
+        }
+      >
+        {children}
+      </WalletContext.Provider>
+    )
+    const { result } = renderHook(() => usePortfolioFiat(), { wrapper: lockedWrapper })
+    const row = result.current.rows.find((candidate) => candidate.assetId === 'locked-asset')
+
+    expect(row?.balance).toBe(BigInt(9_000))
+    expect(row?.spendableBalance).toBe(BigInt(0))
+  })
+
   it('creates separate verified Mutinynet USD and BRL accounts and includes both in the total', () => {
     const { result } = renderHook(() => usePortfolioFiat(), { wrapper })
 

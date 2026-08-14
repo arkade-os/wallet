@@ -18,8 +18,7 @@ import { useContext, useEffect, useState } from 'react'
 import { OptionsContext } from '../../providers/options'
 import Text, { TextSecondary } from '../../components/Text'
 import { decodeArkAddress } from '../../lib/address'
-import { isValidArkAddress } from '@arkade-os/sdk'
-import { Network } from '@arkade-os/boltz-swap'
+import { isValidArkAddress, type NetworkName } from '@arkade-os/sdk'
 import { copyToClipboard } from '../../lib/clipboard'
 import { useToast } from '../../components/Toast'
 import { consoleError } from '../../lib/logs'
@@ -52,7 +51,7 @@ const testConnection = (aspInfo: DelegateConnectionInfo): Promise<Delegate | und
       pk.length === 66 ? pk.slice(2) : pk,
     )
     if (possibleXOnlyPubkeys.some((pk) => pk.length !== 64)) return reject(new Error('Invalid expected server pubkey'))
-    const delegate = getDelegateForNetwork(aspInfo.network as Network)
+    const delegate = getDelegateForNetwork(aspInfo.network as NetworkName)
     if (!delegate) return resolve(undefined)
     // fetch delegate info from the delegate server
     fetch(formatUrl(delegate.url, '/v1/delegator/info'))
@@ -150,7 +149,7 @@ function DelegateCard() {
       return
     }
 
-    const networkDelegate = getDelegateForNetwork(network as Network)
+    const networkDelegate = getDelegateForNetwork(network as NetworkName)
     setDelegate(networkDelegate)
     setActive(false)
 
@@ -231,7 +230,7 @@ export default function Delegates() {
   const { config } = useContext(ConfigContext)
   const { backupAndUpdateConfig } = useContext(BackupContext)
 
-  const noDelegateFound = getDelegateUrlForNetwork(aspInfo.network as Network) === undefined
+  const noDelegateFound = getDelegateUrlForNetwork(aspInfo.network as NetworkName) === undefined
 
   // toggle delegate
   const handleToggle = () => {

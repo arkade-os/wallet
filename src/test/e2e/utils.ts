@@ -81,20 +81,6 @@ export async function navigateHome(page: Page): Promise<void> {
   await homeReceive.waitFor({ state: 'visible', timeout: 30000 })
 }
 
-export async function navigateToBoltz(page: Page): Promise<void> {
-  await navigateHome(page)
-  await page.evaluate(() => {
-    const nav = (
-      window as typeof window & {
-        __ARKADE_E2E_NAVIGATE__?: (page: 'AppBoltz') => void
-      }
-    ).__ARKADE_E2E_NAVIGATE__
-    if (!nav) throw new Error('E2E navigation hook is unavailable')
-    nav('AppBoltz')
-  })
-  await page.waitForSelector('text=Boltz', { state: 'visible', timeout: 60000 })
-}
-
 export async function enableAssets(page: Page): Promise<void> {
   await navigateToAssets(page)
   await page.getByTestId('header-aux-btn').click()

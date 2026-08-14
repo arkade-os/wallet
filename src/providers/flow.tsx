@@ -1,5 +1,6 @@
-import { BoltzSwap } from '@arkade-os/boltz-swap'
-import { ReactNode, createContext, useState } from 'react'
+import type { LnSendRequest } from '../lib/lnSwap'
+import type { LnReceiveRequest } from '../lib/lnReceive'
+import { ReactNode, SetStateAction, createContext, useState } from 'react'
 import type { Asset, AssetDetails, ServiceWorkerWalletMode } from '@arkade-os/sdk'
 import { Tx } from '../lib/types'
 import type { FiatAccountSend } from '../lib/accountAssets'
@@ -26,7 +27,9 @@ export interface RecvInfo {
   boardingAddr: string
   offchainAddr: string
   onchainAddr?: string
+  /** The solver's hold invoice, once an RFQ receive has been negotiated. */
   invoice?: string
+  pendingLnReceive?: LnReceiveRequest
   satoshis: number
   txid?: string
   addressError?: string
@@ -43,21 +46,16 @@ export type SendInfo = {
   arkAddress?: string
   invoice?: string
   lnUrl?: string
-  pendingSwap?: BoltzSwap
+  pendingLnSend?: LnSendRequest
   recipient?: string
   satoshis?: number
   scan?: boolean
-  swapId?: string
   total?: number
   text?: string
   txid?: string
 }
 
-export type SwapInfo = BoltzSwap | undefined
-
 export type TxInfo = Tx | undefined
-
-export type LnUrlInfo = Uint8Array | undefined
 
 interface FlowContextProps {
   initInfo: InitInfo
@@ -65,21 +63,17 @@ interface FlowContextProps {
   deepLinkInfo: DeepLinkInfo | undefined
   recvInfo: RecvInfo
   sendInfo: SendInfo
-  swapInfo: SwapInfo
   swapFromAssetId: string | undefined
   txInfo: TxInfo
   setInitInfo: (arg0: InitInfo) => void
   setNoteInfo: (arg0: NoteInfo) => void
   setDeepLinkInfo: (arg0: DeepLinkInfo) => void
-  setRecvInfo: (arg0: RecvInfo) => void
-  setSendInfo: (arg0: SendInfo) => void
-  setSwapInfo: (arg0: SwapInfo) => void
+  setRecvInfo: (arg0: SetStateAction<RecvInfo>) => void
+  setSendInfo: (arg0: SetStateAction<SendInfo>) => void
   setSwapFromAssetId: (arg0: string | undefined) => void
   setTxInfo: (arg0: TxInfo) => void
   assetInfo: AssetDetails
   setAssetInfo: (arg0: AssetDetails) => void
-  lnurlInfo: LnUrlInfo
-  setLnurlInfo: (arg0: LnUrlInfo) => void
 }
 
 export const emptyInitInfo: InitInfo = {
@@ -116,7 +110,6 @@ export const FlowContext = createContext<FlowContextProps>({
   deepLinkInfo: undefined,
   recvInfo: emptyRecvInfo,
   sendInfo: emptySendInfo,
-  swapInfo: undefined,
   swapFromAssetId: undefined,
   txInfo: undefined,
   setInitInfo: () => {},
@@ -124,13 +117,10 @@ export const FlowContext = createContext<FlowContextProps>({
   setDeepLinkInfo: () => {},
   setRecvInfo: () => {},
   setSendInfo: () => {},
-  setSwapInfo: () => {},
   setSwapFromAssetId: () => {},
   setTxInfo: () => {},
   assetInfo: emptyAssetInfo,
   setAssetInfo: () => {},
-  lnurlInfo: undefined,
-  setLnurlInfo: () => {},
 })
 
 export const FlowProvider = ({ children }: { children: ReactNode }) => {
@@ -139,11 +129,9 @@ export const FlowProvider = ({ children }: { children: ReactNode }) => {
   const [deepLinkInfo, setDeepLinkInfo] = useState<DeepLinkInfo | undefined>()
   const [recvInfo, setRecvInfo] = useState(emptyRecvInfo)
   const [sendInfo, setSendInfo] = useState(emptySendInfo)
-  const [swapInfo, setSwapInfo] = useState<SwapInfo>()
   const [swapFromAssetId, setSwapFromAssetId] = useState<string | undefined>()
   const [txInfo, setTxInfo] = useState<TxInfo>()
   const [assetInfo, setAssetInfo] = useState<AssetDetails>(emptyAssetInfo)
-  const [lnurlInfo, setLnurlInfo] = useState<LnUrlInfo>()
 
   return (
     <FlowContext.Provider
@@ -151,10 +139,8 @@ export const FlowProvider = ({ children }: { children: ReactNode }) => {
         initInfo,
         noteInfo,
         deepLinkInfo,
-        lnurlInfo,
         recvInfo,
         sendInfo,
-        swapInfo,
         swapFromAssetId,
         txInfo,
         setInitInfo,
@@ -162,12 +148,10 @@ export const FlowProvider = ({ children }: { children: ReactNode }) => {
         setDeepLinkInfo,
         setRecvInfo,
         setSendInfo,
-        setSwapInfo,
         setSwapFromAssetId,
         setTxInfo,
         assetInfo,
         setAssetInfo,
-        setLnurlInfo,
       }}
     >
       {children}

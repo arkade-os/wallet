@@ -8,7 +8,7 @@ import { getCurrency } from '@/lib/language'
 
 const defaultConfig: Config = {
   announcementsSeen: [],
-  apps: { assets: { enabled: false }, boltz: { connected: true } },
+  apps: { assets: { enabled: false } },
   aspUrl: defaultArkServer(),
   dismissedBanners: [],
   delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
@@ -61,7 +61,6 @@ const updateDefaultConfig = (config: Partial<Config>): Config => {
     importedAssets: [...importedAssets],
     apps: {
       assets: { enabled: config.apps?.assets?.enabled ?? defaultConfig.apps.assets.enabled },
-      boltz: { connected: config.apps?.boltz?.connected ?? defaultConfig.apps.boltz.connected },
     },
     currency:
       config.currency ??

@@ -14,13 +14,18 @@ export default defineConfig({
     viewport: { width: 1280, height: 800 },
     trace: 'on-first-retry',
     permissions: ['clipboard-read', 'clipboard-write'],
+    // The e2e relay is reached as wss://localhost:10548 through a TLS proxy
+    // with a self-signed cert, because a solver card's relays must be wss://
+    // (see relay-tls.nginx.conf). Nothing here talks to anything but the local
+    // regtest stack, so trusting its cert costs nothing.
+    ignoreHTTPSErrors: true,
     actionTimeout: 30000,
     navigationTimeout: 30000,
     contextOptions: { reducedMotion: 'reduce' },
   },
   webServer: {
     command:
-      'VITE_NOSTR_RELAY_URL=ws://localhost:10547 VITE_DELEGATE_ENABLED=false VITE_LNURL_SERVER_URL=http://localhost:9090 pnpm start',
+      'VITE_NOSTR_RELAY_URL=ws://localhost:10547 VITE_DELEGATE_ENABLED=false pnpm start',
     port: 3002,
   },
   projects: [

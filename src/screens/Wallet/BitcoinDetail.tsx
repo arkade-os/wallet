@@ -59,6 +59,7 @@ const unavailableRow: PortfolioRow = {
   ticker: 'TKN',
   decimals: 0,
   balance: BigInt(0),
+  spendableBalance: BigInt(0),
   fiatAmount: 0,
   satsEquivalent: 0,
   hasFiatPrice: false,
@@ -116,6 +117,10 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
           minimumFractionDigits: marketDecimals,
         })
   const rawBalance = typeof row.balance === 'bigint' ? row.balance : BigInt(Math.max(0, Math.floor(row.balance)))
+  const rawSpendableBalance =
+    typeof row.spendableBalance === 'bigint'
+      ? row.spendableBalance
+      : BigInt(Math.max(0, Math.floor(row.spendableBalance)))
   const formattedBalance = isBitcoin
     ? prettyBitcoinAmount(safeBitcoinBalance, bitcoinUnit)
     : `${prettyCurrencyAssetAmount(rawBalance, row.decimals, row.ticker)} ${row.ticker}`
@@ -140,7 +145,9 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
       ? {
           assetId: row.assetId,
           ticker: accountTicker,
-          balance: rawBalance,
+          // the composer caps at this, so it is the spendable amount; the header
+          // above keeps showing the owned total
+          balance: rawSpendableBalance,
           decimals: row.decimals,
           amount: BigInt(0),
           source: row.sourceAsset,

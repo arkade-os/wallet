@@ -14,6 +14,7 @@ import Modal from '@/components/Modal'
 import { AssetSwapsContext } from '@/providers/assetSwaps'
 import { consoleError } from '@/lib/logs'
 import { BackupContext } from '@/providers/backup'
+import { BUNDLED_CARDS } from '@/lib/swapMarkets'
 
 const addSolverCard = (input: LocalCardInput) => {
   const existingCards = readSolverCardsFromStorage()
@@ -118,6 +119,32 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose: () => void;
   )
 }
 
+/**
+ * A card compiled into the build. Read-only on purpose: it cannot be removed
+ * from storage it never lived in, and an edit would silently shadow it with a
+ * stored copy — a user who wants different terms adds their own card.
+ */
+function BundledCardLine({ input }: { input: LocalCardInput }) {
+  const card = input.card as Card
+  const pairs = card.markets?.map((m) => m.pair).join(', ') ?? ''
+
+  return (
+    <Shadow>
+      <FlexCol padding='8px' gap='8px'>
+        <FlexRow between>
+          <FlexCol gap='4px'>
+            <Text>{input.label ?? card.name}</Text>
+            <TextSecondary>{pairs}</TextSecondary>
+          </FlexCol>
+          <FlexRow end>
+            <TextSecondary>Built-in</TextSecondary>
+          </FlexRow>
+        </FlexRow>
+      </FlexCol>
+    </Shadow>
+  )
+}
+
 function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => void }) {
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [showEditor, setShowEditor] = useState(false)
@@ -213,10 +240,17 @@ export default function Solvers() {
     setReload(true)
   }
 
+  const bundledCards = BUNDLED_CARDS.filter((c) => (c.network ?? 'bitcoin') === aspInfo.network)
+
+  const storedCount = localCards?.length ?? 0
   const title =
-    localCards && localCards.length > 0
-      ? `You have ${localCards.length} solver card${localCards.length > 1 ? 's' : ''} stored in your wallet.`
-      : 'You have no solver cards stored in your wallet.'
+    bundledCards.length > 0
+      ? storedCount > 0
+        ? `${bundledCards.length} built-in solver card${bundledCards.length > 1 ? 's' : ''}, plus ${storedCount} of your own.`
+        : `This build ships ${bundledCards.length} solver card${bundledCards.length > 1 ? 's' : ''}; add your own to reach more solvers.`
+      : storedCount > 0
+        ? `You have ${storedCount} solver card${storedCount > 1 ? 's' : ''} stored in your wallet.`
+        : 'You have no solver cards stored in your wallet.'
 
   return (
     <>
@@ -229,6 +263,13 @@ export default function Solvers() {
               <Button onClick={() => setShowEditor(true)} text='+ Add new' />
             </FlexRow>
             {showEditor ? <Editor toClose={() => setShowEditor(false)} onChange={handleChange} /> : null}
+            {bundledCards.length > 0 ? (
+              <FlexCol>
+                {bundledCards.map((input) => (
+                  <BundledCardLine key={input.label ?? (input.card as Card).name} input={input} />
+                ))}
+              </FlexCol>
+            ) : null}
             {localCards && localCards.length > 0 ? (
               <FlexCol>
                 {localCards.map((input) => (

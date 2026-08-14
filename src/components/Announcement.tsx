@@ -5,7 +5,6 @@ import FlexRow from './FlexRow'
 import OkIcon from '../icons/Ok'
 import { useContext, useState } from 'react'
 import NostrIcon from '../icons/Nostr'
-import BoltzIcon from '../icons/Boltz'
 import Text, { TextSecondary } from './Text'
 import { ConfigContext } from '../providers/config'
 import { OptionsContext } from '../providers/options'
@@ -145,24 +144,6 @@ export default function Announcement({
   )
 }
 
-export function BoltzAnnouncement({ close }: { close: () => void }) {
-  return (
-    <Announcement
-      close={close}
-      title='Boltz'
-      color='#ffe96d'
-      page={Pages.AppBoltz}
-      icon={<BoltzIcon big />}
-      message='Lightning that works.'
-      bulletPoints={[
-        ['Bridge', 'Swap between different Bitcoin layers while staying in full control.'],
-        ['Fast', 'Boltz utilizes Layer 2 scaling technologies like the Lightning Network.'],
-        ['Safe', 'Swaps on Boltz are atomic, cryptography ensures that users are always in control of their money.'],
-      ]}
-    />
-  )
-}
-
 export function LendaSatAnnouncement({ close }: { close: () => void }) {
   return (
     <Announcement
@@ -219,7 +200,6 @@ export function NostrBackupsAnnouncement({ close }: { close: () => void }) {
       message='Backup to Nostr.'
       bulletPoints={[
         ['Backup settings', 'Have your Arkade wallet settings safely backed up on Nostr.'],
-        ['Boltz swaps', 'Easily restore your Boltz swap history if you switch devices.'],
         ['Secure', 'All backups are encrypted and stored securely on the Nostr network.'],
       ]}
     />

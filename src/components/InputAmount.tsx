@@ -4,7 +4,6 @@ import InputContainer from './InputContainer'
 import { ConfigContext } from '../providers/config'
 import { fromSatoshis, prettyNumber, toSatoshis } from '../lib/format'
 import { FIAT_SYMBOLS } from '../lib/fiat'
-import { LimitsContext } from '../providers/limits'
 import { AssetOption, Currencies, Unit } from '../lib/types'
 import { TextSecondary } from './Text'
 import { hapticLight } from '../lib/haptics'
@@ -58,7 +57,6 @@ export default function InputAmount({
 }: InputAmountProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { toFiat, fromFiat, fiatDecimals, fromFiatAmount } = useContext(FiatContext)
-  const { minSwapAllowed, maxSwapAllowed } = useContext(LimitsContext)
 
   const [error, setError] = useState('')
   const [internalMode, setInternalMode] = useState<InputAmountMode>('unit')
@@ -126,8 +124,8 @@ export default function InputAmount({
     onModeChange?.(nextMode)
   }
 
-  const minimumSats = min ? Math.max(min, minSwapAllowed()) : 0
-  const maximumSats = max ? Math.min(max, maxSwapAllowed()) : 0
+  const minimumSats = min ?? 0
+  const maximumSats = max ?? 0
 
   const fiatSymbol = FIAT_SYMBOLS[config.currency]
   const fiatLabel = fiatSymbol ?? config.currency

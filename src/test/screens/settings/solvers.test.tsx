@@ -15,7 +15,7 @@ vi.mock('@arkade-os/solver-discovery', async () => {
   }
 })
 
-function renderSolvers() {
+function renderSolvers(network: string = 'regtest') {
   const backupContextValue = {
     backupAndUpdateConfig: vi.fn(),
     backupConfig: vi.fn().mockResolvedValue(undefined),
@@ -29,7 +29,7 @@ function renderSolvers() {
 
   return render(
     <AspContext.Provider
-      value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network: 'regtest' } } as any}
+      value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network } } as any}
     >
       <AssetSwapsContext.Provider value={{ runDiscovery: vi.fn() } as any}>
         <BackupContext.Provider value={backupContextValue as any}>
@@ -51,6 +51,19 @@ describe('Solvers screen', () => {
     expect(screen.getByText('Solvers')).toBeInTheDocument()
     expect(screen.getByText('You have no solver cards stored in your wallet.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '+ Add new' })).toBeInTheDocument()
+  })
+
+  it('shows the bundled mainnet card as read-only, so the pinned solver is visible', () => {
+    renderSolvers('bitcoin')
+
+    // the build ships the beta solver's card; without this row the screen
+    // claims "no solver cards" while a pinned solver is quoting sends
+    expect(screen.getByText('beta-solver')).toBeInTheDocument()
+    expect(screen.getByText('Built-in')).toBeInTheDocument()
+    expect(screen.getByText('This build ships 1 solver card; add your own to reach more solvers.')).toBeInTheDocument()
+    // read-only: not removable, not editable — only the add button renders
+    expect(screen.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
   })
 
   it('adds a solver card and renders it in the list', async () => {
