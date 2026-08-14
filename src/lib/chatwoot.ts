@@ -1,3 +1,4 @@
+import { fromRuntimeEnv } from './constants'
 import { consoleError } from './logs'
 
 export interface ChatwootSDK {
@@ -27,8 +28,8 @@ export interface ChatwootVars {
 
 export const getChatwootVars = (): ChatwootVars => {
   return {
-    websiteToken: import.meta.env.VITE_CHATWOOT_WEBSITE_TOKEN,
-    baseUrl: import.meta.env.VITE_CHATWOOT_BASE_URL,
+    websiteToken: fromRuntimeEnv(import.meta.env.VITE_CHATWOOT_WEBSITE_TOKEN) ?? '',
+    baseUrl: fromRuntimeEnv(import.meta.env.VITE_CHATWOOT_BASE_URL) ?? '',
   }
 }
 

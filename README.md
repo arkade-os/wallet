@@ -78,6 +78,20 @@ docker build \
   -t arkade-wallet .
 ```
 
+## Content Security Policy
+
+The policy is served by nginx (`nginx-security-headers.conf`) for Docker and by `public/_headers` for Cloudflare
+Pages. Both are static, so:
+
+- Setting `VITE_CHATWOOT_BASE_URL` to a host other than `https://app.chatwoot.com` requires adding that origin to
+  `script-src` in the file your deployment uses.
+- The inline theme bootstrap in `index.html` is allowed by hash. `pnpm csp:check` (run on pre-commit and before
+  `pnpm build`) verifies it; `pnpm csp:fix` updates it after editing that block.
+- `public/_headers` allows `https://static.cloudflareinsights.com` because Cloudflare Web Analytics injects its
+  beacon into HTML responses at the edge, so the script is not in the build. Beware of Cloudflare features that
+  inject _inline_ script — Rocket Loader, Email Obfuscation — which the hash-only `script-src` blocks and
+  `pnpm csp:check` cannot catch, since it only sees the built `index.html`.
+
 ## Getting Started
 
 ### Prerequisites
