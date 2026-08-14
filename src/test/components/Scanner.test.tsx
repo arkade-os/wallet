@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { ToastProvider } from '../../components/Toast'
 import Scanner from '../../components/Scanner'
 
@@ -40,13 +40,14 @@ afterEach(() => {
   else delete (navigator as any).permissions
 })
 
-const renderScanner = (onError = vi.fn()) => {
-  render(
+const renderScanner = () => {
+  const onError = vi.fn()
+  const { unmount } = render(
     <ToastProvider>
       <Scanner close={vi.fn()} label='Recipient address' onData={vi.fn()} onError={onError} />
     </ToastProvider>,
   )
-  return onError
+  return { onError, unmount }
 }
 
 describe('Scanner', () => {
@@ -58,7 +59,7 @@ describe('Scanner', () => {
 
   it('tells the user the camera is blocked and offers a way back in', async () => {
     mockCameraPermission('denied')
-    const onError = renderScanner()
+    const { onError } = renderScanner()
 
     expect(await screen.findByTestId('error-message')).toHaveTextContent(/blocked/i)
     expect(onError).toHaveBeenCalledWith(expect.stringMatching(/blocked/i))
@@ -82,5 +83,22 @@ describe('Scanner', () => {
 
     await waitFor(() => expect(start).toHaveBeenCalledTimes(2))
     expect(screen.queryByTestId('error-message')).not.toBeInTheDocument()
+  })
+
+  it('says nothing to a screen the user has already left', async () => {
+    // the permission answer arrives after the user gives up and closes the scanner
+    let answer: (result: { state: PermissionState }) => void = () => {}
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: () => new Promise((resolve) => (answer = resolve)) },
+    })
+    const { onError, unmount } = renderScanner()
+
+    await waitFor(() => expect(start).toHaveBeenCalled())
+    unmount()
+    answer({ state: 'denied' })
+    await act(async () => {})
+
+    expect(onError).not.toHaveBeenCalled()
   })
 })
