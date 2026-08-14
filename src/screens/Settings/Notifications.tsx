@@ -15,19 +15,21 @@ export default function Notifications() {
   const { toast } = useToast()
 
   const handleChange = async () => {
+    if (config.notifications) {
+      backupAndUpdateConfig({ ...config, notifications: false })
+      return
+    }
+
     if (!notificationApiSupport) {
       toast('Notifications API not supported')
       return
     }
-    if (!config.notifications) {
-      requestPermission().then((notifications) => {
-        if (notifications) sendTestNotification()
-        else toast('Notifications permission denied')
-        backupAndUpdateConfig({ ...config, notifications })
-      })
-    } else {
-      backupAndUpdateConfig({ ...config, notifications: false })
-    }
+
+    requestPermission().then((notifications) => {
+      if (notifications) sendTestNotification()
+      else toast('Notifications permission denied')
+      backupAndUpdateConfig({ ...config, notifications })
+    })
   }
 
   const subText = notificationApiSupport
