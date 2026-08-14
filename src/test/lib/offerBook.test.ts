@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BTC_ASSET_ID } from '@arkade-os/swap'
-import { buildBook, cmpRatio, pairKeyOf, pairsOf, toRow, type BookOrder } from '../../lib/book'
+import { asset } from '@arkade-os/sdk'
+import { bindOrder, buildBook, cmpRatio, pairKeyOf, pairsOf, toRow, type BookOrder } from '../../lib/book'
 
 const SEED = 'aa'.repeat(34)
 const OTHER = 'bb'.repeat(34)
@@ -151,5 +152,57 @@ describe('pairsOf', () => {
       { pairKey: pairKeyOf(SEED, BTC_ASSET_ID), count: 2 },
       { pairKey: pairKeyOf(OTHER, BTC_ASSET_ID), count: 1 },
     ])
+  })
+})
+
+describe('bindOrder', () => {
+  const assetId = 'aa'.repeat(32) + '0000'
+  const vtxo = (assets?: { assetId: string; amount: string }[]) =>
+    ({
+      outpoint: { txid: 'dd'.repeat(32), vout: 0 },
+      createdAt: '1700000000',
+      expiresAt: null,
+      amount: '330', // the sat carrier an asset deposit rides on
+      script: '51'.repeat(17),
+      isPreconfirmed: false,
+      isSwept: false,
+      isUnrolled: false,
+      isSpent: false,
+      spentBy: null,
+      commitmentTxids: [],
+      assets,
+    }) as never
+
+  /** An ask: deposit the asset, want sats. `offerAsset` names the deposit. */
+  const askOffer = {
+    swapPkScript: new Uint8Array(34),
+    wantAmount: 10_000_000n,
+    offerAsset: asset.AssetId.fromString(assetId),
+    makerPkScript: new Uint8Array(34),
+    makerPublicKey: new Uint8Array(32),
+    emulatorPubkey: new Uint8Array(32),
+  } as never
+
+  it('sizes an asset deposit from the vtxo, not from its sat carrier', () => {
+    const order = bindOrder(askOffer, '00', vtxo([{ assetId, amount: '100000000' }]))
+    expect(order?.give).toEqual({ assetId, amount: 100_000_000n })
+    expect(order?.want.assetId).toBe(BTC_ASSET_ID)
+    // the carrier is recorded, but it is NOT the size
+    expect(order?.depositSats).toBe(330n)
+  })
+
+  it('skips an asset deposit whose assets have not been indexed yet', () => {
+    // the regression: falling back to BTC here made give=btc/want=btc, which
+    // priced the maker's want against the 330-sat carrier and surfaced a
+    // phantom "btc/btc" market at ~30 billion sats
+    expect(bindOrder(askOffer, '00', vtxo(undefined))).toBeUndefined()
+    expect(bindOrder(askOffer, '00', vtxo([]))).toBeUndefined()
+    expect(bindOrder(askOffer, '00', vtxo([{ assetId: 'bb'.repeat(34), amount: '5' }]))).toBeUndefined()
+  })
+
+  it('refuses an order whose two legs are the same asset', () => {
+    const degenerate = { ...(askOffer as object), offerAsset: undefined } as never
+    // no offerAsset and no assets on the vtxo => give reads BTC, want is BTC
+    expect(bindOrder(degenerate, '00', vtxo(undefined))).toBeUndefined()
   })
 })

@@ -173,7 +173,7 @@ export const OrderBookProvider = ({ children }: { children: ReactNode }) => {
       emulatorPubkey: getEmulatorPubkeyHexForNetwork(network as NetworkName),
     })
     // the stream reports our own order like anyone else's; nothing to insert here
-    toast.success('rung posted')
+    toast.success('order placed')
     reloadWallet().catch(consoleError)
   }
 
@@ -192,7 +192,7 @@ export const OrderBookProvider = ({ children }: { children: ReactNode }) => {
     // drop it immediately rather than waiting for the stream to say so — we
     // just spent it, and a row that lingers invites a second tap
     apply(ordersRef.current.filter((o) => o.id !== orderId))
-    toast.success('row taken')
+    toast.success('filled')
     reloadWallet().catch(consoleError)
     return txid
   }
@@ -208,7 +208,7 @@ export const OrderBookProvider = ({ children }: { children: ReactNode }) => {
       swapAddress: order.swapPkScript,
     })
     apply(ordersRef.current.filter((o) => o.id !== orderId))
-    toast.success('pulled, funds home')
+    toast.success('order cancelled, funds returned')
     reloadWallet().catch(consoleError)
   }
 

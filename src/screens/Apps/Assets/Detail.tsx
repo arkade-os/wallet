@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState } from 'react'
 import { BTC_ASSET_ID } from '@arkade-os/swap'
 import BookLadder from '../../../components/BookLadder'
-import PostRungSheet from '../../../components/PostRungSheet'
+import TradeSheet from '../../../components/TradeSheet'
 import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Content from '../../../components/Content'
@@ -20,6 +20,7 @@ import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import type { AssetDetails } from '@arkade-os/sdk'
 import { prettyAssetAmount } from '../../../lib/assets'
+import { prettyNumber } from '../../../lib/format'
 import { BackupContext } from '@/providers/backup'
 import { AspContext } from '../../../providers/asp'
 import { OrderBookContext } from '../../../providers/orderBook'
@@ -39,7 +40,7 @@ export default function AppAssetDetail() {
 
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [posting, setPosting] = useState(false)
+  const [tradeSide, setTradeSide] = useState<'buy' | 'sell'>()
 
   const cachedEntry = assetMetadataCache.get(assetInfo.assetId)
   const hasIcon = cachedEntry?.hasIcon ?? false
@@ -101,7 +102,6 @@ export default function AppAssetDetail() {
   // what a taker would pay right now — the prefill a composer opens on
   const bestAsk = book.asks[0] ? displayPrice(book.asks[0].price, decimals, 0) : undefined
   const bestBid = book.bids[0] ? displayPrice(book.bids[0].price, decimals, 0) : undefined
-  const referencePrice = bestAsk ?? bestBid
 
   const handleTake = async (row: BookRow) => {
     try {
@@ -120,9 +120,11 @@ export default function AppAssetDetail() {
     }
   }
 
-  const handlePost = async (params: Parameters<typeof place>[0]) => {
+  const openTrade = (side: 'buy' | 'sell') => setTradeSide(side)
+
+  const handleTrade = async (params: Parameters<typeof place>[0]) => {
     await place(params)
-    setPosting(false)
+    setTradeSide(undefined)
   }
 
   const handleSend = () => {
@@ -164,18 +166,32 @@ export default function AppAssetDetail() {
               <TextSecondary centered>{name}</TextSecondary>
             </FlexCol>
 
+            {/* The market at a glance, two across — only figures the chain
+                actually reports. No FDV, volume or holder count: none of the
+                three is derivable here, and a plausible-looking wrong number
+                is worse than an absent one. */}
+            <div className='grid w-full grid-cols-2 gap-x-4 gap-y-3'>
+              <Stat label='Price' value={bestAsk ? `${prettyNumber(bestAsk)} sats` : '—'} />
+              <Stat
+                label='Spread'
+                value={
+                  bestAsk && bestBid ? `${prettyNumber(bestAsk - bestBid)} sats` : book.asks.length ? '—' : 'no book'
+                }
+              />
+              <Stat label='Best bid' value={bestBid ? `${prettyNumber(bestBid)} sats` : '—'} />
+              <Stat label='Supply' value={prettyAssetAmount(supply, decimals) ?? 'Unknown'} />
+            </div>
+
             <BookLadder
               book={book}
               baseTicker={ticker || 'units'}
               baseDecimals={decimals}
               takeable={takeable}
-              takeDisabledReason='taking needs an emulator endpoint — post and pull still work'
+              takeDisabledReason='buying needs an emulator endpoint — selling and cancelling still work'
               onTake={handleTake}
               onPull={handlePull}
               loading={!bookReady}
             />
-
-            <Button label='Post a rung' onClick={() => setPosting(true)} />
 
             <FlexCol gap='0.25rem' centered>
               <Text copy={assetInfo.assetId} color='neutral-500' smaller centered>
@@ -266,9 +282,16 @@ export default function AppAssetDetail() {
         </Padded>
       </Content>
       <ButtonsOnBottom>
+        {/* Buy and Sell lead: this is a market screen first and a holding
+            screen second. Send/Receive keep their place below rather than
+            competing for the primary slot. */}
         <FlexRow gap='0.75rem'>
-          <Button label='Send' onClick={handleSend} disabled={balance === BigInt(0)} />
-          <Button label='Receive' onClick={handleReceive} />
+          <Button label='Buy' onClick={() => openTrade('buy')} />
+          <Button label='Sell' onClick={() => openTrade('sell')} disabled={balance === BigInt(0)} secondary />
+        </FlexRow>
+        <FlexRow gap='0.75rem'>
+          <Button label='Send' onClick={handleSend} disabled={balance === BigInt(0)} secondary />
+          <Button label='Receive' onClick={handleReceive} secondary />
         </FlexRow>
         <FlexRow gap='0.75rem'>
           <Button label='Reissue' onClick={handleReissue} secondary disabled={!holdsControlAsset} />
@@ -276,18 +299,31 @@ export default function AppAssetDetail() {
         </FlexRow>
         {canRemove ? <Button label='Remove' onClick={handleRemove} secondary /> : null}
       </ButtonsOnBottom>
-      <PostRungSheet
-        isOpen={posting}
-        onClose={() => setPosting(false)}
+      <TradeSheet
+        isOpen={tradeSide !== undefined}
+        onClose={() => setTradeSide(undefined)}
+        initialSide={tradeSide ?? 'buy'}
         baseTicker={ticker || 'units'}
         baseAssetId={assetInfo.assetId}
         baseDecimals={decimals}
         satsBalance={BigInt(availableBalance)}
         assetBalance={balance}
-        referencePrice={referencePrice}
+        bestAskPrice={bestAsk}
+        bestBidPrice={bestBid}
         dust={BigInt(aspInfo.dust)}
-        onSubmit={handlePost}
+        onSubmit={handleTrade}
       />
     </>
+  )
+}
+
+/** One figure in the market grid. Label above, value below — the shape every
+ * exchange uses, and the reason two of them read as a comparison. */
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <FlexCol gap='0.125rem'>
+      <TextSecondary smaller>{label}</TextSecondary>
+      <Text bold>{value}</Text>
+    </FlexCol>
   )
 }

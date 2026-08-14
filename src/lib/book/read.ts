@@ -67,22 +67,49 @@ const createdAtMs = (raw: string | undefined): number => {
  * its VTXO carrier; the asset is the substance, and a taker gets the carrier
  * along with it.
  */
-export const bindOrder = (offer: Offer, offerHex: string, vtxo: Vtxo): BookOrder => {
-  const deposited = vtxo.assets?.[0]
+export const bindOrder = (offer: Offer, offerHex: string, vtxo: Vtxo): BookOrder | undefined => {
   const sats = BigInt(vtxo.amount)
+
+  // `offerAsset` names the deposit and is covenant-bound, so it decides WHICH
+  // asset rests here — never the vtxo, whose asset list may not be populated
+  // yet. Only the amount has to come off the vtxo, because the covenant does
+  // not inspect its own deposit.
+  //
+  // Inferring this from the vtxo alone is what produced phantom markets: an
+  // asset deposit whose assets had not been indexed read as BTC, so an ask
+  // became give=btc/want=btc and priced the maker's want against the 330-sat
+  // carrier. A row we cannot size is not a row — skip it and let a later
+  // notification carry it.
+  const depositAssetId = offer.offerAsset?.toString()
+  let give: { assetId: string; amount: bigint }
+  if (depositAssetId) {
+    const entry = vtxo.assets?.find((a) => a.assetId === depositAssetId)
+    if (!entry) return undefined
+    give = { assetId: depositAssetId, amount: BigInt(entry.amount) }
+  } else {
+    const deposited = vtxo.assets?.[0]
+    give = deposited
+      ? { assetId: deposited.assetId, amount: BigInt(deposited.amount) }
+      : { assetId: BTC_ASSET_ID, amount: sats }
+  }
+
+  const want = {
+    assetId: offer.wantAsset ? offer.wantAsset.toString() : BTC_ASSET_ID,
+    amount: offer.wantAmount,
+  }
+
+  // Both legs the same asset is not a market, it is a misread. `placeOrder`
+  // refuses to create one; the reader refuses to display one.
+  if (give.assetId === want.assetId) return undefined
+
   return {
     id: outpointId(vtxo),
     fundingTxid: vtxo.outpoint.txid,
     vout: vtxo.outpoint.vout,
     offerHex,
     swapPkScript: hex.encode(offer.swapPkScript),
-    give: deposited
-      ? { assetId: deposited.assetId, amount: BigInt(deposited.amount) }
-      : { assetId: BTC_ASSET_ID, amount: sats },
-    want: {
-      assetId: offer.wantAsset ? offer.wantAsset.toString() : BTC_ASSET_ID,
-      amount: offer.wantAmount,
-    },
+    give,
+    want,
     makerPkScript: hex.encode(offer.makerPkScript),
     depositSats: sats,
     createdAt: createdAtMs(vtxo.createdAt),

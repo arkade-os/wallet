@@ -14,9 +14,11 @@ import { formatAssetAmount, prettyNumber } from '../lib/format'
 import { hapticLight } from '../lib/haptics'
 import { cn } from '@/lib/utils'
 
-interface PostRungSheetProps {
+interface TradeSheetProps {
   isOpen: boolean
   onClose: () => void
+  /** which side the sheet opens on; the user can still switch */
+  initialSide?: 'buy' | 'sell'
   baseTicker: string
   baseAssetId: string
   baseDecimals: number
@@ -24,8 +26,10 @@ interface PostRungSheetProps {
   satsBalance: bigint
   /** base asset balance available, atomic units */
   assetBalance: bigint
-  /** best opposing price in sats per WHOLE base unit, to prefill. undefined = empty book */
-  referencePrice?: number
+  /** best ask in sats per WHOLE base unit — what buying costs right now */
+  bestAskPrice?: number
+  /** best bid in sats per WHOLE base unit — what selling gets right now */
+  bestBidPrice?: number
   dust: bigint
   onSubmit: (params: {
     give: { assetId: string; amount: bigint }
@@ -65,19 +69,21 @@ const sanitize = (raw: string, decimals: number): string => {
   return `${integer || '0'}.${fraction}`
 }
 
-export default function PostRungSheet({
+export default function TradeSheet({
   isOpen,
   onClose,
+  initialSide = 'buy',
   baseTicker,
   baseAssetId,
   baseDecimals,
   satsBalance,
   assetBalance,
-  referencePrice,
+  bestAskPrice,
+  bestBidPrice,
   dust,
   onSubmit,
-}: PostRungSheetProps) {
-  const [side, setSide] = useState<Side>('buy')
+}: TradeSheetProps) {
+  const [side, setSide] = useState<Side>(initialSide)
   const [amount, setAmount] = useState('')
   const [price, setPrice] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -85,24 +91,30 @@ export default function PostRungSheet({
 
   const decimals = safeDecimals(baseDecimals)
 
-  // a reopened sheet is a fresh rung: never inherit a stale amount
+  // a reopened sheet is a fresh order: never inherit a stale amount
   useEffect(() => {
     if (!isOpen) return
-    setSide('buy')
+    const opening = initialSide === 'sell' ? bestBidPrice : bestAskPrice
+    setSide(initialSide)
     setAmount('')
-    setPrice(referencePrice && referencePrice > 0 ? scalePrice(referencePrice, 0) : '')
+    setPrice(opening && opening > 0 ? scalePrice(opening, 0) : '')
     setSubmitError('')
-    // referencePrice is read once on open — a book tick must not overwrite typing
+    // book prices are read once on open — a tick must not overwrite typing
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen])
 
   const buying = side === 'buy'
 
+  // a buy references the best ask, a sell references the best bid
+  const bookPrice = buying ? bestAskPrice : bestBidPrice
+  const hasBook = Boolean(bookPrice && bookPrice > 0)
+
   const amountAtomic = unitsToCents(amount, decimals)
   const priceAtomic = unitsToCents(price, PRICE_DECIMALS)
+  const bookAtomic = hasBook ? unitsToCents(scalePrice(bookPrice as number, 0), PRICE_DECIMALS) : 0n
 
-  // sats = amount * price, in exact integer math. Rounded UP on both sides so a
-  // rung is never quoted cheaper than what was typed.
+  // sats = amount * price, in exact integer math. Rounded UP on both sides so an
+  // order is never quoted cheaper than what was typed.
   const satsTotal = ceilDiv(amountAtomic * priceAtomic, pow10(decimals) * pow10(PRICE_DECIMALS))
 
   const giveAtomic = buying ? satsTotal : amountAtomic
@@ -115,11 +127,11 @@ export default function PostRungSheet({
   const legError = submitError || balanceError || dustError
 
   const deviation =
-    referencePrice && referencePrice > 0 && priceAtomic > 0n
+    hasBook && priceAtomic > 0n
       ? new Decimal(priceAtomic.toString())
           .div(pow10(PRICE_DECIMALS).toString())
-          .minus(referencePrice)
-          .div(referencePrice)
+          .minus(bookPrice as number)
+          .div(bookPrice as number)
           .toNumber()
       : 0
   const warning =
@@ -127,12 +139,21 @@ export default function PostRungSheet({
       ? `that is ${prettyNumber(Math.abs(deviation) * 100, 0)}% ${deviation > 0 ? 'above' : 'below'} the book. it fills at exactly this price.`
       : ''
 
+  // buying at or above the ask (selling at or below the bid) crosses the book
+  const fillsNow =
+    bookAtomic > 0n && priceAtomic > 0n && (buying ? priceAtomic >= bookAtomic : priceAtomic <= bookAtomic)
+  const outlook = fillsNow
+    ? 'fills now'
+    : bookAtomic > 0n && priceAtomic > 0n
+      ? `waits until someone ${buying ? 'sells' : 'buys'} at ${price}`
+      : 'waits until someone takes it'
+
   const valid =
     amountAtomic > 0n && priceAtomic > 0n && satsTotal > 0n && satsTotal >= dust && giveAtomic <= giveBalance
 
   const handleSide = (value: string) => {
     hapticLight()
-    setSide(value === 'sell' ? 'sell' : 'buy')
+    setSide(value === 'Sell' ? 'sell' : 'buy')
     setSubmitError('')
   }
 
@@ -151,26 +172,26 @@ export default function PostRungSheet({
       await onSubmit(buying ? { give: sats, want: base } : { give: base, want: sats })
       onClose()
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'could not post the rung')
+      setSubmitError(err instanceof Error ? err.message : 'could not place the order')
     } finally {
       setSubmitting(false)
     }
   }
 
-  const chips = referencePrice && referencePrice > 0 ? (buying ? [0, -2, -5, -10] : [0, 2, 5, 10]) : []
+  const chips = hasBook ? (buying ? [0, -2, -5, -10] : [0, 2, 5, 10]) : []
 
   return (
     <SheetModal isOpen={isOpen} onClose={submitting ? () => {} : onClose}>
-      <FlexCol gap='1.25rem' testId='post-rung-sheet'>
+      <FlexCol gap='1.25rem' testId='trade-sheet'>
         <FlexCol gap='0.25rem'>
-          <Title text='post a rung' />
+          <Title text={`${buying ? 'Buy' : 'Sell'} ${baseTicker}`} />
           <TextSecondary>name your price. it fills or it doesn&apos;t.</TextSecondary>
         </FlexCol>
 
-        <SegmentedControl options={['buy', 'sell']} selected={side} onChange={handleSide} />
+        <SegmentedControl options={['Buy', 'Sell']} selected={buying ? 'Buy' : 'Sell'} onChange={handleSide} />
 
         <InputContainer
-          label='amount'
+          label='Amount'
           error={amountError}
           bottomRight={`you have ${formatAssetAmount(assetBalance, decimals)} ${baseTicker}`}
         >
@@ -180,8 +201,8 @@ export default function PostRungSheet({
               type='text'
               inputMode='decimal'
               placeholder='0'
-              name='rung-amount'
-              data-testid='rung-amount'
+              name='trade-amount'
+              data-testid='trade-amount'
               value={amount}
               onChange={(ev) => {
                 setAmount(sanitize(ev.currentTarget.value, decimals))
@@ -194,7 +215,7 @@ export default function PostRungSheet({
                 type='button'
                 className='pill-base'
                 aria-label='Use full balance'
-                data-testid='rung-amount-max'
+                data-testid='trade-amount-max'
                 onClick={() => {
                   hapticLight()
                   setAmount(centsToUnits(assetBalance, decimals))
@@ -210,8 +231,8 @@ export default function PostRungSheet({
 
         <FlexCol gap='0.625rem'>
           <InputContainer
-            label='price'
-            bottomRight={referencePrice && referencePrice > 0 ? `book ${prettyNumber(referencePrice, 8)}` : ''}
+            label={`Price, sats per ${baseTicker}`}
+            bottomRight={hasBook ? `book ${prettyNumber(bookPrice as number, 8)}` : ''}
           >
             <label className='label'>
               <input
@@ -219,8 +240,8 @@ export default function PostRungSheet({
                 type='text'
                 inputMode='decimal'
                 placeholder='0'
-                name='rung-price'
-                data-testid='rung-price'
+                name='trade-price'
+                data-testid='trade-price'
                 value={price}
                 onChange={(ev) => handlePrice(ev.currentTarget.value)}
               />
@@ -231,7 +252,7 @@ export default function PostRungSheet({
           {chips.length > 0 ? (
             <FlexRow gap='0.5rem'>
               {chips.map((pct) => {
-                const value = scalePrice(referencePrice as number, pct)
+                const value = scalePrice(bookPrice as number, pct)
                 const active = value === price
                 return (
                   <button
@@ -259,8 +280,8 @@ export default function PostRungSheet({
         <FlexCol gap='0.5rem'>
           <div className='w-full rounded-xl bg-neutral-50 px-4 py-3'>
             <FlexRow between>
-              <TextSecondary>{buying ? 'you pay' : 'you receive'}</TextSecondary>
-              <Text big bold testId='rung-total'>
+              <TextSecondary>{buying ? 'You pay' : 'You receive'}</TextSecondary>
+              <Text big bold testId='trade-total'>
                 {`${prettyNumber(satsTotal, 0)} sats`}
               </Text>
             </FlexRow>
@@ -288,14 +309,14 @@ export default function PostRungSheet({
 
         <FlexCol gap='0.75rem'>
           <Button
-            label='post rung'
+            label={buying ? 'Buy' : 'Sell'}
             disabled={!valid}
             loading={submitting}
             onClick={handleSubmit}
-            testId='rung-submit'
+            testId='trade-submit'
           />
-          <Text color='neutral-500' tiny wrap>
-            it rests until someone fills it or you pull it. nothing expires, and it fills whole or not at all.
+          <Text color='neutral-500' testId='trade-outlook' tiny wrap>
+            {outlook}
           </Text>
         </FlexCol>
       </FlexCol>
@@ -303,7 +324,7 @@ export default function PostRungSheet({
   )
 }
 
-/** reference price nudged by a percentage, as clean decimal text */
+/** book price nudged by a percentage, as clean decimal text */
 function scalePrice(reference: number, pct: number): string {
   return new Decimal(reference)
     .mul(100 + pct)

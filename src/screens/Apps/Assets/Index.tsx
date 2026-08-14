@@ -149,14 +149,6 @@ export default function AppAssets() {
                 <EmptyAssetsList />
               ) : (
                 <>
-                  <div className='flex items-center justify-between px-4'>
-                    <Text color='neutral-500' smaller>
-                      market
-                    </Text>
-                    <Text color='neutral-500' smaller>
-                      best ask
-                    </Text>
-                  </div>
                   {assets.map((asset) => (
                     <AssetCard
                       key={asset.assetId}
