@@ -1,9 +1,16 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { cameraErrorText, queryCameraPermission } from '../../lib/camera'
+
+const realPermissions = Object.getOwnPropertyDescriptor(navigator, 'permissions')
 
 const mockPermissions = (query: () => Promise<{ state: PermissionState }>) => {
   Object.defineProperty(navigator, 'permissions', { configurable: true, value: { query } })
 }
+
+afterEach(() => {
+  if (realPermissions) Object.defineProperty(navigator, 'permissions', realPermissions)
+  else delete (navigator as any).permissions
+})
 
 describe('camera permission', () => {
   it('reports the state the browser gives us', async () => {

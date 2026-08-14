@@ -153,7 +153,7 @@ function ScannerQr({ calculateScanRegion, close, label, onData, onError, onSwitc
   const handleRetry = () => {
     onError('')
     setError('')
-    setAttempt(attempt + 1)
+    setAttempt((n) => n + 1)
   }
 
   const handleSwitch = () => {

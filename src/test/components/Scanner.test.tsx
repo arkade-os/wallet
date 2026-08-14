@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { ToastProvider } from '../../components/Toast'
 import Scanner from '../../components/Scanner'
@@ -26,12 +26,19 @@ vi.mock('../../lib/haptics', () => ({
   setHapticsEnabled: vi.fn(),
 }))
 
+const realPermissions = Object.getOwnPropertyDescriptor(navigator, 'permissions')
+
 const mockCameraPermission = (state: PermissionState) => {
   Object.defineProperty(navigator, 'permissions', {
     configurable: true,
     value: { query: async () => ({ state }) },
   })
 }
+
+afterEach(() => {
+  if (realPermissions) Object.defineProperty(navigator, 'permissions', realPermissions)
+  else delete (navigator as any).permissions
+})
 
 const renderScanner = (onError = vi.fn()) => {
   render(
