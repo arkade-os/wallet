@@ -152,7 +152,7 @@ export default function BookLadder({
           <Skeleton />
         ) : empty ? (
           <FlexCol centered gap='0.25rem' padding='1.5rem 0.5rem'>
-            <TextSecondary centered>{`nobody's standing here yet`}</TextSecondary>
+            <TextSecondary centered>no orders yet</TextSecondary>
           </FlexCol>
         ) : (
           <FlexCol gap='0'>

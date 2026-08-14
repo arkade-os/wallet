@@ -10,7 +10,7 @@ import FlexRow from '../../../components/FlexRow'
 import Header from '../../../components/Header'
 import LoadingLogo from '../../../components/LoadingLogo'
 import Padded from '../../../components/Padded'
-import Shadow from '../../../components/Shadow'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../../components/ui/collapsible'
 import Text, { TextSecondary } from '../../../components/Text'
 import AssetAvatar from '../../../components/AssetAvatar'
 import { NavigationContext, Pages } from '../../../providers/navigation'
@@ -193,91 +193,84 @@ export default function AppAssetDetail() {
               loading={!bookReady}
             />
 
-            <FlexCol gap='0.25rem' centered>
-              <Text copy={assetInfo.assetId} color='neutral-500' smaller centered>
-                {truncateId(assetInfo.assetId)}
-              </Text>
-              <FlexRow gap='0.25rem' centered>
-                <TextSecondary centered>Asset ID (tap to copy)</TextSecondary>
-                <span
-                  onClick={handleRefresh}
-                  style={{
-                    cursor: 'pointer',
-                    fontSize: 13,
-                    color: 'var(--neutral-500)',
-                    opacity: refreshing ? 0.5 : 1,
-                    transition: 'opacity 0.2s',
-                  }}
-                >
-                  {refreshing ? '...' : '\u21BB'}
-                </span>
-              </FlexRow>
-            </FlexCol>
-
-            <Shadow lighter>
-              <FlexCol gap='0.5rem' padding='0.75rem'>
-                {name !== 'Unknown Asset' ? (
+            {/* Everything that is not the market, folded away. Name, ticker and
+                supply are deliberately absent: the header, the subtitle and the
+                stat grid already carry them, and printing a figure twice on one
+                screen is what made this page feel crowded. */}
+            <Collapsible className='w-full'>
+              <CollapsibleTrigger className='flex w-full items-center justify-between py-3'>
+                <TextSecondary>Details</TextSecondary>
+                <TextSecondary>{'\u2304'}</TextSecondary>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <FlexCol gap='0.5rem'>
                   <FlexRow between>
-                    <TextSecondary>Name</TextSecondary>
-                    <Text bold>{name}</Text>
-                  </FlexRow>
-                ) : null}
-                {ticker ? (
-                  <FlexRow between>
-                    <TextSecondary>Ticker</TextSecondary>
-                    <Text bold>{ticker}</Text>
-                  </FlexRow>
-                ) : null}
-                <FlexRow between>
-                  <TextSecondary>Supply</TextSecondary>
-                  <Text bold>{prettyAssetAmount(supply, decimals) ?? 'Unknown'}</Text>
-                </FlexRow>
-                <FlexRow between>
-                  <TextSecondary>Decimals</TextSecondary>
-                  <Text bold>{decimals}</Text>
-                </FlexRow>
-                {controlAssetId ? (
-                  <FlexRow between>
-                    <TextSecondary>Control Asset</TextSecondary>
+                    <TextSecondary>Asset ID</TextSecondary>
                     <FlexRow gap='0.25rem' end>
-                      {(() => {
-                        const ctrl = assetMetadataCache.get(controlAssetId)?.metadata
-                        const ctrlName = ctrl?.name ?? `${controlAssetId.slice(0, 8)}...${controlAssetId.slice(-8)}`
-                        const label = ctrl?.ticker ? `${ctrlName} (${ctrl.ticker})` : ctrlName
-                        return (
-                          <>
-                            <AssetAvatar
-                              icon={ctrl?.icon}
-                              ticker={ctrl?.ticker}
-                              size={20}
-                              assetId={controlAssetId}
-                              clickable
-                            />
-                            <Text bold copy={controlAssetId}>
-                              {label}
-                            </Text>
-                          </>
-                        )
-                      })()}
+                      <Text copy={assetInfo.assetId} bold>
+                        {truncateId(assetInfo.assetId)}
+                      </Text>
+                      <span
+                        onClick={handleRefresh}
+                        style={{
+                          cursor: 'pointer',
+                          fontSize: 13,
+                          color: 'var(--neutral-500)',
+                          opacity: refreshing ? 0.5 : 1,
+                          transition: 'opacity 0.2s',
+                        }}
+                      >
+                        {refreshing ? '...' : '\u21BB'}
+                      </span>
                     </FlexRow>
                   </FlexRow>
-                ) : null}
-              </FlexCol>
-            </Shadow>
-            {hasIcon && !iconApprovalManager.isVerified(assetInfo.assetId) ? (
-              <Button
-                label={iconApprovalManager.isApproved(assetInfo.assetId) ? 'Hide icon' : 'Show icon'}
-                onClick={async () => {
-                  if (iconApprovalManager.isApproved(assetInfo.assetId)) {
-                    iconApprovalManager.revoke(assetInfo.assetId)
-                  } else {
-                    iconApprovalManager.approve(assetInfo.assetId)
-                  }
-                  await fetchDetails(true)
-                }}
-                secondary
-              />
-            ) : null}
+                  <FlexRow between>
+                    <TextSecondary>Decimals</TextSecondary>
+                    <Text bold>{decimals}</Text>
+                  </FlexRow>
+                  {controlAssetId ? (
+                    <FlexRow between>
+                      <TextSecondary>Control Asset</TextSecondary>
+                      <FlexRow gap='0.25rem' end>
+                        {(() => {
+                          const ctrl = assetMetadataCache.get(controlAssetId)?.metadata
+                          const ctrlName = ctrl?.name ?? `${controlAssetId.slice(0, 8)}...${controlAssetId.slice(-8)}`
+                          const label = ctrl?.ticker ? `${ctrlName} (${ctrl.ticker})` : ctrlName
+                          return (
+                            <>
+                              <AssetAvatar
+                                icon={ctrl?.icon}
+                                ticker={ctrl?.ticker}
+                                size={20}
+                                assetId={controlAssetId}
+                                clickable
+                              />
+                              <Text bold copy={controlAssetId}>
+                                {label}
+                              </Text>
+                            </>
+                          )
+                        })()}
+                      </FlexRow>
+                    </FlexRow>
+                  ) : null}
+                  {hasIcon && !iconApprovalManager.isVerified(assetInfo.assetId) ? (
+                    <Button
+                      label={iconApprovalManager.isApproved(assetInfo.assetId) ? 'Hide icon' : 'Show icon'}
+                      onClick={async () => {
+                        if (iconApprovalManager.isApproved(assetInfo.assetId)) {
+                          iconApprovalManager.revoke(assetInfo.assetId)
+                        } else {
+                          iconApprovalManager.approve(assetInfo.assetId)
+                        }
+                        await fetchDetails(true)
+                      }}
+                      secondary
+                    />
+                  ) : null}
+                </FlexCol>
+              </CollapsibleContent>
+            </Collapsible>
           </FlexCol>
         </Padded>
       </Content>
@@ -293,10 +286,12 @@ export default function AppAssetDetail() {
           <Button label='Send' onClick={handleSend} disabled={balance === BigInt(0)} secondary />
           <Button label='Receive' onClick={handleReceive} secondary />
         </FlexRow>
-        <FlexRow gap='0.75rem'>
-          <Button label='Reissue' onClick={handleReissue} secondary disabled={!holdsControlAsset} />
-          {balance > 0 ? <Button label='Burn' onClick={handleBurn} secondary /> : null}
-        </FlexRow>
+        {holdsControlAsset || balance > 0 ? (
+          <FlexRow gap='0.75rem'>
+            {holdsControlAsset ? <Button label='Reissue' onClick={handleReissue} secondary /> : null}
+            {balance > 0 ? <Button label='Burn' onClick={handleBurn} secondary /> : null}
+          </FlexRow>
+        ) : null}
         {canRemove ? <Button label='Remove' onClick={handleRemove} secondary /> : null}
       </ButtonsOnBottom>
       <TradeSheet
