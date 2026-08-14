@@ -9,6 +9,7 @@ export default function Refresher() {
 
   const [showRefresh, setShowRefresh] = useState(false)
 
+  const refresherRef = useRef<HTMLDivElement | null>(null)
   const triggeredRef = useRef(false)
   const touchstartYRef = useRef(0)
 
@@ -18,8 +19,9 @@ export default function Refresher() {
   }
 
   const handleTouchMove: EventListener = (event) => {
-    const distToTop = document.querySelector('.content')?.scrollTop ?? window.scrollY
     const e = event as TouchEvent
+    const currentTarget = e.currentTarget as HTMLElement | null
+    const distToTop = currentTarget?.scrollTop ?? 0
     if (touchstartYRef.current > 180) return
     const touchY = e.touches[0].clientY
     const touchDiff = touchY - touchstartYRef.current
@@ -55,21 +57,24 @@ export default function Refresher() {
   }
 
   useEffect(() => {
-    document.addEventListener('touchmove', handleTouchMove, { passive: false })
-    document.addEventListener('touchstart', handleTouchStart)
-    document.addEventListener('touchend', handleTouchEnd)
-    document.addEventListener('touchcancel', handleTouchCancel)
+    const contentEl = refresherRef.current?.closest('.content') as HTMLElement | null
+    if (!contentEl) return
+
+    contentEl.addEventListener('touchmove', handleTouchMove, { passive: false })
+    contentEl.addEventListener('touchstart', handleTouchStart)
+    contentEl.addEventListener('touchend', handleTouchEnd)
+    contentEl.addEventListener('touchcancel', handleTouchCancel)
 
     return () => {
-      document.removeEventListener('touchstart', handleTouchStart)
-      document.removeEventListener('touchmove', handleTouchMove)
-      document.removeEventListener('touchend', handleTouchEnd)
-      document.removeEventListener('touchcancel', handleTouchCancel)
+      contentEl.removeEventListener('touchstart', handleTouchStart)
+      contentEl.removeEventListener('touchmove', handleTouchMove)
+      contentEl.removeEventListener('touchend', handleTouchEnd)
+      contentEl.removeEventListener('touchcancel', handleTouchCancel)
     }
   }, [])
 
   return (
-    <div className={`pull-to-refresh ${showRefresh ? 'show' : ''}`}>
+    <div ref={refresherRef} className={`pull-to-refresh ${showRefresh ? 'show' : ''}`}>
       <SpinnerIcon />
     </div>
   )
