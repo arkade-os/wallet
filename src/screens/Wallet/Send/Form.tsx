@@ -946,24 +946,23 @@ export default function SendForm() {
     )
   }
 
-  const Scan = () => (
-    <Scanner
-      close={() => setScan(false)}
-      label='Recipient address'
-      onData={(data) => {
-        setRecipient(data)
-        setRawScanData(data)
-        setReadyToParse(true)
-      }}
-      onError={smartSetError}
-    />
-  )
-
   if (scan) {
+    // an element, never a component defined here: a fresh component type on
+    // every render remounts the scanner, and each remount asks for the camera
+    const scanner = (
+      <Scanner
+        close={() => setScan(false)}
+        label='Recipient address'
+        onData={(data) => {
+          setRecipient(data)
+          setRawScanData(data)
+          setReadyToParse(true)
+        }}
+        onError={smartSetError}
+      />
+    )
     return prefersReducedMotion ? (
-      <div style={sendOverlayStyle}>
-        <Scan />
-      </div>
+      <div style={sendOverlayStyle}>{scanner}</div>
     ) : (
       <AnimatePresence>
         <motion.div
@@ -974,7 +973,7 @@ export default function SendForm() {
           exit='exit'
           style={sendOverlayStyle}
         >
-          <Scan />
+          {scanner}
         </motion.div>{' '}
       </AnimatePresence>
     )

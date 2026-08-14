@@ -7,6 +7,7 @@ import Padded from './Padded'
 import { QRCanvas, frameLoop, frontalCamera } from 'qr/dom.js'
 import { useRef, useEffect, useState } from 'react'
 import { extractError } from '../lib/error'
+import { cameraErrorText, queryCameraPermission } from '../lib/camera'
 import QrScanner from 'qr-scanner'
 
 const videoStyle: React.CSSProperties = {
@@ -105,41 +106,42 @@ function ScannerMills({ close, label, onData, onError, onSwitch }: ScannerProps)
 }
 
 function ScannerQr({ calculateScanRegion, close, label, onData, onError, onSwitch }: ScannerProps) {
-  const [error, setError] = useState(false)
-  const [hasCamera, setHasCamera] = useState(false)
+  const [error, setError] = useState('')
+  const [attempt, setAttempt] = useState(0)
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const qrScanner = useRef<QrScanner | null>(null)
 
   useEffect(() => {
-    QrScanner.hasCamera().then(setHasCamera)
-  }, [])
-
-  useEffect(() => {
-    if (!hasCamera) return
     if (!videoRef.current) return
-    if (!qrScanner.current) {
-      qrScanner.current = new QrScanner(
-        videoRef.current,
-        (result) => {
-          onData(result.data)
-          handleClose()
-        },
-        {
-          maxScansPerSecond: 100,
-          highlightScanRegion: true,
-          highlightCodeOutline: true,
-          onDecodeError: () => {},
-          calculateScanRegion,
-        },
-      )
-    }
-    qrScanner.current.start().catch((err) => {
-      onError(extractError(err))
-      setError(true)
+    qrScanner.current = new QrScanner(
+      videoRef.current,
+      (result) => {
+        onData(result.data)
+        handleClose()
+      },
+      {
+        maxScansPerSecond: 100,
+        highlightScanRegion: true,
+        highlightCodeOutline: true,
+        onDecodeError: () => {},
+        calculateScanRegion,
+      },
+    )
+    let cancelled = false
+    qrScanner.current.start().catch(async () => {
+      // qr-scanner throws the same 'Camera not found.' whatever went wrong,
+      // so the permission is what tells us if the user blocked the camera
+      const text = cameraErrorText(await queryCameraPermission())
+      if (cancelled) return
+      onError(text)
+      setError(text)
     })
-    return () => stopScan()
-  }, [hasCamera])
+    return () => {
+      cancelled = true
+      stopScan()
+    }
+  }, [attempt])
 
   const stopScan = () => {
     qrScanner.current?.destroy()
@@ -149,6 +151,14 @@ function ScannerQr({ calculateScanRegion, close, label, onData, onError, onSwitc
   const handleClose = () => {
     stopScan()
     close()
+  }
+
+  // re-prompts if the prompt was only dismissed, and picks up a permission
+  // the user has just unblocked in the browser settings
+  const handleRetry = () => {
+    onError('')
+    setError('')
+    setAttempt((n) => n + 1)
   }
 
   const handleSwitch = () => {
@@ -161,14 +171,13 @@ function ScannerQr({ calculateScanRegion, close, label, onData, onError, onSwitc
       <Header auxFunc={handleSwitch} auxText={calculateScanRegion ? 'q' : 'Q'} text={label} back={handleClose} />
       <Content>
         <Padded>
-          <ErrorMessage error={error} text='Camera not available' />
-          <div id='video-wrapper'>
-            <video id='qr-scanner' ref={videoRef} style={videoStyle} />
-          </div>
+          <ErrorMessage error={Boolean(error)} text={error} />
+          <div id='video-wrapper'>{error ? null : <video id='qr-scanner' ref={videoRef} style={videoStyle} />}</div>
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Button onClick={handleClose} label='Cancel' />
+        {error ? <Button onClick={handleRetry} label='Try again' /> : null}
+        <Button onClick={handleClose} label='Cancel' secondary={Boolean(error)} />
       </ButtonsOnBottom>
     </>
   )
