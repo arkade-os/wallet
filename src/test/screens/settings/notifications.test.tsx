@@ -81,10 +81,11 @@ describe('Notifications screen', () => {
   it('shows a toast when the browser does not support notifications', () => {
     const backupAndUpdateConfig = vi.fn()
     notificationsMock.notificationApiSupport = false
+    const mockConfig = { ...mockConfigContextValue, config: { ...mockConfigContextValue.config, notifications: false } }
 
     render(
       <BackupContext.Provider value={{ backupAndUpdateConfig } as any}>
-        <ConfigContext.Provider value={mockConfigContextValue as any}>
+        <ConfigContext.Provider value={mockConfig as any}>
           <Notifications />
         </ConfigContext.Provider>
       </BackupContext.Provider>,
