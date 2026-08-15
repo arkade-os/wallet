@@ -28,6 +28,7 @@ import ShieldCheckOutlineIcon from '../../icons/ShieldCheckOutline'
 import { WalletContext } from '../../providers/wallet'
 import { DevModeContext } from '../../providers/devMode'
 import Toggle from '../../components/Toggle'
+import { useTranslation } from '../../providers/language'
 
 function BulletPoint({ icon, text }: { icon: ReactElement; text: string }) {
   return (
@@ -62,6 +63,7 @@ export default function Init() {
   const { devMode, handleTap } = useContext(DevModeContext)
 
   const prefersReduced = useReducedMotion()
+  const { t } = useTranslation()
   const [error, setError] = useState(false)
   const [showOptions, setShowOptions] = useState(false)
   const [showCreateOptions, setShowCreateOptions] = useState(false)
@@ -191,23 +193,17 @@ export default function Init() {
                 style={{ width: '100%', visibility: contentReady ? 'visible' : 'hidden' }}
               >
                 <OnboardStaggerChild>
-                  <BulletPoint icon={<BoltOutlineIcon />} text='Fast payments, swaps, and more' />
+                  <BulletPoint icon={<BoltOutlineIcon />} text={t('init.tagline1')} />
                 </OnboardStaggerChild>
                 <OnboardStaggerChild>
-                  <BulletPoint
-                    icon={<GlobeOutlineIcon />}
-                    text='Access Lightning, mint assets, and more. All secured by Bitcoin'
-                  />
+                  <BulletPoint icon={<GlobeOutlineIcon />} text={t('init.tagline2')} />
                 </OnboardStaggerChild>
                 <OnboardStaggerChild>
-                  <BulletPoint
-                    icon={<ShieldCheckOutlineIcon />}
-                    text='Stay in control. Settle and withdraw on your terms'
-                  />
+                  <BulletPoint icon={<ShieldCheckOutlineIcon />} text={t('init.tagline3')} />
                 </OnboardStaggerChild>
 
                 <OnboardStaggerChild>
-                  <ErrorMessage error={error} text={aspErrorText(aspInfo, 'Arkade server unreachable')} />
+                  <ErrorMessage error={error} text={aspErrorText(aspInfo, t('init.arkadeServerUnreachable'))} />
                 </OnboardStaggerChild>
               </motion.div>
             </div>
@@ -232,32 +228,32 @@ export default function Init() {
             pointerEvents: contentReady ? 'auto' : 'none',
           }}
         >
-          <Button disabled={error || !aspReady} onClick={handleNewWallet} label='+ Create wallet' />
+          <Button disabled={error || !aspReady} onClick={handleNewWallet} label={`+ ${t('init.createWallet')}`} />
           <Button
             disabled={error || !aspReady}
             onClick={() => setShowOptions(true)}
-            label='Other login options'
+            label={t('init.otherLoginOptions')}
             clear
           />
         </motion.div>
       </ButtonsOnBottom>
       <SheetModal isOpen={showOptions} onClose={() => setShowOptions(false)}>
         <FlexCol gap='1rem'>
-          <Text>Other login options</Text>
-          <Button fancy disabled={error} onClick={handleOldWallet} label='Restore wallet' secondary />
+          <Text>{t('init.otherLoginOptions')}</Text>
+          <Button fancy disabled={error} onClick={handleOldWallet} label={t('init.restoreWallet')} secondary />
         </FlexCol>
       </SheetModal>
       <SheetModal isOpen={showCreateOptions} onClose={() => setShowCreateOptions(false)}>
         <FlexCol gap='1rem'>
-          <Text>Create wallet</Text>
+          <Text>{t('init.createWallet')}</Text>
           <Toggle
             checked={hdRotation}
             onClick={() => setHdRotation((v) => !v)}
-            text='Rotate receive addresses'
-            subtext='Derive a fresh address for every incoming payment (HD wallet). Improves on-chain privacy. Best used with Nostr backup enabled so rotated addresses are recoverable on restore. For advanced users.'
+            text={t('init.rotateReceiveAddresses')}
+            subtext={t('init.rotateReceiveSubtext')}
             testId='toggle-hd-rotation'
           />
-          <Button label='Create wallet' onClick={() => createWallet(hdRotation ? 'hd' : 'static')} />
+          <Button label={t('init.createWallet')} onClick={() => createWallet(hdRotation ? 'hd' : 'static')} />
         </FlexCol>
       </SheetModal>
     </>

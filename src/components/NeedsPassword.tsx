@@ -12,6 +12,7 @@ import ButtonsOnBottom from './ButtonsOnBottom'
 import { WalletContext } from '../providers/wallet'
 import { authenticateUser } from '../lib/biometrics'
 import LockIcon from '../icons/Lock'
+import { useTranslation } from '../providers/language'
 
 interface NeedsPasswordProps {
   error: string
@@ -20,6 +21,7 @@ interface NeedsPasswordProps {
 
 export default function NeedsPassword({ error, onPassword }: NeedsPasswordProps) {
   const { wallet } = useContext(WalletContext)
+  const { t } = useTranslation()
   const [password, setPassword] = useState('')
 
   const handleBiometrics = () => authenticateUser(wallet.passkeyId).then(onPassword).catch(consoleError)
@@ -33,13 +35,13 @@ export default function NeedsPassword({ error, onPassword }: NeedsPasswordProps)
           {wallet.lockedByBiometrics ? (
             <CenterScreen onClick={handleBiometrics}>
               <LockIcon big />
-              <Text centered>Unlock with your passkey</Text>
+              <Text centered>{t('unlock.unlockWithPasskey')}</Text>
             </CenterScreen>
           ) : (
             <FlexCol gap='1rem' testId='password'>
               <InputPassword
                 focus
-                label='Insert password'
+                label={t('unlock.insertPassword')}
                 onChange={handleChange}
                 onEnter={handleClick}
                 placeholder='password'
@@ -50,7 +52,7 @@ export default function NeedsPassword({ error, onPassword }: NeedsPasswordProps)
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Button onClick={wallet.lockedByBiometrics ? handleBiometrics : handleClick} label='Unlock wallet' />
+        <Button onClick={wallet.lockedByBiometrics ? handleBiometrics : handleClick} label={t('unlock.unlockWallet')} />
       </ButtonsOnBottom>
     </>
   )

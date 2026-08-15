@@ -9,9 +9,11 @@ import { EmptyTxList } from '../../components/Empty'
 import { EASE_OUT_QUINT_TUPLE } from '../../lib/animations'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import ActivityFilter, { type ActivityFilterValue } from '../../components/ActivityFilter'
+import { useTranslation } from '../../providers/language'
 
 export default function Activity() {
   const { assetMetadataCache, txs } = useContext(WalletContext)
+  const { t } = useTranslation()
   const [filter, setFilter] = useState<ActivityFilterValue>('all')
   const prefersReduced = useReducedMotion()
   const hasSwaps = txs.some((tx) => !shouldHideDevAssetTx(tx, assetMetadataCache) && tx.type === 'swap')
@@ -22,7 +24,7 @@ export default function Activity() {
 
   return (
     <>
-      <Header text='Activity' back />
+      <Header text={t('wallet.activity')} back />
       <Content>
         <Padded>
           {txs.length === 0 ? (

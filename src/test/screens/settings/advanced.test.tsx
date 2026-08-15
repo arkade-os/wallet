@@ -19,11 +19,11 @@ describe('Advanced screen', () => {
   it('does not show Contracts when dev mode is off', () => {
     renderAdvanced(false)
     expect(screen.getByText('Arkade Mint')).toBeInTheDocument()
-    expect(screen.queryByText('contracts')).not.toBeInTheDocument()
+    expect(screen.queryByText('Contracts')).not.toBeInTheDocument()
   })
 
   it('shows Contracts when dev mode is on', () => {
     renderAdvanced(true)
-    expect(screen.getByText('contracts')).toBeInTheDocument()
+    expect(screen.getByText('Contracts')).toBeInTheDocument()
   })
 })

@@ -18,6 +18,7 @@ import { WalletContext } from '../../../providers/wallet'
 import AssetCard from '../../../components/AssetCard'
 import { accountAssetLabel, rawAssetPresentation, verifiedDesignatedCurrency } from '../../../lib/accountAssets'
 import { AspContext } from '../../../providers/asp'
+import { useTranslation } from '../../../providers/language'
 
 export default function SendSuccess() {
   const { config, useFiat } = useContext(ConfigContext)
@@ -27,13 +28,14 @@ export default function SendSuccess() {
   const { assetMetadataCache, isVerifiedAsset } = useContext(WalletContext)
   const { navigate } = useContext(NavigationContext)
   const { aspInfo } = useContext(AspContext)
+  const { t } = useTranslation()
 
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
   const assetPresentation = sendInfo.account
     ? { name: sendInfo.account.ticker, ticker: sendInfo.account.ticker }
-    : rawAssetPresentation(assetMeta?.metadata, 'Unknown asset')
+    : rawAssetPresentation(assetMeta?.metadata, t('send.unknownAsset'))
   const designatedCurrency = sendInfo.account
     ? undefined
     : verifiedDesignatedCurrency(aspInfo.network, assetId, isVerifiedAsset)
@@ -64,19 +66,21 @@ export default function SendSuccess() {
   // without us, so this is not a pending-failure warning — it is simply the
   // accurate word. An Arkade send, by contrast, really is sent.
   const isLightningSend = Boolean(sendInfo.invoice)
-  const headline = isLightningSend ? 'Payment is on the way' : 'Payment sent'
-  const detail = isLightningSend ? `${displayAmount} on the way` : `${displayAmount} sent successfully`
+  const headline = isLightningSend ? t('send.paymentOnTheWay') : t('send.paymentSent')
+  const detail = isLightningSend
+    ? t('send.onTheWay', { amount: displayAmount })
+    : t('send.sentSuccessfully', { amount: displayAmount })
 
   if (isAssetSend && assetId) {
     return (
       <>
-        <Header text='Success' />
+        <Header text={t('transaction.success')} />
         <Content>
           <Padded>
             <FlexCol gap='1.5rem' centered padding='1rem 0 0 0'>
               <SuccessIcon small />
               <Text centered big bold>
-                Payment sent!
+                {t('send.paymentSent')}!
               </Text>
               <AssetCard
                 assetId={assetId}
@@ -88,13 +92,13 @@ export default function SendSuccess() {
                 logoTicker={designatedCurrency}
               />
               <Text centered color='neutral-700' thin small wrap>
-                {displayAmount} sent successfully
+                {t('send.sentSuccessfully', { amount: displayAmount })}
               </Text>
             </FlexCol>
           </Padded>
         </Content>
         <ButtonsOnBottom>
-          <Button label='Sounds good' onClick={() => navigate(Pages.Wallet)} />
+          <Button label={t('transaction.soundsGood')} onClick={() => navigate(Pages.Wallet)} />
         </ButtonsOnBottom>
       </>
     )
@@ -104,7 +108,7 @@ export default function SendSuccess() {
     <WalletSuccessSplash
       headline={headline}
       text={detail}
-      ariaLabel={`${headline}. Tap to go home.`}
+      ariaLabel={`${headline}. ${t('wallet.tapToGoHome')}`}
       onDone={() => navigate(Pages.Wallet)}
     />
   )

@@ -48,6 +48,7 @@ import { FiatContext } from '../../../providers/fiat'
 import { AspContext } from '../../../providers/asp'
 import { AssetsContext } from '../../../providers/assets'
 import { LnReceiveContext } from '../../../providers/lnReceive'
+import { useTranslation } from '../../../providers/language'
 
 /**
  * Decide which value the QR should encode. Honours an explicit copy-sheet
@@ -72,6 +73,7 @@ export default function ReceiveQRCode() {
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { assetMetadataCache, svcWallet } = useContext(WalletContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
+  const { t } = useTranslation()
 
   const { toast } = useToast()
 
@@ -317,7 +319,7 @@ export default function ReceiveQRCode() {
   const handleCopy = async (value: string) => {
     if (!prefersReducedMotion) hapticSubtle()
     await copyToClipboard(value)
-    toast('Copied to clipboard')
+    toast(t('common.copiedToClipboard'))
     setShowCopySheet(false)
     setCopied(value)
   }
@@ -327,7 +329,7 @@ export default function ReceiveQRCode() {
     setShowCopySheet(true)
     if (qrCodeValue && copied !== qrCodeValue) {
       await copyToClipboard(qrCodeValue)
-      toast('Copied to clipboard')
+      toast(t('common.copiedToClipboard'))
       setCopied(qrCodeValue)
     }
   }
@@ -377,16 +379,12 @@ export default function ReceiveQRCode() {
     trusted: Boolean(assetId && isRegistered(assetId)),
   }
 
-  // What the monitored receive is doing, if there is one. The VTXO listener
-  // above still reports the credit; this is what can say the payment was LOST —
-  // `refunded` on a receive leg means the solver reclaimed a lockup we never
-  // claimed, which nothing else on this screen could distinguish from waiting.
   const rfqId = recvInfo.pendingLnReceive?.rfqId
   const receiveState = rfqId ? status(rfqId) : undefined
   const claimError = rfqId ? claimErrorFor(rfqId) : undefined
   const receiveLost = receiveState === 'refunded'
 
-  const data = { title: 'Receive', text: qrCodeValue }
+  const data = { title: t('wallet.receive'), text: qrCodeValue }
   const shareDisabled = !canBrowserShareData(data) || sharing || hasError || noPaymentMethods
 
   // Whether an amount is currently requested. Keyed off assetMeta to match how
@@ -414,20 +412,20 @@ export default function ReceiveQRCode() {
     )
   }
 
-  const amountLabel = hasAmount ? 'Edit amount' : 'Add amount'
+  const amountLabel = hasAmount ? t('receive.editAmount') : t('receive.addAmount')
   const unitLabel = assetMeta ? assetPresentation.ticker : 'sats'
 
   return (
     <>
-      <Header text='Receive' back={() => navigate(Pages.Wallet)} />
+      <Header text={t('wallet.receive')} back={() => navigate(Pages.Wallet)} />
       <Content noFade>
         <Padded>
           {hasError ? (
-            <ErrorMessage error text={`Failed to get address: ${addressError}`} />
+            <ErrorMessage error text={t('receive.failedToGetAddress', { error: addressError ?? '' })} />
           ) : !addressesLoaded || (!qrCodeValue && !noPaymentMethods) ? (
-            <LoadingLogo text='Loading...' />
+            <LoadingLogo text={t('common.loading')} />
           ) : noPaymentMethods ? (
-            <p>No valid payment methods available for this amount</p>
+            <p>{t('receive.noPaymentMethods')}</p>
           ) : (
             <FlexCol gap='0.5rem' centered>
               {/* Two different things, told apart. "No solver" leaves the ark
@@ -444,7 +442,7 @@ export default function ReceiveQRCode() {
                   <TextSecondary>
                     {lnHeldElsewhere
                       ? 'Another tab is handling Lightning receives — close it to receive here'
-                      : `Lightning unavailable: ${lnReceiveError}`}
+                      : t('receive.lightningUnavailable', { error: lnReceiveError })}
                   </TextSecondary>
                   {lnRetryable ? (
                     <Button label='Try again' onClick={() => setNegotiateAttempt((n) => n + 1)} secondary />
@@ -458,7 +456,7 @@ export default function ReceiveQRCode() {
                 onPointerUp={() => setQrTransform('')}
                 onPointerLeave={() => setQrTransform('')}
                 onPointerCancel={() => setQrTransform('')}
-                aria-label='Copy QR code'
+                aria-label={t('receive.copyQrCode')}
                 style={{
                   padding: 0,
                   width: '100%',
@@ -481,7 +479,7 @@ export default function ReceiveQRCode() {
               </button>
               {satoshis > 0 ? (
                 <Text small color='neutral-500'>
-                  Requesting {prettyNumber(satoshis, 0)} {unitLabel}
+                  {t('receive.requestingAmount', { amount: prettyNumber(satoshis, 0), unit: unitLabel })}
                 </Text>
               ) : null}
             </FlexCol>
@@ -496,19 +494,19 @@ export default function ReceiveQRCode() {
             onClick={() => (isMobileBrowser ? setShowKeys(true) : setShowAmountSheet(true))}
             secondary
           />
-          <Button label='Copy' onClick={handleCopyButton} secondary />
+          <Button label={t('receive.copy')} onClick={handleCopyButton} secondary />
         </FlexRow>
-        <Button label='Share' onClick={handleShare} disabled={shareDisabled} />
+        <Button label={t('receive.share')} onClick={handleShare} disabled={shareDisabled} />
       </ButtonsOnBottom>
 
       {/* Amount bottom sheet */}
       <SheetModal isOpen={showAmountSheet} onClose={() => setShowAmountSheet(false)}>
         <FlexCol gap='1rem' padding='0.5rem 0'>
           <Text big bold>
-            Add amount
+            {t('receive.addAmount')}
           </Text>
           <InputAmount
-            label='Amount'
+            label={t('receive.amount')}
             asset={assetOption}
             value={amountTextValue}
             focus={!isMobileBrowser}
@@ -518,8 +516,8 @@ export default function ReceiveQRCode() {
             onEnter={handleAmountConfirm}
             onFocus={() => setShowKeys(isMobileBrowser)}
           />
-          <Button label='Set amount' onClick={() => handleAmountConfirm()} disabled={!amountTextValue} />
-          {hasAmount ? <Button label='Clear amount' onClick={handleAmountClear} secondary /> : null}
+          <Button label={t('receive.setAmount')} onClick={() => handleAmountConfirm()} disabled={!amountTextValue} />
+          {hasAmount ? <Button label={t('receive.clearAmount')} onClick={handleAmountClear} secondary /> : null}
         </FlexCol>
       </SheetModal>
 
@@ -527,7 +525,7 @@ export default function ReceiveQRCode() {
       <SheetModal isOpen={showCopySheet} onClose={() => setShowCopySheet(false)}>
         <FlexCol gap='1rem' padding='0.5rem 0'>
           <Text big bold>
-            Copy address
+            {t('receive.copyAddress')}
           </Text>
           <AddressList
             bip21Uri={bip21Uri}
@@ -541,7 +539,7 @@ export default function ReceiveQRCode() {
               handleCopy(v)
             }}
             copied={copied}
-          />
+          />{' '}
         </FlexCol>
       </SheetModal>
     </>
@@ -565,12 +563,13 @@ function AddressList({
   onSelect: (value: string) => void
   copied: string
 }) {
+  const { t } = useTranslation()
   return (
     <FlexCol gap='0.75rem'>
       {bip21Uri ? (
         <AddressLine
           testId='bip21'
-          title='Unified'
+          title={t('receive.unified')}
           value={bip21Uri}
           onCopy={onCopy}
           onSelect={onSelect}
@@ -580,7 +579,7 @@ function AddressList({
       {arkAddress ? (
         <AddressLine
           testId='ark'
-          title='Arkade address'
+          title={t('receive.arkadeAddress')}
           value={arkAddress}
           onCopy={onCopy}
           onSelect={onSelect}
@@ -590,7 +589,7 @@ function AddressList({
       {btcAddress ? (
         <AddressLine
           testId='btc'
-          title='Bitcoin address'
+          title={t('receive.bitcoinAddress')}
           value={btcAddress}
           onCopy={onCopy}
           onSelect={onSelect}
@@ -600,7 +599,7 @@ function AddressList({
       {invoice ? (
         <AddressLine
           testId='invoice'
-          title='Lightning invoice'
+          title={t('receive.lightningInvoice')}
           value={invoice}
           onCopy={onCopy}
           onSelect={onSelect}
@@ -626,6 +625,7 @@ function AddressLine({
   onSelect: (value: string) => void
   copied: string
 }) {
+  const { t } = useTranslation()
   return (
     <Focusable
       onEnter={() => {
@@ -640,7 +640,7 @@ function AddressLine({
         </FlexCol>
         <Button
           copy
-          ariaLabel={`Copy ${title}`}
+          ariaLabel={t('receive.copyAria', { title })}
           testId={testId + '-address-copy'}
           onClick={(event) => {
             event.stopPropagation()

@@ -7,10 +7,12 @@ import { ConfigContext, resolveTheme } from '../../providers/config'
 import { BackupContext } from '@/providers/backup'
 import Header from './Header'
 import { consoleError } from '@/lib/logs'
+import { useTranslation } from '../../providers/language'
 
 export default function Theme() {
   const { backupConfig } = useContext(BackupContext)
   const { config, effectiveTheme, systemTheme, updateConfig } = useContext(ConfigContext)
+  const { t } = useTranslation()
   const clickCoords = useRef<{ x: number; y: number } | null>(null)
 
   const handleChange = async (theme: string) => {
@@ -43,16 +45,16 @@ export default function Theme() {
   }
 
   const options = [Themes.Auto, Themes.Dark, Themes.Light]
-  const labels = options.map((option) => (option === Themes.Auto ? `Auto (${systemTheme})` : option))
+  const labels = options.map((option) => (option === Themes.Auto ? `${t('settings.auto')} (${systemTheme})` : option))
 
   return (
     <>
-      <Header text='Theme' back />
+      <Header text={t('settings.theme')} back />
       <Content>
         <Padded>
           <div className='settings-page'>
             <section className='settings-section'>
-              <p className='settings-section-label'>Appearance</p>
+              <p className='settings-section-label'>{t('settings.appearance')}</p>
               <div
                 onClickCapture={(e) => {
                   clickCoords.current = { x: e.clientX, y: e.clientY }

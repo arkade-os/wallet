@@ -26,6 +26,7 @@ import {
 } from '../lib/swapDisplay'
 import UnverifiedBadge from './UnverifiedBadge'
 import { useTransactionAmountDisplay } from '../hooks/useTransactionAmountDisplay'
+import { useTranslation } from '../providers/language'
 
 const border = '1px solid color-mix(in srgb, var(--fg) 6%, transparent)'
 
@@ -43,8 +44,13 @@ const TransactionLine = ({
   const { config } = useContext(ConfigContext)
   const { fromFiatAmount, toFiatAmount } = useContext(FiatContext)
   const { assetMetadataCache } = useContext(WalletContext)
+  const { t } = useTranslation()
 
-  const date = tx.createdAt ? prettyDate(tx.createdAt) : tx.boardingTxid ? 'Unconfirmed' : 'Unknown'
+  const date = tx.createdAt
+    ? prettyDate(tx.createdAt)
+    : tx.boardingTxid
+      ? t('transaction.unconfirmed')
+      : t('common.unknown')
   const swap = tx.type === 'swap'
   const swapStatus = swap ? swapStatusForTx(tx) : undefined
   const issuance = isIssuance(tx)
@@ -105,23 +111,23 @@ const TransactionLine = ({
     lnSwapKind ??
     (swap
       ? swapStatus === 'pending'
-        ? 'Swap pending'
+        ? t('transaction.swapPending')
         : swapStatus === 'failed'
-          ? 'Swap failed'
+          ? t('transaction.swapFailed')
           : swapStatus === 'cancelled'
-            ? 'Swap cancelled'
+            ? t('transaction.swapCancelled')
             : swapStatus === 'recoverable'
-              ? 'Swap recoverable'
-              : 'Swap'
+              ? t('transaction.swapRecoverable')
+              : t('transaction.swap')
       : issuance
-        ? 'Issuance'
+        ? t('transaction.issuance')
         : burn
-          ? 'Burn'
+          ? t('transaction.burn')
           : exit
             ? 'Exited'
             : tx.type === 'sent'
-              ? 'Sent'
-              : 'Received')
+              ? t('transaction.sent')
+              : t('transaction.received'))
   const Kind = () => <span className='activity-row__kind'>{kind}</span>
 
   const swapRoute = swap ? swapRouteLabel(tx) : ''
@@ -261,6 +267,7 @@ export default function TransactionsList({
   const { setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { assetMetadataCache, txs: allTxs } = useContext(WalletContext)
+  const { t } = useTranslation()
   const visibleTxs = allTxs
     .filter((tx) => !shouldHideDevAssetTx(tx, assetMetadataCache))
     .filter((tx) => matchesAssetFilter(tx, assetIdFilter))
@@ -321,8 +328,8 @@ export default function TransactionsList({
   }
 
   const ariaLabel = (tx?: Tx) => {
-    if (!tx) return 'Pressing Enter enables keyboard navigation of the transaction list'
-    return `Transaction ${tx.type} of amount ${tx.amount}. Press Escape to exit keyboard navigation.`
+    if (!tx) return t('transaction.keyboardNavHint')
+    return t('transaction.keyboardNavAria', { type: tx.type, amount: String(tx.amount) })
   }
 
   const handleClick = (tx: Tx) => {
