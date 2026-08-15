@@ -44,7 +44,7 @@ export default function NeedsPassword({ error, onPassword }: NeedsPasswordProps)
                 label={t('unlock.insertPassword')}
                 onChange={handleChange}
                 onEnter={handleClick}
-                placeholder='password'
+                placeholder={t('unlock.passwordPlaceholder')}
               />
               <ErrorMessage text={error} error={Boolean(error)} />
             </FlexCol>

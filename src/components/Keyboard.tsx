@@ -14,6 +14,7 @@ import FlexCol from './FlexCol'
 import SwapIcon from '../icons/Swap'
 import { AssetOption, Currencies, Unit } from '../lib/types'
 import { centsToUnits, prettyAssetAmount, unitsToCents } from '../lib/assets'
+import { useTranslation } from '../providers/language'
 
 export type KeyboardInputMode = 'sats' | 'fiat' | 'asset' | 'btc'
 
@@ -41,6 +42,7 @@ export default function Keyboard({
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
   const { availableBalance: available } = useContext(WalletContext)
+  const { t } = useTranslation()
 
   const [assetInCents, setAssetInCents] = useState(BigInt(0))
   const [amountInSats, setAmountInSats] = useState(0)
@@ -250,11 +252,11 @@ export default function Keyboard({
   return (
     <>
       <Header
-        auxAriaLabel={showSecondaryValue ? 'Toggle currency' : undefined}
+        auxAriaLabel={showSecondaryValue ? t('components.toggleCurrency') : undefined}
         auxFunc={showSecondaryValue ? handleToggleCurrency : undefined}
         auxIcon={showSecondaryValue ? <SwapIcon /> : undefined}
         back={back}
-        text='Amount'
+        text={t('common.amount')}
       />
       <Content>
         <FlexCol centered gap='0.5rem'>
@@ -282,8 +284,10 @@ export default function Keyboard({
         ))}
       </div>
       <ButtonsOnBottom>
-        <Button label='Save' disabled={disabled} onClick={handleSave} testId='save-amount' />
-        {onClear ? <Button label='Clear amount' onClick={onClear} secondary testId='clear-amount' /> : null}
+        <Button label={t('common.save')} disabled={disabled} onClick={handleSave} testId='save-amount' />
+        {onClear ? (
+          <Button label={t('components.clearAmount')} onClick={onClear} secondary testId='clear-amount' />
+        ) : null}
       </ButtonsOnBottom>
     </>
   )
