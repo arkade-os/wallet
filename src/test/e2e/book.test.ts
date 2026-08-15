@@ -1,35 +1,32 @@
-import { existsSync, readFileSync } from 'fs'
 import type { Page } from '@playwright/test'
 import { test, expect, createWallet, enableAssets, fundWallet, mintAsset, navigateToAssets } from './utils'
 
 /**
  * The peer-to-peer order book, through the UI.
  *
- * Two things beyond the usual regtest stack decide what can run here, and both
- * are detected rather than assumed — a book test that passes with no book is
- * worse than one that says why it could not run.
+ * One thing beyond the usual regtest stack decides what can run here, and it is
+ * detected rather than assumed — a book test that passes with no book is worse
+ * than one that says why it could not run.
  *
- *   1. THE STREAM. `readBook` recognises a resting order by the covenant
- *      co-signer named in its offer packet, so the whole book is dark until the
- *      network has one configured. regtest pins none (every local stack
- *      generates its own), which means the dev server needs
- *      VITE_EMULATOR_PUBKEY — the `signerPubkey` from the emulator's /v1/info,
- *      http://localhost:7073 on the arkade-regtest stack. Without it the ladder
- *      is a skeleton forever and nothing posted is ever seen again.
+ * `readBook` recognises a resting order by the covenant co-signer named in its
+ * offer packet, so the whole book stays dark until the network has one
+ * configured. regtest pins none (every local stack generates its own), which
+ * means the dev server needs VITE_EMULATOR_PUBKEY — the `signerPubkey` from the
+ * emulator's /v1/info, http://localhost:7073 on the arkade-regtest stack.
+ * Without it the ladder is a skeleton forever and nothing posted is seen again.
  *
- *   2. A ROW THIS WALLET DOES NOT OWN. `matchFor` excludes your own orders, so
- *      a wallet cannot build a book it can honestly trade against. `pnpm
- *      seed:book` rests one from its own key; its output file is read below.
+ * The stream is also the ONLY source of other people's orders: it is live-only,
+ * with no backfill, so a wallet sees what is posted while it is open and its own
+ * cache, and nothing else. That is why the last test rests its order from a
+ * second wallet in a second context, with the wallet under test already
+ * watching, rather than seeding the chain beforehand.
  *
- * The assertion this file exists for is the outlook line in TradeSheet, which
- * used to print `fills now` whenever the typed price crossed the book. Crossing
- * is not enough: a fill is all-or-nothing, so a resting row also has to carry
- * EXACTLY the size being asked for, or the order rests next to the one it was
- * meant to take. Both `waits` cases below are asserted on the visible text.
+ * The assertion this file exists for is that last one, on the outlook line in
+ * TradeSheet: it used to print `fills now` whenever the typed price crossed the
+ * book. Crossing is not enough — a fill is all-or-nothing, so a resting row also
+ * has to carry EXACTLY the size being asked for, or the order rests next to the
+ * one it was meant to take.
  */
-
-const SEED_PATH = process.env.SEED_BOOK_PATH ?? 'scripts/.seeded-book.json'
-const seeded = existsSync(SEED_PATH) ? JSON.parse(readFileSync(SEED_PATH, 'utf8')) : null
 
 const NO_STREAM =
   'the order book stream never started — regtest pins no covenant co-signer, so the dev server needs VITE_EMULATOR_PUBKEY (the emulator signerPubkey from http://localhost:7073/v1/info)'
@@ -58,10 +55,10 @@ async function mintAndOpen(page: Page): Promise<void> {
   await expect(page.getByText('Buy', { exact: true })).toBeVisible()
 }
 
-/** Post a bid: 100 TST at 50 sats each. Nothing rests on this pair, so it can
- * only rest — which is what makes it ours to pull afterwards. */
-async function postBid(page: Page): Promise<void> {
-  await page.getByText('Buy', { exact: true }).click()
+/** 100 TST at 50 sats each, from the asset page. Nothing rests on a pair this
+ * new, so the order can only rest — which is what makes it ours to pull. */
+async function postOrder(page: Page, side: 'Buy' | 'Sell'): Promise<void> {
+  await page.getByText(side, { exact: true }).click()
   await expect(page.getByTestId('trade-sheet')).toBeVisible()
   await page.getByTestId('trade-amount').fill('100')
   await page.getByTestId('trade-price').fill('50')
@@ -105,17 +102,18 @@ test('a posted order rests in the ladder as yours, and makes the asset a market'
   await mintAndOpen(page)
   test.skip(!(await bookStreamStarted(page)), NO_STREAM)
 
-  await postBid(page)
+  await postOrder(page, 'Buy')
 
   // the row arrives off the global tx stream, exactly like anyone else's would
   await expect(page.getByText('yours')).toBeVisible({ timeout: 90000 })
   await expect(page.getByRole('button', { name: /^pull 100 TST at 50/ })).toBeVisible()
   await expect(page.getByText('no orders yet')).toHaveCount(0)
 
-  // an asset with a resting order is a market, and markets get the grid
+  // an asset with a resting order is a market, and markets get the grid — the
+  // card is matched by ticker so a book seeded elsewhere cannot satisfy this
   await page.getByLabel('Go back').click()
   await expect(page.getByText('markets', { exact: true })).toBeVisible()
-  await expect(page.getByTestId(/^market-card-/).first()).toBeVisible()
+  await expect(page.getByTestId(/^market-card-/).filter({ hasText: 'TST' })).toBeVisible()
 })
 
 test('pulling a resting order takes it out of the ladder', async ({ page }) => {
@@ -123,7 +121,7 @@ test('pulling a resting order takes it out of the ladder', async ({ page }) => {
   await mintAndOpen(page)
   test.skip(!(await bookStreamStarted(page)), NO_STREAM)
 
-  await postBid(page)
+  await postOrder(page, 'Buy')
 
   const row = page.getByRole('button', { name: /^pull 100 TST at 50/ })
   await expect(row).toBeVisible({ timeout: 90000 })
@@ -160,36 +158,50 @@ test('the outlook never claims a fill when there is no book', async ({ page }) =
   await expect(page.getByText('fills now')).toHaveCount(0)
 })
 
-test.describe('against a book this wallet does not own', () => {
-  test.skip(!seeded, `no seeded book at ${SEED_PATH} — run \`pnpm seed:book\` against the regtest stack`)
+test('a crossing price fills only at the exact resting size, and says so either way', async ({ page, browser }) => {
+  test.setTimeout(300000)
 
-  test('a crossing price with a size no rung carries waits, and names the mismatch', async ({ page }) => {
-    test.setTimeout(120000)
-    await createWallet(page)
-    await enableAssets(page)
-    await navigateToAssets(page)
+  // The wallet under test holds nothing and only watches. It opens FIRST: the
+  // book is a live stream with no backfill, so an order posted before this page
+  // existed would never reach it.
+  await createWallet(page)
+  await enableAssets(page)
+  await navigateToAssets(page)
 
-    // the seeded pair is a market without this wallet holding any of it
-    const card = page.getByTestId(`market-card-${seeded.assetId}`)
-    const listed = await card
-      .waitFor({ state: 'visible', timeout: 30000 })
-      .then(() => true)
-      .catch(() => false)
-    test.skip(!listed, NO_STREAM)
+  // The maker is a second wallet in its own context, because `matchFor` excludes
+  // your own orders — a wallet cannot build a book it is allowed to trade
+  // against, so the row has to come from somebody else.
+  const makerContext = await browser.newContext()
+  const maker = await makerContext.newPage()
+  try {
+    await mintAndOpen(maker)
+    test.skip(!(await bookStreamStarted(maker)), NO_STREAM)
+    await postOrder(maker, 'Sell')
+    await expect(maker.getByText('yours')).toBeVisible({ timeout: 90000 })
 
+    // 100 TST at 50 sats now rests on a pair the watching wallet does not hold,
+    // so it reaches it the only way anyone reaches a stranger's market
+    const card = page.getByTestId(/^market-card-/).filter({ hasText: 'TST' })
+    await expect(card).toBeVisible({ timeout: 90000 })
     await card.click()
     await expect(page.getByText('no orders yet')).toHaveCount(0)
 
     await page.getByText('Buy', { exact: true }).click()
     await expect(page.getByTestId('trade-sheet')).toBeVisible()
     // the sheet opens on the best ask, so the price crosses by construction
-    await expect(page.getByTestId('trade-price')).not.toHaveValue('')
+    await expect(page.getByTestId('trade-price')).toHaveValue('50')
 
-    // 7 tokens: the seeder rests whole hundreds per rung, so no row carries it.
-    // Crossing on price with a size nothing matches is the exact case that used
-    // to read `fills now` while the code posted a resting order instead.
+    // 7 against a rung of 100: crossing on price with a size nothing matches is
+    // the exact case that used to read `fills now` while the code posted a
+    // resting order instead. A fill is all-or-nothing, so this one waits.
     await page.getByTestId('trade-amount').fill('7')
-    await expect(page.getByText(/no resting order is exactly 7/)).toBeVisible()
+    await expect(page.getByText(/no resting order is exactly 7 TST/)).toBeVisible()
     await expect(page.getByText('fills now')).toHaveCount(0)
-  })
+
+    // and the control: at the size the row actually carries, it does fill
+    await page.getByTestId('trade-amount').fill('100')
+    await expect(page.getByText('fills now')).toBeVisible()
+  } finally {
+    await makerContext.close()
+  }
 })

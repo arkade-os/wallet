@@ -161,6 +161,8 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
   // is the asset detail screen, which preselects the asset in the send form
   await navigateToAssets(page)
   await page.getByTestId(/^asset-row-TST-/).click()
+  // Send moved under More when the asset page was cut down to Buy/Sell
+  await page.getByText('More', { exact: true }).click()
   await page.getByText('Send', { exact: true }).click()
 
   // fill address
@@ -195,6 +197,8 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
   // send again via the asset detail screen
   await navigateToAssets(page)
   await page.getByTestId(/^asset-row-TST-/).click()
+  // Send moved under More when the asset page was cut down to Buy/Sell
+  await page.getByText('More', { exact: true }).click()
   await page.getByText('Send', { exact: true }).click()
 
   // fill address
