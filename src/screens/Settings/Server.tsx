@@ -17,12 +17,14 @@ import { AspContext, AspInfo } from '../../providers/asp'
 import { consoleError } from '../../lib/logs'
 import LoadingLogo from '../../components/LoadingLogo'
 import { isMainnet } from '../../lib/constants'
+import { useTranslation } from '../../providers/language'
 
 export default function Server() {
   const { aspInfo } = useContext(AspContext)
   const { backupConfig } = useContext(BackupContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { svcWallet, resetWallet } = useContext(WalletContext)
+  const { t } = useTranslation()
 
   const [aspUrl, setAspUrl] = useState('')
   const [error, setError] = useState('')
@@ -38,21 +40,21 @@ export default function Server() {
   }
 
   useEffect(() => {
-    setError(aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '')
+    setError(aspInfo.unreachable ? aspErrorText(aspInfo, t('init.arkadeServerUnreachable')) : '')
   }, [aspInfo.unreachable, aspInfo.outdated])
 
   useEffect(() => {
     if (!aspUrl || !isValidUrl(aspUrl)) return
     // don't do anything if same server
-    if (aspUrl === config.aspUrl) return setError('Same server')
+    if (aspUrl === config.aspUrl) return setError(t('settings.sameServer'))
     // test connection
     getAspInfo(aspUrl).then((info) => {
-      setError(info.unreachable ? 'Unable to connect' : '')
+      setError(info.unreachable ? t('settings.unableToConnect') : '')
       setInfo(info)
     })
   }, [aspUrl])
 
-  if (!svcWallet) return <LoadingLogo text='Loading...' />
+  if (!svcWallet) return <LoadingLogo text={t('common.loading')} />
 
   // Mirrors the Advanced menu filter: block direct navigation to this screen too,
   // but still allow recovery if the current mainnet server is unreachable.
@@ -79,7 +81,10 @@ export default function Server() {
     handleConnect()
   }
 
-  if (scan) return <Scanner close={() => setScan(false)} label='Server URL' onData={setAspUrl} onError={setError} />
+  if (scan)
+    return (
+      <Scanner close={() => setScan(false)} label={t('settings.serverUrl')} onData={setAspUrl} onError={setError} />
+    )
 
   if (blocked) {
     return (
@@ -96,28 +101,28 @@ export default function Server() {
 
   return (
     <>
-      <Header text='Server' back />
+      <Header text={t('settings.server')} back />
       <Content>
         <Padded>
           <FlexCol>
             <InputUrl
               focus
-              label='Server URL'
+              label={t('settings.serverUrl')}
               onChange={setAspUrl}
               onEnter={handleEnter}
               openScan={() => setScan(true)}
               placeholder={config.aspUrl}
             />
             <ErrorMessage error={Boolean(error)} text={error} />
-            {info && !error ? <WarningBox green text='Server found' /> : null}
-            <WarningBox text='Your wallet will be reset. Make sure you backup your wallet first.' />
+            {info && !error ? <WarningBox green text={t('settings.serverFound')} /> : null}
+            <WarningBox text={t('settings.serverResetWarning')} />
           </FlexCol>
         </Padded>
       </Content>
       <ButtonsOnBottom>
         <Button
           onClick={handleConnect}
-          label='Connect to server'
+          label={t('settings.connectToServer')}
           disabled={!info || Boolean(error)}
           loading={loading}
         />
