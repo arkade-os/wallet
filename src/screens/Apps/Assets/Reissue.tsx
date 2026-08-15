@@ -20,11 +20,13 @@ import { extractError } from '../../../lib/error'
 import Input from '../../../components/Input'
 import { prettyAssetAmount, unitsToCents } from '../../../lib/assets'
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
+import { useTranslation } from '../../../providers/language'
 
 export default function AppAssetReissue() {
   const { replace } = useContext(NavigationContext)
   const { assetInfo } = useContext(FlowContext)
   const { assetBalances, svcWallet, reloadWallet } = useContext(WalletContext)
+  const { t } = useTranslation()
 
   const [amount, setAmount] = useState(BigInt(0))
   const [error, setError] = useState('')
@@ -34,7 +36,7 @@ export default function AppAssetReissue() {
   const pendingConfirm = useRef(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
-  const name = assetInfo.metadata?.name ?? 'Unknown'
+  const name = assetInfo.metadata?.name ?? t('mint.unknown')
   const ticker = assetInfo.metadata?.ticker ?? ''
   const icon = assetInfo.metadata?.icon
   const decimals = assetInfo.metadata?.decimals ?? 8
@@ -47,11 +49,11 @@ export default function AppAssetReissue() {
 
   const handleReissueRequest = () => {
     if (!assetInfo.assetId) {
-      setError('Asset ID is required')
+      setError(t('mint.assetIdRequired'))
       return
     }
     if (!amount || amount <= 0) {
-      setError('Amount must be a positive number')
+      setError(t('mint.amountMustBePositive'))
       return
     }
     setError('')
@@ -93,24 +95,26 @@ export default function AppAssetReissue() {
   }, [])
 
   if (processing || opDone)
-    return <LoadingLogo text='Reissuing...' done={opDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
+    return (
+      <LoadingLogo text={t('loading.reissuing')} done={opDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
+    )
 
   return (
     <>
-      <Header text={`Reissue ${ticker || name}`} back />
+      <Header text={t('mint.reissueTitle', { ticker: ticker || name })} back />
       <Modal open={showConfirm} onOpenChange={setShowConfirm} onExitComplete={handleConfirmExitComplete}>
         <FlexCol gap='1.5rem'>
           <FlexCol centered gap='0.5rem'>
             <Text big bold>
-              Confirm Reissue
+              {t('mint.confirmReissue')}
             </Text>
             <Text centered wrap color='neutral-500'>
-              You are about to mint {prettyAssetAmount(amount, decimals)} additional {ticker || name}.
+              {t('mint.reissueWarning', { amount: prettyAssetAmount(amount, decimals), ticker: ticker || name })}
             </Text>
           </FlexCol>
           <FlexRow>
-            <Button onClick={() => setShowConfirm(false)} label='Cancel' secondary />
-            <Button onClick={handleReissueConfirm} label='Reissue' />
+            <Button onClick={() => setShowConfirm(false)} label={t('common.cancel')} secondary />
+            <Button onClick={handleReissueConfirm} label={t('mint.reissue')} />
           </FlexRow>
         </FlexCol>
       </Modal>
@@ -139,14 +143,14 @@ export default function AppAssetReissue() {
               type='number'
               placeholder='1000'
               testId='asset-amount'
-              label='Additional Amount'
+              label={t('mint.additionalAmount')}
               onChange={handleAmountChange}
             />
           </FlexCol>
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Button label='Reissue' onClick={handleReissueRequest} disabled={!amount} />
+        <Button label={t('mint.reissue')} onClick={handleReissueRequest} disabled={!amount} />
       </ButtonsOnBottom>
     </>
   )

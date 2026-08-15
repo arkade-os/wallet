@@ -25,6 +25,7 @@ import { deriveNostrKeyFromMnemonic } from '../../lib/mnemonic'
 import { AspContext } from '../../providers/asp'
 import InputNsec from '../../components/InputNsec'
 import { BackupContext } from '@/providers/backup'
+import { useTranslation } from '../../providers/language'
 
 type RotationChoice = 'Inherit' | 'Static' | 'HD'
 
@@ -43,8 +44,9 @@ export default function InitRestore() {
   const { devMode } = useContext(DevModeContext)
   const { restore } = useContext(BackupContext)
   const { aspInfo } = useContext(AspContext)
+  const { t } = useTranslation()
 
-  const buttonLabel = 'Continue'
+  const buttonLabel = t('common.continue')
 
   const [error, setError] = useState('')
   const [label, setLabel] = useState(buttonLabel)
@@ -75,8 +77,8 @@ export default function InitRestore() {
       } else {
         setMnemonic(undefined)
         setPrivateKey(undefined)
-        setLabel('Invalid recovery phrase')
-        setError('Invalid recovery phrase')
+        setLabel(t('init.invalidRecoveryPhrase'))
+        setError(t('init.invalidRecoveryPhrase'))
       }
       return
     }
@@ -88,10 +90,10 @@ export default function InitRestore() {
       if (trimmed.match(/^nsec/)) pk = nsecToPrivateKey(trimmed)
       else pk = hex.decode(trimmed)
       const invalid = invalidPrivateKey(pk)
-      setLabel(invalid ? 'Unable to validate private key format' : buttonLabel)
+      setLabel(invalid ? t('init.unableToValidatePrivateKey') : buttonLabel)
       setError(invalid)
     } catch (err) {
-      setLabel('Unable to validate key format')
+      setLabel(t('init.unableToValidateKey'))
       setError(extractError(err))
     }
     setPrivateKey(pk)
@@ -134,7 +136,7 @@ export default function InitRestore() {
   if (restoring)
     return (
       <LoadingLogo
-        text='Restoring wallet...'
+        text={t('init.restoringWallet')}
         done={restoreDone}
         exitMode='fly-up'
         onExitComplete={handleExitComplete}
@@ -143,7 +145,7 @@ export default function InitRestore() {
 
   return (
     <>
-      <Header text='Restore wallet' back />
+      <Header text={t('init.restoreWallet')} back />
       <Content>
         <Padded>
           <OnboardStaggerContainer>
@@ -154,24 +156,17 @@ export default function InitRestore() {
                   <ErrorMessage error={Boolean(error)} text={error} />
                   {devMode && mnemonic ? (
                     <FlexCol gap='0.5rem'>
-                      <Text thin>Address rotation</Text>
+                      <Text thin>{t('init.addressRotation')}</Text>
                       <SegmentedControl
                         options={['Inherit', 'Static', 'HD']}
                         selected={rotationChoice}
                         onChange={(v) => setRotationChoice(v as RotationChoice)}
                       />
-                      <TextSecondary wrap>
-                        Inherit uses your saved wallet setting (typically restored from backup). If backup restore is
-                        unavailable, it falls back to your local/default setting. Pick HD if this wallet rotated receive
-                        addresses and you need to force HD recovery.
-                      </TextSecondary>
+                      <TextSecondary wrap>{t('init.rotationSubtext')}</TextSecondary>
                     </FlexCol>
                   ) : null}
                 </FlexCol>
-                <TextSecondary wrap>
-                  Enter your 12-word recovery phrase, or a private key starting with 'nsec' or a raw hex key. Do not
-                  share it with anyone.
-                </TextSecondary>
+                <TextSecondary wrap>{t('init.recoveryInstructions')}</TextSecondary>
               </FlexCol>
             </OnboardStaggerChild>
           </OnboardStaggerContainer>
@@ -179,7 +174,7 @@ export default function InitRestore() {
       </Content>
       <ButtonsOnBottom>
         <Button onClick={handleProceed} label={label} disabled={disabled} />
-        <Button onClick={handleCancel} label='Cancel' secondary />
+        <Button onClick={handleCancel} label={t('common.cancel')} secondary />
       </ButtonsOnBottom>
     </>
   )

@@ -7,6 +7,7 @@ import { OptionsContext } from '../../providers/options'
 import { SettingsOptions } from '../../lib/types'
 import { hapticLight } from '../../lib/haptics'
 import { PrivacyAmount, maskedFiat } from '../../components/PrivacyAmount'
+import { useTranslation } from '../../providers/language'
 
 interface HomeHeaderProps {
   balance?: string
@@ -25,6 +26,7 @@ const HomeHeader = forwardRef<HTMLDivElement, HomeHeaderProps>(function HomeHead
 ) {
   const { navigate } = useContext(NavigationContext)
   const { setOption } = useContext(OptionsContext)
+  const { t } = useTranslation()
   const clampedBalanceProgress = Math.max(0, Math.min(1, balanceProgress))
 
   const handleActivity = () => {
@@ -55,7 +57,7 @@ const HomeHeader = forwardRef<HTMLDivElement, HomeHeaderProps>(function HomeHead
           <button
             type='button'
             onClick={handleActivity}
-            aria-label='View recent activity'
+            aria-label={t('wallet.viewRecentActivity')}
             data-testid='top-right-activity'
             className={actionClassName}
             style={{ WebkitTapHighlightColor: 'transparent' }}
@@ -65,7 +67,7 @@ const HomeHeader = forwardRef<HTMLDivElement, HomeHeaderProps>(function HomeHead
           <button
             type='button'
             onClick={handleSettings}
-            aria-label='Open settings'
+            aria-label={t('wallet.openSettings')}
             data-testid='top-right-settings'
             className={actionClassName}
             style={{ WebkitTapHighlightColor: 'transparent' }}

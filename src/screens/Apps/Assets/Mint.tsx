@@ -27,6 +27,7 @@ import { isInvalidDecimals, isInvalidMintAmount, isValidUrl } from '../../../lib
 import InputAssetAmount from '@/components/InputAssetAmount'
 import InputAssetDecimals from '@/components/InputAssetDecimals'
 import { BackupContext } from '@/providers/backup'
+import { useTranslation } from '../../../providers/language'
 
 interface KnownAssetOption {
   assetId: string
@@ -41,6 +42,7 @@ export default function AppAssetMint() {
   const { config } = useContext(ConfigContext)
   const { setAssetInfo } = useContext(FlowContext)
   const { svcWallet, assetBalances, assetMetadataCache, setCacheEntry, iconApprovalManager } = useContext(WalletContext)
+  const { t } = useTranslation()
 
   const [amountTextValue, setAmountTextValue] = useState('')
   const [amount, setAmount] = useState(BigInt(0))
@@ -57,7 +59,7 @@ export default function AppAssetMint() {
   const [knownAssets, setKnownAssets] = useState<KnownAssetOption[]>([])
   const [controlMode, setControlMode] = useState<'None' | 'Existing' | 'New'>('None')
   const [ctrlAmount, setCtrlAmount] = useState(1)
-  const [mintingText, setMintingText] = useState('Minting asset...')
+  const [mintingText, setMintingText] = useState(() => t('loading.mintingAsset'))
   const [mintDone, setMintDone] = useState(false)
   const pendingNav = useRef<() => void>()
 
@@ -99,7 +101,7 @@ export default function AppAssetMint() {
     const invalidCentsReason = isInvalidMintAmount(cents)
     if (invalidCentsReason) return setError(invalidCentsReason)
     // validate icon URL
-    if (iconUrl && !isValidUrl(iconUrl)) return setError('Invalid icon URL')
+    if (iconUrl && !isValidUrl(iconUrl)) return setError(t('mint.invalidIconUrl'))
     // all validations passed
     setError('')
     setAmount(cents)
@@ -110,14 +112,14 @@ export default function AppAssetMint() {
     if (!svcWallet) return
 
     if (!amount || amount <= 0) {
-      return setError('Amount must be a positive number')
+      return setError(t('mint.amountMustBePositive'))
     }
 
     if (decimals === undefined || !Number.isInteger(decimals) || decimals < 0 || decimals > MAX_DECIMALS) {
-      return setError(`Decimals must be an integer between 0 and ${MAX_DECIMALS}`)
+      return setError(t('mint.invalidDecimals', { max: MAX_DECIMALS }))
     }
 
-    if (iconUrl && !isValidUrl(iconUrl)) return setError('Invalid icon URL')
+    if (iconUrl && !isValidUrl(iconUrl)) return setError(t('mint.invalidIconUrl'))
 
     const supply = amount
 
@@ -134,7 +136,7 @@ export default function AppAssetMint() {
       let resolvedControlAssetId = controlMode === 'Existing' ? controlAssetId : ''
 
       if (controlMode === 'New') {
-        setMintingText('Minting control asset...')
+        setMintingText(t('loading.mintingControlAsset'))
         const ctrlMeta: KnownMetadata = { decimals: 0 }
         if (name) ctrlMeta.name = `ctrl-${name}`
         if (ticker) ctrlMeta.ticker = `ctrl-${ticker}`
@@ -161,7 +163,7 @@ export default function AppAssetMint() {
         })
       }
 
-      setMintingText('Minting asset...')
+      setMintingText(t('loading.mintingAsset'))
       const params: IssuanceParams = { amount: supply, metadata }
       if (resolvedControlAssetId) params.controlAssetId = resolvedControlAssetId
 
@@ -199,25 +201,25 @@ export default function AppAssetMint() {
   const selectedControl = knownAssets.find((a) => a.assetId === controlAssetId) ?? null
 
   const disabledReason = !name
-    ? 'Enter a name'
+    ? t('mint.enterName')
     : name.length > 40
-      ? 'Name must be 40 characters or less'
+      ? t('mint.nameTooLong')
       : !ticker
-        ? 'Enter a ticker'
+        ? t('mint.enterTicker')
         : ticker.length > 8
-          ? 'Ticker must be 8 characters or less'
+          ? t('mint.tickerTooLong')
           : !amount
-            ? 'Enter an amount'
+            ? t('mint.enterAmount')
             : amount <= 0
-              ? 'Amount must be a positive number'
+              ? t('mint.amountMustBePositive')
               : decimals === undefined || isNaN(decimals) || decimals < 0 || decimals > MAX_DECIMALS
-                ? `Decimals must be 0-${MAX_DECIMALS}`
+                ? t('mint.decimalsRange', { max: MAX_DECIMALS })
                 : controlMode === 'New' && !ctrlAmount
-                  ? 'Enter control asset amount'
+                  ? t('mint.enterControlAmount')
                   : controlMode === 'New' && (isNaN(ctrlAmount) || ctrlAmount <= 0)
-                    ? 'Control amount must be positive'
+                    ? t('mint.controlAmountPositive')
                     : !isValidUrl(iconUrl)
-                      ? 'Invalid icon URL'
+                      ? t('mint.invalidIconUrl')
                       : ''
 
   const handleExitComplete = useCallback(() => {
@@ -229,7 +231,7 @@ export default function AppAssetMint() {
 
   return (
     <>
-      <Header text='Mint Asset' back />
+      <Header text={t('mint.title')} back />
       <Content>
         <Padded>
           <FlexCol gap='1rem'>
@@ -245,17 +247,17 @@ export default function AppAssetMint() {
             <FlexRow gap='0.5rem' alignItems='flex-end'>
               <div style={{ flex: 1 }}>
                 <Input
-                  label='Name *'
+                  label={t('mint.name')}
                   maxLength={40}
                   testId='asset-name'
-                  placeholder='My Token'
+                  placeholder={t('mint.myToken')}
                   onChange={(v: string) => setName(v.slice(0, 40))}
                 />
               </div>
               <div style={{ width: '6rem' }}>
                 <Input
                   maxLength={8}
-                  label='Ticker *'
+                  label={t('mint.ticker')}
                   placeholder='TKN'
                   testId='asset-ticker'
                   onChange={(v: string) => setTicker(v.slice(0, 8))}
@@ -266,7 +268,7 @@ export default function AppAssetMint() {
             <FlexRow gap='0.5rem' alignItems='flex-end'>
               <div style={{ flex: 1 }}>
                 <InputAssetAmount
-                  label='Amount *'
+                  label={t('mint.amount')}
                   placeholder='1000'
                   testId='asset-amount'
                   onChange={setAmountTextValue}
@@ -275,7 +277,7 @@ export default function AppAssetMint() {
               <div style={{ width: '6rem' }}>
                 <InputAssetDecimals
                   placeholder='0'
-                  label='Decimals'
+                  label={t('mint.decimals')}
                   testId='asset-decimals'
                   onChange={setDecimalsText}
                 />
@@ -284,7 +286,7 @@ export default function AppAssetMint() {
 
             <Input
               type='url'
-              label='Icon URL'
+              label={t('mint.iconUrl')}
               value={iconUrl}
               testId='asset-icon-url'
               placeholder='https://...'
@@ -293,10 +295,13 @@ export default function AppAssetMint() {
 
             <FlexCol gap='0.5rem'>
               <Text smaller color='neutral-500'>
-                Control Asset
+                {t('mint.controlAsset')}
               </Text>
               <SegmentedControl
                 options={['None', 'Existing', 'New']}
+                getLabel={(v) =>
+                  v === 'None' ? t('mint.none') : v === 'Existing' ? t('mint.existing') : t('mint.new')
+                }
                 selected={controlMode}
                 onChange={(v) => {
                   setControlMode(v as 'None' | 'Existing' | 'New')
@@ -319,7 +324,7 @@ export default function AppAssetMint() {
                                 </Text>
                               </>
                             ) : (
-                              <Text color='neutral-500'>Select from wallet...</Text>
+                              <Text color='neutral-500'>{t('mint.selectFromWallet')}</Text>
                             )}
                           </div>
                           <Text color='neutral-500' smaller>
@@ -338,7 +343,7 @@ export default function AppAssetMint() {
                                 }}
                               >
                                 <FlexRow padding='0.625rem 0.5rem'>
-                                  <Text color='neutral-500'>None</Text>
+                                  <Text color='neutral-500'>{t('mint.none')}</Text>
                                 </FlexRow>
                               </Shadow>
                             ) : null}
@@ -366,7 +371,7 @@ export default function AppAssetMint() {
                   <Input
                     value={controlAssetId}
                     onChange={setControlAssetId}
-                    placeholder='Paste asset ID...'
+                    placeholder={t('mint.pasteAssetId')}
                     testId='control-asset-id'
                   />
                 </FlexCol>
@@ -381,7 +386,7 @@ export default function AppAssetMint() {
                     min='0'
                     step='1'
                     type='number'
-                    label='Control Amount'
+                    label={t('mint.controlAmount')}
                     testId='control-asset-amount'
                     onChange={(v: string) => setCtrlAmount(Number(v))}
                   />
@@ -397,7 +402,7 @@ export default function AppAssetMint() {
             {disabledReason}
           </Text>
         ) : null}
-        <Button label='Mint' onClick={handleMint} disabled={Boolean(disabledReason)} />
+        <Button label={t('mint.mint')} onClick={handleMint} disabled={Boolean(disabledReason)} />
       </ButtonsOnBottom>
     </>
   )
