@@ -246,8 +246,13 @@ export const OrderBookProvider = ({ children }: { children: ReactNode }) => {
 
     await cancelOffer(svcWallet, aspInfo.url, order.offerHex, {
       repository: assetSwapRepository,
+      // No swapAddress: cancelOffer decodes it as an ArkAddress to pin the
+      // server key, and a BookOrder carries the covenant's pkScript, not its
+      // address. Passing the script here threw inside decode and left the order
+      // sitting in the ladder. Omitting it is the documented fallback — the
+      // call just uses the client's current server key, losing only the
+      // detection of a key rotated since funding.
       fundingTxid: order.fundingTxid,
-      swapAddress: order.swapPkScript,
     })
     apply(ordersRef.current.filter((o) => o.id !== orderId))
     toast.success('order cancelled, funds returned')

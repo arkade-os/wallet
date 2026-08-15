@@ -130,24 +130,20 @@ test('pulling a resting order takes it out of the ladder', async ({ page }) => {
   test.skip(!(await row.isEnabled()), NO_TAKE)
 
   await row.click()
-  await page.waitForTimeout(4000)
-  console.log(
-    'DEBUG-TOAST:',
-    await page
-      .locator('[data-sonner-toaster], section:has-text("Notifications")')
-      .innerText()
-      .catch((e) => String(e)),
-  )
-  await expect(page.getByText('yours')).toHaveCount(0, { timeout: 90000 })
 
-  // The refund lands as an ordinary incoming payment, and the success splash
-  // that greets it takes the screen off the asset page — so the empty ladder is
-  // re-read from a fresh render rather than assumed to still be on screen.
+  // The refund lands as an ordinary incoming payment, whose success splash takes
+  // the screen off the asset page — so the ladder is re-read from a fresh
+  // render. Asserting the row is gone in place would also pass on a screen that
+  // merely navigated away, which is the same evidence for a very different fact.
   const splash = page.getByRole('button', { name: /Sounds good|Tap to go home/ })
-  if (await splash.isVisible().catch(() => false)) await splash.click()
+  await splash
+    .waitFor({ state: 'visible', timeout: 30000 })
+    .then(() => splash.click())
+    .catch(() => {})
   await navigateToAssets(page)
   await page.getByTestId(/^asset-row-TST-/).click()
-  await expect(page.getByText('no orders yet')).toBeVisible({ timeout: 30000 })
+  await expect(page.getByText('no orders yet')).toBeVisible({ timeout: 60000 })
+  await expect(page.getByText('yours')).toHaveCount(0)
 })
 
 test('the outlook never claims a fill when there is no book', async ({ page }) => {
