@@ -277,6 +277,11 @@ export const OrderBookProvider = ({ children }: { children: ReactNode }) => {
    * price available.
    */
   const matchFor = ({ give, want }: PlaceParams): BookRow | undefined => {
+    // No emulator means trade() cannot fill and will rest the order instead, so
+    // reporting a match here would put the "fills now" lie back — in a config
+    // where the price crosses AND the size matches, which is the one case a
+    // user would most reasonably trust.
+    if (!emulatorUrl) return undefined
     const book = buildBook(orders, pairKeyOf(give.assetId, want.assetId), myPkScripts)
     return [...book.asks, ...book.bids].find(
       (row) =>

@@ -117,8 +117,12 @@ export default function BookLadder({
   const max = [...asks, ...bids].reduce((m, r) => (baseAmount(r) > m ? baseAmount(r) : m), 0n)
 
   const press = (row: BookRow): ((row: BookRow) => void) | undefined => {
-    if (!takeable) return undefined
-    return row.mine ? onPull : onTake
+    // Pulling your own order never needs the emulator: cancelOffer takes the
+    // 2-of-2 user+server tapscript path, not the covenant path a fill spends.
+    // Gating it on `takeable` blocked a refund that works perfectly well, and
+    // stranded the deposit on any deployment without an emulator endpoint.
+    if (row.mine) return onPull
+    return takeable ? onTake : undefined
   }
 
   const rowOf = (row: BookRow) => (

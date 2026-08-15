@@ -193,7 +193,7 @@ export default function AppAssetDetail() {
               baseTicker={ticker || 'units'}
               baseDecimals={decimals}
               takeable={takeable}
-              takeDisabledReason='buying needs an emulator endpoint — selling and cancelling still work'
+              takeDisabledReason='buying needs an emulator endpoint — posting and cancelling still work'
               onTake={handleTake}
               onPull={handlePull}
               loading={!bookReady}

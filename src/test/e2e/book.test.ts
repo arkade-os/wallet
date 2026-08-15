@@ -9,11 +9,11 @@ import { test, expect, createWallet, enableAssets, fundWallet, mintAsset, naviga
  * than one that says why it could not run.
  *
  * `readBook` recognises a resting order by the covenant co-signer named in its
- * offer packet, so the whole book stays dark until the network has one
- * configured. regtest pins none (every local stack generates its own), which
- * means the dev server needs VITE_EMULATOR_PUBKEY — the `signerPubkey` from the
- * emulator's /v1/info, http://localhost:7073 on the arkade-regtest stack.
- * Without it the ladder is a skeleton forever and nothing posted is seen again.
+ * offer packet, so the whole book stays dark until this network has one. regtest
+ * pins none — every local stack mints its own — so the provider reads it from
+ * the emulator's /v1/info instead, http://localhost:7073 on the arkade-regtest
+ * stack. With neither a pin nor a reachable emulator the ladder is a skeleton
+ * forever and nothing posted is ever seen again.
  *
  * The stream is also the ONLY source of other people's orders: it is live-only,
  * with no backfill, so a wallet sees what is posted while it is open and its own
@@ -29,10 +29,10 @@ import { test, expect, createWallet, enableAssets, fundWallet, mintAsset, naviga
  */
 
 const NO_STREAM =
-  'the order book stream never started — regtest pins no covenant co-signer, so the dev server needs VITE_EMULATOR_PUBKEY (the emulator signerPubkey from http://localhost:7073/v1/info)'
+  'the order book stream never started — this network has no covenant co-signer: nothing pinned, and no emulator answering /v1/info (regtest expects one on http://localhost:7073, or set VITE_EMULATOR_PUBKEY)'
 
 const NO_TAKE =
-  'the ladder disables every row when the deployment cannot submit a fill (takeable=false), pulls included — set VITE_EMULATOR_URL to reach the regtest emulator'
+  'the ladder disables every row where the deployment cannot submit a fill (takeable=false), pulls included — this network has no emulator endpoint, so set VITE_EMULATOR_URL'
 
 /** The ladder renders a skeleton until the provider reports `ready`, which only
  * happens once the tx stream is running. Detached skeleton = live book. */
