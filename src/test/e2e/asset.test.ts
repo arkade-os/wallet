@@ -215,7 +215,8 @@ test('should mint asset with new control asset', async ({ page }) => {
   await page.getByText('View Asset').click()
   await page.waitForSelector('text=500 MYC', { timeout: 10000 })
 
-  // control asset should be displayed
+  // control asset row and the actions both live under More now
+  await page.getByText('More', { exact: true }).click()
   await expect(page.getByText('ctrl-MyCoin')).toBeVisible()
 
   // reissue should be possible (we hold the control asset)

@@ -134,6 +134,46 @@ const programBinding = (offer: Offer, serverPubkey: Uint8Array) => ({
   },
 })
 
+/**
+ * The asset packet that delivers `want` out of the taker's own coins.
+ *
+ * This is the arithmetic that must not be wrong: a transaction spending
+ * asset-bearing inputs **burns every atomic unit its packet does not name**.
+ * `coins` are the taker's holdings in the order they will be funded — `.from()`
+ * is vin 0, so coin i is vin i+1 — and each contributes its FULL balance,
+ * because an input is spent whole or not at all. The remainder over `want`
+ * therefore has to come back on an output the taker owns, which is vout 1.
+ *
+ * Conservation is asserted here rather than assumed, so a later mis-edit throws
+ * before anything is broadcast instead of destroying the difference.
+ */
+export const deliverAsset = (
+  coins: readonly bigint[],
+  want: bigint,
+): { inputs: { vin: number; amount: bigint }[]; outputs: { vout: number; amount: bigint }[] } => {
+  const inputs: { vin: number; amount: bigint }[] = []
+  let total = 0n
+  for (const amount of coins) {
+    if (total >= want) break
+    inputs.push({ vin: inputs.length + 1, amount })
+    total += amount
+  }
+  if (total < want) throw new Error(`not enough of that asset to fill this bid: it wants ${want}, you hold ${total}`)
+
+  // vout 0 is the maker's — the only output the covenant reads. vout 1 is ours,
+  // and exists exactly when our coins overshoot, which is nearly always.
+  const outputs = [{ vout: 0, amount: want }]
+  if (total > want) outputs.push({ vout: 1, amount: total - want })
+
+  const sum = (xs: { amount: bigint }[]) => xs.reduce((s, x) => s + x.amount, 0n)
+  if (sum(inputs) !== sum(outputs)) {
+    throw new Error(
+      `asset packet does not conserve: ${sum(inputs)} in, ${sum(outputs)} out — refusing to burn the rest`,
+    )
+  }
+  return { inputs, outputs }
+}
+
 export interface TakeOrderParams {
   order: BookOrder
   /** The key the covenant was funded against, x-only. `aspInfo.signerPubkey`
@@ -148,10 +188,10 @@ export interface TakeOrderParams {
  * Take a resting order, whole.
  *
  * The covenant's `fulfill` leaf is signed by the server alone and constrained to
- * pay output 0 at least `wantAmount` to the maker's script. So the taker signs
- * only its own funding inputs, the emulator and arkd sign the rest, and **the
- * maker is never contacted** — it may be offline, and its consent was given when
- * it funded.
+ * deliver at least `wantAmount` to the maker's script at output 0 — sats for an
+ * ask, the wanted asset for a bid. So the taker signs only its own funding
+ * inputs, the emulator and arkd sign the rest, and **the maker is never
+ * contacted** — it may be offline, and its consent was given when it funded.
  *
  * A fill is all-or-nothing: the covenant has no remainder path, so the row is
  * taken entire or not at all. That is why there is no amount parameter.
@@ -185,41 +225,60 @@ export const takeOrder = async (deps: BookDeps, params: TakeOrderParams): Promis
   const { program, args, keys } = programBinding(offer, serverPubkey)
   const contract = new arkade.ArkadeContract(client, program, args, keys)
 
-  // v1 takes asks only: the maker deposited an asset and wants sats, so the
-  // taker pays sats and receives the asset. The mirror case — taking a bid by
-  // DELIVERING an asset — is refused rather than half-built, because the taker
-  // would then have to declare asset change on its own inputs, and an asset
-  // input without a matching output is a permanent burn. Meeting a bid is
-  // posting an ask against it, which routes through placeOrder and cannot burn.
-  if (!isBtc(order.want.assetId)) {
-    throw new Error('taking a bid is not supported yet — post an ask to meet it')
-  }
-
   const taker = ArkAddress.decode(await deps.wallet.getAddress()).pkScript
   const dust = deps.dust
-
-  // enough to pay the maker, carry the asset out on our own output, and leave
-  // the covenant's own sats to change
   const spendable = await deps.wallet.getSpendableVtxos()
-  const { inputs } = selectVirtualCoins(spendable, Number(order.want.amount + dust))
 
   const build = contract.functions
     .fulfill()
     .from({ txid: order.fundingTxid, vout: order.vout, value: Number(order.depositSats) })
-    .fund(inputs.map((coin) => ({ ...coin, tapLeafScript: coin.forfeitTapLeafScript })))
-    // output 0 is the only one the covenant reads: at least wantAmount to the maker
-    .to(offer.makerPkScript, order.want.amount)
 
-  // output 1 carries the deposit out to us. An asset deposit MUST be declared:
-  // a transaction spending asset-bearing inputs without a packet accounting for
-  // them burns the balance outright, so every atomic unit of vin 0 is named here.
-  if (!isBtc(order.give.assetId)) {
-    build.to(taker, dust)
-    build.withAsset({
-      assetId: order.give.assetId,
-      inputs: [{ vin: 0, amount: order.give.amount }],
-      outputs: [{ vout: 1, amount: order.give.amount }],
-    })
+  if (isBtc(order.want.assetId)) {
+    // Taking an ask: the maker wants sats, so we pay them. Enough to pay the
+    // maker, carry the deposit out on our own output, and leave the covenant's
+    // own sats to change.
+    const { inputs } = selectVirtualCoins(spendable, Number(order.want.amount + dust))
+    build.fund(inputs.map((coin) => ({ ...coin, tapLeafScript: coin.forfeitTapLeafScript })))
+    // output 0 is the only one the covenant reads: at least wantAmount to the maker
+    build.to(offer.makerPkScript, order.want.amount)
+
+    // output 1 carries the deposit out to us. An asset deposit MUST be declared:
+    // a transaction spending asset-bearing inputs without a packet accounting for
+    // them burns the balance outright, so every atomic unit of vin 0 is named here.
+    if (!isBtc(order.give.assetId)) {
+      build.to(taker, dust)
+      build.withAsset({
+        assetId: order.give.assetId,
+        inputs: [{ vin: 0, amount: order.give.amount }],
+        outputs: [{ vout: 1, amount: order.give.amount }],
+      })
+    }
+  } else {
+    // Taking a bid: the covenant holds SATS and wants an asset, so we deliver
+    // the asset and the deposit comes to us as change. Our own coins will not
+    // sum to the maker's price, and the surplus burns unless the same packet
+    // returns it — which is the whole job of deliverAsset above.
+    const held = spendable
+      .map((coin) => ({
+        coin,
+        amount: (coin.assets ?? []).reduce((s, a) => (a.assetId === order.want.assetId ? s + a.amount : s), 0n),
+      }))
+      .filter((c) => c.amount > 0n)
+      // biggest first, so a fill spends the fewest inputs it can
+      .sort((a, b) => (a.amount === b.amount ? 0 : a.amount > b.amount ? -1 : 1))
+
+    const { inputs, outputs } = deliverAsset(
+      held.map((c) => c.amount),
+      order.want.amount,
+    )
+
+    build.fund(held.slice(0, inputs.length).map(({ coin }) => ({ ...coin, tapLeafScript: coin.forfeitTapLeafScript })))
+    // Output 0 is the maker's, on a dust carrier: the want-asset covenant reads
+    // the ASSET at output 0 (INSPECTOUTASSETLOOKUP), never its sats. Output 1 is
+    // ours and exists only when deliverAsset returned surplus for it.
+    build.to(offer.makerPkScript, dust)
+    if (outputs.length > 1) build.to(taker, dust)
+    build.withAsset({ assetId: order.want.assetId, inputs, outputs })
   }
 
   // whatever is left — the covenant's carrier sats and our own change

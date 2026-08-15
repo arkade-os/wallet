@@ -1,7 +1,7 @@
 import { ReactNode, createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { hex } from '@scure/base'
 import { ArkAddress, RestArkProvider, RestIndexerProvider, type NetworkName } from '@arkade-os/sdk'
-import { BTC_ASSET_ID, cancelOffer } from '@arkade-os/swap'
+import { cancelOffer } from '@arkade-os/swap'
 import {
   buildBook,
   deadOrders,
@@ -252,12 +252,11 @@ export const OrderBookProvider = ({ children }: { children: ReactNode }) => {
     return [...book.asks, ...book.bids].find(
       (row) =>
         !row.mine &&
-        // takeOrder cannot yet deliver an asset into a covenant (declaring the
-        // taker's own asset change is a burn hazard, so it is deferred), which
-        // means a bid is not fillable today. Excluded HERE rather than left to
-        // fail at submit: a match the UI reports is a promise, and promising a
-        // fill that throws is the defect this whole path exists to remove.
-        row.want.assetId === BTC_ASSET_ID &&
+        // Both directions are fillable: takeOrder pays sats into an ask and
+        // delivers the asset into a bid, returning its own surplus in the same
+        // asset packet. Nothing about the side is filtered here — a match the
+        // UI reports is a promise, and only terms it can actually keep belong
+        // in it, which is what the four clauses below check.
         row.give.assetId === want.assetId &&
         row.give.amount === want.amount &&
         row.want.assetId === give.assetId &&

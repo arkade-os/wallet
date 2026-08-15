@@ -27,11 +27,12 @@
  *               went up by the amount A sold, and the covenant vtxo is no longer
  *               spendable — checked live BEFORE the take too, so "already gone"
  *               cannot be mistaken for "gone because it filled".
- *
- * The reverse direction (taking a bid) is a KNOWN GAP: src/lib/book/trade.ts
- * refuses it rather than half-building a spend that could burn asset balance.
- * Step 7 asserts the refusal by its exact message, so implementing bid-taking
- * fails this test loudly instead of leaving a direction silently unproven.
+ *   the reverse  A takes B's bid by DELIVERING the asset. Same four facts, plus
+ *               the one that only this direction can fail: A's asset balance
+ *               fell by EXACTLY what it delivered. A fill whose packet forgets
+ *               the taker's surplus still pays the maker and still spends the
+ *               covenant — it just burns the remainder, silently, forever. That
+ *               equality is the only thing that catches it.
  *
  * Env: ARK_URL, EMULATOR_URL, ESPLORA_URL, NETWORK — defaults are the stack's.
  */
@@ -335,7 +336,7 @@ const main = async () => {
     orderGone: found.id,
   })
 
-  // 7 ── the reverse: B posts a bid, A cannot take it
+  // 7 ── the reverse: B posts a bid, A fills it by delivering the asset
   const bid = await placeOrder(depsB, {
     give: { assetId: BTC_ASSET_ID, amount: BID_SATS },
     want: { assetId, amount: BID_ASSET },
@@ -348,37 +349,58 @@ const main = async () => {
   assert.equal(foundBid.want.amount, BID_ASSET, 'discovered bid must want exactly what B named')
   assert.equal(buildBook([foundBid], pair, new Set()).bids.length, 1, 'a purchase of the asset must build as a bid')
 
-  // NOT a passing direction. takeOrder refuses bids today, so the honest
-  // assertion is the refusal itself — by its exact message, so that a future
-  // implementation of bid-taking fails here and forces this step to be rewritten
-  // as a real match rather than quietly continuing to "pass".
-  await assert.rejects(
-    () => takeOrder(depsA, { order: foundBid, serverPubkey, emulatorUrl: EMULATOR_URL }),
-    /taking a bid is not supported yet/,
-    'takeOrder must refuse a bid; if it now succeeds, the gap is closed and this step owes a real match assertion',
+  assert.deepEqual(await deadOrders(indexer, [foundBid]), [], 'the bid must be resting before anyone takes it')
+  const aSatsBefore = await satsOf(a)
+  const aAssetBefore = await heldAsset(a, assetId)
+  const bAssetBefore = await heldAsset(b, assetId)
+  const bidFillTxid = await takeOrder(depsA, { order: foundBid, serverPubkey, emulatorUrl: EMULATOR_URL })
+  step('A took the bid', { txid: bidFillTxid })
+
+  // 8 ── the reverse match happened, and nothing was burned doing it
+  const aSatsAfter = await until('A to be paid for the asset it delivered', async () => {
+    const now = await satsOf(a)
+    return now > aSatsBefore ? now : undefined
+  })
+  const bidDelta = aSatsAfter - aSatsBefore
+  assert.ok(bidDelta * 10n >= BID_SATS * 9n, `A gained ${bidDelta} sats, which is under 90% of the ${BID_SATS} B bid`)
+
+  const delivered = await until('B to be credited the asset it bid for', async () => {
+    const amount = await heldAsset(b, assetId)
+    return amount > bAssetBefore ? amount : undefined
+  })
+  assert.equal(delivered - bAssetBefore, BID_ASSET, 'B must be credited exactly the asset amount it bid for')
+
+  // THE assertion this whole direction exists for. A's coins do not sum to
+  // BID_ASSET, so the fill spends more than it delivers and hands the surplus
+  // back in the same asset packet. A packet that omits it pays the maker and
+  // looks like a fill — while the difference ceases to exist. Exact equality is
+  // the only check that separates those two outcomes.
+  const aAssetAfter = await until('A to settle its asset change', async () => {
+    const amount = await heldAsset(a, assetId)
+    return amount !== aAssetBefore ? amount : undefined
+  })
+  assert.equal(
+    aAssetBefore - aAssetAfter,
+    BID_ASSET,
+    `A delivered ${BID_ASSET} but its balance fell by ${aAssetBefore - aAssetAfter} — the difference was burned`,
   )
-  step('A could NOT take the bid — refused, as designed today', { id: foundBid.id })
-  out(
-    'known_gap',
-    {
-      feature: 'take a bid',
-      where: 'src/lib/book/trade.ts',
-      order: foundBid.id,
-      message: 'taking a bid is not supported yet',
-    },
-    `\nKNOWN GAP  taking a bid is not supported (src/lib/book/trade.ts).\n` +
-      `           The ask direction above is a proven match; the bid direction is\n` +
-      `           NOT proven — only its refusal is. Meeting a bid means posting an\n` +
-      `           ask against it. Implement bid-taking and step 7 fails on purpose.`,
-  )
+
+  const bidGone = await until('the bid covenant vtxo to stop being spendable', async () => {
+    const ids = await deadOrders(indexer, [foundBid])
+    return ids.length > 0 ? ids : undefined
+  })
+  assert.deepEqual(bidGone, [foundBid.id], 'the taken bid must be the one that left the book')
+  step('the reverse match is real, and conserved', {
+    aGainedSats: bidDelta,
+    bBidSats: BID_SATS,
+    bGainedAsset: delivered - bAssetBefore,
+    aSpentAsset: aAssetBefore - aAssetAfter,
+    orderGone: foundBid.id,
+  })
 
   await reader.stop()
   await Promise.all([a.dispose(), b.dispose()])
-  out(
-    'done',
-    { steps: stepNo, assetId, fillTxid, restingBid: foundBid.id },
-    `\n${stepNo} steps passed. one match, one known gap.`,
-  )
+  out('done', { steps: stepNo, assetId, fillTxid, bidFillTxid }, `\n${stepNo} steps passed. both directions matched.`)
 }
 
 main().then(() => exit(0), die)
