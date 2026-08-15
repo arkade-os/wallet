@@ -7,15 +7,17 @@ import { aspErrorText } from '../../lib/asp'
 import { useContext, useEffect, useState } from 'react'
 import { isIOS } from '../../lib/browser'
 import { detectJSCapabilities, getRestrictedEnvironmentMessage } from '../../lib/jsCapabilities'
+import { useTranslation } from '../../providers/language'
 
 export default function Unavailable() {
   const { aspInfo } = useContext(AspContext)
+  const { t } = useTranslation()
 
   const [error, setError] = useState('')
 
   // Check JavaScript capabilities on mount
   useEffect(() => {
-    if (aspInfo.unreachable) return setError(aspErrorText(aspInfo, 'Arkade server unreachable.'))
+    if (aspInfo.unreachable) return setError(aspErrorText(aspInfo, t('init.arkadeServerUnreachable')))
     detectJSCapabilities()
       .then((result) => {
         if (result.isSupported) return

@@ -17,6 +17,7 @@ import InputAssetId from '../../../components/InputAssetId'
 import Scanner from '../../../components/Scanner'
 import { isValidAssetId } from '../../../lib/assets'
 import { BackupContext } from '@/providers/backup'
+import { useTranslation } from '../../../providers/language'
 
 export default function AppAssetImport() {
   const { backupAndUpdateConfig } = useContext(BackupContext)
@@ -24,6 +25,7 @@ export default function AppAssetImport() {
   const { config } = useContext(ConfigContext)
   const { setAssetInfo } = useContext(FlowContext)
   const { svcWallet, setCacheEntry } = useContext(WalletContext)
+  const { t } = useTranslation()
 
   const [assetId, setAssetId] = useState('')
   const [error, setError] = useState('')
@@ -33,7 +35,7 @@ export default function AppAssetImport() {
   const handleImport = async () => {
     if (!svcWallet) return
     if (!isValidAssetId(assetId)) {
-      setError('Asset ID must be a 68-character hex string')
+      setError(t('mint.assetIdMustBeHex'))
       return
     }
 
@@ -42,7 +44,7 @@ export default function AppAssetImport() {
 
     try {
       const details = await svcWallet.assetManager.getAssetDetails(assetId)
-      if (!details) throw new Error('Asset not found')
+      if (!details) throw new Error(t('mint.assetNotFound'))
 
       const moderated = setCacheEntry(assetId, details)
 
@@ -61,13 +63,14 @@ export default function AppAssetImport() {
     }
   }
 
-  if (loading) return <LoadingLogo text='Fetching asset details...' />
+  if (loading) return <LoadingLogo text={t('loading.fetchAssetDetails')} />
 
-  if (scan) return <Scanner close={() => setScan(false)} label='Ark note' onData={setAssetId} onError={setError} />
+  if (scan)
+    return <Scanner close={() => setScan(false)} label={t('notes.arkNote')} onData={setAssetId} onError={setError} />
 
   return (
     <>
-      <Header text='Import Asset' back />
+      <Header text={t('mint.importAsset')} back />
       <Content>
         <Padded>
           <FlexCol>
@@ -75,7 +78,7 @@ export default function AppAssetImport() {
             <InputAssetId
               name='asset-id'
               focus
-              label='Asset ID'
+              label={t('mint.assetId')}
               onChange={setAssetId}
               onEnter={handleImport}
               openScan={() => setScan(true)}
@@ -85,7 +88,7 @@ export default function AppAssetImport() {
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Button label='Import' onClick={handleImport} disabled={!assetId} />
+        <Button label={t('mint.import')} onClick={handleImport} disabled={!assetId} />
       </ButtonsOnBottom>
     </>
   )

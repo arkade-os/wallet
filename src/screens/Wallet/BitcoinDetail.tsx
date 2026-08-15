@@ -38,6 +38,7 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import { buildConstantMarketSeries, buildCrossRatePoints, fetchHistoricalMarketData } from '../../lib/marketData'
 import { accountChartColorToken } from '../../lib/accountAssets'
 import { WalletContext } from '../../providers/wallet'
+import { useTranslation } from '../../providers/language'
 
 const CHART_WINDOWS = [
   { label: '1H', secs: 3_600 },
@@ -74,6 +75,7 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
   const { assetMetadataCache, txs } = useContext(WalletContext)
   const { rows } = usePortfolioFiat()
   const prefersReduced = useReducedMotion()
+  const { t } = useTranslation()
 
   const [chartWindow, setChartWindow] = useState(CHART_WINDOWS[2].secs)
   const [chartInteracting, setChartInteracting] = useState(false)
@@ -168,7 +170,7 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
   }, [activityFilter, hasAssetSwaps])
   const priceText =
     currentUnitPrice === undefined
-      ? 'Price unavailable'
+      ? t('accounts.priceUnavailable')
       : prettyFiatAmount(currentUnitPrice, marketFiat, {
           bitcoinUnit,
           maximumFractionDigits: marketDecimals,
@@ -254,7 +256,7 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
         <Header text='' back />
         <Content>
           <Padded>
-            <div className='asset-detail-page'>Account unavailable</div>
+            <div className='asset-detail-page'>{t('accounts.accountUnavailable')}</div>
           </Padded>
         </Content>
       </>
@@ -312,20 +314,20 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
             <motion.div className='asset-detail-actions' variants={prefersReduced ? undefined : walletLoadInChild}>
               <AssetAction
                 icon={<ReceiveIcon />}
-                label='Receive'
+                label={t('wallet.receive')}
                 onClick={handleReceive}
                 disabled={!isBitcoin && !sourceAssetId}
               />
               <AssetAction
                 icon={<SendIcon />}
-                label='Send'
+                label={t('wallet.send')}
                 onClick={handleSend}
                 disabled={rawBalance === BigInt(0) || (!isBitcoin && !sendAccount && !sourceAssetId)}
               />
-              <AssetAction icon={<SwapIcon />} label='Swap' onClick={handleSwap} />
+              <AssetAction icon={<SwapIcon />} label={t('wallet.swap')} onClick={handleSwap} />
               <AssetAction
                 icon={<ScanIcon />}
-                label='Scan'
+                label={t('wallet.scan')}
                 onClick={handleScan}
                 disabled={!isBitcoin && !sourceAssetId}
               />
@@ -383,11 +385,13 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
                   />
                 ) : (
                   <div className='asset-detail-chart-fallback' role='status'>
-                    {marketChart.status === 'loading' ? 'Loading price history…' : 'Price history unavailable'}
+                    {marketChart.status === 'loading'
+                      ? t('accounts.loadingPriceHistory')
+                      : t('accounts.priceHistoryUnavailable')}
                   </div>
                 )}
               </div>
-              <div className='asset-detail-range-tabs' role='tablist' aria-label='Price chart range'>
+              <div className='asset-detail-range-tabs' role='tablist' aria-label={t('accounts.priceChartRange')}>
                 {CHART_WINDOWS.map((option) => (
                   <motion.button
                     key={option.label}
@@ -402,7 +406,7 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
                     whileTap={prefersReduced ? undefined : { scale: 0.96 }}
                     transition={{ duration: 0.14 }}
                   >
-                    {option.label}
+                    {option.label === 'All' ? t('common.all') : option.label}
                   </motion.button>
                 ))}
               </div>
@@ -410,7 +414,7 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
 
             <motion.section className='asset-detail-holdings' variants={prefersReduced ? undefined : walletLoadInChild}>
               <div className='asset-detail-holding'>
-                <span>Balance</span>
+                <span>{t('common.balance')}</span>
                 <strong>
                   <PrivacyAmount masked={maskedBalance}>
                     <span className='asset-detail-holding-amount'>{formattedBalance}</span>
@@ -418,10 +422,10 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
                 </strong>
               </div>
               <div className='asset-detail-holding'>
-                <span>Value</span>
+                <span>{t('common.value')}</span>
                 <strong>
                   {formattedFiat === undefined || fiatValue === undefined ? (
-                    'Unavailable'
+                    t('accounts.valueUnavailable')
                   ) : (
                     <PrivacyAmount masked={prettyFiatHide(fiatValue, marketFiat, { bitcoinUnit })}>
                       {formattedFiat}
@@ -433,7 +437,7 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
 
             <motion.section className='asset-detail-activity' variants={prefersReduced ? undefined : walletLoadInChild}>
               <div className='asset-detail-section-header'>
-                <strong>Recent activity</strong>
+                <strong>{t('wallet.recentActivity')}</strong>
               </div>
               {hasAssetSwaps ? <ActivityFilter value={activityFilter} onChange={setActivityFilter} /> : null}
               <AnimatePresence mode='wait' initial={false}>

@@ -19,11 +19,13 @@ import Input from '../../../components/Input'
 import AssetCard from '../../../components/AssetCard'
 import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
+import { useTranslation } from '../../../providers/language'
 
 export default function AppAssetBurn() {
   const { replace } = useContext(NavigationContext)
   const { assetInfo } = useContext(FlowContext)
   const { assetBalances, svcWallet, reloadWallet } = useContext(WalletContext)
+  const { t } = useTranslation()
 
   const [amount, setAmount] = useState(BigInt(0))
   const [error, setError] = useState('')
@@ -33,7 +35,7 @@ export default function AppAssetBurn() {
   const pendingConfirm = useRef(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
-  const name = assetInfo.metadata?.name ?? 'Unknown'
+  const name = assetInfo.metadata?.name ?? t('mint.unknown')
   const ticker = assetInfo.metadata?.ticker ?? assetInfo.assetId.slice(0, 8)
   const icon = assetInfo.metadata?.icon
   const decimals = assetInfo.metadata?.decimals ?? 8
@@ -46,11 +48,11 @@ export default function AppAssetBurn() {
 
   const handleBurnRequest = () => {
     if (!amount || amount <= 0) {
-      setError('Amount must be a positive number')
+      setError(t('mint.amountMustBePositive'))
       return
     }
     if (amount > balance) {
-      setError(`Cannot burn more than your balance (${prettyAssetAmount(balance, decimals)} ${ticker})`)
+      setError(t('mint.exceedsBalance', { balance: prettyAssetAmount(balance, decimals), ticker }))
       return
     }
     setError('')
@@ -94,24 +96,26 @@ export default function AppAssetBurn() {
   const handleMax = () => setAmount(balance)
 
   if (processing || opDone)
-    return <LoadingLogo text='Burning...' done={opDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
+    return (
+      <LoadingLogo text={t('loading.burning')} done={opDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
+    )
 
   return (
     <>
-      <Header text={`Burn ${ticker || name}`} back />
+      <Header text={t('mint.burnTitle', { ticker: ticker || name })} back />
       <Modal open={showConfirm} onOpenChange={setShowConfirm} onExitComplete={handleConfirmExitComplete}>
         <FlexCol gap='1.5rem'>
           <FlexCol centered gap='0.5rem'>
             <Text big bold>
-              Confirm Burn
+              {t('mint.confirmBurn')}
             </Text>
             <Text centered wrap color='neutral-500'>
-              You are about to burn {prettyAssetAmount(amount, decimals)} {ticker || name}. This action is irreversible.
+              {t('mint.burnWarning', { amount: prettyAssetAmount(amount, decimals), ticker: ticker || name })}
             </Text>
           </FlexCol>
           <FlexRow>
-            <Button onClick={() => setShowConfirm(false)} label='Cancel' secondary />
-            <Button onClick={handleBurnConfirm} label='Burn' />
+            <Button onClick={() => setShowConfirm(false)} label={t('common.cancel')} secondary />
+            <Button onClick={handleBurnConfirm} label={t('mint.burn')} />
           </FlexRow>
         </FlexCol>
       </Modal>
@@ -134,14 +138,14 @@ export default function AppAssetBurn() {
                   data-testid='burn-max-button'
                   style={{ color: 'var(--purpletext)', fontSize: 13, cursor: 'pointer' }}
                 >
-                  Max
+                  {t('mint.max')}
                 </span>
               }
               min='0'
               step='1'
               type='number'
               placeholder='0'
-              label='Amount to Burn'
+              label={t('mint.amountToBurn')}
               onChange={handleAmountChange}
               value={amount ? centsToUnits(amount, decimals) : ''}
             />
@@ -149,7 +153,7 @@ export default function AppAssetBurn() {
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Button label='Burn' onClick={handleBurnRequest} disabled={amount <= 0} />
+        <Button label={t('mint.burn')} onClick={handleBurnRequest} disabled={amount <= 0} />
       </ButtonsOnBottom>
     </>
   )
