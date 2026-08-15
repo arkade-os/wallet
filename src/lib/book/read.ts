@@ -26,7 +26,7 @@ import { asset, Extension, Transaction, type ArkProvider, type IndexerProvider, 
 import { BTC_ASSET_ID, decodeOffer, OFFER_PACKET_TYPE, type Offer } from '@arkade-os/swap'
 import type { BookOrder } from './types.ts'
 
-export const outpointId = (vtxo: Pick<Vtxo, 'outpoint'>): string => `${vtxo.outpoint.txid}:${vtxo.outpoint.vout}`
+const outpointId = (vtxo: Pick<Vtxo, 'outpoint'>): string => `${vtxo.outpoint.txid}:${vtxo.outpoint.vout}`
 
 /**
  * Read the offer packet out of a transaction.
@@ -166,7 +166,7 @@ export const orderFromNotification = (
  * one: the transaction is already parsed and in hand, so reading the size costs
  * no extra round trip — which is what keeps the reader free of lookups.
  */
-export const assetAmountAt = (tx: Transaction, assetId: string, vout: number): bigint | undefined => {
+const assetAmountAt = (tx: Transaction, assetId: string, vout: number): bigint | undefined => {
   try {
     const packet = Extension.fromTx(tx).getPacketByType(asset.Packet.PACKET_TYPE)
     if (!packet) return undefined

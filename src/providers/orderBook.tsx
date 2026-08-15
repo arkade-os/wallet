@@ -44,7 +44,6 @@ interface OrderBookContextProps {
   /** The row `trade` would fill for these terms, or undefined if it would rest.
    * Exported so the composer can tell the truth before anything is submitted. */
   matchFor: (params: PlaceParams) => BookRow | undefined
-  place: (params: PlaceParams) => Promise<void>
   take: (orderId: string) => Promise<string>
   pull: (orderId: string) => Promise<void>
 }
@@ -64,7 +63,6 @@ export const OrderBookContext = createContext<OrderBookContextProps>({
   matchFor: () => undefined,
   takeable: false,
   ready: false,
-  place: notReady,
   take: notReady,
   pull: notReady,
 })
@@ -293,7 +291,6 @@ export const OrderBookProvider = ({ children }: { children: ReactNode }) => {
       myOrders: orders.filter((o) => myPkScripts.has(o.makerPkScript)),
       takeable: Boolean(emulatorUrl),
       ready,
-      place,
       take,
       pull,
     }),
