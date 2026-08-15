@@ -1,5 +1,5 @@
 import { Book, BookRow, displayPrice } from '../lib/book'
-import { prettyAssetAmount, prettyAssetNumber } from '../lib/assets'
+import { prettyAssetAmount, prettyPrice } from '../lib/assets'
 import { hapticTap } from '../lib/haptics'
 import FlexCol from './FlexCol'
 import FlexRow from './FlexRow'
@@ -22,10 +22,6 @@ interface BookLadderProps {
 /** A row's size in base-atomic units: an ask gives the base, a bid wants it. */
 const baseAmount = (row: BookRow): bigint => (row.side === 'ask' ? row.give.amount : row.want.amount)
 
-/** Prices are already scaled to whole units, so the decimals that matter shrink as the number grows. */
-const fmtPrice = (n: number): string =>
-  Number.isFinite(n) ? prettyAssetNumber(n, n >= 1000 ? 0 : n >= 1 ? 2 : n >= 0.01 ? 4 : 8) : ''
-
 /** Depth bar width, as a percentage of the deepest rung on either side. */
 const depthPct = (amount: bigint, max: bigint): number => (max > 0n ? Number((amount * 100n) / max) : 0)
 
@@ -42,7 +38,7 @@ interface RowProps {
 function LadderRow({ row, baseTicker, baseDecimals, quoteTicker, quoteDecimals, max, onPress }: RowProps) {
   const ask = row.side === 'ask'
   const size = prettyAssetAmount(baseAmount(row), baseDecimals)
-  const price = fmtPrice(displayPrice(row.price, baseDecimals, quoteDecimals))
+  const price = prettyPrice(displayPrice(row.price, baseDecimals, quoteDecimals))
   const verb = row.mine ? 'pull' : 'take'
 
   return (
@@ -165,7 +161,7 @@ export default function BookLadder({
                 <Text
                   tiny
                   color='neutral-500'
-                >{`spread ${fmtPrice(displayPrice(spread, baseDecimals, quoteDecimals))}`}</Text>
+                >{`spread ${prettyPrice(displayPrice(spread, baseDecimals, quoteDecimals))}`}</Text>
               ) : null}
               <div className='h-px flex-1 bg-neutral-200' />
             </FlexRow>

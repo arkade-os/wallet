@@ -67,6 +67,17 @@ export const prettyAssetNumber = (num?: string | number, maximumFractionDigits =
   return `${negative ? '-' : ''}${BigInt(integer).toLocaleString()}${paddedFraction ? `.${paddedFraction}` : ''}`
 }
 
+/**
+ * A price already scaled to whole units, rendered for a book.
+ *
+ * The decimals that matter shrink as the number grows: 4-digit sat prices want
+ * none, sub-satoshi ones want eight, and a fixed choice makes one of the two
+ * unreadable. Shared by the ladder, the depth chart and the market grid so the
+ * same price never renders three ways on one screen.
+ */
+export const prettyPrice = (n: number): string =>
+  Number.isFinite(n) ? prettyAssetNumber(n, n >= 1000 ? 0 : n >= 1 ? 2 : n >= 0.01 ? 4 : 8) : ''
+
 export const prettyAssetAmount = (cents: bigint, decimals: number, tidy = false): string => {
   const realDecimals = conversionDecimals(decimals)
 

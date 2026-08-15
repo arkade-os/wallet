@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Area, AreaChart, XAxis, YAxis } from 'recharts'
 
 import { Book, DepthPoint, depthCurve } from '../lib/book'
-import { prettyAssetNumber } from '../lib/assets'
+import { prettyPrice } from '../lib/assets'
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from './ui/chart'
 
 interface BookDepthProps {
@@ -11,11 +11,6 @@ interface BookDepthProps {
   baseDecimals: number
   quoteDecimals?: number
 }
-
-/** Both series are already scaled to whole units, so the precision that matters
- * shrinks as the number grows. Same shape as the ladder's price formatter. */
-const fmt = (n: number): string =>
-  Number.isFinite(n) ? prettyAssetNumber(n, n >= 1000 ? 0 : n >= 1 ? 2 : n >= 0.01 ? 4 : 8) : ''
 
 const chartConfig = {
   bid: { label: 'bids', theme: { light: 'var(--green-600)', dark: 'var(--green-400)' } },
@@ -50,13 +45,17 @@ export default function BookDepth({ book, baseTicker, baseDecimals, quoteDecimal
                     name === 'bid' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                   }`}
                 >
-                  {`${fmt(Number(value))} ${baseTicker} at ${fmt((item.payload as DepthPoint).price)} sats`}
+                  {`${prettyPrice(Number(value))} ${baseTicker} at ${prettyPrice((item.payload as DepthPoint).price)} sats`}
                 </span>
               )}
             />
           }
         />
-        {/* stepAfter/stepBefore put each step at the price its orders actually rest at.
+        {/* Bid depth at price p counts bids at or above p, so between two bid
+            prices the depth is the HIGHER one's — the step belongs before the
+            point (stepBefore). Asks are the mirror: depth counts asks at or
+            below p, so the step runs after the point. Swapping these draws a
+            staircase that reads plausibly and is wrong by one rung.
             connectNulls={false} leaves the spread as the gap it is. */}
         <Area
           connectNulls={false}
@@ -66,7 +65,7 @@ export default function BookDepth({ book, baseTicker, baseDecimals, quoteDecimal
           fillOpacity={0.15}
           stroke='var(--color-bid)'
           strokeWidth={1.5}
-          type='stepAfter'
+          type='stepBefore'
         />
         <Area
           connectNulls={false}
@@ -76,7 +75,7 @@ export default function BookDepth({ book, baseTicker, baseDecimals, quoteDecimal
           fillOpacity={0.15}
           stroke='var(--color-ask)'
           strokeWidth={1.5}
-          type='stepBefore'
+          type='stepAfter'
         />
       </AreaChart>
     </ChartContainer>
