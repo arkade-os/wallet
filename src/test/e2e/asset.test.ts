@@ -45,7 +45,7 @@ test('should mint an asset and it should appear on arkade mint', async ({ page }
   await page.waitForSelector('text=TestCoin', { state: 'visible' })
   // the page leads with the market; the asset's own facts live under More
   await page.getByText('More', { exact: true }).click()
-  await expect(page.getByText('Asset ID (tap to copy)').first()).toBeVisible()
+  await expect(page.getByText('Asset ID').first()).toBeVisible()
 })
 
 test('should mint an asset and burn part of it', async ({ page }) => {
@@ -176,7 +176,8 @@ test('should reissue an asset with control token', async ({ page }) => {
   await page.getByText('View Asset').click()
   await page.waitForSelector('text=500 RSI', { timeout: 10000 })
 
-  // click reissue
+  // click reissue — actions live under More now
+  await page.getByText('More', { exact: true }).click()
   await page.getByText('Reissue', { exact: true }).click()
   await page.waitForSelector('text=Additional Amount', { state: 'visible' })
 
