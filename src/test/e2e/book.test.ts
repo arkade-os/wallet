@@ -130,6 +130,14 @@ test('pulling a resting order takes it out of the ladder', async ({ page }) => {
   test.skip(!(await row.isEnabled()), NO_TAKE)
 
   await row.click()
+  await page.waitForTimeout(4000)
+  console.log(
+    'DEBUG-TOAST:',
+    await page
+      .locator('[data-sonner-toaster], section:has-text("Notifications")')
+      .innerText()
+      .catch((e) => String(e)),
+  )
   await expect(page.getByText('yours')).toHaveCount(0, { timeout: 90000 })
 
   // The refund lands as an ordinary incoming payment, and the success splash

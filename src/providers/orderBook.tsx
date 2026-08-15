@@ -102,6 +102,32 @@ export const OrderBookProvider = ({ children }: { children: ReactNode }) => {
 
   const network = aspInfo.network as NetworkName | undefined
   const emulatorUrl = network ? getEmulatorUrlForNetwork(network) : undefined
+  const [emulatorPubkey, setEmulatorPubkey] = useState<Uint8Array>()
+
+  // The co-signer decides which offers are even fillable here, so without it
+  // there is no book to show. Prefer the pin: it is what stops a host swapping
+  // the key under a running client, and that property is the whole reason the
+  // table exists. Fall back to asking the emulator ONLY where no pin exists —
+  // a local stack mints a fresh key per deployment, so there is nothing to
+  // review it against, and the alternative is a permanently dark book.
+  useEffect(() => {
+    if (!network) return setEmulatorPubkey(undefined)
+    const pinned = getEmulatorPubkeyForNetwork(network)
+    if (pinned || !emulatorUrl) return setEmulatorPubkey(pinned)
+
+    let cancelled = false
+    fetch(`${emulatorUrl}/v1/info`)
+      .then((res) => res.json())
+      .then((info) => {
+        if (cancelled || typeof info?.signerPubkey !== 'string') return
+        const key = hex.decode(info.signerPubkey)
+        setEmulatorPubkey(key.length === 33 ? key.slice(1) : key)
+      })
+      .catch((err) => consoleError(err, 'could not read the emulator co-signer'))
+    return () => {
+      cancelled = true
+    }
+  }, [network, emulatorUrl])
 
   // The stream outlives every render, so it reads the current id set through a
   // ref rather than the value captured when it was started.
@@ -125,9 +151,7 @@ export const OrderBookProvider = ({ children }: { children: ReactNode }) => {
   // Follow the transaction stream. Both halves of an order's life arrive as
   // push events, so there is nothing to poll and nothing to refetch here.
   useEffect(() => {
-    if (!aspInfo.url || !network || !dataReady) return
-    const emulatorPubkey = getEmulatorPubkeyForNetwork(network)
-    if (!emulatorPubkey) return
+    if (!aspInfo.url || !network || !dataReady || !emulatorPubkey) return
 
     const controller = new AbortController()
     const arkProvider = new RestArkProvider(aspInfo.url)
@@ -178,7 +202,7 @@ export const OrderBookProvider = ({ children }: { children: ReactNode }) => {
     start().catch((err) => consoleError(err, 'order book failed to start'))
     return () => controller.abort()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aspInfo.url, network, dataReady])
+  }, [aspInfo.url, network, dataReady, emulatorPubkey])
 
   const deps = () => {
     if (!svcWallet || !aspInfo.url || !network) throw new Error('wallet not available')

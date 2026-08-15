@@ -130,14 +130,14 @@ export const getEmulatorPubkeyForNetwork = (network: NetworkName): Uint8Array | 
 // here. If the two ever diverge, offers stop being takeable rather than
 // mis-spending: the reader drops any offer naming a co-signer it does not know.
 //
-// Regtest stacks serve their own on http://localhost:7073, but each generates a
-// fresh key, so that one comes from VITE_EMULATOR_URL alongside
-// VITE_EMULATOR_PUBKEY rather than being pinned.
+// A regtest stack serves its own on 7073. Its key is per-deployment, so there
+// is nothing to pin — see getEmulatorPubkeyForNetwork's caller, which asks the
+// emulator directly when this network has no pin.
 const EMULATOR_URL: Record<NetworkName, string | null> = {
   bitcoin: null,
   mutinynet: 'https://emulator.mutinynet.arkade.sh',
   signet: null,
-  regtest: null,
+  regtest: 'http://localhost:7073',
   testnet: null,
 }
 
