@@ -67,6 +67,7 @@
     "format:check": "prettier --check src",
     "probe:solver": "node scripts/probe-rfq-solver.mjs",
     "book": "node --experimental-strip-types scripts/book.ts",
+    "e2e:match": "node --experimental-strip-types scripts/e2e-match.ts",
     "seed:book": "node scripts/seed-book.mjs",
     "git-info": "node scripts/git-commit-info.js",
     "csp:check": "node scripts/csp-hash.mjs",

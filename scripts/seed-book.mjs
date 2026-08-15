@@ -48,6 +48,13 @@ const RUNG_TOKENS = BigInt(process.env.RUNG_TOKENS ?? 100)
 const MID_SATS = BigInt(process.env.MID_SATS ?? 50)
 const SPREAD_BPS = BigInt(process.env.SPREAD_BPS ?? 100)
 const STEP_BPS = BigInt(process.env.STEP_BPS ?? 100)
+// The regtest stack advertises a 512s checkpoint exit delay, below the SDK's
+// 1200s policy floor, so Wallet.create refuses it outright. The wallet app
+// carries the same kind of override for mutinynet (see
+// mutinynetMinCheckpointExitDelaySeconds in src/lib/constants.ts). Override via
+// MIN_CHECKPOINT_EXIT_DELAY when pointing these scripts at another deployment.
+const MIN_CHECKPOINT_EXIT_DELAY = BigInt(process.env.MIN_CHECKPOINT_EXIT_DELAY ?? 512)
+
 const DECIMALS = 6
 
 const dryRun = process.argv.includes('--dry-run')
@@ -166,7 +173,10 @@ const main = async () => {
 
   // imported here so --dry-run needs no SDK resolution and no network
   const { hex } = await import('@scure/base')
+  // node has no global EventSource and the SDK watches scripts over SSE
+  const { EventSource } = await import('eventsource')
   const {
+    configureEventSource,
     asset,
     EsploraProvider,
     InMemoryContractRepository,
@@ -176,6 +186,7 @@ const main = async () => {
     Wallet,
   } = await import('@arkade-os/sdk')
   const { createOffer } = await import('@arkade-os/swap')
+  configureEventSource((url) => new EventSource(url))
 
   const identity = process.env.SEED_KEY ? SingleKey.fromHex(process.env.SEED_KEY) : SingleKey.fromRandomBytes()
   const wallet = await Wallet.create({
@@ -187,6 +198,7 @@ const main = async () => {
       contractRepository: new InMemoryContractRepository(),
     },
     settlementConfig: false,
+    minCheckpointExitDelaySeconds: MIN_CHECKPOINT_EXIT_DELAY,
   })
   const indexer = new RestIndexerProvider(ARK_URL)
   const address = await wallet.getAddress()

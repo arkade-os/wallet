@@ -58,6 +58,12 @@ configureEventSource((url: string) => new EventSource(url) as never)
 const ARK_URL = process.env.ARK_URL ?? 'http://localhost:7070'
 const ESPLORA_URL = process.env.ESPLORA_URL ?? 'http://localhost:3000/api'
 const NETWORK = (process.env.NETWORK ?? 'regtest') as NetworkName
+// The regtest stack advertises a 512s checkpoint exit delay, below the SDK's
+// 1200s policy floor, so Wallet.create refuses it outright. The wallet app
+// carries the same kind of override for mutinynet (see
+// mutinynetMinCheckpointExitDelaySeconds in src/lib/constants.ts). Override via
+// MIN_CHECKPOINT_EXIT_DELAY when pointing these scripts at another deployment.
+const MIN_CHECKPOINT_EXIT_DELAY = BigInt(process.env.MIN_CHECKPOINT_EXIT_DELAY ?? 512)
 
 const argv = process.argv.slice(2)
 const command = argv[0]
@@ -116,6 +122,7 @@ const openWallet = async () => {
       contractRepository: new InMemoryContractRepository(),
     },
     settlementConfig: false,
+    minCheckpointExitDelaySeconds: MIN_CHECKPOINT_EXIT_DELAY,
   })
 }
 
