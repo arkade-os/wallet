@@ -239,3 +239,60 @@ describe('depthCurve', () => {
     expect(depthCurve(buildBook([], pair, nobody), 6, 0)).toEqual([])
   })
 })
+
+describe('what crosses a book', () => {
+  // The rule trade() applies, stated in the covenant's own language: a row I
+  // can take GIVES exactly what I want and WANTS no more than I offer. These
+  // are the cases the user hit — a buy and a sell that never met.
+  const pair = pairKeyOf(SEED, BTC_ASSET_ID)
+  const crosses = (
+    rows: BookOrder[],
+    give: { assetId: string; amount: bigint },
+    want: { assetId: string; amount: bigint },
+    mine = nobody,
+  ) =>
+    [...buildBook(rows, pair, mine).asks, ...buildBook(rows, pair, mine).bids].find(
+      (row) =>
+        !row.mine &&
+        row.give.assetId === want.assetId &&
+        row.give.amount === want.amount &&
+        row.want.assetId === give.assetId &&
+        row.want.amount <= give.amount,
+    )
+
+  const sats = (n: bigint) => ({ assetId: BTC_ASSET_ID, amount: n })
+  const seed = (n: bigint) => ({ assetId: SEED, amount: n })
+
+  it('fills a buy against an ask of the same size at or under the price', () => {
+    expect(crosses([ask('a:0', 5_000n)], sats(5_000n), seed(100_000_000n))?.id).toBe('a:0')
+    // paying more than asked still fills — the covenant only enforces a floor
+    expect(crosses([ask('a:0', 5_000n)], sats(6_000n), seed(100_000_000n))?.id).toBe('a:0')
+  })
+
+  it('does not fill when the sizes differ — the reason two opposing orders sit crossed', () => {
+    // buy 100 against a resting sell of 1,000: no partial fill exists, so this
+    // rests beside it rather than matching
+    const smaller = 1_000_000n
+    expect(crosses([ask('a:0', 5_000n)], sats(50_000n), seed(smaller))).toBeUndefined()
+  })
+
+  it('does not fill under the asking price', () => {
+    expect(crosses([ask('a:0', 5_000n)], sats(4_999n), seed(100_000_000n))).toBeUndefined()
+  })
+
+  it('never fills against my own order', () => {
+    const rows = [ask('a:0', 5_000n, MINE)]
+    expect(crosses(rows, sats(5_000n), seed(100_000_000n), new Set([MINE]))).toBeUndefined()
+    expect(crosses(rows, sats(5_000n), seed(100_000_000n), nobody)?.id).toBe('a:0')
+  })
+
+  it('takes the cheapest ask when several qualify', () => {
+    const rows = [ask('a1:0', 5_200n), ask('a2:0', 5_000n), ask('a3:0', 5_100n)]
+    expect(crosses(rows, sats(9_000n), seed(100_000_000n))?.id).toBe('a2:0')
+  })
+
+  it('fills a sell against a bid of the same size at or above the price', () => {
+    expect(crosses([bid('b:0', 5_000n)], seed(100_000_000n), sats(5_000n))?.id).toBe('b:0')
+    expect(crosses([bid('b:0', 5_000n)], seed(100_000_000n), sats(5_001n))).toBeUndefined()
+  })
+})

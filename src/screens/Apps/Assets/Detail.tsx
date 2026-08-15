@@ -37,7 +37,7 @@ export default function AppAssetDetail() {
   const { assetBalances, availableBalance, svcWallet, assetMetadataCache, setCacheEntry, iconApprovalManager } =
     useContext(WalletContext)
   const { aspInfo } = useContext(AspContext)
-  const { bookFor, ready: bookReady, takeable, place, take, pull } = useContext(OrderBookContext)
+  const { bookFor, ready: bookReady, takeable, trade, matchFor, take, pull } = useContext(OrderBookContext)
 
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -123,8 +123,11 @@ export default function AppAssetDetail() {
 
   const openTrade = (side: 'buy' | 'sell') => setTradeSide(side)
 
-  const handleTrade = async (params: Parameters<typeof place>[0]) => {
-    await place(params)
+  // Crossing the book must TAKE, not post. Posting a crossing order just adds
+  // it to the pile — nothing in Arkade matches two resting covenants, so the
+  // order would sit there next to the one it was meant to fill.
+  const handleTrade = async (params: Parameters<typeof trade>[0]) => {
+    await trade(params)
     setTradeSide(undefined)
   }
 
@@ -311,6 +314,7 @@ export default function AppAssetDetail() {
         bestAskPrice={bestAsk}
         bestBidPrice={bestBid}
         dust={BigInt(aspInfo.dust)}
+        findMatch={matchFor}
         onSubmit={handleTrade}
       />
     </>

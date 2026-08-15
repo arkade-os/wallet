@@ -30,6 +30,13 @@ interface TradeSheetProps {
   bestAskPrice?: number
   /** best bid in sats per WHOLE base unit — what selling gets right now */
   bestBidPrice?: number
+  /** The row these exact terms would fill, asked of the book itself. The sheet
+   * cannot work this out alone: crossing on price is not enough, because a fill
+   * is all-or-nothing and the sizes must match too. */
+  findMatch?: (params: {
+    give: { assetId: string; amount: bigint }
+    want: { assetId: string; amount: bigint }
+  }) => { give: { amount: bigint } } | undefined
   dust: bigint
   onSubmit: (params: {
     give: { assetId: string; amount: bigint }
@@ -80,6 +87,7 @@ export default function TradeSheet({
   assetBalance,
   bestAskPrice,
   bestBidPrice,
+  findMatch,
   dust,
   onSubmit,
 }: TradeSheetProps) {
@@ -139,14 +147,24 @@ export default function TradeSheet({
       ? `that is ${prettyNumber(Math.abs(deviation) * 100, 0)}% ${deviation > 0 ? 'above' : 'below'} the book. it fills at exactly this price.`
       : ''
 
-  // buying at or above the ask (selling at or below the bid) crosses the book
-  const fillsNow =
+  // What actually happens on submit. Crossing on price is NOT enough: a fill is
+  // all-or-nothing, so the resting row's size has to equal what is being asked
+  // for. This line is where a user learns why their order did not match, so it
+  // asks the book rather than guessing from the price.
+  const sats = { assetId: BTC_ASSET_ID, amount: satsTotal }
+  const base = { assetId: baseAssetId, amount: amountAtomic }
+  const terms = buying ? { give: sats, want: base } : { give: base, want: sats }
+  const match = amountAtomic > 0n && priceAtomic > 0n ? findMatch?.(terms) : undefined
+
+  const crosses =
     bookAtomic > 0n && priceAtomic > 0n && (buying ? priceAtomic >= bookAtomic : priceAtomic <= bookAtomic)
-  const outlook = fillsNow
+  const outlook = match
     ? 'fills now'
-    : bookAtomic > 0n && priceAtomic > 0n
-      ? `waits until someone ${buying ? 'sells' : 'buys'} at ${price}`
-      : 'waits until someone takes it'
+    : crosses
+      ? `waits — no resting order is exactly ${formatAssetAmount(amountAtomic, decimals)} ${baseTicker}`
+      : bookAtomic > 0n && priceAtomic > 0n
+        ? `waits until someone ${buying ? 'sells' : 'buys'} at ${price}`
+        : 'waits until someone takes it'
 
   const valid =
     amountAtomic > 0n && priceAtomic > 0n && satsTotal > 0n && satsTotal >= dust && giveAtomic <= giveBalance
@@ -164,12 +182,10 @@ export default function TradeSheet({
 
   const handleSubmit = async () => {
     if (!valid || submitting) return
-    const sats = { assetId: BTC_ASSET_ID, amount: satsTotal }
-    const base = { assetId: baseAssetId, amount: amountAtomic }
     setSubmitting(true)
     setSubmitError('')
     try {
-      await onSubmit(buying ? { give: sats, want: base } : { give: base, want: sats })
+      await onSubmit(terms)
       onClose()
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'could not place the order')

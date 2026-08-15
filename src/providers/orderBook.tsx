@@ -1,8 +1,19 @@
 import { ReactNode, createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { hex } from '@scure/base'
 import { ArkAddress, RestArkProvider, RestIndexerProvider, type NetworkName } from '@arkade-os/sdk'
-import { cancelOffer } from '@arkade-os/swap'
-import { buildBook, deadOrders, pairsOf, placeOrder, readBook, takeOrder, type Book, type BookOrder } from '../lib/book'
+import { BTC_ASSET_ID, cancelOffer } from '@arkade-os/swap'
+import {
+  buildBook,
+  deadOrders,
+  pairKeyOf,
+  pairsOf,
+  placeOrder,
+  readBook,
+  takeOrder,
+  type Book,
+  type BookOrder,
+  type BookRow,
+} from '../lib/book'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import { assetSwapRepository } from '../lib/swapRepository'
@@ -28,10 +39,17 @@ interface OrderBookContextProps {
   takeable: boolean
   /** The stream is running and the book is as complete as it gets. */
   ready: boolean
+  /** Fill a resting order if this one crosses it, otherwise rest. */
+  trade: (params: PlaceParams) => Promise<TradeOutcome>
+  /** The row `trade` would fill for these terms, or undefined if it would rest.
+   * Exported so the composer can tell the truth before anything is submitted. */
+  matchFor: (params: PlaceParams) => BookRow | undefined
   place: (params: PlaceParams) => Promise<void>
   take: (orderId: string) => Promise<string>
   pull: (orderId: string) => Promise<void>
 }
+
+export type TradeOutcome = { kind: 'filled'; txid: string } | { kind: 'placed' }
 
 const notReady = () => {
   throw new Error('order book not initialized')
@@ -42,6 +60,8 @@ export const OrderBookContext = createContext<OrderBookContextProps>({
   pairs: [],
   bookFor: (pairKey: string) => ({ pairKey, asks: [], bids: [] }),
   myOrders: [],
+  trade: notReady,
+  matchFor: () => undefined,
   takeable: false,
   ready: false,
   place: notReady,
@@ -214,11 +234,62 @@ export const OrderBookProvider = ({ children }: { children: ReactNode }) => {
 
   const myPkScripts = useMemo(() => new Set(myPkScript ? [myPkScript] : []), [myPkScript])
 
+  /**
+   * The resting row these terms would fill, if any.
+   *
+   * Stated in the covenant's own language rather than in sides: a row I can
+   * take is one that **gives exactly what I want, and wants no more than I am
+   * offering**. Exactly, because a fill is all-or-nothing — the covenant has no
+   * remainder path, so a row worth 1,000 cannot settle an order for 100. That
+   * is the whole reason two opposing orders can sit crossed and never meet.
+   *
+   * `mine` is excluded: taking your own order would spend your deposit to pay
+   * yourself, burning the fee for nothing.
+   *
+   * Both sides arrive pre-sorted best-first, so the first match is the best
+   * price available.
+   */
+  const matchFor = ({ give, want }: PlaceParams): BookRow | undefined => {
+    const book = buildBook(orders, pairKeyOf(give.assetId, want.assetId), myPkScripts)
+    return [...book.asks, ...book.bids].find(
+      (row) =>
+        !row.mine &&
+        // takeOrder cannot yet deliver an asset into a covenant (declaring the
+        // taker's own asset change is a burn hazard, so it is deferred), which
+        // means a bid is not fillable today. Excluded HERE rather than left to
+        // fail at submit: a match the UI reports is a promise, and promising a
+        // fill that throws is the defect this whole path exists to remove.
+        row.want.assetId === BTC_ASSET_ID &&
+        row.give.assetId === want.assetId &&
+        row.give.amount === want.amount &&
+        row.want.assetId === give.assetId &&
+        row.want.amount <= give.amount,
+    )
+  }
+
+  /**
+   * Submit an order: fill a crossing row if there is one, otherwise rest.
+   *
+   * This is the whole difference between a book and a pile of orders. There is
+   * no matching engine anywhere in Arkade — two resting covenants never settle
+   * each other, because settling one requires spending it, and only a taker
+   * does that. So the moment a user's terms cross the book, the app must take
+   * rather than post, or the order simply joins the pile.
+   */
+  const trade = async (params: PlaceParams): Promise<TradeOutcome> => {
+    const match = matchFor(params)
+    if (match && emulatorUrl) return { kind: 'filled', txid: await take(match.id) }
+    await place(params)
+    return { kind: 'placed' }
+  }
+
   const value = useMemo(
     () => ({
       orders,
       pairs: pairsOf(orders),
       bookFor: (pairKey: string) => buildBook(orders, pairKey, myPkScripts),
+      trade,
+      matchFor,
       myOrders: orders.filter((o) => myPkScripts.has(o.makerPkScript)),
       takeable: Boolean(emulatorUrl),
       ready,

@@ -43,6 +43,8 @@ test('should mint an asset and it should appear on arkade mint', async ({ page }
   // click asset card to go to detail page
   await page.getByTestId(/^asset-row-TST-/).click()
   await page.waitForSelector('text=TestCoin', { state: 'visible' })
+  // the page leads with the market; the asset's own facts live under More
+  await page.getByText('More', { exact: true }).click()
   await expect(page.getByText('Asset ID (tap to copy)').first()).toBeVisible()
 })
 
@@ -66,7 +68,13 @@ test('should mint an asset and burn part of it', async ({ page }) => {
   // assert detail page
   await expect(page.getByText('TestCoin').first()).toBeVisible()
   await expect(page.getByText('TST').first()).toBeVisible()
+  // Supply is a market stat and stays on the face of the page; everything
+  // else about the asset, and every action that is not Buy or Sell, is folded
+  // into More — the page ends in one primary action.
   await expect(page.getByText('Supply')).toBeVisible()
+  await expect(page.getByText('Buy', { exact: true })).toBeVisible()
+
+  await page.getByText('More', { exact: true }).click()
   await expect(page.getByText('Decimals')).toBeVisible()
   await expect(page.getByText('Send')).toBeVisible()
   await expect(page.getByText('Receive')).toBeVisible()
@@ -108,7 +116,13 @@ test('should mint asset with fractional supply and burn it all', async ({ page }
   // assert detail page
   await expect(page.getByText('TestCoin').first()).toBeVisible()
   await expect(page.getByText('TST').first()).toBeVisible()
+  // Supply is a market stat and stays on the face of the page; everything
+  // else about the asset, and every action that is not Buy or Sell, is folded
+  // into More — the page ends in one primary action.
   await expect(page.getByText('Supply')).toBeVisible()
+  await expect(page.getByText('Buy', { exact: true })).toBeVisible()
+
+  await page.getByText('More', { exact: true }).click()
   await expect(page.getByText('Decimals')).toBeVisible()
   await expect(page.getByText('Send')).toBeVisible()
   await expect(page.getByText('Receive')).toBeVisible()
