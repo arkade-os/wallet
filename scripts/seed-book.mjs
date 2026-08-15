@@ -222,6 +222,14 @@ const main = async () => {
 
   const assetIdObj = asset.AssetId.fromString(assetId)
 
+  // NOTE: `placeOrder` in src/lib/book/trade.ts is the canonical version of the
+  // branching below and is what the wallet and `book.ts` use. This script keeps
+  // its own copy for one reason: placeOrder derives AND funds in a single call,
+  // while this needs every covenant derived first so it can subscribe to their
+  // scripts before a single sat moves. Splitting placeOrder in two to serve one
+  // dev script is more API than the duplication costs — but if the receive-side
+  // keying ever changes, it changes in both places.
+  //
   // Derive every covenant BEFORE funding any of it. `createOffer` broadcasts
   // nothing — it only derives and registers — so the whole book's scripts are
   // known while the chain is still untouched. That is what lets the confirmation
