@@ -7,6 +7,7 @@ import Content from './Content'
 import Button from './Button'
 import Padded from './Padded'
 import Header from './Header'
+import { detectLanguage, translate } from '../providers/language'
 
 interface Props {
   children: ReactNode
@@ -37,21 +38,22 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      const language = detectLanguage()
       return (
         <div className='page'>
           <div className='page'>
-            <Header text='Something went wrong' />
+            <Header text={translate(language, 'components.somethingWentWrong')} />
             <Content>
               <Padded>
                 <CenterScreen>
-                  <Text>The app ran into an unexpected error</Text>
-                  <Text>Please reload to continue</Text>
+                  <Text>{translate(language, 'components.unexpectedError')}</Text>
+                  <Text>{translate(language, 'components.reloadToContinue')}</Text>
                   <TextSecondary centered>{this.state.error?.message}</TextSecondary>
                 </CenterScreen>
               </Padded>
             </Content>
             <ButtonsOnBottom>
-              <Button label='Reload' onClick={this.handleReload} />
+              <Button label={translate(language, 'components.reload')} onClick={this.handleReload} />
             </ButtonsOnBottom>
           </div>
         </div>

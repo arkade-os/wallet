@@ -7,6 +7,7 @@ import ScanIcon from '../icons/Scan'
 import PasteIcon from '../icons/Paste'
 import XIcon from '../icons/X'
 import { cn } from '@/lib/utils'
+import { useTranslation } from '../providers/language'
 
 const buttonVariants = cva('button', {
   variants: {
@@ -160,13 +161,16 @@ export function ButtonOnInput({ label, clear, icon, onClick, ariaLabel }: Button
 }
 
 export function PasteButtonOnInput({ onClick }: { onClick: () => void }) {
-  return <ButtonOnInput label='Paste' icon={<PasteIcon />} onClick={onClick} />
+  const { t } = useTranslation()
+  return <ButtonOnInput label={t('common.paste')} icon={<PasteIcon />} onClick={onClick} />
 }
 
 export function ScanButtonOnInput({ onClick }: { onClick: () => void }) {
-  return <ButtonOnInput label='Scan QR' icon={<ScanIcon />} onClick={onClick} />
+  const { t } = useTranslation()
+  return <ButtonOnInput label={t('components.scanQr')} icon={<ScanIcon />} onClick={onClick} />
 }
 
 export function ClearButtonOnInput({ onClick }: { onClick: () => void }) {
-  return <ButtonOnInput ariaLabel='Clear' clear icon={<XIcon />} onClick={onClick} />
+  const { t } = useTranslation()
+  return <ButtonOnInput ariaLabel={t('components.clear')} clear icon={<XIcon />} onClick={onClick} />
 }

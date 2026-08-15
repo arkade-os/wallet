@@ -13,7 +13,5 @@ export const queryCameraPermission = async (): Promise<PermissionState> => {
   }
 }
 
-export const cameraErrorText = (permission: PermissionState): string =>
-  permission === 'denied'
-    ? 'Camera access is blocked. Allow it for this site in your browser settings, then try again.'
-    : 'Camera not available'
+export const cameraErrorText = (permission: PermissionState, t: (key: string) => string): string =>
+  permission === 'denied' ? t('components.cameraBlocked') : t('components.cameraNotAvailable')

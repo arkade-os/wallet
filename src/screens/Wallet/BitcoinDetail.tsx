@@ -85,6 +85,7 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
 
   const selectedRow = rows.find((candidate) => candidate.assetId === assetId)
   const row = selectedRow ?? unavailableRow
+  const rowName = row === unavailableRow ? t('accounts.accountUnavailable') : row.name
   const isBitcoin = row.assetId === 'btc'
   const sourceFiat = isBitcoin ? Currencies.BTC : row.fiatCurrency
   const marketFiat = isBitcoin && config.currency === Currencies.BTC ? Currencies.USD : config.currency
@@ -280,11 +281,11 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
                   {tokenLogoTicker ? (
                     <TokenLogo ticker={tokenLogoTicker} />
                   ) : (
-                    <AssetAvatar icon={row.icon} name={row.name} ticker={row.ticker} size={60} />
+                    <AssetAvatar icon={row.icon} name={rowName} ticker={row.ticker} size={60} />
                   )}
                 </span>
                 <div>
-                  <h1 className='asset-detail-name'>{row.name}</h1>
+                  <h1 className='asset-detail-name'>{rowName}</h1>
                 </div>
               </motion.div>
 

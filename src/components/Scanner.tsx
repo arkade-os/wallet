@@ -43,6 +43,7 @@ export default function Scanner({ close, label, onData, onError }: ScannerProps)
 }
 
 function ScannerMills({ close, label, onData, onError, onSwitch }: ScannerProps) {
+  const { t } = useTranslation()
   const [error, setError] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
 
@@ -94,18 +95,19 @@ function ScannerMills({ close, label, onData, onError, onSwitch }: ScannerProps)
       <Header auxFunc={handleSwitch} auxText='M' text={label} back={handleClose} />
       <Content>
         <Padded>
-          <ErrorMessage error={error} text='Camera not available' />
+          <ErrorMessage error={error} text={t('scanner.cameraError')} />
           <video style={videoStyle} ref={videoRef} />
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Button onClick={handleClose} label='Cancel' />
+        <Button onClick={handleClose} label={t('common.cancel')} />
       </ButtonsOnBottom>
     </>
   )
 }
 
 function ScannerQr({ calculateScanRegion, close, label, onData, onError, onSwitch }: ScannerProps) {
+  const { t } = useTranslation()
   const [error, setError] = useState('')
   const [attempt, setAttempt] = useState(0)
 
@@ -132,7 +134,7 @@ function ScannerQr({ calculateScanRegion, close, label, onData, onError, onSwitc
     qrScanner.current.start().catch(async () => {
       // qr-scanner throws the same 'Camera not found.' whatever went wrong,
       // so the permission is what tells us if the user blocked the camera
-      const text = cameraErrorText(await queryCameraPermission())
+      const text = cameraErrorText(await queryCameraPermission(), t)
       if (cancelled) return
       onError(text)
       setError(text)
@@ -176,8 +178,8 @@ function ScannerQr({ calculateScanRegion, close, label, onData, onError, onSwitc
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        {error ? <Button onClick={handleRetry} label='Try again' /> : null}
-        <Button onClick={handleClose} label='Cancel' secondary={Boolean(error)} />
+        {error ? <Button onClick={handleRetry} label={t('scanner.tryAgain')} /> : null}
+        <Button onClick={handleClose} label={t('common.cancel')} secondary={Boolean(error)} />
       </ButtonsOnBottom>
     </>
   )
