@@ -7,10 +7,12 @@ import { ConfigContext } from '../../providers/config'
 import Header from './Header'
 import TokenLogo, { tokenLogoTickerForTicker } from '../../components/TokenLogo'
 import { BackupContext } from '@/providers/backup'
+import { useTranslation } from '../../providers/language'
 
 export default function Currency() {
   const { backupAndUpdateConfig } = useContext(BackupContext)
   const { config } = useContext(ConfigContext)
+  const { t } = useTranslation()
 
   const handleChange = async (currency: string) => {
     backupAndUpdateConfig({ ...config, currency: currency as Currencies })
@@ -18,12 +20,12 @@ export default function Currency() {
 
   return (
     <>
-      <Header text='Currency' back />
+      <Header text={t('settings.currency')} back />
       <Content>
         <Padded>
           <div className='settings-page'>
             <section className='settings-section'>
-              <p className='settings-section-label'>Currency</p>
+              <p className='settings-section-label'>{t('settings.currency')}</p>
               <Select
                 onChange={handleChange}
                 options={[

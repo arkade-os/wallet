@@ -12,6 +12,7 @@ import type { AssetDetails } from '@arkade-os/sdk'
 import { walletAssetPresentationForId } from '../../../lib/accountAssets'
 import { AspContext } from '../../../providers/asp'
 import { AssetsContext } from '../../../providers/assets'
+import { useTranslation } from '../../../providers/language'
 
 function formatAssetLabel(
   a: { assetId: string; amount: bigint },
@@ -37,6 +38,7 @@ export default function ReceiveSuccess() {
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { assetMetadataCache, setCacheEntry, svcWallet } = useContext(WalletContext)
   const { navigate } = useContext(NavigationContext)
+  const { t } = useTranslation()
 
   const receivedAssets = recvInfo.receivedAssets ?? []
   const isAssetReceive = receivedAssets.length > 0
@@ -89,13 +91,13 @@ export default function ReceiveSuccess() {
     ? receivedAssets
         .map((a) => formatAssetLabel(a, assetDetails.get(a.assetId), aspInfo.network, isRegistered))
         .join(', ')
-    : `${displayAmount} received successfully`
+    : `${displayAmount} ${t('transaction.receivedSuccessfully')}`
 
   return (
     <WalletSuccessSplash
-      headline='Payment received'
+      headline={t('transaction.paymentReceived')}
       text={displayText}
-      ariaLabel='Payment received successfully. Tap to go home.'
+      ariaLabel={t('transaction.paymentReceivedAria')}
       onDone={() => navigate(Pages.Wallet)}
     />
   )

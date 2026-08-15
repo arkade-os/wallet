@@ -10,10 +10,12 @@ import { prettyDelta } from '../../lib/format'
 import FlexCol from '../../components/FlexCol'
 import ErrorMessage from '../../components/Error'
 import { ConfigContext } from '@/providers/config'
+import { useTranslation } from '../../providers/language'
 
 export default function About() {
   const { aspInfo } = useContext(AspContext)
   const { config } = useContext(ConfigContext)
+  const { t } = useTranslation()
 
   const [error, setError] = useState(false)
 
@@ -22,25 +24,25 @@ export default function About() {
   }, [aspInfo.unreachable])
 
   const data: TableData = [
-    ['Server URL', aspInfo.url],
-    ['Server pubkey', aspInfo.signerPubkey],
-    ['Forfeit address', aspInfo.forfeitAddress],
+    [t('settings.serverUrl'), aspInfo.url],
+    [t('settings.serverPubkey'), aspInfo.signerPubkey],
+    [t('settings.forfeitAddress'), aspInfo.forfeitAddress],
     ['Network', aspInfo.network],
-    ['Dust', `${aspInfo.dust} sats`],
-    ['Session duration', prettyDelta(Number(aspInfo.sessionDuration), true)],
-    ['Boarding exit delay', prettyDelta(Number(aspInfo.boardingExitDelay), true)],
-    ['Unilateral exit delay', prettyDelta(Number(aspInfo.unilateralExitDelay), true)],
-    ['Wallet mode', config.walletMode],
-    ['Git commit hash', gitCommit],
+    [t('settings.dust'), `${aspInfo.dust} sats`],
+    [t('settings.sessionDuration'), prettyDelta(Number(aspInfo.sessionDuration), true)],
+    [t('settings.boardingExitDelay'), prettyDelta(Number(aspInfo.boardingExitDelay), true)],
+    [t('settings.unilateralExitDelay'), prettyDelta(Number(aspInfo.unilateralExitDelay), true)],
+    [t('settings.walletMode'), config.walletMode],
+    [t('settings.gitCommitHash'), gitCommit],
   ]
 
   return (
     <>
-      <Header text='About' back />
+      <Header text={t('settings.about')} back />
       <Content>
         <Padded>
           <FlexCol>
-            <ErrorMessage error={error} text={aspErrorText(aspInfo, 'Arkade server unreachable')} />
+            <ErrorMessage error={error} text={aspErrorText(aspInfo, t('init.arkadeServerUnreachable'))} />
             <Table data={data} variant='receipt' />
           </FlexCol>
         </Padded>

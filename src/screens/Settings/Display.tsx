@@ -8,10 +8,13 @@ import ArrowIcon from '../../icons/Arrow'
 import { SettingsOptions, Themes } from '../../lib/types'
 import { OptionsContext } from '../../providers/options'
 import { hapticSubtle } from '../../lib/haptics'
+import { getSettingsOptionLabel, useLanguage, useTranslation } from '../../providers/language'
 
 export default function Display() {
   const { config, systemTheme } = useContext(ConfigContext)
   const { setOption } = useContext(OptionsContext)
+  const { language } = useLanguage()
+  const { t } = useTranslation()
 
   const Row = ({ option, value }: { option: SettingsOptions; value: string }) => (
     <button
@@ -22,7 +25,7 @@ export default function Display() {
         setOption(option)
       }}
     >
-      <span className='settings-row__label'>{option}</span>
+      <span className='settings-row__label'>{getSettingsOptionLabel(language, option)}</span>
       <span className='settings-row__side'>
         <span>{value}</span>
         <span className='settings-row__chevron' aria-hidden='true'>
@@ -34,18 +37,18 @@ export default function Display() {
 
   return (
     <>
-      <Header text='Display' back />
+      <Header text={t('settings.display')} back />
       <Content>
         <Padded>
           <FlexCol gap='1rem' className='settings-page'>
             <section className='settings-section'>
-              <p className='settings-section-label'>Preferences</p>
+              <p className='settings-section-label'>{t('settings.preferences')}</p>
               <div className='settings-row-group'>
                 <Row option={SettingsOptions.BitcoinUnit} value={config.unit} />
-                <Row option={SettingsOptions.Haptics} value={config.haptics ? 'On' : 'Off'} />
+                <Row option={SettingsOptions.Haptics} value={config.haptics ? t('common.on') : t('common.off')} />
                 <Row
                   option={SettingsOptions.Theme}
-                  value={config.theme === Themes.Auto ? `Auto (${systemTheme})` : config.theme}
+                  value={config.theme === Themes.Auto ? `${t('settings.auto')} (${systemTheme})` : config.theme}
                 />
               </div>
             </section>
