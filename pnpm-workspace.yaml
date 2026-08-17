@@ -8,10 +8,7 @@ onlyBuiltDependencies:
   - '@arkade-os/sdk'
 
 overrides:
-  # @arkade-os/swap pins solver-discovery 0.2.1, whose card schema predates
-  # `transports` — it rejects every current solver card, silently removing the
-  # Lightning corridor. Hold one validator until the package bumps its own pin.
-  '@arkade-os/solver-discovery': 0.2.2
+  '@arkade-os/solver-discovery': 0.2.3
   '@babel/core': '>=7.29.6 <8.0.0'
   js-yaml@<4: '>=3.15.0 <4.0.0'
   js-yaml@>=4: '>=4.2.0 <5.0.0'
