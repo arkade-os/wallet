@@ -16,6 +16,7 @@ import Scanner from '../../components/Scanner'
 import { AspContext, AspInfo } from '../../providers/asp'
 import { consoleError } from '../../lib/logs'
 import LoadingLogo from '../../components/LoadingLogo'
+import { isMainnet } from '../../lib/constants'
 
 export default function Server() {
   const { aspInfo } = useContext(AspContext)
@@ -53,7 +54,12 @@ export default function Server() {
 
   if (!svcWallet) return <LoadingLogo text='Loading...' />
 
+  // Mirrors the Advanced menu filter: block direct navigation to this screen too,
+  // but still allow recovery if the current mainnet server is unreachable.
+  const blocked = isMainnet(aspInfo.network) && !aspInfo.unreachable
+
   const handleConnect = async () => {
+    if (blocked) return
     setLoading(true)
     try {
       if (!info) return
@@ -73,6 +79,19 @@ export default function Server() {
   }
 
   if (scan) return <Scanner close={() => setScan(false)} label='Server URL' onData={setAspUrl} onError={setError} />
+
+  if (blocked) {
+    return (
+      <>
+        <Header text='Server' back />
+        <Content>
+          <Padded>
+            <WarningBox text='Server settings are unavailable on mainnet.' />
+          </Padded>
+        </Content>
+      </>
+    )
+  }
 
   return (
     <>
