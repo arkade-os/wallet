@@ -16,14 +16,14 @@ importers:
   .:
     dependencies:
       '@arkade-os/sdk':
-        specifier: 0.4.63
-        version: 0.4.63
+        specifier: 0.4.64
+        version: 0.4.64
       '@arkade-os/solver-discovery':
         specifier: 0.2.3
         version: 0.2.3
       '@arkade-os/swap':
-        specifier: 0.0.6
-        version: 0.0.6(nostr-tools@2.17.2(typescript@5.9.3))
+        specifier: 0.0.7
+        version: 0.0.7(nostr-tools@2.17.2(typescript@5.9.3))
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -253,8 +253,8 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/sdk@0.4.63':
-    resolution: {integrity: sha512-t8cstTT8XAZDdsn+PGDBsysrVofJWCPa1W1cdNQLtAZvfW5nrl2mveEk3HL37dcWnU38XE7Z8OtvJYzYw6uXRA==}
+  '@arkade-os/sdk@0.4.64':
+    resolution: {integrity: sha512-3R8ewgLzMiq/PGmImUhvINji2w4FkBz4GE1ohHzIFb6m1FiGbFBZUAin9EsRSm2OtBV2uciKWnXdjiQZv3CBEg==}
     engines: {node: '>=22.12.0 <27'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -278,8 +278,8 @@ packages:
     resolution: {integrity: sha512-i77/BCAmHY4fec41HfYb5osu+QkCEOf2jLha1HX5pkp6bHGrm10WG8eOGREKqPCC4bOI3E8cKwEVGxP0qlNt5g==}
     engines: {node: '>=18'}
 
-  '@arkade-os/swap@0.0.6':
-    resolution: {integrity: sha512-Eg+d9IbgHpL2W5rm2Nwqh3WB0DTPxVE+mw7wnSyKWOIHsTf5V9VHq8hwnvBJiLwPfnZrnnNE+9m7P/4o0UHaZA==}
+  '@arkade-os/swap@0.0.7':
+    resolution: {integrity: sha512-W6Y+bhIKGf8w0WwllrwEThLFQjNy42rk0ialSPhg5Ej2TMQy/kHiKyV+FWe4a9XJ8IOnNYOFyLzQyegRM+wVqQ==}
     peerDependencies:
       nostr-tools: ^2.12.0
     peerDependenciesMeta:
@@ -4355,7 +4355,7 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/sdk@0.4.63':
+  '@arkade-os/sdk@0.4.64':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 8.0.0
@@ -4376,9 +4376,9 @@ snapshots:
 
   '@arkade-os/solver-discovery@0.2.3': {}
 
-  '@arkade-os/swap@0.0.6(nostr-tools@2.17.2(typescript@5.9.3))':
+  '@arkade-os/swap@0.0.7(nostr-tools@2.17.2(typescript@5.9.3))':
     dependencies:
-      '@arkade-os/sdk': 0.4.63
+      '@arkade-os/sdk': 0.4.64
       '@arkade-os/solver-discovery': 0.2.3
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
