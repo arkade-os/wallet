@@ -37,6 +37,39 @@ const swapIdOf = (activity: Activity): string | undefined =>
     ? (activity.intent.metadata?.swapId as string | undefined)
     : undefined
 
+/** `@arkade-os/swap`'s resolver tags every corridor with the same `swap` kind
+ * the asset resolver uses, so the corridor is what tells them apart — and it
+ * is `swapKind`, never the group id, since both namespaces are `swap:`. */
+const rfqSwapKindOf = (activity: Activity): string | undefined =>
+  activity.intent?.metadata?.swapKind as string | undefined
+
+/**
+ * One row for a Lightning send: its funding tx, plus the refund when the swap
+ * came back.
+ *
+ * Built off the funding tx rather than the group, so the row keeps that txid —
+ * the receipt screen resolves the covenant's spender from `redeemTxid`, and a
+ * row identified by anything else would look up a lockup that does not exist.
+ * What the group contributes is the amount and the outcome: a refunded send
+ * cost only its fees, and reporting the funding amount for it would show money
+ * that came back as money spent.
+ */
+const lightningSendTx = (activity: Activity, metadata: Record<string, TransactionActivityMetadata>): Tx | undefined => {
+  const funding = activity.txs.find((tx) => tx.type === 'SENT')
+  if (!funding) return undefined
+  const base = arkTransactionToTx(funding, metadata[txidOfArkTransaction(funding)])
+  return {
+    ...base,
+    amount: Math.abs(activity.amount),
+    // Signed by the net, not by the funding leg: a refund larger than the
+    // funding is not a thing this corridor can produce, but reading the
+    // direction off the number is what keeps the row honest if it ever were.
+    type: activity.amount > 0 ? 'received' : 'sent',
+    lnSwap: { label: activity.intent?.label, outcome: activity.intent?.outcome },
+    historyKey: activity.id,
+  }
+}
+
 /** `Activity[]` -> the `Tx[]` the UI already reads. Pure and synchronous.
  *
  * Only groups we know how to collapse become a single row; everything else
@@ -46,6 +79,16 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
   const { swaps, metadata, network, assetDisplay } = options
   const rows: Tx[] = []
   for (const activity of activities) {
+    if (rfqSwapKindOf(activity) === 'lightning_send') {
+      const row = lightningSendTx(activity, metadata)
+      if (row) {
+        rows.push(row)
+        continue
+      }
+      // No sent member means the record named a txid this history does not
+      // have. Fall through rather than drop the group: whatever IS here is
+      // still the user's money moving.
+    }
     const swapId = swapIdOf(activity)
     const swap = swapId ? swaps.find((record) => record.id === swapId) : undefined
     if (swap) {

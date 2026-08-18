@@ -1,6 +1,7 @@
 import { beforeEach, describe, it, expect } from 'vitest'
 import { createDefaultActivityRegistry, ServiceWorkerWallet, type Activity, type ArkTransaction } from '@arkade-os/sdk'
 import { activitiesToTxs, getActivityTxHistory } from '../../lib/activityHistory'
+import { swapActivityResolver } from '@arkade-os/swap'
 import { ASSET_SWAP_ACTIVITY_KIND, assetSwapResolver } from '../../lib/activity/assetSwapResolver'
 import { readAllTransactionActivityMetadata, saveTransactionActivityMetadata } from '../../lib/storage'
 import type { WalletAssetSwap } from '../../lib/swapRepository'
@@ -215,5 +216,89 @@ describe('end to end through the SDK grouping', () => {
     ])
     expect(txs[2]).toMatchObject({ assetAction: 'issued', destination: 'tark1dest', networkFee: 42 })
     expect(txs[3]).toMatchObject({ assetSwap: { toAmount: BigInt(54_321), status: 'completed' } })
+  })
+})
+
+describe('lightning send activities', () => {
+  const RFQ_ID = 'a'.repeat(64)
+
+  const lnIntent = (outcome: string): Activity['intent'] => ({
+    kind: 'swap',
+    label: 'Lightning send',
+    outcome,
+    metadata: { rfqId: RFQ_ID, swapKind: 'lightning_send' },
+  })
+
+  const funding = arkTx('funding-txid', {
+    type: 'SENT' as ArkTransaction['type'],
+    amount: 1_030,
+    settled: false,
+    createdAt: 4_000,
+  })
+  const refund = arkTx('refund-txid', { amount: 1_000, createdAt: 5_000 })
+
+  it('shows a refunded send as one row costing only its fees', () => {
+    const [row, ...rest] = activitiesToTxs(
+      // -1030 out, +1000 back: what the swap actually cost
+      [{ ...activity(`swap:${RFQ_ID}`, [funding, refund], lnIntent('refunded')), amount: -30 }],
+      empty,
+    )
+
+    expect(rest).toEqual([])
+    expect(row).toMatchObject({
+      amount: 30,
+      type: 'sent',
+      historyKey: `swap:${RFQ_ID}`,
+      lnSwap: { label: 'Lightning send', outcome: 'refunded' },
+    })
+    // the receipt screen resolves the covenant's spender off this txid, so the
+    // grouped row has to keep the funding leg's identity
+    expect(row.redeemTxid).toBe('funding-txid')
+  })
+
+  it('shows a send still in flight at its full amount', () => {
+    const [row] = activitiesToTxs(
+      [{ ...activity(`swap:${RFQ_ID}`, [funding], lnIntent('pending')), amount: -1_030 }],
+      empty,
+    )
+
+    expect(row).toMatchObject({ amount: 1_030, type: 'sent', lnSwap: { outcome: 'pending' } })
+  })
+
+  it('grafts the local metadata the funding leg carries', () => {
+    saveTransactionActivityMetadata('funding-txid', { destination: 'lnbc10u1p...', networkFee: 30 })
+
+    const [row] = activitiesToTxs([{ ...activity(`swap:${RFQ_ID}`, [funding], lnIntent('pending')), amount: -1_030 }], {
+      ...empty,
+      metadata: readAllTransactionActivityMetadata(),
+    })
+
+    expect(row).toMatchObject({ destination: 'lnbc10u1p...', networkFee: 30 })
+  })
+
+  it('groups the refund with its funding tx end to end, through the package resolver', async () => {
+    const registry = createDefaultActivityRegistry()
+    registry.use(
+      swapActivityResolver({
+        listSwaps: async () => [
+          { rfqId: RFQ_ID, kind: 'lightning_send', state: 'refunded', txids: ['funding-txid', 'refund-txid'] },
+        ],
+      }),
+    )
+    const wallet = {
+      activity: registry,
+      getTransactionHistory: async () => [funding, refund, arkTx('unrelated', { createdAt: 6_000 })],
+      getActivityHistory: ServiceWorkerWallet.prototype.getActivityHistory,
+    }
+
+    const txs = activitiesToTxs(await wallet.getActivityHistory(), empty)
+
+    // without the resolver these are two rows, and the refund reads as money
+    // arriving from nowhere
+    expect(txs.map((tx) => [tx.type, tx.historyKey])).toEqual([
+      ['received', 'unrelated:unrelated'],
+      ['sent', `swap:${RFQ_ID}`],
+    ])
+    expect(txs[1]).toMatchObject({ amount: 30, lnSwap: { label: 'Lightning send', outcome: 'refunded' } })
   })
 })

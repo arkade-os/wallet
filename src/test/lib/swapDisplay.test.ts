@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   buildAssetSwapActivityTx,
+  lnSwapLabel,
   swapAmountBeforeFee,
   swapFeeAmount,
   swapRouteLabel,
@@ -208,5 +209,27 @@ describe('buildAssetSwapActivityTx', () => {
     const claimable = { ...swap('funding-txid'), status: 'claimable' as const }
 
     expect(buildAssetSwapActivityTx(claimable, []).assetSwap).toMatchObject({ status: 'pending' })
+  })
+})
+
+describe('lnSwapLabel', () => {
+  const row = (lnSwap?: Tx['lnSwap']) => ({ lnSwap }) as Tx
+
+  it('names the outcome, and calls a refund a refund rather than a failure', () => {
+    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'refunded' }))).toBe('Lightning send refunded')
+    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'pending' }))).toBe('Lightning send pending')
+    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'failed' }))).toBe('Lightning send failed')
+  })
+
+  it('says nothing extra once the payment simply went through', () => {
+    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'settled' }))).toBe('Lightning send')
+  })
+
+  it('falls back to the corridor name for an outcome token it does not know', () => {
+    expect(lnSwapLabel(row({ outcome: 'something-new' }))).toBe('Lightning send')
+  })
+
+  it('leaves a row the resolver never tagged alone', () => {
+    expect(lnSwapLabel(row())).toBeUndefined()
   })
 })

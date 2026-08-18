@@ -28,6 +28,7 @@ import type { NetworkName, RestIndexerProvider } from '@arkade-os/sdk'
 import { isRfqTerminal, requestLightningSend, type InvoiceFacts, type RfqTransport } from '@arkade-os/swap'
 import { sleep as defaultSleep } from './sleep'
 import { decodeInvoice, invoiceMatchesNetwork, isInvoiceExpired, type DecodedInvoice } from './bolt11'
+import type { LnSendRecordSecrets } from './lnSendRecords'
 import type { LnSendSpend } from './types'
 
 /** Why an invoice cannot start a swap. A closed set, so callers can branch. */
@@ -266,6 +267,17 @@ export interface LnSendRequest {
    * not have to be kept alive across screens.
    */
   rendezvous: LnSendRendezvous
+  /**
+   * What the swap RECORD needs and nothing later can give back.
+   *
+   * The covenant binds `hash160(paymentHash)`, one-way over it, and the quote
+   * is gone the moment this screen unmounts — so a record written after the
+   * fact could name neither the hashlock nor the refund deadline. `secrets` is
+   * a descriptor for re-deriving the sender key, not key material (see
+   * `requestLightningSend`), and it is what lets a restored record be signed
+   * for rather than merely displayed.
+   */
+  record: LnSendRecordSecrets
 }
 
 /**
@@ -310,6 +322,15 @@ export const requestLnSend = async (
     swapPkScript: hex.encode(result.swapPkScript),
     validUntil: result.quote.valid_until,
     rendezvous: args.rendezvous,
+    record: {
+      paymentHash: invoice.paymentHash,
+      // Optional on `RfqQuote` because arkade↔arkade quotes carry none; an
+      // HTLC-class corridor like this one always does. Zero rather than a
+      // guess if a solver omits it: the record is for display and rebuild,
+      // and inventing a deadline would arm a refund window that is not real.
+      refundLocktime: result.quote.refund_locktime ?? 0,
+      secrets: result.secrets,
+    },
   }
 }
 

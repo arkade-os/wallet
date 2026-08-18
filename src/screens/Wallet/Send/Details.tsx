@@ -22,6 +22,7 @@ import { FeesContext } from '../../../providers/fees'
 import { buildTransactionAmountDisplay } from '../../../lib/transactionAmountDisplay'
 import { useAmountDisplayContext } from '../../../hooks/useTransactionAmountDisplay'
 import TransactionAmountSummary from '../../../components/TransactionAmountSummary'
+import { saveLnSendRecord } from '../../../lib/lnSendRecords'
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
 import type { LnSendActivity } from '../../../lib/types'
 
@@ -160,6 +161,19 @@ export default function SendDetails() {
   const payLightning = async (request: LnSendRequest) => {
     const txid = await sendOffChain(svcWallet!, request.fundAmount, request.address)
     if (!txid) return handleError('Error sending transaction')
+    // The swap record, before `handleTxid` triggers the refresh that rebuilds
+    // history: the activity resolver groups by what is already stored, so a
+    // record written after it would leave this send reading as a bare outgoing
+    // payment until the next reload. Best-effort by construction — the payment
+    // is committed either way.
+    await saveLnSendRecord({
+      rfqId: request.rfqId,
+      lockupAddress: request.address,
+      swapPkScript: request.swapPkScript,
+      amount: request.fundAmount,
+      fundingTxid: txid,
+      ...request.record,
+    })
     // Record the covenant against the funding txid: it is the only handle on
     // the spend that ends this swap, and it stops being derivable the moment
     // this screen unmounts — the quote is gone and nothing else stores it.

@@ -40,7 +40,9 @@ import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { activitiesToTxs, getActivities } from '../lib/activityHistory'
+import { lnSendActivityInputs, refreshLnSendStates } from '../lib/lnSendRecords'
 import { assetSwapResolver } from '../lib/activity/assetSwapResolver'
+import { swapActivityResolver } from '@arkade-os/swap'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
@@ -228,6 +230,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // user's saved theme (applyTheme(Auto) then falls back to the OS palette).
   const configRef = useRef(config)
   configRef.current = config
+  // Same reason as `configRef`: `reloadWallet` runs from listeners registered
+  // once at init, whose closure captured `emptyAspInfo` — a blank server url.
+  const aspInfoRef = useRef(aspInfo)
+  aspInfoRef.current = aspInfo
 
   // Each init gets its own AbortSignal; lock/reset aborts the current signal
   // with 'lock-reset' so stale paths can decide whether to tear down the SW.
@@ -483,6 +489,19 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (isFirstLoad) setLoadingStatus('Fetching coins...')
       const vtxos = await getVtxos(swWallet)
       if (isFirstLoad) setLoadingStatus('Fetching transactions...')
+      // Before the activities are built, not after: the outcome of a Lightning
+      // send is a fact about a covenant this wallet never spends, so nothing in
+      // the history below can discover it. No-ops without a swap in flight.
+      await refreshLnSendStates({
+        indexerUrl: aspInfoRef.current.url,
+        // The raw SDK read, deliberately: `getTxHistory` reports a failure as
+        // an empty history, which here would read as "no refund of ours" and
+        // file a refunded swap as a paid invoice.
+        paidUs: async (txid) => {
+          const history = await swWallet.getTransactionHistory()
+          return Boolean(history?.some(({ key }) => [key.arkTxid, key.boardingTxid, key.commitmentTxid].includes(txid)))
+        },
+      })
       const activities = await getActivities(swWallet)
       const metadata = readAllTransactionActivityMetadata()
       if (isFirstLoad) setLoadingStatus('Updating balance...')
@@ -605,6 +624,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // The registry ships with the SDK built-ins already in it; only ours has
       // to be added, and `use()` is idempotent by id across reinit paths.
       svcWallet.activity.use(assetSwapResolver())
+      // The package's own resolver for the RFQ corridors, fed from the records
+      // the send flow writes: it is what turns a Lightning send's funding tx —
+      // and the refund that may follow it — into one labelled activity.
+      svcWallet.activity.use(swapActivityResolver({ listSwaps: lnSendActivityInputs }))
 
       if (!skipMigration) {
         setLoadingStatus('Migrating data...')

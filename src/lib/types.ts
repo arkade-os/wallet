@@ -125,6 +125,10 @@ export type Tx = {
   /** Present only on a Lightning send: its lockup covenant and that
    * covenant's spender, which is a second tx the wallet never signed. */
   lnSend?: LnSendActivity
+  /** Present on a row the swap activity resolver grouped: the corridor's own
+   * label and the outcome token it reported. Opaque tokens, not display text —
+   * `lnSwapLabel` is what turns them into copy. */
+  lnSwap?: { label?: string; outcome?: string }
   networkFee?: number
   preconfirmed: boolean
   redeemTxid: string
