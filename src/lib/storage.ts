@@ -85,6 +85,11 @@ export const saveTransactionActivityMetadata = (
   )
 }
 
+export const readAllTransactionActivityMetadata = (): Record<string, TransactionActivityMetadata> =>
+  getStorageItem<Record<string, TransactionActivityMetadata>>(TRANSACTION_ACTIVITY_METADATA_KEY, {}, (value) =>
+    JSON.parse(value),
+  )
+
 export const readTransactionActivityMetadata = (
   txids: (string | undefined)[],
 ): TransactionActivityMetadata | undefined => {

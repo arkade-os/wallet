@@ -12,6 +12,7 @@ interface ImportMetaEnv {
   readonly VITE_DELEGATOR_URL?: string
   readonly VITE_EMULATOR_PUBKEY?: string
   readonly VITE_SOLVER_REGISTRY_URL?: string
+  readonly VITE_USE_SDK_ACTIVITY_HISTORY?: string
   // Add other env variables as needed
 }
 

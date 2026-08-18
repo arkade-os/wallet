@@ -258,7 +258,10 @@ export default function TransactionsList({
     overscan: 5,
   })
 
+  // The key doubles as a DOM id read back with getElementById, which handles
+  // the ':' in an activity id — do not switch those lookups to querySelector.
   const key = (tx: Tx, index: number) => {
+    if (tx.historyKey) return tx.historyKey
     const txKey = [tx.roundTxid, tx.redeemTxid, tx.boardingTxid].filter(Boolean).join('-') || 'tx'
     return `${txKey}-${index}`
   }

@@ -176,9 +176,79 @@ export function swapUnitOfAccountAmount({
   }
 }
 
+interface AssetSwapActivityOptions {
+  network?: string
+  assetDisplay?: (assetId: string) => { ticker?: string; decimals?: number } | undefined
+}
+
+/** The display row for one swap, from its record and the wallet rows that
+ * funded and filled it. Facts are recomputed from the tx couple and asset
+ * metadata where possible; the quote snapshot only fills what cannot be. */
+export const buildAssetSwapActivityTx = (
+  swap: WalletAssetSwap,
+  members: Tx[],
+  { network, assetDisplay }: AssetSwapActivityOptions = {},
+): Tx => {
+  const quote = swap.quote
+  // the package's AssetSwapStatus also covers its RFQ and onchain corridors
+  // (awaiting_fill, claimable, claimed, refunded_l1); an offer swap never
+  // carries those, and anything unrecognised reads as still in flight
+  const status =
+    swap.status === 'fulfilled'
+      ? 'completed'
+      : swap.status === 'cancelled'
+        ? 'cancelled'
+        : swap.status === 'recoverable'
+          ? 'recoverable'
+          : 'pending'
+  const fill = swap.spentTxid
+    ? members.find((tx) => [tx.boardingTxid, tx.redeemTxid, tx.roundTxid].includes(swap.spentTxid!))
+    : undefined
+  const receivedAsset = fill?.assets?.find((asset) => asset.assetId === swap.toAsset && asset.amount > BigInt(0))
+  const receivedAmount =
+    swap.toAsset === 'btc' && fill?.amount && fill.amount > 0
+      ? BigInt(fill.amount)
+      : (receivedAsset?.amount ?? BigInt(swap.toAmount))
+  // the currency designation outranks the asset's self-reported ticker, so
+  // restored swaps read "BRL to sats", not "DEPIX to sats"; BTC is always
+  // shown in sats, matching the live swap screen
+  const derivedTicker = (assetId: string) =>
+    assetId === 'btc'
+      ? 'sats'
+      : (designatedAccountCurrency(network, assetId) ?? assetDisplay?.(assetId)?.ticker ?? assetId.slice(0, 8))
+  const derivedDecimals = (assetId: string) => (assetId === 'btc' ? 0 : assetDisplay?.(assetId)?.decimals)
+  return {
+    amount: members[0]?.amount ?? 0,
+    boardingTxid: '',
+    createdAt: Math.floor(swap.createdAt / 1000),
+    explorable: undefined,
+    preconfirmed: status === 'pending',
+    redeemTxid: swap.spentTxid ?? swap.fundingTxid,
+    roundTxid: '',
+    settled: status !== 'pending',
+    type: 'swap',
+    assetSwap: {
+      fromAssetId: swap.fromAsset,
+      fromTicker: quote?.fromTicker ?? derivedTicker(swap.fromAsset),
+      fromDecimals: quote?.fromDecimals ?? derivedDecimals(swap.fromAsset),
+      fromAmount: BigInt(swap.fromAmount),
+      toAssetId: swap.toAsset,
+      toTicker: quote?.toTicker ?? derivedTicker(swap.toAsset),
+      toDecimals: quote?.toDecimals ?? derivedDecimals(swap.toAsset),
+      toAmount: receivedAmount,
+      fiatAmount: quote?.fromFiatAmount,
+      fiatCurrency: quote?.fiatCurrency,
+      feeBps: quote?.feeBps,
+      fundingTxid: swap.fundingTxid,
+      fillTxid: swap.status === 'fulfilled' || swap.status === 'cancelled' ? swap.spentTxid : undefined,
+      status,
+    },
+  }
+}
+
 /** Collapse the funding and fill wallet rows into one persisted swap activity.
- * Display facts are recomputed from the tx couple and asset metadata where
- * possible; the quote snapshot only fills what cannot be recomputed. */
+ * The correlation half only — `buildActivities` plus the asset-swap resolver
+ * replace it on the activity path. */
 export const mergeAssetSwapActivity = (
   txs: Tx[],
   swaps: WalletAssetSwap[],
@@ -193,61 +263,7 @@ export const mergeAssetSwapActivity = (
       if (match) claimed.add(tx)
       return match
     })
-    const quote = swap.quote
-    // the package's AssetSwapStatus also covers its RFQ and onchain corridors
-    // (awaiting_fill, claimable, claimed, refunded_l1); an offer swap never
-    // carries those, and anything unrecognised reads as still in flight
-    const status =
-      swap.status === 'fulfilled'
-        ? 'completed'
-        : swap.status === 'cancelled'
-          ? 'cancelled'
-          : swap.status === 'recoverable'
-            ? 'recoverable'
-            : 'pending'
-    const fill = swap.spentTxid
-      ? members.find((tx) => [tx.boardingTxid, tx.redeemTxid, tx.roundTxid].includes(swap.spentTxid!))
-      : undefined
-    const receivedAsset = fill?.assets?.find((asset) => asset.assetId === swap.toAsset && asset.amount > BigInt(0))
-    const receivedAmount =
-      swap.toAsset === 'btc' && fill?.amount && fill.amount > 0
-        ? BigInt(fill.amount)
-        : (receivedAsset?.amount ?? BigInt(swap.toAmount))
-    // the currency designation outranks the asset's self-reported ticker, so
-    // restored swaps read "BRL to sats", not "DEPIX to sats"; BTC is always
-    // shown in sats, matching the live swap screen
-    const derivedTicker = (assetId: string) =>
-      assetId === 'btc'
-        ? 'sats'
-        : (designatedAccountCurrency(network, assetId) ?? assetDisplay?.(assetId)?.ticker ?? assetId.slice(0, 8))
-    const derivedDecimals = (assetId: string) => (assetId === 'btc' ? 0 : assetDisplay?.(assetId)?.decimals)
-    return {
-      amount: members[0]?.amount ?? 0,
-      boardingTxid: '',
-      createdAt: Math.floor(swap.createdAt / 1000),
-      explorable: undefined,
-      preconfirmed: status === 'pending',
-      redeemTxid: swap.spentTxid ?? swap.fundingTxid,
-      roundTxid: '',
-      settled: status !== 'pending',
-      type: 'swap',
-      assetSwap: {
-        fromAssetId: swap.fromAsset,
-        fromTicker: quote?.fromTicker ?? derivedTicker(swap.fromAsset),
-        fromDecimals: quote?.fromDecimals ?? derivedDecimals(swap.fromAsset),
-        fromAmount: BigInt(swap.fromAmount),
-        toAssetId: swap.toAsset,
-        toTicker: quote?.toTicker ?? derivedTicker(swap.toAsset),
-        toDecimals: quote?.toDecimals ?? derivedDecimals(swap.toAsset),
-        toAmount: receivedAmount,
-        fiatAmount: quote?.fromFiatAmount,
-        fiatCurrency: quote?.fiatCurrency,
-        feeBps: quote?.feeBps,
-        fundingTxid: swap.fundingTxid,
-        fillTxid: swap.status === 'fulfilled' || swap.status === 'cancelled' ? swap.spentTxid : undefined,
-        status,
-      },
-    }
+    return buildAssetSwapActivityTx(swap, members, { network, assetDisplay })
   })
 
   return [...activities, ...txs.filter((tx) => !claimed.has(tx))].sort((a, b) => b.createdAt - a.createdAt)

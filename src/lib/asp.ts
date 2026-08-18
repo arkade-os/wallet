@@ -21,6 +21,7 @@ import { getConfirmedAndNotExpiredUtxos } from './utxo'
 import * as Sentry from '@sentry/react'
 import { hex } from '@scure/base'
 import { readTransactionActivityMetadata } from './storage'
+import { arkTransactionToTx, sortLocalTxs } from './transactionHistory'
 import { walletFingerprint } from './sentry'
 
 const emptyFees: FeeInfo = {
@@ -191,41 +192,15 @@ export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
     const res = await wallet.getTransactionHistory()
     if (!res) return []
     for (const tx of res) {
-      const date = new Date(tx.createdAt)
-      const unix = Math.floor(date.getTime() / 1000)
-      const { key, settled, type, amount } = tx
-      const explorable = key.boardingTxid ? key.boardingTxid : key.commitmentTxid ? key.commitmentTxid : undefined
-      const assets = tx.assets?.map((a) => ({ assetId: a.assetId, amount: a.amount }))
+      const { key } = tx
       const activityMetadata = readTransactionActivityMetadata([key.arkTxid, key.boardingTxid, key.commitmentTxid])
-      txs.push({
-        amount: Math.abs(amount),
-        assetAction: activityMetadata?.assetAction,
-        assets,
-        boardingTxid: key.boardingTxid,
-        destination: type === 'SENT' ? activityMetadata?.destination : undefined,
-        lnSend: type === 'SENT' ? activityMetadata?.lnSend : undefined,
-        redeemTxid: key.arkTxid,
-        roundTxid: key.commitmentTxid,
-        createdAt: unix,
-        explorable,
-        networkFee: activityMetadata?.networkFee,
-        preconfirmed: !settled,
-        settled: type === 'SENT' ? true : settled, // show all sent tx as settled
-        type: type.toLowerCase(),
-      })
+      txs.push(arkTransactionToTx(tx, activityMetadata))
     }
   } catch (err) {
     consoleError(err, 'error getting tx history')
     return []
   }
-  // sort by date, if have same date, put 'received' txs first
-  txs.sort((a, b) => {
-    if (a.createdAt === b.createdAt) return a.type === 'sent' ? -1 : 1
-    if (b.createdAt === 0) return 1 // tx with no date go to the top
-    if (a.createdAt === 0) return -1 // tx with no date go to the top
-    return a.createdAt > b.createdAt ? -1 : 1
-  })
-  return txs
+  return sortLocalTxs(txs)
 }
 
 export const getVtxos = async (wallet: ServiceWorkerWallet): Promise<{ spendable: Vtxo[]; spent: Vtxo[] }> => {
