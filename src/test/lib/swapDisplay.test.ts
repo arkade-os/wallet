@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  mergeAssetSwapActivity,
+  buildAssetSwapActivityTx,
   swapAmountBeforeFee,
   swapFeeAmount,
   swapRouteLabel,
@@ -133,8 +133,8 @@ const swap = (id: string): WalletAssetSwap => ({
   createdAt: 1,
 })
 
-describe('mergeAssetSwapActivity', () => {
-  it('collapses linked funding and fill rows into one swap activity with the actual fill and quote metadata', () => {
+describe('buildAssetSwapActivityTx', () => {
+  it('builds the row from the actual fill and the quote metadata', () => {
     const fulfilled = {
       ...swap('funding-txid'),
       status: 'fulfilled' as const,
@@ -164,15 +164,13 @@ describe('mergeAssetSwapActivity', () => {
       type: 'received',
     })
     const fillAmount = BigInt(54_321)
-    const unrelated = tx('unrelated-txid')
 
-    const activity = mergeAssetSwapActivity(
-      [tx('funding-txid'), tx('fill-txid', [{ assetId: fulfilled.toAsset, amount: fillAmount }]), unrelated],
-      [fulfilled],
-    )
+    const activity = buildAssetSwapActivityTx(fulfilled, [
+      tx('funding-txid'),
+      tx('fill-txid', [{ assetId: fulfilled.toAsset, amount: fillAmount }]),
+    ])
 
-    expect(activity).toHaveLength(2)
-    expect(activity[0]).toMatchObject({
+    expect(activity).toMatchObject({
       type: 'swap',
       redeemTxid: 'fill-txid',
       assetSwap: {
@@ -186,19 +184,21 @@ describe('mergeAssetSwapActivity', () => {
         fillTxid: 'fill-txid',
       },
     })
-    expect(activity[1]).toBe(unrelated)
   })
 
   it('labels older Mutinynet swap records from their designated asset IDs', () => {
     const legacySwap = { ...swap('funding-txid'), toAsset: MUTINYNET_USDT_ASSET_ID }
-    const [activity] = mergeAssetSwapActivity([], [legacySwap], 'mutinynet')
+    const activity = buildAssetSwapActivityTx(legacySwap, [], { network: 'mutinynet' })
 
     expect(activity.assetSwap).toMatchObject({ fromTicker: 'sats', toTicker: 'USD' })
   })
 
   it('prefers the currency designation over the asset metadata ticker', () => {
     const restoredSwap = { ...swap('funding-txid'), toAsset: MUTINYNET_USDT_ASSET_ID }
-    const [activity] = mergeAssetSwapActivity([], [restoredSwap], 'mutinynet', () => ({ ticker: 'USDT', decimals: 2 }))
+    const activity = buildAssetSwapActivityTx(restoredSwap, [], {
+      network: 'mutinynet',
+      assetDisplay: () => ({ ticker: 'USDT', decimals: 2 }),
+    })
 
     expect(activity.assetSwap).toMatchObject({ fromTicker: 'sats', toTicker: 'USD', toDecimals: 2 })
   })
@@ -206,8 +206,7 @@ describe('mergeAssetSwapActivity', () => {
   it('reads an unrecognised package status as still in flight', () => {
     // the package's AssetSwapStatus covers corridors an offer swap never uses
     const claimable = { ...swap('funding-txid'), status: 'claimable' as const }
-    const [activity] = mergeAssetSwapActivity([], [claimable])
 
-    expect(activity.assetSwap).toMatchObject({ status: 'pending' })
+    expect(buildAssetSwapActivityTx(claimable, []).assetSwap).toMatchObject({ status: 'pending' })
   })
 })

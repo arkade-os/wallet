@@ -245,26 +245,3 @@ export const buildAssetSwapActivityTx = (
     },
   }
 }
-
-/** Collapse the funding and fill wallet rows into one persisted swap activity.
- * The correlation half only — `buildActivities` plus the asset-swap resolver
- * replace it on the activity path. */
-export const mergeAssetSwapActivity = (
-  txs: Tx[],
-  swaps: WalletAssetSwap[],
-  network?: string,
-  assetDisplay?: (assetId: string) => { ticker?: string; decimals?: number } | undefined,
-): Tx[] => {
-  const claimed = new Set<Tx>()
-  const activities = swaps.map<Tx>((swap) => {
-    const members = txs.filter((tx) => {
-      const ids = [tx.boardingTxid, tx.redeemTxid, tx.roundTxid]
-      const match = ids.includes(swap.fundingTxid) || Boolean(swap.spentTxid && ids.includes(swap.spentTxid))
-      if (match) claimed.add(tx)
-      return match
-    })
-    return buildAssetSwapActivityTx(swap, members, { network, assetDisplay })
-  })
-
-  return [...activities, ...txs.filter((tx) => !claimed.has(tx))].sort((a, b) => b.createdAt - a.createdAt)
-}

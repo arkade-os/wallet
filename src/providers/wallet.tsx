@@ -30,7 +30,7 @@ import {
 } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
 import { getRestApiExplorerURL } from '../lib/explorers'
-import { getBalance, getTxHistory, getVtxos, settleVtxos } from '../lib/asp'
+import { getBalance, getVtxos, settleVtxos } from '../lib/asp'
 import { AspContext } from './asp'
 import { AssetsContext } from './assets'
 import { NotificationsContext } from './notifications'
@@ -39,7 +39,6 @@ import { arkNoteInUrl } from '../lib/arknote'
 import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
-import { mergeAssetSwapActivity } from '../lib/swapDisplay'
 import { activitiesToTxs, getActivities } from '../lib/activityHistory'
 import { assetSwapResolver } from '../lib/activity/assetSwapResolver'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
@@ -68,10 +67,6 @@ const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
 const DEV_AUTO_INIT_TIMEOUT_MS = 60_000
 const DEV_INITIAL_DATA_TIMEOUT_MS = 20_000
 const DEV_AUTO_INIT_RELOAD_KEY = 'arkade-dev-auto-init-reload-attempted'
-
-/** Produce `txs` from the SDK activity API instead of the flat tx history.
- * Rollback while it exists is unsetting it; both producers must keep working. */
-const USE_SDK_ACTIVITY_HISTORY = import.meta.env.VITE_USE_SDK_ACTIVITY_HISTORY === 'true'
 
 interface InitSvcWorkerWalletParams {
   arkServerUrl: string
@@ -180,11 +175,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { notifyTxSettled } = useContext(NotificationsContext)
 
   // One atomic snapshot: the metadata graft must land in the same render as
-  // the history it belongs to. `raw` is Activity[] with the flag on, Tx[] off.
+  // the history it belongs to.
   const [history, setHistory] = useState<{
-    raw: Activity[] | Tx[]
+    activities: Activity[]
     metadata: Record<string, TransactionActivityMetadata>
-  }>({ raw: [], metadata: {} })
+  }>({ activities: [], metadata: {} })
   const [assetSwaps, setAssetSwaps] = useState<WalletAssetSwap[]>([])
   const [balance, setBalance] = useState(0)
   const [availableBalance, setAvailableBalance] = useState(0)
@@ -208,17 +203,16 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // Derived rather than merged once at load: the swap records are read from
   // IndexedDB, so they can arrive after the first history load — recomputing on
   // either input is what keeps a cold start from flashing bare funding rows.
-  const txs = useMemo(() => {
-    const assetDisplay = (id: string) => assetMetadataCache.current.get(id)?.metadata
-    return USE_SDK_ACTIVITY_HISTORY
-      ? activitiesToTxs(history.raw as Activity[], {
-          swaps: assetSwaps,
-          metadata: history.metadata,
-          network: aspInfo.network,
-          assetDisplay,
-        })
-      : mergeAssetSwapActivity(history.raw as Tx[], assetSwaps, aspInfo.network, assetDisplay)
-  }, [history, assetSwaps, aspInfo.network])
+  const txs = useMemo(
+    () =>
+      activitiesToTxs(history.activities, {
+        swaps: assetSwaps,
+        metadata: history.metadata,
+        network: aspInfo.network,
+        assetDisplay: (id) => assetMetadataCache.current.get(id)?.metadata,
+      }),
+    [history, assetSwaps, aspInfo.network],
+  )
 
   const verifiedAssetsFetched = useRef(false)
   const statusPingInterval = useRef<ReturnType<typeof setInterval>>()
@@ -489,8 +483,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (isFirstLoad) setLoadingStatus('Fetching coins...')
       const vtxos = await getVtxos(swWallet)
       if (isFirstLoad) setLoadingStatus('Fetching transactions...')
-      const raw = USE_SDK_ACTIVITY_HISTORY ? await getActivities(swWallet) : await getTxHistory(swWallet)
-      const metadata = USE_SDK_ACTIVITY_HISTORY ? readAllTransactionActivityMetadata() : {}
+      const activities = await getActivities(swWallet)
+      const metadata = readAllTransactionActivityMetadata()
       if (isFirstLoad) setLoadingStatus('Updating balance...')
       const { total, available, assets, availableAssets } = await getBalance(swWallet)
       // prefetch asset metadata before triggering re-renders
@@ -514,7 +508,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         updateConfig({ ...live, apps: { ...live.apps, assets: { enabled: true } } })
       }
       setVtxos(vtxos)
-      setHistory({ raw, metadata })
+      setHistory({ activities, metadata })
       if (!hasLoadedOnce.current) {
         hasLoadedOnce.current = true
         setDataReady(true)

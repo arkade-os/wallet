@@ -2,9 +2,7 @@ import { beforeEach, describe, it, expect } from 'vitest'
 import { createDefaultActivityRegistry, ServiceWorkerWallet, type Activity, type ArkTransaction } from '@arkade-os/sdk'
 import { activitiesToTxs, getActivityTxHistory } from '../../lib/activityHistory'
 import { ASSET_SWAP_ACTIVITY_KIND, assetSwapResolver } from '../../lib/activity/assetSwapResolver'
-import { getTxHistory } from '../../lib/asp'
 import { readAllTransactionActivityMetadata, saveTransactionActivityMetadata } from '../../lib/storage'
-import { mergeAssetSwapActivity } from '../../lib/swapDisplay'
 import type { WalletAssetSwap } from '../../lib/swapRepository'
 
 beforeEach(() => localStorage.clear())
@@ -169,9 +167,9 @@ describe('assetSwapResolver', () => {
   })
 })
 
-describe('parity with the flat tx history', () => {
-  // the real grouping: buildActivities is not exported, but the wallet method
-  // that calls it with the registered resolvers is
+describe('end to end through the SDK grouping', () => {
+  // buildActivities is not exported, but the wallet method that calls it with
+  // the registered resolvers is
   const activityHistoryOf = async (txs: ArkTransaction[], swaps: WalletAssetSwap[]) => {
     const registry = createDefaultActivityRegistry()
     registry.use(assetSwapResolver(async () => swaps))
@@ -183,38 +181,39 @@ describe('parity with the flat tx history', () => {
     return await wallet.getActivityHistory()
   }
 
-  it('produces the same rows as getTxHistory + mergeAssetSwapActivity', async () => {
+  const MINT_TXID = 'ab'.repeat(32)
+
+  it('collapses only the swap couple, and grafts metadata onto the rows it kept', async () => {
     const fulfilled = swap({ status: 'fulfilled', spentTxid: 'fill-txid', createdAt: 4_000 })
     const sent = (arkTxid: string, createdAt: number, over: Partial<ArkTransaction> = {}) =>
       arkTx(arkTxid, { type: 'SENT' as ArkTransaction['type'], settled: false, createdAt, ...over })
     const history: ArkTransaction[] = [
       sent('funding-txid', 4_000),
       arkTx('fill-txid', { createdAt: 5_000, assets: [{ assetId: fulfilled.toAsset, amount: BigInt(54_321) }] }),
-      sent('mint-txid', 6_000, { assets: [{ assetId: 'minted-asset', amount: BigInt(10) }] }),
+      // an asset id encodes its genesis txid, which is what arms assetMintResolver
+      sent(MINT_TXID, 6_000, { assets: [{ assetId: `${MINT_TXID}0000`, amount: BigInt(10) }] }),
       arkTx('plain-received', { createdAt: 7_000 }),
       {
         ...arkTx('', { createdAt: 8_000 }),
         key: { arkTxid: '', boardingTxid: 'boarding-txid', commitmentTxid: '' },
       } as ArkTransaction,
     ]
-    saveTransactionActivityMetadata('mint-txid', { assetAction: 'issued', destination: 'tark1dest', networkFee: 42 })
+    saveTransactionActivityMetadata(MINT_TXID, { assetAction: 'issued', destination: 'tark1dest', networkFee: 42 })
 
-    const legacy = mergeAssetSwapActivity(await getTxHistory({ getTransactionHistory: async () => history } as never), [
-      fulfilled,
-    ])
-    const viaActivities = activitiesToTxs(await activityHistoryOf(history, [fulfilled]), {
+    const txs = activitiesToTxs(await activityHistoryOf(history, [fulfilled]), {
       swaps: [fulfilled],
       metadata: readAllTransactionActivityMetadata(),
     })
 
-    // the swap couple collapsed, the boarding and mint groups did not
-    expect(legacy).toHaveLength(4)
-    const withoutKey = viaActivities.map((tx) => {
-      const copy = { ...tx }
-      delete copy.historyKey
-      return copy
-    })
-    expect(withoutKey).toEqual(legacy)
-    expect(new Set(viaActivities.map((tx) => tx.historyKey)).size).toBe(viaActivities.length)
+    // boarding and mint are grouped by the SDK built-ins but must stay one row
+    // each; only the swap's two members collapse
+    expect(txs.map((tx) => [tx.type, tx.historyKey])).toEqual([
+      ['received', 'boarding:boarding-txid:boarding-txid'],
+      ['received', 'plain-received:plain-received'],
+      ['sent', `mint:${MINT_TXID}0000:${MINT_TXID}`],
+      ['swap', 'swap:swap-1'],
+    ])
+    expect(txs[2]).toMatchObject({ assetAction: 'issued', destination: 'tark1dest', networkFee: 42 })
+    expect(txs[3]).toMatchObject({ assetSwap: { toAmount: BigInt(54_321), status: 'completed' } })
   })
 })

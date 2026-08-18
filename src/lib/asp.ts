@@ -20,7 +20,6 @@ import { consoleError } from './logs'
 import { getConfirmedAndNotExpiredUtxos } from './utxo'
 import * as Sentry from '@sentry/react'
 import { hex } from '@scure/base'
-import { readTransactionActivityMetadata } from './storage'
 import { arkTransactionToTx, sortLocalTxs } from './transactionHistory'
 import { walletFingerprint } from './sentry'
 
@@ -186,21 +185,18 @@ export const getBalance = async (wallet: IWallet): Promise<WalletBalance> => {
   return await wallet.getBalance()
 }
 
+/** The raw, ungrouped history. The activity list is built by
+ * `activitiesToTxs` instead; this is for callers that need to find one tx by
+ * txid, and it carries no local metadata. */
 export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
-  const txs: Tx[] = []
   try {
     const res = await wallet.getTransactionHistory()
     if (!res) return []
-    for (const tx of res) {
-      const { key } = tx
-      const activityMetadata = readTransactionActivityMetadata([key.arkTxid, key.boardingTxid, key.commitmentTxid])
-      txs.push(arkTransactionToTx(tx, activityMetadata))
-    }
+    return sortLocalTxs(res.map((tx) => arkTransactionToTx(tx)))
   } catch (err) {
     consoleError(err, 'error getting tx history')
     return []
   }
-  return sortLocalTxs(txs)
 }
 
 export const getVtxos = async (wallet: ServiceWorkerWallet): Promise<{ spendable: Vtxo[]; spent: Vtxo[] }> => {
