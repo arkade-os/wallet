@@ -1490,16 +1490,6 @@ iframe {
   display: none;
 }
 
-.desktop-wallet-main {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  max-width: 640px;
-  height: 100%;
-  margin: auto;
-}
-
 .home-header::after {
   content: '';
   position: absolute;
@@ -1616,6 +1606,9 @@ iframe {
   }
 
   .desktop-wallet-main {
+    position: relative;
+    display: flex;
+    flex-direction: column;
     width: min(44rem, calc(100vw - 19rem));
     max-width: none;
     min-width: 0;
