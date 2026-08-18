@@ -36,6 +36,9 @@ export const defaultArkServer = () => {
   return mainServer
 }
 
+export const isMainnet = (network: NetworkName | string): boolean =>
+  !!network && network !== 'testnet' && network !== 'mutinynet' && network !== 'signet' && network !== 'regtest'
+
 const DELEGATE_URL: Record<NetworkName, string | null> = {
   bitcoin: 'https://delegate.arkade.money',
   mutinynet: `https://delegator.mutinynet.arkade.sh`,
