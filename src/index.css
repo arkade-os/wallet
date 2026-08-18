@@ -1485,6 +1485,21 @@ iframe {
   background-color: inherit;
 }
 
+.desktop-wallet-shell,
+.home-notices--desktop {
+  display: none;
+}
+
+.desktop-wallet-main {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 640px;
+  height: 100%;
+  margin: auto;
+}
+
 .home-header::after {
   content: '';
   position: absolute;
@@ -1506,6 +1521,183 @@ iframe {
 
 .wallet-home-content--scrolled .home-header::after {
   opacity: 1;
+}
+
+@media (min-width: 64rem) {
+  .desktop-wallet-shell {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 60;
+    display: flex;
+    width: 15rem;
+    flex-direction: column;
+    padding: 1.5rem 1rem;
+    background: var(--bg);
+    box-shadow: inset -1px 0 0 color-mix(in srgb, var(--fg) 6%, transparent);
+  }
+
+  .desktop-wallet-brand {
+    display: flex;
+    height: 2.25rem;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0 0.625rem;
+    color: var(--fg);
+    font-family: var(--font-heading);
+    font-size: 1.25rem;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: var(--heading-sm-tracking);
+  }
+
+  .desktop-wallet-brand__mark,
+  .desktop-wallet-brand__mark svg {
+    width: 1.375rem;
+    height: 1.375rem;
+  }
+
+  .desktop-wallet-brand__mark {
+    display: flex;
+    flex: none;
+  }
+
+  .desktop-wallet-brand > span {
+    transform: translateY(1px);
+  }
+
+  .desktop-wallet-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 2rem;
+  }
+
+  .desktop-wallet-nav__item {
+    display: flex;
+    min-height: 2.75rem;
+    width: 100%;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.75rem;
+    padding: 0 0.75rem;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--neutral-700);
+    font-family: var(--font-body);
+    font-size: var(--text-sm-size);
+    font-weight: 500;
+    line-height: var(--text-sm-line);
+    text-align: left;
+    transition:
+      background-color 150ms ease,
+      color 150ms ease,
+      transform 150ms ease-out;
+  }
+
+  .desktop-wallet-nav__item:active {
+    transform: scale(0.98);
+  }
+
+  .desktop-wallet-nav__item:focus-visible {
+    outline: 2px solid var(--purple-700);
+    outline-offset: 2px;
+  }
+
+  .desktop-wallet-nav__item--active {
+    background: color-mix(in srgb, var(--fg) 5%, transparent);
+    color: var(--fg);
+  }
+
+  .desktop-wallet-nav__item svg {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: none;
+  }
+
+  .desktop-wallet-main {
+    width: min(44rem, calc(100vw - 19rem));
+    max-width: none;
+    min-width: 0;
+    margin-right: auto;
+    margin-left: 17rem;
+    background: var(--bg);
+  }
+
+  .desktop-wallet-main--root {
+    height: 100%;
+  }
+
+  .desktop-wallet-main--panel {
+    width: min(40rem, calc(100vw - 19rem));
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .home-header__mobile-brand,
+  .home-header__mobile-actions {
+    display: none;
+  }
+
+  .desktop-wallet-main--root .header > div > div:first-child > * {
+    display: none;
+  }
+
+  .wallet-home-content > .content-shell > div {
+    padding-right: 2rem !important;
+    padding-left: 2rem !important;
+  }
+
+  .home-notices--mobile {
+    display: none;
+  }
+
+  .home-notices--desktop {
+    position: fixed;
+    bottom: 1rem;
+    left: 1rem;
+    z-index: 60;
+    display: block;
+    width: 13rem;
+    max-height: calc(100dvh - 15rem);
+    overflow-y: auto;
+  }
+
+  .home-stack {
+    gap: 1.75rem;
+  }
+
+  .home-quick-actions {
+    gap: 0.75rem;
+  }
+
+  .home-quick-action {
+    min-height: 4.75rem;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .desktop-wallet-nav__item:not(.desktop-wallet-nav__item--active):hover {
+      background: color-mix(in srgb, var(--fg) 3%, transparent);
+      color: var(--fg);
+    }
+  }
+}
+
+@media (min-width: 80rem) {
+  .desktop-wallet-main {
+    margin-right: auto;
+    margin-left: auto;
+  }
+}
+
+@media (min-width: 64rem) and (prefers-reduced-motion: reduce) {
+  .desktop-wallet-nav__item {
+    transition: none;
+  }
+
+  .desktop-wallet-nav__item:active {
+    transform: none;
+  }
 }
 
 .header {
