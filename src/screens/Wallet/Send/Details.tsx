@@ -32,7 +32,7 @@ export default function SendDetails() {
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
-  const { assetMetadataCache, balance, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, balance, reloadWallet, svcWallet } = useContext(WalletContext)
 
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
@@ -119,6 +119,14 @@ export default function SendDetails() {
       lnSend,
       networkFee: details?.fees,
     })
+    // Refresh now instead of waiting on the worker's VTXO_UPDATE broadcast:
+    // that message rides on the indexer subscription, and for a transaction
+    // this wallet submitted itself it can arrive late or not at all, leaving
+    // the balance and the history a payment behind until a manual refresh.
+    // The worker persists the spent inputs and the change VTXO before it hands
+    // back the txid, so its cache is already current — and the metadata saved
+    // just above is what the refreshed history grafts onto this row.
+    reloadWallet().catch(consoleError)
     setSendInfo({ ...sendInfo, total: details?.total, txid })
     setSendDone(true)
   }
