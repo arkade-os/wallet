@@ -1,4 +1,8 @@
 import { useContext, useEffect, useState } from 'react'
+import { BTC_ASSET_ID } from '@arkade-os/swap'
+import BookDepth from '../../../components/BookDepth'
+import BookLadder from '../../../components/BookLadder'
+import TradeSheet from '../../../components/TradeSheet'
 import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Content from '../../../components/Content'
@@ -7,7 +11,7 @@ import FlexRow from '../../../components/FlexRow'
 import Header from '../../../components/Header'
 import LoadingLogo from '../../../components/LoadingLogo'
 import Padded from '../../../components/Padded'
-import Shadow from '../../../components/Shadow'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../../components/ui/collapsible'
 import Text, { TextSecondary } from '../../../components/Text'
 import AssetAvatar from '../../../components/AssetAvatar'
 import { NavigationContext, Pages } from '../../../providers/navigation'
@@ -17,17 +21,27 @@ import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import type { AssetDetails } from '@arkade-os/sdk'
 import { prettyAssetAmount } from '../../../lib/assets'
+import { prettyNumber } from '../../../lib/format'
 import { BackupContext } from '@/providers/backup'
+import { AspContext } from '../../../providers/asp'
+import { OrderBookContext } from '../../../providers/orderBook'
+import { displayPrice, pairKeyOf, type BookRow } from '../../../lib/book'
+import { extractError } from '../../../lib/error'
+import { toast } from '../../../components/Toast'
 
 export default function AppAssetDetail() {
   const { config } = useContext(ConfigContext)
   const { backupAndUpdateConfig } = useContext(BackupContext)
   const { navigate, replace } = useContext(NavigationContext)
   const { assetInfo, setAssetInfo, setRecvInfo, setSendInfo } = useContext(FlowContext)
-  const { assetBalances, svcWallet, assetMetadataCache, setCacheEntry, iconApprovalManager } = useContext(WalletContext)
+  const { assetBalances, availableBalance, svcWallet, assetMetadataCache, setCacheEntry, iconApprovalManager } =
+    useContext(WalletContext)
+  const { aspInfo } = useContext(AspContext)
+  const { bookFor, ready: bookReady, takeable, trade, matchFor, take, pull } = useContext(OrderBookContext)
 
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [tradeSide, setTradeSide] = useState<'buy' | 'sell'>()
 
   const cachedEntry = assetMetadataCache.get(assetInfo.assetId)
   const hasIcon = cachedEntry?.hasIcon ?? false
@@ -82,6 +96,41 @@ export default function AppAssetDetail() {
   const isImported = config.importedAssets.includes(assetInfo.assetId)
   const canRemove = isImported && balance === BigInt(0)
 
+  // This asset priced in sats. Both directions of the market group under one
+  // key, so a bid and an ask on the same asset land in the same book.
+  const pairKey = pairKeyOf(assetInfo.assetId, BTC_ASSET_ID)
+  const book = bookFor(pairKey)
+  // what a taker would pay right now — the prefill a composer opens on
+  const bestAsk = book.asks[0] ? displayPrice(book.asks[0].price, decimals, 0) : undefined
+  const bestBid = book.bids[0] ? displayPrice(book.bids[0].price, decimals, 0) : undefined
+
+  const handleTake = async (row: BookRow) => {
+    try {
+      await take(row.id)
+    } catch (err) {
+      // a fill racing a pull is normal: the row is gone, nothing broke
+      toast.error(extractError(err))
+    }
+  }
+
+  const handlePull = async (row: BookRow) => {
+    try {
+      await pull(row.id)
+    } catch (err) {
+      toast.error(extractError(err))
+    }
+  }
+
+  const openTrade = (side: 'buy' | 'sell') => setTradeSide(side)
+
+  // Crossing the book must TAKE, not post. Posting a crossing order just adds
+  // it to the pile — nothing in Arkade matches two resting covenants, so the
+  // order would sit there next to the one it was meant to fill.
+  const handleTrade = async (params: Parameters<typeof trade>[0]) => {
+    await trade(params)
+    setTradeSide(undefined)
+  }
+
   const handleSend = () => {
     setSendInfo({ ...emptySendInfo, assets: [{ assetId: assetInfo.assetId, amount: BigInt(0) }] })
     navigate(Pages.SendForm)
@@ -121,105 +170,164 @@ export default function AppAssetDetail() {
               <TextSecondary centered>{name}</TextSecondary>
             </FlexCol>
 
-            <FlexCol gap='0.25rem' centered>
-              <Text copy={assetInfo.assetId} color='neutral-500' smaller centered>
-                {truncateId(assetInfo.assetId)}
-              </Text>
-              <FlexRow gap='0.25rem' centered>
-                <TextSecondary centered>Asset ID (tap to copy)</TextSecondary>
-                <span
-                  onClick={handleRefresh}
-                  style={{
-                    cursor: 'pointer',
-                    fontSize: 13,
-                    color: 'var(--neutral-500)',
-                    opacity: refreshing ? 0.5 : 1,
-                    transition: 'opacity 0.2s',
-                  }}
-                >
-                  {refreshing ? '...' : '\u21BB'}
-                </span>
-              </FlexRow>
-            </FlexCol>
+            {/* The market at a glance, two across — only figures the chain
+                actually reports. No FDV, volume or holder count: none of the
+                three is derivable here, and a plausible-looking wrong number
+                is worse than an absent one. */}
+            <div className='grid w-full grid-cols-2 gap-x-4 gap-y-3'>
+              <Stat label='Price' value={bestAsk ? `${prettyNumber(bestAsk)} sats` : '—'} />
+              <Stat
+                label='Spread'
+                value={
+                  bestAsk && bestBid ? `${prettyNumber(bestAsk - bestBid)} sats` : book.asks.length ? '—' : 'no book'
+                }
+              />
+              <Stat label='Best bid' value={bestBid ? `${prettyNumber(bestBid)} sats` : '—'} />
+              <Stat label='Supply' value={prettyAssetAmount(supply, decimals) ?? 'Unknown'} />
+            </div>
 
-            <Shadow lighter>
-              <FlexCol gap='0.5rem' padding='0.75rem'>
-                {name !== 'Unknown Asset' ? (
+            <BookDepth book={book} baseTicker={ticker || 'units'} baseDecimals={decimals} />
+
+            <BookLadder
+              book={book}
+              baseTicker={ticker || 'units'}
+              baseDecimals={decimals}
+              takeable={takeable}
+              takeDisabledReason='buying needs an emulator endpoint — posting and cancelling still work'
+              onTake={handleTake}
+              onPull={handlePull}
+              loading={!bookReady}
+            />
+
+            {/* Everything that is not the market, folded away: the facts, and
+                the wallet-side actions. pools.trade ends its mobile page in one
+                action; six stacked buttons was the thing least like it. Name,
+                ticker and supply are absent because the header and stat grid
+                already carry them. */}
+            <Collapsible className='w-full'>
+              <CollapsibleTrigger className='flex w-full items-center justify-between py-3'>
+                <TextSecondary>More</TextSecondary>
+                <TextSecondary>{'\u2304'}</TextSecondary>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <FlexCol gap='0.5rem'>
                   <FlexRow between>
-                    <TextSecondary>Name</TextSecondary>
-                    <Text bold>{name}</Text>
-                  </FlexRow>
-                ) : null}
-                {ticker ? (
-                  <FlexRow between>
-                    <TextSecondary>Ticker</TextSecondary>
-                    <Text bold>{ticker}</Text>
-                  </FlexRow>
-                ) : null}
-                <FlexRow between>
-                  <TextSecondary>Supply</TextSecondary>
-                  <Text bold>{prettyAssetAmount(supply, decimals) ?? 'Unknown'}</Text>
-                </FlexRow>
-                <FlexRow between>
-                  <TextSecondary>Decimals</TextSecondary>
-                  <Text bold>{decimals}</Text>
-                </FlexRow>
-                {controlAssetId ? (
-                  <FlexRow between>
-                    <TextSecondary>Control Asset</TextSecondary>
+                    <TextSecondary>Asset ID</TextSecondary>
                     <FlexRow gap='0.25rem' end>
-                      {(() => {
-                        const ctrl = assetMetadataCache.get(controlAssetId)?.metadata
-                        const ctrlName = ctrl?.name ?? `${controlAssetId.slice(0, 8)}...${controlAssetId.slice(-8)}`
-                        const label = ctrl?.ticker ? `${ctrlName} (${ctrl.ticker})` : ctrlName
-                        return (
-                          <>
-                            <AssetAvatar
-                              icon={ctrl?.icon}
-                              ticker={ctrl?.ticker}
-                              size={20}
-                              assetId={controlAssetId}
-                              clickable
-                            />
-                            <Text bold copy={controlAssetId}>
-                              {label}
-                            </Text>
-                          </>
-                        )
-                      })()}
+                      <Text copy={assetInfo.assetId} bold>
+                        {truncateId(assetInfo.assetId)}
+                      </Text>
+                      <span
+                        onClick={handleRefresh}
+                        style={{
+                          cursor: 'pointer',
+                          fontSize: 13,
+                          color: 'var(--neutral-500)',
+                          opacity: refreshing ? 0.5 : 1,
+                          transition: 'opacity 0.2s',
+                        }}
+                      >
+                        {refreshing ? '...' : '\u21BB'}
+                      </span>
                     </FlexRow>
                   </FlexRow>
-                ) : null}
-              </FlexCol>
-            </Shadow>
-            {hasIcon && !iconApprovalManager.isVerified(assetInfo.assetId) ? (
-              <Button
-                label={iconApprovalManager.isApproved(assetInfo.assetId) ? 'Hide icon' : 'Show icon'}
-                onClick={async () => {
-                  if (iconApprovalManager.isApproved(assetInfo.assetId)) {
-                    iconApprovalManager.revoke(assetInfo.assetId)
-                  } else {
-                    iconApprovalManager.approve(assetInfo.assetId)
-                  }
-                  await fetchDetails(true)
-                }}
-                secondary
-              />
-            ) : null}
+                  <FlexRow between>
+                    <TextSecondary>Decimals</TextSecondary>
+                    <Text bold>{decimals}</Text>
+                  </FlexRow>
+                  {controlAssetId ? (
+                    <FlexRow between>
+                      <TextSecondary>Control Asset</TextSecondary>
+                      <FlexRow gap='0.25rem' end>
+                        {(() => {
+                          const ctrl = assetMetadataCache.get(controlAssetId)?.metadata
+                          const ctrlName = ctrl?.name ?? `${controlAssetId.slice(0, 8)}...${controlAssetId.slice(-8)}`
+                          const label = ctrl?.ticker ? `${ctrlName} (${ctrl.ticker})` : ctrlName
+                          return (
+                            <>
+                              <AssetAvatar
+                                icon={ctrl?.icon}
+                                ticker={ctrl?.ticker}
+                                size={20}
+                                assetId={controlAssetId}
+                                clickable
+                              />
+                              <Text bold copy={controlAssetId}>
+                                {label}
+                              </Text>
+                            </>
+                          )
+                        })()}
+                      </FlexRow>
+                    </FlexRow>
+                  ) : null}
+                  {hasIcon && !iconApprovalManager.isVerified(assetInfo.assetId) ? (
+                    <Button
+                      label={iconApprovalManager.isApproved(assetInfo.assetId) ? 'Hide icon' : 'Show icon'}
+                      onClick={async () => {
+                        if (iconApprovalManager.isApproved(assetInfo.assetId)) {
+                          iconApprovalManager.revoke(assetInfo.assetId)
+                        } else {
+                          iconApprovalManager.approve(assetInfo.assetId)
+                        }
+                        await fetchDetails(true)
+                      }}
+                      secondary
+                    />
+                  ) : null}
+                  <div className='mt-2 border-t border-[var(--neutral-100)] pt-3'>
+                    <FlexCol gap='0.75rem'>
+                      <FlexRow gap='0.75rem'>
+                        <Button label='Send' onClick={handleSend} disabled={balance === BigInt(0)} secondary />
+                        <Button label='Receive' onClick={handleReceive} secondary />
+                      </FlexRow>
+                      {holdsControlAsset || balance > 0 ? (
+                        <FlexRow gap='0.75rem'>
+                          {holdsControlAsset ? <Button label='Reissue' onClick={handleReissue} secondary /> : null}
+                          {balance > 0 ? <Button label='Burn' onClick={handleBurn} secondary /> : null}
+                        </FlexRow>
+                      ) : null}
+                      {canRemove ? <Button label='Remove' onClick={handleRemove} secondary /> : null}
+                    </FlexCol>
+                  </div>
+                </FlexCol>
+              </CollapsibleContent>
+            </Collapsible>
           </FlexCol>
         </Padded>
       </Content>
       <ButtonsOnBottom>
         <FlexRow gap='0.75rem'>
-          <Button label='Send' onClick={handleSend} disabled={balance === BigInt(0)} />
-          <Button label='Receive' onClick={handleReceive} />
+          <Button label='Buy' onClick={() => openTrade('buy')} />
+          <Button label='Sell' onClick={() => openTrade('sell')} disabled={balance === BigInt(0)} secondary />
         </FlexRow>
-        <FlexRow gap='0.75rem'>
-          <Button label='Reissue' onClick={handleReissue} secondary disabled={!holdsControlAsset} />
-          {balance > 0 ? <Button label='Burn' onClick={handleBurn} secondary /> : null}
-        </FlexRow>
-        {canRemove ? <Button label='Remove' onClick={handleRemove} secondary /> : null}
       </ButtonsOnBottom>
+      <TradeSheet
+        isOpen={tradeSide !== undefined}
+        onClose={() => setTradeSide(undefined)}
+        initialSide={tradeSide ?? 'buy'}
+        baseTicker={ticker || 'units'}
+        baseAssetId={assetInfo.assetId}
+        baseDecimals={decimals}
+        satsBalance={BigInt(availableBalance)}
+        assetBalance={balance}
+        bestAskPrice={bestAsk}
+        bestBidPrice={bestBid}
+        dust={BigInt(aspInfo.dust)}
+        findMatch={matchFor}
+        onSubmit={handleTrade}
+      />
     </>
+  )
+}
+
+/** One figure in the market grid. Label above, value below — the shape every
+ * exchange uses, and the reason two of them read as a comparison. */
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <FlexCol gap='0.125rem'>
+      <TextSecondary smaller>{label}</TextSecondary>
+      <Text bold>{value}</Text>
+    </FlexCol>
   )
 }

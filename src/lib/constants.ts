@@ -120,6 +120,33 @@ export const getEmulatorPubkeyForNetwork = (network: NetworkName): Uint8Array | 
   }
 }
 
+// The emulator endpoint, needed only to TAKE an order. `fulfill` is a covenant
+// spend, so it is submitted to the emulator rather than to arkd — posting and
+// cancelling need none of this, which is why an unset value disables taking
+// rather than the whole book.
+//
+// This is the one place the "clients have no network path to the emulator" note
+// above no longer holds: mutinynet publishes one, and it answers `/v1/info`
+// with `access-control-allow-origin: *`, so a browser wallet can reach it.
+// Verified 2026-08-14 — its `signerPubkey` is byte-identical to the mutinynet
+// pin above, which is what makes a covenant built against that pin fillable
+// here. If the two ever diverge, offers stop being takeable rather than
+// mis-spending: the reader drops any offer naming a co-signer it does not know.
+//
+// A regtest stack serves its own on 7073. Its key is per-deployment, so there
+// is nothing to pin — see getEmulatorPubkeyForNetwork's caller, which asks the
+// emulator directly when this network has no pin.
+const EMULATOR_URL: Record<NetworkName, string | null> = {
+  bitcoin: null,
+  mutinynet: 'https://emulator.mutinynet.arkade.sh',
+  signet: null,
+  regtest: 'http://localhost:7073',
+  testnet: null,
+}
+
+export const getEmulatorUrlForNetwork = (network: NetworkName): string | undefined =>
+  serviceUrlForNetwork(import.meta.env.VITE_EMULATOR_URL, EMULATOR_URL, network)
+
 // covclaimd — the service that could claim a Lightning-receive lockup for an
 // OFFLINE wallet — is deliberately not configured here. The receive screen
 // stays open and claims with its own covenant `receiver` key, so no deployment
