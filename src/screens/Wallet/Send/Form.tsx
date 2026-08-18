@@ -23,9 +23,8 @@ import Shadow from '../../../components/Shadow'
 import Scanner from '../../../components/Scanner'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
-import { Addresses, AssetOption, Currencies, SettingsOptions, Themes, Unit } from '../../../lib/types'
+import { Addresses, AssetOption, Currencies, Themes, Unit } from '../../../lib/types'
 import { aspErrorText, getReceivingAddresses } from '../../../lib/asp'
-import { OptionsContext } from '../../../providers/options'
 import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
@@ -129,7 +128,6 @@ export default function SendForm() {
   const { toFiat, fromFiat, fiatDecimals } = useContext(FiatContext)
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
-  const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
   const {
     assetBalances,
@@ -166,7 +164,6 @@ export default function SendForm() {
   const [selectedAsset, setSelectedAsset] = useState<AssetOption | null>(null)
   const [showAssetSelector, setShowAssetSelector] = useState(false)
   const [showReserveModal, setShowReserveModal] = useState(false)
-  const [tryingToSelfSend, setTryingToSelfSend] = useState(false)
   const [valueSats, setValueSats] = useState<number | undefined>(undefined)
 
   const timeoutRef = useRef<NodeJS.Timeout>()
@@ -544,7 +541,7 @@ export default function SendForm() {
   // validate recipient addresses
   useEffect(() => {
     if (!receivingAddresses) return
-    const { boardingAddr, offchainAddr } = receivingAddresses
+    const { offchainAddr } = receivingAddresses
     const { address, arkAddress, invoice, lnUrl } = sendInfo
     // check server limits for onchain transactions
     if (address && !arkAddress && !invoice && !lnUrl && !utxoTxsAllowed()) {
@@ -565,13 +562,6 @@ export default function SendForm() {
         // we will try to pay to lightning or mainnet instead
         setSendInfo({ ...sendInfo, arkAddress: '' })
       }
-    }
-    // check if is trying to self send
-    if (address === boardingAddr || arkAddress === offchainAddr) {
-      setTryingToSelfSend(true) // nudge user to rollover
-      return setRecipientError('Cannot send to yourself')
-    } else {
-      setTryingToSelfSend(false)
     }
     // everything is ok, clean error
     setRecipientError('')
@@ -676,11 +666,6 @@ export default function SendForm() {
   }, [liquidBalance, sendInfo.satoshis, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.lnUrl])
 
   if (!svcWallet) return <LoadingLogo text='Loading...' />
-
-  const gotoRollover = () => {
-    setOption(SettingsOptions.Vtxos)
-    navigate(Pages.Settings)
-  }
 
   const handleError = (err: any) => {
     consoleError(err, 'error sending payment')
@@ -884,7 +869,6 @@ export default function SendForm() {
       (activeAsset ? assetAmt > activeAsset.balance : true) ||
       Boolean(recipientError) ||
       aspInfo.unreachable ||
-      tryingToSelfSend ||
       Boolean(error) ||
       processing
     : !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
@@ -894,7 +878,6 @@ export default function SendForm() {
       amountIsBelowMinLimit(satoshis) ||
       satoshis > liquidBalance ||
       aspInfo.unreachable ||
-      tryingToSelfSend ||
       Boolean(error) ||
       satoshis < 1 ||
       processing
@@ -1150,13 +1133,6 @@ export default function SendForm() {
                 />
               </FlexCol>
               {deductFromAmount ? <InfoLine color='orange' text='Fees will be deducted from the amount sent' /> : null}
-              {tryingToSelfSend ? (
-                <div style={{ width: '100%' }}>
-                  <Text centered color='neutral-500' small>
-                    Did you mean <a onClick={gotoRollover}>roll over your VTXOs</a>?
-                  </Text>
-                </div>
-              ) : null}
             </FlexCol>
           </Padded>
         </Content>
