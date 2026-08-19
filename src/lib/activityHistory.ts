@@ -3,6 +3,7 @@ import { ASSET_SWAP_ACTIVITY_KIND } from './activity/assetSwapResolver'
 import { consoleError } from './logs'
 import type { TransactionActivityMetadata } from './storage'
 import { buildAssetSwapActivityTx } from './swapDisplay'
+import type { LnSendView } from './lnSendRecords'
 import type { WalletAssetSwap } from './swapRepository'
 import { arkTransactionToTx, sortLocalTxs, txidOfArkTransaction } from './transactionHistory'
 import type { Tx } from './types'
@@ -10,6 +11,10 @@ import type { Tx } from './types'
 export interface ActivityHistoryOptions {
   /** Live records — the resolver only correlated txids to swap ids. */
   swaps: WalletAssetSwap[]
+  /** The Lightning sends, as stored. `RfqSwapManager` owns their state; this
+   * is the read side of it, and the only source of a row's outcome detail and
+   * of the receipt's second txid. */
+  lnSends?: LnSendView[]
   /** Snapshot taken alongside the activity fetch. Never read in here: this
    * runs in a `useMemo`, so a `localStorage` read would be an undeclared dep. */
   metadata: Record<string, TransactionActivityMetadata>
@@ -54,10 +59,16 @@ const rfqSwapKindOf = (activity: Activity): string | undefined =>
  * cost only its fees, and reporting the funding amount for it would show money
  * that came back as money spent.
  */
-const lightningSendTx = (activity: Activity, metadata: Record<string, TransactionActivityMetadata>): Tx | undefined => {
+const lightningSendTx = (
+  activity: Activity,
+  metadata: Record<string, TransactionActivityMetadata>,
+  lnSends: LnSendView[],
+): Tx | undefined => {
   const funding = activity.txs.find((tx) => tx.type === 'SENT')
   if (!funding) return undefined
-  const base = arkTransactionToTx(funding, metadata[txidOfArkTransaction(funding)])
+  const fundingTxid = txidOfArkTransaction(funding)
+  const base = arkTransactionToTx(funding, metadata[fundingTxid])
+  const record = lnSends.find((view) => view.fundingTxid === fundingTxid)
   return {
     ...base,
     amount: Math.abs(activity.amount),
@@ -65,7 +76,16 @@ const lightningSendTx = (activity: Activity, metadata: Record<string, Transactio
     // funding is not a thing this corridor can produce, but reading the
     // direction off the number is what keeps the row honest if it ever were.
     type: activity.amount > 0 ? 'received' : 'sent',
-    lnSwap: { label: activity.intent?.label, outcome: activity.intent?.outcome },
+    lnSwap: {
+      label: activity.intent?.label,
+      outcome: activity.intent?.outcome,
+      fundingTxid,
+      // The receipt's second row, carried on the row rather than looked up when
+      // the receipt opens: the store was already read to build this history,
+      // and re-asking the indexer for a permanent answer is the lookup this
+      // refactor exists to remove.
+      spendTxid: record?.spendTxid,
+    },
     historyKey: activity.id,
   }
 }
@@ -76,11 +96,11 @@ const lightningSendTx = (activity: Activity, metadata: Record<string, Transactio
  * emits one row per member, so a built-in grouping deposits or exits cannot
  * change the row count. */
 export const activitiesToTxs = (activities: Activity[], options: ActivityHistoryOptions): Tx[] => {
-  const { swaps, metadata, network, assetDisplay } = options
+  const { swaps, metadata, network, assetDisplay, lnSends = [] } = options
   const rows: Tx[] = []
   for (const activity of activities) {
     if (rfqSwapKindOf(activity) === 'lightning_send') {
-      const row = lightningSendTx(activity, metadata)
+      const row = lightningSendTx(activity, metadata, lnSends)
       if (row) {
         rows.push(row)
         continue

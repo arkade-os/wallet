@@ -1,11 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ArkAddress, type ProvisionedKey } from '@arkade-os/sdk'
-import { hex } from '@scure/base'
+import { RFQ_SWAP_RETENTION_SECONDS, type LockupContractReader } from '@arkade-os/swap'
 import {
+  fundingTxidOf,
   lnSendActivityInputs,
   lnSendSwapRecord,
-  refreshLnSendStates,
-  saveLnSendRecord,
+  lnSendViews,
+  recordSpendTxid,
+  restoreLnSendSwaps,
+  saveRecord,
+  saveSwapUpdate,
+  spendTxidOf,
   type LnSendRecordInput,
 } from '../../lib/lnSendRecords'
 import { assetSwapRepository as repository } from '../../lib/swapRepository'
@@ -17,25 +22,22 @@ vi.mock('../../lib/swapRepository', async () => {
   return { assetSwapRepository: new InMemoryAssetSwapRepository() }
 })
 
-const lnSendSpender = vi.hoisted(() => vi.fn())
-vi.mock('../../lib/lnSwap', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../lib/lnSwap')>()),
-  lnSendSpender,
-}))
-
 const LOCKUP =
   'tark1qplnj2gett9j483fchy6chaxn4y52c4g7n5djh9xua3ywdxw0ldatc3e9xcj9xpx0r5tmr0dgvu2f4s352muklg0tcxx0scnnkraajy9jgz4xl'
-// Derived from the address rather than written out: `createRfqSwapRecord`
-// refuses a record whose funded address and watched script are not the same
-// covenant, which is exactly the check being relied on here.
-const LOCKUP_PK_SCRIPT = hex.encode(ArkAddress.decode(LOCKUP).pkScript)
+// Taken from the address rather than written out: `createRfqSwapRecord` refuses
+// a record whose funded address and watched script are not the same covenant,
+// which is exactly the check being relied on here. The rest of the covenant is
+// the contract row's business, not this store's.
+const script = { pkScript: ArkAddress.decode(LOCKUP).pkScript } as LnSendRecordInput['script']
 
 const secrets: ProvisionedKey = { pubkey: new Uint8Array(32).fill(0xab), descriptor: 'wpkh(...)/0' }
 
+const RFQ_ID = 'a'.repeat(64)
+
 const input = (over: Partial<LnSendRecordInput> = {}): LnSendRecordInput => ({
-  rfqId: 'a'.repeat(64),
+  rfqId: RFQ_ID,
   lockupAddress: LOCKUP,
-  swapPkScript: LOCKUP_PK_SCRIPT,
+  script,
   paymentHash: 'b'.repeat(64),
   refundLocktime: 1_700_000_600,
   secrets,
@@ -44,9 +46,16 @@ const input = (over: Partial<LnSendRecordInput> = {}): LnSendRecordInput => ({
   ...over,
 })
 
+const store = async (over: Partial<LnSendRecordInput> = {}, patch: Record<string, unknown> = {}) => {
+  const record = { ...lnSendSwapRecord(input(over), 1_700_000_000), ...patch }
+  await saveRecord(record)
+  return record
+}
+
+const stored = async () => (await repository.getAllRfqSwaps())[0]
+
 beforeEach(async () => {
   for (const record of await repository.getAllRfqSwaps()) await repository.removeRfqSwap(record.rfqId)
-  lnSendSpender.mockReset()
 })
 
 describe('lnSendSwapRecord', () => {
@@ -54,7 +63,7 @@ describe('lnSendSwapRecord', () => {
     const record = lnSendSwapRecord(input(), 1_700_000_000)
 
     expect(record).toMatchObject({
-      rfqId: 'a'.repeat(64),
+      rfqId: RFQ_ID,
       kind: 'lightning_send',
       state: 'pending',
       lockupAddress: LOCKUP,
@@ -64,90 +73,132 @@ describe('lnSendSwapRecord', () => {
     // The funding txid has no field of its own on the record — grouping reads
     // it back off the profile, so it has to survive the corridor handler's own
     // projection.
-    expect(record.profile.funding_txid).toBe('funding-txid')
+    expect(fundingTxidOf(record)).toBe('funding-txid')
     expect(record.profile.hashlock).toMatchObject({ paymentHash: 'b'.repeat(64) })
+    // What a refund push needs: without it the manager can watch the swap but
+    // never take the money back.
     expect(record.profile.signer).toMatchObject({ signingDescriptor: 'wpkh(...)/0' })
   })
 
   it('refuses a record whose lockup address is not the script it watches', () => {
-    expect(() => lnSendSwapRecord(input({ swapPkScript: `5120${'cd'.repeat(32)}` }))).toThrow(/not the same swap/)
+    const wrong = { pkScript: new Uint8Array(34).fill(0xcd) } as LnSendRecordInput['script']
+    expect(() => lnSendSwapRecord(input({ script: wrong }))).toThrow(/not the same swap/)
+  })
+})
+
+describe('saveSwapUpdate', () => {
+  it('takes the manager’s state and keeps the origin the record was written with', async () => {
+    const record = await store()
+
+    await saveSwapUpdate({
+      kind: 'lightning_send',
+      rfqId: RFQ_ID,
+      state: 'refunded',
+      lockupPkScript: script.pkScript,
+      paymentHash: record.profile.hashlock ? 'b'.repeat(64) : '',
+      refundLocktime: 1_700_000_600,
+      createdAt: 1_700_000_000,
+      updatedAt: 1_700_000_900,
+      refundArkTxid: 'our-refund-txid',
+    })
+
+    const next = await stored()
+    expect(next.state).toBe('refunded')
+    expect(next.refundArkTxid).toBe('our-refund-txid')
+    // the origin half, profile included — where both txids live
+    expect(fundingTxidOf(next)).toBe('funding-txid')
+    expect(next.lockupAddress).toBe(LOCKUP)
+  })
+
+  it('does not write a half-formed record for a swap the store never saw', async () => {
+    await saveSwapUpdate({
+      kind: 'lightning_send',
+      rfqId: 'f'.repeat(64),
+      state: 'settled',
+      lockupPkScript: script.pkScript,
+      paymentHash: 'b'.repeat(64),
+      refundLocktime: 1,
+      createdAt: 1,
+      updatedAt: 2,
+    })
+
+    expect(await repository.getAllRfqSwaps()).toEqual([])
+  })
+})
+
+describe('the spend that ended a swap', () => {
+  it('prefers a refund this wallet pushed over one it merely observed', async () => {
+    const record = await store({}, { refundArkTxid: 'our-refund-txid' })
+    await saveRecord({ ...record, profile: { ...record.profile, spend_txid: 'observed-txid' } })
+
+    expect(spendTxidOf(await stored())).toBe('our-refund-txid')
+  })
+
+  it('records an observed spend once, and never rewrites it', async () => {
+    await store()
+
+    await recordSpendTxid(RFQ_ID, 'solver-refund-txid')
+    await recordSpendTxid(RFQ_ID, 'something-else')
+
+    expect(spendTxidOf(await stored())).toBe('solver-refund-txid')
   })
 })
 
 describe('lnSendActivityInputs', () => {
-  it('names the funding tx, and the refund once there is one', async () => {
-    await saveLnSendRecord(input())
+  it('names the refund only for a swap that came back', async () => {
+    await store({}, { state: 'refunded' })
+    await recordSpendTxid(RFQ_ID, 'refund-txid')
+
     expect(await lnSendActivityInputs()).toEqual([
-      { rfqId: 'a'.repeat(64), kind: 'lightning_send', state: 'pending', txids: ['funding-txid'] },
+      { rfqId: RFQ_ID, kind: 'lightning_send', state: 'refunded', txids: ['funding-txid', 'refund-txid'] },
     ])
+  })
 
-    const [record] = await repository.getAllRfqSwaps()
-    await repository.saveRfqSwap({ ...record, state: 'refunded', refundArkTxid: 'refund-txid' })
+  it('leaves a settled send’s spend out — it pays the solver, not us', async () => {
+    await store({}, { state: 'settled' })
+    await recordSpendTxid(RFQ_ID, 'solver-claim-txid')
 
     expect(await lnSendActivityInputs()).toEqual([
-      { rfqId: 'a'.repeat(64), kind: 'lightning_send', state: 'refunded', txids: ['funding-txid', 'refund-txid'] },
+      { rfqId: RFQ_ID, kind: 'lightning_send', state: 'settled', txids: ['funding-txid'] },
     ])
   })
 
   it('drops a record with no funding txid rather than grouping nothing', async () => {
-    const record = lnSendSwapRecord(input())
-    await repository.saveRfqSwap({ ...record, profile: { ...record.profile, funding_txid: undefined } })
+    const record = await store()
+    await saveRecord({ ...record, profile: { ...record.profile, funding_txid: undefined } })
 
     expect(await lnSendActivityInputs()).toEqual([])
+    expect(await lnSendViews()).toEqual([])
   })
 })
 
-describe('refreshLnSendStates', () => {
-  const paidUs = async () => false
+describe('restoreLnSendSwaps', () => {
+  // Every rebuild needs the lockup's contract row; a wallet without one is the
+  // case these tests are about, so the reader answers with none.
+  const noContracts: LockupContractReader = { getContracts: async () => [] }
 
-  it('files a claimed lockup as settled and keeps no refund txid', async () => {
-    await saveLnSendRecord(input())
-    lnSendSpender.mockResolvedValue({ spentTxid: 'claim-txid', outcome: 'completed' })
+  it('keeps a live swap on file even when its covenant cannot be rebuilt', async () => {
+    await store()
 
-    await refreshLnSendStates({ indexerUrl: 'https://indexer.test', paidUs })
-
-    const [record] = await repository.getAllRfqSwaps()
-    expect(record.state).toBe('settled')
-    // The solver's claim pays the solver: naming it here would group a tx this
-    // wallet's history does not have.
-    expect(record.refundArkTxid).toBeUndefined()
+    expect(await restoreLnSendSwaps(noContracts, 1_700_000_000)).toEqual([])
+    // skipped, not deleted: it is still the history of a real payment
+    expect(await repository.getAllRfqSwaps()).toHaveLength(1)
   })
 
-  it('files a returned lockup as refunded, naming the tx that brought it back', async () => {
-    await saveLnSendRecord(input())
-    lnSendSpender.mockResolvedValue({ spentTxid: 'refund-txid', outcome: 'refunded' })
+  it('asks nothing of a swap that already ended', async () => {
+    await store({}, { state: 'settled' })
+    let asked = false
 
-    await refreshLnSendStates({ indexerUrl: 'https://indexer.test', paidUs })
+    await restoreLnSendSwaps({ getContracts: async () => ((asked = true), []) }, 1_700_000_000)
 
-    const [record] = await repository.getAllRfqSwaps()
-    expect(record.state).toBe('refunded')
-    expect(record.refundArkTxid).toBe('refund-txid')
+    expect(asked).toBe(false)
   })
 
-  it('leaves an unspent lockup pending', async () => {
-    await saveLnSendRecord(input())
-    lnSendSpender.mockResolvedValue(undefined)
+  it('drops a terminal record once it is past retention', async () => {
+    await store({}, { state: 'settled', updatedAt: 1_700_000_000 })
 
-    await refreshLnSendStates({ indexerUrl: 'https://indexer.test', paidUs })
+    await restoreLnSendSwaps(noContracts, 1_700_000_000 + RFQ_SWAP_RETENTION_SECONDS + 1)
 
-    expect((await repository.getAllRfqSwaps())[0].state).toBe('pending')
-  })
-
-  it('asks nothing about a swap that already ended', async () => {
-    const record = lnSendSwapRecord(input())
-    await repository.saveRfqSwap({ ...record, state: 'settled' })
-
-    await refreshLnSendStates({ indexerUrl: 'https://indexer.test', paidUs })
-
-    expect(lnSendSpender).not.toHaveBeenCalled()
-  })
-
-  it('leaves the record pending when the lockup cannot be read', async () => {
-    await saveLnSendRecord(input())
-    lnSendSpender.mockRejectedValue(new Error('indexer down'))
-
-    await refreshLnSendStates({ indexerUrl: 'https://indexer.test', paidUs })
-
-    expect((await repository.getAllRfqSwaps())[0].state).toBe('pending')
+    expect(await repository.getAllRfqSwaps()).toEqual([])
   })
 })

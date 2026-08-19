@@ -40,7 +40,7 @@ import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { activitiesToTxs, getActivities } from '../lib/activityHistory'
-import { lnSendActivityInputs, refreshLnSendStates } from '../lib/lnSendRecords'
+import { lnSendActivityInputs, lnSendViews, type LnSendView } from '../lib/lnSendRecords'
 import { assetSwapResolver } from '../lib/activity/assetSwapResolver'
 import { swapActivityResolver } from '@arkade-os/swap'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
@@ -181,7 +181,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [history, setHistory] = useState<{
     activities: Activity[]
     metadata: Record<string, TransactionActivityMetadata>
-  }>({ activities: [], metadata: {} })
+    lnSends: LnSendView[]
+  }>({ activities: [], metadata: {}, lnSends: [] })
   const [assetSwaps, setAssetSwaps] = useState<WalletAssetSwap[]>([])
   const [balance, setBalance] = useState(0)
   const [availableBalance, setAvailableBalance] = useState(0)
@@ -210,6 +211,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       activitiesToTxs(history.activities, {
         swaps: assetSwaps,
         metadata: history.metadata,
+        lnSends: history.lnSends,
         network: aspInfo.network,
         assetDisplay: (id) => assetMetadataCache.current.get(id)?.metadata,
       }),
@@ -230,10 +232,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // user's saved theme (applyTheme(Auto) then falls back to the OS palette).
   const configRef = useRef(config)
   configRef.current = config
-  // Same reason as `configRef`: `reloadWallet` runs from listeners registered
-  // once at init, whose closure captured `emptyAspInfo` — a blank server url.
-  const aspInfoRef = useRef(aspInfo)
-  aspInfoRef.current = aspInfo
 
   // Each init gets its own AbortSignal; lock/reset aborts the current signal
   // with 'lock-reset' so stale paths can decide whether to tear down the SW.
@@ -489,21 +487,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (isFirstLoad) setLoadingStatus('Fetching coins...')
       const vtxos = await getVtxos(swWallet)
       if (isFirstLoad) setLoadingStatus('Fetching transactions...')
-      // Before the activities are built, not after: the outcome of a Lightning
-      // send is a fact about a covenant this wallet never spends, so nothing in
-      // the history below can discover it. No-ops without a swap in flight.
-      await refreshLnSendStates({
-        indexerUrl: aspInfoRef.current.url,
-        // The raw SDK read, deliberately: `getTxHistory` reports a failure as
-        // an empty history, which here would read as "no refund of ours" and
-        // file a refunded swap as a paid invoice.
-        paidUs: async (txid) => {
-          const history = await swWallet.getTransactionHistory()
-          return Boolean(history?.some(({ key }) => [key.arkTxid, key.boardingTxid, key.commitmentTxid].includes(txid)))
-        },
-      })
       const activities = await getActivities(swWallet)
       const metadata = readAllTransactionActivityMetadata()
+      // Read, never resolved here: `RfqSwapManager` owns a send's outcome and
+      // has already written it (see providers/lnSwaps), so this pass only picks
+      // up what the store says.
+      const lnSends = await lnSendViews()
       if (isFirstLoad) setLoadingStatus('Updating balance...')
       const { total, available, assets, availableAssets } = await getBalance(swWallet)
       // prefetch asset metadata before triggering re-renders
@@ -527,7 +516,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         updateConfig({ ...live, apps: { ...live.apps, assets: { enabled: true } } })
       }
       setVtxos(vtxos)
-      setHistory({ activities, metadata })
+      setHistory({ activities, metadata, lnSends })
       if (!hasLoadedOnce.current) {
         hasLoadedOnce.current = true
         setDataReady(true)
