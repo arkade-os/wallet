@@ -195,7 +195,22 @@ export const LnReceiveProvider = ({ children }: { children: ReactNode }) => {
       record: { ...swapSecretsToRecord(request.secrets), paymentHash },
     })
     setStates((prev) => new Map(prev).set(swap.rfqId, swap.state))
-    await (await pending).addSwap(swap)
+    try {
+      await (await pending).addSwap(swap)
+    } catch (err) {
+      // The manager never took the swap, so no `onSwap*` callback will ever run
+      // for this rfqId and nothing else would clear these. Undoing both keeps
+      // the invariant that `tracked` and `states` only hold swaps the manager
+      // knows about — the caller retries by negotiating afresh, which is a new
+      // rfqId, so leaving them would strand an entry nobody reads again.
+      tracked.current.delete(request.rfqId)
+      setStates((prev) => {
+        const next = new Map(prev)
+        next.delete(swap.rfqId)
+        return next
+      })
+      throw err
+    }
   }, [])
 
   const status = useCallback((rfqId: string) => states.get(rfqId), [states])

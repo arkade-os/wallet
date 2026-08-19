@@ -129,6 +129,25 @@ describe('LnReceiveProvider', () => {
     expect(swap.paymentHash).toBe('04'.repeat(32))
   })
 
+  it('releases the rfqId when addSwap throws, so the retry is not swallowed', async () => {
+    // `addSwap` is where LockupRegistrationFailed surfaces. The manager never
+    // took the swap, so no callback will ever clear these — and the idempotency
+    // guard above is keyed on the same entry, so an orphan would turn the
+    // retry into a silent no-op if it ever reused the rfqId.
+    addSwap.mockRejectedValueOnce(new Error('LockupRegistrationFailed'))
+    renderProvider()
+    await waitFor(() => expect(start).toHaveBeenCalled())
+
+    await userEvent.click(screen.getByText('Track'))
+    await waitFor(() => expect(addSwap).toHaveBeenCalledTimes(1))
+    // The optimistic `pending` is withdrawn: nothing is being monitored.
+    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('none'))
+
+    await userEvent.click(screen.getByText('Track'))
+    await waitFor(() => expect(addSwap).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('pending'))
+  })
+
   it('reports a refunded receive as the loss it is, and refreshes the balance', async () => {
     const reloadWallet = renderProvider()
     await waitFor(() => expect(start).toHaveBeenCalled())
