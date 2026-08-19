@@ -37,6 +37,7 @@ import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { mergeAssetSwapActivity } from '../lib/swapDisplay'
+import { graftLnSends, lnSendViews, type LnSendView } from '../lib/lnSendRecords'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
@@ -171,6 +172,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { notifyTxSettled } = useContext(NotificationsContext)
 
   const [rawTxs, setRawTxs] = useState<Tx[]>([])
+  // The Lightning sends as `RfqSwapManager` has them; the rows carry no trace
+  // of a swap on their own.
+  const [lnSends, setLnSends] = useState<LnSendView[]>([])
   const [assetSwaps, setAssetSwaps] = useState<WalletAssetSwap[]>([])
   const [balance, setBalance] = useState(0)
   const [availableBalance, setAvailableBalance] = useState(0)
@@ -196,8 +200,16 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // either input is what keeps a cold start from flashing bare funding rows.
   const txs = useMemo(
     () =>
-      mergeAssetSwapActivity(rawTxs, assetSwaps, aspInfo.network, (id) => assetMetadataCache.current.get(id)?.metadata),
-    [rawTxs, assetSwaps, aspInfo.network],
+      graftLnSends(
+        mergeAssetSwapActivity(
+          rawTxs,
+          assetSwaps,
+          aspInfo.network,
+          (id) => assetMetadataCache.current.get(id)?.metadata,
+        ),
+        lnSends,
+      ),
+    [rawTxs, assetSwaps, aspInfo.network, lnSends],
   )
 
   const verifiedAssetsFetched = useRef(false)
@@ -470,6 +482,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       const vtxos = await getVtxos(swWallet)
       if (isFirstLoad) setLoadingStatus('Fetching transactions...')
       const txs = await getTxHistory(swWallet)
+      // Read, never resolved here: the manager owns a send's outcome and has
+      // already written it (see providers/lnSwaps), so this only picks it up.
+      const lnSendRecords = await lnSendViews()
       if (isFirstLoad) setLoadingStatus('Updating balance...')
       const { total, available, assets, availableAssets } = await getBalance(swWallet)
       // prefetch asset metadata before triggering re-renders
@@ -494,6 +509,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
       setVtxos(vtxos)
       setRawTxs(txs)
+      setLnSends(lnSendRecords)
       if (!hasLoadedOnce.current) {
         hasLoadedOnce.current = true
         setDataReady(true)

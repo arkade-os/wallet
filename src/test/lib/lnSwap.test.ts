@@ -1,6 +1,6 @@
 import { RFQ_TERMINAL_STATES } from '@arkade-os/swap'
 import { describe, it, expect } from 'vitest'
-import { InvoiceRejected, awaitLnSendOutcome, isRfqTerminal, lnSendSpender, toInvoiceFacts } from '../../lib/lnSwap'
+import { InvoiceRejected, isRfqTerminal, lockupSpenderTxid, toInvoiceFacts } from '../../lib/lnSwap'
 import fixtures from '../fixtures.json'
 
 describe('lnSwap', () => {
@@ -71,12 +71,10 @@ describe('lnSwap', () => {
   })
 })
 
-describe('lnSendSpender', () => {
+describe('lockupSpenderTxid', () => {
   const swapPkScript = `5120${'ab'.repeat(32)}`
   const fundingTxid = 'funding-txid'
   const lockup = { fundingTxid, swapPkScript }
-  const theirs = async () => false
-  const ours = async () => true
   const indexer = (vtxos: unknown[]) => ({ getVtxos: async () => ({ vtxos }) }) as never
   const covenant = (state: string, spend?: Record<string, string>) => ({
     script: swapPkScript,
@@ -85,124 +83,26 @@ describe('lnSendSpender', () => {
     ...spend,
   })
 
-  it('reads a spend that is none of the wallet’s own txs as the solver claiming', async () => {
-    // The claim pays the solver, so it can never be a tx of ours — that is
-    // the evidence the invoice was paid.
-    const spender = await lnSendSpender(indexer([covenant('spent', { arkTxId: 'claim-txid' })]), theirs, lockup)
-    expect(spender).toEqual({ spentTxid: 'claim-txid', outcome: 'completed' })
-  })
-
-  it('reads a spend that paid us as the refund', async () => {
-    const spender = await lnSendSpender(indexer([covenant('spent', { arkTxId: 'refund-txid' })]), ours, lockup)
-    expect(spender).toEqual({ spentTxid: 'refund-txid', outcome: 'refunded' })
-  })
-
-  it('classifies only after the indexer has reported the spend', async () => {
-    // Ordering is the whole safeguard: a lookup issued afterwards sees at
-    // least what the indexer just saw, so a refund cannot be missed and read
-    // as a completed payment. A snapshot taken earlier could be.
-    const seen: string[] = []
-    await lnSendSpender(
-      {
-        getVtxos: async () => {
-          seen.push('indexer')
-          return { vtxos: [covenant('spent', { arkTxId: 'refund-txid' })] }
-        },
-      } as never,
-      async () => (seen.push('classify'), true),
-      lockup,
-    )
-    expect(seen).toEqual(['indexer', 'classify'])
-  })
-
-  it('propagates a failed classification instead of reading it as "not ours"', async () => {
-    // A lookup that could not answer must not resolve to a completed payment
-    // and get persisted as one; the caller leaves the swap unresolved.
-    const failing = async () => {
-      throw new Error('history unavailable')
-    }
-    await expect(
-      lnSendSpender(indexer([covenant('spent', { arkTxId: 'refund-txid' })]), failing, lockup),
-    ).rejects.toThrow('history unavailable')
+  it('names the tx that spent the lockup', async () => {
+    // Which spend it was is the manager's answer, off a hash-verified witness.
+    // This only supplies the txid that answer does not carry.
+    expect(await lockupSpenderTxid(indexer([covenant('spent', { arkTxId: 'spend-txid' })]), lockup)).toBe('spend-txid')
   })
 
   it('falls back to spentBy when the indexer names no ark txid', async () => {
-    const spender = await lnSendSpender(indexer([covenant('spent', { spentBy: 'claim-txid' })]), theirs, lockup)
-    expect(spender?.spentTxid).toBe('claim-txid')
+    expect(await lockupSpenderTxid(indexer([covenant('spent', { spentBy: 'spend-txid' })]), lockup)).toBe('spend-txid')
   })
 
   it('has no answer while the lockup is unspent, or once it is swept', async () => {
     for (const state of ['settled', 'preconfirmed', 'swept']) {
-      expect(await lnSendSpender(indexer([covenant(state)]), theirs, lockup)).toBeUndefined()
+      expect(await lockupSpenderTxid(indexer([covenant(state)]), lockup)).toBeUndefined()
     }
   })
 
   it('ignores a covenant funded by some other transaction', async () => {
     // Identical quotes derive the same address, so the script alone does not
     // identify this swap's deposit — only the funding txid does.
-    const other = { ...covenant('spent', { arkTxId: 'claim-txid' }), txid: 'another-funding-txid' }
-    expect(await lnSendSpender(indexer([other]), theirs, lockup)).toBeUndefined()
-  })
-})
-
-describe('awaitLnSendOutcome', () => {
-  const transport = (states: (string | null)[]) => {
-    let i = 0
-    return {
-      requestQuote: async () => {
-        throw new Error('unused')
-      },
-      status: async () => {
-        const state = states[Math.min(i++, states.length - 1)]
-        return state === null ? null : ({ v: 1, type: 'rfq_status', rfq_id: 'x', state, profile: {} } as never)
-      },
-      close: async () => {},
-    }
-  }
-  const fast = { pollMs: 0, sleep: async () => {} }
-
-  it('settles only on `settled`', async () => {
-    const outcome = await awaitLnSendOutcome('x', transport(['funded', 'filling', 'settled']), fast)
-    expect(outcome).toEqual({ kind: 'settled' })
-  })
-
-  it('reports a terminal non-settled state as failed, naming it', async () => {
-    // The user funded a covenant; being told which way it ended is the
-    // difference between "wait for the refund" and "try again".
-    expect(await awaitLnSendOutcome('x', transport(['refunded']), fast)).toEqual({
-      kind: 'failed',
-      state: 'refunded',
-    })
-  })
-
-  it('gives up as pending, never as failed', async () => {
-    // The covenant is funded and refundable either way, so an unknown outcome
-    // must not be presented as a failed payment.
-    let clock = 0
-    const outcome = await awaitLnSendOutcome('x', transport(['funded']), {
-      ...fast,
-      timeoutMs: 10,
-      now: () => (clock += 6),
-    })
-    expect(outcome).toEqual({ kind: 'pending' })
-  })
-
-  it('keeps asking when a status lookup fails, rather than calling it a verdict', async () => {
-    // A restarting solver answers nothing; that is not evidence the payment
-    // failed, and the covenant is already funded.
-    let calls = 0
-    const flaky = {
-      requestQuote: async () => {
-        throw new Error('unused')
-      },
-      status: async () => {
-        calls++
-        if (calls < 3) throw new Error('connection reset')
-        return { v: 1, type: 'rfq_status', rfq_id: 'x', state: 'settled', profile: {} } as never
-      },
-      close: async () => {},
-    }
-    expect(await awaitLnSendOutcome('x', flaky, fast)).toEqual({ kind: 'settled' })
-    expect(calls).toBe(3)
+    const other = { ...covenant('spent', { arkTxId: 'spend-txid' }), txid: 'another-funding-txid' }
+    expect(await lockupSpenderTxid(indexer([other]), lockup)).toBeUndefined()
   })
 })

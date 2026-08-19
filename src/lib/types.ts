@@ -1,3 +1,4 @@
+import type { RfqSwapState } from '@arkade-os/swap'
 import { Asset, NetworkName, type ExtendedVirtualCoin, type ServiceWorkerWalletMode } from '@arkade-os/sdk'
 
 export type Addresses = {
@@ -120,8 +121,13 @@ export type Tx = {
   destination?: string
   explorable: string | undefined
   /** Present only on a Lightning send: its lockup covenant and that
-   * covenant's spender, which is a second tx the wallet never signed. */
+   * covenant's spender, which is a second tx the wallet never signed.
+   * Superseded by {@link Tx.lnSwap} — kept for sends made before the swap
+   * records existed, whose answer is still the one in local storage. */
   lnSend?: LnSendActivity
+  /** The swap record behind a Lightning send, as `RfqSwapManager` has it: the
+   * state it drives, and the two txids a receipt names. */
+  lnSwap?: { state: RfqSwapState; fundingTxid: string; spendTxid?: string }
   networkFee?: number
   preconfirmed: boolean
   redeemTxid: string
