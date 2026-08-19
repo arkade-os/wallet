@@ -4,6 +4,7 @@ import { RFQ_SWAP_RETENTION_SECONDS, type LockupContractReader } from '@arkade-o
 import {
   fundingTxidOf,
   graftLnSends,
+  lnSendSwap,
   lnSendActivityInputs,
   lnSendSwapRecord,
   lnSendViews,
@@ -30,7 +31,10 @@ const LOCKUP =
 // a record whose funded address and watched script are not the same covenant,
 // which is exactly the check being relied on here. The rest of the covenant is
 // the contract row's business, not this store's.
-const script = { pkScript: ArkAddress.decode(LOCKUP).pkScript } as LnSendRecordInput['script']
+const script = {
+  pkScript: ArkAddress.decode(LOCKUP).pkScript,
+  options: { refundLocktime: BigInt(1_700_000_600) },
+} as LnSendRecordInput['script']
 
 const secrets: ProvisionedKey = { pubkey: new Uint8Array(32).fill(0xab), descriptor: 'wpkh(...)/0' }
 
@@ -41,7 +45,6 @@ const input = (over: Partial<LnSendRecordInput> = {}): LnSendRecordInput => ({
   lockupAddress: LOCKUP,
   script,
   paymentHash: 'b'.repeat(64),
-  refundLocktime: 1_700_000_600,
   secrets,
   amount: 1_030,
   fundingTxid: 'funding-txid',
@@ -61,6 +64,14 @@ beforeEach(async () => {
 })
 
 describe('lnSendSwapRecord', () => {
+  it('takes the refund deadline from the covenant, not from the quote', () => {
+    // The covenant binds it, the quote only proposed it and may omit it — and
+    // `rebuildRfqSwap` reads it off the covenant after a restart, so a record
+    // written from the quote would disagree with its own restored self. A
+    // missing value would read as a refund window that opened at the epoch.
+    expect(lnSendSwap(input()).refundLocktime).toBe(1_700_000_600)
+  })
+
   it('records the funding txid, the hashlock and the signer', () => {
     const record = lnSendSwapRecord(input(), 1_700_000_000)
 
@@ -83,7 +94,7 @@ describe('lnSendSwapRecord', () => {
   })
 
   it('refuses a record whose lockup address is not the script it watches', () => {
-    const wrong = { pkScript: new Uint8Array(34).fill(0xcd) } as LnSendRecordInput['script']
+    const wrong = { ...script, pkScript: new Uint8Array(34).fill(0xcd) } as LnSendRecordInput['script']
     expect(() => lnSendSwapRecord(input({ script: wrong }))).toThrow(/not the same swap/)
   })
 })

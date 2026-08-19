@@ -52,8 +52,6 @@ const SPEND_TXID = 'spend_txid'
 export interface LnSendRecordFacts {
   /** `sha256(P)`, hex — the quote's `payment_hash`. */
   paymentHash: string
-  /** The quote's `refund_locktime`, unix seconds. */
-  refundLocktime: number
   secrets: ProvisionedKey
   /** The covenant itself. Without it the manager can only poll: it cannot
    * subscribe to the lockup, and cannot retire the contract row when the swap
@@ -82,7 +80,13 @@ export const lnSendSwap = (
   lockupPkScript: input.script.pkScript,
   lockup: { script: input.script, address: input.lockupAddress },
   paymentHash: input.paymentHash,
-  refundLocktime: input.refundLocktime,
+  // Off the covenant, which BINDS it — not off the quote, which merely
+  // proposed it and may omit it entirely (`refund_locktime` is optional on
+  // `RfqQuote`). This is the deadline the refund push is gated on, and it is
+  // also where `rebuildRfqSwap` reads it after a restart: taking it from the
+  // quote here would make a live swap and the same swap restored disagree, and
+  // a missing value would read as a refund window that opened at the epoch.
+  refundLocktime: Number(input.script.options.refundLocktime),
   createdAt: nowSeconds,
   updatedAt: nowSeconds,
 })

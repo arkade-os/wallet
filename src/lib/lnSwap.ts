@@ -312,12 +312,9 @@ export const requestLnSend = async (
     rendezvous: args.rendezvous,
     record: {
       paymentHash: invoice.paymentHash,
-      // Optional on `RfqQuote` because arkade↔arkade quotes carry none; an
-      // HTLC-class corridor like this one always does. Zero rather than a
-      // guess if a solver omits it: the record is for display and rebuild,
-      // and inventing a deadline would arm a refund window that is not real.
-      refundLocktime: result.quote.refund_locktime ?? 0,
       secrets: result.secrets,
+      // The covenant carries the refund deadline it binds, so nothing here has
+      // to copy the quote's `refund_locktime` — see `lnSendSwap`.
       script: result.script,
     },
   }
