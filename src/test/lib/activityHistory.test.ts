@@ -1,7 +1,7 @@
 import { beforeEach, describe, it, expect } from 'vitest'
 import { lnSwapLabel } from '../../lib/swapDisplay'
 import { createDefaultActivityRegistry, ServiceWorkerWallet, type Activity, type ArkTransaction } from '@arkade-os/sdk'
-import { activitiesToTxs, getActivityTxHistory } from '../../lib/activityHistory'
+import { activitiesToTxs, getActivities } from '../../lib/activityHistory'
 import { swapActivityResolver } from '@arkade-os/swap'
 import { ASSET_SWAP_ACTIVITY_KIND, assetSwapResolver } from '../../lib/activity/assetSwapResolver'
 import { readAllTransactionActivityMetadata, saveTransactionActivityMetadata } from '../../lib/storage'
@@ -133,7 +133,7 @@ describe('activitiesToTxs', () => {
   })
 })
 
-describe('getActivityTxHistory', () => {
+describe('getActivities', () => {
   it('returns an empty list when the wallet call fails', async () => {
     const wallet = {
       getActivityHistory: async () => {
@@ -141,7 +141,7 @@ describe('getActivityTxHistory', () => {
       },
     }
 
-    expect(await getActivityTxHistory(wallet, empty)).toEqual([])
+    expect(await getActivities(wallet)).toEqual([])
   })
 })
 

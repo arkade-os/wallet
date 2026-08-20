@@ -1,6 +1,5 @@
-import { RFQ_TERMINAL_STATES } from '@arkade-os/swap'
 import { describe, it, expect } from 'vitest'
-import { InvoiceRejected, isRfqTerminal, lockupSpenderTxid, toInvoiceFacts } from '../../lib/lnSwap'
+import { InvoiceRejected, lockupSpenderTxid, toInvoiceFacts } from '../../lib/lnSwap'
 import fixtures from '../fixtures.json'
 
 describe('lnSwap', () => {
@@ -60,13 +59,6 @@ describe('lnSwap', () => {
       } catch (e) {
         expect((e as InvoiceRejected).reason).toBe('unparseable')
       }
-    })
-  })
-
-  describe('isRfqTerminal', () => {
-    it('is true for exactly the terminal set', () => {
-      for (const state of RFQ_TERMINAL_STATES) expect(isRfqTerminal(state)).toBe(true)
-      for (const state of ['quoted', 'funded', 'paying', '']) expect(isRfqTerminal(state)).toBe(false)
     })
   })
 })

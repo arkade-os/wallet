@@ -60,12 +60,12 @@ const rfqIdOf = (activity: Activity): string | undefined => activity.intent?.met
  * One row for a Lightning send: its funding tx, plus the refund when the swap
  * came back.
  *
- * Built off the funding tx rather than the group, so the row keeps that txid —
- * the receipt screen resolves the covenant's spender from `redeemTxid`, and a
- * row identified by anything else would look up a lockup that does not exist.
- * What the group contributes is the amount and the outcome: a refunded send
- * cost only its fees, and reporting the funding amount for it would show money
- * that came back as money spent.
+ * Built off the funding tx rather than the group, so the row keeps that txid in
+ * `redeemTxid` — that is the send's own transaction, the one a receipt written
+ * before `lnSwap` existed still falls back to, and the id every other consumer
+ * of a sent row expects. What the group contributes is the amount and the
+ * outcome: a refunded send cost only its fees, and reporting the funding amount
+ * for it would show money that came back as money spent.
  */
 const lightningSendTx = (
   activity: Activity,
@@ -264,11 +264,3 @@ export const getActivities = async (wallet: ActivityHistorySource): Promise<Acti
     return []
   }
 }
-
-/** Fetch and derive in one go. The provider uses the two halves separately —
- * it fetches on reload and derives in a memo, so swap-record changes reach the
- * screen without refetching history. */
-export const getActivityTxHistory = async (
-  wallet: ActivityHistorySource,
-  options: ActivityHistoryOptions,
-): Promise<Tx[]> => activitiesToTxs(await getActivities(wallet), options)

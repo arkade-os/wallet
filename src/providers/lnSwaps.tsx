@@ -12,13 +12,14 @@
  *
  * The manager owns state; this provider owns nothing but the wiring. It hands
  * over the seams the package asks for (indexer, contract manager, a signer, a
- * store) and gets back a driven swap. The two facts it records on top —
- * `funding_txid` and the spender's txid — are the two the manager has no field
- * for; see `lnSendRecords.ts`.
+ * store) and gets back a driven swap. The one fact it records on top is the
+ * spender's txid, and only for a swap the manager did not stamp itself; see
+ * `lnSendRecords.ts`.
  *
- * Scoped to `lightning_send` deliberately. The receive leg still claims from
- * its own screen (`Receive/QrCode.tsx`), and wiring `claimLockup` here without
- * moving that flow would put two claimers on one lockup.
+ * Scoped to `lightning_send` deliberately. The receive leg has a manager of its
+ * own in `providers/lnReceive`, which holds a Web Lock the whole time it drives
+ * one — so wiring `claimLockup` here would put a second, unsynchronised claimer
+ * on the same lockup.
  */
 import { ReactNode, createContext, useContext, useEffect, useRef } from 'react'
 import { RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'

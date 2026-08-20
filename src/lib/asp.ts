@@ -289,16 +289,6 @@ export const settleVtxos = async (
   }
 }
 
-export const renewCoins = async (
-  wallet: IWallet,
-  vtxoManager: IVtxoManager,
-  dustAmount: bigint,
-  thresholdMs?: number,
-): Promise<void> => {
-  const { inputs } = await getInputsToSettle(wallet, vtxoManager, thresholdMs)
-  if (inputs.length > 0) await settleVtxos(wallet, vtxoManager, dustAmount, thresholdMs)
-}
-
 export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> => {
   const cm = await wallet.getContractManager()
   const contractWithVtxos = await cm.getContractsWithVtxos({ type: 'delegate' })
