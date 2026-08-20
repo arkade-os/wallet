@@ -161,6 +161,14 @@ export default function ReceiveQRCode() {
    * corridor to be offered.
    */
   useEffect(() => {
+    // Cleared BEFORE the guards, not beside `negotiate` below. Clearing the
+    // amount reruns this effect straight into the early return, and flags left
+    // set there strand the message on a screen that is no longer negotiating —
+    // with a "Try again" that reruns the effect back into the same guard and
+    // does nothing at all.
+    setLnReceiveError('')
+    setLnRetryable(false)
+    setLnHeldElsewhere(false)
     if (!svcWallet || isAssetReceive || satoshis <= 0) return
     if (recvInfo.pendingLnReceive?.payAmount && recvInfo.invoice) return
     const network = aspInfo.network as NetworkName
@@ -204,9 +212,6 @@ export default function ReceiveQRCode() {
       }))
     }
 
-    setLnReceiveError('')
-    setLnRetryable(false)
-    setLnHeldElsewhere(false)
     negotiate().catch((err) => {
       if (abandoned) return
       const error = extractError(err)
