@@ -29,8 +29,8 @@ import {
   type LightningReceiveProfile,
   type LightningReceiveSwap,
   type LockupVtxo,
+  type LightningReceiveTreeParams,
   type RfqClaimSecretProjection,
-  type RfqQuote,
   type RfqSwapLockup,
   type RfqSwapOrigin,
   type RfqTransport,
@@ -86,13 +86,20 @@ export interface LnReceiveRequest {
   swapPkScript: Uint8Array
   script: Parameters<typeof pushClaim>[1]['script']
   payoutAddress: string
-  /** The covenant's `receiver` key, bound into the tree. Public. */
-  payoutPubkey: Uint8Array
   secrets: ProvisionedClaimSecret
-  /** Kept for `toReceiveSwap`: `refund_locktime` is the solver's deadline and
-   * the only thing that times the claim, and nothing else returned here
-   * carries it. */
-  quote: RfqQuote
+  /**
+   * Every input the covenant was actually built from — including
+   * `refundLocktime` and our own `paymentHash`.
+   *
+   * This replaced the whole `RfqQuote`, which was retained for one field, and
+   * the difference is provenance rather than convenience. The quote is the
+   * SOLVER's document: its `refund_locktime` is what the solver says its
+   * deadline is, and its `profile.payment_hash` is the solver echoing back a
+   * hash the wallet generated. `treeParams` is what the wallet fed into the
+   * derivation the lockup address commits to, so reading it is reading our own
+   * work rather than trusting a copy of it.
+   */
+  treeParams: LightningReceiveTreeParams
 }
 
 /**
@@ -144,9 +151,8 @@ export const requestLnReceive = async (args: {
     swapPkScript: result.swapPkScript,
     script: result.script,
     payoutAddress: result.payoutAddress,
-    payoutPubkey: result.payoutPubkey,
     secrets: result.secrets,
-    quote: result.quote,
+    treeParams: result.treeParams,
   }
 }
 
@@ -183,8 +189,8 @@ export class LnReceiveHeldElsewhere extends Error {
  * Writing it now is what lets a receive history row be added without a
  * migration.
  */
-export const toReceiveOrigin = (request: LnReceiveRequest, paymentHash: string): RfqSwapOrigin => {
-  const { signer, hashlock } = rfqSecretsProfile(request.secrets, paymentHash)
+export const toReceiveOrigin = (request: LnReceiveRequest): RfqSwapOrigin => {
+  const { signer, hashlock } = rfqSecretsProfile(request.secrets, request.treeParams.paymentHash)
   // `rfqSecretsProfile` writes what the provisioning result actually has, and a
   // receive leg that produced no hashlock could never recover `P`. Refusing
   // here is refusing before the invoice is shown; the alternative is a lockup
@@ -209,22 +215,23 @@ export const toReceiveOrigin = (request: LnReceiveRequest, paymentHash: string):
  * The monitored record `RfqSwapManager` drives, projected from a negotiation.
  *
  * Pure, and deliberately without a wallet: everything here is already in hand at
- * request time, including `paymentHash` — which the CALLER passes as
- * `hex.encode(request.secrets.paymentHash)` rather than being read off
- * `quote.profile.payment_hash`. On a receive leg `H` is ours; the quote is the
- * solver echoing it back, and monitoring against the echo would let a solver
- * name the hash whose claim we watch for.
+ * request time, `paymentHash` included. It comes off `treeParams` — the value
+ * the wallet derived the covenant from — never off `quote.profile.payment_hash`.
+ * On a receive leg `H` is ours, so the quote is the solver echoing it back, and
+ * monitoring against the echo would let a solver name the hash whose claim we
+ * watch for. `treeParams` closes that off by construction: the quote is no
+ * longer retained at all.
  */
 export const toReceiveSwap = (
   request: LnReceiveRequest,
-  paymentHash: string,
   nowSeconds = Math.floor(Date.now() / 1000),
 ): LightningReceiveSwap => {
-  // Optional on `RfqQuote` because arkade↔arkade quotes have no refund leaf at
-  // all. On this corridor its absence is fatal rather than cosmetic: it is the
-  // solver's deadline, and it is the only clock the claim is gated on.
-  const refundLocktime = request.quote.refund_locktime
-  if (!refundLocktime) throw new Error('quote carries no refund_locktime; a receive swap cannot be timed')
+  // Required on `LightningReceiveTreeParams`, so this is now "the package
+  // changed under us" rather than "arkade↔arkade quotes have no refund leaf".
+  // Kept as an assertion because it is the solver's deadline and the only clock
+  // the claim is gated on — a zero here would time the claim to the epoch.
+  const { refundLocktime, paymentHash } = request.treeParams
+  if (!refundLocktime) throw new Error('treeParams carry no refundLocktime; a receive swap cannot be timed')
   return {
     rfqId: request.rfqId,
     kind: 'lightning_receive',

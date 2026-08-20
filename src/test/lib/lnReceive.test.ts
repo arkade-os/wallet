@@ -120,6 +120,17 @@ const quote = (overrides: Partial<RfqQuote> = {}): RfqQuote =>
 
 const SCRIPT = { pkScript: new Uint8Array([0x51, 0x20]) } as unknown as LnReceiveRequest['script']
 
+/** What the wallet fed the derivation the lockup address commits to. Its
+ * `refundLocktime` and `paymentHash` deliberately disagree with `quote()`
+ * above, so a mapper reading the solver's document instead of ours fails
+ * loudly rather than passing on a coincidence. */
+const treeParams = (overrides: Partial<LnReceiveRequest['treeParams']> = {}) =>
+  ({
+    refundLocktime: 1_800_003_600,
+    paymentHash: 'ab'.repeat(32),
+    ...overrides,
+  }) as LnReceiveRequest['treeParams']
+
 const receiveRequest = (overrides: Partial<LnReceiveRequest> = {}): LnReceiveRequest => ({
   rfqId: 'rfq-1',
   invoice: 'lnbc105u1p...',
@@ -130,7 +141,6 @@ const receiveRequest = (overrides: Partial<LnReceiveRequest> = {}): LnReceiveReq
   swapPkScript: new Uint8Array([0x51, 0x20, 0xab]),
   script: SCRIPT,
   payoutAddress: 'tark1qpayout',
-  payoutPubkey: new Uint8Array(32).fill(1),
   secrets: {
     descriptor: 'tr(aa)',
     pubkey: new Uint8Array(32).fill(2),
@@ -138,14 +148,14 @@ const receiveRequest = (overrides: Partial<LnReceiveRequest> = {}): LnReceiveReq
     paymentHash: new Uint8Array(32).fill(4),
     mustPersistPreimage: false,
   },
-  quote: quote(),
+  treeParams: treeParams(),
   ...overrides,
 })
 
 describe('toReceiveSwap', () => {
   it('maps the negotiation onto the record RfqSwapManager monitors', () => {
     const request = receiveRequest()
-    const swap = toReceiveSwap(request, 'ab'.repeat(32), 1_800_000_100)
+    const swap = toReceiveSwap(request, 1_800_000_100)
     expect(swap).toEqual({
       rfqId: 'rfq-1',
       kind: 'lightning_receive',
@@ -162,20 +172,26 @@ describe('toReceiveSwap', () => {
     })
   })
 
-  it('carries OUR payment hash, never the one the quote echoes back', () => {
-    const swap = toReceiveSwap(receiveRequest(), 'ab'.repeat(32))
-    // The manager decides `settled` by hashing a spend's witness against this
-    // value, so a solver that named the hash would name the claim we accept.
+  it("times the claim off OUR covenant inputs, not the solver's document", () => {
+    // Seeded to disagree: the quote says one thing about the deadline and the
+    // hash, `treeParams` says another, and ours has to win. The manager decides
+    // `settled` by hashing a spend's witness against `paymentHash`, so a solver
+    // that named it would name the claim we accept.
+    const swap = toReceiveSwap(
+      receiveRequest({ treeParams: treeParams({ refundLocktime: 1_800_009_999, paymentHash: 'ab'.repeat(32) }) }),
+    )
+    expect(swap.refundLocktime).toBe(1_800_009_999)
+    expect(swap.refundLocktime).not.toBe(quote().refund_locktime)
     expect(swap.paymentHash).toBe('ab'.repeat(32))
     expect(swap.paymentHash).not.toBe(SOLVER_ECHOED_HASH)
   })
 
-  it('refuses a quote with no refund_locktime, which cannot time a claim', () => {
-    // Optional on RfqQuote because arkade<->arkade quotes have no refund leaf;
-    // on this corridor it is the solver's deadline and the only clock the claim
-    // is gated on, so its absence is fatal rather than cosmetic.
-    const request = receiveRequest({ quote: quote({ refund_locktime: undefined }) })
-    expect(() => toReceiveSwap(request, 'ab'.repeat(32))).toThrow(/refund_locktime/)
+  it('refuses treeParams with no refundLocktime, which cannot time a claim', () => {
+    // Required on the package's type, so reaching this means the package
+    // changed under us. Kept as an assertion anyway: it is the only clock the
+    // claim is gated on, and a zero would time it to the epoch.
+    const request = receiveRequest({ treeParams: treeParams({ refundLocktime: 0 }) })
+    expect(() => toReceiveSwap(request)).toThrow(/refundLocktime/)
   })
 })
 
@@ -185,11 +201,10 @@ describe('toReceiveSwap', () => {
  * does not bind it and `rebuildRfqSwap` cannot give it back.
  */
 describe('toReceiveOrigin', () => {
-  const profileOf = (request: LnReceiveRequest, paymentHash = 'ab'.repeat(32)) =>
-    toReceiveOrigin(request, paymentHash).profile as LightningReceiveProfile
+  const profileOf = (request: LnReceiveRequest) => toReceiveOrigin(request).profile as LightningReceiveProfile
 
   it('names the corridor, the funded address, and what the record displays', () => {
-    const origin = toReceiveOrigin(receiveRequest(), 'ab'.repeat(32))
+    const origin = toReceiveOrigin(receiveRequest())
     expect(origin.kind).toBe('lightning_receive')
     // The wallet's OWN derivation, not an address the solver named: it is the
     // key `lockupContractParams` looks the covenant up by at restore.
@@ -256,6 +271,7 @@ describe('requestLnReceive', () => {
     payoutAddress: 'tark1qpayout',
     payoutPubkey: new Uint8Array(32).fill(1),
     secrets: receiveRequest().secrets,
+    treeParams: treeParams(),
     ...overrides,
   })
 
@@ -284,11 +300,17 @@ describe('requestLnReceive', () => {
     expect(request.invoiceExpiresAt).toBe(1_800_000_600)
   })
 
-  it('keeps the quote and payout key the record and the claim need', async () => {
+  it('keeps treeParams and drops the quote and payout key nothing reads', async () => {
     requestLightningReceive.mockResolvedValue(packageResult())
     const request = await negotiate()
-    expect(request.quote.refund_locktime).toBe(1_800_003_600)
-    expect(request.payoutPubkey).toHaveLength(32)
+    // What the swap and the origin are both built from.
+    expect(request.treeParams.refundLocktime).toBe(1_800_003_600)
+    expect(request.treeParams.paymentHash).toBe('ab'.repeat(32))
+    // The quote was retained for one field and `payoutPubkey` for none. Both
+    // are on `treeParams` now, so keeping either would be a second copy — and
+    // the quote's copy is the solver's, not ours.
+    expect(request).not.toHaveProperty('quote')
+    expect(request).not.toHaveProperty('payoutPubkey')
   })
 
   it('forwards the configured co-signer override in its compressed form', async () => {
@@ -375,7 +397,7 @@ const VTXOS = [{ txid: 'aa'.repeat(32), vout: 0, value: 10_000 }] as never
  * `preimageSaltHex` went missing once.
  */
 const claimProjection = (secrets: ProvisionedClaimSecret, paymentHash = hex.encode(secrets.paymentHash)) => {
-  const origin = toReceiveOrigin(receiveRequest({ secrets }), paymentHash)
+  const origin = toReceiveOrigin(receiveRequest({ secrets, treeParams: treeParams({ paymentHash }) }))
   const projection = rfqClaimSecretOf({ ...origin, rfqId: 'rfq-1', state: 'claimable' } as RfqSwapRecord)
   if (!projection) throw new Error('the receive corridor produced no claim secret')
   return projection

@@ -1,7 +1,6 @@
 import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { RestArkProvider } from '@arkade-os/sdk'
 import { RfqSwapManager, rfqClaimSecretOf, type LightningReceiveProfile, type RfqSwapState } from '@arkade-os/swap'
-import { hex } from '@scure/base'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import {
@@ -273,12 +272,11 @@ export const LnReceiveProvider = ({ children }: { children: ReactNode }) => {
       throw new Error('lightning receive manager is not running')
     }
     if (admitted.current.has(request.rfqId)) return
-    // Our own `H`, never the quote's `payment_hash`: on a receive leg the wallet
-    // generated `P`, so the quote is the solver echoing our hash back. Reading
-    // the echo would let the solver name the claim we watch for.
-    const paymentHash = hex.encode(request.secrets.paymentHash)
-    const swap = toReceiveSwap(request, paymentHash)
-    const origin = toReceiveOrigin(request, paymentHash)
+    // Both read `paymentHash` off `treeParams` — what the wallet derived the
+    // covenant from — so there is no hash for this side to pick, and no way to
+    // hand the two mappings different ones.
+    const swap = toReceiveSwap(request)
+    const origin = toReceiveOrigin(request)
     admitted.current.add(request.rfqId)
     setStates((prev) => new Map(prev).set(swap.rfqId, swap.state))
     try {

@@ -74,7 +74,6 @@ const request = (rfqId = 'rfq-1'): LnReceiveRequest =>
     swapPkScript: new Uint8Array([0x51, 0x20, 0xab]),
     script: {},
     payoutAddress: 'tark1qpayout',
-    payoutPubkey: new Uint8Array(32).fill(1),
     secrets: {
       descriptor: 'tr(aa)',
       pubkey: new Uint8Array(32).fill(2),
@@ -82,13 +81,13 @@ const request = (rfqId = 'rfq-1'): LnReceiveRequest =>
       paymentHash: new Uint8Array(32).fill(4),
       mustPersistPreimage: true,
     },
-    quote: { refund_locktime: 1_800_003_600 },
+    treeParams: { refundLocktime: 1_800_003_600, paymentHash: '04'.repeat(32) },
   }) as unknown as LnReceiveRequest
 
 /** What the manager would have written on this swap's first pass. */
 const storedRecord = (rfqId = 'rfq-1'): RfqSwapRecord =>
   ({
-    ...toReceiveOrigin(request(rfqId), '04'.repeat(32)),
+    ...toReceiveOrigin(request(rfqId)),
     rfqId,
     state: 'claimable',
     createdAt: 1_800_000_000,
