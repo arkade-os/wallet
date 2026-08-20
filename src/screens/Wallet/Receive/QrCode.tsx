@@ -21,7 +21,7 @@ import { unitsToCents } from '../../../lib/assets'
 import ErrorMessage from '../../../components/Error'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
-import { requestLnReceive } from '../../../lib/lnReceive'
+import { LnReceiveHeldElsewhere, requestLnReceive } from '../../../lib/lnReceive'
 import { lnReceiveRendezvous } from '../../../lib/lnSwap'
 import { getEmulatorPubkeyForNetwork } from '../../../lib/constants'
 import { withRfqTransport } from '../../../lib/nostrRfq'
@@ -108,6 +108,11 @@ export default function ReceiveQRCode() {
   // A negotiation that failed at the local registration step left nothing
   // payable behind, so the offer of a retry is honest — see the catch below.
   const [lnRetryable, setLnRetryable] = useState(false)
+  // Told apart from every other failure because it is not one: another tab of
+  // this wallet holds the receive manager's lock and is driving these swaps
+  // perfectly well. "Lightning unavailable" would be false, and a retry button
+  // would do nothing until that tab closes.
+  const [lnHeldElsewhere, setLnHeldElsewhere] = useState(false)
   const [negotiateAttempt, setNegotiateAttempt] = useState(0)
 
   // Fetch addresses on mount
@@ -201,10 +206,12 @@ export default function ReceiveQRCode() {
 
     setLnReceiveError('')
     setLnRetryable(false)
+    setLnHeldElsewhere(false)
     negotiate().catch((err) => {
       if (abandoned) return
       const error = extractError(err)
       consoleError(error, 'error negotiating lightning receive')
+      setLnHeldElsewhere(err instanceof LnReceiveHeldElsewhere)
       setLnReceiveError(error)
       // The one failure here that is not "Lightning is unavailable": the quote
       // was fine and our own contract store refused the write. No invoice came
@@ -429,7 +436,11 @@ export default function ReceiveQRCode() {
               ) : null}
               {lnReceiveError ? (
                 <FlexCol gap='0.25rem' centered>
-                  <TextSecondary>{`Lightning unavailable: ${lnReceiveError}`}</TextSecondary>
+                  <TextSecondary>
+                    {lnHeldElsewhere
+                      ? 'Another tab is handling Lightning receives — close it to receive here'
+                      : `Lightning unavailable: ${lnReceiveError}`}
+                  </TextSecondary>
                   {lnRetryable ? (
                     <Button label='Try again' onClick={() => setNegotiateAttempt((n) => n + 1)} secondary />
                   ) : null}

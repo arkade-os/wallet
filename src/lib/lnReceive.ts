@@ -24,13 +24,16 @@ import {
   preimageForSwapRecord,
   pushClaim,
   requestLightningReceive,
+  rfqSecretsProfile,
   type ClaimArkProvider,
+  type LightningReceiveProfile,
   type LightningReceiveSwap,
   type LockupVtxo,
+  type RfqClaimSecretProjection,
   type RfqQuote,
   type RfqSwapLockup,
+  type RfqSwapOrigin,
   type RfqTransport,
-  type SwapSecretsProjection,
 } from '@arkade-os/swap'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { getEmulatorPubkeyOverrideForNetwork } from './constants'
@@ -148,14 +151,59 @@ export const requestLnReceive = async (args: {
 }
 
 /**
- * What a claim needs beyond the monitored record: the projection of this swap's
- * secrets `swapSecretsToRecord` emits, plus our own `sha256(P)`.
+ * A negotiated receive raised to a swap that cannot be driven yet: the manager
+ * is holding another tab's lock.
  *
- * `signingDescriptor` is required here even though the projection declares it
- * optional — `swapSecretsToRecord` always emits one, and a record reaching a
- * claim without it could recover neither the preimage nor the signer.
+ * Named rather than generic because the screen has to say something true about
+ * it. "Lightning unavailable" is what a missing solver or an out-of-bounds
+ * amount means, and neither is the case here — nothing is unavailable, another
+ * tab owns it, and closing that tab is the one thing that resolves it.
  */
-export type ReceiveClaimRecord = SwapSecretsProjection & { signingDescriptor: string; paymentHash: string }
+export class LnReceiveHeldElsewhere extends Error {
+  constructor() {
+    super('another tab is handling Lightning receives')
+    this.name = 'LnReceiveHeldElsewhere'
+  }
+}
+
+/**
+ * The immutable request-time half of a receive — what the live swap does not
+ * carry and the record is created from.
+ *
+ * Pure, for the same reason `toReceiveSwap` is: the mapping is the part worth
+ * testing and none of it needs a wallet. `RfqSwapManager` writes the record
+ * itself once this reaches `addSwap`, so nothing here assembles a record.
+ *
+ * The profile's keys come from `rfqSecretsProfile`, never by hand. Copying
+ * `signingDescriptor` and `preimageHex` across drops `preimageSaltHex`, and a
+ * static wallet's swap is then unclaimable with nothing to say so until claim
+ * time — a failure that has already been made once.
+ *
+ * `amount` is the record's consumer-display field; the rebuild ignores it.
+ * Writing it now is what lets a receive history row be added without a
+ * migration.
+ */
+export const toReceiveOrigin = (request: LnReceiveRequest, paymentHash: string): RfqSwapOrigin => {
+  const { signer, hashlock } = rfqSecretsProfile(request.secrets, paymentHash)
+  // `rfqSecretsProfile` writes what the provisioning result actually has, and a
+  // receive leg that produced no hashlock could never recover `P`. Refusing
+  // here is refusing before the invoice is shown; the alternative is a lockup
+  // the solver funds and nobody can claim.
+  if (!hashlock) throw new Error('receive secrets carry no hashlock; the claim could never be recovered')
+  return {
+    kind: 'lightning_receive',
+    lockupAddress: request.address,
+    amount: request.expectedAmount,
+    profile: {
+      signer,
+      hashlock,
+      expectedAmount: request.expectedAmount,
+      // Persistence-only: `rebuildRfqSwap` never returns it, because the
+      // covenant does not bind it. The record is the only place it survives.
+      payoutAddress: request.payoutAddress,
+    } satisfies LightningReceiveProfile,
+  }
+}
 
 /**
  * The monitored record `RfqSwapManager` drives, projected from a negotiation.
@@ -204,9 +252,10 @@ export const toReceiveSwap = (
  * load-bearing check. A third copy would be a third place for the threshold to
  * drift.
  *
- * `record` is the persistable projection of this swap's secrets, not just a
- * descriptor: `preimageForSwapRecord` needs the stored preimage on a wallet that
- * cannot re-derive `P`, and the salt on the arm that derives from one. It also
+ * `record` is the claim projection `rfqClaimSecretOf` assembles from the stored
+ * record's `signer` and `hashlock` keys, not just a descriptor:
+ * `preimageForSwapRecord` needs the stored preimage on a wallet that cannot
+ * re-derive `P`, and the salt on the arm that derives from one. It also
  * cross-checks the result against `record.paymentHash`, which is load-bearing on
  * its own — publishing a `P` that does not hash to the quote's `payment_hash`
  * settles nothing and reveals a secret for free.
@@ -219,7 +268,7 @@ export const claimReceive = async (args: {
    * the caller resolves that before this is reachable. */
   swap: LightningReceiveSwap & { lockup: RfqSwapLockup }
   payoutAddress: string
-  record: ReceiveClaimRecord
+  record: RfqClaimSecretProjection
   vtxos: readonly LockupVtxo[]
   partiallyClaimed: boolean
 }): Promise<{ arkTxid: string; amount: number }> => {

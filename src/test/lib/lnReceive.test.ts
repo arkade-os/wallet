@@ -4,16 +4,30 @@ import { hex } from '@scure/base'
 import { HDKey } from '@scure/bip32'
 import { SingleKey, provisionClaimSecret, type IWallet, type ProvisionedClaimSecret } from '@arkade-os/sdk'
 import type { DiscoveredMarket } from '@arkade-os/solver-discovery'
-import { sealClaimPacket, swapSecretsToRecord, type LightningReceiveSwap, type RfqQuote } from '@arkade-os/swap'
+import {
+  rfqClaimSecretOf,
+  sealClaimPacket,
+  type LightningReceiveProfile,
+  type LightningReceiveSwap,
+  type RfqQuote,
+  type RfqSwapRecord,
+} from '@arkade-os/swap'
 import { lnReceiveRendezvous, lnSendRendezvous } from '../../lib/lnSwap'
-import { claimReceive, requestLnReceive, sealingKey, toReceiveSwap, type LnReceiveRequest } from '../../lib/lnReceive'
+import {
+  claimReceive,
+  requestLnReceive,
+  sealingKey,
+  toReceiveOrigin,
+  toReceiveSwap,
+  type LnReceiveRequest,
+} from '../../lib/lnReceive'
 
 const requestLightningReceive = vi.hoisted(() => vi.fn())
 const pushClaim = vi.hoisted(() => vi.fn())
 
-// Only the two package calls this module makes are stubbed; `swapSecretsToRecord`
-// and `preimageForSwapRecord` stay real, since the round trip between them is
-// exactly what the claim tests are about.
+// Only the two package calls this module makes are stubbed; `rfqSecretsProfile`,
+// `rfqClaimSecretOf` and `preimageForSwapRecord` stay real, since the round trip
+// between them is exactly what the claim tests are about.
 vi.mock('@arkade-os/swap', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@arkade-os/swap')>()),
   requestLightningReceive,
@@ -165,6 +179,64 @@ describe('toReceiveSwap', () => {
   })
 })
 
+/**
+ * The origin is the immutable request-time half the manager creates the first
+ * record from — and the only place `payoutAddress` survives, since the covenant
+ * does not bind it and `rebuildRfqSwap` cannot give it back.
+ */
+describe('toReceiveOrigin', () => {
+  const profileOf = (request: LnReceiveRequest, paymentHash = 'ab'.repeat(32)) =>
+    toReceiveOrigin(request, paymentHash).profile as LightningReceiveProfile
+
+  it('names the corridor, the funded address, and what the record displays', () => {
+    const origin = toReceiveOrigin(receiveRequest(), 'ab'.repeat(32))
+    expect(origin.kind).toBe('lightning_receive')
+    // The wallet's OWN derivation, not an address the solver named: it is the
+    // key `lockupContractParams` looks the covenant up by at restore.
+    expect(origin.lockupAddress).toBe('tark1qlockup')
+    // Ignored by the rebuild; written now so a receive history row can be added
+    // later without a migration.
+    expect(origin.amount).toBe(10_000)
+  })
+
+  it('carries what the claim needs and the swap cannot: the payout and the amount', () => {
+    const profile = profileOf(receiveRequest())
+    expect(profile.payoutAddress).toBe('tark1qpayout')
+    expect(profile.expectedAmount).toBe(10_000)
+  })
+
+  it('carries OUR payment hash, never the one the quote echoes back', () => {
+    expect(profileOf(receiveRequest()).hashlock.paymentHash).toBe('ab'.repeat(32))
+    expect(profileOf(receiveRequest()).hashlock.paymentHash).not.toBe(SOLVER_ECHOED_HASH)
+  })
+
+  // Written through `rfqSecretsProfile`, never by hand: a caller copying
+  // `signingDescriptor` and `preimageHex` across drops `preimageSaltHex`, and a
+  // static wallet's swap is then unclaimable with nothing to say so until claim
+  // time. These three arms are where hand-mapping fails.
+  it('keeps P for the arm that cannot re-derive it', async () => {
+    const secrets = await provisionClaimSecret(staticWallet(), { preimage: new Uint8Array(32).fill(7) })
+    const { hashlock } = profileOf(receiveRequest({ secrets }))
+    expect(hashlock.preimageHex).toBe('07'.repeat(32))
+    expect(hashlock.preimageSaltHex).toBeUndefined()
+  })
+
+  it('keeps the salt for a repeating descriptor, and no secret', async () => {
+    const { hashlock } = profileOf(receiveRequest({ secrets: await provisionClaimSecret(staticWallet()) }))
+    expect(hashlock.preimageSaltHex).toMatch(/^[0-9a-f]{64}$/)
+    expect(hashlock.preimageHex).toBeUndefined()
+  })
+
+  it('keeps neither for an HD child — the descriptor alone pins the artifact', async () => {
+    const profile = profileOf(receiveRequest({ secrets: await provisionClaimSecret(hdWallet()) }))
+    expect(profile.hashlock.preimageHex).toBeUndefined()
+    expect(profile.hashlock.preimageSaltHex).toBeUndefined()
+    // The signer lives beside the hashlock rather than inside it, which is what
+    // keeps one descriptor stored once.
+    expect(profile.signer.signingDescriptor).toContain('/0/0')
+  })
+})
+
 describe('requestLnReceive', () => {
   afterEach(() => {
     vi.unstubAllEnvs()
@@ -296,6 +368,19 @@ const claimSwap = (expectedAmount = 10_000): LightningReceiveSwap & { lockup: { 
 
 const VTXOS = [{ txid: 'aa'.repeat(32), vout: 0, value: 10_000 }] as never
 
+/**
+ * The production read path in one step: the origin's profile is what the
+ * manager stores, and `rfqClaimSecretOf` is what reads it back. Hand-building
+ * the projection instead would assert a shape nothing writes — which is how
+ * `preimageSaltHex` went missing once.
+ */
+const claimProjection = (secrets: ProvisionedClaimSecret, paymentHash = hex.encode(secrets.paymentHash)) => {
+  const origin = toReceiveOrigin(receiveRequest({ secrets }), paymentHash)
+  const projection = rfqClaimSecretOf({ ...origin, rfqId: 'rfq-1', state: 'claimable' } as RfqSwapRecord)
+  if (!projection) throw new Error('the receive corridor produced no claim secret')
+  return projection
+}
+
 describe('claimReceive', () => {
   afterEach(() => pushClaim.mockReset())
 
@@ -337,11 +422,11 @@ describe('claimReceive', () => {
       ark: {} as never,
       swap: claimSwap(),
       payoutAddress: decodable,
-      // The projection the provider's side map holds — descriptor, plus the
-      // stored preimage or the salt where that arm needs one. A descriptor-only
-      // record would recover a WRONG P on the salted arm and none at all on the
-      // stored one.
-      record: { ...swapSecretsToRecord(secrets), paymentHash: hex.encode(secrets.paymentHash) },
+      // Read back out of the stored profile — descriptor, plus the stored
+      // preimage or the salt where that arm needs one. A descriptor-only record
+      // would recover a WRONG P on the salted arm and none at all on the stored
+      // one.
+      record: claimProjection(secrets),
       vtxos: VTXOS,
       partiallyClaimed: false,
     })
@@ -362,7 +447,7 @@ describe('claimReceive', () => {
         ark: {} as never,
         swap: claimSwap(),
         payoutAddress: decodable,
-        record: { ...swapSecretsToRecord(secrets), paymentHash: 'cd'.repeat(32) },
+        record: claimProjection(secrets, 'cd'.repeat(32)),
         vtxos: VTXOS,
         partiallyClaimed: false,
       }),
@@ -381,34 +466,10 @@ describe('claimReceive', () => {
       ark: {} as never,
       swap: claimSwap(),
       payoutAddress: decodable,
-      record: { ...swapSecretsToRecord(secrets), paymentHash: hex.encode(secrets.paymentHash) },
+      record: claimProjection(secrets),
       vtxos: VTXOS,
       partiallyClaimed: true,
     })
     expect(pushClaim.mock.calls[0][1].partiallyClaimed).toBe(true)
-  })
-})
-
-describe('swapSecretsToRecord', () => {
-  // The package's mapping, asserted here because the provider's side map stores
-  // exactly this and a claim can only recover P from what it kept.
-  it('stores P only when the wallet says it cannot re-derive it', async () => {
-    const wallet = staticWallet()
-    const record = swapSecretsToRecord(await provisionClaimSecret(wallet, { preimage: new Uint8Array(32).fill(7) }))
-    expect(record.preimageHex).toBe('07'.repeat(32))
-    expect(record.preimageSaltHex).toBeUndefined()
-  })
-
-  it('stores the salt for a repeating descriptor, and no secret', async () => {
-    const record = swapSecretsToRecord(await provisionClaimSecret(staticWallet()))
-    expect(record.preimageSaltHex).toMatch(/^[0-9a-f]{64}$/)
-    expect(record.preimageHex).toBeUndefined()
-  })
-
-  it('stores neither for an HD child — the descriptor alone pins the artifact', async () => {
-    const record = swapSecretsToRecord(await provisionClaimSecret(hdWallet()))
-    expect(record.preimageHex).toBeUndefined()
-    expect(record.preimageSaltHex).toBeUndefined()
-    expect(record.signingDescriptor).toContain('/0/0')
   })
 })
