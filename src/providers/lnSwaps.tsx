@@ -34,6 +34,7 @@ import {
   lnSendSwapRecord,
   readRecord,
   recordSpendTxid,
+  spendTxidOf,
   restoreLnSendSwaps,
   saveRecord,
   saveSwapUpdate,
@@ -150,7 +151,15 @@ const recordEnding = async (
   swap: RfqSwap,
 ): Promise<string | undefined> => {
   const record = await readRecord(swap.rfqId)
-  const fundingTxid = record && fundingTxidOf(record)
+  if (!record) return undefined
+  // The manager stamps `lockupSpendArkTxids` at finalization, from the chain
+  // read that ended the swap, so a terminal record usually answers for itself —
+  // and this whole lookup is a network round trip for a permanent fact someone
+  // already fetched. The indexer path stays for the record that has no stamp:
+  // one written before #773, or a swap whose end we saw some other way.
+  const stamped = spendTxidOf(record)
+  if (stamped) return stamped
+  const fundingTxid = fundingTxidOf(record)
   if (!fundingTxid) return undefined
   const spendTxid = await lockupSpenderTxid(indexer, {
     fundingTxid,

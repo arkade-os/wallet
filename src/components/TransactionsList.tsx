@@ -57,7 +57,13 @@ const TransactionLine = ({
   const iconTone =
     tx.preconfirmed && tx.boardingTxid
       ? 'pending'
-      : burn || swapStatus === 'failed' || swapStatus === 'cancelled' || lnSwapOutcome === 'failed'
+      : // `lost` earns the same tone as `failed`: on a receive leg the covenant
+        // going back means the payment never arrived, so it is money gone.
+        burn ||
+          swapStatus === 'failed' ||
+          swapStatus === 'cancelled' ||
+          lnSwapOutcome === 'failed' ||
+          lnSwapOutcome === 'lost'
         ? 'burn'
         : swapStatus === 'pending' || lnSwapOutcome === 'pending'
           ? 'pending'

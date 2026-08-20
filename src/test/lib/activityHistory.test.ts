@@ -1,9 +1,11 @@
 import { beforeEach, describe, it, expect } from 'vitest'
+import { lnSwapLabel } from '../../lib/swapDisplay'
 import { createDefaultActivityRegistry, ServiceWorkerWallet, type Activity, type ArkTransaction } from '@arkade-os/sdk'
 import { activitiesToTxs, getActivityTxHistory } from '../../lib/activityHistory'
 import { swapActivityResolver } from '@arkade-os/swap'
 import { ASSET_SWAP_ACTIVITY_KIND, assetSwapResolver } from '../../lib/activity/assetSwapResolver'
 import { readAllTransactionActivityMetadata, saveTransactionActivityMetadata } from '../../lib/storage'
+import type { LnSendView } from '../../lib/lnSendRecords'
 import type { WalletAssetSwap } from '../../lib/swapRepository'
 
 beforeEach(() => localStorage.clear())
@@ -276,6 +278,72 @@ describe('lightning send activities', () => {
     expect(row).toMatchObject({ destination: 'lnbc10u1p...', networkFee: 30 })
   })
 
+  const view = (over: Partial<LnSendView> = {}): LnSendView => ({
+    rfqId: RFQ_ID,
+    fundingTxid: 'funding-txid',
+    state: 'pending',
+    amount: 1_030,
+    createdAt: 4_000,
+    ...over,
+  })
+
+  it('shows a send in flight from its record, before any tx of it reaches history', () => {
+    // The funding tx pays a covenant this wallet registered, so Arkade counts
+    // the lockup as change and reports no movement at all. Nothing appears
+    // until the solver spends the lockup — which is the wait the payer cannot
+    // see and cannot control.
+    const [row, ...rest] = activitiesToTxs([], { ...empty, lnSends: [view()] })
+
+    expect(rest).toEqual([])
+    expect(row).toMatchObject({
+      amount: 1_030,
+      type: 'sent',
+      createdAt: 4_000,
+      redeemTxid: 'funding-txid',
+      settled: true,
+      historyKey: `swap:${RFQ_ID}`,
+      lnSwap: { label: 'Lightning send', outcome: 'pending', fundingTxid: 'funding-txid' },
+    })
+    expect(lnSwapLabel(row)).toBe('Lightning send pending')
+  })
+
+  it('gives that row the invoice and fee saved against the funding tx', () => {
+    saveTransactionActivityMetadata('funding-txid', { destination: 'lnbc10u1p...', networkFee: 30 })
+
+    const [row] = activitiesToTxs([], {
+      ...empty,
+      lnSends: [view()],
+      metadata: readAllTransactionActivityMetadata(),
+    })
+
+    expect(row).toMatchObject({ destination: 'lnbc10u1p...', networkFee: 30 })
+  })
+
+  it('keeps naming a refunded send, whose refund tx history reports no better', () => {
+    // A refund returns the money through a tx that nets to zero the same way
+    // the funding did. Dropping the record's row on a terminal state would make
+    // the payment vanish from the list at the moment it came back.
+    const [row] = activitiesToTxs([], {
+      ...empty,
+      lnSends: [view({ state: 'refunded', spendTxid: 'refund-txid' })],
+    })
+
+    expect(row.lnSwap).toMatchObject({ outcome: 'refunded', spendTxid: 'refund-txid' })
+    expect(lnSwapLabel(row)).toBe('Lightning send refunded')
+  })
+
+  it('yields to the group once one exists, under the same key', () => {
+    // The lockup spend is a tx of ours, so the group finally forms — and the
+    // real row replaces the record's rather than doubling it.
+    const rows = activitiesToTxs([{ ...activity(`swap:${RFQ_ID}`, [funding], lnIntent('pending')), amount: -1_030 }], {
+      ...empty,
+      lnSends: [view()],
+    })
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0].historyKey).toBe(`swap:${RFQ_ID}`)
+  })
+
   it('groups the refund with its funding tx end to end, through the package resolver', async () => {
     const registry = createDefaultActivityRegistry()
     registry.use(
@@ -301,4 +369,77 @@ describe('lightning send activities', () => {
     ])
     expect(txs[1]).toMatchObject({ amount: 30, lnSwap: { label: 'Lightning send', outcome: 'refunded' } })
   })
+})
+
+describe('lightning receive activities', () => {
+  const RFQ_ID = 'c'.repeat(64)
+
+  const recvIntent = (outcome: string): Activity['intent'] => ({
+    kind: 'swap',
+    label: 'Lightning receive',
+    outcome,
+    metadata: { rfqId: RFQ_ID, swapKind: 'lightning_receive' },
+  })
+
+  // The only transaction of ours on this leg: the SOLVER funds the lockup, we
+  // claim it. There is no funding member to anchor on.
+  const claim = arkTx('claim-txid', { amount: 10_000, createdAt: 7_000 })
+
+  it('shows a settled receive as one labelled row, not a bare incoming tx', () => {
+    const [row, ...rest] = activitiesToTxs(
+      [{ ...activity(`swap:${RFQ_ID}`, [claim], recvIntent('settled')), amount: 10_000 }],
+      empty,
+    )
+
+    expect(rest).toEqual([])
+    expect(row).toMatchObject({
+      amount: 10_000,
+      type: 'received',
+      historyKey: `swap:${RFQ_ID}`,
+      lnSwap: { label: 'Lightning receive', outcome: 'settled' },
+    })
+  })
+
+  it('carries no fundingTxid, so it cannot open the send leg’s receipt', () => {
+    const [row] = activitiesToTxs(
+      [{ ...activity(`swap:${RFQ_ID}`, [claim], recvIntent('settled')), amount: 10_000 }],
+      empty,
+    )
+
+    // `useLnSendReceipt` keys off exactly this field and returns undefined
+    // without it — which is what keeps a receive out of a receipt built for a
+    // send.
+    expect(row.lnSwap?.fundingTxid).toBeUndefined()
+  })
+
+  it('renders a lost receive as lost, never as refunded', () => {
+    // The resolver emits `lost` for a `lightning_receive` that ended
+    // `refunded`, because on this leg the lockup going back means the payment
+    // never arrived. Reachable in history only for a receive that got SOME of
+    // its money — one that got none contributes no tx of ours, so it forms no
+    // group at all.
+    const [row] = activitiesToTxs(
+      [{ ...activity(`swap:${RFQ_ID}`, [claim], recvIntent('lost')), amount: 4_000 }],
+      empty,
+    )
+
+    expect(row.lnSwap?.outcome).toBe('lost')
+    expect(lnSwapLabel(row)).toBe('Lightning receive lost')
+  })
+
+  it('falls back to plain member rows rather than dropping a group it cannot anchor', () => {
+    // No RECEIVED member means the record named a txid this history does not
+    // have. Whatever IS here is still the user's money moving, so it is emitted
+    // rather than swallowed — the same rule the send builder follows.
+    const stray = arkTx('stray-txid', { type: 'SENT' as ArkTransaction['type'], amount: 500, createdAt: 8_000 })
+
+    const rows = activitiesToTxs([{ ...activity(`swap:${RFQ_ID}`, [stray], recvIntent('lost')), amount: -500 }], empty)
+
+    expect(rows.map((tx) => tx.historyKey)).toEqual([`swap:${RFQ_ID}:stray-txid`])
+    expect(rows[0].lnSwap).toBeUndefined()
+  })
+
+  // A receive that never arrived at all contributes no transaction of ours, so
+  // it forms no activity and reaches this function not at all. That absence is
+  // upstream of the row builder and cannot be asserted here.
 })
