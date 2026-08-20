@@ -58,6 +58,20 @@ export const LnReceiveContext = createContext<LnReceiveContextProps>({
  * unrelated origin cannot. */
 const MANAGER_LOCK = 'lnreceive-manager'
 
+/**
+ * How long `track` gives THIS tab's own lock request before it concludes the
+ * holder is someone else.
+ *
+ * Pending on the lock says nothing on its own about who holds it: this tab's
+ * request is pending too in the moments before it is granted, and "another tab
+ * is handling Lightning receives" would be a lie told to the only tab open. The
+ * window that can actually bite is a remount — `svcWallet` changes identity on
+ * reinit and unlock — where the request queues behind this same tab's previous
+ * drive while it stops its manager. A grant that is coming lands well inside
+ * this; one that is not was never ours to wait for.
+ */
+const LOCK_GRACE_MS = 500
+
 export const LnReceiveProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { svcWallet, reloadWallet } = useContext(WalletContext)
@@ -74,7 +88,9 @@ export const LnReceiveProvider = ({ children }: { children: ReactNode }) => {
   // Assigned only once the Web Lock is HELD, which is what lets `track` tell
   // "another tab owns this" from "the manager is not running" — see `track`.
   const manager = useRef<Promise<RfqSwapManager>>()
-  const awaitingLock = useRef(false)
+  // Resolves when this tab's own request is granted, so `track` can wait out
+  // the grant rather than mistake it for a lock held elsewhere.
+  const granted = useRef<Promise<void>>()
   /**
    * Which rfqIds this tab has already handed to the manager.
    *
@@ -102,6 +118,10 @@ export const LnReceiveProvider = ({ children }: { children: ReactNode }) => {
     let release = () => {}
     const held = new Promise<void>((resolve) => {
       release = resolve
+    })
+    let grant = () => {}
+    granted.current = new Promise<void>((resolve) => {
+      grant = resolve
     })
     const controller = new AbortController()
 
@@ -223,14 +243,13 @@ export const LnReceiveProvider = ({ children }: { children: ReactNode }) => {
       })()
 
       manager.current = started
-      awaitingLock.current = false
+      grant()
       started.catch((err) => consoleError(extractError(err), 'error starting the lightning receive manager'))
 
       await held
       await started.then((rfqManager) => rfqManager.stop()).catch(consoleError)
     }
 
-    awaitingLock.current = true
     if (navigator.locks) {
       navigator.locks.request(MANAGER_LOCK, { signal: controller.signal }, drive).catch((err) => {
         // The abort earns its place for exactly one case: a tab that unmounts
@@ -259,7 +278,7 @@ export const LnReceiveProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       stopped = true
       manager.current = undefined
-      awaitingLock.current = false
+      granted.current = undefined
       admitted.current.clear()
       document.removeEventListener('visibilitychange', onVisible)
       controller.abort()
@@ -269,12 +288,19 @@ export const LnReceiveProvider = ({ children }: { children: ReactNode }) => {
   }, [svcWallet, aspInfo.url])
 
   const track = useCallback(async (request: LnReceiveRequest) => {
-    const pending = manager.current
+    let pending = manager.current
+    if (!pending && granted.current) {
+      // Waited out rather than answered on the spot: a request of ours that is
+      // merely young is indistinguishable from one queued behind another tab,
+      // and only one of the two is worth telling the user about.
+      await Promise.race([granted.current, new Promise((resolve) => setTimeout(resolve, LOCK_GRACE_MS))])
+      pending = manager.current
+    }
     if (!pending) {
       // Two different answers, and the screen says different things about
       // them. Nothing is unavailable when another tab holds the lock — it is
       // driving these swaps perfectly well, just not here.
-      if (awaitingLock.current) throw new LnReceiveHeldElsewhere()
+      if (granted.current) throw new LnReceiveHeldElsewhere()
       throw new Error('lightning receive manager is not running')
     }
     if (admitted.current.has(request.rfqId)) return

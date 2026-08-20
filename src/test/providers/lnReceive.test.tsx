@@ -179,6 +179,28 @@ const fakeLocks = () => {
   }
 }
 
+/**
+ * `fakeLocks` with the grant held open: the request is queued, nothing has run
+ * it yet. It stands in for the gap between asking for the lock and being given
+ * it — the remount case, where this tab's own request waits on its previous
+ * drive to stop its manager — which is NOT another tab holding it.
+ */
+const gatedLocks = () => {
+  const locks = fakeLocks()
+  let open = () => {}
+  const gate = new Promise<void>((resolve) => {
+    open = resolve
+  })
+  return {
+    open: () => open(),
+    request: (name: string, options: { signal?: AbortSignal }, callback: () => Promise<void>) =>
+      locks.request(name, options, async () => {
+        await gate
+        return callback()
+      }),
+  }
+}
+
 const withLocks = (locks: unknown) =>
   Object.defineProperty(navigator, 'locks', { value: locks, configurable: true, writable: true })
 
@@ -347,9 +369,29 @@ describe('LnReceiveProvider', () => {
     await userEvent.click(b.getByText('Track b'))
     // Named, not generic: nothing is unavailable, and "manager is not running"
     // would be false — the other tab is driving these swaps perfectly well.
-    await waitFor(() => expect(b.getByTestId('rejected')).toHaveTextContent('LnReceiveHeldElsewhere'))
+    await waitFor(() => expect(b.getByTestId('rejected')).toHaveTextContent('LnReceiveHeldElsewhere'), {
+      timeout: 3000,
+    })
     expect(start).toHaveBeenCalledTimes(1)
     expect(addSwap).not.toHaveBeenCalled()
+  })
+
+  it('waits out its own pending request rather than blaming a tab that is not there', async () => {
+    const locks = gatedLocks()
+    withLocks(locks)
+    renderProvider()
+    await userEvent.click(screen.getByText('Track a'))
+
+    // Pending says nothing about WHO holds it — this tab's own request is
+    // pending too, right up until it is granted. Answering "another tab is
+    // handling Lightning receives" here tells the only open tab to close a tab
+    // that does not exist.
+    expect(screen.getByTestId('rejected')).toHaveTextContent('none')
+    expect(addSwap).not.toHaveBeenCalled()
+
+    locks.open()
+    await waitFor(() => expect(addSwap).toHaveBeenCalled())
+    expect(screen.getByTestId('rejected')).toHaveTextContent('none')
   })
 
   it('releases the lock on effect teardown, so the next mount can drive', async () => {
