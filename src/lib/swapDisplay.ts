@@ -35,15 +35,30 @@ export function swapStatusLabel(tx: Tx): string {
 /**
  * How a grouped RFQ swap row reads.
  *
- * The resolver's `outcome` is an opaque machine token, so the mapping to copy
- * belongs here rather than in the row. "Refunded", not "Failed": nothing broke
- * from the user's side — the solver could not pay the invoice and the covenant
- * returned the funds, which is the same word the receipt already uses.
+ * The resolver's `outcome` is an opaque machine token — the package emits
+ * `pending`, `settled`, `refunded`, `failed` and `lost`, and says nothing about
+ * wording — so the mapping to copy belongs here rather than in the row.
+ *
+ * Two of the five need care:
+ *
+ * - **`refunded`** is "Refunded", not "Failed". Nothing broke from the user's
+ *   side: the solver could not pay the invoice and the covenant returned the
+ *   funds, which is the same word the receipt already uses.
+ * - **`lost`** is a `lightning_receive` that ended `refunded`, and it is the
+ *   opposite of the above. On the receive leg every non-claim leaf of the
+ *   covenant is the SOLVER's, so a lockup that went back is a payment that
+ *   never arrived — money gone, not money returned. Calling it "refunded" here
+ *   would tell the user the exact opposite of what happened, and would also
+ *   disagree with the receive screen, which already renders this as a loss.
+ *
+ * `settled` adds no word: a send that went through is just "Lightning send",
+ * the way a plain payment row carries no adverb.
  */
 export function lnSwapLabel(tx: Tx): string | undefined {
   const swap = tx.lnSwap
   if (!swap) return undefined
   const stem = swap.label ?? 'Lightning send'
+  if (swap.outcome === 'lost') return `${stem} lost`
   if (swap.outcome === 'refunded') return `${stem} refunded`
   if (swap.outcome === 'failed') return `${stem} failed`
   if (swap.outcome === 'pending') return `${stem} pending`

@@ -13,6 +13,7 @@ import {
   rollbackMigration,
   IndexedDBWalletRepository,
   IndexedDBContractRepository,
+  RestIndexerProvider,
   type Activity,
   type Identity,
   type ServiceWorkerWalletMode,
@@ -40,7 +41,8 @@ import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { activitiesToTxs, getActivities } from '../lib/activityHistory'
-import { lnSendActivityInputs, lnSendViews, type LnSendView } from '../lib/lnSendRecords'
+import { Indexer } from '../lib/indexer'
+import { lnSendViews, swapActivityInputs, type LnSendView } from '../lib/lnSendRecords'
 import { assetSwapResolver } from '../lib/activity/assetSwapResolver'
 import { swapActivityResolver } from '@arkade-os/swap'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
@@ -61,7 +63,6 @@ import {
 } from '../lib/constants'
 import { AssetIconApprovalManager } from '../lib/assetIconApproval'
 import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
-import { Indexer } from '../lib/indexer'
 import { BackupContext } from './backup'
 
 const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
@@ -613,10 +614,25 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // The registry ships with the SDK built-ins already in it; only ours has
       // to be added, and `use()` is idempotent by id across reinit paths.
       svcWallet.activity.use(assetSwapResolver())
-      // The package's own resolver for the RFQ corridors, fed from the records
-      // the send flow writes: it is what turns a Lightning send's funding tx —
-      // and the refund that may follow it — into one labelled activity.
-      svcWallet.activity.use(swapActivityResolver({ listSwaps: lnSendActivityInputs }))
+      // The package's own resolver for the RFQ corridors, fed by the package's
+      // own reader over the records `RfqSwapManager` writes. It is what turns a
+      // swap's funding tx — and the claim or refund that follows it — into one
+      // labelled activity instead of two unrelated rows.
+      //
+      // `rfqSwapActivityInputs` rather than a mapping of ours, because the
+      // per-corridor txids come from the corridor's handler
+      // (`activityTxids(profile)`): reading profile keys by name here would put
+      // corridor knowledge in the wallet, which is what adding a corridor would
+      // then have to come back and edit. It also drains the manager's stamped
+      // `lockupSpendArkTxids` before any network read, so a terminal swap
+      // answers for its own counterparty spend.
+      //
+      // The indexer covers only what a record cannot: one written before
+      // `fundingArkTxid` existed, and a terminal swap no refund of ours ended.
+      // It is optional and failure-isolated — one that throws costs that record
+      // its extra txids, never the whole list.
+      const activityIndexer = new RestIndexerProvider(arkServerUrl)
+      svcWallet.activity.use(swapActivityResolver({ listSwaps: () => swapActivityInputs(activityIndexer) }))
 
       if (!skipMigration) {
         setLoadingStatus('Migrating data...')

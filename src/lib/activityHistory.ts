@@ -90,6 +90,38 @@ const lightningSendTx = (
   }
 }
 
+/**
+ * One row for a Lightning receive: the claim that paid us.
+ *
+ * The mirror of the send, minus the funding leg — on this corridor the SOLVER
+ * funds the lockup, so the only transaction of ours is the claim. That has a
+ * consequence worth stating: a receive that ended `refunded` has no transaction
+ * in this wallet's history at all, so it produces no group and therefore no
+ * row. The `lost` copy below is reachable only for a receive that got some of
+ * its money — a piecemeal funding we partly claimed — not for one that never
+ * arrived. Surfacing those is an activity-model question, not a row-builder
+ * one.
+ *
+ * No `fundingTxid` is set, deliberately: `useLnSendReceipt` keys the send
+ * receipt off exactly that field and returns undefined without it, which is
+ * what keeps a receive row from opening a receipt built for the other leg.
+ */
+const lightningReceiveTx = (
+  activity: Activity,
+  metadata: Record<string, TransactionActivityMetadata>,
+): Tx | undefined => {
+  const claim = activity.txs.find((tx) => tx.type === 'RECEIVED')
+  if (!claim) return undefined
+  const claimTxid = txidOfArkTransaction(claim)
+  return {
+    ...arkTransactionToTx(claim, metadata[claimTxid]),
+    amount: Math.abs(activity.amount),
+    type: activity.amount < 0 ? 'sent' : 'received',
+    lnSwap: { label: activity.intent?.label, outcome: activity.intent?.outcome },
+    historyKey: activity.id,
+  }
+}
+
 /** `Activity[]` -> the `Tx[]` the UI already reads. Pure and synchronous.
  *
  * Only groups we know how to collapse become a single row; everything else
@@ -99,7 +131,8 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
   const { swaps, metadata, network, assetDisplay, lnSends = [] } = options
   const rows: Tx[] = []
   for (const activity of activities) {
-    if (rfqSwapKindOf(activity) === 'lightning_send') {
+    const swapKind = rfqSwapKindOf(activity)
+    if (swapKind === 'lightning_send') {
       const row = lightningSendTx(activity, metadata, lnSends)
       if (row) {
         rows.push(row)
@@ -108,6 +141,13 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
       // No sent member means the record named a txid this history does not
       // have. Fall through rather than drop the group: whatever IS here is
       // still the user's money moving.
+    }
+    if (swapKind === 'lightning_receive') {
+      const row = lightningReceiveTx(activity, metadata)
+      if (row) {
+        rows.push(row)
+        continue
+      }
     }
     const swapId = swapIdOf(activity)
     const swap = swapId ? swaps.find((record) => record.id === swapId) : undefined
