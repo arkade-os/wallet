@@ -17,7 +17,13 @@ import { hapticSubtle } from '../lib/haptics'
 import TokenLogo, { tokenLogoTickerForTicker, trustedAssetTickers } from './TokenLogo'
 import { PrivacyAmount } from './PrivacyAmount'
 import SwapRouteIcon from './SwapRouteIcon'
-import { swapRouteLabel, swapStatusForTx, swapStatusLabel, swapUnitOfAccountAmount } from '../lib/swapDisplay'
+import {
+  lnSwapLabel,
+  swapRouteLabel,
+  swapStatusForTx,
+  swapStatusLabel,
+  swapUnitOfAccountAmount,
+} from '../lib/swapDisplay'
 import UnverifiedBadge from './UnverifiedBadge'
 import { useTransactionAmountDisplay } from '../hooks/useTransactionAmountDisplay'
 
@@ -46,12 +52,20 @@ const TransactionLine = ({
   const prefix = issuance ? '+' : burn || tx.type === 'sent' ? '-' : '+'
   const amountDisplay = useTransactionAmountDisplay(tx)
 
+  const lnSwapKind = lnSwapLabel(tx)
+  const lnSwapOutcome = tx.lnSwap?.outcome
   const iconTone =
     tx.preconfirmed && tx.boardingTxid
       ? 'pending'
-      : burn || swapStatus === 'failed' || swapStatus === 'cancelled'
+      : // `lost` earns the same tone as `failed`: on a receive leg the covenant
+        // going back means the payment never arrived, so it is money gone.
+        burn ||
+          swapStatus === 'failed' ||
+          swapStatus === 'cancelled' ||
+          lnSwapOutcome === 'failed' ||
+          lnSwapOutcome === 'lost'
         ? 'burn'
-        : swapStatus === 'pending'
+        : swapStatus === 'pending' || lnSwapOutcome === 'pending'
           ? 'pending'
           : 'default'
   const Icon = () => {
@@ -84,23 +98,25 @@ const TransactionLine = ({
     return <span className={`activity-row__icon activity-row__icon--${iconTone}`}>{icon}</span>
   }
 
-  const kind = swap
-    ? swapStatus === 'pending'
-      ? 'Swap pending'
-      : swapStatus === 'failed'
-        ? 'Swap failed'
-        : swapStatus === 'cancelled'
-          ? 'Swap cancelled'
-          : swapStatus === 'recoverable'
-            ? 'Swap recoverable'
-            : 'Swap'
-    : issuance
-      ? 'Issuance'
-      : burn
-        ? 'Burn'
-        : tx.type === 'sent'
-          ? 'Sent'
-          : 'Received'
+  const kind =
+    lnSwapKind ??
+    (swap
+      ? swapStatus === 'pending'
+        ? 'Swap pending'
+        : swapStatus === 'failed'
+          ? 'Swap failed'
+          : swapStatus === 'cancelled'
+            ? 'Swap cancelled'
+            : swapStatus === 'recoverable'
+              ? 'Swap recoverable'
+              : 'Swap'
+      : issuance
+        ? 'Issuance'
+        : burn
+          ? 'Burn'
+          : tx.type === 'sent'
+            ? 'Sent'
+            : 'Received')
   const Kind = () => <span className='activity-row__kind'>{kind}</span>
 
   const swapRoute = swap ? swapRouteLabel(tx) : ''
@@ -258,7 +274,10 @@ export default function TransactionsList({
     overscan: 5,
   })
 
+  // The key doubles as a DOM id read back with getElementById, which handles
+  // the ':' in an activity id — do not switch those lookups to querySelector.
   const key = (tx: Tx, index: number) => {
+    if (tx.historyKey) return tx.historyKey
     const txKey = [tx.roundTxid, tx.redeemTxid, tx.boardingTxid].filter(Boolean).join('-') || 'tx'
     return `${txKey}-${index}`
   }

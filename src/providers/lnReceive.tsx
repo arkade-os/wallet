@@ -65,6 +65,12 @@ export const LnReceiveProvider = ({ children }: { children: ReactNode }) => {
   const [states, setStates] = useState<Map<string, RfqSwapState>>(new Map())
   const [errors, setErrors] = useState<Map<string, string>>(new Map())
 
+  // The manager's callbacks outlive the render that made them — the effect
+  // re-runs only on `svcWallet` or `aspInfo.url` — so they reach the current
+  // reload through a ref rather than the value captured when the effect ran.
+  const reloadRef = useRef(reloadWallet)
+  reloadRef.current = reloadWallet
+
   // Assigned only once the Web Lock is HELD, which is what lets `track` tell
   // "another tab owns this" from "the manager is not running" — see `track`.
   const manager = useRef<Promise<RfqSwapManager>>()
@@ -137,7 +143,7 @@ export const LnReceiveProvider = ({ children }: { children: ReactNode }) => {
                 // The claim lands through this page's own `RestArkProvider`, so
                 // the service worker never emits the VTXO_UPDATE the wallet's
                 // balance listener waits for. Nothing else would refresh it.
-                reloadWallet().catch(consoleError)
+                reloadRef.current().catch(consoleError)
               },
               onSwapFailed: (swap, err) => {
                 const error = extractError(err)

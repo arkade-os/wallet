@@ -25,10 +25,9 @@
 import { hex } from '@scure/base'
 import { sideLimits, type DiscoveredMarket, type Side } from '@arkade-os/solver-discovery'
 import type { NetworkName, RestIndexerProvider } from '@arkade-os/sdk'
-import { isRfqTerminal, requestLightningSend, type InvoiceFacts, type RfqTransport } from '@arkade-os/swap'
-import { sleep as defaultSleep } from './sleep'
+import { requestLightningSend, type InvoiceFacts, type RfqTransport } from '@arkade-os/swap'
 import { decodeInvoice, invoiceMatchesNetwork, isInvoiceExpired, type DecodedInvoice } from './bolt11'
-import type { LnSendSpend } from './types'
+import type { LnSendRecordFacts } from './lnSendRecords'
 
 /** Why an invoice cannot start a swap. A closed set, so callers can branch. */
 export type InvoiceRejection = 'unparseable' | 'wrong_network' | 'expired' | 'zero_amount' | 'no_payment_hash'
@@ -89,15 +88,6 @@ export const toInvoiceFacts = (
     expiresAt: decoded.expiresAt,
   }
 }
-
-/**
- * Whether an RFQ state is one after which nothing further will happen.
- *
- * Re-exported rather than reimplemented: the client owns `RFQ_TERMINAL_STATES`,
- * so a locally maintained copy of this predicate is a second place for the set
- * to drift from the states the solver actually reports.
- */
-export { isRfqTerminal }
 
 /**
  * The Lightning-send rendezvous, discovered rather than configured: which
@@ -244,15 +234,6 @@ export interface LnSendRequest {
   address: string
   /** Sats the lockup must carry. */
   fundAmount: number
-  /**
-   * Hex pkScript of that covenant.
-   *
-   * Kept because the funding txid is only half the story: the covenant's
-   * spender — the solver's claim or the refund — is a transaction the wallet
-   * never signs, so its own history cannot name it. This script is the
-   * indexer key that can. See `lnSendSpender`.
-   */
-  swapPkScript: string
   /** Unix seconds after which the quote is dead and must not be funded. */
   validUntil: number
   /**
@@ -266,6 +247,17 @@ export interface LnSendRequest {
    * not have to be kept alive across screens.
    */
   rendezvous: LnSendRendezvous
+  /**
+   * What the swap RECORD needs and nothing later can give back.
+   *
+   * The covenant binds `hash160(paymentHash)`, one-way over it, and the quote
+   * is gone the moment this screen unmounts — so a record written after the
+   * fact could name neither the hashlock nor the refund deadline. `secrets` is
+   * a descriptor for re-deriving the sender key, not key material (see
+   * `requestLightningSend`), and it is what lets a restored record be signed
+   * for rather than merely displayed.
+   */
+  record: LnSendRecordFacts
 }
 
 /**
@@ -307,102 +299,43 @@ export const requestLnSend = async (
     rfqId: result.rfqId,
     address: result.address,
     fundAmount: result.fundAmount,
-    swapPkScript: hex.encode(result.swapPkScript),
     validUntil: result.quote.valid_until,
     rendezvous: args.rendezvous,
+    record: {
+      paymentHash: invoice.paymentHash,
+      // Optional on `RfqQuote` because arkade↔arkade quotes carry none; an
+      // HTLC-class corridor like this one always does. Zero rather than a
+      // guess if a solver omits it: the record is for display and rebuild,
+      // and inventing a deadline would arm a refund window that is not real.
+      refundLocktime: result.quote.refund_locktime ?? 0,
+      secrets: result.secrets,
+      script: result.script,
+    },
   }
 }
 
 /**
- * Find the transaction that spent a funded lockup, and say which spend it was.
+ * Name the transaction that spent a funded lockup.
  *
- * The two outcomes are told apart by who got paid, which the wallet can settle
- * on its own: the refund path pays the refund address the client handed the
- * solver — our address — so a refund is a transaction of the wallet's own,
- * while the solver's claim pays the solver and never will. Asking the solver
- * instead would make the receipt depend on a third party still being reachable
- * and still remembering the negotiation.
- *
- * `paidUs` is asked rather than handed a history so the read happens AFTER the
- * indexer has reported the spend, never from a copy taken before it, and it
- * must FAIL rather than answer "no" when it cannot tell — a `false` that really
- * means "could not check" would call a refund a paid invoice, which is the one
- * error here that misreports money.
- *
- * Neither of those makes a "no" conclusive, and it is worth being exact about
- * what is left. The wallet's own view and the indexer are separate stores, so
- * asking second does not guarantee seeing as much: a wallet a sync cycle behind
- * can still miss a refund that the indexer already knows about, and the answer
- * persists. What the two rules buy is the removal of the avoidable half — a
- * stale snapshot, and a failure disguised as a verdict. The residual is the
- * trade-off `assetSwaps` already accepts for the same question, and it narrows
- * on its own as the refund ages, which is when a receipt is usually read.
+ * The txid only — WHICH spend it was is `RfqSwapManager`'s answer, read off a
+ * witness that hashes to the payment hash rather than off who got paid. This
+ * exists because that answer carries no txid: `readLockupFate` reports
+ * `returned` without naming the transaction, and the manager records
+ * `refundArkTxid` only for a refund IT pushed. A solver's own
+ * `nonInteractiveRefund` is neither, and the history row it creates is exactly
+ * what the activity has to group against the funding tx.
  *
  * Returns undefined while the lockup is unspent, and for a swept one: neither
- * has a spender to name, and both are still the funding tx's story alone.
+ * has a spender to name.
  */
-export const lnSendSpender = async (
+export const lockupSpenderTxid = async (
   indexer: Pick<RestIndexerProvider, 'getVtxos'>,
-  paidUs: (txid: string) => Promise<boolean>,
   lockup: { fundingTxid: string; swapPkScript: string },
-): Promise<LnSendSpend | undefined> => {
+): Promise<string | undefined> => {
   const { vtxos } = await indexer.getVtxos({ scripts: [lockup.swapPkScript] })
   // The query is already scoped to the one script, so the funding txid is what
   // distinguishes this deposit — identical quotes derive the same address.
   const funded = vtxos.find((v) => v.txid === lockup.fundingTxid)
   if (funded?.virtualStatus.state !== 'spent') return undefined
-  const spentTxid = funded.arkTxId ?? funded.spentBy
-  if (!spentTxid) return undefined
-  return { spentTxid, outcome: (await paidUs(spentTxid)) ? 'refunded' : 'completed' }
-}
-
-/** How a funded Lightning send ended, from the wallet's point of view. */
-export type LnSendOutcome =
-  /** The solver paid the invoice and claimed. The only success. */
-  | { kind: 'settled' }
-  /** Terminal, but not paid. `state` is the RFQ state that ended it. */
-  | { kind: 'failed'; state: string }
-  /** Still in flight when we stopped waiting — NOT a failure. */
-  | { kind: 'pending' }
-
-/**
- * Watch a funded send until the solver reaches a terminal state.
- *
- * NOT on the send critical path: the send flow reports "on the way" as soon as
- * the covenant is funded, because funding is acceptance and the outcome
- * resolves — settled or refunded — without anything further from the wallet.
- * Blocking the user on this meant a spinner through the solver's whole
- * pipeline for something they cannot influence. Kept because learning a swap's
- * real outcome is still wanted (history, reconciliation, the receive leg); it
- * simply must not be what the user waits on.
- *
- * Giving up is deliberately NOT a failure. The covenant is funded either way
- * and the refund path is unconditional, so an unanswered poll means "unknown",
- * which the caller must present as still-in-flight rather than as an error.
- *
- * Polls rather than subscribes: the solver pushes nothing, so status is a
- * request/response either way, and polling keeps the state here rather than in
- * a subscription that has to survive a screen change.
- */
-export const awaitLnSendOutcome = async (
-  rfqId: string,
-  transport: RfqTransport,
-  options: { timeoutMs?: number; pollMs?: number; now?: () => number; sleep?: (ms: number) => Promise<void> } = {},
-): Promise<LnSendOutcome> => {
-  const timeoutMs = options.timeoutMs ?? 90_000
-  const pollMs = options.pollMs ?? 3_000
-  const now = options.now ?? (() => Date.now())
-  const sleep = options.sleep ?? defaultSleep
-  const deadline = now() + timeoutMs
-
-  for (;;) {
-    // A failed lookup is not a verdict: the solver may be restarting, and the
-    // covenant is funded regardless. Keep asking until the deadline.
-    const status = await transport.status(rfqId).catch(() => null)
-    const state = status?.state
-    if (state === 'settled') return { kind: 'settled' }
-    if (state && isRfqTerminal(state)) return { kind: 'failed', state }
-    if (now() >= deadline) return { kind: 'pending' }
-    await sleep(pollMs)
-  }
+  return funded.arkTxId ?? funded.spentBy ?? undefined
 }
