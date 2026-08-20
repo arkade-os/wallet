@@ -1,4 +1,5 @@
 import type { Activity } from '@arkade-os/sdk'
+import { isRfqSwapTerminal } from '@arkade-os/swap'
 import { ASSET_SWAP_ACTIVITY_KIND } from './activity/assetSwapResolver'
 import { consoleError } from './logs'
 import type { TransactionActivityMetadata } from './storage'
@@ -13,7 +14,9 @@ export interface ActivityHistoryOptions {
   swaps: WalletAssetSwap[]
   /** The Lightning sends, as stored. `RfqSwapManager` owns their state; this
    * is the read side of it, and the only source of a row's outcome detail and
-   * of the receipt's second txid. */
+   * of the receipt's second txid — and, for a send Arkade's history does not
+   * report at all, the only source of the row itself. See
+   * `ungroupedLnSendTx`. */
   lnSends?: LnSendView[]
   /** Snapshot taken alongside the activity fetch. Never read in here: this
    * runs in a `useMemo`, so a `localStorage` read would be an undeclared dep. */
@@ -47,6 +50,11 @@ const swapIdOf = (activity: Activity): string | undefined =>
  * is `swapKind`, never the group id, since both namespaces are `swap:`. */
 const rfqSwapKindOf = (activity: Activity): string | undefined =>
   activity.intent?.metadata?.swapKind as string | undefined
+
+/** Which swap a group belongs to, by the resolver's own metadata. The group id
+ * says the same thing, but only by string surgery on a namespace the package
+ * owns. */
+const rfqIdOf = (activity: Activity): string | undefined => activity.intent?.metadata?.rfqId as string | undefined
 
 /**
  * One row for a Lightning send: its funding tx, plus the refund when the swap
@@ -122,6 +130,68 @@ const lightningReceiveTx = (
   }
 }
 
+/**
+ * One row for a Lightning send Arkade's own history does not report.
+ *
+ * **Why any send is missing at all.** Funding the lockup is an ordinary Arkade
+ * transaction, but the covenant it pays is a contract THIS wallet registered
+ * (`registerLockupContract`), so `buildTransactionHistory` sees the lockup
+ * output among the wallet's own outputs and counts it as change. Funding minus
+ * change is then zero on a corridor with no fee, and a zero-amount movement is
+ * not emitted — so the transaction that committed the money produces no row,
+ * and nothing appears until a SECOND transaction spends the lockup. That second
+ * transaction is the solver's claim, which lands only once the invoice is
+ * actually paid — a wait the payer does not control and that can outlast the
+ * app being open. The payment was in flight the whole time with nothing on
+ * screen to say so.
+ *
+ * So the record answers for it. It holds what history has lost — the amount,
+ * the funding txid, the time, the state — and it is written before the refresh
+ * that rebuilds this list, so the row is there on the first render after
+ * signing.
+ *
+ * Emitted only for a send no group covers. Once the lockup is spent the group
+ * exists and `lightningSendTx` builds the real row from the transactions
+ * themselves, under this same key, so the row is replaced rather than doubled.
+ * Terminal sends are kept for the same reason they are worth showing at all: a
+ * refund returns the money through a transaction that nets to zero the same
+ * way, so dropping them here would make a payment vanish from the list at the
+ * moment it came back.
+ */
+const ungroupedLnSendTx = (send: LnSendView, metadata: Record<string, TransactionActivityMetadata>): Tx =>
+  graftMetadata(
+    {
+      amount: send.amount,
+      boardingTxid: '',
+      createdAt: send.createdAt,
+      // Offchain: there is no on-chain transaction to open in an explorer.
+      explorable: undefined,
+      // The wallet's own send convention (see `arkTransactionToTx`): an
+      // outgoing Arkade transaction is final as soon as it is signed. What is
+      // pending here is the swap, and `outcome` is what says so.
+      preconfirmed: false,
+      redeemTxid: send.fundingTxid,
+      roundTxid: '',
+      settled: true,
+      type: 'sent',
+      lnSwap: {
+        // The same copy the package's resolver emits for this corridor, so a
+        // row does not rename itself when the group finally arrives.
+        label: 'Lightning send',
+        // `RFQ_SWAP_TERMINAL_STATES` and the resolver's outcome tokens are the
+        // same three words, which is what lets the state stand in for the
+        // token: everything short of an ending reads as pending.
+        outcome: isRfqSwapTerminal(send.state) ? send.state : 'pending',
+        fundingTxid: send.fundingTxid,
+        spendTxid: send.spendTxid,
+      },
+      // The group id the resolver would give this swap, so the key survives the
+      // handover to the real row.
+      historyKey: `swap:${send.rfqId}`,
+    },
+    metadata[send.fundingTxid],
+  )
+
 /** `Activity[]` -> the `Tx[]` the UI already reads. Pure and synchronous.
  *
  * Only groups we know how to collapse become a single row; everything else
@@ -170,6 +240,14 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
       const txid = txidOfArkTransaction(tx)
       rows.push({ ...arkTransactionToTx(tx, metadata[txid]), historyKey: `${activity.id}:${txid}` })
     }
+  }
+  // The sends history cannot see, from the store that can — see
+  // `ungroupedLnSendTx`. Keyed on the rfq id rather than the funding txid: that
+  // is what the group carries, and a send whose funding tx IS in history is
+  // grouped by it.
+  const grouped = new Set(activities.flatMap((activity) => rfqIdOf(activity) ?? []))
+  for (const send of lnSends) {
+    if (!grouped.has(send.rfqId)) rows.push(ungroupedLnSendTx(send, metadata))
   }
   return sortLocalTxs(rows)
 }

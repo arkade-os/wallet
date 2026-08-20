@@ -221,6 +221,26 @@ describe('swapActivityInputs', () => {
   })
 })
 
+describe('lnSendViews', () => {
+  it('carries what a row needs when history reports no transaction at all', async () => {
+    // The funding tx nets to zero against the lockup output the wallet also
+    // owns, so Arkade's history emits nothing for it and the row is built from
+    // this view instead — see `ungroupedLnSendTx`.
+    await store()
+
+    expect(await lnSendViews()).toEqual([
+      {
+        rfqId: RFQ_ID,
+        fundingTxid: 'funding-txid',
+        state: 'pending',
+        amount: 1_030,
+        createdAt: 1_700_000_000,
+        spendTxid: undefined,
+      },
+    ])
+  })
+})
+
 describe('restoreLnSendSwaps', () => {
   // Every rebuild needs the lockup's contract row; a wallet without one is the
   // case these tests are about, so the reader answers with none.

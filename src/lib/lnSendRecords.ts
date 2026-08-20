@@ -242,6 +242,13 @@ export interface LnSendView {
   rfqId: string
   fundingTxid: string
   state: RfqSwapRecord['state']
+  /** Sats the lockup was funded with. The record is the only place this
+   * survives for a send Arkade's own history cannot see — see
+   * `ungroupedLnSendTx` in `activityHistory.ts`. */
+  amount: number
+  /** When the send was made, unix seconds — the same clock `Tx.createdAt` uses,
+   * so a row built from the record sorts beside rows built from history. */
+  createdAt: number
   /** The tx that ended it, when that tx is one of ours. */
   spendTxid?: string
 }
@@ -249,7 +256,14 @@ export interface LnSendView {
 const viewOf = (record: RfqSwapRecord): LnSendView | undefined => {
   const fundingTxid = fundingTxidOf(record)
   if (!fundingTxid) return undefined
-  return { rfqId: record.rfqId, fundingTxid, state: record.state, spendTxid: spendTxidOf(record) }
+  return {
+    rfqId: record.rfqId,
+    fundingTxid,
+    state: record.state,
+    amount: record.amount ?? 0,
+    createdAt: record.createdAt,
+    spendTxid: spendTxidOf(record),
+  }
 }
 
 /** The sends, for the row builder. */

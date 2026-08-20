@@ -5,6 +5,7 @@ import { activitiesToTxs, getActivityTxHistory } from '../../lib/activityHistory
 import { swapActivityResolver } from '@arkade-os/swap'
 import { ASSET_SWAP_ACTIVITY_KIND, assetSwapResolver } from '../../lib/activity/assetSwapResolver'
 import { readAllTransactionActivityMetadata, saveTransactionActivityMetadata } from '../../lib/storage'
+import type { LnSendView } from '../../lib/lnSendRecords'
 import type { WalletAssetSwap } from '../../lib/swapRepository'
 
 beforeEach(() => localStorage.clear())
@@ -275,6 +276,72 @@ describe('lightning send activities', () => {
     })
 
     expect(row).toMatchObject({ destination: 'lnbc10u1p...', networkFee: 30 })
+  })
+
+  const view = (over: Partial<LnSendView> = {}): LnSendView => ({
+    rfqId: RFQ_ID,
+    fundingTxid: 'funding-txid',
+    state: 'pending',
+    amount: 1_030,
+    createdAt: 4_000,
+    ...over,
+  })
+
+  it('shows a send in flight from its record, before any tx of it reaches history', () => {
+    // The funding tx pays a covenant this wallet registered, so Arkade counts
+    // the lockup as change and reports no movement at all. Nothing appears
+    // until the solver spends the lockup — which is the wait the payer cannot
+    // see and cannot control.
+    const [row, ...rest] = activitiesToTxs([], { ...empty, lnSends: [view()] })
+
+    expect(rest).toEqual([])
+    expect(row).toMatchObject({
+      amount: 1_030,
+      type: 'sent',
+      createdAt: 4_000,
+      redeemTxid: 'funding-txid',
+      settled: true,
+      historyKey: `swap:${RFQ_ID}`,
+      lnSwap: { label: 'Lightning send', outcome: 'pending', fundingTxid: 'funding-txid' },
+    })
+    expect(lnSwapLabel(row)).toBe('Lightning send pending')
+  })
+
+  it('gives that row the invoice and fee saved against the funding tx', () => {
+    saveTransactionActivityMetadata('funding-txid', { destination: 'lnbc10u1p...', networkFee: 30 })
+
+    const [row] = activitiesToTxs([], {
+      ...empty,
+      lnSends: [view()],
+      metadata: readAllTransactionActivityMetadata(),
+    })
+
+    expect(row).toMatchObject({ destination: 'lnbc10u1p...', networkFee: 30 })
+  })
+
+  it('keeps naming a refunded send, whose refund tx history reports no better', () => {
+    // A refund returns the money through a tx that nets to zero the same way
+    // the funding did. Dropping the record's row on a terminal state would make
+    // the payment vanish from the list at the moment it came back.
+    const [row] = activitiesToTxs([], {
+      ...empty,
+      lnSends: [view({ state: 'refunded', spendTxid: 'refund-txid' })],
+    })
+
+    expect(row.lnSwap).toMatchObject({ outcome: 'refunded', spendTxid: 'refund-txid' })
+    expect(lnSwapLabel(row)).toBe('Lightning send refunded')
+  })
+
+  it('yields to the group once one exists, under the same key', () => {
+    // The lockup spend is a tx of ours, so the group finally forms — and the
+    // real row replaces the record's rather than doubling it.
+    const rows = activitiesToTxs([{ ...activity(`swap:${RFQ_ID}`, [funding], lnIntent('pending')), amount: -1_030 }], {
+      ...empty,
+      lnSends: [view()],
+    })
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0].historyKey).toBe(`swap:${RFQ_ID}`)
   })
 
   it('groups the refund with its funding tx end to end, through the package resolver', async () => {
