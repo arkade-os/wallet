@@ -5,7 +5,7 @@ import {
   CachedAssetDetails,
   ASSET_METADATA_TTL_MS,
   clearStorage,
-  readTransactionActivityMetadata,
+  readAllTransactionActivityMetadata,
   saveTransactionActivityMetadata,
 } from '../../lib/storage'
 
@@ -88,11 +88,14 @@ describe('transaction activity metadata storage', () => {
       networkFee: 0,
     })
 
-    expect(readTransactionActivityMetadata(['missing', 'ark-txid'])).toMatchObject({
+    const stored = readAllTransactionActivityMetadata()
+
+    expect(stored['ark-txid']).toMatchObject({
       assetAction: 'reissued',
       destination: 'tark1destination',
       networkFee: 0,
     })
+    expect(stored['missing']).toBeUndefined()
   })
 })
 

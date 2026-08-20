@@ -85,19 +85,10 @@ export const saveTransactionActivityMetadata = (
   )
 }
 
-export const readTransactionActivityMetadata = (
-  txids: (string | undefined)[],
-): TransactionActivityMetadata | undefined => {
-  const stored = getStorageItem<Record<string, TransactionActivityMetadata>>(
-    TRANSACTION_ACTIVITY_METADATA_KEY,
-    {},
-    (value) => JSON.parse(value),
+export const readAllTransactionActivityMetadata = (): Record<string, TransactionActivityMetadata> =>
+  getStorageItem<Record<string, TransactionActivityMetadata>>(TRANSACTION_ACTIVITY_METADATA_KEY, {}, (value) =>
+    JSON.parse(value),
   )
-  return txids
-    .filter(Boolean)
-    .map((txid) => stored[txid!])
-    .find(Boolean)
-}
 
 // local storage caches the asset details for 24 hours
 export const ASSET_METADATA_TTL_MS = 24 * 60 * 60 * 1000

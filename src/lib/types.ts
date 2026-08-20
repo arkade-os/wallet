@@ -119,9 +119,16 @@ export type Tx = {
   createdAt: number
   destination?: string
   explorable: string | undefined
+  /** Stable identity for this history row, from the activity that produced it.
+   *  Not a txid — never render it, never build an explorer link from it. */
+  historyKey?: string
   /** Present only on a Lightning send: its lockup covenant and that
    * covenant's spender, which is a second tx the wallet never signed. */
   lnSend?: LnSendActivity
+  /** Present on a row the swap activity resolver grouped. `label` and
+   * `outcome` are the resolver's own — opaque tokens, not display text, which
+   * `lnSwapLabel` turns into copy; the two txids are the receipt's rows. */
+  lnSwap?: { label?: string; outcome?: string; fundingTxid?: string; spendTxid?: string }
   networkFee?: number
   preconfirmed: boolean
   redeemTxid: string
