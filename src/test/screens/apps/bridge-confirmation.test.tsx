@@ -6,7 +6,7 @@ import { hex } from '@scure/base'
 import { Transaction as BtcTransaction } from '@scure/btc-signer'
 import { AspContext } from '../../../providers/asp'
 import { WalletContext } from '../../../providers/wallet'
-import { ToastProvider } from '../../../components/Toast'
+import { ToastProvider } from '../../../providers/toast'
 import { mockAspContextValue, mockWalletContextValue } from '../mocks'
 import fixtures from '../../fixtures.json'
 

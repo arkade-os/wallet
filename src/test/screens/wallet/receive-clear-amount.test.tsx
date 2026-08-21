@@ -16,7 +16,7 @@ import { NavigationContext } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { NotificationsContext } from '../../../providers/notifications'
-import { ToastProvider } from '../../../components/Toast'
+import { ToastProvider } from '../../../providers/toast'
 import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
 
 // Mock qr module used by the QrCode component
