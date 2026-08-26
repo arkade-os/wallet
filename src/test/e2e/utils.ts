@@ -268,14 +268,14 @@ export async function receiveLightning(page: Page, isMobile: boolean, sats: numb
 export async function navigateToSettings(page: Page): Promise<void> {
   if (
     await page
-      .getByText('Settings', { exact: true })
+      .getByTestId('header-title-settings')
       .isVisible()
       .catch(() => false)
   )
     return
   await navigateHome(page)
   await page.getByTestId('top-right-settings').click()
-  await page.getByText('Settings', { exact: true }).waitFor({ state: 'visible', timeout: 30000 })
+  await page.getByTestId('header-title-settings').waitFor({ state: 'visible', timeout: 30000 })
 }
 
 export async function resetWallet(page: Page): Promise<void> {
