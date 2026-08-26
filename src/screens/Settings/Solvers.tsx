@@ -40,7 +40,7 @@ function Button({ onClick, text }: { onClick?: () => void; text: string }) {
   )
 }
 
-function Editor({ card, toClose, onChange }: { card?: Card; toClose: () => void; onChange: () => void }) {
+function Editor({ card, toClose, onChange }: { card?: Card; toClose?: () => void; onChange?: () => void }) {
   const { aspInfo } = useContext(AspContext)
 
   const [error, setError] = useState<string>('')
@@ -49,6 +49,7 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose: () => void;
 
   const saveCard = (olderCard?: Card) => {
     if (!editorRef.current) return
+    if (!toClose || !onChange) return
     const inputValue = editorRef.current.value.trim()
     if (!inputValue) return
     let card: Card
@@ -111,10 +112,12 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose: () => void;
         placeholder='{ version: 0, name: "My Card", markets: [...] }'
         defaultValue={card ? JSON.stringify(card, null, 2) : ''}
       />
-      <FlexRow>
-        <Button onClick={() => toClose()} text='Cancel' />
-        <Button onClick={() => saveCard(card)} text='Save' />
-      </FlexRow>
+      {toClose && onChange ? (
+        <FlexRow>
+          <Button onClick={() => toClose()} text='Cancel' />
+          <Button onClick={() => saveCard(card)} text='Save' />
+        </FlexRow>
+      ) : null}
     </FlexCol>
   )
 }
@@ -127,6 +130,11 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose: () => void;
 function BundledCardLine({ input }: { input: LocalCardInput }) {
   const card = input.card as Card
   const pairs = card.markets?.map((m) => m.pair).join(', ') ?? ''
+  const [showCard, setShowCard] = useState(false)
+
+  const toggleShowCard = () => {
+    setShowCard((s) => !s)
+  }
 
   return (
     <Shadow>
@@ -136,10 +144,13 @@ function BundledCardLine({ input }: { input: LocalCardInput }) {
             <Text>{input.label ?? card.name}</Text>
             <TextSecondary>{pairs}</TextSecondary>
           </FlexCol>
-          <FlexRow end>
-            <TextSecondary>Built-in</TextSecondary>
+          <FlexRow end minWidth='60px'>
+            <div onClick={toggleShowCard} style={{ cursor: 'pointer' }}>
+              <TextSecondary>Built-in</TextSecondary>
+            </div>
           </FlexRow>
         </FlexRow>
+        {showCard ? <Editor card={card} /> : null}
       </FlexCol>
     </Shadow>
   )
