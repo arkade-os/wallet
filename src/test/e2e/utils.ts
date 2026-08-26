@@ -282,7 +282,7 @@ export async function resetWallet(page: Page): Promise<void> {
   await navigateToSettings(page)
   await page.getByText('Reset wallet').click()
   await page.getByTestId('checkbox').click()
-  await page.getByRole('contentinfo').getByText('Reset wallet').click()
+  await page.getByRole('button', { name: 'Reset wallet' }).click()
 }
 
 async function getSecret(page: Page): Promise<string> {
