@@ -1,10 +1,34 @@
+export const mapKnownErrors = (message: string): string => {
+  // "vtxo script can be used for intent registration in N seconds"
+  const secondsMatch = message.match(/vtxo script can be used for intent registration in (\d+) seconds/i)
+  if (secondsMatch) {
+    const seconds = parseInt(secondsMatch[1], 10)
+    let hoursLabel: string
+    if (seconds < 3600) {
+      hoursLabel = 'less than 1 hour'
+    } else if (seconds % 3600 === 0) {
+      hoursLabel = `${seconds / 3600} hours`
+    } else {
+      hoursLabel = `${Math.ceil(seconds / 3600)} hours`
+    }
+    return `Your funds were recently settled onchain — please try again in ${hoursLabel}`
+  }
+
+  // "already unrolled" or "unrolled vtxo"
+  if (/already unrolled|unrolled vtxo/i.test(message)) {
+    return 'Your funds were recently settled onchain — please try again in a few hours'
+  }
+
+  return message
+}
+
 export const extractError = (error: any): string => {
-  if (typeof error === 'string') return error
-  if (error?.response?.data?.error) return error.response.data.error
+  if (typeof error === 'string') return mapKnownErrors(error)
+  if (error?.response?.data?.error) return mapKnownErrors(error.response.data.error)
   if (error.message) {
     const match = error.message.match(/"message":"(.+)?"/)
-    if (match && match.length > 1) return match[1]
-    return error.message
+    if (match && match.length > 1) return mapKnownErrors(match[1])
+    return mapKnownErrors(error.message)
   }
   return JSON.stringify(error)
 }
