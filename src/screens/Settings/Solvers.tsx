@@ -109,6 +109,7 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose?: () => void
         ref={editorRef}
         style={cssStyle}
         onFocus={() => setError('')}
+        readOnly={!toClose || !onChange}
         placeholder='{ version: 0, name: "My Card", markets: [...] }'
         defaultValue={card ? JSON.stringify(card, null, 2) : ''}
       />
