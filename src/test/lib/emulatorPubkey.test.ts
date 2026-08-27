@@ -28,11 +28,16 @@ describe('getEmulatorPubkeyForNetwork', () => {
     )
   })
 
+  it('supplies the regtest pin, matching the SDK and the live deployment', () => {
+    // pinned in .env.regtest
+    expect(hex.encode(getEmulatorPubkeyForNetwork('regtest')!)).toBe(
+      '999413c46fa10ada5cbc4bcc79a1d09160c2ba3cfc812705d7a13e5e545fb2a9',
+    )
+  })
+
   it('reports no key for networks with none pinned, so swaps stay off', () => {
     expect(getEmulatorPubkeyForNetwork('signet')).toBeUndefined()
     expect(getEmulatorPubkeyForNetwork('testnet')).toBeUndefined()
-    // regtest keys are per-deployment; a dev supplies one via VITE_EMULATOR_PUBKEY
-    expect(getEmulatorPubkeyForNetwork('regtest')).toBeUndefined()
   })
 
   describe('VITE_EMULATOR_PUBKEY override', () => {
@@ -51,7 +56,7 @@ describe('getEmulatorPubkeyForNetwork', () => {
       ['unsubstituted placeholder', '__VITE_EMULATOR_PUBKEY__'],
     ])('reads a %s value as no key rather than passing it through', (_label, value) => {
       vi.stubEnv('VITE_EMULATOR_PUBKEY', value)
-      expect(getEmulatorPubkeyForNetwork('regtest')).toBeUndefined()
+      expect(getEmulatorPubkeyForNetwork('testnet')).toBeUndefined()
       // and it must not fall back to another network's pinned key either
       expect(getEmulatorPubkeyForNetwork('signet')).toBeUndefined()
     })
