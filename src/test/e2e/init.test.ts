@@ -1,4 +1,4 @@
-import { test, expect, createWallet, navLocator } from './utils'
+import { test, expect, createWallet, navLocator, navigateToActivity } from './utils'
 
 test('should create a new wallet', async ({ page }) => {
   // Create wallet
@@ -14,6 +14,6 @@ test('should create a new wallet', async ({ page }) => {
   await expect(navLocator(page, 'activity')).toBeVisible()
   await expect(navLocator(page, 'settings')).toBeVisible()
 
-  await navLocator(page, 'activity').click()
+  await navigateToActivity(page)
   await expect(page.getByText('No transactions yet')).toBeVisible()
 })
