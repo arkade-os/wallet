@@ -20,7 +20,7 @@ import { consoleError } from './logs'
 import { getConfirmedAndNotExpiredUtxos } from './utxo'
 import * as Sentry from '@sentry/react'
 import { hex } from '@scure/base'
-import { readTransactionActivityMetadata } from './storage'
+import { arkTransactionToTx, sortLocalTxs } from './transactionHistory'
 import { walletFingerprint } from './sentry'
 
 const emptyFees: FeeInfo = {
@@ -185,47 +185,18 @@ export const getBalance = async (wallet: IWallet): Promise<WalletBalance> => {
   return await wallet.getBalance()
 }
 
+/** The raw, ungrouped history. The activity list is built by
+ * `activitiesToTxs` instead; this is for callers that need to find one tx by
+ * txid, and it carries no local metadata. */
 export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
-  const txs: Tx[] = []
   try {
     const res = await wallet.getTransactionHistory()
     if (!res) return []
-    for (const tx of res) {
-      const date = new Date(tx.createdAt)
-      const unix = Math.floor(date.getTime() / 1000)
-      const { key, settled, type, amount } = tx
-      const explorable = key.boardingTxid ? key.boardingTxid : key.commitmentTxid ? key.commitmentTxid : undefined
-      const assets = tx.assets?.map((a) => ({ assetId: a.assetId, amount: a.amount }))
-      const activityMetadata = readTransactionActivityMetadata([key.arkTxid, key.boardingTxid, key.commitmentTxid])
-      txs.push({
-        amount: Math.abs(amount),
-        assetAction: activityMetadata?.assetAction,
-        assets,
-        boardingTxid: key.boardingTxid,
-        destination: type === 'SENT' ? activityMetadata?.destination : undefined,
-        lnSend: type === 'SENT' ? activityMetadata?.lnSend : undefined,
-        redeemTxid: key.arkTxid,
-        roundTxid: key.commitmentTxid,
-        createdAt: unix,
-        explorable,
-        networkFee: activityMetadata?.networkFee,
-        preconfirmed: !settled,
-        settled: type === 'SENT' ? true : settled, // show all sent tx as settled
-        type: type.toLowerCase(),
-      })
-    }
+    return sortLocalTxs(res.map((tx) => arkTransactionToTx(tx)))
   } catch (err) {
     consoleError(err, 'error getting tx history')
     return []
   }
-  // sort by date, if have same date, put 'received' txs first
-  txs.sort((a, b) => {
-    if (a.createdAt === b.createdAt) return a.type === 'sent' ? -1 : 1
-    if (b.createdAt === 0) return 1 // tx with no date go to the top
-    if (a.createdAt === 0) return -1 // tx with no date go to the top
-    return a.createdAt > b.createdAt ? -1 : 1
-  })
-  return txs
 }
 
 export const getVtxos = async (wallet: ServiceWorkerWallet): Promise<{ spendable: Vtxo[]; spent: Vtxo[] }> => {
@@ -316,16 +287,6 @@ export const settleVtxos = async (
     })
     throw error
   }
-}
-
-export const renewCoins = async (
-  wallet: IWallet,
-  vtxoManager: IVtxoManager,
-  dustAmount: bigint,
-  thresholdMs?: number,
-): Promise<void> => {
-  const { inputs } = await getInputsToSettle(wallet, vtxoManager, thresholdMs)
-  if (inputs.length > 0) await settleVtxos(wallet, vtxoManager, dustAmount, thresholdMs)
 }
 
 export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> => {
