@@ -91,7 +91,7 @@ const EMULATOR_PUBKEY: Record<NetworkName, string | null> = {
   // per-deployment: a local stack generates its own co-signer key, so there is
   // no constant to pin. Set VITE_EMULATOR_PUBKEY to your emulator's signer
   // key.
-  regtest: null,
+  regtest: '02999413c46fa10ada5cbc4bcc79a1d09160c2ba3cfc812705d7a13e5e545fb2a9',
   testnet: null,
 }
 
