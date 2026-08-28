@@ -1,17 +1,11 @@
+import { prettyDelta } from './format'
+
 export const mapKnownErrors = (message: string): string => {
   // "vtxo script can be used for intent registration in N seconds"
   const secondsMatch = message.match(/vtxo script can be used for intent registration in (\d+) seconds/i)
   if (secondsMatch) {
     const seconds = parseInt(secondsMatch[1], 10)
-    let hoursLabel: string
-    if (seconds < 3600) {
-      hoursLabel = 'less than 1 hour'
-    } else if (seconds % 3600 === 0) {
-      hoursLabel = `${seconds / 3600} hours`
-    } else {
-      hoursLabel = `${Math.ceil(seconds / 3600)} hours`
-    }
-    return `Your funds were recently settled onchain — please try again in ${hoursLabel}`
+    return `Your funds were recently settled onchain — please try again in ${prettyDelta(seconds)}`
   }
 
   // "already unrolled" or "unrolled vtxo"
