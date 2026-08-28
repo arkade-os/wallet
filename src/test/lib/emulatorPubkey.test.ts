@@ -103,7 +103,7 @@ describe('getEmulatorPubkeyOverrideForNetwork', () => {
     ['unsubstituted placeholder', '__VITE_EMULATOR_PUBKEY__'],
   ])('reads a %s value as no override', (_label, value) => {
     vi.stubEnv('VITE_EMULATOR_PUBKEY', value)
-    expect(getEmulatorPubkeyOverrideForNetwork('regtest')).toBeUndefined()
+    expect(getEmulatorPubkeyOverrideForNetwork('signet')).toBeUndefined()
   })
 
   it('reports none for a network with nothing configured', () => {
