@@ -19,10 +19,9 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
 ## Environment Variables
 
 | Variable                      | Description                                                         | Example Value                                                                        |
-|-------------------------------|---------------------------------------------------------------------|--------------------------------------------------------------------------------------|
+| ----------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | `VITE_ARK_SERVER`             | Override the default Arkade server URL                              | `VITE_ARK_SERVER=http://localhost:7070`                                              |
 | `VITE_APP_VERSION`            | App version string shown in support diagnostics                     | `VITE_APP_VERSION=1.2.3`                                                             |
-| `VITE_BOLTZ_URL`              | Override the default Boltz swap provider URL for Lightning          | `VITE_BOLTZ_URL=https://boltz-provider-url.com`                                      |
 | `VITE_CHATWOOT_WEBSITE_TOKEN` | ChatWoot website token for customer support integration             | `VITE_CHATWOOT_WEBSITE_TOKEN=your-token`                                             |
 | `VITE_CHATWOOT_BASE_URL`      | ChatWoot server base URL for customer support integration           | `VITE_CHATWOOT_BASE_URL=https://app.chatwoot.com`                                    |
 | `VITE_DELEGATOR_URL`          | Delegator service URL for the wallet service worker                 | `VITE_DELEGATOR_URL=https://delegator.example.com`                                   |
@@ -60,7 +59,6 @@ Environment variables can be passed at runtime to configure the wallet without r
 ```bash
 docker run -p 8080:80 \
   -e VITE_ARK_SERVER=https://arkade.computer \
-  -e VITE_BOLTZ_URL=https://api.boltz.exchange \
   ghcr.io/arkade-os/wallet:latest
 ```
 
@@ -74,7 +72,6 @@ docker build -t arkade-wallet .
 # With build-time configuration
 docker build \
   --build-arg VITE_ARK_SERVER=https://arkade.computer \
-  --build-arg VITE_BOLTZ_URL=https://api.boltz.exchange \
   -t arkade-wallet .
 ```
 
@@ -134,13 +131,15 @@ Requires Docker and Node.js v20.19+ or v22.12+. The stack is driven by the in-ho
 Use `pnpm run regtest:stop` to stop it and `pnpm run regtest:clean` to tear it down.
 
 ### Funding your local wallet
+
 To interact with Ark features, you need Regtest coins.
+
 1. Copy your address from the wallet's **Receive** screen (ensure it starts with bcrt1 for Regtest).
 2. Run the faucet command (the `--confirm` flag mines a block so the deposit confirms):
+
 ```bash
 node regtest/regtest.mjs faucet <bcrt-address> <btc> --confirm
 ```
-
 
 ### e2e tests
 
@@ -178,7 +177,9 @@ The groups list files explicitly, so **a new test file must be added to one of t
 otherwise it will never run on CI.
 
 ## Troubleshooting
-### `address already in use` (Port 5000) on macOS
-macOS AirPlay Receiver uses port 5000 by default, which conflicts with the regtest stack.
-- **Fix:** Go to `System Settings > General > AirDrop & Handoff` and disable **AirPlay Receiver**.
 
+### `address already in use` (Port 5000) on macOS
+
+macOS AirPlay Receiver uses port 5000 by default, which conflicts with the regtest stack.
+
+- **Fix:** Go to `System Settings > General > AirDrop & Handoff` and disable **AirPlay Receiver**.

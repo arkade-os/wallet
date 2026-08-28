@@ -116,12 +116,8 @@ describe('settle failure reporting', () => {
 })
 
 describe('getTxHistory', () => {
-  it('restores locally persisted receipt details for a sent transaction', async () => {
-    saveTransactionActivityMetadata('ark-txid', {
-      assetAction: 'reissued',
-      destination: 'tark1destination',
-      networkFee: 0,
-    })
+  it('reads the flat history without local metadata — the activity list grafts that', async () => {
+    saveTransactionActivityMetadata('ark-txid', { destination: 'tark1destination', networkFee: 0 })
     const wallet = {
       getTransactionHistory: async () => [
         {
@@ -137,10 +133,8 @@ describe('getTxHistory', () => {
 
     const [tx] = await getTxHistory(wallet as any)
 
-    expect(tx).toMatchObject({
-      assetAction: 'reissued',
-      destination: 'tark1destination',
-      networkFee: 0,
-    })
+    expect(tx).toMatchObject({ redeemTxid: 'ark-txid', type: 'sent' })
+    expect(tx.destination).toBeUndefined()
+    expect(tx.networkFee).toBeUndefined()
   })
 })

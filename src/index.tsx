@@ -16,6 +16,8 @@ import { NudgeProvider } from './providers/nudge'
 import * as Sentry from '@sentry/react'
 import { AssetSwapsProvider } from './providers/assetSwaps'
 import { OrderBookProvider } from './providers/orderBook'
+import { LnSwapsProvider } from './providers/lnSwaps'
+import { LnReceiveProvider } from './providers/lnReceive'
 import { beforeSend, scrubBreadcrumb, shouldInitializeSentry } from './lib/sentry'
 import { FeesProvider } from './providers/fees'
 import { AnnouncementProvider } from './providers/announcements'
@@ -63,23 +65,27 @@ root.render(
                   <FlowProvider>
                     <WalletProvider>
                       <AssetSwapsProvider>
-                        <OrderBookProvider>
-                          <LimitsProvider>
-                            <FeesProvider>
-                              <OptionsProvider>
-                                <NudgeProvider>
-                                  <AnnouncementProvider>
-                                    <ToastProvider>
-                                      <ErrorBoundary>
-                                        <App />
-                                      </ErrorBoundary>
-                                    </ToastProvider>
-                                  </AnnouncementProvider>
-                                </NudgeProvider>
-                              </OptionsProvider>
-                            </FeesProvider>
-                          </LimitsProvider>
-                        </OrderBookProvider>
+                        <LnSwapsProvider>
+                          <LnReceiveProvider>
+                            <OrderBookProvider>
+                              <LimitsProvider>
+                                <FeesProvider>
+                                  <OptionsProvider>
+                                    <NudgeProvider>
+                                      <AnnouncementProvider>
+                                        <ToastProvider>
+                                          <ErrorBoundary>
+                                            <App />
+                                          </ErrorBoundary>
+                                        </ToastProvider>
+                                      </AnnouncementProvider>
+                                    </NudgeProvider>
+                                  </OptionsProvider>
+                                </FeesProvider>
+                              </LimitsProvider>
+                            </OrderBookProvider>
+                          </LnReceiveProvider>
+                        </LnSwapsProvider>
                       </AssetSwapsProvider>
                     </WalletProvider>
                   </FlowProvider>

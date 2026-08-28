@@ -13,6 +13,8 @@ import {
   rollbackMigration,
   IndexedDBWalletRepository,
   IndexedDBContractRepository,
+  RestIndexerProvider,
+  type Activity,
   type Identity,
   type ServiceWorkerWalletMode,
 } from '@arkade-os/sdk'
@@ -22,12 +24,14 @@ import {
   saveWalletToStorage,
   saveAssetMetadataToStorage,
   readAssetMetadataFromStorage,
+  readAllTransactionActivityMetadata,
   CachedAssetDetails,
   ASSET_METADATA_TTL_MS,
+  type TransactionActivityMetadata,
 } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
 import { getRestApiExplorerURL } from '../lib/explorers'
-import { getBalance, getTxHistory, getVtxos, settleVtxos } from '../lib/asp'
+import { getBalance, getVtxos, settleVtxos } from '../lib/asp'
 import { AspContext } from './asp'
 import { AssetsContext } from './assets'
 import { NotificationsContext } from './notifications'
@@ -36,7 +40,11 @@ import { arkNoteInUrl } from '../lib/arknote'
 import { deepLinkInUrl } from '../lib/deepLink'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
-import { mergeAssetSwapActivity } from '../lib/swapDisplay'
+import { activitiesToTxs, getActivities } from '../lib/activityHistory'
+import { Indexer } from '../lib/indexer'
+import { lnSendViews, swapActivityInputs, type LnSendView } from '../lib/lnSendRecords'
+import { assetSwapResolver } from '../lib/activity/assetSwapResolver'
+import { swapActivityResolver } from '@arkade-os/swap'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
@@ -49,12 +57,12 @@ import { ConfigContext } from './config'
 import {
   defaultPassword,
   getDelegateUrlForNetwork,
+  isMainnet,
   maxPercentage,
   mutinynetMinCheckpointExitDelaySeconds,
 } from '../lib/constants'
 import { AssetIconApprovalManager } from '../lib/assetIconApproval'
 import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
-import { Indexer } from '../lib/indexer'
 import { BackupContext } from './backup'
 
 const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
@@ -169,7 +177,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo } = useContext(FlowContext)
   const { notifyTxSettled } = useContext(NotificationsContext)
 
-  const [rawTxs, setRawTxs] = useState<Tx[]>([])
+  // One atomic snapshot: the metadata graft must land in the same render as
+  // the history it belongs to.
+  const [history, setHistory] = useState<{
+    activities: Activity[]
+    metadata: Record<string, TransactionActivityMetadata>
+    lnSends: LnSendView[]
+  }>({ activities: [], metadata: {}, lnSends: [] })
   const [assetSwaps, setAssetSwaps] = useState<WalletAssetSwap[]>([])
   const [balance, setBalance] = useState(0)
   const [availableBalance, setAvailableBalance] = useState(0)
@@ -195,8 +209,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // either input is what keeps a cold start from flashing bare funding rows.
   const txs = useMemo(
     () =>
-      mergeAssetSwapActivity(rawTxs, assetSwaps, aspInfo.network, (id) => assetMetadataCache.current.get(id)?.metadata),
-    [rawTxs, assetSwaps, aspInfo.network],
+      activitiesToTxs(history.activities, {
+        swaps: assetSwaps,
+        metadata: history.metadata,
+        lnSends: history.lnSends,
+        network: aspInfo.network,
+        assetDisplay: (id) => assetMetadataCache.current.get(id)?.metadata,
+      }),
+    [history, assetSwaps, aspInfo.network],
   )
 
   const verifiedAssetsFetched = useRef(false)
@@ -468,7 +488,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (isFirstLoad) setLoadingStatus('Fetching coins...')
       const vtxos = await getVtxos(swWallet)
       if (isFirstLoad) setLoadingStatus('Fetching transactions...')
-      const txs = await getTxHistory(swWallet)
+      const activities = await getActivities(swWallet)
+      const metadata = readAllTransactionActivityMetadata()
+      // Read, never resolved here: `RfqSwapManager` owns a send's outcome and
+      // has already written it (see providers/lnSwaps), so this pass only picks
+      // up what the store says.
+      const lnSends = await lnSendViews()
       if (isFirstLoad) setLoadingStatus('Updating balance...')
       const { total, available, assets, availableAssets } = await getBalance(swWallet)
       // prefetch asset metadata before triggering re-renders
@@ -492,7 +517,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         updateConfig({ ...live, apps: { ...live.apps, assets: { enabled: true } } })
       }
       setVtxos(vtxos)
-      setRawTxs(txs)
+      setHistory({ activities, metadata, lnSends })
       if (!hasLoadedOnce.current) {
         hasLoadedOnce.current = true
         setDataReady(true)
@@ -585,6 +610,29 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         },
         settlementConfig: { vtxoThreshold: wallet.thresholdMs ? Math.floor(wallet.thresholdMs / 1000) : 1 },
       })
+
+      // The registry ships with the SDK built-ins already in it; only ours has
+      // to be added, and `use()` is idempotent by id across reinit paths.
+      svcWallet.activity.use(assetSwapResolver())
+      // The package's own resolver for the RFQ corridors, fed by the package's
+      // own reader over the records `RfqSwapManager` writes. It is what turns a
+      // swap's funding tx — and the claim or refund that follows it — into one
+      // labelled activity instead of two unrelated rows.
+      //
+      // `rfqSwapActivityInputs` rather than a mapping of ours, because the
+      // per-corridor txids come from the corridor's handler
+      // (`activityTxids(profile)`): reading profile keys by name here would put
+      // corridor knowledge in the wallet, which is what adding a corridor would
+      // then have to come back and edit. It also drains the manager's stamped
+      // `lockupSpendArkTxids` before any network read, so a terminal swap
+      // answers for its own counterparty spend.
+      //
+      // The indexer covers only what a record cannot: one written before
+      // `fundingArkTxid` existed, and a terminal swap no refund of ours ended.
+      // It is optional and failure-isolated — one that throws costs that record
+      // its extra txids, never the whole list.
+      const activityIndexer = new RestIndexerProvider(arkServerUrl)
+      svcWallet.activity.use(swapActivityResolver({ listSwaps: () => swapActivityInputs(activityIndexer) }))
 
       if (!skipMigration) {
         setLoadingStatus('Migrating data...')
@@ -730,9 +778,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       throw err
     }
   }
-
-  const isMainnet = (network: NetworkName | string): boolean =>
-    network !== 'testnet' && network !== 'mutinynet' && network !== 'signet' && network !== 'regtest'
 
   const minCheckpointExitDelaySecondsForNetwork = (network: NetworkName | string): bigint | undefined =>
     network === 'mutinynet' ? mutinynetMinCheckpointExitDelaySeconds : network === 'regtest' ? 512n : undefined
