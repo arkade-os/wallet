@@ -18,10 +18,11 @@ export const mapKnownErrors = (message: string): string => {
 
 export const extractError = (error: any): string => {
   if (typeof error === 'string') return mapKnownErrors(error)
-  if (error?.response?.data?.error) return mapKnownErrors(error.response.data.error)
+  if (typeof error?.response?.data?.error === 'string') return mapKnownErrors(error.response.data.error)
   if (error.message) {
-    const match = error.message.match(/"message":"(.+)?"/)
-    if (match && match.length > 1) return mapKnownErrors(match[1])
+    const match = error.message.match(/"message":"([^"]*)"/)
+    const extractedMessage = match?.[1]
+    if (typeof extractedMessage === 'string' && extractedMessage.length > 0) return mapKnownErrors(extractedMessage)
     return mapKnownErrors(error.message)
   }
   return JSON.stringify(error)
