@@ -56,6 +56,18 @@ interface MintAssetOptions {
   ctrlAmount?: number
 }
 
+export function isDesktop(page: Page): boolean {
+  return page.viewportSize()?.width! >= 1024
+}
+
+export function navTestId(page: Page, item: string): string {
+  return isDesktop(page) ? `desktop-nav-${item}` : `top-right-${item}`
+}
+
+export function navLocator(page: Page, item: string) {
+  return page.getByTestId(navTestId(page, item))
+}
+
 export async function navigateToAssets(page: Page): Promise<void> {
   await navigateToSettings(page)
   await page.getByText('advanced', { exact: true }).click()
@@ -274,7 +286,7 @@ export async function navigateToSettings(page: Page): Promise<void> {
   )
     return
   await navigateHome(page)
-  await page.getByTestId('top-right-settings').click()
+  await navLocator(page, 'settings').click()
   await page.getByTestId('header-title-settings').waitFor({ state: 'visible', timeout: 30000 })
 }
 

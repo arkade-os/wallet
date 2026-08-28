@@ -1,4 +1,4 @@
-import { test, expect, createWallet } from './utils'
+import { test, expect, createWallet, navLocator } from './utils'
 
 test('should create a new wallet', async ({ page }) => {
   // Create wallet
@@ -8,12 +8,12 @@ test('should create a new wallet', async ({ page }) => {
   await expect(page.getByTestId('main-balance')).toContainText('0')
   await expect(page.getByRole('button', { name: 'Send' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Receive' })).toBeVisible()
-  await expect(page.getByTestId('top-right-activity')).toBeVisible()
-  await expect(page.getByTestId('top-right-settings')).toBeVisible()
+  await expect(page.getByTestId('tab-settings')).not.toBeVisible()
   await expect(page.getByTestId('tab-wallet')).not.toBeVisible()
   await expect(page.getByTestId('tab-apps')).not.toBeVisible()
-  await expect(page.getByTestId('tab-settings')).not.toBeVisible()
+  await expect(navLocator(page, 'activity')).toBeVisible()
+  await expect(navLocator(page, 'settings')).toBeVisible()
 
-  await page.getByTestId('top-right-activity').click()
+  await navLocator(page, 'activity').click()
   await expect(page.getByText('No transactions yet')).toBeVisible()
 })
