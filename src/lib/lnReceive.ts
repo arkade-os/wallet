@@ -111,7 +111,6 @@ export interface LnReceiveRequest {
  */
 export const requestLnReceive = async (args: {
   wallet: Parameters<typeof requestLightningReceive>[0]
-  arkServerUrl: string
   transport: RfqTransport
   rendezvous: LnSendRendezvous
   network: NetworkName
@@ -119,7 +118,7 @@ export const requestLnReceive = async (args: {
 }): Promise<LnReceiveRequest> => {
   // 0.0.3: the co-signer key resolves inside the package (per-network pin);
   // the positional argument is gone.
-  const result = await requestLightningReceive(args.wallet, args.arkServerUrl, args.transport, {
+  const result = await requestLightningReceive(args.wallet, args.transport, {
     amount: args.amountSats,
     amountSide: 'to',
     // The package's own pin is a placeholder on a network whose stack generates

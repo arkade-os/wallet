@@ -278,7 +278,6 @@ describe('requestLnReceive', () => {
   const negotiate = (network = 'regtest') =>
     requestLnReceive({
       wallet: {} as never,
-      arkServerUrl: 'http://localhost:7070',
       transport: {} as never,
       rendezvous: {} as never,
       network: network as never,
