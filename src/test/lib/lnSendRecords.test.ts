@@ -99,12 +99,12 @@ describe('saveSwapUpdate', () => {
       refundLocktime: 1_700_000_600,
       createdAt: 1_700_000_000,
       updatedAt: 1_700_000_900,
-      refundArkTxid: 'our-refund-txid',
+      refundTxid: 'our-refund-txid',
     })
 
     const next = await stored()
     expect(next.state).toBe('refunded')
-    expect(next.refundArkTxid).toBe('our-refund-txid')
+    expect(next.refundTxid).toBe('our-refund-txid')
     // the origin half, profile included — where both txids live
     expect(fundingTxidOf(next)).toBe('funding-txid')
     expect(next.lockupAddress).toBe(LOCKUP)
@@ -128,7 +128,7 @@ describe('saveSwapUpdate', () => {
 
 describe('the spend that ended a swap', () => {
   it('prefers a refund this wallet pushed over one it merely observed', async () => {
-    const record = await store({}, { refundArkTxid: 'our-refund-txid' })
+    const record = await store({}, { refundTxid: 'our-refund-txid' })
     await saveRecord({ ...record, profile: { ...record.profile, spend_txid: 'observed-txid' } })
 
     expect(spendTxidOf(await stored())).toBe('our-refund-txid')
@@ -163,7 +163,7 @@ describe('swapActivityInputs', () => {
 
   it('merges in the solver-pushed refund the package reader cannot see', async () => {
     // `spend_txid` is this file's own key and stays there: the record's
-    // `lockupSpendArkTxids` is stripped and refilled from the live swap on
+    // `lockupSpendTxids` is stripped and refilled from the live swap on
     // every manager pass, so a value written to it would not survive.
     await store({}, { state: 'refunded' })
     await recordSpendTxid(RFQ_ID, 'refund-txid')
@@ -178,7 +178,7 @@ describe('swapActivityInputs', () => {
     // transaction to anchor a row on, and a view without one would name a
     // lockup that does not exist.
     const record = await store()
-    await saveRecord({ ...record, fundingArkTxid: undefined, profile: { ...record.profile, funding_txid: undefined } })
+    await saveRecord({ ...record, fundingTxid: undefined, profile: { ...record.profile, funding_txid: undefined } })
 
     expect(await lnSendViews()).toEqual([])
   })
@@ -193,7 +193,7 @@ describe('swapActivityInputs', () => {
 
   it('costs no indexer call once the manager has stamped the spend', async () => {
     const record = await store({}, { state: 'settled' })
-    await saveRecord({ ...record, lockupSpendArkTxids: ['solver-claim-txid'] })
+    await saveRecord({ ...record, lockupSpendTxids: ['solver-claim-txid'] })
     let asked = false
     const indexer = { getVtxos: async () => ((asked = true), { vtxos: [] }) }
 
@@ -210,7 +210,7 @@ describe('swapActivityInputs', () => {
     // The lookup is a backfill for what a record cannot answer. One that fails
     // costs that record its extra txids and nothing else.
     const record = await store({}, { state: 'settled' })
-    await saveRecord({ ...record, fundingArkTxid: undefined })
+    await saveRecord({ ...record, fundingTxid: undefined })
     const indexer = {
       getVtxos: async () => {
         throw new Error('indexer down')

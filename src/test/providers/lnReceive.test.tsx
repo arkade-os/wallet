@@ -81,7 +81,7 @@ const request = (rfqId = 'rfq-1'): LnReceiveRequest =>
       paymentHash: new Uint8Array(32).fill(4),
       mustPersistPreimage: true,
     },
-    treeParams: { refundLocktime: 1_800_003_600, paymentHash: '04'.repeat(32) },
+    contractParams: { refundLocktime: 1_800_003_600, paymentHash: '04'.repeat(32) },
   }) as unknown as LnReceiveRequest
 
 /** What the manager would have written on this swap's first pass. */

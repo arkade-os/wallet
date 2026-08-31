@@ -99,7 +99,7 @@ export const LnSwapsProvider = ({ children }: { children: ReactNode }) => {
           const vtxos = await findLockupVtxos(indexer, swap.lockupPkScript)
           if (vtxos.length === 0) return null
           const sender = await lnSendRefundSigner(svcWallet, swap.rfqId)
-          return pushRefundWithoutReceiver(ark, { script, sender, vtxos })
+          return pushRefundWithoutReceiver(ark, { contract: script, sender, vtxos })
         },
         canRefundArkade: (swap) => canRefundLnSend(svcWallet, swap.rfqId),
       })
@@ -153,7 +153,7 @@ const recordEnding = async (
 ): Promise<string | undefined> => {
   const record = await readRecord(swap.rfqId)
   if (!record) return undefined
-  // The manager stamps `lockupSpendArkTxids` at finalization, from the chain
+  // The manager stamps `lockupSpendTxids` at finalization, from the chain
   // read that ended the swap, so a terminal record usually answers for itself —
   // and this whole lookup is a network round trip for a permanent fact someone
   // already fetched. The indexer path stays for the record that has no stamp:

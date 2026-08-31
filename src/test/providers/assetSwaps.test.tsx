@@ -57,6 +57,11 @@ const pendingSwap: WalletAssetSwap = {
   createdAt: 1,
 }
 
+const createWalletAdapters = () => ({
+  getArkadeReader: vi.fn(),
+  getArkadeBroadcaster: vi.fn(),
+})
+
 function CancelHarness() {
   const { cancelSwap, swaps } = useContext(AssetSwapsContext)
   return (
@@ -72,7 +77,11 @@ function renderProvider(reloadWallet = vi.fn().mockResolvedValue(undefined), url
     <AspContext.Provider
       value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network: '', url } } as any}
     >
-      <WalletContext.Provider value={{ ...mockWalletContextValue, reloadWallet, svcWallet: { identity: {} } } as any}>
+      <WalletContext.Provider
+        value={
+          { ...mockWalletContextValue, reloadWallet, svcWallet: { identity: {}, ...createWalletAdapters() } } as any
+        }
+      >
         <AssetSwapsProvider>
           <CancelHarness />
         </AssetSwapsProvider>
@@ -101,7 +110,7 @@ function renderCreateProvider(plan: OfferPlan) {
           {
             ...mockWalletContextValue,
             reloadWallet: vi.fn().mockResolvedValue(undefined),
-            svcWallet: { identity: {}, send },
+            svcWallet: { identity: {}, send, ...createWalletAdapters() },
           } as any
         }
       >
@@ -143,7 +152,7 @@ describe('AssetSwapsProvider createSwap offer encoding', () => {
       expect(createOffer).toHaveBeenCalled()
     })
 
-    const options = createOffer.mock.calls[0][2]
+    const options = createOffer.mock.calls[0][1]
     expect(options.offerAsset).toBeUndefined()
     expect(options.wantAsset?.toString()).toBe(NAPO_ID)
     expect(options.wantAmount).toBe(plan.receive.atomic)
@@ -177,7 +186,7 @@ describe('AssetSwapsProvider createSwap offer encoding', () => {
       expect(createOffer).toHaveBeenCalled()
     })
 
-    const options = createOffer.mock.calls[0][2]
+    const options = createOffer.mock.calls[0][1]
     expect(options.wantAsset).toBeUndefined()
     expect(options.offerAsset?.toString()).toBe(USDT_ID)
     expect(options.wantAmount).toBe(plan.receive.atomic)
@@ -203,7 +212,7 @@ describe('AssetSwapsProvider createSwap offer encoding', () => {
       expect(createOffer).toHaveBeenCalled()
     })
 
-    const options = createOffer.mock.calls[0][2]
+    const options = createOffer.mock.calls[0][1]
     expect(options.offerAsset).toBeUndefined()
     expect(options.wantAsset?.toString()).toBe(USDT_ID)
     await waitFor(() => expect(send).toHaveBeenCalled())
@@ -246,7 +255,7 @@ describe('AssetSwapsProvider cancellation', () => {
     )
     expect(cancelOffer).toHaveBeenCalledOnce()
     // the repository rides along so the package can record its own outcome
-    expect(cancelOffer.mock.calls[0][3]).toMatchObject({ repository, fundingTxid: pendingSwap.fundingTxid })
+    expect(cancelOffer.mock.calls[0][2]).toMatchObject({ repository, fundingTxid: pendingSwap.fundingTxid })
     expect(reloadWallet).toHaveBeenCalledOnce()
   })
 
@@ -280,8 +289,15 @@ describe('AssetSwapsProvider watching', () => {
     renderProvider(undefined, 'https://ark.test')
     await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('pending'))
     await waitFor(() => expect(watchOfferSwaps).toHaveBeenCalled())
-    // the watcher writes through the repository, so it gets the same one
-    expect(watchOfferSwaps.mock.calls[0][0].repository).toBe(repository)
+    // The watcher now gets the wallet, which exposes the reader and broadcaster.
+    expect(watchOfferSwaps).toHaveBeenCalledWith({
+      wallet: expect.objectContaining({
+        getArkadeReader: expect.any(Function),
+        getArkadeBroadcaster: expect.any(Function),
+      }),
+      repository,
+      onUpdate: expect.any(Function),
+    })
 
     const { onUpdate } = watchOfferSwaps.mock.calls[0][0]
     onUpdate({ ...pendingSwap, status: 'fulfilled', spentTxid: 'fill-txid' })

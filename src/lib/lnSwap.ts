@@ -320,7 +320,7 @@ export const requestLnSend = async (
  * witness that hashes to the payment hash rather than off who got paid. This
  * exists because that answer carries no txid: `readLockupFate` reports
  * `returned` without naming the transaction, and the manager records
- * `refundArkTxid` only for a refund IT pushed. A solver's own
+ * `refundTxid` only for a refund IT pushed. A solver's own
  * `nonInteractiveRefund` is neither, and the history row it creates is exactly
  * what the activity has to group against the funding tx.
  *
