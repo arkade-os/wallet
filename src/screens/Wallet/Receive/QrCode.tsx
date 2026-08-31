@@ -187,7 +187,6 @@ export default function ReceiveQRCode() {
       const pending = await withRfqTransport(rendezvous, (transport) =>
         requestLnReceive({
           wallet: svcWallet,
-          arkServerUrl: aspInfo.url,
           transport,
           rendezvous,
           network,
