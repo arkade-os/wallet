@@ -21,4 +21,22 @@ describe('extractError', () => {
       '{"response":{"data":{"error":{"message":"unrolled vtxo"}}}}',
     )
   })
+
+  it('formats 3600-second settlement wait correctly', () => {
+    expect(extractError('vtxo script can be used for intent registration in 3600 seconds')).toBe(
+      'Your funds were recently settled onchain — please try again in 1 hour',
+    )
+  })
+
+  it('formats sub-hour settlement wait correctly', () => {
+    expect(extractError('vtxo script can be used for intent registration in 1800 seconds')).toBe(
+      'Your funds were recently settled onchain — please try again in 30 minutes',
+    )
+  })
+
+  it('formats sub-hour settlement wait correctly', () => {
+    expect(extractError('vtxo script can be used for intent registration in 0 seconds')).toBe(
+      'Your funds were recently settled onchain — please try again shortly',
+    )
+  })
 })
