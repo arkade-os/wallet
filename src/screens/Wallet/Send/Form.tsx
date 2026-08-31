@@ -638,7 +638,6 @@ export default function SendForm() {
         await withRfqTransport(rendezvous, async (transport) => {
           const pendingLnSend = await requestLnSend({
             wallet: svcWallet,
-            arkServerUrl: aspInfo.url,
             transport,
             invoice: sendInfo.invoice!,
             network,
