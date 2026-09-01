@@ -17,7 +17,6 @@
  * is still part of the flow, but it is no longer this screen's job to stay
  * mounted for it.
  *
- * Which is exactly why covclaimd plays no part in it — see `sealingKey`.
  */
 import { ArkAddress, contractSigner, type IWallet, type NetworkName, type ProvisionedClaimSecret } from '@arkade-os/sdk'
 import {
@@ -36,30 +35,8 @@ import {
   type RfqTransport,
 } from '@arkade-os/swap'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
-import { getEmulatorPubkeyOverrideForNetwork } from './constants'
+import { getCovclaimdPubkeyForNetwork, getEmulatorPubkeyOverrideForNetwork } from './constants'
 import { toInvoiceFacts, type LnSendRendezvous } from './lnSwap'
-
-/**
- * A throwaway key for the claim packet — its secret is discarded right here.
- *
- * The RFQ profile carries `P` sealed to covclaimd so that a wallet which goes
- * offline after paying can still be claimed for. This wallet does not go
- * offline: it holds the covenant's `receiver` role through its own
- * `payoutPubkey` and claims the lockup itself in `claimLnReceive`. So there is
- * nothing for covclaimd to do, and reaching a covclaimd deployment to ask for
- * its key would be a network dependency — and a failure mode — bought for
- * nothing.
- *
- * Sealing to a key nobody holds is the honest encoding of that: the field stays
- * well-formed for solvers that expect it, while `P` provably cannot be read
- * early by the solver, by covclaimd, or by us. Nothing derives from this key —
- * `deriveLightningReceive` commits to the payment hash, payout key, server and
- * emulator keys, and never to the packet — so it cannot move the lockup address.
- *
- * Restoring the offline path means sealing to a real covclaimd key here; the
- * wire format does not change.
- */
-export const sealingKey = (): Uint8Array => secp256k1.getPublicKey(secp256k1.utils.randomSecretKey(), true)
 
 /**
  * A negotiated receive, everything the caller must keep until it is claimed.
@@ -129,7 +106,7 @@ export const requestLnReceive = async (args: {
     // re-compressible — so it reads the configured key directly, in the
     // compressed shape the package validates.
     emulatorPubkey: getEmulatorPubkeyOverrideForNetwork(args.network),
-    covclaimdPubkey: sealingKey(),
+    covclaimdPubkey: getCovclaimdPubkeyForNetwork(args.network),
     // The wallet's own decoder, applied to the SOLVER's invoice inside the
     // package's own gate (ts-sdk#728 reinstated the parameter): it throws
     // `InvoiceRejected` on a wrong network or an already-expired hold
