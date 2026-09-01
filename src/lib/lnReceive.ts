@@ -34,7 +34,6 @@ import {
   type RfqSwapOrigin,
   type RfqTransport,
 } from '@arkade-os/swap'
-import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { getCovclaimdPubkeyForNetwork, getEmulatorPubkeyOverrideForNetwork } from './constants'
 import { toInvoiceFacts, type LnSendRendezvous } from './lnSwap'
 
