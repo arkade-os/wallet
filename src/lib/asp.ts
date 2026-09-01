@@ -212,6 +212,28 @@ export const getVtxos = async (wallet: ServiceWorkerWallet): Promise<{ spendable
   return { spendable, spent }
 }
 
+/** The exited set: coins whose unilateral exit already happened, so they now
+ * live onchain behind their CSV timelock and no batch can lift them back.
+ *
+ * Kept apart from `getVtxos` rather than folded into it. That split keys on
+ * `spentBy`/`settledBy`, and an exited coin has neither, so it would land in
+ * `spendable` and reach `calcNextRollover` — scheduling a rollover for money
+ * that has already left the Ark layer.
+ *
+ * `withUnrolled` is authoritative on the location axis alone: it returns an
+ * exited coin whatever else is true of it, spent ones included. So the filter
+ * keeps only what the flag was asked for, and the set stays complete after the
+ * user finishes the sweep with the exit tool. */
+export const getUnrolledVtxos = async (wallet: ServiceWorkerWallet): Promise<Vtxo[]> => {
+  try {
+    const vtxos = await wallet.getVtxos({ withUnrolled: true })
+    return vtxos.filter((vtxo) => vtxo.isUnrolled)
+  } catch (err) {
+    consoleError(err, 'error getting unrolled vtxos')
+    return []
+  }
+}
+
 export const getReceivingAddresses = async (wallet: IWallet): Promise<Addresses> => {
   const [offchainAddr, boardingAddr] = await Promise.all([wallet.getAddress(), wallet.getBoardingAddress()])
   return {

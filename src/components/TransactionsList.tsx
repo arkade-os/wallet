@@ -49,7 +49,10 @@ const TransactionLine = ({
   const swapStatus = swap ? swapStatusForTx(tx) : undefined
   const issuance = isIssuance(tx)
   const burn = isBurn(tx)
-  const prefix = issuance ? '+' : burn || tx.type === 'sent' ? '-' : '+'
+  // A unilateral exit: the money left the Ark layer for the chain. Debited like
+  // a send, but never labelled as one — nobody was paid.
+  const exit = tx.type === 'exit'
+  const prefix = issuance ? '+' : burn || exit || tx.type === 'sent' ? '-' : '+'
   const amountDisplay = useTransactionAmountDisplay(tx)
 
   const lnSwapKind = lnSwapLabel(tx)
@@ -86,7 +89,7 @@ const TransactionLine = ({
       />
     ) : issuance ? (
       <ReceivedIcon />
-    ) : burn ? (
+    ) : burn || exit ? (
       <SentIcon />
     ) : tx.type === 'sent' ? (
       <SentIcon />
@@ -114,9 +117,11 @@ const TransactionLine = ({
         ? 'Issuance'
         : burn
           ? 'Burn'
-          : tx.type === 'sent'
-            ? 'Sent'
-            : 'Received')
+          : exit
+            ? 'Exited'
+            : tx.type === 'sent'
+              ? 'Sent'
+              : 'Received')
   const Kind = () => <span className='activity-row__kind'>{kind}</span>
 
   const swapRoute = swap ? swapRouteLabel(tx) : ''

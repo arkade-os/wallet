@@ -5,6 +5,7 @@ import { activitiesToTxs, getActivities } from '../../lib/activityHistory'
 import { swapActivityResolver } from '@arkade-os/swap'
 import { ASSET_SWAP_ACTIVITY_KIND, assetSwapResolver } from '../../lib/activity/assetSwapResolver'
 import { readAllTransactionActivityMetadata, saveTransactionActivityMetadata } from '../../lib/storage'
+import type { ExitRecord } from '../../lib/exitHistory'
 import type { LnSendView } from '../../lib/lnSendRecords'
 import type { WalletAssetSwap } from '../../lib/swapRepository'
 
@@ -442,4 +443,64 @@ describe('lightning receive activities', () => {
   // A receive that never arrived at all contributes no transaction of ours, so
   // it forms no activity and reaches this function not at all. That absence is
   // upstream of the row builder and cannot be asserted here.
+})
+
+describe('unilateral exits', () => {
+  const exit = (over: Partial<ExitRecord> = {}): ExitRecord => ({
+    txid: 'exit-txid',
+    vout: 0,
+    value: 5_000,
+    exitedAt: 1_700_090_000,
+    ...over,
+  })
+
+  it('synthesises one row per exited coin, keyed on the outpoint', () => {
+    const rows = activitiesToTxs([], { ...empty, exits: [exit({ vout: 0 }), exit({ vout: 1 })] })
+
+    expect(rows).toHaveLength(2)
+    expect(rows.map((row) => row.historyKey).sort()).toEqual(['exit:exit-txid:0', 'exit:exit-txid:1'])
+    expect(rows.every((row) => row.type === 'exit' && row.settled && !row.preconfirmed)).toBe(true)
+    expect(rows.map((row) => row.amount)).toEqual([5_000, 5_000])
+  })
+
+  it('dates the row by the exit, not by the receive that created the coin', () => {
+    const receive = activity('a', [arkTx('receive-txid')])
+
+    const rows = activitiesToTxs([receive], { ...empty, exits: [exit()] })
+    const exitRow = rows.find((row) => row.type === 'exit')
+
+    // the receive is at 1_700_000_000; sorted by the coin's own createdAt the
+    // exit would tie with it instead of leading the list
+    expect(exitRow?.createdAt).toBe(1_700_090_000)
+    expect(rows[0]).toBe(exitRow)
+  })
+
+  it('leaves the original receive standing — the money arrived and then left', () => {
+    const receive = activity('a', [arkTx('receive-txid')])
+
+    const rows = activitiesToTxs([receive], { ...empty, exits: [exit({ txid: 'receive-txid' })] })
+
+    expect(rows).toHaveLength(2)
+    expect(rows.map((row) => row.type).sort()).toEqual(['exit', 'received'])
+  })
+
+  it('does not wear the receive metadata it shares a txid with', () => {
+    saveTransactionActivityMetadata('receive-txid', { destination: 'someone', networkFee: 42 })
+
+    const [row] = activitiesToTxs([], {
+      ...empty,
+      metadata: readAllTransactionActivityMetadata(),
+      exits: [exit({ txid: 'receive-txid' })],
+    })
+
+    expect(row.destination).toBeUndefined()
+    expect(row.networkFee).toBe(0)
+  })
+
+  it('links to the exit transaction', () => {
+    const [row] = activitiesToTxs([], { ...empty, exits: [exit()] })
+
+    expect(row.redeemTxid).toBe('exit-txid')
+    expect(row.boardingTxid).toBe('')
+  })
 })

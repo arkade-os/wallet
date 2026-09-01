@@ -56,6 +56,11 @@ export const readWalletFromStorage = (): Wallet | undefined => {
 export type TransactionActivityMetadata = {
   assetAction?: 'issued' | 'reissued' | 'burned'
   destination?: string
+  /** When a unilaterally exited VTXO's exit transaction confirmed onchain, in
+   * unix seconds. Shares its entry with the receive row that was created by the
+   * same txid — harmless, since the graft in `activityHistory` reads none of
+   * the other fields from here. See `lib/exitHistory`. */
+  exitedAt?: number
   lnSend?: LnSendActivity
   networkFee?: number
   savedAt: number

@@ -31,7 +31,8 @@ import {
 } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
 import { getRestApiExplorerURL } from '../lib/explorers'
-import { getBalance, getVtxos, settleVtxos } from '../lib/asp'
+import { getBalance, getUnrolledVtxos, getVtxos, settleVtxos } from '../lib/asp'
+import { resolveExits, subtractExitedAssets, type ExitRecord } from '../lib/exitHistory'
 import { AspContext } from './asp'
 import { AssetsContext } from './assets'
 import { NotificationsContext } from './notifications'
@@ -183,7 +184,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     activities: Activity[]
     metadata: Record<string, TransactionActivityMetadata>
     lnSends: LnSendView[]
-  }>({ activities: [], metadata: {}, lnSends: [] })
+    exits: ExitRecord[]
+  }>({ activities: [], metadata: {}, lnSends: [], exits: [] })
   const [assetSwaps, setAssetSwaps] = useState<WalletAssetSwap[]>([])
   const [balance, setBalance] = useState(0)
   const [availableBalance, setAvailableBalance] = useState(0)
@@ -213,6 +215,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         swaps: assetSwaps,
         metadata: history.metadata,
         lnSends: history.lnSends,
+        exits: history.exits,
         network: aspInfo.network,
         assetDisplay: (id) => assetMetadataCache.current.get(id)?.metadata,
       }),
@@ -233,6 +236,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // user's saved theme (applyTheme(Auto) then falls back to the OS palette).
   const configRef = useRef(config)
   configRef.current = config
+  // Same hazard, same fix: a listener that captured an early `aspInfo` captured
+  // it before the server answered, when the network was still unset. The exit
+  // timestamp lookup needs the live one to pick an explorer.
+  const networkRef = useRef(aspInfo.network)
+  networkRef.current = aspInfo.network
 
   // Each init gets its own AbortSignal; lock/reset aborts the current signal
   // with 'lock-reset' so stale paths can decide whether to tear down the SW.
@@ -487,18 +495,34 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     try {
       if (isFirstLoad) setLoadingStatus('Fetching coins...')
       const vtxos = await getVtxos(swWallet)
+      // Fetched apart from the set above, which must not learn about exits —
+      // see `getUnrolledVtxos`. Cheap: the worker answers both from its local
+      // repo, so this is a postMessage, not a request.
+      const unrolledVtxos = await getUnrolledVtxos(swWallet)
       if (isFirstLoad) setLoadingStatus('Fetching transactions...')
       const activities = await getActivities(swWallet)
+      // Before the metadata snapshot below, not after: `resolveExits` persists
+      // what it learns, and the history memo reads a snapshot taken here, so a
+      // write that lands after this line stays invisible until the next reload.
+      const exits = await resolveExits(unrolledVtxos, networkRef.current)
       const metadata = readAllTransactionActivityMetadata()
       // Read, never resolved here: `RfqSwapManager` owns a send's outcome and
       // has already written it (see providers/lnSwaps), so this pass only picks
       // up what the store says.
       const lnSends = await lnSendViews()
       if (isFirstLoad) setLoadingStatus('Updating balance...')
-      const { total, available, assets, availableAssets } = await getBalance(swWallet)
+      const { total, available, assets, availableAssets, unrolled } = await getBalance(swWallet)
+      // An exited coin is no longer Arkade money: it cannot be spent offchain,
+      // no batch can lift it back, and this wallet has no path that moves it —
+      // the sweep belongs to the exit tool. The SDK's `total` is right for what
+      // it claims (every sat the wallet owns), but this headline means the
+      // narrower thing, so the bucket is netted out at the display boundary and
+      // the exit is explained by a history row instead. `available` already
+      // excludes it, so Send, Swap and coin selection need nothing.
+      const ownedAssets = subtractExitedAssets(assets, unrolledVtxos)
       // prefetch asset metadata before triggering re-renders
-      if (isFirstLoad && assets.length > 0) setLoadingStatus('Loading asset metadata...')
-      for (const ab of assets) {
+      if (isFirstLoad && ownedAssets.length > 0) setLoadingStatus('Loading asset metadata...')
+      for (const ab of ownedAssets) {
         const cached = assetMetadataCache.current.get(ab.assetId)
         if (cached && Date.now() - cached.cachedAt < ASSET_METADATA_TTL_MS) continue
         try {
@@ -508,16 +532,16 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           consoleError(err, `error prefetching metadata for ${ab.assetId}`)
         }
       }
-      setBalance(total)
+      setBalance(total - unrolled)
       setAvailableBalance(available)
-      setAssetBalances(assets)
+      setAssetBalances(ownedAssets)
       setAvailableAssetBalances(availableAssets)
-      if (assets.length > 0 && !configRef.current.apps.assets.enabled) {
+      if (ownedAssets.length > 0 && !configRef.current.apps.assets.enabled) {
         const live = configRef.current
         updateConfig({ ...live, apps: { ...live.apps, assets: { enabled: true } } })
       }
       setVtxos(vtxos)
-      setHistory({ activities, metadata, lnSends })
+      setHistory({ activities, metadata, lnSends, exits })
       if (!hasLoadedOnce.current) {
         hasLoadedOnce.current = true
         setDataReady(true)

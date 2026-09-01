@@ -29,7 +29,15 @@ vi.mock('@arkade-os/sdk', async (importOriginal) => {
 })
 
 import { ArkNote } from '@arkade-os/sdk'
-import { getAspInfo, aspErrorText, emptyAspInfo, byExpiryAsc, getTxHistory, redeemNotes } from '../../lib/asp'
+import {
+  getAspInfo,
+  aspErrorText,
+  emptyAspInfo,
+  byExpiryAsc,
+  getTxHistory,
+  getUnrolledVtxos,
+  redeemNotes,
+} from '../../lib/asp'
 import { saveTransactionActivityMetadata } from '../../lib/storage'
 import { walletFingerprint } from '../../lib/sentry'
 import fixtures from '../fixtures.json'
@@ -136,5 +144,33 @@ describe('getTxHistory', () => {
     expect(tx).toMatchObject({ redeemTxid: 'ark-txid', type: 'sent' })
     expect(tx.destination).toBeUndefined()
     expect(tx.networkFee).toBeUndefined()
+  })
+})
+
+describe('getUnrolledVtxos', () => {
+  const coin = (over: Record<string, unknown> = {}) => ({ txid: 'a', vout: 0, value: 1_000, isUnrolled: true, ...over })
+
+  it('asks for the exited set and keeps only what came back exited', async () => {
+    const getVtxos = vi.fn().mockResolvedValue([coin({ txid: 'exited' }), coin({ txid: 'live', isUnrolled: false })])
+
+    const result = await getUnrolledVtxos({ getVtxos } as any)
+
+    expect(getVtxos).toHaveBeenCalledWith({ withUnrolled: true })
+    expect(result.map((vtxo) => vtxo.txid)).toEqual(['exited'])
+  })
+
+  it('still returns an exit the user has already swept', async () => {
+    // `withUnrolled` is answered before the terminal-spend check, so the sweep
+    // never removes the coin from this query — which is what makes the history
+    // row permanent rather than one that vanishes when the money is collected.
+    const getVtxos = vi.fn().mockResolvedValue([coin({ txid: 'swept', spentBy: 'sweep-txid', isSpent: true })])
+
+    expect(await getUnrolledVtxos({ getVtxos } as any)).toHaveLength(1)
+  })
+
+  it('degrades to an empty set rather than failing the reload around it', async () => {
+    const getVtxos = vi.fn().mockRejectedValue(new Error('worker unreachable'))
+
+    expect(await getUnrolledVtxos({ getVtxos } as any)).toEqual([])
   })
 })

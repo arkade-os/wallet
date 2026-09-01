@@ -4,6 +4,7 @@ import { ASSET_SWAP_ACTIVITY_KIND } from './activity/assetSwapResolver'
 import { consoleError } from './logs'
 import type { TransactionActivityMetadata } from './storage'
 import { buildAssetSwapActivityTx } from './swapDisplay'
+import type { ExitRecord } from './exitHistory'
 import type { LnSendView } from './lnSendRecords'
 import type { WalletAssetSwap } from './swapRepository'
 import { arkTransactionToTx, sortLocalTxs, txidOfArkTransaction } from './transactionHistory'
@@ -18,6 +19,11 @@ export interface ActivityHistoryOptions {
    * report at all, the only source of the row itself. See
    * `ungroupedLnSendTx`. */
   lnSends?: LnSendView[]
+  /** The unilaterally exited coins, already dated by `resolveExits`. Passed as
+   * records rather than read back out of `metadata`: an unconfirmed exit is
+   * deliberately never persisted, so the store cannot answer for it. See
+   * `exitTx`. */
+  exits?: ExitRecord[]
   /** Snapshot taken alongside the activity fetch. Never read in here: this
    * runs in a `useMemo`, so a `localStorage` read would be an undeclared dep. */
   metadata: Record<string, TransactionActivityMetadata>
@@ -192,13 +198,49 @@ const ungroupedLnSendTx = (send: LnSendView, metadata: Record<string, Transactio
     metadata[send.fundingTxid],
   )
 
+/**
+ * One row for a unilateral exit, which Arkade's history does not report.
+ *
+ * The sent side of `buildTransactionHistory` is gated on `isSpent`, and the SDK
+ * is explicit that an unrolled output never sets it — *"not set to true if the
+ * virtual output is unrolled or swept, only when it's spent offchain"*. So an
+ * exit leaves the original RECEIVED row standing and adds nothing, and the
+ * balance drops with nothing to explain it. Same shape of problem as
+ * `ungroupedLnSendTx`, same answer.
+ *
+ * Both rows stay. The money did arrive and then leave.
+ *
+ * No metadata graft: the store is keyed by txid, and for an exit that txid is
+ * the receive's — grafting would hang the receive's destination and network fee
+ * on the exit. `settled` because the exit is done, not because the sweep is:
+ * the sats are onchain behind their CSV timelock until the exit tool moves
+ * them. `networkFee` is 0 rather than `defaultFee` because a unilateral exit
+ * pays no Ark fee — its real cost went to miners across the exit branch, which
+ * this wallet never saw and cannot price.
+ */
+const exitTx = (exit: ExitRecord): Tx => ({
+  amount: exit.value,
+  boardingTxid: '',
+  createdAt: exit.exitedAt,
+  explorable: exit.txid,
+  historyKey: `exit:${exit.txid}:${exit.vout}`,
+  networkFee: 0,
+  preconfirmed: false,
+  // Onchain once unrolled, which is why the receipt must not treat this row as
+  // an offchain tx — see `isOffchainTx` in `screens/Wallet/Transaction`.
+  redeemTxid: exit.txid,
+  roundTxid: '',
+  settled: true,
+  type: 'exit',
+})
+
 /** `Activity[]` -> the `Tx[]` the UI already reads. Pure and synchronous.
  *
  * Only groups we know how to collapse become a single row; everything else
  * emits one row per member, so a built-in grouping deposits or exits cannot
  * change the row count. */
 export const activitiesToTxs = (activities: Activity[], options: ActivityHistoryOptions): Tx[] => {
-  const { swaps, metadata, network, assetDisplay, lnSends = [] } = options
+  const { swaps, metadata, network, assetDisplay, lnSends = [], exits = [] } = options
   const rows: Tx[] = []
   for (const activity of activities) {
     const swapKind = rfqSwapKindOf(activity)
@@ -249,6 +291,8 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
   for (const send of lnSends) {
     if (!grouped.has(send.rfqId)) rows.push(ungroupedLnSendTx(send, metadata))
   }
+  // Exits last, for the same reason: history reports none of them either.
+  for (const exit of exits) rows.push(exitTx(exit))
   return sortLocalTxs(rows)
 }
 
