@@ -159,11 +159,29 @@ describe('getUnrolledVtxos', () => {
     expect(result.map((vtxo) => vtxo.txid)).toEqual(['exited'])
   })
 
+  it('drops the ancestors the unroll dragged onchain with the exited coin', async () => {
+    // One exit, not three: unrolling broadcasts the whole chain, so every
+    // earlier coin of ours in it comes back `isUnrolled` too, carrying the same
+    // value. Their offchain spend is what says they are not the money leaving.
+    const getVtxos = vi
+      .fn()
+      .mockResolvedValue([
+        coin({ txid: 'ancestor', spentBy: 'middle' }),
+        coin({ txid: 'middle', isSpent: true }),
+        coin({ txid: 'renewed', settledBy: 'commitment' }),
+        coin({ txid: 'exited' }),
+      ])
+
+    const result = await getUnrolledVtxos({ getVtxos } as any)
+
+    expect(result.map((vtxo) => vtxo.txid)).toEqual(['exited'])
+  })
+
   it('still returns an exit the user has already swept', async () => {
-    // `withUnrolled` is answered before the terminal-spend check, so the sweep
-    // never removes the coin from this query — which is what makes the history
-    // row permanent rather than one that vanishes when the money is collected.
-    const getVtxos = vi.fn().mockResolvedValue([coin({ txid: 'swept', spentBy: 'sweep-txid', isSpent: true })])
+    // The sweep is onchain, and none of the three terminal-spend facts report
+    // an onchain spend — so the row is permanent rather than one that vanishes
+    // when the money is finally collected.
+    const getVtxos = vi.fn().mockResolvedValue([coin({ txid: 'swept', isSwept: true })])
 
     expect(await getUnrolledVtxos({ getVtxos } as any)).toHaveLength(1)
   })

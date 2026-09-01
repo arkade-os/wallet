@@ -13,6 +13,7 @@ import {
   ArkError,
   DelegateInfo,
   toXOnlySignerHex,
+  hasTerminalSpend,
 } from '@arkade-os/sdk'
 import { Addresses, Tx, Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
@@ -220,14 +221,27 @@ export const getVtxos = async (wallet: ServiceWorkerWallet): Promise<{ spendable
  * `spendable` and reach `calcNextRollover` — scheduling a rollover for money
  * that has already left the Ark layer.
  *
- * `withUnrolled` is authoritative on the location axis alone: it returns an
- * exited coin whatever else is true of it, spent ones included. So the filter
- * keeps only what the flag was asked for, and the set stays complete after the
- * user finishes the sweep with the exit tool. */
+ * `withUnrolled` alone is not the exited set, because `isUnrolled` is a fact
+ * about the whole ancestry, not just the coin the user exited. `Unroll.Session`
+ * broadcasts the chain ancestry-first, so every earlier VTXO of ours in that
+ * chain also ends up onchain and also comes back flagged — each with the same
+ * value, since a chain of offchain transfers carries the amount forward. Those
+ * ancestors were spent offchain when their successor was created, so
+ * `hasTerminalSpend` is exactly the line between them and the coin that
+ * actually left: one exit, one row.
+ *
+ * It is also the line `computeOffchainBalance` draws — it skips terminal spends
+ * before it counts the `unrolled` bucket or adds to `owned` — so filtering here
+ * is what keeps the rows and the two subtractions in `reloadWallet` describing
+ * the same coins.
+ *
+ * The set still stands after the user finishes the sweep with the exit tool:
+ * the three facts behind `hasTerminalSpend` all report an OFFCHAIN spend, and
+ * the SDK is explicit that unrolling or sweeping sets none of them. */
 export const getUnrolledVtxos = async (wallet: ServiceWorkerWallet): Promise<Vtxo[]> => {
   try {
     const vtxos = await wallet.getVtxos({ withUnrolled: true })
-    return vtxos.filter((vtxo) => vtxo.isUnrolled)
+    return vtxos.filter((vtxo) => vtxo.isUnrolled && !hasTerminalSpend(vtxo))
   } catch (err) {
     consoleError(err, 'error getting unrolled vtxos')
     return []
