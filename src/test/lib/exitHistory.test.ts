@@ -68,6 +68,33 @@ describe('resolveExits', () => {
     expect(getTxStatus).toHaveBeenCalledTimes(1)
   })
 
+  it('fans the lookups out instead of waiting for each in turn', async () => {
+    const release: (() => void)[] = []
+    getTxStatus.mockImplementation(
+      () => new Promise((resolve) => release.push(() => resolve(confirmed(EXITED_SECONDS)))),
+    )
+
+    const pending = resolveExits([vtxo({ txid: 'exit-a' }), vtxo({ txid: 'exit-b' })], 'mutinynet')
+    await Promise.resolve()
+
+    // Both are in flight while neither has answered. A serial loop would be
+    // parked on the first, showing one call, and would cost the sum of the
+    // round-trips rather than the slowest.
+    expect(getTxStatus).toHaveBeenCalledTimes(2)
+    release.forEach((resolve) => resolve())
+    expect((await pending).map((r) => r.exitedAt)).toEqual([EXITED_SECONDS, EXITED_SECONDS])
+  })
+
+  it('asks only for the exits it has no persisted time for', async () => {
+    saveTransactionActivityMetadata('exit-a', { exitedAt: EXITED_SECONDS })
+    getTxStatus.mockResolvedValue(confirmed(EXITED_SECONDS))
+
+    await resolveExits([vtxo({ txid: 'exit-a' }), vtxo({ txid: 'exit-b' })], 'mutinynet')
+
+    expect(getTxStatus).toHaveBeenCalledTimes(1)
+    expect(getTxStatus).toHaveBeenCalledWith('exit-b')
+  })
+
   it('retries an unconfirmed exit rather than persisting a wrong answer', async () => {
     getTxStatus.mockResolvedValue({ confirmed: false })
 

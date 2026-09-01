@@ -77,8 +77,16 @@ const confirmedAt = async (provider: EsploraProvider, txid: string): Promise<num
  * unconfirmed exit is deliberately not persisted and is retried on the next
  * reload, and the metadata store's LRU cap can evict an old entry.
  *
+ * The lookups fan out rather than run in sequence: `reloadWallet` waits on this,
+ * so on a cold cache a serial loop would hold the UI for the sum of the
+ * round-trips instead of the slowest one. The fan-out is bounded by the number
+ * of distinct exit transactions the wallet has, which is small — a unilateral
+ * exit is a rare, deliberate act, not routine traffic.
+ *
  * Never rejects. It runs inside `reloadWallet`'s try block, whose catch blocks
  * the first load, so a slow explorer must cost a row's date and nothing more.
+ * `confirmedAt` swallows its own failures, which is what keeps `Promise.all`
+ * from turning one dead lookup into a rejection for all of them.
  */
 export const resolveExits = async (vtxos: Vtxo[], network?: string): Promise<ExitRecord[]> => {
   if (vtxos.length === 0) return []
@@ -87,27 +95,22 @@ export const resolveExits = async (vtxos: Vtxo[], network?: string): Promise<Exi
   // Keyed by TRANSACTION, not by coin: `exitedAt` is a property of the exit tx,
   // and one exit can carry several of the wallet's outputs.
   const resolved = new Map<string, number>()
-  const attempted = new Set<string>()
-  const records: ExitRecord[] = []
-  for (const vtxo of vtxos) {
-    let exitedAt = resolved.get(vtxo.txid) ?? stored[vtxo.txid]?.exitedAt
-    if (exitedAt === undefined && provider && !attempted.has(vtxo.txid)) {
-      attempted.add(vtxo.txid)
-      const confirmed = await confirmedAt(provider, vtxo.txid)
-      if (confirmed !== undefined) {
-        saveTransactionActivityMetadata(vtxo.txid, { exitedAt: confirmed })
-        resolved.set(vtxo.txid, confirmed)
-        exitedAt = confirmed
-      }
-    }
-    records.push({
-      txid: vtxo.txid,
-      vout: vtxo.vout,
-      value: vtxo.value,
-      exitedAt: exitedAt ?? receivedAt(vtxo),
+  if (provider) {
+    const pending = [...new Set(vtxos.map((v) => v.txid))].filter((txid) => stored[txid]?.exitedAt === undefined)
+    const times = await Promise.all(pending.map((txid) => confirmedAt(provider, txid)))
+    pending.forEach((txid, i) => {
+      const confirmed = times[i]
+      if (confirmed === undefined) return
+      saveTransactionActivityMetadata(txid, { exitedAt: confirmed })
+      resolved.set(txid, confirmed)
     })
   }
-  return records
+  return vtxos.map((vtxo) => ({
+    txid: vtxo.txid,
+    vout: vtxo.vout,
+    value: vtxo.value,
+    exitedAt: resolved.get(vtxo.txid) ?? stored[vtxo.txid]?.exitedAt ?? receivedAt(vtxo),
+  }))
 }
 
 /**

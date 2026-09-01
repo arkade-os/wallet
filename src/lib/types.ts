@@ -111,6 +111,18 @@ export type LnSendSpend = {
   outcome: 'completed' | 'refunded'
 }
 
+/** The kinds of history row the wallet builds, and the only ones anything
+ * branches on. `'exit'` is the unilateral-exit row synthesised from unrolled
+ * VTXOs; the other three come from an activity, an `ArkTransaction`, or the
+ * swap resolver.
+ *
+ * The `(string & {})` arm keeps the union open, mirroring the SDK's own `TxTag`:
+ * `arkTransactionToTx` lowercases whatever `TxType` the SDK hands it, so a new
+ * direction there must widen this type rather than break the build. Open means
+ * a mistyped literal still compiles — what the union buys is that the four we
+ * do branch on are named in one place and autocomplete everywhere. */
+export type TxKind = 'received' | 'sent' | 'exit' | 'swap' | (string & {})
+
 export type Tx = {
   amount: number
   assetAction?: 'issued' | 'reissued' | 'burned'
@@ -134,7 +146,7 @@ export type Tx = {
   redeemTxid: string
   roundTxid: string
   settled: boolean
-  type: string
+  type: TxKind
   assetSwap?: {
     fromAssetId?: string
     fromTicker: string
