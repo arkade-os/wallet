@@ -186,9 +186,12 @@ describe('getUnrolledVtxos', () => {
     expect(await getUnrolledVtxos({ getVtxos } as any)).toHaveLength(1)
   })
 
-  it('degrades to an empty set rather than failing the reload around it', async () => {
+  it('fails the reload rather than passing off "we could not ask" as "nothing exited"', async () => {
+    // An empty set is spent as fact downstream — no exit rows, no asset
+    // subtraction — while the sats headline still nets out a bucket that came
+    // from a call that did not fail. Throwing keeps the last good snapshot.
     const getVtxos = vi.fn().mockRejectedValue(new Error('worker unreachable'))
 
-    expect(await getUnrolledVtxos({ getVtxos } as any)).toEqual([])
+    await expect(getUnrolledVtxos({ getVtxos } as any)).rejects.toThrow('worker unreachable')
   })
 })

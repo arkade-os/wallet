@@ -50,17 +50,41 @@ const receivedAt = (vtxo: Vtxo): number => {
   return Number.isNaN(ms) ? 0 : Math.floor(ms / 1000)
 }
 
+/**
+ * How long one lookup may hold the reload before we give up on it.
+ *
+ * Esplora is reached with a plain `fetch`, which has no timeout of its own, and
+ * `getTxStatus` takes no signal to pass one down. A host that accepts the
+ * connection and then never answers is therefore unbounded, and `reloadWallet`
+ * awaits this before it commits anything — so on a first load it would park the
+ * wallet on the loading screen indefinitely, with no error and no retry.
+ *
+ * Giving up costs a date, not a row, and nothing is persisted, so the next
+ * reload asks again. Racing per lookup also bounds the whole fan-out: the
+ * lookups run together, so the set costs one timeout in the worst case however
+ * many exits it holds.
+ */
+const LOOKUP_TIMEOUT_MS = 5_000
+
 /** The exit tx's confirmation time in unix seconds, or undefined while it is
- * unconfirmed or the lookup fails. Never throws: the caller runs inside the
- * reload whose catch blocks first load. */
+ * unconfirmed, the lookup fails, or it outlives `LOOKUP_TIMEOUT_MS`. Never
+ * throws: the caller runs inside the reload whose catch blocks first load. */
 const confirmedAt = async (provider: EsploraProvider, txid: string): Promise<number | undefined> => {
+  let timer: ReturnType<typeof setTimeout> | undefined
   try {
-    const status = await provider.getTxStatus(txid)
+    const status = await Promise.race([
+      provider.getTxStatus(txid),
+      new Promise<undefined>((resolve) => {
+        timer = setTimeout(() => resolve(undefined), LOOKUP_TIMEOUT_MS)
+      }),
+    ])
     // `blockTime` is already unix seconds, which is what `Tx.createdAt` wants.
-    return status.confirmed ? status.blockTime : undefined
+    return status?.confirmed ? status.blockTime : undefined
   } catch (err) {
     consoleError(err, `error resolving exit time for ${txid}`)
     return undefined
+  } finally {
+    clearTimeout(timer)
   }
 }
 
@@ -83,10 +107,12 @@ const confirmedAt = async (provider: EsploraProvider, txid: string): Promise<num
  * of distinct exit transactions the wallet has, which is small — a unilateral
  * exit is a rare, deliberate act, not routine traffic.
  *
- * Never rejects. It runs inside `reloadWallet`'s try block, whose catch blocks
- * the first load, so a slow explorer must cost a row's date and nothing more.
- * `confirmedAt` swallows its own failures, which is what keeps `Promise.all`
- * from turning one dead lookup into a rejection for all of them.
+ * Never rejects, and never hangs. It runs inside `reloadWallet`'s try block,
+ * whose catch blocks the first load, so a slow explorer must cost a row's date
+ * and nothing more. `confirmedAt` swallows its own failures, which is what
+ * keeps `Promise.all` from turning one dead lookup into a rejection for all of
+ * them, and races each against `LOOKUP_TIMEOUT_MS`, which is what keeps a host
+ * that never answers from parking the reload.
  */
 export const resolveExits = async (vtxos: Vtxo[], network?: string): Promise<ExitRecord[]> => {
   if (vtxos.length === 0) return []

@@ -236,11 +236,18 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // user's saved theme (applyTheme(Auto) then falls back to the OS palette).
   const configRef = useRef(config)
   configRef.current = config
-  // Same hazard, same fix: a listener that captured an early `aspInfo` captured
-  // it before the server answered, when the network was still unset. The exit
-  // timestamp lookup needs the live one to pick an explorer.
+  // Same hazard: a listener that captured an early `aspInfo` captured it before
+  // the server answered, when the network was still unset. The exit timestamp
+  // lookup needs the live one to pick an explorer. Synced after commit rather
+  // than during render, so the ref only ever holds a network React actually
+  // rendered with — a render that gets discarded must not leave its network
+  // behind for `reloadWallet` to pick an explorer from. Declared here, above
+  // every effect that reloads, so it is the first to run on the commit that
+  // brings the network in.
   const networkRef = useRef(aspInfo.network)
-  networkRef.current = aspInfo.network
+  useEffect(() => {
+    networkRef.current = aspInfo.network
+  }, [aspInfo.network])
 
   // Each init gets its own AbortSignal; lock/reset aborts the current signal
   // with 'lock-reset' so stale paths can decide whether to tear down the SW.

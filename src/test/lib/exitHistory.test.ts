@@ -5,7 +5,7 @@ const { getTxStatus } = vi.hoisted(() => ({ getTxStatus: vi.fn() }))
 // Keep the real SDK — `ESPLORA_URL` is read for the network fallback — and only
 // stand in for the provider, so the test controls what the chain says.
 vi.mock('@arkade-os/sdk', async (importOriginal) => {
-  const actual = (await importOriginal()) as any
+  const actual = await importOriginal<typeof import('@arkade-os/sdk')>()
   return {
     ...actual,
     EsploraProvider: class {
@@ -111,6 +111,24 @@ describe('resolveExits', () => {
 
     expect(record.exitedAt).toBe(RECEIVED_SECONDS)
     expect(readAllTransactionActivityMetadata()['exit-txid']).toBeUndefined()
+  })
+
+  it('gives up on a lookup that never answers rather than parking the reload', async () => {
+    vi.useFakeTimers()
+    try {
+      // A host that accepts the connection and never replies: `fetch` has no
+      // timeout of its own, so without the race this reload never returns.
+      getTxStatus.mockReturnValue(new Promise(() => {}))
+
+      const pending = resolveExits([vtxo()], 'mutinynet')
+      await vi.advanceTimersByTimeAsync(5_000)
+
+      const [record] = await pending
+      expect(record.exitedAt).toBe(RECEIVED_SECONDS)
+      expect(readAllTransactionActivityMetadata()['exit-txid']).toBeUndefined()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('asks nobody when no explorer can be named for the network', async () => {

@@ -237,15 +237,20 @@ export const getVtxos = async (wallet: ServiceWorkerWallet): Promise<{ spendable
  *
  * The set still stands after the user finishes the sweep with the exit tool:
  * the three facts behind `hasTerminalSpend` all report an OFFCHAIN spend, and
- * the SDK is explicit that unrolling or sweeping sets none of them. */
+ * the SDK is explicit that unrolling or sweeping sets none of them.
+ *
+ * Throws rather than degrading to an empty set. An empty answer is not a safe
+ * approximation of "we could not ask": it is indistinguishable from "nothing
+ * was exited", and `reloadWallet` spends it twice — once as the exit rows, once
+ * as the asset subtraction — while the sats headline still nets out the
+ * `unrolled` bucket, which comes from `getBalance` and would not have failed.
+ * That commits a snapshot whose sats say an exit happened and whose assets and
+ * history say it did not. Letting it throw hands the reload's catch a whole
+ * failure instead, which keeps the last good snapshot and, on a first load,
+ * surfaces the retry. */
 export const getUnrolledVtxos = async (wallet: ServiceWorkerWallet): Promise<Vtxo[]> => {
-  try {
-    const vtxos = await wallet.getVtxos({ withUnrolled: true })
-    return vtxos.filter((vtxo) => vtxo.isUnrolled && !hasTerminalSpend(vtxo))
-  } catch (err) {
-    consoleError(err, 'error getting unrolled vtxos')
-    return []
-  }
+  const vtxos = await wallet.getVtxos({ withUnrolled: true })
+  return vtxos.filter((vtxo) => vtxo.isUnrolled && !hasTerminalSpend(vtxo))
 }
 
 export const getReceivingAddresses = async (wallet: IWallet): Promise<Addresses> => {
