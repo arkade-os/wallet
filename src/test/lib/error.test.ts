@@ -34,7 +34,7 @@ describe('extractError', () => {
     )
   })
 
-  it('formats sub-hour settlement wait correctly', () => {
+  it('falls back to "shortly" when server reports 0 seconds', () => {
     expect(extractError('vtxo script can be used for intent registration in 0 seconds')).toBe(
       'Your funds were recently settled onchain — please try again shortly',
     )
