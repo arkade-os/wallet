@@ -168,7 +168,9 @@ export const getDelegateForNetwork = (network: NetworkName): Delegate | undefine
 
 const COVCLAIMD_PUBKEY: Record<NetworkName, string | null> = {
   bitcoin: null,
+  // comes from GET https://covclaimd.mutinynet.arkade.sh/v1/preimage/covclaimd-pubkey
   mutinynet: '034eb1f33220c697a5eab424e9f3b053760fa635f7bd9cc39c15bcecd30b5bf59d',
+  // comes from GET http://localhost:7271/v1/preimage/covclaimd-pubkey
   regtest: '037af11787d87ee1d23ff47b61456d0159572abf1ae6f43ec816a9d605199b0b49',
   signet: null,
   testnet: null,
@@ -178,5 +180,7 @@ const COVCLAIMD_PUBKEY: Record<NetworkName, string | null> = {
 // used in requestLightningReceive which needs a covclaimd public key to construct the request
 export const getCovclaimdPubkeyForNetwork = (network: NetworkName): Uint8Array => {
   const pubkey = fromRuntimeEnv(import.meta.env.VITE_COVCLAIMD_PUBKEY) ?? COVCLAIMD_PUBKEY[network]
-  return pubkey ? hex.decode(pubkey) : secp256k1.getPublicKey(secp256k1.utils.randomSecretKey(), true)
+  return pubkey && COMPRESSED_PUBKEY_HEX.test(pubkey)
+    ? hex.decode(pubkey)
+    : secp256k1.getPublicKey(secp256k1.utils.randomSecretKey(), true)
 }

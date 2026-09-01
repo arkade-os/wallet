@@ -93,6 +93,7 @@ describe('covclaimdPubkey', () => {
     // Not an AEAD concern — sealClaimPacket draws its own ephemeral key and
     // nonce each call — but a reused recipient key would tag every receive of
     // this wallet as one payee to anyone collecting RFQ requests.
+    // mutinynet and regtest have now pinned covclaimd keys, so the testnet key should be fresh each call.
     expect(getCovclaimdPubkeyForNetwork('testnet')).not.toEqual(getCovclaimdPubkeyForNetwork('testnet'))
   })
 })
