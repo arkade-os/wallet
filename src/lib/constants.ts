@@ -169,7 +169,7 @@ export const getDelegateForNetwork = (network: NetworkName): Delegate | undefine
 const COVCLAIMD_PUBKEY: Record<NetworkName, string | null> = {
   bitcoin: null,
   mutinynet: '034eb1f33220c697a5eab424e9f3b053760fa635f7bd9cc39c15bcecd30b5bf59d',
-  regtest: null,
+  regtest: '037af11787d87ee1d23ff47b61456d0159572abf1ae6f43ec816a9d605199b0b49',
   signet: null,
   testnet: null,
 }
