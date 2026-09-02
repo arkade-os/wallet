@@ -50,6 +50,9 @@ import { AssetsContext } from '../../../providers/assets'
 import { LnReceiveContext } from '../../../providers/lnReceive'
 import { useTranslation } from '../../../providers/language'
 
+/** Throw marker the catch side maps to a translatable message in the UI. */
+const NO_LIGHTNING_SOLVER_ERROR = 'no_lightning_solver'
+
 /**
  * Decide which value the QR should encode. Honours an explicit copy-sheet
  * selection, but only while that value is still one we currently offer — once
@@ -180,7 +183,7 @@ export default function ReceiveQRCode() {
       // per-network pin as the fallback co-signer key, for solver cards that
       // predate `emulator_pubkey` — the card's own value wins where it has one.
       const rendezvous = lnReceiveRendezvous(await discoverMarkets(network), getEmulatorPubkeyForNetwork(network))
-      if (!rendezvous) throw new Error('No Lightning solver available')
+      if (!rendezvous) throw new Error(NO_LIGHTNING_SOLVER_ERROR)
       if (satoshis < rendezvous.minSats || satoshis > rendezvous.maxSats) {
         throw new Error(
           `Amount outside solver bounds (${prettyNumber(rendezvous.minSats)}-${prettyNumber(rendezvous.maxSats)} sats)`,
@@ -441,11 +444,13 @@ export default function ReceiveQRCode() {
                 <FlexCol gap='0.25rem' centered>
                   <TextSecondary>
                     {lnHeldElsewhere
-                      ? 'Another tab is handling Lightning receives — close it to receive here'
-                      : t('receive.lightningUnavailable', { error: lnReceiveError })}
+                      ? t('receive.lightningHeldElsewhere')
+                      : lnReceiveError === NO_LIGHTNING_SOLVER_ERROR
+                        ? t('receive.lightningUnavailable', { error: t('receive.noLightningSolver') })
+                        : t('receive.lightningUnavailable', { error: lnReceiveError })}
                   </TextSecondary>
                   {lnRetryable ? (
-                    <Button label='Try again' onClick={() => setNegotiateAttempt((n) => n + 1)} secondary />
+                    <Button label={t('common.tryAgain')} onClick={() => setNegotiateAttempt((n) => n + 1)} secondary />
                   ) : null}
                 </FlexCol>
               ) : null}
