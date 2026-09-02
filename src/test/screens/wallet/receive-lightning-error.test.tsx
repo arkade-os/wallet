@@ -13,6 +13,7 @@ import { ToastProvider } from '../../../components/Toast'
 import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
 import { LockupRegistrationFailed } from '@arkade-os/swap'
 import { LnReceiveHeldElsewhere } from '../../../lib/lnReceive'
+import { lnReceiveRendezvous } from '../../../lib/lnSwap'
 import {
   mockAspContextValue,
   mockConfigContextValue,
@@ -39,7 +40,7 @@ vi.mock('qr', () => ({ default: () => Array.from({ length: 21 }, () => new Uint8
 vi.mock('../../../lib/swapMarkets', () => ({ discoverMarkets: async () => [] }))
 vi.mock('../../../lib/lnSwap', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../lib/lnSwap')>()),
-  lnReceiveRendezvous: () => ({ minSats: 1, maxSats: 1_000_000 }),
+  lnReceiveRendezvous: vi.fn(() => ({ minSats: 1, maxSats: 1_000_000 })),
 }))
 vi.mock('../../../lib/nostrRfq', () => ({
   withRfqTransport: async (_r: unknown, run: (t: unknown) => Promise<unknown>) => run({}),
@@ -117,7 +118,8 @@ const renderWithTrack = (satoshis = 10_000) => render(tree(satoshis))
 
 beforeEach(() => {
   track.mockReset()
-  setRecvInfo.mockClear()
+setRecvInfo.mockClear()
+  vi.mocked(lnReceiveRendezvous).mockClear()
 })
 
 describe('Receive screen, Lightning failures', () => {
@@ -164,6 +166,14 @@ describe('Receive screen, Lightning failures', () => {
     // The pre-existing branch, asserted so the new one cannot swallow it.
     expect(await screen.findByText(/Lightning unavailable: No Lightning solver available/)).toBeInTheDocument()
     expect(screen.queryByText(/Another tab/)).not.toBeInTheDocument()
+  })
+
+  it('translates a missing receive solver instead of leaking the raw throw', async () => {
+    vi.mocked(lnReceiveRendezvous).mockReturnValueOnce(undefined)
+    renderWithTrack()
+
+    expect(await screen.findByText(/Lightning unavailable: No Lightning solver available/)).toBeInTheDocument()
+    expect(screen.queryByText(/no_lightning_solver/)).not.toBeInTheDocument()
   })
 })
 

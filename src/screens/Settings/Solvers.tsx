@@ -111,7 +111,7 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose?: () => void
         placeholder='{ version: 0, name: "My Card", markets: [...] }'
         defaultValue={card ? JSON.stringify(card, null, 2) : ''}
       />
-{toClose && onChange ? (
+      {toClose && onChange ? (
         <FlexRow>
           <Button onClick={() => toClose()} text={t('common.cancel')} />
           <Button onClick={() => saveCard(card)} text={t('components.save')} />
@@ -144,7 +144,7 @@ function BundledCardLine({ input }: { input: LocalCardInput }) {
             <Text>{input.label ?? card.name}</Text>
             <TextSecondary>{pairs}</TextSecondary>
           </FlexCol>
-<FlexRow end minWidth='60px'>
+          <FlexRow end minWidth='60px'>
             <div onClick={toggleShowCard} style={{ cursor: 'pointer' }}>
               <TextSecondary>{t('solvers.builtIn')}</TextSecondary>
             </div>
