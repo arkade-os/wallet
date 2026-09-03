@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect, vi } from 'vitest'
-import type { DiscoveredMarket } from '@arkade-os/solver-discovery'
+import { hex } from '@scure/base'
+import { discover, type DiscoveredMarket } from '@arkade-os/solver-discovery'
 import {
   ONCHAIN_ROUTE_LOG,
   OnchainRouteUnavailable,
@@ -146,6 +147,72 @@ describe('onchainSendRendezvous', () => {
         reason: 'no_solver',
       })
     })
+  })
+})
+
+describe('a real card, through real discovery', () => {
+  /**
+   * The synthetic markets above are hand-built `DiscoveredMarket` objects, so
+   * they cannot catch a field this wallet reads under a name discovery does not
+   * emit. This one goes through `discover` — the same call `swapMarkets.ts`
+   * makes — so the corridor keys, the bounds and the rendezvous are whatever
+   * the library actually produces.
+   *
+   * It also pins the two assumptions the e2e fixture rests on: a locally pinned
+   * card needs no `sig` (pinning is the user's own trust decision, see
+   * `swapMarkets.ts`), and a card carrying no `emulator_pubkey` resolves its
+   * co-signer from the per-network pin. If either changes, the e2e's
+   * `amount_out_of_bounds` assertion silently becomes `no_solver`.
+   */
+  const card = {
+    version: 0,
+    name: 'regtest-onchain',
+    discovery_pubkey: SOLVER,
+    transports: { nostr: { relays: ['wss://localhost:10548'] } },
+    markets: [
+      {
+        pair: 'BTC/onchain:BTC',
+        base_asset: { id: 'btc', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+        quote_asset: { id: 'btc', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+        base_corridor: 'arkade',
+        quote_corridor: 'onchain',
+        fee_bps: 10,
+        min_base_amount: '1000',
+        max_base_amount: '1000000',
+        min_quote_amount: '1000',
+        max_quote_amount: '1000000',
+      },
+    ],
+  }
+
+  const pin = hex.decode(EMULATOR)
+
+  const markets = async (over: Record<string, unknown> = {}) => {
+    const { markets, warnings } = await discover({
+      registries: [],
+      localCards: [{ card: { ...card, ...over } as never, network: 'regtest' }],
+      network: 'regtest',
+    })
+    expect(warnings).toEqual([])
+    return markets
+  }
+
+  it('survives discovery unsigned and yields an onchain corridor market', async () => {
+    expect(await markets()).toHaveLength(1)
+  })
+
+  it('is selected for an amount inside its bounds', async () => {
+    const choice = onchainSendRendezvous(await markets(), 50_000, pin)
+    expect(choice.ok).toBe(true)
+    if (choice.ok) {
+      expect(choice.rendezvous.solverPubkey).toBe(SOLVER)
+      expect(choice.rendezvous.transports.nostr.relays).toEqual(['wss://localhost:10548'])
+    }
+  })
+
+  it('is refused on size, which is what the e2e fallback asserts', async () => {
+    const choice = onchainSendRendezvous(await markets(), 900, pin)
+    expect(choice).toEqual({ ok: false, reason: 'amount_out_of_bounds', bounds: { minSats: 1000, maxSats: 1_000_000 } })
   })
 })
 
