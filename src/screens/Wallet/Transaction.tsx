@@ -88,6 +88,7 @@ export default function Transaction() {
     ? tx.assetAction === 'issued' || tx.assetAction === 'reissued' || (!tx.assetAction && isIssuance(tx))
     : false
   const burnTx = tx ? tx.assetAction === 'burned' || (!tx.assetAction && isBurn(tx)) : false
+  const exitTx = tx?.type === 'exit'
   const boardingTx = Boolean(tx?.boardingTxid)
   const defaultButtonLabel = 'Settle transaction'
   const boardingExitDelay = Number(aspInfo?.boardingExitDelay || 0)
@@ -186,9 +187,11 @@ export default function Transaction() {
         ? 'Amount issued'
         : burnTx
           ? 'Amount burned'
-          : tx.type === 'sent'
-            ? 'Amount sent'
-            : 'Amount received'
+          : exitTx
+            ? 'Amount exited'
+            : tx.type === 'sent'
+              ? 'Amount sent'
+              : 'Amount received'
   const date = tx.createdAt ? prettyDate(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed'
   const txid = tx.boardingTxid || tx.redeemTxid || tx.roundTxid || ''
   const displayedAssets = amountDisplay?.raw.filter((amount) => amount.assetId) ?? []
@@ -246,7 +249,11 @@ export default function Transaction() {
         date,
         destination: tx.type === 'sent' && !boardingTx && !issuanceTx && !burnTx ? tx.destination : undefined,
         fees,
-        isOffchainTx: !tx.boardingTxid && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid)),
+        // An exit is the one row whose txid is genuinely onchain, so it links
+        // to the block explorer rather than to Arkade's. Without the guard its
+        // `redeemTxid` alone would class it offchain and send the link to the
+        // vmempool explorer, which has never heard of the transaction.
+        isOffchainTx: !tx.boardingTxid && !exitTx && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid)),
         // Details' fallback row only (amountDisplay owns the rendered rows):
         // gross, matching the hook's convention
         satoshis: assetTransfer ? undefined : tx.amount,

@@ -95,6 +95,48 @@ describe('TransactionsList', () => {
     expect(screen.queryByText('-2,000,000,000.00 BRL')).not.toBeInTheDocument()
   })
 
+  it('reads a unilateral exit as an exit, not as a payment to someone', () => {
+    const tx: Tx = {
+      amount: 5_000,
+      boardingTxid: '',
+      createdAt: 1_700_090_000,
+      explorable: 'exit-txid',
+      networkFee: 0,
+      preconfirmed: false,
+      redeemTxid: 'exit-txid',
+      roundTxid: '',
+      settled: true,
+      type: 'exit',
+    }
+
+    render(
+      <AspContext.Provider value={mockAspContextValue}>
+        <AssetsContext.Provider value={{ isRegistered: () => true } as any}>
+          <NavigationContext.Provider value={mockNavigationContextValue}>
+            <ConfigContext.Provider
+              value={
+                { ...mockConfigContextValue, config: { ...mockConfigContextValue.config, unit: Unit.SATS } } as any
+              }
+            >
+              <FiatContext.Provider value={mockFiatContextValue}>
+                <FlowContext.Provider value={mockFlowContextValue}>
+                  <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [tx] } as any}>
+                    <TransactionsList mode='static' />
+                  </WalletContext.Provider>
+                </FlowContext.Provider>
+              </FiatContext.Provider>
+            </ConfigContext.Provider>
+          </NavigationContext.Provider>
+        </AssetsContext.Provider>
+      </AspContext.Provider>,
+    )
+
+    expect(screen.getByText('Exited')).toBeInTheDocument()
+    expect(screen.queryByText('Sent')).not.toBeInTheDocument()
+    // debited like a send, and at face value: the exit paid no Ark fee
+    expect(screen.getByText(/^-\s*5,000/)).toBeInTheDocument()
+  })
+
   it('shows the bitcoin amount alongside the fiat value on plain BTC rows', () => {
     const tx: Tx = {
       amount: 1600,

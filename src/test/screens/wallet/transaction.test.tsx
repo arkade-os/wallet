@@ -399,6 +399,61 @@ describe('Transaction screen', () => {
     expect(screen.getByTestId('Total')).toHaveTextContent('0.0001')
   })
 
+  it('labels a unilateral exit and links it to the block explorer, not to Arkade', async () => {
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null)
+    const exitTxInfo = {
+      amount: 5_000,
+      boardingTxid: '',
+      createdAt: 1_700_090_000,
+      explorable: 'exit-txid',
+      networkFee: 0,
+      preconfirmed: false,
+      redeemTxid: 'exit-txid',
+      roundTxid: '',
+      settled: true,
+      type: 'exit',
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <ConfigContext.Provider value={mockConfigContextValue}>
+            <FiatContext.Provider value={mockFiatContextValue}>
+              <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: exitTxInfo }}>
+                <WalletContext.Provider
+                  value={
+                    {
+                      ...mockWalletContextValue,
+                      txs: [exitTxInfo],
+                      wallet: { ...mockWalletContextValue.wallet, network: 'regtest' },
+                    } as any
+                  }
+                >
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <Transaction />
+                  </LimitsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </FiatContext.Provider>
+          </ConfigContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByText('Amount exited')).toBeInTheDocument()
+    // no Ark fee: the exit's real cost went to miners across the exit branch
+    expect(screen.getByTestId('Network fees')).toHaveTextContent('0')
+    // an exit is settled, so the receipt must not offer to settle it again
+    expect(screen.queryByText('Settle transaction')).not.toBeInTheDocument()
+
+    const row = document.getElementById('Transaction ID') as HTMLElement
+    await userEvent.click(row.querySelector('.table-row__external') as HTMLElement)
+
+    // the exit tx is on the chain — the vmempool explorer (:7080) never saw it
+    expect(open).toHaveBeenCalledWith('http://localhost:5000/tx/exit-txid', '_blank', 'noreferrer')
+    open.mockRestore()
+  })
+
   it('labels a burn with the exact action and hides the direction row', async () => {
     const mockBurnTxInfo = {
       ...mockIssuanceTxInfo,
