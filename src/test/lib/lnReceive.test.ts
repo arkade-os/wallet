@@ -16,11 +16,11 @@ import { lnReceiveRendezvous, lnSendRendezvous } from '../../lib/lnSwap'
 import {
   claimReceive,
   requestLnReceive,
-  sealingKey,
   toReceiveOrigin,
   toReceiveSwap,
   type LnReceiveRequest,
 } from '../../lib/lnReceive'
+import { getCovclaimdPubkeyForNetwork } from '@/lib/constants'
 
 const requestLightningReceive = vi.hoisted(() => vi.fn())
 const pushClaim = vi.hoisted(() => vi.fn())
@@ -79,9 +79,9 @@ describe('lnReceiveRendezvous', () => {
   })
 })
 
-describe('sealingKey', () => {
+describe('covclaimdPubkey', () => {
   it('is a 33-byte compressed point, the only form ECIES can seal to', async () => {
-    const key = sealingKey()
+    const key = getCovclaimdPubkeyForNetwork('mutinynet')
     expect(key).toHaveLength(33)
     expect([0x02, 0x03]).toContain(key[0])
     // The check is the seal itself: sealClaimPacket ECDHs against this key, so
@@ -93,7 +93,8 @@ describe('sealingKey', () => {
     // Not an AEAD concern — sealClaimPacket draws its own ephemeral key and
     // nonce each call — but a reused recipient key would tag every receive of
     // this wallet as one payee to anyone collecting RFQ requests.
-    expect(sealingKey()).not.toEqual(sealingKey())
+    // mutinynet and regtest have now pinned covclaimd keys, so the testnet key should be fresh each call.
+    expect(getCovclaimdPubkeyForNetwork('testnet')).not.toEqual(getCovclaimdPubkeyForNetwork('testnet'))
   })
 })
 
