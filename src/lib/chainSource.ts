@@ -68,6 +68,16 @@ const withDeadline = async (
   }
 }
 
+/**
+ * The default transport: a bare call to the global, not a reference to it.
+ *
+ * `fetchImpl = fetch` would capture the function object and call it detached.
+ * Browsers happen to tolerate that for a Window operation, but the tolerance is
+ * a WebIDL detail rather than something this file should be relying on, and it
+ * costs nothing to call `fetch` the same way every other module here does.
+ */
+const globalFetch: typeof fetch = (input, init) => fetch(input, init)
+
 const NETWORKS: Record<OnchainNetwork, typeof btc.NETWORK> = {
   bitcoin: btc.NETWORK,
   testnet: btc.TEST_NETWORK,
@@ -96,7 +106,7 @@ interface EsploraBlock {
 export const esploraChainSource = (
   baseUrl: string,
   network: OnchainNetwork,
-  fetchImpl: typeof fetch = fetch,
+  fetchImpl: typeof fetch = globalFetch,
 ): ChainSource => {
   const root = baseUrl.replace(/\/+$/, '')
 
@@ -184,7 +194,7 @@ export const MIN_CLAIM_FEE_RATE = 1
  * Never throws. An esplora that cannot answer must not stop a claim that is
  * otherwise ready; the floor still relays.
  */
-export const claimFeeRate = async (baseUrl: string, fetchImpl: typeof fetch = fetch): Promise<number> => {
+export const claimFeeRate = async (baseUrl: string, fetchImpl: typeof fetch = globalFetch): Promise<number> => {
   try {
     const response = await withDeadline(fetchImpl, `${baseUrl.replace(/\/+$/, '')}/fee-estimates`)
     if (!response.ok) return MIN_CLAIM_FEE_RATE
