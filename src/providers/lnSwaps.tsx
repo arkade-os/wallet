@@ -16,15 +16,35 @@
  * spender's txid, and only for a swap the manager did not stamp itself; see
  * `lnSendRecords.ts`.
  *
- * Scoped to `lightning_send` deliberately. The receive leg has a manager of its
- * own in `providers/lnReceive`, which holds a Web Lock the whole time it drives
- * one — so wiring `claimLockup` here would put a second, unsynchronised claimer
- * on the same lockup.
+ * Scoped to the two SEND legs — `lightning_send` and `onchain_send`. The
+ * receive leg has a manager of its own in `providers/lnReceive`, which holds a
+ * Web Lock the whole time it drives one, so wiring `claimLockup` here would put
+ * a second, unsynchronised claimer on the same Arkade lockup. `claimOnchain`
+ * carries no such risk: it spends a BITCOIN output that only an onchain-send
+ * swap has, and nothing else in this wallet watches one.
+ *
+ * The onchain leg is the one corridor whose claim the wallet MUST make itself.
+ * A Lightning send resolves either way with the user offline — the solver
+ * claims with the preimage or the covenant refunds — but an onchain send hands
+ * the user an L1 HTLC that only they can open, before a consensus deadline. So
+ * `chain` is not optional decoration here: without it `RfqSwapManager` fails
+ * such a swap on its first pass rather than watching it blind, and the send
+ * flow refuses to take the solver route at all (see `canRouteOnchain`).
  */
 import { ReactNode, createContext, useContext, useEffect, useRef } from 'react'
-import { RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
+import { NetworkName, RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
-import { RfqSwapManager, findLockupVtxos, pushRefundWithoutReceiver, type RfqSwap } from '@arkade-os/swap'
+import {
+  RfqSwapManager,
+  claimOnchainFill,
+  findLockupVtxos,
+  preimageForSwapRecord,
+  pushRefundWithoutReceiver,
+  rfqClaimSecretOf,
+  type ChainUtxo,
+  type OnchainSendSwap,
+  type RfqSwap,
+} from '@arkade-os/swap'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import {
@@ -41,6 +61,15 @@ import {
   saveSwapUpdate,
   type LnSendRecordInput,
 } from '../lib/lnSendRecords'
+import {
+  onchainSendSwap,
+  onchainSendSwapRecord,
+  restoreOnchainSendSwaps,
+  type OnchainSendRecordInput,
+} from '../lib/onchainSendRecords'
+import { claimFeeRate, esploraChainSource } from '../lib/chainSource'
+import { l1NetworkOf, l1PayoutScript } from '../lib/onchainPayout'
+import { getRestApiExplorerURL } from '../lib/explorers'
 import { lockupSpenderTxid } from '../lib/lnSwap'
 import { consoleError } from '../lib/logs'
 
@@ -48,20 +77,40 @@ interface LnSwapsContextProps {
   /** Record a just-funded send and hand it to the manager. Resolves once the
    * record is durable — the caller's refresh must not run ahead of the store. */
   trackLnSend: (input: LnSendRecordInput) => Promise<void>
+  /**
+   * Persist an onchain send BEFORE its lockup is funded.
+   *
+   * The order is the whole point, and it is the opposite of the Lightning
+   * leg's. A Lightning send that is funded but unrecorded still resolves
+   * without the wallet: the solver claims, or the covenant refunds. An onchain
+   * send that is funded but unrecorded is an L1 HTLC whose claim parameters
+   * exist nowhere — not in the contract store, which holds only the Arkade
+   * lockup — so the fill is forfeit. Rejecting here means nothing was funded,
+   * which is why the caller can still fall back to a collaborative exit.
+   */
+  reserveOnchainSend: (input: OnchainSendRecordInput) => Promise<void>
+  /** Note the funding transaction and start monitoring. */
+  trackOnchainSend: (input: OnchainSendRecordInput) => Promise<void>
 }
 
 export const LnSwapsContext = createContext<LnSwapsContextProps>({
   trackLnSend: async () => {
     throw new Error('lightning swaps not initialized')
   },
+  reserveOnchainSend: async () => {
+    throw new Error('lightning swaps not initialized')
+  },
+  trackOnchainSend: async () => {
+    throw new Error('lightning swaps not initialized')
+  },
 })
 
 const notWired = (action: string) => async (): Promise<never> => {
-  // Required by the callbacks type, unreachable for this corridor: the manager
-  // calls neither on a `lightning_send` swap, and this provider monitors no
-  // others. A throw rather than a silent no-op, so a corridor added here
-  // without its action surfaces at once instead of expiring quietly.
-  throw new Error(`${action} is not wired: this wallet drives lightning sends only`)
+  // Required by the callbacks type, unreachable for these corridors: the
+  // manager calls this on a receive leg only, and this provider monitors none.
+  // A throw rather than a silent no-op, so a corridor added here without its
+  // action surfaces at once instead of expiring quietly.
+  throw new Error(`${action} is not wired: this wallet drives send legs only`)
 }
 
 export const LnSwapsProvider = ({ children }: { children: ReactNode }) => {
@@ -83,10 +132,48 @@ export const LnSwapsProvider = ({ children }: { children: ReactNode }) => {
       const indexer = new RestIndexerProvider(aspInfo.url)
       const ark = new RestArkProvider(aspInfo.url)
       const contracts = await svcWallet.getContractManager()
+      const network = aspInfo.network as NetworkName
+      const esploraUrl = getRestApiExplorerURL(network)
+      const l1Network = l1NetworkOf(aspInfo.network)
+      const chain = esploraUrl ? esploraChainSource(esploraUrl, l1Network) : undefined
 
-      manager = new RfqSwapManager({ indexer, contracts })
+      manager = new RfqSwapManager({ indexer, contracts, ...(chain ? { chain } : {}) })
       manager.setCallbacks({
-        claimOnchain: notWired('claimOnchain'),
+        /**
+         * Take the L1 fill. `claimOnchainFill` refuses inside the claim margin
+         * of the refund leaf — publishing P into the solver's live refund
+         * window risks losing the race AND giving the preimage away — so a
+         * throw here is not always a failure to retry; the manager's next pass
+         * re-decides against the same deadline.
+         *
+         * The preimage re-derives from the record's own descriptor, which is
+         * why `mustPersistPreimage` had to be honoured at quote time: on an HD
+         * wallet nothing secret was stored, and this call is where that shows.
+         */
+        claimOnchain: async (swap: OnchainSendSwap, utxo: ChainUtxo) => {
+          if (!chain || !esploraUrl) throw new Error('no L1 endpoint is configured for this network')
+          const record = await readRecord(swap.rfqId)
+          if (!record) throw new Error(`no stored record for rfq ${swap.rfqId}`)
+          // No hashlock on the record means no preimage can be recovered, and
+          // this leg's claim is nothing but the preimage. Named rather than
+          // left to `preimageForSwapRecord`, whose message is about a
+          // projection the caller never wrote.
+          const secrets = rfqClaimSecretOf(record)
+          if (!secrets) throw new Error(`swap ${swap.rfqId} was stored without its hashlock`)
+          const [preimage, xOnlyPubkey, feeRateSatVb] = await Promise.all([
+            preimageForSwapRecord(svcWallet, secrets),
+            svcWallet.identity.xOnlyPublicKey(),
+            claimFeeRate(esploraUrl),
+          ])
+          return claimOnchainFill(chain, {
+            htlc: swap.htlc,
+            utxo,
+            preimage,
+            payoutPkScript: l1PayoutScript(xOnlyPubkey, l1Network),
+            feeRateSatVb,
+            sign: (sighash: Uint8Array) => svcWallet.identity.signMessage(sighash, 'schnorr'),
+          })
+        },
         claimLockup: notWired('claimLockup'),
         saveSwap: (swap) => saveSwapUpdate(swap),
         // Wired to the atomic push, NOT to `refundIfUnresolved`: that helper is
@@ -118,9 +205,15 @@ export const LnSwapsProvider = ({ children }: { children: ReactNode }) => {
           .catch((err) => consoleError(err, `error resolving the spend of swap ${swap.rfqId}`))
       })
 
-      const swaps = await restoreLnSendSwaps(contracts)
+      // Both send legs, in one manager: they share every seam it needs, and a
+      // second manager over the same indexer and contract store would only add
+      // a second subscriber to the same lockups.
+      const [lnSwaps, onchainSwaps] = await Promise.all([
+        restoreLnSendSwaps(contracts),
+        restoreOnchainSendSwaps(contracts),
+      ])
       if (stopped) return
-      await manager.start(swaps)
+      await manager.start([...lnSwaps, ...onchainSwaps])
       managerRef.current = manager
     }
 
@@ -142,7 +235,24 @@ export const LnSwapsProvider = ({ children }: { children: ReactNode }) => {
     await managerRef.current?.addSwap(lnSendSwap(input))
   }
 
-  return <LnSwapsContext.Provider value={{ trackLnSend }}>{children}</LnSwapsContext.Provider>
+  const reserveOnchainSend = async (input: OnchainSendRecordInput) => {
+    await saveRecord(onchainSendSwapRecord(input))
+  }
+
+  const trackOnchainSend = async (input: OnchainSendRecordInput) => {
+    // The same record again, now naming the funding transaction, then handed
+    // to the manager. Rewriting rather than patching keeps one builder for the
+    // shape — and `reserveOnchainSend` has already made the claim recoverable,
+    // so a failure here costs the history row, not the money.
+    await saveRecord(onchainSendSwapRecord(input))
+    await managerRef.current?.addSwap(onchainSendSwap(input))
+  }
+
+  return (
+    <LnSwapsContext.Provider value={{ trackLnSend, reserveOnchainSend, trackOnchainSend }}>
+      {children}
+    </LnSwapsContext.Provider>
+  )
 }
 
 /** Name the tx that ended a swap, when it is one of ours. Returns it, so the

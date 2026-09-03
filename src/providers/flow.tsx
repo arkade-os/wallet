@@ -1,4 +1,5 @@
 import type { LnSendRequest } from '../lib/lnSwap'
+import type { OnchainSendRequest } from '../lib/onchainSwap'
 import { ReactNode, SetStateAction, createContext, useState } from 'react'
 import type { Asset, AssetDetails, ServiceWorkerWalletMode } from '@arkade-os/sdk'
 import { Tx } from '../lib/types'
@@ -64,6 +65,12 @@ export type SendInfo = {
   invoice?: string
   lnUrl?: string
   pendingLnSend?: LnSendRequest
+  /**
+   * A negotiated `arkade:BTC -> onchain:BTC` quote, when a solver could take
+   * this send. Absent is the ordinary case and means exactly one thing: the
+   * exit goes out collaboratively, as it always has.
+   */
+  pendingOnchainSend?: OnchainSendRequest
   recipient?: string
   satoshis?: number
   scan?: boolean

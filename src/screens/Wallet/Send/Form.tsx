@@ -22,7 +22,7 @@ import Text from '../../../components/Text'
 import Shadow from '../../../components/Shadow'
 import Scanner from '../../../components/Scanner'
 import LoadingLogo from '../../../components/LoadingLogo'
-import { consoleError } from '../../../lib/logs'
+import { consoleError, consoleLog } from '../../../lib/logs'
 import { Addresses, AssetOption, Currencies, Themes, Unit } from '../../../lib/types'
 import { aspErrorText, getReceivingAddresses } from '../../../lib/asp'
 import { isMobileBrowser } from '../../../lib/browser'
@@ -34,6 +34,13 @@ import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl, LnUr
 import { extractError } from '../../../lib/error'
 import { decodeInvoice } from '../../../lib/bolt11'
 import { lnSendRendezvous, requestLnSend } from '../../../lib/lnSwap'
+import {
+  ONCHAIN_ROUTE_LOG,
+  OnchainRouteUnavailable,
+  onchainRouteRefusalText,
+  planOnchainSend,
+} from '../../../lib/onchainSwap'
+import { l1PayoutPubkey, onchainClaimEndpoint } from '../../../lib/onchainPayout'
 import { withRfqTransport } from '../../../lib/nostrRfq'
 import { discoverMarkets } from '../../../lib/swapMarkets'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
@@ -58,7 +65,7 @@ import {
   DropdownMenuTrigger,
 } from '../../../components/ui/dropdown-menu'
 import { hapticLight } from '../../../lib/haptics'
-import { getEmulatorPubkeyForNetwork, testDomains } from '../../../lib/constants'
+import { getEmulatorPubkeyForNetwork, getEmulatorPubkeyOverrideForNetwork, testDomains } from '../../../lib/constants'
 import UnverifiedBadge from '../../../components/UnverifiedBadge'
 
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
@@ -607,10 +614,68 @@ export default function SendForm() {
     setLabel('Server unreachable')
   }, [aspInfo.unreachable, aspInfo.outdated])
 
+  /**
+   * Try to route an exit through a solver, and go to the sign screen either
+   * way.
+   *
+   * The fallback is the contract: `planOnchainSend` rejects with
+   * `OnchainRouteUnavailable` for every reason there is — no card, a card that
+   * cannot take the size, a refusal, a timeout, a quote the client would not
+   * fund — and all of them mean the same thing here, which is that the wallet
+   * does the collaborative exit it has always done. So this never calls
+   * `handleError`: a payment the wallet can make must not be stopped by a
+   * solver that could not help with it.
+   *
+   * Never silent, though. The reason goes to the wallet's own log (Settings →
+   * Logs), because "the solver route was not taken" is otherwise invisible —
+   * the user sees an ordinary exit and no indication that anything was tried.
+   * The `catch` below is the belt-and-braces case: a rejection that is somehow
+   * not an `OnchainRouteUnavailable` is still a fallback, and still logged.
+   */
+  const routeOnchainExit = () => {
+    const collaborativeExit = (reason: string, detail: string) => {
+      consoleLog(`${ONCHAIN_ROUTE_LOG} collaborative exit (${reason}) — ${detail}`)
+      navigate(Pages.SendDetails)
+    }
+    if (!svcWallet) return collaborativeExit('no_wallet', 'the wallet is not ready')
+    const network = aspInfo.network as NetworkName
+    const negotiate = async () =>
+      planOnchainSend({
+        wallet: svcWallet,
+        arkServerUrl: aspInfo.url,
+        amountSats: sendInfo.satoshis ?? 0,
+        payoutPubkey: await l1PayoutPubkey(svcWallet),
+        claimEndpoint: onchainClaimEndpoint(network),
+        fallbackEmulatorPubkey: getEmulatorPubkeyForNetwork(network),
+        emulatorPubkey: getEmulatorPubkeyOverrideForNetwork(network),
+        discover: () => discoverMarkets(network),
+        connect: (rendezvous, fn) => withRfqTransport(rendezvous, fn),
+      })
+
+    negotiate()
+      .then((pendingOnchainSend) => {
+        consoleLog(`${ONCHAIN_ROUTE_LOG} solver route (${pendingOnchainSend.rendezvous.solverPubkey})`)
+        setSendInfo((prev) => ({ ...prev, pendingOnchainSend }))
+      })
+      .catch((err) => {
+        if (err instanceof OnchainRouteUnavailable) return collaborativeExit(err.reason, onchainRouteRefusalText(err))
+        // Not a refusal this module knows how to name. Still a fallback: the
+        // collaborative exit does not depend on any of this having worked.
+        collaborativeExit('unexpected', extractError(err))
+      })
+  }
+
   // proceed to next step
   useEffect(() => {
     if (!proceed) return
     if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice) return
+    // An L1 address with no ark address or invoice beside it is an exit. Ask
+    // the solvers first — see `routeOnchainExit` for why a failure here is not
+    // an error.
+    if (sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice && !sendInfo.pendingOnchainSend) {
+      routeOnchainExit()
+      return
+    }
     // Everything except an un-negotiated invoice goes straight through: an ark
     // address, an on-chain address, and an invoice whose quote is already in
     // hand all have all they need to be signed on the next screen.
@@ -649,7 +714,14 @@ export default function SendForm() {
       }
       negotiate().catch(handleError)
     }
-  }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingLnSend])
+  }, [
+    proceed,
+    sendInfo.address,
+    sendInfo.arkAddress,
+    sendInfo.invoice,
+    sendInfo.pendingLnSend,
+    sendInfo.pendingOnchainSend,
+  ])
 
   // deal with fees deduction from amount
   useEffect(() => {

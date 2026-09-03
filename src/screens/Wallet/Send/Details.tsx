@@ -15,9 +15,10 @@ import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { collaborativeExitWithFees, sendAssets, sendOffChain } from '../../../lib/asp'
 import { type LnSendRequest } from '../../../lib/lnSwap'
+import { ONCHAIN_ROUTE_LOG, type OnchainSendRequest } from '../../../lib/onchainSwap'
 import { extractError } from '../../../lib/error'
 import LoadingLogo from '../../../components/LoadingLogo'
-import { consoleError } from '../../../lib/logs'
+import { consoleError, consoleLog } from '../../../lib/logs'
 import { LimitsContext } from '../../../providers/limits'
 import { FeesContext } from '../../../providers/fees'
 import { buildTransactionAmountDisplay } from '../../../lib/transactionAmountDisplay'
@@ -33,7 +34,7 @@ export default function SendDetails() {
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { assetMetadataCache, balance, reloadWallet, svcWallet } = useContext(WalletContext)
-  const { trackLnSend } = useContext(LnSwapsContext)
+  const { trackLnSend, reserveOnchainSend, trackOnchainSend } = useContext(LnSwapsContext)
 
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
@@ -46,7 +47,7 @@ export default function SendDetails() {
   const [sending, setSending] = useState(false)
   const [sendDone, setSendDone] = useState(false)
 
-  const { address, arkAddress, invoice, pendingLnSend, satoshis } = sendInfo
+  const { address, arkAddress, invoice, pendingLnSend, pendingOnchainSend, satoshis } = sendInfo
   const amountDisplay = buildTransactionAmountDisplay({
     ...displayContext,
     assets: sendInfo.account
@@ -96,7 +97,16 @@ export default function SendDetails() {
     // The RFQ lockup carries exactly the invoice amount (exact-out, fee_bps
     // from the card; 0 today), so total == satoshis on the Lightning path.
     const total = pendingLnSend ? pendingLnSend.fundAmount : satoshis
-    const amount = direction === 'Paying to mainnet' ? satoshis - calcOnchainOutputFee() : satoshis
+    // On the solver exit the quote is exact-IN: the user spends what they
+    // typed and the solver's own fee decides what lands, so the payout comes
+    // off the quote rather than off arkd's onchain-output fee. Using the
+    // collaborative-exit fee here would display a number the solver route is
+    // not going to charge.
+    const amount = pendingOnchainSend
+      ? pendingOnchainSend.payoutAmount
+      : direction === 'Paying to mainnet'
+        ? satoshis - calcOnchainOutputFee()
+        : satoshis
     const fees = total - amount > 0 ? total - amount : 0
     setDetails({
       destination,
@@ -176,6 +186,58 @@ export default function SendDetails() {
     handleTxid(txid)
   }
 
+  /**
+   * Pay an L1 address through the solver that quoted it, falling back to the
+   * collaborative exit while that is still possible.
+   *
+   * "While that is still possible" is the shape of this function. Everything
+   * before `sendOffChain` can still change its mind, because nothing has moved:
+   * a quote that expired while the user read the screen, a store that refused
+   * the record, a quote that does not cost what the screen says it does. After
+   * the covenant is funded there is no fallback left and never can be — funding
+   * IS acceptance, exactly as on the Lightning leg — so from there on a failure
+   * is reported, not routed around.
+   *
+   * The record is written BEFORE funding, which is the one ordering this
+   * corridor cannot get away with reversing. See `reserveOnchainSend`.
+   */
+  const payOnchainThroughSolver = async (request: OnchainSendRequest, exit: () => Promise<string>) => {
+    const fallback = async (reason: string, detail = '') => {
+      consoleLog(`${ONCHAIN_ROUTE_LOG} collaborative exit (${reason})${detail ? ` — ${detail}` : ''}`)
+      handleTxid(await exit())
+    }
+    if (Math.floor(Date.now() / 1000) >= request.validUntil) return fallback('quote_expired')
+    // The screen quoted `details.total`; the solver must not be funded for
+    // anything else. A mismatch is a bug rather than an attack — the client
+    // already refuses a lockup address it did not derive — but it would spend
+    // a number the user never agreed to, so it exits collaboratively instead.
+    if (request.fundAmount !== details!.total) {
+      return fallback('amount_mismatch', `quote wants ${request.fundAmount}, screen shows ${details!.total}`)
+    }
+
+    const record = {
+      ...request.record,
+      rfqId: request.rfqId,
+      lockupAddress: request.address,
+      amount: request.fundAmount,
+    }
+    try {
+      await reserveOnchainSend(record)
+    } catch (err) {
+      return fallback('record_failed', extractError(err))
+    }
+
+    const txid = await sendOffChain(svcWallet!, request.fundAmount, request.address)
+    if (!txid) return handleError('Error sending transaction')
+    // Committed from here. The reserve above already made the L1 claim
+    // recoverable, so a store that refuses this second write costs the history
+    // row and not the fill — reported, never raised.
+    await trackOnchainSend({ ...record, fundingTxid: txid }).catch((err) =>
+      consoleError(err, 'error tracking onchain send'),
+    )
+    handleTxid(txid)
+  }
+
   const handleContinue = async () => {
     if (!details || !svcWallet) return
     if (!isAssetSend && (!details.total || !details.satoshis)) return
@@ -210,9 +272,18 @@ export default function SendDetails() {
     } else if (address) {
       if (!details.total) return handleError('Missing total amount')
       if (!details.satoshis) return handleError('Missing satoshis amount')
-      collaborativeExitWithFees(svcWallet, details.total, details.satoshis, address)
-        .then((txId: string) => handleTxid(txId))
-        .catch(handleError)
+      const { total, satoshis: payout } = details
+      const exit = () => collaborativeExitWithFees(svcWallet, total, payout, address)
+      // No quote in hand means no solver could take this send — the reason was
+      // logged where the decision was made — so this is the exit the wallet has
+      // always done, byte for byte.
+      if (!pendingOnchainSend) {
+        exit()
+          .then((txId: string) => handleTxid(txId))
+          .catch(handleError)
+        return
+      }
+      payOnchainThroughSolver(pendingOnchainSend, exit).catch(handleError)
     }
   }
 
