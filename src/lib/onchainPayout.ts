@@ -23,7 +23,10 @@ import type { IWallet, NetworkName } from '@arkade-os/sdk'
 import type { OnchainNetwork } from '@arkade-os/swap'
 import { getRestApiExplorerURL } from './explorers'
 
-const NETWORKS: Record<OnchainNetwork, typeof btc.NETWORK> = {
+/** The one definition of each L1's address parameters. Shared with
+ * `chainSource.ts`, so the regtest magic bytes cannot drift between the module
+ * that decodes an address and the module that encodes one. */
+export const L1_NETWORKS: Record<OnchainNetwork, typeof btc.NETWORK> = {
   bitcoin: btc.NETWORK,
   testnet: btc.TEST_NETWORK,
   regtest: { bech32: 'bcrt', pubKeyHash: 0x6f, scriptHash: 0xc4, wif: 0xef },
@@ -51,7 +54,7 @@ export const l1NetworkOf = (network: NetworkName | string): OnchainNetwork =>
  * error: the send itself is perfectly possible, just not through a solver.
  */
 export const l1ScriptForAddress = (address: string, network: OnchainNetwork): Uint8Array =>
-  btc.OutScript.encode(btc.Address(NETWORKS[network]).decode(address))
+  btc.OutScript.encode(btc.Address(L1_NETWORKS[network]).decode(address))
 
 /** The x-only key bound into the HTLC's claim leaf. Identity, so it is the
  * same key at claim time without anything having been written down.

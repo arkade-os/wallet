@@ -99,10 +99,10 @@ export const LnSwapsContext = createContext<LnSwapsContextProps>({
     throw new Error('lightning swaps not initialized')
   },
   reserveOnchainSend: async () => {
-    throw new Error('lightning swaps not initialized')
+    throw new Error('swap manager not initialized')
   },
   trackOnchainSend: async () => {
-    throw new Error('lightning swaps not initialized')
+    throw new Error('swap manager not initialized')
   },
 })
 
@@ -178,6 +178,11 @@ export const LnSwapsProvider = ({ children }: { children: ReactNode }) => {
             preimage,
             payoutPkScript,
             feeRateSatVb,
+            // The ONLY thing this identity signs on the L1 side, and it is a
+            // BIP-341 sighash built by the package from the covenant and the
+            // outputs above — never caller-supplied bytes. If `signMessage`
+            // ever reaches a broader set of callers, this coupling is what has
+            // to be re-examined first.
             sign: (sighash: Uint8Array) => svcWallet.identity.signMessage(sighash, 'schnorr'),
           })
         },
@@ -217,7 +222,9 @@ export const LnSwapsProvider = ({ children }: { children: ReactNode }) => {
       // a second subscriber to the same lockups.
       const [lnSwaps, onchainSwaps] = await Promise.all([
         restoreLnSendSwaps(contracts),
-        restoreOnchainSendSwaps(contracts),
+        // The indexer is what tells a swap that was funded from one that never
+        // was — see `restoreOnchainSendSwaps`.
+        restoreOnchainSendSwaps(contracts, (pkScript) => findLockupVtxos(indexer, pkScript)),
       ])
       if (stopped) return
       await manager.start([...lnSwaps, ...onchainSwaps])

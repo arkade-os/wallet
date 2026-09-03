@@ -1,8 +1,13 @@
 // @vitest-environment node
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { hex } from '@scure/base'
 import { rfqClaimSecretOf, rfqSignerOf, rfqSwapOriginOf } from '@arkade-os/swap'
-import { onchainSendSwap, onchainSendSwapRecord, type OnchainSendRecordInput } from '../../lib/onchainSendRecords'
+import {
+  isUnfundedReservation,
+  onchainSendSwap,
+  onchainSendSwapRecord,
+  type OnchainSendRecordInput,
+} from '../../lib/onchainSendRecords'
 import { claimPayoutScript } from '../../lib/onchainPayout'
 
 /**
@@ -119,5 +124,47 @@ describe('onchainSendSwapRecord', () => {
   it('is an onchain_send from the first write, so the right handler drives it', () => {
     expect(onchainSendSwapRecord(input).kind).toBe('onchain_send')
     expect(onchainSendSwap(input).kind).toBe('onchain_send')
+  })
+})
+
+describe('isUnfundedReservation', () => {
+  /**
+   * The one question `reserveOnchainSend`'s ordering creates. A record with no
+   * funding txid has two possible histories needing opposite treatment: the
+   * lockup WAS funded and the second write never landed (monitor it — that is
+   * the whole reason the record is written first), or it was never funded at
+   * all (drop it, or the user gets a "Pending" row for a payment they never
+   * made, watched until the refund locktime prunes it). Only the chain tells
+   * them apart.
+   */
+  const reserved = onchainSendSwapRecord(input)
+
+  it('is true for a record with no funding txid and nothing at its lockup', async () => {
+    expect(await isUnfundedReservation(reserved, async () => [])).toBe(true)
+  })
+
+  it('is false when the lockup HAS outputs — the crash the ordering exists for', async () => {
+    // Money is committed and the txid never landed. Dropping this abandons a
+    // real claim, so anything other than "no outputs" keeps the record.
+    expect(await isUnfundedReservation(reserved, async () => [{ txid: 'x' }])).toBe(false)
+  })
+
+  it('never asks the chain about a record that already names its funding tx', async () => {
+    const funded = vi.fn(async () => [])
+    expect(await isUnfundedReservation({ ...reserved, fundingArkTxid: 'funding-txid' }, funded)).toBe(false)
+    expect(funded).not.toHaveBeenCalled()
+  })
+
+  it('is false with no chain reader, so a caller without one keeps everything', async () => {
+    expect(await isUnfundedReservation(reserved)).toBe(false)
+  })
+
+  it('asks about the lockup the record actually names', async () => {
+    const seen: Uint8Array[] = []
+    await isUnfundedReservation(reserved, async (pkScript) => {
+      seen.push(pkScript)
+      return []
+    })
+    expect(hex.encode(seen[0])).toBe(LOCKUP_PKSCRIPT)
   })
 })

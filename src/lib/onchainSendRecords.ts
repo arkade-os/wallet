@@ -17,7 +17,7 @@
  * states in capitals: this wallet must claim the L1 fill itself, and a record
  * that did not survive the funding cannot be claimed from.
  */
-import type { ProvisionedClaimSecret, VHTLC } from '@arkade-os/sdk'
+import { ArkAddress, type ProvisionedClaimSecret, type VHTLC } from '@arkade-os/sdk'
 import {
   createRfqSwapRecord,
   isRfqSwapTerminal,
@@ -133,9 +133,46 @@ const onchainSends = async (): Promise<RfqSwapRecord[]> =>
  * retention window, skip the terminal ones that remain, and skip — never
  * delete — a record whose covenant is no longer in the contract store, because
  * the row it renders is still the history of a real payment.
+ *
+ * One thing this corridor has that the Lightning leg does not: a record with no
+ * funding txid at all. `reserveOnchainSend` writes it BEFORE the lockup is
+ * funded, deliberately, so a crash between the write and the funding leaves one
+ * behind. Two cases hide under that, and they need opposite treatment — the
+ * lockup WAS funded and the second write never landed (must be monitored, this
+ * is the whole reason the record is written first), or it was never funded at
+ * all (must not be, or the user gets a "Pending" row for a payment they never
+ * made, watched until the refund locktime prunes it).
+ *
+ * Time cannot tell them apart, so `funded` is asked instead: a lockup with no
+ * VTXO was never paid. Only records missing a funding txid pay for that read.
+ * Omit `funded` and the old behaviour returns — every record is kept — which is
+ * what a caller with no indexer should get.
  */
+/**
+ * A record that was reserved and then never funded.
+ *
+ * The one question `reserveOnchainSend`'s ordering creates and nothing else can
+ * answer. A record with no funding txid has two possible histories that need
+ * opposite treatment — the lockup WAS funded and the second write never landed,
+ * or it was never funded at all — and only the chain distinguishes them, so a
+ * caller with no chain reader gets `false` and keeps everything. A record that
+ * already names its funding transaction is never asked about: it is funded by
+ * construction, and the read would be a round trip for a known answer.
+ *
+ * Deliberately conservative: anything other than "no outputs at this lockup"
+ * keeps the record, because dropping a funded one abandons a real claim.
+ */
+export const isUnfundedReservation = async (
+  record: Pick<RfqSwapRecord, 'fundingArkTxid' | 'lockupAddress'>,
+  funded?: (lockupPkScript: Uint8Array) => Promise<unknown[]>,
+): Promise<boolean> => {
+  if (record.fundingArkTxid || !funded) return false
+  return (await funded(ArkAddress.decode(record.lockupAddress).pkScript)).length === 0
+}
+
 export const restoreOnchainSendSwaps = async (
   contracts: LockupContractReader,
+  funded?: (lockupPkScript: Uint8Array) => Promise<unknown[]>,
   nowSeconds = Math.floor(Date.now() / 1000),
 ): Promise<PersistableRfqSwap[]> => {
   let records: RfqSwapRecord[]
@@ -153,6 +190,15 @@ export const restoreOnchainSendSwaps = async (
       continue
     }
     if (isRfqSwapTerminal(record.state)) continue
+    // Asked BEFORE the rebuild: a record with nothing behind it is not worth a
+    // contract read, and dropping it must not depend on its covenant still
+    // being in the store.
+    if (await isUnfundedReservation(record, funded)) {
+      await assetSwapRepository
+        .removeRfqSwap(record.rfqId)
+        .catch((err) => consoleError(err, 'error dropping an unfunded onchain send'))
+      continue
+    }
     try {
       live.push(rebuildRfqSwap(record, await lockupContractParams(contracts, record.lockupAddress)))
     } catch (err) {

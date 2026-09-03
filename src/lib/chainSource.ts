@@ -25,6 +25,7 @@
  */
 import * as btc from '@scure/btc-signer'
 import type { ChainSource, ChainUtxo, OnchainNetwork } from '@arkade-os/swap'
+import { L1_NETWORKS } from './onchainPayout'
 
 /** How many timestamps consensus takes the median of. */
 const MTP_WINDOW = 11
@@ -55,16 +56,21 @@ const withDeadline = async (
   timeoutMs = ESPLORA_TIMEOUT_MS,
 ): Promise<Response> => {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  const abortTimer = setTimeout(() => controller.abort(), timeoutMs)
+  // Hoisted so the race's timer is cleared too. Leaving it running is harmless
+  // in effect — rejecting a settled promise is a no-op — but it is one live
+  // timer per esplora call, and this file makes several per swap per poll.
+  let raceTimer: ReturnType<typeof setTimeout>
   try {
     return await Promise.race([
       fetchImpl(url, { ...init, signal: controller.signal }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(`esplora did not answer within ${timeoutMs}ms`)), timeoutMs),
-      ),
+      new Promise<never>((_, reject) => {
+        raceTimer = setTimeout(() => reject(new Error(`esplora did not answer within ${timeoutMs}ms`)), timeoutMs)
+      }),
     ])
   } finally {
-    clearTimeout(timer)
+    clearTimeout(abortTimer)
+    clearTimeout(raceTimer!)
   }
 }
 
@@ -77,12 +83,6 @@ const withDeadline = async (
  * costs nothing to call `fetch` the same way every other module here does.
  */
 const globalFetch: typeof fetch = (input, init) => fetch(input, init)
-
-const NETWORKS: Record<OnchainNetwork, typeof btc.NETWORK> = {
-  bitcoin: btc.NETWORK,
-  testnet: btc.TEST_NETWORK,
-  regtest: { bech32: 'bcrt', pubKeyHash: 0x6f, scriptHash: 0xc4, wif: 0xef },
-}
 
 interface EsploraUtxo {
   txid: string
@@ -127,7 +127,7 @@ export const esploraChainSource = (
 
   return {
     async getScriptUtxos(pkScript: Uint8Array): Promise<ChainUtxo[]> {
-      const address = btc.Address(NETWORKS[network]).encode(btc.OutScript.decode(pkScript))
+      const address = btc.Address(L1_NETWORKS[network]).encode(btc.OutScript.decode(pkScript))
       const [utxos, tip] = await Promise.all([json<EsploraUtxo[]>(`/address/${address}/utxo`), tipHeight()])
       return utxos.map((utxo) => ({
         txid: utxo.txid,

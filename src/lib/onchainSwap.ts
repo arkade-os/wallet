@@ -298,8 +298,11 @@ export const requestOnchainExit = async (args: {
     minConfirmations: result.minConfirmations,
     record: {
       paymentHash: result.htlcParams.paymentHash,
-      // The ARKADE lockup's deadline, not the L1 HTLC's. `assertFundable`'s
-      // timelock-order gate has already put the two in the required order.
+      // The ARKADE lockup's deadline, not the L1 HTLC's. Never actually
+      // absent on this leg: `assertFundable`'s `direction: 'send'` branch
+      // fails `timelock_order` on an undefined `refund_locktime`, so a quote
+      // without one cannot reach here. The `?? 0` is the type narrowing that
+      // fact needs, not a default anything is expected to take.
       refundLocktime: result.quote.refund_locktime ?? 0,
       secrets: result.secrets,
       script: result.script,
