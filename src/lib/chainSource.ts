@@ -42,19 +42,24 @@ const MTP_WINDOW = 11
 export const ESPLORA_TIMEOUT_MS = 15_000
 
 /**
- * `fetch` with a deadline, cancelled at both ends.
+ * A whole esplora exchange under one deadline, cancelled at both ends.
  *
- * The signal is what stops a real request; the race is what stops WAITING on
+ * **Takes the operation, not just the request.** `fetch` resolves as soon as
+ * the status and headers arrive — the body is a stream that may still be
+ * running — so a deadline that ends when the response object appears leaves
+ * `.json()` and `.text()` undeadlined, and a server that stalls mid-body hangs
+ * exactly as if there were no timeout at all. `run` therefore covers the read
+ * as well as the request.
+ *
+ * The signal is what stops a real exchange; the race is what stops WAITING on
  * one — an implementation that ignores `signal`, and every injected test double,
  * would otherwise leave the promise pending forever. Belt and braces, because
  * only one of the two is under this file's control.
  */
-const withDeadline = async (
-  fetchImpl: typeof fetch,
-  url: string,
-  init: RequestInit = {},
+const withDeadline = async <T>(
+  run: (signal: AbortSignal) => Promise<T>,
   timeoutMs = ESPLORA_TIMEOUT_MS,
-): Promise<Response> => {
+): Promise<T> => {
   const controller = new AbortController()
   const abortTimer = setTimeout(() => controller.abort(), timeoutMs)
   // Hoisted so the race's timer is cleared too. Leaving it running is harmless
@@ -63,7 +68,7 @@ const withDeadline = async (
   let raceTimer: ReturnType<typeof setTimeout>
   try {
     return await Promise.race([
-      fetchImpl(url, { ...init, signal: controller.signal }),
+      run(controller.signal),
       new Promise<never>((_, reject) => {
         raceTimer = setTimeout(() => reject(new Error(`esplora did not answer within ${timeoutMs}ms`)), timeoutMs)
       }),
@@ -110,17 +115,21 @@ export const esploraChainSource = (
 ): ChainSource => {
   const root = baseUrl.replace(/\/+$/, '')
 
-  const get = async (path: string): Promise<Response> => {
-    const response = await withDeadline(fetchImpl, `${root}${path}`)
-    if (!response.ok) throw new Error(`esplora ${path} failed: ${response.status}`)
-    return response
-  }
+  /** One GET, status check and body read included, under one deadline. */
+  const read = <T>(path: string, body: (response: Response) => Promise<T>): Promise<T> =>
+    withDeadline(async (signal) => {
+      const response = await fetchImpl(`${root}${path}`, { signal })
+      if (!response.ok) throw new Error(`esplora ${path} failed: ${response.status}`)
+      return body(response)
+    })
 
-  const json = async <T>(path: string): Promise<T> => (await get(path)).json() as Promise<T>
+  const json = <T>(path: string): Promise<T> => read(path, (response) => response.json() as Promise<T>)
+
+  const text = (path: string): Promise<string> => read(path, async (response) => (await response.text()).trim())
 
   /** The chain tip's height — the anchor both block reads start from. */
   const tipHeight = async (): Promise<number> => {
-    const height = Number((await (await get('/blocks/tip/height')).text()).trim())
+    const height = Number(await text('/blocks/tip/height'))
     if (!Number.isInteger(height) || height < 0) throw new Error('esplora returned no usable tip height')
     return height
   }
@@ -147,14 +156,16 @@ export const esploraChainSource = (
     async getSpendingTx(txid: string, vout: number): Promise<{ txHex: string } | null> {
       const outspend = await json<{ spent?: boolean; txid?: string }>(`/tx/${txid}/outspend/${vout}`)
       if (!outspend.spent || !outspend.txid) return null
-      return { txHex: (await (await get(`/tx/${outspend.txid}/hex`)).text()).trim() }
+      return { txHex: await text(`/tx/${outspend.txid}/hex`) }
     },
 
     async broadcast(txHex: string): Promise<string> {
-      const response = await withDeadline(fetchImpl, `${root}/tx`, { method: 'POST', body: txHex })
-      const body = (await response.text()).trim()
-      if (!response.ok) throw new Error(`esplora rejected the transaction: ${body || response.status}`)
-      return body
+      return withDeadline(async (signal) => {
+        const response = await fetchImpl(`${root}/tx`, { method: 'POST', body: txHex, signal })
+        const body = (await response.text()).trim()
+        if (!response.ok) throw new Error(`esplora rejected the transaction: ${body || response.status}`)
+        return body
+      })
     },
 
     async getMtp(): Promise<number> {
@@ -196,9 +207,11 @@ export const MIN_CLAIM_FEE_RATE = 1
  */
 export const claimFeeRate = async (baseUrl: string, fetchImpl: typeof fetch = globalFetch): Promise<number> => {
   try {
-    const response = await withDeadline(fetchImpl, `${baseUrl.replace(/\/+$/, '')}/fee-estimates`)
-    if (!response.ok) return MIN_CLAIM_FEE_RATE
-    const estimates = (await response.json()) as Record<string, number>
+    const estimates = await withDeadline(async (signal) => {
+      const response = await fetchImpl(`${baseUrl.replace(/\/+$/, '')}/fee-estimates`, { signal })
+      if (!response.ok) return {} as Record<string, number>
+      return (await response.json()) as Record<string, number>
+    })
     const target = estimates['2'] ?? estimates['1'] ?? estimates['3']
     return typeof target === 'number' && Number.isFinite(target) && target > MIN_CLAIM_FEE_RATE
       ? Math.ceil(target)

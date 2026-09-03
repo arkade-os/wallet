@@ -1,4 +1,3 @@
-// @vitest-environment node
 import { describe, it, expect, vi } from 'vitest'
 import { hex } from '@scure/base'
 import { rfqClaimSecretOf, rfqSignerOf, rfqSwapOriginOf } from '@arkade-os/swap'
@@ -153,6 +152,16 @@ describe('isUnfundedReservation', () => {
     const funded = vi.fn(async () => [])
     expect(await isUnfundedReservation({ ...reserved, fundingArkTxid: 'funding-txid' }, funded)).toBe(false)
     expect(funded).not.toHaveBeenCalled()
+  })
+
+  it('keeps the record when the lookup FAILS, rather than taking the failure as evidence', async () => {
+    // And, more importantly, does not throw: this runs inside the provider's
+    // `Promise.all`, so a rejection would stop `RfqSwapManager.start` running
+    // at all — every swap on both send legs, funded ones included.
+    const reading = isUnfundedReservation(reserved, async () => {
+      throw new Error('esplora down')
+    })
+    await expect(reading).resolves.toBe(false)
   })
 
   it('is false with no chain reader, so a caller without one keeps everything', async () => {

@@ -193,6 +193,28 @@ describe('deadlines', () => {
     }
   })
 
+  it('rejects when the response arrives but its BODY never does', async () => {
+    // `fetch` resolves on the status and headers; the body is a stream that may
+    // still be running. A deadline that ends when the response object appears
+    // leaves `.json()` undeadlined, and a server that stalls mid-body hangs
+    // exactly as if there were no timeout at all.
+    const headersOnly = (async () => ({
+      ok: true,
+      status: 200,
+      json: () => new Promise<never>(() => {}),
+      text: () => new Promise<never>(() => {}),
+    })) as unknown as typeof fetch
+    vi.useFakeTimers()
+    try {
+      const chain = esploraChainSource('http://esplora/api', 'regtest', headersOnly)
+      const assertion = expect(chain.getMtp()).rejects.toThrow(/did not answer within/)
+      await vi.advanceTimersByTimeAsync(ESPLORA_TIMEOUT_MS + 1)
+      await assertion
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('does not reject a request that answers in time', async () => {
     const { chain } = source({ '/blocks': [{ height: 0, timestamp: 100 }] })
     expect(await chain.getMtp()).toBe(100)

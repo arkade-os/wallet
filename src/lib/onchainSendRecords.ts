@@ -159,15 +159,27 @@ const onchainSends = async (): Promise<RfqSwapRecord[]> =>
  * already names its funding transaction is never asked about: it is funded by
  * construction, and the read would be a round trip for a known answer.
  *
- * Deliberately conservative: anything other than "no outputs at this lockup"
- * keeps the record, because dropping a funded one abandons a real claim.
+ * Deliberately conservative: anything other than a successful lookup returning
+ * no outputs keeps the record — a failed lookup included — because dropping a
+ * funded one abandons a real claim.
  */
 export const isUnfundedReservation = async (
   record: Pick<RfqSwapRecord, 'fundingArkTxid' | 'lockupAddress'>,
   funded?: (lockupPkScript: Uint8Array) => Promise<unknown[]>,
 ): Promise<boolean> => {
   if (record.fundingArkTxid || !funded) return false
-  return (await funded(ArkAddress.decode(record.lockupAddress).pkScript)).length === 0
+  try {
+    return (await funded(ArkAddress.decode(record.lockupAddress).pkScript)).length === 0
+  } catch (err) {
+    // A lookup that failed is not evidence of anything, and it must not
+    // propagate: `restoreOnchainSendSwaps` runs inside the provider's
+    // `Promise.all`, so a rejection here stops `RfqSwapManager.start` from
+    // running at all — every swap on both send legs, including funded ones
+    // waiting on an L1 claim. An esplora blip at startup would cost far more
+    // than the stale row this check exists to avoid.
+    consoleError(err, `cannot tell whether onchain send ${record.lockupAddress} was funded`)
+    return false
+  }
 }
 
 export const restoreOnchainSendSwaps = async (
