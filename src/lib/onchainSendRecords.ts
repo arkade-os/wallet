@@ -33,6 +33,8 @@ import {
   type PersistableRfqSwap,
   type RfqSwapRecord,
 } from '@arkade-os/swap'
+import { hex } from '@scure/base'
+import { CLAIM_PAYOUT_SCRIPT } from './onchainPayout'
 import { consoleError } from './logs'
 import { assetSwapRepository } from './swapRepository'
 
@@ -47,6 +49,17 @@ export interface OnchainSendRecordFacts {
   secrets: ProvisionedClaimSecret
   /** The Arkade covenant. Without it the manager can only poll. */
   script: InstanceType<typeof VHTLC.ScriptV2>
+  /**
+   * The RECIPIENT's L1 output script — where the claim pays.
+   *
+   * A wallet-private profile key, because the package has none: the claim
+   * transaction's output is the spender's own choice and nothing in
+   * `OnchainSendProfile`, the quote, or the HTLC records it. It has to be here
+   * because the claim can run in a later process, and the only alternative a
+   * claim-time derivation could reach is this wallet's own address — which
+   * would quietly turn a payment into a transfer to self.
+   */
+  payoutPkScript: Uint8Array
   /** The expected L1 fill — what this wallet has to watch and claim. */
   htlc: OnchainHtlc
   /** The inputs the HTLC was built from. Nothing else gives them back. */
@@ -103,6 +116,7 @@ export const onchainSendSwapRecord = (input: OnchainSendRecordInput, nowSeconds?
       profile: {
         ...rfqSecretsProfile(input.secrets, input.paymentHash),
         ...onchainSendProfile(input),
+        [CLAIM_PAYOUT_SCRIPT]: hex.encode(input.payoutPkScript),
       },
       amount: input.amount,
       ...(input.fundingTxid ? { fundingArkTxid: input.fundingTxid } : {}),

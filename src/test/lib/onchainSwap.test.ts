@@ -2,6 +2,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { hex } from '@scure/base'
 import { discover, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+import { l1ScriptForAddress } from '../../lib/onchainPayout'
 import {
   ONCHAIN_ROUTE_LOG,
   OnchainRouteUnavailable,
@@ -23,6 +24,9 @@ let requestOnchainSendMock: (...args: any[]) => any = () => {
 
 const EMULATOR = 'aa'.repeat(32)
 const SOLVER = 'bb'.repeat(32)
+/** A real regtest address, so the payout script is a real one too. */
+const RECIPIENT = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
+const RECIPIENT_SCRIPT = l1ScriptForAddress(RECIPIENT, 'regtest')
 
 /** A card's market as discovery hands it over. Only the fields the rendezvous
  * reads are real; the rest is the shape `DiscoveredMarket` demands. */
@@ -242,6 +246,7 @@ describe('requestOnchainExit', () => {
       transport: {} as never,
       amountSats: 50_000,
       payoutPubkey: new Uint8Array(32),
+      payoutPkScript: RECIPIENT_SCRIPT,
       rendezvous: {
         solverPubkey: SOLVER,
         transports: { nostr: { relays: [] } },
@@ -258,6 +263,15 @@ describe('requestOnchainExit', () => {
     expect(request.fundAmount).toBe(50_000)
     expect(request.payoutAmount).toBe(49_500)
     expect(request.record.paymentHash).toBe('ab'.repeat(32))
+  })
+
+  it("carries the RECIPIENT's script on the record, not the wallet's own", async () => {
+    // The HTLC's claim leaf binds a key only this wallet can sign with, so the
+    // key cannot be the recipient's. The claim's OUTPUT is a separate choice,
+    // and it is the one that has to be the recipient — otherwise the corridor
+    // pays this wallet on L1 while the receipt says the recipient was paid.
+    const request = await call()
+    expect(request.record.payoutPkScript).toEqual(RECIPIENT_SCRIPT)
   })
 
   it('refuses a quote that prices a different trade', async () => {
@@ -280,6 +294,8 @@ describe('planOnchainSend', () => {
     arkServerUrl: 'http://ark',
     amountSats: 50_000,
     payoutPubkey: new Uint8Array(32),
+    payoutAddress: RECIPIENT,
+    l1Network: 'regtest' as const,
     claimEndpoint: 'http://esplora/api',
     discover: async () => [market()],
     connect: <T>(_r: unknown, fn: (t: never) => Promise<T>) => fn({} as never),
@@ -335,6 +351,20 @@ describe('planOnchainSend', () => {
     expect(refusal.bounds).toEqual({ minSats: 1000, maxSats: 1_000_000 })
   })
 
+  it('falls back on an address the claim could not pay to, before quoting', async () => {
+    const discover = vi.fn(async () => [market()])
+    const refusal = await refusalOf({ payoutAddress: 'not-an-address', discover })
+    expect(refusal.reason).toBe('unsupported_address')
+    expect(discover).not.toHaveBeenCalled()
+  })
+
+  it('falls back on an address for another network', async () => {
+    // A mainnet address on regtest decodes to a script this chain cannot pay,
+    // and quoting it would fund a swap whose claim has nowhere to go.
+    const refusal = await refusalOf({ payoutAddress: 'bc1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytqewn5c' })
+    expect(refusal.reason).toBe('unsupported_address')
+  })
+
   it('turns a discovery failure into a fallback, not an error', async () => {
     const refusal = await refusalOf({
       discover: async () => {
@@ -386,7 +416,14 @@ describe('planOnchainSend', () => {
   })
 
   it('gives every refusal a message the send screen can show', () => {
-    const reasons = ['no_solver', 'amount_out_of_bounds', 'no_l1_endpoint', 'discovery_failed', 'quote_failed'] as const
+    const reasons = [
+      'no_solver',
+      'amount_out_of_bounds',
+      'no_l1_endpoint',
+      'unsupported_address',
+      'discovery_failed',
+      'quote_failed',
+    ] as const
     for (const reason of reasons) {
       const text = onchainRouteRefusalText(new OnchainRouteUnavailable(reason, 'x'))
       expect(text).toMatch(/collaborative exit/)

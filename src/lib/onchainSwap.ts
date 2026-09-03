@@ -26,6 +26,7 @@
  */
 import { hex } from '@scure/base'
 import { marketCorridor, sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+import { l1ScriptForAddress } from './onchainPayout'
 import {
   requestOnchainSend,
   type OnchainHtlc,
@@ -69,6 +70,11 @@ export type OnchainRouteRefusal =
    * whole point of the fallback is that the wallet never gets into that state.
    */
   | 'no_l1_endpoint'
+  /**
+   * The destination is an L1 address this wallet cannot build an output for,
+   * so the claim would have nowhere to pay. Also checked before quoting.
+   */
+  | 'unsupported_address'
   /** Market discovery itself failed — an unreachable registry, a bad cache. */
   | 'discovery_failed'
   /** The negotiation failed: a refusal, a timeout, a quote we would not fund. */
@@ -237,8 +243,20 @@ export const requestOnchainExit = async (args: {
   transport: RfqTransport
   /** Sats to spend — `quote.from_amount` must come back equal to this. */
   amountSats: number
-  /** The user's x-only L1 key that will claim the HTLC. */
+  /** The user's x-only L1 key that will AUTHORISE the claim. Never where it
+   * pays: the HTLC's claim leaf binds a key this wallet must sign with, and
+   * the recipient cannot. */
   payoutPubkey: Uint8Array
+  /**
+   * The RECIPIENT's output script — where the claim actually pays.
+   *
+   * Carried on the record because the claim happens later, possibly in another
+   * process, long after this screen is gone. Nothing in the quote or on the
+   * HTLC names it: the claim transaction's output is the spender's own choice,
+   * which is exactly why it has to be pinned here rather than derived at claim
+   * time from whatever is to hand.
+   */
+  payoutPkScript: Uint8Array
   rendezvous: OnchainSendRendezvous
   /** 33-byte compressed hex override for the covenant co-signer, when this
    * deployment pins one. Absent lets the package use its per-network pin. */
@@ -277,6 +295,7 @@ export const requestOnchainExit = async (args: {
       refundLocktime: result.quote.refund_locktime ?? 0,
       secrets: result.secrets,
       script: result.script,
+      payoutPkScript: args.payoutPkScript,
       htlc: result.htlc,
       htlcParams: result.htlcParams,
       l1Network: result.l1Network,
@@ -298,6 +317,8 @@ export const onchainRouteRefusalText = (error: OnchainRouteUnavailable): string 
         : 'Amount outside solver bounds — using a collaborative exit'
     case 'no_l1_endpoint':
       return 'No Bitcoin endpoint for this network — using a collaborative exit'
+    case 'unsupported_address':
+      return 'Solver route cannot pay this address type — using a collaborative exit'
     case 'discovery_failed':
       return 'Could not reach the solver registry — using a collaborative exit'
     case 'quote_failed':
@@ -328,6 +349,10 @@ export const planOnchainSend = async (args: {
   /** Sats to spend. Bound-checked before anything is asked of a solver. */
   amountSats: number
   payoutPubkey: Uint8Array
+  /** The recipient's L1 address — the destination the user actually typed. */
+  payoutAddress: string
+  /** Which Bitcoin network that address must be spendable on. */
+  l1Network: OnchainNetwork
   /** The L1 endpoint this wallet would claim the fill through, if it has one. */
   claimEndpoint?: string
   fallbackEmulatorPubkey?: Uint8Array
@@ -339,6 +364,18 @@ export const planOnchainSend = async (args: {
   // not negotiate a swap whose claim is its own responsibility.
   if (!args.claimEndpoint) {
     throw new OnchainRouteUnavailable('no_l1_endpoint', 'no L1 endpoint is configured for this network')
+  }
+  // Resolved here, before anything is negotiated, because a destination the
+  // claim cannot pay to makes the whole route pointless — and because the
+  // record must carry it: the claim's output is not derivable from the quote,
+  // the HTLC, or anything else that survives this screen.
+  let payoutPkScript: Uint8Array
+  try {
+    payoutPkScript = l1ScriptForAddress(args.payoutAddress, args.l1Network)
+  } catch (cause) {
+    throw new OnchainRouteUnavailable('unsupported_address', `cannot build an output for ${args.payoutAddress}`, {
+      cause,
+    })
   }
 
   let markets: DiscoveredMarket[]
@@ -368,6 +405,7 @@ export const planOnchainSend = async (args: {
         transport,
         amountSats: args.amountSats,
         payoutPubkey: args.payoutPubkey,
+        payoutPkScript,
         rendezvous: choice.rendezvous,
         ...(args.emulatorPubkey ? { emulatorPubkey: args.emulatorPubkey } : {}),
       }),

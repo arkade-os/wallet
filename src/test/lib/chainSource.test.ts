@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import * as btc from '@scure/btc-signer'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
-import { MIN_CLAIM_FEE_RATE, claimFeeRate, esploraChainSource } from '../../lib/chainSource'
+import { ESPLORA_TIMEOUT_MS, MIN_CLAIM_FEE_RATE, claimFeeRate, esploraChainSource } from '../../lib/chainSource'
 
 /**
  * The wallet's L1 reads, which decide whether an onchain-send fill is claimable
@@ -146,6 +146,56 @@ describe('esploraChainSource', () => {
       const chain = esploraChainSource('http://esplora/api', 'regtest', impl)
       await expect(chain.broadcast('0200')).rejects.toThrow(/min relay fee not met/)
     })
+  })
+})
+
+describe('deadlines', () => {
+  /**
+   * `RfqSwapManager` awaits these reads before it schedules its next pass, so a
+   * request that never settles does not merely slow the wallet down — it stops
+   * the swap being driven, and this is the corridor whose claim has a consensus
+   * deadline. A rejection is recoverable; a hang is not.
+   */
+  const hangs = (() => {
+    let aborted = false
+    const impl = (async (_url: string, init?: { signal?: AbortSignal }) => {
+      init?.signal?.addEventListener('abort', () => {
+        aborted = true
+      })
+      return new Promise<never>(() => {})
+    }) as unknown as typeof fetch
+    return { impl, wasAborted: () => aborted }
+  })()
+
+  it('rejects rather than hanging when esplora never answers', async () => {
+    vi.useFakeTimers()
+    try {
+      const chain = esploraChainSource('http://esplora/api', 'regtest', hangs.impl)
+      const pending = chain.getMtp()
+      const assertion = expect(pending).rejects.toThrow(/did not answer within/)
+      await vi.advanceTimersByTimeAsync(ESPLORA_TIMEOUT_MS + 1)
+      await assertion
+      // The socket is closed too, not merely stopped being waited on.
+      expect(hangs.wasAborted()).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('gives up on a hung fee estimate and uses the floor', async () => {
+    vi.useFakeTimers()
+    try {
+      const rate = claimFeeRate('http://esplora/api', hangs.impl)
+      await vi.advanceTimersByTimeAsync(ESPLORA_TIMEOUT_MS + 1)
+      expect(await rate).toBe(MIN_CLAIM_FEE_RATE)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not reject a request that answers in time', async () => {
+    const { chain } = source({ '/blocks': [{ height: 0, timestamp: 100 }] })
+    expect(await chain.getMtp()).toBe(100)
   })
 })
 

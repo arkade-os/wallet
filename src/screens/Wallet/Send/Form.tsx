@@ -40,7 +40,7 @@ import {
   onchainRouteRefusalText,
   planOnchainSend,
 } from '../../../lib/onchainSwap'
-import { l1PayoutPubkey, onchainClaimEndpoint } from '../../../lib/onchainPayout'
+import { l1NetworkOf, l1PayoutPubkey, onchainClaimEndpoint } from '../../../lib/onchainPayout'
 import { withRfqTransport } from '../../../lib/nostrRfq'
 import { discoverMarkets } from '../../../lib/swapMarkets'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
@@ -645,6 +645,10 @@ export default function SendForm() {
         arkServerUrl: aspInfo.url,
         amountSats: sendInfo.satoshis ?? 0,
         payoutPubkey: await l1PayoutPubkey(svcWallet),
+        // The address the user typed. The key above only authorises the claim;
+        // this is where it pays, and the two are not interchangeable.
+        payoutAddress: sendInfo.address ?? '',
+        l1Network: l1NetworkOf(network),
         claimEndpoint: onchainClaimEndpoint(network),
         fallbackEmulatorPubkey: getEmulatorPubkeyForNetwork(network),
         emulatorPubkey: getEmulatorPubkeyOverrideForNetwork(network),

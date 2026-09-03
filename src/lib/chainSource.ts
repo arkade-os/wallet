@@ -29,6 +29,45 @@ import type { ChainSource, ChainUtxo, OnchainNetwork } from '@arkade-os/swap'
 /** How many timestamps consensus takes the median of. */
 const MTP_WINDOW = 11
 
+/**
+ * How long any single esplora request may take.
+ *
+ * Not politeness — `RfqSwapManager` awaits these reads and the claim they lead
+ * to before it schedules its next pass, so one request that never settles stops
+ * the swap being driven at all. On this corridor that is the failure with a
+ * deadline attached: the claim window shuts while the wallet waits on a socket.
+ * A rejection is recoverable (the next pass retries); a hang is not.
+ */
+export const ESPLORA_TIMEOUT_MS = 15_000
+
+/**
+ * `fetch` with a deadline, cancelled at both ends.
+ *
+ * The signal is what stops a real request; the race is what stops WAITING on
+ * one — an implementation that ignores `signal`, and every injected test double,
+ * would otherwise leave the promise pending forever. Belt and braces, because
+ * only one of the two is under this file's control.
+ */
+const withDeadline = async (
+  fetchImpl: typeof fetch,
+  url: string,
+  init: RequestInit = {},
+  timeoutMs = ESPLORA_TIMEOUT_MS,
+): Promise<Response> => {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await Promise.race([
+      fetchImpl(url, { ...init, signal: controller.signal }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`esplora did not answer within ${timeoutMs}ms`)), timeoutMs),
+      ),
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 const NETWORKS: Record<OnchainNetwork, typeof btc.NETWORK> = {
   bitcoin: btc.NETWORK,
   testnet: btc.TEST_NETWORK,
@@ -62,7 +101,7 @@ export const esploraChainSource = (
   const root = baseUrl.replace(/\/+$/, '')
 
   const get = async (path: string): Promise<Response> => {
-    const response = await fetchImpl(`${root}${path}`)
+    const response = await withDeadline(fetchImpl, `${root}${path}`)
     if (!response.ok) throw new Error(`esplora ${path} failed: ${response.status}`)
     return response
   }
@@ -102,7 +141,7 @@ export const esploraChainSource = (
     },
 
     async broadcast(txHex: string): Promise<string> {
-      const response = await fetchImpl(`${root}/tx`, { method: 'POST', body: txHex })
+      const response = await withDeadline(fetchImpl, `${root}/tx`, { method: 'POST', body: txHex })
       const body = (await response.text()).trim()
       if (!response.ok) throw new Error(`esplora rejected the transaction: ${body || response.status}`)
       return body
@@ -147,7 +186,7 @@ export const MIN_CLAIM_FEE_RATE = 1
  */
 export const claimFeeRate = async (baseUrl: string, fetchImpl: typeof fetch = fetch): Promise<number> => {
   try {
-    const response = await fetchImpl(`${baseUrl.replace(/\/+$/, '')}/fee-estimates`)
+    const response = await withDeadline(fetchImpl, `${baseUrl.replace(/\/+$/, '')}/fee-estimates`)
     if (!response.ok) return MIN_CLAIM_FEE_RATE
     const estimates = (await response.json()) as Record<string, number>
     const target = estimates['2'] ?? estimates['1'] ?? estimates['3']

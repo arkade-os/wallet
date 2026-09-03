@@ -69,7 +69,7 @@ import {
   type OnchainSendRecordInput,
 } from '../lib/onchainSendRecords'
 import { claimFeeRate, esploraChainSource } from '../lib/chainSource'
-import { l1NetworkOf, l1PayoutScript } from '../lib/onchainPayout'
+import { claimPayoutScript, l1NetworkOf } from '../lib/onchainPayout'
 import { getRestApiExplorerURL } from '../lib/explorers'
 import { lockupSpenderTxid } from '../lib/lnSwap'
 import { consoleError } from '../lib/logs'
@@ -161,16 +161,22 @@ export const LnSwapsProvider = ({ children }: { children: ReactNode }) => {
           // projection the caller never wrote.
           const secrets = rfqClaimSecretOf(record)
           if (!secrets) throw new Error(`swap ${swap.rfqId} was stored without its hashlock`)
-          const [preimage, xOnlyPubkey, feeRateSatVb] = await Promise.all([
+          // The RECIPIENT's script, off the record. Never derived here: the
+          // only thing derivable at claim time is this wallet's own address,
+          // and paying there would turn the send into a transfer to self while
+          // the receipt says otherwise. `claimPayoutScript` throws rather than
+          // substitute one, which loses the fill to the solver's L1 refund and
+          // returns the lockup — recoverable, unlike paying the wrong place.
+          const payoutPkScript = claimPayoutScript(record.profile)
+          const [preimage, feeRateSatVb] = await Promise.all([
             preimageForSwapRecord(svcWallet, secrets),
-            svcWallet.identity.xOnlyPublicKey(),
             claimFeeRate(esploraUrl),
           ])
           return claimOnchainFill(chain, {
             htlc: swap.htlc,
             utxo,
             preimage,
-            payoutPkScript: l1PayoutScript(xOnlyPubkey, l1Network),
+            payoutPkScript,
             feeRateSatVb,
             sign: (sighash: Uint8Array) => svcWallet.identity.signMessage(sighash, 'schnorr'),
           })
@@ -241,12 +247,18 @@ export const LnSwapsProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const trackOnchainSend = async (input: OnchainSendRecordInput) => {
-    // The same record again, now naming the funding transaction, then handed
-    // to the manager. Rewriting rather than patching keeps one builder for the
-    // shape — and `reserveOnchainSend` has already made the claim recoverable,
-    // so a failure here costs the history row, not the money.
-    await saveRecord(onchainSendSwapRecord(input))
-    await managerRef.current?.addSwap(onchainSendSwap(input))
+    // Two independent jobs, deliberately not sequenced. The write names the
+    // funding transaction the history row needs; the hand-off is what gets the
+    // L1 claim driven in THIS session rather than at the next start. Chaining
+    // them meant a store that refused the txid also cost the claim its
+    // session — and this corridor's claim is the one on a deadline.
+    //
+    // Rewriting the whole record rather than patching keeps one builder for the
+    // shape, and `reserveOnchainSend` has already made the claim recoverable,
+    // so neither failure here costs money.
+    const monitored = managerRef.current?.addSwap(onchainSendSwap(input))
+    const stored = saveRecord(onchainSendSwapRecord(input))
+    await Promise.all([monitored, stored])
   }
 
   return (

@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest'
 import { hex } from '@scure/base'
 import { rfqClaimSecretOf, rfqSignerOf, rfqSwapOriginOf } from '@arkade-os/swap'
 import { onchainSendSwap, onchainSendSwapRecord, type OnchainSendRecordInput } from '../../lib/onchainSendRecords'
+import { claimPayoutScript } from '../../lib/onchainPayout'
 
 /**
  * The onchain-send record, read back through the package's OWN readers.
@@ -55,6 +56,7 @@ const input: OnchainSendRecordInput = {
   },
   l1Network: 'regtest',
   minConfirmations: 2,
+  payoutPkScript: hex.decode('0014610928cd26e42a6d1801e9d4718b16d67cd954b1'),
 }
 
 describe('onchainSendSwapRecord', () => {
@@ -98,6 +100,20 @@ describe('onchainSendSwapRecord', () => {
     const funded = onchainSendSwapRecord({ ...input, fundingTxid: 'funding-txid' })
     expect(funded.fundingArkTxid).toBe('funding-txid')
     expect(rfqSwapOriginOf(funded).fundingArkTxid).toBe('funding-txid')
+  })
+
+  it('carries the recipient script the claim must pay to', () => {
+    // Not on `OnchainSendProfile`: the claim transaction's output is the
+    // spender's own choice and the package records it nowhere, so a swap
+    // restored without this key has no destination but this wallet's own.
+    expect(profile().payout_pkscript).toBe('0014610928cd26e42a6d1801e9d4718b16d67cd954b1')
+    expect(claimPayoutScript(onchainSendSwapRecord(input).profile)).toEqual(input.payoutPkScript)
+  })
+
+  it('refuses to claim a record that lost its payout script', () => {
+    // Paying somewhere else is not reversible; losing the fill is. The solver
+    // takes its L1 refund and the Arkade lockup returns to the user.
+    expect(() => claimPayoutScript({})).toThrow(/refusing to claim/)
   })
 
   it('is an onchain_send from the first write, so the right handler drives it', () => {
