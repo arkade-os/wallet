@@ -138,7 +138,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
         txs,
         new Set(existing.map((s) => s.id)),
         // x-only, matching the key the covenants were funded against
-        { serverPubkey: hex.decode(aspInfo.signerPubkey).slice(1), scanned },
+        { operatorPubkey: hex.decode(aspInfo.signerPubkey).slice(1), scanned },
       )
       // a wallet reset may have cleared the repository while the scan ran —
       // never write the old profile's records into it. The repository clears
@@ -199,7 +199,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     // side: keying on the deposit would push an asset↔asset plan into the
     // want-btc branch, binding the receive asset's atomic amount as a sat
     // want the solver could fill for dust.
-    const offer = await createOffer(svcWallet, aspInfo.url, {
+    const offer = await createOffer(svcWallet, {
       wantAmount: plan.receive.atomic,
       ...(plan.receive.asset.id === BTC_ASSET_ID
         ? { offerAsset: asset.AssetId.fromString(plan.deposit.asset.id) }
@@ -247,7 +247,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     // repository; this one is what the UI sees immediately)
     applySwaps(await updateAssetSwap(assetSwapRepository, id, { status: 'cancelling' }))
     try {
-      const cancelTxid = await cancelOffer(svcWallet, aspInfo.url, swap.offerHex, {
+      const cancelTxid = await cancelOffer(svcWallet, swap.offerHex, {
         repository: assetSwapRepository,
         fundingTxid: swap.fundingTxid,
         swapAddress: swap.swapAddress,
@@ -346,7 +346,6 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     let stopped = false
     watchOfferSwaps({
       wallet: svcWallet,
-      arkServerUrl: aspInfo.url,
       repository: assetSwapRepository,
       onUpdate: (updated) => announce(updated as WalletAssetSwap),
     })

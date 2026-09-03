@@ -19,17 +19,23 @@
  *
  * Which is exactly why covclaimd plays no part in it — see `sealingKey`.
  */
-import { ArkAddress, contractSigner, type IWallet, type NetworkName, type ProvisionedClaimSecret } from '@arkade-os/sdk'
+import {
+  ArkAddress,
+  contractSigner,
+  RestArkProvider,
+  type IWallet,
+  type NetworkName,
+  type ProvisionedClaimSecret,
+} from '@arkade-os/sdk'
 import {
   preimageForSwapRecord,
   pushClaim,
   requestLightningReceive,
   rfqSecretsProfile,
-  type ClaimArkProvider,
   type LightningReceiveProfile,
   type LightningReceiveSwap,
   type LockupVtxo,
-  type LightningReceiveTreeParams,
+  type LightningReceiveContractParams,
   type RfqClaimSecretProjection,
   type RfqSwapLockup,
   type RfqSwapOrigin,
@@ -84,7 +90,7 @@ export interface LnReceiveRequest {
   /** The wallet's OWN derivation of the lockup the solver must fund. */
   address: string
   swapPkScript: Uint8Array
-  script: Parameters<typeof pushClaim>[1]['script']
+  script: Parameters<typeof pushClaim>[1]['contract']
   payoutAddress: string
   secrets: ProvisionedClaimSecret
   /**
@@ -99,7 +105,7 @@ export interface LnReceiveRequest {
    * derivation the lockup address commits to, so reading it is reading our own
    * work rather than trusting a copy of it.
    */
-  treeParams: LightningReceiveTreeParams
+  contractParams: LightningReceiveContractParams
 }
 
 /**
@@ -111,7 +117,6 @@ export interface LnReceiveRequest {
  */
 export const requestLnReceive = async (args: {
   wallet: Parameters<typeof requestLightningReceive>[0]
-  arkServerUrl: string
   transport: RfqTransport
   rendezvous: LnSendRendezvous
   network: NetworkName
@@ -119,7 +124,7 @@ export const requestLnReceive = async (args: {
 }): Promise<LnReceiveRequest> => {
   // 0.0.3: the co-signer key resolves inside the package (per-network pin);
   // the positional argument is gone.
-  const result = await requestLightningReceive(args.wallet, args.arkServerUrl, args.transport, {
+  const result = await requestLightningReceive(args.wallet, args.transport, {
     amount: args.amountSats,
     amountSide: 'to',
     // The package's own pin is a placeholder on a network whose stack generates
@@ -152,7 +157,7 @@ export const requestLnReceive = async (args: {
     script: result.script,
     payoutAddress: result.payoutAddress,
     secrets: result.secrets,
-    treeParams: result.treeParams,
+    contractParams: result.contractParams,
   }
 }
 
@@ -190,7 +195,7 @@ export class LnReceiveHeldElsewhere extends Error {
  * migration.
  */
 export const toReceiveOrigin = (request: LnReceiveRequest): RfqSwapOrigin => {
-  const { signer, hashlock } = rfqSecretsProfile(request.secrets, request.treeParams.paymentHash)
+  const { signer, hashlock } = rfqSecretsProfile(request.secrets, request.contractParams.paymentHash)
   // `rfqSecretsProfile` writes what the provisioning result actually has, and a
   // receive leg that produced no hashlock could never recover `P`. Refusing
   // here is refusing before the invoice is shown; the alternative is a lockup
@@ -226,12 +231,12 @@ export const toReceiveSwap = (
   request: LnReceiveRequest,
   nowSeconds = Math.floor(Date.now() / 1000),
 ): LightningReceiveSwap => {
-  // Required on `LightningReceiveTreeParams`, so this is now "the package
+  // Required on `LightningReceiveContractParams`, so this is now "the package
   // changed under us" rather than "arkade↔arkade quotes have no refund leaf".
   // Kept as an assertion because it is the solver's deadline and the only clock
   // the claim is gated on — a zero here would time the claim to the epoch.
-  const { refundLocktime, paymentHash } = request.treeParams
-  if (!refundLocktime) throw new Error('treeParams carry no refundLocktime; a receive swap cannot be timed')
+  const { refundLocktime, paymentHash } = request.contractParams
+  if (!refundLocktime) throw new Error('contractParams carry no refundLocktime; a receive swap cannot be timed')
   return {
     rfqId: request.rfqId,
     kind: 'lightning_receive',
@@ -269,7 +274,7 @@ export const toReceiveSwap = (
  */
 export const claimReceive = async (args: {
   wallet: IWallet
-  ark: ClaimArkProvider
+  ark: RestArkProvider
   /** Narrowed to a swap that carries its covenant: `lockup` is optional on the
    * package's record, but a receive swap without one has nothing to claim, so
    * the caller resolves that before this is reachable. */
@@ -278,13 +283,13 @@ export const claimReceive = async (args: {
   record: RfqClaimSecretProjection
   vtxos: readonly LockupVtxo[]
   partiallyClaimed: boolean
-}): Promise<{ arkTxid: string; amount: number }> => {
+}): Promise<{ txid: string; amount: number }> => {
   const [preimage, receiver] = await Promise.all([
     preimageForSwapRecord(args.wallet, args.record),
     contractSigner(args.wallet, args.record.signingDescriptor),
   ])
   return pushClaim(args.ark, {
-    script: args.swap.lockup.script,
+    contract: args.swap.lockup.script,
     receiver,
     preimage,
     vtxos: args.vtxos,

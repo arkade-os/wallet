@@ -655,11 +655,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // (`activityTxids(profile)`): reading profile keys by name here would put
       // corridor knowledge in the wallet, which is what adding a corridor would
       // then have to come back and edit. It also drains the manager's stamped
-      // `lockupSpendArkTxids` before any network read, so a terminal swap
+      // `lockupSpendTxids` before any network read, so a terminal swap
       // answers for its own counterparty spend.
       //
       // The indexer covers only what a record cannot: one written before
-      // `fundingArkTxid` existed, and a terminal swap no refund of ours ended.
+      // `fundingTxid` existed, and a terminal swap no refund of ours ended.
       // It is optional and failure-isolated — one that throws costs that record
       // its extra txids, never the whole list.
       const activityIndexer = new RestIndexerProvider(arkServerUrl)

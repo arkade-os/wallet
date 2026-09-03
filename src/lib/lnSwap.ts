@@ -279,7 +279,6 @@ export interface LnSendRequest {
 export const requestLnSend = async (
   args: {
     wallet: Parameters<typeof requestLightningSend>[0]
-    arkServerUrl: string
     transport: RfqTransport
     invoice: string
     network: NetworkName
@@ -292,7 +291,7 @@ export const requestLnSend = async (
   // the package from its per-network pin — there is no positional argument.
   // Passing the old five-argument shape shifted every parameter one slot and
   // died reading `params.invoice.raw` off the transport.
-  const result = await requestLightningSend(args.wallet, args.arkServerUrl, args.transport, {
+  const result = await requestLightningSend(args.wallet, args.transport, {
     invoice,
   })
   return {
@@ -321,7 +320,7 @@ export const requestLnSend = async (
  * witness that hashes to the payment hash rather than off who got paid. This
  * exists because that answer carries no txid: `readLockupFate` reports
  * `returned` without naming the transaction, and the manager records
- * `refundArkTxid` only for a refund IT pushed. A solver's own
+ * `refundTxid` only for a refund IT pushed. A solver's own
  * `nonInteractiveRefund` is neither, and the history row it creates is exactly
  * what the activity has to group against the funding tx.
  *

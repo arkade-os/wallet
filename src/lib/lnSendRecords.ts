@@ -12,13 +12,13 @@
  * `spend_txid`, both under `profile`, because the manager had no field for
  * either. ts-sdk#773 gave it both, so they are gone as things we WRITE:
  *
- * - `fundingArkTxid` is on the origin. The manager watches a lockup by its
+ * - `fundingTxid` is on the origin. The manager watches a lockup by its
  *   script and still never needs the transaction that filled it, but the record
  *   carries it now — and it has to, because grouping correlates by txid and
  *   `rfqSwapActivityInputs` reads the record's own fields. The lightning-send
  *   corridor has no `activityTxids`, so a funding txid under a wallet-private
  *   profile key is a txid the resolver cannot see.
- * - `lockupSpendArkTxids` is stamped by the manager at finalization, from the
+ * - `lockupSpendTxids` is stamped by the manager at finalization, from the
  *   chain read that ended the swap. That covers the ordinary failure — the
  *   solver's own `nonInteractiveRefund`, which is neither a refund the wallet
  *   pushed nor something `readLockupFate` named — which is exactly the gap
@@ -107,7 +107,7 @@ export const lnSendSwapRecord = (input: LnSendRecordInput, nowSeconds?: number):
       // reads this and never looks at `profile` for a send — the corridor handler
       // has no `activityTxids` — so a funding txid parked under a wallet-private
       // key groups nothing at all.
-      fundingArkTxid: input.fundingTxid,
+      fundingTxid: input.fundingTxid,
     },
     lnSendSwap(input, nowSeconds),
   )
@@ -142,25 +142,25 @@ const profileTxid = (record: RfqSwapRecord, key: string): string | undefined => 
 /**
  * The tx that filled the lockup.
  *
- * `fundingArkTxid` is where it lives now. `funding_txid` is read only for
+ * `fundingTxid` is where it lives now. `funding_txid` is read only for
  * records written before it moved there — a preview deploy's store, not a
  * shape anything still writes.
  */
 export const fundingTxidOf = (record: RfqSwapRecord): string | undefined =>
-  record.fundingArkTxid ?? profileTxid(record, FUNDING_TXID)
+  record.fundingTxid ?? profileTxid(record, FUNDING_TXID)
 
 /**
  * The tx that ended the swap, when it is one of ours.
  *
- * `refundArkTxid` first: a refund the wallet pushed is the manager's own fact,
- * written as the push lands. Then `lockupSpendArkTxids`, which the manager now
+ * `refundTxid` first: a refund the wallet pushed is the manager's own fact,
+ * written as the push lands. Then `lockupSpendTxids`, which the manager now
  * stamps at finalization from the chain read that ended the swap — that is the
  * ordinary case, the solver's own `nonInteractiveRefund`, which the wallet used
  * to have to observe for itself. `spend_txid` survives as the back-compat read
  * for records written before the manager stamped anything.
  */
 export const spendTxidOf = (record: RfqSwapRecord): string | undefined =>
-  record.refundArkTxid ?? record.lockupSpendArkTxids?.[0] ?? profileTxid(record, SPEND_TXID)
+  record.refundTxid ?? record.lockupSpendTxids?.[0] ?? profileTxid(record, SPEND_TXID)
 
 /** Note the transaction that spent a lockup. A swap already carrying one is
  * left alone, so a re-observation cannot rewrite what was recorded first. */
@@ -279,14 +279,14 @@ export const lnSendViews = async (): Promise<LnSendView[]> => {
 /**
  * Every stored RFQ swap, as `swapActivityResolver` wants them.
  *
- * `rfqSwapActivityInputs` does the work: the record's own `fundingArkTxid` and
- * `refundArkTxid`, the corridor handler's `activityTxids` — so no corridor
- * knowledge lives here — the manager's stamped `lockupSpendArkTxids`, and one
+ * `rfqSwapActivityInputs` does the work: the record's own `fundingTxid` and
+ * `refundTxid`, the corridor handler's `activityTxids` — so no corridor
+ * knowledge lives here — the manager's stamped `lockupSpendTxids`, and one
  * lockup read only for what none of those can answer.
  *
  * **One txid it cannot see, and the reason it stays here.** `spend_txid` is the
  * solver-pushed refund this wallet observed for itself, and it cannot move onto
- * the record's `lockupSpendArkTxids` where the reader would find it:
+ * the record's `lockupSpendTxids` where the reader would find it:
  * `updateRfqSwapRecord` strips that field and refills it from the live swap, so
  * a value written here would survive exactly until the manager's next pass.
  * `profile` is the half that survives, which is why the key was put there.
