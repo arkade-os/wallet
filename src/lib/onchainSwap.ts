@@ -206,7 +206,15 @@ export interface OnchainSendRequest {
   address: string
   /** Sats the lockup must carry — what LEAVES the wallet. */
   fundAmount: number
-  /** Sats that land at the user's L1 address — the quote's `to_amount`. */
+  /**
+   * Sats the solver puts INTO the L1 HTLC — the quote's `to_amount`.
+   *
+   * Not quite what the recipient nets: `buildHtlcClaim` pays the claim
+   * transaction's fee out of this output, so they receive it less whatever the
+   * fee rate is at claim time. That rate is not knowable now — the claim can be
+   * hours away — so this is the honest number to show rather than a guess
+   * dressed up as a total.
+   */
   payoutAmount: number
   /** Unix seconds after which the quote is dead and must not be funded. */
   validUntil: number
