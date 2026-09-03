@@ -29,7 +29,8 @@
  * the user an L1 HTLC that only they can open, before a consensus deadline. So
  * `chain` is not optional decoration here: without it `RfqSwapManager` fails
  * such a swap on its first pass rather than watching it blind, and the send
- * flow refuses to take the solver route at all (see `canRouteOnchain`).
+ * flow refuses to take the solver route at all (see `planOnchainSend`'s
+ * `claimEndpoint` gate).
  */
 import { ReactNode, createContext, useContext, useEffect, useRef } from 'react'
 import { NetworkName, RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
