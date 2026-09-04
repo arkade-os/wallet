@@ -30,6 +30,13 @@ vi.mock('../../../lib/asp', async (importOriginal) => ({
     collaborativeExitWithFees(...args),
 }))
 
+/** Readable without waiting out the animation the error renders behind. */
+const consoleError = vi.fn()
+vi.mock('../../../lib/logs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../lib/logs')>()),
+  consoleError: (...args: unknown[]) => consoleError(...args),
+}))
+
 /** Built from the request, as the real router is: the exit rail must pay
  *  whatever address it was asked to, or the last test below proves nothing. */
 let optionsFor: (req: { raw: string; amount?: number }) => unknown[] = () => []
@@ -74,7 +81,7 @@ const exitOption = (req: { raw: string; amount?: number }) => ({
   },
 })
 
-const renderSign = (sendInfo: SendInfo) =>
+const renderSign = (sendInfo: SendInfo, limits = mockLimitsContextValue) =>
   render(
     <NavigationContext.Provider value={mockNavigationContextValue}>
       <ConfigContext.Provider value={mockConfigContextValue}>
@@ -86,7 +93,7 @@ const renderSign = (sendInfo: SendInfo) =>
                   value={{ ...mockWalletContextValue, balance: 1_000_000, svcWallet: mockSvcWallet as never }}
                 >
                   <LnSwapsContext.Provider value={{ trackLnSend: async () => {}, reserveOnchainSend: async () => {} }}>
-                    <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <LimitsContext.Provider value={limits}>
                       <SendDetails />
                     </LimitsContext.Provider>
                   </LnSwapsContext.Provider>
@@ -104,10 +111,25 @@ const sign = async () => {
   fireEvent.click(button)
 }
 
+/** The error `handleError` was given, ignoring the other things that log. */
+const sendFailure = () => consoleError.mock.calls.find((c) => c[1] === 'error sending payment')?.[0]
+
 describe('signing an on-chain send', () => {
   beforeEach(() => {
     collaborativeExitWithFees.mockClear()
+    consoleError.mockClear()
     optionsFor = () => []
+  })
+
+  it('names the UTXO limit rather than blaming routing when on-chain sends are not permitted', async () => {
+    const consulted = vi.fn((req: { raw: string; amount?: number }) => [exitOption(req)])
+    optionsFor = consulted
+    renderSign({ address: ADDRESS, satoshis: 10_000 }, { ...mockLimitsContextValue, utxoTxsAllowed: () => false })
+    await sign()
+
+    await waitFor(() => expect(sendFailure()).toBeDefined())
+    expect(String(sendFailure())).toMatch(/not permitted/i)
+    expect(consulted).not.toHaveBeenCalled()
   })
 
   it('pays the collaborative exit when no solver rail survived', async () => {
