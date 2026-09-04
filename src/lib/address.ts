@@ -1,6 +1,6 @@
 import { hex } from '@scure/base'
 import { isValidInvoice } from './bolt11'
-import { ArkAddress, DefaultVtxo, toXOnlySignerHex } from '@arkade-os/sdk'
+import { ArkAddress, DefaultVtxo, isBtcAddress, toXOnlySignerHex } from '@arkade-os/sdk'
 import { AspInfo } from '../providers/asp'
 
 export const decodeArkAddress = (addr: string) => {
@@ -30,11 +30,10 @@ export const getDefaultAddress = (pubKey: string, aspInfo: AspInfo) => {
   }
 }
 
-export const isBTCAddress = (data: string): boolean => {
-  const segwit = new RegExp('^(bc1|tb1|bcrt1)[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{39,87}$', 'i')
-  const legacy = new RegExp('^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$', 'i')
-  return segwit.test(data) || legacy.test(data)
-}
+/** The SDK's predicate, so the form classifies a target exactly as the rails
+ *  do — `btcTarget` is built on it. `address.test.ts` pins the four cases where
+ *  it differs from the regex it replaced. */
+export const isBTCAddress = (data: string): boolean => isBtcAddress(data)
 
 export const isLightningInvoice = (data: string): boolean => {
   return isValidInvoice(data)
