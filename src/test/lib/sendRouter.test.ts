@@ -5,6 +5,7 @@ import type { DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { SOLVER_ONCHAIN_RAIL } from '@arkade-os/swap'
 import { createSendRouter, quoteIsForThisSend, WALLET_EXIT_RAIL } from '../../lib/sendRouter'
 import { getEmulatorPubkeyForNetwork } from '../../lib/constants'
+import fixtures from '../fixtures.json'
 
 const collaborativeExitWithFees = vi.fn(async () => 'exit-txid')
 vi.mock('../../lib/asp', async (importOriginal) => ({
@@ -86,6 +87,13 @@ describe('the send router replaces the refusal enum with ranking', () => {
     const r = router({ network: 'bitcoin', discover: async () => [mainnetCard] })
     const options = await r.options({ raw: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', amount: 50_000 })
     expect(options.map((o) => o.railId)).toEqual([WALLET_EXIT_RAIL])
+  })
+})
+
+describe('the collaborative exit rail only claims on-chain targets', () => {
+  it('does not match an ark address or an invoice', async () => {
+    expect(await router().options({ raw: fixtures.lib.address.ark[0].address, amount: 50_000 })).toEqual([])
+    expect(await router().options({ raw: fixtures.lib.bolt11.invoice, amount: 50_000 })).toEqual([])
   })
 })
 
