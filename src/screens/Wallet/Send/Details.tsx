@@ -264,6 +264,8 @@ export default function SendDetails() {
     } else if (address) {
       if (!details.total) return handleError('Missing total amount')
       if (!details.satoshis) return handleError('Missing satoshis amount')
+      // Blanked by the limit, not by routing: every rail fails `quoteIsForThisSend`.
+      if (!details.destination) return handleError('On-chain sends are not permitted on this account')
       payOnchain(address, details).catch(handleError)
     }
   }

@@ -105,13 +105,12 @@ export const LnSwapsProvider = ({ children }: { children: ReactNode }) => {
 
       const network = aspInfo.network as NetworkName
       const esploraUrl = onchainClaimEndpoint(network)
-      const chain = esploraUrl ? chainSourceFrom(new EsploraProvider(esploraUrl), l1NetworkOf(network)) : undefined
+      const chain = chainSourceFrom(new EsploraProvider(esploraUrl), l1NetworkOf(network))
 
-      manager = new RfqSwapManager({ indexer, contracts, ...(chain ? { chain } : {}) })
+      manager = new RfqSwapManager({ indexer, contracts, chain })
       manager.setCallbacks({
         /** Refuses inside the refund leaf's margin: a throw is not a failure. */
         claimOnchain: async (swap: OnchainSendSwap, utxo: ChainUtxo) => {
-          if (!chain || !esploraUrl) throw new Error('no L1 endpoint is configured for this network')
           const record = await readRecord(swap.rfqId)
           if (!record) throw new Error(`no stored record for rfq ${swap.rfqId}`)
           const secrets = rfqClaimSecretOf(record)
@@ -190,6 +189,7 @@ export const LnSwapsProvider = ({ children }: { children: ReactNode }) => {
     await managerRef.current?.addSwap(lnSendSwap(input))
   }
 
+  /** Optional chain deliberate, as on `trackLnSend`: restore picks it up. */
   const reserveOnchainSend = async (swap: SolverOnchainSend) => {
     await saveRecord(onchainSendSwapRecord(swap))
     await managerRef.current?.addSwap(onchainSendSwap(swap))

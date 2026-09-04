@@ -17,7 +17,7 @@ import {
 import { SOLVER_ONCHAIN_RAIL, solverOnchainRail, type OnchainNetwork, type SolverOnchainSend } from '@arkade-os/swap'
 import type { DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { collaborativeExitWithFees } from './asp'
-import { l1NetworkOf, l1PayoutPubkey, onchainClaimEndpoint } from './onchainPayout'
+import { l1NetworkOf, l1PayoutPubkey } from './onchainPayout'
 import { withRfqTransport } from './nostrRfq'
 import { discoverMarkets } from './swapMarkets'
 import { getEmulatorPubkeyForNetwork, getEmulatorPubkeyOverrideForNetwork } from './constants'
@@ -63,7 +63,7 @@ export interface SendRouterDeps {
   discover?: (network: NetworkName) => Promise<DiscoveredMarket[]>
 }
 
-/** No L1 endpoint, no solver rail: it would fund an HTLC it can never open. */
+/** Registered on every network now `ESPLORA_URL` is total; `available()` drops it. */
 export const createSendRouter = (deps: SendRouterDeps): PaymentRouter => {
   const router = new PaymentRouter({
     // Typed as concrete `Wallet`; an `IWallet` satisfies what the rails call.
@@ -71,25 +71,23 @@ export const createSendRouter = (deps: SendRouterDeps): PaymentRouter => {
     prefs: { priority: [SOLVER_ONCHAIN_RAIL, WALLET_EXIT_RAIL] },
   })
 
-  if (onchainClaimEndpoint(deps.network)) {
-    const discover = deps.discover ?? discoverMarkets
-    router.use(
-      solverOnchainRail({
-        arkServerUrl: deps.arkServerUrl,
-        l1Network: l1NetworkOf(deps.network) as OnchainNetwork,
-        payoutPubkey: deps.payoutPubkey,
-        discover: () => discover(deps.network),
-        connect: (rendezvous, fn) => withRfqTransport(rendezvous, fn),
-        persist: deps.persist,
-        ...(getEmulatorPubkeyOverrideForNetwork(deps.network)
-          ? { emulatorPubkey: getEmulatorPubkeyOverrideForNetwork(deps.network)! }
-          : {}),
-        ...(getEmulatorPubkeyForNetwork(deps.network)
-          ? { fallbackEmulatorPubkey: getEmulatorPubkeyForNetwork(deps.network)! }
-          : {}),
-      }),
-    )
-  }
+  const discover = deps.discover ?? discoverMarkets
+  router.use(
+    solverOnchainRail({
+      arkServerUrl: deps.arkServerUrl,
+      l1Network: l1NetworkOf(deps.network) as OnchainNetwork,
+      payoutPubkey: deps.payoutPubkey,
+      discover: () => discover(deps.network),
+      connect: (rendezvous, fn) => withRfqTransport(rendezvous, fn),
+      persist: deps.persist,
+      ...(getEmulatorPubkeyOverrideForNetwork(deps.network)
+        ? { emulatorPubkey: getEmulatorPubkeyOverrideForNetwork(deps.network)! }
+        : {}),
+      ...(getEmulatorPubkeyForNetwork(deps.network)
+        ? { fallbackEmulatorPubkey: getEmulatorPubkeyForNetwork(deps.network)! }
+        : {}),
+    }),
+  )
 
   return router.use(walletExitRail({ outputFee: deps.outputFee }))
 }

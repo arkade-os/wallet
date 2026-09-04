@@ -2,10 +2,11 @@
  *  separate choice, and paying it to the key's own address lands the sats back
  *  here while the screen says the recipient was paid. */
 import { hex } from '@scure/base'
-import type { IWallet, NetworkName } from '@arkade-os/sdk'
+import { ESPLORA_URL, type IWallet, type NetworkName } from '@arkade-os/sdk'
 import type { OnchainNetwork } from '@arkade-os/swap'
-import { getRestApiExplorerURL } from './explorers'
 
+/** Deliberate, not a fallthrough: signet and mutinynet derive HTLC scripts from
+ *  the same parameters as testnet, and `OnchainNetwork` names only the three. */
 export const l1NetworkOf = (network: NetworkName | string): OnchainNetwork =>
   network === 'bitcoin' ? 'bitcoin' : network === 'regtest' ? 'regtest' : 'testnet'
 
@@ -22,5 +23,6 @@ export const claimPayoutScript = (profile: Record<string, unknown>): Uint8Array 
   return hex.decode(stored)
 }
 
-/** No endpoint, no solver route: it would fund an HTLC it could never open. */
-export const onchainClaimEndpoint = (network: NetworkName): string | undefined => getRestApiExplorerURL(network)
+/** The SDK's map, not `explorers.ts`: that one builds explorer LINKS, has no
+ *  mainnet `api`, and reading it here is what kept the solver rail off mainnet. */
+export const onchainClaimEndpoint = (network: NetworkName): string => ESPLORA_URL[network]
