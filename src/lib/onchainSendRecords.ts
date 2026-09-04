@@ -63,14 +63,21 @@ export const onchainSendSwapRecord = (
 const onchainSends = async (): Promise<RfqSwapRecord[]> =>
   (await assetSwapRepository.getAllRfqSwaps()).filter((record) => record.kind === 'onchain_send')
 
+/** How long after a reservation an empty lockup still proves nothing: the
+ *  record is written before the funding is broadcast and the indexer sees it
+ *  later still, and dropping a funded one abandons an L1 claim. */
+export const RESERVATION_GRACE_SECONDS = 600
+
 /** No funding txid has two histories needing opposite treatment — funded with
  *  the second write lost, or never funded — and only the chain tells them
- *  apart. */
+ *  apart, and only once it has caught up. */
 export const isUnfundedReservation = async (
-  record: Pick<RfqSwapRecord, 'fundingArkTxid' | 'lockupAddress'>,
+  record: Pick<RfqSwapRecord, 'fundingArkTxid' | 'lockupAddress' | 'createdAt'>,
   funded?: (lockupPkScript: Uint8Array) => Promise<unknown[]>,
+  nowSeconds = Math.floor(Date.now() / 1000),
 ): Promise<boolean> => {
   if (record.fundingArkTxid || !funded) return false
+  if (nowSeconds - record.createdAt < RESERVATION_GRACE_SECONDS) return false
   try {
     return (await funded(ArkAddress.decode(record.lockupAddress).pkScript)).length === 0
   } catch (err) {
@@ -101,7 +108,7 @@ export const restoreOnchainSendSwaps = async (
       continue
     }
     if (isRfqSwapTerminal(record.state)) continue
-    if (await isUnfundedReservation(record, funded)) {
+    if (await isUnfundedReservation(record, funded, nowSeconds)) {
       await assetSwapRepository
         .removeRfqSwap(record.rfqId)
         .catch((err) => consoleError(err, 'error dropping an unfunded onchain send'))

@@ -136,10 +136,11 @@ export default function SendDetails() {
   }
 
   /** Unlike {@link handleTxid} a missing txid is not an error: the solver rail
-   *  commits by funding, so only the destination annotation is lost. */
-  const handleSent = (txid: string | undefined, total: number) => {
+   *  commits by funding. The fee comes off the QUOTE, not the screen — a rail
+   *  may charge less than was displayed. */
+  const handleSent = (txid: string | undefined, total: number, fee: number) => {
     if (txid) {
-      saveTransactionActivityMetadata(txid, { destination: details?.destination, networkFee: details?.fees })
+      saveTransactionActivityMetadata(txid, { destination: details?.destination, networkFee: fee })
     }
     reloadWallet().catch(consoleError)
     setSendInfo({ ...sendInfo, total, txid })
@@ -224,7 +225,7 @@ export default function SendDetails() {
       consoleLog(`${ONCHAIN_ROUTE_LOG} paying via ${option.railId}`)
       // Unguarded: a rejection is a send that did not happen.
       const result = await (await quote.send()).settled()
-      return handleSent(result.txid, quote.total)
+      return handleSent(result.txid, quote.total, quote.fee)
     }
     throw new Error('No route for this payment')
   }
