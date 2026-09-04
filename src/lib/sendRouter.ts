@@ -7,6 +7,7 @@
  */
 import {
   PaymentRouter,
+  btcTarget,
   makeHandle,
   type IWallet,
   type NetworkName,
@@ -28,7 +29,9 @@ export const ONCHAIN_ROUTE_LOG = 'onchain send:'
 /** Not the SDK's `onchainRail`: that offboards with its own coin selection. */
 export const walletExitRail = (deps: { outputFee: () => number }): PaymentRail => ({
   id: WALLET_EXIT_RAIL,
-  match: (req) => Boolean(req.raw),
+  // The same classification the SDK's `onchainRail` uses, so this rail cannot
+  // claim an ark address or an invoice if the router is reused for them.
+  match: (req) => btcTarget(req.raw) !== undefined,
   available: (req) => (req.amount ?? 0) > 0,
   quote: async (req, ctx) => {
     const amount = req.amount!
