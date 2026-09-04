@@ -63,9 +63,16 @@ export const onchainSendSwapRecord = (
 const onchainSends = async (): Promise<RfqSwapRecord[]> =>
   (await assetSwapRepository.getAllRfqSwaps()).filter((record) => record.kind === 'onchain_send')
 
-/** How long after a reservation an empty lockup still proves nothing: the
- *  record is written before the funding is broadcast and the indexer sees it
- *  later still, and dropping a funded one abandons an L1 claim. */
+/**
+ * How long after a reservation an empty lockup still proves nothing: the record
+ * is written before the funding is broadcast and the indexer sees it later
+ * still, and dropping a funded one abandons an L1 claim.
+ *
+ * Ten minutes is a judgement, NOT a measurement — nobody has profiled worst-case
+ * indexer lag after a funding broadcast. Too short shows up as a funded record
+ * dropped on restart and an L1 claim lost, which is silent: the row simply
+ * disappears. Anyone with real lag figures should set this from them.
+ */
 export const RESERVATION_GRACE_SECONDS = 600
 
 /** No funding txid has two histories needing opposite treatment — funded with

@@ -13,8 +13,7 @@ export const l1PayoutPubkey = (wallet: IWallet): Promise<Uint8Array> => wallet.i
 
 export const CLAIM_PAYOUT_SCRIPT = 'payout_pkscript'
 
-/** Throws rather than falling back: refusing lets both sides refund, and a
- *  guessed script would not be reversible. */
+/** Throws rather than guessing: refusing lets both sides refund. */
 export const claimPayoutScript = (profile: Record<string, unknown>): Uint8Array => {
   const stored = profile[CLAIM_PAYOUT_SCRIPT]
   if (typeof stored !== 'string' || !stored) {
