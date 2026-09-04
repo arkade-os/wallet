@@ -42,12 +42,15 @@ vi.mock('../../../lib/asp', async (importOriginal) => ({
 }))
 
 const ADDRESS = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
+/** A second recipient, for the navigate-back-retype sequence. */
+const OTHER_ADDRESS = 'bcrt1pq6gt72nxevsxk5fwl3h2sx56jeah6qfzh98mksxyakkg5l0q65gsa27khh'
 const LOCKUP = 'tark1lockupcovenant'
 const FAR_FUTURE = 2_000_000_000
 
 const quote = (over: Partial<OnchainSendRequest> = {}): OnchainSendRequest =>
   ({
     rfqId: 'rfq-onchain-1',
+    payoutAddress: ADDRESS,
     address: LOCKUP,
     fundAmount: 5_000,
     payoutAmount: 4_800,
@@ -160,6 +163,35 @@ describe('sending onchain: solver route or collaborative exit', () => {
     expect(reserveOnchainSend).not.toHaveBeenCalled()
   })
 
+  it('never pays a quote negotiated for a DIFFERENT address', async () => {
+    // The navigate-back-retype sequence, at the screen that moves the money:
+    // sign screen -> back -> type another address -> continue. The quote still
+    // in hand names the FIRST recipient's payout script, and the L1 claim it
+    // leads to would pay them. The send form clears it, but this screen must
+    // not depend on that — it is the last point at which the money is still
+    // this wallet's.
+    renderSign({ address: OTHER_ADDRESS, satoshis: 5_000, pendingOnchainSend: quote() })
+    await sign()
+
+    await waitFor(() => expect(collaborativeExitWithFees).toHaveBeenCalledTimes(1))
+    // The exit goes to the address on the screen, not the one in the quote.
+    expect(collaborativeExitWithFees).toHaveBeenCalledWith(expect.anything(), 5_000, expect.any(Number), OTHER_ADDRESS)
+    expect(sendOffChain).not.toHaveBeenCalled()
+    expect(reserveOnchainSend).not.toHaveBeenCalled()
+    expect(routeLog().at(-1)?.msg).toContain('quote_mismatch')
+  })
+
+  it('never pays a quote negotiated for a different AMOUNT', async () => {
+    // Same class: the amount can be edited after the quote is stored, and the
+    // quote binds `from_amount`.
+    renderSign({ address: ADDRESS, satoshis: 9_000, pendingOnchainSend: quote() })
+    await sign()
+
+    await waitFor(() => expect(collaborativeExitWithFees).toHaveBeenCalledTimes(1))
+    expect(sendOffChain).not.toHaveBeenCalled()
+    expect(routeLog().at(-1)?.msg).toContain('quote_mismatch')
+  })
+
   it('falls back to the collaborative exit when the quote expired while the screen was open', async () => {
     renderSign({ address: ADDRESS, satoshis: 5_000, pendingOnchainSend: quote({ validUntil: 1 }) })
     await sign()
@@ -175,7 +207,7 @@ describe('sending onchain: solver route or collaborative exit', () => {
 
     await waitFor(() => expect(collaborativeExitWithFees).toHaveBeenCalledTimes(1))
     expect(sendOffChain).not.toHaveBeenCalled()
-    expect(routeLog().at(-1)?.msg).toContain('amount_mismatch')
+    expect(routeLog().at(-1)?.msg).toContain('quote_mismatch')
   })
 
   it('falls back when the swap cannot be persisted, because nothing has been funded yet', async () => {

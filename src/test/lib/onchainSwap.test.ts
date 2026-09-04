@@ -5,6 +5,7 @@ import { discover, type DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { l1ScriptForAddress } from '../../lib/onchainPayout'
 import {
   ONCHAIN_ROUTE_LOG,
+  onchainQuoteMatches,
   OnchainRouteUnavailable,
   onchainRouteRefusalText,
   onchainSendRendezvous,
@@ -247,6 +248,7 @@ describe('requestOnchainExit', () => {
       amountSats: 50_000,
       payoutPubkey: new Uint8Array(32),
       payoutPkScript: RECIPIENT_SCRIPT,
+      payoutAddress: RECIPIENT,
       rendezvous: {
         solverPubkey: SOLVER,
         transports: { nostr: { relays: [] } },
@@ -285,6 +287,34 @@ describe('requestOnchainExit', () => {
     await expect(call({ quote: { to_amount: 0, valid_until: 1, refund_locktime: 1 } })).rejects.toThrow(/unusable/)
     await expect(call({ quote: { to_amount: 50_000, valid_until: 1, refund_locktime: 1 } })).rejects.toThrow(/unusable/)
     await expect(call({ quote: { to_amount: 60_000, valid_until: 1, refund_locktime: 1 } })).rejects.toThrow(/unusable/)
+  })
+})
+
+describe('onchainQuoteMatches', () => {
+  /**
+   * The guard that makes a wrong-address payment impossible rather than merely
+   * unlikely. The send flow clears a stale quote when the recipient changes,
+   * but that is two dozen `setSendInfo` call sites' worth of discipline; this
+   * is what the screen that actually moves the money asks for itself.
+   */
+  const quote = { payoutAddress: RECIPIENT, fundAmount: 5_000 }
+  const OTHER = 'bcrt1pq6gt72nxevsxk5fwl3h2sx56jeah6qfzh98mksxyakkg5l0q65gsa27khh'
+
+  it('matches the send it was quoted for', () => {
+    expect(onchainQuoteMatches(quote, { address: RECIPIENT, satoshis: 5_000 })).toBe(true)
+  })
+
+  it('does not match another address — the navigate-back-retype case', () => {
+    expect(onchainQuoteMatches(quote, { address: OTHER, satoshis: 5_000 })).toBe(false)
+  })
+
+  it('does not match another amount', () => {
+    expect(onchainQuoteMatches(quote, { address: RECIPIENT, satoshis: 50_000 })).toBe(false)
+  })
+
+  it('does not match a send with no address or amount at all', () => {
+    expect(onchainQuoteMatches(quote, {})).toBe(false)
+    expect(onchainQuoteMatches(quote, { address: RECIPIENT })).toBe(false)
   })
 })
 

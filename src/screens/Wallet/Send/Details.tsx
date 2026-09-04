@@ -15,7 +15,7 @@ import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { collaborativeExitWithFees, sendAssets, sendOffChain } from '../../../lib/asp'
 import { type LnSendRequest } from '../../../lib/lnSwap'
-import { ONCHAIN_ROUTE_LOG, type OnchainSendRequest } from '../../../lib/onchainSwap'
+import { ONCHAIN_ROUTE_LOG, onchainQuoteMatches, type OnchainSendRequest } from '../../../lib/onchainSwap'
 import { extractError } from '../../../lib/error'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError, consoleLog } from '../../../lib/logs'
@@ -207,12 +207,22 @@ export default function SendDetails() {
       handleTxid(await exit())
     }
     if (Math.floor(Date.now() / 1000) >= request.validUntil) return fallback('quote_expired')
-    // The screen quoted `details.total`; the solver must not be funded for
-    // anything else. A mismatch is a bug rather than an attack — the client
-    // already refuses a lockup address it did not derive — but it would spend
-    // a number the user never agreed to, so it exits collaboratively instead.
-    if (request.fundAmount !== details!.total) {
-      return fallback('amount_mismatch', `quote wants ${request.fundAmount}, screen shows ${details!.total}`)
+    // The quote must be for THIS send — this address, this amount — not merely
+    // present. A quote is negotiated on the previous screen, which can be left,
+    // edited and returned to; a stale one names the previous recipient, and the
+    // claim it leads to would pay them. The send flow clears the quote when the
+    // address changes, but that is two dozen `setSendInfo` call sites' worth of
+    // discipline, and this is the one place the money actually moves — so it
+    // checks for itself rather than trusting that.
+    // Checked against `details.total` rather than `satoshis` because that is the
+    // number the screen actually displayed — derived, not copied — and it is
+    // what the user agreed to.
+    if (!onchainQuoteMatches(request, { address, satoshis: details!.total })) {
+      return fallback(
+        'quote_mismatch',
+        `quote is for ${request.fundAmount} sats to ${request.payoutAddress}, ` +
+          `screen shows ${details!.total} to ${address}`,
+      )
     }
 
     const record = {

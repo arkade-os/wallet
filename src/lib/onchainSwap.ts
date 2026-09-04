@@ -202,6 +202,16 @@ export const onchainSendRendezvous = (
 export interface OnchainSendRequest {
   /** Negotiation id, for correlating status lookups. */
   rfqId: string
+  /**
+   * The L1 address this quote was negotiated FOR.
+   *
+   * Carried so the quote can be checked against the send it is about to pay,
+   * which is the whole of {@link onchainQuoteMatches}. A quote is a fact about
+   * one destination and one amount; the screen it was requested from can be
+   * navigated away from, edited, and returned to, and nothing about the quote
+   * itself would look wrong afterwards.
+   */
+  payoutAddress: string
   /** The wallet's OWN derivation of the Arkade lockup. Fund only this. */
   address: string
   /** Sats the lockup must carry — what LEAVES the wallet. */
@@ -265,6 +275,9 @@ export const requestOnchainExit = async (args: {
    * time from whatever is to hand.
    */
   payoutPkScript: Uint8Array
+  /** The address {@link payoutPkScript} was derived from — carried onto the
+   * request so a stored quote can say which send it belongs to. */
+  payoutAddress: string
   rendezvous: OnchainSendRendezvous
   /** 33-byte compressed hex override for the covenant co-signer, when this
    * deployment pins one. Absent lets the package use its per-network pin. */
@@ -287,6 +300,7 @@ export const requestOnchainExit = async (args: {
 
   return {
     rfqId: result.rfqId,
+    payoutAddress: args.payoutAddress,
     address: result.address,
     fundAmount: result.fundAmount,
     payoutAmount,
@@ -314,6 +328,27 @@ export const requestOnchainExit = async (args: {
     },
   }
 }
+
+/**
+ * Whether a stored quote is still the quote for THIS send.
+ *
+ * A quote binds one destination and one amount, and the screen it came from can
+ * be left, edited and returned to — so "there is a quote in hand" is not the
+ * same question as "this quote is for what the user is now about to send", and
+ * treating them as one pays the previous recipient.
+ *
+ * The check lives here, next to the type, rather than at the call sites,
+ * because there are two of them and they need different things from it: the
+ * send form uses it to decide whether to re-quote, and the sign screen uses it
+ * to refuse to fund. The second is what makes a wrong-address payment
+ * impossible rather than merely unlikely — a send flow that forgets to clear a
+ * stale quote (there are two dozen places that write this state) still cannot
+ * spend one, because the screen that moves the money checks for itself.
+ */
+export const onchainQuoteMatches = (
+  quote: Pick<OnchainSendRequest, 'payoutAddress' | 'fundAmount'>,
+  send: { address?: string; satoshis?: number },
+): boolean => quote.payoutAddress === send.address && quote.fundAmount === send.satoshis
 
 /** The user-facing half of a refusal — what the send screen shows when it
  * quietly falls back. Kept beside the reasons so a new one cannot be added
@@ -417,6 +452,7 @@ export const planOnchainSend = async (args: {
         amountSats: args.amountSats,
         payoutPubkey: args.payoutPubkey,
         payoutPkScript,
+        payoutAddress: args.payoutAddress,
         rendezvous: choice.rendezvous,
         ...(args.emulatorPubkey ? { emulatorPubkey: args.emulatorPubkey } : {}),
       }),

@@ -4,7 +4,7 @@ import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
-import { FlowContext } from '../../../providers/flow'
+import { FlowContext, type SendInfo } from '../../../providers/flow'
 import Padded from '../../../components/Padded'
 import { isBTCAddress, decodeArkAddress, isLightningInvoice, isURLWithLightningQueryString } from '../../../lib/address'
 import { AspContext } from '../../../providers/asp'
@@ -37,6 +37,7 @@ import { lnSendRendezvous, requestLnSend } from '../../../lib/lnSwap'
 import {
   ONCHAIN_ROUTE_LOG,
   OnchainRouteUnavailable,
+  onchainQuoteMatches,
   onchainRouteRefusalText,
   planOnchainSend,
 } from '../../../lib/onchainSwap'
@@ -127,6 +128,30 @@ function AssetIcon({ asset }: { asset: AssetOption | null }) {
     </span>
   )
 }
+
+/**
+ * The quote to carry forward when the recipient is re-parsed.
+ *
+ * A negotiated `pendingOnchainSend` is a fact about ONE destination: it names
+ * that recipient's payout script, and the L1 claim it leads to pays them. The
+ * send form can be left for the sign screen, come back, and be edited — so a
+ * quote that survives an address change pays the previous recipient while the
+ * screen shows the new one.
+ *
+ * Conditional rather than an unconditional clear, mirroring what the Lightning
+ * leg does with `pendingLnSend` and `invoice`: a user who returns without
+ * changing anything is still entitled to the quote they were given, and
+ * dropping it burns a negotiation and hands the invoice-equivalent to a solver
+ * a second time for nothing.
+ *
+ * Exported for the same reason `isPlainOnchainTypedRecipient` is: it is the
+ * rule, and a rule that only exists inline in four `setSendInfo` calls is one
+ * the fifth call site will get wrong.
+ */
+export const onchainQuoteAfterAddressChange = (
+  prev: Pick<SendInfo, 'address' | 'pendingOnchainSend'>,
+  address: string | undefined,
+): SendInfo['pendingOnchainSend'] => (address === prev.address ? prev.pendingOnchainSend : undefined)
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
@@ -364,6 +389,7 @@ export default function SendForm() {
             satoshis: 0,
             assets: [{ assetId, amount: rawAmount }],
             pendingLnSend: invoice === prev.invoice ? prev.pendingLnSend : undefined,
+            pendingOnchainSend: onchainQuoteAfterAddressChange(prev, address),
           }))
         }
         setSendInfo((prev) => ({
@@ -377,12 +403,18 @@ export default function SendForm() {
           recipient,
           satoshis: satoshis ?? prev.satoshis,
           pendingLnSend: invoice === prev.invoice ? prev.pendingLnSend : undefined,
+          pendingOnchainSend: onchainQuoteAfterAddressChange(prev, address),
         }))
         if (satoshis) setAmountTextValue(getTextValue(satoshis))
         return
       }
       if (isValidArkAddress(lowerCaseData)) {
-        return setSendInfo((prev) => ({ ...prev, arkAddress: lowerCaseData, pendingLnSend: undefined }))
+        return setSendInfo((prev) => ({
+          ...prev,
+          arkAddress: lowerCaseData,
+          pendingLnSend: undefined,
+          pendingOnchainSend: undefined,
+        }))
       }
       if (isLightningInvoice(lowerCaseData)) {
         if (isAssetSend) {
@@ -402,6 +434,7 @@ export default function SendForm() {
           invoice: lowerCaseData,
           satoshis,
           pendingLnSend: lowerCaseData === prev.invoice ? prev.pendingLnSend : undefined,
+          pendingOnchainSend: undefined,
         }))
         setAmountTextValue(getTextValue(satoshis))
         setAmountIsReadOnly(true)
@@ -411,7 +444,17 @@ export default function SendForm() {
         if (isAssetSend) {
           return setRecipientError('Assets can only be sent to Arkade addresses')
         }
-        return setSendInfo({ ...sendInfo, address: recipient })
+        return setSendInfo((prev) => ({
+          ...prev,
+          address: recipient,
+          // Same rule the Lightning path applies to `pendingLnSend`: a quote
+          // belongs to the address it was negotiated for. Typing a new one
+          // here after coming back from the sign screen used to leave the old
+          // quote in place, and the gate below would then skip re-quoting —
+          // paying the FIRST recipient. (`prev` rather than `sendInfo` for the
+          // same reason: this branch ran off a captured render's state.)
+          pendingOnchainSend: onchainQuoteAfterAddressChange(prev, recipient),
+        }))
       }
       if (isArkNote(lowerCaseData)) {
         try {
@@ -635,6 +678,10 @@ export default function SendForm() {
   const routeOnchainExit = () => {
     const collaborativeExit = (reason: string, detail: string) => {
       consoleLog(`${ONCHAIN_ROUTE_LOG} collaborative exit (${reason}) — ${detail}`)
+      // Drop whatever was in hand on the way out. Re-quoting only happens
+      // because the stored quote did not match this send, so leaving it would
+      // hand the sign screen the very quote that was just rejected.
+      setSendInfo((prev) => ({ ...prev, pendingOnchainSend: undefined }))
       navigate(Pages.SendDetails)
     }
     if (!svcWallet) return collaborativeExit('no_wallet', 'the wallet is not ready')
@@ -676,7 +723,18 @@ export default function SendForm() {
     // An L1 address with no ark address or invoice beside it is an exit. Ask
     // the solvers first — see `routeOnchainExit` for why a failure here is not
     // an error.
-    if (sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice && !sendInfo.pendingOnchainSend) {
+    // A quote in hand is not the same as a quote for THIS send: the sign screen
+    // can be left, the address or amount edited, and returned to. Asking
+    // `onchainQuoteMatches` rather than merely "is there one" is what makes the
+    // clears above a tidiness measure instead of the only thing standing
+    // between a re-typed address and the previous recipient.
+    const quoted = sendInfo.pendingOnchainSend
+    if (
+      sendInfo.address &&
+      !sendInfo.arkAddress &&
+      !sendInfo.invoice &&
+      (!quoted || !onchainQuoteMatches(quoted, sendInfo))
+    ) {
       routeOnchainExit()
       return
     }
