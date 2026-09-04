@@ -1,6 +1,7 @@
 import { hex } from '@scure/base'
 import { isValidInvoice } from './bolt11'
 import { ArkAddress, DefaultVtxo, isBtcAddress, toXOnlySignerHex } from '@arkade-os/sdk'
+import { l1ScriptForAddress } from '@arkade-os/swap'
 import { AspInfo } from '../providers/asp'
 
 export const decodeArkAddress = (addr: string) => {
@@ -30,10 +31,23 @@ export const getDefaultAddress = (pubKey: string, aspInfo: AspInfo) => {
   }
 }
 
-/** The SDK's predicate, so the form classifies a target exactly as the rails
- *  do — `btcTarget` is built on it. `address.test.ts` pins the four cases where
- *  it differs from the regex it replaced. */
-export const isBTCAddress = (data: string): boolean => isBtcAddress(data)
+/**
+ * The SDK's predicate — so the form classifies as `btcTarget` does — AND
+ * decodable on one of the three L1s. The decode is the strictness the predicate
+ * deliberately lacks (it is format-only, because a rail's `match()` runs before
+ * anything is known), and the form can afford one round of real parsing rather
+ * than failing at the moment of signing.
+ */
+export const isBTCAddress = (data: string): boolean =>
+  isBtcAddress(data) &&
+  (['bitcoin', 'testnet', 'regtest'] as const).some((network) => {
+    try {
+      l1ScriptForAddress(data, network)
+      return true
+    } catch {
+      return false
+    }
+  })
 
 export const isLightningInvoice = (data: string): boolean => {
   return isValidInvoice(data)

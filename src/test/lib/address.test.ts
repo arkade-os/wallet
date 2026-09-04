@@ -45,19 +45,21 @@ describe('address utilities', () => {
   })
 
   // The whole behavioural difference from the regex `isBTCAddress` replaced.
-  describe('isBTCAddress: the SDK predicate it delegates to', () => {
+  describe('isBTCAddress: SDK predicate plus a decode gate', () => {
     it('accepts testnet/regtest legacy addresses the old regex rejected', () => {
       expect(isBTCAddress('mipcBbFg9gMiCh81Kj8tqqdgoZub1ZJRfn')).toBe(true)
-      expect(isBTCAddress('2N2JD6wb56AFK4d9ppKAftvBoT9Cw3xL1Tm')).toBe(true)
+      expect(isBTCAddress('2MzQwSSnBHWHqSAqtTVQ6v47XtaisrJa1Vc')).toBe(true)
     })
 
     it('rejects mixed-case bech32, which BIP173 forbids and the old regex allowed', () => {
       expect(isBTCAddress('bc1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8f3t4')).toBe(false)
     })
 
-    it('accepts a too-short bech32 the old regex rejected — decode is the real gate', () => {
-      // Looser, not unsafe: `Address.decode` throws before anything is spent.
-      expect(isBTCAddress('bc1qqqqqqqq')).toBe(true)
+    it('rejects a bech32 no L1 can decode, which the SDK predicate alone accepts', () => {
+      // `isBtcAddress` is format-only by design; the decode gate is what keeps
+      // an unspendable address out of the form rather than out of the signature.
+      expect(isBTCAddress('bc1qqqqqqqq')).toBe(false)
+      expect(isBTCAddress('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5')).toBe(false)
     })
 
     it('still accepts the address forms the wallet already sent to', () => {
