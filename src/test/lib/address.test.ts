@@ -44,6 +44,30 @@ describe('address utilities', () => {
     })
   })
 
+  // The whole behavioural difference from the regex `isBTCAddress` replaced.
+  describe('isBTCAddress: the SDK predicate it delegates to', () => {
+    it('accepts testnet/regtest legacy addresses the old regex rejected', () => {
+      expect(isBTCAddress('mipcBbFg9gMiCh81Kj8tqqdgoZub1ZJRfn')).toBe(true)
+      expect(isBTCAddress('2N2JD6wb56AFK4d9ppKAftvBoT9Cw3xL1Tm')).toBe(true)
+    })
+
+    it('rejects mixed-case bech32, which BIP173 forbids and the old regex allowed', () => {
+      expect(isBTCAddress('bc1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8f3t4')).toBe(false)
+    })
+
+    it('accepts a too-short bech32 the old regex rejected — decode is the real gate', () => {
+      // Looser, not unsafe: `Address.decode` throws before anything is spent.
+      expect(isBTCAddress('bc1qqqqqqqq')).toBe(true)
+    })
+
+    it('still accepts the address forms the wallet already sent to', () => {
+      expect(isBTCAddress('bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7')).toBe(true)
+      expect(isBTCAddress('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4')).toBe(true)
+      expect(isBTCAddress('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2')).toBe(true)
+      expect(isBTCAddress('3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy')).toBe(true)
+    })
+  })
+
   describe('isLightningInvoice', () => {
     it('should return true for a valid invoice', () => {
       expect(isLightningInvoice(fixtures.lib.bolt11.invoice)).toBe(true)
