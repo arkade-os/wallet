@@ -7,17 +7,20 @@ import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Details, { DetailsProps } from '../../../components/Details'
 import ErrorMessage from '../../../components/Error'
 import { WalletContext } from '../../../providers/wallet'
-import { SwapsContext } from '../../../providers/swaps'
+import { LnSwapsContext } from '../../../providers/lnSwaps'
 import Header from '../../../components/Header'
 import { defaultFee } from '../../../lib/constants'
 import { prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
-import { collaborativeExitWithFees, sendAssets, sendOffChain } from '../../../lib/asp'
-import type { Quote } from '@arkade-os/swap'
+import { sendAssets, sendOffChain } from '../../../lib/asp'
+import { type LnSendRequest } from '../../../lib/lnSwap'
+import { createSendRouter, l1PayoutPubkey, ONCHAIN_ROUTE_LOG, quoteIsForThisSend } from '../../../lib/sendRouter'
 import { extractError } from '../../../lib/error'
 import LoadingLogo from '../../../components/LoadingLogo'
-import { consoleError } from '../../../lib/logs'
+import { consoleError, consoleLog } from '../../../lib/logs'
+import { AspContext } from '../../../providers/asp'
+import type { NetworkName } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
 import { FeesContext } from '../../../providers/fees'
 import { buildTransactionAmountDisplay } from '../../../lib/transactionAmountDisplay'
@@ -33,7 +36,8 @@ export default function SendDetails() {
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { assetMetadataCache, balance, reloadWallet, svcWallet } = useContext(WalletContext)
-  const { acceptPay } = useContext(SwapsContext)
+  const { trackLnSend, reserveOnchainSend } = useContext(LnSwapsContext)
+  const { aspInfo } = useContext(AspContext)
 
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
@@ -95,7 +99,7 @@ export default function SendDetails() {
             : ''
     // The RFQ lockup carries exactly the invoice amount (exact-out, fee_bps
     // from the card; 0 today), so total == satoshis on the Lightning path.
-    const total = pendingLnSend ? Number(pendingLnSend.give.amount) : satoshis
+    const total = pendingLnSend ? pendingLnSend.fundAmount : satoshis
     const amount = direction === 'Paying to mainnet' ? satoshis - calcOnchainOutputFee() : satoshis
     const fees = total - amount > 0 ? total - amount : 0
     setDetails({
@@ -131,6 +135,17 @@ export default function SendDetails() {
     setSendDone(true)
   }
 
+  /** Unlike {@link handleTxid} a missing txid is not an error: the solver rail
+   *  commits by funding, so only the destination annotation is lost. */
+  const handleSent = (txid: string | undefined, total: number) => {
+    if (txid) {
+      saveTransactionActivityMetadata(txid, { destination: details?.destination, networkFee: details?.fees })
+    }
+    reloadWallet().catch(consoleError)
+    setSendInfo({ ...sendInfo, total, txid })
+    setSendDone(true)
+  }
+
   const handleExitComplete = () => {
     if (error) return setSending(false)
     else navigate(Pages.SendSuccess)
@@ -156,15 +171,62 @@ export default function SendDetails() {
    * The success screen says "on the way" rather than "sent" for exactly this
    * reason: at this instant the invoice is not paid yet, and the wording has to
    * match what is actually true.
-   *
-   * One call now, where there used to be two. `accept` persists the record,
-   * funds the lockup and hands the swap to the manager — including the refund
-   * push, which nothing else in the wallet would make — so the send can no
-   * longer be committed and unmonitored, which is what the old
-   * fund-then-track pair could leave behind.
    */
-  const payLightning = async (quote: Quote) => {
-    handleTxid(await acceptPay(quote))
+  const payLightning = async (request: LnSendRequest) => {
+    const txid = await sendOffChain(svcWallet!, request.fundAmount, request.address)
+    if (!txid) return handleError('Error sending transaction')
+    // Hand the swap over before `handleTxid` triggers the refresh that rebuilds
+    // history: the record is what makes this row a Lightning send rather than a
+    // bare outgoing payment, and it is what the manager drives from here on —
+    // including the refund, which nothing else in the wallet will push. A store
+    // that refuses leaves the payment committed and unmonitored, so it is
+    // reported and not raised: the covenant is funded either way.
+    await trackLnSend({
+      rfqId: request.rfqId,
+      lockupAddress: request.address,
+      amount: request.fundAmount,
+      fundingTxid: txid,
+      ...request.record,
+    }).catch((err) => consoleError(err, 'error tracking lightning send'))
+    handleTxid(txid)
+  }
+
+  /** Pay an L1 address through the router. The request is built from `address` —
+   *  what THIS screen is showing — at the moment of the spend, so no carried
+   *  quote exists to go stale. A rail that cannot quote is skipped. */
+  const payOnchain = async (address: string, shown: DetailsProps): Promise<void> => {
+    const router = createSendRouter({
+      wallet: svcWallet!,
+      arkServerUrl: aspInfo.url,
+      network: aspInfo.network as NetworkName,
+      outputFee: calcOnchainOutputFee,
+      persist: reserveOnchainSend,
+      payoutPubkey: await l1PayoutPubkey(svcWallet!),
+    })
+    // Receiver-exact: "what leaves" was subtracted when `details` was built.
+    const options = await router.options({ raw: address, amount: shown.satoshis! })
+
+    for (const option of options) {
+      let quote
+      try {
+        quote = await option.quote()
+      } catch (err) {
+        consoleError(err, `${ONCHAIN_ROUTE_LOG} ${option.railId} could not quote`)
+        continue
+      }
+      if (!quoteIsForThisSend(quote, shown, address)) {
+        consoleLog(
+          `${ONCHAIN_ROUTE_LOG} ${option.railId} refused: quote pays ${quote.amount} for ${quote.total}, ` +
+            `screen shows ${shown.satoshis} for ${shown.total} to ${shown.destination}`,
+        )
+        continue
+      }
+      consoleLog(`${ONCHAIN_ROUTE_LOG} paying via ${option.railId}`)
+      // Unguarded: a rejection is a send that did not happen.
+      const result = await (await quote.send()).settled()
+      return handleSent(result.txid, quote.total)
+    }
+    throw new Error('No route for this payment')
   }
 
   const handleContinue = async () => {
@@ -194,16 +256,14 @@ export default function SendDetails() {
       // funding it IS the acceptance — no further message exists. The solver
       // observes the funding, pays the invoice, and claims with the preimage;
       // a failed swap refunds by covenant.
-      if (Math.floor(Date.now() / 1000) >= pendingLnSend.expiresAt) {
+      if (Math.floor(Date.now() / 1000) >= pendingLnSend.validUntil) {
         return handleError('Quote expired — go back and try again')
       }
       payLightning(pendingLnSend).catch(handleError)
     } else if (address) {
       if (!details.total) return handleError('Missing total amount')
       if (!details.satoshis) return handleError('Missing satoshis amount')
-      collaborativeExitWithFees(svcWallet, details.total, details.satoshis, address)
-        .then((txId: string) => handleTxid(txId))
-        .catch(handleError)
+      payOnchain(address, details).catch(handleError)
     }
   }
 
