@@ -4,6 +4,7 @@ import { hex } from '@scure/base'
 import type { DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { SOLVER_ONCHAIN_RAIL } from '@arkade-os/swap'
 import { createSendRouter, quoteIsForThisSend, WALLET_EXIT_RAIL } from '../../lib/sendRouter'
+import { onchainClaimEndpoint } from '../../lib/onchainPayout'
 import { getEmulatorPubkeyForNetwork } from '../../lib/constants'
 import fixtures from '../fixtures.json'
 
@@ -81,12 +82,17 @@ describe('the send router replaces the refusal enum with ranking', () => {
     expect(options.map((o) => o.railId)).toEqual([WALLET_EXIT_RAIL])
   })
 
-  it('never registers the solver where there is no L1 endpoint (was: no_l1_endpoint)', async () => {
+  it('registers the solver on mainnet — every network has a claim endpoint', async () => {
     // Both mainnet: a regtest address would drop the rail for the wrong reason.
     const mainnetCard = market({ emulator_pubkey: hex.encode(getEmulatorPubkeyForNetwork('bitcoin')!) })
     const r = router({ network: 'bitcoin', discover: async () => [mainnetCard] })
     const options = await r.options({ raw: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', amount: 50_000 })
-    expect(options.map((o) => o.railId)).toEqual([WALLET_EXIT_RAIL])
+    expect(options.map((o) => o.railId)).toEqual([SOLVER_ONCHAIN_RAIL, WALLET_EXIT_RAIL])
+  })
+
+  it('resolves a claim endpoint for every network the wallet can run on', () => {
+    const networks = ['bitcoin', 'testnet', 'signet', 'mutinynet', 'regtest'] as const
+    expect(networks.map((n) => Boolean(onchainClaimEndpoint(n)))).toEqual(networks.map(() => true))
   })
 })
 
