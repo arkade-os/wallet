@@ -1,0 +1,45 @@
+appId: com.android.chrome
+---
+# Bootstrap home — open WALLET_URL, scroll to top, then coordinate taps + shared waits.
+
+- runFlow: open_wallet_url.yaml
+
+- runFlow:
+    when:
+      visible: "Continue anyway"
+    commands:
+      - tapOn:
+          point: "50%, 88%"
+          waitToSettleTimeoutMs: 800
+      - runFlow: wait_2s.yaml
+
+- runFlow:
+    when:
+      visible: "Unlock wallet"
+    commands:
+      - tapOn:
+          point: "50%, 50%"
+          waitToSettleTimeoutMs: 800
+      - runFlow: _input_wallet_password.yaml
+      - runFlow: wait_1s.yaml
+      - tapOn:
+          point: "50%, 88%"
+          waitToSettleTimeoutMs: 800
+      - runFlow: wait_5s.yaml
+
+- runFlow:
+    when:
+      visible: ".*Welcome to Arkade.*"
+    commands:
+      - runFlow: tap_welcome_create_wallet.yaml
+      - runFlow: wait_wallet_ready_after_create.yaml
+
+- runFlow: scroll_home_to_top.yaml
+
+- runFlow:
+    when:
+      notVisible: "^Receive$"
+    file: reset_to_wallet_home.yaml
+
+- runFlow: scroll_home_to_top.yaml
+- runFlow: wait_2s.yaml

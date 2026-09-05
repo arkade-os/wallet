@@ -1,0 +1,5 @@
+appId: com.android.chrome
+---
+- tapOn:
+    point: "50%, 90%"
+    waitToSettleTimeoutMs: 800
