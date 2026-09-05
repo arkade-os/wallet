@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Solvers from '../../../screens/Settings/Solvers'
 import { AspContext } from '../../../providers/asp'
-import { AssetSwapsContext } from '../../../providers/assetSwaps'
+import { SwapsContext } from '../../../providers/swaps'
 import { BackupContext } from '../../../providers/backup'
 import { mockAspContextValue } from '../mocks'
 import { readSolverCardsFromStorage } from '../../../lib/storage'
@@ -31,11 +31,11 @@ function renderSolvers(network: string = 'regtest') {
     <AspContext.Provider
       value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network } } as any}
     >
-      <AssetSwapsContext.Provider value={{ runDiscovery: vi.fn() } as any}>
+      <SwapsContext.Provider value={{ runDiscovery: vi.fn() } as any}>
         <BackupContext.Provider value={backupContextValue as any}>
           <Solvers />
         </BackupContext.Provider>
-      </AssetSwapsContext.Provider>
+      </SwapsContext.Provider>
     </AspContext.Provider>,
   )
 }

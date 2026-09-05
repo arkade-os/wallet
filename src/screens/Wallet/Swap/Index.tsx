@@ -27,7 +27,7 @@ import { preFeeDisplayRate } from '../../../lib/swapMarkets'
 import { type AssetSwapQuoteSnapshot } from '../../../lib/swapRepository'
 import { Currencies, Unit } from '../../../lib/types'
 import { AspContext } from '../../../providers/asp'
-import { AssetSwapsContext } from '../../../providers/assetSwaps'
+import { SwapsContext } from '../../../providers/swaps'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { FlowContext } from '../../../providers/flow'
@@ -91,7 +91,7 @@ const emptySwapAsset: SwapAsset = {
 
 export default function WalletSwap() {
   const { aspInfo } = useContext(AspContext)
-  const { createSwap, markets, swapAvailable } = useContext(AssetSwapsContext)
+  const { createSwap, markets, swapAvailable } = useContext(SwapsContext)
   const { config } = useContext(ConfigContext)
   const { fiatDecimals, fromFiatAmount, toFiat, toFiatAmount } = useContext(FiatContext)
   const { swapFromAssetId, setSwapFromAssetId } = useContext(FlowContext)
@@ -450,12 +450,15 @@ export default function WalletSwap() {
   }, [handleSuccessDone, successQuote])
 
   const confirmSwap = async () => {
-    if (!plan || !toAsset || confirming || !canContinue) return
+    if (!plan || !toAsset || !pair?.market || confirming || !canContinue) return
 
     setConfirmError('')
     setConfirming(true)
     try {
-      await createSwap(plan, buildQuoteSnapshot(plan, quote, config.currency))
+      // The market the plan was quoted against, not one re-looked-up at confirm
+      // time: `accept` funds the plan the user just read, and a second lookup
+      // could name a different card.
+      await createSwap(pair.market, plan, buildQuoteSnapshot(plan, quote, config.currency))
       setDrawer(null)
       setSuccessQuote(quote)
       hapticLight()

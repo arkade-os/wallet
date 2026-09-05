@@ -514,7 +514,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       const exits = await resolveExits(unrolledVtxos, networkRef.current)
       const metadata = readAllTransactionActivityMetadata()
       // Read, never resolved here: `RfqSwapManager` owns a send's outcome and
-      // has already written it (see providers/lnSwaps), so this pass only picks
+      // has already written it (see providers/swaps), so this pass only picks
       // up what the store says.
       const lnSends = await lnSendViews()
       if (isFirstLoad) setLoadingStatus('Updating balance...')

@@ -8,11 +8,11 @@ import { NavigationContext } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { NotificationsContext } from '../../../providers/notifications'
-import { LnReceiveContext } from '../../../providers/lnReceive'
+import { SwapsContext } from '../../../providers/swaps'
 import { ToastProvider } from '../../../components/Toast'
 import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
 import { LockupRegistrationFailed } from '@arkade-os/swap'
-import { LnReceiveHeldElsewhere } from '../../../lib/lnReceive'
+import { SwapsHeldElsewhere } from '../../../lib/swapClient'
 import {
   mockAspContextValue,
   mockConfigContextValue,
@@ -27,27 +27,16 @@ import {
 /**
  * Two ways the Lightning half of this screen can fail, and they must not read
  * the same. "Lightning unavailable" is true of a missing solver or an
- * out-of-bounds amount. It is FALSE when another tab holds the receive
- * manager's lock: nothing is unavailable, the swaps are being driven perfectly
- * well, just not here — and the fix is closing that tab, which the copy has to
- * say or the user has nothing to act on.
+ * out-of-bounds amount. It is FALSE when another tab holds the swap client's
+ * lock: nothing is unavailable, the swaps are being driven perfectly well, just
+ * not here — and the fix is closing that tab, which the copy has to say or the
+ * user has nothing to act on.
  */
 vi.mock('qr', () => ({ default: () => Array.from({ length: 21 }, () => new Uint8Array(21).fill(1)) }))
 
-// The negotiation itself is covered in `lib/lnReceive.test.ts`. Here it only has
-// to reach `track`, which is the call under test.
+// The negotiation is the provider's; here the screen only has to reach
+// `receiveLightning`, which is the call under test.
 vi.mock('../../../lib/swapMarkets', () => ({ discoverMarkets: async () => [] }))
-vi.mock('../../../lib/lnSwap', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../../lib/lnSwap')>()),
-  lnReceiveRendezvous: () => ({ minSats: 1, maxSats: 1_000_000 }),
-}))
-vi.mock('../../../lib/nostrRfq', () => ({
-  withRfqTransport: async (_r: unknown, run: (t: unknown) => Promise<unknown>) => run({}),
-}))
-vi.mock('../../../lib/lnReceive', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../../lib/lnReceive')>()),
-  requestLnReceive: async () => ({ rfqId: 'rfq-1', invoice: 'lnbc1', payAmount: 10_500 }),
-}))
 
 beforeAll(() => {
   if (!navigator.serviceWorker) {
@@ -58,7 +47,7 @@ beforeAll(() => {
   }
 })
 
-const track = vi.fn()
+const receiveLightning = vi.fn()
 
 const tree = (satoshis: number) => (
   <ToastProvider>
@@ -90,9 +79,11 @@ const tree = (satoshis: number) => (
               >
                 <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet: mockSvcWallet } as never}>
                   <LimitsContext.Provider value={mockLimitsContextValue}>
-                    <LnReceiveContext.Provider value={{ track, status: () => undefined, error: () => undefined }}>
+                    <SwapsContext.Provider
+                      value={{ receiveLightning, lnStatus: () => undefined, lnError: () => undefined } as never}
+                    >
                       <ReceiveQRCode />
-                    </LnReceiveContext.Provider>
+                    </SwapsContext.Provider>
                   </LimitsContext.Provider>
                 </WalletContext.Provider>
               </FlowContext.Provider>
@@ -106,11 +97,11 @@ const tree = (satoshis: number) => (
 
 const renderWithTrack = (satoshis = 10_000) => render(tree(satoshis))
 
-beforeEach(() => track.mockReset())
+beforeEach(() => receiveLightning.mockReset())
 
 describe('Receive screen, Lightning failures', () => {
-  it('names the other tab when the receive manager is held elsewhere', async () => {
-    track.mockRejectedValue(new LnReceiveHeldElsewhere())
+  it('names the other tab when the swap client is held elsewhere', async () => {
+    receiveLightning.mockRejectedValue(new SwapsHeldElsewhere())
     renderWithTrack()
 
     // The one thing that resolves it, said out loud. A retry button would be
@@ -121,7 +112,9 @@ describe('Receive screen, Lightning failures', () => {
   })
 
   it('clears the message when the amount goes away, rather than stranding a dead retry', async () => {
-    track.mockRejectedValue(new LockupRegistrationFailed({} as never, 'tark1qlockup', new Error('store refused')))
+    receiveLightning.mockRejectedValue(
+      new LockupRegistrationFailed({} as never, 'tark1qlockup', new Error('store refused')),
+    )
     const { rerender } = renderWithTrack()
     expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument()
 
@@ -135,7 +128,7 @@ describe('Receive screen, Lightning failures', () => {
   })
 
   it('clears the other-tab message when the amount goes away', async () => {
-    track.mockRejectedValue(new LnReceiveHeldElsewhere())
+    receiveLightning.mockRejectedValue(new SwapsHeldElsewhere())
     const { rerender } = renderWithTrack()
     expect(await screen.findByText(/Another tab is handling Lightning receives/)).toBeInTheDocument()
 
@@ -146,7 +139,7 @@ describe('Receive screen, Lightning failures', () => {
   })
 
   it('still says unavailable for every other failure', async () => {
-    track.mockRejectedValue(new Error('No Lightning solver available'))
+    receiveLightning.mockRejectedValue(new Error('No Lightning solver available'))
     renderWithTrack()
 
     // The pre-existing branch, asserted so the new one cannot swallow it.

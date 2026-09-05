@@ -11,7 +11,7 @@ import FlexCol from '@/components/FlexCol'
 import ErrorMessage from '@/components/Error'
 import Shadow from '@/components/Shadow'
 import Modal from '@/components/Modal'
-import { AssetSwapsContext } from '@/providers/assetSwaps'
+import { SwapsContext } from '@/providers/swaps'
 import { consoleError } from '@/lib/logs'
 import { BackupContext } from '@/providers/backup'
 import { BUNDLED_CARDS } from '@/lib/swapMarkets'
@@ -226,7 +226,7 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
 
 export default function Solvers() {
   const { aspInfo } = useContext(AspContext)
-  const { runDiscovery } = useContext(AssetSwapsContext)
+  const { runDiscovery } = useContext(SwapsContext)
   const { backupSolverCards } = useContext(BackupContext)
 
   const [localCards, setLocalCards] = useState<LocalCardInput[]>()

@@ -31,7 +31,7 @@ import {
   swapStatusLabel,
   type SwapStatus,
 } from '../../lib/swapDisplay'
-import { AssetSwapsContext } from '../../providers/assetSwaps'
+import { SwapsContext } from '../../providers/swaps'
 import { hapticTap } from '../../lib/haptics'
 import { useTransactionAmountDisplay } from '../../hooks/useTransactionAmountDisplay'
 import { useLnSendReceipt } from '../../hooks/useLnSendReceipt'
@@ -50,7 +50,7 @@ import {
 export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo } = useContext(FlowContext)
-  const { cancelSwap, swaps } = useContext(AssetSwapsContext)
+  const { cancelSwap, swaps } = useContext(SwapsContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { assetMetadataCache, isVerifiedAsset, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } =
     useContext(WalletContext)

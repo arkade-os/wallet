@@ -2,13 +2,13 @@
 import { describe, it, expect } from 'vitest'
 import { discover, sideLimits, validateCard, type DiscoveredMarket } from '@arkade-os/solver-discovery'
 import betaSolverCard from '../../lib/beta-solver.card.json'
-import { lnSendRendezvous } from '../../lib/lnSwap'
+import { lnSendCorridor } from '../../lib/lnSwap'
 
 /**
  * The bundled solver card is the only thing that makes the Lightning-send
  * corridor exist — it is not in the solver registry yet. If discovery rejects
  * it (bad signature, missing rendezvous fields, unsupported shape) the failure
- * is SILENT: `discoverMarkets` returns no corridor, `lnSendRendezvous` returns
+ * is SILENT: `discoverMarkets` returns no corridor, `lnSendCorridor` returns
  * undefined, and Lightning send simply is not offered. These tests exist so
  * that becomes a red test rather than a feature that quietly vanished.
  */
@@ -65,7 +65,7 @@ describe('bundled Arkade Labs solver card', () => {
   it('has no rendezvous yet: the card carries no emulator_pubkey', async () => {
     expect(betaSolverCard).not.toHaveProperty('emulator_pubkey')
     const { markets } = await load()
-    expect(lnSendRendezvous(markets)).toBeUndefined()
+    expect(lnSendCorridor(markets)).toBeUndefined()
   })
 
   it('cannot carry emulator_pubkey until solver-discovery accepts it', async () => {
@@ -77,7 +77,7 @@ describe('bundled Arkade Labs solver card', () => {
   })
 })
 
-describe('lnSendRendezvous', () => {
+describe('lnSendCorridor', () => {
   // Only the corridor, the rendezvous and the quote-side bounds take part in
   // the selection; the rest of DiscoveredMarket is irrelevant to it, so these
   // cases carry just those fields rather than a full market fixture.
@@ -93,7 +93,7 @@ describe('lnSendRendezvous', () => {
     }) as unknown as DiscoveredMarket
 
   it('skips markets that are not the lightning corridor', () => {
-    expect(lnSendRendezvous([market({ quote_corridor: 'onchain' })])).toBeUndefined()
+    expect(lnSendCorridor([market({ quote_corridor: 'onchain' })])).toBeUndefined()
   })
 
   it('skips a corridor market with no rendezvous rather than trusting it', () => {
@@ -101,10 +101,10 @@ describe('lnSendRendezvous', () => {
     // reaching us without them is malformed, and guessing a counterparty is
     // not an option. A transports map that names only protocols we do not
     // speak is the same thing: no way to reach the solver.
-    expect(lnSendRendezvous([market({ discovery_pubkey: undefined })])).toBeUndefined()
-    expect(lnSendRendezvous([market({ transports: undefined })])).toBeUndefined()
-    expect(lnSendRendezvous([market({ transports: { nostr: { relays: [] } } })])).toBeUndefined()
-    expect(lnSendRendezvous([market({ transports: { somethingElse: { relays: ['wss://x'] } } })])).toBeUndefined()
+    expect(lnSendCorridor([market({ discovery_pubkey: undefined })])).toBeUndefined()
+    expect(lnSendCorridor([market({ transports: undefined })])).toBeUndefined()
+    expect(lnSendCorridor([market({ transports: { nostr: { relays: [] } } })])).toBeUndefined()
+    expect(lnSendCorridor([market({ transports: { somethingElse: { relays: ['wss://x'] } } })])).toBeUndefined()
   })
 
   it('skips a corridor market with no usable emulator_pubkey', () => {
@@ -112,33 +112,40 @@ describe('lnSendRendezvous', () => {
     // built around it — so without a well-formed one the wallet cannot derive
     // the lockup, and cannot check the solver's address against its own. Every
     // malformed shape lands on the same answer as a missing one: no corridor.
-    expect(lnSendRendezvous([market({ emulator_pubkey: undefined })])).toBeUndefined()
-    expect(lnSendRendezvous([market({ emulator_pubkey: '' })])).toBeUndefined()
-    expect(lnSendRendezvous([market({ emulator_pubkey: 'deadbeef' })])).toBeUndefined()
+    expect(lnSendCorridor([market({ emulator_pubkey: undefined })])).toBeUndefined()
+    expect(lnSendCorridor([market({ emulator_pubkey: '' })])).toBeUndefined()
+    expect(lnSendCorridor([market({ emulator_pubkey: 'deadbeef' })])).toBeUndefined()
     // 33-byte compressed key, not the 32-byte x-only one the covenant takes.
-    expect(lnSendRendezvous([market({ emulator_pubkey: `02${'cc'.repeat(32)}` })])).toBeUndefined()
+    expect(lnSendCorridor([market({ emulator_pubkey: `02${'cc'.repeat(32)}` })])).toBeUndefined()
     // Uppercase is off-pattern for the registry, and hex.decode rejects it.
-    expect(lnSendRendezvous([market({ emulator_pubkey: 'CC'.repeat(32) })])).toBeUndefined()
+    expect(lnSendCorridor([market({ emulator_pubkey: 'CC'.repeat(32) })])).toBeUndefined()
     // A URL is the specific confusion this corridor already shipped once.
-    expect(lnSendRendezvous([market({ emulator_pubkey: 'https://not-a-pubkey.example' })])).toBeUndefined()
+    expect(lnSendCorridor([market({ emulator_pubkey: 'https://not-a-pubkey.example' })])).toBeUndefined()
   })
 
-  it('carries the emulator pubkey through, so the covenant can be derived', () => {
-    expect(lnSendRendezvous([market()])?.emulatorPubkey).toBe('cc'.repeat(32))
+  it('carries the market through, which is what the client quotes against', () => {
+    // The card's own co-signer key is no longer returned: the CLIENT derives
+    // with the wallet's pin (or the package's), so the card's value is a
+    // cross-check on the way in, not an output.
+    expect(lnSendCorridor([market()])?.market.discovery_pubkey).toBe('aa'.repeat(32))
   })
 
   it('treats a disabled quote side as no solver, not a zero-width range', () => {
     // max "0" means the solver cannot pay that side out. Reporting it as
     // bounds 0..0 would tell the user their amount is out of range.
-    expect(lnSendRendezvous([market({ max_quote_amount: '0' })])).toBeUndefined()
+    expect(lnSendCorridor([market({ max_quote_amount: '0' })])).toBeUndefined()
   })
 
   it('returns undefined when nothing serves the corridor', () => {
-    expect(lnSendRendezvous([])).toBeUndefined()
+    expect(lnSendCorridor([])).toBeUndefined()
   })
 
   it('picks the first market that serves the corridor with a rendezvous', () => {
-    const rendezvous = lnSendRendezvous([market({ quote_corridor: 'onchain' }), market()])
-    expect(rendezvous?.solverPubkey).toBe('aa'.repeat(32))
+    const corridor = lnSendCorridor([market({ quote_corridor: 'onchain' }), market()])
+    expect(corridor?.market.discovery_pubkey).toBe('aa'.repeat(32))
+  })
+
+  it('reports the card bounds, which gate an amount before a quote is burned', () => {
+    expect(lnSendCorridor([market()])).toMatchObject({ minSats: 500, maxSats: 1000 })
   })
 })

@@ -1,4 +1,4 @@
-import type { LnSendRequest } from '../lib/lnSwap'
+import type { LightningSendQuote } from '@arkade-os/swap'
 import { ReactNode, SetStateAction, createContext, useState } from 'react'
 import type { Asset, AssetDetails, ServiceWorkerWalletMode } from '@arkade-os/sdk'
 import { Tx } from '../lib/types'
@@ -27,9 +27,8 @@ export interface DeepLinkInfo {
  * nothing more.
  *
  * The covenant, the claim secrets and the expected amount live with
- * `LnReceiveProvider`, which is what claims the lockup. Keeping the whole
- * `LnReceiveRequest` here once invited a second claim path written against flow
- * state, which is the thing Stage 1 removes.
+ * `SwapsProvider`'s client, which is what claims the lockup. Keeping the whole
+ * negotiation here once invited a second claim path written against flow state.
  */
 export interface PendingLnReceive {
   rfqId: string
@@ -63,7 +62,9 @@ export type SendInfo = {
   arkAddress?: string
   invoice?: string
   lnUrl?: string
-  pendingLnSend?: LnSendRequest
+  /** A negotiated Lightning send, unfunded. Funding it on the pay screen IS
+   * the acceptance, so this is carried rather than executed. */
+  pendingLnSend?: LightningSendQuote
   recipient?: string
   satoshis?: number
   scan?: boolean

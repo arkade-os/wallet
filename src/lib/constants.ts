@@ -75,7 +75,7 @@ export const getSolverRegistryUrl = (network: NetworkName): string | undefined =
 //
 // This table is now the FALLBACK, not the only source. A corridor market whose
 // card carries `emulator_pubkey` (arkade-os/solver-registry#18) is authoritative
-// and `lnSendRendezvous` prefers it; the pins below keep a network working until
+// and `lnSendCorridor` cross-checks against it; the pins below keep a network working until
 // its solver publishes one, and are what a wallet compares the card against.
 const EMULATOR_PUBKEY: Record<NetworkName, string | null> = {
   // Matches the SDK's own per-network pin (BITCOIN_EMULATOR_PUBKEY, ts-sdk

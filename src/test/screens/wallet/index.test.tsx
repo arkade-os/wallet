@@ -11,7 +11,7 @@ import {
 } from '../mocks'
 import { ConfigContext } from '../../../providers/config'
 import { WalletContext } from '../../../providers/wallet'
-import { AssetSwapsContext } from '../../../providers/assetSwaps'
+import { SwapsContext } from '../../../providers/swaps'
 import { AssetsContext } from '../../../providers/assets'
 import { AspContext } from '../../../providers/asp'
 import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
@@ -23,9 +23,9 @@ describe('Wallet screen', () => {
 
     render(
       <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate }}>
-        <AssetSwapsContext.Provider value={{ swapAvailable: true, swaps: [] } as any}>
+        <SwapsContext.Provider value={{ swapAvailable: true, swaps: [] } as any}>
           <Wallet />
-        </AssetSwapsContext.Provider>
+        </SwapsContext.Provider>
       </NavigationContext.Provider>,
     )
     expect(screen.getAllByText('$0.00').length).toBeGreaterThan(0)
@@ -46,9 +46,9 @@ describe('Wallet screen', () => {
 
     render(
       <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate }}>
-        <AssetSwapsContext.Provider value={{ swapAvailable: false, swaps: [{ id: 'pending-swap' }] } as any}>
+        <SwapsContext.Provider value={{ swapAvailable: false, swaps: [{ id: 'pending-swap' }] } as any}>
           <Wallet />
-        </AssetSwapsContext.Provider>
+        </SwapsContext.Provider>
       </NavigationContext.Provider>,
     )
 

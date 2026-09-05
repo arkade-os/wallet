@@ -28,14 +28,12 @@ import { aspErrorText, getReceivingAddresses } from '../../../lib/asp'
 import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
-import { ArkNote, AssetDetails, isValidArkAddress, type NetworkName } from '@arkade-os/sdk'
+import { ArkNote, AssetDetails, isValidArkAddress } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
 import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl, LnUrlResponse } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
 import { decodeInvoice } from '../../../lib/bolt11'
-import { lnSendRendezvous, requestLnSend } from '../../../lib/lnSwap'
-import { withRfqTransport } from '../../../lib/nostrRfq'
-import { discoverMarkets } from '../../../lib/swapMarkets'
+import { SwapsContext } from '../../../providers/swaps'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
 import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
@@ -58,7 +56,7 @@ import {
   DropdownMenuTrigger,
 } from '../../../components/ui/dropdown-menu'
 import { hapticLight } from '../../../lib/haptics'
-import { getEmulatorPubkeyForNetwork, testDomains } from '../../../lib/constants'
+import { testDomains } from '../../../lib/constants'
 import UnverifiedBadge from '../../../components/UnverifiedBadge'
 
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
@@ -129,6 +127,7 @@ export default function SendForm() {
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
+  const { quoteLnSend } = useContext(SwapsContext)
   const {
     assetBalances,
     availableAssetBalances,
@@ -621,30 +620,12 @@ export default function SendForm() {
       // negotiation is the only interactive step — funding IS acceptance.
       const negotiate = async () => {
         if (!svcWallet) return handleError('Wallet not ready')
-        const network = aspInfo.network as NetworkName
-        // No emulator URL is looked up here: this corridor needs the co-signer's
-        // x-only KEY, never an endpoint. It rides the solver's own card; the
-        // per-network pin is passed as the fallback for cards that predate the
-        // field (see lnSendRendezvous). Neither available yields no rendezvous,
-        // which the line below already reports.
-        const rendezvous = lnSendRendezvous(await discoverMarkets(network), getEmulatorPubkeyForNetwork(network))
-        if (!rendezvous) return handleError('No Lightning solver available')
-        const sats = sendInfo.satoshis ?? 0
-        if (sats < rendezvous.minSats || sats > rendezvous.maxSats) {
-          return handleError(
-            `Amount outside solver bounds (${prettyNumber(rendezvous.minSats)}-${prettyNumber(rendezvous.maxSats)} sats)`,
-          )
-        }
-        await withRfqTransport(rendezvous, async (transport) => {
-          const pendingLnSend = await requestLnSend({
-            wallet: svcWallet,
-            transport,
-            invoice: sendInfo.invoice!,
-            network,
-            rendezvous,
-          })
-          setSendInfo((prev) => ({ ...prev, pendingLnSend }))
-        })
+        // No emulator URL is looked up here, and no transport is built: the
+        // client picks the corridor's rendezvous off the market card. What is
+        // still the wallet's is refusing the invoice and the amount before a
+        // quote is burned and the invoice reaches a third party.
+        const pendingLnSend = await quoteLnSend(sendInfo.invoice!)
+        setSendInfo((prev) => ({ ...prev, pendingLnSend }))
       }
       negotiate().catch(handleError)
     }

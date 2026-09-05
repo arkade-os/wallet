@@ -30,7 +30,7 @@ export interface LnSendReceipt {
  * Pure, and deliberately so. This used to resolve the second leg itself, with
  * an indexer call and a localStorage write from whatever screen happened to be
  * open. `RfqSwapManager` now owns that answer and records it as the swap ends
- * (see `providers/lnSwaps`), the history carries it onto the row, and this only
+ * (see `providers/swaps`), the history carries it onto the row, and this only
  * reads. A row still carrying the legacy `lnSend` metadata — a send made before
  * the records existed — is read from there instead, so old receipts keep
  * working without a migration.
