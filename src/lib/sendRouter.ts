@@ -148,6 +148,8 @@ export const assetRail = (deps: { assets: Asset[] }): PaymentRail => ({
     send: async () =>
       makeHandle(ASSET_RAIL, async (emit) => {
         const txid = await sendAssets(ctx.wallet as unknown as IWallet, arkTarget(req.raw)!, deps.assets)
+        // Terminal in one step, unlike the lightning rail: no counterparty has
+        // to act, so the txid IS settlement and a `sent` would name nothing.
         const result = { railId: ASSET_RAIL, txid }
         emit({ status: 'settled', result })
         return result

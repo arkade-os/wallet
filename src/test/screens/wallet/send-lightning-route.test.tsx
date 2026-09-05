@@ -34,14 +34,31 @@ vi.mock('../../../lib/logs', async (importOriginal) => ({
 }))
 
 let optionsFor: (req: { raw: string; amount?: number }) => unknown[] = () => []
+let routerDeps: any
 vi.mock('../../../lib/sendRouter', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../lib/sendRouter')>()
-  return { ...actual, createSendRouter: () => ({ options: async (req: any) => optionsFor(req) }) }
+  return {
+    ...actual,
+    createSendRouter: (deps: any) => {
+      routerDeps = deps
+      return { options: async (req: any) => optionsFor(req) }
+    },
+  }
 })
 
-/** Only what `lnSendRefusal` reads on the form's error path. */
+/** The cards the form discovers once and hands to both the router and the
+ *  refusal. `discovered` counts the calls; `marketsThrow` is the cold-cache
+ *  registry failure. */
 let markets: unknown[] = []
-vi.mock('../../../lib/swapMarkets', () => ({ discoverMarkets: async () => markets }))
+let marketsThrow = false
+const discovered = vi.fn()
+vi.mock('../../../lib/swapMarkets', () => ({
+  discoverMarkets: async () => {
+    discovered()
+    if (marketsThrow) throw new Error('registry unreachable')
+    return markets
+  },
+}))
 
 const INVOICE = fixtures.lib.bolt11.invoice
 const ARK_ADDRESS = fixtures.lib.address.ark[0].address
@@ -247,8 +264,11 @@ describe('negotiating a Lightning send', () => {
   beforeEach(() => {
     consoleError.mockClear()
     setSendInfo.mockClear()
+    discovered.mockClear()
     optionsFor = () => []
     markets = []
+    marketsThrow = false
+    routerDeps = undefined
   })
 
   it('carries the route the Lightning rail quoted to the sign screen', async () => {
@@ -286,6 +306,45 @@ describe('negotiating a Lightning send', () => {
     await cont()
 
     expect(await screen.findByText(/Amount outside solver bounds/)).toBeInTheDocument()
+  })
+
+  it('discovers the cards once, and explains the refusal off that same list', async () => {
+    optionsFor = () => []
+    markets = [lnMarket]
+    renderForm({ invoice: INVOICE, satoshis: INVOICE_SATS })
+    await cont()
+
+    // The refusal message proves the list reached `lnSendRefusal`; the count
+    // proves the rail was not sent to fetch its own.
+    expect(await screen.findByText(/Amount outside solver bounds/)).toBeInTheDocument()
+    expect(discovered).toHaveBeenCalledTimes(1)
+  })
+
+  // A cold cache with an unreachable registry used to replace the intended
+  // message with the registry's own, because the error path asked again.
+  it('still names the refusal when the registry is unreachable mid-flight', async () => {
+    optionsFor = () => {
+      marketsThrow = true
+      return []
+    }
+    renderForm({ invoice: INVOICE, satoshis: INVOICE_SATS })
+    await cont()
+
+    expect(await screen.findByText('No Lightning solver available')).toBeInTheDocument()
+    expect(discovered).toHaveBeenCalledTimes(1)
+  })
+
+  it('hands the rail the cards it already fetched, not a fresh lookup', async () => {
+    markets = [lnMarket]
+    optionsFor = () => [{ railId: 'lightning', quote: async () => lnQuote() }]
+    renderForm({ invoice: INVOICE, satoshis: INVOICE_SATS })
+    await cont()
+
+    await waitFor(() => expect(routerDeps).toBeDefined())
+    discovered.mockClear()
+    // Same list, and asking for it costs no second round trip.
+    await expect(routerDeps.discover()).resolves.toBe(markets)
+    expect(discovered).not.toHaveBeenCalled()
   })
 
   it('surfaces a refused negotiation verbatim rather than as a routing failure', async () => {

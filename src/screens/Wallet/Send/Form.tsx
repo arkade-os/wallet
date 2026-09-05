@@ -623,16 +623,21 @@ export default function SendForm() {
       const negotiate = async () => {
         if (!svcWallet) return handleError('Wallet not ready')
         const network = aspInfo.network as NetworkName
+        // Discovered once and handed to the router, so the rail ranks and the
+        // refusal explains off the SAME cards. Asking twice let a cold cache
+        // with an unreachable registry throw on the error path, replacing the
+        // message with the registry's own.
+        const markets = await discoverMarkets(network)
         const router = createSendRouter({
           wallet: svcWallet,
           arkServerUrl: aspInfo.url,
           network,
           track: trackLnSend,
+          discover: async () => markets,
         })
         const options = await router.options({ raw: sendInfo.invoice!, amount: sendInfo.satoshis ?? 0 })
         const route = options.find((option) => option.railId === LIGHTNING_RAIL)
-        // `options()` reports absence; the card says why. Discovery is cached.
-        if (!route) return handleError(lnSendRefusal(await discoverMarkets(network), network))
+        if (!route) return handleError(lnSendRefusal(markets, network))
         // Unguarded: a quote that throws names an unpayable invoice or a
         // covenant that did not match, and neither reads as "no route".
         const pendingLnSend = await route.quote()
