@@ -3,12 +3,10 @@ import { SimplePool } from 'nostr-tools'
 import { prettyNumber } from '../../lib/format'
 import { test, expect, createWallet, fundWallet, prePay } from './utils'
 
-/**
- * The regtest solver serves asset markets only, so a send there never reaches
- * the solver rail — "falls back to the exit" would pass with the rail deleted.
- * Every test pins a card that really advertises `arkade:BTC -> onchain:BTC` and
- * asserts the refusal it provoked: two failing alike would be one test twice.
- */
+/** The regtest solver serves asset markets only, so a send there never reaches the
+ *  solver rail — "falls back to the exit" would pass with the rail deleted. Every
+ *  test pins a card that really advertises `arkade:BTC -> onchain:BTC` and asserts
+ *  the refusal it provoked: two failing alike would be one test twice. */
 const RFQ_KIND = 24859
 const RELAY = 'ws://localhost:10547'
 /** On-curve and nobody's: an off-curve key fails at decompression, before any relay is dialled. */
@@ -29,6 +27,8 @@ const cardWithRelays = (relays: string[]) => ({
       quote_asset: { id: 'btc', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
       quote_corridor: 'onchain',
       fee_bps: 10,
+      // Base side off, as beta-solver.card.json has it: `rendezvousOf` bounds
+      // against the QUOTE side, so a "0" here is disabled, not broken.
       min_base_amount: '0',
       max_base_amount: '0',
       min_quote_amount: '500',
