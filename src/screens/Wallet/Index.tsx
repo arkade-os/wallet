@@ -113,9 +113,39 @@ export default function Wallet() {
     }
   }, [prefersReducedMotion])
 
+  const homeNotices = (
+    <FlexCol gap='0.75rem'>
+      {nudge}
+      <DismissibleBanner
+        id='pwa-install'
+        icon={<HomeIcon />}
+        title='Add Arkade to your home screen'
+        description={pwaDescription}
+        action={
+          canPromptInstall()
+            ? {
+                label: 'Install',
+                onClick: async () => {
+                  const outcome = await promptPwaInstall().catch(() => null)
+                  if (outcome) dismissPwaBanner()
+                },
+              }
+            : undefined
+        }
+        onDismiss={dismissPwaBanner}
+        visible={pwaBannerVisible}
+      />
+    </FlexCol>
+  )
+
   return (
     <>
       {announcement}
+      {hasHomeNotices ? (
+        <aside className='home-notices home-notices--desktop' aria-label='Wallet notices'>
+          {homeNotices}
+        </aside>
+      ) : null}
       <Content className={homeScrolled ? 'wallet-home-content wallet-home-content--scrolled' : 'wallet-home-content'}>
         <Padded>
           <HomeHeader
@@ -134,29 +164,8 @@ export default function Wallet() {
               <HomeQuickActions />
             </WalletStaggerChild>
             {hasHomeNotices ? (
-              <WalletStaggerChild animate={shouldStagger}>
-                <FlexCol gap='0.75rem'>
-                  {nudge}
-                  <DismissibleBanner
-                    id='pwa-install'
-                    icon={<HomeIcon />}
-                    title='Add Arkade to your home screen'
-                    description={pwaDescription}
-                    action={
-                      canPromptInstall()
-                        ? {
-                            label: 'Install',
-                            onClick: async () => {
-                              const outcome = await promptPwaInstall().catch(() => null)
-                              if (outcome) dismissPwaBanner()
-                            },
-                          }
-                        : undefined
-                    }
-                    onDismiss={dismissPwaBanner}
-                    visible={pwaBannerVisible}
-                  />
-                </FlexCol>
+              <WalletStaggerChild animate={shouldStagger} className='home-notices home-notices--mobile'>
+                {homeNotices}
               </WalletStaggerChild>
             ) : null}
             {error ? (
