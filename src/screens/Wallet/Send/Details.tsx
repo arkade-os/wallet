@@ -223,7 +223,10 @@ export default function SendDetails() {
         continue
       }
       consoleLog(`${ONCHAIN_ROUTE_LOG} paying via ${option.railId}`)
-      // Unguarded: a rejection is a send that did not happen.
+      // Deliberately NOT caught, and the funding is why: this reaches
+      // `ServiceWorkerWallet.send`, whose worker submits the Ark tx and only
+      // then replies (#949), so a rejection here can mean a covenant that IS
+      // funded. Trying the exit rail next would pay the recipient twice.
       const result = await (await quote.send()).settled()
       return handleSent(result.txid, quote.total, quote.fee)
     }
