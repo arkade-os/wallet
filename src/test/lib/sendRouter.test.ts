@@ -340,6 +340,18 @@ describe('quoteIsForThisInvoice: the wrong-invoice guard', () => {
     expect(quoteIsForThisInvoice({ meta: { invoice: 'lnbc1other' } }, INVOICE)).toBe(false)
     expect(quoteIsForThisInvoice({ meta: undefined }, INVOICE)).toBe(false)
   })
+
+  // A BIP21 `lightning=` param keeps whatever it was handed; the rail routed
+  // the stripped invoice, so an unstripped screen value is the same payment.
+  it('funds the same invoice however the screen is carrying it', () => {
+    expect(quoteIsForThisInvoice({ meta: { invoice: INVOICE } }, `lightning:${INVOICE}`)).toBe(true)
+    expect(quoteIsForThisInvoice({ meta: { invoice: INVOICE } }, `bitcoin:bcrt1q?lightning=${INVOICE}`)).toBe(true)
+  })
+
+  it('refuses when the screen carries no invoice at all', () => {
+    expect(quoteIsForThisInvoice({ meta: { invoice: INVOICE } }, '')).toBe(false)
+    expect(quoteIsForThisInvoice({ meta: undefined }, '')).toBe(false)
+  })
 })
 
 describe('the asset rail', () => {

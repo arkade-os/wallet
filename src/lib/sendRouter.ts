@@ -223,9 +223,13 @@ export const lnSendRefusal = (markets: DiscoveredMarket[], network: NetworkName)
     : 'No Lightning solver available'
 }
 
-/** The Lightning analogue of {@link quoteIsForThisSend}. */
-export const quoteIsForThisInvoice = (quote: Pick<RouteQuote, 'meta'>, invoice: string): boolean =>
-  quote.meta?.invoice === invoice
+/** The Lightning analogue of {@link quoteIsForThisSend}. Compared through
+ *  `invoiceTarget`, as the rail routed it: a `lightning:` prefix or a whole
+ *  BIP21 URI is the same payment, and only a DIFFERENT invoice is refused. */
+export const quoteIsForThisInvoice = (quote: Pick<RouteQuote, 'meta'>, invoice: string): boolean => {
+  const target = invoiceTarget(invoice)
+  return target !== undefined && quote.meta?.invoice === target
+}
 
 /** Quoting lazily already removes the stale quote behind the wrong-address bug.
  *  This is the belt to that braces — a rail may quote worse than advertised. */
