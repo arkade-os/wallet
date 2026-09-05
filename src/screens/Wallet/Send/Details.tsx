@@ -13,14 +13,20 @@ import { defaultFee } from '../../../lib/constants'
 import { prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
-import { sendAssets, sendOffChain } from '../../../lib/asp'
-import { type LnSendRequest } from '../../../lib/lnSwap'
-import { createSendRouter, l1PayoutPubkey, ONCHAIN_ROUTE_LOG, quoteIsForThisSend } from '../../../lib/sendRouter'
+import { sendOffChain } from '../../../lib/asp'
+import {
+  ASSET_RAIL,
+  createSendRouter,
+  l1PayoutPubkey,
+  ONCHAIN_ROUTE_LOG,
+  quoteIsForThisInvoice,
+  quoteIsForThisSend,
+} from '../../../lib/sendRouter'
 import { extractError } from '../../../lib/error'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError, consoleLog } from '../../../lib/logs'
 import { AspContext } from '../../../providers/asp'
-import type { NetworkName } from '@arkade-os/sdk'
+import type { NetworkName, RouteQuote } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
 import { FeesContext } from '../../../providers/fees'
 import { buildTransactionAmountDisplay } from '../../../lib/transactionAmountDisplay'
@@ -36,7 +42,7 @@ export default function SendDetails() {
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { assetMetadataCache, balance, reloadWallet, svcWallet } = useContext(WalletContext)
-  const { trackLnSend, reserveOnchainSend } = useContext(LnSwapsContext)
+  const { reserveOnchainSend } = useContext(LnSwapsContext)
   const { aspInfo } = useContext(AspContext)
 
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
@@ -99,7 +105,7 @@ export default function SendDetails() {
             : ''
     // The RFQ lockup carries exactly the invoice amount (exact-out, fee_bps
     // from the card; 0 today), so total == satoshis on the Lightning path.
-    const total = pendingLnSend ? pendingLnSend.fundAmount : satoshis
+    const total = pendingLnSend ? pendingLnSend.total : satoshis
     const amount = direction === 'Paying to mainnet' ? satoshis - calcOnchainOutputFee() : satoshis
     const fees = total - amount > 0 ? total - amount : 0
     setDetails({
@@ -172,24 +178,30 @@ export default function SendDetails() {
    * The success screen says "on the way" rather than "sent" for exactly this
    * reason: at this instant the invoice is not paid yet, and the wording has to
    * match what is actually true.
+   *
+   * The invoice is re-checked because the quote came from the previous screen —
+   * the same reason the on-chain path re-checks its address.
    */
-  const payLightning = async (request: LnSendRequest) => {
-    const txid = await sendOffChain(svcWallet!, request.fundAmount, request.address)
-    if (!txid) return handleError('Error sending transaction')
-    // Hand the swap over before `handleTxid` triggers the refresh that rebuilds
-    // history: the record is what makes this row a Lightning send rather than a
-    // bare outgoing payment, and it is what the manager drives from here on —
-    // including the refund, which nothing else in the wallet will push. A store
-    // that refuses leaves the payment committed and unmonitored, so it is
-    // reported and not raised: the covenant is funded either way.
-    await trackLnSend({
-      rfqId: request.rfqId,
-      lockupAddress: request.address,
-      amount: request.fundAmount,
-      fundingTxid: txid,
-      ...request.record,
-    }).catch((err) => consoleError(err, 'error tracking lightning send'))
-    handleTxid(txid)
+  const payLightning = async (quote: RouteQuote, shownInvoice: string) => {
+    if (!quoteIsForThisInvoice(quote, shownInvoice)) return handleError('Quote is for a different invoice')
+    const result = await (await quote.send()).settled()
+    handleSent(result.txid, quote.total, quote.fee)
+  }
+
+  /** One rail and no counterparty; routed so every branch here has one shape. */
+  const payAssets = async (arkAddress: string, assets: NonNullable<typeof sendInfo.assets>) => {
+    const router = createSendRouter({
+      wallet: svcWallet!,
+      arkServerUrl: aspInfo.url,
+      network: aspInfo.network as NetworkName,
+      assets,
+    })
+    const options = await router.options({ raw: arkAddress })
+    const route = options.find((option) => option.railId === ASSET_RAIL)
+    if (!route) throw new Error('No route for this payment')
+    const quote = await route.quote()
+    const result = await (await quote.send()).settled()
+    handleTxid(result.txid ?? '')
   }
 
   /** Pay an L1 address through the router. The request is built from `address` —
@@ -244,26 +256,18 @@ export default function SendDetails() {
     setSending(true)
 
     if (isAssetSend && arkAddress) {
-      // Asset send via wallet.send()
       if (!sendInfo.assets || sendInfo.assets.length === 0) return handleError('Missing assets list')
-      sendAssets(svcWallet, arkAddress, sendInfo.assets)
-        .then((txId: string) => handleTxid(txId))
-        .catch(handleError)
+      payAssets(arkAddress, sendInfo.assets).catch(handleError)
     } else if (arkAddress) {
       if (!details.total) return handleError('Missing total amount')
       sendOffChain(svcWallet, details.total, arkAddress)
         .then((txId: string) => handleTxid(txId))
         .catch(handleError)
     } else if (invoice && pendingLnSend) {
-      // RFQ Lightning send. The address below is the wallet's OWN derivation
-      // of the lockup covenant (the client refuses a mismatched quote), so
-      // funding it IS the acceptance — no further message exists. The solver
-      // observes the funding, pays the invoice, and claims with the preimage;
-      // a failed swap refunds by covenant.
-      if (Math.floor(Date.now() / 1000) >= pendingLnSend.validUntil) {
-        return handleError('Quote expired — go back and try again')
-      }
-      payLightning(pendingLnSend).catch(handleError)
+      // RFQ Lightning send. The address the rail funds is the wallet's OWN
+      // derivation of the lockup covenant (the client refuses a mismatched
+      // quote), so funding it IS the acceptance — no further message exists.
+      payLightning(pendingLnSend, invoice).catch(handleError)
     } else if (address) {
       if (!details.total) return handleError('Missing total amount')
       if (!details.satoshis) return handleError('Missing satoshis amount')

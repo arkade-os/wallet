@@ -4,6 +4,7 @@ import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
+import { LnSwapsContext } from '../../../providers/lnSwaps'
 import { FlowContext } from '../../../providers/flow'
 import Padded from '../../../components/Padded'
 import { isBTCAddress, decodeArkAddress, isLightningInvoice, isURLWithLightningQueryString } from '../../../lib/address'
@@ -33,8 +34,7 @@ import { LimitsContext } from '../../../providers/limits'
 import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl, LnUrlResponse } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
 import { decodeInvoice } from '../../../lib/bolt11'
-import { lnSendRendezvous, requestLnSend } from '../../../lib/lnSwap'
-import { withRfqTransport } from '../../../lib/nostrRfq'
+import { createSendRouter, LIGHTNING_RAIL, lnSendRefusal } from '../../../lib/sendRouter'
 import { discoverMarkets } from '../../../lib/swapMarkets'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
@@ -58,7 +58,7 @@ import {
   DropdownMenuTrigger,
 } from '../../../components/ui/dropdown-menu'
 import { hapticLight } from '../../../lib/haptics'
-import { getEmulatorPubkeyForNetwork, testDomains } from '../../../lib/constants'
+import { testDomains } from '../../../lib/constants'
 import UnverifiedBadge from '../../../components/UnverifiedBadge'
 
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
@@ -129,6 +129,7 @@ export default function SendForm() {
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
+  const { trackLnSend } = useContext(LnSwapsContext)
   const {
     assetBalances,
     availableAssetBalances,
@@ -622,30 +623,25 @@ export default function SendForm() {
       const negotiate = async () => {
         if (!svcWallet) return handleError('Wallet not ready')
         const network = aspInfo.network as NetworkName
-        // No emulator URL is looked up here: this corridor needs the co-signer's
-        // x-only KEY, never an endpoint. It rides the solver's own card; the
-        // per-network pin is passed as the fallback for cards that predate the
-        // field (see lnSendRendezvous). Neither available yields no rendezvous,
-        // which the line below already reports.
-        const rendezvous = lnSendRendezvous(await discoverMarkets(network), getEmulatorPubkeyForNetwork(network))
-        if (!rendezvous) return handleError('No Lightning solver available')
-        const sats = sendInfo.satoshis ?? 0
-        if (sats < rendezvous.minSats || sats > rendezvous.maxSats) {
-          return handleError(
-            `Amount outside solver bounds (${prettyNumber(rendezvous.minSats)}-${prettyNumber(rendezvous.maxSats)} sats)`,
-          )
-        }
-        await withRfqTransport(rendezvous, async (transport) => {
-          const pendingLnSend = await requestLnSend({
-            wallet: svcWallet,
-            arkServerUrl: aspInfo.url,
-            transport,
-            invoice: sendInfo.invoice!,
-            network,
-            rendezvous,
-          })
-          setSendInfo((prev) => ({ ...prev, pendingLnSend }))
+        // Discovered once and handed to the router, so the rail ranks and the
+        // refusal explains off the SAME cards. Asking twice let a cold cache
+        // with an unreachable registry throw on the error path, replacing the
+        // message with the registry's own.
+        const markets = await discoverMarkets(network)
+        const router = createSendRouter({
+          wallet: svcWallet,
+          arkServerUrl: aspInfo.url,
+          network,
+          track: trackLnSend,
+          discover: async () => markets,
         })
+        const options = await router.options({ raw: sendInfo.invoice!, amount: sendInfo.satoshis ?? 0 })
+        const route = options.find((option) => option.railId === LIGHTNING_RAIL)
+        if (!route) return handleError(lnSendRefusal(markets, network))
+        // Unguarded: a quote that throws names an unpayable invoice or a
+        // covenant that did not match, and neither reads as "no route".
+        const pendingLnSend = await route.quote()
+        setSendInfo((prev) => ({ ...prev, pendingLnSend }))
       }
       negotiate().catch(handleError)
     }
