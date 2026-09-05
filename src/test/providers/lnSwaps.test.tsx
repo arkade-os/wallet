@@ -10,6 +10,7 @@ import { LnSwapsProvider } from '../../providers/lnSwaps'
 import { onchainSendSwapRecord } from '../../lib/onchainSendRecords'
 import { saveRecord } from '../../lib/lnSendRecords'
 import { CLAIM_PAYOUT_SCRIPT } from '../../lib/onchainPayout'
+import { MIN_CLAIM_FEE_RATE } from '../../lib/claimFee'
 import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
 
 /**
@@ -54,7 +55,7 @@ const PAYOUT_PKSCRIPT = Uint8Array.from([0x51, 0x20, ...new Uint8Array(32).fill(
 const HTLC = { address: 'bcrt1phtlc', refundLocktime: 1_800_003_600 }
 const UTXO = { txid: 'f'.repeat(64), vout: 0, value: 9_800, confirmations: 1 } as unknown as ChainUtxo
 
-const solverSend = (): SolverOnchainSend =>
+const solverSend = (persistPreimage = true): SolverOnchainSend =>
   ({
     rfqId: 'rfq-onchain-1',
     address: LOCKUP,
@@ -71,8 +72,9 @@ const solverSend = (): SolverOnchainSend =>
     },
     quote: { refund_locktime: 1_800_003_600 },
     // `mustPersistPreimage` puts the raw P in the record, so the claim needs no
-    // signing wallet — the same shape a non-HD wallet stores.
-    secrets: { descriptor: 'tr(aa)', preimage: PREIMAGE, mustPersistPreimage: true },
+    // signing wallet — the same shape a non-HD wallet stores. False is the HD
+    // arm, where P is re-derived and this stub wallet cannot.
+    secrets: { descriptor: 'tr(aa)', preimage: PREIMAGE, mustPersistPreimage: persistPreimage },
     payoutPkScript: PAYOUT_PKSCRIPT,
   }) as unknown as SolverOnchainSend
 
@@ -115,8 +117,11 @@ const wired = async (network?: string) => {
   return callbacks()
 }
 
-const store = async (mutate: (profile: Record<string, unknown>) => Record<string, unknown> = (p) => p) => {
-  const record = onchainSendSwapRecord(solverSend())
+const store = async (
+  mutate: (profile: Record<string, unknown>) => Record<string, unknown> = (p) => p,
+  persistPreimage = true,
+) => {
+  const record = onchainSendSwapRecord(solverSend(persistPreimage))
   await saveRecord({ ...record, profile: mutate({ ...record.profile }) })
 }
 
@@ -182,7 +187,8 @@ describe('LnSwapsProvider claimOnchain', () => {
     await store()
 
     await claim.claimOnchain!(monitored(), UTXO)
-    expect(claimOnchainFill.mock.calls[0][1].feeRateSatVb).toBe(1)
+    // The floor, not the number: raising it is a policy call, not a regression.
+    expect(claimOnchainFill.mock.calls[0][1].feeRateSatVb).toBe(MIN_CLAIM_FEE_RATE)
   })
 
   it('refuses a swap the store holds no record for', async () => {
@@ -205,6 +211,17 @@ describe('LnSwapsProvider claimOnchain', () => {
     await store(without('hashlock'))
 
     await expect(claim.claimOnchain!(monitored(), UTXO)).rejects.toThrow(/claim secret is unreadable/)
+    expect(claimOnchainFill).not.toHaveBeenCalled()
+  })
+
+  it('refuses when the record defers to a wallet that cannot re-derive P', async () => {
+    // The other arm of `mustPersistPreimage`: nothing is stored, so P comes off
+    // the seed. A wallet that cannot produce it must refuse, not claim with a
+    // preimage the HTLC will not accept.
+    const claim = await wired()
+    await store((p) => p, false)
+
+    await expect(claim.claimOnchain!(monitored(), UTXO)).rejects.toThrow(/cannot produce the preimage/)
     expect(claimOnchainFill).not.toHaveBeenCalled()
   })
 })
