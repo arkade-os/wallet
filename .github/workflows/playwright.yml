@@ -53,8 +53,11 @@ jobs:
       run: pnpm exec playwright install chrome chromium --with-deps
     - name: Start regtest environment
       run: node regtest/regtest.mjs start --env .env.regtest
+    # The cert is what makes wss://localhost:10548 exist, and a solver card's
+    # relays must be wss:// — `regtest:start` generates it, these open-coded
+    # steps did not, so relay-tls has been serving nothing.
     - name: Start nostr relay
-      run: docker compose -f docker-compose.nak.yml up -d --build
+      run: node scripts/gen-relay-tls-cert.mjs && docker compose -f docker-compose.nak.yml up -d --build
     - name: Verify environment
       run: pnpm regtest:setup
     - name: Run Playwright tests
