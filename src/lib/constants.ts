@@ -121,6 +121,35 @@ export const getEmulatorPubkeyForNetwork = (network: NetworkName): Uint8Array | 
   }
 }
 
+// The emulator endpoint, needed only to TAKE an order. `fulfill` is a covenant
+// spend, so it is submitted to the emulator rather than to arkd — posting and
+// cancelling need none of this, which is why an unset value disables taking
+// rather than the whole book.
+//
+// This is the one place the "clients have no network path to the emulator" note
+// above no longer holds: mutinynet publishes one, and it answers `/v1/info`
+// with `access-control-allow-origin: *`, so a browser wallet can reach it.
+// Verified 2026-08-14 — its `signerPubkey` is byte-identical to the mutinynet
+// pin above, which is what makes a covenant built against that pin fillable
+// here. If the two ever diverge, offers stop being takeable rather than
+// mis-spending: the reader drops any offer naming a co-signer it does not know.
+//
+// A regtest stack serves its own on 7073. Its co-signer is now pinned above
+// too, so the endpoint is what a fill is submitted to rather than where the key
+// comes from — the provider still falls back to reading /v1/info from here when
+// a network has no pin at all, which is the case a fresh local stack hits
+// before anyone records its key.
+const EMULATOR_URL: Record<NetworkName, string | null> = {
+  bitcoin: null,
+  mutinynet: 'https://emulator.mutinynet.arkade.sh',
+  signet: null,
+  regtest: 'http://localhost:7073',
+  testnet: null,
+}
+
+export const getEmulatorUrlForNetwork = (network: NetworkName): string | undefined =>
+  serviceUrlForNetwork(import.meta.env.VITE_EMULATOR_URL, EMULATOR_URL, network)
+
 /** 66 lowercase hex chars with an 02/03 prefix — a compressed secp256k1 point,
  * the only shape `@arkade-os/swap`'s `resolveEmulatorPubkey` accepts. */
 const COMPRESSED_PUBKEY_HEX = /^0[23][0-9a-f]{64}$/

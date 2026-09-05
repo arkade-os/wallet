@@ -100,9 +100,21 @@ describe('getEmulatorPubkeyOverrideForNetwork', () => {
     ['wrong prefix', `04${'ab'.repeat(32)}`],
     ['too long', `02${'ab'.repeat(33)}`],
     ['not hex', `02${'zz'.repeat(32)}`],
-    ['unsubstituted placeholder', '__VITE_EMULATOR_PUBKEY__'],
   ])('reads a %s value as no override', (_label, value) => {
     vi.stubEnv('VITE_EMULATOR_PUBKEY', value)
+    expect(getEmulatorPubkeyOverrideForNetwork('signet')).toBeUndefined()
+  })
+
+  it('reads an unsubstituted placeholder as unset, falling back to the pin', () => {
+    // A placeholder is not a malformed key, it is an ABSENT one — the Docker
+    // entrypoint never substituted it. So it falls through to the per-network
+    // table like any unset env, which for regtest is now a real pin. Asserting
+    // undefined here only held while regtest had none.
+    vi.stubEnv('VITE_EMULATOR_PUBKEY', '__VITE_EMULATOR_PUBKEY__')
+    expect(getEmulatorPubkeyOverrideForNetwork('regtest')).toBe(
+      '02999413c46fa10ada5cbc4bcc79a1d09160c2ba3cfc812705d7a13e5e545fb2a9',
+    )
+    // and where nothing is pinned, a placeholder still yields no override
     expect(getEmulatorPubkeyOverrideForNetwork('signet')).toBeUndefined()
   })
 
