@@ -124,7 +124,7 @@ const TransactionLine = ({
         : burn
           ? t('transaction.burn')
           : exit
-            ? 'Exited'
+            ? t('transaction.exited')
             : tx.type === 'sent'
               ? t('transaction.sent')
               : t('transaction.received'))
