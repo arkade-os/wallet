@@ -1,17 +1,57 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { hex } from '@scure/base'
 import type { DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { SOLVER_ONCHAIN_RAIL } from '@arkade-os/swap'
-import { createSendRouter, quoteIsForThisSend, WALLET_EXIT_RAIL } from '../../lib/sendRouter'
+import {
+  ASSET_RAIL,
+  createSendRouter,
+  LIGHTNING_RAIL,
+  lnSendRefusal,
+  quoteIsForThisInvoice,
+  quoteIsForThisSend,
+  WALLET_EXIT_RAIL,
+} from '../../lib/sendRouter'
 import { onchainClaimEndpoint } from '../../lib/onchainPayout'
 import { getEmulatorPubkeyForNetwork } from '../../lib/constants'
 import fixtures from '../fixtures.json'
 
 const collaborativeExitWithFees = vi.fn(async () => 'exit-txid')
+const sendOffChain = vi.fn(async () => 'funding-txid')
+const sendAssets = vi.fn(async () => 'asset-txid')
 vi.mock('../../lib/asp', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/asp')>()),
   collaborativeExitWithFees: (...args: unknown[]) => collaborativeExitWithFees(...(args as [])),
+  sendOffChain: (...args: unknown[]) => sendOffChain(...(args as [])),
+  sendAssets: (...args: unknown[]) => sendAssets(...(args as [])),
+}))
+
+const negotiated = () => ({
+  rfqId: 'rfq-1',
+  address: 'ark1lockup',
+  fundAmount: 2_100,
+  validUntil: Math.floor(Date.now() / 1000) + 60,
+  rendezvous: {} as never,
+  record: { paymentHash: 'ph', refundLocktime: 7, secrets: {} as never, script: {} as never },
+})
+
+/** The negotiation itself, stubbed — `lnSendRendezvous` is left real, since
+ *  which solver it picks is the behaviour under test. */
+const requestLnSend = vi.fn(async () => negotiated())
+vi.mock('../../lib/lnSwap', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/lnSwap')>()),
+  requestLnSend: (...args: unknown[]) => requestLnSend(...(args as [])),
+}))
+
+/** `consoleError` persists to localStorage, which this environment has not. */
+vi.mock('../../lib/logs', () => ({ consoleError: vi.fn(), consoleLog: vi.fn() }))
+
+const connected = vi.fn()
+vi.mock('../../lib/nostrRfq', () => ({
+  withRfqTransport: async (rendezvous: unknown, fn: (t: unknown) => Promise<unknown>) => {
+    connected(rendezvous)
+    return fn({} as never)
+  },
 }))
 
 const SOLVER = 'bb'.repeat(32)
@@ -147,5 +187,191 @@ describe('the collaborative exit rail', () => {
     await quote.send()
     // 10_000 leaves, the recipient gets 9_500 — exactly as before the router.
     expect(collaborativeExitWithFees).toHaveBeenCalledWith(expect.anything(), 10_000, 9_500, RECIPIENT)
+  })
+})
+
+const INVOICE = fixtures.lib.bolt11.invoice
+const INVOICE_SATS = fixtures.lib.bolt11.amountSats
+const ARK_ADDRESS = fixtures.lib.address.ark[0].address
+
+const lnMarket = (over: Record<string, unknown> = {}) =>
+  market({ pair: 'BTC/lightning:BTC', quote_corridor: 'lightning', ...over })
+
+const track = vi.fn(async () => {})
+
+const lnRouter = (over: Partial<Parameters<typeof createSendRouter>[0]> = {}) =>
+  createSendRouter({
+    wallet: {} as never,
+    arkServerUrl: 'http://ark.example',
+    network: 'regtest',
+    track,
+    discover: async () => [lnMarket()],
+    ...over,
+  })
+
+const lnQuote = async (over: Partial<Parameters<typeof createSendRouter>[0]> = {}) => {
+  const options = await lnRouter(over).options({ raw: INVOICE, amount: INVOICE_SATS })
+  return options[0].quote()
+}
+
+describe('the lightning rail replaces the send form’s own solver pick', () => {
+  beforeEach(() => {
+    requestLnSend.mockClear()
+    sendOffChain.mockClear()
+    track.mockClear()
+    connected.mockClear()
+  })
+
+  it('takes an invoice and leaves the other targets alone', async () => {
+    expect((await lnRouter().options({ raw: INVOICE, amount: INVOICE_SATS })).map((o) => o.railId)).toEqual([
+      LIGHTNING_RAIL,
+    ])
+    expect(await lnRouter().options({ raw: RECIPIENT, amount: INVOICE_SATS })).toEqual([])
+    expect(await lnRouter().options({ raw: ARK_ADDRESS, amount: INVOICE_SATS })).toEqual([])
+  })
+
+  it('drops itself when no card serves the corridor (was: no solver)', async () => {
+    expect(await lnRouter({ discover: async () => [] }).options({ raw: INVOICE, amount: INVOICE_SATS })).toEqual([])
+    // The on-chain corridor is not the Lightning one, however well it quotes.
+    expect(
+      await lnRouter({ discover: async () => [market()] }).options({ raw: INVOICE, amount: INVOICE_SATS }),
+    ).toEqual([])
+  })
+
+  it('drops itself for a size the one solver will not take (was: outside solver bounds)', async () => {
+    expect(await lnRouter().options({ raw: INVOICE, amount: 999 })).toEqual([])
+    expect(await lnRouter().options({ raw: INVOICE, amount: 1_000_001 })).toEqual([])
+  })
+
+  it('drops itself when discovery throws, and does NOT take the router down', async () => {
+    const r = lnRouter({
+      discover: async () => {
+        throw new Error('registry unreachable')
+      },
+    })
+    expect(await r.options({ raw: INVOICE, amount: INVOICE_SATS })).toEqual([])
+  })
+
+  it('skips a card whose co-signer key disagrees with the pin — the rule the form applied', async () => {
+    const r = lnRouter({ discover: async () => [lnMarket({ emulator_pubkey: 'cc'.repeat(32) })] })
+    expect(await r.options({ raw: INVOICE, amount: INVOICE_SATS })).toEqual([])
+  })
+
+  it('negotiates with the card’s own solver, over the card’s own relays', async () => {
+    await lnQuote()
+    expect(connected).toHaveBeenCalledWith(
+      expect.objectContaining({ solverPubkey: SOLVER, transports: { nostr: { relays: ['wss://relay.example'] } } }),
+    )
+    expect(requestLnSend).toHaveBeenCalledWith(expect.objectContaining({ invoice: INVOICE, network: 'regtest' }))
+  })
+
+  it('quotes the invoice amount, with the solver’s spread as the fee on top', async () => {
+    expect(await lnQuote()).toMatchObject({
+      railId: LIGHTNING_RAIL,
+      amount: INVOICE_SATS,
+      fee: 2_100 - INVOICE_SATS,
+      total: 2_100,
+      meta: { rfqId: 'rfq-1', invoice: INVOICE },
+    })
+  })
+
+  it('funds the lockup and records the swap WITH its funding txid', async () => {
+    const quote = await lnQuote()
+    const result = await (await quote.send()).settled()
+
+    expect(sendOffChain).toHaveBeenCalledWith(expect.anything(), 2_100, 'ark1lockup')
+    expect(track).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rfqId: 'rfq-1',
+        lockupAddress: 'ark1lockup',
+        amount: 2_100,
+        fundingTxid: 'funding-txid',
+        paymentHash: 'ph',
+        refundLocktime: 7,
+      }),
+    )
+    expect(result).toMatchObject({ railId: LIGHTNING_RAIL, txid: 'funding-txid', swapId: 'rfq-1' })
+  })
+
+  it('records the swap only once the covenant is funded', async () => {
+    const order: string[] = []
+    sendOffChain.mockImplementationOnce(async () => {
+      order.push('fund')
+      return 'funding-txid'
+    })
+    track.mockImplementationOnce(async () => {
+      order.push('track')
+    })
+    await (await (await lnQuote()).send()).settled()
+    expect(order).toEqual(['fund', 'track'])
+  })
+
+  it('does not fail a funded send because the store refused the record', async () => {
+    track.mockRejectedValueOnce(new Error('quota exceeded'))
+    const result = await (await (await lnQuote()).send()).settled()
+    expect(result).toMatchObject({ txid: 'funding-txid' })
+  })
+
+  it('refuses to fund an expired quote, and funds nothing', async () => {
+    requestLnSend.mockResolvedValueOnce({ ...negotiated(), validUntil: Math.floor(Date.now() / 1000) - 1 })
+    const quote = await lnQuote()
+    await expect((await quote.send()).settled()).rejects.toThrow(/Quote expired/)
+    expect(sendOffChain).not.toHaveBeenCalled()
+  })
+})
+
+describe('lnSendRefusal names which of the two refusals it was', () => {
+  it('says no solver when nothing serves the corridor', () => {
+    expect(lnSendRefusal([], 'regtest')).toBe('No Lightning solver available')
+    expect(lnSendRefusal([market()], 'regtest')).toBe('No Lightning solver available')
+  })
+
+  it('quotes the card’s own bounds when a solver serves it at another size', () => {
+    expect(lnSendRefusal([lnMarket()], 'regtest')).toBe('Amount outside solver bounds (1,000-1,000,000 sats)')
+  })
+})
+
+describe('quoteIsForThisInvoice: the wrong-invoice guard', () => {
+  it('funds a quote negotiated for the invoice on screen', () => {
+    expect(quoteIsForThisInvoice({ meta: { invoice: INVOICE } }, INVOICE)).toBe(true)
+  })
+
+  it('refuses a quote negotiated for another invoice, or for none at all', () => {
+    expect(quoteIsForThisInvoice({ meta: { invoice: 'lnbc1other' } }, INVOICE)).toBe(false)
+    expect(quoteIsForThisInvoice({ meta: undefined }, INVOICE)).toBe(false)
+  })
+})
+
+describe('the asset rail', () => {
+  const assets = [{ assetId: 'usdt', amount: BigInt(500) }]
+
+  const assetRouter = (over: Partial<Parameters<typeof createSendRouter>[0]> = {}) =>
+    createSendRouter({
+      wallet: {} as never,
+      arkServerUrl: 'http://ark.example',
+      network: 'regtest',
+      assets,
+      ...over,
+    })
+
+  beforeEach(() => sendAssets.mockClear())
+
+  it('takes an ark address and nothing else', async () => {
+    expect((await assetRouter().options({ raw: ARK_ADDRESS })).map((o) => o.railId)).toEqual([ASSET_RAIL])
+    expect(await assetRouter().options({ raw: RECIPIENT })).toEqual([])
+    expect(await assetRouter().options({ raw: INVOICE })).toEqual([])
+  })
+
+  it('drops itself when there is nothing to send', async () => {
+    expect(await assetRouter({ assets: [] }).options({ raw: ARK_ADDRESS })).toEqual([])
+  })
+
+  it('sends what the old call sent: the whole list, to the ark address', async () => {
+    const quote = await (await assetRouter().options({ raw: ARK_ADDRESS }))[0].quote()
+    expect(quote).toMatchObject({ railId: ASSET_RAIL, amount: 0 })
+
+    const result = await (await quote.send()).settled()
+    expect(sendAssets).toHaveBeenCalledWith(expect.anything(), ARK_ADDRESS, assets)
+    expect(result).toMatchObject({ railId: ASSET_RAIL, txid: 'asset-txid' })
   })
 })

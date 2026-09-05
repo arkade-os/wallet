@@ -1,6 +1,5 @@
-import type { LnSendRequest } from '../lib/lnSwap'
 import { ReactNode, SetStateAction, createContext, useState } from 'react'
-import type { Asset, AssetDetails, ServiceWorkerWalletMode } from '@arkade-os/sdk'
+import type { Asset, AssetDetails, RouteQuote, ServiceWorkerWalletMode } from '@arkade-os/sdk'
 import { Tx } from '../lib/types'
 import type { FiatAccountSend } from '../lib/accountAssets'
 
@@ -63,7 +62,9 @@ export type SendInfo = {
   arkAddress?: string
   invoice?: string
   lnUrl?: string
-  pendingLnSend?: LnSendRequest
+  /** The negotiated Lightning route: quoted on the form so the fee is on screen
+   *  before the user signs, and `send()` is what the sign screen calls. */
+  pendingLnSend?: RouteQuote
   recipient?: string
   satoshis?: number
   scan?: boolean
