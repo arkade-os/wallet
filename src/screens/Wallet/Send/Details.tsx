@@ -13,11 +13,14 @@ import { defaultFee } from '../../../lib/constants'
 import { prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
-import { collaborativeExitWithFees, sendAssets, sendOffChain } from '../../../lib/asp'
+import { sendAssets, sendOffChain } from '../../../lib/asp'
 import { type LnSendRequest } from '../../../lib/lnSwap'
+import { createSendRouter, l1PayoutPubkey, ONCHAIN_ROUTE_LOG, quoteIsForThisSend } from '../../../lib/sendRouter'
 import { extractError } from '../../../lib/error'
 import LoadingLogo from '../../../components/LoadingLogo'
-import { consoleError } from '../../../lib/logs'
+import { consoleError, consoleLog } from '../../../lib/logs'
+import { AspContext } from '../../../providers/asp'
+import type { NetworkName } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
 import { FeesContext } from '../../../providers/fees'
 import { buildTransactionAmountDisplay } from '../../../lib/transactionAmountDisplay'
@@ -33,7 +36,8 @@ export default function SendDetails() {
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { assetMetadataCache, balance, reloadWallet, svcWallet } = useContext(WalletContext)
-  const { trackLnSend } = useContext(LnSwapsContext)
+  const { trackLnSend, reserveOnchainSend } = useContext(LnSwapsContext)
+  const { aspInfo } = useContext(AspContext)
 
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
@@ -131,6 +135,18 @@ export default function SendDetails() {
     setSendDone(true)
   }
 
+  /** Unlike {@link handleTxid} a missing txid is not an error: the solver rail
+   *  commits by funding. The fee comes off the QUOTE, not the screen — a rail
+   *  may charge less than was displayed. */
+  const handleSent = (txid: string | undefined, total: number, fee: number) => {
+    if (txid) {
+      saveTransactionActivityMetadata(txid, { destination: details?.destination, networkFee: fee })
+    }
+    reloadWallet().catch(consoleError)
+    setSendInfo({ ...sendInfo, total, txid })
+    setSendDone(true)
+  }
+
   const handleExitComplete = () => {
     if (error) return setSending(false)
     else navigate(Pages.SendSuccess)
@@ -176,6 +192,47 @@ export default function SendDetails() {
     handleTxid(txid)
   }
 
+  /** Pay an L1 address through the router. The request is built from `address` —
+   *  what THIS screen is showing — at the moment of the spend, so no carried
+   *  quote exists to go stale. A rail that cannot quote is skipped. */
+  const payOnchain = async (address: string, shown: DetailsProps): Promise<void> => {
+    const router = createSendRouter({
+      wallet: svcWallet!,
+      arkServerUrl: aspInfo.url,
+      network: aspInfo.network as NetworkName,
+      outputFee: calcOnchainOutputFee,
+      persist: reserveOnchainSend,
+      payoutPubkey: await l1PayoutPubkey(svcWallet!),
+    })
+    // Receiver-exact: "what leaves" was subtracted when `details` was built.
+    const options = await router.options({ raw: address, amount: shown.satoshis! })
+
+    for (const option of options) {
+      let quote
+      try {
+        quote = await option.quote()
+      } catch (err) {
+        consoleError(err, `${ONCHAIN_ROUTE_LOG} ${option.railId} could not quote`)
+        continue
+      }
+      if (!quoteIsForThisSend(quote, shown, address)) {
+        consoleLog(
+          `${ONCHAIN_ROUTE_LOG} ${option.railId} refused: quote pays ${quote.amount} for ${quote.total}, ` +
+            `screen shows ${shown.satoshis} for ${shown.total} to ${shown.destination}`,
+        )
+        continue
+      }
+      consoleLog(`${ONCHAIN_ROUTE_LOG} paying via ${option.railId}`)
+      // Deliberately NOT caught, and the funding is why: this reaches
+      // `ServiceWorkerWallet.send`, whose worker submits the Ark tx and only
+      // then replies (#949), so a rejection here can mean a covenant that IS
+      // funded. Trying the exit rail next would pay the recipient twice.
+      const result = await (await quote.send()).settled()
+      return handleSent(result.txid, quote.total, quote.fee)
+    }
+    throw new Error('No route for this payment')
+  }
+
   const handleContinue = async () => {
     if (!details || !svcWallet) return
     if (!isAssetSend && (!details.total || !details.satoshis)) return
@@ -210,9 +267,9 @@ export default function SendDetails() {
     } else if (address) {
       if (!details.total) return handleError('Missing total amount')
       if (!details.satoshis) return handleError('Missing satoshis amount')
-      collaborativeExitWithFees(svcWallet, details.total, details.satoshis, address)
-        .then((txId: string) => handleTxid(txId))
-        .catch(handleError)
+      // Blanked by the limit, not by routing: every rail fails `quoteIsForThisSend`.
+      if (!details.destination) return handleError('On-chain sends are not permitted on this account')
+      payOnchain(address, details).catch(handleError)
     }
   }
 

@@ -1,5 +1,5 @@
 /**
- * `RfqSwapManager`, for the Lightning-send leg.
+ * `RfqSwapManager`, for the two send legs.
  *
  * What it replaces: the wallet used to decide a send's outcome itself, by
  * asking the indexer who got paid, on whatever screen happened to care. The
@@ -16,15 +16,26 @@
  * spender's txid, and only for a swap the manager did not stamp itself; see
  * `lnSendRecords.ts`.
  *
- * Scoped to `lightning_send` deliberately. The receive leg has a manager of its
- * own in `providers/lnReceive`, which holds a Web Lock the whole time it drives
- * one — so wiring `claimLockup` here would put a second, unsynchronised claimer
- * on the same lockup.
+ * Scoped to the two SEND legs. `claimLockup` stays unwired because the receive
+ * leg's own manager holds a Web Lock over the same Arkade lockup; the onchain
+ * leg's claim the wallet MUST make itself, before a consensus deadline.
  */
 import { ReactNode, createContext, useContext, useEffect, useRef } from 'react'
-import { RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
+import { EsploraProvider, NetworkName, RestArkProvider, RestIndexerProvider } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
-import { RfqSwapManager, findLockupVtxos, pushRefundWithoutReceiver, type RfqSwap } from '@arkade-os/swap'
+import {
+  RfqSwapManager,
+  chainSourceFrom,
+  claimOnchainFill,
+  findLockupVtxos,
+  preimageForSwapRecord,
+  pushRefundWithoutReceiver,
+  rfqClaimSecretOf,
+  type ChainUtxo,
+  type OnchainSendSwap,
+  type RfqSwap,
+  type SolverOnchainSend,
+} from '@arkade-os/swap'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import {
@@ -41,6 +52,9 @@ import {
   saveSwapUpdate,
   type LnSendRecordInput,
 } from '../lib/lnSendRecords'
+import { onchainSendSwap, onchainSendSwapRecord, restoreOnchainSendSwaps } from '../lib/onchainSendRecords'
+import { claimPayoutScript, l1NetworkOf, onchainClaimEndpoint } from '../lib/onchainPayout'
+import { claimFeeRate } from '../lib/claimFee'
 import { lockupSpenderTxid } from '../lib/lnSwap'
 import { consoleError } from '../lib/logs'
 
@@ -48,20 +62,25 @@ interface LnSwapsContextProps {
   /** Record a just-funded send and hand it to the manager. Resolves once the
    * record is durable — the caller's refresh must not run ahead of the store. */
   trackLnSend: (input: LnSendRecordInput) => Promise<void>
+  /** The rail's `persist`, BEFORE funding — the opposite order to the Lightning
+   *  leg's, because a funded-but-unrecorded onchain send is an L1 HTLC whose
+   *  claim parameters exist nowhere. A rejection means nothing was funded. */
+  reserveOnchainSend: (swap: SolverOnchainSend) => Promise<void>
 }
 
 export const LnSwapsContext = createContext<LnSwapsContextProps>({
   trackLnSend: async () => {
     throw new Error('lightning swaps not initialized')
   },
+  reserveOnchainSend: async () => {
+    throw new Error('swap manager not initialized')
+  },
 })
 
 const notWired = (action: string) => async (): Promise<never> => {
-  // Required by the callbacks type, unreachable for this corridor: the manager
-  // calls neither on a `lightning_send` swap, and this provider monitors no
-  // others. A throw rather than a silent no-op, so a corridor added here
-  // without its action surfaces at once instead of expiring quietly.
-  throw new Error(`${action} is not wired: this wallet drives lightning sends only`)
+  // A throw rather than a silent no-op, so a corridor added here without its
+  // action surfaces at once instead of expiring quietly.
+  throw new Error(`${action} is not wired: this wallet drives send legs only`)
 }
 
 export const LnSwapsProvider = ({ children }: { children: ReactNode }) => {
@@ -84,9 +103,34 @@ export const LnSwapsProvider = ({ children }: { children: ReactNode }) => {
       const ark = new RestArkProvider(aspInfo.url)
       const contracts = await svcWallet.getContractManager()
 
-      manager = new RfqSwapManager({ indexer, contracts })
+      const network = aspInfo.network as NetworkName
+      const esploraUrl = onchainClaimEndpoint(network)
+      const chain = chainSourceFrom(new EsploraProvider(esploraUrl), l1NetworkOf(network))
+
+      manager = new RfqSwapManager({ indexer, contracts, chain })
       manager.setCallbacks({
-        claimOnchain: notWired('claimOnchain'),
+        /** Refuses inside the refund leaf's margin: a throw is not a failure. */
+        claimOnchain: async (swap: OnchainSendSwap, utxo: ChainUtxo) => {
+          const record = await readRecord(swap.rfqId)
+          if (!record) throw new Error(`no stored record for rfq ${swap.rfqId}`)
+          const secrets = rfqClaimSecretOf(record)
+          if (!secrets) throw new Error(`swap ${swap.rfqId} was stored without its hashlock`)
+          // Never derived: the only derivable script is this wallet's own.
+          const payoutPkScript = claimPayoutScript(record.profile)
+          const [preimage, feeRateSatVb] = await Promise.all([
+            preimageForSwapRecord(svcWallet, secrets),
+            claimFeeRate(esploraUrl),
+          ])
+          return claimOnchainFill(chain, {
+            htlc: swap.htlc,
+            utxo,
+            preimage,
+            payoutPkScript,
+            feeRateSatVb,
+            // A BIP-341 sighash the package builds, never caller-supplied.
+            sign: (sighash: Uint8Array) => svcWallet.identity.signMessage(sighash, 'schnorr'),
+          })
+        },
         claimLockup: notWired('claimLockup'),
         saveSwap: (swap) => saveSwapUpdate(swap),
         // Wired to the atomic push, NOT to `refundIfUnresolved`: that helper is
@@ -118,9 +162,12 @@ export const LnSwapsProvider = ({ children }: { children: ReactNode }) => {
           .catch((err) => consoleError(err, `error resolving the spend of swap ${swap.rfqId}`))
       })
 
-      const swaps = await restoreLnSendSwaps(contracts)
+      const [lnSwaps, onchainSwaps] = await Promise.all([
+        restoreLnSendSwaps(contracts),
+        restoreOnchainSendSwaps(contracts, (pkScript) => findLockupVtxos(indexer, pkScript)),
+      ])
       if (stopped) return
-      await manager.start(swaps)
+      await manager.start([...lnSwaps, ...onchainSwaps])
       managerRef.current = manager
     }
 
@@ -142,7 +189,13 @@ export const LnSwapsProvider = ({ children }: { children: ReactNode }) => {
     await managerRef.current?.addSwap(lnSendSwap(input))
   }
 
-  return <LnSwapsContext.Provider value={{ trackLnSend }}>{children}</LnSwapsContext.Provider>
+  /** Optional chain deliberate, as on `trackLnSend`: restore picks it up. */
+  const reserveOnchainSend = async (swap: SolverOnchainSend) => {
+    await saveRecord(onchainSendSwapRecord(swap))
+    await managerRef.current?.addSwap(onchainSendSwap(swap))
+  }
+
+  return <LnSwapsContext.Provider value={{ trackLnSend, reserveOnchainSend }}>{children}</LnSwapsContext.Provider>
 }
 
 /** Name the tx that ended a swap, when it is one of ours. Returns it, so the

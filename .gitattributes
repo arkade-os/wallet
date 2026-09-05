@@ -1,1 +1,5 @@
+# Prettier checks with endOfLine "lf". Without this, a Windows checkout under
+# core.autocrlf=true gets CRLF and `format:check` fails on every file.
+* text=auto eol=lf
+
 docker-entrypoint.sh text eol=lf
