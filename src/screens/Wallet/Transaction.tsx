@@ -190,7 +190,7 @@ export default function Transaction() {
         : burnTx
           ? t('transaction.amountBurned')
           : exitTx
-            ? 'Amount exited'
+            ? t('transaction.amountExited')
             : tx.type === 'sent'
               ? t('transaction.amountSent')
               : t('transaction.amountReceived')
