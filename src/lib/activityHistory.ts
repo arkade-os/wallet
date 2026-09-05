@@ -1,6 +1,6 @@
 import type { Activity } from '@arkade-os/sdk'
 import { isRfqSwapTerminal } from '@arkade-os/swap'
-import { ASSET_SWAP_ACTIVITY_KIND } from './activity/assetSwapResolver'
+import { ASSET_SWAP_ACTIVITY_KIND } from './swapRecords'
 import { consoleError } from './logs'
 import type { TransactionActivityMetadata } from './storage'
 import { buildAssetSwapActivityTx } from './swapDisplay'
@@ -51,9 +51,10 @@ const swapIdOf = (activity: Activity): string | undefined =>
     ? (activity.intent.metadata?.swapId as string | undefined)
     : undefined
 
-/** `@arkade-os/swap`'s resolver tags every corridor with the same `swap` kind
- * the asset resolver uses, so the corridor is what tells them apart — and it
- * is `swapKind`, never the group id, since both namespaces are `swap:`. */
+/** Every swap group carries the same `swap` kind, so the corridor is what
+ * tells them apart — and it is `swapKind`, never the group id, since both
+ * namespaces are `swap:`. Set by `swapRecordResolver` for the client's own
+ * records and by the package's resolver for the v1 rows. */
 const rfqSwapKindOf = (activity: Activity): string | undefined =>
   activity.intent?.metadata?.swapKind as string | undefined
 

@@ -46,9 +46,9 @@ import { Tx, Vtxo, Wallet } from '../lib/types'
 import { activitiesToTxs, getActivities } from '../lib/activityHistory'
 import { arkTransactionToTx } from '../lib/transactionHistory'
 import { Indexer } from '../lib/indexer'
-import { lnSendViews, swapActivityInputs, type LnSendView } from '../lib/lnSendRecords'
-import { assetSwapResolver } from '../lib/activity/assetSwapResolver'
-import { getAssetSwaps, swapActivityResolver } from '@arkade-os/swap'
+import { lnSendViews as v1LnSendViews, swapActivityInputs, type LnSendView } from '../lib/lnSendRecords'
+import { lnSendViews, swapRecordResolver } from '../lib/swapRecords'
+import { swapActivityResolver } from '@arkade-os/swap'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
@@ -561,11 +561,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // write that lands after this line stays invisible until the next reload.
       const exits = await resolveExits(unrolledVtxos, networkRef.current)
       const metadata = readAllTransactionActivityMetadata()
-      // Read, never resolved here: `RfqSwapManager` owns a send's outcome and
+      // Read, never resolved here: the swap client owns a send's outcome and
       // has already written it (see providers/swaps), so this pass only picks
-      // up what the store says.
-      const lnSends = await lnSendViews()
-      if (isFirstLoad) setLoadingStatus(translate(lang, 'loading.updatingBalance'))
+      // up what the store says. Both keyspaces — the client's own records, and
+      // the v1 rows written before the wallet moved onto it.
+      const lnSends = await lnSendViews(await v1LnSendViews())
+      if (isFirstLoad) setLoadingStatus('Updating balance...')
       const { total, available, assets, availableAssets, unrolled } = await getBalance(swWallet)
       // An exited coin is no longer Arkade money: it cannot be spent offchain,
       // no batch can lift it back, and this wallet has no path that moves it —
@@ -706,9 +707,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
       // The registry ships with the SDK built-ins already in it; only ours has
       // to be added, and `use()` is idempotent by id across reinit paths.
-      svcWallet.activity.use(assetSwapResolver())
-      // The package's own resolver for the RFQ corridors, fed by the package's
-      // own reader over the records `RfqSwapManager` writes. It is what turns a
+      // Both families over the client's own records, plus the v1 offer rows the
+      // chain restore scan still writes. Its corridor half is what labels a
+      // Lightning row and gives it the outcome token the receipt renders.
+      svcWallet.activity.use(swapRecordResolver())
+      // The package's own resolver, kept for the V1 corridor rows only: the
+      // client writes v2 records now and `swapRecordResolver` above covers
+      // those. This is what keeps a send made before the move grouped. It is what turns a
       // swap's funding tx — and the claim or refund that follows it — into one
       // labelled activity instead of two unrelated rows.
       //

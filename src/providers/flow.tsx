@@ -1,4 +1,4 @@
-import type { LightningSendQuote } from '@arkade-os/swap'
+import type { Quote } from '@arkade-os/swap/client'
 import { ReactNode, SetStateAction, createContext, useState } from 'react'
 import type { Asset, AssetDetails, ServiceWorkerWalletMode } from '@arkade-os/sdk'
 import { Tx } from '../lib/types'
@@ -26,12 +26,13 @@ export interface DeepLinkInfo {
  * What the receive screen renders about a negotiated Lightning receive — and
  * nothing more.
  *
- * The covenant, the claim secrets and the expected amount live with
- * `SwapsProvider`'s client, which is what claims the lockup. Keeping the whole
- * negotiation here once invited a second claim path written against flow state.
+ * The covenant, the claim secrets and the expected amount live with the swap
+ * client, which is what claims the lockup. Keeping the whole negotiation here
+ * once invited a second claim path written against flow state.
  */
 export interface PendingLnReceive {
-  rfqId: string
+  /** The swap's tagged public id (`rfq:<QuoteId>`), for status lookups. */
+  id: string
   invoice: string
   /** What the payer is asked for, sats — larger than the amount received. */
   payAmount: number
@@ -64,7 +65,7 @@ export type SendInfo = {
   lnUrl?: string
   /** A negotiated Lightning send, unfunded. Funding it on the pay screen IS
    * the acceptance, so this is carried rather than executed. */
-  pendingLnSend?: LightningSendQuote
+  pendingLnSend?: Quote
   recipient?: string
   satoshis?: number
   scan?: boolean
