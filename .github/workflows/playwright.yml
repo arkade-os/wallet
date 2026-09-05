@@ -20,6 +20,7 @@ jobs:
             test_files: >-
               src/test/e2e/asset.test.ts
               src/test/e2e/send.test.ts
+              src/test/e2e/send-onchain-fallback.test.ts
           - group: core
             test_files: >-
               src/test/e2e/backup.test.ts
@@ -28,14 +29,15 @@ jobs:
               src/test/e2e/form.test.ts
               src/test/e2e/init.test.ts
               src/test/e2e/keyboard.test.ts
+              src/test/e2e/lnsend.test.ts
               src/test/e2e/lnurl.test.ts
               src/test/e2e/lock.test.ts
               src/test/e2e/nostr.test.ts
               src/test/e2e/pwa.test.ts
               src/test/e2e/receive.test.ts
-              src/test/e2e/restore.test.ts
               src/test/e2e/serverdown.test.ts
-              src/test/e2e/swap.test.ts
+              src/test/e2e/solvers.test.ts
+              src/test/e2e/swaps.test.ts
     steps:
     - uses: actions/checkout@v4
       with:
@@ -52,8 +54,11 @@ jobs:
       run: pnpm exec playwright install chrome chromium --with-deps
     - name: Start regtest environment
       run: node regtest/regtest.mjs start --env .env.regtest
+    # The cert is what makes wss://localhost:10548 exist, and a solver card's
+    # relays must be wss:// — `regtest:start` generates it, these open-coded
+    # steps did not, so relay-tls has been serving nothing.
     - name: Start nostr relay
-      run: docker compose -f docker-compose.nak.yml up -d --build
+      run: node scripts/gen-relay-tls-cert.mjs && docker compose -f docker-compose.nak.yml up -d --build
     - name: Verify environment
       run: pnpm regtest:setup
     - name: Run Playwright tests
