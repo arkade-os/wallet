@@ -127,7 +127,7 @@ export default function SendForm() {
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
-  const { quoteLnSend } = useContext(SwapsContext)
+  const { quotePay } = useContext(SwapsContext)
   const {
     assetBalances,
     availableAssetBalances,
@@ -620,11 +620,11 @@ export default function SendForm() {
       // negotiation is the only interactive step — funding IS acceptance.
       const negotiate = async () => {
         if (!svcWallet) return handleError('Wallet not ready')
-        // No emulator URL is looked up here, and no transport is built: the
-        // client picks the corridor's rendezvous off the market card. What is
-        // still the wallet's is refusing the invoice and the amount before a
-        // quote is burned and the invoice reaches a third party.
-        const pendingLnSend = await quoteLnSend(sendInfo.invoice!)
+        // Nothing is picked here — not the corridor, not the market, not the
+        // rendezvous, not even the amount: `to` is parsed once at the client
+        // boundary and everything else follows from the route it yields. The
+        // wallet's own BOLT11 gates still run, as the corridor's decoder.
+        const pendingLnSend = await quotePay(sendInfo.invoice!)
         setSendInfo((prev) => ({ ...prev, pendingLnSend }))
       }
       negotiate().catch(handleError)

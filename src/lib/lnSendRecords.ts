@@ -1,32 +1,16 @@
 /**
- * Reading the Lightning-send leg's records: what the history renders, and the
- * one txid the package's own reader cannot see.
+ * The V1 Lightning-send records: read-only, and read only for history.
  *
- * The writing half is gone. `createSwapClient` composes and persists every RFQ
- * record itself — the first one at `accept`, every dirty pass after — so the
- * record assembly, the origin, the restore-and-prune and the refund signer this
- * file used to own all moved into the client with the manager they fed. What is
- * left is read surface plus one wallet-private key.
+ * Nothing writes them any more. The v2 client persists to its own keyspace, so
+ * this file covers exactly one case — a send made before this wallet moved onto
+ * that client — and everything it needs is what an older deploy already wrote.
+ * `swapRecords.ts` merges what comes back here with the client's own records;
+ * when the last v1 row ages out, this file goes with it.
  *
- * **This file used to add two keys of its own**, `funding_txid` and
- * `spend_txid`, both under `profile`, because the manager had no field for
- * either. ts-sdk#773 gave it both, so they are gone as things we WRITE:
- *
- * - `fundingTxid` is on the origin, and the client sets it from the funding
- *   send. Grouping correlates by txid and `rfqSwapActivityInputs` reads the
- *   record's own fields, so a funding txid under a wallet-private profile key
- *   is a txid the resolver cannot see.
- * - `lockupSpendTxids` is stamped by the manager at finalization, from the
- *   chain read that ended the swap. That covers the ordinary failure — the
- *   solver's own `nonInteractiveRefund`, which is neither a refund the wallet
- *   pushed nor something `readLockupFate` named — which is exactly the gap
- *   `spend_txid` existed to fill.
- *
- * Both old keys are still READ, so a store written by an earlier deploy keeps
- * its receipts and its grouping. `funding_txid` is no longer written at all.
- * `spend_txid` still is, but only as the fallback for a record the manager has
- * not stamped — see `recordEnding` in `providers/swaps.tsx`, which checks the
- * stamp before paying for an indexer lookup.
+ * Two profile keys are still read for the same reason. `funding_txid` and
+ * `spend_txid` were written by this wallet before ts-sdk#773 gave the record
+ * fields of its own, and a store written then keeps its receipts and its
+ * grouping only if they are read.
  */
 import {
   rfqSwapActivityInputs,
@@ -39,9 +23,6 @@ import { assetSwapRepository } from './swapRepository'
 
 const FUNDING_TXID = 'funding_txid'
 const SPEND_TXID = 'spend_txid'
-
-export const readRecord = async (rfqId: string): Promise<RfqSwapRecord | undefined> =>
-  (await assetSwapRepository.getAllRfqSwaps()).find((record) => record.rfqId === rfqId)
 
 const profileTxid = (record: RfqSwapRecord, key: string): string | undefined => {
   const txid = record.profile[key]
@@ -70,14 +51,6 @@ export const fundingTxidOf = (record: RfqSwapRecord): string | undefined =>
  */
 export const spendTxidOf = (record: RfqSwapRecord): string | undefined =>
   record.refundTxid ?? record.lockupSpendTxids?.[0] ?? profileTxid(record, SPEND_TXID)
-
-/** Note the transaction that spent a lockup. A swap already carrying one is
- * left alone, so a re-observation cannot rewrite what was recorded first. */
-export const recordSpendTxid = async (rfqId: string, spendTxid: string): Promise<void> => {
-  const record = await readRecord(rfqId)
-  if (!record || spendTxidOf(record)) return
-  await assetSwapRepository.saveRfqSwap({ ...record, profile: { ...record.profile, [SPEND_TXID]: spendTxid } })
-}
 
 const lightningSends = async (): Promise<RfqSwapRecord[]> =>
   (await assetSwapRepository.getAllRfqSwaps()).filter((record) => record.kind === 'lightning_send')

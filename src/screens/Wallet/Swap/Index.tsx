@@ -91,7 +91,7 @@ const emptySwapAsset: SwapAsset = {
 
 export default function WalletSwap() {
   const { aspInfo } = useContext(AspContext)
-  const { createSwap, markets, swapAvailable } = useContext(SwapsContext)
+  const { exchange, markets, swapAvailable } = useContext(SwapsContext)
   const { config } = useContext(ConfigContext)
   const { fiatDecimals, fromFiatAmount, toFiat, toFiatAmount } = useContext(FiatContext)
   const { swapFromAssetId, setSwapFromAssetId } = useContext(FlowContext)
@@ -458,7 +458,7 @@ export default function WalletSwap() {
       // The market the plan was quoted against, not one re-looked-up at confirm
       // time: `accept` funds the plan the user just read, and a second lookup
       // could name a different card.
-      await createSwap(pair.market, plan, buildQuoteSnapshot(plan, quote, config.currency))
+      await exchange(pair.market, plan, buildQuoteSnapshot(plan, quote, config.currency))
       setDrawer(null)
       setSuccessQuote(quote)
       hapticLight()

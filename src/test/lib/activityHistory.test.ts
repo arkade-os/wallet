@@ -3,7 +3,8 @@ import { lnSwapLabel } from '../../lib/swapDisplay'
 import { createDefaultActivityRegistry, ServiceWorkerWallet, type Activity, type ArkTransaction } from '@arkade-os/sdk'
 import { activitiesToTxs, getActivities } from '../../lib/activityHistory'
 import { swapActivityResolver } from '@arkade-os/swap'
-import { ASSET_SWAP_ACTIVITY_KIND, assetSwapResolver } from '../../lib/activity/assetSwapResolver'
+import { ASSET_SWAP_ACTIVITY_KIND, swapRecordResolver } from '../../lib/swapRecords'
+import type { SwapRecord } from '@arkade-os/swap/client'
 import { readAllTransactionActivityMetadata, saveTransactionActivityMetadata } from '../../lib/storage'
 import type { ExitRecord } from '../../lib/exitHistory'
 import type { LnSendView } from '../../lib/lnSendRecords'
@@ -146,9 +147,50 @@ describe('getActivities', () => {
   })
 })
 
-describe('assetSwapResolver', () => {
+/**
+ * The v2 records the client writes, reduced to what the resolver reads. Cast
+ * rather than built through the package: nothing here exercises the record's
+ * own invariants, and a full fixture would pin fields the resolver ignores.
+ */
+const offerRecord = (over: Record<string, unknown> = {}): SwapRecord =>
+  ({
+    id: 'swap-1',
+    family: 'offer',
+    status: 'pending',
+    route: { give: { corridor: 'arkade' }, take: { corridor: 'arkade' } },
+    fundingTxid: 'funding-txid',
+    offerHex: '0100',
+    swapAddress: 'tark1q...',
+    swapPkScript: '5120' + 'ab'.repeat(32),
+    give: { asset: 'arkade:mutinynet/slip44:0', amount: '10000' },
+    take: { asset: 'arkade:mutinynet/asset:' + 'f1'.repeat(34), amount: '992' },
+    fee: { asset: 'arkade:mutinynet/slip44:0', amount: '0' },
+    createdAt: 2,
+    updatedAt: 2,
+    ...over,
+  }) as unknown as SwapRecord
+
+const corridorRecord = (over: Record<string, unknown> = {}): SwapRecord =>
+  ({
+    id: 'rfq:quote-1',
+    family: 'rfq',
+    lockupAddress: 'tark1qlockup',
+    route: { give: { corridor: 'arkade' }, take: { corridor: 'lightning' } },
+    kind: 'lightning_send',
+    state: 'pending',
+    rfqId: 'rfq-1',
+    fundingTxid: 'ln-funding-txid',
+    give: { asset: 'arkade:mutinynet/slip44:0', amount: '1030' },
+    take: { asset: 'bolt11:mutinynet/slip44:0', amount: '1000' },
+    fee: { asset: 'arkade:mutinynet/slip44:0', amount: '30' },
+    createdAt: 2,
+    updatedAt: 2,
+    ...over,
+  }) as unknown as SwapRecord
+
+describe('swapRecordResolver', () => {
   it('groups the funding and spending txs of one swap and leaves the rest plain', async () => {
-    const resolver = assetSwapResolver(async () => [swap({ spentTxid: 'fill-txid' })])
+    const resolver = swapRecordResolver(async () => [offerRecord({ spentTxid: 'fill-txid' })])
     await resolver.prepare?.()
 
     expect(resolver.resolve(arkTx('funding-txid'))).toEqual([
@@ -158,14 +200,40 @@ describe('assetSwapResolver', () => {
     expect(resolver.resolve(arkTx('unrelated'))).toBeUndefined()
   })
 
+  it('labels a corridor group and keys it on the rfq id, not the swap id', async () => {
+    // Both halves matter to the row builder: `swapKind` is what tells a
+    // Lightning row from an asset swap row, and the rfq id is what the
+    // ungrouped-send pass matches a stored send against.
+    const resolver = swapRecordResolver(async () => [corridorRecord()])
+    await resolver.prepare?.()
+
+    expect(resolver.resolve(arkTx('ln-funding-txid'))).toEqual([
+      {
+        groupId: 'swap:rfq-1',
+        kind: 'swap',
+        label: 'Lightning send',
+        outcome: 'pending',
+        metadata: { rfqId: 'rfq-1', swapKind: 'lightning_send' },
+      },
+    ])
+  })
+
+  it('carries a corridor spend into the same group, so a refund is not a stray row', async () => {
+    const resolver = swapRecordResolver(async () => [corridorRecord({ state: 'refunded', refundTxid: 'refund-txid' })])
+    await resolver.prepare?.()
+
+    expect(resolver.resolve(arkTx('refund-txid'))?.[0].groupId).toBe('swap:rfq-1')
+    expect(resolver.resolve(arkTx('refund-txid'))?.[0].outcome).toBe('refunded')
+  })
+
   it('re-reads the store on every prepare, so records written after the first load still group', async () => {
-    let records: WalletAssetSwap[] = []
-    const resolver = assetSwapResolver(async () => records)
+    let records: SwapRecord[] = []
+    const resolver = swapRecordResolver(async () => records)
 
     await resolver.prepare?.()
     expect(resolver.resolve(arkTx('funding-txid'))).toBeUndefined()
 
-    records = [swap()]
+    records = [offerRecord()]
     await resolver.prepare?.()
     expect(resolver.resolve(arkTx('funding-txid'))?.[0].groupId).toBe('swap:swap-1')
   })
@@ -176,7 +244,16 @@ describe('end to end through the SDK grouping', () => {
   // the registered resolvers is
   const activityHistoryOf = async (txs: ArkTransaction[], swaps: WalletAssetSwap[]) => {
     const registry = createDefaultActivityRegistry()
-    registry.use(assetSwapResolver(async () => swaps))
+    // The v1 rows this fixture describes reach the resolver as v2 offer
+    // records: the two carry the same three txids, and the grouping is what is
+    // under test rather than the record shape.
+    registry.use(
+      swapRecordResolver(async () =>
+        swaps.map((swap) =>
+          offerRecord({ id: swap.id, fundingTxid: swap.fundingTxid, spentTxid: swap.spentTxid, status: swap.status }),
+        ),
+      ),
+    )
     const wallet = {
       activity: registry,
       getTransactionHistory: async () => txs,

@@ -3,12 +3,12 @@
  * not own — which registry to ask, which cards ship with the build, and the
  * pre-fee rate the swap composer displays.
  *
- * Discovery itself is the client's now. `createSwapClient` takes these options
- * once and answers `client.markets(useCache)` from them, writing through the
- * same repository, so this file supplies the configuration rather than making
- * the call.
+ * Discovery itself is the client's now: `createSwapClient` takes these options
+ * once and routes every quote against them. The shape satisfies both the v2
+ * client's `DiscoveryConfig` and the package's own `discoverMarkets`, which is
+ * what lets one definition feed the client and the lock-free read below.
  */
-import { discoverMarkets as discover, type SwapClientDeps } from '@arkade-os/swap'
+import { discoverMarkets as discover, type DiscoverMarketsOptions } from '@arkade-os/swap'
 import {
   DEFAULT_NETWORK,
   displayPrice,
@@ -58,7 +58,7 @@ export const BUNDLED_CARDS: LocalCardInput[] = [{ card: betaSolverCard as LocalC
  * registry URL and no cards the result is `[]`, which is the same answer the
  * wallet's own `isNetwork` guard used to give before the call was made.
  */
-export const discoveryOptions = (network: NetworkName): SwapClientDeps['discovery'] => ({
+export const discoveryOptions = (network: NetworkName): Omit<DiscoverMarketsOptions, 'repository' | 'useCache'> => ({
   network: isNetwork(network) ? network : DEFAULT_NETWORK,
   registryUrl: isNetwork(network) ? getSolverRegistryUrl(network) : undefined,
   localCards: [...BUNDLED_CARDS, ...readSolverCardsFromStorage()].filter((c) => c.network === network),

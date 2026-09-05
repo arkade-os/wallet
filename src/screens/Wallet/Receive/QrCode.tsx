@@ -64,7 +64,7 @@ export default function ReceiveQRCode() {
   const { fromFiat } = useContext(FiatContext)
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
-  const { receiveLightning, lnStatus, lnError } = useContext(SwapsContext)
+  const { receiveLightning, outcomeOf, errorOf } = useContext(SwapsContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { assetMetadataCache, svcWallet } = useContext(WalletContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
@@ -353,10 +353,15 @@ export default function ReceiveQRCode() {
   // above still reports the credit; this is what can say the payment was LOST —
   // `refunded` on a receive leg means the solver reclaimed a lockup we never
   // claimed, which nothing else on this screen could distinguish from waiting.
-  const rfqId = recvInfo.pendingLnReceive?.rfqId
-  const receiveState = rfqId ? lnStatus(rfqId) : undefined
-  const claimError = rfqId ? lnError(rfqId) : undefined
-  const receiveLost = receiveState === 'refunded'
+  const swapId = recvInfo.pendingLnReceive?.id
+  const receiveOutcome = swapId ? outcomeOf(swapId) : undefined
+  const claimError = swapId ? errorOf(swapId) : undefined
+  // `lapsed`, not `refunded`. On a receive leg every non-claim leaf of the
+  // covenant is the SOLVER's, so a lockup spent any other way is the incoming
+  // payment never arriving — a loss. v1 spelled that `refunded`, the same word
+  // it used for the trader's own money coming back; the v2 outcome vocabulary
+  // refuses to inherit the trap, and this screen is why it matters.
+  const receiveLost = receiveOutcome === 'lapsed'
 
   const data = { title: 'Receive', text: qrCodeValue }
   const shareDisabled = !canBrowserShareData(data) || sharing || hasError || noPaymentMethods

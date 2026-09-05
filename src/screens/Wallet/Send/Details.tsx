@@ -14,7 +14,7 @@ import { prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { collaborativeExitWithFees, sendAssets, sendOffChain } from '../../../lib/asp'
-import type { LightningSendQuote } from '@arkade-os/swap'
+import type { Quote } from '@arkade-os/swap/client'
 import { extractError } from '../../../lib/error'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
@@ -33,7 +33,7 @@ export default function SendDetails() {
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { assetMetadataCache, balance, reloadWallet, svcWallet } = useContext(WalletContext)
-  const { acceptLnSend } = useContext(SwapsContext)
+  const { acceptPay } = useContext(SwapsContext)
 
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
@@ -95,7 +95,7 @@ export default function SendDetails() {
             : ''
     // The RFQ lockup carries exactly the invoice amount (exact-out, fee_bps
     // from the card; 0 today), so total == satoshis on the Lightning path.
-    const total = pendingLnSend ? pendingLnSend.request.fundAmount : satoshis
+    const total = pendingLnSend ? Number(pendingLnSend.give.amount) : satoshis
     const amount = direction === 'Paying to mainnet' ? satoshis - calcOnchainOutputFee() : satoshis
     const fees = total - amount > 0 ? total - amount : 0
     setDetails({
@@ -163,8 +163,8 @@ export default function SendDetails() {
    * longer be committed and unmonitored, which is what the old
    * fund-then-track pair could leave behind.
    */
-  const payLightning = async (quote: LightningSendQuote) => {
-    handleTxid(await acceptLnSend(quote))
+  const payLightning = async (quote: Quote) => {
+    handleTxid(await acceptPay(quote))
   }
 
   const handleContinue = async () => {
@@ -194,7 +194,7 @@ export default function SendDetails() {
       // funding it IS the acceptance — no further message exists. The solver
       // observes the funding, pays the invoice, and claims with the preimage;
       // a failed swap refunds by covenant.
-      if (Math.floor(Date.now() / 1000) >= pendingLnSend.request.quote.valid_until) {
+      if (Math.floor(Date.now() / 1000) >= pendingLnSend.expiresAt) {
         return handleError('Quote expired — go back and try again')
       }
       payLightning(pendingLnSend).catch(handleError)

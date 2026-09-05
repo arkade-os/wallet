@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ArkAddress, VHTLC, type ProvisionedKey } from '@arkade-os/sdk'
 import { createRfqSwapRecord, rfqSecretsProfile, type RfqSwapRecord } from '@arkade-os/swap'
-import { lnSendViews, recordSpendTxid, spendTxidOf, swapActivityInputs } from '../../lib/lnSendRecords'
+import { lnSendViews, spendTxidOf, swapActivityInputs } from '../../lib/lnSendRecords'
 import { assetSwapRepository as repository } from '../../lib/swapRepository'
 
 /**
- * The writing half of this store moved into `createSwapClient`, which composes
- * and persists every record itself. What is left here is the reading half, and
- * the one wallet-private key the package's own reader cannot see.
+ * Nothing writes these records any more: the v2 client persists to its own
+ * keyspace, and this store is read only for sends made before the wallet moved
+ * onto it. What is covered here is that reading half, including the two
+ * wallet-private profile keys an older deploy wrote.
  *
  * Fixtures therefore write through the package's own `createRfqSwapRecord`, the
  * same call the client makes — a record built any other way would be testing a
@@ -82,15 +83,6 @@ describe('the spend that ended a swap', () => {
 
     expect(spendTxidOf(await stored())).toBe('our-refund-txid')
   })
-
-  it('records an observed spend once, and never rewrites it', async () => {
-    await store()
-
-    await recordSpendTxid(RFQ_ID, 'solver-refund-txid')
-    await recordSpendTxid(RFQ_ID, 'something-else')
-
-    expect(spendTxidOf(await stored())).toBe('solver-refund-txid')
-  })
 })
 
 /**
@@ -115,7 +107,7 @@ describe('swapActivityInputs', () => {
     // `lockupSpendTxids` is stripped and refilled from the live swap on
     // every manager pass, so a value written to it would not survive.
     await store({ state: 'refunded' })
-    await recordSpendTxid(RFQ_ID, 'refund-txid')
+    await saveRecord({ ...(await stored()), profile: { ...(await stored()).profile, spend_txid: 'refund-txid' } })
 
     const [input] = await inputs()
     expect(input.state).toBe('refunded')
@@ -134,7 +126,7 @@ describe('swapActivityInputs', () => {
 
   it('leaves a settled send’s spend out — it pays the solver, not us', async () => {
     await store({ state: 'settled' })
-    await recordSpendTxid(RFQ_ID, 'solver-claim-txid')
+    await saveRecord({ ...(await stored()), profile: { ...(await stored()).profile, spend_txid: 'solver-claim-txid' } })
 
     const [input] = await inputs()
     expect(input.txids).not.toContain('solver-claim-txid')
