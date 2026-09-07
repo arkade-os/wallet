@@ -4,7 +4,6 @@ import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
-import { LnSwapsContext } from '../../../providers/lnSwaps'
 import { FlowContext } from '../../../providers/flow'
 import Padded from '../../../components/Padded'
 import { isBTCAddress, decodeArkAddress, isLightningInvoice, isURLWithLightningQueryString } from '../../../lib/address'
@@ -29,12 +28,13 @@ import { aspErrorText, getReceivingAddresses } from '../../../lib/asp'
 import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
-import { ArkNote, AssetDetails, isValidArkAddress } from '@arkade-os/sdk'
+import { ArkNote, AssetDetails, isValidArkAddress, type NetworkName } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
 import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl, LnUrlResponse } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
 import { decodeInvoice } from '../../../lib/bolt11'
-import { createSendRouter, LIGHTNING_RAIL, lnSendRefusal } from '../../../lib/sendRouter'
+import { LIGHTNING_RAIL, lnSendRefusal } from '../../../lib/sendRouter'
+import { SwapsContext } from '../../../providers/swaps'
 import { discoverMarkets } from '../../../lib/swapMarkets'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
@@ -129,7 +129,7 @@ export default function SendForm() {
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
-  const { trackLnSend } = useContext(LnSwapsContext)
+  const { sendRouter } = useContext(SwapsContext)
   const {
     assetBalances,
     availableAssetBalances,
@@ -622,22 +622,13 @@ export default function SendForm() {
       // negotiation is the only interactive step — funding IS acceptance.
       const negotiate = async () => {
         if (!svcWallet) return handleError('Wallet not ready')
-        const network = aspInfo.network as NetworkName
-        // Discovered once and handed to the router, so the rail ranks and the
-        // refusal explains off the SAME cards. Asking twice let a cold cache
-        // with an unreachable registry throw on the error path, replacing the
-        // message with the registry's own.
-        const markets = await discoverMarkets(network)
-        const router = createSendRouter({
-          wallet: svcWallet,
-          arkServerUrl: aspInfo.url,
-          network,
-          track: trackLnSend,
-          discover: async () => markets,
-        })
+        // For the refusal message only — the rail ranks off the client's own
+        // snapshot; a second read let a cold cache throw on the error path.
+        const markets = await discoverMarkets(aspInfo.network as NetworkName)
+        const router = await sendRouter()
         const options = await router.options({ raw: sendInfo.invoice!, amount: sendInfo.satoshis ?? 0 })
         const route = options.find((option) => option.railId === LIGHTNING_RAIL)
-        if (!route) return handleError(lnSendRefusal(markets, network))
+        if (!route) return handleError(lnSendRefusal(markets))
         // Unguarded: a quote that throws names an unpayable invoice or a
         // covenant that did not match, and neither reads as "no route".
         const pendingLnSend = await route.quote()

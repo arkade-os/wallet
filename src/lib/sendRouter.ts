@@ -13,29 +13,23 @@ import {
   makeHandle,
   type Asset,
   type IWallet,
-  type NetworkName,
   type PaymentRail,
   type RouteQuote,
 } from '@arkade-os/sdk'
-import { SOLVER_ONCHAIN_RAIL, solverOnchainRail, type OnchainNetwork, type SolverOnchainSend } from '@arkade-os/swap'
-import type { DiscoveredMarket } from '@arkade-os/solver-discovery'
-import { collaborativeExitWithFees, sendAssets, sendOffChain } from './asp'
-import { l1NetworkOf, l1PayoutPubkey } from './onchainPayout'
-import { lnSendRendezvous, requestLnSend } from './lnSwap'
-import type { LnSendRecordInput } from './lnSendRecords'
-import { withRfqTransport } from './nostrRfq'
+import { LIGHTNING_RAIL, ONCHAIN_SWAP_RAIL, lightningRail, onchainSwapRail, type SwapRailClient } from '@arkade-os/swap'
+import { sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+import { collaborativeExitWithFees, sendAssets } from './asp'
+import { decodeInvoice } from './bolt11'
 import { prettyNumber } from './format'
-import { consoleError } from './logs'
-import { discoverMarkets } from './swapMarkets'
-import { defaultFee, getEmulatorPubkeyForNetwork, getEmulatorPubkeyOverrideForNetwork } from './constants'
+import { defaultFee } from './constants'
 
 export const WALLET_EXIT_RAIL = 'onchain'
-
-export const LIGHTNING_RAIL = 'lightning'
 
 export const ASSET_RAIL = 'asset'
 
 export const ONCHAIN_ROUTE_LOG = 'onchain send:'
+
+export { LIGHTNING_RAIL, ONCHAIN_SWAP_RAIL }
 
 /** Not the SDK's `onchainRail`: that offboards with its own coin selection. */
 export const walletExitRail = (deps: { outputFee: () => number }): PaymentRail => ({
@@ -55,7 +49,7 @@ export const walletExitRail = (deps: { outputFee: () => number }): PaymentRail =
       total,
       send: async () =>
         makeHandle(WALLET_EXIT_RAIL, async (emit) => {
-          const txid = await collaborativeExitWithFees(ctx.wallet as unknown as IWallet, total, amount, req.raw)
+          const txid = await collaborativeExitWithFees(ctx.wallet, total, amount, req.raw)
           const result = { railId: WALLET_EXIT_RAIL, txid }
           emit({ status: 'settled', result })
           return result
@@ -63,77 +57,6 @@ export const walletExitRail = (deps: { outputFee: () => number }): PaymentRail =
     }
   },
 })
-
-export interface LightningRailDeps {
-  arkServerUrl: string
-  network: NetworkName
-  discover: () => Promise<DiscoveredMarket[]>
-  track: (input: LnSendRecordInput) => Promise<void>
-}
-
-/** Not the SDK's `solverLightningRail`: that persists BEFORE funding and its
- *  result carries no txid, and the funding txid is what the history row and the
- *  activity grouping key on. Picks the solver with the same `lnSendRendezvous`
- *  the send form used before routing. */
-export const lightningRail = (deps: LightningRailDeps): PaymentRail => {
-  const rendezvousFor = async (sats: number) => {
-    const found = lnSendRendezvous(await deps.discover(), getEmulatorPubkeyForNetwork(deps.network))
-    return found && sats >= found.minSats && sats <= found.maxSats ? found : undefined
-  }
-  return {
-    id: LIGHTNING_RAIL,
-    match: (req) => invoiceTarget(req.raw) !== undefined,
-    // Deliberately no decode: an expired or wrong-chain invoice must reach
-    // `requestLnSend`, whose `InvoiceRejected` names the reason. A rail that
-    // dropped itself here would report every one of them as "no solver".
-    available: async (req) => ((req.amount ?? 0) > 0 ? (await rendezvousFor(req.amount!)) !== undefined : false),
-    quote: async (req, ctx) => {
-      const invoice = invoiceTarget(req.raw)!
-      const rendezvous = await rendezvousFor(req.amount!)
-      if (!rendezvous) throw new Error(`${LIGHTNING_RAIL}: no solver serves arkade:BTC -> lightning:BTC`)
-      const request = await withRfqTransport(rendezvous, (transport) =>
-        requestLnSend({
-          wallet: ctx.wallet as unknown as IWallet,
-          arkServerUrl: deps.arkServerUrl,
-          transport,
-          invoice,
-          network: deps.network,
-          rendezvous,
-        }),
-      )
-      return {
-        railId: LIGHTNING_RAIL,
-        amount: req.amount!,
-        fee: request.fundAmount - req.amount!,
-        total: request.fundAmount,
-        meta: { rfqId: request.rfqId, invoice, validUntil: request.validUntil },
-        send: async () =>
-          makeHandle(LIGHTNING_RAIL, async (emit) => {
-            if (Math.floor(Date.now() / 1000) >= request.validUntil) {
-              throw new Error('Quote expired — go back and try again')
-            }
-            const txid = await sendOffChain(ctx.wallet as unknown as IWallet, request.fundAmount, request.address)
-            if (!txid) throw new Error('Error sending transaction')
-            emit({ status: 'sent' })
-            // Reported, not raised: funding IS acceptance, so a store that
-            // refuses leaves the payment committed either way.
-            await deps
-              .track({
-                rfqId: request.rfqId,
-                lockupAddress: request.address,
-                amount: request.fundAmount,
-                fundingTxid: txid,
-                ...request.record,
-              })
-              .catch((err) => consoleError(err, 'error tracking lightning send'))
-            const result = { railId: LIGHTNING_RAIL, txid, swapId: request.rfqId }
-            emit({ status: 'settled', result })
-            return result
-          }),
-      }
-    },
-  }
-}
 
 /** Assets ride the deps, not the request: a `PaymentRequest` carries sats. */
 export const assetRail = (deps: { assets: Asset[] }): PaymentRail => ({
@@ -147,9 +70,8 @@ export const assetRail = (deps: { assets: Asset[] }): PaymentRail => ({
     total: defaultFee,
     send: async () =>
       makeHandle(ASSET_RAIL, async (emit) => {
-        const txid = await sendAssets(ctx.wallet as unknown as IWallet, arkTarget(req.raw)!, deps.assets)
-        // Terminal in one step, unlike the lightning rail: no counterparty has
-        // to act, so the txid IS settlement and a `sent` would name nothing.
+        const txid = await sendAssets(ctx.wallet, arkTarget(req.raw)!, deps.assets)
+        // Terminal in one step: no counterparty acts, so the txid IS settlement.
         const result = { railId: ASSET_RAIL, txid }
         emit({ status: 'settled', result })
         return result
@@ -157,80 +79,59 @@ export const assetRail = (deps: { assets: Asset[] }): PaymentRail => ({
   }),
 })
 
-/** Optional per-corridor deps: a rail whose deps are absent is not registered,
+/** Optional per-rail deps: a rail whose deps are absent is not registered,
  *  which is the drop `available()` performs, one step earlier. */
 export interface SendRouterDeps {
   wallet: IWallet
-  arkServerUrl: string
-  network: NetworkName
+  /** The driving tab's client; a tab without the Web Lock has none. */
+  client?: SwapRailClient
+  /** sat/vB the L1 claim is priced at; it comes out of the recipient's payout. */
+  claimFeeRateSatVb?: number
   outputFee?: () => number
-  persist?: (swap: SolverOnchainSend) => Promise<void>
-  payoutPubkey?: Uint8Array
-  track?: LightningRailDeps['track']
   assets?: Asset[]
-  discover?: (network: NetworkName) => Promise<DiscoveredMarket[]>
 }
 
-/** The solver rail is registered on every network now `ESPLORA_URL` is total;
- *  `available()` drops it. */
 export const createSendRouter = (deps: SendRouterDeps): PaymentRouter => {
   const router = new PaymentRouter({
-    // Typed as concrete `Wallet`; an `IWallet` satisfies what the rails call.
+    // Forced: `RouterContext.wallet` is the concrete `Wallet` and this app holds a
+    // `ServiceWorkerWallet` — implements `IWallet`, does not extend it, so nominally
+    // illegal with no narrower cast. Goes when the SDK types it `IWallet`; see #950.
     wallet: deps.wallet as unknown as ConstructorParameters<typeof PaymentRouter>[0]['wallet'],
-    prefs: { priority: [SOLVER_ONCHAIN_RAIL, WALLET_EXIT_RAIL, LIGHTNING_RAIL, ASSET_RAIL] },
+    prefs: { priority: [ONCHAIN_SWAP_RAIL, WALLET_EXIT_RAIL, LIGHTNING_RAIL, ASSET_RAIL] },
   })
 
-  const discover = deps.discover ?? discoverMarkets
-  if (deps.payoutPubkey && deps.persist) {
-    const payoutPubkey = deps.payoutPubkey
-    const persist = deps.persist
-    router.use(
-      solverOnchainRail({
-        arkServerUrl: deps.arkServerUrl,
-        l1Network: l1NetworkOf(deps.network) as OnchainNetwork,
-        payoutPubkey,
-        discover: () => discover(deps.network),
-        connect: (rendezvous, fn) => withRfqTransport(rendezvous, fn),
-        persist,
-        ...(getEmulatorPubkeyOverrideForNetwork(deps.network)
-          ? { emulatorPubkey: getEmulatorPubkeyOverrideForNetwork(deps.network)! }
-          : {}),
-        ...(getEmulatorPubkeyForNetwork(deps.network)
-          ? { fallbackEmulatorPubkey: getEmulatorPubkeyForNetwork(deps.network)! }
-          : {}),
-      }),
-    )
+  if (deps.client && deps.claimFeeRateSatVb) {
+    router.use(onchainSwapRail(deps.client, { claimFeeRateSatVb: deps.claimFeeRateSatVb }))
   }
   if (deps.outputFee) router.use(walletExitRail({ outputFee: deps.outputFee }))
-  if (deps.track) {
-    router.use(
-      lightningRail({
-        arkServerUrl: deps.arkServerUrl,
-        network: deps.network,
-        discover: () => discover(deps.network),
-        track: deps.track,
-      }),
-    )
-  }
+  if (deps.client) router.use(lightningRail(deps.client))
   if (deps.assets) router.use(assetRail({ assets: deps.assets }))
   return router
 }
 
 /** Why the Lightning rail dropped itself: `options()` reports absence, not
  *  cause, and the send form told these two apart before routing. */
-export const lnSendRefusal = (markets: DiscoveredMarket[], network: NetworkName): string => {
-  const found = lnSendRendezvous(markets, getEmulatorPubkeyForNetwork(network))
-  return found
-    ? `Amount outside solver bounds (${prettyNumber(found.minSats)}-${prettyNumber(found.maxSats)} sats)`
-    : 'No Lightning solver available'
+export const lnSendRefusal = (markets: DiscoveredMarket[]): string => {
+  const market = markets.find((m) => m.quote_corridor === 'lightning')
+  const bounds = market && sideLimits(market, 'quote')
+  if (!bounds) return 'No Lightning solver available'
+  return `Amount outside solver bounds (${prettyNumber(Number(bounds.min))}-${prettyNumber(Number(bounds.max))} sats)`
 }
 
-/** The Lightning analogue of {@link quoteIsForThisSend}. Compared through
- *  `invoiceTarget`, as the rail routed it: a `lightning:` prefix or a whole
- *  BIP21 URI is the same payment, and only a DIFFERENT invoice is refused. */
+/** The Lightning analogue of {@link quoteIsForThisSend}. By payment hash: the
+ *  rail's `meta` carries `quote.lock.hash` and never the BOLT11, so a
+ *  `meta.invoice` test would refuse every send rather than a mismatched one. */
 export const quoteIsForThisInvoice = (quote: Pick<RouteQuote, 'meta'>, invoice: string): boolean => {
   const target = invoiceTarget(invoice)
-  return target !== undefined && quote.meta?.invoice === target
+  if (target === undefined) return false
+  const quoted = quote.meta?.paymentHash
+  if (typeof quoted !== 'string' || !quoted) return false
+  try {
+    const { paymentHash } = decodeInvoice(target)
+    return Boolean(paymentHash) && paymentHash.toLowerCase() === quoted.toLowerCase()
+  } catch {
+    return false
+  }
 }
 
 /** Quoting lazily already removes the stale quote behind the wrong-address bug.
@@ -241,5 +142,3 @@ export const quoteIsForThisSend = (
   routedAddress: string,
 ): boolean =>
   screen.destination === routedAddress && quote.amount === screen.satoshis && quote.total <= (screen.total ?? 0)
-
-export { SOLVER_ONCHAIN_RAIL, l1PayoutPubkey }

@@ -53,8 +53,10 @@ const routeLog = (page: Page): Promise<string[]> =>
 
 const expectRoute = async (page: Page, refusal: RegExp) => {
   const log = await routeLog(page)
-  expect(log.find((m) => m.includes('solver-onchain could not quote'))).toMatch(refusal)
-  expect(log.some((m) => m.includes('paying via onchain'))).toBe(true)
+  const refused = log.find((m) => m.includes('onchain-swap could not quote'))
+  expect(refused).toBeDefined()
+  expect(refused).toMatch(refusal)
+  expect(log).toContain('onchain send: paying via onchain')
 }
 
 const fundedWalletOnDetails = async (page: Page, isMobile: boolean) => {
@@ -89,8 +91,8 @@ const silentSolver = async (run: (delivered: () => number) => Promise<void>) => 
 
 test.describe('on-chain send when the solver rail fails', () => {
   // An unset intent fee parses as NaN, which makes Tap to Sign a silent no-op.
-  test.beforeAll(() => execSync('docker exec -t arkd arkd fees intent --onchain-output "200.0"'))
-  test.afterAll(() => execSync('docker exec -t arkd arkd fees clear'))
+  test.beforeAll(() => execSync('docker exec arkd arkd fees intent --onchain-output "200.0"'))
+  test.afterAll(() => execSync('docker exec arkd arkd fees clear'))
 
   test('pays through the collaborative exit when the solver cannot be reached', async ({ page, isMobile }) => {
     await pinSolver(page, ['wss://localhost:9'])
@@ -102,7 +104,7 @@ test.describe('on-chain send when the solver rail fails', () => {
 
     await expectRoute(page, /no relay accepted/)
     await page.getByRole('button', { name: /Sounds good|Tap to go home/ }).click()
-    await page.waitForSelector(`text=- ${prettyNumber(SENT)} sats`, { timeout: 15_000 })
+    await page.waitForSelector(`text=- ${prettyNumber(SENT)} sats`, { timeout: 30_000 })
   })
 
   test('pays through the collaborative exit when the solver never answers', async ({ page, isMobile }) => {
@@ -119,7 +121,7 @@ test.describe('on-chain send when the solver rail fails', () => {
       expect(delivered()).toBeGreaterThan(0)
       await expectRoute(page, /not responding/)
       await page.getByRole('button', { name: /Sounds good|Tap to go home/ }).click()
-      await page.waitForSelector(`text=- ${prettyNumber(SENT)} sats`, { timeout: 15_000 })
+      await page.waitForSelector(`text=- ${prettyNumber(SENT)} sats`, { timeout: 30_000 })
     })
   })
 

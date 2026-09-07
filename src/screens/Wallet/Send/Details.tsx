@@ -7,26 +7,18 @@ import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Details, { DetailsProps } from '../../../components/Details'
 import ErrorMessage from '../../../components/Error'
 import { WalletContext } from '../../../providers/wallet'
-import { LnSwapsContext } from '../../../providers/lnSwaps'
+import { SwapsContext } from '../../../providers/swaps'
 import Header from '../../../components/Header'
 import { defaultFee } from '../../../lib/constants'
 import { prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { sendOffChain } from '../../../lib/asp'
-import {
-  ASSET_RAIL,
-  createSendRouter,
-  l1PayoutPubkey,
-  ONCHAIN_ROUTE_LOG,
-  quoteIsForThisInvoice,
-  quoteIsForThisSend,
-} from '../../../lib/sendRouter'
+import { ASSET_RAIL, ONCHAIN_ROUTE_LOG, quoteIsForThisInvoice, quoteIsForThisSend } from '../../../lib/sendRouter'
 import { extractError } from '../../../lib/error'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError, consoleLog } from '../../../lib/logs'
-import { AspContext } from '../../../providers/asp'
-import type { NetworkName, RouteQuote } from '@arkade-os/sdk'
+import type { RouteQuote } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
 import { FeesContext } from '../../../providers/fees'
 import { buildTransactionAmountDisplay } from '../../../lib/transactionAmountDisplay'
@@ -42,8 +34,7 @@ export default function SendDetails() {
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { assetMetadataCache, balance, reloadWallet, svcWallet } = useContext(WalletContext)
-  const { reserveOnchainSend } = useContext(LnSwapsContext)
-  const { aspInfo } = useContext(AspContext)
+  const { sendRouter } = useContext(SwapsContext)
 
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
@@ -190,12 +181,7 @@ export default function SendDetails() {
 
   /** One rail and no counterparty; routed so every branch here has one shape. */
   const payAssets = async (arkAddress: string, assets: NonNullable<typeof sendInfo.assets>) => {
-    const router = createSendRouter({
-      wallet: svcWallet!,
-      arkServerUrl: aspInfo.url,
-      network: aspInfo.network as NetworkName,
-      assets,
-    })
+    const router = await sendRouter({ assets })
     const options = await router.options({ raw: arkAddress })
     const route = options.find((option) => option.railId === ASSET_RAIL)
     if (!route) throw new Error('No route for this payment')
@@ -208,14 +194,7 @@ export default function SendDetails() {
    *  what THIS screen is showing — at the moment of the spend, so no carried
    *  quote exists to go stale. A rail that cannot quote is skipped. */
   const payOnchain = async (address: string, shown: DetailsProps): Promise<void> => {
-    const router = createSendRouter({
-      wallet: svcWallet!,
-      arkServerUrl: aspInfo.url,
-      network: aspInfo.network as NetworkName,
-      outputFee: calcOnchainOutputFee,
-      persist: reserveOnchainSend,
-      payoutPubkey: await l1PayoutPubkey(svcWallet!),
-    })
+    const router = await sendRouter({ outputFee: calcOnchainOutputFee })
     // Receiver-exact: "what leaves" was subtracted when `details` was built.
     const options = await router.options({ raw: address, amount: shown.satoshis! })
 

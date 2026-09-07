@@ -29,7 +29,7 @@
  * standing a second wallet up inside it.
  */
 import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { asset, type NetworkName } from '@arkade-os/sdk'
+import { asset, type Asset, type NetworkName, type PaymentRouter } from '@arkade-os/sdk'
 import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
 import {
   arkadeAsset,
@@ -45,6 +45,9 @@ import { sideLimits, type DiscoveredMarket, type OfferPlan, type Side } from '@a
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import { discoverMarkets } from '../lib/swapMarkets'
+import { createSendRouter } from '../lib/sendRouter'
+import { claimFeeRate } from '../lib/claimFee'
+import { onchainClaimEndpoint } from '../lib/onchainPayout'
 import { toInvoiceFacts } from '../lib/lnSwap'
 import { makeSwapClient, SwapsHeldElsewhere } from '../lib/swapClient'
 import { saveQuoteSnapshot, type AssetSwapQuoteSnapshot, type WalletAssetSwap } from '../lib/swapRepository'
@@ -83,6 +86,9 @@ interface SwapsContextProps {
   acceptPay: (quote: Quote) => Promise<string>
   /** Negotiate a Lightning receive and begin driving it, in that order. */
   receiveLightning: (amountSats: number) => Promise<AcceptedLnReceive>
+  /** The send path's router. Throws `SwapsHeldElsewhere` rather than dropping
+   * the solver rails and offboarding through the costlier exit. */
+  sendRouter: (deps?: { outputFee?: () => number; assets?: Asset[] }) => Promise<PaymentRouter>
   /** Where a driven swap stands, or undefined when it is not monitored. */
   outcomeOf: (id: string) => Outcome | undefined
   /** The last error reported for one, cleared when it ends. */
@@ -105,6 +111,7 @@ export const SwapsContext = createContext<SwapsContextProps>({
   quotePay: notInitialized,
   acceptPay: notInitialized,
   receiveLightning: notInitialized,
+  sendRouter: notInitialized,
   outcomeOf: () => undefined,
   errorOf: () => undefined,
 })
@@ -508,6 +515,14 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
+  /** The fee rate is read per router, not pinned: the solver rail grosses the
+   *  take leg up by it, so a stale one short-pays the recipient. */
+  const sendRouter = async (deps: { outputFee?: () => number; assets?: Asset[] } = {}): Promise<PaymentRouter> => {
+    const client = await driving()
+    const claimFeeRateSatVb = await claimFeeRate(onchainClaimEndpoint(aspInfo.network as NetworkName))
+    return createSendRouter({ wallet: svcWallet!, client, claimFeeRateSatVb, ...deps })
+  }
+
   const outcomeOf = useCallback((id: string) => outcomes.get(id), [outcomes])
   const errorOf = useCallback((id: string) => errors.get(id), [errors])
 
@@ -523,6 +538,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       quotePay,
       acceptPay,
       receiveLightning,
+      sendRouter,
       outcomeOf,
       errorOf,
     }),
