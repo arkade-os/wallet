@@ -53,17 +53,27 @@ export const BUNDLED_CARDS: LocalCardInput[] = [{ card: betaSolverCard as LocalC
  * through, which is why `repository` is the client's to supply and not here.
  *
  * A network solver discovery has no name for — `testnet` is the only one today —
- * keeps its own registry lookup and its own card filter, both of which answer
- * nothing, and borrows `DEFAULT_NETWORK` only to satisfy the type. With no
- * registry URL and no cards the result is `[]`, which is the same answer the
- * wallet's own `isNetwork` guard used to give before the call was made.
+ * gets no registry lookup and no cards, and borrows `DEFAULT_NETWORK` only to
+ * satisfy the type. The result is `[]`, which is the same answer the wallet's
+ * own `isNetwork` guard used to give before the call was made.
+ *
+ * All three fields resolve off ONE narrowed name, and that is the whole of the
+ * care here. Deriving them separately is what let an unnamed network keep its
+ * cards: `network` and `registryUrl` fell back while the card filter compared
+ * the raw name, and Settings stamps `aspInfo.network` on a card it stores — so
+ * a card added on testnet matched the filter and then reached discovery
+ * labelled `bitcoin`. A testnet card priced as a mainnet market is the same
+ * mismatch `BUNDLED_CARDS` is scoped to prevent, arrived at from the other end.
  */
-export const discoveryOptions = (network: NetworkName): Omit<DiscoverMarketsOptions, 'repository' | 'useCache'> => ({
-  network: isNetwork(network) ? network : DEFAULT_NETWORK,
-  registryUrl: isNetwork(network) ? getSolverRegistryUrl(network) : undefined,
-  localCards: [...BUNDLED_CARDS, ...readSolverCardsFromStorage()].filter((c) => c.network === network),
-  logger: (...args) => consoleLog('solver discovery:', ...args),
-})
+export const discoveryOptions = (network: NetworkName): Omit<DiscoverMarketsOptions, 'repository' | 'useCache'> => {
+  const known = isNetwork(network) ? network : undefined
+  return {
+    network: known ?? DEFAULT_NETWORK,
+    registryUrl: known ? getSolverRegistryUrl(known) : undefined,
+    localCards: known ? [...BUNDLED_CARDS, ...readSolverCardsFromStorage()].filter((c) => c.network === known) : [],
+    logger: (...args) => consoleLog('solver discovery:', ...args),
+  }
+}
 
 /** The market feed's pre-fee price oriented give→receive, in whole display
  * units. Derived from the plan's exact price rational — plan.priceDisplay
