@@ -79,6 +79,8 @@ describe('lnReceiveRendezvous', () => {
   })
 })
 
+const MUTINYNET_COVCLAIMD_PK = '034eb1f33220c697a5eab424e9f3b053760fa635f7bd9cc39c15bcecd30b5bf59d'
+
 describe('covclaimdPubkey', () => {
   it('is a 33-byte compressed point, the only form ECIES can seal to', async () => {
     const key = getCovclaimdPubkeyForNetwork('mutinynet')!
@@ -93,7 +95,7 @@ describe('covclaimdPubkey', () => {
     for (const network of ['bitcoin', 'signet', 'testnet'] as const) {
       expect(getCovclaimdPubkeyForNetwork(network)).toBeUndefined()
     }
-    expect(getCovclaimdPubkeyForNetwork('mutinynet')).toBeInstanceOf(Uint8Array)
+    expect(hex.encode(getCovclaimdPubkeyForNetwork('mutinynet')!)).toBe(MUTINYNET_COVCLAIMD_PK)
   })
 })
 
@@ -352,7 +354,7 @@ describe('requestLnReceive', () => {
   it('still passes the pinned key where a covclaimd IS configured', async () => {
     requestLightningReceive.mockResolvedValue(packageResult())
     await negotiate('mutinynet')
-    expect(requestLightningReceive.mock.calls[0][3].covclaimdPubkey).toBeInstanceOf(Uint8Array)
+    expect(hex.encode(requestLightningReceive.mock.calls[0][3].covclaimdPubkey)).toBe(MUTINYNET_COVCLAIMD_PK)
   })
 })
 
