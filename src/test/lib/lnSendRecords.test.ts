@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ArkAddress, VHTLC, type ProvisionedKey } from '@arkade-os/sdk'
-import { createRfqSwapRecord, rfqSecretsProfile, type RfqSwapRecord } from '@arkade-os/swap'
+import { createRfqSwapRecord, rfqSecretsProfile, type RfqSwapRecord } from '@arkade-os/swap/protocol'
 import { lnSendViews, spendTxidOf, swapActivityInputs } from '../../lib/lnSendRecords'
 import { assetSwapRepository as repository } from '../../lib/swapRepository'
 

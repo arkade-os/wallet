@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
 import { hex } from '@scure/base'
-import { sealClaimPacket } from '@arkade-os/swap'
+import { sealClaimPacket } from '@arkade-os/swap/protocol'
 import { sealingKey } from '../../lib/swapClient'
 
 /**

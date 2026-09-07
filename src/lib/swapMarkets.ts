@@ -8,7 +8,7 @@
  * client's `DiscoveryConfig` and the package's own `discoverMarkets`, which is
  * what lets one definition feed the client and the lock-free read below.
  */
-import { discoverMarkets as discover, type DiscoverMarketsOptions } from '@arkade-os/swap'
+import { discoverMarkets as discover, type DiscoverMarketsOptions } from '@arkade-os/swap/protocol'
 import {
   DEFAULT_NETWORK,
   displayPrice,

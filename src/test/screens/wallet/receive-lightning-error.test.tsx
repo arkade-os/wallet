@@ -11,7 +11,7 @@ import { NotificationsContext } from '../../../providers/notifications'
 import { SwapsContext } from '../../../providers/swaps'
 import { ToastProvider } from '../../../components/Toast'
 import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
-import { LockupRegistrationFailed } from '@arkade-os/swap'
+import { LockupRegistrationFailed } from '@arkade-os/swap/protocol'
 import { SwapsHeldElsewhere } from '../../../lib/swapClient'
 import {
   mockAspContextValue,

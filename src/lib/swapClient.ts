@@ -1,11 +1,11 @@
 /**
  * The wallet's one `@arkade-os/swap` client.
  *
- * This is the v2 client from `@arkade-os/swap/client`, not the `createSwapClient`
- * on the package root — that one is #793's v1 facade, and the two share a name
- * until ts-sdk's M8 swaps them (the subpath is ts-sdk M7b's; see
- * `meta/tracks/swap-sdk-v2/07b-client-subpath.md`). Importing from `/client` is
- * what picks the right one, and it is the whole of the difference at this seam.
+ * The v2 client IS the package root as of ts-sdk M8: `createSwapClient` is this
+ * one and no longer #793's v1 facade, the `/client` subpath that disambiguated
+ * them on the release branch is gone, and everything below the client — requests,
+ * covenants, records, the RFQ transports — answers to `@arkade-os/swap/protocol`
+ * (see `meta/tracks/swap-sdk-v2/08-deprecations.md`).
  *
  * What the client now owns that this wallet used to: market discovery and
  * selection, which corridor a destination implies, decoding the invoice, the
@@ -28,7 +28,7 @@
  * rendezvous, which is the only shipped transport that can attest who answered.
  */
 import type { NetworkName } from '@arkade-os/sdk'
-import { createSwapClient, type SwapClient, type SwapClientConfig } from '@arkade-os/swap/client'
+import { createSwapClient, type SwapClient, type SwapClientConfig } from '@arkade-os/swap'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { hex } from '@scure/base'
 import { getEmulatorPubkeyOverrideForNetwork } from './constants'

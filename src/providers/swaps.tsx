@@ -31,7 +31,7 @@
 import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { hex } from '@scure/base'
 import { asset, RestIndexerProvider, type NetworkName } from '@arkade-os/sdk'
-import { BTC_ASSET_ID, addAssetSwap, findMarket, restoreAssetSwaps, type AssetSwap } from '@arkade-os/swap'
+import { BTC_ASSET_ID, addAssetSwap, findMarket, restoreAssetSwaps, type AssetSwap } from '@arkade-os/swap/protocol'
 import {
   arkadeAsset,
   btcOn,
@@ -41,7 +41,7 @@ import {
   type Quote,
   type Swap,
   type SwapClient,
-} from '@arkade-os/swap/client'
+} from '@arkade-os/swap'
 import { sideLimits, type DiscoveredMarket, type OfferPlan, type Side } from '@arkade-os/solver-discovery'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
