@@ -14,7 +14,13 @@ import { prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { sendOffChain } from '../../../lib/asp'
-import { ASSET_RAIL, ONCHAIN_ROUTE_LOG, quoteIsForThisInvoice, quoteIsForThisSend } from '../../../lib/sendRouter'
+import {
+  ASSET_RAIL,
+  ONCHAIN_ROUTE_LOG,
+  previewOnchainCost,
+  quoteIsForThisInvoice,
+  quoteIsForThisSend,
+} from '../../../lib/sendRouter'
 import { extractError } from '../../../lib/error'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError, consoleLog } from '../../../lib/logs'
@@ -44,6 +50,7 @@ export default function SendDetails() {
   const [buttonLabel, setButtonLabel] = useState('')
   const [details, setDetails] = useState<DetailsProps>()
   const [error, setError] = useState('')
+  const [pricing, setPricing] = useState(false)
   const [sending, setSending] = useState(false)
   const [sendDone, setSendDone] = useState(false)
 
@@ -59,6 +66,15 @@ export default function SendDetails() {
     },
     satoshis: details?.satoshis ?? satoshis ?? 0,
   })
+
+  const offerToSign = (total: number) => {
+    if (balance < total) {
+      setButtonLabel('Insufficient funds')
+      setError(`Insufficient funds, you just have ${prettyNumber(balance)} sats`)
+    } else {
+      setButtonLabel('Tap to Sign')
+    }
+  }
 
   useEffect(() => {
     if (!address && !arkAddress && !invoice) return setError('Missing address')
@@ -106,13 +122,35 @@ export default function SendDetails() {
       satoshis: amount,
       total,
     })
-    if (balance < total) {
-      setButtonLabel('Insufficient funds')
-      setError(`Insufficient funds, you just have ${prettyNumber(balance)} sats`)
-    } else {
-      setButtonLabel('Tap to Sign')
+    // Provisional on this path until the router settles it below.
+    if (direction === 'Paying to mainnet' && amount > 0) {
+      setButtonLabel('Getting quote')
+      return setPricing(true)
     }
+    offerToSign(total)
   }, [sendInfo])
+
+  useEffect(() => {
+    if (!pricing || !details?.destination || !details.satoshis) return
+    let live = true
+    const settle = (cost?: { fee: number; total: number }) => {
+      if (!live) return
+      if (cost) setDetails((prev) => (prev ? { ...prev, fees: cost.fee, total: cost.total } : prev))
+      setPricing(false)
+      offerToSign(cost?.total ?? details.total ?? 0)
+    }
+    sendRouter({ outputFee: calcOnchainOutputFee })
+      .then((router) => previewOnchainCost(router, details.destination!, details.satoshis!))
+      .then(settle)
+      .catch((err) => {
+        // The exit rail's own figures stay on screen, and it is what will pay.
+        consoleError(err, `${ONCHAIN_ROUTE_LOG} could not price the send`)
+        settle()
+      })
+    return () => {
+      live = false
+    }
+  }, [pricing, details?.destination, details?.satoshis])
 
   const handleTxid = (txid: string) => {
     if (!txid) return handleError('Error sending transaction')
@@ -225,7 +263,7 @@ export default function SendDetails() {
   }
 
   const handleContinue = async () => {
-    if (!details || !svcWallet) return
+    if (!details || !svcWallet || pricing) return
     if (!isAssetSend && (!details.total || !details.satoshis)) return
     if (isAssetSend && !arkAddress) {
       setError('Assets can only be sent to Arkade addresses')
@@ -300,7 +338,7 @@ export default function SendDetails() {
         )}
       </Content>
       <ButtonsOnBottom>
-        {sending ? null : <Button onClick={handleContinue} label={buttonLabel} disabled={Boolean(error)} />}
+        {sending ? null : <Button onClick={handleContinue} label={buttonLabel} disabled={Boolean(error) || pricing} />}
       </ButtonsOnBottom>
     </>
   )
