@@ -81,6 +81,13 @@ describe('claimFeeRate', () => {
     expect(await claimFeeRate(BASE, boom)).toBe(MIN_CLAIM_FEE_RATE)
   })
 
+  // `ESPLORA_URL[network]` is undefined outside the SDK's map, and the caller reaches it via an unchecked cast.
+  it('never throws on a base URL the endpoint map could not name', async () => {
+    const { impl } = server({ [MEMPOOL]: { body: { fastestFee: 9 } } })
+    expect(await claimFeeRate(undefined as unknown as string, impl)).toBe(MIN_CLAIM_FEE_RATE)
+    expect(consoleError).toHaveBeenCalledOnce()
+  })
+
   it('reports a fee source it could not read at all', async () => {
     const { impl } = server({ [MEMPOOL]: spa, [ESPLORA]: spa })
     expect(await claimFeeRate(BASE, impl)).toBe(MIN_CLAIM_FEE_RATE)

@@ -49,13 +49,16 @@ const readSource = async (
 export const claimFeeRate = async (baseUrl: string, fetchImpl: typeof fetch = fetch): Promise<number> => {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), FEE_ESTIMATE_TIMEOUT_MS)
-  const base = baseUrl.replace(/\/+$/, '')
   try {
+    const base = baseUrl.replace(/\/+$/, '')
     for (const { path, keys } of FEE_SOURCES) {
       const reading = await readSource(`${base}${path}`, keys, fetchImpl, controller.signal)
       if (reading) return reading.rate === undefined ? MIN_CLAIM_FEE_RATE : Math.ceil(reading.rate)
     }
     consoleError(`no fee source answered at ${base}, claiming at ${MIN_CLAIM_FEE_RATE} sat/vB`, 'claim fee')
+    return MIN_CLAIM_FEE_RATE
+  } catch (err) {
+    consoleError(err, 'claim fee')
     return MIN_CLAIM_FEE_RATE
   } finally {
     clearTimeout(timer)
