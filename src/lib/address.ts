@@ -1,7 +1,7 @@
 import { hex } from '@scure/base'
 import { isValidInvoice } from './bolt11'
 import { ArkAddress, DefaultVtxo, isBtcAddress, toXOnlySignerHex } from '@arkade-os/sdk'
-import { l1ScriptForAddress } from '@arkade-os/swap'
+import { l1ScriptForAddress } from '@arkade-os/swap/protocol'
 import { AspInfo } from '../providers/asp'
 
 export const decodeArkAddress = (addr: string) => {

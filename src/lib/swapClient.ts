@@ -27,12 +27,17 @@
  * opened beside it. No transport either — the client opens the card's own Nostr
  * rendezvous, which is the only shipped transport that can attest who answered.
  */
-import type { NetworkName } from '@arkade-os/sdk'
+import { EsploraProvider, type NetworkName } from '@arkade-os/sdk'
 import { createSwapClient, type SwapClient, type SwapClientConfig } from '@arkade-os/swap'
+// `./advanced` is not a compatibility promise — see the note in `swapRecords.ts`.
+import { corridorRecordStore, type OnchainClaim } from '@arkade-os/swap/advanced'
+import { chainSourceFrom, claimOnchainFill, preimageForSwapRecord, rfqClaimSecretOf } from '@arkade-os/swap/protocol'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { hex } from '@scure/base'
+import { claimFeeRate } from './claimFee'
 import { getEmulatorPubkeyOverrideForNetwork } from './constants'
 import { toInvoiceFacts } from './lnSwap'
+import { l1NetworkOf, onchainClaimEndpoint } from './onchainPayout'
 import { discoveryOptions } from './swapMarkets'
 import { assetSwapRepository } from './swapRepository'
 
@@ -79,12 +84,54 @@ export class SwapsHeldElsewhere extends Error {
   }
 }
 
+/**
+ * The trader's own L1 claim of an `arkade -> onchain` fill. Leaving it unwired
+ * is not neutral: the drive reports the L1 half blocked and the send funds an
+ * HTLC this wallet never claims. `payoutPkScript` is read off the swap, never
+ * derived — the only script derivable here is our own, and paying there lands
+ * the sats back while the screen says the recipient was paid.
+ */
+const onchainClaim = (wallet: SwapClientConfig['wallet'], network: NetworkName): OnchainClaim => {
+  const esploraUrl = onchainClaimEndpoint(network)
+  const chain = chainSourceFrom(new EsploraProvider(esploraUrl), l1NetworkOf(network))
+  // The package's own reader, NOT `repository.getRfqSwap`: that is the v1 store
+  // the v2 client never writes, so the claim would fail after the HTLC is funded.
+  const records = corridorRecordStore(assetSwapRepository)
+  return async (swap, utxo) => {
+    const record = await records.getRfqSwap(swap.rfqId)
+    if (!record) throw new Error(`no stored record for rfq ${swap.rfqId}`)
+    const secrets = rfqClaimSecretOf(record)
+    if (!secrets) throw new Error(`swap ${swap.rfqId} was stored without its hashlock`)
+    const { payoutPkScript } = swap
+    if (!payoutPkScript) {
+      throw new Error(`swap ${swap.rfqId} carries no payout script — refusing to claim to anywhere else`)
+    }
+    const [preimage, feeRateSatVb] = await Promise.all([
+      preimageForSwapRecord(wallet, secrets),
+      claimFeeRate(esploraUrl),
+    ])
+    return claimOnchainFill(chain, {
+      htlc: swap.htlc,
+      utxo,
+      preimage,
+      payoutPkScript,
+      feeRateSatVb,
+      // A BIP-341 sighash the package builds, never caller-supplied.
+      sign: (sighash: Uint8Array) => wallet.identity.signMessage(sighash, 'schnorr'),
+    })
+  }
+}
+
 export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: NetworkName): SwapClient =>
   createSwapClient({
     wallet,
     repository: assetSwapRepository,
     discovery: discoveryOptions(network),
     corridors: {
+      onchain: {
+        chain: { esploraUrl: onchainClaimEndpoint(network) },
+        claim: onchainClaim(wallet, network),
+      },
       lightning: {
         // The wallet's own decoder, applied by the corridor to the SOLVER's hold
         // invoice before it is shown: it throws `InvoiceRejected` on a wrong

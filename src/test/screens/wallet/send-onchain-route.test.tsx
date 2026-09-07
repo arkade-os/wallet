@@ -7,7 +7,7 @@ import { FeesContext } from '../../../providers/fees'
 import { FiatContext } from '../../../providers/fiat'
 import { FlowContext, type SendInfo } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
-import { LnSwapsContext } from '../../../providers/lnSwaps'
+import { SwapsContext } from '../../../providers/swaps'
 import { NavigationContext } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import {
@@ -40,10 +40,8 @@ vi.mock('../../../lib/logs', async (importOriginal) => ({
 /** Built from the request, as the real router is: the exit rail must pay
  *  whatever address it was asked to, or the last test below proves nothing. */
 let optionsFor: (req: { raw: string; amount?: number }) => unknown[] = () => []
-vi.mock('../../../lib/sendRouter', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../lib/sendRouter')>()
-  return { ...actual, createSendRouter: () => ({ options: async (req: any) => optionsFor(req) }) }
-})
+/** The router the driving tab hands the screen, stubbed at the context seam. */
+const swaps = { sendRouter: async () => ({ options: async (req: any) => optionsFor(req) }) }
 
 const ADDRESS = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
 const OTHER = 'bcrt1pq6gt72nxevsxk5fwl3h2sx56jeah6qfzh98mksxyakkg5l0q65gsa27khh'
@@ -52,15 +50,30 @@ const FEE = 500
 /** A solver option whose quote is whatever the test says. `send()` records the
  *  call so a refusal is distinguishable from a spend. */
 const solverOption = (quote: { amount: number; total: number }, sent: () => void) => ({
-  railId: 'solver-onchain',
+  railId: 'onchain-swap',
   quote: async () => ({
-    railId: 'solver-onchain',
+    railId: 'onchain-swap',
     ...quote,
     fee: quote.total - quote.amount,
     send: async () => {
       sent()
-      return { settled: async () => ({ railId: 'solver-onchain', swapId: 'rfq-1' }) }
+      return { settled: async () => ({ railId: 'onchain-swap', swapId: 'rfq-1' }) }
     },
+  }),
+})
+
+const failingSolverOption = (reason: string) => ({
+  railId: 'onchain-swap',
+  quote: async () => ({
+    railId: 'onchain-swap',
+    amount: 9_500,
+    fee: 500,
+    total: 10_000,
+    send: async () => ({
+      settled: async () => {
+        throw new Error(reason)
+      },
+    }),
   }),
 })
 
@@ -92,11 +105,11 @@ const renderSign = (sendInfo: SendInfo, limits = mockLimitsContextValue) =>
                 <WalletContext.Provider
                   value={{ ...mockWalletContextValue, balance: 1_000_000, svcWallet: mockSvcWallet as never }}
                 >
-                  <LnSwapsContext.Provider value={{ trackLnSend: async () => {}, reserveOnchainSend: async () => {} }}>
+                  <SwapsContext.Provider value={swaps as never}>
                     <LimitsContext.Provider value={limits}>
                       <SendDetails />
                     </LimitsContext.Provider>
-                  </LnSwapsContext.Provider>
+                  </SwapsContext.Provider>
                 </WalletContext.Provider>
               </FlowContext.Provider>
             </FeesContext.Provider>
@@ -169,6 +182,19 @@ describe('signing an on-chain send', () => {
     await sign()
 
     await waitFor(() => expect(sent).toHaveBeenCalledTimes(1))
+    expect(collaborativeExitWithFees).not.toHaveBeenCalled()
+  })
+
+  // A rejection can mean a covenant that IS funded, so falling through to the
+  // exit would pay the recipient twice.
+  it('does not try the next rail after a send that may already have funded', async () => {
+    const exitSent = vi.fn()
+    optionsFor = (req) => [failingSolverOption('worker never replied'), { ...exitOption(req), sent: exitSent }]
+    renderSign({ address: ADDRESS, satoshis: 10_000 })
+    await sign()
+
+    await waitFor(() => expect(sendFailure()).toBeDefined())
+    expect(String(sendFailure())).toMatch(/worker never replied/i)
     expect(collaborativeExitWithFees).not.toHaveBeenCalled()
   })
 

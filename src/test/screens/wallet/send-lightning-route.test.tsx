@@ -10,11 +10,12 @@ import { FeesContext } from '../../../providers/fees'
 import { FiatContext } from '../../../providers/fiat'
 import { FlowContext, type SendInfo } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
-import { LnSwapsContext } from '../../../providers/lnSwaps'
+import { SwapsContext } from '../../../providers/swaps'
 import { NavigationContext } from '../../../providers/navigation'
 import { OptionsContext } from '../../../providers/options'
 import { WalletContext } from '../../../providers/wallet'
 import fixtures from '../../fixtures.json'
+import { decodeInvoice } from '../../../lib/bolt11'
 import {
   mockAspContextValue,
   mockConfigContextValue,
@@ -34,17 +35,14 @@ vi.mock('../../../lib/logs', async (importOriginal) => ({
 }))
 
 let optionsFor: (req: { raw: string; amount?: number }) => unknown[] = () => []
-let routerDeps: any
-vi.mock('../../../lib/sendRouter', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../lib/sendRouter')>()
-  return {
-    ...actual,
-    createSendRouter: (deps: any) => {
-      routerDeps = deps
-      return { options: async (req: any) => optionsFor(req) }
-    },
-  }
-})
+let routerAsked = 0
+/** The router the driving tab hands the screen, stubbed at the context seam. */
+const swaps = {
+  sendRouter: async () => {
+    routerAsked += 1
+    return { options: async (req: any) => optionsFor(req) }
+  },
+}
 
 /** The cards the form discovers once and hands to both the router and the
  *  refusal. `discovered` counts the calls; `marketsThrow` is the cold-cache
@@ -65,12 +63,12 @@ const ARK_ADDRESS = fixtures.lib.address.ark[0].address
 const INVOICE_SATS = fixtures.lib.bolt11.amountSats
 
 /** A negotiated Lightning route, as the send form hands it to the sign screen. */
-const lnQuote = (over: { invoice?: string; total?: number } = {}, sent = vi.fn()) => ({
+const lnQuote = (over: { paymentHash?: string; total?: number } = {}, sent = vi.fn()) => ({
   railId: 'lightning',
   amount: INVOICE_SATS,
   fee: (over.total ?? INVOICE_SATS) - INVOICE_SATS,
   total: over.total ?? INVOICE_SATS,
-  meta: { rfqId: 'rfq-1', invoice: over.invoice ?? INVOICE, validUntil: 2_000_000_000 },
+  meta: { paymentHash: over.paymentHash ?? decodeInvoice(INVOICE).paymentHash },
   send: async () => {
     sent()
     return { settled: async () => ({ railId: 'lightning', txid: 'funding-txid', swapId: 'rfq-1' }) }
@@ -90,11 +88,11 @@ const renderSign = (sendInfo: SendInfo) =>
                 <WalletContext.Provider
                   value={{ ...mockWalletContextValue, balance: 1_000_000, svcWallet: mockSvcWallet as never }}
                 >
-                  <LnSwapsContext.Provider value={{ trackLnSend: async () => {}, reserveOnchainSend: async () => {} }}>
+                  <SwapsContext.Provider value={swaps as never}>
                     <LimitsContext.Provider value={mockLimitsContextValue}>
                       <SendDetails />
                     </LimitsContext.Provider>
-                  </LnSwapsContext.Provider>
+                  </SwapsContext.Provider>
                 </WalletContext.Provider>
               </FlowContext.Provider>
             </FeesContext.Provider>
@@ -135,7 +133,7 @@ describe('signing a Lightning send', () => {
 
   it('never funds a route negotiated for a DIFFERENT invoice', async () => {
     const sent = vi.fn()
-    const stale = lnQuote({ invoice: 'lnbc1someoneelse' }, sent)
+    const stale = lnQuote({ paymentHash: 'ab'.repeat(32) }, sent)
     renderSign({ invoice: INVOICE, satoshis: INVOICE_SATS, pendingLnSend: stale as never })
     await sign()
 
@@ -226,13 +224,13 @@ const renderForm = (sendInfo: SendInfo) =>
                     svcWallet: formWallet as never,
                   }}
                 >
-                  <LnSwapsContext.Provider value={{ trackLnSend: async () => {}, reserveOnchainSend: async () => {} }}>
+                  <SwapsContext.Provider value={swaps as never}>
                     <LimitsContext.Provider value={mockLimitsContextValue}>
                       <FeesContext.Provider value={{ calcOnchainOutputFee: () => 500 } as never}>
                         <SendForm />
                       </FeesContext.Provider>
                     </LimitsContext.Provider>
-                  </LnSwapsContext.Provider>
+                  </SwapsContext.Provider>
                 </WalletContext.Provider>
               </FlowContext.Provider>
             </OptionsContext.Provider>
@@ -268,7 +266,7 @@ describe('negotiating a Lightning send', () => {
     optionsFor = () => []
     markets = []
     marketsThrow = false
-    routerDeps = undefined
+    routerAsked = 0
   })
 
   it('carries the route the Lightning rail quoted to the sign screen', async () => {
@@ -334,17 +332,14 @@ describe('negotiating a Lightning send', () => {
     expect(discovered).toHaveBeenCalledTimes(1)
   })
 
-  it('hands the rail the cards it already fetched, not a fresh lookup', async () => {
+  it('reads the cards once, for the refusal message — the rail ranks off the client', async () => {
     markets = [lnMarket]
     optionsFor = () => [{ railId: 'lightning', quote: async () => lnQuote() }]
     renderForm({ invoice: INVOICE, satoshis: INVOICE_SATS })
     await cont()
 
-    await waitFor(() => expect(routerDeps).toBeDefined())
-    discovered.mockClear()
-    // Same list, and asking for it costs no second round trip.
-    await expect(routerDeps.discover()).resolves.toBe(markets)
-    expect(discovered).not.toHaveBeenCalled()
+    await waitFor(() => expect(routerAsked).toBe(1))
+    expect(discovered).toHaveBeenCalledTimes(1)
   })
 
   it('surfaces a refused negotiation verbatim rather than as a routing failure', async () => {
