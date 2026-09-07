@@ -21,7 +21,7 @@
  * the safe direction if it ever does.
  */
 import type { ActivityResolver } from '@arkade-os/sdk'
-import { BTC_ASSET_ID, getAssetSwaps } from '@arkade-os/swap'
+import { BTC_ASSET_ID, getAssetSwaps } from '@arkade-os/swap/protocol'
 import {
   ACTIVITY_TOKEN,
   corridorOutcome,
@@ -32,7 +32,7 @@ import {
   type CorridorSwapRecord,
   type OfferSwapRecord,
   type SwapRecord,
-} from '@arkade-os/swap/client'
+} from '@arkade-os/swap'
 import { consoleError } from './logs'
 import { assetSwapRepository, quoteSnapshotOf, type WalletAssetSwap } from './swapRepository'
 import type { LnSendView } from './lnSendRecords'

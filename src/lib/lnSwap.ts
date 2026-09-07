@@ -18,7 +18,7 @@
  * second selection here would only be a second thing to disagree with it.
  */
 import type { NetworkName } from '@arkade-os/sdk'
-import type { InvoiceFacts } from '@arkade-os/swap'
+import type { InvoiceFacts } from '@arkade-os/swap/protocol'
 import { decodeInvoice, invoiceMatchesNetwork, isInvoiceExpired, type DecodedInvoice } from './bolt11'
 
 /** Why an invoice cannot start a swap. A closed set, so callers can branch. */

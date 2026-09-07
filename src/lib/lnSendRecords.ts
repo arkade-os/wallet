@@ -17,7 +17,7 @@ import {
   type LockupSpendIndexer,
   type RfqSwapRecord,
   type SwapActivityInput,
-} from '@arkade-os/swap'
+} from '@arkade-os/swap/protocol'
 import { consoleError } from './logs'
 import { assetSwapRepository } from './swapRepository'
 

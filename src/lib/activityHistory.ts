@@ -1,5 +1,5 @@
 import type { Activity } from '@arkade-os/sdk'
-import { isRfqSwapTerminal } from '@arkade-os/swap'
+import { isRfqSwapTerminal } from '@arkade-os/swap/protocol'
 import { ASSET_SWAP_ACTIVITY_KIND } from './swapRecords'
 import { consoleError } from './logs'
 import type { TransactionActivityMetadata } from './storage'

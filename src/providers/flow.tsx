@@ -1,4 +1,4 @@
-import type { Quote } from '@arkade-os/swap/client'
+import type { Quote } from '@arkade-os/swap'
 import { ReactNode, SetStateAction, createContext, useState } from 'react'
 import type { Asset, AssetDetails, ServiceWorkerWalletMode } from '@arkade-os/sdk'
 import { Tx } from '../lib/types'

@@ -1,4 +1,4 @@
-import type { Offer } from '@arkade-os/swap'
+import type { Offer } from '@arkade-os/swap/protocol'
 import type { Tx } from './types'
 
 /**
