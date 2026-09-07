@@ -132,6 +132,57 @@ describe('activitiesToTxs', () => {
 
     expect(activitiesToTxs([older, newer], empty).map((tx) => tx.redeemTxid)).toEqual(['new', 'old'])
   })
+
+  // The offer covenant is a contract of this wallet, so history nets the
+  // funding tx (and a cancel) to zero and emits no row for it: the record is
+  // the only source of the row until a fill shows up.
+  it('builds a swap row from the record alone when history has no group for it', () => {
+    const [tx] = activitiesToTxs([], { ...empty, swaps: [swap()] })
+
+    expect(tx).toMatchObject({
+      type: 'swap',
+      historyKey: 'swap:swap-1',
+      redeemTxid: 'funding-txid',
+      createdAt: 2,
+      settled: false,
+      assetSwap: { status: 'pending', fundingTxid: 'funding-txid', fromAmount: BigInt(10_000), toAmount: BigInt(992) },
+    })
+  })
+
+  it('keeps a cancelled swap on screen although its cancel tx nets to nothing in history', () => {
+    const cancelled = swap({ status: 'cancelled', spentTxid: 'cancel-txid' })
+
+    const [tx] = activitiesToTxs([], { ...empty, swaps: [cancelled] })
+
+    expect(tx).toMatchObject({
+      redeemTxid: 'cancel-txid',
+      settled: true,
+      assetSwap: { status: 'cancelled', fillTxid: 'cancel-txid' },
+    })
+  })
+
+  it('does not double a swap whose group is in history', () => {
+    const fulfilled = swap({ status: 'fulfilled', spentTxid: 'fill-txid' })
+    const group = activity(
+      'swap:swap-1',
+      [arkTx('fill-txid', { type: 'SENT' as ArkTransaction['type'] })],
+      swapIntent('swap-1'),
+    )
+
+    const txs = activitiesToTxs([group], { ...empty, swaps: [fulfilled] })
+
+    expect(txs).toHaveLength(1)
+    expect(txs[0]).toMatchObject({ historyKey: 'swap:swap-1', assetSwap: { status: 'completed' } })
+  })
+
+  it('grafts the funding tx metadata onto a record-only swap row', () => {
+    const [tx] = activitiesToTxs([], {
+      swaps: [swap()],
+      metadata: { 'funding-txid': { networkFee: 12, savedAt: 0 } },
+    })
+
+    expect(tx).toMatchObject({ networkFee: 12 })
+  })
 })
 
 describe('getActivities', () => {

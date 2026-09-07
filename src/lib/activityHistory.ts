@@ -291,6 +291,23 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
   for (const send of lnSends) {
     if (!grouped.has(send.rfqId)) rows.push(ungroupedLnSendTx(send, metadata))
   }
+  // The asset swaps history cannot see, for the same reason as the Lightning
+  // sends: `createOffer` registers the offer covenant as a contract of this
+  // wallet, so `buildTransactionHistory` counts the funding output as change
+  // and the funding tx nets to zero — no row. A cancel returns the same sats
+  // to the same wallet and nets to zero too. Only a fill produces a row, keyed
+  // on the fill txid, which the resolver groups by `spentTxid`. So a pending,
+  // cancelled or recoverable swap has no group at all, and the record is the
+  // only thing that can put it on screen — same key the group would carry, so
+  // the row is replaced rather than doubled once a fill arrives.
+  const groupedSwaps = new Set(activities.flatMap((activity) => swapIdOf(activity) ?? []))
+  for (const swap of swaps) {
+    if (groupedSwaps.has(swap.id)) continue
+    rows.push({
+      ...graftMetadata(buildAssetSwapActivityTx(swap, [], { network, assetDisplay }), metadata[swap.fundingTxid]),
+      historyKey: `swap:${swap.id}`,
+    })
+  }
   // Exits last, for the same reason: history reports none of them either.
   for (const exit of exits) rows.push(exitTx(exit))
   return sortLocalTxs(rows)
