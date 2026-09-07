@@ -29,9 +29,8 @@
  * standing a second wallet up inside it.
  */
 import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { hex } from '@scure/base'
-import { asset, RestIndexerProvider, type NetworkName } from '@arkade-os/sdk'
-import { BTC_ASSET_ID, addAssetSwap, findMarket, restoreAssetSwaps, type AssetSwap } from '@arkade-os/swap/protocol'
+import { asset, type NetworkName } from '@arkade-os/sdk'
+import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
 import {
   arkadeAsset,
   btcOn,
@@ -48,12 +47,7 @@ import { WalletContext } from './wallet'
 import { discoverMarkets } from '../lib/swapMarkets'
 import { toInvoiceFacts } from '../lib/lnSwap'
 import { makeSwapClient, SwapsHeldElsewhere } from '../lib/swapClient'
-import {
-  assetSwapRepository,
-  saveQuoteSnapshot,
-  type AssetSwapQuoteSnapshot,
-  type WalletAssetSwap,
-} from '../lib/swapRepository'
+import { saveQuoteSnapshot, type AssetSwapQuoteSnapshot, type WalletAssetSwap } from '../lib/swapRepository'
 import { displayAssetOf, offerSwaps } from '../lib/swapRecords'
 import { getEmulatorPubkeyForNetwork } from '../lib/constants'
 import { consoleError } from '../lib/logs'
@@ -145,7 +139,7 @@ const ENDED: Partial<Record<Outcome, 'received' | 'returned' | 'lost'>> = {
 
 export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
-  const { dataReady, svcWallet, reloadWallet, setAssetSwaps, txs } = useContext(WalletContext)
+  const { dataReady, svcWallet, reloadWallet, setAssetSwaps } = useContext(WalletContext)
 
   const [markets, setMarkets] = useState<DiscoveredMarket[]>([])
   const [emulatorPubkey, setEmulatorPubkey] = useState<Uint8Array>()
@@ -175,8 +169,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   // the grant rather than mistake it for a lock held elsewhere.
   const granted = useRef<Promise<void>>()
 
-  /** Re-read both keyspaces. Cheap, and the only way a v1 row the restore scan
-   * just wrote reaches the list. */
+  /** Re-read the client's records. Cheap, and the only way a record written
+   * outside a React update reaches the list. */
   const refreshSwaps = useCallback(async () => {
     try {
       const next = await offerSwaps()
@@ -237,60 +231,6 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     runDiscovery()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aspInfo.network])
-
-  // ------------------------------------------------------------- restore scan
-  //
-  // After a restore the swap store is empty while the funding/fill txs are back
-  // in history, so swaps would show as bare sent/received rows. Scan the sent
-  // virtual txs for offer packets and rebuild the lost records by binding each
-  // funding vtxo to the tx that spent it (fill or cancel).
-  //
-  // Still the wallet's, and still writing V1 records: the v2 client restores its
-  // own records from the repository and has no chain rebuild for offers. Those
-  // rows are read back by `offerSwaps`, which merges both keyspaces.
-  const scanningRef = useRef(false)
-  useEffect(() => {
-    if (!aspInfo.url || !aspInfo.signerPubkey || !dataReady || txs.length === 0 || scanningRef.current) return
-    let cancelled = false
-    scanningRef.current = true
-    const scan = async () => {
-      const [existing, scanned] = await Promise.all([offerSwaps(), assetSwapRepository.getScannedTxids()])
-      const { restored, scannedTxids } = await restoreAssetSwaps(
-        new RestIndexerProvider(aspInfo.url),
-        txs,
-        new Set(existing.map((s) => s.id)),
-        // x-only, matching the key the covenants were funded against
-        { operatorPubkey: hex.decode(aspInfo.signerPubkey).slice(1), scanned },
-      )
-      // a wallet reset may have cleared the repository while the scan ran —
-      // never write the old profile's records into it.
-      if (cancelled) return
-      await assetSwapRepository.markTxidsScanned(scannedTxids)
-      if (restored.length === 0) return
-      for (const swap of restored) {
-        if (cancelled) return
-        // quote-time facts are not on chain; the fee rate is the one fact a
-        // restore can backfill, from the pair's current market card.
-        const feeBps = findMarket(marketsRef.current, swap.fromAsset, swap.toAsset)?.market?.fee_bps
-        await addAssetSwap(
-          assetSwapRepository,
-          feeBps === undefined ? swap : ({ ...swap, quote: { feeBps } } as AssetSwap),
-        )
-      }
-      await refreshSwaps()
-      // re-merge the activity list so the tx couple collapses into Swap rows
-      reloadRef.current().catch(consoleError)
-    }
-    scan()
-      .catch((err) => consoleError(err, 'swap restore scan failed'))
-      .finally(() => {
-        scanningRef.current = false
-      })
-    return () => {
-      cancelled = true
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aspInfo.url, aspInfo.signerPubkey, dataReady, txs])
 
   // ------------------------------------------------------------- the announcer
 

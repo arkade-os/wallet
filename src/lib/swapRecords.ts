@@ -12,16 +12,15 @@
  * shapes and this file maps them once, which is a great deal smaller than
  * retyping every row builder — and it is where a future rewrite starts.
  *
- * **Why v1 records are still read.** Two things still write them. The chain
- * restore scan (`restoreAssetSwaps`) rebuilds offer records from offer packets
- * in history and has no v2 equivalent, and every swap made before this wallet
- * moved to the v2 client is in the old keyspace. Both are real history, so the
- * readers below merge the two and let the v2 record win on an id collision —
- * which cannot happen today, since the keyspaces mint ids differently, and is
- * the safe direction if it ever does.
+ * **The v1 keyspace is not read at all.** It was, until the v2 move made every
+ * writer of it dead: the client persists its own records, and no swap predating
+ * that move survives anywhere that matters — swaps are gated by the solver card
+ * and the bundled default does not serve, so the pre-v2 population is a handful
+ * of developers. Reading two keyspaces to merge one of them with nothing in it
+ * is the compatibility this release exists to drop.
  */
 import type { ActivityResolver } from '@arkade-os/sdk'
-import { BTC_ASSET_ID, getAssetSwaps } from '@arkade-os/swap/protocol'
+import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
 import {
   ACTIVITY_TOKEN,
   corridorOutcome,
@@ -35,8 +34,26 @@ import {
 } from '@arkade-os/swap'
 import { consoleError } from './logs'
 import { assetSwapRepository, quoteSnapshotOf, type WalletAssetSwap } from './swapRepository'
-import type { LnSendView } from './lnSendRecords'
 import { txidOfArkTransaction } from './transactionHistory'
+
+/** What the history needs to render one Lightning send.
+ *
+ * Declared here rather than beside a reader, because the v2 corridor record is
+ * now its only source: `sendViewOf` below is the whole of the projection. */
+export interface LnSendView {
+  rfqId: string
+  fundingTxid: string
+  state: CorridorSwapRecord['state']
+  /** Sats the lockup was funded with. The record is the only place this
+   * survives for a send Arkade's own history cannot see — see
+   * `ungroupedLnSendTx` in `activityHistory.ts`. */
+  amount: number
+  /** When the send was made, unix seconds — the same clock `Tx.createdAt` uses,
+   * so a row built from the record sorts beside rows built from history. */
+  createdAt: number
+  /** The tx that ended it, when that tx is one of ours. */
+  spendTxid?: string
+}
 
 export const ASSET_SWAP_RESOLVER_ID = 'arkade-wallet:asset-swaps'
 export const ASSET_SWAP_ACTIVITY_KIND = 'swap'
@@ -112,32 +129,17 @@ const readRecords = async (): Promise<SwapRecord[]> => {
   }
 }
 
-/**
- * Every offer swap the wallet can render: the v2 client's own, plus the v1 rows
- * the restore scan rebuilds and anything written before the move.
- */
+/** Every offer swap the wallet can render — the v2 client's own, which is all
+ * of them. */
 export const offerSwaps = async (): Promise<WalletAssetSwap[]> => {
-  const [records, legacy] = await Promise.all([
-    readRecords(),
-    getAssetSwaps(assetSwapRepository).catch((err) => {
-      consoleError(err, 'error reading v1 asset swaps')
-      return []
-    }),
-  ])
-  const { offer } = splitRecords(records)
-  const views = offer.map(offerViewOf)
-  const seen = new Set(views.map((view) => view.id))
-  // v2 wins on a collision; the keyspaces mint ids differently, so this is a
-  // rule about the future rather than a case that arises today.
-  return [...views, ...(legacy as WalletAssetSwap[]).filter((swap) => !seen.has(swap.id))]
+  const { offer } = splitRecords(await readRecords())
+  return offer.map(offerViewOf)
 }
 
-/** The Lightning sends, from both keyspaces, for the row builder. */
-export const lnSendViews = async (v1Views: LnSendView[]): Promise<LnSendView[]> => {
+/** The Lightning sends, for the row builder. */
+export const lnSendViews = async (): Promise<LnSendView[]> => {
   const { corridor } = splitRecords(await readRecords())
-  const views = corridor.flatMap((record) => sendViewOf(record) ?? [])
-  const seen = new Set(views.map((view) => view.rfqId))
-  return [...views, ...v1Views.filter((view) => !seen.has(view.rfqId))]
+  return corridor.flatMap((record) => sendViewOf(record) ?? [])
 }
 
 /** What the row builder calls each corridor. Mirrors the package's own labels,
@@ -156,11 +158,9 @@ const CORRIDOR_LABEL: Record<string, string> = {
  * an offer, `rfqId` + `swapKind` for a corridor, and the corridor's outcome
  * token, which is what a Lightning row renders as its status.
  *
- * Covers the v2 records for both families plus the v1 OFFER rows the restore
- * scan writes. The v1 corridor rows stay with the package's own
- * `swapActivityResolver`, which reads them through each corridor handler's
- * `activityTxids` — reimplementing that here would put corridor knowledge in
- * the wallet, which is the thing adding a corridor would then come back to edit.
+ * Covers the v2 records for both families, and is the only swap resolver the
+ * wallet registers. The package's `swapActivityResolver` went with the v1
+ * keyspace it read.
  */
 export const swapRecordResolver = (read = readRecords): ActivityResolver => {
   let intents = new Map<
@@ -170,23 +170,19 @@ export const swapRecordResolver = (read = readRecords): ActivityResolver => {
   return {
     id: ASSET_SWAP_RESOLVER_ID,
     async prepare() {
-      // re-read on every history load: the restore scan writes its records
-      // after the first one, and an index cached at construction would leave
-      // those swaps ungrouped until the next reconnect
+      // re-read on every history load rather than indexed at construction: a
+      // record written after the first load would otherwise leave its swap
+      // ungrouped until the next reconnect
       const next = new Map<
         string,
         { groupId: string; label: string; outcome?: string; metadata: Record<string, unknown> }
       >()
-      const [records, legacy] = await Promise.all([read(), getAssetSwaps(assetSwapRepository).catch(() => [])])
+      const records = await read()
       const offerIntent = (id: string) => ({
         groupId: `swap:${id}`,
         label: 'Swap',
         metadata: { swapId: id },
       })
-      for (const swap of legacy) {
-        next.set(swap.fundingTxid, offerIntent(swap.id))
-        if (swap.spentTxid) next.set(swap.spentTxid, offerIntent(swap.id))
-      }
       for (const record of records) {
         if (record.family === 'offer') {
           const intent = offerIntent(record.id)
