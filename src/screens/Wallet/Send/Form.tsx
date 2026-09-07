@@ -4,6 +4,7 @@ import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
+import { LnSwapsContext } from '../../../providers/lnSwaps'
 import { FlowContext } from '../../../providers/flow'
 import Padded from '../../../components/Padded'
 import { isBTCAddress, decodeArkAddress, isLightningInvoice, isURLWithLightningQueryString } from '../../../lib/address'
@@ -33,7 +34,8 @@ import { LimitsContext } from '../../../providers/limits'
 import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl, LnUrlResponse } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
 import { decodeInvoice } from '../../../lib/bolt11'
-import { SwapsContext } from '../../../providers/swaps'
+import { createSendRouter, LIGHTNING_RAIL, lnSendRefusal } from '../../../lib/sendRouter'
+import { discoverMarkets } from '../../../lib/swapMarkets'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
 import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
@@ -127,7 +129,7 @@ export default function SendForm() {
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
-  const { quotePay } = useContext(SwapsContext)
+  const { trackLnSend } = useContext(LnSwapsContext)
   const {
     assetBalances,
     availableAssetBalances,
@@ -620,11 +622,25 @@ export default function SendForm() {
       // negotiation is the only interactive step — funding IS acceptance.
       const negotiate = async () => {
         if (!svcWallet) return handleError('Wallet not ready')
-        // Nothing is picked here — not the corridor, not the market, not the
-        // rendezvous, not even the amount: `to` is parsed once at the client
-        // boundary and everything else follows from the route it yields. The
-        // wallet's own BOLT11 gates still run, as the corridor's decoder.
-        const pendingLnSend = await quotePay(sendInfo.invoice!)
+        const network = aspInfo.network as NetworkName
+        // Discovered once and handed to the router, so the rail ranks and the
+        // refusal explains off the SAME cards. Asking twice let a cold cache
+        // with an unreachable registry throw on the error path, replacing the
+        // message with the registry's own.
+        const markets = await discoverMarkets(network)
+        const router = createSendRouter({
+          wallet: svcWallet,
+          arkServerUrl: aspInfo.url,
+          network,
+          track: trackLnSend,
+          discover: async () => markets,
+        })
+        const options = await router.options({ raw: sendInfo.invoice!, amount: sendInfo.satoshis ?? 0 })
+        const route = options.find((option) => option.railId === LIGHTNING_RAIL)
+        if (!route) return handleError(lnSendRefusal(markets, network))
+        // Unguarded: a quote that throws names an unpayable invoice or a
+        // covenant that did not match, and neither reads as "no route".
+        const pendingLnSend = await route.quote()
         setSendInfo((prev) => ({ ...prev, pendingLnSend }))
       }
       negotiate().catch(handleError)
