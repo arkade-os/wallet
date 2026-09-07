@@ -1,7 +1,6 @@
 import { hex } from '@scure/base'
 import { Delegate } from './types'
 import { NetworkName } from '@arkade-os/sdk'
-import { secp256k1 } from '@noble/curves/secp256k1.js'
 
 export const arknoteHRP = 'arknote'
 export const defaultFee = 0
@@ -176,11 +175,9 @@ const COVCLAIMD_PUBKEY: Record<NetworkName, string | null> = {
   testnet: null,
 }
 
-// return a random public key if no covclaimd key is configured for the network
-// used in requestLightningReceive which needs a covclaimd public key to construct the request
-export const getCovclaimdPubkeyForNetwork = (network: NetworkName): Uint8Array => {
+// Undefined where no covclaimd is configured, so nothing is sealed and no
+// claim_packet is sent. A stand-in key seals a packet nobody can ever open.
+export const getCovclaimdPubkeyForNetwork = (network: NetworkName): Uint8Array | undefined => {
   const pubkey = fromRuntimeEnv(import.meta.env.VITE_COVCLAIMD_PUBKEY) ?? COVCLAIMD_PUBKEY[network]
-  return pubkey && COMPRESSED_PUBKEY_HEX.test(pubkey)
-    ? hex.decode(pubkey)
-    : secp256k1.getPublicKey(secp256k1.utils.randomSecretKey(), true)
+  return pubkey && COMPRESSED_PUBKEY_HEX.test(pubkey) ? hex.decode(pubkey) : undefined
 }

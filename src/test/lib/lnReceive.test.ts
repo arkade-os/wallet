@@ -81,7 +81,7 @@ describe('lnReceiveRendezvous', () => {
 
 describe('covclaimdPubkey', () => {
   it('is a 33-byte compressed point, the only form ECIES can seal to', async () => {
-    const key = getCovclaimdPubkeyForNetwork('mutinynet')
+    const key = getCovclaimdPubkeyForNetwork('mutinynet')!
     expect(key).toHaveLength(33)
     expect([0x02, 0x03]).toContain(key[0])
     // The check is the seal itself: sealClaimPacket ECDHs against this key, so
@@ -89,12 +89,11 @@ describe('covclaimdPubkey', () => {
     await expect(sealClaimPacket({ preimage: new Uint8Array(32).fill(7), covclaimdPubkey: key })).resolves.toBeDefined()
   })
 
-  it('is fresh per receive, so two lockups are not linkable by their packet', () => {
-    // Not an AEAD concern — sealClaimPacket draws its own ephemeral key and
-    // nonce each call — but a reused recipient key would tag every receive of
-    // this wallet as one payee to anyone collecting RFQ requests.
-    // mutinynet and regtest have now pinned covclaimd keys, so the testnet key should be fresh each call.
-    expect(getCovclaimdPubkeyForNetwork('testnet')).not.toEqual(getCovclaimdPubkeyForNetwork('testnet'))
+  it('is undefined where no covclaimd is configured, rather than a throwaway key', () => {
+    for (const network of ['bitcoin', 'signet', 'testnet'] as const) {
+      expect(getCovclaimdPubkeyForNetwork(network)).toBeUndefined()
+    }
+    expect(getCovclaimdPubkeyForNetwork('mutinynet')).toBeInstanceOf(Uint8Array)
   })
 })
 
@@ -342,6 +341,18 @@ describe('requestLnReceive', () => {
     requestLightningReceive.mockResolvedValue(packageResult())
     await negotiate()
     expect(requestLightningReceive.mock.calls[0][3]).toMatchObject({ amount: 10_000, amountSide: 'to' })
+  })
+
+  it('passes no covclaimd key on a network that has none, so nothing is sealed', async () => {
+    requestLightningReceive.mockResolvedValue(packageResult())
+    await negotiate('bitcoin')
+    expect(requestLightningReceive.mock.calls[0][3].covclaimdPubkey).toBeUndefined()
+  })
+
+  it('still passes the pinned key where a covclaimd IS configured', async () => {
+    requestLightningReceive.mockResolvedValue(packageResult())
+    await negotiate('mutinynet')
+    expect(requestLightningReceive.mock.calls[0][3].covclaimdPubkey).toBeInstanceOf(Uint8Array)
   })
 })
 
