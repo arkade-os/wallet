@@ -13,7 +13,6 @@ import {
   rollbackMigration,
   IndexedDBWalletRepository,
   IndexedDBContractRepository,
-  RestIndexerProvider,
   type Activity,
   type Identity,
   type ServiceWorkerWalletMode,
@@ -43,9 +42,7 @@ import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { activitiesToTxs, getActivities } from '../lib/activityHistory'
 import { Indexer } from '../lib/indexer'
-import { lnSendViews as v1LnSendViews, swapActivityInputs, type LnSendView } from '../lib/lnSendRecords'
-import { lnSendViews, swapRecordResolver } from '../lib/swapRecords'
-import { swapActivityResolver } from '@arkade-os/swap/protocol'
+import { lnSendViews, swapRecordResolver, type LnSendView } from '../lib/swapRecords'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
@@ -515,9 +512,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       const metadata = readAllTransactionActivityMetadata()
       // Read, never resolved here: the swap client owns a send's outcome and
       // has already written it (see providers/swaps), so this pass only picks
-      // up what the store says. Both keyspaces — the client's own records, and
-      // the v1 rows written before the wallet moved onto it.
-      const lnSends = await lnSendViews(await v1LnSendViews())
+      // up what the store says.
+      const lnSends = await lnSendViews()
       if (isFirstLoad) setLoadingStatus('Updating balance...')
       const { total, available, assets, availableAssets, unrolled } = await getBalance(swWallet)
       // An exited coin is no longer Arkade money: it cannot be spent offchain,
@@ -644,31 +640,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       })
 
       // The registry ships with the SDK built-ins already in it; only ours has
-      // to be added, and `use()` is idempotent by id across reinit paths.
-      // Both families over the client's own records, plus the v1 offer rows the
-      // chain restore scan still writes. Its corridor half is what labels a
-      // Lightning row and gives it the outcome token the receipt renders.
+      // to be added, and `use()` is idempotent by id across reinit paths. Both
+      // families over the client's own records, which is now all of them. Its
+      // corridor half is what labels a Lightning row and gives it the outcome
+      // token the receipt renders — turning a swap's funding tx, and the claim
+      // or refund that follows it, into one labelled activity rather than two
+      // unrelated rows.
       svcWallet.activity.use(swapRecordResolver())
-      // The package's own resolver, kept for the V1 corridor rows only: the
-      // client writes v2 records now and `swapRecordResolver` above covers
-      // those. This is what keeps a send made before the move grouped. It is what turns a
-      // swap's funding tx — and the claim or refund that follows it — into one
-      // labelled activity instead of two unrelated rows.
-      //
-      // `rfqSwapActivityInputs` rather than a mapping of ours, because the
-      // per-corridor txids come from the corridor's handler
-      // (`activityTxids(profile)`): reading profile keys by name here would put
-      // corridor knowledge in the wallet, which is what adding a corridor would
-      // then have to come back and edit. It also drains the manager's stamped
-      // `lockupSpendTxids` before any network read, so a terminal swap
-      // answers for its own counterparty spend.
-      //
-      // The indexer covers only what a record cannot: one written before
-      // `fundingTxid` existed, and a terminal swap no refund of ours ended.
-      // It is optional and failure-isolated — one that throws costs that record
-      // its extra txids, never the whole list.
-      const activityIndexer = new RestIndexerProvider(arkServerUrl)
-      svcWallet.activity.use(swapActivityResolver({ listSwaps: () => swapActivityInputs(activityIndexer) }))
 
       if (!skipMigration) {
         setLoadingStatus('Migrating data...')

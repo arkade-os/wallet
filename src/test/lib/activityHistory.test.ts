@@ -2,12 +2,10 @@ import { beforeEach, describe, it, expect } from 'vitest'
 import { lnSwapLabel } from '../../lib/swapDisplay'
 import { createDefaultActivityRegistry, ServiceWorkerWallet, type Activity, type ArkTransaction } from '@arkade-os/sdk'
 import { activitiesToTxs, getActivities } from '../../lib/activityHistory'
-import { swapActivityResolver } from '@arkade-os/swap/protocol'
-import { ASSET_SWAP_ACTIVITY_KIND, swapRecordResolver } from '../../lib/swapRecords'
+import { ASSET_SWAP_ACTIVITY_KIND, swapRecordResolver, type LnSendView } from '../../lib/swapRecords'
 import type { SwapRecord } from '@arkade-os/swap'
 import { readAllTransactionActivityMetadata, saveTransactionActivityMetadata } from '../../lib/storage'
 import type { ExitRecord } from '../../lib/exitHistory'
-import type { LnSendView } from '../../lib/lnSendRecords'
 import type { WalletAssetSwap } from '../../lib/swapRepository'
 
 beforeEach(() => localStorage.clear())
@@ -420,32 +418,6 @@ describe('lightning send activities', () => {
 
     expect(rows).toHaveLength(1)
     expect(rows[0].historyKey).toBe(`swap:${RFQ_ID}`)
-  })
-
-  it('groups the refund with its funding tx end to end, through the package resolver', async () => {
-    const registry = createDefaultActivityRegistry()
-    registry.use(
-      swapActivityResolver({
-        listSwaps: async () => [
-          { rfqId: RFQ_ID, kind: 'lightning_send', state: 'refunded', txids: ['funding-txid', 'refund-txid'] },
-        ],
-      }),
-    )
-    const wallet = {
-      activity: registry,
-      getTransactionHistory: async () => [funding, refund, arkTx('unrelated', { createdAt: 6_000 })],
-      getActivityHistory: ServiceWorkerWallet.prototype.getActivityHistory,
-    }
-
-    const txs = activitiesToTxs(await wallet.getActivityHistory(), empty)
-
-    // without the resolver these are two rows, and the refund reads as money
-    // arriving from nowhere
-    expect(txs.map((tx) => [tx.type, tx.historyKey])).toEqual([
-      ['received', 'unrelated:unrelated'],
-      ['sent', `swap:${RFQ_ID}`],
-    ])
-    expect(txs[1]).toMatchObject({ amount: 30, lnSwap: { label: 'Lightning send', outcome: 'refunded' } })
   })
 })
 
