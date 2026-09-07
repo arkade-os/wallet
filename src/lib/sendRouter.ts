@@ -134,6 +134,27 @@ export const quoteIsForThisInvoice = (quote: Pick<RouteQuote, 'meta'>, invoice: 
   }
 }
 
+/** What an on-chain send really costs, asked before the sign screen commits to a
+ *  total. `calcOnchainOutputFee()` is the collaborative exit's fee and no other
+ *  rail's, so pricing the screen with it leaves {@link quoteIsForThisSend} a
+ *  ceiling only the exit can meet. The spend re-quotes against this figure. */
+export const previewOnchainCost = async (
+  router: PaymentRouter,
+  address: string,
+  amount: number,
+): Promise<Pick<RouteQuote, 'amount' | 'fee' | 'total'> | undefined> => {
+  for (const option of await router.options({ raw: address, amount })) {
+    try {
+      const quote = await option.quote()
+      // A rail paying something else is not the one being priced.
+      if (quote.amount === amount) return { amount: quote.amount, fee: quote.fee, total: quote.total }
+    } catch {
+      // Left to the spend to log: it walks the same rails moments later.
+    }
+  }
+  return undefined
+}
+
 /** Quoting lazily already removes the stale quote behind the wrong-address bug.
  *  This is the belt to that braces — a rail may quote worse than advertised. */
 export const quoteIsForThisSend = (

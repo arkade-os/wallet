@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import SendDetails from '../../../screens/Wallet/Send/Details'
+import { Unit } from '../../../lib/types'
 import { AspContext } from '../../../providers/asp'
 import { ConfigContext } from '../../../providers/config'
 import { FeesContext } from '../../../providers/fees'
@@ -62,6 +63,31 @@ const solverOption = (quote: { amount: number; total: number }, sent: () => void
   }),
 })
 
+/** Cheap when the screen prices the send, dearer when it comes to spend — the
+ *  only way left for a rail to ask for more than the user was shown. */
+const solverThatGetsDearer = (
+  preview: { amount: number; total: number },
+  spend: { amount: number; total: number },
+  sent: () => void,
+) => {
+  let quotes = 0
+  return () => ({
+    railId: 'onchain-swap',
+    quote: async () => {
+      const quote = quotes++ === 0 ? preview : spend
+      return {
+        railId: 'onchain-swap',
+        ...quote,
+        fee: quote.total - quote.amount,
+        send: async () => {
+          sent()
+          return { settled: async () => ({ railId: 'onchain-swap', swapId: 'rfq-1' }) }
+        },
+      }
+    },
+  })
+}
+
 const failingSolverOption = (reason: string) => ({
   railId: 'onchain-swap',
   quote: async () => ({
@@ -77,30 +103,39 @@ const failingSolverOption = (reason: string) => ({
   }),
 })
 
-const exitOption = (req: { raw: string; amount?: number }) => ({
+const exitOption = (req: { raw: string; amount?: number }, fee = FEE) => ({
   railId: 'onchain',
   quote: async (): Promise<any> => {
     const amount = req.amount!
     return {
       railId: 'onchain',
       amount,
-      fee: FEE,
-      total: amount + FEE,
+      fee,
+      total: amount + fee,
       send: async () => {
-        const txid = await collaborativeExitWithFees(mockSvcWallet as never, amount + FEE, amount, req.raw)
+        const txid = await collaborativeExitWithFees(mockSvcWallet as never, amount + fee, amount, req.raw)
         return { settled: async () => ({ railId: 'onchain', txid }) }
       },
     }
   },
 })
 
-const renderSign = (sendInfo: SendInfo, limits = mockLimitsContextValue) =>
+const satsConfig = {
+  ...mockConfigContextValue,
+  config: { ...mockConfigContextValue.config, unit: Unit.SATS },
+  useFiat: false,
+}
+
+const renderSign = (
+  sendInfo: SendInfo,
+  { limits = mockLimitsContextValue, outputFee = FEE, config = mockConfigContextValue } = {},
+) =>
   render(
     <NavigationContext.Provider value={mockNavigationContextValue}>
-      <ConfigContext.Provider value={mockConfigContextValue}>
+      <ConfigContext.Provider value={config}>
         <FiatContext.Provider value={mockFiatContextValue}>
           <AspContext.Provider value={mockAspContextValue}>
-            <FeesContext.Provider value={{ calcOnchainOutputFee: () => FEE } as never}>
+            <FeesContext.Provider value={{ calcOnchainOutputFee: () => outputFee } as never}>
               <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo }}>
                 <WalletContext.Provider
                   value={{ ...mockWalletContextValue, balance: 1_000_000, svcWallet: mockSvcWallet as never }}
@@ -137,7 +172,10 @@ describe('signing an on-chain send', () => {
   it('names the UTXO limit rather than blaming routing when on-chain sends are not permitted', async () => {
     const consulted = vi.fn((req: { raw: string; amount?: number }) => [exitOption(req)])
     optionsFor = consulted
-    renderSign({ address: ADDRESS, satoshis: 10_000 }, { ...mockLimitsContextValue, utxoTxsAllowed: () => false })
+    renderSign(
+      { address: ADDRESS, satoshis: 10_000 },
+      { limits: { ...mockLimitsContextValue, utxoTxsAllowed: () => false } },
+    )
     await sign()
 
     await waitFor(() => expect(sendFailure()).toBeDefined())
@@ -165,10 +203,28 @@ describe('signing an on-chain send', () => {
     expect(sent).not.toHaveBeenCalled()
   })
 
+  // From mutinynet, where the exit rail's output fee is 0:
+  // `quote pays 40000 for 40754, screen shows 40000 for 40000`.
+  it('funds a solver that charges on top, having shown that total before signing', async () => {
+    const sent = vi.fn()
+    optionsFor = (req) => [solverOption({ amount: 40_000, total: 40_754 }, sent), exitOption(req, 0)]
+    renderSign({ address: ADDRESS, satoshis: 40_000 }, { outputFee: 0, config: satsConfig })
+
+    expect(await screen.findByTestId('Total')).toHaveTextContent(/40.?754/)
+    expect(screen.getByTestId('Network fees')).toHaveTextContent(/754/)
+    await sign()
+
+    await waitFor(() => expect(sent).toHaveBeenCalledTimes(1))
+    expect(collaborativeExitWithFees).not.toHaveBeenCalled()
+  })
+
   it('never funds a rail that would spend more than the screen showed', async () => {
     const sent = vi.fn()
-    optionsFor = (req) => [solverOption({ amount: 9_500, total: 10_001 }, sent), exitOption(req)]
-    renderSign({ address: ADDRESS, satoshis: 10_000 })
+    const solver = solverThatGetsDearer({ amount: 40_000, total: 40_754 }, { amount: 40_000, total: 41_000 }, sent)
+    optionsFor = (req) => [solver(), exitOption(req, 0)]
+    renderSign({ address: ADDRESS, satoshis: 40_000 }, { outputFee: 0, config: satsConfig })
+
+    expect(await screen.findByTestId('Total')).toHaveTextContent(/40.?754/)
     await sign()
 
     await waitFor(() => expect(collaborativeExitWithFees).toHaveBeenCalledTimes(1))

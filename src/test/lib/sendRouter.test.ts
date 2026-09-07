@@ -7,6 +7,7 @@ import {
   createSendRouter,
   LIGHTNING_RAIL,
   lnSendRefusal,
+  previewOnchainCost,
   quoteIsForThisInvoice,
   quoteIsForThisSend,
   WALLET_EXIT_RAIL,
@@ -177,6 +178,36 @@ describe('quoteIsForThisSend: the wrong-address guard', () => {
   it('refuses a screen with no destination or amount at all', () => {
     expect(quoteIsForThisSend(quote, {}, RECIPIENT)).toBe(false)
     expect(quoteIsForThisSend(quote, { destination: RECIPIENT }, RECIPIENT)).toBe(false)
+  })
+})
+
+describe('previewOnchainCost: what the screen is allowed to show', () => {
+  const option = (railId: string, quote: unknown) => ({ railId, quote: async () => quote })
+  const from = (...options: unknown[]) => ({ options: async () => options }) as never
+
+  it('prices the send at the first rail that can take it, spread and all', async () => {
+    const priced = from(
+      option('onchain-swap', { amount: 40_000, fee: 754, total: 40_754 }),
+      option(WALLET_EXIT_RAIL, { amount: 40_000, fee: 0, total: 40_000 }),
+    )
+    expect(await previewOnchainCost(priced, RECIPIENT, 40_000)).toEqual({ amount: 40_000, fee: 754, total: 40_754 })
+  })
+
+  // Or the screen shows — and the guard then admits — a total quoted for a
+  // payout the user is not making.
+  it('skips a rail quoting a different payout rather than showing its total', async () => {
+    const priced = from(
+      option('onchain-swap', { amount: 5_000, fee: 45_000, total: 50_000 }),
+      option(WALLET_EXIT_RAIL, { amount: 40_000, fee: 0, total: 40_000 }),
+    )
+    expect(await previewOnchainCost(priced, RECIPIENT, 40_000)).toEqual({ amount: 40_000, fee: 0, total: 40_000 })
+  })
+
+  it('skips a rail that cannot quote, and reports nothing when none can', async () => {
+    const throws = { railId: 'onchain-swap', quote: async () => Promise.reject(new Error('no solver')) }
+    const priced = from(throws, option(WALLET_EXIT_RAIL, { amount: 40_000, fee: 0, total: 40_000 }))
+    expect(await previewOnchainCost(priced, RECIPIENT, 40_000)).toEqual({ amount: 40_000, fee: 0, total: 40_000 })
+    expect(await previewOnchainCost(from(throws), RECIPIENT, 40_000)).toBeUndefined()
   })
 })
 
