@@ -15,8 +15,7 @@
  * WHOLE database, asset swaps and markets cache included. Rolling back this
  * release means rolling back the data, not just the bundle.
  */
-import { IndexedDbAssetSwapRepository } from '@arkade-os/swap'
-import type { AssetSwap } from '@arkade-os/swap/protocol'
+import { IndexedDbAssetSwapRepository, type AssetSwap } from '@arkade-os/swap'
 
 /** Shared per tab: the repository opens its database lazily on first use, and
  * a second instance would open a second connection to the same stores. */

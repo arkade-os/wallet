@@ -22,16 +22,19 @@
 import type { ActivityResolver } from '@arkade-os/sdk'
 import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
 import {
-  ACTIVITY_TOKEN,
-  corridorOutcome,
   parseAssetId,
-  readableRecord,
-  splitRecords,
   type AssetId,
   type CorridorSwapRecord,
   type OfferSwapRecord,
   type SwapRecord,
 } from '@arkade-os/swap'
+// The record-reading half, which rc.3's root curation moved to `./advanced`.
+// That subpath is explicitly not a compatibility promise — its names move with
+// the client's internals across minor versions — so this import is the one to
+// re-check on a swap-package bump. It is here rather than `client.swaps()`
+// because this read must work in a tab that does not hold the drive lock, and
+// the client only exists in the tab that does.
+import { ACTIVITY_TOKEN, corridorOutcome, readableRecord, splitRecords } from '@arkade-os/swap/advanced'
 import { consoleError } from './logs'
 import { assetSwapRepository, quoteSnapshotOf, type WalletAssetSwap } from './swapRepository'
 import { txidOfArkTransaction } from './transactionHistory'
