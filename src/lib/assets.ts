@@ -115,3 +115,14 @@ export const prettyAssetAmount = (cents: bigint, decimals: number, tidy = false)
     return `${prettyAssetNumber(strUnits, 0)}`
   }
 }
+
+/**
+ * Whether two metadata entries differ in what `assetDisplay` reads, and so in
+ * how a row names the asset. Guards the repaint in `WalletProvider`: a TTL
+ * refresh rewriting the same name must not re-derive the whole activity list.
+ * Widen this the day `assetDisplay` starts reading a third field.
+ */
+export const assetNameChanged = (
+  previous: { ticker?: string; decimals?: number } | undefined,
+  next: { ticker?: string; decimals?: number } | undefined,
+): boolean => previous?.ticker !== next?.ticker || previous?.decimals !== next?.decimals

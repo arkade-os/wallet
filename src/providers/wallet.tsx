@@ -39,6 +39,7 @@ import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
 import { arkNoteInUrl } from '../lib/arknote'
 import { deepLinkInUrl } from '../lib/deepLink'
+import { assetNameChanged } from '../lib/assets'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { activitiesToTxs, getActivities } from '../lib/activityHistory'
@@ -206,6 +207,15 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const assetMetadataCache = useRef<Map<string, CachedAssetDetails>>(readAssetMetadataFromStorage() ?? new Map())
   const iconApprovalManager = useRef(new AssetIconApprovalManager()).current
 
+  // Rows name assets through `assetMetadataCache`, which is a ref, so filling it
+  // repaints nothing on its own. The metadata prefetch answers over the network
+  // and routinely lands after the first history load, and a restored wallet has
+  // an empty cache to start with, so every asset row rendered its truncated id
+  // until some unrelated change happened to rebuild this memo — which is why
+  // making one new swap named every older row at once. Bumped by `setCacheEntry`
+  // when it writes a name that differs from the one already cached.
+  const [assetDisplayVersion, setAssetDisplayVersion] = useState(0)
+
   // Derived rather than merged once at load: the swap records are read from
   // IndexedDB, so they can arrive after the first history load — recomputing on
   // either input is what keeps a cold start from flashing bare funding rows.
@@ -219,7 +229,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         network: aspInfo.network,
         assetDisplay: (id) => assetMetadataCache.current.get(id)?.metadata,
       }),
-    [history, assetSwaps, aspInfo.network],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [history, assetSwaps, aspInfo.network, assetDisplayVersion],
   )
 
   const verifiedAssetsFetched = useRef(false)
@@ -291,8 +302,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         ? { ...details, metadata: { ...details.metadata, icon: undefined } }
         : details
     const entry: CachedAssetDetails = { ...moderated, cachedAt: Date.now(), hasIcon }
+    const previous = assetMetadataCache.current.get(assetId)
     assetMetadataCache.current.set(assetId, entry)
     saveAssetMetadataToStorage(assetMetadataCache.current)
+    // Only what `assetDisplay` reads is worth a repaint. A TTL refresh rewriting
+    // the same name must not re-derive every row, and the prefetch loop writes
+    // one entry per owned asset with an await between each.
+    if (assetNameChanged(previous?.metadata, entry.metadata)) setAssetDisplayVersion((version) => version + 1)
     return entry
   }
 
