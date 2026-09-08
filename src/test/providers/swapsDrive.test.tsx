@@ -7,6 +7,7 @@ import { AspContext } from '../../providers/asp'
 import { WalletContext } from '../../providers/wallet'
 import { SwapsContext, SwapsProvider } from '../../providers/swaps'
 import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
+import { MUTINYNET_USDT_ASSET_ID } from '../../lib/accountAssets'
 
 const success = vi.hoisted(() => vi.fn())
 vi.mock('../../components/Toast', async (importOriginal) => ({
@@ -126,7 +127,14 @@ const wrap = (children: React.ReactNode) => (
   >
     <WalletContext.Provider
       value={
-        { ...mockWalletContextValue, dataReady: true, txs: [], reloadWallet, svcWallet: { identity: {} } } as never
+        {
+          ...mockWalletContextValue,
+          dataReady: true,
+          txs: [],
+          reloadWallet,
+          svcWallet: { identity: {} },
+          isVerifiedAsset: () => true,
+        } as never
       }
     >
       {children}
@@ -402,6 +410,41 @@ describe('SwapsProvider outcomes', () => {
     listeners[0](update(receive))
     await waitFor(() => expect(success).toHaveBeenCalled())
     expect(String(success.mock.calls[0][0])).toMatch(/received/)
+  })
+
+  it('names a designated asset the way every other screen does', async () => {
+    renderProvider()
+    await waitFor(() => expect(listeners).toHaveLength(1))
+
+    const usd = (outcome: Outcome) =>
+      monitored(outcome, {
+        route: { give: { corridor: 'lightning' }, take: { corridor: 'arkade' } },
+        take: { asset: `arkade:mutinynet/asset:${MUTINYNET_USDT_ASSET_ID}`, amount: BigInt(199) },
+      } as unknown as Partial<Swap>)
+    listeners[0](update(usd('claimed')))
+
+    await waitFor(() => expect(success).toHaveBeenCalled())
+    expect(success).toHaveBeenCalledWith('Swap completed, USD received')
+  })
+
+  it('says nothing about the history its own restore just replayed', async () => {
+    let finishRestore = () => {}
+    ready.mockReturnValueOnce(new Promise<void>((resolve) => (finishRestore = () => resolve())))
+    renderProvider()
+    await waitFor(() => expect(listeners).toHaveLength(1))
+
+    listeners[0](update(monitored('paid')))
+    listeners[0](update(monitored('claimed')))
+
+    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('claimed'))
+    expect(success).not.toHaveBeenCalled()
+    expect(reloadWallet).not.toHaveBeenCalled()
+
+    finishRestore()
+    await waitFor(() => {
+      listeners[0](update(monitored('paid')))
+      expect(success).toHaveBeenCalledWith('Payment complete')
+    })
   })
 
   it('keeps a refund distinct from a lapse, which is the same swap ending well', async () => {

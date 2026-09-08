@@ -232,6 +232,10 @@ export const swapRecordResolver = (read = readRecords): ActivityResolver => {
         if (record.fundingTxid) next.set(record.fundingTxid, intent)
         if (record.refundTxid) next.set(record.refundTxid, intent)
         for (const txid of record.lockupSpendTxids ?? []) next.set(txid, intent)
+        // The package's `activityTxids` collects this and we did not; a CLAIMED
+        // receive has none of the three above, so no group formed at all.
+        const claimTxid = stringField(record.profile, 'claimTxid')
+        if (claimTxid) next.set(claimTxid, intent)
       }
       intents = next
     },
