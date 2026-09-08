@@ -398,6 +398,9 @@ export default function SendForm() {
           pendingLnSend: lowerCaseData === prev.invoice ? prev.pendingLnSend : undefined,
         }))
         setAmountTextValue(getTextValue(satoshis))
+        // The field text may be fiat, and cents cannot round-trip sats; this is
+        // the amount the invoice named, which the field must never re-derive.
+        setValueSats(satoshis)
         setAmountIsReadOnly(true)
         return
       }
@@ -519,6 +522,7 @@ export default function SendForm() {
         if (min === max) {
           setSendInfo({ ...sendInfo, satoshis: min })
           setAmountTextValue(getTextValue(min))
+          setValueSats(min)
           setAmountIsReadOnly(true)
         }
         return setLnUrlResponse({ ...conditions, minSendable: min, maxSendable: max })
@@ -734,6 +738,9 @@ export default function SendForm() {
   const handleRecipientChange = (recipient: string) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
     setRecipient(recipient)
+    // A new destination pins no amount until it is parsed.
+    setValueSats(undefined)
+    setAmountIsReadOnly(false)
     setReadyToParse(false)
     setRawScanData('')
     timeoutRef.current = setTimeout(() => setReadyToParse(true), RECIPIENT_DEBOUNCE_MS)
@@ -838,11 +845,16 @@ export default function SendForm() {
       ? prettyFiatAmount(liquidBalance ? toFiat(liquidBalance) : 0, config.currency)
       : prettyUnitBalance(liquidBalance)
 
+    const label = (
+      <Text color='neutral-500' smaller>
+        {`${amount} available`}
+      </Text>
+    )
+    if (amountIsReadOnly) return label
+
     return (
       <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
-        <Text color='neutral-500' smaller>
-          {`${amount} available`}
-        </Text>
+        {label}
       </div>
     )
   }
