@@ -1,7 +1,8 @@
-import { useContext } from 'react'
+import { StrictMode, useContext } from 'react'
 import userEvent from '@testing-library/user-event'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { hex } from '@scure/base'
 import { planOffer, type OfferPlan } from '@arkade-os/solver-discovery'
 import { addAssetSwap, getAssetSwaps, updateAssetSwap } from '@arkade-os/swap'
 import { AspContext } from '../../providers/asp'
@@ -15,7 +16,7 @@ import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
 const cancelOffer = vi.hoisted(() => vi.fn())
 const createOffer = vi.hoisted(() => vi.fn())
 const getVtxos = vi.hoisted(() => vi.fn())
-const discoverMarkets = vi.hoisted(() => vi.fn(async () => []))
+const discoverMarkets = vi.hoisted(() => vi.fn(async (_network: string, _useCache?: boolean) => []))
 const restoreAssetSwaps = vi.hoisted(() => vi.fn())
 const watchOfferSwaps = vi.hoisted(() => vi.fn())
 
@@ -306,7 +307,7 @@ describe('AssetSwapsProvider restore scan', () => {
     return <span data-testid='restored'>{swaps.map((s) => s.id).join(',') || 'none'}</span>
   }
 
-  const tree = (txs: unknown[]) => (
+  const tree = (txs: unknown[], signerPubkey: string = SIGNER_PUBKEY) => (
     <AspContext.Provider
       value={
         {
@@ -315,7 +316,7 @@ describe('AssetSwapsProvider restore scan', () => {
             ...mockAspContextValue.aspInfo,
             network: '',
             url: 'https://ark.test',
-            signerPubkey: SIGNER_PUBKEY,
+            signerPubkey,
           },
         } as any
       }
@@ -361,6 +362,36 @@ describe('AssetSwapsProvider restore scan', () => {
 
     rerender(tree([sentTx('a'), sentTx('b')]))
     release({ restored: [restoredSwap], scannedTxids: ['restored-txid'] })
+
+    await waitFor(() => expect(screen.getByTestId('restored')).toHaveTextContent('restored-txid'))
+  })
+
+  it('starts a scan for the new wallet when the profile changed mid-scan', async () => {
+    // The queued run may belong to another wallet by the time the lock frees:
+    // re-entering through the effect is what lets it read the profile current
+    // then, instead of the one the finishing run was bound to.
+    const OTHER_PUBKEY = `02${'cd'.repeat(32)}`
+    let release: (result: { restored: WalletAssetSwap[]; scannedTxids: string[] }) => void = () => {}
+    restoreAssetSwaps
+      .mockReturnValueOnce(new Promise((resolve) => (release = resolve)))
+      .mockResolvedValue({ restored: [], scannedTxids: [] })
+
+    const { rerender } = render(tree([sentTx('a')]))
+    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(1))
+
+    rerender(tree([sentTx('a')], OTHER_PUBKEY))
+    release({ restored: [restoredSwap], scannedTxids: ['restored-txid'] })
+
+    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(2))
+    expect(restoreAssetSwaps.mock.calls[1][3].serverPubkey).toEqual(hex.decode('cd'.repeat(32)))
+    // and the abandoned run wrote nothing for the wallet that went away
+    expect(screen.getByTestId('restored')).toHaveTextContent('none')
+  })
+
+  it('scans under StrictMode, whose setup/cleanup/setup would strand the unmounted flag', async () => {
+    restoreAssetSwaps.mockResolvedValue({ restored: [restoredSwap], scannedTxids: ['restored-txid'] })
+
+    render(<StrictMode>{tree([sentTx('a')])}</StrictMode>)
 
     await waitFor(() => expect(screen.getByTestId('restored')).toHaveTextContent('restored-txid'))
   })

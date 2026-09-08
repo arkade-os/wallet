@@ -1,4 +1,4 @@
-import { ReactNode, createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { ReactNode, createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { hex } from '@scure/base'
 import { asset, RestIndexerProvider, type NetworkName } from '@arkade-os/sdk'
 import {
@@ -142,23 +142,34 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   // picked up by later runs and nothing is fetched twice.
   const scanningRef = useRef(false)
   const rescanRef = useRef(false)
+  // Bumped to re-enter the effect when a queued rescan has to start, since no
+  // dependency of its own has changed by then.
+  const [scanTick, setScanTick] = useState(0)
   // Read inside the scan so a re-run sees the history that arrived while the
   // previous one was in flight, rather than the list its effect closed over.
   const txsRef = useRef(txs)
-  txsRef.current = txs
   // Which wallet a scan belongs to. Compared by value rather than tracked with
   // a cleanup flag, so that only these three changing counts as "another
   // wallet" — see the abandonment note above.
   const scanProfile = `${aspInfo.url}|${aspInfo.signerPubkey}|${dataReady}`
   const scanProfileRef = useRef(scanProfile)
-  scanProfileRef.current = scanProfile
+  // Committed values only. A render React discards must not reach a scan that
+  // is already running, or it would mark txids from history that never landed,
+  // or abandon itself against a profile the UI never adopted.
+  useLayoutEffect(() => {
+    txsRef.current = txs
+    scanProfileRef.current = scanProfile
+  }, [txs, scanProfile])
   const unmountedRef = useRef(false)
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    // Set on setup, not just cleared on teardown: StrictMode runs
+    // setup/cleanup/setup, and a flag only ever set by the cleanup would leave
+    // every scan reading as abandoned for the life of the provider.
+    unmountedRef.current = false
+    return () => {
       unmountedRef.current = true
-    },
-    [],
-  )
+    }
+  }, [])
 
   useEffect(() => {
     if (!aspInfo.url || !aspInfo.signerPubkey || !dataReady || txs.length === 0) return
@@ -206,20 +217,23 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
       // re-merge the activity list so the tx couple collapses into Swap rows
       reloadWallet().catch(consoleError)
     }
-    const run = () => {
-      scanningRef.current = true
-      scan()
-        .catch((err) => consoleError(err, 'swap restore scan failed'))
-        .finally(() => {
-          scanningRef.current = false
-          if (!rescanRef.current || stale()) return
-          rescanRef.current = false
-          run()
-        })
-    }
-    run()
+    scanningRef.current = true
+    scan()
+      .catch((err) => consoleError(err, 'swap restore scan failed'))
+      .finally(() => {
+        scanningRef.current = false
+        if (!rescanRef.current || unmountedRef.current) return
+        rescanRef.current = false
+        // Re-enter through the effect rather than calling the scan again here.
+        // What was queued while this run held the lock may belong to another
+        // wallet entirely — the profile can have changed under it — and this
+        // closure is bound to the one it started with. A fresh effect run reads
+        // the current profile and history, and re-checks the guards above, so a
+        // wallet that went away simply starts nothing.
+        setScanTick((tick) => tick + 1)
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aspInfo.url, aspInfo.signerPubkey, dataReady, txs])
+  }, [aspInfo.url, aspInfo.signerPubkey, dataReady, txs, scanTick])
 
   // read through a ref so the watcher (which deliberately does not rebind on
   // market refreshes) always names assets from the current list
