@@ -231,10 +231,18 @@ export default function WalletSwap() {
   const currentPlan = status === 'success' && planMatchesAssetAmount ? plan : null
   const quoteStale = Boolean(toAsset && Number(assetAmount) > 0 && !currentPlan)
   const planError = currentPlan ? validatePlan(currentPlan, assetBalanceAtomic(fromAsset), aspInfo.dust) : undefined
-  const exceedsBalance = unitsToCents(assetAmount, fromAsset.decimals) > assetBalanceAtomic(fromAsset)
+  const amountAtomic = unitsToCents(assetAmount, fromAsset.decimals)
+  const exceedsBalance = amountAtomic > assetBalanceAtomic(fromAsset)
+  // a partial asset deposit leaves asset change, and that change needs a second
+  // dust carrier; without one the SDK fails with a bare "Insufficient funds"
+  const lacksChangeCarrier =
+    fromAsset.assetId !== BTC_ASSET_ID &&
+    amountAtomic < assetBalanceAtomic(fromAsset) &&
+    availableBalance < 2 * Number(aspInfo.dust)
   const validationMessage = swapValidationMessage({
     amount,
     exceedsBalance,
+    lacksChangeCarrier,
     fromAsset,
     pairAvailable: toAsset ? Boolean(pair?.market) : undefined,
     plan: currentPlan,
@@ -283,7 +291,7 @@ export default function WalletSwap() {
   const balanceValidation = isBalanceLimitValidation(validationMessage) ? validationMessage : ''
 
   const quoteLoading = status === 'loading' || (quoteStale && hasPositiveAmount)
-  const canContinue = Boolean(toAsset && currentPlan && !planError)
+  const canContinue = Boolean(toAsset && currentPlan && !planError && !validationMessage)
 
   const stageTransition = prefersReduced ? { duration: 0 } : { duration: 0.28, ease: EASE_IN_OUT_QUINT_TUPLE }
 
@@ -1408,6 +1416,7 @@ function amountForQuote(amount: string, fromAsset: SwapAsset): string {
 function swapValidationMessage({
   amount,
   exceedsBalance,
+  lacksChangeCarrier,
   fromAsset,
   pairAvailable,
   plan,
@@ -1417,6 +1426,7 @@ function swapValidationMessage({
 }: {
   amount: string
   exceedsBalance: boolean
+  lacksChangeCarrier: boolean
   fromAsset: SwapAsset
   pairAvailable: boolean | undefined
   plan: OfferPlan | null
@@ -1426,6 +1436,9 @@ function swapValidationMessage({
 }): string {
   if (!Number(amount)) return ''
   if (exceedsBalance) return 'Insufficient balance'
+  if (lacksChangeCarrier) {
+    return "You don't have enough bitcoin to do a partial swap. Please swap all or acquire some bitcoin."
+  }
   if (pairAvailable === undefined) return ''
   if (!pairAvailable || solvable === false) return 'Swap unavailable for this pair'
   if (status === 'error') return 'Quote unavailable'
