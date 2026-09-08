@@ -26,7 +26,8 @@ vi.mock('../../lib/asp', async (importOriginal) => ({
 }))
 
 /** `consoleError` persists to localStorage, which this environment has not. */
-vi.mock('../../lib/logs', () => ({ consoleError: vi.fn(), consoleLog: vi.fn() }))
+const consoleError = vi.fn()
+vi.mock('../../lib/logs', () => ({ consoleError: (...args: unknown[]) => consoleError(...args), consoleLog: vi.fn() }))
 
 const RECIPIENT = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
 const INVOICE = fixtures.lib.bolt11.invoice
@@ -244,6 +245,17 @@ describe('previewOnchainCost: what the screen is allowed to show', () => {
     const priced = from(throws, option(WALLET_EXIT_RAIL, { amount: 40_000, fee: 0, total: 40_000 }))
     expect(await previewOnchainCost(priced, RECIPIENT, 40_000)).toEqual({ amount: 40_000, fee: 0, total: 40_000 })
     expect(await previewOnchainCost(from(throws), RECIPIENT, 40_000)).toBeUndefined()
+  })
+
+  it('names the rail it could not price rather than discarding the reason', async () => {
+    const throws = { railId: 'onchain-swap', quote: async () => Promise.reject(new Error('no solver')) }
+    await previewOnchainCost(
+      from(throws, option(WALLET_EXIT_RAIL, { amount: 40_000, fee: 0, total: 40_000 })),
+      RECIPIENT,
+      40_000,
+    )
+
+    expect(consoleError).toHaveBeenCalledWith(expect.any(Error), expect.stringContaining('onchain-swap'))
   })
 })
 
