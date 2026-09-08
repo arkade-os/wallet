@@ -20,6 +20,8 @@ import {
   findMarket,
   getAssetSwaps,
   restoreAssetSwaps,
+  retireSettledOfferContracts,
+  spendUpdate,
   updateAssetSwap,
   watchOfferSwaps,
   type AssetSwap,
@@ -358,6 +360,122 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     return true
   }
 
+  /**
+   * Spends the watcher never received.
+   *
+   * `watchOfferSwaps` learns a spend only from a live subscription event, and
+   * the SDK's other two discovery paths reach it with nothing usable: the boot
+   * sync runs before any subscriber exists (`ContractManager.initialize` awaits
+   * `reconcileWatched()` before `startWatching()`), and the failsafe poll emits
+   * the stale cached rows it diffed against, which carry no spend txid. Either
+   * way the record keeps `pending`, and `assetSwapResolver` indexes only
+   * `fundingTxid` and `spentTxid`, so the fill tx cannot bind to the swap and
+   * one swap renders as two rows: the funding row `ungroupedOfferTx`
+   * synthesizes, plus the fill as a bare received one.
+   *
+   * Nothing else resolves it. The restore scan skips any txid already stored as
+   * a record id, and would not see this one anyway: it takes candidates from
+   * *sent* rows, and an offer's funding tx nets to zero against its own
+   * covenant output.
+   *
+   * Known limitation: a spend the watcher receives while this pass is between
+   * its re-read and its write is announced twice, since both paths toast. The
+   * write is idempotent through `spendUpdate`, so the cost is a duplicate
+   * toast, not a duplicate record.
+   */
+  const reconcileUnseenSpends = async (stale: () => boolean) => {
+    if (!svcWallet) return
+    // `cancelling` too: a restart mid-cancel strands that status the same way
+    const open = (await readSwaps()).filter((swap) => swap.status === 'pending' || swap.status === 'cancelling')
+    if (open.length === 0) return
+
+    const manager = await svcWallet.getContractManager()
+    const contracts = await manager.getContractsWithVtxos({
+      script: [...new Set(open.map((swap) => swap.swapPkScript))],
+    })
+    const spent = contracts.flatMap(({ vtxos }) => vtxos).filter((vtxo) => vtxo.isSpent)
+    // the steady state, and worth a check to skip the history read below
+    if (spent.length === 0) return
+
+    const history = await getTxHistory(svcWallet)
+    const settled = new Set<string>()
+    for (const swap of open) {
+      const deposit = spent.find((v) => v.contractScript === swap.swapPkScript && v.txid === swap.fundingTxid)
+      // the ark txid, which is what the resolver matches a fill on
+      const spentTxid = deposit?.arkTxId || deposit?.spentBy
+      if (!spentTxid) continue
+
+      // `isCancelSpend` answers only when the offer wants an asset, which
+      // arrives on a fill and never on a cancel. Where the want side is BTC a
+      // cancel returns the offered asset and nets to zero, reading exactly like
+      // a fill: that needs the package's leaf classifier, so leave those alone.
+      const offer = decodeOffer(hex.decode(swap.offerHex))
+      if (!offer.wantAsset) continue
+
+      // no row yet means nothing to classify from, and a stored status is
+      // skipped by every later scan, so a guess here would be permanent
+      const spend = history.find((tx) => [tx.boardingTxid, tx.redeemTxid, tx.roundTxid].includes(spentTxid))
+      if (!spend) continue
+
+      // the watcher or a cancel in flight is the authority if it got here first
+      const current = (await readSwaps()).find((candidate) => candidate.id === swap.id)
+      if (!current || (current.status !== 'pending' && current.status !== 'cancelling')) continue
+
+      const cancelled = isCancelSpend(offer, spend)
+      const changes = spendUpdate(current, {
+        txid: spentTxid,
+        kind: cancelled ? 'cancelled' : 'fulfilled',
+        at: spend.createdAt * 1000, // history in seconds, records in milliseconds
+      })
+      if (!changes) continue
+      // every await above outlives a wallet switch, so re-ask on the near side
+      // of each side effect: writing past one would move a record into the
+      // wallet the user just left, or repaint it into the one they arrived at
+      if (stale()) return
+      const updated = await updateAssetSwap(assetSwapRepository, swap.id, changes)
+      if (stale()) return
+      applySwaps(updated)
+      settled.add(swap.swapPkScript)
+      toast.success(
+        cancelled ? 'Swap cancelled, funds returned' : `Swap completed, ${tickerFor(swap.toAsset)} received`,
+      )
+    }
+    if (settled.size === 0 || stale()) return
+    // only the scripts this run resolved: liveness is a property of all records
+    // at a script, so the filter keeps the check sound
+    await retireSettledOfferContracts(
+      manager,
+      swapsRef.current.filter((swap) => settled.has(swap.swapPkScript)),
+    )
+    if (stale()) return
+    reloadWallet().catch(consoleError)
+  }
+
+  /**
+   * Re-run on every history change, not once at start.
+   *
+   * The pass can only classify a spend once the transaction that made it has
+   * reached history, and with the app left open that arrives long after the
+   * watcher started — the fill itself is what puts it there. Running once at
+   * start covers only a spend that predates the session.
+   *
+   * Chained rather than gated by a flag, so a change landing mid-run is
+   * answered instead of dropped, and each queued run carries its own liveness
+   * so a wallet switch abandons it.
+   */
+  const reconcileQueue = useRef<Promise<void>>(Promise.resolve())
+  useEffect(() => {
+    if (!svcWallet || txs.length === 0) return
+    let stopped = false
+    reconcileQueue.current = reconcileQueue.current
+      .then(() => (stopped ? undefined : reconcileUnseenSpends(() => stopped)))
+      .catch((err) => consoleError(err, 'unseen spend reconciliation failed'))
+    return () => {
+      stopped = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [svcWallet, txs])
+
   /** A status the watcher persisted. It writes before it notifies, so the
    * record is durable by the time this runs — all that is left is telling the
    * user and refreshing balances. */
@@ -382,9 +500,10 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   // createOffer is what makes an offer visible to it — and persists each
   // classified spend itself.
   //
-  // Known gap: it subscribes to spends only, so a swept deposit is no longer
-  // noticed live. That status now waits for the next restore scan, which still
-  // produces it. Latency, not loss.
+  // Known gap: it subscribes to spends only, so a swept deposit is not noticed
+  // live, and the restore scan does not resolve it later — that scan skips any
+  // txid already stored as a record id. `reconcileUnseenSpends` covers the
+  // spends it can classify; a sweep is not one of them.
   useEffect(() => {
     if (!svcWallet || !aspInfo.url) return
     let watcher: OfferSwapWatcher | undefined
