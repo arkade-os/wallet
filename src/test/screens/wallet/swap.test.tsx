@@ -394,7 +394,9 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /Bitcoin/i }))
     for (const key of ['1', '0', '0', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
 
-    await waitFor(() => expect(screen.getByText(/partial swap/)).toBeInTheDocument())
+    // the toast lands after four keypad round-trips; the same allowance the
+    // Sonner test above gives it, since a busy runner has missed the default
+    await waitFor(() => expect(screen.getByText(/partial swap/)).toBeInTheDocument(), { timeout: 3_000 })
     expect(screen.getByText(/partial swap/).closest('[data-sonner-toast]')).not.toBeNull()
     expect(primaryAmount().className).toContain('swap-amount-display--invalid')
     expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
