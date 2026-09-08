@@ -64,17 +64,20 @@ import { assetSwapRepository } from './swapRepository'
 export const sealingKey = (): string => hex.encode(secp256k1.getPublicKey(secp256k1.utils.randomSecretKey(), true))
 
 /**
- * A swap action attempted where the client is not the one driving: another tab
- * holds the lock.
+ * A swap action that reached no driver at all.
  *
- * Named rather than generic because the screen has to say something true about
- * it. "Lightning unavailable" is what a missing solver or an out-of-bounds
- * amount means, and neither is the case here — nothing is unavailable, another
- * tab owns it, and closing that tab is the one thing that resolves it.
+ * It used to mean "another tab holds the lock", which was true and useless:
+ * the action can simply be run BY that tab, which is what `swapDriverChannel`
+ * does now. What is left is the case where nobody answered — the holder closed
+ * between the ask and the ack, or no tab has taken the lock yet — and the
+ * distinction the screens still need is that this is not the corridor being
+ * unavailable. The solver is fine, and the next tab to take the lock serves the
+ * same call, so unlike a missing solver or an out-of-bounds amount this one is
+ * worth retrying where it stands.
  */
 export class SwapsHeldElsewhere extends Error {
   constructor() {
-    super('another tab is handling swaps')
+    super('no tab is driving swaps right now')
     this.name = 'SwapsHeldElsewhere'
   }
 }

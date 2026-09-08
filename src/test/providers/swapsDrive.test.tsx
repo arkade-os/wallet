@@ -19,6 +19,7 @@ import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
 const ready = vi.hoisted(() => vi.fn())
 const dispose = vi.hoisted(() => vi.fn())
 const accept = vi.hoisted(() => vi.fn())
+const receive = vi.hoisted(() => vi.fn())
 /** Set by the provider's own `onUpdate`, so a test can push one through. */
 const listeners = vi.hoisted(() => [] as ((update: SwapUpdate) => void)[])
 
@@ -32,7 +33,7 @@ vi.mock('../../lib/swapClient', async (importOriginal) => ({
     accept,
     cancel: vi.fn(),
     quote: vi.fn(),
-    receive: vi.fn(),
+    receive,
     pay: vi.fn(),
     exchange: vi.fn(),
     resolve: vi.fn(),
@@ -73,15 +74,34 @@ const monitored = (outcome: Outcome, over: Partial<Swap> = {}): Swap =>
 
 const update = (swap: Swap): SwapUpdate => ({ swap, outcome: swap.outcome, detail: {} }) as unknown as SwapUpdate
 
+/** The invoice the solver mints, as the client hands it back. */
+const INVOICE = 'lnbc1-hold-invoice'
+
+const minted = () =>
+  ({
+    ...monitored('funded'),
+    artifact: { kind: 'invoice', bolt11: INVOICE },
+    expiresAt: 4_000_000_000,
+  }) as unknown as Swap
+
 function Harness({ tab = 'a' }: { tab?: string }) {
-  const { acceptPay, outcomeOf, errorOf } = useContext(SwapsContext)
+  const { acceptPay, receiveLightning, outcomeOf, errorOf } = useContext(SwapsContext)
   const [rejected, setRejected] = useState('')
+  const [invoice, setInvoice] = useState('')
   return (
     <div data-testid={`tab-${tab}`}>
       <button onClick={() => acceptPay(quote).catch((err: Error) => setRejected(err.name))}>{`Pay ${tab}`}</button>
+      <button
+        onClick={() =>
+          receiveLightning(1000)
+            .then((accepted) => setInvoice(accepted.invoice))
+            .catch((err: Error) => setRejected(err.name))
+        }
+      >{`Receive ${tab}`}</button>
       <span data-testid='status'>{outcomeOf(SWAP_ID) ?? 'none'}</span>
       <span data-testid='error'>{errorOf(SWAP_ID) ?? 'none'}</span>
       <span data-testid='rejected'>{rejected || 'none'}</span>
+      <span data-testid='invoice'>{invoice || 'none'}</span>
     </div>
   )
 }
@@ -183,37 +203,115 @@ beforeEach(() => {
   ready.mockReset().mockResolvedValue(undefined)
   dispose.mockReset().mockResolvedValue(undefined)
   accept.mockReset().mockResolvedValue(monitored('funded'))
+  receive.mockReset().mockResolvedValue(minted())
   withLocks(fakeLocks())
 })
 
 afterEach(() => vi.clearAllMocks())
 
+/** Two providers in one window stand in for two tabs: each opens its own
+ * BroadcastChannel, and a channel never delivers to the instance that posted,
+ * so the two talk to each other exactly as two tabs would. */
+const renderTwoTabs = () =>
+  render(
+    wrap(
+      <>
+        <SwapsProvider>
+          <Harness tab='a' />
+        </SwapsProvider>
+        <SwapsProvider>
+          <Harness tab='b' />
+        </SwapsProvider>
+      </>,
+    ),
+  )
+
 describe('SwapsProvider single-driver rule', () => {
-  it('lets only one tab drive, and tells the other one why', async () => {
-    render(
-      wrap(
-        <>
-          <SwapsProvider>
-            <Harness tab='a' />
-          </SwapsProvider>
-          <SwapsProvider>
-            <Harness tab='b' />
-          </SwapsProvider>
-        </>,
-      ),
-    )
+  it('lets only one tab drive, and runs the other tab’s action on it', async () => {
+    renderTwoTabs()
     await waitFor(() => expect(ready).toHaveBeenCalledTimes(1))
 
     // Two clients over one repository would mean two `pushClaim`s over the same
     // VTXOs: one lands, the other fails as a double-spend, and both write
-    // records that disagree.
+    // records that disagree. One client is still the rule.
     const b = within(screen.getByTestId('tab-b'))
-    await userEvent.click(b.getByText('Pay b'))
-    // Named, not generic: nothing is unavailable, and "the client is not
-    // running" would be false — the other tab is driving perfectly well.
-    await waitFor(() => expect(b.getByTestId('rejected')).toHaveTextContent('SwapsHeldElsewhere'), { timeout: 3000 })
+    await userEvent.click(b.getByText('Receive b'))
+
+    // The tab that asked shows an invoice, not an explanation. Starting a
+    // receive is not the race the lock exists for — a fresh one mints its own
+    // preimage, rfq id and lockup — so there is nothing to refuse, only
+    // somewhere else to run it.
+    await waitFor(() => expect(b.getByTestId('invoice')).toHaveTextContent(INVOICE), { timeout: 3000 })
+    expect(b.getByTestId('rejected')).toHaveTextContent('none')
     expect(ready).toHaveBeenCalledTimes(1)
-    expect(accept).not.toHaveBeenCalled()
+    expect(receive).toHaveBeenCalledTimes(1)
+
+    // The swap's first outcome is the return value, not an `onUpdate`, so
+    // without the driver publishing it the tab that asked would be blind on the
+    // one swap it is most likely to be watching.
+    expect(b.getByTestId('status')).toHaveTextContent('funded')
+  })
+
+  it('tells the tab that asked when no tab is driving at all', async () => {
+    // Granted to nobody: the ask goes out and no client is there to ack it.
+    // The message this produces is the last resort, not the ordinary answer to
+    // a second tab, which is why it can afford to be about availability.
+    withLocks(gatedLocks())
+    renderProvider()
+    await userEvent.click(screen.getByText('Receive a'))
+
+    await waitFor(() => expect(screen.getByTestId('rejected')).toHaveTextContent('SwapsHeldElsewhere'), {
+      timeout: 5000,
+    })
+    expect(receive).not.toHaveBeenCalled()
+  })
+
+  it('promotes the asking tab when the driver goes away mid-request', async () => {
+    // Mounted separately so the holder can be closed on its own, which is the
+    // situation being reproduced — one tab of two going away.
+    const tabA = render(
+      wrap(
+        <SwapsProvider>
+          <Harness tab='a' />
+        </SwapsProvider>,
+      ),
+    )
+    render(
+      wrap(
+        <SwapsProvider>
+          <Harness tab='b' />
+        </SwapsProvider>,
+      ),
+    )
+    await waitFor(() => expect(ready).toHaveBeenCalledTimes(1))
+
+    // The holder takes the request and never answers it. Waiting on a tab that
+    // is gone would be the obvious bug here.
+    receive.mockImplementationOnce(() => new Promise(() => {}))
+    const b = within(screen.getByTestId('tab-b'))
+    await userEvent.click(b.getByText('Receive b'))
+    await waitFor(() => expect(receive).toHaveBeenCalledTimes(1))
+
+    // Closing it grants the lock request this tab has been holding all along,
+    // so the ask stops being the way to get this done and the action re-runs
+    // here — on this tab's own client, against the same repository.
+    tabA.unmount()
+    await waitFor(() => expect(b.getByTestId('invoice')).toHaveTextContent(INVOICE), { timeout: 3000 })
+    expect(b.getByTestId('rejected')).toHaveTextContent('none')
+    expect(ready).toHaveBeenCalledTimes(2)
+    expect(receive).toHaveBeenCalledTimes(2)
+  })
+
+  it('carries an outcome the driver saw to the tab that is not driving', async () => {
+    renderTwoTabs()
+    await waitFor(() => expect(listeners).toHaveLength(1))
+
+    // `outcomes` and `errors` are per-tab in-memory maps fed by the client, and
+    // only one tab has a client. A follower that could start a receive but
+    // never hear it was lost would be a worse place to be paid than a refusal.
+    listeners[0](update(monitored('lapsed')))
+    const b = within(screen.getByTestId('tab-b'))
+    await waitFor(() => expect(b.getByTestId('status')).toHaveTextContent('lapsed'))
   })
 
   it('waits out its own pending request rather than blaming a tab that is not there', async () => {

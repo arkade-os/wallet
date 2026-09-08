@@ -14,7 +14,6 @@ import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
 import { LimitsContext } from '../../../providers/limits'
 import { Asset, Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
-import { LockupRegistrationFailed } from '@arkade-os/swap'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
 import { unitsToCents } from '../../../lib/assets'
@@ -104,11 +103,11 @@ export default function ReceiveQRCode() {
   // A negotiation that failed at the local registration step left nothing
   // payable behind, so the offer of a retry is honest — see the catch below.
   const [lnRetryable, setLnRetryable] = useState(false)
-  // Told apart from every other failure because it is not one: another tab of
-  // this wallet holds the receive manager's lock and is driving these swaps
-  // perfectly well. "Lightning unavailable" would be false, and a retry button
-  // would do nothing until that tab closes.
-  const [lnHeldElsewhere, setLnHeldElsewhere] = useState(false)
+  // No tab answered as the swap driver. Not the same as "Lightning is
+  // unavailable" — the solver and the corridor are fine — and unlike the other
+  // failures here it is worth retrying on the spot, because the tab that takes
+  // the lock next will serve it.
+  const [lnNoDriver, setLnNoDriver] = useState(false)
   const [negotiateAttempt, setNegotiateAttempt] = useState(0)
 
   // Fetch addresses on mount
@@ -164,7 +163,7 @@ export default function ReceiveQRCode() {
     // does nothing at all.
     setLnReceiveError('')
     setLnRetryable(false)
-    setLnHeldElsewhere(false)
+    setLnNoDriver(false)
     if (!svcWallet || isAssetReceive || satoshis <= 0) return
     if (recvInfo.pendingLnReceive?.payAmount && recvInfo.invoice) return
 
@@ -188,13 +187,21 @@ export default function ReceiveQRCode() {
       if (abandoned) return
       const error = extractError(err)
       consoleError(error, 'error negotiating lightning receive')
-      setLnHeldElsewhere(err instanceof SwapsHeldElsewhere)
+      const noDriver = err instanceof SwapsHeldElsewhere
+      setLnNoDriver(noDriver)
       setLnReceiveError(error)
-      // The one failure here that is not "Lightning is unavailable": the quote
-      // was fine and our own contract store refused the write. No invoice came
-      // back, so the abandoned quote is inert and cannot be resumed — calling
-      // again is the fix, and it derives a fresh preimage and rfq id.
-      setLnRetryable(err instanceof LockupRegistrationFailed)
+      // The failures here that are not "Lightning is unavailable". The first:
+      // the quote was fine and our own contract store refused the write. No
+      // invoice came back, so the abandoned quote is inert and cannot be
+      // resumed — calling again is the fix, and it derives a fresh preimage and
+      // rfq id. The second: no tab was driving, and the next one to take the
+      // lock will serve the same call.
+      //
+      // By name rather than by `instanceof`, because a negotiation run on
+      // another tab reaches us over `swapDriverChannel`, where the class cannot
+      // cross: the rebuilt error carries the name the SDK's own constructor
+      // sets, and this is the check that reads it in both cases.
+      setLnRetryable(noDriver || (err as Error)?.name === 'LockupRegistrationFailed')
     })
     // The amount changed under an in-flight negotiation, so its invoice would
     // be for the wrong number. Nothing to cancel on the solver — an unpaid hold
@@ -419,8 +426,8 @@ export default function ReceiveQRCode() {
               {lnReceiveError ? (
                 <FlexCol gap='0.25rem' centered>
                   <TextSecondary>
-                    {lnHeldElsewhere
-                      ? 'Another tab is handling Lightning receives — close it to receive here'
+                    {lnNoDriver
+                      ? 'Lightning receive is temporarily unavailable'
                       : `Lightning unavailable: ${lnReceiveError}`}
                   </TextSecondary>
                   {lnRetryable ? (

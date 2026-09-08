@@ -100,15 +100,32 @@ const renderWithTrack = (satoshis = 10_000) => render(tree(satoshis))
 beforeEach(() => receiveLightning.mockReset())
 
 describe('Receive screen, Lightning failures', () => {
-  it('names the other tab when the swap client is held elsewhere', async () => {
+  it('offers a retry, not a chore, when no tab is driving', async () => {
     receiveLightning.mockRejectedValue(new SwapsHeldElsewhere())
     renderWithTrack()
 
-    // The one thing that resolves it, said out loud. A retry button would be
-    // worse than useless here — it cannot take the lock.
-    expect(await screen.findByText(/Another tab is handling Lightning receives/)).toBeInTheDocument()
+    // This used to name the other tab and tell the user to close it. It no
+    // longer can: another tab holding the client is not a failure at all —
+    // the receive is negotiated ON that tab and comes back here. What is left
+    // is nobody driving, which is temporary and worth a retry, and says nothing
+    // about tabs because the user has nothing to do with tabs.
+    expect(await screen.findByText(/Lightning receive is temporarily unavailable/)).toBeInTheDocument()
     expect(screen.queryByText(/Lightning unavailable/)).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/tab/i)).not.toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  })
+
+  it('retries a receive by name when the failure crossed from another tab', async () => {
+    // `LockupRegistrationFailed` raised on the driving tab reaches this one
+    // rebuilt from its name and message: the class cannot cross a structured
+    // clone, so an `instanceof` check here would silently stop offering the
+    // retry the moment the negotiation moved to another tab.
+    const crossed = new Error('store refused')
+    crossed.name = 'LockupRegistrationFailed'
+    receiveLightning.mockRejectedValue(crossed)
+    renderWithTrack()
+
+    expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument()
   })
 
   it('clears the message when the amount goes away, rather than stranding a dead retry', async () => {
@@ -127,15 +144,16 @@ describe('Receive screen, Lightning failures', () => {
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
   })
 
-  it('clears the other-tab message when the amount goes away', async () => {
+  it('clears the no-driver message when the amount goes away', async () => {
     receiveLightning.mockRejectedValue(new SwapsHeldElsewhere())
     const { rerender } = renderWithTrack()
-    expect(await screen.findByText(/Another tab is handling Lightning receives/)).toBeInTheDocument()
+    expect(await screen.findByText(/Lightning receive is temporarily unavailable/)).toBeInTheDocument()
 
-    // Same dead zone, no button to make it obvious — just copy about a lock
-    // this screen is no longer trying to take.
+    // Same dead zone: a message about a negotiation this screen is no longer
+    // attempting, offering a retry that reruns the effect back into its guard.
     rerender(tree(0))
-    await waitFor(() => expect(screen.queryByText(/Another tab/)).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByText(/temporarily unavailable/)).not.toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
   })
 
   it('still says unavailable for every other failure', async () => {
@@ -144,6 +162,7 @@ describe('Receive screen, Lightning failures', () => {
 
     // The pre-existing branch, asserted so the new one cannot swallow it.
     expect(await screen.findByText(/Lightning unavailable: No Lightning solver available/)).toBeInTheDocument()
-    expect(screen.queryByText(/Another tab/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/temporarily unavailable/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
   })
 })

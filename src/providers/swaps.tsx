@@ -15,13 +15,19 @@
  * and the two things the client does not own: the chain restore scan for offer
  * records, and the quote snapshot the activity list renders.
  *
- * **One tab drives.** The receive leg was already single-tab — two tabs
- * restoring the same records would race `pushClaim` over one lockup, one landing
- * and one failing as a double-spend — and the client claims on behalf of every
- * corridor, so the Web Lock covers the whole client. A tab without the lock
- * still reads: markets come from the registry and swap rows from the repository,
- * neither of which is the client's. What it cannot do is act, and
- * `SwapsHeldElsewhere` is what it says so with.
+ * **One tab drives; every tab acts.** Two clients over one repository would
+ * race `pushClaim` over the same lockup, and while that particular race heals
+ * itself on the next pass — the loser reads the winner's preimage out of the
+ * spending witness and settles — the record writes around it do not: state and
+ * failure are rewritten from whichever tab wrote last, with no version to
+ * compare, and the service worker's contract repository is shared. The client
+ * claims on behalf of every corridor, so the Web Lock covers the whole client.
+ *
+ * None of which is a reason to refuse the other tab. Starting a swap is not a
+ * race at all — a fresh receive mints its own preimage, rfq id and lockup — so
+ * a follower posts the action to the holder over `swapDriverChannel` and the
+ * holder runs it against the one live client. `SwapsHeldElsewhere` survives as
+ * the last resort, for when no tab answers as the driver at all.
  *
  * It runs page-side rather than in the service worker on the precedent
  * `watchOfferSwaps` set: the worker hosts `MessageBus` and the wallet reaches
@@ -47,6 +53,14 @@ import { WalletContext } from './wallet'
 import { discoverMarkets } from '../lib/swapMarkets'
 import { toInvoiceFacts } from '../lib/lnSwap'
 import { makeSwapClient, SwapsHeldElsewhere } from '../lib/swapClient'
+import {
+  DriverPromoted,
+  DriverUnavailable,
+  openDriverChannel,
+  type DriverChannel,
+  type DriverOp,
+  type DriverUpdate,
+} from '../lib/swapDriverChannel'
 import { saveQuoteSnapshot, type AssetSwapQuoteSnapshot, type WalletAssetSwap } from '../lib/swapRepository'
 import { displayAssetOf, offerSwaps } from '../lib/swapRecords'
 import { getEmulatorPubkeyForNetwork } from '../lib/constants'
@@ -169,6 +183,28 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   // the grant rather than mistake it for a lock held elsewhere.
   const granted = useRef<Promise<void>>()
 
+  // One channel per provider, not per module: a BroadcastChannel never delivers
+  // to the instance that posted, so two providers standing in for two tabs need
+  // two of them. Lazily built, and closed with the provider.
+  const channelRef = useRef<DriverChannel>()
+  const channel = (channelRef.current ??= openDriverChannel())
+  useEffect(() => () => channel.close(), [channel])
+
+  /**
+   * Quotes this tab has issued, for the accept that follows.
+   *
+   * `client.accept` resolves the quote's *preparation* from an in-memory map
+   * the client fills during `quote()`, so a quote that crossed the channel
+   * carries a valid id and nothing the accept can use. The holder therefore
+   * accepts its OWN quote object and a follower sends only the id — which also
+   * keeps the one path that spends money clear of any question about what
+   * survives a structured clone.
+   *
+   * Pruned on the quote's own deadline: an expired quote cannot be accepted, so
+   * holding it would only grow the map.
+   */
+  const issued = useRef(new Map<string, Quote>())
+
   /** Re-read the client's records. Cheap, and the only way a record written
    * outside a React update reaches the list. */
   const refreshSwaps = useCallback(async () => {
@@ -273,6 +309,48 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     reloadRef.current().catch(consoleError)
   }
 
+  /**
+   * Announce a swap this tab just drove, and tell the other tabs about it.
+   *
+   * The three actions that create or move a swap learn its first outcome from
+   * their own return value rather than from `onUpdate`, so without this the
+   * tab that ASKED for the swap would see nothing until the client's next
+   * update — on the one swap it is most likely to be watching. Only the driver
+   * reaches these, which is what makes publishing from here safe: a follower
+   * applies what it receives and never re-posts it.
+   */
+  const announceHere = (swap: Swap) => {
+    announce(swap)
+    channel.publish({ swap, outcome: swap.outcome })
+  }
+
+  /**
+   * What one update does to this tab, wherever it came from.
+   *
+   * The holder learns these from its client and every other tab from the
+   * channel, and both have the same work to do: `outcomes` and `errors` are
+   * per-tab in-memory maps, and they are what the receive screen renders a lost
+   * payment and a failing claim from. A follower that could start a receive but
+   * never hear how it ended would be a worse place to be paid than the one this
+   * replaces.
+   *
+   * Every tab announces, deliberately. The tab that started a receive is
+   * usually not the tab holding the lock, and it is the one being looked at.
+   */
+  const applyUpdate = ({ swap, outcome }: DriverUpdate) => {
+    announce(swap)
+    if (outcome !== 'needs_recovery' && outcome !== 'failed') return
+    const reason = swap.failure ?? swap.blockedReason
+    if (reason) setErrors((prev) => new Map(prev).set(swap.id, reason))
+  }
+
+  // Read through a ref for the same reason the reload is: the subscription is
+  // made once and must reach the current maps and market list.
+  const applyRef = useRef(applyUpdate)
+  applyRef.current = applyUpdate
+
+  useEffect(() => channel.subscribe((update) => applyRef.current(update)), [channel])
+
   // ------------------------------------------------------------ the client
 
   useEffect(() => {
@@ -291,6 +369,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     granted.current = new Promise<void>((resolve) => {
       grant = resolve
     })
+    let stopServing = () => {}
     const controller = new AbortController()
 
     const drive = async () => {
@@ -298,12 +377,11 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
       const started = (async () => {
         const client = makeSwapClient(svcWallet, network)
-        client.onUpdate((update) => {
-          announce(update.swap)
-          if (update.outcome === 'needs_recovery' || update.outcome === 'failed') {
-            const reason = update.swap.failure ?? update.swap.blockedReason
-            if (reason) setErrors((prev) => new Map(prev).set(update.swap.id, reason))
-          }
+        client.onUpdate(({ swap, outcome }) => {
+          applyRef.current({ swap, outcome })
+          // Only the holder has a client, so this is the only place the other
+          // tabs can learn an outcome from.
+          channel.publish({ swap, outcome })
         })
         // `drive: "auto"`: construction restores and arms only when the read
         // finds live swaps. `ready` is that read, and it rejects only when the
@@ -317,6 +395,13 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       held.current = started
       grant()
       started.catch((err) => consoleError(extractError(err), 'error starting the swap client'))
+
+      // Serving starts HERE, before `client.ready` has resolved, and that is
+      // the point: the ack a follower waits on is what tells it a driver
+      // exists, and it must not be gated on how long this tab takes to restore
+      // its records. The action itself still awaits the client through
+      // `driving()`, so an early request waits rather than races.
+      stopServing = channel.serve((op, args) => serveRef.current(op, args))
 
       await holding
       // Terminal cleanup: drops timers, streams, listeners and loop state while
@@ -344,6 +429,13 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       stopped = true
       held.current = undefined
       granted.current = undefined
+      // Stop answering BEFORE the lock is released, so the window where this
+      // tab has given up the client but would still ack for a new request does
+      // not exist. An answer already in flight is not cancelled — it was acked,
+      // and the asker is waiting on it — so it finishes and reports, which for
+      // an action that had not reached the client yet is the honest "not
+      // running". Whichever lands first, the asker's own grant is racing it.
+      stopServing()
       controller.abort()
       release()
     }
@@ -351,26 +443,89 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   }, [dataReady, svcWallet, aspInfo.url, aspInfo.network])
 
   /**
-   * The client, if this tab is the one driving.
+   * The client, for the tab that holds it.
    *
-   * Two different answers when it is not, and the screens say different things
-   * about them. Nothing is unavailable when another tab holds the lock — it is
-   * driving these swaps perfectly well, just not here.
+   * Only ever reached from `runHere`, which has already established that this
+   * tab is the driver, so the throws below are guards rather than paths the UI
+   * takes: `runOnDriver` is where "another tab has it" is answered, and it
+   * answers by delegating rather than by failing.
    */
   const driving = useCallback(async (): Promise<SwapClient> => {
-    let pending = held.current
-    if (!pending && granted.current) {
-      // Waited out rather than answered on the spot: a request of ours that is
-      // merely young is indistinguishable from one queued behind another tab.
-      await Promise.race([granted.current, new Promise((resolve) => setTimeout(resolve, LOCK_GRACE_MS))])
-      pending = held.current
-    }
-    if (!pending) {
-      if (granted.current) throw new SwapsHeldElsewhere()
-      throw new Error('the swap client is not running')
-    }
+    const pending = held.current
+    if (!pending) throw new Error('the swap client is not running')
     return pending
   }, [])
+
+  // ------------------------------------------------------- who runs an action
+
+  /**
+   * Run an action on whichever tab holds the client.
+   *
+   * The three answers, in the order they are told apart:
+   *
+   * 1. **We hold it** — run here, exactly as before, no channel involved. The
+   *    grace wait is what makes this the answer for the common case: a request
+   *    of ours that is merely young is indistinguishable from one queued behind
+   *    another tab, and a remount queues behind this same tab's previous client
+   *    while it stops.
+   * 2. **Nobody can hold it** — no Web Locks, so every tab drives its own
+   *    client and there is no holder to ask.
+   * 3. **Another tab holds it** — post the action and wait. Racing the ask
+   *    against our own grant is what covers the holder closing mid-request:
+   *    the queued lock request we already have is granted, this tab becomes the
+   *    driver, and the action re-runs here rather than waiting on a tab that is
+   *    gone.
+   *
+   * `here` exists for the one action whose local and remote forms differ: an
+   * accept passes the quote object when it runs here and only its id when it
+   * does not. Everything else runs from `args` either way.
+   */
+  const runOnDriver = async <T,>(op: DriverOp, args: unknown[], here?: () => Promise<T>): Promise<T> => {
+    const locally = () => (here ? here() : (runHere(op, args) as Promise<T>))
+    if (!navigator.locks) return locally()
+    if (!held.current && granted.current) {
+      await Promise.race([granted.current, new Promise((resolve) => setTimeout(resolve, LOCK_GRACE_MS))])
+    }
+    if (held.current) return locally()
+    if (!granted.current) throw new Error('the swap client is not running')
+    try {
+      return await channel.ask<T>(op, args, granted.current)
+    } catch (err) {
+      if (err instanceof DriverPromoted) return locally()
+      // The one case left: no tab answered at all. Nothing is driving these
+      // swaps, which is the only thing `SwapsHeldElsewhere` still means.
+      if (err instanceof DriverUnavailable) throw new SwapsHeldElsewhere()
+      throw err
+    }
+  }
+
+  /** The other side of the same seam: what the holder does with a request,
+   * whether it came from this tab or over the channel. */
+  const runHere = (op: DriverOp, args: unknown[]): Promise<unknown> => {
+    switch (op) {
+      case 'exchange':
+        return exchangeHere(args[0] as OfferPlan, args[1] as AssetSwapQuoteSnapshot | undefined)
+      case 'cancelSwap':
+        return cancelSwapHere(args[0] as string)
+      case 'quotePay':
+        return quotePayHere(args[0] as string)
+      case 'acceptPay':
+        return acceptPayHere(args[0] as string)
+      case 'receiveLightning':
+        return receiveLightningHere(args[0] as number)
+      default:
+        // Unreachable from our own code, and the point is that it stays that
+        // way for a message off the channel too: same origin is not the same
+        // build, so a tab running an older bundle can name an op this one has
+        // never heard of. Refusing says so instead of resolving with nothing.
+        return Promise.reject(new Error(`unknown swap action: ${String(op)}`))
+    }
+  }
+
+  // The serving handler is installed once, inside the lock, and must reach the
+  // current actions rather than the ones the first render closed over.
+  const serveRef = useRef(runHere)
+  serveRef.current = runHere
 
   // ----------------------------------------------------------- asset swaps
 
@@ -380,11 +535,12 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       ? btcOn('arkade', network)
       : arkadeAsset(network, asset.AssetId.fromString(discoveryId))
 
-  const exchange = async (
-    _market: DiscoveredMarket,
-    plan: OfferPlan,
-    quote?: AssetSwapQuoteSnapshot,
-  ): Promise<Swap> => {
+  /** The market is the client's to select, so only the plan and the snapshot
+   * need to reach the tab that will fund this. */
+  const exchange = (_market: DiscoveredMarket, plan: OfferPlan, quote?: AssetSwapQuoteSnapshot): Promise<Swap> =>
+    runOnDriver('exchange', [plan, quote])
+
+  const exchangeHere = async (plan: OfferPlan, quote?: AssetSwapQuoteSnapshot): Promise<Swap> => {
     if (!emulatorPubkey) throw new Error('swap service unavailable')
     const network = aspInfo.network as NetworkName
     const client = await driving()
@@ -415,7 +571,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         consoleError(err, 'failed to store the swap quote snapshot')
       }
     }
-    announce(swap)
+    announceHere(swap)
     await refreshSwaps()
     reloadRef.current().catch(consoleError)
     return swap
@@ -434,7 +590,9 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     else toast.error('The deposit moved and could not be classified — recovery is needed')
   }
 
-  const cancelSwap = async (id: string): Promise<void> => {
+  const cancelSwap = (id: string): Promise<void> => runOnDriver('cancelSwap', [id])
+
+  const cancelSwapHere = async (id: string): Promise<void> => {
     const client = await driving()
     const { outcome } = await client.cancel(id as AssetSwapId)
     await refreshSwaps()
@@ -443,6 +601,16 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   }
 
   // ------------------------------------------------------------- payments
+
+  /** Keep a quote for the accept that follows it, and drop the ones that can
+   * no longer be accepted at all. */
+  const remember = (quote: Quote) => {
+    const now = Math.floor(Date.now() / 1000)
+    for (const [id, kept] of issued.current) {
+      if (kept.expiresAt <= now) issued.current.delete(id)
+    }
+    issued.current.set(quote.id, quote)
+  }
 
   /**
    * The card's own bounds, checked before a quote is burned.
@@ -469,7 +637,21 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
-  const quotePay = async (destination: string): Promise<Quote> => {
+  /**
+   * The bounds run on THIS tab, before the hop.
+   *
+   * Discovery is deliberately outside the lock, so every tab has the cards and
+   * can produce the one message a user can act on without a round trip. The
+   * holder's own pre-flight still runs; this just refuses the obvious locally.
+   */
+  const quotePay = (destination: string): Promise<Quote> => {
+    if (destination.toLowerCase().startsWith('ln')) {
+      assertWithinBounds(toInvoiceFacts(destination, aspInfo.network as NetworkName).amountSats, 'quote')
+    }
+    return runOnDriver('quotePay', [destination])
+  }
+
+  const quotePayHere = async (destination: string): Promise<Quote> => {
     const client = await driving()
     // No corridor to pick, no market to find: `to` is parsed once at the client
     // boundary and the corridor pair it yields selects the route. The wallet's
@@ -479,18 +661,42 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     if (destination.toLowerCase().startsWith('ln')) {
       assertWithinBounds(toInvoiceFacts(destination, aspInfo.network as NetworkName).amountSats, 'quote')
     }
-    return client.quote({ to: destination })
+    const quote = await client.quote({ to: destination })
+    remember(quote)
+    return quote
   }
 
-  const acceptPay = async (quote: Quote): Promise<string> => {
+  /**
+   * The quote itself when we run it, its id when another tab does.
+   *
+   * Only the id can cross the channel usefully. `client.accept` resolves the
+   * quote's *preparation* from a map its own `quote()` filled, so a copy of the
+   * quote carries a valid id and nothing the accept can use — the holder has to
+   * reach for the object it issued. Running here needs none of that, and passes
+   * the quote straight through as it always did.
+   */
+  const acceptPay = (quote: Quote): Promise<string> => runOnDriver('acceptPay', [quote.id], () => acceptPayHere(quote))
+
+  const acceptPayHere = async (ref: Quote | string): Promise<string> => {
     const client = await driving()
+    const quote = typeof ref === 'string' ? issued.current.get(ref) : ref
+    // An id with no quote behind it: the tab that negotiated this one closed
+    // and we were promoted into its place. Nothing is recoverable from the id
+    // alone — the preparation went with that tab — and re-quoting silently
+    // would fund a price nobody confirmed.
+    if (!quote) throw new Error('This quote is no longer available — go back and try again')
     const swap = await client.accept(quote)
-    announce(swap)
+    announceHere(swap)
     if (!swap.fundingTxid) throw new Error('the lockup was not funded')
     return swap.fundingTxid
   }
 
-  const receiveLightning = async (amountSats: number): Promise<AcceptedLnReceive> => {
+  const receiveLightning = (amountSats: number): Promise<AcceptedLnReceive> => {
+    assertWithinBounds(amountSats, 'base')
+    return runOnDriver('receiveLightning', [amountSats])
+  }
+
+  const receiveLightningHere = async (amountSats: number): Promise<AcceptedLnReceive> => {
     const client = await driving()
     assertWithinBounds(amountSats, 'base')
     // `receive` pins the TAKE leg: the trader is credited `amount` and the
@@ -498,7 +704,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     // Driving starts before the invoice comes back, so the monitored set is
     // always a superset of what is payable.
     const request = await client.receive({ amount: BigInt(amountSats), via: 'lightning' })
-    announce(request)
+    announceHere(request)
     if (request.artifact.kind !== 'invoice') throw new Error('the receive produced no invoice')
     return {
       id: request.id,
