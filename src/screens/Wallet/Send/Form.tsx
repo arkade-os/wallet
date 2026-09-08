@@ -121,6 +121,9 @@ function AssetIcon({ asset }: { asset: AssetOption | null }) {
   )
 }
 
+const PARTIAL_SEND_ERROR =
+  "You don't have enough bitcoin to do a partial send. Please send all or acquire some bitcoin."
+
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
   const { config, effectiveTheme, useFiat } = useContext(ConfigContext)
@@ -864,10 +867,20 @@ export default function SendForm() {
 
   const assetAmt = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
 
+  // a partial asset send leaves asset change, and that change needs a second
+  // dust carrier; without one the SDK fails with a bare "Insufficient funds".
+  // Derived, not stored: the server-status effect owns `error` and would
+  // clear this on recovery.
+  const carrierError =
+    activeAsset && assetAmt > BigInt(0) && assetAmt < activeAsset.balance && availableBalance < 2 * DUST_AMOUNT
+      ? PARTIAL_SEND_ERROR
+      : ''
+
   const buttonDisabled = isAssetSend
     ? !(arkAddress && assetAmt > 0) ||
       (activeAsset ? assetAmt > activeAsset.balance : true) ||
       Boolean(recipientError) ||
+      Boolean(carrierError) ||
       aspInfo.unreachable ||
       Boolean(error) ||
       processing
@@ -974,7 +987,7 @@ export default function SendForm() {
         <Content>
           <Padded>
             <FlexCol gap='1.25rem' className='send-form-stack'>
-              <ErrorMessage error={Boolean(error)} text={error} />
+              <ErrorMessage error={Boolean(error || carrierError)} text={error || carrierError} />
               <InputAddress
                 error={recipientError}
                 focus={focus === 'recipient'}
