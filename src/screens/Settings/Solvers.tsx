@@ -11,7 +11,6 @@ import FlexCol from '@/components/FlexCol'
 import ErrorMessage from '@/components/Error'
 import Shadow from '@/components/Shadow'
 import Modal from '@/components/Modal'
-import { AssetSwapsContext } from '@/providers/assetSwaps'
 import { consoleError } from '@/lib/logs'
 import { BackupContext } from '@/providers/backup'
 import { BUNDLED_CARDS } from '@/lib/swapMarkets'
@@ -226,20 +225,19 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
 
 export default function Solvers() {
   const { aspInfo } = useContext(AspContext)
-  const { runDiscovery } = useContext(AssetSwapsContext)
   const { backupSolverCards } = useContext(BackupContext)
 
   const [localCards, setLocalCards] = useState<LocalCardInput[]>()
   const [showEditor, setShowEditor] = useState(false)
-  const [reload, setReload] = useState(false)
 
-  // if something changed, run discovery when the component unmounts
+  // Discovery re-runs off `SOLVER_CARDS_CHANGED` the moment a card is written,
+  // so this only owes the backup. Doing it on unmount keeps one Nostr write per
+  // visit rather than one per edit.
   useEffect(() => {
     return () => {
-      if (reload) runDiscovery(false)
       if (localCards) backupSolverCards(localCards).catch((err) => consoleError(err, 'failed to backup solver cards'))
     }
-  }, [localCards, reload, runDiscovery])
+  }, [localCards])
 
   // fetch local cards whenever the network changes
   useEffect(() => {
@@ -249,7 +247,6 @@ export default function Solvers() {
 
   const handleChange = () => {
     setLocalCards(getCardsForNetwork(aspInfo.network as Network))
-    setReload(true)
   }
 
   const bundledCards = BUNDLED_CARDS.filter((c) => (c.network ?? 'bitcoin') === aspInfo.network)

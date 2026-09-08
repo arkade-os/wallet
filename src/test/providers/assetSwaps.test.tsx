@@ -1,6 +1,6 @@
 import { useContext } from 'react'
 import userEvent from '@testing-library/user-event'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { planOffer, type OfferPlan } from '@arkade-os/solver-discovery'
 import { addAssetSwap, getAssetSwaps, updateAssetSwap } from '@arkade-os/swap'
@@ -9,11 +9,13 @@ import { AssetSwapsContext, AssetSwapsProvider } from '../../providers/assetSwap
 import { WalletContext } from '../../providers/wallet'
 import { assetSwapRepository as repository, type WalletAssetSwap } from '../../lib/swapRepository'
 import { btcUsdt, maratNapo, MARAT_ID, NAPO_ID, USDT_ID } from '../lib/swapFixtures'
+import { saveSolverCardsToStorage } from '../../lib/storage'
 import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
 
 const cancelOffer = vi.hoisted(() => vi.fn())
 const createOffer = vi.hoisted(() => vi.fn())
 const getVtxos = vi.hoisted(() => vi.fn())
+const discoverMarkets = vi.hoisted(() => vi.fn(async () => []))
 const restoreAssetSwaps = vi.hoisted(() => vi.fn())
 const watchOfferSwaps = vi.hoisted(() => vi.fn())
 
@@ -42,7 +44,7 @@ vi.mock('../../lib/swapRepository', async () => {
 // keep the discovery effect off the network; these tests hand plans in directly
 vi.mock('../../lib/swapMarkets', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/swapMarkets')>()),
-  discoverMarkets: async () => [],
+  discoverMarkets,
 }))
 
 const pendingSwap: WalletAssetSwap = {
@@ -117,6 +119,7 @@ function renderCreateProvider(plan: OfferPlan) {
 }
 
 beforeEach(() => {
+  discoverMarkets.mockClear()
   watchOfferSwaps.mockReset().mockResolvedValue({ stop: () => {}, idle: async () => {} })
 })
 
@@ -379,5 +382,47 @@ describe('AssetSwapsProvider restore scan', () => {
     await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(2))
     // and it sees the newer history, not the list its effect closed over
     expect(restoreAssetSwaps.mock.calls[1][1]).toHaveLength(2)
+  })
+})
+
+describe('AssetSwapsProvider solver cards', () => {
+  function Bare() {
+    return null
+  }
+
+  const renderOnNetwork = () =>
+    render(
+      <AspContext.Provider
+        value={
+          { ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet', url: '' } } as any
+        }
+      >
+        <WalletContext.Provider
+          value={
+            { ...mockWalletContextValue, reloadWallet: vi.fn().mockResolvedValue(undefined), svcWallet: null } as any
+          }
+        >
+          <AssetSwapsProvider>
+            <Bare />
+          </AssetSwapsProvider>
+        </WalletContext.Provider>
+      </AspContext.Provider>,
+    )
+
+  it('re-runs discovery when the stored solver cards change', async () => {
+    // A pinned card is a market source, and the Nostr restore writes one
+    // straight to localStorage — well after the per-network discovery has run,
+    // and where no React state can see it. Without this the swap screen read
+    // "coming soon" with the restored card sitting visible in Settings, until
+    // the app was reloaded.
+    renderOnNetwork()
+    await waitFor(() => expect(discoverMarkets).toHaveBeenCalledTimes(1))
+
+    act(() => saveSolverCardsToStorage([]))
+
+    await waitFor(() => expect(discoverMarkets).toHaveBeenCalledTimes(2))
+    // cache bypassed: the TTL cache holds the registry's answer, which is
+    // exactly what a newly stored card changes
+    expect(discoverMarkets.mock.calls[1][1]).toBe(false)
   })
 })

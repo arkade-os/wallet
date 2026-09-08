@@ -23,6 +23,7 @@ import { assetSwapRepository, type AssetSwapQuoteSnapshot, type WalletAssetSwap 
 import { isCancelSpend } from '../lib/swapSpend'
 import { getTxHistory } from '../lib/asp'
 import { getEmulatorPubkeyForNetwork, getEmulatorPubkeyHexForNetwork } from '../lib/constants'
+import { SOLVER_CARDS_CHANGED } from '../lib/storage'
 import { consoleError } from '../lib/logs'
 import { toast } from '../components/Toast'
 
@@ -118,6 +119,19 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     setEmulatorPubkey(undefined)
     setMarkets([])
     runDiscovery()
+  }, [aspInfo.network])
+
+  // A pinned solver card is a market source, and it lands in localStorage where
+  // no React state can see it. Discovery otherwise runs once per network, so a
+  // card written after that run — the Nostr backup restoring one, which happens
+  // well after the network resolves — left the swap screen reading "coming
+  // soon" until the app was reloaded. Cache-bypassing on purpose: the TTL cache
+  // holds the registry's answer, which is exactly what the new card changes.
+  useEffect(() => {
+    const rediscover = () => runDiscovery(false)
+    window.addEventListener(SOLVER_CARDS_CHANGED, rediscover)
+    return () => window.removeEventListener(SOLVER_CARDS_CHANGED, rediscover)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aspInfo.network])
 
   // After a restore the swap store is empty while the funding/fill txs are

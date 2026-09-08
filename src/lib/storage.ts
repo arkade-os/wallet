@@ -122,9 +122,19 @@ export const readAssetMetadataFromStorage = (): Map<string, CachedAssetDetails> 
   })
 }
 
+/**
+ * Fired after the stored solver cards change, so anything derived from them can
+ * re-derive. The browser's own `storage` event only reaches OTHER tabs, and
+ * every writer here — the Solvers screen and the Nostr restore — is in this one.
+ */
+export const SOLVER_CARDS_CHANGED = 'arkade:solver-cards-changed'
+
 export const saveSolverCardsToStorage = (cards: LocalCardInput[]): void => {
   const data = Array.isArray(cards) ? cards.filter(isLocalCardInput) : []
   setStorageItem('solverCards', JSON.stringify(data))
+  // Unconditional: dropping the last card changes the market set as surely as
+  // adding one does.
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(SOLVER_CARDS_CHANGED))
 }
 
 export const readSolverCardsFromStorage = (): LocalCardInput[] => {
