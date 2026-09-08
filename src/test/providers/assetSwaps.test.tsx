@@ -309,7 +309,11 @@ describe('AssetSwapsProvider restore scan', () => {
 
   const tree = (txs: (typeof mockTxInfo)[], signerPubkey: string = SIGNER_PUBKEY, svcWallet?: unknown) =>
     providerTree(
-      { asp: { network: '', url: 'https://ark.test', signerPubkey }, wallet: { dataReady: true, txs, svcWallet } },
+      {
+        asp: { network: '', url: 'https://ark.test', signerPubkey },
+        // the scan reads the ungrouped rows; `txs` is the grouped display list
+        wallet: { dataReady: true, txs, ungroupedTxs: txs, svcWallet },
+      },
       <ScanHarness />,
     )
 
@@ -397,6 +401,31 @@ describe('AssetSwapsProvider restore scan', () => {
     await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(2))
     // and it sees the newer history, not the list its effect closed over
     expect(restoreAssetSwaps.mock.calls[1][1]).toHaveLength(2)
+  })
+
+  it('feeds the scan the ungrouped rows, not the grouped ones its own records produced', async () => {
+    // The second lock on the same door: `txs` replaces a swap's funding row
+    // with a grouped `swap` row the moment its record exists, and the scan
+    // takes candidates from `sent` rows only. A scan reading `txs` therefore
+    // loses the very tx it rebuilt the record from, so exempting the record
+    // from both skip lists buys nothing — there is no candidate left to ask
+    // about. It could create a record and never re-answer it.
+    restoreAssetSwaps.mockResolvedValue({ restored: [], scannedTxids: [] })
+    const funding = sentTx('funding-txid')
+    const grouped = { ...mockTxInfo, type: 'swap', redeemTxid: 'funding-txid', createdAt: 1 }
+
+    render(
+      providerTree(
+        {
+          asp: { network: '', url: 'https://ark.test', signerPubkey: SIGNER_PUBKEY },
+          wallet: { dataReady: true, txs: [grouped], ungroupedTxs: [funding] },
+        },
+        <ScanHarness />,
+      ),
+    )
+
+    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(1))
+    expect(restoreAssetSwaps.mock.calls[0][1]).toEqual([funding])
   })
 
   it('re-asks about a record still open and writes the outcome the chain reports', async () => {

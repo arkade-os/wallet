@@ -63,7 +63,7 @@ export const AssetSwapsContext = createContext<AssetSwapsContextProps>({
 
 export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
-  const { dataReady, svcWallet, reloadWallet, setAssetSwaps, txs } = useContext(WalletContext)
+  const { dataReady, svcWallet, reloadWallet, setAssetSwaps, txs, ungroupedTxs } = useContext(WalletContext)
 
   const [markets, setMarkets] = useState<DiscoveredMarket[]>([])
   const [swaps, setSwaps] = useState<WalletAssetSwap[]>([])
@@ -157,12 +157,17 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   // Bumped to re-enter the effect when a queued rescan has to start, since no
   // dependency of its own has changed by then.
   const [scanTick, setScanTick] = useState(0)
+  // Ungrouped rows, not `txs`: the scan takes candidates from `sent` rows, and
+  // `txs` turns a swap's funding row into a grouped `swap` one as soon as its
+  // record exists. Feeding it `txs` would hide the tx the record was built
+  // from, so a record could be created and then never re-answered.
+  //
   // Read inside the scan so a re-run sees the history that arrived mid-flight.
   // Committed values only, or a discarded render marks txids that never landed.
-  const txsRef = useRef(txs)
+  const txsRef = useRef(ungroupedTxs)
   useLayoutEffect(() => {
-    txsRef.current = txs
-  }, [txs])
+    txsRef.current = ungroupedTxs
+  }, [ungroupedTxs])
 
   // A token rather than a cancellation flag: this cleanup fires only when the
   // wallet changed or the provider went away, and `txs`, which must not abandon
@@ -177,7 +182,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   }, [aspInfo.url, aspInfo.signerPubkey, dataReady])
 
   useEffect(() => {
-    if (!aspInfo.url || !aspInfo.signerPubkey || !dataReady || txs.length === 0) return
+    if (!aspInfo.url || !aspInfo.signerPubkey || !dataReady || ungroupedTxs.length === 0) return
     // A run is already in flight and cannot see this newer history: ask it to go
     // round again instead of dropping the change. Returning without this is what
     // made a skipped run a lost one.
@@ -272,7 +277,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
         setScanTick((tick) => tick + 1)
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aspInfo.url, aspInfo.signerPubkey, dataReady, txs, scanTick])
+  }, [aspInfo.url, aspInfo.signerPubkey, dataReady, ungroupedTxs, scanTick])
 
   // read through a ref so the watcher (which deliberately does not rebind on
   // market refreshes) always names assets from the current list
