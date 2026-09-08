@@ -34,7 +34,7 @@ import {
 import { SwapsContext } from '../../providers/swaps'
 import { hapticTap } from '../../lib/haptics'
 import { useTransactionAmountDisplay } from '../../hooks/useTransactionAmountDisplay'
-import { useLnSendReceipt } from '../../hooks/useLnSendReceipt'
+import { useCorridorSendReceipt } from '../../hooks/useCorridorSendReceipt'
 import TransactionAmountSummary from '../../components/TransactionAmountSummary'
 import { useTranslation } from '../../providers/language'
 import {
@@ -85,7 +85,7 @@ export default function Transaction() {
       : txInfo
   const swapTx = tx?.type === 'swap'
   const amountDisplay = useTransactionAmountDisplay(tx)
-  const lnSendReceipt = useLnSendReceipt(tx, t)
+  const corridorReceipt = useCorridorSendReceipt(tx)
   const issuanceTx = tx
     ? tx.assetAction === 'issued' || tx.assetAction === 'reissued' || (!tx.assetAction && isIssuance(tx))
     : false
@@ -282,14 +282,13 @@ export default function Transaction() {
         satoshis: assetTransfer ? undefined : tx.amount,
         status,
         total: assetTransfer ? undefined : tx.amount,
-        // A Lightning send is two txs, so it gets the same pair of rows an
-        // asset swap does — funding, then the spend that ended it — in place
-        // of a lone "Transaction ID" that would name only the first and say
-        // nothing about whether the invoice was ever paid. Dropping txid is
-        // how the swap branch above expresses the same thing.
-        ...lnSendReceipt,
-        txid: lnSendReceipt ? undefined : txid,
-        type: boardingTx ? t('transaction.boarding') : undefined,
+        // An ordinary payment PLUS swap facts, so it spreads here rather than
+        // getting a third branch that would restate ten rows to add six.
+        ...corridorReceipt,
+        refundDeadline:
+          corridorReceipt?.refundLocktime === undefined ? undefined : prettyDate(corridorReceipt.refundLocktime),
+        txid: corridorReceipt ? undefined : txid,
+        type: boardingTx ? 'Boarding' : undefined,
         wallet,
       }
 

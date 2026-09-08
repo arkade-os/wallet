@@ -57,6 +57,16 @@ export interface LnSendView {
   createdAt: number
   /** The tx that ended it, when that tx is one of ours. */
   spendTxid?: string
+  corridor?: string
+  /** Sats the RECIPIENT gets; `amount` is what left the wallet. */
+  takeAmount?: number
+  feeAmount?: number
+  solver?: string
+  /** On `arkade -> onchain`, THIS WALLET'S L1 claim — what actually pays the
+   * destination, where `spendTxid` only proves the solver took its side. */
+  claimTxid?: string
+  htlcAddress?: string
+  refundLocktime?: number
 }
 
 export const ASSET_SWAP_RESOLVER_ID = 'arkade-wallet:asset-swaps'
@@ -124,7 +134,20 @@ const sendViewOf = (record: CorridorSwapRecord): LnSendView | undefined => {
     amount: Number(record.give.amount),
     createdAt: record.createdAt,
     spendTxid: record.refundTxid ?? record.lockupSpendTxids?.[0],
+    corridor: record.route?.take?.corridor,
+    takeAmount: Number(record.take.amount),
+    feeAmount: Number(record.fee.amount),
+    // `MarketRef` is a union and only the card arm publishes a name.
+    solver: record.market?.kind === 'card' ? record.market.solver : undefined,
+    claimTxid: stringField(record.profile, 'claimTxid'),
+    htlcAddress: stringField(record.profile, 'htlcAddress'),
+    refundLocktime: record.refundLocktime,
   }
+}
+
+const stringField = (bag: Record<string, unknown> | undefined, key: string): string | undefined => {
+  const value = bag?.[key]
+  return typeof value === 'string' && value ? value : undefined
 }
 
 const readRecords = async (): Promise<SwapRecord[]> => {
