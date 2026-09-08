@@ -652,7 +652,15 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // token the receipt renders — turning a swap's funding tx, and the claim
       // or refund that follows it, into one labelled activity rather than two
       // unrelated rows.
-      svcWallet.activity.use(swapRecordResolver())
+      // The reader, not `getVtxos()`, which drops spent coins — and a claimed
+      // lockup is spent. Needs no client lock, so a passive tab still groups.
+      svcWallet.activity.use(
+        swapRecordResolver(undefined, async (script) => {
+          const reader = await svcWallet.getArkadeReader()
+          const { vtxos } = await reader.getVtxos({ scripts: [script] })
+          return vtxos
+        }),
+      )
 
       if (restoring) {
         setLoadingStatus('Recovering addresses...')

@@ -216,7 +216,45 @@ describe('swapRecordResolver', () => {
     ])
   })
 
-  it('groups a claimed receive by its claim, the only tx that identifies it', async () => {
+  it('groups a claimed receive on the LOCKUP’s txid, not on its claim', async () => {
+    // `arkTxId` SPENT the lockup; `txid` created it, and that is the row.
+    const LOCKUP_SCRIPT = '5120ce5e5994'
+    const LOCKUP_FUNDING = '3e722476'
+    const CLAIM = '365b1e00'
+    const resolver = swapRecordResolver(
+      async () => [
+        corridorRecord({
+          kind: 'lightning_receive',
+          state: 'settled',
+          fundingTxid: undefined,
+          lockupPkScript: LOCKUP_SCRIPT,
+          lockupSpendTxids: [CLAIM],
+          profile: { claimTxid: CLAIM },
+        }),
+      ],
+      async (script) => (script === LOCKUP_SCRIPT ? [{ txid: LOCKUP_FUNDING, arkTxId: CLAIM }] : []),
+    )
+    await resolver.prepare?.()
+
+    expect(resolver.resolve(arkTx(LOCKUP_FUNDING))?.[0]).toMatchObject({
+      groupId: 'swap:rfq-1',
+      label: 'Lightning receive',
+      metadata: { swapKind: 'lightning_receive' },
+    })
+  })
+
+  it('reads no lockup for a leg that funded one itself', async () => {
+    const reads: string[] = []
+    const resolver = swapRecordResolver(
+      async () => [corridorRecord({ fundingTxid: 'funding-txid' })],
+      async (script) => (reads.push(script), []),
+    )
+    await resolver.prepare?.()
+
+    expect(reads).toEqual([])
+  })
+
+  it('labels the claimed receive end to end, resolver through row', async () => {
     const resolver = swapRecordResolver(async () => [
       corridorRecord({
         kind: 'lightning_receive',
@@ -226,12 +264,16 @@ describe('swapRecordResolver', () => {
       }),
     ])
     await resolver.prepare?.()
+    const intent = resolver.resolve(arkTx('claim-txid'))?.[0]
 
-    expect(resolver.resolve(arkTx('claim-txid'))?.[0]).toMatchObject({
-      groupId: `swap:rfq-1`,
-      label: 'Lightning receive',
-      metadata: { swapKind: 'lightning_receive' },
-    })
+    const claim = arkTx('claim-txid', { amount: 2_006, createdAt: 7_000 })
+    const [row] = activitiesToTxs(
+      [{ ...activity('swap:rfq-1', [claim], intent as Activity['intent']), amount: 2_006 }],
+      empty,
+    )
+
+    expect(row.type).toBe('received')
+    expect(lnSwapLabel(row)).toBe('Lightning receive')
   })
 
   it('carries a corridor spend into the same group, so a refund is not a stray row', async () => {

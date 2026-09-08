@@ -180,6 +180,44 @@ export const CORRIDOR_LABEL: Record<string, string> = {
   onchain_send: 'Onchain send',
 }
 
+/** Reads the virtual outputs at one lockup script. `getVtxos()` cannot stand
+ *  in: it drops spent coins, and a claimed lockup is spent by definition. */
+export type LockupVtxoReader = (script: string) => Promise<readonly LockupVtxo[]>
+
+export interface LockupVtxo {
+  /** The transaction that CREATED this output — the lockup's funding. */
+  txid: string
+  /** The Arkade transaction that SPENT it. Not the one that created it. */
+  arkTxId?: string
+}
+
+interface SwapIntent {
+  groupId: string
+  label: string
+  outcome?: string
+  metadata: Record<string, unknown>
+}
+
+/** The transactions a lockup names, for a leg that funded nothing itself.
+ *  **`vtxo.txid` is the one history keys on** — every txid on a receive record
+ *  names the CLAIM instead. Empty is logged, not swallowed: found-nothing and
+ *  failed-to-look are different conditions. */
+const lockupTxids = async (read: LockupVtxoReader | undefined, script: string): Promise<string[]> => {
+  if (!read || !script) return []
+  try {
+    const vtxos = await read(script)
+    if (vtxos.length === 0) {
+      consoleError(new Error(`no virtual output at lockup ${script}`), 'swap activity grouping')
+      return []
+    }
+    return vtxos.flatMap((vtxo) => (vtxo.arkTxId ? [vtxo.txid, vtxo.arkTxId] : [vtxo.txid]))
+  } catch (err) {
+    // Offline-first: fewer txids, never a throw that sinks other records.
+    consoleError(err, 'error reading a lockup for swap activity')
+    return []
+  }
+}
+
 /**
  * Which txids belong to which swap — correlation and the row's own label.
  *
@@ -192,22 +230,17 @@ export const CORRIDOR_LABEL: Record<string, string> = {
  * wallet registers. The package's `swapActivityResolver` went with the v1
  * keyspace it read.
  */
-export const swapRecordResolver = (read = readRecords): ActivityResolver => {
-  let intents = new Map<
-    string,
-    { groupId: string; label: string; outcome?: string; metadata: Record<string, unknown> }
-  >()
+export const swapRecordResolver = (read = readRecords, readLockupVtxos?: LockupVtxoReader): ActivityResolver => {
+  let intents = new Map<string, SwapIntent>()
   return {
     id: ASSET_SWAP_RESOLVER_ID,
     async prepare() {
       // re-read on every history load rather than indexed at construction: a
       // record written after the first load would otherwise leave its swap
       // ungrouped until the next reconnect
-      const next = new Map<
-        string,
-        { groupId: string; label: string; outcome?: string; metadata: Record<string, unknown> }
-      >()
+      const next = new Map<string, SwapIntent>()
       const records = await read()
+      const unfunded: [string, SwapIntent][] = []
       const offerIntent = (id: string) => ({
         groupId: `swap:${id}`,
         label: 'Swap',
@@ -232,10 +265,13 @@ export const swapRecordResolver = (read = readRecords): ActivityResolver => {
         if (record.fundingTxid) next.set(record.fundingTxid, intent)
         if (record.refundTxid) next.set(record.refundTxid, intent)
         for (const txid of record.lockupSpendTxids ?? []) next.set(txid, intent)
-        // The package's `activityTxids` collects this and we did not; a CLAIMED
-        // receive has none of the three above, so no group formed at all.
         const claimTxid = stringField(record.profile, 'claimTxid')
         if (claimTxid) next.set(claimTxid, intent)
+        // Names nothing history keys on, so the lockup has to be read.
+        if (!record.fundingTxid) unfunded.push([record.lockupPkScript, intent])
+      }
+      for (const [script, intent] of unfunded) {
+        for (const txid of await lockupTxids(readLockupVtxos, script)) next.set(txid, intent)
       }
       intents = next
     },
