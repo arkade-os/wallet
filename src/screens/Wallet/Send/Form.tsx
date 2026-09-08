@@ -33,7 +33,7 @@ import { LimitsContext } from '../../../providers/limits'
 import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl, LnUrlResponse } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
 import { decodeInvoice } from '../../../lib/bolt11'
-import { LIGHTNING_RAIL, lnSendRefusal } from '../../../lib/sendRouter'
+import { LIGHTNING_RAIL, lnSendRefusal, lnSendRequest } from '../../../lib/sendRouter'
 import { SwapsContext } from '../../../providers/swaps'
 import { discoverMarkets } from '../../../lib/swapMarkets'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
@@ -626,9 +626,9 @@ export default function SendForm() {
         // snapshot; a second read let a cold cache throw on the error path.
         const markets = await discoverMarkets(aspInfo.network as NetworkName)
         const router = await sendRouter()
-        const options = await router.options({ raw: sendInfo.invoice!, amount: sendInfo.satoshis ?? 0 })
+        const options = await router.options(lnSendRequest(sendInfo.invoice!, sendInfo.satoshis))
         const route = options.find((option) => option.railId === LIGHTNING_RAIL)
-        if (!route) return handleError(lnSendRefusal(markets))
+        if (!route) return handleError(lnSendRefusal(markets, sendInfo.satoshis))
         // Unguarded: a quote that throws names an unpayable invoice or a
         // covenant that did not match, and neither reads as "no route".
         const pendingLnSend = await route.quote()

@@ -280,13 +280,13 @@ describe('negotiating a Lightning send', () => {
     expect(update({} as SendInfo).pendingLnSend).toBe(quote)
   })
 
-  it('asks the router with the invoice and its amount, not the raw text', async () => {
+  it('asks the router with the invoice, not the raw text and not a second amount', async () => {
     const consulted = vi.fn(() => [{ railId: 'lightning', quote: async () => lnQuote() }])
     optionsFor = consulted
     renderForm({ invoice: INVOICE, satoshis: INVOICE_SATS })
     await cont()
 
-    await waitFor(() => expect(consulted).toHaveBeenCalledWith({ raw: INVOICE, amount: INVOICE_SATS }))
+    await waitFor(() => expect(consulted).toHaveBeenCalledWith({ raw: INVOICE }))
   })
 
   it('says no solver when the rail dropped itself and no card serves the corridor', async () => {
@@ -299,11 +299,21 @@ describe('negotiating a Lightning send', () => {
 
   it('names the card’s bounds when the rail dropped itself over the size', async () => {
     optionsFor = () => []
-    markets = [lnMarket]
+    markets = [{ ...lnMarket, min_quote_amount: '50000', max_quote_amount: '1000000' }]
     renderForm({ invoice: INVOICE, satoshis: INVOICE_SATS })
     await cont()
 
     expect(await screen.findByText(/Amount outside solver bounds/)).toBeInTheDocument()
+  })
+
+  it('does not blame bounds that admit the amount when the rail dropped for another reason', async () => {
+    optionsFor = () => []
+    markets = [lnMarket]
+    renderForm({ invoice: INVOICE, satoshis: INVOICE_SATS })
+    await cont()
+
+    expect(await screen.findByText(/No Lightning solver took this payment/)).toBeInTheDocument()
+    expect(screen.queryByText(/Amount outside solver bounds/)).not.toBeInTheDocument()
   })
 
   it('discovers the cards once, and explains the refusal off that same list', async () => {
@@ -314,7 +324,7 @@ describe('negotiating a Lightning send', () => {
 
     // The refusal message proves the list reached `lnSendRefusal`; the count
     // proves the rail was not sent to fetch its own.
-    expect(await screen.findByText(/Amount outside solver bounds/)).toBeInTheDocument()
+    expect(await screen.findByText(/solvers take 1,000-1,000,000 sats/)).toBeInTheDocument()
     expect(discovered).toHaveBeenCalledTimes(1)
   })
 
