@@ -127,29 +127,55 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   // scan is incremental — answered txids persist, so late-synced history is
   // picked up by later runs and nothing is fetched twice.
   const scanningRef = useRef(false)
+  const rescanRef = useRef(false)
+  // Read inside the scan so a re-run sees the history that arrived while the
+  // previous one was in flight, rather than the list its effect closed over.
+  const txsRef = useRef(txs)
+  txsRef.current = txs
+  // Which wallet a scan belongs to. Compared by value rather than tracked with
+  // a cleanup flag, so that only these three changing counts as "another
+  // wallet" — see the abandonment note above.
+  const scanProfile = `${aspInfo.url}|${aspInfo.signerPubkey}|${dataReady}`
+  const scanProfileRef = useRef(scanProfile)
+  scanProfileRef.current = scanProfile
+  const unmountedRef = useRef(false)
+  useEffect(
+    () => () => {
+      unmountedRef.current = true
+    },
+    [],
+  )
+
   useEffect(() => {
-    if (!aspInfo.url || !aspInfo.signerPubkey || !dataReady || txs.length === 0 || scanningRef.current) return
-    let cancelled = false
-    scanningRef.current = true
+    if (!aspInfo.url || !aspInfo.signerPubkey || !dataReady || txs.length === 0) return
+    // A run is already in flight and cannot see this newer history: ask it to go
+    // round again instead of dropping the change. Returning without this is what
+    // made a skipped run a lost one.
+    if (scanningRef.current) {
+      rescanRef.current = true
+      return
+    }
+    const profile = scanProfile
+    // a wallet reset may have cleared the repository while the scan ran —
+    // never write the old profile's records into it. The repository clears
+    // asynchronously, so this is re-checked before every write below rather
+    // than once.
+    const stale = () => unmountedRef.current || scanProfileRef.current !== profile
     const scan = async () => {
       const [existing, scanned] = await Promise.all([readSwaps(), assetSwapRepository.getScannedTxids()])
       const { restored, scannedTxids } = await restoreAssetSwaps(
         new RestIndexerProvider(aspInfo.url),
-        txs,
+        txsRef.current,
         new Set(existing.map((s) => s.id)),
         // x-only, matching the key the covenants were funded against
         { serverPubkey: hex.decode(aspInfo.signerPubkey).slice(1), scanned },
       )
-      // a wallet reset may have cleared the repository while the scan ran —
-      // never write the old profile's records into it. The repository clears
-      // asynchronously, so this is re-checked before every write below rather
-      // than once.
-      if (cancelled) return
+      if (stale()) return
       await assetSwapRepository.markTxidsScanned(scannedTxids)
       if (restored.length === 0) return
       let next: WalletAssetSwap[] = []
       for (const swap of restored) {
-        if (cancelled) return
+        if (stale()) return
         // quote-time facts are not on chain; the fee rate is the one fact a
         // restore can backfill, from the pair's current market card — an
         // approximation if the solver changed its fee since the swap.
@@ -166,14 +192,18 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
       // re-merge the activity list so the tx couple collapses into Swap rows
       reloadWallet().catch(consoleError)
     }
-    scan()
-      .catch((err) => consoleError(err, 'swap restore scan failed'))
-      .finally(() => {
-        scanningRef.current = false
-      })
-    return () => {
-      cancelled = true
+    const run = () => {
+      scanningRef.current = true
+      scan()
+        .catch((err) => consoleError(err, 'swap restore scan failed'))
+        .finally(() => {
+          scanningRef.current = false
+          if (!rescanRef.current || stale()) return
+          rescanRef.current = false
+          run()
+        })
     }
+    run()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aspInfo.url, aspInfo.signerPubkey, dataReady, txs])
 

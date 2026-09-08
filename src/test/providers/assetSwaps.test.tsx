@@ -14,6 +14,7 @@ import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
 const cancelOffer = vi.hoisted(() => vi.fn())
 const createOffer = vi.hoisted(() => vi.fn())
 const getVtxos = vi.hoisted(() => vi.fn())
+const restoreAssetSwaps = vi.hoisted(() => vi.fn())
 const watchOfferSwaps = vi.hoisted(() => vi.fn())
 
 vi.mock('@arkade-os/sdk', async (importOriginal) => ({
@@ -27,6 +28,7 @@ vi.mock('@arkade-os/swap', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@arkade-os/swap')>()),
   cancelOffer,
   createOffer,
+  restoreAssetSwaps,
   watchOfferSwaps,
 }))
 
@@ -287,5 +289,95 @@ describe('AssetSwapsProvider watching', () => {
     onUpdate({ ...pendingSwap, status: 'fulfilled', spentTxid: 'fill-txid' })
 
     await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('fulfilled'))
+  })
+})
+
+describe('AssetSwapsProvider restore scan', () => {
+  // valid hex: the provider decodes it to the x-only key the covenants were funded against
+  const SIGNER_PUBKEY = `02${'ab'.repeat(32)}`
+  const restoredSwap: WalletAssetSwap = { ...pendingSwap, id: 'restored-txid', fundingTxid: 'restored-txid' }
+  const sentTx = (redeemTxid: string) => ({ type: 'sent', redeemTxid, createdAt: 1 })
+
+  function ScanHarness() {
+    const { swaps } = useContext(AssetSwapsContext)
+    return <span data-testid='restored'>{swaps.map((s) => s.id).join(',') || 'none'}</span>
+  }
+
+  const tree = (txs: unknown[]) => (
+    <AspContext.Provider
+      value={
+        {
+          ...mockAspContextValue,
+          aspInfo: {
+            ...mockAspContextValue.aspInfo,
+            network: '',
+            url: 'https://ark.test',
+            signerPubkey: SIGNER_PUBKEY,
+          },
+        } as any
+      }
+    >
+      <WalletContext.Provider
+        value={
+          {
+            ...mockWalletContextValue,
+            dataReady: true,
+            txs,
+            reloadWallet: vi.fn().mockResolvedValue(undefined),
+            svcWallet: { identity: {} },
+          } as any
+        }
+      >
+        <AssetSwapsProvider>
+          <ScanHarness />
+        </AssetSwapsProvider>
+      </WalletContext.Provider>
+    </AspContext.Provider>
+  )
+
+  beforeEach(async () => {
+    await repository.clear()
+    restoreAssetSwaps.mockReset()
+  })
+
+  afterEach(async () => await repository.clear())
+
+  it('keeps a scan alive when history changes under it', async () => {
+    // The restore path in the wild: history arrives in more than one batch, so
+    // `txs` takes a new identity while the scan's indexer round-trip is still in
+    // flight. Abandoning the run on that dropped the rebuilt records before they
+    // were written and scheduled no retry, so a restored wallet showed its swaps
+    // as bare sent rows until some later unrelated `txs` change happened to land
+    // while no scan was running — which is why making one new swap restored
+    // every older one at once.
+    let release: (result: { restored: WalletAssetSwap[]; scannedTxids: string[] }) => void = () => {}
+    restoreAssetSwaps.mockReturnValueOnce(new Promise((resolve) => (release = resolve)))
+
+    const { rerender } = render(tree([sentTx('a')]))
+    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(1))
+
+    rerender(tree([sentTx('a'), sentTx('b')]))
+    release({ restored: [restoredSwap], scannedTxids: ['restored-txid'] })
+
+    await waitFor(() => expect(screen.getByTestId('restored')).toHaveTextContent('restored-txid'))
+  })
+
+  it('goes round again with the history that arrived mid-scan', async () => {
+    let release: (result: { restored: WalletAssetSwap[]; scannedTxids: string[] }) => void = () => {}
+    restoreAssetSwaps
+      .mockReturnValueOnce(new Promise((resolve) => (release = resolve)))
+      .mockResolvedValue({ restored: [], scannedTxids: [] })
+
+    const { rerender } = render(tree([sentTx('a')]))
+    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(1))
+    expect(restoreAssetSwaps.mock.calls[0][1]).toHaveLength(1)
+
+    // a run skipped because another was in flight must not be a run lost
+    rerender(tree([sentTx('a'), sentTx('b')]))
+    release({ restored: [], scannedTxids: ['a'] })
+
+    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(2))
+    // and it sees the newer history, not the list its effect closed over
+    expect(restoreAssetSwaps.mock.calls[1][1]).toHaveLength(2)
   })
 })
