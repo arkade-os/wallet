@@ -188,7 +188,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const [outcomes, setOutcomes] = useState<Map<string, Outcome>>(new Map())
   const [errors, setErrors] = useState<Map<string, string>>(new Map())
 
-  /** False until the client's restore has finished. */
+  /** False until the running client's restore has finished, reset per client. */
   const restoredRef = useRef(false)
 
   // the reconciliation reads the current list from outside a render, where
@@ -336,7 +336,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
    * way means the incoming payment never arrived. The v1 vocabulary called that
    * `refunded` — the same word it used for the trader's own money coming back.
    */
-  const announce = (swap: Swap) => {
+  const announce = (swap: Swap, replay = false) => {
     setOutcomes((prev) => (prev.get(swap.id) === swap.outcome ? prev : new Map(prev).set(swap.id, swap.outcome)))
     const ended = ENDED[swap.outcome]
     if (!ended) return
@@ -348,7 +348,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     })
     // `restore()` ends by emitting every record it read, and this subscribes
     // before `client.ready`, so each load replayed the whole history terminal.
-    if (!restoredRef.current) return
+    if (replay) return
     if (ended === 'received')
       toast.success(isSendLeg(swap) ? 'Payment complete' : `Swap completed, ${tickerFor(swap.take.asset)} received`)
     else if (ended === 'returned') toast.success('Swap cancelled, funds returned')
@@ -389,8 +389,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
    * Every tab announces, deliberately. The tab that started a receive is
    * usually not the tab holding the lock, and it is the one being looked at.
    */
-  const applyUpdate = ({ swap, outcome }: DriverUpdate) => {
-    announce(swap)
+  const applyUpdate = ({ swap, outcome, replay }: DriverUpdate) => {
+    announce(swap, replay)
     if (outcome !== 'needs_recovery' && outcome !== 'failed') return
     const reason = swap.failure ?? swap.blockedReason
     if (reason) setErrors((prev) => new Map(prev).set(swap.id, reason))
@@ -426,14 +426,17 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
     const drive = async () => {
       if (stopped) return
+      // Per CLIENT, not per tab: a network switch builds a new one that replays.
+      restoredRef.current = false
 
       const started = (async () => {
         const client = makeSwapClient(svcWallet, network)
         client.onUpdate(({ swap, outcome }) => {
-          applyRef.current({ swap, outcome })
+          const replay = !restoredRef.current
+          applyRef.current({ swap, outcome, replay })
           // Only the holder has a client, so this is the only place the other
           // tabs can learn an outcome from.
-          channel.publish({ swap, outcome })
+          channel.publish({ swap, outcome, replay })
         })
         // `drive: "auto"`: construction restores and arms only when the read
         // finds live swaps. `ready` is that read, and it rejects only when the

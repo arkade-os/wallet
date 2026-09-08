@@ -1,4 +1,10 @@
-import { beforeEach, describe, it, expect } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
+
+const consoleError = vi.hoisted(() => vi.fn())
+vi.mock('../../lib/logs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/logs')>()),
+  consoleError: (...args: unknown[]) => consoleError(...args),
+}))
 import { lnSwapLabel } from '../../lib/swapDisplay'
 import { createDefaultActivityRegistry, ServiceWorkerWallet, type Activity, type ArkTransaction } from '@arkade-os/sdk'
 import { activitiesToTxs, getActivities } from '../../lib/activityHistory'
@@ -241,6 +247,25 @@ describe('swapRecordResolver', () => {
       label: 'Lightning receive',
       metadata: { swapKind: 'lightning_receive' },
     })
+  })
+
+  it.each([
+    ['pending', false],
+    ['settled', true],
+  ] as const)('is quiet about an empty lockup on a %s swap: loud=%s', async (state, loud) => {
+    // A receive's lockup exists from the moment it is derived and holds nothing
+    // until the sender pays, so an error here would fire on every history load
+    // during a live receive — which is how the real one gets ignored.
+    consoleError.mockClear()
+    const resolver = swapRecordResolver(
+      async () => [
+        corridorRecord({ kind: 'lightning_receive', state, fundingTxid: undefined, lockupPkScript: '5120aa' }),
+      ],
+      async () => [],
+    )
+    await resolver.prepare?.()
+
+    expect(consoleError).toHaveBeenCalledTimes(loud ? 1 : 0)
   })
 
   it('reads no lockup for a leg that funded one itself', async () => {
