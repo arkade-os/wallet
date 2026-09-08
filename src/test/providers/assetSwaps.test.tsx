@@ -1,4 +1,4 @@
-import { StrictMode, useContext } from 'react'
+import { ReactNode, StrictMode, useContext } from 'react'
 import userEvent from '@testing-library/user-event'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -10,8 +10,8 @@ import { AssetSwapsContext, AssetSwapsProvider } from '../../providers/assetSwap
 import { WalletContext } from '../../providers/wallet'
 import { assetSwapRepository as repository, type WalletAssetSwap } from '../../lib/swapRepository'
 import { btcUsdt, maratNapo, MARAT_ID, NAPO_ID, USDT_ID } from '../lib/swapFixtures'
-import { saveSolverCardsToStorage } from '../../lib/storage'
-import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
+import { saveSolverCards } from '../../lib/solverCards'
+import { mockAspContextValue, mockTxInfo, mockWalletContextValue } from '../screens/mocks'
 
 const cancelOffer = vi.hoisted(() => vi.fn())
 const createOffer = vi.hoisted(() => vi.fn())
@@ -72,17 +72,27 @@ function CancelHarness() {
   )
 }
 
+/** The provider under its two contexts. One home for the `as any` seams, so a
+ * change to what the provider reads out of them lands in a single place. */
+const providerTree = (
+  { asp, wallet }: { asp?: Record<string, unknown>; wallet?: Record<string, unknown> },
+  children: ReactNode,
+) => (
+  <AspContext.Provider value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, ...asp } } as any}>
+    <WalletContext.Provider
+      value={{ ...mockWalletContextValue, reloadWallet: vi.fn().mockResolvedValue(undefined), ...wallet } as any}
+    >
+      <AssetSwapsProvider>{children}</AssetSwapsProvider>
+    </WalletContext.Provider>
+  </AspContext.Provider>
+)
+
 function renderProvider(reloadWallet = vi.fn().mockResolvedValue(undefined), url = '') {
   render(
-    <AspContext.Provider
-      value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network: '', url } } as any}
-    >
-      <WalletContext.Provider value={{ ...mockWalletContextValue, reloadWallet, svcWallet: { identity: {} } } as any}>
-        <AssetSwapsProvider>
-          <CancelHarness />
-        </AssetSwapsProvider>
-      </WalletContext.Provider>
-    </AspContext.Provider>,
+    providerTree(
+      { asp: { network: '', url }, wallet: { reloadWallet, svcWallet: { identity: {} } } },
+      <CancelHarness />,
+    ),
   )
   return reloadWallet
 }
@@ -95,26 +105,11 @@ function CreateHarness({ plan }: { plan: OfferPlan }) {
 function renderCreateProvider(plan: OfferPlan) {
   const send = vi.fn().mockResolvedValue('funding-txid-2')
   render(
-    // mutinynet is the network with a pinned co-signer key, which arms createSwap
-    <AspContext.Provider
-      value={
-        { ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet', url: '' } } as any
-      }
-    >
-      <WalletContext.Provider
-        value={
-          {
-            ...mockWalletContextValue,
-            reloadWallet: vi.fn().mockResolvedValue(undefined),
-            svcWallet: { identity: {}, send },
-          } as any
-        }
-      >
-        <AssetSwapsProvider>
-          <CreateHarness plan={plan} />
-        </AssetSwapsProvider>
-      </WalletContext.Provider>
-    </AspContext.Provider>,
+    providerTree(
+      // mutinynet is the network with a pinned co-signer key, which arms createSwap
+      { asp: { network: 'mutinynet', url: '' }, wallet: { svcWallet: { identity: {}, send } } },
+      <CreateHarness plan={plan} />,
+    ),
   )
   return send
 }
@@ -300,44 +295,30 @@ describe('AssetSwapsProvider restore scan', () => {
   // valid hex: the provider decodes it to the x-only key the covenants were funded against
   const SIGNER_PUBKEY = `02${'ab'.repeat(32)}`
   const restoredSwap: WalletAssetSwap = { ...pendingSwap, id: 'restored-txid', fundingTxid: 'restored-txid' }
-  const sentTx = (redeemTxid: string) => ({ type: 'sent', redeemTxid, createdAt: 1 })
+  const sentTx = (redeemTxid: string) => ({ ...mockTxInfo, type: 'sent', redeemTxid, createdAt: 1 })
 
   function ScanHarness() {
     const { swaps } = useContext(AssetSwapsContext)
     return <span data-testid='restored'>{swaps.map((s) => s.id).join(',') || 'none'}</span>
   }
 
-  const tree = (txs: unknown[], signerPubkey: string = SIGNER_PUBKEY) => (
-    <AspContext.Provider
-      value={
-        {
-          ...mockAspContextValue,
-          aspInfo: {
-            ...mockAspContextValue.aspInfo,
-            network: '',
-            url: 'https://ark.test',
-            signerPubkey,
-          },
-        } as any
-      }
-    >
-      <WalletContext.Provider
-        value={
-          {
-            ...mockWalletContextValue,
-            dataReady: true,
-            txs,
-            reloadWallet: vi.fn().mockResolvedValue(undefined),
-            svcWallet: { identity: {} },
-          } as any
-        }
-      >
-        <AssetSwapsProvider>
-          <ScanHarness />
-        </AssetSwapsProvider>
-      </WalletContext.Provider>
-    </AspContext.Provider>
-  )
+  const tree = (txs: (typeof mockTxInfo)[], signerPubkey: string = SIGNER_PUBKEY) =>
+    providerTree(
+      { asp: { network: '', url: 'https://ark.test', signerPubkey }, wallet: { dataReady: true, txs } },
+      <ScanHarness />,
+    )
+
+  /** Renders with the first `restoreAssetSwaps` held open, so a rerender lands
+   * while a scan is provably in flight. Returns the release for that run. */
+  const renderBlockedScan = async () => {
+    let release: (result: { restored: WalletAssetSwap[]; scannedTxids: string[] }) => void = () => {}
+    restoreAssetSwaps
+      .mockReturnValueOnce(new Promise((resolve) => (release = resolve)))
+      .mockResolvedValue({ restored: [], scannedTxids: [] })
+    const { rerender } = render(tree([sentTx('a')]))
+    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(1))
+    return { rerender, release: (result: Parameters<typeof release>[0]) => release(result) }
+  }
 
   beforeEach(async () => {
     await repository.clear()
@@ -354,11 +335,7 @@ describe('AssetSwapsProvider restore scan', () => {
     // as bare sent rows until some later unrelated `txs` change happened to land
     // while no scan was running — which is why making one new swap restored
     // every older one at once.
-    let release: (result: { restored: WalletAssetSwap[]; scannedTxids: string[] }) => void = () => {}
-    restoreAssetSwaps.mockReturnValueOnce(new Promise((resolve) => (release = resolve)))
-
-    const { rerender } = render(tree([sentTx('a')]))
-    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(1))
+    const { rerender, release } = await renderBlockedScan()
 
     rerender(tree([sentTx('a'), sentTx('b')]))
     release({ restored: [restoredSwap], scannedTxids: ['restored-txid'] })
@@ -371,13 +348,7 @@ describe('AssetSwapsProvider restore scan', () => {
     // re-entering through the effect is what lets it read the profile current
     // then, instead of the one the finishing run was bound to.
     const OTHER_PUBKEY = `02${'cd'.repeat(32)}`
-    let release: (result: { restored: WalletAssetSwap[]; scannedTxids: string[] }) => void = () => {}
-    restoreAssetSwaps
-      .mockReturnValueOnce(new Promise((resolve) => (release = resolve)))
-      .mockResolvedValue({ restored: [], scannedTxids: [] })
-
-    const { rerender } = render(tree([sentTx('a')]))
-    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(1))
+    const { rerender, release } = await renderBlockedScan()
 
     rerender(tree([sentTx('a')], OTHER_PUBKEY))
     release({ restored: [restoredSwap], scannedTxids: ['restored-txid'] })
@@ -449,7 +420,7 @@ describe('AssetSwapsProvider solver cards', () => {
     renderOnNetwork()
     await waitFor(() => expect(discoverMarkets).toHaveBeenCalledTimes(1))
 
-    act(() => saveSolverCardsToStorage([]))
+    act(() => saveSolverCards([]))
 
     await waitFor(() => expect(discoverMarkets).toHaveBeenCalledTimes(2))
     // cache bypassed: the TTL cache holds the registry's answer, which is

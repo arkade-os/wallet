@@ -5,7 +5,7 @@ import Content from '../../components/Content'
 import Header from './Header'
 import Text, { TextSecondary } from '../../components/Text'
 import { Card, LocalCardInput, validateCard, Network } from '@arkade-os/solver-discovery'
-import { readSolverCardsFromStorage, saveSolverCardsToStorage } from '@/lib/storage'
+import { readSolverCards, saveSolverCards } from '@/lib/solverCards'
 import FlexRow from '@/components/FlexRow'
 import FlexCol from '@/components/FlexCol'
 import ErrorMessage from '@/components/Error'
@@ -15,20 +15,29 @@ import { consoleError } from '@/lib/logs'
 import { BackupContext } from '@/providers/backup'
 import { BUNDLED_CARDS } from '@/lib/swapMarkets'
 
-const addSolverCard = (input: LocalCardInput) => {
-  const existingCards = readSolverCardsFromStorage()
-  const withoutSameCard = existingCards.filter((card) => card.label !== input.label || card.network !== input.network)
-  saveSolverCardsToStorage([...withoutSameCard, input])
+const isSameCard = (card: LocalCardInput, label: string | undefined, network: Network) =>
+  card.label === label && card.network === network
+
+/**
+ * `replacing` is the label a rename vacates, folded into this one write. Doing
+ * the remove and the add as two writes published an intermediate list with the
+ * card missing, and every subscriber re-derived against a market set the user
+ * never asked for.
+ */
+const putSolverCard = (input: LocalCardInput, replacing?: string) => {
+  const network = input.network as Network
+  const others = readSolverCards().filter(
+    (card) => !isSameCard(card, input.label, network) && !(replacing && isSameCard(card, replacing, network)),
+  )
+  saveSolverCards([...others, input])
 }
 
 const removeSolverCard = (input: LocalCardInput) => {
-  const existingCards = readSolverCardsFromStorage()
-  const withoutSameCard = existingCards.filter((card) => card.label !== input.label || card.network !== input.network)
-  saveSolverCardsToStorage(withoutSameCard)
+  saveSolverCards(readSolverCards().filter((card) => !isSameCard(card, input.label, input.network as Network)))
 }
 
 const getCardsForNetwork = (network: Network): LocalCardInput[] => {
-  return readSolverCardsFromStorage().filter((c) => c.network === network)
+  return readSolverCards().filter((c) => c.network === network)
 }
 
 function Button({ onClick, text }: { onClick?: () => void; text: string }) {
@@ -65,23 +74,14 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose?: () => void
       setError(`invalid card: ${(err as Error).message}`)
       return
     }
-    // if the card name changed, remove the old card so it doesn't linger in storage
-    if (olderCard && olderCard.name !== card.name) {
-      const oldInput: LocalCardInput = {
-        network: aspInfo.network as Network,
-        label: olderCard.name,
-        card: olderCard,
-      }
-      removeSolverCard(oldInput)
-    }
-    // save the new card
     const input: LocalCardInput = {
       network: aspInfo.network as Network,
       label: card.name,
       card,
     }
     try {
-      addSolverCard(input)
+      // a rename must not leave the old label lingering in storage
+      putSolverCard(input, olderCard && olderCard.name !== card.name ? olderCard.name : undefined)
     } catch (err) {
       consoleError(err, 'failed to save solver card')
       setError('Failed to save card: storage is full or unavailable.')
@@ -230,8 +230,8 @@ export default function Solvers() {
   const [localCards, setLocalCards] = useState<LocalCardInput[]>()
   const [showEditor, setShowEditor] = useState(false)
 
-  // Discovery re-runs off `SOLVER_CARDS_CHANGED` the moment a card is written,
-  // so this only owes the backup. Doing it on unmount keeps one Nostr write per
+  // The solver-card store notifies discovery the moment a card is written, so
+  // this only owes the backup. Doing it on unmount keeps one Nostr write per
   // visit rather than one per edit.
   useEffect(() => {
     return () => {

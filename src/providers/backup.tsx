@@ -2,7 +2,7 @@ import { Config } from '../lib/types'
 import { ConfigContext } from './config'
 import { consoleError } from '@/lib/logs'
 import { BackupEvent, NostrStorage } from '@/lib/nostr'
-import { readSolverCardsFromStorage, saveSolverCardsToStorage } from '@/lib/storage'
+import { readSolverCards, saveSolverCards } from '@/lib/solverCards'
 import { LocalCardInput } from '@arkade-os/solver-discovery'
 import { ReactNode, createContext, useContext, useEffect, useRef } from 'react'
 
@@ -90,7 +90,7 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
    * @param config
    */
   const fullBackup = async (config: Config) => {
-    const solverCards = readSolverCardsFromStorage()
+    const solverCards = readSolverCards()
     if (!solverCards.length) return backupConfig(config)
     await backupConfig(config)
     await backupSolverCards(solverCards, config)
@@ -108,7 +108,7 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
     // we enforce delegates on restore, and the server stays the locally configured one
     if (data?.config) updateConfig({ ...data.config, aspUrl: configRef.current.aspUrl, delegate: true })
 
-    if (data?.solverCards) saveSolverCardsToStorage(data.solverCards)
+    if (data?.solverCards) saveSolverCards(data.solverCards)
   }
 
   /**

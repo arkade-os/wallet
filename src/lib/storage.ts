@@ -1,7 +1,6 @@
 import { AssetDetails } from '@arkade-os/sdk'
 import { Config, LnSendActivity, Wallet } from '../lib/types'
 import { consoleError } from './logs'
-import { LocalCardInput, validateCard } from '@arkade-os/solver-discovery'
 
 // clear localStorage but persist config (with asset data reset)
 export async function clearStorage(): Promise<void> {
@@ -120,35 +119,4 @@ export const readAssetMetadataFromStorage = (): Map<string, CachedAssetDetails> 
     Object.values(obj).forEach((x) => (x.supply = BigInt(x.supply)))
     return new Map(Object.entries(obj))
   })
-}
-
-/**
- * Fired after the stored solver cards change, so anything derived from them can
- * re-derive. The browser's own `storage` event only reaches OTHER tabs, and
- * every writer here — the Solvers screen and the Nostr restore — is in this one.
- */
-export const SOLVER_CARDS_CHANGED = 'arkade:solver-cards-changed'
-
-export const saveSolverCardsToStorage = (cards: LocalCardInput[]): void => {
-  const data = Array.isArray(cards) ? cards.filter(isLocalCardInput) : []
-  setStorageItem('solverCards', JSON.stringify(data))
-  // Unconditional: dropping the last card changes the market set as surely as
-  // adding one does.
-  if (typeof window !== 'undefined') window.dispatchEvent(new Event(SOLVER_CARDS_CHANGED))
-}
-
-export const readSolverCardsFromStorage = (): LocalCardInput[] => {
-  const items = getStorageItem('solverCards', [], (val) => JSON.parse(val))
-  return Array.isArray(items) ? items.filter(isLocalCardInput) : []
-}
-
-const isLocalCardInput = (obj: unknown): obj is LocalCardInput => {
-  const input = obj as LocalCardInput | null
-  return Boolean(
-    input &&
-      typeof input.network === 'string' &&
-      typeof input.label === 'string' &&
-      typeof input.card === 'object' &&
-      validateCard(input.card).ok,
-  )
 }
