@@ -10,7 +10,14 @@ import {
   useSyncExternalStore,
 } from 'react'
 import { base64, hex } from '@scure/base'
-import { asset, RestIndexerProvider, Transaction, type NetworkName } from '@arkade-os/sdk'
+import {
+  asset,
+  RestIndexerProvider,
+  Transaction,
+  toXOnlySignerHex,
+  type NetworkName,
+  type VirtualCoin,
+} from '@arkade-os/sdk'
 import {
   addAssetSwap,
   BTC_ASSET_ID,
@@ -34,12 +41,22 @@ import { DiscoveredMarket, OfferPlan } from '@arkade-os/solver-discovery'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import { assetSwapRepository, type AssetSwapQuoteSnapshot, type WalletAssetSwap } from '../lib/swapRepository'
-import { getTxHistory } from '../lib/asp'
 import { getEmulatorPubkeyForNetwork, getEmulatorPubkeyHexForNetwork } from '../lib/constants'
 import { discoverMarkets } from '../lib/swapMarkets'
 import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
 import { consoleError } from '../lib/logs'
 import { toast } from '../components/Toast'
+
+/** The deposit as the indexer or the contract manager reports it: its outpoint,
+ * and the txids that spent it. `spentBy` is the checkpoint and `arkTxId` the
+ * ark tx; a spend through a checkpoint carries the covenant leaf in the former. */
+type SpentDeposit = Pick<VirtualCoin, 'txid' | 'vout' | 'spentBy' | 'arkTxId'>
+
+/** The server key as the covenants were funded against it: x-only. The info
+ * endpoint serves it compressed today; this accepts either form and throws on
+ * anything else, where a bare slice of an x-only key would silently yield one
+ * of the wrong length and every classification would come back indeterminate. */
+const xOnlyServerKey = (signerPubkey: string): Uint8Array => hex.decode(toXOnlySignerHex(signerPubkey))
 
 interface AssetSwapsContextProps {
   /** Markets from the network's solver registry. */
@@ -112,49 +129,6 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
    * other status is one. Both reconciliation passes below ask this, so they
    * cannot disagree about which records are still theirs to resolve. */
   const isOpen = (swap: AssetSwap) => swap.status === 'pending' || swap.status === 'cancelling'
-
-  /** The deposit as the indexer or the contract manager reports it: its
-   * outpoint, and the txids that spent it. Both are needed to classify. */
-  type SpentDeposit = { txid: string; vout: number; arkTxId?: string; spentBy?: string }
-
-  /**
-   * What a spend of the deposit was, read from the covenant leaf it took.
-   *
-   * The one authoritative answer, and the one every writer here must use. The
-   * alternative — inferring from the history row for the spend, cancel if the
-   * want-asset did not arrive — read a fill as a cancel. The SDK builds that
-   * row by netting the deposit against the outputs the same tx created for the
-   * wallet, and the two sides are not equally fresh: `getContractsWithVtxos`
-   * syncs the covenant's script against the indexer on every call, while
-   * history is built from the cached wallet-script vtxos, which only the
-   * subscription updates. A pass that runs between the fill landing and that
-   * update sees the deposit spent with no output for it, a bare send of the
-   * deposit. A stored status is permanent, so that guess was.
-   *
-   * Both spend txids are fetched, not just the ark tx: a deposit spent through
-   * a checkpoint names the checkpoint in `spentBy` and the ark tx in
-   * `arkTxId`, and only the checkpoint's input carries the leaf.
-   *
-   * `indeterminate` on any failure — indexer unreachable, malformed psbt — so
-   * the caller leaves the record open and a later pass asks again.
-   */
-  const classifyDeposit = async (swap: AssetSwap, deposit: SpentDeposit): Promise<SpendKind> => {
-    const candidates = spendTxidsOf(deposit)
-    if (candidates.length === 0 || !aspInfo.url || !aspInfo.signerPubkey) return 'indeterminate'
-    try {
-      const { txs } = await new RestIndexerProvider(aspInfo.url).getVirtualTxs(candidates)
-      return classifyDepositSpend(
-        decodeOffer(hex.decode(swap.offerHex)),
-        // x-only, matching the key the covenants were funded against
-        hex.decode(aspInfo.signerPubkey).slice(1),
-        txs.map((psbt) => Transaction.fromPSBT(base64.decode(psbt))),
-        { txid: deposit.txid, vout: deposit.vout },
-      )
-    } catch (err) {
-      consoleError(err, 'failed to classify swap deposit spend')
-      return 'indeterminate'
-    }
-  }
 
   // The store is async now, so the list arrives after the first render rather
   // than with it. Re-read on every dataReady transition: a wallet reset clears
@@ -275,8 +249,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
         txsRef.current,
         new Set(existing.filter((swap) => !isOpen(swap)).map((swap) => swap.id)),
         {
-          // x-only, matching the key the covenants were funded against
-          serverPubkey: hex.decode(aspInfo.signerPubkey).slice(1),
+          serverPubkey: xOnlyServerKey(aspInfo.signerPubkey),
           scanned: new Set([...scanned].filter((txid) => !open.has(txid))),
         },
       )
@@ -457,23 +430,123 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
-  const resolveCancellingSpend = async (swap: WalletAssetSwap, deposit: SpentDeposit): Promise<boolean> => {
-    // the ark txid, which is what the resolver matches a spend on
-    const spentTxid = deposit.arkTxId || deposit.spentBy
-    if (!spentTxid) return false
-    const kind = await classifyDeposit(swap, deposit)
-    if (kind === 'indeterminate') return false
+  /**
+   * The spending txs the indexer serves for these txids, parsed and keyed by
+   * txid: one round-trip for however many the caller needs. A psbt that fails
+   * to parse is dropped rather than failing the batch, as the restore scan
+   * does, so the other spend of the same deposit can still answer.
+   */
+  const fetchSpendTxs = async (txids: string[]): Promise<Map<string, Transaction>> => {
+    const parsed = new Map<string, Transaction>()
+    if (txids.length === 0) return parsed
+    const { txs } = await new RestIndexerProvider(aspInfo.url).getVirtualTxs(txids)
+    for (const psbt of txs) {
+      try {
+        const tx = Transaction.fromPSBT(base64.decode(psbt))
+        parsed.set(tx.id, tx)
+      } catch (err) {
+        consoleError(err, 'unparseable spending tx from indexer')
+      }
+    }
+    return parsed
+  }
 
-    // Re-read after the async lookup so a completed cancelOffer call or the
-    // watcher always wins over this reconciliation.
+  /**
+   * What a spend of the deposit was, read from the covenant leaf it took, and
+   * the txid the record carries for it: the ark txid, which is what the
+   * resolver matches a spend on.
+   *
+   * The one authoritative answer, and the one every writer here uses. The
+   * alternative — inferring from the history row for the spend, cancel if the
+   * want-asset did not arrive — read a fill as a cancel. The SDK builds that
+   * row by netting the deposit against the outputs the same tx created for the
+   * wallet, and the two sides are not equally fresh: `getContractsWithVtxos`
+   * syncs the covenant's script against the indexer on every call, while
+   * history is built from the cached wallet-script vtxos, which only the
+   * subscription updates. A pass that runs between the fill landing and that
+   * update sees the deposit spent with no output for it, a bare send of the
+   * deposit. A stored status is permanent, so that guess was.
+   *
+   * Nothing when the deposit reports no spend or the leaf has no answer yet —
+   * a spend the indexer did not serve, a covenant that does not rebuild against
+   * this key — so the caller leaves the record open and a later pass asks again.
+   *
+   * TODO: this is the watcher's own `classify` step, which `@arkade-os/swap`
+   * keeps private; delete it once the package exports a fetching classifier.
+   */
+  const classifyDeposit = (
+    swap: AssetSwap,
+    deposit: SpentDeposit,
+    spendTxs: Map<string, Transaction>,
+  ): { txid: string; kind: Exclude<SpendKind, 'indeterminate'> } | undefined => {
+    const txid = deposit.arkTxId || deposit.spentBy
+    if (!txid || !aspInfo.signerPubkey) return undefined
+    try {
+      const kind = classifyDepositSpend(
+        decodeOffer(hex.decode(swap.offerHex)),
+        xOnlyServerKey(aspInfo.signerPubkey),
+        spendTxidsOf(deposit)
+          .map((id) => spendTxs.get(id))
+          .filter((tx): tx is Transaction => tx !== undefined),
+        { txid: deposit.txid, vout: deposit.vout },
+      )
+      return kind === 'indeterminate' ? undefined : { txid, kind }
+    } catch (err) {
+      consoleError(err, 'failed to classify swap deposit spend')
+      return undefined
+    }
+  }
+
+  /**
+   * Writes the leaf's answer for a spent deposit onto a record still open, and
+   * announces it. The one routine behind both writers that start from a
+   * deposit the indexer reports spent: the unseen-spend pass, and a cancel that
+   * threw after the deposit was gone.
+   *
+   * The record is re-read right before the write so the watcher, or a cancel
+   * that completed meanwhile, wins: `spendUpdate` returns nothing for a
+   * terminal record, and that is the only open-check either writer relies on.
+   * The completion time is the fill's own history row when it has landed; it
+   * can trail the spend, and the outcome does not wait for it.
+   *
+   * `answered` is whether the leaf had an answer, `written` whether this call
+   * was the one that wrote it. The awaits outlive a wallet switch, so `stale`
+   * is asked on the near side of each side effect: writing past one would move
+   * a record into the wallet the user just left, or repaint it into the one
+   * they arrived at.
+   */
+  const resolveSpentDeposit = async (
+    swap: AssetSwap,
+    deposit: SpentDeposit,
+    spendTxs: Map<string, Transaction>,
+    stale: () => boolean,
+  ): Promise<{ answered: boolean; written: boolean }> => {
+    const spend = classifyDeposit(swap, deposit, spendTxs)
+    if (!spend) return { answered: false, written: false }
+    const row = txsRef.current.find((tx) => [tx.boardingTxid, tx.redeemTxid, tx.roundTxid].includes(spend.txid))
     const current = (await readSwaps()).find((candidate) => candidate.id === swap.id)
-    if (current?.status !== 'cancelling') return true
-    const changes = spendUpdate(current, { txid: spentTxid, kind, at: Date.now() })
-    if (!changes) return true
-    applySwaps(await updateAssetSwap(assetSwapRepository, swap.id, changes))
-    announceOutcome({ ...swap, status: kind })
-    reloadWallet().catch(consoleError)
-    return true
+    const changes =
+      current &&
+      spendUpdate(current, {
+        ...spend,
+        at: row ? row.createdAt * 1000 : Date.now(), // history in seconds, records in milliseconds
+      })
+    if (!changes || stale()) return { answered: true, written: false }
+    const updated = await updateAssetSwap(assetSwapRepository, swap.id, changes)
+    if (stale()) return { answered: true, written: false }
+    applySwaps(updated)
+    announceOutcome({ ...swap, status: spend.kind })
+    return { answered: true, written: true }
+  }
+
+  /** A cancel that threw after the deposit was spent: something took it, and
+   * the leaf says what. True once it has answered, whichever writer got there
+   * first; false leaves the record `cancelling` for the watcher. */
+  const resolveCancellingSpend = async (swap: WalletAssetSwap, deposit: SpentDeposit): Promise<boolean> => {
+    const spendTxs = await fetchSpendTxs(spendTxidsOf(deposit))
+    const { answered, written } = await resolveSpentDeposit(swap, deposit, spendTxs, () => false)
+    if (written) reloadWallet().catch(consoleError)
+    return answered
   }
 
   /**
@@ -497,9 +570,10 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
    * is registered and the deposit still counts as the wallet's own.
    *
    * The spend is classified from the covenant leaf it took, exactly as the
-   * watcher and the scan classify theirs (`classifyDeposit`). History is read
-   * only for the fill's timestamp, and the pass does not wait for that row:
-   * the leaf answers as soon as the indexer serves the spending tx.
+   * watcher and the scan classify theirs (`classifyDeposit`), off one indexer
+   * read for every spend the pass has to look at. It does not wait for the
+   * fill's history row: the leaf answers as soon as the indexer serves the
+   * spending tx.
    *
    * A spend another path resolves while this one is between its re-read and its
    * write costs a redundant write, not a redundant notice: `spendUpdate` makes
@@ -514,46 +588,25 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     const contracts = await manager.getContractsWithVtxos({
       script: [...new Set(open.map((swap) => swap.swapPkScript))],
     })
-    const spent = contracts.flatMap(({ vtxos }) => vtxos).filter((vtxo) => vtxo.isSpent)
-    // the steady state, and worth a check to skip the history read below
+    const vtxos = contracts.flatMap((contract) => contract.vtxos)
+    const spent = open.flatMap((swap) => {
+      const deposit = vtxos.find(
+        (v) => v.isSpent && v.contractScript === swap.swapPkScript && v.txid === swap.fundingTxid,
+      )
+      return deposit ? [{ swap, deposit }] : []
+    })
+    // the steady state
     if (spent.length === 0) return
 
-    const history = await getTxHistory(svcWallet)
+    const spendTxs = await fetchSpendTxs([...new Set(spent.flatMap(({ deposit }) => spendTxidsOf(deposit)))])
+    if (stale()) return
     const settled = new Set<string>()
-    for (const swap of open) {
-      const deposit = spent.find((v) => v.contractScript === swap.swapPkScript && v.txid === swap.fundingTxid)
-      // the ark txid, which is what the resolver matches a fill on
-      const spentTxid = deposit?.arkTxId || deposit?.spentBy
-      if (!deposit || !spentTxid) continue
-
-      // a stored status is permanent, so nothing short of the leaf gets written
-      const kind = await classifyDeposit(swap, deposit)
-      if (kind === 'indeterminate') continue
-
-      // the watcher or a cancel in flight is the authority if it got here first
-      const current = (await readSwaps()).find((candidate) => candidate.id === swap.id)
-      if (!current || !isOpen(current)) continue
-
-      // the fill's own row is the completion time when it has landed; it can
-      // trail the spend, and the outcome does not wait for it
-      const row = history.find((tx) => [tx.boardingTxid, tx.redeemTxid, tx.roundTxid].includes(spentTxid))
-      const changes = spendUpdate(current, {
-        txid: spentTxid,
-        kind,
-        at: row ? row.createdAt * 1000 : Date.now(), // history in seconds, records in milliseconds
-      })
-      if (!changes) continue
-      // every await above outlives a wallet switch, so re-ask on the near side
-      // of each side effect: writing past one would move a record into the
-      // wallet the user just left, or repaint it into the one they arrived at
+    for (const { swap, deposit } of spent) {
+      const { written } = await resolveSpentDeposit(swap, deposit, spendTxs, stale)
       if (stale()) return
-      const updated = await updateAssetSwap(assetSwapRepository, swap.id, changes)
-      if (stale()) return
-      applySwaps(updated)
-      settled.add(swap.swapPkScript)
-      announceOutcome({ ...swap, status: kind })
+      if (written) settled.add(swap.swapPkScript)
     }
-    if (settled.size === 0 || stale()) return
+    if (settled.size === 0) return
     // only the scripts this run resolved: liveness is a property of all records
     // at a script, so the filter keeps the check sound
     await retireSettledOfferContracts(
@@ -567,10 +620,10 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   /**
    * Re-run on every history change, not once at start.
    *
-   * The pass can only classify a spend once the transaction that made it has
-   * reached history, and with the app left open that arrives long after the
-   * watcher started — the fill itself is what puts it there. Running once at
-   * start covers only a spend that predates the session.
+   * A spend can land at any point in the session, and `txs` changing is the
+   * wallet's signal that something moved: the deposit's own spend reaches
+   * history as a row, so the change that matters always arrives as one.
+   * Running once at start covers only a spend that predates the session.
    *
    * Chained rather than gated by a flag, so a change landing mid-run is
    * answered instead of dropped, and each queued run carries its own liveness
