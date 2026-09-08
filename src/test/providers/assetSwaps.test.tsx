@@ -17,6 +17,8 @@ import { mockAspContextValue, mockTxInfo, mockWalletContextValue } from '../scre
 const cancelOffer = vi.hoisted(() => vi.fn())
 const createOffer = vi.hoisted(() => vi.fn())
 const getVtxos = vi.hoisted(() => vi.fn())
+const getVirtualTxs = vi.hoisted(() => vi.fn())
+const classifyDepositSpend = vi.hoisted(() => vi.fn())
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const discoverMarkets = vi.hoisted(() => vi.fn(async (_network: string, _useCache?: boolean) => []))
 const restoreAssetSwaps = vi.hoisted(() => vi.fn())
@@ -27,12 +29,14 @@ vi.mock('@arkade-os/sdk', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@arkade-os/sdk')>()),
   RestIndexerProvider: class {
     getVtxos = getVtxos
+    getVirtualTxs = getVirtualTxs
   },
 }))
 
 vi.mock('@arkade-os/swap', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@arkade-os/swap')>()),
   cancelOffer,
+  classifyDepositSpend,
   createOffer,
   decodeOffer,
   restoreAssetSwaps,
@@ -58,6 +62,9 @@ vi.mock('../../lib/swapMarkets', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/swapMarkets')>()),
   discoverMarkets,
 }))
+
+// valid hex: the provider decodes it to the x-only key the covenants were funded against
+const SIGNER_PUBKEY = `02${'ab'.repeat(32)}`
 
 const pendingSwap: WalletAssetSwap = {
   id: 'funding-txid',
@@ -98,10 +105,13 @@ const providerTree = (
   </AspContext.Provider>
 )
 
-function renderProvider(reloadWallet = vi.fn().mockResolvedValue(undefined), url = '') {
+function renderProvider(reloadWallet = vi.fn().mockResolvedValue(undefined), url = '', signerPubkey?: string) {
   render(
     providerTree(
-      { asp: { network: '', url }, wallet: { reloadWallet, svcWallet: { identity: {} } } },
+      {
+        asp: { network: '', url, ...(signerPubkey ? { signerPubkey } : {}) },
+        wallet: { reloadWallet, svcWallet: { identity: {} } },
+      },
       <CancelHarness />,
     ),
   )
@@ -279,6 +289,33 @@ describe('AssetSwapsProvider cancellation', () => {
 
     await waitFor(async () => expect((await getAssetSwaps(repository))[0].status).toBe('fulfilled'))
   })
+
+  it('classifies the spend behind a failed cancel by its covenant leaf', async () => {
+    // the cancel threw, but the deposit is gone: a solver may have filled it
+    // first. The leaf says which, not what history shows moved.
+    cancelOffer.mockRejectedValue(new Error('cancel failed'))
+    const deposit = {
+      txid: pendingSwap.fundingTxid,
+      vout: 0,
+      virtualStatus: { state: 'spent' },
+      spentBy: 'checkpoint-txid',
+      arkTxId: 'fill-txid',
+    }
+    getVtxos.mockResolvedValue({ vtxos: [deposit] })
+    getVirtualTxs.mockReset().mockResolvedValue({ txs: [] })
+    classifyDepositSpend.mockReset().mockReturnValue('fulfilled')
+    const reloadWallet = renderProvider(undefined, 'https://ark.test', SIGNER_PUBKEY)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    await waitFor(async () =>
+      expect((await getAssetSwaps(repository))[0]).toMatchObject({ status: 'fulfilled', spentTxid: 'fill-txid' }),
+    )
+    // both spends are fetched: a deposit spent through a checkpoint carries the leaf there
+    expect(getVirtualTxs).toHaveBeenCalledWith(['checkpoint-txid', 'fill-txid'])
+    expect(classifyDepositSpend.mock.calls[0][3]).toEqual({ txid: pendingSwap.fundingTxid, vout: 0 })
+    expect(reloadWallet).toHaveBeenCalled()
+  })
 })
 
 describe('AssetSwapsProvider watching', () => {
@@ -305,8 +342,6 @@ describe('AssetSwapsProvider watching', () => {
 })
 
 describe('AssetSwapsProvider restore scan', () => {
-  // valid hex: the provider decodes it to the x-only key the covenants were funded against
-  const SIGNER_PUBKEY = `02${'ab'.repeat(32)}`
   const restoredSwap: WalletAssetSwap = { ...pendingSwap, id: 'restored-txid', fundingTxid: 'restored-txid' }
   const sentTx = (redeemTxid: string) => ({ ...mockTxInfo, type: 'sent', redeemTxid, createdAt: 1 })
 
@@ -550,6 +585,7 @@ describe('AssetSwapsProvider solver cards', () => {
 
 describe('AssetSwapsProvider spends the watcher never saw', () => {
   const FILL_TXID = 'fill-txid'
+  const CHECKPOINT_TXID = 'checkpoint-txid'
   const SPENT_AT = 1_700_000_000_000
 
   /** The manager answers for the deposit's fate, history for what spent it. */
@@ -569,12 +605,19 @@ describe('AssetSwapsProvider spends the watcher never saw', () => {
     }
   }
 
+  /** Spent through a checkpoint, as the server does it: the checkpoint is
+   * `spentBy`, the ark tx `arkTxId`, and only the checkpoint's input names
+   * the covenant leaf. */
   const spentDeposit = {
     contractScript: pendingSwap.swapPkScript,
     txid: pendingSwap.fundingTxid,
+    vout: 0,
     isSpent: true,
+    spentBy: CHECKPOINT_TXID,
     arkTxId: FILL_TXID,
   }
+  const unspentDeposit = { ...spentDeposit, isSpent: false, spentBy: undefined, arkTxId: undefined }
+  const asp = { network: '', url: 'https://ark.test', signerPubkey: SIGNER_PUBKEY }
 
   /** As the SDK reports it, before `arkTransactionToTx` normalizes it. */
   const spendRow = (assets: { assetId: string; amount: bigint }[] = []) => ({
@@ -589,16 +632,15 @@ describe('AssetSwapsProvider spends the watcher never saw', () => {
   const filled = [{ assetId: pendingSwap.toAsset, amount: BigInt(500) }]
 
   const renderWith = (svcWallet: unknown, reloadWallet = vi.fn().mockResolvedValue(undefined)) =>
-    render(
-      providerTree(
-        { asp: { network: '', url: 'https://ark.test' }, wallet: { reloadWallet, svcWallet } },
-        <CancelHarness />,
-      ),
-    )
+    render(providerTree({ asp, wallet: { reloadWallet, svcWallet } }, <CancelHarness />))
 
   beforeEach(async () => {
     await repository.clear()
     restoreAssetSwaps.mockReset().mockResolvedValue({ restored: [], scannedTxids: [] })
+    // the leaf classifier is the package's; what it is handed is asserted, what
+    // it answers is set per test
+    getVirtualTxs.mockReset().mockResolvedValue({ txs: [] })
+    classifyDepositSpend.mockReset().mockReturnValue('fulfilled')
     vi.mocked(toast.success).mockClear()
     await addAssetSwap(repository, pendingSwap)
   })
@@ -622,11 +664,38 @@ describe('AssetSwapsProvider spends the watcher never saw', () => {
     expect(seams.getContractsWithVtxos).toHaveBeenCalledWith({ script: [pendingSwap.swapPkScript] })
     await waitFor(() => expect(seams.setContractWatchState).toHaveBeenCalledWith(pendingSwap.swapPkScript, 'retained'))
     expect(reloadWallet).toHaveBeenCalled()
+    // classified from the covenant leaf: both spends fetched, since a deposit
+    // spent through a checkpoint carries the leaf there and not in the ark tx,
+    // and the offer read against the x-only server key the deposit was funded to
+    expect(getVirtualTxs).toHaveBeenCalledWith([CHECKPOINT_TXID, FILL_TXID])
+    const [offer, serverPubkey, , outpoint] = classifyDepositSpend.mock.calls[0]
+    expect(offer).toBe(decodeOffer.mock.results[0].value)
+    expect(hex.encode(serverPubkey)).toBe(SIGNER_PUBKEY.slice(2))
+    expect(outpoint).toEqual({ txid: pendingSwap.fundingTxid, vout: 0 })
   })
 
-  it('reads a spend that returned the deposit as a cancel', async () => {
-    // no want-asset in the spend: the deposit came back rather than being filled
-    renderWith(walletWith({ vtxos: [spentDeposit], history: [spendRow()] }).svcWallet)
+  it('writes the leaf, not what the history row says moved', async () => {
+    // The row the SDK builds for a spend nets the deposit against the outputs
+    // the same tx created for the wallet. Until the fill's output reaches the
+    // cache that row is a bare send of the deposit, with no want-asset on it:
+    // read as "nothing arrived, so the deposit came back", a fill was written
+    // as `cancelled`, and a stored status is permanent. Same shape here, leaf
+    // says fulfilled, and fulfilled is what lands.
+    const seams = walletWith({ vtxos: [spentDeposit], history: [spendRow()] })
+    renderWith(seams.svcWallet)
+
+    await waitFor(async () =>
+      expect((await getAssetSwaps(repository))[0]).toMatchObject({
+        status: 'fulfilled',
+        spentTxid: FILL_TXID,
+        completedAt: SPENT_AT,
+      }),
+    )
+  })
+
+  it('reads a spend the leaf calls a cancel as one, whatever the row shows', async () => {
+    classifyDepositSpend.mockReturnValue('cancelled')
+    renderWith(walletWith({ vtxos: [spentDeposit], history: [spendRow(filled)] }).svcWallet)
 
     await waitFor(async () =>
       expect((await getAssetSwaps(repository))[0]).toMatchObject({ status: 'cancelled', spentTxid: FILL_TXID }),
@@ -634,19 +703,29 @@ describe('AssetSwapsProvider spends the watcher never saw', () => {
     expect((await getAssetSwaps(repository))[0].completedAt).toBeUndefined()
   })
 
+  it('resolves a fill before its own history row has landed', async () => {
+    // the leaf answers as soon as the indexer serves the spend; the row is
+    // only the completion time, and without it the write is dated now
+    const seams = walletWith({ vtxos: [spentDeposit], history: [] })
+    renderWith(seams.svcWallet)
+
+    await waitFor(async () =>
+      expect((await getAssetSwaps(repository))[0]).toMatchObject({ status: 'fulfilled', spentTxid: FILL_TXID }),
+    )
+    expect((await getAssetSwaps(repository))[0].completedAt).toBeGreaterThan(SPENT_AT)
+  })
+
   it('resolves a spend that lands while the app is left open', async () => {
     // the case a run-once-at-start pass cannot reach: the deposit is spent
-    // twenty minutes into the session, and the fill's own history row is what
-    // makes it classifiable
-    const seams = walletWith({ vtxos: [spentDeposit], history: [] })
+    // twenty minutes into the session
+    const seams = walletWith({ vtxos: [unspentDeposit], history: [] })
     const tree = (txs: unknown[]) =>
-      providerTree(
-        { asp: { network: '', url: 'https://ark.test' }, wallet: { svcWallet: seams.svcWallet, txs } },
-        <CancelHarness />,
-      )
-    const { rerender } = render(tree([]))
+      providerTree({ asp, wallet: { svcWallet: seams.svcWallet, txs } }, <CancelHarness />)
+    const { rerender } = render(tree([{ redeemTxid: 'earlier-txid' }]))
 
-    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('pending'))
+    await waitFor(() => expect(seams.getContractsWithVtxos).toHaveBeenCalled())
+    expect((await getAssetSwaps(repository))[0].status).toBe('pending')
+    seams.getContractsWithVtxos.mockResolvedValue([{ vtxos: [spentDeposit] }])
     seams.getTransactionHistory.mockResolvedValue([spendRow(filled)])
     rerender(tree([{ redeemTxid: FILL_TXID }]))
 
@@ -663,18 +742,16 @@ describe('AssetSwapsProvider spends the watcher never saw', () => {
     // announce an outcome it failed to persist. This pass then re-reads
     // `pending` from the store, resolves it for real, and with a toast per
     // writer the user is told twice about one swap.
-    const seams = walletWith({ vtxos: [spentDeposit], history: [] })
+    const seams = walletWith({ vtxos: [unspentDeposit], history: [] })
     const tree = (txs: unknown[]) =>
-      providerTree(
-        { asp: { network: '', url: 'https://ark.test' }, wallet: { svcWallet: seams.svcWallet, txs } },
-        <CancelHarness />,
-      )
+      providerTree({ asp, wallet: { svcWallet: seams.svcWallet, txs } }, <CancelHarness />)
     const { rerender } = render(tree([]))
     await waitFor(() => expect(watchOfferSwaps).toHaveBeenCalled())
 
     act(() => watchOfferSwaps.mock.calls[0][0].onUpdate({ ...pendingSwap, status: 'fulfilled', spentTxid: FILL_TXID }))
     expect(toast.success).toHaveBeenCalledTimes(1)
 
+    seams.getContractsWithVtxos.mockResolvedValue([{ vtxos: [spentDeposit] }])
     seams.getTransactionHistory.mockResolvedValue([spendRow(filled)])
     rerender(tree([{ redeemTxid: FILL_TXID }]))
 
@@ -682,27 +759,45 @@ describe('AssetSwapsProvider spends the watcher never saw', () => {
     expect(toast.success).toHaveBeenCalledTimes(1)
   })
 
-  it('leaves the record pending while no history row can classify the spend', async () => {
-    // a stored status is skipped by every later scan, so a guess here is permanent
-    const seams = walletWith({ vtxos: [spentDeposit], history: [] })
+  it('leaves the record pending while the leaf has no answer', async () => {
+    // a stored status is permanent, so nothing else gets to fill in for the
+    // leaf: not the row, however much it looks like a fill
+    classifyDepositSpend.mockReturnValue('indeterminate')
+    const seams = walletWith({ vtxos: [spentDeposit], history: [spendRow(filled)] })
     renderWith(seams.svcWallet)
 
-    await waitFor(() => expect(seams.getTransactionHistory).toHaveBeenCalled())
-    expect((await getAssetSwaps(repository))[0].status).toBe('pending')
-  })
-
-  it('leaves a BTC-want offer alone, where the moved-value test cannot answer', async () => {
-    // its cancel nets to zero against the deposit and so reads exactly like a fill
-    decodeOffer.mockReturnValue({ offerAsset: { toString: () => 'asset-alpha' } })
-    const seams = walletWith({ vtxos: [spentDeposit], history: [spendRow()] })
-    renderWith(seams.svcWallet)
-
-    await waitFor(() => expect(seams.getTransactionHistory).toHaveBeenCalled())
+    await waitFor(() => expect(classifyDepositSpend).toHaveBeenCalled())
     expect((await getAssetSwaps(repository))[0].status).toBe('pending')
     expect(seams.setContractWatchState).not.toHaveBeenCalled()
   })
 
+  it('answers a BTC-want offer too, which no moved-value test could', async () => {
+    // its cancel returns the offered asset and nets to zero, reading exactly
+    // like a fill on the row; the leaf tells them apart
+    decodeOffer.mockReturnValue({ offerAsset: { toString: () => 'asset-alpha' } })
+    classifyDepositSpend.mockReturnValue('cancelled')
+    renderWith(walletWith({ vtxos: [spentDeposit], history: [spendRow()] }).svcWallet)
+
+    await waitFor(async () =>
+      expect((await getAssetSwaps(repository))[0]).toMatchObject({ status: 'cancelled', spentTxid: FILL_TXID }),
+    )
+  })
+
+  it('does not ask the indexer before the server key is known', async () => {
+    // the leaf is checked against the key the covenant was funded to
+    const seams = walletWith({ vtxos: [spentDeposit], history: [spendRow(filled)] })
+    render(
+      providerTree({ asp: { ...asp, signerPubkey: '' }, wallet: { svcWallet: seams.svcWallet } }, <CancelHarness />),
+    )
+
+    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('pending'))
+    for (let i = 0; i < 5; i++) await act(async () => {})
+    expect(getVirtualTxs).not.toHaveBeenCalled()
+    expect((await getAssetSwaps(repository))[0].status).toBe('pending')
+  })
+
   it('resolves a swap left cancelling by a restart mid-cancel', async () => {
+    classifyDepositSpend.mockReturnValue('cancelled')
     await updateAssetSwap(repository, pendingSwap.id, { status: 'cancelling' })
     renderWith(walletWith({ vtxos: [spentDeposit], history: [spendRow()] }).svcWallet)
 
@@ -735,10 +830,7 @@ describe('AssetSwapsProvider spends the watcher never saw', () => {
   })
 
   it('does not read history at all when the deposit is still unspent', async () => {
-    const seams = walletWith({
-      vtxos: [{ ...spentDeposit, isSpent: false, arkTxId: undefined }],
-      history: [spendRow(filled)],
-    })
+    const seams = walletWith({ vtxos: [unspentDeposit], history: [spendRow(filled)] })
     renderWith(seams.svcWallet)
 
     await waitFor(() => expect(seams.getContractsWithVtxos).toHaveBeenCalled())
