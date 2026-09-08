@@ -39,6 +39,7 @@ import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
 import { arkNoteInUrl } from '../lib/arknote'
 import { deepLinkInUrl } from '../lib/deepLink'
+import { assetNameChanged } from '../lib/assets'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { activitiesToTxs, getActivities } from '../lib/activityHistory'
@@ -307,12 +308,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     // Only what `assetDisplay` reads is worth a repaint. A TTL refresh rewriting
     // the same name must not re-derive every row, and the prefetch loop writes
     // one entry per owned asset with an await between each.
-    if (
-      previous?.metadata?.ticker !== entry.metadata?.ticker ||
-      previous?.metadata?.decimals !== entry.metadata?.decimals
-    ) {
-      setAssetDisplayVersion((version) => version + 1)
-    }
+    if (assetNameChanged(previous?.metadata, entry.metadata)) setAssetDisplayVersion((version) => version + 1)
     return entry
   }
 
