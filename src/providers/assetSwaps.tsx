@@ -692,9 +692,10 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   const swapAvailable = markets.length > 0 && Boolean(emulatorPubkey)
   const value = useMemo(
     () => ({ markets, swapAvailable, swaps, createSwap, cancelSwap }),
-    // createSwap/cancelSwap close over these
+    // createSwap/cancelSwap close over these; the signer key reaches cancelSwap
+    // through classifyDeposit, which reads the leaf against it
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [markets, swapAvailable, swaps, svcWallet, emulatorPubkey, aspInfo.url, aspInfo.network],
+    [markets, swapAvailable, swaps, svcWallet, emulatorPubkey, aspInfo.url, aspInfo.network, aspInfo.signerPubkey],
   )
 
   return <AssetSwapsContext.Provider value={value}>{children}</AssetSwapsContext.Provider>
