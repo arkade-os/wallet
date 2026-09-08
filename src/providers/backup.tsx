@@ -108,7 +108,15 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
     // we enforce delegates on restore, and the server stays the locally configured one
     if (data?.config) updateConfig({ ...data.config, aspUrl: configRef.current.aspUrl, delegate: true })
 
-    if (data?.solverCards) saveSolverCards(data.solverCards)
+    // last, and non-fatal: a quota error writing cards must not fail a restore
+    // whose config already landed, and a missing card is re-addable by hand
+    if (data?.solverCards) {
+      try {
+        saveSolverCards(data.solverCards)
+      } catch (err) {
+        consoleError(err, 'failed to restore solver cards')
+      }
+    }
   }
 
   /**
