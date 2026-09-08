@@ -17,6 +17,7 @@ import { sendOffChain } from '../../../lib/asp'
 import {
   ASSET_RAIL,
   ONCHAIN_ROUTE_LOG,
+  fundedResult,
   previewOnchainCost,
   quoteIsForThisInvoice,
   quoteIsForThisSend,
@@ -172,7 +173,11 @@ export default function SendDetails() {
 
   /** Unlike {@link handleTxid} a missing txid is not an error: the solver rail
    *  commits by funding. The fee comes off the QUOTE, not the screen — a rail
-   *  may charge less than was displayed. */
+   *  may charge less than was displayed.
+   *
+   *  No fallback key: the store and every row builder are keyed BY the funding
+   *  txid, so anything else would never be looked up. What made this miss was
+   *  WHEN it ran — on the terminal outcome, minutes after the user had gone. */
   const handleSent = (txid: string | undefined, total: number, fee: number) => {
     if (txid) {
       saveTransactionActivityMetadata(txid, { destination: details?.destination, networkFee: fee })
@@ -193,28 +198,16 @@ export default function SendDetails() {
     setSendDone(true)
   }
 
-  /**
-   * Fund the covenant. That is the whole of the wallet's job.
-   *
-   * Funding IS acceptance — the protocol has no accept message — so once the
-   * covenant is funded the payment is committed and under way: the solver pays
-   * the invoice and claims, and if it cannot, the covenant refunds without
-   * needing anything further from us. Waiting here for the solver to finish
-   * meant the user watched a spinner through the solver's whole pipeline
-   * (notice the funding, route the payment, claim) for an outcome they cannot
-   * influence and that resolves in their favour either way.
-   *
-   * The success screen says "on the way" rather than "sent" for exactly this
-   * reason: at this instant the invoice is not paid yet, and the wording has to
-   * match what is actually true.
-   *
-   * The invoice is re-checked because the quote came from the previous screen —
-   * the same reason the on-chain path re-checks its address.
-   */
+  /** Fund the covenant, then return; both swap rails end here. Funding IS
+   *  acceptance, so waiting for the TERMINAL outcome only made the user watch
+   *  the counterparty's pipeline — the swaps provider observes that and
+   *  outlives this screen. An on-chain send must still claim its L1 HTLC, which
+   *  is why the success copy says "on the way" for both rails. The invoice is
+   *  re-checked because the quote came from the previous screen. */
   const payLightning = async (quote: RouteQuote, shownInvoice: string) => {
     if (!quoteIsForThisInvoice(quote, shownInvoice)) return handleError('Quote is for a different invoice')
-    const result = await (await quote.send()).settled()
-    handleSent(result.txid, quote.total, quote.fee)
+    const result = await fundedResult(await quote.send())
+    handleSent(result?.txid, quote.total, quote.fee)
   }
 
   /** One rail and no counterparty; routed so every branch here has one shape. */
@@ -256,8 +249,8 @@ export default function SendDetails() {
       // `ServiceWorkerWallet.send`, whose worker submits the Ark tx and only
       // then replies (#949), so a rejection here can mean a covenant that IS
       // funded. Trying the exit rail next would pay the recipient twice.
-      const result = await (await quote.send()).settled()
-      return handleSent(result.txid, quote.total, quote.fee)
+      const result = await fundedResult(await quote.send())
+      return handleSent(result?.txid, quote.total, quote.fee)
     }
     throw new Error('No route for this payment')
   }

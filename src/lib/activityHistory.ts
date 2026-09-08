@@ -1,6 +1,6 @@
 import type { Activity } from '@arkade-os/sdk'
 import { isRfqSwapTerminal } from '@arkade-os/swap'
-import { ASSET_SWAP_ACTIVITY_KIND, type LnSendView } from './swapRecords'
+import { ASSET_SWAP_ACTIVITY_KIND, CORRIDOR_LABEL, type LnSendView } from './swapRecords'
 import { consoleError } from './logs'
 import type { TransactionActivityMetadata } from './storage'
 import { buildAssetSwapActivityTx } from './swapDisplay'
@@ -62,27 +62,22 @@ const rfqSwapKindOf = (activity: Activity): string | undefined =>
  * owns. */
 const rfqIdOf = (activity: Activity): string | undefined => activity.intent?.metadata?.rfqId as string | undefined
 
-/**
- * One row for a Lightning send: its funding tx, plus the refund when the swap
- * came back.
+/** One row for a corridor send — Lightning or on-chain.
  *
- * Built off the funding tx rather than the group, so the row keeps that txid in
- * `redeemTxid` — that is the send's own transaction, the one a receipt written
- * before `lnSwap` existed still falls back to, and the id every other consumer
- * of a sent row expects. What the group contributes is the amount and the
- * outcome: a refunded send cost only its fees, and reporting the funding amount
- * for it would show money that came back as money spent.
- */
-const lightningSendTx = (
+ *  **The record says which tx funded the swap; the group cannot.** History nets
+ *  the funding row to zero and drops it — it pays a covenant this wallet
+ *  registered — so the member that survives is the LOCKUP BEING SPENT. Keying
+ *  the metadata or the record off it looked both up where nothing was written. */
+const corridorSendTx = (
   activity: Activity,
   metadata: Record<string, TransactionActivityMetadata>,
   lnSends: LnSendView[],
 ): Tx | undefined => {
-  const funding = activity.txs.find((tx) => tx.type === 'SENT')
-  if (!funding) return undefined
-  const fundingTxid = txidOfArkTransaction(funding)
-  const base = arkTransactionToTx(funding, metadata[fundingTxid])
-  const record = lnSends.find((view) => view.fundingTxid === fundingTxid)
+  const leg = activity.txs.find((tx) => tx.type === 'SENT')
+  if (!leg) return undefined
+  const record = lnSends.find((view) => view.rfqId === rfqIdOf(activity))
+  const fundingTxid = record?.fundingTxid ?? txidOfArkTransaction(leg)
+  const base = arkTransactionToTx(leg, metadata[fundingTxid])
   return {
     ...base,
     amount: Math.abs(activity.amount),
@@ -183,7 +178,7 @@ const ungroupedLnSendTx = (send: LnSendView, metadata: Record<string, Transactio
       lnSwap: {
         // The same copy the package's resolver emits for this corridor, so a
         // row does not rename itself when the group finally arrives.
-        label: 'Lightning send',
+        label: CORRIDOR_LABEL[send.kind] ?? 'Swap',
         // `RFQ_SWAP_TERMINAL_STATES` and the resolver's outcome tokens are the
         // same three words, which is what lets the state stand in for the
         // token: everything short of an ending reads as pending.
@@ -262,8 +257,8 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
   const rows: Tx[] = []
   for (const activity of activities) {
     const swapKind = rfqSwapKindOf(activity)
-    if (swapKind === 'lightning_send') {
-      const row = lightningSendTx(activity, metadata, lnSends)
+    if (swapKind === 'lightning_send' || swapKind === 'onchain_send') {
+      const row = corridorSendTx(activity, metadata, lnSends)
       if (row) {
         rows.push(row)
         continue

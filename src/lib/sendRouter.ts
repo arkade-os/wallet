@@ -13,9 +13,11 @@ import {
   makeHandle,
   type Asset,
   type IWallet,
+  type PaymentHandle,
   type PaymentRail,
   type PaymentRequest,
   type RouteQuote,
+  type RouteResult,
 } from '@arkade-os/sdk'
 import { LIGHTNING_RAIL, ONCHAIN_SWAP_RAIL, lightningRail, onchainSwapRail, type SwapRailClient } from '@arkade-os/swap'
 import { sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
@@ -181,6 +183,31 @@ export const previewOnchainCost = async (
   }
   return undefined
 }
+
+/** Resolve when the rail reports the funding done, not when the swap ends.
+ *  `"sent"` is core's word for it and both swap rails emit it once the covenant
+ *  holds the money; `settled()` waits for the counterparty, an L1 confirmation
+ *  away on `arkade -> onchain`. `done` guards the replay `subscribe` fires
+ *  before it has returned the unsubscribe. */
+export const fundedResult = (handle: PaymentHandle): Promise<RouteResult | undefined> =>
+  new Promise((resolve, reject) => {
+    let done = false
+    let stop: (() => void) | undefined
+    const unsubscribe = handle.subscribe((update) => {
+      if (done) return
+      if (update.status === 'sent' || update.status === 'settled') {
+        done = true
+        stop?.()
+        resolve(update.result)
+      } else if (update.status === 'failed') {
+        done = true
+        stop?.()
+        reject(update.error ?? new Error('Payment failed'))
+      }
+    })
+    stop = unsubscribe
+    if (done) unsubscribe()
+  })
 
 /** Quoting lazily already removes the stale quote behind the wrong-address bug.
  *  This is the belt to that braces — a rail may quote worse than advertised. */

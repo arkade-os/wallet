@@ -357,6 +357,7 @@ describe('lightning send activities', () => {
   const view = (over: Partial<LnSendView> = {}): LnSendView => ({
     rfqId: RFQ_ID,
     fundingTxid: 'funding-txid',
+    kind: 'lightning_send',
     state: 'pending',
     amount: 1_030,
     createdAt: 4_000,
@@ -383,6 +384,20 @@ describe('lightning send activities', () => {
     expect(lnSwapLabel(row)).toBe('Lightning send pending')
   })
 
+  it('shows an on-chain send in flight too — the corridor that needed it most', () => {
+    // Same invisibility, and the corridor a payer actually leaves during.
+    const [row, ...rest] = activitiesToTxs([], { ...empty, lnSends: [view({ kind: 'onchain_send' })] })
+
+    expect(rest).toEqual([])
+    expect(row).toMatchObject({
+      type: 'sent',
+      redeemTxid: 'funding-txid',
+      historyKey: `swap:${RFQ_ID}`,
+      lnSwap: { label: 'Onchain send', outcome: 'pending', fundingTxid: 'funding-txid' },
+    })
+    expect(lnSwapLabel(row)).toBe('Onchain send pending')
+  })
+
   it('gives that row the invoice and fee saved against the funding tx', () => {
     saveTransactionActivityMetadata('funding-txid', { destination: 'lnbc10u1p...', networkFee: 30 })
 
@@ -393,6 +408,49 @@ describe('lightning send activities', () => {
     })
 
     expect(row).toMatchObject({ destination: 'lnbc10u1p...', networkFee: 30 })
+  })
+
+  it('grafts the metadata under the txid the wallet funded, not the group’s sent member', () => {
+    // The live defect: the surviving member is the lockup SPEND, not the funding.
+    saveTransactionActivityMetadata('funding-txid', { destination: 'lnbc10u1p...', networkFee: 54 })
+    const spend = arkTx('lockup-spend-txid', {
+      type: 'SENT' as ArkTransaction['type'],
+      amount: 1_054,
+      createdAt: 6_000,
+    })
+
+    const [row] = activitiesToTxs([{ ...activity(`swap:${RFQ_ID}`, [spend], lnIntent('pending')), amount: -1_054 }], {
+      ...empty,
+      lnSends: [view()],
+      metadata: readAllTransactionActivityMetadata(),
+    })
+
+    expect(row).toMatchObject({ destination: 'lnbc10u1p...', networkFee: 54 })
+    expect(row.lnSwap?.fundingTxid).toBe('funding-txid')
+  })
+
+  it('routes an on-chain send group through the same builder', () => {
+    saveTransactionActivityMetadata('funding-txid', { destination: 'tb1qmt3ue2s', networkFee: 862 })
+    const spend = arkTx('lockup-spend-txid', {
+      type: 'SENT' as ArkTransaction['type'],
+      amount: 22_862,
+      createdAt: 6_000,
+    })
+    const intent = {
+      kind: 'swap',
+      label: 'Onchain send',
+      outcome: 'pending',
+      metadata: { rfqId: RFQ_ID, swapKind: 'onchain_send' },
+    } as Activity['intent']
+
+    const [row, ...rest] = activitiesToTxs([{ ...activity(`swap:${RFQ_ID}`, [spend], intent), amount: -22_862 }], {
+      ...empty,
+      lnSends: [view({ kind: 'onchain_send' })],
+      metadata: readAllTransactionActivityMetadata(),
+    })
+
+    expect(rest).toEqual([])
+    expect(row).toMatchObject({ destination: 'tb1qmt3ue2s', networkFee: 862, lnSwap: { label: 'Onchain send' } })
   })
 
   it('keeps naming a refunded send, whose refund tx history reports no better', () => {

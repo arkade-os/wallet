@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { hex } from '@scure/base'
 import { getEmulatorPubkeyForNetwork } from '../../../lib/constants'
+import { makeHandle } from '@arkade-os/sdk'
 import SendDetails from '../../../screens/Wallet/Send/Details'
 import SendForm from '../../../screens/Wallet/Send/Form'
 import { AspContext } from '../../../providers/asp'
@@ -71,7 +72,11 @@ const lnQuote = (over: { paymentHash?: string; total?: number } = {}, sent = vi.
   meta: { paymentHash: over.paymentHash ?? decodeInvoice(INVOICE).paymentHash },
   send: async () => {
     sent()
-    return { settled: async () => ({ railId: 'lightning', txid: 'funding-txid', swapId: 'rfq-1' }) }
+    // `sent` and nothing after it: the screen must return on that alone.
+    return makeHandle('lightning', async (emit) => {
+      emit({ status: 'sent', result: { railId: 'lightning', txid: 'funding-txid', swapId: 'rfq-1' } })
+      return await new Promise<any>(() => {})
+    })
   },
 })
 
@@ -145,11 +150,10 @@ describe('signing a Lightning send', () => {
   it('reports a rail that refused to fund rather than reporting a sent payment', async () => {
     const quote = {
       ...lnQuote(),
-      send: async () => ({
-        settled: async () => {
+      send: async () =>
+        makeHandle('lightning', async () => {
           throw new Error('Quote expired — go back and try again')
-        },
-      }),
+        }),
     }
     renderSign({ invoice: INVOICE, satoshis: INVOICE_SATS, pendingLnSend: quote as never })
     await sign()

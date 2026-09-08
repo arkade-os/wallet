@@ -145,6 +145,14 @@ const CLIENT_LOCK = 'swap-client'
  */
 const LOCK_GRACE_MS = 500
 
+/** Whether the trader is paying OUT. `paid` and `claimed` are how BOTH
+ *  directions succeed, so every send announced itself as money received; only a
+ *  receive takes delivery inside Arkade. Optional so `announce` cannot throw. */
+const isSendLeg = (swap: Swap): boolean => {
+  const takes = swap.route?.take?.corridor
+  return takes !== undefined && takes !== 'arkade'
+}
+
 /** Outcomes worth telling the user about, and what they mean to them. */
 const ENDED: Partial<Record<Outcome, 'received' | 'returned' | 'lost'>> = {
   filled: 'received',
@@ -294,7 +302,10 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       next.delete(swap.id)
       return next
     })
-    if (ended === 'received') toast.success(`Swap completed, ${tickerFor(swap.take.asset)} received`)
+    if (ended === 'received')
+      toast.success(
+        isSendLeg(swap) ? 'Payment complete' : `Swap completed, ${tickerFor(swap.take.asset)} received`,
+      )
     else if (ended === 'returned') toast.success('Swap cancelled, funds returned')
     else toast.error('Lightning payment was not received')
     // The claim and the refund land through the client's own broadcaster, so
