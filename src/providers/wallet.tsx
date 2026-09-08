@@ -8,9 +8,6 @@ import {
   AssetDetails,
   WalletBalance,
   IVtxoManager,
-  migrateWalletRepository,
-  getMigrationStatus,
-  rollbackMigration,
   IndexedDBWalletRepository,
   IndexedDBContractRepository,
   type Activity,
@@ -29,7 +26,6 @@ import {
   type TransactionActivityMetadata,
 } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
-import { getRestApiExplorerURL } from '../lib/explorers'
 import { getBalance, getUnrolledVtxos, getVtxos, settleVtxos } from '../lib/asp'
 import { resolveExits, subtractExitedAssets, type ExitRecord } from '../lib/exitHistory'
 import { AspContext } from './asp'
@@ -61,7 +57,6 @@ import {
   mutinynetMinCheckpointExitDelaySeconds,
 } from '../lib/constants'
 import { AssetIconApprovalManager } from '../lib/assetIconApproval'
-import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { BackupContext } from './backup'
 
 const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
@@ -72,12 +67,10 @@ const DEV_AUTO_INIT_RELOAD_KEY = 'arkade-dev-auto-init-reload-attempted'
 
 interface InitSvcWorkerWalletParams {
   arkServerUrl: string
-  esploraUrl?: string
   identity: Identity
-  skipMigration?: boolean
   retryCount?: number
   maxRetries?: number
-  delegatorUrl?: string
+  delegateUrl?: string
   walletMode?: ServiceWorkerWalletMode
   restoring?: boolean
   minCheckpointExitDelaySeconds?: bigint
@@ -594,11 +587,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   ): Promise<boolean> => {
     const {
       arkServerUrl,
-      esploraUrl,
-      skipMigration = false,
       retryCount = 0,
       maxRetries = 2,
-      delegatorUrl,
+      delegateUrl,
       walletMode,
       restoring = false,
       minCheckpointExitDelaySeconds,
@@ -640,9 +631,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       const svcWallet = await ServiceWorkerWallet.setup({
         serviceWorkerPath: '/wallet-service-worker.mjs',
         identity,
-        arkServerUrl,
-        esploraUrl,
-        delegatorUrl,
+        arkServer: { url: arkServerUrl },
+        delegateUrl,
         walletMode: walletMode ?? config.walletMode ?? 'static',
         minCheckpointExitDelaySeconds,
         storage: { walletRepository, contractRepository },
@@ -663,31 +653,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // or refund that follows it, into one labelled activity rather than two
       // unrelated rows.
       svcWallet.activity.use(swapRecordResolver())
-
-      if (!skipMigration) {
-        setLoadingStatus('Migrating data...')
-        try {
-          const oldStorage = new IndexedDBStorageAdapter('arkade-service-worker')
-          const walletStatus = await getMigrationStatus('wallet', oldStorage)
-          if (walletStatus !== 'not-needed') {
-            if (walletStatus === 'pending' || walletStatus === 'in-progress') {
-              const arkAddress = await svcWallet.getAddress()
-              const boardingAddress = await svcWallet.getBoardingAddress()
-              try {
-                await migrateWalletRepository(oldStorage, svcWallet.walletRepository, {
-                  offchain: [arkAddress],
-                  onchain: [boardingAddress],
-                })
-              } catch (err) {
-                await rollbackMigration('wallet', oldStorage)
-                throw err
-              }
-            }
-          }
-        } catch (err) {
-          consoleError(err, 'Error migrating wallet repository')
-        }
-      }
 
       if (restoring) {
         setLoadingStatus('Recovering addresses...')
@@ -820,13 +785,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }) => {
     const arkServerUrl = aspInfo.url
     const network = aspInfo.network as NetworkName
-    const esploraUrl = getRestApiExplorerURL(network)
 
     let identity: Identity
     let pubkey: string
     let walletMode: ServiceWorkerWalletMode
 
-    const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(network) : undefined
+    const delegateUrl = config.delegate ? getDelegateUrlForNetwork(network) : undefined
 
     if (credentials.mnemonic) {
       const mnemonicIdentity = MnemonicIdentity.fromMnemonic(credentials.mnemonic, { isMainnet: isMainnet(network) })
@@ -853,8 +817,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const didInit = await initSvcWorkerWallet({
       identity,
       arkServerUrl,
-      esploraUrl,
-      delegatorUrl,
+      delegateUrl,
       walletMode,
       restoring: credentials.restoring,
       minCheckpointExitDelaySeconds: minCheckpointExitDelaySecondsForNetwork(network),
@@ -886,20 +849,17 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
    * Reinitialize the service-worker wallet in-place so runtime config changes
    * (e.g., delegate on/off) take effect without forcing a lock/unlock cycle.
    * Keeps local tx/balance state; just rebuilds the SW wallet with the current
-   * delegatorUrl flag.
+   * delegateUrl flag.
    */
   const restartWallet = async (delegateEnabled = config.delegate) => {
     if (!svcWallet) return
     const identity = svcWallet.identity as Identity
     const arkServerUrl = aspInfo.url
-    const esploraUrl = getRestApiExplorerURL(aspInfo.network as NetworkName) ?? ''
-    const delegatorUrl = delegateEnabled ? getDelegateUrlForNetwork(aspInfo.network as NetworkName) : undefined
+    const delegateUrl = delegateEnabled ? getDelegateUrlForNetwork(aspInfo.network as NetworkName) : undefined
     await initSvcWorkerWallet({
       identity,
       arkServerUrl,
-      esploraUrl,
-      delegatorUrl,
-      skipMigration: true,
+      delegateUrl,
       minCheckpointExitDelaySeconds: minCheckpointExitDelaySecondsForNetwork(aspInfo.network),
     })
   }
@@ -915,14 +875,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     reinitInProgress.current = true
     try {
       const arkServerUrl = aspInfo.url
-      const esploraUrl = getRestApiExplorerURL(aspInfo.network as NetworkName) ?? ''
-      const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(aspInfo.network as NetworkName) : undefined
+      const delegateUrl = config.delegate ? getDelegateUrlForNetwork(aspInfo.network as NetworkName) : undefined
       const initialized = await initSvcWorkerWallet({
         identity,
         arkServerUrl,
-        esploraUrl,
-        delegatorUrl,
-        skipMigration: true,
+        delegateUrl,
         minCheckpointExitDelaySeconds: minCheckpointExitDelaySecondsForNetwork(aspInfo.network),
       })
       if (!initialized) return
