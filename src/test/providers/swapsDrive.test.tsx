@@ -8,6 +8,12 @@ import { WalletContext } from '../../providers/wallet'
 import { SwapsContext, SwapsProvider } from '../../providers/swaps'
 import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
 
+const success = vi.hoisted(() => vi.fn())
+vi.mock('../../components/Toast', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../components/Toast')>()),
+  toast: { success: (m: string) => success(m), error: vi.fn(), info: vi.fn() },
+}))
+
 /**
  * The single-driver rule and the RFQ status plumbing.
  *
@@ -68,6 +74,7 @@ const monitored = (outcome: Outcome, over: Partial<Swap> = {}): Swap =>
     fundingTxid: 'funding-txid',
     give: { asset: 'arkade:mutinynet/slip44:0', amount: BigInt(1030) },
     take: { asset: 'bolt11:mutinynet/slip44:0', amount: BigInt(1000) },
+    route: { give: { corridor: 'arkade' }, take: { corridor: 'lightning' } },
     ...over,
   }) as Swap
 
@@ -276,6 +283,27 @@ describe('SwapsProvider outcomes', () => {
     listeners[0](update(monitored('lapsed')))
     await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('lapsed'))
     expect(reloadWallet).toHaveBeenCalled()
+  })
+
+  it.each(['paid', 'claimed'] as const)('does not call a %s SEND money received', async (outcome) => {
+    renderProvider()
+    await waitFor(() => expect(listeners).toHaveLength(1))
+
+    listeners[0](update(monitored(outcome)))
+    await waitFor(() => expect(success).toHaveBeenCalled())
+    expect(success).toHaveBeenCalledWith('Payment complete')
+  })
+
+  it('still says received when the swap really did take delivery in Arkade', async () => {
+    renderProvider()
+    await waitFor(() => expect(listeners).toHaveLength(1))
+
+    const receive = monitored('claimed', {
+      route: { give: { corridor: 'lightning' }, take: { corridor: 'arkade' } },
+    } as Partial<Swap>)
+    listeners[0](update(receive))
+    await waitFor(() => expect(success).toHaveBeenCalled())
+    expect(String(success.mock.calls[0][0])).toMatch(/received/)
   })
 
   it('keeps a refund distinct from a lapse, which is the same swap ending well', async () => {

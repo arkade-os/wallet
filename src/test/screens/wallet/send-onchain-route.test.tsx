@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { makeHandle } from '@arkade-os/sdk'
 import SendDetails from '../../../screens/Wallet/Send/Details'
+import { readAllTransactionActivityMetadata } from '../../../lib/storage'
 import { Unit } from '../../../lib/types'
 import { AspContext } from '../../../providers/asp'
 import { ConfigContext } from '../../../providers/config'
@@ -50,6 +52,18 @@ const ADDRESS = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
 const OTHER = 'bcrt1pq6gt72nxevsxk5fwl3h2sx56jeah6qfzh98mksxyakkg5l0q65gsa27khh'
 const FEE = 500
 
+/** Real handles: a swap rail emits `sent` and stays open, as `swapHandle` does. */
+const fundedHandle = (result: any) =>
+  makeHandle(result.railId, async (emit) => {
+    emit({ status: 'sent', result })
+    return await new Promise<any>(() => {})
+  })
+const settledHandle = (result: any) =>
+  makeHandle(result.railId, async (emit) => {
+    emit({ status: 'settled', result })
+    return result
+  })
+
 /** A solver option whose quote is whatever the test says. `send()` records the
  *  call so a refusal is distinguishable from a spend. */
 const solverOption = (quote: { amount: number; total: number }, sent: () => void) => ({
@@ -60,7 +74,7 @@ const solverOption = (quote: { amount: number; total: number }, sent: () => void
     fee: quote.total - quote.amount,
     send: async () => {
       sent()
-      return { settled: async () => ({ railId: 'onchain-swap', swapId: 'rfq-1' }) }
+      return fundedHandle({ railId: 'onchain-swap', swapId: 'rfq-1' })
     },
   }),
 })
@@ -83,7 +97,7 @@ const solverThatGetsDearer = (
         fee: quote.total - quote.amount,
         send: async () => {
           sent()
-          return { settled: async () => ({ railId: 'onchain-swap', swapId: 'rfq-1' }) }
+          return fundedHandle({ railId: 'onchain-swap', swapId: 'rfq-1' })
         },
       }
     },
@@ -97,11 +111,10 @@ const failingSolverOption = (reason: string) => ({
     amount: 9_500,
     fee: 500,
     total: 10_000,
-    send: async () => ({
-      settled: async () => {
+    send: async () =>
+      makeHandle('onchain-swap', async () => {
         throw new Error(reason)
-      },
-    }),
+      }),
   }),
 })
 
@@ -116,7 +129,7 @@ const exitOption = (req: { raw: string; amount?: number }, fee = FEE) => ({
       total: amount + fee,
       send: async () => {
         const txid = await collaborativeExitWithFees(mockSvcWallet as never, amount + fee, amount, req.raw)
-        return { settled: async () => ({ railId: 'onchain', txid }) }
+        return settledHandle({ railId: 'onchain', txid })
       },
     }
   },
@@ -271,6 +284,38 @@ describe('signing an on-chain send', () => {
     await waitFor(() => expect(sendFailure()).toBeDefined())
     expect(String(sendFailure())).toMatch(/worker never replied/i)
     expect(collaborativeExitWithFees).not.toHaveBeenCalled()
+  })
+
+  it('records the destination and fee at the funding, while the swap is still running', async () => {
+    // On the terminal outcome this needed the payer still here minutes later.
+    localStorage.clear()
+    const sent = vi.fn()
+    optionsFor = (req) => [
+      {
+        railId: 'onchain-swap',
+        quote: async () => ({
+          railId: 'onchain-swap',
+          amount: 40_000,
+          fee: 754,
+          total: 40_754,
+          send: async () => {
+            sent()
+            return fundedHandle({ railId: 'onchain-swap', swapId: 'rfq-1', txid: 'lockup-txid' })
+          },
+        }),
+      },
+      exitOption(req, 0),
+    ]
+    renderSign({ address: ADDRESS, satoshis: 40_000 }, { outputFee: 0, config: satsConfig })
+    await sign()
+
+    await waitFor(() => expect(readAllTransactionActivityMetadata()['lockup-txid']).toBeDefined())
+    // Off the QUOTE, not the screen, whose exit fee here is 0.
+    expect(readAllTransactionActivityMetadata()['lockup-txid']).toMatchObject({
+      destination: ADDRESS,
+      networkFee: 754,
+    })
+    expect(sendFailure()).toBeUndefined()
   })
 
   it('routes to the address the screen is showing, not one held from before', async () => {

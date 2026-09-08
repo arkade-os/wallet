@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DiscoveredMarket } from '@arkade-os/solver-discovery'
+import { makeHandle, type PaymentHandle } from '@arkade-os/sdk'
 import { ONCHAIN_SWAP_RAIL, claimFeeSats, type SwapRailClient } from '@arkade-os/swap'
 import { decodeBolt11, lightningCorridor, resolveRoute } from '@arkade-os/swap/advanced'
 import {
@@ -9,6 +10,7 @@ import {
   LIGHTNING_RAIL,
   lnSendRefusal,
   lnSendRequest,
+  fundedResult,
   previewOnchainCost,
   quoteIsForThisInvoice,
   quoteIsForThisSend,
@@ -482,5 +484,42 @@ describe('the asset rail', () => {
     const result = await (await quote.send()).settled()
     expect(sendAssets).toHaveBeenCalledWith(expect.anything(), ARK_ADDRESS, assets)
     expect(result).toMatchObject({ railId: ASSET_RAIL, txid: 'asset-txid' })
+  })
+})
+
+describe('fundedResult', () => {
+  const handleFor = (run: (emit: (u: any) => void) => Promise<any>): PaymentHandle => makeHandle('rail', run)
+
+  it('returns on the funded signal rather than waiting for the swap to end', async () => {
+    let emit: ((u: any) => void) | undefined
+    // Never resolves: `settled()` could not return from this.
+    const handle = handleFor(async (e) => {
+      emit = e
+      return await new Promise(() => {})
+    })
+
+    const funded = fundedResult(handle)
+    emit!({ status: 'sent', result: { railId: 'rail', txid: 'funding-txid' } })
+
+    expect(await funded).toMatchObject({ txid: 'funding-txid' })
+  })
+
+  it('surfaces a failure that lands before the funding', async () => {
+    const handle = handleFor(async () => {
+      throw new Error('quote expired')
+    })
+
+    await expect(fundedResult(handle)).rejects.toThrow('quote expired')
+  })
+
+  it('resolves off the replay when the swap ended before anything subscribed', async () => {
+    const handle = handleFor(async (e) => {
+      const result = { railId: 'rail', txid: 'done-txid' }
+      e({ status: 'settled', result })
+      return result
+    })
+    await handle.settled()
+
+    expect(await fundedResult(handle)).toMatchObject({ txid: 'done-txid' })
   })
 })

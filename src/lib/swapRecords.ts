@@ -46,6 +46,7 @@ import { txidOfArkTransaction } from './transactionHistory'
 export interface LnSendView {
   rfqId: string
   fundingTxid: string
+  kind: CorridorSwapRecord['kind']
   state: CorridorSwapRecord['state']
   /** Sats the lockup was funded with. The record is the only place this
    * survives for a send Arkade's own history cannot see — see
@@ -107,14 +108,17 @@ const offerViewOf = (record: OfferSwapRecord): WalletAssetSwap => ({
 })
 
 /** A v2 corridor record as the send-row builder reads it. Sends only: a receive
- * leg has no funding transaction of the trader's to anchor a row on. */
+ * leg has no funding transaction of the trader's to anchor a row on.
+ * Both corridors: each funds a lockup registered as this wallet's own contract,
+ * which is why history cannot see it — nothing Lightning-specific. */
 const sendViewOf = (record: CorridorSwapRecord): LnSendView | undefined => {
-  if (record.kind !== 'lightning_send') return undefined
+  if (record.kind !== 'lightning_send' && record.kind !== 'onchain_send') return undefined
   const fundingTxid = record.fundingTxid
   if (!fundingTxid) return undefined
   return {
     rfqId: record.rfqId,
     fundingTxid,
+    kind: record.kind,
     state: record.state,
     // The give leg is what the lockup was funded with, in sats.
     amount: Number(record.give.amount),
@@ -147,7 +151,7 @@ export const lnSendViews = async (): Promise<LnSendView[]> => {
 
 /** What the row builder calls each corridor. Mirrors the package's own labels,
  * because the copy is what a user reads and the two must not drift apart. */
-const CORRIDOR_LABEL: Record<string, string> = {
+export const CORRIDOR_LABEL: Record<string, string> = {
   lightning_send: 'Lightning send',
   lightning_receive: 'Lightning receive',
   onchain_send: 'Onchain send',
