@@ -5,6 +5,8 @@ import {
   swapAmountBeforeFee,
   swapFeeAmount,
   swapRouteLabel,
+  swapStatusForTx,
+  swapStatusLabel,
   swapUnitOfAccountAmount,
 } from '../../lib/swapDisplay'
 import type { WalletAssetSwap } from '../../lib/swapRepository'
@@ -248,5 +250,32 @@ describe('lnSwapLabel', () => {
 
   it('leaves a row the resolver never tagged alone', () => {
     expect(lnSwapLabel(row())).toBeUndefined()
+  })
+})
+
+describe('the status a corridor send reports', () => {
+  const corridor = (outcome?: string, settled = true): Tx =>
+    ({ settled, lnSwap: { fundingTxid: 'funding-txid', outcome } }) as unknown as Tx
+
+  it('reads the swap, not the funding transaction that has confirmed under it', () => {
+    expect(swapStatusLabel(corridor('pending', true))).toBe('Pending')
+  })
+
+  it.each([
+    ['settled', 'Completed'],
+    ['refunded', 'Refunded'],
+    ['failed', 'Failed'],
+    ['lost', 'Failed'],
+  ])('renders the %s outcome as %s', (outcome, label) => {
+    expect(swapStatusLabel(corridor(outcome))).toBe(label)
+  })
+
+  it('never calls a refund a failure — the covenant gave the money back', () => {
+    expect(swapStatusForTx(corridor('refunded'))).toBe('refunded')
+  })
+
+  it('leaves a plain transaction on its own confirmation state', () => {
+    expect(swapStatusLabel({ settled: true } as Tx)).toBe('Completed')
+    expect(swapStatusLabel({ settled: false } as Tx)).toBe('Pending')
   })
 })

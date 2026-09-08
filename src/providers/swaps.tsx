@@ -339,9 +339,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       return next
     })
     if (ended === 'received')
-      toast.success(
-        isSendLeg(swap) ? 'Payment complete' : `Swap completed, ${tickerFor(swap.take.asset)} received`,
-      )
+      toast.success(isSendLeg(swap) ? 'Payment complete' : `Swap completed, ${tickerFor(swap.take.asset)} received`)
     else if (ended === 'returned') toast.success('Swap cancelled, funds returned')
     else toast.error('Lightning payment was not received')
     // The claim and the refund land through the client's own broadcaster, so

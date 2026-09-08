@@ -62,6 +62,17 @@ const rfqSwapKindOf = (activity: Activity): string | undefined =>
  * owns. */
 const rfqIdOf = (activity: Activity): string | undefined => activity.intent?.metadata?.rfqId as string | undefined
 
+/** The record's own facts, which no transaction in history carries. */
+const corridorFacts = (record: LnSendView | undefined) => ({
+  corridor: record?.corridor,
+  takeAmount: record?.takeAmount,
+  feeAmount: record?.feeAmount,
+  solver: record?.solver,
+  claimTxid: record?.claimTxid,
+  htlcAddress: record?.htlcAddress,
+  refundLocktime: record?.refundLocktime,
+})
+
 /** One row for a corridor send — Lightning or on-chain.
  *
  *  **The record says which tx funded the swap; the group cannot.** History nets
@@ -94,6 +105,7 @@ const corridorSendTx = (
       // and re-asking the indexer for a permanent answer is the lookup this
       // refactor exists to remove.
       spendTxid: record?.spendTxid,
+      ...corridorFacts(record),
     },
     historyKey: activity.id,
   }
@@ -111,7 +123,7 @@ const corridorSendTx = (
  * arrived. Surfacing those is an activity-model question, not a row-builder
  * one.
  *
- * No `fundingTxid` is set, deliberately: `useLnSendReceipt` keys the send
+ * No `fundingTxid` is set, deliberately: `useCorridorSendReceipt` keys the send
  * receipt off exactly that field and returns undefined without it, which is
  * what keeps a receive row from opening a receipt built for the other leg.
  */
@@ -185,6 +197,7 @@ const ungroupedLnSendTx = (send: LnSendView, metadata: Record<string, Transactio
         outcome: isRfqSwapTerminal(send.state) ? send.state : 'pending',
         fundingTxid: send.fundingTxid,
         spendTxid: send.spendTxid,
+        ...corridorFacts(send),
       },
       // The group id the resolver would give this swap, so the key survives the
       // handover to the real row.

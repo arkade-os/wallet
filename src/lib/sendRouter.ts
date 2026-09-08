@@ -97,10 +97,7 @@ export interface SendRouterDeps {
 
 export const createSendRouter = (deps: SendRouterDeps): PaymentRouter => {
   const router = new PaymentRouter({
-    // Forced: `RouterContext.wallet` is the concrete `Wallet` and this app holds a
-    // `ServiceWorkerWallet` — implements `IWallet`, does not extend it, so nominally
-    // illegal with no narrower cast. Goes when the SDK types it `IWallet`; see #950.
-    wallet: deps.wallet as unknown as ConstructorParameters<typeof PaymentRouter>[0]['wallet'],
+    wallet: deps.wallet,
     prefs: { priority: [ONCHAIN_SWAP_RAIL, WALLET_EXIT_RAIL, LIGHTNING_RAIL, ASSET_RAIL] },
   })
 

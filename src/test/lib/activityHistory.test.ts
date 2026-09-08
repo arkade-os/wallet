@@ -453,6 +453,29 @@ describe('lightning send activities', () => {
     expect(row).toMatchObject({ destination: 'tb1qmt3ue2s', networkFee: 862, lnSwap: { label: 'Onchain send' } })
   })
 
+  it('carries the record facts history cannot know onto the row', () => {
+    const [row] = activitiesToTxs([{ ...activity(`swap:${RFQ_ID}`, [funding], lnIntent('pending')), amount: -1_054 }], {
+      ...empty,
+      lnSends: [
+        view({
+          corridor: 'bitcoin',
+          takeAmount: 22_152,
+          feeAmount: 710,
+          solver: 'ln-solver-mutinynet',
+          claimTxid: 'l1-claim-txid',
+        }),
+      ],
+    })
+
+    expect(row.lnSwap).toMatchObject({
+      corridor: 'bitcoin',
+      takeAmount: 22_152,
+      feeAmount: 710,
+      solver: 'ln-solver-mutinynet',
+      claimTxid: 'l1-claim-txid',
+    })
+  })
+
   it('keeps naming a refunded send, whose refund tx history reports no better', () => {
     // A refund returns the money through a tx that nets to zero the same way
     // the funding did. Dropping the record's row on a terminal state would make
@@ -514,7 +537,7 @@ describe('lightning receive activities', () => {
       empty,
     )
 
-    // `useLnSendReceipt` keys off exactly this field and returns undefined
+    // `useCorridorSendReceipt` keys off exactly this field and returns undefined
     // without it — which is what keeps a receive out of a receipt built for a
     // send.
     expect(row.lnSwap?.fundingTxid).toBeUndefined()
