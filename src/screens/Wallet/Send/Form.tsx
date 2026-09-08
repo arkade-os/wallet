@@ -575,11 +575,6 @@ export default function SendForm() {
     if (isAssetSend && activeAsset) {
       const assetAmount = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
       setLabel(assetAmount > activeAsset.balance ? 'Insufficient asset balance' : 'Continue')
-      // a partial asset send leaves asset change, and that change needs a second
-      // dust carrier; without one the SDK fails with a bare "Insufficient funds"
-      const lacksChangeCarrier =
-        assetAmount > BigInt(0) && assetAmount < activeAsset.balance && availableBalance < 2 * DUST_AMOUNT
-      setError((prev) => (lacksChangeCarrier ? PARTIAL_SEND_ERROR : prev === PARTIAL_SEND_ERROR ? '' : prev))
       return
     }
     const satoshis = sendInfo.satoshis ?? 0
@@ -598,7 +593,7 @@ export default function SendForm() {
                   ? 'Amount below min limit'
                   : 'Continue',
     )
-  }, [sendInfo.satoshis, sendInfo.assets, sendInfo.account, liquidBalance, activeAsset, availableBalance])
+  }, [sendInfo.satoshis, sendInfo.assets, sendInfo.account, liquidBalance, activeAsset])
 
   // manage server unreachable error
   useEffect(() => {
@@ -872,10 +867,20 @@ export default function SendForm() {
 
   const assetAmt = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
 
+  // a partial asset send leaves asset change, and that change needs a second
+  // dust carrier; without one the SDK fails with a bare "Insufficient funds".
+  // Derived, not stored: the server-status effect owns `error` and would
+  // clear this on recovery.
+  const carrierError =
+    activeAsset && assetAmt > BigInt(0) && assetAmt < activeAsset.balance && availableBalance < 2 * DUST_AMOUNT
+      ? PARTIAL_SEND_ERROR
+      : ''
+
   const buttonDisabled = isAssetSend
     ? !(arkAddress && assetAmt > 0) ||
       (activeAsset ? assetAmt > activeAsset.balance : true) ||
       Boolean(recipientError) ||
+      Boolean(carrierError) ||
       aspInfo.unreachable ||
       Boolean(error) ||
       processing
@@ -982,7 +987,7 @@ export default function SendForm() {
         <Content>
           <Padded>
             <FlexCol gap='1.25rem' className='send-form-stack'>
-              <ErrorMessage error={Boolean(error)} text={error} />
+              <ErrorMessage error={Boolean(error || carrierError)} text={error || carrierError} />
               <InputAddress
                 error={recipientError}
                 focus={focus === 'recipient'}
