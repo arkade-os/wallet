@@ -5,15 +5,15 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@arkade-os/sdk': file:./vendor/arkade-os-sdk-0.4.69-pr859.44d856d.tgz
+  '@arkade-os/sdk': file:./vendor/arkade-os-sdk-0.4.69-pr859.c5cfeb3.tgz
 
 importers:
 
   .:
     dependencies:
       '@arkade-os/sdk':
-        specifier: file:vendor/arkade-os-sdk-0.4.69-pr859.44d856d.tgz
-        version: file:vendor/arkade-os-sdk-0.4.69-pr859.44d856d.tgz
+        specifier: file:vendor/arkade-os-sdk-0.4.69-pr859.c5cfeb3.tgz
+        version: file:vendor/arkade-os-sdk-0.4.69-pr859.c5cfeb3.tgz
       '@arkade-os/solver-discovery':
         specifier: 0.2.3
         version: 0.2.3
@@ -249,9 +249,9 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.69-pr859.44d856d.tgz':
-    resolution: {integrity: sha512-QBZHXp1JaQSA4nUvMrhPaLdayk2Ojsvxcq3DlgLQxz0MyMGowS5OfcccziNWqxmNzNVbaew6L/2AbLHsrktcoQ==, tarball: file:vendor/arkade-os-sdk-0.4.69-pr859.44d856d.tgz}
-    version: 0.4.69-pr859.44d856d
+  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.69-pr859.c5cfeb3.tgz':
+    resolution: {integrity: sha512-eVfeHpFG3ULkXRmorPaxiFlVVOniCA7+F6zJ1+/YEE/soni1z9CUHnIbr82A15OzEKVIrZHE1QLhzkiYSlNe1w==, tarball: file:vendor/arkade-os-sdk-0.4.69-pr859.c5cfeb3.tgz}
+    version: 0.4.69-pr859.c5cfeb3
     engines: {node: '>=22.12.0 <27'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -4356,7 +4356,7 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.69-pr859.44d856d.tgz':
+  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.69-pr859.c5cfeb3.tgz':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 8.0.0
@@ -4379,7 +4379,7 @@ snapshots:
 
   '@arkade-os/swap@0.0.12(nostr-tools@2.17.2(typescript@5.9.3))':
     dependencies:
-      '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.4.69-pr859.44d856d.tgz
+      '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.4.69-pr859.c5cfeb3.tgz
       '@arkade-os/solver-discovery': 0.2.3
       '@noble/ciphers': 2.1.1
       '@noble/curves': 2.0.1
