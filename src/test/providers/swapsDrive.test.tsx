@@ -116,12 +116,12 @@ function Harness({ tab = 'a' }: { tab?: string }) {
 
 let reloadWallet = vi.fn()
 
-const wrap = (children: React.ReactNode) => (
+const wrap = (children: React.ReactNode, network = 'mutinynet') => (
   <AspContext.Provider
     value={
       {
         ...mockAspContextValue,
-        aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet', url: 'http://ark.local' },
+        aspInfo: { ...mockAspContextValue.aspInfo, network, url: 'http://ark.local' },
       } as never
     }
   >
@@ -410,6 +410,44 @@ describe('SwapsProvider outcomes', () => {
     listeners[0](update(receive))
     await waitFor(() => expect(success).toHaveBeenCalled())
     expect(String(success.mock.calls[0][0])).toMatch(/received/)
+  })
+
+  it('stays quiet through a SECOND client’s restore, not just the first', async () => {
+    // The ref is component-scoped, so a network switch re-runs the effect in
+    // the SAME instance with the gate already open.
+    let finishFirst = () => {}
+    ready.mockReturnValueOnce(new Promise<void>((resolve) => (finishFirst = () => resolve())))
+    const view = render(
+      wrap(
+        <SwapsProvider>
+          <Harness />
+        </SwapsProvider>,
+      ),
+    )
+    await waitFor(() => expect(listeners).toHaveLength(1))
+    finishFirst()
+    await waitFor(() => {
+      listeners[0](update(monitored('paid')))
+      expect(success).toHaveBeenCalled()
+    })
+    success.mockClear()
+
+    let finishSecond = () => {}
+    ready.mockReturnValueOnce(new Promise<void>((resolve) => (finishSecond = () => resolve())))
+    view.rerender(
+      wrap(
+        <SwapsProvider>
+          <Harness />
+        </SwapsProvider>,
+        'signet',
+      ),
+    )
+    await waitFor(() => expect(listeners.length).toBeGreaterThan(1))
+
+    listeners[listeners.length - 1](update(monitored('claimed')))
+    await new Promise((r) => setTimeout(r, 50))
+    expect(success).not.toHaveBeenCalled()
+    finishSecond()
   })
 
   it('names a designated asset the way every other screen does', async () => {

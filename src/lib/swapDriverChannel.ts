@@ -65,6 +65,9 @@ export type DriverHandler = (op: DriverOp, args: unknown[]) => Promise<unknown>
 export interface DriverUpdate {
   swap: Swap
   outcome: Outcome
+  /** The driver's `restore()` replaying history, not news. Carried across tabs
+   *  because the driver publishes its replay too. */
+  replay?: boolean
 }
 
 /** No tab acked: nobody is driving, or the holder is gone. */
