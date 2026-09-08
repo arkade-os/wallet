@@ -5,7 +5,7 @@ import Content from '../../components/Content'
 import Header from './Header'
 import Text, { TextSecondary } from '../../components/Text'
 import { Card, LocalCardInput, validateCard, Network } from '@arkade-os/solver-discovery'
-import { readSolverCards, saveSolverCards } from '@/lib/solverCards'
+import { BUNDLED_CARDS, readSolverCards, saveSolverCards } from '@/lib/swapMarkets'
 import FlexRow from '@/components/FlexRow'
 import FlexCol from '@/components/FlexCol'
 import ErrorMessage from '@/components/Error'
@@ -13,17 +13,12 @@ import Shadow from '@/components/Shadow'
 import Modal from '@/components/Modal'
 import { consoleError } from '@/lib/logs'
 import { BackupContext } from '@/providers/backup'
-import { BUNDLED_CARDS } from '@/lib/swapMarkets'
 
 const isSameCard = (card: LocalCardInput, label: string | undefined, network: Network) =>
   card.label === label && card.network === network
 
-/**
- * `replacing` is the label a rename vacates, folded into this one write. Doing
- * the remove and the add as two writes published an intermediate list with the
- * card missing, and every subscriber re-derived against a market set the user
- * never asked for.
- */
+/** `replacing` is the label a rename vacates, folded into this one write so
+ * subscribers never see the intermediate list with the card missing. */
 const putSolverCard = (input: LocalCardInput, replacing?: string) => {
   const network = input.network as Network
   const others = readSolverCards().filter(
@@ -230,9 +225,8 @@ export default function Solvers() {
   const [localCards, setLocalCards] = useState<LocalCardInput[]>()
   const [showEditor, setShowEditor] = useState(false)
 
-  // The solver-card store notifies discovery the moment a card is written, so
-  // this only owes the backup. Doing it on unmount keeps one Nostr write per
-  // visit rather than one per edit.
+  // The card store notifies discovery on write, so this only owes the backup;
+  // on unmount to keep it at one Nostr write per visit rather than per edit.
   useEffect(() => {
     return () => {
       if (localCards) backupSolverCards(localCards).catch((err) => consoleError(err, 'failed to backup solver cards'))

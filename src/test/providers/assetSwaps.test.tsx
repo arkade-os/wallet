@@ -10,7 +10,7 @@ import { AssetSwapsContext, AssetSwapsProvider } from '../../providers/assetSwap
 import { WalletContext } from '../../providers/wallet'
 import { assetSwapRepository as repository, type WalletAssetSwap } from '../../lib/swapRepository'
 import { btcUsdt, maratNapo, MARAT_ID, NAPO_ID, USDT_ID } from '../lib/swapFixtures'
-import { saveSolverCards } from '../../lib/solverCards'
+import { saveSolverCards } from '../../lib/swapMarkets'
 import { mockAspContextValue, mockTxInfo, mockWalletContextValue } from '../screens/mocks'
 
 const cancelOffer = vi.hoisted(() => vi.fn())

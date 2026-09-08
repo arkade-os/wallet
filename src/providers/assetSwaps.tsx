@@ -28,12 +28,11 @@ import {
 import { DiscoveredMarket, OfferPlan } from '@arkade-os/solver-discovery'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
-import { discoverMarkets } from '../lib/swapMarkets'
 import { assetSwapRepository, type AssetSwapQuoteSnapshot, type WalletAssetSwap } from '../lib/swapRepository'
 import { isCancelSpend } from '../lib/swapSpend'
 import { getTxHistory } from '../lib/asp'
 import { getEmulatorPubkeyForNetwork, getEmulatorPubkeyHexForNetwork } from '../lib/constants'
-import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
+import { discoverMarkets, getSolverCardsVersion, subscribeSolverCards } from '../lib/swapMarkets'
 import { consoleError } from '../lib/logs'
 import { toast } from '../components/Toast'
 
@@ -96,16 +95,8 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   // it owns `txs`, so the list travels up rather than being read back down
   useEffect(() => setAssetSwaps(swaps), [swaps, setAssetSwaps])
 
-  // The covenant co-signer's key, read from config rather than fetched: clients
-  // have no network path to the emulator, so the old reachability probe would
-  // fail in any correct deployment and hide swaps entirely. Config presence is
-  // the honest gate — it answers the question the UI actually needs ("can we
-  // derive a covenant at all?") rather than one about the client's own
-  // connectivity.
-  //
-  // Derived, not stored: `hex.decode` hands back a fresh Uint8Array every call,
-  // so holding it in state re-published the context on every discovery run for
-  // a value that never changed.
+  // Read from config, not fetched: clients have no network path to the emulator,
+  // so a reachability probe would fail in any correct deployment and hide swaps.
   const emulatorPubkey = useMemo(
     () => (aspInfo.network ? getEmulatorPubkeyForNetwork(aspInfo.network as NetworkName) : undefined),
     [aspInfo.network],
@@ -121,13 +112,9 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
       .catch((err) => consoleError(err, 'solver discovery failed'))
   }
 
-  // Discovery runs once the network is known (discoverMarkets' TTL cache is the
-  // rate limiter), and again whenever the pinned solver cards change. A card is
-  // a market source that lives outside React, so the store publishes a version
-  // and this effect takes it as a dependency: without that, a card written
-  // after the per-network run — the Nostr backup restoring one, which lands
-  // well after the network resolves — left the swap screen reading "coming
-  // soon" until the app was reloaded.
+  // Pinned cards are a market source living outside React, so discovery re-runs
+  // on their version too: a card the Nostr restore writes lands well after the
+  // per-network run, and left the swap screen reading "coming soon".
   const cardsVersion = useSyncExternalStore(subscribeSolverCards, getSolverCardsVersion, getSolverCardsVersion)
   const discoveredNetwork = useRef<string>()
 
@@ -135,10 +122,8 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     if (!aspInfo.network) return
     const switched = discoveredNetwork.current !== aspInfo.network
     discoveredNetwork.current = aspInfo.network
-    // Only a switch empties the list: the previous network's markets must never
-    // stay on screen, while a card write only adds to the current set and can
-    // refresh in place. Cards also bypass the TTL cache on purpose — it holds
-    // the registry's answer, which is exactly what a new card changes.
+    // Only a switch empties the list; a card write refreshes in place, and
+    // bypasses the TTL cache because that cache is what a new card invalidates.
     if (switched) setMarkets([])
     runDiscovery(aspInfo.network as NetworkName, switched)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -155,21 +140,16 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   // Bumped to re-enter the effect when a queued rescan has to start, since no
   // dependency of its own has changed by then.
   const [scanTick, setScanTick] = useState(0)
-  // Read inside the scan so a re-run sees the history that arrived while the
-  // previous one was in flight, rather than the list its effect closed over.
-  // Committed values only: a render React discards must not reach a scan that
-  // is already running, or it would mark txids from history that never landed.
+  // Read inside the scan so a re-run sees the history that arrived mid-flight.
+  // Committed values only, or a discarded render marks txids that never landed.
   const txsRef = useRef(txs)
   useLayoutEffect(() => {
     txsRef.current = txs
   }, [txs])
 
-  // Which wallet a scan belongs to, as a token rather than a cancellation flag.
-  // The cleanup fires exactly when the wallet changed or the provider went
-  // away — the two cases a running scan must abandon its writes — while a
-  // change to `txs`, which must NOT abandon one, is deliberately not a
-  // dependency here. Every setup mints a fresh token, so StrictMode's
-  // setup/cleanup/setup cannot strand a scan against a dead one.
+  // A token rather than a cancellation flag: this cleanup fires only when the
+  // wallet changed or the provider went away, and `txs`, which must not abandon
+  // a running scan, is deliberately not a dependency.
   const scanTokenRef = useRef({ live: true })
   useEffect(() => {
     const token = { live: true }
@@ -188,10 +168,8 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
       rescanRef.current = true
       return
     }
-    // a wallet reset may have cleared the repository while the scan ran —
-    // never write the old wallet's records into it. The repository clears
-    // asynchronously, so this is re-checked before every write below rather
-    // than once.
+    // the repository clears asynchronously on a wallet reset, so this is
+    // re-checked before every write below rather than once
     const token = scanTokenRef.current
     const stale = () => !token.live
     const scan = async () => {
@@ -231,14 +209,12 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
       .catch((err) => consoleError(err, 'swap restore scan failed'))
       .finally(() => {
         scanningRef.current = false
-        // the CURRENT token, not this run's: a run whose own token died is
-        // exactly the one whose queued work still has to happen, under the
-        // wallet that replaced it. Only an unmount leaves no live token behind.
+        // the CURRENT token, not this run's: a run whose token died is exactly
+        // the one whose queued work still has to happen, under its replacement
         if (!rescanRef.current || !scanTokenRef.current.live) return
         rescanRef.current = false
-        // Re-enter through the effect rather than calling the scan again here:
-        // this closure is bound to the wallet it started with, and a fresh
-        // effect run reads the current one, re-checking every guard above.
+        // through the effect, not a direct call: this closure is bound to the
+        // wallet it started with, a fresh run reads the current one
         setScanTick((tick) => tick + 1)
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -2,7 +2,7 @@ import { Config } from '../lib/types'
 import { ConfigContext } from './config'
 import { consoleError } from '@/lib/logs'
 import { BackupEvent, NostrStorage } from '@/lib/nostr'
-import { readSolverCards, saveSolverCards } from '@/lib/solverCards'
+import { readSolverCards, saveSolverCards } from '@/lib/swapMarkets'
 import { LocalCardInput } from '@arkade-os/solver-discovery'
 import { ReactNode, createContext, useContext, useEffect, useRef } from 'react'
 
