@@ -307,11 +307,19 @@ describe('AssetSwapsProvider restore scan', () => {
     return <span data-testid='restored'>{swaps.map((s) => s.id).join(',') || 'none'}</span>
   }
 
-  const tree = (txs: (typeof mockTxInfo)[], signerPubkey: string = SIGNER_PUBKEY) =>
+  const tree = (txs: (typeof mockTxInfo)[], signerPubkey: string = SIGNER_PUBKEY, svcWallet?: unknown) =>
     providerTree(
-      { asp: { network: '', url: 'https://ark.test', signerPubkey }, wallet: { dataReady: true, txs } },
+      { asp: { network: '', url: 'https://ark.test', signerPubkey }, wallet: { dataReady: true, txs, svcWallet } },
       <ScanHarness />,
     )
+
+  /** A wallet whose contract manager answers both reconciliation paths: nothing
+   * spent for `reconcileUnseenSpends`, and a retire the scan can be seen to make. */
+  const scanWallet = () => {
+    const setContractWatchState = vi.fn().mockResolvedValue(undefined)
+    const manager = { setContractWatchState, getContractsWithVtxos: vi.fn().mockResolvedValue([]) }
+    return { setContractWatchState, svcWallet: { identity: {}, getContractManager: async () => manager } }
+  }
 
   /** Renders with the first `restoreAssetSwaps` held open, so a rerender lands
    * while a scan is provably in flight. Returns the release for that run. */
@@ -389,6 +397,75 @@ describe('AssetSwapsProvider restore scan', () => {
     await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(2))
     // and it sees the newer history, not the list its effect closed over
     expect(restoreAssetSwaps.mock.calls[1][1]).toHaveLength(2)
+  })
+
+  it('re-asks about a record still open and writes the outcome the chain reports', async () => {
+    // The bug this closes: a record whose covenant was never registered — every
+    // record a restore rebuilt — has no contract row, so no watcher event and
+    // no `reconcileUnseenSpends` pass can reach it. Left in `existingIds` it was
+    // skipped by every later scan too, so `pending` was permanent and the swap
+    // rendered as a Swap-pending row plus a bare received one, forever.
+    const stored: WalletAssetSwap = { ...pendingSwap, quote: { feeBps: 30 } }
+    await addAssetSwap(repository, stored)
+    await repository.markTxidsScanned([stored.id])
+    restoreAssetSwaps.mockResolvedValue({
+      restored: [
+        // as the scan builds it: every field from chain, and no funded address
+        { ...pendingSwap, swapAddress: '', status: 'fulfilled', spentTxid: 'fill-txid', completedAt: 99 },
+      ],
+      scannedTxids: [stored.id],
+    })
+    const seams = scanWallet()
+
+    render(tree([sentTx(stored.id)], SIGNER_PUBKEY, seams.svcWallet))
+
+    await waitFor(async () =>
+      expect((await getAssetSwaps(repository))[0]).toMatchObject({
+        status: 'fulfilled',
+        spentTxid: 'fill-txid',
+        completedAt: 99,
+        // the two the scan cannot know and must not overwrite
+        swapAddress: pendingSwap.swapAddress,
+        quote: { feeBps: 30 },
+      }),
+    )
+    // neither skip list may hold it back, or the scan never sees the candidate
+    expect(restoreAssetSwaps.mock.calls[0][2].has(stored.id)).toBe(false)
+    expect(restoreAssetSwaps.mock.calls[0][3].scanned.has(stored.id)).toBe(false)
+    // and the covenant it settled leaves the watched set
+    await waitFor(() => expect(seams.setContractWatchState).toHaveBeenCalledWith(stored.swapPkScript, 'retained'))
+  })
+
+  it('stops asking about a record the chain has answered', async () => {
+    const stored: WalletAssetSwap = { ...pendingSwap, status: 'cancelled', spentTxid: 'cancel-txid' }
+    await addAssetSwap(repository, stored)
+    await repository.markTxidsScanned([stored.id])
+    restoreAssetSwaps.mockResolvedValue({ restored: [], scannedTxids: [] })
+
+    render(tree([sentTx(stored.id)]))
+
+    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(1))
+    expect(restoreAssetSwaps.mock.calls[0][2].has(stored.id)).toBe(true)
+    expect(restoreAssetSwaps.mock.calls[0][3].scanned.has(stored.id)).toBe(true)
+  })
+
+  it('leaves a cancel in flight alone when the scan has no answer for it yet', async () => {
+    // `pending` off the scan means the deposit is still unspent, which is not an
+    // outcome. Writing it back would drop the cancel `cancelOffer` is running.
+    await addAssetSwap(repository, { ...pendingSwap, status: 'cancelling' })
+    restoreAssetSwaps.mockResolvedValue({
+      restored: [{ ...pendingSwap, swapAddress: '', status: 'pending' }],
+      scannedTxids: [],
+    })
+
+    render(tree([sentTx(pendingSwap.id)]))
+
+    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(screen.getByTestId('restored')).toHaveTextContent(pendingSwap.id))
+    expect((await getAssetSwaps(repository))[0]).toMatchObject({
+      status: 'cancelling',
+      swapAddress: pendingSwap.swapAddress,
+    })
   })
 })
 

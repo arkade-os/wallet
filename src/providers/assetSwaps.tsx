@@ -84,6 +84,12 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     return next
   }
 
+  /** A swap the chain has not reported an outcome for. `pending` is the absence
+   * of an answer and `cancelling` is a cancel whose spend has not landed; every
+   * other status is one. Both reconciliation passes below ask this, so they
+   * cannot disagree about which records are still theirs to resolve. */
+  const isOpen = (swap: AssetSwap) => swap.status === 'pending' || swap.status === 'cancelling'
+
   // The store is async now, so the list arrives after the first render rather
   // than with it. Re-read on every dataReady transition: a wallet reset clears
   // the repository, and the emptied list has to reach the UI.
@@ -136,9 +142,16 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   // After a restore the swap store is empty while the funding/fill txs are
   // back in history, so swaps would show as bare sent/received rows. Scan the
   // sent virtual txs for offer packets and rebuild the lost records by
-  // binding each funding vtxo to the tx that spent it (fill or cancel). The
-  // scan is incremental — answered txids persist, so late-synced history is
-  // picked up by later runs and nothing is fetched twice.
+  // binding each funding vtxo to the tx that spent it (fill or cancel).
+  //
+  // The scan is incremental but not one-shot: answered txids persist, so
+  // late-synced history is picked up by later runs and nothing is fetched
+  // twice, while a record still open is re-asked until the chain answers it.
+  // That second part is what a rebuilt record needs. `createOffer` registers
+  // the covenant and the watcher rides those contract events; a record the
+  // scan rebuilt has no contract behind it, so no watcher event and no
+  // `reconcileUnseenSpends` pass can ever reach it. Its only route to an
+  // outcome is another scan.
   const scanningRef = useRef(false)
   const rescanRef = useRef(false)
   // Bumped to re-enter the effect when a queued rescan has to start, since no
@@ -178,33 +191,70 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     const stale = () => !token.live
     const scan = async () => {
       const [existing, scanned] = await Promise.all([readSwaps(), assetSwapRepository.getScannedTxids()])
+      // Both skip lists exempt open records, and they have to agree: an id in
+      // `existingIds` or a txid in `scanned` is dropped before the scan reads
+      // it. The cost of exempting them is one psbt and one vtxo lookup per open
+      // swap per history change, and it stops the moment the swap settles.
+      const open = new Map(existing.filter(isOpen).map((swap) => [swap.id, swap]))
       const { restored, scannedTxids } = await restoreAssetSwaps(
         new RestIndexerProvider(aspInfo.url),
         txsRef.current,
-        new Set(existing.map((s) => s.id)),
-        // x-only, matching the key the covenants were funded against
-        { serverPubkey: hex.decode(aspInfo.signerPubkey).slice(1), scanned },
+        new Set(existing.filter((swap) => !isOpen(swap)).map((swap) => swap.id)),
+        {
+          // x-only, matching the key the covenants were funded against
+          serverPubkey: hex.decode(aspInfo.signerPubkey).slice(1),
+          scanned: new Set([...scanned].filter((txid) => !open.has(txid))),
+        },
       )
       if (stale()) return
       // a run with nothing new to answer for opens no transaction at all
       if (scannedTxids.length > 0) await assetSwapRepository.markTxidsScanned(scannedTxids)
       if (restored.length === 0) return
-      let next: WalletAssetSwap[] = []
+      let next: WalletAssetSwap[] | undefined
+      const resolved: AssetSwap[] = []
       for (const swap of restored) {
         if (stale()) return
-        // quote-time facts are not on chain; the fee rate is the one fact a
-        // restore can backfill, from the pair's current market card — an
-        // approximation if the solver changed its fee since the swap.
-        // TODO: delete this backfill once fee bps rides in a packet inside
-        // the funding tx — restoreAssetSwaps will then decode the actual
-        // historic rate from chain, like it already does the offer.
-        const feeBps = findMarket(marketsRef.current, swap.fromAsset, swap.toAsset)?.market?.fee_bps
-        next = (await addAssetSwap(
-          assetSwapRepository,
-          feeBps === undefined ? swap : ({ ...swap, quote: { feeBps } } as AssetSwap),
-        )) as WalletAssetSwap[]
+        const stored = open.get(swap.id)
+        if (!stored) {
+          // quote-time facts are not on chain; the fee rate is the one fact a
+          // restore can backfill, from the pair's current market card — an
+          // approximation if the solver changed its fee since the swap.
+          // TODO: delete this backfill once fee bps rides in a packet inside
+          // the funding tx — restoreAssetSwaps will then decode the actual
+          // historic rate from chain, like it already does the offer.
+          const feeBps = findMarket(marketsRef.current, swap.fromAsset, swap.toAsset)?.market?.fee_bps
+          next = (await addAssetSwap(
+            assetSwapRepository,
+            feeBps === undefined ? swap : ({ ...swap, quote: { feeBps } } as AssetSwap),
+          )) as WalletAssetSwap[]
+          continue
+        }
+        // `pending` is the absence of an answer, not one: writing it back would
+        // say nothing, and over a cancel in flight it would lose that status.
+        if (swap.status === 'pending' || swap.status === stored.status) continue
+        // Only the outcome. The scan rebuilds every field from chain, so
+        // writing the record whole would drop what only this wallet holds: the
+        // quote snapshot, and the funded address a cancel needs, which a
+        // restored record carries as an empty string.
+        next = (await updateAssetSwap(assetSwapRepository, swap.id, {
+          status: swap.status,
+          ...(swap.spentTxid ? { spentTxid: swap.spentTxid } : {}),
+          ...(swap.completedAt ? { completedAt: swap.completedAt } : {}),
+        })) as WalletAssetSwap[]
+        resolved.push(swap)
       }
-      applySwaps(next)
+      if (!next || stale()) return
+      const list = applySwaps(next)
+      for (const swap of resolved) {
+        if (swap.status === 'fulfilled') toast.success(`Swap completed, ${tickerFor(swap.toAsset)} received`)
+        else if (swap.status === 'cancelled') toast.success('Swap cancelled, funds returned')
+      }
+      // a covenant this run settled is still in the watched set. Liveness is a
+      // property of every record at a script, so the list goes whole.
+      if (resolved.length > 0 && svcWallet) {
+        await retireSettledOfferContracts(await svcWallet.getContractManager(), list)
+        if (stale()) return
+      }
       // re-merge the activity list so the tx couple collapses into Swap rows
       reloadWallet().catch(consoleError)
     }
@@ -373,20 +423,21 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
    * one swap renders as two rows: the funding row `ungroupedOfferTx`
    * synthesizes, plus the fill as a bare received one.
    *
-   * Nothing else resolves it. The restore scan skips any txid already stored as
-   * a record id, and would not see this one anyway: it takes candidates from
-   * *sent* rows, and an offer's funding tx nets to zero against its own
-   * covenant output.
+   * This pass and the restore scan cover each other's blind spot, because they
+   * read different sources. This one reads the wallet's contract rows, so it
+   * needs the covenant registered — which `createOffer` does, and a rebuilt
+   * record never had. The scan reads chain, so it needs the funding tx to
+   * surface in history as a *sent* row — which it does not while the covenant
+   * is registered and the deposit still counts as the wallet's own.
    *
-   * Known limitation: a spend the watcher receives while this pass is between
-   * its re-read and its write is announced twice, since both paths toast. The
-   * write is idempotent through `spendUpdate`, so the cost is a duplicate
-   * toast, not a duplicate record.
+   * Known limitation: a spend another path resolves while this one is between
+   * its re-read and its write is announced twice, since both toast. The write
+   * is idempotent through `spendUpdate`, so the cost is a duplicate toast, not
+   * a duplicate record.
    */
   const reconcileUnseenSpends = async (stale: () => boolean) => {
     if (!svcWallet) return
-    // `cancelling` too: a restart mid-cancel strands that status the same way
-    const open = (await readSwaps()).filter((swap) => swap.status === 'pending' || swap.status === 'cancelling')
+    const open = (await readSwaps()).filter(isOpen)
     if (open.length === 0) return
 
     const manager = await svcWallet.getContractManager()
@@ -419,7 +470,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
 
       // the watcher or a cancel in flight is the authority if it got here first
       const current = (await readSwaps()).find((candidate) => candidate.id === swap.id)
-      if (!current || (current.status !== 'pending' && current.status !== 'cancelling')) continue
+      if (!current || !isOpen(current)) continue
 
       const cancelled = isCancelSpend(offer, spend)
       const changes = spendUpdate(current, {
@@ -500,10 +551,9 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   // createOffer is what makes an offer visible to it — and persists each
   // classified spend itself.
   //
-  // Known gap: it subscribes to spends only, so a swept deposit is not noticed
-  // live, and the restore scan does not resolve it later — that scan skips any
-  // txid already stored as a record id. `reconcileUnseenSpends` covers the
-  // spends it can classify; a sweep is not one of them.
+  // It subscribes to spends only, so a swept deposit is not noticed live;
+  // the restore scan re-asks an open record until the chain answers, and a
+  // swept one comes back `recoverable`.
   useEffect(() => {
     if (!svcWallet || !aspInfo.url) return
     let watcher: OfferSwapWatcher | undefined
