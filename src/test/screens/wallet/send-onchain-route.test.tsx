@@ -33,9 +33,11 @@ vi.mock('../../../lib/asp', async (importOriginal) => ({
 
 /** Readable without waiting out the animation the error renders behind. */
 const consoleError = vi.fn()
+const consoleLog = vi.fn()
 vi.mock('../../../lib/logs', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../lib/logs')>()),
   consoleError: (...args: unknown[]) => consoleError(...args),
+  consoleLog: (...args: unknown[]) => consoleLog(...args),
 }))
 
 /** Built from the request, as the real router is: the exit rail must pay
@@ -166,6 +168,7 @@ describe('signing an on-chain send', () => {
   beforeEach(() => {
     collaborativeExitWithFees.mockClear()
     consoleError.mockClear()
+    consoleLog.mockClear()
     optionsFor = () => []
   })
 
@@ -181,6 +184,22 @@ describe('signing an on-chain send', () => {
     await waitFor(() => expect(sendFailure()).toBeDefined())
     expect(String(sendFailure())).toMatch(/not permitted/i)
     expect(consulted).not.toHaveBeenCalled()
+  })
+
+  /** Characterisation of the #944 report; the fallback is a product decision. */
+  it('is committed to the exit’s price when the solver reaches options() only for the spend', async () => {
+    const sent = vi.fn()
+    let asked = 0
+    optionsFor = (req) =>
+      asked++ === 0 ? [exitOption(req, 0)] : [solverOption({ amount: 22_000, total: 22_709 }, sent), exitOption(req, 0)]
+    renderSign({ address: ADDRESS, satoshis: 22_000 }, { outputFee: 0, config: satsConfig })
+    await sign()
+
+    await waitFor(() => expect(collaborativeExitWithFees).toHaveBeenCalledTimes(1))
+    expect(sent).not.toHaveBeenCalled()
+    expect(consoleLog.mock.calls.map(String).join('\n')).toContain(
+      'onchain-swap refused: quote pays 22000 for 22709, screen shows 22000 for 22000',
+    )
   })
 
   it('pays the collaborative exit when no solver rail survived', async () => {

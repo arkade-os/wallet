@@ -21,6 +21,7 @@ import { LIGHTNING_RAIL, ONCHAIN_SWAP_RAIL, lightningRail, onchainSwapRail, type
 import { sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { collaborativeExitWithFees, sendAssets } from './asp'
 import { decodeInvoice } from './bolt11'
+import { consoleError } from './logs'
 import { prettyNumber } from './format'
 import { defaultFee } from './constants'
 
@@ -172,8 +173,10 @@ export const previewOnchainCost = async (
       const quote = await option.quote()
       // A rail paying something else is not the one being priced.
       if (quote.amount === amount) return { amount: quote.amount, fee: quote.fee, total: quote.total }
-    } catch {
-      // Left to the spend to log: it walks the same rails moments later.
+    } catch (err) {
+      // Not left to the spend: it can reach a different answer, and then the
+      // screen is committed to this pass's price with nobody having logged why.
+      consoleError(err, `${ONCHAIN_ROUTE_LOG} ${option.railId} could not be priced`)
     }
   }
   return undefined
