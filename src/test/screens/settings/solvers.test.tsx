@@ -4,7 +4,7 @@ import Solvers from '../../../screens/Settings/Solvers'
 import { AspContext } from '../../../providers/asp'
 import { BackupContext } from '../../../providers/backup'
 import { mockAspContextValue } from '../mocks'
-import { readSolverCards } from '../../../lib/swapMarkets'
+import { readSolverCards } from '../../../lib/solverCards'
 
 vi.mock('@arkade-os/solver-discovery', async () => {
   const actual = await vi.importActual<typeof import('@arkade-os/solver-discovery')>('@arkade-os/solver-discovery')

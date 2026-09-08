@@ -32,7 +32,8 @@ import { assetSwapRepository, type AssetSwapQuoteSnapshot, type WalletAssetSwap 
 import { isCancelSpend } from '../lib/swapSpend'
 import { getTxHistory } from '../lib/asp'
 import { getEmulatorPubkeyForNetwork, getEmulatorPubkeyHexForNetwork } from '../lib/constants'
-import { discoverMarkets, getSolverCardsVersion, subscribeSolverCards } from '../lib/swapMarkets'
+import { discoverMarkets } from '../lib/swapMarkets'
+import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
 import { consoleError } from '../lib/logs'
 import { toast } from '../components/Toast'
 
@@ -122,8 +123,9 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     if (!aspInfo.network) return
     const switched = discoveredNetwork.current !== aspInfo.network
     discoveredNetwork.current = aspInfo.network
-    // Only a switch empties the list; a card write refreshes in place, and
-    // bypasses the TTL cache because that cache is what a new card invalidates.
+    // `switched` doubles as `useCache`: a network switch empties the list and
+    // may serve from the TTL cache, while a card write refreshes in place and
+    // must bypass it, since that cache is exactly what a new card invalidates.
     if (switched) setMarkets([])
     runDiscovery(aspInfo.network as NetworkName, switched)
     // eslint-disable-next-line react-hooks/exhaustive-deps

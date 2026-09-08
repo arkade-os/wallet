@@ -4,7 +4,7 @@ import { useContext } from 'react'
 import { BackupContext, BackupProvider } from '../../providers/backup'
 import { ConfigContext } from '../../providers/config'
 import { mockConfigContextValue } from '../screens/mocks'
-import { saveSolverCards } from '../../lib/swapMarkets'
+import { saveSolverCards } from '../../lib/solverCards'
 import type { Config } from '../../lib/types'
 import type { BackupEvent } from '../../lib/nostr'
 

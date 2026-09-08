@@ -5,7 +5,8 @@ import Content from '../../components/Content'
 import Header from './Header'
 import Text, { TextSecondary } from '../../components/Text'
 import { Card, LocalCardInput, validateCard, Network } from '@arkade-os/solver-discovery'
-import { BUNDLED_CARDS, readSolverCards, saveSolverCards } from '@/lib/swapMarkets'
+import { readSolverCards, saveSolverCards } from '@/lib/solverCards'
+import { BUNDLED_CARDS } from '@/lib/swapMarkets'
 import FlexRow from '@/components/FlexRow'
 import FlexCol from '@/components/FlexCol'
 import ErrorMessage from '@/components/Error'
@@ -227,6 +228,8 @@ export default function Solvers() {
 
   // The card store notifies discovery on write, so this only owes the backup;
   // on unmount to keep it at one Nostr write per visit rather than per edit.
+  // `backupSolverCards` is deliberately not a dep: it changes identity with the
+  // backup context, and re-running on that is the per-render churn this avoids.
   useEffect(() => {
     return () => {
       if (localCards) backupSolverCards(localCards).catch((err) => consoleError(err, 'failed to backup solver cards'))

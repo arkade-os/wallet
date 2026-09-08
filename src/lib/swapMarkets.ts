@@ -7,7 +7,6 @@ import { discoverMarkets as discover } from '@arkade-os/swap'
 import {
   displayPrice,
   isNetwork,
-  validateCard,
   type DiscoveredMarket,
   type LocalCardInput,
   type OfferPlan,
@@ -16,7 +15,7 @@ import type { NetworkName } from '@arkade-os/sdk'
 import betaSolverCard from './beta-solver.card.json'
 import { getSolverRegistryUrl } from './constants'
 import { consoleLog } from './logs'
-import { getStorageItem } from './storage'
+import { readSolverCards } from './solverCards'
 import { assetSwapRepository } from './swapRepository'
 
 /**
@@ -41,47 +40,6 @@ import { assetSwapRepository } from './swapRepository'
 // Exported so the Solvers settings screen can show built-in cards — a pinned
 // solver invisible in Settings reads as "no solver at all".
 export const BUNDLED_CARDS: LocalCardInput[] = [{ card: betaSolverCard as LocalCardInput['card'], network: 'bitcoin' }]
-
-const CARDS_KEY = 'solverCards'
-
-let cardsVersion = 0
-const cardListeners = new Set<() => void>()
-
-const isLocalCardInput = (obj: unknown): obj is LocalCardInput => {
-  const input = obj as LocalCardInput | null
-  return Boolean(
-    input &&
-      typeof input.network === 'string' &&
-      typeof input.label === 'string' &&
-      typeof input.card === 'object' &&
-      validateCard(input.card).ok,
-  )
-}
-
-export const readSolverCards = (): LocalCardInput[] => {
-  const items = getStorageItem(CARDS_KEY, [], (val) => JSON.parse(val))
-  return Array.isArray(items) ? items.filter(isLocalCardInput) : []
-}
-
-/**
- * Writers are spread out — the Solvers screen, and the Nostr restore, which
- * lands a card well after per-network discovery has run — so the version below
- * is what lets React re-derive off a write it cannot otherwise see.
- */
-export const saveSolverCards = (cards: LocalCardInput[]): void => {
-  localStorage.setItem(CARDS_KEY, JSON.stringify(Array.isArray(cards) ? cards.filter(isLocalCardInput) : []))
-  cardsVersion += 1
-  cardListeners.forEach((fn) => fn())
-}
-
-export const getSolverCardsVersion = (): number => cardsVersion
-
-export const subscribeSolverCards = (fn: () => void): (() => void) => {
-  cardListeners.add(fn)
-  return () => {
-    cardListeners.delete(fn)
-  }
-}
 
 /**
  * Markets from the network's solver registry; [] when none is configured.
