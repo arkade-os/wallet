@@ -84,6 +84,27 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     return next
   }
 
+  /**
+   * One notice per swap outcome.
+   *
+   * Four paths write the same terminal status — the watcher event, the
+   * unseen-spend pass, the restore scan and `cancelSwap` — and any two can
+   * resolve the same spend at once. The record write is idempotent through
+   * `spendUpdate`; a toast is not, so the outcome is what gets deduplicated
+   * rather than the write.
+   *
+   * Keyed by outcome, not by swap, so a record that legitimately moves twice
+   * (`cancelling` reverted, then cancelled for real) is still announced.
+   */
+  const announced = useRef(new Set<string>())
+  const announceOutcome = (swap: Pick<AssetSwap, 'id' | 'status' | 'toAsset'>) => {
+    const key = `${swap.id}:${swap.status}`
+    if (announced.current.has(key)) return
+    announced.current.add(key)
+    if (swap.status === 'fulfilled') toast.success(`Swap completed, ${tickerFor(swap.toAsset)} received`)
+    else if (swap.status === 'cancelled') toast.success('Swap cancelled, funds returned')
+  }
+
   /** A swap the chain has not reported an outcome for. `pending` is the absence
    * of an answer and `cancelling` is a cancel whose spend has not landed; every
    * other status is one. Both reconciliation passes below ask this, so they
@@ -94,6 +115,9 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   // than with it. Re-read on every dataReady transition: a wallet reset clears
   // the repository, and the emptied list has to reach the UI.
   useEffect(() => {
+    // a reset empties the store and a restore rebuilds the same ids, so what
+    // has been announced cannot outlive the records it was announced for
+    announced.current.clear()
     readSwaps()
       .then(applySwaps)
       .catch((err) => consoleError(err, 'failed to read asset swaps'))
@@ -250,10 +274,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
       }
       if (!next || stale()) return
       const list = applySwaps(next)
-      for (const swap of resolved) {
-        if (swap.status === 'fulfilled') toast.success(`Swap completed, ${tickerFor(swap.toAsset)} received`)
-        else if (swap.status === 'cancelled') toast.success('Swap cancelled, funds returned')
-      }
+      for (const swap of resolved) announceOutcome(swap)
       // a covenant this run settled is still in the watched set. Liveness is a
       // property of every record at a script, so the list goes whole.
       if (resolved.length > 0 && svcWallet) {
@@ -365,7 +386,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
         applySwaps(after)
       }
       if (stored?.status !== 'fulfilled') {
-        toast.success('Swap cancelled, funds returned')
+        announceOutcome({ ...swap, status: 'cancelled' })
         reloadWallet().catch(consoleError)
       }
     } catch (err) {
@@ -409,8 +430,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
         ...(cancelled ? {} : { completedAt: Date.now() }),
       }),
     )
-    if (cancelled) toast.success('Swap cancelled, funds returned')
-    else toast.success(`Swap completed, ${tickerFor(swap.toAsset)} received`)
+    announceOutcome({ ...swap, status: cancelled ? 'cancelled' : 'fulfilled' })
     reloadWallet().catch(consoleError)
     return true
   }
@@ -435,10 +455,9 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
    * surface in history as a *sent* row — which it does not while the covenant
    * is registered and the deposit still counts as the wallet's own.
    *
-   * Known limitation: a spend another path resolves while this one is between
-   * its re-read and its write is announced twice, since both toast. The write
-   * is idempotent through `spendUpdate`, so the cost is a duplicate toast, not
-   * a duplicate record.
+   * A spend another path resolves while this one is between its re-read and its
+   * write costs a redundant write, not a redundant notice: `spendUpdate` makes
+   * the write idempotent and `announceOutcome` deduplicates the toast.
    */
   const reconcileUnseenSpends = async (stale: () => boolean) => {
     if (!svcWallet) return
@@ -492,9 +511,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
       if (stale()) return
       applySwaps(updated)
       settled.add(swap.swapPkScript)
-      toast.success(
-        cancelled ? 'Swap cancelled, funds returned' : `Swap completed, ${tickerFor(swap.toAsset)} received`,
-      )
+      announceOutcome({ ...swap, status: cancelled ? 'cancelled' : 'fulfilled' })
     }
     if (settled.size === 0 || stale()) return
     // only the scripts this run resolved: liveness is a property of all records
@@ -543,13 +560,9 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
         : [updated, ...swapsRef.current],
     )
     if (before?.status === updated.status) return
-    if (updated.status === 'fulfilled') {
-      toast.success(`Swap completed, ${tickerFor(updated.toAsset)} received`)
-      reloadWallet().catch(consoleError)
-    } else if (updated.status === 'cancelled') {
-      toast.success('Swap cancelled, funds returned')
-      reloadWallet().catch(consoleError)
-    }
+    if (updated.status !== 'fulfilled' && updated.status !== 'cancelled') return
+    announceOutcome(updated)
+    reloadWallet().catch(consoleError)
   }
 
   // The watcher rides the wallet's contract events — registration in

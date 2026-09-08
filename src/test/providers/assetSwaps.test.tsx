@@ -11,6 +11,7 @@ import { WalletContext } from '../../providers/wallet'
 import { assetSwapRepository as repository, type WalletAssetSwap } from '../../lib/swapRepository'
 import { btcUsdt, maratNapo, MARAT_ID, NAPO_ID, USDT_ID } from '../lib/swapFixtures'
 import { saveSolverCards } from '../../lib/solverCards'
+import { toast } from '../../components/Toast'
 import { mockAspContextValue, mockTxInfo, mockWalletContextValue } from '../screens/mocks'
 
 const cancelOffer = vi.hoisted(() => vi.fn())
@@ -46,6 +47,13 @@ vi.mock('../../lib/swapRepository', async () => {
 })
 
 // keep the discovery effect off the network; these tests hand plans in directly
+// only `toast.success` is spied; the provider component and everything else in
+// the module stay real, since the tree renders them
+vi.mock('../../components/Toast', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../components/Toast')>()
+  return { ...actual, toast: { ...actual.toast, success: vi.fn() } }
+})
+
 vi.mock('../../lib/swapMarkets', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/swapMarkets')>()),
   discoverMarkets,
@@ -591,6 +599,7 @@ describe('AssetSwapsProvider spends the watcher never saw', () => {
   beforeEach(async () => {
     await repository.clear()
     restoreAssetSwaps.mockReset().mockResolvedValue({ restored: [], scannedTxids: [] })
+    vi.mocked(toast.success).mockClear()
     await addAssetSwap(repository, pendingSwap)
   })
 
@@ -647,6 +656,30 @@ describe('AssetSwapsProvider spends the watcher never saw', () => {
         spentTxid: FILL_TXID,
       }),
     )
+  })
+
+  it('announces a resolved swap once when the watcher and this pass both land on it', async () => {
+    // `watch.ts` notifies through `updateAssetSwapBestEffort`, so it can
+    // announce an outcome it failed to persist. This pass then re-reads
+    // `pending` from the store, resolves it for real, and with a toast per
+    // writer the user is told twice about one swap.
+    const seams = walletWith({ vtxos: [spentDeposit], history: [] })
+    const tree = (txs: unknown[]) =>
+      providerTree(
+        { asp: { network: '', url: 'https://ark.test' }, wallet: { svcWallet: seams.svcWallet, txs } },
+        <CancelHarness />,
+      )
+    const { rerender } = render(tree([]))
+    await waitFor(() => expect(watchOfferSwaps).toHaveBeenCalled())
+
+    act(() => watchOfferSwaps.mock.calls[0][0].onUpdate({ ...pendingSwap, status: 'fulfilled', spentTxid: FILL_TXID }))
+    expect(toast.success).toHaveBeenCalledTimes(1)
+
+    seams.getTransactionHistory.mockResolvedValue([spendRow(filled)])
+    rerender(tree([{ redeemTxid: FILL_TXID }]))
+
+    await waitFor(async () => expect((await getAssetSwaps(repository))[0].status).toBe('fulfilled'))
+    expect(toast.success).toHaveBeenCalledTimes(1)
   })
 
   it('leaves the record pending while no history row can classify the spend', async () => {
