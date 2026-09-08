@@ -16,6 +16,7 @@ import { mockAspContextValue, mockTxInfo, mockWalletContextValue } from '../scre
 const cancelOffer = vi.hoisted(() => vi.fn())
 const createOffer = vi.hoisted(() => vi.fn())
 const getVtxos = vi.hoisted(() => vi.fn())
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const discoverMarkets = vi.hoisted(() => vi.fn(async (_network: string, _useCache?: boolean) => []))
 const restoreAssetSwaps = vi.hoisted(() => vi.fn())
 const watchOfferSwaps = vi.hoisted(() => vi.fn())
