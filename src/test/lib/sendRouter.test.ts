@@ -2,11 +2,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { ONCHAIN_SWAP_RAIL, claimFeeSats, type SwapRailClient } from '@arkade-os/swap'
+import { decodeBolt11, lightningCorridor, resolveRoute } from '@arkade-os/swap/advanced'
 import {
   ASSET_RAIL,
   createSendRouter,
   LIGHTNING_RAIL,
   lnSendRefusal,
+  lnSendRequest,
   previewOnchainCost,
   quoteIsForThisInvoice,
   quoteIsForThisSend,
@@ -54,6 +56,12 @@ const market = (over: Record<string, unknown> = {}): DiscoveredMarket =>
 const lnMarket = (over: Record<string, unknown> = {}) =>
   market({ pair: 'BTC/lightning:BTC', quote_corridor: 'lightning', ...over })
 
+/** A corridor market is RFQ-negotiated: no rendezvous, no candidate. */
+const rendezvous = {
+  discovery_pubkey: 'ab'.repeat(32),
+  transports: { nostr: { relays: ['wss://relay.example'] } },
+}
+
 const accept = vi.fn()
 const quoted = vi.fn()
 
@@ -86,6 +94,34 @@ const fakeClient = (over: Partial<SwapRailClient> & { outcome?: string; fundingT
     ...rest,
   }
   return client as unknown as SwapRailClient
+}
+
+/** A client whose `resolve` IS the SDK's own route resolution. The stub above
+ *  answers `eligible: 1` to anything, which is what hid the refusal below. */
+const resolvingClient = (card: DiscoveredMarket = lnMarket(rendezvous)) => {
+  // The fixture invoice is long expired; nothing but its expiry is moved.
+  const decode = (bolt11: string) => ({
+    ...decodeBolt11(bolt11),
+    expiresAt: Math.floor(Date.now() / 1000) + 3600,
+  })
+  const ln = lightningCorridor({ networkName: 'bitcoin', decode } as never)
+  const snapshot = { markets: [card], ref: { live: true, network: 'bitcoin' } }
+  const corridors = {
+    claim: (raw: string) => {
+      const answer = ln.matches(raw)
+      return answer?.claimed ? { corridor: 'lightning', instrument: answer.claimed } : undefined
+    },
+    get: () => ln,
+  }
+  const deps = {
+    corridors,
+    network: 'bitcoin',
+    discovery: { peek: async () => snapshot, load: async () => snapshot },
+    mode: 'resolve',
+  }
+  return fakeClient({
+    resolve: (async (input: unknown) => (await resolveRoute(input as never, deps as never)).resolution) as never,
+  })
 }
 
 const router = (over: Partial<Parameters<typeof createSendRouter>[0]> = {}) =>
@@ -318,6 +354,23 @@ describe('the lightning rail', () => {
     expect(await railIds(router({ client }), INVOICE, INVOICE_SATS)).toEqual([])
   })
 
+  // The live report: refused as "outside solver bounds" by a solver admitting it.
+  it('routes an amount-bearing invoice the solver admits, instead of dropping itself', async () => {
+    const client = resolvingClient(lnMarket({ ...rendezvous, min_quote_amount: '1000', max_quote_amount: '25000' }))
+    const options = await router({ client }).options(lnSendRequest(INVOICE, INVOICE_SATS))
+    expect(options.map((o) => o.railId)).toEqual([LIGHTNING_RAIL])
+  })
+
+  it('is dropped when the amount is pinned alongside an invoice that already pins it', async () => {
+    const options = await router({ client: resolvingClient() }).options({ raw: INVOICE, amount: INVOICE_SATS })
+    expect(options).toEqual([])
+  })
+
+  it('leaves the amount to the invoice, and carries one only when the invoice names none', () => {
+    expect(lnSendRequest(INVOICE, INVOICE_SATS)).toEqual({ raw: INVOICE })
+    expect(lnSendRequest('not-an-invoice', 1_000)).toEqual({ raw: 'not-an-invoice', amount: 1_000 })
+  })
+
   it('quotes the invoice amount with the solver spread on top, and funds through accept()', async () => {
     const options = await router().options({ raw: INVOICE, amount: INVOICE_SATS })
     const quote = await options[0].quote()
@@ -329,14 +382,36 @@ describe('the lightning rail', () => {
   })
 })
 
-describe('lnSendRefusal names which of the two refusals it was', () => {
+describe('lnSendRefusal only names a cause it has checked', () => {
+  const admits = lnMarket({ min_quote_amount: '1000', max_quote_amount: '25000' })
+
   it('says no solver when nothing serves the corridor', () => {
-    expect(lnSendRefusal([])).toBe('No Lightning solver available')
-    expect(lnSendRefusal([market()])).toBe('No Lightning solver available')
+    expect(lnSendRefusal([], 1_000)).toBe('No Lightning solver available')
+    expect(lnSendRefusal([market()], 1_000)).toBe('No Lightning solver available')
   })
 
-  it('quotes the card’s own bounds when a solver serves it at another size', () => {
-    expect(lnSendRefusal([lnMarket()])).toBe('Amount outside solver bounds (1,000-1,000,000 sats)')
+  it('blames the bounds only when no solver’s bounds admit the amount', () => {
+    expect(lnSendRefusal([admits], 40_000)).toBe('Amount outside solver bounds (1,000-25,000 sats)')
+    expect(lnSendRefusal([admits], 500)).toBe('Amount outside solver bounds (1,000-25,000 sats)')
+  })
+
+  // The report: 1,000 sats, bounds 1,000-25,000, refused for naming them.
+  it('does NOT blame the bounds for an amount they admit', () => {
+    const refusal = lnSendRefusal([admits], 1_000)
+    expect(refusal).not.toContain('outside solver bounds')
+    expect(refusal).toContain('1,000-25,000 sats')
+    expect(refusal).toContain('does not report')
+  })
+
+  // Which card refused is unknowable, so one card's span blames the wrong limits.
+  it('spans every solver’s bounds, not the first card’s', () => {
+    const wider = lnMarket({ min_quote_amount: '500', max_quote_amount: '90000' })
+    expect(lnSendRefusal([admits, wider], 40_000)).not.toContain('outside solver bounds')
+    expect(lnSendRefusal([admits, wider], 200_000)).toBe('Amount outside solver bounds (500-90,000 sats)')
+  })
+
+  it('claims nothing about bounds it was given no amount to check', () => {
+    expect(lnSendRefusal([admits])).not.toContain('outside solver bounds')
   })
 })
 

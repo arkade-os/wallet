@@ -14,6 +14,7 @@ import {
   type Asset,
   type IWallet,
   type PaymentRail,
+  type PaymentRequest,
   type RouteQuote,
 } from '@arkade-os/sdk'
 import { LIGHTNING_RAIL, ONCHAIN_SWAP_RAIL, lightningRail, onchainSwapRail, type SwapRailClient } from '@arkade-os/swap'
@@ -109,13 +110,36 @@ export const createSendRouter = (deps: SendRouterDeps): PaymentRouter => {
   return router
 }
 
-/** Why the Lightning rail dropped itself: `options()` reports absence, not
- *  cause, and the send form told these two apart before routing. */
-export const lnSendRefusal = (markets: DiscoveredMarket[]): string => {
-  const market = markets.find((m) => m.quote_corridor === 'lightning')
-  const bounds = market && sideLimits(market, 'quote')
-  if (!bounds) return 'No Lightning solver available'
-  return `Amount outside solver bounds (${prettyNumber(Number(bounds.min))}-${prettyNumber(Number(bounds.max))} sats)`
+/** An amount-bearing invoice pins the take leg by existing, and the client throws
+ *  `AmountMismatch` on a request pinning it twice — even when the two agree. */
+export const lnSendRequest = (invoice: string, satoshis?: number): PaymentRequest => {
+  const target = invoiceTarget(invoice)
+  if (target !== undefined) {
+    try {
+      if (decodeInvoice(target).amountSats > 0) return { raw: invoice }
+    } catch {
+      // Undecodable is the rail's refusal to name, not this builder's.
+    }
+  }
+  return { raw: invoice, ...(satoshis === undefined ? {} : { amount: satoshis }) }
+}
+
+/** Why the Lightning rail dropped itself. `options()` logs the rail's error and
+ *  returns only survivors, so bounds are named only where checked and missed. */
+export const lnSendRefusal = (markets: DiscoveredMarket[], satoshis?: number): string => {
+  const bounds = markets
+    .filter((m) => m.quote_corridor === 'lightning')
+    .map((m) => sideLimits(m, 'quote'))
+    .filter((limits): limits is NonNullable<typeof limits> => limits !== null)
+  if (bounds.length === 0) return 'No Lightning solver available'
+  const min = bounds.reduce((low, b) => (b.min < low ? b.min : low), bounds[0].min)
+  const max = bounds.reduce((high, b) => (b.max > high ? b.max : high), bounds[0].max)
+  const span = `${prettyNumber(Number(min))}-${prettyNumber(Number(max))} sats`
+  const amount = satoshis === undefined ? undefined : BigInt(satoshis)
+  if (amount !== undefined && !bounds.some((b) => amount >= b.min && amount <= b.max)) {
+    return `Amount outside solver bounds (${span})`
+  }
+  return `No Lightning solver took this payment (solvers take ${span}). The router does not report why a rail dropped; the reason is in the console log.`
 }
 
 /** The Lightning analogue of {@link quoteIsForThisSend}. By payment hash: the
