@@ -1,7 +1,8 @@
-import { useContext } from 'react'
+import { ReactNode, StrictMode, useContext } from 'react'
 import userEvent from '@testing-library/user-event'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { hex } from '@scure/base'
 import { planOffer, type OfferPlan } from '@arkade-os/solver-discovery'
 import { addAssetSwap, getAssetSwaps, updateAssetSwap } from '@arkade-os/swap'
 import { AspContext } from '../../providers/asp'
@@ -9,11 +10,14 @@ import { AssetSwapsContext, AssetSwapsProvider } from '../../providers/assetSwap
 import { WalletContext } from '../../providers/wallet'
 import { assetSwapRepository as repository, type WalletAssetSwap } from '../../lib/swapRepository'
 import { btcUsdt, maratNapo, MARAT_ID, NAPO_ID, USDT_ID } from '../lib/swapFixtures'
-import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
+import { saveSolverCards } from '../../lib/solverCards'
+import { mockAspContextValue, mockTxInfo, mockWalletContextValue } from '../screens/mocks'
 
 const cancelOffer = vi.hoisted(() => vi.fn())
 const createOffer = vi.hoisted(() => vi.fn())
 const getVtxos = vi.hoisted(() => vi.fn())
+const discoverMarkets = vi.hoisted(() => vi.fn(async (_network: string, _useCache?: boolean) => []))
+const restoreAssetSwaps = vi.hoisted(() => vi.fn())
 const watchOfferSwaps = vi.hoisted(() => vi.fn())
 
 vi.mock('@arkade-os/sdk', async (importOriginal) => ({
@@ -27,6 +31,7 @@ vi.mock('@arkade-os/swap', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@arkade-os/swap')>()),
   cancelOffer,
   createOffer,
+  restoreAssetSwaps,
   watchOfferSwaps,
 }))
 
@@ -40,7 +45,7 @@ vi.mock('../../lib/swapRepository', async () => {
 // keep the discovery effect off the network; these tests hand plans in directly
 vi.mock('../../lib/swapMarkets', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/swapMarkets')>()),
-  discoverMarkets: async () => [],
+  discoverMarkets,
 }))
 
 const pendingSwap: WalletAssetSwap = {
@@ -67,17 +72,27 @@ function CancelHarness() {
   )
 }
 
+/** The provider under its two contexts. One home for the `as any` seams, so a
+ * change to what the provider reads out of them lands in a single place. */
+const providerTree = (
+  { asp, wallet }: { asp?: Record<string, unknown>; wallet?: Record<string, unknown> },
+  children: ReactNode,
+) => (
+  <AspContext.Provider value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, ...asp } } as any}>
+    <WalletContext.Provider
+      value={{ ...mockWalletContextValue, reloadWallet: vi.fn().mockResolvedValue(undefined), ...wallet } as any}
+    >
+      <AssetSwapsProvider>{children}</AssetSwapsProvider>
+    </WalletContext.Provider>
+  </AspContext.Provider>
+)
+
 function renderProvider(reloadWallet = vi.fn().mockResolvedValue(undefined), url = '') {
   render(
-    <AspContext.Provider
-      value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network: '', url } } as any}
-    >
-      <WalletContext.Provider value={{ ...mockWalletContextValue, reloadWallet, svcWallet: { identity: {} } } as any}>
-        <AssetSwapsProvider>
-          <CancelHarness />
-        </AssetSwapsProvider>
-      </WalletContext.Provider>
-    </AspContext.Provider>,
+    providerTree(
+      { asp: { network: '', url }, wallet: { reloadWallet, svcWallet: { identity: {} } } },
+      <CancelHarness />,
+    ),
   )
   return reloadWallet
 }
@@ -90,31 +105,17 @@ function CreateHarness({ plan }: { plan: OfferPlan }) {
 function renderCreateProvider(plan: OfferPlan) {
   const send = vi.fn().mockResolvedValue('funding-txid-2')
   render(
-    // mutinynet is the network with a pinned co-signer key, which arms createSwap
-    <AspContext.Provider
-      value={
-        { ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet', url: '' } } as any
-      }
-    >
-      <WalletContext.Provider
-        value={
-          {
-            ...mockWalletContextValue,
-            reloadWallet: vi.fn().mockResolvedValue(undefined),
-            svcWallet: { identity: {}, send },
-          } as any
-        }
-      >
-        <AssetSwapsProvider>
-          <CreateHarness plan={plan} />
-        </AssetSwapsProvider>
-      </WalletContext.Provider>
-    </AspContext.Provider>,
+    providerTree(
+      // mutinynet is the network with a pinned co-signer key, which arms createSwap
+      { asp: { network: 'mutinynet', url: '' }, wallet: { svcWallet: { identity: {}, send } } },
+      <CreateHarness plan={plan} />,
+    ),
   )
   return send
 }
 
 beforeEach(() => {
+  discoverMarkets.mockClear()
   watchOfferSwaps.mockReset().mockResolvedValue({ stop: () => {}, idle: async () => {} })
 })
 
@@ -287,5 +288,143 @@ describe('AssetSwapsProvider watching', () => {
     onUpdate({ ...pendingSwap, status: 'fulfilled', spentTxid: 'fill-txid' })
 
     await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('fulfilled'))
+  })
+})
+
+describe('AssetSwapsProvider restore scan', () => {
+  // valid hex: the provider decodes it to the x-only key the covenants were funded against
+  const SIGNER_PUBKEY = `02${'ab'.repeat(32)}`
+  const restoredSwap: WalletAssetSwap = { ...pendingSwap, id: 'restored-txid', fundingTxid: 'restored-txid' }
+  const sentTx = (redeemTxid: string) => ({ ...mockTxInfo, type: 'sent', redeemTxid, createdAt: 1 })
+
+  function ScanHarness() {
+    const { swaps } = useContext(AssetSwapsContext)
+    return <span data-testid='restored'>{swaps.map((s) => s.id).join(',') || 'none'}</span>
+  }
+
+  const tree = (txs: (typeof mockTxInfo)[], signerPubkey: string = SIGNER_PUBKEY) =>
+    providerTree(
+      { asp: { network: '', url: 'https://ark.test', signerPubkey }, wallet: { dataReady: true, txs } },
+      <ScanHarness />,
+    )
+
+  /** Renders with the first `restoreAssetSwaps` held open, so a rerender lands
+   * while a scan is provably in flight. Returns the release for that run. */
+  const renderBlockedScan = async () => {
+    let release: (result: { restored: WalletAssetSwap[]; scannedTxids: string[] }) => void = () => {}
+    restoreAssetSwaps
+      .mockReturnValueOnce(new Promise((resolve) => (release = resolve)))
+      .mockResolvedValue({ restored: [], scannedTxids: [] })
+    const { rerender } = render(tree([sentTx('a')]))
+    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(1))
+    return { rerender, release: (result: Parameters<typeof release>[0]) => release(result) }
+  }
+
+  beforeEach(async () => {
+    await repository.clear()
+    restoreAssetSwaps.mockReset()
+  })
+
+  afterEach(async () => await repository.clear())
+
+  it('keeps a scan alive when history changes under it', async () => {
+    // The restore path in the wild: history arrives in more than one batch, so
+    // `txs` takes a new identity while the scan's indexer round-trip is still in
+    // flight. Abandoning the run on that dropped the rebuilt records before they
+    // were written and scheduled no retry, so a restored wallet showed its swaps
+    // as bare sent rows until some later unrelated `txs` change happened to land
+    // while no scan was running — which is why making one new swap restored
+    // every older one at once.
+    const { rerender, release } = await renderBlockedScan()
+
+    rerender(tree([sentTx('a'), sentTx('b')]))
+    release({ restored: [restoredSwap], scannedTxids: ['restored-txid'] })
+
+    await waitFor(() => expect(screen.getByTestId('restored')).toHaveTextContent('restored-txid'))
+  })
+
+  it('starts a scan for the new wallet when the profile changed mid-scan', async () => {
+    // The queued run may belong to another wallet by the time the lock frees:
+    // re-entering through the effect is what lets it read the profile current
+    // then, instead of the one the finishing run was bound to.
+    const OTHER_PUBKEY = `02${'cd'.repeat(32)}`
+    const { rerender, release } = await renderBlockedScan()
+
+    rerender(tree([sentTx('a')], OTHER_PUBKEY))
+    release({ restored: [restoredSwap], scannedTxids: ['restored-txid'] })
+
+    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(2))
+    expect(restoreAssetSwaps.mock.calls[1][3].serverPubkey).toEqual(hex.decode('cd'.repeat(32)))
+    // and the abandoned run wrote nothing for the wallet that went away
+    expect(screen.getByTestId('restored')).toHaveTextContent('none')
+  })
+
+  it('scans under StrictMode, whose setup/cleanup/setup would strand the unmounted flag', async () => {
+    restoreAssetSwaps.mockResolvedValue({ restored: [restoredSwap], scannedTxids: ['restored-txid'] })
+
+    render(<StrictMode>{tree([sentTx('a')])}</StrictMode>)
+
+    await waitFor(() => expect(screen.getByTestId('restored')).toHaveTextContent('restored-txid'))
+  })
+
+  it('goes round again with the history that arrived mid-scan', async () => {
+    let release: (result: { restored: WalletAssetSwap[]; scannedTxids: string[] }) => void = () => {}
+    restoreAssetSwaps
+      .mockReturnValueOnce(new Promise((resolve) => (release = resolve)))
+      .mockResolvedValue({ restored: [], scannedTxids: [] })
+
+    const { rerender } = render(tree([sentTx('a')]))
+    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(1))
+    expect(restoreAssetSwaps.mock.calls[0][1]).toHaveLength(1)
+
+    // a run skipped because another was in flight must not be a run lost
+    rerender(tree([sentTx('a'), sentTx('b')]))
+    release({ restored: [], scannedTxids: ['a'] })
+
+    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(2))
+    // and it sees the newer history, not the list its effect closed over
+    expect(restoreAssetSwaps.mock.calls[1][1]).toHaveLength(2)
+  })
+})
+
+describe('AssetSwapsProvider solver cards', () => {
+  function Bare() {
+    return null
+  }
+
+  const renderOnNetwork = () =>
+    render(
+      <AspContext.Provider
+        value={
+          { ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet', url: '' } } as any
+        }
+      >
+        <WalletContext.Provider
+          value={
+            { ...mockWalletContextValue, reloadWallet: vi.fn().mockResolvedValue(undefined), svcWallet: null } as any
+          }
+        >
+          <AssetSwapsProvider>
+            <Bare />
+          </AssetSwapsProvider>
+        </WalletContext.Provider>
+      </AspContext.Provider>,
+    )
+
+  it('re-runs discovery when the stored solver cards change', async () => {
+    // A pinned card is a market source, and the Nostr restore writes one
+    // straight to localStorage — well after the per-network discovery has run,
+    // and where no React state can see it. Without this the swap screen read
+    // "coming soon" with the restored card sitting visible in Settings, until
+    // the app was reloaded.
+    renderOnNetwork()
+    await waitFor(() => expect(discoverMarkets).toHaveBeenCalledTimes(1))
+
+    act(() => saveSolverCards([]))
+
+    await waitFor(() => expect(discoverMarkets).toHaveBeenCalledTimes(2))
+    // cache bypassed: the TTL cache holds the registry's answer, which is
+    // exactly what a newly stored card changes
+    expect(discoverMarkets.mock.calls[1][1]).toBe(false)
   })
 })
