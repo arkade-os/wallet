@@ -382,6 +382,39 @@ describe('Wallet swap flow', () => {
     expect(screen.getByRole('button', { name: '0.00100000 BTC' })).toBeInTheDocument()
   })
 
+  it('stops a partial asset swap that cannot fund its change carrier', async () => {
+    renderSwap({
+      config: { currency: Currencies.BRL, unit: Unit.SATS },
+      flow: { swapFromAssetId: DEPIX_ID, setSwapFromAssetId: vi.fn() },
+      // one dust carrier: the sats the DEPIX itself rides on
+      wallet: { availableBalance: 333, assetBalances: [{ assetId: DEPIX_ID, amount: BigInt(200_000_000_000) }] },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Bitcoin/i }))
+    for (const key of ['1', '0', '0', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
+
+    await waitFor(() => expect(screen.getByText(/partial swap/)).toBeInTheDocument())
+    expect(screen.getByText(/partial swap/).closest('[data-sonner-toast]')).not.toBeNull()
+    expect(primaryAmount().className).toContain('swap-amount-display--invalid')
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+  })
+
+  it('allows a partial asset swap once a second dust carrier is available', async () => {
+    renderSwap({
+      config: { currency: Currencies.BRL, unit: Unit.SATS },
+      flow: { swapFromAssetId: DEPIX_ID, setSwapFromAssetId: vi.fn() },
+      wallet: { availableBalance: 666, assetBalances: [{ assetId: DEPIX_ID, amount: BigInt(200_000_000_000) }] },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Bitcoin/i }))
+    for (const key of ['1', '0', '0', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled(), { timeout: 3_000 })
+    expect(screen.queryByText(/partial swap/)).not.toBeInTheDocument()
+  })
+
   it('submits the live PR 784 offer plan and a historical display snapshot', async () => {
     renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
 
