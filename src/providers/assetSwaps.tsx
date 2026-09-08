@@ -122,10 +122,14 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
    *
    * The one authoritative answer, and the one every writer here must use. The
    * alternative — inferring from the history row for the spend, cancel if the
-   * want-asset did not arrive — read a fill as a cancel: the SDK builds that
+   * want-asset did not arrive — read a fill as a cancel. The SDK builds that
    * row by netting the deposit against the outputs the same tx created for the
-   * wallet, and while the fill's output is not yet in the cache the row is a
-   * bare send of the deposit. A stored status is permanent, so that guess was.
+   * wallet, and the two sides are not equally fresh: `getContractsWithVtxos`
+   * syncs the covenant's script against the indexer on every call, while
+   * history is built from the cached wallet-script vtxos, which only the
+   * subscription updates. A pass that runs between the fill landing and that
+   * update sees the deposit spent with no output for it, a bare send of the
+   * deposit. A stored status is permanent, so that guess was.
    *
    * Both spend txids are fetched, not just the ark tx: a deposit spent through
    * a checkpoint names the checkpoint in `spentBy` and the ark tx in
