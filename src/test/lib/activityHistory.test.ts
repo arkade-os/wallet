@@ -216,6 +216,24 @@ describe('swapRecordResolver', () => {
     ])
   })
 
+  it('groups a claimed receive by its claim, the only tx that identifies it', async () => {
+    const resolver = swapRecordResolver(async () => [
+      corridorRecord({
+        kind: 'lightning_receive',
+        state: 'settled',
+        fundingTxid: undefined,
+        profile: { claimTxid: 'claim-txid' },
+      }),
+    ])
+    await resolver.prepare?.()
+
+    expect(resolver.resolve(arkTx('claim-txid'))?.[0]).toMatchObject({
+      groupId: `swap:rfq-1`,
+      label: 'Lightning receive',
+      metadata: { swapKind: 'lightning_receive' },
+    })
+  })
+
   it('carries a corridor spend into the same group, so a refund is not a stray row', async () => {
     const resolver = swapRecordResolver(async () => [corridorRecord({ state: 'refunded', refundTxid: 'refund-txid' })])
     await resolver.prepare?.()

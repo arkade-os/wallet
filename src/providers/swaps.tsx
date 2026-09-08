@@ -77,6 +77,7 @@ import {
 } from '../lib/swapDriverChannel'
 import { saveQuoteSnapshot, type AssetSwapQuoteSnapshot, type WalletAssetSwap } from '../lib/swapRepository'
 import { displayAssetOf, offerSwaps } from '../lib/swapRecords'
+import { verifiedDesignatedCurrency } from '../lib/accountAssets'
 import { getEmulatorPubkeyForNetwork } from '../lib/constants'
 import { consoleError } from '../lib/logs'
 import { extractError } from '../lib/error'
@@ -179,13 +180,16 @@ const ENDED: Partial<Record<Outcome, 'received' | 'returned' | 'lost'>> = {
 
 export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
-  const { dataReady, svcWallet, reloadWallet, setAssetSwaps } = useContext(WalletContext)
+  const { dataReady, svcWallet, reloadWallet, setAssetSwaps, isVerifiedAsset } = useContext(WalletContext)
 
   const [markets, setMarkets] = useState<DiscoveredMarket[]>([])
   const [emulatorPubkey, setEmulatorPubkey] = useState<Uint8Array>()
   const [swaps, setSwaps] = useState<WalletAssetSwap[]>([])
   const [outcomes, setOutcomes] = useState<Map<string, Outcome>>(new Map())
   const [errors, setErrors] = useState<Map<string, string>>(new Map())
+
+  /** False until the client's restore has finished. */
+  const restoredRef = useRef(false)
 
   // the reconciliation reads the current list from outside a render, where
   // `swaps` would be the value captured when it was created
@@ -312,6 +316,10 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const tickerFor = (assetId: AssetId): string => {
     const display = displayAssetOf(assetId)
     if (display === BTC_ASSET_ID) return 'sats'
+    // Outranks the card's ticker, as every other surface reads it. Verified
+    // only, or a lookalike mint could claim the currency.
+    const designated = verifiedDesignatedCurrency(aspInfo.network, display, isVerifiedAsset)
+    if (designated) return designated
     for (const market of allMarketsRef.current) {
       if (market.quote_asset.id === display) return market.quote_asset.ticker
       if (market.base_asset.id === display) return market.base_asset.ticker
@@ -338,13 +346,17 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       next.delete(swap.id)
       return next
     })
+    // `restore()` ends by emitting every record it read, and this subscribes
+    // before `client.ready`, so each load replayed the whole history terminal.
+    if (!restoredRef.current) return
     if (ended === 'received')
       toast.success(isSendLeg(swap) ? 'Payment complete' : `Swap completed, ${tickerFor(swap.take.asset)} received`)
     else if (ended === 'returned') toast.success('Swap cancelled, funds returned')
     else toast.error('Lightning payment was not received')
     // The claim and the refund land through the client's own broadcaster, so
     // the service worker never emits the VTXO_UPDATE the balance listener waits
-    // for. Nothing else would refresh it.
+    // for. Nothing else would refresh it. Behind the same gate: a restore
+    // reporting fifty old swaps would otherwise reload the wallet fifty times.
     void refreshSwaps()
     reloadRef.current().catch(consoleError)
   }
@@ -429,6 +441,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         // records cannot drive them safely.
         await client.ready
         await refreshSwaps()
+        restoredRef.current = true
         return client
       })()
 
