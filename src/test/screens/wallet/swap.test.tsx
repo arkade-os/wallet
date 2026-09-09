@@ -352,7 +352,7 @@ describe('Wallet swap flow', () => {
   })
 
   it('replaces the available balance with a max action for insufficient balance', async () => {
-    renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+    renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() }, wallet: { assetBalances: [] } })
 
     for (const key of ['9', '9', '9']) {
       await userEvent.click(screen.getByRole('button', { name: key }))
@@ -371,7 +371,7 @@ describe('Wallet swap flow', () => {
 
   it('keeps non-limit validation errors in Sonner', async () => {
     fetchMocker.mockRejectOnce(new Error('feed unavailable'))
-    renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+    renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() }, wallet: { assetBalances: [] } })
 
     fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
     fireEvent.click(screen.getByRole('button', { name: /USD/i }))
@@ -652,15 +652,16 @@ describe('Wallet swap flow', () => {
     expect(await screen.findByRole('button', { name: /NAPO/i })).toBeInTheDocument()
   })
 
-  it('funds the whole balance when the balance under the from-asset is tapped', async () => {
+  it('funds the balance less one dust carrier when the wallet also holds assets', async () => {
     renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
 
     fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
     fireEvent.click(screen.getByRole('button', { name: /USD/i }))
 
-    // the wallet holds 100,000 sats (loaded async) — tapping the balance enters all of it
-    await userEvent.click(await screen.findByRole('button', { name: '100,000 sats' }))
-    expect(primaryAmount()).toHaveTextContent('100000 sats')
+    // the wallet holds 100,000 sats (loaded async) next to USDT and DEPIX, so
+    // tapping the balance keeps the 330 sat carrier their change will need
+    await userEvent.click(await screen.findByRole('button', { name: '99,670 sats' }))
+    expect(primaryAmount()).toHaveTextContent('99670 sats')
 
     const continueButton = screen.getByRole('button', { name: 'Continue' })
     await waitFor(() => expect(continueButton).toBeEnabled(), { timeout: 3_000 })
@@ -668,7 +669,7 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
     await waitFor(() => expect(createSwap).toHaveBeenCalledOnce())
-    expect(createSwap.mock.calls[0][0].deposit.atomic).toBe(BigInt(100_000))
+    expect(createSwap.mock.calls[0][0].deposit.atomic).toBe(BigInt(99_670))
   })
 
   it('offers only the spendable part of an asset held partly in swap escrow', async () => {
@@ -712,7 +713,7 @@ describe('Wallet swap flow', () => {
     renderSwap({
       config: { currency: Currencies.USD, unit: Unit.SATS },
       flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
-      wallet: { availableBalance: 1_093_180 },
+      wallet: { availableBalance: 1_093_180, assetBalances: [] },
     })
 
     fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
@@ -779,7 +780,11 @@ describe('Wallet swap flow', () => {
   })
 
   it('quotes a sane amount when typing a fiat amount with the display unit set to sats', async () => {
-    renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+    renderSwap({
+      config: { unit: Unit.SATS },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      wallet: { assetBalances: [] },
+    })
 
     fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
     fireEvent.click(screen.getByRole('button', { name: /USD/i }))
@@ -864,6 +869,7 @@ describe('Wallet swap flow', () => {
     renderSwap({
       config: { unit: Unit.BTC },
       flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      wallet: { assetBalances: [] },
     })
 
     // the mocked wallet balance (100,000 sats) is shown in whole-BTC terms, at

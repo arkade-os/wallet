@@ -38,7 +38,7 @@ import { withRfqTransport } from '../../../lib/nostrRfq'
 import { discoverMarkets } from '../../../lib/swapMarkets'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
-import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
+import { centsToUnits, DUST_AMOUNT, liquidBtcBalance, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
 import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -190,13 +190,10 @@ export default function SendForm() {
   const activeAsset = accountAsset ?? selectedAsset
   const isAssetSend = activeAsset !== null
 
-  const DUST_AMOUNT = 330
   const RECIPIENT_DEBOUNCE_MS = 800
   const hasAssets = assetBalances.length > 0
   const reserveApplied = !isAssetSend && hasAssets
-  // clamp: a balance below the reserve is "nothing sendable", not a negative
-  // amount (and the provider's availableBalance never flashes 0 on mount)
-  const liquidBalance = Math.max(0, availableBalance - (reserveApplied ? DUST_AMOUNT : 0))
+  const liquidBalance = liquidBtcBalance(availableBalance, reserveApplied)
 
   const smartSetError = (str: string) => {
     setError(str === '' ? (aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '') : str)

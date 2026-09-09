@@ -126,3 +126,15 @@ export const assetNameChanged = (
   previous: { ticker?: string; decimals?: number } | undefined,
   next: { ticker?: string; decimals?: number } | undefined,
 ): boolean => previous?.ticker !== next?.ticker || previous?.decimals !== next?.decimals
+
+/** Sats a BTC spend keeps back while the wallet holds assets. Every asset
+ * output rides on a dust carrier and asset change needs one of its own, so
+ * spending the last carrier fails inside coin selection with a bare
+ * "Insufficient funds". */
+export const DUST_AMOUNT = 330
+
+/** The BTC a spend may take: the available balance less the reserve above
+ * when `holdsAssets`. Clamped at zero, since a balance below the reserve is
+ * "nothing sendable" rather than a negative amount. */
+export const liquidBtcBalance = (availableBalance: number, holdsAssets: boolean): number =>
+  Math.max(0, availableBalance - (holdsAssets ? DUST_AMOUNT : 0))

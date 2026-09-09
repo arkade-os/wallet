@@ -17,7 +17,7 @@ import ChevronDownIcon from '../../../icons/ChevronDown'
 import InfoIcon from '../../../icons/Info'
 import SwapIcon from '../../../icons/Swap'
 import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
-import { centsToUnits, unitsToCents } from '../../../lib/assets'
+import { centsToUnits, liquidBtcBalance, unitsToCents } from '../../../lib/assets'
 import { extractError } from '../../../lib/error'
 import { formatFiatAmountParts, normalizeBitcoinUnit, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
@@ -122,7 +122,9 @@ export default function WalletSwap() {
           ticker: btcUnit === Unit.BTC ? 'BTC' : btcUnit,
           currency: Currencies.BTC,
           decimals: btcUnit === Unit.BTC ? 8 : 0,
-          balance: BigInt(availableBalance),
+          // the same reserve Send applies: a BTC deposit from a wallet that
+          // holds assets keeps one dust carrier back for the asset change
+          balance: BigInt(liquidBtcBalance(availableBalance, availableAssetBalances.length > 0)),
           fiatText: bitcoinRow?.hasFiatPrice
             ? prettyFiatAmount(bitcoinRow.fiatAmount, config.currency, { bitcoinUnit: config.unit })
             : undefined,
