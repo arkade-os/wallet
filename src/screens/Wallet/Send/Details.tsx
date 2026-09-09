@@ -148,7 +148,9 @@ export default function SendDetails() {
         consoleError(err, `${ONCHAIN_ROUTE_LOG} could not price the send`)
         return undefined
       })
-    withinPricingBudget(priced).then(settle)
+    withinPricingBudget(priced)
+      .then(settle)
+      .catch((err) => consoleError(err, `${ONCHAIN_ROUTE_LOG} could not price the send`))
     return () => {
       live = false
     }
