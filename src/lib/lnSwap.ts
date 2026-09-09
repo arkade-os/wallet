@@ -28,6 +28,7 @@ import type { NetworkName, RestIndexerProvider } from '@arkade-os/sdk'
 import { requestLightningSend, type InvoiceFacts, type RfqTransport } from '@arkade-os/swap'
 import { decodeInvoice, invoiceMatchesNetwork, isInvoiceExpired, type DecodedInvoice } from './bolt11'
 import type { LnSendRecordFacts } from './lnSendRecords'
+import { marketCorridor } from './marketCorridor'
 
 /** Why an invoice cannot start a swap. A closed set, so callers can branch. */
 export type InvoiceRejection = 'unparseable' | 'wrong_network' | 'expired' | 'zero_amount' | 'no_payment_hash'
@@ -181,7 +182,7 @@ const lnRendezvous = (
 ): LnSendRendezvous | undefined => {
   const pinned = fallbackEmulatorPubkey ? hex.encode(fallbackEmulatorPubkey) : undefined
   for (const market of markets) {
-    if (market.quote_corridor !== 'lightning') continue
+    if (marketCorridor(market, 'quote') !== 'bolt11') continue
     const transports = {
       nostr: {
         relays: market.transports?.nostr?.relays ?? [],

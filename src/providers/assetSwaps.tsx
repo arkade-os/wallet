@@ -43,6 +43,7 @@ import { WalletContext } from './wallet'
 import { assetSwapRepository, type AssetSwapQuoteSnapshot, type WalletAssetSwap } from '../lib/swapRepository'
 import { getEmulatorPubkeyForNetwork, getEmulatorPubkeyHexForNetwork } from '../lib/constants'
 import { discoverMarkets } from '../lib/swapMarkets'
+import { isRfqMarket } from '../lib/marketCorridor'
 import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
 import { consoleError } from '../lib/logs'
 import { toast } from '../components/Toast'
@@ -160,7 +161,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
       // tradeable here: this provider builds offers, and a corridor is
       // negotiated with a solver instead. Keeping them would let one Lightning
       // card turn the whole swap surface on with nothing behind it.
-      .then((all) => setMarkets(all.filter((m) => !m.quote_corridor)))
+      .then((all) => setMarkets(all.filter((m) => !isRfqMarket(m))))
       .catch((err) => consoleError(err, 'solver discovery failed'))
   }
 
