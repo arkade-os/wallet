@@ -38,7 +38,7 @@ import { withRfqTransport } from '../../../lib/nostrRfq'
 import { discoverMarkets } from '../../../lib/swapMarkets'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
-import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
+import { centsToUnits, liquidBtcBalance, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
 import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -190,13 +190,10 @@ export default function SendForm() {
   const activeAsset = accountAsset ?? selectedAsset
   const isAssetSend = activeAsset !== null
 
-  const DUST_AMOUNT = 330
   const RECIPIENT_DEBOUNCE_MS = 800
   const hasAssets = assetBalances.length > 0
   const reserveApplied = !isAssetSend && hasAssets
-  // clamp: a balance below the reserve is "nothing sendable", not a negative
-  // amount (and the provider's availableBalance never flashes 0 on mount)
-  const liquidBalance = Math.max(0, availableBalance - (reserveApplied ? DUST_AMOUNT : 0))
+  const liquidBalance = liquidBtcBalance(availableBalance, reserveApplied, aspInfo.dust)
 
   const smartSetError = (str: string) => {
     setError(str === '' ? (aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '') : str)
@@ -872,7 +869,7 @@ export default function SendForm() {
   // Derived, not stored: the server-status effect owns `error` and would
   // clear this on recovery.
   const carrierError =
-    activeAsset && assetAmt > BigInt(0) && assetAmt < activeAsset.balance && availableBalance < 2 * DUST_AMOUNT
+    activeAsset && assetAmt > BigInt(0) && assetAmt < activeAsset.balance && availableBalance < 2 * Number(aspInfo.dust)
       ? PARTIAL_SEND_ERROR
       : ''
 
@@ -1157,7 +1154,7 @@ export default function SendForm() {
         <FlexCol gap='1rem'>
           <Text bold>Balance reserve</Text>
           <Text color='neutral-500' small wrap>
-            {`${DUST_AMOUNT} sats are kept in reserve to protect your assets. Your max sendable amount is ${prettyNumber(liquidBalance)} sats.`}
+            {`${aspInfo.dust} sats are kept in reserve to protect your assets. Your max sendable amount is ${prettyNumber(liquidBalance)} sats.`}
           </Text>
           <FlexCol gap='0.5rem'>
             <Button onClick={confirmSendAll} label='Send max' />
