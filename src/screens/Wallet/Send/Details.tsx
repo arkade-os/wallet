@@ -21,6 +21,7 @@ import {
   previewOnchainCost,
   quoteIsForThisInvoice,
   quoteIsForThisSend,
+  withinPricingBudget,
 } from '../../../lib/sendRouter'
 import { extractError } from '../../../lib/error'
 import LoadingLogo from '../../../components/LoadingLogo'
@@ -140,14 +141,14 @@ export default function SendDetails() {
       setPricing(false)
       offerToSign(cost?.total ?? details.total ?? 0)
     }
-    sendRouter({ outputFee: calcOnchainOutputFee })
+    const priced = sendRouter({ outputFee: calcOnchainOutputFee })
       .then((router) => previewOnchainCost(router, details.destination!, details.satoshis!))
-      .then(settle)
       .catch((err) => {
         // The exit rail's own figures stay on screen, and it is what will pay.
         consoleError(err, `${ONCHAIN_ROUTE_LOG} could not price the send`)
-        settle()
+        return undefined
       })
+    withinPricingBudget(priced).then(settle)
     return () => {
       live = false
     }

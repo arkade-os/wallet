@@ -181,6 +181,22 @@ export const previewOnchainCost = async (
   return undefined
 }
 
+/** `options()` drops a rail that refuses, nothing bounds one that never answers,
+ *  and this runs BEFORE Tap to Sign appears — the RFQ's deadline is 30s. Expiring
+ *  keeps the exit's numbers, which {@link quoteIsForThisSend} holds a solver to. */
+export const PRICING_BUDGET_MS = 8_000
+
+/** `work` must not reject; the caller owns that, so nothing is left unhandled. */
+export const withinPricingBudget = <T>(work: Promise<T>, budgetMs = PRICING_BUDGET_MS): Promise<T | undefined> => {
+  let timer: ReturnType<typeof setTimeout>
+  return Promise.race([
+    work,
+    new Promise<undefined>((resolve) => {
+      timer = setTimeout(() => resolve(undefined), budgetMs)
+    }),
+  ]).finally(() => clearTimeout(timer))
+}
+
 /** Resolve when the rail reports the funding done, not when the swap ends.
  *  `"sent"` is core's word for it and both swap rails emit it once the covenant
  *  holds the money; `settled()` waits for the counterparty, an L1 confirmation
