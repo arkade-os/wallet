@@ -63,6 +63,15 @@ describe('corridor derivation across the #23 schema change', () => {
     expect(marketCorridor({ quote_asset: { id: 'ripple:mainnet/slip44:144' } }, 'quote')).toBe('arkade')
   })
 
+  it('prefers the asset id over the deprecated compat field the published index still carries', () => {
+    // The index keeps `quote_corridor` as a compat field in the v0 spelling
+    // (`lightning`, not `bolt11`); the id is canonical, so it wins either way.
+    const agreeing = { quote_asset: { id: 'bolt11:bitcoin/slip44:0' }, quote_corridor: 'lightning' }
+    expect(marketCorridor(agreeing, 'quote')).toBe('bolt11')
+    const disagreeing = { quote_asset: { id: 'bolt11:bitcoin/slip44:0' }, quote_corridor: 'onchain' }
+    expect(marketCorridor(disagreeing, 'quote')).toBe('bolt11')
+  })
+
   it('labels a corridor market for display now that `pair` is gone', () => {
     expect(marketPairLabel(newFormat()[0])).toBe('BTC/bolt11:BTC')
   })
