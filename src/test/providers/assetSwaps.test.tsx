@@ -10,6 +10,7 @@ import { AssetSwapsContext, AssetSwapsProvider } from '../../providers/assetSwap
 import { WalletContext } from '../../providers/wallet'
 import { assetSwapRepository as repository, type WalletAssetSwap } from '../../lib/swapRepository'
 import { btcUsdt, maratNapo, MARAT_ID, NAPO_ID, USDT_ID } from '../lib/swapFixtures'
+import corridorSolverCard from '../corridor-solver.card.json'
 import { saveSolverCards } from '../../lib/solverCards'
 import { toast } from '../../components/Toast'
 import { mockAspContextValue, mockTxInfo, mockWalletContextValue } from '../screens/mocks'
@@ -556,7 +557,16 @@ describe('AssetSwapsProvider solver cards', () => {
     return null
   }
 
-  const renderOnNetwork = () =>
+  /** The registry's post-#23 corridor card, as discovery hands its market over. */
+  const corridorMarket = {
+    ...corridorSolverCard.markets[0],
+    discovery_pubkey: corridorSolverCard.discovery_pubkey,
+    transports: corridorSolverCard.transports,
+  }
+
+  const quoteIdOf = (market: { quote_asset?: unknown }) => (market.quote_asset as { id?: string } | undefined)?.id ?? ''
+
+  const renderOnNetwork = (children: ReactNode = <Bare />) =>
     render(
       <AspContext.Provider
         value={
@@ -568,9 +578,7 @@ describe('AssetSwapsProvider solver cards', () => {
             { ...mockWalletContextValue, reloadWallet: vi.fn().mockResolvedValue(undefined), svcWallet: null } as any
           }
         >
-          <AssetSwapsProvider>
-            <Bare />
-          </AssetSwapsProvider>
+          <AssetSwapsProvider>{children}</AssetSwapsProvider>
         </WalletContext.Provider>
       </AspContext.Provider>,
     )
@@ -590,6 +598,22 @@ describe('AssetSwapsProvider solver cards', () => {
     // cache bypassed: the TTL cache holds the registry's answer, which is
     // exactly what a newly stored card changes
     expect(discoverMarkets.mock.calls[1][1]).toBe(false)
+  })
+
+  it('keeps a corridor market out of the spot swap surface', async () => {
+    // The corridor is the registry's own post-#23 card, where the rail is named
+    // inside the asset id. The pre-#23 check read a field that shape does not
+    // carry, so every corridor market fell through it into a surface that
+    // cannot trade one.
+    function QuoteIds() {
+      return <div data-testid='quote-ids'>{useContext(AssetSwapsContext).markets.map(quoteIdOf).join(' ')}</div>
+    }
+    discoverMarkets.mockResolvedValueOnce([corridorMarket, btcUsdt] as never)
+
+    renderOnNetwork(<QuoteIds />)
+
+    await waitFor(() => expect(screen.getByTestId('quote-ids')).toHaveTextContent(USDT_ID))
+    expect(screen.getByTestId('quote-ids')).not.toHaveTextContent('bolt11')
   })
 })
 
