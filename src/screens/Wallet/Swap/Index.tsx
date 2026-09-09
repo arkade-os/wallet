@@ -17,7 +17,6 @@ import ChevronDownIcon from '../../../icons/ChevronDown'
 import InfoIcon from '../../../icons/Info'
 import SwapIcon from '../../../icons/Swap'
 import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
-import { ASSET_CARRIER_SATS } from '@arkade-os/sdk'
 import { centsToUnits, liquidBtcBalance, unitsToCents } from '../../../lib/assets'
 import { extractError } from '../../../lib/error'
 import { formatFiatAmountParts, normalizeBitcoinUnit, prettyFiatAmount, prettyNumber } from '../../../lib/format'
@@ -123,7 +122,7 @@ export default function WalletSwap() {
           ticker: btcUnit === Unit.BTC ? 'BTC' : btcUnit,
           currency: Currencies.BTC,
           decimals: btcUnit === Unit.BTC ? 8 : 0,
-          balance: BigInt(liquidBtcBalance(availableBalance, availableAssetBalances.length > 0)),
+          balance: BigInt(liquidBtcBalance(availableBalance, availableAssetBalances.length > 0, aspInfo.dust)),
           fiatText: bitcoinRow?.hasFiatPrice
             ? prettyFiatAmount(bitcoinRow.fiatAmount, config.currency, { bitcoinUnit: config.unit })
             : undefined,
@@ -153,6 +152,7 @@ export default function WalletSwap() {
     })
   }, [
     assetMetadataCache,
+    aspInfo.dust,
     aspInfo.network,
     availableAssetBalances,
     availableBalance,
@@ -239,7 +239,7 @@ export default function WalletSwap() {
   const lacksChangeCarrier =
     fromAsset.assetId !== BTC_ASSET_ID &&
     amountAtomic < assetBalanceAtomic(fromAsset) &&
-    availableBalance < 2 * ASSET_CARRIER_SATS
+    availableBalance < 2 * Number(aspInfo.dust)
   const validationMessage = swapValidationMessage({
     amount,
     exceedsBalance,

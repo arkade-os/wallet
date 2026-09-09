@@ -28,7 +28,7 @@ import { aspErrorText, getReceivingAddresses } from '../../../lib/asp'
 import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
-import { ArkNote, ASSET_CARRIER_SATS, AssetDetails, isValidArkAddress, type NetworkName } from '@arkade-os/sdk'
+import { ArkNote, AssetDetails, isValidArkAddress, type NetworkName } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
 import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl, LnUrlResponse } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
@@ -193,7 +193,7 @@ export default function SendForm() {
   const RECIPIENT_DEBOUNCE_MS = 800
   const hasAssets = assetBalances.length > 0
   const reserveApplied = !isAssetSend && hasAssets
-  const liquidBalance = liquidBtcBalance(availableBalance, reserveApplied)
+  const liquidBalance = liquidBtcBalance(availableBalance, reserveApplied, aspInfo.dust)
 
   const smartSetError = (str: string) => {
     setError(str === '' ? (aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '') : str)
@@ -869,7 +869,7 @@ export default function SendForm() {
   // Derived, not stored: the server-status effect owns `error` and would
   // clear this on recovery.
   const carrierError =
-    activeAsset && assetAmt > BigInt(0) && assetAmt < activeAsset.balance && availableBalance < 2 * ASSET_CARRIER_SATS
+    activeAsset && assetAmt > BigInt(0) && assetAmt < activeAsset.balance && availableBalance < 2 * Number(aspInfo.dust)
       ? PARTIAL_SEND_ERROR
       : ''
 
@@ -1154,7 +1154,7 @@ export default function SendForm() {
         <FlexCol gap='1rem'>
           <Text bold>Balance reserve</Text>
           <Text color='neutral-500' small wrap>
-            {`${ASSET_CARRIER_SATS} sats are kept in reserve to protect your assets. Your max sendable amount is ${prettyNumber(liquidBalance)} sats.`}
+            {`${aspInfo.dust} sats are kept in reserve to protect your assets. Your max sendable amount is ${prettyNumber(liquidBalance)} sats.`}
           </Text>
           <FlexCol gap='0.5rem'>
             <Button onClick={confirmSendAll} label='Send max' />

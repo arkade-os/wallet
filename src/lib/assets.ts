@@ -1,5 +1,4 @@
 import Decimal from 'decimal.js'
-import { ASSET_CARRIER_SATS } from '@arkade-os/sdk'
 
 export const MAX_DECIMALS = 8 // Arbitrary value to allow at least 1 sat/asset
 
@@ -129,8 +128,8 @@ export const assetNameChanged = (
 ): boolean => previous?.ticker !== next?.ticker || previous?.decimals !== next?.decimals
 
 /** The BTC a spend may take. While the wallet holds assets one carrier stays
- * back: every asset output rides on `ASSET_CARRIER_SATS`, asset change needs
- * one of its own, and spending the last one fails inside coin selection with
- * a bare "Insufficient funds". Never negative. */
-export const liquidBtcBalance = (availableBalance: number, holdsAssets: boolean): number =>
-  Math.max(0, availableBalance - (holdsAssets ? ASSET_CARRIER_SATS : 0))
+ * back: every asset output rides on `dust` sats (the server's threshold),
+ * asset change needs one of its own, and spending the last one fails inside
+ * coin selection with a bare "Insufficient funds". Never negative. */
+export const liquidBtcBalance = (availableBalance: number, holdsAssets: boolean, dust: bigint): number =>
+  Math.max(0, availableBalance - (holdsAssets ? Number(dust) : 0))
