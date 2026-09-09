@@ -32,41 +32,12 @@ import { createSwapClient, type SwapClient, type SwapClientConfig } from '@arkad
 // `./advanced` is not a compatibility promise — see the note in `swapRecords.ts`.
 import { corridorRecordStore, type OnchainClaim } from '@arkade-os/swap/advanced'
 import { chainSourceFrom, claimOnchainFill, preimageForSwapRecord, rfqClaimSecretOf } from '@arkade-os/swap/protocol'
-import { secp256k1 } from '@noble/curves/secp256k1.js'
-import { hex } from '@scure/base'
 import { claimFeeRate } from './claimFee'
-import { getEmulatorPubkeyOverrideForNetwork } from './constants'
+import { getCovclaimdPubkeyForNetwork, getEmulatorPubkeyOverrideForNetwork } from './constants'
 import { toInvoiceFacts } from './lnSwap'
 import { l1NetworkOf, onchainClaimEndpoint } from './onchainPayout'
 import { discoveryOptions } from './swapMarkets'
 import { assetSwapRepository } from './swapRepository'
-
-/**
- * A throwaway key for the receive leg's claim packet — its secret is discarded
- * right here.
- *
- * The RFQ profile carries `P` sealed to covclaimd so that a wallet which goes
- * offline after paying can still be claimed for. This wallet does not go
- * offline: it holds the covenant's `receiver` role through its own payout key
- * and the client claims the lockup itself. So there is nothing for covclaimd to
- * do, and reaching a covclaimd deployment to ask for its key would be a network
- * dependency — and a failure mode — bought for nothing.
- *
- * Sealing to a key nobody holds is the honest encoding of that: the field stays
- * well-formed for solvers that expect it, while `P` provably cannot be read
- * early by the solver, by covclaimd, or by us. Nothing derives from this key —
- * the lightning-receive derivation commits to the payment hash, payout key,
- * server and emulator keys, and never to the packet — so it cannot move the
- * lockup address.
- *
- * One key per client rather than per receive. The corridor takes it as
- * configuration, not per quote, so the per-receive freshness the v1 path had is
- * not expressible here; the cost is that two receives in one session seal to one
- * point, which links them to a solver collecting RFQ requests. Restoring the
- * offline path means sealing to a real covclaimd key, and that key is shared by
- * construction, so this is the shape the corridor is built for.
- */
-export const sealingKey = (): string => hex.encode(secp256k1.getPublicKey(secp256k1.utils.randomSecretKey(), true))
 
 /**
  * A swap action that reached no driver at all.
@@ -141,7 +112,9 @@ export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: Netw
         // network or an already-expired invoice, and skipping that is what loses
         // the payment.
         decode: (bolt11) => toInvoiceFacts(bolt11, network),
-        covclaimd: { pubkey: sealingKey() },
+        covclaimd: getCovclaimdPubkeyForNetwork(network)
+          ? { pubkey: getCovclaimdPubkeyForNetwork(network)! }
+          : undefined,
       },
     },
     // Compressed hex only: the package cannot re-add an 02/03 prefix to an
