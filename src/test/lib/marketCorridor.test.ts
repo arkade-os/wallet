@@ -125,3 +125,42 @@ describe('the spot swap surface excludes corridor markets', () => {
     expect(isRfqMarket(baseSideCorridor)).toBe(true)
   })
 })
+
+const ERC20_ID = 'eip155:1/erc20:0x' + 'a'.repeat(40)
+
+describe('the index deprecation window, where an entry carries both shapes', () => {
+  // solver-registry bc07a02 keeps `pair` and the corridor fields on index
+  // entries for one release, derived from the ids as bolt11->lightning,
+  // bitcoin->onchain, eip155->eip155.
+  const indexEntry = (overrides: Record<string, unknown> = {}) =>
+    ({
+      ...newFormat()[0],
+      pair: 'BTC/lightning:BTC',
+      base_corridor: 'arkade',
+      quote_corridor: 'lightning',
+      ...overrides,
+    }) as unknown as DiscoveredMarket
+
+  it('resolves each namespace off the id', () => {
+    expect(marketCorridor({ quote_asset: { id: 'arkade:bitcoin/slip44:0' } }, 'quote')).toBe('arkade')
+    expect(marketCorridor({ quote_asset: { id: 'bolt11:bitcoin/slip44:0' } }, 'quote')).toBe('bolt11')
+    expect(marketCorridor({ quote_asset: { id: ERC20_ID } }, 'quote')).toBe('eip155')
+  })
+
+  it('never answers with a v0 rail name, which no call site tests for', () => {
+    for (const market of [indexEntry(), oldFormat()[0], indexEntry({ quote_corridor: 'onchain' })]) {
+      expect(['arkade', 'bolt11', 'bitcoin', 'eip155']).toContain(marketCorridor(market, 'quote'))
+    }
+  })
+
+  it('still finds the Lightning rendezvous on a compat index entry', () => {
+    expect(lnSendRendezvous([indexEntry()], EMULATOR)).toBeDefined()
+  })
+
+  it('keeps an EVM market off the Lightning corridor and off the spot surface', () => {
+    const evm = indexEntry({ quote_asset: { id: ERC20_ID, ticker: 'USDC' }, quote_corridor: 'eip155' })
+    expect(marketCorridor(evm, 'quote')).not.toBe('arkade')
+    expect(lnSendRendezvous([evm], EMULATOR)).toBeUndefined()
+    expect(isRfqMarket(evm)).toBe(true)
+  })
+})
