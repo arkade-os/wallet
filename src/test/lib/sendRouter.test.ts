@@ -15,6 +15,7 @@ import {
   quoteIsForThisInvoice,
   quoteIsForThisSend,
   WALLET_EXIT_RAIL,
+  withinPricingBudget,
 } from '../../lib/sendRouter'
 import { decodeInvoice } from '../../lib/bolt11'
 import fixtures from '../fixtures.json'
@@ -217,6 +218,23 @@ describe('quoteIsForThisSend: the wrong-address guard', () => {
   it('refuses a screen with no destination or amount at all', () => {
     expect(quoteIsForThisSend(quote, {}, RECIPIENT)).toBe(false)
     expect(quoteIsForThisSend(quote, { destination: RECIPIENT }, RECIPIENT)).toBe(false)
+  })
+})
+
+describe('withinPricingBudget: the screen is not the rail’s to hold', () => {
+  it('gives up on a rail that never answers, and waits on one that does', async () => {
+    vi.useFakeTimers()
+    try {
+      const stalled = withinPricingBudget(new Promise(() => {}), 8_000)
+      await vi.advanceTimersByTimeAsync(8_000)
+      await expect(stalled).resolves.toBeUndefined()
+
+      const answered = withinPricingBudget(Promise.resolve({ total: 40_754 }), 8_000)
+      await vi.advanceTimersByTimeAsync(0)
+      await expect(answered).resolves.toEqual({ total: 40_754 })
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

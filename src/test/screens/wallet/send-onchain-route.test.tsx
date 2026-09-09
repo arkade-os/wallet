@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeHandle } from '@arkade-os/sdk'
+import { PRICING_BUDGET_MS } from '../../../lib/sendRouter'
 import SendDetails from '../../../screens/Wallet/Send/Details'
 import { readAllTransactionActivityMetadata } from '../../../lib/storage'
 import { Unit } from '../../../lib/types'
@@ -213,6 +214,23 @@ describe('signing an on-chain send', () => {
     expect(consoleLog.mock.calls.map(String).join('\n')).toContain(
       'onchain-swap refused: quote pays 22000 for 22709, screen shows 22000 for 22000',
     )
+  })
+
+  /** Before the budget, a silent rail held Tap to Sign for the RFQ's 30s. */
+  it('offers the signature at its own deadline rather than waiting out a silent rail', async () => {
+    vi.useFakeTimers()
+    try {
+      optionsFor = (req) => [{ railId: 'onchain-swap', quote: () => new Promise(() => {}) }, exitOption(req)]
+      renderSign({ address: ADDRESS, satoshis: 10_000 })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(PRICING_BUDGET_MS)
+      })
+
+      expect(screen.getByText('Tap to Sign')).toBeTruthy()
+      expect(screen.queryByText('Getting quote')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('pays the collaborative exit when no solver rail survived', async () => {
