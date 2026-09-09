@@ -137,6 +137,9 @@ function renderSwap({
   return { ...view, goBack, navigate }
 }
 
+// the reserve off: the BTC balance is spendable whole only while no asset is held
+const NO_ASSETS = { assetBalances: [] }
+
 const primaryAmount = () => screen.getByRole('button', { name: /^Swap amount,/ })
 const secondaryAmount = () => screen.getByRole('button', { name: /^Show .+ first/ })
 
@@ -352,7 +355,7 @@ describe('Wallet swap flow', () => {
   })
 
   it('replaces the available balance with a max action for insufficient balance', async () => {
-    renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() }, wallet: { assetBalances: [] } })
+    renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() }, wallet: NO_ASSETS })
 
     for (const key of ['9', '9', '9']) {
       await userEvent.click(screen.getByRole('button', { name: key }))
@@ -371,7 +374,7 @@ describe('Wallet swap flow', () => {
 
   it('keeps non-limit validation errors in Sonner', async () => {
     fetchMocker.mockRejectOnce(new Error('feed unavailable'))
-    renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() }, wallet: { assetBalances: [] } })
+    renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() }, wallet: NO_ASSETS })
 
     fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
     fireEvent.click(screen.getByRole('button', { name: /USD/i }))
@@ -713,7 +716,7 @@ describe('Wallet swap flow', () => {
     renderSwap({
       config: { currency: Currencies.USD, unit: Unit.SATS },
       flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
-      wallet: { availableBalance: 1_093_180, assetBalances: [] },
+      wallet: { ...NO_ASSETS, availableBalance: 1_093_180 },
     })
 
     fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
@@ -783,7 +786,7 @@ describe('Wallet swap flow', () => {
     renderSwap({
       config: { unit: Unit.SATS },
       flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
-      wallet: { assetBalances: [] },
+      wallet: NO_ASSETS,
     })
 
     fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
@@ -869,7 +872,7 @@ describe('Wallet swap flow', () => {
     renderSwap({
       config: { unit: Unit.BTC },
       flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
-      wallet: { assetBalances: [] },
+      wallet: NO_ASSETS,
     })
 
     // the mocked wallet balance (100,000 sats) is shown in whole-BTC terms, at

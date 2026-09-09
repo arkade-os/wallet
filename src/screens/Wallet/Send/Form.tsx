@@ -28,7 +28,7 @@ import { aspErrorText, getReceivingAddresses } from '../../../lib/asp'
 import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
-import { ArkNote, AssetDetails, isValidArkAddress, type NetworkName } from '@arkade-os/sdk'
+import { ArkNote, ASSET_CARRIER_SATS, AssetDetails, isValidArkAddress, type NetworkName } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
 import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl, LnUrlResponse } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
@@ -38,7 +38,7 @@ import { withRfqTransport } from '../../../lib/nostrRfq'
 import { discoverMarkets } from '../../../lib/swapMarkets'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
-import { centsToUnits, DUST_AMOUNT, liquidBtcBalance, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
+import { centsToUnits, liquidBtcBalance, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
 import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -869,7 +869,7 @@ export default function SendForm() {
   // Derived, not stored: the server-status effect owns `error` and would
   // clear this on recovery.
   const carrierError =
-    activeAsset && assetAmt > BigInt(0) && assetAmt < activeAsset.balance && availableBalance < 2 * DUST_AMOUNT
+    activeAsset && assetAmt > BigInt(0) && assetAmt < activeAsset.balance && availableBalance < 2 * ASSET_CARRIER_SATS
       ? PARTIAL_SEND_ERROR
       : ''
 
@@ -1154,7 +1154,7 @@ export default function SendForm() {
         <FlexCol gap='1rem'>
           <Text bold>Balance reserve</Text>
           <Text color='neutral-500' small wrap>
-            {`${DUST_AMOUNT} sats are kept in reserve to protect your assets. Your max sendable amount is ${prettyNumber(liquidBalance)} sats.`}
+            {`${ASSET_CARRIER_SATS} sats are kept in reserve to protect your assets. Your max sendable amount is ${prettyNumber(liquidBalance)} sats.`}
           </Text>
           <FlexCol gap='0.5rem'>
             <Button onClick={confirmSendAll} label='Send max' />
