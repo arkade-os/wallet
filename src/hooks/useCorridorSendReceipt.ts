@@ -11,6 +11,8 @@ export interface CorridorSendReceipt {
   claimTxid?: string
   corridor?: string
   recipientGets?: number
+  /** Always 0, always spread: `networkFee` holds the corridor quote's fee, so `Details`' own value bills it twice. */
+  fees: number
   /** The solver's spread, sats — not the network fee. */
   swapFeeSats?: number
   solver?: string
@@ -48,6 +50,7 @@ export function useCorridorSendReceipt(tx: Tx | undefined): CorridorSendReceipt 
     spendLabel: refunded ? 'Refunded' : onchain ? 'Lockup spent' : 'Completed',
     claimTxid: swap?.claimTxid,
     corridor: swap?.corridor ? (CORRIDOR_LABEL[swap.corridor] ?? swap.corridor) : undefined,
+    fees: 0,
     recipientGets: swap?.takeAmount,
     swapFeeSats: swap?.feeAmount,
     solver: swap?.solver,
