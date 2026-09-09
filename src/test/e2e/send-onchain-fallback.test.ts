@@ -119,7 +119,7 @@ test.describe('on-chain send when the solver rail fails', () => {
       await page.waitForSelector('text=Payment sent', { timeout: 120_000 })
 
       expect(delivered()).toBeGreaterThan(0)
-      await expectRoute(page, /not responding/)
+      await expectRoute(page, /no solver reply within/)
       await page.getByRole('button', { name: /Sounds good|Tap to go home/ }).click()
       await page.waitForSelector(`text=- ${prettyNumber(SENT)} sats`, { timeout: 30_000 })
     })
