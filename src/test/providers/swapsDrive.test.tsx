@@ -7,6 +7,13 @@ import { AspContext } from '../../providers/asp'
 import { WalletContext } from '../../providers/wallet'
 import { SwapsContext, SwapsProvider } from '../../providers/swaps'
 import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
+import { MUTINYNET_USDT_ASSET_ID } from '../../lib/accountAssets'
+
+const success = vi.hoisted(() => vi.fn())
+vi.mock('../../components/Toast', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../components/Toast')>()),
+  toast: { success: (m: string) => success(m), error: vi.fn(), info: vi.fn() },
+}))
 
 /**
  * The single-driver rule and the RFQ status plumbing.
@@ -69,6 +76,7 @@ const monitored = (outcome: Outcome, over: Partial<Swap> = {}): Swap =>
     fundingTxid: 'funding-txid',
     give: { asset: 'arkade:mutinynet/slip44:0', amount: BigInt(1030) },
     take: { asset: 'bolt11:mutinynet/slip44:0', amount: BigInt(1000) },
+    route: { give: { corridor: 'arkade' }, take: { corridor: 'lightning' } },
     ...over,
   }) as Swap
 
@@ -108,18 +116,25 @@ function Harness({ tab = 'a' }: { tab?: string }) {
 
 let reloadWallet = vi.fn()
 
-const wrap = (children: React.ReactNode) => (
+const wrap = (children: React.ReactNode, network = 'mutinynet') => (
   <AspContext.Provider
     value={
       {
         ...mockAspContextValue,
-        aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet', url: 'http://ark.local' },
+        aspInfo: { ...mockAspContextValue.aspInfo, network, url: 'http://ark.local' },
       } as never
     }
   >
     <WalletContext.Provider
       value={
-        { ...mockWalletContextValue, dataReady: true, txs: [], reloadWallet, svcWallet: { identity: {} } } as never
+        {
+          ...mockWalletContextValue,
+          dataReady: true,
+          txs: [],
+          reloadWallet,
+          svcWallet: { identity: {} },
+          isVerifiedAsset: () => true,
+        } as never
       }
     >
       {children}
@@ -374,6 +389,100 @@ describe('SwapsProvider outcomes', () => {
     listeners[0](update(monitored('lapsed')))
     await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('lapsed'))
     expect(reloadWallet).toHaveBeenCalled()
+  })
+
+  it.each(['paid', 'claimed'] as const)('does not call a %s SEND money received', async (outcome) => {
+    renderProvider()
+    await waitFor(() => expect(listeners).toHaveLength(1))
+
+    listeners[0](update(monitored(outcome)))
+    await waitFor(() => expect(success).toHaveBeenCalled())
+    expect(success).toHaveBeenCalledWith('Payment complete')
+  })
+
+  it('still says received when the swap really did take delivery in Arkade', async () => {
+    renderProvider()
+    await waitFor(() => expect(listeners).toHaveLength(1))
+
+    const receive = monitored('claimed', {
+      route: { give: { corridor: 'lightning' }, take: { corridor: 'arkade' } },
+    } as Partial<Swap>)
+    listeners[0](update(receive))
+    await waitFor(() => expect(success).toHaveBeenCalled())
+    expect(String(success.mock.calls[0][0])).toMatch(/received/)
+  })
+
+  it('stays quiet through a SECOND client’s restore, not just the first', async () => {
+    // The ref is component-scoped, so a network switch re-runs the effect in
+    // the SAME instance with the gate already open.
+    let finishFirst = () => {}
+    ready.mockReturnValueOnce(new Promise<void>((resolve) => (finishFirst = () => resolve())))
+    const view = render(
+      wrap(
+        <SwapsProvider>
+          <Harness />
+        </SwapsProvider>,
+      ),
+    )
+    await waitFor(() => expect(listeners).toHaveLength(1))
+    finishFirst()
+    await waitFor(() => {
+      listeners[0](update(monitored('paid')))
+      expect(success).toHaveBeenCalled()
+    })
+    success.mockClear()
+
+    let finishSecond = () => {}
+    ready.mockReturnValueOnce(new Promise<void>((resolve) => (finishSecond = () => resolve())))
+    view.rerender(
+      wrap(
+        <SwapsProvider>
+          <Harness />
+        </SwapsProvider>,
+        'signet',
+      ),
+    )
+    await waitFor(() => expect(listeners.length).toBeGreaterThan(1))
+
+    listeners[listeners.length - 1](update(monitored('claimed')))
+    await new Promise((r) => setTimeout(r, 50))
+    expect(success).not.toHaveBeenCalled()
+    finishSecond()
+  })
+
+  it('names a designated asset the way every other screen does', async () => {
+    renderProvider()
+    await waitFor(() => expect(listeners).toHaveLength(1))
+
+    const usd = (outcome: Outcome) =>
+      monitored(outcome, {
+        route: { give: { corridor: 'lightning' }, take: { corridor: 'arkade' } },
+        take: { asset: `arkade:mutinynet/asset:${MUTINYNET_USDT_ASSET_ID}`, amount: BigInt(199) },
+      } as unknown as Partial<Swap>)
+    listeners[0](update(usd('claimed')))
+
+    await waitFor(() => expect(success).toHaveBeenCalled())
+    expect(success).toHaveBeenCalledWith('Swap completed, USD received')
+  })
+
+  it('says nothing about the history its own restore just replayed', async () => {
+    let finishRestore = () => {}
+    ready.mockReturnValueOnce(new Promise<void>((resolve) => (finishRestore = () => resolve())))
+    renderProvider()
+    await waitFor(() => expect(listeners).toHaveLength(1))
+
+    listeners[0](update(monitored('paid')))
+    listeners[0](update(monitored('claimed')))
+
+    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('claimed'))
+    expect(success).not.toHaveBeenCalled()
+    expect(reloadWallet).not.toHaveBeenCalled()
+
+    finishRestore()
+    await waitFor(() => {
+      listeners[0](update(monitored('paid')))
+      expect(success).toHaveBeenCalledWith('Payment complete')
+    })
   })
 
   it('keeps a refund distinct from a lapse, which is the same swap ending well', async () => {

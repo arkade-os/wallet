@@ -45,7 +45,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { asset, type NetworkName } from '@arkade-os/sdk'
+import { asset, type Asset, type NetworkName, type PaymentRouter } from '@arkade-os/sdk'
 import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
 import {
   arkadeAsset,
@@ -61,6 +61,9 @@ import { sideLimits, type DiscoveredMarket, type OfferPlan, type Side } from '@a
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import { discoverMarkets } from '../lib/swapMarkets'
+import { createSendRouter } from '../lib/sendRouter'
+import { claimFeeRate } from '../lib/claimFee'
+import { onchainClaimEndpoint } from '../lib/onchainPayout'
 import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
 import { toInvoiceFacts } from '../lib/lnSwap'
 import { makeSwapClient, SwapsHeldElsewhere } from '../lib/swapClient'
@@ -74,6 +77,7 @@ import {
 } from '../lib/swapDriverChannel'
 import { saveQuoteSnapshot, type AssetSwapQuoteSnapshot, type WalletAssetSwap } from '../lib/swapRepository'
 import { displayAssetOf, offerSwaps } from '../lib/swapRecords'
+import { verifiedDesignatedCurrency } from '../lib/accountAssets'
 import { getEmulatorPubkeyForNetwork } from '../lib/constants'
 import { consoleError } from '../lib/logs'
 import { extractError } from '../lib/error'
@@ -108,6 +112,9 @@ interface SwapsContextProps {
   acceptPay: (quote: Quote) => Promise<string>
   /** Negotiate a Lightning receive and begin driving it, in that order. */
   receiveLightning: (amountSats: number) => Promise<AcceptedLnReceive>
+  /** The send path's router. Throws `SwapsHeldElsewhere` rather than dropping
+   * the solver rails and offboarding through the costlier exit. */
+  sendRouter: (deps?: { outputFee?: () => number; assets?: Asset[] }) => Promise<PaymentRouter>
   /** Where a driven swap stands, or undefined when it is not monitored. */
   outcomeOf: (id: string) => Outcome | undefined
   /** The last error reported for one, cleared when it ends. */
@@ -130,6 +137,7 @@ export const SwapsContext = createContext<SwapsContextProps>({
   quotePay: notInitialized,
   acceptPay: notInitialized,
   receiveLightning: notInitialized,
+  sendRouter: notInitialized,
   outcomeOf: () => undefined,
   errorOf: () => undefined,
 })
@@ -152,6 +160,14 @@ const CLIENT_LOCK = 'swap-client'
  */
 const LOCK_GRACE_MS = 500
 
+/** Whether the trader is paying OUT. `paid` and `claimed` are how BOTH
+ *  directions succeed, so every send announced itself as money received; only a
+ *  receive takes delivery inside Arkade. Optional so `announce` cannot throw. */
+const isSendLeg = (swap: Swap): boolean => {
+  const takes = swap.route?.take?.corridor
+  return takes !== undefined && takes !== 'arkade'
+}
+
 /** Outcomes worth telling the user about, and what they mean to them. */
 const ENDED: Partial<Record<Outcome, 'received' | 'returned' | 'lost'>> = {
   filled: 'received',
@@ -164,13 +180,16 @@ const ENDED: Partial<Record<Outcome, 'received' | 'returned' | 'lost'>> = {
 
 export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
-  const { dataReady, svcWallet, reloadWallet, setAssetSwaps } = useContext(WalletContext)
+  const { dataReady, svcWallet, reloadWallet, setAssetSwaps, isVerifiedAsset } = useContext(WalletContext)
 
   const [markets, setMarkets] = useState<DiscoveredMarket[]>([])
   const [emulatorPubkey, setEmulatorPubkey] = useState<Uint8Array>()
   const [swaps, setSwaps] = useState<WalletAssetSwap[]>([])
   const [outcomes, setOutcomes] = useState<Map<string, Outcome>>(new Map())
   const [errors, setErrors] = useState<Map<string, string>>(new Map())
+
+  /** False until the running client's restore has finished, reset per client. */
+  const restoredRef = useRef(false)
 
   // the reconciliation reads the current list from outside a render, where
   // `swaps` would be the value captured when it was created
@@ -297,6 +316,10 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const tickerFor = (assetId: AssetId): string => {
     const display = displayAssetOf(assetId)
     if (display === BTC_ASSET_ID) return 'sats'
+    // Outranks the card's ticker, as every other surface reads it. Verified
+    // only, or a lookalike mint could claim the currency.
+    const designated = verifiedDesignatedCurrency(aspInfo.network, display, isVerifiedAsset)
+    if (designated) return designated
     for (const market of allMarketsRef.current) {
       if (market.quote_asset.id === display) return market.quote_asset.ticker
       if (market.base_asset.id === display) return market.base_asset.ticker
@@ -313,7 +336,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
    * way means the incoming payment never arrived. The v1 vocabulary called that
    * `refunded` — the same word it used for the trader's own money coming back.
    */
-  const announce = (swap: Swap) => {
+  const announce = (swap: Swap, replay = false) => {
     setOutcomes((prev) => (prev.get(swap.id) === swap.outcome ? prev : new Map(prev).set(swap.id, swap.outcome)))
     const ended = ENDED[swap.outcome]
     if (!ended) return
@@ -323,12 +346,17 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       next.delete(swap.id)
       return next
     })
-    if (ended === 'received') toast.success(`Swap completed, ${tickerFor(swap.take.asset)} received`)
+    // `restore()` ends by emitting every record it read, and this subscribes
+    // before `client.ready`, so each load replayed the whole history terminal.
+    if (replay) return
+    if (ended === 'received')
+      toast.success(isSendLeg(swap) ? 'Payment complete' : `Swap completed, ${tickerFor(swap.take.asset)} received`)
     else if (ended === 'returned') toast.success('Swap cancelled, funds returned')
     else toast.error('Lightning payment was not received')
     // The claim and the refund land through the client's own broadcaster, so
     // the service worker never emits the VTXO_UPDATE the balance listener waits
-    // for. Nothing else would refresh it.
+    // for. Nothing else would refresh it. Behind the same gate: a restore
+    // reporting fifty old swaps would otherwise reload the wallet fifty times.
     void refreshSwaps()
     reloadRef.current().catch(consoleError)
   }
@@ -361,8 +389,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
    * Every tab announces, deliberately. The tab that started a receive is
    * usually not the tab holding the lock, and it is the one being looked at.
    */
-  const applyUpdate = ({ swap, outcome }: DriverUpdate) => {
-    announce(swap)
+  const applyUpdate = ({ swap, outcome, replay }: DriverUpdate) => {
+    announce(swap, replay)
     if (outcome !== 'needs_recovery' && outcome !== 'failed') return
     const reason = swap.failure ?? swap.blockedReason
     if (reason) setErrors((prev) => new Map(prev).set(swap.id, reason))
@@ -398,14 +426,17 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
     const drive = async () => {
       if (stopped) return
+      // Per CLIENT, not per tab: a network switch builds a new one that replays.
+      restoredRef.current = false
 
       const started = (async () => {
         const client = makeSwapClient(svcWallet, network)
         client.onUpdate(({ swap, outcome }) => {
-          applyRef.current({ swap, outcome })
+          const replay = !restoredRef.current
+          applyRef.current({ swap, outcome, replay })
           // Only the holder has a client, so this is the only place the other
           // tabs can learn an outcome from.
-          channel.publish({ swap, outcome })
+          channel.publish({ swap, outcome, replay })
         })
         // `drive: "auto"`: construction restores and arms only when the read
         // finds live swaps. `ready` is that read, and it rejects only when the
@@ -413,6 +444,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         // records cannot drive them safely.
         await client.ready
         await refreshSwaps()
+        restoredRef.current = true
         return client
       })()
 
@@ -738,6 +770,14 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
+  /** The fee rate is read per router, not pinned: the solver rail grosses the
+   *  take leg up by it, so a stale one short-pays the recipient. */
+  const sendRouter = async (deps: { outputFee?: () => number; assets?: Asset[] } = {}): Promise<PaymentRouter> => {
+    const client = await driving()
+    const claimFeeRateSatVb = await claimFeeRate(onchainClaimEndpoint(aspInfo.network as NetworkName))
+    return createSendRouter({ wallet: svcWallet!, client, claimFeeRateSatVb, ...deps })
+  }
+
   const outcomeOf = useCallback((id: string) => outcomes.get(id), [outcomes])
   const errorOf = useCallback((id: string) => errors.get(id), [errors])
 
@@ -753,6 +793,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       quotePay,
       acceptPay,
       receiveLightning,
+      sendRouter,
       outcomeOf,
       errorOf,
     }),

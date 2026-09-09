@@ -22,6 +22,7 @@
 import type { ActivityResolver } from '@arkade-os/sdk'
 import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
 import {
+  isRfqSwapTerminal,
   parseAssetId,
   type AssetId,
   type CorridorSwapRecord,
@@ -46,6 +47,7 @@ import { txidOfArkTransaction } from './transactionHistory'
 export interface LnSendView {
   rfqId: string
   fundingTxid: string
+  kind: CorridorSwapRecord['kind']
   state: CorridorSwapRecord['state']
   /** Sats the lockup was funded with. The record is the only place this
    * survives for a send Arkade's own history cannot see — see
@@ -56,6 +58,16 @@ export interface LnSendView {
   createdAt: number
   /** The tx that ended it, when that tx is one of ours. */
   spendTxid?: string
+  corridor?: string
+  /** Sats the RECIPIENT gets; `amount` is what left the wallet. */
+  takeAmount?: number
+  feeAmount?: number
+  solver?: string
+  /** On `arkade -> onchain`, THIS WALLET'S L1 claim — what actually pays the
+   * destination, where `spendTxid` only proves the solver took its side. */
+  claimTxid?: string
+  htlcAddress?: string
+  refundLocktime?: number
 }
 
 export const ASSET_SWAP_RESOLVER_ID = 'arkade-wallet:asset-swaps'
@@ -107,20 +119,36 @@ const offerViewOf = (record: OfferSwapRecord): WalletAssetSwap => ({
 })
 
 /** A v2 corridor record as the send-row builder reads it. Sends only: a receive
- * leg has no funding transaction of the trader's to anchor a row on. */
+ * leg has no funding transaction of the trader's to anchor a row on.
+ * Both corridors: each funds a lockup registered as this wallet's own contract,
+ * which is why history cannot see it — nothing Lightning-specific. */
 const sendViewOf = (record: CorridorSwapRecord): LnSendView | undefined => {
-  if (record.kind !== 'lightning_send') return undefined
+  if (record.kind !== 'lightning_send' && record.kind !== 'onchain_send') return undefined
   const fundingTxid = record.fundingTxid
   if (!fundingTxid) return undefined
   return {
     rfqId: record.rfqId,
     fundingTxid,
+    kind: record.kind,
     state: record.state,
     // The give leg is what the lockup was funded with, in sats.
     amount: Number(record.give.amount),
     createdAt: record.createdAt,
     spendTxid: record.refundTxid ?? record.lockupSpendTxids?.[0],
+    corridor: record.route?.take?.corridor,
+    takeAmount: Number(record.take.amount),
+    feeAmount: Number(record.fee.amount),
+    // `MarketRef` is a union and only the card arm publishes a name.
+    solver: record.market?.kind === 'card' ? record.market.solver : undefined,
+    claimTxid: stringField(record.profile, 'claimTxid'),
+    htlcAddress: stringField(record.profile, 'htlcAddress'),
+    refundLocktime: record.refundLocktime,
   }
+}
+
+const stringField = (bag: Record<string, unknown> | undefined, key: string): string | undefined => {
+  const value = bag?.[key]
+  return typeof value === 'string' && value ? value : undefined
 }
 
 const readRecords = async (): Promise<SwapRecord[]> => {
@@ -147,10 +175,50 @@ export const lnSendViews = async (): Promise<LnSendView[]> => {
 
 /** What the row builder calls each corridor. Mirrors the package's own labels,
  * because the copy is what a user reads and the two must not drift apart. */
-const CORRIDOR_LABEL: Record<string, string> = {
+export const CORRIDOR_LABEL: Record<string, string> = {
   lightning_send: 'Lightning send',
   lightning_receive: 'Lightning receive',
   onchain_send: 'Onchain send',
+}
+
+/** Reads the virtual outputs at one lockup script. `getVtxos()` cannot stand
+ *  in: it drops spent coins, and a claimed lockup is spent by definition. */
+export type LockupVtxoReader = (script: string) => Promise<readonly LockupVtxo[]>
+
+export interface LockupVtxo {
+  /** The transaction that CREATED this output — the lockup's funding. */
+  txid: string
+  /** The Arkade transaction that SPENT it. Not the one that created it. */
+  arkTxId?: string
+}
+
+interface SwapIntent {
+  groupId: string
+  label: string
+  outcome?: string
+  metadata: Record<string, unknown>
+}
+
+/** The transactions a lockup names, for a leg that funded nothing itself.
+ *  **`vtxo.txid` is the one history keys on** — every txid on a receive record
+ *  names the CLAIM instead. Empty is logged, not swallowed: found-nothing and
+ *  failed-to-look are different conditions. */
+const lockupTxids = async (read: LockupVtxoReader | undefined, script: string, ended: boolean): Promise<string[]> => {
+  if (!read || !script) return []
+  try {
+    const vtxos = await read(script)
+    // Empty is NORMAL until the counterparty funds; only an ENDED swap with
+    // nothing at its lockup is anomalous. An error on every load hides that.
+    if (vtxos.length === 0) {
+      if (ended) consoleError(new Error(`ended swap with no output at lockup ${script}`), 'swap activity')
+      return []
+    }
+    return vtxos.flatMap((vtxo) => (vtxo.arkTxId ? [vtxo.txid, vtxo.arkTxId] : [vtxo.txid]))
+  } catch (err) {
+    // Offline-first: fewer txids, never a throw that sinks other records.
+    consoleError(err, 'error reading a lockup for swap activity')
+    return []
+  }
 }
 
 /**
@@ -165,22 +233,17 @@ const CORRIDOR_LABEL: Record<string, string> = {
  * wallet registers. The package's `swapActivityResolver` went with the v1
  * keyspace it read.
  */
-export const swapRecordResolver = (read = readRecords): ActivityResolver => {
-  let intents = new Map<
-    string,
-    { groupId: string; label: string; outcome?: string; metadata: Record<string, unknown> }
-  >()
+export const swapRecordResolver = (read = readRecords, readLockupVtxos?: LockupVtxoReader): ActivityResolver => {
+  let intents = new Map<string, SwapIntent>()
   return {
     id: ASSET_SWAP_RESOLVER_ID,
     async prepare() {
       // re-read on every history load rather than indexed at construction: a
       // record written after the first load would otherwise leave its swap
       // ungrouped until the next reconnect
-      const next = new Map<
-        string,
-        { groupId: string; label: string; outcome?: string; metadata: Record<string, unknown> }
-      >()
+      const next = new Map<string, SwapIntent>()
       const records = await read()
+      const unfunded: [string, SwapIntent, boolean][] = []
       const offerIntent = (id: string) => ({
         groupId: `swap:${id}`,
         label: 'Swap',
@@ -205,6 +268,13 @@ export const swapRecordResolver = (read = readRecords): ActivityResolver => {
         if (record.fundingTxid) next.set(record.fundingTxid, intent)
         if (record.refundTxid) next.set(record.refundTxid, intent)
         for (const txid of record.lockupSpendTxids ?? []) next.set(txid, intent)
+        const claimTxid = stringField(record.profile, 'claimTxid')
+        if (claimTxid) next.set(claimTxid, intent)
+        // Names nothing history keys on, so the lockup has to be read.
+        if (!record.fundingTxid) unfunded.push([record.lockupPkScript, intent, isRfqSwapTerminal(record.state)])
+      }
+      for (const [script, intent, ended] of unfunded) {
+        for (const txid of await lockupTxids(readLockupVtxos, script, ended)) next.set(txid, intent)
       }
       intents = next
     },

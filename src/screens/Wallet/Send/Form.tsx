@@ -28,12 +28,14 @@ import { aspErrorText, getReceivingAddresses } from '../../../lib/asp'
 import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
-import { ArkNote, AssetDetails, isValidArkAddress } from '@arkade-os/sdk'
+import { ArkNote, AssetDetails, isValidArkAddress, type NetworkName } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
 import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl, LnUrlResponse } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
 import { decodeInvoice } from '../../../lib/bolt11'
+import { LIGHTNING_RAIL, lnSendRefusal, lnSendRequest } from '../../../lib/sendRouter'
 import { SwapsContext } from '../../../providers/swaps'
+import { discoverMarkets } from '../../../lib/swapMarkets'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
 import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
@@ -127,7 +129,7 @@ export default function SendForm() {
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
-  const { quotePay } = useContext(SwapsContext)
+  const { sendRouter } = useContext(SwapsContext)
   const {
     assetBalances,
     availableAssetBalances,
@@ -396,6 +398,9 @@ export default function SendForm() {
           pendingLnSend: lowerCaseData === prev.invoice ? prev.pendingLnSend : undefined,
         }))
         setAmountTextValue(getTextValue(satoshis))
+        // The field text may be fiat, and cents cannot round-trip sats; this is
+        // the amount the invoice named, which the field must never re-derive.
+        setValueSats(satoshis)
         setAmountIsReadOnly(true)
         return
       }
@@ -517,6 +522,7 @@ export default function SendForm() {
         if (min === max) {
           setSendInfo({ ...sendInfo, satoshis: min })
           setAmountTextValue(getTextValue(min))
+          setValueSats(min)
           setAmountIsReadOnly(true)
         }
         return setLnUrlResponse({ ...conditions, minSendable: min, maxSendable: max })
@@ -620,11 +626,16 @@ export default function SendForm() {
       // negotiation is the only interactive step — funding IS acceptance.
       const negotiate = async () => {
         if (!svcWallet) return handleError('Wallet not ready')
-        // Nothing is picked here — not the corridor, not the market, not the
-        // rendezvous, not even the amount: `to` is parsed once at the client
-        // boundary and everything else follows from the route it yields. The
-        // wallet's own BOLT11 gates still run, as the corridor's decoder.
-        const pendingLnSend = await quotePay(sendInfo.invoice!)
+        // For the refusal message only — the rail ranks off the client's own
+        // snapshot; a second read let a cold cache throw on the error path.
+        const markets = await discoverMarkets(aspInfo.network as NetworkName)
+        const router = await sendRouter()
+        const options = await router.options(lnSendRequest(sendInfo.invoice!, sendInfo.satoshis))
+        const route = options.find((option) => option.railId === LIGHTNING_RAIL)
+        if (!route) return handleError(lnSendRefusal(markets, sendInfo.satoshis))
+        // Unguarded: a quote that throws names an unpayable invoice or a
+        // covenant that did not match, and neither reads as "no route".
+        const pendingLnSend = await route.quote()
         setSendInfo((prev) => ({ ...prev, pendingLnSend }))
       }
       negotiate().catch(handleError)
@@ -727,6 +738,9 @@ export default function SendForm() {
   const handleRecipientChange = (recipient: string) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
     setRecipient(recipient)
+    // A new destination pins no amount until it is parsed.
+    setValueSats(undefined)
+    setAmountIsReadOnly(false)
     setReadyToParse(false)
     setRawScanData('')
     timeoutRef.current = setTimeout(() => setReadyToParse(true), RECIPIENT_DEBOUNCE_MS)
@@ -831,11 +845,16 @@ export default function SendForm() {
       ? prettyFiatAmount(liquidBalance ? toFiat(liquidBalance) : 0, config.currency)
       : prettyUnitBalance(liquidBalance)
 
+    const label = (
+      <Text color='neutral-500' smaller>
+        {`${amount} available`}
+      </Text>
+    )
+    if (amountIsReadOnly) return label
+
     return (
       <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
-        <Text color='neutral-500' smaller>
-          {`${amount} available`}
-        </Text>
+        {label}
       </div>
     )
   }
