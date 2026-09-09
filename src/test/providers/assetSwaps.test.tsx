@@ -557,7 +557,6 @@ describe('AssetSwapsProvider solver cards', () => {
     return null
   }
 
-  /** The registry's post-#23 corridor card, as discovery hands its market over. */
   const corridorMarket = {
     ...corridorSolverCard.markets[0],
     discovery_pubkey: corridorSolverCard.discovery_pubkey,

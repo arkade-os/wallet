@@ -1,6 +1,5 @@
 /**
  * Which rail a market side settles on.
- *
  * arkade-os/solver-registry#23 moves the corridor into the asset id as a CAIP-19
  * namespace and drops `pair`/`base_corridor`/`quote_corridor` — a change no type
  * error catches, so the derivation lives here once. Both shapes are read: the

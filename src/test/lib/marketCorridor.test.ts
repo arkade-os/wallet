@@ -25,7 +25,6 @@ const discovered = (card: typeof corridorSolverCard): DiscoveredMarket[] =>
 
 const newFormat = () => discovered(corridorSolverCard)
 
-/** The same market as the registry served it before #23. */
 const oldFormat = (): DiscoveredMarket[] =>
   newFormat().map(
     (market) =>
