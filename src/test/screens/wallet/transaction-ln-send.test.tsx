@@ -83,6 +83,17 @@ describe('Lightning send receipt', () => {
     expect(screen.getByTestId('Completed')).toHaveTextContent('claim-txid')
   })
 
+  it('bills the solver spread once — it is the swap fee, and not also a network fee', async () => {
+    renderReceipt({
+      ...lnSwapTx({ outcome: 'settled', spendTxid: 'claim-txid', feeAmount: 60, takeAmount: 4940 }),
+      networkFee: 60,
+    })
+
+    expect(await screen.findByTestId('Swap fees')).toHaveTextContent(/^0\.00000060 BTC$/)
+    expect(screen.getByTestId('Recipient gets')).toHaveTextContent(/^0\.00004940 BTC$/)
+    expect(screen.getByTestId('Network fees')).toHaveTextContent(/^0 BTC$/)
+  })
+
   it('calls the second leg a refund, not a cancellation, when the funds came back', async () => {
     // Nobody cancelled anything: the solver could not pay the invoice and the
     // covenant returned the money.
