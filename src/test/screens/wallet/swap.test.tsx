@@ -399,8 +399,10 @@ describe('Wallet swap flow', () => {
 
     // the toast lands after four keypad round-trips; the same allowance the
     // Sonner test above gives it, since a busy runner has missed the default
-    await waitFor(() => expect(screen.getByText(/partial swap/)).toBeInTheDocument(), { timeout: 3_000 })
-    expect(screen.getByText(/partial swap/).closest('[data-sonner-toast]')).not.toBeNull()
+    // one lookup: Sonner auto-dismisses after 4s, and a slow runner can cross
+    // that between two separate queries
+    const notice = await screen.findByText(/partial swap/, {}, { timeout: 3_000 })
+    expect(notice.closest('[data-sonner-toast]')).not.toBeNull()
     expect(primaryAmount().className).toContain('swap-amount-display--invalid')
     expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
   })
