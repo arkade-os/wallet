@@ -4,8 +4,13 @@ on:
   workflow_dispatch:
   push:
     branches: [ master, next ]
+  # No branches filter. pull_request.branches matches the BASE, so any list here
+  # silently runs zero tests on every PR stacked onto an integration branch.
   pull_request:
-    branches: [ master, next ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
