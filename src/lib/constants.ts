@@ -177,7 +177,7 @@ const COVCLAIMD_PUBKEY: Record<NetworkName, string | null> = {
 
 // Undefined where no covclaimd is configured, so nothing is sealed and no
 // claim_packet is sent. A stand-in key seals a packet nobody can ever open.
-export const getCovclaimdPubkeyForNetwork = (network: NetworkName): Uint8Array | undefined => {
+export const getCovclaimdPubkeyForNetwork = (network: NetworkName): string | undefined => {
   const pubkey = fromRuntimeEnv(import.meta.env.VITE_COVCLAIMD_PUBKEY) ?? COVCLAIMD_PUBKEY[network]
-  return pubkey && COMPRESSED_PUBKEY_HEX.test(pubkey) ? hex.decode(pubkey) : undefined
+  return pubkey && COMPRESSED_PUBKEY_HEX.test(pubkey) ? pubkey : undefined
 }
