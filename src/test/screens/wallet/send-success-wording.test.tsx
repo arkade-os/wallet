@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import SendSuccess from '../../../screens/Wallet/Send/Success'
+import { ONCHAIN_SWAP_RAIL, WALLET_EXIT_RAIL } from '../../../lib/sendRouter'
 import { AspContext } from '../../../providers/asp'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
@@ -18,6 +19,8 @@ import {
 } from '../mocks'
 
 const notifications = { notifyPaymentSent: vi.fn() }
+
+const ONCHAIN = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
 
 const renderSuccess = (sendInfo: SendInfo) =>
   render(
@@ -70,5 +73,21 @@ describe('what the send success screen claims', () => {
     renderSuccess({ arkAddress: 'ark1...', address: '', total: 10_000 })
 
     expect(await screen.findByText(/sent successfully/i)).toBeDefined()
+  })
+
+  it('says sent when the collaborative exit paid, not that it is on the way', async () => {
+    renderSuccess({ address: ONCHAIN, total: 10_000, railId: WALLET_EXIT_RAIL })
+
+    expect(await screen.findByText(/sent successfully/i)).toBeDefined()
+    expect(screen.queryByText(/on the way/i)).toBeNull()
+    expect(screen.queryByText(/keep the wallet open/i)).toBeNull()
+  })
+
+  it('still says on the way when the solver rail funded it', async () => {
+    renderSuccess({ address: ONCHAIN, total: 10_000, railId: ONCHAIN_SWAP_RAIL })
+
+    expect((await screen.findAllByText(/on the way/i)).length).toBeGreaterThan(0)
+    expect(await screen.findByText(/keep the wallet open/i)).toBeDefined()
+    expect(screen.queryByText(/sent successfully/i)).toBeNull()
   })
 })
