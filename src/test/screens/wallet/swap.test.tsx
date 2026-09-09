@@ -395,12 +395,10 @@ describe('Wallet swap flow', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
     fireEvent.click(screen.getByRole('button', { name: /Bitcoin/i }))
-    for (const key of ['1', '0', '0', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
+    // one key and one lookup: the toast lives 2s, and a slow runner spends
+    // that typing more digits or querying twice
+    await userEvent.click(screen.getByRole('button', { name: '1' }))
 
-    // the toast lands after four keypad round-trips; the same allowance the
-    // Sonner test above gives it, since a busy runner has missed the default
-    // one lookup: Sonner auto-dismisses after 4s, and a slow runner can cross
-    // that between two separate queries
     const notice = await screen.findByText(/partial swap/, {}, { timeout: 3_000 })
     expect(notice.closest('[data-sonner-toast]')).not.toBeNull()
     expect(primaryAmount().className).toContain('swap-amount-display--invalid')
