@@ -179,12 +179,12 @@ export default function SendDetails() {
    *  No fallback key: the store and every row builder are keyed BY the funding
    *  txid, so anything else would never be looked up. What made this miss was
    *  WHEN it ran — on the terminal outcome, minutes after the user had gone. */
-  const handleSent = (txid: string | undefined, total: number, fee: number) => {
+  const handleSent = (txid: string | undefined, total: number, fee: number, railId: string) => {
     if (txid) {
       saveTransactionActivityMetadata(txid, { destination: details?.destination, networkFee: fee })
     }
     reloadWallet().catch(consoleError)
-    setSendInfo({ ...sendInfo, total, txid })
+    setSendInfo({ ...sendInfo, total, txid, railId })
     setSendDone(true)
   }
 
@@ -208,7 +208,7 @@ export default function SendDetails() {
   const payLightning = async (quote: RouteQuote, shownInvoice: string) => {
     if (!quoteIsForThisInvoice(quote, shownInvoice)) return handleError('Quote is for a different invoice')
     const result = await fundedResult(await quote.send())
-    handleSent(result?.txid, quote.total, quote.fee)
+    handleSent(result?.txid, quote.total, quote.fee, quote.railId)
   }
 
   /** One rail and no counterparty; routed so every branch here has one shape. */
@@ -251,7 +251,7 @@ export default function SendDetails() {
       // then replies (#949), so a rejection here can mean a covenant that IS
       // funded. Trying the exit rail next would pay the recipient twice.
       const result = await fundedResult(await quote.send())
-      return handleSent(result?.txid, quote.total, quote.fee)
+      return handleSent(result?.txid, quote.total, quote.fee, option.railId)
     }
     throw new Error('No route for this payment')
   }

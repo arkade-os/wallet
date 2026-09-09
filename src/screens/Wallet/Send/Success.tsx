@@ -17,6 +17,7 @@ import { FiatContext } from '../../../providers/fiat'
 import { WalletContext } from '../../../providers/wallet'
 import AssetCard from '../../../components/AssetCard'
 import { accountAssetLabel, rawAssetPresentation, verifiedDesignatedCurrency } from '../../../lib/accountAssets'
+import { WALLET_EXIT_RAIL } from '../../../lib/sendRouter'
 import { AspContext } from '../../../providers/asp'
 
 export default function SendSuccess() {
@@ -61,7 +62,10 @@ export default function SendSuccess() {
 
   // Reached ON the funding now, so "sent" would be false as it is read: the
   // on-chain corridor still owes an L1 confirmation. An Arkade send does not.
-  const isOnchainSend = Boolean(sendInfo.address) && !sendInfo.arkAddress && !sendInfo.invoice
+  // Which rail paid decides that, not the destination's shape: the exit owes no
+  // claim at all. An unknown rail keeps the cautious wording.
+  const paidOutright = sendInfo.railId === WALLET_EXIT_RAIL
+  const isOnchainSend = Boolean(sendInfo.address) && !sendInfo.arkAddress && !sendInfo.invoice && !paidOutright
   const isSwapSend = Boolean(sendInfo.invoice) || isOnchainSend
   const headline = isSwapSend ? 'Payment is on the way' : 'Payment sent'
   // Only on-chain, and not a hedge: THIS wallet holds the L1 claim key and the

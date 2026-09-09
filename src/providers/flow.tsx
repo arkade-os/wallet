@@ -65,6 +65,8 @@ export type SendInfo = {
   /** The negotiated Lightning route: quoted on the form so the fee is on screen
    *  before the user signs, and `send()` is what the sign screen calls. */
   pendingLnSend?: RouteQuote
+  /** Which rail actually paid; only a swap rail still owes a claim. */
+  railId?: string
   recipient?: string
   satoshis?: number
   scan?: boolean
