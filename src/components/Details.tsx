@@ -216,11 +216,10 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     ...amountRows,
     ['Price rate', priceRate, <ArrowUpDownIcon key='price-rate-icon' />],
     ['Network fees', fees === undefined ? undefined : formatAmount(fees), <FeesIcon key='fees-icon' />],
-    ['Swap fees', formatSensitiveDetail(swapFees), <FeesIcon key='swap-fees-icon' />],
     [
       'Swap fees',
-      swapFeeSats === undefined ? undefined : formatAmount(swapFeeSats),
-      <FeesIcon key='swap-fee-sats-icon' />,
+      formatSensitiveDetail(swapFees) ?? (swapFeeSats === undefined ? undefined : formatAmount(swapFeeSats)),
+      <FeesIcon key='swap-fees-icon' />,
     ],
     [
       'Recipient gets',
