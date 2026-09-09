@@ -38,6 +38,7 @@ import { assetNameChanged } from '../lib/assets'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { activitiesToTxs, getActivities } from '../lib/activityHistory'
+import { arkTransactionToTx } from '../lib/transactionHistory'
 import { Indexer } from '../lib/indexer'
 import { lnSendViews, swapRecordResolver, type LnSendView } from '../lib/swapRecords'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
@@ -103,6 +104,12 @@ interface WalletContextProps {
   svcWallet: ServiceWorkerWallet | undefined
   vtxoManager: IVtxoManager | undefined
   txs: Tx[]
+  /** History rows before grouping, and deliberately not derived from
+   * `assetSwaps`. The restore scan takes its candidates from `sent` rows, and
+   * `txs` replaces a swap's funding row with the grouped one the moment its
+   * record exists — so feeding it `txs` hides the very tx the record was built
+   * from, and no later scan can re-answer that record. */
+  ungroupedTxs: Tx[]
   /** Set by the asset-swaps provider, which owns the records. This provider
    * merges them into `txs`; the dependency runs one way, so they travel up
    * rather than being read back down. */
@@ -155,6 +162,7 @@ export const WalletContext = createContext<WalletContextProps>({
   dismissLoadError: () => {},
   authState: 'unknown',
   txs: [],
+  ungroupedTxs: [],
   setAssetSwaps: () => {},
   vtxos: { spendable: [], spent: [] },
   devAutoInitFailed: false,
@@ -221,6 +229,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [history, assetSwaps, aspInfo.network, assetDisplayVersion],
+  )
+
+  const ungroupedTxs = useMemo(
+    () => history.activities.flatMap((activity) => activity.txs).map((tx) => arkTransactionToTx(tx)),
+    [history],
   )
 
   const verifiedAssetsFetched = useRef(false)
@@ -982,6 +995,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         lockWallet,
         restartWallet,
         txs,
+        ungroupedTxs,
         setAssetSwaps,
         balance,
         availableBalance,

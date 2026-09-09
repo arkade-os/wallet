@@ -38,7 +38,7 @@ import { SwapsContext } from '../../../providers/swaps'
 import { discoverMarkets } from '../../../lib/swapMarkets'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
-import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
+import { centsToUnits, liquidBtcBalance, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
 import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -121,6 +121,9 @@ function AssetIcon({ asset }: { asset: AssetOption | null }) {
   )
 }
 
+const PARTIAL_SEND_ERROR =
+  "You don't have enough bitcoin to do a partial send. Please send all or acquire some bitcoin."
+
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
   const { config, effectiveTheme, useFiat } = useContext(ConfigContext)
@@ -188,13 +191,10 @@ export default function SendForm() {
   const activeAsset = accountAsset ?? selectedAsset
   const isAssetSend = activeAsset !== null
 
-  const DUST_AMOUNT = 330
   const RECIPIENT_DEBOUNCE_MS = 800
   const hasAssets = assetBalances.length > 0
   const reserveApplied = !isAssetSend && hasAssets
-  // clamp: a balance below the reserve is "nothing sendable", not a negative
-  // amount (and the provider's availableBalance never flashes 0 on mount)
-  const liquidBalance = Math.max(0, availableBalance - (reserveApplied ? DUST_AMOUNT : 0))
+  const liquidBalance = liquidBtcBalance(availableBalance, reserveApplied, aspInfo.dust)
 
   const smartSetError = (str: string) => {
     setError(str === '' ? (aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '') : str)
@@ -863,10 +863,20 @@ export default function SendForm() {
 
   const assetAmt = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
 
+  // a partial asset send leaves asset change, and that change needs a second
+  // dust carrier; without one the SDK fails with a bare "Insufficient funds".
+  // Derived, not stored: the server-status effect owns `error` and would
+  // clear this on recovery.
+  const carrierError =
+    activeAsset && assetAmt > BigInt(0) && assetAmt < activeAsset.balance && availableBalance < 2 * Number(aspInfo.dust)
+      ? PARTIAL_SEND_ERROR
+      : ''
+
   const buttonDisabled = isAssetSend
     ? !(arkAddress && assetAmt > 0) ||
       (activeAsset ? assetAmt > activeAsset.balance : true) ||
       Boolean(recipientError) ||
+      Boolean(carrierError) ||
       aspInfo.unreachable ||
       Boolean(error) ||
       processing
@@ -973,7 +983,7 @@ export default function SendForm() {
         <Content>
           <Padded>
             <FlexCol gap='1.25rem' className='send-form-stack'>
-              <ErrorMessage error={Boolean(error)} text={error} />
+              <ErrorMessage error={Boolean(error || carrierError)} text={error || carrierError} />
               <InputAddress
                 error={recipientError}
                 focus={focus === 'recipient'}
@@ -1143,7 +1153,7 @@ export default function SendForm() {
         <FlexCol gap='1rem'>
           <Text bold>Balance reserve</Text>
           <Text color='neutral-500' small wrap>
-            {`${DUST_AMOUNT} sats are kept in reserve to protect your assets. Your max sendable amount is ${prettyNumber(liquidBalance)} sats.`}
+            {`${aspInfo.dust} sats are kept in reserve to protect your assets. Your max sendable amount is ${prettyNumber(liquidBalance)} sats.`}
           </Text>
           <FlexCol gap='0.5rem'>
             <Button onClick={confirmSendAll} label='Send max' />
