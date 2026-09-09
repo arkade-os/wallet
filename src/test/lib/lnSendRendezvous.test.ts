@@ -1,9 +1,9 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
 import { discover, sideLimits, validateCard, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+import { marketCorridor } from '@arkade-os/swap'
 import betaSolverCard from '../../lib/beta-solver.card.json'
 import { lnSendRendezvous } from '../../lib/lnSwap'
-import { marketCorridor } from '../../lib/marketCorridor'
 
 /**
  * The bundled solver card is the only thing that makes the Lightning-send

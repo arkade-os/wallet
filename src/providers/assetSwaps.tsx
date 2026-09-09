@@ -27,6 +27,7 @@ import {
   decodeOffer,
   findMarket,
   getAssetSwaps,
+  isRfqMarket,
   restoreAssetSwaps,
   retireSettledOfferContracts,
   spendTxidsOf,
@@ -43,7 +44,6 @@ import { WalletContext } from './wallet'
 import { assetSwapRepository, type AssetSwapQuoteSnapshot, type WalletAssetSwap } from '../lib/swapRepository'
 import { getEmulatorPubkeyForNetwork, getEmulatorPubkeyHexForNetwork } from '../lib/constants'
 import { discoverMarkets } from '../lib/swapMarkets'
-import { isRfqMarket } from '../lib/marketCorridor'
 import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
 import { consoleError } from '../lib/logs'
 import { toast } from '../components/Toast'

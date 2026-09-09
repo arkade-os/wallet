@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest'
 import { hex } from '@scure/base'
 import type { DiscoveredMarket } from '@arkade-os/solver-discovery'
-import { isRfqMarket, marketCorridor, marketPairLabel } from '../../lib/marketCorridor'
+import { isRfqMarket, marketCorridor, marketPairLabel } from '@arkade-os/swap'
 import { lnReceiveRendezvous, lnSendRendezvous } from '../../lib/lnSwap'
 import corridorSolverCard from '../corridor-solver.card.json'
 
