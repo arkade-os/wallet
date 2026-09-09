@@ -22,8 +22,8 @@ importers:
         specifier: 0.2.3
         version: 0.2.3
       '@arkade-os/swap':
-        specifier: file:vendor/arkade-os-swap-0.0.14-pr899-fa662d0.tgz
-        version: file:vendor/arkade-os-swap-0.0.14-pr899-fa662d0.tgz(nostr-tools@2.17.2(typescript@5.9.3))
+        specifier: file:vendor/arkade-os-swap-0.0.14-pr892-893-899-6fdb89e.tgz
+        version: file:vendor/arkade-os-swap-0.0.14-pr892-893-899-6fdb89e.tgz(nostr-tools@2.17.2(typescript@5.9.3))
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -278,8 +278,8 @@ packages:
     resolution: {integrity: sha512-i77/BCAmHY4fec41HfYb5osu+QkCEOf2jLha1HX5pkp6bHGrm10WG8eOGREKqPCC4bOI3E8cKwEVGxP0qlNt5g==}
     engines: {node: '>=18'}
 
-  '@arkade-os/swap@file:vendor/arkade-os-swap-0.0.14-pr899-fa662d0.tgz':
-    resolution: {integrity: sha512-B8cLFlbaIT5SOxgGUjMboo6+W6OQB3O+6i/BP9p7pbTq6QZiO7vZiXNY0Yrqg1MmaDtvHXqpC6wTJqPoXF4wVg==, tarball: file:vendor/arkade-os-swap-0.0.14-pr899-fa662d0.tgz}
+  '@arkade-os/swap@file:vendor/arkade-os-swap-0.0.14-pr892-893-899-6fdb89e.tgz':
+    resolution: {integrity: sha512-6VycSysqC+mKNiOej40aZ34AMZQQz9rXE+h4SeQdiu+MXSy/5txAvbKB8Ds8iezrUxpjq1wSVg/ht7HGBMgczA==, tarball: file:vendor/arkade-os-swap-0.0.14-pr892-893-899-6fdb89e.tgz}
     version: 0.0.14
     peerDependencies:
       nostr-tools: ^2.12.0
@@ -4381,7 +4381,7 @@ snapshots:
 
   '@arkade-os/solver-discovery@0.2.3': {}
 
-  '@arkade-os/swap@file:vendor/arkade-os-swap-0.0.14-pr899-fa662d0.tgz(nostr-tools@2.17.2(typescript@5.9.3))':
+  '@arkade-os/swap@file:vendor/arkade-os-swap-0.0.14-pr892-893-899-6fdb89e.tgz(nostr-tools@2.17.2(typescript@5.9.3))':
     dependencies:
       '@arkade-os/sdk': 0.4.71
       '@arkade-os/solver-discovery': 0.2.3

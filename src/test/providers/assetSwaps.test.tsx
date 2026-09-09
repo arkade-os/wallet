@@ -23,6 +23,7 @@ const classifyDepositSpend = vi.hoisted(() => vi.fn())
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const discoverMarkets = vi.hoisted(() => vi.fn(async (_network: string, _useCache?: boolean) => []))
 const restoreAssetSwaps = vi.hoisted(() => vi.fn())
+const restoreOfferCoverage = vi.hoisted(() => vi.fn())
 const watchOfferSwaps = vi.hoisted(() => vi.fn())
 const decodeOffer = vi.hoisted(() => vi.fn())
 
@@ -41,6 +42,7 @@ vi.mock('@arkade-os/swap', async (importOriginal) => ({
   createOffer,
   decodeOffer,
   restoreAssetSwaps,
+  restoreOfferCoverage,
   watchOfferSwaps,
 }))
 
@@ -394,6 +396,7 @@ describe('AssetSwapsProvider restore scan', () => {
   beforeEach(async () => {
     await repository.clear()
     restoreAssetSwaps.mockReset()
+    restoreOfferCoverage.mockReset().mockResolvedValue(undefined)
   })
 
   afterEach(async () => await repository.clear())
@@ -512,11 +515,34 @@ describe('AssetSwapsProvider restore scan', () => {
         quote: { feeBps: 30 },
       }),
     )
-    // neither skip list may hold it back, or the scan never sees the candidate
-    expect(restoreAssetSwaps.mock.calls[0][2].has(stored.id)).toBe(false)
-    expect(restoreAssetSwaps.mock.calls[0][3].scanned.has(stored.id)).toBe(false)
+    // The package owns the exception to both skip lists: the normal lists stay
+    // whole, and the open records travel explicitly through `reopen`.
+    expect(restoreAssetSwaps.mock.calls[0][2].has(stored.id)).toBe(true)
+    expect(restoreAssetSwaps.mock.calls[0][3].scanned.has(stored.id)).toBe(true)
+    expect(restoreAssetSwaps.mock.calls[0][3].reopen).toEqual([stored])
     // and the covenant it settled leaves the watched set
     await waitFor(() => expect(seams.setContractWatchState).toHaveBeenCalledWith(stored.swapPkScript, 'retained'))
+  })
+
+  it('restores watcher coverage for open records already in the repository', async () => {
+    await addAssetSwap(repository, pendingSwap)
+    restoreAssetSwaps.mockResolvedValue({ restored: [], scannedTxids: [] })
+    const { svcWallet } = scanWallet()
+
+    render(tree([], SIGNER_PUBKEY, svcWallet))
+
+    await waitFor(() => expect(restoreOfferCoverage).toHaveBeenCalledWith(svcWallet, 'https://ark.test', [pendingSwap]))
+  })
+
+  it('restores watcher coverage for records rebuilt by the current scan', async () => {
+    restoreAssetSwaps.mockResolvedValue({ restored: [restoredSwap], scannedTxids: [restoredSwap.id] })
+    const { svcWallet } = scanWallet()
+
+    render(tree([sentTx(restoredSwap.id)], SIGNER_PUBKEY, svcWallet))
+
+    await waitFor(() =>
+      expect(restoreOfferCoverage).toHaveBeenCalledWith(svcWallet, 'https://ark.test', [restoredSwap]),
+    )
   })
 
   it('stops asking about a record the chain has answered', async () => {
