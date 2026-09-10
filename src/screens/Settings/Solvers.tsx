@@ -5,6 +5,7 @@ import Content from '../../components/Content'
 import Header from './Header'
 import Text, { TextSecondary } from '../../components/Text'
 import { Card, LocalCardInput, validateCard, Network } from '@arkade-os/solver-discovery'
+import { marketPairLabel } from '@arkade-os/swap'
 import { readSolverCards, saveSolverCards } from '@/lib/solverCards'
 import { BUNDLED_CARDS } from '@/lib/swapMarkets'
 import FlexRow from '@/components/FlexRow'
@@ -125,7 +126,7 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose?: () => void
  */
 function BundledCardLine({ input }: { input: LocalCardInput }) {
   const card = input.card as Card
-  const pairs = card.markets?.map((m) => m.pair).join(', ') ?? ''
+  const pairs = card.markets?.map(marketPairLabel).join(', ') ?? ''
   const [showCard, setShowCard] = useState(false)
 
   const toggleShowCard = () => {
@@ -158,7 +159,7 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
   const [error, setError] = useState<string>('')
 
   const card = input.card as Card
-  const pairs = card.markets?.map((m) => m.pair).join(', ') ?? ''
+  const pairs = card.markets?.map(marketPairLabel).join(', ') ?? ''
 
   const handleConfirmRemove = () => {
     setConfirmRemove(true)
