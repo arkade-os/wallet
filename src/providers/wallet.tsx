@@ -126,6 +126,19 @@ interface WalletContextProps {
    * merges them into `txs`; the dependency runs one way, so they travel up
    * rather than being read back down. */
   setAssetSwaps: (swaps: WalletAssetSwap[]) => void
+  /** True while the swap restore scan still has funding txs to answer for.
+   *
+   * A swap is two transactions, and `txs` only collapses them into one row once
+   * their record exists — so until the scan answers, the list would paint a bare
+   * Sent and a bare Received and replace both a moment later. Consumers show a
+   * placeholder over that window instead.
+   *
+   * Lives here rather than on the swaps context because it qualifies `txs`: the
+   * rows and their readiness are read together, by the same screens. */
+  activityPending: boolean
+  /** Set by the asset-swaps provider, up the same one-way channel as
+   * `setAssetSwaps`. */
+  setActivityPending: (pending: boolean) => void
   vtxos: { spendable: Vtxo[]; spent: Vtxo[] }
   balance: WalletBalance['total']
   availableBalance: WalletBalance['available']
@@ -176,6 +189,8 @@ export const WalletContext = createContext<WalletContextProps>({
   txs: [],
   ungroupedTxs: [],
   setAssetSwaps: () => {},
+  activityPending: false,
+  setActivityPending: () => {},
   vtxos: { spendable: [], spent: [] },
   devAutoInitFailed: false,
 })
@@ -198,6 +213,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     exits: ExitRecord[]
   }>({ activities: [], metadata: {}, lnSends: [], exits: [] })
   const [assetSwaps, setAssetSwaps] = useState<WalletAssetSwap[]>([])
+  const [activityPending, setActivityPending] = useState(false)
   const [balance, setBalance] = useState(0)
   const [availableBalance, setAvailableBalance] = useState(0)
   const [wallet, setWallet] = useState(() => readWalletFromStorage() ?? defaultWallet)
@@ -1005,6 +1021,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     // than stale swap rows.
     await assetSwapRepository.clear().catch((err) => consoleError(err, 'failed to clear swap records'))
     setAssetSwaps([])
+    setActivityPending(false)
     await svcWallet.clear()
     await svcWallet.walletRepository.clear()
     await svcWallet.contractRepository.clear()
@@ -1056,6 +1073,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         txs,
         ungroupedTxs,
         setAssetSwaps,
+        activityPending,
+        setActivityPending,
         balance,
         availableBalance,
         assetBalances,

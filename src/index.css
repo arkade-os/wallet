@@ -1036,6 +1036,27 @@ iframe {
   outline-offset: 3px;
 }
 
+/* A placeholder row while the swap restore scan is still deciding what the
+   rows are. Not clickable, and the copy bars stand a little taller than the
+   text they stand in for so the two lines read as one block. */
+.activity-row--skeleton {
+  cursor: default;
+}
+
+.activity-row--skeleton:active {
+  transform: none;
+}
+
+.activity-row--skeleton .activity-row__copy {
+  gap: 0.375rem;
+}
+
+/* The row's icon slot, as a disc: the shared bar, grown to the height the real
+   icon carries (its width comes from the caller, like every other bar). */
+.skeleton-text--icon {
+  height: 2.5rem;
+}
+
 .activity-row__left {
   display: flex;
   min-width: 0;
@@ -3576,7 +3597,7 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
     0 0 0 3px color-mix(in srgb, var(--purple-700) 7%, transparent);
 }
 
-.swap-skeleton-text {
+.skeleton-text {
   position: relative;
   display: inline-flex;
   height: 0.875rem;
@@ -3587,13 +3608,13 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   vertical-align: middle;
 }
 
-.swap-skeleton-text::after {
+.skeleton-text::after {
   content: '';
   position: absolute;
   inset: 0;
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--bg) 72%, transparent), transparent);
   transform: translateX(-100%);
-  animation: swap-skeleton-shimmer 1050ms cubic-bezier(0.23, 1, 0.32, 1) infinite;
+  animation: skeleton-shimmer 1050ms cubic-bezier(0.23, 1, 0.32, 1) infinite;
 }
 
 .swap-token-avatar {
@@ -4124,12 +4145,12 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
     animation: none;
   }
 
-  .swap-skeleton-text::after {
+  .skeleton-text::after {
     animation: none;
   }
 }
 
-@keyframes swap-skeleton-shimmer {
+@keyframes skeleton-shimmer {
   to {
     transform: translateX(100%);
   }
