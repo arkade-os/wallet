@@ -169,16 +169,26 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     if (changed) applySwaps(list)
   }
 
+  const discoveryGeneration = useRef(0)
+  const backfillQueue = useRef<Promise<void>>(Promise.resolve())
+
   const runDiscovery = (network: NetworkName, useCache: boolean) => {
+    const generation = ++discoveryGeneration.current
     discoverMarkets(network, useCache)
       // Corridor (RFQ) markets — the bundled Lightning-send card — are not
       // tradeable here: this provider builds offers, and a corridor is
       // negotiated with a solver instead. Keeping them would let one Lightning
       // card turn the whole swap surface on with nothing behind it.
       .then((all) => {
+        if (generation !== discoveryGeneration.current) return
         const available = all.filter((m) => !isRfqMarket(m))
         setMarkets(available)
-        backfillMissingFees(available).catch((err) => consoleError(err, 'failed to backfill asset swap fees'))
+        backfillQueue.current = backfillQueue.current
+          .then(async () => {
+            if (generation !== discoveryGeneration.current) return
+            await backfillMissingFees(available)
+          })
+          .catch((err) => consoleError(err, 'failed to backfill asset swap fees'))
       })
       .catch((err) => consoleError(err, 'solver discovery failed'))
   }

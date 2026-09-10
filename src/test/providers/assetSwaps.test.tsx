@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { hex } from '@scure/base'
-import { planOffer, type OfferPlan } from '@arkade-os/solver-discovery'
+import { planOffer, type DiscoveredMarket, type OfferPlan } from '@arkade-os/solver-discovery'
 import { addAssetSwap, getAssetSwaps, updateAssetSwap, type RestoreAssetSwapRepositoryResult } from '@arkade-os/swap'
 import { AspContext } from '../../providers/asp'
 import { AssetSwapsContext, AssetSwapsProvider } from '../../providers/assetSwaps'
@@ -20,8 +20,13 @@ const createOffer = vi.hoisted(() => vi.fn())
 const getVtxos = vi.hoisted(() => vi.fn())
 const getVirtualTxs = vi.hoisted(() => vi.fn())
 const classifyDepositSpend = vi.hoisted(() => vi.fn())
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const discoverMarkets = vi.hoisted(() => vi.fn(async (_network: string, _useCache?: boolean) => []))
+const discoverMarkets = vi.hoisted(() =>
+  vi.fn(async (network: string, useCache?: boolean): Promise<DiscoveredMarket[]> => {
+    void network
+    void useCache
+    return []
+  }),
+)
 const restoreAssetSwapRepository = vi.hoisted(() => vi.fn())
 const watchOfferSwaps = vi.hoisted(() => vi.fn())
 const decodeOffer = vi.hoisted(() => vi.fn())
@@ -621,6 +626,32 @@ describe('AssetSwapsProvider solver cards', () => {
     // cache bypassed: the TTL cache holds the registry's answer, which is
     // exactly what a newly stored card changes
     expect(discoverMarkets.mock.calls[1][1]).toBe(false)
+  })
+
+  it('keeps the newest discovery when two requests resolve in reverse order', async () => {
+    let resolveFirst!: (markets: (typeof btcUsdt)[]) => void
+    let resolveSecond!: (markets: (typeof btcUsdt)[]) => void
+    const first = new Promise<(typeof btcUsdt)[]>((resolve) => (resolveFirst = resolve))
+    const second = new Promise<(typeof btcUsdt)[]>((resolve) => (resolveSecond = resolve))
+    discoverMarkets.mockImplementationOnce(() => first).mockImplementationOnce(() => second)
+
+    function Fee() {
+      return <div data-testid='fee'>{useContext(AssetSwapsContext).markets[0]?.fee_bps ?? 'none'}</div>
+    }
+
+    renderOnNetwork(<Fee />)
+    await waitFor(() => expect(discoverMarkets).toHaveBeenCalledTimes(1))
+    act(() => saveSolverCards([]))
+    await waitFor(() => expect(discoverMarkets).toHaveBeenCalledTimes(2))
+
+    await act(async () => resolveSecond([{ ...btcUsdt, fee_bps: 44 }]))
+    await waitFor(() => expect(screen.getByTestId('fee')).toHaveTextContent('44'))
+
+    await act(async () => {
+      resolveFirst([btcUsdt])
+      await first
+    })
+    expect(screen.getByTestId('fee')).toHaveTextContent('44')
   })
 
   it('backfills missing persisted fees after market discovery', async () => {
