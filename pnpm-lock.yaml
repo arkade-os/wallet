@@ -5,7 +5,6 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@arkade-os/sdk': 0.4.72
   '@babel/core': '>=7.29.6 <8.0.0'
   js-yaml@<4: '>=3.15.0 <4.0.0'
   js-yaml@>=4: '>=4.2.0 <5.0.0'
@@ -23,8 +22,8 @@ importers:
         specifier: 0.2.3
         version: 0.2.3
       '@arkade-os/swap':
-        specifier: 0.0.15
-        version: 0.0.15(nostr-tools@2.17.2(typescript@5.9.3))
+        specifier: 0.0.16
+        version: 0.0.16(nostr-tools@2.17.2(typescript@5.9.3))
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -279,8 +278,8 @@ packages:
     resolution: {integrity: sha512-i77/BCAmHY4fec41HfYb5osu+QkCEOf2jLha1HX5pkp6bHGrm10WG8eOGREKqPCC4bOI3E8cKwEVGxP0qlNt5g==}
     engines: {node: '>=18'}
 
-  '@arkade-os/swap@0.0.15':
-    resolution: {integrity: sha512-G7XQs9YwtfxVCNMUFj4/JvmymdoEZbr2jcTZExE+ogebbamqRDW8OWyIXOw6s9dp4gjg1JSkuxJf9v1RGgobMA==}
+  '@arkade-os/swap@0.0.16':
+    resolution: {integrity: sha512-ux01KxNhLXfz7t0D1+wOWWq0cKvp9TR0PwOwomH3mTKh7ZsDHiPZlxl3g8mPnXso51dsXVozC+r+4BPhtS0ulQ==}
     peerDependencies:
       nostr-tools: ^2.12.0
     peerDependenciesMeta:
@@ -4381,7 +4380,7 @@ snapshots:
 
   '@arkade-os/solver-discovery@0.2.3': {}
 
-  '@arkade-os/swap@0.0.15(nostr-tools@2.17.2(typescript@5.9.3))':
+  '@arkade-os/swap@0.0.16(nostr-tools@2.17.2(typescript@5.9.3))':
     dependencies:
       '@arkade-os/sdk': 0.4.72
       '@arkade-os/solver-discovery': 0.2.3
