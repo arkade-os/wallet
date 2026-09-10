@@ -1,18 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { CORRIDORS } from '@arkade-os/solver-discovery'
 import { useCorridorSendReceipt } from '../../hooks/useCorridorSendReceipt'
 import type { Tx } from '../../lib/types'
 
 const send = (lnSwap: Record<string, unknown>): Tx => ({ lnSwap }) as unknown as Tx
 
 describe('what a corridor-send receipt shows', () => {
-  it('compares against corridor ids, not the rails they settle on', () => {
-    // `bitcoin` is the RAIL `onchain` settles on. Comparing against it left
-    // every on-chain send unlabelled and still reading "Completed".
-    expect(CORRIDORS).toContain('onchain')
-    expect(CORRIDORS).not.toContain('bitcoin')
-  })
-
   it('names the two corridors, which were indistinguishable on this screen', () => {
     expect(useCorridorSendReceipt(send({ fundingTxid: 'f', corridor: 'onchain' }))?.corridor).toBe('On-chain')
     expect(useCorridorSendReceipt(send({ fundingTxid: 'f', corridor: 'lightning' }))?.corridor).toBe('Lightning')

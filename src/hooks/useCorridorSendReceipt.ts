@@ -21,10 +21,11 @@ export interface CorridorSendReceipt {
   refundLocktime?: number
 }
 
-// Corridor ids, not rail names: discovery spells them `arkade | lightning |
-// onchain`, while `bitcoin` is the RAIL that `onchain` settles on. Comparing
-// against the rail left every on-chain send unlabelled and still reading
-// "Completed" for a lockup spend that had not paid anyone.
+// Persisted swap corridor ids, not discovery's CAIP chain namespaces: records
+// spell these `lightning | onchain`, while discovery now uses `bolt11 |
+// bitcoin`. Comparing against the namespace left every on-chain send
+// unlabelled and still reading "Completed" for a lockup spend that had not paid
+// anyone.
 const CORRIDOR_LABEL: Record<string, string> = { lightning: 'Lightning', onchain: 'On-chain' }
 
 /**
