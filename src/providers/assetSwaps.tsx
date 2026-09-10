@@ -64,6 +64,17 @@ interface AssetSwapsContextProps {
   /** True when there are markets and the covenant co-signer's key is known. */
   swapAvailable: boolean
   swaps: WalletAssetSwap[]
+  /** False while the restore scan still has funding txs to answer for.
+   *
+   * Until it answers, a swap's two transactions are ungrouped, so the activity
+   * list would paint them as a bare Sent and a bare Received and then replace
+   * both with one Swap row a moment later. Consumers render a placeholder
+   * instead of that wrong first frame.
+   *
+   * Only ever false when the scan actually has work: a wallet whose store
+   * already covers its history never leaves this true, so the common case
+   * costs no placeholder at all. */
+  swapScanSettled: boolean
   createSwap: (plan: OfferPlan, quote?: AssetSwapQuoteSnapshot) => Promise<WalletAssetSwap>
   cancelSwap: (id: string) => Promise<void>
 }
@@ -72,6 +83,7 @@ export const AssetSwapsContext = createContext<AssetSwapsContextProps>({
   markets: [],
   swapAvailable: false,
   swaps: [],
+  swapScanSettled: true,
   createSwap: async () => {
     throw new Error('asset swaps not initialized')
   },
@@ -86,6 +98,9 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
 
   const [markets, setMarkets] = useState<DiscoveredMarket[]>([])
   const [swaps, setSwaps] = useState<WalletAssetSwap[]>([])
+  // starts settled: the gate is raised by a scan that finds work, never by the
+  // absence of one, so a wallet with nothing to rebuild never blinks
+  const [scanSettled, setScanSettled] = useState(true)
 
   // the watcher and the reconciliation both read the current list from outside
   // a render, where `swaps` would be the value captured when they were created
@@ -244,13 +259,29 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
       // it. The cost of exempting them is one psbt and one vtxo lookup per open
       // swap per history change, and it stops the moment the swap settles.
       const open = new Map(existing.filter(isOpen).map((swap) => [swap.id, swap]))
+      const closedIds = new Set(existing.filter((swap) => !isOpen(swap)).map((swap) => swap.id))
+      const scannedIds = new Set([...scanned].filter((txid) => !open.has(txid)))
+      // Whether the call below has anything to chew on, from the same two skip
+      // lists it is handed: a sent tx neither answered nor already recorded is
+      // a funding tx this pass may still turn into a swap row. Both reads are
+      // local, so the gate goes up before the first fetch rather than after it.
+      // TODO: read this off `@arkade-os/swap` once its own candidate predicate
+      // is exported, so the two cannot drift.
+      if (
+        txsRef.current.some(
+          (tx) =>
+            tx.type === 'sent' && tx.redeemTxid && !closedIds.has(tx.redeemTxid) && !scannedIds.has(tx.redeemTxid),
+        )
+      ) {
+        setScanSettled(false)
+      }
       const { restored, scannedTxids } = await restoreAssetSwaps(
         new RestIndexerProvider(aspInfo.url),
         txsRef.current,
-        new Set(existing.filter((swap) => !isOpen(swap)).map((swap) => swap.id)),
+        closedIds,
         {
           serverPubkey: xOnlyServerKey(aspInfo.signerPubkey),
-          scanned: new Set([...scanned].filter((txid) => !open.has(txid))),
+          scanned: scannedIds,
         },
       )
       if (stale()) return
@@ -309,7 +340,14 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
         scanningRef.current = false
         // the CURRENT token, not this run's: a run whose token died is exactly
         // the one whose queued work still has to happen, under its replacement
-        if (!rescanRef.current || !scanTokenRef.current.live) return
+        if (!rescanRef.current || !scanTokenRef.current.live) {
+          // The list is trustworthy again once this pass is done — including the
+          // pass that threw, since holding a placeholder over an indexer outage
+          // would hide the history rather than protect it. A queued rescan keeps
+          // the gate up: its run is part of the same answer.
+          setScanSettled(true)
+          return
+        }
         rescanRef.current = false
         // through the effect, not a direct call: this closure is bound to the
         // wallet it started with, a fresh run reads the current one
@@ -691,11 +729,21 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
 
   const swapAvailable = markets.length > 0 && Boolean(emulatorPubkey)
   const value = useMemo(
-    () => ({ markets, swapAvailable, swaps, createSwap, cancelSwap }),
+    () => ({ markets, swapAvailable, swaps, swapScanSettled: scanSettled, createSwap, cancelSwap }),
     // createSwap/cancelSwap close over these; the signer key reaches cancelSwap
     // through classifyDeposit, which reads the leaf against it
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [markets, swapAvailable, swaps, svcWallet, emulatorPubkey, aspInfo.url, aspInfo.network, aspInfo.signerPubkey],
+    [
+      markets,
+      swapAvailable,
+      swaps,
+      scanSettled,
+      svcWallet,
+      emulatorPubkey,
+      aspInfo.url,
+      aspInfo.network,
+      aspInfo.signerPubkey,
+    ],
   )
 
   return <AssetSwapsContext.Provider value={value}>{children}</AssetSwapsContext.Provider>

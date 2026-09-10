@@ -1036,6 +1036,43 @@ iframe {
   outline-offset: 3px;
 }
 
+/* A placeholder row while the swap restore scan is still deciding what the
+   rows are. Not clickable, and the copy bars stand a little taller than the
+   text they stand in for so the two lines read as one block. */
+.activity-row--skeleton {
+  cursor: default;
+}
+
+.activity-row--skeleton:active {
+  transform: none;
+}
+
+.activity-row--skeleton .activity-row__copy {
+  gap: 0.375rem;
+}
+
+.activity-skeleton {
+  position: relative;
+  display: inline-flex;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
+}
+
+.activity-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--bg) 72%, transparent), transparent);
+  transform: translateX(-100%);
+  animation: swap-skeleton-shimmer 1050ms cubic-bezier(0.23, 1, 0.32, 1) infinite;
+}
+
+.activity-skeleton--icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+}
+
 .activity-row__left {
   display: flex;
   min-width: 0;
@@ -4124,7 +4161,8 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
     animation: none;
   }
 
-  .swap-skeleton-text::after {
+  .swap-skeleton-text::after,
+  .activity-skeleton::after {
     animation: none;
   }
 }

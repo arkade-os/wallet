@@ -8,6 +8,7 @@ import { NavigationContext } from '../../providers/navigation'
 import { WalletContext } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
 import { AssetsContext } from '../../providers/assets'
+import { AssetSwapsContext } from '../../providers/assetSwaps'
 import { Currencies, Tx, Unit } from '../../lib/types'
 import { MUTINYNET_DEPIX_ASSET_ID, MUTINYNET_USDT_ASSET_ID } from '../../lib/accountAssets'
 import {
@@ -40,6 +41,56 @@ describe('TransactionsList', () => {
 
     expect(screen.getByText(/Swap/)).toBeInTheDocument()
     expect(screen.queryByText('Sent')).not.toBeInTheDocument()
+  })
+
+  it('shows placeholders instead of ungrouped rows while the swap scan is unsettled', () => {
+    const sentTx = { ...mockWalletContextValue.txs[0], roundTxid: 'sent-tx', type: 'sent' }
+    const receivedTx = { ...mockWalletContextValue.txs[0], roundTxid: 'received-tx', type: 'received' }
+
+    const { container } = render(
+      <AssetSwapsContext.Provider value={{ swapScanSettled: false } as any}>
+        <NavigationContext.Provider value={mockNavigationContextValue}>
+          <ConfigContext.Provider value={mockConfigContextValue}>
+            <FiatContext.Provider value={mockFiatContextValue}>
+              <FlowContext.Provider value={mockFlowContextValue}>
+                <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [sentTx, receivedTx] } as any}>
+                  <TransactionsList mode='static' />
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </FiatContext.Provider>
+          </ConfigContext.Provider>
+        </NavigationContext.Provider>
+      </AssetSwapsContext.Provider>,
+    )
+
+    // the two rows a swap would collapse into one are not painted as Sent and
+    // Received first — one placeholder per row stands in until the scan answers
+    expect(screen.queryByText('Sent')).not.toBeInTheDocument()
+    expect(screen.queryByText('Received')).not.toBeInTheDocument()
+    expect(container.querySelectorAll('.activity-row--skeleton')).toHaveLength(2)
+  })
+
+  it('paints the rows once the swap scan has settled', () => {
+    const sentTx = { ...mockWalletContextValue.txs[0], roundTxid: 'sent-tx', type: 'sent' }
+
+    const { container } = render(
+      <AssetSwapsContext.Provider value={{ swapScanSettled: true } as any}>
+        <NavigationContext.Provider value={mockNavigationContextValue}>
+          <ConfigContext.Provider value={mockConfigContextValue}>
+            <FiatContext.Provider value={mockFiatContextValue}>
+              <FlowContext.Provider value={mockFlowContextValue}>
+                <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [sentTx] } as any}>
+                  <TransactionsList mode='static' />
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </FiatContext.Provider>
+          </ConfigContext.Provider>
+        </NavigationContext.Provider>
+      </AssetSwapsContext.Provider>,
+    )
+
+    expect(screen.getByText('Sent')).toBeInTheDocument()
+    expect(container.querySelectorAll('.activity-row--skeleton')).toHaveLength(0)
   })
 
   it('formats designated account activity with the underlying asset decimals', () => {

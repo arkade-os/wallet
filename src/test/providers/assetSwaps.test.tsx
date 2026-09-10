@@ -356,8 +356,13 @@ describe('AssetSwapsProvider restore scan', () => {
   const sentTx = (redeemTxid: string) => ({ ...mockTxInfo, type: 'sent', redeemTxid, createdAt: 1 })
 
   function ScanHarness() {
-    const { swaps } = useContext(AssetSwapsContext)
-    return <span data-testid='restored'>{swaps.map((s) => s.id).join(',') || 'none'}</span>
+    const { swaps, swapScanSettled } = useContext(AssetSwapsContext)
+    return (
+      <>
+        <span data-testid='restored'>{swaps.map((s) => s.id).join(',') || 'none'}</span>
+        <span data-testid='settled'>{String(swapScanSettled)}</span>
+      </>
+    )
   }
 
   const tree = (txs: (typeof mockTxInfo)[], signerPubkey: string = SIGNER_PUBKEY, svcWallet?: unknown) =>
@@ -516,6 +521,41 @@ describe('AssetSwapsProvider restore scan', () => {
     expect(restoreAssetSwaps.mock.calls[0][3].scanned.has(stored.id)).toBe(false)
     // and the covenant it settled leaves the watched set
     await waitFor(() => expect(seams.setContractWatchState).toHaveBeenCalledWith(stored.swapPkScript, 'retained'))
+  })
+
+  it('holds the activity list while a scan has funding txs left to answer for', async () => {
+    // The flash this closes: a swap's two txs are ungrouped until the scan
+    // binds them, so the list painted a Sent and a Received and then replaced
+    // both with one Swap row. The gate goes up before the first fetch.
+    const { release } = await renderBlockedScan()
+
+    await waitFor(() => expect(screen.getByTestId('settled')).toHaveTextContent('false'))
+    release({ restored: [], scannedTxids: ['a'] })
+    await waitFor(() => expect(screen.getByTestId('settled')).toHaveTextContent('true'))
+  })
+
+  it('never raises the gate for a wallet whose store already covers its history', async () => {
+    // The common case, and the one that must not blink: every sent tx is
+    // already answered, so the pass has nothing to decide and the list paints
+    // its rows on the first frame.
+    const stored: WalletAssetSwap = { ...pendingSwap, status: 'fulfilled', spentTxid: 'fill-txid' }
+    await addAssetSwap(repository, stored)
+    await repository.markTxidsScanned([stored.id])
+    restoreAssetSwaps.mockResolvedValue({ restored: [], scannedTxids: [] })
+
+    render(tree([sentTx(stored.id)]))
+
+    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(1))
+    expect(screen.getByTestId('settled')).toHaveTextContent('true')
+  })
+
+  it('lowers the gate even when the scan throws', async () => {
+    // An indexer outage must not hide the history behind placeholders forever.
+    restoreAssetSwaps.mockRejectedValue(new Error('indexer down'))
+
+    render(tree([sentTx('a')]))
+
+    await waitFor(() => expect(screen.getByTestId('settled')).toHaveTextContent('true'))
   })
 
   it('stops asking about a record the chain has answered', async () => {

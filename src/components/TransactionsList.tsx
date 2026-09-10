@@ -7,6 +7,7 @@ import AssetAvatar from './AssetAvatar'
 import ReceivedIcon from '../icons/Received'
 import SentIcon from '../icons/Sent'
 import FlexRow from './FlexRow'
+import { AssetSwapsContext } from '../providers/assetSwaps'
 import { FlowContext } from '../providers/flow'
 import { NavigationContext, Pages } from '../providers/navigation'
 import { ConfigContext } from '../providers/config'
@@ -241,6 +242,25 @@ function SwapAmountInfo({
   )
 }
 
+/** The shape of a row, without its facts: icon, kind, date, amount. Same
+ * heights as the real row so the list does not jump when they arrive. */
+const TransactionLineSkeleton = ({ mode }: { mode: 'virtual' | 'static' }) => (
+  <div className={`activity-row activity-row--${mode} activity-row--skeleton`} aria-hidden='true'>
+    <div className='activity-row__left'>
+      <span className='activity-row__icon'>
+        <span className='activity-skeleton activity-skeleton--icon' />
+      </span>
+      <span className='activity-row__copy'>
+        <span className='swap-skeleton-text' style={{ width: '4.5rem' }} />
+        <span className='swap-skeleton-text' style={{ width: '7rem' }} />
+      </span>
+    </div>
+    <span className='activity-row__right'>
+      <span className='swap-skeleton-text' style={{ width: '3.5rem' }} />
+    </span>
+  </div>
+)
+
 interface TransactionsListProps {
   /** Show only transactions for a specific asset. Use 'btc' for bitcoin-only activity. */
   assetIdFilter?: string | string[]
@@ -261,11 +281,19 @@ export default function TransactionsList({
   const { setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { assetMetadataCache, txs: allTxs } = useContext(WalletContext)
+  const { swapScanSettled } = useContext(AssetSwapsContext)
   const visibleTxs = allTxs
     .filter((tx) => !shouldHideDevAssetTx(tx, assetMetadataCache))
     .filter((tx) => matchesAssetFilter(tx, assetIdFilter))
     .filter((tx) => !typeFilter || tx.type === typeFilter)
   const txs = mode === 'static' && limit ? visibleTxs.slice(0, limit) : visibleTxs
+
+  // A swap's funding and fill transactions are two ungrouped rows until the
+  // restore scan binds them, so painting them now would show a Sent and a
+  // Received that a moment later become one Swap. Placeholders instead: the
+  // gate is only ever closed while that scan has funding txs left to answer
+  // for, which on a wallet that already holds its records is never.
+  const pending = !swapScanSettled && txs.length > 0
 
   const focusedRef = useRef(false)
   const focusedIndexRef = useRef(0)
@@ -329,6 +357,16 @@ export default function TransactionsList({
     hapticSubtle()
     setTxInfo(tx)
     navigate(Pages.Transaction)
+  }
+
+  if (pending) {
+    return (
+      <div className={`activity-list ${mode === 'static' ? 'activity-list--compact' : 'activity-list--full'}`}>
+        {Array.from({ length: Math.min(txs.length, limit ?? 5) }, (_, index) => (
+          <TransactionLineSkeleton key={index} mode={mode} />
+        ))}
+      </div>
+    )
   }
 
   // Static mode: render a simple list without virtualization
