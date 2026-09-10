@@ -182,6 +182,7 @@ const lnRendezvous = (
   const pinned = fallbackEmulatorPubkey ? hex.encode(fallbackEmulatorPubkey) : undefined
   for (const market of markets) {
     if (marketCorridor(market, 'quote') !== 'bolt11') continue
+    if (marketCorridor(market, 'base') !== 'arkade') continue
     const transports = {
       nostr: {
         relays: market.transports?.nostr?.relays ?? [],

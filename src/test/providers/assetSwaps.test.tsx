@@ -4,7 +4,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { hex } from '@scure/base'
 import { planOffer, type OfferPlan } from '@arkade-os/solver-discovery'
-import { addAssetSwap, getAssetSwaps, updateAssetSwap } from '@arkade-os/swap'
+import { addAssetSwap, getAssetSwaps, updateAssetSwap, type RestoreAssetSwapRepositoryResult } from '@arkade-os/swap'
 import { AspContext } from '../../providers/asp'
 import { AssetSwapsContext, AssetSwapsProvider } from '../../providers/assetSwaps'
 import { WalletContext } from '../../providers/wallet'
@@ -391,13 +391,7 @@ describe('AssetSwapsProvider restore scan', () => {
     return { setContractWatchState, svcWallet: { identity: {}, getContractManager: async () => manager } }
   }
 
-  type RestoreResult = {
-    swaps: WalletAssetSwap[]
-    changes: { previous?: WalletAssetSwap; current: WalletAssetSwap }[]
-    scannedTxids: string[]
-    aborted: boolean
-    coverageError?: unknown
-  }
+  type RestoreResult = RestoreAssetSwapRepositoryResult
   const result = (swaps: WalletAssetSwap[] = [], changes: RestoreResult['changes'] = []): RestoreResult => ({
     swaps,
     changes,
@@ -604,6 +598,29 @@ describe('AssetSwapsProvider solver cards', () => {
     // cache bypassed: the TTL cache holds the registry's answer, which is
     // exactly what a newly stored card changes
     expect(discoverMarkets.mock.calls[1][1]).toBe(false)
+  })
+
+  it('backfills missing persisted fees after market discovery', async () => {
+    await repository.clear()
+    const stored = { ...pendingSwap, toAsset: USDT_ID, quote: { fromTicker: 'sats' } }
+    const alreadyPriced = {
+      ...stored,
+      id: 'already-priced',
+      fundingTxid: 'already-priced',
+      quote: { feeBps: 12 },
+    }
+    await addAssetSwap(repository, stored)
+    await addAssetSwap(repository, alreadyPriced)
+    discoverMarkets.mockResolvedValueOnce([btcUsdt] as never)
+
+    renderOnNetwork()
+
+    await waitFor(async () => {
+      const swaps = await getAssetSwaps(repository)
+      expect(swaps.find(({ id }) => id === stored.id)).toMatchObject({ quote: { fromTicker: 'sats', feeBps: 30 } })
+      expect(swaps.find(({ id }) => id === alreadyPriced.id)).toMatchObject({ quote: { feeBps: 12 } })
+    })
+    await repository.clear()
   })
 
   it('keeps a corridor market out of the spot swap surface', async () => {
