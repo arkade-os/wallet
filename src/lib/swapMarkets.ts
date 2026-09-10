@@ -3,7 +3,7 @@
  * not own — which registry to ask, which cards ship with the build, and the
  * pre-fee rate the swap composer displays.
  */
-import { discoverMarkets as discover } from '@arkade-os/swap'
+import { BTC_ASSET_ID, discoverMarkets as discover, findMarket } from '@arkade-os/swap'
 import {
   displayPrice,
   isNetwork,
@@ -16,7 +16,7 @@ import betaSolverCard from './beta-solver.card.json'
 import { getSolverRegistryUrl } from './constants'
 import { consoleLog } from './logs'
 import { readSolverCards } from './solverCards'
-import { assetSwapRepository } from './swapRepository'
+import { assetSwapRepository, type AssetSwapQuoteSnapshot } from './swapRepository'
 
 /**
  * Solver cards shipped with the wallet.
@@ -71,4 +71,54 @@ export const preFeeDisplayRate = (plan: OfferPlan): number => {
   })
   const rate = plan.give === 'base' ? Number(num) / Number(den) : Number(den) / Number(num)
   return Number.isFinite(rate) && rate > 0 ? rate : 0
+}
+
+/**
+ * The display facts a swap's market card knows and the chain does not.
+ *
+ * A restored record carries no quote snapshot — `AssetSwap` stores only what a
+ * chain scan can rebuild — so its activity row names each leg from the asset
+ * metadata cache, which the wallet fills for OWNED assets only. Swap away the
+ * last of an asset and that cache never sees it again, so the row degrades to
+ * a truncated asset id ("0abcbc23 to BTC"). The pair's own market card carries
+ * the ticker and decimals the quote would have frozen, so recover them there.
+ *
+ * `findMarket` resolves both legacy 68-hex and CAIP-19 market ids, and its
+ * `give` side is the deposit's: `base` means the from-leg is the base asset.
+ *
+ * A BTC leg is deliberately left out. The card names it BTC with 8 decimals,
+ * while every swap surface shows sats — `buildAssetSwapActivityTx` derives
+ * `sats`/0 for it already, and a snapshot saying otherwise would inflate the
+ * receipt by 1e8.
+ */
+export const marketQuoteSnapshot = (
+  markets: DiscoveredMarket[],
+  fromAsset: string,
+  toAsset: string,
+): AssetSwapQuoteSnapshot | undefined => {
+  const found = findMarket(markets, fromAsset, toAsset)
+  const market = found?.market
+  if (!market) return undefined
+  const [from, to] =
+    found.give === 'base' ? [market.base_asset, market.quote_asset] : [market.quote_asset, market.base_asset]
+  return {
+    feeBps: market.fee_bps,
+    ...(fromAsset === BTC_ASSET_ID ? {} : { fromTicker: from.ticker, fromDecimals: from.decimals }),
+    ...(toAsset === BTC_ASSET_ID ? {} : { toTicker: to.ticker, toDecimals: to.decimals }),
+  }
+}
+
+/** The subset of {@link marketQuoteSnapshot} a record is still missing —
+ * per field, so a real quote-time snapshot is never overwritten by the
+ * card's current values. */
+export const missingQuoteFacts = (
+  swap: { fromAsset: string; toAsset: string; quote?: AssetSwapQuoteSnapshot },
+  markets: DiscoveredMarket[],
+): AssetSwapQuoteSnapshot | undefined => {
+  const facts = marketQuoteSnapshot(markets, swap.fromAsset, swap.toAsset)
+  if (!facts) return undefined
+  const missing = Object.fromEntries(
+    Object.entries(facts).filter(([key]) => swap.quote?.[key as keyof AssetSwapQuoteSnapshot] === undefined),
+  ) as AssetSwapQuoteSnapshot
+  return Object.keys(missing).length > 0 ? missing : undefined
 }

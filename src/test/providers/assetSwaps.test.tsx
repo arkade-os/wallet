@@ -9,7 +9,7 @@ import { AspContext } from '../../providers/asp'
 import { AssetSwapsContext, AssetSwapsProvider } from '../../providers/assetSwaps'
 import { WalletContext } from '../../providers/wallet'
 import { assetSwapRepository as repository, type WalletAssetSwap } from '../../lib/swapRepository'
-import { btcUsdt, maratNapo, MARAT_ID, NAPO_ID, USDT_ID } from '../lib/swapFixtures'
+import { btcDepix, btcUsdt, maratNapo, DEPIX_ID, MARAT_ID, NAPO_ID, USDT_ID } from '../lib/swapFixtures'
 import corridorSolverCard from '../corridor-solver.card.json'
 import { saveSolverCards } from '../../lib/solverCards'
 import { toast } from '../../components/Toast'
@@ -673,6 +673,28 @@ describe('AssetSwapsProvider solver cards', () => {
       const swaps = await getAssetSwaps(repository)
       expect(swaps.find(({ id }) => id === stored.id)).toMatchObject({ quote: { fromTicker: 'sats', feeBps: 30 } })
       expect(swaps.find(({ id }) => id === alreadyPriced.id)).toMatchObject({ quote: { feeBps: 12 } })
+    })
+    await repository.clear()
+  })
+
+  it('names a restored swap from its market card instead of a truncated asset id', async () => {
+    // A record the restore scan rebuilt carries no quote snapshot, and the
+    // asset metadata cache only ever holds assets the wallet still OWNS — swap
+    // the last DePix away and the row had nothing left to name it with, so it
+    // read "47004bf4 to BTC". The pair's card knows the ticker; take it there.
+    await repository.clear()
+    const restored = { ...pendingSwap, id: 'restored-depix', fundingTxid: 'restored-depix', toAsset: DEPIX_ID }
+    await addAssetSwap(repository, restored)
+    discoverMarkets.mockResolvedValueOnce([btcDepix] as never)
+
+    renderOnNetwork()
+
+    await waitFor(async () => {
+      const stored = (await getAssetSwaps(repository)).find(({ id }) => id === restored.id)
+      // the BTC leg is deliberately absent: the card says BTC/8, every swap
+      // surface says sats/0, and the row derives that itself
+      expect(stored).toMatchObject({ quote: { toTicker: 'DePix', toDecimals: 8, feeBps: 30 } })
+      expect((stored as WalletAssetSwap).quote?.fromTicker).toBeUndefined()
     })
     await repository.clear()
   })
