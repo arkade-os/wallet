@@ -25,6 +25,7 @@ import {
   classifyDepositSpend,
   createOffer,
   decodeOffer,
+  findMarket,
   getAssetSwaps,
   isRfqMarket,
   restoreAssetSwapRepository,
@@ -42,7 +43,7 @@ import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import { assetSwapRepository, type AssetSwapQuoteSnapshot, type WalletAssetSwap } from '../lib/swapRepository'
 import { getEmulatorPubkeyForNetwork, getEmulatorPubkeyHexForNetwork } from '../lib/constants'
-import { discoverMarkets, marketQuoteSnapshot, missingQuoteFacts } from '../lib/swapMarkets'
+import { discoverMarkets } from '../lib/swapMarkets'
 import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
 import { consoleError } from '../lib/logs'
 import { toast } from '../components/Toast'
@@ -154,18 +155,14 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     [aspInfo.network],
   )
 
-  /** Fill in the quote-time display facts a record never got: the fee rate, and
-   * the tickers and decimals a restored record has no chain source for. Both
-   * come from the pair's current market card, per missing field — a record that
-   * carries its own snapshot keeps it. Without this a swap out of an asset the
-   * wallet no longer holds renders as a truncated asset id. */
-  const backfillQuoteFacts = async (availableMarkets: DiscoveredMarket[]) => {
+  const backfillMissingFees = async (availableMarkets: DiscoveredMarket[]) => {
     let list = await readSwaps()
     let changed = false
     for (const swap of list) {
-      const missing = missingQuoteFacts(swap, availableMarkets)
-      if (!missing) continue
-      const changes: Partial<WalletAssetSwap> = { quote: { ...swap.quote, ...missing } }
+      if (swap.quote?.feeBps !== undefined) continue
+      const feeBps = findMarket(availableMarkets, swap.fromAsset, swap.toAsset)?.market?.fee_bps
+      if (feeBps === undefined) continue
+      const changes: Partial<WalletAssetSwap> = { quote: { ...swap.quote, feeBps } }
       list = (await updateAssetSwap(assetSwapRepository, swap.id, changes)) as WalletAssetSwap[]
       changed = true
     }
@@ -189,9 +186,9 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
         backfillQueue.current = backfillQueue.current
           .then(async () => {
             if (generation !== discoveryGeneration.current) return
-            await backfillQuoteFacts(available)
+            await backfillMissingFees(available)
           })
-          .catch((err) => consoleError(err, 'failed to backfill asset swap quote facts'))
+          .catch((err) => consoleError(err, 'failed to backfill asset swap fees'))
       })
       .catch((err) => consoleError(err, 'solver discovery failed'))
   }
@@ -273,12 +270,10 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
         serverPubkey: xOnlyServerKey(aspInfo.signerPubkey),
         signal: token.signal,
         prepareNew: (swap) => {
-          // Quote-time facts are not on chain: a rebuilt record has no ticker,
-          // no decimals and no fee rate. Backfill all three from the pair's
-          // current card — an approximation for the fee if the solver has since
-          // changed it, and the only name the row would otherwise have.
-          const quote = marketQuoteSnapshot(marketsRef.current, swap.fromAsset, swap.toAsset)
-          return quote === undefined ? swap : ({ ...swap, quote } as AssetSwap)
+          // Quote-time facts are not on chain. Backfill the fee from the
+          // pair's current card until it rides in the funding packet.
+          const feeBps = findMarket(marketsRef.current, swap.fromAsset, swap.toAsset)?.market?.fee_bps
+          return feeBps === undefined ? swap : ({ ...swap, quote: { feeBps } } as AssetSwap)
         },
       })
       if (result.aborted || stale()) return

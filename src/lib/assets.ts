@@ -127,6 +127,36 @@ export const assetNameChanged = (
   next: { ticker?: string; decimals?: number } | undefined,
 ): boolean => previous?.ticker !== next?.ticker || previous?.decimals !== next?.decimals
 
+/**
+ * Every asset the activity UI can be asked to name.
+ *
+ * Naming is not a property of the balance sheet. A row names an asset long
+ * after the wallet stops holding it: swap the last of an asset away and its
+ * swap rows still have to say what was traded. So the metadata prefetch and the
+ * cache's TTL eviction both key off this, not off the owned balances, which is
+ * what left such a row showing a truncated asset id with a letter where its
+ * logo belongs.
+ *
+ * `btc` is excluded: it is the sentinel for bitcoin itself, has no asset
+ * metadata to fetch, and every surface names it from the unit setting.
+ */
+export const referencedAssetIds = (sources: {
+  owned?: { assetId: string }[]
+  /** Asset ids carried by history rows. */
+  rows?: string[]
+  /** Both legs of every stored swap record. */
+  swaps?: string[]
+}): Set<string> => {
+  const ids = new Set<string>()
+  for (const { assetId } of sources.owned ?? []) if (isNameableAssetId(assetId)) ids.add(assetId)
+  for (const assetId of sources.rows ?? []) if (isNameableAssetId(assetId)) ids.add(assetId)
+  for (const assetId of sources.swaps ?? []) if (isNameableAssetId(assetId)) ids.add(assetId)
+  return ids
+}
+
+const isNameableAssetId = (assetId: string | undefined): assetId is string =>
+  typeof assetId === 'string' && assetId.length > 0 && assetId !== 'btc'
+
 /** The BTC a spend may take. While the wallet holds assets one carrier stays
  * back: every asset output rides on `dust` sats (the server's threshold),
  * asset change needs one of its own, and spending the last one fails inside

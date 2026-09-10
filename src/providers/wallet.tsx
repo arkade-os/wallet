@@ -40,7 +40,7 @@ import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
 import { arkNoteInUrl } from '../lib/arknote'
 import { deepLinkInUrl } from '../lib/deepLink'
-import { assetNameChanged } from '../lib/assets'
+import { assetNameChanged, referencedAssetIds } from '../lib/assets'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { activitiesToTxs, getActivities } from '../lib/activityHistory'
@@ -48,7 +48,7 @@ import { arkTransactionToTx } from '../lib/transactionHistory'
 import { Indexer } from '../lib/indexer'
 import { lnSendViews, swapActivityInputs, type LnSendView } from '../lib/lnSendRecords'
 import { assetSwapResolver } from '../lib/activity/assetSwapResolver'
-import { swapActivityResolver } from '@arkade-os/swap'
+import { getAssetSwaps, swapActivityResolver } from '@arkade-os/swap'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
@@ -180,6 +180,23 @@ export const WalletContext = createContext<WalletContextProps>({
   devAutoInitFailed: false,
 })
 
+/** The asset legs stored swap records mention.
+ *
+ * Read straight from the repository rather than from this provider's
+ * `assetSwaps` state: that state is published upward by `AssetSwapsProvider`
+ * and is still empty on the reload that renders the first history, which is
+ * exactly the reload whose rows need naming. A read failure yields no ids
+ * rather than failing the reload — an unnamed row beats no wallet. */
+const readSwapRecordAssets = async (): Promise<string[]> => {
+  try {
+    const swaps = (await getAssetSwaps(assetSwapRepository)) as WalletAssetSwap[]
+    return swaps.flatMap((swap) => [swap.fromAsset, swap.toAsset])
+  } catch (err) {
+    consoleError(err, 'failed to read swap records while prefetching asset metadata')
+    return []
+  }
+}
+
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { isRegistered } = useContext(AssetsContext)
@@ -215,6 +232,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const hasLoadedOnce = useRef(false)
   const assetMetadataCache = useRef<Map<string, CachedAssetDetails>>(readAssetMetadataFromStorage() ?? new Map())
+  // Every asset the UI can still be asked to name (see `referencedAssetIds`).
+  // A ref because it gates persistence in `setCacheEntry`, not rendering.
+  const referencedAssetIdsRef = useRef<Set<string>>(new Set())
   const iconApprovalManager = useRef(new AssetIconApprovalManager()).current
 
   // Rows name assets through `assetMetadataCache`, which is a ref, so filling it
@@ -319,7 +339,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const entry: CachedAssetDetails = { ...moderated, cachedAt: Date.now(), hasIcon }
     const previous = assetMetadataCache.current.get(assetId)
     assetMetadataCache.current.set(assetId, entry)
-    saveAssetMetadataToStorage(assetMetadataCache.current)
+    saveAssetMetadataToStorage(assetMetadataCache.current, referencedAssetIdsRef.current)
     // Only what `assetDisplay` reads is worth a repaint. A TTL refresh rewriting
     // the same name must not re-derive every row, and the prefetch loop writes
     // one entry per owned asset with an await between each.
@@ -558,16 +578,30 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // the exit is explained by a history row instead. `available` already
       // excludes it, so Send, Swap and coin selection need nothing.
       const ownedAssets = subtractExitedAssets(assets, unrolledVtxos)
-      // prefetch asset metadata before triggering re-renders
-      if (isFirstLoad && ownedAssets.length > 0) setLoadingStatus('Loading asset metadata...')
-      for (const ab of ownedAssets) {
-        const cached = assetMetadataCache.current.get(ab.assetId)
+      // Naming is not a property of the balance sheet. A row names an asset
+      // long after the wallet stops holding it — swap the last of an asset away
+      // and its swap rows still have to say what was traded — so the prefetch
+      // covers every asset the UI can reference, not just the owned ones. Only
+      // the owned list was covered before, which is why such a row fell back to
+      // a truncated asset id with a letter where its logo belongs, and why the
+      // fall happened a day late: the entry survived until the TTL evicted it.
+      const referenced = referencedAssetIds({
+        owned: ownedAssets,
+        rows: activities.flatMap((activity) =>
+          activity.txs.flatMap((tx) => (arkTransactionToTx(tx).assets ?? []).map((asset) => asset.assetId)),
+        ),
+        swaps: await readSwapRecordAssets(),
+      })
+      referencedAssetIdsRef.current = referenced
+      if (isFirstLoad && referenced.size > 0) setLoadingStatus('Loading asset metadata...')
+      for (const assetId of referenced) {
+        const cached = assetMetadataCache.current.get(assetId)
         if (cached && Date.now() - cached.cachedAt < ASSET_METADATA_TTL_MS) continue
         try {
-          const meta = await swWallet.assetManager.getAssetDetails(ab.assetId)
-          if (meta) setCacheEntry(ab.assetId, meta)
+          const meta = await swWallet.assetManager.getAssetDetails(assetId)
+          if (meta) setCacheEntry(assetId, meta)
         } catch (err) {
-          consoleError(err, `error prefetching metadata for ${ab.assetId}`)
+          consoleError(err, `error prefetching metadata for ${assetId}`)
         }
       }
       setBalance(total - unrolled)
