@@ -551,6 +551,29 @@ describe('AssetSwapsProvider restore scan', () => {
       serverPubkey: hex.decode('ab'.repeat(32)),
     })
   })
+
+  it('does not apply an aborted restore result', async () => {
+    restoreAssetSwapRepository.mockResolvedValue({
+      ...result([restoredSwap], [{ current: restoredSwap }]),
+      aborted: true,
+    })
+
+    render(tree([sentTx(restoredSwap.id)]))
+
+    await waitFor(() => expect(restoreAssetSwapRepository).toHaveBeenCalledTimes(1))
+    expect(screen.getByTestId('restored')).toHaveTextContent('none')
+  })
+
+  it('keeps restored changes when covenant coverage fails', async () => {
+    mockResult({
+      ...result([restoredSwap], [{ current: restoredSwap }]),
+      coverageError: new Error('coverage unavailable'),
+    })
+
+    render(tree([sentTx(restoredSwap.id)]))
+
+    await waitFor(() => expect(screen.getByTestId('restored')).toHaveTextContent(restoredSwap.id))
+  })
 })
 
 describe('AssetSwapsProvider solver cards', () => {
