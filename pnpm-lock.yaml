@@ -22,8 +22,8 @@ importers:
         specifier: 0.2.4
         version: 0.2.4
       '@arkade-os/swap':
-        specifier: 0.0.16
-        version: 0.0.16(nostr-tools@2.17.2(typescript@5.9.3))
+        specifier: 0.0.17
+        version: 0.0.17(nostr-tools@2.17.2(typescript@5.9.3))
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -274,16 +274,12 @@ packages:
       expo-task-manager:
         optional: true
 
-  '@arkade-os/solver-discovery@0.2.3':
-    resolution: {integrity: sha512-i77/BCAmHY4fec41HfYb5osu+QkCEOf2jLha1HX5pkp6bHGrm10WG8eOGREKqPCC4bOI3E8cKwEVGxP0qlNt5g==}
-    engines: {node: '>=18'}
-
   '@arkade-os/solver-discovery@0.2.4':
     resolution: {integrity: sha512-iLjcZhnNmzndD6KLbgmMbyYL/JqmMYA2gSOn6MrESAMHWuF68CRtqn9ijvnDJDz8BzYXuFMZ/ghZfLjIvrdAdA==}
     engines: {node: '>=18'}
 
-  '@arkade-os/swap@0.0.16':
-    resolution: {integrity: sha512-ux01KxNhLXfz7t0D1+wOWWq0cKvp9TR0PwOwomH3mTKh7ZsDHiPZlxl3g8mPnXso51dsXVozC+r+4BPhtS0ulQ==}
+  '@arkade-os/swap@0.0.17':
+    resolution: {integrity: sha512-49VzrCKW8yg+TIzRXyt9D6Ho3cJjz7VxcfJMvy5n5VcR6Okd7aPsKV1PaV0PP4pkcQwoLUSZ/ynbDHIo+AGSnA==}
     peerDependencies:
       nostr-tools: ^2.12.0
     peerDependenciesMeta:
@@ -4382,14 +4378,12 @@ snapshots:
       - ecpair
       - utf-8-validate
 
-  '@arkade-os/solver-discovery@0.2.3': {}
-
   '@arkade-os/solver-discovery@0.2.4': {}
 
-  '@arkade-os/swap@0.0.16(nostr-tools@2.17.2(typescript@5.9.3))':
+  '@arkade-os/swap@0.0.17(nostr-tools@2.17.2(typescript@5.9.3))':
     dependencies:
       '@arkade-os/sdk': 0.4.72
-      '@arkade-os/solver-discovery': 0.2.3
+      '@arkade-os/solver-discovery': 0.2.4
       '@noble/ciphers': 2.1.1
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
