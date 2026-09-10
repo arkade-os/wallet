@@ -4,12 +4,13 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { hex } from '@scure/base'
 import { planOffer, type OfferPlan } from '@arkade-os/solver-discovery'
-import { addAssetSwap, getAssetSwaps, updateAssetSwap } from '@arkade-os/swap'
+import { addAssetSwap, getAssetSwaps, updateAssetSwap, type RestoreAssetSwapRepositoryResult } from '@arkade-os/swap'
 import { AspContext } from '../../providers/asp'
 import { AssetSwapsContext, AssetSwapsProvider } from '../../providers/assetSwaps'
 import { WalletContext } from '../../providers/wallet'
 import { assetSwapRepository as repository, type WalletAssetSwap } from '../../lib/swapRepository'
 import { btcUsdt, maratNapo, MARAT_ID, NAPO_ID, USDT_ID } from '../lib/swapFixtures'
+import corridorSolverCard from '../corridor-solver.card.json'
 import { saveSolverCards } from '../../lib/solverCards'
 import { toast } from '../../components/Toast'
 import { mockAspContextValue, mockTxInfo, mockWalletContextValue } from '../screens/mocks'
@@ -21,7 +22,7 @@ const getVirtualTxs = vi.hoisted(() => vi.fn())
 const classifyDepositSpend = vi.hoisted(() => vi.fn())
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const discoverMarkets = vi.hoisted(() => vi.fn(async (_network: string, _useCache?: boolean) => []))
-const restoreAssetSwaps = vi.hoisted(() => vi.fn())
+const restoreAssetSwapRepository = vi.hoisted(() => vi.fn())
 const watchOfferSwaps = vi.hoisted(() => vi.fn())
 const decodeOffer = vi.hoisted(() => vi.fn())
 
@@ -39,7 +40,7 @@ vi.mock('@arkade-os/swap', async (importOriginal) => ({
   classifyDepositSpend,
   createOffer,
   decodeOffer,
-  restoreAssetSwaps,
+  restoreAssetSwapRepository,
   watchOfferSwaps,
 }))
 
@@ -162,6 +163,12 @@ beforeEach(() => {
   decodeOffer.mockReset().mockReturnValue({ wantAsset: { toString: () => pendingSwap.toAsset } })
   getVirtualTxs.mockReset().mockResolvedValue({ txs: [] })
   classifyDepositSpend.mockReset().mockReturnValue('fulfilled')
+  restoreAssetSwapRepository.mockReset().mockResolvedValue({
+    swaps: [],
+    changes: [],
+    scannedTxids: [],
+    aborted: false,
+  })
 })
 
 describe('AssetSwapsProvider createSwap offer encoding', () => {
@@ -360,7 +367,13 @@ describe('AssetSwapsProvider restore scan', () => {
     return <span data-testid='restored'>{swaps.map((s) => s.id).join(',') || 'none'}</span>
   }
 
-  const tree = (txs: (typeof mockTxInfo)[], signerPubkey: string = SIGNER_PUBKEY, svcWallet?: unknown) =>
+  const defaultManager = { getContractsWithVtxos: vi.fn().mockResolvedValue([]) }
+  const defaultSvcWallet = { identity: {}, getContractManager: async () => defaultManager }
+  const tree = (
+    txs: (typeof mockTxInfo)[],
+    signerPubkey: string = SIGNER_PUBKEY,
+    svcWallet: unknown = defaultSvcWallet,
+  ) =>
     providerTree(
       {
         asp: { network: '', url: 'https://ark.test', signerPubkey },
@@ -378,21 +391,35 @@ describe('AssetSwapsProvider restore scan', () => {
     return { setContractWatchState, svcWallet: { identity: {}, getContractManager: async () => manager } }
   }
 
-  /** Renders with the first `restoreAssetSwaps` held open, so a rerender lands
+  type RestoreResult = RestoreAssetSwapRepositoryResult
+  const result = (swaps: WalletAssetSwap[] = [], changes: RestoreResult['changes'] = []): RestoreResult => ({
+    swaps,
+    changes,
+    scannedTxids: [],
+    aborted: false,
+  })
+  const mockResult = (value: RestoreResult) =>
+    restoreAssetSwapRepository.mockImplementation(async (opts: { repository: typeof repository }) => {
+      for (const { current } of value.changes) await opts.repository.saveSwap(current)
+      if (value.scannedTxids.length > 0) await opts.repository.markTxidsScanned(value.scannedTxids)
+      return value
+    })
+
+  /** Renders with the first SDK restore held open, so a rerender lands
    * while a scan is provably in flight. Returns the release for that run. */
   const renderBlockedScan = async () => {
-    let release: (result: { restored: WalletAssetSwap[]; scannedTxids: string[] }) => void = () => {}
-    restoreAssetSwaps
+    let release: (value: RestoreResult) => void = () => {}
+    restoreAssetSwapRepository
       .mockReturnValueOnce(new Promise((resolve) => (release = resolve)))
-      .mockResolvedValue({ restored: [], scannedTxids: [] })
+      .mockResolvedValue(result())
     const { rerender } = render(tree([sentTx('a')]))
-    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(1))
-    return { rerender, release: (result: Parameters<typeof release>[0]) => release(result) }
+    await waitFor(() => expect(restoreAssetSwapRepository).toHaveBeenCalledTimes(1))
+    return { rerender, release }
   }
 
   beforeEach(async () => {
     await repository.clear()
-    restoreAssetSwaps.mockReset()
+    restoreAssetSwapRepository.mockReset().mockResolvedValue(result())
   })
 
   afterEach(async () => await repository.clear())
@@ -408,7 +435,7 @@ describe('AssetSwapsProvider restore scan', () => {
     const { rerender, release } = await renderBlockedScan()
 
     rerender(tree([sentTx('a'), sentTx('b')]))
-    release({ restored: [restoredSwap], scannedTxids: ['restored-txid'] })
+    release(result([restoredSwap], [{ current: restoredSwap }]))
 
     await waitFor(() => expect(screen.getByTestId('restored')).toHaveTextContent('restored-txid'))
   })
@@ -421,16 +448,16 @@ describe('AssetSwapsProvider restore scan', () => {
     const { rerender, release } = await renderBlockedScan()
 
     rerender(tree([sentTx('a')], OTHER_PUBKEY))
-    release({ restored: [restoredSwap], scannedTxids: ['restored-txid'] })
+    release(result([restoredSwap], [{ current: restoredSwap }]))
 
-    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(2))
-    expect(restoreAssetSwaps.mock.calls[1][3].serverPubkey).toEqual(hex.decode('cd'.repeat(32)))
+    await waitFor(() => expect(restoreAssetSwapRepository).toHaveBeenCalledTimes(2))
+    expect(restoreAssetSwapRepository.mock.calls[1][0].serverPubkey).toEqual(hex.decode('cd'.repeat(32)))
     // and the abandoned run wrote nothing for the wallet that went away
     expect(screen.getByTestId('restored')).toHaveTextContent('none')
   })
 
   it('scans under StrictMode, whose setup/cleanup/setup would strand the unmounted flag', async () => {
-    restoreAssetSwaps.mockResolvedValue({ restored: [restoredSwap], scannedTxids: ['restored-txid'] })
+    restoreAssetSwapRepository.mockResolvedValue(result([restoredSwap], [{ current: restoredSwap }]))
 
     render(<StrictMode>{tree([sentTx('a')])}</StrictMode>)
 
@@ -438,22 +465,22 @@ describe('AssetSwapsProvider restore scan', () => {
   })
 
   it('goes round again with the history that arrived mid-scan', async () => {
-    let release: (result: { restored: WalletAssetSwap[]; scannedTxids: string[] }) => void = () => {}
-    restoreAssetSwaps
+    let release: (value: RestoreResult) => void = () => {}
+    restoreAssetSwapRepository
       .mockReturnValueOnce(new Promise((resolve) => (release = resolve)))
-      .mockResolvedValue({ restored: [], scannedTxids: [] })
+      .mockResolvedValue(result())
 
     const { rerender } = render(tree([sentTx('a')]))
-    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(1))
-    expect(restoreAssetSwaps.mock.calls[0][1]).toHaveLength(1)
+    await waitFor(() => expect(restoreAssetSwapRepository).toHaveBeenCalledTimes(1))
+    expect(restoreAssetSwapRepository.mock.calls[0][0].txs).toHaveLength(1)
 
     // a run skipped because another was in flight must not be a run lost
     rerender(tree([sentTx('a'), sentTx('b')]))
-    release({ restored: [], scannedTxids: ['a'] })
+    release(result())
 
-    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(restoreAssetSwapRepository).toHaveBeenCalledTimes(2))
     // and it sees the newer history, not the list its effect closed over
-    expect(restoreAssetSwaps.mock.calls[1][1]).toHaveLength(2)
+    expect(restoreAssetSwapRepository.mock.calls[1][0].txs).toHaveLength(2)
   })
 
   it('feeds the scan the ungrouped rows, not the grouped ones its own records produced', async () => {
@@ -463,7 +490,7 @@ describe('AssetSwapsProvider restore scan', () => {
     // loses the very tx it rebuilt the record from, so exempting the record
     // from both skip lists buys nothing — there is no candidate left to ask
     // about. It could create a record and never re-answer it.
-    restoreAssetSwaps.mockResolvedValue({ restored: [], scannedTxids: [] })
+    restoreAssetSwapRepository.mockResolvedValue(result())
     const funding = sentTx('funding-txid')
     const grouped = { ...mockTxInfo, type: 'swap', redeemTxid: 'funding-txid', createdAt: 1 }
 
@@ -471,32 +498,21 @@ describe('AssetSwapsProvider restore scan', () => {
       providerTree(
         {
           asp: { network: '', url: 'https://ark.test', signerPubkey: SIGNER_PUBKEY },
-          wallet: { dataReady: true, txs: [grouped], ungroupedTxs: [funding] },
+          wallet: { dataReady: true, txs: [grouped], ungroupedTxs: [funding], svcWallet: defaultSvcWallet },
         },
         <ScanHarness />,
       ),
     )
 
-    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(1))
-    expect(restoreAssetSwaps.mock.calls[0][1]).toEqual([funding])
+    await waitFor(() => expect(restoreAssetSwapRepository).toHaveBeenCalledTimes(1))
+    expect(restoreAssetSwapRepository.mock.calls[0][0].txs).toEqual([funding])
   })
 
-  it('re-asks about a record still open and writes the outcome the chain reports', async () => {
-    // The bug this closes: a record whose covenant was never registered — every
-    // record a restore rebuilt — has no contract row, so no watcher event and
-    // no `reconcileUnseenSpends` pass can reach it. Left in `existingIds` it was
-    // skipped by every later scan too, so `pending` was permanent and the swap
-    // rendered as a Swap-pending row plus a bare received one, forever.
+  it('applies an SDK-restored outcome and retires its covenant', async () => {
     const stored: WalletAssetSwap = { ...pendingSwap, quote: { feeBps: 30 } }
     await addAssetSwap(repository, stored)
-    await repository.markTxidsScanned([stored.id])
-    restoreAssetSwaps.mockResolvedValue({
-      restored: [
-        // as the scan builds it: every field from chain, and no funded address
-        { ...pendingSwap, swapAddress: '', status: 'fulfilled', spentTxid: 'fill-txid', completedAt: 99 },
-      ],
-      scannedTxids: [stored.id],
-    })
+    const restored = { ...stored, status: 'fulfilled' as const, spentTxid: 'fill-txid', completedAt: 99 }
+    mockResult(result([restored], [{ previous: stored, current: restored }]))
     const seams = scanWallet()
 
     render(tree([sentTx(stored.id)], SIGNER_PUBKEY, seams.svcWallet))
@@ -506,48 +522,57 @@ describe('AssetSwapsProvider restore scan', () => {
         status: 'fulfilled',
         spentTxid: 'fill-txid',
         completedAt: 99,
-        // the two the scan cannot know and must not overwrite
+        // the SDK preserved the two fields chain data cannot know
         swapAddress: pendingSwap.swapAddress,
         quote: { feeBps: 30 },
       }),
     )
-    // neither skip list may hold it back, or the scan never sees the candidate
-    expect(restoreAssetSwaps.mock.calls[0][2].has(stored.id)).toBe(false)
-    expect(restoreAssetSwaps.mock.calls[0][3].scanned.has(stored.id)).toBe(false)
+    expect(restoreAssetSwapRepository.mock.calls[0][0]).toMatchObject({
+      wallet: seams.svcWallet,
+      arkServerUrl: 'https://ark.test',
+      repository,
+    })
     // and the covenant it settled leaves the watched set
     await waitFor(() => expect(seams.setContractWatchState).toHaveBeenCalledWith(stored.swapPkScript, 'retained'))
   })
 
-  it('stops asking about a record the chain has answered', async () => {
-    const stored: WalletAssetSwap = { ...pendingSwap, status: 'cancelled', spentTxid: 'cancel-txid' }
-    await addAssetSwap(repository, stored)
-    await repository.markTxidsScanned([stored.id])
-    restoreAssetSwaps.mockResolvedValue({ restored: [], scannedTxids: [] })
+  it('delegates records, cursor and coverage to the SDK even with no history rows', async () => {
+    await addAssetSwap(repository, pendingSwap)
+    const { svcWallet } = scanWallet()
 
-    render(tree([sentTx(stored.id)]))
+    render(tree([], SIGNER_PUBKEY, svcWallet))
 
-    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(1))
-    expect(restoreAssetSwaps.mock.calls[0][2].has(stored.id)).toBe(true)
-    expect(restoreAssetSwaps.mock.calls[0][3].scanned.has(stored.id)).toBe(true)
+    await waitFor(() => expect(restoreAssetSwapRepository).toHaveBeenCalledTimes(1))
+    expect(restoreAssetSwapRepository.mock.calls[0][0]).toMatchObject({
+      wallet: svcWallet,
+      arkServerUrl: 'https://ark.test',
+      repository,
+      txs: [],
+      serverPubkey: hex.decode('ab'.repeat(32)),
+    })
   })
 
-  it('leaves a cancel in flight alone when the scan has no answer for it yet', async () => {
-    // `pending` off the scan means the deposit is still unspent, which is not an
-    // outcome. Writing it back would drop the cancel `cancelOffer` is running.
-    await addAssetSwap(repository, { ...pendingSwap, status: 'cancelling' })
-    restoreAssetSwaps.mockResolvedValue({
-      restored: [{ ...pendingSwap, swapAddress: '', status: 'pending' }],
-      scannedTxids: [],
+  it('does not apply an aborted restore result', async () => {
+    restoreAssetSwapRepository.mockResolvedValue({
+      ...result([restoredSwap], [{ current: restoredSwap }]),
+      aborted: true,
     })
 
-    render(tree([sentTx(pendingSwap.id)]))
+    render(tree([sentTx(restoredSwap.id)]))
 
-    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(1))
-    await waitFor(() => expect(screen.getByTestId('restored')).toHaveTextContent(pendingSwap.id))
-    expect((await getAssetSwaps(repository))[0]).toMatchObject({
-      status: 'cancelling',
-      swapAddress: pendingSwap.swapAddress,
+    await waitFor(() => expect(restoreAssetSwapRepository).toHaveBeenCalledTimes(1))
+    expect(screen.getByTestId('restored')).toHaveTextContent('none')
+  })
+
+  it('keeps restored changes when covenant coverage fails', async () => {
+    mockResult({
+      ...result([restoredSwap], [{ current: restoredSwap }]),
+      coverageError: new Error('coverage unavailable'),
     })
+
+    render(tree([sentTx(restoredSwap.id)]))
+
+    await waitFor(() => expect(screen.getByTestId('restored')).toHaveTextContent(restoredSwap.id))
   })
 })
 
@@ -556,7 +581,15 @@ describe('AssetSwapsProvider solver cards', () => {
     return null
   }
 
-  const renderOnNetwork = () =>
+  const corridorMarket = {
+    ...corridorSolverCard.markets[0],
+    discovery_pubkey: corridorSolverCard.discovery_pubkey,
+    transports: corridorSolverCard.transports,
+  }
+
+  const quoteIdOf = (market: { quote_asset?: unknown }) => (market.quote_asset as { id?: string } | undefined)?.id ?? ''
+
+  const renderOnNetwork = (children: ReactNode = <Bare />) =>
     render(
       <AspContext.Provider
         value={
@@ -568,9 +601,7 @@ describe('AssetSwapsProvider solver cards', () => {
             { ...mockWalletContextValue, reloadWallet: vi.fn().mockResolvedValue(undefined), svcWallet: null } as any
           }
         >
-          <AssetSwapsProvider>
-            <Bare />
-          </AssetSwapsProvider>
+          <AssetSwapsProvider>{children}</AssetSwapsProvider>
         </WalletContext.Provider>
       </AspContext.Provider>,
     )
@@ -590,6 +621,45 @@ describe('AssetSwapsProvider solver cards', () => {
     // cache bypassed: the TTL cache holds the registry's answer, which is
     // exactly what a newly stored card changes
     expect(discoverMarkets.mock.calls[1][1]).toBe(false)
+  })
+
+  it('backfills missing persisted fees after market discovery', async () => {
+    await repository.clear()
+    const stored = { ...pendingSwap, toAsset: USDT_ID, quote: { fromTicker: 'sats' } }
+    const alreadyPriced = {
+      ...stored,
+      id: 'already-priced',
+      fundingTxid: 'already-priced',
+      quote: { feeBps: 12 },
+    }
+    await addAssetSwap(repository, stored)
+    await addAssetSwap(repository, alreadyPriced)
+    discoverMarkets.mockResolvedValueOnce([btcUsdt] as never)
+
+    renderOnNetwork()
+
+    await waitFor(async () => {
+      const swaps = await getAssetSwaps(repository)
+      expect(swaps.find(({ id }) => id === stored.id)).toMatchObject({ quote: { fromTicker: 'sats', feeBps: 30 } })
+      expect(swaps.find(({ id }) => id === alreadyPriced.id)).toMatchObject({ quote: { feeBps: 12 } })
+    })
+    await repository.clear()
+  })
+
+  it('keeps a corridor market out of the spot swap surface', async () => {
+    // The corridor is the registry's own post-#23 card, where the rail is named
+    // inside the asset id. The pre-#23 check read a field that shape does not
+    // carry, so every corridor market fell through it into a surface that
+    // cannot trade one.
+    function QuoteIds() {
+      return <div data-testid='quote-ids'>{useContext(AssetSwapsContext).markets.map(quoteIdOf).join(' ')}</div>
+    }
+    discoverMarkets.mockResolvedValueOnce([corridorMarket, btcUsdt] as never)
+
+    renderOnNetwork(<QuoteIds />)
+
+    await waitFor(() => expect(screen.getByTestId('quote-ids')).toHaveTextContent(USDT_ID))
+    expect(screen.getByTestId('quote-ids')).not.toHaveTextContent('bolt11')
   })
 })
 
@@ -625,7 +695,12 @@ describe('AssetSwapsProvider spends the watcher never saw', () => {
 
   beforeEach(async () => {
     await repository.clear()
-    restoreAssetSwaps.mockReset().mockResolvedValue({ restored: [], scannedTxids: [] })
+    restoreAssetSwapRepository.mockReset().mockResolvedValue({
+      swaps: [pendingSwap],
+      changes: [],
+      scannedTxids: [],
+      aborted: false,
+    })
     vi.mocked(toast.success).mockClear()
     await addAssetSwap(repository, pendingSwap)
   })
