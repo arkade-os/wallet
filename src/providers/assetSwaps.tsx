@@ -64,17 +64,6 @@ interface AssetSwapsContextProps {
   /** True when there are markets and the covenant co-signer's key is known. */
   swapAvailable: boolean
   swaps: WalletAssetSwap[]
-  /** False while the restore scan still has funding txs to answer for.
-   *
-   * Until it answers, a swap's two transactions are ungrouped, so the activity
-   * list would paint them as a bare Sent and a bare Received and then replace
-   * both with one Swap row a moment later. Consumers render a placeholder
-   * instead of that wrong first frame.
-   *
-   * Only ever false when the scan actually has work: a wallet whose store
-   * already covers its history never leaves this true, so the common case
-   * costs no placeholder at all. */
-  swapScanSettled: boolean
   createSwap: (plan: OfferPlan, quote?: AssetSwapQuoteSnapshot) => Promise<WalletAssetSwap>
   cancelSwap: (id: string) => Promise<void>
 }
@@ -83,7 +72,6 @@ export const AssetSwapsContext = createContext<AssetSwapsContextProps>({
   markets: [],
   swapAvailable: false,
   swaps: [],
-  swapScanSettled: true,
   createSwap: async () => {
     throw new Error('asset swaps not initialized')
   },
@@ -94,13 +82,11 @@ export const AssetSwapsContext = createContext<AssetSwapsContextProps>({
 
 export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
-  const { dataReady, svcWallet, reloadWallet, setAssetSwaps, txs, ungroupedTxs } = useContext(WalletContext)
+  const { dataReady, svcWallet, reloadWallet, setActivityPending, setAssetSwaps, txs, ungroupedTxs } =
+    useContext(WalletContext)
 
   const [markets, setMarkets] = useState<DiscoveredMarket[]>([])
   const [swaps, setSwaps] = useState<WalletAssetSwap[]>([])
-  // starts settled: the gate is raised by a scan that finds work, never by the
-  // absence of one, so a wallet with nothing to rebuild never blinks
-  const [scanSettled, setScanSettled] = useState(true)
 
   // the watcher and the reconciliation both read the current list from outside
   // a render, where `swaps` would be the value captured when they were created
@@ -260,28 +246,30 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
       // swap per history change, and it stops the moment the swap settles.
       const open = new Map(existing.filter(isOpen).map((swap) => [swap.id, swap]))
       const closedIds = new Set(existing.filter((swap) => !isOpen(swap)).map((swap) => swap.id))
-      const scannedIds = new Set([...scanned].filter((txid) => !open.has(txid)))
-      // Whether the call below has anything to chew on, from the same two skip
-      // lists it is handed: a sent tx neither answered nor already recorded is
-      // a funding tx this pass may still turn into a swap row. Both reads are
-      // local, so the gate goes up before the first fetch rather than after it.
-      // TODO: read this off `@arkade-os/swap` once its own candidate predicate
-      // is exported, so the two cannot drift.
-      if (
+      // Whether this pass can still change what the activity list is showing: a
+      // sent tx with no record at all, that no earlier pass has answered, may
+      // yet turn out to be a swap funding and take a received row with it. A tx
+      // that already HAS a record is not one — open or closed, its rows are
+      // grouped as a Swap row already, so re-asking the chain about it (which
+      // an open record does on every pass) must not blank the list.
+      //
+      // Both reads are local, so the gate goes up before the first fetch rather
+      // than after it.
+      const recordedIds = new Set(existing.map((swap) => swap.id))
+      setActivityPending(
         txsRef.current.some(
-          (tx) =>
-            tx.type === 'sent' && tx.redeemTxid && !closedIds.has(tx.redeemTxid) && !scannedIds.has(tx.redeemTxid),
-        )
-      ) {
-        setScanSettled(false)
-      }
+          (tx) => tx.type === 'sent' && tx.redeemTxid && !recordedIds.has(tx.redeemTxid) && !scanned.has(tx.redeemTxid),
+        ),
+      )
       const { restored, scannedTxids } = await restoreAssetSwaps(
         new RestIndexerProvider(aspInfo.url),
         txsRef.current,
         closedIds,
         {
           serverPubkey: xOnlyServerKey(aspInfo.signerPubkey),
-          scanned: scannedIds,
+          // an open record is exempt from both skip lists, so the scan keeps
+          // re-asking the chain about it until it answers
+          scanned: new Set([...scanned].filter((txid) => !open.has(txid))),
         },
       )
       if (stale()) return
@@ -341,11 +329,11 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
         // the CURRENT token, not this run's: a run whose token died is exactly
         // the one whose queued work still has to happen, under its replacement
         if (!rescanRef.current || !scanTokenRef.current.live) {
-          // The list is trustworthy again once this pass is done — including the
+          // The rows are trustworthy again once this pass is done — including the
           // pass that threw, since holding a placeholder over an indexer outage
           // would hide the history rather than protect it. A queued rescan keeps
           // the gate up: its run is part of the same answer.
-          setScanSettled(true)
+          setActivityPending(false)
           return
         }
         rescanRef.current = false
@@ -729,21 +717,11 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
 
   const swapAvailable = markets.length > 0 && Boolean(emulatorPubkey)
   const value = useMemo(
-    () => ({ markets, swapAvailable, swaps, swapScanSettled: scanSettled, createSwap, cancelSwap }),
+    () => ({ markets, swapAvailable, swaps, createSwap, cancelSwap }),
     // createSwap/cancelSwap close over these; the signer key reaches cancelSwap
     // through classifyDeposit, which reads the leaf against it
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      markets,
-      swapAvailable,
-      swaps,
-      scanSettled,
-      svcWallet,
-      emulatorPubkey,
-      aspInfo.url,
-      aspInfo.network,
-      aspInfo.signerPubkey,
-    ],
+    [markets, swapAvailable, swaps, svcWallet, emulatorPubkey, aspInfo.url, aspInfo.network, aspInfo.signerPubkey],
   )
 
   return <AssetSwapsContext.Provider value={value}>{children}</AssetSwapsContext.Provider>

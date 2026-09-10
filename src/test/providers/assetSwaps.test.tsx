@@ -356,21 +356,20 @@ describe('AssetSwapsProvider restore scan', () => {
   const sentTx = (redeemTxid: string) => ({ ...mockTxInfo, type: 'sent', redeemTxid, createdAt: 1 })
 
   function ScanHarness() {
-    const { swaps, swapScanSettled } = useContext(AssetSwapsContext)
-    return (
-      <>
-        <span data-testid='restored'>{swaps.map((s) => s.id).join(',') || 'none'}</span>
-        <span data-testid='settled'>{String(swapScanSettled)}</span>
-      </>
-    )
+    const { swaps } = useContext(AssetSwapsContext)
+    return <span data-testid='restored'>{swaps.map((s) => s.id).join(',') || 'none'}</span>
   }
+
+  /** The gate travels up to the wallet provider, which owns the rows it
+   * qualifies, so a test watches the setter rather than a context field. */
+  let setActivityPending = vi.fn()
 
   const tree = (txs: (typeof mockTxInfo)[], signerPubkey: string = SIGNER_PUBKEY, svcWallet?: unknown) =>
     providerTree(
       {
         asp: { network: '', url: 'https://ark.test', signerPubkey },
         // the scan reads the ungrouped rows; `txs` is the grouped display list
-        wallet: { dataReady: true, txs, ungroupedTxs: txs, svcWallet },
+        wallet: { dataReady: true, txs, ungroupedTxs: txs, svcWallet, setActivityPending },
       },
       <ScanHarness />,
     )
@@ -398,6 +397,7 @@ describe('AssetSwapsProvider restore scan', () => {
   beforeEach(async () => {
     await repository.clear()
     restoreAssetSwaps.mockReset()
+    setActivityPending = vi.fn()
   })
 
   afterEach(async () => await repository.clear())
@@ -529,9 +529,9 @@ describe('AssetSwapsProvider restore scan', () => {
     // both with one Swap row. The gate goes up before the first fetch.
     const { release } = await renderBlockedScan()
 
-    await waitFor(() => expect(screen.getByTestId('settled')).toHaveTextContent('false'))
+    await waitFor(() => expect(setActivityPending).toHaveBeenLastCalledWith(true))
     release({ restored: [], scannedTxids: ['a'] })
-    await waitFor(() => expect(screen.getByTestId('settled')).toHaveTextContent('true'))
+    await waitFor(() => expect(setActivityPending).toHaveBeenLastCalledWith(false))
   })
 
   it('never raises the gate for a wallet whose store already covers its history', async () => {
@@ -546,7 +546,24 @@ describe('AssetSwapsProvider restore scan', () => {
     render(tree([sentTx(stored.id)]))
 
     await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(1))
-    expect(screen.getByTestId('settled')).toHaveTextContent('true')
+    expect(setActivityPending).not.toHaveBeenCalledWith(true)
+  })
+
+  it('never raises the gate for a record the scan is still re-asking about', async () => {
+    // An open record is exempt from both skip lists, so every pass takes it as
+    // a candidate again — but its rows are already grouped as a Swap row, so
+    // blanking the list for it would flash the wallet on every history change
+    // for as long as the swap stays pending.
+    await addAssetSwap(repository, pendingSwap)
+    await repository.markTxidsScanned([pendingSwap.id])
+    restoreAssetSwaps.mockResolvedValue({ restored: [], scannedTxids: [] })
+
+    render(tree([sentTx(pendingSwap.id)]))
+
+    await waitFor(() => expect(restoreAssetSwaps).toHaveBeenCalledTimes(1))
+    // exempt where it counts — the scan still re-asks the chain about it
+    expect(restoreAssetSwaps.mock.calls[0][3].scanned.has(pendingSwap.id)).toBe(false)
+    expect(setActivityPending).not.toHaveBeenCalledWith(true)
   })
 
   it('lowers the gate even when the scan throws', async () => {
@@ -555,7 +572,7 @@ describe('AssetSwapsProvider restore scan', () => {
 
     render(tree([sentTx('a')]))
 
-    await waitFor(() => expect(screen.getByTestId('settled')).toHaveTextContent('true'))
+    await waitFor(() => expect(setActivityPending).toHaveBeenLastCalledWith(false))
   })
 
   it('stops asking about a record the chain has answered', async () => {

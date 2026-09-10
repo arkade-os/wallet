@@ -11,14 +11,17 @@ import { useReducedMotion } from '../../hooks/useReducedMotion'
 import ActivityFilter, { type ActivityFilterValue } from '../../components/ActivityFilter'
 
 export default function Activity() {
-  const { assetMetadataCache, txs } = useContext(WalletContext)
+  const { activityPending, assetMetadataCache, txs } = useContext(WalletContext)
   const [filter, setFilter] = useState<ActivityFilterValue>('all')
   const prefersReduced = useReducedMotion()
   const hasSwaps = txs.some((tx) => !shouldHideDevAssetTx(tx, assetMetadataCache) && tx.type === 'swap')
 
   useEffect(() => {
-    if (!hasSwaps && filter !== 'all') setFilter('all')
-  }, [filter, hasSwaps])
+    // Not while the swap rows are still being decided: `hasSwaps` reads false
+    // over that window for a wallet that has plenty, and resetting on it would
+    // throw away the filter the user picked.
+    if (!activityPending && !hasSwaps && filter !== 'all') setFilter('all')
+  }, [activityPending, filter, hasSwaps])
 
   return (
     <>

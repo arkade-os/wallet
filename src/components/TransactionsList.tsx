@@ -7,7 +7,6 @@ import AssetAvatar from './AssetAvatar'
 import ReceivedIcon from '../icons/Received'
 import SentIcon from '../icons/Sent'
 import FlexRow from './FlexRow'
-import { AssetSwapsContext } from '../providers/assetSwaps'
 import { FlowContext } from '../providers/flow'
 import { NavigationContext, Pages } from '../providers/navigation'
 import { ConfigContext } from '../providers/config'
@@ -25,6 +24,7 @@ import {
   swapStatusLabel,
   swapUnitOfAccountAmount,
 } from '../lib/swapDisplay'
+import SkeletonText from './SkeletonText'
 import UnverifiedBadge from './UnverifiedBadge'
 import { useTransactionAmountDisplay } from '../hooks/useTransactionAmountDisplay'
 
@@ -248,16 +248,16 @@ const TransactionLineSkeleton = ({ mode }: { mode: 'virtual' | 'static' }) => (
   <div className={`activity-row activity-row--${mode} activity-row--skeleton`} aria-hidden='true'>
     <div className='activity-row__left'>
       <span className='activity-row__icon'>
-        <span className='activity-skeleton activity-skeleton--icon' />
+        <SkeletonText width='2.5rem' className='skeleton-text--icon' />
       </span>
-      <span className='activity-row__copy'>
-        <span className='swap-skeleton-text' style={{ width: '4.5rem' }} />
-        <span className='swap-skeleton-text' style={{ width: '7rem' }} />
-      </span>
+      <div className='activity-row__copy'>
+        <SkeletonText width='4.5rem' />
+        <SkeletonText width='7rem' />
+      </div>
     </div>
-    <span className='activity-row__right'>
-      <span className='swap-skeleton-text' style={{ width: '3.5rem' }} />
-    </span>
+    <div className='activity-row__right'>
+      <SkeletonText width='3.5rem' />
+    </div>
   </div>
 )
 
@@ -280,20 +280,15 @@ export default function TransactionsList({
 }: TransactionsListProps) {
   const { setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { assetMetadataCache, txs: allTxs } = useContext(WalletContext)
-  const { swapScanSettled } = useContext(AssetSwapsContext)
+  const { activityPending, assetMetadataCache, txs: allTxs } = useContext(WalletContext)
   const visibleTxs = allTxs
     .filter((tx) => !shouldHideDevAssetTx(tx, assetMetadataCache))
     .filter((tx) => matchesAssetFilter(tx, assetIdFilter))
     .filter((tx) => !typeFilter || tx.type === typeFilter)
   const txs = mode === 'static' && limit ? visibleTxs.slice(0, limit) : visibleTxs
 
-  // A swap's funding and fill transactions are two ungrouped rows until the
-  // restore scan binds them, so painting them now would show a Sent and a
-  // Received that a moment later become one Swap. Placeholders instead: the
-  // gate is only ever closed while that scan has funding txs left to answer
-  // for, which on a wallet that already holds its records is never.
-  const pending = !swapScanSettled && txs.length > 0
+  // Rows the swap restore scan may still regroup — see `activityPending`.
+  const pending = activityPending && txs.length > 0
 
   const focusedRef = useRef(false)
   const focusedIndexRef = useRef(0)
@@ -360,9 +355,11 @@ export default function TransactionsList({
   }
 
   if (pending) {
+    // `txs` is already sliced to `limit`, so its length is the cap in static
+    // mode; a virtual list only needs enough rows to fill the first screen
     return (
-      <div className={`activity-list ${mode === 'static' ? 'activity-list--compact' : 'activity-list--full'}`}>
-        {Array.from({ length: Math.min(txs.length, limit ?? 5) }, (_, index) => (
+      <div className={`activity-list ${mode === 'static' ? 'activity-list--compact' : ''}`}>
+        {Array.from({ length: Math.min(txs.length, 5) }, (_, index) => (
           <TransactionLineSkeleton key={index} mode={mode} />
         ))}
       </div>
