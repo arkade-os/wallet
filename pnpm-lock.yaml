@@ -5,6 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  '@arkade-os/sdk': 0.4.72
   '@babel/core': '>=7.29.6 <8.0.0'
   js-yaml@<4: '>=3.15.0 <4.0.0'
   js-yaml@>=4: '>=4.2.0 <5.0.0'
@@ -16,14 +17,14 @@ importers:
   .:
     dependencies:
       '@arkade-os/sdk':
-        specifier: 0.4.71
-        version: 0.4.71
+        specifier: 0.4.72
+        version: 0.4.72
       '@arkade-os/solver-discovery':
         specifier: 0.2.3
         version: 0.2.3
       '@arkade-os/swap':
-        specifier: 0.0.14
-        version: 0.0.14(nostr-tools@2.17.2(typescript@5.9.3))
+        specifier: 0.0.15
+        version: 0.0.15(nostr-tools@2.17.2(typescript@5.9.3))
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -253,8 +254,8 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/sdk@0.4.71':
-    resolution: {integrity: sha512-gLoHL40EPi21+XlZzxMVfLYl4nWNVXqhRIwksV0vzSb8ID+hfYl9PYm5cgazEwxFkP/tm08C2uK72QjSAkG94A==}
+  '@arkade-os/sdk@0.4.72':
+    resolution: {integrity: sha512-u0h+oLu+l9//VBQxroIgHjXTdfQsOZZGfmXKkmZj5SzaozsDH6L2FDUbUtzGlNZF/UBKqcwwBHb4PzsP8unjZQ==}
     engines: {node: '>=22.12.0 <27'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -278,8 +279,8 @@ packages:
     resolution: {integrity: sha512-i77/BCAmHY4fec41HfYb5osu+QkCEOf2jLha1HX5pkp6bHGrm10WG8eOGREKqPCC4bOI3E8cKwEVGxP0qlNt5g==}
     engines: {node: '>=18'}
 
-  '@arkade-os/swap@0.0.14':
-    resolution: {integrity: sha512-Wn159smG1KrcJk9oCyp4MCLK1cLeiNEGUeYuQNQcKZ8SMxLRW2J3sf34KK4EJVOfuU1nDOgLcb8fsL2A8Wm8vw==}
+  '@arkade-os/swap@0.0.15':
+    resolution: {integrity: sha512-G7XQs9YwtfxVCNMUFj4/JvmymdoEZbr2jcTZExE+ogebbamqRDW8OWyIXOw6s9dp4gjg1JSkuxJf9v1RGgobMA==}
     peerDependencies:
       nostr-tools: ^2.12.0
     peerDependenciesMeta:
@@ -4359,7 +4360,7 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/sdk@0.4.71':
+  '@arkade-os/sdk@0.4.72':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 8.0.0
@@ -4380,9 +4381,9 @@ snapshots:
 
   '@arkade-os/solver-discovery@0.2.3': {}
 
-  '@arkade-os/swap@0.0.14(nostr-tools@2.17.2(typescript@5.9.3))':
+  '@arkade-os/swap@0.0.15(nostr-tools@2.17.2(typescript@5.9.3))':
     dependencies:
-      '@arkade-os/sdk': 0.4.71
+      '@arkade-os/sdk': 0.4.72
       '@arkade-os/solver-discovery': 0.2.3
       '@noble/ciphers': 2.1.1
       '@noble/curves': 2.0.1

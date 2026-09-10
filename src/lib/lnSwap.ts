@@ -25,7 +25,7 @@
 import { hex } from '@scure/base'
 import { sideLimits, type DiscoveredMarket, type Side } from '@arkade-os/solver-discovery'
 import type { NetworkName, RestIndexerProvider } from '@arkade-os/sdk'
-import { requestLightningSend, type InvoiceFacts, type RfqTransport } from '@arkade-os/swap'
+import { marketCorridor, requestLightningSend, type InvoiceFacts, type RfqTransport } from '@arkade-os/swap'
 import { decodeInvoice, invoiceMatchesNetwork, isInvoiceExpired, type DecodedInvoice } from './bolt11'
 import type { LnSendRecordFacts } from './lnSendRecords'
 
@@ -181,7 +181,8 @@ const lnRendezvous = (
 ): LnSendRendezvous | undefined => {
   const pinned = fallbackEmulatorPubkey ? hex.encode(fallbackEmulatorPubkey) : undefined
   for (const market of markets) {
-    if (market.quote_corridor !== 'lightning') continue
+    if (marketCorridor(market, 'quote') !== 'bolt11') continue
+    if (marketCorridor(market, 'base') !== 'arkade') continue
     const transports = {
       nostr: {
         relays: market.transports?.nostr?.relays ?? [],
