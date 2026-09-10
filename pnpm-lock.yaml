@@ -5,6 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.4.71-pr901-952e7d0.tgz
   '@babel/core': '>=7.29.6 <8.0.0'
   js-yaml@<4: '>=3.15.0 <4.0.0'
   js-yaml@>=4: '>=4.2.0 <5.0.0'
@@ -16,14 +17,14 @@ importers:
   .:
     dependencies:
       '@arkade-os/sdk':
-        specifier: 0.4.71
-        version: 0.4.71
+        specifier: file:vendor/arkade-os-sdk-0.4.71-pr901-952e7d0.tgz
+        version: file:vendor/arkade-os-sdk-0.4.71-pr901-952e7d0.tgz
       '@arkade-os/solver-discovery':
         specifier: 0.2.3
         version: 0.2.3
       '@arkade-os/swap':
-        specifier: file:vendor/arkade-os-swap-0.0.14-pr901-0999579.tgz
-        version: file:vendor/arkade-os-swap-0.0.14-pr901-0999579.tgz(nostr-tools@2.17.2(typescript@5.9.3))
+        specifier: file:vendor/arkade-os-swap-0.0.14-pr901-952e7d0.tgz
+        version: file:vendor/arkade-os-swap-0.0.14-pr901-952e7d0.tgz(nostr-tools@2.17.2(typescript@5.9.3))
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -253,8 +254,9 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/sdk@0.4.71':
-    resolution: {integrity: sha512-gLoHL40EPi21+XlZzxMVfLYl4nWNVXqhRIwksV0vzSb8ID+hfYl9PYm5cgazEwxFkP/tm08C2uK72QjSAkG94A==}
+  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.71-pr901-952e7d0.tgz':
+    resolution: {integrity: sha512-Limhkc+U0LOFzrlfwLIJ9RxTE5S8cFNyLepYpsZf5sBwYecvxQzQ2anwKRmhfuUZiDUsGLpVvmwfUOTN5Sgn1A==, tarball: file:vendor/arkade-os-sdk-0.4.71-pr901-952e7d0.tgz}
+    version: 0.4.71
     engines: {node: '>=22.12.0 <27'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -278,8 +280,8 @@ packages:
     resolution: {integrity: sha512-i77/BCAmHY4fec41HfYb5osu+QkCEOf2jLha1HX5pkp6bHGrm10WG8eOGREKqPCC4bOI3E8cKwEVGxP0qlNt5g==}
     engines: {node: '>=18'}
 
-  '@arkade-os/swap@file:vendor/arkade-os-swap-0.0.14-pr901-0999579.tgz':
-    resolution: {integrity: sha512-UEBTPapIDjzHTu+MDUIJCRvz7dDagAJytbAIaQPeumpQZJOn2G3a9Q7/7Bufs1RwkiIcnLRB9wZF9GrWkjQ2DQ==, tarball: file:vendor/arkade-os-swap-0.0.14-pr901-0999579.tgz}
+  '@arkade-os/swap@file:vendor/arkade-os-swap-0.0.14-pr901-952e7d0.tgz':
+    resolution: {integrity: sha512-1E4hyzwqnq6JVJud118CGtHyjBzNBBJEHF0ea2zVzKdDxqwi8mWYon91KlAyuo5MPyMdLiqNPcaLpHY0FbPmuQ==, tarball: file:vendor/arkade-os-swap-0.0.14-pr901-952e7d0.tgz}
     version: 0.0.14
     peerDependencies:
       nostr-tools: ^2.12.0
@@ -4360,7 +4362,7 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/sdk@0.4.71':
+  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.71-pr901-952e7d0.tgz':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 8.0.0
@@ -4381,9 +4383,9 @@ snapshots:
 
   '@arkade-os/solver-discovery@0.2.3': {}
 
-  '@arkade-os/swap@file:vendor/arkade-os-swap-0.0.14-pr901-0999579.tgz(nostr-tools@2.17.2(typescript@5.9.3))':
+  '@arkade-os/swap@file:vendor/arkade-os-swap-0.0.14-pr901-952e7d0.tgz(nostr-tools@2.17.2(typescript@5.9.3))':
     dependencies:
-      '@arkade-os/sdk': 0.4.71
+      '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.4.71-pr901-952e7d0.tgz
       '@arkade-os/solver-discovery': 0.2.3
       '@noble/ciphers': 2.1.1
       '@noble/curves': 2.0.1
