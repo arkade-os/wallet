@@ -207,24 +207,6 @@ const ungroupedLnSendTx = (send: LnSendView, metadata: Record<string, Transactio
   )
 
 /**
- * One row for an offer whose funding tx Arkade's history does not report.
- *
- * Same shape of problem as `ungroupedLnSendTx`, same answer: `createOffer`
- * registers the covenant as a contract of this wallet, so the deposit reads as
- * change and `buildTransactionHistory` drops the tx on its `txAmount !== 0`
- * guard. A resting offer may never be spent, so nothing would ever appear.
- * Keyed as the resolver would key it, so the real row replaces this one.
- */
-const ungroupedOfferTx = (
-  swap: WalletAssetSwap,
-  { network, assetDisplay }: Pick<ActivityHistoryOptions, 'network' | 'assetDisplay'>,
-): Tx => ({
-  ...buildAssetSwapActivityTx(swap, [], { network, assetDisplay }),
-  amount: swap.fromAsset === 'btc' ? Number(swap.fromAmount) : 0,
-  historyKey: `swap:${swap.id}`,
-})
-
-/**
  * One row for a unilateral exit, which Arkade's history does not report.
  *
  * The sent side of `buildTransactionHistory` is gated on `isSpent`, and the SDK
@@ -316,11 +298,6 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
   const grouped = new Set(activities.flatMap((activity) => rfqIdOf(activity) ?? []))
   for (const send of lnSends) {
     if (!grouped.has(send.rfqId)) rows.push(ungroupedLnSendTx(send, metadata))
-  }
-  // The offers history cannot see either — see `ungroupedOfferTx`.
-  const groupedSwaps = new Set(activities.flatMap((activity) => swapIdOf(activity) ?? []))
-  for (const swap of swaps) {
-    if (!groupedSwaps.has(swap.id)) rows.push(ungroupedOfferTx(swap, { network, assetDisplay }))
   }
   // Exits last, for the same reason: history reports none of them either.
   for (const exit of exits) rows.push(exitTx(exit))
