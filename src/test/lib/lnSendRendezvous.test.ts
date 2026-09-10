@@ -1,7 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
 import { discover, sideLimits, validateCard, type DiscoveredMarket } from '@arkade-os/solver-discovery'
-import { marketCorridor } from '@arkade-os/swap'
 import betaSolverCard from '../../lib/beta-solver.card.json'
 import { lnSendRendezvous } from '../../lib/lnSwap'
 
@@ -25,7 +24,7 @@ describe('bundled Arkade Labs solver card', () => {
     const { markets, warnings } = await load()
     expect(warnings).toEqual([])
     expect(markets).toHaveLength(1)
-    expect(marketCorridor(markets[0], 'quote')).toBe('bolt11')
+    expect(markets[0].quote_corridor).toBe('lightning')
   })
 
   it('carries the rendezvous through discovery, so the maker can address the solver', async () => {

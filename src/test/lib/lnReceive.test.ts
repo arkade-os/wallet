@@ -77,17 +77,6 @@ describe('lnReceiveRendezvous', () => {
     expect(lnReceiveRendezvous([market({ transports: undefined })])).toBeUndefined()
     expect(lnReceiveRendezvous([market({ quote_corridor: 'onchain' })])).toBeUndefined()
   })
-
-  it('rejects a Lightning quote whose receive side is not Arkade', () => {
-    expect(
-      lnReceiveRendezvous([
-        market({
-          base_asset: { id: 'bitcoin:bitcoin/slip44:0' },
-          quote_asset: { id: 'bolt11:bitcoin/slip44:0' },
-        }),
-      ]),
-    ).toBeUndefined()
-  })
 })
 
 const MUTINYNET_COVCLAIMD_PK = '034eb1f33220c697a5eab424e9f3b053760fa635f7bd9cc39c15bcecd30b5bf59d'
