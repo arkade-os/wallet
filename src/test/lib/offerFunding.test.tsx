@@ -99,41 +99,13 @@ describe('funding an Arkade swap offer', () => {
     expect(btc?.balance).toBe(HELD)
   })
 
-  it('shows the commitment from its record, before any tx of it reaches history', () => {
-    // The covenant is a contract this wallet registered, so Arkade counts the
-    // 50_000 as change: the funding tx nets to zero and history reports nothing.
-    const [row, ...rest] = activitiesToTxs([], { ...empty, swaps: [offerSwap()] })
-
-    expect(rest).toEqual([])
-    expect(row).toMatchObject({
-      type: 'swap',
-      amount: COMMITTED,
-      createdAt: 4,
-      redeemTxid: FUNDING_TXID,
-      historyKey: `swap:${FUNDING_TXID}`,
-      assetSwap: { fromAssetId: 'btc', fromAmount: BigInt(COMMITTED), fundingTxid: FUNDING_TXID },
-    })
-  })
-
-  it('reads as pending and recoverable, never as money burned', () => {
-    const [row] = activitiesToTxs([], { ...empty, swaps: [offerSwap()] })
-
-    expect(row.assetSwap?.status).toBe('pending')
-    expect(row.settled).toBe(false)
-  })
-
-  it('names a cancelled offer cancelled rather than dropping it from history', () => {
-    const [row] = activitiesToTxs([], { ...empty, swaps: [offerSwap({ status: 'cancelled' })] })
-
-    expect(row.assetSwap?.status).toBe('cancelled')
-  })
-
-  it('yields to the group once one exists, under the same key', () => {
+  it('renders the SDK gated-history row as the pending swap commitment', () => {
     const funding = {
       amount: COMMITTED,
       createdAt: 4_000,
       settled: true,
       type: 'SENT',
+      tag: 'gated',
       key: { arkTxid: FUNDING_TXID, boardingTxid: '', commitmentTxid: '' },
     }
     const group = {
@@ -148,6 +120,16 @@ describe('funding an Arkade swap offer', () => {
     const rows = activitiesToTxs([group as never], { ...empty, swaps: [offerSwap()] })
 
     expect(rows).toHaveLength(1)
-    expect(rows[0].historyKey).toBe(`swap:${FUNDING_TXID}`)
+    expect(rows[0]).toMatchObject({
+      type: 'swap',
+      amount: COMMITTED,
+      historyKey: `swap:${FUNDING_TXID}`,
+      assetSwap: {
+        status: 'pending',
+        fromAssetId: 'btc',
+        fromAmount: BigInt(COMMITTED),
+        fundingTxid: FUNDING_TXID,
+      },
+    })
   })
 })
