@@ -18,8 +18,8 @@ importers:
         specifier: 0.5.0-rc.8
         version: 0.5.0-rc.8
       '@arkade-os/solver-discovery':
-        specifier: 0.2.5
-        version: 0.2.5
+        specifier: 0.2.4
+        version: 0.2.4
       '@arkade-os/swap':
         specifier: 0.1.0-rc.8
         version: 0.1.0-rc.8(nostr-tools@2.17.2(typescript@5.9.3))
@@ -232,8 +232,9 @@ packages:
       { integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg== }
 
   '@arkade-os/sdk@0.5.0-rc.8':
-    resolution: {integrity: sha512-FMax5dfEOQAfhNZ0dISwospxCU7WwAstLUSkuWqwzkrZUwa1Y4Pwkg9TGZzEpg4keTXyWgSyxNw0rNNzYJNHEg==}
-    engines: {node: '>=22.12.0 <27'}
+    resolution:
+      { integrity: sha512-FMax5dfEOQAfhNZ0dISwospxCU7WwAstLUSkuWqwzkrZUwa1Y4Pwkg9TGZzEpg4keTXyWgSyxNw0rNNzYJNHEg== }
+    engines: { node: '>=22.12.0 <27' }
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
       expo: '>=54.0.0'
@@ -257,9 +258,15 @@ packages:
       { integrity: sha512-eCJESOApkm78OWLPSRSi7RajysHPAkRozD2Um+IimRbbgSK7e+/1Ufw4hrOR8LuPKwMRvDQx7nUbcl1CL8HsDg== }
     engines: { node: '>=18' }
 
+  '@arkade-os/solver-discovery@0.2.4':
+    resolution:
+      { integrity: sha512-iLjcZhnNmzndD6KLbgmMbyYL/JqmMYA2gSOn6MrESAMHWuF68CRtqn9ijvnDJDz8BzYXuFMZ/ghZfLjIvrdAdA== }
+    engines: { node: '>=18' }
+
   '@arkade-os/swap@0.1.0-rc.8':
-    resolution: {integrity: sha512-/HajbL0LkKgvRiL0U4zY6M4W6cGkvJdB1G6Pv5JNwwNc00l5NR5RY5gV4BxxIRr2y9OjVA27N923ViTHUKw7Hw==}
-    engines: {node: '>=22.12.0'}
+    resolution:
+      { integrity: sha512-/HajbL0LkKgvRiL0U4zY6M4W6cGkvJdB1G6Pv5JNwwNc00l5NR5RY5gV4BxxIRr2y9OjVA27N923ViTHUKw7Hw== }
+    engines: { node: '>=22.12.0' }
     peerDependencies:
       nostr-tools: ^2.12.0
     peerDependenciesMeta:
@@ -5061,6 +5068,8 @@ snapshots:
       - utf-8-validate
 
   '@arkade-os/solver-discovery@0.2.5': {}
+
+  '@arkade-os/solver-discovery@0.2.4': {}
 
   '@arkade-os/swap@0.1.0-rc.8(nostr-tools@2.17.2(typescript@5.9.3))':
     dependencies:
