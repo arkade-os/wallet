@@ -99,12 +99,26 @@ export const ASSET_METADATA_TTL_MS = 24 * 60 * 60 * 1000
 
 export type CachedAssetDetails = AssetDetails & { cachedAt: number; hasIcon?: boolean }
 
-export const saveAssetMetadataToStorage = (cache: Map<string, CachedAssetDetails>): void => {
+/**
+ * Persist the asset metadata cache, dropping stale entries.
+ *
+ * `keep` names the assets the UI can still be asked to render — every asset a
+ * swap record or history row mentions, not just the ones the wallet currently
+ * holds. Those are exempt from the TTL eviction: their metadata is not
+ * refreshed by the owned-balance prefetch, so evicting one deletes the only
+ * name and icon the row has and it never comes back. A swap out of the last of
+ * an asset used to go unnamed exactly 24h later for precisely this reason.
+ * Unreferenced entries still expire, which is what keeps localStorage bounded.
+ */
+export const saveAssetMetadataToStorage = (
+  cache: Map<string, CachedAssetDetails>,
+  keep: ReadonlySet<string> = new Set(),
+): void => {
   const now = Date.now()
   const obj: Record<string, CachedAssetDetails> = {}
   cache.forEach((v, k) => {
     // evict expired entries to prevent unbounded localStorage growth
-    if (now - v.cachedAt >= ASSET_METADATA_TTL_MS) return
+    if (now - v.cachedAt >= ASSET_METADATA_TTL_MS && !keep.has(k)) return
     obj[k] = v
   })
   setStorageItem(
