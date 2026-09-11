@@ -331,18 +331,28 @@ export default function WalletSwap() {
     setSwapFromAssetId(undefined)
   }, [focusFromAsset, setSwapFromAssetId, swapAssets, swapAvailable, swapFromAssetId])
 
-  useEffect(() => {
-    if (validationState === 'idle') return
-    hapticSubtle()
-  }, [validationState])
+  // The composer validates against the LIVE wallet balance, and confirming a
+  // swap moves that balance: the deposit's sats leave while `createSwap` is
+  // still awaiting its send. A partial asset swap the user has already
+  // committed then re-reads as one the wallet can no longer carry change for,
+  // and the composer shouts "not enough bitcoin to do a partial swap" a beat
+  // before the success splash lands. Once the swap is in flight the composer
+  // has nothing left to validate — it is describing an amount the user can no
+  // longer change.
+  const swapCommitted = confirming || Boolean(successQuote)
 
   useEffect(() => {
-    if (balanceValidation || !validationMessage) {
+    if (swapCommitted || validationState === 'idle') return
+    hapticSubtle()
+  }, [swapCommitted, validationState])
+
+  useEffect(() => {
+    if (swapCommitted || balanceValidation || !validationMessage) {
       toast.dismiss('swap-validation')
       return
     }
     toast.error(validationMessage, { id: 'swap-validation' })
-  }, [amount, balanceValidation, validationMessage])
+  }, [amount, balanceValidation, swapCommitted, validationMessage])
 
   useEffect(
     () => () => {

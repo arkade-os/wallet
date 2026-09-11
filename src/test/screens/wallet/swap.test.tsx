@@ -87,7 +87,7 @@ function renderSwap({
   // nothing escrowed unless a test says so, so every owned unit is spendable
   if (!('availableAssetBalances' in wallet)) walletValue.availableAssetBalances = walletValue.assetBalances
 
-  const view = render(
+  const tree = (walletContext: Record<string, unknown>) => (
     <AspContext.Provider
       value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet' } } as any}
     >
@@ -108,7 +108,7 @@ function renderSwap({
               }
             >
               <FlowContext.Provider value={{ ...mockFlowContextValue, ...flow } as any}>
-                <WalletContext.Provider value={walletValue as any}>
+                <WalletContext.Provider value={walletContext as any}>
                   <AssetSwapsContext.Provider
                     value={
                       {
@@ -131,10 +131,22 @@ function renderSwap({
           </ConfigContext.Provider>
         </NavigationContext.Provider>
       </AssetsContext.Provider>
-    </AspContext.Provider>,
+    </AspContext.Provider>
   )
 
-  return { ...view, goBack, navigate }
+  const view = render(tree(walletValue))
+
+  return {
+    ...view,
+    goBack,
+    navigate,
+    // the wallet balance is live: a confirmed swap moves it while the screen
+    // is still mounted, so tests can move it too
+    setWallet: (patch: Record<string, unknown>) => {
+      Object.assign(walletValue, patch)
+      view.rerender(tree({ ...walletValue }))
+    },
+  }
 }
 
 // the reserve off: the BTC balance is spendable whole only while no asset is held
@@ -417,6 +429,40 @@ describe('Wallet swap flow', () => {
     for (const key of ['1', '0', '0', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled(), { timeout: 3_000 })
+    expect(screen.queryByText(/partial swap/)).not.toBeInTheDocument()
+  })
+
+  it('does not warn about the change carrier once the swap is already in flight', async () => {
+    let release: (swap: AssetSwap) => void = () => {}
+    const inFlight = new Promise<AssetSwap>((resolve) => {
+      release = resolve
+    })
+    const slowCreateSwap = vi.fn().mockReturnValue(inFlight)
+    const { setWallet } = renderSwap({
+      config: { currency: Currencies.BRL, unit: Unit.SATS },
+      flow: { swapFromAssetId: DEPIX_ID, setSwapFromAssetId: vi.fn() },
+      swap: { createSwap: slowCreateSwap },
+      // two dust carriers: enough for the deposit and its asset change
+      wallet: { availableBalance: 666, assetBalances: [{ assetId: DEPIX_ID, amount: BigInt(200_000_000_000) }] },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Bitcoin/i }))
+    for (const key of ['1', '0', '0', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled(), { timeout: 3_000 })
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+    await waitFor(() => expect(slowCreateSwap).toHaveBeenCalledOnce())
+
+    // the deposit's carriers leave the wallet while the send is still awaiting
+    act(() => setWallet({ availableBalance: 333 }))
+    await act(async () => {
+      release(pendingSwap)
+      await inFlight
+    })
+
+    expect(await screen.findByText('Swap created')).toBeInTheDocument()
     expect(screen.queryByText(/partial swap/)).not.toBeInTheDocument()
   })
 
