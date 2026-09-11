@@ -1,6 +1,6 @@
-import { ArkInfo } from '@arkade-os/sdk'
+import { ArkadeInfo } from '@arkade-os/sdk'
 
-type AspInfo = ArkInfo & {
+type AspInfo = ArkadeInfo & {
   unreachable: boolean
   url: string
 }

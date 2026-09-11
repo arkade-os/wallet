@@ -177,6 +177,8 @@ export const mockLimitsContextValue = {
 
 export const mockSvcWallet = {
   identity: SingleKey.fromRandomBytes(),
+  getArkadeInfo: () => Promise.resolve({}),
+  getArkadeReader: () => Promise.resolve({}),
   getAddress: () => '',
   getBoardingAddress: () => Promise.resolve(''),
   getBalance: () => Promise.resolve({}),

@@ -30,18 +30,16 @@ describe('restoreImportedWallet', () => {
     const serverPubkey = new Uint8Array(32).fill(0xab)
 
     await restoreImportedWallet(wallet, {
-      arkServerUrl: 'https://ark.test',
       repository: repository as never,
       indexer: indexer as never,
-      serverPubkey,
+      operatorPubkey: serverPubkey,
     })
 
     expect(events).toEqual(['register', 'restore'])
     expect(registerAssetSwapRestore).toHaveBeenCalledWith(wallet, {
-      arkServerUrl: 'https://ark.test',
       repository,
       indexer,
-      serverPubkey,
+      operatorPubkey: serverPubkey,
     })
   })
 })

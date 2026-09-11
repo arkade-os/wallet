@@ -1,9 +1,9 @@
 import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
-import { ArkInfo, ScheduledSession } from '@arkade-os/sdk'
+import { ArkadeInfo, ScheduledSession } from '@arkade-os/sdk'
 import { emptyAspInfo, getAspInfo } from '../lib/asp'
 import { ConfigContext } from './config'
 
-export type AspInfo = ArkInfo & {
+export type AspInfo = ArkadeInfo & {
   unreachable: boolean
   url: string
   // Set when the server rejected us with BUILD_VERSION_TOO_OLD: the client is

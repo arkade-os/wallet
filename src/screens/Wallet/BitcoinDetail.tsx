@@ -30,7 +30,7 @@ import { hapticLight, hapticSubtle } from '../../lib/haptics'
 import { consoleError } from '../../lib/logs'
 import { Currencies, Themes, Unit } from '../../lib/types'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
-import { AssetSwapsContext } from '../../providers/assetSwaps'
+import { SwapsContext } from '../../providers/swaps'
 import { ConfigContext } from '../../providers/config'
 import { FiatContext } from '../../providers/fiat'
 import { FlowContext, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
@@ -70,7 +70,7 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
   const { fromFiatAmount, toFiatAmount } = useContext(FiatContext)
   const { setRecvInfo, setSendInfo, setSwapFromAssetId } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { swapAvailable } = useContext(AssetSwapsContext)
+  const { swapAvailable } = useContext(SwapsContext)
   const { assetMetadataCache, txs } = useContext(WalletContext)
   const { rows } = usePortfolioFiat()
   const prefersReduced = useReducedMotion()

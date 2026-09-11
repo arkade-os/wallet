@@ -74,7 +74,7 @@ export const getSolverRegistryUrl = (network: NetworkName): string | undefined =
 //
 // This table is now the FALLBACK, not the only source. A corridor market whose
 // card carries `emulator_pubkey` (arkade-os/solver-registry#18) is authoritative
-// and `lnSendRendezvous` prefers it; the pins below keep a network working until
+// and the client derives against it; the pins below keep a network working until
 // its solver publishes one, and are what a wallet compares the card against.
 const EMULATOR_PUBKEY: Record<NetworkName, string | null> = {
   // Matches the SDK's own per-network pin (BITCOIN_EMULATOR_PUBKEY, ts-sdk
@@ -177,7 +177,7 @@ const COVCLAIMD_PUBKEY: Record<NetworkName, string | null> = {
 
 // Undefined where no covclaimd is configured, so nothing is sealed and no
 // claim_packet is sent. A stand-in key seals a packet nobody can ever open.
-export const getCovclaimdPubkeyForNetwork = (network: NetworkName): Uint8Array | undefined => {
+export const getCovclaimdPubkeyForNetwork = (network: NetworkName): string | undefined => {
   const pubkey = fromRuntimeEnv(import.meta.env.VITE_COVCLAIMD_PUBKEY) ?? COVCLAIMD_PUBKEY[network]
-  return pubkey && COMPRESSED_PUBKEY_HEX.test(pubkey) ? hex.decode(pubkey) : undefined
+  return pubkey && COMPRESSED_PUBKEY_HEX.test(pubkey) ? pubkey : undefined
 }
