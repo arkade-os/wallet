@@ -868,12 +868,6 @@ export default function SendForm() {
   // dust carrier; without one the SDK fails with a bare "Insufficient funds".
   // Derived, not stored: the server-status effect owns `error` and would
   // clear this on recovery.
-  //
-  // `availableBalance` is live and the amount is not: once the user has
-  // committed, anything that moves the balance re-reads their own send as one
-  // the wallet can no longer carry change for, and the form turns red under a
-  // button they already pressed. Stop validating at `processing`, which is
-  // where the amount stops being theirs to change.
   const carrierError =
     !processing &&
     activeAsset &&
