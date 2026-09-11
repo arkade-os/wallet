@@ -869,7 +869,11 @@ export default function SendForm() {
   // Derived, not stored: the server-status effect owns `error` and would
   // clear this on recovery.
   const carrierError =
-    activeAsset && assetAmt > BigInt(0) && assetAmt < activeAsset.balance && availableBalance < 2 * Number(aspInfo.dust)
+    !processing &&
+    activeAsset &&
+    assetAmt > BigInt(0) &&
+    assetAmt < activeAsset.balance &&
+    availableBalance < 2 * Number(aspInfo.dust)
       ? PARTIAL_SEND_ERROR
       : ''
 
