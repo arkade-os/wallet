@@ -2,6 +2,7 @@
 // LoadingLogo reads this to calculate the fly-to-target exit animation destination.
 
 let logoAnchorEl: HTMLDivElement | null = null
+let desktopLogoAnchorEl: HTMLDivElement | null = null
 let bootAnimRunning = false
 let listeners: Set<() => void> = new Set()
 
@@ -9,7 +10,12 @@ export function setLogoAnchor(el: HTMLDivElement | null) {
   logoAnchorEl = el
 }
 
+export function setDesktopLogoAnchor(el: HTMLDivElement | null) {
+  desktopLogoAnchorEl = el
+}
+
 export function getLogoAnchor() {
+  if (desktopLogoAnchorEl?.getClientRects().length) return desktopLogoAnchorEl
   return logoAnchorEl
 }
 
