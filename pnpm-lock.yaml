@@ -22,8 +22,8 @@ importers:
         specifier: 0.2.4
         version: 0.2.4
       '@arkade-os/swap':
-        specifier: 0.0.17
-        version: 0.0.17(nostr-tools@2.17.2(typescript@5.9.3))
+        specifier: 0.0.18
+        version: 0.0.18(nostr-tools@2.17.2(typescript@5.9.3))
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -278,8 +278,8 @@ packages:
     resolution: {integrity: sha512-iLjcZhnNmzndD6KLbgmMbyYL/JqmMYA2gSOn6MrESAMHWuF68CRtqn9ijvnDJDz8BzYXuFMZ/ghZfLjIvrdAdA==}
     engines: {node: '>=18'}
 
-  '@arkade-os/swap@0.0.17':
-    resolution: {integrity: sha512-49VzrCKW8yg+TIzRXyt9D6Ho3cJjz7VxcfJMvy5n5VcR6Okd7aPsKV1PaV0PP4pkcQwoLUSZ/ynbDHIo+AGSnA==}
+  '@arkade-os/swap@0.0.18':
+    resolution: {integrity: sha512-9z0T9GolRkvUsTQg2bvqGb6EpUf2yIAOp0TVEXjTpQETkyoBX/X2rQ9NBDd8hTUE8bKQZKOW9FxwOG+QaxxeYw==}
     peerDependencies:
       nostr-tools: ^2.12.0
     peerDependenciesMeta:
@@ -4380,7 +4380,7 @@ snapshots:
 
   '@arkade-os/solver-discovery@0.2.4': {}
 
-  '@arkade-os/swap@0.0.17(nostr-tools@2.17.2(typescript@5.9.3))':
+  '@arkade-os/swap@0.0.18(nostr-tools@2.17.2(typescript@5.9.3))':
     dependencies:
       '@arkade-os/sdk': 0.4.72
       '@arkade-os/solver-discovery': 0.2.4
