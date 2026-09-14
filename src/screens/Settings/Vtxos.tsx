@@ -198,9 +198,9 @@ export default function Vtxos() {
         subdust
       </Text>
     ),
-    swept: (
+    recoverable: (
       <Text color='orange' smaller>
-        swept
+        recoverable
       </Text>
     ),
     unconfirmed: (
@@ -297,7 +297,7 @@ export default function Vtxos() {
         {isSubdust(vtxo, aspInfo.dust)
           ? Tags.subdust
           : canRecoverOnchain(vtxo, now)
-            ? Tags.swept
+            ? Tags.recoverable
             : wallet.thresholdMs && isVtxoExpiringSoon(vtxo, wallet.thresholdMs)
               ? Tags.expiring
               : !vtxo.isSpent && !vtxo.isSwept && !vtxo.isPreconfirmed

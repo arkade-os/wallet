@@ -331,18 +331,20 @@ export default function WalletSwap() {
     setSwapFromAssetId(undefined)
   }, [focusFromAsset, setSwapFromAssetId, swapAssets, swapAvailable, swapFromAssetId])
 
-  useEffect(() => {
-    if (validationState === 'idle') return
-    hapticSubtle()
-  }, [validationState])
+  const swapCommitted = confirming || Boolean(successQuote)
 
   useEffect(() => {
-    if (balanceValidation || !validationMessage) {
+    if (swapCommitted || validationState === 'idle') return
+    hapticSubtle()
+  }, [swapCommitted, validationState])
+
+  useEffect(() => {
+    if (swapCommitted || balanceValidation || !validationMessage) {
       toast.dismiss('swap-validation')
       return
     }
     toast.error(validationMessage, { id: 'swap-validation' })
-  }, [amount, balanceValidation, validationMessage])
+  }, [amount, balanceValidation, swapCommitted, validationMessage])
 
   useEffect(
     () => () => {
