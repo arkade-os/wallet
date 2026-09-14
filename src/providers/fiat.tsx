@@ -14,7 +14,7 @@ type FiatContextProps = {
   updateFiatPrices: () => void
 }
 
-const emptyFiatPrices: FiatPrices = { eur: 0, usd: 0, chf: 0, jpy: 0, gbp: 0, cny: 0, brl: 0 }
+const emptyFiatPrices: FiatPrices = { eur: 0, usd: 0, chf: 0, jpy: 0, gbp: 0, cny: 0, brl: 0, cup: 0 }
 
 export const FiatContext = createContext<FiatContextProps>({
   toFiat: () => 0,
@@ -40,6 +40,7 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
   const fromGBP = (fiat = 0) => (prices.current.gbp ? toSatoshis(Decimal.div(fiat, prices.current.gbp).toNumber()) : 0)
   const fromCNY = (fiat = 0) => (prices.current.cny ? toSatoshis(Decimal.div(fiat, prices.current.cny).toNumber()) : 0)
   const fromBRL = (fiat = 0) => (prices.current.brl ? toSatoshis(Decimal.div(fiat, prices.current.brl).toNumber()) : 0)
+  const fromCUP = (fiat = 0) => (prices.current.cup ? toSatoshis(Decimal.div(fiat, prices.current.cup).toNumber()) : 0)
   const fromBTC = (amount = 0) => (selectedBitcoinUnit === Unit.BTC ? toSatoshis(amount) : Math.floor(amount))
   const toEUR = (sats = 0) => Decimal.mul(fromSatoshis(sats), prices.current.eur).toNumber()
   const toUSD = (sats = 0) => Decimal.mul(fromSatoshis(sats), prices.current.usd).toNumber()
@@ -48,6 +49,7 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
   const toGBP = (sats = 0) => Decimal.mul(fromSatoshis(sats), prices.current.gbp).toNumber()
   const toCNY = (sats = 0) => Decimal.mul(fromSatoshis(sats), prices.current.cny).toNumber()
   const toBRL = (sats = 0) => Decimal.mul(fromSatoshis(sats), prices.current.brl).toNumber()
+  const toCUP = (sats = 0) => (prices.current.cup ? Decimal.mul(fromSatoshis(sats), prices.current.cup).toNumber() : 0)
   const toBTC = (sats = 0) => (selectedBitcoinUnit === Unit.BTC ? fromSatoshis(sats) : sats)
 
   const fromFiatAmount = (amount = 0, currency: Currencies) => {
@@ -58,6 +60,7 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
     if (currency === Currencies.GBP) return fromGBP(amount)
     if (currency === Currencies.CNY) return fromCNY(amount)
     if (currency === Currencies.BRL) return fromBRL(amount)
+    if (currency === Currencies.CUP) return fromCUP(amount)
     return fromUSD(amount)
   }
   const fromFiat = (fiat = 0) => fromFiatAmount(fiat, config.currency)
@@ -69,6 +72,7 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
     if (currency === Currencies.GBP) return toGBP(sats)
     if (currency === Currencies.CNY) return toCNY(sats)
     if (currency === Currencies.BRL) return toBRL(sats)
+    if (currency === Currencies.CUP) return toCUP(sats)
     return toUSD(sats)
   }
   const toFiat = (sats = 0) => toFiatAmount(sats, config.currency)
