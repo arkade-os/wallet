@@ -312,8 +312,6 @@ export default function Transaction() {
     </Content>
   )
 
-  // Pending boarding: always offer a manual complete so users can force a claim
-  // attempt and surface SDK/settle errors when auto-claim fails.
   const showCompleteBoarding =
     status === 'Pending boarding' && utxoTxsAllowed() && vtxoTxsAllowed() && !settleSuccess && !settling
 

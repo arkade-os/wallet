@@ -262,8 +262,8 @@ describe('Transaction screen', () => {
   })
 
   it('renders the confirmed boarding transaction screen correctly', async () => {
-    // confirmed boarding transaction awaiting claim
-    const txInfo = { ...mockTxInfo, boardingTxid: mockTxId, settled: false, preconfirmed: true }
+    // confirmed boarding transaction
+    const txInfo = { ...mockTxInfo, boardingTxid: mockTxId, settled: false }
     const localFlowContextValue = { ...mockFlowContextValue, txInfo }
     const localWalletContextValue = { ...mockWalletContextValue, txs: [txInfo] }
 
@@ -293,43 +293,9 @@ describe('Transaction screen', () => {
     // right side of the table
     expect(screen.getByText('Amount received')).toBeInTheDocument()
     expect(screen.getByText('0 BTC')).toBeInTheDocument()
-    expect(screen.getAllByText('Pending boarding').length).toBeGreaterThan(0)
-    // manual complete is offered so users can force a claim when auto-boarding fails
-    expect(screen.getByRole('button', { name: 'Complete boarding' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Add reminder' })).toBeInTheDocument()
-  })
-
-  it('surfaces settle errors when Complete boarding fails', async () => {
-    const settlePreconfirmed = vi.fn().mockRejectedValue(new Error('No UTXOs or VTXOs eligible to settle'))
-    const txInfo = { ...mockTxInfo, boardingTxid: mockTxId, settled: false, preconfirmed: true }
-
-    render(
-      <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={mockAspContextValue}>
-          <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
-            <WalletContext.Provider
-              value={
-                {
-                  ...mockWalletContextValue,
-                  txs: [txInfo],
-                  settlePreconfirmed,
-                  isVerifiedAsset: (id: string) => id === MUTINYNET_USDT_ASSET_ID,
-                } as any
-              }
-            >
-              <LimitsContext.Provider value={mockLimitsContextValue}>
-                <Transaction />
-              </LimitsContext.Provider>
-            </WalletContext.Provider>
-          </FlowContext.Provider>
-        </AspContext.Provider>
-      </NavigationContext.Provider>,
-    )
-
-    await userEvent.click(screen.getByRole('button', { name: 'Complete boarding' }))
-    expect(settlePreconfirmed).toHaveBeenCalled()
-    expect(await screen.findByText('No UTXOs or VTXOs eligible to settle')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Complete boarding' })).toBeInTheDocument()
+    // buttons should be present
+    expect(screen.queryByText('Settle transaction')).not.toBeInTheDocument()
+    expect(screen.queryByText('Add reminder')).not.toBeInTheDocument()
   })
 
   it('renders the preconfirmed ark transaction screen correctly', async () => {
