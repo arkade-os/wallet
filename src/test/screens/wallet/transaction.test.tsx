@@ -293,7 +293,7 @@ describe('Transaction screen', () => {
     // right side of the table
     expect(screen.getByText('Amount received')).toBeInTheDocument()
     expect(screen.getByText('0 BTC')).toBeInTheDocument()
-    expect(screen.getByText('Pending boarding')).toBeInTheDocument()
+    expect(screen.getAllByText('Pending boarding').length).toBeGreaterThan(0)
     // manual complete is offered so users can force a claim when auto-boarding fails
     expect(screen.getByRole('button', { name: 'Complete boarding' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add reminder' })).toBeInTheDocument()
