@@ -90,7 +90,7 @@ export default function Transaction() {
   const burnTx = tx ? tx.assetAction === 'burned' || (!tx.assetAction && isBurn(tx)) : false
   const exitTx = tx?.type === 'exit'
   const boardingTx = Boolean(tx?.boardingTxid)
-  const defaultButtonLabel = 'Settle transaction'
+  const defaultButtonLabel = boardingTx ? 'Complete boarding' : 'Settle transaction'
   const boardingExitDelay = Number(aspInfo?.boardingExitDelay || 0)
   const unconfirmedBoardingTx = boardingTx && !tx?.createdAt
   const expiredBoardingTx =
@@ -312,6 +312,11 @@ export default function Transaction() {
     </Content>
   )
 
+  // Pending boarding: always offer a manual complete so users can force a claim
+  // attempt and surface SDK/settle errors when auto-claim fails.
+  const showCompleteBoarding =
+    status === 'Pending boarding' && utxoTxsAllowed() && vtxoTxsAllowed() && !settleSuccess && !settling
+
   // if server defines that UTXO transactions are not allowed,
   // don't allow settlement since it is a UTXO transaction.
   const showSettleButtons =
@@ -323,6 +328,8 @@ export default function Transaction() {
     !expiredBoardingTx &&
     amountAboveDust &&
     !settling
+
+  const showSettleActions = showCompleteBoarding || showSettleButtons
 
   const Buttons = () =>
     showCancelSwap ? (
@@ -358,7 +365,7 @@ export default function Transaction() {
           </AlertDialogContent>
         </AlertDialog>
       </>
-    ) : showSettleButtons ? (
+    ) : showSettleActions ? (
       <>
         <ButtonsOnBottom>
           <Button onClick={handleSettle} label={buttonLabel} disabled={settling} />
@@ -368,7 +375,7 @@ export default function Transaction() {
           isOpen={reminderIsOpen}
           callback={() => setReminderIsOpen(false)}
           duration={duration}
-          name='Settle transaction'
+          name={boardingTx ? 'Complete boarding' : 'Settle transaction'}
           startTime={startTime}
         />
       </>
