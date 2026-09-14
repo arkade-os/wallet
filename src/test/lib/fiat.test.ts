@@ -44,4 +44,17 @@ describe('fiat utilities', () => {
     const result = await getPriceFeed()
     expect(result).toEqual({ eur: 100, usd: 200, chf: 93, cup: undefined })
   })
+
+  it('falls back to blockchain.info when Yadio.io returns a partial feed', async () => {
+    fetchMocker.mockResponseOnce(JSON.stringify({ BTC: { USD: 200 } }))
+    fetchMocker.mockResponseOnce(
+      JSON.stringify({
+        EUR: { last: 100 },
+        USD: { last: 200 },
+        CHF: { last: 93 },
+      }),
+    )
+    const result = await getPriceFeed()
+    expect(result).toEqual({ eur: 100, usd: 200, chf: 93, cup: undefined })
+  })
 })
