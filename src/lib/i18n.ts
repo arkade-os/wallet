@@ -377,6 +377,13 @@ export const translations = {
       requestingAmount: 'Requesting {amount} {unit}',
       copyAria: 'Copy {title}',
     },
+    scanner: {
+      pointAtQr: 'Point at the QR code',
+      unsupported: 'Scanner not supported on this device',
+      permissionDenied: 'Camera permission denied',
+      tryAgain: 'Try again',
+      cameraError: 'Camera not available',
+    },
     swap: {
       title: 'Swap',
       chooseAssetToSwap: 'Choose asset to swap',
@@ -1117,6 +1124,13 @@ export const translations = {
       copyAddress: 'Copiar dirección',
       requestingAmount: 'Solicitando {amount} {unit}',
       copyAria: 'Copiar {title}',
+    },
+    scanner: {
+      pointAtQr: 'Apunta al código QR',
+      unsupported: 'Escáner no soportado en este dispositivo',
+      permissionDenied: 'Permiso de cámara denegado',
+      tryAgain: 'Reintentar',
+      cameraError: 'Cámara no disponible',
     },
     swap: {
       title: 'Intercambio',

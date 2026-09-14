@@ -8,6 +8,7 @@ import { QRCanvas, frameLoop, frontalCamera } from 'qr/dom.js'
 import { useRef, useEffect, useState } from 'react'
 import { extractError } from '../lib/error'
 import { cameraErrorText, queryCameraPermission } from '../lib/camera'
+import { useTranslation } from '../providers/language'
 import QrScanner from 'qr-scanner'
 
 const videoStyle: React.CSSProperties = {
