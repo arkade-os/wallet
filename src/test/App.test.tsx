@@ -1,4 +1,5 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App, { appReloader } from '../App'
 import { AspContext } from '../providers/asp'
@@ -193,10 +194,19 @@ describe('Navbar visibility', () => {
   })
 
   it('hides navbar on wallet root when authenticated and initialized', async () => {
-    renderApp({ authState: 'authenticated', initialized: true, screen: Pages.Wallet })
+    const user = userEvent.setup()
+    const { navigate } = renderApp({ authState: 'authenticated', initialized: true, screen: Pages.Wallet })
 
     const ionApp = await screen.findByTestId('app')
     expect(ionApp.className).not.toContain('has-pill-navbar')
+    expect(screen.getByRole('main')).toHaveClass('desktop-wallet-main--root')
+    expect(screen.getByText('Arkade')).toBeInTheDocument()
+    expect(screen.getByTestId('desktop-nav-home')).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByLabelText('Wallet navigation').parentElement).toBe(screen.getByRole('main').parentElement)
+    expect(screen.getByRole('main')).not.toContainElement(screen.getByLabelText('Wallet navigation'))
+
+    await user.click(screen.getByTestId('desktop-nav-activity'))
+    expect(navigate).toHaveBeenCalledWith(Pages.Activity)
   })
 
   it('hides navbar on settings menu when authenticated and initialized', async () => {
@@ -209,6 +219,8 @@ describe('Navbar visibility', () => {
 
     const ionApp = await screen.findByTestId('app')
     expect(ionApp.className).not.toContain('has-pill-navbar')
+    expect(screen.getByRole('main')).toHaveClass('desktop-wallet-main--root')
+    expect(screen.getByTestId('desktop-nav-settings')).toHaveAttribute('aria-current', 'page')
   })
 
   it('hides navbar on settings sub-page when authenticated and initialized', async () => {
@@ -221,6 +233,7 @@ describe('Navbar visibility', () => {
 
     const ionApp = await screen.findByTestId('app')
     expect(ionApp.className).not.toContain('has-pill-navbar')
+    expect(screen.getByRole('main')).toHaveClass('desktop-wallet-main--panel')
   })
 
   it('hides navbar on app detail pages when authenticated and initialized', async () => {
@@ -228,5 +241,15 @@ describe('Navbar visibility', () => {
 
     const ionApp = await screen.findByTestId('app')
     expect(ionApp.className).not.toContain('has-pill-navbar')
+    expect(screen.getByRole('main')).toHaveClass('desktop-wallet-main--panel')
+    expect(screen.getByTestId('desktop-nav-home')).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('keeps Activity active on transaction details', async () => {
+    renderApp({ authState: 'authenticated', initialized: true, screen: Pages.Transaction })
+
+    expect(await screen.findByRole('main')).toHaveClass('desktop-wallet-main--panel')
+    expect(screen.getByTestId('desktop-nav-activity')).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByTestId('desktop-nav-home')).not.toHaveAttribute('aria-current')
   })
 })

@@ -17,7 +17,7 @@ interface HomeHeaderProps {
 }
 
 /**
- * Home header: logo left, top-right icon cluster (Activity, Settings).
+ * Mobile home header. Desktop navigation lives in the persistent wallet shell.
  */
 const HomeHeader = forwardRef<HTMLDivElement, HomeHeaderProps>(function HomeHeader(
   { balance, balanceProgress = 0, balanceUnit, logoVisible = true, maskedBalance = maskedFiat() },
@@ -46,12 +46,12 @@ const HomeHeader = forwardRef<HTMLDivElement, HomeHeaderProps>(function HomeHead
       <div className='relative flex h-18 w-full items-center justify-between px-5'>
         <div
           ref={ref}
-          className='flex size-11 items-center justify-center'
+          className='home-header__mobile-brand flex size-11 items-center justify-center'
           style={{ visibility: logoVisible ? 'visible' : 'hidden' }}
         >
           <LogoIcon small />
         </div>
-        <div className='flex items-center gap-1'>
+        <div className='home-header__mobile-actions flex items-center gap-1'>
           <button
             type='button'
             onClick={handleActivity}

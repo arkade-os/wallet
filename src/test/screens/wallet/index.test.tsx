@@ -39,6 +39,11 @@ describe('Wallet screen', () => {
     expect(screen.getByText('Recent activity')).toBeInTheDocument()
     expect(screen.getByText('Do more with your money')).toBeInTheDocument()
     expect(screen.queryByText('Borrow against your bitcoin')).not.toBeInTheDocument()
+    await user.click(screen.getByTestId('top-right-activity'))
+    expect(navigate).toHaveBeenCalledWith(Pages.Activity)
+
+    await user.click(screen.getByTestId('top-right-settings'))
+    expect(navigate).toHaveBeenCalledWith(Pages.Settings)
   })
 
   it('does not use swap history to enter an unavailable swap composer', async () => {

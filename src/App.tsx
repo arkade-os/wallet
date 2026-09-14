@@ -15,8 +15,40 @@ import { useReducedMotion } from './hooks/useReducedMotion'
 import { useLoadingStatus } from './hooks/useLoadingStatus'
 import { defaultPassword } from './lib/constants'
 import { consoleError } from './lib/logs'
+import DesktopWalletShell from './components/DesktopWalletShell'
+import { OptionsContext } from './providers/options'
+import { SettingsOptions } from './lib/types'
 
 const PASSWORDLESS_AUTO_RELOAD_KEY = 'passwordless-auto-reload-attempted'
+const DESKTOP_WALLET_PAGES = new Set([
+  Pages.Activity,
+  Pages.AccountDetail,
+  Pages.BitcoinDetail,
+  Pages.AppLendasat,
+  Pages.AppSatora,
+  Pages.AppAssets,
+  Pages.AppAssetDetail,
+  Pages.AppAssetImport,
+  Pages.AppAssetMint,
+  Pages.AppAssetMintSuccess,
+  Pages.AppAssetReissue,
+  Pages.AppAssetBurn,
+  Pages.AppAssetsSettings,
+  Pages.AppDfx,
+  Pages.NotesRedeem,
+  Pages.NotesForm,
+  Pages.NotesSuccess,
+  Pages.ReceiveQRCode,
+  Pages.ReceiveSuccess,
+  Pages.SendForm,
+  Pages.SendDetails,
+  Pages.SendSuccess,
+  Pages.Settings,
+  Pages.Transaction,
+  Pages.Vtxos,
+  Pages.Wallet,
+  Pages.WalletSwap,
+])
 export const appReloader = {
   reload: () => window.location.reload(),
 }
@@ -43,6 +75,7 @@ export default function App() {
   const { configLoaded } = useContext(ConfigContext)
   const { direction, navigate, screen } = useContext(NavigationContext)
   const { initInfo } = useContext(FlowContext)
+  const { option } = useContext(OptionsContext)
   const { authState, unlockWallet, walletLoaded, initialized, wallet, dataReady, loadError, devAutoInitFailed } =
     useContext(WalletContext)
 
@@ -231,13 +264,35 @@ export default function App() {
       pageComponent(page)
     )
 
+  const usesDesktopWalletShell = DESKTOP_WALLET_PAGES.has(page)
+  const isDesktopRoot =
+    page === Pages.Wallet || page === Pages.Activity || (page === Pages.Settings && option === SettingsOptions.Menu)
+  const animatedPage = (
+    <PageAnimWrapper animated={shouldAnimatePage} direction={effectiveDirection}>
+      <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+        {comp}
+      </PageTransition>
+    </PageAnimWrapper>
+  )
+
   return (
     <div className='page' data-testid='app'>
-      <PageAnimWrapper animated={shouldAnimatePage} direction={effectiveDirection}>
-        <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
-          {comp}
-        </PageTransition>
-      </PageAnimWrapper>
+      {usesDesktopWalletShell ? (
+        <>
+          <DesktopWalletShell page={page} logoVisible={!bootAnimActive} />
+          <main
+            className={
+              isDesktopRoot
+                ? 'desktop-wallet-main desktop-wallet-main--root'
+                : 'desktop-wallet-main desktop-wallet-main--panel'
+            }
+          >
+            {animatedPage}
+          </main>
+        </>
+      ) : (
+        animatedPage
+      )}
       {bootAnimActive ? (
         loadError ? (
           <BootError />
