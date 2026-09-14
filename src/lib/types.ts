@@ -140,7 +140,21 @@ export type Tx = {
   /** Present on a row the swap activity resolver grouped. `label` and
    * `outcome` are the resolver's own — opaque tokens, not display text, which
    * `lnSwapLabel` turns into copy; the two txids are the receipt's rows. */
-  lnSwap?: { label?: string; outcome?: string; fundingTxid?: string; spendTxid?: string }
+  lnSwap?: {
+    label?: string
+    outcome?: string
+    fundingTxid?: string
+    spendTxid?: string
+    /** The record's own facts, which no transaction in history carries. */
+    corridor?: string
+    takeAmount?: number
+    feeAmount?: number
+    solver?: string
+    /** The L1 claim on `arkade -> onchain`: the tx that pays the destination. */
+    claimTxid?: string
+    htlcAddress?: string
+    refundLocktime?: number
+  }
   networkFee?: number
   preconfirmed: boolean
   redeemTxid: string

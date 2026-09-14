@@ -127,6 +127,14 @@ describe('App startup routing', () => {
     expect(navigate).not.toHaveBeenCalledWith(Pages.Unlock)
   })
 
+  it('never mounts onboarding for a wallet that already exists', async () => {
+    renderApp({ authState: 'authenticated', initialized: true })
+
+    await waitFor(() => expect(screen.getByTestId('app')).toBeInTheDocument())
+    expect(screen.queryByText(/Welcome to Arkade/i)).toBeNull()
+    expect(screen.queryByText(/Create wallet/i)).toBeNull()
+  })
+
   it('holds on loading during dev auto-init from VITE_DEV_MNEMONIC instead of redirecting', async () => {
     vi.stubEnv('VITE_DEV_MNEMONIC', 'abandon abandon abandon abandon abandon about')
     const { navigate } = renderApp({ authState: 'locked', initialized: false })

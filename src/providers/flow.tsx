@@ -1,6 +1,5 @@
-import type { LnSendRequest } from '../lib/lnSwap'
 import { ReactNode, SetStateAction, createContext, useState } from 'react'
-import type { Asset, AssetDetails, ServiceWorkerWalletMode } from '@arkade-os/sdk'
+import type { Asset, AssetDetails, RouteQuote, ServiceWorkerWalletMode } from '@arkade-os/sdk'
 import { Tx } from '../lib/types'
 import type { FiatAccountSend } from '../lib/accountAssets'
 
@@ -26,13 +25,13 @@ export interface DeepLinkInfo {
  * What the receive screen renders about a negotiated Lightning receive — and
  * nothing more.
  *
- * The covenant, the claim secrets and the expected amount live with
- * `LnReceiveProvider`, which is what claims the lockup. Keeping the whole
- * `LnReceiveRequest` here once invited a second claim path written against flow
- * state, which is the thing Stage 1 removes.
+ * The covenant, the claim secrets and the expected amount live with the swap
+ * client, which is what claims the lockup. Keeping the whole negotiation here
+ * once invited a second claim path written against flow state.
  */
 export interface PendingLnReceive {
-  rfqId: string
+  /** The swap's tagged public id (`rfq:<QuoteId>`), for status lookups. */
+  id: string
   invoice: string
   /** What the payer is asked for, sats — larger than the amount received. */
   payAmount: number
@@ -63,7 +62,11 @@ export type SendInfo = {
   arkAddress?: string
   invoice?: string
   lnUrl?: string
-  pendingLnSend?: LnSendRequest
+  /** The negotiated Lightning route: quoted on the form so the fee is on screen
+   *  before the user signs, and `send()` is what the sign screen calls. */
+  pendingLnSend?: RouteQuote
+  /** Which rail actually paid; only a swap rail still owes a claim. */
+  railId?: string
   recipient?: string
   satoshis?: number
   scan?: boolean

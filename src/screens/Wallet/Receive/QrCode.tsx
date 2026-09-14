@@ -13,19 +13,14 @@ import { canBrowserShareData, shareData } from '../../../lib/share'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
 import { LimitsContext } from '../../../providers/limits'
-import { Asset, Coin, ExtendedVirtualCoin, type NetworkName } from '@arkade-os/sdk'
-import { LockupRegistrationFailed } from '@arkade-os/swap'
+import { Asset, Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
 import { unitsToCents } from '../../../lib/assets'
 import ErrorMessage from '../../../components/Error'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
-import { LnReceiveHeldElsewhere, requestLnReceive } from '../../../lib/lnReceive'
-import { lnReceiveRendezvous } from '../../../lib/lnSwap'
-import { getEmulatorPubkeyForNetwork } from '../../../lib/constants'
-import { withRfqTransport } from '../../../lib/nostrRfq'
-import { discoverMarkets } from '../../../lib/swapMarkets'
+import { SwapsHeldElsewhere } from '../../../lib/swapClient'
 import InputAmount from '../../../components/InputAmount'
 import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
 import SheetModal from '../../../components/SheetModal'
@@ -47,7 +42,7 @@ import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { AspContext } from '../../../providers/asp'
 import { AssetsContext } from '../../../providers/assets'
-import { LnReceiveContext } from '../../../providers/lnReceive'
+import { SwapsContext } from '../../../providers/swaps'
 
 /**
  * Decide which value the QR should encode. Honours an explicit copy-sheet
@@ -68,7 +63,7 @@ export default function ReceiveQRCode() {
   const { fromFiat } = useContext(FiatContext)
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
-  const { track, status, error: claimErrorFor } = useContext(LnReceiveContext)
+  const { receiveLightning, outcomeOf, errorOf } = useContext(SwapsContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { assetMetadataCache, svcWallet } = useContext(WalletContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
@@ -108,11 +103,11 @@ export default function ReceiveQRCode() {
   // A negotiation that failed at the local registration step left nothing
   // payable behind, so the offer of a retry is honest — see the catch below.
   const [lnRetryable, setLnRetryable] = useState(false)
-  // Told apart from every other failure because it is not one: another tab of
-  // this wallet holds the receive manager's lock and is driving these swaps
-  // perfectly well. "Lightning unavailable" would be false, and a retry button
-  // would do nothing until that tab closes.
-  const [lnHeldElsewhere, setLnHeldElsewhere] = useState(false)
+  // No tab answered as the swap driver. Not the same as "Lightning is
+  // unavailable" — the solver and the corridor are fine — and unlike the other
+  // failures here it is worth retrying on the spot, because the tab that takes
+  // the lock next will serve it.
+  const [lnNoDriver, setLnNoDriver] = useState(false)
   const [negotiateAttempt, setNegotiateAttempt] = useState(0)
 
   // Fetch addresses on mount
@@ -156,7 +151,7 @@ export default function ReceiveQRCode() {
    * working — this is an EXTRA way to be paid, so a failure here must not take
    * the ark and on-chain addresses down with it.
    *
-   * A solver serving the corridor is the only requirement: `LnReceiveProvider`
+   * A solver serving the corridor is the only requirement: the swap client
    * claims the lockup, so no covclaimd needs to be deployed or reachable for the
    * corridor to be offered.
    */
@@ -168,47 +163,23 @@ export default function ReceiveQRCode() {
     // does nothing at all.
     setLnReceiveError('')
     setLnRetryable(false)
-    setLnHeldElsewhere(false)
+    setLnNoDriver(false)
     if (!svcWallet || isAssetReceive || satoshis <= 0) return
     if (recvInfo.pendingLnReceive?.payAmount && recvInfo.invoice) return
-    const network = aspInfo.network as NetworkName
 
     let abandoned = false
     const negotiate = async () => {
-      // per-network pin as the fallback co-signer key, for solver cards that
-      // predate `emulator_pubkey` — the card's own value wins where it has one.
-      const rendezvous = lnReceiveRendezvous(await discoverMarkets(network), getEmulatorPubkeyForNetwork(network))
-      if (!rendezvous) throw new Error('No Lightning solver available')
-      if (satoshis < rendezvous.minSats || satoshis > rendezvous.maxSats) {
-        throw new Error(
-          `Amount outside solver bounds (${prettyNumber(rendezvous.minSats)}-${prettyNumber(rendezvous.maxSats)} sats)`,
-        )
-      }
-      const pending = await withRfqTransport(rendezvous, (transport) =>
-        requestLnReceive({
-          wallet: svcWallet,
-          arkServerUrl: aspInfo.url,
-          transport,
-          rendezvous,
-          network,
-          amountSats: satoshis,
-        }),
-      )
+      // One call: the client picks the corridor off the discovered cards,
+      // negotiates the hold invoice, and begins driving the swap BEFORE the
+      // invoice comes back — the payer cannot pay one they have not seen, so
+      // the monitored set stays a superset of what is payable.
+      const pending = await receiveLightning(satoshis)
       if (abandoned) return
-      // Monitored BEFORE the invoice reaches the screen. The payer cannot pay
-      // an invoice they have not seen, so this cannot be late — but the
-      // ordering is what keeps the monitored set a superset of what is payable.
-      await track(pending)
       setLnReceiveError('')
       setRecvInfo((prev) => ({
         ...prev,
         invoice: pending.invoice,
-        pendingLnReceive: {
-          rfqId: pending.rfqId,
-          invoice: pending.invoice,
-          payAmount: pending.payAmount,
-          invoiceExpiresAt: pending.invoiceExpiresAt,
-        },
+        pendingLnReceive: pending,
       }))
     }
 
@@ -216,13 +187,21 @@ export default function ReceiveQRCode() {
       if (abandoned) return
       const error = extractError(err)
       consoleError(error, 'error negotiating lightning receive')
-      setLnHeldElsewhere(err instanceof LnReceiveHeldElsewhere)
+      const noDriver = err instanceof SwapsHeldElsewhere
+      setLnNoDriver(noDriver)
       setLnReceiveError(error)
-      // The one failure here that is not "Lightning is unavailable": the quote
-      // was fine and our own contract store refused the write. No invoice came
-      // back, so the abandoned quote is inert and cannot be resumed — calling
-      // again is the fix, and it derives a fresh preimage and rfq id.
-      setLnRetryable(err instanceof LockupRegistrationFailed)
+      // The failures here that are not "Lightning is unavailable". The first:
+      // the quote was fine and our own contract store refused the write. No
+      // invoice came back, so the abandoned quote is inert and cannot be
+      // resumed — calling again is the fix, and it derives a fresh preimage and
+      // rfq id. The second: no tab was driving, and the next one to take the
+      // lock will serve the same call.
+      //
+      // By name rather than by `instanceof`, because a negotiation run on
+      // another tab reaches us over `swapDriverChannel`, where the class cannot
+      // cross: the rebuilt error carries the name the SDK's own constructor
+      // sets, and this is the check that reads it in both cases.
+      setLnRetryable(noDriver || (err as Error)?.name === 'LockupRegistrationFailed')
     })
     // The amount changed under an in-flight negotiation, so its invoice would
     // be for the wrong number. Nothing to cancel on the solver — an unpaid hold
@@ -381,10 +360,15 @@ export default function ReceiveQRCode() {
   // above still reports the credit; this is what can say the payment was LOST —
   // `refunded` on a receive leg means the solver reclaimed a lockup we never
   // claimed, which nothing else on this screen could distinguish from waiting.
-  const rfqId = recvInfo.pendingLnReceive?.rfqId
-  const receiveState = rfqId ? status(rfqId) : undefined
-  const claimError = rfqId ? claimErrorFor(rfqId) : undefined
-  const receiveLost = receiveState === 'refunded'
+  const swapId = recvInfo.pendingLnReceive?.id
+  const receiveOutcome = swapId ? outcomeOf(swapId) : undefined
+  const claimError = swapId ? errorOf(swapId) : undefined
+  // `lapsed`, not `refunded`. On a receive leg every non-claim leaf of the
+  // covenant is the SOLVER's, so a lockup spent any other way is the incoming
+  // payment never arriving — a loss. v1 spelled that `refunded`, the same word
+  // it used for the trader's own money coming back; the v2 outcome vocabulary
+  // refuses to inherit the trap, and this screen is why it matters.
+  const receiveLost = receiveOutcome === 'lapsed'
 
   const data = { title: 'Receive', text: qrCodeValue }
   const shareDisabled = !canBrowserShareData(data) || sharing || hasError || noPaymentMethods
@@ -442,8 +426,8 @@ export default function ReceiveQRCode() {
               {lnReceiveError ? (
                 <FlexCol gap='0.25rem' centered>
                   <TextSecondary>
-                    {lnHeldElsewhere
-                      ? 'Another tab is handling Lightning receives — close it to receive here'
+                    {lnNoDriver
+                      ? 'Lightning receive is temporarily unavailable'
                       : `Lightning unavailable: ${lnReceiveError}`}
                   </TextSecondary>
                   {lnRetryable ? (
