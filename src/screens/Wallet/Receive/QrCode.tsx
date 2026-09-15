@@ -63,7 +63,7 @@ export default function ReceiveQRCode() {
   const { fromFiat } = useContext(FiatContext)
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
-  const { receiveLightning, outcomeOf, errorOf } = useContext(SwapsContext)
+  const { receiveLightning, cancelSwap, outcomeOf, errorOf } = useContext(SwapsContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { assetMetadataCache, svcWallet } = useContext(WalletContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
@@ -164,7 +164,7 @@ export default function ReceiveQRCode() {
     setLnReceiveError('')
     setLnRetryable(false)
     setLnNoDriver(false)
-    if (!svcWallet || isAssetReceive || satoshis <= 0) return
+    if (!svcWallet || isAssetReceive || satoshis <= 0 || recvInfo.received) return
     if (recvInfo.pendingLnReceive?.payAmount && recvInfo.invoice) return
 
     let abandoned = false
@@ -174,7 +174,13 @@ export default function ReceiveQRCode() {
       // invoice comes back — the payer cannot pay one they have not seen, so
       // the monitored set stays a superset of what is payable.
       const pending = await receiveLightning(satoshis)
-      if (abandoned) return
+      // The amount was already settled through another rail (e.g. an offchain
+      // VTXO) while the solver was negotiating this one — the hold invoice
+      // above is now unwanted and must be torn down, not just ignored.
+      if (abandoned) {
+        cancelSwap(pending.id).catch(consoleError)
+        return
+      }
       setLnReceiveError('')
       setRecvInfo((prev) => ({
         ...prev,
@@ -210,7 +216,7 @@ export default function ReceiveQRCode() {
       abandoned = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [svcWallet, satoshis, isAssetReceive, aspInfo.network, negotiateAttempt])
+  }, [svcWallet, satoshis, isAssetReceive, aspInfo.network, negotiateAttempt, recvInfo.received])
 
   // Build BIP21 URI
   useEffect(() => {
