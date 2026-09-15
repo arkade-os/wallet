@@ -24,6 +24,7 @@ import {
   swapStatusLabel,
   swapUnitOfAccountAmount,
 } from '../lib/swapDisplay'
+import SkeletonText from './SkeletonText'
 import UnverifiedBadge from './UnverifiedBadge'
 import { useTransactionAmountDisplay } from '../hooks/useTransactionAmountDisplay'
 
@@ -241,6 +242,25 @@ function SwapAmountInfo({
   )
 }
 
+/** The shape of a row, without its facts: icon, kind, date, amount. Same
+ * heights as the real row so the list does not jump when they arrive. */
+const TransactionLineSkeleton = ({ mode }: { mode: 'virtual' | 'static' }) => (
+  <div className={`activity-row activity-row--${mode} activity-row--skeleton`} aria-hidden='true'>
+    <div className='activity-row__left'>
+      <span className='activity-row__icon'>
+        <SkeletonText width='2.5rem' className='skeleton-text--icon' />
+      </span>
+      <div className='activity-row__copy'>
+        <SkeletonText width='4.5rem' />
+        <SkeletonText width='7rem' />
+      </div>
+    </div>
+    <div className='activity-row__right'>
+      <SkeletonText width='3.5rem' />
+    </div>
+  </div>
+)
+
 interface TransactionsListProps {
   /** Show only transactions for a specific asset. Use 'btc' for bitcoin-only activity. */
   assetIdFilter?: string | string[]
@@ -260,12 +280,15 @@ export default function TransactionsList({
 }: TransactionsListProps) {
   const { setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { assetMetadataCache, txs: allTxs } = useContext(WalletContext)
+  const { activityPending, assetMetadataCache, txs: allTxs } = useContext(WalletContext)
   const visibleTxs = allTxs
     .filter((tx) => !shouldHideDevAssetTx(tx, assetMetadataCache))
     .filter((tx) => matchesAssetFilter(tx, assetIdFilter))
     .filter((tx) => !typeFilter || tx.type === typeFilter)
   const txs = mode === 'static' && limit ? visibleTxs.slice(0, limit) : visibleTxs
+
+  // Rows the swap restore scan may still regroup — see `activityPending`.
+  const pending = activityPending && txs.length > 0
 
   const focusedRef = useRef(false)
   const focusedIndexRef = useRef(0)
@@ -329,6 +352,18 @@ export default function TransactionsList({
     hapticSubtle()
     setTxInfo(tx)
     navigate(Pages.Transaction)
+  }
+
+  if (pending) {
+    // `txs` is already sliced to `limit`, so its length is the cap in static
+    // mode; a virtual list only needs enough rows to fill the first screen
+    return (
+      <div className={`activity-list ${mode === 'static' ? 'activity-list--compact' : ''}`}>
+        {Array.from({ length: Math.min(txs.length, 5) }, (_, index) => (
+          <TransactionLineSkeleton key={index} mode={mode} />
+        ))}
+      </div>
+    )
   }
 
   // Static mode: render a simple list without virtualization

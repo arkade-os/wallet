@@ -35,6 +35,7 @@ import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import { usePortfolioFiat, type PortfolioRow } from '../../../hooks/usePortfolioFiat'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
+import SkeletonText from '../../../components/SkeletonText'
 import { verifiedDesignatedCurrency } from '../../../lib/accountAssets'
 
 type AssetTarget = 'from' | 'to'
@@ -850,12 +851,10 @@ function SwapComposer({
             <TokenAvatar asset={toAsset} size={36} />
             <div>
               <span>Receive {toAsset.ticker}</span>
-              <small>
-                {quoteLoading ? <SwapSkeletonText width='5.75rem' /> : `${quote.toAmount} ${toAsset.ticker}`}
-              </small>
+              <small>{quoteLoading ? <SkeletonText width='5.75rem' /> : `${quote.toAmount} ${toAsset.ticker}`}</small>
             </div>
             {quote.toCurrency ? (
-              <strong>{quoteLoading ? <SwapSkeletonText width='3.75rem' /> : quote.toCurrency}</strong>
+              <strong>{quoteLoading ? <SkeletonText width='3.75rem' /> : quote.toCurrency}</strong>
             ) : null}
           </>
         ) : (
@@ -871,10 +870,6 @@ function SwapComposer({
       </button>
     </div>
   )
-}
-
-function SwapSkeletonText({ width }: { width: string }) {
-  return <span className='swap-skeleton-text' style={{ width }} aria-hidden='true' />
 }
 
 function AnimatedAmountValue({
@@ -1300,7 +1295,7 @@ function MetricRow({ label, value, loading }: { label: ReactNode; value: string;
   return (
     <div className='swap-metric-row'>
       <span>{label}</span>
-      <span>{loading ? <SwapSkeletonText width='7rem' /> : value}</span>
+      <span>{loading ? <SkeletonText width='7rem' /> : value}</span>
     </div>
   )
 }
