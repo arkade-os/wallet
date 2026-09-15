@@ -107,6 +107,9 @@ export default function App() {
       return
     if (!wallet.pubkey) return navigate(Pages.Init)
     if (authState === 'locked') return navigate(Pages.Unlock)
+    // boot a ready wallet home from Init — do not list `screen` as a dep:
+    // that retriggers the no-pubkey → Init redirect and bounces Restore/Create
+    if (screen === Pages.Init && authState === 'authenticated') return navigate(Pages.Wallet)
   }, [
     walletLoaded,
     wallet.pubkey,
