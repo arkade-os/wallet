@@ -71,6 +71,7 @@ describe('Send screen', () => {
     fetchMocker.enableMocks()
     fetchMocker.mockResponseOnce(
       JSON.stringify({
+        tag: 'payRequest',
         callback: 'https://pay.staging.galoy.io/.well-known/lnurlp/testing',
         minSendable: 21000, // millisatoshis -> 21 sats
         maxSendable: 21000,

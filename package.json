@@ -4,8 +4,9 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/solver-discovery": "0.2.5",
+    "@arkade-os/lnurl-client": "link:../lnurl-server-client/packages/client",
     "@arkade-os/sdk": "0.4.72",
+    "@arkade-os/solver-discovery": "0.2.5",
     "@arkade-os/swap": "0.0.18",
     "@base-ui/react": "^1.4.1",
     "@branta-ops/branta": "3.1.3",

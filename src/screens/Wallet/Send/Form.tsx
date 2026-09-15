@@ -30,7 +30,8 @@ import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { ArkNote, AssetDetails, isValidArkAddress, type NetworkName } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
-import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl, LnUrlResponse } from '../../../lib/lnurl'
+import { createLnurlClient, isValidLnUrl, LnurlError, type PayRequest } from '@arkade-os/lnurl-client'
+import { fetchArkAddress } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
 import { decodeInvoice } from '../../../lib/bolt11'
 import { lnSendRendezvous, requestLnSend } from '../../../lib/lnSwap'
@@ -67,6 +68,13 @@ const brantaClient = new BrantaService({
   baseUrl: isProductionEnv ? 'Production' : 'Staging',
   privacy: 'strict',
 })
+
+const lnurlClient = createLnurlClient()
+
+// resolve() spreads the raw server body, so transferAmounts survives at runtime though PayRequest omits it
+type LnUrlConditions = PayRequest & {
+  transferAmounts?: { method: string; available: boolean }[]
+}
 
 export const isPlainOnchainTypedRecipient = (value: string): boolean => {
   if (isBTCAddress(value)) return true
@@ -151,7 +159,7 @@ export default function SendForm() {
   const [error, setError] = useState('')
   const [focus, setFocus] = useState('recipient')
   const [label, setLabel] = useState('')
-  const [lnUrlResponse, setLnUrlResponse] = useState<LnUrlResponse>()
+  const [lnUrlResponse, setLnUrlResponse] = useState<LnUrlConditions>()
   const [keys, setKeys] = useState(false)
   const [proceed, setProceed] = useState(false)
   const [processing, setProcessing] = useState(false)
@@ -509,7 +517,8 @@ export default function SendForm() {
     if (!sendInfo.lnUrl) return
     if (sendInfo.arkAddress) return
     if (sendInfo.lnUrl && sendInfo.invoice) return
-    checkLnUrlConditions(sendInfo.lnUrl)
+    lnurlClient
+      .resolve(sendInfo.lnUrl)
       .then((conditions) => {
         if (!conditions) return setRecipientError('Unable to fetch LNURL conditions')
         const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
@@ -523,7 +532,7 @@ export default function SendForm() {
         return setLnUrlResponse({ ...conditions, minSendable: min, maxSendable: max })
       })
       .catch((e) => {
-        if (e.status === 404) {
+        if (e instanceof LnurlError && e.httpStatus === 404) {
           consoleError(e, 'LNURL not found')
           setRecipientError('LNURL not found')
           return
@@ -777,7 +786,13 @@ export default function SendForm() {
           // No Ark method: fetch a BOLT11 and pay it through the RFQ Lightning
           // path (exact-out, zero spread — no fee to deduct from the amount)
           if (satoshis < 1) return handleError('Amount too low')
-          const invoice = await fetchInvoice(sendInfo.lnUrl, Number(satoshis), '')
+          const payRequest = await lnurlClient.resolve(sendInfo.lnUrl)
+          const result = await lnurlClient.requestInvoice(payRequest, {
+            amountSat: Number(satoshis),
+            comment: undefined,
+          })
+          if (result.kind !== 'bolt11') throw new Error('Expected a lightning invoice')
+          const invoice = result.pr
           setSendInfo((prev) => ({
             ...prev,
             arkAddress: undefined,
