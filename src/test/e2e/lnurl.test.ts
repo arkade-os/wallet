@@ -1,10 +1,19 @@
 import { test, expect, createWallet, readClipboard, waitForPaymentReceived, navigateHome } from './utils'
-import { isValidLnUrl, checkLnUrlConditions, fetchInvoice } from '../../lib/lnurl'
+import { createLnurlClient, isValidLnUrl } from '@arkade-os/lnurl-client'
 import { decodeInvoice } from '../../lib/bolt11'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
+
+const lnurlClient = createLnurlClient()
+
+const fetchInvoice = async (lnurl: string, sats: number, note: string): Promise<string> => {
+  const payRequest = await lnurlClient.resolve(lnurl)
+  const result = await lnurlClient.requestInvoice(payRequest, { amountSat: sats, comment: note || undefined })
+  if (result.kind !== 'bolt11') throw new Error('Expected a lightning invoice')
+  return result.pr
+}
 
 test.skip('should have lnurl with no amount', async ({ page }) => {
   // create wallet
@@ -42,7 +51,7 @@ test.skip('should check conditions from lnurl', async ({ page }) => {
   expect(isValidLnUrl(lnurl)).toBe(true)
 
   // check conditions
-  const conditions = await checkLnUrlConditions(lnurl)
+  const conditions = await lnurlClient.resolve(lnurl)
   expect(conditions).toHaveProperty('commentAllowed')
   expect(conditions).toHaveProperty('maxSendable')
   expect(conditions).toHaveProperty('minSendable')

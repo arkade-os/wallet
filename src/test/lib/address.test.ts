@@ -7,7 +7,7 @@ import {
   isURLWithLightningQueryString,
 } from '../../lib/address'
 import fixtures from '../fixtures.json'
-import { isValidLnUrl } from '../../lib/lnurl'
+import { isValidLnUrl } from '@arkade-os/lnurl-client'
 import { isValidArkAddress } from '@arkade-os/sdk'
 
 describe('address utilities', () => {
@@ -104,7 +104,7 @@ describe('address utilities', () => {
       expect(isValidLnUrl('invalidLnurl')).toBe(false)
     })
 
-    it('should return false for a mix cased lnurl', () => {
+    it('should return false for a mixed cased lnurl', () => {
       const mixedCaseLnurl = lnurl.replace('LNURL', 'LnUrL')
       expect(isValidLnUrl(mixedCaseLnurl)).toBe(false)
     })
