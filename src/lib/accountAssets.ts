@@ -5,8 +5,6 @@ export type WalletAccountTicker = 'BTC' | 'USD' | 'CHF' | 'BRL' | 'CNY' | 'EUR' 
 
 export const MUTINYNET_DEPIX_ASSET_ID = '47004bf4a5fbdb2221f708030528de68ea28f5980044e546b7bb5a352457d1f30000'
 export const MUTINYNET_USDT_ASSET_ID = 'f121ac9b7656797cc68d1e8fecacfbaa2069ec1461edf0bf2f3c37404cb9791a0000'
-// the official DePix issuance on Arkade mainnet — "Decentralized PIX", 8
-// decimals, icon served from the canonical Liquid DePix asset
 export const MAINNET_DEPIX_ASSET_ID = '0abcbc23c60028511880807dfe42aa16de88bd56df210a0b9135262d5d3959510000'
 
 // ponytail: hand-pinned designations; source them from
