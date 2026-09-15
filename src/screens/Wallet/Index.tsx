@@ -47,7 +47,7 @@ export default function Wallet() {
   const prefersReducedMotion = useReducedMotion()
   // Capture isInitialLoad at mount — it goes false before boot animation ends,
   // which would switch the stagger container from motion.div to plain div
-  const shouldStagger = useRef(isInitialLoad).current
+  const shouldStagger = false && useRef(isInitialLoad).current
 
   const logoRef = useCallback((el: HTMLDivElement | null) => {
     setLogoAnchor(el)
