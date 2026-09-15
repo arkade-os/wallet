@@ -31,17 +31,19 @@ function renderApp({
   unlockWallet = vi.fn().mockResolvedValue(undefined),
   screen: screenOverride = Pages.Init,
   option,
+  pubkey = 'stored-pubkey',
 }: {
   authState: WalletAuthState
   initialized: boolean
   unlockWallet?: ReturnType<typeof vi.fn>
   screen?: Pages
   option?: SettingsOptions
+  pubkey?: string
 }) {
   const navigate = vi.fn()
 
-  render(
-    <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate, screen: screenOverride }}>
+  const tree = (currentScreen: Pages) => (
+    <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate, screen: currentScreen }}>
       <AspContext.Provider value={mockAspContextValue as any}>
         <ConfigContext.Provider value={{ ...mockConfigContextValue, configLoaded: true } as any}>
           <FlowContext.Provider value={mockFlowContextValue as any}>
@@ -56,7 +58,7 @@ function renderApp({
                   dataReady: initialized,
                   unlockWallet,
                   walletLoaded: true,
-                  wallet: { nextRollover: 0, pubkey: 'stored-pubkey' },
+                  wallet: { nextRollover: 0, pubkey },
                 }}
               >
                 <App />
@@ -65,10 +67,16 @@ function renderApp({
           </FlowContext.Provider>
         </ConfigContext.Provider>
       </AspContext.Provider>
-    </NavigationContext.Provider>,
+    </NavigationContext.Provider>
   )
 
-  return { navigate, unlockWallet }
+  const view = render(tree(screenOverride))
+
+  return {
+    navigate,
+    unlockWallet,
+    rerender: (nextScreen: Pages) => view.rerender(tree(nextScreen)),
+  }
 }
 
 function setupTestEnvironment() {
@@ -125,6 +133,16 @@ describe('App startup routing', () => {
     await waitFor(() => expect(screen.getByTestId('app')).toBeInTheDocument())
     expect(unlockWallet).not.toHaveBeenCalled()
     expect(navigate).not.toHaveBeenCalledWith(Pages.Unlock)
+  })
+
+  it('does not bounce restore back to init when the screen changes', async () => {
+    const { navigate, rerender } = renderApp({ authState: 'unknown', initialized: false, pubkey: '' })
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.Init))
+    navigate.mockClear()
+    rerender(Pages.InitRestore)
+    await act(async () => {})
+    expect(navigate).not.toHaveBeenCalledWith(Pages.Init)
   })
 
   it('holds on loading during dev auto-init from VITE_DEV_MNEMONIC instead of redirecting', async () => {
