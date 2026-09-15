@@ -71,12 +71,6 @@ interface SwapQuote {
   giveCurrencyValue: number
 }
 
-interface ExitingAmountCharacter {
-  character: string
-  id: number
-  slotClassName: string
-}
-
 const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'Back']
 const rateNote = 'Rates are dynamic and may update before you confirm.'
 const rateNoteAutoDismissMs = 2400
@@ -887,31 +881,18 @@ function AnimatedAmountValue({
   className: string
 }) {
   const previousValueRef = useRef(value)
-  const exitingIdRef = useRef(0)
-  const [exitingCharacters, setExitingCharacters] = useState<ExitingAmountCharacter[]>([])
   const characters = Array.from(value)
   const previousCharacters = Array.from(previousValueRef.current)
+  const previousCharacterBySlot = new Map(
+    previousCharacters.map((character, index) => [
+      amountCharacterSlotKey(character, index, previousCharacters),
+      character,
+    ]),
+  )
   const shouldAnimate = previousValueRef.current !== value
   const isAdding = value.length > previousValueRef.current.length
 
   useEffect(() => {
-    const previousCharactersForExit = Array.from(previousValueRef.current)
-    const nextCharacters = Array.from(value)
-    const isDeleting = nextCharacters.length < previousCharactersForExit.length
-
-    if (isDeleting) {
-      const removedCharacters = previousCharactersForExit.slice(nextCharacters.length).map((character) => ({
-        character,
-        id: exitingIdRef.current++,
-        slotClassName: amountCharacterSlotClassName(character),
-      }))
-      setExitingCharacters(removedCharacters)
-      const timer = window.setTimeout(() => setExitingCharacters([]), 180)
-      previousValueRef.current = value
-      return () => window.clearTimeout(timer)
-    }
-
-    setExitingCharacters([])
     previousValueRef.current = value
   }, [value])
 
@@ -921,19 +902,26 @@ function AnimatedAmountValue({
       aria-label={value}
       style={{ '--swap-amount-scale': amountFontScale(value.length) } as React.CSSProperties}
     >
-      <AnimatePresence initial={false}>
+      <AnimatePresence mode='popLayout' initial={false}>
         {characters.map((character, characterIndex) => {
-          const characterChanged = previousCharacters[characterIndex] !== character
-          const entering = shouldAnimate && (characterChanged || characterIndex >= previousCharacters.length)
+          const slotKey = amountCharacterSlotKey(character, characterIndex, characters)
+          const entering = shouldAnimate && previousCharacterBySlot.get(slotKey) !== character
           return (
             <motion.span
-              key={amountCharacterSlotKey(character, characterIndex, characters)}
+              key={slotKey}
+              layout={!reducedMotion}
               className={amountCharacterSlotClassName(character)}
               initial={reducedMotion ? false : { opacity: 0, y: isAdding ? 12 : 7 }}
               animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
               exit={reducedMotion ? undefined : { opacity: 0, y: -7 }}
               transition={
-                reducedMotion ? { duration: 0 } : { duration: isAdding ? 0.28 : 0.16, ease: EASE_OUT_QUINT_TUPLE }
+                reducedMotion
+                  ? { duration: 0 }
+                  : {
+                      duration: isAdding ? 0.28 : 0.16,
+                      ease: EASE_OUT_QUINT_TUPLE,
+                      layout: { duration: 0.22, ease: EASE_OUT_QUINT_TUPLE },
+                    }
               }
             >
               <AnimatePresence mode='popLayout' initial={shouldAnimate}>
@@ -959,13 +947,6 @@ function AnimatedAmountValue({
           )
         })}
       </AnimatePresence>
-      {exitingCharacters.map(({ character, id, slotClassName }) => (
-        <span key={`exiting-${id}`} className={`${slotClassName} swap-amount-character-slot--exiting`}>
-          <span className='swap-amount-character swap-amount-character--exiting' aria-hidden='true'>
-            {character === ' ' ? '\u00a0' : character}
-          </span>
-        </span>
-      ))}
     </span>
   )
 }
