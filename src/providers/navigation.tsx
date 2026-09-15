@@ -37,7 +37,7 @@ import AppDfx from '../screens/Apps/Dfx/Index'
 import InAppBrowser from '../screens/Wallet/InAppBrowser'
 import Unavailable from '../screens/Wallet/Unavailable'
 
-export type NavigationDirection = 'forward' | 'back' | 'none'
+export type NavigationDirection = 'forward' | 'back' | 'none' | 'fade'
 
 export enum Pages {
   Activity,
@@ -237,7 +237,7 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
 
     stack.pop()
     previousPage.current = screenRef.current
-    setDirection(fromButton ? 'back' : 'none')
+    setDirection(fromButton ? (prevPage === Pages.Wallet ? 'fade' : 'back') : 'none')
     screenRef.current = prevPage
     setScreen(prevPage)
   }, [])
@@ -273,7 +273,9 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
         history.go(-entriesToRemove)
       }
       const isFromRoot = ROOT_PAGES.has(screenRef.current)
-      setDirection(isFromRoot ? 'none' : 'back')
+      const isFromBoot = BOOT_PAGES.has(screenRef.current)
+      // boot → home: none (logo overlay). in-app → home: fade off a settled home.
+      setDirection(isFromRoot || isFromBoot ? 'none' : 'fade')
     } else {
       // forward navigation: push to back stack AND browser history
       backStack.current.push(screenRef.current)

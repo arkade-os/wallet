@@ -131,7 +131,7 @@ export default function Wallet() {
               <PortfolioHero ref={balanceRef} collapseProgress={balanceCollapseProgress} />
             </WalletStaggerChild>
             <WalletStaggerChild animate={shouldStagger} className='home-stack__actions'>
-              <HomeQuickActions />
+              <HomeQuickActions intro={shouldStagger} />
             </WalletStaggerChild>
             {hasHomeNotices ? (
               <WalletStaggerChild animate={shouldStagger}>
