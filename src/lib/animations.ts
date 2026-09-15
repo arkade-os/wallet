@@ -78,16 +78,16 @@ export const overlaySlideUp: Variants = {
 export const walletLoadInContainer: Variants = {
   initial: {},
   animate: {
-    transition: { delayChildren: 0.04, staggerChildren: 0.09 },
+    transition: { delayChildren: 0.02, staggerChildren: 0.07 },
   },
 }
 
 export const walletLoadInChild: Variants = {
-  initial: { transform: 'translate3d(0, 18px, 0) scale(0.985)', opacity: 0 },
+  initial: { transform: 'translate3d(0, 12px, 0)', opacity: 0 },
   animate: {
-    transform: 'translate3d(0, 0, 0) scale(1)',
+    transform: 'translate3d(0, 0, 0)',
     opacity: 1,
-    transition: { duration: 0.34, ease: EASE_OUT_QUINT_TUPLE },
+    transition: { duration: 0.48, ease: EASE_OUT_QUINT_TUPLE },
   },
 }
 
