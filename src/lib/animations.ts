@@ -31,9 +31,7 @@ export const pageTransitionVariants: Variants = {
     x: '0%',
     opacity: 1,
     transition:
-      direction === 'none' || direction === 'fade'
-        ? { duration: 0 }
-        : { duration: PAGE_TRANSITION_DURATION, ease: EASE_OUT_QUINT_TUPLE },
+      direction === 'none' ? { duration: 0 } : { duration: PAGE_TRANSITION_DURATION, ease: EASE_OUT_QUINT_TUPLE },
   }),
   exit: (direction: string) => {
     if (direction === 'forward')
@@ -49,13 +47,6 @@ export const pageTransitionVariants: Variants = {
         opacity: 0,
         pointerEvents: 'none' as const,
         transition: { duration: PAGE_TRANSITION_EXIT_DURATION, ease: EASE_OUT_QUINT_TUPLE },
-      }
-    if (direction === 'fade')
-      return {
-        opacity: 0,
-        zIndex: 1,
-        pointerEvents: 'none' as const,
-        transition: { duration: 0.18, ease: EASE_OUT_QUINT_TUPLE },
       }
     return { opacity: 0, pointerEvents: 'none' as const, transition: { duration: 0 } }
   },

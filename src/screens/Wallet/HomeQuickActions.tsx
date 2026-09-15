@@ -17,7 +17,7 @@ interface HomeAction {
   disabled?: boolean
 }
 
-export default function HomeQuickActions({ intro = false }: { intro?: boolean }) {
+export default function HomeQuickActions() {
   const { navigate } = useContext(NavigationContext)
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { swapAvailable } = useContext(AssetSwapsContext)
@@ -77,11 +77,7 @@ export default function HomeQuickActions({ intro = false }: { intro?: boolean })
 
   return (
     <>
-      <div
-        className={intro ? 'home-quick-actions home-quick-actions--intro' : 'home-quick-actions'}
-        role='toolbar'
-        aria-label='Wallet actions'
-      >
+      <div className='home-quick-actions' role='toolbar' aria-label='Wallet actions'>
         {actions.map((action) => (
           <button key={action.label} {...actionButtonProps(action)}>
             <span className='home-quick-action__icon'>{action.icon}</span>
