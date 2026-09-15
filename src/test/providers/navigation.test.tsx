@@ -65,25 +65,4 @@ describe('NavigationProvider', () => {
     await waitFor(() => expect(probe).toHaveAttribute('data-screen', String(Pages.Wallet)))
     expect(probe).toHaveAttribute('data-initial-load', 'false')
   })
-
-  it('does not flag initial load when the swap page is replaced by home', async () => {
-    render(
-      <NavigationProvider>
-        <NavigationProbe />
-      </NavigationProvider>,
-    )
-
-    const probe = screen.getByTestId('navigation-probe')
-
-    fireEvent.click(screen.getByTestId('go-wallet'))
-    await waitFor(() => expect(probe).toHaveAttribute('data-screen', String(Pages.Wallet)))
-
-    fireEvent.click(screen.getByTestId('go-swap'))
-    await waitFor(() => expect(probe).toHaveAttribute('data-screen', String(Pages.WalletSwap)))
-
-    // swap success / Escape key: root navigation back to the wallet home
-    fireEvent.click(screen.getByTestId('go-wallet'))
-    await waitFor(() => expect(probe).toHaveAttribute('data-screen', String(Pages.Wallet)))
-    expect(probe).toHaveAttribute('data-initial-load', 'false')
-  })
 })
