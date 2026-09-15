@@ -107,7 +107,11 @@ export default function App() {
       return
     if (!wallet.pubkey) return navigate(Pages.Init)
     if (authState === 'locked') return navigate(Pages.Unlock)
+    // a ready wallet boots straight home — mounting Init even for one frame
+    // would flash the onboarding screen and derail the boot fly-to-target
+    if (screen === Pages.Init && authState === 'authenticated') return navigate(Pages.Wallet)
   }, [
+    screen,
     walletLoaded,
     wallet.pubkey,
     authState,
