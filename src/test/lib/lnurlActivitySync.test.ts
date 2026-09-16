@@ -131,6 +131,23 @@ describe('syncLnurlActivity', () => {
     expect(result.failures[0]?.baseUrl).toBe(OTHER.baseUrl)
   })
 
+  // The token derivation lowercases the domain and the server stores it
+  // lowercased, so a capitalised entry in the stored list still authenticates.
+  // Comparing it verbatim would drop every address and report success.
+  it('matches addresses when the stored domain differs only in case', async () => {
+    listAddresses.mockResolvedValue([entry('alice', 'example.com')])
+    listPayments.mockResolvedValue(page('alice', 'example.com', [bolt11('hash-1')]))
+
+    const result = await syncLnurlActivity(
+      identity,
+      [{ baseUrl: SERVER.baseUrl, domain: 'Example.COM' }],
+      memoryStore(),
+    )
+
+    expect(result).toEqual({ synced: 1, failures: [] })
+    expect(listPayments).toHaveBeenCalledTimes(1)
+  })
+
   it('reads the stored server list when none is passed', async () => {
     saveLnurlServers([SERVER])
     listAddresses.mockResolvedValue([entry('alice', SERVER.domain)])

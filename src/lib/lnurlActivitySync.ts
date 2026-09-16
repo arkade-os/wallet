@@ -16,6 +16,8 @@ export interface LnurlSyncOutcome {
   failures: { baseUrl: string; error: unknown }[]
 }
 
+const normalizeDomain = (domain: string): string => domain.trim().toLowerCase()
+
 export const readLnurlServers = (): LnurlServer[] =>
   getStorageItem<LnurlServer[]>(LNURL_SERVERS_STORAGE_KEY, [], (value) => JSON.parse(value))
 
@@ -42,12 +44,16 @@ export async function syncLnurlActivity(
   const failures: LnurlSyncOutcome['failures'] = []
   for (const server of servers) {
     try {
-      const token = await deriveSessionTokenForIdentity(identity, server.domain)
+      // Normalised the way the token derivation and the server both do it.
+      // Comparing a stored "Example.com" against the server's "example.com"
+      // verbatim would drop every address while still reporting success.
+      const domain = normalizeDomain(server.domain)
+      const token = await deriveSessionTokenForIdentity(identity, domain)
       const owned = await createLnurlClient({ baseUrl: server.baseUrl }).listAddresses(token)
       for (const entry of owned) {
         // A token is bound to one domain, so it cannot authenticate at another
         // even where one server answers for several.
-        if (entry.status !== 'active' || entry.domain !== server.domain) continue
+        if (entry.status !== 'active' || normalizeDomain(entry.domain) !== domain) continue
         targets.push({ baseUrl: server.baseUrl, token, username: entry.username, domain: entry.domain })
       }
     } catch (error) {
