@@ -31,10 +31,10 @@ import {
   swapStatusLabel,
   type SwapStatus,
 } from '../../lib/swapDisplay'
-import { AssetSwapsContext } from '../../providers/assetSwaps'
+import { SwapsContext } from '../../providers/swaps'
 import { hapticTap } from '../../lib/haptics'
 import { useTransactionAmountDisplay } from '../../hooks/useTransactionAmountDisplay'
-import { useLnSendReceipt } from '../../hooks/useLnSendReceipt'
+import { useCorridorSendReceipt } from '../../hooks/useCorridorSendReceipt'
 import TransactionAmountSummary from '../../components/TransactionAmountSummary'
 import {
   AlertDialog,
@@ -50,7 +50,7 @@ import {
 export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo } = useContext(FlowContext)
-  const { cancelSwap, swaps } = useContext(AssetSwapsContext)
+  const { cancelSwap, swaps } = useContext(SwapsContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { assetMetadataCache, isVerifiedAsset, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } =
     useContext(WalletContext)
@@ -83,7 +83,7 @@ export default function Transaction() {
       : txInfo
   const swapTx = tx?.type === 'swap'
   const amountDisplay = useTransactionAmountDisplay(tx)
-  const lnSendReceipt = useLnSendReceipt(tx)
+  const corridorReceipt = useCorridorSendReceipt(tx)
   const issuanceTx = tx
     ? tx.assetAction === 'issued' || tx.assetAction === 'reissued' || (!tx.assetAction && isIssuance(tx))
     : false
@@ -259,13 +259,12 @@ export default function Transaction() {
         satoshis: assetTransfer ? undefined : tx.amount,
         status,
         total: assetTransfer ? undefined : tx.amount,
-        // A Lightning send is two txs, so it gets the same pair of rows an
-        // asset swap does — funding, then the spend that ended it — in place
-        // of a lone "Transaction ID" that would name only the first and say
-        // nothing about whether the invoice was ever paid. Dropping txid is
-        // how the swap branch above expresses the same thing.
-        ...lnSendReceipt,
-        txid: lnSendReceipt ? undefined : txid,
+        // An ordinary payment PLUS swap facts, so it spreads here rather than
+        // getting a third branch that would restate ten rows to add six.
+        ...corridorReceipt,
+        refundDeadline:
+          corridorReceipt?.refundLocktime === undefined ? undefined : prettyDate(corridorReceipt.refundLocktime),
+        txid: corridorReceipt ? undefined : txid,
         type: boardingTx ? 'Boarding' : undefined,
         wallet,
       }

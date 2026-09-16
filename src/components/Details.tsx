@@ -1,4 +1,4 @@
-import { useContext } from 'react'
+import { useContext, useState } from 'react'
 import { prettyBitcoinAmount, prettyBitcoinHide, prettyFiatAmount, prettyFiatHide } from '../lib/format'
 import { ConfigContext } from '../providers/config'
 import { FiatContext } from '../providers/fiat'
@@ -13,6 +13,9 @@ import NotesIcon from '../icons/Notes'
 import Table, { TableData } from './Table'
 import StatusIcon from '../icons/Status'
 import HashIcon from '../icons/Hash'
+import ServerIcon from '../icons/Server'
+import ChevronDownIcon from '../icons/ChevronDown'
+import ChevronUpIcon from '../icons/ChevronUp'
 import InfoIcon from '../icons/Info'
 import ArrowUpDownIcon from '../icons/ArrowUpDown'
 import { Wallet } from '../lib/types'
@@ -24,6 +27,7 @@ import {
   openAssetInNewTab,
   getOffchainTxURL,
   getAssetURL,
+  getTxIdURL,
 } from '../lib/explorers'
 
 export interface DetailsProps {
@@ -45,6 +49,13 @@ export interface DetailsProps {
   satoshis?: number
   spendLabel?: string
   spendTxid?: string
+  claimTxid?: string
+  corridor?: string
+  recipientGets?: number
+  swapFeeSats?: number
+  solver?: string
+  htlcAddress?: string
+  refundDeadline?: string
   status?: string
   swapFees?: SwapDisplayAmount
   swapFrom?: SwapDisplayAmount
@@ -59,6 +70,8 @@ export interface DetailsProps {
 export default function Details({ details, variant }: { details?: DetailsProps; variant?: 'default' | 'receipt' }) {
   const { config, useFiat } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
+
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   if (!details) return <></>
 
@@ -81,6 +94,13 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     satoshis,
     spendLabel,
     spendTxid,
+    claimTxid,
+    corridor,
+    recipientGets,
+    swapFeeSats,
+    solver,
+    htlcAddress,
+    refundDeadline,
     status,
     swapFees,
     swapFrom,
@@ -150,6 +170,10 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
   const showTxidLink = txidOnClick && (!isOffchainTx || getOffchainTxURL(txid ?? '', wallet!))
 
   // Swap legs are Arkade virtual transactions, so always link to the arkade explorer
+  // A real Bitcoin tx, so the block explorer — not Arkade's vmempool one.
+  const onchainTxOnClick = (id?: string) =>
+    wallet && id && getTxIdURL(id, wallet) ? () => openInNewTab(id, wallet) : undefined
+
   const offchainTxOnClick = (id?: string) =>
     wallet && id && getOffchainTxURL(id, wallet) ? () => openOffchainTxInNewTab(id, wallet) : undefined
 
@@ -177,8 +201,12 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     ['Destination', destination, <TypeIcon key='destination-icon' />],
     ['Funded', fundedTxid, <HashIcon key='funded-icon' />, offchainTxOnClick(fundedTxid)],
     [spendLabel ?? 'Completed', spendTxid, <HashIcon key='spend-icon' />, offchainTxOnClick(spendTxid)],
+    // Says the recipient was paid; `spendTxid` only proves the solver acted.
+    ['Paid on-chain', claimTxid, <HashIcon key='claim-icon' />, onchainTxOnClick(claimTxid)],
     ['Transaction ID', txid, <HashIcon key='txid-icon' />, showTxidLink ? txidOnClick : undefined],
     ...assetIdRows,
+    ['Corridor', corridor, <DirectionIcon key='corridor-icon' />],
+    ['Solver', solver, <ServerIcon key='solver-icon' />],
     ['Direction', direction, <DirectionIcon key='direction-icon' />],
     ['Type', type, <TypeIcon key='type-icon' />],
     ['Status', status, <StatusIcon key='status-icon' />],
@@ -188,10 +216,40 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     ...amountRows,
     ['Price rate', priceRate, <ArrowUpDownIcon key='price-rate-icon' />],
     ['Network fees', fees === undefined ? undefined : formatAmount(fees), <FeesIcon key='fees-icon' />],
-    ['Swap fees', formatSensitiveDetail(swapFees), <FeesIcon key='swap-fees-icon' />],
+    [
+      'Swap fees',
+      formatSensitiveDetail(swapFees) ?? (swapFeeSats === undefined ? undefined : formatAmount(swapFeeSats)),
+      <FeesIcon key='swap-fees-icon' />,
+    ],
+    [
+      'Recipient gets',
+      recipientGets === undefined ? undefined : formatAmount(recipientGets),
+      <TotalIcon key='recipient-gets-icon' />,
+    ],
     ...assetTotalRows,
     ['Total', formatAmount(total), <TotalIcon key='total-icon' />],
   ]
 
-  return <Table data={data} variant={variant} />
+  // Gated because they AUDIT a swap, never complete or diagnose one. The gate
+  // is local because settings' "Advanced" is a page, not a preference to read.
+  const advanced: TableData = [
+    ['L1 HTLC address', htlcAddress, <HashIcon key='htlc-icon' />],
+    ['Refund deadline', refundDeadline, <DateIcon key='refund-deadline-icon' />],
+  ]
+  const hasAdvanced = advanced.some(([, value]) => Boolean(value))
+
+  return (
+    <>
+      <Table data={data} variant={variant} />
+      {hasAdvanced ? (
+        <>
+          <button type='button' className='details-advanced-toggle' onClick={() => setShowAdvanced((v) => !v)}>
+            Advanced
+            {showAdvanced ? <ChevronUpIcon /> : <ChevronDownIcon />}
+          </button>
+          {showAdvanced ? <Table data={advanced} variant={variant} /> : null}
+        </>
+      ) : null}
+    </>
+  )
 }

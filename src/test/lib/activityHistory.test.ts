@@ -1,12 +1,17 @@
-import { beforeEach, describe, it, expect } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
+
+const consoleError = vi.hoisted(() => vi.fn())
+vi.mock('../../lib/logs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/logs')>()),
+  consoleError: (...args: unknown[]) => consoleError(...args),
+}))
 import { lnSwapLabel } from '../../lib/swapDisplay'
 import { createDefaultActivityRegistry, ServiceWorkerWallet, type Activity, type ArkTransaction } from '@arkade-os/sdk'
 import { activitiesToTxs, getActivities } from '../../lib/activityHistory'
-import { swapActivityResolver } from '@arkade-os/swap'
-import { ASSET_SWAP_ACTIVITY_KIND, assetSwapResolver } from '../../lib/activity/assetSwapResolver'
+import { ASSET_SWAP_ACTIVITY_KIND, swapRecordResolver, type LnSendView } from '../../lib/swapRecords'
+import type { SwapRecord } from '@arkade-os/swap'
 import { readAllTransactionActivityMetadata, saveTransactionActivityMetadata } from '../../lib/storage'
 import type { ExitRecord } from '../../lib/exitHistory'
-import type { LnSendView } from '../../lib/lnSendRecords'
 import type { WalletAssetSwap } from '../../lib/swapRepository'
 
 beforeEach(() => localStorage.clear())
@@ -146,9 +151,50 @@ describe('getActivities', () => {
   })
 })
 
-describe('assetSwapResolver', () => {
+/**
+ * The v2 records the client writes, reduced to what the resolver reads. Cast
+ * rather than built through the package: nothing here exercises the record's
+ * own invariants, and a full fixture would pin fields the resolver ignores.
+ */
+const offerRecord = (over: Record<string, unknown> = {}): SwapRecord =>
+  ({
+    id: 'swap-1',
+    family: 'offer',
+    status: 'pending',
+    route: { give: { corridor: 'arkade' }, take: { corridor: 'arkade' } },
+    fundingTxid: 'funding-txid',
+    offerHex: '0100',
+    swapAddress: 'tark1q...',
+    swapPkScript: '5120' + 'ab'.repeat(32),
+    give: { asset: 'arkade:mutinynet/slip44:0', amount: '10000' },
+    take: { asset: 'arkade:mutinynet/asset:' + 'f1'.repeat(34), amount: '992' },
+    fee: { asset: 'arkade:mutinynet/slip44:0', amount: '0' },
+    createdAt: 2,
+    updatedAt: 2,
+    ...over,
+  }) as unknown as SwapRecord
+
+const corridorRecord = (over: Record<string, unknown> = {}): SwapRecord =>
+  ({
+    id: 'rfq:quote-1',
+    family: 'rfq',
+    lockupAddress: 'tark1qlockup',
+    route: { give: { corridor: 'arkade' }, take: { corridor: 'lightning' } },
+    kind: 'lightning_send',
+    state: 'pending',
+    rfqId: 'rfq-1',
+    fundingTxid: 'ln-funding-txid',
+    give: { asset: 'arkade:mutinynet/slip44:0', amount: '1030' },
+    take: { asset: 'bolt11:mutinynet/slip44:0', amount: '1000' },
+    fee: { asset: 'arkade:mutinynet/slip44:0', amount: '30' },
+    createdAt: 2,
+    updatedAt: 2,
+    ...over,
+  }) as unknown as SwapRecord
+
+describe('swapRecordResolver', () => {
   it('groups the funding and spending txs of one swap and leaves the rest plain', async () => {
-    const resolver = assetSwapResolver(async () => [swap({ spentTxid: 'fill-txid' })])
+    const resolver = swapRecordResolver(async () => [offerRecord({ spentTxid: 'fill-txid' })])
     await resolver.prepare?.()
 
     expect(resolver.resolve(arkTx('funding-txid'))).toEqual([
@@ -158,14 +204,119 @@ describe('assetSwapResolver', () => {
     expect(resolver.resolve(arkTx('unrelated'))).toBeUndefined()
   })
 
+  it('labels a corridor group and keys it on the rfq id, not the swap id', async () => {
+    // Both halves matter to the row builder: `swapKind` is what tells a
+    // Lightning row from an asset swap row, and the rfq id is what the
+    // ungrouped-send pass matches a stored send against.
+    const resolver = swapRecordResolver(async () => [corridorRecord()])
+    await resolver.prepare?.()
+
+    expect(resolver.resolve(arkTx('ln-funding-txid'))).toEqual([
+      {
+        groupId: 'swap:rfq-1',
+        kind: 'swap',
+        label: 'Lightning send',
+        outcome: 'pending',
+        metadata: { rfqId: 'rfq-1', swapKind: 'lightning_send' },
+      },
+    ])
+  })
+
+  it('groups a claimed receive on the LOCKUP’s txid, not on its claim', async () => {
+    // `arkTxId` SPENT the lockup; `txid` created it, and that is the row.
+    const LOCKUP_SCRIPT = '5120ce5e5994'
+    const LOCKUP_FUNDING = '3e722476'
+    const CLAIM = '365b1e00'
+    const resolver = swapRecordResolver(
+      async () => [
+        corridorRecord({
+          kind: 'lightning_receive',
+          state: 'settled',
+          fundingTxid: undefined,
+          lockupPkScript: LOCKUP_SCRIPT,
+          lockupSpendTxids: [CLAIM],
+          profile: { claimTxid: CLAIM },
+        }),
+      ],
+      async (script) => (script === LOCKUP_SCRIPT ? [{ txid: LOCKUP_FUNDING, arkTxId: CLAIM }] : []),
+    )
+    await resolver.prepare?.()
+
+    expect(resolver.resolve(arkTx(LOCKUP_FUNDING))?.[0]).toMatchObject({
+      groupId: 'swap:rfq-1',
+      label: 'Lightning receive',
+      metadata: { swapKind: 'lightning_receive' },
+    })
+  })
+
+  it.each([
+    ['pending', false],
+    ['settled', true],
+  ] as const)('is quiet about an empty lockup on a %s swap: loud=%s', async (state, loud) => {
+    // A receive's lockup exists from the moment it is derived and holds nothing
+    // until the sender pays, so an error here would fire on every history load
+    // during a live receive — which is how the real one gets ignored.
+    consoleError.mockClear()
+    const resolver = swapRecordResolver(
+      async () => [
+        corridorRecord({ kind: 'lightning_receive', state, fundingTxid: undefined, lockupPkScript: '5120aa' }),
+      ],
+      async () => [],
+    )
+    await resolver.prepare?.()
+
+    expect(consoleError).toHaveBeenCalledTimes(loud ? 1 : 0)
+  })
+
+  it('reads no lockup for a leg that funded one itself', async () => {
+    const reads: string[] = []
+    const resolver = swapRecordResolver(
+      async () => [corridorRecord({ fundingTxid: 'funding-txid' })],
+      async (script) => (reads.push(script), []),
+    )
+    await resolver.prepare?.()
+
+    expect(reads).toEqual([])
+  })
+
+  it('labels the claimed receive end to end, resolver through row', async () => {
+    const resolver = swapRecordResolver(async () => [
+      corridorRecord({
+        kind: 'lightning_receive',
+        state: 'settled',
+        fundingTxid: undefined,
+        profile: { claimTxid: 'claim-txid' },
+      }),
+    ])
+    await resolver.prepare?.()
+    const intent = resolver.resolve(arkTx('claim-txid'))?.[0]
+
+    const claim = arkTx('claim-txid', { amount: 2_006, createdAt: 7_000 })
+    const [row] = activitiesToTxs(
+      [{ ...activity('swap:rfq-1', [claim], intent as Activity['intent']), amount: 2_006 }],
+      empty,
+    )
+
+    expect(row.type).toBe('received')
+    expect(lnSwapLabel(row)).toBe('Lightning receive')
+  })
+
+  it('carries a corridor spend into the same group, so a refund is not a stray row', async () => {
+    const resolver = swapRecordResolver(async () => [corridorRecord({ state: 'refunded', refundTxid: 'refund-txid' })])
+    await resolver.prepare?.()
+
+    expect(resolver.resolve(arkTx('refund-txid'))?.[0].groupId).toBe('swap:rfq-1')
+    expect(resolver.resolve(arkTx('refund-txid'))?.[0].outcome).toBe('refunded')
+  })
+
   it('re-reads the store on every prepare, so records written after the first load still group', async () => {
-    let records: WalletAssetSwap[] = []
-    const resolver = assetSwapResolver(async () => records)
+    let records: SwapRecord[] = []
+    const resolver = swapRecordResolver(async () => records)
 
     await resolver.prepare?.()
     expect(resolver.resolve(arkTx('funding-txid'))).toBeUndefined()
 
-    records = [swap()]
+    records = [offerRecord()]
     await resolver.prepare?.()
     expect(resolver.resolve(arkTx('funding-txid'))?.[0].groupId).toBe('swap:swap-1')
   })
@@ -176,7 +327,16 @@ describe('end to end through the SDK grouping', () => {
   // the registered resolvers is
   const activityHistoryOf = async (txs: ArkTransaction[], swaps: WalletAssetSwap[]) => {
     const registry = createDefaultActivityRegistry()
-    registry.use(assetSwapResolver(async () => swaps))
+    // The v1 rows this fixture describes reach the resolver as v2 offer
+    // records: the two carry the same three txids, and the grouping is what is
+    // under test rather than the record shape.
+    registry.use(
+      swapRecordResolver(async () =>
+        swaps.map((swap) =>
+          offerRecord({ id: swap.id, fundingTxid: swap.fundingTxid, spentTxid: swap.spentTxid, status: swap.status }),
+        ),
+      ),
+    )
     const wallet = {
       activity: registry,
       getTransactionHistory: async () => txs,
@@ -282,6 +442,7 @@ describe('lightning send activities', () => {
   const view = (over: Partial<LnSendView> = {}): LnSendView => ({
     rfqId: RFQ_ID,
     fundingTxid: 'funding-txid',
+    kind: 'lightning_send',
     state: 'pending',
     amount: 1_030,
     createdAt: 4_000,
@@ -308,6 +469,20 @@ describe('lightning send activities', () => {
     expect(lnSwapLabel(row)).toBe('Lightning send pending')
   })
 
+  it('shows an on-chain send in flight too — the corridor that needed it most', () => {
+    // Same invisibility, and the corridor a payer actually leaves during.
+    const [row, ...rest] = activitiesToTxs([], { ...empty, lnSends: [view({ kind: 'onchain_send' })] })
+
+    expect(rest).toEqual([])
+    expect(row).toMatchObject({
+      type: 'sent',
+      redeemTxid: 'funding-txid',
+      historyKey: `swap:${RFQ_ID}`,
+      lnSwap: { label: 'Onchain send', outcome: 'pending', fundingTxid: 'funding-txid' },
+    })
+    expect(lnSwapLabel(row)).toBe('Onchain send pending')
+  })
+
   it('gives that row the invoice and fee saved against the funding tx', () => {
     saveTransactionActivityMetadata('funding-txid', { destination: 'lnbc10u1p...', networkFee: 30 })
 
@@ -318,6 +493,72 @@ describe('lightning send activities', () => {
     })
 
     expect(row).toMatchObject({ destination: 'lnbc10u1p...', networkFee: 30 })
+  })
+
+  it('grafts the metadata under the txid the wallet funded, not the group’s sent member', () => {
+    // The live defect: the surviving member is the lockup SPEND, not the funding.
+    saveTransactionActivityMetadata('funding-txid', { destination: 'lnbc10u1p...', networkFee: 54 })
+    const spend = arkTx('lockup-spend-txid', {
+      type: 'SENT' as ArkTransaction['type'],
+      amount: 1_054,
+      createdAt: 6_000,
+    })
+
+    const [row] = activitiesToTxs([{ ...activity(`swap:${RFQ_ID}`, [spend], lnIntent('pending')), amount: -1_054 }], {
+      ...empty,
+      lnSends: [view()],
+      metadata: readAllTransactionActivityMetadata(),
+    })
+
+    expect(row).toMatchObject({ destination: 'lnbc10u1p...', networkFee: 54 })
+    expect(row.lnSwap?.fundingTxid).toBe('funding-txid')
+  })
+
+  it('routes an on-chain send group through the same builder', () => {
+    saveTransactionActivityMetadata('funding-txid', { destination: 'tb1qmt3ue2s', networkFee: 862 })
+    const spend = arkTx('lockup-spend-txid', {
+      type: 'SENT' as ArkTransaction['type'],
+      amount: 22_862,
+      createdAt: 6_000,
+    })
+    const intent = {
+      kind: 'swap',
+      label: 'Onchain send',
+      outcome: 'pending',
+      metadata: { rfqId: RFQ_ID, swapKind: 'onchain_send' },
+    } as Activity['intent']
+
+    const [row, ...rest] = activitiesToTxs([{ ...activity(`swap:${RFQ_ID}`, [spend], intent), amount: -22_862 }], {
+      ...empty,
+      lnSends: [view({ kind: 'onchain_send' })],
+      metadata: readAllTransactionActivityMetadata(),
+    })
+
+    expect(rest).toEqual([])
+    expect(row).toMatchObject({ destination: 'tb1qmt3ue2s', networkFee: 862, lnSwap: { label: 'Onchain send' } })
+  })
+
+  it('carries the record facts history cannot know onto the row', () => {
+    const [row] = activitiesToTxs([{ ...activity(`swap:${RFQ_ID}`, [funding], lnIntent('pending')), amount: -1_054 }], {
+      ...empty,
+      lnSends: [
+        view({
+          corridor: 'bitcoin',
+          takeAmount: 22_152,
+          feeAmount: 710,
+          solver: 'ln-solver-mutinynet',
+          claimTxid: 'l1-claim-txid',
+        }),
+      ],
+    })
+
+    expect(row.lnSwap).toMatchObject({
+      corridor: 'bitcoin',
+      takeAmount: 22_152,
+      feeAmount: 710,
+      solver: 'ln-solver-mutinynet',
+      claimTxid: 'l1-claim-txid',
+    })
   })
 
   it('keeps naming a refunded send, whose refund tx history reports no better', () => {
@@ -343,32 +584,6 @@ describe('lightning send activities', () => {
 
     expect(rows).toHaveLength(1)
     expect(rows[0].historyKey).toBe(`swap:${RFQ_ID}`)
-  })
-
-  it('groups the refund with its funding tx end to end, through the package resolver', async () => {
-    const registry = createDefaultActivityRegistry()
-    registry.use(
-      swapActivityResolver({
-        listSwaps: async () => [
-          { rfqId: RFQ_ID, kind: 'lightning_send', state: 'refunded', txids: ['funding-txid', 'refund-txid'] },
-        ],
-      }),
-    )
-    const wallet = {
-      activity: registry,
-      getTransactionHistory: async () => [funding, refund, arkTx('unrelated', { createdAt: 6_000 })],
-      getActivityHistory: ServiceWorkerWallet.prototype.getActivityHistory,
-    }
-
-    const txs = activitiesToTxs(await wallet.getActivityHistory(), empty)
-
-    // without the resolver these are two rows, and the refund reads as money
-    // arriving from nowhere
-    expect(txs.map((tx) => [tx.type, tx.historyKey])).toEqual([
-      ['received', 'unrelated:unrelated'],
-      ['sent', `swap:${RFQ_ID}`],
-    ])
-    expect(txs[1]).toMatchObject({ amount: 30, lnSwap: { label: 'Lightning send', outcome: 'refunded' } })
   })
 })
 
@@ -407,7 +622,7 @@ describe('lightning receive activities', () => {
       empty,
     )
 
-    // `useLnSendReceipt` keys off exactly this field and returns undefined
+    // `useCorridorSendReceipt` keys off exactly this field and returns undefined
     // without it — which is what keeps a receive out of a receipt built for a
     // send.
     expect(row.lnSwap?.fundingTxid).toBeUndefined()

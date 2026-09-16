@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { InvoiceRejected, lockupSpenderTxid, toInvoiceFacts } from '../../lib/lnSwap'
+import { InvoiceRejected, toInvoiceFacts } from '../../lib/lnSwap'
 import fixtures from '../fixtures.json'
 
 describe('lnSwap', () => {
@@ -60,41 +60,5 @@ describe('lnSwap', () => {
         expect((e as InvoiceRejected).reason).toBe('unparseable')
       }
     })
-  })
-})
-
-describe('lockupSpenderTxid', () => {
-  const swapPkScript = `5120${'ab'.repeat(32)}`
-  const fundingTxid = 'funding-txid'
-  const lockup = { fundingTxid, swapPkScript }
-  const indexer = (vtxos: unknown[]) => ({ getVtxos: async () => ({ vtxos }) }) as never
-  const covenant = (state: string, spend?: Record<string, string>) => ({
-    script: swapPkScript,
-    txid: fundingTxid,
-    virtualStatus: { state },
-    ...spend,
-  })
-
-  it('names the tx that spent the lockup', async () => {
-    // Which spend it was is the manager's answer, off a hash-verified witness.
-    // This only supplies the txid that answer does not carry.
-    expect(await lockupSpenderTxid(indexer([covenant('spent', { arkTxId: 'spend-txid' })]), lockup)).toBe('spend-txid')
-  })
-
-  it('falls back to spentBy when the indexer names no ark txid', async () => {
-    expect(await lockupSpenderTxid(indexer([covenant('spent', { spentBy: 'spend-txid' })]), lockup)).toBe('spend-txid')
-  })
-
-  it('has no answer while the lockup is unspent, or once it is swept', async () => {
-    for (const state of ['settled', 'preconfirmed', 'swept']) {
-      expect(await lockupSpenderTxid(indexer([covenant(state)]), lockup)).toBeUndefined()
-    }
-  })
-
-  it('ignores a covenant funded by some other transaction', async () => {
-    // Identical quotes derive the same address, so the script alone does not
-    // identify this swap's deposit — only the funding txid does.
-    const other = { ...covenant('spent', { arkTxId: 'spend-txid' }), txid: 'another-funding-txid' }
-    expect(await lockupSpenderTxid(indexer([other]), lockup)).toBeUndefined()
   })
 })
