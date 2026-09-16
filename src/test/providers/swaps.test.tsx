@@ -287,4 +287,26 @@ describe('SwapsProvider swap list', () => {
     // the fill moved value, so the balance has to be re-read
     await waitFor(() => expect(reloadWallet).toHaveBeenCalled())
   })
+
+  it("re-reads history once when the client's restore surfaces a swap the store never held", async () => {
+    // A record the client rebuilds from chain lands after the wallet's first
+    // history read, and only a second read lets the resolver fold the swap's
+    // two transfers into one row.
+    ready.mockImplementation(async () => {
+      await repository.saveSwapRecord(offerRecord())
+    })
+    const reloadWallet = renderProvider()
+
+    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('pending'))
+    await waitFor(() => expect(reloadWallet).toHaveBeenCalledTimes(1))
+  })
+
+  it('leaves history alone when the restore brings back only what the store already held', async () => {
+    await repository.saveSwapRecord(offerRecord())
+    const reloadWallet = renderProvider()
+
+    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('pending'))
+    await waitFor(() => expect(ready).toHaveBeenCalled())
+    expect(reloadWallet).not.toHaveBeenCalled()
+  })
 })

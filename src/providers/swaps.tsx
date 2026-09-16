@@ -12,8 +12,9 @@
  * the right packet, persists before anything irreversible, watches, claims and
  * refunds. So the three product paths are one verb each — `pay`, `receive`,
  * `exchange` — and what is left here is the wiring, the wallet's own UI state,
- * and the two things the client does not own: the chain restore scan for offer
- * records, and the quote snapshot the activity list renders.
+ * the quote snapshot the activity list renders, and one consequence of the
+ * client's own restore: a record it rebuilds from chain lands after the
+ * wallet's first history read, so history is read again when that happens.
  *
  * **One tab drives; every tab acts.** Two clients over one repository would
  * race `pushClaim` over the same lockup, and while that particular race heals
@@ -430,6 +431,11 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       restoredRef.current = false
 
       const started = (async () => {
+        // The records on disk before the client's restore, read from the
+        // store rather than from `swaps`: the mount read of that list is
+        // still in flight here, and an empty snapshot would call every
+        // record new on every mount.
+        const before = new Set((await offerSwaps()).map((swap) => swap.id))
         const client = makeSwapClient(svcWallet, network)
         client.onUpdate(({ swap, outcome }) => {
           const replay = !restoredRef.current
@@ -443,8 +449,14 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         // repository itself is unreadable — a client that cannot read its own
         // records cannot drive them safely.
         await client.ready
-        await refreshSwaps()
+        const after = await refreshSwaps()
         restoredRef.current = true
+        // The activity list groups a swap's two transfers only if the
+        // resolver saw its record when history was read. A record the restore
+        // rebuilt from chain — a wallet restored on a fresh device — landed
+        // after that read, so history is read once more; a store the restore
+        // left as it found it costs nothing.
+        if (after.some((swap) => !before.has(swap.id))) reloadRef.current().catch(consoleError)
         return client
       })()
 
