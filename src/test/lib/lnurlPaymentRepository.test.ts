@@ -28,6 +28,7 @@ const makePayment = (identifier: string, baseUrl = SERVER_A, extra: Partial<Stor
   paymentReference: null,
   preimage: null,
   paymentOption: null,
+  covenantScript: null,
   ...extra,
 })
 

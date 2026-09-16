@@ -49,6 +49,7 @@ import { Indexer } from '../lib/indexer'
 import { lnSendViews, swapActivityInputs, type LnSendView } from '../lib/lnSendRecords'
 import { assetSwapResolver } from '../lib/activity/assetSwapResolver'
 import { lnurlResolver } from '../lib/activity/lnurlResolver'
+import { syncLnurlActivity } from '../lib/lnurlActivitySync'
 import { getAssetSwaps, swapActivityResolver } from '@arkade-os/swap'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
@@ -785,6 +786,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       setSvcWallet(svcWallet)
       setVtxoManager(vtxoMgr)
       setInitialized(walletInitialized)
+
+      // Receives that completed while the wallet was closed are the ones it can
+      // never witness first-hand, so pull them once the wallet is usable.
+      // Deliberately not awaited: an unreachable lnurl-server must cost the
+      // activity view its attribution, never the wallet its startup.
+      void syncLnurlActivity(identity).catch((error) => {
+        console.warn('lnurl activity sync failed:', error)
+      })
 
       // Cancel any pending reload from a previous wallet instance
       clearTimeout(reloadTimerRef.current)

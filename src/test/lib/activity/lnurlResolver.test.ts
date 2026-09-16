@@ -20,6 +20,7 @@ const makeRecord = (paymentReference: string): StoredPayment => ({
   paymentReference,
   preimage: null,
   paymentOption: 'arkade',
+  covenantScript: null,
 })
 
 const makeTx = (arkTxid: string): ArkTransaction => ({
