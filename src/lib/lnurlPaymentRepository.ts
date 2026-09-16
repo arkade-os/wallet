@@ -1,29 +1,11 @@
+import type { PaymentSyncStore, StoredPayment } from '@arkade-os/lnurl-client'
 import { getStorageItem, setStorageItemSafely } from './storage'
 import { LNURL_WATERMARKS_STORAGE_KEY } from './storageKeys'
 
-export interface StoredLnurlPayment {
-  /** `${baseUrl}|${identifier}` — identifiers are unique per server, not globally. */
-  key: string
-  baseUrl: string
-  domain: string
-  lightningAddress: string
-  /** paymentHash for bolt11, verifyId for destination. */
-  identifier: string
-  kind: 'bolt11' | 'destination'
-  settled: boolean
-  amountMsat: number | null
-  createdAt: number
-  settledAt: number | null
-  /** RFQ id, when this was an offline swap. */
-  swapId: string | null
-  /** Arkade txid, once observed. The correlation key for the resolver. */
-  paymentReference: string | null
-}
-
 /** The persistence primitive, injectable so tests need no IndexedDB. */
 export interface LnurlPaymentStore {
-  read(): Promise<StoredLnurlPayment[]>
-  write(records: StoredLnurlPayment[]): Promise<void>
+  read(): Promise<StoredPayment[]>
+  write(records: StoredPayment[]): Promise<void>
 }
 
 export const lnurlPaymentKey = (baseUrl: string, identifier: string): string => `${baseUrl}|${identifier}`
@@ -50,11 +32,11 @@ export const createIndexedDbLnurlPaymentStore = (
     read: () =>
       open().then(
         (db) =>
-          new Promise<StoredLnurlPayment[]>((resolve, reject) => {
+          new Promise<StoredPayment[]>((resolve, reject) => {
             const request = db.transaction(storeName, 'readonly').objectStore(storeName).getAll()
             request.onsuccess = () => {
               db.close()
-              resolve(request.result as StoredLnurlPayment[])
+              resolve(request.result as StoredPayment[])
             }
             request.onerror = () => reject(request.error)
           }),
@@ -79,20 +61,20 @@ export const createIndexedDbLnurlPaymentStore = (
 const indexedDbLnurlPaymentStore = createIndexedDbLnurlPaymentStore()
 
 export function createLnurlPaymentRepository(store: LnurlPaymentStore = indexedDbLnurlPaymentStore): {
-  upsert(records: StoredLnurlPayment[]): Promise<void>
-  all(): Promise<StoredLnurlPayment[]>
-  byPaymentReference(): Promise<Map<string, StoredLnurlPayment>>
+  upsert(records: StoredPayment[]): Promise<void>
+  all(): Promise<StoredPayment[]>
+  byPaymentReference(): Promise<Map<string, StoredPayment>>
 } {
   return {
     upsert: async (records) => {
-      const merged = new Map<string, StoredLnurlPayment>()
+      const merged = new Map<string, StoredPayment>()
       for (const record of await store.read()) merged.set(record.key, record)
       for (const record of records) merged.set(record.key, record)
       await store.write([...merged.values()])
     },
     all: () => store.read(),
     byPaymentReference: async () => {
-      const byReference = new Map<string, StoredLnurlPayment>()
+      const byReference = new Map<string, StoredPayment>()
       for (const record of await store.read()) {
         if (record.paymentReference) byReference.set(record.paymentReference, record)
       }
@@ -116,3 +98,17 @@ export const saveLnurlWatermark = (baseUrl: string, lightningAddress: string, si
   stored[watermarkEntryKey(baseUrl, lightningAddress)] = since
   setStorageItemSafely(LNURL_WATERMARKS_STORAGE_KEY, JSON.stringify(stored), 'Failed to save lnurl watermark')
 }
+
+/** What `syncPayments` from `@arkade-os/lnurl-client` writes through. The package
+ * ships no storage because IndexedDB exists in neither Node nor React Native. */
+export const createLnurlPaymentSyncStore = (
+  repository: ReturnType<typeof createLnurlPaymentRepository> = lnurlPaymentRepository,
+): PaymentSyncStore => ({
+  upsert: (records) => repository.upsert(records),
+  readWatermark: async (baseUrl, lightningAddress) => readLnurlWatermark(baseUrl, lightningAddress),
+  writeWatermark: async (baseUrl, lightningAddress, since) => {
+    saveLnurlWatermark(baseUrl, lightningAddress, since)
+  },
+})
+
+export const lnurlPaymentSyncStore: PaymentSyncStore = createLnurlPaymentSyncStore()

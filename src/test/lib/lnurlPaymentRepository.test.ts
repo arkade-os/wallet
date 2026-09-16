@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest'
+import { syncPayments, type PaymentPage, type StoredPayment } from '@arkade-os/lnurl-client'
 import {
   createLnurlPaymentRepository,
+  createLnurlPaymentSyncStore,
   readLnurlWatermark,
   saveLnurlWatermark,
   type LnurlPaymentStore,
-  type StoredLnurlPayment,
 } from '../../lib/lnurlPaymentRepository'
 
 const SERVER_A = 'https://lnurl-a.test'
@@ -12,11 +13,7 @@ const SERVER_B = 'https://lnurl-b.test'
 const ALICE = 'alice@example.com'
 const BOB = 'bob@example.com'
 
-const makePayment = (
-  identifier: string,
-  baseUrl = SERVER_A,
-  extra: Partial<StoredLnurlPayment> = {},
-): StoredLnurlPayment => ({
+const makePayment = (identifier: string, baseUrl = SERVER_A, extra: Partial<StoredPayment> = {}): StoredPayment => ({
   key: `${baseUrl}|${identifier}`,
   baseUrl,
   domain: 'example.com',
@@ -33,7 +30,7 @@ const makePayment = (
 })
 
 const createMemoryStore = (): LnurlPaymentStore => {
-  let records: StoredLnurlPayment[] = []
+  let records: StoredPayment[] = []
   return {
     read: async () => [...records],
     write: async (next) => {
@@ -69,6 +66,44 @@ describe('lnurlPaymentRepository', () => {
     ])
     const byReference = await repository.byPaymentReference()
     expect(byReference.size).toBe(1)
+    expect(byReference.get('txid-1')?.identifier).toBe('verify-1')
+  })
+})
+
+describe('lnurl payment sync store', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('drives the package sync loop into the wallet stores', async () => {
+    const repository = createLnurlPaymentRepository(createMemoryStore())
+    const page: PaymentPage = {
+      source: { domain: 'example.com', lightningAddress: ALICE },
+      payments: [
+        {
+          kind: 'destination',
+          verifyId: 'verify-1',
+          paymentOption: 'arkade',
+          paymentDestination: 'ark1qptest',
+          covenantScript: null,
+          paymentReference: 'txid-1',
+          settled: true,
+          amountMsat: 42000,
+          createdAt: 1700000000,
+          settledAt: 1700000060,
+        },
+      ],
+      nextSince: 1700000000,
+    }
+
+    const result = await syncPayments([{ baseUrl: SERVER_A, token: 'tok', username: 'alice', domain: 'example.com' }], {
+      client: () => ({ listPayments: async () => page }),
+      store: createLnurlPaymentSyncStore(repository),
+    })
+
+    expect(result).toEqual({ synced: 1, failures: [] })
+    expect(readLnurlWatermark(SERVER_A, ALICE)).toBe(1700000000)
+    const byReference = await repository.byPaymentReference()
     expect(byReference.get('txid-1')?.identifier).toBe('verify-1')
   })
 })
