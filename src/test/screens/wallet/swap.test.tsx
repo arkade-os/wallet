@@ -960,6 +960,79 @@ describe('Wallet swap flow', () => {
     expect(primaryAmount()).toHaveAccessibleName('Swap amount, $10')
   })
 
+  it.each([
+    ['BTC', 'btc', Unit.BTC],
+    ['BRL', DEPIX_ID, Unit.SATS],
+    ['sats', 'btc', Unit.SATS],
+  ])('animates the deleted digit without duplicating or reanimating the %s suffix', async (ticker, assetId, unit) => {
+    renderSwap({
+      config: { unit },
+      flow: { swapFromAssetId: assetId, setSwapFromAssetId: vi.fn() },
+    })
+    if (primaryAmount().getAttribute('aria-label') !== `Swap amount, 0 ${ticker}`) {
+      fireEvent.click(secondaryAmount())
+    }
+    fireEvent.click(screen.getByRole('button', { name: '1' }))
+    fireEvent.click(screen.getByRole('button', { name: '8' }))
+    await waitFor(() => expect(primaryAmount().textContent).toBe(`18\u00a0${ticker}`))
+    const suffix = Array.from(primaryAmount().querySelectorAll('.swap-amount-character')).slice(-ticker.length)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete digit' }))
+
+    expect(primaryAmount()).toHaveAccessibleName(`Swap amount, 1 ${ticker}`)
+    expect(primaryAmount().textContent).toBe(`18\u00a0${ticker}`)
+    for (const letter of suffix) {
+      expect(letter).toBeInTheDocument()
+      expect(letter).not.toHaveClass('swap-amount-character--entering')
+    }
+    await waitFor(() => expect(primaryAmount().textContent).toBe(`1\u00a0${ticker}`))
+  })
+
+  it('settles to the latest amount when deletion is interrupted by another keypad tap', async () => {
+    renderSwap({
+      config: { unit: Unit.BTC, currency: Currencies.BTC },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+    })
+    for (const key of ['1', '8', '4']) fireEvent.click(screen.getByRole('button', { name: key }))
+    await waitFor(() => expect(primaryAmount().textContent).toBe('184\u00a0BTC'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete digit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete digit' }))
+    fireEvent.click(screen.getByRole('button', { name: '2' }))
+
+    expect(primaryAmount()).toHaveAccessibleName('Swap amount, 12 BTC')
+    await waitFor(() => expect(primaryAmount().textContent).toBe('12\u00a0BTC'))
+  })
+
+  it('deletes decimal digits and the decimal point through zero with reduced motion', async () => {
+    vi.mocked(window.matchMedia).mockImplementation((query: string) => ({
+      matches: query === '(prefers-reduced-motion: reduce)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+    renderSwap({
+      config: { unit: Unit.BTC, currency: Currencies.BTC },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+    })
+    for (const key of ['1', '.', '8']) fireEvent.click(screen.getByRole('button', { name: key }))
+    await waitFor(() => expect(primaryAmount().textContent).toBe('1.8\u00a0BTC'))
+
+    for (const amount of ['1.', '1', '0']) {
+      fireEvent.click(screen.getByRole('button', { name: 'Delete digit' }))
+      await waitFor(() => expect(primaryAmount().textContent).toBe(`${amount}\u00a0BTC`))
+      for (const character of primaryAmount().querySelectorAll('.swap-amount-character')) {
+        expect(character).not.toHaveClass('swap-amount-character--entering')
+        expect(character.getAttribute('style') ?? '').not.toContain('translate')
+        expect(character.parentElement?.getAttribute('style') ?? '').not.toContain('translate')
+      }
+    }
+  })
+
   it('keeps the digit animation mounted when a new value triggers a validation error', async () => {
     renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
 

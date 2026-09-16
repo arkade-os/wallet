@@ -512,7 +512,7 @@ export default function SendForm() {
   useEffect(() => {
     if (!sendInfo.lnUrl) return
     if (sendInfo.arkAddress) return
-    if (sendInfo.lnUrl && sendInfo.invoice) return
+    if (sendInfo.invoice && lnUrlResponse) return
     checkLnUrlConditions(sendInfo.lnUrl)
       .then((conditions) => {
         if (!conditions) return setRecipientError('Unable to fetch LNURL conditions')
