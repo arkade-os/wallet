@@ -36,6 +36,7 @@ export const lnurlResolver = (read = readByPaymentReference): ActivityResolver =
             baseUrl: record.baseUrl,
             identifier: record.identifier,
             swapId: record.swapId,
+            paymentOption: record.paymentOption,
           },
         },
       ]

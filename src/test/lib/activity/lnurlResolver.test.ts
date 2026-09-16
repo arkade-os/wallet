@@ -18,6 +18,8 @@ const makeRecord = (paymentReference: string): StoredPayment => ({
   settledAt: 1700000060,
   swapId: null,
   paymentReference,
+  preimage: null,
+  paymentOption: 'arkade',
 })
 
 const makeTx = (arkTxid: string): ArkTransaction => ({

@@ -26,6 +26,8 @@ const makePayment = (identifier: string, baseUrl = SERVER_A, extra: Partial<Stor
   settledAt: 1700000060,
   swapId: null,
   paymentReference: null,
+  preimage: null,
+  paymentOption: null,
   ...extra,
 })
 
