@@ -109,14 +109,7 @@ describe('Send details refresh', () => {
                     ...mockWalletContextValue,
                     balance: 10_000,
                     reloadWallet,
-                    // sendOffChain selects vtxos itself and calls sendBitcoin,
-                    // so the refresh relies on that path rather than wallet.send.
-                    svcWallet: {
-                      ...mockSvcWallet,
-                      getVtxos: () =>
-                        Promise.resolve([{ id: 'v', value: 10_000, expiresAt: new Date(Date.now() + 3_600_000) }]),
-                      sendBitcoin: send,
-                    } as any,
+                    svcWallet: { ...mockSvcWallet, send } as any,
                   }}
                 >
                   <LimitsContext.Provider value={mockLimitsContextValue}>
