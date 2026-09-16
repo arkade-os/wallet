@@ -41,7 +41,7 @@ import { Tx, Vtxo, Wallet } from '../lib/types'
 import { activitiesToTxs, getActivities } from '../lib/activityHistory'
 import { arkTransactionToTx } from '../lib/transactionHistory'
 import { Indexer } from '../lib/indexer'
-import { lnSendViews, swapRecordResolver, type LnSendView } from '../lib/swapRecords'
+import { lnSendViews, offerSwaps, readRestoredOffers, swapRecordResolver, type LnSendView } from '../lib/swapRecords'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
@@ -61,7 +61,6 @@ import {
 import { AssetIconApprovalManager } from '../lib/assetIconApproval'
 import { BackupContext } from './backup'
 import { restoreImportedWallet } from '../lib/importRestore'
-import { getAssetSwaps } from '@arkade-os/swap/protocol'
 
 const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
 const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
@@ -180,7 +179,7 @@ export const WalletContext = createContext<WalletContextProps>({
  * rather than failing the reload — an unnamed row beats no wallet. */
 const readSwapRecordAssets = async (): Promise<string[]> => {
   try {
-    const swaps = (await getAssetSwaps(assetSwapRepository)) as WalletAssetSwap[]
+    const swaps = await offerSwaps()
     return swaps.flatMap((swap) => [swap.fromAsset, swap.toAsset])
   } catch (err) {
     consoleError(err, 'failed to read swap records while prefetching asset metadata')
@@ -697,19 +696,23 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
       // The registry ships with the SDK built-ins already in it; only ours has
       // to be added, and `use()` is idempotent by id across reinit paths. Both
-      // families over the client's own records, which is now all of them. Its
-      // corridor half is what labels a Lightning row and gives it the outcome
-      // token the receipt renders — turning a swap's funding tx, and the claim
-      // or refund that follows it, into one labelled activity rather than two
-      // unrelated rows.
+      // families over the client's own records, plus restored v1 offers the
+      // chain scan still writes. Its corridor half is what labels a Lightning
+      // row and gives it the outcome token the receipt renders — turning a
+      // swap's funding tx, and the claim or refund that follows it, into one
+      // labelled activity rather than two unrelated rows.
       // The reader, not `getVtxos()`, which drops spent coins — and a claimed
       // lockup is spent. Needs no client lock, so a passive tab still groups.
       svcWallet.activity.use(
-        swapRecordResolver(undefined, async (script) => {
-          const reader = await svcWallet.getArkadeReader()
-          const { vtxos } = await reader.getVtxos({ scripts: [script] })
-          return vtxos
-        }),
+        swapRecordResolver(
+          undefined,
+          async (script) => {
+            const reader = await svcWallet.getArkadeReader()
+            const { vtxos } = await reader.getVtxos({ scripts: [script] })
+            return vtxos
+          },
+          readRestoredOffers,
+        ),
       )
 
       if (restoring) {

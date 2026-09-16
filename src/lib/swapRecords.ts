@@ -12,19 +12,19 @@
  * shapes and this file maps them once, which is a great deal smaller than
  * retyping every row builder — and it is where a future rewrite starts.
  *
- * **The v1 keyspace is not read at all.** It was, until the v2 move made every
- * writer of it dead: the client persists its own records, and no swap predating
- * that move survives anywhere that matters — swaps are gated by the solver card
- * and the bundled default does not serve, so the pre-v2 population is a handful
- * of developers. Reading two keyspaces to merge one of them with nothing in it
- * is the compatibility this release exists to drop.
+ * **The v1 keyspace is still read for restored offers.** `registerAssetSwapRestore`
+ * writes `AssetSwap` rows (`getAllSwaps`); the v2 client writes `SwapRecord`
+ * rows (`getAllSwapRecords`). A wallet restored on this branch has the former
+ * and none of the latter, so activity grouping has to merge them — otherwise a
+ * filled BTC/DePix swap renders as two unrelated sent/received rows.
  */
 import type { ActivityResolver } from '@arkade-os/sdk'
-import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
+import { BTC_ASSET_ID, getAssetSwaps } from '@arkade-os/swap/protocol'
 import {
   isRfqSwapTerminal,
   parseAssetId,
   type AssetId,
+  type AssetSwap,
   type CorridorSwapRecord,
   type OfferSwapRecord,
   type SwapRecord,
@@ -160,11 +160,51 @@ const readRecords = async (): Promise<SwapRecord[]> => {
   }
 }
 
-/** Every offer swap the wallet can render — the v2 client's own, which is all
- * of them. */
+const offerKeys = (swap: { id: string; fundingTxid?: string; spentTxid?: string }): string[] =>
+  [swap.fundingTxid, swap.spentTxid, swap.id].filter((key): key is string => Boolean(key))
+
+const isOfferAssetSwap = (swap: AssetSwap): boolean => typeof swap.offerHex === 'string'
+
+const restoredOfferView = (swap: AssetSwap): WalletAssetSwap => ({
+  ...swap,
+  quote: quoteSnapshotOf(swap.id),
+})
+
+/** Live v2 offers first, then restored v1 rows whose funding txid is not already
+ * covered — so a wallet that later accepts through the client does not double. */
+export const combineOfferSwaps = (live: WalletAssetSwap[], restored: readonly AssetSwap[]): WalletAssetSwap[] => {
+  const seen = new Set<string>()
+  const out: WalletAssetSwap[] = []
+  const take = (swap: WalletAssetSwap) => {
+    const keys = offerKeys(swap)
+    if (keys.some((key) => seen.has(key))) return
+    for (const key of keys) seen.add(key)
+    out.push(swap)
+  }
+  for (const swap of live) take(swap)
+  for (const swap of restored) {
+    if (!isOfferAssetSwap(swap)) continue
+    take(restoredOfferView(swap))
+  }
+  return out.sort((a, b) => b.createdAt - a.createdAt)
+}
+
+/** Restored v1 offer rows. Empty when the store is unreadable — same posture as
+ * `readRecords`, so a missing IndexedDB cannot sink history. */
+export const readRestoredOffers = async (): Promise<AssetSwap[]> => {
+  try {
+    return await getAssetSwaps(assetSwapRepository)
+  } catch (err) {
+    consoleError(err, 'error reading restored offer swaps')
+    return []
+  }
+}
+
+/** Every offer swap the wallet can render: the v2 client's own, plus restored
+ * v1 rows the restore scan still writes. */
 export const offerSwaps = async (): Promise<WalletAssetSwap[]> => {
-  const { offer } = splitRecords(await readRecords())
-  return offer.map(offerViewOf)
+  const [{ offer }, restored] = await Promise.all([readRecords().then(splitRecords), readRestoredOffers()])
+  return combineOfferSwaps(offer.map(offerViewOf), restored)
 }
 
 /** The Lightning sends, for the row builder. */
@@ -229,11 +269,15 @@ const lockupTxids = async (read: LockupVtxoReader | undefined, script: string, e
  * an offer, `rfqId` + `swapKind` for a corridor, and the corridor's outcome
  * token, which is what a Lightning row renders as its status.
  *
- * Covers the v2 records for both families, and is the only swap resolver the
- * wallet registers. The package's `swapActivityResolver` went with the v1
- * keyspace it read.
+ * Covers the v2 records for both families, and restored v1 offer rows whose
+ * funding/spend txids the v2 store does not yet name. The wallet registers
+ * this as its only swap resolver.
  */
-export const swapRecordResolver = (read = readRecords, readLockupVtxos?: LockupVtxoReader): ActivityResolver => {
+export const swapRecordResolver = (
+  read = readRecords,
+  readLockupVtxos?: LockupVtxoReader,
+  readRestored: () => Promise<readonly AssetSwap[]> = async () => [],
+): ActivityResolver => {
   let intents = new Map<string, SwapIntent>()
   return {
     id: ASSET_SWAP_RESOLVER_ID,
@@ -242,18 +286,22 @@ export const swapRecordResolver = (read = readRecords, readLockupVtxos?: LockupV
       // record written after the first load would otherwise leave its swap
       // ungrouped until the next reconnect
       const next = new Map<string, SwapIntent>()
-      const records = await read()
+      const [records, restored] = await Promise.all([read(), readRestored()])
       const unfunded: [string, SwapIntent, boolean][] = []
       const offerIntent = (id: string) => ({
         groupId: `swap:${id}`,
         label: 'Swap',
         metadata: { swapId: id },
       })
+      const indexOffer = (id: string, txids: readonly string[]) => {
+        const intent = offerIntent(id)
+        for (const txid of txids) {
+          if (txid && !next.has(txid)) next.set(txid, intent)
+        }
+      }
       for (const record of records) {
         if (record.family === 'offer') {
-          const intent = offerIntent(record.id)
-          if (record.fundingTxid) next.set(record.fundingTxid, intent)
-          if (record.spentTxid) next.set(record.spentTxid, intent)
+          indexOffer(record.id, [record.fundingTxid ?? '', record.spentTxid ?? ''])
           continue
         }
         const intent = {
@@ -272,6 +320,10 @@ export const swapRecordResolver = (read = readRecords, readLockupVtxos?: LockupV
         if (claimTxid) next.set(claimTxid, intent)
         // Names nothing history keys on, so the lockup has to be read.
         if (!record.fundingTxid) unfunded.push([record.lockupPkScript, intent, isRfqSwapTerminal(record.state)])
+      }
+      for (const swap of restored) {
+        if (!isOfferAssetSwap(swap)) continue
+        indexOffer(swap.id, offerKeys(swap))
       }
       for (const [script, intent, ended] of unfunded) {
         for (const txid of await lockupTxids(readLockupVtxos, script, ended)) next.set(txid, intent)

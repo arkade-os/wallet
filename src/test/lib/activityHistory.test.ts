@@ -8,8 +8,8 @@ vi.mock('../../lib/logs', async (importOriginal) => ({
 import { lnSwapLabel } from '../../lib/swapDisplay'
 import { createDefaultActivityRegistry, ServiceWorkerWallet, type Activity, type ArkTransaction } from '@arkade-os/sdk'
 import { activitiesToTxs, getActivities } from '../../lib/activityHistory'
-import { ASSET_SWAP_ACTIVITY_KIND, swapRecordResolver, type LnSendView } from '../../lib/swapRecords'
-import type { SwapRecord } from '@arkade-os/swap'
+import { ASSET_SWAP_ACTIVITY_KIND, combineOfferSwaps, swapRecordResolver, type LnSendView } from '../../lib/swapRecords'
+import type { AssetSwap, SwapRecord } from '@arkade-os/swap'
 import { readAllTransactionActivityMetadata, saveTransactionActivityMetadata } from '../../lib/storage'
 import type { ExitRecord } from '../../lib/exitHistory'
 import type { WalletAssetSwap } from '../../lib/swapRepository'
@@ -319,6 +319,81 @@ describe('swapRecordResolver', () => {
     records = [offerRecord()]
     await resolver.prepare?.()
     expect(resolver.resolve(arkTx('funding-txid'))?.[0].groupId).toBe('swap:swap-1')
+  })
+
+  const restoredOffer = (over: Partial<AssetSwap> = {}): AssetSwap =>
+    ({
+      id: 'funding-txid',
+      fromAsset: 'btc',
+      toAsset: 'f1'.repeat(34),
+      fromAmount: '10000',
+      toAmount: '992',
+      swapAddress: '',
+      swapPkScript: '5120' + 'ab'.repeat(32),
+      offerHex: '0100',
+      fundingTxid: 'funding-txid',
+      spentTxid: 'fill-txid',
+      status: 'fulfilled',
+      createdAt: 2_000,
+      ...over,
+    }) as AssetSwap
+
+  it('groups a restored v1 offer whose funding and fill never reached the v2 store', async () => {
+    const resolver = swapRecordResolver(
+      async () => [],
+      undefined,
+      async () => [restoredOffer()],
+    )
+    await resolver.prepare?.()
+
+    expect(resolver.resolve(arkTx('funding-txid'))).toEqual([
+      { groupId: 'swap:funding-txid', kind: 'swap', label: 'Swap', metadata: { swapId: 'funding-txid' } },
+    ])
+    expect(resolver.resolve(arkTx('fill-txid'))?.[0].groupId).toBe('swap:funding-txid')
+  })
+
+  it('keeps the v2 quote id when the same funding txid is also a restored v1 row', async () => {
+    const resolver = swapRecordResolver(
+      async () => [offerRecord({ spentTxid: 'fill-txid' })],
+      undefined,
+      async () => [restoredOffer()],
+    )
+    await resolver.prepare?.()
+
+    expect(resolver.resolve(arkTx('funding-txid'))?.[0].metadata).toEqual({ swapId: 'swap-1' })
+  })
+})
+
+describe('combineOfferSwaps', () => {
+  const restoredOffer = (over: Partial<AssetSwap> = {}): AssetSwap =>
+    ({
+      id: 'funding-txid',
+      fromAsset: 'btc',
+      toAsset: 'f1'.repeat(34),
+      fromAmount: '10000',
+      toAmount: '992',
+      swapAddress: '',
+      swapPkScript: '5120' + 'ab'.repeat(32),
+      offerHex: '0100',
+      fundingTxid: 'funding-txid',
+      spentTxid: 'fill-txid',
+      status: 'fulfilled',
+      createdAt: 2_000,
+      ...over,
+    }) as AssetSwap
+
+  it('surfaces a restored offer when the v2 store is empty', () => {
+    expect(combineOfferSwaps([], [restoredOffer()]).map((row) => row.id)).toEqual(['funding-txid'])
+  })
+
+  it('does not duplicate a live v2 offer that already names the restored funding txid', () => {
+    const live = swap({ id: 'quote-1', fundingTxid: 'funding-txid', spentTxid: 'fill-txid' })
+    expect(combineOfferSwaps([live], [restoredOffer()]).map((row) => row.id)).toEqual(['quote-1'])
+  })
+
+  it('skips a v1 corridor row that has no offer TLV', () => {
+    const corridor = restoredOffer({ offerHex: undefined, paymentHash: 'aa'.repeat(32) })
+    expect(combineOfferSwaps([], [corridor])).toEqual([])
   })
 })
 
