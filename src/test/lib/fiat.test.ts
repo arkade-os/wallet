@@ -106,9 +106,10 @@ describe('fiat utilities', () => {
   })
 
   it('rejects non-finite rates and falls back to blockchain.info', async () => {
-    fetchMocker.mockResponseOnce(
-      JSON.stringify({ BTC: { EUR: Number.NaN, USD: 200, CHF: 93, JPY: 300, GBP: 150, CNY: 50, BRL: 40 } }),
-    )
+    // Raw JSON so JSON.parse yields Infinity (JSON.stringify would turn NaN
+    // into null) and the guard rejects a genuinely non-finite number.
+    const overflowRate = '{"BTC":{"EUR":1e999,"USD":200,"CHF":93,"JPY":300,"GBP":150,"CNY":50,"BRL":40}}'
+    fetchMocker.mockResponseOnce(overflowRate)
     fetchMocker.mockResponseOnce(
       JSON.stringify({
         EUR: { last: 100 },
