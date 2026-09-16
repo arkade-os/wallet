@@ -1,6 +1,7 @@
 import { hex } from '@scure/base'
 import { Delegate } from './types'
 import { NetworkName } from '@arkade-os/sdk'
+import { registryIndexUrl, type Network } from '@arkade-os/solver-discovery'
 
 export const arknoteHRP = 'arknote'
 export const defaultFee = 0
@@ -47,15 +48,6 @@ const DELEGATE_URL: Record<NetworkName, string | null> = {
   testnet: null,
 }
 
-// solver registry indexes for asset swaps (see arkade-os/solver-registry)
-const SOLVER_REGISTRY_URL: Record<NetworkName, string | null> = {
-  bitcoin: 'https://arkade-os.github.io/solver-registry/bitcoin.json',
-  mutinynet: 'https://arkade-os.github.io/solver-registry/mutinynet.json',
-  signet: null,
-  regtest: 'http://localhost:3002/solver-registry/regtest.json',
-  testnet: 'https://arkade-os.github.io/solver-registry/testnet.json',
-}
-
 // env override first (any network), then the per-network table
 const serviceUrlForNetwork = (
   envValue: string | undefined,
@@ -63,8 +55,17 @@ const serviceUrlForNetwork = (
   network: NetworkName,
 ) => fromRuntimeEnv(envValue) ?? table[network] ?? undefined
 
-export const getSolverRegistryUrl = (network: NetworkName): string | undefined =>
-  serviceUrlForNetwork(import.meta.env.VITE_SOLVER_REGISTRY_URL, SOLVER_REGISTRY_URL, network)
+// An explicit VITE_SOLVER_REGISTRY_URL still names a URL for any network;
+// otherwise the index comes from the library. Regtest is the exception: the dev
+// harness (`pnpm regtest:start` runs `build:markets`) writes its solver card to
+// public/solver-registry/regtest.json, which this app serves at :3002. The
+// library's published regtest.json is a different, hosted stack, so dropping
+// this override leaves local swaps with no solver.
+const REGTEST_REGISTRY_URL = 'http://localhost:3002/solver-registry/regtest.json'
+
+export const getSolverRegistryUrl = (network: Network): string =>
+  fromRuntimeEnv(import.meta.env.VITE_SOLVER_REGISTRY_URL) ??
+  (network === 'regtest' ? REGTEST_REGISTRY_URL : registryIndexUrl(network))
 
 // The x-only key of the arkade signer co-signing swap covenants (a separate
 // service from arkd). This is a fact about the SOLVER's deployment, not a
