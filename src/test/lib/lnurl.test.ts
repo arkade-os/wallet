@@ -45,6 +45,17 @@ describe('lnurl utilities', () => {
     }
   })
 
+  it('should throw an error when the invoice is invalid', async () => {
+    for (const test of fixtures.lib.lnurl) {
+      const localMockResponse = { ...mockLNURLResponse, callback: test.callback }
+      fetchMocker.mockResponseOnce(JSON.stringify(localMockResponse))
+      fetchMocker.mockResponseOnce(JSON.stringify({ pr: 'lnbc12345678' }))
+      await expect(fetchInvoice(test.lnUrlOrAddress, validSatsAmount, '')).rejects.toThrow(
+        'Server returned an invalid invoice.',
+      )
+    }
+  })
+
   it('should throw an error when the invoice amount does not match the requested amount', async () => {
     for (const test of fixtures.lib.lnurl) {
       const localMockResponse = { ...mockLNURLResponse, callback: test.callback }
