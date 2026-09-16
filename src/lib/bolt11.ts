@@ -4,6 +4,7 @@ import { NetworkName } from '@arkade-os/sdk/'
 export interface DecodedInvoice {
   note: string
   expiry: number
+  milliSats: number
   amountSats: number
   paymentHash: string
   /** Invoice creation time, in unix seconds. */
@@ -45,6 +46,7 @@ export const decodeInvoice = (invoice: string): DecodedInvoice => {
   return {
     expiry,
     timestamp,
+    milliSats: millisats,
     expiresAt: timestamp + expiry,
     network: networkSection && 'value' in networkSection ? (networkSection.value?.bech32 ?? '') : '',
     note: extractNote(description),

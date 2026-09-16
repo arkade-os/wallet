@@ -41,11 +41,11 @@ const checkLnUrlResponse = (amount: number, data: LnUrlResponse) => {
   return data
 }
 
-const fetchLnUrlInvoice = async (amount: number, note: string, data: LnUrlResponse) => {
-  let url = `${data.callback}?amount=${amount}`
+const fetchLnUrlInvoice = async (milliSats: number, note: string, data: LnUrlResponse) => {
+  let url = `${data.callback}?amount=${milliSats}`
   if (note) url += `&comment=${note}`
   const res = await fetch(url).then(checkResponse<LnUrlCallbackResponse>)
-  if (decodeInvoice(res.pr).amountSats !== amount) {
+  if (decodeInvoice(res.pr).milliSats !== milliSats) {
     throw new Error('Invoice amount does not match requested amount.')
   }
   return res.pr
