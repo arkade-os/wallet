@@ -428,7 +428,9 @@ describe('lnSendRefusal only names a cause it has checked', () => {
       quote_corridor: undefined,
       quote_asset: { id: 'bolt11:bitcoin/slip44:0', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
     })
-    expect(lnSendRefusal([caip], 40_000)).toBe('Amount outside solver bounds (1,000-1,000,000 sats)')
+    // 40 sats is below the card's 1,000 min — the bounds message is how we
+    // know the card counted, not the generic "no solver" string.
+    expect(lnSendRefusal([caip], 40)).toBe('Amount outside solver bounds (1,000-1,000,000 sats)')
   })
 
   it('blames the bounds only when no solver’s bounds admit the amount', () => {
