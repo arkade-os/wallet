@@ -14,7 +14,7 @@ type FiatContextProps = {
   updateFiatPrices: () => void
 }
 
-const emptyFiatPrices: FiatPrices = { eur: 0, usd: 0, chf: 0, jpy: 0, gbp: 0, cny: 0, brl: 0, cup: 0 }
+const emptyFiatPrices: FiatPrices = { eur: 0, usd: 0, chf: 0, jpy: 0, gbp: 0, cny: 0, brl: 0, cup: undefined }
 
 export const FiatContext = createContext<FiatContextProps>({
   toFiat: () => 0,
