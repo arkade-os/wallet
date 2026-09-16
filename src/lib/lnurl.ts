@@ -1,4 +1,5 @@
 import { bech32, utf8 } from '@scure/base'
+import { decodeInvoice } from './bolt11'
 
 const emailRegex =
   /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
@@ -44,6 +45,9 @@ const fetchLnUrlInvoice = async (amount: number, note: string, data: LnUrlRespon
   let url = `${data.callback}?amount=${amount}`
   if (note) url += `&comment=${note}`
   const res = await fetch(url).then(checkResponse<LnUrlCallbackResponse>)
+  if (decodeInvoice(res.pr).amountSats !== amount) {
+    throw new Error('Invoice amount does not match requested amount.')
+  }
   return res.pr
 }
 
