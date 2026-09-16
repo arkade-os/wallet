@@ -48,6 +48,7 @@ import { arkTransactionToTx } from '../lib/transactionHistory'
 import { Indexer } from '../lib/indexer'
 import { lnSendViews, swapActivityInputs, type LnSendView } from '../lib/lnSendRecords'
 import { assetSwapResolver } from '../lib/activity/assetSwapResolver'
+import { lnurlResolver } from '../lib/activity/lnurlResolver'
 import { getAssetSwaps, swapActivityResolver } from '@arkade-os/swap'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
@@ -710,6 +711,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // The registry ships with the SDK built-ins already in it; only ours has
       // to be added, and `use()` is idempotent by id across reinit paths.
       svcWallet.activity.use(assetSwapResolver())
+      svcWallet.activity.use(lnurlResolver())
       // The package's own resolver for the RFQ corridors, fed by the package's
       // own reader over the records `RfqSwapManager` writes. It is what turns a
       // swap's funding tx — and the claim or refund that follows it — into one
