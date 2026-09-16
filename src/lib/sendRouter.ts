@@ -20,7 +20,7 @@ import {
   type RouteResult,
 } from '@arkade-os/sdk'
 import { LIGHTNING_RAIL, ONCHAIN_SWAP_RAIL, lightningRail, onchainSwapRail, type SwapRailClient } from '@arkade-os/swap'
-import { sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+import { marketCorridor, sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { collaborativeExitWithFees, sendAssets } from './asp'
 import { decodeInvoice } from './bolt11'
 import { consoleError } from './logs'
@@ -128,7 +128,7 @@ export const lnSendRequest = (invoice: string, satoshis?: number): PaymentReques
  *  returns only survivors, so bounds are named only where checked and missed. */
 export const lnSendRefusal = (markets: DiscoveredMarket[], satoshis?: number): string => {
   const bounds = markets
-    .filter((m) => m.quote_corridor === 'lightning')
+    .filter((m) => marketCorridor(m, 'quote') === 'bolt11')
     .map((m) => sideLimits(m, 'quote'))
     .filter((limits): limits is NonNullable<typeof limits> => limits !== null)
   if (bounds.length === 0) return 'No Lightning solver available'

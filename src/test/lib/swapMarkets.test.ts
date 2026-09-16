@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { DEFAULT_NETWORK, planOffer, type DiscoveredMarket } from '@arkade-os/solver-discovery'
-import { BUNDLED_CARDS, discoveryOptions, preFeeDisplayRate } from '../../lib/swapMarkets'
-import { btcUsdt } from './swapFixtures'
+import {
+  BUNDLED_CARDS,
+  discoveryOptions,
+  preFeeDisplayRate,
+  spotMarkets,
+  swapAssetDisplayId,
+  uniqueSwapMarketAssets,
+} from '../../lib/swapMarkets'
+import { btcDepix, btcUsdt, DEPIX_ID } from './swapFixtures'
 
 describe('discoveryOptions', () => {
   beforeEach(() => localStorage.clear())
@@ -63,5 +70,40 @@ describe('preFeeDisplayRate', () => {
     expect(preFeeDisplayRate(base)).toBe(5e-9)
     const quote = planOffer({ market: tokenBtc, give: 'quote', giveAmount: BigInt(1_000), feedValue: '0.000000005' })
     expect(preFeeDisplayRate(quote)).toBe(200_000_000)
+  })
+})
+
+const caipLightning: DiscoveredMarket = {
+  ...btcUsdt,
+  pair: 'BTC/bolt11:BTC',
+  base_asset: { id: 'arkade:bitcoin/slip44:0', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+  quote_asset: { id: 'bolt11:bitcoin/slip44:0', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+}
+
+describe('spotMarkets', () => {
+  it('keeps arkade↔arkade pairs and drops a CAIP-19 Lightning card that has no quote_corridor', () => {
+    expect(spotMarkets([btcDepix, caipLightning, btcUsdt])).toEqual([btcDepix, btcUsdt])
+  })
+
+  it('still drops a legacy Lightning card that sets quote_corridor', () => {
+    const legacy = { ...caipLightning, quote_corridor: 'lightning' as const }
+    expect(spotMarkets([legacy, btcDepix])).toEqual([btcDepix])
+  })
+})
+
+describe('uniqueSwapMarketAssets', () => {
+  it('maps CAIP-19 BTC on any rail to btc', () => {
+    expect(swapAssetDisplayId('arkade:bitcoin/slip44:0')).toBe('btc')
+    expect(swapAssetDisplayId('bolt11:bitcoin/slip44:0')).toBe('btc')
+    expect(swapAssetDisplayId('btc')).toBe('btc')
+    expect(swapAssetDisplayId(DEPIX_ID)).toBe(DEPIX_ID)
+  })
+
+  it('collapses three Bitcoin identities from the live swap picker into one row', () => {
+    // The screenshot case: a Nostr-pinned CAIP-19 Lightning card (arkade + bolt11
+    // BTC, no quote_corridor) plus the DePix card's `btc` plus the forced BTC row.
+    const ids = uniqueSwapMarketAssets([caipLightning, btcDepix]).map((asset) => asset.id)
+    expect(ids.filter((id) => id === 'btc')).toHaveLength(1)
+    expect(ids).toEqual(['btc', DEPIX_ID])
   })
 })

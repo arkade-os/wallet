@@ -23,7 +23,7 @@ import { formatFiatAmountParts, normalizeBitcoinUnit, prettyFiatAmount, prettyNu
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
 import { swapRouteTicker } from '../../../lib/swapDisplay'
 import { BTC_ASSET_ID, findMarket, makeCachedFeedFetch, QUOTE_OPTIONS, validatePlan } from '@arkade-os/swap/protocol'
-import { preFeeDisplayRate } from '../../../lib/swapMarkets'
+import { preFeeDisplayRate, uniqueSwapMarketAssets } from '../../../lib/swapMarkets'
 import { type AssetSwapQuoteSnapshot } from '../../../lib/swapRepository'
 import { Currencies, Unit } from '../../../lib/types'
 import { AspContext } from '../../../providers/asp'
@@ -96,16 +96,7 @@ export default function WalletSwap() {
 
   const btcUnit = normalizeBitcoinUnit(config.unit)
   const swapAssets = useMemo<SwapAsset[]>(() => {
-    const marketAssets = markets.flatMap((market) => [market.base_asset, market.quote_asset])
-    const uniqueAssets = new Map(marketAssets.map((asset) => [asset.id, asset]))
-    uniqueAssets.set(BTC_ASSET_ID, {
-      id: BTC_ASSET_ID,
-      name: 'Bitcoin',
-      ticker: 'BTC',
-      decimals: 8,
-    })
-
-    return [...uniqueAssets.values()].map((asset) => {
+    return uniqueSwapMarketAssets(markets).map((asset) => {
       if (asset.id === BTC_ASSET_ID) {
         const bitcoinRow = rows.find((row) => row.assetId === 'btc')
         return {

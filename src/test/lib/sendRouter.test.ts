@@ -422,6 +422,15 @@ describe('lnSendRefusal only names a cause it has checked', () => {
     expect(lnSendRefusal([market()], 1_000)).toBe('No Lightning solver available')
   })
 
+  it('recognizes a CAIP-19 Lightning card that omits quote_corridor', () => {
+    const caip = market({
+      pair: 'BTC/bolt11:BTC',
+      quote_corridor: undefined,
+      quote_asset: { id: 'bolt11:bitcoin/slip44:0', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+    })
+    expect(lnSendRefusal([caip], 40_000)).toBe('Amount outside solver bounds (1,000-1,000,000 sats)')
+  })
+
   it('blames the bounds only when no solver’s bounds admit the amount', () => {
     expect(lnSendRefusal([admits], 40_000)).toBe('Amount outside solver bounds (1,000-25,000 sats)')
     expect(lnSendRefusal([admits], 500)).toBe('Amount outside solver bounds (1,000-25,000 sats)')

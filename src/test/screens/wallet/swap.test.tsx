@@ -187,6 +187,19 @@ describe('Wallet swap flow', () => {
     expect(screen.getByText('Bitcoin')).toBeInTheDocument()
   })
 
+  it('lists Bitcoin once when a CAIP-19 Lightning card sits next to the DePix pair', () => {
+    const caipLightning = {
+      ...btcUsdt,
+      pair: 'BTC/bolt11:BTC',
+      base_asset: { id: 'arkade:bitcoin/slip44:0', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+      quote_asset: { id: 'bolt11:bitcoin/slip44:0', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+    }
+    renderSwap({ swap: { markets: [caipLightning, btcDepix] } })
+
+    expect(screen.getAllByRole('button', { name: /Bitcoin/i })).toHaveLength(1)
+    expect(screen.getByText('BRL')).toBeInTheDocument()
+  })
+
   it('opens directly with bitcoin selected when launched from bitcoin detail', () => {
     const setSwapFromAssetId = vi.fn()
     renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId } })

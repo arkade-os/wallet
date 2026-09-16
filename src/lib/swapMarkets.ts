@@ -8,11 +8,13 @@
  * client's `DiscoveryConfig` and the package's own `discoverMarkets`, which is
  * what lets one definition feed the client and the lock-free read below.
  */
-import { discoverMarkets as discover, type DiscoverMarketsOptions } from '@arkade-os/swap/protocol'
+import { BTC_ASSET_ID, discoverMarkets as discover, type DiscoverMarketsOptions } from '@arkade-os/swap/protocol'
 import {
   DEFAULT_NETWORK,
   displayPrice,
   isNetwork,
+  isRfqMarket,
+  legacyAssetId,
   type DiscoveredMarket,
   type LocalCardInput,
   type OfferPlan,
@@ -73,6 +75,38 @@ export const discoveryOptions = (network: NetworkName): Omit<DiscoverMarketsOpti
     localCards: known ? [...BUNDLED_CARDS, ...readSolverCards()].filter((c) => c.network === known) : [],
     logger: (...args) => consoleLog('solver discovery:', ...args),
   }
+}
+
+/**
+ * Spot markets the offer composer can fund. RFQ corridors (Lightning, on-chain,
+ * EVM) are negotiated with a solver, not offered as a pair — including CAIP-19
+ * cards that omit `quote_corridor` and would otherwise leak two Bitcoin rows
+ * into the swap picker.
+ */
+export const spotMarkets = (markets: DiscoveredMarket[]): DiscoveredMarket[] =>
+  markets.filter((market) => !isRfqMarket(market))
+
+/**
+ * Discovery's asset id as the swap picker and wallet balances name it: CAIP-19
+ * BTC on any bitcoin-family rail becomes `btc`, and `asset:<68-hex>` becomes
+ * the bare identity. Legacy `btc` / 68-hex ids pass through.
+ */
+export const swapAssetDisplayId = (id: string): string => legacyAssetId(id) ?? id
+
+const BITCOIN_PICKER_ASSET = { id: BTC_ASSET_ID, name: 'Bitcoin', ticker: 'BTC', decimals: 8 } as const
+
+/** One row per tradable asset, with Bitcoin forced in so a BTC-less pair list
+ * still has a from-side. CAIP-19 and `btc` collapse onto the same key. */
+export const uniqueSwapMarketAssets = (markets: DiscoveredMarket[]): DiscoveredMarket['base_asset'][] => {
+  const unique = new Map<string, DiscoveredMarket['base_asset']>()
+  for (const market of markets) {
+    for (const asset of [market.base_asset, market.quote_asset]) {
+      const id = swapAssetDisplayId(asset.id)
+      if (!unique.has(id)) unique.set(id, { ...asset, id })
+    }
+  }
+  unique.set(BTC_ASSET_ID, { ...BITCOIN_PICKER_ASSET })
+  return [...unique.values()]
 }
 
 /** The market feed's pre-fee price oriented give→receive, in whole display

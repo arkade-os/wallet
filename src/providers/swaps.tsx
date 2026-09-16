@@ -57,10 +57,16 @@ import {
   type Swap,
   type SwapClient,
 } from '@arkade-os/swap'
-import { sideLimits, type DiscoveredMarket, type OfferPlan, type Side } from '@arkade-os/solver-discovery'
+import {
+  marketCorridor,
+  sideLimits,
+  type DiscoveredMarket,
+  type OfferPlan,
+  type Side,
+} from '@arkade-os/solver-discovery'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
-import { discoverMarkets } from '../lib/swapMarkets'
+import { discoverMarkets, spotMarkets } from '../lib/swapMarkets'
 import { createSendRouter } from '../lib/sendRouter'
 import { claimFeeRate } from '../lib/claimFee'
 import { onchainClaimEndpoint } from '../lib/onchainPayout'
@@ -278,8 +284,9 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     // Corridor (RFQ) markets are hidden from the offer composer: `exchange`
     // builds offers, and a corridor is negotiated with a solver instead.
     // Keeping them here would let one Lightning card turn the whole swap
-    // surface on with nothing behind it.
-    setMarkets(all.filter((m) => !m.quote_corridor))
+    // surface on with nothing behind it. `quote_corridor` is not enough —
+    // a CAIP-19 card names the rail on the asset id and may omit that field.
+    setMarkets(spotMarkets(all))
   }
 
   const runDiscovery = (useCache = true) => {
@@ -682,7 +689,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
    * leg, base (arkade) the receive leg.
    */
   const assertWithinBounds = (sats: number, side: Side) => {
-    const market = allMarketsRef.current.find((m) => m.quote_corridor === 'lightning')
+    const market = allMarketsRef.current.find((m) => marketCorridor(m, 'quote') === 'bolt11')
     // No card, or a disabled side: leave it to the client, which answers
     // "no route" rather than an invented range.
     const bounds = market && sideLimits(market, side)
