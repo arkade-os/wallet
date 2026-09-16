@@ -1,0 +1,105 @@
+import { createLnurlClient } from '@arkade-os/lnurl-client'
+import { arkadeIdentityRequest, deriveSessionTokenForIdentity } from '@arkade-os/lnurl-client/arkade'
+import type { Identity } from '@arkade-os/sdk'
+import { readLnurlServers, saveLnurlServers, type LnurlServer } from './lnurlActivitySync'
+import { getStorageItem, setStorageItemSafely } from './storage'
+import { LNURL_ADDRESS_STORAGE_KEY } from './storageKeys'
+
+/**
+ * The server this build offers addresses at, or undefined when none is set.
+ *
+ * Configured rather than defaulted: which lnurl-server a wallet trusts with its
+ * receive identity is not a choice to bake into a binary, and a wrong default
+ * would be a bearer credential handed to someone the user never picked.
+ * `VITE_LNURL_DOMAIN` is only needed where the LUD-16 domain differs from the
+ * API host, which is the unusual case.
+ */
+export const configuredLnurlServer = (): LnurlServer | undefined => {
+  const baseUrl = import.meta.env.VITE_LNURL_SERVER?.trim()
+  if (!baseUrl) return undefined
+  try {
+    const domain = (import.meta.env.VITE_LNURL_DOMAIN?.trim() || new URL(baseUrl).hostname).toLowerCase()
+    return { baseUrl, domain }
+  } catch {
+    return undefined
+  }
+}
+
+export interface RegisteredLnurlAddress {
+  username: string
+  domain: string
+  lightningAddress: string
+  lnurl: string
+}
+
+/**
+ * Claim a lightning address at `server` and bind this wallet's Arkade identity
+ * to it, which is what lets payments arrive while the wallet is closed.
+ *
+ * The username is optional because the server may not let the wallet choose:
+ * a domain allocating randomly assigns one, so the name that comes back is
+ * authoritative and is what gets returned here.
+ *
+ * Registering the Arkade identity is a separate call and not optional in
+ * practice — without it the address serves only the interactive rail, which is
+ * the one case the wallet does not need a server for.
+ */
+export async function registerLnurlAddress(args: {
+  identity: Identity
+  arkadeAddress: string
+  server: LnurlServer
+  username?: string
+}): Promise<RegisteredLnurlAddress> {
+  const domain = args.server.domain.trim().toLowerCase()
+  const client = createLnurlClient({ baseUrl: args.server.baseUrl })
+  const token = await deriveSessionTokenForIdentity(args.identity, domain)
+
+  const address = await client.registerAddress({
+    token,
+    domain,
+    ...(args.username ? { username: args.username } : {}),
+  })
+
+  await client.registerArkadeIdentity(
+    await arkadeIdentityRequest({
+      identity: args.identity,
+      arkadeAddress: args.arkadeAddress,
+      token,
+      username: address.username,
+      domain,
+    }),
+  )
+
+  rememberServer({ baseUrl: args.server.baseUrl, domain })
+
+  const registered: RegisteredLnurlAddress = {
+    username: address.username,
+    domain: address.domain,
+    lightningAddress: address.lightningAddress,
+    lnurl: address.lnurl,
+  }
+  saveRegisteredLnurlAddress(registered)
+  return registered
+}
+
+/**
+ * The address the Receive screen displays.
+ *
+ * Cached rather than discovered because the screen needs it on first paint and
+ * a receive should not wait on a network round trip. `listAddresses` stays the
+ * authority for what the sync pulls; this is only what to show.
+ */
+export const readRegisteredLnurlAddress = (): RegisteredLnurlAddress | undefined =>
+  getStorageItem<RegisteredLnurlAddress | undefined>(LNURL_ADDRESS_STORAGE_KEY, undefined, (v) => JSON.parse(v))
+
+export const saveRegisteredLnurlAddress = (address: RegisteredLnurlAddress): void => {
+  setStorageItemSafely(LNURL_ADDRESS_STORAGE_KEY, JSON.stringify(address), 'Failed to save lnurl address')
+}
+
+/** Added to the synced set so activity for the new address is pulled on the
+ *  next start. Keyed on both halves: one host can serve several domains. */
+const rememberServer = (server: LnurlServer): void => {
+  const known = readLnurlServers()
+  if (known.some((s) => s.baseUrl === server.baseUrl && s.domain === server.domain)) return
+  saveLnurlServers([...known, server])
+}

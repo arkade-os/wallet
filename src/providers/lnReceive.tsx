@@ -3,13 +3,7 @@ import { RestArkProvider } from '@arkade-os/sdk'
 import { RfqSwapManager, rfqClaimSecretOf, type LightningReceiveProfile, type RfqSwapState } from '@arkade-os/swap'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
-import {
-  LnReceiveHeldElsewhere,
-  claimReceive,
-  toReceiveOrigin,
-  toReceiveSwap,
-  type LnReceiveRequest,
-} from '../lib/lnReceive'
+import { claimReceive } from '../lib/lnReceive'
 import { assetSwapRepository } from '../lib/swapRepository'
 import { Indexer } from '../lib/indexer'
 import { consoleError } from '../lib/logs'
@@ -40,8 +34,6 @@ import { extractError } from '../lib/error'
  * about a second one, so the coordination is a Web Lock here.
  */
 interface LnReceiveContextProps {
-  /** Begin monitoring a negotiated receive. Idempotent per `rfqId`. */
-  track: (request: LnReceiveRequest) => Promise<void>
   /** Where this receive stands, or undefined when it is not monitored. */
   status: (rfqId: string) => RfqSwapState | undefined
   /** The last error reported for this receive, cleared when it ends. */
@@ -49,7 +41,6 @@ interface LnReceiveContextProps {
 }
 
 export const LnReceiveContext = createContext<LnReceiveContextProps>({
-  track: async () => {},
   status: () => undefined,
   error: () => undefined,
 })
@@ -70,7 +61,6 @@ const MANAGER_LOCK = 'lnreceive-manager'
  * drive while it stops its manager. A grant that is coming lands well inside
  * this; one that is not was never ours to wait for.
  */
-const LOCK_GRACE_MS = 500
 
 export const LnReceiveProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
@@ -287,55 +277,10 @@ export const LnReceiveProvider = ({ children }: { children: ReactNode }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [svcWallet, aspInfo.url])
 
-  const track = useCallback(async (request: LnReceiveRequest) => {
-    let pending = manager.current
-    if (!pending && granted.current) {
-      // Waited out rather than answered on the spot: a request of ours that is
-      // merely young is indistinguishable from one queued behind another tab,
-      // and only one of the two is worth telling the user about.
-      await Promise.race([granted.current, new Promise((resolve) => setTimeout(resolve, LOCK_GRACE_MS))])
-      pending = manager.current
-    }
-    if (!pending) {
-      // Two different answers, and the screen says different things about
-      // them. Nothing is unavailable when another tab holds the lock — it is
-      // driving these swaps perfectly well, just not here.
-      if (granted.current) throw new LnReceiveHeldElsewhere()
-      throw new Error('lightning receive manager is not running')
-    }
-    if (admitted.current.has(request.rfqId)) return
-    // Both read `paymentHash` off `treeParams` — what the wallet derived the
-    // covenant from — so there is no hash for this side to pick, and no way to
-    // hand the two mappings different ones.
-    const swap = toReceiveSwap(request)
-    const origin = toReceiveOrigin(request)
-    admitted.current.add(request.rfqId)
-    setStates((prev) => new Map(prev).set(swap.rfqId, swap.state))
-    try {
-      // The origin is what lets the manager write this swap's FIRST record —
-      // admission marks it dirty, so the record is on disk a pass later while
-      // the swap is still `pending`, rather than first appearing at settlement.
-      // Omitting it would throw `RfqSwapOriginRequired` at the door.
-      await (await pending).addSwap(swap, origin)
-    } catch (err) {
-      // The manager never took the swap, so no `onSwap*` callback will ever run
-      // for this rfqId and nothing else would clear these. The idempotency
-      // guard is keyed on the same id, so an orphan would turn the retry into a
-      // silent no-op if the rfqId were ever reused.
-      admitted.current.delete(request.rfqId)
-      setStates((prev) => {
-        const next = new Map(prev)
-        next.delete(swap.rfqId)
-        return next
-      })
-      throw err
-    }
-  }, [])
-
   const status = useCallback((rfqId: string) => states.get(rfqId), [states])
   const error = useCallback((rfqId: string) => errors.get(rfqId), [errors])
 
-  const value = useMemo(() => ({ track, status, error }), [track, status, error])
+  const value = useMemo(() => ({ status, error }), [status, error])
 
   return <LnReceiveContext.Provider value={value}>{children}</LnReceiveContext.Provider>
 }
