@@ -2,6 +2,8 @@ import { createLnurlClient } from '@arkade-os/lnurl-client'
 import { arkadeIdentityRequest, deriveSessionTokenForIdentity } from '@arkade-os/lnurl-client/arkade'
 import type { Identity } from '@arkade-os/sdk'
 import { readLnurlServers, saveLnurlServers, type LnurlServer } from './lnurlActivitySync'
+import { getStorageItem, setStorageItemSafely } from './storage'
+import { LNURL_ADDRESS_STORAGE_KEY } from './storageKeys'
 
 export interface RegisteredLnurlAddress {
   username: string
@@ -50,12 +52,28 @@ export async function registerLnurlAddress(args: {
 
   rememberServer({ baseUrl: args.server.baseUrl, domain })
 
-  return {
+  const registered: RegisteredLnurlAddress = {
     username: address.username,
     domain: address.domain,
     lightningAddress: address.lightningAddress,
     lnurl: address.lnurl,
   }
+  saveRegisteredLnurlAddress(registered)
+  return registered
+}
+
+/**
+ * The address the Receive screen displays.
+ *
+ * Cached rather than discovered because the screen needs it on first paint and
+ * a receive should not wait on a network round trip. `listAddresses` stays the
+ * authority for what the sync pulls; this is only what to show.
+ */
+export const readRegisteredLnurlAddress = (): RegisteredLnurlAddress | undefined =>
+  getStorageItem<RegisteredLnurlAddress | undefined>(LNURL_ADDRESS_STORAGE_KEY, undefined, (v) => JSON.parse(v))
+
+export const saveRegisteredLnurlAddress = (address: RegisteredLnurlAddress): void => {
+  setStorageItemSafely(LNURL_ADDRESS_STORAGE_KEY, JSON.stringify(address), 'Failed to save lnurl address')
 }
 
 /** Added to the synced set so activity for the new address is pulled on the
