@@ -2069,6 +2069,7 @@ html.palette-dark .swap-flip-button {
 }
 
 .swap-amount-value {
+  position: relative;
   display: inline-flex;
   align-items: baseline;
   justify-content: center;
@@ -2104,10 +2105,6 @@ html.palette-dark .swap-flip-button {
   min-width: 0.32em;
 }
 
-.swap-amount-character-slot--exiting {
-  pointer-events: none;
-}
-
 .swap-amount-character {
   display: inline-block;
   grid-area: 1 / 1;
@@ -2117,10 +2114,6 @@ html.palette-dark .swap-flip-button {
 
 .swap-amount-character--entering {
   animation: swap-amount-character-in 280ms cubic-bezier(0.23, 1, 0.32, 1) both;
-}
-
-.swap-amount-character--exiting {
-  animation: swap-amount-character-out 170ms cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
 .swap-amount-value--primary {
@@ -2318,18 +2311,6 @@ html.palette-dark .swap-flip-button {
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@keyframes swap-amount-character-out {
-  from {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  to {
-    opacity: 0;
-    transform: translateY(-0.28em);
   }
 }
 
