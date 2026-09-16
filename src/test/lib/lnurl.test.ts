@@ -35,8 +35,32 @@ describe('lnurl utilities', () => {
     for (const test of fixtures.lib.lnurl) {
       const localMockResponse = { ...mockLNURLResponse, callback: test.callback }
       fetchMocker.mockResponseOnce(JSON.stringify(localMockResponse))
-      fetchMocker.mockResponseOnce(JSON.stringify({ pr: 'lnbc1234567890' }))
-      expect(await fetchInvoice(test.lnUrlOrAddress, 21, '')).toBe('lnbc1234567890')
+      fetchMocker.mockResponseOnce(JSON.stringify({ pr: fixtures.lib.bolt11.invoice }))
+      expect(await fetchInvoice(test.lnUrlOrAddress, fixtures.lib.bolt11.amountSats, '')).toBe(
+        fixtures.lib.bolt11.invoice,
+      )
+    }
+  })
+
+  it('should throw an error when the invoice is invalid', async () => {
+    for (const test of fixtures.lib.lnurl) {
+      const localMockResponse = { ...mockLNURLResponse, callback: test.callback }
+      fetchMocker.mockResponseOnce(JSON.stringify(localMockResponse))
+      fetchMocker.mockResponseOnce(JSON.stringify({ pr: 'lnbc12345678' }))
+      await expect(fetchInvoice(test.lnUrlOrAddress, fixtures.lib.bolt11.amountSats, '')).rejects.toThrow(
+        'Server returned an invalid invoice.',
+      )
+    }
+  })
+
+  it('should throw an error when the invoice amount does not match the requested amount', async () => {
+    for (const test of fixtures.lib.lnurl) {
+      const localMockResponse = { ...mockLNURLResponse, callback: test.callback }
+      fetchMocker.mockResponseOnce(JSON.stringify(localMockResponse))
+      fetchMocker.mockResponseOnce(JSON.stringify({ pr: fixtures.lib.bolt11.invoice }))
+      await expect(fetchInvoice(test.lnUrlOrAddress, fixtures.lib.bolt11.amountSats + 100, '')).rejects.toThrow(
+        'Invoice amount does not match requested amount.',
+      )
     }
   })
 })
