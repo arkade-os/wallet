@@ -16,7 +16,7 @@ importers:
   .:
     dependencies:
       '@arkade-os/lnurl-client':
-        specifier: link:..\lnurl-server-client\packages\client
+        specifier: link:../lnurl-server-client/packages/client
         version: link:../lnurl-server-client/packages/client
       '@arkade-os/sdk':
         specifier: 0.4.72
