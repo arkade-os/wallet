@@ -18,7 +18,8 @@ vi.mock('@arkade-os/swap', async (importOriginal) => ({
 const claimOnchainFill = vi.fn(async () => ({ txid: 'claim-txid', payoutAmount: BigInt(9_000) }))
 const preimageForSwapRecord = vi.fn(async () => new Uint8Array(32).fill(7))
 const rfqClaimSecretOf = vi.fn(() => ({ salt: 'seed' }) as any)
-vi.mock('@arkade-os/swap/protocol', () => ({
+vi.mock('@arkade-os/swap/protocol', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@arkade-os/swap/protocol')>()),
   chainSourceFrom: (...args: unknown[]) => ({ chain: args }),
   claimOnchainFill: (...args: unknown[]) => claimOnchainFill(...(args as [])),
   preimageForSwapRecord: (...args: unknown[]) => preimageForSwapRecord(...(args as [])),
