@@ -24,11 +24,13 @@ vi.mock('../../components/LoadingLogo', () => ({
 
 const MNEMONIC = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
 
-function renderConnect({ restoring = false }: { restoring?: boolean } = {}) {
+function renderConnect({ restoring = false, privateKey }: { restoring?: boolean; privateKey?: string } = {}) {
   const initWallet = vi.fn().mockResolvedValue(undefined)
   const navigate = vi.fn()
   const setInitInfo = vi.fn()
-  const initInfo = { password: 'password', mnemonic: MNEMONIC, restoring }
+  const initInfo = privateKey
+    ? { password: 'password', privateKey, restoring }
+    : { password: 'password', mnemonic: MNEMONIC, restoring }
 
   render(
     <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate } as any}>
@@ -71,5 +73,12 @@ describe('InitConnect', () => {
       expect(initWallet).toHaveBeenCalledWith({ mnemonic: MNEMONIC, walletMode: undefined, restoring: true }),
     )
     await waitFor(() => expect(screen.getByTestId('loading-logo')).toHaveAttribute('data-done', 'true'))
+  })
+
+  it('passes restoring through for an nsec import, so the swap scan can run', async () => {
+    const nsecKey = 'aa'.repeat(32)
+    const { initWallet } = renderConnect({ restoring: true, privateKey: nsecKey })
+
+    await waitFor(() => expect(initWallet).toHaveBeenCalledWith({ privateKey: nsecKey, restoring: true }))
   })
 })

@@ -40,16 +40,26 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
 } from 'react'
-import { asset, type Asset, type NetworkName, type PaymentRouter } from '@arkade-os/sdk'
-import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
+import { hex } from '@scure/base'
+import {
+  asset,
+  RestIndexerProvider,
+  toXOnlySignerHex,
+  type Asset,
+  type NetworkName,
+  type PaymentRouter,
+} from '@arkade-os/sdk'
+import { BTC_ASSET_ID, findMarket } from '@arkade-os/swap/protocol'
 import {
   arkadeAsset,
   btcOn,
+  restoreAssetSwapRepository,
   type AssetId,
   type AssetSwapId,
   type Outcome,
@@ -81,7 +91,12 @@ import {
   type DriverOp,
   type DriverUpdate,
 } from '../lib/swapDriverChannel'
-import { saveQuoteSnapshot, type AssetSwapQuoteSnapshot, type WalletAssetSwap } from '../lib/swapRepository'
+import {
+  assetSwapRepository,
+  saveQuoteSnapshot,
+  type AssetSwapQuoteSnapshot,
+  type WalletAssetSwap,
+} from '../lib/swapRepository'
 import { displayAssetOf, offerSwaps } from '../lib/swapRecords'
 import { verifiedDesignatedCurrency } from '../lib/accountAssets'
 import { getEmulatorPubkeyForNetwork } from '../lib/constants'
@@ -130,6 +145,12 @@ interface SwapsContextProps {
 const notInitialized = async (): Promise<never> => {
   throw new Error('swaps not initialized')
 }
+
+/** The server key as the covenants were funded against it: x-only. The info
+ * endpoint serves it compressed today; this accepts either form and throws on
+ * anything else, where a bare slice of an x-only key would silently yield one
+ * of the wrong length and every classification would come back indeterminate. */
+const xOnlyServerKey = (signerPubkey: string): Uint8Array => hex.decode(toXOnlySignerHex(signerPubkey))
 
 export const SwapsContext = createContext<SwapsContextProps>({
   markets: [],
@@ -186,7 +207,14 @@ const ENDED: Partial<Record<Outcome, 'received' | 'returned' | 'lost'>> = {
 
 export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
-  const { dataReady, svcWallet, reloadWallet, setAssetSwaps, isVerifiedAsset } = useContext(WalletContext)
+  const {
+    dataReady,
+    svcWallet,
+    reloadWallet,
+    setAssetSwaps,
+    isVerifiedAsset,
+    ungroupedTxs = [],
+  } = useContext(WalletContext)
 
   const [markets, setMarkets] = useState<DiscoveredMarket[]>([])
   const [emulatorPubkey, setEmulatorPubkey] = useState<Uint8Array>()
@@ -265,6 +293,85 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   // publish to the wallet provider, which merges swaps into the activity list;
   // it owns `txs`, so the list travels up rather than being read back down
   useEffect(() => setAssetSwaps(swaps), [swaps, setAssetSwaps])
+
+  // After a restore the swap store is empty while the funding/fill txs are
+  // back in history, so swaps would show as bare sent/received rows. Scan the
+  // sent virtual txs for offer packets and rebuild the lost records by
+  // binding each funding vtxo to the tx that spent it (fill or cancel).
+  //
+  // The scan is incremental but not one-shot: answered txids persist, so
+  // late-synced history is picked up by later runs and nothing is fetched
+  // twice. Open records travel through the package's explicit `reopen` path.
+  // Writes land in the v1 `swaps` store; `offerSwaps` / `swapRecordResolver`
+  // merge that store with v2 `swapRecords` so activity can group them.
+  const scanningRef = useRef(false)
+  const rescanRef = useRef(false)
+  const [scanTick, setScanTick] = useState(0)
+  const txsRef = useRef(ungroupedTxs)
+  useLayoutEffect(() => {
+    txsRef.current = ungroupedTxs
+  }, [ungroupedTxs])
+
+  const scanTokenRef = useRef(new AbortController())
+  useEffect(() => {
+    const token = new AbortController()
+    scanTokenRef.current = token
+    return () => token.abort()
+  }, [svcWallet, aspInfo.url, aspInfo.signerPubkey, dataReady])
+
+  useEffect(() => {
+    if (!svcWallet || !aspInfo.url || !aspInfo.signerPubkey || !dataReady) return
+    let serverPubkey: Uint8Array
+    try {
+      serverPubkey = xOnlyServerKey(aspInfo.signerPubkey)
+    } catch {
+      return
+    }
+    if (scanningRef.current) {
+      rescanRef.current = true
+      return
+    }
+    const token = scanTokenRef.current
+    const stale = () => token.signal.aborted
+    const scan = async () => {
+      const result = await restoreAssetSwapRepository({
+        wallet: svcWallet,
+        indexer: new RestIndexerProvider(aspInfo.url),
+        repository: assetSwapRepository,
+        txs: txsRef.current,
+        operatorPubkey: serverPubkey,
+        signal: token.signal,
+        prepareNew: (swap) => {
+          const feeBps = findMarket(marketsRef.current, swap.fromAsset, swap.toAsset)?.market?.fee_bps
+          if (feeBps !== undefined) {
+            try {
+              saveQuoteSnapshot(swap.id, { feeBps })
+            } catch (err) {
+              consoleError(err, 'failed to store the restored swap quote snapshot')
+            }
+          }
+          return swap
+        },
+      })
+      if (result.aborted || stale()) return
+      if (result.coverageError) {
+        consoleError(result.coverageError, 'swap covenant coverage restore failed')
+      }
+      if (result.changes.length === 0) return
+      await refreshSwaps()
+      reloadRef.current().catch(consoleError)
+    }
+    scanningRef.current = true
+    scan()
+      .catch((err) => consoleError(err, 'swap restore scan failed'))
+      .finally(() => {
+        scanningRef.current = false
+        if (!rescanRef.current || scanTokenRef.current.signal.aborted) return
+        rescanRef.current = false
+        setScanTick((tick) => tick + 1)
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [svcWallet, aspInfo.url, aspInfo.signerPubkey, dataReady, ungroupedTxs, scanTick])
 
   // ---------------------------------------------------------------- discovery
   //

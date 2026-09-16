@@ -22,6 +22,15 @@ import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
  * outcome, and how an update reaches the UI.
  */
 
+const restoreAssetSwapRepository = vi.hoisted(() =>
+  vi.fn(async () => ({ swaps: [], changes: [], scannedTxids: [], aborted: false })),
+)
+
+vi.mock('@arkade-os/swap', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@arkade-os/swap')>()),
+  restoreAssetSwapRepository,
+}))
+
 const accept = vi.hoisted(() => vi.fn())
 const cancel = vi.hoisted(() => vi.fn())
 const quote = vi.hoisted(() => vi.fn())
@@ -136,19 +145,29 @@ function Harness({ plan }: { plan?: OfferPlan }) {
 function renderProvider({
   plan,
   reloadWallet = vi.fn().mockResolvedValue(undefined),
-}: { plan?: OfferPlan; reloadWallet?: ReturnType<typeof vi.fn> } = {}) {
+  wallet = {},
+  asp = {},
+}: {
+  plan?: OfferPlan
+  reloadWallet?: ReturnType<typeof vi.fn>
+  wallet?: Record<string, unknown>
+  asp?: Record<string, unknown>
+} = {}) {
   render(
-    <AspContext.Provider value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, ...ASP } } as any}>
+    <AspContext.Provider
+      value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, ...ASP, ...asp } } as any}
+    >
       <WalletContext.Provider
         value={
           {
             ...mockWalletContextValue,
             dataReady: true,
-            // the restore scan is a separate concern; an empty history keeps it
-            // from reaching for an indexer these tests do not stand up
+            // empty history keeps the restore scan from reaching an indexer
             txs: [],
+            ungroupedTxs: [],
             reloadWallet,
             svcWallet: { identity: {} },
+            ...wallet,
           } as any
         }
       >
@@ -171,6 +190,12 @@ beforeEach(async () => {
   quote.mockReset()
   accept.mockReset().mockResolvedValue(accepted())
   cancel.mockReset().mockResolvedValue({ outcome: 'cancelled' })
+  restoreAssetSwapRepository.mockClear().mockResolvedValue({
+    swaps: [],
+    changes: [],
+    scannedTxids: [],
+    aborted: false,
+  })
 })
 
 afterEach(async () => {
@@ -285,6 +310,41 @@ describe('SwapsProvider swap list', () => {
 
     await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('fulfilled'))
     // the fill moved value, so the balance has to be re-read
+    await waitFor(() => expect(reloadWallet).toHaveBeenCalled())
+  })
+})
+
+describe('SwapsProvider restore scan', () => {
+  const OPERATOR = 'aa'.repeat(32)
+  const funding = {
+    type: 'sent',
+    redeemTxid: 'funding-txid',
+    boardingTxid: '',
+    roundTxid: '',
+    createdAt: 1_700_000_000,
+    amount: 10_000,
+    explorable: undefined,
+    preconfirmed: false,
+    settled: true,
+  }
+
+  it('rebuilds offer records from ungrouped history on every load', async () => {
+    restoreAssetSwapRepository.mockResolvedValue({
+      swaps: [],
+      changes: [{ current: { id: 'funding-txid' } }],
+      scannedTxids: ['funding-txid'],
+      aborted: false,
+    })
+    const reloadWallet = renderProvider({
+      asp: { signerPubkey: OPERATOR },
+      wallet: { ungroupedTxs: [funding] },
+    })
+
+    await waitFor(() => expect(restoreAssetSwapRepository).toHaveBeenCalled())
+    const args = restoreAssetSwapRepository.mock.calls[0][0]
+    expect(args).not.toHaveProperty('arkServerUrl')
+    expect(args.txs).toEqual([funding])
+    expect(args.operatorPubkey).toHaveLength(32)
     await waitFor(() => expect(reloadWallet).toHaveBeenCalled())
   })
 })

@@ -35,7 +35,7 @@ export default function InitConnect() {
         .catch(abortConnectionWithError)
     } else if (privateKey) {
       setPrivateKey(privateKey, password)
-        .then(() => initWallet({ privateKey }))
+        .then(() => initWallet({ privateKey, restoring: initInfo.restoring }))
         .then(() => setInitialized(true))
         .catch(abortConnectionWithError)
     }
