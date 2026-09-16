@@ -83,7 +83,8 @@ export const AssetSwapsContext = createContext<AssetSwapsContextProps>({
 
 export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
-  const { dataReady, svcWallet, reloadWallet, setAssetSwaps, txs, ungroupedTxs } = useContext(WalletContext)
+  const { dataReady, svcWallet, reloadWallet, setActivityPending, setAssetSwaps, txs, ungroupedTxs } =
+    useContext(WalletContext)
 
   const [markets, setMarkets] = useState<DiscoveredMarket[]>([])
   const [swaps, setSwaps] = useState<WalletAssetSwap[]>([])
@@ -261,6 +262,22 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     const token = scanTokenRef.current
     const stale = () => token.signal.aborted
     const scan = async () => {
+      // Whether this pass can still change what the activity list is showing: a
+      // sent tx with no record at all, that no earlier pass has answered, may
+      // yet turn out to be a swap funding and take a received row with it. A tx
+      // that already HAS a record is not one — open or closed, its rows are
+      // grouped as a Swap row already, so re-asking the chain about it (which
+      // an open record does on every pass) must not blank the list.
+      //
+      // Both reads are local, so the gate goes up before the first fetch rather
+      // than after it.
+      const [recorded, scanned] = await Promise.all([readSwaps(), assetSwapRepository.getScannedTxids()])
+      const recordedIds = new Set(recorded.map((swap) => swap.id))
+      setActivityPending(
+        txsRef.current.some(
+          (tx) => tx.type === 'sent' && tx.redeemTxid && !recordedIds.has(tx.redeemTxid) && !scanned.has(tx.redeemTxid),
+        ),
+      )
       const result = await restoreAssetSwapRepository({
         wallet: svcWallet,
         arkServerUrl: aspInfo.url,
@@ -302,7 +319,14 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
         scanningRef.current = false
         // the CURRENT token, not this run's: a run whose token died is exactly
         // the one whose queued work still has to happen, under its replacement
-        if (!rescanRef.current || scanTokenRef.current.signal.aborted) return
+        if (!rescanRef.current || scanTokenRef.current.signal.aborted) {
+          // The rows are trustworthy again once this pass is done — including the
+          // pass that threw, since holding a placeholder over an indexer outage
+          // would hide the history rather than protect it. A queued rescan keeps
+          // the gate up: its run is part of the same answer.
+          setActivityPending(false)
+          return
+        }
         rescanRef.current = false
         // through the effect, not a direct call: this closure is bound to the
         // wallet it started with, a fresh run reads the current one

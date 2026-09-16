@@ -145,6 +145,8 @@ export const mockWalletContextValue = {
   loadError: null,
   dismissLoadError: () => {},
   setAssetSwaps: () => {},
+  activityPending: false,
+  setActivityPending: () => {},
 }
 
 export const mockFlowContextValue = {
