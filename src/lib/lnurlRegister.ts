@@ -5,6 +5,26 @@ import { readLnurlServers, saveLnurlServers, type LnurlServer } from './lnurlAct
 import { getStorageItem, setStorageItemSafely } from './storage'
 import { LNURL_ADDRESS_STORAGE_KEY } from './storageKeys'
 
+/**
+ * The server this build offers addresses at, or undefined when none is set.
+ *
+ * Configured rather than defaulted: which lnurl-server a wallet trusts with its
+ * receive identity is not a choice to bake into a binary, and a wrong default
+ * would be a bearer credential handed to someone the user never picked.
+ * `VITE_LNURL_DOMAIN` is only needed where the LUD-16 domain differs from the
+ * API host, which is the unusual case.
+ */
+export const configuredLnurlServer = (): LnurlServer | undefined => {
+  const baseUrl = import.meta.env.VITE_LNURL_SERVER?.trim()
+  if (!baseUrl) return undefined
+  try {
+    const domain = (import.meta.env.VITE_LNURL_DOMAIN?.trim() || new URL(baseUrl).hostname).toLowerCase()
+    return { baseUrl, domain }
+  } catch {
+    return undefined
+  }
+}
+
 export interface RegisteredLnurlAddress {
   username: string
   domain: string

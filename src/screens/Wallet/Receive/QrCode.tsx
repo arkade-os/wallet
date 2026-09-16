@@ -20,7 +20,12 @@ import { unitsToCents } from '../../../lib/assets'
 import ErrorMessage from '../../../components/Error'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
-import { readRegisteredLnurlAddress, type RegisteredLnurlAddress } from '../../../lib/lnurlRegister'
+import {
+  configuredLnurlServer,
+  readRegisteredLnurlAddress,
+  registerLnurlAddress,
+  type RegisteredLnurlAddress,
+} from '../../../lib/lnurlRegister'
 import InputAmount from '../../../components/InputAmount'
 import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
 import SheetModal from '../../../components/SheetModal'
@@ -98,6 +103,9 @@ export default function ReceiveQRCode() {
   const [selectedValue, setSelectedValue] = useState('')
   const [bip21Uri, setBip21Uri] = useState('')
   const [lnurlAddress, setLnurlAddress] = useState<RegisteredLnurlAddress | undefined>(undefined)
+  const [registering, setRegistering] = useState(false)
+  const [registerError, setRegisterError] = useState('')
+  const lnurlServer = configuredLnurlServer()
 
   // Fetch addresses on mount
   useEffect(() => {
@@ -140,6 +148,34 @@ export default function ReceiveQRCode() {
   useEffect(() => {
     setLnurlAddress(readRegisteredLnurlAddress())
   }, [])
+
+  /**
+   * Claim a lightning address, binding this wallet's Arkade identity to it.
+   *
+   * Reuses the ark address already loaded above rather than asking the wallet
+   * again: it is the same value, and the covenant binds to whatever is
+   * registered here, so the two must not be able to differ.
+   */
+  const registerLnurl = async () => {
+    if (!svcWallet || !lnurlServer || !recvInfo.offchainAddr) return
+    setRegistering(true)
+    setRegisterError('')
+    try {
+      setLnurlAddress(
+        await registerLnurlAddress({
+          identity: svcWallet.identity,
+          arkadeAddress: recvInfo.offchainAddr,
+          server: lnurlServer,
+        }),
+      )
+    } catch (err) {
+      const error = extractError(err)
+      consoleError(error, 'lnurl address registration failed')
+      setRegisterError(error)
+    } finally {
+      setRegistering(false)
+    }
+  }
 
   // Build BIP21 URI
   useEffect(() => {
@@ -337,7 +373,23 @@ export default function ReceiveQRCode() {
                   addresses still work, and this is the one rail that needs a
                   registered address to exist at all. */}
               {!isAssetReceive && !lnurlAddress ? (
-                <TextSecondary>No lightning address registered — Lightning unavailable</TextSecondary>
+                <FlexCol gap='0.25rem' centered>
+                  <TextSecondary>
+                    {registerError
+                      ? `Registration failed: ${registerError}`
+                      : lnurlServer
+                        ? 'No lightning address yet — Lightning unavailable'
+                        : 'No lightning server configured — Lightning unavailable'}
+                  </TextSecondary>
+                  {lnurlServer ? (
+                    <Button
+                      label={registering ? 'Getting address...' : 'Get a lightning address'}
+                      onClick={registerLnurl}
+                      disabled={registering || !recvInfo.offchainAddr}
+                      secondary
+                    />
+                  ) : null}
+                </FlexCol>
               ) : null}
               <button
                 type='button'

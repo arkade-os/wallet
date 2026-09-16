@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, beforeAll } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { FlowContext } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import { AspContext } from '../../../providers/asp'
@@ -30,6 +30,15 @@ import {
  * ark and on-chain addresses are unaffected either way.
  */
 vi.mock('qr', () => ({ default: () => Array.from({ length: 21 }, () => new Uint8Array(21).fill(1)) }))
+
+let server: { baseUrl: string; domain: string } | undefined
+const registerMock = vi.fn()
+
+vi.mock('../../../lib/lnurlRegister', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../lib/lnurlRegister')>()),
+  configuredLnurlServer: () => server,
+  registerLnurlAddress: (args: unknown) => registerMock(args),
+}))
 
 beforeAll(() => {
   if (!navigator.serviceWorker) {
@@ -84,12 +93,55 @@ const tree = (
   </ToastProvider>
 )
 
-beforeEach(() => localStorage.clear())
+beforeEach(() => {
+  localStorage.clear()
+  registerMock.mockReset()
+  server = { baseUrl: 'https://lnurl.test', domain: 'lnurl.test' }
+})
 
 describe('Receive screen, lnurl lightning', () => {
-  it('says Lightning is unavailable with no registered address', async () => {
+  it('offers to claim an address when none is registered', async () => {
     render(tree)
-    await waitFor(() => expect(screen.getByText(/No lightning address registered/i)).toBeTruthy())
+    await waitFor(() => expect(screen.getByText(/No lightning address yet/i)).toBeTruthy())
+    expect(screen.getByText(/Get a lightning address/i)).toBeTruthy()
+  })
+
+  // Nothing to offer, so the copy must not imply the user can act.
+  it('says so plainly when the build has no server configured', async () => {
+    server = undefined
+    render(tree)
+    await waitFor(() => expect(screen.getByText(/No lightning server configured/i)).toBeTruthy())
+    expect(screen.queryByText(/Get a lightning address/i)).toBeNull()
+  })
+
+  it('binds the ark address already on screen, not a freshly fetched one', async () => {
+    registerMock.mockResolvedValue({
+      username: 'alice',
+      domain: 'lnurl.test',
+      lightningAddress: 'alice@lnurl.test',
+      lnurl: LNURL,
+    })
+    render(tree)
+    await waitFor(() => expect(screen.getByText(/Get a lightning address/i)).toBeTruthy())
+
+    fireEvent.click(screen.getByText(/Get a lightning address/i))
+
+    await waitFor(() => expect(registerMock).toHaveBeenCalledTimes(1))
+    // The covenant binds to whatever is registered, so registering a different
+    // address than the screen shows would pay somewhere the user never saw.
+    expect(registerMock.mock.calls[0]?.[0]).toMatchObject({ arkadeAddress: 'ark1testaddr', server })
+    await waitFor(() => expect(screen.queryByText(/No lightning address yet/i)).toBeNull())
+  })
+
+  it('reports a failed claim instead of leaving the button spinning', async () => {
+    registerMock.mockRejectedValue(new Error('username already taken'))
+    render(tree)
+    await waitFor(() => expect(screen.getByText(/Get a lightning address/i)).toBeTruthy())
+
+    fireEvent.click(screen.getByText(/Get a lightning address/i))
+
+    await waitFor(() => expect(screen.getByText(/username already taken/i)).toBeTruthy())
+    expect(screen.getByText(/Get a lightning address/i)).toBeTruthy()
   })
 
   it('offers no such message once an address is registered', async () => {
