@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { walletAccountTicker, type WalletAccountTicker } from '../lib/accountAssets'
 
 export type TokenLogoTicker = 'BTC' | 'USD' | 'USDT' | 'USDC' | 'CHF' | 'CNY' | 'CUP' | 'EUR' | 'GBP' | 'JPY' | 'BRL'
@@ -105,14 +106,15 @@ export function UsdcLogo() {
 }
 
 export function UnitedStatesFlagLogo() {
+  const clipId = useId().replaceAll(':', '')
   return (
     <svg aria-hidden='true' viewBox='0 0 32 32' focusable='false'>
       <defs>
-        <clipPath id='us-flag-circle'>
+        <clipPath id={clipId}>
           <circle cx='16' cy='16' r='16' />
         </clipPath>
       </defs>
-      <g clipPath='url(#us-flag-circle)'>
+      <g clipPath={`url(#${clipId})`}>
         <path fill='#FFF' d='M0 0h32v32H0z' />
         <path
           fill='#B22234'
@@ -168,14 +170,15 @@ export function SwitzerlandFlagLogo() {
 }
 
 export function BrazilFlagLogo() {
+  const clipId = useId().replaceAll(':', '')
   return (
     <svg aria-hidden='true' viewBox='0 0 32 32' focusable='false'>
       <defs>
-        <clipPath id='br-flag-circle'>
+        <clipPath id={clipId}>
           <circle cx='16' cy='16' r='16' />
         </clipPath>
       </defs>
-      <g clipPath='url(#br-flag-circle)'>
+      <g clipPath={`url(#${clipId})`}>
         <path fill='#009B3A' d='M0 0h32v32H0z' />
         <path fill='#FFDF00' d='M16 5.25 29 16 16 26.75 3 16z' />
         <circle cx='16' cy='16' r='6.2' fill='#002776' />
@@ -201,15 +204,16 @@ export function ChinaFlagLogo() {
 }
 
 export function CubaFlagLogo() {
+  const clipId = useId().replaceAll(':', '')
   const stripeH = 6.4
   return (
     <svg aria-hidden='true' viewBox='0 0 32 32' focusable='false'>
       <defs>
-        <clipPath id='cu-flag-circle'>
+        <clipPath id={clipId}>
           <circle cx='16' cy='16' r='16' />
         </clipPath>
       </defs>
-      <g clipPath='url(#cu-flag-circle)'>
+      <g clipPath={`url(#${clipId})`}>
         <path fill='#FFF' d='M0 0h32v32H0z' />
         <path
           fill='#002590'
@@ -251,14 +255,15 @@ export function JapanFlagLogo() {
 }
 
 export function UnitedKingdomFlagLogo() {
+  const clipId = useId().replaceAll(':', '')
   return (
     <svg aria-hidden='true' viewBox='0 0 32 32' focusable='false'>
       <defs>
-        <clipPath id='gb-flag-circle'>
+        <clipPath id={clipId}>
           <circle cx='16' cy='16' r='16' />
         </clipPath>
       </defs>
-      <g clipPath='url(#gb-flag-circle)'>
+      <g clipPath={`url(#${clipId})`}>
         <path fill='#012169' d='M0 0h32v32H0z' />
         <path stroke='#FFF' strokeWidth='6.4' d='m0 0 32 32M32 0 0 32' />
         <path stroke='#C8102E' strokeWidth='3.8' d='m0 0 32 32M32 0 0 32' />
