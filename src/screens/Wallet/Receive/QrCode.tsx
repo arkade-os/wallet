@@ -19,6 +19,7 @@ import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
 import { unitsToCents } from '../../../lib/assets'
 import ErrorMessage from '../../../components/Error'
 import { getReceivingAddresses } from '../../../lib/asp'
+import { syncLnurlActivity } from '../../../lib/lnurlActivitySync'
 import { extractError } from '../../../lib/error'
 import {
   configuredLnurlServer,
@@ -168,6 +169,14 @@ export default function ReceiveQRCode() {
           server: lnurlServer,
         }),
       )
+      // The startup sync read the server list before this address existed, so
+      // without this a payment arriving in the same session would stay an
+      // unattributed credit until the next start -- the exact gap this feature
+      // exists to close. Not awaited: registration has already succeeded, and
+      // a sync failure must not read as one.
+      void syncLnurlActivity(svcWallet.identity).catch((err) => {
+        consoleError(extractError(err), 'lnurl activity sync after registration failed')
+      })
     } catch (err) {
       const error = extractError(err)
       consoleError(error, 'lnurl address registration failed')

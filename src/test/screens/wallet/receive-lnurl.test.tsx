@@ -40,6 +40,12 @@ vi.mock('../../../lib/lnurlRegister', async (importOriginal) => ({
   registerLnurlAddress: (args: unknown) => registerMock(args),
 }))
 
+const syncMock = vi.fn()
+vi.mock('../../../lib/lnurlActivitySync', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../lib/lnurlActivitySync')>()),
+  syncLnurlActivity: () => syncMock(),
+}))
+
 beforeAll(() => {
   if (!navigator.serviceWorker) {
     Object.defineProperty(navigator, 'serviceWorker', {
@@ -96,6 +102,7 @@ const tree = (
 beforeEach(() => {
   localStorage.clear()
   registerMock.mockReset()
+  syncMock.mockReset()
   server = { baseUrl: 'https://lnurl.test', domain: 'lnurl.test' }
 })
 
@@ -131,6 +138,34 @@ describe('Receive screen, lnurl lightning', () => {
     // address than the screen shows would pay somewhere the user never saw.
     expect(registerMock.mock.calls[0]?.[0]).toMatchObject({ arkadeAddress: 'ark1testaddr', server })
     await waitFor(() => expect(screen.queryByText(/No lightning address yet/i)).toBeNull())
+  })
+
+  // The startup sync read the server list before this address existed, so a
+  // payment arriving in the same session would otherwise stay unattributed.
+  it('syncs activity once the address exists', async () => {
+    registerMock.mockResolvedValue({
+      username: 'alice',
+      domain: 'lnurl.test',
+      lightningAddress: 'alice@lnurl.test',
+      lnurl: LNURL,
+    })
+    render(tree)
+    await waitFor(() => expect(screen.getByText(/Get a lightning address/i)).toBeTruthy())
+
+    fireEvent.click(screen.getByText(/Get a lightning address/i))
+
+    await waitFor(() => expect(syncMock).toHaveBeenCalledTimes(1))
+  })
+
+  it('does not sync when the claim failed', async () => {
+    registerMock.mockRejectedValue(new Error('username already taken'))
+    render(tree)
+    await waitFor(() => expect(screen.getByText(/Get a lightning address/i)).toBeTruthy())
+
+    fireEvent.click(screen.getByText(/Get a lightning address/i))
+
+    await waitFor(() => expect(screen.getByText(/username already taken/i)).toBeTruthy())
+    expect(syncMock).not.toHaveBeenCalled()
   })
 
   it('reports a failed claim instead of leaving the button spinning', async () => {
