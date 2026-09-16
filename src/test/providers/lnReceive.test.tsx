@@ -1,9 +1,7 @@
-import { useContext, useState } from 'react'
-import { render, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { useContext } from 'react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  type LightningReceiveProfile,
   type LightningReceiveSwap,
   type RfqRestoreResult,
   type RfqSwapManagerCallbacks,
@@ -95,16 +93,11 @@ const storedRecord = (rfqId = 'rfq-1'): RfqSwapRecord =>
   }) as RfqSwapRecord
 
 function Harness({ rfqId = 'rfq-1', tab = 'a' }: { rfqId?: string; tab?: string }) {
-  const { track, status, error } = useContext(LnReceiveContext)
-  const [rejected, setRejected] = useState('')
+  const { status, error } = useContext(LnReceiveContext)
   return (
     <div data-testid={`tab-${tab}`}>
-      <button
-        onClick={() => track(request(rfqId)).catch((err: Error) => setRejected(err.name))}
-      >{`Track ${tab}`}</button>
       <span data-testid='status'>{status(rfqId) ?? 'none'}</span>
       <span data-testid='error'>{error(rfqId) ?? 'none'}</span>
-      <span data-testid='rejected'>{rejected || 'none'}</span>
     </div>
   )
 }
@@ -251,49 +244,6 @@ describe('LnReceiveProvider', () => {
     await expect(callbacks().refundArkade({} as never)).rejects.toThrow(/no trader refund/)
   })
 
-  it('hands addSwap the origin, which is what lets the first record be written', async () => {
-    renderProvider()
-    await waitFor(() => expect(start).toHaveBeenCalled())
-
-    await userEvent.click(screen.getByText('Track a'))
-    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('pending'))
-
-    await userEvent.click(screen.getByText('Track a'))
-    // Once per rfqId: `addSwap` REPLACES a monitored swap, so a second call for
-    // one already in flight would reset it to `pending` and un-say a claim that
-    // has already gone out.
-    expect(addSwap).toHaveBeenCalledTimes(1)
-    const [swap, origin] = addSwap.mock.calls[0]
-    expect(swap.rfqId).toBe('rfq-1')
-    // Our own sha256(P), not the quote's echo of it.
-    expect(swap.paymentHash).toBe('04'.repeat(32))
-    // Omitting it would throw `RfqSwapOriginRequired` at the door — the manager
-    // refuses to monitor a funded lockup whose record it could never write.
-    expect(origin.kind).toBe('lightning_receive')
-    expect(origin.lockupAddress).toBe('tark1qlockup')
-    const profile = origin.profile as LightningReceiveProfile
-    expect(profile.payoutAddress).toBe('tark1qpayout')
-    expect(profile.hashlock.paymentHash).toBe('04'.repeat(32))
-  })
-
-  it('releases the rfqId when addSwap throws, so the retry is not swallowed', async () => {
-    // `addSwap` is where `LockupRegistrationFailed` and `RfqSwapOriginRequired`
-    // surface. The manager never took the swap, so no callback will ever clear
-    // these — and the idempotency guard is keyed on the same id, so an orphan
-    // would turn the retry into a silent no-op if the rfqId were reused.
-    addSwap.mockRejectedValueOnce(new Error('LockupRegistrationFailed'))
-    renderProvider()
-    await waitFor(() => expect(start).toHaveBeenCalled())
-
-    await userEvent.click(screen.getByText('Track a'))
-    await waitFor(() => expect(addSwap).toHaveBeenCalledTimes(1))
-    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('none'))
-
-    await userEvent.click(screen.getByText('Track a'))
-    await waitFor(() => expect(addSwap).toHaveBeenCalledTimes(2))
-    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('pending'))
-  })
-
   it('claims from the STORED record, which is what survives the reload', async () => {
     // Nothing in this session tracked it — this is the swap a reload left
     // behind, and the record is the only place its payout address and claim
@@ -347,7 +297,10 @@ describe('LnReceiveProvider', () => {
     await waitFor(() => expect(start).toHaveBeenCalled())
   })
 
-  it('lets only one tab drive, and tells the other one why', async () => {
+  // Two managers over one repository would mean two `pushClaim`s over the same
+  // VTXOs: one lands, the other fails as a double-spend, and both write records
+  // that disagree about `claimArkTxid`.
+  it('lets only one tab drive', async () => {
     render(
       wrap(
         <>
@@ -361,37 +314,22 @@ describe('LnReceiveProvider', () => {
       ),
     )
     await waitFor(() => expect(start).toHaveBeenCalledTimes(1))
-
-    // Two managers over one repository would mean two `pushClaim`s over the
-    // same VTXOs: one lands, the other fails as a double-spend, and both write
-    // records that disagree about `claimArkTxid`.
-    const b = within(screen.getByTestId('tab-b'))
-    await userEvent.click(b.getByText('Track b'))
-    // Named, not generic: nothing is unavailable, and "manager is not running"
-    // would be false — the other tab is driving these swaps perfectly well.
-    await waitFor(() => expect(b.getByTestId('rejected')).toHaveTextContent('LnReceiveHeldElsewhere'), {
-      timeout: 3000,
-    })
+    expect(screen.getByTestId('tab-b')).toBeTruthy()
     expect(start).toHaveBeenCalledTimes(1)
-    expect(addSwap).not.toHaveBeenCalled()
   })
 
-  it('waits out its own pending request rather than blaming a tab that is not there', async () => {
+  // Pending says nothing about WHO holds the lock -- this tab's own request is
+  // pending too, right up until it is granted -- so the manager must start on
+  // the grant rather than give up while it waits.
+  it('starts once its own pending lock request is granted', async () => {
     const locks = gatedLocks()
     withLocks(locks)
     renderProvider()
-    await userEvent.click(screen.getByText('Track a'))
 
-    // Pending says nothing about WHO holds it — this tab's own request is
-    // pending too, right up until it is granted. Answering "another tab is
-    // handling Lightning receives" here tells the only open tab to close a tab
-    // that does not exist.
-    expect(screen.getByTestId('rejected')).toHaveTextContent('none')
-    expect(addSwap).not.toHaveBeenCalled()
+    expect(start).not.toHaveBeenCalled()
 
     locks.open()
-    await waitFor(() => expect(addSwap).toHaveBeenCalled())
-    expect(screen.getByTestId('rejected')).toHaveTextContent('none')
+    await waitFor(() => expect(start).toHaveBeenCalledTimes(1))
   })
 
   it('releases the lock on effect teardown, so the next mount can drive', async () => {
@@ -414,16 +352,11 @@ describe('LnReceiveProvider', () => {
     withLocks(undefined)
     renderProvider()
     await waitFor(() => expect(start).toHaveBeenCalled())
-
-    await userEvent.click(screen.getByText('Track a'))
-    await waitFor(() => expect(addSwap).toHaveBeenCalled())
   })
 
   it('reports a refunded receive as the loss it is, and refreshes the balance', async () => {
     renderProvider()
     await waitFor(() => expect(start).toHaveBeenCalled())
-    await userEvent.click(screen.getByText('Track a'))
-    await waitFor(() => expect(addSwap).toHaveBeenCalled())
 
     // On a receive leg every non-claim leaf is the SOLVER's, so a lockup spent
     // any other way means the incoming payment never arrived.
@@ -435,8 +368,6 @@ describe('LnReceiveProvider', () => {
   it('surfaces a settled receive and reloads: the claim lands off the worker', async () => {
     renderProvider()
     await waitFor(() => expect(start).toHaveBeenCalled())
-    await userEvent.click(screen.getByText('Track a'))
-    await waitFor(() => expect(addSwap).toHaveBeenCalled())
 
     captured.events?.onSwapCompleted?.(monitored('settled'))
     // The page's own RestArkProvider pushed the claim, so no VTXO_UPDATE comes
@@ -448,13 +379,11 @@ describe('LnReceiveProvider', () => {
   it('keys a failure by rfqId and clears it when the swap ends', async () => {
     renderProvider()
     await waitFor(() => expect(start).toHaveBeenCalled())
-    await userEvent.click(screen.getByText('Track a'))
 
     // Fired for every throwing action, retried ones included — so it is a
     // reason to show, not an outcome to end on.
     captured.events?.onSwapFailed?.(monitored('claimable'), new Error('claim rejected'))
     await waitFor(() => expect(screen.getByTestId('error')).toHaveTextContent('claim rejected'))
-    expect(screen.getByTestId('status')).toHaveTextContent('pending')
 
     captured.events?.onSwapCompleted?.(monitored('settled'))
     await waitFor(() => expect(screen.getByTestId('error')).toHaveTextContent('none'))
