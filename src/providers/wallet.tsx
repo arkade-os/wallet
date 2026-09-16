@@ -792,7 +792,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // Deliberately not awaited: an unreachable lnurl-server must cost the
       // activity view its attribution, never the wallet its startup.
       void syncLnurlActivity(identity).catch((error) => {
-        console.warn('lnurl activity sync failed:', error)
+        consoleError(error, 'lnurl activity sync failed')
       })
 
       // Cancel any pending reload from a previous wallet instance
