@@ -175,7 +175,7 @@ describe('Wallet swap flow', () => {
 
     expect(screen.getByText('BRL')).toBeInTheDocument()
     expect(screen.queryByText(/DePix|DEPIX/)).not.toBeInTheDocument()
-    expect(document.querySelector('#br-flag-circle')).not.toBeNull()
+    expect(document.querySelector('path[fill="#009B3A"]')).not.toBeNull()
   })
 
   it('finds Bitcoin when searching "btc", even though its swap-entry ticker is sats', async () => {
