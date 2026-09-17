@@ -93,6 +93,7 @@ export default function ReceiveQRCode() {
   const isAssetReceive = assetId && assetId !== ''
   const hasError = Boolean(addressError)
 
+  const [generatingInvoice, setGeneratingInvoice] = useState(false)
   const [noPaymentMethods, setNoPaymentMethods] = useState(false)
   const [arkAddress, setArkAddress] = useState(offchainAddr)
   const [btcAddress, setBtcAddress] = useState(boardingAddr)
@@ -169,6 +170,7 @@ export default function ReceiveQRCode() {
 
     let abandoned = false
     const negotiate = async () => {
+      setGeneratingInvoice(true)
       // One call: the client picks the corridor off the discovered cards,
       // negotiates the hold invoice, and begins driving the swap BEFORE the
       // invoice comes back — the payer cannot pay one they have not seen, so
@@ -187,6 +189,7 @@ export default function ReceiveQRCode() {
         invoice: pending.invoice,
         pendingLnReceive: pending,
       }))
+      setGeneratingInvoice(false)
     }
 
     negotiate().catch((err) => {
@@ -208,6 +211,7 @@ export default function ReceiveQRCode() {
       // cross: the rebuilt error carries the name the SDK's own constructor
       // sets, and this is the check that reads it in both cases.
       setLnRetryable(noDriver || (err as Error)?.name === 'LockupRegistrationFailed')
+      setGeneratingInvoice(false)
     })
     // The amount changed under an in-flight negotiation, so its invoice would
     // be for the wrong number. Nothing to cancel on the solver — an unpaid hold
@@ -454,11 +458,14 @@ export default function ReceiveQRCode() {
                   width: '100%',
                   border: 'none',
                   margin: '0 auto',
-                  display: 'block',
+                  display: 'flex',
                   marginTop: '5rem',
                   maxWidth: '340px',
+                  minHeight: '340px',
                   cursor: 'pointer',
                   background: 'none',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   transition: prefersReducedMotion
                     ? 'none'
                     : `transform 240ms cubic-bezier(${EASE_OUT_QUINT.join(',')})`,
@@ -467,7 +474,7 @@ export default function ReceiveQRCode() {
                   transform: qrTransform,
                 }}
               >
-                <QrCode value={qrCodeValue} />
+                {generatingInvoice ? <Text small>Generating invoice...</Text> : <QrCode value={qrCodeValue} />}
               </button>
               {satoshis > 0 ? (
                 <Text small color='neutral-500'>
