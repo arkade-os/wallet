@@ -443,10 +443,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // History is loaded after `client.ready` (see SwapsProvider). Skip here when
   // url and network are set — that is the path that starts the swap client.
   // This branch is not first unlock: `initWallet` already had a server URL.
-  // It runs if ASP later goes empty (unreachable fetch) while svcWallet still
-  // exists, because SwapsProvider then bails and would never load. `reloadWallet`
-  // talks to the worker, not aspInfo.url; missing network only skips explorer
-  // timestamps on exits.
   useEffect(() => {
     if (!svcWallet) return
     if (!aspInfo.url || !aspInfo.network) reloadWallet().catch(consoleError)
