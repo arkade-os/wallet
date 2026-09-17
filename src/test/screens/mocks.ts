@@ -122,6 +122,8 @@ export const mockWalletContextValue = {
   unlockWallet: () => Promise.resolve(),
   updateWallet: () => {},
   reloadWallet: () => Promise.resolve(),
+  waitForFirstCoinsLoad: () => Promise.resolve(),
+  notifySwapRecordsRestored: () => {},
   restartWallet: () => Promise.resolve(),
   vtxoManager: {} as IVtxoManager,
   wallet: {

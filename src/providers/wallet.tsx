@@ -133,6 +133,14 @@ interface WalletContextProps {
   dataReady: boolean
   loadError: string | null
   dismissLoadError: () => void
+  /**
+   * The first history load waits until swap records exist. The swap client
+   * waits on this before `client.ready` so the SDK scan reads coins that are
+   * already in the worker, then the wallet groups Activity once.
+   */
+  waitForFirstCoinsLoad: () => Promise<void>
+  /** Unblocks that one history load after `client.ready` has written records. */
+  notifySwapRecordsRestored: () => void
   authState: WalletAuthState
   initialized?: boolean
   devAutoInitFailed?: boolean
@@ -163,6 +171,8 @@ export const WalletContext = createContext<WalletContextProps>({
   dataReady: false,
   loadError: null,
   dismissLoadError: () => {},
+  waitForFirstCoinsLoad: () => Promise.resolve(),
+  notifySwapRecordsRestored: () => {},
   authState: 'unknown',
   txs: [],
   ungroupedTxs: [],
@@ -185,6 +195,22 @@ const readSwapRecordAssets = async (): Promise<string[]> => {
   } catch (err) {
     consoleError(err, 'failed to read swap records while prefetching asset metadata')
     return []
+  }
+}
+
+const createLatch = () => {
+  let settled = false
+  let resolve = () => {}
+  const promise = new Promise<void>((r) => {
+    resolve = r
+  })
+  return {
+    promise,
+    resolve: () => {
+      if (settled) return
+      settled = true
+      resolve()
+    },
   }
 }
 
@@ -222,6 +248,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [vtxoManager, setVtxoManager] = useState<IVtxoManager>()
 
   const hasLoadedOnce = useRef(false)
+  const coinsLatch = useRef(createLatch())
+  const swapRecordsLatch = useRef(createLatch())
+  const gatedWallet = useRef<ServiceWorkerWallet | undefined>(undefined)
+  if (svcWallet !== gatedWallet.current) {
+    gatedWallet.current = svcWallet
+    coinsLatch.current = createLatch()
+    swapRecordsLatch.current = createLatch()
+  }
   const assetMetadataCache = useRef<Map<string, CachedAssetDetails>>(readAssetMetadataFromStorage() ?? new Map())
   // Every asset the UI can still be asked to name (see `referencedAssetIds`).
   // A ref because it gates persistence in `setCacheEntry`, not rendering.
@@ -548,6 +582,15 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // see `getUnrolledVtxos`. Cheap: the worker answers both from its local
       // repo, so this is a postMessage, not a request.
       const unrolledVtxos = await getUnrolledVtxos(swWallet)
+      if (isFirstLoad) {
+        // Coins first, then `client.ready` (the SDK scan reads worker history),
+        // then one grouped `getActivityHistory`. Grouping before the scan was
+        // the extra load: `dataReady` started the client, and `dataReady` was
+        // only set after this function had already grouped against an empty store.
+        coinsLatch.current.resolve()
+        setLoadingStatus('Restoring swaps...')
+        await swapRecordsLatch.current.promise
+      }
       if (isFirstLoad) setLoadingStatus('Fetching transactions...')
       const activities = await getActivities(swWallet)
       // Before the metadata snapshot below, not after: `resolveExits` persists
@@ -1048,6 +1091,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         dataReady,
         loadError,
         dismissLoadError,
+        waitForFirstCoinsLoad: () => coinsLatch.current.promise,
+        notifySwapRecordsRestored: () => swapRecordsLatch.current.resolve(),
         reloadWallet,
         devAutoInitFailed,
         vtxos: vtxos ?? { spendable: [], spent: [] },

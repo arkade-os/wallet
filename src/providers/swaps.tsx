@@ -180,7 +180,15 @@ const ENDED: Partial<Record<Outcome, 'received' | 'returned' | 'lost'>> = {
 
 export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
-  const { dataReady, svcWallet, reloadWallet, setAssetSwaps, isVerifiedAsset } = useContext(WalletContext)
+  const {
+    dataReady,
+    svcWallet,
+    reloadWallet,
+    setAssetSwaps,
+    isVerifiedAsset,
+    waitForFirstCoinsLoad,
+    notifySwapRecordsRestored,
+  } = useContext(WalletContext)
 
   const [markets, setMarkets] = useState<DiscoveredMarket[]>([])
   const [emulatorPubkey, setEmulatorPubkey] = useState<Uint8Array>()
@@ -406,7 +414,12 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   // ------------------------------------------------------------ the client
 
   useEffect(() => {
-    if (!dataReady || !svcWallet || !aspInfo.url || !aspInfo.network) return
+    if (!svcWallet || !aspInfo.url || !aspInfo.network) {
+      // A first history load is waiting on records. No client means nothing to
+      // restore; unblock rather than hang Connecting.
+      if (svcWallet) notifySwapRecordsRestored()
+      return
+    }
     const network = aspInfo.network as NetworkName
     let stopped = false
     // The lock is released by RETURNING from the callback, never by aborting:
@@ -438,23 +451,19 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
           // tabs can learn an outcome from.
           channel.publish({ swap, outcome, replay })
         })
-        // `drive: "auto"`: construction restores and arms only when the read
-        // finds live swaps. `ready` is that read, and it rejects only when the
-        // repository itself is unreadable — a client that cannot read its own
-        // records cannot drive them safely.
-        await client.ready
-        await refreshSwaps()
-        restoredRef.current = true
-        // `ready` is also the offer-record rebuild (ts-sdk#930): it writes v2
-        // `SwapRecord`s the activity resolver keys on. The first `reloadWallet`
-        // already ran to publish `dataReady` and start this client, so those
-        // rows were grouped against an empty store. Refreshing the swap list
-        // is not enough — `activitiesToTxs` needs `swapId` on the activity,
-        // which only `prepare()` can stamp on the next history load. Replay
-        // toasts stay gated on `restoredRef`; this reload is the grouping pass,
-        // not a toast.
-        await reloadRef.current().catch(consoleError)
-        return client
+        try {
+          // Coins are already in the worker (`waitForFirstCoinsLoad`). `ready`
+          // rebuilds v2 offer records from that history (ts-sdk#930). Activity
+          // grouping runs once after this, not before — the first `reloadWallet`
+          // is waiting on `notifySwapRecordsRestored`.
+          await waitForFirstCoinsLoad()
+          await client.ready
+          await refreshSwaps()
+          restoredRef.current = true
+          return client
+        } finally {
+          notifySwapRecordsRestored()
+        }
       })()
 
       held.current = started
@@ -505,7 +514,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       release()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataReady, svcWallet, aspInfo.url, aspInfo.network])
+  }, [svcWallet, aspInfo.url, aspInfo.network])
 
   /**
    * The client, for the tab that holds it.

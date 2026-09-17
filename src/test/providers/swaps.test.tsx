@@ -183,13 +183,11 @@ describe('SwapsProvider lifecycle', () => {
     await waitFor(() => expect(ready).toHaveBeenCalledOnce())
   })
 
-  it('reloads history after ready so rebuilt offer records can group', async () => {
-    // The first wallet load publishes dataReady and starts the client against
-    // an empty swap store. client.ready writes the v2 records; grouping reads
-    // them from getActivityHistory, so history has to be fetched again.
+  it('groups the first history load after ready, without fetching it twice', async () => {
+    // The first reloadWallet waits for this client.ready before getActivityHistory.
     const reloadWallet = renderProvider()
     await waitFor(() => expect(ready).toHaveBeenCalledOnce())
-    await waitFor(() => expect(reloadWallet).toHaveBeenCalled())
+    expect(reloadWallet).not.toHaveBeenCalled()
   })
 })
 
