@@ -182,6 +182,12 @@ describe('SwapsProvider lifecycle', () => {
     renderProvider()
     await waitFor(() => expect(ready).toHaveBeenCalledOnce())
   })
+
+  it('loads history once, after ready', async () => {
+    const reloadWallet = renderProvider()
+    await waitFor(() => expect(ready).toHaveBeenCalledOnce())
+    await waitFor(() => expect(reloadWallet).toHaveBeenCalledOnce())
+  })
 })
 
 describe('SwapsProvider exchange', () => {

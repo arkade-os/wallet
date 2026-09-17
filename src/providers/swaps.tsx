@@ -406,7 +406,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   // ------------------------------------------------------------ the client
 
   useEffect(() => {
-    if (!dataReady || !svcWallet || !aspInfo.url || !aspInfo.network) return
+    if (!svcWallet || !aspInfo.url || !aspInfo.network) return
     const network = aspInfo.network as NetworkName
     let stopped = false
     // The lock is released by RETURNING from the callback, never by aborting:
@@ -445,6 +445,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         await client.ready
         await refreshSwaps()
         restoredRef.current = true
+        await reloadRef.current().catch(consoleError)
         return client
       })()
 
@@ -496,7 +497,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       release()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataReady, svcWallet, aspInfo.url, aspInfo.network])
+  }, [svcWallet, aspInfo.url, aspInfo.network])
 
   /**
    * The client, for the tab that holds it.

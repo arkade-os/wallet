@@ -440,10 +440,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [wallet.pubkey])
 
-  // reload wallet as soon as we have a service worker wallet available
+  // History is loaded once after `client.ready` (see SwapsProvider). Load here
+  // only when that client cannot start.
   useEffect(() => {
-    if (svcWallet) reloadWallet().catch(consoleError)
-  }, [svcWallet])
+    if (!svcWallet) return
+    if (!aspInfo.url || !aspInfo.network) reloadWallet().catch(consoleError)
+  }, [svcWallet, aspInfo.url, aspInfo.network])
 
   useEffect(() => {
     if (!import.meta.env.DEV || !isDevAutoInit) return
