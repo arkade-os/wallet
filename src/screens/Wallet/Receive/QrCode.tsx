@@ -189,30 +189,32 @@ export default function ReceiveQRCode() {
         invoice: pending.invoice,
         pendingLnReceive: pending,
       }))
-      setGeneratingInvoice(false)
     }
 
-    negotiate().catch((err) => {
-      if (abandoned) return
-      const error = extractError(err)
-      consoleError(error, 'error negotiating lightning receive')
-      const noDriver = err instanceof SwapsHeldElsewhere
-      setLnNoDriver(noDriver)
-      setLnReceiveError(error)
-      // The failures here that are not "Lightning is unavailable". The first:
-      // the quote was fine and our own contract store refused the write. No
-      // invoice came back, so the abandoned quote is inert and cannot be
-      // resumed — calling again is the fix, and it derives a fresh preimage and
-      // rfq id. The second: no tab was driving, and the next one to take the
-      // lock will serve the same call.
-      //
-      // By name rather than by `instanceof`, because a negotiation run on
-      // another tab reaches us over `swapDriverChannel`, where the class cannot
-      // cross: the rebuilt error carries the name the SDK's own constructor
-      // sets, and this is the check that reads it in both cases.
-      setLnRetryable(noDriver || (err as Error)?.name === 'LockupRegistrationFailed')
-      setGeneratingInvoice(false)
-    })
+    negotiate()
+      .catch((err) => {
+        if (abandoned) return
+        const error = extractError(err)
+        consoleError(error, 'error negotiating lightning receive')
+        const noDriver = err instanceof SwapsHeldElsewhere
+        setLnNoDriver(noDriver)
+        setLnReceiveError(error)
+        // The failures here that are not "Lightning is unavailable". The first:
+        // the quote was fine and our own contract store refused the write. No
+        // invoice came back, so the abandoned quote is inert and cannot be
+        // resumed — calling again is the fix, and it derives a fresh preimage and
+        // rfq id. The second: no tab was driving, and the next one to take the
+        // lock will serve the same call.
+        //
+        // By name rather than by `instanceof`, because a negotiation run on
+        // another tab reaches us over `swapDriverChannel`, where the class cannot
+        // cross: the rebuilt error carries the name the SDK's own constructor
+        // sets, and this is the check that reads it in both cases.
+        setLnRetryable(noDriver || (err as Error)?.name === 'LockupRegistrationFailed')
+      })
+      .finally(() => {
+        setGeneratingInvoice(false)
+      })
     // The amount changed under an in-flight negotiation, so its invoice would
     // be for the wrong number. Nothing to cancel on the solver — an unpaid hold
     // invoice simply expires.
