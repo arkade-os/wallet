@@ -445,6 +445,15 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         await client.ready
         await refreshSwaps()
         restoredRef.current = true
+        // `ready` is also the offer-record rebuild (ts-sdk#930): it writes v2
+        // `SwapRecord`s the activity resolver keys on. The first `reloadWallet`
+        // already ran to publish `dataReady` and start this client, so those
+        // rows were grouped against an empty store. Refreshing the swap list
+        // is not enough — `activitiesToTxs` needs `swapId` on the activity,
+        // which only `prepare()` can stamp on the next history load. Replay
+        // toasts stay gated on `restoredRef`; this reload is the grouping pass,
+        // not a toast.
+        await reloadRef.current().catch(consoleError)
         return client
       })()
 
