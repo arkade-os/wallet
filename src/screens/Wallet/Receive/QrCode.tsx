@@ -165,6 +165,7 @@ export default function ReceiveQRCode() {
     setLnReceiveError('')
     setLnRetryable(false)
     setLnNoDriver(false)
+    setGeneratingInvoice(false)
     if (!svcWallet || isAssetReceive || satoshis <= 0 || recvInfo.received) return
     if (recvInfo.pendingLnReceive?.payAmount && recvInfo.invoice) return
 
@@ -447,37 +448,51 @@ export default function ReceiveQRCode() {
                   ) : null}
                 </FlexCol>
               ) : null}
-              <button
-                type='button'
-                onClick={() => handleCopy(qrCodeValue)}
-                onPointerDown={() => setQrTransform(prefersReducedMotion ? '' : 'scale(0.97)')}
-                onPointerUp={() => setQrTransform('')}
-                onPointerLeave={() => setQrTransform('')}
-                onPointerCancel={() => setQrTransform('')}
-                aria-label='Copy QR code'
-                style={{
-                  padding: 0,
-                  width: '100%',
-                  border: 'none',
-                  margin: '0 auto',
-                  display: 'flex',
-                  marginTop: '5rem',
-                  maxWidth: '340px',
-                  minHeight: '340px',
-                  cursor: 'pointer',
-                  background: 'none',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: prefersReducedMotion
-                    ? 'none'
-                    : `transform 240ms cubic-bezier(${EASE_OUT_QUINT.join(',')})`,
-                  WebkitTapHighlightColor: 'transparent',
-                  touchAction: 'manipulation',
-                  transform: qrTransform,
-                }}
-              >
-                {generatingInvoice ? <Text small>Generating invoice...</Text> : <QrCode value={qrCodeValue} />}
-              </button>
+              {generatingInvoice ? (
+                <div
+                  style={{
+                    width: '100%',
+                    height: '340px',
+                    display: 'flex',
+                    margin: '0 auto',
+                    marginTop: '5rem',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text small>Generating invoice...</Text>
+                </div>
+              ) : (
+                <button
+                  type='button'
+                  onClick={() => handleCopy(qrCodeValue)}
+                  onPointerDown={() => setQrTransform(prefersReducedMotion ? '' : 'scale(0.97)')}
+                  onPointerUp={() => setQrTransform('')}
+                  onPointerLeave={() => setQrTransform('')}
+                  onPointerCancel={() => setQrTransform('')}
+                  aria-label='Copy QR code'
+                  style={{
+                    padding: 0,
+                    width: '100%',
+                    border: 'none',
+                    margin: '0 auto',
+                    display: 'block',
+                    marginTop: '5rem',
+                    maxWidth: '340px',
+                    minHeight: '340px',
+                    cursor: 'pointer',
+                    background: 'none',
+                    transition: prefersReducedMotion
+                      ? 'none'
+                      : `transform 240ms cubic-bezier(${EASE_OUT_QUINT.join(',')})`,
+                    WebkitTapHighlightColor: 'transparent',
+                    touchAction: 'manipulation',
+                    transform: qrTransform,
+                  }}
+                >
+                  <QrCode value={qrCodeValue} />
+                </button>
+              )}
               {satoshis > 0 ? (
                 <Text small color='neutral-500'>
                   Requesting {prettyNumber(satoshis, 0)} {unitLabel}
