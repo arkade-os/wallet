@@ -441,11 +441,15 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         // `drive: "auto"`: construction restores and arms only when the read
         // finds live swaps. `ready` is that read, and it rejects only when the
         // repository itself is unreadable — a client that cannot read its own
-        // records cannot drive them safely.
-        await client.ready
-        await refreshSwaps()
-        restoredRef.current = true
-        await reloadRef.current().catch(consoleError)
+        // records cannot drive them safely. History still loads in `finally`
+        // so a failed restore cannot pin the app on the loading screen.
+        try {
+          await client.ready
+          await refreshSwaps()
+          restoredRef.current = true
+        } finally {
+          await reloadRef.current().catch(consoleError)
+        }
         return client
       })()
 
