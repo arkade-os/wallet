@@ -1,5 +1,6 @@
 import { ReactNode, createContext, useContext } from 'react'
 import { Language, SettingsOptions } from '../lib/types'
+import { detectLanguage } from '../lib/language'
 import { TranslationDict, interpolate, translations } from '../lib/i18n'
 import { ConfigContext } from './config'
 
@@ -12,10 +13,6 @@ export const LanguageContext = createContext<LanguageContextProps>({
   language: Language.English,
   t: (key: string, params?: Record<string, string | number>) => translate(Language.English, key, params),
 })
-
-export function detectLanguage(locale = navigator.language || 'en'): Language {
-  return locale.toLowerCase().startsWith('es') ? Language.Spanish : Language.English
-}
 
 export function useLanguage() {
   const { language, t } = useContext(LanguageContext)
