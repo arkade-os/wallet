@@ -58,7 +58,8 @@ import { setLoadingStatus } from '../lib/loadingStatus'
 import { hex } from '@scure/base'
 import * as secp from '@noble/secp256k1'
 import { ConfigContext } from './config'
-import { detectLanguage, translate } from './language'
+import { translate } from './language'
+import { detectLanguage } from '../lib/language'
 import {
   defaultPassword,
   getDelegateUrlForNetwork,

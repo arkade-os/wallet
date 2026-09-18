@@ -7,7 +7,8 @@ import Content from './Content'
 import Button from './Button'
 import Padded from './Padded'
 import Header from './Header'
-import { detectLanguage, translate } from '../providers/language'
+import { translate } from '../providers/language'
+import { detectLanguage } from '../lib/language'
 
 interface Props {
   children: ReactNode
