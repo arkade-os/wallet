@@ -1,0 +1,11 @@
+appId: com.android.chrome
+name: Home — Activity from header
+tags:
+  - smoke
+  - activity
+---
+- runFlow: ../subflows/ensure_on_wallet_home.yaml
+- runFlow: ../subflows/tap_header_activity.yaml
+- runFlow: ../subflows/wait_2s.yaml
+- runFlow: ../subflows/tap_header_back.yaml
+- runFlow: ../subflows/go_back_to_home.yaml
