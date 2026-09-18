@@ -8,14 +8,18 @@ const FETCH_TIMEOUT_MS = 10_000
 
 // Keeps a single deadline over the whole request: both `fetch` (headers) and
 // body consumption can hang independently, and either would otherwise block
-// the feed (and its fallback) forever.
+// the feed (and its fallback) forever. The deadline is raced against each step
+// instead of being passed as an AbortSignal, because the jsdom test environment
+// hands out a signal type the fetch Request constructor rejects.
 const fetchJsonWithTimeout = async (url: string): Promise<Record<string, any>> => {
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  const deadline = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => reject(new Error(`Request timed out after ${FETCH_TIMEOUT_MS}ms`)), FETCH_TIMEOUT_MS)
+  })
   try {
-    const resp = await fetch(url, { signal: controller.signal })
+    const resp = await Promise.race([fetch(url), deadline])
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-    return await resp.json()
+    return await Promise.race([resp.json(), deadline])
   } finally {
     clearTimeout(timeout)
   }

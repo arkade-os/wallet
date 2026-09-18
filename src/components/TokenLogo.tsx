@@ -115,11 +115,8 @@ export function UsdcLogo() {
 }
 
 export function UnitedStatesFlagLogo() {
-<<<<<<< HEAD
   const clipId = useClipId('us-flag-circle')
-=======
-  const clipId = useId().replaceAll(':', '')
->>>>>>> 43143b55 (fix(logo): scope flag clip-path ids per instance with useId)
+
   return (
     <svg aria-hidden='true' viewBox='0 0 32 32' focusable='false'>
       <defs>
@@ -183,11 +180,8 @@ export function SwitzerlandFlagLogo() {
 }
 
 export function BrazilFlagLogo() {
-<<<<<<< HEAD
   const clipId = useClipId('br-flag-circle')
-=======
-  const clipId = useId().replaceAll(':', '')
->>>>>>> 43143b55 (fix(logo): scope flag clip-path ids per instance with useId)
+
   return (
     <svg aria-hidden='true' viewBox='0 0 32 32' focusable='false'>
       <defs>
@@ -221,7 +215,7 @@ export function ChinaFlagLogo() {
 }
 
 export function CubaFlagLogo() {
-  const clipId = useId().replaceAll(':', '')
+  const clipId = useClipId('cu-flag-circle')
   const stripeH = 6.4
   return (
     <svg aria-hidden='true' viewBox='0 0 32 32' focusable='false'>
@@ -272,11 +266,8 @@ export function JapanFlagLogo() {
 }
 
 export function UnitedKingdomFlagLogo() {
-<<<<<<< HEAD
   const clipId = useClipId('gb-flag-circle')
-=======
-  const clipId = useId().replaceAll(':', '')
->>>>>>> 43143b55 (fix(logo): scope flag clip-path ids per instance with useId)
+
   return (
     <svg aria-hidden='true' viewBox='0 0 32 32' focusable='false'>
       <defs>
