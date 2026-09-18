@@ -1,6 +1,7 @@
+import { useId } from 'react'
 import { walletAccountTicker, type WalletAccountTicker } from '../lib/accountAssets'
 
-export type TokenLogoTicker = 'BTC' | 'USD' | 'USDT' | 'USDC' | 'CHF' | 'BRL' | 'CNY' | 'EUR' | 'GBP' | 'JPY'
+export type TokenLogoTicker = 'BTC' | 'USD' | 'USDT' | 'USDC' | 'CHF' | 'CNY' | 'CUP' | 'EUR' | 'GBP' | 'JPY' | 'BRL'
 
 export function tokenLogoTickerForTicker(ticker: string | undefined): TokenLogoTicker | undefined {
   const normalized = ticker?.trim().toUpperCase()
@@ -12,6 +13,7 @@ export function tokenLogoTickerForTicker(ticker: string | undefined): TokenLogoT
     normalized === 'CHF' ||
     normalized === 'BRL' ||
     normalized === 'CNY' ||
+    normalized === 'CUP' ||
     normalized === 'EUR' ||
     normalized === 'GBP' ||
     normalized === 'JPY'
@@ -53,6 +55,7 @@ export default function TokenLogo({ ticker }: { ticker: TokenLogoTicker }) {
   if (ticker === 'CHF') return <SwitzerlandFlagLogo />
   if (ticker === 'BRL') return <BrazilFlagLogo />
   if (ticker === 'CNY') return <ChinaFlagLogo />
+  if (ticker === 'CUP') return <CubaFlagLogo />
   if (ticker === 'EUR') return <EuropeanUnionFlagLogo />
   if (ticker === 'GBP') return <UnitedKingdomFlagLogo />
   if (ticker === 'JPY') return <JapanFlagLogo />
@@ -103,14 +106,15 @@ export function UsdcLogo() {
 }
 
 export function UnitedStatesFlagLogo() {
+  const clipId = useId().replaceAll(':', '')
   return (
     <svg aria-hidden='true' viewBox='0 0 32 32' focusable='false'>
       <defs>
-        <clipPath id='us-flag-circle'>
+        <clipPath id={clipId}>
           <circle cx='16' cy='16' r='16' />
         </clipPath>
       </defs>
-      <g clipPath='url(#us-flag-circle)'>
+      <g clipPath={`url(#${clipId})`}>
         <path fill='#FFF' d='M0 0h32v32H0z' />
         <path
           fill='#B22234'
@@ -166,14 +170,15 @@ export function SwitzerlandFlagLogo() {
 }
 
 export function BrazilFlagLogo() {
+  const clipId = useId().replaceAll(':', '')
   return (
     <svg aria-hidden='true' viewBox='0 0 32 32' focusable='false'>
       <defs>
-        <clipPath id='br-flag-circle'>
+        <clipPath id={clipId}>
           <circle cx='16' cy='16' r='16' />
         </clipPath>
       </defs>
-      <g clipPath='url(#br-flag-circle)'>
+      <g clipPath={`url(#${clipId})`}>
         <path fill='#009B3A' d='M0 0h32v32H0z' />
         <path fill='#FFDF00' d='M16 5.25 29 16 16 26.75 3 16z' />
         <circle cx='16' cy='16' r='6.2' fill='#002776' />
@@ -193,6 +198,32 @@ export function ChinaFlagLogo() {
         <path d='m17.1 8.2-.18 1.14 1.04.51-1.14.18-.18 1.14-.52-1.04-1.14.18.81-.82-.51-1.04 1.04.51z' />
         <path d='m17 12.15-.7.91 1.08.4-1.14.16-.05 1.15-.69-.92-1.1.32.66-.94-.65-.95 1.1.33.7-.92.04 1.15z' />
         <path d='m14.25 15.35.18 1.14 1.04-.51-.8.82.8.81-1.04-.5-.18 1.14-.18-1.14-1.04.5.8-.81-.8-.82 1.04.51z' />
+      </g>
+    </svg>
+  )
+}
+
+export function CubaFlagLogo() {
+  const clipId = useId().replaceAll(':', '')
+  const stripeH = 6.4
+  return (
+    <svg aria-hidden='true' viewBox='0 0 32 32' focusable='false'>
+      <defs>
+        <clipPath id={clipId}>
+          <circle cx='16' cy='16' r='16' />
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${clipId})`}>
+        <path fill='#FFF' d='M0 0h32v32H0z' />
+        <path
+          fill='#002590'
+          d={`M0 0h32v${stripeH}H0zm0 ${stripeH * 2}h32v${stripeH}H0zm0 ${stripeH * 4}h32v${stripeH}H0z`}
+        />
+        <path fill='#CB1515' d='M0 0l14.8 16L0 32z' />
+        <path
+          fill='#FFF'
+          d='M5 13.2L5.65 15.11 7.66 15.14 6.05 16.34 6.65 18.27 5 17.1 3.35 18.27 3.95 16.34 2.34 15.14 4.35 15.11Z'
+        />
       </g>
     </svg>
   )
@@ -224,14 +255,15 @@ export function JapanFlagLogo() {
 }
 
 export function UnitedKingdomFlagLogo() {
+  const clipId = useId().replaceAll(':', '')
   return (
     <svg aria-hidden='true' viewBox='0 0 32 32' focusable='false'>
       <defs>
-        <clipPath id='gb-flag-circle'>
+        <clipPath id={clipId}>
           <circle cx='16' cy='16' r='16' />
         </clipPath>
       </defs>
-      <g clipPath='url(#gb-flag-circle)'>
+      <g clipPath={`url(#${clipId})`}>
         <path fill='#012169' d='M0 0h32v32H0z' />
         <path stroke='#FFF' strokeWidth='6.4' d='m0 0 32 32M32 0 0 32' />
         <path stroke='#C8102E' strokeWidth='3.8' d='m0 0 32 32M32 0 0 32' />
