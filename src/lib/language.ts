@@ -1,4 +1,4 @@
-import { Currencies } from './types'
+import { Currencies, Language } from './types'
 
 const europeanRegions = new Set([
   'ad',
@@ -82,6 +82,10 @@ const europeanLanguages = new Set([
   'tr',
   'uk',
 ])
+
+export function detectLanguage(locale = navigator.language || 'en'): Language {
+  return locale.toLowerCase().startsWith('es') ? Language.Spanish : Language.English
+}
 
 export function getCurrency(locale = navigator.language || 'en-US'): Currencies {
   const normalizedLocale = locale.toLowerCase()

@@ -12,6 +12,7 @@ import { SettingsOptions, Themes } from '../lib/types'
 import LendasatIcon from '../screens/Apps/Lendasat/LendasatIcon'
 import SatoraIcon from '../screens/Apps/Satora/SatoraIcon'
 import { NavigationContext, Pages } from '../providers/navigation'
+import { useTranslation } from '../providers/language'
 
 // icon with pretty gradient background
 const PrettyIcon = ({ color, icon }: { color?: string; icon: React.ReactNode }) => {
@@ -37,24 +38,27 @@ const PrettyIcon = ({ color, icon }: { color?: string; icon: React.ReactNode }) 
   )
 }
 
-const Tag = ({ text }: { text: string }) => (
-  <div
-    style={{
-      fontWeight: 400,
-      lineHeight: '140%',
-      marginTop: '0.5rem',
-      fontStyle: 'normal',
-      fontSize: '0.75rem',
-      borderRadius: '1000px',
-      display: 'inline-block',
-      padding: '0.25rem 0.75rem',
-      color: 'var(--white)',
-      backgroundColor: 'var(--purple)',
-    }}
-  >
-    Introducing: {text}
-  </div>
-)
+const Tag = ({ text }: { text: string }) => {
+  const { t } = useTranslation()
+  return (
+    <div
+      style={{
+        fontWeight: 400,
+        lineHeight: '140%',
+        marginTop: '0.5rem',
+        fontStyle: 'normal',
+        fontSize: '0.75rem',
+        borderRadius: '1000px',
+        display: 'inline-block',
+        padding: '0.25rem 0.75rem',
+        color: 'var(--white)',
+        backgroundColor: 'var(--purple)',
+      }}
+    >
+      {t('announcement.introducing', { title: text })}
+    </div>
+  )
+}
 
 const BulletPoint = ({ point }: { point: string[] }) => (
   <FlexRow alignItems='flex-start' gap='0.5rem'>
@@ -101,6 +105,7 @@ export default function Announcement({
 }: AnnouncementProps) {
   const { navigate } = useContext(NavigationContext)
   const { setOption } = useContext(OptionsContext)
+  const { t } = useTranslation()
   const [open, setOpen] = useState(true)
 
   const handleTryIt = () => {
@@ -130,14 +135,14 @@ export default function Announcement({
               </Text>
             </FlexCol>
             <FlexCol gap='0.75rem'>
-              <TextSecondary>What you can do:</TextSecondary>
+              <TextSecondary>{t('announcement.whatYouCanDo')}</TextSecondary>
               <BulletList points={bulletPoints} />
             </FlexCol>
           </FlexCol>
         </div>
         <FlexCol gap='0.25rem'>
-          <Button onClick={handleTryIt} label={`Try ${title}`} />
-          <Button onClick={() => setOpen(false)} label='Maybe later' secondary />
+          <Button onClick={handleTryIt} label={t('announcement.tryTitle', { title })} />
+          <Button onClick={() => setOpen(false)} label={t('announcement.maybeLater')} secondary />
         </FlexCol>
       </div>
     </Modal>
@@ -145,62 +150,53 @@ export default function Announcement({
 }
 
 export function LendaSatAnnouncement({ close }: { close: () => void }) {
+  const { t } = useTranslation()
   return (
     <Announcement
       close={close}
       title='LendaSat'
       page={Pages.AppLendasat}
       icon={<LendasatIcon big />}
-      message='Take loans with Bitcoin as collateral. Receive USDC or USDT in 2 minutes.'
+      message={t('announcement.lendasatMessage')}
       bulletPoints={[
-        [
-          'Choose a loan',
-          'Pick your preferred loan terms from a list of offers or post your own loan request. We will find you the right match.',
-        ],
-        [
-          'Lock your Bitcoin',
-          'Lock Bitcoin worth more than your loan amount as collateral. Your Bitcoin stays safe while you get the cash you need.',
-        ],
-        [
-          'Receive the funds',
-          'Get your loan instantly via your preferred method: bank transfer, stablecoins (USDT/USDC), or VISA card.',
-        ],
+        [t('announcement.lendasatPoint1Title'), t('announcement.lendasatPoint1Body')],
+        [t('announcement.lendasatPoint2Title'), t('announcement.lendasatPoint2Body')],
+        [t('announcement.lendasatPoint3Title'), t('announcement.lendasatPoint3Body')],
       ]}
     />
   )
 }
 
 export function SatoraAnnouncement({ close }: { close: () => void }) {
+  const { t } = useTranslation()
   return (
     <Announcement
       close={close}
       title='Satora'
       page={Pages.AppSatora}
       icon={<SatoraIcon big />}
-      message='Swap Bitcoin to USDC or USDT instantly.'
+      message={t('announcement.satoraMessage')}
       bulletPoints={[
-        ['Swap to stablecoins', 'Swap native $BTC for $USDT or $USDC on Ethereum and Polygon.'],
-        [
-          'Trustless Atomic Swaps',
-          'When a swap is started, both parties lock their funds in smart contracts. The swap either completes fully or both parties get refunded.',
-        ],
-        ['Self-custodial', 'Satora is fully self-custodial. Your keys, your coins.'],
+        [t('announcement.satoraPoint1Title'), t('announcement.satoraPoint1Body')],
+        [t('announcement.satoraPoint2Title'), t('announcement.satoraPoint2Body')],
+        [t('announcement.satoraPoint3Title'), t('announcement.satoraPoint3Body')],
       ]}
     />
   )
 }
 
 export function NostrBackupsAnnouncement({ close }: { close: () => void }) {
+  const { t } = useTranslation()
   return (
     <Announcement
       close={close}
       title='Nostr Backups'
       option={SettingsOptions.Backup}
       icon={<NostrIcon big />}
-      message='Backup to Nostr.'
+      message={t('announcement.nostrMessage')}
       bulletPoints={[
-        ['Backup settings', 'Have your Arkade wallet settings safely backed up on Nostr.'],
-        ['Secure', 'All backups are encrypted and stored securely on the Nostr network.'],
+        [t('announcement.nostrPoint1Title'), t('announcement.nostrPoint1Body')],
+        [t('announcement.nostrPoint2Title'), t('announcement.nostrPoint2Body')],
       ]}
     />
   )

@@ -18,11 +18,13 @@ import ErrorMessage from '../../components/Error'
 import { hasChatwootVars } from '../../lib/chatwoot'
 import { getDefaultAddress } from '../../lib/address'
 import { gitCommit } from '../../_gitCommit'
+import { useTranslation } from '../../providers/language'
 
 export default function Support() {
   const { aspInfo } = useContext(AspContext)
   const { config } = useContext(ConfigContext)
   const { wallet, svcWallet } = useContext(WalletContext)
+  const { t } = useTranslation()
 
   const [error, setError] = useState('')
   const [addresses, setAddresses] = useState<Addresses>()
@@ -47,11 +49,11 @@ export default function Support() {
     }
 
     // Not all networks may have Chatwoot configured, check for required vars before waiting
-    if (!hasChatwootVars()) return setError('Support chat is not configured')
+    if (!hasChatwootVars()) return setError(t('settings.supportChatNotConfigured'))
 
     // Timeout to detect if Chatwoot fails to load
     const loadTimeout = setTimeout(() => {
-      if (!supportChatLoaded) setError('Failed to load support chat')
+      if (!supportChatLoaded) setError(t('settings.failedToLoadSupportChat'))
     }, 5_000)
 
     // Listen for Chatwoot ready event to set loaded state
@@ -113,27 +115,15 @@ export default function Support() {
 
   return (
     <>
-      <Header text='Support' back />
+      <Header text={t('settings.support')} back />
       <Content>
         <Padded>
           <FlexCol gap='1rem'>
             <ErrorMessage error={Boolean(error)} text={error} />
-            <Section
-              title='Customer support'
-              text='Get help with your wallet, report bugs, or ask questions. Our support team is here to assist you.'
-            />
-            <Section
-              title='Secure Chat'
-              text='Your conversations are secure and private. Chat history is maintained across sessions.'
-            />
-            <Section
-              title='Bug Reports'
-              text='Report any issues or bugs you encounter. Include steps to reproduce the problem for faster resolution.'
-            />
-            <Section
-              title='Track Progress'
-              text='All your support tickets and conversations are saved. You can view past conversations anytime.'
-            />
+            <Section title={t('settings.customerSupport')} text={t('settings.customerSupportText')} />
+            <Section title={t('settings.secureChat')} text={t('settings.secureChatText')} />
+            <Section title={t('settings.bugReports')} text={t('settings.bugReportsText')} />
+            <Section title={t('settings.trackProgress')} text={t('settings.trackProgressText')} />
             <ChatwootWidget />
           </FlexCol>
         </Padded>
@@ -143,7 +133,7 @@ export default function Support() {
           <Button
             onClick={handleOpenChat}
             disabled={!supportChatLoaded}
-            label={supportChatLoaded ? 'Open Support Chat' : 'Loading...'}
+            label={supportChatLoaded ? t('settings.openSupportChat') : t('common.loading')}
           />
         )}
       </ButtonsOnBottom>

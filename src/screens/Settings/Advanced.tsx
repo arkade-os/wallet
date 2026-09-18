@@ -8,10 +8,12 @@ import { DevModeContext } from '../../providers/devMode'
 import { AspContext } from '../../providers/asp'
 import { isMainnet } from '../../lib/constants'
 import Padded from '../../components/Padded'
+import { useTranslation } from '../../providers/language'
 
 export default function Advanced() {
   const { devMode } = useContext(DevModeContext)
   const { aspInfo } = useContext(AspContext)
+  const { t } = useTranslation()
   const rows = options
     .filter((o) => o.section === SettingsSections.Advanced)
     .filter((o) => o.option !== SettingsOptions.Contracts || devMode)
@@ -19,12 +21,12 @@ export default function Advanced() {
 
   return (
     <>
-      <Header text='Advanced' back />
+      <Header text={t('settings.advanced')} back />
       <Content>
         <Padded>
           <div className='settings-page'>
             <section className='settings-section'>
-              <p className='settings-section-label'>Advanced</p>
+              <p className='settings-section-label'>{t('settings.advanced')}</p>
               <Menu rows={rows} styled />
             </section>
           </div>

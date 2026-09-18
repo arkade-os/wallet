@@ -12,11 +12,13 @@ import { EmptyLogsList } from '../../components/Empty'
 import Focusable from '../../components/Focusable'
 import { copyToClipboard } from '../../lib/clipboard'
 import { useToast } from '../../components/Toast'
+import { useTranslation } from '../../providers/language'
 
 function LogsTable({ logs }: { logs: LogLine[] }) {
   const [focused, setFocused] = useState(false)
 
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   const color = (level: string): string => {
     if (level === 'info') return ''
@@ -35,7 +37,7 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
 
   const copy = (value: string) => {
     copyToClipboard(value)
-    toast('Copied to clipboard')
+    toast(t('common.copiedToClipboard'))
   }
 
   const focusOnFirstRow = () => {
@@ -53,8 +55,8 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
   }
 
   const ariaLabel = (l?: LogLine) => {
-    if (!l) return 'Pressing Enter enables keyboard navigation of the logs'
-    return `Log at ${prettyAgo(l.time)} with message ${l.msg}. Press Escape to exit keyboard navigation.`
+    if (!l) return t('logs.pressEnter')
+    return t('logs.logAt', { time: prettyAgo(l.time), msg: l.msg })
   }
 
   return (
@@ -87,6 +89,7 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
 export default function Logs() {
   const [logs, setLogs] = useState<LogLine[]>([])
   const [load, setLoad] = useState(true)
+  const { t } = useTranslation()
 
   useEffect(() => {
     if (!load) return
@@ -123,12 +126,12 @@ export default function Logs() {
 
   return (
     <>
-      <Header auxFunc={handleClear} auxText='Clear' back text='Logs' />
+      <Header auxFunc={handleClear} auxText={t('settings.clear')} back text={t('settings.logs')} />
       <Content>
         <LogsTable logs={logs} />
       </Content>
       <ButtonsOnBottom>
-        <Button onClick={handleExport} label='Export to CSV file' disabled={logs.length === 0} />
+        <Button onClick={handleExport} label={t('settings.exportToCsv')} disabled={logs.length === 0} />
       </ButtonsOnBottom>
     </>
   )

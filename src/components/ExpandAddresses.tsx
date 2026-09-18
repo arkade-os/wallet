@@ -12,6 +12,7 @@ import CheckMarkIcon from '../icons/CheckMark'
 import { useToast } from './Toast'
 import Focusable from './Focusable'
 import { hapticSubtle } from '../lib/haptics'
+import { useTranslation } from '../providers/language'
 
 interface ExpandAddressesProps {
   bip21uri: string
@@ -34,6 +35,7 @@ export default function ExpandAddresses({
   const [expand, setExpand] = useState(false)
 
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   useEffect(() => {
     const handleArrowDown = (event: KeyboardEvent) => {
@@ -51,7 +53,7 @@ export default function ExpandAddresses({
   const handleCopy = async (value: string) => {
     hapticSubtle()
     await copyToClipboard(value)
-    toast('Copied to clipboard')
+    toast(t('common.copiedToClipboard'))
     setCopied(value)
   }
 
@@ -88,7 +90,7 @@ export default function ExpandAddresses({
       <Focusable onEnter={handleExpand}>
         <Shadow testId='expand-addresses'>
           <FlexRow between onClick={handleExpand}>
-            <Text>Copy address</Text>
+            <Text>{t('components.copyAddress')}</Text>
             {expand ? <ChevronUpIcon /> : <ChevronDownIcon />}
           </FlexRow>
         </Shadow>
@@ -97,9 +99,11 @@ export default function ExpandAddresses({
         <div style={{ padding: '1rem 0 0 0.5rem', width: '100%' }}>
           <FlexCol gap='0.21rem'>
             {bip21uri ? <ExpandLine testId='bip21' title='BIP21' value={bip21uri} /> : null}
-            {boardingAddr ? <ExpandLine testId='btc' title='BTC address' value={boardingAddr} /> : null}
-            {offchainAddr ? <ExpandLine testId='ark' title='Arkade address' value={offchainAddr} /> : null}
-            {invoice ? <ExpandLine testId='invoice' title='Lightning invoice' value={invoice} /> : null}
+            {boardingAddr ? <ExpandLine testId='btc' title={t('components.btcAddress')} value={boardingAddr} /> : null}
+            {offchainAddr ? (
+              <ExpandLine testId='ark' title={t('components.arkadeAddress')} value={offchainAddr} />
+            ) : null}
+            {invoice ? <ExpandLine testId='invoice' title={t('components.lightningInvoice')} value={invoice} /> : null}
             {lnurl ? <ExpandLine testId='lnurl' title='LNURL' value={lnurl} /> : null}
           </FlexCol>
         </div>
