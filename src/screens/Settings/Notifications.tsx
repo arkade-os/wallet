@@ -23,13 +23,13 @@ export default function Notifications() {
     }
 
     if (!notificationApiSupport) {
-      toast('Notifications API not supported')
+      toast(t('notifications.apiNotSupported'))
       return
     }
 
     requestPermission().then((notifications) => {
       if (notifications) sendTestNotification()
-      else toast('Notifications permission denied')
+      else toast(t('notifications.permissionDenied'))
       backupAndUpdateConfig({ ...config, notifications })
     })
   }

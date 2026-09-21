@@ -46,7 +46,8 @@ export default function Theme() {
 
   const options = [Themes.Auto, Themes.Dark, Themes.Light]
   const labels = options.map((option) => {
-    if (option === Themes.Auto) return `${t('settings.auto')} (${systemTheme})`
+    if (option === Themes.Auto)
+      return `${t('settings.auto')} (${systemTheme === Themes.Dark ? t('settings.dark') : t('settings.light')})`
     if (option === Themes.Dark) return t('settings.dark')
     return t('settings.light')
   })

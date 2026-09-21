@@ -161,7 +161,10 @@ export default function Wallet() {
             ) : null}
             {error ? (
               <WalletStaggerChild animate={shouldStagger}>
-                <ErrorMessage error={error} text={aspErrorText(aspInfo, t('init.arkadeServerUnreachable'))} />
+                <ErrorMessage
+                  error={error}
+                  text={aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))}
+                />
               </WalletStaggerChild>
             ) : null}
             <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>

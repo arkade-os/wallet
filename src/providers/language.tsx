@@ -4,7 +4,7 @@ import { detectLanguage } from '../lib/language'
 import { TranslationDict, interpolate, translations } from '../lib/i18n'
 import { ConfigContext } from './config'
 
-type LanguageContextProps = {
+export type LanguageContextProps = {
   language: Language
   t: (key: string, params?: Record<string, string | number>) => string
 }

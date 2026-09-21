@@ -25,7 +25,7 @@ import ChevronUpIcon from '../../icons/ChevronUp'
 import ExternalLinkIcon from '../../icons/ExternalLink'
 import { WalletContext } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
-import { prettyAgo, prettyLongText } from '../../lib/format'
+import { localizedAgo, prettyLongText } from '../../lib/format'
 import { getVmempoolURL, getWebExplorerURL } from '../../lib/explorers'
 import { isBTCAddress } from '../../lib/address'
 import { copyToClipboard } from '../../lib/clipboard'
@@ -198,7 +198,7 @@ function ContractCard({ item, open, onToggle }: { item: ContractView; open: bool
                 {contract.state}
               </Text>
               <Text tiny color='neutral-500'>
-                {contract.createdAt ? prettyAgo(contract.createdAt) : t('common.unknown')}
+                {contract.createdAt ? localizedAgo(contract.createdAt, t) : t('common.unknown')}
               </Text>
             </FlexCol>
             {open ? <ChevronUpIcon /> : <ChevronDownIcon />}

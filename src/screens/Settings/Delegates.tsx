@@ -1,6 +1,6 @@
 import Header from './Header'
 import ArrowIcon from '../../icons/Arrow'
-import { prettyAgo, prettyAmount, prettyLongText } from '../../lib/format'
+import { localizedAgo, prettyAmount, prettyLongText } from '../../lib/format'
 import Toggle from '../../components/Toggle'
 import Shadow from '../../components/Shadow'
 import Padded from '../../components/Padded'
@@ -184,7 +184,7 @@ function DelegateCard() {
   }
 
   const nextRolloverText = wallet.nextRollover
-    ? t('delegate.nextRenewal', { time: prettyAgo(wallet.nextRollover) })
+    ? t('delegate.nextRenewal', { time: localizedAgo(wallet.nextRollover, t) })
     : t('delegate.noUpcomingRenewal')
 
   if (!delegate) return <></>

@@ -329,7 +329,13 @@ export default function TransactionsList({
 
   const ariaLabel = (tx?: Tx) => {
     if (!tx) return t('transaction.keyboardNavHint')
-    return t('transaction.keyboardNavAria', { type: tx.type, amount: String(tx.amount) })
+    const typeLabel =
+      tx.type === 'sent'
+        ? t('transaction.sent')
+        : tx.type === 'exit'
+          ? t('transaction.exited')
+          : t('transaction.received')
+    return t('transaction.keyboardNavAria', { type: typeLabel, amount: String(tx.amount) })
   }
 
   const handleClick = (tx: Tx) => {

@@ -97,7 +97,7 @@ export default function InitRestore() {
       setError(extractError(err))
     }
     setPrivateKey(pk)
-  }, [someKey])
+  }, [someKey, buttonLabel])
 
   const handleCancel = () => navigate(Pages.Init)
 

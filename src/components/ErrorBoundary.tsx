@@ -7,8 +7,7 @@ import Content from './Content'
 import Button from './Button'
 import Padded from './Padded'
 import Header from './Header'
-import { translate } from '../providers/language'
-import { detectLanguage } from '../lib/language'
+import { LanguageContext, translate } from '../providers/language'
 
 interface Props {
   children: ReactNode
@@ -21,6 +20,8 @@ interface State {
 
 export default class ErrorBoundary extends Component<Props, State> {
   state: State = { hasError: false, error: null }
+
+  static contextType = LanguageContext
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error }
@@ -37,9 +38,11 @@ export default class ErrorBoundary extends Component<Props, State> {
     window.location.reload()
   }
 
+  declare context: React.ContextType<typeof LanguageContext>
+
   render() {
     if (this.state.hasError) {
-      const language = detectLanguage()
+      const { language } = this.context
       return (
         <div className='page'>
           <div className='page'>

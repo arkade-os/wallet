@@ -704,7 +704,7 @@ function SwapComposer({
   const secondaryAmountLabel = amountMode === 'fiat' ? assetAmountLabel : currencyAmountLabel
   const primaryAmountLabel = amountMode === 'fiat' ? currencyAmountLabel : assetAmountLabel
   const secondaryAmountMode = amountMode === 'fiat' ? 'asset' : 'fiat'
-  const nextAmountModeLabel = amountMode === 'fiat' ? 'asset amount' : `${currency} amount`
+  const nextAmountModeLabel = amountMode === 'fiat' ? t('swap.assetAmount') : t('swap.currencyAmount', { currency })
   const amountValueTransition = prefersReduced ? { duration: 0 } : { duration: 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }
   const amountLayoutId = useId()
   const secondaryMotion = {
@@ -1475,6 +1475,8 @@ function swapValidationText(message: string, t: (key: string) => string): string
   if (message === 'Swap unavailable for this pair') return t('swap.pairUnavailable')
   if (message === 'Quote unavailable') return t('swap.quoteUnavailable')
   if (message === 'Amount too small') return t('swap.amountTooSmall')
+  if (message === "You don't have enough bitcoin to do a partial swap. Please swap all or acquire some bitcoin.")
+    return t('swap.partialSwapNeedsBtc')
   const minMatch = message.match(/^Minimum (.*)$/)
   if (minMatch) return `${t('swap.minimum')} ${minMatch[1]}`
   const maxMatch = message.match(/^Maximum (.*)$/)

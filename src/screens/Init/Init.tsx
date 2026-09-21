@@ -173,7 +173,7 @@ export default function Init() {
                     data-testid='onboarding-devmode-tap'
                     style={{ ...titleStyle, paddingLeft: 4, cursor: 'default' }}
                   >
-                    Welcome to Arkade 👾
+                    {t('browser.welcome')}
                   </h1>
                 </motion.div>
               </div>
@@ -203,7 +203,10 @@ export default function Init() {
                 </OnboardStaggerChild>
 
                 <OnboardStaggerChild>
-                  <ErrorMessage error={error} text={aspErrorText(aspInfo, t('init.arkadeServerUnreachable'))} />
+                  <ErrorMessage
+                    error={error}
+                    text={aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))}
+                  />
                 </OnboardStaggerChild>
               </motion.div>
             </div>

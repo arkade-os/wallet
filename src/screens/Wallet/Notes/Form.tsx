@@ -32,8 +32,10 @@ export default function NotesForm() {
   const [scan, setScan] = useState(false)
 
   useEffect(() => {
-    setError(aspInfo.unreachable ? aspErrorText(aspInfo, t('init.arkadeServerUnreachable')) : '')
-  }, [aspInfo.unreachable, aspInfo.outdated])
+    setError(
+      aspInfo.unreachable ? aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet')) : '',
+    )
+  }, [aspInfo.unreachable, aspInfo.outdated, t])
 
   useEffect(() => {
     if (!note) return

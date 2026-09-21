@@ -17,7 +17,8 @@ export default function Unavailable() {
 
   // Check JavaScript capabilities on mount
   useEffect(() => {
-    if (aspInfo.unreachable) return setError(aspErrorText(aspInfo, t('init.arkadeServerUnreachable')))
+    if (aspInfo.unreachable)
+      return setError(aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet')))
     detectJSCapabilities()
       .then((result) => {
         if (result.isSupported) return

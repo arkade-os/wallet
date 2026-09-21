@@ -48,7 +48,11 @@ export default function Display() {
                 <Row option={SettingsOptions.Haptics} value={config.haptics ? t('common.on') : t('common.off')} />
                 <Row
                   option={SettingsOptions.Theme}
-                  value={config.theme === Themes.Auto ? `${t('settings.auto')} (${systemTheme})` : config.theme}
+                  value={
+                    config.theme === Themes.Auto
+                      ? `${t('settings.auto')} (${systemTheme === Themes.Dark ? t('settings.dark') : t('settings.light')})`
+                      : config.theme
+                  }
                 />
               </div>
             </section>

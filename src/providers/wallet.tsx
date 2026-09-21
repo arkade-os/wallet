@@ -204,6 +204,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { isRegistered } = useContext(AssetsContext)
   const { initialiseNostrBackup } = useContext(BackupContext)
   const { config, updateConfig } = useContext(ConfigContext)
+  const lang = config?.language ?? detectLanguage()
   const { navigate } = useContext(NavigationContext)
   const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo } = useContext(FlowContext)
   const { notifyTxSettled } = useContext(NotificationsContext)
@@ -547,13 +548,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const isFirstLoad = !hasLoadedOnce.current
     if (isFirstLoad) setLoadError(null)
     try {
-      if (isFirstLoad) setLoadingStatus(translate(config.language ?? detectLanguage(), 'loading.fetchingCoins'))
+      if (isFirstLoad) setLoadingStatus(translate(lang, 'loading.fetchingCoins'))
       const vtxos = await getVtxos(swWallet)
       // Fetched apart from the set above, which must not learn about exits —
       // see `getUnrolledVtxos`. Cheap: the worker answers both from its local
       // repo, so this is a postMessage, not a request.
       const unrolledVtxos = await getUnrolledVtxos(swWallet)
-      if (isFirstLoad) setLoadingStatus(translate(config.language ?? detectLanguage(), 'loading.fetchingTransactions'))
+      if (isFirstLoad) setLoadingStatus(translate(lang, 'loading.fetchingTransactions'))
       const activities = await getActivities(swWallet)
       // Before the metadata snapshot below, not after: `resolveExits` persists
       // what it learns, and the history memo reads a snapshot taken here, so a
@@ -564,7 +565,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // has already written it (see providers/lnSwaps), so this pass only picks
       // up what the store says.
       const lnSends = await lnSendViews()
-      if (isFirstLoad) setLoadingStatus(translate(config.language ?? detectLanguage(), 'loading.updatingBalance'))
+      if (isFirstLoad) setLoadingStatus(translate(lang, 'loading.updatingBalance'))
       const { total, available, assets, availableAssets, unrolled } = await getBalance(swWallet)
       // An exited coin is no longer Arkade money: it cannot be spent offchain,
       // no batch can lift it back, and this wallet has no path that moves it —
@@ -589,8 +590,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         swaps: await readSwapRecordAssets(),
       })
       referencedAssetIdsRef.current = referenced
-      if (isFirstLoad && referenced.size > 0)
-        setLoadingStatus(translate(config.language ?? detectLanguage(), 'loading.loadingAssetMetadata'))
+      if (isFirstLoad && referenced.size > 0) setLoadingStatus(translate(lang, 'loading.loadingAssetMetadata'))
       for (const assetId of referenced) {
         const cached = assetMetadataCache.current.get(assetId)
         if (cached && Date.now() - cached.cachedAt < ASSET_METADATA_TTL_MS) continue
@@ -653,7 +653,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       minCheckpointExitDelaySeconds,
     } = params
     try {
-      setLoadingStatus(translate(config.language ?? detectLanguage(), 'loading.startingWallet'))
+      setLoadingStatus(translate(lang, 'loading.startingWallet'))
       const walletRepository = new IndexedDBWalletRepository()
       const contractRepository = new IndexedDBContractRepository()
 
@@ -684,7 +684,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       })()
 
       await Promise.all([walletRepository.getWalletState(), zombieCheck])
-      setLoadingStatus(translate(config.language ?? detectLanguage(), 'loading.connectingToServiceWorker'))
+      setLoadingStatus(translate(lang, 'loading.connectingToServiceWorker'))
 
       const svcWallet = await ServiceWorkerWallet.setup({
         serviceWorkerPath: '/wallet-service-worker.mjs',
@@ -728,7 +728,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       svcWallet.activity.use(swapActivityResolver({ listSwaps: () => swapActivityInputs(activityIndexer) }))
 
       if (!skipMigration) {
-        setLoadingStatus(translate(config.language ?? detectLanguage(), 'loading.migratingData'))
+        setLoadingStatus(translate(lang, 'loading.migratingData'))
         try {
           const oldStorage = new IndexedDBStorageAdapter('arkade-service-worker')
           const walletStatus = await getMigrationStatus('wallet', oldStorage)
@@ -753,7 +753,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (restoring) {
-        setLoadingStatus(translate(config.language ?? detectLanguage(), 'loading.recoveringAddresses'))
+        setLoadingStatus(translate(lang, 'loading.recoveringAddresses'))
         try {
           await restoreImportedWallet(svcWallet, {
             arkServerUrl,
@@ -847,7 +847,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (isTimeoutError && retryCount < maxRetries) {
         // exponential backoff: wait 1s, 2s, 4s, 8s, 16s for each retry
         const delay = Math.pow(2, retryCount) * 1000
-        setLoadingStatus(translate(config.language ?? detectLanguage(), 'loading.retryingConnection'))
+        setLoadingStatus(translate(lang, 'loading.retryingConnection'))
         consoleError(
           new Error(
             `Service worker activation timed out, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`,

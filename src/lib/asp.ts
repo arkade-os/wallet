@@ -67,10 +67,13 @@ const BUILD_VERSION_TOO_OLD = 'BUILD_VERSION_TOO_OLD'
 
 // User-facing message for an unavailable server. Distinguishes "your client is
 // too old" (actionable: update) from a generic unreachable server, falling back
-// to each caller's existing wording for the non-outdated case.
-export const aspErrorText = (info: AspInfo, fallback: string): string =>
+// to each caller's existing wording for the non-outdated case. `outdatedText`
+// lets callers localize the update-required message; it defaults to English so
+// existing callers and tests keep working unchanged.
+export const aspErrorText = (info: AspInfo, fallback: string, outdatedText?: string): string =>
   info.outdated
-    ? 'Your wallet is outdated and needs to be updated to be compatible with the latest Arkade version.'
+    ? (outdatedText ??
+      'Your wallet is outdated and needs to be updated to be compatible with the latest Arkade version.')
     : fallback
 
 export const collaborativeExit = async (wallet: IWallet, amount: number, address: string): Promise<string> => {

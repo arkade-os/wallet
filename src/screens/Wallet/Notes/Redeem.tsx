@@ -31,12 +31,14 @@ export default function NotesRedeem() {
   const [redeeming, setRedeeming] = useState(false)
 
   useEffect(() => {
-    setError(aspInfo.unreachable ? aspErrorText(aspInfo, t('init.arkadeServerUnreachable')) : '')
-  }, [aspInfo.unreachable, aspInfo.outdated])
+    setError(
+      aspInfo.unreachable ? aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet')) : '',
+    )
+  }, [aspInfo.unreachable, aspInfo.outdated, t])
 
   useEffect(() => {
     setButtonLabel(redeeming ? t('notes.redeeming') : defaultButtonLabel)
-  }, [redeeming])
+  }, [redeeming, t, defaultButtonLabel])
 
   const handleBack = () => {
     navigate(Pages.NotesForm)

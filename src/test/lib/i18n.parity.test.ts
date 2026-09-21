@@ -33,6 +33,10 @@ describe('i18n dictionary integrity', () => {
     for (const [, raw] of Object.entries(files)) {
       if (!raw) continue
       for (const match of raw.matchAll(/\bt\(\s*['"]([A-Za-z0-9_.]+)['"]/g)) used.add(match[1])
+      // `translate(language, key)` takes the key as the SECOND positional
+      // argument. Keep the regex tied to that signature — if it ever changes to
+      // `translate(key, language)`, this pattern would silently start collecting
+      // the locale argument instead of the key.
       for (const match of raw.matchAll(/translate\([^)]*?,\s*['"]([A-Za-z0-9_.]+)['"]/g)) used.add(match[1])
     }
     const missing = [...used].filter((key) => typeof resolve(translations.en, key) !== 'string').sort()

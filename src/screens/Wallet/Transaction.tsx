@@ -168,13 +168,21 @@ export default function Transaction() {
 
   if (!tx) return <></>
 
-  const status = expiredBoardingTx
+  // Status booleans mirror the state machine; the translated `status` string is
+  // display-only so control flow never depends on the active locale.
+  const statusExpired = Boolean(expiredBoardingTx)
+  const statusUnconfirmed = Boolean(unconfirmedBoardingTx)
+  const statusPendingBoarding = Boolean(boardingTx && tx.preconfirmed)
+  const statusSettled = Boolean(settleSuccess || tx.settled)
+  const statusPreconfirmed = !statusExpired && !statusUnconfirmed && !statusPendingBoarding && !statusSettled
+
+  const status = statusExpired
     ? t('transaction.expired')
-    : unconfirmedBoardingTx
+    : statusUnconfirmed
       ? t('transaction.unconfirmed')
-      : boardingTx && tx.preconfirmed
+      : statusPendingBoarding
         ? t('transaction.pendingBoarding')
-        : settleSuccess || tx.settled
+        : statusSettled
           ? t('transaction.settled')
           : t('transaction.preconfirmed')
 
@@ -328,12 +336,12 @@ export default function Transaction() {
   )
 
   const showCompleteBoarding =
-    status === 'Pending boarding' && utxoTxsAllowed() && vtxoTxsAllowed() && !settleSuccess && !settling
+    statusPendingBoarding && utxoTxsAllowed() && vtxoTxsAllowed() && !settleSuccess && !settling
 
   // if server defines that UTXO transactions are not allowed,
   // don't allow settlement since it is a UTXO transaction.
   const showSettleButtons =
-    status === 'Preconfirmed' &&
+    statusPreconfirmed &&
     hasInputsToSettle &&
     utxoTxsAllowed() &&
     vtxoTxsAllowed() &&

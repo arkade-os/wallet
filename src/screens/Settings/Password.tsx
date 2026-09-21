@@ -40,7 +40,7 @@ export default function Password() {
       setError(isValid ? '' : t('unlock.invalidPassword'))
       setAuthenticated(isValid)
     })
-  }, [oldPassword])
+  }, [oldPassword, t])
 
   const saveNewPassword = async (nextPassword: string | null, biometrics: boolean): Promise<boolean> => {
     if (!oldPassword || nextPassword === null || !authenticated) return false

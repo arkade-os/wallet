@@ -104,7 +104,7 @@ export default function ExpandAddresses({
               <ExpandLine testId='ark' title={t('components.arkadeAddress')} value={offchainAddr} />
             ) : null}
             {invoice ? <ExpandLine testId='invoice' title={t('components.lightningInvoice')} value={invoice} /> : null}
-            {lnurl ? <ExpandLine testId='lnurl' title='LNURL' value={lnurl} /> : null}
+            {lnurl ? <ExpandLine testId='lnurl' title={t('components.lnurlAddress')} value={lnurl} /> : null}
           </FlexCol>
         </div>
       ) : null}
