@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import AssetCard from '../../components/AssetCard'
+import SendSuccess from '../../screens/Wallet/Send/Success'
+import { FlowContext } from '../../providers/flow'
+import { ConfigContext } from '../../providers/config'
+import { mockFlowContextValue, mockConfigContextValue, mockWalletContextValue } from '../screens/mocks'
 import { WalletContext } from '../../providers/wallet'
-import { mockWalletContextValue } from '../screens/mocks'
 
 const assetId = 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd'
 
@@ -14,6 +17,57 @@ const renderCard = (isVerifiedAsset: (id: string) => boolean, ticker = 'EUR') =>
   )
 
 describe('AssetCard', () => {
+  it('shows the exact amount in both parts of the payment confirmation', () => {
+    render(
+      <WalletContext.Provider
+        value={{
+          ...mockWalletContextValue,
+          isVerifiedAsset: () => true,
+          assetMetadataCache: new Map([
+            [assetId, { assetId, cachedAt: 0, supply: BigInt(100000000), metadata: { ticker: 'DEPIX', decimals: 8 } }],
+          ]),
+        }}
+      >
+        <FlowContext.Provider
+          value={{ ...mockFlowContextValue, sendInfo: { assets: [{ assetId, amount: BigInt(420000) }] } }}
+        >
+          <SendSuccess />
+        </FlowContext.Provider>
+      </WalletContext.Provider>,
+    )
+    expect(screen.getByText('0.0042 DEPIX')).toBeInTheDocument()
+    expect(screen.getByText('0.0042 DEPIX sent successfully')).toBeInTheDocument()
+  })
+
+  it('does not leak the less-than bound when balances are hidden', () => {
+    render(
+      <ConfigContext.Provider
+        value={{ ...mockConfigContextValue, config: { ...mockConfigContextValue.config, showBalance: false } }}
+      >
+        <AssetCard assetId={assetId} balance={BigInt(420000)} decimals={8} ticker='DEPIX' fiatText='<$0.01' />
+      </ConfigContext.Provider>,
+    )
+    expect(screen.getByText('$••••')).toBeInTheDocument()
+    expect(screen.queryByText('<$0.01')).not.toBeInTheDocument()
+  })
+
+  it.each([false, true])('formats a tiny balance with exactAmount=%s', (exactAmount) => {
+    render(
+      <WalletContext.Provider value={{ ...mockWalletContextValue, isVerifiedAsset: () => true }}>
+        <AssetCard
+          assetId={assetId}
+          balance={BigInt(420000)}
+          decimals={8}
+          ticker='DEPIX'
+          exactAmount={exactAmount}
+          fiatText='<$0.01'
+        />
+      </WalletContext.Provider>,
+    )
+    expect(screen.getByText(exactAmount ? '0.0042 DEPIX' : '<0.01 DEPIX')).toBeInTheDocument()
+    expect(screen.getByText('<$0.01')).toBeInTheDocument()
+  })
+
   it('shows the official token logo and fiat-style formatting for verified asset IDs', () => {
     const { container } = renderCard((id) => id === assetId)
     expect(container.querySelector('.asset-card__logo')).not.toBeNull()
