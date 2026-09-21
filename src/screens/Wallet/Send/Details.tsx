@@ -124,7 +124,7 @@ export default function SendDetails() {
     } else {
       setButtonLabel(t('send.tapToSign'))
     }
-  }, [sendInfo])
+  }, [sendInfo, t])
 
   const handleTxid = (txid: string) => {
     if (!txid) return handleError(t('send.errorSendingTransaction'))

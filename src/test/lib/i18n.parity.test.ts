@@ -30,14 +30,15 @@ describe('i18n dictionary integrity', () => {
   it('every t()/translate() key used in source resolves in the EN dictionary', () => {
     const files = import.meta.glob('../../**/*.{ts,tsx}', { query: '?raw', import: 'default', eager: true })
     const used = new Set<string>()
-    for (const [, raw] of Object.entries(files)) {
-      if (!raw) continue
-      for (const match of raw.matchAll(/\bt\(\s*['"]([A-Za-z0-9_.]+)['"]/g)) used.add(match[1])
+    for (const raw of Object.values(files)) {
+      const content = (raw ?? '') as string
+      if (!content) continue
+      for (const match of content.matchAll(/\bt\(\s*['"]([A-Za-z0-9_.]+)['"]/g)) used.add(match[1])
       // `translate(language, key)` takes the key as the SECOND positional
       // argument. Keep the regex tied to that signature — if it ever changes to
       // `translate(key, language)`, this pattern would silently start collecting
       // the locale argument instead of the key.
-      for (const match of raw.matchAll(/translate\([^)]*?,\s*['"]([A-Za-z0-9_.]+)['"]/g)) used.add(match[1])
+      for (const match of content.matchAll(/translate\([^)]*?,\s*['"]([A-Za-z0-9_.]+)['"]/g)) used.add(match[1])
     }
     const missing = [...used].filter((key) => typeof resolve(translations.en, key) !== 'string').sort()
     console.log('unique t() keys used:', used.size)

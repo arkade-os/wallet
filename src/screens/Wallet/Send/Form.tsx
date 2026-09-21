@@ -613,7 +613,7 @@ export default function SendForm() {
     }
     setError(errTxt)
     setLabel(t('send.serverUnreachable'))
-  }, [aspInfo.unreachable, aspInfo.outdated])
+  }, [aspInfo.unreachable, aspInfo.outdated, t])
 
   // proceed to next step
   useEffect(() => {
