@@ -229,7 +229,7 @@ export default function ReceiveQRCode() {
         setLnRetryable(err instanceof LockupRegistrationFailed)
       })
       .finally(() => {
-        setGeneratingInvoice(false)
+        if (!abandoned) setGeneratingInvoice(false)
       })
     // The amount changed under an in-flight negotiation, so its invoice would
     // be for the wrong number. Nothing to cancel on the solver — an unpaid hold
@@ -460,6 +460,8 @@ export default function ReceiveQRCode() {
               ) : null}
               {generatingInvoice ? (
                 <div
+                  role='status'
+                  aria-live='polite'
                   style={{
                     width: '100%',
                     height: '340px',
