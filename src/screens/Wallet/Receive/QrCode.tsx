@@ -510,7 +510,7 @@ export default function ReceiveQRCode() {
             onClick={() => (isMobileBrowser ? setShowKeys(true) : setShowAmountSheet(true))}
             secondary
           />
-          <Button label='Copy' onClick={handleCopyButton} secondary />
+          <Button label='Copy' onClick={handleCopyButton} secondary disabled={generatingInvoice} />
         </FlexRow>
         <Button label='Share' onClick={handleShare} disabled={shareDisabled} />
       </ButtonsOnBottom>
