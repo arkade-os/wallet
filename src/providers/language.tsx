@@ -1,6 +1,6 @@
-import { ReactNode, createContext, useContext } from 'react'
+import { ReactNode, createContext, useContext, useEffect } from 'react'
 import { Language, SettingsOptions } from '../lib/types'
-import { detectLanguage } from '../lib/language'
+import { detectLanguage, setActiveLanguage } from '../lib/language'
 import { TranslationDict, interpolate, translations } from '../lib/i18n'
 import { ConfigContext } from './config'
 
@@ -39,6 +39,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const { config } = useContext(ConfigContext)
   const language = config?.language ?? detectLanguage()
   const t = (key: string, params?: Record<string, string | number>) => translate(language, key, params)
+
+  // Keep the non-React mirror in sync so lib/error.ts localizes server messages.
+  useEffect(() => {
+    setActiveLanguage(language)
+  }, [language])
+
   return <LanguageContext.Provider value={{ language, t }}>{children}</LanguageContext.Provider>
 }
 

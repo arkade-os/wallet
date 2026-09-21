@@ -175,7 +175,7 @@ export default function Keyboard({
 
   const handleSave = () => {
     if (!textValue || Number.isNaN(Number(textValue))) {
-      setError('Please enter a valid amount')
+      setError(t('send.invalidAmount'))
       return
     }
     onSave(textValue, inputMode)

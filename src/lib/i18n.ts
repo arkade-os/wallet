@@ -25,6 +25,7 @@ export const translations = {
       sat: 'sat',
       sats: 'sats',
       network: 'Network',
+      shortly: 'shortly',
       amount: 'Amount',
       value: 'Value',
       balance: 'Balance',
@@ -547,6 +548,8 @@ export const translations = {
       unableToLoadWallet: 'Unable to load wallet data. Check your connection and try again.',
       outdatedWallet:
         'Your wallet is outdated and needs to be updated to be compatible with the latest Arkade version.',
+      recentlySettledRetry: 'Your funds were recently settled onchain — please try again {when}',
+      recentlySettledHours: 'Your funds were recently settled onchain — please try again in a few hours',
     },
     loading: {
       fetchingCoins: 'Fetching coins...',
@@ -797,6 +800,7 @@ export const translations = {
       sat: 'sat',
       sats: 'sats',
       network: 'Red',
+      shortly: 'en breve',
       amount: 'Monto',
       value: 'Valor',
       balance: 'Saldo',
@@ -1321,6 +1325,8 @@ export const translations = {
       unableToLoadWallet: 'No se pudieron cargar los datos de la wallet. Revisa tu conexión e inténtalo de nuevo.',
       outdatedWallet:
         'Tu wallet está desactualizada y necesita actualizarse para ser compatible con la última versión de Arkade.',
+      recentlySettledRetry: 'Tus fondos se liquidaron recientemente en la cadena — inténtalo de nuevo {when}',
+      recentlySettledHours: 'Tus fondos se liquidaron recientemente en la cadena — inténtalo de nuevo en unas horas',
     },
     loading: {
       fetchingCoins: 'Obteniendo monedas...',

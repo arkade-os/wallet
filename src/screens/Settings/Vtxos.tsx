@@ -4,7 +4,7 @@ import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import { WalletContext } from '../../providers/wallet'
-import { localizedAgo, prettyDate, prettyDelta, prettyHide, prettyNumber } from '../../lib/format'
+import { localizedAgo, localizedDelta, prettyDate, prettyHide, prettyNumber } from '../../lib/format'
 import Header from './Header'
 import Text, { TextSecondary } from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
@@ -393,7 +393,7 @@ export default function Vtxos() {
                   </TextSecondary>
                   {wallet.thresholdMs ? (
                     <TextSecondary>
-                      {t('vtxos.automaticRenewal', { time: prettyDelta(Math.floor(wallet.thresholdMs / 1_000)) })}
+                      {t('vtxos.automaticRenewal', { time: localizedDelta(Math.floor(wallet.thresholdMs / 1_000), t) })}
                     </TextSecondary>
                   ) : null}
                   {startTime && duration ? (
@@ -403,7 +403,7 @@ export default function Vtxos() {
                         {t('vtxos.nextMarketHour', {
                           date: prettyDate(startTime),
                           ago: localizedAgo(startTime, t),
-                          duration: prettyDelta(duration),
+                          duration: localizedDelta(duration, t),
                         })}
                       </TextSecondary>
                     </>

@@ -1,18 +1,22 @@
-import { prettyDelta } from './format'
+import { localizedDelta } from './format'
+import { translate } from '../providers/language'
+import { getActiveLanguage } from './language'
+
+const t = (key: string, params?: Record<string, string | number>): string => translate(getActiveLanguage(), key, params)
 
 export const mapKnownErrors = (message: string): string => {
   // "vtxo script can be used for intent registration in N seconds"
   const secondsMatch = message.match(/vtxo script can be used for intent registration in (\d+) seconds/i)
   if (secondsMatch) {
     const seconds = parseInt(secondsMatch[1], 10)
-    const delta = prettyDelta(seconds)
-    const inTime = delta ? `in ${delta}` : 'shortly'
-    return `Your funds were recently settled onchain — please try again ${inTime}`
+    const delta = localizedDelta(seconds, t)
+    const when = delta ? t('formatting.ahead', { value: delta }) : t('common.shortly')
+    return t('errors.recentlySettledRetry', { when })
   }
 
   // "already unrolled" or "unrolled vtxo"
   if (/already unrolled|unrolled vtxo/i.test(message)) {
-    return 'Your funds were recently settled onchain — please try again in a few hours'
+    return t('errors.recentlySettledHours')
   }
 
   return message

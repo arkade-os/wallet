@@ -2,7 +2,7 @@ import Header from './Header'
 import Text from '../../components/Text'
 import Content from '../../components/Content'
 import { useEffect, useState } from 'react'
-import { prettyAgo, prettyLongText } from '../../lib/format'
+import { localizedAgo, prettyLongText } from '../../lib/format'
 import { clearLogs, getLogs, LogLine } from '../../lib/logs'
 import FlexCol from '../../components/FlexCol'
 import FlexRow from '../../components/FlexRow'
@@ -56,7 +56,7 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
 
   const ariaLabel = (l?: LogLine) => {
     if (!l) return t('logs.pressEnter')
-    return t('logs.logAt', { time: prettyAgo(l.time), msg: l.msg })
+    return t('logs.logAt', { time: localizedAgo(l.time, t), msg: l.msg })
   }
 
   return (
@@ -73,9 +73,9 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
               ariaLabel={ariaLabel({ time, msg, level })}
             >
               <FlexRow between>
-                <Text color={color(level)}>{prettyAgo(time)}</Text>
+                <Text color={color(level)}>{localizedAgo(time, t)}</Text>
                 <Text color='neutral-500' copy={msg}>
-                  {prettyLongText(msg.replace('...', ''), numChars(prettyAgo(time)))}
+                  {prettyLongText(msg.replace('...', ''), numChars(localizedAgo(time, t)))}
                 </Text>
               </FlexRow>
             </Focusable>

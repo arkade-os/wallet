@@ -28,7 +28,7 @@ describe('i18n dictionary integrity', () => {
   })
 
   it('every t()/translate() key used in source resolves in the EN dictionary', () => {
-    const files = import.meta.glob('../../**/*.{ts,tsx}', { as: 'raw', eager: true })
+    const files = import.meta.glob('../../**/*.{ts,tsx}', { query: '?raw', import: 'default', eager: true })
     const used = new Set<string>()
     for (const [, raw] of Object.entries(files)) {
       if (!raw) continue
@@ -43,5 +43,47 @@ describe('i18n dictionary integrity', () => {
     console.log('unique t() keys used:', used.size)
     console.log('missing from EN dict:', missing)
     expect(missing).toEqual([])
+  })
+
+  it('es values are real translations unless the term is universal/technical', () => {
+    // Proper nouns, protocol names and technical terms legitimately keep their
+    // English form in the Spanish UI (LNURL, Arkade, sats, swap, pubkey...).
+    // Any key in the es dictionary that is NOT listed here must be an actual
+    // translation, not an English fallback.
+    const allowList = new Set([
+      'common.sat',
+      'common.sats',
+      'common.total',
+      'settings.general',
+      'settings.dust',
+      'settings.solvers',
+      'settings.auto',
+      'settings.arkadeMint',
+      'wallet.wallet',
+      'transaction.totalTicker',
+      'transaction.boarding',
+      'transaction.swap',
+      'send.bitcoin',
+      'components.lnurlAddress',
+      'accounts.arknote',
+      'delegate.pubkeyLabel',
+      'delegate.feeLabel',
+      'contracts.script',
+      'mint.arkadeMint',
+      'mint.ticker',
+      'mint.tickerLabel',
+      'mint.max',
+      'vtxos.subdust',
+      'apps.satora',
+      'apps.lendasat',
+      'apps.dfx',
+      'formatting.unit',
+    ])
+
+    const unlocalized = collectLeafKeys(translations.en)
+      .filter((key) => !allowList.has(key))
+      .filter((key) => resolve(translations.es, key) === resolve(translations.en, key))
+    console.log('es strings identical to en (not allowed):', unlocalized)
+    expect(unlocalized).toEqual([])
   })
 })

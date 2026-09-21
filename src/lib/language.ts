@@ -87,6 +87,19 @@ export function detectLanguage(locale = navigator.language || 'en'): Language {
   return locale.toLowerCase().startsWith('es') ? Language.Spanish : Language.English
 }
 
+// Module-level mirror of the active language so lib code that has no React
+// context (e.g. server-error formatting in lib/error.ts) can still localize.
+// LanguageProvider keeps it in sync with the persisted config.
+let activeLanguage: Language = Language.English
+
+export function setActiveLanguage(language: Language): void {
+  activeLanguage = language
+}
+
+export function getActiveLanguage(): Language {
+  return activeLanguage
+}
+
 export function getCurrency(locale = navigator.language || 'en-US'): Currencies {
   const normalizedLocale = locale.toLowerCase()
   const [language, region] = normalizedLocale.split(/[-_]/)
