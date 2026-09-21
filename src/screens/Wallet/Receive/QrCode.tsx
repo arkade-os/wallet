@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
+import './QrCode.css'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
@@ -202,6 +203,7 @@ export default function ReceiveQRCode() {
       // an invoice they have not seen, so this cannot be late — but the
       // ordering is what keeps the monitored set a superset of what is payable.
       await track(pending)
+      if (abandoned) return
       setLnReceiveError('')
       setRecvInfo((prev) => ({
         ...prev,
@@ -315,6 +317,7 @@ export default function ReceiveQRCode() {
 
   // Handlers
   const handleShare = () => {
+    if (generatingInvoice) return
     setSharing(true)
     shareData(data)
       .catch(consoleError)
@@ -322,6 +325,7 @@ export default function ReceiveQRCode() {
   }
 
   const handleCopy = async (value: string) => {
+    if (generatingInvoice) return
     if (!prefersReducedMotion) hapticSubtle()
     await copyToClipboard(value)
     toast('Copied to clipboard')
@@ -330,6 +334,7 @@ export default function ReceiveQRCode() {
   }
 
   const handleCopyButton = async () => {
+    if (generatingInvoice) return
     if (!prefersReducedMotion) hapticSubtle()
     setShowCopySheet(true)
     if (qrCodeValue && copied !== qrCodeValue) {
@@ -394,7 +399,7 @@ export default function ReceiveQRCode() {
   const receiveLost = receiveState === 'refunded'
 
   const data = { title: 'Receive', text: qrCodeValue }
-  const shareDisabled = !canBrowserShareData(data) || sharing || hasError || noPaymentMethods
+  const shareDisabled = !canBrowserShareData(data) || sharing || hasError || noPaymentMethods || generatingInvoice
 
   // Whether an amount is currently requested. Keyed off assetMeta to match how
   // handleAmountConfirm/handleAmountClear decide between asset units and sats.
@@ -458,25 +463,35 @@ export default function ReceiveQRCode() {
                   ) : null}
                 </FlexCol>
               ) : null}
-              {generatingInvoice ? (
+              <div
+                className='receive-invoice-stage mt-20 aspect-square w-full max-w-85'
+                data-generating={generatingInvoice}
+              >
                 <div
-                  role='status'
-                  aria-live='polite'
-                  style={{
-                    width: '100%',
-                    height: '340px',
-                    display: 'flex',
-                    margin: '0 auto',
-                    marginTop: '5rem',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
+                  className='receive-invoice-loading flex flex-col items-center justify-center gap-2 text-center'
+                  aria-hidden={!generatingInvoice}
                 >
-                  <Text small>Generating invoice...</Text>
+                  <div className='receive-invoice-pixels mb-5 grid-cols-4 gap-1.25' aria-hidden='true'>
+                    {Array.from({ length: 16 }, (_, index) => (
+                      <span
+                        key={index}
+                        className='size-3 rounded-xs bg-purple-700 dark:bg-purple-300'
+                        style={{ animationDelay: `${index * 75}ms` }}
+                      />
+                    ))}
+                  </div>
+                  <div role='status' aria-live='polite'>
+                    <Text medium>Generating invoice…</Text>
+                  </div>
+                  <Text small color='neutral-500'>
+                    Requesting {prettyNumber(satoshis, 0)} {unitLabel}
+                  </Text>
                 </div>
-              ) : (
                 <button
                   type='button'
+                  className='receive-invoice-qr'
+                  disabled={generatingInvoice}
+                  aria-hidden={generatingInvoice}
                   onClick={() => handleCopy(qrCodeValue)}
                   onPointerDown={() => setQrTransform(prefersReducedMotion ? '' : 'scale(0.97)')}
                   onPointerUp={() => setQrTransform('')}
@@ -487,29 +502,36 @@ export default function ReceiveQRCode() {
                     padding: 0,
                     width: '100%',
                     border: 'none',
-                    margin: '0 auto',
                     display: 'block',
-                    marginTop: '5rem',
-                    maxWidth: '340px',
-                    minHeight: '340px',
-                    cursor: 'pointer',
+                    cursor: generatingInvoice ? 'default' : 'pointer',
                     background: 'none',
-                    transition: prefersReducedMotion
-                      ? 'none'
-                      : `transform 240ms cubic-bezier(${EASE_OUT_QUINT.join(',')})`,
                     WebkitTapHighlightColor: 'transparent',
                     touchAction: 'manipulation',
-                    transform: qrTransform,
                   }}
                 >
-                  <QrCode value={qrCodeValue} />
+                  <div
+                    style={{
+                      transform: qrTransform,
+                      transition: prefersReducedMotion
+                        ? 'none'
+                        : `transform 240ms cubic-bezier(${EASE_OUT_QUINT.join(',')})`,
+                    }}
+                  >
+                    <QrCode value={qrCodeValue} />
+                  </div>
                 </button>
-              )}
-              {satoshis > 0 ? (
-                <Text small color='neutral-500'>
-                  Requesting {prettyNumber(satoshis, 0)} {unitLabel}
-                </Text>
-              ) : null}
+              </div>
+              <div
+                className='min-h-5'
+                aria-hidden={generatingInvoice}
+                style={{ visibility: generatingInvoice ? 'hidden' : 'visible' }}
+              >
+                {satoshis > 0 ? (
+                  <Text small color='neutral-500'>
+                    Requesting {prettyNumber(satoshis, 0)} {unitLabel}
+                  </Text>
+                ) : null}
+              </div>
             </FlexCol>
           )}
         </Padded>
