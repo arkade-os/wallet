@@ -51,6 +51,18 @@ describe('AssetCard', () => {
     expect(screen.queryByText('<$0.01')).not.toBeInTheDocument()
   })
 
+  it('preserves the fiat unit for hidden negative threshold values', () => {
+    render(
+      <ConfigContext.Provider
+        value={{ ...mockConfigContextValue, config: { ...mockConfigContextValue.config, showBalance: false } }}
+      >
+        <AssetCard assetId={assetId} balance={BigInt(-420000)} decimals={8} ticker='DEPIX' fiatText='>-$0.01' />
+      </ConfigContext.Provider>,
+    )
+    expect(screen.getByText('$••••')).toBeInTheDocument()
+    expect(screen.queryByText('>-$0.01')).not.toBeInTheDocument()
+  })
+
   it.each([false, true])('formats a tiny balance with exactAmount=%s', (exactAmount) => {
     render(
       <WalletContext.Provider value={{ ...mockWalletContextValue, isVerifiedAsset: () => true }}>

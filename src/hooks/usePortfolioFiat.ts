@@ -92,8 +92,8 @@ export function usePortfolioFiat(): PortfolioFiat {
       const minorUnits = normalizeAssetMinorUnits(BigInt(ab.amount), assetDecimals, accountDecimals)
       const spendableMinorUnits = normalizeAssetMinorUnits(sourceAsset.balance, assetDecimals, accountDecimals)
       const amount = Decimal.div(ab.amount.toString(), Decimal.pow(10, assetDecimals)).toNumber()
-      // Spending conversions floor to whole sats; retain sub-sat value for reporting.
-      const satsEquivalent = fromFiatAmount(amount, sourceFiat) || fromFiatAmount(1, sourceFiat) * amount
+      // Spending conversions floor to whole sats; retain fractional sats for reporting.
+      const satsEquivalent = fromFiatAmount(1, sourceFiat) * amount
       const fiatAmount = toFiat(satsEquivalent)
       totalSats += satsEquivalent
       rows.push({

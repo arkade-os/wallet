@@ -20,20 +20,21 @@ function wrapper({
   children,
   network = 'mutinynet',
   verified = true,
-  tiny = false,
+  depixAmount,
 }: {
   children: ReactNode
   network?: string
   verified?: boolean
-  tiny?: boolean
+  depixAmount?: bigint
 }) {
+  const hasFractionalDepix = depixAmount !== undefined
   const assetBalances = [
     { assetId: MUTINYNET_USDT_ASSET_ID, amount: BigInt(1_234) },
-    { assetId: MUTINYNET_DEPIX_ASSET_ID, amount: tiny ? BigInt(420000) : BigInt(2_000) },
+    { assetId: MUTINYNET_DEPIX_ASSET_ID, amount: depixAmount ?? BigInt(2_000) },
   ]
   const assetMetadataCache = new Map([
     [MUTINYNET_USDT_ASSET_ID, assetDetails(MUTINYNET_USDT_ASSET_ID, 'USDT')],
-    [MUTINYNET_DEPIX_ASSET_ID, assetDetails(MUTINYNET_DEPIX_ASSET_ID, 'DEPIX', tiny ? 8 : 2)],
+    [MUTINYNET_DEPIX_ASSET_ID, assetDetails(MUTINYNET_DEPIX_ASSET_ID, 'DEPIX', hasFractionalDepix ? 8 : 2)],
   ])
   return (
     <AspContext.Provider
@@ -137,7 +138,7 @@ function escrowWrapper({ children }: { children: ReactNode }) {
 describe('usePortfolioFiat', () => {
   it('retains tiny owned balances and sub-sat valuation without increasing account spending limits', () => {
     const { result } = renderHook(() => usePortfolioFiat(), {
-      wrapper: ({ children }) => wrapper({ children, tiny: true }),
+      wrapper: ({ children }) => wrapper({ children, depixAmount: BigInt(420000) }),
     })
     const row = result.current.rows.find((entry) => entry.assetId === MUTINYNET_DEPIX_ASSET_ID)
     expect(row).toMatchObject({
@@ -149,6 +150,17 @@ describe('usePortfolioFiat', () => {
     expect(row?.fiatAmount).toBeCloseTo(0.84)
     expect(row?.satsEquivalent).toBeCloseTo(0.84)
     expect(result.current.totalSats).toBeCloseTo(12840.84)
+  })
+
+  it('retains fractional sats when a fiat holding is worth more than one sat', () => {
+    const { result } = renderHook(() => usePortfolioFiat(), {
+      wrapper: ({ children }) => wrapper({ children, depixAmount: BigInt(920000) }),
+    })
+    const row = result.current.rows.find((entry) => entry.assetId === MUTINYNET_DEPIX_ASSET_ID)
+
+    expect(row?.fiatAmount).toBeCloseTo(1.84)
+    expect(row?.satsEquivalent).toBeCloseTo(1.84)
+    expect(result.current.totalSats).toBeCloseTo(12841.84)
   })
 
   it('reports owned holdings but caps the spendable figure at what generic spending accepts', () => {
