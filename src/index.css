@@ -4127,3 +4127,82 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
     transform: translate3d(0, 0, 0) scale(1);
   }
 }
+
+/* Receive invoice generation */
+.receive-invoice-stage {
+  display: grid;
+  --invoice-enter: 220ms;
+  --invoice-exit: 120ms;
+  --invoice-ease: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.receive-invoice-stage > * {
+  grid-area: 1 / 1;
+  transition:
+    opacity var(--invoice-enter) var(--invoice-ease),
+    transform var(--invoice-enter) var(--invoice-ease),
+    visibility 0s;
+}
+
+.receive-invoice-loading {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  pointer-events: none;
+  transition-duration: var(--invoice-exit), var(--invoice-exit), 0s;
+  transition-delay: 0s, 0s, var(--invoice-exit);
+}
+
+.receive-invoice-stage[data-generating='true'] .receive-invoice-loading {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  transition-duration: var(--invoice-enter), var(--invoice-enter), 0s;
+  transition-delay: 0s;
+}
+
+.receive-invoice-stage[data-generating='true'] .receive-invoice-qr {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px) scale(0.985);
+  pointer-events: none;
+  transition-duration: var(--invoice-exit), var(--invoice-exit), 0s;
+  transition-delay: 0s, 0s, var(--invoice-exit);
+}
+
+.receive-invoice-pixels {
+  display: grid;
+  opacity: 0;
+  transition: opacity 160ms var(--invoice-ease);
+}
+
+.receive-invoice-stage[data-generating='true'] .receive-invoice-pixels {
+  opacity: 1;
+  transition-delay: 300ms;
+}
+
+.receive-invoice-pixels span {
+  opacity: 0.18;
+}
+
+.receive-invoice-stage[data-generating='true'] .receive-invoice-pixels span {
+  animation: invoice-pixel 1.6s cubic-bezier(0.645, 0.045, 0.355, 1) infinite;
+}
+
+@keyframes invoice-pixel {
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .receive-invoice-stage > *,
+  .receive-invoice-stage[data-generating='true'] .receive-invoice-qr {
+    transform: none;
+  }
+
+  .receive-invoice-stage[data-generating='true'] .receive-invoice-pixels span {
+    animation: none;
+    opacity: 0.65;
+  }
+}

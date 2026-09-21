@@ -182,7 +182,7 @@ describe('Receive screen, invoice generation', () => {
 
     await waitFor(() => expect(track).toHaveBeenCalled())
     expect(screen.getByRole('status')).toHaveTextContent('Generating invoice…')
-    expect(screen.getByText('Requesting 10,000 sats', { selector: '.receive-invoice-loading p' })).toBeInTheDocument()
+    expect(screen.getByText('Requesting 10,000 sats')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Copy QR code' })).not.toBeInTheDocument()
     const copy = screen.getByRole('button', { name: 'Copy' })
     const share = screen.getByRole('button', { name: 'Share' })
@@ -195,6 +195,7 @@ describe('Receive screen, invoice generation', () => {
     expect(shareData).not.toHaveBeenCalled()
 
     await act(async () => finish())
+    expect(screen.getByText('Requesting 10,000 sats')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled()
     expect(copy).toBeEnabled()
     expect(share).toBeEnabled()
@@ -228,5 +229,6 @@ describe('Receive screen, invoice generation', () => {
     await act(async () => finish())
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(setRecvInfo).not.toHaveBeenCalled()
+    expect(screen.queryByText(/Requesting/)).not.toBeInTheDocument()
   })
 })

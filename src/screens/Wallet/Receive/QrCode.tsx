@@ -1,5 +1,4 @@
 import { useContext, useEffect, useState } from 'react'
-import './QrCode.css'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
@@ -484,7 +483,7 @@ export default function ReceiveQRCode() {
                     <Text medium>Generating invoice…</Text>
                   </div>
                   <Text small color='neutral-500'>
-                    Requesting {prettyNumber(satoshis, 0)} {unitLabel}
+                    {generatingInvoice ? `Requesting ${prettyNumber(satoshis, 0)} ${unitLabel}` : '\u00a0'}
                   </Text>
                 </div>
                 <button
@@ -526,7 +525,7 @@ export default function ReceiveQRCode() {
                 aria-hidden={generatingInvoice}
                 style={{ visibility: generatingInvoice ? 'hidden' : 'visible' }}
               >
-                {satoshis > 0 ? (
+                {satoshis > 0 && !generatingInvoice ? (
                   <Text small color='neutral-500'>
                     Requesting {prettyNumber(satoshis, 0)} {unitLabel}
                   </Text>
