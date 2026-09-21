@@ -145,7 +145,7 @@ function assetRowTestId(ticker: string, assetId: string) {
 }
 
 function maskedFiatUnit(fiatText?: string) {
-  const trimmed = fiatText?.trim().replace(/^[<>]/, '')
+  const trimmed = fiatText?.trim().replace(/^[<>]-?/, '')
   if (!trimmed) return '••••'
 
   const leadingUnit = trimmed.match(/^[^\d\s.,+-]+/)
