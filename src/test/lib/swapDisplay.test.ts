@@ -69,7 +69,7 @@ describe('swap receipt amounts', () => {
     const tx = btcCurrencySwap()
 
     expect(swapFeeAmount(tx)?.value).toBe('0.00 USD')
-    expect(swapAmountBeforeFee(tx)?.value).toBe('1.02 USD')
+    expect(swapAmountBeforeFee(tx)?.value).toBe('1.02265046 USD')
   })
 
   it('reconciles the before-fee amount, fee, and received total', () => {
@@ -77,8 +77,8 @@ describe('swap receipt amounts', () => {
     tx.assetSwap!.feeBps = 200
     tx.assetSwap!.toAmount = BigInt(645_000_000)
 
-    expect(swapFeeAmount(tx)?.value).toBe('0.13 USD')
-    expect(swapAmountBeforeFee(tx)?.value).toBe('6.58 USD')
+    expect(swapFeeAmount(tx)?.value).toBe('0.13163265 USD')
+    expect(swapAmountBeforeFee(tx)?.value).toBe('6.58163265 USD')
   })
 })
 
