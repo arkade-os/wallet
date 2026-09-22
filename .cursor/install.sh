@@ -13,6 +13,8 @@ nvm install >/dev/null   # reads .nvmrc (24.15.0); no-op if already installed
 nvm use >/dev/null
 node -v
 
+node scripts/carrier-artifacts/verify.mjs
+
 # pnpm is pinned via package.json "packageManager"; corepack provides it.
 corepack enable
 corepack pnpm install --frozen-lockfile

@@ -133,6 +133,13 @@ if (wholeCheckout) {
   check(before(new RegExp(`^COPY .*${escape(VENDOR_DIR)}`)), `Dockerfile installs before it copies ${VENDOR_DIR}`)
   check(before(/carrier-artifacts\/verify\.mjs/), 'Dockerfile installs before it verifies the carrier artifacts')
 
+  const bootstrap = readFileSync(at('.cursor', 'install.sh'), 'utf8').split(/\r?\n/)
+  const verifiesAt = bootstrap.findIndex((line) => /carrier-artifacts\/verify\.mjs/.test(line))
+  check(
+    verifiesAt !== -1 && verifiesAt < bootstrap.findIndex((line) => /pnpm install/.test(line)),
+    '.cursor/install.sh installs without verifying the carrier artifacts first',
+  )
+
   // Every installing workflow job, counted rather than eyeballed.
   const workflows = at('.github', 'workflows')
   for (const file of existsSync(workflows) ? readdirSync(workflows).filter((name) => /\.ya?ml$/.test(name)) : []) {
