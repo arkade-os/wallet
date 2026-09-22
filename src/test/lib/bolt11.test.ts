@@ -16,6 +16,7 @@ describe('bolt11 utilities', () => {
   describe('decodeInvoice', () => {
     it('should decode valid invoice', () => {
       expect(decodeInvoice(invoice)).toBeDefined()
+      expect(decodeInvoice(invoice).milliSats).toBe(amountSats * 1000)
       expect(decodeInvoice(invoice).paymentHash).toBe(paymentHash)
       expect(decodeInvoice(invoice).amountSats).toBe(amountSats)
       expect(decodeInvoice(invoice).note).toBe(note)
