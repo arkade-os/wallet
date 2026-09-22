@@ -161,6 +161,10 @@ interface RawMember {
   conflict: boolean
   sats: bigint
   assets: Map<string, bigint>
+  /** What this member can actually back: an asset leaving the wallet is no
+   * evidence of one received, however large its magnitude. The assets it is
+   * missing from stay whole in the remainder. */
+  capacity: Map<string, bigint>
   signs: Map<string, bigint>
   signature: string
 }
@@ -173,6 +177,7 @@ const rawMember = (tx: ArkTransaction): RawMember | undefined => {
   const sats = valid ? BigInt(Math.abs(tx.amount)) : 0n
   if (sats > MAX_SATS) valid = false
   const assets = new Map<string, bigint>()
+  const capacity = new Map<string, bigint>()
   const signs = new Map<string, bigint>()
   const signatureAssets: string[] = []
   if (tx.assets !== undefined && !Array.isArray(tx.assets)) valid = false
@@ -188,6 +193,7 @@ const rawMember = (tx: ArkTransaction): RawMember | undefined => {
       continue
     }
     assets.set(asset.assetId, magnitude)
+    if ((asset.amount < 0n ? 'sent' : 'received') === direction) capacity.set(asset.assetId, magnitude)
     signs.set(asset.assetId, asset.amount < 0n ? -1n : 1n)
   }
   signatureAssets.sort()
@@ -199,6 +205,7 @@ const rawMember = (tx: ArkTransaction): RawMember | undefined => {
     conflict: false,
     sats,
     assets,
+    capacity,
     signs,
     signature: `${typeof tx.amount}:${String(tx.amount)}|${valid}|${signatureAssets.join(',')}`,
   }
@@ -228,23 +235,61 @@ const operationSignature = (operation: ActivityEvidenceOperation, state: SwapAct
     })),
   })
 
-export const allocateActivityEvidence = (
-  operations: ActivityEvidenceOperation[],
-  transactions: ArkTransaction[],
-): ActivityEvidenceAllocation => {
-  const operationById = new Map<
-    string,
-    { operation: ActivityEvidenceOperation; state: SwapActivityAllocation; signature: string }
-  >()
+/** The parse, the duplicate resolution and the per-member candidate list, built
+ * once per store read. `resolve` runs per transaction, so none of this may be
+ * redone — or mutated — while allocating. */
+export interface ActivityEvidenceIndex {
+  operations: Map<string, IndexedOperation>
+  candidates: Map<string, EvidenceCandidate[]>
+}
+
+interface EvidenceCandidate {
+  swapId: string
+  contribution: AllocatedContribution
+}
+
+interface IndexedOperation {
+  operation: ActivityEvidenceOperation
+  status: SwapActivityAllocation['status']
+  signature: string
+  contributions: AllocatedContribution[]
+}
+
+export const indexActivityEvidence = (operations: ActivityEvidenceOperation[]): ActivityEvidenceIndex => {
+  const operationById = new Map<string, IndexedOperation>()
   for (const operation of operations) {
     if (!operation.id) continue
     const state = evidenceState(operation)
     const signature = operationSignature(operation, state)
     const existing = operationById.get(operation.id)
-    if (!existing) operationById.set(operation.id, { operation, state, signature })
-    else if (existing.signature !== signature) existing.state = { status: 'invalid', contributions: [] }
+    if (!existing) {
+      operationById.set(operation.id, {
+        operation,
+        status: state.status,
+        signature,
+        contributions: state.contributions,
+      })
+    } else if (existing.signature !== signature) {
+      existing.status = 'invalid'
+      existing.contributions = []
+    }
   }
 
+  const candidates = new Map<string, EvidenceCandidate[]>()
+  for (const [swapId, entry] of operationById) {
+    if (entry.status !== 'valid') continue
+    for (const contribution of entry.contributions) {
+      const key = memberKey(contribution.txid, contribution.direction)
+      candidates.set(key, [...(candidates.get(key) ?? []), { swapId, contribution }])
+    }
+  }
+  return { operations: operationById, candidates }
+}
+
+export const allocateIndexedActivityEvidence = (
+  index: ActivityEvidenceIndex,
+  transactions: ArkTransaction[],
+): ActivityEvidenceAllocation => {
   const rawByKey = new Map<string, RawMember>()
   for (const tx of transactions) {
     const raw = rawMember(tx)
@@ -255,19 +300,18 @@ export const allocateActivityEvidence = (
     else if (existing.signature !== raw.signature) existing.conflict = true
   }
 
-  const candidates = new Map<string, { swapId: string; contribution: AllocatedContribution }[]>()
-  for (const [swapId, { state }] of operationById) {
-    if (state.status !== 'valid') continue
-    for (const contribution of state.contributions) {
-      const key = memberKey(contribution.txid, contribution.direction)
-      candidates.set(key, [...(candidates.get(key) ?? []), { swapId, contribution }])
-    }
-    state.contributions = []
+  const states = new Map<string, SwapActivityAllocation>()
+  const stateOf = (id: string): SwapActivityAllocation | undefined => {
+    const entry = index.operations.get(id)
+    if (!entry) return undefined
+    const state = states.get(id) ?? { status: entry.status, contributions: [] }
+    states.set(id, state)
+    return state
   }
 
   const projections = new Map<string, MemberActivityAllocation>()
   for (const [key, raw] of rawByKey) {
-    const allocations = candidates.get(key) ?? []
+    const allocations = index.candidates.get(key) ?? []
     let accepted = raw.valid && !raw.conflict
     let sats = 0n
     const assets = new Map<string, bigint>()
@@ -277,23 +321,24 @@ export const allocateActivityEvidence = (
         assets.set(asset.assetId, (assets.get(asset.assetId) ?? 0n) + asset.amount)
     }
     if (sats > raw.sats) accepted = false
-    for (const [assetId, amount] of assets) if (amount > (raw.assets.get(assetId) ?? -1n)) accepted = false
-    const verified = accepted ? allocations : []
+    for (const [assetId, amount] of assets) if (amount > (raw.capacity.get(assetId) ?? -1n)) accepted = false
+    const verified = accepted ? [...allocations] : []
     for (const allocation of verified) {
-      const entry = operationById.get(allocation.swapId)
-      if (!entry || entry.state.status !== 'valid') continue
-      entry.state.contributions.push(allocation.contribution)
+      const entry = index.operations.get(allocation.swapId)
+      const state = stateOf(allocation.swapId)
+      if (!entry || state?.status !== 'valid') continue
+      state.contributions.push(allocation.contribution)
       if (
         allocation.contribution.direction === 'sent' &&
         allocation.contribution.txid === entry.operation.fundingTxid
       ) {
-        entry.state.funding = allocation.contribution
+        state.funding = allocation.contribution
       }
       if (
         allocation.contribution.direction === 'received' &&
         allocation.contribution.txid === entry.operation.spentTxid
       ) {
-        entry.state.fill = allocation.contribution
+        state.fill = allocation.contribution
       }
     }
     const allocatedAssets = accepted ? assets : new Map<string, bigint>()
@@ -317,6 +362,11 @@ export const allocateActivityEvidence = (
       return direction ? projections.get(memberKey(txid, direction)) : undefined
     },
     members: () => [...projections.values()],
-    swap: (id) => operationById.get(id)?.state,
+    swap: (id) => stateOf(id),
   }
 }
+
+export const allocateActivityEvidence = (
+  operations: ActivityEvidenceOperation[],
+  transactions: ArkTransaction[],
+): ActivityEvidenceAllocation => allocateIndexedActivityEvidence(indexActivityEvidence(operations), transactions)

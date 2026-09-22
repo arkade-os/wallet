@@ -177,6 +177,18 @@ describe('activity evidence allocation', () => {
     expect(rawConflict.member(funding)?.allocations).toEqual([])
   })
 
+  it('refuses an outgoing raw asset as backing for a received share and keeps it whole', () => {
+    const fill = tx(TX_B, 'RECEIVED', 500, [{ assetId: ASSET_A, amount: -700n }])
+    const allocation = allocateActivityEvidence([operation('one', sharedEvidence('0', '100', '200'))], [fill])
+
+    expect(allocation.member(fill)?.allocations).toEqual([])
+    expect(allocation.swap('one')?.fill).toBeUndefined()
+    expect(allocation.member(fill)).toMatchObject({
+      remainderSats: 500n,
+      remainderAssets: [{ assetId: ASSET_A, amount: -700n }],
+    })
+  })
+
   it.each([
     [
       'summed sats over capacity',
@@ -197,6 +209,16 @@ describe('activity evidence allocation', () => {
       'malformed raw asset',
       [operation('one', sharedEvidence('0', '0', '1'))],
       tx(TX_B, 'RECEIVED', 0, [{ assetId: ASSET_A, amount: 1 as never }]),
+    ],
+    [
+      'an incoming raw asset backing a sent share',
+      [
+        operation('one', {
+          version: 1,
+          contributions: [{ txid: TX_A, direction: 'sent', sats: '0', assets: [{ assetId: ASSET_A, amount: '200' }] }],
+        }),
+      ],
+      tx(TX_A, 'SENT', 0, [{ assetId: ASSET_A, amount: 700n }]),
     ],
   ])('fails %s closed', (_name, records, member) => {
     const allocation = allocateActivityEvidence(records, [member])

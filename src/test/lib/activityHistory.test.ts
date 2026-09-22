@@ -446,6 +446,26 @@ describe('assetSwapResolver', () => {
     expect(resolver.resolve(arkTx('funding-txid'))?.[0].groupId).toBe('swap:swap-1')
   })
 
+  it('gives every evidenced operation on one txid its own membership, from the prepared index', async () => {
+    const txid = '5'.repeat(64)
+    const evidenced = (id: string, sats: string) =>
+      swap({
+        id,
+        fundingTxid: txid,
+        activityEvidence: { version: 1, contributions: [{ txid, direction: 'sent', sats, assets: [] }] },
+      })
+    const resolver = assetSwapResolver(async () => [evidenced('one', '3000'), evidenced('two', '4000')])
+    await resolver.prepare?.()
+    const funding = arkTx(txid, { amount: -10_000, type: 'SENT' as ArkTransaction['type'] })
+    const memberships = [
+      { groupId: 'swap:one', kind: 'swap', label: 'Swap', metadata: { swapId: 'one' }, amount: 3000 },
+      { groupId: 'swap:two', kind: 'swap', label: 'Swap', metadata: { swapId: 'two' }, amount: 4000 },
+    ]
+
+    expect(resolver.resolve(funding)).toEqual(memberships)
+    expect(resolver.resolve(funding)).toEqual(memberships)
+  })
+
   it('does not alias distinct prepared swaps through an empty funding txid', async () => {
     const resolver = assetSwapResolver(async () => [
       swap({ id: 'intent-1', fundingTxid: '' }),
@@ -725,6 +745,23 @@ describe('end to end through the SDK grouping', () => {
       expect(rows.find((row) => row.historyKey === 'swap:valid')).toMatchObject({ amount: 3000 })
       expect(rows.find((row) => row.historyKey === 'swap:broken')).toMatchObject({ amount: 0 })
       expect(rows).toEqual(expect.arrayContaining([expect.objectContaining({ amount: 7000, type: 'sent' })]))
+    })
+
+    it('never reads an asset leaving the wallet as the received swap amount', async () => {
+      const leaving = arkTx(FILL, { amount: 500, assets: [{ assetId: ASSET, amount: -700n }], createdAt: 2_000 })
+      const records = [batchSwap('one', evidence('3000', '100', '200'))]
+      const groups = await activityHistoryOf([funding, leaving], records)
+      const rows = activitiesToTxs(groups, { ...empty, swaps: records })
+
+      expect(rows.find((row) => row.historyKey === 'swap:one')).toMatchObject({
+        amount: 3000,
+        assetSwap: { fromAmount: 3000n, toAmount: 888n },
+      })
+      expect(rows).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ amount: 500, type: 'received', assets: [{ assetId: ASSET, amount: -700n }] }),
+        ]),
+      )
     })
   })
 })
