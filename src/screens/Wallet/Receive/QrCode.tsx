@@ -398,7 +398,7 @@ export default function ReceiveQRCode() {
   const claimError = rfqId ? claimErrorFor(rfqId) : undefined
   const receiveLost = receiveState === 'refunded'
 
-const data = { title: t('wallet.receive'), text: qrCodeValue }
+  const data = { title: t('wallet.receive'), text: qrCodeValue }
   const shareDisabled = !canBrowserShareData(data) || sharing || hasError || noPaymentMethods || generatingInvoice
 
   // Whether an amount is currently requested. Keyed off assetMeta to match how
@@ -486,7 +486,9 @@ const data = { title: t('wallet.receive'), text: qrCodeValue }
                     <Text medium>{t('receive.generatingInvoice')}</Text>
                   </div>
                   <Text small color='neutral-500'>
-                    {generatingInvoice ? t('receive.requestingAmount', { amount: prettyNumber(satoshis, 0), unit: unitLabel }) : '\u00a0'}
+                    {generatingInvoice
+                      ? t('receive.requestingAmount', { amount: prettyNumber(satoshis, 0), unit: unitLabel })
+                      : '\u00a0'}
                   </Text>
                 </div>
                 <button
@@ -534,6 +536,7 @@ const data = { title: t('wallet.receive'), text: qrCodeValue }
                   </Text>
                 ) : null}
               </div>
+            </FlexCol>
           )}
         </Padded>
       </Content>

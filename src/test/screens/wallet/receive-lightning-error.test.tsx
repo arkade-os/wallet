@@ -118,7 +118,7 @@ const renderWithTrack = (satoshis = 10_000) => render(tree(satoshis))
 
 beforeEach(() => {
   track.mockReset()
-setRecvInfo.mockClear()
+  setRecvInfo.mockClear()
   vi.mocked(lnReceiveRendezvous).mockClear()
 })
 
