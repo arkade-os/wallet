@@ -226,18 +226,33 @@ interface AssetSwapActivityOptions {
  *  LENT: a recycle buys only the receipt reserve, a purchase the whole carrier. */
 export interface CarrierReceiptRows {
   carrierDelivery?: string
-  carrierFare?: string
-  carrierLoan?: string
-  carrierPurchased?: string
+  carrierFare?: SwapDisplayAmount
+  carrierLoan?: SwapDisplayAmount
+  carrierPurchase?: SwapDisplayAmount
+  carrierPurchased?: SwapDisplayAmount
 }
 
 export const carrierDetails = (carrier: CarrierActivity | undefined): CarrierReceiptRows => {
   if (!carrier) return {}
   return {
-    carrierLoan: carrier.mode === 'recycle' ? carrierBorrowedLabel(carrier) : undefined,
+    carrierLoan:
+      carrier.mode === 'recycle'
+        ? { value: carrierBorrowedLabel(carrier), masked: `Borrowed ${prettyHide(carrier.loanSats)}` }
+        : undefined,
     carrierPurchased:
-      carrier.mode === 'recycle' ? carrierPurchasedReceiptLabel(carrier) : carrierPurchasedLiteralLabel(carrier),
-    carrierFare: carrierServiceFareLabel(carrier),
+      carrier.mode === 'recycle'
+        ? {
+            value: carrierPurchasedReceiptLabel(carrier),
+            masked: `${prettyHide(carrier.purchasedSats, '')} (receipt reserve)`,
+          }
+        : undefined,
+    carrierPurchase:
+      carrier.mode === 'purchase'
+        ? { value: carrierPurchasedLiteralLabel(carrier), masked: prettyHide(carrier.purchasedSats) }
+        : undefined,
+    carrierFare: carrier.taxi
+      ? { value: carrierServiceFareLabel(carrier), masked: prettyHide(carrier.serviceFareSats) }
+      : undefined,
     carrierDelivery: carrierDeliveryLabel(carrier),
   }
 }

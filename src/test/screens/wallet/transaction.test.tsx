@@ -699,8 +699,11 @@ describe('Transaction screen', () => {
       </NavigationContext.Provider>,
     )
 
-    expect(screen.getByTestId('Purchased sats')).toHaveTextContent('330 sats')
+    expect(screen.getByTestId('Carrier sats purchased')).toHaveTextContent('330 sats')
+    expect(screen.queryByTestId('Purchased sats')).not.toBeInTheDocument()
     expect(screen.queryByTestId('Carrier sats')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('Taxi service fee')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Taxi/)).not.toBeInTheDocument()
     expect(screen.getByTestId('Delivery')).toHaveTextContent('Claimed')
   })
 
@@ -789,6 +792,18 @@ describe('Transaction screen', () => {
   })
 
   it('masks swap asset amounts when balances are hidden', () => {
+    const carrier: CarrierActivity = {
+      version: 1,
+      mode: 'recycle',
+      physicalSats: '330',
+      loanSats: '329',
+      purchasedSats: '1',
+      receiptSats: '1',
+      serviceFareSats: '0',
+      taxi: { transferId: 'advance-1' },
+      state: 'claimable',
+      txids: ['3'.repeat(64)],
+    }
     const swapTxInfo = {
       ...mockTxInfo,
       amount: 0,
@@ -806,6 +821,7 @@ describe('Transaction screen', () => {
         feeBps: 30,
         status: 'completed' as const,
       },
+      carrier,
       roundTxid: 'fill-txid',
       settled: true,
       type: 'swap',
@@ -837,9 +853,14 @@ describe('Transaction screen', () => {
     expect(screen.getByTestId('Swap to')).toHaveTextContent('········ BET')
     expect(screen.getByTestId('Swap fees')).toHaveTextContent('········ BET')
     expect(screen.getByTestId('Total received')).toHaveTextContent('········ BET')
+    expect(screen.getByTestId('Carrier sats')).toHaveTextContent('Borrowed ········ sats')
+    expect(screen.getByTestId('Purchased sats')).toHaveTextContent('········ (receipt reserve)')
+    expect(screen.getByTestId('Taxi service fee')).toHaveTextContent('········ sats')
+    expect(screen.getByTestId('Delivery')).toHaveTextContent('Claimable')
     expect(screen.queryByText('123.45 ALP')).not.toBeInTheDocument()
     expect(screen.queryByText('67.89 BET')).not.toBeInTheDocument()
     expect(screen.queryByText('0.204 BET')).not.toBeInTheDocument()
+    expect(screen.queryByText(/329|1 sat|0 sats/)).not.toBeInTheDocument()
   })
 
   it('uses the persisted wallet-facing tickers in swap details', () => {

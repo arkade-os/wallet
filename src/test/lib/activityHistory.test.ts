@@ -656,6 +656,17 @@ describe('carrier metadata', () => {
     expect(rows[0].carrierMembers).toBeUndefined()
   })
 
+  it('ignores a forged group carrier when the matching asset-swap record has none', () => {
+    const record = filled()
+    const group = activity('swap:swap-1', [arkTx(FUNDING_TXID), arkTx(FILL_TXID)], swapIntent('swap-1'))
+    group.intent!.metadata!.carrier = RECYCLE
+
+    const [row] = activitiesToTxs([group], { ...empty, swaps: [record] })
+
+    expect(row.carrier).toBeUndefined()
+    expect(row.assetSwap).toMatchObject({ fromAmount: BigInt(10_000), toAmount: BigInt(992) })
+  })
+
   it('shows a direct solver purchase as bought, with no Taxi lineage', () => {
     const record = withCarrier(swap({ fundingTxid: FUNDING_TXID }), PURCHASE)
     const group = activity('swap:swap-1', [arkTx(FUNDING_TXID), arkTx(FILL_TXID)], swapIntent('swap-1'))
@@ -667,21 +678,100 @@ describe('carrier metadata', () => {
     expect(row.carrier?.taxi).toBeUndefined()
   })
 
-  it('annotates a standalone Taxi activity that has no persisted swap record', () => {
-    // its own operation, and the group is the only descriptor it will have
+  it('uses the matching Lightning-send record instead of forged group metadata', () => {
+    const rfqId = 'a'.repeat(64)
+    const intent = {
+      kind: 'swap',
+      label: 'Lightning send',
+      outcome: 'pending',
+      metadata: { rfqId, swapKind: 'lightning_send', carrier: PURCHASE },
+    } as Activity['intent']
+    const funding = arkTx(FUNDING_TXID, {
+      type: 'SENT' as ArkTransaction['type'],
+      amount: 1_030,
+      createdAt: at(0),
+    })
+    const group = { ...activity(`swap:${rfqId}`, [funding], intent), amount: -1_030 }
+
+    const [row] = activitiesToTxs([group], {
+      ...empty,
+      lnSends: [
+        {
+          rfqId,
+          fundingTxid: FUNDING_TXID,
+          state: 'pending',
+          carrier: JSON.parse(JSON.stringify(RECYCLE)),
+          amount: 1_030,
+          createdAt: at(0),
+        },
+      ],
+    })
+
+    expect(row.lnSwap?.label).toBe('Lightning send')
+    expect(row.carrier).toEqual(RECYCLE)
+  })
+
+  it('uses a persisted Lightning-receive carrier and ignores a mismatched group copy', () => {
+    const rfqId = 'c'.repeat(64)
     const intent = {
       kind: 'swap',
       label: 'Lightning receive',
-      metadata: { rfqId: 'c'.repeat(64), swapKind: 'lightning_receive', carrier: RECYCLE },
-    }
+      outcome: 'settled',
+      metadata: { rfqId, swapKind: 'lightning_receive', carrier: PURCHASE },
+    } as Activity['intent']
     const claim = arkTx(CLAIM_TXID, { amount: 10_000, createdAt: at(0) })
-    const group = { ...activity(`swap:${'c'.repeat(64)}`, [claim], intent), amount: 10_000 }
+    const group = { ...activity(`swap:${rfqId}`, [claim], intent), amount: 10_000 }
 
-    const [row] = activitiesToTxs([group], empty)
+    const [row] = activitiesToTxs([group], {
+      ...empty,
+      rfqCarriers: new Map([[rfqId, JSON.parse(JSON.stringify(RECYCLE))]]),
+    })
 
-    expect(row.lnSwap).toMatchObject({ label: 'Lightning receive' })
-    expect(row.carrier).toMatchObject({ mode: 'recycle', loanSats: '329', purchasedSats: '1' })
-    expect(row.carrier?.taxi).toEqual({ transferId: 'advance-1' })
+    expect(row.lnSwap?.label).toBe('Lightning receive')
+    expect(row.carrier).toEqual(RECYCLE)
+  })
+
+  it('does not rescue a malformed persisted RFQ carrier from valid group metadata', () => {
+    const rfqId = 'c'.repeat(64)
+    const intent = {
+      kind: 'swap',
+      label: 'Lightning receive',
+      outcome: 'settled',
+      metadata: { rfqId, swapKind: 'lightning_receive', carrier: RECYCLE },
+    } as Activity['intent']
+    const claim = arkTx(CLAIM_TXID, { amount: 10_000, createdAt: at(0) })
+    const group = { ...activity(`swap:${rfqId}`, [claim], intent), amount: 10_000 }
+
+    const [row] = activitiesToTxs([group], {
+      ...empty,
+      rfqCarriers: new Map([[rfqId, { ...RECYCLE, loanSats: '0' }]]),
+    })
+
+    expect(row.lnSwap?.label).toBe('Lightning receive')
+    expect(row.carrier).toBeUndefined()
+  })
+
+  it('ignores group-only carrier metadata on RFQ and plain-transfer fallbacks', () => {
+    const rfqId = 'd'.repeat(64)
+    const rfqIntent = {
+      kind: 'swap',
+      label: 'Onchain send',
+      outcome: 'settled',
+      metadata: { rfqId, swapKind: 'onchain_send', carrier: RECYCLE },
+    } as Activity['intent']
+    const plainIntent = {
+      kind: 'send',
+      label: 'Send',
+      metadata: { carrier: RECYCLE },
+    } as Activity['intent']
+
+    const rows = activitiesToTxs(
+      [activity(`swap:${rfqId}`, [arkTx(FUNDING_TXID)], rfqIntent), activity('plain', [arkTx(FILL_TXID)], plainIntent)],
+      empty,
+    )
+
+    expect(rows).toHaveLength(2)
+    expect(rows.every((row) => row.carrier === undefined)).toBe(true)
   })
 
   it('drops a persisted descriptor it cannot read rather than taking the group copy', () => {

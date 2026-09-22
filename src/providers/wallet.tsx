@@ -46,7 +46,7 @@ import { Tx, Vtxo, Wallet } from '../lib/types'
 import { activitiesToTxs, getActivities } from '../lib/activityHistory'
 import { arkTransactionToTx } from '../lib/transactionHistory'
 import { Indexer } from '../lib/indexer'
-import { lnSendViews, swapActivityInputs, type LnSendView } from '../lib/lnSendRecords'
+import { rfqHistorySnapshot, swapActivityInputs, type LnSendView, type RfqCarrierSnapshot } from '../lib/lnSendRecords'
 import { assetSwapResolver } from '../lib/activity/assetSwapResolver'
 import { getAssetSwaps, swapActivityResolver } from '@arkade-os/swap'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
@@ -212,8 +212,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     activities: Activity[]
     metadata: Record<string, TransactionActivityMetadata>
     lnSends: LnSendView[]
+    rfqCarriers: RfqCarrierSnapshot
     exits: ExitRecord[]
-  }>({ activities: [], metadata: {}, lnSends: [], exits: [] })
+  }>({ activities: [], metadata: {}, lnSends: [], rfqCarriers: new Map(), exits: [] })
   const [assetSwaps, setAssetSwaps] = useState<WalletAssetSwap[]>([])
   const [balance, setBalance] = useState(0)
   const [availableBalance, setAvailableBalance] = useState(0)
@@ -255,6 +256,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         swaps: assetSwaps,
         metadata: history.metadata,
         lnSends: history.lnSends,
+        rfqCarriers: history.rfqCarriers,
         exits: history.exits,
         network: aspInfo.network,
         assetDisplay: (id) => assetMetadataCache.current.get(id)?.metadata,
@@ -564,10 +566,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // write that lands after this line stays invisible until the next reload.
       const exits = await resolveExits(unrolledVtxos, networkRef.current)
       const metadata = readAllTransactionActivityMetadata()
-      // Read, never resolved here: `RfqSwapManager` owns a send's outcome and
-      // has already written it (see providers/lnSwaps), so this pass only picks
-      // up what the store says.
-      const lnSends = await lnSendViews()
+      // Read, never resolved here: managers and future carrier producers own
+      // these records, so history consumes one repository snapshot as written.
+      const { lnSends, carriers: rfqCarriers } = await rfqHistorySnapshot()
       if (isFirstLoad) setLoadingStatus('Updating balance...')
       const { total, available, assets, availableAssets, unrolled } = await getBalance(swWallet)
       // An exited coin is no longer Arkade money: it cannot be spent offchain,
@@ -613,7 +614,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         updateConfig({ ...live, apps: { ...live.apps, assets: { enabled: true } } })
       }
       setVtxos(vtxos)
-      setHistory({ activities, metadata, lnSends, exits })
+      setHistory({ activities, metadata, lnSends, rfqCarriers, exits })
       if (!hasLoadedOnce.current) {
         hasLoadedOnce.current = true
         setDataReady(true)

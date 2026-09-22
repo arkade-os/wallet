@@ -156,8 +156,8 @@ export const parseCarrierActivity = (value: unknown): CarrierActivity => {
   }
 }
 
-/** The descriptor off `activity.intent.metadata.carrier`, or a persisted swap
- *  record. `undefined` for anything the contract does not describe: the
+/** A descriptor read from a locally persisted operation record. `undefined`
+ *  for anything the contract does not describe: the
  *  surrounding activity is the user's history either way, and outlives a
  *  descriptor this wallet cannot read. */
 export const readCarrierActivity = (value: unknown): CarrierActivity | undefined => {
