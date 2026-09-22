@@ -29,6 +29,8 @@ import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
 import { AssetSwapsContext } from '../../../providers/assetSwaps'
 import type { WalletAssetSwap as AssetSwap } from '../../../lib/swapRepository'
 
+const FUNDING_TXID = '1'.repeat(64)
+
 const pendingSwapTx = {
   ...mockTxInfo,
   amount: 0,
@@ -43,17 +45,17 @@ const pendingSwapTx = {
     toDecimals: 2,
     toTicker: 'BET',
     status: 'pending' as const,
-    fundingTxid: 'funding-txid',
+    fundingTxid: FUNDING_TXID,
   },
   preconfirmed: true,
-  redeemTxid: 'funding-txid',
+  redeemTxid: FUNDING_TXID,
   roundTxid: '',
   settled: false,
   type: 'swap',
 }
 
 const pendingSwap: AssetSwap = {
-  id: 'funding-txid',
+  id: FUNDING_TXID,
   fromAsset: 'btc',
   toAsset: 'asset-beta',
   fromAmount: '10000',
@@ -61,7 +63,7 @@ const pendingSwap: AssetSwap = {
   swapAddress: 'tark1q...',
   swapPkScript: `5120${'ab'.repeat(32)}`,
   offerHex: '0100',
-  fundingTxid: 'funding-txid',
+  fundingTxid: FUNDING_TXID,
   status: 'pending',
   createdAt: 1,
 }
@@ -102,6 +104,43 @@ function CancellationHarness({
 }
 
 describe('Transaction screen', () => {
+  it('selects a prepared swap by stable history identity without enabling cancellation', () => {
+    const txInfo = {
+      ...pendingSwapTx,
+      historyKey: 'swap:intent-2',
+      assetSwap: { ...pendingSwapTx.assetSwap, fundingTxid: '', status: 'completed' as const },
+      redeemTxid: '',
+      settled: true,
+    }
+    const swaps = [
+      { ...pendingSwap, id: 'intent-1', fundingTxid: '', status: 'fulfilled' as const },
+      { ...pendingSwap, id: 'intent-2', fundingTxid: '', status: 'pending' as const },
+    ]
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <AspContext.Provider value={mockAspContextValue}>
+              <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
+                <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [txInfo] } as any}>
+                  <AssetSwapsContext.Provider value={{ swaps } as any}>
+                    <LimitsContext.Provider value={mockLimitsContextValue}>
+                      <Transaction />
+                    </LimitsContext.Provider>
+                  </AssetSwapsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </AspContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByTestId('Status')).toHaveTextContent('Pending')
+    expect(screen.queryByRole('button', { name: /cancel swap/i })).not.toBeInTheDocument()
+  })
+
   it('confirms a pending swap cancellation and stays on the updated receipt', async () => {
     let finishCancel: () => void = () => {}
     const cancel = vi.fn(
@@ -118,7 +157,7 @@ describe('Transaction screen', () => {
     expect(within(dialog).getByText(/return its locked funds to your wallet/)).toBeInTheDocument()
 
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel swap' }))
-    expect(cancel).toHaveBeenCalledWith('funding-txid')
+    expect(cancel).toHaveBeenCalledWith(FUNDING_TXID)
     expect(screen.getByRole('button', { name: 'Cancelling…' })).toBeDisabled()
 
     await act(async () => finishCancel())
@@ -644,6 +683,66 @@ describe('Transaction screen', () => {
     expect(screen.getByTestId('Delivery')).toHaveTextContent('Claimable')
     // the original swap identity is untouched by any of this
     expect(screen.getByTestId('Funded')).toHaveTextContent('funding-txid')
+  })
+
+  it('links canonical related transactions once without guessing their roles', async () => {
+    const fundingTxid = '1'.repeat(64)
+    const fillTxid = '2'.repeat(64)
+    const relatedTxid = '3'.repeat(64)
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null)
+    const txInfo = {
+      ...pendingSwapTx,
+      assetSwap: {
+        ...pendingSwapTx.assetSwap,
+        fundingTxid,
+        fillTxid,
+        status: 'completed' as const,
+      },
+      carrierMembers: [
+        { txid: fundingTxid, type: 'sent' },
+        { txid: fillTxid, type: 'received' },
+        { txid: relatedTxid, type: 'received' },
+        { txid: relatedTxid, type: 'received' },
+        { txid: 'not-a-txid', type: 'received' },
+      ],
+      redeemTxid: fillTxid,
+      settled: true,
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <AspContext.Provider value={mockAspContextValue}>
+              <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
+                <WalletContext.Provider
+                  value={
+                    {
+                      ...mockWalletContextValue,
+                      txs: [txInfo],
+                      wallet: { ...mockWalletContextValue.wallet, network: 'regtest' },
+                    } as any
+                  }
+                >
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <Transaction />
+                  </LimitsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </AspContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getAllByTestId(/Related transaction/)).toHaveLength(1)
+    expect(screen.getByTestId('Related transaction')).toHaveTextContent('33333333...33333333')
+    expect(screen.queryByText(/claim transaction|recovery transaction/i)).not.toBeInTheDocument()
+
+    const row = document.getElementById('Related transaction') as HTMLElement
+    await userEvent.click(row.querySelector('.table-row__external') as HTMLElement)
+    expect(open).toHaveBeenCalledWith(`http://localhost:7080/tx/${relatedTxid}`, '_blank', 'noreferrer')
+    open.mockRestore()
   })
 
   it('discloses a whole carrier purchase without claiming a loan', () => {

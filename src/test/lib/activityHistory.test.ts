@@ -103,6 +103,73 @@ describe('activitiesToTxs', () => {
     expect(tx.assetSwap).toMatchObject({ toAmount: BigInt(992), status: 'completed' })
   })
 
+  it('shows an unfunded offer record as one pending zero-amount row', () => {
+    const pending = swap({ id: 'intent-1', fundingTxid: '', quote: { fromTicker: 'SAT', toTicker: 'TOK' } })
+
+    const rows = activitiesToTxs([], { ...empty, swaps: [pending] })
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({
+      amount: 0,
+      historyKey: 'swap:intent-1',
+      preconfirmed: true,
+      redeemTxid: '',
+      settled: false,
+      type: 'swap',
+      assetSwap: { fromTicker: 'SAT', toTicker: 'TOK', status: 'pending', fundingTxid: '' },
+    })
+  })
+
+  it('replaces the unfunded offer row under the same stable identity after funding and claim', () => {
+    const claimTxid = '3'.repeat(64)
+    const prepared = swap({ id: 'intent-1', fundingTxid: '' })
+    const funded = {
+      ...swap({ id: 'intent-1', fundingTxid: 'funding-txid' }),
+      carrier: {
+        version: 1,
+        mode: 'purchase',
+        physicalSats: '330',
+        loanSats: '0',
+        purchasedSats: '330',
+        receiptSats: '0',
+        serviceFareSats: '0',
+        state: 'claimed',
+        txids: [claimTxid],
+      },
+    } as WalletAssetSwap
+    const before = activitiesToTxs([], { ...empty, swaps: [prepared] })
+    const after = activitiesToTxs(
+      [activity('swap:intent-1', [arkTx('funding-txid'), arkTx(claimTxid)], swapIntent('intent-1'))],
+      { ...empty, swaps: [funded] },
+    )
+
+    expect(before.map((row) => row.historyKey)).toEqual(['swap:intent-1'])
+    expect(after.map((row) => row.historyKey)).toEqual(['swap:intent-1'])
+  })
+
+  it('keeps prepared offers with empty funding txids distinct by stable id', () => {
+    const rows = activitiesToTxs([], {
+      ...empty,
+      swaps: [swap({ id: 'intent-1', fundingTxid: '' }), swap({ id: 'intent-2', fundingTxid: '' })],
+    })
+
+    expect(rows.map((row) => row.historyKey).sort()).toEqual(['swap:intent-1', 'swap:intent-2'])
+  })
+
+  it('ignores malformed and non-offer records without hiding valid pending offers', () => {
+    const valid = swap({ id: 'intent-1', fundingTxid: '' })
+    const malformed = swap({ id: 'broken', fundingTxid: '', fromAmount: 'not-an-integer' })
+    const missingId = swap({ id: '', fundingTxid: '' })
+    const onchain = { ...swap({ id: 'rfq-1', fundingTxid: '' }), offerHex: undefined, paymentHash: 'ab'.repeat(32) }
+
+    const rows = activitiesToTxs([], {
+      ...empty,
+      swaps: [valid, malformed, missingId, onchain as unknown as WalletAssetSwap],
+    })
+
+    expect(rows.map((row) => row.historyKey)).toEqual(['swap:intent-1'])
+  })
+
   it('grafts local metadata onto member rows by their txid', () => {
     const txs = activitiesToTxs([activity('a', [arkTx('a', { type: 'SENT' as ArkTransaction['type'] })])], {
       ...empty,
@@ -169,6 +236,16 @@ describe('assetSwapResolver', () => {
     records = [swap()]
     await resolver.prepare?.()
     expect(resolver.resolve(arkTx('funding-txid'))?.[0].groupId).toBe('swap:swap-1')
+  })
+
+  it('does not alias distinct prepared swaps through an empty funding txid', async () => {
+    const resolver = assetSwapResolver(async () => [
+      swap({ id: 'intent-1', fundingTxid: '' }),
+      swap({ id: 'intent-2', fundingTxid: '' }),
+    ])
+    await resolver.prepare?.()
+
+    expect(resolver.resolve(arkTx(''))).toBeUndefined()
   })
 })
 
@@ -616,6 +693,23 @@ describe('carrier metadata', () => {
     expect(rows[0].carrierMembers).toEqual([
       { txid: FUNDING_TXID, type: 'received' },
       { txid: FILL_TXID, type: 'received' },
+      { txid: CLAIM_TXID, type: 'related' },
+      { txid: RECOVERY_TXID, type: 'related' },
+    ])
+  })
+
+  it('retains verified carrier txids that are absent from wallet history', () => {
+    const record = withCarrier(swap({ fundingTxid: FUNDING_TXID }), {
+      ...RECYCLE,
+      txids: [FUNDING_TXID, CLAIM_TXID],
+    })
+    const group = activity('swap:swap-1', [arkTx(FUNDING_TXID)], swapIntent('swap-1'))
+
+    const [row] = activitiesToTxs([group], { ...empty, swaps: [record] })
+
+    expect(row.carrierMembers).toEqual([
+      { txid: FUNDING_TXID, type: 'received' },
+      { txid: CLAIM_TXID, type: 'related' },
     ])
   })
 

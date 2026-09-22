@@ -23,7 +23,7 @@ export const assetSwapResolver = (read: () => Promise<WalletAssetSwap[]> = () =>
       // those swaps ungrouped until the next reconnect
       const next = new Map<string, WalletAssetSwap>()
       for (const swap of await read()) {
-        next.set(swap.fundingTxid, swap)
+        if (swap.fundingTxid) next.set(swap.fundingTxid, swap)
         if (swap.spentTxid) next.set(swap.spentTxid, swap)
         // only this record's own verified txids, and they join the SAME group,
         // so a claim or recovery enriches the swap instead of adding a row

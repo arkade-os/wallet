@@ -18,6 +18,7 @@ import ArrowUpDownIcon from '../icons/ArrowUpDown'
 import { Wallet } from '../lib/types'
 import { SwapDisplayAmount, type CarrierReceiptRows } from '../lib/swapDisplay'
 import type { TransactionAmountDisplay } from '../lib/transactionAmountDisplay'
+import { isCanonicalTxid } from '../lib/carrierActivity'
 import {
   openInNewTab,
   openOffchainTxInNewTab,
@@ -43,6 +44,7 @@ export interface DetailsProps {
   invoice?: string
   isOffchainTx?: boolean
   priceRate?: string
+  relatedTxids?: string[]
   satoshis?: number
   spendLabel?: string
   spendTxid?: string
@@ -80,6 +82,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     invoice,
     isOffchainTx,
     priceRate,
+    relatedTxids,
     satoshis,
     spendLabel,
     spendTxid,
@@ -169,6 +172,12 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     formatSensitiveDetail(amount),
     <TotalIcon key={`${label}-${amount.value}`} />,
   ])
+  const primaryTxids = new Set([fundedTxid, spendTxid, txid].filter((id): id is string => Boolean(id)))
+  const related = [...new Set((relatedTxids ?? []).filter(isCanonicalTxid))].filter((id) => !primaryTxids.has(id))
+  const relatedRows: TableData = related.map((id, index) => {
+    const label = related.length === 1 ? 'Related transaction' : `Related transaction ${index + 1}`
+    return [label, id, <HashIcon key={`${label}-${id}`} />, offchainTxOnClick(id)]
+  })
 
   const data: TableData = [
     ['Swap from', formatSensitiveDetail(swapFrom), <ArrowUpDownIcon key='swap-from-icon' />],
@@ -180,6 +189,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     ['Funded', fundedTxid, <HashIcon key='funded-icon' />, offchainTxOnClick(fundedTxid)],
     [spendLabel ?? 'Completed', spendTxid, <HashIcon key='spend-icon' />, offchainTxOnClick(spendTxid)],
     ['Transaction ID', txid, <HashIcon key='txid-icon' />, showTxidLink ? txidOnClick : undefined],
+    ...relatedRows,
     ...assetIdRows,
     ['Direction', direction, <DirectionIcon key='direction-icon' />],
     ['Type', type, <TypeIcon key='type-icon' />],

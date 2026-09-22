@@ -274,6 +274,7 @@ const exitTx = (exit: ExitRecord): Tx => ({
 export const activitiesToTxs = (activities: Activity[], options: ActivityHistoryOptions): Tx[] => {
   const { swaps, metadata, network, assetDisplay, lnSends = [], rfqCarriers, exits = [] } = options
   const rows: Tx[] = []
+  const groupedAssetSwaps = new Set(activities.flatMap((activity) => swapIdOf(activity) ?? []))
   for (const activity of activities) {
     const swapKind = rfqSwapKindOf(activity)
     if (swapKind === 'lightning_send') {
@@ -306,7 +307,14 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
           funding && metadata[txidOfArkTransaction(funding)],
         ),
         historyKey: activity.id,
-        ...(carrier ? { carrierMembers: membersOf(activity) } : {}),
+        ...(carrier
+          ? {
+              carrierMembers: mergeMembers(
+                membersOf(activity),
+                carrier.txids.map((txid) => ({ txid, type: 'related' })),
+              ),
+            }
+          : {}),
       })
       continue
     }
@@ -320,6 +328,19 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
         historyKey: `${activity.id}:${txid}`,
         ...(carrier ? { carrier } : {}),
       })
+    }
+  }
+  for (const swap of swaps) {
+    if (!swap.id || !swap.offerHex || groupedAssetSwaps.has(swap.id)) continue
+    try {
+      const carrier = readCarrierActivity(swap.carrier)
+      rows.push({
+        ...buildAssetSwapActivityTx(swap, carrier, [], { network, assetDisplay }),
+        historyKey: `swap:${swap.id}`,
+        ...(carrier?.txids.length ? { carrierMembers: carrier.txids.map((txid) => ({ txid, type: 'related' })) } : {}),
+      })
+    } catch {
+      continue
     }
   }
   // The sends history cannot see, from the store that can — see

@@ -37,6 +37,7 @@ import { hapticTap } from '../../lib/haptics'
 import { useTransactionAmountDisplay } from '../../hooks/useTransactionAmountDisplay'
 import { useLnSendReceipt } from '../../hooks/useLnSendReceipt'
 import TransactionAmountSummary from '../../components/TransactionAmountSummary'
+import { isCanonicalTxid } from '../../lib/carrierActivity'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,9 +57,9 @@ export default function Transaction() {
   const { assetMetadataCache, isVerifiedAsset, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } =
     useContext(WalletContext)
 
-  const liveSwap = txInfo?.assetSwap?.fundingTxid
-    ? swaps.find((swap) => swap.fundingTxid === txInfo.assetSwap?.fundingTxid)
-    : undefined
+  const stableSwap = txInfo?.assetSwap ? swaps.find((swap) => txInfo.historyKey === `swap:${swap.id}`) : undefined
+  const fundingTxid = txInfo?.assetSwap?.fundingTxid
+  const liveSwap = stableSwap ?? (fundingTxid ? swaps.find((swap) => swap.fundingTxid === fundingTxid) : undefined)
   const liveSwapStatus: SwapStatus | undefined = liveSwap
     ? liveSwap.status === 'fulfilled'
       ? 'completed'
@@ -77,6 +78,7 @@ export default function Transaction() {
           redeemTxid: liveSwap.spentTxid ?? txInfo.redeemTxid,
           assetSwap: {
             ...txInfo.assetSwap,
+            fundingTxid: liveSwap.fundingTxid,
             status: liveSwapStatus,
             fillTxid: liveSwap.spentTxid,
           },
@@ -235,6 +237,7 @@ export default function Transaction() {
         fees: 0,
         fundedTxid: tx.assetSwap?.fundingTxid,
         priceRate: swapPriceRateLabel(tx),
+        relatedTxids: tx.carrierMembers?.map(({ txid }) => txid),
         spendLabel: tx.assetSwap?.status === 'cancelled' ? 'Cancelled' : 'Completed',
         spendTxid: tx.assetSwap?.fillTxid,
         status: swapStatusLabel(tx),
@@ -280,7 +283,11 @@ export default function Transaction() {
   const swapToIcon = tx.assetSwap?.toAssetId
     ? assetMetadataCache.get(tx.assetSwap.toAssetId)?.metadata?.icon
     : undefined
-  const showCancelSwap = swapTx && liveSwap && (liveSwap.status === 'pending' || liveSwap.status === 'cancelling')
+  const showCancelSwap =
+    swapTx &&
+    liveSwap &&
+    isCanonicalTxid(liveSwap.fundingTxid) &&
+    (liveSwap.status === 'pending' || liveSwap.status === 'cancelling')
   const visibleError = cancelFailed && !showCancelSwap ? '' : error
 
   const Body = () => (

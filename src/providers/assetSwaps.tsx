@@ -47,6 +47,7 @@ import { discoverMarkets } from '../lib/swapMarkets'
 import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
 import { consoleError } from '../lib/logs'
 import { toast } from '../components/Toast'
+import { isCanonicalTxid } from '../lib/carrierActivity'
 
 /** The deposit as the indexer or the contract manager reports it: its outpoint,
  * and the txids that spent it. `spentBy` is the checkpoint and `arkTxId` the
@@ -376,6 +377,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     if (!svcWallet) throw new Error('wallet not available')
     const swap = (await readSwaps()).find((s) => s.id === id)
     if (!swap) throw new Error('swap not found')
+    if (!isCanonicalTxid(swap.fundingTxid)) throw new Error('swap funding transaction unavailable')
     // leave 'pending' before spending so the watcher can't read the cancel
     // spend as a fulfillment (cancelOffer writes the same status through the
     // repository; this one is what the UI sees immediately)

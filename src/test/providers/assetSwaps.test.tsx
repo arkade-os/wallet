@@ -77,9 +77,10 @@ const asp = { network: '', url: 'https://ark.test', signerPubkey: SIGNER_PUBKEY 
 
 const FILL_TXID = 'fill-txid'
 const CHECKPOINT_TXID = 'checkpoint-txid'
+const FUNDING_TXID = '1'.repeat(64)
 
 const pendingSwap: WalletAssetSwap = {
-  id: 'funding-txid',
+  id: FUNDING_TXID,
   fromAsset: 'btc',
   toAsset: 'asset-beta',
   fromAmount: '10000',
@@ -87,7 +88,7 @@ const pendingSwap: WalletAssetSwap = {
   swapAddress: 'tark1q...',
   swapPkScript: `5120${'ab'.repeat(32)}`,
   offerHex: '0100',
-  fundingTxid: 'funding-txid',
+  fundingTxid: FUNDING_TXID,
   status: 'pending',
   createdAt: 1,
 }
@@ -306,6 +307,20 @@ describe('AssetSwapsProvider cancellation', () => {
     // the repository rides along so the package can record its own outcome
     expect(cancelOffer.mock.calls[0][3]).toMatchObject({ repository, fundingTxid: pendingSwap.fundingTxid })
     expect(reloadWallet).toHaveBeenCalledOnce()
+  })
+
+  it('rejects an unfunded cancellation before mutation or network access', async () => {
+    await repository.clear()
+    await addAssetSwap(repository, { ...pendingSwap, fundingTxid: '' })
+    const reloadWallet = renderProvider()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('pending'))
+    expect((await getAssetSwaps(repository))[0].status).toBe('pending')
+    expect(cancelOffer).not.toHaveBeenCalled()
+    expect(getVtxos).not.toHaveBeenCalled()
+    expect(reloadWallet).not.toHaveBeenCalled()
   })
 
   it('does not restore a stale status after another path resolves the cancellation', async () => {

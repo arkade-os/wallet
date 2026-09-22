@@ -80,10 +80,12 @@ const enumField = <T extends string>(value: unknown, allowed: readonly string[],
 
 const TXID = /^[0-9a-f]{64}$/
 
+export const isCanonicalTxid = (value: unknown): value is string => typeof value === 'string' && TXID.test(value)
+
 const txidList = (value: unknown): string[] => {
   if (!Array.isArray(value)) throw new CarrierMetadataError('txids')
   return value.map((txid, index) => {
-    if (typeof txid !== 'string' || !TXID.test(txid)) throw new CarrierMetadataError(`txids[${index}]`)
+    if (!isCanonicalTxid(txid)) throw new CarrierMetadataError(`txids[${index}]`)
     return txid
   })
 }
