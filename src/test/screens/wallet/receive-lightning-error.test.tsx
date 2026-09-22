@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, beforeAll } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { FlowContext } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import { AspContext } from '../../../providers/asp'
@@ -59,6 +59,14 @@ beforeAll(() => {
 })
 
 const track = vi.fn()
+const setRecvInfo = vi.fn()
+const copyToClipboard = vi.fn()
+const shareData = vi.fn()
+vi.mock('../../../lib/clipboard', () => ({ copyToClipboard: (...args: unknown[]) => copyToClipboard(...args) }))
+vi.mock('../../../lib/share', () => ({
+  canBrowserShareData: () => true,
+  shareData: (...args: unknown[]) => shareData(...args),
+}))
 
 const tree = (satoshis: number) => (
   <ToastProvider>
@@ -79,6 +87,7 @@ const tree = (satoshis: number) => (
                 value={
                   {
                     ...mockFlowContextValue,
+                    setRecvInfo,
                     recvInfo: {
                       ...mockFlowContextValue.recvInfo,
                       satoshis,
@@ -106,7 +115,10 @@ const tree = (satoshis: number) => (
 
 const renderWithTrack = (satoshis = 10_000) => render(tree(satoshis))
 
-beforeEach(() => track.mockReset())
+beforeEach(() => {
+  track.mockReset()
+  setRecvInfo.mockClear()
+})
 
 describe('Receive screen, Lightning failures', () => {
   it('names the other tab when the receive manager is held elsewhere', async () => {
@@ -152,5 +164,71 @@ describe('Receive screen, Lightning failures', () => {
     // The pre-existing branch, asserted so the new one cannot swallow it.
     expect(await screen.findByText(/Lightning unavailable: No Lightning solver available/)).toBeInTheDocument()
     expect(screen.queryByText(/Another tab/)).not.toBeInTheDocument()
+  })
+})
+
+describe('Receive screen, invoice generation', () => {
+  it('blocks every copy/share path while pending and restores them immediately when ready', async () => {
+    let finish!: () => void
+    track.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve
+        }),
+    )
+    copyToClipboard.mockClear()
+    shareData.mockClear()
+    renderWithTrack()
+
+    await waitFor(() => expect(track).toHaveBeenCalled())
+    expect(screen.getByRole('status')).toHaveTextContent('Generating invoice…')
+    expect(screen.getByText('Requesting 10,000 sats')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Copy QR code' })).not.toBeInTheDocument()
+    const copy = screen.getByRole('button', { name: 'Copy' })
+    const share = screen.getByRole('button', { name: 'Share' })
+    expect(copy).toBeDisabled()
+    expect(share).toBeDisabled()
+    fireEvent.click(copy)
+    fireEvent.click(share)
+    fireEvent.click(screen.getByLabelText('Copy QR code'))
+    expect(copyToClipboard).not.toHaveBeenCalled()
+    expect(shareData).not.toHaveBeenCalled()
+
+    await act(async () => finish())
+    expect(screen.getByText('Requesting 10,000 sats')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled()
+    expect(copy).toBeEnabled()
+    expect(share).toBeEnabled()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('restores other receiving methods when generation fails', async () => {
+    track.mockRejectedValue(new Error('Solver timed out'))
+    renderWithTrack()
+    expect(await screen.findByText(/Lightning unavailable: Solver timed out/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Share' })).toBeEnabled()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('clearing the amount during generation immediately restores the QR', async () => {
+    let finish!: () => void
+    track.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve
+        }),
+    )
+    const { rerender } = renderWithTrack()
+    await waitFor(() => expect(track).toHaveBeenCalled())
+    rerender(tree(0))
+    expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Share' })).toBeEnabled()
+    await act(async () => finish())
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(setRecvInfo).not.toHaveBeenCalled()
+    expect(screen.queryByText(/Requesting/)).not.toBeInTheDocument()
   })
 })
