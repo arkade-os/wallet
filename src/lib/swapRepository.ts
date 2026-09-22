@@ -17,6 +17,7 @@
  * release means rolling back the data, not just the bundle.
  */
 import { IndexedDbAssetSwapRepository, type AssetSwap } from '@arkade-os/swap'
+import type { CarrierActivity } from './carrierActivity'
 
 /** Shared per tab: the repository opens its database lazily on first use, and
  * a second instance would open a second connection to the same stores. */
@@ -38,7 +39,9 @@ export interface AssetSwapQuoteSnapshot {
   fromFiatAmount?: number
 }
 
-/** The package's record plus the quote snapshot it deliberately does not own.
- * The repository stores records whole, so `quote` survives package-side writes
- * (`cancelOffer`, the watcher) untouched. */
-export type WalletAssetSwap = AssetSwap & { quote?: AssetSwapQuoteSnapshot }
+/** The package's record plus the quote snapshot it deliberately does not own,
+ * and the optional carrier descriptor. Records are stored whole, so both survive
+ * package-side writes (`cancelOffer`, the watcher). `carrier` is typed as the
+ * parsed descriptor but arrives as raw store JSON: read it only through
+ * `readCarrierActivity`. */
+export type WalletAssetSwap = AssetSwap & { quote?: AssetSwapQuoteSnapshot; carrier?: CarrierActivity }

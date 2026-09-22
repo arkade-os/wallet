@@ -26,6 +26,7 @@ import {
 } from '../lib/swapDisplay'
 import UnverifiedBadge from './UnverifiedBadge'
 import { useTransactionAmountDisplay } from '../hooks/useTransactionAmountDisplay'
+import { hasTaxiCarrier } from '../lib/carrierActivity'
 
 const border = '1px solid color-mix(in srgb, var(--fg) 6%, transparent)'
 
@@ -125,7 +126,13 @@ const TransactionLine = ({
   const Kind = () => <span className='activity-row__kind'>{kind}</span>
 
   const swapRoute = swap ? swapRouteLabel(tx) : ''
-  const When = () => <span className='activity-row__meta'>{swapRoute ? `${swapRoute} · ${date}` : date}</span>
+  // the original action stays the row's name; Taxi is only how it was carried
+  const taxi = hasTaxiCarrier(tx.carrier)
+  const When = () => (
+    <span className='activity-row__meta'>
+      {[swapRoute, date, taxi ? 'Taxi powered' : undefined].filter(Boolean).join(' · ')}
+    </span>
+  )
 
   const RawAmounts = () => {
     const configured = amountDisplay?.configured

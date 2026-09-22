@@ -49,10 +49,12 @@ import {
   type SwapActivityInput,
 } from '@arkade-os/swap'
 import { consoleError } from './logs'
+import { readCarrierActivity, type CarrierActivity } from './carrierActivity'
 import { assetSwapRepository } from './swapRepository'
 
 const FUNDING_TXID = 'funding_txid'
 const SPEND_TXID = 'spend_txid'
+const CARRIER = 'carrier'
 
 /** What the quote knew and nothing afterwards can give back. All public:
  * `secrets` is a descriptor for recovering the sender key, never key material —
@@ -242,6 +244,10 @@ export interface LnSendView {
   rfqId: string
   fundingTxid: string
   state: RfqSwapRecord['state']
+  /** The record's optional carrier projection, when well formed. */
+  carrier?: CarrierActivity
+  /** The record's own tx lineage, for a send history cannot see. */
+  members?: { txid: string; type: string }[]
   /** Sats the lockup was funded with. The record is the only place this
    * survives for a send Arkade's own history cannot see — see
    * `ungroupedLnSendTx` in `activityHistory.ts`. */
@@ -256,10 +262,16 @@ export interface LnSendView {
 const viewOf = (record: RfqSwapRecord): LnSendView | undefined => {
   const fundingTxid = fundingTxidOf(record)
   if (!fundingTxid) return undefined
+  // `profile` survives the manager's writes, so the caller's own keys live
+  // there — this file's `spend_txid`, and the carrier projection
+  const carrier = readCarrierActivity(record.profile[CARRIER])
+  const members = (carrier?.txids ?? []).map((txid) => ({ txid, type: 'carrier' }))
   return {
     rfqId: record.rfqId,
     fundingTxid,
     state: record.state,
+    ...(carrier ? { carrier: { ...carrier, txids: [fundingTxid, ...carrier.txids] } } : {}),
+    ...(members.length ? { members } : {}),
     amount: record.amount ?? 0,
     createdAt: record.createdAt,
     spendTxid: spendTxidOf(record),

@@ -1,5 +1,6 @@
 import type { ActivityResolver } from '@arkade-os/sdk'
 import { getAssetSwaps } from '@arkade-os/swap'
+import { readCarrierActivity } from '../carrierActivity'
 import { assetSwapRepository, type WalletAssetSwap } from '../swapRepository'
 import { txidOfArkTransaction } from '../transactionHistory'
 
@@ -12,25 +13,36 @@ const readSwaps = async (): Promise<WalletAssetSwap[]> =>
 /** Correlation only: which txids belong to `swap:<id>`. Display facts are
  * derived in `activitiesToTxs` from the live record, so nothing here needs to
  * survive past the group id. */
-export const assetSwapResolver = (read = readSwaps): ActivityResolver => {
-  let byTxid = new Map<string, string>()
+export const assetSwapResolver = (read: () => Promise<WalletAssetSwap[]> = () => readSwaps()): ActivityResolver => {
+  let byTxid = new Map<string, WalletAssetSwap>()
   return {
     id: ASSET_SWAP_RESOLVER_ID,
     async prepare() {
       // re-read on every history load: the restore scan writes its records
       // after the first one, and an index cached at construction would leave
       // those swaps ungrouped until the next reconnect
-      const next = new Map<string, string>()
+      const next = new Map<string, WalletAssetSwap>()
       for (const swap of await read()) {
-        next.set(swap.fundingTxid, swap.id)
-        if (swap.spentTxid) next.set(swap.spentTxid, swap.id)
+        next.set(swap.fundingTxid, swap)
+        if (swap.spentTxid) next.set(swap.spentTxid, swap)
+        // only this record's own verified txids, and they join the SAME group,
+        // so a claim or recovery enriches the swap instead of adding a row
+        for (const txid of readCarrierActivity(swap.carrier)?.txids ?? []) next.set(txid, swap)
       }
       byTxid = next
     },
     resolve(tx) {
-      const swapId = byTxid.get(txidOfArkTransaction(tx))
-      if (!swapId) return undefined
-      return [{ groupId: `swap:${swapId}`, kind: ASSET_SWAP_ACTIVITY_KIND, label: 'Swap', metadata: { swapId } }]
+      const swap = byTxid.get(txidOfArkTransaction(tx))
+      if (!swap) return undefined
+      const carrier = readCarrierActivity(swap.carrier)
+      return [
+        {
+          groupId: `swap:${swap.id}`,
+          kind: ASSET_SWAP_ACTIVITY_KIND,
+          label: 'Swap',
+          metadata: { swapId: swap.id, ...(carrier ? { carrier } : {}) },
+        },
+      ]
     },
   }
 }

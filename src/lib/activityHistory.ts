@@ -1,6 +1,7 @@
 import type { Activity } from '@arkade-os/sdk'
 import { isRfqSwapTerminal } from '@arkade-os/swap'
 import { ASSET_SWAP_ACTIVITY_KIND } from './activity/assetSwapResolver'
+import { readCarrierActivity, type CarrierActivity } from './carrierActivity'
 import { consoleError } from './logs'
 import type { TransactionActivityMetadata } from './storage'
 import { buildAssetSwapActivityTx } from './swapDisplay'
@@ -12,7 +13,7 @@ import type { Tx } from './types'
 
 export interface ActivityHistoryOptions {
   /** Live records — the resolver only correlated txids to swap ids. */
-  swaps: WalletAssetSwap[]
+  swaps: (WalletAssetSwap & { carrier?: CarrierActivity })[]
   /** The Lightning sends, as stored. `RfqSwapManager` owns their state; this
    * is the read side of it, and the only source of a row's outcome detail and
    * of the receipt's second txid — and, for a send Arkade's history does not
@@ -45,6 +46,30 @@ const graftMetadata = (tx: Tx, metadata?: TransactionActivityMetadata): Tx =>
         networkFee: metadata.networkFee ?? tx.networkFee,
       }
     : tx
+
+/** The descriptor a resolver put on the group, if well formed. */
+const carrierOf = (activity: Activity): CarrierActivity | undefined =>
+  readCarrierActivity(activity.intent?.metadata?.carrier)
+
+/** The carrier a row may show.
+ *
+ * Group metadata is the locally resolved descriptor and the only source when
+ * there is no persisted record — a standalone Taxi transfer on the LN or plain
+ * corridors has none, and must still be annotated. A swap record, when there is
+ * one, is authoritative: it is what the wallet persisted for this operation, so
+ * its descriptor decides, and one it cannot parse drops the carrier rather than
+ * being rescued by whatever the group happened to carry.
+ */
+const carrierFor = (resolved: CarrierActivity | undefined, persisted: unknown): CarrierActivity | undefined =>
+  persisted === undefined ? resolved : readCarrierActivity(persisted)
+
+/** Raw members, oldest-first: the chain survives when the `Tx` fields can name
+ *  only one of them. Evidence, not new rows. */
+const membersOf = (activity: Activity): { txid: string; type: string }[] =>
+  // the SDK's own member sort, not plain chronological order
+  [...activity.txs]
+    .sort((a, b) => a.createdAt - b.createdAt)
+    .map((tx) => ({ txid: txidOfArkTransaction(tx), type: String(tx.type).toLowerCase() }))
 
 const swapIdOf = (activity: Activity): string | undefined =>
   activity.intent?.kind === ASSET_SWAP_ACTIVITY_KIND
@@ -83,9 +108,11 @@ const lightningSendTx = (
   const fundingTxid = txidOfArkTransaction(funding)
   const base = arkTransactionToTx(funding, metadata[fundingTxid])
   const record = lnSends.find((view) => view.fundingTxid === fundingTxid)
+  const carrier = carrierOf(activity)
   return {
     ...base,
     amount: Math.abs(activity.amount),
+    ...(carrier ? { carrier, carrierMembers: membersOf(activity) } : {}),
     // Signed by the net, not by the funding leg: a refund larger than the
     // funding is not a thing this corridor can produce, but reading the
     // direction off the number is what keeps the row honest if it ever were.
@@ -127,9 +154,11 @@ const lightningReceiveTx = (
   const claim = activity.txs.find((tx) => tx.type === 'RECEIVED')
   if (!claim) return undefined
   const claimTxid = txidOfArkTransaction(claim)
+  const carrier = carrierOf(activity)
   return {
     ...arkTransactionToTx(claim, metadata[claimTxid]),
     amount: Math.abs(activity.amount),
+    ...(carrier ? { carrier, carrierMembers: membersOf(activity) } : {}),
     type: activity.amount < 0 ? 'sent' : 'received',
     lnSwap: { label: activity.intent?.label, outcome: activity.intent?.outcome },
     historyKey: activity.id,
@@ -169,6 +198,7 @@ const ungroupedLnSendTx = (send: LnSendView, metadata: Record<string, Transactio
     {
       amount: send.amount,
       boardingTxid: '',
+      ...(send.carrier ? { carrier: send.carrier, carrierMembers: send.members } : {}),
       createdAt: send.createdAt,
       // Offchain: there is no on-chain transaction to open in an explorer.
       explorable: undefined,
@@ -265,14 +295,16 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
     const swap = swapId ? swaps.find((record) => record.id === swapId) : undefined
     if (swap) {
       const members = activity.txs.map((tx) => arkTransactionToTx(tx))
+      const carrier = carrierFor(carrierOf(activity), swap.carrier)
       // a grouped row takes its metadata from the tx the group is anchored on
       const funding = activity.txs.find((tx) => txidOfArkTransaction(tx) === swap.fundingTxid)
       rows.push({
         ...graftMetadata(
-          buildAssetSwapActivityTx(swap, members, { network, assetDisplay }),
+          buildAssetSwapActivityTx(swap, carrier, members, { network, assetDisplay }),
           funding && metadata[txidOfArkTransaction(funding)],
         ),
         historyKey: activity.id,
+        ...(carrier ? { carrierMembers: membersOf(activity) } : {}),
       })
       continue
     }
@@ -280,7 +312,13 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
     // keeps the row key unique
     for (const tx of activity.txs) {
       const txid = txidOfArkTransaction(tx)
-      rows.push({ ...arkTransactionToTx(tx, metadata[txid]), historyKey: `${activity.id}:${txid}` })
+      // no record: the group is the only source
+      const carrier = carrierFor(carrierOf(activity), undefined)
+      rows.push({
+        ...arkTransactionToTx(tx, metadata[txid]),
+        historyKey: `${activity.id}:${txid}`,
+        ...(carrier ? { carrier } : {}),
+      })
     }
   }
   // The sends history cannot see, from the store that can — see

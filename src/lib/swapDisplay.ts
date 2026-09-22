@@ -1,4 +1,12 @@
 import Decimal from 'decimal.js'
+import {
+  carrierBorrowedLabel,
+  carrierDeliveryLabel,
+  carrierPurchasedLiteralLabel,
+  carrierPurchasedReceiptLabel,
+  carrierServiceFareLabel,
+  type CarrierActivity,
+} from './carrierActivity'
 import { prettyCurrencyAssetAmount, prettyFiatAmount, prettyFiatHide, prettyHide, prettyNumber } from './format'
 import { designatedAccountCurrency, walletAccountTicker } from './accountAssets'
 import type { WalletAssetSwap } from './swapRepository'
@@ -214,11 +222,35 @@ interface AssetSwapActivityOptions {
   assetDisplay?: (assetId: string) => { ticker?: string; decimals?: number } | undefined
 }
 
+/** The carrier receipt rows. What the user BOUGHT is separated from what Taxi
+ *  LENT: a recycle buys only the receipt reserve, a purchase the whole carrier. */
+export interface CarrierReceiptRows {
+  carrierDelivery?: string
+  carrierFare?: string
+  carrierLoan?: string
+  carrierPurchased?: string
+}
+
+export const carrierDetails = (carrier: CarrierActivity | undefined): CarrierReceiptRows => {
+  if (!carrier) return {}
+  return {
+    carrierLoan: carrier.mode === 'recycle' ? carrierBorrowedLabel(carrier) : undefined,
+    carrierPurchased:
+      carrier.mode === 'recycle' ? carrierPurchasedReceiptLabel(carrier) : carrierPurchasedLiteralLabel(carrier),
+    carrierFare: carrierServiceFareLabel(carrier),
+    carrierDelivery: carrierDeliveryLabel(carrier),
+  }
+}
+
 /** The display row for one swap, from its record and the wallet rows that
  * funded and filled it. Facts are recomputed from the tx couple and asset
- * metadata where possible; the quote snapshot only fills what cannot be. */
+ * metadata where possible; the quote snapshot only fills what cannot be.
+ *
+ * The carrier arrives already parsed: the record's own JSON is a shape the
+ * store hands back, not a type this row may trust. */
 export const buildAssetSwapActivityTx = (
   swap: WalletAssetSwap,
+  carrier: CarrierActivity | undefined,
   members: Tx[],
   { network, assetDisplay }: AssetSwapActivityOptions = {},
 ): Tx => {
@@ -253,6 +285,7 @@ export const buildAssetSwapActivityTx = (
   return {
     amount: members[0]?.amount ?? 0,
     boardingTxid: '',
+    ...(carrier ? { carrier } : {}),
     createdAt: Math.floor(swap.createdAt / 1000),
     explorable: undefined,
     preconfirmed: status === 'pending',

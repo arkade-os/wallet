@@ -16,7 +16,7 @@ import HashIcon from '../icons/Hash'
 import InfoIcon from '../icons/Info'
 import ArrowUpDownIcon from '../icons/ArrowUpDown'
 import { Wallet } from '../lib/types'
-import { SwapDisplayAmount } from '../lib/swapDisplay'
+import { SwapDisplayAmount, type CarrierReceiptRows } from '../lib/swapDisplay'
 import type { TransactionAmountDisplay } from '../lib/transactionAmountDisplay'
 import {
   openInNewTab,
@@ -33,6 +33,7 @@ export interface DetailsProps {
   assetIds?: { assetId: string; label: string }[]
   assetTotals?: (SwapDisplayAmount & { label: string })[]
   amountDisplay?: TransactionAmountDisplay
+  carrier?: CarrierReceiptRows
   date?: string
   destination?: string
   direction?: string
@@ -69,6 +70,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     assetIds,
     assetTotals,
     amountDisplay,
+    carrier,
     date,
     direction,
     destination,
@@ -189,6 +191,10 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     ['Price rate', priceRate, <ArrowUpDownIcon key='price-rate-icon' />],
     ['Network fees', fees === undefined ? undefined : formatAmount(fees), <FeesIcon key='fees-icon' />],
     ['Swap fees', formatSensitiveDetail(swapFees), <FeesIcon key='swap-fees-icon' />],
+    ['Carrier sats', carrier?.carrierLoan, <AmountIcon key='carrier-loan-icon' />],
+    ['Purchased sats', carrier?.carrierPurchased, <AmountIcon key='carrier-purchased-icon' />],
+    ['Taxi service fee', carrier?.carrierFare, <FeesIcon key='carrier-fare-icon' />],
+    ['Delivery', carrier?.carrierDelivery, <StatusIcon key='carrier-delivery-icon' />],
     ...assetTotalRows,
     ['Total', formatAmount(total), <TotalIcon key='total-icon' />],
   ]

@@ -166,7 +166,7 @@ describe('buildAssetSwapActivityTx', () => {
     })
     const fillAmount = BigInt(54_321)
 
-    const activity = buildAssetSwapActivityTx(fulfilled, [
+    const activity = buildAssetSwapActivityTx(fulfilled, undefined, [
       tx('funding-txid'),
       tx('fill-txid', [{ assetId: fulfilled.toAsset, amount: fillAmount }]),
     ])
@@ -189,14 +189,14 @@ describe('buildAssetSwapActivityTx', () => {
 
   it('labels older Mutinynet swap records from their designated asset IDs', () => {
     const legacySwap = { ...swap('funding-txid'), toAsset: MUTINYNET_USDT_ASSET_ID }
-    const activity = buildAssetSwapActivityTx(legacySwap, [], { network: 'mutinynet' })
+    const activity = buildAssetSwapActivityTx(legacySwap, undefined, [], { network: 'mutinynet' })
 
     expect(activity.assetSwap).toMatchObject({ fromTicker: 'sats', toTicker: 'USD' })
   })
 
   it('prefers the currency designation over the asset metadata ticker', () => {
     const restoredSwap = { ...swap('funding-txid'), toAsset: MUTINYNET_USDT_ASSET_ID }
-    const activity = buildAssetSwapActivityTx(restoredSwap, [], {
+    const activity = buildAssetSwapActivityTx(restoredSwap, undefined, [], {
       network: 'mutinynet',
       assetDisplay: () => ({ ticker: 'USDT', decimals: 2 }),
     })
@@ -208,7 +208,7 @@ describe('buildAssetSwapActivityTx', () => {
     // the package's AssetSwapStatus covers corridors an offer swap never uses
     const claimable = { ...swap('funding-txid'), status: 'claimable' as const }
 
-    expect(buildAssetSwapActivityTx(claimable, []).assetSwap).toMatchObject({ status: 'pending' })
+    expect(buildAssetSwapActivityTx(claimable, undefined, []).assetSwap).toMatchObject({ status: 'pending' })
   })
 })
 

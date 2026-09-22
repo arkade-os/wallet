@@ -24,6 +24,7 @@ import { LimitsContext } from '../../providers/limits'
 import { getInputsToSettle } from '../../lib/asp'
 import SwapTransactionSummary from '../../components/SwapTransactionSummary'
 import {
+  carrierDetails,
   formatSwapAssetAmount,
   swapAmountBeforeFee,
   swapFeeAmount,
@@ -223,11 +224,13 @@ export default function Transaction() {
       : undefined,
   ].filter((entry): entry is { assetId: string; label: string } => Boolean(entry))
   const swapReceived = swapTx ? formatSwapAssetAmount(tx, 'to') : undefined
+  const carrierDetailsProps = carrierDetails(tx?.carrier)
 
   const details: DetailsProps = swapTx
     ? {
         assetIds: swapAssetIds,
         assetTotals: swapReceived ? [{ ...swapReceived, label: 'Total received' }] : undefined,
+        carrier: carrierDetailsProps,
         date,
         fees: 0,
         fundedTxid: tx.assetSwap?.fundingTxid,
@@ -246,6 +249,7 @@ export default function Transaction() {
         amountDisplay,
         assetIds,
         assetTotals,
+        carrier: carrierDetailsProps,
         date,
         destination: tx.type === 'sent' && !boardingTx && !issuanceTx && !burnTx ? tx.destination : undefined,
         fees,

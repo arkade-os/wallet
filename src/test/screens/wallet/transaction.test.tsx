@@ -23,6 +23,7 @@ import { NavigationContext } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { Currencies } from '../../../lib/types'
+import type { CarrierActivity } from '../../../lib/carrierActivity'
 import { AssetsContext } from '../../../providers/assets'
 import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
 import { AssetSwapsContext } from '../../../providers/assetSwaps'
@@ -580,6 +581,127 @@ describe('Transaction screen', () => {
     // bare percentage — 67.89 BET received net of a 0.30% fee is a 0.204 BET fee
     expect(screen.getByTestId('Swap fees')).toHaveTextContent('0.204 BET')
     expect(screen.getByTestId('Total received')).toHaveTextContent('67.89 BET')
+  })
+
+  it('discloses bought vs borrowed sats on a recycle receipt, and the fare apart', () => {
+    const recycle: CarrierActivity = {
+      version: 1,
+      mode: 'recycle',
+      physicalSats: '330',
+      loanSats: '329',
+      purchasedSats: '1',
+      receiptSats: '1',
+      serviceFareSats: '0',
+      taxi: { transferId: 'advance-1' },
+      state: 'claimable',
+      txids: ['3'.repeat(64)],
+    } as const
+    const swapTxInfo = {
+      ...mockTxInfo,
+      amount: 0,
+      boardingTxid: '',
+      assetSwap: {
+        fromAmount: BigInt(12_345),
+        fromAssetId: 'asset-alpha',
+        fromDecimals: 2,
+        fromTicker: 'ALP',
+        toAmount: BigInt(67_890),
+        toAssetId: 'asset-beta',
+        toDecimals: 3,
+        toTicker: 'BET',
+        status: 'completed' as const,
+        fundingTxid: 'funding-txid',
+        fillTxid: 'fill-txid',
+      },
+      carrier: recycle,
+      roundTxid: 'fill-txid',
+      settled: true,
+      type: 'swap',
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <AspContext.Provider value={mockAspContextValue}>
+              <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: swapTxInfo }}>
+                <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [swapTxInfo] }}>
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <Transaction />
+                  </LimitsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </AspContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    // 329 borrowed is never shown as bought; the 1 bought is the reserve
+    expect(screen.getByTestId('Carrier sats')).toHaveTextContent('Borrowed 329 sats')
+    expect(screen.getByTestId('Purchased sats')).toHaveTextContent('1 sat (receipt reserve)')
+    expect(screen.getByTestId('Taxi service fee')).toHaveTextContent('0 sats')
+    expect(screen.getByTestId('Delivery')).toHaveTextContent('Claimable')
+    // the original swap identity is untouched by any of this
+    expect(screen.getByTestId('Funded')).toHaveTextContent('funding-txid')
+  })
+
+  it('discloses a whole carrier purchase without claiming a loan', () => {
+    const purchase: CarrierActivity = {
+      version: 1,
+      mode: 'purchase',
+      physicalSats: '330',
+      loanSats: '0',
+      purchasedSats: '330',
+      receiptSats: '0',
+      serviceFareSats: '0',
+      state: 'claimed',
+      txids: ['4'.repeat(64)],
+    } as const
+    const swapTxInfo = {
+      ...mockTxInfo,
+      amount: 0,
+      boardingTxid: '',
+      assetSwap: {
+        fromAmount: BigInt(12_345),
+        fromAssetId: 'asset-alpha',
+        fromDecimals: 2,
+        fromTicker: 'ALP',
+        toAmount: BigInt(67_890),
+        toAssetId: 'asset-beta',
+        toDecimals: 3,
+        toTicker: 'BET',
+        status: 'completed' as const,
+        fundingTxid: 'funding-txid',
+        fillTxid: 'fill-txid',
+      },
+      carrier: purchase,
+      roundTxid: 'fill-txid',
+      settled: true,
+      type: 'swap',
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <AspContext.Provider value={mockAspContextValue}>
+              <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: swapTxInfo }}>
+                <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [swapTxInfo] }}>
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <Transaction />
+                  </LimitsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </AspContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByTestId('Purchased sats')).toHaveTextContent('330 sats')
+    expect(screen.queryByTestId('Carrier sats')).not.toBeInTheDocument()
+    expect(screen.getByTestId('Delivery')).toHaveTextContent('Claimed')
   })
 
   it('shows a zero swap fee and reconciles it with the total received', () => {

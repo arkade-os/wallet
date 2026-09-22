@@ -2,6 +2,7 @@ import { beforeEach, describe, it, expect } from 'vitest'
 import { lnSwapLabel } from '../../lib/swapDisplay'
 import { createDefaultActivityRegistry, ServiceWorkerWallet, type Activity, type ArkTransaction } from '@arkade-os/sdk'
 import { activitiesToTxs, getActivities } from '../../lib/activityHistory'
+import { txidOfArkTransaction } from '../../lib/transactionHistory'
 import { swapActivityResolver } from '@arkade-os/swap'
 import { ASSET_SWAP_ACTIVITY_KIND, assetSwapResolver } from '../../lib/activity/assetSwapResolver'
 import { readAllTransactionActivityMetadata, saveTransactionActivityMetadata } from '../../lib/storage'
@@ -502,5 +503,225 @@ describe('unilateral exits', () => {
 
     expect(row.redeemTxid).toBe('exit-txid')
     expect(row.boardingTxid).toBe('')
+  })
+})
+
+describe('carrier metadata', () => {
+  const TXID = (byte: string) => byte.repeat(64)
+  /** The contract requires producer-verified 64-hex lineage. */
+  const FUNDING_TXID = TXID('1')
+  const FILL_TXID = TXID('2')
+  const CLAIM_TXID = TXID('3')
+  const RECOVERY_TXID = TXID('4')
+
+  const RECYCLE = {
+    version: 1,
+    mode: 'recycle',
+    physicalSats: '330',
+    loanSats: '329',
+    purchasedSats: '1',
+    receiptSats: '1',
+    serviceFareSats: '0',
+    taxi: { transferId: 'advance-1' },
+    state: 'claimable',
+    txids: [CLAIM_TXID, RECOVERY_TXID],
+  } as const
+
+  const PURCHASE = {
+    version: 1,
+    mode: 'purchase',
+    physicalSats: '330',
+    loanSats: '0',
+    purchasedSats: '330',
+    receiptSats: '0',
+    serviceFareSats: '0',
+    state: 'claimed',
+    txids: [FILL_TXID],
+  } as const
+
+  /** Raw JSON, as the store hands it back. */
+  const withCarrier = (record: WalletAssetSwap, carrier: unknown): WalletAssetSwap =>
+    ({ ...record, carrier }) as WalletAssetSwap
+
+  const funded = () => withCarrier(swap({ fundingTxid: FUNDING_TXID }), RECYCLE)
+  const filled = () => swap({ status: 'fulfilled', spentTxid: FILL_TXID, fundingTxid: FUNDING_TXID })
+
+  /** The real path: resolver -> SDK grouping -> rows. */
+  const historyOf = async (txs: ArkTransaction[], swaps: WalletAssetSwap[]) => {
+    const registry = createDefaultActivityRegistry()
+    registry.use(assetSwapResolver(async () => swaps))
+    const wallet = {
+      activity: registry,
+      getTransactionHistory: async () => txs,
+      getActivityHistory: ServiceWorkerWallet.prototype.getActivityHistory,
+    }
+    return await wallet.getActivityHistory()
+  }
+
+  const amountOf = (txs: ArkTransaction[]) => txs.reduce((sum, tx) => sum + tx.amount, 0)
+
+  /** Four distinct moments, so the member order is determined: the fixtures
+   *  otherwise share one clock and the order is the fetch's. */
+  const at = (index: number) => 1_700_000_000_000 + index * 5_000
+
+  it('collapses funding, fill, claim and recovery into the one original swap row', async () => {
+    const base = { ...funded(), spentTxid: FILL_TXID }
+    const history = [
+      arkTx(FUNDING_TXID, { type: 'SENT' as ArkTransaction['type'], amount: -10_000, createdAt: at(0) }),
+      arkTx(FILL_TXID, { amount: 10_000, assets: [{ assetId: base.toAsset, amount: BigInt(200) }], createdAt: at(1) }),
+      arkTx(CLAIM_TXID, { amount: 0, createdAt: at(2) }),
+      arkTx(RECOVERY_TXID, { amount: 0, createdAt: at(3) }),
+    ]
+    const lineage = { ...RECYCLE, txids: [FUNDING_TXID, CLAIM_TXID, RECOVERY_TXID] }
+    const record = withCarrier(base, lineage)
+    const group = activity('swap:swap-1', history, {
+      kind: ASSET_SWAP_ACTIVITY_KIND,
+      label: 'Swap',
+      metadata: { swapId: 'swap-1', carrier: RECYCLE },
+    })
+
+    const groups = await historyOf(history, [record])
+    const rows = activitiesToTxs([group], { ...empty, swaps: [record] })
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ type: 'swap', historyKey: 'swap:swap-1' })
+    // the row takes the record's descriptor, which holds the lineage
+    expect(rows[0].carrier).toMatchObject({ mode: 'recycle', loanSats: '329', purchasedSats: '1', taxi: RECYCLE.taxi })
+    expect(rows[0].carrier?.txids).toEqual(lineage.txids)
+    expect(rows[0].carrierMembers).toEqual([
+      // funding is this wallet's own outgoing leg
+      { txid: FUNDING_TXID, type: 'sent' },
+      { txid: FILL_TXID, type: 'received' },
+      { txid: CLAIM_TXID, type: 'received' },
+      { txid: RECOVERY_TXID, type: 'received' },
+    ])
+    // one economic activity
+    expect(rows[0].assetSwap).toMatchObject({ fromAmount: BigInt(10_000), toAmount: BigInt(200) })
+    expect(groups).toHaveLength(1)
+    expect(groups[0].txs).toHaveLength(4)
+    expect(groups[0].amount).toBe(amountOf(history))
+  })
+
+  it('keeps the original swap identity and the member raw txs when only the couple is in history', async () => {
+    const record = funded()
+    const group = activity('swap:swap-1', [arkTx(FUNDING_TXID), arkTx(FILL_TXID)], swapIntent('swap-1'))
+    group.intent!.metadata!.carrier = RECYCLE
+
+    const rows = activitiesToTxs([group], { ...empty, swaps: [record] })
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0].historyKey).toBe('swap:swap-1')
+    expect(rows[0].assetSwap?.fundingTxid).toBe(FUNDING_TXID)
+    expect(rows[0].carrier).toEqual(RECYCLE)
+    expect(rows[0].carrierMembers).toEqual([
+      { txid: FUNDING_TXID, type: 'received' },
+      { txid: FILL_TXID, type: 'received' },
+    ])
+  })
+
+  it('survives a JSON round trip, the way the record store hands it back', () => {
+    const record = withCarrier(funded(), JSON.parse(JSON.stringify(RECYCLE)))
+    const group = activity('swap:swap-1', [arkTx(FUNDING_TXID)], swapIntent('swap-1'))
+    group.intent!.metadata!.carrier = JSON.parse(JSON.stringify(RECYCLE))
+
+    const [row] = activitiesToTxs([group], { ...empty, swaps: [record] })
+
+    expect(row.carrier).toEqual(RECYCLE)
+  })
+
+  it('ignores malformed metadata and still renders the original swap', () => {
+    // broken equations, and a state that is not a state
+    const corrupt = withCarrier(funded(), { ...RECYCLE, loanSats: '328' })
+    const group = activity('swap:swap-1', [arkTx(FUNDING_TXID), arkTx(FILL_TXID)], swapIntent('swap-1'))
+    group.intent!.metadata!.carrier = { ...RECYCLE, state: 'nonsense' }
+
+    const rows = activitiesToTxs([group], { ...empty, swaps: [corrupt as WalletAssetSwap] })
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0].type).toBe('swap')
+    expect(rows[0].historyKey).toBe('swap:swap-1')
+    expect(rows[0].carrier).toBeUndefined()
+  })
+
+  it('still collapses the swap when there is no carrier at all', () => {
+    const record = filled()
+
+    const rows = activitiesToTxs(
+      [activity('swap:swap-1', [arkTx(FUNDING_TXID), arkTx(FILL_TXID)], swapIntent('swap-1'))],
+      { ...empty, swaps: [record] },
+    )
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0].carrier).toBeUndefined()
+    expect(rows[0].carrierMembers).toBeUndefined()
+  })
+
+  it('shows a direct solver purchase as bought, with no Taxi lineage', () => {
+    const record = withCarrier(swap({ fundingTxid: FUNDING_TXID }), PURCHASE)
+    const group = activity('swap:swap-1', [arkTx(FUNDING_TXID), arkTx(FILL_TXID)], swapIntent('swap-1'))
+    group.intent!.metadata!.carrier = PURCHASE
+
+    const [row] = activitiesToTxs([group], { ...empty, swaps: [record] })
+
+    expect(row.carrier).toMatchObject({ mode: 'purchase', purchasedSats: '330' })
+    expect(row.carrier?.taxi).toBeUndefined()
+  })
+
+  it('annotates a standalone Taxi activity that has no persisted swap record', () => {
+    // its own operation, and the group is the only descriptor it will have
+    const intent = {
+      kind: 'swap',
+      label: 'Lightning receive',
+      metadata: { rfqId: 'c'.repeat(64), swapKind: 'lightning_receive', carrier: RECYCLE },
+    }
+    const claim = arkTx(CLAIM_TXID, { amount: 10_000, createdAt: at(0) })
+    const group = { ...activity(`swap:${'c'.repeat(64)}`, [claim], intent), amount: 10_000 }
+
+    const [row] = activitiesToTxs([group], empty)
+
+    expect(row.lnSwap).toMatchObject({ label: 'Lightning receive' })
+    expect(row.carrier).toMatchObject({ mode: 'recycle', loanSats: '329', purchasedSats: '1' })
+    expect(row.carrier?.taxi).toEqual({ transferId: 'advance-1' })
+  })
+
+  it('drops a persisted descriptor it cannot read rather than taking the group copy', () => {
+    // the record is authoritative and is NOT rescued by the group's copy
+    const corrupt = withCarrier(funded(), { ...RECYCLE, loanSats: '0' })
+    const group = activity('swap:swap-1', [arkTx(FUNDING_TXID)], swapIntent('swap-1'))
+    group.intent!.metadata!.carrier = RECYCLE
+
+    const [row] = activitiesToTxs([group], { ...empty, swaps: [corrupt] })
+
+    expect(row.type).toBe('swap')
+    expect(row.carrier).toBeUndefined()
+  })
+
+  it('groups a recovery into the same swap without inventing a second row', async () => {
+    const base = { ...funded(), spentTxid: FILL_TXID }
+    const history = [
+      arkTx(FUNDING_TXID, { type: 'SENT' as ArkTransaction['type'], amount: -10_000, createdAt: at(0) }),
+      arkTx(FILL_TXID, { amount: 10_000, assets: [{ assetId: base.toAsset, amount: BigInt(200) }], createdAt: at(1) }),
+      arkTx(RECOVERY_TXID, { amount: 0, createdAt: at(2) }),
+    ]
+    const lineage = { ...RECYCLE, txids: [RECOVERY_TXID] }
+    const record = { ...base, carrier: lineage }
+    const group = activity('swap:swap-1', history, {
+      kind: ASSET_SWAP_ACTIVITY_KIND,
+      label: 'Swap',
+      metadata: { swapId: 'swap-1', carrier: lineage },
+    })
+
+    const groups = await historyOf(history, [record])
+    // recovery joins the SAME activity the resolver already grouped
+    const rows = activitiesToTxs([group], { ...empty, swaps: [record] })
+
+    // every member txid is in the one group
+    expect(groups.flatMap((group) => group.txs.map((tx) => txidOfArkTransaction(tx)))).toEqual([
+      FUNDING_TXID,
+      FILL_TXID,
+      RECOVERY_TXID,
+    ])
+    expect(groups).toHaveLength(1)
+    expect(rows.map((row) => row.historyKey)).toEqual(['swap:swap-1'])
   })
 })
