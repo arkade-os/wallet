@@ -9,6 +9,7 @@ import { readAllTransactionActivityMetadata, saveTransactionActivityMetadata } f
 import type { ExitRecord } from '../../lib/exitHistory'
 import type { LnSendView } from '../../lib/lnSendRecords'
 import type { WalletAssetSwap } from '../../lib/swapRepository'
+import type { ActivityEvidence } from '../../lib/activityEvidence'
 
 beforeEach(() => localStorage.clear())
 
@@ -504,6 +505,227 @@ describe('end to end through the SDK grouping', () => {
     ])
     expect(txs[2]).toMatchObject({ assetAction: 'issued', destination: 'tark1dest', networkFee: 42 })
     expect(txs[3]).toMatchObject({ assetSwap: { toAmount: BigInt(54_321), status: 'completed' } })
+  })
+
+  describe('batched asset-swap attribution', () => {
+    const FUNDING = '1'.repeat(64)
+    const FILL = '2'.repeat(64)
+    const CLAIM = '3'.repeat(64)
+    const ASSET = 'ab'.repeat(34)
+
+    const evidence = (
+      fundingSats: string,
+      fillSats: string,
+      fillAssets: string,
+      extra: ActivityEvidence['contributions'] = [],
+    ): ActivityEvidence => ({
+      version: 1,
+      contributions: [
+        { txid: FUNDING, direction: 'sent', sats: fundingSats, assets: [] },
+        {
+          txid: FILL,
+          direction: 'received',
+          sats: fillSats,
+          assets: [{ assetId: ASSET, amount: fillAssets }],
+        },
+        ...extra,
+      ],
+    })
+
+    const batchSwap = (id: string, activityEvidence: unknown, over: Partial<WalletAssetSwap> = {}) =>
+      swap({
+        id,
+        fromAsset: 'btc',
+        toAsset: ASSET,
+        fromAmount: '9999',
+        toAmount: '888',
+        fundingTxid: FUNDING,
+        spentTxid: FILL,
+        status: 'fulfilled',
+        activityEvidence: activityEvidence as ActivityEvidence,
+        ...over,
+      })
+
+    const funding = arkTx(FUNDING, { amount: -10_000, type: 'SENT' as ArkTransaction['type'], createdAt: 1_000 })
+    const fill = arkTx(FILL, {
+      amount: 500,
+      assets: [{ assetId: ASSET, amount: 700n }],
+      createdAt: 2_000,
+    })
+
+    it('projects two shared operations and each raw remainder exactly once through the SDK registry', async () => {
+      const records = [
+        batchSwap('one', evidence('3000', '100', '200')),
+        batchSwap('two', evidence('4000', '200', '300')),
+      ]
+      const groups = await activityHistoryOf([funding, fill], records)
+      const rows = activitiesToTxs(groups, { ...empty, swaps: records })
+      const one = rows.find((row) => row.historyKey === 'swap:one')
+      const two = rows.find((row) => row.historyKey === 'swap:two')
+      const residuals = rows.filter((row) => row.historyKey?.startsWith('arkade-wallet:asset-swap-residual:'))
+
+      expect(groups.filter((group) => group.intent?.kind === ASSET_SWAP_ACTIVITY_KIND)).toHaveLength(2)
+      expect(one).toMatchObject({ amount: 3000, assetSwap: { fromAmount: 3000n, toAmount: 200n } })
+      expect(two).toMatchObject({ amount: 4000, assetSwap: { fromAmount: 4000n, toAmount: 300n } })
+      expect(residuals).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ amount: 3000, type: 'sent' }),
+          expect.objectContaining({ amount: 200, type: 'received', assets: [{ assetId: ASSET, amount: 200n }] }),
+        ]),
+      )
+      expect(residuals).toHaveLength(2)
+    })
+
+    it('emits no raw economic row when distinct asset-only shares fully allocate a member', async () => {
+      const secondAsset = 'cd'.repeat(34)
+      const received = arkTx(FILL, {
+        amount: 0,
+        assets: [
+          { assetId: ASSET, amount: 20n },
+          { assetId: secondAsset, amount: 30n },
+        ],
+      })
+      const records = [
+        batchSwap('one', {
+          version: 1,
+          contributions: [{ txid: FILL, direction: 'received', sats: '0', assets: [{ assetId: ASSET, amount: '20' }] }],
+        }),
+        batchSwap(
+          'two',
+          {
+            version: 1,
+            contributions: [
+              { txid: FILL, direction: 'received', sats: '0', assets: [{ assetId: secondAsset, amount: '30' }] },
+            ],
+          },
+          { toAsset: secondAsset },
+        ),
+      ]
+      const groups = await activityHistoryOf([received], records)
+      const rows = activitiesToTxs(groups, { ...empty, swaps: records })
+
+      expect(rows.map((row) => [row.historyKey, row.assetSwap?.toAmount]).sort()).toEqual(
+        [
+          ['swap:one', 20n],
+          ['swap:two', 30n],
+        ].sort(),
+      )
+    })
+
+    it('is invariant to mixed grouped/raw order and repeated observations', async () => {
+      const records = [
+        batchSwap('one', evidence('3000', '100', '200')),
+        batchSwap('two', evidence('4000', '200', '300')),
+      ]
+      const groups = await activityHistoryOf([funding, fill, { ...fill }], records)
+      const raw = [activity('raw-funding', [funding, { ...funding }]), activity('raw-fill', [fill])]
+      const snapshots = [
+        activitiesToTxs([...groups, ...raw], { ...empty, swaps: records }),
+        activitiesToTxs([...raw, ...groups], { ...empty, swaps: records }),
+      ]
+
+      expect(snapshots[0]).toEqual(snapshots[1])
+      expect(snapshots[0].map((row) => row.historyKey).sort()).toEqual(
+        [
+          `arkade-wallet:asset-swap-residual:${FILL}:received`,
+          `arkade-wallet:asset-swap-residual:${FUNDING}:sent`,
+          'swap:one',
+          'swap:two',
+        ].sort(),
+      )
+    })
+
+    it('keeps same-hash sent and received allocations distinct', async () => {
+      const hash = '4'.repeat(64)
+      const sent = arkTx(hash, { amount: -1000, type: 'SENT' as ArkTransaction['type'], createdAt: 1_000 })
+      const received = arkTx(hash, {
+        amount: 100,
+        assets: [{ assetId: ASSET, amount: 50n }],
+        createdAt: 2_000,
+      })
+      const record = batchSwap(
+        'same-hash',
+        {
+          version: 1,
+          contributions: [
+            { txid: hash, direction: 'sent', sats: '600', assets: [] },
+            { txid: hash, direction: 'received', sats: '40', assets: [{ assetId: ASSET, amount: '20' }] },
+          ],
+        },
+        { fundingTxid: hash, spentTxid: hash },
+      )
+      const groups = await activityHistoryOf([sent, received], [record])
+      const rows = activitiesToTxs(groups, { ...empty, swaps: [record] })
+
+      expect(groups[0].amount).toBe(-600)
+      expect(rows.find((row) => row.historyKey === 'swap:same-hash')).toMatchObject({
+        amount: 600,
+        assetSwap: { fromAmount: 600n, toAmount: 20n },
+      })
+      expect(rows).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ amount: 400, type: 'sent' }),
+          expect.objectContaining({ amount: 60, type: 'received', assets: [{ assetId: ASSET, amount: 30n }] }),
+        ]),
+      )
+    })
+
+    it('does not turn merged holdings or a later claim into the received swap amount', async () => {
+      const claim = arkTx(CLAIM, {
+        amount: 0,
+        assets: [{ assetId: ASSET, amount: 5000n }],
+        createdAt: 3_000,
+      })
+      const record = batchSwap(
+        'one',
+        evidence('3000', '0', '200', [
+          { txid: CLAIM, direction: 'received', sats: '0', assets: [{ assetId: ASSET, amount: '200' }] },
+        ]),
+      )
+      const groups = await activityHistoryOf([funding, fill, claim], [record])
+      const rows = activitiesToTxs(groups, { ...empty, swaps: [record] })
+
+      expect(rows.find((row) => row.historyKey === 'swap:one')?.assetSwap?.toAmount).toBe(200n)
+      expect(rows.find((row) => row.historyKey?.endsWith(`${CLAIM}:received`))?.assets).toEqual([
+        { assetId: ASSET, amount: 4800n },
+      ])
+    })
+
+    it.each([
+      ['missing', undefined],
+      ['invalid', { version: 1, contributions: 'broken' }],
+      ['over-cap', evidence('10001', '0', '1')],
+    ])('keeps shared raw evidence and both synthetic intents when evidence is %s', async (_name, activityEvidence) => {
+      const records = [batchSwap('one', activityEvidence), batchSwap('two', activityEvidence)]
+      const groups = await activityHistoryOf([funding], records)
+      const rows = activitiesToTxs(groups, { ...empty, swaps: records })
+
+      expect(groups).toHaveLength(1)
+      expect(groups[0].intent).toBeUndefined()
+      expect(
+        rows
+          .filter((row) => row.type === 'swap')
+          .map((row) => row.historyKey)
+          .sort(),
+      ).toEqual(['swap:one', 'swap:two'])
+      expect(rows).toEqual(expect.arrayContaining([expect.objectContaining({ amount: 10_000, type: 'sent' })]))
+    })
+
+    it('lets valid local evidence allocate beside a malformed record without hiding the remainder', async () => {
+      const records = [
+        batchSwap('valid', evidence('3000', '100', '200')),
+        batchSwap('broken', {
+          version: 1,
+          contributions: [{ txid: FUNDING, direction: 'sent', sats: '00', assets: [] }],
+        }),
+      ]
+      const groups = await activityHistoryOf([funding, fill], records)
+      const rows = activitiesToTxs(groups, { ...empty, swaps: records })
+
+      expect(rows.find((row) => row.historyKey === 'swap:valid')).toMatchObject({ amount: 3000 })
+      expect(rows.find((row) => row.historyKey === 'swap:broken')).toMatchObject({ amount: 0 })
+      expect(rows).toEqual(expect.arrayContaining([expect.objectContaining({ amount: 7000, type: 'sent' })]))
+    })
   })
 })
 

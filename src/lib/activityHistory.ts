@@ -1,6 +1,7 @@
 import type { Activity, ArkTransaction } from '@arkade-os/sdk'
 import { isRfqSwapTerminal } from '@arkade-os/swap'
 import { ASSET_SWAP_ACTIVITY_KIND } from './activity/assetSwapResolver'
+import { allocateActivityEvidence } from './activityEvidence'
 import { readCarrierActivity, type CarrierActivity } from './carrierActivity'
 import { consoleError } from './logs'
 import type { TransactionActivityMetadata } from './storage'
@@ -295,7 +296,12 @@ const exitTx = (exit: ExitRecord): Tx => ({
 export const activitiesToTxs = (activities: Activity[], options: ActivityHistoryOptions): Tx[] => {
   const { swaps, metadata, network, assetDisplay, lnSends = [], rfqCarriers, exits = [] } = options
   const rows: Tx[] = []
-  const groupedAssetSwaps = new Set(activities.flatMap((activity) => swapIdOf(activity) ?? []))
+  const activityAllocation = allocateActivityEvidence(
+    swaps,
+    activities.flatMap((activity) => activity.txs),
+  )
+  const renderedAssetSwaps = new Set<string>()
+  const emittedRawMembers = new Set<string>()
   const swapByTxid = new Map<string, WalletAssetSwap | null>()
   const correlatedMembers = new Map<string, ArkTransaction[]>()
   for (const swap of swaps) {
@@ -306,6 +312,7 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
     } catch {
       continue
     }
+    if (activityAllocation.swap(swap.id)?.status !== 'missing') continue
     const carrier = readCarrierActivity(swap.carrier)
     for (const txid of [swap.fundingTxid, swap.spentTxid, ...(carrier?.txids ?? [])].filter((id): id is string =>
       Boolean(id),
@@ -347,7 +354,14 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
     }
     const swapId = swapIdOf(activity)
     const swap = swapId ? swaps.find((record) => record.id === swapId) : undefined
-    if (swap) {
+    const swapAllocation = swap ? activityAllocation.swap(swap.id) : undefined
+    const hasVerifiedMembership = Boolean(
+      swap &&
+        activity.txs.some((tx) =>
+          activityAllocation.member(tx)?.allocations.some((allocation) => allocation.swapId === swap.id),
+        ),
+    )
+    if (swap && (swapAllocation?.status === 'missing' || hasVerifiedMembership)) {
       try {
         const rawMembers = mergeArkTransactionMembers(activity.txs, correlatedMembers.get(swap.id) ?? [])
         const members = rawMembers.map((tx) => arkTransactionToTx(tx))
@@ -356,7 +370,11 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
         const funding = rawMembers.find((tx) => txidOfArkTransaction(tx) === swap.fundingTxid)
         rows.push({
           ...graftMetadata(
-            buildAssetSwapActivityTx(swap, carrier, members, { network, assetDisplay }),
+            buildAssetSwapActivityTx(swap, carrier, members, {
+              network,
+              assetDisplay,
+              allocation: swapAllocation,
+            }),
             funding && metadata[txidOfArkTransaction(funding)],
           ),
           historyKey: activity.id,
@@ -369,6 +387,7 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
               }
             : {}),
         })
+        renderedAssetSwaps.add(swap.id)
         continue
       } catch {}
     }
@@ -376,6 +395,9 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
     // keeps the row key unique
     for (const tx of activity.txs) {
       const txid = txidOfArkTransaction(tx)
+      const memberKey = `${txid}:${String(tx.type).toLowerCase()}`
+      if (activityAllocation.member(tx)?.allocations.length) continue
+      if (emittedRawMembers.has(memberKey)) continue
       const correlatedSwap = swapId ? undefined : swapByTxid.get(txid)
       if (correlatedSwap) {
         correlatedMembers.set(
@@ -384,6 +406,7 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
         )
         continue
       }
+      emittedRawMembers.add(memberKey)
       const carrier = swapKind ? carrierForRfq(activity, rfqCarriers) : undefined
       rows.push({
         ...arkTransactionToTx(tx, metadata[txid]),
@@ -393,7 +416,7 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
     }
   }
   for (const swap of swaps) {
-    if (!swap.id || !swap.offerHex || groupedAssetSwaps.has(swap.id)) continue
+    if (!swap.id || !swap.offerHex || renderedAssetSwaps.has(swap.id)) continue
     try {
       const carrier = readCarrierActivity(swap.carrier)
       const rawMembers = [...(correlatedMembers.get(swap.id) ?? [])].sort((a, b) => a.createdAt - b.createdAt)
@@ -401,7 +424,11 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
       const funding = rawMembers.find((tx) => txidOfArkTransaction(tx) === swap.fundingTxid)
       rows.push({
         ...graftMetadata(
-          buildAssetSwapActivityTx(swap, carrier, members, { network, assetDisplay }),
+          buildAssetSwapActivityTx(swap, carrier, members, {
+            network,
+            assetDisplay,
+            allocation: activityAllocation.swap(swap.id),
+          }),
           funding && metadata[txidOfArkTransaction(funding)],
         ),
         historyKey: `swap:${swap.id}`,
@@ -417,6 +444,16 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
     } catch {
       continue
     }
+  }
+  for (const member of activityAllocation.members()) {
+    if (!member.allocations.length || (member.remainderSats === 0n && member.remainderAssets.length === 0)) continue
+    const row = arkTransactionToTx(member.tx, metadata[member.txid])
+    rows.push({
+      ...row,
+      amount: Number(member.remainderSats),
+      assets: member.remainderAssets.length ? member.remainderAssets : undefined,
+      historyKey: `arkade-wallet:asset-swap-residual:${member.txid}:${member.direction}`,
+    })
   }
   // The sends history cannot see, from the store that can — see
   // `ungroupedLnSendTx`. Keyed on the rfq id rather than the funding txid: that
