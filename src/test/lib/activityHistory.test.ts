@@ -156,6 +156,73 @@ describe('activitiesToTxs', () => {
     expect(rows.map((row) => row.historyKey).sort()).toEqual(['swap:intent-1', 'swap:intent-2'])
   })
 
+  it('coalesces uniquely correlated raw funding and carrier members before resolver grouping', () => {
+    const fundingTxid = '1'.repeat(64)
+    const claimTxid = '2'.repeat(64)
+    const carrier: NonNullable<WalletAssetSwap['carrier']> = {
+      version: 1,
+      mode: 'purchase',
+      physicalSats: '330',
+      loanSats: '0',
+      purchasedSats: '330',
+      receiptSats: '0',
+      serviceFareSats: '0',
+      state: 'claimed',
+      txids: [claimTxid],
+    }
+    const record = { ...swap({ id: 'intent-1', fundingTxid }), carrier }
+    const funding = arkTx(fundingTxid, {
+      amount: -10_000,
+      createdAt: 1_700_000_000_000,
+      type: 'SENT' as ArkTransaction['type'],
+    })
+    const claim = arkTx(claimTxid, { amount: 0, createdAt: 1_700_000_005_000 })
+
+    const before = activitiesToTxs([activity('raw-funding', [funding]), activity('raw-claim', [claim])], {
+      ...empty,
+      swaps: [record],
+    })
+    const after = activitiesToTxs([activity('swap:intent-1', [funding, claim], swapIntent('intent-1'))], {
+      ...empty,
+      swaps: [record],
+    })
+
+    for (const rows of [before, after]) {
+      expect(rows).toHaveLength(1)
+      expect(rows[0]).toMatchObject({ amount: 10_000, historyKey: 'swap:intent-1', type: 'swap' })
+      expect(rows[0].carrierMembers).toEqual([
+        { txid: fundingTxid, type: 'sent' },
+        { txid: claimTxid, type: 'received' },
+      ])
+    }
+  })
+
+  it('leaves a shared raw tx unattributed when several swaps persist the same txid', () => {
+    const sharedTxid = '6'.repeat(64)
+    const shared = arkTx(sharedTxid, {
+      amount: -10_000,
+      createdAt: 1_700_000_000_000,
+      type: 'SENT' as ArkTransaction['type'],
+    })
+
+    const rows = activitiesToTxs([activity('raw-shared', [shared])], {
+      ...empty,
+      swaps: [
+        swap({ id: 'intent-1', fundingTxid: sharedTxid }),
+        swap({ id: 'intent-2', fundingTxid: sharedTxid }),
+        swap({ id: 'intent-3', fundingTxid: sharedTxid }),
+      ],
+    })
+
+    expect(rows.filter((row) => row.type === 'swap')).toHaveLength(3)
+    expect(rows.filter((row) => row.type === 'swap').every((row) => row.amount === 0)).toBe(true)
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ amount: 10_000, historyKey: 'raw-shared:' + sharedTxid, type: 'sent' }),
+      ]),
+    )
+  })
+
   it('ignores malformed and non-offer records without hiding valid pending offers', () => {
     const valid = swap({ id: 'intent-1', fundingTxid: '' })
     const malformed = swap({ id: 'broken', fundingTxid: '', fromAmount: 'not-an-integer' })
@@ -168,6 +235,38 @@ describe('activitiesToTxs', () => {
     })
 
     expect(rows.map((row) => row.historyKey)).toEqual(['swap:intent-1'])
+  })
+
+  it('keeps grouped malformed raw evidence and unrelated activity readable', () => {
+    const broken = swap({ id: 'broken', fundingTxid: 'broken-funding', fromAmount: 'not-an-integer' })
+    const funding = arkTx('broken-funding', {
+      amount: -777,
+      createdAt: 1_700_000_000_000,
+      type: 'SENT' as ArkTransaction['type'],
+    })
+    const other = arkTx('other-receive', { amount: 42, createdAt: 1_700_000_005_000 })
+
+    const ungrouped = activitiesToTxs(
+      [activity('raw-broken', [funding]), activity('plain:other', [other], { kind: 'receive', label: 'Receive' })],
+      { ...empty, swaps: [broken] },
+    )
+    const grouped = activitiesToTxs(
+      [
+        activity('swap:broken', [funding], swapIntent('broken')),
+        activity('plain:other', [other], { kind: 'receive', label: 'Receive' }),
+      ],
+      { ...empty, swaps: [broken] },
+    )
+
+    for (const rows of [ungrouped, grouped]) {
+      expect(rows).toHaveLength(2)
+      expect(rows).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ amount: 777, type: 'sent' }),
+          expect.objectContaining({ amount: 42, historyKey: 'plain:other:other-receive', type: 'received' }),
+        ]),
+      )
+    }
   })
 
   it('grafts local metadata onto member rows by their txid', () => {

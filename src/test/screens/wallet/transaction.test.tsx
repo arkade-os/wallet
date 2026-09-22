@@ -745,6 +745,65 @@ describe('Transaction screen', () => {
     open.mockRestore()
   })
 
+  it('keeps a non-swap action and amount while linking its related transaction once', async () => {
+    const primaryTxid = '4'.repeat(64)
+    const relatedTxid = '5'.repeat(64)
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null)
+    const txInfo = {
+      ...mockTxInfo,
+      amount: 1_234,
+      boardingTxid: '',
+      carrierMembers: [
+        { txid: primaryTxid, type: 'received' },
+        { txid: relatedTxid, type: 'received' },
+        { txid: relatedTxid, type: 'received' },
+      ],
+      redeemTxid: primaryTxid,
+      type: 'received',
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider
+          value={{
+            ...mockConfigContextValue,
+            config: { ...mockConfigContextValue.config, currency: Currencies.USD },
+          }}
+        >
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <AspContext.Provider value={mockAspContextValue}>
+              <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
+                <WalletContext.Provider
+                  value={
+                    {
+                      ...mockWalletContextValue,
+                      txs: [txInfo],
+                      wallet: { ...mockWalletContextValue.wallet, network: 'regtest' },
+                    } as any
+                  }
+                >
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <Transaction />
+                  </LimitsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </AspContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByText('Amount received')).toBeInTheDocument()
+    expect(screen.getByTestId('primary-amount')).toHaveTextContent('$1,234.00')
+    expect(screen.getAllByTestId(/Related transaction/)).toHaveLength(1)
+    expect(screen.getByTestId('Related transaction')).toHaveTextContent('55555555...55555555')
+
+    const row = document.getElementById('Related transaction') as HTMLElement
+    await userEvent.click(row.querySelector('.table-row__external') as HTMLElement)
+    expect(open).toHaveBeenCalledWith(`http://localhost:7080/tx/${relatedTxid}`, '_blank', 'noreferrer')
+    open.mockRestore()
+  })
+
   it('discloses a whole carrier purchase without claiming a loan', () => {
     const purchase: CarrierActivity = {
       version: 1,

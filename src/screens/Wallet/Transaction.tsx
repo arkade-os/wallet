@@ -261,6 +261,7 @@ export default function Transaction() {
         // `redeemTxid` alone would class it offchain and send the link to the
         // vmempool explorer, which has never heard of the transaction.
         isOffchainTx: !tx.boardingTxid && !exitTx && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid)),
+        relatedTxids: tx.carrierMembers?.map(({ txid }) => txid),
         // Details' fallback row only (amountDisplay owns the rendered rows):
         // gross, matching the hook's convention
         satoshis: assetTransfer ? undefined : tx.amount,
