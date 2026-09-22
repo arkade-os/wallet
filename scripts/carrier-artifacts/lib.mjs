@@ -75,6 +75,53 @@ export const archiveManifest = (archivePath) => {
 
 export const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'))
 
+export const isComment = (line) => /^\s*#/.test(line)
+
+const PACKAGE_MANAGERS = new Set(['pnpm', 'npm', 'yarn', 'bun'])
+const INSTALL_SUBCOMMANDS = new Set(['install', 'i', 'ci', 'add'])
+const NOT_AN_INSTALL = new Set(['exec', 'run', 'dlx', 'create', 'x'])
+
+// Any spelling a drifting edit might reach for — `pnpm i`, `npm ci`, bare
+// `yarn` — while `pnpm exec playwright install` is not one of them.
+export function installsDependencies(line) {
+  const tokens = line.trim().split(/\s+/)
+  const at = tokens.findIndex((token) => PACKAGE_MANAGERS.has(token))
+  if (at === -1) return false
+  const rest = tokens.slice(at + 1)
+  const subcommand = rest.find((token) => !token.startsWith('-'))
+  if (subcommand === undefined) return tokens[at] === 'yarn'
+  return !NOT_AN_INSTALL.has(subcommand) && rest.some((token) => INSTALL_SUBCOMMANDS.has(token))
+}
+
+/** 1-based line of the first install this command does not precede, or `undefined`. */
+export function unverifiedInstall(lines) {
+  let verified = false
+  for (const [index, line] of lines.entries()) {
+    if (isComment(line)) continue
+    if (/carrier-artifacts\/verify\.mjs/.test(line)) verified = true
+    else if (!verified && installsDependencies(line)) return index + 1
+  }
+  return undefined
+}
+
+/** Each job of a workflow, by name, as the lines beneath its heading. */
+export function workflowJobs(yaml) {
+  const jobs = new Map()
+  let inJobs = false
+  let job
+  for (const line of yaml.split(/\r?\n/)) {
+    if (/^\S/.test(line)) {
+      inJobs = line.trimEnd() === 'jobs:'
+      job = undefined
+    } else if (inJobs) {
+      const heading = /^ {2}([A-Za-z_][\w-]*):\s*$/.exec(line)
+      if (heading) jobs.set((job = heading[1]), [])
+      if (job) jobs.get(job).push(line)
+    }
+  }
+  return jobs
+}
+
 // An override resolves against the workspace root, a dependency against the
 // declaring directory, so callers pass the one they write in.
 export const fileSpec = (from, filename) => `file:${from}${from.endsWith('/') ? '' : '/'}${filename}`

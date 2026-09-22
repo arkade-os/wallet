@@ -18,11 +18,15 @@ import {
   archiveManifest,
   assertCandidateExport,
   fileSpec,
+  installsDependencies,
+  isComment,
   packageRootFrom,
   pinnedSourceMismatch,
   readFlatMapping,
   readJson,
   sha256,
+  unverifiedInstall,
+  workflowJobs,
 } from './lib.mjs'
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -32,6 +36,14 @@ const check = (condition, message) => {
   if (!condition) failures.push(message)
   return condition
 }
+
+// A named reason rather than a stack trace, because a Docker log is where this one lands.
+const fail = (reason) => {
+  process.stderr.write(`carrier artifacts FAILED:\n  - ${reason}\n`)
+  process.exit(1)
+}
+if (!existsSync(at(MANIFEST_PATH))) fail(`${MANIFEST_PATH} is missing; the frozen archives are not in this tree`)
+if (!existsSync(at(VENDOR_DIR))) fail(`${VENDOR_DIR} is missing; the frozen archives are not in this tree`)
 
 const manifest = readJson(at(MANIFEST_PATH))
 const byPackage = new Map(manifest.artifacts?.map((artifact) => [artifact.package, artifact]) ?? [])
@@ -118,48 +130,32 @@ for (const name of PINNED_PACKAGES) {
 }
 
 // The Docker dependency layer copies three manifests, this directory and the
-// archives and nothing else, so these two groups have nothing to read there.
-// The unit suite runs in a whole checkout and asserts they were not skipped.
+// archives, so this group has nothing to read there; the unit suite runs in a
+// whole checkout and asserts it was not skipped.
 const wholeCheckout = existsSync(at('Dockerfile'))
 if (wholeCheckout) {
   // The image installs long before `COPY . .`, so these arrive under their own COPY.
   const dockerfile = readFileSync(at('Dockerfile'), 'utf8').split(/\r?\n/)
-  const firstInstall = dockerfile.findIndex((line) => /pnpm install/.test(line))
-  const before = (pattern) => {
-    const index = dockerfile.findIndex((line) => pattern.test(line))
-    return index !== -1 && index < firstInstall
-  }
-  check(firstInstall !== -1, 'Dockerfile runs no pnpm install')
-  check(before(new RegExp(`^COPY .*${escape(VENDOR_DIR)}`)), `Dockerfile installs before it copies ${VENDOR_DIR}`)
-  check(before(/carrier-artifacts\/verify\.mjs/), 'Dockerfile installs before it verifies the carrier artifacts')
+  const lineOf = (predicate) => dockerfile.findIndex((line) => !isComment(line) && predicate(line))
+  const installsAt = lineOf(installsDependencies)
+  const copiesAt = lineOf((line) => new RegExp(`^COPY .*${escape(VENDOR_DIR)}`).test(line))
+  check(installsAt !== -1, 'Dockerfile installs nothing, so it builds against no dependencies')
+  check(copiesAt !== -1 && copiesAt < installsAt, `Dockerfile installs before it copies ${VENDOR_DIR}`)
 
-  const bootstrap = readFileSync(at('.cursor', 'install.sh'), 'utf8').split(/\r?\n/)
-  const verifiesAt = bootstrap.findIndex((line) => /carrier-artifacts\/verify\.mjs/.test(line))
-  check(
-    verifiesAt !== -1 && verifiesAt < bootstrap.findIndex((line) => /pnpm install/.test(line)),
-    '.cursor/install.sh installs without verifying the carrier artifacts first',
-  )
-
-  // Every installing workflow job, counted rather than eyeballed.
-  const workflows = at('.github', 'workflows')
-  for (const file of existsSync(workflows) ? readdirSync(workflows).filter((name) => /\.ya?ml$/.test(name)) : []) {
-    let job
-    const installs = new Map()
-    const verifies = new Map()
-    readFileSync(join(workflows, file), 'utf8')
-      .split(/\r?\n/)
-      .forEach((line, index) => {
-        const heading = /^ {2}([A-Za-z_][\w-]*):\s*$/.exec(line)
-        if (heading) job = heading[1]
-        if (!job) return
-        if (/carrier-artifacts\/verify\.mjs/.test(line) && !verifies.has(job)) verifies.set(job, index)
-        if (/(?:^|\s)pnpm (?:\S+ )*install(?:\s|$)/.test(line) && !installs.has(job)) installs.set(job, index)
-      })
-    for (const [installing, line] of installs)
-      check(
-        verifies.get(installing) < line,
-        `.github/workflows/${file} job ${installing} installs without verifying the carrier artifacts first`,
-      )
+  // One rule for every installing path: an install nobody verified first. A
+  // commented-out step is not a verify, and browsers are not dependencies.
+  const workflowDir = at('.github', 'workflows')
+  const workflows = existsSync(workflowDir) ? readdirSync(workflowDir).filter((name) => /\.ya?ml$/.test(name)) : []
+  const scanned = [
+    ['Dockerfile', dockerfile],
+    ['.cursor/install.sh', readFileSync(at('.cursor', 'install.sh'), 'utf8').split(/\r?\n/)],
+  ]
+  for (const file of workflows)
+    for (const [job, lines] of workflowJobs(readFileSync(join(workflowDir, file), 'utf8')))
+      scanned.push([`.github/workflows/${file} job ${job}`, lines])
+  for (const [name, lines] of scanned) {
+    const line = unverifiedInstall(lines)
+    check(line === undefined, `${name} installs without verifying the carrier artifacts first`)
   }
 }
 
@@ -185,10 +181,7 @@ if (entry) {
   }
 }
 
-if (failures.length) {
-  process.stderr.write(`carrier artifacts FAILED:\n${failures.map((line) => `  - ${line}`).join('\n')}\n`)
-  process.exit(1)
-}
+if (failures.length) fail(failures.join('\n  - '))
 process.stdout.write(
   `carrier artifacts verified: ${manifest.artifacts.length} archives, lock pinned to their bytes, ` +
     `${wholeCheckout ? 'Dockerfile and workflows checked' : 'install context, no Dockerfile to check'}, ` +

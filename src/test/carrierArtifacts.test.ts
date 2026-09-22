@@ -11,8 +11,11 @@ import {
   DIRECT_DEPENDENCIES,
   MANIFEST_PATH,
   PINNED_PACKAGES,
+  installsDependencies,
   packageRootFrom,
   pinnedSourceMismatch,
+  unverifiedInstall,
+  workflowJobs,
   type CarrierArtifact,
   type CarrierManifest,
 } from '../../scripts/carrier-artifacts/lib.mjs'
@@ -89,6 +92,38 @@ describe('carrier artifacts', () => {
       }
     },
   )
+
+  // Both were live blind spots: a commented-out step and a `pnpm i` rewrite each reported a clean job.
+  it.each([
+    ['pnpm install', true],
+    ['      run: pnpm i', true],
+    ['npm ci', true],
+    ['RUN corepack pnpm install --frozen-lockfile', true],
+    ['pnpm --filter app install', true],
+    ['yarn', true],
+    ['pnpm exec playwright install chrome --with-deps', false],
+    ['pnpm run test:unit', false],
+    ['pnpm build:worker && npx vite build', false],
+    ['node scripts/carrier-artifacts/verify.mjs', false],
+  ])('read %j as an install: %s', (line, expected) => {
+    expect(installsDependencies(line as string)).toBe(expected)
+  })
+
+  it('require a verify that is neither commented out nor after the install', () => {
+    const verify = '  run: node scripts/carrier-artifacts/verify.mjs'
+    expect(unverifiedInstall([verify, '  run: pnpm install'])).toBeUndefined()
+    expect(unverifiedInstall(['  run: pnpm install'])).toBe(1)
+    expect(unverifiedInstall([`  # ${verify.trim()}`, '  run: pnpm i'])).toBe(2)
+    expect(unverifiedInstall(['  run: pnpm install', verify])).toBe(1)
+    expect(unverifiedInstall(['  run: pnpm exec playwright install chrome'])).toBeUndefined()
+    expect(unverifiedInstall([]), 'a path that installs nothing needs no verify').toBeUndefined()
+  })
+
+  it('attribute workflow lines to real jobs, not to on: triggers', () => {
+    const jobs = workflowJobs(readFileSync(join(REPO, '.github', 'workflows', 'ci.yml'), 'utf8'))
+    expect([...jobs.keys()]).toEqual(['test'])
+    expect(jobs.get('test')?.some((line) => installsDependencies(line))).toBe(true)
+  })
 
   it('make the frozen packages resolvable from the wallet', async () => {
     for (const name of DIRECT_DEPENDENCIES) expect(() => require.resolve(name)).not.toThrow()
