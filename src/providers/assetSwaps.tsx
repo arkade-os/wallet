@@ -43,7 +43,7 @@ import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import { assetSwapRepository, type AssetSwapQuoteSnapshot, type WalletAssetSwap } from '../lib/swapRepository'
 import { getEmulatorPubkeyForNetwork, getEmulatorPubkeyHexForNetwork } from '../lib/constants'
-import { discoverMarkets } from '../lib/swapMarkets'
+import { discoverMarkets, marketFeeBps } from '../lib/swapMarkets'
 import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
 import { consoleError } from '../lib/logs'
 import { toast } from '../components/Toast'
@@ -59,6 +59,13 @@ type SpentDeposit = Pick<VirtualCoin, 'txid' | 'vout' | 'spentBy' | 'arkTxId'>
  * anything else, where a bare slice of an x-only key would silently yield one
  * of the wrong length and every classification would come back indeterminate. */
 const xOnlyServerKey = (signerPubkey: string): Uint8Array => hex.decode(toXOnlySignerHex(signerPubkey))
+
+/** The spread a stored swap was priced at. Orientation matters as much as the
+ * card: `findMarket` names the side deposited, and a card prices them apart. */
+const pairFeeBps = (markets: DiscoveredMarket[], fromAsset: string, toAsset: string): number | undefined => {
+  const pair = findMarket(markets, fromAsset, toAsset)
+  return pair?.market ? marketFeeBps(pair.market, pair.give) : undefined
+}
 
 interface AssetSwapsContextProps {
   /** Markets from the network's solver registry. */
@@ -161,7 +168,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
     let changed = false
     for (const swap of list) {
       if (swap.quote?.feeBps !== undefined) continue
-      const feeBps = findMarket(availableMarkets, swap.fromAsset, swap.toAsset)?.market?.fee_bps
+      const feeBps = pairFeeBps(availableMarkets, swap.fromAsset, swap.toAsset)
       if (feeBps === undefined) continue
       const changes: Partial<WalletAssetSwap> = { quote: { ...swap.quote, feeBps } }
       list = (await updateAssetSwap(assetSwapRepository, swap.id, changes)) as WalletAssetSwap[]
@@ -273,7 +280,7 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
         prepareNew: (swap) => {
           // Quote-time facts are not on chain. Backfill the fee from the
           // pair's current card until it rides in the funding packet.
-          const feeBps = findMarket(marketsRef.current, swap.fromAsset, swap.toAsset)?.market?.fee_bps
+          const feeBps = pairFeeBps(marketsRef.current, swap.fromAsset, swap.toAsset)
           return feeBps === undefined ? swap : ({ ...swap, quote: { feeBps } } as AssetSwap)
         },
       })

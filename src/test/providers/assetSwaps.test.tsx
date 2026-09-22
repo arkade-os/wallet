@@ -9,7 +9,7 @@ import { AspContext } from '../../providers/asp'
 import { AssetSwapsContext, AssetSwapsProvider } from '../../providers/assetSwaps'
 import { WalletContext } from '../../providers/wallet'
 import { assetSwapRepository as repository, type WalletAssetSwap } from '../../lib/swapRepository'
-import { btcUsdt, maratNapo, MARAT_ID, NAPO_ID, USDT_ID } from '../lib/swapFixtures'
+import { btcUsdt, btcUsdtPerSide, maratNapo, MARAT_ID, NAPO_ID, USDT_ID } from '../lib/swapFixtures'
 import corridorSolverCard from '../corridor-solver.card.json'
 import { saveSolverCards } from '../../lib/solverCards'
 import { toast } from '../../components/Toast'
@@ -503,6 +503,26 @@ describe('AssetSwapsProvider restore scan', () => {
     expect(restoreAssetSwapRepository.mock.calls[1][0].txs).toHaveLength(2)
   })
 
+  it('rebuilds a restored record at the spread its direction was priced at', async () => {
+    discoverMarkets.mockResolvedValueOnce([btcUsdtPerSide] as never)
+    render(
+      providerTree(
+        {
+          asp: { network: 'mutinynet', url: 'https://ark.test', signerPubkey: SIGNER_PUBKEY },
+          wallet: { dataReady: true, txs: [], ungroupedTxs: [], svcWallet: defaultSvcWallet },
+        },
+        <ScanHarness />,
+      ),
+    )
+
+    await waitFor(() => expect(restoreAssetSwapRepository).toHaveBeenCalled())
+    const { prepareNew } = restoreAssetSwapRepository.mock.calls[0][0]
+    // the ref it reads is filled by discovery, which settles after the scan starts
+    await waitFor(() =>
+      expect(prepareNew({ fromAsset: 'btc', toAsset: USDT_ID })).toMatchObject({ quote: { feeBps: 10 } }),
+    )
+  })
+
   it('feeds the scan the ungrouped rows, not the grouped ones its own records produced', async () => {
     // The second lock on the same door: `txs` replaces a swap's funding row
     // with a grouped `swap` row the moment its record exists, and the scan
@@ -688,6 +708,21 @@ describe('AssetSwapsProvider solver cards', () => {
       const swaps = await getAssetSwaps(repository)
       expect(swaps.find(({ id }) => id === stored.id)).toMatchObject({ quote: { fromTicker: 'sats', feeBps: 30 } })
       expect(swaps.find(({ id }) => id === alreadyPriced.id)).toMatchObject({ quote: { feeBps: 12 } })
+    })
+    await repository.clear()
+  })
+
+  it('backfills the spread the traded direction was priced at, not the widest', async () => {
+    await repository.clear()
+    const stored = { ...pendingSwap, toAsset: USDT_ID, quote: { fromTicker: 'sats' } }
+    await addAssetSwap(repository, stored)
+    discoverMarkets.mockResolvedValueOnce([btcUsdtPerSide] as never)
+
+    renderOnNetwork()
+
+    await waitFor(async () => {
+      const swaps = await getAssetSwaps(repository)
+      expect(swaps.find(({ id }) => id === stored.id)).toMatchObject({ quote: { feeBps: 10 } })
     })
     await repository.clear()
   })

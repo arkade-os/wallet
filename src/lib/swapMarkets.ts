@@ -9,7 +9,9 @@ import {
   isNetwork,
   type DiscoveredMarket,
   type LocalCardInput,
+  type Market,
   type OfferPlan,
+  type Side,
 } from '@arkade-os/solver-discovery'
 import type { NetworkName } from '@arkade-os/sdk'
 import betaSolverCard from './beta-solver.card.json'
@@ -58,11 +60,17 @@ export const discoverMarkets = async (network: NetworkName, useCache = true): Pr
   })
 }
 
+/** The spread the traded direction is priced at. `fee_bps` is a card's WIDEST
+ * `solver_fee` spread by validator rule; `planOffer` prices per direction. */
+export const marketFeeBps = (market: Market, give: Side): number => market.solver_fee?.[give]?.bps ?? market.fee_bps
+
+export const planFeeBps = (plan: OfferPlan): number => marketFeeBps(plan.market, plan.give)
+
 /** The market feed's pre-fee price oriented give→receive, in whole display
  * units. Derived from the plan's exact price rational — plan.priceDisplay
  * truncates at 8 fraction digits, which zeroes or skews small prices, and the
  * give-quote inversion would amplify that loss. Assumes the wallet's
- * safetyBps of 0 (QUOTE_OPTIONS): fee_bps is then the only gap between this
+ * safetyBps of 0 (QUOTE_OPTIONS): the traded direction's spread is the only gap between this
  * rate and the plan's net payout. */
 export const preFeeDisplayRate = (plan: OfferPlan): number => {
   const { num, den } = displayPrice(plan.price, {

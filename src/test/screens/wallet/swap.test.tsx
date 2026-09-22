@@ -2,7 +2,8 @@ import userEvent from '@testing-library/user-event'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import createFetchMock from 'vitest-fetch-mock'
-import WalletSwap from '../../../screens/Wallet/Swap/Index'
+import { planOffer, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+import WalletSwap, { quoteUnavailableMessage } from '../../../screens/Wallet/Swap/Index'
 import { ToastProvider } from '../../../components/Toast'
 import { AspContext } from '../../../providers/asp'
 import { AssetsContext } from '../../../providers/assets'
@@ -22,7 +23,16 @@ import {
   mockNavigationContextValue,
   mockWalletContextValue,
 } from '../mocks'
-import { btcDepix, btcUsdt, DEPIX_ID, MARAT_ID, maratNapo, USDT_ID } from '../../lib/swapFixtures'
+import {
+  btcDepix,
+  btcUsdt,
+  btcUsdtPerSide,
+  btcUsdtPerSideReceiveBound,
+  DEPIX_ID,
+  MARAT_ID,
+  maratNapo,
+  USDT_ID,
+} from '../../lib/swapFixtures'
 
 const fetchMocker = createFetchMock(vi)
 fetchMocker.enableMocks()
@@ -480,6 +490,77 @@ describe('Wallet swap flow', () => {
     expect(plan.receive.atomic).toBe(BigInt(997))
     // the persisted quote snapshot must carry the same correct fiat value
     expect(createSwap.mock.calls[0][1]).toMatchObject({ fromFiatAmount: 10 })
+  })
+
+  it('prices the fee row, the give-side value and the receipt at the direction being traded', async () => {
+    renderSwap({
+      config: { unit: Unit.SATS },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      swap: { markets: [btcUsdtPerSide, btcDepix] },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+    for (const key of ['1', '0', '0', '0', '0']) {
+      await userEvent.click(screen.getByRole('button', { name: key }))
+    }
+
+    // enabled only once a plan exists, so the labels below are the quote's, not the
+    // pre-quote estimate; the widest 30 bps grosses 9.99 into €10.02 and a 0.03 USD fee
+    const continueButton = screen.getByRole('button', { name: 'Continue' })
+    await waitFor(() => expect(continueButton).toBeEnabled(), { timeout: 3_000 })
+    expect(screen.getByText('€10.00')).toBeInTheDocument()
+    expect(screen.queryByText('€10.02')).not.toBeInTheDocument()
+    fireEvent.click(continueButton)
+    expect(screen.getByText('0.01 USD')).toBeInTheDocument()
+    expect(screen.queryByText('0.03 USD')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+
+    await waitFor(() => expect(createSwap).toHaveBeenCalledOnce())
+    expect(createSwap.mock.calls[0][0].receive.atomic).toBe(BigInt(999))
+    expect(createSwap.mock.calls[0][1]).toMatchObject({ feeBps: 10 })
+    expect(createSwap.mock.calls[0][1].fromFiatAmount).toBeCloseTo(10, 2)
+  })
+
+  it('converts the receive-side minimum at the direction being traded', async () => {
+    renderSwap({
+      config: { unit: Unit.SATS },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      swap: { markets: [btcUsdtPerSideReceiveBound, btcDepix] },
+      wallet: { ...NO_ASSETS, availableBalance: 10_000_000 },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+    for (const key of ['1', '0', '0', '0']) {
+      await userEvent.click(screen.getByRole('button', { name: key }))
+    }
+
+    // the $50 receive floor at 100,000 USD/BTC grossed by 10 bps; 50,151 is the widest 30
+    await waitFor(() => expect(screen.getByText('Minimum 50,051 sats')).toBeInTheDocument(), { timeout: 3_000 })
+    expect(screen.queryByText('Minimum 50,151 sats')).not.toBeInTheDocument()
+  })
+
+  it('converts the receive-side maximum at the direction being traded', async () => {
+    renderSwap({
+      config: { unit: Unit.SATS },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      swap: { markets: [btcUsdtPerSideReceiveBound, btcDepix] },
+      wallet: { ...NO_ASSETS, availableBalance: 10_000_000 },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+    for (const key of ['6', '0', '0', '0', '0', '0', '0']) {
+      await userEvent.click(screen.getByRole('button', { name: key }))
+    }
+
+    // unlike the fee row this errs unsafe: the widest spread suggests 5,015,045 sats, over the cap
+    await waitFor(() => expect(screen.getByText('Maximum 5,005,005 sats')).toBeInTheDocument(), { timeout: 3_000 })
+    expect(screen.queryByText('Maximum 5,015,045 sats')).not.toBeInTheDocument()
   })
 
   it('never shows a fractional sats fee — sats and ₿ are whole numbers', async () => {
@@ -1053,5 +1134,36 @@ describe('Wallet swap flow', () => {
     expect(screen.queryByText('Your swaps')).not.toBeInTheDocument()
     expect(screen.queryByText('BTC to USD')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
+  })
+})
+
+describe('quote refusal reasons', () => {
+  // CAIP ids: the carrier only rides a market whose delivered leg is an arkade asset
+  const carrierMarket = {
+    ...btcUsdt,
+    base_asset: { id: 'arkade:mutinynet/slip44:1', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+    quote_asset: { id: `arkade:mutinynet/asset:${'f'.repeat(68)}`, name: 'USDT', ticker: 'USDT', decimals: 2 },
+    charges_delivered_carrier: true,
+  } as DiscoveredMarket
+
+  /** The refusal as 0.2.7 words it, so a reworded release turns this red. */
+  const carrierRefusal = (): Error => {
+    try {
+      planOffer({ market: carrierMarket, give: 'base', giveAmount: BigInt(10_000), feedValue: 100_000, safetyBps: 0 })
+    } catch (error) {
+      return error as Error
+    }
+    throw new Error('planOffer priced a market that charges for the delivered carrier')
+  }
+
+  it('names the carrier charge rather than refusing without a reason', () => {
+    expect(quoteUnavailableMessage(carrierRefusal())).toBe(
+      'Quote unavailable: this market charges for the delivered carrier',
+    )
+  })
+
+  it('stays bare for a refusal naming nothing this composer can explain', () => {
+    expect(quoteUnavailableMessage(new Error('feed unavailable'))).toBe('Quote unavailable')
+    expect(quoteUnavailableMessage(null)).toBe('Quote unavailable')
   })
 })

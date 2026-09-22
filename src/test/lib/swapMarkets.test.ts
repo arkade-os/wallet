@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { planOffer, type DiscoveredMarket } from '@arkade-os/solver-discovery'
-import { preFeeDisplayRate } from '../../lib/swapMarkets'
-import { btcUsdt } from './swapFixtures'
+import { planOffer, type DiscoveredMarket, type Side } from '@arkade-os/solver-discovery'
+import { marketFeeBps, planFeeBps, preFeeDisplayRate } from '../../lib/swapMarkets'
+import { btcUsdt, btcUsdtPerSide } from './swapFixtures'
 
 describe('preFeeDisplayRate', () => {
   it('quotes the feed price giving the base side and its inverse giving the quote side', () => {
@@ -32,5 +32,34 @@ describe('preFeeDisplayRate', () => {
     expect(preFeeDisplayRate(base)).toBe(5e-9)
     const quote = planOffer({ market: tokenBtc, give: 'quote', giveAmount: BigInt(1_000), feedValue: '0.000000005' })
     expect(preFeeDisplayRate(quote)).toBe(200_000_000)
+  })
+})
+
+describe('the spread the traded direction is actually priced at', () => {
+  const plan = (market: DiscoveredMarket, give: Side) =>
+    planOffer({ market, give, giveAmount: BigInt(10_000), feedValue: 100_000, safetyBps: 0 })
+
+  it('reads the side solver_fee prices, not the widest spread fee_bps must pin', () => {
+    expect(btcUsdtPerSide.fee_bps).toBe(30)
+    expect(planFeeBps(plan(btcUsdtPerSide, 'base'))).toBe(10)
+    expect(planFeeBps(plan(btcUsdtPerSide, 'quote'))).toBe(30)
+    expect(marketFeeBps(btcUsdtPerSide, 'base')).toBe(10)
+    expect(marketFeeBps(btcUsdtPerSide, 'quote')).toBe(30)
+  })
+
+  it('falls back to fee_bps for a card that prices no side, or not this one', () => {
+    expect(planFeeBps(plan(btcUsdt, 'base'))).toBe(30)
+    expect(marketFeeBps(btcUsdt, 'quote')).toBe(30)
+    expect(marketFeeBps({ ...btcUsdtPerSide, solver_fee: { quote: { bps: 30 } } }, 'base')).toBe(30)
+  })
+
+  it('over-states the fee 3.006x where fee_bps stands in for the narrow direction', () => {
+    const base = plan(btcUsdtPerSide, 'base')
+    // planOffer already prices the direction; only the display, grossing the payout by f/(1-f), is wrong
+    expect(base.receive.atomic).toBe(BigInt(999))
+    const shownFee = (bps: number) => (Number(base.receive.atomic) * (bps / 10_000)) / (1 - bps / 10_000)
+    expect(shownFee(planFeeBps(base))).toBeCloseTo(1, 10)
+    expect(shownFee(base.market.fee_bps)).toBeCloseTo(3.006, 3)
+    expect(shownFee(base.market.fee_bps) / shownFee(planFeeBps(base))).toBeCloseTo(3.006, 3)
   })
 })
