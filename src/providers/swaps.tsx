@@ -445,7 +445,6 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         // so a failed restore cannot pin the app on the loading screen.
         try {
           await client.ready
-          await refreshSwaps()
           restoredRef.current = true
         } finally {
           await reloadRef.current().catch(consoleError)
