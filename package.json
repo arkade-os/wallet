@@ -4,7 +4,7 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/solver-discovery": "0.2.5",
+    "@arkade-os/solver-discovery": "0.2.7",
     "@arkade-os/sdk": "file:./vendor/carrier/arkade-os-sdk-0.4.74-adc6b329.tgz",
     "@arkade-os/swap": "file:./vendor/carrier/arkade-os-swap-0.0.20-adc6b329.tgz",
     "@arkade-taxi/client": "file:./vendor/carrier/arkade-taxi-client-0.0.0-4109312c.tgz",

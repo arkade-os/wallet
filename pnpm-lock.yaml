@@ -24,8 +24,8 @@ importers:
         specifier: file:vendor/carrier/arkade-os-sdk-0.4.74-adc6b329.tgz
         version: file:vendor/carrier/arkade-os-sdk-0.4.74-adc6b329.tgz
       '@arkade-os/solver-discovery':
-        specifier: 0.2.5
-        version: 0.2.5
+        specifier: 0.2.7
+        version: 0.2.7
       '@arkade-os/swap':
         specifier: file:vendor/carrier/arkade-os-swap-0.0.20-adc6b329.tgz
         version: file:vendor/carrier/arkade-os-swap-0.0.20-adc6b329.tgz(nostr-tools@2.17.2(typescript@5.9.3))
@@ -282,10 +282,6 @@ packages:
         optional: true
       expo-task-manager:
         optional: true
-
-  '@arkade-os/solver-discovery@0.2.5':
-    resolution: {integrity: sha512-eCJESOApkm78OWLPSRSi7RajysHPAkRozD2Um+IimRbbgSK7e+/1Ufw4hrOR8LuPKwMRvDQx7nUbcl1CL8HsDg==}
-    engines: {node: '>=18'}
 
   '@arkade-os/solver-discovery@0.2.7':
     resolution: {integrity: sha512-T5dfiezUG5YKtzOmX1Z2E0LePF3bx6unsqq7UPgha0Zp9PQFcodYMYl6T1i0AbruaGup5XWq8Die5wusiA5qUA==}
@@ -4403,8 +4399,6 @@ snapshots:
       - bufferutil
       - ecpair
       - utf-8-validate
-
-  '@arkade-os/solver-discovery@0.2.5': {}
 
   '@arkade-os/solver-discovery@0.2.7': {}
 
