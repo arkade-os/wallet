@@ -8,6 +8,14 @@ onlyBuiltDependencies:
   - '@arkade-os/sdk'
 
 overrides:
+  # Candidate carrier artifacts, transitive resolutions included: the packed Taxi
+  # client pins '@arkade-os/sdk' at the bare registry coordinate 0.4.74 and
+  # '@arkade-os/swap' at a path that exists only in the Taxi checkout.
+  '@arkade-os/sdk': 'file:vendor/carrier/arkade-os-sdk-0.4.74-adc6b329.tgz'
+  '@arkade-os/swap': 'file:vendor/carrier/arkade-os-swap-0.0.20-adc6b329.tgz'
+  '@arkade-taxi/client': 'file:vendor/carrier/arkade-taxi-client-0.0.0-4109312c.tgz'
+  '@arkade-taxi/covenant': 'file:vendor/carrier/arkade-taxi-covenant-0.0.0-4109312c.tgz'
+  '@arkade-taxi/protocol': 'file:vendor/carrier/arkade-taxi-protocol-0.0.0-4109312c.tgz'
   '@babel/core': '>=7.29.6 <8.0.0'
   js-yaml@<4: '>=3.15.0 <4.0.0'
   js-yaml@>=4: '>=4.2.0 <5.0.0'

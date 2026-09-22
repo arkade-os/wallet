@@ -11,3 +11,6 @@
 # keeps LF whatever `text=auto` decides about it.
 * text=auto eol=lf
 docker-entrypoint.sh text eol=lf
+
+# The lockfile pins the sha512 of these archives, so `text=auto` guessing at them is not good enough.
+vendor/carrier/*.tgz binary

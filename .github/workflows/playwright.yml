@@ -49,6 +49,8 @@ jobs:
         node-version-file: '.nvmrc'
     - name: Install pnpm
       uses: pnpm/action-setup@v4
+    - name: Verify carrier artifacts
+      run: node scripts/carrier-artifacts/verify.mjs
     - name: Install dependencies
       run: pnpm install
     - name: Install Playwright Browsers
