@@ -43,6 +43,8 @@ export declare const readJson: (path: string) => Record<string, unknown>
 export declare const fileSpec: (from: string, filename: string) => string
 export declare const readFlatMapping: (yaml: string, key: string) => Record<string, string> | undefined
 export declare const isComment: (line: string) => boolean
+export declare const BOOTSTRAP: string
+export declare const ENVIRONMENT: string
 export declare const OPT_OUT: string
 export declare const EXEMPT_INSTALLS: number
 export declare const isOptOut: (line: string | undefined) => boolean

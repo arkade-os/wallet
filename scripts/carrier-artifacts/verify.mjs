@@ -9,15 +9,17 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
+  BOOTSTRAP,
   CANDIDATE_SDK_SYMBOL,
   CANDIDATE_SWAP_SYMBOL,
   DIRECT_DEPENDENCIES,
+  ENVIRONMENT,
+  EXEMPT_INSTALLS,
   MANIFEST_PATH,
   PINNED_PACKAGES,
   VENDOR_DIR,
   archiveManifest,
   assertCandidateExport,
-  EXEMPT_INSTALLS,
   dockerfileStages,
   fileSpec,
   installsDependencies,
@@ -143,11 +145,24 @@ if (wholeCheckout) {
   const workflows = existsSync(workflowDir) ? readdirSync(workflowDir).filter((name) => /\.ya?ml$/.test(name)) : []
   check(workflows.length > 0, '.github/workflows holds no workflow to scan')
   const sources = [['Dockerfile', readFileSync(at('Dockerfile'), 'utf8').split(/\r?\n/)]]
-  const bootstrap = at('.cursor', 'install.sh')
-  if (check(existsSync(bootstrap), '.cursor/install.sh is missing; its install can no longer be checked'))
-    sources.push(['.cursor/install.sh', readFileSync(bootstrap, 'utf8').split(/\r?\n/)])
+  const bootstrap = at(...BOOTSTRAP.split('/'))
+  if (check(existsSync(bootstrap), `${BOOTSTRAP} is missing; its install can no longer be checked`))
+    sources.push([BOOTSTRAP, readFileSync(bootstrap, 'utf8').split(/\r?\n/)])
   for (const file of workflows)
     sources.push([`.github/workflows/${file}`, readFileSync(join(workflowDir, file), 'utf8').split(/\r?\n/)])
+
+  // Repointing `install` orphans the scanned script without editing one.
+  const environment = at('.cursor', 'environment.json')
+  if (check(existsSync(environment), `${ENVIRONMENT} is missing; the bootstrap binding cannot be checked`)) {
+    const command = readJson(environment).install
+    const bound = typeof command === 'string' && command.includes(BOOTSTRAP)
+    check(bound, `${ENVIRONMENT} installs with ${JSON.stringify(command ?? null)}, which does not run ${BOOTSTRAP}`)
+    if (bound)
+      check(
+        !installsDependencies(command.split(BOOTSTRAP)[0]),
+        `${ENVIRONMENT} installs before it reaches ${BOOTSTRAP}`,
+      )
+  }
 
   // "Nothing to scan" must be distinguishable from "not scanned".
   const installs = (lines) => lines.filter((line) => !isComment(line) && installsDependencies(line)).length
@@ -164,26 +179,29 @@ if (wholeCheckout) {
       [...units.values()].reduce((total, unit) => total + installs(unit), 0) === installs(lines),
       `${name} installs on a line this scan attributes to no ${label}`,
     )
-    for (const [unit, unitLines] of units) scanned.push([`${name} ${label} ${unit}`, unitLines])
+    // Units are contiguous and ordered, so a cursor recovers the file line.
+    let cursor = 0
+    for (const [unit, unitLines] of units) {
+      const start = lines.indexOf(unitLines[0], cursor)
+      cursor = start + unitLines.length
+      scanned.push([`${name} ${label} ${unit}`, unitLines, start])
+    }
   }
-  for (const [name, lines] of scanned) {
+  for (const [name, lines, offset = 0] of scanned) {
     const line = unverifiedInstall(lines)
-    check(line === undefined, `${name} installs at line ${line} without verifying the carrier artifacts first`)
-    if (!lines.some(installsDependencies)) continue
+    check(line === undefined, `${name} installs at line ${line + offset} without verifying the carrier artifacts first`)
+    const installsAt = lines.findIndex((line) => !isComment(line) && installsDependencies(line))
+    if (installsAt === -1 || !name.startsWith('Dockerfile')) continue
     const copiesAt = lines.findIndex(
       (line) => !isComment(line) && new RegExp(`^COPY .*${escape(VENDOR_DIR)}`).test(line),
     )
-    if (name.startsWith('Dockerfile'))
-      check(
-        copiesAt !== -1 && copiesAt < lines.findIndex((line) => !isComment(line) && installsDependencies(line)),
-        `${name} installs before it copies ${VENDOR_DIR}`,
-      )
+    check(copiesAt !== -1 && copiesAt < installsAt, `${name} installs before it copies ${VENDOR_DIR}`)
   }
 
-  // Exactly one install in this repository is excused, and moving the cap is an edit here.
+  // A ceiling, not a quota: deleting a decorative marker must not turn this red.
   const markers = sources.reduce((total, [, lines]) => total + lines.filter(isOptOut).length, 0)
   check(
-    markers === EXEMPT_INSTALLS,
+    markers <= EXEMPT_INSTALLS,
     `${markers} install exemptions are written across the scanned files, and ${EXEMPT_INSTALLS} is allowed`,
   )
 }

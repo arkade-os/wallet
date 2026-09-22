@@ -81,8 +81,12 @@ const PACKAGE_MANAGERS = new Set(['pnpm', 'npm', 'yarn', 'bun'])
 const INSTALL_SUBCOMMANDS = new Set(['install', 'i', 'ci', 'add'])
 const INVOKERS = new Set(['node', 'pnpm', 'npm', 'corepack', 'bash', 'sh'])
 
-// A comment on the line IMMEDIATELY above the install it excuses, and the
-// repository is allowed exactly EXEMPT_INSTALLS of them.
+/** The agent bootstrap, and the file whose `install` binding must name it. */
+export const BOOTSTRAP = '.cursor/install.sh'
+export const ENVIRONMENT = '.cursor/environment.json'
+
+// A comment on the line IMMEDIATELY above the install it excuses; at most
+// EXEMPT_INSTALLS of them exist, which is a ceiling and not a quota.
 export const OPT_OUT = 'carrier-artifacts: not a dependency install'
 export const EXEMPT_INSTALLS = 1
 

@@ -2,13 +2,15 @@
 import { describe, expect, it } from 'vitest'
 import { execFileSync } from 'node:child_process'
 import { createRequire } from 'node:module'
-import { readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
+  BOOTSTRAP,
   CANDIDATE_SDK_SYMBOL,
   CANDIDATE_SWAP_SYMBOL,
   DIRECT_DEPENDENCIES,
+  ENVIRONMENT,
   EXEMPT_INSTALLS,
   MANIFEST_PATH,
   OPT_OUT,
@@ -188,7 +190,18 @@ describe('carrier artifacts', () => {
         rows(readFileSync(join(REPO, '.github', 'workflows', file), 'utf8')),
       ),
     ]
-    expect(scanned.reduce((total, lines) => total + lines.filter(isOptOut).length, 0)).toBe(EXEMPT_INSTALLS)
+    const written = scanned.reduce((total, lines) => total + lines.filter(isOptOut).length, 0)
+    expect(written, 'a ceiling, not a quota: deleting a decorative marker must stay green').toBeLessThanOrEqual(
+      EXEMPT_INSTALLS,
+    )
+  })
+
+  // Repointing `install` orphans the scanned script without editing one.
+  it('bind the agent environment to the bootstrap this scan reads', () => {
+    const { install } = JSON.parse(readFileSync(join(REPO, ENVIRONMENT), 'utf8')) as { install?: string }
+    expect(existsSync(join(REPO, BOOTSTRAP))).toBe(true)
+    expect(install, `${ENVIRONMENT} must run the script the scan checks`).toContain(BOOTSTRAP)
+    expect(installsDependencies((install ?? '').split(BOOTSTRAP)[0]), 'nothing installs first').toBe(false)
   })
 
   it.each(readdirSync(join(REPO, '.github', 'workflows')))('account for every install in %s', (file) => {
