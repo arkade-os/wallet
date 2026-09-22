@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
-import { discover, sideLimits, validateCard } from '@arkade-os/solver-discovery'
+import { discover, marketCorridor, sideLimits, validateCard } from '@arkade-os/solver-discovery'
 import betaSolverCard from '../../lib/beta-solver.card.json'
 
 /**
@@ -24,7 +24,7 @@ describe('bundled Arkade Labs solver card', () => {
     const { markets, warnings } = await load()
     expect(warnings).toEqual([])
     expect(markets).toHaveLength(1)
-    expect(markets[0].quote_corridor).toBe('lightning')
+    expect(marketCorridor(markets[0], 'quote')).toBe('bolt11')
   })
 
   it('carries the rendezvous through discovery, so the maker can address the solver', async () => {
