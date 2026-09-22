@@ -281,14 +281,16 @@ export const buildAssetSwapActivityTx = (
         : swap.status === 'recoverable'
           ? 'recoverable'
           : 'pending'
-  const fill = swap.spentTxid
-    ? members.find((tx) => [tx.boardingTxid, tx.redeemTxid, tx.roundTxid].includes(swap.spentTxid!))
-    : undefined
-  const receivedAsset = fill?.assets?.find((asset) => asset.assetId === swap.toAsset && asset.amount > BigInt(0))
+  const fills = swap.spentTxid
+    ? members.filter((tx) => [tx.boardingTxid, tx.redeemTxid, tx.roundTxid].includes(swap.spentTxid!))
+    : []
+  const receivedFills = fills.filter((tx) => tx.type === 'received')
+  const receivedAsset = receivedFills
+    .flatMap((tx) => tx.assets ?? [])
+    .find((asset) => asset.assetId === swap.toAsset && asset.amount > BigInt(0))
+  const receivedSats = receivedFills.find((tx) => tx.amount > 0)?.amount
   const receivedAmount =
-    swap.toAsset === 'btc' && fill?.amount && fill.amount > 0
-      ? BigInt(fill.amount)
-      : (receivedAsset?.amount ?? BigInt(swap.toAmount))
+    swap.toAsset === 'btc' && receivedSats ? BigInt(receivedSats) : (receivedAsset?.amount ?? BigInt(swap.toAmount))
   // the currency designation outranks the asset's self-reported ticker, so
   // restored swaps read "BRL to sats", not "DEPIX to sats"; BTC is always
   // shown in sats, matching the live swap screen

@@ -197,6 +197,114 @@ describe('activitiesToTxs', () => {
     }
   })
 
+  it('attaches a correlated raw claim to an existing swap group regardless of snapshot order', () => {
+    const fundingTxid = '3'.repeat(64)
+    const claimTxid = '4'.repeat(64)
+    const record = {
+      ...swap({ id: 'intent-1', fundingTxid, spentTxid: claimTxid, status: 'fulfilled' }),
+      carrier: {
+        version: 1,
+        mode: 'purchase',
+        physicalSats: '330',
+        loanSats: '0',
+        purchasedSats: '330',
+        receiptSats: '0',
+        serviceFareSats: '0',
+        state: 'claimed',
+        txids: [claimTxid],
+      },
+    } as WalletAssetSwap
+    const funding = arkTx(fundingTxid, {
+      amount: -10_000,
+      createdAt: 1_700_000_000_000,
+      type: 'SENT' as ArkTransaction['type'],
+    })
+    const claim = arkTx(claimTxid, {
+      amount: 500,
+      assets: [{ assetId: record.toAsset, amount: BigInt(321) }],
+      createdAt: 1_700_000_005_000,
+    })
+    const group = activity('swap:intent-1', [funding], swapIntent('intent-1'))
+    const rawClaim = activity('raw-claim', [claim])
+    const snapshots = [
+      activitiesToTxs([group, rawClaim], { ...empty, swaps: [record] }),
+      activitiesToTxs([rawClaim, group], { ...empty, swaps: [record] }),
+      activitiesToTxs([activity('swap:intent-1', [funding, claim], swapIntent('intent-1'))], {
+        ...empty,
+        swaps: [record],
+      }),
+    ]
+
+    for (const rows of snapshots) {
+      expect(rows).toHaveLength(1)
+      expect(rows[0]).toMatchObject({
+        amount: 10_000,
+        historyKey: 'swap:intent-1',
+        assetSwap: { toAmount: BigInt(321) },
+      })
+      expect(rows[0].carrierMembers).toEqual([
+        { txid: fundingTxid, type: 'sent' },
+        { txid: claimTxid, type: 'received' },
+      ])
+    }
+  })
+
+  it('keeps same-hash sent and received evidence while deduplicating identical raw members', () => {
+    const fundingTxid = '7'.repeat(64)
+    const fillTxid = '8'.repeat(64)
+    const record = {
+      ...swap({ id: 'intent-1', fundingTxid, spentTxid: fillTxid, status: 'fulfilled' }),
+      carrier: {
+        version: 1,
+        mode: 'purchase',
+        physicalSats: '330',
+        loanSats: '0',
+        purchasedSats: '330',
+        receiptSats: '0',
+        serviceFareSats: '0',
+        state: 'claimed',
+        txids: [fillTxid],
+      },
+    } as WalletAssetSwap
+    const funding = arkTx(fundingTxid, {
+      amount: -10_000,
+      createdAt: 1_700_000_000_000,
+      type: 'SENT' as ArkTransaction['type'],
+    })
+    const fillReceived = arkTx(fillTxid, {
+      amount: 500,
+      assets: [{ assetId: record.toAsset, amount: BigInt(654) }],
+      createdAt: 1_700_000_005_000,
+    })
+    const fillSent = arkTx(fillTxid, {
+      amount: -500,
+      createdAt: 1_700_000_005_000,
+      type: 'SENT' as ArkTransaction['type'],
+    })
+    const snapshots = [
+      activitiesToTxs(
+        [activity('raw-funding', [funding]), activity('raw-fill', [fillSent, fillReceived, fillReceived])],
+        { ...empty, swaps: [record] },
+      ),
+      activitiesToTxs(
+        [activity('swap:intent-1', [funding, fillSent, fillReceived, fillReceived], swapIntent('intent-1'))],
+        { ...empty, swaps: [record] },
+      ),
+    ]
+
+    for (const rows of snapshots) {
+      expect(rows).toHaveLength(1)
+      expect(rows[0]).toMatchObject({
+        amount: 10_000,
+        historyKey: 'swap:intent-1',
+        assetSwap: { toAmount: BigInt(654) },
+      })
+      const linkedTxids = rows[0].carrierMembers?.map(({ txid }) => txid)
+      expect(linkedTxids).toEqual([fundingTxid, fillTxid])
+      expect(new Set(linkedTxids).size).toBe(2)
+    }
+  })
+
   it('leaves a shared raw tx unattributed when several swaps persist the same txid', () => {
     const sharedTxid = '6'.repeat(64)
     const shared = arkTx(sharedTxid, {
