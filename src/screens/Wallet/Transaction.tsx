@@ -55,7 +55,7 @@ export default function Transaction() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { assetMetadataCache, isVerifiedAsset, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } =
     useContext(WalletContext)
-  const { t } = useTranslation()
+  const { language, t } = useTranslation()
 
   const liveSwap = txInfo?.assetSwap?.fundingTxid
     ? swaps.find((swap) => swap.fundingTxid === txInfo.assetSwap?.fundingTxid)
@@ -203,7 +203,7 @@ export default function Transaction() {
               ? t('transaction.amountSent')
               : t('transaction.amountReceived')
   const date = tx.createdAt
-    ? prettyDate(tx.createdAt)
+    ? prettyDate(tx.createdAt, language)
     : !unconfirmedBoardingTx
       ? t('common.unknown')
       : t('transaction.unconfirmed')

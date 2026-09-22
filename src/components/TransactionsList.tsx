@@ -44,10 +44,10 @@ const TransactionLine = ({
   const { config } = useContext(ConfigContext)
   const { fromFiatAmount, toFiatAmount } = useContext(FiatContext)
   const { assetMetadataCache } = useContext(WalletContext)
-  const { t } = useTranslation()
+  const { language, t } = useTranslation()
 
   const date = tx.createdAt
-    ? prettyDate(tx.createdAt)
+    ? prettyDate(tx.createdAt, language)
     : tx.boardingTxid
       ? t('transaction.unconfirmed')
       : t('common.unknown')

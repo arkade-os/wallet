@@ -1,4 +1,5 @@
 import { prettyDate } from '../lib/format'
+import { useTranslation } from '../providers/language'
 import {
   CalendarEvent,
   generateAppleCalendarUrl,
@@ -18,6 +19,7 @@ interface ReminderProps {
 }
 
 export default function Reminder({ callback, duration, name, isOpen, startTime }: ReminderProps) {
+  const { language } = useTranslation()
   // Create CalendarEvent object to pass to helper functions
   const calendarEvent: CalendarEvent = {
     name,
@@ -49,7 +51,7 @@ export default function Reminder({ callback, duration, name, isOpen, startTime }
         <FlexCol centered gap='0.5rem'>
           <Text bold>{name}</Text>
           <Text small color='neutral-500'>
-            {prettyDate(startTime)}
+            {prettyDate(startTime, language)}
           </Text>
         </FlexCol>
         <FlexCol>

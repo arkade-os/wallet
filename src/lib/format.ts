@@ -1,6 +1,6 @@
 import { centsToUnits, prettyAssetAmount } from './assets'
 import { fiatDecimalsFor, FIAT_SYMBOLS } from './fiat'
-import { Currencies, Tx, Unit } from './types'
+import { Currencies, Language, Tx, Unit } from './types'
 import { Decimal } from 'decimal.js'
 
 export const BITCOIN_SYMBOL = '₿'
@@ -187,10 +187,10 @@ export const localizedAgo = (timestamp: number | string, t: TranslateFn): string
   return delta > 1 ? t('formatting.ago', { value }) : t('formatting.ahead', { value })
 }
 
-export const prettyDate = (num: number): string => {
+export const prettyDate = (num: number, lang: Language = Language.English): string => {
   if (!num) return ''
   const date = new Date(num * 1000)
-  return new Intl.DateTimeFormat('en', {
+  return new Intl.DateTimeFormat(lang === Language.Spanish ? 'es' : 'en', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',

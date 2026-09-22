@@ -76,6 +76,7 @@ export default function SendDetails() {
         total: feeInSats,
       })
       setButtonLabel(t('send.tapToSign'))
+      setError('')
       return
     }
     if (!satoshis) return setError(t('send.missingAmount'))
@@ -123,8 +124,9 @@ export default function SendDetails() {
       setError(t('send.insufficientFundsDetail', { balance: prettyNumber(balance) }))
     } else {
       setButtonLabel(t('send.tapToSign'))
+      setError('')
     }
-  }, [sendInfo, t])
+  }, [sendInfo, t, balance, vtxoTxsAllowed, utxoTxsAllowed, calcOnchainOutputFee])
 
   const handleTxid = (txid: string) => {
     if (!txid) return handleError(t('send.errorSendingTransaction'))

@@ -43,7 +43,7 @@ export default function Vtxos() {
   const { config } = useContext(ConfigContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { assetMetadataCache, reloadWallet, vtxos, vtxoManager, wallet, svcWallet } = useContext(WalletContext)
-  const { t } = useTranslation()
+  const { language, t } = useTranslation()
 
   const defaultLabel = t('vtxos.renewVirtualCoins')
 
@@ -382,7 +382,7 @@ export default function Vtxos() {
                     {t('vtxos.nextRenewal')}
                   </Text>
                   <Box>
-                    <Text>{prettyDate(wallet.nextRollover)}</Text>
+                    <Text>{prettyDate(wallet.nextRollover, language)}</Text>
                     <Text>{localizedAgo(wallet.nextRollover, t)}</Text>
                   </Box>
                   {success ? <WarningBox green text={t('vtxos.coinsRenewed')} /> : null}
@@ -401,7 +401,7 @@ export default function Vtxos() {
                       <TextSecondary>{t('vtxos.settlementFees')}</TextSecondary>
                       <TextSecondary>
                         {t('vtxos.nextMarketHour', {
-                          date: prettyDate(startTime),
+                          date: prettyDate(startTime, language),
                           ago: localizedAgo(startTime, t),
                           duration: localizedDelta(duration, t),
                         })}

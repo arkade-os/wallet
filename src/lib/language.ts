@@ -83,7 +83,9 @@ const europeanLanguages = new Set([
   'uk',
 ])
 
-export function detectLanguage(locale = navigator.language || 'en'): Language {
+export function detectLanguage(
+  locale = typeof navigator === 'undefined' ? 'en' : navigator.language || 'en',
+): Language {
   return locale.toLowerCase().startsWith('es') ? Language.Spanish : Language.English
 }
 
@@ -100,7 +102,9 @@ export function getActiveLanguage(): Language {
   return activeLanguage
 }
 
-export function getCurrency(locale = navigator.language || 'en-US'): Currencies {
+export function getCurrency(
+  locale = typeof navigator === 'undefined' ? 'en-US' : navigator.language || 'en-US',
+): Currencies {
   const normalizedLocale = locale.toLowerCase()
   const [language, region] = normalizedLocale.split(/[-_]/)
 

@@ -49,8 +49,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 }
 
 export function useTranslation() {
-  const { t } = useContext(LanguageContext)
-  return { t }
+  const { language, t } = useContext(LanguageContext)
+  return { language, t }
 }
 
 const SETTINGS_OPTION_KEY: Record<SettingsOptions, string> = {

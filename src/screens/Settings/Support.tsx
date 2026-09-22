@@ -15,7 +15,7 @@ import { buildVersion, sdkVersion, NetworkName } from '@arkade-os/sdk'
 import ChatwootWidget from '../../components/ChatWoot'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import ErrorMessage from '../../components/Error'
-import { hasChatwootVars } from '../../lib/chatwoot'
+import { hasChatwootVars, setChatwootLocale, getChatwootLocale } from '../../lib/chatwoot'
 import { getDefaultAddress } from '../../lib/address'
 import { gitCommit } from '../../_gitCommit'
 import { useTranslation } from '../../providers/language'
@@ -24,7 +24,7 @@ export default function Support() {
   const { aspInfo } = useContext(AspContext)
   const { config } = useContext(ConfigContext)
   const { wallet, svcWallet } = useContext(WalletContext)
-  const { t } = useTranslation()
+  const { language, t } = useTranslation()
 
   const [error, setError] = useState('')
   const [addresses, setAddresses] = useState<Addresses>()
@@ -71,6 +71,14 @@ export default function Support() {
       window.removeEventListener(event, eventHandler)
     }
   }, [])
+
+  // Keep the Chatwoot widget UI in the active wallet language. The locale is
+  // also set at injection time (see ChatWoot.tsx); this covers mid-session
+  // language switches while the widget is already loaded.
+  useEffect(() => {
+    if (!window.$chatwoot) return
+    setChatwootLocale(getChatwootLocale(language))
+  }, [language])
 
   // Set Chatwoot user and custom attributes when addresses are available
   useEffect(() => {

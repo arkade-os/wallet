@@ -150,3 +150,61 @@ describe('Send details refresh', () => {
     expect(reloadWallet).not.toHaveBeenCalled()
   })
 })
+
+describe('Send details stale validation state', () => {
+  const sendInfo = { arkAddress: 'tark1destination', satoshis: 100_000 }
+
+  const renderWithBalance = (balance: number) => {
+    const tree = (
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <AspContext.Provider value={mockAspContextValue}>
+              <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo }}>
+                <WalletContext.Provider value={{ ...mockWalletContextValue, balance }}>
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <SendDetails />
+                  </LimitsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </AspContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>
+    )
+    const utils = render(tree)
+    return {
+      ...utils,
+      rerenderWithBalance: (newBalance: number) =>
+        utils.rerender(
+          <NavigationContext.Provider value={mockNavigationContextValue}>
+            <ConfigContext.Provider value={mockConfigContextValue}>
+              <FiatContext.Provider value={mockFiatContextValue}>
+                <AspContext.Provider value={mockAspContextValue}>
+                  <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo }}>
+                    <WalletContext.Provider value={{ ...mockWalletContextValue, balance: newBalance }}>
+                      <LimitsContext.Provider value={mockLimitsContextValue}>
+                        <SendDetails />
+                      </LimitsContext.Provider>
+                    </WalletContext.Provider>
+                  </FlowContext.Provider>
+                </AspContext.Provider>
+              </FiatContext.Provider>
+            </ConfigContext.Provider>
+          </NavigationContext.Provider>,
+        ),
+    }
+  }
+
+  it('clears a stale insufficient-funds error when the balance becomes sufficient', async () => {
+    const { rerenderWithBalance } = renderWithBalance(500)
+
+    expect((await screen.findByTestId('error-message')).textContent).toMatch(/Insufficient funds, you just have 500/i)
+    expect(screen.getByRole('button', { name: 'Insufficient funds' })).toBeDisabled()
+
+    rerenderWithBalance(200_000)
+
+    await waitFor(() => expect(screen.queryByTestId('error-message')).not.toBeInTheDocument())
+    expect(screen.getByText('Tap to Sign')).toBeEnabled()
+  })
+})
