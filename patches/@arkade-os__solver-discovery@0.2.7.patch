@@ -1,0 +1,99 @@
+diff --git a/dist/discovery.js b/dist/discovery.js
+index 4198ca0ab9676f531ec95fba8a5539b8fb1d9aea..43a6e426cc042d5c2af3672e64abe71f015b3a0a 100644
+--- a/dist/discovery.js
++++ b/dist/discovery.js
+@@ -3,8 +3,8 @@
+ // price a chosen market from its advertised feed.
+ //
+ // Isomorphic by design — see `feed.ts` for the injectable transport.
+-import { DEFAULT_NETWORK, marketCorridor, marketLegKey, marketPairKey, stableStringify, } from "./types.js";
+-import { validateCard, validateIndex } from "./validate.js";
++import { DEFAULT_CORRIDOR, DEFAULT_NETWORK, legacyAssetId, legacyMarketCorridor, marketCorridor, marketLegKey, marketPairKey, pairSideLabel, stableStringify, } from "./types.js";
++import { marketNetworkErrors, validateCard, validateIndex } from "./validate.js";
+ import { sideLimits } from "./pricing.js";
+ import { fetchText } from "./feed.js";
+ import { defaultRegistryUrls } from "./registries.js";
+@@ -63,9 +63,13 @@ function recordSource(sources, warnings, report) {
+ /**
+  * Discover markets across the followed registries plus any pinned local cards.
+  * Registry failures are isolated; local cards are schema-validated and those
+- * that fail (or target another network) are skipped with a warning. The result
+- * is deduped (byte-identical entries collapsed) and ranked per corridor-qualified leg pair by
+- * `fee_bps`, with source order as the tiebreak.
++ * that fail (or target another network) are skipped with a warning. A canonical
++ * local card is down-projected to the v0 index shape (short `id` plus
++ * `caip19_id`) the way the registry reducer does — a pinned card never passes
++ * through that reducer, and the quote path prices the short ids. A market whose
++ * asset ids name another network, or that has no v0 id, is skipped with a
++ * warning. The result is deduped (byte-identical entries collapsed) and ranked
++ * per corridor-qualified leg pair by `fee_bps`, with source order as the tiebreak.
+  */
+ export async function discover(opts) {
+     const network = opts.network ?? DEFAULT_NETWORK;
+@@ -107,15 +111,63 @@ export async function discover(opts) {
+             recordSource(sources, warnings, { source, sourceType: "local", ok: false, marketCount: 0, error, warnings: [] });
+             continue;
+         }
++        const projected = [];
++        const localWarnings = [];
+         for (const m of card.markets) {
+-            const entry = { ...m, solver: card.name };
++            // An already-signed legacy card is already in the v0 index shape.
++            // Keep its bytes intact instead of down-projecting short ids again.
++            if (m.pair !== undefined) {
++                const entry = { ...m, solver: card.name };
++                if (card.discovery_pubkey)
++                    entry.discovery_pubkey = card.discovery_pubkey;
++                if (card.transports)
++                    entry.transports = card.transports;
++                projected.push(entry);
++                continue;
++            }
++            const networkErrors = marketNetworkErrors(m, localNetwork);
++            if (networkErrors.length > 0) {
++                localWarnings.push(...networkErrors);
++                continue;
++            }
++            // No v0 id (an eip155 side, or anything else `legacyAssetId` cannot
++            // name) would fail the whole document for a v0 consumer: hold it out.
++            const legacyBase = legacyAssetId(m.base_asset.id);
++            const legacyQuote = legacyAssetId(m.quote_asset.id);
++            if (legacyBase === undefined || legacyQuote === undefined) {
++                localWarnings.push(`${card.name}: ${m.base_asset.id} -> ${m.quote_asset.id}`);
++                continue;
++            }
++            const baseCorridor = legacyMarketCorridor(m, "base");
++            const quoteCorridor = legacyMarketCorridor(m, "quote");
++            const entry = {
++                ...m,
++                base_asset: { ...m.base_asset, id: legacyBase, caip19_id: m.base_asset.id },
++                quote_asset: { ...m.quote_asset, id: legacyQuote, caip19_id: m.quote_asset.id },
++                solver: card.name,
++                pair: `${pairSideLabel(baseCorridor, m.base_asset.ticker)}/${pairSideLabel(quoteCorridor, m.quote_asset.ticker)}`,
++            };
++            if (baseCorridor !== DEFAULT_CORRIDOR)
++                entry.base_corridor = baseCorridor;
++            if (quoteCorridor !== DEFAULT_CORRIDOR)
++                entry.quote_corridor = quoteCorridor;
+             if (card.discovery_pubkey)
+                 entry.discovery_pubkey = card.discovery_pubkey;
+             if (card.transports)
+                 entry.transports = card.transports;
+-            tagged.push({ market: entry, source, sourceType: "local" });
++            projected.push(entry);
+         }
+-        recordSource(sources, warnings, { source, sourceType: "local", ok: true, marketCount: card.markets.length, warnings: [] });
++        for (const entry of projected)
++            tagged.push({ market: entry, source, sourceType: "local" });
++        const skipped = projected.length === 0 && localWarnings.length > 0;
++        recordSource(sources, warnings, {
++            source,
++            sourceType: "local",
++            ok: !skipped,
++            marketCount: projected.length,
++            ...(skipped ? { error: localWarnings.join("; ") } : {}),
++            warnings: skipped ? [] : localWarnings,
++        });
+     }
+     // Drop byte-identical duplicates (same solver listed in two registries),
+     // keeping the earliest source.

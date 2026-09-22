@@ -422,6 +422,19 @@ describe('lnSendRefusal only names a cause it has checked', () => {
     expect(lnSendRefusal([market()], 1_000)).toBe('No Lightning solver available')
   })
 
+  it('reads bounds from a canonical card, whose rail is the asset id', () => {
+    const canonical = lnMarket({
+      quote_corridor: undefined,
+      pair: undefined,
+      base_asset: { id: 'arkade:bitcoin/slip44:0', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+      quote_asset: { id: 'bolt11:bitcoin/slip44:0', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+      min_quote_amount: '1000',
+      max_quote_amount: '25000',
+    })
+    expect(lnSendRefusal([canonical], 40_000)).toBe('Amount outside solver bounds (1,000-25,000 sats)')
+    expect(lnSendRefusal([canonical], 1_000)).not.toContain('outside solver bounds')
+  })
+
   it('blames the bounds only when no solver’s bounds admit the amount', () => {
     expect(lnSendRefusal([admits], 40_000)).toBe('Amount outside solver bounds (1,000-25,000 sats)')
     expect(lnSendRefusal([admits], 500)).toBe('Amount outside solver bounds (1,000-25,000 sats)')
