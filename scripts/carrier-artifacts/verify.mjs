@@ -142,20 +142,30 @@ if (wholeCheckout) {
   check(installsAt !== -1, 'Dockerfile installs nothing, so it builds against no dependencies')
   check(copiesAt !== -1 && copiesAt < installsAt, `Dockerfile installs before it copies ${VENDOR_DIR}`)
 
-  // One rule for every installing path: an install nobody verified first. A
-  // commented-out step is not a verify, and browsers are not dependencies.
+  // One rule for every installing path: an install no runnable verify precedes.
   const workflowDir = at('.github', 'workflows')
   const workflows = existsSync(workflowDir) ? readdirSync(workflowDir).filter((name) => /\.ya?ml$/.test(name)) : []
-  const scanned = [
-    ['Dockerfile', dockerfile],
-    ['.cursor/install.sh', readFileSync(at('.cursor', 'install.sh'), 'utf8').split(/\r?\n/)],
-  ]
-  for (const file of workflows)
-    for (const [job, lines] of workflowJobs(readFileSync(join(workflowDir, file), 'utf8')))
-      scanned.push([`.github/workflows/${file} job ${job}`, lines])
+  check(workflows.length > 0, '.github/workflows holds no workflow to scan')
+  const bootstrap = at('.cursor', 'install.sh')
+  const scanned = [['Dockerfile', dockerfile]]
+  if (check(existsSync(bootstrap), '.cursor/install.sh is missing; its install can no longer be checked'))
+    scanned.push(['.cursor/install.sh', readFileSync(bootstrap, 'utf8').split(/\r?\n/)])
+
+  // "Nothing to scan" must be distinguishable from "not scanned".
+  const installs = (lines) => lines.filter((line) => !isComment(line) && installsDependencies(line)).length
+  for (const file of workflows) {
+    const yaml = readFileSync(join(workflowDir, file), 'utf8')
+    const jobs = workflowJobs(yaml)
+    if (!check(jobs.size > 0, `.github/workflows/${file} yielded no jobs, so this scan cannot read it`)) continue
+    check(
+      [...jobs.values()].reduce((total, lines) => total + installs(lines), 0) === installs(yaml.split(/\r?\n/)),
+      `.github/workflows/${file} installs on a line this scan attributes to no job`,
+    )
+    for (const [job, lines] of jobs) scanned.push([`.github/workflows/${file} job ${job}`, lines])
+  }
   for (const [name, lines] of scanned) {
     const line = unverifiedInstall(lines)
-    check(line === undefined, `${name} installs without verifying the carrier artifacts first`)
+    check(line === undefined, `${name} installs at line ${line} without verifying the carrier artifacts first`)
   }
 }
 

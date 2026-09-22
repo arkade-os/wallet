@@ -79,45 +79,87 @@ export const isComment = (line) => /^\s*#/.test(line)
 
 const PACKAGE_MANAGERS = new Set(['pnpm', 'npm', 'yarn', 'bun'])
 const INSTALL_SUBCOMMANDS = new Set(['install', 'i', 'ci', 'add'])
-const NOT_AN_INSTALL = new Set(['exec', 'run', 'dlx', 'create', 'x'])
+const INVOKERS = new Set(['node', 'pnpm', 'npm', 'corepack', 'bash', 'sh'])
 
-// Any spelling a drifting edit might reach for — `pnpm i`, `npm ci`, bare
-// `yarn` — while `pnpm exec playwright install` is not one of them.
+/** Written on the line above an install that needs no verify, so the exemption is stated. */
+export const OPT_OUT = 'carrier-artifacts: not a dependency install'
+
+// Any spelling a drifting edit might reach for. `pnpm exec playwright install`
+// matches too: an exemption is written with OPT_OUT, not guessed at here.
 export function installsDependencies(line) {
   const tokens = line.trim().split(/\s+/)
   const at = tokens.findIndex((token) => PACKAGE_MANAGERS.has(token))
   if (at === -1) return false
   const rest = tokens.slice(at + 1)
-  const subcommand = rest.find((token) => !token.startsWith('-'))
-  if (subcommand === undefined) return tokens[at] === 'yarn'
-  return !NOT_AN_INSTALL.has(subcommand) && rest.some((token) => INSTALL_SUBCOMMANDS.has(token))
+  if (!rest.some((token) => !token.startsWith('-'))) return tokens[at] === 'yarn'
+  return rest.some((token) => INSTALL_SUBCOMMANDS.has(token))
 }
 
-/** 1-based line of the first install this command does not precede, or `undefined`. */
+const commandOf = (line) =>
+  line
+    .replace(/^\s*(?:RUN|-)\s+/, '')
+    .replace(/^\s*run:\s*/, '')
+    .trim()
+    .split(/\s+/)[0]
+
+// `echo …verify.mjs` names the command without running it.
+export const invokesVerify = (line) =>
+  /carrier-artifacts\/verify\.mjs|verify:artifacts/.test(line) && INVOKERS.has(commandOf(line))
+
+/** Indices inside a step an `if:` may keep from running — live idiom in playwright.yml. */
+export function guardedLines(lines) {
+  const guarded = new Set()
+  let start = 0
+  const close = (end) => {
+    if (lines.slice(start, end).some((line) => /^\s*if:\s/.test(line)))
+      for (let index = start; index < end; index++) guarded.add(index)
+  }
+  lines.forEach((line, index) => {
+    if (!/^\s*-\s/.test(line)) return
+    close(index)
+    start = index
+  })
+  close(lines.length)
+  return guarded
+}
+
+/** 1-based line of the first install no executable verify precedes, or `undefined`. */
 export function unverifiedInstall(lines) {
+  const guarded = guardedLines(lines)
   let verified = false
+  let exempt = false
   for (const [index, line] of lines.entries()) {
+    if (line.includes(OPT_OUT)) exempt = true
     if (isComment(line)) continue
-    if (/carrier-artifacts\/verify\.mjs/.test(line)) verified = true
-    else if (!verified && installsDependencies(line)) return index + 1
+    if (invokesVerify(line)) verified ||= !guarded.has(index)
+    else if (installsDependencies(line)) {
+      if (!verified && !exempt) return index + 1
+      exempt = false
+    }
   }
   return undefined
 }
 
-/** Each job of a workflow, by name, as the lines beneath its heading. */
+// Headings take their indent from the first, so a four-space file reads the
+// same and a nested key never passes for a job.
 export function workflowJobs(yaml) {
   const jobs = new Map()
   let inJobs = false
+  let indent
   let job
   for (const line of yaml.split(/\r?\n/)) {
     if (/^\S/.test(line)) {
-      inJobs = line.trimEnd() === 'jobs:'
-      job = undefined
-    } else if (inJobs) {
-      const heading = /^ {2}([A-Za-z_][\w-]*):\s*$/.exec(line)
-      if (heading) jobs.set((job = heading[1]), [])
-      if (job) jobs.get(job).push(line)
+      inJobs = /^jobs:\s*(?:#.*)?$/.test(line)
+      indent = job = undefined
+      continue
     }
+    if (!inJobs) continue
+    const heading = /^( +)([A-Za-z_][\w-]*):\s*(?:#.*)?$/.exec(line)
+    if (heading && (indent === undefined || heading[1].length === indent)) {
+      indent = heading[1].length
+      jobs.set((job = heading[2]), [])
+    }
+    if (job) jobs.get(job).push(line)
   }
   return jobs
 }

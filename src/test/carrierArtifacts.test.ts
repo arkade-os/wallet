@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { execFileSync } from 'node:child_process'
 import { createRequire } from 'node:module'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
@@ -10,8 +10,11 @@ import {
   CANDIDATE_SWAP_SYMBOL,
   DIRECT_DEPENDENCIES,
   MANIFEST_PATH,
+  OPT_OUT,
   PINNED_PACKAGES,
   installsDependencies,
+  invokesVerify,
+  isComment,
   packageRootFrom,
   pinnedSourceMismatch,
   unverifiedInstall,
@@ -23,6 +26,11 @@ import {
 const REPO = fileURLToPath(new URL('../../', import.meta.url))
 const manifest = JSON.parse(readFileSync(join(REPO, MANIFEST_PATH), 'utf8')) as CarrierManifest
 const require = createRequire(join(REPO, 'package.json'))
+const rows = (text: string) => text.split(/\r?\n/)
+const indentJobs = (yaml: string) =>
+  rows(yaml)
+    .map((line, index, all) => (index > all.indexOf('jobs:') && line.trim() ? `  ${line}` : line))
+    .join('\n')
 
 // Both versions exist on the registry too, built from different source, so an
 // install can take the wrong bytes and still import cleanly. No published build
@@ -93,7 +101,7 @@ describe('carrier artifacts', () => {
     },
   )
 
-  // Both were live blind spots: a commented-out step and a `pnpm i` rewrite each reported a clean job.
+  // Every install is suspect; only the written OPT_OUT marker excuses one.
   it.each([
     ['pnpm install', true],
     ['      run: pnpm i', true],
@@ -101,28 +109,50 @@ describe('carrier artifacts', () => {
     ['RUN corepack pnpm install --frozen-lockfile', true],
     ['pnpm --filter app install', true],
     ['yarn', true],
-    ['pnpm exec playwright install chrome --with-deps', false],
+    ['pnpm exec playwright install chrome --with-deps', true],
     ['pnpm run test:unit', false],
     ['pnpm build:worker && npx vite build', false],
+    ['nvm install', false],
     ['node scripts/carrier-artifacts/verify.mjs', false],
   ])('read %j as an install: %s', (line, expected) => {
     expect(installsDependencies(line as string)).toBe(expected)
   })
 
-  it('require a verify that is neither commented out nor after the install', () => {
-    const verify = '  run: node scripts/carrier-artifacts/verify.mjs'
-    expect(unverifiedInstall([verify, '  run: pnpm install'])).toBeUndefined()
-    expect(unverifiedInstall(['  run: pnpm install'])).toBe(1)
-    expect(unverifiedInstall([`  # ${verify.trim()}`, '  run: pnpm i'])).toBe(2)
-    expect(unverifiedInstall(['  run: pnpm install', verify])).toBe(1)
-    expect(unverifiedInstall(['  run: pnpm exec playwright install chrome'])).toBeUndefined()
+  // A step that only names the command does not run it.
+  it.each([
+    ['      run: node scripts/carrier-artifacts/verify.mjs', true],
+    ['RUN node scripts/carrier-artifacts/verify.mjs', true],
+    ['    - run: pnpm verify:artifacts', true],
+    ['      run: echo node scripts/carrier-artifacts/verify.mjs', false],
+    ['        echo "see scripts/carrier-artifacts/verify.mjs"', false],
+    ['      run: pnpm install', false],
+  ])('read %j as running the verification: %s', (line, expected) => {
+    expect(invokesVerify(line as string)).toBe(expected)
+  })
+
+  it('require a verify that is neither commented out, conditional, nor after the install', () => {
+    const verify = '      run: node scripts/carrier-artifacts/verify.mjs'
+    expect(unverifiedInstall([verify, '      run: pnpm install'])).toBeUndefined()
+    expect(unverifiedInstall(['      run: pnpm install'])).toBe(1)
+    expect(unverifiedInstall([`      # ${verify.trim()}`, '      run: pnpm i'])).toBe(2)
+    expect(unverifiedInstall(['      run: pnpm install', verify])).toBe(1)
+    expect(unverifiedInstall([verify.replace('node', 'echo node'), '      run: pnpm i'])).toBe(2)
+    expect(unverifiedInstall(['    - name: v', '      if: false', verify, '      run: pnpm i'])).toBe(4)
+    expect(unverifiedInstall(['    - name: v', verify, '    - run: pnpm i'])).toBeUndefined()
+    expect(unverifiedInstall([`    # ${OPT_OUT}`, '      run: pnpm exec playwright install chrome'])).toBeUndefined()
+    expect(unverifiedInstall([`    # ${OPT_OUT}`, '      run: pnpm i', '      run: pnpm i'])).toBe(3)
     expect(unverifiedInstall([]), 'a path that installs nothing needs no verify').toBeUndefined()
   })
 
-  it('attribute workflow lines to real jobs, not to on: triggers', () => {
-    const jobs = workflowJobs(readFileSync(join(REPO, '.github', 'workflows', 'ci.yml'), 'utf8'))
-    expect([...jobs.keys()]).toEqual(['test'])
-    expect(jobs.get('test')?.some((line) => installsDependencies(line))).toBe(true)
+  it.each(readdirSync(join(REPO, '.github', 'workflows')))('account for every install in %s', (file) => {
+    const yaml = readFileSync(join(REPO, '.github', 'workflows', file), 'utf8')
+    const counted = (source: string[]) => source.filter((line) => !isComment(line) && installsDependencies(line)).length
+    for (const shape of [yaml, yaml.replace(/^jobs:$/m, 'jobs: # comment'), indentJobs(yaml)]) {
+      const jobs = workflowJobs(shape)
+      expect(jobs.size, 'an unreadable workflow must not look like one with no installs').toBeGreaterThan(0)
+      expect([...jobs.keys()]).not.toContain('push')
+      expect([...jobs.values()].reduce((total, job) => total + counted(job), 0)).toBe(counted(rows(shape)))
+    }
   })
 
   it('make the frozen packages resolvable from the wallet', async () => {

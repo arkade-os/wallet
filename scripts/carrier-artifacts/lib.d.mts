@@ -43,6 +43,9 @@ export declare const readJson: (path: string) => Record<string, unknown>
 export declare const fileSpec: (from: string, filename: string) => string
 export declare const readFlatMapping: (yaml: string, key: string) => Record<string, string> | undefined
 export declare const isComment: (line: string) => boolean
+export declare const OPT_OUT: string
+export declare const invokesVerify: (line: string) => boolean
+export declare const guardedLines: (lines: readonly string[]) => Set<number>
 export declare const installsDependencies: (line: string) => boolean
 export declare const unverifiedInstall: (lines: readonly string[]) => number | undefined
 export declare const workflowJobs: (yaml: string) => Map<string, string[]>

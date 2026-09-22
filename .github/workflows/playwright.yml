@@ -53,6 +53,7 @@ jobs:
       run: node scripts/carrier-artifacts/verify.mjs
     - name: Install dependencies
       run: pnpm install
+    # carrier-artifacts: not a dependency install
     - name: Install Playwright Browsers
       run: pnpm exec playwright install chrome chromium --with-deps
     - name: Start regtest environment
