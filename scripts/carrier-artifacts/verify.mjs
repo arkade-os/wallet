@@ -157,11 +157,10 @@ if (wholeCheckout) {
     const command = readJson(environment).install
     const bound = typeof command === 'string' && command.includes(BOOTSTRAP)
     check(bound, `${ENVIRONMENT} installs with ${JSON.stringify(command ?? null)}, which does not run ${BOOTSTRAP}`)
+    // The whole command, not its prefix: `|| pnpm install` after a bootstrap
+    // that exits non-zero installs exactly when verification failed.
     if (bound)
-      check(
-        !installsDependencies(command.split(BOOTSTRAP)[0]),
-        `${ENVIRONMENT} installs before it reaches ${BOOTSTRAP}`,
-      )
+      check(!installsDependencies(command.replaceAll(BOOTSTRAP, '')), `${ENVIRONMENT} installs outside ${BOOTSTRAP}`)
   }
 
   // "Nothing to scan" must be distinguishable from "not scanned".
@@ -231,6 +230,6 @@ if (entry) {
 if (failures.length) fail(failures.join('\n  - '))
 process.stdout.write(
   `carrier artifacts verified: ${manifest.artifacts.length} archives, lock pinned to their bytes, ` +
-    `${wholeCheckout ? 'Dockerfile and workflows checked' : 'install context, no Dockerfile to check'}, ` +
+    `${wholeCheckout ? 'Dockerfile, workflows and bootstrap binding checked' : 'install context, no Dockerfile to check'}, ` +
     `${entry ? 'candidate exports confirmed in the installed tree' : 'no install to inspect yet'}\n`,
 )

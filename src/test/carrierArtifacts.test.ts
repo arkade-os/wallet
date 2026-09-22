@@ -58,7 +58,7 @@ describe('carrier artifacts', () => {
       expect.fail(`${failure.stderr ?? ''}${failure.stdout ?? ''}`)
     }
     expect(output, 'the Dockerfile and workflow checks skip themselves outside a whole checkout').toContain(
-      'Dockerfile and workflows checked',
+      'Dockerfile, workflows and bootstrap binding checked',
     )
     expect(output).toContain('candidate exports confirmed in the installed tree')
   })
@@ -201,7 +201,14 @@ describe('carrier artifacts', () => {
     const { install } = JSON.parse(readFileSync(join(REPO, ENVIRONMENT), 'utf8')) as { install?: string }
     expect(existsSync(join(REPO, BOOTSTRAP))).toBe(true)
     expect(install, `${ENVIRONMENT} must run the script the scan checks`).toContain(BOOTSTRAP)
-    expect(installsDependencies((install ?? '').split(BOOTSTRAP)[0]), 'nothing installs first').toBe(false)
+    const outside = (command: string) => installsDependencies(command.replaceAll(BOOTSTRAP, ''))
+    expect(outside(install ?? ''), 'nothing installs outside the bootstrap').toBe(false)
+    for (const bypass of [
+      `bash ${BOOTSTRAP} || pnpm install`,
+      `bash ${BOOTSTRAP}; pnpm install`,
+      `echo ${BOOTSTRAP} && pnpm install`,
+    ])
+      expect(outside(bypass), bypass).toBe(true)
   })
 
   it.each(readdirSync(join(REPO, '.github', 'workflows')))('account for every install in %s', (file) => {
