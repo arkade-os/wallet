@@ -81,12 +81,18 @@ const PACKAGE_MANAGERS = new Set(['pnpm', 'npm', 'yarn', 'bun'])
 const INSTALL_SUBCOMMANDS = new Set(['install', 'i', 'ci', 'add'])
 const INVOKERS = new Set(['node', 'pnpm', 'npm', 'corepack', 'bash', 'sh'])
 
-/** Written on the line above an install that needs no verify, so the exemption is stated. */
+// A comment on the line IMMEDIATELY above the install it excuses, and the
+// repository is allowed exactly EXEMPT_INSTALLS of them.
 export const OPT_OUT = 'carrier-artifacts: not a dependency install'
+export const EXEMPT_INSTALLS = 1
+
+// `pnpm/action-setup` installs with no command line at all when its step says so.
+const ACTION_INSTALL = /^\s*run_install:\s*(?!false\b|'false'|"false")\S/
 
 // Any spelling a drifting edit might reach for. `pnpm exec playwright install`
 // matches too: an exemption is written with OPT_OUT, not guessed at here.
 export function installsDependencies(line) {
+  if (ACTION_INSTALL.test(line)) return true
   const tokens = line.trim().split(/\s+/)
   const at = tokens.findIndex((token) => PACKAGE_MANAGERS.has(token))
   if (at === -1) return false
@@ -94,6 +100,8 @@ export function installsDependencies(line) {
   if (!rest.some((token) => !token.startsWith('-'))) return tokens[at] === 'yarn'
   return rest.some((token) => INSTALL_SUBCOMMANDS.has(token))
 }
+
+export const isOptOut = (line) => line !== undefined && isComment(line) && line.includes(OPT_OUT)
 
 const commandOf = (line) =>
   line
@@ -127,17 +135,28 @@ export function guardedLines(lines) {
 export function unverifiedInstall(lines) {
   const guarded = guardedLines(lines)
   let verified = false
-  let exempt = false
   for (const [index, line] of lines.entries()) {
-    if (line.includes(OPT_OUT)) exempt = true
     if (isComment(line)) continue
     if (invokesVerify(line)) verified ||= !guarded.has(index)
-    else if (installsDependencies(line)) {
-      if (!verified && !exempt) return index + 1
-      exempt = false
-    }
+    else if (installsDependencies(line) && !verified && !isOptOut(lines[index - 1])) return index + 1
   }
   return undefined
+}
+
+// A later stage is a fresh filesystem: the builder's verify never ran there and
+// vendor/carrier was never copied, so a stage is the scan unit, not the file.
+export function dockerfileStages(lines) {
+  const stages = new Map()
+  let stage
+  lines.forEach((line, index) => {
+    const from = !isComment(line) && /^\s*FROM\s+(\S+)(?:\s+AS\s+(\S+))?/i.exec(line)
+    if (from) {
+      stage = from[2] ?? from[1]
+      stages.set(stages.has(stage) ? (stage = `${stage}#${index + 1}`) : stage, [])
+    }
+    if (stage) stages.get(stage).push(line)
+  })
+  return stages
 }
 
 // Headings take their indent from the first, so a four-space file reads the

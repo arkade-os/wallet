@@ -17,9 +17,12 @@ import {
   VENDOR_DIR,
   archiveManifest,
   assertCandidateExport,
+  EXEMPT_INSTALLS,
+  dockerfileStages,
   fileSpec,
   installsDependencies,
   isComment,
+  isOptOut,
   packageRootFrom,
   pinnedSourceMismatch,
   readFlatMapping,
@@ -134,39 +137,55 @@ for (const name of PINNED_PACKAGES) {
 // whole checkout and asserts it was not skipped.
 const wholeCheckout = existsSync(at('Dockerfile'))
 if (wholeCheckout) {
-  // The image installs long before `COPY . .`, so these arrive under their own COPY.
-  const dockerfile = readFileSync(at('Dockerfile'), 'utf8').split(/\r?\n/)
-  const lineOf = (predicate) => dockerfile.findIndex((line) => !isComment(line) && predicate(line))
-  const installsAt = lineOf(installsDependencies)
-  const copiesAt = lineOf((line) => new RegExp(`^COPY .*${escape(VENDOR_DIR)}`).test(line))
-  check(installsAt !== -1, 'Dockerfile installs nothing, so it builds against no dependencies')
-  check(copiesAt !== -1 && copiesAt < installsAt, `Dockerfile installs before it copies ${VENDOR_DIR}`)
-
-  // One rule for every installing path: an install no runnable verify precedes.
+  // One rule for every installing path: an install no runnable verify precedes,
+  // scanned per Dockerfile stage or workflow job rather than per file.
   const workflowDir = at('.github', 'workflows')
   const workflows = existsSync(workflowDir) ? readdirSync(workflowDir).filter((name) => /\.ya?ml$/.test(name)) : []
   check(workflows.length > 0, '.github/workflows holds no workflow to scan')
+  const sources = [['Dockerfile', readFileSync(at('Dockerfile'), 'utf8').split(/\r?\n/)]]
   const bootstrap = at('.cursor', 'install.sh')
-  const scanned = [['Dockerfile', dockerfile]]
   if (check(existsSync(bootstrap), '.cursor/install.sh is missing; its install can no longer be checked'))
-    scanned.push(['.cursor/install.sh', readFileSync(bootstrap, 'utf8').split(/\r?\n/)])
+    sources.push(['.cursor/install.sh', readFileSync(bootstrap, 'utf8').split(/\r?\n/)])
+  for (const file of workflows)
+    sources.push([`.github/workflows/${file}`, readFileSync(join(workflowDir, file), 'utf8').split(/\r?\n/)])
 
   // "Nothing to scan" must be distinguishable from "not scanned".
   const installs = (lines) => lines.filter((line) => !isComment(line) && installsDependencies(line)).length
-  for (const file of workflows) {
-    const yaml = readFileSync(join(workflowDir, file), 'utf8')
-    const jobs = workflowJobs(yaml)
-    if (!check(jobs.size > 0, `.github/workflows/${file} yielded no jobs, so this scan cannot read it`)) continue
+  const scanned = []
+  for (const [name, lines] of sources) {
+    if (name === '.cursor/install.sh') {
+      scanned.push([name, lines])
+      continue
+    }
+    const units = name === 'Dockerfile' ? dockerfileStages(lines) : workflowJobs(lines.join('\n'))
+    const label = name === 'Dockerfile' ? 'stage' : 'job'
+    if (!check(units.size > 0, `${name} yielded no ${label}s, so this scan cannot read it`)) continue
     check(
-      [...jobs.values()].reduce((total, lines) => total + installs(lines), 0) === installs(yaml.split(/\r?\n/)),
-      `.github/workflows/${file} installs on a line this scan attributes to no job`,
+      [...units.values()].reduce((total, unit) => total + installs(unit), 0) === installs(lines),
+      `${name} installs on a line this scan attributes to no ${label}`,
     )
-    for (const [job, lines] of jobs) scanned.push([`.github/workflows/${file} job ${job}`, lines])
+    for (const [unit, unitLines] of units) scanned.push([`${name} ${label} ${unit}`, unitLines])
   }
   for (const [name, lines] of scanned) {
     const line = unverifiedInstall(lines)
     check(line === undefined, `${name} installs at line ${line} without verifying the carrier artifacts first`)
+    if (!lines.some(installsDependencies)) continue
+    const copiesAt = lines.findIndex(
+      (line) => !isComment(line) && new RegExp(`^COPY .*${escape(VENDOR_DIR)}`).test(line),
+    )
+    if (name.startsWith('Dockerfile'))
+      check(
+        copiesAt !== -1 && copiesAt < lines.findIndex((line) => !isComment(line) && installsDependencies(line)),
+        `${name} installs before it copies ${VENDOR_DIR}`,
+      )
   }
+
+  // Exactly one install in this repository is excused, and moving the cap is an edit here.
+  const markers = sources.reduce((total, [, lines]) => total + lines.filter(isOptOut).length, 0)
+  check(
+    markers === EXEMPT_INSTALLS,
+    `${markers} install exemptions are written across the scanned files, and ${EXEMPT_INSTALLS} is allowed`,
+  )
 }
 
 // What actually resolved, when there is an install to ask.

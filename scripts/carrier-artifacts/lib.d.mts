@@ -44,6 +44,9 @@ export declare const fileSpec: (from: string, filename: string) => string
 export declare const readFlatMapping: (yaml: string, key: string) => Record<string, string> | undefined
 export declare const isComment: (line: string) => boolean
 export declare const OPT_OUT: string
+export declare const EXEMPT_INSTALLS: number
+export declare const isOptOut: (line: string | undefined) => boolean
+export declare const dockerfileStages: (lines: readonly string[]) => Map<string, string[]>
 export declare const invokesVerify: (line: string) => boolean
 export declare const guardedLines: (lines: readonly string[]) => Set<number>
 export declare const installsDependencies: (line: string) => boolean

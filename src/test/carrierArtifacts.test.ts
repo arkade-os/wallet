@@ -9,12 +9,15 @@ import {
   CANDIDATE_SDK_SYMBOL,
   CANDIDATE_SWAP_SYMBOL,
   DIRECT_DEPENDENCIES,
+  EXEMPT_INSTALLS,
   MANIFEST_PATH,
   OPT_OUT,
   PINNED_PACKAGES,
+  dockerfileStages,
   installsDependencies,
   invokesVerify,
   isComment,
+  isOptOut,
   packageRootFrom,
   pinnedSourceMismatch,
   unverifiedInstall,
@@ -114,6 +117,10 @@ describe('carrier artifacts', () => {
     ['pnpm build:worker && npx vite build', false],
     ['nvm install', false],
     ['node scripts/carrier-artifacts/verify.mjs', false],
+    ['        run_install: true', true],
+    ['        run_install: |', true],
+    ['        run_install: false', false],
+    ['      uses: pnpm/action-setup@v4', false],
   ])('read %j as an install: %s', (line, expected) => {
     expect(installsDependencies(line as string)).toBe(expected)
   })
@@ -142,6 +149,46 @@ describe('carrier artifacts', () => {
     expect(unverifiedInstall([`    # ${OPT_OUT}`, '      run: pnpm exec playwright install chrome'])).toBeUndefined()
     expect(unverifiedInstall([`    # ${OPT_OUT}`, '      run: pnpm i', '      run: pnpm i'])).toBe(3)
     expect(unverifiedInstall([]), 'a path that installs nothing needs no verify').toBeUndefined()
+  })
+
+  // It used to excuse a later install, and one from inside a `name:` or `echo`.
+  it('take the exemption only from a comment on the line immediately above', () => {
+    const marker = `      # ${OPT_OUT}`
+    expect(unverifiedInstall([marker, '      run: pnpm i'])).toBeUndefined()
+    expect(unverifiedInstall([marker, '      run: echo hi', '      run: pnpm i'])).toBe(3)
+    expect(unverifiedInstall([`    - name: x # ${OPT_OUT}`, '      run: pnpm i'])).toBe(2)
+    expect(unverifiedInstall([`      run: echo "${OPT_OUT}"`, '      run: pnpm i'])).toBe(2)
+    expect(isOptOut(marker)).toBe(true)
+    expect(isOptOut(`    - name: x # ${OPT_OUT}`)).toBe(false)
+    expect(isOptOut(undefined)).toBe(false)
+  })
+
+  // A later stage is a fresh filesystem, and this Dockerfile is multi-stage.
+  it('scope the Dockerfile scan to a build stage, not the file', () => {
+    const verify = 'RUN node scripts/carrier-artifacts/verify.mjs'
+    const leak = ['FROM node AS builder', verify, 'RUN pnpm install', 'FROM nginx:alpine', 'RUN pnpm add -g x']
+    const stages = dockerfileStages(leak)
+    expect([...stages.keys()]).toEqual(['builder', 'nginx:alpine'])
+    expect(unverifiedInstall(stages.get('builder') as string[])).toBeUndefined()
+    expect(unverifiedInstall(stages.get('nginx:alpine') as string[]), 'the runtime stage never verified').toBe(2)
+
+    const real = rows(readFileSync(join(REPO, 'Dockerfile'), 'utf8'))
+    const built = dockerfileStages(real)
+    expect(built.size, 'an unreadable Dockerfile must not look like one with no installs').toBeGreaterThan(1)
+    for (const lines of built.values()) expect(unverifiedInstall(lines)).toBeUndefined()
+    const counted = (source: string[]) => source.filter((line) => !isComment(line) && installsDependencies(line)).length
+    expect([...built.values()].reduce((total, stage) => total + counted(stage), 0)).toBe(counted(real))
+  })
+
+  it('allow exactly the declared number of written exemptions', () => {
+    const scanned = [
+      rows(readFileSync(join(REPO, 'Dockerfile'), 'utf8')),
+      rows(readFileSync(join(REPO, '.cursor', 'install.sh'), 'utf8')),
+      ...readdirSync(join(REPO, '.github', 'workflows')).map((file) =>
+        rows(readFileSync(join(REPO, '.github', 'workflows', file), 'utf8')),
+      ),
+    ]
+    expect(scanned.reduce((total, lines) => total + lines.filter(isOptOut).length, 0)).toBe(EXEMPT_INSTALLS)
   })
 
   it.each(readdirSync(join(REPO, '.github', 'workflows')))('account for every install in %s', (file) => {
