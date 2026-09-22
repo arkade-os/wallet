@@ -4,7 +4,7 @@ import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import Header from './Header'
 import Text, { TextSecondary } from '../../components/Text'
-import { Card, LocalCardInput, validateCard, Network } from '@arkade-os/solver-discovery'
+import { Card, LocalCardInput, marketNetworkErrors, validateCard, Network } from '@arkade-os/solver-discovery'
 import { readSolverCards, saveSolverCards } from '@/lib/solverCards'
 import { BUNDLED_CARDS } from '@/lib/swapMarkets'
 import FlexRow from '@/components/FlexRow'
@@ -66,6 +66,14 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose?: () => void
     try {
       const result = validateCard(card)
       if (!result.ok) throw new Error(result.errors.join('; '))
+      // The asset id's chain reference is the network the leg settles on. The
+      // card file does not name a network — Settings stamps the one the wallet
+      // is on — so a mainnet card saved on another network would sit in the
+      // list and never price.
+      if (aspInfo.network && result.value) {
+        const networkErrors = result.value.markets.flatMap((market) => marketNetworkErrors(market, aspInfo.network))
+        if (networkErrors.length > 0) throw new Error(networkErrors.join('; '))
+      }
     } catch (err) {
       setError(`invalid card: ${(err as Error).message}`)
       return

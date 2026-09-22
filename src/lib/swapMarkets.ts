@@ -7,6 +7,14 @@
  * once and routes every quote against them. The shape satisfies both the v2
  * client's `DiscoveryConfig` and the package's own `discoverMarkets`, which is
  * what lets one definition feed the client and the lock-free read below.
+ *
+ * Cards are stored and passed through as published. A canonical card (CAIP-19
+ * asset ids, no `pair`) is down-projected to the short ids the balances and
+ * the offer covenant speak inside `@arkade-os/solver-discovery` — see
+ * `patches/@arkade-os__solver-discovery@0.2.7.patch`. The registry reducer does
+ * the same rewrite for a published index; a pinned card never passes through
+ * it. The pnpm override pins that package to one copy, so the client's quote
+ * and this read project the same way.
  */
 import { discoverMarkets as discover, type DiscoverMarketsOptions } from '@arkade-os/swap/protocol'
 import {

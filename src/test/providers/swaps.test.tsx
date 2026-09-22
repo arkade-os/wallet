@@ -140,6 +140,20 @@ describe('SwapsProvider', () => {
     expect(setAssetSwaps).toHaveBeenCalledWith([swap])
   })
 
+  it('hides a canonical corridor market that names the rail on the asset id', async () => {
+    mocks.discoverMarkets.mockResolvedValue([
+      market(),
+      market({
+        base_asset: { id: 'arkade:bitcoin/slip44:0', ticker: 'BTC', decimals: 8 },
+        quote_asset: { id: 'bolt11:bitcoin/slip44:0', ticker: 'BTC', decimals: 8 },
+      }),
+    ])
+
+    renderProvider()
+
+    await waitFor(() => expect(screen.getByTestId('market-count')).toHaveTextContent('1'))
+  })
+
   it('quotes destinations through the swap client', async () => {
     renderProvider()
 
