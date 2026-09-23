@@ -182,7 +182,15 @@ const lightningReceiveTx = (
   return {
     ...arkTransactionToTx(claim, metadata[claimTxid]),
     amount: Math.abs(activity.amount),
-    ...(carrier ? { carrier, carrierMembers: membersOf(activity) } : {}),
+    ...(carrier
+      ? {
+          carrier,
+          carrierMembers: mergeMembers(
+            membersOf(activity),
+            carrier.txids.map((txid) => ({ txid, type: 'related' })),
+          ),
+        }
+      : {}),
     type: activity.amount < 0 ? 'sent' : 'received',
     lnSwap: { label: activity.intent?.label, outcome: activity.intent?.outcome },
     historyKey: activity.id,

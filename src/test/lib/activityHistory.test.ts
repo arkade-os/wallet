@@ -1291,6 +1291,25 @@ describe('carrier metadata', () => {
     expect(row.carrier).toEqual(RECYCLE)
   })
 
+  it('keeps Lightning-receive carrier txids that the group does not hold', () => {
+    const rfqId = 'e'.repeat(64)
+    const intent = {
+      kind: 'swap',
+      label: 'Lightning receive',
+      outcome: 'settled',
+      metadata: { rfqId, swapKind: 'lightning_receive' },
+    } as Activity['intent']
+    const claim = arkTx(CLAIM_TXID, { amount: 10_000, createdAt: at(0) })
+    const group = { ...activity(`swap:${rfqId}`, [claim], intent), amount: 10_000 }
+
+    const [row] = activitiesToTxs([group], { ...empty, rfqCarriers: new Map([[rfqId, RECYCLE]]) })
+
+    expect(row.carrierMembers).toEqual([
+      { txid: CLAIM_TXID, type: 'received' },
+      { txid: RECOVERY_TXID, type: 'related' },
+    ])
+  })
+
   it('does not rescue a malformed persisted RFQ carrier from valid group metadata', () => {
     const rfqId = 'c'.repeat(64)
     const intent = {
