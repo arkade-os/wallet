@@ -26,14 +26,16 @@ describe('copyToClipboard', () => {
   })
 
   it('falls back to execCommand when the Clipboard API is missing', async () => {
+    let textareaVisibleDuringCall = false
     const execCommand = vi.fn(() => {
-      expect(document.querySelector('textarea')).not.toBeNull()
+      textareaVisibleDuringCall = document.querySelector('textarea') !== null
       return true
     })
     setExecCommand(execCommand)
 
     await copyToClipboard('hello')
 
+    expect(textareaVisibleDuringCall).toBe(true)
     expect(execCommand).toHaveBeenCalledWith('copy')
     expect(document.querySelector('textarea')).toBeNull()
   })
@@ -48,5 +50,16 @@ describe('copyToClipboard', () => {
 
     expect(writeText).toHaveBeenCalledTimes(1)
     expect(execCommand).toHaveBeenCalledWith('copy')
+  })
+
+  it('logs an error and resolves cleanly when both copy paths fail', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await copyToClipboard('hello')
+
+    expect(consoleErrorSpy).toHaveBeenCalledTimes(1)
+    const [message] = consoleErrorSpy.mock.calls[0]
+    expect(String(message)).toContain('error copying via legacy fallback')
+    expect(String(message)).toContain('rejected')
   })
 })

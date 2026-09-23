@@ -1,7 +1,11 @@
 import { consoleError } from './logs'
 
 // Legacy copy path for in-app browsers and embedded webviews where the
-// navigator.clipboard API is missing or rejects writes.
+// navigator.clipboard API is missing or rejects writes. The textarea is
+// attached to the DOM briefly (appendChild before removeChild); a
+// MutationObserver registered on document.body fires synchronously while the
+// value is readable, so callers that pass key material (see Backup.tsx
+// mnemonics/nsec) accept that exposure on this path.
 const copyViaExecCommand = (text: string): boolean => {
   const textarea = document.createElement('textarea')
   textarea.value = text
