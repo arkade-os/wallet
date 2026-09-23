@@ -128,6 +128,17 @@ describe('carrier artifacts', () => {
         rmSync(target, { recursive: true })
       },
     ],
+    [
+      'sits under a scope that is a file',
+      (client: string) => {
+        mkdirSync(dirname(dirname(client)), { recursive: true })
+        writeFileSync(dirname(client), 'not a directory')
+      },
+    ],
+    [
+      'sits under a node_modules that is a file',
+      (client: string) => writeFileSync(dirname(dirname(client)), 'not a directory'),
+    ],
   ])('fail an installed client that %s, rather than skip it', (_case, install) => {
     const root = stageInstallContext(install)
     try {

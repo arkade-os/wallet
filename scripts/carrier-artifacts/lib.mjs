@@ -390,14 +390,20 @@ export function readFlatMapping(yaml, key) {
   return mapping
 }
 
-// lstat, not exists: a pnpm link whose target is gone is a broken install, not a missing one.
-const isPresent = (path) => {
-  try {
-    lstatSync(path)
-    return true
-  } catch {
-    return false
+// lstat, not exists: a pnpm link whose target is gone is a broken install, not a missing one. Walked a
+// level at a time because beneath a file Windows reports ENOENT where Linux reports ENOTDIR.
+const isPresent = (dir, name) => {
+  let path = dir
+  for (const level of ['', ...name.split('/')]) {
+    path = join(path, level)
+    try {
+      if (lstatSync(path).isFile()) return true
+    } catch (error) {
+      if (error?.code === 'ENOENT') return false
+      throw error
+    }
   }
+  return true
 }
 
 /** The resolved entry, or `undefined` only when no search path holds the package at all. */
@@ -406,7 +412,7 @@ export function resolveInstalled(fromFile, name) {
   try {
     return require.resolve(name)
   } catch (error) {
-    const present = (require.resolve.paths(name) ?? []).some((dir) => isPresent(join(dir, ...name.split('/'))))
+    const present = (require.resolve.paths(name) ?? []).some((dir) => isPresent(dir, name))
     if (error?.code === 'MODULE_NOT_FOUND' && !present) return undefined
     throw new Error(`${name} is installed but does not resolve from ${fromFile}: ${error.message}`)
   }
