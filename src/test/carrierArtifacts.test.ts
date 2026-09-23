@@ -387,6 +387,16 @@ describe('carrier artifacts', () => {
     expect(unverifiedInstall(source as string[])).toBe(expected)
   })
 
+  it.each([
+    ['a verify that is only heredoc data', ['cat <<EOF > note.txt', 'pnpm verify:artifacts', 'EOF', 'pnpm i'], 4],
+    ['the same behind a quoted delimiter', ["cat <<'END' > n.txt", 'pnpm verify:artifacts', 'END', 'pnpm i'], 4],
+    ['the same behind the tab-stripping form', ['cat <<-EOF > n.txt', 'pnpm verify:artifacts', 'EOF', 'pnpm i'], 4],
+    ['an install a heredoc feeds to a shell', ['sh <<EOF', 'pnpm install', 'EOF'], 2],
+    ['a terminator with nothing open, outside any heredoc', ['pnpm verify:artifacts', '}', 'pnpm i'], 3],
+  ])('read a heredoc body as data: %s', (_case, source, expected) => {
+    expect(unverifiedInstall(source as string[])).toBe(expected)
+  })
+
   it('fold a command that spans lines before reading it', () => {
     expect(carrier.logicalLines([`RUN a ${BS}`, '  b', 'RUN c']).map(({ text }) => text)).toEqual(['RUN a b', 'RUN c'])
     expect(carrier.logicalLines(['  run: >-', '    a', '    b', '  run: c']).map(({ text }) => text)).toEqual([
@@ -440,6 +450,14 @@ describe('carrier artifacts', () => {
     [
       'a relaxed shell the next step reopens',
       ['    - run: |', '        set +e', '        echo hi', '    - run: pnpm verify:artifacts', '    - run: pnpm i'],
+    ],
+    [
+      'a verify run after the heredoc it follows closes',
+      ['cat <<EOF > n.txt', 'hi', 'EOF', 'pnpm verify:artifacts', 'pnpm i'],
+    ],
+    [
+      'an unmatched brace that is only heredoc data',
+      ['pnpm verify:artifacts', 'cat <<EOF > a.json', '{ "a": 1,', '}', 'EOF', 'pnpm i'],
     ],
     [
       'a step that only prints the word shell',

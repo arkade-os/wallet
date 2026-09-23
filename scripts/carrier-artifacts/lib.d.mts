@@ -55,6 +55,7 @@ export declare const logicalLines: (
   lines: readonly string[],
 ) => { readonly text: string; readonly at: number; readonly span: readonly number[] }[]
 export declare const unprovenDefaultShell: (yaml: string) => boolean
+export declare const heredocBodies: (lines: readonly string[]) => Set<number>
 export declare const installsDependencies: (line: string) => boolean
 export declare const unverifiedInstall: (lines: readonly string[]) => number | undefined
 export declare const workflowJobs: (yaml: string) => Map<string, string[]>

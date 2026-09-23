@@ -166,11 +166,30 @@ const CLOSES_BLOCK = /^\s*(?:fi|done|esac)\b|^\s*[)}]/
 const SAME_LINE_CLOSE = /\b(?:fi|done|esac)\s*;?\s*$|[)}]\s*;?\s*$/
 const indentOf = (line) => /^\s*/.exec(line)[0].length
 
+const HEREDOC = /<<-?\s*(?:'([^']+)'|"([^"]+)"|([A-Za-z_]\w*))/
+
+export function heredocBodies(lines) {
+  const body = new Set()
+  let delimiter
+  lines.forEach((line, index) => {
+    if (delimiter !== undefined) {
+      if (line.trim() === delimiter) delimiter = undefined
+      else body.add(index)
+      return
+    }
+    const opened = !isComment(line) && HEREDOC.exec(line)
+    if (opened) delimiter = opened[1] ?? opened[2] ?? opened[3]
+  })
+  return body
+}
+
 // NOT modelled, each landing on the RED side: a `$( )` or backtick inside an allowlisted
 // prefix is refused unread; `set -e` re-arming after a `set +e` stays guarded; `shell: bash
 // {0}` guards a single-line `run:` too. Soundness against a block opener this file never
 // names rests on the TERMINATORS, which the grammar closes at five: one with nothing open
 // proves a block that was missed, so the whole shell is guarded. Openers only buy precision.
+// The exception, and the only gap here that lands GREEN: a heredoc body is skipped by reading
+// the delimiter the USER chose, so a delimiter this misreads reads data back as commands.
 /** Indices whose verify must not count towards a later install. */
 export function guardedLines(lines) {
   const guarded = new Set()
@@ -200,10 +219,13 @@ export function guardedLines(lines) {
     start = index
   })
   close(lines.length)
+  const heredoc = heredocBodies(lines)
   let relaxed = false
   let depth = 0
   let shell = 0
   lines.forEach((line, index) => {
+    // Data, so nothing here runs or nests: guard it, and let the scan read past it.
+    if (heredoc.has(index)) return guarded.add(index)
     if (OPENS_SHELL.test(line)) {
       relaxed = false
       depth = 0
