@@ -449,6 +449,7 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
             }
           : {}),
       })
+      renderedAssetSwaps.add(swap.id)
     } catch {
       continue
     }

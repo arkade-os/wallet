@@ -711,6 +711,40 @@ describe('end to end through the SDK grouping', () => {
       ])
     })
 
+    it('keeps the members of a swap group with invalid evidence, and its record status, on one row each', () => {
+      const record = batchSwap('one', { version: 1, contributions: 'broken' })
+      const rows = activitiesToTxs([activity('swap:one', [funding, fill], swapIntent('one'))], {
+        ...empty,
+        swaps: [record],
+      })
+
+      expect(
+        rows
+          .filter((row) => row.type !== 'swap')
+          .map((row) => [row.type, row.amount])
+          .sort(),
+      ).toEqual([
+        ['received', 500],
+        ['sent', 10_000],
+      ])
+      expect(rows.filter((row) => row.type === 'swap')).toEqual([
+        expect.objectContaining({ historyKey: 'swap:one', amount: 0, settled: true, assetSwap: expect.anything() }),
+      ])
+      expect(rows.find((row) => row.type === 'swap')?.assetSwap?.status).toBe('completed')
+    })
+
+    it('renders a swap id once when two records for it conflict', async () => {
+      const records = [
+        batchSwap('one', evidence('3000', '100', '200')),
+        batchSwap('one', evidence('4000', '200', '300')),
+      ]
+      const groups = await activityHistoryOf([funding, fill], records)
+      const rows = activitiesToTxs(groups, { ...empty, swaps: records })
+
+      expect(rows.filter((row) => row.historyKey === 'swap:one')).toHaveLength(1)
+      expect(rows).toEqual(expect.arrayContaining([expect.objectContaining({ amount: 10_000, type: 'sent' })]))
+    })
+
     it.each([
       ['missing', undefined],
       ['invalid', { version: 1, contributions: 'broken' }],
