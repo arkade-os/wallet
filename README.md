@@ -24,7 +24,8 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
 | `VITE_APP_VERSION`            | App version string shown in support diagnostics                     | `VITE_APP_VERSION=1.2.3`                                                             |
 | `VITE_CHATWOOT_WEBSITE_TOKEN` | ChatWoot website token for customer support integration             | `VITE_CHATWOOT_WEBSITE_TOKEN=your-token`                                             |
 | `VITE_CHATWOOT_BASE_URL`      | ChatWoot server base URL for customer support integration           | `VITE_CHATWOOT_BASE_URL=https://app.chatwoot.com`                                    |
-| `VITE_DELEGATOR_URL`          | Delegator service URL for the wallet service worker                 | `VITE_DELEGATOR_URL=https://delegator.example.com`                                   |
+| `VITE_DELEGATEE_URL`          | Delegatee service URL for covenant-based delegation                 | `VITE_DELEGATEE_URL=https://delegatee.mutinynet.arkade.sh`                            |
+| `VITE_DELEGATOR_URL`          | Deprecated fallback alias for `VITE_DELEGATEE_URL`                   | `VITE_DELEGATOR_URL=https://delegatee.example.com`                                   |
 | `VITE_LENDASAT_IFRAME_URL`    | Override the default LendaSat URL                                   | `VITE_LENDASAT_IFRAME_URL=http://localhost:5173`                                     |
 | `VITE_SATORA_IFRAME_URL`      | Override the default Satora URL                                     | `VITE_SATORA_IFRAME_URL=http://localhost:5174`                                       |
 | `VITE_MAX_PERCENTAGE`         | Override the max fee percentage (default 10)                        | `VITE_MAX_PERCENTAGE=5`                                                              |
@@ -38,6 +39,22 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
 | `VITE_VTXO_MIN_AMOUNT`        | Override the server's vtxoMinAmount                                 | `VITE_VTXO_MIN_AMOUNT=330`                                                           |
 | `CI`                          | Set to `true` for Continuous Integration environments               | `CI=true`                                                                            |
 | `GENERATE_SOURCEMAP`          | Disable source map generation during build                          | `GENERATE_SOURCEMAP=false`                                                           |
+
+## Local Mutinynet wallet
+
+```bash
+VITE_ARK_SERVER=https://mutinynet.arkade.sh \
+VITE_DELEGATEE_URL=https://delegatee.mutinynet.arkade.sh \
+pnpm start
+```
+
+Open http://localhost:3002 and enable **Settings → Delegates → Use default Arkade delegate**.
+The SDK is embedded in `vendor/arkade-os-sdk-0.4.74-rc1.tgz`; `pnpm install` uses it
+for both the wallet and its dependencies.
+Existing eligible VTXOs are self-sent to the delegatee address when delegation is enabled.
+Renewals happen near expiry, within the configured renewal window.
+Delegation requires emulator v0.0.8-rc.1 and its `CHECKTIME VERIFY` covenant.
+Existing rc.0 delegate addresses must be replaced and funds moved by the owner.
 
 ## Docker
 
@@ -177,9 +194,7 @@ The groups list files explicitly, so **a new test file must be added to one of t
 otherwise it will never run on CI.
 
 ## Troubleshooting
-
 ### `address already in use` (Port 5000) on macOS
 
 macOS AirPlay Receiver uses port 5000 by default, which conflicts with the regtest stack.
-
 - **Fix:** Go to `System Settings > General > AirDrop & Handoff` and disable **AirPlay Receiver**.
