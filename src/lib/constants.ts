@@ -149,11 +149,7 @@ export const getEmulatorPubkeyOverrideForNetwork = (network: NetworkName): strin
 }
 
 export const getDelegateeUrlForNetwork = (network: NetworkName): string | undefined =>
-  serviceUrlForNetwork(
-    fromRuntimeEnv(import.meta.env.VITE_DELEGATEE_URL) ?? fromRuntimeEnv(import.meta.env.VITE_DELEGATOR_URL),
-    DELEGATEE_URL,
-    network,
-  )
+  serviceUrlForNetwork(fromRuntimeEnv(import.meta.env.VITE_DELEGATEE_URL), DELEGATEE_URL, network)
 
 /** @deprecated use getDelegateeUrlForNetwork */
 export const getDelegateUrlForNetwork = getDelegateeUrlForNetwork
