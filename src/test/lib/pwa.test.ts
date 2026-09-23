@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { pwaCanInstall, pwaIsInstalled } from '../../lib/pwa'
 
 const originalUA = navigator.userAgent
+const originalMatchMedia = window.matchMedia
 
 function setUserAgent(ua: string) {
   Object.defineProperty(navigator, 'userAgent', { value: ua, configurable: true })
@@ -9,6 +10,9 @@ function setUserAgent(ua: string) {
 
 afterEach(() => {
   setUserAgent(originalUA)
+  Reflect.deleteProperty(navigator, 'serviceWorker')
+  Reflect.deleteProperty(navigator, 'standalone')
+  window.matchMedia = originalMatchMedia
   vi.restoreAllMocks()
 })
 
@@ -50,5 +54,16 @@ describe('pwaCanInstall', () => {
 describe('pwaIsInstalled', () => {
   it('returns false when not standalone', () => {
     expect(pwaIsInstalled()).toBe(false)
+  })
+
+  it('returns true when running from the iOS home-screen (navigator.standalone)', () => {
+    Object.defineProperty(navigator, 'standalone', { value: true, configurable: true })
+    expect(pwaIsInstalled()).toBe(true)
+  })
+
+  it('returns true when display-mode is standalone', () => {
+    const standaloneMatchMedia = vi.fn(() => ({ matches: true })) as unknown as typeof window.matchMedia
+    window.matchMedia = standaloneMatchMedia
+    expect(pwaIsInstalled()).toBe(true)
   })
 })
