@@ -126,9 +126,26 @@ describe('carrier artifacts', () => {
     ['        run_install: |', true],
     ['        run_install: false', false],
     ['      uses: pnpm/action-setup@v4', false],
+    ['RUN pnpm install; echo ok', true],
+    ['      run: sh -c "pnpm install"', true],
+    ['pnpm i&&pnpm build', true],
+    ['pnpm install>/dev/null', true],
+    ['`npm ci`', true],
+    ['yarn; pnpm build', true],
+    ['yarn 2>&1', true],
+    ['echo "use npm"; yarn', true],
+    ['yarn build', false],
+    ['        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV', false],
   ])('read %j as an install: %s', (line, expected) => {
     expect(installsDependencies(line as string)).toBe(expected)
   })
+
+  it.each([['RUN pnpm install; echo ok'], ['      run: sh -c "pnpm install"'], ['RUN pnpm i&&pnpm build']])(
+    'hold %j to a verify, however the shell punctuates it',
+    (line) => {
+      expect(unverifiedInstall([line])).toBe(1)
+    },
+  )
 
   // A step that only names the command does not run it, nor does one the shell absolves.
   it.each([
@@ -297,14 +314,14 @@ describe('carrier artifacts', () => {
   })
 
   it.each([
-    ['sh -c "pnpm install"', 2],
+    ['sh -c "pnpm install"', 1],
     ['make deps', 2],
     ['pnpm fetch', 2],
     ['. ./setup.sh', 2],
     ['source ./setup.sh', 2],
     ['bash ./setup.sh', 2],
-    ['export X=$(pnpm install)', 2],
-    ['cd $(pnpm install)', 2],
+    ['export X=$(pnpm install)', 1],
+    ['cd $(pnpm install)', 1],
     ['cd /app', undefined],
     ['corepack enable', undefined],
     ['export CI=1', undefined],

@@ -93,16 +93,26 @@ export const EXEMPT_INSTALLS = 0
 // `pnpm/action-setup` installs with no command line at all when its step says so.
 const ACTION_INSTALL = /^\s*run_install:\s*(?!false\b|'false'|"false")\S/
 
+const REDIRECT = /\d*[<>]+&?\s*[^\s<>;&|()`]*/g
+const words = (text) => text.split(/\s+/).filter(Boolean)
+
 // Any spelling a drifting edit might reach for. `pnpm exec playwright install`
 // matches too: an exemption is written with OPT_OUT, not guessed at here.
 export function installsDependencies(line) {
   if (ACTION_INSTALL.test(line)) return true
-  const tokens = line.trim().split(/\s+/)
+  const unquoted = line.replace(/['"\\]/g, '')
+  const tokens = words(unquoted.replace(/[;&|()<>`]/g, ' '))
   const at = tokens.findIndex((token) => PACKAGE_MANAGERS.has(token))
-  if (at === -1) return false
-  const rest = tokens.slice(at + 1)
-  if (!rest.some((token) => !token.startsWith('-'))) return tokens[at] === 'yarn'
-  return rest.some((token) => INSTALL_SUBCOMMANDS.has(token))
+  if (at !== -1 && tokens.slice(at + 1).some((token) => INSTALL_SUBCOMMANDS.has(token))) return true
+  // Bare `yarn` installs, so it is read per command: what follows on the line is not its argument.
+  return unquoted
+    .replace(REDIRECT, ' ')
+    .split(/[;&|()`]/)
+    .some((command) => {
+      const parts = words(command)
+      const yarn = parts.indexOf('yarn')
+      return yarn !== -1 && parts.slice(yarn + 1).every((token) => token.startsWith('-'))
+    })
 }
 
 export const isOptOut = (line) => line !== undefined && isComment(line) && line.includes(OPT_OUT)
