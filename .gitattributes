@@ -1,1 +1,13 @@
+# LF in the repository, whatever the checkout does.
+#
+# Without this, a Windows clone with `core.autocrlf=true` gets CRLF on disk;
+# `.prettierrc` sets no `endOfLine`, so Prettier applies its `lf` default and
+# flags the line endings of every file it looks at — 493 of them, none about
+# formatting. The pre-commit hook runs `format:check`, so that blocks every
+# commit, and the usual escape is `--no-verify`, which skips the whole hook.
+#
+# `text=auto` leaves git to detect text from binary, so images and archives are
+# untouched. The rule below is more specific and still wins, so the entrypoint
+# keeps LF whatever `text=auto` decides about it.
+* text=auto eol=lf
 docker-entrypoint.sh text eol=lf

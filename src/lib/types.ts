@@ -118,6 +118,18 @@ export type LnSendSpend = {
   outcome: 'completed' | 'refunded'
 }
 
+/** The kinds of history row the wallet builds, and the only ones anything
+ * branches on. `'exit'` is the unilateral-exit row synthesised from unrolled
+ * VTXOs; the other three come from an activity, an `ArkTransaction`, or the
+ * swap resolver.
+ *
+ * The `(string & {})` arm keeps the union open, mirroring the SDK's own `TxTag`:
+ * `arkTransactionToTx` lowercases whatever `TxType` the SDK hands it, so a new
+ * direction there must widen this type rather than break the build. Open means
+ * a mistyped literal still compiles — what the union buys is that the four we
+ * do branch on are named in one place and autocomplete everywhere. */
+export type TxKind = 'received' | 'sent' | 'exit' | 'swap' | (string & {})
+
 export type Tx = {
   amount: number
   assetAction?: 'issued' | 'reissued' | 'burned'
@@ -126,15 +138,22 @@ export type Tx = {
   createdAt: number
   destination?: string
   explorable: string | undefined
+  /** Stable identity for this history row, from the activity that produced it.
+   *  Not a txid — never render it, never build an explorer link from it. */
+  historyKey?: string
   /** Present only on a Lightning send: its lockup covenant and that
    * covenant's spender, which is a second tx the wallet never signed. */
   lnSend?: LnSendActivity
+  /** Present on a row the swap activity resolver grouped. `label` and
+   * `outcome` are the resolver's own — opaque tokens, not display text, which
+   * `lnSwapLabel` turns into copy; the two txids are the receipt's rows. */
+  lnSwap?: { label?: string; outcome?: string; fundingTxid?: string; spendTxid?: string }
   networkFee?: number
   preconfirmed: boolean
   redeemTxid: string
   roundTxid: string
   settled: boolean
-  type: string
+  type: TxKind
   assetSwap?: {
     fromAssetId?: string
     fromTicker: string

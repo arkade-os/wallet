@@ -74,7 +74,7 @@ its relays, and there is no URL to configure instead. It is generated rather
 than committed because its `discovery_pubkey` is that deployment's own key.
 
 ```bash
-RELAY_URL= SOLVER_CARD_RELAYS=wss://localhost:10548 \
+RELAY_URL= SOLVER_CARD_RELAYS=ws://localhost:10547 \
   node --experimental-eventsource --env-file=.env.regtest dist/cli.js card regtest-lightning \
   > <path-to>/wallet/.regtest-lightning.card.json
 ```

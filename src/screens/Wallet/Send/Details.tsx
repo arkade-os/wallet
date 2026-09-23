@@ -7,6 +7,7 @@ import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Details, { DetailsProps } from '../../../components/Details'
 import ErrorMessage from '../../../components/Error'
 import { WalletContext } from '../../../providers/wallet'
+import { LnSwapsContext } from '../../../providers/lnSwaps'
 import Header from '../../../components/Header'
 import { defaultFee } from '../../../lib/constants'
 import { prettyNumber } from '../../../lib/format'
@@ -23,7 +24,6 @@ import { buildTransactionAmountDisplay } from '../../../lib/transactionAmountDis
 import { useAmountDisplayContext } from '../../../hooks/useTransactionAmountDisplay'
 import TransactionAmountSummary from '../../../components/TransactionAmountSummary'
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
-import type { LnSendActivity } from '../../../lib/types'
 
 export default function SendDetails() {
   const displayContext = useAmountDisplayContext()
@@ -32,7 +32,8 @@ export default function SendDetails() {
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
-  const { assetMetadataCache, balance, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, balance, reloadWallet, svcWallet } = useContext(WalletContext)
+  const { trackLnSend } = useContext(LnSwapsContext)
 
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
@@ -112,13 +113,20 @@ export default function SendDetails() {
     }
   }, [sendInfo])
 
-  const handleTxid = (txid: string, lnSend?: LnSendActivity) => {
+  const handleTxid = (txid: string) => {
     if (!txid) return handleError('Error sending transaction')
     saveTransactionActivityMetadata(txid, {
       destination: details?.destination,
-      lnSend,
       networkFee: details?.fees,
     })
+    // Refresh now instead of waiting on the worker's VTXO_UPDATE broadcast:
+    // that message rides on the indexer subscription, and for a transaction
+    // this wallet submitted itself it can arrive late or not at all, leaving
+    // the balance and the history a payment behind until a manual refresh.
+    // The worker persists the spent inputs and the change VTXO before it hands
+    // back the txid, so its cache is already current — and the metadata saved
+    // just above is what the refreshed history grafts onto this row.
+    reloadWallet().catch(consoleError)
     setSendInfo({ ...sendInfo, total: details?.total, txid })
     setSendDone(true)
   }
@@ -152,10 +160,20 @@ export default function SendDetails() {
   const payLightning = async (request: LnSendRequest) => {
     const txid = await sendOffChain(svcWallet!, request.fundAmount, request.address)
     if (!txid) return handleError('Error sending transaction')
-    // Record the covenant against the funding txid: it is the only handle on
-    // the spend that ends this swap, and it stops being derivable the moment
-    // this screen unmounts — the quote is gone and nothing else stores it.
-    handleTxid(txid, { swapPkScript: request.swapPkScript })
+    // Hand the swap over before `handleTxid` triggers the refresh that rebuilds
+    // history: the record is what makes this row a Lightning send rather than a
+    // bare outgoing payment, and it is what the manager drives from here on —
+    // including the refund, which nothing else in the wallet will push. A store
+    // that refuses leaves the payment committed and unmonitored, so it is
+    // reported and not raised: the covenant is funded either way.
+    await trackLnSend({
+      rfqId: request.rfqId,
+      lockupAddress: request.address,
+      amount: request.fundAmount,
+      fundingTxid: txid,
+      ...request.record,
+    }).catch((err) => consoleError(err, 'error tracking lightning send'))
+    handleTxid(txid)
   }
 
   const handleContinue = async () => {

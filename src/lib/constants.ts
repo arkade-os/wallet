@@ -1,6 +1,7 @@
 import { hex } from '@scure/base'
 import { Delegate } from './types'
 import { NetworkName } from '@arkade-os/sdk'
+import { registryIndexUrl, type Network } from '@arkade-os/solver-discovery'
 
 export const arknoteHRP = 'arknote'
 export const defaultFee = 0
@@ -47,15 +48,6 @@ const DELEGATEE_URL: Record<NetworkName, string | null> = {
   testnet: null,
 }
 
-// solver registry indexes for asset swaps (see arkade-os/solver-registry)
-const SOLVER_REGISTRY_URL: Record<NetworkName, string | null> = {
-  bitcoin: 'https://arkade-os.github.io/solver-registry/bitcoin.json',
-  mutinynet: 'https://arkade-os.github.io/solver-registry/mutinynet.json',
-  signet: null,
-  regtest: 'http://localhost:3002/solver-registry/regtest.json',
-  testnet: 'https://arkade-os.github.io/solver-registry/testnet.json',
-}
-
 // env override first (any network), then the per-network table
 const serviceUrlForNetwork = (
   envValue: string | undefined,
@@ -63,8 +55,17 @@ const serviceUrlForNetwork = (
   network: NetworkName,
 ) => fromRuntimeEnv(envValue) ?? table[network] ?? undefined
 
-export const getSolverRegistryUrl = (network: NetworkName): string | undefined =>
-  serviceUrlForNetwork(import.meta.env.VITE_SOLVER_REGISTRY_URL, SOLVER_REGISTRY_URL, network)
+// An explicit VITE_SOLVER_REGISTRY_URL still names a URL for any network;
+// otherwise the index comes from the library. Regtest is the exception: the dev
+// harness (`pnpm regtest:start` runs `build:markets`) writes its solver card to
+// public/solver-registry/regtest.json, which this app serves at :3002. The
+// library's published regtest.json is a different, hosted stack, so dropping
+// this override leaves local swaps with no solver.
+const REGTEST_REGISTRY_URL = 'http://localhost:3002/solver-registry/regtest.json'
+
+export const getSolverRegistryUrl = (network: Network): string =>
+  fromRuntimeEnv(import.meta.env.VITE_SOLVER_REGISTRY_URL) ??
+  (network === 'regtest' ? REGTEST_REGISTRY_URL : registryIndexUrl(network))
 
 // The x-only key of the arkade signer co-signing swap covenants (a separate
 // service from arkd). This is a fact about the SOLVER's deployment, not a
@@ -91,7 +92,7 @@ const EMULATOR_PUBKEY: Record<NetworkName, string | null> = {
   // per-deployment: a local stack generates its own co-signer key, so there is
   // no constant to pin. Set VITE_EMULATOR_PUBKEY to your emulator's signer
   // key.
-  regtest: null,
+  regtest: '02999413c46fa10ada5cbc4bcc79a1d09160c2ba3cfc812705d7a13e5e545fb2a9',
   testnet: null,
 }
 
@@ -120,11 +121,32 @@ export const getEmulatorPubkeyForNetwork = (network: NetworkName): Uint8Array | 
   }
 }
 
-// covclaimd — the service that could claim a Lightning-receive lockup for an
-// OFFLINE wallet — is deliberately not configured here. The receive screen
-// stays open and claims with its own covenant `receiver` key, so no deployment
-// needs to exist for the corridor to work; see `sealingKey` in lib/lnReceive.
-// Re-adding a URL table here is only worth it alongside a background claimer.
+/** 66 lowercase hex chars with an 02/03 prefix — a compressed secp256k1 point,
+ * the only shape `@arkade-os/swap`'s `resolveEmulatorPubkey` accepts. */
+const COMPRESSED_PUBKEY_HEX = /^0[23][0-9a-f]{64}$/
+
+/**
+ * The compressed (33-byte) hex `@arkade-os/swap` takes as its `emulatorPubkey`
+ * override, or undefined when the configured key is absent, x-only, or
+ * malformed — in which case the package falls back to its own per-network pin.
+ *
+ * Same env/table source as {@link getEmulatorPubkeyForNetwork}, different shape
+ * gate: that one feeds the covenant derivation, which wants the x-only form and
+ * narrows a compressed value to reach it. This one cannot narrow in the other
+ * direction — re-adding the 02/03 prefix to an x-only key is a coin flip between
+ * two distinct points — so an x-only value reads as NO override rather than as a
+ * guess.
+ *
+ * The trap that leaves: a deployment whose `VITE_EMULATOR_PUBKEY` is x-only
+ * keeps the QR corridor's rendezvous working (it compares against the card's own
+ * x-only key) while the RFQ override goes absent, so the covenant derives from
+ * the package's placeholder and `verifyLockupAddress` refuses at quote time. A
+ * deployment that wants regtest RFQ must configure the compressed form.
+ */
+export const getEmulatorPubkeyOverrideForNetwork = (network: NetworkName): string | undefined => {
+  const configured = getEmulatorPubkeyHexForNetwork(network)
+  return configured && COMPRESSED_PUBKEY_HEX.test(configured) ? configured : undefined
+}
 
 export const getDelegateeUrlForNetwork = (network: NetworkName): string | undefined =>
   serviceUrlForNetwork(
@@ -146,4 +168,23 @@ export const getDelegateForNetwork = (network: NetworkName): Delegate | undefine
     address: '', // Placeholder, as the actual address should be fetched from the delegate server
     name: 'Arkade Default',
   }
+}
+
+// covclaimd — the service that could claim a Lightning-receive lockup for an OFFLINE wallet
+
+const COVCLAIMD_PUBKEY: Record<NetworkName, string | null> = {
+  bitcoin: null,
+  // comes from GET https://covclaimd.mutinynet.arkade.sh/v1/preimage/covclaimd-pubkey
+  mutinynet: '034eb1f33220c697a5eab424e9f3b053760fa635f7bd9cc39c15bcecd30b5bf59d',
+  // comes from GET http://localhost:7271/v1/preimage/covclaimd-pubkey
+  regtest: '037af11787d87ee1d23ff47b61456d0159572abf1ae6f43ec816a9d605199b0b49',
+  signet: null,
+  testnet: null,
+}
+
+// Undefined where no covclaimd is configured, so nothing is sealed and no
+// claim_packet is sent. A stand-in key seals a packet nobody can ever open.
+export const getCovclaimdPubkeyForNetwork = (network: NetworkName): Uint8Array | undefined => {
+  const pubkey = fromRuntimeEnv(import.meta.env.VITE_COVCLAIMD_PUBKEY) ?? COVCLAIMD_PUBKEY[network]
+  return pubkey && COMPRESSED_PUBKEY_HEX.test(pubkey) ? hex.decode(pubkey) : undefined
 }

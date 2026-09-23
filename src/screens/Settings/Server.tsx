@@ -21,7 +21,7 @@ import { isMainnet } from '../../lib/constants'
 export default function Server() {
   const { aspInfo } = useContext(AspContext)
   const { backupConfig } = useContext(BackupContext)
-  const { config } = useContext(ConfigContext)
+  const { config, updateConfig } = useContext(ConfigContext)
   const { svcWallet, resetWallet } = useContext(WalletContext)
 
   const [aspUrl, setAspUrl] = useState('')
@@ -64,6 +64,7 @@ export default function Server() {
     try {
       if (!info) return
       await resetWallet()
+      updateConfig({ ...config, aspUrl: info.url })
       await backupConfig({ ...config, aspUrl: info.url })
       location.reload() // reload app or else weird things happen
     } catch (err) {

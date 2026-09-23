@@ -3,8 +3,11 @@ on:
   workflow_dispatch:
   push:
     branches: [master, next]
+  # No branches filter — it matches the BASE, so it skips every stacked PR.
   pull_request:
-    branches: [master, next]
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   test:
     name: E2E (${{ matrix.group }} / ${{ matrix.project }})

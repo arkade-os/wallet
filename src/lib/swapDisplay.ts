@@ -32,6 +32,39 @@ export function swapStatusLabel(tx: Tx): string {
   return 'Completed'
 }
 
+/**
+ * How a grouped RFQ swap row reads.
+ *
+ * The resolver's `outcome` is an opaque machine token — the package emits
+ * `pending`, `settled`, `refunded`, `failed` and `lost`, and says nothing about
+ * wording — so the mapping to copy belongs here rather than in the row.
+ *
+ * Two of the five need care:
+ *
+ * - **`refunded`** is "Refunded", not "Failed". Nothing broke from the user's
+ *   side: the solver could not pay the invoice and the covenant returned the
+ *   funds, which is the same word the receipt already uses.
+ * - **`lost`** is a `lightning_receive` that ended `refunded`, and it is the
+ *   opposite of the above. On the receive leg every non-claim leaf of the
+ *   covenant is the SOLVER's, so a lockup that went back is a payment that
+ *   never arrived — money gone, not money returned. Calling it "refunded" here
+ *   would tell the user the exact opposite of what happened, and would also
+ *   disagree with the receive screen, which already renders this as a loss.
+ *
+ * `settled` adds no word: a send that went through is just "Lightning send",
+ * the way a plain payment row carries no adverb.
+ */
+export function lnSwapLabel(tx: Tx): string | undefined {
+  const swap = tx.lnSwap
+  if (!swap) return undefined
+  const stem = swap.label ?? 'Lightning send'
+  if (swap.outcome === 'lost') return `${stem} lost`
+  if (swap.outcome === 'refunded') return `${stem} refunded`
+  if (swap.outcome === 'failed') return `${stem} failed`
+  if (swap.outcome === 'pending') return `${stem} pending`
+  return stem
+}
+
 export function swapRouteTicker(assetId: string | undefined, ticker: string | undefined): string | undefined {
   return assetId === 'btc' ? 'BTC' : (walletAccountTicker(ticker) ?? ticker)
 }
@@ -176,79 +209,72 @@ export function swapUnitOfAccountAmount({
   }
 }
 
-/** Collapse the funding and fill wallet rows into one persisted swap activity.
- * Display facts are recomputed from the tx couple and asset metadata where
- * possible; the quote snapshot only fills what cannot be recomputed. */
-export const mergeAssetSwapActivity = (
-  txs: Tx[],
-  swaps: WalletAssetSwap[],
-  network?: string,
-  assetDisplay?: (assetId: string) => { ticker?: string; decimals?: number } | undefined,
-): Tx[] => {
-  const claimed = new Set<Tx>()
-  const activities = swaps.map<Tx>((swap) => {
-    const members = txs.filter((tx) => {
-      const ids = [tx.boardingTxid, tx.redeemTxid, tx.roundTxid]
-      const match = ids.includes(swap.fundingTxid) || Boolean(swap.spentTxid && ids.includes(swap.spentTxid))
-      if (match) claimed.add(tx)
-      return match
-    })
-    const quote = swap.quote
-    // the package's AssetSwapStatus also covers its RFQ and onchain corridors
-    // (awaiting_fill, claimable, claimed, refunded_l1); an offer swap never
-    // carries those, and anything unrecognised reads as still in flight
-    const status =
-      swap.status === 'fulfilled'
-        ? 'completed'
-        : swap.status === 'cancelled'
-          ? 'cancelled'
-          : swap.status === 'recoverable'
-            ? 'recoverable'
-            : 'pending'
-    const fill = swap.spentTxid
-      ? members.find((tx) => [tx.boardingTxid, tx.redeemTxid, tx.roundTxid].includes(swap.spentTxid!))
-      : undefined
-    const receivedAsset = fill?.assets?.find((asset) => asset.assetId === swap.toAsset && asset.amount > BigInt(0))
-    const receivedAmount =
-      swap.toAsset === 'btc' && fill?.amount && fill.amount > 0
-        ? BigInt(fill.amount)
-        : (receivedAsset?.amount ?? BigInt(swap.toAmount))
-    // the currency designation outranks the asset's self-reported ticker, so
-    // restored swaps read "BRL to sats", not "DEPIX to sats"; BTC is always
-    // shown in sats, matching the live swap screen
-    const derivedTicker = (assetId: string) =>
-      assetId === 'btc'
-        ? 'sats'
-        : (designatedAccountCurrency(network, assetId) ?? assetDisplay?.(assetId)?.ticker ?? assetId.slice(0, 8))
-    const derivedDecimals = (assetId: string) => (assetId === 'btc' ? 0 : assetDisplay?.(assetId)?.decimals)
-    return {
-      amount: members[0]?.amount ?? 0,
-      boardingTxid: '',
-      createdAt: Math.floor(swap.createdAt / 1000),
-      explorable: undefined,
-      preconfirmed: status === 'pending',
-      redeemTxid: swap.spentTxid ?? swap.fundingTxid,
-      roundTxid: '',
-      settled: status !== 'pending',
-      type: 'swap',
-      assetSwap: {
-        fromAssetId: swap.fromAsset,
-        fromTicker: quote?.fromTicker ?? derivedTicker(swap.fromAsset),
-        fromDecimals: quote?.fromDecimals ?? derivedDecimals(swap.fromAsset),
-        fromAmount: BigInt(swap.fromAmount),
-        toAssetId: swap.toAsset,
-        toTicker: quote?.toTicker ?? derivedTicker(swap.toAsset),
-        toDecimals: quote?.toDecimals ?? derivedDecimals(swap.toAsset),
-        toAmount: receivedAmount,
-        fiatAmount: quote?.fromFiatAmount,
-        fiatCurrency: quote?.fiatCurrency,
-        feeBps: quote?.feeBps,
-        fundingTxid: swap.fundingTxid,
-        fillTxid: swap.status === 'fulfilled' || swap.status === 'cancelled' ? swap.spentTxid : undefined,
-        status,
-      },
-    }
-  })
+interface AssetSwapActivityOptions {
+  network?: string
+  assetDisplay?: (assetId: string) => { ticker?: string; decimals?: number } | undefined
+}
 
-  return [...activities, ...txs.filter((tx) => !claimed.has(tx))].sort((a, b) => b.createdAt - a.createdAt)
+/** The display row for one swap, from its record and the wallet rows that
+ * funded and filled it. Facts are recomputed from the tx couple and asset
+ * metadata where possible; the quote snapshot only fills what cannot be. */
+export const buildAssetSwapActivityTx = (
+  swap: WalletAssetSwap,
+  members: Tx[],
+  { network, assetDisplay }: AssetSwapActivityOptions = {},
+): Tx => {
+  const quote = swap.quote
+  // the package's AssetSwapStatus also covers its RFQ and onchain corridors
+  // (awaiting_fill, claimable, claimed, refunded_l1); an offer swap never
+  // carries those, and anything unrecognised reads as still in flight
+  const status =
+    swap.status === 'fulfilled'
+      ? 'completed'
+      : swap.status === 'cancelled'
+        ? 'cancelled'
+        : swap.status === 'recoverable'
+          ? 'recoverable'
+          : 'pending'
+  const fill = swap.spentTxid
+    ? members.find((tx) => [tx.boardingTxid, tx.redeemTxid, tx.roundTxid].includes(swap.spentTxid!))
+    : undefined
+  const receivedAsset = fill?.assets?.find((asset) => asset.assetId === swap.toAsset && asset.amount > BigInt(0))
+  const receivedAmount =
+    swap.toAsset === 'btc' && fill?.amount && fill.amount > 0
+      ? BigInt(fill.amount)
+      : (receivedAsset?.amount ?? BigInt(swap.toAmount))
+  // the currency designation outranks the asset's self-reported ticker, so
+  // restored swaps read "BRL to sats", not "DEPIX to sats"; BTC is always
+  // shown in sats, matching the live swap screen
+  const derivedTicker = (assetId: string) =>
+    assetId === 'btc'
+      ? 'sats'
+      : (designatedAccountCurrency(network, assetId) ?? assetDisplay?.(assetId)?.ticker ?? assetId.slice(0, 8))
+  const derivedDecimals = (assetId: string) => (assetId === 'btc' ? 0 : assetDisplay?.(assetId)?.decimals)
+  return {
+    amount: members[0]?.amount ?? 0,
+    boardingTxid: '',
+    createdAt: Math.floor(swap.createdAt / 1000),
+    explorable: undefined,
+    preconfirmed: status === 'pending',
+    redeemTxid: swap.spentTxid ?? swap.fundingTxid,
+    roundTxid: '',
+    settled: status !== 'pending',
+    type: 'swap',
+    assetSwap: {
+      fromAssetId: swap.fromAsset,
+      fromTicker: quote?.fromTicker ?? derivedTicker(swap.fromAsset),
+      fromDecimals: quote?.fromDecimals ?? derivedDecimals(swap.fromAsset),
+      fromAmount: BigInt(swap.fromAmount),
+      toAssetId: swap.toAsset,
+      toTicker: quote?.toTicker ?? derivedTicker(swap.toAsset),
+      toDecimals: quote?.toDecimals ?? derivedDecimals(swap.toAsset),
+      toAmount: receivedAmount,
+      fiatAmount: quote?.fromFiatAmount,
+      fiatCurrency: quote?.fiatCurrency,
+      feeBps: quote?.feeBps,
+      fundingTxid: swap.fundingTxid,
+      fillTxid: swap.status === 'fulfilled' || swap.status === 'cancelled' ? swap.spentTxid : undefined,
+      status,
+    },
+  }
 }

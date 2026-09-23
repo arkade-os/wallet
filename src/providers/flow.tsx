@@ -1,5 +1,4 @@
 import type { LnSendRequest } from '../lib/lnSwap'
-import type { LnReceiveRequest } from '../lib/lnReceive'
 import { ReactNode, SetStateAction, createContext, useState } from 'react'
 import type { Asset, AssetDetails, ServiceWorkerWalletMode } from '@arkade-os/sdk'
 import { Tx } from '../lib/types'
@@ -23,13 +22,31 @@ export interface DeepLinkInfo {
   query?: string
 }
 
+/**
+ * What the receive screen renders about a negotiated Lightning receive — and
+ * nothing more.
+ *
+ * The covenant, the claim secrets and the expected amount live with
+ * `LnReceiveProvider`, which is what claims the lockup. Keeping the whole
+ * `LnReceiveRequest` here once invited a second claim path written against flow
+ * state, which is the thing Stage 1 removes.
+ */
+export interface PendingLnReceive {
+  rfqId: string
+  invoice: string
+  /** What the payer is asked for, sats — larger than the amount received. */
+  payAmount: number
+  /** Last moment the invoice can be paid, unix seconds. */
+  invoiceExpiresAt: number
+}
+
 export interface RecvInfo {
   boardingAddr: string
   offchainAddr: string
   onchainAddr?: string
   /** The solver's hold invoice, once an RFQ receive has been negotiated. */
   invoice?: string
-  pendingLnReceive?: LnReceiveRequest
+  pendingLnReceive?: PendingLnReceive
   satoshis: number
   txid?: string
   addressError?: string

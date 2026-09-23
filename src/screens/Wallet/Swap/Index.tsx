@@ -17,7 +17,7 @@ import ChevronDownIcon from '../../../icons/ChevronDown'
 import InfoIcon from '../../../icons/Info'
 import SwapIcon from '../../../icons/Swap'
 import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
-import { centsToUnits, unitsToCents } from '../../../lib/assets'
+import { centsToUnits, liquidBtcBalance, unitsToCents } from '../../../lib/assets'
 import { extractError } from '../../../lib/error'
 import { formatFiatAmountParts, normalizeBitcoinUnit, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
@@ -71,12 +71,6 @@ interface SwapQuote {
   giveCurrencyValue: number
 }
 
-interface ExitingAmountCharacter {
-  character: string
-  id: number
-  slotClassName: string
-}
-
 const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'Back']
 const rateNote = 'Rates are dynamic and may update before you confirm.'
 const rateNoteAutoDismissMs = 2400
@@ -122,7 +116,7 @@ export default function WalletSwap() {
           ticker: btcUnit === Unit.BTC ? 'BTC' : btcUnit,
           currency: Currencies.BTC,
           decimals: btcUnit === Unit.BTC ? 8 : 0,
-          balance: BigInt(availableBalance),
+          balance: BigInt(liquidBtcBalance(availableBalance, availableAssetBalances.length > 0, aspInfo.dust)),
           fiatText: bitcoinRow?.hasFiatPrice
             ? prettyFiatAmount(bitcoinRow.fiatAmount, config.currency, { bitcoinUnit: config.unit })
             : undefined,
@@ -152,6 +146,7 @@ export default function WalletSwap() {
     })
   }, [
     assetMetadataCache,
+    aspInfo.dust,
     aspInfo.network,
     availableAssetBalances,
     availableBalance,
@@ -231,10 +226,18 @@ export default function WalletSwap() {
   const currentPlan = status === 'success' && planMatchesAssetAmount ? plan : null
   const quoteStale = Boolean(toAsset && Number(assetAmount) > 0 && !currentPlan)
   const planError = currentPlan ? validatePlan(currentPlan, assetBalanceAtomic(fromAsset), aspInfo.dust) : undefined
-  const exceedsBalance = unitsToCents(assetAmount, fromAsset.decimals) > assetBalanceAtomic(fromAsset)
+  const amountAtomic = unitsToCents(assetAmount, fromAsset.decimals)
+  const exceedsBalance = amountAtomic > assetBalanceAtomic(fromAsset)
+  // a partial asset deposit leaves asset change, and that change needs a second
+  // dust carrier; without one the SDK fails with a bare "Insufficient funds"
+  const lacksChangeCarrier =
+    fromAsset.assetId !== BTC_ASSET_ID &&
+    amountAtomic < assetBalanceAtomic(fromAsset) &&
+    availableBalance < 2 * Number(aspInfo.dust)
   const validationMessage = swapValidationMessage({
     amount,
     exceedsBalance,
+    lacksChangeCarrier,
     fromAsset,
     pairAvailable: toAsset ? Boolean(pair?.market) : undefined,
     plan: currentPlan,
@@ -283,7 +286,7 @@ export default function WalletSwap() {
   const balanceValidation = isBalanceLimitValidation(validationMessage) ? validationMessage : ''
 
   const quoteLoading = status === 'loading' || (quoteStale && hasPositiveAmount)
-  const canContinue = Boolean(toAsset && currentPlan && !planError)
+  const canContinue = Boolean(toAsset && currentPlan && !planError && !validationMessage)
 
   const stageTransition = prefersReduced ? { duration: 0 } : { duration: 0.28, ease: EASE_IN_OUT_QUINT_TUPLE }
 
@@ -322,18 +325,20 @@ export default function WalletSwap() {
     setSwapFromAssetId(undefined)
   }, [focusFromAsset, setSwapFromAssetId, swapAssets, swapAvailable, swapFromAssetId])
 
-  useEffect(() => {
-    if (validationState === 'idle') return
-    hapticSubtle()
-  }, [validationState])
+  const swapCommitted = confirming || Boolean(successQuote)
 
   useEffect(() => {
-    if (balanceValidation || !validationMessage) {
+    if (swapCommitted || validationState === 'idle') return
+    hapticSubtle()
+  }, [swapCommitted, validationState])
+
+  useEffect(() => {
+    if (swapCommitted || balanceValidation || !validationMessage) {
       toast.dismiss('swap-validation')
       return
     }
     toast.error(validationMessage, { id: 'swap-validation' })
-  }, [amount, balanceValidation, validationMessage])
+  }, [amount, balanceValidation, swapCommitted, validationMessage])
 
   useEffect(
     () => () => {
@@ -876,31 +881,18 @@ function AnimatedAmountValue({
   className: string
 }) {
   const previousValueRef = useRef(value)
-  const exitingIdRef = useRef(0)
-  const [exitingCharacters, setExitingCharacters] = useState<ExitingAmountCharacter[]>([])
   const characters = Array.from(value)
   const previousCharacters = Array.from(previousValueRef.current)
+  const previousCharacterBySlot = new Map(
+    previousCharacters.map((character, index) => [
+      amountCharacterSlotKey(character, index, previousCharacters),
+      character,
+    ]),
+  )
   const shouldAnimate = previousValueRef.current !== value
   const isAdding = value.length > previousValueRef.current.length
 
   useEffect(() => {
-    const previousCharactersForExit = Array.from(previousValueRef.current)
-    const nextCharacters = Array.from(value)
-    const isDeleting = nextCharacters.length < previousCharactersForExit.length
-
-    if (isDeleting) {
-      const removedCharacters = previousCharactersForExit.slice(nextCharacters.length).map((character) => ({
-        character,
-        id: exitingIdRef.current++,
-        slotClassName: amountCharacterSlotClassName(character),
-      }))
-      setExitingCharacters(removedCharacters)
-      const timer = window.setTimeout(() => setExitingCharacters([]), 180)
-      previousValueRef.current = value
-      return () => window.clearTimeout(timer)
-    }
-
-    setExitingCharacters([])
     previousValueRef.current = value
   }, [value])
 
@@ -910,19 +902,26 @@ function AnimatedAmountValue({
       aria-label={value}
       style={{ '--swap-amount-scale': amountFontScale(value.length) } as React.CSSProperties}
     >
-      <AnimatePresence initial={false}>
+      <AnimatePresence mode='popLayout' initial={false}>
         {characters.map((character, characterIndex) => {
-          const characterChanged = previousCharacters[characterIndex] !== character
-          const entering = shouldAnimate && (characterChanged || characterIndex >= previousCharacters.length)
+          const slotKey = amountCharacterSlotKey(character, characterIndex, characters)
+          const entering = shouldAnimate && previousCharacterBySlot.get(slotKey) !== character
           return (
             <motion.span
-              key={amountCharacterSlotKey(character, characterIndex, characters)}
+              key={slotKey}
+              layout={!reducedMotion}
               className={amountCharacterSlotClassName(character)}
               initial={reducedMotion ? false : { opacity: 0, y: isAdding ? 12 : 7 }}
               animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
               exit={reducedMotion ? undefined : { opacity: 0, y: -7 }}
               transition={
-                reducedMotion ? { duration: 0 } : { duration: isAdding ? 0.28 : 0.16, ease: EASE_OUT_QUINT_TUPLE }
+                reducedMotion
+                  ? { duration: 0 }
+                  : {
+                      duration: isAdding ? 0.28 : 0.16,
+                      ease: EASE_OUT_QUINT_TUPLE,
+                      layout: { duration: 0.22, ease: EASE_OUT_QUINT_TUPLE },
+                    }
               }
             >
               <AnimatePresence mode='popLayout' initial={shouldAnimate}>
@@ -948,13 +947,6 @@ function AnimatedAmountValue({
           )
         })}
       </AnimatePresence>
-      {exitingCharacters.map(({ character, id, slotClassName }) => (
-        <span key={`exiting-${id}`} className={`${slotClassName} swap-amount-character-slot--exiting`}>
-          <span className='swap-amount-character swap-amount-character--exiting' aria-hidden='true'>
-            {character === ' ' ? '\u00a0' : character}
-          </span>
-        </span>
-      ))}
     </span>
   )
 }
@@ -1408,6 +1400,7 @@ function amountForQuote(amount: string, fromAsset: SwapAsset): string {
 function swapValidationMessage({
   amount,
   exceedsBalance,
+  lacksChangeCarrier,
   fromAsset,
   pairAvailable,
   plan,
@@ -1417,6 +1410,7 @@ function swapValidationMessage({
 }: {
   amount: string
   exceedsBalance: boolean
+  lacksChangeCarrier: boolean
   fromAsset: SwapAsset
   pairAvailable: boolean | undefined
   plan: OfferPlan | null
@@ -1426,6 +1420,9 @@ function swapValidationMessage({
 }): string {
   if (!Number(amount)) return ''
   if (exceedsBalance) return 'Insufficient balance'
+  if (lacksChangeCarrier) {
+    return "You don't have enough bitcoin to do a partial swap. Please swap all or acquire some bitcoin."
+  }
   if (pairAvailable === undefined) return ''
   if (!pairAvailable || solvable === false) return 'Swap unavailable for this pair'
   if (status === 'error') return 'Quote unavailable'

@@ -1,5 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import SendDetails from '../../../screens/Wallet/Send/Details'
 import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
 import { Currencies } from '../../../lib/types'
@@ -91,5 +91,62 @@ describe('Send details amount hierarchy', () => {
     expect(screen.getByTestId('Value')).toHaveTextContent('€1.75')
     expect(screen.queryByText(/USDT/)).not.toBeInTheDocument()
     expect(screen.queryByTestId('Total')).not.toBeInTheDocument()
+  })
+})
+
+describe('Send details refresh', () => {
+  const renderArkSend = (reloadWallet: () => Promise<void>, send: () => Promise<string>) =>
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <AspContext.Provider value={mockAspContextValue}>
+              <FlowContext.Provider
+                value={{ ...mockFlowContextValue, sendInfo: { arkAddress: 'tark1destination', satoshis: 1_000 } }}
+              >
+                <WalletContext.Provider
+                  value={{
+                    ...mockWalletContextValue,
+                    balance: 10_000,
+                    reloadWallet,
+                    svcWallet: { ...mockSvcWallet, send } as any,
+                  }}
+                >
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <SendDetails />
+                  </LimitsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </AspContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+  // The worker only broadcasts VTXO_UPDATE off the indexer subscription, which
+  // can arrive late or never for a transaction this wallet submitted itself —
+  // leaving the balance and the history a payment behind (#LN-send-stale).
+  it('refreshes the wallet once the send returns a txid', async () => {
+    const reloadWallet = vi.fn(() => Promise.resolve())
+    const send = vi.fn(() => Promise.resolve('sent-txid'))
+
+    renderArkSend(reloadWallet, send)
+
+    fireEvent.click(await screen.findByText('Tap to Sign'))
+
+    await waitFor(() => expect(send).toHaveBeenCalled())
+    await waitFor(() => expect(reloadWallet).toHaveBeenCalled())
+  })
+
+  it('does not refresh when the send fails', async () => {
+    const reloadWallet = vi.fn(() => Promise.resolve())
+    const send = vi.fn(() => Promise.reject(new Error('boom')))
+
+    renderArkSend(reloadWallet, send)
+
+    fireEvent.click(await screen.findByText('Tap to Sign'))
+
+    await waitFor(() => expect(send).toHaveBeenCalled())
+    expect(reloadWallet).not.toHaveBeenCalled()
   })
 })
