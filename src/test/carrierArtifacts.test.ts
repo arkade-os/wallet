@@ -1,9 +1,20 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
   BOOTSTRAP,
@@ -64,6 +75,68 @@ describe('carrier artifacts', () => {
       'Dockerfile, workflows and bootstrap binding checked',
     )
     expect(output).toContain('candidate exports confirmed in the installed tree')
+  })
+
+  // The pre-install context the Docker layer copies, staged where an install can be broken on purpose.
+  const stageInstallContext = (install?: (client: string, root: string) => void) => {
+    const root = mkdtempSync(join(tmpdir(), 'carrier-verify-'))
+    for (const path of [
+      'package.json',
+      'pnpm-lock.yaml',
+      'pnpm-workspace.yaml',
+      'vendor/carrier',
+      'scripts/carrier-artifacts',
+    ])
+      cpSync(join(REPO, path), join(root, path), { recursive: true })
+    install?.(join(root, 'node_modules', '@arkade-taxi', 'client'), root)
+    return root
+  }
+  const verifyIn = (root: string) =>
+    spawnSync(process.execPath, [join(root, 'scripts', 'carrier-artifacts', 'verify.mjs')], {
+      cwd: root,
+      encoding: 'utf8',
+    })
+  const clientManifest = (client: string, manifest: object) => {
+    mkdirSync(client, { recursive: true })
+    writeFileSync(join(client, 'package.json'), JSON.stringify({ name: '@arkade-taxi/client', ...manifest }))
+  }
+
+  it('pass a context with nothing installed, as the Docker layer is', () => {
+    const root = stageInstallContext()
+    try {
+      const run = verifyIn(root)
+      expect(run.status, run.stderr).toBe(0)
+      expect(run.stdout).toContain('no install to inspect yet')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it.each([
+    [
+      'exports only an import condition',
+      (client: string) => clientManifest(client, { type: 'module', exports: { '.': { import: './index.js' } } }),
+    ],
+    ['names a main that is not there', (client: string) => clientManifest(client, { main: './dist/index.js' })],
+    [
+      'is a link whose target is gone',
+      (client: string, root: string) => {
+        const target = join(root, 'gone')
+        mkdirSync(target)
+        mkdirSync(dirname(client), { recursive: true })
+        symlinkSync(target, client, 'junction')
+        rmSync(target, { recursive: true })
+      },
+    ],
+  ])('fail an installed client that %s, rather than skip it', (_case, install) => {
+    const root = stageInstallContext(install)
+    try {
+      const run = verifyIn(root)
+      expect(run.status, run.stdout).toBe(1)
+      expect(run.stderr).toContain('@arkade-taxi/client is installed but does not resolve')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 
   it('record a reproducible source for every frozen archive', () => {

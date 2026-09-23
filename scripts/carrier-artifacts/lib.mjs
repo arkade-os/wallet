@@ -3,7 +3,7 @@
 
 import { createRequire } from 'node:module'
 import { createHash } from 'node:crypto'
-import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { gunzipSync } from 'node:zlib'
@@ -378,6 +378,28 @@ export function readFlatMapping(yaml, key) {
     mapping[pair[1] ?? pair[2]] = pair[3] ?? pair[4]
   }
   return mapping
+}
+
+// lstat, not exists: a pnpm link whose target is gone is a broken install, not a missing one.
+const isPresent = (path) => {
+  try {
+    lstatSync(path)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** The resolved entry, or `undefined` only when no search path holds the package at all. */
+export function resolveInstalled(fromFile, name) {
+  const require = createRequire(fromFile)
+  try {
+    return require.resolve(name)
+  } catch (error) {
+    const present = (require.resolve.paths(name) ?? []).some((dir) => isPresent(join(dir, ...name.split('/'))))
+    if (error?.code === 'MODULE_NOT_FOUND' && !present) return undefined
+    throw new Error(`${name} is installed but does not resolve from ${fromFile}: ${error.message}`)
+  }
 }
 
 // Under pnpm's strict layout only the importer's own question is the real one.

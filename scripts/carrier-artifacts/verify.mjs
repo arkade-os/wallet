@@ -4,7 +4,6 @@
 // Docker layer BEFORE `pnpm install`.
 
 import { createHash } from 'node:crypto'
-import { createRequire } from 'node:module'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -29,6 +28,7 @@ import {
   pinnedSourceMismatch,
   readFlatMapping,
   readJson,
+  resolveInstalled,
   sha256,
   unprovenDefaultShell,
   unverifiedInstall,
@@ -215,9 +215,9 @@ if (wholeCheckout) {
 // What actually resolved, when there is an install to ask.
 let entry
 try {
-  entry = createRequire(at('package.json')).resolve('@arkade-taxi/client')
-} catch {
-  entry = undefined
+  entry = resolveInstalled(at('package.json'), '@arkade-taxi/client')
+} catch (error) {
+  failures.push(error.message)
 }
 if (entry) {
   for (const [name, symbol] of [
