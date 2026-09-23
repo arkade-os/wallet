@@ -107,24 +107,46 @@ export function installsDependencies(line) {
 
 export const isOptOut = (line) => line !== undefined && isComment(line) && line.includes(OPT_OUT)
 
-const commandOf = (line) =>
+const commandBody = (line) =>
   line
     .replace(/^\s*(?:RUN|-)\s+/, '')
     .replace(/^\s*run:\s*/, '')
     .trim()
-    .split(/\s+/)[0]
 
-// `echo …verify.mjs` names the command without running it.
-export const invokesVerify = (line) =>
-  /carrier-artifacts\/verify\.mjs|verify:artifacts/.test(line) && INVOKERS.has(commandOf(line))
+// `|| true`, `;`, `|| :`, a pipe and a trailing `&` all hand the step a zero;
+// `&&` is the one operator that carries the failure forward.
+const swallowsStatus = (command) => /[|;&]/.test(command.replaceAll('&&', ' '))
 
-/** Indices inside a step an `if:` may keep from running — live idiom in playwright.yml. */
+// A verify must lead the line: `echo` only names it, and an install chained ahead has already run.
+export const invokesVerify = (line) => {
+  const command = commandBody(line)
+  if (swallowsStatus(command)) return false
+  const leading = command.split('&&')[0].trim()
+  return /carrier-artifacts\/verify\.mjs|verify:artifacts/.test(leading) && INVOKERS.has(leading.split(/\s+/)[0])
+}
+
+// Both are idiom on the dash line as well as under it.
+const KEPT_FROM_RUNNING = /^\s*(?:-\s+)?if:\s/
+const NON_FATAL = /^\s*(?:-\s+)?continue-on-error:\s*(?!false\b|'false'|"false")\S/
+const indentOf = (line) => /^\s*/.exec(line)[0].length
+
+/** Indices whose verify must not count towards a later install. */
 export function guardedLines(lines) {
   const guarded = new Set()
   let start = 0
+  let unitWide = false
   const close = (end) => {
-    if (lines.slice(start, end).some((line) => /^\s*if:\s/.test(line)))
-      for (let index = start; index < end; index++) guarded.add(index)
+    const dash = /^\s*-\s/.test(lines[start] ?? '') ? indentOf(lines[start]) : -1
+    let guard = false
+    lines.slice(start, end).forEach((line, offset) => {
+      if (KEPT_FROM_RUNNING.test(line)) guard = true
+      else if (!NON_FATAL.test(line)) return
+      // A key no deeper than the dash above it is the job's, wherever the matrix put
+      // that dash — and a job that continues on error holds no fatal step at all.
+      else if (dash === -1 || (offset > 0 && indentOf(line) <= dash)) unitWide = true
+      else guard = true
+    })
+    if (guard) for (let index = start; index < end; index++) guarded.add(index)
   }
   lines.forEach((line, index) => {
     if (!/^\s*-\s/.test(line)) return
@@ -132,6 +154,7 @@ export function guardedLines(lines) {
     start = index
   })
   close(lines.length)
+  if (unitWide) for (let index = 0; index < lines.length; index++) guarded.add(index)
   return guarded
 }
 

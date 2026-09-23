@@ -127,14 +127,20 @@ describe('carrier artifacts', () => {
     expect(installsDependencies(line as string)).toBe(expected)
   })
 
-  // A step that only names the command does not run it.
+  // A step that only names the command does not run it, nor does one the shell absolves.
   it.each([
     ['      run: node scripts/carrier-artifacts/verify.mjs', true],
     ['RUN node scripts/carrier-artifacts/verify.mjs', true],
     ['    - run: pnpm verify:artifacts', true],
+    ['RUN node scripts/carrier-artifacts/verify.mjs && pnpm install', true],
     ['      run: echo node scripts/carrier-artifacts/verify.mjs', false],
     ['        echo "see scripts/carrier-artifacts/verify.mjs"', false],
     ['      run: pnpm install', false],
+    ['RUN pnpm verify:artifacts || true', false],
+    ['RUN pnpm verify:artifacts ; true', false],
+    ['RUN pnpm verify:artifacts | tee verify.log', false],
+    ['RUN node scripts/carrier-artifacts/verify.mjs &', false],
+    ['RUN pnpm install && pnpm verify:artifacts', false],
   ])('read %j as running the verification: %s', (line, expected) => {
     expect(invokesVerify(line as string)).toBe(expected)
   })
@@ -151,6 +157,82 @@ describe('carrier artifacts', () => {
     expect(unverifiedInstall([`    # ${OPT_OUT}`, '      run: pnpm exec playwright install chrome'])).toBeUndefined()
     expect(unverifiedInstall([`    # ${OPT_OUT}`, '      run: pnpm i', '      run: pnpm i'])).toBe(3)
     expect(unverifiedInstall([]), 'a path that installs nothing needs no verify').toBeUndefined()
+  })
+
+  // Presence and order were all this scan ever asked, so a gate that cannot fail passed it.
+  it.each([
+    ['a step guarded on the dash line', ['- if: false', '  run: pnpm verify:artifacts', '- run: pnpm i'], 3],
+    [
+      'a step told to continue on error',
+      ['- name: gate', '  continue-on-error: true', '  run: pnpm verify:artifacts', '- run: pnpm i'],
+      4,
+    ],
+    [
+      'the same written on the dash line',
+      ["- continue-on-error: 'true'", '  run: pnpm verify:artifacts', '- run: pnpm i'],
+      3,
+    ],
+    [
+      'a whole job told to continue on error',
+      ['    continue-on-error: true', '    steps:', '    - run: pnpm verify:artifacts', '    - run: pnpm i'],
+      4,
+    ],
+    // playwright.yml's own shape: its matrix puts list items above `steps:`.
+    [
+      'a job told to continue on error below its matrix',
+      [
+        '    strategy:',
+        '      matrix:',
+        '        include:',
+        '          - group: core',
+        '    continue-on-error: true',
+        '    steps:',
+        '    - run: pnpm verify:artifacts',
+        '    - run: pnpm i',
+      ],
+      8,
+    ],
+    [
+      'an expression this scan cannot read as false',
+      ["- continue-on-error: ${{ github.event_name == 'push' }}", '  run: pnpm verify:artifacts', '- run: pnpm i'],
+      3,
+    ],
+    ['a shell that swallows it', ['RUN pnpm verify:artifacts || true', 'RUN pnpm i'], 2],
+    ['a semicolon that swallows it', ['RUN pnpm verify:artifacts ; true', 'RUN pnpm i'], 2],
+    ['a no-op that swallows it', ['RUN pnpm verify:artifacts || :', 'RUN pnpm i'], 2],
+    ['a pipe, which reports only its last stage', ['RUN pnpm verify:artifacts | tee v', 'RUN pnpm i'], 2],
+    ['a background verify nothing waits on', ['RUN pnpm verify:artifacts &', 'RUN pnpm i'], 2],
+    ['an install chained ahead of it', ['RUN pnpm i && pnpm verify:artifacts'], 1],
+  ])('count no verify whose failure is not fatal: %s', (_case, source, expected) => {
+    expect(unverifiedInstall(source as string[])).toBe(expected)
+  })
+
+  it.each([
+    ['an explicit false', ['- continue-on-error: false', '  run: pnpm verify:artifacts', '- run: pnpm i']],
+    ['a chain that propagates', ['RUN pnpm verify:artifacts && pnpm i']],
+    ['an unguarded step', ['- run: pnpm verify:artifacts', '- run: pnpm i']],
+    [
+      'a conditional job, which skips its own install too',
+      [
+        '    if: github.ref == refs/heads/master',
+        '    steps:',
+        '    - run: pnpm verify:artifacts',
+        '    - run: pnpm i',
+      ],
+    ],
+    [
+      'an earlier step that continues on error',
+      [
+        '- name: warm',
+        '  continue-on-error: true',
+        '  run: echo warm',
+        '- name: gate',
+        '  run: pnpm verify:artifacts',
+        '- run: pnpm i',
+      ],
+    ],
+  ])('still counts %s', (_case, source) => {
+    expect(unverifiedInstall(source as string[])).toBeUndefined()
   })
 
   // It used to excuse a later install, and one from inside a `name:` or `echo`.
