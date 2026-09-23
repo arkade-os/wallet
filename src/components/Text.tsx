@@ -2,6 +2,7 @@ import { ReactNode } from 'react'
 import { copyToClipboard } from '../lib/clipboard'
 import { useToast } from './Toast'
 import { hapticSubtle } from '../lib/haptics'
+import { useTranslation } from '../providers/language'
 
 interface TextProps {
   big?: boolean
@@ -66,15 +67,16 @@ export default function Text({
   }
 
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   const handleClick = async () => {
     if (!copy) return
     hapticSubtle()
     try {
       await copyToClipboard(copy)
-      toast('Copied to clipboard')
+      toast(t('common.copiedToClipboard'))
     } catch {
-      toast('Failed to copy')
+      toast(t('common.failedToCopy'))
     }
   }
 

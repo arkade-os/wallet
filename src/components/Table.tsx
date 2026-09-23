@@ -7,6 +7,7 @@ import Focusable from './Focusable'
 import { copyToClipboard } from '../lib/clipboard'
 import { useToast } from './Toast'
 import { hapticSubtle } from '../lib/haptics'
+import { useTranslation } from '../providers/language'
 import ExternalLinkIcon from '../icons/ExternalLink'
 
 export type TableLine = [string, string | undefined, JSX.Element?, (() => void)?]
@@ -17,11 +18,12 @@ export default function Table({ data, variant = 'default' }: { data: TableData; 
   const [focused, setFocused] = useState(false)
 
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   const copy = (value: string) => {
     hapticSubtle()
     copyToClipboard(value)
-    toast('Copied to clipboard')
+    toast(t('common.copiedToClipboard'))
   }
 
   const focusOnFirstRow = () => {
