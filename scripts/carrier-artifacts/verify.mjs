@@ -30,6 +30,7 @@ import {
   readFlatMapping,
   readJson,
   sha256,
+  unprovenDefaultShell,
   unverifiedInstall,
   workflowJobs,
 } from './lib.mjs'
@@ -173,6 +174,11 @@ if (wholeCheckout) {
     }
     const units = name === 'Dockerfile' ? dockerfileStages(lines) : workflowJobs(lines.join('\n'))
     const label = name === 'Dockerfile' ? 'stage' : 'job'
+    if (label === 'job')
+      check(
+        !unprovenDefaultShell(lines.join('\n')),
+        `${name} defaults every run to a shell this scan cannot prove keeps a failure fatal`,
+      )
     if (!check(units.size > 0, `${name} yielded no ${label}s, so this scan cannot read it`)) continue
     check(
       [...units.values()].reduce((total, unit) => total + installs(unit), 0) === installs(lines),

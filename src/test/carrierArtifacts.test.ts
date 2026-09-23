@@ -20,8 +20,10 @@ import {
   invokesVerify,
   isComment,
   isOptOut,
+  logicalLines,
   packageRootFrom,
   pinnedSourceMismatch,
+  unprovenDefaultShell,
   unverifiedInstall,
   workflowJobs,
   type CarrierArtifact,
@@ -29,6 +31,7 @@ import {
 } from '../../scripts/carrier-artifacts/lib.mjs'
 
 const REPO = fileURLToPath(new URL('../../', import.meta.url))
+const BS = String.fromCharCode(92)
 const manifest = JSON.parse(readFileSync(join(REPO, MANIFEST_PATH), 'utf8')) as CarrierManifest
 const require = createRequire(join(REPO, 'package.json'))
 const rows = (text: string) => text.split(/\r?\n/)
@@ -207,6 +210,79 @@ describe('carrier artifacts', () => {
     expect(unverifiedInstall(source as string[])).toBe(expected)
   })
 
+  // The thing holding an exit status is a logical command, and both files already span lines.
+  it.each([
+    ['a continuation carrying the swallow', [`RUN pnpm verify:artifacts ${BS}`, '    || true', 'RUN pnpm i'], 3],
+    [
+      'a folded scalar carrying it',
+      ['      run: >-', '        pnpm verify:artifacts', '        || true', '      run: pnpm i'],
+      4,
+    ],
+    [
+      'the same folded scalar opened on the dash line',
+      ['    - run: >-', '        pnpm verify:artifacts', '        || true', '    - run: pnpm i'],
+      4,
+    ],
+    [
+      'a continuation inside a block scalar',
+      ['      run: |', `        pnpm verify:artifacts ${BS}`, '          || true', '      run: pnpm i'],
+      4,
+    ],
+    ['set +e above it', ['      run: |', '        set +e', '        pnpm verify:artifacts', '      run: pnpm i'], 4],
+    [
+      'an ERR trap above it',
+      ['      run: |', "        trap 'exit 0' ERR", '        pnpm verify:artifacts', '      run: pnpm i'],
+      4,
+    ],
+    [
+      'a shell template, which drops the -e Actions adds',
+      ['    - shell: bash {0}', '      run: pnpm verify:artifacts', '    - run: pnpm i'],
+      3,
+    ],
+    [
+      'an interpreter this scan cannot vouch for',
+      ['    - shell: pwsh', '      run: pnpm verify:artifacts', '    - run: pnpm i'],
+      3,
+    ],
+    [
+      'a job defaulting every step to such a shell',
+      [
+        '    defaults:',
+        '      run:',
+        '        shell: bash {0}',
+        '    steps:',
+        '    - run: pnpm verify:artifacts',
+        '    - run: pnpm i',
+      ],
+      6,
+    ],
+    [
+      'a heredoc RUN, which reports only its last command',
+      ['RUN <<EOF', 'pnpm verify:artifacts', 'echo done', 'EOF', 'RUN pnpm i'],
+      5,
+    ],
+  ])('count no verify the shell can still absolve: %s', (_case, source, expected) => {
+    expect(unverifiedInstall(source as string[])).toBe(expected)
+  })
+
+  it('fold a command that spans lines before reading it', () => {
+    expect(logicalLines([`RUN a ${BS}`, '  b', 'RUN c']).map(({ text }) => text)).toEqual(['RUN a b', 'RUN c'])
+    expect(logicalLines(['  run: >-', '    a', '    b', '  run: c']).map(({ text }) => text)).toEqual([
+      'run: >-',
+      'a b',
+      'run: c',
+    ])
+    expect(logicalLines([`RUN a ${BS}`, '  b']).map(({ span }) => span)).toEqual([[0, 1]])
+  })
+
+  it('read a default shell the per-job scan never sees', () => {
+    const workflow = (shell: string) => `defaults:\n  run:\n    shell: ${shell}\njobs:\n  test:\n`
+    expect(unprovenDefaultShell(workflow('bash {0}'))).toBe(true)
+    expect(unprovenDefaultShell(workflow('pwsh'))).toBe(true)
+    expect(unprovenDefaultShell(workflow('bash'))).toBe(false)
+    expect(unprovenDefaultShell('jobs:\n  test:\n    steps:\n')).toBe(false)
+  })
+
   it.each([
     ['an explicit false', ['- continue-on-error: false', '  run: pnpm verify:artifacts', '- run: pnpm i']],
     ['a chain that propagates', ['RUN pnpm verify:artifacts && pnpm i']],
@@ -230,6 +306,14 @@ describe('carrier artifacts', () => {
         '  run: pnpm verify:artifacts',
         '- run: pnpm i',
       ],
+    ],
+    ['a continuation that swallows nothing', [`RUN pnpm verify:artifacts ${BS}`, '    --strict', 'RUN pnpm i']],
+    ['a directory change ahead of it', ['RUN cd /app && pnpm verify:artifacts', 'RUN pnpm i']],
+    ['an earlier group that only armed the shell', ['RUN set -e; pnpm verify:artifacts', 'RUN pnpm i']],
+    ['the shell Actions vouches for', ['    - shell: bash', '      run: pnpm verify:artifacts', '    - run: pnpm i']],
+    [
+      'a relaxed shell the next step reopens',
+      ['    - run: |', '        set +e', '        echo hi', '    - run: pnpm verify:artifacts', '    - run: pnpm i'],
     ],
   ])('still counts %s', (_case, source) => {
     expect(unverifiedInstall(source as string[])).toBeUndefined()
@@ -273,9 +357,7 @@ describe('carrier artifacts', () => {
       ),
     ]
     const written = scanned.reduce((total, lines) => total + lines.filter(isOptOut).length, 0)
-    expect(written, 'a ceiling, not a quota: deleting a decorative marker must stay green').toBeLessThanOrEqual(
-      EXEMPT_INSTALLS,
-    )
+    expect(written, 'a marker no install needs is a bypass waiting to be moved').toBe(EXEMPT_INSTALLS)
   })
 
   // Repointing `install` orphans the scanned script without editing one.

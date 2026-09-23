@@ -51,6 +51,10 @@ export declare const isOptOut: (line: string | undefined) => boolean
 export declare const dockerfileStages: (lines: readonly string[]) => Map<string, string[]>
 export declare const invokesVerify: (line: string) => boolean
 export declare const guardedLines: (lines: readonly string[]) => Set<number>
+export declare const logicalLines: (
+  lines: readonly string[],
+) => { readonly text: string; readonly at: number; readonly span: readonly number[] }[]
+export declare const unprovenDefaultShell: (yaml: string) => boolean
 export declare const installsDependencies: (line: string) => boolean
 export declare const unverifiedInstall: (lines: readonly string[]) => number | undefined
 export declare const workflowJobs: (yaml: string) => Map<string, string[]>

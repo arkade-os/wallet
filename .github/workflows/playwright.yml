@@ -54,7 +54,6 @@ jobs:
     - name: Install dependencies
       run: pnpm install
     - name: Install Playwright Browsers
-      # carrier-artifacts: not a dependency install
       run: pnpm exec playwright install chrome chromium --with-deps
     - name: Start regtest environment
       run: node regtest/regtest.mjs start --env .env.regtest

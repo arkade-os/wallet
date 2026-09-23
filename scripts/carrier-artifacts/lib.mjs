@@ -85,10 +85,10 @@ const INVOKERS = new Set(['node', 'pnpm', 'npm', 'corepack', 'bash', 'sh'])
 export const BOOTSTRAP = '.cursor/install.sh'
 export const ENVIRONMENT = '.cursor/environment.json'
 
-// A comment on the line IMMEDIATELY above the install it excuses; at most
-// EXEMPT_INSTALLS of them exist, which is a ceiling and not a quota.
+// A comment on the line IMMEDIATELY above the install it excuses. The ceiling is what is
+// written, not a spare one: a marker no install needs is a bypass waiting to be moved.
 export const OPT_OUT = 'carrier-artifacts: not a dependency install'
-export const EXEMPT_INSTALLS = 1
+export const EXEMPT_INSTALLS = 0
 
 // `pnpm/action-setup` installs with no command line at all when its step says so.
 const ACTION_INSTALL = /^\s*run_install:\s*(?!false\b|'false'|"false")\S/
@@ -113,37 +113,58 @@ const commandBody = (line) =>
     .replace(/^\s*run:\s*/, '')
     .trim()
 
-// `|| true`, `;`, `|| :`, a pipe and a trailing `&` all hand the step a zero;
-// `&&` is the one operator that carries the failure forward.
-const swallowsStatus = (command) => /[|;&]/.test(command.replaceAll('&&', ' '))
+// A pipe reports its last stage and a bare `&` abandons the status; `;` and `&&` are read below.
+const swallowsStatus = (command) => /[|&]/.test(command.replaceAll('&&', ' '))
 
-// A verify must lead the line: `echo` only names it, and an install chained ahead has already run.
+const VERIFY_COMMAND = /carrier-artifacts\/verify\.mjs|verify:artifacts/
+
+// `echo …verify.mjs` names the command without running it; only the last `;` group's status
+// survives; and a prefix disqualifies where it INSTALLED, not where it merely changed directory.
 export const invokesVerify = (line) => {
   const command = commandBody(line)
   if (swallowsStatus(command)) return false
-  const leading = command.split('&&')[0].trim()
-  return /carrier-artifacts\/verify\.mjs|verify:artifacts/.test(leading) && INVOKERS.has(leading.split(/\s+/)[0])
+  const groups = command.split(';')
+  const parts = groups.flatMap((group, index) =>
+    group.split('&&').map((part) => ({ part: part.trim(), fatal: index === groups.length - 1 })),
+  )
+  const at = parts.findIndex(({ part }) => VERIFY_COMMAND.test(part) && INVOKERS.has(part.split(/\s+/)[0]))
+  return at !== -1 && parts[at].fatal && !parts.slice(0, at).some(({ part }) => installsDependencies(part))
 }
 
 // Both are idiom on the dash line as well as under it.
 const KEPT_FROM_RUNNING = /^\s*(?:-\s+)?if:\s/
 const NON_FATAL = /^\s*(?:-\s+)?continue-on-error:\s*(?!false\b|'false'|"false")\S/
+const JOB_DEFAULTS = /^ *defaults:\s*(?:#.*)?$/
+
+// Actions' default `run` shell carries `-e`; a template or another interpreter drops it. The
+// two named are the ones this scan can prove fatal; everything else disqualifies unenumerated.
+const UNPROVEN_SHELL = /^\s*(?:-\s+)?shell:\s*(?!(['"]?)(?:bash|sh)\1\s*(?:#.*)?$)\S/
+
+// `set +e`, an ERR trap and a heredoc RUN each discard failures from the lines below them,
+// until the next step or RUN opens a shell that has not been relaxed.
+const RELAXES_SHELL = /^\s*set\s+\+(?:e\b|o\s+errexit\b)|^\s*trap\s.*\bERR\b|^\s*RUN\s.*<</
+const OPENS_SHELL = /^\s*-\s|^\s*RUN\s/
 const indentOf = (line) => /^\s*/.exec(line)[0].length
 
 /** Indices whose verify must not count towards a later install. */
 export function guardedLines(lines) {
   const guarded = new Set()
+  const unsafeShell = lines.some((line) => UNPROVEN_SHELL.test(line))
   let start = 0
   let unitWide = false
   const close = (end) => {
     const dash = /^\s*-\s/.test(lines[start] ?? '') ? indentOf(lines[start]) : -1
     let guard = false
     lines.slice(start, end).forEach((line, offset) => {
-      if (KEPT_FROM_RUNNING.test(line)) guard = true
+      // A key no deeper than the dash above it is the job's, wherever the matrix put that
+      // dash — and a job that continues on error holds no fatal step at all.
+      const jobs = dash === -1 || (offset > 0 && indentOf(line) <= dash)
+      if (KEPT_FROM_RUNNING.test(line) || UNPROVEN_SHELL.test(line)) guard = true
+      // `defaults.run.shell` sits deeper than the job's own keys, so declaring `defaults:`
+      // at all is what spreads an unproven shell across the job.
+      else if (JOB_DEFAULTS.test(line)) unitWide ||= jobs && unsafeShell
       else if (!NON_FATAL.test(line)) return
-      // A key no deeper than the dash above it is the job's, wherever the matrix put
-      // that dash — and a job that continues on error holds no fatal step at all.
-      else if (dash === -1 || (offset > 0 && indentOf(line) <= dash)) unitWide = true
+      else if (jobs) unitWide = true
       else guard = true
     })
     if (guard) for (let index = start; index < end; index++) guarded.add(index)
@@ -154,18 +175,77 @@ export function guardedLines(lines) {
     start = index
   })
   close(lines.length)
+  let relaxed = false
+  lines.forEach((line, index) => {
+    if (OPENS_SHELL.test(line)) relaxed = false
+    if (RELAXES_SHELL.test(line)) relaxed = true
+    if (relaxed) guarded.add(index)
+  })
   if (unitWide) for (let index = 0; index < lines.length; index++) guarded.add(index)
   return guarded
+}
+
+// A command is a LOGICAL line. A Dockerfile continues one past a trailing backslash and a
+// YAML folded scalar is one command across its whole block, so reading the physical line
+// takes `…verify.mjs \` and `|| true` for two harmless halves. Fold first, then read.
+const FOLDED_SCALAR = /^( *(?:-\s+)?)[A-Za-z_][\w-]*:\s*>[-+]?\d*\s*(?:#.*)?$/
+
+export function logicalLines(lines) {
+  const folded = []
+  let open
+  let blockAt
+  const close = () => {
+    if (open) folded.push(open)
+    open = undefined
+  }
+  const add = (index, line) => {
+    const part = line.trim().replace(/\s*\\$/, '')
+    if (open) {
+      open.text += ` ${part}`
+      open.span.push(index)
+    } else open = { text: part, at: index, span: [index] }
+  }
+  lines.forEach((line, index) => {
+    if (blockAt !== undefined) {
+      if (line.trim() && indentOf(line) > blockAt) return add(index, line)
+      close()
+      blockAt = undefined
+    }
+    const scalar = FOLDED_SCALAR.exec(line)
+    if (scalar) {
+      close()
+      folded.push({ text: line.trim(), at: index, span: [index] })
+      blockAt = scalar[1].length
+      return
+    }
+    add(index, line)
+    if (!/\\$/.test(line.trim())) close()
+  })
+  close()
+  return folded
+}
+
+/** A workflow-level `defaults:` sits outside `jobs:`, where the per-job scan cannot reach it. */
+export function unprovenDefaultShell(yaml) {
+  const lines = yaml.split(/\r?\n/)
+  const start = lines.findIndex((line) => /^defaults:\s*(?:#.*)?$/.test(line))
+  if (start === -1) return false
+  for (const line of lines.slice(start + 1)) {
+    if (!line.trim()) continue
+    if (/^\S/.test(line)) break
+    if (UNPROVEN_SHELL.test(line)) return true
+  }
+  return false
 }
 
 /** 1-based line of the first install no executable verify precedes, or `undefined`. */
 export function unverifiedInstall(lines) {
   const guarded = guardedLines(lines)
   let verified = false
-  for (const [index, line] of lines.entries()) {
-    if (isComment(line)) continue
-    if (invokesVerify(line)) verified ||= !guarded.has(index)
-    else if (installsDependencies(line) && !verified && !isOptOut(lines[index - 1])) return index + 1
+  for (const { text, at, span } of logicalLines(lines)) {
+    if (isComment(text)) continue
+    if (invokesVerify(text)) verified ||= !span.some((index) => guarded.has(index))
+    else if (installsDependencies(text) && !verified && !isOptOut(lines[at - 1])) return at + 1
   }
   return undefined
 }
