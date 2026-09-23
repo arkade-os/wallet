@@ -121,6 +121,7 @@ const VERIFY_COMMAND = /carrier-artifacts\/verify\.mjs|verify:artifacts/
 // Asking instead whether a prefix INSTALLED made `installsDependencies` a negative gate,
 // where every miss it already had became a false green. Enumerate the provably harmless.
 const BENIGN_PREFIX = /^(?:cd|set|export|mkdir|umask)\b|^corepack\s+(?:enable|prepare)\b/
+const benignPrefix = (part) => BENIGN_PREFIX.test(part) && !/\$\(|`/.test(part)
 
 // `echo …verify.mjs` names the command without running it, and only the last `;` group's
 // status survives.
@@ -132,7 +133,7 @@ export const invokesVerify = (line) => {
     group.split('&&').map((part) => ({ part: part.trim(), fatal: index === groups.length - 1 })),
   )
   const at = parts.findIndex(({ part }) => VERIFY_COMMAND.test(part) && INVOKERS.has(part.split(/\s+/)[0]))
-  return at !== -1 && parts[at].fatal && parts.slice(0, at).every(({ part }) => BENIGN_PREFIX.test(part))
+  return at !== -1 && parts[at].fatal && parts.slice(0, at).every(({ part }) => benignPrefix(part))
 }
 
 // Both are idiom on the dash line as well as under it.
@@ -144,7 +145,7 @@ const JOB_DEFAULTS = /^ *defaults:/
 // two named are the ones this scan can prove fatal; everything else disqualifies unenumerated.
 // The value runs to a comma or brace so flow style reads the same as a block.
 const shellValues = (line) =>
-  [...line.matchAll(/shell:\s*([^,}]*)/g)].map((match) =>
+  [...line.matchAll(/(?:^\s*(?:-\s+)?|[{,]\s*)shell:\s*([^,}]*)/g)].map((match) =>
     match[1]
       .replace(/#.*$/, '')
       .trim()
@@ -155,16 +156,21 @@ const unprovenShell = (line) => shellValues(line).some((value) => value !== 'bas
 // Bash takes its short options combined, so every spelling carrying an `e` disarms. An ERR
 // trap and a heredoc RUN do the same, until the next step or RUN opens an unrelaxed shell.
 const RELAXES_SHELL =
-  /^\s*set\s+\+(?:[a-zA-Z]*e|o\s+errexit\b)|^\s*shopt\s+-u\s+\S*errexit\b|^\s*trap\s.*\bERR\b|^\s*RUN\s.*<</
+  /^\s*set\s+\+(?:[a-zA-Z]*e|o\s+errexit\b)|^\s*shopt\s+(?:-\w+\s+)*-\w*u\w*\b[^\n]*errexit|^\s*trap\s.*\bERR\b|^\s*RUN\s.*<</
 const OPENS_SHELL = /^\s*-\s|^\s*RUN\s/
 
 // A command does not always run where it is written. Rather than sort the block kinds that
 // propagate a failure from the ones that do not, no verify inside any of them counts.
-const OPENS_BLOCK = /^\s*(?:if|while|until|for|case)\b|^\s*[A-Za-z_]\w*\s*\(\s*\)\s*\{/
-const CLOSES_BLOCK = /^\s*(?:fi|done|esac|\})\s*;?\s*$/
-const SAME_LINE_CLOSE = /\b(?:fi|done|esac)\s*;?\s*$|\}\s*;?\s*$/
+const OPENS_BLOCK = /^\s*(?:if|while|until|for|case)\b|^\s*[A-Za-z_]\w*\s*\(\s*\)\s*\{|^\s*[({]\s*$/
+const CLOSES_BLOCK = /^\s*(?:fi|done|esac)\b|^\s*[)}]/
+const SAME_LINE_CLOSE = /\b(?:fi|done|esac)\s*;?\s*$|[)}]\s*;?\s*$/
 const indentOf = (line) => /^\s*/.exec(line)[0].length
 
+// NOT modelled, each landing on the RED side: a `$( )` or backtick inside an allowlisted
+// prefix is refused unread; `set -e` re-arming after a `set +e` stays guarded; `shell: bash
+// {0}` guards a single-line `run:` too. Soundness against a block opener this file never
+// names rests on the TERMINATORS, which the grammar closes at five: one with nothing open
+// proves a block that was missed, so the whole shell is guarded. Openers only buy precision.
 /** Indices whose verify must not count towards a later install. */
 export function guardedLines(lines) {
   const guarded = new Set()
@@ -196,14 +202,18 @@ export function guardedLines(lines) {
   close(lines.length)
   let relaxed = false
   let depth = 0
+  let shell = 0
   lines.forEach((line, index) => {
     if (OPENS_SHELL.test(line)) {
       relaxed = false
       depth = 0
+      shell = index
     }
     if (RELAXES_SHELL.test(line)) relaxed = true
-    if (CLOSES_BLOCK.test(line)) depth = Math.max(0, depth - 1)
-    else if (OPENS_BLOCK.test(line) && !SAME_LINE_CLOSE.test(line)) depth += 1
+    if (CLOSES_BLOCK.test(line)) {
+      if (depth === 0) for (let back = shell; back <= index; back++) guarded.add(back)
+      else depth -= 1
+    } else if (OPENS_BLOCK.test(line) && !SAME_LINE_CLOSE.test(line)) depth += 1
     if (relaxed || depth > 0) guarded.add(index)
   })
   if (unitWide) for (let index = 0; index < lines.length; index++) guarded.add(index)

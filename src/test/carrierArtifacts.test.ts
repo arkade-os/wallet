@@ -284,6 +284,10 @@ describe('carrier artifacts', () => {
     ['set +eu', 4],
     ['set +xe', 4],
     ['shopt -u inherit_errexit', 4],
+    ['shopt -o -u errexit', 4],
+    ['shopt -ou errexit', 4],
+    ['shopt -u -o errexit', 4],
+    ['shopt -s inherit_errexit', undefined],
     ['set +o pipefail', undefined],
     ['set +u', undefined],
     ['set -eo pipefail', undefined],
@@ -298,6 +302,9 @@ describe('carrier artifacts', () => {
     ['pnpm fetch', 2],
     ['. ./setup.sh', 2],
     ['source ./setup.sh', 2],
+    ['bash ./setup.sh', 2],
+    ['export X=$(pnpm install)', 2],
+    ['cd $(pnpm install)', 2],
     ['cd /app', undefined],
     ['corepack enable', undefined],
     ['export CI=1', undefined],
@@ -349,6 +356,27 @@ describe('carrier artifacts', () => {
       [
         '      run: |',
         '        for i in 1; do',
+        '          pnpm verify:artifacts',
+        '        done',
+        '      run: pnpm i',
+      ],
+      5,
+    ],
+    [
+      'a bare group whose caller swallows it',
+      ['      run: |', '        {', '          pnpm verify:artifacts', '        } || true', '      run: pnpm i'],
+      5,
+    ],
+    [
+      'a subshell whose caller swallows it',
+      ['      run: |', '        (', '          pnpm verify:artifacts', '        ) || true', '      run: pnpm i'],
+      5,
+    ],
+    [
+      'a terminator whose opener is on no list here',
+      [
+        '      run: |',
+        '        select x in a; do',
         '          pnpm verify:artifacts',
         '        done',
         '      run: pnpm i',
@@ -412,6 +440,18 @@ describe('carrier artifacts', () => {
     [
       'a relaxed shell the next step reopens',
       ['    - run: |', '        set +e', '        echo hi', '    - run: pnpm verify:artifacts', '    - run: pnpm i'],
+    ],
+    [
+      'a step that only prints the word shell',
+      [
+        '    defaults:',
+        '      run:',
+        '        shell: bash',
+        '    steps:',
+        '    - run: echo "shell: pwsh"',
+        '    - run: pnpm verify:artifacts',
+        '    - run: pnpm i',
+      ],
     ],
   ])('still counts %s', (_case, source) => {
     expect(unverifiedInstall(source as string[])).toBeUndefined()
