@@ -249,7 +249,6 @@ export default function Contracts() {
       try {
         const cm = await svcWallet.getContractManager()
         const data = await cm.getContracts()
-        console.log('Fetched contracts:', data)
         setContracts(data.slice().sort((a, b) => (a.state === b.state ? 0 : a.state === 'active' ? -1 : 1)))
       } catch (err) {
         consoleError(err)
