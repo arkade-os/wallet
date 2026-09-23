@@ -16,7 +16,7 @@ const getMockConfigWithDelegate = (bool: boolean) => ({
 })
 
 describe('Delegates screen', () => {
-  // We need values to match due to heavy delegator validation in the Delegates screen.
+  // The endpoint's server signer must match the configured Arkade signer.
   beforeEach(() => {
     mockDelegatesAspContextValue.aspInfo.signerPubkey =
       '02e35799157be4b37565bb5afe4d04e6a0fa0a4b6a4f4e48b0d904685d253cdbdb'
@@ -25,12 +25,15 @@ describe('Delegates screen', () => {
     fetchMocker.enableMocks()
     fetchMocker.mockResponse(
       JSON.stringify({
-        fee: '0',
-        name: 'Arkade Default',
-        pubkey: '03bab0ac7577f83c5f08a616513e738fee0e45e1cda229880287d8659af3452f10',
-        delegatorAddress:
-          'tark1qr340xg400jtxat9hdd0ungyu6s05zjtdf85uj9smyzxshf98nda' +
-          'kuvt95jprxrtpqarxd7seg9sh0n8lxh90rtg7e6hsfd9krel4cqutg9cgm',
+        version: 'test',
+        network: mockAspContextValue.aspInfo.network,
+        delegatePubkey: '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798',
+        serverPubkey: mockDelegatesAspContextValue.aspInfo.signerPubkey,
+        emulatorPubkey: '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798',
+        emulatorTweakedPubkey: '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798',
+        arkadeScript: '00',
+        delegateTapscript: '00',
+        renewalWindow: '1024',
         url: getDelegateUrlForNetwork(mockAspContextValue.aspInfo.network as any),
       }),
     )
@@ -58,7 +61,7 @@ describe('Delegates screen', () => {
     expect(() => screen.getByTestId('delegate-card')).toThrow()
   })
 
-  it('renders the delegate card when toggle is on', async () => {
+  it('renders the delegate card when toggle is on and the service omits zero maxFee', async () => {
     render(
       <AspContext.Provider value={mockDelegatesAspContextValue as any}>
         <ConfigContext.Provider value={getMockConfigWithDelegate(true) as any}>
@@ -75,12 +78,14 @@ describe('Delegates screen', () => {
     expect(screen.getByTestId('toggle-delegates').getAttribute('data-checked')).toBe('true')
     expect(screen.getByTestId('delegate-card')).toBeInTheDocument()
     expect(screen.getByText('Arkade Default')).toBeInTheDocument()
-    expect(screen.getByText('fee: 0 sats')).toBeInTheDocument()
-    expect(screen.getByText('address:')).toBeInTheDocument()
-    expect(screen.getByText('pubkey:')).toBeInTheDocument()
     await waitFor(() => expect(screen.getByText('Active')).toBeInTheDocument())
+    expect(screen.getByText('maximum renewal fee: 0 sats')).toBeInTheDocument()
+    expect(screen.getByText(/delegate key:/)).toBeInTheDocument()
+    expect(screen.getByText(/emulator key:/)).toBeInTheDocument()
+    expect(screen.getByText('renewal window: 1024 seconds')).toBeInTheDocument()
     await new Promise((resolve) => setTimeout(resolve, 0))
     expect(fetchMocker).toHaveBeenCalledTimes(1)
+    expect(fetchMocker.mock.calls[0][0]).toContain('/v1/info?renewalWindow=1024&maxFee=0')
   })
 
   it('renders warning when delegate is not found for the network', () => {

@@ -328,8 +328,20 @@ export const renewCoins = async (
   if (inputs.length > 0) await settleVtxos(wallet, vtxoManager, dustAmount, thresholdMs)
 }
 
-export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> => {
+export const migrateVtxosToDelegatee = async (wallet: ServiceWorkerWallet): Promise<void> => {
   const cm = await wallet.getContractManager()
+  const delegateeManager = await wallet.getDelegateeManager()
+  if (delegateeManager) {
+    const contracts = await cm.getContractsWithVtxos({ type: ['default', 'delegate'] })
+    const vtxosToMigrate = contracts
+      .filter(({ contract, vtxos }) => vtxos.length > 0 && contract.params.emulatorPubKey === undefined)
+      .flatMap(({ vtxos }) => vtxos)
+    if (vtxosToMigrate.length > 0) {
+      await wallet.sendSelectedVtxosToSelf(vtxosToMigrate)
+    }
+    return
+  }
+
   const contractWithVtxos = await cm.getContractsWithVtxos({ type: 'delegate' })
   const dm = await wallet.getDelegatorManager()
 
@@ -369,6 +381,9 @@ export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> 
     consoleError(result.failed, 'Delegation partial failure:')
   }
 }
+
+/** @deprecated Legacy name retained for callers migrating from the pre-signed delegator flow. */
+export const delegateVtxos = migrateVtxosToDelegatee
 
 // Settle diagnostics are limited to shape and size; inputs are never serialized.
 const summarizeInputs = (inputs: { value: number }[]): { count: number; totalValue: number } => ({

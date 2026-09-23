@@ -15,6 +15,10 @@ export type Config = {
   aspUrl: string
   currency: Currencies
   delegate: boolean
+  /** Covenant renewal window in seconds; defaults to delegatee's 1024-second value. */
+  delegateRenewalWindow?: number
+  /** Maximum sats paid to the Arkade server per renewal. */
+  delegateMaxFee?: number
   importedAssets: string[]
   haptics: boolean
   nostrBackup: boolean
@@ -31,11 +35,14 @@ export type Config = {
 }
 
 export type Delegate = {
-  fee: number
+  fee?: number
+  maxFee?: number
+  renewalWindow?: number
   url: string
   name: string
   pubkey: string
-  address: string
+  emulatorPubkey?: string
+  address?: string
 }
 
 export enum Currencies {

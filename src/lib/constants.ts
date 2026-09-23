@@ -39,9 +39,9 @@ export const defaultArkServer = () => {
 export const isMainnet = (network: NetworkName | string): boolean =>
   !!network && network !== 'testnet' && network !== 'mutinynet' && network !== 'signet' && network !== 'regtest'
 
-const DELEGATE_URL: Record<NetworkName, string | null> = {
+const DELEGATEE_URL: Record<NetworkName, string | null> = {
   bitcoin: 'https://delegate.arkade.money',
-  mutinynet: `https://delegator.mutinynet.arkade.sh`,
+  mutinynet: 'https://delegatee.mutinynet.arkade.sh',
   signet: null,
   regtest: 'http://localhost:7012',
   testnet: null,
@@ -126,12 +126,18 @@ export const getEmulatorPubkeyForNetwork = (network: NetworkName): Uint8Array | 
 // needs to exist for the corridor to work; see `sealingKey` in lib/lnReceive.
 // Re-adding a URL table here is only worth it alongside a background claimer.
 
-export const getDelegateUrlForNetwork = (network: NetworkName): string | undefined => {
-  return DELEGATE_URL[network] ?? undefined
-}
+export const getDelegateeUrlForNetwork = (network: NetworkName): string | undefined =>
+  serviceUrlForNetwork(
+    fromRuntimeEnv(import.meta.env.VITE_DELEGATEE_URL) ?? fromRuntimeEnv(import.meta.env.VITE_DELEGATOR_URL),
+    DELEGATEE_URL,
+    network,
+  )
+
+/** @deprecated use getDelegateeUrlForNetwork */
+export const getDelegateUrlForNetwork = getDelegateeUrlForNetwork
 
 export const getDelegateForNetwork = (network: NetworkName): Delegate | undefined => {
-  const url = getDelegateUrlForNetwork(network)
+  const url = getDelegateeUrlForNetwork(network)
   if (!url) return undefined
   return {
     url,

@@ -13,6 +13,8 @@ const defaultConfig: Config = {
   aspUrl: defaultArkServer(),
   dismissedBanners: [],
   delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
+  delegateRenewalWindow: 1024,
+  delegateMaxFee: 0,
   currency: getCurrency(navigator.language),
   importedAssets: [],
   haptics: true,
@@ -58,6 +60,8 @@ const updateDefaultConfig = (config: Partial<Config>): Config => {
   const updatedConfig: Config = {
     ...defaultConfig,
     ...config,
+    delegateRenewalWindow: config.delegateRenewalWindow ?? defaultConfig.delegateRenewalWindow,
+    delegateMaxFee: config.delegateMaxFee ?? defaultConfig.delegateMaxFee,
     announcementsSeen: [...announcementsSeen],
     importedAssets: [...importedAssets],
     apps: {
