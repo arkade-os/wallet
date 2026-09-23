@@ -25,7 +25,7 @@ import ChevronUpIcon from '../../icons/ChevronUp'
 import ExternalLinkIcon from '../../icons/ExternalLink'
 import { WalletContext } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
-import { prettyAgo, prettyLongText } from '../../lib/format'
+import { prettyAgo, prettyDate, prettyLongText } from '../../lib/format'
 import { getVmempoolURL, getWebExplorerURL } from '../../lib/explorers'
 import { isBTCAddress } from '../../lib/address'
 import { copyToClipboard } from '../../lib/clipboard'
@@ -176,6 +176,10 @@ function Chip({ label, active, onClick }: { label: string; active: boolean; onCl
 function ContractCard({ item, open, onToggle }: { item: ContractView; open: boolean; onToggle: () => void }) {
   const { contract, address, explorer, encoded, status } = item
 
+  const refundLocktime = !isNaN(parseInt(contract.params?.refundLocktime))
+    ? parseInt(contract.params.refundLocktime)
+    : null
+
   return (
     <Shadow lighter border>
       <FlexCol gap={open ? '0.5rem' : '0'}>
@@ -205,6 +209,7 @@ function ContractCard({ item, open, onToggle }: { item: ContractView; open: bool
             <hr className='dashed' />
             <CopyRow label='address' value={address} link={explorer || undefined} />
             <CopyRow label='script' value={contract.script} />
+            {refundLocktime ? <CopyRow label='refund locktime' value={prettyDate(refundLocktime)} /> : null}
             {encoded ? <CopyRow label='parameters' value={encoded} /> : null}
           </>
         ) : null}
@@ -244,6 +249,7 @@ export default function Contracts() {
       try {
         const cm = await svcWallet.getContractManager()
         const data = await cm.getContracts()
+        console.log('Fetched contracts:', data)
         setContracts(data.slice().sort((a, b) => (a.state === b.state ? 0 : a.state === 'active' ? -1 : 1)))
       } catch (err) {
         consoleError(err)
