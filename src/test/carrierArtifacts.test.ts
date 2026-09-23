@@ -91,8 +91,8 @@ describe('carrier artifacts', () => {
     install?.(join(root, 'node_modules', '@arkade-taxi', 'client'), root)
     return root
   }
-  const verifyIn = (root: string) =>
-    spawnSync(process.execPath, [join(root, 'scripts', 'carrier-artifacts', 'verify.mjs')], {
+  const verifyIn = (root: string, ...args: string[]) =>
+    spawnSync(process.execPath, [join(root, 'scripts', 'carrier-artifacts', 'verify.mjs'), ...args], {
       cwd: root,
       encoding: 'utf8',
     })
@@ -110,6 +110,51 @@ describe('carrier artifacts', () => {
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
+  })
+
+  it('fail --installed where there is no install to inspect, and pass it on this one', () => {
+    const root = stageInstallContext()
+    try {
+      const run = verifyIn(root, '--installed')
+      expect(run.status, run.stdout).toBe(1)
+      expect(run.stderr).toContain('--installed was given, and there is no @arkade-taxi/client install to inspect')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+    const installed = verifyIn(REPO, '--installed')
+    expect(installed.status, installed.stderr).toBe(0)
+    expect(installed.stdout).toContain('candidate exports confirmed in the installed tree')
+  })
+
+  it('refuse a workflow that installs and never inspects what it installed', () => {
+    const root = stageInstallContext()
+    try {
+      for (const path of ['Dockerfile', '.cursor', '.github'])
+        cpSync(join(REPO, path), join(root, path), { recursive: true })
+      expect(verifyIn(root).status, 'the staged checkout passes as it stands').toBe(0)
+      const ci = join(root, '.github', 'workflows', 'ci.yml')
+      writeFileSync(ci, readFileSync(ci, 'utf8').replace('verify.mjs --installed', 'verify.mjs'))
+      const run = verifyIn(root)
+      expect(run.status, run.stdout).toBe(1)
+      expect(run.stderr).toContain('ci.yml job test never inspects the install')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it.each([
+    [['- run: pnpm i', '- run: node scripts/carrier-artifacts/verify.mjs --installed'], undefined],
+    [['- run: pnpm i', '- run: pnpm verify:artifacts -- --installed'], undefined],
+    [['- run: pnpm i'], 1],
+    [['- run: node scripts/carrier-artifacts/verify.mjs --installed', '- run: pnpm i'], 2],
+    [['- run: pnpm i', '- run: node scripts/carrier-artifacts/verify.mjs'], 1],
+    [['- run: pnpm i', '- run: node scripts/carrier-artifacts/verify.mjs --installed || true'], 1],
+    [['- run: pnpm i', '- run: node scripts/carrier-artifacts/verify.mjs && echo --installed'], 1],
+    [['- run: pnpm i', '- if: false', '  run: node scripts/carrier-artifacts/verify.mjs --installed'], 1],
+    [['- run: pnpm i', '- run: node scripts/carrier-artifacts/verify.mjs --installed', '- run: pnpm add x'], 3],
+    [[], undefined],
+  ])('inspect what %j installed: uninspected at %s', (source, expected) => {
+    expect(carrier.uninspectedInstall(source as string[])).toBe(expected)
   })
 
   it.each([

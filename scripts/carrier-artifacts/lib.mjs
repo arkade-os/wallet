@@ -328,6 +328,22 @@ export function unverifiedInstall(lines) {
   return undefined
 }
 
+// The flag must be the verify's own argument, not a word later on the line.
+const INSPECTS_INSTALL = /(?:carrier-artifacts\/verify\.mjs|verify:artifacts)(?:\s+[^\s;&|]+)*\s+--installed(?:\s|$)/
+
+/** 1-based line of the first install no executable `verify.mjs --installed` follows, or `undefined`. */
+export function uninspectedInstall(lines) {
+  const guarded = guardedLines(lines)
+  let pending
+  for (const { text, at, span } of logicalLines(lines)) {
+    if (isComment(text)) continue
+    if (invokesVerify(text) && INSPECTS_INSTALL.test(text)) {
+      if (!span.some((index) => guarded.has(index))) pending = undefined
+    } else if (installsDependencies(text)) pending ??= at + 1
+  }
+  return pending
+}
+
 // A later stage is a fresh filesystem: the builder's verify never ran there and
 // vendor/carrier was never copied, so a stage is the scan unit, not the file.
 export function dockerfileStages(lines) {

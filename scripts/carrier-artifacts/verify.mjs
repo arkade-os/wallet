@@ -30,6 +30,7 @@ import {
   readJson,
   resolveInstalled,
   sha256,
+  uninspectedInstall,
   unprovenDefaultShell,
   unverifiedInstall,
   workflowJobs,
@@ -196,6 +197,12 @@ if (wholeCheckout) {
   for (const [name, lines, offset = 0] of scanned) {
     const line = unverifiedInstall(lines)
     check(line === undefined, `${name} installs at line ${line + offset} without verifying the carrier artifacts first`)
+    // Workflows only: the image build declines it, since it would evaluate the SDK inside Alpine.
+    const uninspected = name.startsWith('.github/') ? uninspectedInstall(lines) : undefined
+    check(
+      uninspected === undefined,
+      `${name} never inspects the install at line ${uninspected + offset}: no verify.mjs --installed runs after it`,
+    )
     const installsAt = lines.findIndex((line) => !isComment(line) && installsDependencies(line))
     if (installsAt === -1 || !name.startsWith('Dockerfile')) continue
     const copiesAt = lines.findIndex(
@@ -219,6 +226,10 @@ try {
 } catch (error) {
   failures.push(error.message)
 }
+check(
+  entry !== undefined || !process.argv.includes('--installed'),
+  '--installed was given, and there is no @arkade-taxi/client install to inspect',
+)
 if (entry) {
   for (const [name, symbol] of [
     ['@arkade-os/sdk', CANDIDATE_SDK_SYMBOL],

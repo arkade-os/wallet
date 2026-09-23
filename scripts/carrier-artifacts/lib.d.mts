@@ -58,6 +58,7 @@ export declare const unprovenDefaultShell: (yaml: string) => boolean
 export declare const heredocBodies: (lines: readonly string[]) => Set<number>
 export declare const installsDependencies: (line: string) => boolean
 export declare const unverifiedInstall: (lines: readonly string[]) => number | undefined
+export declare const uninspectedInstall: (lines: readonly string[]) => number | undefined
 export declare const workflowJobs: (yaml: string) => Map<string, string[]>
 export declare const licenseOf: (manifest: { license?: string }, sourceRoot: string) => string
 export declare const resolveInstalled: (fromFile: string, name: string) => string | undefined
