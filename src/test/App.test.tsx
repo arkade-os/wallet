@@ -224,7 +224,7 @@ describe('Navbar visibility', () => {
   })
 
   it('hides navbar on app detail pages when authenticated and initialized', async () => {
-    renderApp({ authState: 'authenticated', initialized: true, screen: Pages.AppLendasat })
+    renderApp({ authState: 'authenticated', initialized: true, screen: Pages.AppDfx })
 
     const ionApp = await screen.findByTestId('app')
     expect(ionApp.className).not.toContain('has-pill-navbar')
