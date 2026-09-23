@@ -746,6 +746,17 @@ describe('end to end through the SDK grouping', () => {
     })
 
     it.each([
+      ['grouped by the resolver', (txs: ArkTransaction[]) => [activity('swap:one', txs, swapIntent('one'))]],
+      ['left as raw groups', (txs: ArkTransaction[]) => txs.map((tx) => activity(txidOfArkTransaction(tx), [tx]))],
+    ])('shows a swap whose row cannot be built as its transactions, and logs why, when %s', (_case, groupsOf) => {
+      const record = batchSwap('one', evidence('10000', '500', '700'), { status: 'pending', toAmount: 'not-a-number' })
+      const rows = activitiesToTxs(groupsOf([funding]), { ...empty, swaps: [record] })
+
+      expect(rows.map((row) => [row.type, row.amount])).toEqual([['sent', 10_000]])
+      expect(console.error).toHaveBeenCalledWith(expect.stringContaining('swap one'))
+    })
+
+    it.each([
       ['missing', undefined],
       ['invalid', { version: 1, contributions: 'broken' }],
       ['over-cap', evidence('10001', '0', '1')],

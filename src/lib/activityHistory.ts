@@ -296,12 +296,30 @@ const exitTx = (exit: ExitRecord): Tx => ({
   type: 'exit',
 })
 
+class UnrenderableSwap extends Error {
+  readonly swapId: string
+  readonly reason: unknown
+  constructor(swapId: string, reason: unknown) {
+    super(`swap ${swapId} cannot be rendered`)
+    this.swapId = swapId
+    this.reason = reason
+  }
+}
+
+const swapRow = (swap: WalletAssetSwap, build: () => Tx): Tx => {
+  try {
+    return build()
+  } catch (error) {
+    throw new UnrenderableSwap(swap.id, error)
+  }
+}
+
 /** `Activity[]` -> the `Tx[]` the UI already reads. Pure and synchronous.
  *
  * Only groups we know how to collapse become a single row; everything else
  * emits one row per member, so a built-in grouping deposits or exits cannot
  * change the row count. */
-export const activitiesToTxs = (activities: Activity[], options: ActivityHistoryOptions): Tx[] => {
+const projectActivities = (activities: Activity[], options: ActivityHistoryOptions): Tx[] => {
   const { swaps, metadata, network, assetDisplay, lnSends = [], rfqCarriers, exits = [] } = options
   const rows: Tx[] = []
   const activityAllocation = allocateActivityEvidence(
@@ -370,34 +388,36 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
         ),
     )
     if (swap && (swapAllocation?.status === 'missing' || hasVerifiedMembership)) {
-      try {
-        const rawMembers = mergeArkTransactionMembers(activity.txs, correlatedMembers.get(swap.id) ?? [])
-        const members = rawMembers.map((tx) => arkTransactionToTx(tx))
-        const carrier = readCarrierActivity(swap.carrier)
-        // a grouped row takes its metadata from the tx the group is anchored on
-        const funding = rawMembers.find((tx) => txidOfArkTransaction(tx) === swap.fundingTxid)
-        rows.push({
-          ...graftMetadata(
-            buildAssetSwapActivityTx(swap, carrier, members, {
-              network,
-              assetDisplay,
-              allocation: swapAllocation,
-            }),
-            funding && metadata[txidOfArkTransaction(funding)],
-          ),
-          historyKey: activity.id,
-          ...(carrier
-            ? {
-                carrierMembers: mergeMembers(
-                  membersOfTransactions(rawMembers),
-                  carrier.txids.map((txid) => ({ txid, type: 'related' })),
-                ),
-              }
-            : {}),
-        })
-        renderedAssetSwaps.add(swap.id)
-        continue
-      } catch {}
+      rows.push(
+        swapRow(swap, () => {
+          const rawMembers = mergeArkTransactionMembers(activity.txs, correlatedMembers.get(swap.id) ?? [])
+          const members = rawMembers.map((tx) => arkTransactionToTx(tx))
+          const carrier = readCarrierActivity(swap.carrier)
+          // a grouped row takes its metadata from the tx the group is anchored on
+          const funding = rawMembers.find((tx) => txidOfArkTransaction(tx) === swap.fundingTxid)
+          return {
+            ...graftMetadata(
+              buildAssetSwapActivityTx(swap, carrier, members, {
+                network,
+                assetDisplay,
+                allocation: swapAllocation,
+              }),
+              funding && metadata[txidOfArkTransaction(funding)],
+            ),
+            historyKey: activity.id,
+            ...(carrier
+              ? {
+                  carrierMembers: mergeMembers(
+                    membersOfTransactions(rawMembers),
+                    carrier.txids.map((txid) => ({ txid, type: 'related' })),
+                  ),
+                }
+              : {}),
+          }
+        }),
+      )
+      renderedAssetSwaps.add(swap.id)
+      continue
     }
     // members of one activity share `activity.id`, so the member txid is what
     // keeps the row key unique
@@ -425,34 +445,34 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
   }
   for (const swap of swaps) {
     if (!swap.id || !swap.offerHex || renderedAssetSwaps.has(swap.id)) continue
-    try {
-      const carrier = readCarrierActivity(swap.carrier)
-      const rawMembers = [...(correlatedMembers.get(swap.id) ?? [])].sort((a, b) => a.createdAt - b.createdAt)
-      const members = rawMembers.map((tx) => arkTransactionToTx(tx))
-      const funding = rawMembers.find((tx) => txidOfArkTransaction(tx) === swap.fundingTxid)
-      rows.push({
-        ...graftMetadata(
-          buildAssetSwapActivityTx(swap, carrier, members, {
-            network,
-            assetDisplay,
-            allocation: activityAllocation.swap(swap.id),
-          }),
-          funding && metadata[txidOfArkTransaction(funding)],
-        ),
-        historyKey: `swap:${swap.id}`,
-        ...(carrier
-          ? {
-              carrierMembers: mergeMembers(
-                rawMembers.map((tx) => ({ txid: txidOfArkTransaction(tx), type: String(tx.type).toLowerCase() })),
-                carrier.txids.map((txid) => ({ txid, type: 'related' })),
-              ),
-            }
-          : {}),
-      })
-      renderedAssetSwaps.add(swap.id)
-    } catch {
-      continue
-    }
+    rows.push(
+      swapRow(swap, () => {
+        const carrier = readCarrierActivity(swap.carrier)
+        const rawMembers = [...(correlatedMembers.get(swap.id) ?? [])].sort((a, b) => a.createdAt - b.createdAt)
+        const members = rawMembers.map((tx) => arkTransactionToTx(tx))
+        const funding = rawMembers.find((tx) => txidOfArkTransaction(tx) === swap.fundingTxid)
+        return {
+          ...graftMetadata(
+            buildAssetSwapActivityTx(swap, carrier, members, {
+              network,
+              assetDisplay,
+              allocation: activityAllocation.swap(swap.id),
+            }),
+            funding && metadata[txidOfArkTransaction(funding)],
+          ),
+          historyKey: `swap:${swap.id}`,
+          ...(carrier
+            ? {
+                carrierMembers: mergeMembers(
+                  rawMembers.map((tx) => ({ txid: txidOfArkTransaction(tx), type: String(tx.type).toLowerCase() })),
+                  carrier.txids.map((txid) => ({ txid, type: 'related' })),
+                ),
+              }
+            : {}),
+        }
+      }),
+    )
+    renderedAssetSwaps.add(swap.id)
   }
   for (const member of activityAllocation.members()) {
     if (!member.allocations.length || (member.remainderSats === 0n && member.remainderAssets.length === 0)) continue
@@ -475,6 +495,24 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
   // Exits last, for the same reason: history reports none of them either.
   for (const exit of exits) rows.push(exitTx(exit))
   return sortLocalTxs(rows)
+}
+
+/** A swap whose row cannot be built leaves the projection, so its transactions show at full value
+ * rather than stay allocated to a row that never rendered. Each id is dropped at most once. */
+export const activitiesToTxs = (activities: Activity[], options: ActivityHistoryOptions): Tx[] => {
+  const unrenderable = new Set<string>()
+  for (;;) {
+    try {
+      return projectActivities(activities, {
+        ...options,
+        swaps: options.swaps.filter((swap) => !unrenderable.has(swap.id)),
+      })
+    } catch (error) {
+      if (!(error instanceof UnrenderableSwap)) throw error
+      consoleError(error.reason, `history shows swap ${error.swapId} as its transactions: its row cannot be built`)
+      unrenderable.add(error.swapId)
+    }
+  }
 }
 
 interface ActivityHistorySource {
