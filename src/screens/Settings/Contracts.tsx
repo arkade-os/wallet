@@ -280,13 +280,15 @@ export default function Contracts() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return views.filter((v) => {
-      const active = v.contract.state === 'active'
-      if (tab === 'Active' ? !active : active) return false
-      if (typeFilter !== 'all' && v.contract.type !== typeFilter) return false
-      if (q && !v.search.includes(q)) return false
-      return true
-    })
+    return views
+      .filter((v) => {
+        const active = v.contract.state === 'active'
+        if (tab === 'Active' ? !active : active) return false
+        if (typeFilter !== 'all' && v.contract.type !== typeFilter) return false
+        if (q && !v.search.includes(q)) return false
+        return true
+      })
+      .sort((a, b) => b.contract.createdAt - a.contract.createdAt)
   }, [views, tab, typeFilter, query])
 
   // Virtualize the list so it stays smooth with many contracts. Row heights vary
