@@ -75,6 +75,16 @@ export const archiveManifest = (archivePath) => {
 
 export const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'))
 
+/** The package's own `license`, else its source repository's LICENSE, read only then. */
+export function licenseOf(manifest, sourceRoot) {
+  if (manifest.license) return manifest.license
+  const headline = readFileSync(join(sourceRoot, 'LICENSE'), 'utf8')
+    .split(/\r?\n/)
+    .find((line) => line.trim())
+  if (!headline?.includes('MIT')) throw new Error(`${sourceRoot}/LICENSE is not the MIT text this manifest would claim`)
+  return 'MIT'
+}
+
 export const isComment = (line) => /^\s*#/.test(line)
 
 const PACKAGE_MANAGERS = new Set(['pnpm', 'npm', 'yarn', 'bun'])

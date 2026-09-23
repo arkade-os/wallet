@@ -153,6 +153,19 @@ describe('carrier artifacts', () => {
     }
   })
 
+  it('read a repository LICENSE only for a package that names no license of its own', () => {
+    const root = mkdtempSync(join(tmpdir(), 'carrier-license-'))
+    try {
+      writeFileSync(join(root, 'LICENSE'), 'Apache License\nVersion 2.0\n')
+      expect(carrier.licenseOf({ license: 'MIT' }, root)).toBe('MIT')
+      expect(() => carrier.licenseOf({}, root)).toThrow('is not the MIT text')
+      writeFileSync(join(root, 'LICENSE'), '\nMIT License\n\nCopyright (c) 2026 Ark Labs\n')
+      expect(carrier.licenseOf({}, root)).toBe('MIT')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   // A well-formed commit that is not the PINNED one is the mismatch class a
   // shape check cannot see, and what a wrong-tree pack looks like.
   it('refuse an archive whose manifest names anything but the pinned source', () => {

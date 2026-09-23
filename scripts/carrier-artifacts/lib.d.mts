@@ -59,6 +59,7 @@ export declare const heredocBodies: (lines: readonly string[]) => Set<number>
 export declare const installsDependencies: (line: string) => boolean
 export declare const unverifiedInstall: (lines: readonly string[]) => number | undefined
 export declare const workflowJobs: (yaml: string) => Map<string, string[]>
+export declare const licenseOf: (manifest: { license?: string }, sourceRoot: string) => string
 export declare const resolveInstalled: (fromFile: string, name: string) => string | undefined
 export declare const packageRootFrom: (fromFile: string, name: string) => string
 export declare const assertCandidateExport: (packageRoot: string, name: string, symbol: string) => Promise<string>
