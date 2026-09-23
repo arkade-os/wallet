@@ -54,7 +54,7 @@ export default function Server() {
       setError(info.unreachable ? t('settings.unableToConnect') : '')
       setInfo(info)
     })
-  }, [aspUrl])
+  }, [aspUrl, t])
 
   if (!svcWallet) return <LoadingLogo text={t('common.loading')} />
 

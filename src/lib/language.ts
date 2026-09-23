@@ -91,7 +91,9 @@ export function detectLanguage(
 
 // Module-level mirror of the active language so lib code that has no React
 // context (e.g. server-error formatting in lib/error.ts) can still localize.
-// LanguageProvider keeps it in sync with the persisted config.
+// LanguageProvider keeps it in sync with the persisted config. Note: tests that
+// do not mount LanguageProvider see the default (English) — expected, but mount
+// the provider when asserting localized lib error text.
 let activeLanguage: Language = Language.English
 
 export function setActiveLanguage(language: Language): void {

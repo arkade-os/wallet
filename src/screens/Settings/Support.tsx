@@ -70,7 +70,7 @@ export default function Support() {
       clearTimeout(loadTimeout)
       window.removeEventListener(event, eventHandler)
     }
-  }, [])
+  }, [t])
 
   // Keep the Chatwoot widget UI in the active wallet language. The locale is
   // also set at injection time (see ChatWoot.tsx); this covers mid-session

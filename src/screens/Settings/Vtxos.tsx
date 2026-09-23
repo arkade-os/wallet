@@ -84,7 +84,7 @@ export default function Vtxos() {
               ? t('vtxos.completeBoarding')
               : '',
     )
-  }, [rollingover, aboveDust, hasVtxosToSettle, hasBoardingUtxosToSettle, hideUtxos])
+  }, [rollingover, aboveDust, hasVtxosToSettle, hasBoardingUtxosToSettle, hideUtxos, t])
 
   // Calculate best market hour when wallet.nextRollover changes
   useEffect(() => {

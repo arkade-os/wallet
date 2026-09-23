@@ -1,4 +1,4 @@
-import { ReactNode, createContext, useContext, useEffect } from 'react'
+import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo } from 'react'
 import { Language, SettingsOptions } from '../lib/types'
 import { detectLanguage, setActiveLanguage } from '../lib/language'
 import { translate } from '../lib/i18n'
@@ -24,14 +24,20 @@ export function useLanguage() {
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const { config } = useContext(ConfigContext)
   const language = config?.language ?? detectLanguage()
-  const t = (key: string, params?: Record<string, string | number>) => translate(language, key, params)
+  // Stable identity keyed on language so effects that depend on `t` re-run only
+  // when the wallet language actually changes, not on every provider render.
+  const t = useCallback(
+    (key: string, params?: Record<string, string | number>) => translate(language, key, params),
+    [language],
+  )
+  const value = useMemo(() => ({ language, t }), [language, t])
 
   // Keep the non-React mirror in sync so lib/error.ts localizes server messages.
   useEffect(() => {
     setActiveLanguage(language)
   }, [language])
 
-  return <LanguageContext.Provider value={{ language, t }}>{children}</LanguageContext.Provider>
+  return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>
 }
 
 export function useTranslation() {

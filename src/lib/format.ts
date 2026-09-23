@@ -16,6 +16,7 @@ export const toSatoshis = (num: number): number => {
   return Decimal.mul(num, 100_000_000).floor().toNumber()
 }
 
+// @deprecated — English-only. Use localizedAgo(timestamp, t) for locale-aware output.
 export const prettyAgo = (timestamp: number | string, long = false): string => {
   if (!timestamp) return ''
   const now = Math.floor(Date.now() / 1000)
