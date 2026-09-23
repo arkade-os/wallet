@@ -14,7 +14,7 @@ import type { Tx } from './types'
 
 export interface ActivityHistoryOptions {
   /** Live records — the resolver only correlated txids to swap ids. */
-  swaps: (WalletAssetSwap & { carrier?: CarrierActivity })[]
+  swaps: WalletAssetSwap[]
   /** The Lightning sends, as stored. `RfqSwapManager` owns their state; this
    * is the read side of it, and the only source of a row's outcome detail and
    * of the receipt's second txid — and, for a send Arkade's history does not

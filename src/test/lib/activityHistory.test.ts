@@ -1,4 +1,4 @@
-import { beforeEach, describe, it, expect } from 'vitest'
+import { beforeEach, describe, it, expect, expectTypeOf } from 'vitest'
 import { lnSwapLabel } from '../../lib/swapDisplay'
 import { createDefaultActivityRegistry, ServiceWorkerWallet, type Activity, type ArkTransaction } from '@arkade-os/sdk'
 import { activitiesToTxs, getActivities } from '../../lib/activityHistory'
@@ -1225,6 +1225,11 @@ describe('carrier metadata', () => {
 
     expect(row.carrier).toBeUndefined()
     expect(row.assetSwap).toMatchObject({ fromAmount: BigInt(10_000), toAmount: BigInt(992) })
+  })
+
+  it('types stored carrier and evidence JSON as unread, so only their readers can open it', () => {
+    expectTypeOf<WalletAssetSwap['carrier']>().toEqualTypeOf<unknown>()
+    expectTypeOf<WalletAssetSwap['activityEvidence']>().toEqualTypeOf<unknown>()
   })
 
   it('shows a direct solver purchase as bought, with no Taxi lineage', () => {
