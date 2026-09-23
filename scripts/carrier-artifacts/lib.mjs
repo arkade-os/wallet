@@ -118,8 +118,12 @@ const swallowsStatus = (command) => /[|&]/.test(command.replaceAll('&&', ' '))
 
 const VERIFY_COMMAND = /carrier-artifacts\/verify\.mjs|verify:artifacts/
 
-// `echo …verify.mjs` names the command without running it; only the last `;` group's status
-// survives; and a prefix disqualifies where it INSTALLED, not where it merely changed directory.
+// Asking instead whether a prefix INSTALLED made `installsDependencies` a negative gate,
+// where every miss it already had became a false green. Enumerate the provably harmless.
+const BENIGN_PREFIX = /^(?:cd|set|export|mkdir|umask)\b|^corepack\s+(?:enable|prepare)\b/
+
+// `echo …verify.mjs` names the command without running it, and only the last `;` group's
+// status survives.
 export const invokesVerify = (line) => {
   const command = commandBody(line)
   if (swallowsStatus(command)) return false
@@ -128,28 +132,43 @@ export const invokesVerify = (line) => {
     group.split('&&').map((part) => ({ part: part.trim(), fatal: index === groups.length - 1 })),
   )
   const at = parts.findIndex(({ part }) => VERIFY_COMMAND.test(part) && INVOKERS.has(part.split(/\s+/)[0]))
-  return at !== -1 && parts[at].fatal && !parts.slice(0, at).some(({ part }) => installsDependencies(part))
+  return at !== -1 && parts[at].fatal && parts.slice(0, at).every(({ part }) => BENIGN_PREFIX.test(part))
 }
 
 // Both are idiom on the dash line as well as under it.
 const KEPT_FROM_RUNNING = /^\s*(?:-\s+)?if:\s/
 const NON_FATAL = /^\s*(?:-\s+)?continue-on-error:\s*(?!false\b|'false'|"false")\S/
-const JOB_DEFAULTS = /^ *defaults:\s*(?:#.*)?$/
+const JOB_DEFAULTS = /^ *defaults:/
 
 // Actions' default `run` shell carries `-e`; a template or another interpreter drops it. The
 // two named are the ones this scan can prove fatal; everything else disqualifies unenumerated.
-const UNPROVEN_SHELL = /^\s*(?:-\s+)?shell:\s*(?!(['"]?)(?:bash|sh)\1\s*(?:#.*)?$)\S/
+// The value runs to a comma or brace so flow style reads the same as a block.
+const shellValues = (line) =>
+  [...line.matchAll(/shell:\s*([^,}]*)/g)].map((match) =>
+    match[1]
+      .replace(/#.*$/, '')
+      .trim()
+      .replace(/^(['"])(.*)\1$/, '$2'),
+  )
+const unprovenShell = (line) => shellValues(line).some((value) => value !== 'bash' && value !== 'sh')
 
-// `set +e`, an ERR trap and a heredoc RUN each discard failures from the lines below them,
-// until the next step or RUN opens a shell that has not been relaxed.
-const RELAXES_SHELL = /^\s*set\s+\+(?:e\b|o\s+errexit\b)|^\s*trap\s.*\bERR\b|^\s*RUN\s.*<</
+// Bash takes its short options combined, so every spelling carrying an `e` disarms. An ERR
+// trap and a heredoc RUN do the same, until the next step or RUN opens an unrelaxed shell.
+const RELAXES_SHELL =
+  /^\s*set\s+\+(?:[a-zA-Z]*e|o\s+errexit\b)|^\s*shopt\s+-u\s+\S*errexit\b|^\s*trap\s.*\bERR\b|^\s*RUN\s.*<</
 const OPENS_SHELL = /^\s*-\s|^\s*RUN\s/
+
+// A command does not always run where it is written. Rather than sort the block kinds that
+// propagate a failure from the ones that do not, no verify inside any of them counts.
+const OPENS_BLOCK = /^\s*(?:if|while|until|for|case)\b|^\s*[A-Za-z_]\w*\s*\(\s*\)\s*\{/
+const CLOSES_BLOCK = /^\s*(?:fi|done|esac|\})\s*;?\s*$/
+const SAME_LINE_CLOSE = /\b(?:fi|done|esac)\s*;?\s*$|\}\s*;?\s*$/
 const indentOf = (line) => /^\s*/.exec(line)[0].length
 
 /** Indices whose verify must not count towards a later install. */
 export function guardedLines(lines) {
   const guarded = new Set()
-  const unsafeShell = lines.some((line) => UNPROVEN_SHELL.test(line))
+  const unsafeShell = lines.some((line) => unprovenShell(line))
   let start = 0
   let unitWide = false
   const close = (end) => {
@@ -159,10 +178,10 @@ export function guardedLines(lines) {
       // A key no deeper than the dash above it is the job's, wherever the matrix put that
       // dash — and a job that continues on error holds no fatal step at all.
       const jobs = dash === -1 || (offset > 0 && indentOf(line) <= dash)
-      if (KEPT_FROM_RUNNING.test(line) || UNPROVEN_SHELL.test(line)) guard = true
       // `defaults.run.shell` sits deeper than the job's own keys, so declaring `defaults:`
       // at all is what spreads an unproven shell across the job.
-      else if (JOB_DEFAULTS.test(line)) unitWide ||= jobs && unsafeShell
+      if (JOB_DEFAULTS.test(line)) unitWide ||= jobs && unsafeShell
+      else if (KEPT_FROM_RUNNING.test(line) || unprovenShell(line)) guard = true
       else if (!NON_FATAL.test(line)) return
       else if (jobs) unitWide = true
       else guard = true
@@ -176,10 +195,16 @@ export function guardedLines(lines) {
   })
   close(lines.length)
   let relaxed = false
+  let depth = 0
   lines.forEach((line, index) => {
-    if (OPENS_SHELL.test(line)) relaxed = false
+    if (OPENS_SHELL.test(line)) {
+      relaxed = false
+      depth = 0
+    }
     if (RELAXES_SHELL.test(line)) relaxed = true
-    if (relaxed) guarded.add(index)
+    if (CLOSES_BLOCK.test(line)) depth = Math.max(0, depth - 1)
+    else if (OPENS_BLOCK.test(line) && !SAME_LINE_CLOSE.test(line)) depth += 1
+    if (relaxed || depth > 0) guarded.add(index)
   })
   if (unitWide) for (let index = 0; index < lines.length; index++) guarded.add(index)
   return guarded
@@ -188,7 +213,7 @@ export function guardedLines(lines) {
 // A command is a LOGICAL line. A Dockerfile continues one past a trailing backslash and a
 // YAML folded scalar is one command across its whole block, so reading the physical line
 // takes `…verify.mjs \` and `|| true` for two harmless halves. Fold first, then read.
-const FOLDED_SCALAR = /^( *(?:-\s+)?)[A-Za-z_][\w-]*:\s*>[-+]?\d*\s*(?:#.*)?$/
+const FOLDED_SCALAR = /^( *(?:-\s+)?)[A-Za-z_][\w-]*:\s*>[-+]?\d*[-+]?\s*(?:#.*)?$/
 
 export function logicalLines(lines) {
   const folded = []
@@ -228,12 +253,13 @@ export function logicalLines(lines) {
 /** A workflow-level `defaults:` sits outside `jobs:`, where the per-job scan cannot reach it. */
 export function unprovenDefaultShell(yaml) {
   const lines = yaml.split(/\r?\n/)
-  const start = lines.findIndex((line) => /^defaults:\s*(?:#.*)?$/.test(line))
+  const start = lines.findIndex((line) => /^defaults:/.test(line))
   if (start === -1) return false
+  if (unprovenShell(lines[start])) return true
   for (const line of lines.slice(start + 1)) {
     if (!line.trim()) continue
     if (/^\S/.test(line)) break
-    if (UNPROVEN_SHELL.test(line)) return true
+    if (unprovenShell(line)) return true
   }
   return false
 }

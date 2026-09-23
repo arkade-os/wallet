@@ -174,7 +174,8 @@ if (wholeCheckout) {
     }
     const units = name === 'Dockerfile' ? dockerfileStages(lines) : workflowJobs(lines.join('\n'))
     const label = name === 'Dockerfile' ? 'stage' : 'job'
-    if (label === 'job')
+    // Only where something installs: elsewhere an unreadable shell guards nothing.
+    if (label === 'job' && installs(lines) > 0)
       check(
         !unprovenDefaultShell(lines.join('\n')),
         `${name} defaults every run to a shell this scan cannot prove keeps a failure fatal`,

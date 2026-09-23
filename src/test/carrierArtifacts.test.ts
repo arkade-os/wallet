@@ -20,15 +20,15 @@ import {
   invokesVerify,
   isComment,
   isOptOut,
-  logicalLines,
   packageRootFrom,
   pinnedSourceMismatch,
-  unprovenDefaultShell,
   unverifiedInstall,
   workflowJobs,
   type CarrierArtifact,
   type CarrierManifest,
 } from '../../scripts/carrier-artifacts/lib.mjs'
+// Namespace-imported so reverting lib.mjs reproduces the behavioural RED instead of a link error.
+import * as carrier from '../../scripts/carrier-artifacts/lib.mjs'
 
 const REPO = fileURLToPath(new URL('../../', import.meta.url))
 const BS = String.fromCharCode(92)
@@ -261,26 +261,124 @@ describe('carrier artifacts', () => {
       ['RUN <<EOF', 'pnpm verify:artifacts', 'echo done', 'EOF', 'RUN pnpm i'],
       5,
     ],
+    [
+      'a folded scalar whose indicators are written the other way round',
+      ['      run: >2-', '        pnpm verify:artifacts', '        || true', '      run: pnpm i'],
+      4,
+    ],
+    [
+      'a job defaulting to such a shell in flow style',
+      ['    defaults: {run: {shell: pwsh}}', '    steps:', '    - run: pnpm verify:artifacts', '    - run: pnpm i'],
+      4,
+    ],
   ])('count no verify the shell can still absolve: %s', (_case, source, expected) => {
     expect(unverifiedInstall(source as string[])).toBe(expected)
   })
 
+  it.each([
+    ['set +e', 4],
+    ['set +e -x', 4],
+    ['set +o errexit', 4],
+    ['set +eo pipefail', 4],
+    ['set +ex', 4],
+    ['set +eu', 4],
+    ['set +xe', 4],
+    ['shopt -u inherit_errexit', 4],
+    ['set +o pipefail', undefined],
+    ['set +u', undefined],
+    ['set -eo pipefail', undefined],
+  ])('read %j as disarming the shell: line %s', (line, expected) => {
+    const source = ['      run: |', `        ${line as string}`, '        pnpm verify:artifacts', '      run: pnpm i']
+    expect(unverifiedInstall(source)).toBe(expected)
+  })
+
+  it.each([
+    ['sh -c "pnpm install"', 2],
+    ['make deps', 2],
+    ['pnpm fetch', 2],
+    ['. ./setup.sh', 2],
+    ['source ./setup.sh', 2],
+    ['cd /app', undefined],
+    ['corepack enable', undefined],
+    ['export CI=1', undefined],
+    ['mkdir -p /app', undefined],
+    ['set -e', undefined],
+  ])('count a verify chained behind %j: line %s', (prefix, expected) => {
+    expect(unverifiedInstall([`RUN ${prefix as string} && pnpm verify:artifacts`, 'RUN pnpm i'])).toBe(expected)
+  })
+
+  it.each([
+    [
+      'an if condition, which errexit exempts',
+      [
+        '      run: |',
+        '        if',
+        '          pnpm verify:artifacts',
+        '        then',
+        '          echo ok',
+        '        fi',
+        '      run: pnpm i',
+      ],
+      7,
+    ],
+    [
+      'a function body whose caller swallows it',
+      [
+        '      run: |',
+        '        gate() {',
+        '          pnpm verify:artifacts',
+        '        }',
+        '        gate || true',
+        '      run: pnpm i',
+      ],
+      6,
+    ],
+    [
+      'a branch that never runs',
+      [
+        '      run: |',
+        '        if true; then echo skip; else',
+        '          pnpm verify:artifacts',
+        '        fi',
+        '      run: pnpm i',
+      ],
+      5,
+    ],
+    [
+      'a loop body, which this scan will not tell from a condition',
+      [
+        '      run: |',
+        '        for i in 1; do',
+        '          pnpm verify:artifacts',
+        '        done',
+        '      run: pnpm i',
+      ],
+      5,
+    ],
+  ])('count no verify written inside a block: %s', (_case, source, expected) => {
+    expect(unverifiedInstall(source as string[])).toBe(expected)
+  })
+
   it('fold a command that spans lines before reading it', () => {
-    expect(logicalLines([`RUN a ${BS}`, '  b', 'RUN c']).map(({ text }) => text)).toEqual(['RUN a b', 'RUN c'])
-    expect(logicalLines(['  run: >-', '    a', '    b', '  run: c']).map(({ text }) => text)).toEqual([
+    expect(carrier.logicalLines([`RUN a ${BS}`, '  b', 'RUN c']).map(({ text }) => text)).toEqual(['RUN a b', 'RUN c'])
+    expect(carrier.logicalLines(['  run: >-', '    a', '    b', '  run: c']).map(({ text }) => text)).toEqual([
       'run: >-',
       'a b',
       'run: c',
     ])
-    expect(logicalLines([`RUN a ${BS}`, '  b']).map(({ span }) => span)).toEqual([[0, 1]])
+    expect(carrier.logicalLines([`RUN a ${BS}`, '  b']).map(({ span }) => span)).toEqual([[0, 1]])
   })
 
-  it('read a default shell the per-job scan never sees', () => {
+  it('read a default shell the per-job scan never sees, in either style', () => {
     const workflow = (shell: string) => `defaults:\n  run:\n    shell: ${shell}\njobs:\n  test:\n`
-    expect(unprovenDefaultShell(workflow('bash {0}'))).toBe(true)
-    expect(unprovenDefaultShell(workflow('pwsh'))).toBe(true)
-    expect(unprovenDefaultShell(workflow('bash'))).toBe(false)
-    expect(unprovenDefaultShell('jobs:\n  test:\n    steps:\n')).toBe(false)
+    expect(carrier.unprovenDefaultShell(workflow('bash {0}'))).toBe(true)
+    expect(carrier.unprovenDefaultShell(workflow('pwsh'))).toBe(true)
+    expect(carrier.unprovenDefaultShell(workflow('bash'))).toBe(false)
+    expect(carrier.unprovenDefaultShell('defaults: {run: {shell: pwsh}}\njobs:\n  test:\n')).toBe(true)
+    expect(carrier.unprovenDefaultShell('defaults:\n  run: {shell: pwsh}\njobs:\n  test:\n')).toBe(true)
+    expect(carrier.unprovenDefaultShell('defaults: {run: {shell: bash}}\njobs:\n  test:\n')).toBe(false)
+    expect(carrier.unprovenDefaultShell('defaults:\n  run:\n    working-directory: ./x\njobs:\n  test:\n')).toBe(false)
+    expect(carrier.unprovenDefaultShell('jobs:\n  test:\n    steps:\n')).toBe(false)
   })
 
   it.each([
