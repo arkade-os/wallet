@@ -20,7 +20,7 @@ import {
   type RouteResult,
 } from '@arkade-os/sdk'
 import { LIGHTNING_RAIL, ONCHAIN_SWAP_RAIL, lightningRail, onchainSwapRail, type SwapRailClient } from '@arkade-os/swap'
-import { marketCorridor, sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+import { sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { collaborativeExitWithFees, sendAssets } from './asp'
 import { decodeInvoice } from './bolt11'
 import { consoleError } from './logs'
@@ -124,19 +124,11 @@ export const lnSendRequest = (invoice: string, satoshis?: number): PaymentReques
   return { raw: invoice, ...(satoshis === undefined ? {} : { amount: satoshis }) }
 }
 
-/**
- * A market whose quote leg is Lightning.
- *
- * The rail is the asset id's chain namespace (`bolt11:…`). `quote_corridor:
- * "lightning"` is the legacy field, which {@link marketCorridor} still reads.
- */
-export const isLightningMarket = (market: DiscoveredMarket): boolean => marketCorridor(market, 'quote') === 'bolt11'
-
 /** Why the Lightning rail dropped itself. `options()` logs the rail's error and
  *  returns only survivors, so bounds are named only where checked and missed. */
 export const lnSendRefusal = (markets: DiscoveredMarket[], satoshis?: number): string => {
   const bounds = markets
-    .filter(isLightningMarket)
+    .filter((m) => m.quote_corridor === 'lightning')
     .map((m) => sideLimits(m, 'quote'))
     .filter((limits): limits is NonNullable<typeof limits> => limits !== null)
   if (bounds.length === 0) return 'No Lightning solver available'
