@@ -1,3 +1,5 @@
+import { Language } from './types'
+
 export type LanguageCode = 'en' | 'es'
 
 export const translations = {
@@ -1569,4 +1571,20 @@ export function interpolate(template: string, params?: Record<string, string | n
   return template.replace(/\{(\w+)\}/g, (match, key: string) =>
     params[key] !== undefined ? String(params[key]) : match,
   )
+}
+
+export function getTranslationDict(language: Language): TranslationDict {
+  return language === Language.Spanish ? translations.es : translations.en
+}
+
+export function translate(language: Language, key: string, params?: Record<string, string | number>): string {
+  const dict = getTranslationDict(language)
+  const template = key.split('.').reduce<unknown>((acc, part) => {
+    if (acc && typeof acc === 'object' && part in (acc as Record<string, unknown>)) {
+      return (acc as Record<string, unknown>)[part]
+    }
+    return undefined
+  }, dict)
+  if (typeof template !== 'string') return key
+  return interpolate(template, params)
 }

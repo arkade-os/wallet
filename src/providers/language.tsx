@@ -1,8 +1,10 @@
 import { ReactNode, createContext, useContext, useEffect } from 'react'
 import { Language, SettingsOptions } from '../lib/types'
 import { detectLanguage, setActiveLanguage } from '../lib/language'
-import { TranslationDict, interpolate, translations } from '../lib/i18n'
+import { translate } from '../lib/i18n'
 import { ConfigContext } from './config'
+
+export { translate, getTranslationDict } from '../lib/i18n'
 
 export type LanguageContextProps = {
   language: Language
@@ -17,22 +19,6 @@ export const LanguageContext = createContext<LanguageContextProps>({
 export function useLanguage() {
   const { language, t } = useContext(LanguageContext)
   return { language, t }
-}
-
-export function getTranslationDict(language: Language): TranslationDict {
-  return language === Language.Spanish ? translations.es : translations.en
-}
-
-export function translate(language: Language, key: string, params?: Record<string, string | number>): string {
-  const dict = getTranslationDict(language)
-  const template = key.split('.').reduce<unknown>((acc, part) => {
-    if (acc && typeof acc === 'object' && part in (acc as Record<string, unknown>)) {
-      return (acc as Record<string, unknown>)[part]
-    }
-    return undefined
-  }, dict)
-  if (typeof template !== 'string') return key
-  return interpolate(template, params)
 }
 
 export function LanguageProvider({ children }: { children: ReactNode }) {

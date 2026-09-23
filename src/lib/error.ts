@@ -1,5 +1,5 @@
-import { localizedDelta } from './format'
-import { translate } from '../providers/language'
+import { translate } from './i18n'
+import { localizedDelta } from './deltas'
 import { getActiveLanguage } from './language'
 
 const t = (key: string, params?: Record<string, string | number>): string => translate(getActiveLanguage(), key, params)
