@@ -535,12 +535,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     // if app url is present, navigate to it
     if (!deepLinkInfo?.appId) return
     switch (deepLinkInfo?.appId) {
-      case 'lendasat':
-        navigate(Pages.AppLendasat)
-        break
-      case 'satora':
-        navigate(Pages.AppSatora)
-        break
       default:
         navigate(Pages.Wallet)
     }
