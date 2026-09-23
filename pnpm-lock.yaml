@@ -39,9 +39,6 @@ importers:
       '@noble/hashes':
         specifier: ^2.0.1
         version: 2.0.1
-      '@noble/secp256k1':
-        specifier: 3.0.0
-        version: 3.0.0
       '@scure/base':
         specifier: 2.0.0
         version: 2.0.0

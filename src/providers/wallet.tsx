@@ -56,7 +56,7 @@ import { resolveWalletMode } from '../lib/walletMode'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
 import { setLoadingStatus } from '../lib/loadingStatus'
 import { hex } from '@scure/base'
-import * as secp from '@noble/secp256k1'
+import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { ConfigContext } from './config'
 import {
   defaultPassword,
@@ -907,7 +907,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       updateConfig({ ...config, pubkey, walletMode })
     } else if (credentials.privateKey) {
       identity = SingleKey.fromPrivateKey(credentials.privateKey)
-      pubkey = hex.encode(secp.getPublicKey(credentials.privateKey))
+      pubkey = hex.encode(secp256k1.getPublicKey(credentials.privateKey))
       walletMode = 'static'
       initialiseNostrBackup(credentials.privateKey)
       updateConfig({ ...config, pubkey, walletMode })
