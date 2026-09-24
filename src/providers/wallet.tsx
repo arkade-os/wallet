@@ -43,6 +43,7 @@ import { arkTransactionToTx } from '../lib/transactionHistory'
 import { Indexer } from '../lib/indexer'
 import { lnSendViews, swapRecordResolver, type LnSendView } from '../lib/swapRecords'
 import { createLnurlActivityResolver } from '../lib/lnurlPaymentRepository'
+import { createSentActivityResolver } from '../lib/lnurlSends'
 import { syncLnurlActivity } from '../lib/lnurlActivitySync'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
@@ -717,6 +718,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         }),
       )
       svcWallet.activity.use(createLnurlActivityResolver())
+      svcWallet.activity.use(createSentActivityResolver())
 
       if (restoring) {
         setLoadingStatus('Recovering addresses...')

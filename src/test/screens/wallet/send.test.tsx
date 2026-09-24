@@ -21,6 +21,8 @@ import SendForm from '../../../screens/Wallet/Send/Form'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { OptionsContext } from '../../../providers/options'
+import { SwapsContext } from '../../../providers/swaps'
+import { createSendRouter, LNURL_ARKADE_RAIL } from '../../../lib/sendRouter'
 import { Currencies, Unit } from '../../../lib/types'
 import fixtures from '../../fixtures.json'
 
@@ -30,6 +32,7 @@ describe('Send screen', () => {
     fiatContext = mockFiatContextValue,
     flowContext = mockFlowContextValue,
     walletContext = { ...mockWalletContextValue, svcWallet: mockSvcWallet as any },
+    swapsContext = {},
   } = {}) =>
     render(
       <NavigationContext.Provider value={mockNavigationContextValue}>
@@ -39,9 +42,11 @@ describe('Send screen', () => {
               <OptionsContext.Provider value={mockOptionsContextValue as any}>
                 <FlowContext.Provider value={flowContext as any}>
                   <WalletContext.Provider value={walletContext as any}>
-                    <LimitsContext.Provider value={mockLimitsContextValue}>
-                      <SendForm />
-                    </LimitsContext.Provider>
+                    <SwapsContext.Provider value={swapsContext as any}>
+                      <LimitsContext.Provider value={mockLimitsContextValue}>
+                        <SendForm />
+                      </LimitsContext.Provider>
+                    </SwapsContext.Provider>
                   </WalletContext.Provider>
                 </FlowContext.Provider>
               </OptionsContext.Provider>
@@ -135,17 +140,70 @@ describe('Send screen', () => {
         getBalance: () => Promise.resolve({ available: 1_000_000 }),
       } as any,
     }
-    renderSendForm({ flowContext: flowValue, walletContext: walletValue })
+    // A lightning leg that is never reached: the client refuses the invoice first.
+    const sendRouter = vi.fn(async () => createSendRouter({ wallet: walletValue.svcWallet, client: {} as never }))
+    renderSendForm({ flowContext: flowValue, walletContext: walletValue, swapsContext: { sendRouter } })
     await waitFor(() => screen.getByDisplayValue(String(requested)))
     const continueButton = screen.getByText('Continue').closest('button')!
     await waitFor(() => expect(continueButton).toBeEnabled())
     fireEvent.click(continueButton)
 
     expect(await screen.findByTestId('error-message')).toHaveTextContent(/not the requested/)
+    expect(sendRouter).toHaveBeenCalled()
     const updates = setSendInfo.mock.calls.map(([update]) =>
       typeof update === 'function' ? update(flowValue.sendInfo) : update,
     )
-    expect(updates.some((next) => next.invoice)).toBe(false)
+    expect(updates.some((next) => next.invoice || next.pendingLnSend)).toBe(false)
+    fetchMocker.disableMocks()
+  })
+
+  it('hands the sign screen the router’s quote for an LNURL target, Arkade leg first', async () => {
+    const satoshis = 5_000
+    const arkAddress = fixtures.lib.address.ark[0].address
+    const fetchMocker = createFetchMock(vi)
+    fetchMocker.enableMocks()
+    fetchMocker.mockResponse((req) =>
+      JSON.stringify(
+        req.url.includes('paymentOption=')
+          ? { paymentOption: 'ark', paymentDestination: arkAddress }
+          : {
+              tag: 'payRequest',
+              callback: 'https://pay.example/cb',
+              minSendable: satoshis * 1000,
+              maxSendable: satoshis * 1000,
+              metadata: '[]',
+              paymentOptions: [
+                { id: 'ln', type: 'lightning' },
+                { id: 'ark', type: 'arkade' },
+              ],
+            },
+      ),
+    )
+    const lnUrl = 'alice@pay.example'
+    const setSendInfo = vi.fn()
+    const flowValue = {
+      ...mockFlowContextValue,
+      sendInfo: { ...emptySendInfo, lnUrl, recipient: lnUrl, satoshis },
+      setSendInfo,
+    }
+    const svcWallet = {
+      ...mockSvcWallet,
+      getAddress: () => 'tark1mockoffchain',
+      getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+    } as any
+    const walletValue = { ...mockWalletContextValue, balance: 1_000_000, availableBalance: 1_000_000, svcWallet }
+    const sendRouter = async () => createSendRouter({ wallet: svcWallet })
+    renderSendForm({ flowContext: flowValue, walletContext: walletValue, swapsContext: { sendRouter } })
+    await waitFor(() => screen.getByDisplayValue(String(satoshis)))
+    const continueButton = screen.getByText('Continue').closest('button')!
+    await waitFor(() => expect(continueButton).toBeEnabled())
+    fireEvent.click(continueButton)
+
+    await waitFor(() => expect(setSendInfo).toHaveBeenCalledWith(expect.any(Function)))
+    const next = setSendInfo.mock.calls.map(([u]) => (typeof u === 'function' ? u(flowValue.sendInfo) : u)).at(-1)
+    expect(next.pendingLnSend).toMatchObject({ railId: LNURL_ARKADE_RAIL, amount: satoshis, total: satoshis })
+    expect(next.pendingLnSend.meta.lnurl).toMatchObject({ target: lnUrl })
+    expect(next).toMatchObject({ arkAddress: undefined, invoice: undefined })
     fetchMocker.disableMocks()
   })
 

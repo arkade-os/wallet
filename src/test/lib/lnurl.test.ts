@@ -2,7 +2,6 @@ import fixtures from '../fixtures.json'
 import createFetchMock from 'vitest-fetch-mock'
 import { describe, expect, it, vi } from 'vitest'
 import { createLnurlClient, isValidLnUrl, toPayRequestUrl } from '@arkade-os/lnurl-client'
-import { checkLnUrlInvoice } from '../../lib/lnurl'
 
 const fetchMocker = createFetchMock(vi)
 
@@ -51,21 +50,19 @@ describe('lnurl utilities', () => {
     }
   })
 
-  it('should accept an invoice for the requested amount', () => {
-    expect(checkLnUrlInvoice(fixtures.lib.bolt11.invoice, fixtures.lib.bolt11.amountSats)).toBe(
-      fixtures.lib.bolt11.invoice,
-    )
+  const invoiceFor = async (pr: string, amountSat: number) => {
+    fetchMocker.mockResponseOnce(JSON.stringify(mockLNURLResponse))
+    fetchMocker.mockResponseOnce(JSON.stringify({ pr }))
+    return lnurlClient.requestInvoice(await lnurlClient.resolve(fixtures.lib.lnurl[0].lnUrlOrAddress), { amountSat })
+  }
+
+  it('should refuse an invoice that does not decode', async () => {
+    await expect(invoiceFor('lnbc12345678', fixtures.lib.bolt11.amountSats)).rejects.toThrow(/does not decode/)
   })
 
-  it('should throw an error when the invoice is invalid', () => {
-    expect(() => checkLnUrlInvoice('lnbc12345678', fixtures.lib.bolt11.amountSats)).toThrow(
-      'Server returned an invalid invoice.',
-    )
-  })
-
-  it('should throw an error when the invoice amount does not match the requested amount', () => {
-    expect(() => checkLnUrlInvoice(fixtures.lib.bolt11.invoice, fixtures.lib.bolt11.amountSats + 100)).toThrow(
-      'Invoice amount does not match requested amount.',
+  it('should refuse an invoice for another amount than the one requested', async () => {
+    await expect(invoiceFor(fixtures.lib.bolt11.invoice, fixtures.lib.bolt11.amountSats + 100)).rejects.toThrow(
+      /not the requested/,
     )
   })
 })

@@ -428,6 +428,28 @@ describe('lightning send activities', () => {
     expect(row).toMatchObject({ amount: 1_030, type: 'sent', lnSwap: { outcome: 'pending' } })
   })
 
+  const lnurlSendIntent: Activity['intent'] = { kind: 'lnurl-send', label: '→ alice@pay.example' }
+
+  it('shows an LNURL send over Lightning once, as the swap it funded', () => {
+    const rows = activitiesToTxs(
+      [
+        { ...activity(`swap:${RFQ_ID}`, [funding], lnIntent('pending')), amount: -1_030 },
+        { ...activity('sent:funding-txid', [funding], lnurlSendIntent), amount: -1_030 },
+      ],
+      empty,
+    )
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ historyKey: `swap:${RFQ_ID}`, lnSwap: { label: 'Lightning send' } })
+  })
+
+  it('still shows an LNURL send no other group covers', () => {
+    const paid = arkTx('ark-txid', { type: 'SENT' as ArkTransaction['type'], amount: 2_100 })
+    const rows = activitiesToTxs([activity('sent:ark-txid', [paid], lnurlSendIntent)], empty)
+
+    expect(rows).toEqual([expect.objectContaining({ redeemTxid: 'ark-txid', type: 'sent' })])
+  })
+
   it('grafts the local metadata the funding leg carries', () => {
     saveTransactionActivityMetadata('funding-txid', { destination: 'lnbc10u1p...', networkFee: 30 })
 

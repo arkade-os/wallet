@@ -9,6 +9,8 @@ import type { WalletAssetSwap } from './swapRepository'
 import { arkTransactionToTx, sortLocalTxs, txidOfArkTransaction } from './transactionHistory'
 import type { Tx } from './types'
 
+const LNURL_SEND_KIND = 'lnurl-send'
+
 export interface ActivityHistoryOptions {
   /** Live records — the resolver only correlated txids to swap ids. */
   swaps: WalletAssetSwap[]
@@ -250,7 +252,18 @@ const exitTx = (exit: ExitRecord): Tx => ({
 export const activitiesToTxs = (activities: Activity[], options: ActivityHistoryOptions): Tx[] => {
   const { swaps, metadata, network, assetDisplay, lnSends = [], exits = [] } = options
   const rows: Tx[] = []
+  const groupsOf = new Map<string, number>()
+  for (const tx of activities.flatMap((activity) => activity.txs)) {
+    groupsOf.set(txidOfArkTransaction(tx), (groupsOf.get(txidOfArkTransaction(tx)) ?? 0) + 1)
+  }
   for (const activity of activities) {
+    // The SDK emits a tx under every group claiming it; a swap's row already stands for its LNURL send.
+    if (
+      activity.intent?.kind === LNURL_SEND_KIND &&
+      activity.txs.every((tx) => (groupsOf.get(txidOfArkTransaction(tx)) ?? 0) > 1)
+    ) {
+      continue
+    }
     const swapKind = rfqSwapKindOf(activity)
     if (swapKind === 'lightning_send' || swapKind === 'onchain_send') {
       const row = corridorSendTx(activity, metadata, lnSends)

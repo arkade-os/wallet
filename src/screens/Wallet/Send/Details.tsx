@@ -16,8 +16,10 @@ import FlexCol from '../../../components/FlexCol'
 import { sendOffChain } from '../../../lib/asp'
 import {
   ASSET_RAIL,
+  LNURL_ARKADE_RAIL,
   ONCHAIN_ROUTE_LOG,
   fundedResult,
+  isLnurlRail,
   previewOnchainCost,
   quoteIsForThisInvoice,
   quoteIsForThisSend,
@@ -33,6 +35,7 @@ import { buildTransactionAmountDisplay } from '../../../lib/transactionAmountDis
 import { useAmountDisplayContext } from '../../../hooks/useTransactionAmountDisplay'
 import TransactionAmountSummary from '../../../components/TransactionAmountSummary'
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
+import { recordLnurlSend } from '../../../lib/lnurlSends'
 
 export default function SendDetails() {
   const displayContext = useAmountDisplayContext()
@@ -56,7 +59,8 @@ export default function SendDetails() {
   const [sending, setSending] = useState(false)
   const [sendDone, setSendDone] = useState(false)
 
-  const { address, arkAddress, invoice, pendingLnSend, satoshis } = sendInfo
+  const { address, arkAddress, invoice, lnUrl, pendingLnSend, satoshis } = sendInfo
+  const lnurlRoute = Boolean(lnUrl && pendingLnSend && isLnurlRail(pendingLnSend.railId))
   const amountDisplay = buildTransactionAmountDisplay({
     ...displayContext,
     assets: sendInfo.account
@@ -79,7 +83,7 @@ export default function SendDetails() {
   }
 
   useEffect(() => {
-    if (!address && !arkAddress && !invoice) return setError('Missing address')
+    if (!address && !arkAddress && !invoice && !lnurlRoute) return setError('Missing address')
     if (isAssetSend) {
       if (!assetAmountValue) return setError('Missing asset amount')
       const destination = arkAddress ?? ''
@@ -97,21 +101,27 @@ export default function SendDetails() {
     }
     if (!satoshis) return setError('Missing amount')
     const destination =
-      arkAddress && vtxoTxsAllowed()
-        ? arkAddress
-        : invoice && pendingLnSend && vtxoTxsAllowed()
-          ? invoice
-          : address && utxoTxsAllowed()
-            ? address
-            : ''
+      lnurlRoute && vtxoTxsAllowed()
+        ? lnUrl!
+        : arkAddress && vtxoTxsAllowed()
+          ? arkAddress
+          : invoice && pendingLnSend && vtxoTxsAllowed()
+            ? invoice
+            : address && utxoTxsAllowed()
+              ? address
+              : ''
     const direction =
-      destination === arkAddress
-        ? 'Paying inside Arkade'
-        : destination === invoice
-          ? 'Paying to Lightning'
-          : destination === address
-            ? 'Paying to mainnet'
-            : ''
+      lnurlRoute && destination === lnUrl
+        ? pendingLnSend!.railId === LNURL_ARKADE_RAIL
+          ? 'Paying inside Arkade'
+          : 'Paying to Lightning'
+        : destination === arkAddress
+          ? 'Paying inside Arkade'
+          : destination === invoice
+            ? 'Paying to Lightning'
+            : destination === address
+              ? 'Paying to mainnet'
+              : ''
     // The RFQ lockup carries exactly the invoice amount (exact-out, fee_bps
     // from the card; 0 today), so total == satoshis on the Lightning path.
     const total = pendingLnSend ? pendingLnSend.total : satoshis
@@ -213,6 +223,16 @@ export default function SendDetails() {
     handleSent(result?.txid, quote.total, quote.fee, quote.railId)
   }
 
+  /** The quote came from the previous screen, so it is held to what this one shows. */
+  const payLnurl = async (quote: RouteQuote, target: string) => {
+    const quotedFor = (quote.meta?.lnurl as { target?: string } | undefined)?.target
+    if (quotedFor !== target || quote.amount !== satoshis) return handleError('Quote is for a different payment')
+    const handle = await quote.send()
+    recordLnurlSend(handle, quote, target)
+    const result = await fundedResult(handle)
+    handleSent(result?.txid, quote.total, quote.fee, quote.railId)
+  }
+
   /** One rail and no counterparty; routed so every branch here has one shape. */
   const payAssets = async (arkAddress: string, assets: NonNullable<typeof sendInfo.assets>) => {
     const router = await sendRouter({ assets })
@@ -271,6 +291,9 @@ export default function SendDetails() {
     if (isAssetSend && arkAddress) {
       if (!sendInfo.assets || sendInfo.assets.length === 0) return handleError('Missing assets list')
       payAssets(arkAddress, sendInfo.assets).catch(handleError)
+    } else if (lnurlRoute) {
+      if (!details.destination) return handleError('Sending offchain not allowed')
+      payLnurl(pendingLnSend!, lnUrl!).catch(handleError)
     } else if (arkAddress) {
       if (!details.total) return handleError('Missing total amount')
       sendOffChain(svcWallet, details.total, arkAddress)
@@ -295,7 +318,14 @@ export default function SendDetails() {
       <Header text='Sign transaction' back />
       <Content>
         {sending ? (
-          details?.destination === invoice ? (
+          lnurlRoute ? (
+            <LoadingLogo
+              text={details?.direction || 'Paying'}
+              done={sendDone}
+              exitMode='fly-up'
+              onExitComplete={handleExitComplete}
+            />
+          ) : details?.destination === invoice ? (
             <LoadingLogo
               text='Paying to Lightning'
               done={sendDone}

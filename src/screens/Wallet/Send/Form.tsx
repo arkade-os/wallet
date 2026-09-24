@@ -31,10 +31,10 @@ import { FiatContext } from '../../../providers/fiat'
 import { ArkNote, AssetDetails, isValidArkAddress, type NetworkName } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
 import { createLnurlClient, isValidLnUrl, LnurlError, type PayRequest } from '@arkade-os/lnurl-client'
-import { checkLnUrlInvoice, fetchArkAddress } from '../../../lib/lnurl'
+import { fetchArkAddress } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
 import { decodeInvoice } from '../../../lib/bolt11'
-import { LIGHTNING_RAIL, lnSendRefusal, lnSendRequest } from '../../../lib/sendRouter'
+import { LIGHTNING_RAIL, lnSendRefusal, lnSendRequest, quoteLnurl } from '../../../lib/sendRouter'
 import { SwapsContext } from '../../../providers/swaps'
 import { discoverMarkets } from '../../../lib/swapMarkets'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
@@ -378,7 +378,7 @@ export default function SendForm() {
           lnUrl,
           recipient,
           satoshis: satoshis ?? prev.satoshis,
-          pendingLnSend: invoice === prev.invoice ? prev.pendingLnSend : undefined,
+          pendingLnSend: invoice && invoice === prev.invoice ? prev.pendingLnSend : undefined,
         }))
         if (satoshis) setAmountTextValue(getTextValue(satoshis))
         return
@@ -428,7 +428,7 @@ export default function SendForm() {
         }
       }
       if (isValidLnUrl(lowerCaseData)) {
-        return setSendInfo({ ...sendInfo, lnUrl: lowerCaseData })
+        return setSendInfo({ ...sendInfo, lnUrl: lowerCaseData, pendingLnSend: undefined })
       }
       setRecipientError('Invalid recipient address')
       setReadyToParse(false)
@@ -624,7 +624,7 @@ export default function SendForm() {
   // proceed to next step
   useEffect(() => {
     if (!proceed) return
-    if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice) return
+    if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice && !sendInfo.pendingLnSend) return
     // Everything except an un-negotiated invoice goes straight through: an ark
     // address, an on-chain address, and an invoice whose quote is already in
     // hand all have all they need to be signed on the next screen.
@@ -777,22 +777,10 @@ export default function SendForm() {
             pendingLnSend: undefined,
           }))
         } else {
-          // No Ark method: fetch a BOLT11 and pay it through the RFQ Lightning
-          // path (exact-out, zero spread — no fee to deduct from the amount)
+          // The client refuses an invoice for any other amount before a solver is asked.
           if (satoshis < 1) return handleError('Amount too low')
-          const payRequest = await lnurlClient.resolve(sendInfo.lnUrl)
-          const result = await lnurlClient.requestInvoice(payRequest, {
-            amountSat: Number(satoshis),
-            comment: undefined,
-          })
-          if (result.kind !== 'bolt11') throw new Error('Expected a lightning invoice')
-          const invoice = checkLnUrlInvoice(result.pr, Number(satoshis))
-          setSendInfo((prev) => ({
-            ...prev,
-            arkAddress: undefined,
-            invoice,
-            pendingLnSend: invoice === prev.invoice ? prev.pendingLnSend : undefined,
-          }))
+          const pendingLnSend = await quoteLnurl(await sendRouter(), sendInfo.lnUrl, Number(satoshis))
+          setSendInfo((prev) => ({ ...prev, arkAddress: undefined, invoice: undefined, pendingLnSend }))
         }
       } else {
         setSendInfo({ ...sendInfo, satoshis })
