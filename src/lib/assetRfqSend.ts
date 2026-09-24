@@ -128,15 +128,11 @@ const expiryIn = (coin: Coin, kind: Floor['kind']): bigint | undefined => {
   return coin.expiresAtHeight === undefined ? undefined : BigInt(coin.expiresAtHeight)
 }
 
-/** Coins expiring before `minimum` could only fund a covenant too short-lived to accept, so they set no floor. */
-const earliestExpiry = (coins: Coin[], kind: Floor['kind'], minimum: bigint): bigint | undefined =>
-  coins
-    .map((coin) => expiryIn(coin, kind))
+/** The floors her coins can fund from, latest first; an expiry before `minimum` could fund no acceptable covenant. */
+const fundingFloors = (coins: Coin[], kind: Floor['kind'], minimum: bigint): bigint[] =>
+  [...new Set(coins.map((coin) => expiryIn(coin, kind)))]
     .filter((expiry): expiry is bigint => expiry !== undefined && expiry >= minimum)
-    .reduce<bigint | undefined>(
-      (earliest, expiry) => (earliest === undefined || expiry < earliest ? expiry : earliest),
-      undefined,
-    )
+    .sort((a, b) => (a < b ? 1 : a > b ? -1 : 0))
 
 /** Enough for `fundOffer`'s selection, which spends one more dust on change when it takes an asset-bearing coin. */
 const floorCovers = (coins: Coin[], floor: Floor, amount: bigint, dust: bigint): boolean => {
@@ -145,8 +141,17 @@ const floorCovers = (coins: Coin[], floor: Floor, amount: bigint, dust: bigint):
   return total >= amount + (eligible.some((coin) => coin.assets?.length) ? dust : 0n)
 }
 
-const taxiCarrier = async (req: AssetPaymentRequest, deps: AssetRfqSendDeps) => {
-  if (!req.taxi) return undefined
+interface TaxiRoute {
+  carrier: ReceiverPaidCarrier
+  coins: Coin[]
+  /** Floors below the one asked for, latest first; empty once re-quoted, since it is re-quoted only once. */
+  lower: bigint[]
+  requote: (floor: bigint) => Promise<TaxiRoute | undefined>
+}
+
+const taxiCarrier = async (req: AssetPaymentRequest, deps: AssetRfqSendDeps): Promise<TaxiRoute | undefined> => {
+  const { taxi } = req
+  if (!taxi) return undefined
   const ctx = {
     ...deps.arkade,
     assetId: req.assetId,
@@ -154,7 +159,7 @@ const taxiCarrier = async (req: AssetPaymentRequest, deps: AssetRfqSendDeps) => 
     fetch: deps.fetch,
     pageProtocol: deps.pageProtocol,
   }
-  const probe = await probeReceiverTaxi(req.taxi, ctx)
+  const probe = await probeReceiverTaxi(taxi, ctx)
   if (!probe.ok) return void dropTaxi(probe.reason)
   try {
     const [coins, minimum, makerPublicKey] = await Promise.all([
@@ -162,10 +167,18 @@ const taxiCarrier = async (req: AssetPaymentRequest, deps: AssetRfqSendDeps) => 
       callerMinimum(deps.arkade),
       deps.wallet.identity.xOnlyPublicKey(),
     ])
-    const fundingExpiry = earliestExpiry(coins, deps.arkade.locktimeDomain, minimum)
-    if (fundingExpiry === undefined) return void dropTaxi('no coin outlives the minimum floor')
-    const carrier = await receiverPaidCarrier(req.taxi, probe.info, ctx, { makerPublicKey, fundingExpiry, minimum })
-    return { carrier, coins }
+    const quoteAt = async (fundingExpiry: bigint, lower: bigint[]): Promise<TaxiRoute | undefined> => {
+      try {
+        const carrier = await receiverPaidCarrier(taxi, probe.info, ctx, { makerPublicKey, fundingExpiry, minimum })
+        return { carrier, coins, lower, requote: (floor) => quoteAt(floor, []) }
+      } catch (error) {
+        return void dropTaxi('receive quote refused', error)
+      }
+    }
+    // Her latest floor first: the Taxi recovers a whole margin before the floor, so an earlier one is refused sooner.
+    const [latest, ...lower] = fundingFloors(coins, deps.arkade.locktimeDomain, minimum)
+    if (latest === undefined) return void dropTaxi('no coin outlives the minimum floor')
+    return await quoteAt(latest, lower)
   } catch (error) {
     return void dropTaxi('receive quote refused', error)
   }
@@ -179,7 +192,9 @@ const negotiate = async (
   let taxi = await taxiCarrier(req, deps)
   let lastError: unknown
   for (const solver of deps.solvers) {
-    for (const viaTaxi of taxi ? [taxi, undefined] : [undefined]) {
+    const routes = taxi ? [taxi, undefined] : [undefined]
+    for (let i = 0; i < routes.length; i++) {
+      const viaTaxi = routes[i]
       const route: { carrier: ArkadeCarrierChoice; receiveAddress?: string } = viaTaxi
         ? { carrier: viaTaxi.carrier.choice }
         : { carrier: { mode: 'purchase' }, receiveAddress: req.arkAddress }
@@ -199,9 +214,13 @@ const negotiate = async (
           taxi = undefined
           continue
         }
-        if (carrier && !floorCovers(coins!, carrier.inputExpiryFloor, negotiated.fundAmount, deps.arkade.dust)) {
-          dropTaxi('coins clearing its floor fall short')
-          taxi = undefined
+        const covers = (floor: Floor) => floorCovers(coins!, floor, negotiated.fundAmount, deps.arkade.dust)
+        if (carrier && !covers(carrier.inputExpiryFloor)) {
+          const { kind, value } = carrier.inputExpiryFloor
+          const lower = viaTaxi!.lower.find((floor) => floor < value && covers({ kind, value: floor }))
+          taxi =
+            lower === undefined ? void dropTaxi('coins clearing its floor fall short') : await viaTaxi!.requote(lower)
+          if (taxi) routes.splice(i + 1, 0, taxi)
           continue
         }
         return { negotiated, taxi: carrier }

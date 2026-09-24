@@ -91,6 +91,10 @@ const deps = (over: Partial<AssetRfqSendDeps> = {}): AssetRfqSendDeps => {
 const carriersOf = (d: AssetRfqSendDeps) =>
   vi.mocked(d.requestArkadeSwap).mock.calls.map(([, , , params]) => params.carrier)
 const solversOf = () => nostrRfqTransport.mock.calls.map(([options]) => options.solverPubkey)
+const floorsAskedOf = (fetch: ReturnType<typeof taxiFetch>) =>
+  fetch.mock.calls
+    .filter(([url]) => String(url).endsWith('/v1/receive-quotes'))
+    .map(([, init]) => JSON.parse(String(init?.body)).fundingExpiry.value)
 const onlyTheConfirmation = (payAmountSats: bigint) =>
   expect(prompts.calls).toEqual([['confirmPayment', { payAmountSats, assetId: ASSET_ID, assetAmount: 500n }]])
 
@@ -241,6 +245,37 @@ describe('payAssetRequest', () => {
     const d = deps(walletWith([withAsset]))
     await payAssetRequest(REQUEST, d)
     expect(carriersOf(d).map((c) => c?.mode)).toEqual(['recycleReceiver', 'purchase'])
+  })
+
+  it('asks for the latest floor her coins clear, so one old coin does not cost her the Taxi', async () => {
+    const fetch = taxiFetch({ refuseBelow: DEFAULT_FLOOR })
+    const d = deps({ ...walletWith([coin(50_000, DEFAULT_FLOOR), coin(1_000, EARLY_FLOOR, 1)]), fetch })
+    await payAssetRequest(REQUEST, d)
+    expect(floorsAskedOf(fetch)).toEqual([DEFAULT_FLOOR.toString()])
+    expect(d.fundOffer).toHaveBeenCalledWith(
+      d.wallet,
+      d.arkServerUrl,
+      expect.objectContaining({ inputExpiryFloor: { kind: 'time', value: DEFAULT_FLOOR } }),
+    )
+    onlyTheConfirmation(TAXI_PRICE)
+  })
+
+  it('re-quotes once at the latest floor whose coins cover the price, when the latest alone cannot', async () => {
+    const fetch = taxiFetch()
+    const d = deps({ ...walletWith([coin(3_000, DEFAULT_FLOOR), coin(50_000, EARLY_FLOOR, 1)]), fetch })
+    await payAssetRequest(REQUEST, d)
+    expect(floorsAskedOf(fetch)).toEqual([DEFAULT_FLOOR.toString(), EARLY_FLOOR.toString()])
+    expect(carriersOf(d)).toEqual([
+      expect.objectContaining({ quote: expect.objectContaining({ receiveAddress: COVENANT_ADDRESS }) }),
+      expect.objectContaining({ quote: expect.objectContaining({ receiveAddress: EARLY_QUOTE.covenantAddress }) }),
+    ])
+    expect(solversOf()).toEqual([SOLVER_A.solverPubkey, SOLVER_A.solverPubkey])
+    expect(d.fundOffer).toHaveBeenCalledWith(
+      d.wallet,
+      d.arkServerUrl,
+      expect.objectContaining({ inputExpiryFloor: { kind: 'time', value: EARLY_FLOOR } }),
+    )
+    onlyTheConfirmation(TAXI_PRICE)
   })
 
   it('asks no Taxi for a quote when no coin outlives the minimum floor', async () => {

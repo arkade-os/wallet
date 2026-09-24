@@ -113,12 +113,17 @@ export const arkadeContext = (over: Partial<TaxiProbeContext> = {}): TaxiProbeCo
 
 const reply = (body: unknown, status = 200) => ({ ok: status < 400, status, text: async () => JSON.stringify(body) })
 
-/** A Taxi at TAXI_URL answering /v1/info and POST /v1/receive-quotes; anything else is a 404. */
-export const taxiFetch = (over: { info?: unknown; quote?: unknown; quoteStatus?: number; ttlSeconds?: number } = {}) =>
+/** A Taxi at TAXI_URL answering /v1/info and POST /v1/receive-quotes; anything else is a 404. `refuseBelow` is
+ * the floor its locktime margin needs, as its 503 no_locktime_headroom refuses anything earlier. */
+export const taxiFetch = (
+  over: { info?: unknown; quote?: unknown; quoteStatus?: number; ttlSeconds?: number; refuseBelow?: bigint } = {},
+) =>
   vi.fn(async (url: string, init?: RequestInit) => {
     if (url === `${TAXI_URL}/v1/info`) return reply(over.info ?? INFO)
     if (url === `${TAXI_URL}/v1/receive-quotes` && init?.method === 'POST') {
       const hint = JSON.parse(String(init.body)).fundingExpiry?.value
+      if (over.refuseBelow !== undefined && BigInt(hint) < over.refuseBelow)
+        return reply({ code: 'no_locktime_headroom', message: 'recovery margin is unsafe' }, 503)
       const quote = over.quote ?? (hint === EARLY_FLOOR.toString() ? EARLY_QUOTE : QUOTE)
       if (over.ttlSeconds === undefined) return reply(quote, over.quoteStatus)
       const now = Math.floor(Date.now() / 1000)
