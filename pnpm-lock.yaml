@@ -41,18 +41,12 @@ importers:
       '@fontsource-variable/geist':
         specifier: ^5.2.8
         version: 5.2.8
-      '@lendasat/lendasat-wallet-bridge':
-        specifier: ^0.0.90
-        version: 0.0.90
       '@noble/curves':
         specifier: ^2.0.1
         version: 2.0.1
       '@noble/hashes':
         specifier: ^2.0.1
         version: 2.0.1
-      '@noble/secp256k1':
-        specifier: 3.0.0
-        version: 3.0.0
       '@scure/base':
         specifier: 2.0.0
         version: 2.0.0
@@ -940,9 +934,6 @@ packages:
 
   '@juggle/resize-observer@3.4.0':
     resolution: {integrity: sha512-dfLbk+PwWvFzSxwk3n5ySL0hfBog779o8h68wK/7/APo/7cgyWp5jcXockbxdk5kFRkbeXWm4Fbi9FrdN381sA==}
-
-  '@lendasat/lendasat-wallet-bridge@0.0.90':
-    resolution: {integrity: sha512-VfgM5vUx81vVWlggtOReUkaC8VVOFVavIMixQM0G/ZI0L/nMi10fmkIBvXOVI4Jmsu9A5z6wHSUrERxD3a/Juw==}
 
   '@marcbachmann/cel-js@8.0.0':
     resolution: {integrity: sha512-oaTrAziGr3zDLFiMt/yLU3nZuRMawyWQB5X1a0I7s9eGy3JYzX9l8ZXXHyMd64nzbeVFZTewuUShwsZQdK6UCA==}
@@ -5078,8 +5069,6 @@ snapshots:
       '@jridgewell/sourcemap-codec': 1.5.5
 
   '@juggle/resize-observer@3.4.0': {}
-
-  '@lendasat/lendasat-wallet-bridge@0.0.90': {}
 
   '@marcbachmann/cel-js@8.0.0': {}
 

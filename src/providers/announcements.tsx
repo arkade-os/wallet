@@ -1,7 +1,7 @@
 import { ConfigContext } from './config'
 import { BackupContext } from './backup'
 import { ReactNode, createContext, useContext, useEffect, useRef, useState } from 'react'
-import { LendaSatAnnouncement, SatoraAnnouncement, NostrBackupsAnnouncement } from '../components/Announcement'
+import { NostrBackupsAnnouncement } from '../components/Announcement'
 
 interface AnnouncementItem {
   id: string
@@ -9,11 +9,7 @@ interface AnnouncementItem {
   inactive?: boolean
 }
 
-const announcements: AnnouncementItem[] = [
-  { id: 'nostr backups', component: NostrBackupsAnnouncement, inactive: true },
-  { id: 'satora', component: SatoraAnnouncement, inactive: true },
-  { id: 'lendasat', component: LendaSatAnnouncement, inactive: true },
-]
+const announcements: AnnouncementItem[] = [{ id: 'nostr backups', component: NostrBackupsAnnouncement, inactive: true }]
 
 interface AnnouncementContextProps {
   announcement: React.ReactNode | null
