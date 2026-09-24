@@ -188,6 +188,8 @@ export default function SendForm() {
   const [valueSats, setValueSats] = useState<number | undefined>(undefined)
 
   const timeoutRef = useRef<NodeJS.Timeout>()
+  const lnUrlRef = useRef<string>()
+  lnUrlRef.current = sendInfo.lnUrl
 
   const prefersReducedMotion = useReducedMotion()
   const accountAsset = useMemo<AssetOption | null>(
@@ -776,6 +778,9 @@ export default function SendForm() {
   const handleContinue = async () => {
     setProcessing(true)
     const satoshis = sendInfo.satoshis ?? 0
+    // The recipient can change during the awaits below; a result for a replaced target is dropped.
+    const target = sendInfo.lnUrl
+    const stale = () => lnUrlRef.current !== target
     try {
       if (sendInfo.lnUrl && lnUrlResponse) {
         // Check if Ark method is available
@@ -784,6 +789,7 @@ export default function SendForm() {
         if (arkMethod) {
           // Fetch Ark address instead of Lightning invoice
           const arkResponse = await fetchArkAddress(sendInfo.lnUrl)
+          if (stale()) return setProcessing(false)
           if (!isValidArkAddress(arkResponse.address)) {
             handleError('Invalid Arkade address received from LNURL')
             return
@@ -798,6 +804,7 @@ export default function SendForm() {
           // The client refuses an invoice for any other amount before a solver is asked.
           if (satoshis < 1) return handleError('Amount too low')
           const pendingLnSend = await quoteLnurl(await sendRouter(), sendInfo.lnUrl, Number(satoshis))
+          if (stale()) return setProcessing(false)
           setSendInfo((prev) => ({ ...prev, arkAddress: undefined, invoice: undefined, pendingLnSend }))
         }
       } else {
@@ -805,6 +812,7 @@ export default function SendForm() {
       }
       setProceed(true)
     } catch (error) {
+      if (stale()) return setProcessing(false)
       handleError(error)
     }
   }
@@ -1010,6 +1018,7 @@ export default function SendForm() {
             <FlexCol gap='1.25rem' className='send-form-stack'>
               <ErrorMessage error={Boolean(error || carrierError)} text={error || carrierError} />
               <InputAddress
+                disabled={processing}
                 error={recipientError}
                 focus={focus === 'recipient'}
                 label='Recipient address'

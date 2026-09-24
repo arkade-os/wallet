@@ -521,9 +521,11 @@ describe('a changed recipient', () => {
   const SATS = 5_000
 
   let current: SendInfo = emptySendInfo
+  let setFlow: (update: (prev: SendInfo) => SendInfo) => void = () => {}
   const StatefulForm = (options: TreeOptions) => {
     const [sendInfo, setSendInfo] = useState<SendInfo>({ ...emptySendInfo, satoshis: SATS })
     current = sendInfo
+    setFlow = setSendInfo
     return sendFormTree({ ...options, flowContext: { ...mockFlowContextValue, sendInfo, setSendInfo } })
   }
 
@@ -545,13 +547,16 @@ describe('a changed recipient', () => {
       { id: 'ark', type: 'arkade' },
     ],
   }
-  const lnurlServer = (held?: Promise<void>) => {
+  const lnurlServer = (held?: Promise<void>, over: { callbackHeld?: Promise<void>; body?: object } = {}) => {
     const fetchMocker = createFetchMock(vi)
     fetchMocker.enableMocks()
     fetchMocker.mockResponse(async (req) => {
-      if (req.url.includes('paymentOption=')) return JSON.stringify({ paymentOption: 'ark', paymentDestination: ARK })
+      if (req.url.includes('paymentOption=') || req.url.includes('method=ark')) {
+        await over.callbackHeld
+        return JSON.stringify({ paymentOption: 'ark', paymentDestination: ARK, address: ARK, expiryDate: '', hint: '' })
+      }
       await held
-      return JSON.stringify(payRequest)
+      return JSON.stringify(over.body ?? payRequest)
     })
     return fetchMocker
   }
@@ -568,7 +573,8 @@ describe('a changed recipient', () => {
     )
     const type = (value: string) =>
       fireEvent.change(container.querySelector('input[name="send-address"]')!, { target: { value } })
-    return { sendRouter, navigate, type }
+    const input = () => container.querySelector<HTMLInputElement>('input[name="send-address"]')!
+    return { sendRouter, navigate, type, input }
   }
   const settle = { timeout: 3_000 }
   const clickContinue = async () => {
@@ -641,6 +647,59 @@ describe('a changed recipient', () => {
     await new Promise((resolve) => setTimeout(resolve, 50))
 
     expect(current).toMatchObject({ address: BTC, lnUrl: undefined })
+    fetchMocker.disableMocks()
+  })
+
+  const heldCallback = () => {
+    let release = () => {}
+    return { held: new Promise<void>((resolve) => (release = resolve)), release: () => release() }
+  }
+  const recipientChangedTo = (address: string) =>
+    setFlow((prev) => ({
+      ...prev,
+      address,
+      arkAddress: undefined,
+      invoice: undefined,
+      lnUrl: undefined,
+      pendingLnSend: undefined,
+    }))
+
+  it('drops an LNURL quote that lands after the recipient changed, and locks the input meanwhile', async () => {
+    const callback = heldCallback()
+    const fetchMocker = lnurlServer(undefined, { callbackHeld: callback.held })
+    const { navigate, type, input } = renderStateful()
+    type(LNURL)
+    await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
+    await clickContinue()
+    await waitFor(() => expect(fetchMocker.requests().some((r) => r.url.includes('paymentOption='))).toBe(true), settle)
+    expect(input()).toBeDisabled()
+
+    recipientChangedTo(BTC)
+    callback.release()
+    await waitFor(() => expect(input()).toBeEnabled(), settle)
+
+    expect(current).toMatchObject({ address: BTC, arkAddress: undefined, pendingLnSend: undefined })
+    expect(navigate).not.toHaveBeenCalledWith(Pages.SendDetails)
+    fetchMocker.disableMocks()
+  })
+
+  it('drops an Ark address fetched for an LNURL the recipient no longer is', async () => {
+    const callback = heldCallback()
+    const { paymentOptions: _, ...plain } = payRequest
+    const body = { ...plain, transferAmounts: [{ method: 'Ark', available: true }] }
+    const fetchMocker = lnurlServer(undefined, { callbackHeld: callback.held, body })
+    const { navigate, type, input } = renderStateful()
+    type(LNURL)
+    await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
+    await clickContinue()
+    await waitFor(() => expect(fetchMocker.requests().some((r) => r.url.includes('method=ark'))).toBe(true), settle)
+
+    recipientChangedTo(BTC)
+    callback.release()
+    await waitFor(() => expect(input()).toBeEnabled(), settle)
+
+    expect(current).toMatchObject({ address: BTC, arkAddress: undefined })
+    expect(navigate).not.toHaveBeenCalledWith(Pages.SendDetails)
     fetchMocker.disableMocks()
   })
 })
