@@ -11,8 +11,6 @@ export interface LnurlPaymentStore {
   clear(): Promise<void>
 }
 
-export const lnurlPaymentKey = (baseUrl: string, identifier: string): string => `${baseUrl}|${identifier}`
-
 /** Rows written before `handle` existed have none; default it rather than
  *  drop them, since every consumer downstream now expects the field. */
 export const normalizeStoredPayment = (record: Omit<StoredPayment, 'handle'> & { handle?: string }): StoredPayment => ({
@@ -88,7 +86,6 @@ const indexedDbLnurlPaymentStore = createIndexedDbLnurlPaymentStore()
 export function createLnurlPaymentRepository(store: LnurlPaymentStore = indexedDbLnurlPaymentStore): {
   upsert(records: StoredPayment[]): Promise<void>
   all(): Promise<StoredPayment[]>
-  byPaymentReference(): Promise<Map<string, StoredPayment>>
   clear(): Promise<void>
 } {
   return {
@@ -99,13 +96,6 @@ export function createLnurlPaymentRepository(store: LnurlPaymentStore = indexedD
       await store.write([...merged.values()])
     },
     all: () => store.read(),
-    byPaymentReference: async () => {
-      const byReference = new Map<string, StoredPayment>()
-      for (const record of await store.read()) {
-        if (record.paymentReference) byReference.set(record.paymentReference, record)
-      }
-      return byReference
-    },
     clear: () => store.clear(),
   }
 }

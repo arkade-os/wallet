@@ -97,17 +97,6 @@ describe('lnurlPaymentRepository', () => {
 
     expect(await repository.all()).toEqual([])
   })
-
-  it('indexes records by payment reference', async () => {
-    const repository = createLnurlPaymentRepository(createMemoryStore())
-    await repository.upsert([
-      makePayment('verify-1', SERVER_A, { kind: 'destination', paymentReference: 'txid-1' }),
-      makePayment('hash-2', SERVER_A),
-    ])
-    const byReference = await repository.byPaymentReference()
-    expect(byReference.size).toBe(1)
-    expect(byReference.get('txid-1')?.identifier).toBe('verify-1')
-  })
 })
 
 describe('createLnurlActivityResolver', () => {
@@ -193,8 +182,9 @@ describe('lnurl payment sync store', () => {
 
     expect(result).toEqual({ synced: 1, failures: [] })
     expect(readLnurlWatermark(SERVER_A, ALICE)).toBe(1700000000)
-    const byReference = await repository.byPaymentReference()
-    expect(byReference.get('txid-1')?.identifier).toBe('verify-1')
+    expect(await repository.all()).toEqual([
+      expect.objectContaining({ identifier: 'verify-1', paymentReference: 'txid-1' }),
+    ])
   })
 })
 

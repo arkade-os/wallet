@@ -1,12 +1,7 @@
 /**
- * Receiver confirmations for LNURL sends, batched through LUD-XX verifyBatch.
- * Port of lnurl-server's demo-wallet `batch-verify.ts` `pendingConfirmations`,
- * generalized over an injected `LnurlClient` instead of a module-level payer.
- *
- * ONE batchVerify per verifyBatch endpoint per tick covers every pending entry
- * at that endpoint; an entry with no endpoint falls back to plain LUD-21
- * `pollVerify`. A settled answer or a lapsed deadline removes the entry; a
- * transport failure is simply retried on the next tick.
+ * Receiver confirmations for LNURL sends: one LUD-XX batchVerify per endpoint
+ * per tick rather than a LUD-21 poll per payment; LUD-21 only where no batch
+ * endpoint is advertised. A transport failure is retried on the next tick.
  */
 import { createLnurlClient, type LnurlClient, type VerifyStatus } from '@arkade-os/lnurl-client'
 
