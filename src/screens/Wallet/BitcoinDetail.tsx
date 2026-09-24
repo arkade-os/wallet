@@ -71,7 +71,7 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
   const { setRecvInfo, setSendInfo, setSwapFromAssetId } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { swapAvailable } = useContext(AssetSwapsContext)
-  const { assetMetadataCache, txs } = useContext(WalletContext)
+  const { activityPending, assetMetadataCache, txs } = useContext(WalletContext)
   const { rows } = usePortfolioFiat()
   const prefersReduced = useReducedMotion()
 
@@ -164,8 +164,10 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
   const activeActivityFilter = hasAssetSwaps ? activityFilter : 'all'
 
   useEffect(() => {
-    if (!hasAssetSwaps && activityFilter !== 'all') setActivityFilter('all')
-  }, [activityFilter, hasAssetSwaps])
+    // see `Activity`: a pending swap scan makes `hasAssetSwaps` read false for
+    // a wallet that has them, and this would clear the user's filter on it
+    if (!activityPending && !hasAssetSwaps && activityFilter !== 'all') setActivityFilter('all')
+  }, [activityPending, activityFilter, hasAssetSwaps])
   const priceText =
     currentUnitPrice === undefined
       ? 'Price unavailable'
