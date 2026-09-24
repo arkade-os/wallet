@@ -2,6 +2,7 @@ import fixtures from '../fixtures.json'
 import createFetchMock from 'vitest-fetch-mock'
 import { describe, expect, it, vi } from 'vitest'
 import { createLnurlClient, isValidLnUrl, toPayRequestUrl } from '@arkade-os/lnurl-client'
+import { checkLnUrlInvoice } from '../../lib/lnurl'
 
 const fetchMocker = createFetchMock(vi)
 
@@ -48,5 +49,23 @@ describe('lnurl utilities', () => {
       if (result.kind !== 'bolt11') throw new Error('Expected a lightning invoice')
       expect(result.pr).toBe('lnbc1234567890')
     }
+  })
+
+  it('should accept an invoice for the requested amount', () => {
+    expect(checkLnUrlInvoice(fixtures.lib.bolt11.invoice, fixtures.lib.bolt11.amountSats)).toBe(
+      fixtures.lib.bolt11.invoice,
+    )
+  })
+
+  it('should throw an error when the invoice is invalid', () => {
+    expect(() => checkLnUrlInvoice('lnbc12345678', fixtures.lib.bolt11.amountSats)).toThrow(
+      'Server returned an invalid invoice.',
+    )
+  })
+
+  it('should throw an error when the invoice amount does not match the requested amount', () => {
+    expect(() => checkLnUrlInvoice(fixtures.lib.bolt11.invoice, fixtures.lib.bolt11.amountSats + 100)).toThrow(
+      'Invoice amount does not match requested amount.',
+    )
   })
 })

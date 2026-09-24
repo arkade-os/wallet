@@ -107,6 +107,9 @@ export default function App() {
       return
     if (!wallet.pubkey) return navigate(Pages.Init)
     if (authState === 'locked') return navigate(Pages.Unlock)
+    // boot a ready wallet home from Init — do not list `screen` as a dep:
+    // that retriggers the no-pubkey → Init redirect and bounces Restore/Create
+    if (screen === Pages.Init && authState === 'authenticated') return navigate(Pages.Wallet)
   }, [
     walletLoaded,
     wallet.pubkey,
@@ -180,6 +183,9 @@ export default function App() {
     if (screen !== Pages.Wallet) navigate(Pages.Wallet)
   }, [hasDevAutoInit, initialized, dataReady, wallet.pubkey, authState, screen, navigate])
 
+  // `screen` starts at `Init` and Init is what bounces an existing wallet on,
+  // so onboarding mounted every boot — invisible, but focusable and read aloud.
+  const onboardingIsMoot = hasStoredWallet && authState === 'authenticated' && screen === Pages.Init
   const page =
     isDevAutoInitializing || !(allChecksReady || isNewUser)
       ? Pages.Loading
@@ -187,7 +193,9 @@ export default function App() {
         ? Pages.Loading
         : shouldShowUnlock
           ? Pages.Unlock
-          : screen
+          : onboardingIsMoot
+            ? Pages.Wallet
+            : screen
 
   // Boot animation: persists on Loading, then flies to the LogoIcon position when
   // Wallet is reached. For any other destination (Unlock, Init, etc.), exits with fly-up.

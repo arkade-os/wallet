@@ -25,7 +25,7 @@ import { FiatContext } from '../../../providers/fiat'
 import { Currencies } from '../../../lib/types'
 import { AssetsContext } from '../../../providers/assets'
 import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
-import { AssetSwapsContext } from '../../../providers/assetSwaps'
+import { SwapsContext } from '../../../providers/swaps'
 import type { WalletAssetSwap as AssetSwap } from '../../../lib/swapRepository'
 
 const pendingSwapTx = {
@@ -86,11 +86,11 @@ function CancellationHarness({
           <AspContext.Provider value={mockAspContextValue}>
             <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: pendingSwapTx }}>
               <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [pendingSwapTx] } as any}>
-                <AssetSwapsContext.Provider value={{ swaps: reconciled ? [cancelledSwap] : swaps, cancelSwap } as any}>
+                <SwapsContext.Provider value={{ swaps: reconciled ? [cancelledSwap] : swaps, cancelSwap } as any}>
                   <LimitsContext.Provider value={mockLimitsContextValue}>
                     <Transaction />
                   </LimitsContext.Provider>
-                </AssetSwapsContext.Provider>
+                </SwapsContext.Provider>
               </WalletContext.Provider>
             </FlowContext.Provider>
           </AspContext.Provider>

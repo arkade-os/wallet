@@ -19,14 +19,8 @@ import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
 import { unitsToCents } from '../../../lib/assets'
 import ErrorMessage from '../../../components/Error'
 import { getReceivingAddresses } from '../../../lib/asp'
-import { syncLnurlActivity } from '../../../lib/lnurlActivitySync'
 import { extractError } from '../../../lib/error'
-import {
-  configuredLnurlServer,
-  readRegisteredLnurlAddress,
-  registerLnurlAddress,
-  type RegisteredLnurlAddress,
-} from '../../../lib/lnurlRegister'
+import { SwapsHeldElsewhere } from '../../../lib/swapClient'
 import InputAmount from '../../../components/InputAmount'
 import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
 import SheetModal from '../../../components/SheetModal'
@@ -48,6 +42,7 @@ import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { AspContext } from '../../../providers/asp'
 import { AssetsContext } from '../../../providers/assets'
+import { SwapsContext } from '../../../providers/swaps'
 
 /**
  * Decide which value the QR should encode. Honours an explicit copy-sheet
@@ -68,6 +63,7 @@ export default function ReceiveQRCode() {
   const { fromFiat } = useContext(FiatContext)
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
+  const { receiveLightning, cancelSwap, outcomeOf, errorOf } = useContext(SwapsContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { assetMetadataCache, svcWallet } = useContext(WalletContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
@@ -97,16 +93,23 @@ export default function ReceiveQRCode() {
   const isAssetReceive = assetId && assetId !== ''
   const hasError = Boolean(addressError)
 
+  const [generatingInvoice, setGeneratingInvoice] = useState(false)
   const [noPaymentMethods, setNoPaymentMethods] = useState(false)
   const [arkAddress, setArkAddress] = useState(offchainAddr)
   const [btcAddress, setBtcAddress] = useState(boardingAddr)
   const [qrCodeValue, setQrCodeValue] = useState('')
   const [selectedValue, setSelectedValue] = useState('')
   const [bip21Uri, setBip21Uri] = useState('')
-  const [lnurlAddress, setLnurlAddress] = useState<RegisteredLnurlAddress | undefined>(undefined)
-  const [registering, setRegistering] = useState(false)
-  const [registerError, setRegisterError] = useState('')
-  const lnurlServer = configuredLnurlServer()
+  const [lnReceiveError, setLnReceiveError] = useState('')
+  // A negotiation that failed at the local registration step left nothing
+  // payable behind, so the offer of a retry is honest — see the catch below.
+  const [lnRetryable, setLnRetryable] = useState(false)
+  // No tab answered as the swap driver. Not the same as "Lightning is
+  // unavailable" — the solver and the corridor are fine — and unlike the other
+  // failures here it is worth retrying on the spot, because the tab that takes
+  // the lock next will serve it.
+  const [lnNoDriver, setLnNoDriver] = useState(false)
+  const [negotiateAttempt, setNegotiateAttempt] = useState(0)
 
   // Fetch addresses on mount
   useEffect(() => {
@@ -133,58 +136,94 @@ export default function ReceiveQRCode() {
   const createBip21 = (): { ark: string; btc: string; bip21: string } => {
     const ark = vtxoTxsAllowed() ? recvInfo.offchainAddr : ''
     const btc = utxoTxsAllowed() ? recvInfo.boardingAddr : ''
-    // Lightning is the registered LNURL rather than an invoice this wallet
-    // negotiated. The server mints one per payer, which is what lets a payment
-    // arrive while the wallet is closed. Assets have no lnurl rail.
     const bip21 = isAssetReceive
       ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals)
-      : encodeBip21(btc, ark, '', satoshis, lnurlAddress?.lnurl ?? '')
+      : encodeBip21(btc, ark, recvInfo.invoice ?? '', satoshis, '')
 
     return { ark, btc, bip21 }
   }
 
-  // Lightning now comes from the registered lnurl address, so the screen shows
-  // a destination instead of negotiating an invoice. Reading it is synchronous
-  // and offline: the address is cached at registration.
-  useEffect(() => {
-    setLnurlAddress(readRegisteredLnurlAddress())
-  }, [])
-
   /**
-   * Claim a lightning address, binding this wallet's Arkade identity to it.
+   * Negotiate a Lightning receive once an amount is set.
    *
-   * Reuses the ark address already loaded above rather than asking the wallet
-   * again: it is the same value, and the covenant binds to whatever is
-   * registered here, so the two must not be able to differ.
+   * Gated on an amount because the corridor requires one: the solver mints the
+   * invoice, so nothing else implies what it is for. An amount outside the
+   * card's bounds or an unserved corridor leaves the other payment methods
+   * working — this is an EXTRA way to be paid, so a failure here must not take
+   * the ark and on-chain addresses down with it.
+   *
+   * A solver serving the corridor is the only requirement: the swap client
+   * claims the lockup, so no covclaimd needs to be deployed or reachable for the
+   * corridor to be offered.
    */
-  const registerLnurl = async () => {
-    if (!svcWallet || !lnurlServer || !recvInfo.offchainAddr) return
-    setRegistering(true)
-    setRegisterError('')
-    try {
-      setLnurlAddress(
-        await registerLnurlAddress({
-          identity: svcWallet.identity,
-          arkadeAddress: recvInfo.offchainAddr,
-          server: lnurlServer,
-        }),
-      )
-      // The startup sync read the server list before this address existed, so
-      // without this a payment arriving in the same session would stay an
-      // unattributed credit until the next start -- the exact gap this feature
-      // exists to close. Not awaited: registration has already succeeded, and
-      // a sync failure must not read as one.
-      void syncLnurlActivity(svcWallet.identity).catch((err) => {
-        consoleError(extractError(err), 'lnurl activity sync after registration failed')
-      })
-    } catch (err) {
-      const error = extractError(err)
-      consoleError(error, 'lnurl address registration failed')
-      setRegisterError(error)
-    } finally {
-      setRegistering(false)
+  useEffect(() => {
+    // Cleared BEFORE the guards, not beside `negotiate` below. Clearing the
+    // amount reruns this effect straight into the early return, and flags left
+    // set there strand the message on a screen that is no longer negotiating —
+    // with a "Try again" that reruns the effect back into the same guard and
+    // does nothing at all.
+    setLnReceiveError('')
+    setLnRetryable(false)
+    setLnNoDriver(false)
+    setGeneratingInvoice(false)
+    if (!svcWallet || isAssetReceive || satoshis <= 0 || recvInfo.received) return
+    if (recvInfo.pendingLnReceive?.payAmount && recvInfo.invoice) return
+
+    let abandoned = false
+    const negotiate = async () => {
+      setGeneratingInvoice(true)
+      // One call: the client picks the corridor off the discovered cards,
+      // negotiates the hold invoice, and begins driving the swap BEFORE the
+      // invoice comes back — the payer cannot pay one they have not seen, so
+      // the monitored set stays a superset of what is payable.
+      const pending = await receiveLightning(satoshis)
+      // The amount was already settled through another rail (e.g. an offchain
+      // VTXO) while the solver was negotiating this one — the hold invoice
+      // above is now unwanted and must be torn down, not just ignored.
+      if (abandoned) {
+        cancelSwap(pending.id).catch(consoleError)
+        return
+      }
+      setLnReceiveError('')
+      setRecvInfo((prev) => ({
+        ...prev,
+        invoice: pending.invoice,
+        pendingLnReceive: pending,
+      }))
     }
-  }
+
+    negotiate()
+      .catch((err) => {
+        if (abandoned) return
+        const error = extractError(err)
+        consoleError(error, 'error negotiating lightning receive')
+        const noDriver = err instanceof SwapsHeldElsewhere
+        setLnNoDriver(noDriver)
+        setLnReceiveError(error)
+        // The failures here that are not "Lightning is unavailable". The first:
+        // the quote was fine and our own contract store refused the write. No
+        // invoice came back, so the abandoned quote is inert and cannot be
+        // resumed — calling again is the fix, and it derives a fresh preimage and
+        // rfq id. The second: no tab was driving, and the next one to take the
+        // lock will serve the same call.
+        //
+        // By name rather than by `instanceof`, because a negotiation run on
+        // another tab reaches us over `swapDriverChannel`, where the class cannot
+        // cross: the rebuilt error carries the name the SDK's own constructor
+        // sets, and this is the check that reads it in both cases.
+        setLnRetryable(noDriver || (err as Error)?.name === 'LockupRegistrationFailed')
+      })
+      .finally(() => {
+        if (!abandoned) setGeneratingInvoice(false)
+      })
+    // The amount changed under an in-flight negotiation, so its invoice would
+    // be for the wrong number. Nothing to cancel on the solver — an unpaid hold
+    // invoice simply expires.
+    return () => {
+      abandoned = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [svcWallet, satoshis, isAssetReceive, aspInfo.network, negotiateAttempt, recvInfo.received])
 
   // Build BIP21 URI
   useEffect(() => {
@@ -206,7 +245,7 @@ export default function ReceiveQRCode() {
     recvInfo.offchainAddr,
     recvInfo.boardingAddr,
     recvInfo.satoshis,
-    lnurlAddress,
+    recvInfo.invoice,
   ])
 
   // Payment listener
@@ -261,6 +300,7 @@ export default function ReceiveQRCode() {
 
   // Handlers
   const handleShare = () => {
+    if (generatingInvoice) return
     setSharing(true)
     shareData(data)
       .catch(consoleError)
@@ -268,6 +308,7 @@ export default function ReceiveQRCode() {
   }
 
   const handleCopy = async (value: string) => {
+    if (generatingInvoice) return
     if (!prefersReducedMotion) hapticSubtle()
     await copyToClipboard(value)
     toast('Copied to clipboard')
@@ -276,6 +317,7 @@ export default function ReceiveQRCode() {
   }
 
   const handleCopyButton = async () => {
+    if (generatingInvoice) return
     if (!prefersReducedMotion) hapticSubtle()
     setShowCopySheet(true)
     if (qrCodeValue && copied !== qrCodeValue) {
@@ -330,12 +372,22 @@ export default function ReceiveQRCode() {
     trusted: Boolean(assetId && isRegistered(assetId)),
   }
 
-  // No monitored receive to report on any more. The lockup and its claim are
-  // the server's, so a payment lost between solver and claim is not something
-  // this screen can observe — it surfaces through synced activity instead.
+  // What the monitored receive is doing, if there is one. The VTXO listener
+  // above still reports the credit; this is what can say the payment was LOST —
+  // `refunded` on a receive leg means the solver reclaimed a lockup we never
+  // claimed, which nothing else on this screen could distinguish from waiting.
+  const swapId = recvInfo.pendingLnReceive?.id
+  const receiveOutcome = swapId ? outcomeOf(swapId) : undefined
+  const claimError = swapId ? errorOf(swapId) : undefined
+  // `lapsed`, not `refunded`. On a receive leg every non-claim leaf of the
+  // covenant is the SOLVER's, so a lockup spent any other way is the incoming
+  // payment never arriving — a loss. v1 spelled that `refunded`, the same word
+  // it used for the trader's own money coming back; the v2 outcome vocabulary
+  // refuses to inherit the trap, and this screen is why it matters.
+  const receiveLost = receiveOutcome === 'lapsed'
 
   const data = { title: 'Receive', text: qrCodeValue }
-  const shareDisabled = !canBrowserShareData(data) || sharing || hasError || noPaymentMethods
+  const shareDisabled = !canBrowserShareData(data) || sharing || hasError || noPaymentMethods || generatingInvoice
 
   // Whether an amount is currently requested. Keyed off assetMeta to match how
   // handleAmountConfirm/handleAmountClear decide between asset units and sats.
@@ -378,61 +430,96 @@ export default function ReceiveQRCode() {
             <p>No valid payment methods available for this amount</p>
           ) : (
             <FlexCol gap='0.5rem' centered>
-              {/* Worth a grey line, not an error: the ark and on-chain
-                  addresses still work, and this is the one rail that needs a
-                  registered address to exist at all. */}
-              {!isAssetReceive && !lnurlAddress ? (
+              {/* Two different things, told apart. "No solver" leaves the ark
+                  and on-chain addresses working and is worth no more than a
+                  grey line; a payment that was paid and then lost, or a claim
+                  that keeps failing, is not. */}
+              {receiveLost ? (
+                <ErrorMessage error text='Lightning payment lost: the solver reclaimed it before it could be claimed' />
+              ) : claimError ? (
+                <ErrorMessage error text={`Claiming the Lightning payment failed: ${claimError}`} />
+              ) : null}
+              {lnReceiveError ? (
                 <FlexCol gap='0.25rem' centered>
                   <TextSecondary>
-                    {registerError
-                      ? `Registration failed: ${registerError}`
-                      : lnurlServer
-                        ? 'No lightning address yet — Lightning unavailable'
-                        : 'No lightning server configured — Lightning unavailable'}
+                    {lnNoDriver
+                      ? 'Lightning receive is temporarily unavailable'
+                      : `Lightning unavailable: ${lnReceiveError}`}
                   </TextSecondary>
-                  {lnurlServer ? (
-                    <Button
-                      label={registering ? 'Getting address...' : 'Get a lightning address'}
-                      onClick={registerLnurl}
-                      disabled={registering || !recvInfo.offchainAddr}
-                      secondary
-                    />
+                  {lnRetryable ? (
+                    <Button label='Try again' onClick={() => setNegotiateAttempt((n) => n + 1)} secondary />
                   ) : null}
                 </FlexCol>
               ) : null}
-              <button
-                type='button'
-                onClick={() => handleCopy(qrCodeValue)}
-                onPointerDown={() => setQrTransform(prefersReducedMotion ? '' : 'scale(0.97)')}
-                onPointerUp={() => setQrTransform('')}
-                onPointerLeave={() => setQrTransform('')}
-                onPointerCancel={() => setQrTransform('')}
-                aria-label='Copy QR code'
-                style={{
-                  padding: 0,
-                  width: '100%',
-                  border: 'none',
-                  margin: '0 auto',
-                  display: 'block',
-                  marginTop: '5rem',
-                  maxWidth: '340px',
-                  cursor: 'pointer',
-                  background: 'none',
-                  transition: prefersReducedMotion
-                    ? 'none'
-                    : `transform 240ms cubic-bezier(${EASE_OUT_QUINT.join(',')})`,
-                  WebkitTapHighlightColor: 'transparent',
-                  touchAction: 'manipulation',
-                  transform: qrTransform,
-                }}
+              <div
+                className='receive-invoice-stage mt-20 aspect-square w-full max-w-85'
+                data-generating={generatingInvoice}
               >
-                <QrCode value={qrCodeValue} />
-              </button>
-              {satoshis > 0 ? (
-                <Text small color='neutral-500'>
-                  Requesting {prettyNumber(satoshis, 0)} {unitLabel}
-                </Text>
-              ) : null}
+                <div
+                  className='receive-invoice-loading flex flex-col items-center justify-center gap-2 text-center'
+                  aria-hidden={!generatingInvoice}
+                >
+                  <div className='receive-invoice-pixels mb-5 grid-cols-4 gap-1.25' aria-hidden='true'>
+                    {Array.from({ length: 16 }, (_, index) => (
+                      <span
+                        key={index}
+                        className='size-3 rounded-xs bg-purple-700 dark:bg-purple-300'
+                        style={{ animationDelay: `${index * 75}ms` }}
+                      />
+                    ))}
+                  </div>
+                  <div role='status' aria-live='polite'>
+                    <Text medium>Generating invoice…</Text>
+                  </div>
+                  <Text small color='neutral-500'>
+                    {generatingInvoice ? `Requesting ${prettyNumber(satoshis, 0)} ${unitLabel}` : '\u00a0'}
+                  </Text>
+                </div>
+                <button
+                  type='button'
+                  className='receive-invoice-qr'
+                  disabled={generatingInvoice}
+                  aria-hidden={generatingInvoice}
+                  onClick={() => handleCopy(qrCodeValue)}
+                  onPointerDown={() => setQrTransform(prefersReducedMotion ? '' : 'scale(0.97)')}
+                  onPointerUp={() => setQrTransform('')}
+                  onPointerLeave={() => setQrTransform('')}
+                  onPointerCancel={() => setQrTransform('')}
+                  aria-label='Copy QR code'
+                  style={{
+                    padding: 0,
+                    width: '100%',
+                    border: 'none',
+                    display: 'block',
+                    cursor: generatingInvoice ? 'default' : 'pointer',
+                    background: 'none',
+                    WebkitTapHighlightColor: 'transparent',
+                    touchAction: 'manipulation',
+                  }}
+                >
+                  <div
+                    style={{
+                      transform: qrTransform,
+                      transition: prefersReducedMotion
+                        ? 'none'
+                        : `transform 240ms cubic-bezier(${EASE_OUT_QUINT.join(',')})`,
+                    }}
+                  >
+                    <QrCode value={qrCodeValue} />
+                  </div>
+                </button>
+              </div>
+              <div
+                className='min-h-5'
+                aria-hidden={generatingInvoice}
+                style={{ visibility: generatingInvoice ? 'hidden' : 'visible' }}
+              >
+                {satoshis > 0 && !generatingInvoice ? (
+                  <Text small color='neutral-500'>
+                    Requesting {prettyNumber(satoshis, 0)} {unitLabel}
+                  </Text>
+                ) : null}
+              </div>
             </FlexCol>
           )}
         </Padded>
@@ -445,7 +532,7 @@ export default function ReceiveQRCode() {
             onClick={() => (isMobileBrowser ? setShowKeys(true) : setShowAmountSheet(true))}
             secondary
           />
-          <Button label='Copy' onClick={handleCopyButton} secondary />
+          <Button label='Copy' onClick={handleCopyButton} secondary disabled={generatingInvoice} />
         </FlexRow>
         <Button label='Share' onClick={handleShare} disabled={shareDisabled} />
       </ButtonsOnBottom>

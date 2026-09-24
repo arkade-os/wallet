@@ -40,9 +40,9 @@ test('should show an error when adding an invalid solver card', async ({ page })
   await expect(page.getByText(/invalid JSON:/)).toBeVisible()
   await page.getByRole('button', { name: 'Cancel' }).click()
 
-  // use a invalid version number
+  // use an invalid version number
   await page.getByRole('button', { name: '+ Add new' }).click()
-  await page.locator('textarea').fill(JSON.stringify({ ...mockSolverCard, version: 1 }))
+  await page.locator('textarea').fill(JSON.stringify({ ...mockSolverCard, version: 2 }))
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByText(/invalid card:/)).toBeVisible()
   await page.getByRole('button', { name: 'Cancel' }).click()
