@@ -535,12 +535,15 @@ export default function SendForm() {
     if (!sendInfo.lnUrl || sendInfo.arkAddress) return setLnUrlResponse(undefined)
     if (sendInfo.invoice && lnUrlResponse) return
     setLnUrlResponse(undefined)
+    // A BIP21 carrying an address or invoice beside the LNURL still pays that when the LNURL fails.
+    const hasFallback = Boolean(sendInfo.address || sendInfo.invoice)
+    const lnurlFailed = (message: string) => (hasFallback ? undefined : setRecipientError(message))
     let live = true
     lnurlClient
       .resolve(sendInfo.lnUrl)
       .then((conditions) => {
         if (!live) return
-        if (!conditions) return setRecipientError('Unable to fetch LNURL conditions')
+        if (!conditions) return lnurlFailed('Unable to fetch LNURL conditions')
         const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
         const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
         // when the LNURL resolves to a fixed amount, set amountTextValue
@@ -556,11 +559,11 @@ export default function SendForm() {
         if (!live) return
         if (e instanceof LnurlError && e.httpStatus === 404) {
           consoleError(e, 'LNURL not found')
-          setRecipientError('LNURL not found')
+          lnurlFailed('LNURL not found')
           return
         }
         consoleError(e, 'Error checking LNURL conditions')
-        setRecipientError(extractError(e))
+        lnurlFailed(extractError(e))
       })
     return () => {
       live = false
@@ -915,7 +918,7 @@ export default function SendForm() {
       processing
     : !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
       // Unresolved conditions would strand Continue on a locked recipient field.
-      (lnUrl && !arkAddress && !lnUrlResponse) ||
+      (lnUrl && !arkAddress && !address && !invoice && !lnUrlResponse) ||
       Boolean(recipientError) ||
       (lnUrlResponse?.maxSendable && satoshis > lnUrlResponse.maxSendable) ||
       (lnUrlResponse?.minSendable && satoshis < lnUrlResponse.minSendable) ||

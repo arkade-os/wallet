@@ -752,6 +752,24 @@ describe('a changed recipient', () => {
     fetchMocker.disableMocks()
   })
 
+  it('pays the BIP21 on-chain address when its LNURL fails to resolve', async () => {
+    const lnurl = 'lnurl1dp68gurn8ghj7urp0yh8xarpva5kueewvaskcmme9e5k7tewwajkcmpdddhx7amw9akxuatjd3cz7ar9wd6xjmn8h9qlv7'
+    const fetchMocker = createFetchMock(vi)
+    fetchMocker.enableMocks()
+    fetchMocker.mockResponse({ status: 404, body: 'not found' })
+    const { navigate, type } = renderStateful()
+    type(`bitcoin:${BTC}?lightning=${lnurl}`)
+    await waitFor(() => expect(current).toMatchObject({ address: BTC, lnUrl: lnurl }), settle)
+    await waitFor(() => expect(fetchMocker.requests().length).toBeGreaterThan(0), settle)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    expect(screen.queryByText('LNURL not found')).toBeNull()
+    await clickContinue()
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), settle)
+    expect(current.address).toBe(BTC)
+    fetchMocker.disableMocks()
+  })
+
   it('drops an Ark address fetched for an LNURL the recipient no longer is', async () => {
     const callback = heldCallback()
     const body = { ...payRequest, paymentOptions: undefined, transferAmounts: [{ method: 'Ark', available: true }] }
