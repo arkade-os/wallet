@@ -749,7 +749,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       void (async () => {
         const arkadeAddress = await svcWallet.getAddress()
         const boardingAddress = await svcWallet.getBoardingAddress().catch(() => undefined)
-        const { failures } = await syncLnurlActivity(identity, arkadeAddress, { boardingAddress })
+        const { failures } = await syncLnurlActivity(identity, arkadeAddress, { boardingAddress, signal })
         if (failures.length) consoleError(failures, 'lnurl activity sync failed')
       })().catch((error) => {
         consoleError(error, 'lnurl activity sync failed')

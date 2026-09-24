@@ -34,6 +34,30 @@ describe('syncLnurlActivity', () => {
     expect(receiverMock).toHaveBeenCalledWith(expect.objectContaining({ boardingAddress: 'bc1qboard', store }))
   })
 
+  it('drops writes once the signal aborts, so a reset stays cleared', async () => {
+    const store = { upsert: vi.fn(), readWatermark: vi.fn(), writeWatermark: vi.fn() }
+    const controller = new AbortController()
+    receiverMock.mockImplementation(
+      ({ store: synced }) =>
+        ({
+          owned: vi.fn().mockResolvedValue({
+            sync: async () => {
+              await synced!.upsert([])
+              controller.abort('lock-reset')
+              await synced!.upsert([])
+              await synced!.writeWatermark('https://lnurl.test', 'alice@lnurl.test', 1)
+              return { synced: 1, failures: [] }
+            },
+          }),
+        }) as never,
+    )
+
+    await syncLnurlActivity(identity, ARKADE_ADDRESS, { store, signal: controller.signal })
+
+    expect(store.upsert).toHaveBeenCalledTimes(1)
+    expect(store.writeWatermark).not.toHaveBeenCalled()
+  })
+
   it('resolves to zero when no server is configured', async () => {
     receiverMock.mockReturnValue(undefined)
 
