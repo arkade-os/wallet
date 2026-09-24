@@ -1,9 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { hex } from '@scure/base'
-import type { CovenantTransfer, SubscribeClaimsArgs } from '@arkade-taxi/client'
+import { TaxiClient, type CovenantTransfer, type EventSourceLike, type SubscribeClaimsArgs } from '@arkade-taxi/client'
 import {
+  ClaimSpent,
   claimVerified,
   planReceiverClaim,
+  walletClaimWatch,
   watchReceiverClaims,
   type ClaimClient,
   type ClaimWatch,
@@ -53,6 +55,15 @@ describe('planReceiverClaim', () => {
     const plan = planReceiverClaim(satsFareClaim(7n), [other, big, small])
     expect(plan).toMatchObject({ kind: 'recycle', mergedSats: 393n })
     expect((plan as RecyclePlan).coin).toBe(small)
+  })
+
+  it('floors the coin for an asset fare at dust alone: 329 waits, 330 claims', () => {
+    expect(planReceiverClaim(assetFareClaim(9n), coins([329n]))).toMatchObject({
+      kind: 'wait-for-reclaim',
+      reason: 'no-coin-covers-the-fare',
+      neededSats: 330n,
+    })
+    expect(planReceiverClaim(assetFareClaim(9n), coins([330n]))).toMatchObject({ kind: 'recycle', mergedSats: 330n })
   })
 
   it('leaves a delivery to return on its own when the asset fare would take all of it', () => {
@@ -196,9 +207,182 @@ describe('watchReceiverClaims', () => {
     stop()
     expect(unsubscribe).toHaveBeenCalledTimes(2)
   })
+
+  it('opens one stream per Taxi URL, and verifies each claim under the key it was remembered with', async () => {
+    const { client, feed } = fakeTaxi()
+    const clientFor = vi.fn(() => client)
+    watch(client, { clientFor, taxis: [TAXI, { ...TAXI, operatorKey: KEYS.other }] })
+    expect(clientFor).toHaveBeenCalledTimes(1)
+    expect(client.subscribeClaims).toHaveBeenCalledTimes(1)
+    const rotated = satsFareClaim(7n)
+    rotated.claim!.params.operatorKey = KEYS.other
+    feed.args!.onSnapshot({ claims: [rotated] })
+    await settle()
+    expect(client.verifyIncomingClaim).toHaveBeenCalledWith(
+      rotated,
+      expect.anything(),
+      expect.objectContaining({ operatorKey: hex.decode(KEYS.other) }),
+      CONFIG,
+    )
+  })
+
+  it('offers a verified claim again on the next feed event, without verifying it again', async () => {
+    const { client, feed } = fakeTaxi()
+    const { offers } = watch(client)
+    feed.args!.onSnapshot({ claims: [satsFareClaim(7n)] })
+    await settle()
+    feed.args!.onChanged({ claims: [satsFareClaim(7n)] })
+    await settle()
+    expect(offers).toHaveLength(2)
+    expect(offers[1]).toBe(offers[0])
+    expect(client.verifyIncomingClaim).toHaveBeenCalledTimes(1)
+  })
+})
+
+/** Enough of an EventSource for the real TaxiClient: `fail` fires the error event in a given readyState. */
+class FakeSource {
+  readyState = 0
+  closed = false
+  private listeners = new Map<string, Set<(event: unknown) => void>>()
+  addEventListener(type: string, listener: (event: unknown) => void) {
+    this.listeners.set(type, (this.listeners.get(type) ?? new Set()).add(listener))
+  }
+  removeEventListener(type: string, listener: (event: unknown) => void) {
+    this.listeners.get(type)?.delete(listener)
+  }
+  close() {
+    this.closed = true
+    this.readyState = 2
+  }
+  emit(type: string, event: unknown) {
+    for (const listener of this.listeners.get(type) ?? []) listener(event)
+  }
+  fail(readyState: number) {
+    this.readyState = readyState
+    this.emit('error', { target: this })
+  }
+}
+
+describe('the claim feed once EventSource gives up', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  const followTaxi = () => {
+    const sources: FakeSource[] = []
+    const eventSourceFactory = (): EventSourceLike => {
+      const source = new FakeSource()
+      sources.push(source)
+      return source as unknown as EventSourceLike
+    }
+    const { stop } = watch(fakeTaxi().client, {
+      clientFor: (url) => new TaxiClient({ baseUrl: url, eventSourceFactory }),
+    })
+    return { sources, stop }
+  }
+
+  it('leaves a reconnecting feed to EventSource, but resubscribes a closed one with a doubling backoff', () => {
+    const { sources } = followTaxi()
+    sources[0].fail(0)
+    vi.advanceTimersByTime(120_000)
+    expect(sources).toHaveLength(1)
+
+    sources[0].fail(2)
+    expect(sources[0].closed).toBe(true)
+    vi.advanceTimersByTime(4_999)
+    expect(sources).toHaveLength(1)
+    vi.advanceTimersByTime(1)
+    expect(sources).toHaveLength(2)
+
+    sources[1].fail(2)
+    vi.advanceTimersByTime(9_999)
+    expect(sources).toHaveLength(2)
+    vi.advanceTimersByTime(1)
+    expect(sources).toHaveLength(3)
+  })
+
+  it('caps the backoff at a minute, and starts it over once a snapshot arrives', () => {
+    const { sources } = followTaxi()
+    for (let round = 0; round < 6; round++) {
+      sources.at(-1)!.fail(2)
+      vi.advanceTimersByTime(60_000)
+    }
+    expect(sources).toHaveLength(7)
+    sources.at(-1)!.emit('claims-snapshot', { data: '{"claims":[]}' })
+    sources.at(-1)!.fail(2)
+    vi.advanceTimersByTime(5_000)
+    expect(sources).toHaveLength(8)
+  })
+
+  it('stops retrying once the watch is stopped', () => {
+    const { sources, stop } = followTaxi()
+    sources[0].fail(2)
+    stop()
+    vi.advanceTimersByTime(600_000)
+    expect(sources).toHaveLength(1)
+  })
+})
+
+describe('walletClaimWatch', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  const aspInfo = {
+    url: 'https://arkd.wallet.example',
+    network: 'regtest',
+    signerPubkey: KEYS.server,
+    dust: 330n,
+    vtxoMinAmount: 1n,
+    vtxoTreeExpiry: 604_800n,
+    checkpointTapscript: 'cafe',
+  }
+  const production = () =>
+    walletClaimWatch({ aspInfo, taxis: [TAXI], receiverAddress: BOB_ADDRESS, onOffer: vi.fn(), onGone: vi.fn() })
+
+  it("trusts the server key this wallet runs against and its own pinned co-signer key, never the Taxi's", () => {
+    vi.stubEnv('VITE_EMULATOR_PUBKEY', KEYS.emulator)
+    expect(production().trust).toEqual({
+      serverKey: hex.decode(KEYS.server),
+      emulatorKey: hex.decode(KEYS.emulator),
+      vtxoMinAmount: 1n,
+      hrp: 'tark',
+    })
+  })
+
+  it("spends through this wallet's own arkd, taking only the emulator URL from the Taxi", async () => {
+    vi.stubEnv('VITE_EMULATOR_PUBKEY', KEYS.emulator)
+    const { client } = fakeTaxi()
+    expect(await production().spendConfig(client)).toEqual({
+      arkdUrl: 'https://arkd.wallet.example',
+      emulatorUrl: INFO.emulatorUrl,
+      network: 'regtest',
+      serverUnrollScript: 'cafe',
+    })
+  })
 })
 
 describe('claimVerified', () => {
+  it('reports a failed recycle as spent: the one-shot capability is gone, so only a reload retries', async () => {
+    const { client } = fakeTaxi({
+      recycle: vi.fn(async () => {
+        throw new Error('receiver funding input is not independently spendable')
+      }),
+    })
+    const plan = planReceiverClaim(satsFareClaim(7n), coins([1000n])) as RecyclePlan
+    const offer = { taxi: TAXI, claim: satsFareClaim(7n), transfer: TRANSFER, client }
+    await expect(claimVerified(offer, plan, BOB)).rejects.toBeInstanceOf(ClaimSpent)
+  })
+
+  it('does not report a coin refused before recycle as spent, and never calls recycle with it', async () => {
+    const { client, recycle } = fakeTaxi()
+    const [coin] = coins([1000n])
+    const plan = { ...(planReceiverClaim(satsFareClaim(7n), [coin]) as RecyclePlan) }
+    plan.coin = { ...coin, virtualStatus: { state: 'spent' } } as typeof coin
+    const offer = { taxi: TAXI, claim: satsFareClaim(7n), transfer: TRANSFER, client }
+    const failure = await claimVerified(offer, plan, BOB).catch((error: unknown) => error)
+    expect(failure).toBeInstanceOf(Error)
+    expect(failure).not.toBeInstanceOf(ClaimSpent)
+    expect(recycle).not.toHaveBeenCalled()
+  })
+
   it("recycles the verified transfer with the planned coin, paying the receiver's own script", async () => {
     const { client, recycle } = fakeTaxi()
     const plan = planReceiverClaim(satsFareClaim(7n), coins([2000n, 500n])) as RecyclePlan

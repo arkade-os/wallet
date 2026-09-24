@@ -6,8 +6,21 @@ import {
   ASSET_METADATA_TTL_MS,
   clearStorage,
   readAllTransactionActivityMetadata,
+  readReceiverTaxis,
+  rememberReceiverTaxi,
   saveTransactionActivityMetadata,
 } from '../../lib/storage'
+
+describe('remembered receiver Taxis', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('remembers a Taxi once: the second time reports nothing new and adds no entry', () => {
+    const taxi = { network: 'mutinynet', url: 'https://taxi.example', operatorKey: 'ab'.repeat(32) }
+    expect(rememberReceiverTaxi(taxi)).toBe(true)
+    expect(rememberReceiverTaxi({ ...taxi })).toBe(false)
+    expect(readReceiverTaxis()).toEqual([taxi])
+  })
+})
 
 describe('asset metadata storage', () => {
   beforeEach(() => {

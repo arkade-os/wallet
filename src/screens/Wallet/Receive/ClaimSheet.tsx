@@ -11,6 +11,8 @@ interface ClaimSheetProps {
   plan?: ClaimPlan
   asset?: { ticker: string; decimals?: number }
   claiming?: boolean
+  /** A claim was attempted and failed; this page cannot attempt it again. */
+  spent?: boolean
   error?: string
   onClaim?: () => void
   onDismiss?: () => void
@@ -31,7 +33,16 @@ const planLine = (plan: ClaimPlan, units: (value: bigint) => string): string => 
 }
 
 /** What claiming a Taxi delivery costs the receiver, shown before he signs anything. */
-export default function ClaimSheet({ claim, plan, asset, claiming, error, onClaim, onDismiss }: ClaimSheetProps) {
+export default function ClaimSheet({
+  claim,
+  plan,
+  asset,
+  claiming,
+  spent,
+  error,
+  onClaim,
+  onDismiss,
+}: ClaimSheetProps) {
   const descriptor = claim.claim
   const fare = receiverFareOf(claim)
   if (!descriptor || !fare) return null
@@ -62,11 +73,16 @@ export default function ClaimSheet({ claim, plan, asset, claiming, error, onClai
         </Text>
       ) : null}
       {error ? <ErrorMessage error text={error} /> : null}
+      {spent ? (
+        <Text wrap small testId='claim-spent'>
+          This claim was already attempted. Reload the wallet to retry.
+        </Text>
+      ) : null}
       <FlexCol gap='0.5rem'>
         <Button
           label='Claim'
           onClick={() => onClaim?.()}
-          disabled={plan?.kind !== 'recycle' || claiming}
+          disabled={plan?.kind !== 'recycle' || claiming || spent}
           loading={claiming}
         />
         <Button label='Not now' onClick={() => onDismiss?.()} secondary />

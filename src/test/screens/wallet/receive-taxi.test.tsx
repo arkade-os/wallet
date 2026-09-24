@@ -19,7 +19,16 @@ import {
   mockSvcWallet,
   mockWalletContextValue,
 } from '../mocks'
-import { ASSET_ID, INFO, KEYS, RECEIVER_ADDRESS, TAXI_URL, taxiFetch } from '../../lib/receiverTaxiFixtures'
+import {
+  ASSET_ID,
+  INFO,
+  KEYS,
+  RECEIVER_ADDRESS,
+  TAXI_URL,
+  WIRE_ASSET_ID,
+  taxiFetch,
+  withRule,
+} from '../../lib/receiverTaxiFixtures'
 import ClaimSheet from '../../../screens/Wallet/Receive/ClaimSheet'
 import { planReceiverClaim } from '../../../lib/receiverClaims'
 import { assetFareClaim, coins, satsFareClaim } from '../../lib/receiverClaimsFixtures'
@@ -108,6 +117,23 @@ describe('the receiver names his own Taxi in an asset request', () => {
     renderAssetReceive()
     expect(await screen.findByText(/taxi unavailable/i)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /taxi/i })).toBeNull()
+  })
+
+  it('shows a Taxi that does not carry this asset as unavailable, and encodes no taxi params', async () => {
+    vi.stubGlobal('fetch', taxiFetch({ info: withRule({ enabled: false }) }))
+    renderAssetReceive()
+    expect(await screen.findByText(/taxi unavailable: it doesn't carry this asset/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /taxi/i })).toBeNull()
+    expect(screen.getByTestId('bip21').textContent).not.toContain('taxi=')
+  })
+
+  it('shows a Taxi offering only a token fare as unavailable, and encodes no taxi params', async () => {
+    const tokenFare = { id: 'token', currency: 'token', assetId: WIRE_ASSET_ID, pricing: { kind: 'flat', units: '1' } }
+    vi.stubGlobal('fetch', taxiFetch({ info: withRule({ fares: [tokenFare] }) }))
+    renderAssetReceive()
+    expect(await screen.findByText(/taxi unavailable: it offers no fare a receiver can pay/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /taxi/i })).toBeNull()
+    expect(screen.getByTestId('bip21').textContent).not.toContain('taxi=')
   })
 
   it('hides the option on a network with no Taxi, and asks no Taxi anything', async () => {

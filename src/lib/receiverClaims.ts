@@ -21,8 +21,10 @@ import {
   type IncomingClaimTrust,
   type ReceiverWalletInput,
   type TaxiClient,
+  type TaxiError,
 } from '@arkade-taxi/client'
 import { hex } from '@scure/base'
+import { extractError } from './error'
 import { getRestApiExplorerURL } from './explorers'
 import { consoleError } from './logs'
 import { arkadeContextOf, taxiClient } from './receiverTaxi'
@@ -84,15 +86,21 @@ export const planReceiverClaim = <C extends PlanCoin>(claim: ReceiverClaim, coin
 
 type Skip = 'not-claimable' | 'not-this-wallet' | 'other-operator' | 'not-receiver-paid' | 'unknown-unclaimed-mode'
 
-const triage = (claim: ReceiverClaim, taxi: RememberedTaxi, receiverAddress: string): Skip | undefined => {
+/** The remembered Taxi a claim was made under, or why it is not one to offer. */
+const triage = (
+  claim: ReceiverClaim,
+  taxis: readonly RememberedTaxi[],
+  receiverAddress: string,
+): Skip | RememberedTaxi => {
   const descriptor = claim.claim
   if (claim.state !== 'locked' || !claim.claimable || !descriptor) return 'not-claimable'
   if (claim.receiverAddress !== receiverAddress) return 'not-this-wallet'
-  if (descriptor.params.operatorKey !== taxi.operatorKey) return 'other-operator'
+  const taxi = taxis.find(({ operatorKey }) => operatorKey === descriptor.params.operatorKey)
+  if (!taxi) return 'other-operator'
   const { receiverFare, claimMode, recoveryRecipient } = descriptor.params
   if (!receiverFare || claimMode !== 'recycle' || recoveryRecipient !== 'receiver') return 'not-receiver-paid'
   if (descriptor.unclaimedMode !== 'reclaim') return 'unknown-unclaimed-mode'
-  return undefined
+  return taxi
 }
 
 // The wallet remembers only the Taxi, so the asset and units come from the descriptor;
@@ -128,25 +136,35 @@ export interface ClaimWatch {
   onGone: (transferId: string) => void
 }
 
-/** Subscribe to each Taxi's claims for this wallet; returns the unsubscribe. */
+const FIRST_RETRY_MS = 5_000
+const MAX_RETRY_MS = 60_000
+const EVENT_SOURCE_CLOSED = 2
+
+const feedClosed = (error: TaxiError): boolean =>
+  (error.cause as { target?: { readyState?: number } } | undefined)?.target?.readyState === EVENT_SOURCE_CLOSED
+
+/** Subscribe to each Taxi's claims for this wallet, one stream per URL; returns the unsubscribe. */
 export const watchReceiverClaims = (watch: ClaimWatch): (() => void) => {
-  const considered = new Set<string>()
+  const verified = new Map<string, VerifiedClaim>()
+  const verifying = new Set<string>()
   let stopped = false
 
-  const consider = async (taxi: RememberedTaxi, client: ClaimClient, claim: ReceiverClaim) => {
-    const skip = triage(claim, taxi, watch.receiverAddress)
-    if (skip === 'not-claimable') {
-      considered.delete(claim.transferId)
-      return watch.onGone(claim.transferId)
+  const consider = async (taxis: readonly RememberedTaxi[], client: ClaimClient, claim: ReceiverClaim) => {
+    const id = claim.transferId
+    const taxi = triage(claim, taxis, watch.receiverAddress)
+    if (taxi === 'not-claimable') {
+      verified.delete(id)
+      return watch.onGone(id)
     }
-    if (skip === 'unknown-unclaimed-mode') {
-      return consoleError(
-        claim.claim?.unclaimedMode,
-        `not claiming Taxi transfer ${claim.transferId}: unknown unclaimedMode`,
-      )
+    if (taxi === 'unknown-unclaimed-mode') {
+      return consoleError(claim.claim?.unclaimedMode, `not claiming Taxi transfer ${id}: unknown unclaimedMode`)
     }
-    if (skip || considered.has(claim.transferId)) return
-    considered.add(claim.transferId)
+    if (typeof taxi === 'string') return
+    // Re-offered as is: the receiver may have put it off, and it verified once already.
+    const known = verified.get(id)
+    if (known) return watch.onOffer(known)
+    if (verifying.has(id)) return
+    verifying.add(id)
     let transfer: CovenantTransfer
     try {
       transfer = await client.verifyIncomingClaim(
@@ -156,43 +174,76 @@ export const watchReceiverClaims = (watch: ClaimWatch): (() => void) => {
         await watch.spendConfig(client),
       )
     } catch (error) {
-      considered.delete(claim.transferId)
-      return consoleError(error, `not claiming Taxi transfer ${claim.transferId}: it failed verification`)
+      return consoleError(error, `not claiming Taxi transfer ${id}: it failed verification`)
+    } finally {
+      verifying.delete(id)
     }
-    if (!stopped) watch.onOffer({ taxi, claim, transfer, client })
+    if (stopped) return
+    const offer = { taxi, claim, transfer, client }
+    verified.set(id, offer)
+    watch.onOffer(offer)
   }
 
-  const unsubscribes = watch.taxis.map((taxi) => {
-    const client = watch.clientFor(taxi.url)
+  const follow = (url: string, taxis: readonly RememberedTaxi[]): (() => void) => {
+    const client = watch.clientFor(url)
     const onClaims = ({ claims }: { claims: ReceiverClaim[] }) => {
-      for (const claim of claims) consider(taxi, client, claim).catch(consoleError)
+      for (const claim of claims) consider(taxis, client, claim).catch(consoleError)
     }
+    let unsubscribe = () => {}
+    let retry: ReturnType<typeof setTimeout> | undefined
+    let delay = FIRST_RETRY_MS
     let outage = false
-    try {
-      return client.subscribeClaims({
-        receiverAddresses: [watch.receiverAddress],
-        onSnapshot: (snapshot) => {
-          outage = false
-          onClaims(snapshot)
-        },
-        onChanged: onClaims,
-        // EventSource reconnects on its own: one log line per outage, not one per retry.
-        onError: (error) => {
-          const transport = error.code === ClientErrorCode.Network
-          if (transport && outage) return
-          outage = transport
-          consoleError(error, `Taxi ${taxi.url} claim feed`)
-        },
-      })
-    } catch (error) {
-      consoleError(error, `could not watch Taxi ${taxi.url} for claims`)
-      return () => {}
+    const subscribe = () => {
+      try {
+        unsubscribe = client.subscribeClaims({
+          receiverAddresses: [watch.receiverAddress],
+          onSnapshot: (snapshot) => {
+            outage = false
+            delay = FIRST_RETRY_MS
+            onClaims(snapshot)
+          },
+          onChanged: onClaims,
+          onError: (error) => {
+            const transport = error.code === ClientErrorCode.Network
+            if (!(transport && outage)) consoleError(error, `Taxi ${url} claim feed`)
+            outage = transport
+            // EventSource retries a dropped connection itself, but a failed one (a non-200, such as
+            // a proxy's 502 mid-redeploy) stays CLOSED: only a new subscription brings it back.
+            if (!feedClosed(error) || retry !== undefined || stopped) return
+            unsubscribe()
+            retry = setTimeout(() => {
+              retry = undefined
+              if (!stopped) subscribe()
+            }, delay)
+            delay = Math.min(delay * 2, MAX_RETRY_MS)
+          },
+        })
+      } catch (error) {
+        consoleError(error, `could not watch Taxi ${url} for claims`)
+      }
     }
-  })
+    subscribe()
+    return () => {
+      clearTimeout(retry)
+      unsubscribe()
+    }
+  }
+
+  const byUrl = new Map<string, RememberedTaxi[]>()
+  for (const taxi of watch.taxis) byUrl.set(taxi.url, [...(byUrl.get(taxi.url) ?? []), taxi])
+  const stops = [...byUrl].map(([url, taxis]) => follow(url, taxis))
 
   return () => {
     stopped = true
-    for (const unsubscribe of unsubscribes) unsubscribe()
+    for (const stopFeed of stops) stopFeed()
+  }
+}
+
+/** A recycle that ran and failed: the client's capability is one-shot, so only a reload can retry. */
+export class ClaimSpent extends Error {
+  constructor(readonly reason: unknown) {
+    super(extractError(reason))
+    this.name = 'ClaimSpent'
   }
 }
 
@@ -219,7 +270,11 @@ export const claimVerified = async (offer: VerifiedClaim, plan: RecyclePlan, ide
     expiry: funding.expiry,
     identity,
   }
-  return offer.client.recycle(offer.transfer, input, receiverScript(offer.claim))
+  try {
+    return await offer.client.recycle(offer.transfer, input, receiverScript(offer.claim))
+  } catch (error) {
+    throw new ClaimSpent(error)
+  }
 }
 
 /** The production watch: this wallet's server and co-signer keys, and the browser's fetch. */
