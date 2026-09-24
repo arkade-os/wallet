@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   arkadeLnurl,
   type ArkadeLnurl,
@@ -108,21 +108,34 @@ export function useLnurlRail(deps: {
   const [loadFailed, setLoadFailed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const current = useRef(facade)
+  current.current = facade
 
   useEffect(() => {
     setReceiver(undefined)
     setChoices([])
     setError('')
     setLoadFailed(false)
+    setBusy(false)
     if (!facade) return
     let stale = false
     const load = async () => {
       const owned = await facade.owned()
-      // A named receiver needs no choices; a nameless one needs them for "Add a name".
-      const capabilities = owned?.lightningAddress ? undefined : await facade.capabilities()
       if (stale) return
       setReceiver(owned)
-      setChoices(capabilities ? onboardingChoices(capabilities) : [])
+      // A named receiver needs no choices; a nameless one needs them for "Add a name".
+      if (owned?.lightningAddress) return
+      if (!owned) {
+        const capabilities = await facade.capabilities()
+        if (!stale) setChoices(onboardingChoices(capabilities))
+        return
+      }
+      // Already payable: failing to learn how to name it must not cost the QR its LNURL.
+      const capabilities = await facade.capabilities().catch((err) => {
+        if (!stale) setError(lnurlClaimErrorMessage(err))
+        return undefined
+      })
+      if (!stale && capabilities) setChoices(onboardingChoices(capabilities))
     }
     load()
       .catch((err) => {
@@ -140,19 +153,21 @@ export function useLnurlRail(deps: {
   }, [facade])
 
   const run = async (action: () => Promise<Receiver>, syncAfter: boolean) => {
+    const owner = facade
     setBusy(true)
     setError('')
     try {
       const next = await action()
+      if (current.current !== owner) return
       setReceiver(next)
       // The startup sync listed addresses before this one existed; without this a
       // payment arriving this session stays unattributed until the next start.
       if (syncAfter) next.sync().catch((err) => consoleError(err, 'lnurl activity sync after claim failed'))
     } catch (err) {
       consoleError(err, 'lnurl claim failed')
-      setError(lnurlClaimErrorMessage(err))
+      if (current.current === owner) setError(lnurlClaimErrorMessage(err))
     } finally {
-      setBusy(false)
+      if (current.current === owner) setBusy(false)
     }
   }
 

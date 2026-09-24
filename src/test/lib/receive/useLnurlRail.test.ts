@@ -95,6 +95,49 @@ describe('useLnurlRail', () => {
     expect(result.current.status).toBe('onboarding')
   })
 
+  it('keeps an owned nameless receiver when its capabilities fail', async () => {
+    serve({ modes: ['self'], addresses: [namelessAddress()], capabilitiesFail: true })
+    const { result } = renderRail()
+
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    expect(result.current.receiver?.handle).toBe('sess1')
+    expect(result.current.choices).toEqual([])
+    expect(result.current.error).toBe('domain lookup failed')
+  })
+
+  it('drops a claim that lands after the facade changed', async () => {
+    serve({ modes: ['self'] })
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const inner = server.fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === 'POST' && new URL(String(input)).pathname === '/lnurl/address') await gate
+        return inner(input, init)
+      }),
+    )
+    const { result, rerender } = renderHook(
+      ({ boardingAddress }) => useLnurlRail({ enabled: true, identity, arkadeAddress: DECODABLE_ARK, boardingAddress }),
+      { initialProps: { boardingAddress: 'bc1first' } },
+    )
+    await waitFor(() => expect(result.current.status).toBe('onboarding'))
+
+    let claiming!: Promise<void>
+    act(() => {
+      claiming = result.current.claim({ username: 'carol' })
+    })
+    rerender({ boardingAddress: 'bc1second' })
+    await waitFor(() => expect(result.current.status).toBe('onboarding'))
+    await act(async () => {
+      release()
+      await claiming
+    })
+
+    expect(result.current.receiver).toBeUndefined()
+    expect(result.current.busy).toBe(false)
+  })
+
   it('fails soft when the server is unreachable', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')))
     const { result } = renderRail()

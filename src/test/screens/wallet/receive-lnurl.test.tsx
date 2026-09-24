@@ -246,6 +246,15 @@ describe('Receive screen, naming a nameless receiver', () => {
     expect(server.calls('PATCH', '/lnurl/address/sess1')).toHaveLength(1)
   })
 
+  it('keeps the LNURL in the QR when the naming choices cannot be loaded', async () => {
+    serve({ modes: ['self'], addresses: [namelessAddress()], capabilitiesFail: true })
+    renderReceive()
+
+    expect(await screen.findByText('domain lookup failed')).toBeInTheDocument()
+    expect(await qrLightning()).toMatch(/^lnurl1/i)
+    expect(screen.queryByRole('button', { name: 'Add a name' })).not.toBeInTheDocument()
+  })
+
   it('offers no "Add a name" when the server allows no naming mode', async () => {
     serve({ modes: ['session'], addresses: [namelessAddress()] })
     renderReceive()

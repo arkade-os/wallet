@@ -49,6 +49,7 @@ export function fakeLnurlServer(opts: {
   reject?: { code: string; error: string }
   /** The identity's existing session row, which the server hands back to a nameless claim. */
   sessionRow?: FakeAddress
+  capabilitiesFail?: boolean
 }) {
   const addresses = [...(opts.addresses ?? [])]
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -57,6 +58,7 @@ export function fakeLnurlServer(opts: {
     const body = init?.body ? JSON.parse(init.body as string) : {}
     const path = url.pathname
     if (path === '/lnurl/domain') {
+      if (opts.capabilitiesFail) return json(500, { error: 'domain lookup failed' })
       return json(200, {
         domain: LNURL_DOMAIN,
         allocationModes: opts.modes,
