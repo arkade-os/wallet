@@ -83,8 +83,8 @@ export const arkadeContextOf = (
   }
 }
 
-const clientFor = (taxi: Bip21Taxi, fetchImpl: typeof fetch) =>
-  new TaxiClient({ baseUrl: taxi.url, fetch: (input, init) => fetchImpl(input, init) })
+export const taxiClient = (url: string, fetchImpl: typeof fetch) =>
+  new TaxiClient({ baseUrl: url, fetch: (input, init) => fetchImpl(input, init) })
 
 /** The Taxi's genesis txid is in internal byte order; the SDK's `AssetId` holds display order. */
 const taxiAssetId = (id: string) => {
@@ -100,7 +100,7 @@ const hrpOf = (address: string): string | undefined => {
   }
 }
 
-const ruleFor = (info: TaxiInfo, assetId: string) => {
+export const ruleFor = (info: TaxiInfo, assetId: string) => {
   let wanted: { txid: string; groupIndex: number }
   try {
     const id = taxiAssetId(assetId)
@@ -124,16 +124,18 @@ const isMixedContent = (url: string, pageProtocol: string): boolean => {
   }
 }
 
-export const probeReceiverTaxi = async (taxi: Bip21Taxi, ctx: TaxiProbeContext): Promise<ProbeResult> => {
-  const refuse = (reason: ProbeRefusal): ProbeResult => ({ ok: false, reason })
+const fetchInfo = async (url: string, ctx: TaxiProbeContext): Promise<TaxiInfo | undefined> => {
   // The browser would block it anyway; asking first only fails slower.
-  if (isMixedContent(taxi.url, ctx.pageProtocol)) return refuse('unreachable')
-  let info: TaxiInfo
+  if (isMixedContent(url, ctx.pageProtocol)) return undefined
   try {
-    info = await clientFor(taxi, ctx.fetch).info()
+    return await taxiClient(url, ctx.fetch).info()
   } catch {
-    return refuse('unreachable')
+    return undefined
   }
+}
+
+const vetInfo = (taxi: Bip21Taxi, info: TaxiInfo, ctx: TaxiProbeContext): ProbeResult => {
+  const refuse = (reason: ProbeRefusal): ProbeResult => ({ ok: false, reason })
   // `info()` has already refused any key that is not lowercase hex, as bip21 does for taxikey.
   if (info.operatorKey !== taxi.operatorKey) return refuse('operator-key-mismatch')
   if (info.serverKey !== hex.encode(ctx.serverKey)) return refuse('server-key-mismatch')
@@ -144,6 +146,17 @@ export const probeReceiverTaxi = async (taxi: Bip21Taxi, ctx: TaxiProbeContext):
   if (rule?.enabled !== true) return refuse('asset-not-served')
   if (rule.unclaimedMode !== 'reclaim') return refuse('unsupported-unclaimed-mode')
   return { ok: true, info }
+}
+
+export const probeReceiverTaxi = async (taxi: Bip21Taxi, ctx: TaxiProbeContext): Promise<ProbeResult> => {
+  const info = await fetchInfo(taxi.url, ctx)
+  return info ? vetInfo(taxi, info, ctx) : { ok: false, reason: 'unreachable' }
+}
+
+/** The receiver's own Taxi, held to exactly the probe a payer will run; only its operator key is taken on its word. */
+export const probeOwnTaxi = async (url: string, ctx: TaxiProbeContext): Promise<ProbeResult> => {
+  const info = await fetchInfo(url, ctx)
+  return info ? vetInfo({ url, operatorKey: info.operatorKey }, info, ctx) : { ok: false, reason: 'unreachable' }
 }
 
 /** Ask the probed Taxi for a quote the receiver pays, and verify it before anything relies on it. */
@@ -164,7 +177,7 @@ export const receiverPaidCarrier = async (
   const fare = taxi.fareId ? { fareId: taxi.fareId } : {}
   const fundingExpiry = { kind: ctx.locktimeDomain, value: payer.fundingExpiry }
   const minimum = { kind: ctx.locktimeDomain, value: payer.minimum }
-  const quote = await clientFor(taxi, ctx.fetch).requestReceiveQuote({
+  const quote = await taxiClient(taxi.url, ctx.fetch).requestReceiveQuote({
     receiverAddress: ctx.receiverAddress,
     makerPublicKey,
     assetId,

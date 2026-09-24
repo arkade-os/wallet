@@ -152,6 +152,19 @@ export const getDelegateUrlForNetwork = (network: NetworkName): string | undefin
   return DELEGATE_URL[network] ?? undefined
 }
 
+// The Taxi a receiver may name in his own asset requests. Its operator key is read from its
+// /v1/info, never pinned; a network with no entry hides the option.
+const RECEIVER_TAXI_URL: Record<NetworkName, string | null> = {
+  bitcoin: null,
+  mutinynet: 'https://taxi.mutinynet.arkade.sh',
+  signet: null,
+  regtest: null,
+  testnet: null,
+}
+
+export const getReceiverTaxiUrlForNetwork = (network: NetworkName): string | undefined =>
+  serviceUrlForNetwork(import.meta.env.VITE_TAXI_URL, RECEIVER_TAXI_URL, network)
+
 export const getDelegateForNetwork = (network: NetworkName): Delegate | undefined => {
   const url = getDelegateUrlForNetwork(network)
   if (!url) return undefined

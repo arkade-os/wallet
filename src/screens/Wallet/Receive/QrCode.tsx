@@ -16,7 +16,7 @@ import { LimitsContext } from '../../../providers/limits'
 import { Asset, Coin, ExtendedVirtualCoin, type NetworkName } from '@arkade-os/sdk'
 import { LockupRegistrationFailed } from '@arkade-os/swap'
 import LoadingLogo from '../../../components/LoadingLogo'
-import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
+import { encodeBip21, encodeBip21Asset, type Bip21Taxi } from '../../../lib/bip21'
 import { unitsToCents } from '../../../lib/assets'
 import ErrorMessage from '../../../components/Error'
 import { getReceivingAddresses } from '../../../lib/asp'
@@ -48,6 +48,8 @@ import { FiatContext } from '../../../providers/fiat'
 import { AspContext } from '../../../providers/asp'
 import { AssetsContext } from '../../../providers/assets'
 import { LnReceiveContext } from '../../../providers/lnReceive'
+import { ReceiverClaimsContext } from '../../../providers/receiverClaims'
+import TaxiChoice from './TaxiChoice'
 
 /**
  * Decide which value the QR should encode. Honours an explicit copy-sheet
@@ -72,10 +74,12 @@ export default function ReceiveQRCode() {
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { assetMetadataCache, svcWallet } = useContext(WalletContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
+  const { remember } = useContext(ReceiverClaimsContext)
 
   const { toast } = useToast()
 
   const [assetAmount, setAssetAmount] = useState(BigInt(0))
+  const [taxi, setTaxi] = useState<Bip21Taxi>()
   const [amountTextValue, setAmountTextValue] = useState('')
 
   const [sharing, setSharing] = useState(false)
@@ -142,7 +146,7 @@ export default function ReceiveQRCode() {
     const ark = vtxoTxsAllowed() ? recvInfo.offchainAddr : ''
     const btc = utxoTxsAllowed() ? recvInfo.boardingAddr : ''
     const bip21 = isAssetReceive
-      ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals)
+      ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals, ark ? taxi : undefined)
       : encodeBip21(btc, ark, recvInfo.invoice ?? '', satoshis, '')
 
     return { ark, btc, bip21 }
@@ -246,6 +250,9 @@ export default function ReceiveQRCode() {
     if (!addressesLoaded) return
 
     const { ark, btc, bip21 } = createBip21()
+    if (isAssetReceive && ark && taxi) {
+      remember({ network: aspInfo.network, url: taxi.url, operatorKey: taxi.operatorKey })
+    }
 
     setNoPaymentMethods(!ark && !btc && !isAssetReceive)
     setArkAddress(ark)
@@ -256,6 +263,7 @@ export default function ReceiveQRCode() {
     setQrCodeValue(resolveQrValue(selectedValue, { bip21, btc, ark }))
   }, [
     assetAmount,
+    taxi,
     addressesLoaded,
     selectedValue,
     recvInfo.offchainAddr,
@@ -531,6 +539,19 @@ export default function ReceiveQRCode() {
                   </Text>
                 ) : null}
               </div>
+              {assetId && arkAddress ? (
+                <TaxiChoice
+                  assetId={assetId}
+                  receiverAddress={arkAddress}
+                  ticker={assetPresentation.ticker}
+                  decimals={assetMeta?.metadata?.decimals}
+                  value={taxi}
+                  onChange={setTaxi}
+                />
+              ) : null}
+              <span hidden data-testid='bip21'>
+                {bip21Uri}
+              </span>
             </FlexCol>
           )}
         </Padded>
