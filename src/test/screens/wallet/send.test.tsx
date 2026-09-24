@@ -685,8 +685,7 @@ describe('a changed recipient', () => {
 
   it('drops an Ark address fetched for an LNURL the recipient no longer is', async () => {
     const callback = heldCallback()
-    const { paymentOptions: _, ...plain } = payRequest
-    const body = { ...plain, transferAmounts: [{ method: 'Ark', available: true }] }
+    const body = { ...payRequest, paymentOptions: undefined, transferAmounts: [{ method: 'Ark', available: true }] }
     const fetchMocker = lnurlServer(undefined, { callbackHeld: callback.held, body })
     const { navigate, type, input } = renderStateful()
     type(LNURL)
