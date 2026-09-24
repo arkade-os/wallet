@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import type { Identity } from '@arkade-os/sdk'
 import type { PaymentSyncStore } from '@arkade-os/lnurl-client'
-import { syncLnurlActivity } from '../../lib/lnurlActivitySync'
+import { lnurlSyncWritesSettled, syncLnurlActivity } from '../../lib/lnurlActivitySync'
 import { lnurlPaymentSyncStore } from '../../lib/lnurlPaymentRepository'
 import { lnurlReceiver } from '../../lib/receive/lnurlRail'
 
@@ -56,6 +56,36 @@ describe('syncLnurlActivity', () => {
 
     expect(store.upsert).toHaveBeenCalledTimes(1)
     expect(store.writeWatermark).not.toHaveBeenCalled()
+  })
+
+  it('lets a reset wait out a write that began before the abort', async () => {
+    let release = () => {}
+    const held = new Promise<void>((resolve) => (release = resolve))
+    const store = { upsert: vi.fn(() => held), readWatermark: vi.fn(), writeWatermark: vi.fn() }
+    const controller = new AbortController()
+    receiverMock.mockImplementation(
+      ({ store: synced }) =>
+        ({
+          owned: vi.fn().mockResolvedValue({
+            sync: async () => {
+              await synced!.upsert([])
+              return { synced: 1, failures: [] }
+            },
+          }),
+        }) as never,
+    )
+    const sync = syncLnurlActivity(identity, ARKADE_ADDRESS, { store, signal: controller.signal })
+    await vi.waitFor(() => expect(store.upsert).toHaveBeenCalled())
+
+    controller.abort('lock-reset')
+    let settled = false
+    const writes = lnurlSyncWritesSettled().then(() => (settled = true))
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    expect(settled).toBe(false)
+
+    release()
+    await writes
+    await sync
   })
 
   it('resolves to zero when no server is configured', async () => {

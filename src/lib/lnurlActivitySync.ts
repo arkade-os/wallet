@@ -8,6 +8,23 @@ export interface LnurlSyncOutcome {
   failures: unknown[]
 }
 
+const inFlightWrites = new Set<Promise<void>>()
+
+const tracked = async (write: Promise<void>): Promise<void> => {
+  inFlightWrites.add(write)
+  try {
+    await write
+  } finally {
+    inFlightWrites.delete(write)
+  }
+}
+
+/** Resolves once every store write a sync started has landed. After the
+ *  signal aborts no new one starts, so a reset that awaits this clears last. */
+export const lnurlSyncWritesSettled = async (): Promise<void> => {
+  await Promise.allSettled([...inFlightWrites])
+}
+
 /**
  * Pulls payment activity for the identity's address owned at the configured
  * lnurl-server, writing through `store`. Resolves to zero rather than
@@ -30,10 +47,10 @@ export async function syncLnurlActivity(
       ? {
           ...store,
           upsert: async (records) => {
-            if (!signal.aborted) await store.upsert(records)
+            if (!signal.aborted) await tracked(store.upsert(records))
           },
           writeWatermark: async (baseUrl, lightningAddress, since) => {
-            if (!signal.aborted) await store.writeWatermark(baseUrl, lightningAddress, since)
+            if (!signal.aborted) await tracked(store.writeWatermark(baseUrl, lightningAddress, since))
           },
         }
       : store,

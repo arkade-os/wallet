@@ -45,7 +45,7 @@ import { lnSendViews, swapRecordResolver, type LnSendView } from '../lib/swapRec
 import { createLnurlActivityResolver, lnurlPaymentRepository } from '../lib/lnurlPaymentRepository'
 import { createSentActivityResolver } from '../lib/lnurlSends'
 import { pendingConfirmations } from '../lib/lnurlConfirmations'
-import { syncLnurlActivity } from '../lib/lnurlActivitySync'
+import { lnurlSyncWritesSettled, syncLnurlActivity } from '../lib/lnurlActivitySync'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
@@ -995,6 +995,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     reloadTimerRef.current = undefined
     removeServiceWorkerMessageHandler()
     if (!svcWallet) throw new Error('Service worker not initialized')
+    await lnurlSyncWritesSettled()
     await clearStorage()
     // swap records outlive localStorage now: without this a reset leaves the
     // previous wallet's swaps in the activity list. Never fatal — a reset that
