@@ -5,7 +5,7 @@ vi.mock('../../lib/logs', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/logs')>()),
   consoleError: (...args: unknown[]) => consoleError(...args),
 }))
-import { lnSwapLabel } from '../../lib/swapDisplay'
+import { lnSwapLabel, lnurlLabel } from '../../lib/swapDisplay'
 import { createDefaultActivityRegistry, ServiceWorkerWallet, type Activity, type ArkTransaction } from '@arkade-os/sdk'
 import { activitiesToTxs, getActivities } from '../../lib/activityHistory'
 import { ASSET_SWAP_ACTIVITY_KIND, swapRecordResolver, type LnSendView } from '../../lib/swapRecords'
@@ -13,6 +13,8 @@ import type { SwapRecord } from '@arkade-os/swap'
 import { readAllTransactionActivityMetadata, saveTransactionActivityMetadata } from '../../lib/storage'
 import type { ExitRecord } from '../../lib/exitHistory'
 import type { WalletAssetSwap } from '../../lib/swapRepository'
+import { lnurlActivityResolver, sentActivityResolver, type SentPayment } from '@arkade-os/lnurl-client/arkade'
+import type { StoredPayment } from '@arkade-os/lnurl-client'
 
 beforeEach(() => localStorage.clear())
 
@@ -785,5 +787,86 @@ describe('unilateral exits', () => {
 
     expect(row.redeemTxid).toBe('exit-txid')
     expect(row.boardingTxid).toBe('')
+  })
+})
+
+// Unlike the hand-built intents above, these drive the REAL package resolvers
+// through the SDK's own grouping, so a package change to the intent shape or
+// `railOf` breaks here too.
+describe('lnurl resolvers, driven end to end from the vendored package', () => {
+  const namedReceive = (): StoredPayment => ({
+    key: 'https://lnurl.example|payment-hash-1',
+    baseUrl: 'https://lnurl.example',
+    domain: 'lnurl.example',
+    lightningAddress: 'alice@pay.example',
+    handle: 'alice',
+    identifier: 'payment-hash-1',
+    kind: 'bolt11',
+    settled: true,
+    amountMsat: 3_000_000,
+    createdAt: 1_000,
+    settledAt: 1_500,
+    swapId: null,
+    paymentReference: null,
+    payoutReference: 'claim-txid-named',
+    preimage: 'ff'.repeat(32),
+    paymentOption: null,
+    covenantScript: null,
+  })
+
+  const namelessReceive = (): StoredPayment => ({
+    ...namedReceive(),
+    key: 'https://lnurl.example|session-id-1',
+    lightningAddress: null,
+    handle: 'session-id-1',
+    identifier: 'session-id-1',
+    kind: 'destination',
+    paymentOption: 'arkade',
+    payoutReference: 'claim-txid-nameless',
+  })
+
+  const sentPayment = (): SentPayment => ({
+    txid: 'send-txid',
+    target: 'bob@pay.example',
+    railId: 'lnurl-arkade',
+    amountSat: 2_000,
+    feeSat: 0,
+    createdAt: 2_000,
+  })
+
+  const activityHistoryOf = async (txs: ArkTransaction[], payments: StoredPayment[], sends: SentPayment[]) => {
+    const registry = createDefaultActivityRegistry()
+    registry.use(lnurlActivityResolver(() => payments))
+    registry.use(sentActivityResolver(() => sends))
+    const wallet = {
+      activity: registry,
+      getTransactionHistory: async () => txs,
+      getActivityHistory: ServiceWorkerWallet.prototype.getActivityHistory,
+    }
+    return await wallet.getActivityHistory()
+  }
+
+  it('carries a named receive onto the row and its rendered label', async () => {
+    const claim = arkTx('claim-txid-named', { amount: 3_000, createdAt: 1_500 })
+    const [row] = activitiesToTxs(await activityHistoryOf([claim], [namedReceive()], []), empty)
+
+    expect(row.lnurl).toEqual({ counterparty: 'alice@pay.example', rail: 'lightning' })
+    expect(lnurlLabel(row)).toBe('Received from alice@pay.example')
+  })
+
+  it('carries a nameless receive by its rail alone', async () => {
+    const claim = arkTx('claim-txid-nameless', { amount: 1_500, createdAt: 1_500 })
+    const [row] = activitiesToTxs(await activityHistoryOf([claim], [namelessReceive()], []), empty)
+
+    expect(row.lnurl).toEqual({ counterparty: undefined, rail: 'arkade' })
+    expect(lnurlLabel(row)).toBe('Received via arkade')
+  })
+
+  it('carries a real send onto the row and its rendered label', async () => {
+    const paid = arkTx('send-txid', { type: 'SENT' as ArkTransaction['type'], amount: 2_000, createdAt: 2_000 })
+    const [row] = activitiesToTxs(await activityHistoryOf([paid], [], [sentPayment()]), empty)
+
+    expect(row.lnurl).toEqual({ counterparty: 'bob@pay.example', rail: 'lnurl-arkade' })
+    expect(lnurlLabel(row)).toBe('Sent to bob@pay.example')
   })
 })
