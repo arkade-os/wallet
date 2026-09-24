@@ -93,12 +93,21 @@ const minted = () =>
   }) as unknown as Swap
 
 function Harness({ tab = 'a' }: { tab?: string }) {
-  const { acceptPay, receiveLightning, outcomeOf, errorOf } = useContext(SwapsContext)
+  const { acceptPay, receiveLightning, outcomeOf, errorOf, sendRouter } = useContext(SwapsContext)
   const [rejected, setRejected] = useState('')
   const [invoice, setInvoice] = useState('')
+  const [routed, setRouted] = useState('')
   return (
     <div data-testid={`tab-${tab}`}>
       <button onClick={() => acceptPay(quote).catch((err: Error) => setRejected(err.name))}>{`Pay ${tab}`}</button>
+      <button
+        onClick={() =>
+          sendRouter({ swapsOptional: true })
+            .then(() => setRouted('router'))
+            .catch((err: Error) => setRouted(err.message))
+        }
+      >{`Route ${tab}`}</button>
+      <span data-testid='routed'>{routed || 'none'}</span>
       <button
         onClick={() =>
           receiveLightning(1000)
@@ -265,6 +274,16 @@ describe('SwapsProvider single-driver rule', () => {
     // without the driver publishing it the tab that asked would be blind on the
     // one swap it is most likely to be watching.
     expect(b.getByTestId('status')).toHaveTextContent('funded')
+  })
+
+  it('gives the tab that is not driving a router of its own, without the swap rails', async () => {
+    renderTwoTabs()
+    await waitFor(() => expect(ready).toHaveBeenCalledTimes(1))
+
+    const b = within(screen.getByTestId('tab-b'))
+    await userEvent.click(b.getByText('Route b'))
+
+    await waitFor(() => expect(b.getByTestId('routed')).toHaveTextContent('router'))
   })
 
   it('tells the tab that asked when no tab is driving at all', async () => {

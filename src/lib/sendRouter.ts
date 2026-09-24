@@ -120,8 +120,8 @@ export const createSendRouter = (deps: SendRouterDeps): PaymentRouter => {
   if (deps.outputFee) router.use(walletExitRail({ outputFee: deps.outputFee }))
   if (deps.client) router.use(lightningRail(deps.client))
   if (deps.assets) router.use(assetRail({ assets: deps.assets }))
-  // The Arkade leg needs no swap client, so without one only the Lightning leg drops. The app never
-  // gets here clientless: `sendRouter` in providers/swaps awaits `driving()`, which throws first.
+  // The Arkade leg needs no swap client, so without one only the Lightning leg drops: the case of
+  // an LNURL send from a tab that is not driving swaps (`sendRouter({ swapsOptional })`).
   const lnurl = lnurlRails({
     client: deps.lnurl ?? createLnurlClient(),
     arkade: arkRail(),

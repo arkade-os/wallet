@@ -808,7 +808,11 @@ export default function SendForm() {
         } else {
           // The client refuses an invoice for any other amount before a solver is asked.
           if (satoshis < 1) return handleError('Amount too low')
-          const pendingLnSend = await quoteLnurl(await sendRouter(), sendInfo.lnUrl, Number(satoshis))
+          const pendingLnSend = await quoteLnurl(
+            await sendRouter({ swapsOptional: true }),
+            sendInfo.lnUrl,
+            Number(satoshis),
+          )
           if (stale()) return setProcessing(false)
           setSendInfo((prev) => ({ ...prev, arkAddress: undefined, invoice: undefined, pendingLnSend }))
         }
