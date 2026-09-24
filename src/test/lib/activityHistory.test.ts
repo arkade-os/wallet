@@ -798,7 +798,6 @@ describe('lnurl resolvers, driven end to end from the vendored package', () => {
     key: 'https://lnurl.example|payment-hash-1',
     baseUrl: 'https://lnurl.example',
     domain: 'lnurl.example',
-    // The server's `source` names the wallet's OWN address; LNURL-pay never names the payer.
     lightningAddress: 'alice@lnurl.example',
     handle: 'alice',
     identifier: 'payment-hash-1',

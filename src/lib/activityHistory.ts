@@ -63,9 +63,9 @@ const rfqSwapKindOf = (activity: Activity): string | undefined =>
  * owns. */
 const rfqIdOf = (activity: Activity): string | undefined => activity.intent?.metadata?.rfqId as string | undefined
 
-/** The address and rail from either lnurl-client resolver's metadata. Groups
- * are told apart by id prefix, the package's own namespace, rather than
- * `intent.kind`, which it does not export as a constant. */
+/** The lightning address and the rail — from either lnurl-client
+ * resolver's metadata. Groups are told apart by id prefix, the package's own
+ * namespace, rather than `intent.kind`, which it does not export as a constant. */
 const lnurlIntentOf = (activity: Activity): Tx['lnurl'] => {
   if (!activity.id.startsWith(LNURL_GROUP_PREFIX) && !activity.id.startsWith(SENT_GROUP_PREFIX)) return undefined
   const meta = activity.intent?.metadata
