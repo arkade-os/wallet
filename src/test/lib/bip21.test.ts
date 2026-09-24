@@ -95,6 +95,11 @@ describe('bip21 utilities', () => {
       expect(out.taxi).toBeUndefined()
       expect(out.assetAmount).toBe('500')
     })
+
+    it('treats an empty taxifare as absent', () => {
+      const out = decodeBip21(`bitcoin:?ark=${ARK}&taxi=https%3A%2F%2Ftaxi.example&taxikey=${KEY}&taxifare=`)
+      expect(out.taxi).toEqual({ url: 'https://taxi.example', operatorKey: KEY })
+    })
   })
 
   describe('encodeBip21', () => {

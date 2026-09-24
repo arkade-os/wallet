@@ -89,8 +89,8 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
       }
     }
 
-    // taxi/taxikey/taxifare are all-or-nothing: any invalid member drops the whole triple
-    // rather than falling back to an ordinary payment request with a broken rail.
+    // taxi/taxikey/taxifare are all-or-nothing: any invalid member drops the whole triple,
+    // and the rest still decodes as an ordinary payment request.
     const taxiUrl = getParam('taxi')
     const taxiKey = getParam('taxikey')
     if (taxiUrl != null && taxiKey != null && /^[0-9a-f]{64}$/.test(taxiKey)) {
@@ -98,7 +98,7 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
         const parsed = new URL(taxiUrl)
         if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
           const fareId = getParam('taxifare')
-          result.taxi = { url: taxiUrl, operatorKey: taxiKey, ...(fareId != null ? { fareId } : {}) }
+          result.taxi = { url: taxiUrl, operatorKey: taxiKey, ...(fareId ? { fareId } : {}) }
         }
       } catch {
         // not a parseable URL — leave result.taxi undefined
