@@ -50,7 +50,9 @@ const createMemoryStore = (): LnurlPaymentStore => {
   return {
     read: async () => [...records],
     write: async (next) => {
-      records = [...next]
+      const byKey = new Map(records.map((record) => [record.key, record]))
+      for (const record of next) byKey.set(record.key, record)
+      records = [...byKey.values()]
     },
     clear: async () => {
       records = []
@@ -79,6 +81,28 @@ describe('lnurlPaymentRepository', () => {
     expect(all).toHaveLength(1)
     expect(all[0]?.settled).toBe(true)
     expect(all[0]?.settledAt).toBe(1700000060)
+  })
+
+  it('an overlapping upsert cannot revert a record it was not given', async () => {
+    const store = createMemoryStore()
+    await store.write([makePayment('hash-1', SERVER_A, { settled: false, settledAt: null })])
+    const read = store.read
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    let reads = 0
+    store.read = async () => {
+      const snapshot = await read()
+      if (reads++ === 0) await gate
+      return snapshot
+    }
+    const repository = createLnurlPaymentRepository(store)
+
+    const slow = repository.upsert([makePayment('hash-2')])
+    await repository.upsert([makePayment('hash-1')]).finally(release)
+    await slow
+
+    const settled = (await read()).find((record) => record.identifier === 'hash-1')
+    expect(settled?.settled).toBe(true)
   })
 
   it('keeps records that differ only by baseUrl', async () => {

@@ -7,6 +7,7 @@ import { LNURL_WATERMARKS_STORAGE_KEY } from './storageKeys'
 /** The persistence primitive, injectable so tests need no IndexedDB. */
 export interface LnurlPaymentStore {
   read(): Promise<StoredPayment[]>
+  /** Puts by `key`, leaving records it isn't given untouched. */
   write(records: StoredPayment[]): Promise<void>
   clear(): Promise<void>
 }
@@ -90,10 +91,9 @@ export function createLnurlPaymentRepository(store: LnurlPaymentStore = indexedD
 } {
   return {
     upsert: async (records) => {
-      const merged = new Map<string, StoredPayment>()
-      for (const record of await store.read()) merged.set(record.key, record)
-      for (const record of records) merged.set(record.key, record)
-      await store.write([...merged.values()])
+      const latest = new Map<string, StoredPayment>()
+      for (const record of records) latest.set(record.key, record)
+      await store.write([...latest.values()])
     },
     all: () => store.read(),
     clear: () => store.clear(),
