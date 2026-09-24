@@ -43,6 +43,17 @@ describe('configuredLnurlServer', () => {
     vi.stubEnv('VITE_LNURL_SERVER', `  ${BASE_URL}  `)
     expect(configuredLnurlServer()).toEqual({ baseUrl: BASE_URL, domain: DOMAIN })
   })
+
+  it('is undefined when the Docker image left the placeholders unsubstituted', () => {
+    vi.stubEnv('VITE_LNURL_SERVER', '__VITE_LNURL_SERVER__')
+    vi.stubEnv('VITE_LNURL_DOMAIN', '__VITE_LNURL_DOMAIN__')
+    expect(configuredLnurlServer()).toBeUndefined()
+  })
+
+  it('derives the domain when only the domain placeholder is left', () => {
+    vi.stubEnv('VITE_LNURL_DOMAIN', '__VITE_LNURL_DOMAIN__')
+    expect(configuredLnurlServer()).toEqual({ baseUrl: BASE_URL, domain: DOMAIN })
+  })
 })
 
 describe('lnurlReceiver', () => {

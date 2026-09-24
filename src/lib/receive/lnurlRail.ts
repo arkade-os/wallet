@@ -9,6 +9,7 @@ import {
 } from '@arkade-os/lnurl-client/arkade'
 import { LnurlError, type DomainCapabilities, type PaymentSyncStore } from '@arkade-os/lnurl-client'
 import { consoleError } from '../logs'
+import { fromRuntimeEnv } from '../constants'
 import { lnurlPaymentSyncStore } from '../lnurlPaymentRepository'
 
 /** An lnurl-server this wallet holds addresses at. */
@@ -27,10 +28,12 @@ export interface LnurlServer {
  * API host, which is the unusual case.
  */
 export const configuredLnurlServer = (): LnurlServer | undefined => {
-  const baseUrl = import.meta.env.VITE_LNURL_SERVER?.trim()
+  const baseUrl = fromRuntimeEnv(import.meta.env.VITE_LNURL_SERVER?.trim())
   if (!baseUrl) return undefined
   try {
-    const domain = (import.meta.env.VITE_LNURL_DOMAIN?.trim() || new URL(baseUrl).hostname).toLowerCase()
+    const domain = (
+      fromRuntimeEnv(import.meta.env.VITE_LNURL_DOMAIN?.trim()) || new URL(baseUrl).hostname
+    ).toLowerCase()
     return { baseUrl, domain }
   } catch {
     return undefined
