@@ -1,11 +1,11 @@
 import { toPayRequestUrl } from '@arkade-os/lnurl-client'
 import { DecodedInvoice, decodeInvoice } from './bolt11'
 
-// Everything the payer path needs now lives in @arkade-os/lnurl-client.
-// What is left is fetchArkAddress, which calls the callback with ?method=ark —
-// a parameter the Arkade lnurl-server does not implement, so the package has no
-// equivalent by design. Removing it would be a behaviour change to whichever
-// provider it does serve, so it stays until that is decided.
+// The payer path lives in @arkade-os/lnurl-client. Two things remain here:
+// checkLnUrlInvoice, which the client does not do, and fetchArkAddress, which
+// calls the callback with ?method=ark — a parameter the Arkade lnurl-server does
+// not implement, so the package has no equivalent by design. Removing it would
+// change behaviour for whichever provider it does serve, so it stays until then.
 
 type ArkMethodResponse = {
   expiryDate: string

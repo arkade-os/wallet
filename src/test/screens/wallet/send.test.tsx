@@ -22,6 +22,7 @@ import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { OptionsContext } from '../../../providers/options'
 import { Currencies, Unit } from '../../../lib/types'
+import fixtures from '../../fixtures.json'
 
 describe('Send screen', () => {
   const renderSendForm = ({
@@ -97,6 +98,56 @@ describe('Send screen', () => {
     const amountInput = await waitFor(() => screen.getByDisplayValue('21'))
     expect(amountInput).toHaveAttribute('name', 'send-amount')
     expect(amountInput).toHaveAttribute('readonly')
+    fetchMocker.disableMocks()
+  })
+  it('refuses an LNURL invoice whose amount differs from the one requested', async () => {
+    const requested = fixtures.lib.bolt11.amountSats + 100
+    const fetchMocker = createFetchMock(vi)
+    fetchMocker.enableMocks()
+    fetchMocker.mockResponse((req) =>
+      JSON.stringify(
+        req.url.includes('amount=')
+          ? { pr: fixtures.lib.bolt11.invoice }
+          : {
+              tag: 'payRequest',
+              callback: 'https://pay.staging.galoy.io/.well-known/lnurlp/testing',
+              minSendable: requested * 1000,
+              maxSendable: requested * 1000,
+              metadata: 'mock-metadata',
+            },
+      ),
+    )
+    const lnUrl = 'lnurl1dp68gurn8ghj7urp0yh8xarpva5kueewvaskcmme9e5k7tewwajkcmpdddhx7amw9akxuatjd3cz7ar9wd6xjmn8h9qlv7'
+    const setSendInfo = vi.fn()
+    const flowValue = {
+      ...mockFlowContextValue,
+      sendInfo: { ...emptySendInfo, lnUrl, recipient: lnUrl, satoshis: requested },
+      setSendInfo,
+    }
+    const walletValue = {
+      ...mockWalletContextValue,
+      balance: 1_000_000,
+      availableBalance: 1_000_000,
+      svcWallet: {
+        ...mockSvcWallet,
+        getAddress: () => 'tark1mockoffchain',
+        getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+        getBalance: () => Promise.resolve({ available: 1_000_000 }),
+      } as any,
+    }
+    renderSendForm({ flowContext: flowValue, walletContext: walletValue })
+    await waitFor(() => screen.getByDisplayValue(String(requested)))
+    const continueButton = screen.getByText('Continue').closest('button')!
+    await waitFor(() => expect(continueButton).toBeEnabled())
+    fireEvent.click(continueButton)
+
+    expect(await screen.findByTestId('error-message')).toHaveTextContent(
+      'Invoice amount does not match requested amount.',
+    )
+    const updates = setSendInfo.mock.calls.map(([update]) =>
+      typeof update === 'function' ? update(flowValue.sendInfo) : update,
+    )
+    expect(updates.some((next) => next.invoice)).toBe(false)
     fetchMocker.disableMocks()
   })
 
