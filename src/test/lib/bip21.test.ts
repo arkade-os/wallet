@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import fixtures from '../fixtures.json'
-import { decodeBip21, encodeBip21 } from '../../lib/bip21'
+import { Bip21Taxi, decodeBip21, encodeBip21, encodeBip21Asset } from '../../lib/bip21'
 import { toSatoshis } from '../../lib/format'
+
+const ARK = 'ark1qtaxitest'
+const ASSET = 'testasset'
+const KEY = 'a'.repeat(64)
 
 describe('bip21 utilities', () => {
   describe('decodeBip21', () => {
@@ -58,6 +62,39 @@ describe('bip21 utilities', () => {
     it('should throw an error for an invalid address', () => {
       expect(() => decodeBip21('invalidBip21')).toThrow('Invalid BIP21 URI')
     })
+
+    it('accepts uppercase param names with a lowercase key value', () => {
+      const uri = `bitcoin:?ark=${ARK}&ASSETID=${ASSET}&amount=500&TAXI=https%3A%2F%2Ftaxi.example&TaxiKey=${KEY}`
+      expect(decodeBip21(uri).taxi).toEqual({ url: 'https://taxi.example', operatorKey: KEY })
+    })
+
+    it('drops all three taxi params when the key value has uppercase letters', () => {
+      const uri = `bitcoin:?ark=${ARK}&assetid=${ASSET}&amount=500&taxi=https%3A%2F%2Ftaxi.example&taxikey=${KEY.toUpperCase()}`
+      const out = decodeBip21(uri)
+      expect(out.taxi).toBeUndefined()
+      expect(out.assetId).toBe(ASSET)
+      expect(out.assetAmount).toBe('500')
+    })
+
+    it('drops taxi without taxikey rather than throwing', () => {
+      const out = decodeBip21(`bitcoin:?ark=${ARK}&assetid=${ASSET}&amount=500&taxi=https%3A%2F%2Ftaxi.example`)
+      expect(out.taxi).toBeUndefined()
+      expect(out.assetAmount).toBe('500')
+    })
+
+    it('drops a taxikey that is not 64 lowercase hex characters', () => {
+      expect(decodeBip21(`bitcoin:?ark=${ARK}&taxi=https%3A%2F%2Ftaxi.example&taxikey=NOTHEX`).taxi).toBeUndefined()
+    })
+
+    it('drops a non-http taxi url', () => {
+      expect(decodeBip21(`bitcoin:?ark=${ARK}&taxi=file%3A%2F%2F%2Fetc&taxikey=${KEY}`).taxi).toBeUndefined()
+    })
+
+    it('drops an orphan taxifare with no valid taxi/taxikey', () => {
+      const out = decodeBip21(`bitcoin:?ark=${ARK}&assetid=${ASSET}&amount=500&taxifare=flat`)
+      expect(out.taxi).toBeUndefined()
+      expect(out.assetAmount).toBe('500')
+    })
   })
 
   describe('encodeBip21', () => {
@@ -77,6 +114,26 @@ describe('bip21 utilities', () => {
       const uri = encodeBip21('bc1qexampleaddr', '', '', 100_000_000_000)
       expect(uri).not.toContain(',')
       expect(uri).toContain('amount=1000')
+    })
+  })
+
+  describe('encodeBip21Asset taxi params', () => {
+    it('encodes the three taxi params', () => {
+      expect(
+        encodeBip21Asset(ARK, ASSET, 500n, 0, { url: 'https://taxi.example', operatorKey: KEY, fareId: 'flat' }),
+      ).toBe(
+        `bitcoin:?ark=${ARK}&assetid=${ASSET}&amount=500&taxi=https%3A%2F%2Ftaxi.example&taxikey=${KEY}&taxifare=flat`,
+      )
+    })
+
+    it('omits the taxi params when none are given', () => {
+      expect(encodeBip21Asset(ARK, ASSET, 500n, 0)).toBe(`bitcoin:?ark=${ARK}&assetid=${ASSET}&amount=500`)
+    })
+
+    it('round-trips through decode', () => {
+      const taxi: Bip21Taxi = { url: 'https://taxi.example', operatorKey: KEY, fareId: 'flat' }
+      const uri = encodeBip21Asset(ARK, ASSET, 500n, 0, taxi)
+      expect(decodeBip21(uri).taxi).toEqual(taxi)
     })
   })
 

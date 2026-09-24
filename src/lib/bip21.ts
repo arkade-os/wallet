@@ -5,6 +5,12 @@ import { fromSatoshis, prettyNumber, toSatoshis } from './format'
 import { isValidArkAddress } from '@arkade-os/sdk'
 import { centsToUnits } from './assets'
 
+export interface Bip21Taxi {
+  url: string
+  operatorKey: string
+  fareId?: string
+}
+
 export interface Bip21Decoded {
   address?: string
   arkAddress?: string
@@ -14,6 +20,7 @@ export interface Bip21Decoded {
   invoice?: string
   lnUrl?: string
   assetId?: string
+  taxi?: Bip21Taxi
 }
 
 /** decode a bip21 uri */
@@ -26,6 +33,7 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
     assetId: undefined,
     assetAmount: undefined,
     arkAddress: undefined,
+    taxi: undefined,
   }
 
   const bip21Url = uri.trim()
@@ -80,6 +88,22 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
         result.invoice = lightning
       }
     }
+
+    // taxi/taxikey/taxifare are all-or-nothing: any invalid member drops the whole triple
+    // rather than falling back to an ordinary payment request with a broken rail.
+    const taxiUrl = getParam('taxi')
+    const taxiKey = getParam('taxikey')
+    if (taxiUrl != null && taxiKey != null && /^[0-9a-f]{64}$/.test(taxiKey)) {
+      try {
+        const parsed = new URL(taxiUrl)
+        if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+          const fareId = getParam('taxifare')
+          result.taxi = { url: taxiUrl, operatorKey: taxiKey, ...(fareId != null ? { fareId } : {}) }
+        }
+      } catch {
+        // not a parseable URL — leave result.taxi undefined
+      }
+    }
   }
 
   return result
@@ -95,8 +119,17 @@ export const encodeBip21 = (address: string, arkAddress: string, invoice: string
   return bip21.endsWith('&') || bip21.endsWith('?') ? bip21.slice(0, -1) : bip21
 }
 
-export const encodeBip21Asset = (arkAddress: string, assetId: string, cents: bigint, decimals?: number) => {
-  return `bitcoin:?ark=${arkAddress}&assetid=${assetId}&amount=${centsToUnits(cents, decimals)}`
+export const encodeBip21Asset = (
+  arkAddress: string,
+  assetId: string,
+  cents: bigint,
+  decimals?: number,
+  taxi?: Bip21Taxi,
+) => {
+  const base = `bitcoin:?ark=${arkAddress}&assetid=${assetId}&amount=${centsToUnits(cents, decimals)}`
+  if (!taxi) return base
+  const fare = taxi.fareId ? `&taxifare=${encodeURIComponent(taxi.fareId)}` : ''
+  return `${base}&taxi=${encodeURIComponent(taxi.url)}&taxikey=${taxi.operatorKey}${fare}`
 }
 
 export const isBip21 = (data: string): boolean => {
