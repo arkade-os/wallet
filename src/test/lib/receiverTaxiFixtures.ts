@@ -73,9 +73,27 @@ export const QUOTE = {
   expiresAt: 4_100_000_000,
 }
 
+/** The same Taxi's answer to a `fundingExpiry` of 3e9: floor min(hint, batch), and a recovery below it. */
+export const EARLY_FLOOR = 3_000_000_000n
+export const EARLY_QUOTE = {
+  ...QUOTE,
+  quoteId: 'rq-early',
+  params: { ...QUOTE.params, locktime: '2900000000' },
+  covenantAddress:
+    'tark1qprzw7ddf2knj52xz3635uggtuh3pcw85kf7fcpsa76msusuu4dshvdgqqe2k53wgv6s8hrydujvepr7aztuqkwz2q6w5m9d4lnceqsth4u845',
+  inputExpiryFloor: { kind: 'time', value: EARLY_FLOOR.toString() },
+  recoveryLocktime: { kind: 'time', value: '2900000000' },
+}
+export const DEFAULT_FLOOR = 4_000_000_000n
+export const NOW = 1_700_000_000n
+
 export const withRule = (over: Record<string, unknown>) => ({
   ...INFO,
   assetRules: [{ ...INFO.assetRules[0], ...over }],
+})
+
+export const TWO_FARES = withRule({
+  fares: [...INFO.assetRules[0].fares, { id: 'cheap', currency: 'sats', pricing: { kind: 'flat', units: '1' } }],
 })
 
 export const arkadeContext = (over: Partial<TaxiProbeContext> = {}): TaxiProbeContext => ({
@@ -85,6 +103,7 @@ export const arkadeContext = (over: Partial<TaxiProbeContext> = {}): TaxiProbeCo
   dust: 330n,
   vtxoMinAmount: 1n,
   locktimeDomain: 'time',
+  clock: async () => NOW,
   assetId: ASSET_ID,
   receiverAddress: RECEIVER_ADDRESS,
   fetch: taxiFetch(),
@@ -99,10 +118,19 @@ export const taxiFetch = (over: { info?: unknown; quote?: unknown; quoteStatus?:
   vi.fn(async (url: string, init?: RequestInit) => {
     if (url === `${TAXI_URL}/v1/info`) return reply(over.info ?? INFO)
     if (url === `${TAXI_URL}/v1/receive-quotes` && init?.method === 'POST') {
-      return reply(over.quote ?? QUOTE, over.quoteStatus)
+      const hint = JSON.parse(String(init.body)).fundingExpiry?.value
+      return reply(over.quote ?? (hint === EARLY_FLOOR.toString() ? EARLY_QUOTE : QUOTE), over.quoteStatus)
     }
     return reply({ code: 'NOT_FOUND', message: url }, 404)
   }) as unknown as typeof fetch & ReturnType<typeof vi.fn>
+
+/** A spendable coin expiring at `expiry` unix seconds; `undefined` is a coin with no known expiry. */
+export const coin = (value: number, expiry: bigint | undefined, vout = 0) => ({
+  txid: 'c'.repeat(64),
+  vout,
+  value,
+  ...(expiry === undefined ? {} : { expiresAt: new Date(Number(expiry) * 1000) }),
+})
 
 export const unreachable = () =>
   vi.fn(async () => {

@@ -25,7 +25,7 @@ export type ProbeRefusal =
 
 export type ProbeResult = { ok: true; info: TaxiInfo } | { ok: false; reason: ProbeRefusal }
 
-type LocktimeDomain = 'height' | 'time'
+export type LocktimeDomain = 'height' | 'time'
 
 /** What the running wallet already trusts. */
 export interface ArkadeContext {
@@ -35,7 +35,19 @@ export interface ArkadeContext {
   dust: bigint
   vtxoMinAmount: bigint
   locktimeDomain: LocktimeDomain
+  /** Now, in `locktimeDomain`: unix seconds, or the chain tip's height. */
+  clock: () => Promise<bigint>
 }
+
+// Per domain, in seconds or blocks. solver-app caps an asset quote's validity at 900s, and
+// nothing funds after it; 30 blocks is 900s at mutinynet's 30s blocks, the fastest arkd runs.
+const FUNDING_WINDOW: Record<LocktimeDomain, bigint> = { time: 900n, height: 30n }
+// Bob's least time to claim after funding before the Taxi may recover: an hour, or six blocks.
+const CLAIM_WINDOW: Record<LocktimeDomain, bigint> = { time: 3_600n, height: 6n }
+
+/** The earliest floor and recovery locktime a receive quote may carry. */
+export const callerMinimum = async (ctx: ArkadeContext): Promise<bigint> =>
+  (await ctx.clock()) + FUNDING_WINDOW[ctx.locktimeDomain] + CLAIM_WINDOW[ctx.locktimeDomain]
 
 export interface TaxiProbeContext extends ArkadeContext {
   assetId: string
@@ -50,9 +62,12 @@ export interface ReceiverPaidCarrier {
 }
 
 export const arkadeContextOf = (
-  info: Pick<ArkInfo, 'network' | 'signerPubkey' | 'dust' | 'vtxoMinAmount' | 'unilateralExitDelay'>,
+  info: Pick<ArkInfo, 'network' | 'signerPubkey' | 'dust' | 'vtxoMinAmount' | 'vtxoTreeExpiry'>,
+  tipHeight: () => Promise<number>,
 ): ArkadeContext => {
   const network = info.network as NetworkName
+  // A coin's expiry follows the batch expiry, which arkd counts in blocks below 512.
+  const locktimeDomain = info.vtxoTreeExpiry !== undefined && info.vtxoTreeExpiry < 512n ? 'height' : 'time'
   return {
     serverKey: hex.decode(toXOnlySignerHex(info.signerPubkey)),
     // An empty key matches no Taxi, so a network without a pin refuses rather than guesses.
@@ -60,8 +75,11 @@ export const arkadeContextOf = (
     hrp: getNetwork(network).hrp,
     dust: info.dust,
     vtxoMinAmount: info.vtxoMinAmount,
-    // arkd's own rule: an exit delay under 512 counts blocks.
-    locktimeDomain: info.unilateralExitDelay < 512n ? 'height' : 'time',
+    locktimeDomain,
+    clock:
+      locktimeDomain === 'height'
+        ? async () => BigInt(await tipHeight())
+        : async () => BigInt(Math.floor(Date.now() / 1000)),
   }
 }
 
@@ -133,15 +151,25 @@ export const receiverPaidCarrier = async (
   taxi: Bip21Taxi,
   info: TaxiInfo,
   ctx: TaxiProbeContext,
-  makerPublicKey: Uint8Array,
+  payer: {
+    makerPublicKey: Uint8Array
+    /** The earliest expiry among the coins the payer can fund with, in `ctx.locktimeDomain`. */
+    fundingExpiry: bigint
+    /** From `callerMinimum`. */
+    minimum: bigint
+  },
 ): Promise<ReceiverPaidCarrier> => {
+  const { makerPublicKey } = payer
   const assetId = taxiAssetId(ctx.assetId)
   const fare = taxi.fareId ? { fareId: taxi.fareId } : {}
+  const fundingExpiry = { kind: ctx.locktimeDomain, value: payer.fundingExpiry }
+  const minimum = { kind: ctx.locktimeDomain, value: payer.minimum }
   const quote = await clientFor(taxi, ctx.fetch).requestReceiveQuote({
     receiverAddress: ctx.receiverAddress,
     makerPublicKey,
     assetId,
     payer: 'receiver',
+    fundingExpiry,
     ...fare,
   })
   const verified = verifyReceiveQuote({
@@ -157,10 +185,11 @@ export const receiverPaidCarrier = async (
       makerPublicKey,
       assetId,
       payer: 'receiver',
+      fundingExpiry,
       ...fare,
       maxServiceFareSats: 0n,
-      minRecoveryLocktime: { kind: ctx.locktimeDomain, value: 1n },
-      minInputExpiryFloor: { kind: ctx.locktimeDomain, value: 1n },
+      minRecoveryLocktime: minimum,
+      minInputExpiryFloor: minimum,
     },
   })
   const { quoteId, receiveAddress, assetId: sdkAssetId, physicalSats, loanSats, expiresAt } = verified.descriptor

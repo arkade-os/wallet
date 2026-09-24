@@ -6,7 +6,14 @@
  * same solver, then tries the next solver. Nothing after funding starts is ever
  * retried: see the commit point in `payAssetRequest`.
  */
-import { asset, type ArkInfo, type IWallet, type NetworkName } from '@arkade-os/sdk'
+import {
+  EsploraProvider,
+  asset,
+  type ArkInfo,
+  type ExtendedVirtualCoin,
+  type IWallet,
+  type NetworkName,
+} from '@arkade-os/sdk'
 import {
   SwapRefusal,
   fundOffer,
@@ -19,10 +26,12 @@ import {
 import { sideLimits, type DiscoveredMarket, type Side } from '@arkade-os/solver-discovery'
 import type { Bip21Taxi } from './bip21'
 import { getEmulatorPubkeyOverrideForNetwork } from './constants'
+import { getRestApiExplorerURL } from './explorers'
 import { consoleError } from './logs'
 import { withRfqTransport, type RfqRendezvous } from './nostrRfq'
 import {
   arkadeContextOf,
+  callerMinimum,
   probeReceiverTaxi,
   receiverPaidCarrier,
   type ArkadeContext,
@@ -74,8 +83,51 @@ export interface AssetRfqSendDeps {
 
 type Negotiated = Awaited<ReturnType<typeof requestArkadeSwap>>
 
+type Coin = Pick<ExtendedVirtualCoin, 'txid' | 'vout' | 'value' | 'expiresAt' | 'expiresAtHeight' | 'assets'>
+type Floor = ReceiverPaidCarrier['inputExpiryFloor']
+
 const dropTaxi = (reason: string, cause?: unknown) =>
   consoleError(cause ?? reason, `dropped the receiver's Taxi (${reason})`)
+
+/** The coins `fundOffer` chooses from: spendable, and not reserved by another funding in flight. */
+const fundableCoins = async (deps: AssetRfqSendDeps): Promise<Coin[]> => {
+  const [spendable, swaps] = await Promise.all([
+    deps.wallet.getSpendableVtxos({ withRecoverable: false }),
+    deps.repository.getAllSwaps(),
+  ])
+  const reserved = new Set(
+    swaps.flatMap(({ fundingIntent: intent }) =>
+      intent && (intent.state === 'prepared' || intent.state === 'submitted')
+        ? intent.inputs.map(({ txid, vout }) => `${txid}:${vout}`)
+        : [],
+    ),
+  )
+  return spendable.filter((coin) => !reserved.has(`${coin.txid}:${coin.vout}`))
+}
+
+/** As `fundOffer` reads it: a coin with no expiry in `kind`, or with both kinds, clears no floor. */
+const expiryIn = (coin: Coin, kind: Floor['kind']): bigint | undefined => {
+  if ((coin.expiresAt === undefined) === (coin.expiresAtHeight === undefined)) return undefined
+  if (kind === 'time') return coin.expiresAt && BigInt(Math.floor(coin.expiresAt.getTime() / 1000))
+  return coin.expiresAtHeight === undefined ? undefined : BigInt(coin.expiresAtHeight)
+}
+
+/** Coins expiring before `minimum` could only fund a covenant too short-lived to accept, so they set no floor. */
+const earliestExpiry = (coins: Coin[], kind: Floor['kind'], minimum: bigint): bigint | undefined =>
+  coins
+    .map((coin) => expiryIn(coin, kind))
+    .filter((expiry): expiry is bigint => expiry !== undefined && expiry >= minimum)
+    .reduce<bigint | undefined>(
+      (earliest, expiry) => (earliest === undefined || expiry < earliest ? expiry : earliest),
+      undefined,
+    )
+
+/** Enough for `fundOffer`'s selection, which spends one more dust on change when it takes an asset-bearing coin. */
+const floorCovers = (coins: Coin[], floor: Floor, amount: bigint, dust: bigint): boolean => {
+  const eligible = coins.filter((coin) => (expiryIn(coin, floor.kind) ?? -1n) >= floor.value)
+  const total = eligible.reduce((sum, coin) => sum + BigInt(coin.value), 0n)
+  return total >= amount + (eligible.some((coin) => coin.assets?.length) ? dust : 0n)
+}
 
 const taxiCarrier = async (req: AssetPaymentRequest, deps: AssetRfqSendDeps) => {
   if (!req.taxi) return undefined
@@ -89,7 +141,15 @@ const taxiCarrier = async (req: AssetPaymentRequest, deps: AssetRfqSendDeps) => 
   const probe = await probeReceiverTaxi(req.taxi, ctx)
   if (!probe.ok) return void dropTaxi(probe.reason)
   try {
-    return await receiverPaidCarrier(req.taxi, probe.info, ctx, await deps.wallet.identity.xOnlyPublicKey())
+    const [coins, minimum, makerPublicKey] = await Promise.all([
+      fundableCoins(deps),
+      callerMinimum(deps.arkade),
+      deps.wallet.identity.xOnlyPublicKey(),
+    ])
+    const fundingExpiry = earliestExpiry(coins, deps.arkade.locktimeDomain, minimum)
+    if (fundingExpiry === undefined) return void dropTaxi('no coin outlives the minimum floor')
+    const carrier = await receiverPaidCarrier(req.taxi, probe.info, ctx, { makerPublicKey, fundingExpiry, minimum })
+    return { carrier, coins }
   } catch (error) {
     return void dropTaxi('receive quote refused', error)
   }
@@ -105,7 +165,7 @@ const negotiate = async (
   for (const solver of deps.solvers) {
     for (const viaTaxi of taxi ? [taxi, undefined] : [undefined]) {
       const route: { carrier: ArkadeCarrierChoice; receiveAddress?: string } = viaTaxi
-        ? { carrier: viaTaxi.choice }
+        ? { carrier: viaTaxi.carrier.choice }
         : { carrier: { mode: 'purchase' }, receiveAddress: req.arkAddress }
       try {
         const negotiated = await withRfqTransport(solver, (transport) =>
@@ -117,7 +177,13 @@ const negotiate = async (
             ...route,
           }),
         )
-        return { negotiated, taxi: viaTaxi }
+        const { carrier, coins } = viaTaxi ?? {}
+        if (carrier && !floorCovers(coins!, carrier.inputExpiryFloor, negotiated.fundAmount, deps.arkade.dust)) {
+          dropTaxi('coins clearing its floor fall short')
+          taxi = undefined
+          continue
+        }
+        return { negotiated, taxi: carrier }
       } catch (error) {
         lastError = error
         if (viaTaxi) {
@@ -175,9 +241,19 @@ export const assetRfqSolvers = (markets: DiscoveredMarket[], assetId: string): R
   })
 }
 
+/** Whether the Send form pays this asset request through the receiver's Taxi rather than from its own balance. */
+export const routesToReceiverTaxi = (
+  send: { account?: unknown; assets?: { assetId: string }[] },
+  decodedTaxi?: { assetId: string },
+): boolean => Boolean(decodedTaxi && !send.account && send.assets?.[0]?.assetId === decodedTaxi.assetId)
+
+/** The rail pays in bitcoin; under a dust's worth nothing could fund, so no Taxi should be asked. */
+export const hasSatsForReceiverTaxi = (liquidSats: number, dust: bigint): boolean =>
+  BigInt(Math.floor(liquidSats)) >= dust
+
 /** The production wiring: this wallet's server, its swap store, and the browser's fetch. */
 export const walletAssetRfqDeps = (args: {
-  aspInfo: Pick<ArkInfo, 'network' | 'signerPubkey' | 'dust' | 'vtxoMinAmount' | 'unilateralExitDelay'> & {
+  aspInfo: Pick<ArkInfo, 'network' | 'signerPubkey' | 'dust' | 'vtxoMinAmount' | 'vtxoTreeExpiry'> & {
     url: string
   }
   wallet: IWallet
@@ -186,10 +262,15 @@ export const walletAssetRfqDeps = (args: {
   ui: PayRailUi
 }): AssetRfqSendDeps => {
   const network = args.aspInfo.network as NetworkName
+  const explorer = getRestApiExplorerURL(network)
+  const tipHeight = async () => {
+    if (!explorer) throw new Error(`no explorer to read the ${network} chain tip from`)
+    return (await new EsploraProvider(explorer).getChainTip()).height
+  }
   return {
     wallet: args.wallet,
     arkServerUrl: args.aspInfo.url,
-    arkade: arkadeContextOf(args.aspInfo),
+    arkade: arkadeContextOf(args.aspInfo, tipHeight),
     solvers: assetRfqSolvers(args.markets, args.assetId),
     ui: args.ui,
     fetch: (input, init) => fetch(input, init),

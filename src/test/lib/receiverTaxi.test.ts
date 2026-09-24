@@ -1,15 +1,20 @@
 import { describe, it, expect } from 'vitest'
 import { hex } from '@scure/base'
-import { arkadeContextOf, probeReceiverTaxi, receiverPaidCarrier } from '../../lib/receiverTaxi'
+import { arkadeContextOf, callerMinimum, probeReceiverTaxi, receiverPaidCarrier } from '../../lib/receiverTaxi'
 import {
   ASSET_ID,
   COVENANT_ADDRESS,
+  DEFAULT_FLOOR,
+  EARLY_FLOOR,
+  EARLY_QUOTE,
   INFO,
   KEYS,
+  NOW,
   QUOTE,
   RECEIVER_ADDRESS,
   TAXI,
   TAXI_URL,
+  TWO_FARES,
   arkadeContext,
   taxiFetch,
   unreachable,
@@ -84,18 +89,22 @@ describe('probeReceiverTaxi', () => {
 })
 
 describe('receiverPaidCarrier', () => {
-  const maker = hex.decode(KEYS.maker)
+  // The minimum the rail derives from the fixture clock: NOW + 900s funding + 3600s claim.
+  const MINIMUM = NOW + 4_500n
+  const payer = { makerPublicKey: hex.decode(KEYS.maker), fundingExpiry: 4_500_000_000n, minimum: MINIMUM }
+  const quoteBody = (fetch: ReturnType<typeof taxiFetch>) =>
+    JSON.parse(fetch.mock.calls.find(([url]) => url === `${TAXI_URL}/v1/receive-quotes`)![1].body)
 
   it('asks for a receiver-paid quote and maps the verified descriptor', async () => {
     const fetch = taxiFetch()
-    const carrier = await receiverPaidCarrier(TAXI, INFO, arkadeContext({ fetch }), maker)
+    const carrier = await receiverPaidCarrier(TAXI, INFO, arkadeContext({ fetch }), payer)
 
-    const [, init] = fetch.mock.calls.find(([url]) => url === `${TAXI_URL}/v1/receive-quotes`)!
-    expect(JSON.parse(init.body)).toEqual({
+    expect(quoteBody(fetch)).toEqual({
       receiverAddress: RECEIVER_ADDRESS,
       makerPublicKey: KEYS.maker,
       assetId: QUOTE.params.assetId,
       fareId: 'flat',
+      fundingExpiry: { kind: 'time', value: '4500000000' },
       payer: 'receiver',
     })
     expect(carrier).toEqual({
@@ -112,27 +121,58 @@ describe('receiverPaidCarrier', () => {
         },
         taxi: { url: TAXI_URL, operatorKey: KEYS.operator },
       },
-      inputExpiryFloor: { kind: 'time', value: 4_000_000_000n },
+      inputExpiryFloor: { kind: 'time', value: DEFAULT_FLOOR },
     })
+  })
+
+  it("binds the payer's funding expiry, so the Taxi's floor admits her older coins", async () => {
+    const fetch = taxiFetch()
+    const carrier = await receiverPaidCarrier(TAXI, INFO, arkadeContext({ fetch }), {
+      ...payer,
+      fundingExpiry: EARLY_FLOOR,
+    })
+    expect(quoteBody(fetch).fundingExpiry).toEqual({ kind: 'time', value: EARLY_FLOOR.toString() })
+    expect(carrier.inputExpiryFloor).toEqual({ kind: 'time', value: EARLY_FLOOR })
+    expect(carrier.choice.quote.receiveAddress).toBe(EARLY_QUOTE.covenantAddress)
+  })
+
+  it('refuses a Taxi that ignores the funding expiry it was sent', async () => {
+    const fetch = taxiFetch({ quote: QUOTE })
+    const ctx = arkadeContext({ fetch })
+    await expect(receiverPaidCarrier(TAXI, INFO, ctx, { ...payer, fundingExpiry: EARLY_FLOOR })).rejects.toThrow(
+      /input expiry floor/,
+    )
+  })
+
+  it('refuses a floor in the past, or too near to fund and claim before', async () => {
+    const past = { ...payer, minimum: DEFAULT_FLOOR + 1_000n }
+    await expect(receiverPaidCarrier(TAXI, INFO, arkadeContext(), past)).rejects.toThrow(/below the caller minimum/)
+    const tooNear = { ...payer, minimum: DEFAULT_FLOOR + 1n }
+    await expect(receiverPaidCarrier(TAXI, INFO, arkadeContext(), tooNear)).rejects.toThrow(/below the caller minimum/)
   })
 
   it('sends no fareId when the receiver named none', async () => {
     const fetch = taxiFetch()
-    await receiverPaidCarrier({ url: TAXI_URL, operatorKey: KEYS.operator }, INFO, arkadeContext({ fetch }), maker)
-    const [, init] = fetch.mock.calls.find(([url]) => url === `${TAXI_URL}/v1/receive-quotes`)!
-    expect(JSON.parse(init.body)).not.toHaveProperty('fareId')
+    await receiverPaidCarrier({ url: TAXI_URL, operatorKey: KEYS.operator }, INFO, arkadeContext({ fetch }), payer)
+    expect(quoteBody(fetch)).not.toHaveProperty('fareId')
+  })
+
+  it('refuses a quote priced at another fare than the one the receiver named', async () => {
+    const cheap = { ...TAXI, fareId: 'cheap' }
+    const ctx = arkadeContext({ fetch: taxiFetch({ info: TWO_FARES }) })
+    await expect(receiverPaidCarrier(cheap, TWO_FARES, ctx, payer)).rejects.toThrow(/fare differs/)
   })
 
   it('refuses a sender-paid answer to a receiver-paid request', async () => {
     const receiverOnly = ['payer', 'receiverFare', 'unclaimedMode']
     const senderPaid = Object.fromEntries(Object.entries(QUOTE).filter(([key]) => !receiverOnly.includes(key)))
     const fetch = taxiFetch({ quote: senderPaid })
-    await expect(receiverPaidCarrier(TAXI, INFO, arkadeContext({ fetch }), maker)).rejects.toThrow(/payer/)
+    await expect(receiverPaidCarrier(TAXI, INFO, arkadeContext({ fetch }), payer)).rejects.toThrow(/payer/)
   })
 
   it("verifies against the running context's emulator key, not the Taxi's", async () => {
     const ctx = arkadeContext({ emulatorKey: hex.decode(KEYS.other) })
-    await expect(receiverPaidCarrier(TAXI, INFO, ctx, maker)).rejects.toThrow(/untrusted emulator/)
+    await expect(receiverPaidCarrier(TAXI, INFO, ctx, payer)).rejects.toThrow(/untrusted emulator/)
   })
 
   it('surfaces a Taxi that refuses the request', async () => {
@@ -140,24 +180,40 @@ describe('receiverPaidCarrier', () => {
       quote: { code: 'BAD_REQUEST', message: 'unexpected request field payer' },
       quoteStatus: 400,
     })
-    await expect(receiverPaidCarrier(TAXI, INFO, arkadeContext({ fetch }), maker)).rejects.toThrow()
+    await expect(receiverPaidCarrier(TAXI, INFO, arkadeContext({ fetch }), payer)).rejects.toThrow()
+  })
+})
+
+describe('callerMinimum', () => {
+  it('adds the funding and claim windows to the clock, in the context domain', async () => {
+    expect(await callerMinimum(arkadeContext())).toBe(NOW + 900n + 3_600n)
+    expect(await callerMinimum(arkadeContext({ locktimeDomain: 'height', clock: async () => 100n }))).toBe(136n)
   })
 })
 
 describe('arkadeContextOf', () => {
-  it("takes every trusted fact from the wallet's own Arkade server", () => {
-    const info = {
-      network: 'mutinynet',
-      signerPubkey: `02${KEYS.server}`,
-      dust: 330n,
-      vtxoMinAmount: 1n,
-      unilateralExitDelay: 86_400n,
-    }
-    const ctx = arkadeContextOf(info)
+  const info = {
+    network: 'mutinynet',
+    signerPubkey: `02${KEYS.server}`,
+    dust: 330n,
+    vtxoMinAmount: 1n,
+    vtxoTreeExpiry: 604_672n,
+  }
+  const tip = async () => 812
+
+  it("takes every trusted fact from the wallet's own Arkade server", async () => {
+    const ctx = arkadeContextOf(info, tip)
     expect(ctx).toMatchObject({ hrp: 'tark', dust: 330n, vtxoMinAmount: 1n, locktimeDomain: 'time' })
     expect(hex.encode(ctx.serverKey)).toBe(KEYS.server)
     expect(ctx.emulatorKey).toHaveLength(32)
-    const mainnet = arkadeContextOf({ ...info, network: 'bitcoin', unilateralExitDelay: 144n })
-    expect(mainnet).toMatchObject({ hrp: 'ark', locktimeDomain: 'height' })
+    expect(Number(await ctx.clock())).toBeCloseTo(Date.now() / 1000, -1)
+    expect(arkadeContextOf({ ...info, network: 'bitcoin' }, tip)).toMatchObject({ hrp: 'ark', locktimeDomain: 'time' })
+  })
+
+  it('counts in blocks, from the chain tip, only when the batch expiry does', async () => {
+    const regtest = arkadeContextOf({ ...info, network: 'regtest', vtxoTreeExpiry: 20n }, tip)
+    expect(regtest.locktimeDomain).toBe('height')
+    expect(await regtest.clock()).toBe(812n)
+    expect(arkadeContextOf({ ...info, vtxoTreeExpiry: undefined }, tip).locktimeDomain).toBe('time')
   })
 })

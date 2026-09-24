@@ -6,11 +6,16 @@ import type { AssetPaymentTerms, AssetRfqSendDeps, PayRailUi } from '../../lib/a
 import {
   ASSET_ID,
   COVENANT_ADDRESS,
+  DEFAULT_FLOOR,
+  EARLY_FLOOR,
+  EARLY_QUOTE,
   INFO,
   KEYS,
   RECEIVER_ADDRESS,
   TAXI,
+  TWO_FARES,
   arkadeContext,
+  coin,
   taxiFetch,
   unreachable,
 } from './receiverTaxiFixtures'
@@ -21,7 +26,8 @@ vi.mock('@arkade-os/swap/nostr', () => ({ nostrRfqTransport }))
 const consoleError = vi.hoisted(() => vi.fn())
 vi.mock('../../lib/logs', () => ({ consoleError, consoleLog: vi.fn() }))
 
-const { assetRfqSolvers, payAssetRequest, PaymentDeclined } = await import('../../lib/assetRfqSend')
+const { assetRfqSolvers, hasSatsForReceiverTaxi, payAssetRequest, PaymentDeclined, routesToReceiverTaxi } =
+  await import('../../lib/assetRfqSend')
 
 const SOLVER_A = { solverPubkey: 'aa'.repeat(32), transports: { nostr: { relays: ['wss://a.test'] } } }
 const SOLVER_B = { solverPubkey: 'bb'.repeat(32), transports: { nostr: { relays: ['wss://b.test'] } } }
@@ -47,17 +53,27 @@ const recorder = (answer = true) => {
 }
 
 let prompts: ReturnType<typeof recorder>
+/** Alice's spendable coins, and the funding reservations other swaps hold on them. */
+const walletWith = (coins: ReturnType<typeof coin>[], reserved: { txid: string; vout: number }[] = []) => ({
+  wallet: {
+    identity: { xOnlyPublicKey: async () => hex.decode(KEYS.maker) },
+    getSpendableVtxos: async () => coins,
+  } as unknown as IWallet,
+  repository: {
+    getAllSwaps: async () => [{ fundingIntent: { state: 'prepared', inputs: reserved } }],
+  } as unknown as AssetRfqSendDeps['repository'],
+})
+
 const deps = (over: Partial<AssetRfqSendDeps> = {}): AssetRfqSendDeps => {
-  const { serverKey, emulatorKey, hrp, dust, vtxoMinAmount, locktimeDomain } = arkadeContext()
+  const { serverKey, emulatorKey, hrp, dust, vtxoMinAmount, locktimeDomain, clock } = arkadeContext()
   return {
-    wallet: { identity: { xOnlyPublicKey: async () => hex.decode(KEYS.maker) } } as unknown as IWallet,
+    ...walletWith([coin(50_000, 4_500_000_000n)]),
     arkServerUrl: 'https://ark.test',
-    arkade: { serverKey, emulatorKey, hrp, dust, vtxoMinAmount, locktimeDomain },
+    arkade: { serverKey, emulatorKey, hrp, dust, vtxoMinAmount, locktimeDomain, clock },
     solvers: [SOLVER_A, SOLVER_B],
     ui: prompts.ui,
     fetch: taxiFetch(),
     pageProtocol: 'https:',
-    repository: {} as AssetRfqSendDeps['repository'],
     requestArkadeSwap: vi.fn(async (_w, _u, _t, params) =>
       negotiated(params.carrier?.mode === 'recycleReceiver' ? TAXI_PRICE : PURCHASE_PRICE),
     ),
@@ -105,12 +121,12 @@ describe('payAssetRequest', () => {
       offerHex: 'ab',
       deposit: { amount: TAXI_PRICE },
       validUntil: 2_000_000_000,
-      inputExpiryFloor: { kind: 'time', value: 4_000_000_000n },
+      inputExpiryFloor: { kind: 'time', value: DEFAULT_FLOOR },
     })
     onlyTheConfirmation(TAXI_PRICE)
   })
 
-  it('falls back to a plain purchase when the Taxi is unreachable, asking nothing', async () => {
+  it('falls back to a plain purchase when the Taxi is unreachable, with only the price confirmation', async () => {
     const d = deps({ fetch: unreachable() })
     await payAssetRequest(REQUEST, d)
     expect(carriersOf(d)).toEqual([{ mode: 'purchase' }])
@@ -127,7 +143,7 @@ describe('payAssetRequest', () => {
   it.each([
     ['paused', { ...INFO, paused: true }],
     ['operator-key-mismatch', { ...INFO, operatorKey: KEYS.other }],
-  ])('falls back when the probe refuses (%s), asking nothing', async (reason, info) => {
+  ])('falls back when the probe refuses (%s), with only the price confirmation', async (reason, info) => {
     const d = deps({ fetch: taxiFetch({ info }) })
     await payAssetRequest(REQUEST, d)
     expect(carriersOf(d)).toEqual([{ mode: 'purchase' }])
@@ -135,7 +151,7 @@ describe('payAssetRequest', () => {
     onlyTheConfirmation(PURCHASE_PRICE)
   })
 
-  it('falls back when the Taxi refuses the receive quote, asking nothing', async () => {
+  it('falls back when the Taxi refuses the receive quote, with only the price confirmation', async () => {
     const d = deps({ fetch: taxiFetch({ quote: { code: 'BAD_REQUEST', message: 'no' }, quoteStatus: 400 }) })
     await payAssetRequest(REQUEST, d)
     expect(carriersOf(d)).toEqual([{ mode: 'purchase' }])
@@ -191,11 +207,89 @@ describe('payAssetRequest', () => {
     expect(prompts.calls).toEqual([])
   })
 
+  it("asks for a floor her own coins clear when they are older than the Taxi's, and funds against it", async () => {
+    const own = coin(20_000, EARLY_FLOOR)
+    const reservedElsewhere = coin(90_000, 2_500_000_000n, 1)
+    const d = deps(walletWith([own, reservedElsewhere], [reservedElsewhere]))
+    await payAssetRequest(REQUEST, d)
+    expect(carriersOf(d)[0]).toMatchObject({ quote: { receiveAddress: EARLY_QUOTE.covenantAddress } })
+    expect(d.fundOffer).toHaveBeenCalledWith(
+      d.wallet,
+      d.arkServerUrl,
+      expect.objectContaining({ inputExpiryFloor: { kind: 'time', value: EARLY_FLOOR } }),
+    )
+    onlyTheConfirmation(TAXI_PRICE)
+  })
+
+  it('buys a carrier before asking, when the coins clearing the floor fall short', async () => {
+    const d = deps(walletWith([coin(6_000, EARLY_FLOOR), coin(3_000, DEFAULT_FLOOR, 1), coin(90_000, undefined, 2)]))
+    await payAssetRequest(REQUEST, d)
+    expect(carriersOf(d).map((c) => c?.mode)).toEqual(['recycleReceiver', 'purchase'])
+    expect(solversOf()).toEqual([SOLVER_A.solverPubkey, SOLVER_A.solverPubkey])
+    expect(consoleError).toHaveBeenCalledWith(expect.anything(), expect.stringContaining('fall short'))
+    onlyTheConfirmation(PURCHASE_PRICE)
+  })
+
+  it('counts the dust an asset-bearing coin costs in change', async () => {
+    const withAsset = { ...coin(Number(TAXI_PRICE), DEFAULT_FLOOR), assets: [{ assetId: ASSET_ID, amount: 1n }] }
+    const d = deps(walletWith([withAsset]))
+    await payAssetRequest(REQUEST, d)
+    expect(carriersOf(d).map((c) => c?.mode)).toEqual(['recycleReceiver', 'purchase'])
+  })
+
+  it('asks no Taxi for a quote when no coin outlives the minimum floor', async () => {
+    const d = deps(walletWith([coin(50_000, 1_700_001_000n), coin(50_000, undefined, 1)]))
+    await payAssetRequest(REQUEST, d)
+    expect(vi.mocked(d.fetch).mock.calls.map(([url]) => url)).toEqual([`${TAXI.url}/v1/info`])
+    expect(carriersOf(d)).toEqual([{ mode: 'purchase' }])
+  })
+
+  it('buys a carrier when the Taxi prices a fare other than the one the receiver named', async () => {
+    const d = deps({ fetch: taxiFetch({ info: TWO_FARES }) })
+    await payAssetRequest({ ...REQUEST, taxi: { ...TAXI, fareId: 'cheap' } }, d)
+    expect(carriersOf(d)).toEqual([{ mode: 'purchase' }])
+    onlyTheConfirmation(PURCHASE_PRICE)
+  })
+
+  it('buys a carrier when the Taxi floor is too near to fund and claim before', async () => {
+    const d = deps(walletWith([coin(50_000, 4_500_000_000n)]))
+    d.arkade = { ...d.arkade, clock: async () => DEFAULT_FLOOR - 1_000n }
+    await payAssetRequest(REQUEST, d)
+    expect(carriersOf(d)).toEqual([{ mode: 'purchase' }])
+    expect(consoleError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringMatching(/below the caller minimum/) }),
+      expect.anything(),
+    )
+  })
+
   it('probes no Taxi when the request names none', async () => {
     const d = deps()
     await payAssetRequest({ ...REQUEST, taxi: undefined }, d)
     expect(d.fetch).not.toHaveBeenCalled()
     expect(carriersOf(d)).toEqual([{ mode: 'purchase' }])
+  })
+})
+
+describe('routesToReceiverTaxi', () => {
+  const decoded = { assetId: ASSET_ID }
+  const send = { assets: [{ assetId: ASSET_ID }] }
+
+  it('routes a Taxi-bearing asset request to the rail', () => {
+    expect(routesToReceiverTaxi(send, decoded)).toBe(true)
+  })
+
+  it('leaves everything else on its existing path', () => {
+    expect(routesToReceiverTaxi(send, undefined)).toBe(false)
+    expect(routesToReceiverTaxi({ ...send, account: {} }, decoded)).toBe(false)
+    expect(routesToReceiverTaxi({ assets: [{ assetId: USDT_ID }] }, decoded)).toBe(false)
+    expect(routesToReceiverTaxi({}, decoded)).toBe(false)
+  })
+})
+
+describe('hasSatsForReceiverTaxi', () => {
+  it('needs at least the server dust in liquid bitcoin', () => {
+    expect(hasSatsForReceiverTaxi(329, 330n)).toBe(false)
+    expect(hasSatsForReceiverTaxi(330, 330n)).toBe(true)
   })
 })
 

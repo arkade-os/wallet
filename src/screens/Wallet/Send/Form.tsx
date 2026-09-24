@@ -39,7 +39,9 @@ import { discoverMarkets } from '../../../lib/swapMarkets'
 import { decodeBip21, isBip21, type Bip21Taxi } from '../../../lib/bip21'
 import {
   PaymentDeclined,
+  hasSatsForReceiverTaxi,
   payAssetRequest,
+  routesToReceiverTaxi,
   walletAssetRfqDeps,
   type AssetPaymentTerms,
   type PayRailUi,
@@ -199,14 +201,13 @@ export default function SendForm() {
   const activeAsset = accountAsset ?? selectedAsset
   const isAssetSend = activeAsset !== null
   // Paid with bitcoin through a solver, so the payer's own asset balance does not gate it.
-  const payViaReceiverTaxi = Boolean(
-    receiverTaxi && !sendInfo.account && sendInfo.assets?.[0]?.assetId === receiverTaxi.assetId,
-  )
+  const payViaReceiverTaxi = routesToReceiverTaxi(sendInfo, receiverTaxi)
 
   const RECIPIENT_DEBOUNCE_MS = 800
   const hasAssets = assetBalances.length > 0
   const reserveApplied = !isAssetSend && hasAssets
   const liquidBalance = liquidBtcBalance(availableBalance, reserveApplied, aspInfo.dust)
+  const taxiLacksSats = payViaReceiverTaxi && !hasSatsForReceiverTaxi(liquidBalance, aspInfo.dust)
 
   const smartSetError = (str: string) => {
     setError(str === '' ? (aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '') : str)
@@ -588,7 +589,13 @@ export default function SendForm() {
   useEffect(() => {
     if (isAssetSend && activeAsset) {
       const assetAmount = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
-      setLabel(assetAmount > activeAsset.balance && !payViaReceiverTaxi ? 'Insufficient asset balance' : 'Continue')
+      setLabel(
+        taxiLacksSats
+          ? 'Insufficient funds'
+          : assetAmount > activeAsset.balance && !payViaReceiverTaxi
+            ? 'Insufficient asset balance'
+            : 'Continue',
+      )
       return
     }
     const satoshis = sendInfo.satoshis ?? 0
@@ -607,7 +614,15 @@ export default function SendForm() {
                   ? 'Amount below min limit'
                   : 'Continue',
     )
-  }, [sendInfo.satoshis, sendInfo.assets, sendInfo.account, liquidBalance, activeAsset, payViaReceiverTaxi])
+  }, [
+    sendInfo.satoshis,
+    sendInfo.assets,
+    sendInfo.account,
+    liquidBalance,
+    activeAsset,
+    payViaReceiverTaxi,
+    taxiLacksSats,
+  ])
 
   // manage server unreachable error
   useEffect(() => {
@@ -920,6 +935,7 @@ export default function SendForm() {
   const buttonDisabled = isAssetSend
     ? !(arkAddress && assetAmt > 0) ||
       (activeAsset ? assetAmt > activeAsset.balance && !payViaReceiverTaxi : true) ||
+      taxiLacksSats ||
       Boolean(recipientError) ||
       Boolean(carrierError) ||
       aspInfo.unreachable ||
