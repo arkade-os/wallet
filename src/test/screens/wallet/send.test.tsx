@@ -578,7 +578,7 @@ describe('a changed recipient', () => {
   }
   const settle = { timeout: 3_000 }
   const clickContinue = async () => {
-    const button = screen.getByText('Continue').closest('button')!
+    const button = await waitFor(() => screen.getByText('Continue').closest('button')!, settle)
     await waitFor(() => expect(button).toBeEnabled(), settle)
     fireEvent.click(button)
   }
@@ -596,6 +596,46 @@ describe('a changed recipient', () => {
     await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), settle)
     expect(sendRouter).not.toHaveBeenCalled()
     expect(current).toMatchObject({ address: BTC, lnUrl: undefined, pendingLnSend: undefined })
+    fetchMocker.disableMocks()
+  })
+
+  it('pays the Ark address typed after an LNURL, not the LNURL', async () => {
+    const fetchMocker = lnurlServer()
+    const { sendRouter, navigate, type } = renderStateful()
+    type(LNURL)
+    await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
+
+    type(ARK)
+    await waitFor(() => expect(current.arkAddress).toBe(ARK), settle)
+    await clickContinue()
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), settle)
+    expect(sendRouter).not.toHaveBeenCalled()
+    expect(current).toMatchObject({ arkAddress: ARK, lnUrl: undefined, pendingLnSend: undefined })
+    fetchMocker.disableMocks()
+  })
+
+  it('quotes the invoice pasted after an LNURL, not the LNURL', async () => {
+    const INVOICE = fixtures.lib.bolt11.invoice
+    const fetchMocker = lnurlServer()
+    const { sendRouter, type } = renderStateful()
+    const router = createSendRouter({ wallet: svcWallet })
+    const options = vi.spyOn(router, 'options')
+    sendRouter.mockResolvedValue(router)
+    type(LNURL)
+    await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
+
+    type(INVOICE)
+    await waitFor(() => expect(current.invoice).toBe(INVOICE), settle)
+    expect(current).toMatchObject({
+      lnUrl: undefined,
+      pendingLnSend: undefined,
+      satoshis: fixtures.lib.bolt11.amountSats,
+    })
+    await clickContinue()
+
+    await waitFor(() => expect(options).toHaveBeenCalledWith({ raw: INVOICE }), settle)
+    expect(fetchMocker.requests().some((r) => r.url.includes('paymentOption='))).toBe(false)
     fetchMocker.disableMocks()
   })
 
