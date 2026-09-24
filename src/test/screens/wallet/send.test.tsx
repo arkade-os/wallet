@@ -141,9 +141,7 @@ describe('Send screen', () => {
     await waitFor(() => expect(continueButton).toBeEnabled())
     fireEvent.click(continueButton)
 
-    expect(await screen.findByTestId('error-message')).toHaveTextContent(
-      'Invoice amount does not match requested amount.',
-    )
+    expect(await screen.findByTestId('error-message')).toHaveTextContent(/not the requested/)
     const updates = setSendInfo.mock.calls.map(([update]) =>
       typeof update === 'function' ? update(flowValue.sendInfo) : update,
     )

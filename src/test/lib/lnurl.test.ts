@@ -43,11 +43,11 @@ describe('lnurl utilities', () => {
     for (const test of fixtures.lib.lnurl) {
       const localMockResponse = { ...mockLNURLResponse, callback: test.callback }
       fetchMocker.mockResponseOnce(JSON.stringify(localMockResponse))
-      fetchMocker.mockResponseOnce(JSON.stringify({ pr: 'lnbc1234567890' }))
+      fetchMocker.mockResponseOnce(JSON.stringify({ pr: fixtures.lib.bolt11.invoice }))
       const payRequest = await lnurlClient.resolve(test.lnUrlOrAddress)
-      const result = await lnurlClient.requestInvoice(payRequest, { amountSat: 21 })
+      const result = await lnurlClient.requestInvoice(payRequest, { amountSat: fixtures.lib.bolt11.amountSats })
       if (result.kind !== 'bolt11') throw new Error('Expected a lightning invoice')
-      expect(result.pr).toBe('lnbc1234567890')
+      expect(result.pr).toBe(fixtures.lib.bolt11.invoice)
     }
   })
 
