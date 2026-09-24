@@ -96,7 +96,6 @@ describe('probeReceiverTaxi', () => {
     expect(await named('token')).toMatchObject({ reason: 'fare-unavailable' })
     expect(await named('gone')).toMatchObject({ reason: 'fare-unavailable' })
     expect(await named('flat')).toMatchObject({ ok: true })
-    // Named none, the Taxi prices its first fare.
     expect(await named(undefined)).toMatchObject({ ok: true })
     const tokenFirst = withRule({ fares: [fares[2], fares[0]] })
     expect(
