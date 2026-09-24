@@ -137,11 +137,12 @@ export type Tx = {
   /** Present only on a Lightning send: its lockup covenant and that
    * covenant's spender, which is a second tx the wallet never signed. */
   lnSend?: LnSendActivity
-  /** Present on a row an lnurl resolver tagged: who paid or was paid, and the
-   * rail it went over. Kept separate from `lnSwap` — that field is corridor-swap
-   * specific (outcome-driven status, receipt lookups) and must keep its own meaning. */
+  /** Present on a row an lnurl resolver tagged, with the rail it went over.
+   * `address` is the target on a send but the wallet's OWN address on a receive:
+   * LNURL-pay never identifies the payer. Kept separate from `lnSwap` — that
+   * field is corridor-swap specific and must keep its own meaning. */
   lnurl?: {
-    counterparty?: string
+    address?: string
     rail?: string
   }
   /** Present on a row the swap activity resolver grouped. `label` and

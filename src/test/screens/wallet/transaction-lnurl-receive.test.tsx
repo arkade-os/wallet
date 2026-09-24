@@ -25,7 +25,7 @@ const receivedTx: Tx = {
   roundTxid: '',
   settled: true,
   type: 'received',
-  lnurl: { counterparty: 'alice@pay.example', rail: 'lightning' },
+  lnurl: { address: 'alice@lnurl.example', rail: 'lightning' },
 }
 
 const renderReceipt = (tx: Tx) =>
@@ -44,25 +44,26 @@ const renderReceipt = (tx: Tx) =>
   )
 
 describe('LNURL receive detail', () => {
-  it('shows who paid and the rail it arrived on', async () => {
+  it('shows the address it arrived at and the rail, never a payer', async () => {
     renderReceipt(receivedTx)
 
-    expect(await screen.findByTestId('Paid by')).toHaveTextContent('alice@pay.example')
+    expect(await screen.findByTestId('Received at')).toHaveTextContent('alice@lnurl.example')
     expect(screen.getByTestId('Rail')).toHaveTextContent('lightning')
+    expect(screen.queryByTestId('Paid by')).not.toBeInTheDocument()
   })
 
-  it('shows only the rail for a nameless receive with no counterparty', async () => {
+  it('shows only the rail for a nameless receive', async () => {
     renderReceipt({ ...receivedTx, lnurl: { rail: 'arkade' } })
 
     expect(await screen.findByTestId('Rail')).toHaveTextContent('arkade')
-    expect(screen.queryByTestId('Paid by')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('Received at')).not.toBeInTheDocument()
   })
 
   it('shows neither row for an ordinary receive with no lnurl record', async () => {
     renderReceipt({ ...receivedTx, lnurl: undefined })
 
     expect(await screen.findByTestId('Transaction ID')).toHaveTextContent('claim-txid')
-    expect(screen.queryByTestId('Paid by')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('Received at')).not.toBeInTheDocument()
     expect(screen.queryByTestId('Rail')).not.toBeInTheDocument()
   })
 })

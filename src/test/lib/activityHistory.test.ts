@@ -464,17 +464,17 @@ describe('lightning send activities', () => {
 
     const [row] = activitiesToTxs([activity('sent:ark-txid', [paid], intent)], empty)
 
-    expect(row.lnurl).toEqual({ counterparty: 'alice@pay.example', rail: 'lnurl-arkade' })
+    expect(row.lnurl).toEqual({ address: 'alice@pay.example', rail: 'lnurl-arkade' })
   })
 
-  it('carries who paid an LNURL receive onto its row', () => {
+  it('carries the address an LNURL receive arrived at onto its row', () => {
     const claim = arkTx('claim-txid', { amount: 3_000 })
     const intent: Activity['intent'] = {
       kind: 'lnurl',
-      label: 'lightning · alice@pay.example',
+      label: 'lightning · alice@lnurl.example',
       metadata: {
         rail: 'lightning',
-        lightningAddress: 'alice@pay.example',
+        lightningAddress: 'alice@lnurl.example',
         identifier: 'payment-hash',
         verified: true,
       },
@@ -482,10 +482,10 @@ describe('lightning send activities', () => {
 
     const [row] = activitiesToTxs([activity('lnurl:server|payment-hash', [claim], intent)], empty)
 
-    expect(row.lnurl).toEqual({ counterparty: 'alice@pay.example', rail: 'lightning' })
+    expect(row.lnurl).toEqual({ address: 'alice@lnurl.example', rail: 'lightning' })
   })
 
-  it('leaves a nameless LNURL receive without a counterparty, keeping the rail', () => {
+  it('leaves a nameless LNURL receive without an address, keeping the rail', () => {
     const claim = arkTx('claim-txid', { amount: 3_000 })
     const intent: Activity['intent'] = {
       kind: 'lnurl',
@@ -495,7 +495,7 @@ describe('lightning send activities', () => {
 
     const [row] = activitiesToTxs([activity('lnurl:server|session-id', [claim], intent)], empty)
 
-    expect(row.lnurl).toEqual({ counterparty: undefined, rail: 'arkade' })
+    expect(row.lnurl).toEqual({ address: undefined, rail: 'arkade' })
   })
 
   it('grafts the local metadata the funding leg carries', () => {
@@ -798,7 +798,8 @@ describe('lnurl resolvers, driven end to end from the vendored package', () => {
     key: 'https://lnurl.example|payment-hash-1',
     baseUrl: 'https://lnurl.example',
     domain: 'lnurl.example',
-    lightningAddress: 'alice@pay.example',
+    // The server's `source` names the wallet's OWN address; LNURL-pay never names the payer.
+    lightningAddress: 'alice@lnurl.example',
     handle: 'alice',
     identifier: 'payment-hash-1',
     kind: 'bolt11',
@@ -850,15 +851,15 @@ describe('lnurl resolvers, driven end to end from the vendored package', () => {
     const claim = arkTx('claim-txid-named', { amount: 3_000, createdAt: 1_500 })
     const [row] = activitiesToTxs(await activityHistoryOf([claim], [namedReceive()], []), empty)
 
-    expect(row.lnurl).toEqual({ counterparty: 'alice@pay.example', rail: 'lightning' })
-    expect(lnurlLabel(row)).toBe('Received from alice@pay.example')
+    expect(row.lnurl).toEqual({ address: 'alice@lnurl.example', rail: 'lightning' })
+    expect(lnurlLabel(row)).toBe('Received at alice@lnurl.example')
   })
 
   it('carries a nameless receive by its rail alone', async () => {
     const claim = arkTx('claim-txid-nameless', { amount: 1_500, createdAt: 1_500 })
     const [row] = activitiesToTxs(await activityHistoryOf([claim], [namelessReceive()], []), empty)
 
-    expect(row.lnurl).toEqual({ counterparty: undefined, rail: 'arkade' })
+    expect(row.lnurl).toEqual({ address: undefined, rail: 'arkade' })
     expect(lnurlLabel(row)).toBe('Received via arkade')
   })
 
@@ -866,7 +867,7 @@ describe('lnurl resolvers, driven end to end from the vendored package', () => {
     const paid = arkTx('send-txid', { type: 'SENT' as ArkTransaction['type'], amount: 2_000, createdAt: 2_000 })
     const [row] = activitiesToTxs(await activityHistoryOf([paid], [], [sentPayment()]), empty)
 
-    expect(row.lnurl).toEqual({ counterparty: 'bob@pay.example', rail: 'lnurl-arkade' })
+    expect(row.lnurl).toEqual({ address: 'bob@pay.example', rail: 'lnurl-arkade' })
     expect(lnurlLabel(row)).toBe('Sent to bob@pay.example')
   })
 })

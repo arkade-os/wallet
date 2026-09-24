@@ -42,7 +42,7 @@ describe('TransactionsList', () => {
     expect(screen.queryByText('Sent')).not.toBeInTheDocument()
   })
 
-  it('shows who paid an LNURL receive, and who a send paid', () => {
+  it('shows the address an LNURL receive arrived at, and who a send paid', () => {
     const receivedTx: Tx = {
       amount: 1_000,
       boardingTxid: '',
@@ -53,7 +53,7 @@ describe('TransactionsList', () => {
       roundTxid: '',
       settled: true,
       type: 'received',
-      lnurl: { counterparty: 'alice@pay.example', rail: 'lightning' },
+      lnurl: { address: 'alice@lnurl.example', rail: 'lightning' },
     }
     const sentTx: Tx = {
       amount: 500,
@@ -65,7 +65,7 @@ describe('TransactionsList', () => {
       roundTxid: '',
       settled: true,
       type: 'sent',
-      lnurl: { counterparty: 'bob@pay.example', rail: 'lnurl-arkade' },
+      lnurl: { address: 'bob@pay.example', rail: 'lnurl-arkade' },
     }
 
     render(
@@ -82,7 +82,7 @@ describe('TransactionsList', () => {
       </NavigationContext.Provider>,
     )
 
-    expect(screen.getByText('Received from alice@pay.example')).toBeInTheDocument()
+    expect(screen.getByText('Received at alice@lnurl.example')).toBeInTheDocument()
     expect(screen.getByText('Sent to bob@pay.example')).toBeInTheDocument()
   })
 

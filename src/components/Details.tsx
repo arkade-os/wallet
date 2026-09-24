@@ -45,10 +45,10 @@ export interface DetailsProps {
   fundedTxid?: string
   invoice?: string
   isOffchainTx?: boolean
-  /** Who paid an lnurl receive, and over which rail — the resolver's own facts. */
-  paidBy?: string
   priceRate?: string
   rail?: string
+  /** The wallet's own lightning address an lnurl receive arrived at — not the payer. */
+  receivedAt?: string
   satoshis?: number
   spendLabel?: string
   spendTxid?: string
@@ -93,9 +93,9 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     fundedTxid,
     invoice,
     isOffchainTx,
-    paidBy,
     priceRate,
     rail,
+    receivedAt,
     satoshis,
     spendLabel,
     spendTxid,
@@ -204,7 +204,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     ['Arknote', arknote, <NotesIcon key='notes-icon' small />],
     ['Invoice', invoice, <TypeIcon key='invoice-icon' />],
     ['Destination', destination, <TypeIcon key='destination-icon' />],
-    ['Paid by', paidBy, <TypeIcon key='paid-by-icon' />],
+    ['Received at', receivedAt, <TypeIcon key='received-at-icon' />],
     ['Rail', rail, <DirectionIcon key='rail-icon' />],
     ['Funded', fundedTxid, <HashIcon key='funded-icon' />, offchainTxOnClick(fundedTxid)],
     [spendLabel ?? 'Completed', spendTxid, <HashIcon key='spend-icon' />, offchainTxOnClick(spendTxid)],

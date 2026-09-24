@@ -83,14 +83,14 @@ export function lnSwapLabel(tx: Tx): string | undefined {
   return stem
 }
 
-/** How an lnurl-tagged row reads: the counterparty when the resolver named
- * one, else the rail it went over. Distinct from `lnSwapLabel` — this is a
- * plain payment, not a corridor swap with its own outcome vocabulary. */
+/** How an lnurl-tagged row reads: the address when the resolver named one,
+ * else the rail it went over. A receive's address is the wallet's own, hence
+ * "at", never "from". Distinct from `lnSwapLabel` — this is a plain payment. */
 export function lnurlLabel(tx: Tx): string | undefined {
   const lnurl = tx.lnurl
   if (!lnurl) return undefined
   const verb = tx.type === 'sent' ? 'Sent' : 'Received'
-  if (lnurl.counterparty) return `${verb} ${tx.type === 'sent' ? 'to' : 'from'} ${lnurl.counterparty}`
+  if (lnurl.address) return `${verb} ${tx.type === 'sent' ? 'to' : 'at'} ${lnurl.address}`
   if (lnurl.rail) return `${verb} via ${lnurl.rail}`
   return undefined
 }
