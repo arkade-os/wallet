@@ -3,8 +3,9 @@ import { act, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useBounceMorph } from '../../hooks/useBounceMorph'
 
+const onBounce = vi.fn()
 const Probe = () => {
-  useBounceMorph({ reducedMotion: false })
+  useBounceMorph({ reducedMotion: false, onBounce })
   return null
 }
 
@@ -37,14 +38,17 @@ describe('useBounceMorph', () => {
     try {
       const { rerender } = render(tree())
       await act(() => vi.advanceTimersByTimeAsync(500))
+      expect(onBounce).toHaveBeenCalled()
 
       suspended = true
       rerender(tree())
+      onBounce.mockClear()
       await act(() => vi.advanceTimersByTimeAsync(500))
     } finally {
       process.off('unhandledRejection', onRejection)
     }
 
     expect(rejections).toEqual([])
+    expect(onBounce).not.toHaveBeenCalled()
   })
 })

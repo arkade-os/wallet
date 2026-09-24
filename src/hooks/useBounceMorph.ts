@@ -68,6 +68,9 @@ export function useBounceMorph({ reducedMotion, onBounce }: UseBounceMorphOption
     }
 
     async function bounceAndMorph(nextShape: number) {
+      // Hidden, not unmounted: hold the sequence (and its particle bursts) until shown again.
+      while (!controlsMounted.current && !cancelled.current) await delay(60)
+      if (cancelled.current) return
       setBounceCount((c) => c + 1)
       onBounceRef.current?.()
       setActiveShape(nextShape)
