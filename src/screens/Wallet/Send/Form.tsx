@@ -1225,6 +1225,11 @@ export default function SendForm() {
       <SheetModal isOpen={Boolean(approval)} onClose={() => answerApproval(false)}>
         <FlexCol gap='1rem'>
           <Text bold>Confirm payment</Text>
+          {approval?.terms.refreshed ? (
+            <Text color='neutral-500' small wrap>
+              The last price expired before you confirmed it, so this is a new one.
+            </Text>
+          ) : null}
           <Text color='neutral-500' small wrap>
             {approval
               ? `Pay ${prettyNumber(Number(approval.terms.payAmountSats))} sats to send ${prettyAssetAmount(approval.terms.assetAmount, activeAsset?.decimals ?? 8)} ${activeAsset?.ticker ?? ''}`

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { hex } from '@scure/base'
 import { SwapRefusal, type AssetSwap, type RfqTransport } from '@arkade-os/swap'
 import type { IWallet } from '@arkade-os/sdk'
@@ -26,8 +26,14 @@ vi.mock('@arkade-os/swap/nostr', () => ({ nostrRfqTransport }))
 const consoleError = vi.hoisted(() => vi.fn())
 vi.mock('../../lib/logs', () => ({ consoleError, consoleLog: vi.fn() }))
 
-const { assetRfqSolvers, hasSatsForReceiverTaxi, payAssetRequest, PaymentDeclined, routesToReceiverTaxi } =
-  await import('../../lib/assetRfqSend')
+const {
+  assetRfqSolvers,
+  FILL_MARGIN_SECONDS,
+  hasSatsForReceiverTaxi,
+  payAssetRequest,
+  PaymentDeclined,
+  routesToReceiverTaxi,
+} = await import('../../lib/assetRfqSend')
 
 const SOLVER_A = { solverPubkey: 'aa'.repeat(32), transports: { nostr: { relays: ['wss://a.test'] } } }
 const SOLVER_B = { solverPubkey: 'bb'.repeat(32), transports: { nostr: { relays: ['wss://b.test'] } } }
@@ -267,6 +273,77 @@ describe('payAssetRequest', () => {
     await payAssetRequest({ ...REQUEST, taxi: undefined }, d)
     expect(d.fetch).not.toHaveBeenCalled()
     expect(carriersOf(d)).toEqual([{ mode: 'purchase' }])
+  })
+})
+
+describe('payAssetRequest near the end of the Taxi quote', () => {
+  const START = Date.UTC(2026, 8, 25, 12) / 1000
+  let rfqs = 0
+  const numbered = (d: AssetRfqSendDeps) => {
+    vi.mocked(d.requestArkadeSwap).mockImplementation(async (_w, _u, _t, params) => ({
+      ...negotiated(params.carrier?.mode === 'recycleReceiver' ? TAXI_PRICE : PURCHASE_PRICE),
+      rfqId: `rfq-${++rfqs}`,
+    }))
+    return d
+  }
+  /** She approves each price the given number of seconds after it is shown; the last delay repeats. */
+  const approvesAfter = (...seconds: number[]) => {
+    const shown: AssetPaymentTerms[] = []
+    const ui: PayRailUi = {
+      confirmPayment: async (terms) => {
+        if (shown.push(terms) > 3) throw new Error('asked a fourth time')
+        vi.setSystemTime((Date.now() / 1000 + (seconds[shown.length - 1] ?? seconds.at(-1)!)) * 1000)
+        return true
+      },
+    }
+    return { ui, shown }
+  }
+  const fundedWith = (d: AssetRfqSendDeps) => vi.mocked(d.fundOffer).mock.calls.map(([, , params]) => params)
+
+  beforeEach(() => {
+    rfqs = 0
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(START * 1000)
+  })
+  afterEach(() => vi.useRealTimers())
+
+  it('hands funding a deadline that leaves the solver the fill margin', async () => {
+    const d = numbered(deps({ fetch: taxiFetch({ ttlSeconds: 600 }), ui: approvesAfter(5).ui }))
+    await payAssetRequest(REQUEST, d)
+    expect(fundedWith(d)).toEqual([
+      expect.objectContaining({ id: 'rfq-1', validUntil: START + 600 - FILL_MARGIN_SECONDS }),
+    ])
+  })
+
+  it('funds no offer confirmed too late to fill: it re-quotes the Taxi and asks again', async () => {
+    const approval = approvesAfter(60 - FILL_MARGIN_SECONDS + 1, 5)
+    const d = numbered(deps({ fetch: taxiFetch({ ttlSeconds: 60 }), ui: approval.ui }))
+    await payAssetRequest(REQUEST, d)
+    expect(carriersOf(d).map((c) => c?.mode)).toEqual(['recycleReceiver', 'recycleReceiver'])
+    const requotedAt = START + 60 - FILL_MARGIN_SECONDS + 1
+    expect(fundedWith(d)).toEqual([
+      expect.objectContaining({ id: 'rfq-2', validUntil: requotedAt + 60 - FILL_MARGIN_SECONDS }),
+    ])
+    expect(approval.shown.map((terms) => terms.refreshed)).toEqual([undefined, true])
+    expect(consoleError).toHaveBeenCalledWith(expect.anything(), expect.stringContaining('too late'))
+  })
+
+  it('buys a carrier after a second late confirmation, funding neither stale offer', async () => {
+    const approval = approvesAfter(60 - FILL_MARGIN_SECONDS + 1)
+    const d = numbered(deps({ fetch: taxiFetch({ ttlSeconds: 60 }), ui: approval.ui }))
+    await payAssetRequest(REQUEST, d)
+    expect(carriersOf(d).map((c) => c?.mode)).toEqual(['recycleReceiver', 'recycleReceiver', 'purchase'])
+    expect(fundedWith(d)).toEqual([expect.not.objectContaining({ inputExpiryFloor: expect.anything() })])
+    expect(fundedWith(d)[0].id).toBe('rfq-3')
+    expect(approval.shown.map((terms) => terms.payAmountSats)).toEqual([TAXI_PRICE, TAXI_PRICE, PURCHASE_PRICE])
+  })
+
+  it('buys a carrier before asking when the Taxi quote leaves no time to fill', async () => {
+    const d = numbered(deps({ fetch: taxiFetch({ ttlSeconds: FILL_MARGIN_SECONDS - 1 }) }))
+    await payAssetRequest(REQUEST, d)
+    expect(carriersOf(d).map((c) => c?.mode)).toEqual(['recycleReceiver', 'purchase'])
+    expect(fundedWith(d)).toEqual([expect.objectContaining({ id: 'rfq-2' })])
+    onlyTheConfirmation(PURCHASE_PRICE)
   })
 })
 

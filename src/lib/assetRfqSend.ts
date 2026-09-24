@@ -52,6 +52,8 @@ export interface AssetPaymentTerms {
   payAmountSats: bigint
   assetId: string
   assetAmount: bigint
+  /** Set when the price she approved before had lapsed, so this one was asked for afresh. */
+  refreshed?: true
 }
 
 /** Every way this rail can reach the user. The Taxi decision uses none of it. */
@@ -88,6 +90,20 @@ type Floor = ReceiverPaidCarrier['inputExpiryFloor']
 
 const dropTaxi = (reason: string, cause?: unknown) =>
   consoleError(cause ?? reason, `dropped the receiver's Taxi (${reason})`)
+
+// The solver can ask the Taxi for the fill only once it sees her deposit, and the Taxi refuses the fill and
+// its submission once the receive quote expires. This covers her send, the solver noticing it (a 3s sweep at
+// worst), the Taxi's fill quote (2.4-3.0s measured) and the co-signed submission, about 15s, doubled for skew.
+export const FILL_MARGIN_SECONDS = 30
+
+/** Her last moment to fund; through a Taxi, early enough that the solver can still fill. */
+const fundingDeadline = (negotiated: Negotiated, taxi?: ReceiverPaidCarrier): number => {
+  const { valid_until: validUntil } = negotiated.quote
+  const solverDeadline = Math.min(validUntil, negotiated.carrier?.expiresAt ?? validUntil)
+  return taxi ? Math.min(solverDeadline, taxi.choice.quote.expiresAt - FILL_MARGIN_SECONDS) : solverDeadline
+}
+
+const expired = (deadline: number) => Date.now() / 1000 >= deadline
 
 /** The coins `fundOffer` chooses from: spendable, and not reserved by another funding in flight. */
 const fundableCoins = async (deps: AssetRfqSendDeps): Promise<Coin[]> => {
@@ -178,6 +194,11 @@ const negotiate = async (
           }),
         )
         const { carrier, coins } = viaTaxi ?? {}
+        if (carrier && expired(fundingDeadline(negotiated, carrier))) {
+          dropTaxi('its quote expires too soon to fill')
+          taxi = undefined
+          continue
+        }
         if (carrier && !floorCovers(coins!, carrier.inputExpiryFloor, negotiated.fundAmount, deps.arkade.dust)) {
           dropTaxi('coins clearing its floor fall short')
           taxi = undefined
@@ -199,20 +220,34 @@ const negotiate = async (
 }
 
 export const payAssetRequest = async (req: AssetPaymentRequest, deps: AssetRfqSendDeps): Promise<AssetSwap> => {
-  const { negotiated, taxi } = await negotiate(req, deps)
-  const terms = { payAmountSats: negotiated.fundAmount, assetId: req.assetId, assetAmount: req.amount }
-  if (!(await deps.ui.confirmPayment(terms))) throw new PaymentDeclined()
-  // THE COMMIT POINT. Everything above may fall back; nothing from here may. A funding
-  // failure can follow a broadcast, and retrying it as a purchase could pay twice.
-  const carrierExpiry = negotiated.carrier?.expiresAt ?? negotiated.quote.valid_until
-  return deps.fundOffer(deps.wallet, deps.arkServerUrl, {
-    repository: deps.repository,
-    id: negotiated.rfqId,
-    offerHex: negotiated.offerHex,
-    deposit: { amount: negotiated.fundAmount },
-    validUntil: Math.min(negotiated.quote.valid_until, carrierExpiry),
-    ...(taxi ? { inputExpiryFloor: taxi.inputExpiryFloor } : {}),
-  })
+  let request = req
+  for (let lapsed = 0; ; lapsed++) {
+    const { negotiated, taxi } = await negotiate(request, deps)
+    const terms: AssetPaymentTerms = {
+      payAmountSats: negotiated.fundAmount,
+      assetId: req.assetId,
+      assetAmount: req.amount,
+      ...(lapsed > 0 ? { refreshed: true } : {}),
+    }
+    if (!(await deps.ui.confirmPayment(terms))) throw new PaymentDeclined()
+    const validUntil = fundingDeadline(negotiated, taxi)
+    if (taxi && expired(validUntil)) {
+      // Nothing is funded yet: one fresh Taxi quote, then a purchase, so a slow answer cannot loop.
+      dropTaxi('confirmed too late for the solver to fill')
+      if (lapsed > 0) request = { ...request, taxi: undefined }
+      continue
+    }
+    // THE COMMIT POINT. Everything above may fall back; nothing from here may. A funding
+    // failure can follow a broadcast, and retrying it as a purchase could pay twice.
+    return deps.fundOffer(deps.wallet, deps.arkServerUrl, {
+      repository: deps.repository,
+      id: negotiated.rfqId,
+      offerHex: negotiated.offerHex,
+      deposit: { amount: negotiated.fundAmount },
+      validUntil,
+      ...(taxi ? { inputExpiryFloor: taxi.inputExpiryFloor } : {}),
+    })
+  }
 }
 
 const BTC_LEG = /^arkade:[^/]+\/slip44:(?:0|1)$/

@@ -114,12 +114,15 @@ export const arkadeContext = (over: Partial<TaxiProbeContext> = {}): TaxiProbeCo
 const reply = (body: unknown, status = 200) => ({ ok: status < 400, status, text: async () => JSON.stringify(body) })
 
 /** A Taxi at TAXI_URL answering /v1/info and POST /v1/receive-quotes; anything else is a 404. */
-export const taxiFetch = (over: { info?: unknown; quote?: unknown; quoteStatus?: number } = {}) =>
+export const taxiFetch = (over: { info?: unknown; quote?: unknown; quoteStatus?: number; ttlSeconds?: number } = {}) =>
   vi.fn(async (url: string, init?: RequestInit) => {
     if (url === `${TAXI_URL}/v1/info`) return reply(over.info ?? INFO)
     if (url === `${TAXI_URL}/v1/receive-quotes` && init?.method === 'POST') {
       const hint = JSON.parse(String(init.body)).fundingExpiry?.value
-      return reply(over.quote ?? (hint === EARLY_FLOOR.toString() ? EARLY_QUOTE : QUOTE), over.quoteStatus)
+      const quote = over.quote ?? (hint === EARLY_FLOOR.toString() ? EARLY_QUOTE : QUOTE)
+      if (over.ttlSeconds === undefined) return reply(quote, over.quoteStatus)
+      const now = Math.floor(Date.now() / 1000)
+      return reply({ ...(quote as object), createdAt: now, expiresAt: now + over.ttlSeconds }, over.quoteStatus)
     }
     return reply({ code: 'NOT_FOUND', message: url }, 404)
   }) as unknown as typeof fetch & ReturnType<typeof vi.fn>
