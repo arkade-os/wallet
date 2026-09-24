@@ -37,7 +37,7 @@ import {
   type ArkadeContext,
   type ReceiverPaidCarrier,
 } from './receiverTaxi'
-import { assetSwapRepository, type WalletAssetSwap } from './swapRepository'
+import { assetSwapRepository, unreservedCoins, type WalletAssetSwap } from './swapRepository'
 
 export interface AssetPaymentRequest {
   arkAddress: string
@@ -105,22 +105,6 @@ const fundingDeadline = (negotiated: Negotiated, taxi?: ReceiverPaidCarrier): nu
 
 const expired = (deadline: number) => Date.now() / 1000 >= deadline
 
-/** The coins `fundOffer` chooses from: spendable, and not reserved by another funding in flight. */
-const fundableCoins = async (deps: AssetRfqSendDeps): Promise<Coin[]> => {
-  const [spendable, swaps] = await Promise.all([
-    deps.wallet.getSpendableVtxos({ withRecoverable: false }),
-    deps.repository.getAllSwaps(),
-  ])
-  const reserved = new Set(
-    swaps.flatMap(({ fundingIntent: intent }) =>
-      intent && (intent.state === 'prepared' || intent.state === 'submitted')
-        ? intent.inputs.map(({ txid, vout }) => `${txid}:${vout}`)
-        : [],
-    ),
-  )
-  return spendable.filter((coin) => !reserved.has(`${coin.txid}:${coin.vout}`))
-}
-
 /** As `fundOffer` reads it: a coin with no expiry in `kind`, or with both kinds, clears no floor. */
 const expiryIn = (coin: Coin, kind: Floor['kind']): bigint | undefined => {
   if ((coin.expiresAt === undefined) === (coin.expiresAtHeight === undefined)) return undefined
@@ -163,7 +147,7 @@ const taxiCarrier = async (req: AssetPaymentRequest, deps: AssetRfqSendDeps): Pr
   if (!probe.ok) return void dropTaxi(probe.reason)
   try {
     const [coins, minimum, makerPublicKey] = await Promise.all([
-      fundableCoins(deps),
+      unreservedCoins(deps.wallet, deps.repository),
       callerMinimum(deps.arkade),
       deps.wallet.identity.xOnlyPublicKey(),
     ])

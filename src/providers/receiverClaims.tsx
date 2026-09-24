@@ -19,6 +19,7 @@ import {
   type VerifiedClaim,
 } from '../lib/receiverClaims'
 import { readReceiverTaxis, rememberReceiverTaxi, type RememberedTaxi } from '../lib/storage'
+import { assetSwapRepository, unreservedCoins } from '../lib/swapRepository'
 
 interface ReceiverClaimsContextProps {
   /** Record a Taxi this wallet named in a request, so its claims are watched from now on. */
@@ -109,7 +110,7 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
   const plan = planned && planned.key === currentKey ? planned.plan : undefined
 
   const planFor = async (offer: VerifiedClaim): Promise<ClaimPlan> => {
-    const coins = await svcWallet!.getSpendableVtxos({ withRecoverable: false })
+    const coins = await unreservedCoins(svcWallet!, assetSwapRepository)
     return planReceiverClaim(offer.claim, coins)
   }
 

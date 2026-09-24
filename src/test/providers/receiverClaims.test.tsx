@@ -2,15 +2,26 @@ import { createElement } from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ExtendedVirtualCoin } from '@arkade-os/sdk'
+import type { AssetSwap } from '@arkade-os/swap'
 import type { CovenantTransfer } from '@arkade-taxi/client'
 import { AspContext } from '../../providers/asp'
 import { WalletContext } from '../../providers/wallet'
 import { ReceiverClaimsProvider } from '../../providers/receiverClaims'
 import { rememberReceiverTaxi } from '../../lib/storage'
+import { assetSwapRepository } from '../../lib/swapRepository'
 import { offerKey, type ClaimClient, type ClaimWatch, type VerifiedClaim } from '../../lib/receiverClaims'
 import { mockAspContextValue, mockSvcWallet, mockWalletContextValue } from '../screens/mocks'
 import { BOB_ADDRESS, assetFareClaim, coins, satsFareClaim } from '../lib/receiverClaimsFixtures'
 import { KEYS, TAXI_URL } from '../lib/receiverTaxiFixtures'
+
+// jsdom has no IndexedDB, and the claim reads the funding reservations from this repository.
+vi.mock('../../lib/swapRepository', async (importOriginal) => {
+  const { InMemoryAssetSwapRepository } = await vi.importActual<typeof import('@arkade-os/swap')>('@arkade-os/swap')
+  return {
+    ...(await importOriginal<typeof import('../../lib/swapRepository')>()),
+    assetSwapRepository: new InMemoryAssetSwapRepository(),
+  }
+})
 
 const stop = vi.hoisted(() => vi.fn())
 const watchReceiverClaims = vi.hoisted(() => vi.fn<(watch: ClaimWatch) => () => void>(() => stop))
@@ -203,6 +214,27 @@ describe('ReceiverClaimsProvider', () => {
     const [, input] = recycle.mock.calls[0] as unknown as Parameters<ClaimClient['recycle']>
     expect(input.input).toMatchObject({ vout: 1, value: 500n })
   })
+
+  it.each(['prepared', 'submitted'])(
+    'never merges a coin a %s funding holds, choosing the next one that covers the fare',
+    async (state) => {
+      spendable = async () => coins([1000n, 2000n])
+      const held = { fundingIntent: { state, inputs: [{ txid: 'c'.repeat(64), vout: 0 }] } } as unknown as AssetSwap
+      const reservations = vi.spyOn(assetSwapRepository, 'getAllSwaps').mockResolvedValue([held])
+      try {
+        await mounted()
+        const { verified, recycle } = offerOf()
+        offer(verified)
+        await waitFor(() => expect(claimButton()).toBeEnabled())
+        press('Claim')
+        await waitFor(() => expect(recycle).toHaveBeenCalledTimes(1))
+        const [, input] = recycle.mock.calls[0] as unknown as Parameters<ClaimClient['recycle']>
+        expect(input.input).toMatchObject({ vout: 1, value: 2000n })
+      } finally {
+        reservations.mockRestore()
+      }
+    },
+  )
 
   it('after a failed recycle, says to reload to retry and offers no second attempt', async () => {
     await mounted()

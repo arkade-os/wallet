@@ -231,7 +231,7 @@ describe('payAssetRequest', () => {
 
   it("asks for a floor her own coins clear when they are older than the Taxi's, and funds against it", async () => {
     const own = coin(20_000, EARLY_FLOOR)
-    const reservedElsewhere = coin(90_000, 2_500_000_000n, 1)
+    const reservedElsewhere = coin(90_000, 4_500_000_000n, 1)
     const d = deps(walletWith([own, reservedElsewhere], [reservedElsewhere]))
     await payAssetRequest(REQUEST, d)
     expect(carriersOf(d)[0]).toMatchObject({ quote: { receiveAddress: EARLY_QUOTE.covenantAddress } })

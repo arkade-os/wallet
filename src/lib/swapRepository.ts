@@ -16,11 +16,31 @@
  * WHOLE database, asset swaps and markets cache included. Rolling back this
  * release means rolling back the data, not just the bundle.
  */
-import { IndexedDbAssetSwapRepository, type AssetSwap } from '@arkade-os/swap'
+import type { ExtendedVirtualCoin, IWallet } from '@arkade-os/sdk'
+import { IndexedDbAssetSwapRepository, type AssetSwap, type AssetSwapRepository } from '@arkade-os/swap'
 
 /** Shared per tab: the repository opens its database lazily on first use, and
  * a second instance would open a second connection to the same stores. */
 export const assetSwapRepository = new IndexedDbAssetSwapRepository()
+
+/** Spendable coins no funding in flight holds: the ones `fundOffer` itself would choose from. */
+export const unreservedCoins = async (
+  wallet: Pick<IWallet, 'getSpendableVtxos'>,
+  repository: Pick<AssetSwapRepository, 'getAllSwaps'>,
+): Promise<ExtendedVirtualCoin[]> => {
+  const [spendable, swaps] = await Promise.all([
+    wallet.getSpendableVtxos({ withRecoverable: false }),
+    repository.getAllSwaps(),
+  ])
+  const reserved = new Set(
+    swaps.flatMap(({ fundingIntent: intent }) =>
+      intent && (intent.state === 'prepared' || intent.state === 'submitted')
+        ? intent.inputs.map(({ txid, vout }) => `${txid}:${vout}`)
+        : [],
+    ),
+  )
+  return spendable.filter((coin) => !reserved.has(`${coin.txid}:${coin.vout}`))
+}
 
 /** Display facts frozen at quote time — only what the activity UI reads.
  * Every field is optional: a restore can only backfill what is recoverable
