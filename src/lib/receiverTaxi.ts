@@ -12,6 +12,7 @@ import type { Bip21Taxi } from './bip21'
 import { getEmulatorPubkeyForNetwork } from './constants'
 
 export type TaxiInfo = Awaited<ReturnType<TaxiClient['info']>>
+export type TaxiFare = TaxiInfo['assetRules'][number]['fares'][number]
 
 export type ProbeRefusal =
   | 'unreachable'
@@ -22,6 +23,9 @@ export type ProbeRefusal =
   | 'paused'
   | 'asset-not-served'
   | 'unsupported-unclaimed-mode'
+  | 'recycle-not-allowed'
+  | 'loan-cap-below-dust'
+  | 'fare-unavailable'
 
 export type ProbeResult = { ok: true; info: TaxiInfo } | { ok: false; reason: ProbeRefusal }
 
@@ -134,6 +138,27 @@ const fetchInfo = async (url: string, ctx: TaxiProbeContext): Promise<TaxiInfo |
   }
 }
 
+const wireUnits = (value: unknown): bigint | undefined =>
+  typeof value === 'string' && /^(0|[1-9][0-9]*)$/.test(value) ? BigInt(value) : undefined
+
+/**
+ * What a fare charges the receiver, as the Taxi and the verifier price it; undefined for one the Taxi refuses
+ * on a receiver-paid quote: a token fare, or a same-asset proportion, which has no delivery to scale with.
+ * A proportional sats fare is a share of the loan, the whole dust, not of the delivery.
+ */
+export const receiverFareUnits = (fare: TaxiFare | undefined, loan: bigint): bigint | undefined => {
+  const pricing = fare?.pricing
+  if (pricing?.kind === 'flat')
+    return fare!.currency === 'sats' || fare!.currency === 'sameAsset' ? wireUnits(pricing.units) : undefined
+  if (pricing?.kind !== 'proportional' || fare!.currency !== 'sats') return undefined
+  const [min, max] = [wireUnits(pricing.minUnits), pricing.maxUnits === null ? null : wireUnits(pricing.maxUnits)]
+  if (!Number.isInteger(pricing.bps) || pricing.bps < 0 || pricing.bps > 10_000) return undefined
+  if (min === undefined || max === undefined) return undefined
+  const raw = (loan * BigInt(pricing.bps)) / 10_000n
+  const floored = raw < min ? min : raw
+  return max !== null && floored > max ? max : floored
+}
+
 const vetInfo = (taxi: Bip21Taxi, info: TaxiInfo, ctx: TaxiProbeContext): ProbeResult => {
   const refuse = (reason: ProbeRefusal): ProbeResult => ({ ok: false, reason })
   // `info()` has already refused any key that is not lowercase hex, as bip21 does for taxikey.
@@ -145,12 +170,22 @@ const vetInfo = (taxi: Bip21Taxi, info: TaxiInfo, ctx: TaxiProbeContext): ProbeR
   const rule = ruleFor(info, ctx.assetId)
   if (rule?.enabled !== true) return refuse('asset-not-served')
   if (rule.unclaimedMode !== 'reclaim') return refuse('unsupported-unclaimed-mode')
+  // What serving the asset takes on a receiver-paid quote, read from the same fields the verifier reads.
+  if (rule.claim !== 'recycle' && rule.claim !== 'either') return refuse('recycle-not-allowed')
+  const cap = rule.maxTopupSats === null ? wireUnits(info.maxPerPaymentTopupSats) : wireUnits(rule.maxTopupSats)
+  if (cap === undefined || cap < ctx.dust) return refuse('loan-cap-below-dust')
   return { ok: true, info }
 }
 
 export const probeReceiverTaxi = async (taxi: Bip21Taxi, ctx: TaxiProbeContext): Promise<ProbeResult> => {
   const info = await fetchInfo(taxi.url, ctx)
-  return info ? vetInfo(taxi, info, ctx) : { ok: false, reason: 'unreachable' }
+  if (!info) return { ok: false, reason: 'unreachable' }
+  const vetted = vetInfo(taxi, info, ctx)
+  if (!vetted.ok) return vetted
+  // Named none, the Taxi prices its first fare.
+  const fares = ruleFor(info, ctx.assetId)?.fares
+  const fare = !Array.isArray(fares) ? undefined : taxi.fareId ? fares.find((f) => f?.id === taxi.fareId) : fares[0]
+  return receiverFareUnits(fare, ctx.dust) === undefined ? { ok: false, reason: 'fare-unavailable' } : vetted
 }
 
 /** The receiver's own Taxi, held to exactly the probe a payer will run; only its operator key is taken on its word. */

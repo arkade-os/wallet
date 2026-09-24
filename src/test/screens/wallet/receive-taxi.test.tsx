@@ -46,7 +46,8 @@ beforeAll(() => {
   }
 })
 
-const aspInfo = { ...mockAspContextValue.aspInfo, signerPubkey: KEYS.server }
+// The dust the fixture Taxi lends: a Taxi on another server's dust would not quote this wallet.
+const aspInfo = { ...mockAspContextValue.aspInfo, signerPubkey: KEYS.server, dust: 330n }
 
 const renderAssetReceive = () =>
   render(
@@ -132,6 +133,34 @@ describe('the receiver names his own Taxi in an asset request', () => {
     vi.stubGlobal('fetch', taxiFetch({ info: withRule({ fares: [tokenFare] }) }))
     renderAssetReceive()
     expect(await screen.findByText(/taxi unavailable: it offers no fare a receiver can pay/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /taxi/i })).toBeNull()
+    expect(screen.getByTestId('bip21').textContent).not.toContain('taxi=')
+  })
+
+  it('offers only the fares the Taxi can price for the receiver, each at what it charges him', async () => {
+    const fares = [
+      { id: 'flat', currency: 'sats', pricing: { kind: 'flat', units: '7' } },
+      { id: 'pct', currency: 'sats', pricing: { kind: 'proportional', bps: 100, minUnits: '5', maxUnits: null } },
+      {
+        id: 'share',
+        currency: 'sameAsset',
+        pricing: { kind: 'proportional', bps: 100, minUnits: '1', maxUnits: null },
+      },
+    ]
+    vi.stubGlobal('fetch', taxiFetch({ info: withRule({ fares }) }))
+    renderAssetReceive()
+    await userEvent.click(await screen.findByRole('button', { name: /taxi/i }))
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'No Taxi',
+      'flat · 7 sats',
+      'pct · 5 sats',
+    ])
+  })
+
+  it('shows a Taxi that will not lend the whole dust as unavailable, and encodes no taxi params', async () => {
+    vi.stubGlobal('fetch', taxiFetch({ info: { ...INFO, maxPerPaymentTopupSats: '0' } }))
+    renderAssetReceive()
+    expect(await screen.findByText(/taxi unavailable: it won't lend enough/i)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /taxi/i })).toBeNull()
     expect(screen.getByTestId('bip21').textContent).not.toContain('taxi=')
   })

@@ -257,6 +257,17 @@ describe('payAssetRequest', () => {
     onlyTheConfirmation(PURCHASE_PRICE)
   })
 
+  it('asks the Taxi for no quote it could not price for the receiver, and buys a carrier', async () => {
+    const share = { id: 'share', currency: 'sameAsset', pricing: { kind: 'proportional', bps: 1, minUnits: '1' } }
+    const d = deps({
+      fetch: taxiFetch({ info: { ...TWO_FARES, assetRules: [{ ...INFO.assetRules[0], fares: [share] }] } }),
+    })
+    await payAssetRequest({ ...REQUEST, taxi: { ...TAXI, fareId: 'share' } }, d)
+    expect(vi.mocked(d.fetch).mock.calls.map(([url]) => url)).toEqual([`${TAXI.url}/v1/info`])
+    expect(carriersOf(d)).toEqual([{ mode: 'purchase' }])
+    expect(consoleError).toHaveBeenCalledWith(expect.anything(), expect.stringContaining('fare-unavailable'))
+  })
+
   it('buys a carrier when the Taxi floor is too near to fund and claim before', async () => {
     const d = deps(walletWith([coin(50_000, 4_500_000_000n)]))
     d.arkade = { ...d.arkade, clock: async () => DEFAULT_FLOOR - 1_000n }

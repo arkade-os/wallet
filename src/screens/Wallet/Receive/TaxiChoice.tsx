@@ -11,13 +11,14 @@ import { consoleError } from '../../../lib/logs'
 import {
   arkadeContextOf,
   probeOwnTaxi,
+  receiverFareUnits,
   ruleFor,
   type ProbeRefusal,
-  type TaxiInfo,
+  type TaxiFare,
   type TaxiProbeContext,
 } from '../../../lib/receiverTaxi'
 
-type Fare = TaxiInfo['assetRules'][number]['fares'][number]
+type Fare = { fare: TaxiFare; units: bigint }
 
 type TaxiOffer =
   | { status: 'checking' }
@@ -33,6 +34,9 @@ const REASONS: Record<ProbeRefusal | 'no-receiver-fare' | 'unverifiable', string
   paused: 'it is paused',
   'asset-not-served': "it doesn't carry this asset",
   'unsupported-unclaimed-mode': "its terms for unclaimed deliveries aren't supported",
+  'recycle-not-allowed': "it doesn't let you claim by merging the delivery into a coin",
+  'loan-cap-below-dust': "it won't lend enough to carry a delivery",
+  'fare-unavailable': 'it offers no fare a receiver can pay',
   'no-receiver-fare': 'it offers no fare a receiver can pay',
   unverifiable: "it can't be checked against this wallet's server",
 }
@@ -59,20 +63,16 @@ const checkOwnTaxi = async (
   }
   const probe = await probeOwnTaxi(url, ctx)
   if (!probe.ok) return unavailable(probe.reason)
-  // The Taxi refuses a token fare on a receiver-paid quote: only sats or the delivered asset.
-  const fares = ruleFor(probe.info, assetId)?.fares.filter((fare) => fare.currency !== 'token') ?? []
+  const fares = (ruleFor(probe.info, assetId)?.fares ?? []).flatMap((fare) => {
+    const units = receiverFareUnits(fare, ctx.dust)
+    return units === undefined ? [] : [{ fare, units }]
+  })
   if (fares.length === 0) return unavailable('no-receiver-fare')
   return { status: 'available', url, operatorKey: probe.info.operatorKey, fares }
 }
 
-const fareLabel = (fare: Fare, assetUnits: (units: bigint) => string): string => {
-  const amount = (units: string) => (fare.currency === 'sats' ? `${units} sats` : assetUnits(BigInt(units)))
-  const price =
-    fare.pricing.kind === 'flat'
-      ? amount(fare.pricing.units)
-      : `${fare.pricing.bps / 100}%, at least ${amount(fare.pricing.minUnits)}`
-  return `${fare.id} · ${price}`
-}
+const fareLabel = ({ fare, units }: Fare, assetUnits: (units: bigint) => string): string =>
+  `${fare.id} · ${fare.currency === 'sats' ? `${units} sats` : assetUnits(units)}`
 
 interface TaxiChoiceProps {
   assetId: string
@@ -112,9 +112,9 @@ export default function TaxiChoice({ assetId, receiverAddress, ticker, decimals,
   if (offer.status === 'unavailable') return <TextSecondary>{`Taxi unavailable: ${offer.reason}`}</TextSecondary>
 
   const assetUnits = (units: bigint) => `${centsToUnits(units, decimals)} ${ticker}`
-  const chosen = offer.fares.find((fare) => fare.id === value?.fareId)
+  const chosen = offer.fares.find(({ fare }) => fare.id === value?.fareId)
   const choose = (fare?: Fare) => {
-    onChange(fare && { url: offer.url, operatorKey: offer.operatorKey, fareId: fare.id })
+    onChange(fare && { url: offer.url, operatorKey: offer.operatorKey, fareId: fare.fare.id })
     setOpen(false)
   }
   const optionClass = 'rounded-md px-3 py-2 text-left aria-selected:bg-neutral-100 dark:aria-selected:bg-neutral-800'
@@ -133,10 +133,10 @@ export default function TaxiChoice({ assetId, receiverAddress, ticker, decimals,
           </button>
           {offer.fares.map((fare) => (
             <button
-              key={fare.id}
+              key={fare.fare.id}
               type='button'
               role='option'
-              aria-selected={chosen?.id === fare.id}
+              aria-selected={chosen?.fare.id === fare.fare.id}
               className={optionClass}
               onClick={() => choose(fare)}
             >

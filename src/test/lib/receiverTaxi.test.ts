@@ -15,6 +15,7 @@ import {
   TAXI,
   TAXI_URL,
   TWO_FARES,
+  WIRE_ASSET_ID,
   arkadeContext,
   taxiFetch,
   unreachable,
@@ -62,6 +63,48 @@ describe('probeReceiverTaxi', () => {
     expect(await probe({ info: withRule({ unclaimedMode: 'custody' }) })).toMatchObject({
       reason: 'unsupported-unclaimed-mode',
     })
+  })
+
+  it('refuses a Taxi whose asset rule does not allow the recycle claim a receiver-paid quote needs', async () => {
+    expect(await probe({ info: withRule({ claim: 'purchase' }) })).toMatchObject({ reason: 'recycle-not-allowed' })
+    expect(await probe({ info: withRule({ claim: 'recycle' }) })).toMatchObject({ ok: true })
+  })
+
+  it('refuses a Taxi that would not lend the whole dust, reading the asset cap before the global one', async () => {
+    expect(await probe({ info: { ...INFO, maxPerPaymentTopupSats: '329' } })).toMatchObject({
+      reason: 'loan-cap-below-dust',
+    })
+    expect(await probe({ info: withRule({ maxTopupSats: '329' }) })).toMatchObject({ reason: 'loan-cap-below-dust' })
+    const assetCapOnly = { ...withRule({ maxTopupSats: '330' }), maxPerPaymentTopupSats: '0' }
+    expect(await probe({ info: assetCapOnly })).toMatchObject({ ok: true })
+  })
+
+  it('refuses the fare the receiver named when the Taxi cannot price it for him', async () => {
+    const fares = [
+      { id: 'flat', currency: 'sats', pricing: { kind: 'flat', units: '7' } },
+      {
+        id: 'share',
+        currency: 'sameAsset',
+        pricing: { kind: 'proportional', bps: 100, minUnits: '1', maxUnits: null },
+      },
+      { id: 'token', currency: 'token', assetId: WIRE_ASSET_ID, pricing: { kind: 'flat', units: '1' } },
+    ]
+    const info = withRule({ fares })
+    const named = (fareId?: string) =>
+      probeReceiverTaxi({ ...TAXI, fareId }, arkadeContext({ fetch: taxiFetch({ info }) }))
+    expect(await named('share')).toMatchObject({ reason: 'fare-unavailable' })
+    expect(await named('token')).toMatchObject({ reason: 'fare-unavailable' })
+    expect(await named('gone')).toMatchObject({ reason: 'fare-unavailable' })
+    expect(await named('flat')).toMatchObject({ ok: true })
+    // Named none, the Taxi prices its first fare.
+    expect(await named(undefined)).toMatchObject({ ok: true })
+    const tokenFirst = withRule({ fares: [fares[2], fares[0]] })
+    expect(
+      await probeReceiverTaxi(
+        { ...TAXI, fareId: undefined },
+        arkadeContext({ fetch: taxiFetch({ info: tokenFirst }) }),
+      ),
+    ).toMatchObject({ reason: 'fare-unavailable' })
   })
 
   it('checks in the order Ruling 7 lists', async () => {
