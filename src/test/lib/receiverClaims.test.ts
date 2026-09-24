@@ -4,6 +4,7 @@ import { TaxiClient, type CovenantTransfer, type EventSourceLike, type Subscribe
 import {
   ClaimSpent,
   claimVerified,
+  offerKey,
   planReceiverClaim,
   walletClaimWatch,
   watchReceiverClaims,
@@ -123,6 +124,7 @@ const watch = (client: ClaimClient, over: Partial<ClaimWatch> = {}) => {
 }
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
+const RECYCLED = { ...satsFareClaim(7n), state: 'recycled' as const, claimable: false, claim: undefined }
 
 describe('watchReceiverClaims', () => {
   beforeEach(() => consoleError.mockClear())
@@ -194,11 +196,39 @@ describe('watchReceiverClaims', () => {
 
   it('withdraws an offer once the Taxi reports the transfer is no longer claimable', async () => {
     const { client, feed } = fakeTaxi()
-    const { onGone } = watch(client)
-    const recycled = { ...satsFareClaim(7n), state: 'recycled' as const, claimable: false, claim: undefined }
-    feed.args!.onChanged({ claims: [recycled] })
+    const { offers, onGone } = watch(client)
+    feed.args!.onSnapshot({ claims: [satsFareClaim(7n)] })
     await settle()
-    expect(onGone).toHaveBeenCalledWith('tr-sats-7')
+    feed.args!.onChanged({ claims: [RECYCLED] })
+    await settle()
+    expect(onGone).toHaveBeenCalledWith(offerKey(offers[0]))
+  })
+
+  it('withdraws nothing for a transfer this Taxi never offered', async () => {
+    const { client, feed } = fakeTaxi()
+    const { onGone } = watch(client)
+    feed.args!.onChanged({ claims: [RECYCLED] })
+    await settle()
+    expect(onGone).not.toHaveBeenCalled()
+  })
+
+  it('keeps the offers of two Taxis apart when they reuse one transfer id', async () => {
+    const taxis = new Map([TAXI_URL, 'https://taxi.second.example'].map((url) => [url, fakeTaxi()]))
+    const { offers, onGone } = watch(fakeTaxi().client, {
+      taxis: [...taxis.keys()].map((url) => ({ ...TAXI, url })),
+      clientFor: (url) => taxis.get(url)!.client,
+    })
+    const [first, second] = [...taxis.values()]
+    first.feed.args!.onSnapshot({ claims: [satsFareClaim(7n)] })
+    second.feed.args!.onSnapshot({ claims: [satsFareClaim(7n)] })
+    await settle()
+    expect(offers.map(offerKey)).toEqual([`${TAXI_URL} tr-sats-7`, 'https://taxi.second.example tr-sats-7'])
+    second.feed.args!.onChanged({ claims: [RECYCLED] })
+    await settle()
+    expect(onGone.mock.calls).toEqual([['https://taxi.second.example tr-sats-7']])
+    first.feed.args!.onChanged({ claims: [satsFareClaim(7n)] })
+    await settle()
+    expect(offers.at(-1)).toBe(offers[0])
   })
 
   it('unsubscribes from every Taxi when stopped', () => {

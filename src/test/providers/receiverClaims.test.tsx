@@ -7,7 +7,7 @@ import { AspContext } from '../../providers/asp'
 import { WalletContext } from '../../providers/wallet'
 import { ReceiverClaimsProvider } from '../../providers/receiverClaims'
 import { rememberReceiverTaxi } from '../../lib/storage'
-import type { ClaimClient, ClaimWatch, VerifiedClaim } from '../../lib/receiverClaims'
+import { offerKey, type ClaimClient, type ClaimWatch, type VerifiedClaim } from '../../lib/receiverClaims'
 import { mockAspContextValue, mockSvcWallet, mockWalletContextValue } from '../screens/mocks'
 import { BOB_ADDRESS, assetFareClaim, coins, satsFareClaim } from '../lib/receiverClaimsFixtures'
 import { KEYS, TAXI_URL } from '../lib/receiverTaxiFixtures'
@@ -54,10 +54,10 @@ const tree = (wallet: { initialized?: boolean; authState?: string } = {}, networ
   </AspContext.Provider>
 )
 
-const offerOf = (claim = satsFareClaim(7n), recycle = vi.fn(async () => 'f'.repeat(64))) => ({
+const offerOf = (claim = satsFareClaim(7n), recycle = vi.fn(async () => 'f'.repeat(64)), taxi = TAXI) => ({
   recycle,
   verified: {
-    taxi: TAXI,
+    taxi,
     claim,
     transfer: { transferId: claim.transferId } as unknown as CovenantTransfer,
     client: {
@@ -134,6 +134,36 @@ describe('ReceiverClaimsProvider', () => {
     expect(watchReceiverClaims).not.toHaveBeenCalled()
   })
 
+  it('watches nothing for a wallet marked locked even while it still reads as initialized', async () => {
+    render(tree({ initialized: true, authState: 'locked' }))
+    await act(async () => {})
+    expect(watchReceiverClaims).not.toHaveBeenCalled()
+  })
+
+  it('watches and offers claims in a passwordless wallet, the state a new or restored wallet runs in', async () => {
+    await mounted({ authState: 'passwordless' })
+    const { verified, recycle } = offerOf()
+    offer(verified)
+    expect(await screen.findByTestId('unclaimed-note')).toBeInTheDocument()
+    await waitFor(() => expect(claimButton()).toBeEnabled())
+    press('Claim')
+    await waitFor(() => expect(recycle).toHaveBeenCalledTimes(1))
+  })
+
+  it('keeps the offers of two Taxis apart when they reuse one transfer id', async () => {
+    await mounted()
+    const other = { ...TAXI, url: 'https://taxi.second.example' }
+    const first = offerOf(satsFareClaim(7n)).verified
+    const second = offerOf(satsFareClaim(7n), undefined, other).verified
+    offer(first)
+    offer(second)
+    act(() => latestWatch().onGone(offerKey(first)))
+    await waitFor(() => expect(claimButton()).toBeEnabled())
+    press('Claim')
+    await waitFor(() => expect(second.client.recycle).toHaveBeenCalledTimes(1))
+    expect(first.client.recycle).not.toHaveBeenCalled()
+  })
+
   it('refuses to sign when the wallet locks while the claim re-reads the coins', async () => {
     const { rerender } = await mounted()
     const { verified, recycle } = offerOf()
@@ -156,7 +186,7 @@ describe('ReceiverClaimsProvider', () => {
     await waitFor(() => expect(claimButton()).toBeEnabled())
     const firstPlan = sheet.frames.at(-1)!.plan
     expect(firstPlan).toBeDefined()
-    act(() => latestWatch().onGone(first.claim.transferId))
+    act(() => latestWatch().onGone(offerKey(first)))
     await waitFor(() => expect(sheet.frames.at(-1)).toMatchObject({ transferId: second.claim.transferId }))
     const secondFrames = sheet.frames.filter(({ transferId }) => transferId === second.claim.transferId)
     expect(secondFrames.some(({ plan }) => plan === firstPlan)).toBe(false)

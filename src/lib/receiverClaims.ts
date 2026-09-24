@@ -125,6 +125,10 @@ export interface VerifiedClaim {
   client: ClaimClient
 }
 
+// A transfer id is only unique within one Taxi, so nothing one Taxi says may touch another's offer.
+const keyOf = (url: string, transferId: string) => `${url} ${transferId}`
+export const offerKey = ({ taxi, claim }: Pick<VerifiedClaim, 'taxi' | 'claim'>) => keyOf(taxi.url, claim.transferId)
+
 export interface ClaimWatch {
   taxis: readonly RememberedTaxi[]
   receiverAddress: string
@@ -133,7 +137,8 @@ export interface ClaimWatch {
   trust: Omit<IncomingClaimTrust, 'operatorKey'>
   spendConfig: (client: ClaimClient) => Promise<CovenantSpendConfig>
   onOffer: (offer: VerifiedClaim) => void
-  onGone: (transferId: string) => void
+  /** Called with the `offerKey` of an offer its own Taxi has withdrawn. */
+  onGone: (key: string) => void
 }
 
 const FIRST_RETRY_MS = 5_000
@@ -149,22 +154,23 @@ export const watchReceiverClaims = (watch: ClaimWatch): (() => void) => {
   const verifying = new Set<string>()
   let stopped = false
 
-  const consider = async (taxis: readonly RememberedTaxi[], client: ClaimClient, claim: ReceiverClaim) => {
+  const consider = async (url: string, taxis: readonly RememberedTaxi[], client: ClaimClient, claim: ReceiverClaim) => {
     const id = claim.transferId
+    const key = keyOf(url, id)
     const taxi = triage(claim, taxis, watch.receiverAddress)
     if (taxi === 'not-claimable') {
-      verified.delete(id)
-      return watch.onGone(id)
+      if (verified.delete(key)) watch.onGone(key)
+      return
     }
     if (taxi === 'unknown-unclaimed-mode') {
       return consoleError(claim.claim?.unclaimedMode, `not claiming Taxi transfer ${id}: unknown unclaimedMode`)
     }
     if (typeof taxi === 'string') return
     // Re-offered as is: the receiver may have put it off, and it verified once already.
-    const known = verified.get(id)
+    const known = verified.get(key)
     if (known) return watch.onOffer(known)
-    if (verifying.has(id)) return
-    verifying.add(id)
+    if (verifying.has(key)) return
+    verifying.add(key)
     let transfer: CovenantTransfer
     try {
       transfer = await client.verifyIncomingClaim(
@@ -176,18 +182,18 @@ export const watchReceiverClaims = (watch: ClaimWatch): (() => void) => {
     } catch (error) {
       return consoleError(error, `not claiming Taxi transfer ${id}: it failed verification`)
     } finally {
-      verifying.delete(id)
+      verifying.delete(key)
     }
     if (stopped) return
     const offer = { taxi, claim, transfer, client }
-    verified.set(id, offer)
+    verified.set(key, offer)
     watch.onOffer(offer)
   }
 
   const follow = (url: string, taxis: readonly RememberedTaxi[]): (() => void) => {
     const client = watch.clientFor(url)
     const onClaims = ({ claims }: { claims: ReceiverClaim[] }) => {
-      for (const claim of claims) consider(taxis, client, claim).catch(consoleError)
+      for (const claim of claims) consider(url, taxis, client, claim).catch(consoleError)
     }
     let unsubscribe = () => {}
     let retry: ReturnType<typeof setTimeout> | undefined
