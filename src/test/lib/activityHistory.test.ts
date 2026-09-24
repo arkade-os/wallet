@@ -426,6 +426,7 @@ describe('lightning send activities', () => {
     )
 
     expect(row).toMatchObject({ amount: 1_030, type: 'sent', lnSwap: { outcome: 'pending' } })
+    expect(row.lnurl).toBeUndefined()
   })
 
   const lnurlSendIntent: Activity['intent'] = { kind: 'lnurl-send', label: '→ alice@pay.example' }
@@ -441,6 +442,7 @@ describe('lightning send activities', () => {
 
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({ historyKey: `swap:${RFQ_ID}`, lnSwap: { label: 'Lightning send' } })
+    expect(rows[0].lnurl).toBeUndefined()
   })
 
   it('still shows an LNURL send no other group covers', () => {
@@ -448,6 +450,50 @@ describe('lightning send activities', () => {
     const rows = activitiesToTxs([activity('sent:ark-txid', [paid], lnurlSendIntent)], empty)
 
     expect(rows).toEqual([expect.objectContaining({ redeemTxid: 'ark-txid', type: 'sent' })])
+  })
+
+  it('carries the target and rail an LNURL send resolved onto its row', () => {
+    const paid = arkTx('ark-txid', { type: 'SENT' as ArkTransaction['type'], amount: 2_100 })
+    const intent: Activity['intent'] = {
+      kind: 'lnurl-send',
+      label: '→ alice@pay.example',
+      metadata: { target: 'alice@pay.example', rail: 'lnurl-arkade' },
+    }
+
+    const [row] = activitiesToTxs([activity('sent:ark-txid', [paid], intent)], empty)
+
+    expect(row.lnurl).toEqual({ counterparty: 'alice@pay.example', rail: 'lnurl-arkade' })
+  })
+
+  it('carries who paid an LNURL receive onto its row', () => {
+    const claim = arkTx('claim-txid', { amount: 3_000 })
+    const intent: Activity['intent'] = {
+      kind: 'lnurl',
+      label: 'lightning · alice@pay.example',
+      metadata: {
+        rail: 'lightning',
+        lightningAddress: 'alice@pay.example',
+        identifier: 'payment-hash',
+        verified: true,
+      },
+    }
+
+    const [row] = activitiesToTxs([activity('lnurl:server|payment-hash', [claim], intent)], empty)
+
+    expect(row.lnurl).toEqual({ counterparty: 'alice@pay.example', rail: 'lightning' })
+  })
+
+  it('leaves a nameless LNURL receive without a counterparty, keeping the rail', () => {
+    const claim = arkTx('claim-txid', { amount: 3_000 })
+    const intent: Activity['intent'] = {
+      kind: 'lnurl',
+      label: 'arkade · LNURL',
+      metadata: { rail: 'arkade', lightningAddress: null, identifier: 'session-id', verified: true },
+    }
+
+    const [row] = activitiesToTxs([activity('lnurl:server|session-id', [claim], intent)], empty)
+
+    expect(row.lnurl).toEqual({ counterparty: undefined, rail: 'arkade' })
   })
 
   it('grafts the local metadata the funding leg carries', () => {

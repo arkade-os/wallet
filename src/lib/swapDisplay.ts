@@ -83,6 +83,18 @@ export function lnSwapLabel(tx: Tx): string | undefined {
   return stem
 }
 
+/** How an lnurl-tagged row reads: the counterparty when the resolver named
+ * one, else the rail it went over. Distinct from `lnSwapLabel` — this is a
+ * plain payment, not a corridor swap with its own outcome vocabulary. */
+export function lnurlLabel(tx: Tx): string | undefined {
+  const lnurl = tx.lnurl
+  if (!lnurl) return undefined
+  const verb = tx.type === 'sent' ? 'Sent' : 'Received'
+  if (lnurl.counterparty) return `${verb} ${tx.type === 'sent' ? 'to' : 'from'} ${lnurl.counterparty}`
+  if (lnurl.rail) return `${verb} via ${lnurl.rail}`
+  return undefined
+}
+
 export function swapRouteTicker(assetId: string | undefined, ticker: string | undefined): string | undefined {
   return assetId === 'btc' ? 'BTC' : (walletAccountTicker(ticker) ?? ticker)
 }

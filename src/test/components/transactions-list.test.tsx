@@ -42,6 +42,123 @@ describe('TransactionsList', () => {
     expect(screen.queryByText('Sent')).not.toBeInTheDocument()
   })
 
+  it('shows who paid an LNURL receive, and who a send paid', () => {
+    const receivedTx: Tx = {
+      amount: 1_000,
+      boardingTxid: '',
+      createdAt: 1_700_000_000,
+      explorable: undefined,
+      preconfirmed: false,
+      redeemTxid: 'lnurl-receive',
+      roundTxid: '',
+      settled: true,
+      type: 'received',
+      lnurl: { counterparty: 'alice@pay.example', rail: 'lightning' },
+    }
+    const sentTx: Tx = {
+      amount: 500,
+      boardingTxid: '',
+      createdAt: 1_700_000_100,
+      explorable: undefined,
+      preconfirmed: false,
+      redeemTxid: 'lnurl-send',
+      roundTxid: '',
+      settled: true,
+      type: 'sent',
+      lnurl: { counterparty: 'bob@pay.example', rail: 'lnurl-arkade' },
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <FlowContext.Provider value={mockFlowContextValue}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [receivedTx, sentTx] } as any}>
+                <TransactionsList mode='static' />
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByText('Received from alice@pay.example')).toBeInTheDocument()
+    expect(screen.getByText('Sent to bob@pay.example')).toBeInTheDocument()
+  })
+
+  it('reads a nameless LNURL receive by its rail', () => {
+    const tx: Tx = {
+      amount: 1_000,
+      boardingTxid: '',
+      createdAt: 1_700_000_000,
+      explorable: undefined,
+      preconfirmed: false,
+      redeemTxid: 'lnurl-receive',
+      roundTxid: '',
+      settled: true,
+      type: 'received',
+      lnurl: { rail: 'arkade' },
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <FlowContext.Provider value={mockFlowContextValue}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [tx] } as any}>
+                <TransactionsList mode='static' />
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByText('Received via arkade')).toBeInTheDocument()
+  })
+
+  it('still reads a plain, unlabelled transfer as Sent or Received', () => {
+    const receivedTx: Tx = {
+      amount: 1_000,
+      boardingTxid: '',
+      createdAt: 1_700_000_000,
+      explorable: undefined,
+      preconfirmed: false,
+      redeemTxid: 'plain-receive',
+      roundTxid: '',
+      settled: true,
+      type: 'received',
+    }
+    const sentTx: Tx = {
+      amount: 500,
+      boardingTxid: '',
+      createdAt: 1_700_000_100,
+      explorable: undefined,
+      preconfirmed: false,
+      redeemTxid: 'plain-send',
+      roundTxid: '',
+      settled: true,
+      type: 'sent',
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <FlowContext.Provider value={mockFlowContextValue}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [receivedTx, sentTx] } as any}>
+                <TransactionsList mode='static' />
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByText('Received')).toBeInTheDocument()
+    expect(screen.getByText('Sent')).toBeInTheDocument()
+  })
+
   it('formats designated account activity with the underlying asset decimals', () => {
     const tx: Tx = {
       amount: 330,
