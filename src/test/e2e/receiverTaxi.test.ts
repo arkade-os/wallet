@@ -124,7 +124,7 @@ const taxiInfo = (arkd: Arkd, operatorKey: string, assetId: string): TaxiInfo =>
   }
 }
 
-/** Floored at the payer's earliest coin, as asked, and recoverable an hour before that. */
+/** Floored at the floor the payer asked for, and recoverable an hour before that. */
 const receiveQuote = (body: QuoteBody, arkd: Arkd, operatorKey: string): TaxiQuote => {
   const now = Math.floor(Date.now() / 1000)
   const floor = body.fundingExpiry

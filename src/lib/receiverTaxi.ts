@@ -201,7 +201,7 @@ export const receiverPaidCarrier = async (
   ctx: TaxiProbeContext,
   payer: {
     makerPublicKey: Uint8Array
-    /** The earliest expiry among the coins the payer can fund with, in `ctx.locktimeDomain`. */
+    /** The floor the payer asked for, in `ctx.locktimeDomain`. */
     fundingExpiry: bigint
     /** From `callerMinimum`. */
     minimum: bigint
