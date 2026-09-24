@@ -1,0 +1,38 @@
+appId: com.android.chrome
+name: Suite — smoke (wallet already on home)
+tags:
+  - suite
+---
+# Reset home between flows. Shared waits from complete-tests/subflows/wait_*.yaml.
+# Excluded: 01_fresh_wallet, 02_startup_restore (onboarding); 13_unlock_wallet (unlock).
+
+- runFlow: 03_home_quick_actions_visible.yaml
+- runFlow: ../subflows/reset_to_wallet_home.yaml
+- runFlow: ../subflows/wait_2s.yaml
+- runFlow: 04_home_open_receive.yaml
+- runFlow: ../subflows/reset_to_wallet_home.yaml
+- runFlow: ../subflows/wait_2s.yaml
+- runFlow: 05_home_open_send.yaml
+- runFlow: ../subflows/reset_to_wallet_home.yaml
+- runFlow: ../subflows/wait_2s.yaml
+- runFlow: 06_home_swap_coming_soon_sheet.yaml
+- runFlow: ../subflows/reset_to_wallet_home.yaml
+- runFlow: ../subflows/wait_2s.yaml
+- runFlow: 07_home_open_activity.yaml
+- runFlow: ../subflows/reset_to_wallet_home.yaml
+- runFlow: ../subflows/wait_2s.yaml
+- runFlow: 08_home_open_settings.yaml
+- runFlow: ../subflows/reset_to_wallet_home.yaml
+- runFlow: ../subflows/wait_2s.yaml
+- runFlow: 09_home_tabs_and_asset_filters.yaml
+- runFlow: ../subflows/reset_to_wallet_home.yaml
+- runFlow: ../subflows/wait_2s.yaml
+- runFlow: 10_receive_copy_sheet.yaml
+- runFlow: ../subflows/reset_to_wallet_home.yaml
+- runFlow: ../subflows/wait_2s.yaml
+- runFlow: 11_send_form_address_field.yaml
+- runFlow: ../subflows/reset_to_wallet_home.yaml
+- runFlow: ../subflows/wait_2s.yaml
+- runFlow: 12_home_open_scan.yaml
+- runFlow: ../subflows/reset_to_wallet_home.yaml
+- runFlow: ../subflows/wait_2s.yaml

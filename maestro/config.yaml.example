@@ -1,0 +1,27 @@
+# Arkade Wallet — Maestro workspace
+#
+# Copy to config.yaml and fill in secrets locally (config.yaml is gitignored):
+#   cp config.yaml.example config.yaml
+#
+# WALLET_URL is opened automatically via the open_wallet_url subflow (Chrome on Android).
+# Flows use appId: com.android.chrome + -p android (not desktop Chromium).
+#
+# Studio: ./maestro/studio.sh
+# CLI:    ./maestro/run.sh complete-tests/flows/...
+# Scenarios: ./maestro/scripts/run-scenario.sh smoke|onboarding|...
+
+flows:
+  - complete-tests/flows/**
+
+platform:
+  android:
+    disableAnimations: false
+
+# Parsed by run.sh / run-scenario.sh (passed to Maestro via -e):
+env:
+  WALLET_URL: "https://your-preview-or-production-wallet-url"
+  # Throwaway test wallet only — never commit a real or funded nsec.
+  WALLET_NSEC: "nsec1your-test-restore-key-here"
+  # Used by unlock (13), prerelease, and ensure_on_wallet_home when wallet is locked.
+  # Smoke assumes wallet is unlocked unless you set this (empty = blank unlock attempt).
+  WALLET_PASSWORD: ""
