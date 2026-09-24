@@ -11,11 +11,11 @@ overrides:
   # Candidate carrier artifacts, transitive resolutions included: the packed Taxi
   # client pins '@arkade-os/sdk' and '@arkade-os/swap' at bare registry
   # coordinates, which would otherwise resolve to the published builds.
-  '@arkade-os/sdk': 'file:vendor/carrier/arkade-os-sdk-0.4.74-adc6b329.tgz'
-  '@arkade-os/swap': 'file:vendor/carrier/arkade-os-swap-0.0.20-adc6b329.tgz'
-  '@arkade-taxi/client': 'file:vendor/carrier/arkade-taxi-client-0.0.0-88ca652a.tgz'
-  '@arkade-taxi/covenant': 'file:vendor/carrier/arkade-taxi-covenant-0.0.0-88ca652a.tgz'
-  '@arkade-taxi/protocol': 'file:vendor/carrier/arkade-taxi-protocol-0.0.0-88ca652a.tgz'
+  '@arkade-os/sdk': 'file:vendor/carrier/arkade-os-sdk-0.4.74-c4ff451f.tgz'
+  '@arkade-os/swap': 'file:vendor/carrier/arkade-os-swap-0.0.20-c4ff451f.tgz'
+  '@arkade-taxi/client': 'file:vendor/carrier/arkade-taxi-client-0.0.0-dd8b03a1.tgz'
+  '@arkade-taxi/covenant': 'file:vendor/carrier/arkade-taxi-covenant-0.0.0-dd8b03a1.tgz'
+  '@arkade-taxi/protocol': 'file:vendor/carrier/arkade-taxi-protocol-0.0.0-dd8b03a1.tgz'
   '@babel/core': '>=7.29.6 <8.0.0'
   js-yaml@<4: '>=3.15.0 <4.0.0'
   js-yaml@>=4: '>=4.2.0 <5.0.0'
