@@ -190,6 +190,8 @@ export default function SendForm() {
   const timeoutRef = useRef<NodeJS.Timeout>()
   const lnUrlRef = useRef<string>()
   lnUrlRef.current = sendInfo.lnUrl
+  const satoshisRef = useRef<number>()
+  satoshisRef.current = sendInfo.satoshis ?? 0
 
   const prefersReducedMotion = useReducedMotion()
   const accountAsset = useMemo<AssetOption | null>(
@@ -781,9 +783,9 @@ export default function SendForm() {
   const handleContinue = async () => {
     setProcessing(true)
     const satoshis = sendInfo.satoshis ?? 0
-    // The recipient can change during the awaits below; a result for a replaced target is dropped.
+    // The recipient and amount stay editable during the awaits below; a result for either's old value is dropped.
     const target = sendInfo.lnUrl
-    const stale = () => lnUrlRef.current !== target
+    const stale = () => lnUrlRef.current !== target || satoshisRef.current !== satoshis
     try {
       if (sendInfo.lnUrl && lnUrlResponse) {
         // Check if Ark method is available

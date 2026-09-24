@@ -770,6 +770,24 @@ describe('a changed recipient', () => {
     fetchMocker.disableMocks()
   })
 
+  it('drops an LNURL quote that lands after the amount changed', async () => {
+    const callback = heldCallback()
+    const fetchMocker = lnurlServer(undefined, { callbackHeld: callback.held })
+    const { navigate, type, input } = renderStateful()
+    type(LNURL)
+    await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
+    await clickContinue()
+    await waitFor(() => expect(fetchMocker.requests().some((r) => r.url.includes('paymentOption='))).toBe(true), settle)
+
+    setFlow((prev) => ({ ...prev, satoshis: SATS + 1 }))
+    callback.release()
+    await waitFor(() => expect(input()).toBeEnabled(), settle)
+
+    expect(current.pendingLnSend).toBeUndefined()
+    expect(navigate).not.toHaveBeenCalledWith(Pages.SendDetails)
+    fetchMocker.disableMocks()
+  })
+
   it('drops an Ark address fetched for an LNURL the recipient no longer is', async () => {
     const callback = heldCallback()
     const body = { ...payRequest, paymentOptions: undefined, transferAmounts: [{ method: 'Ark', available: true }] }
