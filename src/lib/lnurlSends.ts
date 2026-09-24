@@ -1,4 +1,9 @@
-import { mergeSentPayment, sentActivityResolver, type SentPayment } from '@arkade-os/lnurl-client/arkade'
+import {
+  lnurlQuoteMeta,
+  mergeSentPayment,
+  sentActivityResolver,
+  type SentPayment,
+} from '@arkade-os/lnurl-client/arkade'
 import type { ActivityResolver, PaymentHandle, RouteQuote } from '@arkade-os/sdk'
 import { getStorageItem, setStorageItemSafely } from './storage'
 import { LNURL_SENDS_STORAGE_KEY } from './storageKeys'
@@ -16,7 +21,7 @@ const save = (sent: SentPayment): void =>
 /** Keeps listening past the funding: a swap names its preimage only at settlement. */
 export const recordLnurlSend = (handle: PaymentHandle, quote: RouteQuote, target: string): void => {
   const createdAt = Date.now()
-  const paidTo = (quote.meta?.lnurl as { target?: string } | undefined)?.target ?? target
+  const paidTo = lnurlQuoteMeta(quote)?.target ?? target
   handle.subscribe(({ result }) => {
     if (!result?.txid) return
     save({

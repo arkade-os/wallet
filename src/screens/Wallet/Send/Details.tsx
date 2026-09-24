@@ -29,6 +29,7 @@ import { extractError } from '../../../lib/error'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError, consoleLog } from '../../../lib/logs'
 import type { RouteQuote } from '@arkade-os/sdk'
+import { lnurlQuoteMeta } from '@arkade-os/lnurl-client/arkade'
 import { LimitsContext } from '../../../providers/limits'
 import { FeesContext } from '../../../providers/fees'
 import { buildTransactionAmountDisplay } from '../../../lib/transactionAmountDisplay'
@@ -226,15 +227,15 @@ export default function SendDetails() {
 
   /** The quote came from the previous screen, so it is held to what this one shows. */
   const payLnurl = async (quote: RouteQuote, target: string) => {
-    const quotedFor = (quote.meta?.lnurl as { target?: string } | undefined)?.target
-    if (quotedFor !== target || quote.amount !== satoshis) return handleError('Quote is for a different payment')
+    const lnurlMeta = lnurlQuoteMeta(quote)
+    if (lnurlMeta?.target !== target || quote.amount !== satoshis)
+      return handleError('Quote is for a different payment')
     const handle = await quote.send()
     recordLnurlSend(handle, quote, target)
     const result = await fundedResult(handle)
     // A rail whose destination cannot identify the payment supplies no verify
     // URL, and absence is "no answer available" rather than a failure.
-    const lnurlMeta = quote.meta?.lnurl as { verify?: string; verifyBatch?: string } | undefined
-    if (result?.txid && lnurlMeta?.verify) {
+    if (result?.txid && lnurlMeta.verify) {
       const txid = result.txid
       pendingConfirmations.add({
         verifyUrl: lnurlMeta.verify,
