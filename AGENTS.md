@@ -110,3 +110,4 @@ A task is complete when:
 - Prefer `rg` for fast search and targeted code discovery.
 - Validate only what is relevant to keep iteration fast.
 - If you discover repository-specific conventions not listed here, append them to this file.
+- Do not use bun unless we explicitly migrate to it
