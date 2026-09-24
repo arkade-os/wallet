@@ -17,16 +17,16 @@ importers:
     dependencies:
       '@arkade-os/lnurl-client':
         specifier: file:vendor/arkade-os-lnurl-client-0.4.1.tgz
-        version: file:vendor/arkade-os-lnurl-client-0.4.1.tgz(@arkade-os/sdk@0.5.0-rc.9)
+        version: file:vendor/arkade-os-lnurl-client-0.4.1.tgz(@arkade-os/sdk@0.5.0-rc.10)
       '@arkade-os/sdk':
-        specifier: 0.5.0-rc.9
-        version: 0.5.0-rc.9
+        specifier: 0.5.0-rc.10
+        version: 0.5.0-rc.10
       '@arkade-os/solver-discovery':
-        specifier: 0.2.5
-        version: 0.2.5
+        specifier: 0.2.7
+        version: 0.2.7
       '@arkade-os/swap':
-        specifier: 0.1.0-rc.12
-        version: 0.1.0-rc.12(nostr-tools@2.17.2(typescript@5.9.3))
+        specifier: 0.1.0-rc.13
+        version: 0.1.0-rc.13(nostr-tools@2.17.2(typescript@5.9.3))
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -36,18 +36,12 @@ importers:
       '@fontsource-variable/geist':
         specifier: ^5.2.8
         version: 5.2.8
-      '@lendasat/lendasat-wallet-bridge':
-        specifier: ^0.0.90
-        version: 0.0.90
       '@noble/curves':
         specifier: ^2.0.1
         version: 2.0.1
       '@noble/hashes':
         specifier: ^2.0.1
         version: 2.0.1
-      '@noble/secp256k1':
-        specifier: 3.0.0
-        version: 3.0.0
       '@scure/base':
         specifier: 2.0.0
         version: 2.0.0
@@ -266,8 +260,8 @@ packages:
       '@arkade-os/sdk':
         optional: true
 
-  '@arkade-os/sdk@0.5.0-rc.9':
-    resolution: {integrity: sha512-TGjVPrKX05hNU2x9DUugGmk/ES3loYEQ+6D959EXVzvHREmnvLMXwXwzwkZR6ZKKJge6O+S6sYXxBE8lmf4s8A==}
+  '@arkade-os/sdk@0.5.0-rc.10':
+    resolution: {integrity: sha512-sjJxNxE33NjkyNR5a1yKD5E0FbMPGAm+eS412LdNUShuZH069T05/StIDGkqW1bZBU3QNve34FyfI5xo5Swtrw==}
     engines: {node: '>=22.12.0 <27'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -287,12 +281,12 @@ packages:
       expo-task-manager:
         optional: true
 
-  '@arkade-os/solver-discovery@0.2.5':
-    resolution: {integrity: sha512-eCJESOApkm78OWLPSRSi7RajysHPAkRozD2Um+IimRbbgSK7e+/1Ufw4hrOR8LuPKwMRvDQx7nUbcl1CL8HsDg==}
+  '@arkade-os/solver-discovery@0.2.7':
+    resolution: {integrity: sha512-T5dfiezUG5YKtzOmX1Z2E0LePF3bx6unsqq7UPgha0Zp9PQFcodYMYl6T1i0AbruaGup5XWq8Die5wusiA5qUA==}
     engines: {node: '>=18'}
 
-  '@arkade-os/swap@0.1.0-rc.12':
-    resolution: {integrity: sha512-5y/lJhv4HpSNFJCwmz3CtheKQBRNO9bGIDNBXAOQP4jbMlVOMs0+RlvAiMaieJRgdIzPurz1uSLjn8+rJaWG6A==}
+  '@arkade-os/swap@0.1.0-rc.13':
+    resolution: {integrity: sha512-WDXRf1vAmFbUUVOqX6NSfBE1slT5N+1J+E8qPGxGAxoq1ZSU5P1LOZiw3+ZW3spjan+glSmvOHaJWL/XVI9LKQ==}
     engines: {node: '>=22.12.0'}
     peerDependencies:
       nostr-tools: ^2.12.0
@@ -932,9 +926,6 @@ packages:
 
   '@juggle/resize-observer@3.4.0':
     resolution: {integrity: sha512-dfLbk+PwWvFzSxwk3n5ySL0hfBog779o8h68wK/7/APo/7cgyWp5jcXockbxdk5kFRkbeXWm4Fbi9FrdN381sA==}
-
-  '@lendasat/lendasat-wallet-bridge@0.0.90':
-    resolution: {integrity: sha512-VfgM5vUx81vVWlggtOReUkaC8VVOFVavIMixQM0G/ZI0L/nMi10fmkIBvXOVI4Jmsu9A5z6wHSUrERxD3a/Juw==}
 
   '@marcbachmann/cel-js@8.0.0':
     resolution: {integrity: sha512-oaTrAziGr3zDLFiMt/yLU3nZuRMawyWQB5X1a0I7s9eGy3JYzX9l8ZXXHyMd64nzbeVFZTewuUShwsZQdK6UCA==}
@@ -4373,15 +4364,15 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/lnurl-client@file:vendor/arkade-os-lnurl-client-0.4.1.tgz(@arkade-os/sdk@0.5.0-rc.9)':
+  '@arkade-os/lnurl-client@file:vendor/arkade-os-lnurl-client-0.4.1.tgz(@arkade-os/sdk@0.5.0-rc.10)':
     dependencies:
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
     optionalDependencies:
-      '@arkade-os/sdk': 0.5.0-rc.9
+      '@arkade-os/sdk': 0.5.0-rc.10
 
-  '@arkade-os/sdk@0.5.0-rc.9':
+  '@arkade-os/sdk@0.5.0-rc.10':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 8.0.0
@@ -4400,12 +4391,12 @@ snapshots:
       - ecpair
       - utf-8-validate
 
-  '@arkade-os/solver-discovery@0.2.5': {}
+  '@arkade-os/solver-discovery@0.2.7': {}
 
-  '@arkade-os/swap@0.1.0-rc.12(nostr-tools@2.17.2(typescript@5.9.3))':
+  '@arkade-os/swap@0.1.0-rc.13(nostr-tools@2.17.2(typescript@5.9.3))':
     dependencies:
-      '@arkade-os/sdk': 0.5.0-rc.9
-      '@arkade-os/solver-discovery': 0.2.5
+      '@arkade-os/sdk': 0.5.0-rc.10
+      '@arkade-os/solver-discovery': 0.2.7
       '@noble/ciphers': 2.1.1
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
@@ -5036,8 +5027,6 @@ snapshots:
       '@jridgewell/sourcemap-codec': 1.5.5
 
   '@juggle/resize-observer@3.4.0': {}
-
-  '@lendasat/lendasat-wallet-bridge@0.0.90': {}
 
   '@marcbachmann/cel-js@8.0.0': {}
 
