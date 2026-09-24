@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { makeHandle, type ArkTransaction, type RouteQuote } from '@arkade-os/sdk'
 import { LNURL_ARKADE_RAIL, LNURL_LIGHTNING_RAIL } from '@arkade-os/lnurl-client/arkade'
-import { createSentActivityResolver, lnurlSends, recordLnurlSend } from '../../lib/lnurlSends'
+import {
+  createSentActivityResolver,
+  lnurlSends,
+  markLnurlReceiverConfirmed,
+  recordLnurlSend,
+} from '../../lib/lnurlSends'
 
 beforeEach(() => localStorage.clear())
 
@@ -69,6 +74,28 @@ describe('recording an LNURL send', () => {
     recordLnurlSend(handle, quote(LNURL_ARKADE_RAIL), TARGET)
     await expect(handle.settled()).rejects.toThrow('refused')
 
+    expect(lnurlSends()).toEqual([])
+  })
+})
+
+describe('marking a receiver confirmation', () => {
+  it('touches only receiverConfirmed, leaving the rest of the row alone', async () => {
+    const handle = makeHandle(LNURL_ARKADE_RAIL, async (emit) => {
+      const result = { railId: 'ark', txid: 'ark-txid' }
+      emit({ status: 'settled', result })
+      return result
+    })
+    recordLnurlSend(handle, quote(LNURL_ARKADE_RAIL), TARGET)
+    await handle.settled()
+    const [before] = lnurlSends()
+
+    markLnurlReceiverConfirmed('ark-txid', true)
+
+    expect(lnurlSends()).toEqual([{ ...before, receiverConfirmed: true }])
+  })
+
+  it('does nothing for a txid with no recorded send', () => {
+    markLnurlReceiverConfirmed('never-sent', false)
     expect(lnurlSends()).toEqual([])
   })
 })

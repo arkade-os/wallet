@@ -29,15 +29,29 @@ vi.mock('../../../lib/logs', async (importOriginal) => ({
   consoleError: (...args: unknown[]) => consoleError(...args),
 }))
 
+const addConfirmation = vi.hoisted(() => vi.fn())
+vi.mock('../../../lib/lnurlConfirmations', () => ({ pendingConfirmations: { add: addConfirmation, forget: vi.fn() } }))
+
 const TARGET = 'alice@pay.example'
 const SATS = 5_000
 
-const lnurlQuote = (railId: string, sent = vi.fn(), over: { target?: string; fee?: number } = {}) => ({
+const lnurlQuote = (
+  railId: string,
+  sent = vi.fn(),
+  over: { target?: string; fee?: number; verify?: string; verifyBatch?: string } = {},
+) => ({
   railId,
   amount: SATS,
   fee: over.fee ?? 0,
   total: SATS + (over.fee ?? 0),
-  meta: { lnurl: { target: over.target ?? TARGET, via: railId === LNURL_ARKADE_RAIL ? 'ark' : 'lightning' } },
+  meta: {
+    lnurl: {
+      target: over.target ?? TARGET,
+      via: railId === LNURL_ARKADE_RAIL ? 'ark' : 'lightning',
+      ...(over.verify ? { verify: over.verify } : {}),
+      ...(over.verifyBatch ? { verifyBatch: over.verifyBatch } : {}),
+    },
+  },
   send: async () => {
     sent()
     return makeHandle(railId, async (emit) => {
@@ -81,6 +95,7 @@ describe('signing an LNURL send', () => {
     localStorage.clear()
     consoleError.mockClear()
     setSendInfo.mockClear()
+    addConfirmation.mockClear()
   })
 
   it('pays the Arkade leg the form quoted and records who was paid', async () => {
@@ -135,5 +150,66 @@ describe('signing an LNURL send', () => {
 
     await waitFor(() => expect(String(sendFailure())).toMatch(/offchain not allowed/i))
     expect(sent).not.toHaveBeenCalled()
+  })
+})
+
+describe('Review Focus 5: verifyBatch send confirmations', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    addConfirmation.mockClear()
+  })
+
+  it('registers a confirmation for the verify URL the rail carried, without delaying the send', async () => {
+    const quote = lnurlQuote(LNURL_ARKADE_RAIL, vi.fn(), {
+      verify: 'https://alice.example/verify/1',
+      verifyBatch: 'https://alice.example/verifyBatch',
+    })
+    renderSign({ lnUrl: TARGET, satoshis: SATS, pendingLnSend: quote as never })
+    await sign()
+
+    // The rail is reported sent and recorded even though nothing has awaited the confirmation.
+    await waitFor(() =>
+      expect(setSendInfo).toHaveBeenCalledWith(expect.objectContaining({ txid: `${LNURL_ARKADE_RAIL}-txid` })),
+    )
+    expect(addConfirmation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        verifyUrl: 'https://alice.example/verify/1',
+        verifyBatch: 'https://alice.example/verifyBatch',
+      }),
+    )
+  })
+
+  it('marks the recorded send confirmed once the confirmation settles', async () => {
+    const quote = lnurlQuote(LNURL_ARKADE_RAIL, vi.fn(), { verify: 'https://alice.example/verify/1' })
+    renderSign({ lnUrl: TARGET, satoshis: SATS, pendingLnSend: quote as never })
+    await sign()
+    await waitFor(() => expect(addConfirmation).toHaveBeenCalled())
+
+    addConfirmation.mock.calls[0][0].onSettled()
+
+    expect(lnurlSends()).toEqual([
+      expect.objectContaining({ txid: `${LNURL_ARKADE_RAIL}-txid`, receiverConfirmed: true }),
+    ])
+  })
+
+  it('marks the recorded send unconfirmed on a deadline or transport failure, leaving the rest of the row alone', async () => {
+    const quote = lnurlQuote(LNURL_ARKADE_RAIL, vi.fn(), { verify: 'https://alice.example/verify/1' })
+    renderSign({ lnUrl: TARGET, satoshis: SATS, pendingLnSend: quote as never })
+    await sign()
+    await waitFor(() => expect(addConfirmation).toHaveBeenCalled())
+    const [before] = lnurlSends()
+
+    addConfirmation.mock.calls[0][0].onError(new Error('receiver did not confirm settlement in time'))
+
+    expect(lnurlSends()).toEqual([{ ...before, receiverConfirmed: false }])
+  })
+
+  it('registers no confirmation for a rail whose destination carries no verify URL', async () => {
+    const quote = lnurlQuote(LNURL_ARKADE_RAIL)
+    renderSign({ lnUrl: TARGET, satoshis: SATS, pendingLnSend: quote as never })
+    await sign()
+
+    await waitFor(() => expect(lnurlSends()).toHaveLength(1))
+    expect(addConfirmation).not.toHaveBeenCalled()
   })
 })

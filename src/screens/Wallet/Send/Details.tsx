@@ -35,7 +35,8 @@ import { buildTransactionAmountDisplay } from '../../../lib/transactionAmountDis
 import { useAmountDisplayContext } from '../../../hooks/useTransactionAmountDisplay'
 import TransactionAmountSummary from '../../../components/TransactionAmountSummary'
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
-import { recordLnurlSend } from '../../../lib/lnurlSends'
+import { markLnurlReceiverConfirmed, recordLnurlSend } from '../../../lib/lnurlSends'
+import { pendingConfirmations } from '../../../lib/lnurlConfirmations'
 
 export default function SendDetails() {
   const displayContext = useAmountDisplayContext()
@@ -230,6 +231,18 @@ export default function SendDetails() {
     const handle = await quote.send()
     recordLnurlSend(handle, quote, target)
     const result = await fundedResult(handle)
+    // A rail whose destination cannot identify the payment supplies no verify
+    // URL, and absence is "no answer available" rather than a failure.
+    const lnurlMeta = quote.meta?.lnurl as { verify?: string; verifyBatch?: string } | undefined
+    if (result?.txid && lnurlMeta?.verify) {
+      const txid = result.txid
+      pendingConfirmations.add({
+        verifyUrl: lnurlMeta.verify,
+        ...(lnurlMeta.verifyBatch !== undefined ? { verifyBatch: lnurlMeta.verifyBatch } : {}),
+        onSettled: () => markLnurlReceiverConfirmed(txid, true),
+        onError: () => markLnurlReceiverConfirmed(txid, false),
+      })
+    }
     handleSent(result?.txid, quote.total, quote.fee, quote.railId)
   }
 

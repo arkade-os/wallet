@@ -44,6 +44,7 @@ import { Indexer } from '../lib/indexer'
 import { lnSendViews, swapRecordResolver, type LnSendView } from '../lib/swapRecords'
 import { createLnurlActivityResolver } from '../lib/lnurlPaymentRepository'
 import { createSentActivityResolver } from '../lib/lnurlSends'
+import { pendingConfirmations } from '../lib/lnurlConfirmations'
 import { syncLnurlActivity } from '../lib/lnurlActivitySync'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
@@ -1007,6 +1008,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     // than stale swap rows.
     await assetSwapRepository.clear().catch((err) => consoleError(err, 'failed to clear swap records'))
     setAssetSwaps([])
+    pendingConfirmations.forget()
     await svcWallet.clear()
     await svcWallet.walletRepository.clear()
     await svcWallet.contractRepository.clear()

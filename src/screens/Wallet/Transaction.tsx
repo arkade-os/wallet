@@ -35,6 +35,7 @@ import { SwapsContext } from '../../providers/swaps'
 import { hapticTap } from '../../lib/haptics'
 import { useTransactionAmountDisplay } from '../../hooks/useTransactionAmountDisplay'
 import { useCorridorSendReceipt } from '../../hooks/useCorridorSendReceipt'
+import { lnurlSends } from '../../lib/lnurlSends'
 import TransactionAmountSummary from '../../components/TransactionAmountSummary'
 import {
   AlertDialog,
@@ -194,6 +195,9 @@ export default function Transaction() {
               : 'Amount received'
   const date = tx.createdAt ? prettyDate(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed'
   const txid = tx.boardingTxid || tx.redeemTxid || tx.roundTxid || ''
+  // Set only once the confirmation loop resolves; absent while still pending
+  // or when the rail never handed out a verify URL to track.
+  const receiverConfirmed = lnurlSends().find((s) => s.txid === txid)?.receiverConfirmed
   const displayedAssets = amountDisplay?.raw.filter((amount) => amount.assetId) ?? []
   const assetIds = displayedAssets.map((amount) => ({
     assetId: amount.assetId!,
@@ -303,6 +307,15 @@ export default function Transaction() {
           ) : null}
           {swapTx && tx.assetSwap ? (
             <SwapTransactionSummary fromIcon={swapFromIcon} toIcon={swapToIcon} tx={tx} />
+          ) : null}
+          {receiverConfirmed === true ? (
+            <Info color='green' icon={<CheckMarkIcon small />} title='Receiver confirmed'>
+              <TextSecondary>The receiver's server confirmed this payment settled.</TextSecondary>
+            </Info>
+          ) : receiverConfirmed === false ? (
+            <Info color='orange' icon={<VtxosIcon />} title='Not confirmed'>
+              <TextSecondary>The receiver has not confirmed this payment settled.</TextSecondary>
+            </Info>
           ) : null}
           {amountDisplay ? <TransactionAmountSummary amount={amountDisplay} label={summaryLabel} /> : null}
           <Details details={details} variant='receipt' />

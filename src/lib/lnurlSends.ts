@@ -33,3 +33,11 @@ export const recordLnurlSend = (handle: PaymentHandle, quote: RouteQuote, target
 }
 
 export const createSentActivityResolver = (): ActivityResolver => sentActivityResolver(lnurlSends)
+
+/** Records only the confirmation outcome; a send with no matching row (never
+ *  named a txid) has nothing to attach it to. */
+export const markLnurlReceiverConfirmed = (txid: string, confirmed: boolean): void => {
+  const existing = lnurlSends().find((s) => s.txid === txid)
+  if (!existing) return
+  save({ ...existing, receiverConfirmed: confirmed })
+}
