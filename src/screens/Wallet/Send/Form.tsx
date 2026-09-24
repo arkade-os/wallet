@@ -914,6 +914,9 @@ export default function SendForm() {
       Boolean(error) ||
       processing
     : !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
+      // Unresolved conditions would strand Continue on a locked recipient field.
+      (lnUrl && !arkAddress && !lnUrlResponse) ||
+      Boolean(recipientError) ||
       (lnUrlResponse?.maxSendable && satoshis > lnUrlResponse.maxSendable) ||
       (lnUrlResponse?.minSendable && satoshis < lnUrlResponse.minSendable) ||
       amountIsAboveMaxLimit(satoshis) ||

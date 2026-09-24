@@ -723,6 +723,35 @@ describe('a changed recipient', () => {
     fetchMocker.disableMocks()
   })
 
+  const continueButton = () => screen.getByText('Continue').closest('button')!
+
+  it('holds Continue until the LNURL conditions load', async () => {
+    let release = () => {}
+    const fetchMocker = lnurlServer(new Promise<void>((resolve) => (release = resolve)))
+    const { navigate, type } = renderStateful()
+    type(LNURL)
+    await waitFor(() => expect(fetchMocker.requests().length).toBeGreaterThan(0), settle)
+
+    expect(continueButton()).toBeDisabled()
+    release()
+    await clickContinue()
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), settle)
+    fetchMocker.disableMocks()
+  })
+
+  it('keeps Continue off and the recipient editable when the LNURL fails to resolve', async () => {
+    const fetchMocker = createFetchMock(vi)
+    fetchMocker.enableMocks()
+    fetchMocker.mockResponse({ status: 404, body: 'not found' })
+    const { type, input } = renderStateful()
+    type(LNURL)
+    await waitFor(() => screen.getByText('LNURL not found'), settle)
+
+    expect(continueButton()).toBeDisabled()
+    expect(input()).toBeEnabled()
+    fetchMocker.disableMocks()
+  })
+
   it('drops an Ark address fetched for an LNURL the recipient no longer is', async () => {
     const callback = heldCallback()
     const body = { ...payRequest, paymentOptions: undefined, transferAmounts: [{ method: 'Ark', available: true }] }
