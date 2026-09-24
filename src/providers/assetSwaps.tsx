@@ -48,6 +48,7 @@ import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
 import { consoleError } from '../lib/logs'
 import { toast } from '../components/Toast'
 import { isCanonicalTxid } from '../lib/carrierActivity'
+import { prettyLongText } from '../lib/format'
 
 /** The deposit as the indexer or the contract manager reports it: its outpoint,
  * and the txids that spent it. `spentBy` is the checkpoint and `arkTxId` the
@@ -125,11 +126,15 @@ export const AssetSwapsProvider = ({ children }: { children: ReactNode }) => {
    * (`cancelling` reverted, then cancelled for real) is still announced.
    */
   const announced = useRef(new Set<string>())
-  const announceOutcome = (swap: Pick<AssetSwap, 'id' | 'status' | 'toAsset'>) => {
+  const announceOutcome = (swap: Pick<WalletAssetSwap, 'id' | 'status' | 'toAsset' | 'payee'>) => {
     const key = `${swap.id}:${swap.status}`
     if (announced.current.has(key)) return
     announced.current.add(key)
-    if (swap.status === 'fulfilled') toast.success(`Swap completed, ${tickerFor(swap.toAsset)} received`)
+    // The stored record, since a watcher update need not carry the wallet's own fields.
+    const payee = swap.payee ?? swapsRef.current.find((stored) => stored.id === swap.id)?.payee
+    if (swap.status === 'fulfilled' && payee)
+      toast.success(`Payment completed, ${tickerFor(swap.toAsset)} sent to ${prettyLongText(payee)}`)
+    else if (swap.status === 'fulfilled') toast.success(`Swap completed, ${tickerFor(swap.toAsset)} received`)
     else if (swap.status === 'cancelled') toast.success('Swap cancelled, funds returned')
   }
 

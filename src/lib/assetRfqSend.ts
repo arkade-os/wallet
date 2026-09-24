@@ -37,7 +37,7 @@ import {
   type ArkadeContext,
   type ReceiverPaidCarrier,
 } from './receiverTaxi'
-import { assetSwapRepository } from './swapRepository'
+import { assetSwapRepository, type WalletAssetSwap } from './swapRepository'
 
 export interface AssetPaymentRequest {
   arkAddress: string
@@ -265,6 +265,7 @@ export const payAssetRequest = async (req: AssetPaymentRequest, deps: AssetRfqSe
       deposit: { amount: negotiated.fundAmount },
       validUntil,
       ...(taxi ? { inputExpiryFloor: taxi.inputExpiryFloor } : {}),
+      prepareNew: (swap): WalletAssetSwap => ({ ...swap, payee: req.arkAddress }),
     })
   }
 }

@@ -132,8 +132,20 @@ describe('payAssetRequest', () => {
       deposit: { amount: TAXI_PRICE },
       validUntil: 2_000_000_000,
       inputExpiryFloor: { kind: 'time', value: DEFAULT_FLOOR },
+      prepareNew: expect.any(Function),
     })
     onlyTheConfirmation(TAXI_PRICE)
+  })
+
+  it.each([
+    ['through the Taxi', taxiFetch()],
+    ['buying a carrier', unreachable()],
+  ])('records the payment as sent to the receiver, %s', async (_, fetch) => {
+    const d = deps({ fetch })
+    await payAssetRequest(REQUEST, d)
+    const [[, , { prepareNew }]] = vi.mocked(d.fundOffer).mock.calls
+    const prepared = { id: 'rfq-1', toAsset: ASSET_ID } as AssetSwap
+    expect(await prepareNew!(prepared)).toEqual({ ...prepared, payee: RECEIVER_ADDRESS })
   })
 
   it('falls back to a plain purchase when the Taxi is unreachable, with only the price confirmation', async () => {

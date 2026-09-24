@@ -13,6 +13,7 @@ import { btcUsdt, btcUsdtPerSide, maratNapo, MARAT_ID, NAPO_ID, USDT_ID } from '
 import corridorSolverCard from '../corridor-solver.card.json'
 import { saveSolverCards } from '../../lib/solverCards'
 import { toast } from '../../components/Toast'
+import { prettyLongText } from '../../lib/format'
 import { mockAspContextValue, mockTxInfo, mockWalletContextValue } from '../screens/mocks'
 
 const cancelOffer = vi.hoisted(() => vi.fn())
@@ -375,6 +376,22 @@ describe('AssetSwapsProvider watching', () => {
     onUpdate({ ...pendingSwap, status: 'fulfilled', spentTxid: 'fill-txid' })
 
     await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('fulfilled'))
+  })
+
+  it('tells the payer the asset went to the receiver she paid, not that she received it', async () => {
+    const payee = `tark1q${'r'.repeat(60)}`
+    await repository.clear()
+    await addAssetSwap(repository, { ...pendingSwap, payee } as WalletAssetSwap)
+    renderProvider(undefined, { url: 'https://ark.test' })
+    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('pending'))
+    await waitFor(() => expect(watchOfferSwaps).toHaveBeenCalled())
+    vi.mocked(toast.success).mockClear()
+
+    // The watcher's own record need not carry the wallet's fields.
+    act(() =>
+      watchOfferSwaps.mock.calls[0][0].onUpdate({ ...pendingSwap, status: 'fulfilled', spentTxid: 'fill-txid' }),
+    )
+    expect(toast.success).toHaveBeenCalledWith(`Payment completed, asset-be sent to ${prettyLongText(payee)}`)
   })
 })
 
