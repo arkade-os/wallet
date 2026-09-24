@@ -272,17 +272,26 @@ describe('payAssetRequest', () => {
 
 describe('routesToReceiverTaxi', () => {
   const decoded = { assetId: ASSET_ID }
-  const send = { assets: [{ assetId: ASSET_ID }] }
+  const send = { assets: [{ assetId: ASSET_ID, amount: 500n }] }
 
-  it('routes a Taxi-bearing asset request to the rail', () => {
-    expect(routesToReceiverTaxi(send, decoded)).toBe(true)
+  it('routes a Taxi-bearing asset request to the rail when the payer holds none of the asset', () => {
+    expect(routesToReceiverTaxi(send, decoded, 0n)).toBe(true)
+  })
+
+  it('routes it to the rail when she holds some of the asset, but not enough', () => {
+    expect(routesToReceiverTaxi(send, decoded, 499n)).toBe(true)
+  })
+
+  it('sends the asset directly, ignoring the Taxi, when she holds enough of it', () => {
+    expect(routesToReceiverTaxi(send, decoded, 500n)).toBe(false)
+    expect(routesToReceiverTaxi(send, decoded, 10_000n)).toBe(false)
   })
 
   it('leaves everything else on its existing path', () => {
-    expect(routesToReceiverTaxi(send, undefined)).toBe(false)
-    expect(routesToReceiverTaxi({ ...send, account: {} }, decoded)).toBe(false)
-    expect(routesToReceiverTaxi({ assets: [{ assetId: USDT_ID }] }, decoded)).toBe(false)
-    expect(routesToReceiverTaxi({}, decoded)).toBe(false)
+    expect(routesToReceiverTaxi(send, undefined, 0n)).toBe(false)
+    expect(routesToReceiverTaxi({ ...send, account: {} }, decoded, 0n)).toBe(false)
+    expect(routesToReceiverTaxi({ assets: [{ assetId: USDT_ID, amount: 500n }] }, decoded, 0n)).toBe(false)
+    expect(routesToReceiverTaxi({}, decoded, 0n)).toBe(false)
   })
 })
 

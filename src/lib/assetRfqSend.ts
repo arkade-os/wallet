@@ -241,11 +241,17 @@ export const assetRfqSolvers = (markets: DiscoveredMarket[], assetId: string): R
   })
 }
 
-/** Whether the Send form pays this asset request through the receiver's Taxi rather than from its own balance. */
+/** The Send form buys the asset through the receiver's Taxi only when the payer can't send it from her own balance. */
 export const routesToReceiverTaxi = (
-  send: { account?: unknown; assets?: { assetId: string }[] },
-  decodedTaxi?: { assetId: string },
-): boolean => Boolean(decodedTaxi && !send.account && send.assets?.[0]?.assetId === decodedTaxi.assetId)
+  send: { account?: unknown; assets?: { assetId: string; amount: bigint }[] },
+  decodedTaxi: { assetId: string } | undefined,
+  assetBalance: bigint,
+): boolean => {
+  const [wanted] = send.assets ?? []
+  return Boolean(
+    decodedTaxi && !send.account && wanted?.assetId === decodedTaxi.assetId && wanted.amount > assetBalance,
+  )
+}
 
 /** The rail pays in bitcoin; under a dust's worth nothing could fund, so no Taxi should be asked. */
 export const hasSatsForReceiverTaxi = (liquidSats: number, dust: bigint): boolean =>

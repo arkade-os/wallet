@@ -200,8 +200,8 @@ export default function SendForm() {
   )
   const activeAsset = accountAsset ?? selectedAsset
   const isAssetSend = activeAsset !== null
-  // Paid with bitcoin through a solver, so the payer's own asset balance does not gate it.
-  const payViaReceiverTaxi = routesToReceiverTaxi(sendInfo, receiverTaxi)
+  // Only when her asset balance can't cover it; she then pays in bitcoin, so that balance stops gating Continue.
+  const payViaReceiverTaxi = routesToReceiverTaxi(sendInfo, receiverTaxi, activeAsset?.balance ?? BigInt(0))
 
   const RECIPIENT_DEBOUNCE_MS = 800
   const hasAssets = assetBalances.length > 0

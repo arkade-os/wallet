@@ -22,6 +22,7 @@ import {
 
 // The Taxi and the solver are stubs; arkd, the faucet and both wallets are real. Every case stops at the
 // payer's price confirmation and cancels it, so nothing here funds, fills or claims anything.
+// Alice holds no RDC: a payer who holds enough of the asset sends it directly and never asks the Taxi.
 
 // Must equal VITE_TAXI_URL in playwright.config.ts, the only way a regtest wallet learns of a Taxi.
 const TAXI_URL = 'http://localhost:7400'
