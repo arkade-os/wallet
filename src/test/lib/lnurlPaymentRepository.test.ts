@@ -1,8 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { syncPayments, type PaymentPage, type StoredPayment } from '@arkade-os/lnurl-client'
+import { TxType, type ArkTransaction } from '@arkade-os/sdk'
 import {
+  createLnurlActivityResolver,
   createLnurlPaymentRepository,
   createLnurlPaymentSyncStore,
+  normalizeStoredPayment,
   readLnurlWatermark,
   saveLnurlWatermark,
   type LnurlPaymentStore,
@@ -18,6 +21,7 @@ const makePayment = (identifier: string, baseUrl = SERVER_A, extra: Partial<Stor
   baseUrl,
   domain: 'example.com',
   lightningAddress: ALICE,
+  handle: 'alice',
   identifier,
   kind: 'bolt11',
   settled: true,
@@ -26,10 +30,19 @@ const makePayment = (identifier: string, baseUrl = SERVER_A, extra: Partial<Stor
   settledAt: 1700000060,
   swapId: null,
   paymentReference: null,
+  payoutReference: null,
   preimage: null,
   paymentOption: null,
   covenantScript: null,
   ...extra,
+})
+
+const makeTx = (arkTxid: string): ArkTransaction => ({
+  key: { boardingTxid: '', commitmentTxid: '', arkTxid },
+  type: TxType.TxReceived,
+  amount: 42,
+  settled: true,
+  createdAt: 1700000060,
 })
 
 const createMemoryStore = (): LnurlPaymentStore => {
@@ -41,6 +54,18 @@ const createMemoryStore = (): LnurlPaymentStore => {
     },
   }
 }
+
+describe('normalizeStoredPayment', () => {
+  it('defaults handle on a row written before the field existed', () => {
+    const legacy: Partial<StoredPayment> = makePayment('hash-1')
+    delete legacy.handle
+    expect(normalizeStoredPayment(legacy as Omit<StoredPayment, 'handle'>).handle).toBe('')
+  })
+
+  it('leaves an existing handle untouched', () => {
+    expect(normalizeStoredPayment(makePayment('hash-1', SERVER_A, { handle: 'bob' })).handle).toBe('bob')
+  })
+})
 
 describe('lnurlPaymentRepository', () => {
   it('upserting the same key twice leaves one record with the later values', async () => {
@@ -73,6 +98,55 @@ describe('lnurlPaymentRepository', () => {
   })
 })
 
+describe('createLnurlActivityResolver', () => {
+  it('attributes a transaction whose txid matches a payout reference', async () => {
+    const repository = createLnurlPaymentRepository(createMemoryStore())
+    await repository.upsert([makePayment('verify-1', SERVER_A, { kind: 'destination', payoutReference: 'txid-1' })])
+    const resolver = createLnurlActivityResolver(repository)
+    await resolver.prepare?.()
+
+    const memberships = resolver.resolve(makeTx('txid-1'))
+
+    expect(memberships).toHaveLength(1)
+    expect(memberships?.[0]?.metadata).toMatchObject({ lightningAddress: ALICE })
+  })
+
+  it('leaves an unrelated transaction plain', async () => {
+    const repository = createLnurlPaymentRepository(createMemoryStore())
+    await repository.upsert([makePayment('verify-1', SERVER_A, { kind: 'destination', payoutReference: 'txid-1' })])
+    const resolver = createLnurlActivityResolver(repository)
+    await resolver.prepare?.()
+
+    expect(resolver.resolve(makeTx('txid-other'))).toBeUndefined()
+  })
+
+  it('picks up records written after the first history load', async () => {
+    const repository = createLnurlPaymentRepository(createMemoryStore())
+    const resolver = createLnurlActivityResolver(repository)
+    await resolver.prepare?.()
+    expect(resolver.resolve(makeTx('txid-late'))).toBeUndefined()
+
+    await repository.upsert([
+      makePayment('verify-late', SERVER_A, { kind: 'destination', payoutReference: 'txid-late' }),
+    ])
+    await resolver.prepare?.()
+
+    expect(resolver.resolve(makeTx('txid-late'))).toHaveLength(1)
+  })
+
+  // Review Focus 4: rows written by #1000's adapter, before `handle` existed, must still be labelled.
+  it('labels a stored row without a handle', async () => {
+    const repository = createLnurlPaymentRepository(createMemoryStore())
+    await repository.upsert([
+      makePayment('verify-1', SERVER_A, { kind: 'destination', payoutReference: 'txid-1', handle: '' }),
+    ])
+    const resolver = createLnurlActivityResolver(repository)
+    await resolver.prepare?.()
+
+    expect(resolver.resolve(makeTx('txid-1'))?.[0]?.label).toContain(ALICE)
+  })
+})
+
 describe('lnurl payment sync store', () => {
   beforeEach(() => {
     localStorage.clear()
@@ -81,7 +155,7 @@ describe('lnurl payment sync store', () => {
   it('drives the package sync loop into the wallet stores', async () => {
     const repository = createLnurlPaymentRepository(createMemoryStore())
     const page: PaymentPage = {
-      source: { domain: 'example.com', lightningAddress: ALICE },
+      source: { domain: 'example.com', lightningAddress: ALICE, handle: 'alice' },
       payments: [
         {
           kind: 'destination',
@@ -90,6 +164,7 @@ describe('lnurl payment sync store', () => {
           paymentDestination: 'ark1qptest',
           covenantScript: null,
           paymentReference: 'txid-1',
+          payoutReference: null,
           settled: true,
           amountMsat: 42000,
           createdAt: 1700000000,
@@ -99,7 +174,7 @@ describe('lnurl payment sync store', () => {
       nextSince: 1700000000,
     }
 
-    const result = await syncPayments([{ baseUrl: SERVER_A, token: 'tok', username: 'alice', domain: 'example.com' }], {
+    const result = await syncPayments([{ baseUrl: SERVER_A, token: 'tok', handle: 'alice', domain: 'example.com' }], {
       client: () => ({ listPayments: async () => page }),
       store: createLnurlPaymentSyncStore(repository),
     })

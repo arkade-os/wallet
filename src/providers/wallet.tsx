@@ -42,7 +42,7 @@ import { activitiesToTxs, getActivities } from '../lib/activityHistory'
 import { arkTransactionToTx } from '../lib/transactionHistory'
 import { Indexer } from '../lib/indexer'
 import { lnSendViews, swapRecordResolver, type LnSendView } from '../lib/swapRecords'
-import { lnurlResolver } from '../lib/activity/lnurlResolver'
+import { createLnurlActivityResolver } from '../lib/lnurlPaymentRepository'
 import { syncLnurlActivity } from '../lib/lnurlActivitySync'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
@@ -716,7 +716,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           return vtxos
         }),
       )
-      svcWallet.activity.use(lnurlResolver())
+      svcWallet.activity.use(createLnurlActivityResolver())
 
       if (restoring) {
         setLoadingStatus('Recovering addresses...')
@@ -749,7 +749,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // never witness first-hand, so pull them once the wallet is usable.
       // Deliberately not awaited: an unreachable lnurl-server must cost the
       // activity view its attribution, never the wallet its startup.
-      void syncLnurlActivity(identity).catch((error) => {
+      void (async () => {
+        const arkadeAddress = await svcWallet.getAddress()
+        const boardingAddress = await svcWallet.getBoardingAddress().catch(() => undefined)
+        const { failures } = await syncLnurlActivity(identity, arkadeAddress, { boardingAddress })
+        if (failures.length) consoleError(failures, 'lnurl activity sync failed')
+      })().catch((error) => {
         consoleError(error, 'lnurl activity sync failed')
       })
 

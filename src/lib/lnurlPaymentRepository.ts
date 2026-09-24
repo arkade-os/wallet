@@ -1,4 +1,6 @@
 import type { PaymentSyncStore, StoredPayment } from '@arkade-os/lnurl-client'
+import { lnurlActivityResolver } from '@arkade-os/lnurl-client/arkade'
+import type { ActivityResolver } from '@arkade-os/sdk'
 import { getStorageItem, setStorageItemSafely } from './storage'
 import { LNURL_WATERMARKS_STORAGE_KEY } from './storageKeys'
 
@@ -9,6 +11,13 @@ export interface LnurlPaymentStore {
 }
 
 export const lnurlPaymentKey = (baseUrl: string, identifier: string): string => `${baseUrl}|${identifier}`
+
+/** Rows written before `handle` existed have none; default it rather than
+ *  drop them, since every consumer downstream now expects the field. */
+export const normalizeStoredPayment = (record: Omit<StoredPayment, 'handle'> & { handle?: string }): StoredPayment => ({
+  handle: '',
+  ...record,
+})
 
 const LNURL_PAYMENTS_DB = 'arkade-lnurl-payments'
 const LNURL_PAYMENTS_STORE = 'payments'
@@ -36,7 +45,9 @@ export const createIndexedDbLnurlPaymentStore = (
             const request = db.transaction(storeName, 'readonly').objectStore(storeName).getAll()
             request.onsuccess = () => {
               db.close()
-              resolve(request.result as StoredPayment[])
+              resolve(
+                (request.result as (Omit<StoredPayment, 'handle'> & { handle?: string })[]).map(normalizeStoredPayment),
+              )
             }
             request.onerror = () => reject(request.error)
           }),
@@ -84,6 +95,23 @@ export function createLnurlPaymentRepository(store: LnurlPaymentStore = indexedD
 }
 
 export const lnurlPaymentRepository: ReturnType<typeof createLnurlPaymentRepository> = createLnurlPaymentRepository()
+
+/** Wraps the package's resolver with a re-read on every `prepare()`: the sync
+ *  loop writes after the first history load, and a snapshot cached at
+ *  construction would leave those receives unattributed until a reconnect. */
+export const createLnurlActivityResolver = (
+  repository: ReturnType<typeof createLnurlPaymentRepository> = lnurlPaymentRepository,
+): ActivityResolver => {
+  let cache: StoredPayment[] = []
+  const resolver = lnurlActivityResolver(() => cache)
+  return {
+    ...resolver,
+    prepare: async () => {
+      cache = await repository.all()
+      await resolver.prepare?.()
+    },
+  }
+}
 
 const watermarkEntryKey = (baseUrl: string, lightningAddress: string): string => `${baseUrl}|${lightningAddress}`
 

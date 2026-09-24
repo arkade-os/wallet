@@ -1,5 +1,5 @@
 import { arkadeLnurl, type ArkadeLnurl, type ArkadeSigner } from '@arkade-os/lnurl-client/arkade'
-import { LnurlError } from '@arkade-os/lnurl-client'
+import { LnurlError, type PaymentSyncStore } from '@arkade-os/lnurl-client'
 
 /** An lnurl-server this wallet holds addresses at. */
 export interface LnurlServer {
@@ -33,6 +33,7 @@ export function lnurlReceiver(deps: {
   identity: ArkadeSigner
   arkadeAddress: string
   boardingAddress?: string
+  store?: PaymentSyncStore
 }): ArkadeLnurl | undefined {
   const server = configuredLnurlServer()
   if (!server) return undefined

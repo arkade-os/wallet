@@ -106,17 +106,28 @@ describe('lnurlReceiver', () => {
             registered({ username: 'brave-otter', handle: 'brave-otter', lightningAddress: 'brave-otter@lnurl.test' }),
           )
         }
-        return jsonResponse(200, {})
+        if (target.endsWith('/arkade') && init?.method === 'POST') return jsonResponse(200, {})
+        throw new Error(`unexpected fetch ${init?.method ?? 'GET'} ${target}`)
       })
 
       const receiver = await lnurlReceiver({ identity, arkadeAddress: ARK })!.claim()
 
       expect(bodyOf(callTo('/lnurl/address'))).toEqual({ token: expect.any(String), domain: DOMAIN })
+      const bind = bodyOf(callTo('/arkade'))
+      expect(bind).toEqual({
+        arkadeAddress: ARK,
+        claimPublicKey: expect.stringMatching(/^0[23][0-9a-f]{64}$/),
+        domain: DOMAIN,
+      })
+      expect(callTo('/arkade')[0]).toBe(`${BASE_URL}/lnurl/address/brave-otter/arkade`)
       expect(receiver.lightningAddress).toBe('brave-otter@lnurl.test')
     })
 
     it('carries a claim code alongside the requested username', async () => {
-      await lnurlReceiver({ identity, arkadeAddress: ARK })!.claim({ username: 'alice', claimCode: 'secret-code' })
+      const receiver = await lnurlReceiver({ identity, arkadeAddress: ARK })!.claim({
+        username: 'alice',
+        claimCode: 'secret-code',
+      })
 
       expect(bodyOf(callTo('/lnurl/address'))).toEqual({
         token: expect.any(String),
@@ -124,6 +135,13 @@ describe('lnurlReceiver', () => {
         claimCode: 'secret-code',
         domain: DOMAIN,
       })
+      expect(bodyOf(callTo('/arkade'))).toEqual({
+        arkadeAddress: ARK,
+        claimPublicKey: expect.stringMatching(/^0[23][0-9a-f]{64}$/),
+        domain: DOMAIN,
+      })
+      expect(callTo('/arkade')[0]).toBe(`${BASE_URL}/lnurl/address/alice/arkade`)
+      expect(receiver.lightningAddress).toBe('alice@lnurl.test')
     })
 
     it('claims a nameless receiver and still binds the identity', async () => {
