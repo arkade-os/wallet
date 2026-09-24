@@ -52,6 +52,9 @@ const createMemoryStore = (): LnurlPaymentStore => {
     write: async (next) => {
       records = [...next]
     },
+    clear: async () => {
+      records = []
+    },
   }
 }
 
@@ -84,6 +87,15 @@ describe('lnurlPaymentRepository', () => {
     const all = await repository.all()
     expect(all).toHaveLength(2)
     expect(all.map((record) => record.key).sort()).toEqual([`${SERVER_A}|same-id`, `${SERVER_B}|same-id`])
+  })
+
+  it('forgets every record on clear, as a wallet reset needs', async () => {
+    const repository = createLnurlPaymentRepository(createMemoryStore())
+    await repository.upsert([makePayment('hash-1', SERVER_A, { preimage: 'ff'.repeat(32) }), makePayment('hash-2')])
+
+    await repository.clear()
+
+    expect(await repository.all()).toEqual([])
   })
 
   it('indexes records by payment reference', async () => {

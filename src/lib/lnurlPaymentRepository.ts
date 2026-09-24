@@ -8,6 +8,7 @@ import { LNURL_WATERMARKS_STORAGE_KEY } from './storageKeys'
 export interface LnurlPaymentStore {
   read(): Promise<StoredPayment[]>
   write(records: StoredPayment[]): Promise<void>
+  clear(): Promise<void>
 }
 
 export const lnurlPaymentKey = (baseUrl: string, identifier: string): string => `${baseUrl}|${identifier}`
@@ -66,6 +67,19 @@ export const createIndexedDbLnurlPaymentStore = (
             tx.onerror = () => reject(tx.error)
           }),
       ),
+    clear: () =>
+      open().then(
+        (db) =>
+          new Promise<void>((resolve, reject) => {
+            const tx = db.transaction(storeName, 'readwrite')
+            tx.objectStore(storeName).clear()
+            tx.oncomplete = () => {
+              db.close()
+              resolve()
+            }
+            tx.onerror = () => reject(tx.error)
+          }),
+      ),
   }
 }
 
@@ -75,6 +89,7 @@ export function createLnurlPaymentRepository(store: LnurlPaymentStore = indexedD
   upsert(records: StoredPayment[]): Promise<void>
   all(): Promise<StoredPayment[]>
   byPaymentReference(): Promise<Map<string, StoredPayment>>
+  clear(): Promise<void>
 } {
   return {
     upsert: async (records) => {
@@ -91,6 +106,7 @@ export function createLnurlPaymentRepository(store: LnurlPaymentStore = indexedD
       }
       return byReference
     },
+    clear: () => store.clear(),
   }
 }
 
