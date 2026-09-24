@@ -97,7 +97,9 @@ export default function WalletSwap() {
   const btcUnit = normalizeBitcoinUnit(config.unit)
   const swapAssets = useMemo<SwapAsset[]>(() => {
     const marketAssets = markets.flatMap((market) => [market.base_asset, market.quote_asset])
-    const uniqueAssets = new Map(marketAssets.map((asset) => [asset.id, asset]))
+    const uniqueAssets = new Map(
+      marketAssets.filter((asset) => !asset.id.match('slip44:0')).map((asset) => [asset.id, asset]),
+    )
     uniqueAssets.set(BTC_ASSET_ID, {
       id: BTC_ASSET_ID,
       name: 'Bitcoin',
