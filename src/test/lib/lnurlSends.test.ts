@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeHandle, type ArkTransaction, type RouteQuote } from '@arkade-os/sdk'
 import { LNURL_ARKADE_RAIL, LNURL_LIGHTNING_RAIL } from '@arkade-os/lnurl-client/arkade'
 import {
@@ -6,9 +6,17 @@ import {
   lnurlSends,
   markLnurlReceiverConfirmed,
   recordLnurlSend,
+  resumeLnurlConfirmations,
 } from '../../lib/lnurlSends'
+import { LNURL_SENDS_STORAGE_KEY } from '../../lib/storageKeys'
 
-beforeEach(() => localStorage.clear())
+const addConfirmation = vi.hoisted(() => vi.fn())
+vi.mock('../../lib/lnurlConfirmations', () => ({ pendingConfirmations: { add: addConfirmation, forget: vi.fn() } }))
+
+beforeEach(() => {
+  localStorage.clear()
+  addConfirmation.mockClear()
+})
 
 const TARGET = 'alice@pay.example'
 
@@ -75,6 +83,51 @@ describe('recording an LNURL send', () => {
     await expect(handle.settled()).rejects.toThrow('refused')
 
     expect(lnurlSends()).toEqual([])
+  })
+})
+
+describe('resuming receiver confirmations', () => {
+  const row = (txid: string, over: object = {}) => ({
+    txid,
+    target: TARGET,
+    railId: LNURL_ARKADE_RAIL,
+    amountSat: 2_100,
+    feeSat: 0,
+    createdAt: 1,
+    ...over,
+  })
+
+  it('keeps the verify URLs the quote carried on the recorded send', async () => {
+    const handle = makeHandle(LNURL_ARKADE_RAIL, async (emit) => {
+      const result = { railId: 'ark', txid: 'ark-txid' }
+      emit({ status: 'settled', result })
+      return result
+    })
+    const meta = { lnurl: { target: TARGET, via: 'ark', verify: 'https://a/v/1', verifyBatch: 'https://a/batch' } }
+    recordLnurlSend(handle, quote(LNURL_ARKADE_RAIL, { meta }), TARGET)
+    await handle.settled()
+
+    expect(lnurlSends()).toEqual([expect.objectContaining({ verify: 'https://a/v/1', verifyBatch: 'https://a/batch' })])
+  })
+
+  it('re-registers only sends still waiting on an answer, and records it when it comes', () => {
+    localStorage.setItem(
+      LNURL_SENDS_STORAGE_KEY,
+      JSON.stringify([
+        row('pending', { verify: 'https://a/v/1', verifyBatch: 'https://a/batch' }),
+        row('answered', { verify: 'https://a/v/2', receiverConfirmed: false }),
+        row('unverifiable'),
+      ]),
+    )
+
+    resumeLnurlConfirmations()
+
+    expect(addConfirmation).toHaveBeenCalledTimes(1)
+    expect(addConfirmation).toHaveBeenCalledWith(
+      expect.objectContaining({ verifyUrl: 'https://a/v/1', verifyBatch: 'https://a/batch' }),
+    )
+    addConfirmation.mock.calls[0][0].onSettled()
+    expect(lnurlSends().find((s) => s.txid === 'pending')?.receiverConfirmed).toBe(true)
   })
 })
 

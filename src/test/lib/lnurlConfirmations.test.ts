@@ -30,6 +30,23 @@ describe('pendingConfirmations', () => {
     expect(batchVerify).toHaveBeenCalledWith('https://a/batch', ['https://a/verify/1', 'https://a/verify/2'])
   })
 
+  it('ignores a verify URL it is already waiting on', async () => {
+    const batchVerify = vi.fn().mockResolvedValue({ results: {} })
+    const confirmations = createPendingConfirmations(fakeClient({ batchVerify }))
+    const entry = {
+      verifyUrl: 'https://a/verify/1',
+      verifyBatch: 'https://a/batch',
+      onSettled: vi.fn(),
+      onError: vi.fn(),
+    }
+    confirmations.add(entry)
+    confirmations.add({ ...entry })
+
+    await vi.advanceTimersByTimeAsync(2_000)
+
+    expect(batchVerify).toHaveBeenCalledWith('https://a/batch', ['https://a/verify/1'])
+  })
+
   it('marks an entry settled from its batch answer and drops it from later ticks', async () => {
     const batchVerify = vi
       .fn()

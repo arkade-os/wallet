@@ -113,6 +113,8 @@ export function createPendingConfirmations(client: LnurlClient = createLnurlClie
 
   return {
     add(confirmation) {
+      // A re-init resumes the same stored sends again; one wait per verify URL is enough.
+      if ([...entries].some((e) => e.verifyUrl === confirmation.verifyUrl)) return
       const entry: Entry = { ...confirmation, deadline: Date.now() + (confirmation.timeoutMs ?? DEFAULT_TIMEOUT_MS) }
       entries.add(entry)
       ensure()

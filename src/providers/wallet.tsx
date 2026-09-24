@@ -43,7 +43,7 @@ import { arkTransactionToTx } from '../lib/transactionHistory'
 import { Indexer } from '../lib/indexer'
 import { lnSendViews, swapRecordResolver, type LnSendView } from '../lib/swapRecords'
 import { createLnurlActivityResolver, lnurlPaymentRepository } from '../lib/lnurlPaymentRepository'
-import { createSentActivityResolver } from '../lib/lnurlSends'
+import { createSentActivityResolver, resumeLnurlConfirmations } from '../lib/lnurlSends'
 import { pendingConfirmations } from '../lib/lnurlConfirmations'
 import { lnurlSyncWritesSettled, syncLnurlActivity } from '../lib/lnurlActivitySync'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
@@ -742,6 +742,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       setVtxoManager(vtxoMgr)
       setInitialized(walletInitialized)
 
+      resumeLnurlConfirmations()
       // Receives that completed while the wallet was closed are the ones it can
       // never witness first-hand, so pull them once the wallet is usable.
       // Deliberately not awaited: an unreachable lnurl-server must cost the
