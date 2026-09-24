@@ -1,5 +1,15 @@
-import { arkadeLnurl, type ArkadeLnurl, type ArkadeSigner } from '@arkade-os/lnurl-client/arkade'
-import { LnurlError, type PaymentSyncStore } from '@arkade-os/lnurl-client'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  arkadeLnurl,
+  type ArkadeLnurl,
+  type ArkadeSigner,
+  type ClaimOptions,
+  type NameOptions,
+  type Receiver,
+} from '@arkade-os/lnurl-client/arkade'
+import { LnurlError, type DomainCapabilities, type PaymentSyncStore } from '@arkade-os/lnurl-client'
+import { consoleError } from '../logs'
+import { lnurlPaymentSyncStore } from '../lnurlPaymentRepository'
 
 /** An lnurl-server this wallet holds addresses at. */
 export interface LnurlServer {
@@ -57,4 +67,116 @@ export const lnurlClaimErrorMessage = (error: unknown): string => {
     if (known) return known
   }
   return error instanceof Error ? error.message : 'Could not get a lightning address.'
+}
+
+/** A server allocation mode, as offered to the user. `admin` is a claim code for a reserved name. */
+export type OnboardingChoice = 'self' | 'random' | 'admin' | 'session'
+
+const CHOICE_ORDER: OnboardingChoice[] = ['self', 'random', 'admin', 'session']
+
+/** The choices this server allows. None when it wants an API key, which the facade cannot send. */
+export const onboardingChoices = (capabilities: DomainCapabilities): OnboardingChoice[] =>
+  capabilities.requireApiKey ? [] : CHOICE_ORDER.filter((mode) => capabilities.allocationModes.includes(mode))
+
+export interface LnurlRail {
+  status: 'off' | 'loading' | 'onboarding' | 'ready' | 'failed'
+  receiver: Receiver | undefined
+  choices: OnboardingChoice[]
+  busy: boolean
+  error: string
+  claim: (opts: ClaimOptions) => Promise<void>
+  upgrade: (opts: NameOptions) => Promise<void>
+}
+
+export function useLnurlRail(deps: {
+  enabled: boolean
+  identity?: ArkadeSigner
+  arkadeAddress?: string
+  boardingAddress?: string
+}): LnurlRail {
+  const { enabled, identity, arkadeAddress, boardingAddress } = deps
+  const facade = useMemo(
+    () =>
+      enabled && identity && arkadeAddress
+        ? lnurlReceiver({ identity, arkadeAddress, boardingAddress, store: lnurlPaymentSyncStore })
+        : undefined,
+    [enabled, identity, arkadeAddress, boardingAddress],
+  )
+  const [receiver, setReceiver] = useState<Receiver>()
+  const [choices, setChoices] = useState<OnboardingChoice[]>([])
+  const [loadedFor, setLoadedFor] = useState<ArkadeLnurl>()
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    setReceiver(undefined)
+    setChoices([])
+    setError('')
+    setLoadFailed(false)
+    if (!facade) return
+    let stale = false
+    const load = async () => {
+      const owned = await facade.owned()
+      // A named receiver needs no choices; a nameless one needs them for "Add a name".
+      const capabilities = owned?.lightningAddress ? undefined : await facade.capabilities()
+      if (stale) return
+      setReceiver(owned)
+      setChoices(capabilities ? onboardingChoices(capabilities) : [])
+    }
+    load()
+      .catch((err) => {
+        if (stale) return
+        consoleError(err, 'lnurl address lookup failed')
+        setError(lnurlClaimErrorMessage(err))
+        setLoadFailed(true)
+      })
+      .finally(() => {
+        if (!stale) setLoadedFor(facade)
+      })
+    return () => {
+      stale = true
+    }
+  }, [facade])
+
+  const run = async (action: () => Promise<Receiver>, syncAfter: boolean) => {
+    setBusy(true)
+    setError('')
+    try {
+      const next = await action()
+      setReceiver(next)
+      // The startup sync listed addresses before this one existed; without this a
+      // payment arriving this session stays unattributed until the next start.
+      if (syncAfter) next.sync().catch((err) => consoleError(err, 'lnurl activity sync after claim failed'))
+    } catch (err) {
+      consoleError(err, 'lnurl claim failed')
+      setError(lnurlClaimErrorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const status: LnurlRail['status'] = !facade
+    ? 'off'
+    : loadedFor !== facade
+      ? 'loading'
+      : loadFailed
+        ? 'failed'
+        : receiver
+          ? 'ready'
+          : 'onboarding'
+
+  return {
+    status,
+    receiver,
+    choices,
+    busy,
+    error,
+    claim: async (opts) => {
+      if (facade) await run(() => facade.claim(opts), true)
+    },
+    upgrade: async (opts) => {
+      if (receiver) await run(() => receiver.upgrade(opts), false)
+    },
+  }
 }

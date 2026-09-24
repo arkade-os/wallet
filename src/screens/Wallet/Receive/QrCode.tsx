@@ -43,6 +43,8 @@ import { AspContext } from '../../../providers/asp'
 import { AssetsContext } from '../../../providers/assets'
 import { useSwapRail } from '../../../lib/receive/swapRail'
 import SwapRailStatus from './SwapRail'
+import { configuredLnurlServer, useLnurlRail } from '../../../lib/receive/lnurlRail'
+import LnurlRailPanel from './LnurlRail'
 
 /**
  * Decide which value the QR should encode. Honours an explicit copy-sheet
@@ -121,15 +123,24 @@ export default function ReceiveQRCode() {
       })
   }, [svcWallet])
 
-  const swapRail = useSwapRail()
+  // A configured lnurl-server replaces the swap rail outright; unset, this screen is the swap rail's alone.
+  const lnurlConfigured = Boolean(configuredLnurlServer())
+  const swapRail = useSwapRail(!lnurlConfigured)
   const { generatingInvoice } = swapRail
+  const lnurlRail = useLnurlRail({
+    enabled: lnurlConfigured && !isAssetReceive,
+    identity: svcWallet?.identity,
+    arkadeAddress: recvInfo.offchainAddr,
+    boardingAddress: recvInfo.boardingAddr || undefined,
+  })
+  const lnurl = lnurlRail.receiver?.lnurl ?? ''
 
   const createBip21 = (): { ark: string; btc: string; bip21: string } => {
     const ark = vtxoTxsAllowed() ? recvInfo.offchainAddr : ''
     const btc = utxoTxsAllowed() ? recvInfo.boardingAddr : ''
     const bip21 = isAssetReceive
       ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals)
-      : encodeBip21(btc, ark, recvInfo.invoice ?? '', satoshis, '')
+      : encodeBip21(btc, ark, recvInfo.invoice ?? '', satoshis, lnurl)
 
     return { ark, btc, bip21 }
   }
@@ -155,6 +166,7 @@ export default function ReceiveQRCode() {
     recvInfo.boardingAddr,
     recvInfo.satoshis,
     recvInfo.invoice,
+    lnurl,
   ])
 
   // Payment listener
@@ -395,6 +407,7 @@ export default function ReceiveQRCode() {
                   </Text>
                 ) : null}
               </div>
+              <LnurlRailPanel rail={lnurlRail} />
             </FlexCol>
           )}
         </Padded>
@@ -445,6 +458,7 @@ export default function ReceiveQRCode() {
             btcAddress={btcAddress}
             arkAddress={arkAddress}
             invoice={recvInfo.invoice ?? ''}
+            lightningAddress={lnurlRail.receiver?.lightningAddress ?? ''}
             onCopy={handleCopy}
             onSelect={(v) => {
               setSelectedValue(v)
@@ -464,6 +478,7 @@ function AddressList({
   btcAddress,
   arkAddress,
   invoice,
+  lightningAddress,
   onCopy,
   onSelect,
   copied,
@@ -472,6 +487,7 @@ function AddressList({
   btcAddress: string
   arkAddress: string
   invoice: string
+  lightningAddress: string
   onCopy: (value: string) => void
   onSelect: (value: string) => void
   copied: string
@@ -513,6 +529,16 @@ function AddressList({
           testId='invoice'
           title='Lightning invoice'
           value={invoice}
+          onCopy={onCopy}
+          onSelect={onSelect}
+          copied={copied}
+        />
+      ) : null}
+      {lightningAddress ? (
+        <AddressLine
+          testId='lnaddress'
+          title='Lightning address'
+          value={lightningAddress}
           onCopy={onCopy}
           onSelect={onSelect}
           copied={copied}

@@ -18,7 +18,7 @@ export interface SwapRail {
   claimError: string | undefined
 }
 
-export function useSwapRail(): SwapRail {
+export function useSwapRail(enabled = true): SwapRail {
   const { aspInfo } = useContext(AspContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { receiveLightning, cancelSwap, outcomeOf, errorOf } = useContext(SwapsContext)
@@ -62,7 +62,7 @@ export function useSwapRail(): SwapRail {
     setLnRetryable(false)
     setLnNoDriver(false)
     setGeneratingInvoice(false)
-    if (!svcWallet || isAssetReceive || satoshis <= 0 || recvInfo.received) return
+    if (!enabled || !svcWallet || isAssetReceive || satoshis <= 0 || recvInfo.received) return
     if (recvInfo.pendingLnReceive?.payAmount && recvInfo.invoice) return
 
     let abandoned = false
@@ -119,7 +119,7 @@ export function useSwapRail(): SwapRail {
       abandoned = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [svcWallet, satoshis, isAssetReceive, aspInfo.network, negotiateAttempt, recvInfo.received])
+  }, [enabled, svcWallet, satoshis, isAssetReceive, aspInfo.network, negotiateAttempt, recvInfo.received])
 
   // What the monitored receive is doing, if there is one. The screen's VTXO
   // listener still reports the credit; this is what can say the payment was LOST —

@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SingleKey } from '@arkade-os/sdk'
 import { LnurlError } from '@arkade-os/lnurl-client'
-import { configuredLnurlServer, lnurlReceiver, lnurlClaimErrorMessage } from '../../../lib/receive/lnurlRail'
+import {
+  configuredLnurlServer,
+  lnurlReceiver,
+  lnurlClaimErrorMessage,
+  onboardingChoices,
+} from '../../../lib/receive/lnurlRail'
 
 const BASE_URL = 'https://lnurl.test'
 const DOMAIN = 'lnurl.test'
@@ -233,5 +238,32 @@ describe('lnurlClaimErrorMessage', () => {
 
   it('falls back to the error message for anything else', () => {
     expect(lnurlClaimErrorMessage(new Error('offline'))).toBe('offline')
+  })
+})
+
+describe('onboardingChoices', () => {
+  const caps = (allocationModes: string[], requireApiKey = false) => ({
+    domain: DOMAIN,
+    allocationModes,
+    usernameRules: { minLen: 3, maxLen: 20, pattern: '.*' },
+    requireApiKey,
+  })
+
+  it('offers exactly the advertised modes, in a fixed order', () => {
+    expect(onboardingChoices(caps(['session', 'self', 'admin', 'random']))).toEqual([
+      'self',
+      'random',
+      'admin',
+      'session',
+    ])
+    expect(onboardingChoices(caps(['random']))).toEqual(['random'])
+  })
+
+  it('ignores modes it does not know', () => {
+    expect(onboardingChoices(caps(['self', 'vip']))).toEqual(['self'])
+  })
+
+  it('offers nothing when the server wants an API key the wallet cannot send', () => {
+    expect(onboardingChoices(caps(['self', 'random'], true))).toEqual([])
   })
 })
