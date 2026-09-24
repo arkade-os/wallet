@@ -128,6 +128,19 @@ describe('Receive screen, rail composition', () => {
     expect(await screen.findByText('alice@lnurl.test')).toBeInTheDocument()
     expect(receiveLightning).not.toHaveBeenCalled()
   })
+
+  it('falls back to the swap rail when the configured lnurl-server is unreachable', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new TypeError('Failed to fetch')
+      }),
+    )
+    receiveLightning.mockResolvedValue({ id: 'swap-id', invoice: 'lnbc10mock' })
+    renderReceive(10_000)
+
+    await waitFor(() => expect(receiveLightning).toHaveBeenCalledWith(10_000))
+  })
 })
 
 describe('Receive screen, lnurl onboarding', () => {

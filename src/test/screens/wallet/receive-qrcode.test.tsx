@@ -276,4 +276,9 @@ describe('resolveQrValue', () => {
       'bitcoin:unified',
     )
   })
+
+  it('keeps a selected invoice until it is no longer offered', () => {
+    expect(resolveQrValue('lnbc1invoice', { ...opts, invoice: 'lnbc1invoice' })).toBe('lnbc1invoice')
+    expect(resolveQrValue('lnbc1invoice', { ...opts, invoice: 'lnbc1other' })).toBe('bitcoin:unified')
+  })
 })

@@ -55,10 +55,11 @@ import LnurlRailPanel from './LnurlRail'
  */
 export const resolveQrValue = (
   selected: string,
-  options: { bip21: string; btc: string; ark: string; lightningAddress?: string },
+  options: { bip21: string; btc: string; ark: string; lightningAddress?: string; invoice?: string },
 ): string => {
-  const candidates = [options.bip21, options.btc, options.ark, options.lightningAddress].filter(Boolean)
-  return selected && candidates.includes(selected) ? selected : options.bip21
+  const { bip21, btc, ark, lightningAddress, invoice } = options
+  const candidates = [bip21, btc, ark, lightningAddress, invoice].filter(Boolean)
+  return selected && candidates.includes(selected) ? selected : bip21
 }
 
 export default function ReceiveQRCode() {
@@ -126,16 +127,17 @@ export default function ReceiveQRCode() {
       })
   }, [svcWallet])
 
-  // A configured lnurl-server replaces the swap rail outright; unset, this screen is the swap rail's alone.
+  // A reachable lnurl-server replaces the swap rail; an unreachable one falls back to it. Not while
+  // onboarding: a swap invoice would outlive the claim and take the QR's lightning= from the LNURL.
   const lnurlConfigured = Boolean(configuredLnurlServer())
-  const swapRail = useSwapRail(!lnurlConfigured)
-  const { generatingInvoice } = swapRail
   const lnurlRail = useLnurlRail({
     enabled: lnurlConfigured && !isAssetReceive,
     identity: svcWallet?.identity,
     arkadeAddress: recvInfo.offchainAddr,
     boardingAddress: recvInfo.boardingAddr || undefined,
   })
+  const swapRail = useSwapRail(!lnurlConfigured || lnurlRail.status === 'failed')
+  const { generatingInvoice } = swapRail
   const lnurl = lnurlRail.receiver?.lnurl ?? ''
   const lightningAddress = lnurlRail.receiver?.lightningAddress ?? ''
 
@@ -161,7 +163,7 @@ export default function ReceiveQRCode() {
     setBip21Uri(bip21)
     // Preserve an explicit copy-sheet selection across rebuilds; only fall back
     // to the unified URI when the selected value is no longer one we offer.
-    setQrCodeValue(resolveQrValue(selectedValue, { bip21, btc, ark, lightningAddress }))
+    setQrCodeValue(resolveQrValue(selectedValue, { bip21, btc, ark, lightningAddress, invoice: recvInfo.invoice }))
   }, [
     assetAmount,
     addressesLoaded,
