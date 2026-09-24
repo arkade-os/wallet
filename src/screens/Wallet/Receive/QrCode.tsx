@@ -53,8 +53,11 @@ import LnurlRailPanel from './LnurlRail'
  * change), fall back to the unified BIP21 URI. This stops async rebuilds from
  * silently reverting the user's pick and copying the wrong thing.
  */
-export const resolveQrValue = (selected: string, options: { bip21: string; btc: string; ark: string }): string => {
-  const candidates = [options.bip21, options.btc, options.ark].filter(Boolean)
+export const resolveQrValue = (
+  selected: string,
+  options: { bip21: string; btc: string; ark: string; lightningAddress?: string },
+): string => {
+  const candidates = [options.bip21, options.btc, options.ark, options.lightningAddress].filter(Boolean)
   return selected && candidates.includes(selected) ? selected : options.bip21
 }
 
@@ -134,6 +137,7 @@ export default function ReceiveQRCode() {
     boardingAddress: recvInfo.boardingAddr || undefined,
   })
   const lnurl = lnurlRail.receiver?.lnurl ?? ''
+  const lightningAddress = lnurlRail.receiver?.lightningAddress ?? ''
 
   const createBip21 = (): { ark: string; btc: string; bip21: string } => {
     const ark = vtxoTxsAllowed() ? recvInfo.offchainAddr : ''
@@ -157,7 +161,7 @@ export default function ReceiveQRCode() {
     setBip21Uri(bip21)
     // Preserve an explicit copy-sheet selection across rebuilds; only fall back
     // to the unified URI when the selected value is no longer one we offer.
-    setQrCodeValue(resolveQrValue(selectedValue, { bip21, btc, ark }))
+    setQrCodeValue(resolveQrValue(selectedValue, { bip21, btc, ark, lightningAddress }))
   }, [
     assetAmount,
     addressesLoaded,
@@ -167,6 +171,7 @@ export default function ReceiveQRCode() {
     recvInfo.satoshis,
     recvInfo.invoice,
     lnurl,
+    lightningAddress,
   ])
 
   // Payment listener
@@ -458,7 +463,7 @@ export default function ReceiveQRCode() {
             btcAddress={btcAddress}
             arkAddress={arkAddress}
             invoice={recvInfo.invoice ?? ''}
-            lightningAddress={lnurlRail.receiver?.lightningAddress ?? ''}
+            lightningAddress={lightningAddress}
             onCopy={handleCopy}
             onSelect={(v) => {
               setSelectedValue(v)
