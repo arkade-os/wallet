@@ -76,6 +76,15 @@ type LnUrlConditions = PayRequest & {
   transferAmounts?: { method: string; available: boolean }[]
 }
 
+/** Spread before the one target a recipient sets, so the previous one cannot be paid instead. */
+const noTarget = {
+  address: undefined,
+  arkAddress: undefined,
+  invoice: undefined,
+  lnUrl: undefined,
+  pendingLnSend: undefined,
+}
+
 export const isPlainOnchainTypedRecipient = (value: string): boolean => {
   if (isBTCAddress(value)) return true
   if (!isBip21(value.toLowerCase())) return false
@@ -362,6 +371,7 @@ export default function SendForm() {
             address,
             arkAddress,
             invoice,
+            lnUrl: undefined,
             recipient,
             satoshis: 0,
             assets: [{ assetId, amount: rawAmount }],
@@ -384,7 +394,7 @@ export default function SendForm() {
         return
       }
       if (isValidArkAddress(lowerCaseData)) {
-        return setSendInfo((prev) => ({ ...prev, arkAddress: lowerCaseData, pendingLnSend: undefined }))
+        return setSendInfo((prev) => ({ ...prev, ...noTarget, arkAddress: lowerCaseData }))
       }
       if (isLightningInvoice(lowerCaseData)) {
         if (isAssetSend) {
@@ -401,6 +411,7 @@ export default function SendForm() {
         if (!satoshis) return setRecipientError('Invoice must have amount defined')
         setSendInfo((prev) => ({
           ...prev,
+          ...noTarget,
           invoice: lowerCaseData,
           satoshis,
           pendingLnSend: lowerCaseData === prev.invoice ? prev.pendingLnSend : undefined,
@@ -416,7 +427,7 @@ export default function SendForm() {
         if (isAssetSend) {
           return setRecipientError('Assets can only be sent to Arkade addresses')
         }
-        return setSendInfo({ ...sendInfo, address: recipient })
+        return setSendInfo((prev) => ({ ...prev, ...noTarget, address: recipient }))
       }
       if (isArkNote(lowerCaseData)) {
         try {
@@ -428,7 +439,7 @@ export default function SendForm() {
         }
       }
       if (isValidLnUrl(lowerCaseData)) {
-        return setSendInfo({ ...sendInfo, lnUrl: lowerCaseData, pendingLnSend: undefined })
+        return setSendInfo((prev) => ({ ...prev, ...noTarget, lnUrl: lowerCaseData }))
       }
       setRecipientError('Invalid recipient address')
       setReadyToParse(false)
@@ -518,18 +529,21 @@ export default function SendForm() {
 
   // check lnurl conditions
   useEffect(() => {
-    if (!sendInfo.lnUrl) return
-    if (sendInfo.arkAddress) return
+    // Keyed on the target, not the keystroke: re-entering the same LNURL keeps its conditions.
+    if (!sendInfo.lnUrl || sendInfo.arkAddress) return setLnUrlResponse(undefined)
     if (sendInfo.invoice && lnUrlResponse) return
+    setLnUrlResponse(undefined)
+    let live = true
     lnurlClient
       .resolve(sendInfo.lnUrl)
       .then((conditions) => {
+        if (!live) return
         if (!conditions) return setRecipientError('Unable to fetch LNURL conditions')
         const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
         const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
         // when the LNURL resolves to a fixed amount, set amountTextValue
         if (min === max) {
-          setSendInfo({ ...sendInfo, satoshis: min })
+          setSendInfo((prev) => ({ ...prev, satoshis: min }))
           setAmountTextValue(getTextValue(min))
           setValueSats(min)
           setAmountIsReadOnly(true)
@@ -537,6 +551,7 @@ export default function SendForm() {
         return setLnUrlResponse({ ...conditions, minSendable: min, maxSendable: max })
       })
       .catch((e) => {
+        if (!live) return
         if (e instanceof LnurlError && e.httpStatus === 404) {
           consoleError(e, 'LNURL not found')
           setRecipientError('LNURL not found')
@@ -545,6 +560,9 @@ export default function SendForm() {
         consoleError(e, 'Error checking LNURL conditions')
         setRecipientError(extractError(e))
       })
+    return () => {
+      live = false
+    }
   }, [sendInfo.arkAddress, sendInfo.lnUrl])
 
   // check if user wants to send all funds

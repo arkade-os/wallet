@@ -1,7 +1,8 @@
+import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import createFetchMock from 'vitest-fetch-mock'
-import { emptySendInfo, FlowContext } from '../../../providers/flow'
+import { emptySendInfo, FlowContext, type SendInfo } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import {
   mockAspContextValue,
@@ -16,7 +17,7 @@ import {
 } from '../mocks'
 import { AspContext } from '../../../providers/asp'
 import { WalletContext } from '../../../providers/wallet'
-import { NavigationContext } from '../../../providers/navigation'
+import { NavigationContext, Pages } from '../../../providers/navigation'
 import SendForm from '../../../screens/Wallet/Send/Form'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
@@ -26,35 +27,46 @@ import { createSendRouter, LNURL_ARKADE_RAIL } from '../../../lib/sendRouter'
 import { Currencies, Unit } from '../../../lib/types'
 import fixtures from '../../fixtures.json'
 
+type TreeOptions = {
+  configContext?: unknown
+  fiatContext?: unknown
+  flowContext?: unknown
+  walletContext?: unknown
+  swapsContext?: unknown
+  navigationContext?: typeof mockNavigationContextValue
+}
+
+const sendFormTree = ({
+  configContext = mockConfigContextValue,
+  fiatContext = mockFiatContextValue,
+  flowContext = mockFlowContextValue,
+  walletContext = { ...mockWalletContextValue, svcWallet: mockSvcWallet as any },
+  swapsContext = {},
+  navigationContext = mockNavigationContextValue,
+}: TreeOptions = {}) => (
+  <NavigationContext.Provider value={navigationContext}>
+    <AspContext.Provider value={mockAspContextValue}>
+      <ConfigContext.Provider value={configContext as any}>
+        <FiatContext.Provider value={fiatContext as any}>
+          <OptionsContext.Provider value={mockOptionsContextValue as any}>
+            <FlowContext.Provider value={flowContext as any}>
+              <WalletContext.Provider value={walletContext as any}>
+                <SwapsContext.Provider value={swapsContext as any}>
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <SendForm />
+                  </LimitsContext.Provider>
+                </SwapsContext.Provider>
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </OptionsContext.Provider>
+        </FiatContext.Provider>
+      </ConfigContext.Provider>
+    </AspContext.Provider>
+  </NavigationContext.Provider>
+)
+
 describe('Send screen', () => {
-  const renderSendForm = ({
-    configContext = mockConfigContextValue,
-    fiatContext = mockFiatContextValue,
-    flowContext = mockFlowContextValue,
-    walletContext = { ...mockWalletContextValue, svcWallet: mockSvcWallet as any },
-    swapsContext = {},
-  } = {}) =>
-    render(
-      <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={mockAspContextValue}>
-          <ConfigContext.Provider value={configContext as any}>
-            <FiatContext.Provider value={fiatContext as any}>
-              <OptionsContext.Provider value={mockOptionsContextValue as any}>
-                <FlowContext.Provider value={flowContext as any}>
-                  <WalletContext.Provider value={walletContext as any}>
-                    <SwapsContext.Provider value={swapsContext as any}>
-                      <LimitsContext.Provider value={mockLimitsContextValue}>
-                        <SendForm />
-                      </LimitsContext.Provider>
-                    </SwapsContext.Provider>
-                  </WalletContext.Provider>
-                </FlowContext.Provider>
-              </OptionsContext.Provider>
-            </FiatContext.Provider>
-          </ConfigContext.Provider>
-        </AspContext.Provider>
-      </NavigationContext.Provider>,
-    )
+  const renderSendForm = (options: TreeOptions = {}) => render(sendFormTree(options))
   it('renders the loading send screen correctly', async () => {
     renderSendForm({ walletContext: { ...mockWalletContextValue, svcWallet: undefined } })
     // should be loading because svcWallet is undefined
@@ -499,5 +511,136 @@ describe('Send screen', () => {
 
     expect(await screen.findByTestId('error-message')).toHaveTextContent(/partial send/)
     expect(screen.getByText('Continue').closest('button')).toBeDisabled()
+  })
+})
+
+describe('a changed recipient', () => {
+  const LNURL = 'alice@pay.example'
+  const BTC = 'bcrt1pj7fdvrpdsn0cl6722tmcvwcw4yqpe46020g43nhgzl90qq4aqjrs33du9f'
+  const ARK = fixtures.lib.address.ark[0].address
+  const SATS = 5_000
+
+  let current: SendInfo = emptySendInfo
+  const StatefulForm = (options: TreeOptions) => {
+    const [sendInfo, setSendInfo] = useState<SendInfo>({ ...emptySendInfo, satoshis: SATS })
+    current = sendInfo
+    return sendFormTree({ ...options, flowContext: { ...mockFlowContextValue, sendInfo, setSendInfo } })
+  }
+
+  const svcWallet = {
+    ...mockSvcWallet,
+    getAddress: () => ARK,
+    getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+  } as any
+  const walletContext = { ...mockWalletContextValue, balance: 1_000_000, availableBalance: 1_000_000, svcWallet }
+
+  const payRequest = {
+    tag: 'payRequest',
+    callback: 'https://pay.example/cb',
+    minSendable: SATS * 1000,
+    maxSendable: SATS * 1000,
+    metadata: '[]',
+    paymentOptions: [
+      { id: 'ln', type: 'lightning' },
+      { id: 'ark', type: 'arkade' },
+    ],
+  }
+  const lnurlServer = (held?: Promise<void>) => {
+    const fetchMocker = createFetchMock(vi)
+    fetchMocker.enableMocks()
+    fetchMocker.mockResponse(async (req) => {
+      if (req.url.includes('paymentOption=')) return JSON.stringify({ paymentOption: 'ark', paymentDestination: ARK })
+      await held
+      return JSON.stringify(payRequest)
+    })
+    return fetchMocker
+  }
+
+  const renderStateful = () => {
+    const sendRouter = vi.fn(async () => createSendRouter({ wallet: svcWallet }))
+    const navigate = vi.fn()
+    const { container } = render(
+      <StatefulForm
+        walletContext={walletContext}
+        swapsContext={{ sendRouter }}
+        navigationContext={{ ...mockNavigationContextValue, navigate }}
+      />,
+    )
+    const type = (value: string) =>
+      fireEvent.change(container.querySelector('input[name="send-address"]')!, { target: { value } })
+    return { sendRouter, navigate, type }
+  }
+  const settle = { timeout: 3_000 }
+  const clickContinue = async () => {
+    const button = screen.getByText('Continue').closest('button')!
+    await waitFor(() => expect(button).toBeEnabled(), settle)
+    fireEvent.click(button)
+  }
+
+  it('pays the BTC address typed after an LNURL, not the LNURL', async () => {
+    const fetchMocker = lnurlServer()
+    const { sendRouter, navigate, type } = renderStateful()
+    type(LNURL)
+    await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
+
+    type(BTC)
+    await waitFor(() => expect(current.address).toBe(BTC), settle)
+    await clickContinue()
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), settle)
+    expect(sendRouter).not.toHaveBeenCalled()
+    expect(current).toMatchObject({ address: BTC, lnUrl: undefined, pendingLnSend: undefined })
+    fetchMocker.disableMocks()
+  })
+
+  it('quotes the LNURL typed after an Ark address, not the Ark address', async () => {
+    const fetchMocker = lnurlServer()
+    const { navigate, type } = renderStateful()
+    type(ARK)
+    await waitFor(() => expect(current.arkAddress).toBe(ARK), settle)
+
+    type(LNURL)
+    await waitFor(() => expect(current.lnUrl).toBe(LNURL), settle)
+    expect(current.arkAddress).toBeUndefined()
+    await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
+    await clickContinue()
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), settle)
+    expect(current.arkAddress).toBeUndefined()
+    expect(current.pendingLnSend?.railId).toBe(LNURL_ARKADE_RAIL)
+    fetchMocker.disableMocks()
+  })
+
+  it('still quotes an LNURL re-entered unchanged, whose conditions are already in hand', async () => {
+    const fetchMocker = lnurlServer()
+    const { navigate, type } = renderStateful()
+    type(LNURL)
+    await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
+
+    type(LNURL.slice(0, -1))
+    type(LNURL)
+    await new Promise((resolve) => setTimeout(resolve, 1_000))
+    await clickContinue()
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), settle)
+    expect(current.pendingLnSend?.railId).toBe(LNURL_ARKADE_RAIL)
+    fetchMocker.disableMocks()
+  })
+
+  it('ignores an LNURL that resolves after the recipient changed', async () => {
+    let release = () => {}
+    const fetchMocker = lnurlServer(new Promise<void>((resolve) => (release = resolve)))
+    const { type } = renderStateful()
+    type(LNURL)
+    await waitFor(() => expect(current.lnUrl).toBe(LNURL), settle)
+    await waitFor(() => expect(fetchMocker.requests().length).toBeGreaterThan(0), settle)
+
+    type(BTC)
+    await waitFor(() => expect(current.address).toBe(BTC), settle)
+    release()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    expect(current).toMatchObject({ address: BTC, lnUrl: undefined })
+    fetchMocker.disableMocks()
   })
 })
