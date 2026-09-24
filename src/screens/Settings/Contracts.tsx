@@ -25,7 +25,7 @@ import ChevronUpIcon from '../../icons/ChevronUp'
 import ExternalLinkIcon from '../../icons/ExternalLink'
 import { WalletContext } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
-import { prettyAgo, prettyLongText } from '../../lib/format'
+import { prettyAgo, prettyDate, prettyLongText } from '../../lib/format'
 import { getVmempoolURL, getWebExplorerURL } from '../../lib/explorers'
 import { isBTCAddress } from '../../lib/address'
 import { copyToClipboard } from '../../lib/clipboard'
@@ -176,6 +176,10 @@ function Chip({ label, active, onClick }: { label: string; active: boolean; onCl
 function ContractCard({ item, open, onToggle }: { item: ContractView; open: boolean; onToggle: () => void }) {
   const { contract, address, explorer, encoded, status } = item
 
+  const refundLocktime = !isNaN(parseInt(contract.params?.refundLocktime))
+    ? parseInt(contract.params.refundLocktime)
+    : null
+
   return (
     <Shadow lighter border>
       <FlexCol gap={open ? '0.5rem' : '0'}>
@@ -205,6 +209,7 @@ function ContractCard({ item, open, onToggle }: { item: ContractView; open: bool
             <hr className='dashed' />
             <CopyRow label='address' value={address} link={explorer || undefined} />
             <CopyRow label='script' value={contract.script} />
+            {refundLocktime ? <CopyRow label='refund locktime' value={prettyDate(refundLocktime)} /> : null}
             {encoded ? <CopyRow label='parameters' value={encoded} /> : null}
           </>
         ) : null}
@@ -280,13 +285,15 @@ export default function Contracts() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return views.filter((v) => {
-      const active = v.contract.state === 'active'
-      if (tab === 'Active' ? !active : active) return false
-      if (typeFilter !== 'all' && v.contract.type !== typeFilter) return false
-      if (q && !v.search.includes(q)) return false
-      return true
-    })
+    return views
+      .filter((v) => {
+        const active = v.contract.state === 'active'
+        if (tab === 'Active' ? !active : active) return false
+        if (typeFilter !== 'all' && v.contract.type !== typeFilter) return false
+        if (q && !v.search.includes(q)) return false
+        return true
+      })
+      .sort((a, b) => b.contract.createdAt - a.contract.createdAt)
   }, [views, tab, typeFilter, query])
 
   // Virtualize the list so it stays smooth with many contracts. Row heights vary
