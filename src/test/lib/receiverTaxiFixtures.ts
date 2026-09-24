@@ -13,7 +13,7 @@ export const KEYS = {
   other: 'f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9',
 }
 export const ASSET_ID = '201f1e1d1c1b1a191817161514131211100f0e0d0c0b0a0908070605040302010700'
-const WIRE_ASSET_ID = { txid: '0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20', groupIndex: 7 }
+export const WIRE_ASSET_ID = { txid: '0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20', groupIndex: 7 }
 export const RECEIVER_ADDRESS =
   'tark1qprzw7ddf2knj52xz3635uggtuh3pcw85kf7fcpsa76msusuu4dskxuyc4t8kynygzv460k442aq2ewhrcvrgczgr8lec9l4a82a6pu0lsh6sq'
 export const COVENANT_ADDRESS =

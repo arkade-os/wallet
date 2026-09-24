@@ -20,6 +20,9 @@ import {
   mockWalletContextValue,
 } from '../mocks'
 import { ASSET_ID, INFO, KEYS, RECEIVER_ADDRESS, TAXI_URL, taxiFetch } from '../../lib/receiverTaxiFixtures'
+import ClaimSheet from '../../../screens/Wallet/Receive/ClaimSheet'
+import { planReceiverClaim } from '../../../lib/receiverClaims'
+import { assetFareClaim, coins, satsFareClaim } from '../../lib/receiverClaimsFixtures'
 
 vi.mock('qr', () => ({
   default: () => Array.from({ length: 21 }, () => new Uint8Array(21).fill(1)),
@@ -124,6 +127,40 @@ describe('the receiver names his own Taxi in an asset request', () => {
     await userEvent.click(await screen.findByRole('button', { name: /taxi/i }))
     await userEvent.click(screen.getByRole('option', { name: /flat/i }))
     expect(readReceiverTaxis()).toEqual([{ network: 'regtest', url: TAXI_URL, operatorKey: KEYS.operator }])
+  })
+})
+
+describe('ClaimSheet', () => {
+  it('tells the user an unclaimed delivery returns to him with no fare charged', async () => {
+    render(<ClaimSheet claim={satsFareClaim(7n)} />)
+    expect(screen.getByTestId('unclaimed-note').textContent).toMatch(/returns to you .* no fare/i)
+  })
+
+  it('states a sats fare, with its number, as coming off his own merged coin', () => {
+    const claim = satsFareClaim(7n)
+    render(<ClaimSheet claim={claim} plan={planReceiverClaim(claim, coins([1000n]))} />)
+    expect(screen.getByTestId('claim-fare').textContent).toMatch(/7 sats.*your own coin/i)
+    expect(screen.getByTestId('claim-plan').textContent).toMatch(/1,000 sats.*993 sats/)
+  })
+
+  it('states an asset fare, in units, as coming out of the delivery', () => {
+    const claim = assetFareClaim(9n)
+    render(
+      <ClaimSheet
+        claim={claim}
+        asset={{ ticker: 'TKN', decimals: 0 }}
+        plan={planReceiverClaim(claim, coins([1000n]))}
+      />,
+    )
+    expect(screen.getByTestId('claim-fare').textContent).toMatch(/9 TKN.*out of the delivery/i)
+    expect(screen.getByTestId('claim-plan').textContent).toMatch(/491 TKN/)
+  })
+
+  it('offers no claim until a coin covers the fare, and says how large one must be', () => {
+    const claim = satsFareClaim(7n)
+    render(<ClaimSheet claim={claim} plan={planReceiverClaim(claim, coins([334n]))} />)
+    expect(screen.getByRole('button', { name: 'Claim' })).toBeDisabled()
+    expect(screen.getByTestId('claim-plan').textContent).toMatch(/337 sats/)
   })
 })
 
