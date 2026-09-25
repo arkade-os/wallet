@@ -16,6 +16,7 @@ import FlexCol from '../../../components/FlexCol'
 import { collaborativeExitWithFees, sendAssets, sendOffChain } from '../../../lib/asp'
 import { type LnSendRequest } from '../../../lib/lnSwap'
 import { extractError } from '../../../lib/error'
+import { SolverNotRespondingError } from '../../../lib/nostrRfq'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
 import { LimitsContext } from '../../../providers/limits'
@@ -153,7 +154,13 @@ export default function SendDetails() {
 
   const handleError = (err: any) => {
     consoleError(err, 'error sending payment')
-    setError(extractError(err))
+    if (err instanceof SolverNotRespondingError) {
+      setError(t('errors.solverNotResponding', { seconds: Math.round(err.timeoutMs / 1000) }))
+    } else if (/AMOUNT_TOO_LOW|amount is lower than/i.test(extractError(err))) {
+      setError(t('errors.onchainAmountTooLow'))
+    } else {
+      setError(extractError(err))
+    }
     setSendDone(true)
   }
 
