@@ -562,7 +562,7 @@ describe('end to end through the SDK grouping', () => {
         fundingTxid: FUNDING,
         spentTxid: FILL,
         status: 'fulfilled',
-        activityEvidence: activityEvidence as ActivityEvidence,
+        ...(activityEvidence === undefined ? {} : { activityEvidence: activityEvidence as ActivityEvidence }),
         ...over,
       })
 
