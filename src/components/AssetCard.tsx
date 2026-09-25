@@ -24,6 +24,8 @@ interface AssetCardProps {
   logoTicker?: string
   /** Fiat-value text shown on the right (e.g. "$7.29"). */
   fiatText?: string
+  /** Preserve every asset decimal on payment confirmations. */
+  exactAmount?: boolean
   onClick?: () => void
 }
 
@@ -40,6 +42,7 @@ export default function AssetCard({
   ticker,
   logoTicker,
   fiatText,
+  exactAmount = false,
   onClick,
 }: AssetCardProps) {
   const { config } = useContext(ConfigContext)
@@ -59,7 +62,7 @@ export default function AssetCard({
   const isBitcoin = trustedTicker?.toUpperCase() === 'BTC'
   const prettyBalance = isBitcoin
     ? prettyBitcoinAmount(Number(rawBalance), bitcoinUnit)
-    : prettyCurrencyAssetAmount(rawBalance, decimals ?? 8, trustedTicker)
+    : prettyCurrencyAssetAmount(rawBalance, decimals ?? 8, trustedTicker, { compact: !exactAmount })
   const leftSecondary = isBitcoin ? prettyBalance : `${prettyBalance} ${tokenTick}`
   const maskedBalance = isBitcoin ? prettyBitcoinHide(Number(rawBalance), bitcoinUnit) : `•••• ${tokenTick}`
   const maskedFiatText = maskedFiatUnit(fiatText)
@@ -142,7 +145,7 @@ function assetRowTestId(ticker: string, assetId: string) {
 }
 
 function maskedFiatUnit(fiatText?: string) {
-  const trimmed = fiatText?.trim()
+  const trimmed = fiatText?.trim().replace(/^[<>]-?/, '')
   if (!trimmed) return '••••'
 
   const leadingUnit = trimmed.match(/^[^\d\s.,+-]+/)

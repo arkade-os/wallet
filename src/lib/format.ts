@@ -98,10 +98,14 @@ export const formatFiatAmountParts = (
   const maximumFractionDigits =
     options.maximumFractionDigits ?? fiatDecimalsFor(currency, normalizeBitcoinUnit(options.bitcoinUnit))
   const minimumFractionDigits = options.minimumFractionDigits ?? maximumFractionDigits
-  const formatted = prettyNumber(amount, maximumFractionDigits, true, minimumFractionDigits)
+  const minimumUnit = 10 ** -maximumFractionDigits
+  const belowMinimum = amount !== 0 && Math.abs(amount) < minimumUnit
+  const displayAmount = belowMinimum ? minimumUnit : amount
+  const formatted = prettyNumber(displayAmount, maximumFractionDigits, true, minimumFractionDigits)
+  const prefix = belowMinimum ? (amount < 0 ? '>-' : '<') : ''
 
   return {
-    amount: symbol ? `${symbol}${formatted}` : formatted,
+    amount: `${prefix}${symbol ?? ''}${formatted}`,
     unit: symbol ? '' : currency,
   }
 }
@@ -127,14 +131,19 @@ export const prettyCurrencyAssetAmount = (
   amount: bigint,
   decimals: number,
   ticker: string | undefined,
-  useGrouping = true,
+  { compact = false, useGrouping = true }: { compact?: boolean; useGrouping?: boolean } = {},
 ): string => {
   const fiat = fiatForTicker(ticker)
-  if (!fiat) return prettyAssetAmount(amount, decimals, useGrouping)
+  if (!fiat) return prettyAssetAmount(amount, decimals, compact)
 
-  const unitAmount = Decimal.div(amount.toString(), Decimal.pow(10, decimals))
+  const unitAmount = centsToUnits(amount, decimals)
   const fiatDecimals = fiatDecimalsFor(fiat)
-  return prettyNumber(unitAmount, fiatDecimals, useGrouping, fiatDecimals)
+  const minimumUnit = new Decimal(10).pow(-fiatDecimals)
+  if (compact && amount !== BigInt(0) && new Decimal(unitAmount).abs().lt(minimumUnit)) {
+    const threshold = prettyNumber(minimumUnit, fiatDecimals, useGrouping, fiatDecimals)
+    return amount < BigInt(0) ? `>-${threshold}` : `<${threshold}`
+  }
+  return prettyNumber(unitAmount, compact ? fiatDecimals : Math.max(decimals, fiatDecimals), useGrouping, fiatDecimals)
 }
 
 export const prettyDelta = (seconds: number, long = true): string => {
