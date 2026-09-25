@@ -541,6 +541,9 @@ export const translations = {
     },
     errors: {
       lnurl: 'LNURL error',
+      solverNotResponding: 'The Lightning solver did not respond (waited {seconds}s) — try again later',
+      onchainAmountTooLow:
+        'Send failed: an output is below the onchain minimum (330 sats) — adjust the amount and try again',
       amountNotInRange: 'Amount not in LNURL range.',
       noEncryptedMnemonic: 'No encrypted mnemonic found',
       invalidMnemonic: 'Invalid mnemonic phrase',
@@ -1319,6 +1322,9 @@ export const translations = {
     },
     errors: {
       lnurl: 'Error LNURL',
+      solverNotResponding: 'El solver de Lightning no respondió (esperó {seconds}s), inténtalo de nuevo más tarde',
+      onchainAmountTooLow:
+        'Envío fallido: un output está por debajo del mínimo onchain (330 sats). Ajusta el monto e inténtalo de nuevo',
       amountNotInRange: 'Monto fuera del rango LNURL.',
       noEncryptedMnemonic: 'No se encontró mnemonic cifrado',
       invalidMnemonic: 'Frase mnemonic inválida',

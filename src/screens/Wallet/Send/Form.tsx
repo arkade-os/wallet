@@ -34,7 +34,7 @@ import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl, LnUr
 import { extractError } from '../../../lib/error'
 import { decodeInvoice } from '../../../lib/bolt11'
 import { lnSendRendezvous, requestLnSend } from '../../../lib/lnSwap'
-import { withRfqTransport } from '../../../lib/nostrRfq'
+import { withRfqTransport, SolverNotRespondingError } from '../../../lib/nostrRfq'
 import { discoverMarkets } from '../../../lib/swapMarkets'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
@@ -677,7 +677,13 @@ export default function SendForm() {
 
   const handleError = (err: any) => {
     consoleError(err, 'error sending payment')
-    setError(extractError(err))
+    if (err instanceof SolverNotRespondingError) {
+      setError(t('errors.solverNotResponding', { seconds: Math.round(err.timeoutMs / 1000) }))
+    } else if (/AMOUNT_TOO_LOW|amount is lower than/i.test(extractError(err))) {
+      setError(t('errors.onchainAmountTooLow'))
+    } else {
+      setError(extractError(err))
+    }
     setProcessing(false)
   }
 

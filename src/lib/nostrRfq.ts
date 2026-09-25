@@ -38,11 +38,25 @@ export interface RfqRendezvous {
  * TODO: drop this once the package carries a user-facing message or a typed
  * timeout of its own.
  */
+/**
+ * The package default when a request times out; UI surfaces this typed error
+ * with a localized message (see the `errors.solverNotResponding` key).
+ */
+export class SolverNotRespondingError extends Error {
+  readonly timeoutMs: number
+
+  constructor(timeoutMs: number) {
+    super(`Lightning solver is not responding (waited ${timeoutMs / 1000}s) — try again later`)
+    this.name = 'SolverNotRespondingError'
+    this.timeoutMs = timeoutMs
+  }
+}
+
 const friendlier = (error: unknown, timeoutMs: number): unknown => {
   if (error instanceof Error && /^no solver reply within \d+ms$/.test(error.message)) {
     // RelayUnavailable already covers a dead relay, so reaching here means the
     // relay took our request and the solver did not answer it.
-    return new Error(`Lightning solver is not responding (waited ${timeoutMs / 1000}s) — try again later`)
+    return new SolverNotRespondingError(timeoutMs)
   }
   return error
 }

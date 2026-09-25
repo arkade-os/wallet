@@ -24,7 +24,7 @@ import { extractError } from '../../../lib/error'
 import { LnReceiveHeldElsewhere, requestLnReceive } from '../../../lib/lnReceive'
 import { lnReceiveRendezvous } from '../../../lib/lnSwap'
 import { getEmulatorPubkeyForNetwork } from '../../../lib/constants'
-import { withRfqTransport } from '../../../lib/nostrRfq'
+import { withRfqTransport, SolverNotRespondingError } from '../../../lib/nostrRfq'
 import { discoverMarkets } from '../../../lib/swapMarkets'
 import InputAmount from '../../../components/InputAmount'
 import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
@@ -224,6 +224,11 @@ export default function ReceiveQRCode() {
     negotiate()
       .catch((err) => {
         if (abandoned) return
+        if (err instanceof SolverNotRespondingError) {
+          consoleError(err, 'error negotiating lightning receive')
+          setLnReceiveError(t('errors.solverNotResponding', { seconds: Math.round(err.timeoutMs / 1000) }))
+          return
+        }
         const error = extractError(err)
         consoleError(error, 'error negotiating lightning receive')
         setLnHeldElsewhere(err instanceof LnReceiveHeldElsewhere)
