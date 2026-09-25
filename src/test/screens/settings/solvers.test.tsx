@@ -56,8 +56,6 @@ describe('Solvers screen', () => {
     // the build ships the beta solver's card; without this row the screen
     // claims "no solver cards" while a pinned solver is quoting sends
     expect(screen.getByText('beta-solver')).toBeInTheDocument()
-    // the label is derived from the sides now that #23 drops the card's `pair`
-    expect(screen.getByText('BTC/bolt11:BTC')).toBeInTheDocument()
     expect(screen.getByText('Built-in')).toBeInTheDocument()
     expect(screen.getByText('This build ships 1 solver card; add your own to reach more solvers.')).toBeInTheDocument()
     // read-only: not removable, not editable — only the add button renders

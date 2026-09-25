@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
-import { lightningSendRequest } from '@arkade-os/swap'
+import { lightningSendRequest } from '@arkade-os/swap/protocol'
 
 /**
  * Wire-compatibility guard for the `arkade:BTC -> lightning:BTC` rfq_request.
