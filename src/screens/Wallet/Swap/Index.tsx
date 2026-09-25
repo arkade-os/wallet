@@ -1319,9 +1319,8 @@ function buildQuoteFromPlan(
   const fromCurrencyAvailable = hasCurrencyConversion(fromAsset, unitOfAccountUsd)
   const toCurrencyAvailable = Boolean(toAsset && hasCurrencyConversion(toAsset, unitOfAccountUsd))
   const receivedCurrencyAmount = toCurrencyAvailable ? (receivedProtocol * toUsd) / unitOfAccountUsd : 0
-  const feeFraction = (plan ? planFeeBps(plan) : 0) / 10_000
-  // received amounts are net of the fee; grossUp recovers the pre-fee total
-  const grossUp = feeFraction < 1 ? 1 / (1 - feeFraction) : 0
+  const rate = plan ? preFeeDisplayRate(plan) : 0
+  const grossReceivedProtocol = plan ? fromUnitsProtocol * rate : 0
   // once a live quote exists, price the give side off that SAME quote (via
   // the solver's own exchange rate) instead of this asset's own independent
   // price estimate — fromUsd/toUsd are fetched from two unrelated feeds, and
@@ -1332,15 +1331,13 @@ function buildQuoteFromPlan(
   // $0 just because the receive side can't be valued.
   const giveEstimate = fromCurrencyAvailable ? (fromUnitsProtocol * fromUsd) / unitOfAccountUsd : 0
   const selectedCurrencyAmount =
-    plan && toAsset && grossUp > 0 && receivedCurrencyAmount > 0 ? receivedCurrencyAmount * grossUp : giveEstimate
+    plan && toAsset && rate > 0 && receivedCurrencyAmount > 0
+      ? (grossReceivedProtocol * toUsd) / unitOfAccountUsd
+      : giveEstimate
   // the review drawer's Fees row itemizes the fee, so the Rate row quotes the
   // market feed's pre-fee price — a net-derived rate would count the fee
   // twice and read consistently one spread below the market
-  const rate = plan ? preFeeDisplayRate(plan) : 0
-  // the market fee is deducted from the payout, so show it in the receive
-  // asset (like the Swap/Receive rows), not the wallet's fiat display currency:
-  // the fee is the gross-minus-net gap
-  const feeReceived = received * feeFraction * grossUp
+  const feeReceived = Math.max(0, (grossReceivedProtocol - receivedProtocol) * toScale)
   const formatOptions = { bitcoinUnit }
 
   return {
@@ -1479,14 +1476,16 @@ function formatLimitMessage(
   const rate = preFeeDisplayRate(plan)
   if (!rate) return ''
   const limitReceiveProtocol = Number(limit.display)
-  // the limits bound the NET receive side (post-fee), but the rate is the
-  // pre-fee price — gross the bound up by the market fee or the suggested
-  // give amount pays out just under the minimum
-  const feeFraction = planFeeBps(plan) / 10_000
-  const grossUp = feeFraction < 1 ? 1 / (1 - feeFraction) : 1
-  // the rate is oriented give→receive, so dividing the receive-side limit by
-  // it lands back on the give side in both market orientations
-  const giveProtocol = (limitReceiveProtocol / rate) * grossUp
+  const netRate = rate * (1 - (planFeeBps(plan) + plan.safetyBps) / 10_000)
+  if (netRate <= 0) return ''
+  const flatGiveProtocol =
+    Number(plan.market.solver_fee?.[plan.give]?.flat ?? '0') / Math.pow(10, plan.deposit.asset.decimals)
+  const legacyFlatQuoteProtocol =
+    plan.market.solver_fee === undefined
+      ? Number(plan.market.fee_flat ?? '0') / Math.pow(10, plan.market.quote_asset.decimals)
+      : 0
+  const legacyFlatReceiveProtocol = plan.give === 'base' ? legacyFlatQuoteProtocol : legacyFlatQuoteProtocol * rate
+  const giveProtocol = (limitReceiveProtocol + legacyFlatReceiveProtocol) / netRate + flatGiveProtocol
   // the market card also bounds the give side directly (atomic units of the
   // deposit asset); the user must satisfy whichever constraint is tighter —
   // e.g. a 1,000-sat card floor outranks a smaller converted receive minimum

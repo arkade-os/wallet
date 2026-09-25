@@ -523,6 +523,53 @@ describe('Wallet swap flow', () => {
     expect(createSwap.mock.calls[0][1].fromFiatAmount).toBeCloseTo(10, 2)
   })
 
+  it('includes the deposit-side flat charge in the fee row and give-side fiat value', async () => {
+    const flatMarket = { ...btcUsdtPerSide, solver_fee: { base: { bps: 10, flat: '1000' }, quote: { bps: 30 } } }
+    renderSwap({
+      config: { unit: Unit.SATS },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      swap: { markets: [flatMarket, btcDepix] },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+    for (const key of ['1', '0', '0', '0', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
+
+    const continueButton = screen.getByRole('button', { name: 'Continue' })
+    await waitFor(() => expect(continueButton).toBeEnabled(), { timeout: 3_000 })
+    expect(screen.getByText('€10.00')).toBeInTheDocument()
+    fireEvent.click(continueButton)
+    expect(screen.getByText('1.01 USD')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+
+    await waitFor(() => expect(createSwap).toHaveBeenCalledOnce())
+    expect(createSwap.mock.calls[0][0].receive.atomic).toBe(BigInt(899))
+    expect(createSwap.mock.calls[0][1].fromFiatAmount).toBeCloseTo(10, 2)
+  })
+
+  it('converts receive-side limits with the deposit-side flat charge', async () => {
+    const flatMarket = {
+      ...btcUsdtPerSideReceiveBound,
+      solver_fee: { base: { bps: 10, flat: '1000' }, quote: { bps: 30 } },
+    }
+    const setup = () => {
+      renderSwap({
+        config: { unit: Unit.SATS },
+        flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+        swap: { markets: [flatMarket, btcDepix] },
+        wallet: { ...NO_ASSETS, availableBalance: 10_000_000 },
+      })
+      fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+      fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    }
+
+    setup()
+    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+    for (const key of ['1', '0', '0', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
+    await waitFor(() => expect(screen.getByText('Minimum 51,051 sats')).toBeInTheDocument(), { timeout: 3_000 })
+  })
+
   it('converts the receive-side minimum at the direction being traded', async () => {
     renderSwap({
       config: { unit: Unit.SATS },
@@ -606,10 +653,9 @@ describe('Wallet swap flow', () => {
       await userEvent.click(screen.getByRole('button', { name: key }))
     }
 
-    // 10,000 sats at the market's actual $50k/BTC rate is ~€4.99 (the €4.98
-    // receive value grossed back up by the fee) — not the €10 the wallet's
+    // 10,000 sats at the market's actual $50k/BTC rate is €5.00 — not the €10 the wallet's
     // own (mismatched, $100k) independent estimate would show
-    await waitFor(() => expect(screen.getByText('€4.99')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('€5.00')).toBeInTheDocument())
     expect(screen.queryByText('€10.00')).not.toBeInTheDocument()
 
     const continueButton = screen.getByRole('button', { name: 'Continue' })
@@ -618,7 +664,7 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
     await waitFor(() => expect(createSwap).toHaveBeenCalledOnce())
-    expect(createSwap.mock.calls[0][1].fromFiatAmount).toBeCloseTo(4.99, 2)
+    expect(createSwap.mock.calls[0][1].fromFiatAmount).toBeCloseTo(5, 2)
   })
 
   it('snapshots a fiat entry at the rate the entry was converted with, not the solver-rate reconstruction', async () => {
@@ -680,12 +726,12 @@ describe('Wallet swap flow', () => {
       await userEvent.click(screen.getByRole('button', { name: key }))
     }
 
-    await waitFor(() => expect(secondaryAmount()).toHaveTextContent('€4.99'))
+    await waitFor(() => expect(secondaryAmount()).toHaveTextContent('€5.00'))
     await userEvent.click(screen.getByRole('button', { name: 'Show EUR amount first' }))
-    expect(primaryAmount()).toHaveTextContent('€4.99')
+    expect(primaryAmount()).toHaveTextContent('€5.00')
 
     await userEvent.click(screen.getByRole('button', { name: 'Delete digit' }))
-    expect(primaryAmount()).toHaveTextContent('€4.9')
+    expect(primaryAmount()).toHaveTextContent('€5.0')
   })
 
   it('does not reuse a stale fiat quote while its replacement is loading', async () => {
@@ -708,7 +754,7 @@ describe('Wallet swap flow', () => {
     for (const key of ['1', '0', '0', '0', '0']) {
       await userEvent.click(screen.getByRole('button', { name: key }))
     }
-    await waitFor(() => expect(secondaryAmount()).toHaveTextContent('€4.99'))
+    await waitFor(() => expect(secondaryAmount()).toHaveTextContent('€5.00'))
 
     // Expire the local feed cache so the replacement quote remains visibly
     // loading after the 600 ms debounce instead of resolving immediately.
