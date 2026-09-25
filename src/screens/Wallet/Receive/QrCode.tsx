@@ -452,9 +452,9 @@ export default function ReceiveQRCode() {
                   grey line; a payment that was paid and then lost, or a claim
                   that keeps failing, is not. */}
               {receiveLost ? (
-                <ErrorMessage error text='Lightning payment lost: the solver reclaimed it before it could be claimed' />
+                <ErrorMessage error text={t('receive.lightningPaymentLost')} />
               ) : claimError ? (
-                <ErrorMessage error text={`Claiming the Lightning payment failed: ${claimError}`} />
+                <ErrorMessage error text={t('receive.claimFailed', { error: claimError })} />
               ) : null}
               {lnReceiveError ? (
                 <FlexCol gap='0.25rem' centered>

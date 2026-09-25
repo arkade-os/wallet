@@ -4,6 +4,10 @@ export type LanguageCode = 'en' | 'es'
 
 export const translations = {
   en: {
+    table: {
+      keyboardNavIntro: 'Pressing Enter enables keyboard navigation of the table',
+      keyboardNavTitle: 'Title {title} with status {value}. Press Escape to exit keyboard navigation.',
+    },
     common: {
       cancel: 'Cancel',
       confirm: 'Confirm',
@@ -783,6 +787,10 @@ export const translations = {
     },
   },
   es: {
+    table: {
+      keyboardNavIntro: 'Presionar Enter habilita la navegación con teclado de la tabla',
+      keyboardNavTitle: 'Título {title} con estado {value}. Presiona Escape para salir de la navegación con teclado.',
+    },
     common: {
       cancel: 'Cancelar',
       confirm: 'Confirmar',

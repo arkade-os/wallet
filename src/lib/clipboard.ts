@@ -1,13 +1,15 @@
 import { consoleError } from './logs'
 
-export const copyToClipboard = async (text: string): Promise<void> => {
+export const copyToClipboard = async (text: string): Promise<boolean> => {
   if (navigator.clipboard) {
     try {
-      return await navigator.clipboard.writeText(text)
+      await navigator.clipboard.writeText(text)
+      return true
     } catch (err) {
       consoleError(err, 'error writing to clipboard')
     }
   }
+  return false
 }
 
 export const pasteFromClipboard = async (): Promise<string> => {

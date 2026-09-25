@@ -41,8 +41,8 @@ export default function Table({ data, variant = 'default' }: { data: TableData; 
   }
 
   const ariaLabel = (title?: string, value?: string) => {
-    if (!title || !value) return 'Pressing Enter enables keyboard navigation of the table'
-    return `Title ${title} with status ${value}. Press Escape to exit keyboard navigation.`
+    if (!title || !value) return t('table.keyboardNavIntro')
+    return t('table.keyboardNavTitle', { title, value })
   }
 
   return (

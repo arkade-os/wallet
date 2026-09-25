@@ -967,7 +967,7 @@ export default function SendForm() {
     const scanner = (
       <Scanner
         close={() => setScan(false)}
-        label='Recipient address'
+        label={t('send.recipientAddress')}
         onData={(data) => {
           setRecipient(data)
           setRawScanData(data)

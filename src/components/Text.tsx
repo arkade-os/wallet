@@ -72,12 +72,8 @@ export default function Text({
   const handleClick = async () => {
     if (!copy) return
     hapticSubtle()
-    try {
-      await copyToClipboard(copy)
-      toast(t('common.copiedToClipboard'))
-    } catch {
-      toast(t('common.failedToCopy'))
-    }
+    const copied = await copyToClipboard(copy)
+    toast(copied ? t('common.copiedToClipboard') : t('common.failedToCopy'))
   }
 
   return (
