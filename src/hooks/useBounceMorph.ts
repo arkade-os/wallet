@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useAnimationControls } from 'framer-motion'
 
 const EASE_IN = [0.55, 0, 1, 0.45] as [number, number, number, number]
@@ -32,6 +32,15 @@ export function useBounceMorph({ reducedMotion, onBounce }: UseBounceMorphOption
   // Stable ref so the loop always uses the current controls without needing it in deps
   const controlsRef = useRef(bounceControls)
   controlsRef.current = bounceControls
+  // Mirrors the controls' own layout-effect mount, which ends a commit before the loop's
+  // passive cleanup cancels it; start() throws in that gap.
+  const controlsMounted = useRef(false)
+  useLayoutEffect(() => {
+    controlsMounted.current = true
+    return () => {
+      controlsMounted.current = false
+    }
+  }, [])
 
   const stopRequested = useRef(false)
   const cancelled = useRef(false)
@@ -54,12 +63,19 @@ export function useBounceMorph({ reducedMotion, onBounce }: UseBounceMorphOption
     setStopped(false)
     cancelled.current = false
 
+    const animate = async (definition: Parameters<typeof bounceControls.start>[0]) => {
+      if (controlsMounted.current) await controlsRef.current.start(definition)
+    }
+
     async function bounceAndMorph(nextShape: number) {
+      // Hidden, not unmounted: hold the sequence (and its particle bursts) until shown again.
+      while (!controlsMounted.current && !cancelled.current) await delay(60)
+      if (cancelled.current) return
       setBounceCount((c) => c + 1)
       onBounceRef.current?.()
       setActiveShape(nextShape)
 
-      await controlsRef.current.start({
+      await animate({
         y: 20,
         scaleY: 0.75,
         scaleX: 1.15,
@@ -67,7 +83,7 @@ export function useBounceMorph({ reducedMotion, onBounce }: UseBounceMorphOption
       })
       if (cancelled.current) return
 
-      await controlsRef.current.start({
+      await animate({
         y: 0,
         scaleY: 1,
         scaleX: 1,

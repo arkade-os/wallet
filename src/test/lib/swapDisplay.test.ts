@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   buildAssetSwapActivityTx,
   lnSwapLabel,
+  lnurlLabel,
   swapAmountBeforeFee,
   swapFeeAmount,
   swapRouteLabel,
@@ -250,6 +251,30 @@ describe('lnSwapLabel', () => {
 
   it('leaves a row the resolver never tagged alone', () => {
     expect(lnSwapLabel(row())).toBeUndefined()
+  })
+})
+
+describe('lnurlLabel', () => {
+  const receive = (lnurl?: Tx['lnurl']) => ({ type: 'received', lnurl }) as Tx
+  const sent = (lnurl?: Tx['lnurl']) => ({ type: 'sent', lnurl }) as Tx
+
+  it('names the address a receive arrived at, never as the payer', () => {
+    expect(lnurlLabel(receive({ address: 'alice@lnurl.example', rail: 'lightning' }))).toBe(
+      'Received at alice@lnurl.example',
+    )
+  })
+
+  it('names the rail for a nameless receive', () => {
+    expect(lnurlLabel(receive({ rail: 'arkade' }))).toBe('Received via arkade')
+  })
+
+  it('names who a send paid', () => {
+    expect(lnurlLabel(sent({ address: 'alice@pay.example', rail: 'lnurl-arkade' }))).toBe('Sent to alice@pay.example')
+  })
+
+  it('leaves a row no lnurl resolver tagged alone', () => {
+    expect(lnurlLabel(receive())).toBeUndefined()
+    expect(lnurlLabel(sent())).toBeUndefined()
   })
 })
 

@@ -6,17 +6,21 @@ import { promisify } from 'util'
 
 const execAsync = promisify(exec)
 
+export async function prepareWalletPage(page: Page): Promise<void> {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  // Pre-set currency to BTC/sats so e2e tests see sats amounts.
+  await page.addInitScript(() => {
+    const raw = localStorage.getItem('config')
+    const config = raw ? JSON.parse(raw) : {}
+    config.currency = 'BTC'
+    config.unit = 'sats'
+    localStorage.setItem('config', JSON.stringify(config))
+  })
+}
+
 export const test = base.extend({
   page: async ({ page }, use) => {
-    await page.emulateMedia({ reducedMotion: 'reduce' })
-    // Pre-set currency to BTC/sats so e2e tests see sats amounts.
-    await page.addInitScript(() => {
-      const raw = localStorage.getItem('config')
-      const config = raw ? JSON.parse(raw) : {}
-      config.currency = 'BTC'
-      config.unit = 'sats'
-      localStorage.setItem('config', JSON.stringify(config))
-    })
+    await prepareWalletPage(page)
     await use(page)
   },
 })

@@ -1,7 +1,8 @@
+import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import createFetchMock from 'vitest-fetch-mock'
-import { emptySendInfo, FlowContext } from '../../../providers/flow'
+import { emptySendInfo, FlowContext, type SendInfo } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import {
   mockAspContextValue,
@@ -16,39 +17,56 @@ import {
 } from '../mocks'
 import { AspContext } from '../../../providers/asp'
 import { WalletContext } from '../../../providers/wallet'
-import { NavigationContext } from '../../../providers/navigation'
+import { NavigationContext, Pages } from '../../../providers/navigation'
 import SendForm from '../../../screens/Wallet/Send/Form'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { OptionsContext } from '../../../providers/options'
+import { SwapsContext } from '../../../providers/swaps'
+import { createSendRouter, LNURL_ARKADE_RAIL } from '../../../lib/sendRouter'
 import { Currencies, Unit } from '../../../lib/types'
+import fixtures from '../../fixtures.json'
+
+type TreeOptions = {
+  configContext?: unknown
+  fiatContext?: unknown
+  flowContext?: unknown
+  walletContext?: unknown
+  swapsContext?: unknown
+  navigationContext?: typeof mockNavigationContextValue
+}
+
+const sendFormTree = ({
+  configContext = mockConfigContextValue,
+  fiatContext = mockFiatContextValue,
+  flowContext = mockFlowContextValue,
+  walletContext = { ...mockWalletContextValue, svcWallet: mockSvcWallet as any },
+  swapsContext = {},
+  navigationContext = mockNavigationContextValue,
+}: TreeOptions = {}) => (
+  <NavigationContext.Provider value={navigationContext}>
+    <AspContext.Provider value={mockAspContextValue}>
+      <ConfigContext.Provider value={configContext as any}>
+        <FiatContext.Provider value={fiatContext as any}>
+          <OptionsContext.Provider value={mockOptionsContextValue as any}>
+            <FlowContext.Provider value={flowContext as any}>
+              <WalletContext.Provider value={walletContext as any}>
+                <SwapsContext.Provider value={swapsContext as any}>
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <SendForm />
+                  </LimitsContext.Provider>
+                </SwapsContext.Provider>
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </OptionsContext.Provider>
+        </FiatContext.Provider>
+      </ConfigContext.Provider>
+    </AspContext.Provider>
+  </NavigationContext.Provider>
+)
 
 describe('Send screen', () => {
-  const renderSendForm = ({
-    configContext = mockConfigContextValue,
-    fiatContext = mockFiatContextValue,
-    flowContext = mockFlowContextValue,
-    walletContext = { ...mockWalletContextValue, svcWallet: mockSvcWallet as any },
-  } = {}) =>
-    render(
-      <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={mockAspContextValue}>
-          <ConfigContext.Provider value={configContext as any}>
-            <FiatContext.Provider value={fiatContext as any}>
-              <OptionsContext.Provider value={mockOptionsContextValue as any}>
-                <FlowContext.Provider value={flowContext as any}>
-                  <WalletContext.Provider value={walletContext as any}>
-                    <LimitsContext.Provider value={mockLimitsContextValue}>
-                      <SendForm />
-                    </LimitsContext.Provider>
-                  </WalletContext.Provider>
-                </FlowContext.Provider>
-              </OptionsContext.Provider>
-            </FiatContext.Provider>
-          </ConfigContext.Provider>
-        </AspContext.Provider>
-      </NavigationContext.Provider>,
-    )
+  const renderSendForm = (options: TreeOptions = {}) => render(sendFormTree(options))
   it('renders the loading send screen correctly', async () => {
     renderSendForm({ walletContext: { ...mockWalletContextValue, svcWallet: undefined } })
     // should be loading because svcWallet is undefined
@@ -71,6 +89,7 @@ describe('Send screen', () => {
     fetchMocker.enableMocks()
     fetchMocker.mockResponseOnce(
       JSON.stringify({
+        tag: 'payRequest',
         callback: 'https://pay.staging.galoy.io/.well-known/lnurlp/testing',
         minSendable: 21000, // millisatoshis -> 21 sats
         maxSendable: 21000,
@@ -96,6 +115,107 @@ describe('Send screen', () => {
     const amountInput = await waitFor(() => screen.getByDisplayValue('21'))
     expect(amountInput).toHaveAttribute('name', 'send-amount')
     expect(amountInput).toHaveAttribute('readonly')
+    fetchMocker.disableMocks()
+  })
+  it('refuses an LNURL invoice whose amount differs from the one requested', async () => {
+    const requested = fixtures.lib.bolt11.amountSats + 100
+    const fetchMocker = createFetchMock(vi)
+    fetchMocker.enableMocks()
+    fetchMocker.mockResponse((req) =>
+      JSON.stringify(
+        req.url.includes('amount=')
+          ? { pr: fixtures.lib.bolt11.invoice }
+          : {
+              tag: 'payRequest',
+              callback: 'https://pay.staging.galoy.io/.well-known/lnurlp/testing',
+              minSendable: requested * 1000,
+              maxSendable: requested * 1000,
+              metadata: 'mock-metadata',
+            },
+      ),
+    )
+    const lnUrl = 'lnurl1dp68gurn8ghj7urp0yh8xarpva5kueewvaskcmme9e5k7tewwajkcmpdddhx7amw9akxuatjd3cz7ar9wd6xjmn8h9qlv7'
+    const setSendInfo = vi.fn()
+    const flowValue = {
+      ...mockFlowContextValue,
+      sendInfo: { ...emptySendInfo, lnUrl, recipient: lnUrl, satoshis: requested },
+      setSendInfo,
+    }
+    const walletValue = {
+      ...mockWalletContextValue,
+      balance: 1_000_000,
+      availableBalance: 1_000_000,
+      svcWallet: {
+        ...mockSvcWallet,
+        getAddress: () => 'tark1mockoffchain',
+        getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+        getBalance: () => Promise.resolve({ available: 1_000_000 }),
+      } as any,
+    }
+    // A lightning leg that is never reached: the client refuses the invoice first.
+    const sendRouter = vi.fn(async () => createSendRouter({ wallet: walletValue.svcWallet, client: {} as never }))
+    renderSendForm({ flowContext: flowValue, walletContext: walletValue, swapsContext: { sendRouter } })
+    await waitFor(() => screen.getByDisplayValue(String(requested)))
+    const continueButton = screen.getByText('Continue').closest('button')!
+    await waitFor(() => expect(continueButton).toBeEnabled())
+    fireEvent.click(continueButton)
+
+    expect(await screen.findByTestId('error-message')).toHaveTextContent(/not the requested/)
+    expect(sendRouter).toHaveBeenCalled()
+    const updates = setSendInfo.mock.calls.map(([update]) =>
+      typeof update === 'function' ? update(flowValue.sendInfo) : update,
+    )
+    expect(updates.some((next) => next.invoice || next.pendingLnSend)).toBe(false)
+    fetchMocker.disableMocks()
+  })
+
+  it('hands the sign screen the router’s quote for an LNURL target, Arkade leg first', async () => {
+    const satoshis = 5_000
+    const arkAddress = fixtures.lib.address.ark[0].address
+    const fetchMocker = createFetchMock(vi)
+    fetchMocker.enableMocks()
+    fetchMocker.mockResponse((req) =>
+      JSON.stringify(
+        req.url.includes('paymentOption=')
+          ? { paymentOption: 'ark', paymentDestination: arkAddress }
+          : {
+              tag: 'payRequest',
+              callback: 'https://pay.example/cb',
+              minSendable: satoshis * 1000,
+              maxSendable: satoshis * 1000,
+              metadata: '[]',
+              paymentOptions: [
+                { id: 'ln', type: 'lightning' },
+                { id: 'ark', type: 'arkade' },
+              ],
+            },
+      ),
+    )
+    const lnUrl = 'alice@pay.example'
+    const setSendInfo = vi.fn()
+    const flowValue = {
+      ...mockFlowContextValue,
+      sendInfo: { ...emptySendInfo, lnUrl, recipient: lnUrl, satoshis },
+      setSendInfo,
+    }
+    const svcWallet = {
+      ...mockSvcWallet,
+      getAddress: () => 'tark1mockoffchain',
+      getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+    } as any
+    const walletValue = { ...mockWalletContextValue, balance: 1_000_000, availableBalance: 1_000_000, svcWallet }
+    const sendRouter = async () => createSendRouter({ wallet: svcWallet })
+    renderSendForm({ flowContext: flowValue, walletContext: walletValue, swapsContext: { sendRouter } })
+    await waitFor(() => screen.getByDisplayValue(String(satoshis)))
+    const continueButton = screen.getByText('Continue').closest('button')!
+    await waitFor(() => expect(continueButton).toBeEnabled())
+    fireEvent.click(continueButton)
+
+    await waitFor(() => expect(setSendInfo).toHaveBeenCalledWith(expect.any(Function)))
+    const next = setSendInfo.mock.calls.map(([u]) => (typeof u === 'function' ? u(flowValue.sendInfo) : u)).at(-1)
+    expect(next.pendingLnSend).toMatchObject({ railId: LNURL_ARKADE_RAIL, amount: satoshis, total: satoshis })
+    expect(next.pendingLnSend.meta.lnurl).toMatchObject({ target: lnUrl })
+    expect(next).toMatchObject({ arkAddress: undefined, invoice: undefined })
     fetchMocker.disableMocks()
   })
 
@@ -391,5 +511,299 @@ describe('Send screen', () => {
 
     expect(await screen.findByTestId('error-message')).toHaveTextContent(/partial send/)
     expect(screen.getByText('Continue').closest('button')).toBeDisabled()
+  })
+})
+
+describe('a changed recipient', () => {
+  const LNURL = 'alice@pay.example'
+  const BTC = 'bcrt1pj7fdvrpdsn0cl6722tmcvwcw4yqpe46020g43nhgzl90qq4aqjrs33du9f'
+  const ARK = fixtures.lib.address.ark[0].address
+  const SATS = 5_000
+
+  let current: SendInfo = emptySendInfo
+  let setFlow: (update: (prev: SendInfo) => SendInfo) => void = () => {}
+  const StatefulForm = (options: TreeOptions) => {
+    const [sendInfo, setSendInfo] = useState<SendInfo>({ ...emptySendInfo, satoshis: SATS })
+    current = sendInfo
+    setFlow = setSendInfo
+    return sendFormTree({ ...options, flowContext: { ...mockFlowContextValue, sendInfo, setSendInfo } })
+  }
+
+  const svcWallet = {
+    ...mockSvcWallet,
+    getAddress: () => ARK,
+    getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+  } as any
+  const walletContext = { ...mockWalletContextValue, balance: 1_000_000, availableBalance: 1_000_000, svcWallet }
+
+  const payRequest = {
+    tag: 'payRequest',
+    callback: 'https://pay.example/cb',
+    minSendable: SATS * 1000,
+    maxSendable: SATS * 1000,
+    metadata: '[]',
+    paymentOptions: [
+      { id: 'ln', type: 'lightning' },
+      { id: 'ark', type: 'arkade' },
+    ],
+  }
+  const lnurlServer = (held?: Promise<void>, over: { callbackHeld?: Promise<void>; body?: object } = {}) => {
+    const fetchMocker = createFetchMock(vi)
+    fetchMocker.enableMocks()
+    fetchMocker.mockResponse(async (req) => {
+      if (req.url.includes('paymentOption=') || req.url.includes('method=ark')) {
+        await over.callbackHeld
+        return JSON.stringify({ paymentOption: 'ark', paymentDestination: ARK, address: ARK, expiryDate: '', hint: '' })
+      }
+      await held
+      return JSON.stringify(over.body ?? payRequest)
+    })
+    return fetchMocker
+  }
+
+  const renderStateful = () => {
+    const sendRouter = vi.fn(async () => createSendRouter({ wallet: svcWallet }))
+    const navigate = vi.fn()
+    const { container } = render(
+      <StatefulForm
+        walletContext={walletContext}
+        swapsContext={{ sendRouter }}
+        navigationContext={{ ...mockNavigationContextValue, navigate }}
+      />,
+    )
+    const type = (value: string) =>
+      fireEvent.change(container.querySelector('input[name="send-address"]')!, { target: { value } })
+    const input = () => container.querySelector<HTMLInputElement>('input[name="send-address"]')!
+    return { sendRouter, navigate, type, input }
+  }
+  const settle = { timeout: 3_000 }
+  const clickContinue = async () => {
+    const button = await waitFor(() => screen.getByText('Continue').closest('button')!, settle)
+    await waitFor(() => expect(button).toBeEnabled(), settle)
+    fireEvent.click(button)
+  }
+
+  it('pays the BTC address typed after an LNURL, not the LNURL', async () => {
+    const fetchMocker = lnurlServer()
+    const { sendRouter, navigate, type } = renderStateful()
+    type(LNURL)
+    await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
+
+    type(BTC)
+    await waitFor(() => expect(current.address).toBe(BTC), settle)
+    await clickContinue()
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), settle)
+    expect(sendRouter).not.toHaveBeenCalled()
+    expect(current).toMatchObject({ address: BTC, lnUrl: undefined, pendingLnSend: undefined })
+    fetchMocker.disableMocks()
+  })
+
+  it('pays the Ark address typed after an LNURL, not the LNURL', async () => {
+    const fetchMocker = lnurlServer()
+    const { sendRouter, navigate, type } = renderStateful()
+    type(LNURL)
+    await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
+
+    type(ARK)
+    await waitFor(() => expect(current.arkAddress).toBe(ARK), settle)
+    await clickContinue()
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), settle)
+    expect(sendRouter).not.toHaveBeenCalled()
+    expect(current).toMatchObject({ arkAddress: ARK, lnUrl: undefined, pendingLnSend: undefined })
+    fetchMocker.disableMocks()
+  })
+
+  it('quotes the invoice pasted after an LNURL, not the LNURL', async () => {
+    const INVOICE = fixtures.lib.bolt11.invoice
+    const fetchMocker = lnurlServer()
+    const { sendRouter, type } = renderStateful()
+    const router = createSendRouter({ wallet: svcWallet })
+    const options = vi.spyOn(router, 'options')
+    sendRouter.mockResolvedValue(router)
+    type(LNURL)
+    await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
+
+    type(INVOICE)
+    await waitFor(() => expect(current.invoice).toBe(INVOICE), settle)
+    expect(current).toMatchObject({
+      lnUrl: undefined,
+      pendingLnSend: undefined,
+      satoshis: fixtures.lib.bolt11.amountSats,
+    })
+    await clickContinue()
+
+    await waitFor(() => expect(options).toHaveBeenCalledWith({ raw: INVOICE }), settle)
+    expect(fetchMocker.requests().some((r) => r.url.includes('paymentOption='))).toBe(false)
+    fetchMocker.disableMocks()
+  })
+
+  it('quotes the LNURL typed after an Ark address, not the Ark address', async () => {
+    const fetchMocker = lnurlServer()
+    const { navigate, type } = renderStateful()
+    type(ARK)
+    await waitFor(() => expect(current.arkAddress).toBe(ARK), settle)
+
+    type(LNURL)
+    await waitFor(() => expect(current.lnUrl).toBe(LNURL), settle)
+    expect(current.arkAddress).toBeUndefined()
+    await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
+    await clickContinue()
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), settle)
+    expect(current.arkAddress).toBeUndefined()
+    expect(current.pendingLnSend?.railId).toBe(LNURL_ARKADE_RAIL)
+    fetchMocker.disableMocks()
+  })
+
+  it('still quotes an LNURL re-entered unchanged, whose conditions are already in hand', async () => {
+    const fetchMocker = lnurlServer()
+    const { navigate, type } = renderStateful()
+    type(LNURL)
+    await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
+
+    type(LNURL.slice(0, -1))
+    type(LNURL)
+    await new Promise((resolve) => setTimeout(resolve, 1_000))
+    await clickContinue()
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), settle)
+    expect(current.pendingLnSend?.railId).toBe(LNURL_ARKADE_RAIL)
+    fetchMocker.disableMocks()
+  })
+
+  it('ignores an LNURL that resolves after the recipient changed', async () => {
+    let release = () => {}
+    const fetchMocker = lnurlServer(new Promise<void>((resolve) => (release = resolve)))
+    const { type } = renderStateful()
+    type(LNURL)
+    await waitFor(() => expect(current.lnUrl).toBe(LNURL), settle)
+    await waitFor(() => expect(fetchMocker.requests().length).toBeGreaterThan(0), settle)
+
+    type(BTC)
+    await waitFor(() => expect(current.address).toBe(BTC), settle)
+    release()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    expect(current).toMatchObject({ address: BTC, lnUrl: undefined })
+    fetchMocker.disableMocks()
+  })
+
+  const heldCallback = () => {
+    let release = () => {}
+    return { held: new Promise<void>((resolve) => (release = resolve)), release: () => release() }
+  }
+  const recipientChangedTo = (address: string) =>
+    setFlow((prev) => ({
+      ...prev,
+      address,
+      arkAddress: undefined,
+      invoice: undefined,
+      lnUrl: undefined,
+      pendingLnSend: undefined,
+    }))
+
+  it('drops an LNURL quote that lands after the recipient changed, and locks the input meanwhile', async () => {
+    const callback = heldCallback()
+    const fetchMocker = lnurlServer(undefined, { callbackHeld: callback.held })
+    const { navigate, type, input } = renderStateful()
+    type(LNURL)
+    await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
+    await clickContinue()
+    await waitFor(() => expect(fetchMocker.requests().some((r) => r.url.includes('paymentOption='))).toBe(true), settle)
+    expect(input()).toBeDisabled()
+
+    recipientChangedTo(BTC)
+    callback.release()
+    await waitFor(() => expect(input()).toBeEnabled(), settle)
+
+    expect(current).toMatchObject({ address: BTC, arkAddress: undefined, pendingLnSend: undefined })
+    expect(navigate).not.toHaveBeenCalledWith(Pages.SendDetails)
+    fetchMocker.disableMocks()
+  })
+
+  const continueButton = () => screen.getByText('Continue').closest('button')!
+
+  it('holds Continue until the LNURL conditions load', async () => {
+    let release = () => {}
+    const fetchMocker = lnurlServer(new Promise<void>((resolve) => (release = resolve)))
+    const { navigate, type } = renderStateful()
+    type(LNURL)
+    await waitFor(() => expect(fetchMocker.requests().length).toBeGreaterThan(0), settle)
+
+    expect(continueButton()).toBeDisabled()
+    release()
+    await clickContinue()
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), settle)
+    fetchMocker.disableMocks()
+  })
+
+  it('keeps Continue off and the recipient editable when the LNURL fails to resolve', async () => {
+    const fetchMocker = createFetchMock(vi)
+    fetchMocker.enableMocks()
+    fetchMocker.mockResponse({ status: 404, body: 'not found' })
+    const { type, input } = renderStateful()
+    type(LNURL)
+    await waitFor(() => screen.getByText('LNURL not found'), settle)
+
+    expect(continueButton()).toBeDisabled()
+    expect(input()).toBeEnabled()
+    fetchMocker.disableMocks()
+  })
+
+  it('pays the BIP21 on-chain address when its LNURL fails to resolve', async () => {
+    const lnurl = 'lnurl1dp68gurn8ghj7urp0yh8xarpva5kueewvaskcmme9e5k7tewwajkcmpdddhx7amw9akxuatjd3cz7ar9wd6xjmn8h9qlv7'
+    const fetchMocker = createFetchMock(vi)
+    fetchMocker.enableMocks()
+    fetchMocker.mockResponse({ status: 404, body: 'not found' })
+    const { navigate, type } = renderStateful()
+    type(`bitcoin:${BTC}?lightning=${lnurl}`)
+    await waitFor(() => expect(current).toMatchObject({ address: BTC, lnUrl: lnurl }), settle)
+    await waitFor(() => expect(fetchMocker.requests().length).toBeGreaterThan(0), settle)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    expect(screen.queryByText('LNURL not found')).toBeNull()
+    await clickContinue()
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), settle)
+    expect(current.address).toBe(BTC)
+    fetchMocker.disableMocks()
+  })
+
+  it('drops an LNURL quote that lands after the amount changed', async () => {
+    const callback = heldCallback()
+    const fetchMocker = lnurlServer(undefined, { callbackHeld: callback.held })
+    const { navigate, type, input } = renderStateful()
+    type(LNURL)
+    await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
+    await clickContinue()
+    await waitFor(() => expect(fetchMocker.requests().some((r) => r.url.includes('paymentOption='))).toBe(true), settle)
+
+    setFlow((prev) => ({ ...prev, satoshis: SATS + 1 }))
+    callback.release()
+    await waitFor(() => expect(input()).toBeEnabled(), settle)
+
+    expect(current.pendingLnSend).toBeUndefined()
+    expect(navigate).not.toHaveBeenCalledWith(Pages.SendDetails)
+    fetchMocker.disableMocks()
+  })
+
+  it('drops an Ark address fetched for an LNURL the recipient no longer is', async () => {
+    const callback = heldCallback()
+    const body = { ...payRequest, paymentOptions: undefined, transferAmounts: [{ method: 'Ark', available: true }] }
+    const fetchMocker = lnurlServer(undefined, { callbackHeld: callback.held, body })
+    const { navigate, type, input } = renderStateful()
+    type(LNURL)
+    await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
+    await clickContinue()
+    await waitFor(() => expect(fetchMocker.requests().some((r) => r.url.includes('method=ark'))).toBe(true), settle)
+
+    recipientChangedTo(BTC)
+    callback.release()
+    await waitFor(() => expect(input()).toBeEnabled(), settle)
+
+    expect(current).toMatchObject({ address: BTC, arkAddress: undefined })
+    expect(navigate).not.toHaveBeenCalledWith(Pages.SendDetails)
+    fetchMocker.disableMocks()
   })
 })

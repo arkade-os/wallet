@@ -2,18 +2,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { makeHandle, type PaymentHandle } from '@arkade-os/sdk'
+import { createLnurlClient } from '@arkade-os/lnurl-client'
 import { ONCHAIN_SWAP_RAIL, claimFeeSats, type SwapRailClient } from '@arkade-os/swap'
 import { decodeBolt11, lightningCorridor, resolveRoute } from '@arkade-os/swap/advanced'
 import {
   ASSET_RAIL,
   createSendRouter,
   LIGHTNING_RAIL,
+  LNURL_ARKADE_RAIL,
+  LNURL_LIGHTNING_RAIL,
   lnSendRefusal,
   lnSendRequest,
   fundedResult,
   previewOnchainCost,
   quoteIsForThisInvoice,
   quoteIsForThisSend,
+  quoteLnurl,
   WALLET_EXIT_RAIL,
   withinPricingBudget,
 } from '../../lib/sendRouter'
@@ -539,5 +543,119 @@ describe('fundedResult', () => {
     await handle.settled()
 
     expect(await fundedResult(handle)).toMatchObject({ txid: 'done-txid' })
+  })
+})
+
+describe('LNURL targets', () => {
+  const ADDRESS = 'alice@pay.example'
+  const LN = { id: 'ln', type: 'lightning' }
+  const ARK = { id: 'ark', type: 'arkade' }
+  const callbacks: string[] = []
+
+  const lnurlServer = (paymentOptions?: unknown[], arkadeCallback = true) =>
+    createLnurlClient({
+      fetchImpl: async (input) => {
+        const url = String(input)
+        const body = url.includes('/.well-known/lnurlp/')
+          ? {
+              tag: 'payRequest',
+              callback: 'https://pay.example/cb',
+              minSendable: 1_000,
+              maxSendable: 100_000_000,
+              metadata: '[]',
+              ...(paymentOptions ? { paymentOptions } : {}),
+            }
+          : (callbacks.push(url), url.includes('paymentOption=ark'))
+            ? arkadeCallback
+              ? { paymentOption: 'ark', paymentDestination: ARK_ADDRESS }
+              : { status: 'ERROR', reason: 'arkade rail down' }
+            : { pr: INVOICE }
+        return new Response(JSON.stringify(body), { status: 200 })
+      },
+    })
+
+  const invoiceClient = () =>
+    fakeClient({
+      quote: vi.fn(async (input: unknown) => {
+        quoted(input)
+        const take = BigInt(INVOICE_SATS)
+        return {
+          id: 'quote-1',
+          expiresAt: Math.floor(Date.now() / 1000) + 60,
+          market: { key: 'market-1' },
+          lock: { hash: PAYMENT_HASH },
+          take: { amount: take },
+          fee: { amount: SPREAD },
+          give: { amount: take + SPREAD },
+        }
+      }) as never,
+    })
+
+  const walletSend = vi.fn(async () => 'ark-txid')
+  const lnurlRouter = (lnurl: ReturnType<typeof lnurlServer>, over: Partial<Parameters<typeof router>[0]> = {}) =>
+    router({ wallet: { send: walletSend } as never, client: invoiceClient(), lnurl, ...over })
+
+  beforeEach(() => {
+    callbacks.length = 0
+    walletSend.mockClear()
+  })
+
+  it('prefers the Arkade leg when the address advertises both, and pays it inside Arkade', async () => {
+    const r = lnurlRouter(lnurlServer([LN, ARK]))
+    expect(await railIds(r, ADDRESS, INVOICE_SATS)).toEqual([LNURL_ARKADE_RAIL, LNURL_LIGHTNING_RAIL])
+
+    const quote = await quoteLnurl(r, ADDRESS, INVOICE_SATS)
+    expect(quote).toMatchObject({ railId: LNURL_ARKADE_RAIL, amount: INVOICE_SATS, fee: 0 })
+    const result = await (await quote.send()).settled()
+    expect(walletSend).toHaveBeenCalledWith({ address: ARK_ADDRESS, amount: INVOICE_SATS })
+    expect(result).toMatchObject({ txid: 'ark-txid' })
+    expect(accept).not.toHaveBeenCalled()
+  })
+
+  it('pays a lightning-only address through the wallet’s own lightning rail', async () => {
+    const r = lnurlRouter(lnurlServer([LN]))
+    expect(await railIds(r, ADDRESS, INVOICE_SATS)).toEqual([LNURL_LIGHTNING_RAIL])
+
+    const quote = await quoteLnurl(r, ADDRESS, INVOICE_SATS)
+    expect(quote.meta?.lnurl).toMatchObject({ target: ADDRESS, via: LIGHTNING_RAIL })
+    const result = await (await quote.send()).settled()
+    expect(accept).toHaveBeenCalledTimes(1)
+    expect(result).toMatchObject({ txid: 'funding-txid' })
+  })
+
+  it('routes a plain LUD-06 address, which advertises no paymentOptions, through the lightning leg', async () => {
+    const r = lnurlRouter(lnurlServer())
+    expect(await railIds(r, ADDRESS, INVOICE_SATS)).toEqual([LNURL_LIGHTNING_RAIL])
+
+    const quote = await quoteLnurl(r, ADDRESS, INVOICE_SATS)
+    expect(quote.meta?.lnurl).toMatchObject({ via: LIGHTNING_RAIL })
+    await (await quote.send()).settled()
+    expect(accept).toHaveBeenCalledTimes(1)
+  })
+
+  it('refuses an invoice for another amount before any solver is asked', async () => {
+    const r = lnurlRouter(lnurlServer())
+    await expect(quoteLnurl(r, ADDRESS, INVOICE_SATS + 100)).rejects.toThrow(/not the requested/)
+    expect(quoted).not.toHaveBeenCalled()
+    expect(accept).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the lightning leg when the Arkade leg cannot quote', async () => {
+    const r = lnurlRouter(lnurlServer([LN, ARK], false))
+    expect(await quoteLnurl(r, ADDRESS, INVOICE_SATS)).toMatchObject({ railId: LNURL_LIGHTNING_RAIL })
+    expect(callbacks.map((url) => url.includes('paymentOption=ark'))).toEqual([true, false])
+  })
+
+  it('keeps the Arkade leg in a tab without the swap client, and only that leg', async () => {
+    expect(await railIds(lnurlRouter(lnurlServer([LN, ARK]), { client: undefined }), ADDRESS, INVOICE_SATS)).toEqual([
+      LNURL_ARKADE_RAIL,
+    ])
+    expect(await railIds(lnurlRouter(lnurlServer(), { client: undefined }), ADDRESS, INVOICE_SATS)).toEqual([])
+  })
+
+  it('leaves every other target to the rails that already served it', async () => {
+    const r = lnurlRouter(lnurlServer([LN, ARK]))
+    expect(await railIds(r, INVOICE, INVOICE_SATS)).toEqual([LIGHTNING_RAIL])
+    expect(await railIds(r)).toEqual([ONCHAIN_SWAP_RAIL, WALLET_EXIT_RAIL])
   })
 })

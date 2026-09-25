@@ -30,10 +30,11 @@ import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { ArkNote, AssetDetails, isValidArkAddress, type NetworkName } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
-import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl, LnUrlResponse } from '../../../lib/lnurl'
+import { createLnurlClient, isValidLnUrl, LnurlError, type PayRequest } from '@arkade-os/lnurl-client'
+import { fetchArkAddress } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
 import { decodeInvoice } from '../../../lib/bolt11'
-import { LIGHTNING_RAIL, lnSendRefusal, lnSendRequest } from '../../../lib/sendRouter'
+import { LIGHTNING_RAIL, lnSendRefusal, lnSendRequest, quoteLnurl } from '../../../lib/sendRouter'
 import { SwapsContext } from '../../../providers/swaps'
 import { discoverMarkets } from '../../../lib/swapMarkets'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
@@ -67,6 +68,22 @@ const brantaClient = new BrantaService({
   baseUrl: isProductionEnv ? 'Production' : 'Staging',
   privacy: 'strict',
 })
+
+const lnurlClient = createLnurlClient()
+
+// resolve() spreads the raw server body, so transferAmounts survives at runtime though PayRequest omits it
+type LnUrlConditions = PayRequest & {
+  transferAmounts?: { method: string; available: boolean }[]
+}
+
+/** Spread before the one target a recipient sets, so the previous one cannot be paid instead. */
+const noTarget = {
+  address: undefined,
+  arkAddress: undefined,
+  invoice: undefined,
+  lnUrl: undefined,
+  pendingLnSend: undefined,
+}
 
 export const isPlainOnchainTypedRecipient = (value: string): boolean => {
   if (isBTCAddress(value)) return true
@@ -152,7 +169,7 @@ export default function SendForm() {
   const [error, setError] = useState('')
   const [focus, setFocus] = useState('recipient')
   const [label, setLabel] = useState('')
-  const [lnUrlResponse, setLnUrlResponse] = useState<LnUrlResponse>()
+  const [lnUrlResponse, setLnUrlResponse] = useState<LnUrlConditions>()
   const [keys, setKeys] = useState(false)
   const [proceed, setProceed] = useState(false)
   const [processing, setProcessing] = useState(false)
@@ -171,6 +188,10 @@ export default function SendForm() {
   const [valueSats, setValueSats] = useState<number | undefined>(undefined)
 
   const timeoutRef = useRef<NodeJS.Timeout>()
+  const lnUrlRef = useRef<string>()
+  lnUrlRef.current = sendInfo.lnUrl
+  const satoshisRef = useRef<number>()
+  satoshisRef.current = sendInfo.satoshis ?? 0
 
   const prefersReducedMotion = useReducedMotion()
   const accountAsset = useMemo<AssetOption | null>(
@@ -354,6 +375,7 @@ export default function SendForm() {
             address,
             arkAddress,
             invoice,
+            lnUrl: undefined,
             recipient,
             satoshis: 0,
             assets: [{ assetId, amount: rawAmount }],
@@ -370,13 +392,13 @@ export default function SendForm() {
           lnUrl,
           recipient,
           satoshis: satoshis ?? prev.satoshis,
-          pendingLnSend: invoice === prev.invoice ? prev.pendingLnSend : undefined,
+          pendingLnSend: invoice && invoice === prev.invoice ? prev.pendingLnSend : undefined,
         }))
         if (satoshis) setAmountTextValue(getTextValue(satoshis))
         return
       }
       if (isValidArkAddress(lowerCaseData)) {
-        return setSendInfo((prev) => ({ ...prev, arkAddress: lowerCaseData, pendingLnSend: undefined }))
+        return setSendInfo((prev) => ({ ...prev, ...noTarget, arkAddress: lowerCaseData }))
       }
       if (isLightningInvoice(lowerCaseData)) {
         if (isAssetSend) {
@@ -393,6 +415,7 @@ export default function SendForm() {
         if (!satoshis) return setRecipientError('Invoice must have amount defined')
         setSendInfo((prev) => ({
           ...prev,
+          ...noTarget,
           invoice: lowerCaseData,
           satoshis,
           pendingLnSend: lowerCaseData === prev.invoice ? prev.pendingLnSend : undefined,
@@ -408,7 +431,7 @@ export default function SendForm() {
         if (isAssetSend) {
           return setRecipientError('Assets can only be sent to Arkade addresses')
         }
-        return setSendInfo({ ...sendInfo, address: recipient })
+        return setSendInfo((prev) => ({ ...prev, ...noTarget, address: recipient }))
       }
       if (isArkNote(lowerCaseData)) {
         try {
@@ -420,7 +443,7 @@ export default function SendForm() {
         }
       }
       if (isValidLnUrl(lowerCaseData)) {
-        return setSendInfo({ ...sendInfo, lnUrl: lowerCaseData })
+        return setSendInfo((prev) => ({ ...prev, ...noTarget, lnUrl: lowerCaseData }))
       }
       setRecipientError('Invalid recipient address')
       setReadyToParse(false)
@@ -510,17 +533,24 @@ export default function SendForm() {
 
   // check lnurl conditions
   useEffect(() => {
-    if (!sendInfo.lnUrl) return
-    if (sendInfo.arkAddress) return
+    // Keyed on the target, not the keystroke: re-entering the same LNURL keeps its conditions.
+    if (!sendInfo.lnUrl || sendInfo.arkAddress) return setLnUrlResponse(undefined)
     if (sendInfo.invoice && lnUrlResponse) return
-    checkLnUrlConditions(sendInfo.lnUrl)
+    setLnUrlResponse(undefined)
+    // A BIP21 carrying an address or invoice beside the LNURL still pays that when the LNURL fails.
+    const hasFallback = Boolean(sendInfo.address || sendInfo.invoice)
+    const lnurlFailed = (message: string) => (hasFallback ? undefined : setRecipientError(message))
+    let live = true
+    lnurlClient
+      .resolve(sendInfo.lnUrl)
       .then((conditions) => {
-        if (!conditions) return setRecipientError('Unable to fetch LNURL conditions')
+        if (!live) return
+        if (!conditions) return lnurlFailed('Unable to fetch LNURL conditions')
         const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
         const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
         // when the LNURL resolves to a fixed amount, set amountTextValue
         if (min === max) {
-          setSendInfo({ ...sendInfo, satoshis: min })
+          setSendInfo((prev) => ({ ...prev, satoshis: min }))
           setAmountTextValue(getTextValue(min))
           setValueSats(min)
           setAmountIsReadOnly(true)
@@ -528,14 +558,18 @@ export default function SendForm() {
         return setLnUrlResponse({ ...conditions, minSendable: min, maxSendable: max })
       })
       .catch((e) => {
-        if (e.status === 404) {
+        if (!live) return
+        if (e instanceof LnurlError && e.httpStatus === 404) {
           consoleError(e, 'LNURL not found')
-          setRecipientError('LNURL not found')
+          lnurlFailed('LNURL not found')
           return
         }
         consoleError(e, 'Error checking LNURL conditions')
-        setRecipientError(extractError(e))
+        lnurlFailed(extractError(e))
       })
+    return () => {
+      live = false
+    }
   }, [sendInfo.arkAddress, sendInfo.lnUrl])
 
   // check if user wants to send all funds
@@ -595,7 +629,7 @@ export default function SendForm() {
                   ? 'Amount below min limit'
                   : 'Continue',
     )
-  }, [sendInfo.satoshis, sendInfo.assets, sendInfo.account, liquidBalance, activeAsset])
+  }, [sendInfo.satoshis, sendInfo.assets, sendInfo.account, liquidBalance, activeAsset, lnUrlResponse])
 
   // manage server unreachable error
   useEffect(() => {
@@ -615,7 +649,7 @@ export default function SendForm() {
   // proceed to next step
   useEffect(() => {
     if (!proceed) return
-    if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice) return
+    if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice && !sendInfo.pendingLnSend) return
     // Everything except an un-negotiated invoice goes straight through: an ark
     // address, an on-chain address, and an invoice whose quote is already in
     // hand all have all they need to be signed on the next screen.
@@ -749,6 +783,9 @@ export default function SendForm() {
   const handleContinue = async () => {
     setProcessing(true)
     const satoshis = sendInfo.satoshis ?? 0
+    // The recipient and amount stay editable during the awaits below; a result for either's old value is dropped.
+    const target = sendInfo.lnUrl
+    const stale = () => lnUrlRef.current !== target || satoshisRef.current !== satoshis
     try {
       if (sendInfo.lnUrl && lnUrlResponse) {
         // Check if Ark method is available
@@ -757,6 +794,7 @@ export default function SendForm() {
         if (arkMethod) {
           // Fetch Ark address instead of Lightning invoice
           const arkResponse = await fetchArkAddress(sendInfo.lnUrl)
+          if (stale()) return setProcessing(false)
           if (!isValidArkAddress(arkResponse.address)) {
             handleError('Invalid Arkade address received from LNURL')
             return
@@ -768,22 +806,22 @@ export default function SendForm() {
             pendingLnSend: undefined,
           }))
         } else {
-          // No Ark method: fetch a BOLT11 and pay it through the RFQ Lightning
-          // path (exact-out, zero spread — no fee to deduct from the amount)
+          // The client refuses an invoice for any other amount before a solver is asked.
           if (satoshis < 1) return handleError('Amount too low')
-          const invoice = await fetchInvoice(sendInfo.lnUrl, Number(satoshis), '')
-          setSendInfo((prev) => ({
-            ...prev,
-            arkAddress: undefined,
-            invoice,
-            pendingLnSend: invoice === prev.invoice ? prev.pendingLnSend : undefined,
-          }))
+          const pendingLnSend = await quoteLnurl(
+            await sendRouter({ swapsOptional: true }),
+            sendInfo.lnUrl,
+            Number(satoshis),
+          )
+          if (stale()) return setProcessing(false)
+          setSendInfo((prev) => ({ ...prev, arkAddress: undefined, invoice: undefined, pendingLnSend }))
         }
       } else {
         setSendInfo({ ...sendInfo, satoshis })
       }
       setProceed(true)
     } catch (error) {
+      if (stale()) return setProcessing(false)
       handleError(error)
     }
   }
@@ -885,6 +923,9 @@ export default function SendForm() {
       Boolean(error) ||
       processing
     : !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
+      // Unresolved conditions would strand Continue on a locked recipient field.
+      (lnUrl && !arkAddress && !address && !invoice && !lnUrlResponse) ||
+      Boolean(recipientError) ||
       (lnUrlResponse?.maxSendable && satoshis > lnUrlResponse.maxSendable) ||
       (lnUrlResponse?.minSendable && satoshis < lnUrlResponse.minSendable) ||
       amountIsAboveMaxLimit(satoshis) ||
@@ -989,6 +1030,7 @@ export default function SendForm() {
             <FlexCol gap='1.25rem' className='send-form-stack'>
               <ErrorMessage error={Boolean(error || carrierError)} text={error || carrierError} />
               <InputAddress
+                disabled={processing}
                 error={recipientError}
                 focus={focus === 'recipient'}
                 label='Recipient address'

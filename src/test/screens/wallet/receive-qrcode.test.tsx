@@ -268,4 +268,17 @@ describe('resolveQrValue', () => {
     expect(resolveQrValue('ark1stale', opts)).toBe('bitcoin:unified')
     expect(resolveQrValue('ark1addr', { ...opts, ark: '' })).toBe('bitcoin:unified')
   })
+
+  it('keeps a selected lightning address until it is no longer offered', () => {
+    const withAddress = { ...opts, lightningAddress: 'alice@lnurl.test' }
+    expect(resolveQrValue('alice@lnurl.test', withAddress)).toBe('alice@lnurl.test')
+    expect(resolveQrValue('alice@lnurl.test', { ...withAddress, lightningAddress: 'bob@lnurl.test' })).toBe(
+      'bitcoin:unified',
+    )
+  })
+
+  it('keeps a selected invoice until it is no longer offered', () => {
+    expect(resolveQrValue('lnbc1invoice', { ...opts, invoice: 'lnbc1invoice' })).toBe('lnbc1invoice')
+    expect(resolveQrValue('lnbc1invoice', { ...opts, invoice: 'lnbc1other' })).toBe('bitcoin:unified')
+  })
 })

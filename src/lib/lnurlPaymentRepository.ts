@@ -1,0 +1,148 @@
+import type { PaymentSyncStore, StoredPayment } from '@arkade-os/lnurl-client'
+import { lnurlActivityResolver } from '@arkade-os/lnurl-client/arkade'
+import type { ActivityResolver } from '@arkade-os/sdk'
+import { getStorageItem, setStorageItemSafely } from './storage'
+import { LNURL_WATERMARKS_STORAGE_KEY } from './storageKeys'
+
+/** The persistence primitive, injectable so tests need no IndexedDB. */
+export interface LnurlPaymentStore {
+  read(): Promise<StoredPayment[]>
+  /** Puts by `key`, leaving records it isn't given untouched. */
+  write(records: StoredPayment[]): Promise<void>
+  clear(): Promise<void>
+}
+
+/** Rows written before `handle` existed have none; default it rather than
+ *  drop them, since every consumer downstream now expects the field. */
+export const normalizeStoredPayment = (record: Omit<StoredPayment, 'handle'> & { handle?: string }): StoredPayment => ({
+  handle: '',
+  ...record,
+})
+
+const LNURL_PAYMENTS_DB = 'arkade-lnurl-payments'
+const LNURL_PAYMENTS_STORE = 'payments'
+
+export const createIndexedDbLnurlPaymentStore = (
+  dbName = LNURL_PAYMENTS_DB,
+  storeName = LNURL_PAYMENTS_STORE,
+): LnurlPaymentStore => {
+  const open = (): Promise<IDBDatabase> =>
+    new Promise((resolve, reject) => {
+      const request = indexedDB.open(dbName, 1)
+      request.onupgradeneeded = () => {
+        if (!request.result.objectStoreNames.contains(storeName)) {
+          request.result.createObjectStore(storeName, { keyPath: 'key' })
+        }
+      }
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+  return {
+    read: () =>
+      open().then(
+        (db) =>
+          new Promise<StoredPayment[]>((resolve, reject) => {
+            const request = db.transaction(storeName, 'readonly').objectStore(storeName).getAll()
+            request.onsuccess = () => {
+              db.close()
+              resolve(
+                (request.result as (Omit<StoredPayment, 'handle'> & { handle?: string })[]).map(normalizeStoredPayment),
+              )
+            }
+            request.onerror = () => reject(request.error)
+          }),
+      ),
+    write: (records) =>
+      open().then(
+        (db) =>
+          new Promise<void>((resolve, reject) => {
+            const tx = db.transaction(storeName, 'readwrite')
+            const store = tx.objectStore(storeName)
+            for (const record of records) store.put(record)
+            tx.oncomplete = () => {
+              db.close()
+              resolve()
+            }
+            tx.onerror = () => reject(tx.error)
+          }),
+      ),
+    clear: () =>
+      open().then(
+        (db) =>
+          new Promise<void>((resolve, reject) => {
+            const tx = db.transaction(storeName, 'readwrite')
+            tx.objectStore(storeName).clear()
+            tx.oncomplete = () => {
+              db.close()
+              resolve()
+            }
+            tx.onerror = () => reject(tx.error)
+          }),
+      ),
+  }
+}
+
+const indexedDbLnurlPaymentStore = createIndexedDbLnurlPaymentStore()
+
+export function createLnurlPaymentRepository(store: LnurlPaymentStore = indexedDbLnurlPaymentStore): {
+  upsert(records: StoredPayment[]): Promise<void>
+  all(): Promise<StoredPayment[]>
+  clear(): Promise<void>
+} {
+  return {
+    upsert: async (records) => {
+      const latest = new Map<string, StoredPayment>()
+      for (const record of records) latest.set(record.key, record)
+      await store.write([...latest.values()])
+    },
+    all: () => store.read(),
+    clear: () => store.clear(),
+  }
+}
+
+export const lnurlPaymentRepository: ReturnType<typeof createLnurlPaymentRepository> = createLnurlPaymentRepository()
+
+/** Wraps the package's resolver with a re-read on every `prepare()`: the sync
+ *  loop writes after the first history load, and a snapshot cached at
+ *  construction would leave those receives unattributed until a reconnect. */
+export const createLnurlActivityResolver = (
+  repository: ReturnType<typeof createLnurlPaymentRepository> = lnurlPaymentRepository,
+): ActivityResolver => {
+  let cache: StoredPayment[] = []
+  const resolver = lnurlActivityResolver(() => cache)
+  return {
+    ...resolver,
+    prepare: async () => {
+      cache = await repository.all()
+      await resolver.prepare?.()
+    },
+  }
+}
+
+const watermarkEntryKey = (baseUrl: string, lightningAddress: string): string => `${baseUrl}|${lightningAddress}`
+
+const readWatermarkMap = (): Record<string, number> =>
+  getStorageItem<Record<string, number>>(LNURL_WATERMARKS_STORAGE_KEY, {}, (value) => JSON.parse(value))
+
+export const readLnurlWatermark = (baseUrl: string, lightningAddress: string): number | undefined =>
+  readWatermarkMap()[watermarkEntryKey(baseUrl, lightningAddress)]
+
+export const saveLnurlWatermark = (baseUrl: string, lightningAddress: string, since: number): void => {
+  const stored = readWatermarkMap()
+  stored[watermarkEntryKey(baseUrl, lightningAddress)] = since
+  setStorageItemSafely(LNURL_WATERMARKS_STORAGE_KEY, JSON.stringify(stored), 'Failed to save lnurl watermark')
+}
+
+/** What `syncPayments` from `@arkade-os/lnurl-client` writes through. The package
+ * ships no storage because IndexedDB exists in neither Node nor React Native. */
+export const createLnurlPaymentSyncStore = (
+  repository: ReturnType<typeof createLnurlPaymentRepository> = lnurlPaymentRepository,
+): PaymentSyncStore => ({
+  upsert: (records) => repository.upsert(records),
+  readWatermark: async (baseUrl, lightningAddress) => readLnurlWatermark(baseUrl, lightningAddress),
+  writeWatermark: async (baseUrl, lightningAddress, since) => {
+    saveLnurlWatermark(baseUrl, lightningAddress, since)
+  },
+})
+
+export const lnurlPaymentSyncStore: PaymentSyncStore = createLnurlPaymentSyncStore()

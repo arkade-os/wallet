@@ -15,6 +15,9 @@ importers:
 
   .:
     dependencies:
+      '@arkade-os/lnurl-client':
+        specifier: file:vendor/arkade-os-lnurl-client-0.4.4.tgz
+        version: file:vendor/arkade-os-lnurl-client-0.4.4.tgz(@arkade-os/sdk@0.5.0-rc.10)
       '@arkade-os/sdk':
         specifier: 0.5.0-rc.10
         version: 0.5.0-rc.10
@@ -246,6 +249,16 @@ packages:
 
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
+
+  '@arkade-os/lnurl-client@file:vendor/arkade-os-lnurl-client-0.4.4.tgz':
+    resolution: {integrity: sha512-W/vsUznc9hZyhINZyDBmhsmgEkuWY/qhvQwlOaQDYI7yNYuEPVWqMw24P8PatumYnMeAqvy2/oc05AVIRNOUrw==, tarball: file:vendor/arkade-os-lnurl-client-0.4.4.tgz}
+    version: 0.4.4
+    engines: {node: '>=22.12.0'}
+    peerDependencies:
+      '@arkade-os/sdk': '>=0.4.0 || >=0.5.0-rc.0'
+    peerDependenciesMeta:
+      '@arkade-os/sdk':
+        optional: true
 
   '@arkade-os/sdk@0.5.0-rc.10':
     resolution: {integrity: sha512-sjJxNxE33NjkyNR5a1yKD5E0FbMPGAm+eS412LdNUShuZH069T05/StIDGkqW1bZBU3QNve34FyfI5xo5Swtrw==}
@@ -4350,6 +4363,14 @@ packages:
 snapshots:
 
   '@adobe/css-tools@4.4.4': {}
+
+  '@arkade-os/lnurl-client@file:vendor/arkade-os-lnurl-client-0.4.4.tgz(@arkade-os/sdk@0.5.0-rc.10)':
+    dependencies:
+      '@noble/curves': 2.0.1
+      '@noble/hashes': 2.0.1
+      '@scure/base': 2.0.0
+    optionalDependencies:
+      '@arkade-os/sdk': 0.5.0-rc.10
 
   '@arkade-os/sdk@0.5.0-rc.10':
     dependencies:
