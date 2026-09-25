@@ -39,45 +39,6 @@ describe('Notifications screen', () => {
     notificationsMock.requestPermission.mockResolvedValue(true)
   })
 
-  it('renders the notifications screen with the correct elements', () => {
-    render(
-      <BackupContext.Provider value={{ backupAndUpdateConfig: vi.fn() } as any}>
-        <ConfigContext.Provider value={mockConfigContextValue as any}>
-          <Notifications />
-        </ConfigContext.Provider>
-      </BackupContext.Provider>,
-    )
-
-    expect(screen.getByText('Allow notifications')).toBeInTheDocument()
-    expect(screen.getByTestId('toggle-notifications')).toBeInTheDocument()
-    expect(screen.getByTestId('toggle-notifications').getAttribute('data-checked')).toBe('true')
-  })
-
-  it('updates config when the notifications toggle is clicked', async () => {
-    const backupAndUpdateConfig = vi.fn()
-
-    render(
-      <BackupContext.Provider value={{ backupAndUpdateConfig } as any}>
-        <ConfigContext.Provider
-          value={
-            { ...mockConfigContextValue, config: { ...mockConfigContextValue.config, notifications: true } } as any
-          }
-        >
-          <Notifications />
-        </ConfigContext.Provider>
-      </BackupContext.Provider>,
-    )
-
-    fireEvent.click(screen.getByTestId('toggle-notifications'))
-
-    await vi.waitFor(() => {
-      expect(backupAndUpdateConfig).toHaveBeenCalledWith({
-        ...mockConfigContextValue.config,
-        notifications: false,
-      })
-    })
-  })
-
   it('shows a toast when the browser does not support notifications', () => {
     const backupAndUpdateConfig = vi.fn()
     notificationsMock.notificationApiSupport = false

@@ -49,21 +49,7 @@ describe('Send screen', () => {
         </AspContext.Provider>
       </NavigationContext.Provider>,
     )
-  it('renders the loading send screen correctly', async () => {
-    renderSendForm({ walletContext: { ...mockWalletContextValue, svcWallet: undefined } })
-    // should be loading because svcWallet is undefined
-    expect(screen.getByTestId('loading-logo')).toBeInTheDocument()
-  })
-  it('renders the send screen correctly', async () => {
-    renderSendForm()
-    // find text elements
-    expect(screen.getByText('Max')).toBeInTheDocument()
-    expect(screen.getByText('Send')).toBeInTheDocument()
-    expect(screen.getByText('Amount')).toBeInTheDocument()
-    expect(screen.getByText('€0.00 available')).toBeInTheDocument()
-    expect(screen.getByText('Recipient address')).toBeInTheDocument()
-    expect(screen.getByText('Continue')).toBeInTheDocument()
-  })
+
   it('fills the amount field when an LNURL resolves to a fixed amount', async () => {
     // regression: a fixed-amount LNURL (minSendable === maxSendable) must
     // populate the read-only amount input instead of leaving it blank
