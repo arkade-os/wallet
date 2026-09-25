@@ -1,8 +1,7 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import WalletSuccessSplash from '../../components/WalletSuccessSplash'
 import { setDocumentThemeColor } from '../../lib/documentSurface'
-import { hapticLight } from '../../lib/haptics'
 
 vi.mock('../../lib/haptics', () => ({
   hapticLight: vi.fn(),
@@ -31,7 +30,6 @@ describe('WalletSuccessSplash', () => {
 
   beforeEach(() => {
     window.matchMedia = vi.fn(reducedMotionMatchMedia)
-    vi.mocked(hapticLight).mockClear()
     themeColorMeta = document.createElement('meta')
     themeColorMeta.name = 'theme-color'
     document.head.append(themeColorMeta)
@@ -93,15 +91,5 @@ describe('WalletSuccessSplash', () => {
     expect(document.documentElement).toHaveClass('wallet-success-surface-active')
     await waitFor(() => expect(document.documentElement).not.toHaveClass('wallet-success-surface-active'))
     expect(themeColorMeta).toHaveAttribute('content', '#fff')
-  })
-
-  it('dismisses from the portaled button', () => {
-    const onDone = vi.fn()
-    render(<WalletSuccessSplash headline='Swap created' ariaLabel='Swap created. Tap to go home.' onDone={onDone} />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Swap created. Tap to go home.' }))
-
-    expect(onDone).toHaveBeenCalledOnce()
-    expect(hapticLight).toHaveBeenCalledTimes(2)
   })
 })

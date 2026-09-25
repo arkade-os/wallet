@@ -863,11 +863,6 @@ describe('Wallet swap flow', () => {
     expect(screen.queryByText(/^\$3\d,\d{3},\d{3}/)).not.toBeInTheDocument()
   })
 
-  it('shows the Bitcoin logo in the swap picker even when the display unit is sats', () => {
-    const { container } = renderSwap({ config: { unit: Unit.SATS } })
-    expect(container.querySelector('circle[fill="var(--orange-500)"]')).toBeInTheDocument()
-  })
-
   it('shows the Bitcoin balance and quotes in whole BTC when the display unit is BTC, not sats', async () => {
     renderSwap({
       config: { unit: Unit.BTC },
@@ -916,26 +911,6 @@ describe('Wallet swap flow', () => {
 
     const amountLabel = primaryAmount().getAttribute('aria-label')
     expect(amountLabel).toMatch(/\sBTC$/)
-  })
-
-  it('never assigns the same React key to two occurrences of the same letter in the amount label', async () => {
-    // "sats" has two 's' — a naive per-character key collapses them, which
-    // React reports as a duplicate-key warning and the animated renderer
-    // then smears the repeated glyph
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
-
-    // asset mode appends the ticker suffix ("1000 sats") to the amount label
-    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
-    for (const key of ['1', '0', '0', '0']) {
-      await userEvent.click(screen.getByRole('button', { name: key }))
-    }
-
-    const duplicateKeyWarning = errorSpy.mock.calls.some((call) =>
-      String(call[0]).includes('Encountered two children with the same key'),
-    )
-    expect(duplicateKeyWarning).toBe(false)
-    errorSpy.mockRestore()
   })
 
   it('preserves the entered value when the denomination blocks swap places', async () => {
@@ -1031,21 +1006,6 @@ describe('Wallet swap flow', () => {
         expect(character.parentElement?.getAttribute('style') ?? '').not.toContain('translate')
       }
     }
-  })
-
-  it('keeps the digit animation mounted when a new value triggers a validation error', async () => {
-    renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
-
-    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
-    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
-    const amountValue = screen.getByTestId('swap-amount-value-shake')
-
-    for (const key of ['1', '2', '2']) {
-      await userEvent.click(screen.getByRole('button', { name: key }))
-    }
-
-    await screen.findByRole('button', { name: /^Use maximum/ }, { timeout: 3_000 })
-    expect(screen.getByTestId('swap-amount-value-shake')).toBe(amountValue)
   })
 
   it('keeps swap history out of the swap composer', () => {

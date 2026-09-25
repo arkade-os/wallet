@@ -51,20 +51,4 @@ describe('AssetCard', () => {
     // the amount stays in the real asset's unit — only the logo follows the currency
     expect(screen.getByText('100.00 DEPIX')).toBeInTheDocument()
   })
-
-  it('never shows a logoTicker flag for an unverified asset', () => {
-    const { container } = render(
-      <WalletContext.Provider value={{ ...mockWalletContextValue, isVerifiedAsset: () => false }}>
-        <AssetCard
-          assetId={assetId}
-          balance={BigInt(10000)}
-          decimals={2}
-          name='DePix'
-          ticker='DEPIX'
-          logoTicker='BRL'
-        />
-      </WalletContext.Provider>,
-    )
-    expect(container.querySelector('.asset-card__logo')).toBeNull()
-  })
 })

@@ -226,15 +226,10 @@ describe('lnSwapLabel', () => {
     // `refunded`. On that leg every non-claim leaf of the covenant is the
     // SOLVER's, so the lockup going back means the payment never arrived —
     // money gone, not money returned. Reading it as "refunded" would tell the
-    // user the exact opposite of what happened.
+    // user the exact opposite of what happened. A send that came back stays
+    // "refunded" — that assertion lives with the other send outcomes above.
     expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'lost' }))).toBe('Lightning receive lost')
     expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'lost' }))).not.toContain('refunded')
-  })
-
-  it('still calls a SEND that came back refunded, on the same token set', () => {
-    // The two legs read `refunded` in opposite directions, and the package is
-    // what tells them apart — the wallet must not collapse the distinction.
-    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'refunded' }))).toBe('Lightning send refunded')
   })
 
   it('says nothing extra once the payment simply went through', () => {
