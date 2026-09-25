@@ -129,7 +129,7 @@ export const encodeBip21Asset = (
   const base = `bitcoin:?ark=${arkAddress}&assetid=${assetId}&amount=${centsToUnits(cents, decimals)}`
   if (!taxi) return base
   const fare = taxi.fareId ? `&taxifare=${encodeURIComponent(taxi.fareId)}` : ''
-  return `${base}&taxi=${encodeURIComponent(taxi.url)}&taxikey=${taxi.operatorKey}${fare}`
+  return `${base}&taxi=${encodeURIComponent(taxi.url)}&taxikey=${encodeURIComponent(taxi.operatorKey)}${fare}`
 }
 
 export const isBip21 = (data: string): boolean => {

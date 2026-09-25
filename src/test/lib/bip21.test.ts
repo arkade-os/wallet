@@ -140,6 +140,13 @@ describe('bip21 utilities', () => {
       const uri = encodeBip21Asset(ARK, ASSET, 500n, 0, taxi)
       expect(decodeBip21(uri).taxi).toEqual(taxi)
     })
+
+    it('percent-encodes the taxikey like its siblings, so it cannot add a parameter', () => {
+      const uri = encodeBip21Asset(ARK, ASSET, 500n, 0, { url: 'https://taxi.example', operatorKey: 'k&taxi=x' })
+      expect(uri).toBe(
+        `bitcoin:?ark=${ARK}&assetid=${ASSET}&amount=500&taxi=https%3A%2F%2Ftaxi.example&taxikey=k%26taxi%3Dx`,
+      )
+    })
   })
 
   describe('bip21.js tests', () => {
