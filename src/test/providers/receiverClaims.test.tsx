@@ -125,6 +125,19 @@ describe('ReceiverClaimsProvider', () => {
     await waitFor(() => expect(recycle).toHaveBeenCalledTimes(1))
   })
 
+  it('does not offer a claimed delivery again after another feed event', async () => {
+    await mounted()
+    const { verified, recycle } = offerOf()
+    offer(verified)
+    await waitFor(() => expect(claimButton()).toBeEnabled())
+    press('Claim')
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Claim' })).toBeNull())
+
+    offer(verified)
+    expect(screen.queryByRole('button', { name: 'Claim' })).toBeNull()
+    expect(recycle).toHaveBeenCalledTimes(1)
+  })
+
   it('watches nothing and shows nothing while the wallet is locked, and resumes once it is unlocked', async () => {
     const { rerender } = await mounted()
     offer(offerOf().verified)

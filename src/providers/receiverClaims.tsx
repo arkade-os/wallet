@@ -1,4 +1,14 @@
-import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  ReactNode,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import type { IWallet } from '@arkade-os/sdk'
 import ErrorBoundary from '../components/ErrorBoundary'
 import SheetModal from '../components/SheetModal'
@@ -46,9 +56,12 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
   // and its identity alive (wallet.tsx:1007-1020), so the wallet object says nothing about the lock.
   const unlocked = Boolean(initialized) && authState !== 'locked'
   const unlockedRef = useRef(unlocked)
-  unlockedRef.current = unlocked
+  useLayoutEffect(() => {
+    unlockedRef.current = unlocked
+  }, [unlocked])
   const [taxisVersion, setTaxisVersion] = useState(0)
   const [offers, setOffers] = useState<VerifiedClaim[]>([])
+  const claimedRef = useRef(new Set<string>())
   const [declined, setDeclined] = useState<ReadonlySet<string>>(new Set())
   const [spent, setSpent] = useState<ReadonlySet<string>>(new Set())
   const [planned, setPlanned] = useState<{ key: string; plan: ClaimPlan }>()
@@ -78,6 +91,7 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
             receiverAddress,
             onOffer: (offer) => {
               const key = offerKey(offer)
+              if (claimedRef.current.has(key)) return
               setOffers((prev) => (prev.some((other) => offerKey(other) === key) ? prev : [...prev, offer]))
               setDeclined((prev) => without(prev, key))
             },
@@ -148,6 +162,7 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
       setPlanned({ key, plan: fresh })
       if (fresh.kind !== 'recycle' || !unlockedRef.current) return
       await claimVerified(offer, fresh, (svcWallet as IWallet).identity)
+      claimedRef.current.add(key)
       setOffers((prev) => prev.filter((other) => other !== offer))
       reloadWallet().catch(consoleError)
     } catch (err) {
