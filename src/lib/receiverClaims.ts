@@ -46,7 +46,7 @@ export type ClaimPlan<C extends PlanCoin = ExtendedVirtualCoin> =
   | { kind: 'wait-for-reclaim'; reason: 'fare-exceeds-delivery' }
 
 /** What the recycle leaf charges the receiver, or undefined when he is not the one paying. */
-export const receiverFareOf = (claim: ReceiverClaim) => {
+export const receiverFareOf = (claim: ReceiverClaim): { currency: 'sats' | 'asset'; units: bigint } | undefined => {
   const fare = claim.claim?.params.receiverFare
   return fare && { currency: fare.currency, units: BigInt(fare.units) }
 }
