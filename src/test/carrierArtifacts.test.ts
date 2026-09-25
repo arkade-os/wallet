@@ -126,17 +126,20 @@ describe('carrier artifacts', () => {
     expect(installed.stdout).toContain('candidate exports confirmed in the installed tree')
   })
 
-  it('refuse a workflow that installs and never inspects what it installed', () => {
+  it.each([
+    ['.github/workflows/ci.yml', 'ci.yml job test never inspects the install'],
+    ['Dockerfile', 'Dockerfile stage builder never inspects the install'],
+  ])('refuse %s installing and never inspecting what it installed', (file, refusal) => {
     const root = stageInstallContext()
     try {
       for (const path of ['Dockerfile', '.cursor', '.github'])
         cpSync(join(REPO, path), join(root, path), { recursive: true })
       expect(verifyIn(root).status, 'the staged checkout passes as it stands').toBe(0)
-      const ci = join(root, '.github', 'workflows', 'ci.yml')
-      writeFileSync(ci, readFileSync(ci, 'utf8').replace('verify.mjs --installed', 'verify.mjs'))
+      const staged = join(root, file)
+      writeFileSync(staged, readFileSync(staged, 'utf8').replace('verify.mjs --installed', 'verify.mjs'))
       const run = verifyIn(root)
       expect(run.status, run.stdout).toBe(1)
-      expect(run.stderr).toContain('ci.yml job test never inspects the install')
+      expect(run.stderr).toContain(refusal)
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

@@ -197,8 +197,8 @@ if (wholeCheckout) {
   for (const [name, lines, offset = 0] of scanned) {
     const line = unverifiedInstall(lines)
     check(line === undefined, `${name} installs at line ${line + offset} without verifying the carrier artifacts first`)
-    // Workflows only: the image build declines it, since it would evaluate the SDK inside Alpine.
-    const uninspected = name.startsWith('.github/') ? uninspectedInstall(lines) : undefined
+    const held = name.startsWith('.github/') || name.startsWith('Dockerfile')
+    const uninspected = held ? uninspectedInstall(lines) : undefined
     check(
       uninspected === undefined,
       `${name} never inspects the install at line ${uninspected + offset}: no verify.mjs --installed runs after it`,
