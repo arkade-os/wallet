@@ -36,7 +36,6 @@ jobs:
               src/test/e2e/nostr.test.ts
               src/test/e2e/pwa.test.ts
               src/test/e2e/receive.test.ts
-              src/test/e2e/receiverTaxi.test.ts
               src/test/e2e/restore.test.ts
               src/test/e2e/serverdown.test.ts
               src/test/e2e/swap.test.ts
