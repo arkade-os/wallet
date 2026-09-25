@@ -16,8 +16,9 @@ import HashIcon from '../icons/Hash'
 import InfoIcon from '../icons/Info'
 import ArrowUpDownIcon from '../icons/ArrowUpDown'
 import { Wallet } from '../lib/types'
-import { SwapDisplayAmount } from '../lib/swapDisplay'
+import { SwapDisplayAmount, type CarrierReceiptRows } from '../lib/swapDisplay'
 import type { TransactionAmountDisplay } from '../lib/transactionAmountDisplay'
+import { isCanonicalTxid } from '../lib/carrierActivity'
 import {
   openInNewTab,
   openOffchainTxInNewTab,
@@ -33,6 +34,7 @@ export interface DetailsProps {
   assetIds?: { assetId: string; label: string }[]
   assetTotals?: (SwapDisplayAmount & { label: string })[]
   amountDisplay?: TransactionAmountDisplay
+  carrier?: CarrierReceiptRows
   date?: string
   destination?: string
   direction?: string
@@ -42,6 +44,7 @@ export interface DetailsProps {
   invoice?: string
   isOffchainTx?: boolean
   priceRate?: string
+  relatedTxids?: string[]
   satoshis?: number
   spendLabel?: string
   spendTxid?: string
@@ -69,6 +72,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     assetIds,
     assetTotals,
     amountDisplay,
+    carrier,
     date,
     direction,
     destination,
@@ -78,6 +82,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     invoice,
     isOffchainTx,
     priceRate,
+    relatedTxids,
     satoshis,
     spendLabel,
     spendTxid,
@@ -167,6 +172,12 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     formatSensitiveDetail(amount),
     <TotalIcon key={`${label}-${amount.value}`} />,
   ])
+  const primaryTxids = new Set([fundedTxid, spendTxid, txid].filter((id): id is string => Boolean(id)))
+  const related = [...new Set((relatedTxids ?? []).filter(isCanonicalTxid))].filter((id) => !primaryTxids.has(id))
+  const relatedRows: TableData = related.map((id, index) => {
+    const label = related.length === 1 ? 'Related transaction' : `Related transaction ${index + 1}`
+    return [label, id, <HashIcon key={`${label}-${id}`} />, offchainTxOnClick(id)]
+  })
 
   const data: TableData = [
     ['Swap from', formatSensitiveDetail(swapFrom), <ArrowUpDownIcon key='swap-from-icon' />],
@@ -178,6 +189,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     ['Funded', fundedTxid, <HashIcon key='funded-icon' />, offchainTxOnClick(fundedTxid)],
     [spendLabel ?? 'Completed', spendTxid, <HashIcon key='spend-icon' />, offchainTxOnClick(spendTxid)],
     ['Transaction ID', txid, <HashIcon key='txid-icon' />, showTxidLink ? txidOnClick : undefined],
+    ...relatedRows,
     ...assetIdRows,
     ['Direction', direction, <DirectionIcon key='direction-icon' />],
     ['Type', type, <TypeIcon key='type-icon' />],
@@ -189,6 +201,15 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     ['Price rate', priceRate, <ArrowUpDownIcon key='price-rate-icon' />],
     ['Network fees', fees === undefined ? undefined : formatAmount(fees), <FeesIcon key='fees-icon' />],
     ['Swap fees', formatSensitiveDetail(swapFees), <FeesIcon key='swap-fees-icon' />],
+    ['Carrier sats', formatSensitiveDetail(carrier?.carrierLoan), <AmountIcon key='carrier-loan-icon' />],
+    ['Purchased sats', formatSensitiveDetail(carrier?.carrierPurchased), <AmountIcon key='carrier-purchased-icon' />],
+    [
+      'Carrier sats purchased',
+      formatSensitiveDetail(carrier?.carrierPurchase),
+      <AmountIcon key='carrier-purchase-icon' />,
+    ],
+    ['Taxi service fee', formatSensitiveDetail(carrier?.carrierFare), <FeesIcon key='carrier-fare-icon' />],
+    ['Delivery', carrier?.carrierDelivery, <StatusIcon key='carrier-delivery-icon' />],
     ...assetTotalRows,
     ['Total', formatAmount(total), <TotalIcon key='total-icon' />],
   ]

@@ -9,6 +9,7 @@ import { WalletContext } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
 import { AssetsContext } from '../../providers/assets'
 import { Currencies, Tx, Unit } from '../../lib/types'
+import type { CarrierActivity } from '../../lib/carrierActivity'
 import { MUTINYNET_DEPIX_ASSET_ID, MUTINYNET_USDT_ASSET_ID } from '../../lib/accountAssets'
 import {
   mockAspContextValue,
@@ -387,5 +388,103 @@ describe('TransactionsList', () => {
     expect(screen.getByText('+ 100.00 USD')).toBeInTheDocument()
     expect(screen.queryByText('€3.30')).not.toBeInTheDocument()
     expect(screen.queryByText('€100.00')).not.toBeInTheDocument()
+  })
+})
+
+describe('carrier annotation', () => {
+  const TXID = (byte: string) => byte.repeat(64)
+  const recycle: CarrierActivity = {
+    version: 1,
+    mode: 'recycle',
+    physicalSats: '330',
+    loanSats: '329',
+    purchasedSats: '1',
+    receiptSats: '1',
+    serviceFareSats: '0',
+    taxi: { transferId: 'advance-1' },
+    state: 'claimable',
+    txids: [TXID('3')],
+  }
+
+  const renderWith = (tx: Tx) =>
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <FlowContext.Provider value={mockFlowContextValue}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [tx] } as any}>
+                <TransactionsList mode='static' />
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+  const swapTx = (carrier: Tx['carrier']): Tx => ({
+    ...mockWalletContextValue.txs[0],
+    amount: 10_000,
+    assetSwap: {
+      fromAssetId: 'btc',
+      fromTicker: 'sats',
+      fromDecimals: 0,
+      fromAmount: BigInt(10_000),
+      toAssetId: 'f1'.repeat(34),
+      toTicker: 'USDT',
+      toDecimals: 2,
+      toAmount: BigInt(20_000),
+      status: 'completed',
+    },
+    carrier,
+    roundTxid: 'swap-tx',
+    type: 'swap',
+  })
+
+  const lnReceiveTx = (carrier: Tx['carrier']): Tx => ({
+    ...mockWalletContextValue.txs[0],
+    amount: 10_000,
+    carrier,
+    lnSwap: { label: 'Lightning receive', outcome: 'settled' },
+    roundTxid: 'receive-tx',
+    type: 'received',
+  })
+
+  it('keeps the asset swap title and annotates a Taxi-powered carrier', () => {
+    renderWith(swapTx(recycle))
+
+    // the original action is still the row's name; Taxi is only how it was paid
+    expect(screen.getByText('Swap')).toBeInTheDocument()
+    expect(screen.getByText(/Taxi powered/)).toBeInTheDocument()
+    expect(screen.queryByText('Taxi')).not.toBeInTheDocument()
+  })
+
+  it('keeps the Lightning receive label and annotates it the same way', () => {
+    renderWith(lnReceiveTx(recycle))
+
+    expect(screen.getByText('Lightning receive')).toBeInTheDocument()
+    expect(screen.getByText(/Taxi powered/)).toBeInTheDocument()
+  })
+
+  it('gives a direct solver purchase no Taxi badge', () => {
+    const purchase: CarrierActivity = {
+      ...recycle,
+      mode: 'purchase',
+      loanSats: '0',
+      purchasedSats: '330',
+      receiptSats: '0',
+    }
+    delete purchase.taxi
+
+    renderWith(swapTx(purchase))
+
+    expect(screen.getByText('Swap')).toBeInTheDocument()
+    expect(screen.queryByText(/Taxi powered/)).not.toBeInTheDocument()
+  })
+
+  it('leaves a row with no carrier exactly as it was', () => {
+    renderWith(swapTx(undefined))
+
+    expect(screen.getByText('Swap')).toBeInTheDocument()
+    expect(screen.queryByText(/Taxi powered/)).not.toBeInTheDocument()
   })
 })

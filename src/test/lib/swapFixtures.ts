@@ -21,6 +21,22 @@ export const btcUsdt: DiscoveredMarket = {
   sourceType: 'registry',
 }
 
+/** Priced per direction: giving base costs 10 bps against a headline 30, which
+ * `fee_bps` must carry as the widest spread. */
+export const btcUsdtPerSide: DiscoveredMarket = {
+  ...btcUsdt,
+  solver_fee: { base: { bps: 10 }, quote: { bps: 30 } },
+}
+
+/** Per-side, with give-side bounds wide enough that the RECEIVE-side ones bind. */
+export const btcUsdtPerSideReceiveBound: DiscoveredMarket = {
+  ...btcUsdtPerSide,
+  min_base_amount: '1',
+  max_base_amount: '100000000',
+  min_quote_amount: '5000',
+  max_quote_amount: '500000',
+}
+
 // an asset↔asset market: neither side is BTC
 export const MARAT_ID = 'aad4ace7f70c0f197cafc707fc1026de38b15556e80566ade6354cbc4054fd3a0000'
 export const NAPO_ID = 'c23471d3d8be2e1a342118aa7c79f67e329097b746ab0552a53295598b1e98880000'

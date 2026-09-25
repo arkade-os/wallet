@@ -36,7 +36,16 @@ import { decodeInvoice } from '../../../lib/bolt11'
 import { lnSendRendezvous, requestLnSend } from '../../../lib/lnSwap'
 import { withRfqTransport } from '../../../lib/nostrRfq'
 import { discoverMarkets } from '../../../lib/swapMarkets'
-import { decodeBip21, isBip21 } from '../../../lib/bip21'
+import { decodeBip21, isBip21, type Bip21Taxi } from '../../../lib/bip21'
+import {
+  PaymentDeclined,
+  hasSatsForReceiverTaxi,
+  payAssetRequest,
+  routesToReceiverTaxi,
+  walletAssetRfqDeps,
+  type AssetPaymentTerms,
+  type PayRailUi,
+} from '../../../lib/assetRfqSend'
 import { InfoLine } from '../../../components/Info'
 import { centsToUnits, liquidBtcBalance, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
@@ -168,6 +177,8 @@ export default function SendForm() {
   const [showAssetSelector, setShowAssetSelector] = useState(false)
   const [showReserveModal, setShowReserveModal] = useState(false)
   const [valueSats, setValueSats] = useState<number | undefined>(undefined)
+  const [receiverTaxi, setReceiverTaxi] = useState<{ taxi: Bip21Taxi; assetId: string }>()
+  const [approval, setApproval] = useState<{ terms: AssetPaymentTerms; answer: (ok: boolean) => void }>()
 
   const timeoutRef = useRef<NodeJS.Timeout>()
 
@@ -189,11 +200,14 @@ export default function SendForm() {
   )
   const activeAsset = accountAsset ?? selectedAsset
   const isAssetSend = activeAsset !== null
+  // Only when her asset balance can't cover it; she then pays in bitcoin, so that balance stops gating Continue.
+  const payViaReceiverTaxi = routesToReceiverTaxi(sendInfo, receiverTaxi, activeAsset?.balance ?? BigInt(0))
 
   const RECIPIENT_DEBOUNCE_MS = 800
   const hasAssets = assetBalances.length > 0
   const reserveApplied = !isAssetSend && hasAssets
   const liquidBalance = liquidBtcBalance(availableBalance, reserveApplied, aspInfo.dust)
+  const taxiLacksSats = payViaReceiverTaxi && !hasSatsForReceiverTaxi(liquidBalance, aspInfo.dust)
 
   const smartSetError = (str: string) => {
     setError(str === '' ? (aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '') : str)
@@ -314,6 +328,7 @@ export default function SendForm() {
     if (!readyToParse) return
     setRecipientError('')
     const parseRecipient = async () => {
+      setReceiverTaxi(undefined)
       if (!recipient) return
       const lowerCaseData = recipient.toLowerCase().replace(/^lightning:/, '')
       if (isURLWithLightningQueryString(recipient)) {
@@ -321,9 +336,12 @@ export default function SendForm() {
         return setRecipient(url.searchParams.get('lightning')!)
       }
       if (isBip21(lowerCaseData)) {
-        const { address, arkAddress, invoice, lnUrl, satoshis, assetId, assetAmount } = decodeBip21(recipient.trim())
+        const { address, arkAddress, invoice, lnUrl, satoshis, assetId, assetAmount, taxi } = decodeBip21(
+          recipient.trim(),
+        )
         if (!address && !arkAddress && !invoice && !lnUrl) return setRecipientError('Unable to parse bip21')
         if (assetId) {
+          setReceiverTaxi(taxi ? { taxi, assetId } : undefined)
           let found = assetOptions.find((a) => a.assetId === assetId)
           if (!found) {
             let meta: AssetDetails | undefined = assetMetadataCache.get(assetId)
@@ -571,7 +589,13 @@ export default function SendForm() {
   useEffect(() => {
     if (isAssetSend && activeAsset) {
       const assetAmount = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
-      setLabel(assetAmount > activeAsset.balance ? 'Insufficient asset balance' : 'Continue')
+      setLabel(
+        taxiLacksSats
+          ? 'Insufficient funds'
+          : assetAmount > activeAsset.balance && !payViaReceiverTaxi
+            ? 'Insufficient asset balance'
+            : 'Continue',
+      )
       return
     }
     const satoshis = sendInfo.satoshis ?? 0
@@ -590,7 +614,15 @@ export default function SendForm() {
                   ? 'Amount below min limit'
                   : 'Continue',
     )
-  }, [sendInfo.satoshis, sendInfo.assets, sendInfo.account, liquidBalance, activeAsset])
+  }, [
+    sendInfo.satoshis,
+    sendInfo.assets,
+    sendInfo.account,
+    liquidBalance,
+    activeAsset,
+    payViaReceiverTaxi,
+    taxiLacksSats,
+  ])
 
   // manage server unreachable error
   useEffect(() => {
@@ -752,10 +784,31 @@ export default function SendForm() {
     timeoutRef.current = setTimeout(() => setReadyToParse(true), RECIPIENT_DEBOUNCE_MS)
   }
 
+  const approvalUi: PayRailUi = {
+    confirmPayment: (terms) => new Promise((answer) => setApproval({ terms, answer })),
+  }
+
+  const answerApproval = (ok: boolean) => {
+    approval?.answer(ok)
+    setApproval(undefined)
+  }
+
+  const payWithReceiverTaxi = async () => {
+    const [{ assetId, amount }] = sendInfo.assets!
+    const markets = await discoverMarkets(aspInfo.network as NetworkName)
+    const swap = await payAssetRequest(
+      { arkAddress: sendInfo.arkAddress!, assetId, amount, taxi: receiverTaxi!.taxi },
+      walletAssetRfqDeps({ aspInfo, wallet: svcWallet, markets, assetId, ui: approvalUi }),
+    )
+    setSendInfo({ ...sendInfo, txid: swap.fundingTxid })
+    navigate(Pages.SendSuccess)
+  }
+
   const handleContinue = async () => {
     setProcessing(true)
     const satoshis = sendInfo.satoshis ?? 0
     try {
+      if (payViaReceiverTaxi && sendInfo.arkAddress) return await payWithReceiverTaxi()
       if (sendInfo.lnUrl && lnUrlResponse) {
         // Check if Ark method is available
         const arkMethod = lnUrlResponse.transferAmounts?.find((method) => method.method === 'Ark' && method.available)
@@ -790,6 +843,7 @@ export default function SendForm() {
       }
       setProceed(true)
     } catch (error) {
+      if (error instanceof PaymentDeclined) return setProcessing(false)
       handleError(error)
     }
   }
@@ -870,6 +924,7 @@ export default function SendForm() {
   // clear this on recovery.
   const carrierError =
     !processing &&
+    !payViaReceiverTaxi &&
     activeAsset &&
     assetAmt > BigInt(0) &&
     assetAmt < activeAsset.balance &&
@@ -879,7 +934,8 @@ export default function SendForm() {
 
   const buttonDisabled = isAssetSend
     ? !(arkAddress && assetAmt > 0) ||
-      (activeAsset ? assetAmt > activeAsset.balance : true) ||
+      (activeAsset ? assetAmt > activeAsset.balance && !payViaReceiverTaxi : true) ||
+      taxiLacksSats ||
       Boolean(recipientError) ||
       Boolean(carrierError) ||
       aspInfo.unreachable ||
@@ -1163,6 +1219,25 @@ export default function SendForm() {
           <FlexCol gap='0.5rem'>
             <Button onClick={confirmSendAll} label='Send max' />
             <Button onClick={() => setShowReserveModal(false)} label='Cancel' secondary />
+          </FlexCol>
+        </FlexCol>
+      </SheetModal>
+      <SheetModal isOpen={Boolean(approval)} onClose={() => answerApproval(false)}>
+        <FlexCol gap='1rem'>
+          <Text bold>Confirm payment</Text>
+          {approval?.terms.refreshed ? (
+            <Text color='neutral-500' small wrap>
+              The last price expired before you confirmed it, so this is a new one.
+            </Text>
+          ) : null}
+          <Text color='neutral-500' small wrap>
+            {approval
+              ? `Pay ${prettyNumber(Number(approval.terms.payAmountSats))} sats to send ${prettyAssetAmount(approval.terms.assetAmount, activeAsset?.decimals ?? 8)} ${activeAsset?.ticker ?? ''}`
+              : ''}
+          </Text>
+          <FlexCol gap='0.5rem'>
+            <Button onClick={() => answerApproval(true)} label='Pay' />
+            <Button onClick={() => answerApproval(false)} label='Cancel' secondary />
           </FlexCol>
         </FlexCol>
       </SheetModal>

@@ -244,6 +244,32 @@ describe('lnSendViews', () => {
       },
     ])
   })
+
+  it('round-trips the record carrier without duplicating an already-listed funding txid', async () => {
+    const fundingTxid = '1'.repeat(64)
+    const claimTxid = '2'.repeat(64)
+    const carrier = {
+      version: 1,
+      mode: 'recycle',
+      physicalSats: '330',
+      loanSats: '329',
+      purchasedSats: '1',
+      receiptSats: '1',
+      serviceFareSats: '0',
+      taxi: { transferId: 'advance-1' },
+      state: 'claimable',
+      txids: [fundingTxid, claimTxid],
+    }
+    await store({ fundingTxid }, { carrier: JSON.parse(JSON.stringify(carrier)) })
+
+    const [view] = await lnSendViews()
+
+    expect(view.carrier).toEqual(carrier)
+    expect(view.members).toEqual([
+      { txid: fundingTxid, type: 'carrier' },
+      { txid: claimTxid, type: 'carrier' },
+    ])
+  })
 })
 
 describe('restoreLnSendSwaps', () => {

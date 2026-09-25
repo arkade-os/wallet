@@ -94,6 +94,48 @@ export const readAllTransactionActivityMetadata = (): Record<string, Transaction
     JSON.parse(value),
   )
 
+/** A Taxi this wallet named in one of its receive requests: its claim feed is watched across reloads. */
+export interface RememberedTaxi {
+  network: string
+  url: string
+  operatorKey: string
+}
+
+const RECEIVER_TAXIS_KEY = 'receiverTaxis'
+const RECEIVER_TAXIS_LIMIT = 16
+
+const isRememberedTaxi = (value: unknown): value is RememberedTaxi => {
+  const taxi = value as Partial<RememberedTaxi> | null
+  return (
+    typeof taxi?.network === 'string' &&
+    typeof taxi.url === 'string' &&
+    typeof taxi.operatorKey === 'string' &&
+    /^[0-9a-f]{64}$/.test(taxi.operatorKey)
+  )
+}
+
+export const readReceiverTaxis = (): RememberedTaxi[] => {
+  const stored = getStorageItem<unknown>(RECEIVER_TAXIS_KEY, [], (value) => JSON.parse(value))
+  return Array.isArray(stored)
+    ? stored.filter(isRememberedTaxi).map(({ network, url, operatorKey }) => ({ network, url, operatorKey }))
+    : []
+}
+
+/** Returns whether the Taxi was not already remembered. */
+export const rememberReceiverTaxi = (taxi: RememberedTaxi): boolean => {
+  const stored = readReceiverTaxis()
+  const same = (other: RememberedTaxi) =>
+    other.network === taxi.network && other.url === taxi.url && other.operatorKey === taxi.operatorKey
+  if (stored.some(same)) return false
+  const next = [...stored, { network: taxi.network, url: taxi.url, operatorKey: taxi.operatorKey }]
+  setStorageItemSafely(
+    RECEIVER_TAXIS_KEY,
+    JSON.stringify(next.slice(-RECEIVER_TAXIS_LIMIT)),
+    'Failed to remember the receiver Taxi',
+  )
+  return true
+}
+
 // local storage caches the asset details for 24 hours
 export const ASSET_METADATA_TTL_MS = 24 * 60 * 60 * 1000
 

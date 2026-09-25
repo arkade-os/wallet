@@ -166,7 +166,7 @@ describe('buildAssetSwapActivityTx', () => {
     })
     const fillAmount = BigInt(54_321)
 
-    const activity = buildAssetSwapActivityTx(fulfilled, [
+    const activity = buildAssetSwapActivityTx(fulfilled, undefined, [
       tx('funding-txid'),
       tx('fill-txid', [{ assetId: fulfilled.toAsset, amount: fillAmount }]),
     ])
@@ -187,16 +187,78 @@ describe('buildAssetSwapActivityTx', () => {
     })
   })
 
+  it('uses only received same-hash evidence for an asset-to-BTC fill', () => {
+    const fulfilled = {
+      ...swap('funding-txid'),
+      fromAsset: 'asset-id',
+      toAsset: 'btc',
+      toAmount: '777',
+      status: 'fulfilled' as const,
+      spentTxid: 'fill-txid',
+    }
+    const member = (type: Tx['type'], amount: number): Tx => ({
+      amount,
+      boardingTxid: '',
+      createdAt: 1,
+      explorable: 'fill-txid',
+      preconfirmed: false,
+      redeemTxid: 'fill-txid',
+      roundTxid: '',
+      settled: true,
+      type,
+    })
+    const sent = member('sent', 900)
+    const received = member('received', 321)
+
+    const amounts = [
+      buildAssetSwapActivityTx(fulfilled, undefined, [sent, received]),
+      buildAssetSwapActivityTx(fulfilled, undefined, [received, sent]),
+      buildAssetSwapActivityTx(fulfilled, undefined, [sent]),
+    ].map((tx) => tx.assetSwap?.toAmount)
+
+    expect(amounts).toEqual([BigInt(321), BigInt(321), BigInt(777)])
+  })
+
+  it('uses only received same-hash evidence for an asset fill', () => {
+    const fulfilled = {
+      ...swap('funding-txid'),
+      status: 'fulfilled' as const,
+      spentTxid: 'fill-txid',
+    }
+    const member = (type: Tx['type'], amount: bigint): Tx => ({
+      amount: 500,
+      assets: [{ assetId: fulfilled.toAsset, amount }],
+      boardingTxid: '',
+      createdAt: 1,
+      explorable: 'fill-txid',
+      preconfirmed: false,
+      redeemTxid: 'fill-txid',
+      roundTxid: '',
+      settled: true,
+      type,
+    })
+    const sent = member('sent', BigInt(999))
+    const received = member('received', BigInt(654))
+
+    const amounts = [
+      buildAssetSwapActivityTx(fulfilled, undefined, [sent, received]),
+      buildAssetSwapActivityTx(fulfilled, undefined, [received, sent]),
+      buildAssetSwapActivityTx(fulfilled, undefined, [sent]),
+    ].map((tx) => tx.assetSwap?.toAmount)
+
+    expect(amounts).toEqual([BigInt(654), BigInt(654), BigInt(992)])
+  })
+
   it('labels older Mutinynet swap records from their designated asset IDs', () => {
     const legacySwap = { ...swap('funding-txid'), toAsset: MUTINYNET_USDT_ASSET_ID }
-    const activity = buildAssetSwapActivityTx(legacySwap, [], { network: 'mutinynet' })
+    const activity = buildAssetSwapActivityTx(legacySwap, undefined, [], { network: 'mutinynet' })
 
     expect(activity.assetSwap).toMatchObject({ fromTicker: 'sats', toTicker: 'USD' })
   })
 
   it('prefers the currency designation over the asset metadata ticker', () => {
     const restoredSwap = { ...swap('funding-txid'), toAsset: MUTINYNET_USDT_ASSET_ID }
-    const activity = buildAssetSwapActivityTx(restoredSwap, [], {
+    const activity = buildAssetSwapActivityTx(restoredSwap, undefined, [], {
       network: 'mutinynet',
       assetDisplay: () => ({ ticker: 'USDT', decimals: 2 }),
     })
@@ -208,7 +270,7 @@ describe('buildAssetSwapActivityTx', () => {
     // the package's AssetSwapStatus covers corridors an offer swap never uses
     const claimable = { ...swap('funding-txid'), status: 'claimable' as const }
 
-    expect(buildAssetSwapActivityTx(claimable, []).assetSwap).toMatchObject({ status: 'pending' })
+    expect(buildAssetSwapActivityTx(claimable, undefined, []).assetSwap).toMatchObject({ status: 'pending' })
   })
 })
 

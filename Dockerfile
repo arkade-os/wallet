@@ -23,7 +23,13 @@ RUN corepack enable && corepack prepare pnpm@10.25.0 --activate
 
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# The install resolves @arkade-os/sdk, @arkade-os/swap and @arkade-taxi/* from
+# frozen archives, so they have to land before it, not with the later COPY . .
+COPY vendor/carrier ./vendor/carrier
+COPY scripts/carrier-artifacts ./scripts/carrier-artifacts
+RUN node scripts/carrier-artifacts/verify.mjs
 RUN pnpm install --frozen-lockfile
+RUN node scripts/carrier-artifacts/verify.mjs --installed
 
 COPY . .
 RUN echo "export const gitCommit = '${GIT_COMMIT}'" > src/_gitCommit.ts && \

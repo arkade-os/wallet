@@ -26,6 +26,12 @@ vi.mock('qr', () => ({
   default: () => Array.from({ length: 21 }, () => new Uint8Array(21).fill(1)),
 }))
 
+// Unmocked, this negotiate-effect fetch flakes the aria-hidden-gated Copy button under load.
+vi.mock('../../../lib/swapMarkets', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../lib/swapMarkets')>()),
+  discoverMarkets: vi.fn().mockResolvedValue([]),
+}))
+
 // Mock clipboard helper so we can assert it was called with the QR value
 const copyToClipboardMock = vi.fn((v) => Promise.resolve(v))
 vi.mock('../../../lib/clipboard', () => ({

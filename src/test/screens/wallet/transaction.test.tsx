@@ -22,10 +22,13 @@ import { NavigationContext } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { Currencies } from '../../../lib/types'
+import type { CarrierActivity } from '../../../lib/carrierActivity'
 import { AssetsContext } from '../../../providers/assets'
 import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
 import { AssetSwapsContext } from '../../../providers/assetSwaps'
 import type { WalletAssetSwap as AssetSwap } from '../../../lib/swapRepository'
+
+const FUNDING_TXID = '1'.repeat(64)
 
 const pendingSwapTx = {
   ...mockTxInfo,
@@ -41,17 +44,17 @@ const pendingSwapTx = {
     toDecimals: 2,
     toTicker: 'BET',
     status: 'pending' as const,
-    fundingTxid: 'funding-txid',
+    fundingTxid: FUNDING_TXID,
   },
   preconfirmed: true,
-  redeemTxid: 'funding-txid',
+  redeemTxid: FUNDING_TXID,
   roundTxid: '',
   settled: false,
   type: 'swap',
 }
 
 const pendingSwap: AssetSwap = {
-  id: 'funding-txid',
+  id: FUNDING_TXID,
   fromAsset: 'btc',
   toAsset: 'asset-beta',
   fromAmount: '10000',
@@ -59,7 +62,7 @@ const pendingSwap: AssetSwap = {
   swapAddress: 'tark1q...',
   swapPkScript: `5120${'ab'.repeat(32)}`,
   offerHex: '0100',
-  fundingTxid: 'funding-txid',
+  fundingTxid: FUNDING_TXID,
   status: 'pending',
   createdAt: 1,
 }
@@ -100,6 +103,43 @@ function CancellationHarness({
 }
 
 describe('Transaction screen', () => {
+  it('selects a prepared swap by stable history identity without enabling cancellation', () => {
+    const txInfo = {
+      ...pendingSwapTx,
+      historyKey: 'swap:intent-2',
+      assetSwap: { ...pendingSwapTx.assetSwap, fundingTxid: '', status: 'completed' as const },
+      redeemTxid: '',
+      settled: true,
+    }
+    const swaps = [
+      { ...pendingSwap, id: 'intent-1', fundingTxid: '', status: 'fulfilled' as const },
+      { ...pendingSwap, id: 'intent-2', fundingTxid: '', status: 'pending' as const },
+    ]
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <AspContext.Provider value={mockAspContextValue}>
+              <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
+                <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [txInfo] } as any}>
+                  <AssetSwapsContext.Provider value={{ swaps } as any}>
+                    <LimitsContext.Provider value={mockLimitsContextValue}>
+                      <Transaction />
+                    </LimitsContext.Provider>
+                  </AssetSwapsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </AspContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByTestId('Status')).toHaveTextContent('Pending')
+    expect(screen.queryByRole('button', { name: /cancel swap/i })).not.toBeInTheDocument()
+  })
+
   it('confirms a pending swap cancellation and stays on the updated receipt', async () => {
     let finishCancel: () => void = () => {}
     const cancel = vi.fn(
@@ -116,7 +156,7 @@ describe('Transaction screen', () => {
     expect(within(dialog).getByText(/return its locked funds to your wallet/)).toBeInTheDocument()
 
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel swap' }))
-    expect(cancel).toHaveBeenCalledWith('funding-txid')
+    expect(cancel).toHaveBeenCalledWith(FUNDING_TXID)
     expect(screen.getByRole('button', { name: 'Cancelling…' })).toBeDisabled()
 
     await act(async () => finishCancel())
@@ -361,6 +401,249 @@ describe('Transaction screen', () => {
     expect(screen.getByTestId('Total received')).toHaveTextContent('67.89 BET')
   })
 
+  it('discloses bought vs borrowed sats on a recycle receipt, and the fare apart', () => {
+    const recycle: CarrierActivity = {
+      version: 1,
+      mode: 'recycle',
+      physicalSats: '330',
+      loanSats: '329',
+      purchasedSats: '1',
+      receiptSats: '1',
+      serviceFareSats: '0',
+      taxi: { transferId: 'advance-1' },
+      state: 'claimable',
+      txids: ['3'.repeat(64)],
+    } as const
+    const swapTxInfo = {
+      ...mockTxInfo,
+      amount: 0,
+      boardingTxid: '',
+      assetSwap: {
+        fromAmount: BigInt(12_345),
+        fromAssetId: 'asset-alpha',
+        fromDecimals: 2,
+        fromTicker: 'ALP',
+        toAmount: BigInt(67_890),
+        toAssetId: 'asset-beta',
+        toDecimals: 3,
+        toTicker: 'BET',
+        status: 'completed' as const,
+        fundingTxid: 'funding-txid',
+        fillTxid: 'fill-txid',
+      },
+      carrier: recycle,
+      roundTxid: 'fill-txid',
+      settled: true,
+      type: 'swap',
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <AspContext.Provider value={mockAspContextValue}>
+              <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: swapTxInfo }}>
+                <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [swapTxInfo] }}>
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <Transaction />
+                  </LimitsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </AspContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    // 329 borrowed is never shown as bought; the 1 bought is the reserve
+    expect(screen.getByTestId('Carrier sats')).toHaveTextContent('Borrowed 329 sats')
+    expect(screen.getByTestId('Purchased sats')).toHaveTextContent('1 sat (receipt reserve)')
+    expect(screen.getByTestId('Taxi service fee')).toHaveTextContent('0 sats')
+    expect(screen.getByTestId('Delivery')).toHaveTextContent('Claimable')
+    // the original swap identity is untouched by any of this
+    expect(screen.getByTestId('Funded')).toHaveTextContent('funding-txid')
+  })
+
+  it('links canonical related transactions once without guessing their roles', async () => {
+    const fundingTxid = '1'.repeat(64)
+    const fillTxid = '2'.repeat(64)
+    const relatedTxid = '3'.repeat(64)
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null)
+    const txInfo = {
+      ...pendingSwapTx,
+      assetSwap: {
+        ...pendingSwapTx.assetSwap,
+        fundingTxid,
+        fillTxid,
+        status: 'completed' as const,
+      },
+      carrierMembers: [
+        { txid: fundingTxid, type: 'sent' },
+        { txid: fillTxid, type: 'received' },
+        { txid: relatedTxid, type: 'received' },
+        { txid: relatedTxid, type: 'received' },
+        { txid: 'not-a-txid', type: 'received' },
+      ],
+      redeemTxid: fillTxid,
+      settled: true,
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <AspContext.Provider value={mockAspContextValue}>
+              <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
+                <WalletContext.Provider
+                  value={
+                    {
+                      ...mockWalletContextValue,
+                      txs: [txInfo],
+                      wallet: { ...mockWalletContextValue.wallet, network: 'regtest' },
+                    } as any
+                  }
+                >
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <Transaction />
+                  </LimitsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </AspContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getAllByTestId(/Related transaction/)).toHaveLength(1)
+    expect(screen.getByTestId('Related transaction')).toHaveTextContent('33333333...33333333')
+    expect(screen.queryByText(/claim transaction|recovery transaction/i)).not.toBeInTheDocument()
+
+    const row = document.getElementById('Related transaction') as HTMLElement
+    await userEvent.click(row.querySelector('.table-row__external') as HTMLElement)
+    expect(open).toHaveBeenCalledWith(`http://localhost:7080/tx/${relatedTxid}`, '_blank', 'noreferrer')
+    open.mockRestore()
+  })
+
+  it('keeps a non-swap action and amount while linking its related transaction once', async () => {
+    const primaryTxid = '4'.repeat(64)
+    const relatedTxid = '5'.repeat(64)
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null)
+    const txInfo = {
+      ...mockTxInfo,
+      amount: 1_234,
+      boardingTxid: '',
+      carrierMembers: [
+        { txid: primaryTxid, type: 'received' },
+        { txid: relatedTxid, type: 'received' },
+        { txid: relatedTxid, type: 'received' },
+      ],
+      redeemTxid: primaryTxid,
+      type: 'received',
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider
+          value={{
+            ...mockConfigContextValue,
+            config: { ...mockConfigContextValue.config, currency: Currencies.USD },
+          }}
+        >
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <AspContext.Provider value={mockAspContextValue}>
+              <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
+                <WalletContext.Provider
+                  value={
+                    {
+                      ...mockWalletContextValue,
+                      txs: [txInfo],
+                      wallet: { ...mockWalletContextValue.wallet, network: 'regtest' },
+                    } as any
+                  }
+                >
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <Transaction />
+                  </LimitsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </AspContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByText('Amount received')).toBeInTheDocument()
+    expect(screen.getByTestId('primary-amount')).toHaveTextContent('$1,234.00')
+    expect(screen.getAllByTestId(/Related transaction/)).toHaveLength(1)
+    expect(screen.getByTestId('Related transaction')).toHaveTextContent('55555555...55555555')
+
+    const row = document.getElementById('Related transaction') as HTMLElement
+    await userEvent.click(row.querySelector('.table-row__external') as HTMLElement)
+    expect(open).toHaveBeenCalledWith(`http://localhost:7080/tx/${relatedTxid}`, '_blank', 'noreferrer')
+    open.mockRestore()
+  })
+
+  it('discloses a whole carrier purchase without claiming a loan', () => {
+    const purchase: CarrierActivity = {
+      version: 1,
+      mode: 'purchase',
+      physicalSats: '330',
+      loanSats: '0',
+      purchasedSats: '330',
+      receiptSats: '0',
+      serviceFareSats: '0',
+      state: 'claimed',
+      txids: ['4'.repeat(64)],
+    } as const
+    const swapTxInfo = {
+      ...mockTxInfo,
+      amount: 0,
+      boardingTxid: '',
+      assetSwap: {
+        fromAmount: BigInt(12_345),
+        fromAssetId: 'asset-alpha',
+        fromDecimals: 2,
+        fromTicker: 'ALP',
+        toAmount: BigInt(67_890),
+        toAssetId: 'asset-beta',
+        toDecimals: 3,
+        toTicker: 'BET',
+        status: 'completed' as const,
+        fundingTxid: 'funding-txid',
+        fillTxid: 'fill-txid',
+      },
+      carrier: purchase,
+      roundTxid: 'fill-txid',
+      settled: true,
+      type: 'swap',
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <AspContext.Provider value={mockAspContextValue}>
+              <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: swapTxInfo }}>
+                <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [swapTxInfo] }}>
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <Transaction />
+                  </LimitsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </AspContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByTestId('Carrier sats purchased')).toHaveTextContent('330 sats')
+    expect(screen.queryByTestId('Purchased sats')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('Carrier sats')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('Taxi service fee')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Taxi/)).not.toBeInTheDocument()
+    expect(screen.getByTestId('Delivery')).toHaveTextContent('Claimed')
+  })
+
   it('shows a zero swap fee and reconciles it with the total received', () => {
     const swapTxInfo = {
       ...mockTxInfo,
@@ -446,6 +729,18 @@ describe('Transaction screen', () => {
   })
 
   it('masks swap asset amounts when balances are hidden', () => {
+    const carrier: CarrierActivity = {
+      version: 1,
+      mode: 'recycle',
+      physicalSats: '330',
+      loanSats: '329',
+      purchasedSats: '1',
+      receiptSats: '1',
+      serviceFareSats: '0',
+      taxi: { transferId: 'advance-1' },
+      state: 'claimable',
+      txids: ['3'.repeat(64)],
+    }
     const swapTxInfo = {
       ...mockTxInfo,
       amount: 0,
@@ -463,6 +758,7 @@ describe('Transaction screen', () => {
         feeBps: 30,
         status: 'completed' as const,
       },
+      carrier,
       roundTxid: 'fill-txid',
       settled: true,
       type: 'swap',
@@ -494,9 +790,14 @@ describe('Transaction screen', () => {
     expect(screen.getByTestId('Swap to')).toHaveTextContent('········ BET')
     expect(screen.getByTestId('Swap fees')).toHaveTextContent('········ BET')
     expect(screen.getByTestId('Total received')).toHaveTextContent('········ BET')
+    expect(screen.getByTestId('Carrier sats')).toHaveTextContent('Borrowed ········ sats')
+    expect(screen.getByTestId('Purchased sats')).toHaveTextContent('········ (receipt reserve)')
+    expect(screen.getByTestId('Taxi service fee')).toHaveTextContent('········ sats')
+    expect(screen.getByTestId('Delivery')).toHaveTextContent('Claimable')
     expect(screen.queryByText('123.45 ALP')).not.toBeInTheDocument()
     expect(screen.queryByText('67.89 BET')).not.toBeInTheDocument()
     expect(screen.queryByText('0.204 BET')).not.toBeInTheDocument()
+    expect(screen.queryByText(/329|1 sat|0 sats/)).not.toBeInTheDocument()
   })
 
   it('uses the persisted wallet-facing tickers in swap details', () => {

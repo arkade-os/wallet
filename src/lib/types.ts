@@ -1,4 +1,5 @@
 import { Asset, NetworkName, type ExtendedVirtualCoin, type ServiceWorkerWalletMode } from '@arkade-os/sdk'
+import type { CarrierActivity } from './carrierActivity'
 
 export type Addresses = {
   boardingAddr: string
@@ -128,6 +129,11 @@ export type Tx = {
   assetAction?: 'issued' | 'reissued' | 'burned'
   assets?: Asset[]
   boardingTxid: string
+  /** The parsed descriptor, when the operation carried one. Absent on legacy. */
+  carrier?: CarrierActivity
+  /** The collapsed activity's raw tx members, oldest-first. Never an id to
+   *  render: evidence for rows the `Tx` fields cannot fully name. */
+  carrierMembers?: { txid: string; type: string }[]
   createdAt: number
   destination?: string
   explorable: string | undefined

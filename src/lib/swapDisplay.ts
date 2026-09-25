@@ -1,6 +1,15 @@
 import Decimal from 'decimal.js'
+import {
+  carrierBorrowedLabel,
+  carrierDeliveryLabel,
+  carrierPurchasedLiteralLabel,
+  carrierPurchasedReceiptLabel,
+  carrierServiceFareLabel,
+  type CarrierActivity,
+} from './carrierActivity'
 import { prettyCurrencyAssetAmount, prettyFiatAmount, prettyFiatHide, prettyHide, prettyNumber } from './format'
 import { designatedAccountCurrency, walletAccountTicker } from './accountAssets'
+import type { SwapActivityAllocation } from './activityEvidence'
 import type { WalletAssetSwap } from './swapRepository'
 import { Currencies, Tx, Unit } from './types'
 
@@ -212,15 +221,55 @@ export function swapUnitOfAccountAmount({
 interface AssetSwapActivityOptions {
   network?: string
   assetDisplay?: (assetId: string) => { ticker?: string; decimals?: number } | undefined
+  allocation?: SwapActivityAllocation
+}
+
+/** The carrier receipt rows. What the user BOUGHT is separated from what Taxi
+ *  LENT: a recycle buys only the receipt reserve, a purchase the whole carrier. */
+export interface CarrierReceiptRows {
+  carrierDelivery?: string
+  carrierFare?: SwapDisplayAmount
+  carrierLoan?: SwapDisplayAmount
+  carrierPurchase?: SwapDisplayAmount
+  carrierPurchased?: SwapDisplayAmount
+}
+
+export const carrierDetails = (carrier: CarrierActivity | undefined): CarrierReceiptRows => {
+  if (!carrier) return {}
+  return {
+    carrierLoan:
+      carrier.mode === 'recycle'
+        ? { value: carrierBorrowedLabel(carrier), masked: `Borrowed ${prettyHide(carrier.loanSats)}` }
+        : undefined,
+    carrierPurchased:
+      carrier.mode === 'recycle'
+        ? {
+            value: carrierPurchasedReceiptLabel(carrier),
+            masked: `${prettyHide(carrier.purchasedSats, '')} (receipt reserve)`,
+          }
+        : undefined,
+    carrierPurchase:
+      carrier.mode === 'purchase'
+        ? { value: carrierPurchasedLiteralLabel(carrier), masked: prettyHide(carrier.purchasedSats) }
+        : undefined,
+    carrierFare: carrier.taxi
+      ? { value: carrierServiceFareLabel(carrier), masked: prettyHide(carrier.serviceFareSats) }
+      : undefined,
+    carrierDelivery: carrierDeliveryLabel(carrier),
+  }
 }
 
 /** The display row for one swap, from its record and the wallet rows that
  * funded and filled it. Facts are recomputed from the tx couple and asset
- * metadata where possible; the quote snapshot only fills what cannot be. */
+ * metadata where possible; the quote snapshot only fills what cannot be.
+ *
+ * The carrier arrives already parsed: the record's own JSON is a shape the
+ * store hands back, not a type this row may trust. */
 export const buildAssetSwapActivityTx = (
   swap: WalletAssetSwap,
+  carrier: CarrierActivity | undefined,
   members: Tx[],
-  { network, assetDisplay }: AssetSwapActivityOptions = {},
+  { network, assetDisplay, allocation }: AssetSwapActivityOptions = {},
 ): Tx => {
   const quote = swap.quote
   // the package's AssetSwapStatus also covers its RFQ and onchain corridors
@@ -234,14 +283,29 @@ export const buildAssetSwapActivityTx = (
         : swap.status === 'recoverable'
           ? 'recoverable'
           : 'pending'
-  const fill = swap.spentTxid
-    ? members.find((tx) => [tx.boardingTxid, tx.redeemTxid, tx.roundTxid].includes(swap.spentTxid!))
-    : undefined
-  const receivedAsset = fill?.assets?.find((asset) => asset.assetId === swap.toAsset && asset.amount > BigInt(0))
-  const receivedAmount =
-    swap.toAsset === 'btc' && fill?.amount && fill.amount > 0
-      ? BigInt(fill.amount)
-      : (receivedAsset?.amount ?? BigInt(swap.toAmount))
+  const fills = swap.spentTxid
+    ? members.filter((tx) => [tx.boardingTxid, tx.redeemTxid, tx.roundTxid].includes(swap.spentTxid!))
+    : []
+  const receivedFills = fills.filter((tx) => tx.type === 'received')
+  const receivedAsset = receivedFills
+    .flatMap((tx) => tx.assets ?? [])
+    .find((asset) => asset.assetId === swap.toAsset && asset.amount > BigInt(0))
+  const receivedSats = receivedFills.find((tx) => tx.amount > 0)?.amount
+  const legacyReceivedAmount =
+    swap.toAsset === 'btc' && receivedSats ? BigInt(receivedSats) : (receivedAsset?.amount ?? BigInt(swap.toAmount))
+  const evidenced = allocation?.status === 'valid'
+  const fundedAsset = allocation?.funding?.assets.find((asset) => asset.assetId === swap.fromAsset)?.amount
+  const filledAsset = allocation?.fill?.assets.find((asset) => asset.assetId === swap.toAsset)?.amount
+  const fromAmount = evidenced
+    ? swap.fromAsset === 'btc'
+      ? (allocation.funding?.sats ?? BigInt(swap.fromAmount))
+      : (fundedAsset ?? BigInt(swap.fromAmount))
+    : BigInt(swap.fromAmount)
+  const receivedAmount = evidenced
+    ? swap.toAsset === 'btc'
+      ? (allocation.fill?.sats ?? BigInt(swap.toAmount))
+      : (filledAsset ?? BigInt(swap.toAmount))
+    : legacyReceivedAmount
   // the currency designation outranks the asset's self-reported ticker, so
   // restored swaps read "BRL to sats", not "DEPIX to sats"; BTC is always
   // shown in sats, matching the live swap screen
@@ -251,8 +315,9 @@ export const buildAssetSwapActivityTx = (
       : (designatedAccountCurrency(network, assetId) ?? assetDisplay?.(assetId)?.ticker ?? assetId.slice(0, 8))
   const derivedDecimals = (assetId: string) => (assetId === 'btc' ? 0 : assetDisplay?.(assetId)?.decimals)
   return {
-    amount: members[0]?.amount ?? 0,
+    amount: evidenced ? Number(allocation.funding?.sats ?? 0n) : (members[0]?.amount ?? 0),
     boardingTxid: '',
+    ...(carrier ? { carrier } : {}),
     createdAt: Math.floor(swap.createdAt / 1000),
     explorable: undefined,
     preconfirmed: status === 'pending',
@@ -264,7 +329,7 @@ export const buildAssetSwapActivityTx = (
       fromAssetId: swap.fromAsset,
       fromTicker: quote?.fromTicker ?? derivedTicker(swap.fromAsset),
       fromDecimals: quote?.fromDecimals ?? derivedDecimals(swap.fromAsset),
-      fromAmount: BigInt(swap.fromAmount),
+      fromAmount,
       toAssetId: swap.toAsset,
       toTicker: quote?.toTicker ?? derivedTicker(swap.toAsset),
       toDecimals: quote?.toDecimals ?? derivedDecimals(swap.toAsset),

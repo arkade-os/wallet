@@ -49,6 +49,7 @@ import {
   type SwapActivityInput,
 } from '@arkade-os/swap'
 import { consoleError } from './logs'
+import { readCarrierActivity, type CarrierActivity } from './carrierActivity'
 import { assetSwapRepository } from './swapRepository'
 
 const FUNDING_TXID = 'funding_txid'
@@ -242,6 +243,10 @@ export interface LnSendView {
   rfqId: string
   fundingTxid: string
   state: RfqSwapRecord['state']
+  /** The record's optional carrier projection, when well formed. */
+  carrier?: CarrierActivity
+  /** The record's own tx lineage, for a send history cannot see. */
+  members?: { txid: string; type: string }[]
   /** Sats the lockup was funded with. The record is the only place this
    * survives for a send Arkade's own history cannot see — see
    * `ungroupedLnSendTx` in `activityHistory.ts`. */
@@ -253,28 +258,55 @@ export interface LnSendView {
   spendTxid?: string
 }
 
+export type RfqCarrierSnapshot = ReadonlyMap<string, unknown>
+
+const carrierProjectionOf = (record: RfqSwapRecord): unknown =>
+  (record as RfqSwapRecord & { carrier?: unknown }).carrier
+
 const viewOf = (record: RfqSwapRecord): LnSendView | undefined => {
   const fundingTxid = fundingTxidOf(record)
   if (!fundingTxid) return undefined
+  const carrier = readCarrierActivity(carrierProjectionOf(record))
+  const members = carrier
+    ? [...new Set([fundingTxid, ...carrier.txids])].map((txid) => ({ txid, type: 'carrier' }))
+    : []
   return {
     rfqId: record.rfqId,
     fundingTxid,
     state: record.state,
+    ...(carrier ? { carrier } : {}),
+    ...(members.length ? { members } : {}),
     amount: record.amount ?? 0,
     createdAt: record.createdAt,
     spendTxid: spendTxidOf(record),
   }
 }
 
-/** The sends, for the row builder. */
-export const lnSendViews = async (): Promise<LnSendView[]> => {
+export interface RfqHistorySnapshot {
+  lnSends: LnSendView[]
+  carriers: RfqCarrierSnapshot
+}
+
+export const rfqHistorySnapshot = async (): Promise<RfqHistorySnapshot> => {
   try {
-    return (await lightningSends()).flatMap((record) => viewOf(record) ?? [])
+    const records = await assetSwapRepository.getAllRfqSwaps()
+    const carriers = new Map<string, unknown>()
+    for (const record of records) {
+      const carrier = carrierProjectionOf(record)
+      if (carrier !== undefined) carriers.set(record.rfqId, carrier)
+    }
+    return {
+      lnSends: records.filter((record) => record.kind === 'lightning_send').flatMap((record) => viewOf(record) ?? []),
+      carriers,
+    }
   } catch (err) {
-    consoleError(err, 'error reading lightning send swap records')
-    return []
+    consoleError(err, 'error reading RFQ swap records for history')
+    return { lnSends: [], carriers: new Map() }
   }
 }
+
+/** The sends, for the row builder. */
+export const lnSendViews = async (): Promise<LnSendView[]> => (await rfqHistorySnapshot()).lnSends
 
 /**
  * Every stored RFQ swap, as `swapActivityResolver` wants them.

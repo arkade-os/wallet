@@ -1,11 +1,13 @@
-import type { Activity } from '@arkade-os/sdk'
+import type { Activity, ArkTransaction } from '@arkade-os/sdk'
 import { isRfqSwapTerminal } from '@arkade-os/swap'
 import { ASSET_SWAP_ACTIVITY_KIND } from './activity/assetSwapResolver'
+import { allocateActivityEvidence } from './activityEvidence'
+import { readCarrierActivity, type CarrierActivity } from './carrierActivity'
 import { consoleError } from './logs'
 import type { TransactionActivityMetadata } from './storage'
 import { buildAssetSwapActivityTx } from './swapDisplay'
 import type { ExitRecord } from './exitHistory'
-import type { LnSendView } from './lnSendRecords'
+import type { LnSendView, RfqCarrierSnapshot } from './lnSendRecords'
 import type { WalletAssetSwap } from './swapRepository'
 import { arkTransactionToTx, sortLocalTxs, txidOfArkTransaction } from './transactionHistory'
 import type { Tx } from './types'
@@ -19,6 +21,7 @@ export interface ActivityHistoryOptions {
    * report at all, the only source of the row itself. See
    * `ungroupedLnSendTx`. */
   lnSends?: LnSendView[]
+  rfqCarriers?: RfqCarrierSnapshot
   /** The unilaterally exited coins, already dated by `resolveExits`. Passed as
    * records rather than read back out of `metadata`: an unconfirmed exit is
    * deliberately never persisted, so the store cannot answer for it. See
@@ -46,6 +49,35 @@ const graftMetadata = (tx: Tx, metadata?: TransactionActivityMetadata): Tx =>
       }
     : tx
 
+/** Raw members, oldest-first: the chain survives when the `Tx` fields can name
+ *  only one of them. Evidence, not new rows. */
+const membersOfTransactions = (txs: ArkTransaction[]): { txid: string; type: string }[] =>
+  // the SDK's own member sort, not plain chronological order
+  [...txs]
+    .sort((a, b) => a.createdAt - b.createdAt)
+    .map((tx) => ({ txid: txidOfArkTransaction(tx), type: String(tx.type).toLowerCase() }))
+
+const membersOf = (activity: Activity): { txid: string; type: string }[] => membersOfTransactions(activity.txs)
+
+const sameArkTransactionMember = (left: ArkTransaction, right: ArkTransaction): boolean => {
+  if (
+    txidOfArkTransaction(left) !== txidOfArkTransaction(right) ||
+    left.type !== right.type ||
+    left.amount !== right.amount ||
+    left.assets?.length !== right.assets?.length
+  ) {
+    return false
+  }
+  return (left.assets ?? []).every(
+    (asset, index) => asset.assetId === right.assets?.[index]?.assetId && asset.amount === right.assets[index].amount,
+  )
+}
+
+const mergeArkTransactionMembers = (primary: ArkTransaction[], additional: ArkTransaction[] = []): ArkTransaction[] =>
+  [...primary, ...additional].filter(
+    (candidate, index, members) => members.findIndex((member) => sameArkTransactionMember(member, candidate)) === index,
+  )
+
 const swapIdOf = (activity: Activity): string | undefined =>
   activity.intent?.kind === ASSET_SWAP_ACTIVITY_KIND
     ? (activity.intent.metadata?.swapId as string | undefined)
@@ -61,6 +93,23 @@ const rfqSwapKindOf = (activity: Activity): string | undefined =>
  * says the same thing, but only by string surgery on a namespace the package
  * owns. */
 const rfqIdOf = (activity: Activity): string | undefined => activity.intent?.metadata?.rfqId as string | undefined
+
+const carrierForRfq = (activity: Activity, carriers: RfqCarrierSnapshot | undefined): CarrierActivity | undefined => {
+  const rfqId = rfqIdOf(activity)
+  return rfqId ? readCarrierActivity(carriers?.get(rfqId)) : undefined
+}
+
+const mergeMembers = (
+  primary: { txid: string; type: string }[],
+  additional: { txid: string; type: string }[] = [],
+): { txid: string; type: string }[] => {
+  const seen = new Set<string>()
+  return [...primary, ...additional].filter(({ txid }) => {
+    if (seen.has(txid)) return false
+    seen.add(txid)
+    return true
+  })
+}
 
 /**
  * One row for a Lightning send: its funding tx, plus the refund when the swap
@@ -82,10 +131,12 @@ const lightningSendTx = (
   if (!funding) return undefined
   const fundingTxid = txidOfArkTransaction(funding)
   const base = arkTransactionToTx(funding, metadata[fundingTxid])
-  const record = lnSends.find((view) => view.fundingTxid === fundingTxid)
+  const record = lnSends.find((view) => view.rfqId === rfqIdOf(activity) && view.fundingTxid === fundingTxid)
+  const carrier = record?.carrier
   return {
     ...base,
     amount: Math.abs(activity.amount),
+    ...(carrier ? { carrier, carrierMembers: mergeMembers(membersOf(activity), record.members) } : {}),
     // Signed by the net, not by the funding leg: a refund larger than the
     // funding is not a thing this corridor can produce, but reading the
     // direction off the number is what keeps the row honest if it ever were.
@@ -123,6 +174,7 @@ const lightningSendTx = (
 const lightningReceiveTx = (
   activity: Activity,
   metadata: Record<string, TransactionActivityMetadata>,
+  carrier: CarrierActivity | undefined,
 ): Tx | undefined => {
   const claim = activity.txs.find((tx) => tx.type === 'RECEIVED')
   if (!claim) return undefined
@@ -130,6 +182,15 @@ const lightningReceiveTx = (
   return {
     ...arkTransactionToTx(claim, metadata[claimTxid]),
     amount: Math.abs(activity.amount),
+    ...(carrier
+      ? {
+          carrier,
+          carrierMembers: mergeMembers(
+            membersOf(activity),
+            carrier.txids.map((txid) => ({ txid, type: 'related' })),
+          ),
+        }
+      : {}),
     type: activity.amount < 0 ? 'sent' : 'received',
     lnSwap: { label: activity.intent?.label, outcome: activity.intent?.outcome },
     historyKey: activity.id,
@@ -169,6 +230,7 @@ const ungroupedLnSendTx = (send: LnSendView, metadata: Record<string, Transactio
     {
       amount: send.amount,
       boardingTxid: '',
+      ...(send.carrier ? { carrier: send.carrier, carrierMembers: send.members } : {}),
       createdAt: send.createdAt,
       // Offchain: there is no on-chain transaction to open in an explorer.
       explorable: undefined,
@@ -234,14 +296,69 @@ const exitTx = (exit: ExitRecord): Tx => ({
   type: 'exit',
 })
 
+class UnrenderableSwap extends Error {
+  readonly swapId: string
+  readonly reason: unknown
+  constructor(swapId: string, reason: unknown) {
+    super(`swap ${swapId} cannot be rendered`)
+    this.swapId = swapId
+    this.reason = reason
+  }
+}
+
+const swapRow = (swap: WalletAssetSwap, build: () => Tx): Tx => {
+  try {
+    return build()
+  } catch (error) {
+    throw new UnrenderableSwap(swap.id, error)
+  }
+}
+
 /** `Activity[]` -> the `Tx[]` the UI already reads. Pure and synchronous.
  *
  * Only groups we know how to collapse become a single row; everything else
  * emits one row per member, so a built-in grouping deposits or exits cannot
  * change the row count. */
-export const activitiesToTxs = (activities: Activity[], options: ActivityHistoryOptions): Tx[] => {
-  const { swaps, metadata, network, assetDisplay, lnSends = [], exits = [] } = options
+const projectActivities = (activities: Activity[], options: ActivityHistoryOptions): Tx[] => {
+  const { swaps, metadata, network, assetDisplay, lnSends = [], rfqCarriers, exits = [] } = options
   const rows: Tx[] = []
+  const activityAllocation = allocateActivityEvidence(
+    swaps,
+    activities.flatMap((activity) => activity.txs),
+  )
+  const renderedAssetSwaps = new Set<string>()
+  const emittedRawMembers = new Set<string>()
+  const swapByTxid = new Map<string, WalletAssetSwap | null>()
+  const correlatedMembers = new Map<string, ArkTransaction[]>()
+  for (const swap of swaps) {
+    if (!swap.id || !swap.offerHex) continue
+    try {
+      BigInt(swap.fromAmount)
+      BigInt(swap.toAmount)
+    } catch {
+      continue
+    }
+    if (activityAllocation.swap(swap.id)?.status !== 'missing') continue
+    const carrier = readCarrierActivity(swap.carrier)
+    for (const txid of [swap.fundingTxid, swap.spentTxid, ...(carrier?.txids ?? [])].filter((id): id is string =>
+      Boolean(id),
+    )) {
+      const current = swapByTxid.get(txid)
+      if (current === null) continue
+      swapByTxid.set(txid, current && current.id !== swap.id ? null : swap)
+    }
+  }
+  for (const activity of activities) {
+    if (swapIdOf(activity) || rfqSwapKindOf(activity)) continue
+    for (const tx of activity.txs) {
+      const correlatedSwap = swapByTxid.get(txidOfArkTransaction(tx))
+      if (!correlatedSwap) continue
+      correlatedMembers.set(
+        correlatedSwap.id,
+        mergeArkTransactionMembers(correlatedMembers.get(correlatedSwap.id) ?? [], [tx]),
+      )
+    }
+  }
   for (const activity of activities) {
     const swapKind = rfqSwapKindOf(activity)
     if (swapKind === 'lightning_send') {
@@ -255,7 +372,7 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
       // still the user's money moving.
     }
     if (swapKind === 'lightning_receive') {
-      const row = lightningReceiveTx(activity, metadata)
+      const row = lightningReceiveTx(activity, metadata, carrierForRfq(activity, rfqCarriers))
       if (row) {
         rows.push(row)
         continue
@@ -263,25 +380,109 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
     }
     const swapId = swapIdOf(activity)
     const swap = swapId ? swaps.find((record) => record.id === swapId) : undefined
-    if (swap) {
-      const members = activity.txs.map((tx) => arkTransactionToTx(tx))
-      // a grouped row takes its metadata from the tx the group is anchored on
-      const funding = activity.txs.find((tx) => txidOfArkTransaction(tx) === swap.fundingTxid)
-      rows.push({
-        ...graftMetadata(
-          buildAssetSwapActivityTx(swap, members, { network, assetDisplay }),
-          funding && metadata[txidOfArkTransaction(funding)],
+    const swapAllocation = swap ? activityAllocation.swap(swap.id) : undefined
+    const hasVerifiedMembership = Boolean(
+      swap &&
+        activity.txs.some((tx) =>
+          activityAllocation.member(tx)?.allocations.some((allocation) => allocation.swapId === swap.id),
         ),
-        historyKey: activity.id,
-      })
+    )
+    if (swap && (swapAllocation?.status === 'missing' || hasVerifiedMembership)) {
+      rows.push(
+        swapRow(swap, () => {
+          const rawMembers = mergeArkTransactionMembers(activity.txs, correlatedMembers.get(swap.id) ?? [])
+          const members = rawMembers.map((tx) => arkTransactionToTx(tx))
+          const carrier = readCarrierActivity(swap.carrier)
+          // a grouped row takes its metadata from the tx the group is anchored on
+          const funding = rawMembers.find((tx) => txidOfArkTransaction(tx) === swap.fundingTxid)
+          return {
+            ...graftMetadata(
+              buildAssetSwapActivityTx(swap, carrier, members, {
+                network,
+                assetDisplay,
+                allocation: swapAllocation,
+              }),
+              funding && metadata[txidOfArkTransaction(funding)],
+            ),
+            historyKey: activity.id,
+            ...(carrier
+              ? {
+                  carrierMembers: mergeMembers(
+                    membersOfTransactions(rawMembers),
+                    carrier.txids.map((txid) => ({ txid, type: 'related' })),
+                  ),
+                }
+              : {}),
+          }
+        }),
+      )
+      renderedAssetSwaps.add(swap.id)
       continue
     }
     // members of one activity share `activity.id`, so the member txid is what
     // keeps the row key unique
     for (const tx of activity.txs) {
       const txid = txidOfArkTransaction(tx)
-      rows.push({ ...arkTransactionToTx(tx, metadata[txid]), historyKey: `${activity.id}:${txid}` })
+      const memberKey = `${txid}:${String(tx.type).toLowerCase()}`
+      if (activityAllocation.member(tx)?.allocations.length) continue
+      if (emittedRawMembers.has(memberKey)) continue
+      const correlatedSwap = swapId ? undefined : swapByTxid.get(txid)
+      if (correlatedSwap) {
+        correlatedMembers.set(
+          correlatedSwap.id,
+          mergeArkTransactionMembers(correlatedMembers.get(correlatedSwap.id) ?? [], [tx]),
+        )
+        continue
+      }
+      emittedRawMembers.add(memberKey)
+      const carrier = swapKind ? carrierForRfq(activity, rfqCarriers) : undefined
+      rows.push({
+        ...arkTransactionToTx(tx, metadata[txid]),
+        historyKey: `${activity.id}:${txid}`,
+        ...(carrier ? { carrier } : {}),
+      })
     }
+  }
+  for (const swap of swaps) {
+    if (!swap.id || !swap.offerHex || renderedAssetSwaps.has(swap.id)) continue
+    rows.push(
+      swapRow(swap, () => {
+        const carrier = readCarrierActivity(swap.carrier)
+        const rawMembers = [...(correlatedMembers.get(swap.id) ?? [])].sort((a, b) => a.createdAt - b.createdAt)
+        const members = rawMembers.map((tx) => arkTransactionToTx(tx))
+        const funding = rawMembers.find((tx) => txidOfArkTransaction(tx) === swap.fundingTxid)
+        return {
+          ...graftMetadata(
+            buildAssetSwapActivityTx(swap, carrier, members, {
+              network,
+              assetDisplay,
+              allocation: activityAllocation.swap(swap.id),
+            }),
+            funding && metadata[txidOfArkTransaction(funding)],
+          ),
+          historyKey: `swap:${swap.id}`,
+          ...(carrier
+            ? {
+                carrierMembers: mergeMembers(
+                  rawMembers.map((tx) => ({ txid: txidOfArkTransaction(tx), type: String(tx.type).toLowerCase() })),
+                  carrier.txids.map((txid) => ({ txid, type: 'related' })),
+                ),
+              }
+            : {}),
+        }
+      }),
+    )
+    renderedAssetSwaps.add(swap.id)
+  }
+  for (const member of activityAllocation.members()) {
+    if (!member.allocations.length || (member.remainderSats === 0n && member.remainderAssets.length === 0)) continue
+    const row = arkTransactionToTx(member.tx, metadata[member.txid])
+    rows.push({
+      ...row,
+      amount: Number(member.remainderSats),
+      assets: member.remainderAssets.length ? member.remainderAssets : undefined,
+      historyKey: `arkade-wallet:asset-swap-residual:${member.txid}:${member.direction}`,
+    })
   }
   // The sends history cannot see, from the store that can — see
   // `ungroupedLnSendTx`. Keyed on the rfq id rather than the funding txid: that
@@ -294,6 +495,24 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
   // Exits last, for the same reason: history reports none of them either.
   for (const exit of exits) rows.push(exitTx(exit))
   return sortLocalTxs(rows)
+}
+
+/** A swap whose row cannot be built leaves the projection, so its transactions show at full value
+ * rather than stay allocated to a row that never rendered. Each id is dropped at most once. */
+export const activitiesToTxs = (activities: Activity[], options: ActivityHistoryOptions): Tx[] => {
+  const unrenderable = new Set<string>()
+  for (;;) {
+    try {
+      return projectActivities(activities, {
+        ...options,
+        swaps: options.swaps.filter((swap) => !unrenderable.has(swap.id)),
+      })
+    } catch (error) {
+      if (!(error instanceof UnrenderableSwap)) throw error
+      consoleError(error.reason, `history shows swap ${error.swapId} as its transactions: its row cannot be built`)
+      unrenderable.add(error.swapId)
+    }
+  }
 }
 
 interface ActivityHistorySource {

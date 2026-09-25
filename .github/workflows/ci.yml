@@ -40,8 +40,14 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pnpm-store-
 
+    - name: Verify carrier artifacts
+      run: node scripts/carrier-artifacts/verify.mjs
+
     - name: Install dependencies
       run: pnpm install
+
+    - name: Verify the installed carrier packages
+      run: node scripts/carrier-artifacts/verify.mjs --installed
     
     - name: Run formatter
       run: pnpm format:check

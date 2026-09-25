@@ -9,10 +9,11 @@ import { AspContext } from '../../providers/asp'
 import { AssetSwapsContext, AssetSwapsProvider } from '../../providers/assetSwaps'
 import { WalletContext } from '../../providers/wallet'
 import { assetSwapRepository as repository, type WalletAssetSwap } from '../../lib/swapRepository'
-import { btcUsdt, maratNapo, MARAT_ID, NAPO_ID, USDT_ID } from '../lib/swapFixtures'
+import { btcUsdt, btcUsdtPerSide, maratNapo, MARAT_ID, NAPO_ID, USDT_ID } from '../lib/swapFixtures'
 import corridorSolverCard from '../corridor-solver.card.json'
 import { saveSolverCards } from '../../lib/solverCards'
 import { toast } from '../../components/Toast'
+import { prettyLongText } from '../../lib/format'
 import { mockAspContextValue, mockTxInfo, mockWalletContextValue } from '../screens/mocks'
 
 const cancelOffer = vi.hoisted(() => vi.fn())
@@ -77,9 +78,10 @@ const asp = { network: '', url: 'https://ark.test', signerPubkey: SIGNER_PUBKEY 
 
 const FILL_TXID = 'fill-txid'
 const CHECKPOINT_TXID = 'checkpoint-txid'
+const FUNDING_TXID = '1'.repeat(64)
 
 const pendingSwap: WalletAssetSwap = {
-  id: 'funding-txid',
+  id: FUNDING_TXID,
   fromAsset: 'btc',
   toAsset: 'asset-beta',
   fromAmount: '10000',
@@ -87,7 +89,7 @@ const pendingSwap: WalletAssetSwap = {
   swapAddress: 'tark1q...',
   swapPkScript: `5120${'ab'.repeat(32)}`,
   offerHex: '0100',
-  fundingTxid: 'funding-txid',
+  fundingTxid: FUNDING_TXID,
   status: 'pending',
   createdAt: 1,
 }
@@ -105,11 +107,19 @@ const spentDeposit = {
 }
 const unspentDeposit = { ...spentDeposit, isSpent: false, spentBy: undefined, arkTxId: undefined }
 
-function CancelHarness() {
+function CancelHarness({ onCancel }: { onCancel?: (attempt: Promise<void>) => void } = {}) {
   const { cancelSwap, swaps } = useContext(AssetSwapsContext)
   return (
     <>
-      <button onClick={() => cancelSwap(pendingSwap.id).catch(() => {})}>Cancel</button>
+      <button
+        onClick={() => {
+          const attempt = cancelSwap(pendingSwap.id)
+          onCancel?.(attempt)
+          void attempt.catch(() => {})
+        }}
+      >
+        Cancel
+      </button>
       <span data-testid='status'>{swaps.find((s) => s.id === pendingSwap.id)?.status ?? 'none'}</span>
     </>
   )
@@ -133,11 +143,12 @@ const providerTree = (
 function renderProvider(
   reloadWallet = vi.fn().mockResolvedValue(undefined),
   aspOverrides: Record<string, unknown> = {},
+  onCancel?: (attempt: Promise<void>) => void,
 ) {
   render(
     providerTree(
       { asp: { network: '', url: '', ...aspOverrides }, wallet: { reloadWallet, svcWallet: { identity: {} } } },
-      <CancelHarness />,
+      <CancelHarness onCancel={onCancel} />,
     ),
   )
   return reloadWallet
@@ -308,6 +319,23 @@ describe('AssetSwapsProvider cancellation', () => {
     expect(reloadWallet).toHaveBeenCalledOnce()
   })
 
+  it('rejects an unfunded cancellation before mutation or network access', async () => {
+    await repository.clear()
+    await addAssetSwap(repository, { ...pendingSwap, fundingTxid: '' })
+    let cancellation: Promise<void> | undefined
+    const reloadWallet = renderProvider(undefined, {}, (attempt) => (cancellation = attempt))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(cancellation).toBeDefined()
+    await expect(cancellation).rejects.toThrow('swap funding transaction unavailable')
+
+    expect(screen.getByTestId('status')).toHaveTextContent('pending')
+    expect((await getAssetSwaps(repository))[0].status).toBe('pending')
+    expect(cancelOffer).not.toHaveBeenCalled()
+    expect(getVtxos).not.toHaveBeenCalled()
+    expect(reloadWallet).not.toHaveBeenCalled()
+  })
+
   it('does not restore a stale status after another path resolves the cancellation', async () => {
     cancelOffer.mockRejectedValue(new Error('cancel failed'))
     let resolveVtxos!: (value: { vtxos: { txid: string; virtualStatus: { state: string } }[] }) => void
@@ -360,6 +388,22 @@ describe('AssetSwapsProvider watching', () => {
     onUpdate({ ...pendingSwap, status: 'fulfilled', spentTxid: 'fill-txid' })
 
     await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('fulfilled'))
+  })
+
+  it('tells the payer the asset went to the receiver she paid, not that she received it', async () => {
+    const payee = `tark1q${'r'.repeat(60)}`
+    await repository.clear()
+    await addAssetSwap(repository, { ...pendingSwap, payee } as WalletAssetSwap)
+    renderProvider(undefined, { url: 'https://ark.test' })
+    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('pending'))
+    await waitFor(() => expect(watchOfferSwaps).toHaveBeenCalled())
+    vi.mocked(toast.success).mockClear()
+
+    // The watcher's own record need not carry the wallet's fields.
+    act(() =>
+      watchOfferSwaps.mock.calls[0][0].onUpdate({ ...pendingSwap, status: 'fulfilled', spentTxid: 'fill-txid' }),
+    )
+    expect(toast.success).toHaveBeenCalledWith(`Payment completed, asset-be sent to ${prettyLongText(payee)}`)
   })
 })
 
@@ -486,6 +530,26 @@ describe('AssetSwapsProvider restore scan', () => {
     await waitFor(() => expect(restoreAssetSwapRepository).toHaveBeenCalledTimes(2))
     // and it sees the newer history, not the list its effect closed over
     expect(restoreAssetSwapRepository.mock.calls[1][0].txs).toHaveLength(2)
+  })
+
+  it('rebuilds a restored record at the spread its direction was priced at', async () => {
+    discoverMarkets.mockResolvedValueOnce([btcUsdtPerSide] as never)
+    render(
+      providerTree(
+        {
+          asp: { network: 'mutinynet', url: 'https://ark.test', signerPubkey: SIGNER_PUBKEY },
+          wallet: { dataReady: true, txs: [], ungroupedTxs: [], svcWallet: defaultSvcWallet },
+        },
+        <ScanHarness />,
+      ),
+    )
+
+    await waitFor(() => expect(restoreAssetSwapRepository).toHaveBeenCalled())
+    const { prepareNew } = restoreAssetSwapRepository.mock.calls[0][0]
+    // the ref it reads is filled by discovery, which settles after the scan starts
+    await waitFor(() =>
+      expect(prepareNew({ fromAsset: 'btc', toAsset: USDT_ID })).toMatchObject({ quote: { feeBps: 10 } }),
+    )
   })
 
   it('feeds the scan the ungrouped rows, not the grouped ones its own records produced', async () => {
@@ -673,6 +737,21 @@ describe('AssetSwapsProvider solver cards', () => {
       const swaps = await getAssetSwaps(repository)
       expect(swaps.find(({ id }) => id === stored.id)).toMatchObject({ quote: { fromTicker: 'sats', feeBps: 30 } })
       expect(swaps.find(({ id }) => id === alreadyPriced.id)).toMatchObject({ quote: { feeBps: 12 } })
+    })
+    await repository.clear()
+  })
+
+  it('backfills the spread the traded direction was priced at, not the widest', async () => {
+    await repository.clear()
+    const stored = { ...pendingSwap, toAsset: USDT_ID, quote: { fromTicker: 'sats' } }
+    await addAssetSwap(repository, stored)
+    discoverMarkets.mockResolvedValueOnce([btcUsdtPerSide] as never)
+
+    renderOnNetwork()
+
+    await waitFor(async () => {
+      const swaps = await getAssetSwaps(repository)
+      expect(swaps.find(({ id }) => id === stored.id)).toMatchObject({ quote: { feeBps: 10 } })
     })
     await repository.clear()
   })

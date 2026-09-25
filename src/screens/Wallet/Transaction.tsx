@@ -24,6 +24,7 @@ import { LimitsContext } from '../../providers/limits'
 import { getInputsToSettle } from '../../lib/asp'
 import SwapTransactionSummary from '../../components/SwapTransactionSummary'
 import {
+  carrierDetails,
   formatSwapAssetAmount,
   swapAmountBeforeFee,
   swapFeeAmount,
@@ -36,6 +37,7 @@ import { hapticTap } from '../../lib/haptics'
 import { useTransactionAmountDisplay } from '../../hooks/useTransactionAmountDisplay'
 import { useLnSendReceipt } from '../../hooks/useLnSendReceipt'
 import TransactionAmountSummary from '../../components/TransactionAmountSummary'
+import { isCanonicalTxid } from '../../lib/carrierActivity'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,9 +57,9 @@ export default function Transaction() {
   const { assetMetadataCache, isVerifiedAsset, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } =
     useContext(WalletContext)
 
-  const liveSwap = txInfo?.assetSwap?.fundingTxid
-    ? swaps.find((swap) => swap.fundingTxid === txInfo.assetSwap?.fundingTxid)
-    : undefined
+  const stableSwap = txInfo?.assetSwap ? swaps.find((swap) => txInfo.historyKey === `swap:${swap.id}`) : undefined
+  const fundingTxid = txInfo?.assetSwap?.fundingTxid
+  const liveSwap = stableSwap ?? (fundingTxid ? swaps.find((swap) => swap.fundingTxid === fundingTxid) : undefined)
   const liveSwapStatus: SwapStatus | undefined = liveSwap
     ? liveSwap.status === 'fulfilled'
       ? 'completed'
@@ -76,6 +78,7 @@ export default function Transaction() {
           redeemTxid: liveSwap.spentTxid ?? txInfo.redeemTxid,
           assetSwap: {
             ...txInfo.assetSwap,
+            fundingTxid: liveSwap.fundingTxid,
             status: liveSwapStatus,
             fillTxid: liveSwap.spentTxid,
           },
@@ -223,15 +226,18 @@ export default function Transaction() {
       : undefined,
   ].filter((entry): entry is { assetId: string; label: string } => Boolean(entry))
   const swapReceived = swapTx ? formatSwapAssetAmount(tx, 'to') : undefined
+  const carrierDetailsProps = carrierDetails(tx?.carrier)
 
   const details: DetailsProps = swapTx
     ? {
         assetIds: swapAssetIds,
         assetTotals: swapReceived ? [{ ...swapReceived, label: 'Total received' }] : undefined,
+        carrier: carrierDetailsProps,
         date,
         fees: 0,
         fundedTxid: tx.assetSwap?.fundingTxid,
         priceRate: swapPriceRateLabel(tx),
+        relatedTxids: tx.carrierMembers?.map(({ txid }) => txid),
         spendLabel: tx.assetSwap?.status === 'cancelled' ? 'Cancelled' : 'Completed',
         spendTxid: tx.assetSwap?.fillTxid,
         status: swapStatusLabel(tx),
@@ -246,6 +252,7 @@ export default function Transaction() {
         amountDisplay,
         assetIds,
         assetTotals,
+        carrier: carrierDetailsProps,
         date,
         destination: tx.type === 'sent' && !boardingTx && !issuanceTx && !burnTx ? tx.destination : undefined,
         fees,
@@ -254,6 +261,7 @@ export default function Transaction() {
         // `redeemTxid` alone would class it offchain and send the link to the
         // vmempool explorer, which has never heard of the transaction.
         isOffchainTx: !tx.boardingTxid && !exitTx && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid)),
+        relatedTxids: tx.carrierMembers?.map(({ txid }) => txid),
         // Details' fallback row only (amountDisplay owns the rendered rows):
         // gross, matching the hook's convention
         satoshis: assetTransfer ? undefined : tx.amount,
@@ -276,7 +284,11 @@ export default function Transaction() {
   const swapToIcon = tx.assetSwap?.toAssetId
     ? assetMetadataCache.get(tx.assetSwap.toAssetId)?.metadata?.icon
     : undefined
-  const showCancelSwap = swapTx && liveSwap && (liveSwap.status === 'pending' || liveSwap.status === 'cancelling')
+  const showCancelSwap =
+    swapTx &&
+    liveSwap &&
+    isCanonicalTxid(liveSwap.fundingTxid) &&
+    (liveSwap.status === 'pending' || liveSwap.status === 'cancelling')
   const visibleError = cancelFailed && !showCancelSwap ? '' : error
 
   const Body = () => (

@@ -2,7 +2,8 @@ import userEvent from '@testing-library/user-event'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import createFetchMock from 'vitest-fetch-mock'
-import WalletSwap from '../../../screens/Wallet/Swap/Index'
+import { planOffer, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+import WalletSwap, { quoteUnavailableMessage } from '../../../screens/Wallet/Swap/Index'
 import { ToastProvider } from '../../../components/Toast'
 import { AspContext } from '../../../providers/asp'
 import { AssetsContext } from '../../../providers/assets'
@@ -22,7 +23,16 @@ import {
   mockNavigationContextValue,
   mockWalletContextValue,
 } from '../mocks'
-import { btcDepix, btcUsdt, DEPIX_ID, MARAT_ID, maratNapo, USDT_ID } from '../../lib/swapFixtures'
+import {
+  btcDepix,
+  btcUsdt,
+  btcUsdtPerSide,
+  btcUsdtPerSideReceiveBound,
+  DEPIX_ID,
+  MARAT_ID,
+  maratNapo,
+  USDT_ID,
+} from '../../lib/swapFixtures'
 
 const fetchMocker = createFetchMock(vi)
 fetchMocker.enableMocks()
@@ -482,6 +492,124 @@ describe('Wallet swap flow', () => {
     expect(createSwap.mock.calls[0][1]).toMatchObject({ fromFiatAmount: 10 })
   })
 
+  it('prices the fee row, the give-side value and the receipt at the direction being traded', async () => {
+    renderSwap({
+      config: { unit: Unit.SATS },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      swap: { markets: [btcUsdtPerSide, btcDepix] },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+    for (const key of ['1', '0', '0', '0', '0']) {
+      await userEvent.click(screen.getByRole('button', { name: key }))
+    }
+
+    // enabled only once a plan exists, so the labels below are the quote's, not the
+    // pre-quote estimate; the widest 30 bps grosses 9.99 into €10.02 and a 0.03 USD fee
+    const continueButton = screen.getByRole('button', { name: 'Continue' })
+    await waitFor(() => expect(continueButton).toBeEnabled(), { timeout: 3_000 })
+    expect(screen.getByText('€10.00')).toBeInTheDocument()
+    expect(screen.queryByText('€10.02')).not.toBeInTheDocument()
+    fireEvent.click(continueButton)
+    expect(screen.getByText('0.01 USD')).toBeInTheDocument()
+    expect(screen.queryByText('0.03 USD')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+
+    await waitFor(() => expect(createSwap).toHaveBeenCalledOnce())
+    expect(createSwap.mock.calls[0][0].receive.atomic).toBe(BigInt(999))
+    expect(createSwap.mock.calls[0][1]).toMatchObject({ feeBps: 10 })
+    expect(createSwap.mock.calls[0][1].fromFiatAmount).toBeCloseTo(10, 2)
+  })
+
+  it('includes the deposit-side flat charge in the fee row and give-side fiat value', async () => {
+    const flatMarket = { ...btcUsdtPerSide, solver_fee: { base: { bps: 10, flat: '1000' }, quote: { bps: 30 } } }
+    renderSwap({
+      config: { unit: Unit.SATS },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      swap: { markets: [flatMarket, btcDepix] },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+    for (const key of ['1', '0', '0', '0', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
+
+    const continueButton = screen.getByRole('button', { name: 'Continue' })
+    await waitFor(() => expect(continueButton).toBeEnabled(), { timeout: 3_000 })
+    expect(screen.getByText('€10.00')).toBeInTheDocument()
+    fireEvent.click(continueButton)
+    expect(screen.getByText('1.01 USD')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+
+    await waitFor(() => expect(createSwap).toHaveBeenCalledOnce())
+    expect(createSwap.mock.calls[0][0].receive.atomic).toBe(BigInt(899))
+    expect(createSwap.mock.calls[0][1].fromFiatAmount).toBeCloseTo(10, 2)
+  })
+
+  it('converts receive-side limits with the deposit-side flat charge', async () => {
+    const flatMarket = {
+      ...btcUsdtPerSideReceiveBound,
+      solver_fee: { base: { bps: 10, flat: '1000' }, quote: { bps: 30 } },
+    }
+    const setup = () => {
+      renderSwap({
+        config: { unit: Unit.SATS },
+        flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+        swap: { markets: [flatMarket, btcDepix] },
+        wallet: { ...NO_ASSETS, availableBalance: 10_000_000 },
+      })
+      fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+      fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    }
+
+    setup()
+    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+    for (const key of ['1', '0', '0', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
+    await waitFor(() => expect(screen.getByText('Minimum 51,051 sats')).toBeInTheDocument(), { timeout: 3_000 })
+  })
+
+  it('converts the receive-side minimum at the direction being traded', async () => {
+    renderSwap({
+      config: { unit: Unit.SATS },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      swap: { markets: [btcUsdtPerSideReceiveBound, btcDepix] },
+      wallet: { ...NO_ASSETS, availableBalance: 10_000_000 },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+    for (const key of ['1', '0', '0', '0']) {
+      await userEvent.click(screen.getByRole('button', { name: key }))
+    }
+
+    // the $50 receive floor at 100,000 USD/BTC grossed by 10 bps; 50,151 is the widest 30
+    await waitFor(() => expect(screen.getByText('Minimum 50,051 sats')).toBeInTheDocument(), { timeout: 3_000 })
+    expect(screen.queryByText('Minimum 50,151 sats')).not.toBeInTheDocument()
+  })
+
+  it('converts the receive-side maximum at the direction being traded', async () => {
+    renderSwap({
+      config: { unit: Unit.SATS },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      swap: { markets: [btcUsdtPerSideReceiveBound, btcDepix] },
+      wallet: { ...NO_ASSETS, availableBalance: 10_000_000 },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+    for (const key of ['6', '0', '0', '0', '0', '0', '0']) {
+      await userEvent.click(screen.getByRole('button', { name: key }))
+    }
+
+    // unlike the fee row this errs unsafe: the widest spread suggests 5,015,045 sats, over the cap
+    await waitFor(() => expect(screen.getByText('Maximum 5,005,005 sats')).toBeInTheDocument(), { timeout: 3_000 })
+    expect(screen.queryByText('Maximum 5,015,045 sats')).not.toBeInTheDocument()
+  })
+
   it('never shows a fractional sats fee — sats and ₿ are whole numbers', async () => {
     // a non-round BTC price so the give amount doesn't land on a whole-sat fee
     fetchMocker.mockResponse(JSON.stringify({ bitcoin: { usd: 63_000 }, price: '500000' }))
@@ -525,10 +653,9 @@ describe('Wallet swap flow', () => {
       await userEvent.click(screen.getByRole('button', { name: key }))
     }
 
-    // 10,000 sats at the market's actual $50k/BTC rate is ~€4.99 (the €4.98
-    // receive value grossed back up by the fee) — not the €10 the wallet's
+    // 10,000 sats at the market's actual $50k/BTC rate is €5.00 — not the €10 the wallet's
     // own (mismatched, $100k) independent estimate would show
-    await waitFor(() => expect(screen.getByText('€4.99')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('€5.00')).toBeInTheDocument())
     expect(screen.queryByText('€10.00')).not.toBeInTheDocument()
 
     const continueButton = screen.getByRole('button', { name: 'Continue' })
@@ -537,7 +664,7 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
     await waitFor(() => expect(createSwap).toHaveBeenCalledOnce())
-    expect(createSwap.mock.calls[0][1].fromFiatAmount).toBeCloseTo(4.99, 2)
+    expect(createSwap.mock.calls[0][1].fromFiatAmount).toBeCloseTo(5, 2)
   })
 
   it('snapshots a fiat entry at the rate the entry was converted with, not the solver-rate reconstruction', async () => {
@@ -599,12 +726,12 @@ describe('Wallet swap flow', () => {
       await userEvent.click(screen.getByRole('button', { name: key }))
     }
 
-    await waitFor(() => expect(secondaryAmount()).toHaveTextContent('€4.99'))
+    await waitFor(() => expect(secondaryAmount()).toHaveTextContent('€5.00'))
     await userEvent.click(screen.getByRole('button', { name: 'Show EUR amount first' }))
-    expect(primaryAmount()).toHaveTextContent('€4.99')
+    expect(primaryAmount()).toHaveTextContent('€5.00')
 
     await userEvent.click(screen.getByRole('button', { name: 'Delete digit' }))
-    expect(primaryAmount()).toHaveTextContent('€4.9')
+    expect(primaryAmount()).toHaveTextContent('€5.0')
   })
 
   it('does not reuse a stale fiat quote while its replacement is loading', async () => {
@@ -627,7 +754,7 @@ describe('Wallet swap flow', () => {
     for (const key of ['1', '0', '0', '0', '0']) {
       await userEvent.click(screen.getByRole('button', { name: key }))
     }
-    await waitFor(() => expect(secondaryAmount()).toHaveTextContent('€4.99'))
+    await waitFor(() => expect(secondaryAmount()).toHaveTextContent('€5.00'))
 
     // Expire the local feed cache so the replacement quote remains visibly
     // loading after the 600 ms debounce instead of resolving immediately.
@@ -1013,5 +1140,36 @@ describe('Wallet swap flow', () => {
     expect(screen.queryByText('Your swaps')).not.toBeInTheDocument()
     expect(screen.queryByText('BTC to USD')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
+  })
+})
+
+describe('quote refusal reasons', () => {
+  // CAIP ids: the carrier only rides a market whose delivered leg is an arkade asset
+  const carrierMarket = {
+    ...btcUsdt,
+    base_asset: { id: 'arkade:mutinynet/slip44:1', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+    quote_asset: { id: `arkade:mutinynet/asset:${'f'.repeat(68)}`, name: 'USDT', ticker: 'USDT', decimals: 2 },
+    charges_delivered_carrier: true,
+  } as DiscoveredMarket
+
+  /** The refusal as 0.2.7 words it, so a reworded release turns this red. */
+  const carrierRefusal = (): Error => {
+    try {
+      planOffer({ market: carrierMarket, give: 'base', giveAmount: BigInt(10_000), feedValue: 100_000, safetyBps: 0 })
+    } catch (error) {
+      return error as Error
+    }
+    throw new Error('planOffer priced a market that charges for the delivered carrier')
+  }
+
+  it('names the carrier charge rather than refusing without a reason', () => {
+    expect(quoteUnavailableMessage(carrierRefusal())).toBe(
+      'Quote unavailable: this market charges for the delivered carrier',
+    )
+  })
+
+  it('stays bare for a refusal naming nothing this composer can explain', () => {
+    expect(quoteUnavailableMessage(new Error('feed unavailable'))).toBe('Quote unavailable')
+    expect(quoteUnavailableMessage(null)).toBe('Quote unavailable')
   })
 })
