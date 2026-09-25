@@ -107,11 +107,19 @@ const spentDeposit = {
 }
 const unspentDeposit = { ...spentDeposit, isSpent: false, spentBy: undefined, arkTxId: undefined }
 
-function CancelHarness() {
+function CancelHarness({ onCancel }: { onCancel?: (attempt: Promise<void>) => void } = {}) {
   const { cancelSwap, swaps } = useContext(AssetSwapsContext)
   return (
     <>
-      <button onClick={() => cancelSwap(pendingSwap.id).catch(() => {})}>Cancel</button>
+      <button
+        onClick={() => {
+          const attempt = cancelSwap(pendingSwap.id)
+          onCancel?.(attempt)
+          void attempt.catch(() => {})
+        }}
+      >
+        Cancel
+      </button>
       <span data-testid='status'>{swaps.find((s) => s.id === pendingSwap.id)?.status ?? 'none'}</span>
     </>
   )
@@ -135,11 +143,12 @@ const providerTree = (
 function renderProvider(
   reloadWallet = vi.fn().mockResolvedValue(undefined),
   aspOverrides: Record<string, unknown> = {},
+  onCancel?: (attempt: Promise<void>) => void,
 ) {
   render(
     providerTree(
       { asp: { network: '', url: '', ...aspOverrides }, wallet: { reloadWallet, svcWallet: { identity: {} } } },
-      <CancelHarness />,
+      <CancelHarness onCancel={onCancel} />,
     ),
   )
   return reloadWallet
@@ -313,11 +322,14 @@ describe('AssetSwapsProvider cancellation', () => {
   it('rejects an unfunded cancellation before mutation or network access', async () => {
     await repository.clear()
     await addAssetSwap(repository, { ...pendingSwap, fundingTxid: '' })
-    const reloadWallet = renderProvider()
+    let cancellation: Promise<void> | undefined
+    const reloadWallet = renderProvider(undefined, {}, (attempt) => (cancellation = attempt))
 
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(cancellation).toBeDefined()
+    await expect(cancellation).rejects.toThrow('swap funding transaction unavailable')
 
-    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('pending'))
+    expect(screen.getByTestId('status')).toHaveTextContent('pending')
     expect((await getAssetSwaps(repository))[0].status).toBe('pending')
     expect(cancelOffer).not.toHaveBeenCalled()
     expect(getVtxos).not.toHaveBeenCalled()

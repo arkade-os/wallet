@@ -204,6 +204,29 @@ describe('watchReceiverClaims', () => {
     expect(onGone).toHaveBeenCalledWith(offerKey(offers[0]))
   })
 
+  it('does not offer a claim withdrawn while verification is in flight', async () => {
+    let finishVerification!: (transfer: CovenantTransfer) => void
+    const { client, feed } = fakeTaxi({
+      verifyIncomingClaim: vi.fn(() => new Promise<CovenantTransfer>((resolve) => (finishVerification = resolve))),
+    })
+    const { offers, onGone } = watch(client)
+    feed.args!.onSnapshot({ claims: [satsFareClaim(7n)] })
+    await settle()
+    expect(client.verifyIncomingClaim).toHaveBeenCalledOnce()
+    feed.args!.onChanged({ claims: [RECYCLED] })
+    finishVerification(TRANSFER)
+    await settle()
+    expect(offers).toEqual([])
+    expect(onGone).not.toHaveBeenCalled()
+
+    feed.args!.onChanged({ claims: [satsFareClaim(7n)] })
+    await settle()
+    expect(client.verifyIncomingClaim).toHaveBeenCalledTimes(2)
+    finishVerification(TRANSFER)
+    await settle()
+    expect(offers).toHaveLength(1)
+  })
+
   it('withdraws nothing for a transfer this Taxi never offered', async () => {
     const { client, feed } = fakeTaxi()
     const { onGone } = watch(client)

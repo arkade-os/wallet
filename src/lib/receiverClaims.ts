@@ -152,6 +152,7 @@ const feedClosed = (error: TaxiError): boolean =>
 export const watchReceiverClaims = (watch: ClaimWatch): (() => void) => {
   const verified = new Map<string, VerifiedClaim>()
   const verifying = new Set<string>()
+  const withdrawnDuringVerification = new Set<string>()
   let stopped = false
 
   const consider = async (url: string, taxis: readonly RememberedTaxi[], client: ClaimClient, claim: ReceiverClaim) => {
@@ -159,6 +160,7 @@ export const watchReceiverClaims = (watch: ClaimWatch): (() => void) => {
     const key = keyOf(url, id)
     const taxi = triage(claim, taxis, watch.receiverAddress)
     if (taxi === 'not-claimable') {
+      if (verifying.has(key)) withdrawnDuringVerification.add(key)
       if (verified.delete(key)) watch.onGone(key)
       return
     }
@@ -170,6 +172,7 @@ export const watchReceiverClaims = (watch: ClaimWatch): (() => void) => {
     const known = verified.get(key)
     if (known) return watch.onOffer(known)
     if (verifying.has(key)) return
+    withdrawnDuringVerification.delete(key)
     verifying.add(key)
     let transfer: CovenantTransfer
     try {
@@ -184,7 +187,7 @@ export const watchReceiverClaims = (watch: ClaimWatch): (() => void) => {
     } finally {
       verifying.delete(key)
     }
-    if (stopped) return
+    if (stopped || withdrawnDuringVerification.delete(key)) return
     const offer = { taxi, claim, transfer, client }
     verified.set(key, offer)
     watch.onOffer(offer)
