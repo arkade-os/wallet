@@ -348,6 +348,7 @@ export default function SendForm() {
           }
           setSelectedAsset(found)
           const rawAmount = assetAmount ? unitsToCents(assetAmount, found.decimals) : BigInt(0)
+          if (assetAmount) setAmountTextValue(assetAmount)
           return setSendInfo((prev) => ({
             ...prev,
             address,
