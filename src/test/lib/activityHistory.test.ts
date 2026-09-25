@@ -756,6 +756,22 @@ describe('end to end through the SDK grouping', () => {
       expect(console.error).toHaveBeenCalledWith(expect.stringContaining('swap one'))
     })
 
+    it('never lets the orphan sweep re-render a swap whose grouped row threw', () => {
+      const record = swap({ id: 'one', fromAsset: ASSET, toAsset: 'btc', fundingTxid: FUNDING, spentTxid: FILL })
+      // only the grouped row reads the fill's amount, so the sweep alone could still build this swap
+      const malformedFill = arkTx(FILL, { amount: 0.5, createdAt: 2_000 })
+      const rows = activitiesToTxs([activity('swap:one', [funding, malformedFill], swapIntent('one'))], {
+        ...empty,
+        swaps: [record],
+      })
+
+      expect(rows.map((row) => [row.type, row.amount]).sort()).toEqual([
+        ['received', 0.5],
+        ['sent', 10_000],
+      ])
+      expect(console.error).toHaveBeenCalledWith(expect.stringContaining('swap one'))
+    })
+
     it.each([
       ['missing', undefined],
       ['invalid', { version: 1, contributions: 'broken' }],
