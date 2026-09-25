@@ -4,9 +4,9 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/sdk": "0.4.75",
+    "@arkade-os/sdk": "0.4.76",
     "@arkade-os/solver-discovery": "0.2.5",
-    "@arkade-os/swap": "0.0.21",
+    "@arkade-os/swap": "0.0.22",
     "@base-ui/react": "^1.4.1",
     "@branta-ops/branta": "3.1.3",
     "@fontsource-variable/geist": "^5.2.8",
