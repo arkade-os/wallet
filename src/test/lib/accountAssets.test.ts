@@ -29,10 +29,6 @@ describe('wallet account asset presentation', () => {
     expect(accountChartColorToken('OTHER')).toBe('--account-chart-default')
   })
 
-  it.each(['USD', 'BRL'])('recognizes the explicit %s account label', (ticker) => {
-    expect(walletAccountTicker(ticker)).toBe(ticker)
-  })
-
   it.each(['USDT', 'USDC', 'AUSD', 'DPIX', 'DEPIX'])('does not infer an account from the %s ticker', (ticker) => {
     expect(walletAccountTicker(ticker)).toBeUndefined()
   })

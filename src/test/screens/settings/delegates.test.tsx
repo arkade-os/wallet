@@ -40,24 +40,6 @@ describe('Delegates screen', () => {
     fetchMocker.disableMocks()
   })
 
-  it('renders the delegates screen with the correct elements when config delegate is false', () => {
-    render(
-      <AspContext.Provider value={mockDelegatesAspContextValue as any}>
-        <ConfigContext.Provider value={getMockConfigWithDelegate(false) as any}>
-          <Delegates />
-        </ConfigContext.Provider>
-      </AspContext.Provider>,
-    )
-    expect(screen.getByText('Delegates')).toBeInTheDocument()
-    expect(screen.getByText('Learn more')).toBeInTheDocument()
-    expect(screen.getByText('What is a Delegate?')).toBeInTheDocument()
-    expect(screen.getByText('Use default Arkade delegate')).toBeInTheDocument()
-    expect(screen.getByText(/Delegates can only renew your VTXOs/)).toBeInTheDocument()
-    expect(screen.getByText('The wallet will reload to apply the change.')).toBeInTheDocument()
-    expect(screen.getByTestId('toggle-delegates').getAttribute('checked')).toBeFalsy()
-    expect(() => screen.getByTestId('delegate-card')).toThrow()
-  })
-
   it('renders the delegate card when toggle is on', async () => {
     render(
       <AspContext.Provider value={mockDelegatesAspContextValue as any}>

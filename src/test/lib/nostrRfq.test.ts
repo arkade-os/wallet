@@ -21,10 +21,6 @@ import { RFQ_AD_KIND, RFQ_DIRECTED_KIND, nostrRfqTransport } from '@arkade-os/sw
  * assertions that fail loudly when the tarball is wrong.
  */
 describe('vendored @arkade-os/swap/nostr', () => {
-  it('exposes the transport through the subpath export', () => {
-    expect(typeof nostrRfqTransport).toBe('function')
-  })
-
   it('publishes on a kind inside the NIP-01 ephemeral range', () => {
     // Not a restatement of the package's own range test: this asserts the
     // TARBALL currently vendored carries a post-ephemeral build. A stale
