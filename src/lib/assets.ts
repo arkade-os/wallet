@@ -64,7 +64,7 @@ export const prettyAssetNumber = (num?: string | number, maximumFractionDigits =
     .slice(0, maximumFractionDigits) // slice to the desired number of decimals
     .replace(/0+$/, '') // remove trailing zeros
     .replace(/\.$/, '') // if the number ends with a dot, remove it
-  return `${negative ? '-' : ''}${BigInt(integer).toLocaleString()}${paddedFraction ? `.${paddedFraction}` : ''}`
+  return `${negative ? '-' : ''}${BigInt(integer).toLocaleString('en-US')}${paddedFraction ? `.${paddedFraction}` : ''}`
 }
 
 export const prettyAssetAmount = (cents: bigint, decimals: number, tidy = false): string => {
