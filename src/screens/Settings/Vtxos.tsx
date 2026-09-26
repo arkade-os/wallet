@@ -4,7 +4,7 @@ import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import { WalletContext } from '../../providers/wallet'
-import { prettyAgo, prettyDate, prettyDelta, prettyHide, prettyNumber } from '../../lib/format'
+import { localizedAgo, localizedDelta, prettyDate, prettyHide, prettyNumber } from '../../lib/format'
 import Header from './Header'
 import Text, { TextSecondary } from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
@@ -36,14 +36,16 @@ import Grid from '../../components/Grid'
 import { prettyAssetAmount } from '../../lib/assets'
 import { getAssetURL, getOffchainTxURL } from '../../lib/explorers'
 import ExternalLinkIcon from '../../icons/ExternalLink'
+import { useTranslation } from '../../providers/language'
 
 export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { config } = useContext(ConfigContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { assetMetadataCache, reloadWallet, vtxos, vtxoManager, wallet, svcWallet } = useContext(WalletContext)
+  const { language, t } = useTranslation()
 
-  const defaultLabel = 'Renew Virtual Coins'
+  const defaultLabel = t('vtxos.renewVirtualCoins')
 
   const [aboveDust, setAboveDust] = useState(false)
   const [allUtxos, setAllUtxos] = useState<ExtendedCoin[]>([])
@@ -64,23 +66,25 @@ export default function Vtxos() {
 
   // Update error state if aspInfo.unreachable changes
   useEffect(() => {
-    setError(aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '')
-  }, [aspInfo.unreachable, aspInfo.outdated])
+    setError(
+      aspInfo.unreachable ? aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet')) : '',
+    )
+  }, [aspInfo.unreachable, aspInfo.outdated, t])
 
   // Update label based on rolling over state and dust status
   useEffect(() => {
     setLabel(
       !aboveDust
-        ? 'Below dust limit'
+        ? t('vtxos.belowDustLimit')
         : hasVtxosToSettle && hasBoardingUtxosToSettle && !hideUtxos
-          ? 'Complete boarding & renew'
+          ? t('vtxos.completeBoardingAndRenew')
           : hasVtxosToSettle
-            ? 'Renew'
+            ? t('transaction.renew')
             : hasBoardingUtxosToSettle && !hideUtxos
-              ? 'Complete boarding'
+              ? t('vtxos.completeBoarding')
               : '',
     )
-  }, [rollingover, aboveDust, hasVtxosToSettle, hasBoardingUtxosToSettle, hideUtxos])
+  }, [rollingover, aboveDust, hasVtxosToSettle, hasBoardingUtxosToSettle, hideUtxos, t])
 
   // Calculate best market hour when wallet.nextRollover changes
   useEffect(() => {
@@ -113,12 +117,12 @@ export default function Vtxos() {
         setLoading(false)
       } catch (err) {
         consoleError(err)
-        setError('Failed to fetch coins')
+        setError(t('vtxos.failedToFetchCoins'))
         setLoading(false)
       }
     }
     fetchData()
-  }, [aspInfo, vtxos, svcWallet, wallet.thresholdMs])
+  }, [aspInfo, vtxos, svcWallet, wallet.thresholdMs, t])
 
   // Fetch inputs to settle
   useEffect(() => {
@@ -152,7 +156,7 @@ export default function Vtxos() {
     return () => clearTimeout(timeoutId)
   }, [success])
 
-  if (!svcWallet || !vtxoManager || loading) return <LoadingLogo text='Loading...' />
+  if (!svcWallet || !vtxoManager || loading) return <LoadingLogo text={t('common.loading')} />
 
   const listableVtxos = allVtxos.filter((vtxo) => vtxo.isSpent === false)
 
@@ -190,27 +194,27 @@ export default function Vtxos() {
   const Tags = {
     settled: (
       <Text color='green' smaller>
-        settled
+        {t('vtxos.settled')}
       </Text>
     ),
     subdust: (
       <Text color='orange' smaller>
-        subdust
+        {t('vtxos.subdust')}
       </Text>
     ),
     recoverable: (
       <Text color='orange' smaller>
-        recoverable
+        {t('vtxos.swept')}
       </Text>
     ),
     unconfirmed: (
       <Text color='orange' smaller>
-        unconfirmed
+        {t('vtxos.unconfirmed')}
       </Text>
     ),
     expiring: (
       <Text color='red' smaller>
-        expiring soon
+        {t('vtxos.expiringSoon')}
       </Text>
     ),
   }
@@ -291,7 +295,7 @@ export default function Vtxos() {
           return { text: `${prettyAssetAmount(a.amount, decimals)} ${label}`, assetId: a.assetId }
         })
       : []
-    const expiry = expiryMs ? prettyAgo(expiryMs) : 'Unknown'
+    const expiry = expiryMs ? localizedAgo(expiryMs, t) : t('common.unknown')
     const tags = (
       <FlexRow centered>
         {isSubdust(vtxo, aspInfo.dust)
@@ -306,48 +310,54 @@ export default function Vtxos() {
       </FlexRow>
     )
     return (
-      <CoinLine amount={`${satsAmount} sats`} txid={vtxo.txid} assets={assetsAmounts} tags={tags} expiry={expiry} />
+      <CoinLine
+        amount={`${satsAmount} ${t('common.sats')}`}
+        txid={vtxo.txid}
+        assets={assetsAmounts}
+        tags={tags}
+        expiry={expiry}
+      />
     )
   }
 
   const UtxoLine = ({ utxo }: { utxo: ExtendedCoin }) => {
     const expiration = Number(aspInfo.boardingExitDelay)
     const amount = config.showBalance ? prettyNumber(utxo.value) : prettyHide(utxo.value)
-    const expiry = utxo.status.block_time ? prettyAgo(utxo.status.block_time + expiration) : ''
+    const expiry = utxo.status.block_time ? localizedAgo(utxo.status.block_time + expiration, t) : ''
     const tags = (
       <FlexRow centered>
         {!utxo.status.block_time ? Tags.unconfirmed : isSubdust(utxo, aspInfo.dust) ? Tags.subdust : null}
       </FlexRow>
     )
-    return <CoinLine amount={`${amount} sats`} tags={tags} expiry={expiry} />
+    return <CoinLine amount={`${amount} ${t('common.sats')}`} tags={tags} expiry={expiry} />
   }
 
   return (
     <>
       <Header
         auxFunc={() => setShowList(!showList)}
-        auxText={showList ? 'Date' : 'Coins'}
+        auxText={showList ? t('vtxos.date') : t('vtxos.coins')}
         back
-        text={showList ? 'Virtual Coins' : 'Next Renewal'}
+        text={showList ? t('vtxos.title') : t('vtxos.nextRenewal')}
       />
       <Content>
         <Padded>
           <FlexCol className='scroll-fade'>
             <ErrorMessage error={Boolean(error)} text={error} />
             {rollingover ? (
-              <Info color='purple' icon={<LoadingIcon small />} title='Renewing'>
-                <Text wrap>Renewing your virtual coins. This may take a few moments.</Text>
+              <Info color='purple' icon={<LoadingIcon small />} title={t('vtxos.renewing')}>
+                <Text wrap>{t('loading.renewing')}</Text>
               </Info>
             ) : null}
             {listableVtxos.length + allUtxos.length === 0 ? (
               <EmptyCoinsList />
             ) : showList ? (
               <FlexCol gap='2rem'>
-                {success ? <WarningBox green text='Coins renewed successfully' /> : null}
+                {success ? <WarningBox green text={t('vtxos.coinsRenewed')} /> : null}
                 {listableVtxos.length > 0 ? (
                   <FlexCol gap='0.5rem'>
                     <Text capitalize color='neutral-500' smaller>
-                      Your virtual coins with amount and expiration
+                      {t('vtxos.coinsWithAmount')}
                     </Text>
                     {listableVtxos.map((v: ExtendedVirtualCoin) => (
                       <VtxoLine key={v.txid} vtxo={v} />
@@ -357,7 +367,7 @@ export default function Vtxos() {
                 {!hideUtxos && allUtxos.length > 0 ? (
                   <FlexCol gap='0.5rem'>
                     <Text capitalize color='neutral-500' smaller>
-                      Your boarding utxos with amount and expiration
+                      {t('vtxos.boardingUtxos')}
                     </Text>
                     {allUtxos.map((u: ExtendedCoin) => (
                       <UtxoLine key={u.txid} utxo={u} />
@@ -369,28 +379,32 @@ export default function Vtxos() {
               <>
                 <FlexCol gap='0.5rem' margin='0 0 1rem 0'>
                   <Text capitalize color='neutral-500' smaller>
-                    Next renewal
+                    {t('vtxos.nextRenewal')}
                   </Text>
                   <Box>
-                    <Text>{prettyDate(wallet.nextRollover)}</Text>
-                    <Text>{prettyAgo(wallet.nextRollover)}</Text>
+                    <Text>{prettyDate(wallet.nextRollover, language)}</Text>
+                    <Text>{localizedAgo(wallet.nextRollover, t)}</Text>
                   </Box>
-                  {success ? <WarningBox green text='Coins renewed successfully' /> : null}
+                  {success ? <WarningBox green text={t('vtxos.coinsRenewed')} /> : null}
                 </FlexCol>
                 <FlexCol gap='0.5rem' margin='2rem 0 0 0'>
-                  <TextSecondary>First virtual coin expiration: {prettyAgo(wallet.nextRollover)}.</TextSecondary>
+                  <TextSecondary>
+                    {t('vtxos.firstExpiration', { time: localizedAgo(wallet.nextRollover, t) })}
+                  </TextSecondary>
                   {wallet.thresholdMs ? (
                     <TextSecondary>
-                      Automatic renewal occurs for virtual coins expiring within{' '}
-                      {prettyDelta(Math.floor(wallet.thresholdMs / 1_000))}.
+                      {t('vtxos.automaticRenewal', { time: localizedDelta(Math.floor(wallet.thresholdMs / 1_000), t) })}
                     </TextSecondary>
                   ) : null}
                   {startTime && duration ? (
                     <>
-                      <TextSecondary>Settlement during market hours offers lower fees.</TextSecondary>
+                      <TextSecondary>{t('vtxos.settlementFees')}</TextSecondary>
                       <TextSecondary>
-                        Next market hour: {prettyDate(startTime)} ({prettyAgo(startTime, true)}) for{' '}
-                        {prettyDelta(duration)}.
+                        {t('vtxos.nextMarketHour', {
+                          date: prettyDate(startTime, language),
+                          ago: localizedAgo(startTime, t),
+                          duration: localizedDelta(duration, t),
+                        })}
                       </TextSecondary>
                     </>
                   ) : null}
@@ -407,14 +421,14 @@ export default function Vtxos() {
               <Button onClick={handleRollover} label={label} disabled={rollingover || !aboveDust} />
             ) : null}
             {wallet.nextRollover ? (
-              <Button onClick={() => setReminderIsOpen(true)} label='Add reminder' secondary />
+              <Button onClick={() => setReminderIsOpen(true)} label={t('transaction.addReminder')} secondary />
             ) : null}
           </ButtonsOnBottom>
           <Reminder
             callback={() => setReminderIsOpen(false)}
             duration={duration}
             isOpen={reminderIsOpen}
-            name='Virtual Coin Renewal'
+            name={t('vtxos.virtualCoinRenewal')}
             startTime={wallet.nextRollover}
           />
         </>

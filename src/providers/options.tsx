@@ -17,6 +17,7 @@ import PuzzleIcon from '../icons/Puzzle'
 import CoinsIcon from '../icons/Coins'
 import HashIcon from '../icons/Hash'
 import SolverIcon from '@/icons/Solver'
+import GlobeOutlineIcon from '@/icons/GlobeOutline'
 
 export interface Option {
   icon: ReactElement
@@ -78,6 +79,11 @@ export const options: Option[] = [
   {
     icon: <NotificationIcon />,
     option: SettingsOptions.Notifications,
+    section: SettingsSections.General,
+  },
+  {
+    icon: <GlobeOutlineIcon />,
+    option: SettingsOptions.Language,
     section: SettingsSections.General,
   },
   {

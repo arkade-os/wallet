@@ -38,7 +38,7 @@ export interface LnSendReceipt {
  * Returns undefined for anything that is not a Lightning send, so callers can
  * branch on its presence.
  */
-export function useLnSendReceipt(tx: Tx | undefined): LnSendReceipt | undefined {
+export function useLnSendReceipt(tx: Tx | undefined, t: (key: string) => string): LnSendReceipt | undefined {
   const swap = tx?.lnSwap
   const legacy = tx?.lnSend
   const fundedTxid = swap?.fundingTxid ?? (legacy ? tx?.redeemTxid : undefined)
@@ -47,5 +47,5 @@ export function useLnSendReceipt(tx: Tx | undefined): LnSendReceipt | undefined 
   // "Refunded", not "Cancelled": nobody cancelled anything — the solver could
   // not pay the invoice and the covenant returned the funds.
   const refunded = swap ? swap.outcome === 'refunded' : legacy?.spend?.outcome === 'refunded'
-  return { fundedTxid, spendTxid, spendLabel: refunded ? 'Refunded' : 'Completed' }
+  return { fundedTxid, spendTxid, spendLabel: refunded ? t('transaction.refunded') : t('transaction.completed') }
 }

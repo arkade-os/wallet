@@ -16,6 +16,7 @@ import FlexCol from '../../../components/FlexCol'
 import { collaborativeExitWithFees, sendAssets, sendOffChain } from '../../../lib/asp'
 import { type LnSendRequest } from '../../../lib/lnSwap'
 import { extractError } from '../../../lib/error'
+import { SolverNotRespondingError } from '../../../lib/nostrRfq'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
 import { LimitsContext } from '../../../providers/limits'
@@ -24,6 +25,7 @@ import { buildTransactionAmountDisplay } from '../../../lib/transactionAmountDis
 import { useAmountDisplayContext } from '../../../hooks/useTransactionAmountDisplay'
 import TransactionAmountSummary from '../../../components/TransactionAmountSummary'
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
+import { useTranslation } from '../../../providers/language'
 
 export default function SendDetails() {
   const displayContext = useAmountDisplayContext()
@@ -34,6 +36,7 @@ export default function SendDetails() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { assetMetadataCache, balance, reloadWallet, svcWallet } = useContext(WalletContext)
   const { trackLnSend } = useContext(LnSwapsContext)
+  const { t } = useTranslation()
 
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
@@ -60,23 +63,24 @@ export default function SendDetails() {
   })
 
   useEffect(() => {
-    if (!address && !arkAddress && !invoice) return setError('Missing address')
+    if (!address && !arkAddress && !invoice) return setError(t('send.missingAddress'))
     if (isAssetSend) {
-      if (!assetAmountValue) return setError('Missing asset amount')
+      if (!assetAmountValue) return setError(t('send.missingAssetAmount'))
       const destination = arkAddress ?? ''
       const feeInSats = defaultFee
       setDetails({
         assetId,
         destination,
-        direction: 'Sending assets',
+        direction: t('send.directionSendingAssets'),
         fees: feeInSats,
         satoshis: 0,
         total: feeInSats,
       })
-      setButtonLabel('Tap to Sign')
+      setButtonLabel(t('send.tapToSign'))
+      setError('')
       return
     }
-    if (!satoshis) return setError('Missing amount')
+    if (!satoshis) return setError(t('send.missingAmount'))
     const destination =
       arkAddress && vtxoTxsAllowed()
         ? arkAddress
@@ -85,18 +89,29 @@ export default function SendDetails() {
           : address && utxoTxsAllowed()
             ? address
             : ''
-    const direction =
+    // Routing is a protocol decision; it must never depend on a localized string,
+    // otherwise fee math and labels drift when the language changes.
+    const destinationType =
       destination === arkAddress
-        ? 'Paying inside Arkade'
+        ? 'arkade'
         : destination === invoice
-          ? 'Paying to Lightning'
+          ? 'lightning'
           : destination === address
-            ? 'Paying to mainnet'
+            ? 'mainnet'
+            : 'none'
+    // `direction` is display-only; keep logic keyed on `destinationType`.
+    const direction =
+      destinationType === 'arkade'
+        ? t('send.payingInsideArkade')
+        : destinationType === 'lightning'
+          ? t('send.payingToLightning')
+          : destinationType === 'mainnet'
+            ? t('send.payingToMainnet')
             : ''
     // The RFQ lockup carries exactly the invoice amount (exact-out, fee_bps
     // from the card; 0 today), so total == satoshis on the Lightning path.
     const total = pendingLnSend ? pendingLnSend.fundAmount : satoshis
-    const amount = direction === 'Paying to mainnet' ? satoshis - calcOnchainOutputFee() : satoshis
+    const amount = destinationType === 'mainnet' ? satoshis - calcOnchainOutputFee() : satoshis
     const fees = total - amount > 0 ? total - amount : 0
     setDetails({
       destination,
@@ -106,15 +121,16 @@ export default function SendDetails() {
       total,
     })
     if (balance < total) {
-      setButtonLabel('Insufficient funds')
-      setError(`Insufficient funds, you just have ${prettyNumber(balance)} sats`)
+      setButtonLabel(t('send.insufficientFunds'))
+      setError(t('send.insufficientFundsDetail', { balance: prettyNumber(balance) }))
     } else {
-      setButtonLabel('Tap to Sign')
+      setButtonLabel(t('send.tapToSign'))
+      setError('')
     }
-  }, [sendInfo])
+  }, [sendInfo, t, balance, vtxoTxsAllowed, utxoTxsAllowed, calcOnchainOutputFee])
 
   const handleTxid = (txid: string) => {
-    if (!txid) return handleError('Error sending transaction')
+    if (!txid) return handleError(t('send.errorSendingTransaction'))
     saveTransactionActivityMetadata(txid, {
       destination: details?.destination,
       networkFee: details?.fees,
@@ -138,7 +154,13 @@ export default function SendDetails() {
 
   const handleError = (err: any) => {
     consoleError(err, 'error sending payment')
-    setError(extractError(err))
+    if (err instanceof SolverNotRespondingError) {
+      setError(t('errors.solverNotResponding', { seconds: Math.round(err.timeoutMs / 1000) }))
+    } else if (/AMOUNT_TOO_LOW|amount is lower than/i.test(extractError(err))) {
+      setError(t('errors.onchainAmountTooLow'))
+    } else {
+      setError(extractError(err))
+    }
     setSendDone(true)
   }
 
@@ -159,7 +181,7 @@ export default function SendDetails() {
    */
   const payLightning = async (request: LnSendRequest) => {
     const txid = await sendOffChain(svcWallet!, request.fundAmount, request.address)
-    if (!txid) return handleError('Error sending transaction')
+    if (!txid) return handleError(t('send.errorSendingTransaction'))
     // Hand the swap over before `handleTxid` triggers the refresh that rebuilds
     // history: the record is what makes this row a Lightning send rather than a
     // bare outgoing payment, and it is what the manager drives from here on —
@@ -180,7 +202,7 @@ export default function SendDetails() {
     if (!details || !svcWallet) return
     if (!isAssetSend && (!details.total || !details.satoshis)) return
     if (isAssetSend && !arkAddress) {
-      setError('Assets can only be sent to Arkade addresses')
+      setError(t('send.assetsOnlyToArkade'))
       return
     }
 
@@ -188,12 +210,12 @@ export default function SendDetails() {
 
     if (isAssetSend && arkAddress) {
       // Asset send via wallet.send()
-      if (!sendInfo.assets || sendInfo.assets.length === 0) return handleError('Missing assets list')
+      if (!sendInfo.assets || sendInfo.assets.length === 0) return handleError(t('send.missingAssetsList'))
       sendAssets(svcWallet, arkAddress, sendInfo.assets)
         .then((txId: string) => handleTxid(txId))
         .catch(handleError)
     } else if (arkAddress) {
-      if (!details.total) return handleError('Missing total amount')
+      if (!details.total) return handleError(t('send.missingTotalAmount'))
       sendOffChain(svcWallet, details.total, arkAddress)
         .then((txId: string) => handleTxid(txId))
         .catch(handleError)
@@ -204,12 +226,12 @@ export default function SendDetails() {
       // observes the funding, pays the invoice, and claims with the preimage;
       // a failed swap refunds by covenant.
       if (Math.floor(Date.now() / 1000) >= pendingLnSend.validUntil) {
-        return handleError('Quote expired — go back and try again')
+        return handleError(t('send.quoteExpired'))
       }
       payLightning(pendingLnSend).catch(handleError)
     } else if (address) {
-      if (!details.total) return handleError('Missing total amount')
-      if (!details.satoshis) return handleError('Missing satoshis amount')
+      if (!details.total) return handleError(t('send.missingTotalAmount'))
+      if (!details.satoshis) return handleError(t('send.missingSatoshisAmount'))
       collaborativeExitWithFees(svcWallet, details.total, details.satoshis, address)
         .then((txId: string) => handleTxid(txId))
         .catch(handleError)
@@ -218,26 +240,26 @@ export default function SendDetails() {
 
   return (
     <>
-      <Header text='Sign transaction' back />
+      <Header text={t('send.signTransaction')} back />
       <Content>
         {sending ? (
           details?.destination === invoice ? (
             <LoadingLogo
-              text='Paying to Lightning'
+              text={t('send.payingToLightning')}
               done={sendDone}
               exitMode='fly-up'
               onExitComplete={handleExitComplete}
             />
           ) : details?.destination === arkAddress ? (
             <LoadingLogo
-              text='Paying inside Arkade'
+              text={t('send.payingInsideArkade')}
               done={sendDone}
               exitMode='fly-up'
               onExitComplete={handleExitComplete}
             />
           ) : (
             <LoadingLogo
-              text='Paying to mainnet'
+              text={t('send.payingToMainnet')}
               done={sendDone}
               exitMode='fly-up'
               onExitComplete={handleExitComplete}
@@ -248,7 +270,7 @@ export default function SendDetails() {
             <FlexCol>
               <ErrorMessage error={Boolean(error)} text={error} />
               {details && amountDisplay ? (
-                <TransactionAmountSummary amount={amountDisplay} label='Amount sent' />
+                <TransactionAmountSummary amount={amountDisplay} label={t('send.amountSent')} />
               ) : null}
               <Details
                 details={

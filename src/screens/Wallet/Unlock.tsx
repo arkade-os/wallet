@@ -4,10 +4,12 @@ import { consoleError } from '../../lib/logs'
 import NeedsPassword from '../../components/NeedsPassword'
 import Header from '../../components/Header'
 import { NavigationContext, Pages } from '../../providers/navigation'
+import { useTranslation } from '../../providers/language'
 
 export default function Unlock() {
   const { navigate } = useContext(NavigationContext)
   const { unlockWallet } = useContext(WalletContext)
+  const { t } = useTranslation()
 
   const [error, setError] = useState('')
   const [unlocking, setUnlocking] = useState(false)
@@ -21,10 +23,10 @@ export default function Unlock() {
     } catch (err) {
       setUnlocking(false)
       if (err instanceof Error && err.message === 'Invalid password') {
-        return setError('Invalid password')
+        return setError(t('unlock.invalidPassword'))
       }
       consoleError(err, 'error unlocking wallet')
-      setError('Connection failed. Please try again.')
+      setError(t('unlock.connectionFailed'))
     }
   }
 
@@ -34,7 +36,7 @@ export default function Unlock() {
 
   return (
     <>
-      <Header text='Unlock' />
+      <Header text={t('unlock.title')} />
       <NeedsPassword error={error} onPassword={handleUnlock} />
     </>
   )

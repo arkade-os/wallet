@@ -5,6 +5,7 @@ import { EmptyTxList } from '../../components/Empty'
 import { WalletContext } from '../../providers/wallet'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { hapticLight } from '../../lib/haptics'
+import { useTranslation } from '../../providers/language'
 
 /**
  * Compact "Recent activity" module for the home screen.
@@ -13,6 +14,7 @@ import { hapticLight } from '../../lib/haptics'
 export default function RecentActivitySection() {
   const { txs } = useContext(WalletContext)
   const { navigate } = useContext(NavigationContext)
+  const { t } = useTranslation()
 
   const handleViewAll = () => {
     hapticLight()
@@ -23,7 +25,7 @@ export default function RecentActivitySection() {
     return (
       <section className='home-section'>
         <div className='flex w-full items-center justify-between px-1'>
-          <span className='home-section-label'>Recent activity</span>
+          <span className='home-section-label'>{t('wallet.recentActivity')}</span>
         </div>
         <div className='home-section__content'>
           <EmptyTxList />
@@ -35,16 +37,16 @@ export default function RecentActivitySection() {
   return (
     <section className='home-section'>
       <div className='flex w-full items-center justify-between px-1'>
-        <span className='home-section-label'>Recent activity</span>
+        <span className='home-section-label'>{t('wallet.recentActivity')}</span>
         <button
           type='button'
           onClick={handleViewAll}
-          aria-label='View all activity'
+          aria-label={t('wallet.viewAllActivity')}
           data-testid='activity-view-all'
           className='home-section-action'
           style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
         >
-          View all
+          {t('wallet.viewAll')}
           <ArrowIcon small />
         </button>
       </div>

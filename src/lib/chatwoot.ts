@@ -1,11 +1,13 @@
 import { fromRuntimeEnv } from './constants'
 import { consoleError } from './logs'
+import { Language } from './types'
 
 export interface ChatwootSDK {
   setUser: (identifier: string, user: { name?: string; email?: string; avatar_url?: string }) => void
   setCustomAttributes: (attributes: Record<string, string | number | boolean>) => void
   toggleBubbleVisibility: (state: 'show' | 'hide') => void
   toggle: (state: 'open' | 'close') => void
+  setLocale?: (locale: string) => void
 }
 
 // Define the types for the global window object
@@ -14,6 +16,7 @@ declare global {
     $chatwoot: ChatwootSDK
     chatwootSDK: {
       run: (vars: ChatwootVars) => void
+      setLocale?: (locale: string) => void
     }
     chatwootSettings: {
       [key: string]: any
@@ -45,12 +48,14 @@ export interface ChatwootSettings {
   locale: string
 }
 
-export const getChatwootSettings = (): ChatwootSettings => {
+export const getChatwootLocale = (language: Language): string => (language === Language.Spanish ? 'es' : 'en')
+
+export const getChatwootSettings = (locale = 'en'): ChatwootSettings => {
   return {
     hideMessageBubble: false,
     position: 'right',
     darkMode: 'auto',
-    locale: 'en',
+    locale,
   }
 }
 
@@ -87,4 +92,13 @@ export const injectAndRunChatwootScript = (vars: ChatwootVars) => {
       }, 100)
     }
   })(document, 'script')
+}
+
+/**
+ * Push a locale to an already-loaded Chatwoot widget. Both handles are tried
+ * defensively across SDK versions; no-op when the widget is not present.
+ */
+export const setChatwootLocale = (locale: string): void => {
+  window.chatwootSDK?.setLocale?.(locale)
+  window.$chatwoot?.setLocale?.(locale)
 }

@@ -1,5 +1,9 @@
 import { beforeEach, describe, it, expect } from 'vitest'
 import { lnSwapLabel } from '../../lib/swapDisplay'
+import { Language } from '../../lib/types'
+import { translate } from '../../lib/i18n'
+
+const t = (key: string): string => translate(Language.English, key)
 import { createDefaultActivityRegistry, ServiceWorkerWallet, type Activity, type ArkTransaction } from '@arkade-os/sdk'
 import { activitiesToTxs, getActivities } from '../../lib/activityHistory'
 import { swapActivityResolver } from '@arkade-os/swap'
@@ -305,7 +309,7 @@ describe('lightning send activities', () => {
       historyKey: `swap:${RFQ_ID}`,
       lnSwap: { label: 'Lightning send', outcome: 'pending', fundingTxid: 'funding-txid' },
     })
-    expect(lnSwapLabel(row)).toBe('Lightning send pending')
+    expect(lnSwapLabel(row, t)).toBe('Lightning send pending')
   })
 
   it('gives that row the invoice and fee saved against the funding tx', () => {
@@ -330,7 +334,7 @@ describe('lightning send activities', () => {
     })
 
     expect(row.lnSwap).toMatchObject({ outcome: 'refunded', spendTxid: 'refund-txid' })
-    expect(lnSwapLabel(row)).toBe('Lightning send refunded')
+    expect(lnSwapLabel(row, t)).toBe('Lightning send refunded')
   })
 
   it('yields to the group once one exists, under the same key', () => {
@@ -425,7 +429,7 @@ describe('lightning receive activities', () => {
     )
 
     expect(row.lnSwap?.outcome).toBe('lost')
-    expect(lnSwapLabel(row)).toBe('Lightning receive lost')
+    expect(lnSwapLabel(row, t)).toBe('Lightning receive lost')
   })
 
   it('falls back to plain member rows rather than dropping a group it cannot anchor', () => {

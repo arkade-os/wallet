@@ -15,32 +15,36 @@ import { consoleError } from '../../../lib/logs'
 import { WalletContext } from '../../../providers/wallet'
 import Details, { DetailsProps } from '../../../components/Details'
 import { AspContext } from '../../../providers/asp'
+import { useTranslation } from '../../../providers/language'
 
 export default function NotesRedeem() {
   const { aspInfo } = useContext(AspContext)
   const { noteInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { svcWallet } = useContext(WalletContext)
+  const { t } = useTranslation()
 
-  const defaultButtonLabel = 'Redeem Note'
+  const defaultButtonLabel = t('notes.redeemNote')
 
   const [buttonLabel, setButtonLabel] = useState(defaultButtonLabel)
   const [error, setError] = useState('')
   const [redeeming, setRedeeming] = useState(false)
 
   useEffect(() => {
-    setError(aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '')
-  }, [aspInfo.unreachable, aspInfo.outdated])
+    setError(
+      aspInfo.unreachable ? aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet')) : '',
+    )
+  }, [aspInfo.unreachable, aspInfo.outdated, t])
 
   useEffect(() => {
-    setButtonLabel(redeeming ? 'Redeeming...' : defaultButtonLabel)
-  }, [redeeming])
+    setButtonLabel(redeeming ? t('notes.redeeming') : defaultButtonLabel)
+  }, [redeeming, t, defaultButtonLabel])
 
   const handleBack = () => {
     navigate(Pages.NotesForm)
   }
 
-  if (!svcWallet) return <LoadingLogo text='Loading...' />
+  if (!svcWallet) return <LoadingLogo text={t('common.loading')} />
 
   const handleRedeem = async () => {
     setError('')
@@ -62,10 +66,10 @@ export default function NotesRedeem() {
 
   return (
     <>
-      <Header text='Redeem Note' back={handleBack} />
+      <Header text={t('notes.redeemNote')} back={handleBack} />
       <Content>
         {redeeming ? (
-          <LoadingLogo text='Processing. This may take a few moments.' />
+          <LoadingLogo text={t('notes.processing')} />
         ) : (
           <Padded>
             <FlexCol gap='2rem'>

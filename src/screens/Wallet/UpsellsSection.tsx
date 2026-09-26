@@ -2,6 +2,7 @@ import { useContext, ReactNode } from 'react'
 import CoinsIcon from '../../icons/Coins'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { hapticLight } from '../../lib/haptics'
+import { useTranslation } from '../../providers/language'
 
 interface UpsellCardProps {
   icon: ReactNode
@@ -39,6 +40,7 @@ function UpsellCard({ icon, title, description, testId, onClick }: UpsellCardPro
  */
 export default function UpsellsSection() {
   const { navigate } = useContext(NavigationContext)
+  const { t } = useTranslation()
 
   const handleBuySell = () => {
     navigate(Pages.AppDfx)
@@ -47,13 +49,13 @@ export default function UpsellsSection() {
   return (
     <section className='home-section'>
       <div className='px-1'>
-        <span className='home-section-label'>Do more with your money</span>
+        <span className='home-section-label'>{t('upsells.title')}</span>
       </div>
       <div className='home-section__content'>
         <UpsellCard
           icon={<CoinsIcon size={20} />}
-          title='Buy or sell bitcoin'
-          description='Use a bank transfer in CHF or EUR via SEPA.'
+          title={t('upsells.buySellTitle')}
+          description={t('upsells.buySellDescription')}
           testId='upsell-buy-sell'
           onClick={handleBuySell}
         />

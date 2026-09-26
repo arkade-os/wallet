@@ -7,6 +7,7 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import { prettyFiatAmount } from '../../lib/format'
 import { FlowContext } from '../../providers/flow'
 import { WalletContext } from '../../providers/wallet'
+import { useTranslation } from '../../providers/language'
 
 export default function AssetsSection() {
   const { config } = useContext(ConfigContext)
@@ -14,6 +15,7 @@ export default function AssetsSection() {
   const { setAssetInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { isVerifiedAsset } = useContext(WalletContext)
+  const { t } = useTranslation()
 
   const { rows } = usePortfolioFiat()
   // unverified assets are spoofable, so they never show on home at all —
@@ -44,7 +46,7 @@ export default function AssetsSection() {
   return (
     <section className='home-section'>
       <div className='flex w-full items-center justify-between px-1'>
-        <span className='home-section-label'>Accounts</span>
+        <span className='home-section-label'>{t('wallet.accounts')}</span>
       </div>
       <div className='home-section__content'>
         {accountRows.map((row) => (
