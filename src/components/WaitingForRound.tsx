@@ -51,5 +51,9 @@ export default function WaitingForRound({ rollover, settle, done, exitMode, onEx
     if (logLength > 0) setLogMessage(getInfoLogLineMsg(logLength - 1))
   }, [logLength])
 
+  useEffect(() => {
+    if (logLength === 0) setLogMessage(message)
+  }, [message, logLength])
+
   return <LoadingLogo text={logMessage} done={done} exitMode={exitMode} onExitComplete={onExitComplete} />
 }

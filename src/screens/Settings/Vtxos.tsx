@@ -122,7 +122,7 @@ export default function Vtxos() {
       }
     }
     fetchData()
-  }, [aspInfo, vtxos, svcWallet, wallet.thresholdMs])
+  }, [aspInfo, vtxos, svcWallet, wallet.thresholdMs, t])
 
   // Fetch inputs to settle
   useEffect(() => {
