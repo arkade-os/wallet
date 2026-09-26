@@ -246,7 +246,7 @@ describe('lnSwapLabel', () => {
   it('localizes the corridor stem and outcome in Spanish', () => {
     const es = (key: string): string => translate(Language.Spanish, key)
     expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'refunded' }), es)).toBe('Envío Lightning reembolsado')
-    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'lost' }), es)).toBe('Recepción Lightning perdido')
+    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'lost' }), es)).toBe('Recepción Lightning perdida')
     expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'settled' }), es)).toBe('Recepción Lightning')
   })
 

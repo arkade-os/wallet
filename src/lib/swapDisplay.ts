@@ -59,16 +59,27 @@ export function swapStatusLabel(tx: Tx, t: Translate): string {
 export function lnSwapLabel(tx: Tx, t: Translate): string | undefined {
   const swap = tx.lnSwap
   if (!swap) return undefined
-  const stem =
-    swap.label === 'Lightning send'
-      ? t('transaction.lightningSend')
-      : swap.label === 'Lightning receive'
-        ? t('transaction.lightningReceive')
-        : (swap.label ?? t('transaction.lightningSend'))
-  if (swap.outcome === 'lost') return `${stem} ${t('transaction.lightningLost')}`
-  if (swap.outcome === 'refunded') return `${stem} ${t('transaction.lightningRefunded')}`
-  if (swap.outcome === 'failed') return `${stem} ${t('transaction.lightningFailed')}`
-  if (swap.outcome === 'pending') return `${stem} ${t('transaction.lightningPending')}`
+  const stemKey = swap.label === 'Lightning send' ? 'Send' : swap.label === 'Lightning receive' ? 'Receive' : undefined
+  if (stemKey) {
+    const suffixKey =
+      swap.outcome === 'pending'
+        ? 'Pending'
+        : swap.outcome === 'refunded'
+          ? 'Refunded'
+          : swap.outcome === 'failed'
+            ? 'Failed'
+            : swap.outcome === 'lost'
+              ? 'Lost'
+              : ''
+    return t(`transaction.lightning${stemKey}${suffixKey}`)
+  }
+  // A corridor label the wallet does not know (a future resolver) is shown
+  // verbatim; the outcome still names itself, matching the resolver copy.
+  const stem = swap.label ?? t('transaction.lightningSend')
+  if (swap.outcome === 'lost') return `${stem} lost`
+  if (swap.outcome === 'refunded') return `${stem} refunded`
+  if (swap.outcome === 'failed') return `${stem} failed`
+  if (swap.outcome === 'pending') return `${stem} pending`
   return stem
 }
 
