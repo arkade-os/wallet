@@ -61,7 +61,7 @@ const TransactionLine = ({
   const prefix = issuance ? '+' : burn || exit || tx.type === 'sent' ? '-' : '+'
   const amountDisplay = useTransactionAmountDisplay(tx)
 
-  const lnSwapKind = lnSwapLabel(tx)
+  const lnSwapKind = lnSwapLabel(tx, t)
   const lnSwapOutcome = tx.lnSwap?.outcome
   const iconTone =
     tx.preconfirmed && tx.boardingTxid
@@ -224,6 +224,7 @@ function SwapAmountInfo({
   toFiatAmount: (satoshis: number, currency: Currencies) => number
   tx: Tx
 }) {
+  const { t } = useTranslation()
   const status = swapStatusForTx(tx)
   const amount = swapUnitOfAccountAmount({
     currency: configFiat,
@@ -242,7 +243,7 @@ function SwapAmountInfo({
 
   return (
     <span className={`activity-row__amount${statusClassName}`}>
-      {amount ? <PrivacyAmount masked={amount.masked}>{amount.value}</PrivacyAmount> : swapStatusLabel(tx)}
+      {amount ? <PrivacyAmount masked={amount.masked}>{amount.value}</PrivacyAmount> : swapStatusLabel(tx, t)}
     </span>
   )
 }

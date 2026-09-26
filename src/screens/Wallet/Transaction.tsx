@@ -85,7 +85,7 @@ export default function Transaction() {
       : txInfo
   const swapTx = tx?.type === 'swap'
   const amountDisplay = useTransactionAmountDisplay(tx)
-  const lnSendReceipt = useLnSendReceipt(tx)
+  const lnSendReceipt = useLnSendReceipt(tx, t)
   const issuanceTx = tx
     ? tx.assetAction === 'issued' || tx.assetAction === 'reissued' || (!tx.assetAction && isIssuance(tx))
     : false
@@ -257,7 +257,7 @@ export default function Transaction() {
         priceRate: swapPriceRateLabel(tx),
         spendLabel: tx.assetSwap?.status === 'cancelled' ? t('transaction.cancelled') : t('transaction.completed'),
         spendTxid: tx.assetSwap?.fillTxid,
-        status: swapStatusLabel(tx),
+        status: swapStatusLabel(tx, t),
         swapFees: swapFeeAmount(tx),
         swapFrom: formatSwapAssetAmount(tx, 'from'),
         // restored swaps may lack feeBps (market card unreachable during the
