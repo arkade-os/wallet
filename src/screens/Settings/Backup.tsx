@@ -65,8 +65,8 @@ export default function Backup() {
 
   const handleCopy = async () => {
     if (!secret) return
-    await copyToClipboard(secret)
-    toast(t('backup.copyToClipboard'))
+    const copied = await copyToClipboard(secret)
+    toast(copied ? t('common.copiedToClipboard') : t('common.failedToCopy'))
   }
 
   const onChangePassword = (e: any) => {
