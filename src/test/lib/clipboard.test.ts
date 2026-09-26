@@ -20,7 +20,7 @@ describe('copyToClipboard', () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
 
-    await copyToClipboard('nsec1secret')
+    await expect(copyToClipboard('nsec1secret')).resolves.toBe(true)
 
     expect(writeText).toHaveBeenCalledWith('nsec1secret')
   })
@@ -33,11 +33,22 @@ describe('copyToClipboard', () => {
     })
     setExecCommand(execCommand)
 
-    await copyToClipboard('hello')
+    await expect(copyToClipboard('hello')).resolves.toBe(true)
 
     expect(textareaVisibleDuringCall).toBe(true)
     expect(execCommand).toHaveBeenCalledWith('copy')
     expect(document.querySelector('textarea')).toBeNull()
+  })
+
+  it('clears the fallback textarea value before removing it', async () => {
+    const removeChild = vi.spyOn(document.body, 'removeChild')
+    setExecCommand(() => true)
+
+    await copyToClipboard('nsec1secret')
+
+    const [removed] = removeChild.mock.calls[0]
+    const textarea = removed as HTMLTextAreaElement
+    expect(textarea.value).toBe('')
   })
 
   it('falls back to execCommand when writeText rejects', async () => {
@@ -46,16 +57,16 @@ describe('copyToClipboard', () => {
     const execCommand = vi.fn(() => true)
     setExecCommand(execCommand)
 
-    await copyToClipboard('hello')
+    await expect(copyToClipboard('hello')).resolves.toBe(true)
 
     expect(writeText).toHaveBeenCalledTimes(1)
     expect(execCommand).toHaveBeenCalledWith('copy')
   })
 
-  it('logs an error and resolves cleanly when both copy paths fail', async () => {
+  it('logs an error and resolves to false when both copy paths fail', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    await copyToClipboard('hello')
+    await expect(copyToClipboard('hello')).resolves.toBe(false)
 
     expect(consoleErrorSpy).toHaveBeenCalledTimes(1)
     const [message] = consoleErrorSpy.mock.calls[0]

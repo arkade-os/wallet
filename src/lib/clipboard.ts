@@ -30,22 +30,25 @@ const copyViaExecCommand = (text: string): boolean => {
     selection?.removeAllRanges()
     selection?.addRange(previousRange)
   }
+  // Clear the value before removal so a MutationObserver retaining the node
+  // cannot read the key material later (see Backup.tsx mnemonic copies).
+  textarea.value = ''
   document.body.removeChild(textarea)
   return ok
 }
 
-export const copyToClipboard = async (text: string): Promise<void> => {
+export const copyToClipboard = async (text: string): Promise<boolean> => {
   if (navigator.clipboard) {
     try {
       await navigator.clipboard.writeText(text)
-      return
+      return true
     } catch (err) {
       consoleError(err, 'error writing to clipboard')
     }
   }
-  if (!copyViaExecCommand(text)) {
-    consoleError(new Error('execCommand("copy") was rejected'), 'error copying via legacy fallback')
-  }
+  if (copyViaExecCommand(text)) return true
+  consoleError(new Error('execCommand("copy") was rejected'), 'error copying via legacy fallback')
+  return false
 }
 
 export const pasteFromClipboard = async (): Promise<string> => {
