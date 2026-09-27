@@ -372,6 +372,10 @@ describe('AssetSwapsProvider restore scan', () => {
     return <span data-testid='restored'>{swaps.map((s) => s.id).join(',') || 'none'}</span>
   }
 
+  /** The gate travels up to the wallet provider, which owns the rows it
+   * qualifies, so a test watches the setter rather than a context field. */
+  let setActivityPending = vi.fn()
+
   const defaultManager = { getContractsWithVtxos: vi.fn().mockResolvedValue([]) }
   const defaultSvcWallet = { identity: {}, getContractManager: async () => defaultManager }
   const tree = (
@@ -383,7 +387,7 @@ describe('AssetSwapsProvider restore scan', () => {
       {
         asp: { network: '', url: 'https://ark.test', signerPubkey },
         // the scan reads the ungrouped rows; `txs` is the grouped display list
-        wallet: { dataReady: true, txs, ungroupedTxs: txs, svcWallet },
+        wallet: { dataReady: true, txs, ungroupedTxs: txs, svcWallet, setActivityPending },
       },
       <ScanHarness />,
     )
@@ -425,6 +429,7 @@ describe('AssetSwapsProvider restore scan', () => {
   beforeEach(async () => {
     await repository.clear()
     restoreAssetSwapRepository.mockReset().mockResolvedValue(result())
+    setActivityPending = vi.fn()
   })
 
   afterEach(async () => await repository.clear())
@@ -539,6 +544,53 @@ describe('AssetSwapsProvider restore scan', () => {
     })
     // and the covenant it settled leaves the watched set
     await waitFor(() => expect(seams.setContractWatchState).toHaveBeenCalledWith(stored.swapPkScript, 'retained'))
+  })
+
+  it('holds the activity list while a scan has funding txs left to answer for', async () => {
+    // The flash this closes: a swap's two txs are ungrouped until the scan
+    // binds them, so the list painted a Sent and a Received and then replaced
+    // both with one Swap row. The gate goes up before the first fetch.
+    const { release } = await renderBlockedScan()
+
+    await waitFor(() => expect(setActivityPending).toHaveBeenLastCalledWith(true))
+    release(result())
+    await waitFor(() => expect(setActivityPending).toHaveBeenLastCalledWith(false))
+  })
+
+  it('never raises the gate for a wallet whose store already covers its history', async () => {
+    // The common case, and the one that must not blink: every sent tx is
+    // already answered, so the pass has nothing to decide and the list paints
+    // its rows on the first frame.
+    const stored: WalletAssetSwap = { ...pendingSwap, status: 'fulfilled', spentTxid: 'fill-txid' }
+    await addAssetSwap(repository, stored)
+    await repository.markTxidsScanned([stored.id])
+
+    render(tree([sentTx(stored.id)]))
+
+    await waitFor(() => expect(restoreAssetSwapRepository).toHaveBeenCalledTimes(1))
+    expect(setActivityPending).not.toHaveBeenCalledWith(true)
+  })
+
+  it('never raises the gate for a record the scan is still re-asking about', async () => {
+    // An open record is re-asked on every pass, by design — but its rows are
+    // already grouped as a Swap row, so blanking the list for it would flash
+    // the wallet on every history change for as long as the swap stays pending.
+    await addAssetSwap(repository, pendingSwap)
+    await repository.markTxidsScanned([pendingSwap.id])
+
+    render(tree([sentTx(pendingSwap.id)]))
+
+    await waitFor(() => expect(restoreAssetSwapRepository).toHaveBeenCalledTimes(1))
+    expect(setActivityPending).not.toHaveBeenCalledWith(true)
+  })
+
+  it('lowers the gate even when the scan throws', async () => {
+    // An indexer outage must not hide the history behind placeholders forever.
+    restoreAssetSwapRepository.mockRejectedValue(new Error('indexer down'))
+
+    render(tree([sentTx('a')]))
+
+    await waitFor(() => expect(setActivityPending).toHaveBeenLastCalledWith(false))
   })
 
   it('delegates records, cursor and coverage to the SDK even with no history rows', async () => {

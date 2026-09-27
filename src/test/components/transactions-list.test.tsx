@@ -42,6 +42,45 @@ describe('TransactionsList', () => {
     expect(screen.queryByText('Sent')).not.toBeInTheDocument()
   })
 
+  /** The list under one wallet context override — the only thing these two
+   * cases vary. */
+  const renderList = (wallet: Record<string, unknown>) =>
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <FlowContext.Provider value={mockFlowContextValue}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, ...wallet } as any}>
+                <TransactionsList mode='static' />
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+  it('shows placeholders instead of ungrouped rows while the activity is pending', () => {
+    const sentTx = { ...mockWalletContextValue.txs[0], roundTxid: 'sent-tx', type: 'sent' }
+    const receivedTx = { ...mockWalletContextValue.txs[0], roundTxid: 'received-tx', type: 'received' }
+
+    const { container } = renderList({ txs: [sentTx, receivedTx], activityPending: true })
+
+    // the two rows a swap would collapse into one are not painted as Sent and
+    // Received first — one placeholder per row stands in until the scan answers
+    expect(screen.queryByText('Sent')).not.toBeInTheDocument()
+    expect(screen.queryByText('Received')).not.toBeInTheDocument()
+    expect(container.querySelectorAll('.activity-row--skeleton')).toHaveLength(2)
+  })
+
+  it('paints the rows once the activity has settled', () => {
+    const sentTx = { ...mockWalletContextValue.txs[0], roundTxid: 'sent-tx', type: 'sent' }
+
+    const { container } = renderList({ txs: [sentTx], activityPending: false })
+
+    expect(screen.getByText('Sent')).toBeInTheDocument()
+    expect(container.querySelectorAll('.activity-row--skeleton')).toHaveLength(0)
+  })
+
   it('formats designated account activity with the underlying asset decimals', () => {
     const tx: Tx = {
       amount: 330,
