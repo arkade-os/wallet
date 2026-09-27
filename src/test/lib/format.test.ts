@@ -15,6 +15,7 @@ import {
   isBurn,
   prettyBitcoinAmount,
   prettyChartDateTime,
+  prettyCurrencyAssetAmount,
 } from '../../lib/format'
 import { Currencies, Tx, Unit } from '../../lib/types'
 import { Asset } from '@arkade-os/sdk'
@@ -104,6 +105,39 @@ describe('format utilities', () => {
       ).toBe('1.00 BTC')
       expect(prettyFiatAmount(2100, Currencies.BTC, { bitcoinUnit: Unit.SATS })).toBe('2,100 sats')
       expect(prettyFiatAmount(2100, Currencies.BTC, { bitcoinUnit: Unit.BIP177 })).toBe('₿2,100')
+    })
+  })
+
+  describe('small asset amounts', () => {
+    it('preserves exact currency-asset amounts for confirmations', () => {
+      expect(prettyCurrencyAssetAmount(BigInt(420000), 8, 'DEPIX')).toBe('0.0042')
+      expect(prettyCurrencyAssetAmount(BigInt(1), 18, 'USDT')).toBe('0.000000000000000001')
+      expect(prettyCurrencyAssetAmount(BigInt('9007199254740993'), 8, 'DEPIX')).toBe('90,071,992.54740993')
+      expect(prettyCurrencyAssetAmount(BigInt(-420000), 8, 'DEPIX')).toBe('-0.0042')
+      expect(prettyCurrencyAssetAmount(BigInt(100000000), 8, 'DEPIX')).toBe('1.00')
+    })
+
+    it('uses a strict bound for compact amounts below the currency minor unit', () => {
+      for (const amount of [BigInt(1), BigInt(420000), BigInt(999999)]) {
+        expect(prettyCurrencyAssetAmount(amount, 8, 'DEPIX', { compact: true })).toBe('<0.01')
+      }
+      expect(prettyCurrencyAssetAmount(BigInt(-1), 8, 'DEPIX', { compact: true })).toBe('>-0.01')
+      expect(prettyCurrencyAssetAmount(BigInt(0), 8, 'DEPIX', { compact: true })).toBe('0.00')
+      expect(prettyCurrencyAssetAmount(BigInt(1000000), 8, 'DEPIX', { compact: true })).toBe('0.01')
+      expect(prettyCurrencyAssetAmount(BigInt(1), 8, 'JPY', { compact: true })).toBe('<1')
+      expect(prettyCurrencyAssetAmount(BigInt(1), 8, undefined)).toBe('0.00000001')
+    })
+
+    it('bounds tiny fiat values without hiding actual zero or rounding up to a cent', () => {
+      for (const amount of [0.000001, 0.0042, 0.009999]) {
+        expect(prettyFiatAmount(amount, Currencies.USD)).toBe('<$0.01')
+      }
+      expect(prettyFiatAmount(-0.0042, Currencies.USD)).toBe('>-$0.01')
+      expect(prettyFiatAmount(0, Currencies.USD)).toBe('$0.00')
+      expect(prettyFiatAmount(0.01, Currencies.USD)).toBe('$0.01')
+      expect(prettyFiatAmount(0.0042, Currencies.BRL)).toBe('<0.01 BRL')
+      expect(prettyFiatAmount(0.4, Currencies.JPY)).toBe('<¥1')
+      expect(prettyFiatAmount(0.000001, Currencies.USD, { maximumFractionDigits: 4 })).toBe('<$0.0001')
     })
   })
 

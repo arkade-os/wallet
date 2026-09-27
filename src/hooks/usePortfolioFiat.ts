@@ -18,6 +18,8 @@ export interface PortfolioRow {
    * Everything the wallet owns, escrow and awaiting-recovery included — this is
    * the reporting figure, not a spending limit. */
   balance: number | bigint
+  /** Full owned precision for display; account spending still uses minor units. */
+  displayBalance?: { amount: bigint; decimals: number }
   /** The spendable subset of {@link balance}, same denomination. Funds locked in
    * a swap covenant, intent-locked or awaiting recovery are excluded, so this is
    * what any selectable amount must be capped at. */
@@ -50,7 +52,6 @@ export function usePortfolioFiat(): PortfolioFiat {
   const { balance, availableBalance, assetBalances, availableAssetBalances, assetMetadataCache, isVerifiedAsset } =
     useContext(WalletContext)
   const { fromFiatAmount, toFiat } = useContext(FiatContext)
-  const convertToSelectedFiat = (amount: number, from: Currencies) => toFiat(fromFiatAmount(amount, from))
 
   const rows: PortfolioRow[] = []
   let totalSats = 0
@@ -90,9 +91,10 @@ export function usePortfolioFiat(): PortfolioFiat {
       }
       const minorUnits = normalizeAssetMinorUnits(BigInt(ab.amount), assetDecimals, accountDecimals)
       const spendableMinorUnits = normalizeAssetMinorUnits(sourceAsset.balance, assetDecimals, accountDecimals)
-      const amount = Decimal.div(minorUnits.toString(), Decimal.pow(10, accountDecimals)).toNumber()
-      const fiatAmount = convertToSelectedFiat(amount, sourceFiat)
-      const satsEquivalent = fromFiatAmount(amount, sourceFiat)
+      const amount = Decimal.div(ab.amount.toString(), Decimal.pow(10, assetDecimals)).toNumber()
+      // Spending conversions floor to whole sats; retain fractional sats for reporting.
+      const satsEquivalent = fromFiatAmount(1, sourceFiat) * amount
+      const fiatAmount = toFiat(satsEquivalent)
       totalSats += satsEquivalent
       rows.push({
         assetId: ab.assetId,
@@ -100,6 +102,7 @@ export function usePortfolioFiat(): PortfolioFiat {
         ticker: sourceFiat,
         decimals: accountDecimals,
         balance: minorUnits,
+        displayBalance: { amount: BigInt(ab.amount), decimals: assetDecimals },
         spendableBalance: spendableMinorUnits,
         fiatAmount,
         satsEquivalent,

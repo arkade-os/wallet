@@ -81,6 +81,7 @@ export default function SendSuccess() {
               <AssetCard
                 assetId={assetId}
                 balance={assetAmountValue}
+                exactAmount
                 decimals={assetDecimals}
                 icon={assetIcon}
                 name={assetName}

@@ -123,7 +123,7 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
       : BigInt(Math.max(0, Math.floor(row.spendableBalance)))
   const formattedBalance = isBitcoin
     ? prettyBitcoinAmount(safeBitcoinBalance, bitcoinUnit)
-    : `${prettyCurrencyAssetAmount(rawBalance, row.decimals, row.ticker)} ${row.ticker}`
+    : `${prettyCurrencyAssetAmount(row.displayBalance?.amount ?? rawBalance, row.displayBalance?.decimals ?? row.decimals, row.ticker, { compact: true })} ${row.ticker}`
   const maskedBalance = isBitcoin ? prettyBitcoinHide(safeBitcoinBalance, bitcoinUnit) : `•••• ${row.ticker}`
   const chartColor = useTokenColor(accountChartColorToken(row.ticker), config.theme)
   const chartTheme = useResolvedChartTheme(config.theme)
