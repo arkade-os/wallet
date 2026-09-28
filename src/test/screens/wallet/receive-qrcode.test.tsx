@@ -19,6 +19,8 @@ import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { NotificationsContext } from '../../../providers/notifications'
 import { ToastProvider } from '../../../components/Toast'
+import { LanguageContext, translate } from '../../../providers/language'
+import { Language } from '../../../lib/types'
 import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
 
 // Mock qr module used by QrCode component
@@ -69,6 +71,7 @@ type RenderOverrides = {
   flow?: Partial<typeof mockFlowContextValue>
   wallet?: Partial<typeof mockWalletContextValue>
   config?: Partial<typeof mockConfigContextValue>
+  language?: Language
 }
 
 function buildTree(overrides?: RenderOverrides) {
@@ -76,26 +79,32 @@ function buildTree(overrides?: RenderOverrides) {
   const wallet = { ...mockWalletContextValue, ...overrides?.wallet }
   const config = { ...mockConfigContextValue, ...overrides?.config }
 
+  const language = overrides?.language ?? Language.English
+
   return (
-    <ToastProvider>
-      <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={mockAspContextValue}>
-          <ConfigContext.Provider value={config as any}>
-            <FiatContext.Provider value={mockFiatContextValue as any}>
-              <NotificationsContext.Provider value={mockNotificationsContextValue as any}>
-                <FlowContext.Provider value={flow as any}>
-                  <WalletContext.Provider value={wallet as any}>
-                    <LimitsContext.Provider value={mockLimitsContextValue}>
-                      <ReceiveQRCode />
-                    </LimitsContext.Provider>
-                  </WalletContext.Provider>
-                </FlowContext.Provider>
-              </NotificationsContext.Provider>
-            </FiatContext.Provider>
-          </ConfigContext.Provider>
-        </AspContext.Provider>
-      </NavigationContext.Provider>
-    </ToastProvider>
+    <LanguageContext.Provider
+      value={{ language, t: (k: string, p?: Record<string, string | number>) => translate(language, k, p) }}
+    >
+      <ToastProvider>
+        <NavigationContext.Provider value={mockNavigationContextValue}>
+          <AspContext.Provider value={mockAspContextValue}>
+            <ConfigContext.Provider value={config as any}>
+              <FiatContext.Provider value={mockFiatContextValue as any}>
+                <NotificationsContext.Provider value={mockNotificationsContextValue as any}>
+                  <FlowContext.Provider value={flow as any}>
+                    <WalletContext.Provider value={wallet as any}>
+                      <LimitsContext.Provider value={mockLimitsContextValue}>
+                        <ReceiveQRCode />
+                      </LimitsContext.Provider>
+                    </WalletContext.Provider>
+                  </FlowContext.Provider>
+                </NotificationsContext.Provider>
+              </FiatContext.Provider>
+            </ConfigContext.Provider>
+          </AspContext.Provider>
+        </NavigationContext.Provider>
+      </ToastProvider>
+    </LanguageContext.Provider>
   )
 }
 
@@ -258,6 +267,20 @@ describe('Receive QR Code screen', () => {
       for (const label of ['Unified', 'Lightning', 'Arkade', 'Bitcoin']) {
         const option = screen.getByText(label)
         expect(stage?.contains(option)).toBe(false)
+      }
+    })
+
+    // The selector is part of a fully translated screen, so its labels have to
+    // come from the dictionary rather than being baked in. Without the three
+    // receive.method* keys this renders English labels inside the Spanish UI.
+    it('translates the method labels like the rest of the screen', async () => {
+      renderReceiveQrCode({ ...amountFixture('lnbc10u1ptest'), language: Language.Spanish })
+
+      await screen.findByText('Unificado')
+      // The other three keep their name in both languages, so only 'Unified'
+      // differs; the point is that it is translated at all.
+      for (const label of ['Unificado', 'Lightning', 'Arkade', 'Bitcoin']) {
+        expect(screen.getByText(label)).toBeInTheDocument()
       }
     })
 

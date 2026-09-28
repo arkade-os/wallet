@@ -274,12 +274,13 @@ export default function ReceiveQRCode() {
    */
   const paymentMethods = useMemo(() => {
     const methods: { id: string; label: string; value: string }[] = []
-    if (bip21Uri) methods.push({ id: 'unified', label: 'Unified', value: bip21Uri })
-    if (recvInfo.invoice) methods.push({ id: 'lightning', label: 'Lightning', value: recvInfo.invoice })
-    if (arkAddress) methods.push({ id: 'ark', label: 'Arkade', value: arkAddress })
-    if (btcAddress) methods.push({ id: 'bitcoin', label: 'Bitcoin', value: btcAddress })
+    if (bip21Uri) methods.push({ id: 'unified', label: t('receive.unified'), value: bip21Uri })
+    if (recvInfo.invoice)
+      methods.push({ id: 'lightning', label: t('receive.methodLightning'), value: recvInfo.invoice })
+    if (arkAddress) methods.push({ id: 'ark', label: t('receive.methodArkade'), value: arkAddress })
+    if (btcAddress) methods.push({ id: 'bitcoin', label: t('receive.methodBitcoin'), value: btcAddress })
     return methods
-  }, [bip21Uri, recvInfo.invoice, arkAddress, btcAddress])
+  }, [bip21Uri, recvInfo.invoice, arkAddress, btcAddress, t])
 
   // What the QR encodes, and what the selector highlights, are two different
   // questions. The *choice* is `selectedMethod` and it is remembered even while
