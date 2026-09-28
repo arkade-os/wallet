@@ -195,7 +195,7 @@ describe('Receive QR Code screen', () => {
     it('defaults to the unified URI when a Lightning invoice exists', async () => {
       renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
 
-      await screen.findByText('Lightning invoice')
+      await screen.findByText('Lightning')
       const qrButton = await screen.findByRole('button', { name: 'Copy QR code' })
       await act(async () => {
         fireEvent.click(qrButton)
@@ -209,7 +209,7 @@ describe('Receive QR Code screen', () => {
     it('copies the raw invoice after selecting Lightning, not the unified URI', async () => {
       renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
 
-      const option = await screen.findByText('Lightning invoice')
+      const option = await screen.findByText('Lightning')
       await act(async () => {
         fireEvent.click(option)
       })
@@ -226,7 +226,7 @@ describe('Receive QR Code screen', () => {
     it('does not copy anything just because a method was selected', async () => {
       renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
 
-      const option = await screen.findByText('Lightning invoice')
+      const option = await screen.findByText('Lightning')
       await act(async () => {
         fireEvent.click(option)
       })
@@ -240,7 +240,7 @@ describe('Receive QR Code screen', () => {
       renderReceiveQrCode(amountFixture(''))
 
       await screen.findByText('Unified')
-      expect(screen.queryByText('Lightning invoice')).not.toBeInTheDocument()
+      expect(screen.queryByText('Lightning')).not.toBeInTheDocument()
     })
 
     // Regression: the selector used to be a child of .receive-invoice-stage,
@@ -251,11 +251,11 @@ describe('Receive QR Code screen', () => {
     it('renders the selector outside the QR stage, not stacked under it', async () => {
       const { container } = renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
 
-      await screen.findByText('Lightning invoice')
+      await screen.findByText('Lightning')
       const stage = container.querySelector('.receive-invoice-stage')
       expect(stage).toBeInTheDocument()
       expect(stage).not.toBeNull()
-      for (const label of ['Unified', 'Lightning invoice', 'Arkade address', 'Bitcoin address']) {
+      for (const label of ['Unified', 'Lightning', 'Arkade', 'Bitcoin']) {
         const option = screen.getByText(label)
         expect(stage?.contains(option)).toBe(false)
       }

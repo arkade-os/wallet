@@ -431,13 +431,17 @@ export default function ReceiveQRCode() {
    * The Lightning entry only exists once a solver has minted an invoice, which
    * needs an amount of at least the corridor minimum — below that there is
    * nothing to offer and the entry is simply absent.
+   *
+   * Labels are deliberately short: these sit in a horizontal control, and
+   * "Lightning invoice" / "Arkade address" crowd it on a narrow phone. The copy
+   * sheet keeps the descriptive wording, where the row shows the value anyway.
    */
   const paymentMethods = useMemo(() => {
     const methods: { id: string; label: string; value: string }[] = []
     if (bip21Uri) methods.push({ id: 'unified', label: 'Unified', value: bip21Uri })
-    if (recvInfo.invoice) methods.push({ id: 'lightning', label: 'Lightning invoice', value: recvInfo.invoice })
-    if (arkAddress) methods.push({ id: 'ark', label: 'Arkade address', value: arkAddress })
-    if (btcAddress) methods.push({ id: 'bitcoin', label: 'Bitcoin address', value: btcAddress })
+    if (recvInfo.invoice) methods.push({ id: 'lightning', label: 'Lightning', value: recvInfo.invoice })
+    if (arkAddress) methods.push({ id: 'ark', label: 'Arkade', value: arkAddress })
+    if (btcAddress) methods.push({ id: 'bitcoin', label: 'Bitcoin', value: btcAddress })
     return methods
   }, [bip21Uri, recvInfo.invoice, arkAddress, btcAddress])
 
