@@ -3,8 +3,10 @@ import { faucetOffchain } from './fundedWallet'
 import { sleep } from '../../lib/sleep'
 import { exec } from 'child_process'
 import { promisify } from 'util'
+import { translations } from '../../lib/i18n'
 
 const execAsync = promisify(exec)
+const tr = translations.en
 
 export const test = base.extend({
   page: async ({ page }, use) => {
@@ -34,14 +36,14 @@ export { expect } from '@playwright/test'
  * and then waits for the wallet page.
  */
 export async function waitForWalletPage(page: Page, timeout = 60000): Promise<void> {
-  const sendBtn = page.getByText('Send', { exact: true })
+  const sendBtn = page.getByText(tr.wallet.send, { exact: true })
   const continueBtn = page.getByText('Continue anyway')
   await sendBtn.or(continueBtn).first().waitFor({ state: 'visible', timeout })
   if (await continueBtn.isVisible()) {
     await continueBtn.click()
     await sendBtn.waitFor({ state: 'visible', timeout: 30000 })
   }
-  const dismissButton = page.getByText('Dismiss')
+  const dismissButton = page.getByText(tr.common.dismiss)
   if (await dismissButton.isVisible().catch(() => false)) {
     await dismissButton.click()
   }
@@ -58,16 +60,16 @@ interface MintAssetOptions {
 
 export async function navigateToAssets(page: Page): Promise<void> {
   await navigateToSettings(page)
-  await page.getByText('advanced', { exact: true }).click()
-  await page.getByText('Arkade Mint', { exact: true }).click()
-  await page.waitForSelector('text=Arkade Mint', { state: 'visible' })
+  await page.getByText(tr.settings.advanced, { exact: true }).click()
+  await page.getByText(tr.settings.arkadeMint, { exact: true }).click()
+  await page.waitForSelector(`text=${tr.settings.arkadeMint}`, { state: 'visible' })
 }
 
 export async function navigateHome(page: Page): Promise<void> {
   const homeReceive = page.getByTestId('home-action-receive')
   if (await homeReceive.isVisible().catch(() => false)) return
 
-  const backBtn = page.getByLabel('Go back')
+  const backBtn = page.getByLabel(tr.common.back)
   for (let i = 0; i < 8; i++) {
     if (await homeReceive.isVisible().catch(() => false)) return
     if (!(await backBtn.isVisible({ timeout: 300 }).catch(() => false))) break
@@ -84,16 +86,16 @@ export async function navigateHome(page: Page): Promise<void> {
 export async function enableAssets(page: Page): Promise<void> {
   await navigateToAssets(page)
   await page.getByTestId('header-aux-btn').click()
-  await page.waitForSelector('text=Arkade Mint settings', { state: 'visible' })
+  await page.waitForSelector(`text=${tr.mint.settingsTitle}`, { state: 'visible' })
   await page.getByTestId('assets-toggle').click()
-  await page.getByLabel('Go back').click()
+  await page.getByLabel(tr.common.back).click()
 }
 
 export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<void> {
   await sleep(3000)
   await navigateToAssets(page)
-  await page.getByText('Mint', { exact: true }).click()
-  await page.waitForSelector('text=Mint Asset', { state: 'visible' })
+  await page.getByText(tr.mint.mint, { exact: true }).click()
+  await page.waitForSelector(`text=${tr.mint.title}`, { state: 'visible' })
 
   // fill amount
   await page.getByTestId('asset-amount').fill(opts.amount)
@@ -109,69 +111,69 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
 
   // select control mode if specified
   if (opts.controlMode === 'mint-new') {
-    await page.getByText('New').click()
+    await page.getByText(tr.mint.new, { exact: true }).click()
     if (opts.ctrlAmount !== undefined) {
       const ctrlAmountInput = page.getByTestId('control-asset-amount')
       await ctrlAmountInput.clear()
       await ctrlAmountInput.fill(opts.ctrlAmount.toString())
     }
   } else if (opts.controlMode === 'existing') {
-    await page.getByText('Existing').click()
+    await page.getByText(tr.mint.existing, { exact: true }).click()
   }
 
   // submit
-  await page.getByText('Mint', { exact: true }).click()
+  await page.getByText(tr.mint.mint, { exact: true }).click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 10000 })
-  await page.waitForSelector('text=Asset minted!', { timeout: 60000 })
+  await page.waitForSelector(`text=${tr.mint.assetMinted}`, { timeout: 60000 })
 }
 
 export async function createWallet(page: Page): Promise<void> {
   await page.goto('/')
-  await page.getByText('+ Create wallet').click()
+  await page.getByText(`+ ${tr.init.createWallet}`).click()
   await waitForWalletPage(page)
 }
 
 export async function createWalletWithFiat(page: Page): Promise<void> {
   await createWallet(page)
   await navigateToSettings(page)
-  await page.getByText('currency').click()
+  await page.getByText(tr.settings.currency).click()
   await page.getByText('USD').click()
-  await page.getByLabel('Go back').click()
-  await page.getByLabel('Go back').click()
+  await page.getByLabel(tr.common.back).click()
+  await page.getByLabel(tr.common.back).click()
   await navigateHome(page)
 }
 
 export async function createWalletWithPassword(page: Page, password: string): Promise<void> {
   await createWallet(page)
   await navigateToSettings(page)
-  await page.getByText('Advanced').click()
-  await page.getByText('Change password').click()
+  await page.getByText(tr.settings.advanced).click()
+  await page.getByText(tr.settings.changePassword).click()
   await page.locator('div[data-testid="new-password"] input').fill(password)
   await page.locator('div[data-testid="confirm-password"] input').fill(password)
-  await page.getByText('Save password').click()
+  await page.getByText(tr.components.savePassword).click()
   // go back from Password → Advanced → Menu, then close settings
-  await page.getByLabel('Go back').click()
-  await page.getByLabel('Go back').click()
-  await page.getByLabel('Go back').click()
+  await page.getByLabel(tr.common.back).click()
+  await page.getByLabel(tr.common.back).click()
+  await page.getByLabel(tr.common.back).click()
 }
 
 export async function createWalletAndGetBIP21(page: Page, isMobile?: boolean, sats?: number): Promise<string> {
   await createWallet(page)
   await sleep(1000)
-  await page.getByText('Receive', { exact: true }).click()
+  await page.getByText(tr.wallet.receive, { exact: true }).click()
 
   if (sats) {
-    await page.getByText('Edit amount').click()
+    await page.getByText(tr.receive.editAmount).click()
     if (isMobile) {
       await handleKeyboardInput(page, sats)
     } else {
       await page.locator('input[name="receive-amount-sheet"]').fill(sats.toString())
-      await page.getByText('Set amount').click()
+      await page.getByText(tr.receive.setAmount).click()
     }
   }
 
-  await page.waitForSelector('text=Copy', { state: 'visible' })
-  await page.getByText('Copy').click()
+  await page.waitForSelector(`text=${tr.common.copy}`, { state: 'visible' })
+  await page.getByText(tr.common.copy).click()
   await page.getByTestId('bip21-address-copy').click()
   const bip21 = await readClipboard(page)
   return bip21
@@ -191,7 +193,7 @@ export async function getInvoiceFromLND(amount = 2100): Promise<string> {
 export async function prePay(page: Page, address: string, isMobile = false, amount = 0): Promise<void> {
   // go to send page
   await navigateHome(page)
-  await page.getByText('Send').click()
+  await page.getByText(tr.wallet.send, { exact: true }).click()
 
   // fill address
   await page.locator('input[name="send-address"]').fill(address)
@@ -201,7 +203,7 @@ export async function prePay(page: Page, address: string, isMobile = false, amou
   if (amount) {
     if (isMobile) {
       await page.locator('input[name="send-amount"]').click()
-      await page.waitForSelector('text=Save', { state: 'visible' })
+      await page.waitForSelector(`text=${tr.common.save}`, { state: 'visible' })
       await handleKeyboardInput(page, amount)
     } else {
       await page.locator('input[name="send-amount"]').fill(amount.toString())
@@ -209,7 +211,7 @@ export async function prePay(page: Page, address: string, isMobile = false, amou
   }
 
   // continue to details page
-  await page.getByText('Continue').click()
+  await page.getByText(tr.common.continue, { exact: true }).click()
 }
 
 /** Dismiss the payment-success screen and return home. Two shapes coexist:
@@ -225,25 +227,25 @@ export async function pay(page: Page, address: string, isMobile = false, sats = 
   await prePay(page, address, isMobile, sats)
 
   // continue to send
-  await page.getByText('Tap to Sign').click()
+  await page.getByText(tr.send.tapToSign, { exact: true }).click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await page.waitForSelector('text=Payment sent', { timeout: 30000 })
+  await page.waitForSelector(`text=${tr.send.paymentSent}`, { timeout: 30000 })
   await dismissPaymentSuccess(page, 30000)
 }
 
 async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = false, sats = 0): Promise<string> {
   // go to receive page
   await navigateHome(page)
-  await page.getByText('Receive', { exact: true }).click()
+  await page.getByText(tr.wallet.receive, { exact: true }).click()
 
   // fill amount to receive if provided
   if (sats && type === 'invoice') {
-    await page.getByText('Add amount').click()
+    await page.getByText(tr.receive.addAmount).click()
     if (isMobile) {
       await handleKeyboardInput(page, sats)
     } else {
       await page.locator('input[name="receive-amount-sheet"]').fill(sats.toString())
-      await page.getByText('Set amount').click()
+      await page.getByText(tr.receive.setAmount).click()
     }
   }
 
@@ -268,39 +270,39 @@ export async function receiveLightning(page: Page, isMobile: boolean, sats: numb
 export async function navigateToSettings(page: Page): Promise<void> {
   if (
     await page
-      .getByText('Settings', { exact: true })
+      .getByText(tr.settings.title, { exact: true })
       .isVisible()
       .catch(() => false)
   )
     return
   await navigateHome(page)
   await page.getByTestId('top-right-settings').click()
-  await page.getByText('Settings', { exact: true }).waitFor({ state: 'visible', timeout: 30000 })
+  await page.getByText(tr.settings.title, { exact: true }).waitFor({ state: 'visible', timeout: 30000 })
 }
 
 export async function resetWallet(page: Page): Promise<void> {
   await navigateToSettings(page)
-  await page.getByText('Reset wallet').click()
+  await page.getByText(tr.settings.resetWallet, { exact: true }).click()
   await page.getByTestId('checkbox').click()
-  await page.getByRole('contentinfo').getByText('Reset wallet').click()
+  await page.getByRole('contentinfo').getByText(tr.settings.resetWallet, { exact: true }).click()
 }
 
 async function getSecret(page: Page): Promise<string> {
   await navigateToSettings(page)
-  await page.getByText('backup', { exact: true }).click()
+  await page.getByText(tr.settings.backup, { exact: true }).click()
   // Mnemonic wallets show "View recovery phrase", legacy shows "View private key"
-  const viewBtn = page.getByText('View recovery phrase').or(page.getByText('View private key'))
+  const viewBtn = page.getByText(tr.backup.viewRecoveryPhrase).or(page.getByText(tr.backup.viewPrivateKey))
   await viewBtn.click()
-  await page.getByText('Confirm').click()
+  await page.getByText(tr.common.confirm, { exact: true }).click()
   const secret = await page.getByTestId('private-key').innerText()
   return secret
 }
 
 async function restoreWallet(page: Page, nsec: string): Promise<void> {
-  await page.getByText('Other login options').click()
-  await page.getByText('Restore wallet').click()
+  await page.getByText(tr.init.otherLoginOptions).click()
+  await page.getByText(tr.init.restoreWallet).click()
   await page.locator('input[name="private-key"]').fill(nsec)
-  await page.getByText('Continue').click()
+  await page.getByText(tr.common.continue, { exact: true }).click()
   await waitForWalletPage(page)
 }
 
@@ -309,7 +311,7 @@ export async function fundWallet(page: Page, amount: number = 5000): Promise<num
   await faucetOffchain(arkAddress, amount)
   await waitForPaymentReceived(page)
   await navigateHome(page)
-  await page.getByText('Received').waitFor({ timeout: 10000 })
+  await page.getByText(tr.transaction.received).waitFor({ timeout: 10000 })
   const balanceText = await page.getByTestId('main-balance').innerText()
   const normalized = balanceText.replace(/[^\d.-]/g, '')
   const num = Number(normalized)
@@ -338,17 +340,17 @@ export function readClipboard(page: Page): Promise<string> {
 }
 
 export async function waitForPaymentReceived(page: Page): Promise<void> {
-  await page.waitForSelector('text=Payment received', { timeout: 60000 })
+  await page.waitForSelector(`text=${tr.transaction.paymentReceived}`, { timeout: 60000 })
   await dismissPaymentSuccess(page)
 }
 
 export async function handleKeyboardInput(page: Page, sats: number): Promise<void> {
-  await page.waitForSelector('text=Save', { state: 'visible' })
+  await page.waitForSelector(`text=${tr.common.save}`, { state: 'visible' })
   const digits = sats.toString().split('')
   for (const digit of digits) {
     await page.getByTestId(`keyboard-${digit}`).click()
   }
-  await page.getByText('Save').click()
+  await page.getByText(tr.common.save, { exact: true }).click()
 }
 
 export async function getFeesFromDetails(page: Page): Promise<number> {
@@ -359,7 +361,7 @@ export async function getFeesFromDetails(page: Page): Promise<number> {
 export async function navigateToSwaps(page: Page): Promise<void> {
   await navigateHome(page)
   await page.getByTestId('home-action-swap').click()
-  await page.waitForSelector('text=Choose asset to swap', { timeout: 2000 })
+  await page.waitForSelector(`text=${tr.swap.chooseAssetToSwap}`, { timeout: 2000 })
 }
 
 export const mockSolverCard = {

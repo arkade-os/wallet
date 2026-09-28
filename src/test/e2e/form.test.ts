@@ -11,6 +11,9 @@ import {
   createWalletAndGetBIP21,
   handleKeyboardInput,
 } from './utils'
+import { translations } from '../../lib/i18n'
+
+const tr = translations.en
 
 const someArkAddress =
   'tark1qr340xg400jtxat9hdd0ungyu6s05zjtdf85uj9smyzxshf98nda' +
@@ -77,7 +80,7 @@ test.skip('should prioritize lnurl if no invoice or ark address are present', as
   await fundWallet(page, 5000)
 
   // send page
-  await page.getByText('Send').click()
+  await page.getByText(tr.wallet.send).click()
 
   // fill address
   await page.locator('input[name="send-address"]').fill(bip21WithLnUrl)
@@ -102,7 +105,7 @@ test('should keep entered amount when BIP-21 has no amount parameter', async ({ 
   await fundWallet(page, 5000)
 
   // go to send page
-  await page.getByText('Send').click()
+  await page.getByText(tr.wallet.send).click()
 
   // enter amount before parsing BIP-21 recipient
   if (isMobile) {
