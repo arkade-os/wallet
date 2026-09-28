@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, act, fireEvent } from '@testing-library/react'
+import { render, screen, act, fireEvent, waitFor } from '@testing-library/react'
 import { FlowContext } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import {
@@ -19,7 +19,7 @@ import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { NotificationsContext } from '../../../providers/notifications'
 import { ToastProvider } from '../../../components/Toast'
-import ReceiveQRCode, { resolveQrValue } from '../../../screens/Wallet/Receive/QrCode'
+import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
 
 // Mock qr module used by QrCode component
 vi.mock('qr', () => ({
@@ -260,34 +260,43 @@ describe('Receive QR Code screen', () => {
         expect(stage?.contains(option)).toBe(false)
       }
     })
-  })
-})
 
-describe('resolveQrValue', () => {
-  const opts = { bip21: 'bitcoin:unified', btc: 'bc1addr', ark: 'ark1addr', invoice: 'lnbc10u1p' }
+    // Changing the amount clears the invoice so the solver renegotiates (see
+    // the amount handler), and the replacement arrives under a new preimage.
+    // The choice has to outlast that: tracking the *invoice* instead of the
+    // method dropped the user back to unified permanently, which is the one
+    // flow where Lightning is what they picked in the first place.
+    it('restores the Lightning selection when a different invoice arrives', async () => {
+      const { rerender } = renderReceiveQrCode(amountFixture('lnbcOLD'))
+      await act(async () => {
+        fireEvent.click(await screen.findByText('Lightning'))
+      })
 
-  it('defaults to the unified BIP21 URI when nothing is selected', () => {
-    expect(resolveQrValue('', opts)).toBe('bitcoin:unified')
-  })
+      rerender(buildTree(amountFixture('lnbcNEW')))
+      const qrButton = await screen.findByRole('button', { name: 'Copy QR code' })
+      await act(async () => {
+        fireEvent.click(qrButton)
+      })
 
-  it('keeps an explicit selection that is still on offer', () => {
-    expect(resolveQrValue('ark1addr', opts)).toBe('ark1addr')
-    expect(resolveQrValue('bc1addr', opts)).toBe('bc1addr')
-  })
+      // The pick comes back with the new preimage, instead of needing to be
+      // made again after every amount tweak.
+      expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).toBe('lnbcNEW')
+    })
 
-  it('keeps a selected Lightning invoice, which pure off-chain wallets need', () => {
-    // The invoice is only in the candidate set because it is a real option the
-    // user can pick: below the corridor minimum there is no invoice, and above
-    // it this is the only string a Lightning-only wallet can read.
-    expect(resolveQrValue('lnbc10u1p', opts)).toBe('lnbc10u1p')
-  })
+    it('never highlights a method it has no value for', async () => {
+      const { rerender } = renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
+      await act(async () => {
+        fireEvent.click(await screen.findByText('Lightning'))
+      })
 
-  it('falls back to the unified URI when the selection is no longer offered', () => {
-    // e.g. the previously-selected address was regenerated / cleared
-    expect(resolveQrValue('ark1stale', opts)).toBe('bitcoin:unified')
-    expect(resolveQrValue('ark1addr', { ...opts, ark: '' })).toBe('bitcoin:unified')
-    // a re-minted invoice leaves the old one unselectable
-    expect(resolveQrValue('lnbcOLD', opts)).toBe('bitcoin:unified')
-    expect(resolveQrValue('lnbc10u1p', { ...opts, invoice: '' })).toBe('bitcoin:unified')
+      rerender(buildTree(amountFixture('')))
+      // The Lightning entry is absent while there is no invoice, so the
+      // highlight has to move somewhere true — a lit option with no value
+      // behind it is what the user just asked to be handed.
+      await waitFor(() => {
+        expect(screen.queryByText('Lightning')).not.toBeInTheDocument()
+      })
+      expect(screen.getByText('Unified')).toBeInTheDocument()
+    })
   })
 })

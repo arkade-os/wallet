@@ -54,21 +54,6 @@ import { useTranslation } from '../../../providers/language'
 /** Throw marker the catch side maps to a translatable message in the UI. */
 const NO_LIGHTNING_SOLVER_ERROR = 'no_lightning_solver'
 
-/**
- * Decide which value the QR should encode. Honours an explicit copy-sheet
- * selection, but only while that value is still one we currently offer — once
- * the selected address is regenerated or removed (e.g. an amount
- * change), fall back to the unified BIP21 URI. This stops async rebuilds from
- * silently reverting the user's pick and copying the wrong thing.
- */
-export const resolveQrValue = (
-  selected: string,
-  options: { bip21: string; btc: string; ark: string; invoice: string },
-): string => {
-  const candidates = [options.bip21, options.btc, options.ark, options.invoice].filter(Boolean)
-  return selected && candidates.includes(selected) ? selected : options.bip21
-}
-
 export default function ReceiveQRCode() {
   const { aspInfo } = useContext(AspContext)
   const { isRegistered } = useContext(AssetsContext)
@@ -111,8 +96,10 @@ export default function ReceiveQRCode() {
   const [noPaymentMethods, setNoPaymentMethods] = useState(false)
   const [arkAddress, setArkAddress] = useState(offchainAddr)
   const [btcAddress, setBtcAddress] = useState(boardingAddr)
-  const [qrCodeValue, setQrCodeValue] = useState('')
-  const [selectedValue, setSelectedValue] = useState('')
+  // The user's chosen payment method. This is the source of truth, not the
+  // encoded value: an invoice is re-minted on every amount change, so a
+  // value-keyed selection would be dropped and never come back. Keying on the
+  // method id lets the choice survive the invoice being briefly absent.
   const [selectedMethod, setSelectedMethod] = useState('unified')
   const [bip21Uri, setBip21Uri] = useState('')
   const [lnReceiveError, setLnReceiveError] = useState('')
@@ -266,22 +253,47 @@ export default function ReceiveQRCode() {
     setArkAddress(ark)
     setBtcAddress(btc)
     setBip21Uri(bip21)
-    // Preserve an explicit payment-method selection across rebuilds; only fall back
-    // to the unified URI when the selected value is no longer one we offer.
-    const resolved = resolveQrValue(selectedValue, { bip21, btc, ark, invoice: recvInfo.invoice ?? '' })
-    setQrCodeValue(resolved)
-    // The highlighted method has to follow the fallback, or the selector would
-    // stay lit on a method whose value was just dropped.
-    if (resolved !== selectedValue) setSelectedMethod('unified')
-  }, [
-    assetAmount,
-    addressesLoaded,
-    selectedValue,
-    recvInfo.offchainAddr,
-    recvInfo.boardingAddr,
-    recvInfo.satoshis,
-    recvInfo.invoice,
-  ])
+  }, [assetAmount, addressesLoaded, isAssetReceive, recvInfo.offchainAddr, recvInfo.boardingAddr])
+
+  /**
+   * The payment methods we can render right now, in display order.
+   *
+   * Keyed off a stable id rather than the URI itself: the Lightning invoice is
+   * re-minted whenever the amount is renegotiated, so a selection tracked by
+   * value would silently fall back to unified on the next rebuild and never come
+   * back. The ids are what the selector and the copy sheet both key off, so
+   * choosing a method means the same thing wherever it is changed from.
+   *
+   * The Lightning entry only exists once a solver has minted an invoice, which
+   * needs an amount of at least the corridor minimum — below that there is
+   * nothing to offer and the entry is simply absent.
+   *
+   * Labels are deliberately short: these sit in a horizontal control, and
+   * "Lightning invoice" / "Arkade address" crowd it on a narrow phone. The copy
+   * sheet keeps the descriptive wording, where the row shows the value anyway.
+   */
+  const paymentMethods = useMemo(() => {
+    const methods: { id: string; label: string; value: string }[] = []
+    if (bip21Uri) methods.push({ id: 'unified', label: 'Unified', value: bip21Uri })
+    if (recvInfo.invoice) methods.push({ id: 'lightning', label: 'Lightning', value: recvInfo.invoice })
+    if (arkAddress) methods.push({ id: 'ark', label: 'Arkade', value: arkAddress })
+    if (btcAddress) methods.push({ id: 'bitcoin', label: 'Bitcoin', value: btcAddress })
+    return methods
+  }, [bip21Uri, recvInfo.invoice, arkAddress, btcAddress])
+
+  // What the QR encodes, and what the selector highlights, are two different
+  // questions. The *choice* is `selectedMethod` and it is remembered even while
+  // the method is momentarily un-offerable (an invoice being re-negotiated), so
+  // it comes back on its own. What we *show* has to be something we actually
+  // hold right now, so it falls back to unified — and the highlight follows the
+  // fallback, because leaving it lit on a method with no value is a lie.
+  const activeMethod = useMemo(() => {
+    if (paymentMethods.some((m) => m.id === selectedMethod)) return selectedMethod
+    if (paymentMethods.some((m) => m.id === 'unified')) return 'unified'
+    return paymentMethods[0]?.id ?? ''
+  }, [paymentMethods, selectedMethod])
+
+  const qrCodeValue = paymentMethods.find((m) => m.id === activeMethod)?.value ?? ''
 
   // Payment listener
   useEffect(() => {
@@ -420,42 +432,13 @@ export default function ReceiveQRCode() {
   const hasAmount = assetMeta ? assetAmount > BigInt(0) : satoshis > 0
 
   /**
-   * The payment methods we can render right now, in display order.
-   *
-   * Keyed off a stable id rather than the URI itself: the Lightning invoice is
-   * re-minted whenever the amount is renegotiated, so a selection tracked by
-   * value would silently fall back to unified on the next rebuild. The ids are
-   * what the selector and the copy sheet both key off, so choosing a method
-   * means the same thing wherever it is changed from.
-   *
-   * The Lightning entry only exists once a solver has minted an invoice, which
-   * needs an amount of at least the corridor minimum — below that there is
-   * nothing to offer and the entry is simply absent.
-   *
-   * Labels are deliberately short: these sit in a horizontal control, and
-   * "Lightning invoice" / "Arkade address" crowd it on a narrow phone. The copy
-   * sheet keeps the descriptive wording, where the row shows the value anyway.
-   */
-  const paymentMethods = useMemo(() => {
-    const methods: { id: string; label: string; value: string }[] = []
-    if (bip21Uri) methods.push({ id: 'unified', label: 'Unified', value: bip21Uri })
-    if (recvInfo.invoice) methods.push({ id: 'lightning', label: 'Lightning', value: recvInfo.invoice })
-    if (arkAddress) methods.push({ id: 'ark', label: 'Arkade', value: arkAddress })
-    if (btcAddress) methods.push({ id: 'bitcoin', label: 'Bitcoin', value: btcAddress })
-    return methods
-  }, [bip21Uri, recvInfo.invoice, arkAddress, btcAddress])
-
-  /**
    * Point the QR at one method. Selecting only chooses what is shown — the Copy
    * button still copies whatever is on screen, so choosing a method never
    * overwrites the clipboard behind the user's back.
    */
   const handleMethodChange = (id: string) => {
-    const method = paymentMethods.find((m) => m.id === id)
-    if (!method) return
+    if (!paymentMethods.some((m) => m.id === id)) return
     setSelectedMethod(id)
-    setSelectedValue(method.value)
-    setQrCodeValue(method.value)
   }
 
   // Mobile keyboard — bypass sheet on save, go straight to QR
@@ -526,7 +509,7 @@ export default function ReceiveQRCode() {
                 <div className='mt-20 mb-3'>
                   <SegmentedControl
                     options={paymentMethods.map((m) => m.id)}
-                    selected={selectedMethod}
+                    selected={activeMethod}
                     onChange={handleMethodChange}
                     getLabel={(id) => paymentMethods.find((m) => m.id === id)?.label ?? id}
                   />
