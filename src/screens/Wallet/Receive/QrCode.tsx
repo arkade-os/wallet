@@ -434,13 +434,12 @@ export default function ReceiveQRCode() {
    */
   const paymentMethods = useMemo(() => {
     const methods: { id: string; label: string; value: string }[] = []
-    if (bip21Uri) methods.push({ id: 'unified', label: t('receive.unified'), value: bip21Uri })
-    if (recvInfo.invoice)
-      methods.push({ id: 'lightning', label: t('receive.lightningInvoice'), value: recvInfo.invoice })
-    if (arkAddress) methods.push({ id: 'ark', label: t('receive.arkadeAddress'), value: arkAddress })
-    if (btcAddress) methods.push({ id: 'bitcoin', label: t('receive.bitcoinAddress'), value: btcAddress })
+    if (bip21Uri) methods.push({ id: 'unified', label: 'Unified', value: bip21Uri })
+    if (recvInfo.invoice) methods.push({ id: 'lightning', label: 'Lightning invoice', value: recvInfo.invoice })
+    if (arkAddress) methods.push({ id: 'ark', label: 'Arkade address', value: arkAddress })
+    if (btcAddress) methods.push({ id: 'bitcoin', label: 'Bitcoin address', value: btcAddress })
     return methods
-  }, [bip21Uri, recvInfo.invoice, arkAddress, btcAddress, t])
+  }, [bip21Uri, recvInfo.invoice, arkAddress, btcAddress])
 
   /**
    * Point the QR at one method. Selecting only chooses what is shown — the Copy
