@@ -514,8 +514,24 @@ export default function ReceiveQRCode() {
                   ) : null}
                 </FlexCol>
               ) : null}
+              {/* Outside the stage on purpose: `.receive-invoice-stage > *` puts
+                  every child in `grid-area: 1 / 1`, so anything placed inside is
+                  stacked exactly under the QR — the QR then paints over it and
+                  swallows the taps, which read as "selecting copies". */}
+              {paymentMethods.length > 1 ? (
+                <div className='mt-20 mb-3'>
+                  <SegmentedControl
+                    options={paymentMethods.map((m) => m.id)}
+                    selected={selectedMethod}
+                    onChange={handleMethodChange}
+                    getLabel={(id) => paymentMethods.find((m) => m.id === id)?.label ?? id}
+                  />
+                </div>
+              ) : null}
               <div
-                className='receive-invoice-stage mt-20 aspect-square w-full max-w-85'
+                className={`receive-invoice-stage aspect-square w-full max-w-85 ${
+                  paymentMethods.length > 1 ? '' : 'mt-20'
+                }`}
                 data-generating={generatingInvoice}
               >
                 <div
@@ -540,16 +556,6 @@ export default function ReceiveQRCode() {
                       : '\u00a0'}
                   </Text>
                 </div>
-                {paymentMethods.length > 1 ? (
-                  <div style={{ marginBottom: '0.75rem' }}>
-                    <SegmentedControl
-                      options={paymentMethods.map((m) => m.id)}
-                      selected={selectedMethod}
-                      onChange={handleMethodChange}
-                      getLabel={(id) => paymentMethods.find((m) => m.id === id)?.label ?? id}
-                    />
-                  </div>
-                ) : null}
                 <button
                   type='button'
                   className='receive-invoice-qr'

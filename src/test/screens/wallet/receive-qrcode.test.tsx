@@ -242,6 +242,24 @@ describe('Receive QR Code screen', () => {
       await screen.findByText('Unified')
       expect(screen.queryByText('Lightning invoice')).not.toBeInTheDocument()
     })
+
+    // Regression: the selector used to be a child of .receive-invoice-stage,
+    // whose `> *` rule assigns grid-area: 1 / 1. That stacked it exactly under
+    // the QR, so the QR painted over it and ate the taps — selecting looked like
+    // it copied, because the tap landed on the QR button. jsdom does no layout,
+    // so only the containment itself is assertable here.
+    it('renders the selector outside the QR stage, not stacked under it', async () => {
+      const { container } = renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
+
+      await screen.findByText('Lightning invoice')
+      const stage = container.querySelector('.receive-invoice-stage')
+      expect(stage).toBeInTheDocument()
+      expect(stage).not.toBeNull()
+      for (const label of ['Unified', 'Lightning invoice', 'Arkade address', 'Bitcoin address']) {
+        const option = screen.getByText(label)
+        expect(stage?.contains(option)).toBe(false)
+      }
+    })
   })
 })
 
