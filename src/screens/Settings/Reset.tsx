@@ -11,9 +11,11 @@ import { consoleError } from '../../lib/logs'
 import { WalletAlternativeIcon } from '../../icons/Wallet'
 import CenterScreen from '../../components/CenterScreen'
 import FlexCol from '../../components/FlexCol'
+import { useTranslation } from '../../providers/language'
 
 export default function Reset() {
   const { resetWallet } = useContext(WalletContext)
+  const { t } = useTranslation()
 
   const [disabled, setDisabled] = useState(true)
   const [loading, setLoading] = useState(false)
@@ -35,20 +37,26 @@ export default function Reset() {
 
   return (
     <>
-      <Header text='Reset wallet' back />
+      <Header text={t('settings.resetWallet')} back />
       <Content>
         <Padded>
           <CenterScreen>
             <WalletAlternativeIcon />
-            <Text>Did you backup your wallet?</Text>
-            <TextSecondary>This operation cannot be undone.</TextSecondary>
+            <Text>{t('settings.didYouBackup')}</Text>
+            <TextSecondary>{t('settings.cannotUndo')}</TextSecondary>
           </CenterScreen>
         </Padded>
       </Content>
       <ButtonsOnBottom>
         <FlexCol gap='0.5rem'>
-          <Checkbox onChange={handleCheck} text='I have backed up my wallet' />
-          <Button disabled={disabled || loading} label='Reset wallet' onClick={handleReset} red loading={loading} />
+          <Checkbox onChange={handleCheck} text={t('settings.iHaveBackedUp')} />
+          <Button
+            disabled={disabled || loading}
+            label={t('settings.resetWallet')}
+            onClick={handleReset}
+            red
+            loading={loading}
+          />
         </FlexCol>
       </ButtonsOnBottom>
     </>

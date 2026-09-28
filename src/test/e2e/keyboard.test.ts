@@ -1,22 +1,25 @@
 import { Currencies } from '../../lib/types'
 import { test, expect, createWallet, navigateHome, navigateToSettings, createWalletWithFiat } from './utils'
 import type { Page } from '@playwright/test'
+import { translations } from '../../lib/i18n'
+
+const tr = translations.en
 
 // helper function to navigate to keyboard
 async function openKeyboard(page: Page) {
   await navigateHome(page)
-  await page.getByText('Receive').click()
-  await page.getByText('Add amount').click()
-  await page.waitForSelector('text=Save', { state: 'visible' })
+  await page.getByText(tr.wallet.receive).click()
+  await page.getByText(tr.receive.addAmount).click()
+  await page.waitForSelector(`text=${tr.common.save}`, { state: 'visible' })
 }
 
 // helper function to change the display currency in settings
 async function changeCurrency(page: Page, currency: Currencies) {
   await navigateToSettings(page)
-  await page.getByText('currency').click()
+  await page.getByText(tr.settings.currency).click()
   await page.getByText(currency).click()
-  await page.getByLabel('Go back').click()
-  await page.getByLabel('Go back').click()
+  await page.getByLabel(tr.common.back).click()
+  await page.getByLabel(tr.common.back).click()
   await navigateHome(page)
 }
 
@@ -43,7 +46,7 @@ test('should toggle between sats and FIAT on mobile keyboard', async ({ page, is
   await openKeyboard(page)
 
   // verify keyboard is visible
-  await expect(page.getByText('Amount')).toBeVisible()
+  await expect(page.getByText(tr.common.amount)).toBeVisible()
   await expect(page.getByTestId('keyboard-1')).toBeVisible()
 
   // enter a FIAT amount with decimals (e.g., 1.50)
@@ -77,10 +80,10 @@ test('should toggle between sats and FIAT on mobile keyboard', async ({ page, is
   await page.waitForSelector('text=/[\\$€][0-9.]+/', { timeout: 2000 })
 
   // save the amount
-  await page.getByText('Save').click()
+  await page.getByText(tr.common.save).click()
 
   // verify we're back on the receive page (not the keyboard)
-  await expect(page.getByText('Edit amount')).toBeVisible()
+  await expect(page.getByText(tr.receive.editAmount)).toBeVisible()
 })
 
 test('should prevent decimal input in sats mode', async ({ page, isMobile }) => {
@@ -167,8 +170,9 @@ test('should insert sats in a fiat wallet', async ({ page, isMobile }) => {
 
   await page.getByTestId('save-amount').click()
 
-  await page.waitForSelector('text=Edit amount', { state: 'visible' })
-  await expect(page.locator('text=Requesting 5,000 sats')).toBeVisible()
+  const message = tr.receive.requestingAmount.replace('{amount}', '5,000').replace('{unit}', 'sats')
+  await page.waitForSelector(`text=${tr.receive.editAmount}`, { state: 'visible' })
+  await expect(page.locator(`text=${message}`)).toBeVisible()
 })
 
 test('should persist sats in a sats wallet', async ({ page, isMobile }) => {
@@ -190,9 +194,10 @@ test('should persist sats in a sats wallet', async ({ page, isMobile }) => {
 
   await page.getByTestId('save-amount').click()
 
-  await page.waitForSelector('text=Edit amount', { state: 'visible' })
-  await expect(page.locator('text=Requesting 5,000 sats')).toBeVisible()
-  await page.locator('text=Edit amount').click()
+  const message = tr.receive.requestingAmount.replace('{amount}', '5,000').replace('{unit}', 'sats')
+  await page.waitForSelector(`text=${tr.receive.editAmount}`, { state: 'visible' })
+  await expect(page.locator(`text=${message}`)).toBeVisible()
+  await page.locator(`text=${tr.receive.editAmount}`).click()
   await expect(page.locator('text=5000 sats')).toBeVisible()
 })
 
@@ -212,7 +217,7 @@ test('should persist fiat in a fiat wallet', async ({ page, isMobile }) => {
 
   await page.getByTestId('save-amount').click()
 
-  await page.waitForSelector('text=Edit amount', { state: 'visible' })
+  await page.waitForSelector(`text=${tr.receive.editAmount}`, { state: 'visible' })
   await page.locator('text=Edit amount').click()
   await expect(page.locator('text=$5.00')).toBeVisible()
 })

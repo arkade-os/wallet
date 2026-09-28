@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { cameraErrorText, queryCameraPermission } from '../../lib/camera'
+import { translate } from '../../providers/language'
+import { Language } from '../../lib/types'
+
+const t = (key: string) => translate(Language.English, key)
 
 const realPermissions = Object.getOwnPropertyDescriptor(navigator, 'permissions')
 
@@ -26,11 +30,11 @@ describe('camera permission', () => {
   })
 
   it('tells a user who blocked the camera how to unblock it', () => {
-    expect(cameraErrorText('denied')).toMatch(/browser settings/)
+    expect(cameraErrorText('denied', t)).toMatch(/browser settings/)
   })
 
   it('does not blame the permission when the camera is merely unavailable', () => {
-    expect(cameraErrorText('prompt')).toBe('Camera not available')
-    expect(cameraErrorText('granted')).toBe('Camera not available')
+    expect(cameraErrorText('prompt', t)).toBe('Camera not available')
+    expect(cameraErrorText('granted', t)).toBe('Camera not available')
   })
 })

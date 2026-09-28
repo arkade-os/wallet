@@ -2,6 +2,7 @@ import { useContext } from 'react'
 import { prettyBitcoinAmount, prettyBitcoinHide, prettyFiatAmount, prettyFiatHide } from '../lib/format'
 import { ConfigContext } from '../providers/config'
 import { FiatContext } from '../providers/fiat'
+import { useTranslation } from '../providers/language'
 import FeesIcon from '../icons/Fees'
 import AmountIcon from '../icons/Amount'
 import TotalIcon from '../icons/Total'
@@ -59,6 +60,7 @@ export interface DetailsProps {
 export default function Details({ details, variant }: { details?: DetailsProps; variant?: 'default' | 'receipt' }) {
   const { config, useFiat } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
+  const { t } = useTranslation()
 
   if (!details) return <></>
 
@@ -115,9 +117,11 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
             [
               amountDisplay.raw.length === 1
                 ? amount.unverified
-                  ? 'Unverified asset amount'
-                  : 'Asset amount'
-                : `Asset amount (${amount.ticker}${amount.unverified ? ', unverified' : ''})`,
+                  ? t('accounts.unverifiedAssetAmount')
+                  : t('accounts.assetAmount')
+                : amount.unverified
+                  ? t('accounts.assetAmountTickerUnverified', { ticker: amount.ticker })
+                  : t('accounts.assetAmountTicker', { ticker: amount.ticker }),
               formatSensitiveDetail(amount),
               <AmountIcon key={`asset-amount-icon-${amount.assetId ?? amount.ticker}`} />,
             ] satisfies TableData[number],
@@ -125,14 +129,14 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
         ...(amountDisplay.configured
           ? [
               [
-                'Value',
+                t('common.value'),
                 formatSensitiveDetail(amountDisplay.configured),
                 <TotalIcon key='value-icon' />,
               ] satisfies TableData[number],
             ]
           : []),
       ]
-    : [['Amount', formatAmount(satoshis), <AmountIcon key='amount-icon' />]]
+    : [[t('common.amount'), formatAmount(satoshis), <AmountIcon key='amount-icon' />]]
 
   // Only show explorer link if URL is available (e.g., mainnet for vmempool)
   const txidOnClick =
@@ -159,7 +163,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
           openAssetInNewTab(id, wallet)
         }
       : undefined
-  const assetIdRows: TableData = (assetIds ?? (assetId ? [{ assetId, label: 'Asset ID' }] : [])).map(
+  const assetIdRows: TableData = (assetIds ?? (assetId ? [{ assetId, label: t('accounts.assetId') }] : [])).map(
     ({ assetId: id, label }) => [label, id, <InfoIcon key={`${label}-${id}`} />, assetIdOnClick(id)],
   )
   const assetTotalRows: TableData = (assetTotals ?? []).map(({ label, ...amount }) => [
@@ -169,28 +173,28 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
   ])
 
   const data: TableData = [
-    ['Swap from', formatSensitiveDetail(swapFrom), <ArrowUpDownIcon key='swap-from-icon' />],
-    ['Swap to', formatSensitiveDetail(swapTo), <ArrowUpDownIcon key='swap-to-icon' />],
-    ['Address', address, <TypeIcon key='address-icon' />],
-    ['Arknote', arknote, <NotesIcon key='notes-icon' small />],
-    ['Invoice', invoice, <TypeIcon key='invoice-icon' />],
-    ['Destination', destination, <TypeIcon key='destination-icon' />],
-    ['Funded', fundedTxid, <HashIcon key='funded-icon' />, offchainTxOnClick(fundedTxid)],
-    [spendLabel ?? 'Completed', spendTxid, <HashIcon key='spend-icon' />, offchainTxOnClick(spendTxid)],
-    ['Transaction ID', txid, <HashIcon key='txid-icon' />, showTxidLink ? txidOnClick : undefined],
+    [t('accounts.swapFrom'), formatSensitiveDetail(swapFrom), <ArrowUpDownIcon key='swap-from-icon' />],
+    [t('accounts.swapTo'), formatSensitiveDetail(swapTo), <ArrowUpDownIcon key='swap-to-icon' />],
+    [t('common.address'), address, <TypeIcon key='address-icon' />],
+    [t('accounts.arknote'), arknote, <NotesIcon key='notes-icon' small />],
+    [t('accounts.invoice'), invoice, <TypeIcon key='invoice-icon' />],
+    [t('accounts.destination'), destination, <TypeIcon key='destination-icon' />],
+    [t('accounts.funded'), fundedTxid, <HashIcon key='funded-icon' />, offchainTxOnClick(fundedTxid)],
+    [spendLabel ?? t('accounts.completed'), spendTxid, <HashIcon key='spend-icon' />, offchainTxOnClick(spendTxid)],
+    [t('accounts.transactionId'), txid, <HashIcon key='txid-icon' />, showTxidLink ? txidOnClick : undefined],
     ...assetIdRows,
-    ['Direction', direction, <DirectionIcon key='direction-icon' />],
-    ['Type', type, <TypeIcon key='type-icon' />],
-    ['Status', status, <StatusIcon key='status-icon' />],
-    ['When', when, <WhenIcon key='when-icon' />],
-    ['Date', date, <DateIcon key='date-icon' />],
-    ['Expiry', expiry, <DateIcon key='expiry-icon' />],
+    [t('common.direction'), direction, <DirectionIcon key='direction-icon' />],
+    [t('common.type'), type, <TypeIcon key='type-icon' />],
+    [t('common.status'), status, <StatusIcon key='status-icon' />],
+    [t('common.when'), when, <WhenIcon key='when-icon' />],
+    [t('common.date'), date, <DateIcon key='date-icon' />],
+    [t('common.expiry'), expiry, <DateIcon key='expiry-icon' />],
     ...amountRows,
-    ['Price rate', priceRate, <ArrowUpDownIcon key='price-rate-icon' />],
-    ['Network fees', fees === undefined ? undefined : formatAmount(fees), <FeesIcon key='fees-icon' />],
-    ['Swap fees', formatSensitiveDetail(swapFees), <FeesIcon key='swap-fees-icon' />],
+    [t('accounts.priceRate'), priceRate, <ArrowUpDownIcon key='price-rate-icon' />],
+    [t('accounts.networkFees'), fees === undefined ? undefined : formatAmount(fees), <FeesIcon key='fees-icon' />],
+    [t('accounts.swapFees'), formatSensitiveDetail(swapFees), <FeesIcon key='swap-fees-icon' />],
     ...assetTotalRows,
-    ['Total', formatAmount(total), <TotalIcon key='total-icon' />],
+    [t('common.total'), formatAmount(total), <TotalIcon key='total-icon' />],
   ]
 
   return <Table data={data} variant={variant} />

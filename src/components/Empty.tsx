@@ -2,6 +2,7 @@ import { ReactNode } from 'react'
 import CenterScreen from './CenterScreen'
 import FlexCol from './FlexCol'
 import Text, { TextSecondary } from './Text'
+import { useTranslation } from '../providers/language'
 
 interface EmptyProps {
   text: string
@@ -24,37 +25,45 @@ function EmptyTemplate({ icon, text, secondaryText }: EmptyProps) {
 }
 
 export function EmptyAssetsList() {
+  const { t } = useTranslation()
   return (
-    <EmptyTemplate icon={<EmptyCoinsIcon />} text='No assets yet' secondaryText='Import or mint one to get started' />
+    <EmptyTemplate
+      icon={<EmptyCoinsIcon />}
+      text={t('common.noAssetsYet')}
+      secondaryText={t('common.importOrMintToStart')}
+    />
   )
 }
 
 export function EmptyCoinsList() {
+  const { t } = useTranslation()
   return (
     <EmptyTemplate
       icon={<EmptyCoinsIcon />}
-      text='No virtual coins available'
-      secondaryText='Generate or import coins to continue'
+      text={t('common.noVirtualCoins')}
+      secondaryText={t('common.generateOrImportCoins')}
     />
   )
 }
 
 export function EmptyLogsList() {
+  const { t } = useTranslation()
   return (
     <EmptyTemplate
       icon={<EmptyListIcon />}
-      text='No logs available'
-      secondaryText='Start using the app to generate logs.'
+      text={t('common.noLogsAvailable')}
+      secondaryText={t('common.startUsingToGenerateLogs')}
     />
   )
 }
 
 export function EmptyTxList() {
+  const { t } = useTranslation()
   return (
     <EmptyTemplate
       icon={<EmptyListIcon />}
-      text='No transactions yet'
-      secondaryText='Make a transaction to get started.'
+      text={t('common.noTransactionsYet')}
+      secondaryText={t('common.makeTransactionToStart')}
     />
   )
 }
