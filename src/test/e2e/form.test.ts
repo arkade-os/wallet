@@ -41,7 +41,7 @@ test('should prioritize Arkade addresses over others', async ({ page, isMobile }
   await prePay(page, bip21, isMobile, 2000)
 
   // details page
-  await expect(page.getByTestId('Direction')).toContainText('Paying inside Arkade')
+  await expect(page.getByTestId('Direction')).toContainText(tr.send.payingInsideArkade)
   await expect(page.getByTestId('Network fees')).toContainText('0 sats')
   await expect(page.getByTestId('primary-amount')).toContainText('2,000 sats')
   await expect(page.getByTestId('Total')).toContainText('2,000 sats')
@@ -60,7 +60,7 @@ test.skip('should prioritize lightning invoice if no ark address present', async
   await prePay(page, bip21)
 
   // details page
-  await expect(page.getByTestId('Direction')).toContainText('Swapping to Lightning')
+  await expect(page.getByTestId('Direction')).toContainText(tr.send.payingToLightning)
   await expect(page.getByTestId('Network fees')).toContainText('1 sat')
   await expect(page.getByTestId('Amount')).toContainText('2,100 sats')
   await expect(page.getByTestId('Total')).toContainText('2,101 sats')
