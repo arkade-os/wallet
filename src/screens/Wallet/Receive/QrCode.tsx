@@ -253,7 +253,15 @@ export default function ReceiveQRCode() {
     setArkAddress(ark)
     setBtcAddress(btc)
     setBip21Uri(bip21)
-  }, [assetAmount, addressesLoaded, isAssetReceive, recvInfo.offchainAddr, recvInfo.boardingAddr])
+  }, [
+    assetAmount,
+    addressesLoaded,
+    isAssetReceive,
+    recvInfo.offchainAddr,
+    recvInfo.boardingAddr,
+    recvInfo.satoshis,
+    recvInfo.invoice,
+  ])
 
   /**
    * The payment methods we can render right now, in display order.

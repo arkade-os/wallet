@@ -183,6 +183,62 @@ describe('Receive QR Code screen', () => {
     expect(copied).toContain('amount=')
   })
 
+  // Regression: the BIP21 effect has to re-derive the URI when the amount and
+  // the invoice land after mount. Both arrive through setRecvInfo, which
+  // touches neither assetAmount nor the addresses, so with only those in the
+  // dep array the effect never re-ran and the QR kept the URI built on the
+  // first pass — no amount, no lightning= parameter. The tests above pass
+  // either way because they pre-seed the amount (and the invoice) before the
+  // first render, so the single effect run is already complete.
+  const afterMount = (extra: Partial<typeof mockFlowContextValue.recvInfo>): RenderOverrides => ({
+    flow: {
+      recvInfo: {
+        ...mockFlowContextValue.recvInfo,
+        satoshis: 50_000,
+        offchainAddr: 'ark1testaddr',
+        boardingAddr: 'bc1testaddr',
+        ...extra,
+      },
+    },
+    wallet: { svcWallet: mockSvcWallet as any },
+  })
+
+  it('re-derives the QR with the amount when the amount is set after mount', async () => {
+    const { rerender } = renderReceiveQrCode(tapFixture())
+
+    const initial = await screen.findByRole('button', { name: 'Copy QR code' })
+    await act(async () => {
+      fireEvent.click(initial)
+    })
+    expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).not.toContain('amount=')
+
+    rerender(buildTree(afterMount({})))
+
+    const qrButton = await screen.findByRole('button', { name: 'Copy QR code' })
+    await act(async () => {
+      fireEvent.click(qrButton)
+    })
+    expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).toContain('amount=')
+  })
+
+  it('re-derives the QR with the invoice when Lightning negotiates after mount', async () => {
+    const { rerender } = renderReceiveQrCode(tapFixture())
+
+    const initial = await screen.findByRole('button', { name: 'Copy QR code' })
+    await act(async () => {
+      fireEvent.click(initial)
+    })
+    expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).not.toContain('lightning=')
+
+    rerender(buildTree(afterMount({ invoice: 'lnbc10u1ptest' })))
+
+    const qrButton = await screen.findByRole('button', { name: 'Copy QR code' })
+    await act(async () => {
+      fireEvent.click(qrButton)
+    })
+    expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).toContain('lightning=')
+  })
+
   // The unified BIP21 URI is the right default — it serves every payer that
   // understands it — but a pure off-chain wallet cannot read the invoice buried
   // in its `lightning=` parameter. So the method has to be selectable without
