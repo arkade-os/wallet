@@ -23,7 +23,6 @@ import * as Sentry from '@sentry/react'
 import { hex } from '@scure/base'
 import { arkTransactionToTx, sortLocalTxs } from './transactionHistory'
 import { walletFingerprint } from './sentry'
-import { useTranslation } from '../providers/language'
 
 const emptyFees: FeeInfo = {
   intentFee: { offchainInput: '', offchainOutput: '', onchainInput: '', onchainOutput: '' },
@@ -78,7 +77,6 @@ export const aspErrorText = (info: AspInfo, fallback: string, outdatedText?: str
     : fallback
 
 export const collaborativeExit = async (wallet: IWallet, amount: number, address: string): Promise<string> => {
-  const { t } = useTranslation()
   const vtxos = await wallet.getVtxos()
   const selectedVtxos = []
   let selectedAmount = 0
@@ -89,7 +87,7 @@ export const collaborativeExit = async (wallet: IWallet, amount: number, address
     selectedAmount += vtxo.value
   }
 
-  if (selectedAmount < amount) throw new Error(t('send.insufficientFunds'))
+  if (selectedAmount < amount) throw new Error('Insufficient funds')
 
   const outputs = [{ address, amount: BigInt(amount) }]
 
@@ -124,7 +122,6 @@ export const collaborativeExitWithFees = async (
   outputAmount: number,
   address: string,
 ): Promise<string> => {
-  const { t } = useTranslation()
   const vtxos = await wallet.getVtxos()
   const selectedVtxos = []
   let selectedAmount = 0
@@ -138,7 +135,7 @@ export const collaborativeExitWithFees = async (
     selectedAmount += vtxo.value
   }
 
-  if (selectedAmount < inputAmount) throw new Error(t('send.insufficientFunds'))
+  if (selectedAmount < inputAmount) throw new Error('Insufficient funds')
 
   const outputs = [{ address, amount: BigInt(outputAmount) }]
 
