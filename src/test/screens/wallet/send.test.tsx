@@ -1,4 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
+
+vi.mock('../../../lib/appIntent', async () => {
+  const actual = await vi.importActual<typeof import('../../../lib/appIntent')>('../../../lib/appIntent')
+  return { ...actual, redirectToCallback: vi.fn() }
+})
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import createFetchMock from 'vitest-fetch-mock'
 import { emptySendInfo, FlowContext } from '../../../providers/flow'
@@ -17,6 +22,7 @@ import {
 import { AspContext } from '../../../providers/asp'
 import { WalletContext } from '../../../providers/wallet'
 import { NavigationContext } from '../../../providers/navigation'
+import { redirectToCallback } from '../../../lib/appIntent'
 import SendForm from '../../../screens/Wallet/Send/Form'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
@@ -377,5 +383,59 @@ describe('Send screen', () => {
 
     expect(await screen.findByTestId('error-message')).toHaveTextContent(/partial send/)
     expect(screen.getByText('Continue').closest('button')).toBeDisabled()
+  })
+
+  it('prefills a send opened from an app link, once', async () => {
+    const request = 'bitcoin:bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4?amount=0.0001'
+    const setAppIntent = vi.fn()
+    const walletValue = {
+      ...mockWalletContextValue,
+      svcWallet: {
+        ...mockSvcWallet,
+        getAddress: () => 'tark1mockoffchain',
+        getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+      } as any,
+    }
+    renderSendForm({
+      flowContext: {
+        ...mockFlowContextValue,
+        appIntent: { status: 'send', request, callback: 'https://arkade.trade/vault' },
+        setAppIntent,
+      },
+      walletContext: walletValue,
+    })
+
+    expect(await screen.findByDisplayValue(request)).toBeInTheDocument()
+    expect(setAppIntent).toHaveBeenCalledWith(expect.objectContaining({ prefilled: true, request }))
+  })
+
+  it('returns to the app with error=denied when the send is dismissed', () => {
+    vi.mocked(redirectToCallback).mockClear()
+    const setAppIntent = vi.fn()
+    const callback = 'https://arkade.trade/vault'
+    renderSendForm({
+      flowContext: {
+        ...mockFlowContextValue,
+        appIntent: {
+          status: 'send',
+          request: 'bitcoin:bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
+          callback,
+          prefilled: true,
+        },
+        setAppIntent,
+      },
+      walletContext: {
+        ...mockWalletContextValue,
+        svcWallet: {
+          ...mockSvcWallet,
+          getAddress: () => 'tark1mockoffchain',
+          getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+        } as any,
+      },
+    })
+
+    fireEvent.click(screen.getByLabelText('Go back'))
+    expect(setAppIntent).toHaveBeenCalledWith(undefined)
+    expect(redirectToCallback).toHaveBeenCalledWith(callback, { error: 'denied' })
   })
 })

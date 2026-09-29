@@ -5,7 +5,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState, type Rea
 import { isInAppBrowser } from './lib/browser'
 import { detectJSCapabilities } from './lib/jsCapabilities'
 import { WalletContext } from './providers/wallet'
-import { FlowContext } from './providers/flow'
+import { emptySendInfo, FlowContext } from './providers/flow'
 import { AspContext } from './providers/asp'
 import { setBootAnimActive as syncBootAnimFlag } from './lib/logoAnchor'
 import { PageTransition } from './components/PageTransition'
@@ -13,6 +13,7 @@ import BootError from './components/BootError'
 import LoadingLogo from './components/LoadingLogo'
 import { useReducedMotion } from './hooks/useReducedMotion'
 import { useLoadingStatus } from './hooks/useLoadingStatus'
+import { nextAppIntentNavigation } from './lib/appIntent'
 import { defaultPassword } from './lib/constants'
 import { consoleError } from './lib/logs'
 
@@ -42,7 +43,7 @@ export default function App() {
   const { aspInfo } = useContext(AspContext)
   const { configLoaded } = useContext(ConfigContext)
   const { direction, navigate, screen } = useContext(NavigationContext)
-  const { initInfo } = useContext(FlowContext)
+  const { appIntent, initInfo, setAppIntent, setSendInfo } = useContext(FlowContext)
   const { authState, unlockWallet, walletLoaded, initialized, wallet, dataReady, loadError, devAutoInitFailed } =
     useContext(WalletContext)
 
@@ -63,6 +64,7 @@ export default function App() {
   const passwordlessBootAttempted = useRef(false)
   const passwordlessReloadTimer = useRef<ReturnType<typeof setTimeout>>()
   const devAutoInitHomeRedirected = useRef(false)
+  const appSendStarted = useRef(false)
   const hasDevAutoInit =
     import.meta.env.DEV &&
     Boolean(import.meta.env.VITE_DEV_NSEC || import.meta.env.VITE_DEV_MNEMONIC) &&
@@ -178,10 +180,39 @@ export default function App() {
   useEffect(() => {
     if (!hasDevAutoInit) return
     if (!initialized || !dataReady || !wallet.pubkey || authState !== 'authenticated') return
+    if (appIntent) return
     if (devAutoInitHomeRedirected.current) return
     devAutoInitHomeRedirected.current = true
     if (screen !== Pages.Wallet) navigate(Pages.Wallet)
-  }, [hasDevAutoInit, initialized, dataReady, wallet.pubkey, authState, screen, navigate])
+  }, [hasDevAutoInit, initialized, dataReady, wallet.pubkey, authState, screen, navigate, appIntent])
+
+  const intentReady = Boolean(
+    wallet.pubkey &&
+      authState === 'authenticated' &&
+      initialized &&
+      dataReady &&
+      !aspInfo.unreachable &&
+      !isIAB &&
+      !initInfo.password &&
+      !initInfo.privateKey &&
+      jsCapabilitiesChecked &&
+      isCapable,
+  )
+
+  // After the boot redirects above, so a connect or send link wins over "go home".
+  useEffect(() => {
+    const step = nextAppIntentNavigation(appIntent, intentReady)
+    if (step === 'send') {
+      if (appSendStarted.current || appIntent?.status !== 'send') return
+      appSendStarted.current = true
+      setAppIntent({ ...appIntent, started: true })
+      setSendInfo({ ...emptySendInfo, recipient: appIntent.request })
+      navigate(Pages.SendForm)
+      return
+    }
+    if (step === 'none' || screen === Pages.AppIntent) return
+    navigate(Pages.AppIntent)
+  }, [appIntent, intentReady, navigate, screen, setAppIntent, setSendInfo])
 
   const page =
     isDevAutoInitializing || !(allChecksReady || isNewUser)
