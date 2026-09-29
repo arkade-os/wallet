@@ -248,7 +248,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
       {hasAdvanced ? (
         <>
           <button type='button' className='details-advanced-toggle' onClick={() => setShowAdvanced((v) => !v)}>
-            {t('common.advanced')}
+            {t('settings.advanced')}
             {showAdvanced ? <ChevronUpIcon /> : <ChevronDownIcon />}
           </button>
           {showAdvanced ? <Table data={advanced} variant={variant} /> : null}

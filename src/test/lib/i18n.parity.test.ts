@@ -79,6 +79,8 @@ describe('i18n dictionary integrity', () => {
       'apps.lendasat',
       'apps.dfx',
       'formatting.unit',
+      'accounts.solver',
+      'accounts.total',
     ])
 
     const unlocalized = collectLeafKeys(translations.en)
