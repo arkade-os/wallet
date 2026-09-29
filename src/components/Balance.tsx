@@ -8,6 +8,7 @@ import FlexRow from './FlexRow'
 import EyeIcon from '../icons/Eye'
 import { ConfigContext } from '../providers/config'
 import { BackupContext } from '@/providers/backup'
+import { useTranslation } from '../providers/language'
 
 interface BalanceProps {
   amount: number
@@ -17,6 +18,7 @@ export default function Balance({ amount }: BalanceProps) {
   const { config } = useContext(ConfigContext)
   const { toFiat, fiatDecimals } = useContext(FiatContext)
   const { backupAndUpdateConfig } = useContext(BackupContext)
+  const { t } = useTranslation()
 
   const currencyAmount = toFiat(amount)
   const mainValue = config.showBalance
@@ -41,7 +43,7 @@ export default function Balance({ amount }: BalanceProps) {
           <button
             type='button'
             onClick={toggleShow}
-            aria-label={config.showBalance ? 'Hide balance' : 'Show balance'}
+            aria-label={config.showBalance ? t('components.hideBalance') : t('components.showBalance')}
             style={{
               cursor: 'pointer',
               display: 'flex',

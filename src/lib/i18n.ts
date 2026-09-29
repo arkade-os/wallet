@@ -530,6 +530,7 @@ export const translations = {
       passwordMinChars: '8 characters minimum',
       passwordOneNumber: 'contain at least 1 number',
       passwordSpecialChar: 'contain at least 1 special character',
+      focusableElement: 'Focusable element',
     },
     accounts: {
       accountUnavailable: 'Account unavailable',
@@ -1341,6 +1342,7 @@ export const translations = {
       passwordMinChars: 'mínimo 8 caracteres',
       passwordOneNumber: 'contener al menos 1 número',
       passwordSpecialChar: 'contener al menos 1 carácter especial',
+      focusableElement: 'Elemento enfocable',
     },
     accounts: {
       accountUnavailable: 'Cuenta no disponible',
