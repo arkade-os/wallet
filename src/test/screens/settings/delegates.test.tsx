@@ -1,11 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import Delegates from '../../../screens/Settings/Delegates'
 import { ConfigContext } from '../../../providers/config'
 import { mockAspContextValue, mockConfigContextValue } from '../mocks'
 import { AspContext } from '../../../providers/asp'
 import createFetchMock from 'vitest-fetch-mock'
 import { getDelegateUrlForNetwork } from '../../../lib/constants'
+import { ToastProvider } from '../../../components/Toast'
+import { copyToClipboard } from '../../../lib/clipboard'
+
+vi.mock('../../../lib/clipboard', () => ({ copyToClipboard: vi.fn() }))
 
 let fetchMocker: ReturnType<typeof createFetchMock>
 let mockDelegatesAspContextValue = { ...mockAspContextValue }
@@ -87,5 +91,51 @@ describe('Delegates screen', () => {
     expect(screen.getByText('What is a Delegate?')).toBeInTheDocument()
     expect(screen.getByText('No delegate found for this network.')).toBeInTheDocument()
     expect(() => screen.getByTestId('delegate-card')).toThrow()
+  })
+
+  describe('copy feedback', () => {
+    // The pubkey row is the one to drive: the address row copies a field this
+    // fixture leaves unset, so the assertion would be about an empty value.
+    const pubkeyRow = () => screen.getByText(/^pubkey:/)
+
+    const renderCard = async () => {
+      render(
+        <AspContext.Provider value={mockDelegatesAspContextValue as any}>
+          <ConfigContext.Provider value={getMockConfigWithDelegate(true) as any}>
+            <ToastProvider>
+              <Delegates />
+            </ToastProvider>
+          </ConfigContext.Provider>
+        </AspContext.Provider>,
+      )
+      await screen.findByText('Arkade Default')
+    }
+
+    beforeEach(() => {
+      vi.mocked(copyToClipboard).mockReset()
+    })
+
+    it('confirms the copy when the write lands', async () => {
+      vi.mocked(copyToClipboard).mockResolvedValue(true)
+      await renderCard()
+
+      fireEvent.click(pubkeyRow())
+
+      expect(await screen.findByText('Copied to clipboard')).toBeInTheDocument()
+      expect(screen.queryByText('Failed to copy')).not.toBeInTheDocument()
+    })
+
+    // A delegate pubkey is what gets pasted into a manual renewal ticket, so a
+    // false confirmation here has the user pasting whatever the clipboard held
+    // before into a transaction they cannot easily undo.
+    it('reports the failure instead of claiming success when the write is refused', async () => {
+      vi.mocked(copyToClipboard).mockResolvedValue(false)
+      await renderCard()
+
+      fireEvent.click(pubkeyRow())
+
+      expect(await screen.findByText('Failed to copy')).toBeInTheDocument()
+      expect(screen.queryByText('Copied to clipboard')).not.toBeInTheDocument()
+    })
   })
 })
