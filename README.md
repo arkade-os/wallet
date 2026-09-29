@@ -203,7 +203,7 @@ web+arkade://connect?callback=https%3A%2F%2Farkade.trade%2Fconnect
 web+arkade://send?request=<percent-encoded BIP21>&callback=https%3A%2F%2Farkade.trade%2Fvault
 ```
 
-The browser asks once before it lets the installed app own that protocol. Safari has no manifest protocol handler, so an iOS app uses the https link, which opens in the browser. Ark notes keep using `web+arkade://` and are not treated as connect or send.
+The browser asks once before it lets the installed app own that protocol. Safari has no manifest protocol handler, so an iOS app uses the https link, which opens in the browser. That page shows **Open in App**: Chrome and Edge launch `web+arkade://` in the installed app, and Safari explains that it cannot switch there, so the request stays on this page. Ark notes keep using `web+arkade://` and are not treated as connect or send.
 
 ## Troubleshooting
 

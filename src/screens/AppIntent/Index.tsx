@@ -9,6 +9,7 @@ import Header from '../../components/Header'
 import Padded from '../../components/Padded'
 import Text from '../../components/Text'
 import { callbackHost, redirectToCallback, type AppIntentErrorCode } from '../../lib/appIntent'
+import OpenInApp from './OpenInApp'
 import { FlowContext } from '../../providers/flow'
 import { useTranslation } from '../../providers/language'
 import { NavigationContext, Pages } from '../../providers/navigation'
@@ -88,6 +89,7 @@ export default function AppIntentScreen() {
               <Text color='neutral-700' small wrap>
                 {t('appIntent.shareExplainer')}
               </Text>
+              <OpenInApp />
               {address ? (
                 <FlexCol gap='0.25rem'>
                   <Text tiny color='neutral-500'>

@@ -1,11 +1,14 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   APP_INTENT_MAX_SEARCH_LENGTH,
   callbackUrl,
   nextAppIntentNavigation,
   parseAppIntent,
+  browserHandlesAppProtocol,
+  openInstalledApp,
   protocolIntentSearch,
   readInitialAppIntent,
+  toAppProtocolUrl,
   stripAppIntentParams,
   toAppIntentState,
 } from '../../lib/appIntent'
@@ -154,6 +157,31 @@ describe('protocolIntentSearch', () => {
       ok: true,
       intent: { action: 'send', request: REQUEST },
     })
+  })
+})
+
+describe('openInstalledApp', () => {
+  const connect = { status: 'connect' as const, callback: CALLBACK }
+  const safari =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15'
+  const iphone =
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+  const chrome =
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+
+  it('recognizes Safari and iOS as unable to open the installed app', () => {
+    expect(browserHandlesAppProtocol(safari)).toBe(false)
+    expect(browserHandlesAppProtocol(iphone)).toBe(false)
+    expect(browserHandlesAppProtocol(chrome)).toBe(true)
+    expect(openInstalledApp(connect, { ua: safari, assign: () => {} })).toBe('unavailable')
+  })
+
+  it('on Chrome, Open in App navigates to the web+arkade link', () => {
+    const assign = vi.fn()
+    expect(openInstalledApp(connect, { ua: chrome, assign })).toBe('opened')
+    expect(assign).toHaveBeenCalledWith(toAppProtocolUrl(connect))
+    expect(toAppProtocolUrl(connect)).toContain('web+arkade://connect')
+    expect(toAppProtocolUrl(connect)).toContain(encodeURIComponent(CALLBACK))
   })
 })
 

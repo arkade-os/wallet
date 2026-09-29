@@ -37,6 +37,7 @@ import { lnSendRendezvous, requestLnSend } from '../../../lib/lnSwap'
 import { withRfqTransport, SolverNotRespondingError } from '../../../lib/nostrRfq'
 import { discoverMarkets } from '../../../lib/swapMarkets'
 import { redirectToCallback } from '../../../lib/appIntent'
+import OpenInApp from '../../AppIntent/OpenInApp'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
 import { centsToUnits, liquidBtcBalance, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
@@ -1030,6 +1031,7 @@ export default function SendForm() {
           <Padded>
             <FlexCol gap='1.25rem' className='send-form-stack'>
               <ErrorMessage error={Boolean(error || carrierError)} text={error || carrierError} />
+              <OpenInApp />
               <InputAddress
                 error={recipientError}
                 focus={focus === 'recipient'}

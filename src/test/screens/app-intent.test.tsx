@@ -69,6 +69,13 @@ describe('App intent screen', () => {
     expect(redirectToCallback).toHaveBeenCalledWith(CALLBACK, { error: 'invalid' })
   })
 
+  it('on Safari, Open in App stays here and explains that the installed app cannot be opened', () => {
+    renderScreen({ status: 'connect', callback: CALLBACK })
+    fireEvent.click(screen.getByTestId('app-intent-open-in-app'))
+    expect(screen.getByTestId('app-intent-open-in-app-help')).toHaveTextContent(/Safari can't open the installed app/)
+    expect(redirectToCallback).not.toHaveBeenCalled()
+  })
+
   it('goes home when an invalid link has no callback', () => {
     const { navigate, setAppIntent } = renderScreen({ status: 'invalid', error: 'missing-callback' })
     fireEvent.click(screen.getByTestId('app-intent-home'))

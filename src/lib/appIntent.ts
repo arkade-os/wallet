@@ -220,6 +220,41 @@ const protocolAction = (url: URL): string => {
   return url.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
 }
 
+/** Chromium manifest protocol handlers. Safari, Firefox, and every iOS browser cannot. */
+export const browserHandlesAppProtocol = (ua: string = navigator.userAgent): boolean => {
+  if (/iPhone|iPad|iPod|CriOS|EdgiOS|FxiOS|OPiOS/.test(ua)) return false
+  if (/Safari/.test(ua) && !/Chrome|Chromium|Edg\//.test(ua)) return false
+  return /Chrome|Chromium|Edg\//.test(ua)
+}
+
+/** Same connect/send link, as the installed app's protocol. */
+export const toAppProtocolUrl = (intent: AppIntentState): string | undefined => {
+  if (intent.status === 'invalid') return undefined
+  const url = new URL(`web+arkade://${intent.status}`)
+  if (intent.status === 'connect') url.searchParams.set('callback', intent.callback)
+  else {
+    url.searchParams.set('request', intent.request)
+    if (intent.callback) url.searchParams.set('callback', intent.callback)
+  }
+  return url.toString()
+}
+
+/**
+ * Open the installed app with this request. Safari cannot, so the caller
+ * keeps the user on this page instead of navigating to a dead scheme.
+ */
+export const openInstalledApp = (
+  intent: AppIntentState,
+  options?: { ua?: string; assign?: (url: string) => void },
+): 'opened' | 'unavailable' => {
+  const ua = options?.ua ?? (typeof navigator === 'undefined' ? '' : navigator.userAgent)
+  if (!browserHandlesAppProtocol(ua)) return 'unavailable'
+  const url = toAppProtocolUrl(intent)
+  if (!url) return 'unavailable'
+  ;(options?.assign ?? ((href: string) => window.location.assign(href)))(url)
+  return 'opened'
+}
+
 const stripProtocolIntentHash = (): void => {
   const url = new URL(window.location.href)
   if (!url.hash) return

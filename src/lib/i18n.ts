@@ -801,6 +801,9 @@ export const translations = {
       badCallback: 'The return link must be an https address.',
       missingRequest: 'This payment link is missing a payment request.',
       badRequest: 'This payment link is not a valid Bitcoin request.',
+      openInApp: 'Open in App',
+      openInAppSafari:
+        "Safari can't open the installed app from this page. Open Arkade from your Home Screen, or finish the request here.",
     },
     formatting: {
       justNow: 'just now',
@@ -1619,6 +1622,9 @@ export const translations = {
       badCallback: 'El enlace de retorno debe ser una dirección https.',
       missingRequest: 'A este enlace de pago le falta la solicitud.',
       badRequest: 'Este enlace de pago no es una solicitud de Bitcoin válida.',
+      openInApp: 'Abrir en la app',
+      openInAppSafari:
+        'Safari no puede abrir la app instalada desde esta página. Abre Arkade desde la pantalla de inicio, o termina la solicitud aquí.',
     },
     formatting: {
       justNow: 'ahora mismo',
