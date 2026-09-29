@@ -4,7 +4,7 @@ import { defaultArkServer, devServer } from '../lib/constants'
 import { Config, Currencies, Themes, Unit } from '../lib/types'
 import { normalizeBitcoinUnit } from '../lib/format'
 import { setHapticsEnabled } from '../lib/haptics'
-import { getCurrency } from '@/lib/language'
+import { getCurrency, detectLanguage } from '@/lib/language'
 import { setDocumentThemeColor } from '../lib/documentSurface'
 
 const defaultConfig: Config = {
@@ -15,6 +15,7 @@ const defaultConfig: Config = {
   delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
   currency: getCurrency(navigator.language),
   importedAssets: [],
+  language: detectLanguage(navigator.language),
   haptics: true,
   nostrBackup: false,
   notifications: false,

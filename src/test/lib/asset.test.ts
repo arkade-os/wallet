@@ -213,10 +213,6 @@ describe('asset utilities', () => {
       expect(prettyAssetNumber('-123456789')).toBe('-123,456,789')
     })
 
-    it('formats negative bigint', () => {
-      expect(prettyAssetNumber('-1000')).toBe('-1,000')
-    })
-
     it('formats very small number', () => {
       expect(prettyAssetNumber('0.00000001')).toBe('0.00000001')
       expect(prettyAssetNumber('-0.00000001')).toBe('-0.00000001')

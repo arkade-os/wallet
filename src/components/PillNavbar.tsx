@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import WalletIcon from '../icons/Wallet'
 import SettingsIcon from '../icons/Settings'
+import { useTranslation } from '../providers/language'
 
 interface PillNavbarProps {
   activeTab: string
@@ -9,6 +10,7 @@ interface PillNavbarProps {
 }
 
 export default function PillNavbar({ activeTab, onWalletClick, onSettingsClick }: PillNavbarProps) {
+  const { t } = useTranslation()
   const walletRef = useRef<HTMLDivElement>(null)
   const settingsRef = useRef<HTMLDivElement>(null)
 
@@ -25,32 +27,32 @@ export default function PillNavbar({ activeTab, onWalletClick, onSettingsClick }
   }, [activeTab])
 
   return (
-    <nav className='pill-navbar' role='tablist' aria-label='Main navigation'>
+    <nav className='pill-navbar' role='tablist' aria-label={t('wallet.mainNavigation')}>
       <button
         className={`pill-nav-btn ${activeTab === 'wallet' ? 'pill-nav-btn--active' : ''}`}
         onClick={onWalletClick}
         role='tab'
         aria-selected={activeTab === 'wallet'}
-        aria-label='Wallet'
+        aria-label={t('wallet.wallet')}
         data-testid='tab-wallet'
       >
         <div ref={walletRef} className='pill-nav-icon'>
           <WalletIcon />
         </div>
-        <span className='pill-nav-label'>Wallet</span>
+        <span className='pill-nav-label'>{t('wallet.wallet')}</span>
       </button>
       <button
         className={`pill-nav-btn ${activeTab === 'settings' ? 'pill-nav-btn--active' : ''}`}
         onClick={onSettingsClick}
         role='tab'
         aria-selected={activeTab === 'settings'}
-        aria-label='Settings'
+        aria-label={t('settings.title')}
         data-testid='tab-settings'
       >
         <div ref={settingsRef} className='pill-nav-icon'>
           <SettingsIcon />
         </div>
-        <span className='pill-nav-label'>Settings</span>
+        <span className='pill-nav-label'>{t('settings.title')}</span>
       </button>
     </nav>
   )

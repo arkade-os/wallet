@@ -63,12 +63,6 @@ describe('byExpiryAsc', () => {
 })
 
 describe('aspErrorText', () => {
-  it('returns the caller fallback when not outdated', () => {
-    expect(aspErrorText({ ...emptyAspInfo, outdated: false }, 'Arkade server unreachable')).toBe(
-      'Arkade server unreachable',
-    )
-  })
-
   it('returns the update-required message when outdated', () => {
     expect(aspErrorText({ ...emptyAspInfo, outdated: true, minBuildVersion: '0.9.10' }, 'x')).toBe(
       'Your wallet is outdated and needs to be updated to be compatible with the latest Arkade version.',

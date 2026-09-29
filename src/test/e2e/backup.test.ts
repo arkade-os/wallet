@@ -1,4 +1,7 @@
 import { test, expect, createWallet, createWalletWithPassword, navigateToSettings } from './utils'
+import { translations } from '../../lib/i18n'
+
+const tr = translations.en
 
 test('should be able to get recovery phrase without password', async ({ page }) => {
   // Create wallet (mnemonic-based by default)
@@ -6,17 +9,18 @@ test('should be able to get recovery phrase without password', async ({ page }) 
 
   // Go to Settings > Backup
   await navigateToSettings(page)
-  await page.getByText('Backup').click()
-  await expect(page.getByText('This is enough to restore your wallet')).toBeVisible()
+  await page.getByText(tr.settings.backup).click()
+  await expect(page.getByText(tr.backup.enoughToRestore)).toBeVisible()
 
   // Verify secret is obfuscated
   const obfuscated = await page.getByTestId('private-key').textContent()
   expect(obfuscated).toMatch(/^\*+$/)
 
   // Reveal recovery phrase
-  await page.getByText('View recovery phrase').click()
-  await expect(page.getByText('Keep your recovery phrase safe')).toBeVisible()
-  await page.getByText('Confirm').click()
+  await page.getByText(tr.backup.viewRecoveryPhrase).click()
+  const message = tr.backup.keepSafe.replace('{secret}', 'recovery phrase')
+  await expect(page.getByText(message)).toBeVisible()
+  await page.getByText(tr.backup.confirm).click()
 
   // Verify 12-word mnemonic is shown
   const mnemonic = await page.getByTestId('private-key').textContent()
@@ -29,18 +33,19 @@ test('should be able to get recovery phrase with password', async ({ page }) => 
 
   // Go to Settings > Backup
   await navigateToSettings(page)
-  await page.getByText('Backup').click()
-  await expect(page.getByText('This is enough to restore your wallet')).toBeVisible()
+  await page.getByText(tr.settings.backup).click()
+  await expect(page.getByText(tr.backup.enoughToRestore)).toBeVisible()
 
   // Verify secret is obfuscated
   const obfuscated = await page.getByTestId('private-key').textContent()
   expect(obfuscated).toMatch(/^\*+$/)
 
   // Reveal recovery phrase
-  await page.getByText('View recovery phrase').click()
-  await expect(page.getByText('Keep your recovery phrase safe')).toBeVisible()
+  await page.getByText(tr.backup.viewRecoveryPhrase).click()
+  const message = tr.backup.keepSafe.replace('{secret}', 'recovery phrase')
+  await expect(page.getByText(message)).toBeVisible()
   await page.locator('div[data-testid="backup-password-input"] input').fill('testpassword')
-  await page.getByText('Confirm').click()
+  await page.getByText(tr.backup.confirm).click()
   await page.waitForTimeout(500) // wait for modal to close
 
   // Verify 12-word mnemonic is shown

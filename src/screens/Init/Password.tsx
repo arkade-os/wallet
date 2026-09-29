@@ -15,6 +15,7 @@ import { consoleLog } from '../../lib/logs'
 import { defaultPassword } from '../../lib/constants'
 import LockIcon from '../../icons/Lock'
 import { OnboardStaggerContainer, OnboardStaggerChild } from '../../components/OnboardLoadIn'
+import { useTranslation } from '../../providers/language'
 
 enum Method {
   Password = 'password',
@@ -25,6 +26,7 @@ export default function InitPassword() {
   const { navigate } = useContext(NavigationContext)
   const { initInfo, setInitInfo } = useContext(FlowContext)
   const { updateWallet, wallet } = useContext(WalletContext)
+  const { t } = useTranslation()
 
   const [label, setLabel] = useState('')
   const [method, setMethod] = useState<Method>(Method.Password)
@@ -48,7 +50,7 @@ export default function InitPassword() {
 
   return (
     <>
-      <Header text='Create new wallet' back />
+      <Header text={t('init.createNewWallet')} back />
       <Content>
         <Padded>
           {method === Method.Biometrics ? (
@@ -59,12 +61,12 @@ export default function InitPassword() {
                 </OnboardStaggerChild>
                 <OnboardStaggerChild>
                   <Text big centered heading>
-                    Create passkey
+                    {t('init.createPasskey')}
                   </Text>
                 </OnboardStaggerChild>
                 <OnboardStaggerChild>
                   <Text centered color='neutral-500' small wrap>
-                    This will allow you to log in easily through biometrics without a need to remember the password.
+                    {t('init.biometricsDescription')}
                   </Text>
                 </OnboardStaggerChild>
               </OnboardStaggerContainer>
@@ -83,11 +85,11 @@ export default function InitPassword() {
           <>
             <Button onClick={handleContinue} label={label} />
             {isBiometricsSupported() ? (
-              <Button onClick={() => setMethod(Method.Biometrics)} label='Use biometrics' secondary />
+              <Button onClick={() => setMethod(Method.Biometrics)} label={t('init.useBiometrics')} secondary />
             ) : null}
           </>
         ) : (
-          <Button onClick={() => setMethod(Method.Password)} label='Use password' secondary />
+          <Button onClick={() => setMethod(Method.Password)} label={t('init.usePassword')} secondary />
         )}
       </ButtonsOnBottom>
     </>

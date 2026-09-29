@@ -34,17 +34,7 @@
  * this side as a `ServiceWorkerWallet` proxy, so moving the client in would mean
  * standing a second wallet up inside it.
  */
-import {
-  ReactNode,
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react'
+import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { asset, type Asset, type NetworkName, type PaymentRouter } from '@arkade-os/sdk'
 import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
 import {
@@ -64,7 +54,6 @@ import { discoverMarkets } from '../lib/swapMarkets'
 import { createSendRouter } from '../lib/sendRouter'
 import { claimFeeRate } from '../lib/claimFee'
 import { onchainClaimEndpoint } from '../lib/onchainPayout'
-import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
 import { toInvoiceFacts } from '../lib/lnSwap'
 import { makeSwapClient, SwapsHeldElsewhere } from '../lib/swapClient'
 import {
@@ -291,25 +280,12 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     setEmulatorPubkey(getEmulatorPubkeyForNetwork(network))
   }
 
-  // A card the Nostr restore writes lands well after the per-network run, and
-  // left the swap screen reading "coming soon" until a reload.
-  const cardsVersion = useSyncExternalStore(subscribeSolverCards, getSolverCardsVersion, getSolverCardsVersion)
-  const discoveredNetwork = useRef<string>()
-
   useEffect(() => {
-    if (!aspInfo.network) return
-    const switched = discoveredNetwork.current !== aspInfo.network
-    discoveredNetwork.current = aspInfo.network
-    // `switched` doubles as `useCache`: a network switch empties the list and
-    // may serve from the TTL cache, while a card write refreshes in place and
-    // must bypass it, since that cache is exactly what a new card invalidates.
-    if (switched) {
-      setEmulatorPubkey(undefined)
-      setAllMarkets([])
-    }
-    runDiscovery(switched)
+    setEmulatorPubkey(undefined)
+    setAllMarkets([])
+    runDiscovery()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aspInfo.network, cardsVersion])
+  }, [aspInfo.network])
 
   // ------------------------------------------------------------- the announcer
 

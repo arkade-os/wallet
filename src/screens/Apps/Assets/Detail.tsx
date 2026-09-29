@@ -18,6 +18,7 @@ import { consoleError } from '../../../lib/logs'
 import type { AssetDetails } from '@arkade-os/sdk'
 import { prettyAssetAmount } from '../../../lib/assets'
 import { BackupContext } from '@/providers/backup'
+import { useTranslation } from '../../../providers/language'
 
 export default function AppAssetDetail() {
   const { config } = useContext(ConfigContext)
@@ -25,6 +26,7 @@ export default function AppAssetDetail() {
   const { navigate, replace } = useContext(NavigationContext)
   const { assetInfo, setAssetInfo, setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { assetBalances, svcWallet, assetMetadataCache, setCacheEntry, iconApprovalManager } = useContext(WalletContext)
+  const { t } = useTranslation()
 
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -63,10 +65,10 @@ export default function AppAssetDetail() {
     setRefreshing(false)
   }
 
-  if (loading) return <LoadingLogo text='Loading asset...' />
+  if (loading) return <LoadingLogo text={t('loading.loadingAsset')} />
 
   const meta = assetInfo.metadata
-  const name = meta?.name ?? 'Unknown Asset'
+  const name = meta?.name ?? t('mint.unknownAsset')
   const ticker = meta?.ticker ?? ''
   const title = ticker || name
   const decimals = meta?.decimals ?? 8
@@ -126,7 +128,7 @@ export default function AppAssetDetail() {
                 {truncateId(assetInfo.assetId)}
               </Text>
               <FlexRow gap='0.25rem' centered>
-                <TextSecondary centered>Asset ID (tap to copy)</TextSecondary>
+                <TextSecondary centered>{t('mint.assetIdTapToCopy')}</TextSecondary>
                 <span
                   onClick={handleRefresh}
                   style={{
@@ -144,29 +146,29 @@ export default function AppAssetDetail() {
 
             <Shadow lighter>
               <FlexCol gap='0.5rem' padding='0.75rem'>
-                {name !== 'Unknown Asset' ? (
+                {name !== t('mint.unknownAsset') ? (
                   <FlexRow between>
-                    <TextSecondary>Name</TextSecondary>
+                    <TextSecondary>{t('mint.nameLabel')}</TextSecondary>
                     <Text bold>{name}</Text>
                   </FlexRow>
                 ) : null}
                 {ticker ? (
                   <FlexRow between>
-                    <TextSecondary>Ticker</TextSecondary>
+                    <TextSecondary>{t('mint.tickerLabel')}</TextSecondary>
                     <Text bold>{ticker}</Text>
                   </FlexRow>
                 ) : null}
                 <FlexRow between>
-                  <TextSecondary>Supply</TextSecondary>
-                  <Text bold>{prettyAssetAmount(supply, decimals) ?? 'Unknown'}</Text>
+                  <TextSecondary>{t('mint.supply')}</TextSecondary>
+                  <Text bold>{prettyAssetAmount(supply, decimals) ?? t('mint.unknown')}</Text>
                 </FlexRow>
                 <FlexRow between>
-                  <TextSecondary>Decimals</TextSecondary>
+                  <TextSecondary>{t('mint.decimals')}</TextSecondary>
                   <Text bold>{decimals}</Text>
                 </FlexRow>
                 {controlAssetId ? (
                   <FlexRow between>
-                    <TextSecondary>Control Asset</TextSecondary>
+                    <TextSecondary>{t('mint.controlAsset')}</TextSecondary>
                     <FlexRow gap='0.25rem' end>
                       {(() => {
                         const ctrl = assetMetadataCache.get(controlAssetId)?.metadata
@@ -194,7 +196,7 @@ export default function AppAssetDetail() {
             </Shadow>
             {hasIcon && !iconApprovalManager.isVerified(assetInfo.assetId) ? (
               <Button
-                label={iconApprovalManager.isApproved(assetInfo.assetId) ? 'Hide icon' : 'Show icon'}
+                label={iconApprovalManager.isApproved(assetInfo.assetId) ? t('mint.hideIcon') : t('mint.showIcon')}
                 onClick={async () => {
                   if (iconApprovalManager.isApproved(assetInfo.assetId)) {
                     iconApprovalManager.revoke(assetInfo.assetId)
@@ -211,14 +213,14 @@ export default function AppAssetDetail() {
       </Content>
       <ButtonsOnBottom>
         <FlexRow gap='0.75rem'>
-          <Button label='Send' onClick={handleSend} disabled={balance === BigInt(0)} />
-          <Button label='Receive' onClick={handleReceive} />
+          <Button label={t('mint.send')} onClick={handleSend} disabled={balance === BigInt(0)} />
+          <Button label={t('mint.receive')} onClick={handleReceive} />
         </FlexRow>
         <FlexRow gap='0.75rem'>
-          <Button label='Reissue' onClick={handleReissue} secondary disabled={!holdsControlAsset} />
-          {balance > 0 ? <Button label='Burn' onClick={handleBurn} secondary /> : null}
+          <Button label={t('mint.reissue')} onClick={handleReissue} secondary disabled={!holdsControlAsset} />
+          {balance > 0 ? <Button label={t('mint.burn')} onClick={handleBurn} secondary /> : null}
         </FlexRow>
-        {canRemove ? <Button label='Remove' onClick={handleRemove} secondary /> : null}
+        {canRemove ? <Button label={t('mint.remove')} onClick={handleRemove} secondary /> : null}
       </ButtonsOnBottom>
     </>
   )

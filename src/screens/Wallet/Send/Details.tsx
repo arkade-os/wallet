@@ -33,6 +33,7 @@ import { buildTransactionAmountDisplay } from '../../../lib/transactionAmountDis
 import { useAmountDisplayContext } from '../../../hooks/useTransactionAmountDisplay'
 import TransactionAmountSummary from '../../../components/TransactionAmountSummary'
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
+import { useTranslation } from '../../../providers/language'
 
 export default function SendDetails() {
   const displayContext = useAmountDisplayContext()
@@ -43,6 +44,7 @@ export default function SendDetails() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { assetMetadataCache, balance, reloadWallet, svcWallet } = useContext(WalletContext)
   const { sendRouter } = useContext(SwapsContext)
+  const { t } = useTranslation()
 
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
@@ -71,31 +73,32 @@ export default function SendDetails() {
 
   const offerToSign = (total: number) => {
     if (balance < total) {
-      setButtonLabel('Insufficient funds')
-      setError(`Insufficient funds, you just have ${prettyNumber(balance)} sats`)
+      setButtonLabel(t('send.insufficientFunds'))
+      setError(t('send.insufficientFundsDetail', { balance: prettyNumber(balance) }))
     } else {
-      setButtonLabel('Tap to Sign')
+      setButtonLabel(t('send.tapToSign'))
     }
   }
 
   useEffect(() => {
-    if (!address && !arkAddress && !invoice) return setError('Missing address')
+    if (!address && !arkAddress && !invoice) return setError(t('send.missingAddress'))
     if (isAssetSend) {
-      if (!assetAmountValue) return setError('Missing asset amount')
+      if (!assetAmountValue) return setError(t('send.missingAssetAmount'))
       const destination = arkAddress ?? ''
       const feeInSats = defaultFee
       setDetails({
         assetId,
         destination,
-        direction: 'Sending assets',
+        direction: t('send.directionSendingAssets'),
         fees: feeInSats,
         satoshis: 0,
         total: feeInSats,
       })
-      setButtonLabel('Tap to Sign')
+      setButtonLabel(t('send.tapToSign'))
+      setError('')
       return
     }
-    if (!satoshis) return setError('Missing amount')
+    if (!satoshis) return setError(t('send.missingAmount'))
     const destination =
       arkAddress && vtxoTxsAllowed()
         ? arkAddress
@@ -106,16 +109,17 @@ export default function SendDetails() {
             : ''
     const direction =
       destination === arkAddress
-        ? 'Paying inside Arkade'
+        ? t('send.payingInsideArkade')
         : destination === invoice
-          ? 'Paying to Lightning'
+          ? t('send.payingToLightning')
           : destination === address
-            ? 'Paying to mainnet'
+            ? t('send.payingToMainnet')
             : ''
+
     // The RFQ lockup carries exactly the invoice amount (exact-out, fee_bps
     // from the card; 0 today), so total == satoshis on the Lightning path.
     const total = pendingLnSend ? pendingLnSend.total : satoshis
-    const amount = direction === 'Paying to mainnet' ? satoshis - calcOnchainOutputFee() : satoshis
+    const amount = direction === t('send.payingToMainnet') ? satoshis - calcOnchainOutputFee() : satoshis
     const fees = total - amount > 0 ? total - amount : 0
     setDetails({
       destination,
@@ -125,8 +129,8 @@ export default function SendDetails() {
       total,
     })
     // Provisional on this path until the router settles it below.
-    if (direction === 'Paying to mainnet' && amount > 0) {
-      setButtonLabel('Getting quote')
+    if (direction === t('send.payingToMainnet') && amount > 0) {
+      setButtonLabel(t('send.gettingQuote'))
       return setPricing(true)
     }
     offerToSign(total)
@@ -157,7 +161,7 @@ export default function SendDetails() {
   }, [pricing, details?.destination, details?.satoshis])
 
   const handleTxid = (txid: string) => {
-    if (!txid) return handleError('Error sending transaction')
+    if (!txid) return handleError(t('send.errorSendingTransaction'))
     saveTransactionActivityMetadata(txid, {
       destination: details?.destination,
       networkFee: details?.fees,
@@ -262,7 +266,7 @@ export default function SendDetails() {
     if (!details || !svcWallet || pricing) return
     if (!isAssetSend && (!details.total || !details.satoshis)) return
     if (isAssetSend && !arkAddress) {
-      setError('Assets can only be sent to Arkade addresses')
+      setError(t('send.assetsOnlyToArkade'))
       return
     }
 
@@ -272,7 +276,7 @@ export default function SendDetails() {
       if (!sendInfo.assets || sendInfo.assets.length === 0) return handleError('Missing assets list')
       payAssets(arkAddress, sendInfo.assets).catch(handleError)
     } else if (arkAddress) {
-      if (!details.total) return handleError('Missing total amount')
+      if (!details.total) return handleError(t('send.missingTotalAmount'))
       sendOffChain(svcWallet, details.total, arkAddress)
         .then((txId: string) => handleTxid(txId))
         .catch(handleError)
@@ -282,8 +286,8 @@ export default function SendDetails() {
       // quote), so funding it IS the acceptance — no further message exists.
       payLightning(pendingLnSend, invoice).catch(handleError)
     } else if (address) {
-      if (!details.total) return handleError('Missing total amount')
-      if (!details.satoshis) return handleError('Missing satoshis amount')
+      if (!details.total) return handleError(t('send.missingTotalAmount'))
+      if (!details.satoshis) return handleError(t('send.missingSatoshisAmount'))
       // Blanked by the limit, not by routing: every rail fails `quoteIsForThisSend`.
       if (!details.destination) return handleError('On-chain sends are not permitted on this account')
       payOnchain(address, details).catch(handleError)
@@ -292,26 +296,26 @@ export default function SendDetails() {
 
   return (
     <>
-      <Header text='Sign transaction' back />
+      <Header text={t('send.signTransaction')} back />
       <Content>
         {sending ? (
           details?.destination === invoice ? (
             <LoadingLogo
-              text='Paying to Lightning'
+              text={t('send.payingToLightning')}
               done={sendDone}
               exitMode='fly-up'
               onExitComplete={handleExitComplete}
             />
           ) : details?.destination === arkAddress ? (
             <LoadingLogo
-              text='Paying inside Arkade'
+              text={t('send.payingInsideArkade')}
               done={sendDone}
               exitMode='fly-up'
               onExitComplete={handleExitComplete}
             />
           ) : (
             <LoadingLogo
-              text='Paying to mainnet'
+              text={t('send.payingToMainnet')}
               done={sendDone}
               exitMode='fly-up'
               onExitComplete={handleExitComplete}
@@ -322,7 +326,7 @@ export default function SendDetails() {
             <FlexCol>
               <ErrorMessage error={Boolean(error)} text={error} />
               {details && amountDisplay ? (
-                <TransactionAmountSummary amount={amountDisplay} label='Amount sent' />
+                <TransactionAmountSummary amount={amountDisplay} label={t('send.amountSent')} />
               ) : null}
               <Details
                 details={

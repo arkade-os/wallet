@@ -1,4 +1,4 @@
-import { Currencies } from './types'
+import { Currencies, Language } from './types'
 
 const europeanRegions = new Set([
   'ad',
@@ -83,7 +83,30 @@ const europeanLanguages = new Set([
   'uk',
 ])
 
-export function getCurrency(locale = navigator.language || 'en-US'): Currencies {
+export function detectLanguage(
+  locale = typeof navigator === 'undefined' ? 'en' : navigator.language || 'en',
+): Language {
+  return locale.toLowerCase().startsWith('es') ? Language.Spanish : Language.English
+}
+
+// Module-level mirror of the active language so lib code that has no React
+// context (e.g. server-error formatting in lib/error.ts) can still localize.
+// LanguageProvider keeps it in sync with the persisted config. Note: tests that
+// do not mount LanguageProvider see the default (English) — expected, but mount
+// the provider when asserting localized lib error text.
+let activeLanguage: Language = Language.English
+
+export function setActiveLanguage(language: Language): void {
+  activeLanguage = language
+}
+
+export function getActiveLanguage(): Language {
+  return activeLanguage
+}
+
+export function getCurrency(
+  locale = typeof navigator === 'undefined' ? 'en-US' : navigator.language || 'en-US',
+): Currencies {
   const normalizedLocale = locale.toLowerCase()
   const [language, region] = normalizedLocale.split(/[-_]/)
 
