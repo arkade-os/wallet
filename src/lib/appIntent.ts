@@ -12,6 +12,16 @@
 //     Success sends status=sent and txid when there is one.
 //     Leaving the send screen sends error=denied.
 //
+// Installed Chromium PWAs also register the web+arkade protocol (see
+// public/manifest.json). The browser opens those in the hash (`/#%s`):
+//
+//   web+arkade://connect?callback=<https url>
+//   web+arkade://send?request=<percent-encoded BIP21>&callback=<optional>
+//
+// Same params, same confirmation. Ark notes stay on that hash and are ignored
+// here. Safari has no manifest protocol handler, so those apps use the https
+// link and it opens in the browser.
+//
 // Build the link with URLSearchParams. A BIP21 contains `?` and `&`, and a
 // callback is itself a URL — concatenating those raw breaks the query string.
 // The callback is not a template: the wallet appends its own params and will
@@ -149,13 +159,71 @@ export const stripAppIntentParams = (): void => {
   window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
 }
 
+/**
+ * The manifest protocol handler stores `web+arkade://...` in the hash.
+ * Returns the equivalent `?action=` search string, or nothing for ark notes
+ * and any other hash.
+ */
+export const protocolIntentSearch = (hash: string): string | undefined => {
+  const fragment = protocolFragment(hash)
+  if (!fragment) return undefined
+  let url: URL
+  try {
+    url = new URL(fragment)
+  } catch {
+    return undefined
+  }
+  if (url.protocol !== 'web+arkade:') return undefined
+  const action = protocolAction(url)
+  if (action !== 'connect' && action !== 'send') return undefined
+  const params = new URLSearchParams(url.search)
+  params.set('action', action)
+  return `?${params.toString()}`
+}
+
 /** Read the launch URL once. Later reads see the stripped query and return nothing. */
 export const readInitialAppIntent = (): AppIntentState | undefined => {
   if (typeof window === 'undefined') return undefined
-  const parsed = parseAppIntent(window.location.search)
+  const fromSearch = parseAppIntent(window.location.search)
+  if (fromSearch) {
+    stripAppIntentParams()
+    return toAppIntentState(fromSearch)
+  }
+  const fromProtocol = protocolIntentSearch(window.location.hash)
+  if (!fromProtocol) return undefined
+  const parsed = parseAppIntent(fromProtocol)
   if (!parsed) return undefined
-  stripAppIntentParams()
+  stripProtocolIntentHash()
   return toAppIntentState(parsed)
+}
+
+const protocolFragment = (hash: string): string | undefined => {
+  let fragment = hash.startsWith('#') ? hash.slice(1) : hash
+  if (!fragment) return undefined
+  if (fragment.toLowerCase().startsWith('web+arkade:')) return fragment
+  // The handler substitutes %s percent-encoded. location.hash usually decodes
+  // that once; accept the still-encoded form too.
+  try {
+    const decoded = decodeURIComponent(fragment)
+    if (decoded.toLowerCase().startsWith('web+arkade:')) return decoded
+  } catch {
+    return undefined
+  }
+  return undefined
+}
+
+const protocolAction = (url: URL): string => {
+  if (url.hostname) {
+    if (url.pathname && url.pathname !== '/') return ''
+    return url.hostname.toLowerCase()
+  }
+  return url.pathname.replace(/^\/+|\/+$/g, '').toLowerCase()
+}
+
+const stripProtocolIntentHash = (): void => {
+  const url = new URL(window.location.href)
+  if (!url.hash) return
+  window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}`)
 }
 
 const optionalCallback = (params: URLSearchParams): { callback?: string } => {

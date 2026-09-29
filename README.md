@@ -196,6 +196,15 @@ Success opens `callback?status=sent&txid=<txid>` when there is a txid. Backing o
 
 `callback` must be `https`, or `http` on `localhost`, `127.0.0.1`, or `[::1]`. The whole query must stay under 6000 characters. The wallet appends its params; it does not fill a template, and it will not leave a pre-set `address` in place on decline.
 
+An installed wallet on Chrome or Edge also handles the `web+arkade` protocol (`public/manifest.json` sends it to the hash). The actions are the same:
+
+```
+web+arkade://connect?callback=https%3A%2F%2Farkade.trade%2Fconnect
+web+arkade://send?request=<percent-encoded BIP21>&callback=https%3A%2F%2Farkade.trade%2Fvault
+```
+
+The browser asks once before it lets the installed app own that protocol. Safari has no manifest protocol handler, so an iOS app uses the https link, which opens in the browser. Ark notes keep using `web+arkade://` and are not treated as connect or send.
+
 ## Troubleshooting
 
 ### `address already in use` (Port 5000) on macOS

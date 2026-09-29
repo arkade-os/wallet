@@ -4,6 +4,7 @@ import {
   callbackUrl,
   nextAppIntentNavigation,
   parseAppIntent,
+  protocolIntentSearch,
   readInitialAppIntent,
   stripAppIntentParams,
   toAppIntentState,
@@ -139,6 +140,23 @@ describe('nextAppIntentNavigation', () => {
   })
 })
 
+describe('protocolIntentSearch', () => {
+  it('accepts web+arkade connect and send, with or without slashes', () => {
+    const connect = protocolIntentSearch(`web+arkade:connect?callback=${encodeURIComponent(CALLBACK)}`)
+    expect(parseAppIntent(connect ?? '')).toEqual({
+      ok: true,
+      intent: { action: 'connect', callback: CALLBACK },
+    })
+
+    const sendUrl = new URL('web+arkade://send')
+    sendUrl.searchParams.set('request', REQUEST)
+    expect(parseAppIntent(protocolIntentSearch(sendUrl.href) ?? '')).toEqual({
+      ok: true,
+      intent: { action: 'send', request: REQUEST },
+    })
+  })
+})
+
 describe('readInitialAppIntent', () => {
   afterEach(() => {
     window.history.replaceState(null, '', '/')
@@ -156,5 +174,37 @@ describe('readInitialAppIntent', () => {
     window.history.replaceState(null, '', '/?dev=true')
     stripAppIntentParams()
     expect(window.location.search).toBe('?dev=true')
+  })
+
+  it('reads a web+arkade connect link from the hash and strips it', () => {
+    const custom = new URL('web+arkade://connect')
+    custom.searchParams.set('callback', CALLBACK)
+    // Chromium percent-encodes the protocol URL into the manifest's #%s.
+    window.history.replaceState(null, '', `/#${encodeURIComponent(custom.href)}`)
+    expect(readInitialAppIntent()).toEqual({ status: 'connect', callback: CALLBACK })
+    expect(window.location.hash).toBe('')
+    expect(readInitialAppIntent()).toBeUndefined()
+  })
+
+  it('reads a decoded web+arkade send link', () => {
+    const custom = new URL('web+arkade://send')
+    custom.searchParams.set('request', REQUEST)
+    custom.searchParams.set('callback', CALLBACK)
+    window.history.replaceState(null, '', `/?dev=true#${custom.href}`)
+    expect(readInitialAppIntent()).toEqual({
+      status: 'send',
+      request: REQUEST,
+      callback: CALLBACK,
+    })
+    expect(window.location.search).toBe('?dev=true')
+    expect(window.location.hash).toBe('')
+  })
+
+  it('leaves an ark note hash alone', () => {
+    const note = 'web+arkade://arknoted5e23929b122982678e8bd8ded4338a4d611a2b7cb7d0f5e0c67c3139d87dec885'
+    window.history.replaceState(null, '', `/#${note}`)
+    expect(protocolIntentSearch(window.location.hash)).toBeUndefined()
+    expect(readInitialAppIntent()).toBeUndefined()
+    expect(window.location.hash).toBe(`#${note}`)
   })
 })
