@@ -35,9 +35,9 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
 
   const key = ({ time, msg, level }: LogLine) => `${time}${msg}${level}`
 
-  const copy = (value: string) => {
-    copyToClipboard(value)
-    toast(t('common.copiedToClipboard'))
+  const copy = async (value: string) => {
+    const copied = await copyToClipboard(value)
+    toast(copied ? t('common.copiedToClipboard') : t('common.failedToCopy'))
   }
 
   const focusOnFirstRow = () => {

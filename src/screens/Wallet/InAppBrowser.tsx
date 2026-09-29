@@ -108,14 +108,13 @@ export default function InAppBrowser() {
   }, [])
 
   const handleCopy = async () => {
-    try {
-      await copyToClipboard(window.location.href)
-      if (copyTimeout.current) clearTimeout(copyTimeout.current)
-      setCopied(true)
-      copyTimeout.current = setTimeout(() => setCopied(false), 2000)
-    } catch {
-      // clipboard API may be unavailable in some in-app browsers
-    }
+    // copyToClipboard resolves false instead of throwing, so the catch this
+    // used to wrap could never fire — the copied marker was set either way.
+    const copied = await copyToClipboard(window.location.href)
+    if (!copied) return
+    if (copyTimeout.current) clearTimeout(copyTimeout.current)
+    setCopied(true)
+    copyTimeout.current = setTimeout(() => setCopied(false), 2000)
   }
 
   const titleStyle = {

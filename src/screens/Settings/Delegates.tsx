@@ -179,8 +179,8 @@ function DelegateCard() {
   if (!config.delegate) return null
 
   const handleCopy = async (value: string) => {
-    await copyToClipboard(value)
-    toast(t('common.copiedToClipboard'))
+    const copied = await copyToClipboard(value)
+    toast(copied ? t('common.copiedToClipboard') : t('common.failedToCopy'))
   }
 
   const nextRolloverText = wallet.nextRollover

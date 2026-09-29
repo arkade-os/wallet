@@ -97,8 +97,9 @@ function CopyRow({ label, value, link }: { label: string; value: string; link?: 
 
   const handleCopy = async () => {
     hapticSubtle()
-    await copyToClipboard(value)
-    toast(t('common.copiedToClipboard'))
+    const copied = await copyToClipboard(value)
+    toast(copied ? t('common.copiedToClipboard') : t('common.failedToCopy'))
+    if (!copied) return
     setCopied(true)
     clearTimeout(timerRef.current)
     timerRef.current = setTimeout(() => setCopied(false), 2000)

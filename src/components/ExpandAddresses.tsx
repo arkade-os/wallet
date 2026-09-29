@@ -52,9 +52,9 @@ export default function ExpandAddresses({
 
   const handleCopy = async (value: string) => {
     hapticSubtle()
-    await copyToClipboard(value)
-    toast(t('common.copiedToClipboard'))
-    setCopied(value)
+    const copied = await copyToClipboard(value)
+    toast(copied ? t('common.copiedToClipboard') : t('common.failedToCopy'))
+    if (copied) setCopied(value)
   }
 
   const handleExpand = () => {

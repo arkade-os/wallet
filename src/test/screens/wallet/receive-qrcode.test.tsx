@@ -193,3 +193,44 @@ describe('resolveQrValue', () => {
     expect(resolveQrValue('ark1addr', { ...opts, ark: '' })).toBe('bitcoin:unified')
   })
 })
+
+describe('Receive QR Code screen — copy feedback', () => {
+  beforeEach(() => {
+    copyToClipboardMock.mockClear()
+    // Restored explicitly: mockClear only wipes calls, so a test that forces a
+    // failure would otherwise leak that implementation into the ones after it.
+    copyToClipboardMock.mockImplementation((v) => Promise.resolve(v))
+  })
+
+  // A refused clipboard write used to be toasted as a success, and the copied
+  // marker was set anyway, so the screen claimed a value was on the clipboard
+  // when the payer scanning it would find the previous contents. This drives
+  // handleCopy, off the QR image itself.
+  it('reports a refused clipboard write instead of claiming success', async () => {
+    copyToClipboardMock.mockResolvedValue(false)
+    renderReceiveQrCode(tapFixture())
+
+    const qrButton = await screen.findByRole('button', { name: 'Copy QR code' })
+    await act(async () => {
+      fireEvent.click(qrButton)
+    })
+
+    expect(await screen.findByText('Failed to copy')).toBeInTheDocument()
+  })
+
+  // The copy button is a separate handler (handleCopyButton) that also opens
+  // the format-picker sheet, so it needs its own pass: the sheet is an IonModal
+  // that portals outside the React root, but the write and its toast happen
+  // before that matters.
+  it('reports a refused clipboard write from the copy button too', async () => {
+    copyToClipboardMock.mockResolvedValue(false)
+    renderReceiveQrCode(tapFixture())
+
+    const copyButton = await screen.findByRole('button', { name: 'Copy' })
+    await act(async () => {
+      fireEvent.click(copyButton)
+    })
+
+    expect(await screen.findByText('Failed to copy')).toBeInTheDocument()
+  })
+})

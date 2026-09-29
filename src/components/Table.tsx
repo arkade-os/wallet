@@ -20,10 +20,10 @@ export default function Table({ data, variant = 'default' }: { data: TableData; 
   const { toast } = useToast()
   const { t } = useTranslation()
 
-  const copy = (value: string) => {
+  const copy = async (value: string) => {
     hapticSubtle()
-    copyToClipboard(value)
-    toast(t('common.copiedToClipboard'))
+    const copied = await copyToClipboard(value)
+    toast(copied ? t('common.copiedToClipboard') : t('common.failedToCopy'))
   }
 
   const focusOnFirstRow = () => {
