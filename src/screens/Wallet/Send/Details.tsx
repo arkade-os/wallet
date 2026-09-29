@@ -24,7 +24,6 @@ import {
   withinPricingBudget,
 } from '../../../lib/sendRouter'
 import { extractError } from '../../../lib/error'
-import { SolverNotRespondingError } from '../../../lib/nostrRfq'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError, consoleLog } from '../../../lib/logs'
 import type { RouteQuote } from '@arkade-os/sdk'
@@ -74,10 +73,10 @@ export default function SendDetails() {
 
   const offerToSign = (total: number) => {
     if (balance < total) {
-      setButtonLabel('Insufficient funds')
-      setError(`Insufficient funds, you just have ${prettyNumber(balance)} sats`)
+      setButtonLabel(t('send.insufficientFunds'))
+      setError(t('send.insufficientFundsDetail', { balance: prettyNumber(balance) }))
     } else {
-      setButtonLabel('Tap to Sign')
+      setButtonLabel(t('send.tapToSign'))
     }
   }
 
@@ -108,29 +107,19 @@ export default function SendDetails() {
           : address && utxoTxsAllowed()
             ? address
             : ''
-    // Routing is a protocol decision; it must never depend on a localized string,
-    // otherwise fee math and labels drift when the language changes.
-    const destinationType =
-      destination === arkAddress
-        ? 'arkade'
-        : destination === invoice
-          ? 'lightning'
-          : destination === address
-            ? 'mainnet'
-            : 'none'
-    // `direction` is display-only; keep logic keyed on `destinationType`.
     const direction =
-      destinationType === 'arkade'
+      destination === arkAddress
         ? t('send.payingInsideArkade')
-        : destinationType === 'lightning'
+        : destination === invoice
           ? t('send.payingToLightning')
-          : destinationType === 'mainnet'
+          : destination === address
             ? t('send.payingToMainnet')
             : ''
+
     // The RFQ lockup carries exactly the invoice amount (exact-out, fee_bps
     // from the card; 0 today), so total == satoshis on the Lightning path.
     const total = pendingLnSend ? pendingLnSend.total : satoshis
-    const amount = direction === 'Paying to mainnet' ? satoshis - calcOnchainOutputFee() : satoshis
+    const amount = direction === t('send.payingToMainnet') ? satoshis - calcOnchainOutputFee() : satoshis
     const fees = total - amount > 0 ? total - amount : 0
     setDetails({
       destination,
@@ -140,8 +129,8 @@ export default function SendDetails() {
       total,
     })
     // Provisional on this path until the router settles it below.
-    if (direction === 'Paying to mainnet' && amount > 0) {
-      setButtonLabel('Getting quote')
+    if (direction === t('send.payingToMainnet') && amount > 0) {
+      setButtonLabel(t('send.gettingQuote'))
       return setPricing(true)
     }
     offerToSign(total)
@@ -212,13 +201,7 @@ export default function SendDetails() {
 
   const handleError = (err: any) => {
     consoleError(err, 'error sending payment')
-    if (err instanceof SolverNotRespondingError) {
-      setError(t('errors.solverNotResponding', { seconds: Math.round(err.timeoutMs / 1000) }))
-    } else if (/AMOUNT_TOO_LOW|amount is lower than/i.test(extractError(err))) {
-      setError(t('errors.onchainAmountTooLow'))
-    } else {
-      setError(extractError(err))
-    }
+    setError(extractError(err))
     setSendDone(true)
   }
 

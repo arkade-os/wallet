@@ -669,13 +669,7 @@ export default function SendForm() {
 
   const handleError = (err: any) => {
     consoleError(err, 'error sending payment')
-    if (err instanceof SolverNotRespondingError) {
-      setError(t('errors.solverNotResponding', { seconds: Math.round(err.timeoutMs / 1000) }))
-    } else if (/AMOUNT_TOO_LOW|amount is lower than/i.test(extractError(err))) {
-      setError(t('errors.onchainAmountTooLow'))
-    } else {
-      setError(extractError(err))
-    }
+    setError(extractError(err))
     setProcessing(false)
   }
 
@@ -864,7 +858,7 @@ export default function SendForm() {
 
     const label = (
       <Text color='neutral-500' smaller>
-        {`${amount} available`}
+        {t('send.available', { amount })}
       </Text>
     )
     if (amountIsReadOnly) return label

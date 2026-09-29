@@ -12,7 +12,6 @@ import FlexCol from '@/components/FlexCol'
 import ErrorMessage from '@/components/Error'
 import Shadow from '@/components/Shadow'
 import Modal from '@/components/Modal'
-import { SwapsContext } from '@/providers/swaps'
 import { consoleError } from '@/lib/logs'
 import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '@/providers/language'
@@ -129,7 +128,7 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose?: () => void
 function BundledCardLine({ input }: { input: LocalCardInput }) {
   const { t } = useTranslation()
   const card = input.card as Card
-  const pairs = card.markets?.map(marketPairLabel).join(', ') ?? ''
+  const pairs = card.markets?.map((m) => m.pair).join(', ') ?? ''
   const [showCard, setShowCard] = useState(false)
 
   const toggleShowCard = () => {
@@ -163,7 +162,7 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
   const [error, setError] = useState<string>('')
 
   const card = input.card as Card
-  const pairs = card.markets?.map(marketPairLabel).join(', ') ?? ''
+  const pairs = card.markets?.map((m) => m.pair).join(', ') ?? ''
 
   const handleConfirmRemove = () => {
     setConfirmRemove(true)
@@ -226,7 +225,6 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
 
 export default function Solvers() {
   const { aspInfo } = useContext(AspContext)
-  const { runDiscovery } = useContext(SwapsContext)
   const { backupSolverCards } = useContext(BackupContext)
   const { t } = useTranslation()
 

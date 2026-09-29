@@ -32,12 +32,6 @@ import {
  * not here — and the fix is closing that tab, which the copy has to say or the
  * user has nothing to act on.
  */
-const rfqMock = vi.hoisted(() => ({
-  negotiateError: null as unknown,
-  SolverNotRespondingError: class SolverNotRespondingError extends Error {
-    timeoutMs = 30000
-  },
-}))
 vi.mock('qr', () => ({ default: () => Array.from({ length: 21 }, () => new Uint8Array(21).fill(1)) }))
 
 // The negotiation is the provider's; here the screen only has to reach
@@ -54,6 +48,14 @@ beforeAll(() => {
 })
 
 const receiveLightning = vi.fn()
+const setRecvInfo = vi.fn()
+const copyToClipboard = vi.fn()
+const shareData = vi.fn()
+vi.mock('../../../lib/clipboard', () => ({ copyToClipboard: (...args: unknown[]) => copyToClipboard(...args) }))
+vi.mock('../../../lib/share', () => ({
+  canBrowserShareData: () => true,
+  shareData: (...args: unknown[]) => shareData(...args),
+}))
 
 const tree = (satoshis: number) => (
   <ToastProvider>
@@ -105,6 +107,9 @@ const tree = (satoshis: number) => (
 const renderWithTrack = (satoshis = 10_000) => render(tree(satoshis))
 
 beforeEach(() => receiveLightning.mockReset())
+beforeEach(() => {
+  setRecvInfo.mockClear()
+})
 
 describe('Receive screen, Lightning failures', () => {
   it('offers a retry, not a chore, when no tab is driving', async () => {
@@ -172,30 +177,22 @@ describe('Receive screen, Lightning failures', () => {
     expect(screen.queryByText(/temporarily unavailable/)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
   })
-
-  it('translates a missing receive solver instead of leaking the raw throw', async () => {
-    vi.mocked(lnReceiveRendezvous).mockReturnValueOnce(undefined)
-    renderWithTrack()
-
-    expect(await screen.findByText(/Lightning unavailable: No Lightning solver available/)).toBeInTheDocument()
-    expect(screen.queryByText(/no_lightning_solver/)).not.toBeInTheDocument()
-  })
 })
 
 describe('Receive screen, invoice generation', () => {
   it('blocks every copy/share path while pending and restores them immediately when ready', async () => {
     let finish!: () => void
-    track.mockImplementation(
+    receiveLightning.mockImplementation(
       () =>
-        new Promise<void>((resolve) => {
-          finish = resolve
+        new Promise((resolve) => {
+          finish = () => resolve({ id: 'swap-id', invoice: 'lnbc10mock' })
         }),
     )
     copyToClipboard.mockClear()
     shareData.mockClear()
     renderWithTrack()
 
-    await waitFor(() => expect(track).toHaveBeenCalled())
+    await waitFor(() => expect(receiveLightning).toHaveBeenCalledWith(10_000))
     expect(screen.getByRole('status')).toHaveTextContent('Generating invoice…')
     expect(screen.getByText('Requesting 10,000 sats')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Copy QR code' })).not.toBeInTheDocument()
@@ -218,7 +215,7 @@ describe('Receive screen, invoice generation', () => {
   })
 
   it('restores other receiving methods when generation fails', async () => {
-    track.mockRejectedValue(new Error('Solver timed out'))
+    receiveLightning.mockRejectedValue(new Error('Solver timed out'))
     renderWithTrack()
     expect(await screen.findByText(/Lightning unavailable: Solver timed out/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled()
@@ -227,29 +224,16 @@ describe('Receive screen, invoice generation', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
-  it('localizes the solver timeout instead of leaking the raw English message', async () => {
-    rfqMock.negotiateError = new rfqMock.SolverNotRespondingError()
-    renderWithTrack()
-    expect(
-      await screen.findByText(/Lightning unavailable: The Lightning solver did not respond \(waited 30s\)/),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: 'Copy' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: 'Share' })).toBeEnabled()
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
-    expect(rfqMock.negotiateError).toBeInstanceOf(rfqMock.SolverNotRespondingError)
-  })
-
   it('clearing the amount during generation immediately restores the QR', async () => {
     let finish!: () => void
-    track.mockImplementation(
+    receiveLightning.mockImplementation(
       () =>
-        new Promise<void>((resolve) => {
-          finish = resolve
+        new Promise((resolve) => {
+          finish = () => resolve({ id: 'swap-id', invoice: 'lnbc10mock' })
         }),
     )
     const { rerender } = renderWithTrack()
-    await waitFor(() => expect(track).toHaveBeenCalled())
+    await waitFor(() => expect(receiveLightning).toHaveBeenCalledWith(10_000))
     rerender(tree(0))
     expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Copy' })).toBeEnabled()

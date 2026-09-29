@@ -39,9 +39,7 @@ export function swapStatusForTx(tx: Tx): SwapStatus {
   return tx.settled ? 'completed' : 'pending'
 }
 
-export type Translate = (key: string, params?: Record<string, string | number>) => string
-
-export function swapStatusLabel(tx: Tx, t: Translate): string {
+export function swapStatusLabel(tx: Tx): string {
   const status = swapStatusForTx(tx)
   if (status === 'failed') return 'Failed'
   if (status === 'cancelled') return 'Cancelled'
@@ -74,26 +72,10 @@ export function swapStatusLabel(tx: Tx, t: Translate): string {
  * `settled` adds no word: a send that went through is just "Lightning send",
  * the way a plain payment row carries no adverb.
  */
-export function lnSwapLabel(tx: Tx, t: Translate): string | undefined {
+export function lnSwapLabel(tx: Tx): string | undefined {
   const swap = tx.lnSwap
   if (!swap) return undefined
-  const stemKey = swap.label === 'Lightning send' ? 'Send' : swap.label === 'Lightning receive' ? 'Receive' : undefined
-  if (stemKey) {
-    const suffixKey =
-      swap.outcome === 'pending'
-        ? 'Pending'
-        : swap.outcome === 'refunded'
-          ? 'Refunded'
-          : swap.outcome === 'failed'
-            ? 'Failed'
-            : swap.outcome === 'lost'
-              ? 'Lost'
-              : ''
-    return t(`transaction.lightning${stemKey}${suffixKey}`)
-  }
-  // A corridor label the wallet does not know (a future resolver) is shown
-  // verbatim; the outcome still names itself, matching the resolver copy.
-  const stem = swap.label ?? t('transaction.lightningSend')
+  const stem = swap.label ?? 'Lightning send'
   if (swap.outcome === 'lost') return `${stem} lost`
   if (swap.outcome === 'refunded') return `${stem} refunded`
   if (swap.outcome === 'failed') return `${stem} failed`

@@ -23,6 +23,7 @@ export default function HomeQuickActions() {
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { swapAvailable } = useContext(SwapsContext)
   const [swapSheetOpen, setSwapSheetOpen] = useState(false)
+  const { t } = useTranslation()
 
   const actions: HomeAction[] = [
     {

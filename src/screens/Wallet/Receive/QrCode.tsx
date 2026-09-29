@@ -43,6 +43,7 @@ import { FiatContext } from '../../../providers/fiat'
 import { AspContext } from '../../../providers/asp'
 import { AssetsContext } from '../../../providers/assets'
 import { SwapsContext } from '../../../providers/swaps'
+import { useTranslation } from '../../../providers/language'
 
 /**
  * Decide which value the QR should encode. Honours an explicit copy-sheet
@@ -165,13 +166,14 @@ export default function ReceiveQRCode() {
     // does nothing at all.
     setLnReceiveError('')
     setLnRetryable(false)
-    setGeneratingInvoice(false)
     setLnNoDriver(false)
+    setGeneratingInvoice(false)
     if (!svcWallet || isAssetReceive || satoshis <= 0 || recvInfo.received) return
     if (recvInfo.pendingLnReceive?.payAmount && recvInfo.invoice) return
 
     let abandoned = false
     const negotiate = async () => {
+      setGeneratingInvoice(true)
       // One call: the client picks the corridor off the discovered cards,
       // negotiates the hold invoice, and begins driving the swap BEFORE the
       // invoice comes back — the payer cannot pay one they have not seen, so
@@ -192,26 +194,30 @@ export default function ReceiveQRCode() {
       }))
     }
 
-    negotiate().catch((err) => {
-      if (abandoned) return
-      const error = extractError(err)
-      consoleError(error, 'error negotiating lightning receive')
-      const noDriver = err instanceof SwapsHeldElsewhere
-      setLnNoDriver(noDriver)
-      setLnReceiveError(error)
-      // The failures here that are not "Lightning is unavailable". The first:
-      // the quote was fine and our own contract store refused the write. No
-      // invoice came back, so the abandoned quote is inert and cannot be
-      // resumed — calling again is the fix, and it derives a fresh preimage and
-      // rfq id. The second: no tab was driving, and the next one to take the
-      // lock will serve the same call.
-      //
-      // By name rather than by `instanceof`, because a negotiation run on
-      // another tab reaches us over `swapDriverChannel`, where the class cannot
-      // cross: the rebuilt error carries the name the SDK's own constructor
-      // sets, and this is the check that reads it in both cases.
-      setLnRetryable(noDriver || (err as Error)?.name === 'LockupRegistrationFailed')
-    })
+    negotiate()
+      .catch((err) => {
+        if (abandoned) return
+        const error = extractError(err)
+        consoleError(error, 'error negotiating lightning receive')
+        const noDriver = err instanceof SwapsHeldElsewhere
+        setLnNoDriver(noDriver)
+        setLnReceiveError(error)
+        // The failures here that are not "Lightning is unavailable". The first:
+        // the quote was fine and our own contract store refused the write. No
+        // invoice came back, so the abandoned quote is inert and cannot be
+        // resumed — calling again is the fix, and it derives a fresh preimage and
+        // rfq id. The second: no tab was driving, and the next one to take the
+        // lock will serve the same call.
+        //
+        // By name rather than by `instanceof`, because a negotiation run on
+        // another tab reaches us over `swapDriverChannel`, where the class cannot
+        // cross: the rebuilt error carries the name the SDK's own constructor
+        // sets, and this is the check that reads it in both cases.
+        setLnRetryable(noDriver || (err as Error)?.name === 'LockupRegistrationFailed')
+      })
+      .finally(() => {
+        if (!abandoned) setGeneratingInvoice(false)
+      })
     // The amount changed under an in-flight negotiation, so its invoice would
     // be for the wrong number. Nothing to cancel on the solver — an unpaid hold
     // invoice simply expires.
@@ -439,8 +445,8 @@ export default function ReceiveQRCode() {
                 <FlexCol gap='0.25rem' centered>
                   <TextSecondary>
                     {lnNoDriver
-                        ? t('receive.lightningUnavailable', { error: t('receive.noLightningSolver') })
-                        : t('receive.lightningUnavailable', { error: lnReceiveError })}
+                      ? t('receive.lightningUnavailable', { error: t('receive.noLightningSolver') })
+                      : t('receive.lightningUnavailable', { error: lnReceiveError })}
                   </TextSecondary>
                   {lnRetryable ? (
                     <Button label={t('common.tryAgain')} onClick={() => setNegotiateAttempt((n) => n + 1)} secondary />
@@ -575,7 +581,7 @@ export default function ReceiveQRCode() {
               handleCopy(v)
             }}
             copied={copied}
-          />{' '}
+          />
         </FlexCol>
       </SheetModal>
     </>

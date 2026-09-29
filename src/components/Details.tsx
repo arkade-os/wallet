@@ -197,48 +197,48 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
   ])
 
   const data: TableData = [
-    ['Swap from', formatSensitiveDetail(swapFrom), <ArrowUpDownIcon key='swap-from-icon' />],
-    ['Swap to', formatSensitiveDetail(swapTo), <ArrowUpDownIcon key='swap-to-icon' />],
-    ['Address', address, <TypeIcon key='address-icon' />],
-    ['Arknote', arknote, <NotesIcon key='notes-icon' small />],
-    ['Invoice', invoice, <TypeIcon key='invoice-icon' />],
-    ['Destination', destination, <TypeIcon key='destination-icon' />],
-    ['Funded', fundedTxid, <HashIcon key='funded-icon' />, offchainTxOnClick(fundedTxid)],
-    [spendLabel ?? 'Completed', spendTxid, <HashIcon key='spend-icon' />, offchainTxOnClick(spendTxid)],
+    [t('accounts.swapFrom'), formatSensitiveDetail(swapFrom), <ArrowUpDownIcon key='swap-from-icon' />],
+    [t('accounts.swapTo'), formatSensitiveDetail(swapTo), <ArrowUpDownIcon key='swap-to-icon' />],
+    [t('accounts.address'), address, <TypeIcon key='address-icon' />],
+    [t('accounts.arknote'), arknote, <NotesIcon key='notes-icon' small />],
+    [t('accounts.invoice'), invoice, <TypeIcon key='invoice-icon' />],
+    [t('accounts.destination'), destination, <TypeIcon key='destination-icon' />],
+    [t('accounts.funded'), fundedTxid, <HashIcon key='funded-icon' />, offchainTxOnClick(fundedTxid)],
+    [spendLabel ?? t('accounts.completed'), spendTxid, <HashIcon key='spend-icon' />, offchainTxOnClick(spendTxid)],
     // Says the recipient was paid; `spendTxid` only proves the solver acted.
-    ['Paid on-chain', claimTxid, <HashIcon key='claim-icon' />, onchainTxOnClick(claimTxid)],
-    ['Transaction ID', txid, <HashIcon key='txid-icon' />, showTxidLink ? txidOnClick : undefined],
+    [t('accounts.paidOnchain'), claimTxid, <HashIcon key='claim-icon' />, onchainTxOnClick(claimTxid)],
+    [t('accounts.transactionId'), txid, <HashIcon key='txid-icon' />, showTxidLink ? txidOnClick : undefined],
     ...assetIdRows,
-    ['Corridor', corridor, <DirectionIcon key='corridor-icon' />],
-    ['Solver', solver, <ServerIcon key='solver-icon' />],
-    ['Direction', direction, <DirectionIcon key='direction-icon' />],
-    ['Type', type, <TypeIcon key='type-icon' />],
-    ['Status', status, <StatusIcon key='status-icon' />],
-    ['When', when, <WhenIcon key='when-icon' />],
-    ['Date', date, <DateIcon key='date-icon' />],
-    ['Expiry', expiry, <DateIcon key='expiry-icon' />],
+    [t('accounts.corridor'), corridor, <DirectionIcon key='corridor-icon' />],
+    [t('accounts.solver'), solver, <ServerIcon key='solver-icon' />],
+    [t('accounts.direction'), direction, <DirectionIcon key='direction-icon' />],
+    [t('accounts.type'), type, <TypeIcon key='type-icon' />],
+    [t('accounts.status'), status, <StatusIcon key='status-icon' />],
+    [t('accounts.when'), when, <WhenIcon key='when-icon' />],
+    [t('accounts.date'), date, <DateIcon key='date-icon' />],
+    [t('accounts.expiry'), expiry, <DateIcon key='expiry-icon' />],
     ...amountRows,
-    ['Price rate', priceRate, <ArrowUpDownIcon key='price-rate-icon' />],
-    ['Network fees', fees === undefined ? undefined : formatAmount(fees), <FeesIcon key='fees-icon' />],
+    [t('accounts.priceRate'), priceRate, <ArrowUpDownIcon key='price-rate-icon' />],
+    [t('accounts.networkFees'), fees === undefined ? undefined : formatAmount(fees), <FeesIcon key='fees-icon' />],
     [
-      'Swap fees',
+      t('accounts.swapFees'),
       formatSensitiveDetail(swapFees) ?? (swapFeeSats === undefined ? undefined : formatAmount(swapFeeSats)),
       <FeesIcon key='swap-fees-icon' />,
     ],
     [
-      'Recipient gets',
+      t('accounts.recipientGets'),
       recipientGets === undefined ? undefined : formatAmount(recipientGets),
       <TotalIcon key='recipient-gets-icon' />,
     ],
     ...assetTotalRows,
-    [t('common.total'), formatAmount(total), <TotalIcon key='total-icon' />],
+    [t('accounts.total'), formatAmount(total), <TotalIcon key='total-icon' />],
   ]
 
   // Gated because they AUDIT a swap, never complete or diagnose one. The gate
   // is local because settings' "Advanced" is a page, not a preference to read.
   const advanced: TableData = [
-    ['L1 HTLC address', htlcAddress, <HashIcon key='htlc-icon' />],
-    ['Refund deadline', refundDeadline, <DateIcon key='refund-deadline-icon' />],
+    [t('accounts.l1HtlcAddress'), htlcAddress, <HashIcon key='htlc-icon' />],
+    [t('accounts.refundDeadline'), refundDeadline, <DateIcon key='refund-deadline-icon' />],
   ]
   const hasAdvanced = advanced.some(([, value]) => Boolean(value))
 
@@ -248,7 +248,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
       {hasAdvanced ? (
         <>
           <button type='button' className='details-advanced-toggle' onClick={() => setShowAdvanced((v) => !v)}>
-            Advanced
+            {t('common.advanced')}
             {showAdvanced ? <ChevronUpIcon /> : <ChevronDownIcon />}
           </button>
           {showAdvanced ? <Table data={advanced} variant={variant} /> : null}

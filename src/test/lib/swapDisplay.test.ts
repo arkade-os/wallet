@@ -11,8 +11,7 @@ import {
 } from '../../lib/swapDisplay'
 import type { WalletAssetSwap } from '../../lib/swapRepository'
 import { MUTINYNET_USDT_ASSET_ID } from '../../lib/accountAssets'
-import { Currencies, Language, Tx, Unit } from '../../lib/types'
-import { translate } from '../../lib/i18n'
+import { Currencies, Tx, Unit } from '../../lib/types'
 
 const PRICE = 63_750 // USD per whole BTC
 
@@ -217,12 +216,11 @@ describe('buildAssetSwapActivityTx', () => {
 
 describe('lnSwapLabel', () => {
   const row = (lnSwap?: Tx['lnSwap']) => ({ lnSwap }) as Tx
-  const t = (key: string): string => translate(Language.English, key)
 
   it('names the outcome, and calls a refund a refund rather than a failure', () => {
-    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'refunded' }), t)).toBe('Lightning send refunded')
-    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'pending' }), t)).toBe('Lightning send pending')
-    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'failed' }), t)).toBe('Lightning send failed')
+    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'refunded' }))).toBe('Lightning send refunded')
+    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'pending' }))).toBe('Lightning send pending')
+    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'failed' }))).toBe('Lightning send failed')
   })
 
   it('calls a lost receive lost, which is the opposite of a refund', () => {
@@ -230,30 +228,28 @@ describe('lnSwapLabel', () => {
     // `refunded`. On that leg every non-claim leaf of the covenant is the
     // SOLVER's, so the lockup going back means the payment never arrived —
     // money gone, not money returned. Reading it as "refunded" would tell the
-    // user the exact opposite of what happened. A send that came back stays
-    // "refunded" — that assertion lives with the other send outcomes above.
-    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'lost' }), t)).toBe('Lightning receive lost')
-    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'lost' }), t)).not.toContain('refunded')
+    // user the exact opposite of what happened.
+    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'lost' }))).toBe('Lightning receive lost')
+    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'lost' }))).not.toContain('refunded')
+  })
+
+  it('still calls a SEND that came back refunded, on the same token set', () => {
+    // The two legs read `refunded` in opposite directions, and the package is
+    // what tells them apart — the wallet must not collapse the distinction.
+    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'refunded' }))).toBe('Lightning send refunded')
   })
 
   it('says nothing extra once the payment simply went through', () => {
-    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'settled' }), t)).toBe('Lightning send')
-    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'settled' }), t)).toBe('Lightning receive')
+    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'settled' }))).toBe('Lightning send')
+    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'settled' }))).toBe('Lightning receive')
   })
 
   it('falls back to the corridor name for an outcome token it does not know', () => {
-    expect(lnSwapLabel(row({ outcome: 'something-new' }), t)).toBe('Lightning send')
-  })
-
-  it('localizes the corridor stem and outcome in Spanish', () => {
-    const es = (key: string): string => translate(Language.Spanish, key)
-    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'refunded' }), es)).toBe('Envío Lightning reembolsado')
-    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'lost' }), es)).toBe('Recepción Lightning perdida')
-    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'settled' }), es)).toBe('Recepción Lightning')
+    expect(lnSwapLabel(row({ outcome: 'something-new' }))).toBe('Lightning send')
   })
 
   it('leaves a row the resolver never tagged alone', () => {
-    expect(lnSwapLabel(row(), t)).toBeUndefined()
+    expect(lnSwapLabel(row())).toBeUndefined()
   })
 })
 

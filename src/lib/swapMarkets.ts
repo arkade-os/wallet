@@ -70,7 +70,7 @@ export const discoveryOptions = (network: NetworkName): Omit<DiscoverMarketsOpti
   return {
     network: known ?? DEFAULT_NETWORK,
     registryUrl: known ? getSolverRegistryUrl(known) : undefined,
-    localCards: known ? [...BUNDLED_CARDS, ...readSolverCardsFromStorage()].filter((c) => c.network === known) : [],
+    localCards: known ? [...BUNDLED_CARDS, ...readSolverCards()].filter((c) => c.network === known) : [],
     logger: (...args) => consoleLog('solver discovery:', ...args),
   }
 }
