@@ -21,6 +21,8 @@ interface ClaimSheetProps {
 const sats = (value: bigint) => `${prettyNumber(Number(value))} sats`
 
 const planLine = (plan: ClaimPlan, units: (value: bigint) => string): string => {
+  if (plan.kind === 'purchase')
+    return `The sender paid for the carrier. You receive ${sats(plan.receivedSats)} with no sats needed.`
   if (plan.kind === 'recycle') {
     const coin = sats(BigInt(plan.coin.value))
     return 'feeSats' in plan
@@ -45,31 +47,40 @@ export default function ClaimSheet({
 }: ClaimSheetProps) {
   const descriptor = claim.claim
   const fare = receiverFareOf(claim)
-  if (!descriptor || !fare) return null
+  if (!descriptor) return null
 
   const units = (value: bigint) => `${centsToUnits(value, asset?.decimals ?? 0)} ${asset?.ticker || 'units'}`
   const { kind, value } = descriptor.recoveryLocktime
   const locktime = kind === 'height' ? `block ${value}` : new Date(Number(value) * 1000).toLocaleString()
+  const delivery = descriptor.params.assetId
+    ? units(BigInt(descriptor.assetUnits ?? 0))
+    : sats(BigInt(descriptor.params.dust) - BigInt(descriptor.params.topup))
 
   return (
     <FlexCol gap='1rem'>
       <Text big bold>
         Claim your Taxi delivery
       </Text>
-      <Text wrap>{`${units(BigInt(descriptor.assetUnits ?? 0))} arrived through your Taxi.`}</Text>
+      <Text wrap>{`${delivery} arrived through your Taxi.`}</Text>
       <Text wrap testId='claim-fare'>
-        {fare.currency === 'sats'
-          ? `Fare: ${sats(fare.units)}, paid off your own coin as it merges with this delivery.`
-          : `Fare: ${units(fare.units)}, paid out of the delivery.`}
+        {!fare
+          ? descriptor.params.claimMode === 'purchase'
+            ? 'The sender paid the fare and carrier. You do not need sats to claim.'
+            : 'The sender paid the fare. Recycling repays Taxi’s loan using your own sats.'
+          : fare.currency === 'sats'
+            ? `Fare: ${sats(fare.units)}, paid off your own coin as it merges with this delivery.`
+            : `Fare: ${units(fare.units)}, paid out of the delivery.`}
       </Text>
       {plan ? (
         <Text wrap small color='neutral-500' testId='claim-plan'>
           {planLine(plan, units)}
         </Text>
       ) : null}
-      {descriptor.unclaimedMode === 'reclaim' ? (
+      {descriptor.unclaimedMode === 'reclaim' || descriptor.params.recoveryRecipient !== 'receiver' ? (
         <Text wrap small color='neutral-500' testId='unclaimed-note'>
-          {`If you don't claim, this returns to you at ${locktime} and no fare is charged.`}
+          {descriptor.params.recoveryRecipient === 'receiver'
+            ? `If you don't claim, this returns to you at ${locktime} and no fare is charged.`
+            : `If you don't claim, Taxi can return this to the sender at ${locktime}.`}
         </Text>
       ) : null}
       {error ? <ErrorMessage error text={error} /> : null}
@@ -82,7 +93,7 @@ export default function ClaimSheet({
         <Button
           label='Claim'
           onClick={() => onClaim?.()}
-          disabled={plan?.kind !== 'recycle' || claiming || spent}
+          disabled={!plan || plan.kind === 'wait-for-reclaim' || claiming || spent}
           loading={claiming}
         />
         <Button label='Not now' onClick={() => onDismiss?.()} secondary />

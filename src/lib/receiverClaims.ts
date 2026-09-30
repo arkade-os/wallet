@@ -1,5 +1,5 @@
 /**
- * The receiver's side of a Taxi delivery he pays for: which claims to put in
+ * The receiver's side of a Taxi delivery: which claims to put in
  * front of him, what claiming one costs, and the claim itself. Nothing here
  * claims unasked; `claimVerified` runs only on his confirmation.
  */
@@ -31,7 +31,7 @@ import { arkadeContextOf, taxiClient } from './receiverTaxi'
 import type { RememberedTaxi } from './storage'
 
 export type ReceiverClaim = Parameters<TaxiClient['verifyIncomingClaim']>[0]
-export type ClaimClient = Pick<TaxiClient, 'info' | 'subscribeClaims' | 'verifyIncomingClaim' | 'recycle'>
+export type ClaimClient = Pick<TaxiClient, 'info' | 'subscribeClaims' | 'verifyIncomingClaim' | 'recycle' | 'purchase'>
 
 type PlanCoin = Pick<ExtendedVirtualCoin, 'txid' | 'vout' | 'value' | 'script'>
 
@@ -42,6 +42,7 @@ export type RecyclePlan<C extends PlanCoin = ExtendedVirtualCoin> = { kind: 'rec
 
 export type ClaimPlan<C extends PlanCoin = ExtendedVirtualCoin> =
   | RecyclePlan<C>
+  | { kind: 'purchase'; receivedSats: bigint }
   | { kind: 'wait-for-reclaim'; reason: 'no-coin-covers-the-fare'; neededSats: bigint }
   | { kind: 'wait-for-reclaim'; reason: 'fare-exceeds-delivery' }
 
@@ -62,29 +63,34 @@ export const deliveredAssetId = (claim: ReceiverClaim): string | undefined => {
 
 export const planReceiverClaim = <C extends PlanCoin>(claim: ReceiverClaim, coins: readonly C[]): ClaimPlan<C> => {
   const fare = receiverFareOf(claim)
-  if (!claim.claim || !fare) throw new Error(`Taxi transfer ${claim.transferId} is not one the receiver pays for`)
+  if (!claim.claim) throw new Error(`Taxi transfer ${claim.transferId} has no claim`)
   const dust = BigInt(claim.claim.params.dust)
+  const topup = BigInt(claim.claim.params.topup)
+  const mode = claim.claim.params.claimMode
+  if (!fare && mode === 'purchase') return { kind: 'purchase', receivedSats: dust }
   const delivered = BigInt(claim.claim.assetUnits ?? 0)
-  if (fare.currency === 'asset' && fare.units >= delivered)
+  if (fare?.currency === 'asset' && fare.units >= delivered)
     return { kind: 'wait-for-reclaim', reason: 'fare-exceeds-delivery' }
-  // The Taxi fronted the whole dust, so recycle repays dust plus a sats fare out of the merged
-  // output: coin - fare must still be at least dust, or the client's recycle refuses it.
-  const feeSats = fare.currency === 'sats' ? fare.units : 0n
-  const neededSats = dust + feeSats
+  // Recycle repays the topup and any receiver fare, retaining at least dust.
+  const feeSats = fare?.currency === 'sats' ? fare.units : 0n
+  const neededSats = topup + feeSats
   const script = hex.encode(receiverScript(claim))
   const coin = coins
     .filter((candidate) => candidate.script === script && BigInt(candidate.value) >= neededSats)
     .reduce<
       C | undefined
     >((smallest, candidate) => (smallest && smallest.value <= candidate.value ? smallest : candidate), undefined)
-  if (!coin) return { kind: 'wait-for-reclaim', reason: 'no-coin-covers-the-fare', neededSats }
-  const mergedSats = BigInt(coin.value) - feeSats
-  return fare.currency === 'sats'
-    ? { kind: 'recycle', coin, mergedSats, feeSats }
-    : { kind: 'recycle', coin, mergedSats, feeUnits: fare.units, deliveredUnits: delivered - fare.units }
+  if (!coin)
+    return !fare && mode === undefined
+      ? { kind: 'purchase', receivedSats: dust }
+      : { kind: 'wait-for-reclaim', reason: 'no-coin-covers-the-fare', neededSats }
+  const mergedSats = dust + BigInt(coin.value) - topup - feeSats
+  return fare?.currency === 'asset'
+    ? { kind: 'recycle', coin, mergedSats, feeUnits: fare.units, deliveredUnits: delivered - fare.units }
+    : { kind: 'recycle', coin, mergedSats, feeSats }
 }
 
-type Skip = 'not-claimable' | 'not-this-wallet' | 'other-operator' | 'not-receiver-paid' | 'unknown-unclaimed-mode'
+type Skip = 'not-claimable' | 'not-this-wallet' | 'other-operator' | 'unsupported-claim' | 'unknown-unclaimed-mode'
 
 /** The remembered Taxi a claim was made under, or why it is not one to offer. */
 const triage = (
@@ -98,8 +104,13 @@ const triage = (
   const taxi = taxis.find(({ operatorKey }) => operatorKey === descriptor.params.operatorKey)
   if (!taxi) return 'other-operator'
   const { receiverFare, claimMode, recoveryRecipient } = descriptor.params
-  if (!receiverFare || claimMode !== 'recycle' || recoveryRecipient !== 'receiver') return 'not-receiver-paid'
-  if (descriptor.unclaimedMode !== 'reclaim') return 'unknown-unclaimed-mode'
+  if (receiverFare) {
+    if (claimMode !== 'recycle' || recoveryRecipient !== 'receiver') return 'unsupported-claim'
+    if (descriptor.unclaimedMode !== 'reclaim') return 'unknown-unclaimed-mode'
+  } else {
+    if (recoveryRecipient !== undefined && recoveryRecipient !== 'sender') return 'unsupported-claim'
+    if (descriptor.unclaimedMode !== undefined) return 'unknown-unclaimed-mode'
+  }
   return taxi
 }
 
@@ -113,8 +124,8 @@ const expectationFor = (claim: ReceiverClaim): IncomingClaimExpectation => {
       ? { assetId: { txid: hex.decode(params.assetId.txid), groupIndex: params.assetId.groupIndex } }
       : {}),
     ...(assetUnits === undefined ? {} : { assetUnits: BigInt(assetUnits) }),
-    recoveryRecipient: 'receiver',
-    claimMode: 'recycle',
+    recoveryRecipient: params.recoveryRecipient ?? 'sender',
+    ...(params.claimMode ? { claimMode: params.claimMode } : {}),
   }
 }
 
@@ -256,8 +267,19 @@ export class ClaimSpent extends Error {
   }
 }
 
-/** Recycle a verified transfer, merging the planned coin; `offer` exists only once verification passed. */
-export const claimVerified = async (offer: VerifiedClaim, plan: RecyclePlan, identity: Identity): Promise<string> => {
+/** Claim a verified transfer; recycle merges the planned coin, purchase needs none. */
+export const claimVerified = async (
+  offer: VerifiedClaim,
+  plan: RecyclePlan | Extract<ClaimPlan, { kind: 'purchase' }>,
+  identity: Identity,
+): Promise<string> => {
+  if (plan.kind === 'purchase') {
+    try {
+      return await offer.client.purchase(offer.transfer, receiverScript(offer.claim))
+    } catch (error) {
+      throw new ClaimSpent(error)
+    }
+  }
   const [funding] = fundingInputsFromVtxos([plan.coin])
   const [control, leaf] = VtxoScript.decode(funding.tapTree).findLeaf(hex.encode(funding.spendLeaf))
   const input: ReceiverWalletInput = {

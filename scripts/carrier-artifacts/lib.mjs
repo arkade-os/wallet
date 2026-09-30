@@ -13,8 +13,8 @@ export const MANIFEST_PATH = `${VENDOR_DIR}/manifest.json`
 
 const TS_SDK = 'https://github.com/arkade-os/ts-sdk.git'
 const ARKADE_TAXI = 'https://github.com/ArkLabsHQ/arkade-taxi.git'
-const SDK_COMMIT = 'c4ff451f3f79c966836533184a82bc8f11c927b9'
-const TAXI_COMMIT = 'dd8b03a146db6235521d9a613651e71c02ee23c1'
+const SDK_COMMIT = '23c6d353f7ea6616edf43da781b589a023fc693d'
+const TAXI_COMMIT = '6482d654aa7c720fa197048436eeafc71a8f0f37'
 
 // Moving to a new candidate is an edit HERE, so `verify.mjs` can refuse an
 // archive whose manifest names any other commit.
@@ -29,7 +29,7 @@ export const PINNED_SOURCES = {
 export const PINNED_PACKAGES = Object.keys(PINNED_SOURCES)
 
 /** Frozen packages the wallet declares directly, rather than reaching transitively. */
-export const DIRECT_DEPENDENCIES = ['@arkade-os/sdk', '@arkade-os/swap', '@arkade-taxi/client']
+export const DIRECT_DEPENDENCIES = ['@arkade-os/sdk', '@arkade-os/swap', '@arkade-taxi/client', '@arkade-taxi/protocol']
 
 /** Why this archive is not the pinned source, or `undefined` when it is. */
 export function pinnedSourceMismatch(artifact) {

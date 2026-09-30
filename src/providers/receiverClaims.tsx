@@ -9,7 +9,8 @@ import {
   useRef,
   useState,
 } from 'react'
-import type { IWallet } from '@arkade-os/sdk'
+import { toXOnlySignerHex, type IWallet, type NetworkName } from '@arkade-os/sdk'
+import { hex } from '@scure/base'
 import ErrorBoundary from '../components/ErrorBoundary'
 import SheetModal from '../components/SheetModal'
 import ClaimSheet from '../screens/Wallet/Receive/ClaimSheet'
@@ -30,6 +31,8 @@ import {
 } from '../lib/receiverClaims'
 import { readReceiverTaxis, rememberReceiverTaxi, type RememberedTaxi } from '../lib/storage'
 import { assetSwapRepository, unreservedCoins } from '../lib/swapRepository'
+import { getEmulatorPubkeyForNetwork, getReceiverTaxiUrlForNetwork } from '../lib/constants'
+import { taxiClient } from '../lib/receiverTaxi'
 
 interface ReceiverClaimsContextProps {
   /** Record a Taxi this wallet named in a request, so its claims are watched from now on. */
@@ -71,6 +74,27 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
   const remember = useCallback((taxi: RememberedTaxi) => {
     if (rememberReceiverTaxi(taxi)) setTaxisVersion((version) => version + 1)
   }, [])
+
+  useEffect(() => {
+    const network = aspInfo.network as NetworkName
+    const url = getReceiverTaxiUrlForNetwork(network)
+    const emulatorKey = getEmulatorPubkeyForNetwork(network)
+    if (!unlocked || !aspInfo.url || !url || !emulatorKey) return
+    if (readReceiverTaxis().some((taxi) => taxi.network === network && taxi.url === url)) return
+    let stopped = false
+    taxiClient(url, fetch)
+      .info()
+      .then((info) => {
+        if (stopped) return
+        if (info.serverKey !== toXOnlySignerHex(aspInfo.signerPubkey) || info.emulatorKey !== hex.encode(emulatorKey))
+          throw new Error('Configured Taxi uses a different Arkade server or co-signer')
+        remember({ network, url, operatorKey: info.operatorKey })
+      })
+      .catch((err) => consoleError(err, 'could not watch configured Taxi'))
+    return () => {
+      stopped = true
+    }
+  }, [unlocked, aspInfo.url, aspInfo.network, aspInfo.signerPubkey, remember])
 
   useEffect(() => {
     setOffers([])
@@ -160,7 +184,7 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
       // The coin shown may be gone by now, and a recycle that fails cannot be retried on this page.
       const fresh = await planFor(offer)
       setPlanned({ key, plan: fresh })
-      if (fresh.kind !== 'recycle' || !unlockedRef.current) return
+      if (fresh.kind === 'wait-for-reclaim' || !unlockedRef.current) return
       await claimVerified(offer, fresh, (svcWallet as IWallet).identity)
       claimedRef.current.add(key)
       setOffers((prev) => prev.filter((other) => other !== offer))

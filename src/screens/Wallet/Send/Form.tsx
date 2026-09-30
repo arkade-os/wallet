@@ -4,7 +4,7 @@ import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
-import { FlowContext } from '../../../providers/flow'
+import { FlowContext, type SendInfo } from '../../../providers/flow'
 import Padded from '../../../components/Padded'
 import { isBTCAddress, decodeArkAddress, isLightningInvoice, isURLWithLightningQueryString } from '../../../lib/address'
 import { AspContext } from '../../../providers/asp'
@@ -67,9 +67,17 @@ import {
   DropdownMenuTrigger,
 } from '../../../components/ui/dropdown-menu'
 import { hapticLight } from '../../../lib/haptics'
-import { getEmulatorPubkeyForNetwork, testDomains } from '../../../lib/constants'
+import { getEmulatorPubkeyForNetwork, getReceiverTaxiUrlForNetwork, testDomains } from '../../../lib/constants'
 import UnverifiedBadge from '../../../components/UnverifiedBadge'
 import { useTranslation } from '../../../providers/language'
+import {
+  getPendingDirectTaxi,
+  PendingDirectTaxi,
+  ReturnedDirectTaxi,
+  sendDirectTaxi,
+  type DirectTaxiMode,
+  type DirectTaxiTerms,
+} from '../../../lib/directTaxiSend'
 
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
 
@@ -134,6 +142,13 @@ function AssetIcon({ asset }: { asset: AssetOption | null }) {
 const PARTIAL_SEND_ERROR =
   "You don't have enough bitcoin to do a partial send. Please send all or acquire some bitcoin."
 
+const TAXI_SEND_MODES = {
+  normal: 'Sender pays sats',
+  recycle: 'Receiver uses own sats',
+  purchase: 'Sender pays asset fare',
+  sponsored: 'Sender sponsors carrier',
+} as const
+
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
   const { config, effectiveTheme, useFiat } = useContext(ConfigContext)
@@ -152,6 +167,7 @@ export default function SendForm() {
     isVerifiedAsset,
     setCacheEntry,
     svcWallet,
+    reloadWallet,
   } = useContext(WalletContext)
 
   const [amount, setAmount] = useState<number>()
@@ -180,7 +196,47 @@ export default function SendForm() {
   const [showReserveModal, setShowReserveModal] = useState(false)
   const [valueSats, setValueSats] = useState<number | undefined>(undefined)
   const [receiverTaxi, setReceiverTaxi] = useState<{ taxi: Bip21Taxi; assetId: string }>()
-  const [approval, setApproval] = useState<{ terms: AssetPaymentTerms; answer: (ok: boolean) => void }>()
+  const [approval, setApproval] = useState<{
+    terms: AssetPaymentTerms | DirectTaxiTerms
+    answer: (ok: boolean) => void
+  }>()
+  const [directTaxiMode, setDirectTaxiMode] = useState<'normal' | DirectTaxiMode>('normal')
+  const pendingDirectTaxi = useRef<{ payment: PendingDirectTaxi; send: SendInfo }>()
+  const [checkingTaxiPayment, setCheckingTaxiPayment] = useState(true)
+  const [taxiGuardFailed, setTaxiGuardFailed] = useState(false)
+  const [returnedTaxiNotice, setReturnedTaxiNotice] = useState('')
+
+  const pendingSendInfo = (payment: PendingDirectTaxi | ReturnedDirectTaxi): SendInfo => ({
+    arkAddress: payment.record.receiverAddress,
+    assets: [{ assetId: payment.record.assetId, amount: BigInt(payment.record.assetAmount) }],
+    satoshis: 0,
+  })
+
+  useEffect(() => {
+    if (!svcWallet) return
+    let active = true
+    setCheckingTaxiPayment(true)
+    getPendingDirectTaxi(svcWallet, aspInfo.network)
+      .then((payment) => {
+        if (!active) return
+        if (payment && !pendingDirectTaxi.current) {
+          pendingDirectTaxi.current = { payment, send: pendingSendInfo(payment) }
+          setError(payment.message)
+        }
+        setTaxiGuardFailed(false)
+      })
+      .catch((error) => {
+        if (!active) return
+        setTaxiGuardFailed(true)
+        setError(extractError(error))
+      })
+      .finally(() => {
+        if (active) setCheckingTaxiPayment(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [svcWallet, aspInfo.network])
 
   const timeoutRef = useRef<NodeJS.Timeout>()
 
@@ -204,6 +260,18 @@ export default function SendForm() {
   const isAssetSend = activeAsset !== null
   // Only when her asset balance can't cover it; she then pays in bitcoin, so that balance stops gating Continue.
   const payViaReceiverTaxi = routesToReceiverTaxi(sendInfo, receiverTaxi, activeAsset?.balance ?? BigInt(0))
+  const directTaxiUrl = receiverTaxi?.taxi.url ?? getReceiverTaxiUrlForNetwork(aspInfo.network as NetworkName)
+  const canUseDirectTaxi = Boolean(
+    !sendInfo.account &&
+      isAssetSend &&
+      sendInfo.assets?.length === 1 &&
+      !payViaReceiverTaxi &&
+      sendInfo.arkAddress &&
+      directTaxiUrl,
+  )
+  const payViaDirectTaxi = canUseDirectTaxi && directTaxiMode !== 'normal'
+
+  useEffect(() => setDirectTaxiMode('normal'), [sendInfo.arkAddress, sendInfo.assets?.[0]?.assetId])
 
   const RECIPIENT_DEBOUNCE_MS = 800
   const hasAssets = assetBalances.length > 0
@@ -819,11 +887,57 @@ export default function SendForm() {
     navigate(Pages.SendSuccess)
   }
 
+  const payWithDirectTaxi = async () => {
+    const originalSend = pendingDirectTaxi.current?.send ?? sendInfo
+    try {
+      let txid: string
+      if (pendingDirectTaxi.current) txid = await pendingDirectTaxi.current.payment.resume()
+      else {
+        if (!svcWallet || !directTaxiUrl || directTaxiMode === 'normal') throw new Error('Taxi payment is unavailable')
+        const [{ assetId, amount }] = originalSend.assets!
+        txid = await sendDirectTaxi({
+          wallet: svcWallet,
+          aspInfo,
+          taxi: { url: directTaxiUrl, operatorKey: receiverTaxi?.taxi.operatorKey },
+          receiverAddress: originalSend.arkAddress!,
+          assetId,
+          amount,
+          mode: directTaxiMode,
+          confirmPayment: (terms) => new Promise((answer) => setApproval({ terms, answer })),
+        })
+      }
+      pendingDirectTaxi.current = undefined
+      reloadWallet().catch(consoleError)
+      setSendInfo({ ...originalSend, txid })
+      navigate(Pages.SendSuccess)
+    } catch (error) {
+      if (error instanceof ReturnedDirectTaxi) {
+        pendingDirectTaxi.current = undefined
+        setSendInfo(pendingSendInfo(error))
+        setRecipient(error.record.receiverAddress)
+        setReturnedTaxiNotice(error.message)
+        setError('')
+        setProcessing(false)
+        reloadWallet().catch(consoleError)
+        return
+      }
+      if (error instanceof PendingDirectTaxi)
+        pendingDirectTaxi.current = { payment: error, send: pendingSendInfo(error) }
+      throw error
+    }
+  }
+
   const handleContinue = async () => {
     setProcessing(true)
+    setReturnedTaxiNotice('')
     const satoshis = sendInfo.satoshis ?? 0
     try {
+      const recorded = await getPendingDirectTaxi(svcWallet, aspInfo.network)
+      if (recorded && !pendingDirectTaxi.current)
+        pendingDirectTaxi.current = { payment: recorded, send: pendingSendInfo(recorded) }
+      if (pendingDirectTaxi.current) return await payWithDirectTaxi()
       if (payViaReceiverTaxi && sendInfo.arkAddress) return await payWithReceiverTaxi()
+      if (payViaDirectTaxi) return await payWithDirectTaxi()
       if (sendInfo.lnUrl && lnUrlResponse) {
         // Check if Ark method is available
         const arkMethod = lnUrlResponse.transferAmounts?.find((method) => method.method === 'Ark' && method.available)
@@ -942,6 +1056,7 @@ export default function SendForm() {
   const carrierError =
     !processing &&
     !payViaReceiverTaxi &&
+    !payViaDirectTaxi &&
     activeAsset &&
     assetAmt > BigInt(0) &&
     assetAmt < activeAsset.balance &&
@@ -949,25 +1064,30 @@ export default function SendForm() {
       ? PARTIAL_SEND_ERROR
       : ''
 
-  const buttonDisabled = isAssetSend
-    ? !(arkAddress && assetAmt > 0) ||
-      (activeAsset ? assetAmt > activeAsset.balance && !payViaReceiverTaxi : true) ||
-      taxiLacksSats ||
-      Boolean(recipientError) ||
-      Boolean(carrierError) ||
-      aspInfo.unreachable ||
-      Boolean(error) ||
-      processing
-    : !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
-      (lnUrlResponse?.maxSendable && satoshis > lnUrlResponse.maxSendable) ||
-      (lnUrlResponse?.minSendable && satoshis < lnUrlResponse.minSendable) ||
-      amountIsAboveMaxLimit(satoshis) ||
-      amountIsBelowMinLimit(satoshis) ||
-      satoshis > liquidBalance ||
-      aspInfo.unreachable ||
-      Boolean(error) ||
-      satoshis < 1 ||
-      processing
+  const buttonDisabled =
+    checkingTaxiPayment || taxiGuardFailed
+      ? true
+      : pendingDirectTaxi.current
+        ? processing
+        : isAssetSend
+          ? !(arkAddress && assetAmt > 0) ||
+            (activeAsset ? assetAmt > activeAsset.balance && !payViaReceiverTaxi : true) ||
+            taxiLacksSats ||
+            Boolean(recipientError) ||
+            Boolean(carrierError) ||
+            aspInfo.unreachable ||
+            Boolean(error) ||
+            processing
+          : !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
+            (lnUrlResponse?.maxSendable && satoshis > lnUrlResponse.maxSendable) ||
+            (lnUrlResponse?.minSendable && satoshis < lnUrlResponse.minSendable) ||
+            amountIsAboveMaxLimit(satoshis) ||
+            amountIsBelowMinLimit(satoshis) ||
+            satoshis > liquidBalance ||
+            aspInfo.unreachable ||
+            Boolean(error) ||
+            satoshis < 1 ||
+            processing
 
   // unverified assets are never offered in the picker; they can still arrive
   // preselected via sendInfo.assets from the Assets app detail screen
@@ -1063,7 +1183,10 @@ export default function SendForm() {
         <Content>
           <Padded>
             <FlexCol gap='1.25rem' className='send-form-stack'>
-              <ErrorMessage error={Boolean(error || carrierError)} text={error || carrierError} />
+              <ErrorMessage
+                error={Boolean(error || carrierError || returnedTaxiNotice)}
+                text={error || carrierError || returnedTaxiNotice}
+              />
               <InputAddress
                 error={recipientError}
                 focus={focus === 'recipient'}
@@ -1210,7 +1333,7 @@ export default function SendForm() {
                   onFocus={handleFocus}
                   onMax={handleSendAll}
                   value={amountTextValue}
-                  readOnly={amountIsReadOnly}
+                  readOnly={amountIsReadOnly || Boolean(pendingDirectTaxi.current)}
                   onChange={handleAmountChange}
                   onModeChange={handleEntryModeChange}
                   mode={entryMode}
@@ -1221,12 +1344,34 @@ export default function SendForm() {
                   focus={focus === 'amount' && !isMobileBrowser}
                 />
               </FlexCol>
+              {canUseDirectTaxi ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    className='button secondary'
+                    data-testid='taxi-send-mode'
+                    disabled={Boolean(pendingDirectTaxi.current)}
+                  >
+                    {`Carrier: ${TAXI_SEND_MODES[directTaxiMode]}`}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    {(Object.keys(TAXI_SEND_MODES) as (keyof typeof TAXI_SEND_MODES)[]).map((mode) => (
+                      <DropdownMenuItem key={mode} onClick={() => setDirectTaxiMode(mode)}>
+                        {TAXI_SEND_MODES[mode]}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
               {deductFromAmount ? <InfoLine color='orange' text={t('send.feesDeductedFromAmount')} /> : null}
             </FlexCol>
           </Padded>
         </Content>
         <ButtonsOnBottom>
-          <Button onClick={handleContinue} label={label} disabled={buttonDisabled} />
+          <Button
+            onClick={handleContinue}
+            label={pendingDirectTaxi.current ? 'Check Taxi payment' : label}
+            disabled={buttonDisabled}
+          />
         </ButtonsOnBottom>
       </div>
       <SheetModal isOpen={showReserveModal} onClose={() => setShowReserveModal(false)}>
@@ -1244,14 +1389,21 @@ export default function SendForm() {
       <SheetModal isOpen={Boolean(approval)} onClose={() => answerApproval(false)}>
         <FlexCol gap='1rem'>
           <Text bold>Confirm payment</Text>
-          {approval?.terms.refreshed ? (
+          {approval && 'refreshed' in approval.terms && approval.terms.refreshed ? (
             <Text color='neutral-500' small wrap>
               The last price expired before you confirmed it, so this is a new one.
             </Text>
           ) : null}
-          <Text color='neutral-500' small wrap>
+          <Text
+            color='neutral-500'
+            small
+            wrap
+            testId={approval && 'mode' in approval.terms ? 'taxi-confirm-costs' : undefined}
+          >
             {approval
-              ? `Pay ${prettyNumber(Number(approval.terms.payAmountSats))} sats to send ${prettyAssetAmount(approval.terms.assetAmount, activeAsset?.decimals ?? 8)} ${activeAsset?.ticker ?? ''}`
+              ? 'mode' in approval.terms
+                ? `Send ${prettyAssetAmount(approval.terms.assetAmount, activeAsset?.decimals ?? 8)} ${activeAsset?.ticker ?? ''}. Fare: ${approval.terms.fareCurrency === 'sats' ? `${approval.terms.fareUnits} sats` : `${prettyAssetAmount(approval.terms.fareUnits, activeAsset?.decimals ?? 8)} ${activeAsset?.ticker ?? ''}`}. Taxi carrier: ${approval.terms.carrierSats} sats. ${approval.terms.mode === 'recycle' ? 'The receiver uses their own sats to repay the carrier.' : approval.terms.mode === 'purchase' ? 'The receiver claims the purchased carrier without their own sats.' : 'The receiver gets a direct delivery with no claim needed.'}`
+                : `Pay ${prettyNumber(Number(approval.terms.payAmountSats))} sats to send ${prettyAssetAmount(approval.terms.assetAmount, activeAsset?.decimals ?? 8)} ${activeAsset?.ticker ?? ''}`
               : ''}
           </Text>
           <FlexCol gap='0.5rem'>
