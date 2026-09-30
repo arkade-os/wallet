@@ -125,11 +125,13 @@ test('Alice sends XYZ to Bob through Taxi, choosing who supplies the carrier', a
         path: `/v1/transfers/${transferId}/lockup`,
         method: 'POST',
         mode: 'drop',
+        once: false,
       })
       await alice.page.getByRole('button', { name: 'Pay', exact: true }).click()
       await expect(
         alice.page.getByText('Payment may have been submitted; retry checks the same transfer', { exact: true }),
       ).toBeVisible()
+      await control('reset')
       await alice.page.reload()
       await expect(alice.page.getByTestId('home-action-receive')).toBeVisible()
       await alice.page.getByText(tr.wallet.send, { exact: true }).click()
