@@ -14,6 +14,12 @@ import {
   navigateToAssets,
 } from './utils'
 import { execSync } from 'child_process'
+import { translations } from '../../lib/i18n'
+
+const tr = translations.en
+
+const availableMessage = (amount: string) => tr.send.available.replace('{amount}', amount)
+const successMessage = (amount: string) => tr.send.sentSuccessfully.replace('{amount}', amount)
 
 test('should send sats (some and max) to ark address', async ({ page, isMobile }) => {
   // create wallet
@@ -33,38 +39,38 @@ test('should send sats (some and max) to ark address', async ({ page, isMobile }
   await expect(page.getByTestId('Total')).toContainText('2,000 sats')
 
   // finalize payment
-  await page.getByText('Tap to Sign').click()
+  await page.getByText(tr.send.tapToSign).click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await page.waitForSelector('text=Payment sent', { timeout: 30000 })
-  await expect(page.getByText('2,000 sats sent successfully')).toBeVisible()
+  await page.waitForSelector(`text=${tr.send.paymentSent}`, { timeout: 30000 })
+  await expect(page.getByText(successMessage('2,000 sats'))).toBeVisible()
 
   // main page
   await dismissPaymentSuccess(page)
   await expect(page.getByText('+ 5,000 sats')).toBeVisible()
   await page.waitForSelector('text=- 2,000 sats', { timeout: 10000 })
-  await expect(page.getByText('Sent')).toBeVisible()
+  await expect(page.getByText(tr.transaction.sent)).toBeVisible()
 
   // go to send page
-  await page.getByText('Send').click()
+  await page.getByText(tr.wallet.send).click()
 
   // fill address
   await page.locator('input[name="send-address"]').fill(someArkAddress)
 
   // click max
-  await page.waitForSelector(`text=3,000 sats available`, { timeout: 2100 })
+  await page.waitForSelector(`text=${availableMessage('3,000 sats')}`, { timeout: 2100 })
   await page.getByTestId('input-amount-max').click()
 
   // continue to details page
-  await page.getByText('Continue').click()
+  await page.getByText(tr.common.continue).click()
 
   // details page
   await expect(page.getByTestId('Network fees')).toContainText('0 sats')
   await expect(page.getByTestId('primary-amount')).toContainText('3,000 sats')
   await expect(page.getByTestId('Total')).toContainText('3,000 sats')
 
-  await page.getByText('Tap to Sign').click()
+  await page.getByText(tr.send.tapToSign).click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await page.waitForSelector('text=3,000 sats sent successfully', { timeout: 10000 })
+  await page.waitForSelector(`text=${successMessage('3,000 sats')}`, { timeout: 10000 })
 
   // main page
   await dismissPaymentSuccess(page)
@@ -91,18 +97,18 @@ test('should send usds (some and max) to ark address', async ({ page, isMobile }
   await expect(page.getByTestId('Total')).toContainText('$2.00')
 
   // finalize payment
-  await page.getByText('Tap to Sign').click()
+  await page.getByText(tr.send.tapToSign).click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await page.waitForSelector('text=Payment sent', { timeout: 30000 })
-  await expect(page.getByText('$2.00 sent successfully')).toBeVisible()
+  await page.waitForSelector(`text=${tr.send.paymentSent}`, { timeout: 30000 })
+  await expect(page.getByText(successMessage('$2.00'))).toBeVisible()
 
   // main page
   await dismissPaymentSuccess(page)
   await page.waitForSelector('text=$2.00', { timeout: 10000 })
-  await expect(page.getByText('Sent')).toBeVisible()
+  await expect(page.getByText(tr.transaction.sent)).toBeVisible()
 
   // go to send page
-  await page.getByText('Send').click()
+  await page.getByText(tr.wallet.send).click()
 
   // fill address
   await page.locator('input[name="send-address"]').fill(someArkAddress)
@@ -114,14 +120,14 @@ test('should send usds (some and max) to ark address', async ({ page, isMobile }
   expect(Number(inputAmount).toFixed(2)).toBe(usdsRemaining)
 
   // continue to details page
-  await page.getByText('Continue').click()
+  await page.getByText(tr.common.continue).click()
 
   // details page
   await expect(page.getByTestId('Network fees')).toContainText('$0.00')
   await expect(page.getByTestId('primary-amount')).toContainText(`$${usdsRemaining}`)
   await expect(page.getByTestId('Total')).toContainText(`$${usdsRemaining}`)
 
-  await page.getByText('Tap to Sign').click()
+  await page.getByText(tr.send.tapToSign).click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
   await page.waitForSelector(`text=$${usdsRemaining} sent successfully`, { timeout: 10000 })
 
@@ -145,12 +151,12 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
   // assert success screen
   await expect(page.getByText('TestCoin')).toBeVisible()
   await expect(page.getByText('TST')).toBeVisible()
-  await page.getByText('Back to Arkade Mint').click()
-  await page.getByLabel('Go back').click()
+  await page.getByText(tr.mint.backToArkadeMint).click()
+  await page.getByLabel(tr.common.back).click()
 
   // main page
   await navigateHome(page)
-  await page.waitForSelector('text=Issuance', { timeout: 10000 })
+  await page.waitForSelector(`text=${tr.transaction.issuance}`, { timeout: 10000 })
 
   // send page
   const someArkAddress =
@@ -161,7 +167,7 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
   // is the asset detail screen, which preselects the asset in the send form
   await navigateToAssets(page)
   await page.getByTestId(/^asset-row-TST-/).click()
-  await page.getByText('Send', { exact: true }).click()
+  await page.getByText(tr.mint.send, { exact: true }).click()
 
   // fill address
   await page.locator('input[name="send-address"]').fill(someArkAddress)
@@ -175,7 +181,7 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
   }
 
   // continue to details page
-  await page.getByText('Continue').click()
+  await page.getByText(tr.common.continue).click()
 
   // details page
   await expect(page.getByTestId('primary-amount')).toHaveText(`${sendAmount} TST`)
@@ -184,18 +190,18 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
   await expect(page.getByTestId('Value')).toHaveCount(0)
   await expect(page.getByTestId('Total')).toHaveCount(0)
 
-  await page.getByText('Tap to Sign').click()
+  await page.getByText(tr.send.tapToSign).click()
   await page.waitForSelector(`text=${sendAmount} TST sent successfully`, { timeout: 10000 })
 
   // main page
   await dismissPaymentSuccess(page)
   await page.waitForSelector(`text=- ${sendAmount} TST`, { timeout: 10000 })
-  await expect(page.getByText('Sent')).toBeVisible()
+  await expect(page.getByText(tr.transaction.sent)).toBeVisible()
 
   // send again via the asset detail screen
   await navigateToAssets(page)
   await page.getByTestId(/^asset-row-TST-/).click()
-  await page.getByText('Send', { exact: true }).click()
+  await page.getByText(tr.wallet.send, { exact: true }).click()
 
   // fill address
   await page.locator('input[name="send-address"]').fill(someArkAddress)
@@ -206,7 +212,7 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
   expect(inputAmount).toBe(sendAmountMax.toString())
 
   // continue to details page
-  await page.getByText('Continue').click()
+  await page.getByText(tr.common.continue).click()
 
   // details page
   await expect(page.getByTestId('primary-amount')).toHaveText(`${sendAmountMax} TST`)
@@ -215,7 +221,7 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
   await expect(page.getByTestId('Value')).toHaveCount(0)
   await expect(page.getByTestId('Total')).toHaveCount(0)
 
-  await page.getByText('Tap to Sign').click()
+  await page.getByText(tr.send.tapToSign).click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
   await page.waitForSelector(`text=${sendAmountMax} TST sent successfully`, { timeout: 10000 })
 
@@ -245,36 +251,36 @@ test.skip('should send sats (some and max) to onchain address with chain swap', 
   const feesNumber = parseInt(fees!.replace(/[^0-9]/g, ''), 10)
   expect(feesNumber).toBeGreaterThan(0)
 
-  await page.getByText('Tap to Sign').click()
+  await page.getByText(tr.send.tapToSign).click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
 
   // main page
   await dismissPaymentSuccess(page)
-  await page.waitForSelector('text=Sent', { timeout: 10000 })
+  await page.waitForSelector(`text=${tr.transaction.sent}`, { timeout: 10000 })
 
   const balance = 5000 - feesNumber - 2000
   expect(balance).toBeLessThan(3000) // balance should be less than 3000 sats
 
   // go to send page
-  await page.getByText('Send').click()
+  await page.getByText(tr.wallet.send).click()
 
   // fill address
   await page.locator('input[name="send-address"]').fill(someOnchainAddress)
 
   // click max
-  await page.waitForSelector(`text=${prettyNumber(balance)} sats available`, { timeout: 2100 })
+  await page.waitForSelector(`text=${availableMessage(`${prettyNumber(balance)} sats`)}`, { timeout: 2100 })
   await page.getByTestId('input-amount-max').click()
-  await page.waitForSelector('text=Fees will be deducted from the amount sent', { timeout: 2000 })
+  await page.waitForSelector(`text=${tr.send.feesDeductedFromAmount}`, { timeout: 2000 })
   const inputAmount = await page.locator('input[name="send-amount"]').inputValue()
   expect(inputAmount).toBe(balance.toString())
 
   // continue to send
-  await page.getByText('Continue').click()
+  await page.getByText(tr.common.continue).click()
 
   // details page
   await expect(page.getByTestId('Total')).toContainText(`${prettyNumber(balance)} sats`)
 
-  await page.getByText('Tap to Sign').click()
+  await page.getByText(tr.send.tapToSign).click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
   await page.waitForSelector(`text=${prettyNumber(balance)} sats sent successfully`, { timeout: 10000 })
 
@@ -307,21 +313,21 @@ test.skip('should send usds (some and max) to onchain address with chain swap', 
   const totalText = ((await page.getByTestId('Total').textContent()) ?? '').trim()
   expect(totalText).toContain('$')
 
-  await page.getByText('Tap to Sign').click()
+  await page.getByText(tr.send.tapToSign).click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await page.waitForSelector('text=Payment sent', { timeout: 30000 })
-  await expect(page.getByText(`${totalText} sent successfully`)).toBeVisible()
+  await page.waitForSelector(`text=${tr.send.paymentSent}`, { timeout: 30000 })
+  await expect(page.getByText(successMessage(totalText))).toBeVisible()
 
   // main page
   await dismissPaymentSuccess(page)
   await expect(page.getByText(totalText)).toBeVisible()
-  await expect(page.getByText('Sent')).toBeVisible()
+  await expect(page.getByText(tr.transaction.sent)).toBeVisible()
 
   const balanceText = await page.getByTestId('main-balance').textContent()
   const balance = Number((balanceText ?? '').replace(/[^\d.-]/g, '') || '0')
 
   // go to send page
-  await page.getByText('Send').click()
+  await page.getByText(tr.wallet.send).click()
 
   // fill address
   await page.locator('input[name="send-address"]').fill(someOnchainAddress)
@@ -330,15 +336,15 @@ test.skip('should send usds (some and max) to onchain address with chain swap', 
   await page.waitForSelector(`text=$${balance.toFixed(2)} available`, { timeout: 2100 })
   await page.getByTestId('input-amount-switch').click()
   await page.getByTestId('input-amount-max').click()
-  await page.waitForSelector('text=Fees will be deducted from the amount sent', { timeout: 2000 })
+  await page.waitForSelector(`text=${tr.send.feesDeductedFromAmount}`, { timeout: 2000 })
 
   // continue to send
-  await page.getByText('Continue').click()
+  await page.getByText(tr.common.continue).click()
 
   // details page
   await expect(page.getByTestId('Total')).toContainText(`$${balance.toFixed(2)}`)
 
-  await page.getByText('Tap to Sign').click()
+  await page.getByText(tr.send.tapToSign).click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
   await expect(page.getByText(`$${balance.toFixed(2)} sent successfully`)).toBeVisible()
 
@@ -375,39 +381,39 @@ test('should send sats (some and max) to onchain address with collaborative exit
     expect(feesNumber).toBeGreaterThan(0)
     const totalSent = 700 + feesNumber
 
-    await page.getByText('Tap to Sign').click()
+    await page.getByText(tr.send.tapToSign).click()
     await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-    await page.waitForSelector('text=Payment sent', { timeout: 30000 })
-    await expect(page.getByText(`${totalSent} sats sent successfully`)).toBeVisible()
+    await page.waitForSelector(`text=${tr.send.paymentSent}`, { timeout: 30000 })
+    await expect(page.getByText(successMessage(`${totalSent} sats`))).toBeVisible()
 
     // main page
     await dismissPaymentSuccess(page)
-    await expect(page.getByText('Received')).toBeVisible()
-    await page.waitForSelector('text=Sent', { timeout: 10000 })
+    await expect(page.getByText(tr.transaction.received)).toBeVisible()
+    await page.waitForSelector(`text=${tr.transaction.sent}`, { timeout: 10000 })
     await expect(page.getByText(`- ${totalSent} sats`)).toBeVisible()
 
     const balance = 1800 - totalSent
 
     // go to send page
-    await page.getByText('Send').click()
+    await page.getByText(tr.wallet.send).click()
 
     // fill address
     await page.locator('input[name="send-address"]').fill(someOnchainAddress)
 
     // click max
-    await page.waitForSelector(`text=${prettyNumber(balance)} sats available`, { timeout: 2100 })
+    await page.waitForSelector(`text=${availableMessage(`${prettyNumber(balance)} sats`)}`, { timeout: 2100 })
     await page.getByTestId('input-amount-max').click()
-    await page.waitForSelector('text=Fees will be deducted from the amount sent', { timeout: 2000 })
+    await page.waitForSelector(`text=${tr.send.feesDeductedFromAmount}`, { timeout: 2000 })
     const inputAmount = await page.locator('input[name="send-amount"]').inputValue()
     expect(inputAmount).toBe(balance.toString())
 
     // continue to send
-    await page.getByText('Continue').click()
+    await page.getByText(tr.common.continue).click()
 
     // details page
     await expect(page.getByTestId('Total')).toContainText(`${balance} sats`)
 
-    await page.getByText('Tap to Sign').click()
+    await page.getByText(tr.send.tapToSign).click()
     await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
     await page.waitForSelector(`text=${balance} sats sent successfully`, { timeout: 20000 })
 

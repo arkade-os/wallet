@@ -1,4 +1,7 @@
 import { test, expect, createWallet } from './utils'
+import { translations } from '../../lib/i18n'
+
+const tr = translations.en
 
 test('should create a new wallet', async ({ page }) => {
   // Create wallet
@@ -15,5 +18,5 @@ test('should create a new wallet', async ({ page }) => {
   await expect(page.getByTestId('tab-settings')).not.toBeVisible()
 
   await page.getByTestId('top-right-activity').click()
-  await expect(page.getByText('No transactions yet')).toBeVisible()
+  await expect(page.getByText(tr.components.noTransactions)).toBeVisible()
 })

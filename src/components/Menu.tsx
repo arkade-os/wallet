@@ -6,6 +6,7 @@ import FlexCol from './FlexCol'
 import { hapticSubtle } from '../lib/haptics'
 import { cn } from '@/lib/utils'
 import { NavigationContext, Pages } from '../providers/navigation'
+import { getSettingsOptionLabel, useLanguage } from '../providers/language'
 
 interface MenuProps {
   rows: Option[]
@@ -15,6 +16,7 @@ interface MenuProps {
 export default function Menu({ rows, styled }: MenuProps) {
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
+  const { language } = useLanguage()
 
   const selectOption = (option: SettingsOptions) => {
     hapticSubtle()
@@ -36,7 +38,7 @@ export default function Menu({ rows, styled }: MenuProps) {
         >
           <span className='settings-row__main'>
             {styled ? <span className='settings-row__icon'>{icon}</span> : null}
-            <span className='settings-row__label'>{option}</span>
+            <span className='settings-row__label'>{getSettingsOptionLabel(language, option)}</span>
           </span>
           <span className='settings-row__chevron' aria-hidden='true'>
             <ArrowIcon />

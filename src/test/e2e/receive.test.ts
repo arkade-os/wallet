@@ -14,8 +14,10 @@ import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { faucetOffchain } from './fundedWallet'
 import { sleep } from '../../lib/sleep'
+import { translations } from '../../lib/i18n'
 
 const execFileAsync = promisify(execFile)
+const tr = translations.en
 
 test('should receive onchain funds', async ({ page }) => {
   test.setTimeout(60000)
@@ -61,19 +63,19 @@ test.skip('changing amount should update the invoice (sats mode)', async ({ page
 
   // go to receive page
   await navigateHome(page)
-  await page.getByText('Receive', { exact: true }).click()
+  await page.getByText(tr.wallet.receive, { exact: true }).click()
 
   // fill amount to receive if provided
-  await page.getByText('Add amount').click()
+  await page.getByText(tr.receive.addAmount).click()
   if (isMobile) {
     await handleKeyboardInput(page, sats)
   } else {
     await page.locator('input[name="receive-amount-sheet"]').fill(sats.toString())
-    await page.getByText('Set amount').click()
+    await page.getByText(tr.receive.setAmount).click()
   }
 
   // copy invoice
-  await page.getByText('Copy').click()
+  await page.getByText(tr.common.copy).click()
   await page.getByTestId('invoice-address-copy').click()
   const invoice = await readClipboard(page)
   await sleep(1000)
@@ -85,7 +87,7 @@ test.skip('changing amount should update the invoice (sats mode)', async ({ page
   // change amount to receive
   const newSats = 3000
 
-  await page.getByText('Edit amount').click()
+  await page.getByText(tr.receive.editAmount).click()
   if (isMobile) {
     // delete previous amount
     for (let i = 0; i < sats.toString().length + 1; i++) {
@@ -94,11 +96,11 @@ test.skip('changing amount should update the invoice (sats mode)', async ({ page
     await handleKeyboardInput(page, newSats)
   } else {
     await page.locator('input[name="receive-amount-sheet"]').fill(newSats.toString())
-    await page.getByText('Set amount').click()
+    await page.getByText(tr.receive.setAmount).click()
   }
 
   // copy invoice
-  await page.getByText('Copy').click()
+  await page.getByText(tr.common.copy).click()
   await page.getByTestId('invoice-address-copy').click()
   const newInvoice = await readClipboard(page)
 
@@ -118,20 +120,20 @@ test.skip('changing amount should update the invoice (fiat mode)', async ({ page
 
   // go to receive page
   await navigateHome(page)
-  await page.getByText('Receive', { exact: true }).click()
+  await page.getByText(tr.wallet.receive, { exact: true }).click()
 
   // fill amount to receive if provided
-  await page.getByText('Add amount').click()
+  await page.getByText(tr.receive.addAmount).click()
   if (isMobile) {
     await handleKeyboardInput(page, usds)
   } else {
     await page.locator('input[name="receive-amount-sheet"]').fill(usds.toString())
-    await page.getByText('Set amount').click()
+    await page.getByText(tr.receive.setAmount).click()
   }
 
   // copy invoice
   await sleep(1000)
-  await page.getByText('Copy').click()
+  await page.getByText(tr.common.copy).click()
   await page.getByTestId('invoice-address-copy').click()
   const invoice = await readClipboard(page)
 
@@ -142,7 +144,7 @@ test.skip('changing amount should update the invoice (fiat mode)', async ({ page
   // change amount to receive
   const newUsds = 3
 
-  await page.getByText('Edit amount').click()
+  await page.getByText(tr.receive.editAmount).click()
   if (isMobile) {
     // delete previous amount
     for (let i = 0; i < usds.toString().length + 1; i++) {
@@ -151,12 +153,12 @@ test.skip('changing amount should update the invoice (fiat mode)', async ({ page
     await handleKeyboardInput(page, newUsds)
   } else {
     await page.locator('input[name="receive-amount-sheet"]').fill(newUsds.toString())
-    await page.getByText('Set amount').click()
+    await page.getByText(tr.receive.setAmount).click()
   }
 
   // copy invoice
   await sleep(1000)
-  await page.getByText('Copy').click()
+  await page.getByText(tr.common.copy).click()
   await page.getByTestId('invoice-address-copy').click()
   const newInvoice = await readClipboard(page)
 

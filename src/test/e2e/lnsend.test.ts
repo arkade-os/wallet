@@ -2,8 +2,10 @@ import { existsSync, readFileSync } from 'fs'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 import { test, expect, createWallet, fundWallet, prePay, addInvoiceFromLND } from './utils'
+import { translations } from '../../lib/i18n'
 
 const execAsync = promisify(exec)
+const tr = translations.en
 
 /**
  * The RFQ Lightning send, end to end against a real solver.
@@ -68,12 +70,12 @@ test.describe('RFQ Lightning send', () => {
     // The quote is negotiated on Continue, before this screen renders — so
     // reaching "Tap to Sign" already means the solver answered and the wallet
     // accepted its lockup address as matching its own derivation.
-    await page.getByText('Tap to Sign').click({ timeout: 60_000 })
+    await page.getByText(tr.send.tapToSign).click({ timeout: 60_000 })
     await page.getByTestId('loading-logo').waitFor({ timeout: 30_000 })
 
     // "on the way", not "sent": at this instant the covenant is funded and the
     // invoice is not paid yet. The wording is load-bearing — see Success.tsx.
-    await page.waitForSelector('text=Payment is on the way', { timeout: 60_000 })
+    await page.waitForSelector(`text=${tr.send.paymentOnTheWay}`, { timeout: 60_000 })
 
     // The solver still has to notice the funding, pay and claim. It took ~2.5s
     // by hand; poll so a slow round doesn't make this flaky.

@@ -10,10 +10,12 @@ import { getReceivingAddresses } from '../../../lib/asp'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
 import { NavigationContext, Pages } from '../../../providers/navigation'
+import { useTranslation } from '../../../providers/language'
 
 export default function AppDfx() {
   const { svcWallet } = useContext(WalletContext)
   const { navigate } = useContext(NavigationContext)
+  const { t } = useTranslation()
 
   const [dfxUrl, setDfxUrl] = useState<string | null>(null)
   const [error, setError] = useState(false)
@@ -40,20 +42,25 @@ export default function AppDfx() {
     authenticate()
   }, [svcWallet])
 
-  if (!dfxUrl && !error) return <LoadingLogo text='Connecting to DFX...' />
+  if (!dfxUrl && !error) return <LoadingLogo text={t('loading.connectingToDfx')} />
 
   return (
     <>
-      <Header text='DFX' back={() => navigate(Pages.Wallet)} />
+      <Header text={t('apps.dfx')} back={() => navigate(Pages.Wallet)} />
       <Content>
         <Padded>
           <FlexCol gap='2rem' between>
             {error ? (
               <Text color='neutral-800' small thin wrap centered>
-                Failed to connect to DFX. Please go back and try again.
+                {t('apps.dfxConnectionFailed')}
               </Text>
             ) : (
-              <iframe src={dfxUrl!} title='DFX' allow='clipboard-write; clipboard-read' style={{ height: '100%' }} />
+              <iframe
+                src={dfxUrl!}
+                title={t('apps.dfx')}
+                allow='clipboard-write; clipboard-read'
+                style={{ height: '100%' }}
+              />
             )}
           </FlexCol>
         </Padded>

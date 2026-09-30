@@ -15,11 +15,13 @@ import LockIcon from '../../icons/Lock'
 import { noUserDefinedPassword } from '../../lib/privateKey'
 import { OptionsContext } from '../../providers/options'
 import { SettingsOptions } from '../../lib/types'
+import { useTranslation } from '../../providers/language'
 
 export default function Lock() {
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
   const { lockWallet } = useContext(WalletContext)
+  const { t } = useTranslation()
 
   const [error, setError] = useState('')
   const [noPassword, setNoPassword] = useState(true)
@@ -43,26 +45,24 @@ export default function Lock() {
 
   return (
     <>
-      <Header text='Lock' back />
+      <Header text={t('settings.lock')} back />
       <Content>
         <Padded>
           <ErrorMessage error={Boolean(error)} text={error} />
           <CenterScreen>
             <LockIcon big />
-            <Text centered>{noPassword ? 'No password defined' : 'Lock your wallet'}</Text>
+            <Text centered>{noPassword ? t('settings.noPasswordDefined') : t('settings.lockYourWallet')}</Text>
             <TextSecondary centered>
-              {noPassword
-                ? 'You need to set a password to lock.'
-                : "After locking you'll need to re-enter your password to unlock."}
+              {noPassword ? t('settings.setPasswordToLock') : t('settings.lockExplanation')}
             </TextSecondary>
           </CenterScreen>
         </Padded>
       </Content>
       <ButtonsOnBottom>
         {noPassword ? (
-          <Button onClick={handleSetPassword} label='Set Password' />
+          <Button onClick={handleSetPassword} label={t('settings.setPassword')} />
         ) : (
-          <Button onClick={handleLock} label='Lock Wallet' />
+          <Button onClick={handleLock} label={t('settings.lockWallet')} />
         )}
       </ButtonsOnBottom>
     </>

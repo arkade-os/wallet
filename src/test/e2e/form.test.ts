@@ -11,6 +11,9 @@ import {
   createWalletAndGetBIP21,
   handleKeyboardInput,
 } from './utils'
+import { translations } from '../../lib/i18n'
+
+const tr = translations.en
 
 const someArkAddress =
   'tark1qr340xg400jtxat9hdd0ungyu6s05zjtdf85uj9smyzxshf98nda' +
@@ -38,7 +41,7 @@ test('should prioritize Arkade addresses over others', async ({ page, isMobile }
   await prePay(page, bip21, isMobile, 2000)
 
   // details page
-  await expect(page.getByTestId('Direction')).toContainText('Paying inside Arkade')
+  await expect(page.getByTestId('Direction')).toContainText(tr.send.payingInsideArkade)
   await expect(page.getByTestId('Network fees')).toContainText('0 sats')
   await expect(page.getByTestId('primary-amount')).toContainText('2,000 sats')
   await expect(page.getByTestId('Total')).toContainText('2,000 sats')
@@ -57,7 +60,7 @@ test.skip('should prioritize lightning invoice if no ark address present', async
   await prePay(page, bip21)
 
   // details page
-  await expect(page.getByTestId('Direction')).toContainText('Swapping to Lightning')
+  await expect(page.getByTestId('Direction')).toContainText(tr.send.payingToLightning)
   await expect(page.getByTestId('Network fees')).toContainText('1 sat')
   await expect(page.getByTestId('Amount')).toContainText('2,100 sats')
   await expect(page.getByTestId('Total')).toContainText('2,101 sats')
@@ -77,7 +80,7 @@ test.skip('should prioritize lnurl if no invoice or ark address are present', as
   await fundWallet(page, 5000)
 
   // send page
-  await page.getByText('Send').click()
+  await page.getByText(tr.wallet.send).click()
 
   // fill address
   await page.locator('input[name="send-address"]').fill(bip21WithLnUrl)
@@ -102,7 +105,7 @@ test('should keep entered amount when BIP-21 has no amount parameter', async ({ 
   await fundWallet(page, 5000)
 
   // go to send page
-  await page.getByText('Send').click()
+  await page.getByText(tr.wallet.send).click()
 
   // enter amount before parsing BIP-21 recipient
   if (isMobile) {

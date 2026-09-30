@@ -2,6 +2,9 @@ import { test, expect, readClipboard, handleKeyboardInput, createWalletAndGetBIP
 import { decodeInvoice } from '../../lib/bolt11'
 import { decodeBip21, isBip21 } from '../../lib/bip21'
 import { sleep } from '../../lib/sleep'
+import { translations } from '../../lib/i18n'
+
+const tr = translations.en
 
 test('should generate valid BIP21 out of the box', async ({ page }) => {
   // create wallet
@@ -40,16 +43,16 @@ test.skip('should change from lnurl to bolt11 with amount', async ({ page, isMob
   expect(decoded.invoice).toBeUndefined()
 
   // fill amount to receive if provided
-  await page.getByText('Add amount').click()
+  await page.getByText(tr.receive.addAmount).click()
   if (isMobile) {
     await handleKeyboardInput(page, sats)
   } else {
     await page.locator('input[name="receive-amount-sheet"]').fill(sats.toString())
-    await page.getByText('Set amount').click()
+    await page.getByText(tr.receive.setAmount).click()
   }
 
   // copy invoice
-  await page.getByText('Copy').click()
+  await page.getByText(tr.receive.copy).click()
   await page.getByTestId('invoice-address-copy').click()
   const invoice = await readClipboard(page)
   await sleep(1000)

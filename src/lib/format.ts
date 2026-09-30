@@ -1,7 +1,10 @@
 import { centsToUnits, prettyAssetAmount } from './assets'
+import { prettyDelta } from './deltas'
 import { fiatDecimalsFor, FIAT_SYMBOLS } from './fiat'
-import { Currencies, Tx, Unit } from './types'
+import { Currencies, Language, Tx, Unit } from './types'
 import { Decimal } from 'decimal.js'
+
+export { prettyDelta, localizedAgo, localizedDelta } from './deltas'
 
 export const BITCOIN_SYMBOL = '₿'
 
@@ -13,6 +16,7 @@ export const toSatoshis = (num: number): number => {
   return Decimal.mul(num, 100_000_000).floor().toNumber()
 }
 
+// @deprecated — English-only. Use localizedAgo(timestamp, t) for locale-aware output.
 export const prettyAgo = (timestamp: number | string, long = false): string => {
   if (!timestamp) return ''
   const now = Math.floor(Date.now() / 1000)
@@ -137,31 +141,10 @@ export const prettyCurrencyAssetAmount = (
   return prettyNumber(unitAmount, fiatDecimals, useGrouping, fiatDecimals)
 }
 
-export const prettyDelta = (seconds: number, long = true): string => {
-  const delta = Math.abs(seconds)
-  if (delta >= 86_400) {
-    const days = Math.floor(delta / 86_400)
-    return `${days}${long ? (days === 1 ? ' day' : ' days') : 'd'}`
-  }
-  if (delta >= 3_600) {
-    const hours = Math.floor(delta / 3_600)
-    return `${hours}${long ? (hours === 1 ? ' hour' : ' hours') : 'h'}`
-  }
-  if (delta >= 60) {
-    const minutes = Math.floor(delta / 60)
-    return `${minutes}${long ? (minutes === 1 ? ' minute' : ' minutes') : 'm'}`
-  }
-  if (delta > 0) {
-    const secs = delta
-    return `${secs}${long ? (secs === 1 ? ' second' : ' seconds') : 's'}`
-  }
-  return ''
-}
-
-export const prettyDate = (num: number): string => {
+export const prettyDate = (num: number, lang: Language = Language.English): string => {
   if (!num) return ''
   const date = new Date(num * 1000)
-  return new Intl.DateTimeFormat('en', {
+  return new Intl.DateTimeFormat(lang === Language.Spanish ? 'es' : 'en', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
