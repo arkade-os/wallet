@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { SingleKey } from '@arkade-os/sdk'
+import { hex } from '@scure/base'
+import { getPendingDirectTaxi } from '../../../lib/directTaxiSend'
 import { emptySendInfo, FlowContext, type SendInfo } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import { AspContext } from '../../../providers/asp'
@@ -94,6 +97,25 @@ beforeEach(() => {
 })
 
 describe("paying a request that names the receiver's Taxi", () => {
+  it('blocks corrupt pending payments with a clear message and preserves the journal', async () => {
+    const wallet = { identity: SingleKey.fromRandomBytes() }
+    const senderKey = hex.encode(await wallet.identity.xOnlyPublicKey())
+    const key = `directTaxiPending:regtest:${senderKey}`
+    const invalidUrl = JSON.stringify({ network: 'regtest', senderKey, mode: 'purchase', taxiUrl: 'not a URL' })
+    try {
+      for (const raw of ['{', 'null', '[]', invalidUrl]) {
+        localStorage.setItem(key, raw)
+        await expect(getPendingDirectTaxi(wallet, 'regtest')).rejects.toMatchObject({
+          message: 'Stored Taxi payment is invalid; new payments are blocked',
+          cause: expect.any(Error),
+        })
+        expect(localStorage.getItem(key)).toBe(raw)
+      }
+    } finally {
+      localStorage.removeItem(key)
+    }
+  })
+
   it('sends the asset directly when the payer holds enough of it: no Taxi probe, no RFQ', async () => {
     const navigate = await payWhileHolding(500n)
     await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails))

@@ -93,7 +93,7 @@ export async function admin<T>(path: string, method = 'GET', body?: unknown): Pr
   const response = await fetch(`${required('TAXI_E2E_BASE_URL')}/admin/api/${path}`, {
     method,
     headers: { 'content-type': 'application/json', 'x-taxi-operator': 'task13-e2e' },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    ...(method === 'GET' ? {} : { body: JSON.stringify(body ?? {}) }),
   })
   const payload = await response.json()
   if (!response.ok) {

@@ -74,27 +74,32 @@ const pendingKey = (network: string, senderKey: string) => `directTaxiPending:${
 const readPending = (network: string, senderKey: string): PendingTaxiRecord | undefined => {
   const raw = localStorage.getItem(pendingKey(network, senderKey))
   if (!raw) return
-  const record = JSON.parse(raw) as PendingTaxiRecord
-  if (
-    record.network !== network ||
-    record.senderKey !== senderKey ||
-    !['recycle', 'purchase', 'sponsored'].includes(record.mode) ||
-    typeof record.taxiUrl !== 'string' ||
-    !['http:', 'https:'].includes(new URL(record.taxiUrl).protocol) ||
-    typeof record.operatorKey !== 'string' ||
-    !/^[0-9a-f]{64}$/.test(record.operatorKey) ||
-    typeof record.transferId !== 'string' ||
-    !record.transferId ||
-    !/^[0-9a-f]{64}$/.test(record.expectedTxid) ||
-    !Number.isSafeInteger(record.expectedVout) ||
-    record.expectedVout < 0 ||
-    typeof record.receiverAddress !== 'string' ||
-    typeof record.assetId !== 'string' ||
-    typeof record.assetAmount !== 'string' ||
-    !/^[1-9][0-9]*$/.test(record.assetAmount)
-  )
-    throw new Error('Stored Taxi payment is invalid; new payments are blocked')
-  return record
+  const invalid = 'Stored Taxi payment is invalid; new payments are blocked'
+  try {
+    const record = JSON.parse(raw) as PendingTaxiRecord
+    if (
+      record.network !== network ||
+      record.senderKey !== senderKey ||
+      !['recycle', 'purchase', 'sponsored'].includes(record.mode) ||
+      typeof record.taxiUrl !== 'string' ||
+      !['http:', 'https:'].includes(new URL(record.taxiUrl).protocol) ||
+      typeof record.operatorKey !== 'string' ||
+      !/^[0-9a-f]{64}$/.test(record.operatorKey) ||
+      typeof record.transferId !== 'string' ||
+      !record.transferId ||
+      !/^[0-9a-f]{64}$/.test(record.expectedTxid) ||
+      !Number.isSafeInteger(record.expectedVout) ||
+      record.expectedVout < 0 ||
+      typeof record.receiverAddress !== 'string' ||
+      typeof record.assetId !== 'string' ||
+      typeof record.assetAmount !== 'string' ||
+      !/^[1-9][0-9]*$/.test(record.assetAmount)
+    )
+      throw new Error(invalid)
+    return record
+  } catch (cause) {
+    throw new Error(invalid, { cause })
+  }
 }
 
 const clearPending = (record: PendingTaxiRecord) => {
