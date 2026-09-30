@@ -4,7 +4,17 @@ import { designatedAccountCurrency, walletAccountTicker } from './accountAssets'
 import type { WalletAssetSwap } from './swapRepository'
 import { Currencies, Tx, Unit } from './types'
 
-export type SwapStatus = 'pending' | 'failed' | 'completed' | 'cancelled' | 'recoverable'
+export type SwapStatus = 'pending' | 'failed' | 'completed' | 'cancelled' | 'recoverable' | 'refunded'
+
+/** The resolver's tokens as a status. `lost` is a receive leg's money gone. */
+const CORRIDOR_STATUS: Record<string, SwapStatus> = {
+  pending: 'pending',
+  settled: 'completed',
+  refunded: 'refunded',
+  cancelled: 'cancelled',
+  failed: 'failed',
+  lost: 'failed',
+}
 
 export interface SwapDisplayAmount {
   masked: string
@@ -18,20 +28,26 @@ interface SwapUnitOfAccountAmountOptions {
   tx: Tx
 }
 
+/** Where the SWAP stands — never where its funding transaction stands. A
+ *  corridor send has no `assetSwap`, so it fell through to `tx.settled`: a
+ *  funded lockup nobody has spent is a settled transaction and an in-flight
+ *  swap, and the screen read `Settled` for it. */
 export function swapStatusForTx(tx: Tx): SwapStatus {
   if (tx.assetSwap?.status) return tx.assetSwap.status
+  const outcome = tx.lnSwap?.outcome
+  if (outcome) return CORRIDOR_STATUS[outcome] ?? 'pending'
   return tx.settled ? 'completed' : 'pending'
 }
 
-export type Translate = (key: string, params?: Record<string, string | number>) => string
-
-export function swapStatusLabel(tx: Tx, t: Translate): string {
+export function swapStatusLabel(tx: Tx): string {
   const status = swapStatusForTx(tx)
-  if (status === 'failed') return t('transaction.swapFailed')
-  if (status === 'cancelled') return t('transaction.cancelled')
-  if (status === 'recoverable') return t('transaction.swapRecoverable')
-  if (status === 'pending') return t('transaction.swapPending')
-  return t('transaction.completed')
+  if (status === 'failed') return 'Failed'
+  if (status === 'cancelled') return 'Cancelled'
+  if (status === 'recoverable') return 'Recoverable'
+  if (status === 'pending') return 'Pending'
+  // Not "Failed": the covenant returned the funds.
+  if (status === 'refunded') return 'Refunded'
+  return 'Completed'
 }
 
 /**
@@ -56,26 +72,10 @@ export function swapStatusLabel(tx: Tx, t: Translate): string {
  * `settled` adds no word: a send that went through is just "Lightning send",
  * the way a plain payment row carries no adverb.
  */
-export function lnSwapLabel(tx: Tx, t: Translate): string | undefined {
+export function lnSwapLabel(tx: Tx): string | undefined {
   const swap = tx.lnSwap
   if (!swap) return undefined
-  const stemKey = swap.label === 'Lightning send' ? 'Send' : swap.label === 'Lightning receive' ? 'Receive' : undefined
-  if (stemKey) {
-    const suffixKey =
-      swap.outcome === 'pending'
-        ? 'Pending'
-        : swap.outcome === 'refunded'
-          ? 'Refunded'
-          : swap.outcome === 'failed'
-            ? 'Failed'
-            : swap.outcome === 'lost'
-              ? 'Lost'
-              : ''
-    return t(`transaction.lightning${stemKey}${suffixKey}`)
-  }
-  // A corridor label the wallet does not know (a future resolver) is shown
-  // verbatim; the outcome still names itself, matching the resolver copy.
-  const stem = swap.label ?? t('transaction.lightningSend')
+  const stem = swap.label ?? 'Lightning send'
   if (swap.outcome === 'lost') return `${stem} lost`
   if (swap.outcome === 'refunded') return `${stem} refunded`
   if (swap.outcome === 'failed') return `${stem} failed`

@@ -33,8 +33,8 @@ import { LimitsContext } from '../../../providers/limits'
 import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl, LnUrlResponse } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
 import { decodeInvoice } from '../../../lib/bolt11'
-import { lnSendRendezvous, requestLnSend } from '../../../lib/lnSwap'
-import { withRfqTransport, SolverNotRespondingError } from '../../../lib/nostrRfq'
+import { LIGHTNING_RAIL, lnSendRefusal, lnSendRequest } from '../../../lib/sendRouter'
+import { SwapsContext } from '../../../providers/swaps'
 import { discoverMarkets } from '../../../lib/swapMarkets'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
@@ -58,7 +58,7 @@ import {
   DropdownMenuTrigger,
 } from '../../../components/ui/dropdown-menu'
 import { hapticLight } from '../../../lib/haptics'
-import { getEmulatorPubkeyForNetwork, testDomains } from '../../../lib/constants'
+import { testDomains } from '../../../lib/constants'
 import UnverifiedBadge from '../../../components/UnverifiedBadge'
 import { useTranslation } from '../../../providers/language'
 
@@ -133,6 +133,7 @@ export default function SendForm() {
   const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
+  const { sendRouter } = useContext(SwapsContext)
   const { t } = useTranslation()
   const {
     assetBalances,
@@ -406,6 +407,9 @@ export default function SendForm() {
           pendingLnSend: lowerCaseData === prev.invoice ? prev.pendingLnSend : undefined,
         }))
         setAmountTextValue(getTextValue(satoshis))
+        // The field text may be fiat, and cents cannot round-trip sats; this is
+        // the amount the invoice named, which the field must never re-derive.
+        setValueSats(satoshis)
         setAmountIsReadOnly(true)
         return
       }
@@ -527,6 +531,7 @@ export default function SendForm() {
         if (min === max) {
           setSendInfo({ ...sendInfo, satoshis: min })
           setAmountTextValue(getTextValue(min))
+          setValueSats(min)
           setAmountIsReadOnly(true)
         }
         return setLnUrlResponse({ ...conditions, minSendable: min, maxSendable: max })
@@ -629,32 +634,18 @@ export default function SendForm() {
       // locally, verify, and carry the address+amount to the pay screen. The
       // negotiation is the only interactive step — funding IS acceptance.
       const negotiate = async () => {
-        if (!svcWallet) return handleError(t('send.walletNotReady'))
-        const network = aspInfo.network as NetworkName
-        // No emulator URL is looked up here: this corridor needs the co-signer's
-        // x-only KEY, never an endpoint. It rides the solver's own card; the
-        // per-network pin is passed as the fallback for cards that predate the
-        // field (see lnSendRendezvous). Neither available yields no rendezvous,
-        // which the line below already reports.
-        const rendezvous = lnSendRendezvous(await discoverMarkets(network), getEmulatorPubkeyForNetwork(network))
-        if (!rendezvous) return handleError(t('send.noLightningSolver'))
-        const sats = sendInfo.satoshis ?? 0
-        if (sats < rendezvous.minSats || sats > rendezvous.maxSats) {
-          return handleError(
-            `Amount outside solver bounds (${prettyNumber(rendezvous.minSats)}-${prettyNumber(rendezvous.maxSats)} sats)`,
-          )
-        }
-        await withRfqTransport(rendezvous, async (transport) => {
-          const pendingLnSend = await requestLnSend({
-            wallet: svcWallet,
-            arkServerUrl: aspInfo.url,
-            transport,
-            invoice: sendInfo.invoice!,
-            network,
-            rendezvous,
-          })
-          setSendInfo((prev) => ({ ...prev, pendingLnSend }))
-        })
+        if (!svcWallet) return handleError('Wallet not ready')
+        // For the refusal message only — the rail ranks off the client's own
+        // snapshot; a second read let a cold cache throw on the error path.
+        const markets = await discoverMarkets(aspInfo.network as NetworkName)
+        const router = await sendRouter()
+        const options = await router.options(lnSendRequest(sendInfo.invoice!, sendInfo.satoshis))
+        const route = options.find((option) => option.railId === LIGHTNING_RAIL)
+        if (!route) return handleError(lnSendRefusal(markets, sendInfo.satoshis))
+        // Unguarded: a quote that throws names an unpayable invoice or a
+        // covenant that did not match, and neither reads as "no route".
+        const pendingLnSend = await route.quote()
+        setSendInfo((prev) => ({ ...prev, pendingLnSend }))
       }
       negotiate().catch(handleError)
     }
@@ -678,13 +669,7 @@ export default function SendForm() {
 
   const handleError = (err: any) => {
     consoleError(err, 'error sending payment')
-    if (err instanceof SolverNotRespondingError) {
-      setError(t('errors.solverNotResponding', { seconds: Math.round(err.timeoutMs / 1000) }))
-    } else if (/AMOUNT_TOO_LOW|amount is lower than/i.test(extractError(err))) {
-      setError(t('errors.onchainAmountTooLow'))
-    } else {
-      setError(extractError(err))
-    }
+    setError(extractError(err))
     setProcessing(false)
   }
 
@@ -762,6 +747,9 @@ export default function SendForm() {
   const handleRecipientChange = (recipient: string) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
     setRecipient(recipient)
+    // A new destination pins no amount until it is parsed.
+    setValueSats(undefined)
+    setAmountIsReadOnly(false)
     setReadyToParse(false)
     setRawScanData('')
     timeoutRef.current = setTimeout(() => setReadyToParse(true), RECIPIENT_DEBOUNCE_MS)
@@ -868,11 +856,16 @@ export default function SendForm() {
       ? prettyFiatAmount(liquidBalance ? toFiat(liquidBalance) : 0, config.currency)
       : prettyUnitBalance(liquidBalance)
 
+    const label = (
+      <Text color='neutral-500' smaller>
+        {t('send.available', { amount })}
+      </Text>
+    )
+    if (amountIsReadOnly) return label
+
     return (
       <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
-        <Text color='neutral-500' smaller>
-          {t('send.available', { amount })}
-        </Text>
+        {label}
       </div>
     )
   }

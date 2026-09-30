@@ -75,10 +75,10 @@ describe('i18n dictionary integrity', () => {
       'mint.tickerLabel',
       'mint.max',
       'vtxos.subdust',
-      'apps.satora',
-      'apps.lendasat',
       'apps.dfx',
       'formatting.unit',
+      'accounts.solver',
+      'accounts.total',
     ])
 
     const unlocalized = collectLeafKeys(translations.en)

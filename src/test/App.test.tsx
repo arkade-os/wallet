@@ -98,6 +98,36 @@ describe('App startup routing', () => {
     expect(navigate).not.toHaveBeenCalledWith(Pages.Unlock)
   })
 
+  it('shows unlock when authentication is required', async () => {
+    const { navigate } = renderApp({ authState: 'locked', initialized: false })
+
+    expect(await screen.findByText('Unlock')).toBeInTheDocument()
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.Unlock))
+  })
+
+  it('shows unlock even when the wallet remains initialized', async () => {
+    const { navigate } = renderApp({ authState: 'locked', initialized: true })
+
+    expect(await screen.findByText('Unlock')).toBeInTheDocument()
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.Unlock))
+  })
+
+  it('keeps authenticated but uninitialized wallets on loading', async () => {
+    const { navigate, unlockWallet } = renderApp({ authState: 'authenticated', initialized: false })
+
+    await waitFor(() => expect(screen.getByTestId('app')).toBeInTheDocument())
+    expect(unlockWallet).not.toHaveBeenCalled()
+    expect(navigate).not.toHaveBeenCalledWith(Pages.Unlock)
+  })
+
+  it('never mounts onboarding for a wallet that already exists', async () => {
+    renderApp({ authState: 'authenticated', initialized: true })
+
+    await waitFor(() => expect(screen.getByTestId('app')).toBeInTheDocument())
+    expect(screen.queryByText(/Welcome to Arkade/i)).toBeNull()
+    expect(screen.queryByText(/Create wallet/i)).toBeNull()
+  })
+
   it('holds on loading during dev auto-init from VITE_DEV_MNEMONIC instead of redirecting', async () => {
     vi.stubEnv('VITE_DEV_MNEMONIC', 'abandon abandon abandon abandon abandon about')
     const { navigate } = renderApp({ authState: 'locked', initialized: false })

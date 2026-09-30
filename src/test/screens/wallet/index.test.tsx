@@ -11,20 +11,44 @@ import {
 } from '../mocks'
 import { ConfigContext } from '../../../providers/config'
 import { WalletContext } from '../../../providers/wallet'
-import { AssetSwapsContext } from '../../../providers/assetSwaps'
+import { SwapsContext } from '../../../providers/swaps'
 import { AssetsContext } from '../../../providers/assets'
 import { AspContext } from '../../../providers/asp'
 import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
 
 describe('Wallet screen', () => {
+  it('renders the wallet screen with the correct elements', async () => {
+    const user = userEvent.setup()
+    const navigate = vi.fn()
+
+    render(
+      <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate }}>
+        <SwapsContext.Provider value={{ swapAvailable: true, swaps: [] } as any}>
+          <Wallet />
+        </SwapsContext.Provider>
+      </NavigationContext.Provider>,
+    )
+    expect(screen.getAllByText('$0.00').length).toBeGreaterThan(0)
+    expect(screen.getByText('Send')).toBeInTheDocument()
+    expect(screen.getByText('Receive')).toBeInTheDocument()
+    expect(screen.getByTestId('home-action-swap')).toBeEnabled()
+    await user.click(screen.getByTestId('home-action-swap'))
+    expect(navigate).toHaveBeenCalledWith(Pages.WalletSwap)
+    expect(screen.getByText('Accounts')).toBeInTheDocument()
+    expect(screen.getByText('Bitcoin')).toBeInTheDocument()
+    expect(screen.getByText('Recent activity')).toBeInTheDocument()
+    expect(screen.getByText('Do more with your money')).toBeInTheDocument()
+    expect(screen.queryByText('Borrow against your bitcoin')).not.toBeInTheDocument()
+  })
+
   it('does not use swap history to enter an unavailable swap composer', async () => {
     const navigate = vi.fn()
 
     render(
       <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate }}>
-        <AssetSwapsContext.Provider value={{ swapAvailable: false, swaps: [{ id: 'pending-swap' }] } as any}>
+        <SwapsContext.Provider value={{ swapAvailable: false, swaps: [{ id: 'pending-swap' }] } as any}>
           <Wallet />
-        </AssetSwapsContext.Provider>
+        </SwapsContext.Provider>
       </NavigationContext.Provider>,
     )
 

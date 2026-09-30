@@ -3,6 +3,7 @@ import { MouseEvent, ReactNode, useContext } from 'react'
 import { ConfigContext } from '../providers/config'
 import { hapticLight } from '../lib/haptics'
 import { cn } from '../lib/utils'
+import { useTranslation } from '../providers/language'
 
 interface PrivacyAmountProps {
   children: ReactNode
@@ -13,6 +14,7 @@ interface PrivacyAmountProps {
 }
 
 export function PrivacyAmount({ children, className, interactive = false, masked, testId }: PrivacyAmountProps) {
+  const { t } = useTranslation()
   const { config } = useContext(ConfigContext)
   const visible = config.showBalance
 
@@ -47,7 +49,7 @@ export function PrivacyAmount({ children, className, interactive = false, masked
   return (
     <button
       type='button'
-      aria-label={visible ? 'Hide balances' : 'Show balances'}
+      aria-label={visible ? t('components.hideBalances') : t('components.showBalances')}
       aria-pressed={visible}
       className={cn('privacy-amount privacy-amount--interactive', className)}
       data-testid={testId}

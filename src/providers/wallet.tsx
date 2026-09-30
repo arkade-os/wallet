@@ -8,12 +8,8 @@ import {
   AssetDetails,
   WalletBalance,
   IVtxoManager,
-  migrateWalletRepository,
-  getMigrationStatus,
-  rollbackMigration,
   IndexedDBWalletRepository,
   IndexedDBContractRepository,
-  RestIndexerProvider,
   type Activity,
   type Identity,
   type ServiceWorkerWalletMode,
@@ -31,7 +27,6 @@ import {
   type TransactionActivityMetadata,
 } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
-import { getRestApiExplorerURL } from '../lib/explorers'
 import { getBalance, getUnrolledVtxos, getVtxos, settleVtxos } from '../lib/asp'
 import { resolveExits, subtractExitedAssets, type ExitRecord } from '../lib/exitHistory'
 import { AspContext } from './asp'
@@ -46,9 +41,7 @@ import { Tx, Vtxo, Wallet } from '../lib/types'
 import { activitiesToTxs, getActivities } from '../lib/activityHistory'
 import { arkTransactionToTx } from '../lib/transactionHistory'
 import { Indexer } from '../lib/indexer'
-import { lnSendViews, swapActivityInputs, type LnSendView } from '../lib/lnSendRecords'
-import { assetSwapResolver } from '../lib/activity/assetSwapResolver'
-import { getAssetSwaps, swapActivityResolver } from '@arkade-os/swap'
+import { lnSendViews, swapRecordResolver, type LnSendView } from '../lib/swapRecords'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
@@ -58,8 +51,6 @@ import { setLoadingStatus } from '../lib/loadingStatus'
 import { hex } from '@scure/base'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { ConfigContext } from './config'
-import { translate } from './language'
-import { detectLanguage } from '../lib/language'
 import {
   defaultPassword,
   getDelegateUrlForNetwork,
@@ -68,9 +59,10 @@ import {
   mutinynetMinCheckpointExitDelaySeconds,
 } from '../lib/constants'
 import { AssetIconApprovalManager } from '../lib/assetIconApproval'
-import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { BackupContext } from './backup'
 import { restoreImportedWallet } from '../lib/importRestore'
+import { getAssetSwaps } from '@arkade-os/swap/protocol'
+import { useTranslation } from '../providers/language'
 
 const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
 const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
@@ -80,12 +72,10 @@ const DEV_AUTO_INIT_RELOAD_KEY = 'arkade-dev-auto-init-reload-attempted'
 
 interface InitSvcWorkerWalletParams {
   arkServerUrl: string
-  esploraUrl?: string
   identity: Identity
-  skipMigration?: boolean
   retryCount?: number
   maxRetries?: number
-  delegatorUrl?: string
+  delegateUrl?: string
   walletMode?: ServiceWorkerWalletMode
   restoring?: boolean
   minCheckpointExitDelaySeconds?: bigint
@@ -204,10 +194,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { isRegistered } = useContext(AssetsContext)
   const { initialiseNostrBackup } = useContext(BackupContext)
   const { config, updateConfig } = useContext(ConfigContext)
-  const lang = config?.language ?? detectLanguage()
   const { navigate } = useContext(NavigationContext)
   const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo } = useContext(FlowContext)
   const { notifyTxSettled } = useContext(NotificationsContext)
+  const { t } = useTranslation()
 
   // One atomic snapshot: the metadata graft must land in the same render as
   // the history it belongs to.
@@ -452,10 +442,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [wallet.pubkey])
 
-  // reload wallet as soon as we have a service worker wallet available
+  // History is loaded after `client.ready` (see SwapsProvider). Skip here when
+  // url and network are set — that is the path that starts the swap client.
+  // This branch is not first unlock: `initWallet` already had a server URL.
   useEffect(() => {
-    if (svcWallet) reloadWallet().catch(consoleError)
-  }, [svcWallet])
+    if (!svcWallet) return
+    if (!aspInfo.url || !aspInfo.network) reloadWallet().catch(consoleError)
+  }, [svcWallet, aspInfo.url, aspInfo.network])
 
   useEffect(() => {
     if (!import.meta.env.DEV || !isDevAutoInit) return
@@ -548,24 +541,24 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const isFirstLoad = !hasLoadedOnce.current
     if (isFirstLoad) setLoadError(null)
     try {
-      if (isFirstLoad) setLoadingStatus(translate(lang, 'loading.fetchingCoins'))
+      if (isFirstLoad) setLoadingStatus(t('loading.fetchingCoins'))
       const vtxos = await getVtxos(swWallet)
       // Fetched apart from the set above, which must not learn about exits —
       // see `getUnrolledVtxos`. Cheap: the worker answers both from its local
       // repo, so this is a postMessage, not a request.
       const unrolledVtxos = await getUnrolledVtxos(swWallet)
-      if (isFirstLoad) setLoadingStatus(translate(lang, 'loading.fetchingTransactions'))
+      if (isFirstLoad) setLoadingStatus(t('loading.fetchingTransactions'))
       const activities = await getActivities(swWallet)
       // Before the metadata snapshot below, not after: `resolveExits` persists
       // what it learns, and the history memo reads a snapshot taken here, so a
       // write that lands after this line stays invisible until the next reload.
       const exits = await resolveExits(unrolledVtxos, networkRef.current)
       const metadata = readAllTransactionActivityMetadata()
-      // Read, never resolved here: `RfqSwapManager` owns a send's outcome and
-      // has already written it (see providers/lnSwaps), so this pass only picks
+      // Read, never resolved here: the swap client owns a send's outcome and
+      // has already written it (see providers/swaps), so this pass only picks
       // up what the store says.
       const lnSends = await lnSendViews()
-      if (isFirstLoad) setLoadingStatus(translate(lang, 'loading.updatingBalance'))
+      if (isFirstLoad) setLoadingStatus(t('loading.updatingBalance'))
       const { total, available, assets, availableAssets, unrolled } = await getBalance(swWallet)
       // An exited coin is no longer Arkade money: it cannot be spent offchain,
       // no batch can lift it back, and this wallet has no path that moves it —
@@ -590,7 +583,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         swaps: await readSwapRecordAssets(),
       })
       referencedAssetIdsRef.current = referenced
-      if (isFirstLoad && referenced.size > 0) setLoadingStatus(translate(lang, 'loading.loadingAssetMetadata'))
+      if (isFirstLoad && referenced.size > 0) setLoadingStatus(t('loading.loadingAssetMetadata'))
       for (const assetId of referenced) {
         const cached = assetMetadataCache.current.get(assetId)
         if (cached && Date.now() - cached.cachedAt < ASSET_METADATA_TTL_MS) continue
@@ -643,17 +636,15 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   ): Promise<boolean> => {
     const {
       arkServerUrl,
-      esploraUrl,
-      skipMigration = false,
       retryCount = 0,
       maxRetries = 2,
-      delegatorUrl,
+      delegateUrl,
       walletMode,
       restoring = false,
       minCheckpointExitDelaySeconds,
     } = params
     try {
-      setLoadingStatus(translate(lang, 'loading.startingWallet'))
+      setLoadingStatus(t('loading.startingWallet'))
       const walletRepository = new IndexedDBWalletRepository()
       const contractRepository = new IndexedDBContractRepository()
 
@@ -684,14 +675,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       })()
 
       await Promise.all([walletRepository.getWalletState(), zombieCheck])
-      setLoadingStatus(translate(lang, 'loading.connectingToServiceWorker'))
+      setLoadingStatus(t('loading.connectingToServiceWorker'))
 
       const svcWallet = await ServiceWorkerWallet.setup({
         serviceWorkerPath: '/wallet-service-worker.mjs',
         identity,
-        arkServerUrl,
-        esploraUrl,
-        delegatorUrl,
+        arkServer: { url: arkServerUrl },
+        delegateUrl,
         walletMode: walletMode ?? config.walletMode ?? 'static',
         minCheckpointExitDelaySeconds,
         storage: { walletRepository, contractRepository },
@@ -705,61 +695,28 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       })
 
       // The registry ships with the SDK built-ins already in it; only ours has
-      // to be added, and `use()` is idempotent by id across reinit paths.
-      svcWallet.activity.use(assetSwapResolver())
-      // The package's own resolver for the RFQ corridors, fed by the package's
-      // own reader over the records `RfqSwapManager` writes. It is what turns a
-      // swap's funding tx — and the claim or refund that follows it — into one
-      // labelled activity instead of two unrelated rows.
-      //
-      // `rfqSwapActivityInputs` rather than a mapping of ours, because the
-      // per-corridor txids come from the corridor's handler
-      // (`activityTxids(profile)`): reading profile keys by name here would put
-      // corridor knowledge in the wallet, which is what adding a corridor would
-      // then have to come back and edit. It also drains the manager's stamped
-      // `lockupSpendArkTxids` before any network read, so a terminal swap
-      // answers for its own counterparty spend.
-      //
-      // The indexer covers only what a record cannot: one written before
-      // `fundingArkTxid` existed, and a terminal swap no refund of ours ended.
-      // It is optional and failure-isolated — one that throws costs that record
-      // its extra txids, never the whole list.
-      const activityIndexer = new RestIndexerProvider(arkServerUrl)
-      svcWallet.activity.use(swapActivityResolver({ listSwaps: () => swapActivityInputs(activityIndexer) }))
-
-      if (!skipMigration) {
-        setLoadingStatus(translate(lang, 'loading.migratingData'))
-        try {
-          const oldStorage = new IndexedDBStorageAdapter('arkade-service-worker')
-          const walletStatus = await getMigrationStatus('wallet', oldStorage)
-          if (walletStatus !== 'not-needed') {
-            if (walletStatus === 'pending' || walletStatus === 'in-progress') {
-              const arkAddress = await svcWallet.getAddress()
-              const boardingAddress = await svcWallet.getBoardingAddress()
-              try {
-                await migrateWalletRepository(oldStorage, svcWallet.walletRepository, {
-                  offchain: [arkAddress],
-                  onchain: [boardingAddress],
-                })
-              } catch (err) {
-                await rollbackMigration('wallet', oldStorage)
-                throw err
-              }
-            }
-          }
-        } catch (err) {
-          consoleError(err, 'Error migrating wallet repository')
-        }
-      }
+      // to be added, and `use()` is idempotent by id across reinit paths. Both
+      // families over the client's own records, which is now all of them. Its
+      // corridor half is what labels a Lightning row and gives it the outcome
+      // token the receipt renders — turning a swap's funding tx, and the claim
+      // or refund that follows it, into one labelled activity rather than two
+      // unrelated rows.
+      // The reader, not `getVtxos()`, which drops spent coins — and a claimed
+      // lockup is spent. Needs no client lock, so a passive tab still groups.
+      svcWallet.activity.use(
+        swapRecordResolver(undefined, async (script) => {
+          const reader = await svcWallet.getArkadeReader()
+          const { vtxos } = await reader.getVtxos({ scripts: [script] })
+          return vtxos
+        }),
+      )
 
       if (restoring) {
-        setLoadingStatus(translate(lang, 'loading.recoveringAddresses'))
+        setLoadingStatus(t('loading.recoveringAddresses'))
         try {
           await restoreImportedWallet(svcWallet, {
-            arkServerUrl,
             repository: assetSwapRepository,
-            indexer: activityIndexer,
-            ...(aspInfo.signerPubkey ? { serverPubkey: hex.decode(toXOnlySignerHex(aspInfo.signerPubkey)) } : {}),
+            ...(aspInfo.signerPubkey ? { operatorPubkey: hex.decode(toXOnlySignerHex(aspInfo.signerPubkey)) } : {}),
           })
         } catch (err) {
           consoleError(err, 'Error scanning for rotated addresses on restore')
@@ -847,7 +804,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (isTimeoutError && retryCount < maxRetries) {
         // exponential backoff: wait 1s, 2s, 4s, 8s, 16s for each retry
         const delay = Math.pow(2, retryCount) * 1000
-        setLoadingStatus(translate(lang, 'loading.retryingConnection'))
+        setLoadingStatus(t('loading.retryingConnection'))
         consoleError(
           new Error(
             `Service worker activation timed out, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`,
@@ -888,13 +845,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }) => {
     const arkServerUrl = aspInfo.url
     const network = aspInfo.network as NetworkName
-    const esploraUrl = getRestApiExplorerURL(network)
 
     let identity: Identity
     let pubkey: string
     let walletMode: ServiceWorkerWalletMode
 
-    const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(network) : undefined
+    const delegateUrl = config.delegate ? getDelegateUrlForNetwork(network) : undefined
 
     if (credentials.mnemonic) {
       const mnemonicIdentity = MnemonicIdentity.fromMnemonic(credentials.mnemonic, { isMainnet: isMainnet(network) })
@@ -921,8 +877,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const didInit = await initSvcWorkerWallet({
       identity,
       arkServerUrl,
-      esploraUrl,
-      delegatorUrl,
+      delegateUrl,
       walletMode,
       restoring: credentials.restoring,
       minCheckpointExitDelaySeconds: minCheckpointExitDelaySecondsForNetwork(network),
@@ -954,20 +909,17 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
    * Reinitialize the service-worker wallet in-place so runtime config changes
    * (e.g., delegate on/off) take effect without forcing a lock/unlock cycle.
    * Keeps local tx/balance state; just rebuilds the SW wallet with the current
-   * delegatorUrl flag.
+   * delegateUrl flag.
    */
   const restartWallet = async (delegateEnabled = config.delegate) => {
     if (!svcWallet) return
     const identity = svcWallet.identity as Identity
     const arkServerUrl = aspInfo.url
-    const esploraUrl = getRestApiExplorerURL(aspInfo.network as NetworkName) ?? ''
-    const delegatorUrl = delegateEnabled ? getDelegateUrlForNetwork(aspInfo.network as NetworkName) : undefined
+    const delegateUrl = delegateEnabled ? getDelegateUrlForNetwork(aspInfo.network as NetworkName) : undefined
     await initSvcWorkerWallet({
       identity,
       arkServerUrl,
-      esploraUrl,
-      delegatorUrl,
-      skipMigration: true,
+      delegateUrl,
       minCheckpointExitDelaySeconds: minCheckpointExitDelaySecondsForNetwork(aspInfo.network),
     })
   }
@@ -983,14 +935,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     reinitInProgress.current = true
     try {
       const arkServerUrl = aspInfo.url
-      const esploraUrl = getRestApiExplorerURL(aspInfo.network as NetworkName) ?? ''
-      const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(aspInfo.network as NetworkName) : undefined
+      const delegateUrl = config.delegate ? getDelegateUrlForNetwork(aspInfo.network as NetworkName) : undefined
       const initialized = await initSvcWorkerWallet({
         identity,
         arkServerUrl,
-        esploraUrl,
-        delegatorUrl,
-        skipMigration: true,
+        delegateUrl,
         minCheckpointExitDelaySeconds: minCheckpointExitDelaySecondsForNetwork(aspInfo.network),
       })
       if (!initialized) return
