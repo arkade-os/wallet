@@ -233,7 +233,7 @@ test('Alice sends XYZ to Bob through Taxi, choosing who supplies the carrier', a
       }
     }
     try {
-      const directory = resolve(required('TAXI_E2E_WALLET_ARTIFACTS'))
+      const directory = resolve(process.env.TAXI_E2E_WALLET_ARTIFACTS || 'test-results/taxi-live')
       mkdirSync(directory, { recursive: true })
       const path = resolve(directory, 'alice-bob-balances.json')
       writeFileSync(path, `${JSON.stringify({ assetId, reconciledTransfers, evidence, cleanupErrors }, null, 2)}\n`)

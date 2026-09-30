@@ -318,7 +318,10 @@ export const walletAssetRfqDeps = (args: {
     arkade: arkadeContextOf(args.aspInfo, tipHeight),
     solvers: assetRfqSolvers(args.markets, args.assetId),
     ui: args.ui,
-    fetch: (input, init) => fetch(input, init),
+    fetch: (input, init) => {
+      const timeout = AbortSignal.timeout(10_000)
+      return fetch(input, { ...init, signal: init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout })
+    },
     pageProtocol: window.location.protocol,
     repository: assetSwapRepository,
     emulatorPubkey: getEmulatorPubkeyOverrideForNetwork(network),
