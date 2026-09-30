@@ -119,13 +119,14 @@ export function policyRulesForPatch(rules: TaxiPolicy['assetRules']) {
   }))
 }
 
-export async function control(action: string, rule?: unknown): Promise<void> {
+export async function control<T = void>(action: string, rule?: unknown): Promise<T> {
   const response = await fetch(required('TAXI_E2E_CONTROL_URL'), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ action, rule }),
   })
   if (!response.ok) throw new Error(`Regtest proxy ${action}: HTTP ${response.status}`)
+  return (await response.json()) as T
 }
 
 export function xyzRule(assetId: string) {

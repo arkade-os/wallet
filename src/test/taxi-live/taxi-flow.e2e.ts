@@ -25,6 +25,10 @@ import {
   type TaxiPolicy,
 } from './actors'
 
+type ProxyEvents = {
+  events: { at: number; target: string; path: string; method?: string; action: string }[]
+}
+
 test('Alice sends XYZ to Bob through Taxi, choosing who supplies the carrier', async ({ browser }, testInfo) => {
   const contextOptions = {
     baseURL: testInfo.project.use.baseURL,
@@ -153,7 +157,78 @@ test('Alice sends XYZ to Bob through Taxi, choosing who supplies the carrier', a
       request = await receiveRequest(bob, assetId)
       const before = await snapshot('before recycle')
       await prepareSend(alice, request, 'Receiver uses own sats')
-      await confirmSend(alice, true)
+      await taxiConfirmation(alice)
+      const armedAt = Date.now()
+      const newEvents = async () => (await control<ProxyEvents>('events')).events.filter((event) => event.at >= armedAt)
+      await control('configure', {
+        target: 'emulator',
+        path: '/v1/info',
+        method: 'GET',
+        mode: 'pause',
+        phase: 'request',
+      })
+      try {
+        await expect
+          .poll(
+            async () =>
+              (await newEvents()).some(
+                (event) =>
+                  event.target === 'emulator' && event.path === '/v1/info' && event.action === 'request-paused',
+              ),
+            { timeout: 10_000, intervals: [25, 50, 100] },
+          )
+          .toBe(true)
+        let runtimeBlockers: string[] = []
+        let readyStatus = 0
+        await expect
+          .poll(
+            async () => {
+              const readiness = await fetch(`${required('TAXI_E2E_BASE_URL')}/ready`)
+              readyStatus = readiness.status
+              const state = (await readiness.json()) as { runtime: { blockers: string[] } }
+              runtimeBlockers = state.runtime.blockers
+              return runtimeBlockers
+            },
+            { timeout: 10_000, intervals: [25, 50, 100] },
+          )
+          .toContain('runtime_checking')
+        expect(readyStatus).toBe(503)
+        const lockupResponse = alice.page.waitForResponse(
+          (response) =>
+            response.request().method() === 'POST' &&
+            /\/v1\/transfers\/[^/]+\/lockup$/.test(new URL(response.url()).pathname),
+          { timeout: 15_000 },
+        )
+        await alice.page.getByRole('button', { name: 'Pay', exact: true }).click()
+        let lockupPath = ''
+        await expect
+          .poll(
+            async () => {
+              lockupPath =
+                (await newEvents()).find(
+                  (event) =>
+                    event.target === 'taxi' &&
+                    event.action === 'forwarded' &&
+                    event.method === 'POST' &&
+                    /^\/v1\/transfers\/[^/]+\/lockup$/.test(event.path),
+                )?.path ?? ''
+              return lockupPath
+            },
+            { timeout: 10_000, intervals: [25, 50, 100] },
+          )
+          .not.toBe('')
+        await new Promise((resolve) => setTimeout(resolve, 300))
+        await control('reset')
+        const response = await lockupResponse
+        expect(new URL(response.url()).pathname.endsWith(lockupPath)).toBe(true)
+        expect(
+          [200, 202],
+          `Taxi POST ${lockupPath}: HTTP ${response.status()}; ${runtimeBlockers.join(', ')}`,
+        ).toContain(response.status())
+        await dismissPaymentSuccess(alice.page)
+      } finally {
+        await control('reset')
+      }
       await claim(bob, /comes back|merges|repaid/i)
       await expectBalances({
         alice: { sats: before.alice.sats, units: (BigInt(before.alice.units) - 1n).toString() },
