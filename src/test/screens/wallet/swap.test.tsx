@@ -14,7 +14,9 @@ import { FlowContext } from '../../../providers/flow'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import type { WalletAssetSwap as AssetSwap } from '../../../lib/swapRepository'
-import { Currencies, Unit } from '../../../lib/types'
+import { Currencies, Language, Unit } from '../../../lib/types'
+import { LanguageContext } from '../../../providers/language'
+import { translate } from '../../../lib/i18n'
 import {
   mockAspContextValue,
   mockConfigContextValue,
@@ -69,12 +71,14 @@ function renderSwap({
   config = {},
   fiat = {},
   wallet = {},
+  language = Language.English,
 }: {
   flow?: Record<string, unknown>
   swap?: Record<string, unknown>
   config?: Record<string, unknown>
   fiat?: Record<string, unknown>
   wallet?: Record<string, unknown>
+  language?: Language
 } = {}) {
   const navigate = vi.fn()
   const goBack = vi.fn()
@@ -132,7 +136,11 @@ function renderSwap({
                     }
                   >
                     <ToastProvider>
-                      <WalletSwap />
+                      <LanguageContext.Provider
+                        value={{ language, t: (key, params) => translate(language, key, params) }}
+                      >
+                        <WalletSwap />
+                      </LanguageContext.Provider>
                     </ToastProvider>
                   </AssetSwapsContext.Provider>
                 </WalletContext.Provider>
@@ -395,6 +403,21 @@ describe('Wallet swap flow', () => {
     await waitFor(() => expect(screen.getByText('Quote unavailable')).toBeInTheDocument(), { timeout: 3_000 })
     expect(screen.getByText('Quote unavailable').closest('[data-sonner-toast]')).not.toBeNull()
     expect(screen.getByRole('button', { name: '0.00100000 BTC' })).toBeInTheDocument()
+  })
+
+  it('localizes the carrier refusal reason in the validation toast', async () => {
+    fetchMocker.mockRejectOnce(new Error('carrierSats'))
+    renderSwap({
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      wallet: NO_ASSETS,
+      language: Language.Spanish,
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Recibir Elige activo/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    await userEvent.click(screen.getByRole('button', { name: '5' }))
+    const message = 'Cotización no disponible: este mercado cobra por el portador entregado'
+    await waitFor(() => expect(screen.getByText(message)).toBeInTheDocument(), { timeout: 3_000 })
+    expect(screen.getByText(message).closest('[data-sonner-toast]')).not.toBeNull()
   })
 
   it('stops a partial asset swap that cannot fund its change carrier', async () => {

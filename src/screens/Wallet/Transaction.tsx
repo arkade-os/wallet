@@ -249,7 +249,7 @@ export default function Transaction() {
       : undefined,
   ].filter((entry): entry is { assetId: string; label: string } => Boolean(entry))
   const swapReceived = swapTx ? formatSwapAssetAmount(tx, 'to') : undefined
-  const carrierDetailsProps = carrierDetails(tx?.carrier)
+  const carrierDetailsProps = carrierDetails(tx?.carrier, language)
 
   const details: DetailsProps = swapTx
     ? {

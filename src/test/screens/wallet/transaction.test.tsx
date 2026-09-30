@@ -21,7 +21,9 @@ import { WalletContext } from '../../../providers/wallet'
 import { NavigationContext } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
-import { Currencies } from '../../../lib/types'
+import { Currencies, Language } from '../../../lib/types'
+import { LanguageContext } from '../../../providers/language'
+import { translate } from '../../../lib/i18n'
 import type { CarrierActivity } from '../../../lib/carrierActivity'
 import { AssetsContext } from '../../../providers/assets'
 import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
@@ -432,12 +434,13 @@ describe('Transaction screen', () => {
         fillTxid: 'fill-txid',
       },
       carrier: recycle,
+      carrierMembers: [{ txid: recycle.txids[0], type: 'received' as const }],
       roundTxid: 'fill-txid',
       settled: true,
       type: 'swap',
     }
 
-    render(
+    const receipt = (
       <NavigationContext.Provider value={mockNavigationContextValue}>
         <ConfigContext.Provider value={mockConfigContextValue}>
           <FiatContext.Provider value={mockFiatContextValue}>
@@ -452,8 +455,9 @@ describe('Transaction screen', () => {
             </AspContext.Provider>
           </FiatContext.Provider>
         </ConfigContext.Provider>
-      </NavigationContext.Provider>,
+      </NavigationContext.Provider>
     )
+    const view = render(receipt)
 
     // 329 borrowed is never shown as bought; the 1 bought is the reserve
     expect(screen.getByTestId('Carrier sats')).toHaveTextContent('Borrowed 329 sats')
@@ -462,6 +466,17 @@ describe('Transaction screen', () => {
     expect(screen.getByTestId('Delivery')).toHaveTextContent('Claimable')
     // the original swap identity is untouched by any of this
     expect(screen.getByTestId('Funded')).toHaveTextContent('funding-txid')
+    view.rerender(
+      <LanguageContext.Provider
+        value={{ language: Language.Spanish, t: (key, params) => translate(Language.Spanish, key, params) }}
+      >
+        {receipt}
+      </LanguageContext.Provider>,
+    )
+    expect(screen.getByTestId('Sats portadores')).toHaveTextContent('En préstamo: 329 sats')
+    expect(screen.getByTestId('Sats comprados')).toHaveTextContent('1 sat (reserva del recibo)')
+    expect(screen.getByTestId('Entrega')).toHaveTextContent('Reclamable')
+    expect(screen.getByTestId('Transacción relacionada')).toHaveTextContent('33333333...33333333')
   })
 
   it('links canonical related transactions once without guessing their roles', async () => {

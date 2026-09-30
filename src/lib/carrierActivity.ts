@@ -4,6 +4,9 @@
  * so a malformed or unknown-version descriptor is dropped rather than repaired.
  */
 
+import { translate } from './i18n'
+import { Language } from './types'
+
 const MAX_SATS = 2_100_000_000_000_000n
 
 const CANONICAL_DECIMAL = /^(0|[1-9][0-9]*)$/
@@ -184,31 +187,34 @@ const asBoundedSats = (value: string): bigint => {
  *  formatting it gets. */
 export const formatCarrierSats = (value: string): string => asBoundedSats(value).toLocaleString('en-US')
 
-const pluralSats = (value: string): string =>
-  `${formatCarrierSats(value)} ${asBoundedSats(value) === 1n ? 'sat' : 'sats'}`
+const pluralSats = (value: string, language: Language): string =>
+  `${formatCarrierSats(value)} ${translate(language, asBoundedSats(value) === 1n ? 'common.sat' : 'common.sats')}`
 
 /** `Borrowed 329 sats` — the repayable half, which the user does not own. */
-export const carrierBorrowedLabel = (carrier: CarrierActivity): string => `Borrowed ${pluralSats(carrier.loanSats)}`
+export const carrierBorrowedLabel = (carrier: CarrierActivity, language = Language.English): string =>
+  translate(language, 'transaction.carrierBorrowed', { amount: pluralSats(carrier.loanSats, language) })
 
 /** The receipt-hosting reserve, named as the reserve it is. */
-export const carrierPurchasedReceiptLabel = (carrier: CarrierActivity): string =>
-  `${pluralSats(carrier.purchasedSats)} (receipt reserve)`
+export const carrierPurchasedReceiptLabel = (carrier: CarrierActivity, language = Language.English): string =>
+  translate(language, 'transaction.carrierReceiptReserve', { amount: pluralSats(carrier.purchasedSats, language) })
 
 /** The whole physical carrier, for the mode where the user bought all of it. */
-export const carrierPurchasedLiteralLabel = (carrier: CarrierActivity): string => pluralSats(carrier.purchasedSats)
+export const carrierPurchasedLiteralLabel = (carrier: CarrierActivity, language = Language.English): string =>
+  pluralSats(carrier.purchasedSats, language)
 
-export const carrierServiceFareLabel = (carrier: CarrierActivity): string =>
-  `${formatCarrierSats(carrier.serviceFareSats)} ${asBoundedSats(carrier.serviceFareSats) === 1n ? 'sat' : 'sats'}`
+export const carrierServiceFareLabel = (carrier: CarrierActivity, language = Language.English): string =>
+  pluralSats(carrier.serviceFareSats, language)
 
 /** The delivery state as the receipt names it. `receipt` is a merge-only
  *  asset receipt: the reserve was hosted for the user, not paid out. */
-export const CARRIER_STATE_LABEL: Record<CarrierState, string> = {
-  pending: 'Pending',
-  claimable: 'Claimable',
-  claimed: 'Claimed',
-  receipt: 'Merge-only receipt',
-  cancelled: 'Cancelled',
-  failed: 'Failed',
+const CARRIER_STATE_KEY: Record<CarrierState, string> = {
+  pending: 'swap.pending',
+  claimable: 'transaction.carrierClaimable',
+  claimed: 'transaction.carrierClaimed',
+  receipt: 'transaction.carrierReceipt',
+  cancelled: 'transaction.cancelled',
+  failed: 'transaction.carrierFailed',
 }
 
-export const carrierDeliveryLabel = (carrier: CarrierActivity): string => CARRIER_STATE_LABEL[carrier.state]
+export const carrierDeliveryLabel = (carrier: CarrierActivity, language = Language.English): string =>
+  translate(language, CARRIER_STATE_KEY[carrier.state])

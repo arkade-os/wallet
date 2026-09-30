@@ -179,7 +179,10 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
   const primaryTxids = new Set([fundedTxid, spendTxid, txid].filter((id): id is string => Boolean(id)))
   const related = [...new Set((relatedTxids ?? []).filter(isCanonicalTxid))].filter((id) => !primaryTxids.has(id))
   const relatedRows: TableData = related.map((id, index) => {
-    const label = related.length === 1 ? 'Related transaction' : `Related transaction ${index + 1}`
+    const label =
+      related.length === 1
+        ? t('transaction.relatedTransaction')
+        : t('transaction.relatedTransactionN', { index: index + 1 })
     return [label, id, <HashIcon key={`${label}-${id}`} />, offchainTxOnClick(id)]
   })
 
@@ -205,15 +208,19 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     [t('accounts.priceRate'), priceRate, <ArrowUpDownIcon key='price-rate-icon' />],
     [t('accounts.networkFees'), fees === undefined ? undefined : formatAmount(fees), <FeesIcon key='fees-icon' />],
     [t('accounts.swapFees'), formatSensitiveDetail(swapFees), <FeesIcon key='swap-fees-icon' />],
-    ['Carrier sats', formatSensitiveDetail(carrier?.carrierLoan), <AmountIcon key='carrier-loan-icon' />],
-    ['Purchased sats', formatSensitiveDetail(carrier?.carrierPurchased), <AmountIcon key='carrier-purchased-icon' />],
+    [t('transaction.carrierLoan'), formatSensitiveDetail(carrier?.carrierLoan), <AmountIcon key='carrier-loan-icon' />],
     [
-      'Carrier sats purchased',
+      t('transaction.carrierPurchased'),
+      formatSensitiveDetail(carrier?.carrierPurchased),
+      <AmountIcon key='carrier-purchased-icon' />,
+    ],
+    [
+      t('transaction.carrierPurchase'),
       formatSensitiveDetail(carrier?.carrierPurchase),
       <AmountIcon key='carrier-purchase-icon' />,
     ],
-    ['Taxi service fee', formatSensitiveDetail(carrier?.carrierFare), <FeesIcon key='carrier-fare-icon' />],
-    ['Delivery', carrier?.carrierDelivery, <StatusIcon key='carrier-delivery-icon' />],
+    [t('transaction.carrierFare'), formatSensitiveDetail(carrier?.carrierFare), <FeesIcon key='carrier-fare-icon' />],
+    [t('transaction.carrierDelivery'), carrier?.carrierDelivery, <StatusIcon key='carrier-delivery-icon' />],
     ...assetTotalRows,
     [t('common.total'), formatAmount(total), <TotalIcon key='total-icon' />],
   ]

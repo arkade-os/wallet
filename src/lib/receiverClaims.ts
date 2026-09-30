@@ -329,7 +329,11 @@ export const walletClaimWatch = (args: {
   const ctx = arkadeContextOf(aspInfo, tipHeight)
   return {
     ...rest,
-    clientFor: (url) => taxiClient(url, (input, init) => fetch(input, init)),
+    clientFor: (url) =>
+      taxiClient(url, (input, init) => {
+        const timeout = AbortSignal.timeout(10_000)
+        return fetch(input, { ...init, signal: init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout })
+      }),
     trust: { serverKey: ctx.serverKey, emulatorKey: ctx.emulatorKey, vtxoMinAmount: ctx.vtxoMinAmount, hrp: ctx.hrp },
     spendConfig: async (client) => {
       // The wallet knows no emulator URL; the Taxi names it, and the client checks its signer against ours.

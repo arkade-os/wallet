@@ -1488,6 +1488,8 @@ function swapValidationText(message: string, t: (key: string) => string): string
   if (message === 'Insufficient balance') return t('swap.insufficientBalance')
   if (message === 'Swap unavailable for this pair') return t('swap.pairUnavailable')
   if (message === 'Quote unavailable') return t('swap.quoteUnavailable')
+  if (message === 'Quote unavailable: this market charges for the delivered carrier')
+    return t('swap.carrierQuoteUnavailable')
   if (message === 'Amount too small') return t('swap.amountTooSmall')
   if (message === "You don't have enough bitcoin to do a partial swap. Please swap all or acquire some bitcoin.")
     return t('swap.partialSwapNeedsBtc')

@@ -10,6 +10,8 @@ import {
   readCarrierActivity,
   type CarrierActivity,
 } from '../../lib/carrierActivity'
+import { carrierDetails } from '../../lib/swapDisplay'
+import { Language } from '../../lib/types'
 
 const TXID_A = 'a'.repeat(64)
 const TXID_B = 'b'.repeat(64)
@@ -148,6 +150,11 @@ describe('carrier receipt copy', () => {
   it('separates borrowed from bought, so recycle329/receipt1 is not zero sats bought', () => {
     expect(carrierBorrowedLabel(carrier())).toBe('Borrowed 329 sats')
     expect(carrierPurchasedReceiptLabel(carrier())).toBe('1 sat (receipt reserve)')
+    expect(carrierDetails(carrier(), Language.Spanish)).toMatchObject({
+      carrierLoan: { value: 'En préstamo: 329 sats', masked: 'En préstamo: ········ sats' },
+      carrierPurchased: { value: '1 sat (reserva del recibo)', masked: '········ (reserva del recibo)' },
+      carrierDelivery: 'Reclamable',
+    })
   })
 
   it('names the whole carrier as bought on a purchase', () => {

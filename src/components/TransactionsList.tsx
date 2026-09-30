@@ -136,7 +136,7 @@ const TransactionLine = ({
   const taxi = hasTaxiCarrier(tx.carrier)
   const When = () => (
     <span className='activity-row__meta'>
-      {[swapRoute, date, taxi ? 'Taxi powered' : undefined].filter(Boolean).join(' · ')}
+      {[swapRoute, date, taxi ? t('transaction.taxiPowered') : undefined].filter(Boolean).join(' · ')}
     </span>
   )
 

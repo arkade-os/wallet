@@ -11,7 +11,8 @@ import { prettyCurrencyAssetAmount, prettyFiatAmount, prettyFiatHide, prettyHide
 import { designatedAccountCurrency, walletAccountTicker } from './accountAssets'
 import type { SwapActivityAllocation } from './activityEvidence'
 import type { WalletAssetSwap } from './swapRepository'
-import { Currencies, Tx, Unit } from './types'
+import { Currencies, Language, Tx, Unit } from './types'
+import { translate } from './i18n'
 
 export type SwapStatus = 'pending' | 'failed' | 'completed' | 'cancelled' | 'recoverable'
 
@@ -252,28 +253,44 @@ export interface CarrierReceiptRows {
   carrierPurchased?: SwapDisplayAmount
 }
 
-export const carrierDetails = (carrier: CarrierActivity | undefined): CarrierReceiptRows => {
+export const carrierDetails = (
+  carrier: CarrierActivity | undefined,
+  language = Language.English,
+): CarrierReceiptRows => {
   if (!carrier) return {}
   return {
     carrierLoan:
       carrier.mode === 'recycle'
-        ? { value: carrierBorrowedLabel(carrier), masked: `Borrowed ${prettyHide(carrier.loanSats)}` }
+        ? {
+            value: carrierBorrowedLabel(carrier, language),
+            masked: translate(language, 'transaction.carrierBorrowed', {
+              amount: prettyHide(carrier.loanSats, translate(language, 'common.sats')),
+            }),
+          }
         : undefined,
     carrierPurchased:
       carrier.mode === 'recycle'
         ? {
-            value: carrierPurchasedReceiptLabel(carrier),
-            masked: `${prettyHide(carrier.purchasedSats, '')} (receipt reserve)`,
+            value: carrierPurchasedReceiptLabel(carrier, language),
+            masked: translate(language, 'transaction.carrierReceiptReserve', {
+              amount: prettyHide(carrier.purchasedSats, ''),
+            }),
           }
         : undefined,
     carrierPurchase:
       carrier.mode === 'purchase'
-        ? { value: carrierPurchasedLiteralLabel(carrier), masked: prettyHide(carrier.purchasedSats) }
+        ? {
+            value: carrierPurchasedLiteralLabel(carrier, language),
+            masked: prettyHide(carrier.purchasedSats, translate(language, 'common.sats')),
+          }
         : undefined,
     carrierFare: carrier.taxi
-      ? { value: carrierServiceFareLabel(carrier), masked: prettyHide(carrier.serviceFareSats) }
+      ? {
+          value: carrierServiceFareLabel(carrier, language),
+          masked: prettyHide(carrier.serviceFareSats, translate(language, 'common.sats')),
+        }
       : undefined,
-    carrierDelivery: carrierDeliveryLabel(carrier),
+    carrierDelivery: carrierDeliveryLabel(carrier, language),
   }
 }
 

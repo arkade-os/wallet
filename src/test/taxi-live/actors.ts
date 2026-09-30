@@ -95,7 +95,9 @@ export async function admin<T>(path: string, method = 'GET', body?: unknown): Pr
     headers: { 'content-type': 'application/json', 'x-taxi-operator': 'task13-e2e' },
     ...(method === 'GET' ? {} : { body: JSON.stringify(body ?? {}) }),
   })
-  const payload = await response.json()
+  const payload = await response.json().catch(() => {
+    throw new Error(`Taxi admin ${path}: HTTP ${response.status}: Invalid JSON response`)
+  })
   if (!response.ok) {
     const reason = typeof payload.error === 'string' ? payload.error.slice(0, 512) : 'Invalid admin response'
     throw new Error(`Taxi admin ${path}: HTTP ${response.status}: ${reason}`)
