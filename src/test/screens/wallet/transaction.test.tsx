@@ -136,7 +136,7 @@ describe('Transaction screen', () => {
       </NavigationContext.Provider>,
     )
 
-    expect(screen.getByTestId('Status')).toHaveTextContent('Pending')
+    expect(screen.getByTestId('Status')).toHaveTextContent('Swap pending')
     expect(screen.queryByRole('button', { name: /cancel swap/i })).not.toBeInTheDocument()
   })
 
