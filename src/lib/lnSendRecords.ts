@@ -116,7 +116,7 @@ export const lnSendSwapRecord = (input: LnSendRecordInput, nowSeconds?: number):
 export const saveRecord = async (record: RfqSwapRecord): Promise<void> => assetSwapRepository.saveRfqSwap(record)
 
 export const readRecord = async (rfqId: string): Promise<RfqSwapRecord | undefined> =>
-  (await assetSwapRepository.getAllRfqSwaps()).find((record) => record.rfqId === rfqId)
+  assetSwapRepository.getRfqSwap(rfqId)
 
 /**
  * Persist a pass that changed something — the manager's `saveSwap`.
