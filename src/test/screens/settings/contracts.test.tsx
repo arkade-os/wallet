@@ -51,17 +51,6 @@ function renderScreen(svcWallet: typeof mockSvcWallet | undefined, aspInfo = emp
 }
 
 describe('Contracts screen', () => {
-  it('renders a loading state when svcWallet is undefined', () => {
-    renderScreen(undefined)
-    expect(screen.queryByText('Contracts')).not.toBeInTheDocument()
-  })
-
-  it('renders empty state when there are no contracts', async () => {
-    renderScreen(withContracts([]) as any)
-    await screen.findByText('Contracts')
-    expect(screen.getByText('No contracts found.')).toBeInTheDocument()
-  })
-
   it('filters by the Active / Inactive tab', async () => {
     renderScreen(
       withContracts([

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
-import { discover, sideLimits, validateCard, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+import { discover, sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { marketCorridor } from '@arkade-os/swap'
 import betaSolverCard from '../../lib/beta-solver.card.json'
 import { lnSendRendezvous } from '../../lib/lnSwap'
@@ -44,37 +44,19 @@ describe('bundled Arkade Labs solver card', () => {
   })
 
   /**
-   * The card predates `emulator_pubkey` and cannot yet carry it, so the
-   * corridor is deliberately unavailable rather than negotiable-but-unfundable.
+   * The bundled card predates `emulator_pubkey`. Offering a rendezvous anyway
+   * would derive a covenant around a co-signer the solver does not use, and the
+   * client would refuse to fund that address after burning a quote.
    *
-   * Both halves below are blockers OUTSIDE this repo, and each is pinned by a
-   * test so the day it lifts is a red test rather than a discovery:
-   *
-   *  1. The solver must publish a card carrying its `emulator_pubkey`
-   *     (`cli card` already emits one — arkade-os/solver-registry#18).
-   *  2. `@arkade-os/solver-discovery` must ship a release that ACCEPTS that
-   *     field on a card and propagates it onto the market. At the pinned 0.2.2
-   *     it does neither, and its card validator is allow-list strict, so adding
-   *     the field early would not degrade — it would reject the whole card and
-   *     take the corridor with it.
-   *
-   * Until both land the wallet declines the corridor up front, which beats
-   * quoting: a covenant derived without the solver's real co-signer key is a
-   * different address, so the client would refuse to fund it anyway — after
-   * burning a quote and handing the invoice to a third party for nothing.
+   * Adding the field before `@arkade-os/solver-discovery` accepts it is a
+   * different failure: the card validator is allow-list strict, so the whole
+   * card is rejected and the corridor disappears. That shows up as warnings or
+   * an empty market list in "survives discovery" above, not as a rendezvous.
    */
   it('has no rendezvous yet: the card carries no emulator_pubkey', async () => {
     expect(betaSolverCard).not.toHaveProperty('emulator_pubkey')
     const { markets } = await load()
     expect(lnSendRendezvous(markets)).toBeUndefined()
-  })
-
-  it('cannot carry emulator_pubkey until solver-discovery accepts it', async () => {
-    // Pins blocker 2. When this flips to ok, bump the dep and add the field to
-    // the card — the assertions above are what then start failing.
-    const result = validateCard({ ...betaSolverCard, emulator_pubkey: 'c'.repeat(64) })
-    expect(result.ok).toBe(false)
-    expect(result.errors.join()).toMatch(/emulator_pubkey/)
   })
 })
 

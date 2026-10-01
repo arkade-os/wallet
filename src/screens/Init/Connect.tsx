@@ -10,11 +10,13 @@ import { consoleError } from '../../lib/logs'
 import { useLoadingStatus } from '../../hooks/useLoadingStatus'
 import { setLoadingStatus } from '../../lib/loadingStatus'
 import { NavigationContext, Pages } from '../../providers/navigation'
+import { useTranslation } from '../../providers/language'
 
 export default function InitConnect() {
   const { initInfo, setInitInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { initWallet } = useContext(WalletContext)
+  const { t } = useTranslation()
 
   const loadingStatus = useLoadingStatus()
   const [error, setError] = useState<string>()
@@ -52,17 +54,17 @@ export default function InitConnect() {
 
   const abortConnectionWithError = (err: any) => {
     consoleError(err, 'Error during connection:')
-    setLoadingStatus('Connection failed')
-    setError('Connection failed')
+    setLoadingStatus(t('init.connectionFailed'))
+    setError(t('init.connectionFailed'))
     setConnectDone(true)
   }
 
   return (
     <>
-      <Header text='Connecting to server' />
+      <Header text={t('init.connectingToServer')} />
       <Content>
         <LoadingLogo
-          text={loadingStatus || 'Connecting to server'}
+          text={loadingStatus || t('init.connectingToServerStatus')}
           exitMode={connectDone ? 'fly-up' : 'none'}
           onExitComplete={handleExitComplete}
           done={connectDone}

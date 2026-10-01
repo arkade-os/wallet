@@ -6,6 +6,7 @@ import { EASE_OUT_QUINT_TUPLE } from '../lib/animations'
 import FlexCol from './FlexCol'
 import FlexRow from './FlexRow'
 import Text from './Text'
+import { useTranslation } from '../providers/language'
 
 interface DismissibleBannerProps {
   id: string
@@ -71,6 +72,7 @@ const iconStyle: React.CSSProperties = {
 }
 
 function BannerContent({ icon, title, description, action, onDismiss }: DismissibleBannerProps) {
+  const { t } = useTranslation()
   return (
     <div style={containerStyle}>
       <FlexRow gap='0.75rem' alignItems='flex-start'>
@@ -89,7 +91,7 @@ function BannerContent({ icon, title, description, action, onDismiss }: Dismissi
           <div style={{ marginTop: description ? '0' : '0.25rem' }}>
             <FlexRow gap='1rem'>
               {action ? <TextButton onClick={action.onClick} label={action.label} /> : null}
-              <TextButton onClick={onDismiss} label='Dismiss' />
+              <TextButton onClick={onDismiss} label={t('common.dismiss')} />
             </FlexRow>
           </div>
         </FlexCol>

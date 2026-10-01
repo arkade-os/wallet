@@ -28,6 +28,7 @@ import { WalletContext } from '../../providers/wallet'
 import { authenticateUser } from '../../lib/biometrics'
 import FingerprintIcon from '../../icons/Fingerprint'
 import InputPassword from '../../components/InputPassword'
+import { useTranslation } from '../../providers/language'
 
 export default function Backup() {
   const { wallet } = useContext(WalletContext)
@@ -35,6 +36,7 @@ export default function Backup() {
   const { backupConfig, fullBackup } = useContext(BackupContext)
 
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   const isMnemonicWallet = hasMnemonic()
 
@@ -64,7 +66,7 @@ export default function Backup() {
   const handleCopy = async () => {
     if (!secret) return
     await copyToClipboard(secret)
-    toast('Copied to clipboard')
+    toast(t('backup.copyToClipboard'))
   }
 
   const onChangePassword = (e: any) => {
@@ -79,7 +81,7 @@ export default function Backup() {
       if (!password) return
       const result = await verifyPassword(password)
       if (!result) {
-        setError('Invalid password')
+        setError(t('unlock.invalidPassword'))
         return
       }
       setError('')
@@ -99,16 +101,16 @@ export default function Backup() {
     if (newConfig.nostrBackup) {
       await fullBackup(newConfig).catch((error) => {
         consoleError(error, 'Backup to Nostr failed')
-        setError('Backup to Nostr failed')
+        setError(t('backup.backupFailed'))
         return
       })
     } else {
       backupConfig(newConfig, true)
     }
-    toast('Nostr backup updated')
+    toast(t('backup.nostrBackupUpdated'))
   }
 
-  const secretLabel = isMnemonicWallet ? 'Recovery phrase' : 'Private key'
+  const secretLabel = isMnemonicWallet ? t('backup.recoveryPhrase') : t('backup.privateKey')
 
   const Dialog = () => (
     <FlexCol gap='1.5rem'>
@@ -117,20 +119,18 @@ export default function Backup() {
           {secretLabel}
         </Text>
         <TextSecondary centered wrap>
-          {isMnemonicWallet
-            ? 'Your recovery phrase is used to back up your wallet. Keep it secret and secure at all times.'
-            : 'Your private key is used to back up your wallet. Keep it secret and secure at all times.'}
+          {isMnemonicWallet ? t('backup.phraseBacksUpWallet') : t('backup.keyBacksUpWallet')}
         </TextSecondary>
       </FlexCol>
       {!secret ? (
         wallet.lockedByBiometrics ? (
           <FlexCol centered gap='0.5rem'>
             <FingerprintIcon />
-            <Text centered>Unlock with your passkey</Text>
+            <Text centered>{t('unlock.unlockWithPasskey')}</Text>
           </FlexCol>
         ) : (
           <FlexCol gap='0.5rem' testId='backup-password-input'>
-            <TextSecondary>Enter your password</TextSecondary>
+            <TextSecondary>{t('unlock.enterPassword')}</TextSecondary>
             <InputPassword onChange={onChangePassword} />
             <ErrorMessage error={Boolean(error)} text={error} />
           </FlexCol>
@@ -139,27 +139,27 @@ export default function Backup() {
       <FlexCol gap='0.25rem'>
         <FlexRow>
           <SafeIcon />
-          <TextSecondary>Keep your {secretLabel.toLowerCase()} safe</TextSecondary>
+          <TextSecondary>{t('backup.keepSafe', { secret: secretLabel.toLowerCase() })}</TextSecondary>
         </FlexRow>
         <FlexRow>
           <DontIcon />
-          <TextSecondary>Don't share it with anyone</TextSecondary>
+          <TextSecondary>{t('backup.doNotShare')}</TextSecondary>
         </FlexRow>
         <FlexRow>
           <XIcon />
-          <TextSecondary>If you lose it you can't recover it</TextSecondary>
+          <TextSecondary>{t('backup.cantRecover')}</TextSecondary>
         </FlexRow>
       </FlexCol>
       <FlexRow>
-        <Button onClick={toggleDialog} label='Cancel' secondary />
-        <Button onClick={showPrivateKey} label='Confirm' />
+        <Button onClick={toggleDialog} label={t('common.cancel')} secondary />
+        <Button onClick={showPrivateKey} label={t('backup.confirm')} />
       </FlexRow>
     </FlexCol>
   )
 
   return (
     <>
-      <Header text='Backup' back />
+      <Header text={t('settings.backup')} back />
       <Modal open={dialog} onOpenChange={setDialog}>
         <Dialog />
       </Modal>
@@ -169,36 +169,33 @@ export default function Backup() {
             <ErrorMessage error={Boolean(error)} text={error} />
             <FlexCol border gap='0.5rem' padding='0 0 1rem 0'>
               <Text thin>{secretLabel}</Text>
-              <TextSecondary>For your eyes only, do not share.</TextSecondary>
+              <TextSecondary>{t('backup.forYourEyesOnly')}</TextSecondary>
               <Shadow lighter>
                 <FlexCol gap='10px'>
                   <InputFake testId='private-key' text={showSecret ? secret : '*******'} />
                   {showSecret ? (
-                    <Button onClick={handleCopy} label='Copy to clipboard' />
+                    <Button onClick={handleCopy} label={t('backup.copyToClipboard')} />
                   ) : (
-                    <Button onClick={toggleDialog} label={`View ${secretLabel.toLowerCase()}`} />
+                    <Button
+                      onClick={toggleDialog}
+                      label={isMnemonicWallet ? t('backup.viewRecoveryPhrase') : t('backup.viewPrivateKey')}
+                    />
                   )}
                   <FlexRow>
                     <OkIcon />
-                    <Text small>This is enough to restore your wallet.</Text>
+                    <Text small>{t('backup.enoughToRestore')}</Text>
                   </FlexRow>
                 </FlexCol>
               </Shadow>
               {showSecret ? (
-                <WarningBox
-                  text={
-                    isMnemonicWallet
-                      ? "Your recovery phrase can be used to access everything in your wallet. Don't share it with anyone."
-                      : "Your private key can be used to access everything in your wallet. Don't share it with anyone."
-                  }
-                />
+                <WarningBox text={isMnemonicWallet ? t('backup.phraseWarning') : t('backup.privateKeyWarning')} />
               ) : null}
             </FlexCol>
             <Toggle
               checked={config.nostrBackup}
               onClick={toggleNostrBackup}
-              text='Enable Nostr backups'
-              subtext='Turn Nostr backups on or off'
+              text={t('backup.enableNostrBackups')}
+              subtext={t('backup.nostrBackupsSubtext')}
               testId='toggle-backup'
             />
           </FlexCol>

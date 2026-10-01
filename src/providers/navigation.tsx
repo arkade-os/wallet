@@ -23,8 +23,6 @@ import WalletSwap from '../screens/Wallet/Swap/Index'
 import Settings from '../screens/Settings/Index'
 
 import InitSuccess from '../screens/Init/Success'
-import AppLendasat from '../screens/Apps/Lendasat/Index'
-import AppSatora from '../screens/Apps/Satora/Index'
 import AppAssets from '../screens/Apps/Assets/Index'
 import AppAssetDetail from '../screens/Apps/Assets/Detail'
 import AppAssetImport from '../screens/Apps/Assets/Import'
@@ -43,8 +41,6 @@ export enum Pages {
   Activity,
   AccountDetail,
   BitcoinDetail,
-  AppLendasat,
-  AppSatora,
   AppAssets,
   AppAssetDetail,
   AppAssetImport,
@@ -108,10 +104,6 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <AccountDetail />
     case Pages.BitcoinDetail:
       return <BitcoinDetail />
-    case Pages.AppLendasat:
-      return <AppLendasat />
-    case Pages.AppSatora:
-      return <AppSatora />
     case Pages.AppAssets:
       return <AppAssets />
     case Pages.AppAssetDetail:

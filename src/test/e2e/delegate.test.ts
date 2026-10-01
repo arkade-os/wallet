@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { translations } from '../../lib/i18n'
 import {
   createWallet,
   fundWallet,
@@ -9,14 +10,16 @@ import {
   waitForWalletPage,
 } from './utils'
 
+const tr = translations.en
+
 test('should toggle delegates', async ({ page }) => {
   test.setTimeout(60000)
   // create wallet
   await createWallet(page)
 
   await navigateToSettings(page)
-  await page.getByText('advanced', { exact: true }).click()
-  await page.getByText('delegates', { exact: true }).click()
+  await page.getByText(tr.settings.advanced, { exact: true }).click()
+  await page.getByText(tr.settings.delegates, { exact: true }).click()
 
   let toggle = page.getByTestId('toggle-delegates')
   await expect(toggle).toBeVisible()
@@ -29,8 +32,8 @@ test('should toggle delegates', async ({ page }) => {
   // toggle triggers window.location.reload(), wait for wallet to load
   await waitForWalletPage(page)
   await navigateToSettings(page)
-  await page.getByText('advanced', { exact: true }).click()
-  await page.getByText('delegates', { exact: true }).click()
+  await page.getByText(tr.settings.advanced, { exact: true }).click()
+  await page.getByText(tr.settings.delegates, { exact: true }).click()
   toggle = page.getByTestId('toggle-delegates')
 
   const expectedAfterToggle = initialChecked === 'true' ? 'false' : 'true'
@@ -59,8 +62,8 @@ test('should receive and keep coins at the delegated renewal address', async ({ 
   await fundWallet(page, 5000)
 
   await navigateToSettings(page)
-  await page.getByText('advanced', { exact: true }).click()
-  await page.getByText('delegates', { exact: true }).click()
+  await page.getByText(tr.settings.advanced, { exact: true }).click()
+  await page.getByText(tr.settings.delegates, { exact: true }).click()
   const toggle = page.getByTestId('toggle-delegates')
   if ((await toggle.getAttribute('data-checked')) !== 'true') {
     await toggle.click()
@@ -69,8 +72,8 @@ test('should receive and keep coins at the delegated renewal address', async ({ 
 
   // enabling moves the coins to the renewal address, the card shows them
   await navigateToSettings(page)
-  await page.getByText('advanced', { exact: true }).click()
-  await page.getByText('delegates', { exact: true }).click()
+  await page.getByText(tr.settings.advanced, { exact: true }).click()
+  await page.getByText(tr.settings.delegates, { exact: true }).click()
   await expect(page.getByText(/delegated balance: 5,000 sats/)).toBeVisible({ timeout: 90000 })
   await page.getByText(/renewal address:/).click()
   const renewalAddress = await readClipboard(page)

@@ -23,6 +23,7 @@ import SettingsPageTransition from '../../components/SettingsPageTransition'
 import Haptics from './Haptics'
 import Contracts from './Contracts'
 import Solvers from './Solvers'
+import LanguageSettings from './Language'
 
 function settingsContent(option: SettingsOptions): JSX.Element {
   switch (option) {
@@ -50,6 +51,8 @@ function settingsContent(option: SettingsOptions): JSX.Element {
       return <Lock />
     case SettingsOptions.Logs:
       return <Logs />
+    case SettingsOptions.Language:
+      return <LanguageSettings />
     case SettingsOptions.Notes:
       return <NotesForm />
     case SettingsOptions.Notifications:

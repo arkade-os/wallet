@@ -19,6 +19,7 @@ export type Config = {
   /** The watches the delegatee keeps for this wallet, set once delegation is enabled. */
   delegation?: Delegation
   importedAssets: string[]
+  language?: Language
   haptics: boolean
   nostrBackup: boolean
   notifications: boolean
@@ -51,6 +52,11 @@ export enum Currencies {
   BTC = 'BTC',
 }
 
+export enum Language {
+  English = 'en',
+  Spanish = 'es',
+}
+
 export enum SettingsSections {
   Advanced = 'Advanced',
   General = 'General',
@@ -73,6 +79,7 @@ export enum SettingsOptions {
   Haptics = 'haptic feedback',
   Lock = 'lock wallet',
   Logs = 'logs',
+  Language = 'language',
   Notifications = 'notifications',
   Notes = 'notes',
   Password = 'change password',

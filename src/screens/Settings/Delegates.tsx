@@ -1,6 +1,6 @@
 import Header from './Header'
 import ArrowIcon from '../../icons/Arrow'
-import { prettyAgo, prettyAmount, prettyLongText } from '../../lib/format'
+import { localizedAgo, prettyAmount, prettyLongText } from '../../lib/format'
 import Toggle from '../../components/Toggle'
 import Shadow from '../../components/Shadow'
 import Padded from '../../components/Padded'
@@ -23,6 +23,7 @@ import { useToast } from '../../components/Toast'
 import { consoleError } from '../../lib/logs'
 import { BackupContext } from '@/providers/backup'
 import { checkDelegateeKeys, DelegationStatus, getDelegationStatus, isCurrentDelegation } from '../../lib/delegatee'
+import { useTranslation } from '../../providers/language'
 
 // Test the delegatee and verify that it works for this Ark server and emulator.
 const testConnection = async (aspInfo: Pick<AspInfo, 'network' | 'signerPubkey'>): Promise<Delegate | undefined> => {
@@ -35,12 +36,13 @@ const testConnection = async (aspInfo: Pick<AspInfo, 'network' | 'signerPubkey'>
 
 // hero component to explain what delegates are
 function Hero() {
+  const { t } = useTranslation()
   return (
     <FlexRow between>
       <FlexCol gap='0.5rem'>
-        <Text bold>What is a Delegate?</Text>
+        <Text bold>{t('delegate.whatIsADelegate')}</Text>
         <Text small thin wrap>
-          A delegate is a trusted third party you appoint to help keep your VTXOs safe and secure.
+          {t('delegate.delegateDescription')}
         </Text>
         <a
           href='https://docs.arkadeos.com/learn/pillars/batch-expiry#delegation-solutions'
@@ -59,7 +61,7 @@ function Hero() {
           }}
         >
           <Text tiny thin>
-            Learn more
+            {t('common.learnMore')}
           </Text>
         </a>
       </FlexCol>
@@ -89,6 +91,7 @@ function DelegateCard() {
   const { setOption } = useContext(OptionsContext)
 
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   const [active, setActive] = useState(false)
   const [delegate, setDelegate] = useState<Delegate>()
@@ -139,12 +142,14 @@ function DelegateCard() {
 
   const handleCopy = async (value: string) => {
     await copyToClipboard(value)
-    toast('Copied to clipboard')
+    toast(t('common.copiedToClipboard'))
   }
 
   // the service's next renewal when it holds coins, else the wallet's own
   const nextRenewal = status?.nextRenewal ?? wallet.nextRollover
-  const nextRolloverText = nextRenewal ? `next renewal ${prettyAgo(nextRenewal)}` : 'No upcoming renewal'
+  const nextRolloverText = nextRenewal
+    ? t('delegate.nextRenewal', { time: localizedAgo(nextRenewal, t) })
+    : t('delegate.noUpcomingRenewal')
 
   if (!delegate) return <></>
 
@@ -167,32 +172,44 @@ function DelegateCard() {
           </Shadow>
           <FlexRow end>
             <Middot ok={active} />
-            <Text tiny>{active ? 'Active' : 'Inactive'}</Text>
+            <Text tiny>{active ? t('delegate.active') : t('delegate.inactive')}</Text>
           </FlexRow>
         </FlexRow>
         <FlexCol gap='0.25rem'>
           <FlexRow onClick={() => handleCopy(delegate.pubkey)}>
-            <TextSecondary>delegate key: {prettyLongText(delegate.pubkey, 14)}</TextSecondary>
+            <TextSecondary>
+              {t('delegate.delegateKeyLabel', { value: prettyLongText(delegate.pubkey, 14) })}
+            </TextSecondary>
           </FlexRow>
           {Boolean(delegate.emulatorPubkey) && (
             <FlexRow onClick={() => handleCopy(delegate.emulatorPubkey!)}>
-              <TextSecondary>emulator key: {prettyLongText(delegate.emulatorPubkey, 14)}</TextSecondary>
+              <TextSecondary>
+                {t('delegate.emulatorKeyLabel', { value: prettyLongText(delegate.emulatorPubkey, 14) })}
+              </TextSecondary>
             </FlexRow>
           )}
           {delegation ? (
             <>
               <FlexRow onClick={() => handleCopy(delegation.renewal.address)}>
-                <TextSecondary>renewal address: {prettyLongText(delegation.renewal.address, 14)}</TextSecondary>
+                <TextSecondary>
+                  {t('delegate.renewalAddressLabel', { value: prettyLongText(delegation.renewal.address, 14) })}
+                </TextSecondary>
               </FlexRow>
               <FlexRow onClick={() => handleCopy(delegation.boarding.address)}>
-                <TextSecondary>boarding address: {prettyLongText(delegation.boarding.address, 14)}</TextSecondary>
+                <TextSecondary>
+                  {t('delegate.boardingAddressLabel', { value: prettyLongText(delegation.boarding.address, 14) })}
+                </TextSecondary>
               </FlexRow>
             </>
           ) : null}
           {status ? (
             <>
-              <TextSecondary>delegation: {status.renewal.delegation.status}</TextSecondary>
-              <TextSecondary>delegated balance: {prettyAmount(status.delegated)}</TextSecondary>
+              <TextSecondary>
+                {t('delegate.delegationStatusLabel', { status: status.renewal.delegation.status })}
+              </TextSecondary>
+              <TextSecondary>
+                {t('delegate.delegatedBalanceLabel', { value: prettyAmount(status.delegated) })}
+              </TextSecondary>
             </>
           ) : null}
         </FlexCol>
@@ -206,6 +223,7 @@ export default function Delegates() {
   const { goBack } = useContext(OptionsContext)
   const { config } = useContext(ConfigContext)
   const { backupAndUpdateConfig } = useContext(BackupContext)
+  const { t } = useTranslation()
 
   const noDelegateFound = getDelegateeUrlForNetwork(aspInfo.network as NetworkName) === undefined
 
@@ -223,11 +241,11 @@ export default function Delegates() {
   }
 
   // text to show on warning box
-  const warningText = 'Delegates can only renew your VTXOs, they cannot spend your funds or control your wallet'
+  const warningText = t('delegate.delegatesRenewOnly')
 
   return (
     <>
-      <Header backFunc={goBack} text='Delegates' />
+      <Header backFunc={goBack} text={t('settings.delegates')} />
       <Content>
         <Padded>
           <FlexCol gap='1rem' padding='0 0 24px 0'>
@@ -235,17 +253,17 @@ export default function Delegates() {
               <Hero />
             </Shadow>
             {noDelegateFound ? (
-              <WarningBox text='No delegate found for this network.' />
+              <WarningBox text={t('delegate.noDelegateFound')} />
             ) : (
               <>
                 <Toggle
                   checked={config.delegate}
                   onClick={handleToggle}
                   testId='toggle-delegates'
-                  text='Use default Arkade delegate'
-                  subtext="Use Arkade's default delegate to manage renewals"
+                  text={t('delegate.useDefaultArkadeDelegate')}
+                  subtext={t('delegate.useDefaultSubtext')}
                 />
-                <TextSecondary>The wallet will reload to apply the change.</TextSecondary>
+                <TextSecondary>{t('delegate.walletReloadToApply')}</TextSecondary>
                 <WarningBox text={warningText} />
                 <DelegateCard />
               </>

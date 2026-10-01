@@ -2,9 +2,10 @@ interface SegmentedControlProps {
   options: string[]
   selected: string
   onChange: (value: string) => void
+  getLabel?: (value: string) => string
 }
 
-export default function SegmentedControl({ options, selected, onChange }: SegmentedControlProps) {
+export default function SegmentedControl({ options, selected, onChange, getLabel }: SegmentedControlProps) {
   return (
     <div
       style={{
@@ -41,7 +42,7 @@ export default function SegmentedControl({ options, selected, onChange }: Segmen
                 whiteSpace: 'nowrap',
               }}
             >
-              {opt}
+              {getLabel ? getLabel(opt) : opt}
             </span>
           </div>
         )

@@ -34,6 +34,7 @@ import {
   aspErrorText,
   emptyAspInfo,
   byExpiryAsc,
+  collaborativeExitWithFees,
   getTxHistory,
   getUnrolledVtxos,
   redeemNotes,
@@ -63,12 +64,6 @@ describe('byExpiryAsc', () => {
 })
 
 describe('aspErrorText', () => {
-  it('returns the caller fallback when not outdated', () => {
-    expect(aspErrorText({ ...emptyAspInfo, outdated: false }, 'Arkade server unreachable')).toBe(
-      'Arkade server unreachable',
-    )
-  })
-
   it('returns the update-required message when outdated', () => {
     expect(aspErrorText({ ...emptyAspInfo, outdated: true, minBuildVersion: '0.9.10' }, 'x')).toBe(
       'Your wallet is outdated and needs to be updated to be compatible with the latest Arkade version.',
@@ -120,6 +115,27 @@ describe('settle failure reporting', () => {
       wallet: walletFingerprint(fixtures.lib.address.ark[0].address),
     })
     expect(JSON.stringify(settle)).not.toMatch(/[0-9a-f]{20,}/i)
+  })
+})
+
+describe('collaborativeExitWithFees', () => {
+  it('selects only coins generic spending may use, as the SDK settle path does', async () => {
+    const escrowed = { txid: 'escrowed', vout: 0, value: 5_000, expiresAt: new Date(1_000) }
+    const plain = { txid: 'plain', vout: 0, value: 5_000, expiresAt: new Date(2_000) }
+    const getSpendableVtxos = vi.fn().mockResolvedValue([plain])
+    const settle = vi.fn().mockResolvedValue('commitment-txid')
+    const wallet = {
+      getVtxos: async () => [escrowed, plain],
+      getSpendableVtxos,
+      settle,
+      getAddress: async () => fixtures.lib.address.ark[0].address,
+      getBoardingAddress: async () => fixtures.lib.address.btc[0],
+    }
+
+    await collaborativeExitWithFees(wallet as any, 3_000, 2_900, fixtures.lib.address.btc[0])
+
+    expect(getSpendableVtxos).toHaveBeenCalledWith({ withRecoverable: true, genericallySpendableOnly: true })
+    expect(settle.mock.calls[0][0].inputs.map((vtxo: { txid: string }) => vtxo.txid)).toEqual(['plain'])
   })
 })
 

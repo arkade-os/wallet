@@ -16,7 +16,7 @@ import {
   prettyBitcoinAmount,
   prettyChartDateTime,
 } from '../../lib/format'
-import { Currencies, Tx, Unit } from '../../lib/types'
+import { Currencies, Language, Tx, Unit } from '../../lib/types'
 import { Asset } from '@arkade-os/sdk'
 
 describe('format utilities', () => {
@@ -158,6 +158,26 @@ describe('format utilities', () => {
         hour: '2-digit',
       }).format(d)
       expect(result).toBe(expected)
+    })
+
+    it('formats dates in Spanish when the Spanish locale is requested', () => {
+      const d = new Date('2023-12-25T10:30:00Z')
+      const tsSec = Math.floor(d.getTime() / 1000)
+      const result = prettyDate(tsSec, Language.Spanish)
+      const expected = new Intl.DateTimeFormat('es', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        minute: '2-digit',
+        hour: '2-digit',
+      }).format(d)
+      expect(result).toBe(expected)
+    })
+
+    it('keeps English formatting by default', () => {
+      const d = new Date('2023-12-25T10:30:00Z')
+      const tsSec = Math.floor(d.getTime() / 1000)
+      expect(prettyDate(tsSec)).toBe(prettyDate(tsSec, Language.English))
     })
   })
 

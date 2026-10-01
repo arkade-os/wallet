@@ -25,9 +25,6 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
 | `VITE_CHATWOOT_WEBSITE_TOKEN` | ChatWoot website token for customer support integration             | `VITE_CHATWOOT_WEBSITE_TOKEN=your-token`                                             |
 | `VITE_CHATWOOT_BASE_URL`      | ChatWoot server base URL for customer support integration           | `VITE_CHATWOOT_BASE_URL=https://app.chatwoot.com`                                    |
 | `VITE_DELEGATEE_URL`          | Delegatee service URL for covenant-based delegation                 | `VITE_DELEGATEE_URL=https://delegatee.mutinynet.arkade.sh`                            |
-| `VITE_DELEGATOR_URL`          | Deprecated fallback alias for `VITE_DELEGATEE_URL`                   | `VITE_DELEGATOR_URL=https://delegatee.example.com`                                   |
-| `VITE_LENDASAT_IFRAME_URL`    | Override the default LendaSat URL                                   | `VITE_LENDASAT_IFRAME_URL=http://localhost:5173`                                     |
-| `VITE_SATORA_IFRAME_URL`      | Override the default Satora URL                                     | `VITE_SATORA_IFRAME_URL=http://localhost:5174`                                       |
 | `VITE_MAX_PERCENTAGE`         | Override the max fee percentage (default 10)                        | `VITE_MAX_PERCENTAGE=5`                                                              |
 | `VITE_NOSTR_RELAY_URL`        | Override the default Nostr relay URLs for backup                    | `VITE_NOSTR_RELAY_URL=wss://relay.example.com`                                       |
 | `VITE_PSA_MESSAGE`            | Message to show on the wallet index page                            | `VITE_PSA_MESSAGE=@arkade_os on TG for support`                                      |
@@ -49,7 +46,7 @@ pnpm start
 ```
 
 Open http://localhost:3002 and enable **Settings → Delegates → Use default Arkade delegate**.
-The SDK is embedded in `vendor/arkade-os-sdk-0.4.74-delegatee.tgz`; `pnpm install` uses it
+The SDK is embedded in `vendor/arkade-os-sdk-0.4.77-delegatee.tgz`; `pnpm install` uses it
 for both the wallet and its dependencies.
 Enabling delegation checks the delegatee's server and emulator keys, registers the
 delegatee's default templates for the wallet key (`renewal.json` for VTXOs, `boarding.json`

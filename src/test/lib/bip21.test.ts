@@ -58,6 +58,19 @@ describe('bip21 utilities', () => {
     it('should throw an error for an invalid address', () => {
       expect(() => decodeBip21('invalidBip21')).toThrow('Invalid BIP21 URI')
     })
+
+    it('should decode a bip21 URI with an asset ID', () => {
+      const bip21 =
+        'bitcoin:bcrt1pj7fdvrpdsn0cl6722tmcvwcw4yqpe46020g43nhgzl90qq4aqjrs33du9f?ark=tark1qplnj2gett9j483fchy6chaxn4y52c4g7n5djh9xua3ywdxw0ldatc3e9xcj9xpx0r5tmr0dgvu2f4s352muklg0tcxx0scnnkraajy9jgz4xl&assetId=0abcbc23c60028511880807dfe42aa16de88bd56df210a0b9135262d5d3959510000&amount=21000'
+      const { address, arkAddress, assetAmount, assetId, invoice, lnUrl, satoshis } = decodeBip21(bip21)
+      expect(arkAddress).toBe(fixtures.lib.bip21.arkAddress)
+      expect(address).toBe(fixtures.lib.bip21.address)
+      expect(assetId).toBe(fixtures.lib.bip21.assetId)
+      expect(assetAmount).toBe('21000')
+      expect(satoshis).toBeUndefined()
+      expect(invoice).toBeUndefined()
+      expect(lnUrl).toBeUndefined()
+    })
   })
 
   describe('encodeBip21', () => {

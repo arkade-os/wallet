@@ -16,6 +16,7 @@ import { SettingsIconLight } from '../../../icons/Settings'
 import { EmptyAssetsList } from '../../../components/Empty'
 import { AspContext } from '../../../providers/asp'
 import AssetCard from '../../../components/AssetCard'
+import { useTranslation } from '../../../providers/language'
 
 interface AssetListItem {
   assetId: string
@@ -32,6 +33,7 @@ export default function AppAssets() {
   const { config } = useContext(ConfigContext)
   const { setAssetInfo } = useContext(FlowContext)
   const { aspInfo } = useContext(AspContext)
+  const { t } = useTranslation()
 
   const [assets, setAssets] = useState<AssetListItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -83,13 +85,13 @@ export default function AppAssets() {
     navigate(Pages.AppAssetDetail)
   }
 
-  if (loading) return <LoadingLogo text='Loading assets...' />
+  if (loading) return <LoadingLogo text={t('loading.loadingAssets')} />
 
   const goToSettings = () => navigate(Pages.AppAssetsSettings)
 
   return (
     <>
-      <Header text='Arkade Mint' back={goBack} auxFunc={goToSettings} auxIcon={<SettingsIconLight />} />
+      <Header text={t('mint.arkadeMint')} back={goBack} auxFunc={goToSettings} auxIcon={<SettingsIconLight />} />
       <Content>
         <Padded>
           {config.apps.assets.enabled ? (
@@ -113,9 +115,9 @@ export default function AppAssets() {
             </FlexCol>
           ) : (
             <FlexCol gap='0.5rem'>
-              <Text color='neutral-500'>Arkade Mint is disabled.</Text>
+              <Text color='neutral-500'>{t('mint.arkadeMintDisabled')}</Text>
               <Text color='neutral-500'>
-                <a onClick={goToSettings}>Enable it</a> to view your assets.
+                <a onClick={goToSettings}>{t('mint.enableIt')}</a> {t('mint.toViewYourAssets')}
               </Text>
             </FlexCol>
           )}
@@ -123,9 +125,9 @@ export default function AppAssets() {
       </Content>
       {config.apps.assets.enabled ? (
         <ButtonsOnBottom>
-          <Button label='Import' onClick={() => navigate(Pages.AppAssetImport)} />
+          <Button label={t('mint.import')} onClick={() => navigate(Pages.AppAssetImport)} />
           <Button
-            label='Mint'
+            label={t('mint.mint')}
             onClick={() => navigate(Pages.AppAssetMint)}
             disabled={balance < aspInfo.dust}
             secondary
