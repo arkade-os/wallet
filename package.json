@@ -4,7 +4,7 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/sdk": "0.4.77",
+    "@arkade-os/sdk": "file:vendor/arkade-os-sdk-0.4.77-delegatee.tgz",
     "@arkade-os/solver-discovery": "0.2.5",
     "@arkade-os/swap": "0.0.23",
     "@base-ui/react": "^1.4.1",

@@ -62,7 +62,7 @@ import { translate } from './language'
 import { detectLanguage } from '../lib/language'
 import {
   defaultPassword,
-  getDelegateUrlForNetwork,
+  getDelegateeUrlForNetwork,
   isMainnet,
   maxPercentage,
   mutinynetMinCheckpointExitDelaySeconds,
@@ -70,6 +70,7 @@ import {
 import { AssetIconApprovalManager } from '../lib/assetIconApproval'
 import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { BackupContext } from './backup'
+import { enableDelegation, isCurrentDelegation, watchDelegation } from '../lib/delegatee'
 import { restoreImportedWallet } from '../lib/importRestore'
 
 const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
@@ -85,7 +86,7 @@ interface InitSvcWorkerWalletParams {
   skipMigration?: boolean
   retryCount?: number
   maxRetries?: number
-  delegatorUrl?: string
+  delegateeUrl?: string
   walletMode?: ServiceWorkerWalletMode
   restoring?: boolean
   minCheckpointExitDelaySeconds?: bigint
@@ -202,7 +203,7 @@ const readSwapRecordAssets = async (): Promise<string[]> => {
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { isRegistered } = useContext(AssetsContext)
-  const { initialiseNostrBackup } = useContext(BackupContext)
+  const { backupAndUpdateConfig, initialiseNostrBackup } = useContext(BackupContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const lang = config?.language ?? detectLanguage()
   const { navigate } = useContext(NavigationContext)
@@ -647,7 +648,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       skipMigration = false,
       retryCount = 0,
       maxRetries = 2,
-      delegatorUrl,
+      delegateeUrl,
       walletMode,
       restoring = false,
       minCheckpointExitDelaySeconds,
@@ -691,7 +692,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         identity,
         arkServerUrl,
         esploraUrl,
-        delegatorUrl,
+        delegateeUrl,
         walletMode: walletMode ?? config.walletMode ?? 'static',
         minCheckpointExitDelaySeconds,
         storage: { walletRepository, contractRepository },
@@ -830,10 +831,21 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         }
       }, 1_000)
 
-      // Renew expiring coins on startup (non-delegate mode only).
-      // When delegation is enabled, the SDK's VtxoManager auto-delegates
-      // via onContractEvent, so no wallet-side call is needed.
-      if (!config.delegate) {
+      // A delegation in config (this device or a restored backup) is watched from the
+      // wallet's key alone, enabled or not: its coins are the wallet's.
+      const delegation = configRef.current.delegation
+      if (isCurrentDelegation(delegation)) {
+        watchDelegation(svcWallet, delegation).catch((err) => consoleError(err, 'Error watching delegation'))
+      }
+      // Once per enabling: register the watches and move the existing VTXOs to
+      // the renewal address; the records go to config, which is backed up.
+      if (delegateeUrl) {
+        if (!isCurrentDelegation(delegation)) {
+          enableDelegation(svcWallet, aspInfo)
+            .then((delegation) => backupAndUpdateConfig({ ...configRef.current, delegation }))
+            .catch((err) => consoleError(err, 'Error enabling delegation'))
+        }
+      } else if (!config.delegate) {
         vtxoMgr.renewVtxos().catch(() => {})
       }
       return true
@@ -894,7 +906,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     let pubkey: string
     let walletMode: ServiceWorkerWalletMode
 
-    const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(network) : undefined
+    const delegateeUrl = config.delegate ? getDelegateeUrlForNetwork(network) : undefined
 
     if (credentials.mnemonic) {
       const mnemonicIdentity = MnemonicIdentity.fromMnemonic(credentials.mnemonic, { isMainnet: isMainnet(network) })
@@ -922,7 +934,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       identity,
       arkServerUrl,
       esploraUrl,
-      delegatorUrl,
+      delegateeUrl,
       walletMode,
       restoring: credentials.restoring,
       minCheckpointExitDelaySeconds: minCheckpointExitDelaySecondsForNetwork(network),
@@ -954,19 +966,19 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
    * Reinitialize the service-worker wallet in-place so runtime config changes
    * (e.g., delegate on/off) take effect without forcing a lock/unlock cycle.
    * Keeps local tx/balance state; just rebuilds the SW wallet with the current
-   * delegatorUrl flag.
+   * delegateeUrl flag.
    */
   const restartWallet = async (delegateEnabled = config.delegate) => {
     if (!svcWallet) return
     const identity = svcWallet.identity as Identity
     const arkServerUrl = aspInfo.url
     const esploraUrl = getRestApiExplorerURL(aspInfo.network as NetworkName) ?? ''
-    const delegatorUrl = delegateEnabled ? getDelegateUrlForNetwork(aspInfo.network as NetworkName) : undefined
+    const delegateeUrl = delegateEnabled ? getDelegateeUrlForNetwork(aspInfo.network as NetworkName) : undefined
     await initSvcWorkerWallet({
       identity,
       arkServerUrl,
       esploraUrl,
-      delegatorUrl,
+      delegateeUrl,
       skipMigration: true,
       minCheckpointExitDelaySeconds: minCheckpointExitDelaySecondsForNetwork(aspInfo.network),
     })
@@ -984,12 +996,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     try {
       const arkServerUrl = aspInfo.url
       const esploraUrl = getRestApiExplorerURL(aspInfo.network as NetworkName) ?? ''
-      const delegatorUrl = config.delegate ? getDelegateUrlForNetwork(aspInfo.network as NetworkName) : undefined
+      const delegateeUrl = config.delegate ? getDelegateeUrlForNetwork(aspInfo.network as NetworkName) : undefined
       const initialized = await initSvcWorkerWallet({
         identity,
         arkServerUrl,
         esploraUrl,
-        delegatorUrl,
+        delegateeUrl,
         skipMigration: true,
         minCheckpointExitDelaySeconds: minCheckpointExitDelaySecondsForNetwork(aspInfo.network),
       })

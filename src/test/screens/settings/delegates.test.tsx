@@ -1,13 +1,44 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import Delegates from '../../../screens/Settings/Delegates'
 import { ConfigContext } from '../../../providers/config'
 import { mockAspContextValue, mockConfigContextValue } from '../mocks'
 import { AspContext } from '../../../providers/asp'
-import createFetchMock from 'vitest-fetch-mock'
-import { getDelegateUrlForNetwork } from '../../../lib/constants'
+import { getEmulatorPubkeyHexForNetwork } from '../../../lib/constants'
 
-let fetchMocker: ReturnType<typeof createFetchMock>
+// jsdom's AbortSignal trips vitest-fetch-mock under the SDK's fetch, so the providers are faked
+const calls = vi.hoisted(() => ({ urls: [] as string[], info: {} as Record<string, string> }))
+let info: Record<string, string>
+
+vi.mock('@arkade-os/sdk', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@arkade-os/sdk')>()),
+  RestDelegateeProvider: class {
+    constructor(readonly url: string) {}
+    getInfo = async () => {
+      calls.urls.push(`${this.url}/v1/info`)
+      return calls.info
+    }
+    getDelegation = async (address: string) => {
+      calls.urls.push(`${this.url}/v1/delegate/${address}`)
+      return {
+        delegation: { id: 1, address, status: 'active', templateId: 'ef', variables: {}, slots: [] },
+        vtxos: [
+          { outpoint: 'aa:0', amount: 1500, preconfirmed: false, assets: [], onchain: false, renewableAt: 2e9 },
+          { outpoint: 'bb:0', amount: 2000, preconfirmed: false, assets: [], onchain: false },
+        ],
+        renewals: [],
+      }
+    }
+  },
+}))
+
+const delegation = {
+  keys: { delegatePubkey: '02', serverPubkey: '02', emulatorPubkey: '02' },
+  params: { exitDelay: 0x400001, boardingExitDelay: 0x400002, renewalWindow: 256, maxFee: 100 },
+  renewal: { address: 'tark1renewal', templateId: 'ef', variables: { owner: '02' } },
+  boarding: { address: 'bcrt1pboarding', templateId: 'b0', variables: { owner: '02' } },
+}
+
 let mockDelegatesAspContextValue = { ...mockAspContextValue }
 
 const getMockConfigWithDelegate = (bool: boolean) => ({
@@ -15,32 +46,33 @@ const getMockConfigWithDelegate = (bool: boolean) => ({
   config: { ...mockConfigContextValue.config, delegate: bool },
 })
 
+const renderWith = (config: object, aspContext: object = mockDelegatesAspContextValue) =>
+  render(
+    <AspContext.Provider value={aspContext as any}>
+      <ConfigContext.Provider value={{ ...mockConfigContextValue, config } as any}>
+        <Delegates />
+      </ConfigContext.Provider>
+    </AspContext.Provider>,
+  )
+
 describe('Delegates screen', () => {
-  // We need values to match due to heavy delegator validation in the Delegates screen.
+  // The endpoint's server signer must match the configured Arkade signer.
   beforeEach(() => {
     mockDelegatesAspContextValue.aspInfo.signerPubkey =
       '02e35799157be4b37565bb5afe4d04e6a0fa0a4b6a4f4e48b0d904685d253cdbdb'
 
-    fetchMocker = createFetchMock(vi)
-    fetchMocker.enableMocks()
-    fetchMocker.mockResponse(
-      JSON.stringify({
-        fee: '0',
-        name: 'Arkade Default',
-        pubkey: '03bab0ac7577f83c5f08a616513e738fee0e45e1cda229880287d8659af3452f10',
-        delegatorAddress:
-          'tark1qr340xg400jtxat9hdd0ungyu6s05zjtdf85uj9smyzxshf98nda' +
-          'kuvt95jprxrtpqarxd7seg9sh0n8lxh90rtg7e6hsfd9krel4cqutg9cgm',
-        url: getDelegateUrlForNetwork(mockAspContextValue.aspInfo.network as any),
-      }),
-    )
+    info = {
+      version: 'test',
+      network: mockAspContextValue.aspInfo.network,
+      delegatePubkey: '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798',
+      serverPubkey: mockDelegatesAspContextValue.aspInfo.signerPubkey,
+      emulatorPubkey: getEmulatorPubkeyHexForNetwork('regtest')!,
+    }
+    calls.info = info
+    calls.urls = []
   })
 
-  afterEach(() => {
-    fetchMocker.disableMocks()
-  })
-
-  it('renders the delegate card when toggle is on', async () => {
+  it('renders the delegate card when toggle is on and the service matches the Ark server', async () => {
     render(
       <AspContext.Provider value={mockDelegatesAspContextValue as any}>
         <ConfigContext.Provider value={getMockConfigWithDelegate(true) as any}>
@@ -57,12 +89,43 @@ describe('Delegates screen', () => {
     expect(screen.getByTestId('toggle-delegates').getAttribute('data-checked')).toBe('true')
     expect(screen.getByTestId('delegate-card')).toBeInTheDocument()
     expect(screen.getByText('Arkade Default')).toBeInTheDocument()
-    expect(screen.getByText('fee: 0 sats')).toBeInTheDocument()
-    expect(screen.getByText('address:')).toBeInTheDocument()
-    expect(screen.getByText('pubkey:')).toBeInTheDocument()
     await waitFor(() => expect(screen.getByText('Active')).toBeInTheDocument())
+    expect(screen.getByText(/delegate key:/)).toBeInTheDocument()
+    expect(screen.getByText(/emulator key:/)).toBeInTheDocument()
     await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(fetchMocker).toHaveBeenCalledTimes(1)
+    expect(calls.urls).toHaveLength(1)
+    expect(calls.urls[0]).toMatch(/\/v1\/info$/)
+  })
+
+  it('stays inactive when the service has another emulator key', async () => {
+    info.emulatorPubkey = '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798'
+    renderWith({ ...mockConfigContextValue.config, delegate: true })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(screen.getByText('Inactive')).toBeInTheDocument()
+  })
+
+  it('stays inactive when the service has another server key', async () => {
+    info.serverPubkey = '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798'
+    renderWith({ ...mockConfigContextValue.config, delegate: true })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(screen.getByText('Inactive')).toBeInTheDocument()
+  })
+
+  it('shows the renewal address, the delegated balance and the next renewal of a delegation', async () => {
+    renderWith({ ...mockConfigContextValue.config, delegate: true, delegation })
+    await waitFor(() => expect(screen.getByText('delegation: active')).toBeInTheDocument())
+    expect(screen.getByText(/delegated balance: 3,?500 sats/)).toBeInTheDocument()
+    expect(screen.getByText(/renewal address:/)).toBeInTheDocument()
+    expect(screen.getByText(/boarding address:/)).toBeInTheDocument()
+    expect(screen.getByText(/next renewal/)).toBeInTheDocument()
+    expect(calls.urls.some((u) => u.endsWith('/v1/delegate/tark1renewal'))).toBe(true)
+  })
+
+  it('ignores a delegation stored under the retired templates', async () => {
+    const old = { boarding: delegation.boarding, watch: delegation.renewal }
+    renderWith({ ...mockConfigContextValue.config, delegate: true, delegation: old })
+    await waitFor(() => expect(screen.getByText('Active')).toBeInTheDocument())
+    expect(() => screen.getByText(/renewal address:/)).toThrow()
   })
 
   it('renders warning when delegate is not found for the network', () => {

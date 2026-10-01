@@ -13,71 +13,25 @@ import WarningBox from '../../components/Warning'
 import { Delegate, SettingsOptions } from '../../lib/types'
 import { ConfigContext } from '../../providers/config'
 import { WalletContext } from '../../providers/wallet'
-import { getDelegateForNetwork, getDelegateUrlForNetwork } from '../../lib/constants'
+import { getDelegateForNetwork, getDelegateeUrlForNetwork } from '../../lib/constants'
 import { useContext, useEffect, useState } from 'react'
 import { OptionsContext } from '../../providers/options'
 import Text, { TextSecondary } from '../../components/Text'
-import { decodeArkAddress } from '../../lib/address'
-import { isValidArkAddress, type NetworkName } from '@arkade-os/sdk'
+import { RestDelegateeProvider, type NetworkName } from '@arkade-os/sdk'
 import { copyToClipboard } from '../../lib/clipboard'
 import { useToast } from '../../components/Toast'
 import { consoleError } from '../../lib/logs'
 import { BackupContext } from '@/providers/backup'
+import { checkDelegateeKeys, DelegationStatus, getDelegationStatus, isCurrentDelegation } from '../../lib/delegatee'
 import { useTranslation } from '../../providers/language'
 
-// format the URL to ensure it has the correct protocol and no trailing slashes
-const formatUrl = (host: string, path: string): string => {
-  host = host.replace(/\/+$/, '')
-  path = path.replace(/^\/+/, '')
-  const prefix =
-    host.startsWith('http://') || host.startsWith('https://')
-      ? ''
-      : host.startsWith('localhost') || host.startsWith('127.0.0.1')
-        ? 'http://'
-        : 'https://'
-  return `${prefix}${host}/${path}`
-}
-
-type DelegateConnectionInfo = Pick<AspInfo, 'deprecatedSigners' | 'network' | 'signerPubkey'>
-
-// test connection to delegate by fetching delegate info and validating the response
-const testConnection = (aspInfo: DelegateConnectionInfo): Promise<Delegate | undefined> => {
-  return new Promise((resolve, reject) => {
-    // ensure expected pubkeys are in xonly format
-    const now = Math.floor(Date.now() / 1000)
-    const deprecatedSignerPubkeys = (aspInfo.deprecatedSigners || [])
-      .filter((ds) => ds.cutoffDate > now)
-      .map((ds) => ds.pubkey)
-    const possibleXOnlyPubkeys = [...deprecatedSignerPubkeys, aspInfo.signerPubkey].map((pk) =>
-      pk.length === 66 ? pk.slice(2) : pk,
-    )
-    if (possibleXOnlyPubkeys.some((pk) => pk.length !== 64)) return reject(new Error('Invalid expected server pubkey'))
-    const delegate = getDelegateForNetwork(aspInfo.network as NetworkName)
-    if (!delegate) return resolve(undefined)
-    // fetch delegate info from the delegate server
-    fetch(formatUrl(delegate.url, '/v1/delegator/info'))
-      .then((res) => {
-        if (!res.ok) return reject(new Error('Unable to connect'))
-        res
-          .json()
-          .then((data: { delegatorAddress: string; pubkey: string; fee: string }) => {
-            if (!data) return reject(new Error('Invalid delegate response'))
-            if (!data.fee) return reject(new Error('Missing delegate fee'))
-            if (isNaN(parseInt(data.fee, 10))) return reject(new Error('Invalid delegate fee'))
-            if (parseInt(data.fee, 10) < 0) return reject(new Error("Delegate fee can't be negative"))
-            if (!data.pubkey) return reject(new Error('Missing delegate pubkey'))
-            if (data.pubkey.length !== 66) return reject(new Error('Invalid delegate pubkey size'))
-            if (!/^[0-9a-fA-F]{66}$/.test(data.pubkey)) return reject(new Error('Invalid delegate pubkey hex'))
-            if (!data.delegatorAddress) return reject(new Error('Missing delegate address'))
-            if (!isValidArkAddress(data.delegatorAddress)) return reject(new Error('Invalid delegate address'))
-            const { serverPubKey } = decodeArkAddress(data.delegatorAddress)
-            if (!possibleXOnlyPubkeys.includes(serverPubKey)) return reject(new Error('Invalid delegate server key'))
-            resolve({ ...delegate, address: data.delegatorAddress, pubkey: data.pubkey, fee: parseInt(data.fee, 10) })
-          })
-          .catch(() => reject(new Error('Invalid json in delegate response')))
-      })
-      .catch(() => reject(new Error('Unable to connect')))
-  })
+// Test the delegatee and verify that it works for this Ark server and emulator.
+const testConnection = async (aspInfo: Pick<AspInfo, 'network' | 'signerPubkey'>): Promise<Delegate | undefined> => {
+  const delegate = getDelegateForNetwork(aspInfo.network as NetworkName)
+  if (!delegate) return undefined
+  const info = await new RestDelegateeProvider(delegate.url).getInfo()
+  checkDelegateeKeys(info, aspInfo)
+  return { ...delegate, pubkey: info.delegatePubkey, emulatorPubkey: info.emulatorPubkey }
 }
 
 // hero component to explain what delegates are
@@ -142,7 +96,10 @@ function DelegateCard() {
   const [active, setActive] = useState(false)
   const [delegate, setDelegate] = useState<Delegate>()
 
-  const { deprecatedSigners, network, signerPubkey } = aspInfo
+  const [status, setStatus] = useState<DelegationStatus>()
+
+  const { network, signerPubkey } = aspInfo
+  const delegation = isCurrentDelegation(config.delegation) ? config.delegation : undefined
 
   // populate delegate info, then test the connection once for the current network/ASP signer
   useEffect(() => {
@@ -159,7 +116,7 @@ function DelegateCard() {
     if (!networkDelegate?.url || !signerPubkey) return
 
     let cancelled = false
-    testConnection({ deprecatedSigners, network, signerPubkey })
+    testConnection({ network, signerPubkey })
       .then((testedDelegate) => {
         if (cancelled || !testedDelegate) return
         setDelegate(testedDelegate)
@@ -170,11 +127,16 @@ function DelegateCard() {
         consoleError(error, 'Error testing delegate connection:')
         setActive(false)
       })
+    if (delegation) {
+      getDelegationStatus(networkDelegate.url, delegation)
+        .then((s) => !cancelled && setStatus(s))
+        .catch((error) => consoleError(error, 'Error fetching delegation status:'))
+    }
 
     return () => {
       cancelled = true
     }
-  }, [config.delegate, deprecatedSigners, network, signerPubkey])
+  }, [config.delegate, delegation, network, signerPubkey])
 
   if (!config.delegate) return null
 
@@ -183,8 +145,10 @@ function DelegateCard() {
     toast(t('common.copiedToClipboard'))
   }
 
-  const nextRolloverText = wallet.nextRollover
-    ? t('delegate.nextRenewal', { time: localizedAgo(wallet.nextRollover, t) })
+  // the service's next renewal when it holds coins, else the wallet's own
+  const nextRenewal = status?.nextRenewal ?? wallet.nextRollover
+  const nextRolloverText = nextRenewal
+    ? t('delegate.nextRenewal', { time: localizedAgo(nextRenewal, t) })
     : t('delegate.noUpcomingRenewal')
 
   if (!delegate) return <></>
@@ -212,15 +176,42 @@ function DelegateCard() {
           </FlexRow>
         </FlexRow>
         <FlexCol gap='0.25rem'>
-          <FlexRow onClick={() => handleCopy(delegate.address)}>
-            <TextSecondary>{t('delegate.addressLabel', { value: prettyLongText(delegate.address, 14) })}</TextSecondary>
-          </FlexRow>
           <FlexRow onClick={() => handleCopy(delegate.pubkey)}>
-            <TextSecondary>{t('delegate.pubkeyLabel', { value: prettyLongText(delegate.pubkey, 14) })}</TextSecondary>
+            <TextSecondary>
+              {t('delegate.delegateKeyLabel', { value: prettyLongText(delegate.pubkey, 14) })}
+            </TextSecondary>
           </FlexRow>
-          <FlexRow onClick={() => handleCopy(delegate.fee.toString())}>
-            <TextSecondary>{t('delegate.feeLabel', { value: prettyAmount(delegate.fee) })}</TextSecondary>
-          </FlexRow>
+          {Boolean(delegate.emulatorPubkey) && (
+            <FlexRow onClick={() => handleCopy(delegate.emulatorPubkey!)}>
+              <TextSecondary>
+                {t('delegate.emulatorKeyLabel', { value: prettyLongText(delegate.emulatorPubkey, 14) })}
+              </TextSecondary>
+            </FlexRow>
+          )}
+          {delegation ? (
+            <>
+              <FlexRow onClick={() => handleCopy(delegation.renewal.address)}>
+                <TextSecondary>
+                  {t('delegate.renewalAddressLabel', { value: prettyLongText(delegation.renewal.address, 14) })}
+                </TextSecondary>
+              </FlexRow>
+              <FlexRow onClick={() => handleCopy(delegation.boarding.address)}>
+                <TextSecondary>
+                  {t('delegate.boardingAddressLabel', { value: prettyLongText(delegation.boarding.address, 14) })}
+                </TextSecondary>
+              </FlexRow>
+            </>
+          ) : null}
+          {status ? (
+            <>
+              <TextSecondary>
+                {t('delegate.delegationStatusLabel', { status: status.renewal.delegation.status })}
+              </TextSecondary>
+              <TextSecondary>
+                {t('delegate.delegatedBalanceLabel', { value: prettyAmount(status.delegated) })}
+              </TextSecondary>
+            </>
+          ) : null}
         </FlexCol>
       </FlexCol>
     </Shadow>
@@ -234,13 +225,18 @@ export default function Delegates() {
   const { backupAndUpdateConfig } = useContext(BackupContext)
   const { t } = useTranslation()
 
-  const noDelegateFound = getDelegateUrlForNetwork(aspInfo.network as NetworkName) === undefined
+  const noDelegateFound = getDelegateeUrlForNetwork(aspInfo.network as NetworkName) === undefined
 
   // toggle delegate
   const handleToggle = () => {
     const nextDelegate = !config.delegate
-    backupAndUpdateConfig({ ...config, delegate: nextDelegate })
-    // Full page reload ensures service worker and wallet are re-instantiated with the new delegator setting.
+    // enabling again registers the watches and moves the VTXOs again
+    backupAndUpdateConfig({
+      ...config,
+      delegate: nextDelegate,
+      delegation: nextDelegate ? undefined : config.delegation,
+    })
+    // Full page reload ensures service worker and wallet are re-instantiated with the new delegatee setting.
     window.location.reload()
   }
 

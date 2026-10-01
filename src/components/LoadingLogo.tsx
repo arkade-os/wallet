@@ -42,7 +42,14 @@ export default function LoadingLogo({ text, done, exitMode = 'none', onExitCompl
 
   // When done signal arrives, request the bounce loop to stop
   useEffect(() => {
-    if (done) requestStop()
+    if (!done) return
+    // a hidden tab gets no animation frames: the bounce and exit would hold the loader over a ready page
+    if (document.hidden) {
+      setVisible(false)
+      onExitCompleteRef.current?.()
+      return
+    }
+    requestStop()
   }, [done, requestStop])
 
   // When bounce loop has stopped, play exit animation
