@@ -147,6 +147,17 @@ function DeprecatedSignerBadge({ status }: { status: SignerStatus | null }) {
   return null
 }
 
+function PastRefundLocktimeBadge({ refundLocktime }: { refundLocktime: number }) {
+  const { t } = useTranslation()
+  if (refundLocktime && Date.now() > refundLocktime * 1000)
+    return (
+      <Text tiny color='orange'>
+        {t('contracts.pastRefundLocktime')}
+      </Text>
+    )
+  return null
+}
+
 function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
     <div
@@ -182,7 +193,7 @@ function ContractCard({ item, open, onToggle }: { item: ContractView; open: bool
 
   const refundLocktime = !isNaN(parseInt(contract.params?.refundLocktime))
     ? parseInt(contract.params.refundLocktime)
-    : null
+    : 0
 
   return (
     <Shadow lighter border>
@@ -195,6 +206,7 @@ function ContractCard({ item, open, onToggle }: { item: ContractView; open: bool
               {prettyLongText(address)}
             </Text>
             <DeprecatedSignerBadge status={status} />
+            <PastRefundLocktimeBadge refundLocktime={refundLocktime} />
           </FlexCol>
           <FlexRow>
             <FlexCol gap='0.5rem' end>
