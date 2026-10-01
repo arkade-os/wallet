@@ -138,6 +138,19 @@ describe('collaborativeExitWithFees', () => {
     expect(getSpendableVtxos).toHaveBeenCalledWith({ withRecoverable: true, genericallySpendableOnly: true })
     expect(settle.mock.calls[0][0].inputs.map((vtxo: { txid: string }) => vtxo.txid)).toEqual(['plain'])
   })
+
+  it('fails closed when an older worker refuses the scope, without falling back to the raw read', async () => {
+    const getVtxos = vi.fn().mockResolvedValue([{ txid: 'escrowed', vout: 0, value: 5_000 }])
+    const settle = vi.fn()
+    const refused = new Error('Service worker does not support the requested contract scope or freshness check')
+    const wallet = { getVtxos, getSpendableVtxos: vi.fn().mockRejectedValue(refused), settle }
+
+    await expect(collaborativeExitWithFees(wallet as any, 3_000, 2_900, fixtures.lib.address.btc[0])).rejects.toBe(
+      refused,
+    )
+    expect(getVtxos).not.toHaveBeenCalled()
+    expect(settle).not.toHaveBeenCalled()
+  })
 })
 
 describe('delegateVtxos', () => {
