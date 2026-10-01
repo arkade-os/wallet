@@ -1,4 +1,5 @@
 import { Asset, NetworkName, type ExtendedVirtualCoin, type ServiceWorkerWalletMode } from '@arkade-os/sdk'
+import type { Delegation } from './delegatee'
 
 export type Addresses = {
   boardingAddr: string
@@ -15,10 +16,8 @@ export type Config = {
   aspUrl: string
   currency: Currencies
   delegate: boolean
-  /** Covenant renewal window in seconds; defaults to delegatee's 1024-second value. */
-  delegateRenewalWindow?: number
-  /** Maximum sats paid to the Arkade server per renewal. */
-  delegateMaxFee?: number
+  /** The watches the delegatee keeps for this wallet, set once delegation is enabled. */
+  delegation?: Delegation
   importedAssets: string[]
   haptics: boolean
   nostrBackup: boolean
@@ -35,14 +34,10 @@ export type Config = {
 }
 
 export type Delegate = {
-  fee?: number
-  maxFee?: number
-  renewalWindow?: number
   url: string
   name: string
   pubkey: string
   emulatorPubkey?: string
-  address?: string
 }
 
 export enum Currencies {

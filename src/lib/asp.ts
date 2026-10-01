@@ -7,12 +7,9 @@ import {
   ExtendedVirtualCoin,
   FeeInfo,
   WalletBalance,
-  DelegateContractHandler,
   IVtxoManager,
   Asset,
   ArkError,
-  DelegateInfo,
-  toXOnlySignerHex,
   hasTerminalSpend,
 } from '@arkade-os/sdk'
 import { Addresses, Tx, Vtxo } from './types'
@@ -20,7 +17,6 @@ import { AspInfo } from '../providers/asp'
 import { consoleError } from './logs'
 import { getConfirmedAndNotExpiredUtxos } from './utxo'
 import * as Sentry from '@sentry/react'
-import { hex } from '@scure/base'
 import { arkTransactionToTx, sortLocalTxs } from './transactionHistory'
 import { walletFingerprint } from './sentry'
 
@@ -339,63 +335,6 @@ export const renewCoins = async (
   const { inputs } = await getInputsToSettle(wallet, vtxoManager, thresholdMs)
   if (inputs.length > 0) await settleVtxos(wallet, vtxoManager, dustAmount, thresholdMs)
 }
-
-export const migrateVtxosToDelegatee = async (wallet: ServiceWorkerWallet): Promise<void> => {
-  const cm = await wallet.getContractManager()
-  const delegateeManager = await wallet.getDelegateeManager()
-  if (delegateeManager) {
-    const contracts = await cm.getContractsWithVtxos({ type: ['default', 'delegate'] })
-    const vtxosToMigrate = contracts
-      .filter(({ contract, vtxos }) => vtxos.length > 0 && contract.params.emulatorPubKey === undefined)
-      .flatMap(({ vtxos }) => vtxos)
-    if (vtxosToMigrate.length > 0) {
-      await wallet.sendSelectedVtxosToSelf(vtxosToMigrate)
-    }
-    return
-  }
-
-  const contractWithVtxos = await cm.getContractsWithVtxos({ type: 'delegate' })
-  const dm = await wallet.getDelegatorManager()
-
-  if (!dm) {
-    throw new Error('Delegator manager not found')
-  }
-
-  let delegateInfo: DelegateInfo
-  try {
-    delegateInfo = await dm.getDelegateInfo()
-  } catch (error) {
-    consoleError(error, 'Error fetching delegate info')
-    return
-  }
-
-  let delegateInfoPubKey: string
-  try {
-    delegateInfoPubKey = toXOnlySignerHex(delegateInfo.pubkey)
-  } catch (error) {
-    consoleError(error, 'Invalid delegate pubkey')
-    return
-  }
-
-  const vtxosToDelegate = contractWithVtxos
-    .filter(({ contract, vtxos }) => {
-      if (vtxos.length === 0) return false
-      const contractParams = DelegateContractHandler.deserializeParams(contract.params)
-      const contractDelegatePubKey = hex.encode(contractParams.delegatePubKey) // x-only (32 bytes)
-      return contractDelegatePubKey === delegateInfoPubKey
-    })
-    .flatMap((_) => _.vtxos)
-
-  if (vtxosToDelegate.length === 0) return
-  const destination = await wallet.getAddress()
-  const result = await dm.delegate(vtxosToDelegate, destination)
-  if (result.failed.length > 0) {
-    consoleError(result.failed, 'Delegation partial failure:')
-  }
-}
-
-/** @deprecated Legacy name retained for callers migrating from the pre-signed delegator flow. */
-export const delegateVtxos = migrateVtxosToDelegatee
 
 // Settle diagnostics are limited to shape and size; inputs are never serialized.
 const summarizeInputs = (inputs: { value: number }[]): { count: number; totalValue: number } => ({

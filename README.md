@@ -49,12 +49,16 @@ pnpm start
 ```
 
 Open http://localhost:3002 and enable **Settings → Delegates → Use default Arkade delegate**.
-The SDK is embedded in `vendor/arkade-os-sdk-0.4.74-rc1.tgz`; `pnpm install` uses it
+The SDK is embedded in `vendor/arkade-os-sdk-0.4.74-delegatee.tgz`; `pnpm install` uses it
 for both the wallet and its dependencies.
-Existing eligible VTXOs are self-sent to the delegatee address when delegation is enabled.
-Renewals happen near expiry, within the configured renewal window.
-Delegation requires emulator v0.0.8-rc.1 and its `CHECKTIME VERIFY` covenant.
-Existing rc.0 delegate addresses must be replaced and funds moved by the owner.
+Enabling delegation checks the delegatee's server and emulator keys, registers the
+delegatee's default templates for the wallet key (`renewal.json` for VTXOs, `boarding.json`
+for on-chain deposits) and sends the wallet's spendable VTXOs to the renewal address. The
+delegatee renews them near expiry at the same address. The wallet counts and spends them like
+its other coins (forfeit with the server, or exit alone after the Ark server's exit delay).
+The keys, params and template ids are kept in the config, which the Nostr backup saves; a
+restored wallet derives the same addresses from its key alone.
+The renewal window and the maximum renewal fee are fixed per network in `src/lib/delegatee.ts`.
 
 ## Docker
 
@@ -171,6 +175,11 @@ Run the tests with:
 ```bash
 pnpm run test:e2e
 ```
+
+`delegate.test.ts` has a delegation test that also needs a delegatee daemon on the same arkd,
+at `VITE_DELEGATEE_URL` (default `http://localhost:7080`), with the default templates registered
+and trusted (delegatee README, "Default templates"), and its emulator key matching the wallet's
+regtest pin (or `VITE_EMULATOR_PUBKEY`). It skips when no delegatee answers.
 
 Run the tests in interactive mode with:
 

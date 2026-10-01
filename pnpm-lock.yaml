@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.4.74-rc1.tgz
+  '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.4.74-delegatee.tgz
   '@babel/core': '>=7.29.6 <8.0.0'
   js-yaml@<4: '>=3.15.0 <4.0.0'
   js-yaml@>=4: '>=4.2.0 <5.0.0'
@@ -17,8 +17,8 @@ importers:
   .:
     dependencies:
       '@arkade-os/sdk':
-        specifier: file:vendor/arkade-os-sdk-0.4.74-rc1.tgz
-        version: file:vendor/arkade-os-sdk-0.4.74-rc1.tgz
+        specifier: file:vendor/arkade-os-sdk-0.4.74-delegatee.tgz
+        version: file:vendor/arkade-os-sdk-0.4.74-delegatee.tgz
       '@arkade-os/solver-discovery':
         specifier: 0.2.5
         version: 0.2.5
@@ -254,8 +254,8 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.74-rc1.tgz':
-    resolution: {integrity: sha512-NuKXmaSMLV6XGk++kRBSvmUIVPI+vWbj7fH/9dnyCEKs8BPMRk4Qx1TQWoyBu7bd3wTi5DKYyd8Rl7V5YCsbwA==, tarball: file:vendor/arkade-os-sdk-0.4.74-rc1.tgz}
+  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.74-delegatee.tgz':
+    resolution: {integrity: sha512-ulvZjtw8oC/SuHzLQCKec5KupJFEJGcl87qaRfCpPzaS8DrwOLh1WWC9JUUa3vWETZkEjJxbZOwgUYb+5MbXew==, tarball: file:vendor/arkade-os-sdk-0.4.74-delegatee.tgz}
     version: 0.4.74
     engines: {node: '>=22.12.0 <27'}
     peerDependencies:
@@ -4361,11 +4361,13 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.74-rc1.tgz':
+  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.4.74-delegatee.tgz':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 8.0.0
+      '@noble/ciphers': 2.1.1
       '@noble/curves': 2.0.1
+      '@noble/hashes': 2.0.1
       '@noble/secp256k1': 3.0.0
       '@scure/base': 2.0.0
       '@scure/bip39': 2.0.1
@@ -4384,7 +4386,7 @@ snapshots:
 
   '@arkade-os/swap@0.0.19(nostr-tools@2.17.2(typescript@5.9.3))':
     dependencies:
-      '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.4.74-rc1.tgz
+      '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.4.74-delegatee.tgz
       '@arkade-os/solver-discovery': 0.2.5
       '@noble/ciphers': 2.1.1
       '@noble/curves': 2.0.1

@@ -32,7 +32,7 @@ import {
 } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
 import { getRestApiExplorerURL } from '../lib/explorers'
-import { migrateVtxosToDelegatee, getBalance, getUnrolledVtxos, getVtxos, settleVtxos } from '../lib/asp'
+import { getBalance, getUnrolledVtxos, getVtxos, settleVtxos } from '../lib/asp'
 import { resolveExits, subtractExitedAssets, type ExitRecord } from '../lib/exitHistory'
 import { AspContext } from './asp'
 import { AssetsContext } from './assets'
@@ -68,6 +68,7 @@ import {
 import { AssetIconApprovalManager } from '../lib/assetIconApproval'
 import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { BackupContext } from './backup'
+import { enableDelegation, isCurrentDelegation, watchDelegation } from '../lib/delegatee'
 import { restoreImportedWallet } from '../lib/importRestore'
 
 const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
@@ -200,7 +201,7 @@ const readSwapRecordAssets = async (): Promise<string[]> => {
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { isRegistered } = useContext(AssetsContext)
-  const { initialiseNostrBackup } = useContext(BackupContext)
+  const { backupAndUpdateConfig, initialiseNostrBackup } = useContext(BackupContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { navigate } = useContext(NavigationContext)
   const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo } = useContext(FlowContext)
@@ -695,8 +696,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         arkServerUrl,
         esploraUrl,
         delegateeUrl,
-        delegateeRenewalWindow: config.delegateRenewalWindow ?? 1024,
-        delegateeMaxFee: config.delegateMaxFee ?? 0,
         walletMode: walletMode ?? config.walletMode ?? 'static',
         minCheckpointExitDelaySeconds,
         storage: { walletRepository, contractRepository },
@@ -705,7 +704,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         messageTimeouts: {
           SETTLE: 60_000,
           SEND: 60_000,
-          SEND_SELECTED_VTXOS_TO_SELF: 60_000,
         },
         settlementConfig: { vtxoThreshold: wallet.thresholdMs ? Math.floor(wallet.thresholdMs / 1000) : 1 },
       })
@@ -836,11 +834,20 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         }
       }, 1_000)
 
-      // Migrate existing default/legacy-delegate coins into the active
-      // covenant address once; new delegatee outputs need no client-side
-      // pre-signing or per-VTXO delegation call.
+      // A delegation in config (this device or a restored backup) is watched from the
+      // wallet's key alone, enabled or not: its coins are the wallet's.
+      const delegation = configRef.current.delegation
+      if (isCurrentDelegation(delegation)) {
+        watchDelegation(svcWallet, delegation).catch((err) => consoleError(err, 'Error watching delegation'))
+      }
+      // Once per enabling: register the watches and move the existing VTXOs to
+      // the renewal address; the records go to config, which is backed up.
       if (delegateeUrl) {
-        migrateVtxosToDelegatee(svcWallet).catch((err) => consoleError(err, 'Error migrating VTXOs to delegatee'))
+        if (!isCurrentDelegation(delegation)) {
+          enableDelegation(svcWallet, aspInfo)
+            .then((delegation) => backupAndUpdateConfig({ ...configRef.current, delegation }))
+            .catch((err) => consoleError(err, 'Error enabling delegation'))
+        }
       } else if (!config.delegate) {
         vtxoMgr.renewVtxos().catch(() => {})
       }

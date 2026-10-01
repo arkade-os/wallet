@@ -44,7 +44,7 @@ const DELEGATEE_URL: Record<NetworkName, string | null> = {
   bitcoin: 'https://delegate.arkade.money',
   mutinynet: 'https://delegatee.mutinynet.arkade.sh',
   signet: null,
-  regtest: 'http://localhost:7012',
+  regtest: 'http://localhost:7080',
   testnet: null,
 }
 
@@ -159,9 +159,7 @@ export const getDelegateForNetwork = (network: NetworkName): Delegate | undefine
   if (!url) return undefined
   return {
     url,
-    fee: 0,
     pubkey: '', // Placeholder, as the actual pubkey should be fetched from the delegate server
-    address: '', // Placeholder, as the actual address should be fetched from the delegate server
     name: 'Arkade Default',
   }
 }
