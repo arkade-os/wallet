@@ -20,10 +20,7 @@ function renderBrowser() {
   )
 }
 
-// The chrome offers the same action twice: a header control and a bottom
-// button. Both start as "Copy link", but they settle on different labels — the
-// header's aria-label becomes "Copied" and the bottom button's "Copied!" — so
-// the header is driven and asserted on its own to keep the two apart.
+// Header and bottom button both read "Copy link"; once copied they read "Copied" and "Copied!".
 const copyLinks = () => screen.getAllByRole('button', { name: 'Copy link' })
 
 const clickHeaderCopy = async () => {
@@ -46,14 +43,10 @@ describe('InAppBrowser copy link', () => {
 
     expect(await screen.findByRole('button', { name: 'Copied' })).toBeInTheDocument()
     expect(vi.mocked(copyToClipboard)).toHaveBeenCalledWith(window.location.href)
-    // Both controls follow the same state, so neither is left offering a copy
-    // of a URL that is already on the clipboard.
     expect(screen.queryAllByRole('button', { name: 'Copy link' })).toHaveLength(0)
   })
 
-  // This screen has no toast wired up, so the button label is the only signal
-  // the user gets. The dead try/catch it used to wrap meant a refused write
-  // still flipped it to "Copied" and left the wrong URL on screen.
+  // No toast on this screen: the button label is the only signal.
   it('leaves the button on the copy-link state when the write is refused', async () => {
     vi.mocked(copyToClipboard).mockResolvedValue(false)
     renderBrowser()

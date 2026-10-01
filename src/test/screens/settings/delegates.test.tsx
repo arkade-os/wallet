@@ -94,8 +94,7 @@ describe('Delegates screen', () => {
   })
 
   describe('copy feedback', () => {
-    // The pubkey row is the one to drive: the address row copies a field this
-    // fixture leaves unset, so the assertion would be about an empty value.
+    // The fixture leaves the delegate address unset, so drive the pubkey row.
     const pubkeyRow = () => screen.getByText(/^pubkey:/)
 
     const renderCard = async () => {
@@ -125,9 +124,6 @@ describe('Delegates screen', () => {
       expect(screen.queryByText('Failed to copy')).not.toBeInTheDocument()
     })
 
-    // A delegate pubkey is what gets pasted into a manual renewal ticket, so a
-    // false confirmation here has the user pasting whatever the clipboard held
-    // before into a transaction they cannot easily undo.
     it('reports the failure instead of claiming success when the write is refused', async () => {
       vi.mocked(copyToClipboard).mockResolvedValue(false)
       await renderCard()

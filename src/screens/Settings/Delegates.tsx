@@ -19,8 +19,7 @@ import { OptionsContext } from '../../providers/options'
 import Text, { TextSecondary } from '../../components/Text'
 import { decodeArkAddress } from '../../lib/address'
 import { isValidArkAddress, type NetworkName } from '@arkade-os/sdk'
-import { copyToClipboard } from '../../lib/clipboard'
-import { useToast } from '../../components/Toast'
+import { useCopyToClipboard } from '../../hooks/useCopyToClipboard'
 import { consoleError } from '../../lib/logs'
 import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '../../providers/language'
@@ -136,7 +135,7 @@ function DelegateCard() {
   const { wallet } = useContext(WalletContext)
   const { setOption } = useContext(OptionsContext)
 
-  const { toast } = useToast()
+  const copyToClipboard = useCopyToClipboard()
   const { t } = useTranslation()
 
   const [active, setActive] = useState(false)
@@ -178,11 +177,6 @@ function DelegateCard() {
 
   if (!config.delegate) return null
 
-  const handleCopy = async (value: string) => {
-    const copied = await copyToClipboard(value)
-    toast(copied ? t('common.copiedToClipboard') : t('common.failedToCopy'))
-  }
-
   const nextRolloverText = wallet.nextRollover
     ? t('delegate.nextRenewal', { time: localizedAgo(wallet.nextRollover, t) })
     : t('delegate.noUpcomingRenewal')
@@ -212,13 +206,13 @@ function DelegateCard() {
           </FlexRow>
         </FlexRow>
         <FlexCol gap='0.25rem'>
-          <FlexRow onClick={() => handleCopy(delegate.address)}>
+          <FlexRow onClick={() => copyToClipboard(delegate.address)}>
             <TextSecondary>{t('delegate.addressLabel', { value: prettyLongText(delegate.address, 14) })}</TextSecondary>
           </FlexRow>
-          <FlexRow onClick={() => handleCopy(delegate.pubkey)}>
+          <FlexRow onClick={() => copyToClipboard(delegate.pubkey)}>
             <TextSecondary>{t('delegate.pubkeyLabel', { value: prettyLongText(delegate.pubkey, 14) })}</TextSecondary>
           </FlexRow>
-          <FlexRow onClick={() => handleCopy(delegate.fee.toString())}>
+          <FlexRow onClick={() => copyToClipboard(delegate.fee.toString())}>
             <TextSecondary>{t('delegate.feeLabel', { value: prettyAmount(delegate.fee) })}</TextSecondary>
           </FlexRow>
         </FlexCol>

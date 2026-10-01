@@ -28,9 +28,6 @@ function buildTree() {
   )
 }
 
-// This one used to skip the await entirely, so the toast fired before the
-// clipboard write had resolved and reported success for a write that had not
-// happened yet. The failure path was unreachable.
 describe('Table copy feedback', () => {
   beforeEach(() => {
     copyMock.mockReset()

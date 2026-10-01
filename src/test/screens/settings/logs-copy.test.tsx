@@ -26,10 +26,7 @@ function renderLogs() {
   )
 }
 
-// The row's own copy handler only exists on the Focusable's onEnter, so it is
-// reached with the keyboard; the mouse path on this screen goes through Text,
-// which is covered by its own test. Focusable stops propagation on Enter, so
-// the inner row wins over the outer "focus the list" handler.
+// The row copies only on Enter; the mouse path goes through Text.
 function pressEnterOnRow() {
   const row = screen.getByLabelText((label) => label.includes(message))
   act(() => {
@@ -52,9 +49,6 @@ describe('Logs copy feedback', () => {
     expect(screen.queryByText('Failed to copy')).not.toBeInTheDocument()
   })
 
-  // A log line is the one thing a user copies to attach to a bug report, so a
-  // toast claiming success on a refused write sends them off with whatever was
-  // in the clipboard before.
   it('reports the failure instead of claiming success when the write is refused', async () => {
     vi.mocked(copyToClipboard).mockResolvedValue(false)
     renderLogs()

@@ -30,8 +30,7 @@ import InputAmount from '../../../components/InputAmount'
 import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
 import SheetModal from '../../../components/SheetModal'
 import Text, { TextSecondary } from '../../../components/Text'
-import { copyToClipboard } from '../../../lib/clipboard'
-import { useToast } from '../../../components/Toast'
+import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard'
 import { prettyLongText, prettyNumber, toSatoshis } from '../../../lib/format'
 import CopyIcon from '../../../icons/Copy'
 import CheckMarkIcon from '../../../icons/CheckMark'
@@ -78,7 +77,7 @@ export default function ReceiveQRCode() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { t } = useTranslation()
 
-  const { toast } = useToast()
+  const copyToClipboard = useCopyToClipboard()
 
   const [assetAmount, setAssetAmount] = useState(BigInt(0))
   const [amountTextValue, setAmountTextValue] = useState('')
@@ -337,9 +336,7 @@ export default function ReceiveQRCode() {
     if (generatingInvoice) return
     if (!prefersReducedMotion) hapticSubtle()
     const copied = await copyToClipboard(value)
-    toast(copied ? t('common.copiedToClipboard') : t('common.failedToCopy'))
-    // The sheet closes either way — leaving it open on failure would strand the
-    // picker — but the copied marker must only follow a write that landed.
+    // Close the sheet even on failure so the picker is not stranded.
     setShowCopySheet(false)
     if (copied) setCopied(value)
   }
@@ -350,7 +347,6 @@ export default function ReceiveQRCode() {
     setShowCopySheet(true)
     if (qrCodeValue && copied !== qrCodeValue) {
       const written = await copyToClipboard(qrCodeValue)
-      toast(written ? t('common.copiedToClipboard') : t('common.failedToCopy'))
       if (written) setCopied(qrCodeValue)
     }
   }

@@ -11,8 +11,7 @@ vi.mock('../../lib/haptics', () => ({
   hapticSuccess: vi.fn(),
   hapticError: vi.fn(),
 }))
-// Both markers are bare <svg> elements with nothing to query on, so they are
-// stubbed into identifiable text to assert which one is showing.
+// The icons are bare <svg>s; stub them so the marker state is queryable.
 vi.mock('../../icons/CheckMark', () => ({ default: () => <span>MARKER-COPIED</span> }))
 vi.mock('../../icons/Copy', () => ({ default: () => <span>MARKER-IDLE</span> }))
 
@@ -33,10 +32,7 @@ function renderExpanded() {
       />
     </ToastProvider>,
   )
-  // The rows only exist once the component is expanded. The testId sits on the
-  // Shadow that *wraps* the FlexRow carrying the onClick, so the click has to
-  // land on the label for it to bubble to the handler. Expanding also copies
-  // the BIP21 uri, so the header's own copy is left to the marker assertions.
+  // Rows only render once expanded.
   act(() => {
     fireEvent.click(screen.getByText('Copy address'))
   })
@@ -63,9 +59,6 @@ describe('ExpandAddresses copy feedback', () => {
     expect(screen.queryByText('Failed to copy')).not.toBeInTheDocument()
   })
 
-  // setCopied is the part that misleads rather than the toast: the header
-  // expansion path shows a checkmark that survives long after the toast is
-  // gone, implying the address on screen is the one now on the clipboard.
   it('leaves the row unmarked and reports the failure when the write is refused', async () => {
     vi.mocked(copyToClipboard).mockResolvedValue(false)
     renderExpanded()
@@ -84,8 +77,6 @@ describe('ExpandAddresses copy feedback', () => {
     copyRow('ark')
 
     expect(await screen.findByText('Copied to clipboard')).toBeInTheDocument()
-    // copied holds the value, so the checkmark tracks which row was written
-    // rather than flipping every row at once.
     expect(screen.getByTestId('btc-address-copy')).toHaveTextContent('MARKER-IDLE')
   })
 })

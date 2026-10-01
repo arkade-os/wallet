@@ -108,8 +108,6 @@ export default function InAppBrowser() {
   }, [])
 
   const handleCopy = async () => {
-    // copyToClipboard resolves false instead of throwing, so the catch this
-    // used to wrap could never fire — the copied marker was set either way.
     const copied = await copyToClipboard(window.location.href)
     if (!copied) return
     if (copyTimeout.current) clearTimeout(copyTimeout.current)

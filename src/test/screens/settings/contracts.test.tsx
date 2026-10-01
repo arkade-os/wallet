@@ -10,8 +10,7 @@ import { copyToClipboard } from '../../../lib/clipboard'
 import type { Contract } from '@arkade-os/sdk'
 
 vi.mock('../../../lib/clipboard', () => ({ copyToClipboard: vi.fn() }))
-// The copied marker is a bare <svg> with nothing to query on, so it is stubbed
-// into identifiable text to assert which icon is showing.
+// The icons are bare <svg>s; stub them so the marker state is queryable.
 vi.mock('../../../icons/CheckMark', () => ({ default: () => <span>MARKER-COPIED</span> }))
 vi.mock('../../../icons/Copy', () => ({ default: () => <span>MARKER-IDLE</span> }))
 
@@ -141,8 +140,6 @@ describe('Contracts screen — deprecated signer badges', () => {
 })
 
 describe('Contracts screen — copy feedback', () => {
-  // A boarding contract renders its on-chain address in a CopyRow, which is the
-  // row this screen uses to hand a taproot address to a user.
   const boarding = async () => {
     const script = '5120' + 'cc'.repeat(32) // P2TR scriptPubKey
     renderScreen(withContracts([contract({ type: 'boarding', address: 'ark1qboardingoffchain', script })]) as any, {
@@ -150,20 +147,14 @@ describe('Contracts screen — copy feedback', () => {
       network: 'bitcoin',
     })
     await screen.findByText('Contracts')
-    // The card starts collapsed, and the collapsed summary already shows the
-    // address — so expanding first is what brings the CopyRow into the DOM.
+    // The card starts collapsed; expanding renders the CopyRow.
     fireEvent.click(screen.getByText('boarding'))
   }
 
-  // Past the summary, the CopyRow is the last match in DOM order. The marker
-  // assertion is what confirms the click landed on the copyable row.
+  // The collapsed summary also shows the address; the CopyRow is the last match.
   const addressRow = () => screen.getAllByText((t) => t.startsWith('bc1p')).at(-1)!
 
   const rowMarker = () => addressRow().parentElement?.parentElement?.textContent ?? ''
-
-  const clickAddress = async () => {
-    fireEvent.click(addressRow())
-  }
 
   beforeEach(() => {
     vi.mocked(copyToClipboard).mockReset()
@@ -173,20 +164,17 @@ describe('Contracts screen — copy feedback', () => {
     vi.mocked(copyToClipboard).mockResolvedValue(true)
     await boarding()
 
-    await clickAddress()
+    fireEvent.click(addressRow())
 
     expect(await screen.findByText('Copied to clipboard')).toBeInTheDocument()
     expect(rowMarker()).toContain('MARKER-COPIED')
   })
 
-  // The checkmark is the part that outlives the toast: it sat on the row
-  // telling the user this address is on their clipboard when the write was
-  // refused and they were left pasting the previous contents instead.
   it('leaves the row unmarked and reports the failure when the write is refused', async () => {
     vi.mocked(copyToClipboard).mockResolvedValue(false)
     await boarding()
 
-    await clickAddress()
+    fireEvent.click(addressRow())
 
     expect(await screen.findByText('Failed to copy')).toBeInTheDocument()
     expect(screen.queryByText('Copied to clipboard')).not.toBeInTheDocument()
