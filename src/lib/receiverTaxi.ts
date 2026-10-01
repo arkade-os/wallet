@@ -112,12 +112,15 @@ export const ruleFor = (info: TaxiInfo, assetId: string) => {
   } catch {
     return undefined
   }
-  return info.assetRules.find(
-    (rule) =>
-      typeof rule?.assetId === 'object' &&
-      typeof rule.assetId?.txid === 'string' &&
-      rule.assetId.txid.toLowerCase() === wanted.txid &&
-      rule.assetId.groupIndex === wanted.groupIndex,
+  // Only after the parse, as the Taxi does: "*" covers assets, never bitcoin.
+  return (
+    info.assetRules.find(
+      (rule) =>
+        typeof rule?.assetId === 'object' &&
+        typeof rule.assetId?.txid === 'string' &&
+        rule.assetId.txid.toLowerCase() === wanted.txid &&
+        rule.assetId.groupIndex === wanted.groupIndex,
+    ) ?? info.assetRules.find((rule) => rule?.assetId === '*')
   )
 }
 

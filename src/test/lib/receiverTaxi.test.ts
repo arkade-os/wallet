@@ -59,6 +59,27 @@ describe('probeReceiverTaxi', () => {
     expect(await probe({ info: { ...INFO, assetRules: [] } })).toMatchObject({ reason: 'asset-not-served' })
   })
 
+  it('uses a Taxi that serves the asset only through its "*" rule, which covers no id that is not an asset', async () => {
+    const anyAsset = withRule({ assetId: '*' })
+    expect(await probe({ info: anyAsset })).toEqual({ ok: true, info: anyAsset })
+    expect(await probe({ info: anyAsset }, { assetId: '' })).toMatchObject({ reason: 'asset-not-served' })
+  })
+
+  it('holds an asset to its own rule over "*", wherever each sits', async () => {
+    const own = INFO.assetRules[0]
+    for (const assetRules of [
+      [
+        { ...own, assetId: '*' },
+        { ...own, enabled: false },
+      ],
+      [
+        { ...own, enabled: false },
+        { ...own, assetId: '*' },
+      ],
+    ])
+      expect(await probe({ info: { ...INFO, assetRules } })).toMatchObject({ reason: 'asset-not-served' })
+  })
+
   it('refuses an unclaimedMode this build does not implement', async () => {
     expect(await probe({ info: withRule({ unclaimedMode: 'custody' }) })).toMatchObject({
       reason: 'unsupported-unclaimed-mode',
