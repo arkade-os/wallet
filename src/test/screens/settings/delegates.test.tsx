@@ -94,8 +94,11 @@ describe('Delegates screen', () => {
   })
 
   describe('copy feedback', () => {
-    // The fixture leaves the delegate address unset, so drive the pubkey row.
-    const pubkeyRow = () => screen.getByText(/^pubkey:/)
+    const rows = [
+      ['address', /^address:/, expect.stringMatching(/^tark1/)],
+      ['pubkey', /^pubkey:/, '03bab0ac7577f83c5f08a616513e738fee0e45e1cda229880287d8659af3452f10'],
+      ['fee', /^fee:/, '0'],
+    ] as const
 
     const renderCard = async () => {
       render(
@@ -114,23 +117,25 @@ describe('Delegates screen', () => {
       vi.mocked(copyToClipboard).mockReset()
     })
 
-    it('confirms the copy when the write lands', async () => {
+    it.each(rows)('confirms the %s copy when the write lands', async (_, row, value) => {
       vi.mocked(copyToClipboard).mockResolvedValue(true)
       await renderCard()
 
-      fireEvent.click(pubkeyRow())
+      fireEvent.click(screen.getByText(row))
 
       expect(await screen.findByText('Copied to clipboard')).toBeInTheDocument()
+      expect(copyToClipboard).toHaveBeenCalledWith(value)
       expect(screen.queryByText('Failed to copy')).not.toBeInTheDocument()
     })
 
-    it('reports the failure instead of claiming success when the write is refused', async () => {
+    it.each(rows)('reports the %s copy failure instead of claiming success', async (_, row, value) => {
       vi.mocked(copyToClipboard).mockResolvedValue(false)
       await renderCard()
 
-      fireEvent.click(pubkeyRow())
+      fireEvent.click(screen.getByText(row))
 
       expect(await screen.findByText('Failed to copy')).toBeInTheDocument()
+      expect(copyToClipboard).toHaveBeenCalledWith(value)
       expect(screen.queryByText('Copied to clipboard')).not.toBeInTheDocument()
     })
   })

@@ -40,6 +40,14 @@ vi.mock('../../../lib/haptics', () => ({
   setHapticsEnabled: vi.fn(),
 }))
 
+// IonModal does not render in jsdom; keep the sheet's open/closed contract.
+vi.mock('../../../components/SheetModal', () => ({
+  default: ({ isOpen, children }: { isOpen: boolean; children?: React.ReactNode }) =>
+    isOpen ? <div data-testid='sheet-modal'>{children}</div> : null,
+}))
+vi.mock('../../../icons/CheckMark', () => ({ default: () => <span>MARKER-COPIED</span> }))
+vi.mock('../../../icons/Copy', () => ({ default: () => <span>MARKER-IDLE</span> }))
+
 // Mock URL.createObjectURL
 if (!globalThis.URL.createObjectURL) {
   globalThis.URL.createObjectURL = () => 'blob:mock'
@@ -211,6 +219,53 @@ describe('Receive QR Code screen — copy feedback', () => {
     })
 
     expect(await screen.findByText('Failed to copy')).toBeInTheDocument()
+  })
+
+  const clickQr = async () => {
+    const qrButton = await screen.findByRole('button', { name: 'Copy QR code' })
+    await act(async () => {
+      fireEvent.click(qrButton)
+    })
+  }
+
+  const openCopySheet = async () => {
+    const copyButton = await screen.findByRole('button', { name: 'Copy' })
+    await act(async () => {
+      fireEvent.click(copyButton)
+    })
+  }
+
+  it('marks the copied value in the sheet after a successful copy', async () => {
+    renderReceiveQrCode(tapFixture())
+
+    await clickQr()
+    await openCopySheet()
+
+    expect(copyToClipboardMock).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('sheet-modal')).toHaveTextContent('MARKER-COPIED')
+  })
+
+  it('leaves the sheet unmarked after a refused copy', async () => {
+    copyToClipboardMock.mockResolvedValue(false)
+    renderReceiveQrCode(tapFixture())
+
+    await clickQr()
+    await openCopySheet()
+
+    expect(screen.getByTestId('sheet-modal')).not.toHaveTextContent('MARKER-COPIED')
+  })
+
+  it('closes the sheet when a row copy is refused', async () => {
+    copyToClipboardMock.mockResolvedValue(false)
+    renderReceiveQrCode(tapFixture())
+
+    await openCopySheet()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('ark-address-copy'))
+    })
+
+    expect(await screen.findAllByText('Failed to copy')).not.toHaveLength(0)
+    expect(screen.queryByTestId('sheet-modal')).not.toBeInTheDocument()
   })
 
   it('reports a refused clipboard write from the copy button too', async () => {
