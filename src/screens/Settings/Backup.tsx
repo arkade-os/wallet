@@ -65,8 +65,11 @@ export default function Backup() {
 
   const handleCopy = async () => {
     if (!secret) return
-    await copyToClipboard(secret)
-    toast(t('backup.copyToClipboard'))
+    // copyToClipboard resolves false on a refused write rather than throwing, so
+    // the unguarded toast told the user their private key or nsec was on the
+    // clipboard when it was not — and they paste it somewhere expecting it to be.
+    const copied = await copyToClipboard(secret)
+    toast(copied ? t('common.copiedToClipboard') : t('common.failedToCopy'))
   }
 
   const onChangePassword = (e: any) => {
