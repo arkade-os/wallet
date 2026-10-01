@@ -1,5 +1,8 @@
 import { test, expect } from '@playwright/test'
+import { translations } from '../../lib/i18n'
 import { createWallet, navigateToSettings, waitForWalletPage } from './utils'
+
+const tr = translations.en
 
 test('should toggle delegates', async ({ page }) => {
   test.setTimeout(60000)
@@ -7,8 +10,8 @@ test('should toggle delegates', async ({ page }) => {
   await createWallet(page)
 
   await navigateToSettings(page)
-  await page.getByText('advanced', { exact: true }).click()
-  await page.getByText('delegates', { exact: true }).click()
+  await page.getByText(tr.settings.advanced, { exact: true }).click()
+  await page.getByText(tr.settings.delegates, { exact: true }).click()
 
   let toggle = page.getByTestId('toggle-delegates')
   await expect(toggle).toBeVisible()
@@ -21,8 +24,8 @@ test('should toggle delegates', async ({ page }) => {
   // toggle triggers window.location.reload(), wait for wallet to load
   await waitForWalletPage(page)
   await navigateToSettings(page)
-  await page.getByText('advanced', { exact: true }).click()
-  await page.getByText('delegates', { exact: true }).click()
+  await page.getByText(tr.settings.advanced, { exact: true }).click()
+  await page.getByText(tr.settings.delegates, { exact: true }).click()
   toggle = page.getByTestId('toggle-delegates')
 
   const expectedAfterToggle = initialChecked === 'true' ? 'false' : 'true'

@@ -9,8 +9,6 @@ import Text, { TextSecondary } from './Text'
 import { ConfigContext } from '../providers/config'
 import { OptionsContext } from '../providers/options'
 import { SettingsOptions, Themes } from '../lib/types'
-import LendasatIcon from '../screens/Apps/Lendasat/LendasatIcon'
-import SatoraIcon from '../screens/Apps/Satora/SatoraIcon'
 import { NavigationContext, Pages } from '../providers/navigation'
 
 // icon with pretty gradient background
@@ -141,52 +139,6 @@ export default function Announcement({
         </FlexCol>
       </div>
     </Modal>
-  )
-}
-
-export function LendaSatAnnouncement({ close }: { close: () => void }) {
-  return (
-    <Announcement
-      close={close}
-      title='LendaSat'
-      page={Pages.AppLendasat}
-      icon={<LendasatIcon big />}
-      message='Take loans with Bitcoin as collateral. Receive USDC or USDT in 2 minutes.'
-      bulletPoints={[
-        [
-          'Choose a loan',
-          'Pick your preferred loan terms from a list of offers or post your own loan request. We will find you the right match.',
-        ],
-        [
-          'Lock your Bitcoin',
-          'Lock Bitcoin worth more than your loan amount as collateral. Your Bitcoin stays safe while you get the cash you need.',
-        ],
-        [
-          'Receive the funds',
-          'Get your loan instantly via your preferred method: bank transfer, stablecoins (USDT/USDC), or VISA card.',
-        ],
-      ]}
-    />
-  )
-}
-
-export function SatoraAnnouncement({ close }: { close: () => void }) {
-  return (
-    <Announcement
-      close={close}
-      title='Satora'
-      page={Pages.AppSatora}
-      icon={<SatoraIcon big />}
-      message='Swap Bitcoin to USDC or USDT instantly.'
-      bulletPoints={[
-        ['Swap to stablecoins', 'Swap native $BTC for $USDT or $USDC on Ethereum and Polygon.'],
-        [
-          'Trustless Atomic Swaps',
-          'When a swap is started, both parties lock their funds in smart contracts. The swap either completes fully or both parties get refunded.',
-        ],
-        ['Self-custodial', 'Satora is fully self-custodial. Your keys, your coins.'],
-      ]}
-    />
   )
 }
 

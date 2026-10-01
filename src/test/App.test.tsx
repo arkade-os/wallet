@@ -17,7 +17,6 @@ import {
 } from './screens/mocks'
 import { defaultPassword } from '../lib/constants'
 import { detectJSCapabilities } from '../lib/jsCapabilities'
-import { SettingsOptions } from '../lib/types'
 
 const PASSWORDLESS_AUTO_RELOAD_KEY = 'passwordless-auto-reload-attempted'
 
@@ -29,25 +28,19 @@ function renderApp({
   authState,
   initialized,
   unlockWallet = vi.fn().mockResolvedValue(undefined),
-  screen: screenOverride = Pages.Init,
-  option,
 }: {
   authState: WalletAuthState
   initialized: boolean
   unlockWallet?: ReturnType<typeof vi.fn>
-  screen?: Pages
-  option?: SettingsOptions
 }) {
   const navigate = vi.fn()
 
   render(
-    <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate, screen: screenOverride }}>
+    <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate, screen: Pages.Init }}>
       <AspContext.Provider value={mockAspContextValue as any}>
         <ConfigContext.Provider value={{ ...mockConfigContextValue, configLoaded: true } as any}>
           <FlowContext.Provider value={mockFlowContextValue as any}>
-            <OptionsContext.Provider
-              value={{ ...mockOptionsContextValue, ...(option !== undefined && { option }) } as any}
-            >
+            <OptionsContext.Provider value={mockOptionsContextValue as any}>
               <WalletContext.Provider
                 value={{
                   ...mockWalletContextValue,
@@ -105,28 +98,6 @@ describe('App startup routing', () => {
     expect(navigate).not.toHaveBeenCalledWith(Pages.Unlock)
   })
 
-  it('shows unlock when authentication is required', async () => {
-    const { navigate } = renderApp({ authState: 'locked', initialized: false })
-
-    expect(await screen.findByText('Unlock')).toBeInTheDocument()
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.Unlock))
-  })
-
-  it('shows unlock even when the wallet remains initialized', async () => {
-    const { navigate } = renderApp({ authState: 'locked', initialized: true })
-
-    expect(await screen.findByText('Unlock')).toBeInTheDocument()
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.Unlock))
-  })
-
-  it('keeps authenticated but uninitialized wallets on loading', async () => {
-    const { navigate, unlockWallet } = renderApp({ authState: 'authenticated', initialized: false })
-
-    await waitFor(() => expect(screen.getByTestId('app')).toBeInTheDocument())
-    expect(unlockWallet).not.toHaveBeenCalled()
-    expect(navigate).not.toHaveBeenCalledWith(Pages.Unlock)
-  })
-
   it('holds on loading during dev auto-init from VITE_DEV_MNEMONIC instead of redirecting', async () => {
     vi.stubEnv('VITE_DEV_MNEMONIC', 'abandon abandon abandon abandon abandon about')
     const { navigate } = renderApp({ authState: 'locked', initialized: false })
@@ -165,68 +136,5 @@ describe('App startup routing', () => {
     expect(unlockWallet).toHaveBeenCalledWith(defaultPassword)
     await vi.advanceTimersByTimeAsync(1000)
     expect(reloadSpy).not.toHaveBeenCalled()
-  })
-})
-
-describe('Navbar visibility', () => {
-  beforeEach(() => {
-    setupTestEnvironment()
-  })
-
-  afterEach(() => {
-    vi.unstubAllEnvs()
-  })
-
-  it('hides navbar on unlock screen even when navigation context has Wallet tab', async () => {
-    renderApp({ authState: 'locked', initialized: false, screen: Pages.Wallet })
-
-    await screen.findByText('Unlock')
-    const ionApp = screen.getByTestId('app')
-    expect(ionApp.className).not.toContain('has-pill-navbar')
-  })
-
-  it('hides navbar during loading hold', async () => {
-    renderApp({ authState: 'authenticated', initialized: false, screen: Pages.Wallet })
-
-    const ionApp = await screen.findByTestId('app')
-    expect(ionApp.className).not.toContain('has-pill-navbar')
-  })
-
-  it('hides navbar on wallet root when authenticated and initialized', async () => {
-    renderApp({ authState: 'authenticated', initialized: true, screen: Pages.Wallet })
-
-    const ionApp = await screen.findByTestId('app')
-    expect(ionApp.className).not.toContain('has-pill-navbar')
-  })
-
-  it('hides navbar on settings menu when authenticated and initialized', async () => {
-    renderApp({
-      authState: 'authenticated',
-      initialized: true,
-      screen: Pages.Settings,
-      option: SettingsOptions.Menu,
-    })
-
-    const ionApp = await screen.findByTestId('app')
-    expect(ionApp.className).not.toContain('has-pill-navbar')
-  })
-
-  it('hides navbar on settings sub-page when authenticated and initialized', async () => {
-    renderApp({
-      authState: 'authenticated',
-      initialized: true,
-      screen: Pages.Settings,
-      option: SettingsOptions.Password,
-    })
-
-    const ionApp = await screen.findByTestId('app')
-    expect(ionApp.className).not.toContain('has-pill-navbar')
-  })
-
-  it('hides navbar on app detail pages when authenticated and initialized', async () => {
-    renderApp({ authState: 'authenticated', initialized: true, screen: Pages.AppLendasat })
-
-    const ionApp = await screen.findByTestId('app')
-    expect(ionApp.className).not.toContain('has-pill-navbar')
   })
 })

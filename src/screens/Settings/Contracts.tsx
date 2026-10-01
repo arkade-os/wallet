@@ -25,13 +25,14 @@ import ChevronUpIcon from '../../icons/ChevronUp'
 import ExternalLinkIcon from '../../icons/ExternalLink'
 import { WalletContext } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
-import { prettyAgo, prettyDate, prettyLongText } from '../../lib/format'
+import { localizedAgo, prettyDate, prettyLongText } from '../../lib/format'
 import { getVmempoolURL, getWebExplorerURL } from '../../lib/explorers'
 import { isBTCAddress } from '../../lib/address'
 import { copyToClipboard } from '../../lib/clipboard'
 import { hapticSubtle } from '../../lib/haptics'
 import { useToast } from '../../components/Toast'
 import { consoleError } from '../../lib/logs'
+import { useTranslation } from '../../providers/language'
 
 // A boarding contract lives on-chain, so its `script` is a P2TR scriptPubKey
 // (OP_1 PUSH32 <x-only output key> = `5120<64 hex>`). Re-encode that witness
@@ -90,13 +91,14 @@ function CopyRow({ label, value, link }: { label: string; value: string; link?: 
   const [copied, setCopied] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout>>()
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   useEffect(() => () => clearTimeout(timerRef.current), [])
 
   const handleCopy = async () => {
     hapticSubtle()
     await copyToClipboard(value)
-    toast('Copied to clipboard')
+    toast(t('common.copiedToClipboard'))
     setCopied(true)
     clearTimeout(timerRef.current)
     timerRef.current = setTimeout(() => setCopied(false), 2000)
@@ -129,16 +131,17 @@ function CopyRow({ label, value, link }: { label: string; value: string; link?: 
 }
 
 function DeprecatedSignerBadge({ status }: { status: SignerStatus | null }) {
+  const { t } = useTranslation()
   if (status === 'EXPIRED')
     return (
       <Text tiny color='red'>
-        deprecated signer · past cutoff
+        {t('contracts.deprecatedSignerCutoff')}
       </Text>
     )
   if (status === 'MIGRATABLE' || status === 'DUE_NOW')
     return (
       <Text tiny color='orange'>
-        deprecated signer
+        {t('contracts.deprecatedSigner')}
       </Text>
     )
   return null
@@ -175,6 +178,7 @@ function Chip({ label, active, onClick }: { label: string; active: boolean; onCl
 
 function ContractCard({ item, open, onToggle }: { item: ContractView; open: boolean; onToggle: () => void }) {
   const { contract, address, explorer, encoded, status } = item
+  const { t } = useTranslation()
 
   const refundLocktime = !isNaN(parseInt(contract.params?.refundLocktime))
     ? parseInt(contract.params.refundLocktime)
@@ -198,7 +202,7 @@ function ContractCard({ item, open, onToggle }: { item: ContractView; open: bool
                 {contract.state}
               </Text>
               <Text tiny color='neutral-500'>
-                {contract.createdAt ? prettyAgo(contract.createdAt) : 'Unknown'}
+                {contract.createdAt ? localizedAgo(contract.createdAt, t) : t('common.unknown')}
               </Text>
             </FlexCol>
             {open ? <ChevronUpIcon /> : <ChevronDownIcon />}
@@ -207,10 +211,12 @@ function ContractCard({ item, open, onToggle }: { item: ContractView; open: bool
         {open ? (
           <>
             <hr className='dashed' />
-            <CopyRow label='address' value={address} link={explorer || undefined} />
-            <CopyRow label='script' value={contract.script} />
-            {refundLocktime ? <CopyRow label='refund locktime' value={prettyDate(refundLocktime)} /> : null}
-            {encoded ? <CopyRow label='parameters' value={encoded} /> : null}
+            <CopyRow label={t('common.address')} value={address} link={explorer || undefined} />
+            <CopyRow label={t('contracts.script')} value={contract.script} />
+            {refundLocktime ? (
+              <CopyRow label={t('contracts.refundLocktime')} value={prettyDate(refundLocktime)} />
+            ) : null}
+            {encoded ? <CopyRow label={t('contracts.parameters')} value={encoded} /> : null}
           </>
         ) : null}
       </FlexCol>
@@ -221,6 +227,7 @@ function ContractCard({ item, open, onToggle }: { item: ContractView; open: bool
 export default function Contracts() {
   const { svcWallet } = useContext(WalletContext)
   const { aspInfo } = useContext(AspContext)
+  const { t } = useTranslation()
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('Active')
@@ -317,11 +324,11 @@ export default function Contracts() {
       return next
     })
 
-  if (!svcWallet || loading) return <LoadingLogo text='Loading...' />
+  if (!svcWallet || loading) return <LoadingLogo text={t('common.loading')} />
 
   return (
     <>
-      <Header text='Contracts' back />
+      <Header text={t('settings.contracts')} back />
       <Content noRefresh noFade>
         <Padded>
           <div
@@ -338,7 +345,7 @@ export default function Contracts() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder='Search type, address, script…'
+              placeholder={t('contracts.searchPlaceholder')}
               spellCheck={false}
               style={{
                 width: '100%',
@@ -353,8 +360,8 @@ export default function Contracts() {
               }}
             />
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.35rem' }}>
-              <Chip label='Active' active={tab === 'Active'} onClick={() => setTab('Active')} />
-              <Chip label='Inactive' active={tab === 'Inactive'} onClick={() => setTab('Inactive')} />
+              <Chip label={t('contracts.active')} active={tab === 'Active'} onClick={() => setTab('Active')} />
+              <Chip label={t('contracts.inactive')} active={tab === 'Inactive'} onClick={() => setTab('Inactive')} />
               {types.length > 2 ? (
                 <>
                   <div style={{ width: 1, height: 18, background: 'var(--neutral-100)', margin: '0 0.15rem' }} />
@@ -366,7 +373,7 @@ export default function Contracts() {
               <Text tiny color='neutral-500'>{`· ${filtered.length}`}</Text>
             </div>
             {filtered.length === 0 ? (
-              <TextSecondary>No contracts found.</TextSecondary>
+              <TextSecondary>{t('contracts.noContracts')}</TextSecondary>
             ) : (
               <div ref={parentRef} className='hide-scrollbar' style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
                 <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>

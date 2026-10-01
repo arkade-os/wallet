@@ -25,6 +25,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 import { DevModeProvider } from './providers/devMode'
 import { AssetsProvider } from './providers/assets'
 import { BackupProvider } from './providers/backup'
+import { LanguageProvider } from './providers/language'
 
 // Register service worker updatefound listener to reload the page when a new service worker
 // is found thus preventing some nasty race conditions when updating the service worker.
@@ -56,41 +57,43 @@ root.render(
   <DevModeProvider>
     <NavigationProvider>
       <ConfigProvider>
-        <BackupProvider>
-          <AspProvider>
-            <AssetsProvider>
-              <NotificationsProvider>
-                <FiatProvider>
-                  <FlowProvider>
-                    <WalletProvider>
-                      <AssetSwapsProvider>
-                        <LnSwapsProvider>
-                          <LnReceiveProvider>
-                            <LimitsProvider>
-                              <FeesProvider>
-                                <OptionsProvider>
-                                  <NudgeProvider>
-                                    <AnnouncementProvider>
-                                      <ToastProvider>
-                                        <ErrorBoundary>
-                                          <App />
-                                        </ErrorBoundary>
-                                      </ToastProvider>
-                                    </AnnouncementProvider>
-                                  </NudgeProvider>
-                                </OptionsProvider>
-                              </FeesProvider>
-                            </LimitsProvider>
-                          </LnReceiveProvider>
-                        </LnSwapsProvider>
-                      </AssetSwapsProvider>
-                    </WalletProvider>
-                  </FlowProvider>
-                </FiatProvider>
-              </NotificationsProvider>
-            </AssetsProvider>
-          </AspProvider>
-        </BackupProvider>
+        <LanguageProvider>
+          <BackupProvider>
+            <AspProvider>
+              <AssetsProvider>
+                <NotificationsProvider>
+                  <FiatProvider>
+                    <FlowProvider>
+                      <WalletProvider>
+                        <AssetSwapsProvider>
+                          <LnSwapsProvider>
+                            <LnReceiveProvider>
+                              <LimitsProvider>
+                                <FeesProvider>
+                                  <OptionsProvider>
+                                    <NudgeProvider>
+                                      <AnnouncementProvider>
+                                        <ToastProvider>
+                                          <ErrorBoundary>
+                                            <App />
+                                          </ErrorBoundary>
+                                        </ToastProvider>
+                                      </AnnouncementProvider>
+                                    </NudgeProvider>
+                                  </OptionsProvider>
+                                </FeesProvider>
+                              </LimitsProvider>
+                            </LnReceiveProvider>
+                          </LnSwapsProvider>
+                        </AssetSwapsProvider>
+                      </WalletProvider>
+                    </FlowProvider>
+                  </FiatProvider>
+                </NotificationsProvider>
+              </AssetsProvider>
+            </AspProvider>
+          </BackupProvider>
+        </LanguageProvider>
       </ConfigProvider>
     </NavigationProvider>
   </DevModeProvider>,

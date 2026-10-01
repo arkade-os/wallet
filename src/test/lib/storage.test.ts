@@ -4,7 +4,6 @@ import {
   readAssetMetadataFromStorage,
   CachedAssetDetails,
   ASSET_METADATA_TTL_MS,
-  clearStorage,
   readAllTransactionActivityMetadata,
   saveTransactionActivityMetadata,
 } from '../../lib/storage'
@@ -122,22 +121,5 @@ describe('transaction activity metadata storage', () => {
       networkFee: 0,
     })
     expect(stored['missing']).toBeUndefined()
-  })
-})
-
-describe.skip('clearStorage preserves approvedAssetIcons', () => {
-  beforeEach(() => {
-    localStorage.clear()
-  })
-
-  it('should preserve approvedAssetIcons across clearStorage', async () => {
-    localStorage.setItem('approvedAssetIcons', JSON.stringify(['asset1', 'asset2']))
-    localStorage.setItem('someOtherKey', 'value')
-
-    await clearStorage()
-
-    const approved = localStorage.getItem('approvedAssetIcons')
-    expect(approved).toBe(JSON.stringify(['asset1', 'asset2']))
-    expect(localStorage.getItem('someOtherKey')).toBeNull()
   })
 })

@@ -14,14 +14,15 @@ const PortfolioHero = forwardRef<HTMLDivElement, PortfolioHeroProps>(function Po
   { collapseProgress = 0 },
   ref,
 ) {
-  const { balance, maskedBalance, unit } = usePortfolioBalanceDisplay()
+  const { balance, maskedBalance, unit, secondaryBalance, secondaryUnit, maskedSecondary, showSecondary } =
+    usePortfolioBalanceDisplay()
   const clampedProgress = Math.max(0, Math.min(1, collapseProgress))
 
   return (
     <div className='mb-2 mt-8 flex w-full flex-col items-center justify-center'>
       <div
         ref={ref}
-        className='flex items-baseline gap-2'
+        className='flex flex-col items-center'
         style={{
           opacity: 1 - clampedProgress,
           transform: `translate3d(0, ${-18 * clampedProgress}px, 0) scale(${1 - 0.28 * clampedProgress})`,
@@ -29,10 +30,20 @@ const PortfolioHero = forwardRef<HTMLDivElement, PortfolioHeroProps>(function Po
           willChange: clampedProgress > 0 && clampedProgress < 1 ? 'transform, opacity' : 'auto',
         }}
       >
-        <PrivacyAmount className='text-heading-xl' masked={maskedBalance} testId='main-balance' interactive>
-          {balance}
-        </PrivacyAmount>
-        {unit ? <span className='text-xl'>{unit}</span> : null}
+        <div className='flex items-baseline gap-2'>
+          <PrivacyAmount className='text-heading-xl' masked={maskedBalance} testId='main-balance' interactive>
+            {balance}
+          </PrivacyAmount>
+          {unit ? <span className='text-xl'>{unit}</span> : null}
+        </div>
+        {showSecondary ? (
+          <div className='mt-0.5 flex items-baseline gap-1 text-sm text-neutral-500'>
+            <PrivacyAmount masked={maskedSecondary} testId='secondary-balance'>
+              {secondaryBalance}
+            </PrivacyAmount>
+            {secondaryUnit ? <span>{secondaryUnit}</span> : null}
+          </div>
+        ) : null}
       </div>
     </div>
   )

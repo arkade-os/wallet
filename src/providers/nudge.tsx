@@ -7,6 +7,7 @@ import { OptionsContext } from './options'
 import { SettingsOptions } from '../lib/types'
 import DismissibleBanner from '../components/DismissibleBanner'
 import { LogoIconAnimated } from '../icons/Logo'
+import { useTranslation } from './language'
 
 type NudgeContextProps = {
   nudge: ReactNode
@@ -21,6 +22,7 @@ export const NudgeContext = createContext<NudgeContextProps>({
 })
 
 export const NudgeProvider = ({ children }: { children: ReactNode }) => {
+  const { t } = useTranslation()
   const { balance, wallet } = useContext(WalletContext)
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
@@ -70,8 +72,8 @@ export const NudgeProvider = ({ children }: { children: ReactNode }) => {
     <DismissibleBanner
       id='password-nudge'
       icon={<LogoIconAnimated />}
-      title='Protect your wallet with a password'
-      action={{ label: 'Set password', onClick: navigateToSettings }}
+      title={t('components.protectWalletWithPassword')}
+      action={{ label: t('settings.setPassword'), onClick: navigateToSettings }}
       onDismiss={dismissNudge}
       visible={nudgeVisible}
     />

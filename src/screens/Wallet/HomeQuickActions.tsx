@@ -8,6 +8,7 @@ import { AssetSwapsContext } from '../../providers/assetSwaps'
 import { emptyRecvInfo, emptySendInfo, FlowContext } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { hapticLight } from '../../lib/haptics'
+import { useTranslation } from '../../providers/language'
 
 interface HomeAction {
   icon: ReactNode
@@ -21,12 +22,13 @@ export default function HomeQuickActions() {
   const { navigate } = useContext(NavigationContext)
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { swapAvailable } = useContext(AssetSwapsContext)
+  const { t } = useTranslation()
   const [swapSheetOpen, setSwapSheetOpen] = useState(false)
 
   const actions: HomeAction[] = [
     {
       icon: <ReceiveIcon />,
-      label: 'Receive',
+      label: t('wallet.receive'),
       onClick: () => {
         setRecvInfo(emptyRecvInfo)
         navigate(Pages.ReceiveQRCode)
@@ -35,7 +37,7 @@ export default function HomeQuickActions() {
     },
     {
       icon: <SendIcon />,
-      label: 'Send',
+      label: t('wallet.send'),
       onClick: () => {
         setSendInfo(emptySendInfo)
         navigate(Pages.SendForm)
@@ -44,7 +46,7 @@ export default function HomeQuickActions() {
     },
     {
       icon: <SwapIcon />,
-      label: 'Swap',
+      label: t('wallet.swap'),
       onClick: () => {
         if (swapAvailable) navigate(Pages.WalletSwap)
         else setSwapSheetOpen(true)
@@ -53,7 +55,7 @@ export default function HomeQuickActions() {
     },
     {
       icon: <ScanIcon />,
-      label: 'Scan',
+      label: t('wallet.scan'),
       onClick: () => {
         setSendInfo({ ...emptySendInfo, scan: true })
         navigate(Pages.SendForm)
@@ -77,7 +79,7 @@ export default function HomeQuickActions() {
 
   return (
     <>
-      <div className='home-quick-actions' role='toolbar' aria-label='Wallet actions'>
+      <div className='home-quick-actions' role='toolbar' aria-label={t('wallet.walletActions')}>
         {actions.map((action) => (
           <button key={action.label} {...actionButtonProps(action)}>
             <span className='home-quick-action__icon'>{action.icon}</span>

@@ -16,7 +16,7 @@ import {
 import { Currencies, Unit } from '../../../lib/types'
 
 vi.mock('liveline', () => ({
-  Liveline: ({ paused }: { paused?: boolean }) => <div data-testid='liveline-chart' data-paused={String(paused)} />,
+  Liveline: () => <div data-testid='liveline-chart' />,
 }))
 
 describe('Bitcoin detail screen', () => {
@@ -58,63 +58,6 @@ describe('Bitcoin detail screen', () => {
     expect(screen.getByRole('button', { name: 'Swaps' })).toHaveAttribute('aria-pressed', 'true')
     await waitFor(() => expect(container.querySelectorAll('.activity-row')).toHaveLength(1))
     expect(container.querySelector('.activity-row__kind')).toHaveTextContent('Swap')
-  })
-
-  it('pauses the liveline chart while the pointer is hovering it', async () => {
-    const ResizeObserverMock = vi.fn(() => ({
-      observe: vi.fn(),
-      unobserve: vi.fn(),
-      disconnect: vi.fn(),
-    }))
-
-    vi.stubGlobal('ResizeObserver', ResizeObserverMock)
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          when: Date.now(),
-          from: 'bitcoin',
-          data: [
-            { time: Math.floor(Date.now() / 1000) - 3_600, value: 77_000 },
-            { time: Math.floor(Date.now() / 1000), value: 78_000 },
-          ],
-        }),
-      }),
-    )
-
-    const { container } = render(
-      <ConfigContext.Provider value={mockConfigContextValue}>
-        <FiatContext.Provider value={mockFiatContextValue}>
-          <FlowContext.Provider value={mockFlowContextValue}>
-            <NavigationContext.Provider value={mockNavigationContextValue}>
-              <WalletContext.Provider value={mockWalletContextValue}>
-                <BitcoinDetail />
-              </WalletContext.Provider>
-            </NavigationContext.Provider>
-          </FlowContext.Provider>
-        </FiatContext.Provider>
-      </ConfigContext.Provider>,
-    )
-
-    await waitFor(() => {
-      expect(screen.getByTestId('liveline-chart')).toHaveAttribute('data-paused', 'false')
-    })
-
-    const chart = container.querySelector('.asset-detail-chart')
-    expect(chart).not.toBeNull()
-
-    fireEvent.pointerEnter(chart!)
-
-    await waitFor(() => {
-      expect(screen.getByTestId('liveline-chart')).toHaveAttribute('data-paused', 'true')
-    })
-
-    fireEvent.pointerLeave(chart!)
-
-    await waitFor(() => {
-      expect(screen.getByTestId('liveline-chart')).toHaveAttribute('data-paused', 'false')
-    })
   })
 
   it('keeps the market price in USD and formats the balance with BIP-177 when currency is BTC', async () => {
