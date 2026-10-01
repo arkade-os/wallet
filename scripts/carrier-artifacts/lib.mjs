@@ -13,8 +13,8 @@ export const MANIFEST_PATH = `${VENDOR_DIR}/manifest.json`
 
 const TS_SDK = 'https://github.com/arkade-os/ts-sdk.git'
 const ARKADE_TAXI = 'https://github.com/ArkLabsHQ/arkade-taxi.git'
-const SDK_COMMIT = '23c6d353f7ea6616edf43da781b589a023fc693d'
-const TAXI_COMMIT = '6482d654aa7c720fa197048436eeafc71a8f0f37'
+const SDK_COMMIT = 'f0dfc648c873e2f5b78ded940eaff5eb8787245e'
+const TAXI_COMMIT = '179fc31b66d179d7275e0f5b7d1d9e084c712ae9'
 
 // Moving to a new candidate is an edit HERE, so `verify.mjs` can refuse an
 // archive whose manifest names any other commit.

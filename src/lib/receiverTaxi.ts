@@ -114,7 +114,8 @@ export const ruleFor = (info: TaxiInfo, assetId: string) => {
   }
   return info.assetRules.find(
     (rule) =>
-      typeof rule?.assetId?.txid === 'string' &&
+      typeof rule?.assetId === 'object' &&
+      typeof rule.assetId?.txid === 'string' &&
       rule.assetId.txid.toLowerCase() === wanted.txid &&
       rule.assetId.groupIndex === wanted.groupIndex,
   )
