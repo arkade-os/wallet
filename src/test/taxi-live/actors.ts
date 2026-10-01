@@ -90,7 +90,7 @@ export async function fund(faucet: Wallet, actor: Actor, sats: number): Promise<
 }
 
 export async function admin<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
-  const response = await fetch(`${required('TAXI_E2E_BASE_URL')}/admin/api/${path}`, {
+  const response = await fetch(`${required('TAXI_E2E_ADMIN_URL')}/admin/api/${path}`, {
     method,
     headers: { 'content-type': 'application/json', 'x-taxi-operator': 'task13-e2e' },
     ...(method === 'GET' ? {} : { body: JSON.stringify(body ?? {}) }),

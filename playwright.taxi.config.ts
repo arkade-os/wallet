@@ -5,7 +5,13 @@ const port = Number(process.env.TAXI_E2E_WALLET_PORT || 3102)
 const baseURL = `http://127.0.0.1:${port}`
 const artifacts = resolve(process.env.TAXI_E2E_WALLET_ARTIFACTS || 'test-results/taxi-live')
 
-for (const name of ['TAXI_E2E_ARKD_URL', 'ARKADE_ESPLORA_URL', 'TAXI_E2E_BASE_URL', 'VITE_EMULATOR_PUBKEY']) {
+for (const name of [
+  'TAXI_E2E_ARKD_URL',
+  'ARKADE_ESPLORA_URL',
+  'TAXI_E2E_BASE_URL',
+  'TAXI_E2E_ADMIN_URL',
+  'VITE_EMULATOR_PUBKEY',
+]) {
   if (!process.env[name]) throw new Error(`${name} is required by the local Taxi regtest harness`)
 }
 
