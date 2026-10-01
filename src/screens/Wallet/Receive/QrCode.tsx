@@ -510,12 +510,8 @@ export default function ReceiveQRCode() {
                   ) : null}
                 </FlexCol>
               ) : null}
-              {/* Outside the stage on purpose: `.receive-invoice-stage > *` puts
-                  every child in `grid-area: 1 / 1`, so anything placed inside is
-                  stacked exactly under the QR — the QR then paints over it and
-                  swallows the taps, which read as "selecting copies". */}
               {paymentMethods.length > 1 ? (
-                <div className='mt-20 mb-3'>
+                <div className='mt-20 mb-3 w-full max-w-85'>
                   <SegmentedControl
                     options={paymentMethods.map((m) => m.id)}
                     selected={activeMethod}
