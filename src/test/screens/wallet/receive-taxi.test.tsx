@@ -1,6 +1,8 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { ArkAddress, type ExtendedVirtualCoin } from '@arkade-os/sdk'
+import { hex } from '@scure/base'
 import { AspContext } from '../../../providers/asp'
 import { ConfigContext } from '../../../providers/config'
 import { FlowContext } from '../../../providers/flow'
@@ -41,6 +43,18 @@ vi.mock('../../../lib/swapMarkets', async (original) => ({
   ...(await original<typeof import('../../../lib/swapMarkets')>()),
   discoverMarkets: vi.fn(async () => []),
 }))
+// jsdom has no IndexedDB, and the claim-coin check reads the funding reservations from this repository.
+vi.mock('../../../lib/swapRepository', async (importOriginal) => {
+  const { InMemoryAssetSwapRepository } = await vi.importActual<typeof import('@arkade-os/swap')>('@arkade-os/swap')
+  return {
+    ...(await importOriginal<typeof import('../../../lib/swapRepository')>()),
+    assetSwapRepository: new InMemoryAssetSwapRepository(),
+  }
+})
+
+const RECEIVER_SCRIPT = hex.encode(ArkAddress.decode(RECEIVER_ADDRESS).pkScript)
+let spendable: ExtendedVirtualCoin[] = []
+const svcWallet = { ...mockSvcWallet, getSpendableVtxos: async () => spendable }
 
 beforeAll(() => {
   if (!navigator.serviceWorker) {
@@ -72,7 +86,7 @@ const renderAssetReceive = (request: { assetId?: string; satoshis?: number } = {
               } as any
             }
           >
-            <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet: mockSvcWallet } as any}>
+            <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet } as any}>
               <LimitsContext.Provider value={mockLimitsContextValue}>
                 <ReceiveQRCode />
               </LimitsContext.Provider>
@@ -193,6 +207,7 @@ describe('the receiver names his own Taxi in an asset request', () => {
 describe('the receiver names his Taxi for a sub-dust bitcoin request', () => {
   beforeEach(() => {
     localStorage.clear()
+    spendable = coins([230n], RECEIVER_SCRIPT)
     vi.stubEnv('VITE_TAXI_URL', TAXI_URL)
     vi.stubEnv('VITE_EMULATOR_PUBKEY', KEYS.emulator)
   })
@@ -215,6 +230,20 @@ describe('the receiver names his Taxi for a sub-dust bitcoin request', () => {
       ),
     ).toBeInTheDocument()
     expect(readReceiverTaxis()).toEqual([{ network: 'regtest', url: TAXI_URL, operatorKey: KEYS.operator }])
+  })
+
+  it('warns a receiver with no coin at this address covering the top-up that he may not be able to claim', async () => {
+    spendable = [...coins([229n], RECEIVER_SCRIPT), ...coins([1000n])]
+    vi.stubGlobal('fetch', taxiFetch({ info: BITCOIN_INFO }))
+    renderAssetReceive({ satoshis: 100 })
+    await userEvent.click(await screen.findByRole('button', { name: 'Taxi: off' }))
+    await userEvent.click(screen.getByRole('option', { name: 'sats · 0 sats' }))
+    expect(
+      screen.getByText(
+        'The payer pays this fare, and it arrives as a full 330-sat coin. Claiming may need a coin of at least ' +
+          "230 sats of your own, and you have none; if you can't claim it, it can go back to the payer.",
+      ),
+    ).toBeInTheDocument()
   })
 
   it('offers no Taxi for an amount at dust, and asks it nothing', async () => {

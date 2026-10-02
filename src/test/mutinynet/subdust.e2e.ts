@@ -91,7 +91,8 @@ test('sub-dust bitcoin through the Taxi, on live mutinynet without moving money'
     )
     await expect(
       page.getByText(
-        'The payer pays this fare, and it arrives as a full 330-sat coin. Claiming may use 230 sats of your own.',
+        'The payer pays this fare, and it arrives as a full 330-sat coin. Claiming may need a coin of at least ' +
+          "230 sats of your own, and you have none; if you can't claim it, it can go back to the payer.",
       ),
     ).toBeVisible()
     await shot(page, '4-receive-request')
