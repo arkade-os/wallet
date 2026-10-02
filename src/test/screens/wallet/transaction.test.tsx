@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TaxiError } from '@arkade-taxi/client'
+import { hex } from '@scure/base'
 import Transaction from '../../../screens/Wallet/Transaction'
 import { ReceiverClaimsContext } from '../../../providers/receiverClaims'
 import { claimKey } from '../../../lib/receiverClaims'
@@ -1121,8 +1122,44 @@ describe('a Taxi transfer', () => {
   const checkAgain = () => userEvent.click(screen.getByRole('button', { name: 'Check again' }))
   const actions = () =>
     ['Check again', 'Claim', 'Settle transaction'].filter((name) => screen.queryByRole('button', { name }))
+  const withWallet = { wallet: { svcWallet: mockSvcWallet, vtxoManager: undefined } }
+  const journal = async (r = record()) => {
+    const senderKey = hex.encode(await mockSvcWallet.identity.xOnlyPublicKey())
+    const pending: PendingTaxiRecord = {
+      network: 'regtest',
+      senderKey,
+      taxiUrl: r.taxiUrl,
+      operatorKey: 'b'.repeat(64),
+      transferId: r.transferId,
+      expectedTxid: r.lockupTxid!,
+      expectedVout: 0,
+      mode: 'recycle',
+      receiverAddress: 'tark1receiver',
+      assetId: ASSET,
+      assetAmount: r.units,
+    }
+    localStorage.setItem(`directTaxiPending:regtest:${senderKey}`, JSON.stringify(pending))
+  }
 
-  beforeEach(() => checkTaxiPayment.mockReset())
+  beforeEach(() => {
+    checkTaxiPayment.mockReset()
+    localStorage.clear()
+  })
+
+  it('says a payment its journal names may have been submitted', async () => {
+    await journal()
+    receipt(taxiOnly(record({ state: 'locking' })), withWallet)
+    expect(await screen.findByText(/may have been submitted/)).toBeInTheDocument()
+  })
+
+  it('offers a check on a settled payment its journal still names, since only a check clears the journal', async () => {
+    await journal()
+    checkTaxiPayment.mockResolvedValue(undefined)
+    const expired = record({ state: 'expired' })
+    receipt(taxiOnly(expired), withWallet)
+    await userEvent.click(await screen.findByRole('button', { name: 'Check again' }))
+    expect(checkTaxiPayment).toHaveBeenCalledWith(expired, mockSvcWallet)
+  })
 
   it('lists its Taxi, transfer, mode, carrier, fare, delivery, last update and lockup, and no settlement status', () => {
     receipt(taxiOnly(record()))

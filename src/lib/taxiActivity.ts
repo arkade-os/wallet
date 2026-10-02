@@ -272,8 +272,7 @@ const view = (
   action: TaxiActivityView['action'] = 'none',
 ): TaxiActivityView => ({ label, tone, explanation: `transaction.taxiExplain${explanation}`, action })
 
-/** What a record means to its owner, as i18n keys, and what they can do about it. */
-export const taxiActivityView = (r: TaxiActivity, { claimable = false, pending = false } = {}): TaxiActivityView => {
+const stateView = (r: TaxiActivity, { claimable = false, pending = false } = {}): TaxiActivityView => {
   const sender = r.role === 'sender'
   switch (r.state) {
     case 'gone':
@@ -308,6 +307,16 @@ export const taxiActivityView = (r: TaxiActivity, { claimable = false, pending =
         ? view('transaction.completed', 'done', 'ReturnedToYou')
         : view('transaction.taxiReturned', 'void', 'ReturnedToSender')
   }
+}
+
+/** What a record means to its owner, as i18n keys, and what they can do about it. */
+export const taxiActivityView = (
+  r: TaxiActivity,
+  options: { claimable?: boolean; pending?: boolean } = {},
+): TaxiActivityView => {
+  const v = stateView(r, options)
+  // The poller records an outcome without touching the journal, which blocks every new send until a check clears it.
+  return options.pending && v.action === 'none' && r.state !== 'gone' ? { ...v, action: 'check' } : v
 }
 
 /** The record's own transactions; its lockup only once the Taxi says the lockup exists. */
