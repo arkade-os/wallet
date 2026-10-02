@@ -35,7 +35,9 @@ const SendForm = (await import('../../../screens/Wallet/Send/Form')).default
 const aspInfo = { ...mockAspContextValue.aspInfo, signerPubkey: KEYS.server, dust: 330n }
 const request = (amount: string, extra = '') => `bitcoin:?ark=${RECEIVER_ADDRESS}&amount=${amount}${extra}`
 const NAMED = `&taxi=${encodeURIComponent(TAXI_URL)}&taxikey=${KEYS.operator}&taxifare=sats`
-const SLOW = { timeout: 3_000 }
+// The whole form, behind an 800 ms recipient debounce: far past vitest's 5 s default under full-suite load.
+const SLOW = { timeout: 10_000 }
+const FORM_TEST = { timeout: 20_000 }
 
 const Flow = ({ children }: { children: React.ReactNode }) => {
   const [sendInfo, setSendInfo] = useState<SendInfo>(emptySendInfo)
@@ -85,8 +87,8 @@ const button = (name: string) => screen.getByRole('button', { name })
 
 const chooseCarrier = async (mode: string) => {
   await userEvent.click(await screen.findByTestId('taxi-send-mode', {}, SLOW))
-  await userEvent.click(await screen.findByRole('menuitem', { name: mode }))
-  await waitFor(() => expect(screen.getByTestId('taxi-send-mode')).toHaveTextContent(`Carrier: ${mode}`))
+  await userEvent.click(await screen.findByRole('menuitem', { name: mode }, SLOW))
+  await waitFor(() => expect(screen.getByTestId('taxi-send-mode')).toHaveTextContent(`Carrier: ${mode}`), SLOW)
 }
 
 const pay = async () => {
@@ -106,13 +108,13 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('sending a sub-dust bitcoin amount to an Arkade address', () => {
+describe('sending a sub-dust bitcoin amount to an Arkade address', FORM_TEST, () => {
   it("offers the carriers the Taxi's bitcoin rule allows, starting with none", async () => {
     renderSend(request('0.000001'))
     const carrier = await screen.findByTestId('taxi-send-mode', {}, SLOW)
     expect(carrier).toHaveTextContent('Carrier: No Taxi: sub-dust coin')
     await userEvent.click(carrier)
-    expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual([
+    expect((await screen.findAllByRole('menuitem', {}, SLOW)).map((item) => item.textContent)).toEqual([
       'No Taxi: sub-dust coin',
       'Receiver uses own sats',
       'Direct delivery, no claim',
@@ -123,7 +125,7 @@ describe('sending a sub-dust bitcoin amount to an Arkade address', () => {
     const navigate = renderSend(request('0.000001'))
     await chooseCarrier('Receiver uses own sats')
     await pay()
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendSuccess))
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendSuccess), SLOW)
     expect(sendDirectTaxi).toHaveBeenCalledWith(
       expect.objectContaining({
         assetId: undefined,
@@ -139,13 +141,15 @@ describe('sending a sub-dust bitcoin amount to an Arkade address', () => {
     renderSend(request('0.000001', NAMED))
     await chooseCarrier('Direct delivery, no claim')
     await pay()
-    await waitFor(() =>
-      expect(sendDirectTaxi).toHaveBeenCalledWith(
-        expect.objectContaining({
-          mode: 'sponsored',
-          taxi: { url: TAXI_URL, operatorKey: KEYS.operator, fareId: 'sats' },
-        }),
-      ),
+    await waitFor(
+      () =>
+        expect(sendDirectTaxi).toHaveBeenCalledWith(
+          expect.objectContaining({
+            mode: 'sponsored',
+            taxi: { url: TAXI_URL, operatorKey: KEYS.operator, fareId: 'sats' },
+          }),
+        ),
+      SLOW,
     )
   })
 
@@ -158,14 +162,14 @@ describe('sending a sub-dust bitcoin amount to an Arkade address', () => {
     const navigate = renderSend(request('0.000001'))
     await chooseCarrier('Receiver uses own sats')
     await pay()
-    expect(await screen.findByTestId('taxi-confirm-costs')).toHaveTextContent(
+    expect(await screen.findByTestId('taxi-confirm-costs', {}, SLOW)).toHaveTextContent(
       'Send 100 sats. Fare: 0 sats. Taxi adds 230 sats so it arrives as a full 330-sat coin. ' +
         "The receiver claims it with a coin of at least 230 sats of their own, repaying Taxi. If it isn't claimed, " +
         'your 100 sats come back to you.',
     )
     // A plain click: the sheet's drawer handles pointer events with APIs jsdom lacks.
     fireEvent.click(button('Pay'))
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendSuccess))
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendSuccess), SLOW)
   })
 
   it.each([
@@ -188,7 +192,7 @@ describe('sending a sub-dust bitcoin amount to an Arkade address', () => {
     expect(await screen.findByText(`Taxi unavailable: ${reason}`, {}, SLOW)).toBeInTheDocument()
     expect(screen.queryByTestId('taxi-send-mode')).toBeNull()
     await pay()
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails))
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), SLOW)
     expect(sendDirectTaxi).not.toHaveBeenCalled()
   })
 
@@ -197,14 +201,14 @@ describe('sending a sub-dust bitcoin amount to an Arkade address', () => {
     vi.stubGlobal('fetch', fetch)
     renderSend(request('0.0000033'))
     await waitFor(() => expect(button('Continue')).toBeEnabled(), SLOW)
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    await new Promise((resolve) => setTimeout(resolve, 300))
     expect(screen.queryByText('Checking Taxi…')).toBeNull()
     expect(screen.queryByTestId('taxi-send-mode')).toBeNull()
     expect(fetch.mock.calls.filter(([url]) => String(url).endsWith('/v1/info'))).toEqual([])
   })
 })
 
-describe('a Taxi payment the Taxi failed to submit', () => {
+describe('a Taxi payment the Taxi failed to submit', FORM_TEST, () => {
   const FAILED = {
     transferId: 't-1',
     state: 'locking',
@@ -244,6 +248,8 @@ describe('a Taxi payment the Taxi failed to submit', () => {
       await screen.findByText(
         'Taxi could not submit this payment: server checkpoint 0 changed unsigned fields or metadata ' +
           '(lockup_submission_invalid_provider_response). Nothing has been delivered.',
+        {},
+        SLOW,
       ),
     ).toBeInTheDocument()
     expect(
@@ -256,7 +262,7 @@ describe('a Taxi payment the Taxi failed to submit', () => {
     expect(localStorage.getItem(key)).not.toBeNull()
     await userEvent.click(button('Forget Taxi payment'))
     expect(localStorage.getItem(key)).toBeNull()
-    expect(await screen.findByRole('button', { name: 'Continue' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Continue' }, SLOW)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Forget Taxi payment' })).toBeNull()
   })
 })
