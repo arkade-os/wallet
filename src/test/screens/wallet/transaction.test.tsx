@@ -1245,6 +1245,23 @@ describe('a Taxi transfer', () => {
     expect(actions()).toEqual([])
   })
 
+  it.each([
+    ['a failed payment', { state: 'locking', submissionPhase: 'failed' }],
+    ['a payment never sent', { state: 'expired' }],
+    ['an unclaimed delivery', { role: 'receiver' as const, returnsTo: 'sender' as const }],
+  ])('heads %s only "Amount", and totals nothing', (_, over) => {
+    receipt(taxiOnly(record(over)))
+    expect(screen.getByText('Amount', { exact: true })).toBeInTheDocument()
+    expect(screen.queryByText(/^Amount (sent|received)$/)).not.toBeInTheDocument()
+    expect(screen.queryAllByTestId(/^Total/)).toEqual([])
+  })
+
+  it('heads a claimed payment "Amount sent", with its total', () => {
+    receipt(taxiOnly(record({ state: 'recycled' })))
+    expect(screen.getByText('Amount sent')).toBeInTheDocument()
+    expect(screen.getByTestId('Total')).toBeInTheDocument()
+  })
+
   it('follows its record as it changes under the open receipt, even once a transaction row replaces it', () => {
     const update = receipt(taxiOnly(record()))
     expect(screen.getByTestId('Delivery')).toHaveTextContent('Awaiting claim')

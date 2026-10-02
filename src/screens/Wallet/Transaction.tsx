@@ -277,6 +277,9 @@ export default function Transaction() {
   // On asset transfers tx.amount is only the data carrier, not the asset value.
   // The asset-aware rows below replace the legacy Amount/Total rows.
   const assetTransfer = Boolean(tx.assets?.length)
+  const taxiOnly = isTaxiOnlyTx(tx)
+  // Not yet a send or a receive: no transaction of it is in history, and the Taxi has not settled it.
+  const taxiUnsettled = taxiOnly && taxiView?.tone !== 'done'
   const summaryLabel =
     tx.assetAction === 'reissued'
       ? t('transaction.amountReissued')
@@ -286,9 +289,11 @@ export default function Transaction() {
           ? t('transaction.amountBurned')
           : exitTx
             ? t('transaction.amountExited')
-            : tx.type === 'sent'
-              ? t('transaction.amountSent')
-              : t('transaction.amountReceived')
+            : taxiUnsettled
+              ? t('common.amount')
+              : tx.type === 'sent'
+                ? t('transaction.amountSent')
+                : t('transaction.amountReceived')
   const date = tx.createdAt
     ? prettyDate(tx.createdAt, language)
     : !unconfirmedBoardingTx
@@ -336,7 +341,6 @@ export default function Transaction() {
   const taxiAsset = taxi?.assetId ? assetMetadataCache.get(taxi.assetId)?.metadata : undefined
   const carrierDetailsProps =
     taxi && !tx.carrier ? taxiCarrierRows(taxi, language, taxiAsset) : carrierDetails(tx?.carrier, language)
-  const taxiOnly = isTaxiOnlyTx(tx)
   const taxiDetails = taxi
     ? {
         url: taxi.taxiUrl.replace(/^https?:\/\//, ''),
@@ -371,7 +375,7 @@ export default function Transaction() {
     : {
         amountDisplay,
         assetIds,
-        assetTotals,
+        assetTotals: taxiUnsettled ? undefined : assetTotals,
         carrier: carrierDetailsProps,
         date,
         destination: tx.type === 'sent' && !boardingTx && !issuanceTx && !burnTx ? tx.destination : undefined,
@@ -387,7 +391,7 @@ export default function Transaction() {
         satoshis: assetTransfer ? undefined : tx.amount,
         status: taxiOnly ? undefined : status,
         taxi: taxiDetails,
-        total: assetTransfer ? undefined : tx.amount,
+        total: assetTransfer || taxiUnsettled ? undefined : tx.amount,
         // A Lightning send is two txs, so it gets the same pair of rows an
         // asset swap does — funding, then the spend that ended it — in place
         // of a lone "Transaction ID" that would name only the first and say
