@@ -4,10 +4,11 @@ import {
   test,
   type Browser,
   type BrowserContextOptions,
+  type Locator,
   type Page,
   type TestInfo,
 } from '@playwright/test'
-import { enableAssets, mintAsset, navigateHome } from '../e2e/utils'
+import { enableAssets, mintAsset, navigateHome, resetWallet, waitForWalletPage } from '../e2e/utils'
 import {
   admin,
   confirmSend,
@@ -54,18 +55,41 @@ async function declineClaims(page: Page): Promise<void> {
   if (await notNow.isVisible().catch(() => false)) await notNow.click()
 }
 
+// Every Taxi row's meta line leads with its state; one the poller may already have moved is a RegExp alternation.
 async function taxiRows(actor: Actor, state: string | RegExp) {
   await declineClaims(actor.page)
   await navigateHome(actor.page)
   await actor.page.getByTestId('activity-view-all').click()
-  return actor.page.getByTestId('tx-row').filter({ hasText: typeof state === 'string' ? `Taxi · ${state}` : state })
+  const leads = new RegExp(`^(?:${typeof state === 'string' ? state : state.source}) · `)
+  return actor.page.getByTestId('tx-row').filter({ has: actor.page.locator('.activity-row__meta', { hasText: leads }) })
+}
+
+// hasText matches what an ellipsis hides too, so measure where the leading state ends.
+async function expectStateShown(row: Locator): Promise<void> {
+  const shown = await row.locator('.activity-row__meta').evaluate((meta) => {
+    const text = meta.firstChild as Text
+    const state = document.createRange()
+    state.setStart(text, 0)
+    state.setEnd(text, text.data.split(' · ')[0].length)
+    const context = document.createElement('canvas').getContext('2d')!
+    context.font = getComputedStyle(meta).font
+    const edge = meta.getBoundingClientRect().right - context.measureText('…').width
+    return meta.scrollWidth <= meta.clientWidth || state.getBoundingClientRect().right <= edge
+  })
+  expect(shown).toBe(true)
 }
 
 async function openTaxiRow(actor: Actor, state: string | RegExp): Promise<void> {
   const row = await taxiRows(actor, state)
   await expect(row).toHaveCount(1)
+  await expectStateShown(row)
   await row.click()
   await expect(actor.page.getByTestId('Transfer ID')).toBeVisible()
+}
+
+const checkAgainIfOffered = async (actor: Actor) => {
+  const check = actor.page.getByRole('button', { name: 'Check again', exact: true })
+  if (await check.isVisible()) await check.click()
 }
 
 const checkAgain = (actor: Actor) => actor.page.getByRole('button', { name: 'Check again', exact: true }).click()
@@ -143,7 +167,7 @@ async function claimedFromActivity({ alice, bob, assetId }: Scene): Promise<void
   await confirmSend(alice, true)
   const advance = await newAdvance(before)
 
-  await openTaxiRow(alice, /Taxi · (Awaiting claim|Claimed)/)
+  await openTaxiRow(alice, /Awaiting claim|Claimed/)
   await expect(alice.page.getByTestId('Transfer ID')).toContainText(advance.id.slice(0, 11))
   await expect(alice.page.getByTestId('Carrier mode')).toHaveText('Receiver uses own sats')
   await expect(alice.page.getByTestId('Taxi service fee')).toHaveText('0 sats')
@@ -157,9 +181,10 @@ async function claimedFromActivity({ alice, bob, assetId }: Scene): Promise<void
   await expect(claimed).toHaveCount(1)
   await expect(claimed).toContainText('Received')
   await expect(claimed).not.toContainText('Sent')
+  await expectStateShown(claimed)
 
-  await openTaxiRow(alice, /Taxi · (Awaiting claim|Claimed)/)
-  if (await alice.page.getByRole('button', { name: 'Check again', exact: true }).isVisible()) await checkAgain(alice)
+  await openTaxiRow(alice, /Awaiting claim|Claimed/)
+  await checkAgainIfOffered(alice)
   await expect(alice.page.getByTestId('Delivery')).toHaveText('Claimed')
 }
 
@@ -193,6 +218,9 @@ test('Taxi transfers in activity: every state, and the action each offers', asyn
       await prepareSend(alice, request, 'Sender pays asset fare')
       await taxiConfirmation(alice)
       stranded = (await newAdvance(before)).id
+      // Before Pay: the Taxi takes the lockup whose answer is dropped, so a poll before the reload could read it locked.
+      const status = `**/v1/transfers/${stranded}`
+      await alice.page.route(status, (route) => route.abort())
       await control('configure', {
         target: 'taxi',
         path: `/v1/transfers/${stranded}/lockup`,
@@ -203,8 +231,6 @@ test('Taxi transfers in activity: every state, and the action each offers', asyn
       await alice.page.getByRole('button', { name: 'Pay', exact: true }).click()
       await expect(alice.page.getByText(PENDING, { exact: true })).toBeVisible()
       await control('reset')
-      const status = `**/v1/transfers/${stranded}`
-      await alice.page.route(status, (route) => route.abort())
       await alice.page.reload()
       await expect(alice.page.getByTestId('home-action-receive')).toBeVisible()
       await openTaxiRow(alice, 'Pending')
@@ -228,8 +254,8 @@ test('Taxi transfers in activity: every state, and the action each offers', asyn
         }),
       )
       try {
-        await openTaxiRow(alice, 'Awaiting claim')
-        await checkAgain(alice)
+        await openTaxiRow(alice, /Awaiting claim|Returned/)
+        await checkAgainIfOffered(alice)
         await expect(alice.page.getByTestId('Delivery')).toHaveText('Returned')
         await expect(alice.page.getByText('The Taxi returned this payment to you.', { exact: true })).toBeVisible()
       } finally {
@@ -254,7 +280,7 @@ test('Taxi transfers in activity: every state, and the action each offers', asyn
       )
       await alice.page.getByRole('button', { name: 'Pay', exact: true }).click()
       await expect(alice.page.getByText(PENDING, { exact: true })).toBeVisible()
-      await openTaxiRow(alice, 'Pending')
+      await openTaxiRow(alice, /Pending|Failed/)
       await checkAgain(alice)
       await expect(alice.page.getByTestId('Delivery')).toHaveText('Failed')
       await expect(alice.page.getByText(FAILED.failureDetail, { exact: true })).toBeVisible()
@@ -266,12 +292,22 @@ test('Taxi transfers in activity: every state, and the action each offers', asyn
       await expect
         .poll(async () => (await advances()).find((other) => other.id === advance.id)?.state, { timeout: 120_000 })
         .toBe('expired')
-      await openTaxiRow(alice, 'Failed')
+      await openTaxiRow(alice, /Failed|Not sent/)
       await checkAgain(alice)
       await expect(alice.page.getByTestId('Delivery')).toHaveText('Not sent')
       await expect(alice.page.getByTestId('error-message')).not.toBeVisible()
       await expect.poll(() => journaled(alice)).toBe(false)
       expect(await holdings(alice.address, assetId)).toEqual(held)
+    })
+
+    await test.step('a reset wallet keeps none of the Taxi records', async () => {
+      await resetWallet(alice.page)
+      const create = alice.page.getByText(`+ ${tr.init.createWallet}`, { exact: true })
+      await expect(create).toBeVisible()
+      expect(await alice.page.evaluate(() => localStorage.getItem('taxiActivity'))).toBeNull()
+      await create.click()
+      await waitForWalletPage(alice.page)
+      await expect(alice.page.getByText(tr.common.noTransactionsYet, { exact: true })).toBeVisible()
     })
   })
 })
