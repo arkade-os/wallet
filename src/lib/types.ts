@@ -1,5 +1,6 @@
 import { Asset, NetworkName, type ExtendedVirtualCoin, type ServiceWorkerWalletMode } from '@arkade-os/sdk'
 import type { CarrierActivity } from './carrierActivity'
+import type { TaxiActivity } from './taxiActivity'
 
 export type Addresses = {
   boardingAddr: string
@@ -159,6 +160,8 @@ export type Tx = {
   redeemTxid: string
   roundTxid: string
   settled: boolean
+  /** This wallet's record of the Taxi transfer the row belongs to. */
+  taxi?: TaxiActivity
   type: TxKind
   assetSwap?: {
     fromAssetId?: string

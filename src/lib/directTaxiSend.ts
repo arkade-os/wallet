@@ -22,9 +22,17 @@ import type { AspInfo } from '../providers/asp'
 import type { Bip21Taxi } from './bip21'
 import { PaymentDeclined } from './assetRfqSend'
 import { getRestApiExplorerURL } from './explorers'
-import { arkadeContextOf, callerMinimum, ruleFor, taxiClient, type TaxiFare } from './receiverTaxi'
+import { arkadeContextOf, boundedFetch, callerMinimum, ruleFor, taxiClient, type TaxiFare } from './receiverTaxi'
 import { assetSwapRepository, unreservedCoins } from './swapRepository'
 import { sleep } from './sleep'
+import {
+  readTaxiActivity,
+  recordTaxiActivity,
+  recordTaxiStatus,
+  refreshTaxiActivity,
+  taxiActivityKey,
+  type TaxiActivity,
+} from './taxiActivity'
 
 export type DirectTaxiMode = 'recycle' | 'purchase' | 'sponsored'
 
@@ -37,7 +45,7 @@ export interface DirectTaxiTerms {
   carrierSats: bigint
 }
 
-interface PendingTaxiRecord {
+export interface PendingTaxiRecord {
   network: string
   senderKey: string
   taxiUrl: string
@@ -66,8 +74,6 @@ type StoredTaxiAttempt = {
   | { kind: 'covenant'; quote: VerifyQuoteArgs['quote']; minLocktime: string }
   | { kind: 'sponsored'; quote: VerifySponsoredQuoteArgs['quote'] }
 )
-
-const boundedFetch: typeof fetch = (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10_000) })
 
 const pendingKey = (network: string, senderKey: string) => `directTaxiPending:${network}:${senderKey}`
 
@@ -155,6 +161,7 @@ const waitForSettlement = async (record: PendingTaxiRecord, client: TaxiClient, 
         : await client.status(record.transferId)
     if (status.transferId !== record.transferId) throw new Error('Taxi returned a different transfer')
     if (status.outpoint) checkOutpoint(record, status.outpoint)
+    recordTaxiStatus(taxiActivityFromPending(record, status.updatedAt), status)
     if (status.outpoint && ['locked', 'recycled', 'purchased', 'recovered', 'refunded'].includes(status.state)) {
       clearPending(record)
       if (status.state === 'refunded' || status.state === 'recovered') throw new ReturnedDirectTaxi(record)
@@ -265,6 +272,53 @@ const restorePending = (record: PendingTaxiRecord) =>
 export const getPendingDirectTaxi = async (wallet: Pick<IWallet, 'identity'>, network: string) => {
   const record = readPending(network, hex.encode(await wallet.identity.xOnlyPublicKey()))
   return record && restorePending(record)
+}
+
+/** The journaled payment as history records it, at the moment it was signed. */
+export const taxiActivityFromPending = (record: PendingTaxiRecord, createdAt: number): TaxiActivity => {
+  const attempt = record.attempt
+  return {
+    role: 'sender',
+    network: record.network,
+    taxiUrl: record.taxiUrl,
+    transferId: record.transferId,
+    mode: record.mode,
+    ...(record.assetId ? { assetId: record.assetId } : {}),
+    units: record.assetAmount,
+    ...(attempt
+      ? {
+          carrierSats: attempt.kind === 'covenant' ? attempt.quote.params.topup : attempt.quote.params.contribution,
+          fare: { currency: attempt.quote.fare.currency, units: attempt.quote.fare.units },
+        }
+      : {}),
+    destination: record.receiverAddress,
+    lockupTxid: record.expectedTxid,
+    state: 'quoted',
+    updatedAt: createdAt,
+    createdAt,
+  }
+}
+
+/** Resumes the journaled payment only when it is this transfer, under the lock a new send takes. */
+export const resumePendingDirectTaxi = async (
+  wallet: Pick<IWallet, 'identity'>,
+  network: string,
+  transferId: string,
+): Promise<string | undefined> => {
+  const senderKey = hex.encode(await wallet.identity.xOnlyPublicKey())
+  if (!navigator.locks) throw new Error('This browser cannot safely coordinate Taxi payments')
+  return navigator.locks.request(pendingKey(network, senderKey), async () => {
+    const record = readPending(network, senderKey)
+    return record?.transferId === transferId ? restorePending(record).resume() : undefined
+  })
+}
+
+/** One fresh read; then a resume, unless the Taxi says the submission failed: resuming that would only spin. */
+export const checkTaxiPayment = async (r: TaxiActivity, wallet: Pick<IWallet, 'identity'> | undefined) => {
+  await refreshTaxiActivity(r)
+  const fresh = readTaxiActivity(r.network).find((other) => taxiActivityKey(other) === taxiActivityKey(r))
+  if (r.role !== 'sender' || !wallet || !fresh || fresh.state === 'gone' || fresh.submissionPhase === 'failed') return
+  await resumePendingDirectTaxi(wallet, r.network, r.transferId)
 }
 
 const priceFare = (fare: TaxiFare, base: bigint): bigint => {
@@ -441,6 +495,7 @@ const sendDirectTaxiLocked = async (args: DirectTaxiSendArgs, senderKey: string)
     },
   }
   localStorage.setItem(pendingKey(record.network, senderKey), JSON.stringify(record))
+  recordTaxiActivity(taxiActivityFromPending(record, Math.floor(Date.now() / 1000)))
   const submit = async () => {
     const result =
       quoted.kind === 'sponsored'

@@ -90,6 +90,9 @@ export const arkadeContextOf = (
 export const taxiClient = (url: string, fetchImpl: typeof fetch) =>
   new TaxiClient({ baseUrl: url, fetch: (input, init) => fetchImpl(input, init) })
 
+export const boundedFetch: typeof fetch = (input, init) =>
+  fetch(input, { ...init, signal: AbortSignal.timeout(10_000) })
+
 /** The Taxi's genesis txid is in internal byte order; the SDK's `AssetId` holds display order. */
 const taxiAssetId = (id: string) => {
   const parsed = asset.AssetId.fromString(id)
@@ -124,7 +127,7 @@ export const ruleFor = (info: TaxiInfo, assetId: string) => {
   )
 }
 
-const isMixedContent = (url: string, pageProtocol: string): boolean => {
+export const isMixedContent = (url: string, pageProtocol: string): boolean => {
   try {
     return pageProtocol === 'https:' && new URL(url).protocol === 'http:'
   } catch {

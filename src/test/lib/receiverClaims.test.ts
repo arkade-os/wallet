@@ -6,6 +6,7 @@ import {
   claimVerified,
   offerKey,
   planReceiverClaim,
+  taxiActivityFromOffer,
   walletClaimWatch,
   watchReceiverClaims,
   type ClaimClient,
@@ -13,7 +14,7 @@ import {
   type RecyclePlan,
 } from '../../lib/receiverClaims'
 import { BOB, BOB_ADDRESS, BOB_PK_SCRIPT, assetFareClaim, coins, satsFareClaim } from './receiverClaimsFixtures'
-import { INFO, KEYS, TAXI_URL } from './receiverTaxiFixtures'
+import { ASSET_ID, INFO, KEYS, TAXI_URL } from './receiverTaxiFixtures'
 
 const consoleError = vi.hoisted(() => vi.fn())
 vi.mock('../../lib/logs', async (importOriginal) => ({
@@ -225,6 +226,23 @@ describe('watchReceiverClaims', () => {
     finishVerification(TRANSFER)
     await settle()
     expect(offers).toHaveLength(1)
+  })
+
+  it('withdraws an offer a fresh snapshot from its own Taxi no longer lists, and nothing of another Taxi', async () => {
+    const taxis = new Map([TAXI_URL, 'https://taxi.second.example'].map((url) => [url, fakeTaxi()]))
+    const { offers, onGone } = watch(fakeTaxi().client, {
+      taxis: [...taxis.keys()].map((url) => ({ ...TAXI, url })),
+      clientFor: (url) => taxis.get(url)!.client,
+    })
+    const [first, second] = [...taxis.values()]
+    first.feed.args!.onSnapshot({ claims: [satsFareClaim(7n)] })
+    await settle()
+    second.feed.args!.onSnapshot({ claims: [] })
+    await settle()
+    expect(onGone).not.toHaveBeenCalled()
+    first.feed.args!.onSnapshot({ claims: [] })
+    await settle()
+    expect(onGone.mock.calls).toEqual([[offerKey(offers[0])]])
   })
 
   it('withdraws nothing for a transfer this Taxi never offered', async () => {
@@ -446,5 +464,43 @@ describe('claimVerified', () => {
     expect(input.expiry).toEqual({ kind: 'time', value: 4_000_000_000n })
     expect(input.identity).toBe(BOB)
     expect(hex.encode(destination)).toBe(BOB_PK_SCRIPT)
+  })
+})
+
+describe('taxiActivityFromOffer', () => {
+  it('records a delivery with its loan, the fare its receiver pays, and who an unclaimed one returns to', () => {
+    expect(taxiActivityFromOffer({ taxi: TAXI, claim: satsFareClaim(7n) })).toEqual({
+      role: 'receiver',
+      network: 'regtest',
+      taxiUrl: TAXI_URL,
+      transferId: 'tr-sats-7',
+      mode: 'recycle',
+      assetId: ASSET_ID,
+      units: '500',
+      carrierSats: '330',
+      fare: { currency: 'sats', units: '7' },
+      returnsTo: 'receiver',
+      lockupTxid: 'd'.repeat(64),
+      state: 'locked',
+      updatedAt: 1_700_000_000,
+      createdAt: 1_700_000_000,
+    })
+    expect(taxiActivityFromOffer({ taxi: TAXI, claim: assetFareClaim(9n) }).fare).toEqual({
+      currency: 'asset',
+      units: '9',
+    })
+  })
+
+  it('records a bitcoin delivery in sats: the dust less what the Taxi lent', () => {
+    const bitcoin = satsFareClaim(7n)
+    delete bitcoin.claim!.params.assetId
+    delete bitcoin.claim!.params.receiverFare
+    delete bitcoin.claim!.params.recoveryRecipient
+    delete bitcoin.claim!.assetUnits
+    bitcoin.claim!.params.topup = '230'
+    const activity = taxiActivityFromOffer({ taxi: TAXI, claim: bitcoin })
+    expect(activity).toMatchObject({ units: '100', carrierSats: '230', returnsTo: 'sender' })
+    expect(activity).not.toHaveProperty('assetId')
+    expect(activity).not.toHaveProperty('fare')
   })
 })
