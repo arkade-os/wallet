@@ -95,6 +95,25 @@ export const withRule = (over: Record<string, unknown>) => ({
   assetRules: [{ ...INFO.assetRules[0], ...over }],
 })
 
+export const BITCOIN_RULE: TaxiInfo['assetRules'][number] = {
+  assetId: null,
+  enabled: true,
+  claim: 'recycle',
+  maxTopupSats: null,
+  unclaimedMode: 'reclaim',
+  fares: [{ id: 'sats', currency: 'sats', pricing: { kind: 'flat', units: '0' } }],
+}
+
+/** The live mutinynet bitcoin rule, on a Taxi that can carry an exact sub-dust amount. */
+export const BITCOIN_INFO = {
+  ...INFO,
+  assetRules: [...INFO.assetRules, BITCOIN_RULE],
+  bitcoinPaymentSats: true,
+} as TaxiInfo
+
+export const withBitcoinRule = (over: Record<string, unknown>) =>
+  ({ ...BITCOIN_INFO, assetRules: [INFO.assetRules[0], { ...BITCOIN_RULE, ...over }] }) as TaxiInfo
+
 export const TWO_FARES = withRule({
   fares: [...INFO.assetRules[0].fares, { id: 'cheap', currency: 'sats', pricing: { kind: 'flat', units: '1' } }],
 })
@@ -117,12 +136,23 @@ export const arkadeContext = (over: Partial<TaxiProbeContext> = {}): TaxiProbeCo
 const reply = (body: unknown, status = 200) => ({ ok: status < 400, status, text: async () => JSON.stringify(body) })
 
 /** A Taxi at TAXI_URL answering /v1/info and POST /v1/receive-quotes; anything else is a 404. `refuseBelow` is
- * the floor its locktime margin needs, as its 503 no_locktime_headroom refuses anything earlier. */
+ * the floor its locktime margin needs, as its 503 no_locktime_headroom refuses anything earlier. `statuses`
+ * answer transfer status polls in turn, the last one repeating. */
 export const taxiFetch = (
-  over: { info?: unknown; quote?: unknown; quoteStatus?: number; ttlSeconds?: number; refuseBelow?: bigint } = {},
-) =>
-  vi.fn(async (url: string, init?: RequestInit) => {
+  over: {
+    info?: unknown
+    quote?: unknown
+    quoteStatus?: number
+    ttlSeconds?: number
+    refuseBelow?: bigint
+    statuses?: unknown[]
+  } = {},
+) => {
+  let polls = 0
+  return vi.fn(async (url: string, init?: RequestInit) => {
     if (url === `${TAXI_URL}/v1/info`) return reply(over.info ?? INFO)
+    if (over.statuses && init?.method === 'GET' && /\/v1\/(sponsored-)?transfers\/[^/]+$/.test(url))
+      return reply(over.statuses[Math.min(polls++, over.statuses.length - 1)])
     if (url === `${TAXI_URL}/v1/receive-quotes` && init?.method === 'POST') {
       const hint = JSON.parse(String(init.body)).fundingExpiry?.value
       if (over.refuseBelow !== undefined && BigInt(hint) < over.refuseBelow)
@@ -134,6 +164,7 @@ export const taxiFetch = (
     }
     return reply({ code: 'NOT_FOUND', message: url }, 404)
   }) as unknown as typeof fetch & ReturnType<typeof vi.fn>
+}
 
 /** A spendable coin expiring at `expiry` unix seconds; `undefined` is a coin with no known expiry. */
 export const coin = (value: number, expiry: bigint | undefined, vout = 0) => ({

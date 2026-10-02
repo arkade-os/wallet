@@ -30,7 +30,8 @@ export type DirectTaxiMode = 'recycle' | 'purchase' | 'sponsored'
 
 export interface DirectTaxiTerms {
   mode: DirectTaxiMode
-  assetId: string
+  /** Absent for sub-dust bitcoin, whose `assetAmount` is then in sats. */
+  assetId?: string
   assetAmount: bigint
   fareCurrency: 'sats' | 'asset'
   fareUnits: bigint
@@ -47,7 +48,8 @@ interface PendingTaxiRecord {
   expectedVout: number
   mode: DirectTaxiMode
   receiverAddress: string
-  assetId: string
+  /** Absent for sub-dust bitcoin, whose `assetAmount` is then in sats. */
+  assetId?: string
   assetAmount: string
   attempt?: StoredTaxiAttempt
 }
@@ -91,7 +93,7 @@ const readPending = (network: string, senderKey: string): PendingTaxiRecord | un
       !Number.isSafeInteger(record.expectedVout) ||
       record.expectedVout < 0 ||
       typeof record.receiverAddress !== 'string' ||
-      typeof record.assetId !== 'string' ||
+      (record.assetId !== undefined && typeof record.assetId !== 'string') ||
       typeof record.assetAmount !== 'string' ||
       !/^[1-9][0-9]*$/.test(record.assetAmount)
     )
@@ -126,8 +128,9 @@ export class PendingDirectTaxi extends Error {
     readonly record: PendingTaxiRecord,
     private readonly reconcile: () => Promise<string>,
     cause: unknown,
+    message = 'Payment may have been submitted; retry checks the same transfer',
   ) {
-    super('Payment may have been submitted; retry checks the same transfer', { cause })
+    super(message, { cause })
     this.name = 'PendingDirectTaxi'
   }
 
@@ -135,9 +138,43 @@ export class PendingDirectTaxi extends Error {
     try {
       return await this.reconcile()
     } catch (cause) {
-      if (cause instanceof ReturnedDirectTaxi) throw cause
+      if (cause instanceof ReturnedDirectTaxi || cause instanceof FailedDirectTaxi) throw cause
       throw new PendingDirectTaxi(this.record, this.reconcile, cause)
     }
+  }
+}
+
+/** The Taxi gave up submitting. Kept on record: its reconciler may yet see the lockup land,
+ * and arkd may still hold the inputs. */
+export class FailedDirectTaxi extends PendingDirectTaxi {
+  constructor(
+    record: PendingTaxiRecord,
+    reconcile: () => Promise<string>,
+    readonly failureCode: string,
+    readonly failureDetail?: string,
+  ) {
+    const detail = failureDetail ? `: ${failureDetail}` : ''
+    super(
+      record,
+      reconcile,
+      undefined,
+      `Taxi could not submit this payment${detail} (${failureCode}). ` +
+        'It has not been delivered yet; the Taxi operator may still complete it.',
+    )
+    this.name = 'FailedDirectTaxi'
+  }
+
+  /** Clears the record only if the Taxi still reports the failure; any other outcome is `resume()`'s,
+   * so a payment that landed meanwhile resolves its txid instead of inviting a second send. */
+  async forget(): Promise<string | undefined> {
+    try {
+      return await this.resume()
+    } catch (cause) {
+      if (!(cause instanceof FailedDirectTaxi)) throw cause
+    }
+    if (!readPending(this.record.network, this.record.senderKey))
+      throw new Error('This Taxi payment is no longer on record; check your history before sending again')
+    clearPending(this.record)
   }
 }
 
@@ -164,6 +201,9 @@ const waitForSettlement = async (record: PendingTaxiRecord, client: TaxiClient, 
       clearPending(record)
       throw new ReturnedDirectTaxi(record, 'Taxi quote expired before payment submission; no payment was sent.')
     }
+    // A failure code on any other phase is a retry the Taxi has scheduled.
+    if (status.state === 'locking' && status.submissionPhase === 'failed' && status.failureCode)
+      throw new FailedDirectTaxi(record, () => resumeStoredPayment(record), status.failureCode, status.failureDetail)
     if (status.state === 'quoted' && submit) {
       await submit()
       submit = undefined
@@ -183,7 +223,8 @@ const resumeStoredPayment = async (record: PendingTaxiRecord) => {
   if (attempt && (info.serverKey !== attempt.serverKey || info.emulatorKey !== attempt.emulatorKey))
     throw new Error('Taxi uses a different Arkade server or co-signer')
   return waitForSettlement(record, client, async () => {
-    if (!attempt) throw new Error('The original Taxi payment authorization is unavailable')
+    if (!attempt || record.assetId === undefined)
+      throw new Error('The original Taxi payment authorization is unavailable')
     const receiver = ArkAddress.decode(record.receiverAddress)
     if (
       receiver.encode() !== record.receiverAddress ||
@@ -283,7 +324,8 @@ interface DirectTaxiSendArgs {
   aspInfo: AspInfo
   taxi: { url: string; operatorKey?: string; fareId?: Bip21Taxi['fareId'] }
   receiverAddress: string
-  assetId: string
+  /** Absent for sub-dust bitcoin, whose `amount` is then in sats. */
+  assetId?: string
   amount: bigint
   mode: DirectTaxiMode
   confirmPayment: (terms: DirectTaxiTerms) => Promise<boolean>
@@ -301,6 +343,8 @@ export const sendDirectTaxi = async (args: DirectTaxiSendArgs): Promise<string> 
 
 const sendDirectTaxiLocked = async (args: DirectTaxiSendArgs, senderKey: string): Promise<string> => {
   const { wallet, aspInfo, taxi, receiverAddress, assetId, amount, mode } = args
+  // Quoting an exact bitcoin amount needs the Taxi client's paymentSats, which the vendored client lacks.
+  if (assetId === undefined) throw new Error("This wallet can't send an exact sub-dust amount through Taxi yet")
   if (amount <= 0n) throw new Error('Asset amount must be positive')
   if (window.location.protocol === 'https:' && new URL(taxi.url).protocol !== 'https:')
     throw new Error('Taxi must use HTTPS')
@@ -453,7 +497,7 @@ const sendDirectTaxiLocked = async (args: DirectTaxiSendArgs, senderKey: string)
     await submit()
     return await waitForSettlement(record, client)
   } catch (cause) {
-    if (cause instanceof ReturnedDirectTaxi) throw cause
+    if (cause instanceof ReturnedDirectTaxi || cause instanceof FailedDirectTaxi) throw cause
     throw new PendingDirectTaxi(record, () => resumeStoredPayment(record), cause)
   }
 }

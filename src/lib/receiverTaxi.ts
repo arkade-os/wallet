@@ -10,6 +10,7 @@ import { TaxiClient, verifyReceiveQuote } from '@arkade-taxi/client'
 import { hex } from '@scure/base'
 import type { Bip21Taxi } from './bip21'
 import { getEmulatorPubkeyForNetwork } from './constants'
+import type { DirectTaxiMode } from './directTaxiSend'
 
 export type TaxiInfo = Awaited<ReturnType<TaxiClient['info']>>
 export type TaxiFare = TaxiInfo['assetRules'][number]['fares'][number]
@@ -26,6 +27,34 @@ export type ProbeRefusal =
   | 'recycle-not-allowed'
   | 'loan-cap-below-dust'
   | 'fare-unavailable'
+  | 'carrier-limits-mismatch'
+  | 'bitcoin-not-served'
+  | 'exact-amount-unsupported'
+  | 'amount-outside-carrier'
+  | 'loan-cap-below-shortfall'
+  | 'no-sats-fare'
+
+export const TAXI_REFUSAL_TEXT: Record<ProbeRefusal | 'no-receiver-fare' | 'unverifiable', string> = {
+  unreachable: "it can't be reached",
+  'operator-key-mismatch': 'it reported inconsistent keys',
+  'server-key-mismatch': 'it serves a different Arkade server',
+  'emulator-key-mismatch': 'it uses a different co-signer',
+  'network-mismatch': 'it serves a different network',
+  paused: 'it is paused',
+  'asset-not-served': "it doesn't carry this asset",
+  'unsupported-unclaimed-mode': "its terms for unclaimed deliveries aren't supported",
+  'recycle-not-allowed': "it doesn't let you claim by merging the delivery into a coin",
+  'loan-cap-below-dust': "it won't lend enough to carry a delivery",
+  'fare-unavailable': 'it offers no fare a receiver can pay',
+  'no-receiver-fare': 'it offers no fare a receiver can pay',
+  unverifiable: "it can't be checked against this wallet's server",
+  'carrier-limits-mismatch': 'it uses different dust limits',
+  'bitcoin-not-served': "it doesn't carry sub-dust bitcoin",
+  'exact-amount-unsupported': "it can't carry an exact sub-dust amount yet",
+  'amount-outside-carrier': "it can't carry this amount",
+  'loan-cap-below-shortfall': 'this amount needs a bigger top-up than it lends',
+  'no-sats-fare': 'it offers no fare this payment can use',
+}
 
 export type ProbeResult = { ok: true; info: TaxiInfo } | { ok: false; reason: ProbeRefusal }
 
@@ -132,7 +161,13 @@ const isMixedContent = (url: string, pageProtocol: string): boolean => {
   }
 }
 
-const fetchInfo = async (url: string, ctx: TaxiProbeContext): Promise<TaxiInfo | undefined> => {
+/** The rule for sub-dust bitcoin; "*" never covers it. */
+const bitcoinRule = (info: TaxiInfo) => info.assetRules.find((rule) => rule?.assetId === null)
+
+const fetchInfo = async (
+  url: string,
+  ctx: Pick<TaxiProbeContext, 'fetch' | 'pageProtocol'>,
+): Promise<TaxiInfo | undefined> => {
   // The browser would block it anyway; asking first only fails slower.
   if (isMixedContent(url, ctx.pageProtocol)) return undefined
   try {
@@ -196,6 +231,67 @@ export const probeReceiverTaxi = async (taxi: Bip21Taxi, ctx: TaxiProbeContext):
 export const probeOwnTaxi = async (url: string, ctx: TaxiProbeContext): Promise<ProbeResult> => {
   const info = await fetchInfo(url, ctx)
   return info ? vetInfo({ url, operatorKey: info.operatorKey }, info, ctx) : { ok: false, reason: 'unreachable' }
+}
+
+type BitcoinTaxiContext = Pick<ArkadeContext, 'serverKey' | 'emulatorKey' | 'hrp' | 'dust' | 'vtxoMinAmount'>
+
+export type BitcoinTaxiOffer =
+  | {
+      ok: true
+      info: TaxiInfo
+      topup: bigint
+      fare: TaxiFare
+      fareUnits: bigint
+      fares: { fare: TaxiFare; units: bigint }[]
+      modes: DirectTaxiMode[]
+    }
+  | { ok: false; reason: ProbeRefusal }
+
+/** Whether this Taxi can turn `amount` sats, below dust, into a full dust coin for the receiver. */
+export const vetBitcoinTaxi = (
+  info: TaxiInfo,
+  ctx: BitcoinTaxiContext,
+  ask: { receiverAddress: string; amount: bigint; operatorKey?: string; fareId?: string },
+): BitcoinTaxiOffer => {
+  const refuse = (reason: ProbeRefusal): BitcoinTaxiOffer => ({ ok: false, reason })
+  if (ask.operatorKey && info.operatorKey !== ask.operatorKey) return refuse('operator-key-mismatch')
+  if (info.serverKey !== hex.encode(ctx.serverKey)) return refuse('server-key-mismatch')
+  if (info.emulatorKey !== hex.encode(ctx.emulatorKey)) return refuse('emulator-key-mismatch')
+  if (hrpOf(ask.receiverAddress) !== ctx.hrp) return refuse('network-mismatch')
+  if (wireUnits(info.dust) !== ctx.dust || wireUnits(info.vtxoMinAmount) !== ctx.vtxoMinAmount)
+    return refuse('carrier-limits-mismatch')
+  if (info.paused) return refuse('paused')
+  const rule = bitcoinRule(info)
+  if (rule?.enabled !== true) return refuse('bitcoin-not-served')
+  // Without it a bitcoin quote's top-up follows the sender's coins, so it always delivers dust - vtxoMinAmount.
+  if ((info as { bitcoinPaymentSats?: unknown }).bitcoinPaymentSats !== true) return refuse('exact-amount-unsupported')
+  const topup = ctx.dust - ask.amount
+  if (ask.amount < ctx.vtxoMinAmount || topup < ctx.vtxoMinAmount) return refuse('amount-outside-carrier')
+  const cap = rule.maxTopupSats === null ? wireUnits(info.maxPerPaymentTopupSats) : wireUnits(rule.maxTopupSats)
+  if (cap === undefined || cap < topup) return refuse('loan-cap-below-shortfall')
+  const fares = (Array.isArray(rule.fares) ? rule.fares : []).flatMap((fare) => {
+    const units = fare?.currency === 'sats' ? receiverFareUnits(fare, topup) : undefined
+    return units === undefined ? [] : [{ fare, units }]
+  })
+  const chosen = ask.fareId ? fares.find(({ fare }) => fare.id === ask.fareId) : fares[0]
+  if (!chosen) return refuse('no-sats-fare')
+  const modes: DirectTaxiMode[] = [
+    ...(rule.claim === 'purchase' ? [] : ['recycle' as const]),
+    ...(rule.claim === 'recycle' ? [] : ['purchase' as const]),
+    'sponsored',
+  ]
+  return { ok: true, info, topup, fare: chosen.fare, fareUnits: chosen.units, fares, modes }
+}
+
+export const probeBitcoinTaxi = async (
+  taxi: { url: string; operatorKey?: string; fareId?: string },
+  ctx: BitcoinTaxiContext & Pick<TaxiProbeContext, 'fetch' | 'pageProtocol'>,
+  receiverAddress: string,
+  amount: bigint,
+): Promise<BitcoinTaxiOffer> => {
+  const info = await fetchInfo(taxi.url, ctx)
+  if (!info) return { ok: false, reason: 'unreachable' }
+  return vetBitcoinTaxi(info, ctx, { receiverAddress, amount, operatorKey: taxi.operatorKey, fareId: taxi.fareId })
 }
 
 /** Ask the probed Taxi for a quote the receiver pays, and verify it before anything relies on it. */

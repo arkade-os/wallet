@@ -50,6 +50,28 @@ const claimOf = (currency: 'sats' | 'asset', units: bigint): ReceiverClaim => ({
 export const satsFareClaim = (units: bigint) => claimOf('sats', units)
 export const assetFareClaim = (units: bigint) => claimOf('asset', units)
 
+/** A sender-paid sub-dust bitcoin delivery: no asset and no receiver fare, the Taxi lending `topup`. */
+export const bitcoinClaim = (topup: bigint, claimMode: 'recycle' | 'purchase' = 'recycle'): ReceiverClaim => {
+  const base = claimOf('sats', 0n)
+  return {
+    ...base,
+    transferId: `tr-btc-${topup}`,
+    claim: {
+      ...base.claim!,
+      params: {
+        ...base.claim!.params,
+        topup: topup.toString(),
+        assetId: undefined,
+        receiverFare: undefined,
+        recoveryRecipient: 'sender',
+        claimMode,
+      },
+      assetUnits: undefined,
+      unclaimedMode: undefined,
+    },
+  }
+}
+
 /** Spendable coins at the claim's receiver address, one per value. */
 export const coins = (values: bigint[], pkScript = BOB_PK_SCRIPT): ExtendedVirtualCoin[] =>
   values.map(

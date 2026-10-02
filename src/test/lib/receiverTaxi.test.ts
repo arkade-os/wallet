@@ -1,8 +1,18 @@
 import { describe, it, expect } from 'vitest'
 import { hex } from '@scure/base'
-import { arkadeContextOf, callerMinimum, probeReceiverTaxi, receiverPaidCarrier } from '../../lib/receiverTaxi'
+import {
+  arkadeContextOf,
+  callerMinimum,
+  probeBitcoinTaxi,
+  probeReceiverTaxi,
+  receiverPaidCarrier,
+  vetBitcoinTaxi,
+  type TaxiInfo,
+} from '../../lib/receiverTaxi'
 import {
   ASSET_ID,
+  BITCOIN_INFO,
+  BITCOIN_RULE,
   COVENANT_ADDRESS,
   DEFAULT_FLOOR,
   EARLY_FLOOR,
@@ -19,6 +29,7 @@ import {
   arkadeContext,
   taxiFetch,
   unreachable,
+  withBitcoinRule,
   withRule,
 } from './receiverTaxiFixtures'
 
@@ -147,6 +158,97 @@ describe('probeReceiverTaxi', () => {
     const fetch = taxiFetch()
     const plain = { ...TAXI, url: 'http://taxi.example' }
     expect(await probeReceiverTaxi(plain, arkadeContext({ fetch }))).toMatchObject({ reason: 'unreachable' })
+    expect(fetch).not.toHaveBeenCalled()
+  })
+})
+
+describe('vetBitcoinTaxi', () => {
+  const vet = (info: TaxiInfo, amount: bigint, ask = {}, ctx = {}) =>
+    vetBitcoinTaxi(info, arkadeContext(ctx), { receiverAddress: RECEIVER_ADDRESS, amount, ...ask })
+  const withoutExactAmounts = { ...BITCOIN_INFO, bitcoinPaymentSats: undefined }
+
+  it('carries a sub-dust amount with the top-up that makes it dust, and its free sats fare', () => {
+    expect(vet(BITCOIN_INFO, 100n)).toMatchObject({
+      ok: true,
+      topup: 230n,
+      fareUnits: 0n,
+      fares: [{ fare: BITCOIN_RULE.fares[0], units: 0n }],
+      modes: ['recycle', 'sponsored'],
+    })
+    expect(vet(BITCOIN_INFO, 329n)).toMatchObject({ ok: true, topup: 1n })
+  })
+
+  it('offers the claims its rule allows, and direct delivery always', () => {
+    expect(vet(withBitcoinRule({ claim: 'either' }), 100n)).toMatchObject({
+      modes: ['recycle', 'purchase', 'sponsored'],
+    })
+    expect(vet(withBitcoinRule({ claim: 'purchase' }), 100n)).toMatchObject({ modes: ['purchase', 'sponsored'] })
+  })
+
+  it('refuses an amount the covenant cannot hold: either side of it must be at least vtxoMinAmount', () => {
+    for (const amount of [0n, 330n, 1_000n])
+      expect(vet(BITCOIN_INFO, amount)).toMatchObject({ reason: 'amount-outside-carrier' })
+    const minimum31 = { ...BITCOIN_INFO, vtxoMinAmount: '31' }
+    expect(vet(minimum31, 300n, {}, { vtxoMinAmount: 31n })).toMatchObject({ reason: 'amount-outside-carrier' })
+    expect(vet(minimum31, 299n, {}, { vtxoMinAmount: 31n })).toMatchObject({ ok: true, topup: 31n })
+    expect(vet(minimum31, 30n, {}, { vtxoMinAmount: 31n })).toMatchObject({ reason: 'amount-outside-carrier' })
+  })
+
+  it('refuses a top-up above the rule cap, or above the per-payment cap when the rule has none', () => {
+    expect(vet(withBitcoinRule({ maxTopupSats: '100' }), 200n)).toMatchObject({ reason: 'loan-cap-below-shortfall' })
+    expect(vet(withBitcoinRule({ maxTopupSats: '100' }), 230n)).toMatchObject({ ok: true, topup: 100n })
+    const perPayment = { ...BITCOIN_INFO, maxPerPaymentTopupSats: '200' }
+    expect(vet(perPayment, 100n)).toMatchObject({ reason: 'loan-cap-below-shortfall' })
+    expect(vet(perPayment, 130n)).toMatchObject({ ok: true, topup: 200n })
+  })
+
+  it('refuses a paused Taxi, one without an enabled bitcoin rule, and one that cannot carry an exact amount', () => {
+    expect(vet({ ...BITCOIN_INFO, paused: true }, 100n)).toMatchObject({ reason: 'paused' })
+    expect(vet(withBitcoinRule({ enabled: false }), 100n)).toMatchObject({ reason: 'bitcoin-not-served' })
+    const anyAssetOnly = { ...BITCOIN_INFO, assetRules: [{ ...INFO.assetRules[0], assetId: '*' as const }] }
+    expect(vet(anyAssetOnly, 100n)).toMatchObject({ reason: 'bitcoin-not-served' })
+    expect(vet(withoutExactAmounts, 100n)).toMatchObject({ reason: 'exact-amount-unsupported' })
+  })
+
+  it('prices only sats fares, a proportion of them on the top-up', () => {
+    const token = { id: 'token', currency: 'token', assetId: WIRE_ASSET_ID, pricing: { kind: 'flat', units: '1' } }
+    expect(vet(withBitcoinRule({ fares: [token] }), 100n)).toMatchObject({ reason: 'no-sats-fare' })
+    expect(vet(BITCOIN_INFO, 100n, { fareId: 'gone' })).toMatchObject({ reason: 'no-sats-fare' })
+    const tenth = {
+      id: 'tenth',
+      currency: 'sats',
+      pricing: { kind: 'proportional', bps: 1000, minUnits: '0', maxUnits: null },
+    }
+    expect(vet(withBitcoinRule({ fares: [token, tenth] }), 100n)).toMatchObject({ ok: true, fareUnits: 23n })
+  })
+
+  it('holds the Taxi to the operator key named, this wallet’s keys and network, and its dust limits', () => {
+    expect(vet(BITCOIN_INFO, 100n, { operatorKey: KEYS.other })).toMatchObject({ reason: 'operator-key-mismatch' })
+    expect(vet(BITCOIN_INFO, 100n, { operatorKey: KEYS.operator })).toMatchObject({ ok: true })
+    expect(vet(BITCOIN_INFO, 100n, {}, { serverKey: hex.decode(KEYS.other) })).toMatchObject({
+      reason: 'server-key-mismatch',
+    })
+    expect(vet(BITCOIN_INFO, 100n, {}, { emulatorKey: hex.decode(KEYS.other) })).toMatchObject({
+      reason: 'emulator-key-mismatch',
+    })
+    expect(vet(BITCOIN_INFO, 100n, {}, { hrp: 'ark' })).toMatchObject({ reason: 'network-mismatch' })
+    expect(vet({ ...BITCOIN_INFO, dust: '333' }, 100n)).toMatchObject({ reason: 'carrier-limits-mismatch' })
+  })
+})
+
+describe('probeBitcoinTaxi', () => {
+  const probeAt = (url: string, fetch: typeof globalThis.fetch) =>
+    probeBitcoinTaxi({ url }, arkadeContext({ fetch }), RECEIVER_ADDRESS, 100n)
+
+  it('vets the info the Taxi serves', async () => {
+    expect(await probeAt(TAXI_URL, taxiFetch({ info: BITCOIN_INFO }))).toMatchObject({ ok: true, topup: 230n })
+    expect(await probeAt(TAXI_URL, taxiFetch())).toMatchObject({ reason: 'bitcoin-not-served' })
+  })
+
+  it('calls a Taxi it cannot reach, or may not from this page, unreachable', async () => {
+    expect(await probeAt(TAXI_URL, unreachable())).toMatchObject({ reason: 'unreachable' })
+    const fetch = taxiFetch({ info: BITCOIN_INFO })
+    expect(await probeAt('http://taxi.example', fetch)).toMatchObject({ reason: 'unreachable' })
     expect(fetch).not.toHaveBeenCalled()
   })
 })
