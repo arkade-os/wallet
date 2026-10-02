@@ -132,10 +132,13 @@ test('sub-dust bitcoin through the Taxi, on live mutinynet without moving money'
     await expect(
       page.getByText(
         'Taxi could not submit this payment: server checkpoint 0 changed unsigned fields or metadata ' +
-          '(lockup_submission_invalid_provider_response). Nothing has been delivered.',
+          '(lockup_submission_invalid_provider_response). ' +
+          'It has not been delivered yet; the Taxi operator may still complete it.',
       ),
     ).toBeVisible({ timeout: 5_000 })
-    await expect(page.getByText(`Taxi transfer ${FAILED_TRANSFER}: its coins may stay locked`)).toBeVisible()
+    await expect(page.getByText(`Taxi transfer ${FAILED_TRANSFER}: its coins may stay locked`)).toContainText(
+      'if the operator later completes it, sending again pays the receiver twice',
+    )
     await shot(page, '5-failed-submission')
     await page.getByRole('button', { name: 'Forget Taxi payment', exact: true }).click()
     await expect(check).toHaveCount(0)

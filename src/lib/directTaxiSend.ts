@@ -158,12 +158,22 @@ export class FailedDirectTaxi extends PendingDirectTaxi {
       record,
       reconcile,
       undefined,
-      `Taxi could not submit this payment${detail} (${failureCode}). Nothing has been delivered.`,
+      `Taxi could not submit this payment${detail} (${failureCode}). ` +
+        'It has not been delivered yet; the Taxi operator may still complete it.',
     )
     this.name = 'FailedDirectTaxi'
   }
 
-  forget() {
+  /** Clears the record only if the Taxi still reports the failure; any other outcome is `resume()`'s,
+   * so a payment that landed meanwhile resolves its txid instead of inviting a second send. */
+  async forget(): Promise<string | undefined> {
+    try {
+      return await this.resume()
+    } catch (cause) {
+      if (!(cause instanceof FailedDirectTaxi)) throw cause
+    }
+    if (!readPending(this.record.network, this.record.senderKey))
+      throw new Error('This Taxi payment is no longer on record; check your history before sending again')
     clearPending(this.record)
   }
 }

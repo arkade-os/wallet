@@ -121,23 +121,47 @@ describe('sending a sub-dust bitcoin amount to an Arkade address', FORM_TEST, ()
     ])
   })
 
-  it('pays through the network Taxi in the carrier chosen', async () => {
-    const navigate = renderSend(request('0.000001'))
+  it("stops at Continue with the guard's reason, as this wallet's client cannot quote an exact amount yet", async () => {
+    const actual = await vi.importActual<typeof import('../../../lib/directTaxiSend')>('../../../lib/directTaxiSend')
+    sendDirectTaxi.mockImplementation(actual.sendDirectTaxi)
+    Object.defineProperty(navigator, 'locks', {
+      value: { request: (_: string, run: () => unknown) => run() },
+      configurable: true,
+    })
+    try {
+      const navigate = renderSend(request('0.000001'))
+      await chooseCarrier('Receiver uses own sats')
+      await pay()
+      expect(
+        await screen.findByText("This wallet can't send an exact sub-dust amount through Taxi yet", {}, SLOW),
+      ).toBeInTheDocument()
+      expect(navigate).not.toHaveBeenCalled()
+      expect(Object.keys(localStorage).filter((key) => key.startsWith('directTaxiPending'))).toEqual([])
+    } finally {
+      delete (navigator as { locks?: unknown }).locks
+    }
+  })
+
+  it('hands sendDirectTaxi the sub-dust amount, the network Taxi and the carrier chosen', async () => {
+    renderSend(request('0.000001'))
     await chooseCarrier('Receiver uses own sats')
     await pay()
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendSuccess), SLOW)
-    expect(sendDirectTaxi).toHaveBeenCalledWith(
-      expect.objectContaining({
-        assetId: undefined,
-        amount: 100n,
-        mode: 'recycle',
-        receiverAddress: RECEIVER_ADDRESS,
-        taxi: { url: TAXI_URL, operatorKey: undefined, fareId: undefined },
-      }),
+    await waitFor(
+      () =>
+        expect(sendDirectTaxi).toHaveBeenCalledWith(
+          expect.objectContaining({
+            assetId: undefined,
+            amount: 100n,
+            mode: 'recycle',
+            receiverAddress: RECEIVER_ADDRESS,
+            taxi: { url: TAXI_URL, operatorKey: undefined, fareId: undefined },
+          }),
+        ),
+      SLOW,
     )
   })
 
-  it('pays through the Taxi the request names, pinned to its key and fare', async () => {
+  it('hands sendDirectTaxi the Taxi the request names, pinned to its key and fare', async () => {
     renderSend(request('0.000001', NAMED))
     await chooseCarrier('Direct delivery, no claim')
     await pay()
@@ -153,13 +177,12 @@ describe('sending a sub-dust bitcoin amount to an Arkade address', FORM_TEST, ()
     )
   })
 
-  it('confirms what the Taxi adds and what the receiver must do', async () => {
+  it('words the sub-dust terms sendDirectTaxi asks her to confirm', async () => {
     sendDirectTaxi.mockImplementation(async ({ confirmPayment }) => {
       const terms = { mode: 'recycle', assetAmount: 100n, fareCurrency: 'sats', fareUnits: 0n, carrierSats: 230n }
-      if (!(await confirmPayment(terms))) throw new Error('declined')
-      return 'b'.repeat(64)
+      await confirmPayment(terms)
     })
-    const navigate = renderSend(request('0.000001'))
+    renderSend(request('0.000001'))
     await chooseCarrier('Receiver uses own sats')
     await pay()
     expect(await screen.findByTestId('taxi-confirm-costs', {}, SLOW)).toHaveTextContent(
@@ -167,9 +190,6 @@ describe('sending a sub-dust bitcoin amount to an Arkade address', FORM_TEST, ()
         "The receiver claims it with a coin of at least 230 sats of their own, repaying Taxi. If it isn't claimed, " +
         'your 100 sats come back to you.',
     )
-    // A plain click: the sheet's drawer handles pointer events with APIs jsdom lacks.
-    fireEvent.click(button('Pay'))
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendSuccess), SLOW)
   })
 
   it.each([
@@ -217,11 +237,10 @@ describe('a Taxi payment the Taxi failed to submit', FORM_TEST, () => {
     failureDetail: 'server checkpoint 0 changed unsigned fields or metadata',
     updatedAt: 1,
   }
+  const transferPolls = (fetch: ReturnType<typeof taxiFetch>) =>
+    fetch.mock.calls.filter(([url]) => String(url).includes('/v1/transfers/'))
 
-  it.each([
-    ['an asset', { assetId: ASSET_ID, assetAmount: '1' }],
-    ['sub-dust bitcoin', { assetAmount: '100' }],
-  ])('says so for %s after one check, and lets her forget it to send again', async (_, payment) => {
+  const storeFailed = async (payment: Record<string, string>) => {
     const senderKey = hex.encode(await mockSvcWallet.identity.xOnlyPublicKey())
     const key = `directTaxiPending:regtest:${senderKey}`
     localStorage.setItem(
@@ -239,30 +258,55 @@ describe('a Taxi payment the Taxi failed to submit', FORM_TEST, () => {
         ...payment,
       }),
     )
+    return key
+  }
+
+  const checkFailed = async () => {
+    await waitFor(() => expect(button('Check Taxi payment')).toBeEnabled(), SLOW)
+    await userEvent.click(button('Check Taxi payment'))
+    await waitFor(() => expect(button('Forget Taxi payment')).toBeEnabled(), SLOW)
+  }
+
+  it.each([
+    ['an asset', { assetId: ASSET_ID, assetAmount: '1' }],
+    ['sub-dust bitcoin', { assetAmount: '100' }],
+  ])('says so for %s after one check, and lets her forget it to send again', async (_, payment) => {
+    const key = await storeFailed(payment)
     const fetch = taxiFetch({ info: BITCOIN_INFO, statuses: [FAILED] })
     vi.stubGlobal('fetch', fetch)
     renderSend()
-    await waitFor(() => expect(button('Check Taxi payment')).toBeEnabled(), SLOW)
-    await userEvent.click(button('Check Taxi payment'))
+    await checkFailed()
     expect(
-      await screen.findByText(
+      screen.getByText(
         'Taxi could not submit this payment: server checkpoint 0 changed unsigned fields or metadata ' +
-          '(lockup_submission_invalid_provider_response). Nothing has been delivered.',
-        {},
-        SLOW,
+          '(lockup_submission_invalid_provider_response). ' +
+          'It has not been delivered yet; the Taxi operator may still complete it.',
       ),
     ).toBeInTheDocument()
     expect(
       screen.getByText(
         'Taxi transfer t-1: its coins may stay locked until the operator resolves it. ' +
-          'Forgetting it lets you send again; it does not cancel it.',
+          'Forgetting it lets you send again; it does not cancel it, ' +
+          'and if the operator later completes it, sending again pays the receiver twice.',
       ),
     ).toBeInTheDocument()
-    expect(fetch.mock.calls.filter(([url]) => String(url).includes('/v1/transfers/'))).toHaveLength(1)
+    expect(transferPolls(fetch)).toHaveLength(1)
     expect(localStorage.getItem(key)).not.toBeNull()
     await userEvent.click(button('Forget Taxi payment'))
-    expect(localStorage.getItem(key)).toBeNull()
     expect(await screen.findByRole('button', { name: 'Continue' }, SLOW)).toBeInTheDocument()
+    expect(transferPolls(fetch)).toHaveLength(2)
+    expect(localStorage.getItem(key)).toBeNull()
     expect(screen.queryByRole('button', { name: 'Forget Taxi payment' })).toBeNull()
+  })
+
+  it('shows a payment that landed before she forgot it as sent, rather than letting her send it again', async () => {
+    const key = await storeFailed({ assetId: ASSET_ID, assetAmount: '1' })
+    const landed = { transferId: 't-1', state: 'locked', outpoint: { txid: 'a'.repeat(64), vout: 0 }, updatedAt: 2 }
+    vi.stubGlobal('fetch', taxiFetch({ info: BITCOIN_INFO, statuses: [FAILED, landed] }))
+    const navigate = renderSend()
+    await checkFailed()
+    await userEvent.click(button('Forget Taxi payment'))
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendSuccess), SLOW)
+    expect(localStorage.getItem(key)).toBeNull()
   })
 })

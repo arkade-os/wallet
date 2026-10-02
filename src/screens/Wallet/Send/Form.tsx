@@ -969,11 +969,13 @@ export default function SendForm() {
     navigate(Pages.SendSuccess)
   }
 
-  const payWithDirectTaxi = async () => {
+  const payWithDirectTaxi = async (forget = false) => {
     const originalSend = pendingDirectTaxi.current?.send ?? sendInfo
     try {
-      let txid: string
-      if (pendingDirectTaxi.current) txid = await pendingDirectTaxi.current.payment.resume()
+      let txid: string | undefined
+      const pending = pendingDirectTaxi.current?.payment
+      if (forget && pending instanceof FailedDirectTaxi) txid = await pending.forget()
+      else if (pending) txid = await pending.resume()
       else {
         const [asset] = canUseDirectTaxi ? originalSend.assets! : []
         const url = asset ? directTaxiUrl : subdustTaxiUrl
@@ -992,6 +994,13 @@ export default function SendForm() {
         })
       }
       pendingDirectTaxi.current = undefined
+      // Only forget() settles without a txid, once it has cleared the record.
+      if (txid === undefined) {
+        setSendInfo(originalSend)
+        setRecipient(originalSend.arkAddress!)
+        setError('')
+        return setProcessing(false)
+      }
       reloadWallet().catch(consoleError)
       setSendInfo({ ...originalSend, txid })
       navigate(Pages.SendSuccess)
@@ -1012,18 +1021,13 @@ export default function SendForm() {
     }
   }
 
-  const forgetTaxiPayment = () => {
-    const failed = pendingDirectTaxi.current?.payment
-    if (!(failed instanceof FailedDirectTaxi)) return
+  const forgetTaxiPayment = async () => {
+    setProcessing(true)
     try {
-      failed.forget()
+      await payWithDirectTaxi(true)
     } catch (error) {
-      return setError(extractError(error))
+      handleError(error)
     }
-    pendingDirectTaxi.current = undefined
-    setSendInfo(pendingSendInfo(failed))
-    setRecipient(failed.record.receiverAddress)
-    setError('')
   }
 
   const handleContinue = async () => {
@@ -1296,7 +1300,7 @@ export default function SendForm() {
               />
               {failedTaxi ? (
                 <TextSecondary>
-                  {`Taxi transfer ${failedTaxi.record.transferId}: its coins may stay locked until the operator resolves it. Forgetting it lets you send again; it does not cancel it.`}
+                  {`Taxi transfer ${failedTaxi.record.transferId}: its coins may stay locked until the operator resolves it. Forgetting it lets you send again; it does not cancel it, and if the operator later completes it, sending again pays the receiver twice.`}
                 </TextSecondary>
               ) : null}
               <InputAddress
