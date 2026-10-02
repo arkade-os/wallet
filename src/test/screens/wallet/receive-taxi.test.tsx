@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ArkAddress, type ExtendedVirtualCoin } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
@@ -68,6 +69,17 @@ beforeAll(() => {
 // The dust the fixture Taxi lends: a Taxi on another server's dust would not quote this wallet.
 const aspInfo = { ...mockAspContextValue.aspInfo, signerPubkey: KEYS.server, dust: 330n }
 
+let reconnectWallet = () => {}
+const Wallet = ({ children }: { children: React.ReactNode }) => {
+  const [wallet, setWallet] = useState(svcWallet)
+  reconnectWallet = () => setWallet({ ...svcWallet })
+  return (
+    <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet: wallet } as any}>
+      {children}
+    </WalletContext.Provider>
+  )
+}
+
 const renderAssetReceive = (request: { assetId?: string; satoshis?: number } = { assetId: ASSET_ID }) =>
   render(
     <NavigationContext.Provider value={mockNavigationContextValue}>
@@ -86,11 +98,11 @@ const renderAssetReceive = (request: { assetId?: string; satoshis?: number } = {
               } as any
             }
           >
-            <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet } as any}>
+            <Wallet>
               <LimitsContext.Provider value={mockLimitsContextValue}>
                 <ReceiveQRCode />
               </LimitsContext.Provider>
-            </WalletContext.Provider>
+            </Wallet>
           </FlowContext.Provider>
         </ConfigContext.Provider>
       </AspContext.Provider>
@@ -244,6 +256,19 @@ describe('the receiver names his Taxi for a sub-dust bitcoin request', () => {
           "230 sats of your own, and you have none; if you can't claim it, it can go back to the payer.",
       ),
     ).toBeInTheDocument()
+  })
+
+  it('keeps the chosen Taxi, unasked, when the wallet comes back as a new instance', async () => {
+    const fetch = taxiFetch({ info: BITCOIN_INFO })
+    vi.stubGlobal('fetch', fetch)
+    renderAssetReceive({ satoshis: 100 })
+    await userEvent.click(await screen.findByRole('button', { name: 'Taxi: off' }))
+    await userEvent.click(screen.getByRole('option', { name: 'sats · 0 sats' }))
+    const probes = fetch.mock.calls.length
+    act(() => reconnectWallet())
+    expect(await screen.findByRole('button', { name: 'Taxi: sats · 0 sats' })).toBeInTheDocument()
+    expect(screen.getByTestId('bip21').textContent).toContain('&taxifare=sats')
+    expect(fetch.mock.calls).toHaveLength(probes)
   })
 
   it('offers no Taxi for an amount at dust, and asks it nothing', async () => {
