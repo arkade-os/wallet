@@ -29,7 +29,6 @@ export type ProbeRefusal =
   | 'fare-unavailable'
   | 'carrier-limits-mismatch'
   | 'bitcoin-not-served'
-  | 'exact-amount-unsupported'
   | 'amount-outside-carrier'
   | 'loan-cap-below-shortfall'
   | 'no-sats-fare'
@@ -50,7 +49,6 @@ export const TAXI_REFUSAL_TEXT: Record<ProbeRefusal | 'no-receiver-fare' | 'unve
   unverifiable: "it can't be checked against this wallet's server",
   'carrier-limits-mismatch': 'it uses different dust limits',
   'bitcoin-not-served': "it doesn't carry sub-dust bitcoin",
-  'exact-amount-unsupported': "it can't carry an exact sub-dust amount yet",
   'amount-outside-carrier': "it can't carry this amount",
   'loan-cap-below-shortfall': 'this amount needs a bigger top-up than it lends',
   'no-sats-fare': 'it offers no fare this payment can use',
@@ -123,7 +121,7 @@ export const boundedFetch: typeof fetch = (input, init) =>
   fetch(input, { ...init, signal: AbortSignal.timeout(10_000) })
 
 /** The Taxi's genesis txid is in internal byte order; the SDK's `AssetId` holds display order. */
-const taxiAssetId = (id: string) => {
+export const taxiAssetId = (id: string) => {
   const parsed = asset.AssetId.fromString(id)
   return { txid: Uint8Array.from(parsed.txid).reverse(), groupIndex: parsed.groupIndex }
 }
@@ -266,8 +264,6 @@ export const vetBitcoinTaxi = (
   if (info.paused) return refuse('paused')
   const rule = bitcoinRule(info)
   if (rule?.enabled !== true) return refuse('bitcoin-not-served')
-  // Without it a bitcoin quote's top-up follows the sender's coins, so it always delivers dust - vtxoMinAmount.
-  if ((info as { bitcoinPaymentSats?: unknown }).bitcoinPaymentSats !== true) return refuse('exact-amount-unsupported')
   const topup = ctx.dust - ask.amount
   if (ask.amount < ctx.vtxoMinAmount || topup < ctx.vtxoMinAmount) return refuse('amount-outside-carrier')
   const cap = rule.maxTopupSats === null ? wireUnits(info.maxPerPaymentTopupSats) : wireUnits(rule.maxTopupSats)
@@ -278,9 +274,11 @@ export const vetBitcoinTaxi = (
   })
   const chosen = ask.fareId ? fares.find(({ fare }) => fare.id === ask.fareId) : fares[0]
   if (!chosen) return refuse('no-sats-fare')
+  // The Taxi refuses a priced fare on a covenant bitcoin transfer; only direct delivery takes it from change.
+  const covenant = chosen.units === 0n
   const modes: DirectTaxiMode[] = [
-    ...(rule.claim === 'purchase' ? [] : ['recycle' as const]),
-    ...(rule.claim === 'recycle' ? [] : ['purchase' as const]),
+    ...(covenant && rule.claim !== 'purchase' ? ['recycle' as const] : []),
+    ...(covenant && rule.claim !== 'recycle' ? ['purchase' as const] : []),
     'sponsored',
   ]
   return { ok: true, info, topup, fare: chosen.fare, fareUnits: chosen.units, fares, modes }

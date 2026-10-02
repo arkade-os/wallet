@@ -22,13 +22,30 @@ import {
   mockSvcWallet,
   mockWalletContextValue,
 } from '../mocks'
-import { ASSET_ID, BITCOIN_INFO, KEYS, RECEIVER_ADDRESS, TAXI_URL, taxiFetch } from '../../lib/receiverTaxiFixtures'
+import {
+  ASSET_ID,
+  BITCOIN_INFO,
+  KEYS,
+  RECEIVER_ADDRESS,
+  TAXI_URL,
+  legacyBitcoinQuote,
+  senderCoin,
+  taxiFetch,
+} from '../../lib/receiverTaxiFixtures'
 
 const sendDirectTaxi = vi.hoisted(() => vi.fn())
 vi.mock('../../../lib/directTaxiSend', async (original) => ({
   ...(await original<typeof import('../../../lib/directTaxiSend')>()),
   sendDirectTaxi,
 }))
+// jsdom has no IndexedDB, and a real send reads the funding reservations from this repository.
+vi.mock('../../../lib/swapRepository', async (importOriginal) => {
+  const { InMemoryAssetSwapRepository } = await vi.importActual<typeof import('@arkade-os/swap')>('@arkade-os/swap')
+  return {
+    ...(await importOriginal<typeof import('../../../lib/swapRepository')>()),
+    assetSwapRepository: new InMemoryAssetSwapRepository(),
+  }
+})
 
 const SendForm = (await import('../../../screens/Wallet/Send/Form')).default
 
@@ -49,7 +66,7 @@ const Flow = ({ children }: { children: React.ReactNode }) => {
 }
 
 /** Alice, holding plenty of bitcoin and no assets, pays `uri`. */
-const renderSend = (uri?: string) => {
+const renderSend = (uri?: string, wallet: Record<string, unknown> = {}) => {
   const navigate = vi.fn()
   const walletContext = {
     ...mockWalletContextValue,
@@ -58,6 +75,7 @@ const renderSend = (uri?: string) => {
       ...mockSvcWallet,
       getAddress: () => Promise.resolve(RECEIVER_ADDRESS),
       getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+      ...wallet,
     },
   }
   render(
@@ -121,21 +139,24 @@ describe('sending a sub-dust bitcoin amount to an Arkade address', FORM_TEST, ()
     ])
   })
 
-  it("stops at Continue with the guard's reason, as this wallet's client cannot quote an exact amount yet", async () => {
+  it('stops at Continue when the Taxi quotes another amount than she typed, and moves nothing', async () => {
     const actual = await vi.importActual<typeof import('../../../lib/directTaxiSend')>('../../../lib/directTaxiSend')
     sendDirectTaxi.mockImplementation(actual.sendDirectTaxi)
     Object.defineProperty(navigator, 'locks', {
       value: { request: (_: string, run: () => unknown) => run() },
       configurable: true,
     })
+    const senderKey = hex.encode(await mockSvcWallet.identity.xOnlyPublicKey())
+    const fetch = taxiFetch({ info: BITCOIN_INFO, transfer: legacyBitcoinQuote(senderKey) })
+    vi.stubGlobal('fetch', fetch)
+    const coin = await senderCoin(mockSvcWallet.identity, 1_000)
     try {
-      const navigate = renderSend(request('0.000001'))
+      const navigate = renderSend(request('0.000001'), { getSpendableVtxos: async () => [coin] })
       await chooseCarrier('Receiver uses own sats')
       await pay()
-      expect(
-        await screen.findByText("This wallet can't send an exact sub-dust amount through Taxi yet", {}, SLOW),
-      ).toBeInTheDocument()
+      expect(await screen.findByText("This Taxi can't carry an exact sub-dust amount", {}, SLOW)).toBeInTheDocument()
       expect(navigate).not.toHaveBeenCalled()
+      expect(fetch.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(1)
       expect(Object.keys(localStorage).filter((key) => key.startsWith('directTaxiPending'))).toEqual([])
     } finally {
       delete (navigator as { locks?: unknown }).locks
@@ -194,12 +215,6 @@ describe('sending a sub-dust bitcoin amount to an Arkade address', FORM_TEST, ()
 
   it.each([
     ['is paused', { ...BITCOIN_INFO, paused: true }, '', 'it is paused'],
-    [
-      'cannot carry an exact amount',
-      { ...BITCOIN_INFO, bitcoinPaymentSats: undefined },
-      '',
-      "it can't carry an exact sub-dust amount yet",
-    ],
     [
       'answers to another key than the request names',
       BITCOIN_INFO,

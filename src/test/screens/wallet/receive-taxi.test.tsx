@@ -256,17 +256,10 @@ describe('the receiver names his Taxi for a sub-dust bitcoin request', () => {
     expect(fetch).not.toHaveBeenCalled()
   })
 
-  it.each([
-    ['is paused', { ...BITCOIN_INFO, paused: true }, 'it is paused'],
-    [
-      'cannot carry an exact amount',
-      { ...BITCOIN_INFO, bitcoinPaymentSats: undefined },
-      "it can't carry an exact sub-dust amount yet",
-    ],
-  ])('says why a Taxi that %s is unavailable, and encodes no taxi params', async (_, info, reason) => {
-    vi.stubGlobal('fetch', taxiFetch({ info }))
+  it('says why a paused Taxi is unavailable, and encodes no taxi params', async () => {
+    vi.stubGlobal('fetch', taxiFetch({ info: { ...BITCOIN_INFO, paused: true } }))
     renderAssetReceive({ satoshis: 100 })
-    expect(await screen.findByText(`Taxi unavailable: ${reason}`)).toBeInTheDocument()
+    expect(await screen.findByText('Taxi unavailable: it is paused')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /taxi/i })).toBeNull()
     expect(screen.getByTestId('bip21').textContent).not.toContain('taxi=')
   })

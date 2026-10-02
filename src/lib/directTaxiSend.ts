@@ -2,12 +2,14 @@ import {
   ArkAddress,
   EsploraProvider,
   Transaction,
-  asset,
   selectCoinsWithAsset,
+  type ExtendedVirtualCoin,
   type IWallet,
   type NetworkName,
 } from '@arkade-os/sdk'
 import {
+  QuoteVerificationError,
+  VerificationErrorCode,
   signLockup,
   signSponsoredPayment,
   verifyQuote,
@@ -16,14 +18,31 @@ import {
   type VerifyQuoteArgs,
   type VerifySponsoredQuoteArgs,
 } from '@arkade-taxi/client'
-import { fundingInputFromWire, fundingInputToWire, type FundingInputWire } from '@arkade-taxi/protocol'
+import {
+  fundingInputFromWire,
+  fundingInputToWire,
+  type AssetIdValue,
+  type FundingInputWire,
+} from '@arkade-taxi/protocol'
 import { base64, hex } from '@scure/base'
 import type { AspInfo } from '../providers/asp'
 import type { Bip21Taxi } from './bip21'
 import { PaymentDeclined } from './assetRfqSend'
 import { getRestApiExplorerURL } from './explorers'
 import { consoleError } from './logs'
-import { arkadeContextOf, boundedFetch, callerMinimum, ruleFor, taxiClient, type TaxiFare } from './receiverTaxi'
+import {
+  TAXI_REFUSAL_TEXT,
+  arkadeContextOf,
+  boundedFetch,
+  callerMinimum,
+  ruleFor,
+  taxiAssetId,
+  taxiClient,
+  vetBitcoinTaxi,
+  type ArkadeContext,
+  type TaxiFare,
+  type TaxiInfo,
+} from './receiverTaxi'
 import { assetSwapRepository, unreservedCoins } from './swapRepository'
 import { sleep } from './sleep'
 import {
@@ -231,8 +250,7 @@ const resumeStoredPayment = async (record: PendingTaxiRecord) => {
   if (attempt && (info.serverKey !== attempt.serverKey || info.emulatorKey !== attempt.emulatorKey))
     throw new Error('Taxi uses a different Arkade server or co-signer')
   return waitForSettlement(record, client, async () => {
-    if (!attempt || record.assetId === undefined)
-      throw new Error('The original Taxi payment authorization is unavailable')
+    if (!attempt) throw new Error('The original Taxi payment authorization is unavailable')
     const receiver = ArkAddress.decode(record.receiverAddress)
     if (
       receiver.encode() !== record.receiverAddress ||
@@ -240,8 +258,9 @@ const resumeStoredPayment = async (record: PendingTaxiRecord) => {
       hex.encode(receiver.serverPubKey) !== attempt.serverKey
     )
       throw new Error('The original Taxi receiver does not match the trusted server')
-    const id = asset.AssetId.fromString(record.assetId)
-    const assetId = { txid: Uint8Array.from(id.txid).reverse(), groupIndex: id.groupIndex }
+    const assetId = record.assetId ? taxiAssetId(record.assetId) : undefined
+    const units = BigInt(record.assetAmount)
+    const exact = assetId ? {} : { paymentSats: units }
     const senderInputs = attempt.senderInputs.map((input) => fundingInputFromWire(input))
     const common = {
       info,
@@ -251,7 +270,7 @@ const resumeStoredPayment = async (record: PendingTaxiRecord) => {
       hrp: attempt.hrp,
       senderInputs,
       senderSats: senderInputs.reduce((sum, input) => sum + input.value, 0n),
-      assetUnits: BigInt(record.assetAmount),
+      ...(assetId ? { assetUnits: units } : {}),
     }
     const maxFare = {
       currency: attempt.maxFare.currency,
@@ -278,6 +297,7 @@ const resumeStoredPayment = async (record: PendingTaxiRecord) => {
           assetId,
           maxFare,
           maxContributionSats: BigInt(attempt.carrierCeiling),
+          ...exact,
         },
       })
       validateOriginal(verified)
@@ -298,6 +318,7 @@ const resumeStoredPayment = async (record: PendingTaxiRecord) => {
           minLocktime: BigInt(attempt.minLocktime),
           claimMode: record.mode,
           recoveryRecipient: 'sender',
+          ...exact,
         },
       })
       validateOriginal(verified)
@@ -407,26 +428,40 @@ export const sendDirectTaxi = async (args: DirectTaxiSendArgs): Promise<string> 
   })
 }
 
-const sendDirectTaxiLocked = async (args: DirectTaxiSendArgs, senderKey: string): Promise<string> => {
-  const { wallet, aspInfo, taxi, receiverAddress, assetId, amount, mode } = args
-  // Quoting an exact bitcoin amount needs the Taxi client's paymentSats, which the vendored client lacks.
-  if (assetId === undefined) throw new Error("This wallet can't send an exact sub-dust amount through Taxi yet")
-  if (amount <= 0n) throw new Error('Asset amount must be positive')
-  if (window.location.protocol === 'https:' && new URL(taxi.url).protocol !== 'https:')
-    throw new Error('Taxi must use HTTPS')
-  const explorer = getRestApiExplorerURL(aspInfo.network as NetworkName)
-  const ctx = arkadeContextOf(aspInfo, async () => {
-    if (!explorer) throw new Error('No chain explorer configured')
-    return (await new EsploraProvider(explorer).getChainTip()).height
-  })
-  const client = taxiClient(taxi.url, boundedFetch)
-  const info = await client.info()
-  if (info.serverKey !== hex.encode(ctx.serverKey) || info.emulatorKey !== hex.encode(ctx.emulatorKey))
-    throw new Error('Taxi uses a different Arkade server or co-signer')
-  if (taxi.operatorKey && info.operatorKey !== taxi.operatorKey) throw new Error('Taxi operator key changed')
-  if (BigInt(info.dust) !== ctx.dust || BigInt(info.vtxoMinAmount) !== ctx.vtxoMinAmount)
-    throw new Error('Taxi uses different carrier limits')
-  if (info.paused) throw new Error('Taxi is paused')
+interface QuotePlan {
+  selected: ExtendedVirtualCoin[]
+  fareId: string
+  maxFare: { currency: 'sats' | 'asset'; units: bigint; assetId?: AssetIdValue }
+  /** The most the Taxi may advance; for sats, exactly what the amount lacks of dust. */
+  carrierCeiling: bigint
+  payment: { assetId: AssetIdValue; assetUnits: bigint } | { paymentSats: bigint }
+}
+
+/** Plain coins, smallest first, covering `required` with change of nothing or at least `vtxoMinAmount`:
+ * the lockup admits no output below it. */
+export const selectSatsForTaxi = <C extends Pick<ExtendedVirtualCoin, 'value' | 'assets'>>(
+  coins: readonly C[],
+  required: bigint,
+  vtxoMinAmount: bigint,
+): C[] => {
+  const selected: C[] = []
+  let total = 0n
+  const covered = () => total === required || total - required >= vtxoMinAmount
+  for (const coin of coins.filter((coin) => !coin.assets?.length).sort((a, b) => a.value - b.value)) {
+    if (covered()) break
+    selected.push(coin)
+    total += BigInt(coin.value)
+  }
+  if (!covered()) throw new Error('Insufficient sats for this Taxi payment')
+  return selected
+}
+
+const assetPlan = async (
+  info: TaxiInfo,
+  ctx: ArkadeContext,
+  { wallet, taxi, amount, mode }: DirectTaxiSendArgs,
+  assetId: string,
+): Promise<QuotePlan> => {
   const rule = ruleFor(info, assetId)
   if (!rule?.enabled) throw new Error('Taxi does not carry this asset')
   if (mode !== 'sponsored' && rule.claim !== 'either' && rule.claim !== mode)
@@ -451,20 +486,77 @@ const sendDirectTaxiLocked = async (args: DirectTaxiSendArgs, senderKey: string)
     selectedSats += BigInt(coin.value)
   }
   if (selectedSats < requiredSats) throw new Error('Insufficient sats for the Taxi fare and asset change')
-  const id = asset.AssetId.fromString(assetId)
-  const taxiAssetId = { txid: Uint8Array.from(id.txid).reverse(), groupIndex: id.groupIndex }
-  const maxFare = {
-    currency: currency === 'sats' ? ('sats' as const) : ('asset' as const),
-    units: fareUnits,
-    ...(currency === 'sameAsset' ? { assetId: taxiAssetId } : {}),
+  const id = taxiAssetId(assetId)
+  return {
+    selected,
+    fareId: fare.id,
+    maxFare: {
+      currency: currency === 'sats' ? 'sats' : 'asset',
+      units: fareUnits,
+      ...(currency === 'sameAsset' ? { assetId: id } : {}),
+    },
+    carrierCeiling: ctx.dust,
+    payment: { assetId: id, assetUnits: amount },
   }
+}
+
+const bitcoinPlan = async (
+  info: TaxiInfo,
+  ctx: ArkadeContext,
+  { wallet, taxi, receiverAddress, amount, mode }: DirectTaxiSendArgs,
+): Promise<QuotePlan> => {
+  const offer = vetBitcoinTaxi(info, ctx, {
+    receiverAddress,
+    amount,
+    operatorKey: taxi.operatorKey,
+    fareId: taxi.fareId,
+  })
+  if (!offer.ok) throw new Error(`Taxi unavailable: ${TAXI_REFUSAL_TEXT[offer.reason]}`)
+  if (!offer.modes.includes(mode)) throw new Error(`Taxi does not support ${mode} claims`)
+  const available = await unreservedCoins(wallet, assetSwapRepository)
+  return {
+    selected: selectSatsForTaxi(available, amount + offer.fareUnits, ctx.vtxoMinAmount),
+    fareId: offer.fare.id,
+    maxFare: { currency: 'sats', units: offer.fareUnits },
+    carrierCeiling: offer.topup,
+    payment: { paymentSats: amount },
+  }
+}
+
+/** A Taxi predating paymentSats quotes its own advance; no response field says so, only the client's binding. */
+const exactly = <T>(quote: Promise<T>): Promise<T> =>
+  quote.catch((cause: unknown) => {
+    if (cause instanceof QuoteVerificationError && cause.code === VerificationErrorCode.PaymentSats)
+      throw new Error("This Taxi can't carry an exact sub-dust amount", { cause })
+    throw cause
+  })
+
+const sendDirectTaxiLocked = async (args: DirectTaxiSendArgs, senderKey: string): Promise<string> => {
+  const { wallet, aspInfo, taxi, receiverAddress, assetId, amount, mode } = args
+  if (amount <= 0n) throw new Error('Asset amount must be positive')
+  if (window.location.protocol === 'https:' && new URL(taxi.url).protocol !== 'https:')
+    throw new Error('Taxi must use HTTPS')
+  const explorer = getRestApiExplorerURL(aspInfo.network as NetworkName)
+  const ctx = arkadeContextOf(aspInfo, async () => {
+    if (!explorer) throw new Error('No chain explorer configured')
+    return (await new EsploraProvider(explorer).getChainTip()).height
+  })
+  const client = taxiClient(taxi.url, boundedFetch)
+  const info = await client.info()
+  if (info.serverKey !== hex.encode(ctx.serverKey) || info.emulatorKey !== hex.encode(ctx.emulatorKey))
+    throw new Error('Taxi uses a different Arkade server or co-signer')
+  if (taxi.operatorKey && info.operatorKey !== taxi.operatorKey) throw new Error('Taxi operator key changed')
+  if (BigInt(info.dust) !== ctx.dust || BigInt(info.vtxoMinAmount) !== ctx.vtxoMinAmount)
+    throw new Error('Taxi uses different carrier limits')
+  if (info.paused) throw new Error('Taxi is paused')
+  const plan = assetId === undefined ? await bitcoinPlan(info, ctx, args) : await assetPlan(info, ctx, args, assetId)
+  const { selected, maxFare } = plan
   const request = {
     receiverAddress,
     senderKey: await wallet.identity.xOnlyPublicKey(),
     selectedVtxos: selected,
-    assetId: taxiAssetId,
-    assetUnits: amount,
-    fareId: fare.id,
+    ...plan.payment,
+    fareId: plan.fareId,
     trustedServerKey: ctx.serverKey,
     trustedServerUnrollScript: hex.decode(aspInfo.checkpointTapscript),
     vtxoMinAmount: ctx.vtxoMinAmount,
@@ -475,25 +567,29 @@ const sendDirectTaxiLocked = async (args: DirectTaxiSendArgs, senderKey: string)
     mode === 'sponsored'
       ? {
           kind: 'sponsored' as const,
-          ...(await client.requestVerifiedSponsoredQuote({
-            ...request,
-            expect: { maxContributionSats: ctx.dust, maxFare },
-          })),
+          ...(await exactly(
+            client.requestVerifiedSponsoredQuote({
+              ...request,
+              expect: { maxContributionSats: plan.carrierCeiling, maxFare },
+            }),
+          )),
         }
       : {
           kind: 'covenant' as const,
-          ...(await client.requestVerifiedQuote({
-            ...request,
-            claimMode: mode,
-            trustedEmulatorKey: ctx.emulatorKey,
-            expect: {
-              maxTopupSats: ctx.dust,
-              maxFare,
-              minLocktime,
+          ...(await exactly(
+            client.requestVerifiedQuote({
+              ...request,
               claimMode: mode,
-              recoveryRecipient: 'sender',
-            },
-          })),
+              trustedEmulatorKey: ctx.emulatorKey,
+              expect: {
+                maxTopupSats: plan.carrierCeiling,
+                maxFare,
+                minLocktime,
+                claimMode: mode,
+                recoveryRecipient: 'sender',
+              },
+            }),
+          )),
         }
   const { verified } = quoted
   if (hex.encode(verified.params.operatorKey) !== info.operatorKey) throw new Error('Taxi operator key changed')
@@ -543,7 +639,7 @@ const sendDirectTaxiLocked = async (args: DirectTaxiSendArgs, senderKey: string)
       serverUnrollScript: hex.encode(request.trustedServerUnrollScript),
       hrp: ctx.hrp,
       vtxoMinAmount: ctx.vtxoMinAmount.toString(),
-      carrierCeiling: ctx.dust.toString(),
+      carrierCeiling: plan.carrierCeiling.toString(),
       maxFare: { currency: maxFare.currency, units: maxFare.units.toString() },
       ...(quoted.kind === 'sponsored'
         ? { kind: 'sponsored', quote: quoted.verified.quote }
