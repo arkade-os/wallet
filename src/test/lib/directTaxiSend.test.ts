@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SingleKey } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
-import { FailedDirectTaxi, PendingDirectTaxi, getPendingDirectTaxi } from '../../lib/directTaxiSend'
-import { ASSET_ID, KEYS, RECEIVER_ADDRESS, TAXI_URL, taxiFetch } from './receiverTaxiFixtures'
+import { FailedDirectTaxi, PendingDirectTaxi, getPendingDirectTaxi, sendDirectTaxi } from '../../lib/directTaxiSend'
+import { ASSET_ID, BITCOIN_INFO, KEYS, RECEIVER_ADDRESS, TAXI_URL, taxiFetch } from './receiverTaxiFixtures'
 
 const wallet = { identity: SingleKey.fromRandomBytes() }
 const TXID = 'a'.repeat(64)
@@ -100,5 +100,24 @@ describe('checking a Taxi payment that is still on record', () => {
     const failed = await (await storedPayment({ mode: 'sponsored' })).resume().catch((error: unknown) => error)
     expect(failed).toBeInstanceOf(FailedDirectTaxi)
     expect(statusPolls(fetch)).toEqual([`${TAXI_URL}/v1/sponsored-transfers/t-1`])
+  })
+})
+
+describe('sending sub-dust bitcoin through the Taxi', () => {
+  it('refuses before asking any Taxi, until the client can bind an exact amount', async () => {
+    const fetch = taxiFetch({ info: BITCOIN_INFO })
+    vi.stubGlobal('fetch', fetch)
+    vi.stubGlobal('navigator', { locks: { request: (_: string, run: () => unknown) => run() } })
+    const send = sendDirectTaxi({
+      wallet: wallet as never,
+      aspInfo: { network: 'regtest' } as never,
+      taxi: { url: TAXI_URL },
+      receiverAddress: RECEIVER_ADDRESS,
+      amount: 100n,
+      mode: 'recycle',
+      confirmPayment: vi.fn(),
+    })
+    await expect(send).rejects.toThrow("This wallet can't send an exact sub-dust amount through Taxi yet")
+    expect(fetch).not.toHaveBeenCalled()
   })
 })
