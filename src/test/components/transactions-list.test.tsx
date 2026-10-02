@@ -551,6 +551,12 @@ describe('Taxi records', () => {
     expect(container.querySelector('.activity-row__amount--failed')).toBeInTheDocument()
   })
 
+  it('puts the Taxi state ahead of the date, and in the label a screen reader reads', () => {
+    const { container } = renderRows([taxiOnly(record({ state: 'locking', submissionPhase: 'failed' }))])
+    expect(container.querySelector('.activity-row__meta')).toHaveTextContent(/^Taxi · Failed · /)
+    expect(screen.getByLabelText(/^Transaction Sent \(Taxi · Failed\) of amount/)).toBeInTheDocument()
+  })
+
   it('lists a record whose time no Date can hold, rather than crashing', () => {
     renderRows([taxiOnly(record({ role: 'receiver', createdAt: 9_000_000_000_000 }))])
     expect(screen.getByText('Taxi delivery')).toBeInTheDocument()

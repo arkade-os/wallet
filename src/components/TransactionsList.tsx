@@ -23,6 +23,7 @@ import {
   swapStatusForTx,
   swapStatusLabel,
   swapUnitOfAccountAmount,
+  type Translate,
 } from '../lib/swapDisplay'
 import UnverifiedBadge from './UnverifiedBadge'
 import { useTransactionAmountDisplay } from '../hooks/useTransactionAmountDisplay'
@@ -38,6 +39,13 @@ const TAXI_AMOUNT_CLASS: Record<TaxiTone, string> = {
 }
 
 const border = '1px solid color-mix(in srgb, var(--fg) 6%, transparent)'
+
+const taxiLabel = (tx: Tx, t: Translate): string | undefined =>
+  tx.taxi
+    ? t('transaction.taxiState', { state: t(taxiActivityView(tx.taxi).label) })
+    : hasTaxiCarrier(tx.carrier)
+      ? t('transaction.taxiPowered')
+      : undefined
 
 const TransactionLine = ({
   tx,
@@ -150,12 +158,9 @@ const TransactionLine = ({
 
   const swapRoute = swap ? swapRouteLabel(tx) : ''
   // the original action stays the row's name; Taxi is only how it was carried
-  const taxi = taxiView
-    ? t('transaction.taxiState', { state: t(taxiView.label) })
-    : hasTaxiCarrier(tx.carrier)
-      ? t('transaction.taxiPowered')
-      : undefined
-  const When = () => <span className='activity-row__meta'>{[swapRoute, date, taxi].filter(Boolean).join(' · ')}</span>
+  const taxi = taxiLabel(tx, t)
+  // the state before the date, so a narrow screen's ellipsis cuts the date instead
+  const When = () => <span className='activity-row__meta'>{[swapRoute, taxi, date].filter(Boolean).join(' · ')}</span>
 
   const RawAmounts = () => {
     const configured = amountDisplay?.configured
@@ -360,7 +365,11 @@ export default function TransactionsList({
         : tx.type === 'exit'
           ? t('transaction.exited')
           : t('transaction.received')
-    return t('transaction.keyboardNavAria', { type: typeLabel, amount: String(tx.amount) })
+    const taxi = taxiLabel(tx, t)
+    return t('transaction.keyboardNavAria', {
+      type: taxi ? `${typeLabel} (${taxi})` : typeLabel,
+      amount: String(tx.amount),
+    })
   }
 
   const handleClick = (tx: Tx) => {
