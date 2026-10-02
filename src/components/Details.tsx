@@ -53,6 +53,8 @@ export interface DetailsProps {
   swapFees?: SwapDisplayAmount
   swapFrom?: SwapDisplayAmount
   swapTo?: SwapDisplayAmount
+  /** A row whose carrier descriptor alone names the transfer has no URL to show. */
+  taxi?: { url?: string; transferId: string; mode?: string; updated?: string }
   total?: number
   txid?: string
   type?: string
@@ -92,6 +94,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     swapFees,
     swapFrom,
     swapTo,
+    taxi,
     txid,
     type,
     total,
@@ -208,6 +211,10 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     [t('accounts.priceRate'), priceRate, <ArrowUpDownIcon key='price-rate-icon' />],
     [t('accounts.networkFees'), fees === undefined ? undefined : formatAmount(fees), <FeesIcon key='fees-icon' />],
     [t('accounts.swapFees'), formatSensitiveDetail(swapFees), <FeesIcon key='swap-fees-icon' />],
+    [t('transaction.taxiUrl'), taxi?.url, <TypeIcon key='taxi-url-icon' />],
+    [t('transaction.taxiTransferId'), taxi?.transferId, <HashIcon key='taxi-transfer-icon' />],
+    [t('transaction.taxiMode'), taxi?.mode, <TypeIcon key='taxi-mode-icon' />],
+    [t('transaction.taxiUpdated'), taxi?.updated, <WhenIcon key='taxi-updated-icon' />],
     [t('transaction.carrierLoan'), formatSensitiveDetail(carrier?.carrierLoan), <AmountIcon key='carrier-loan-icon' />],
     [
       t('transaction.carrierPurchased'),

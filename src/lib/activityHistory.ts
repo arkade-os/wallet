@@ -9,6 +9,7 @@ import { buildAssetSwapActivityTx } from './swapDisplay'
 import type { ExitRecord } from './exitHistory'
 import type { LnSendView, RfqCarrierSnapshot } from './lnSendRecords'
 import type { WalletAssetSwap } from './swapRepository'
+import type { TaxiActivity } from './taxiActivity'
 import { arkTransactionToTx, sortLocalTxs, txidOfArkTransaction } from './transactionHistory'
 import type { Tx } from './types'
 
@@ -27,6 +28,8 @@ export interface ActivityHistoryOptions {
    * deliberately never persisted, so the store cannot answer for it. See
    * `exitTx`. */
   exits?: ExitRecord[]
+  /** This wallet's Taxi records: each joins its own rows, or stands as one row until a tx of it arrives. */
+  taxi?: TaxiActivity[]
   /** Snapshot taken alongside the activity fetch. Never read in here: this
    * runs in a `useMemo`, so a `localStorage` read would be an undeclared dep. */
   metadata: Record<string, TransactionActivityMetadata>
@@ -296,6 +299,72 @@ const exitTx = (exit: ExitRecord): Tx => ({
   type: 'exit',
 })
 
+/** The SDK reports any tx that spent an own coin as SENT, so a recycle claim, which merges the user's coin with a
+ * delivery, arrives as a send that only brought money in. */
+const isNetGain = (tx: ArkTransaction): boolean => {
+  const assets = tx.assets ?? []
+  return (
+    tx.type === 'SENT' &&
+    tx.amount <= 0 &&
+    assets.every((asset) => asset.amount >= 0n) &&
+    (tx.amount < 0 || assets.some((asset) => asset.amount > 0n))
+  )
+}
+
+// A sender's spentTxid is the receiver's claim unless the Taxi gave the payment back.
+const taxiTxids = (r: TaxiActivity): string[] =>
+  (r.role === 'sender'
+    ? [r.lockupTxid, ['refunded', 'recovered'].includes(r.state) ? r.spentTxid : undefined]
+    : [r.claimTxid, r.spentTxid]
+  ).filter((txid): txid is string => Boolean(txid))
+
+const taxiOnlyTx = (r: TaxiActivity): Tx => ({
+  amount: r.assetId ? 0 : Number(r.units),
+  ...(r.assetId
+    ? { assets: [{ assetId: r.assetId, amount: (r.role === 'sender' ? -1n : 1n) * BigInt(r.units) }] }
+    : {}),
+  boardingTxid: '',
+  createdAt: r.createdAt,
+  destination: r.destination,
+  explorable: undefined,
+  historyKey: `taxi:${r.role}:${new URL(r.taxiUrl).host}:${r.transferId}`,
+  networkFee: 0,
+  preconfirmed: false,
+  redeemTxid: '',
+  roundTxid: '',
+  settled: true,
+  taxi: r,
+  type: r.role === 'sender' ? 'sent' : 'received',
+})
+
+/** Each record joins every row it shares a txid or transfer id with, or else stands as a row of its own, the
+ * `ungroupedLnSendTx` way. A record that cannot be read leaves history as it was: this runs in WalletProvider. */
+const graftTaxi = (rows: Tx[], records: TaxiActivity[]): Tx[] => {
+  try {
+    const out = [...rows]
+    for (const r of records) {
+      const txids = new Set(taxiTxids(r))
+      let matched = false
+      out.forEach((row, index) => {
+        const rowTxids = [
+          row.redeemTxid,
+          row.roundTxid,
+          row.boardingTxid,
+          ...(row.carrierMembers ?? []).map((m) => m.txid),
+        ]
+        if (row.carrier?.taxi?.transferId !== r.transferId && !rowTxids.some((txid) => txids.has(txid))) return
+        out[index] = { ...row, taxi: r, destination: row.destination ?? r.destination }
+        matched = true
+      })
+      if (!matched) out.push(taxiOnlyTx(r))
+    }
+    return out
+  } catch (error) {
+    consoleError(error, 'history shows no Taxi records: one cannot be read')
+    return rows
+  }
+}
+
 class UnrenderableSwap extends Error {
   readonly swapId: string
   readonly reason: unknown
@@ -320,7 +389,9 @@ const swapRow = (swap: WalletAssetSwap, build: () => Tx): Tx => {
  * emits one row per member, so a built-in grouping deposits or exits cannot
  * change the row count. */
 const projectActivities = (activities: Activity[], options: ActivityHistoryOptions): Tx[] => {
-  const { swaps, metadata, network, assetDisplay, lnSends = [], rfqCarriers, exits = [] } = options
+  const { swaps, metadata, network, assetDisplay, lnSends = [], rfqCarriers, exits = [], taxi = [] } = options
+  // Only a tx a delivery names as its claim: this repo's fixtures carry negative SENT amounts for plain sends.
+  const claimTxids = new Set(taxi.flatMap((r) => (r.role === 'receiver' ? [r.claimTxid, r.spentTxid] : [])))
   const rows: Tx[] = []
   const activityAllocation = allocateActivityEvidence(
     swaps,
@@ -438,6 +509,7 @@ const projectActivities = (activities: Activity[], options: ActivityHistoryOptio
       const carrier = swapKind ? carrierForRfq(activity, rfqCarriers) : undefined
       rows.push({
         ...arkTransactionToTx(tx, metadata[txid]),
+        ...(claimTxids.has(txid) && isNetGain(tx) ? { type: 'received' } : {}),
         historyKey: `${activity.id}:${txid}`,
         ...(carrier ? { carrier } : {}),
       })
@@ -494,7 +566,7 @@ const projectActivities = (activities: Activity[], options: ActivityHistoryOptio
   }
   // Exits last, for the same reason: history reports none of them either.
   for (const exit of exits) rows.push(exitTx(exit))
-  return sortLocalTxs(rows)
+  return sortLocalTxs(graftTaxi(rows, taxi))
 }
 
 /** A swap whose row cannot be built leaves the projection, so its transactions show at full value

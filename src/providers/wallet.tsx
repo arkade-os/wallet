@@ -1,4 +1,4 @@
-import { ReactNode, createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { ReactNode, createContext, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import {
   ArkNote,
   ServiceWorkerWallet,
@@ -50,6 +50,12 @@ import { rfqHistorySnapshot, swapActivityInputs, type LnSendView, type RfqCarrie
 import { assetSwapResolver } from '../lib/activity/assetSwapResolver'
 import { getAssetSwaps, swapActivityResolver } from '@arkade-os/swap'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
+import {
+  forgetTaxiActivity,
+  getTaxiActivityVersion,
+  readTaxiActivity,
+  subscribeTaxiActivity,
+} from '../lib/taxiActivity'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
 import { resolveWalletMode } from '../lib/walletMode'
@@ -250,6 +256,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // when it writes a name that differs from the one already cached.
   const [assetDisplayVersion, setAssetDisplayVersion] = useState(0)
 
+  const taxiVersion = useSyncExternalStore(subscribeTaxiActivity, getTaxiActivityVersion, getTaxiActivityVersion)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const taxi = useMemo(() => readTaxiActivity(aspInfo.network), [taxiVersion, aspInfo.network])
+
   // Derived rather than merged once at load: the swap records are read from
   // IndexedDB, so they can arrive after the first history load — recomputing on
   // either input is what keeps a cold start from flashing bare funding rows.
@@ -261,11 +271,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         lnSends: history.lnSends,
         rfqCarriers: history.rfqCarriers,
         exits: history.exits,
+        taxi,
         network: aspInfo.network,
         assetDisplay: (id) => assetMetadataCache.current.get(id)?.metadata,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [history, assetSwaps, aspInfo.network, assetDisplayVersion],
+    [history, assetSwaps, aspInfo.network, assetDisplayVersion, taxi],
   )
 
   const ungroupedTxs = useMemo(
@@ -1037,6 +1048,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     // than stale swap rows.
     await assetSwapRepository.clear().catch((err) => consoleError(err, 'failed to clear swap records'))
     setAssetSwaps([])
+    forgetTaxiActivity()
     await svcWallet.clear()
     await svcWallet.walletRepository.clear()
     await svcWallet.contractRepository.clear()

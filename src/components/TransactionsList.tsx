@@ -27,7 +27,15 @@ import {
 import UnverifiedBadge from './UnverifiedBadge'
 import { useTransactionAmountDisplay } from '../hooks/useTransactionAmountDisplay'
 import { hasTaxiCarrier } from '../lib/carrierActivity'
+import { isTaxiOnlyTx, taxiActivityView, type TaxiTone } from '../lib/taxiActivity'
 import { useTranslation } from '../providers/language'
+
+const TAXI_AMOUNT_CLASS: Record<TaxiTone, string> = {
+  pending: ' activity-row__amount--pending',
+  failed: ' activity-row__amount--failed',
+  void: ' activity-row__amount--cancelled',
+  done: '',
+}
 
 const border = '1px solid color-mix(in srgb, var(--fg) 6%, transparent)'
 
@@ -64,18 +72,21 @@ const TransactionLine = ({
 
   const lnSwapKind = lnSwapLabel(tx, t)
   const lnSwapOutcome = tx.lnSwap?.outcome
+  const taxiView = tx.taxi && taxiActivityView(tx.taxi)
+  const taxiOnly = isTaxiOnlyTx(tx)
   const iconTone =
     tx.preconfirmed && tx.boardingTxid
       ? 'pending'
       : // `lost` earns the same tone as `failed`: on a receive leg the covenant
         // going back means the payment never arrived, so it is money gone.
         burn ||
+          taxiView?.tone === 'failed' ||
           swapStatus === 'failed' ||
           swapStatus === 'cancelled' ||
           lnSwapOutcome === 'failed' ||
           lnSwapOutcome === 'lost'
         ? 'burn'
-        : swapStatus === 'pending' || lnSwapOutcome === 'pending'
+        : taxiView?.tone === 'pending' || swapStatus === 'pending' || lnSwapOutcome === 'pending'
           ? 'pending'
           : 'default'
   const Icon = () => {
@@ -108,7 +119,13 @@ const TransactionLine = ({
     return <span className={`activity-row__icon activity-row__icon--${iconTone}`}>{icon}</span>
   }
 
+  const taxiKind = taxiOnly
+    ? tx.taxi?.role === 'sender'
+      ? t('transaction.taxiPayment')
+      : t('transaction.taxiDelivery')
+    : undefined
   const kind =
+    taxiKind ??
     lnSwapKind ??
     (swap
       ? swapStatus === 'pending'
@@ -133,12 +150,12 @@ const TransactionLine = ({
 
   const swapRoute = swap ? swapRouteLabel(tx) : ''
   // the original action stays the row's name; Taxi is only how it was carried
-  const taxi = hasTaxiCarrier(tx.carrier)
-  const When = () => (
-    <span className='activity-row__meta'>
-      {[swapRoute, date, taxi ? t('transaction.taxiPowered') : undefined].filter(Boolean).join(' · ')}
-    </span>
-  )
+  const taxi = taxiView
+    ? t('transaction.taxiState', { state: t(taxiView.label) })
+    : hasTaxiCarrier(tx.carrier)
+      ? t('transaction.taxiPowered')
+      : undefined
+  const When = () => <span className='activity-row__meta'>{[swapRoute, date, taxi].filter(Boolean).join(' · ')}</span>
 
   const RawAmounts = () => {
     const configured = amountDisplay?.configured
@@ -195,7 +212,7 @@ const TransactionLine = ({
       ) : amountDisplay?.primary ? (
         <>
           <span
-            className={`activity-row__amount${tx.preconfirmed && tx.boardingTxid ? ' activity-row__amount--pending' : ''}`}
+            className={`activity-row__amount${tx.preconfirmed && tx.boardingTxid ? ' activity-row__amount--pending' : taxiOnly && taxiView ? TAXI_AMOUNT_CLASS[taxiView.tone] : ''}`}
           >
             <PrivacyAmount masked={`${prefix} ${amountDisplay.primary.masked}`}>
               {`${prefix} ${amountDisplay.primary.value}`}
