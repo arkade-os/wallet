@@ -1,5 +1,6 @@
 import { emptyAspInfo } from '../../lib/asp'
 import { Pages } from '../../providers/navigation'
+import type { AppIntentState } from '../../lib/appIntent'
 import { emptyInitInfo, emptyNoteInfo, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
 import { AspInfo } from '../../providers/asp'
 import { SingleKey, IVtxoManager } from '@arkade-os/sdk'
@@ -166,6 +167,8 @@ export const mockFlowContextValue = {
   setAssetInfo: () => {},
   deepLinkInfo: undefined,
   setDeepLinkInfo: () => {},
+  appIntent: undefined as AppIntentState | undefined,
+  setAppIntent: () => {},
 }
 
 export const mockLimitsContextValue = {

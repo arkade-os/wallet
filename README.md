@@ -174,6 +174,37 @@ On CI the suite runs as four parallel jobs: two browser projects (`Mobile Chrome
 The groups list files explicitly, so **a new test file must be added to one of them**,
 otherwise it will never run on CI.
 
+## App links
+
+Another site can open the wallet with a query string. The wallet asks before it shares an address or sends funds, then returns to `callback` by navigating there. Build the link with `URLSearchParams` — a BIP21 and a callback are both URLs, and raw `&` / `?` will be parsed as the wallet's own query.
+
+Connect (the address a user would copy from Receive, plus the x-only public key):
+
+```
+https://arkade.money/?action=connect&callback=https%3A%2F%2Farkade.trade%2Fconnect
+```
+
+Approval opens `callback?address=<ark address>&pubkey=<64 hex chars>`. Decline opens `callback?error=denied`.
+
+Pay (the existing send screen, prefilled — nothing is broadcast until the user signs):
+
+```
+https://arkade.money/?action=send&request=<percent-encoded BIP21>&callback=https%3A%2F%2Farkade.trade%2Fvault
+```
+
+Success opens `callback?status=sent&txid=<txid>` when there is a txid. Backing out opens `callback?error=denied`. `callback` is optional on send.
+
+`callback` must be `https`, or `http` on `localhost`, `127.0.0.1`, or `[::1]`. The whole query must stay under 6000 characters. The wallet appends its params; it does not fill a template, and it will not leave a pre-set `address` in place on decline.
+
+An installed wallet on Chrome or Edge also handles the `web+arkade` protocol (`public/manifest.json` sends it to the hash). The actions are the same:
+
+```
+web+arkade://connect?callback=https%3A%2F%2Farkade.trade%2Fconnect
+web+arkade://send?request=<percent-encoded BIP21>&callback=https%3A%2F%2Farkade.trade%2Fvault
+```
+
+The browser asks once before it lets the installed app own that protocol. Safari has no manifest protocol handler, so an iOS app uses the https link, which opens in the browser. That page shows **Open in App**: Chrome and Edge launch `web+arkade://` in the installed app, and Safari explains that it cannot switch there, so the request stays on this page. Ark notes keep using `web+arkade://` and are not treated as connect or send.
+
 ## Troubleshooting
 
 ### `address already in use` (Port 5000) on macOS

@@ -19,11 +19,12 @@ import AssetCard from '../../../components/AssetCard'
 import { accountAssetLabel, rawAssetPresentation, verifiedDesignatedCurrency } from '../../../lib/accountAssets'
 import { AspContext } from '../../../providers/asp'
 import { useTranslation } from '../../../providers/language'
+import { callbackHost, redirectToCallback } from '../../../lib/appIntent'
 
 export default function SendSuccess() {
   const { config, useFiat } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
-  const { sendInfo } = useContext(FlowContext)
+  const { appIntent, sendInfo, setAppIntent } = useContext(FlowContext)
   const { notifyPaymentSent } = useContext(NotificationsContext)
   const { assetMetadataCache, isVerifiedAsset } = useContext(WalletContext)
   const { navigate } = useContext(NavigationContext)
@@ -66,10 +67,25 @@ export default function SendSuccess() {
   // without us, so this is not a pending-failure warning — it is simply the
   // accurate word. An Arkade send, by contrast, really is sent.
   const isLightningSend = Boolean(sendInfo.invoice)
+  const returnHost = appIntent?.status === 'send' && appIntent.callback ? callbackHost(appIntent.callback) : ''
   const headline = isLightningSend ? t('send.paymentOnTheWay') : t('send.paymentSent')
-  const detail = isLightningSend
-    ? t('send.onTheWay', { amount: displayAmount })
-    : t('send.sentSuccessfully', { amount: displayAmount })
+  const detail = returnHost
+    ? t('appIntent.sentReturn', { amount: displayAmount, host: returnHost })
+    : isLightningSend
+      ? t('send.onTheWay', { amount: displayAmount })
+      : t('send.sentSuccessfully', { amount: displayAmount })
+
+  const finish = () => {
+    if (appIntent?.status === 'send' && appIntent.callback) {
+      const callback = appIntent.callback
+      const txid = sendInfo.txid || undefined
+      setAppIntent(undefined)
+      redirectToCallback(callback, { status: 'sent', txid })
+      return
+    }
+    if (appIntent?.status === 'send') setAppIntent(undefined)
+    navigate(Pages.Wallet)
+  }
 
   if (isAssetSend && assetId) {
     return (
@@ -98,7 +114,10 @@ export default function SendSuccess() {
           </Padded>
         </Content>
         <ButtonsOnBottom>
-          <Button label={t('transaction.soundsGood')} onClick={() => navigate(Pages.Wallet)} />
+          <Button
+            label={returnHost ? t('appIntent.returnTo', { host: returnHost }) : t('transaction.soundsGood')}
+            onClick={finish}
+          />
         </ButtonsOnBottom>
       </>
     )
@@ -109,7 +128,7 @@ export default function SendSuccess() {
       headline={headline}
       text={detail}
       ariaLabel={`${headline}. ${t('wallet.tapToGoHome')}`}
-      onDone={() => navigate(Pages.Wallet)}
+      onDone={finish}
     />
   )
 }
