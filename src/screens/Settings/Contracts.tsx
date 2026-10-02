@@ -25,7 +25,7 @@ import ChevronUpIcon from '../../icons/ChevronUp'
 import ExternalLinkIcon from '../../icons/ExternalLink'
 import { WalletContext } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
-import { localizedAgo, prettyLongText } from '../../lib/format'
+import { localizedAgo, prettyDate, prettyLongText } from '../../lib/format'
 import { getVmempoolURL, getWebExplorerURL } from '../../lib/explorers'
 import { isBTCAddress } from '../../lib/address'
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard'
@@ -145,6 +145,17 @@ function DeprecatedSignerBadge({ status }: { status: SignerStatus | null }) {
   return null
 }
 
+function PastRefundLocktimeBadge({ refundLocktime }: { refundLocktime: number }) {
+  const { t } = useTranslation()
+  if (refundLocktime && Date.now() > refundLocktime * 1000)
+    return (
+      <Text tiny color='orange'>
+        {t('contracts.pastRefundLocktime')}
+      </Text>
+    )
+  return null
+}
+
 function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
     <div
@@ -178,6 +189,10 @@ function ContractCard({ item, open, onToggle }: { item: ContractView; open: bool
   const { contract, address, explorer, encoded, status } = item
   const { t } = useTranslation()
 
+  const refundLocktime = !isNaN(parseInt(contract.params?.refundLocktime))
+    ? parseInt(contract.params.refundLocktime)
+    : 0
+
   return (
     <Shadow lighter border>
       <FlexCol gap={open ? '0.5rem' : '0'}>
@@ -189,6 +204,7 @@ function ContractCard({ item, open, onToggle }: { item: ContractView; open: bool
               {prettyLongText(address)}
             </Text>
             <DeprecatedSignerBadge status={status} />
+            <PastRefundLocktimeBadge refundLocktime={refundLocktime} />
           </FlexCol>
           <FlexRow>
             <FlexCol gap='0.5rem' end>
@@ -207,6 +223,9 @@ function ContractCard({ item, open, onToggle }: { item: ContractView; open: bool
             <hr className='dashed' />
             <CopyRow label={t('common.address')} value={address} link={explorer || undefined} />
             <CopyRow label={t('contracts.script')} value={contract.script} />
+            {refundLocktime ? (
+              <CopyRow label={t('contracts.refundLocktime')} value={prettyDate(refundLocktime)} />
+            ) : null}
             {encoded ? <CopyRow label={t('contracts.parameters')} value={encoded} /> : null}
           </>
         ) : null}
@@ -283,13 +302,15 @@ export default function Contracts() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return views.filter((v) => {
-      const active = v.contract.state === 'active'
-      if (tab === 'Active' ? !active : active) return false
-      if (typeFilter !== 'all' && v.contract.type !== typeFilter) return false
-      if (q && !v.search.includes(q)) return false
-      return true
-    })
+    return views
+      .filter((v) => {
+        const active = v.contract.state === 'active'
+        if (tab === 'Active' ? !active : active) return false
+        if (typeFilter !== 'all' && v.contract.type !== typeFilter) return false
+        if (q && !v.search.includes(q)) return false
+        return true
+      })
+      .sort((a, b) => b.contract.createdAt - a.contract.createdAt)
   }, [views, tab, typeFilter, query])
 
   // Virtualize the list so it stays smooth with many contracts. Row heights vary
