@@ -538,7 +538,7 @@ describe('Taxi records', () => {
   it('names a delivery only its record knows a Taxi delivery, claimable and pending', () => {
     const { container } = renderRows([taxiOnly(record({ role: 'receiver' }))])
     expect(screen.getByText('Taxi delivery')).toBeInTheDocument()
-    expect(screen.getByText(/Taxi · Claimable/)).toBeInTheDocument()
+    expect(screen.getByText(/^Claimable · /)).toBeInTheDocument()
     expect(container.querySelector('.activity-row__icon--pending')).toBeInTheDocument()
     expect(container.querySelector('.activity-row__amount--pending')).toBeInTheDocument()
   })
@@ -546,15 +546,15 @@ describe('Taxi records', () => {
   it('marks a payment whose submission failed as failed', () => {
     const { container } = renderRows([taxiOnly(record({ state: 'locking', submissionPhase: 'failed' }))])
     expect(screen.getByText('Taxi payment')).toBeInTheDocument()
-    expect(screen.getByText(/Taxi · Failed/)).toBeInTheDocument()
+    expect(screen.getByText(/^Failed · /)).toBeInTheDocument()
     expect(container.querySelector('.activity-row__icon--burn')).toBeInTheDocument()
     expect(container.querySelector('.activity-row__amount--failed')).toBeInTheDocument()
   })
 
-  it('puts the Taxi state ahead of the date, and in the label a screen reader reads', () => {
+  it('leads with the bare state where the title already names the Taxi, and reads both out', () => {
     const { container } = renderRows([taxiOnly(record({ state: 'locking', submissionPhase: 'failed' }))])
-    expect(container.querySelector('.activity-row__meta')).toHaveTextContent(/^Taxi · Failed · /)
-    expect(screen.getByLabelText(/^Transaction Sent \(Taxi · Failed\) of amount/)).toBeInTheDocument()
+    expect(container.querySelector('.activity-row__meta')).toHaveTextContent(/^Failed · Nov/)
+    expect(screen.getByLabelText(/^Transaction Sent \(Failed · Taxi\) of amount/)).toBeInTheDocument()
   })
 
   it('lists a record whose time no Date can hold, rather than crashing', () => {
@@ -564,7 +564,7 @@ describe('Taxi records', () => {
 
   it('greys out a payment the Taxi returned', () => {
     const { container } = renderRows([taxiOnly(record({ state: 'recovered' }))])
-    expect(screen.getByText(/Taxi · Returned/)).toBeInTheDocument()
+    expect(screen.getByText(/^Returned · /)).toBeInTheDocument()
     expect(container.querySelector('.activity-row__amount--cancelled')).toBeInTheDocument()
   })
 
@@ -583,7 +583,7 @@ describe('Taxi records', () => {
     }
     renderRows([{ ...taxiOnly(record()), carrier, redeemTxid: 'a'.repeat(64), historyKey: 'tx:a' }])
     expect(screen.getByText('Sent')).toBeInTheDocument()
-    expect(screen.getByText(/Taxi · Awaiting claim/)).toBeInTheDocument()
+    expect(screen.getByText(/^Awaiting claim · Taxi · Nov/)).toBeInTheDocument()
     expect(screen.queryByText('Taxi payment')).not.toBeInTheDocument()
     expect(screen.queryByText(/Taxi powered/)).not.toBeInTheDocument()
   })

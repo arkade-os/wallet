@@ -158,8 +158,9 @@ const TransactionLine = ({
 
   const swapRoute = swap ? swapRouteLabel(tx) : ''
   // the original action stays the row's name; Taxi is only how it was carried
-  const taxi = taxiLabel(tx, t)
-  // the state before the date, so a narrow screen's ellipsis cuts the date instead
+  const taxi = taxiOnly && taxiView ? t(taxiView.label) : taxiLabel(tx, t)
+  // State first, and bare once the title names the Taxi: a Pixel 7 row with an Unverified badge has 136px for all
+  // of it, and the ellipsis must cut the date, not "Being returned".
   const When = () => <span className='activity-row__meta'>{[swapRoute, taxi, date].filter(Boolean).join(' · ')}</span>
 
   const RawAmounts = () => {
