@@ -5,6 +5,7 @@ import {
   ReturnedDirectTaxi,
   checkTaxiPayment,
   getPendingDirectTaxi,
+  journalDirectTaxi,
   resumePendingDirectTaxi,
   taxiActivityFromPending,
   type PendingTaxiRecord,
@@ -99,6 +100,16 @@ describe('a journaled direct Taxi payment in history', () => {
     const payment = await getPendingDirectTaxi(wallet, 'regtest')
     await expect(payment!.resume()).rejects.toBeInstanceOf(ReturnedDirectTaxi)
     expect(readTaxiActivity('regtest')).toMatchObject([{ state: 'recovered', spentTxid: 'c'.repeat(64) }])
+  })
+})
+
+describe('journalDirectTaxi', () => {
+  it('puts a signed payment in history as it journals it, before a submission can throw', async () => {
+    const record = await journal({ attempt: attempt('covenant', { topup: '330' }) })
+    localStorage.clear()
+    journalDirectTaxi(record)
+    expect((await getPendingDirectTaxi(wallet, 'regtest'))?.record).toEqual(record)
+    expect(readTaxiActivity('regtest')).toMatchObject([{ role: 'sender', state: 'quoted', carrierSats: '330' }])
   })
 })
 

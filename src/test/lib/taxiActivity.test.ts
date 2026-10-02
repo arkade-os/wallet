@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, renderHook } from '@testing-library/react'
 import { TaxiError } from '@arkade-taxi/client'
 import type { TransferStatusResponse } from '@arkade-taxi/protocol'
 import {
@@ -12,6 +13,7 @@ import {
   refreshTaxiActivity,
   subscribeTaxiActivity,
   taxiActivityView,
+  useTaxiActivity,
   type TaxiActivity,
 } from '../../lib/taxiActivity'
 import { translate } from '../../lib/i18n'
@@ -178,6 +180,19 @@ describe('the Taxi activity store', () => {
     expect(isTaxiActivityOpen(record({ state: 'recovering' }))).toBe(true)
     for (const state of ['recycled', 'purchased', 'refunded', 'recovered', 'expired', 'gone'])
       expect(isTaxiActivityOpen(record({ state }))).toBe(false)
+  })
+})
+
+describe('useTaxiActivity', () => {
+  it('re-renders with every change to its network, and only its network', () => {
+    const { result } = renderHook(() => useTaxiActivity('regtest'))
+    expect(result.current).toEqual([])
+    act(() => recordTaxiActivity(record()))
+    expect(result.current).toMatchObject([{ state: 'quoted' }])
+    act(() => recordTaxiStatus(record(), status()))
+    expect(result.current).toMatchObject([{ state: 'locking' }])
+    act(() => recordTaxiActivity(record({ network: 'mutinynet', transferId: 'elsewhere' })))
+    expect(result.current).toHaveLength(1)
   })
 })
 

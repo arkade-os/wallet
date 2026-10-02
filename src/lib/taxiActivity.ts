@@ -3,6 +3,7 @@
 // settlement, offers are dropped on claim, and the claim feed lists only active
 // claims. Same store shape as `solverCards`.
 
+import { useMemo, useSyncExternalStore } from 'react'
 import { TaxiError, type TaxiClient } from '@arkade-taxi/client'
 import type { TransferStatusResponse } from '@arkade-taxi/protocol'
 import { centsToUnits, isValidAssetId } from './assets'
@@ -216,6 +217,12 @@ export const subscribeTaxiActivity = (fn: () => void): (() => void) => {
   return () => {
     listeners.delete(fn)
   }
+}
+
+/** This network's records, read again on every change, so history re-renders as a transfer moves. */
+export const useTaxiActivity = (network: string): TaxiActivity[] => {
+  const version = useSyncExternalStore(subscribeTaxiActivity, getTaxiActivityVersion, getTaxiActivityVersion)
+  return useMemo(() => readTaxiActivity(network), [version, network])
 }
 
 /** One status read. Rejects, leaving the record as it was, when the Taxi cannot be reached. */

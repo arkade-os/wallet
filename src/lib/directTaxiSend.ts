@@ -299,6 +299,12 @@ export const taxiActivityFromPending = (record: PendingTaxiRecord, createdAt: nu
   }
 }
 
+/** Journals a signed payment and records it at once: a submit that throws never reaches waitForSettlement. */
+export const journalDirectTaxi = (record: PendingTaxiRecord): void => {
+  localStorage.setItem(pendingKey(record.network, record.senderKey), JSON.stringify(record))
+  recordTaxiActivity(taxiActivityFromPending(record, Math.floor(Date.now() / 1000)))
+}
+
 /** Resumes the journaled payment only when it is this transfer, under the lock a new send takes. */
 export const resumePendingDirectTaxi = async (
   wallet: Pick<IWallet, 'identity'>,
@@ -494,8 +500,7 @@ const sendDirectTaxiLocked = async (args: DirectTaxiSendArgs, senderKey: string)
         : { kind: 'covenant', quote: quoted.verified.quote, minLocktime: minLocktime.toString() }),
     },
   }
-  localStorage.setItem(pendingKey(record.network, senderKey), JSON.stringify(record))
-  recordTaxiActivity(taxiActivityFromPending(record, Math.floor(Date.now() / 1000)))
+  journalDirectTaxi(record)
   const submit = async () => {
     const result =
       quoted.kind === 'sponsored'

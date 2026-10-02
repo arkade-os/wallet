@@ -1,4 +1,4 @@
-import { ReactNode, createContext, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { ReactNode, createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArkNote,
   ServiceWorkerWallet,
@@ -50,12 +50,7 @@ import { rfqHistorySnapshot, swapActivityInputs, type LnSendView, type RfqCarrie
 import { assetSwapResolver } from '../lib/activity/assetSwapResolver'
 import { getAssetSwaps, swapActivityResolver } from '@arkade-os/swap'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
-import {
-  forgetTaxiActivity,
-  getTaxiActivityVersion,
-  readTaxiActivity,
-  subscribeTaxiActivity,
-} from '../lib/taxiActivity'
+import { forgetTaxiActivity, useTaxiActivity } from '../lib/taxiActivity'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
 import { resolveWalletMode } from '../lib/walletMode'
@@ -256,9 +251,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // when it writes a name that differs from the one already cached.
   const [assetDisplayVersion, setAssetDisplayVersion] = useState(0)
 
-  const taxiVersion = useSyncExternalStore(subscribeTaxiActivity, getTaxiActivityVersion, getTaxiActivityVersion)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const taxi = useMemo(() => readTaxiActivity(aspInfo.network), [taxiVersion, aspInfo.network])
+  const taxi = useTaxiActivity(aspInfo.network)
 
   // Derived rather than merged once at load: the swap records are read from
   // IndexedDB, so they can arrive after the first history load — recomputing on
