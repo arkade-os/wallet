@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useAnimationControls } from 'framer-motion'
 
 const EASE_IN = [0.55, 0, 1, 0.45] as [number, number, number, number]
@@ -41,6 +41,14 @@ export function useBounceMorph({ reducedMotion, onBounce }: UseBounceMorphOption
   const requestStop = useCallback(() => {
     stopRequested.current = true
   }, [])
+
+  // The controls unmount in a layout cleanup; a passive one alone leaves a gap where a pending start() throws.
+  useLayoutEffect(
+    () => () => {
+      cancelled.current = true
+    },
+    [],
+  )
 
   useEffect(() => {
     if (reducedMotion) {
