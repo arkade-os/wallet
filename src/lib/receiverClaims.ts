@@ -29,6 +29,7 @@ import { getRestApiExplorerURL } from './explorers'
 import { consoleError } from './logs'
 import { arkadeContextOf, taxiClient } from './receiverTaxi'
 import type { RememberedTaxi } from './storage'
+import type { TaxiActivity } from './taxiActivity'
 
 export type ReceiverClaim = Parameters<TaxiClient['verifyIncomingClaim']>[0]
 export type ClaimClient = Pick<TaxiClient, 'info' | 'subscribeClaims' | 'verifyIncomingClaim' | 'recycle' | 'purchase'>
@@ -137,8 +138,31 @@ export interface VerifiedClaim {
 }
 
 // A transfer id is only unique within one Taxi, so nothing one Taxi says may touch another's offer.
-const keyOf = (url: string, transferId: string) => `${url} ${transferId}`
-export const offerKey = ({ taxi, claim }: Pick<VerifiedClaim, 'taxi' | 'claim'>) => keyOf(taxi.url, claim.transferId)
+export const claimKey = (url: string, transferId: string) => `${url} ${transferId}`
+export const offerKey = ({ taxi, claim }: Pick<VerifiedClaim, 'taxi' | 'claim'>) => claimKey(taxi.url, claim.transferId)
+
+/** A verified delivery as history records it. */
+export const taxiActivityFromOffer = ({ taxi, claim }: Pick<VerifiedClaim, 'taxi' | 'claim'>): TaxiActivity => {
+  const { params, assetUnits, outpoint } = claim.claim!
+  const assetId = deliveredAssetId(claim)
+  const fare = receiverFareOf(claim)
+  return {
+    role: 'receiver',
+    network: taxi.network,
+    taxiUrl: taxi.url,
+    transferId: claim.transferId,
+    ...(params.claimMode ? { mode: params.claimMode } : {}),
+    ...(assetId ? { assetId } : {}),
+    units: assetId ? (assetUnits ?? '0') : (BigInt(params.dust) - BigInt(params.topup)).toString(),
+    carrierSats: params.topup,
+    ...(fare ? { fare: { currency: fare.currency, units: fare.units.toString() } } : {}),
+    returnsTo: params.recoveryRecipient ?? 'sender',
+    lockupTxid: outpoint.txid,
+    state: claim.state,
+    updatedAt: claim.updatedAt,
+    createdAt: claim.updatedAt,
+  }
+}
 
 export interface ClaimWatch {
   taxis: readonly RememberedTaxi[]
@@ -168,7 +192,7 @@ export const watchReceiverClaims = (watch: ClaimWatch): (() => void) => {
 
   const consider = async (url: string, taxis: readonly RememberedTaxi[], client: ClaimClient, claim: ReceiverClaim) => {
     const id = claim.transferId
-    const key = keyOf(url, id)
+    const key = claimKey(url, id)
     const taxi = triage(claim, taxis, watch.receiverAddress)
     if (taxi === 'not-claimable') {
       if (verifying.has(key)) withdrawnDuringVerification.add(key)
@@ -220,6 +244,10 @@ export const watchReceiverClaims = (watch: ClaimWatch): (() => void) => {
           onSnapshot: (snapshot) => {
             outage = false
             delay = FIRST_RETRY_MS
+            // A snapshot is every active claim, so a verified one it leaves out ended while the feed was down.
+            const listed = new Set(snapshot.claims.map((claim) => claimKey(url, claim.transferId)))
+            for (const [key, offer] of verified)
+              if (offer.taxi.url === url && !listed.has(key) && verified.delete(key)) watch.onGone(key)
             onClaims(snapshot)
           },
           onChanged: onClaims,

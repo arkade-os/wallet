@@ -14,6 +14,7 @@ import type { ExitRecord } from '../../lib/exitHistory'
 import type { LnSendView } from '../../lib/lnSendRecords'
 import type { WalletAssetSwap } from '../../lib/swapRepository'
 import type { ActivityEvidence } from '../../lib/activityEvidence'
+import type { TaxiActivity } from '../../lib/taxiActivity'
 
 beforeEach(() => localStorage.clear())
 
@@ -1462,5 +1463,141 @@ describe('carrier metadata', () => {
     ])
     expect(groups).toHaveLength(1)
     expect(rows.map((row) => row.historyKey)).toEqual(['swap:swap-1'])
+  })
+})
+
+describe('Taxi records', () => {
+  const TXID = (byte: string) => byte.repeat(64)
+  const ASSET = 'f1'.repeat(34)
+  const record = (over: Partial<TaxiActivity> = {}): TaxiActivity => ({
+    role: 'sender',
+    network: 'regtest',
+    taxiUrl: 'https://taxi.example',
+    transferId: 'transfer-1',
+    mode: 'recycle',
+    assetId: ASSET,
+    units: '1',
+    lockupTxid: TXID('a'),
+    state: 'locked',
+    updatedAt: 1_700_000_100,
+    createdAt: 1_700_000_000,
+    ...over,
+  })
+  const member = (txid: string, over: Partial<ArkTransaction>) => activity(`tx:${txid}`, [arkTx(txid, over)])
+  const lockup = () =>
+    member(TXID('a'), { type: 'SENT' as ArkTransaction['type'], amount: 0, assets: [{ assetId: ASSET, amount: -1n }] })
+
+  it('shows a payment none of whose transactions reached history as one Taxi row', () => {
+    const rows = activitiesToTxs([], { ...empty, taxi: [record({ state: 'quoted' })] })
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({
+      type: 'sent',
+      amount: 0,
+      assets: [{ assetId: ASSET, amount: -1n }],
+      redeemTxid: '',
+      historyKey: 'taxi:sender:taxi.example:transfer-1',
+      taxi: { state: 'quoted' },
+    })
+  })
+
+  it('hangs a payment on the lockup row it signed rather than listing it twice', () => {
+    const rows = activitiesToTxs([lockup()], { ...empty, taxi: [record()] })
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ type: 'sent', redeemTxid: TXID('a'), taxi: { transferId: 'transfer-1' } })
+  })
+
+  it('shows a delivery as one Taxi row until claimed, then as the claim row, received', () => {
+    const delivery = record({ role: 'receiver', units: '500', lockupTxid: TXID('d') })
+    expect(activitiesToTxs([], { ...empty, taxi: [delivery] })).toMatchObject([
+      { type: 'received', assets: [{ assetId: ASSET, amount: 500n }], taxi: { role: 'receiver' } },
+    ])
+    const claim = member(TXID('e'), {
+      type: 'SENT' as ArkTransaction['type'],
+      amount: 0,
+      assets: [{ assetId: ASSET, amount: 500n }],
+    })
+    const claimed = { ...delivery, state: 'recycled', claimTxid: TXID('e') }
+    const rows = activitiesToTxs([claim], { ...empty, taxi: [claimed] })
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ type: 'received', redeemTxid: TXID('e'), taxi: { state: 'recycled' } })
+  })
+
+  it('reads a bitcoin claim that netted sats in as received, in sats', () => {
+    const claim = member(TXID('e'), { type: 'SENT' as ArkTransaction['type'], amount: -100 })
+    const delivery = record({
+      role: 'receiver',
+      assetId: undefined,
+      units: '100',
+      claimTxid: TXID('e'),
+      state: 'recycled',
+    })
+    expect(activitiesToTxs([claim], { ...empty, taxi: [delivery] })).toMatchObject([
+      { type: 'received', amount: 100, taxi: { units: '100' } },
+    ])
+  })
+
+  it('shows a sub-dust bitcoin payment in sats, with no assets', () => {
+    const [row] = activitiesToTxs([], {
+      ...empty,
+      taxi: [record({ assetId: undefined, units: '100', state: 'quoted' })],
+    })
+    expect(row).toMatchObject({ type: 'sent', amount: 100 })
+    expect(row.assets).toBeUndefined()
+  })
+
+  it('hangs a returned payment on both its lockup and the return', () => {
+    const back = member(TXID('c'), {
+      amount: 330,
+      assets: [{ assetId: ASSET, amount: 1n }],
+      createdAt: 1_700_000_500_000,
+    })
+    const rows = activitiesToTxs([lockup(), back], {
+      ...empty,
+      taxi: [record({ state: 'recovered', spentTxid: TXID('c') })],
+    })
+    expect(rows.map((row) => [row.type, row.taxi?.state])).toEqual([
+      ['received', 'recovered'],
+      ['sent', 'recovered'],
+    ])
+  })
+
+  it('lets a row whose carrier names the transfer answer for it', () => {
+    const carrier = {
+      version: 1,
+      mode: 'recycle',
+      physicalSats: '330',
+      loanSats: '329',
+      purchasedSats: '1',
+      receiptSats: '1',
+      serviceFareSats: '0',
+      taxi: { transferId: 'transfer-1' },
+      state: 'claimable',
+      txids: [],
+    }
+    const carried = { ...swap({ id: 'intent-1', fundingTxid: '' }), carrier } as WalletAssetSwap
+    const rows = activitiesToTxs([], { ...empty, swaps: [carried], taxi: [record({ lockupTxid: TXID('9') })] })
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ type: 'swap', taxi: { transferId: 'transfer-1' } })
+  })
+
+  it('leaves history whole when a record cannot be grafted', () => {
+    const broken = record({ taxiUrl: 'not a url', lockupTxid: TXID('9') })
+    expect(activitiesToTxs([lockup()], { ...empty, taxi: [broken] })).toEqual(activitiesToTxs([lockup()], empty))
+  })
+
+  it('reads a claim that only brought money in as received, never one that paid sats out or a spend no delivery names', () => {
+    const SENT = 'SENT' as ArkTransaction['type']
+    const gain = member(TXID('b'), { type: SENT, amount: 0, assets: [{ assetId: ASSET, amount: 2n }] })
+    const paid = member(TXID('c'), { type: SENT, amount: 7, assets: [{ assetId: ASSET, amount: 2n }] })
+    const unnamed = member(TXID('f'), { type: SENT, amount: -5 })
+    const claims = [TXID('b'), TXID('c')].map((claimTxid) =>
+      record({ role: 'receiver', transferId: `claim-${claimTxid[0]}`, claimTxid, state: 'recycled' }),
+    )
+    const rows = activitiesToTxs([gain, paid, unnamed], { ...empty, taxi: claims })
+    expect(Object.fromEntries(rows.map((row) => [row.redeemTxid, row.type]))).toEqual({
+      [TXID('b')]: 'received',
+      [TXID('c')]: 'sent',
+      [TXID('f')]: 'sent',
+    })
   })
 })

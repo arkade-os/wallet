@@ -154,7 +154,12 @@ describe('a new Taxi payment the Taxi then fails to submit', () => {
     const txid = Transaction.fromPSBT(base64.decode(arkTx)).id
     vi.spyOn(TaxiClient.prototype, 'requestVerifiedSponsoredQuote').mockResolvedValue({
       verified: {
-        quote: { transferId: 't-1', fare: { currency: 'asset', units: '0' }, expiresAt: Date.now() / 1000 + 600 },
+        quote: {
+          transferId: 't-1',
+          params: { contribution: '329' },
+          fare: { currency: 'asset', units: '0' },
+          expiresAt: Date.now() / 1000 + 600,
+        },
         params: { operatorKey: hex.decode(KEYS.operator), contribution: 329n },
         envelope: { arkTx, covenantOutputIndex: 0 },
       },

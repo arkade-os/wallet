@@ -10,6 +10,7 @@ import { AspContext } from '../../providers/asp'
 import { AssetsContext } from '../../providers/assets'
 import { Currencies, Tx, Unit } from '../../lib/types'
 import type { CarrierActivity } from '../../lib/carrierActivity'
+import type { TaxiActivity } from '../../lib/taxiActivity'
 import { MUTINYNET_DEPIX_ASSET_ID, MUTINYNET_USDT_ASSET_ID } from '../../lib/accountAssets'
 import {
   mockAspContextValue,
@@ -485,6 +486,105 @@ describe('carrier annotation', () => {
     renderWith(swapTx(undefined))
 
     expect(screen.getByText('Swap')).toBeInTheDocument()
+    expect(screen.queryByText(/Taxi powered/)).not.toBeInTheDocument()
+  })
+})
+
+describe('Taxi records', () => {
+  const ASSET = 'f1'.repeat(34)
+  const record = (over: Partial<TaxiActivity> = {}): TaxiActivity => ({
+    role: 'sender',
+    network: 'regtest',
+    taxiUrl: 'https://taxi.example',
+    transferId: 'transfer-1',
+    mode: 'recycle',
+    assetId: ASSET,
+    units: '1',
+    lockupTxid: 'a'.repeat(64),
+    state: 'locked',
+    updatedAt: 1_700_000_100,
+    createdAt: 1_700_000_000,
+    ...over,
+  })
+  const taxiOnly = (taxi: TaxiActivity): Tx => ({
+    amount: 0,
+    assets: [{ assetId: ASSET, amount: taxi.role === 'sender' ? -1n : 1n }],
+    boardingTxid: '',
+    createdAt: taxi.createdAt,
+    explorable: undefined,
+    historyKey: `taxi:${taxi.role}:taxi.example:${taxi.transferId}`,
+    preconfirmed: false,
+    redeemTxid: '',
+    roundTxid: '',
+    settled: true,
+    taxi,
+    type: taxi.role === 'sender' ? 'sent' : 'received',
+  })
+  const renderRows = (txs: Tx[]) =>
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <FlowContext.Provider value={mockFlowContextValue}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, txs } as any}>
+                <TransactionsList mode='static' />
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+  it('names a delivery only its record knows a Taxi delivery, claimable and pending', () => {
+    const { container } = renderRows([taxiOnly(record({ role: 'receiver' }))])
+    expect(screen.getByText('Taxi delivery')).toBeInTheDocument()
+    expect(screen.getByText(/^Claimable · /)).toBeInTheDocument()
+    expect(container.querySelector('.activity-row__icon--pending')).toBeInTheDocument()
+    expect(container.querySelector('.activity-row__amount--pending')).toBeInTheDocument()
+  })
+
+  it('marks a payment whose submission failed as failed', () => {
+    const { container } = renderRows([taxiOnly(record({ state: 'locking', submissionPhase: 'failed' }))])
+    expect(screen.getByText('Taxi payment')).toBeInTheDocument()
+    expect(screen.getByText(/^Failed · /)).toBeInTheDocument()
+    expect(container.querySelector('.activity-row__icon--burn')).toBeInTheDocument()
+    expect(container.querySelector('.activity-row__amount--failed')).toBeInTheDocument()
+  })
+
+  it('leads with the bare state where the title already names the Taxi, and reads both out', () => {
+    const { container } = renderRows([taxiOnly(record({ state: 'locking', submissionPhase: 'failed' }))])
+    expect(container.querySelector('.activity-row__meta')).toHaveTextContent(/^Failed · Nov/)
+    expect(screen.getByLabelText(/^Transaction Sent \(Failed · Taxi\) of amount/)).toBeInTheDocument()
+  })
+
+  it('lists a record whose time no Date can hold, rather than crashing', () => {
+    renderRows([taxiOnly(record({ role: 'receiver', createdAt: 9_000_000_000_000 }))])
+    expect(screen.getByText('Taxi delivery')).toBeInTheDocument()
+  })
+
+  it('greys out a payment the Taxi returned', () => {
+    const { container } = renderRows([taxiOnly(record({ state: 'recovered' }))])
+    expect(screen.getByText(/^Returned · /)).toBeInTheDocument()
+    expect(container.querySelector('.activity-row__amount--cancelled')).toBeInTheDocument()
+  })
+
+  it('keeps a transaction row its own name and adds the Taxi state in place of the badge', () => {
+    const carrier: CarrierActivity = {
+      version: 1,
+      mode: 'recycle',
+      physicalSats: '330',
+      loanSats: '329',
+      purchasedSats: '1',
+      receiptSats: '1',
+      serviceFareSats: '0',
+      taxi: { transferId: 'transfer-1' },
+      state: 'claimable',
+      txids: [],
+    }
+    renderRows([{ ...taxiOnly(record()), carrier, redeemTxid: 'a'.repeat(64), historyKey: 'tx:a' }])
+    expect(screen.getByText('Sent')).toBeInTheDocument()
+    expect(screen.getByText(/^Awaiting claim · Taxi · Nov/)).toBeInTheDocument()
+    expect(screen.queryByText('Taxi payment')).not.toBeInTheDocument()
     expect(screen.queryByText(/Taxi powered/)).not.toBeInTheDocument()
   })
 })

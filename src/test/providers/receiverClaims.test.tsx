@@ -1,18 +1,28 @@
-import { createElement } from 'react'
+import { createElement, useContext } from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ExtendedVirtualCoin } from '@arkade-os/sdk'
 import type { AssetSwap } from '@arkade-os/swap'
 import type { CovenantTransfer } from '@arkade-taxi/client'
+import { hex } from '@scure/base'
 import { AspContext } from '../../providers/asp'
 import { WalletContext } from '../../providers/wallet'
-import { ReceiverClaimsProvider } from '../../providers/receiverClaims'
+import { ReceiverClaimsContext, ReceiverClaimsProvider } from '../../providers/receiverClaims'
 import { rememberReceiverTaxi } from '../../lib/storage'
 import { assetSwapRepository } from '../../lib/swapRepository'
 import { offerKey, type ClaimClient, type ClaimWatch, type VerifiedClaim } from '../../lib/receiverClaims'
+import { readTaxiActivity, recordTaxiActivity } from '../../lib/taxiActivity'
 import { mockAspContextValue, mockSvcWallet, mockWalletContextValue } from '../screens/mocks'
 import { BOB_ADDRESS, assetFareClaim, coins, satsFareClaim } from '../lib/receiverClaimsFixtures'
-import { KEYS, TAXI_URL } from '../lib/receiverTaxiFixtures'
+import { ASSET_ID, KEYS, TAXI_URL } from '../lib/receiverTaxiFixtures'
+
+const pollTaxiActivity = vi.hoisted(() => vi.fn(async () => {}))
+const refreshTaxiActivity = vi.hoisted(() => vi.fn(async () => {}))
+vi.mock('../../lib/taxiActivity', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/taxiActivity')>()),
+  pollTaxiActivity,
+  refreshTaxiActivity,
+}))
 
 // jsdom has no IndexedDB, and the claim reads the funding reservations from this repository.
 vi.mock('../../lib/swapRepository', async (importOriginal) => {
@@ -51,6 +61,33 @@ const svcWallet = {
   getSpendableVtxos: () => spendable(),
 }
 
+const Probe = () => {
+  const { claimable, openClaim } = useContext(ReceiverClaimsContext)
+  const [first] = claimable
+  return (
+    <button type='button' data-testid='probe' onClick={() => first && openClaim(first)}>
+      {[...claimable].join(',')}
+    </button>
+  )
+}
+
+const JOURNAL = {
+  network: 'regtest',
+  taxiUrl: TAXI_URL,
+  operatorKey: KEYS.operator,
+  transferId: 'tr-journal',
+  expectedTxid: 'a'.repeat(64),
+  expectedVout: 0,
+  mode: 'recycle',
+  receiverAddress: BOB_ADDRESS,
+  assetId: ASSET_ID,
+  assetAmount: '1',
+  attempt: {
+    kind: 'covenant',
+    quote: { params: { topup: '330' }, fare: { currency: 'sats', units: '0' }, expiresAt: 2_000 },
+  },
+}
+
 const tree = (wallet: { initialized?: boolean; authState?: string } = {}, network = 'regtest') => (
   <AspContext.Provider
     value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network, signerPubkey: KEYS.server } }}
@@ -60,6 +97,7 @@ const tree = (wallet: { initialized?: boolean; authState?: string } = {}, networ
     >
       <ReceiverClaimsProvider>
         <div data-testid='app' />
+        <Probe />
       </ReceiverClaimsProvider>
     </WalletContext.Provider>
   </AspContext.Provider>
@@ -97,6 +135,8 @@ describe('ReceiverClaimsProvider', () => {
     localStorage.clear()
     stop.mockClear()
     watchReceiverClaims.mockClear()
+    pollTaxiActivity.mockClear()
+    refreshTaxiActivity.mockClear()
     sheet.frames = []
     sheet.explode = false
     spendable = async () => coins([1000n])
@@ -280,6 +320,73 @@ describe('ReceiverClaimsProvider', () => {
     await waitFor(() => expect(screen.queryByTestId('unclaimed-note')).toBeNull())
     offer(verified)
     expect(await screen.findByTestId('unclaimed-note')).toBeInTheDocument()
+  })
+
+  it('records a verified delivery, and then its claim with the claim transaction', async () => {
+    await mounted()
+    offer(offerOf().verified)
+    expect(readTaxiActivity('regtest')).toMatchObject([{ role: 'receiver', transferId: 'tr-sats-7', state: 'locked' }])
+    await waitFor(() => expect(claimButton()).toBeEnabled())
+    press('Claim')
+    await waitFor(() =>
+      expect(readTaxiActivity('regtest')).toMatchObject([{ state: 'recycled', claimTxid: 'f'.repeat(64) }]),
+    )
+  })
+
+  it('lists a delivery put off with Not now as claimable, and reopens it when asked', async () => {
+    await mounted()
+    const { verified } = offerOf()
+    offer(verified)
+    await screen.findByTestId('unclaimed-note')
+    press('Not now')
+    await waitFor(() => expect(screen.queryByTestId('unclaimed-note')).toBeNull())
+    expect(screen.getByTestId('probe')).toHaveTextContent(offerKey(verified))
+    fireEvent.click(screen.getByTestId('probe'))
+    expect(await screen.findByTestId('unclaimed-note')).toBeInTheDocument()
+  })
+
+  it('re-reads a delivery its Taxi withdraws', async () => {
+    await mounted()
+    const { verified } = offerOf()
+    offer(verified)
+    act(() => latestWatch().onGone(offerKey(verified)))
+    expect(refreshTaxiActivity).toHaveBeenCalledWith(
+      expect.objectContaining({ role: 'receiver', transferId: verified.claim.transferId }),
+    )
+  })
+
+  it('records a journaled payment once unlocked, and never over a newer state', async () => {
+    const senderKey = hex.encode(await svcWallet.identity.xOnlyPublicKey())
+    localStorage.setItem(`directTaxiPending:regtest:${senderKey}`, JSON.stringify({ ...JOURNAL, senderKey }))
+    const { unmount } = await mounted()
+    await waitFor(() =>
+      expect(readTaxiActivity('regtest')).toMatchObject([{ role: 'sender', state: 'quoted', createdAt: 2_000 }]),
+    )
+    unmount()
+    recordTaxiActivity({ ...readTaxiActivity('regtest')[0], state: 'locked', updatedAt: 3_000 })
+    await mounted()
+    await waitFor(() => expect(pollTaxiActivity).toHaveBeenCalledTimes(2))
+    expect(readTaxiActivity('regtest')).toMatchObject([{ state: 'locked', createdAt: 2_000 }])
+  })
+
+  it('polls Taxi records once unlocked and every 30 s while visible, and never once locked', async () => {
+    vi.useFakeTimers()
+    try {
+      const { rerender } = render(tree())
+      await vi.waitFor(() => expect(pollTaxiActivity).toHaveBeenCalledTimes(1))
+      expect(pollTaxiActivity).toHaveBeenCalledWith('regtest')
+      await act(async () => void vi.advanceTimersByTime(30_000))
+      expect(pollTaxiActivity).toHaveBeenCalledTimes(2)
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+      await act(async () => void vi.advanceTimersByTime(30_000))
+      expect(pollTaxiActivity).toHaveBeenCalledTimes(2)
+      delete (document as { visibilityState?: string }).visibilityState
+      rerender(tree({ initialized: false, authState: 'locked' }))
+      await act(async () => void vi.advanceTimersByTime(60_000))
+      expect(pollTaxiActivity).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('keeps the wallet running when the claim sheet itself throws', async () => {

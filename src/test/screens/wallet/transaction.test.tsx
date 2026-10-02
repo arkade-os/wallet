@@ -1,8 +1,14 @@
 import { useState } from 'react'
 import userEvent from '@testing-library/user-event'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { TaxiError } from '@arkade-taxi/client'
+import { hex } from '@scure/base'
 import Transaction from '../../../screens/Wallet/Transaction'
+import { ReceiverClaimsContext } from '../../../providers/receiverClaims'
+import { claimKey } from '../../../lib/receiverClaims'
+import { PendingDirectTaxi, ReturnedDirectTaxi, type PendingTaxiRecord } from '../../../lib/directTaxiSend'
+import type { TaxiActivity } from '../../../lib/taxiActivity'
 import { FlowContext } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import {
@@ -13,6 +19,7 @@ import {
   mockIssuanceTxInfo,
   mockLimitsContextValue,
   mockNavigationContextValue,
+  mockSvcWallet,
   mockTxInfo,
   mockWalletContextValue,
 } from '../mocks'
@@ -21,7 +28,7 @@ import { WalletContext } from '../../../providers/wallet'
 import { NavigationContext } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
-import { Currencies, Language } from '../../../lib/types'
+import { Currencies, Language, type Tx } from '../../../lib/types'
 import { LanguageContext } from '../../../providers/language'
 import { translate } from '../../../lib/i18n'
 import type { CarrierActivity } from '../../../lib/carrierActivity'
@@ -29,6 +36,12 @@ import { AssetsContext } from '../../../providers/assets'
 import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
 import { AssetSwapsContext } from '../../../providers/assetSwaps'
 import type { WalletAssetSwap as AssetSwap } from '../../../lib/swapRepository'
+
+const checkTaxiPayment = vi.hoisted(() => vi.fn())
+vi.mock('../../../lib/directTaxiSend', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../lib/directTaxiSend')>()),
+  checkTaxiPayment,
+}))
 
 const FUNDING_TXID = '1'.repeat(64)
 
@@ -1044,5 +1057,234 @@ describe('Transaction screen', () => {
     expect(screen.getByTestId('Asset ID (USDT, unverified)')).toHaveTextContent('usdt-asset')
     expect(screen.getByTestId('Asset ID (unknown-…, unverified)')).toHaveTextContent('unknown-asset')
     expect(screen.queryByText('€100.00')).not.toBeInTheDocument()
+  })
+})
+
+describe('a Taxi transfer', () => {
+  const ASSET = 'f1'.repeat(34)
+  const record = (over: Partial<TaxiActivity> = {}): TaxiActivity => ({
+    role: 'sender',
+    network: 'regtest',
+    taxiUrl: 'https://taxi.mutinynet.arkade.sh',
+    transferId: '3ccdf42c-2fc1-444b-8837-5efcae8e7fbc',
+    mode: 'recycle',
+    assetId: ASSET,
+    units: '1',
+    carrierSats: '330',
+    fare: { currency: 'sats', units: '0' },
+    lockupTxid: '2'.repeat(64),
+    state: 'locked',
+    updatedAt: 1_790_960_764,
+    createdAt: 1_790_960_000,
+    ...over,
+  })
+  const taxiOnly = (taxi: TaxiActivity, over: Partial<Tx> = {}): Tx => ({
+    amount: 0,
+    assets: [{ assetId: ASSET, amount: taxi.role === 'sender' ? -1n : 1n }],
+    boardingTxid: '',
+    createdAt: taxi.createdAt,
+    explorable: undefined,
+    historyKey: `taxi:${taxi.role}:taxi.mutinynet.arkade.sh:${taxi.transferId}`,
+    networkFee: 0,
+    preconfirmed: false,
+    redeemTxid: '',
+    roundTxid: '',
+    settled: true,
+    taxi,
+    type: taxi.role === 'sender' ? 'sent' : 'received',
+    ...over,
+  })
+  const receipt = (txInfo: Tx, { claims = {}, wallet = {} }: { claims?: object; wallet?: object } = {}) => {
+    const tree = (txs: Tx[]) => (
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <AspContext.Provider value={mockAspContextValue}>
+              <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
+                <WalletContext.Provider value={{ ...mockWalletContextValue, txs, ...wallet } as any}>
+                  <ReceiverClaimsContext.Provider
+                    value={{ remember: () => {}, claimable: new Set<string>(), openClaim: () => {}, ...claims }}
+                  >
+                    <LimitsContext.Provider value={mockLimitsContextValue}>
+                      <Transaction />
+                    </LimitsContext.Provider>
+                  </ReceiverClaimsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </AspContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>
+    )
+    const view = render(tree([txInfo]))
+    return (txs: Tx[]) => view.rerender(tree(txs))
+  }
+  const checkAgain = () => userEvent.click(screen.getByRole('button', { name: 'Check again' }))
+  const actions = () =>
+    ['Check again', 'Claim', 'Settle transaction'].filter((name) => screen.queryByRole('button', { name }))
+  const withWallet = { wallet: { svcWallet: mockSvcWallet, vtxoManager: undefined } }
+  const journal = async (r = record()) => {
+    const senderKey = hex.encode(await mockSvcWallet.identity.xOnlyPublicKey())
+    const pending: PendingTaxiRecord = {
+      network: 'regtest',
+      senderKey,
+      taxiUrl: r.taxiUrl,
+      operatorKey: 'b'.repeat(64),
+      transferId: r.transferId,
+      expectedTxid: r.lockupTxid!,
+      expectedVout: 0,
+      mode: 'recycle',
+      receiverAddress: 'tark1receiver',
+      assetId: ASSET,
+      assetAmount: r.units,
+    }
+    localStorage.setItem(`directTaxiPending:regtest:${senderKey}`, JSON.stringify(pending))
+  }
+
+  beforeEach(() => {
+    checkTaxiPayment.mockReset()
+    localStorage.clear()
+  })
+
+  it('says a payment its journal names may have been submitted', async () => {
+    await journal()
+    receipt(taxiOnly(record({ state: 'locking' })), withWallet)
+    expect(await screen.findByText(/may have been submitted/)).toBeInTheDocument()
+  })
+
+  it('offers a check on a settled payment its journal still names, since only a check clears the journal', async () => {
+    await journal()
+    checkTaxiPayment.mockResolvedValue(undefined)
+    const expired = record({ state: 'expired' })
+    receipt(taxiOnly(expired), withWallet)
+    await userEvent.click(await screen.findByRole('button', { name: 'Check again' }))
+    expect(checkTaxiPayment).toHaveBeenCalledWith(expired, mockSvcWallet)
+  })
+
+  it('lists its Taxi, transfer, mode, carrier, fare, delivery, last update and lockup, and no settlement status', () => {
+    receipt(taxiOnly(record()))
+    expect(screen.getByTestId('Taxi')).toHaveTextContent('taxi.mutinynet.arkade.sh')
+    expect(screen.getByTestId('Transfer ID')).toHaveTextContent('3ccdf42c-2f')
+    expect(screen.getByTestId('Carrier mode')).toHaveTextContent('Receiver uses own sats')
+    expect(screen.getByTestId('Carrier sats')).toHaveTextContent('Borrowed 330 sats')
+    expect(screen.getByTestId('Taxi service fee')).toHaveTextContent('0 sats')
+    expect(screen.getByTestId('Delivery')).toHaveTextContent('Awaiting claim')
+    expect(screen.getByTestId('Last update')).toHaveTextContent('2026')
+    expect(screen.getByTestId('Related transaction')).toHaveTextContent('22222222...22222222')
+    expect(screen.queryByTestId('Status')).not.toBeInTheDocument()
+  })
+
+  it('spells out a failed submission in full, outside the truncating table, and offers a fresh check', () => {
+    const failed = record({
+      state: 'locking',
+      submissionPhase: 'failed',
+      failureCode: 'lockup_submission_invalid_provider_response',
+      failureDetail: 'server checkpoint 0 changed unsigned fields or metadata',
+    })
+    receipt(taxiOnly(failed))
+    expect(screen.getByText(/could not complete this payment/)).toBeInTheDocument()
+    expect(screen.getByText('server checkpoint 0 changed unsigned fields or metadata')).toBeInTheDocument()
+    expect(screen.getByText('Error code: lockup_submission_invalid_provider_response')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Check again' })).toBeEnabled()
+  })
+
+  it('opens the claim sheet of a delivery waiting for its receiver', async () => {
+    const delivery = record({ role: 'receiver', returnsTo: 'sender' })
+    const key = claimKey(delivery.taxiUrl, delivery.transferId)
+    const openClaim = vi.fn()
+    receipt(taxiOnly(delivery), { claims: { claimable: new Set([key]), openClaim } })
+    expect(screen.getByText(/waiting for you/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Claim' }))
+    expect(openClaim).toHaveBeenCalledWith(key)
+  })
+
+  it('checks a payment again with its Taxi, then reloads the wallet', async () => {
+    const reloadWallet = vi.fn(async () => {})
+    checkTaxiPayment.mockResolvedValue(undefined)
+    const sending = record({ state: 'locking' })
+    receipt(taxiOnly(sending), { wallet: { reloadWallet, svcWallet: mockSvcWallet, vtxoManager: undefined } })
+    await checkAgain()
+    await waitFor(() => expect(reloadWallet).toHaveBeenCalled())
+    expect(checkTaxiPayment).toHaveBeenCalledWith(sending, mockSvcWallet)
+  })
+
+  it.each([
+    [
+      'its Taxi cannot be reached',
+      new TaxiError('NETWORK_ERROR', 'taxi: GET could not be sent'),
+      /reach the Taxi\. Showing the last known state/,
+    ],
+    [
+      'the payment is still in doubt',
+      new PendingDirectTaxi({} as PendingTaxiRecord, async () => '', new Error('Taxi transfer is refunding')),
+      'Taxi transfer is refunding',
+    ],
+  ])('says so when %s', async (_, error, message) => {
+    checkTaxiPayment.mockRejectedValue(error)
+    receipt(taxiOnly(record({ state: 'locking' })))
+    await checkAgain()
+    expect(await screen.findByTestId('error-message')).toHaveTextContent(message)
+  })
+
+  it('takes a payment the Taxi returned as an outcome, not an error', async () => {
+    checkTaxiPayment.mockRejectedValue(new ReturnedDirectTaxi({} as PendingTaxiRecord))
+    receipt(taxiOnly(record({ state: 'locking' })))
+    await checkAgain()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Check again' })).toBeEnabled())
+    expect(checkTaxiPayment).toHaveBeenCalled()
+    expect(screen.queryByTestId('error-message')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['claimed', { state: 'recycled' }, 'The receiver claimed this payment.'],
+    ['returned', { state: 'recovered' }, 'The Taxi returned this payment to you.'],
+    ['never sent', { state: 'expired' }, /No money left your wallet/],
+  ])('explains a %s payment and offers nothing to do', (_, over, explanation) => {
+    receipt(taxiOnly(record(over)))
+    expect(screen.getByText(explanation)).toBeInTheDocument()
+    expect(actions()).toEqual([])
+  })
+
+  it.each([
+    ['a failed payment', { state: 'locking', submissionPhase: 'failed' }],
+    ['a payment never sent', { state: 'expired' }],
+    ['an unclaimed delivery', { role: 'receiver' as const, returnsTo: 'sender' as const }],
+  ])('heads %s only "Amount", and totals nothing', (_, over) => {
+    receipt(taxiOnly(record(over)))
+    expect(screen.getByText('Amount', { exact: true })).toBeInTheDocument()
+    expect(screen.queryByText(/^Amount (sent|received)$/)).not.toBeInTheDocument()
+    expect(screen.queryAllByTestId(/^Total/)).toEqual([])
+  })
+
+  it('heads a claimed payment "Amount sent", with its total', () => {
+    receipt(taxiOnly(record({ state: 'recycled' })))
+    expect(screen.getByText('Amount sent')).toBeInTheDocument()
+    expect(screen.getByTestId('Total')).toBeInTheDocument()
+  })
+
+  it('follows its record as it changes under the open receipt, even once a transaction row replaces it', () => {
+    const update = receipt(taxiOnly(record()))
+    expect(screen.getByTestId('Delivery')).toHaveTextContent('Awaiting claim')
+    update([taxiOnly(record({ state: 'recycled' }), { redeemTxid: '2'.repeat(64), historyKey: 'tx:2' })])
+    expect(screen.getByTestId('Delivery')).toHaveTextContent('Claimed')
+  })
+
+  it('shows only the transfer id of a row whose carrier names one, with nothing to do', () => {
+    const carrier: CarrierActivity = {
+      version: 1,
+      mode: 'recycle',
+      physicalSats: '330',
+      loanSats: '329',
+      purchasedSats: '1',
+      receiptSats: '1',
+      serviceFareSats: '0',
+      taxi: { transferId: 'advance-1' },
+      state: 'claimable',
+      txids: [],
+    }
+    receipt({ ...mockTxInfo, boardingTxid: '', redeemTxid: '4'.repeat(64), carrier })
+    expect(screen.getByTestId('Transfer ID')).toHaveTextContent('advance-1')
+    expect(screen.queryByTestId('Taxi')).not.toBeInTheDocument()
+    expect(actions()).toEqual([])
   })
 })

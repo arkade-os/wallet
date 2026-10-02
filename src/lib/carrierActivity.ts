@@ -76,6 +76,9 @@ const decimalSats = (value: unknown, field: string): bigint => {
   return sats
 }
 
+export const isTransferId = (value: unknown): value is string =>
+  typeof value === 'string' && TRANSFER_ID.test(value) && value.length <= 128
+
 const enumField = <T extends string>(value: unknown, allowed: readonly string[], field: string): T => {
   if (typeof value !== 'string' || !allowed.includes(value)) throw new CarrierMetadataError(field)
   return value as T
@@ -101,9 +104,7 @@ const taxiField = (value: unknown): { transferId: string } | undefined => {
   const transferId = taxi?.transferId
   // Canonical and non-blank: this id names a durable Taxi operation, so
   // whitespace or an unbounded string is not an identifier we can read back.
-  if (typeof transferId !== 'string' || !TRANSFER_ID.test(transferId) || transferId.length > 128) {
-    throw new CarrierMetadataError('taxi.transferId')
-  }
+  if (!isTransferId(transferId)) throw new CarrierMetadataError('taxi.transferId')
   return { transferId }
 }
 
@@ -187,7 +188,7 @@ const asBoundedSats = (value: string): bigint => {
  *  formatting it gets. */
 export const formatCarrierSats = (value: string): string => asBoundedSats(value).toLocaleString('en-US')
 
-const pluralSats = (value: string, language: Language): string =>
+export const pluralSats = (value: string, language: Language): string =>
   `${formatCarrierSats(value)} ${translate(language, asBoundedSats(value) === 1n ? 'common.sat' : 'common.sats')}`
 
 /** `Borrowed 329 sats` — the repayable half, which the user does not own. */

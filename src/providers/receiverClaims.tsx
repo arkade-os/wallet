@@ -20,10 +20,12 @@ import { extractError } from '../lib/error'
 import { consoleError } from '../lib/logs'
 import {
   ClaimSpent,
+  claimKey,
   claimVerified,
   deliveredAssetId,
   offerKey,
   planReceiverClaim,
+  taxiActivityFromOffer,
   walletClaimWatch,
   watchReceiverClaims,
   type ClaimPlan,
@@ -33,14 +35,25 @@ import { readReceiverTaxis, rememberReceiverTaxi, type RememberedTaxi } from '..
 import { assetSwapRepository, unreservedCoins } from '../lib/swapRepository'
 import { getEmulatorPubkeyForNetwork, getReceiverTaxiUrlForNetwork } from '../lib/constants'
 import { taxiClient } from '../lib/receiverTaxi'
+import { getPendingDirectTaxi, taxiActivityFromPending } from '../lib/directTaxiSend'
+import { pollTaxiActivity, readTaxiActivity, recordTaxiActivity, refreshTaxiActivity } from '../lib/taxiActivity'
+import { isCanonicalTxid } from '../lib/carrierActivity'
+
+const TAXI_STATUS_POLL_MS = 30_000
 
 interface ReceiverClaimsContextProps {
   /** Record a Taxi this wallet named in a request, so its claims are watched from now on. */
   remember: (taxi: RememberedTaxi) => void
+  /** The `offerKey` of every verified delivery waiting to be claimed. */
+  claimable: ReadonlySet<string>
+  /** Put this delivery's claim sheet back in front of the user, even one he put off. */
+  openClaim: (key: string) => void
 }
 
 export const ReceiverClaimsContext = createContext<ReceiverClaimsContextProps>({
   remember: (taxi) => void rememberReceiverTaxi(taxi),
+  claimable: new Set(),
+  openClaim: () => {},
 })
 
 const without = (set: ReadonlySet<string>, id: string): ReadonlySet<string> => {
@@ -50,7 +63,8 @@ const without = (set: ReadonlySet<string>, id: string): ReadonlySet<string> => {
   return next
 }
 
-/** Watches the claim feed of every Taxi this wallet has named, and asks before claiming anything. */
+/** Watches the claim feed of every Taxi this wallet has named, keeps history's Taxi records current, and asks before
+ * claiming anything. */
 export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { svcWallet, assetMetadataCache, reloadWallet, initialized, authState } = useContext(WalletContext)
@@ -66,6 +80,7 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
   const [offers, setOffers] = useState<VerifiedClaim[]>([])
   const claimedRef = useRef(new Set<string>())
   const [declined, setDeclined] = useState<ReadonlySet<string>>(new Set())
+  const [requested, setRequested] = useState<string>()
   const [spent, setSpent] = useState<ReadonlySet<string>>(new Set())
   const [planned, setPlanned] = useState<{ key: string; plan: ClaimPlan }>()
   const [claiming, setClaiming] = useState(false)
@@ -116,10 +131,17 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
             onOffer: (offer) => {
               const key = offerKey(offer)
               if (claimedRef.current.has(key)) return
+              recordTaxiActivity(taxiActivityFromOffer(offer))
               setOffers((prev) => (prev.some((other) => offerKey(other) === key) ? prev : [...prev, offer]))
               setDeclined((prev) => without(prev, key))
             },
-            onGone: (key) => setOffers((prev) => prev.filter((offer) => offerKey(offer) !== key)),
+            onGone: (key) => {
+              setOffers((prev) => prev.filter((offer) => offerKey(offer) !== key))
+              const record = readTaxiActivity(aspInfo.network).find(
+                (r) => r.role === 'receiver' && claimKey(r.taxiUrl, r.transferId) === key,
+              )
+              if (record) refreshTaxiActivity(record).catch((err) => consoleError(err, `could not re-read ${key}`))
+            },
           }),
         )
       })
@@ -130,6 +152,32 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unlocked, svcWallet, aspInfo.url, aspInfo.network, taxisVersion])
+
+  useEffect(() => {
+    if (!unlocked || !svcWallet) return
+    const network = aspInfo.network
+    let stopped = false
+    const poll = () => {
+      if (!stopped && document.visibilityState === 'visible') pollTaxiActivity(network).catch(consoleError)
+    }
+    // A journal written before this store existed has no record yet; the rank rule keeps a newer one as it is.
+    getPendingDirectTaxi(svcWallet, network)
+      .then((pending) => {
+        const createdAt = pending?.record.attempt?.quote.expiresAt ?? Math.floor(Date.now() / 1000)
+        if (pending) recordTaxiActivity(taxiActivityFromPending(pending.record, createdAt))
+      })
+      .catch((err) => consoleError(err, 'could not read the pending Taxi payment'))
+      .finally(poll)
+    const timer = setInterval(poll, TAXI_STATUS_POLL_MS)
+    window.addEventListener('focus', poll)
+    document.addEventListener('visibilitychange', poll)
+    return () => {
+      stopped = true
+      clearInterval(timer)
+      window.removeEventListener('focus', poll)
+      document.removeEventListener('visibilitychange', poll)
+    }
+  }, [unlocked, svcWallet, aspInfo.network])
 
   useEffect(() => {
     const reoffer = () => {
@@ -143,7 +191,9 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
     }
   }, [])
 
-  const current = unlocked ? offers.find((offer) => !declined.has(offerKey(offer))) : undefined
+  const current = unlocked
+    ? (offers.find((offer) => offerKey(offer) === requested) ?? offers.find((offer) => !declined.has(offerKey(offer))))
+    : undefined
   const currentKey = current && offerKey(current)
   const plan = planned && planned.key === currentKey ? planned.plan : undefined
 
@@ -171,7 +221,13 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
 
   const decline = () => {
     if (currentKey) setDeclined((prev) => new Set(prev).add(currentKey))
+    setRequested(undefined)
   }
+
+  const openClaim = useCallback((key: string) => {
+    setDeclined((prev) => without(prev, key))
+    setRequested(key)
+  }, [])
 
   const claim = async () => {
     const offer = current
@@ -185,7 +241,13 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
       const fresh = await planFor(offer)
       setPlanned({ key, plan: fresh })
       if (fresh.kind === 'wait-for-reclaim' || !unlockedRef.current) return
-      await claimVerified(offer, fresh, (svcWallet as IWallet).identity)
+      const claimTxid = await claimVerified(offer, fresh, (svcWallet as IWallet).identity)
+      recordTaxiActivity({
+        ...taxiActivityFromOffer(offer),
+        state: fresh.kind === 'purchase' ? 'purchased' : 'recycled',
+        ...(isCanonicalTxid(claimTxid) ? { claimTxid } : {}),
+        updatedAt: Math.floor(Date.now() / 1000),
+      })
       claimedRef.current.add(key)
       setOffers((prev) => prev.filter((other) => other !== offer))
       reloadWallet().catch(consoleError)
@@ -200,7 +262,8 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
 
   const assetId = current && deliveredAssetId(current.claim)
   const metadata = assetId ? assetMetadataCache.get(assetId)?.metadata : undefined
-  const value = useMemo(() => ({ remember }), [remember])
+  const claimable = useMemo(() => new Set(offers.map(offerKey)), [offers])
+  const value = useMemo(() => ({ remember, claimable, openClaim }), [remember, claimable, openClaim])
 
   return (
     <ReceiverClaimsContext.Provider value={value}>
