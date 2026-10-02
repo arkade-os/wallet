@@ -12,7 +12,15 @@ import {
   type ClaimWatch,
   type RecyclePlan,
 } from '../../lib/receiverClaims'
-import { BOB, BOB_ADDRESS, BOB_PK_SCRIPT, assetFareClaim, coins, satsFareClaim } from './receiverClaimsFixtures'
+import {
+  BOB,
+  BOB_ADDRESS,
+  BOB_PK_SCRIPT,
+  assetFareClaim,
+  bitcoinClaim,
+  coins,
+  satsFareClaim,
+} from './receiverClaimsFixtures'
 import { INFO, KEYS, TAXI_URL } from './receiverTaxiFixtures'
 
 const consoleError = vi.hoisted(() => vi.fn())
@@ -72,6 +80,20 @@ describe('planReceiverClaim', () => {
       kind: 'wait-for-reclaim',
       reason: 'fare-exceeds-delivery',
     })
+  })
+
+  it('nets the receiver of sub-dust bitcoin what was sent: his coin repays the top-up', () => {
+    expect(planReceiverClaim(bitcoinClaim(230n), coins([1000n]))).toMatchObject({
+      kind: 'recycle',
+      mergedSats: 1100n,
+      feeSats: 0n,
+    })
+    expect(planReceiverClaim(bitcoinClaim(230n), coins([229n]))).toEqual({
+      kind: 'wait-for-reclaim',
+      reason: 'no-coin-covers-the-fare',
+      neededSats: 230n,
+    })
+    expect(planReceiverClaim(bitcoinClaim(230n, 'purchase'), [])).toEqual({ kind: 'purchase', receivedSats: 330n })
   })
 })
 

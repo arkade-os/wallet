@@ -79,6 +79,7 @@ import {
   type DirectTaxiMode,
   type DirectTaxiTerms,
 } from '../../../lib/directTaxiSend'
+import { arkadeContextOf, probeBitcoinTaxi, TAXI_REFUSAL_TEXT } from '../../../lib/receiverTaxi'
 
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
 
@@ -150,6 +151,31 @@ const TAXI_SEND_MODES = {
   sponsored: 'Sender sponsors carrier',
 } as const
 
+const BITCOIN_TAXI_MODES = {
+  normal: 'No Taxi: sub-dust coin',
+  recycle: 'Receiver uses own sats',
+  purchase: 'Receiver needs no sats',
+  sponsored: 'Direct delivery, no claim',
+} as const
+
+type SubdustOffer =
+  | { status: 'checking' }
+  | { status: 'unavailable'; reason: string }
+  | { status: 'available'; modes: DirectTaxiMode[] }
+
+const bitcoinTaxiTerms = ({ mode, assetAmount: sent, fareUnits, carrierSats: topup }: DirectTaxiTerms): string => {
+  const coin = sent + topup
+  const unclaimed = ` If it isn't claimed, your ${sent} sats come back to you.`
+  return (
+    `Send ${sent} sats. Fare: ${fareUnits} sats. Taxi adds ${topup} sats so it arrives as a full ${coin}-sat coin. ` +
+    (mode === 'recycle'
+      ? `The receiver claims it with a coin of at least ${topup} sats of their own, repaying Taxi.${unclaimed}`
+      : mode === 'purchase'
+        ? `The receiver claims the whole ${coin}-sat coin without sats of their own.${unclaimed}`
+        : `The receiver gets the ${coin}-sat coin directly, with no claim needed.`)
+  )
+}
+
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
   const { config, effectiveTheme, useFiat } = useContext(ConfigContext)
@@ -197,6 +223,9 @@ export default function SendForm() {
   const [showReserveModal, setShowReserveModal] = useState(false)
   const [valueSats, setValueSats] = useState<number | undefined>(undefined)
   const [receiverTaxi, setReceiverTaxi] = useState<{ taxi: Bip21Taxi; assetId: string }>()
+  // Apart from receiverTaxi, which routesToReceiverTaxi reads as an asset request.
+  const [bitcoinTaxi, setBitcoinTaxi] = useState<Bip21Taxi>()
+  const [subdustOffer, setSubdustOffer] = useState<SubdustOffer>()
   const [approval, setApproval] = useState<{
     terms: AssetPaymentTerms | DirectTaxiTerms
     answer: (ok: boolean) => void
@@ -207,11 +236,14 @@ export default function SendForm() {
   const [taxiGuardFailed, setTaxiGuardFailed] = useState(false)
   const [returnedTaxiNotice, setReturnedTaxiNotice] = useState('')
 
-  const pendingSendInfo = (payment: PendingDirectTaxi | ReturnedDirectTaxi): SendInfo => ({
-    arkAddress: payment.record.receiverAddress,
-    assets: [{ assetId: payment.record.assetId, amount: BigInt(payment.record.assetAmount) }],
-    satoshis: 0,
-  })
+  const pendingSendInfo = ({ record }: PendingDirectTaxi | ReturnedDirectTaxi): SendInfo =>
+    record.assetId === undefined
+      ? { arkAddress: record.receiverAddress, satoshis: Number(record.assetAmount) }
+      : {
+          arkAddress: record.receiverAddress,
+          assets: [{ assetId: record.assetId, amount: BigInt(record.assetAmount) }],
+          satoshis: 0,
+        }
 
   useEffect(() => {
     if (!svcWallet) return
@@ -270,9 +302,56 @@ export default function SendForm() {
       sendInfo.arkAddress &&
       directTaxiUrl,
   )
-  const payViaDirectTaxi = canUseDirectTaxi && directTaxiMode !== 'normal'
+  // A Taxi the request names is used or refused, never swapped for the network's.
+  const subdustTaxiUrl = bitcoinTaxi?.url ?? getReceiverTaxiUrlForNetwork(aspInfo.network as NetworkName)
+  const sendSats = sendInfo.satoshis ?? 0
+  const wantsSubdustTaxi = Boolean(
+    !isAssetSend &&
+      sendInfo.arkAddress &&
+      sendSats >= Number(aspInfo.vtxoMinAmount) &&
+      sendSats < Number(aspInfo.dust) &&
+      subdustTaxiUrl,
+  )
+  const subdustModes = wantsSubdustTaxi && subdustOffer?.status === 'available' ? subdustOffer.modes : undefined
+  const payViaDirectTaxi = (canUseDirectTaxi || Boolean(subdustModes)) && directTaxiMode !== 'normal'
 
-  useEffect(() => setDirectTaxiMode('normal'), [sendInfo.arkAddress, sendInfo.assets?.[0]?.assetId])
+  useEffect(() => setDirectTaxiMode('normal'), [sendInfo.arkAddress, sendInfo.assets?.[0]?.assetId, subdustOffer])
+
+  useEffect(() => {
+    setSubdustOffer(undefined)
+    if (!wantsSubdustTaxi) return
+    let cancelled = false
+    setSubdustOffer({ status: 'checking' })
+    const check = async (): Promise<SubdustOffer> => {
+      const ctx = {
+        ...arkadeContextOf(aspInfo, () => Promise.reject(new Error('offering a Taxi reads no chain tip'))),
+        fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
+        pageProtocol: window.location.protocol,
+      }
+      // ponytail: one /v1/info per amount edit; cache per URL if volume matters
+      const offer = await probeBitcoinTaxi(
+        { url: subdustTaxiUrl!, operatorKey: bitcoinTaxi?.operatorKey, fareId: bitcoinTaxi?.fareId },
+        ctx,
+        sendInfo.arkAddress!,
+        BigInt(sendSats),
+      )
+      return offer.ok
+        ? { status: 'available', modes: offer.modes }
+        : { status: 'unavailable', reason: TAXI_REFUSAL_TEXT[offer.reason] }
+    }
+    check()
+      .catch((error): SubdustOffer => {
+        consoleError(error, 'cannot check the Taxi against this wallet')
+        return { status: 'unavailable', reason: TAXI_REFUSAL_TEXT.unverifiable }
+      })
+      .then((next) => {
+        if (!cancelled) setSubdustOffer(next)
+      })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wantsSubdustTaxi, subdustTaxiUrl, bitcoinTaxi, sendInfo.arkAddress, sendSats, aspInfo.url, aspInfo.signerPubkey])
 
   const RECIPIENT_DEBOUNCE_MS = 800
   const hasAssets = assetBalances.length > 0
@@ -406,6 +485,7 @@ export default function SendForm() {
     setRecipientError('')
     const parseRecipient = async () => {
       setReceiverTaxi(undefined)
+      setBitcoinTaxi(undefined)
       if (!recipient) return
       const lowerCaseData = recipient.toLowerCase().replace(/^lightning:/, '')
       if (isURLWithLightningQueryString(recipient)) {
@@ -455,6 +535,7 @@ export default function SendForm() {
             pendingLnSend: invoice === prev.invoice ? prev.pendingLnSend : undefined,
           }))
         }
+        setBitcoinTaxi(taxi)
         setSendInfo((prev) => ({
           ...prev,
           account: prev.account,
@@ -894,15 +975,18 @@ export default function SendForm() {
       let txid: string
       if (pendingDirectTaxi.current) txid = await pendingDirectTaxi.current.payment.resume()
       else {
-        if (!svcWallet || !directTaxiUrl || directTaxiMode === 'normal') throw new Error('Taxi payment is unavailable')
-        const [{ assetId, amount }] = originalSend.assets!
+        const [asset] = canUseDirectTaxi ? originalSend.assets! : []
+        const url = asset ? directTaxiUrl : subdustTaxiUrl
+        if (!svcWallet || !url || directTaxiMode === 'normal') throw new Error('Taxi payment is unavailable')
         txid = await sendDirectTaxi({
           wallet: svcWallet,
           aspInfo,
-          taxi: { url: directTaxiUrl, operatorKey: receiverTaxi?.taxi.operatorKey },
+          taxi: asset
+            ? { url, operatorKey: receiverTaxi?.taxi.operatorKey }
+            : { url, operatorKey: bitcoinTaxi?.operatorKey, fareId: bitcoinTaxi?.fareId },
           receiverAddress: originalSend.arkAddress!,
-          assetId,
-          amount,
+          assetId: asset?.assetId,
+          amount: asset ? asset.amount : BigInt(originalSend.satoshis ?? 0),
           mode: directTaxiMode,
           confirmPayment: (terms) => new Promise((answer) => setApproval({ terms, answer })),
         })
@@ -1079,6 +1163,11 @@ export default function SendForm() {
       ? PARTIAL_SEND_ERROR
       : ''
 
+  const carrierModes: Partial<Record<keyof typeof TAXI_SEND_MODES, string>> | undefined = canUseDirectTaxi
+    ? TAXI_SEND_MODES
+    : subdustModes
+      ? Object.fromEntries((['normal', ...subdustModes] as const).map((mode) => [mode, BITCOIN_TAXI_MODES[mode]]))
+      : undefined
   const failedTaxi =
     pendingDirectTaxi.current?.payment instanceof FailedDirectTaxi ? pendingDirectTaxi.current.payment : undefined
 
@@ -1367,19 +1456,24 @@ export default function SendForm() {
                   focus={focus === 'amount' && !isMobileBrowser}
                 />
               </FlexCol>
-              {canUseDirectTaxi ? (
+              {subdustOffer && subdustOffer.status !== 'available' ? (
+                <TextSecondary>
+                  {subdustOffer.status === 'checking' ? 'Checking Taxi…' : `Taxi unavailable: ${subdustOffer.reason}`}
+                </TextSecondary>
+              ) : null}
+              {carrierModes ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     className='button secondary'
                     data-testid='taxi-send-mode'
                     disabled={Boolean(pendingDirectTaxi.current)}
                   >
-                    {`Carrier: ${TAXI_SEND_MODES[directTaxiMode]}`}
+                    {`Carrier: ${carrierModes[directTaxiMode]}`}
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    {(Object.keys(TAXI_SEND_MODES) as (keyof typeof TAXI_SEND_MODES)[]).map((mode) => (
+                    {(Object.keys(carrierModes) as (keyof typeof TAXI_SEND_MODES)[]).map((mode) => (
                       <DropdownMenuItem key={mode} onClick={() => setDirectTaxiMode(mode)}>
-                        {TAXI_SEND_MODES[mode]}
+                        {carrierModes[mode]}
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuContent>
@@ -1428,7 +1522,9 @@ export default function SendForm() {
           >
             {approval
               ? 'mode' in approval.terms
-                ? `Send ${prettyAssetAmount(approval.terms.assetAmount, activeAsset?.decimals ?? 8)} ${activeAsset?.ticker ?? ''}. Fare: ${approval.terms.fareCurrency === 'sats' ? `${approval.terms.fareUnits} sats` : `${prettyAssetAmount(approval.terms.fareUnits, activeAsset?.decimals ?? 8)} ${activeAsset?.ticker ?? ''}`}. Taxi carrier: ${approval.terms.carrierSats} sats. ${approval.terms.mode === 'recycle' ? 'The receiver uses their own sats to repay the carrier.' : approval.terms.mode === 'purchase' ? 'The receiver claims the purchased carrier without their own sats.' : 'The receiver gets a direct delivery with no claim needed.'}`
+                ? approval.terms.assetId === undefined
+                  ? bitcoinTaxiTerms(approval.terms)
+                  : `Send ${prettyAssetAmount(approval.terms.assetAmount, activeAsset?.decimals ?? 8)} ${activeAsset?.ticker ?? ''}. Fare: ${approval.terms.fareCurrency === 'sats' ? `${approval.terms.fareUnits} sats` : `${prettyAssetAmount(approval.terms.fareUnits, activeAsset?.decimals ?? 8)} ${activeAsset?.ticker ?? ''}`}. Taxi carrier: ${approval.terms.carrierSats} sats. ${approval.terms.mode === 'recycle' ? 'The receiver uses their own sats to repay the carrier.' : approval.terms.mode === 'purchase' ? 'The receiver claims the purchased carrier without their own sats.' : 'The receiver gets a direct delivery with no claim needed.'}`
                 : `Pay ${prettyNumber(Number(approval.terms.payAmountSats))} sats to send ${prettyAssetAmount(approval.terms.assetAmount, activeAsset?.decimals ?? 8)} ${activeAsset?.ticker ?? ''}`
               : ''}
           </Text>

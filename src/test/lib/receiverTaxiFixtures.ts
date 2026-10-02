@@ -95,6 +95,25 @@ export const withRule = (over: Record<string, unknown>) => ({
   assetRules: [{ ...INFO.assetRules[0], ...over }],
 })
 
+export const BITCOIN_RULE: TaxiInfo['assetRules'][number] = {
+  assetId: null,
+  enabled: true,
+  claim: 'recycle',
+  maxTopupSats: null,
+  unclaimedMode: 'reclaim',
+  fares: [{ id: 'sats', currency: 'sats', pricing: { kind: 'flat', units: '0' } }],
+}
+
+/** The live mutinynet bitcoin rule, on a Taxi that can carry an exact sub-dust amount. */
+export const BITCOIN_INFO = {
+  ...INFO,
+  assetRules: [...INFO.assetRules, BITCOIN_RULE],
+  bitcoinPaymentSats: true,
+} as TaxiInfo
+
+export const withBitcoinRule = (over: Record<string, unknown>) =>
+  ({ ...BITCOIN_INFO, assetRules: [INFO.assetRules[0], { ...BITCOIN_RULE, ...over }] }) as TaxiInfo
+
 export const TWO_FARES = withRule({
   fares: [...INFO.assetRules[0].fares, { id: 'cheap', currency: 'sats', pricing: { kind: 'flat', units: '1' } }],
 })

@@ -133,6 +133,16 @@ describe('bip21 utilities', () => {
       expect(uri).not.toContain(',')
       expect(uri).toContain('amount=1000')
     })
+
+    it('names a Taxi for a sub-dust amount, and decodes it back', () => {
+      const taxi: Bip21Taxi = { url: 'https://taxi.example', operatorKey: KEY, fareId: 'flat' }
+      const uri = encodeBip21('bc1x', ARK, '', 100, '', taxi)
+      expect(uri).toBe(
+        `bitcoin:bc1x?ark=${ARK}&amount=0.000001&taxi=https%3A%2F%2Ftaxi.example&taxikey=${KEY}&taxifare=flat`,
+      )
+      expect(decodeBip21(uri)).toMatchObject({ satoshis: 100, taxi })
+      expect(encodeBip21('bc1x', ARK, '', 100, '')).toBe(`bitcoin:bc1x?ark=${ARK}&amount=0.000001`)
+    })
   })
 
   describe('encodeBip21Asset taxi params', () => {

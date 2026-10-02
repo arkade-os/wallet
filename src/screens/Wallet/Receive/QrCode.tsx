@@ -94,6 +94,7 @@ export default function ReceiveQRCode() {
   const { boardingAddr, offchainAddr, satoshis, assetId, addressError } = recvInfo
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
   const isAssetReceive = assetId && assetId !== ''
+  const subdustRequest = !isAssetReceive && satoshis > 0 && satoshis < Number(aspInfo.dust)
   const hasError = Boolean(addressError)
 
   const [generatingInvoice, setGeneratingInvoice] = useState(false)
@@ -144,7 +145,7 @@ export default function ReceiveQRCode() {
     const btc = utxoTxsAllowed() ? recvInfo.boardingAddr : ''
     const bip21 = isAssetReceive
       ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals, ark ? taxi : undefined)
-      : encodeBip21(btc, ark, recvInfo.invoice ?? '', satoshis, '')
+      : encodeBip21(btc, ark, recvInfo.invoice ?? '', satoshis, '', ark && subdustRequest ? taxi : undefined)
 
     return { ark, btc, bip21 }
   }
@@ -252,7 +253,7 @@ export default function ReceiveQRCode() {
     if (!addressesLoaded) return
 
     const { ark, btc, bip21 } = createBip21()
-    if (isAssetReceive && ark && taxi) {
+    if ((isAssetReceive || subdustRequest) && ark && taxi) {
       remember({ network: aspInfo.network, url: taxi.url, operatorKey: taxi.operatorKey })
     }
 
@@ -610,6 +611,8 @@ export default function ReceiveQRCode() {
                   value={taxi}
                   onChange={setTaxi}
                 />
+              ) : subdustRequest && arkAddress ? (
+                <TaxiChoice satoshis={satoshis} receiverAddress={arkAddress} value={taxi} onChange={setTaxi} />
               ) : null}
               <span hidden data-testid='bip21'>
                 {bip21Uri}

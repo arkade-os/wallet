@@ -30,7 +30,8 @@ export type DirectTaxiMode = 'recycle' | 'purchase' | 'sponsored'
 
 export interface DirectTaxiTerms {
   mode: DirectTaxiMode
-  assetId: string
+  /** Absent for sub-dust bitcoin, whose `assetAmount` is then in sats. */
+  assetId?: string
   assetAmount: bigint
   fareCurrency: 'sats' | 'asset'
   fareUnits: bigint
@@ -47,7 +48,8 @@ interface PendingTaxiRecord {
   expectedVout: number
   mode: DirectTaxiMode
   receiverAddress: string
-  assetId: string
+  /** Absent for sub-dust bitcoin, whose `assetAmount` is then in sats. */
+  assetId?: string
   assetAmount: string
   attempt?: StoredTaxiAttempt
 }
@@ -91,7 +93,7 @@ const readPending = (network: string, senderKey: string): PendingTaxiRecord | un
       !Number.isSafeInteger(record.expectedVout) ||
       record.expectedVout < 0 ||
       typeof record.receiverAddress !== 'string' ||
-      typeof record.assetId !== 'string' ||
+      (record.assetId !== undefined && typeof record.assetId !== 'string') ||
       typeof record.assetAmount !== 'string' ||
       !/^[1-9][0-9]*$/.test(record.assetAmount)
     )
@@ -211,7 +213,8 @@ const resumeStoredPayment = async (record: PendingTaxiRecord) => {
   if (attempt && (info.serverKey !== attempt.serverKey || info.emulatorKey !== attempt.emulatorKey))
     throw new Error('Taxi uses a different Arkade server or co-signer')
   return waitForSettlement(record, client, async () => {
-    if (!attempt) throw new Error('The original Taxi payment authorization is unavailable')
+    if (!attempt || record.assetId === undefined)
+      throw new Error('The original Taxi payment authorization is unavailable')
     const receiver = ArkAddress.decode(record.receiverAddress)
     if (
       receiver.encode() !== record.receiverAddress ||
@@ -311,7 +314,8 @@ interface DirectTaxiSendArgs {
   aspInfo: AspInfo
   taxi: { url: string; operatorKey?: string; fareId?: Bip21Taxi['fareId'] }
   receiverAddress: string
-  assetId: string
+  /** Absent for sub-dust bitcoin, whose `amount` is then in sats. */
+  assetId?: string
   amount: bigint
   mode: DirectTaxiMode
   confirmPayment: (terms: DirectTaxiTerms) => Promise<boolean>
@@ -329,6 +333,8 @@ export const sendDirectTaxi = async (args: DirectTaxiSendArgs): Promise<string> 
 
 const sendDirectTaxiLocked = async (args: DirectTaxiSendArgs, senderKey: string): Promise<string> => {
   const { wallet, aspInfo, taxi, receiverAddress, assetId, amount, mode } = args
+  // Quoting an exact bitcoin amount needs the Taxi client's paymentSats, which the vendored client lacks.
+  if (assetId === undefined) throw new Error("This wallet can't send an exact sub-dust amount through Taxi yet")
   if (amount <= 0n) throw new Error('Asset amount must be positive')
   if (window.location.protocol === 'https:' && new URL(taxi.url).protocol !== 'https:')
     throw new Error('Taxi must use HTTPS')

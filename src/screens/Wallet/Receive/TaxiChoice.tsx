@@ -10,10 +10,11 @@ import { getReceiverTaxiUrlForNetwork } from '../../../lib/constants'
 import { consoleError } from '../../../lib/logs'
 import {
   arkadeContextOf,
+  probeBitcoinTaxi,
   probeOwnTaxi,
   receiverFareUnits,
   ruleFor,
-  type ProbeRefusal,
+  TAXI_REFUSAL_TEXT,
   type TaxiFare,
   type TaxiProbeContext,
 } from '../../../lib/receiverTaxi'
@@ -23,36 +24,23 @@ type Fare = { fare: TaxiFare; units: bigint }
 type TaxiOffer =
   | { status: 'checking' }
   | { status: 'unavailable'; reason: string }
-  | { status: 'available'; url: string; operatorKey: string; fares: Fare[] }
-
-const REASONS: Record<ProbeRefusal | 'no-receiver-fare' | 'unverifiable', string> = {
-  unreachable: "it can't be reached",
-  'operator-key-mismatch': 'it reported inconsistent keys',
-  'server-key-mismatch': 'it serves a different Arkade server',
-  'emulator-key-mismatch': 'it uses a different co-signer',
-  'network-mismatch': 'it serves a different network',
-  paused: 'it is paused',
-  'asset-not-served': "it doesn't carry this asset",
-  'unsupported-unclaimed-mode': "its terms for unclaimed deliveries aren't supported",
-  'recycle-not-allowed': "it doesn't let you claim by merging the delivery into a coin",
-  'loan-cap-below-dust': "it won't lend enough to carry a delivery",
-  'fare-unavailable': 'it offers no fare a receiver can pay',
-  'no-receiver-fare': 'it offers no fare a receiver can pay',
-  unverifiable: "it can't be checked against this wallet's server",
-}
+  | { status: 'available'; url: string; operatorKey: string; fares: Fare[]; topup?: bigint }
 
 const checkOwnTaxi = async (
   url: string,
   aspInfo: AspInfo,
-  assetId: string,
+  assetId: string | undefined,
   receiverAddress: string,
+  satoshis = 0,
 ): Promise<TaxiOffer> => {
-  const unavailable = (reason: keyof typeof REASONS): TaxiOffer => ({ status: 'unavailable', reason: REASONS[reason] })
-  let ctx: TaxiProbeContext
+  const unavailable = (reason: keyof typeof TAXI_REFUSAL_TEXT): TaxiOffer => ({
+    status: 'unavailable',
+    reason: TAXI_REFUSAL_TEXT[reason],
+  })
+  let base: Omit<TaxiProbeContext, 'assetId'>
   try {
-    ctx = {
+    base = {
       ...arkadeContextOf(aspInfo, () => Promise.reject(new Error('offering a Taxi reads no chain tip'))),
-      assetId,
       receiverAddress,
       fetch: (input, init) => fetch(input, init),
       pageProtocol: window.location.protocol,
@@ -61,6 +49,12 @@ const checkOwnTaxi = async (
     consoleError(error, 'cannot check the Taxi against this wallet')
     return unavailable('unverifiable')
   }
+  if (!assetId) {
+    const vet = await probeBitcoinTaxi({ url }, base, receiverAddress, BigInt(satoshis))
+    if (!vet.ok) return unavailable(vet.reason)
+    return { status: 'available', url, operatorKey: vet.info.operatorKey, fares: vet.fares, topup: vet.topup }
+  }
+  const ctx = { ...base, assetId }
   const probe = await probeOwnTaxi(url, ctx)
   if (!probe.ok) return unavailable(probe.reason)
   const fares = (ruleFor(probe.info, assetId)?.fares ?? []).flatMap((fare) => {
@@ -75,15 +69,25 @@ const fareLabel = ({ fare, units }: Fare, assetUnits: (units: bigint) => string)
   `${fare.id} · ${fare.currency === 'sats' ? `${units} sats` : assetUnits(units)}`
 
 interface TaxiChoiceProps {
-  assetId: string
+  /** Absent for a sub-dust bitcoin request of `satoshis`. */
+  assetId?: string
+  satoshis?: number
   receiverAddress: string
-  ticker: string
+  ticker?: string
   decimals?: number
   value?: Bip21Taxi
   onChange: (taxi?: Bip21Taxi) => void
 }
 
-export default function TaxiChoice({ assetId, receiverAddress, ticker, decimals, value, onChange }: TaxiChoiceProps) {
+export default function TaxiChoice({
+  assetId,
+  satoshis,
+  receiverAddress,
+  ticker,
+  decimals,
+  value,
+  onChange,
+}: TaxiChoiceProps) {
   const { aspInfo } = useContext(AspContext)
   const url = aspInfo.network ? getReceiverTaxiUrlForNetwork(aspInfo.network as NetworkName) : undefined
   const [offer, setOffer] = useState<TaxiOffer>({ status: 'checking' })
@@ -94,10 +98,10 @@ export default function TaxiChoice({ assetId, receiverAddress, ticker, decimals,
     if (!url) return
     let cancelled = false
     setOffer({ status: 'checking' })
-    checkOwnTaxi(url, aspInfo, assetId, receiverAddress)
+    checkOwnTaxi(url, aspInfo, assetId, receiverAddress, satoshis)
       .catch((error): TaxiOffer => {
         consoleError(error, 'error checking the Taxi')
-        return { status: 'unavailable', reason: REASONS.unreachable }
+        return { status: 'unavailable', reason: TAXI_REFUSAL_TEXT.unreachable }
       })
       .then((next) => {
         if (!cancelled) setOffer(next)
@@ -106,7 +110,7 @@ export default function TaxiChoice({ assetId, receiverAddress, ticker, decimals,
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url, aspInfo.url, aspInfo.signerPubkey, assetId, receiverAddress])
+  }, [url, aspInfo.url, aspInfo.signerPubkey, assetId, satoshis, receiverAddress])
 
   if (!url || offer.status === 'checking') return null
   if (offer.status === 'unavailable') return <TextSecondary>{`Taxi unavailable: ${offer.reason}`}</TextSecondary>
@@ -145,7 +149,13 @@ export default function TaxiChoice({ assetId, receiverAddress, ticker, decimals,
           ))}
         </div>
       ) : null}
-      {chosen ? <TextSecondary>The payer needs no carrier; you pay this fare when you claim.</TextSecondary> : null}
+      {chosen ? (
+        <TextSecondary>
+          {offer.topup === undefined
+            ? 'The payer needs no carrier; you pay this fare when you claim.'
+            : `The payer pays this fare, and it arrives as a full ${aspInfo.dust}-sat coin. Claiming may use ${offer.topup} sats of your own.`}
+        </TextSecondary>
+      ) : null}
     </FlexCol>
   )
 }

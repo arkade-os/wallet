@@ -109,14 +109,28 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
   return result
 }
 
-export const encodeBip21 = (address: string, arkAddress: string, invoice: string, sats: number, lnurl?: string) => {
+// Only ever appended after an ark= param, so it always continues a query.
+const taxiParams = (taxi?: Bip21Taxi) => {
+  if (!taxi) return ''
+  const fare = taxi.fareId ? `&taxifare=${encodeURIComponent(taxi.fareId)}` : ''
+  return `&taxi=${encodeURIComponent(taxi.url)}&taxikey=${encodeURIComponent(taxi.operatorKey)}${fare}`
+}
+
+export const encodeBip21 = (
+  address: string,
+  arkAddress: string,
+  invoice: string,
+  sats: number,
+  lnurl?: string,
+  taxi?: Bip21Taxi,
+) => {
   const bip21 =
     `bitcoin:${address}?` +
     (arkAddress ? `ark=${arkAddress}&` : '') +
     (invoice ? `lightning=${invoice}&` : lnurl ? `lightning=${lnurl}&` : '') +
     // useGrouping=false: BIP21 amounts must be plain decimals, never '1,000'
     (sats ? `amount=${prettyNumber(fromSatoshis(sats), 8, false)}` : '')
-  return bip21.endsWith('&') || bip21.endsWith('?') ? bip21.slice(0, -1) : bip21
+  return (bip21.endsWith('&') || bip21.endsWith('?') ? bip21.slice(0, -1) : bip21) + taxiParams(taxi)
 }
 
 export const encodeBip21Asset = (
@@ -125,12 +139,7 @@ export const encodeBip21Asset = (
   cents: bigint,
   decimals?: number,
   taxi?: Bip21Taxi,
-) => {
-  const base = `bitcoin:?ark=${arkAddress}&assetid=${assetId}&amount=${centsToUnits(cents, decimals)}`
-  if (!taxi) return base
-  const fare = taxi.fareId ? `&taxifare=${encodeURIComponent(taxi.fareId)}` : ''
-  return `${base}&taxi=${encodeURIComponent(taxi.url)}&taxikey=${encodeURIComponent(taxi.operatorKey)}${fare}`
-}
+) => `bitcoin:?ark=${arkAddress}&assetid=${assetId}&amount=${centsToUnits(cents, decimals)}${taxiParams(taxi)}`
 
 export const isBip21 = (data: string): boolean => {
   try {
