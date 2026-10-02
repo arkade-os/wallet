@@ -3,11 +3,12 @@ import { hex } from '@scure/base'
 import type { Bip21Taxi } from '../../lib/bip21'
 import type { TaxiInfo, TaxiProbeContext } from '../../lib/receiverTaxi'
 
-// Built by the vendored @arkade-taxi packages (dd8b03a1) and accepted by their verifyReceiveQuote.
+// Built by the vendored @arkade-taxi packages (d5a13017) and accepted by their verifyReceiveQuote.
 export const KEYS = {
   receiver: '1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f',
   maker: '4d4b6cd1361032ca9bd2aeb9d900aa4d45d9ead80ac9423374c451a7254d0766',
   operator: '531fe6068134503d2723133227c867ac8fa6c83c537e9a44c3c5bdbdcb1fe337',
+  operatorSigner: 'c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5',
   server: '462779ad4aad39514614751a71085f2f10e1c7a593e4e030efb5b8721ce55b0b',
   emulator: '62c0a046dacce86ddd0343c6d3c7c79c2208ba0d9c9cf24a6d046d21d21f90f7',
   other: 'f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9',
@@ -17,7 +18,7 @@ export const WIRE_ASSET_ID = { txid: '0102030405060708090a0b0c0d0e0f101112131415
 export const RECEIVER_ADDRESS =
   'tark1qprzw7ddf2knj52xz3635uggtuh3pcw85kf7fcpsa76msusuu4dskxuyc4t8kynygzv460k442aq2ewhrcvrgczgr8lec9l4a82a6pu0lsh6sq'
 export const COVENANT_ADDRESS =
-  'tark1qprzw7ddf2knj52xz3635uggtuh3pcw85kf7fcpsa76msusuu4dshzqfugytgezaur0ssjltfhglgjwnaxq5tvxcxyxvpcz490qemfss7z4y5h'
+  'tark1qprzw7ddf2knj52xz3635uggtuh3pcw85kf7fcpsa76msusuu4dshexrx0xyaj3k65ydnpsauafhzwrm9pl8gcjnunpl2kc6t00les76w0ftpz'
 export const TAXI_URL = 'https://taxi.example'
 export const TAXI: Bip21Taxi = { url: TAXI_URL, operatorKey: KEYS.operator, fareId: 'flat' }
 
@@ -53,9 +54,11 @@ export const QUOTE = {
     receiverKey: KEYS.receiver,
     senderKey: KEYS.maker,
     operatorKey: KEYS.operator,
+    operatorSignerKey: KEYS.operatorSigner,
     dust: '330',
     topup: '330',
     locktime: '3800000000',
+    exitDelay: { value: '86016', type: 'seconds' },
     assetId: WIRE_ASSET_ID,
     recoveryRecipient: 'receiver',
     claimMode: 'recycle',
@@ -80,7 +83,7 @@ export const EARLY_QUOTE = {
   quoteId: 'rq-early',
   params: { ...QUOTE.params, locktime: '2900000000' },
   covenantAddress:
-    'tark1qprzw7ddf2knj52xz3635uggtuh3pcw85kf7fcpsa76msusuu4dshvdgqqe2k53wgv6s8hrydujvepr7aztuqkwz2q6w5m9d4lnceqsth4u845',
+    'tark1qprzw7ddf2knj52xz3635uggtuh3pcw85kf7fcpsa76msusuu4dsk22f5urwe52ff8sgaq56pc2vghcc3gx9qj8v9pvwwy3sn82k3yxlcprulc',
   inputExpiryFloor: { kind: 'time', value: EARLY_FLOOR.toString() },
   recoveryLocktime: { kind: 'time', value: '2900000000' },
 }
