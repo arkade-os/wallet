@@ -19,7 +19,7 @@
  * of developers. Reading two keyspaces to merge one of them with nothing in it
  * is the compatibility this release exists to drop.
  */
-import type { ActivityResolver } from '@arkade-os/sdk'
+import { collectPages, type ActivityResolver } from '@arkade-os/sdk'
 import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
 import {
   isRfqSwapTerminal,
@@ -153,7 +153,9 @@ const stringField = (bag: Record<string, unknown> | undefined, key: string): str
 
 const readRecords = async (): Promise<SwapRecord[]> => {
   try {
-    return (await assetSwapRepository.getAllSwapRecords()).filter(readableRecord)
+    return (await collectPages<SwapRecord, string>((page) => assetSwapRepository.getSwapRecordsPage(page))).filter(
+      readableRecord,
+    )
   } catch (err) {
     consoleError(err, 'error reading swap records')
     return []

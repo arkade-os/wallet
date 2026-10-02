@@ -13,7 +13,7 @@ import {
   ArkError,
   DelegateInfo,
   toXOnlySignerHex,
-  hasTerminalSpend,
+  isVtxoSpent,
 } from '@arkade-os/sdk'
 import { Addresses, Tx, Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
@@ -230,7 +230,7 @@ export const getVtxos = async (wallet: ServiceWorkerWallet): Promise<{ spendable
  * chain also ends up onchain and also comes back flagged — each with the same
  * value, since a chain of offchain transfers carries the amount forward. Those
  * ancestors were spent offchain when their successor was created, so
- * `hasTerminalSpend` is exactly the line between them and the coin that
+ * `isVtxoSpent` is exactly the line between them and the coin that
  * actually left: one exit, one row.
  *
  * It is also the line `computeOffchainBalance` draws — it skips terminal spends
@@ -239,7 +239,7 @@ export const getVtxos = async (wallet: ServiceWorkerWallet): Promise<{ spendable
  * the same coins.
  *
  * The set still stands after the user finishes the sweep with the exit tool:
- * the three facts behind `hasTerminalSpend` all report an OFFCHAIN spend, and
+ * the three facts behind `isVtxoSpent` all report an OFFCHAIN spend, and
  * the SDK is explicit that unrolling or sweeping sets none of them.
  *
  * Throws rather than degrading to an empty set. An empty answer is not a safe
@@ -253,7 +253,7 @@ export const getVtxos = async (wallet: ServiceWorkerWallet): Promise<{ spendable
  * surfaces the retry. */
 export const getUnrolledVtxos = async (wallet: ServiceWorkerWallet): Promise<Vtxo[]> => {
   const vtxos = await wallet.getVtxos({ withUnrolled: true })
-  return vtxos.filter((vtxo) => vtxo.isUnrolled && !hasTerminalSpend(vtxo))
+  return vtxos.filter((vtxo) => vtxo.isUnrolled && !isVtxoSpent(vtxo))
 }
 
 export const getReceivingAddresses = async (wallet: IWallet): Promise<Addresses> => {
