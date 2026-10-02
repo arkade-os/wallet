@@ -111,6 +111,14 @@ describe('journalDirectTaxi', () => {
     expect((await getPendingDirectTaxi(wallet, 'regtest'))?.record).toEqual(record)
     expect(readTaxiActivity('regtest')).toMatchObject([{ role: 'sender', state: 'quoted', carrierSats: '330' }])
   })
+
+  it('still journals the payment when history cannot read its quote', async () => {
+    const unreadable = { kind: 'sponsored', quote: {} } as unknown as PendingTaxiRecord['attempt']
+    const record = await journal({ attempt: unreadable })
+    localStorage.clear()
+    expect(() => journalDirectTaxi(record)).not.toThrow()
+    expect((await getPendingDirectTaxi(wallet, 'regtest'))?.record).toEqual(record)
+  })
 })
 
 describe('taxiActivityFromPending', () => {
