@@ -148,9 +148,8 @@ export const getEmulatorPubkeyOverrideForNetwork = (network: NetworkName): strin
   return configured && COMPRESSED_PUBKEY_HEX.test(configured) ? configured : undefined
 }
 
-export const getDelegateUrlForNetwork = (network: NetworkName): string | undefined => {
-  return DELEGATE_URL[network] ?? undefined
-}
+export const getDelegateUrlForNetwork = (network: NetworkName): string | undefined =>
+  serviceUrlForNetwork(import.meta.env.VITE_DELEGATOR_URL, DELEGATE_URL, network)
 
 // The Taxi a receiver may name in his own asset requests. Its operator key is read from its
 // /v1/info, never pinned; a network with no entry hides the option.
