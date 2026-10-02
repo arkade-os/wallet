@@ -144,6 +144,7 @@ export const prettyCurrencyAssetAmount = (
 export const prettyDate = (num: number, lang: Language = Language.English): string => {
   if (!num) return ''
   const date = new Date(num * 1000)
+  if (Number.isNaN(date.getTime())) return ''
   return new Intl.DateTimeFormat(lang === Language.Spanish ? 'es' : 'en', {
     day: 'numeric',
     month: 'short',

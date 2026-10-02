@@ -551,6 +551,11 @@ describe('Taxi records', () => {
     expect(container.querySelector('.activity-row__amount--failed')).toBeInTheDocument()
   })
 
+  it('lists a record whose time no Date can hold, rather than crashing', () => {
+    renderRows([taxiOnly(record({ role: 'receiver', createdAt: 9_000_000_000_000 }))])
+    expect(screen.getByText('Taxi delivery')).toBeInTheDocument()
+  })
+
   it('greys out a payment the Taxi returned', () => {
     const { container } = renderRows([taxiOnly(record({ state: 'recovered' }))])
     expect(screen.getByText(/Taxi · Returned/)).toBeInTheDocument()

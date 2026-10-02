@@ -79,6 +79,7 @@ describe('the Taxi activity store', () => {
         { ...valid, transferId: 'txid', lockupTxid: 'zz' },
         { ...valid, transferId: 'detail', failureDetail: 'x'.repeat(513) },
         { ...valid, transferId: 'state', state: 'toString' },
+        { ...valid, transferId: 'time', createdAt: 9_000_000_000_000 },
         { ...valid, transferId: 'mutiny', network: 'mutinynet' },
         null,
         'text',

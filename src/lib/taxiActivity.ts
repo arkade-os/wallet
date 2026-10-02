@@ -55,6 +55,8 @@ const STORAGE_KEY = 'taxiActivity'
 const MAX_CLOSED = 200
 const MAX_TEXT = 512
 const MAX_UNITS = 2n ** 64n - 1n
+// The last second a Date can hold: a later Taxi timestamp would crash every render of history.
+const MAX_TIME = 8_640_000_000_000
 const DECIMAL = /^(0|[1-9][0-9]*)$/
 // Wire states only move forward, so a lower rank is a stale read.
 const RANK = new Map([
@@ -78,7 +80,8 @@ const unknownStates = new Set<string>()
 const isUnits = (value: unknown): value is string =>
   typeof value === 'string' && DECIMAL.test(value) && BigInt(value) <= MAX_UNITS
 const isText = (value: unknown): value is string => typeof value === 'string' && value.length <= MAX_TEXT
-const isTime = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0
+const isTime = (value: unknown): value is number =>
+  Number.isSafeInteger(value) && (value as number) >= 0 && (value as number) <= MAX_TIME
 const optional = (value: unknown, check: (value: unknown) => boolean): boolean => value === undefined || check(value)
 const isHttpUrl = (value: unknown): boolean => {
   try {
