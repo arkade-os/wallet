@@ -126,8 +126,9 @@ export class PendingDirectTaxi extends Error {
     readonly record: PendingTaxiRecord,
     private readonly reconcile: () => Promise<string>,
     cause: unknown,
+    message = 'Payment may have been submitted; retry checks the same transfer',
   ) {
-    super('Payment may have been submitted; retry checks the same transfer', { cause })
+    super(message, { cause })
     this.name = 'PendingDirectTaxi'
   }
 
@@ -135,9 +136,33 @@ export class PendingDirectTaxi extends Error {
     try {
       return await this.reconcile()
     } catch (cause) {
-      if (cause instanceof ReturnedDirectTaxi) throw cause
+      if (cause instanceof ReturnedDirectTaxi || cause instanceof FailedDirectTaxi) throw cause
       throw new PendingDirectTaxi(this.record, this.reconcile, cause)
     }
+  }
+}
+
+/** The Taxi gave up submitting. Kept on record: its reconciler may yet see the lockup land,
+ * and arkd may still hold the inputs. */
+export class FailedDirectTaxi extends PendingDirectTaxi {
+  constructor(
+    record: PendingTaxiRecord,
+    reconcile: () => Promise<string>,
+    readonly failureCode: string,
+    readonly failureDetail?: string,
+  ) {
+    const detail = failureDetail ? `: ${failureDetail}` : ''
+    super(
+      record,
+      reconcile,
+      undefined,
+      `Taxi could not submit this payment${detail} (${failureCode}). Nothing has been delivered.`,
+    )
+    this.name = 'FailedDirectTaxi'
+  }
+
+  forget() {
+    clearPending(this.record)
   }
 }
 
@@ -164,6 +189,9 @@ const waitForSettlement = async (record: PendingTaxiRecord, client: TaxiClient, 
       clearPending(record)
       throw new ReturnedDirectTaxi(record, 'Taxi quote expired before payment submission; no payment was sent.')
     }
+    // A failure code on any other phase is a retry the Taxi has scheduled.
+    if (status.state === 'locking' && status.submissionPhase === 'failed' && status.failureCode)
+      throw new FailedDirectTaxi(record, () => resumeStoredPayment(record), status.failureCode, status.failureDetail)
     if (status.state === 'quoted' && submit) {
       await submit()
       submit = undefined
@@ -453,7 +481,7 @@ const sendDirectTaxiLocked = async (args: DirectTaxiSendArgs, senderKey: string)
     await submit()
     return await waitForSettlement(record, client)
   } catch (cause) {
-    if (cause instanceof ReturnedDirectTaxi) throw cause
+    if (cause instanceof ReturnedDirectTaxi || cause instanceof FailedDirectTaxi) throw cause
     throw new PendingDirectTaxi(record, () => resumeStoredPayment(record), cause)
   }
 }

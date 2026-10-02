@@ -18,7 +18,7 @@ import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
 import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
-import Text from '../../../components/Text'
+import Text, { TextSecondary } from '../../../components/Text'
 import Shadow from '../../../components/Shadow'
 import Scanner from '../../../components/Scanner'
 import LoadingLogo from '../../../components/LoadingLogo'
@@ -71,6 +71,7 @@ import { getEmulatorPubkeyForNetwork, getReceiverTaxiUrlForNetwork, testDomains 
 import UnverifiedBadge from '../../../components/UnverifiedBadge'
 import { useTranslation } from '../../../providers/language'
 import {
+  FailedDirectTaxi,
   getPendingDirectTaxi,
   PendingDirectTaxi,
   ReturnedDirectTaxi,
@@ -927,6 +928,20 @@ export default function SendForm() {
     }
   }
 
+  const forgetTaxiPayment = () => {
+    const failed = pendingDirectTaxi.current?.payment
+    if (!(failed instanceof FailedDirectTaxi)) return
+    try {
+      failed.forget()
+    } catch (error) {
+      return setError(extractError(error))
+    }
+    pendingDirectTaxi.current = undefined
+    setSendInfo(pendingSendInfo(failed))
+    setRecipient(failed.record.receiverAddress)
+    setError('')
+  }
+
   const handleContinue = async () => {
     setProcessing(true)
     setReturnedTaxiNotice('')
@@ -1064,6 +1079,9 @@ export default function SendForm() {
       ? PARTIAL_SEND_ERROR
       : ''
 
+  const failedTaxi =
+    pendingDirectTaxi.current?.payment instanceof FailedDirectTaxi ? pendingDirectTaxi.current.payment : undefined
+
   const buttonDisabled =
     checkingTaxiPayment || taxiGuardFailed
       ? true
@@ -1187,6 +1205,11 @@ export default function SendForm() {
                 error={Boolean(error || carrierError || returnedTaxiNotice)}
                 text={error || carrierError || returnedTaxiNotice}
               />
+              {failedTaxi ? (
+                <TextSecondary>
+                  {`Taxi transfer ${failedTaxi.record.transferId}: its coins may stay locked until the operator resolves it. Forgetting it lets you send again; it does not cancel it.`}
+                </TextSecondary>
+              ) : null}
               <InputAddress
                 error={recipientError}
                 focus={focus === 'recipient'}
@@ -1372,6 +1395,9 @@ export default function SendForm() {
             label={pendingDirectTaxi.current ? 'Check Taxi payment' : label}
             disabled={buttonDisabled}
           />
+          {failedTaxi ? (
+            <Button onClick={forgetTaxiPayment} label='Forget Taxi payment' secondary disabled={processing} />
+          ) : null}
         </ButtonsOnBottom>
       </div>
       <SheetModal isOpen={showReserveModal} onClose={() => setShowReserveModal(false)}>
