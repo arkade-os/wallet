@@ -42,6 +42,32 @@ test('Alice sends XYZ through Taxi', { tag: '@asset-modes' }, async ({ browser }
   }
   const evidence: { step: string; alice: Holdings; bob: Holdings; taxi: Holdings }[] = []
   const reconciledTransfers: string[] = []
+  const diagnostics: { at: number; actor: string; event: string; path?: string; status?: number }[] = []
+  const record = (actor: string, event: string, path?: string, status?: number) => {
+    diagnostics.push({ at: Date.now(), actor, event, path, status })
+    if (diagnostics.length > 100) diagnostics.shift()
+  }
+  const taxiPrefix = `${required('TAXI_E2E_BASE_URL').replace(/\/$/, '')}/`
+  for (const [actor, context] of [
+    ['Alice', aliceContext],
+    ['Bob', bobContext],
+  ] as const) {
+    context.on('page', (page) => {
+      page.on('framenavigated', (frame) => {
+        if (frame === page.mainFrame()) record(actor, 'navigation', new URL(frame.url()).pathname)
+      })
+      page.on('response', (response) => {
+        if (response.url().startsWith(taxiPrefix))
+          record(actor, 'taxi-response', new URL(response.url()).pathname, response.status())
+      })
+      page.on('requestfailed', (request) => {
+        if (request.url().startsWith(taxiPrefix)) record(actor, 'taxi-request-failed', new URL(request.url()).pathname)
+      })
+      page.on('console', (message) => {
+        if (message.text() === 'Service worker update found') record(actor, 'sw-update')
+      })
+    })
+  }
   let scenarioFailed = false
   let assetId = ''
   try {
@@ -236,7 +262,10 @@ test('Alice sends XYZ through Taxi', { tag: '@asset-modes' }, async ({ browser }
       const directory = resolve(process.env.TAXI_E2E_WALLET_ARTIFACTS || 'test-results/taxi-live')
       mkdirSync(directory, { recursive: true })
       const path = resolve(directory, 'alice-bob-balances.json')
-      writeFileSync(path, `${JSON.stringify({ assetId, reconciledTransfers, evidence, cleanupErrors }, null, 2)}\n`)
+      writeFileSync(
+        path,
+        `${JSON.stringify({ assetId, reconciledTransfers, evidence, diagnostics, cleanupErrors }, null, 2)}\n`,
+      )
       await testInfo.attach('Alice, Bob and Taxi balances', { path, contentType: 'application/json' })
     } catch (error) {
       cleanupErrors.push(error instanceof Error ? error.message : 'Evidence write failed')
