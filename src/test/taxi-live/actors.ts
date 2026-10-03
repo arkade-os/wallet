@@ -1,16 +1,31 @@
-import { expect, type Page } from '@playwright/test'
-import { readFileSync } from 'node:fs'
+import {
+  expect,
+  type Browser,
+  type BrowserContext,
+  type BrowserContextOptions,
+  type Locator,
+  type Page,
+  type TestInfo,
+} from '@playwright/test'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { basename, resolve } from 'node:path'
 import {
   ArkAddress,
+  DefaultVtxo,
+  DelegateVtxo,
   InMemoryContractRepository,
   InMemoryIntentRepository,
   InMemoryVirtualTxRepository,
   InMemoryWalletRepository,
+  RestArkProvider,
   RestIndexerProvider,
   SingleKey,
   Wallet,
   asset,
   configureEventSource,
+  getNetwork,
+  toXOnlySignerHex,
+  type NetworkName,
 } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 import { EventSource } from 'eventsource'
@@ -18,6 +33,8 @@ import type { TaxiClient } from '@arkade-taxi/client'
 import {
   dismissPaymentSuccess,
   enableAssets,
+  handleKeyboardInput,
+  mintAsset,
   navigateHome,
   navigateToAssets,
   receiveOffchain,
@@ -28,9 +45,32 @@ import { translations } from '../../lib/i18n'
 export const tr = translations.en
 export type Actor = { name: string; page: Page; address: string }
 export type Holdings = { sats: string; units: string }
+export type Ledger = Record<string, Holdings>
 export type TaxiPolicy = {
   assetRules: Awaited<ReturnType<TaxiClient['info']>>['assetRules']
   quoteTtlSeconds: number
+  paused: boolean
+}
+export type Advance = {
+  id: string
+  state: string
+  kind: 'covenant' | 'sponsored'
+  receiverKey: string
+  dust: string
+  topup: string
+  assetId?: { txid: string; groupIndex: number }
+  outpoint?: { txid: string; vout: number }
+  spentTxid?: string
+  submissionPhase?: string
+  failureCode?: string
+  failureDetail?: string
+}
+export type TaxiStatus = Pick<
+  Advance,
+  'state' | 'outpoint' | 'spentTxid' | 'submissionPhase' | 'failureCode' | 'failureDetail'
+> & {
+  transferId: string
+  updatedAt: number
 }
 
 export function required(name: string): string {
@@ -42,11 +82,21 @@ export function required(name: string): string {
 export async function faucetWallet(): Promise<Wallet> {
   const { sender } = JSON.parse(readFileSync(required('TAXI_E2E_SECRET_FILE'), 'utf8')) as { sender: string }
   configureEventSource((url) => new EventSource(url))
-  return Wallet.create({
+  const faucet = await Wallet.create({
     identity: SingleKey.fromHex(sender),
     arkServerUrl: required('TAXI_E2E_ARKD_URL'),
     esploraUrl: required('ARKADE_ESPLORA_URL'),
     settlementConfig: false,
+    delegateProvider: {
+      getDelegateInfo: async () => ({
+        pubkey: '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798',
+        fee: '0',
+        delegateAddress: '',
+      }),
+      delegate: async () => {
+        throw new Error('the e2e stub delegate provider never delegates')
+      },
+    },
     storage: {
       walletRepository: new InMemoryWalletRepository(),
       contractRepository: new InMemoryContractRepository(),
@@ -54,9 +104,19 @@ export async function faucetWallet(): Promise<Wallet> {
       virtualTxRepository: new InMemoryVirtualTxRepository(),
     },
   })
+  const fixture = JSON.parse(readFileSync(required('TAXI_E2E_FIXTURE_FILE'), 'utf8')) as {
+    sender: { address: string }
+  }
+  expect(await faucet.getAddress()).toBe(fixture.sender.address)
+  return faucet
 }
 
-export async function onboard(name: string, page: Page): Promise<Actor> {
+export async function onboard(name: string, page: Page, { leaves = 2 }: { leaves?: 2 | 3 } = {}): Promise<Actor> {
+  // Persisted config outranks the build's VITE_DELEGATE_ENABLED, so this is how one actor picks its leaves.
+  await page.addInitScript((delegate) => {
+    const config = JSON.parse(localStorage.getItem('config') ?? '{}')
+    localStorage.setItem('config', JSON.stringify({ ...config, currency: 'BTC', unit: 'sats', delegate }))
+  }, leaves === 3)
   await page.goto('/')
   await page.getByText(`+ ${tr.init.createWallet}`, { exact: true }).click()
   await expect(page.getByTestId('home-action-receive')).toBeVisible()
@@ -66,8 +126,40 @@ export async function onboard(name: string, page: Page): Promise<Actor> {
   return { name, page, address }
 }
 
-export async function holdings(address: string, assetId: string): Promise<Holdings> {
-  const indexer = new RestIndexerProvider(required('TAXI_E2E_ARKD_URL'))
+const xOnly = (key: string) => hex.decode(toXOnlySignerHex(key))
+
+/** Rebuilds the receive address from the wallet's own key: the SDK falls back to 2 leaves silently. */
+export async function expectLeaves(
+  actor: Actor,
+  leaves: 2 | 3,
+  arkdUrl = required('TAXI_E2E_ARKD_URL'),
+  delegatePubkey?: string,
+): Promise<void> {
+  const pubkey = await actor.page.evaluate(() => JSON.parse(localStorage.getItem('config') ?? '{}').pubkey as string)
+  const info = await new RestArkProvider(arkdUrl).getInfo()
+  const serverPubKey = xOnly(info.signerPubkey)
+  const delay = info.unilateralExitDelay
+  const options = {
+    pubKey: xOnly(pubkey),
+    serverPubKey,
+    csvTimelock: { value: delay, type: delay < 512n ? ('blocks' as const) : ('seconds' as const) },
+  }
+  const script =
+    leaves === 2
+      ? new DefaultVtxo.Script(options)
+      : new DelegateVtxo.Script({
+          ...options,
+          delegatePubKey: xOnly(delegatePubkey ?? required('TAXI_E2E_DELEGATE_PUBKEY')),
+        })
+  expect(script.address(getNetwork(info.network as NetworkName).hrp, serverPubKey).encode()).toBe(actor.address)
+}
+
+export async function holdings(
+  address: string,
+  assetId: string,
+  arkdUrl = required('TAXI_E2E_ARKD_URL'),
+): Promise<Holdings> {
+  const indexer = new RestIndexerProvider(arkdUrl)
   const { vtxos } = await indexer.getVtxos({
     scripts: [hex.encode(ArkAddress.decode(address).pkScript)],
     spendableOnly: true,
@@ -81,6 +173,34 @@ export async function holdings(address: string, assetId: string): Promise<Holdin
       .toString(),
   }
 }
+
+export async function ledger(parties: Record<string, string>, assetId: string, arkdUrl?: string): Promise<Ledger> {
+  const entries = await Promise.all(
+    Object.entries(parties).map(async ([name, address]) => [name, await holdings(address, assetId, arkdUrl)] as const),
+  )
+  return Object.fromEntries(entries)
+}
+
+export async function expectLedger(
+  parties: Record<string, string>,
+  assetId: string,
+  expected: Ledger,
+  arkdUrl?: string,
+): Promise<void> {
+  await expect(async () => expect(await ledger(parties, assetId, arkdUrl)).toEqual(expected)).toPass({
+    timeout: 90_000,
+    intervals: [250, 500, 1000],
+  })
+}
+
+export const shift = ({ sats, units }: Holdings, deltaSats: bigint, deltaUnits = 0n): Holdings => ({
+  sats: (BigInt(sats) + deltaSats).toString(),
+  units: (BigInt(units) + deltaUnits).toString(),
+})
+
+export const operatorAddress = (): string =>
+  (JSON.parse(readFileSync(required('TAXI_E2E_FIXTURE_FILE'), 'utf8')) as { operator: { address: string } }).operator
+    .address
 
 export async function fund(faucet: Wallet, actor: Actor, sats: number): Promise<void> {
   expect(await receiveOffchain(actor.page)).toBe(actor.address)
@@ -105,6 +225,29 @@ export async function admin<T>(path: string, method = 'GET', body?: unknown): Pr
   return payload as T
 }
 
+export const advances = async (): Promise<Advance[]> => (await admin<{ advances: Advance[] }>('advances')).advances
+
+export async function newAdvances(before: Advance[], list = advances): Promise<Advance[]> {
+  const known = new Set(before.map(({ id }) => id))
+  return (await list()).filter(({ id }) => !known.has(id))
+}
+
+export async function newAdvance(before: Advance[], list = advances): Promise<Advance> {
+  const fresh = await newAdvances(before, list)
+  expect(fresh).toHaveLength(1)
+  return fresh[0]
+}
+
+export async function taxiStatus(id: string, base = required('TAXI_E2E_BASE_URL'), sponsored = false) {
+  const response = await fetch(`${base}/v1/${sponsored ? 'sponsored-transfers' : 'transfers'}/${id}`)
+  if (!response.ok) throw new Error(`Taxi transfer ${id}: HTTP ${response.status}`)
+  return (await response.json()) as TaxiStatus
+}
+
+export async function taxiReady(base = required('TAXI_E2E_BASE_URL')): Promise<boolean> {
+  return (await fetch(`${base}/ready`)).ok
+}
+
 export function policyRulesForPatch(rules: TaxiPolicy['assetRules']) {
   return rules.map((rule) => ({
     assetId: rule.assetId,
@@ -119,13 +262,32 @@ export function policyRulesForPatch(rules: TaxiPolicy['assetRules']) {
   }))
 }
 
-export async function control(action: string, rule?: unknown): Promise<void> {
+const restorable = (policy: TaxiPolicy) => ({
+  assetRules: policyRulesForPatch(policy.assetRules),
+  quoteTtlSeconds: policy.quoteTtlSeconds,
+  paused: policy.paused,
+})
+
+export async function control<T = unknown>(action: string, rule?: unknown): Promise<T> {
   const response = await fetch(required('TAXI_E2E_CONTROL_URL'), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ action, rule }),
   })
   if (!response.ok) throw new Error(`Regtest proxy ${action}: HTTP ${response.status}`)
+  return (await response.json()) as T
+}
+
+/** Patches the Taxi for one step; the policy and the proxy are restored even when the step fails. */
+export async function withPolicy<T>(patch: Record<string, unknown>, step: () => Promise<T>): Promise<T> {
+  const policy = await admin<TaxiPolicy>('policy')
+  await admin('policy', 'PATCH', patch)
+  try {
+    return await step()
+  } finally {
+    await control('reset')
+    await admin('policy', 'PATCH', restorable(policy))
+  }
 }
 
 export function xyzRule(assetId: string) {
@@ -142,6 +304,23 @@ export function xyzRule(assetId: string) {
   }
 }
 
+/** A rule on mutinynet's live terms: recycle only, and one sats fare of 0. */
+export const satsRule = (assetId: null | '*', overrides: Record<string, unknown> = {}) => ({
+  assetId,
+  enabled: true,
+  claim: 'recycle',
+  maxTopupSats: null,
+  fares: [{ id: 'sats', currency: { kind: 'sats' }, pricing: { kind: 'flat', units: '0' } }],
+  ...overrides,
+})
+
+export async function mintXyz(actor: Actor): Promise<string> {
+  await enableAssets(actor.page)
+  await mintAsset(actor.page, { amount: '20', name: `Taxi ${actor.name} XYZ`, ticker: 'XYZ', decimals: 0 })
+  const rowId = await actor.page.getByTestId(/^asset-row-XYZ-/).getAttribute('data-testid')
+  return rowId!.slice('asset-row-XYZ-'.length)
+}
+
 export async function importAsset(actor: Actor, assetId: string): Promise<void> {
   await enableAssets(actor.page)
   await navigateToAssets(actor.page)
@@ -151,20 +330,37 @@ export async function importAsset(actor: Actor, assetId: string): Promise<void> 
   await actor.page.getByText(tr.mint.assetIdTapToCopy, { exact: true }).first().waitFor()
 }
 
-export async function receiveRequest(bob: Actor, assetId: string): Promise<string> {
-  const page = bob.page
-  await navigateToAssets(page)
-  await page.getByTestId(`asset-row-XYZ-${assetId}`).click()
-  await page.getByRole('button', { name: tr.mint.receive, exact: true }).click()
+export async function enterReceiveAmount(page: Page, amount: string): Promise<void> {
   await page.getByRole('button', { name: tr.receive.addAmount, exact: true }).click()
-  await page.locator('input[name="receive-amount-sheet"]').fill('1')
+  // The wallet's own isMobileBrowser test: a touch screen gets its keyboard, not the amount sheet.
+  if (await page.evaluate(() => 'ontouchstart' in window || navigator.maxTouchPoints > 0))
+    return handleKeyboardInput(page, Number(amount))
+  await page.locator('input[name="receive-amount-sheet"]').fill(amount)
   await page.getByRole('button', { name: tr.receive.setAmount, exact: true }).click()
-  await page.getByRole('button', { name: 'Taxi: off', exact: true }).click()
-  await page.getByRole('option', { name: 'receiver-sats · 0 sats', exact: true }).click()
-  await expect(page.getByTestId('bip21')).toContainText('taxifare=receiver-sats')
+}
+
+export async function openAssetReceive(actor: Actor, assetId: string, amount = '1'): Promise<void> {
+  await navigateToAssets(actor.page)
+  await actor.page.getByTestId(`asset-row-XYZ-${assetId}`).click()
+  await actor.page.getByRole('button', { name: tr.mint.receive, exact: true }).click()
+  await enterReceiveAmount(actor.page, amount)
+}
+
+export async function receiveRequest(
+  bob: Actor,
+  assetId: string,
+  fare: string | null = 'receiver-sats',
+  amount = '1',
+): Promise<string> {
+  const page = bob.page
+  await openAssetReceive(bob, assetId, amount)
+  if (fare) {
+    await page.getByRole('button', { name: 'Taxi: off', exact: true }).click()
+    await page.getByRole('option', { name: `${fare} · 0 sats`, exact: true }).click()
+    await expect(page.getByTestId('bip21')).toContainText(`taxifare=${fare}`)
+  }
   const request = await page.getByTestId('bip21').textContent()
-  expect(request).toContain(`assetid=${assetId}&amount=1`)
-  expect(request).toContain('taxifare=receiver-sats')
+  expect(request).toContain(`assetid=${assetId}&amount=${amount}`)
   await navigateHome(page)
   return request!
 }
@@ -181,6 +377,21 @@ export async function prepareSend(alice: Actor, request: string, mode?: string, 
     await page.getByRole('menuitem', { name: mode, exact: true }).click()
   }
   await page.getByRole('button', { name: tr.common.continue, exact: true }).click()
+}
+
+/** Opens Send for a bitcoin amount, typed unless the request already carries it, and stops before Continue. */
+export async function openSatsSend(alice: Actor, recipient: string, sats: number, mode?: string): Promise<void> {
+  const page = alice.page
+  await navigateHome(page)
+  await page.getByText(tr.wallet.send, { exact: true }).click()
+  await page.locator('input[name="send-address"]').fill(recipient)
+  const amount = page.locator('input[name="send-amount"]')
+  if (!recipient.includes('amount=')) await amount.fill(String(sats))
+  await expect(amount).toHaveValue(String(sats))
+  if (mode) {
+    await page.getByTestId('taxi-send-mode').click()
+    await page.getByRole('menuitem', { name: mode, exact: true }).click()
+  }
 }
 
 export async function confirmSend(alice: Actor, taxi: boolean): Promise<void> {
@@ -204,4 +415,150 @@ export async function claim(bob: Actor, plan: RegExp): Promise<void> {
   await expect(bob.page.getByText('Claim your Taxi delivery', { exact: true })).not.toBeVisible()
   const success = bob.page.getByRole('button', { name: /Sounds good|Tap to go home/ })
   if (await success.isVisible().catch(() => false)) await success.click()
+}
+
+export const sheet = (page: Page) => page.getByRole('dialog')
+
+export async function declineClaims(page: Page): Promise<void> {
+  const notNow = sheet(page).getByRole('button', { name: 'Not now', exact: true })
+  if (await notNow.isVisible().catch(() => false)) await notNow.click()
+}
+
+// Every Taxi row's meta line leads with its state; one the poller may already have moved is a RegExp alternation.
+export async function taxiRows(actor: Actor, state: string | RegExp) {
+  await declineClaims(actor.page)
+  await navigateHome(actor.page)
+  await actor.page.getByTestId('activity-view-all').click()
+  const leads = new RegExp(`^(?:${typeof state === 'string' ? state : state.source}) · `)
+  return actor.page.getByTestId('tx-row').filter({ has: actor.page.locator('.activity-row__meta', { hasText: leads }) })
+}
+
+// hasText matches what an ellipsis hides too, so measure where the leading state ends.
+export async function expectStateShown(row: Locator): Promise<void> {
+  const shown = await row.locator('.activity-row__meta').evaluate((meta) => {
+    const text = meta.firstChild as Text
+    const state = document.createRange()
+    state.setStart(text, 0)
+    state.setEnd(text, text.data.split(' · ')[0].length)
+    const context = document.createElement('canvas').getContext('2d')!
+    context.font = getComputedStyle(meta).font
+    const edge = meta.getBoundingClientRect().right - context.measureText('…').width
+    return meta.scrollWidth <= meta.clientWidth || state.getBoundingClientRect().right <= edge
+  })
+  expect(shown).toBe(true)
+}
+
+export async function openTaxiRow(actor: Actor, state: string | RegExp): Promise<void> {
+  const row = await taxiRows(actor, state)
+  await expect(row).toHaveCount(1)
+  await expectStateShown(row)
+  await row.click()
+  await expect(actor.page.getByTestId('Transfer ID')).toBeVisible()
+}
+
+export async function claimFromActivity(bob: Actor): Promise<void> {
+  const delivery = await taxiRows(bob, 'Claimable')
+  await expect(delivery).toHaveCount(1)
+  await delivery.click()
+  const sheetOpen = await sheet(bob.page)
+    .isVisible()
+    .catch(() => false)
+  if (!sheetOpen) await bob.page.getByRole('button', { name: 'Claim', exact: true }).click()
+  await sheet(bob.page).getByRole('button', { name: 'Claim', exact: true }).click()
+  await expect(sheet(bob.page)).not.toBeVisible()
+  const success = bob.page.getByRole('button', { name: /Sounds good|Tap to go home/ })
+  if (await success.isVisible().catch(() => false)) await success.click()
+}
+
+/** A1: Alice pays Bob one unit, Bob merges it into his own coin, and the Taxi gets its carrier back. */
+export async function recycleOne(alice: Actor, bob: Actor, assetId: string, request?: string): Promise<Advance> {
+  const parties = { alice: alice.address, bob: bob.address, taxi: operatorAddress() }
+  const known = await advances()
+  const before = await ledger(parties, assetId)
+  await prepareSend(alice, request ?? (await receiveRequest(bob, assetId)), 'Receiver uses own sats')
+  await confirmSend(alice, true)
+  const advance = await newAdvance(known)
+  await claim(bob, /merges with the delivery/)
+  await expectLedger(parties, assetId, {
+    alice: shift(before.alice, 0n, -1n),
+    bob: shift(before.bob, 0n, 1n),
+    taxi: before.taxi,
+  })
+  await expect.poll(async () => (await taxiStatus(advance.id)).state).toBe('recycled')
+  return advance
+}
+
+const TERMINAL = ['recycled', 'purchased', 'refunded', 'recovered', 'expired']
+// A sponsored transfer settles at locked: nothing is left to claim or recover.
+const isTerminal = ({ kind, state }: Advance) =>
+  TERMINAL.includes(state) || (kind === 'sponsored' && state === 'locked')
+
+export type Stage = {
+  faucet: Wallet
+  evidence: Record<string, unknown>
+  join: (name: string, options?: { leaves?: 2 | 3; device?: BrowserContextOptions; sats?: number }) => Promise<Actor>
+}
+
+/** Fresh wallets for one scene; afterwards the Taxi is restored, and every advance the scene made must be terminal,
+ * because the SDK suite runs next on the same stack. */
+export async function stage(browser: Browser, testInfo: TestInfo, play: (s: Stage) => Promise<void>): Promise<void> {
+  const faucet = await faucetWallet()
+  const policy = await admin<TaxiPolicy>('policy')
+  const known = await advances()
+  const contexts: BrowserContext[] = []
+  const evidence: Record<string, unknown> = {}
+  const join: Stage['join'] = async (name, { leaves, device, sats } = {}) => {
+    const context = await browser.newContext({
+      ...device,
+      baseURL: testInfo.project.use.baseURL,
+      permissions: ['clipboard-read', 'clipboard-write'],
+      locale: 'en-US',
+      reducedMotion: 'reduce',
+    })
+    contexts.push(context)
+    const actor = await onboard(name, await context.newPage(), { leaves })
+    if (sats) await fund(faucet, actor, sats)
+    return actor
+  }
+  let failed = false
+  try {
+    await play({ faucet, evidence, join })
+  } catch (error) {
+    failed = true
+    throw error
+  } finally {
+    const errors: string[] = []
+    const open = async () => (await newAdvances(known)).filter((advance) => !isTerminal(advance))
+    for (const cleanup of [
+      () => control('reset'),
+      () => admin('policy', 'PATCH', restorable(policy)),
+      async () => {
+        if (failed) return
+        await expect
+          .poll(async () => (await open()).map(({ id, kind, state }) => `${id} ${kind} ${state}`), { timeout: 180_000 })
+          .toEqual([])
+      },
+      async () => {
+        evidence.advances = await newAdvances(known)
+      },
+      () => faucet.dispose(),
+      ...contexts.map((context) => () => context.close()),
+    ]) {
+      try {
+        await cleanup()
+      } catch (error) {
+        errors.push(error instanceof Error ? error.message : 'Cleanup failed')
+      }
+    }
+    try {
+      const directory = resolve(process.env.TAXI_E2E_WALLET_ARTIFACTS || 'test-results/taxi-live')
+      mkdirSync(directory, { recursive: true })
+      const path = resolve(directory, `${basename(testInfo.file, '.e2e.ts')}-${testInfo.testId}-evidence.json`)
+      writeFileSync(path, `${JSON.stringify({ ...evidence, cleanupErrors: errors }, null, 2)}\n`)
+      await testInfo.attach('Taxi advances and balances', { path, contentType: 'application/json' })
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : 'Evidence write failed')
+    }
+    if (errors.length && !failed) throw new Error(`Regtest cleanup: ${errors.join('; ')}`)
+  }
 }

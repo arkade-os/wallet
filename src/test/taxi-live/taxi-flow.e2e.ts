@@ -25,7 +25,7 @@ import {
   type TaxiPolicy,
 } from './actors'
 
-test('Alice sends XYZ to Bob through Taxi, choosing who supplies the carrier', async ({ browser }, testInfo) => {
+test('Alice sends XYZ through Taxi', { tag: '@asset-modes' }, async ({ browser }, testInfo) => {
   const contextOptions = {
     baseURL: testInfo.project.use.baseURL,
     permissions: ['clipboard-read', 'clipboard-write'],

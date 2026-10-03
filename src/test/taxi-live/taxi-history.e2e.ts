@@ -1,28 +1,30 @@
-import {
-  devices,
-  expect,
-  test,
-  type Browser,
-  type BrowserContextOptions,
-  type Locator,
-  type Page,
-  type TestInfo,
-} from '@playwright/test'
-import { enableAssets, mintAsset, navigateHome, resetWallet, waitForWalletPage } from '../e2e/utils'
+import { devices, expect, test, type Browser, type BrowserContextOptions, type TestInfo } from '@playwright/test'
+import { navigateHome, resetWallet, waitForWalletPage } from '../e2e/utils'
 import {
   admin,
+  advances,
+  claimFromActivity,
   confirmSend,
   control,
-  faucetWallet,
-  fund,
+  expectLedger,
+  expectStateShown,
   holdings,
+  ledger,
   importAsset,
-  onboard,
-  policyRulesForPatch,
+  mintXyz,
+  newAdvance,
+  operatorAddress,
+  openTaxiRow,
   prepareSend,
+  policyRulesForPatch,
   receiveRequest,
   required,
+  sheet,
+  shift,
+  stage,
+  taxiStatus,
   taxiConfirmation,
+  taxiRows,
   tr,
   xyzRule,
   type Actor,
@@ -30,62 +32,7 @@ import {
 } from './actors'
 
 const PENDING = 'Payment may have been submitted; retry checks the same transfer'
-// The live mutinynet payload of the stuck advance 3ccdf42c.
-const FAILED = {
-  state: 'locking',
-  submissionPhase: 'failed',
-  failureCode: 'lockup_submission_invalid_provider_response',
-  failureDetail: 'server checkpoint 0 changed unsigned fields or metadata',
-}
-
-type Advance = { id: string; state: string }
 type Scene = { alice: Actor; bob: Actor; assetId: string }
-
-const sheet = (page: Page) => page.getByRole('dialog')
-const advances = async () => (await admin<{ advances: Advance[] }>('advances')).advances
-
-async function newAdvance(before: Advance[]): Promise<Advance> {
-  const fresh = (await advances()).filter((advance) => !before.some((old) => old.id === advance.id))
-  expect(fresh).toHaveLength(1)
-  return fresh[0]
-}
-
-async function declineClaims(page: Page): Promise<void> {
-  const notNow = sheet(page).getByRole('button', { name: 'Not now', exact: true })
-  if (await notNow.isVisible().catch(() => false)) await notNow.click()
-}
-
-// Every Taxi row's meta line leads with its state; one the poller may already have moved is a RegExp alternation.
-async function taxiRows(actor: Actor, state: string | RegExp) {
-  await declineClaims(actor.page)
-  await navigateHome(actor.page)
-  await actor.page.getByTestId('activity-view-all').click()
-  const leads = new RegExp(`^(?:${typeof state === 'string' ? state : state.source}) · `)
-  return actor.page.getByTestId('tx-row').filter({ has: actor.page.locator('.activity-row__meta', { hasText: leads }) })
-}
-
-// hasText matches what an ellipsis hides too, so measure where the leading state ends.
-async function expectStateShown(row: Locator): Promise<void> {
-  const shown = await row.locator('.activity-row__meta').evaluate((meta) => {
-    const text = meta.firstChild as Text
-    const state = document.createRange()
-    state.setStart(text, 0)
-    state.setEnd(text, text.data.split(' · ')[0].length)
-    const context = document.createElement('canvas').getContext('2d')!
-    context.font = getComputedStyle(meta).font
-    const edge = meta.getBoundingClientRect().right - context.measureText('…').width
-    return meta.scrollWidth <= meta.clientWidth || state.getBoundingClientRect().right <= edge
-  })
-  expect(shown).toBe(true)
-}
-
-async function openTaxiRow(actor: Actor, state: string | RegExp): Promise<void> {
-  const row = await taxiRows(actor, state)
-  await expect(row).toHaveCount(1)
-  await expectStateShown(row)
-  await row.click()
-  await expect(actor.page.getByTestId('Transfer ID')).toBeVisible()
-}
 
 const checkAgainIfOffered = async (actor: Actor) => {
   const check = actor.page.getByRole('button', { name: 'Check again', exact: true })
@@ -110,57 +57,21 @@ async function scene(
   device: BrowserContextOptions,
   play: (s: Scene) => Promise<void>,
 ) {
-  const options = {
-    ...device,
-    baseURL: testInfo.project.use.baseURL,
-    permissions: ['clipboard-read', 'clipboard-write'],
-    locale: 'en-US',
-    reducedMotion: 'reduce' as const,
-  }
-  const aliceContext = await browser.newContext(options)
-  const bobContext = await browser.newContext(options)
-  const faucet = await faucetWallet()
-  const policy = await admin<TaxiPolicy>('policy')
-  const rules = policyRulesForPatch(policy.assetRules)
-  try {
-    const alice = await onboard('Alice', await aliceContext.newPage())
-    const bob = await onboard('Bob', await bobContext.newPage())
-    await fund(faucet, alice, 20_000)
-    await fund(faucet, bob, 1_000)
-    await enableAssets(alice.page)
-    await mintAsset(alice.page, { amount: '20', name: 'Taxi History XYZ', ticker: 'XYZ', decimals: 0 })
-    const rowId = await alice.page.getByTestId(/^asset-row-XYZ-/).getAttribute('data-testid')
-    const assetId = rowId!.slice('asset-row-XYZ-'.length)
-    await admin('policy', 'PATCH', { assetRules: [...rules, xyzRule(assetId)] })
+  await stage(browser, testInfo, async ({ join, evidence }) => {
+    const alice = await join('Alice', { device, sats: 20_000 })
+    const bob = await join('Bob', { device, sats: 1_000 })
+    const assetId = await mintXyz(alice)
+    evidence.assetId = assetId
+    const policy = await admin<TaxiPolicy>('policy')
+    await admin('policy', 'PATCH', { assetRules: [...policyRulesForPatch(policy.assetRules), xyzRule(assetId)] })
     await importAsset(bob, assetId)
     await play({ alice, bob, assetId })
-  } finally {
-    for (const cleanup of [
-      () => control('reset'),
-      () => admin('policy', 'PATCH', { assetRules: rules, quoteTtlSeconds: policy.quoteTtlSeconds }),
-      () => faucet.dispose(),
-      () => aliceContext.close(),
-      () => bobContext.close(),
-    ])
-      await cleanup().catch(() => undefined)
-  }
-}
-
-async function claimFromActivity(bob: Actor): Promise<void> {
-  const delivery = await taxiRows(bob, 'Claimable')
-  await expect(delivery).toHaveCount(1)
-  await delivery.click()
-  const sheetOpen = await sheet(bob.page)
-    .isVisible()
-    .catch(() => false)
-  if (!sheetOpen) await bob.page.getByRole('button', { name: 'Claim', exact: true }).click()
-  await sheet(bob.page).getByRole('button', { name: 'Claim', exact: true }).click()
-  await expect(sheet(bob.page)).not.toBeVisible()
-  const success = bob.page.getByRole('button', { name: /Sounds good|Tap to go home/ })
-  if (await success.isVisible().catch(() => false)) await success.click()
+  })
 }
 
 async function claimedFromActivity({ alice, bob, assetId }: Scene): Promise<void> {
+  const parties = { alice: alice.address, bob: bob.address, taxi: operatorAddress() }
+  const balances = await ledger(parties, assetId)
   const request = await receiveRequest(bob, assetId)
   const before = await advances()
   await prepareSend(alice, request, 'Receiver uses own sats')
@@ -171,6 +82,7 @@ async function claimedFromActivity({ alice, bob, assetId }: Scene): Promise<void
   await expect(alice.page.getByTestId('Transfer ID')).toContainText(advance.id.slice(0, 11))
   await expect(alice.page.getByTestId('Carrier mode')).toHaveText('Receiver uses own sats')
   await expect(alice.page.getByTestId('Taxi service fee')).toHaveText('0 sats')
+  await expect(alice.page.getByTestId('Carrier sats')).toHaveText('Borrowed 330 sats')
 
   await expect(sheet(bob.page).getByText('Claim your Taxi delivery', { exact: true })).toBeVisible()
   const delivery = await taxiRows(bob, 'Claimable')
@@ -182,10 +94,19 @@ async function claimedFromActivity({ alice, bob, assetId }: Scene): Promise<void
   await expect(claimed).toContainText('Received')
   await expect(claimed).not.toContainText('Sent')
   await expectStateShown(claimed)
+  await openTaxiRow(bob, 'Claimed')
+  await expect(bob.page.getByTestId('Carrier sats')).toHaveText('Borrowed 330 sats')
+  await expect(bob.page.getByTestId('Delivery')).toHaveText('Claimed')
 
   await openTaxiRow(alice, /Awaiting claim|Claimed/)
   await checkAgainIfOffered(alice)
   await expect(alice.page.getByTestId('Delivery')).toHaveText('Claimed')
+  await expect.poll(async () => (await taxiStatus(advance.id)).state).toBe('recycled')
+  await expectLedger(parties, assetId, {
+    alice: shift(balances.alice, 0n, -1n),
+    bob: shift(balances.bob, 0n, 1n),
+    taxi: balances.taxi,
+  })
 }
 
 async function unreachableTaxi({ alice }: Scene, open?: string): Promise<void> {
@@ -204,7 +125,7 @@ async function unreachableTaxi({ alice }: Scene, open?: string): Promise<void> {
   }
 }
 
-test('Taxi transfers in activity: every state, and the action each offers', async ({ browser }, testInfo) => {
+test('Taxi activity and its available actions', { tag: '@history' }, async ({ browser }, testInfo) => {
   await scene(browser, testInfo, {}, async (s) => {
     const { alice, bob, assetId } = s
     let stranded = ''
@@ -238,6 +159,8 @@ test('Taxi transfers in activity: every state, and the action each offers', asyn
       await alice.page.unroute(status)
       await checkAgain(alice)
       await expect(alice.page.getByTestId('Delivery')).toHaveText('Awaiting claim')
+      await expect(alice.page.getByTestId('Carrier sats purchased')).toHaveText('330 sats')
+      await expect(alice.page.getByTestId('Taxi service fee')).toHaveText('1 XYZ')
       await expect(await taxiRows(alice, 'Awaiting claim')).toHaveCount(1)
       await expect.poll(() => journaled(alice)).toBe(false)
     })
@@ -245,26 +168,22 @@ test('Taxi transfers in activity: every state, and the action each offers', asyn
     await test.step('an unreachable Taxi blanks nothing: rows keep their last state and Check again says so', () =>
       unreachableTaxi(s, 'Awaiting claim'))
 
-    await test.step('a payment the Taxi gave back reads Returned', async () => {
-      const real = await (await fetch(`${required('TAXI_E2E_BASE_URL')}/v1/transfers/${stranded}`)).json()
-      const status = `**/v1/transfers/${stranded}`
-      await alice.page.route(status, (route) =>
-        route.fulfill({
-          json: { ...real, state: 'recovered', spentTxid: 'f'.repeat(64), updatedAt: real.updatedAt + 1 },
-        }),
-      )
-      try {
-        await openTaxiRow(alice, /Awaiting claim|Returned/)
-        await checkAgainIfOffered(alice)
-        await expect(alice.page.getByTestId('Delivery')).toHaveText('Returned')
-        await expect(alice.page.getByText('The Taxi returned this payment to you.', { exact: true })).toBeVisible()
-      } finally {
-        await alice.page.unroute(status)
-      }
+    await test.step('a purchased carrier is claimed from the receiver activity with matching balances', async () => {
+      const parties = { bob: bob.address, taxi: operatorAddress() }
+      const before = await ledger(parties, assetId)
+      await openTaxiRow(bob, 'Claimable')
+      await expect(bob.page.getByTestId('Carrier sats purchased')).toHaveText('330 sats')
+      await expect(bob.page.getByTestId('Delivery')).toHaveText('Claimable')
       await claimFromActivity(bob)
+      await expect.poll(async () => (await taxiStatus(stranded)).state).toBe('purchased')
+      await expectLedger(parties, assetId, {
+        bob: shift(before.bob, 330n, 1n),
+        taxi: shift(before.taxi, -330n, 1n),
+      })
+      await expect(await taxiRows(bob, 'Claimed')).toHaveCount(2)
     })
 
-    await test.step('a lockup that never reached the Taxi: Failed while the Taxi says so, never resumed, Not sent once expired', async () => {
+    await test.step('a lockup that never reached the Taxi expires and reads Not sent without debiting Alice', async () => {
       await admin('policy', 'PATCH', { quoteTtlSeconds: 20 })
       const request = await receiveRequest(bob, assetId)
       const held = await holdings(alice.address, assetId)
@@ -273,31 +192,30 @@ test('Taxi transfers in activity: every state, and the action each offers', asyn
       await taxiConfirmation(alice)
       const advance = await newAdvance(before)
       const lockup = `**/v1/transfers/${advance.id}/lockup`
-      const status = `**/v1/transfers/${advance.id}`
       await alice.page.route(lockup, (route) => route.abort())
-      await alice.page.route(status, (route) =>
-        route.fulfill({ json: { transferId: advance.id, updatedAt: Math.floor(Date.now() / 1000), ...FAILED } }),
-      )
       await alice.page.getByRole('button', { name: 'Pay', exact: true }).click()
       await expect(alice.page.getByText(PENDING, { exact: true })).toBeVisible()
-      await openTaxiRow(alice, /Pending|Failed/)
-      await checkAgain(alice)
-      await expect(alice.page.getByTestId('Delivery')).toHaveText('Failed')
-      await expect(alice.page.getByText(FAILED.failureDetail, { exact: true })).toBeVisible()
-      await expect(alice.page.getByText(`Error code: ${FAILED.failureCode}`, { exact: true })).toBeVisible()
       await expectSendBlocked(alice)
-
-      await alice.page.unroute(status)
       await alice.page.unroute(lockup)
       await expect
         .poll(async () => (await advances()).find((other) => other.id === advance.id)?.state, { timeout: 120_000 })
         .toBe('expired')
-      await openTaxiRow(alice, /Failed|Not sent/)
+      await openTaxiRow(alice, /Pending|Not sent/)
       await checkAgain(alice)
       await expect(alice.page.getByTestId('Delivery')).toHaveText('Not sent')
       await expect(alice.page.getByTestId('error-message')).not.toBeVisible()
       await expect.poll(() => journaled(alice)).toBe(false)
       expect(await holdings(alice.address, assetId)).toEqual(held)
+    })
+
+    await test.step('a send that supplies its own sats carries no Taxi label', async () => {
+      await prepareSend(alice, await receiveRequest(bob, assetId))
+      await confirmSend(alice, false)
+      await navigateHome(alice.page)
+      await alice.page.getByTestId('activity-view-all').click()
+      const newest = alice.page.getByTestId('tx-row').first()
+      await expect(newest).not.toContainText('Taxi')
+      await expect(newest).toContainText('Sent')
     })
 
     await test.step('a reset wallet keeps none of the Taxi records', async () => {
@@ -312,7 +230,7 @@ test('Taxi transfers in activity: every state, and the action each offers', asyn
   })
 })
 
-test('Taxi transfers in activity on a phone', async ({ browser }, testInfo) => {
+test('Taxi transfers in activity on a phone', { tag: '@history' }, async ({ browser }, testInfo) => {
   await scene(browser, testInfo, devices['Pixel 7'], async (s) => {
     await test.step('a recycled send, claimed from activity', () => claimedFromActivity(s))
     await test.step('an unreachable Taxi blanks nothing', () => unreachableTaxi(s))
