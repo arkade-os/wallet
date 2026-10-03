@@ -55,7 +55,7 @@ test('Chrome sender and Edge receiver: exact bitcoin, asset recycle, claims, his
   const actors: Actor[] = []
   const recoveryWallets = new Map<string, Wallet>()
   const secrets: string[] = []
-  const transfers: { id: string; dust: string; topup: string }[] = []
+  const transfers: Awaited<ReturnType<typeof ownTransfer>>[] = []
   const requests: { method: string; path: string }[] = []
   const evidence: Record<string, unknown> = { fundedSats: 0, transfers, requests, browsers: ['chrome', 'msedge'] }
   const cleanupErrors: string[] = []
@@ -114,7 +114,7 @@ test('Chrome sender and Edge receiver: exact bitcoin, asset recycle, claims, his
       await preflight()
       const transfer = await ownTransfer(alice.page, prepare)
       transfers.push(transfer)
-      expect(transfer).toMatchObject({ dust: '330', topup: String(topup) })
+      expect(transfer).toMatchObject({ dust: '330', topup: String(topup), operatorKey: info.operatorKey })
       await expect(alice.page.getByTestId('taxi-confirm-costs')).toBeVisible()
       await alice.page.getByRole('button', { name: 'Pay', exact: true }).click()
       await dismissPaymentSuccess(alice.page)
@@ -134,7 +134,9 @@ test('Chrome sender and Edge receiver: exact bitcoin, asset recycle, claims, his
     const verifyRecycled = async (id: string) => {
       await expect.poll(async () => (await status(id)).state).toBe('recycled')
       const terminal = await status(id)
-      await coinSpent(terminal)
+      const owned = transfers.find((transfer) => transfer.id === id)
+      expect(owned).toBeDefined()
+      await coinSpent(terminal, owned!)
       const admin = await adminGet<{ advances: { id: string; state: string; topup: string; receiverKey: string }[] }>(
         'advances',
       )

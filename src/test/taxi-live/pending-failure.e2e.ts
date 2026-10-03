@@ -136,13 +136,40 @@ async function refundAttempt(alice: Actor, record: PendingTaxiRecord) {
   })
   const lockup = await client.submitLockup(verified, attempt.signed)
   expect(lockup.outpoint).toEqual({ txid: record.expectedTxid, vout: record.expectedVout })
-  const transfer = await client.verifyTransfer(verified, lockup, {
-    arkdUrl: required('TAXI_E2E_ARKD_URL'),
-    emulatorUrl: required('TAXI_E2E_EMULATOR_URL'),
-    network: record.network,
-    serverUnrollScript: attempt.serverUnrollScript,
-  })
-  return { txid: await client.refund(transfer, identity), params: verified.params, operatorKey: info.operatorKey }
+  // Preserve the Taxi's pinned URLs while routing their Docker transport aliases, as the backend fixture does.
+  const originalFetch = globalThis.fetch
+  const aliases = [
+    [info.arkdUrl, required('TAXI_E2E_ARKD_URL')],
+    [info.emulatorUrl, required('TAXI_E2E_EMULATOR_URL')],
+  ] as const
+  globalThis.fetch = (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : input)
+    for (const [advertised, reachable] of aliases) {
+      const source = new URL(advertised)
+      const prefix = source.pathname.replace(/\/$/, '')
+      if (source.origin !== url.origin || (url.pathname !== prefix && !url.pathname.startsWith(`${prefix}/`))) continue
+      const target = new URL(reachable)
+      target.pathname = target.pathname.replace(/\/$/, '') + url.pathname.slice(prefix.length)
+      target.search = url.search
+      return originalFetch(input instanceof Request ? new Request(target, input) : target, init)
+    }
+    return originalFetch(input, init)
+  }
+  try {
+    const transfer = await client.verifyTransfer(verified, lockup, {
+      arkdUrl: info.arkdUrl,
+      emulatorUrl: info.emulatorUrl,
+      network: record.network,
+      serverUnrollScript: attempt.serverUnrollScript,
+    })
+    return {
+      txid: await client.refund(transfer, identity),
+      params: verified.params,
+      operatorKey: info.operatorKey,
+    }
+  } finally {
+    globalThis.fetch = originalFetch
+  }
 }
 
 test(

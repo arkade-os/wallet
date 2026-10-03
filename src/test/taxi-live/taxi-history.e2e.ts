@@ -78,12 +78,24 @@ async function claimedFromActivity({ alice, bob, assetId }: Scene): Promise<void
   await prepareSend(alice, request, 'Receiver uses own sats')
   await confirmSend(alice, true)
   const advance = await newAdvance(before)
+  const locked = await taxiStatus(advance.id)
+  expect(locked.state).toBe('locked')
+  expect(locked.outpoint).toBeDefined()
+  const copyTransaction = async (txid: string) => {
+    const row = alice.page
+      .locator('[data-testid="Transaction ID"], [data-testid^="Related transaction"]')
+      .filter({ hasText: txid.slice(0, 8) })
+    await expect(row).toHaveCount(1)
+    await row.click()
+    await expect.poll(() => alice.page.evaluate(() => navigator.clipboard.readText())).toBe(txid)
+  }
 
   await openTaxiRow(alice, /Awaiting claim|Claimed/)
   await expect(alice.page.getByTestId('Transfer ID')).toContainText(advance.id.slice(0, 11))
   await expect(alice.page.getByTestId('Carrier mode')).toHaveText('Receiver uses own sats')
   await expect(alice.page.getByTestId('Taxi service fee')).toHaveText('0 sats')
   await expect(alice.page.getByTestId('Carrier sats')).toHaveText('Borrowed 330 sats')
+  await copyTransaction(locked.outpoint!.txid)
 
   await expect(sheet(bob.page).getByText('Claim your Taxi delivery', { exact: true })).toBeVisible()
   const delivery = await taxiRows(bob, 'Claimable')
@@ -103,6 +115,9 @@ async function claimedFromActivity({ alice, bob, assetId }: Scene): Promise<void
   await checkAgainIfOffered(alice)
   await expect(alice.page.getByTestId('Delivery')).toHaveText('Claimed')
   await expect.poll(async () => (await taxiStatus(advance.id)).state).toBe('recycled')
+  const claimedStatus = await taxiStatus(advance.id)
+  expect(claimedStatus.spentTxid).toMatch(/^[0-9a-f]{64}$/)
+  for (const txid of [locked.outpoint!.txid, claimedStatus.spentTxid!]) await copyTransaction(txid)
   await expectLedger(parties, assetId, {
     alice: shift(balances.alice, 0n, -1n),
     bob: shift(balances.bob, 0n, 1n),

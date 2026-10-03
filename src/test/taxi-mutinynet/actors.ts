@@ -194,7 +194,10 @@ export async function sweepSdk(actor: Actor, wallet: Wallet, funder: string, ass
 
 export const status = (id: string) => publicJson<TaxiStatus>(`${TAXI}/v1/transfers/${id}`)
 
-export async function coinSpent(transfer: TaxiStatus): Promise<void> {
+export async function coinSpent(
+  transfer: TaxiStatus,
+  repayment: { operatorKey: string; dust: string; repaymentSats: string },
+): Promise<void> {
   expect(transfer.outpoint).toBeDefined()
   expect(transfer.spentTxid).toBeDefined()
   const indexer = new RestIndexerProvider(ARKD)
@@ -206,6 +209,11 @@ export async function coinSpent(transfer: TaxiStatus): Promise<void> {
     expect(raw.txs).toHaveLength(1)
     const claim = Transaction.fromPSBT(base64.decode(raw.txs[0]))
     expect(claim.id).toBe(transfer.spentTxid)
+    const amount = BigInt(repayment.repaymentSats)
+    expect(claim.getOutput(0).amount).toBe(amount)
+    expect(hex.encode(claim.getOutput(0).script!)).toBe(
+      `${amount < BigInt(repayment.dust) ? '6a20' : '5120'}${repayment.operatorKey}`,
+    )
     const checkpoints = await indexer.getVirtualTxs([hex.encode(claim.getInput(0).txid!)])
     expect(checkpoints.txs).toHaveLength(1)
     const checkpoint = Transaction.fromPSBT(base64.decode(checkpoints.txs[0]))
@@ -273,7 +281,24 @@ export async function ownTransfer(page: Page, pay: () => Promise<void>) {
     (response) => response.url() === `${TAXI}/v1/transfers` && response.request().method() === 'POST',
   )
   await pay()
-  const quote = (await (await response).json()) as { transferId: string; params: { dust: string; topup: string } }
+  const quote = (await (await response).json()) as {
+    transferId: string
+    params: {
+      dust: string
+      topup: string
+      operatorKey: string
+      receiverFare?: { currency: 'sats' | 'asset'; units: string }
+    }
+  }
   expect(quote.transferId).toMatch(/^[0-9a-f-]{36}$/)
-  return { id: quote.transferId, dust: quote.params.dust, topup: quote.params.topup }
+  return {
+    id: quote.transferId,
+    dust: quote.params.dust,
+    topup: quote.params.topup,
+    operatorKey: quote.params.operatorKey,
+    repaymentSats: String(
+      BigInt(quote.params.topup) +
+        (quote.params.receiverFare?.currency === 'sats' ? BigInt(quote.params.receiverFare.units) : 0n),
+    ),
+  }
 }

@@ -159,6 +159,29 @@ test(
           await expectLedger(parties, '', { ...before, alice: shift(before.alice, BigInt(-SATS)) })
           expect(await newAdvances(known)).toEqual([])
         })
+
+        await test.step('A3/S4: direct bitcoin delivery funds Bob without a claim', async () => {
+          const known = await advances()
+          const before = await ledger(parties, '')
+          await openSatsSend(alice, bob.address, SATS, 'Direct delivery, no claim')
+          await alice.page.getByRole('button', { name: tr.common.continue, exact: true }).click()
+          await expect(alice.page.getByTestId('taxi-confirm-costs')).toContainText(
+            `Send ${SATS} sats. Fare: 0 sats. Taxi adds ${TOPUP} sats`,
+          )
+          await confirmSend(alice, true)
+          const advance = await newAdvance(known)
+          expect(advance).toMatchObject({ kind: 'sponsored', dust: '330', topup: String(TOPUP) })
+          expect(advance.assetId).toBeUndefined()
+          await expect.poll(async () => (await taxiStatus(advance.id, undefined, true)).state).toBe('locked')
+          expect((await taxiStatus(advance.id, undefined, true)).outpoint).toBeDefined()
+          await expectLedger(parties, '', {
+            alice: shift(before.alice, BigInt(-SATS)),
+            bob: shift(before.bob, 330n),
+            taxi: shift(before.taxi, BigInt(-TOPUP)),
+          })
+          expect(await newAdvances(known)).toHaveLength(1)
+          await expect(bob.page.getByText('Claim your Taxi delivery', { exact: true })).not.toBeVisible()
+        })
       })
     })
   },

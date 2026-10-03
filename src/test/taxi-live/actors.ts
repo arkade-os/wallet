@@ -227,6 +227,66 @@ export async function admin<T>(path: string, method = 'GET', body?: unknown): Pr
 
 export const advances = async (): Promise<Advance[]> => (await admin<{ advances: Advance[] }>('advances')).advances
 
+async function operationalEvidence() {
+  const read = async (url: string): Promise<Record<string, unknown>> => {
+    try {
+      const response = await fetch(url, {
+        headers: { 'x-taxi-operator': 'task13-e2e' },
+        signal: AbortSignal.timeout(3_000),
+      })
+      return response.ok ? await response.json() : { unavailable: true, status: response.status }
+    } catch {
+      return { unavailable: true }
+    }
+  }
+  const pick = (value: Record<string, unknown>, paths: string[]) =>
+    Object.fromEntries(
+      paths.map((path) => [
+        path,
+        path
+          .split('.')
+          .reduce<unknown>((row, key) => (row && typeof row === 'object' ? Reflect.get(row, key) : null), value),
+      ]),
+    )
+  const [health, status, history] = await Promise.all([
+    read(`${required('TAXI_E2E_BASE_URL')}/health`),
+    read(`${required('TAXI_E2E_ADMIN_URL')}/admin/api/status`),
+    read(`${required('TAXI_E2E_ADMIN_URL')}/admin/api/policy/history?limit=100`),
+  ])
+  const fields = (
+    'unavailable status paused now blockers startup.phase startup.complete startup.blocker ' +
+    'runtime.checkedAt runtime.walletSynced runtime.providerIdentityOk runtime.blockers ' +
+    'sweeper.lastTickAt sweeper.failedTotal sweeper.lockedCount sweeper.recoveringCount ' +
+    'reconciler.lastTickAt reconciler.lastWatcherScanAt reconciler.watching reconciler.blockers'
+  ).split(' ')
+  const pauseHistory = Array.isArray(history.history)
+    ? (history.history as Record<string, unknown>[])
+        .filter((row) => row?.field === 'paused')
+        .map(({ id, changedAt, oldValue, newValue, actor }) => ({
+          id,
+          changedAt,
+          oldValue,
+          newValue,
+          actor: ['spend-watcher', 'recovery-deadline', 'submission', 'recovery', 'lockup-reconciler'].includes(
+            String(actor),
+          )
+            ? actor
+            : 'operator',
+        }))
+    : { unavailable: true }
+  return {
+    observedAt: Date.now(),
+    health: pick(health, fields),
+    status: pick(status, [
+      ...'unavailable status now paused sweeper.running sweeper.healthy sweeper.intervalMs sweeper.staleAfterMs sweeper.lastTickAt'.split(
+        ' ',
+      ),
+      ...fields.map((field) => `readiness.${field}`),
+    ]),
+    pauseHistory,
+  }
+}
+
 export async function newAdvances(before: Advance[], list = advances): Promise<Advance[]> {
   const known = new Set(before.map(({ id }) => id))
   return (await list()).filter(({ id }) => !known.has(id))
@@ -506,10 +566,14 @@ export type Stage = {
  * because the SDK suite runs next on the same stack. */
 export async function stage(browser: Browser, testInfo: TestInfo, play: (s: Stage) => Promise<void>): Promise<void> {
   const faucet = await faucetWallet()
+  await control('reset')
+  const evidence: Record<string, unknown> = {
+    operationalBefore: await operationalEvidence().catch(() => ({ unavailable: true })),
+  }
   const policy = await admin<TaxiPolicy>('policy')
   const known = await advances()
   const contexts: BrowserContext[] = []
-  const evidence: Record<string, unknown> = {}
+  let guardEvidence: Promise<unknown> | undefined
   const join: Stage['join'] = async (name, { leaves, device, sats } = {}) => {
     const context = await browser.newContext({
       ...device,
@@ -520,6 +584,13 @@ export async function stage(browser: Browser, testInfo: TestInfo, play: (s: Stag
     })
     contexts.push(context)
     const actor = await onboard(name, await context.newPage(), { leaves })
+    actor.page.on('response', (response) => {
+      const path = new URL(response.url()).pathname
+      if (!guardEvidence && response.status() === 503 && /^\/(taxi\/)?v1\/(transfers|sponsored-transfers)/.test(path)) {
+        evidence.firstGuard = { observedAt: Date.now(), path }
+        guardEvidence = operationalEvidence().catch(() => ({ unavailable: true }))
+      }
+    })
     if (sats) await fund(faucet, actor, sats)
     return actor
   }
@@ -528,8 +599,10 @@ export async function stage(browser: Browser, testInfo: TestInfo, play: (s: Stag
     await play({ faucet, evidence, join })
   } catch (error) {
     failed = true
+    evidence.operationalFailure = await operationalEvidence().catch(() => ({ unavailable: true }))
     throw error
   } finally {
+    if (guardEvidence) evidence.operationalGuard = await guardEvidence
     const errors: string[] = []
     const open = async () => (await newAdvances(known)).filter((advance) => !isTerminal(advance))
     for (const cleanup of [
