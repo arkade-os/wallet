@@ -1,0 +1,44 @@
+# Device profiles for maestro/scripts/adapt-device.py
+#
+# Flows in this repo are authored against `source.profile`.
+# Adapt to another phone by mapping coordinates through each profile's viewport
+# (wallet content area) and chrome zones (status bar, nav bar, header back).
+
+source:
+  profile: xiaomi-13t-pro
+
+profiles:
+  xiaomi-13t-pro:
+    label: Xiaomi 13T Pro
+    screen_width: 1220
+    screen_height: 2712
+    navigation: three_button
+    touch_digitizer_max_x: 12200
+    touch_digitizer_max_y: 27120
+    viewport:
+      top_pct: 5
+      bottom_pct: 92
+      left_pct: 0
+      right_pct: 100
+    chrome:
+      header_y_max_pct: 18
+      side_x_max_pct: 12
+      nav_bar_y_min_pct: 92
+
+  # Example: same aspect ratio, gesture nav (Android 16 default)
+  example-gesture-1220x2712:
+    label: Example — 1220x2712 gesture navigation
+    screen_width: 1220
+    screen_height: 2712
+    navigation: gesture
+    touch_digitizer_max_x: 12200
+    touch_digitizer_max_y: 27120
+    viewport:
+      top_pct: 5
+      bottom_pct: 97
+      left_pct: 0
+      right_pct: 100
+    chrome:
+      header_y_max_pct: 18
+      side_x_max_pct: 12
+      nav_bar_y_min_pct: 97

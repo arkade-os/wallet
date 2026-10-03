@@ -1,0 +1,7 @@
+appId: com.android.chrome
+---
+# App back arrow — recordings/taps-20260609-131724.log taps 3 & 5 (~10%, 15%)
+
+- tapOn:
+    point: "10%, 15%"
+    waitToSettleTimeoutMs: 800

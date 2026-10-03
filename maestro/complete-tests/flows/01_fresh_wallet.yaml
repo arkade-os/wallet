@@ -1,0 +1,34 @@
+appId: com.android.chrome
+name: Fresh wallet
+tags:
+  - onboarding
+  - fresh-wallet
+---
+# recordings/taps-20260609-161939.log — 5 tap + 0 swipe
+
+- runFlow: ../subflows/open_wallet_url.yaml
+
+# gesture 1
+- tapOn:
+    point: "55%, 85%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_5s.yaml
+# gesture 2
+- tapOn:
+    point: "91%, 16%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_2s.yaml
+# gesture 3
+- tapOn:
+    point: "86%, 91%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_1s.yaml
+# gesture 4
+- tapOn:
+    point: "13%, 84%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_1s.yaml
+# gesture 5
+- tapOn:
+    point: "53%, 91%"
+    waitToSettleTimeoutMs: 800

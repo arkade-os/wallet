@@ -1,0 +1,25 @@
+appId: com.android.chrome
+---
+# Send form exercise — coordinate taps (device Chrome).
+
+- runFlow: dismiss_clipboard_permission.yaml
+- tapOn:
+    point: "50%, 35%"
+    waitToSettleTimeoutMs: 800
+- runFlow: wait_1s.yaml
+- tapOn:
+    point: "88%, 45%"
+    waitToSettleTimeoutMs: 800
+- runFlow: wait_1s.yaml
+- tapOn:
+    point: "50%, 55%"
+    waitToSettleTimeoutMs: 800
+- runFlow: wait_1s.yaml
+- tapOn:
+    point: "50%, 88%"
+    waitToSettleTimeoutMs: 800
+- runFlow: wait_2s.yaml
+- tapOn:
+    point: "50%, 88%"
+    waitToSettleTimeoutMs: 800
+- runFlow: wait_2s.yaml

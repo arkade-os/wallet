@@ -1,0 +1,7 @@
+appId: com.android.chrome
+---
+# recordings/taps-20260609-152620.log tap 2 — QR area on Receive screen
+
+- tapOn:
+    point: "27%, 59%"
+    waitToSettleTimeoutMs: 800

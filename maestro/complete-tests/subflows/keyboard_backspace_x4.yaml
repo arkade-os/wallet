@@ -1,0 +1,7 @@
+appId: com.android.chrome
+---
+- repeat:
+    times: 4
+    commands:
+      - tapOn:
+          point: "83%, 84%"

@@ -1,0 +1,65 @@
+appId: com.android.chrome
+name: Receive — Copy, sheet and Add amount
+tags:
+  - smoke
+  - receive
+---
+# Full Receive flow — recordings/taps-20260609-152620.log (tap 3 skipped: chrome back)
+
+- runFlow: ../subflows/open_receive_from_home.yaml
+- runFlow: ../subflows/tap_receive_qr.yaml
+- runFlow: ../subflows/wait_3s.yaml
+
+# Copy + sheet (taps 5–13)
+- runFlow: ../subflows/tap_receive_copy.yaml
+- runFlow: ../subflows/wait_5s.yaml
+- tapOn:
+    point: "84%, 63%"
+    waitToSettleTimeoutMs: 800
+- tapOn:
+    point: "90%, 89%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_1s.yaml
+- tapOn:
+    point: "79%, 85%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_2s.yaml
+- tapOn:
+    point: "92%, 82%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_4s.yaml
+- runFlow: ../subflows/tap_receive_copy_sheet_row.yaml
+- runFlow: ../subflows/wait_2s.yaml
+- tapOn:
+    point: "19%, 58%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_2s.yaml
+- tapOn:
+    point: "3%, 49%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_2s.yaml
+- runFlow: ../subflows/dismiss_clipboard_permission.yaml
+- runFlow: ../subflows/close_copy_sheet.yaml
+- runFlow: ../subflows/wait_3s.yaml
+
+# Add amount (taps 14–22)
+- runFlow: ../subflows/tap_receive_copy_sheet_row.yaml
+- runFlow: ../subflows/wait_3s.yaml
+- runFlow: ../subflows/tap_receive_add_amount.yaml
+- runFlow: ../subflows/wait_1s.yaml
+- runFlow: ../subflows/receive_add_amount_keyboard.yaml
+- tapOn:
+    point: "9%, 51%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_2s.yaml
+- tapOn:
+    point: "82%, 85%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_3s.yaml
+- tapOn:
+    point: "89%, 74%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_3s.yaml
+
+- runFlow: ../subflows/tap_receive_back.yaml
+- runFlow: ../subflows/wait_2s.yaml

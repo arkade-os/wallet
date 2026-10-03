@@ -1,0 +1,8 @@
+appId: com.android.chrome
+---
+# Open Arkade in Chrome on device (replaces url: header for Android runs).
+- openLink:
+    link: ${WALLET_URL}
+    browser: true
+    autoVerify: true
+- runFlow: wait_3s.yaml
