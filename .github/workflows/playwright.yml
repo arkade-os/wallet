@@ -49,10 +49,14 @@ jobs:
         node-version-file: '.nvmrc'
     - name: Install pnpm
       uses: pnpm/action-setup@v4
+    - name: Verify carrier artifacts
+      run: node scripts/carrier-artifacts/verify.mjs
     - name: Install dependencies
       run: pnpm install
     - name: Install Playwright Browsers
       run: pnpm exec playwright install chrome chromium --with-deps
+    - name: Verify the installed carrier packages
+      run: node scripts/carrier-artifacts/verify.mjs --installed
     - name: Start regtest environment
       run: node regtest/regtest.mjs start --env .env.regtest
     - name: Start nostr relay

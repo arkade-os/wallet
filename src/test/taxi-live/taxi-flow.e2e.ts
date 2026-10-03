@@ -1,0 +1,462 @@
+import { expect, test } from '@playwright/test'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { ArkAddress } from '@arkade-os/sdk'
+import { hex } from '@scure/base'
+import { mintAsset, navigateToAssets, enableAssets, navigateHome, dismissPaymentSuccess } from '../e2e/utils'
+import {
+  admin,
+  claim,
+  confirmSend,
+  control,
+  faucetWallet,
+  fund,
+  holdings,
+  importAsset,
+  onboard,
+  policyRulesForPatch,
+  prepareSend,
+  receiveRequest,
+  required,
+  taxiConfirmation,
+  tr,
+  xyzRule,
+  type Holdings,
+  type TaxiPolicy,
+} from './actors'
+
+test('Alice sends XYZ through Taxi', { tag: '@asset-modes' }, async ({ browser }, testInfo) => {
+  const contextOptions = {
+    baseURL: testInfo.project.use.baseURL,
+    permissions: ['clipboard-read', 'clipboard-write'],
+    locale: 'en-US',
+    reducedMotion: 'reduce' as const,
+  }
+  const aliceContext = await browser.newContext(contextOptions)
+  const bobContext = await browser.newContext(contextOptions)
+  const faucet = await faucetWallet()
+  const originalPolicy = await admin<TaxiPolicy>('policy')
+  const originalRules = policyRulesForPatch(originalPolicy.assetRules)
+  const fixture = JSON.parse(readFileSync(required('TAXI_E2E_FIXTURE_FILE'), 'utf8')) as {
+    operator: { address: string }
+  }
+  const evidence: { step: string; alice: Holdings; bob: Holdings; taxi: Holdings }[] = []
+  const reconciledTransfers: string[] = []
+  type Diagnostic = {
+    at: number
+    actor: string
+    event: string
+    path?: string
+    status?: number
+    units?: string
+    sats?: string
+    newCoins?: number
+    newUnits?: string
+  }
+  const diagnostics: Diagnostic[] = []
+  const record = (
+    actor: string,
+    event: string,
+    path?: string,
+    status?: number,
+    totals?: Pick<Diagnostic, 'units' | 'sats' | 'newCoins' | 'newUnits'>,
+  ) => {
+    diagnostics.push({
+      at: Date.now(),
+      actor,
+      event,
+      path,
+      status,
+      ...totals,
+    })
+    if (diagnostics.length > 100) diagnostics.shift()
+  }
+  const taxiPrefix = `${required('TAXI_E2E_BASE_URL').replace(/\/$/, '')}/`
+  for (const [actor, context] of [
+    ['Alice', aliceContext],
+    ['Bob', bobContext],
+  ] as const) {
+    await context.exposeBinding(
+      '__TAXI_RECORD_WORKER_DIAGNOSTIC__',
+      (
+        _source,
+        data: {
+          event: string
+          units?: string
+          sats?: string
+          newCoins?: number
+          newUnits?: string
+        },
+      ) => {
+        if (!['worker-vtxo-update', 'worker-balance'].includes(data.event)) return
+        const decimal = (value: unknown) =>
+          typeof value === 'string' && /^(0|[1-9][0-9]*)$/.test(value) ? value : undefined
+        record(actor, data.event, undefined, undefined, {
+          units: decimal(data.units),
+          sats: decimal(data.sats),
+          newUnits: decimal(data.newUnits),
+          newCoins: Number.isSafeInteger(data.newCoins) && data.newCoins! >= 0 ? data.newCoins : undefined,
+        })
+      },
+    )
+    await context.addInitScript(() => {
+      const diagnosticWindow = window as typeof window & {
+        __TAXI_RUN_ASSET_ID__?: string
+        __TAXI_RECORD_WORKER_DIAGNOSTIC__: (data: {
+          event: string
+          units?: string
+          sats?: string
+          newCoins?: number
+          newUnits?: string
+        }) => Promise<void>
+      }
+      const units = (assets: { assetId: string; amount: bigint }[] | undefined) => {
+        if (!diagnosticWindow.__TAXI_RUN_ASSET_ID__) return undefined
+        return String(
+          (Array.isArray(assets) ? assets : [])
+            .filter(
+              (asset) =>
+                asset.assetId === diagnosticWindow.__TAXI_RUN_ASSET_ID__ &&
+                /^(0|[1-9][0-9]*)$/.test(String(asset.amount)),
+            )
+            .reduce((sum, asset) => sum + BigInt(asset.amount), 0n),
+        )
+      }
+      navigator.serviceWorker.addEventListener('message', ({ data }) => {
+        try {
+          if (data?.type === 'VTXO_UPDATE') {
+            const coins = data.payload?.newVtxos ?? []
+            void diagnosticWindow
+              .__TAXI_RECORD_WORKER_DIAGNOSTIC__({
+                event: 'worker-vtxo-update',
+                newCoins: coins.length,
+                newUnits: units(
+                  coins.flatMap((coin: { assets?: { assetId: string; amount: bigint }[] }) => coin.assets ?? []),
+                ),
+              })
+              .catch(() => undefined)
+          } else if (data?.type === 'BALANCE') {
+            void diagnosticWindow
+              .__TAXI_RECORD_WORKER_DIAGNOSTIC__({
+                event: 'worker-balance',
+                units: units(data.payload?.assets),
+                sats: String(data.payload?.total ?? 0),
+              })
+              .catch(() => undefined)
+          }
+        } catch {
+          return
+        }
+      })
+    })
+    context.on('page', (page) => {
+      page.on('framenavigated', (frame) => {
+        if (frame === page.mainFrame()) record(actor, 'navigation', new URL(frame.url()).pathname)
+      })
+      page.on('response', (response) => {
+        if (response.url().startsWith(taxiPrefix))
+          record(actor, 'taxi-response', new URL(response.url()).pathname, response.status())
+      })
+      page.on('requestfailed', (request) => {
+        if (request.url().startsWith(taxiPrefix)) record(actor, 'taxi-request-failed', new URL(request.url()).pathname)
+      })
+      page.on('console', (message) => {
+        if (message.text() === 'Service worker update found') record(actor, 'sw-update')
+      })
+    })
+  }
+  let scenarioFailed = false
+  let assetId = ''
+  try {
+    const alice = await onboard('Alice', await aliceContext.newPage())
+    const bob = await onboard('Bob', await bobContext.newPage())
+    const readBobBalance = async (event: string) => {
+      try {
+        const totals = await bob.page.evaluate(
+          (runAssetId) =>
+            new Promise<{ units?: string; sats?: string; event: string }>((resolve) => {
+              const id = crypto.randomUUID()
+              let done = false
+              const timer = setTimeout(() => {
+                done = true
+                navigator.serviceWorker.removeEventListener('message', receive)
+                resolve({ event: 'rpc-balance-timeout' })
+              }, 3000)
+              const receive = ({ data }: MessageEvent) => {
+                if (data?.id !== id || done) return
+                done = true
+                clearTimeout(timer)
+                navigator.serviceWorker.removeEventListener('message', receive)
+                if (data.error || data.type !== 'BALANCE') return resolve({ event: 'rpc-balance-error' })
+                try {
+                  const decimal = (value: unknown) =>
+                    /^(0|[1-9][0-9]*)$/.test(String(value)) ? String(value) : undefined
+                  const assets = Array.isArray(data.payload?.assets) ? data.payload.assets : []
+                  resolve({
+                    event: 'rpc-balance',
+                    sats: decimal(data.payload?.total),
+                    units: String(
+                      assets
+                        .filter(
+                          (asset: { assetId?: string; amount?: bigint }) =>
+                            asset?.assetId === runAssetId && decimal(asset.amount) !== undefined,
+                        )
+                        .reduce((sum: bigint, asset: { amount: bigint }) => sum + BigInt(asset.amount), 0n),
+                    ),
+                  })
+                } catch {
+                  resolve({ event: 'rpc-balance-invalid' })
+                }
+              }
+              navigator.serviceWorker.addEventListener('message', receive)
+              void navigator.serviceWorker
+                .getRegistration()
+                .then((registration) => {
+                  if (done) return
+                  const worker = navigator.serviceWorker.controller ?? registration?.active
+                  if (worker) worker.postMessage({ id, tag: 'WALLET_UPDATER', type: 'GET_BALANCE' })
+                  else {
+                    done = true
+                    clearTimeout(timer)
+                    navigator.serviceWorker.removeEventListener('message', receive)
+                    resolve({ event: 'rpc-balance-no-active-worker' })
+                  }
+                })
+                .catch(() => {
+                  done = true
+                  clearTimeout(timer)
+                  navigator.serviceWorker.removeEventListener('message', receive)
+                  resolve({ event: 'rpc-balance-error' })
+                })
+            }),
+          assetId,
+        )
+        record('Bob', `${event}:${totals.event}`, undefined, undefined, {
+          units: totals.units,
+          sats: totals.sats,
+        })
+        const shown = await bob.page.evaluate(
+          (id) =>
+            document.querySelector(`[data-testid="asset-row-XYZ-${id}"]`)?.textContent?.match(/([0-9]+) XYZ$/)?.[1],
+          assetId,
+        )
+        if (shown !== undefined) record('Bob', `${event}:ui-asset-row`, undefined, undefined, { units: shown })
+      } catch {
+        record('Bob', `${event}:diagnostic-unavailable`)
+      }
+    }
+    const snapshot = async (step: string) => {
+      const [aliceBalance, bobBalance, taxiBalance] = await Promise.all([
+        holdings(alice.address, assetId),
+        holdings(bob.address, assetId),
+        holdings(fixture.operator.address, assetId),
+      ])
+      const state = { step, alice: aliceBalance, bob: bobBalance, taxi: taxiBalance }
+      evidence.push(state)
+      if (step !== 'observed') await readBobBalance(`ledger:${step}`)
+      return state
+    }
+    const expectBalances = async (expected: Omit<(typeof evidence)[number], 'step'>) => {
+      await expect(async () => {
+        const state = await snapshot('observed')
+        expect({ alice: state.alice, bob: state.bob, taxi: state.taxi }).toEqual(expected)
+      }).toPass({ timeout: 90_000, intervals: [250, 500, 1000] })
+    }
+
+    await test.step('Alice creates 20 XYZ; Bob has neither XYZ nor sats', async () => {
+      await fund(faucet, alice, 20_000)
+      await enableAssets(alice.page)
+      await mintAsset(alice.page, { amount: '20', name: 'Taxi Regtest XYZ', ticker: 'XYZ', decimals: 0 })
+      const rowId = await alice.page.getByTestId(/^asset-row-XYZ-/).getAttribute('data-testid')
+      assetId = rowId!.slice('asset-row-XYZ-'.length)
+      for (const actor of [alice, bob]) {
+        const setAsset = (id: string) => {
+          ;(window as typeof window & { __TAXI_RUN_ASSET_ID__?: string }).__TAXI_RUN_ASSET_ID__ = id
+        }
+        await actor.page.addInitScript(setAsset, assetId)
+        await actor.page.evaluate(setAsset, assetId)
+      }
+      await admin('policy', 'PATCH', { assetRules: [...originalRules, xyzRule(assetId)] })
+      await importAsset(bob, assetId)
+      expect(await holdings(bob.address, assetId)).toEqual({ sats: '0', units: '0' })
+      await expect.poll(async () => (await holdings(alice.address, assetId)).units).toBe('20')
+    })
+
+    let request = await receiveRequest(bob, assetId)
+    await test.step('Canceling the fare confirmation spends neither party’s money', async () => {
+      const before = await snapshot('before canceled purchase')
+      await admin('policy', 'PATCH', { quoteTtlSeconds: 20 })
+      await prepareSend(alice, request, 'Sender pays asset fare')
+      await taxiConfirmation(alice)
+      await alice.page.getByRole('button', { name: 'Cancel', exact: true }).click()
+      await expectBalances({ alice: before.alice, bob: before.bob, taxi: before.taxi })
+      await navigateHome(alice.page)
+      await expect
+        .poll(async () => {
+          const { advances } = await admin<{ advances: { state: string }[] }>('advances')
+          return advances.some((advance) => advance.state === 'quoted')
+        })
+        .toBe(false)
+      await admin('policy', 'PATCH', { quoteTtlSeconds: originalPolicy.quoteTtlSeconds })
+    })
+
+    await test.step('Bob has no sats: Alice’s purchased carrier survives a dropped response and browser reload', async () => {
+      const before = await snapshot('before purchase')
+      const { advances: beforeQuotes } = await admin<{ advances: { id: string }[] }>('advances')
+      await prepareSend(alice, request, 'Sender pays asset fare')
+      await taxiConfirmation(alice)
+      await expect(alice.page.getByTestId('taxi-confirm-costs')).toContainText(/fare/i)
+      const { advances } = await admin<{
+        advances: {
+          id: string
+          state: string
+          receiverKey: string
+          assetId?: { txid: string; groupIndex: number }
+        }[]
+      }>('advances')
+      const receiverKey = hex.encode(ArkAddress.decode(bob.address).vtxoTaprootKey)
+      const wireAsset = xyzRule(assetId).assetId
+      const quotes = advances.filter(
+        (advance) =>
+          !beforeQuotes.some((previous) => previous.id === advance.id) &&
+          advance.state === 'quoted' &&
+          advance.receiverKey === receiverKey &&
+          advance.assetId?.txid === wireAsset.txid &&
+          advance.assetId.groupIndex === wireAsset.groupIndex,
+      )
+      expect(quotes).toHaveLength(1)
+      const transferId = quotes[0].id
+      await control('configure', {
+        target: 'taxi',
+        path: `/v1/transfers/${transferId}/lockup`,
+        method: 'POST',
+        mode: 'drop',
+        once: false,
+      })
+      await alice.page.getByRole('button', { name: 'Pay', exact: true }).click()
+      await expect(
+        alice.page.getByText('Payment may have been submitted; retry checks the same transfer', { exact: true }),
+      ).toBeVisible()
+      await control('reset')
+      await alice.page.reload()
+      await expect(alice.page.getByTestId('home-action-receive')).toBeVisible()
+      await alice.page.getByText(tr.wallet.send, { exact: true }).click()
+      await alice.page.getByRole('button', { name: 'Check Taxi payment', exact: true }).click()
+      await dismissPaymentSuccess(alice.page)
+      const { advances: reconciled } = await admin<{ advances: { id: string }[] }>('advances')
+      expect(reconciled.map((advance) => advance.id).sort()).toEqual(advances.map((advance) => advance.id).sort())
+      reconciledTransfers.push(transferId)
+      await claim(bob, /330|purchase|carrier/i)
+      await expectBalances({
+        alice: { sats: before.alice.sats, units: (BigInt(before.alice.units) - 2n).toString() },
+        bob: { sats: '330', units: '1' },
+        taxi: { sats: (BigInt(before.taxi.sats) - 330n).toString(), units: '1' },
+      })
+    })
+
+    await test.step('Bob uses his own sats coin and Taxi receives its carrier back', async () => {
+      await fund(faucet, bob, 1000)
+      request = await receiveRequest(bob, assetId)
+      const before = await snapshot('before recycle')
+      await prepareSend(alice, request, 'Receiver uses own sats')
+      await confirmSend(alice, true)
+      await claim(bob, /comes back|merges|repaid/i)
+      await expectBalances({
+        alice: { sats: before.alice.sats, units: (BigInt(before.alice.units) - 1n).toString() },
+        bob: { sats: before.bob.sats, units: '2' },
+        taxi: before.taxi,
+      })
+    })
+
+    await test.step('Alice sponsors the carrier with XYZ; Bob receives it directly', async () => {
+      request = await receiveRequest(bob, assetId)
+      const before = await snapshot('before sponsored send')
+      await prepareSend(alice, request, 'Sender sponsors carrier')
+      await confirmSend(alice, true)
+      await expectBalances({
+        alice: { sats: before.alice.sats, units: (BigInt(before.alice.units) - 2n).toString() },
+        bob: { sats: (BigInt(before.bob.sats) + 330n).toString(), units: '3' },
+        taxi: { sats: (BigInt(before.taxi.sats) - 330n).toString(), units: '2' },
+      })
+      await expect(bob.page.getByText('Claim your Taxi delivery', { exact: true })).not.toBeVisible()
+    })
+
+    await test.step('Alice supplies her own sats and Taxi is uninvolved', async () => {
+      const before = await snapshot('before normal send')
+      await prepareSend(alice, request)
+      await confirmSend(alice, false)
+      await expectBalances({
+        alice: {
+          sats: (BigInt(before.alice.sats) - 330n).toString(),
+          units: (BigInt(before.alice.units) - 1n).toString(),
+        },
+        bob: { sats: (BigInt(before.bob.sats) + 330n).toString(), units: '4' },
+        taxi: before.taxi,
+      })
+      await readBobBalance('after-normal-send')
+    })
+
+    await test.step('A paused Taxi refuses the send without debiting either wallet', async () => {
+      const before = await snapshot('before paused refusal')
+      await admin('pause', 'POST')
+      try {
+        await prepareSend(alice, request, 'Sender pays asset fare')
+        await expect(alice.page.getByText('Taxi is paused', { exact: false })).toBeVisible()
+        await expectBalances({ alice: before.alice, bob: before.bob, taxi: before.taxi })
+      } finally {
+        await admin('resume', 'POST')
+      }
+    })
+
+    await test.step('Alice cannot spend her entire XYZ balance while also owing Taxi a fare', async () => {
+      const before = await snapshot('before insufficient fare refusal')
+      await prepareSend(alice, request, 'Sender pays asset fare', before.alice.units)
+      await expect(alice.page.getByText(/Insufficient asset balance/)).toBeVisible()
+      await expectBalances({ alice: before.alice, bob: before.bob, taxi: before.taxi })
+    })
+
+    await navigateToAssets(bob.page)
+    await readBobBalance('before-final-asset-assertion')
+    try {
+      await expect(bob.page.getByTestId(`asset-row-XYZ-${assetId}`)).toContainText('4 XYZ')
+    } catch (error) {
+      await readBobBalance('after-final-asset-assertion-failed')
+      throw error
+    }
+  } catch (error) {
+    scenarioFailed = true
+    throw error
+  } finally {
+    const cleanupErrors: string[] = []
+    for (const cleanup of [
+      () => control('reset'),
+      () =>
+        admin('policy', 'PATCH', {
+          assetRules: originalRules,
+          quoteTtlSeconds: originalPolicy.quoteTtlSeconds,
+        }),
+      () => faucet.dispose(),
+      () => aliceContext.close(),
+      () => bobContext.close(),
+    ]) {
+      try {
+        await cleanup()
+      } catch (error) {
+        cleanupErrors.push(error instanceof Error ? error.message : 'Cleanup failed')
+      }
+    }
+    try {
+      const directory = resolve(process.env.TAXI_E2E_WALLET_ARTIFACTS || 'test-results/taxi-live')
+      mkdirSync(directory, { recursive: true })
+      const path = resolve(directory, 'alice-bob-balances.json')
+      writeFileSync(
+        path,
+        `${JSON.stringify({ assetId, reconciledTransfers, evidence, diagnostics, cleanupErrors }, null, 2)}\n`,
+      )
+      await testInfo.attach('Alice, Bob and Taxi balances', { path, contentType: 'application/json' })
+    } catch (error) {
+      cleanupErrors.push(error instanceof Error ? error.message : 'Evidence write failed')
+    }
+    if (cleanupErrors.length && !scenarioFailed) throw new Error(`Regtest cleanup: ${cleanupErrors.join('; ')}`)
+  }
+})

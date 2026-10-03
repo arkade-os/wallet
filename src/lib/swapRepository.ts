@@ -16,11 +16,31 @@
  * WHOLE database, asset swaps and markets cache included. Rolling back this
  * release means rolling back the data, not just the bundle.
  */
-import { IndexedDbAssetSwapRepository, type AssetSwap } from '@arkade-os/swap'
+import type { ExtendedVirtualCoin, IWallet } from '@arkade-os/sdk'
+import { IndexedDbAssetSwapRepository, type AssetSwap, type AssetSwapRepository } from '@arkade-os/swap'
 
 /** Shared per tab: the repository opens its database lazily on first use, and
  * a second instance would open a second connection to the same stores. */
 export const assetSwapRepository = new IndexedDbAssetSwapRepository()
+
+/** Spendable coins no funding in flight holds: the ones `fundOffer` itself would choose from. */
+export const unreservedCoins = async (
+  wallet: Pick<IWallet, 'getSpendableVtxos'>,
+  repository: Pick<AssetSwapRepository, 'getAllSwaps'>,
+): Promise<ExtendedVirtualCoin[]> => {
+  const [spendable, swaps] = await Promise.all([
+    wallet.getSpendableVtxos({ withRecoverable: false }),
+    repository.getAllSwaps(),
+  ])
+  const reserved = new Set(
+    swaps.flatMap(({ fundingIntent: intent }) =>
+      intent && (intent.state === 'prepared' || intent.state === 'submitted')
+        ? intent.inputs.map(({ txid, vout }) => `${txid}:${vout}`)
+        : [],
+    ),
+  )
+  return spendable.filter((coin) => !reserved.has(`${coin.txid}:${coin.vout}`))
+}
 
 /** Display facts frozen at quote time — only what the activity UI reads.
  * Every field is optional: a restore can only backfill what is recoverable
@@ -38,7 +58,13 @@ export interface AssetSwapQuoteSnapshot {
   fromFiatAmount?: number
 }
 
-/** The package's record plus the quote snapshot it deliberately does not own.
- * The repository stores records whole, so `quote` survives package-side writes
- * (`cancelOffer`, the watcher) untouched. */
-export type WalletAssetSwap = AssetSwap & { quote?: AssetSwapQuoteSnapshot }
+/** The package's record plus the quote snapshot it deliberately does not own,
+ * and the optional carrier descriptor. Records are stored whole, so both survive
+ * package-side writes (`cancelOffer`, the watcher). */
+export type WalletAssetSwap = AssetSwap & {
+  quote?: AssetSwapQuoteSnapshot
+  carrier?: unknown
+  activityEvidence?: unknown
+  /** Set when the bought asset was paid to someone else's address: the swap was a payment. */
+  payee?: string
+}

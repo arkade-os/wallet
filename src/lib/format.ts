@@ -144,6 +144,7 @@ export const prettyCurrencyAssetAmount = (
 export const prettyDate = (num: number, lang: Language = Language.English): string => {
   if (!num) return ''
   const date = new Date(num * 1000)
+  if (Number.isNaN(date.getTime())) return ''
   return new Intl.DateTimeFormat(lang === Language.Spanish ? 'es' : 'en', {
     day: 'numeric',
     month: 'short',
@@ -246,12 +247,13 @@ export const formatAssetAmount = (amount: bigint, decimals: number): string => {
   return prettyNumber(centsToUnits(amount, decimals), decimals)
 }
 
+// A Taxi transfer nets the user's sats to zero too: the Taxi supplied the carrier.
 export const isIssuance = (tx: Tx): boolean => {
-  return tx.type === 'sent' && tx.amount === 0 && (tx.assets ?? []).some((a) => a.amount > 0)
+  return !tx.taxi && tx.type === 'sent' && tx.amount === 0 && (tx.assets ?? []).some((a) => a.amount > 0)
 }
 
 export const isBurn = (tx: Tx): boolean => {
-  return tx.type === 'sent' && tx.amount === 0 && (tx.assets ?? []).some((a) => a.amount < 0)
+  return !tx.taxi && tx.type === 'sent' && tx.amount === 0 && (tx.assets ?? []).some((a) => a.amount < 0)
 }
 
 export const toUint8Array = (str: string): Uint8Array => {
