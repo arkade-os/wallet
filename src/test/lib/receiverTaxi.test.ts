@@ -165,7 +165,6 @@ describe('probeReceiverTaxi', () => {
 describe('vetBitcoinTaxi', () => {
   const vet = (info: TaxiInfo, amount: bigint, ask = {}, ctx = {}) =>
     vetBitcoinTaxi(info, arkadeContext(ctx), { receiverAddress: RECEIVER_ADDRESS, amount, ...ask })
-  const withoutExactAmounts = { ...BITCOIN_INFO, bitcoinPaymentSats: undefined }
 
   it('carries a sub-dust amount with the top-up that makes it dust, and its free sats fare', () => {
     expect(vet(BITCOIN_INFO, 100n)).toMatchObject({
@@ -185,6 +184,15 @@ describe('vetBitcoinTaxi', () => {
     expect(vet(withBitcoinRule({ claim: 'purchase' }), 100n)).toMatchObject({ modes: ['purchase', 'sponsored'] })
   })
 
+  it('offers only direct delivery at a priced fare, which the Taxi refuses on a covenant bitcoin transfer', () => {
+    const priced = { id: 'one', currency: 'sats', pricing: { kind: 'flat', units: '1' } }
+    expect(vet(withBitcoinRule({ claim: 'either', fares: [priced] }), 100n)).toMatchObject({
+      ok: true,
+      fareUnits: 1n,
+      modes: ['sponsored'],
+    })
+  })
+
   it('refuses an amount the covenant cannot hold: either side of it must be at least vtxoMinAmount', () => {
     for (const amount of [0n, 330n, 1_000n])
       expect(vet(BITCOIN_INFO, amount)).toMatchObject({ reason: 'amount-outside-carrier' })
@@ -202,12 +210,11 @@ describe('vetBitcoinTaxi', () => {
     expect(vet(perPayment, 130n)).toMatchObject({ ok: true, topup: 200n })
   })
 
-  it('refuses a paused Taxi, one without an enabled bitcoin rule, and one that cannot carry an exact amount', () => {
+  it('refuses a paused Taxi, and one without an enabled bitcoin rule', () => {
     expect(vet({ ...BITCOIN_INFO, paused: true }, 100n)).toMatchObject({ reason: 'paused' })
     expect(vet(withBitcoinRule({ enabled: false }), 100n)).toMatchObject({ reason: 'bitcoin-not-served' })
     const anyAssetOnly = { ...BITCOIN_INFO, assetRules: [{ ...INFO.assetRules[0], assetId: '*' as const }] }
     expect(vet(anyAssetOnly, 100n)).toMatchObject({ reason: 'bitcoin-not-served' })
-    expect(vet(withoutExactAmounts, 100n)).toMatchObject({ reason: 'exact-amount-unsupported' })
   })
 
   it('prices only sats fares, a proportion of them on the top-up', () => {

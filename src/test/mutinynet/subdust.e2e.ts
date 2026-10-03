@@ -9,7 +9,11 @@ const tr = translations.en
 const TAXI = 'https://taxi.mutinynet.arkade.sh'
 const FAILED_TRANSFER = 't-smoke'
 
-type Info = { operatorKey: string; assetRules: { assetId: unknown; claim: string }[] }
+type Info = {
+  operatorKey: string
+  paused: boolean
+  assetRules: { assetId: unknown; claim: string; enabled: boolean }[]
+}
 
 const openSend = async (page: Page, recipient: string) => {
   await navigateHome(page)
@@ -41,15 +45,18 @@ test('sub-dust bitcoin through the Taxi, on live mutinynet without moving money'
   const address = new URLSearchParams((await page.getByTestId('bip21').textContent())!.split('?')[1]).get('ark')!
   const request = (amount: string) => `bitcoin:?ark=${address}&amount=${amount}`
 
-  await test.step('the live Taxi is checked and its state shown', async () => {
+  const bitcoinRule = live.assetRules.find((rule) => rule.assetId === null)
+
+  await test.step('the live Taxi is offered whenever it runs its bitcoin rule', async () => {
     await openSend(page, request('0.000001'))
-    await expect(page.getByText(/^Taxi unavailable: /).or(page.getByTestId('taxi-send-mode'))).toBeVisible()
+    const offered = !live.paused && bitcoinRule?.enabled === true
+    await expect(offered ? page.getByTestId('taxi-send-mode') : page.getByText(/^Taxi unavailable: /)).toBeVisible()
     await shot(page, '1-live-taxi')
   })
 
-  const capable = { ...live, paused: false, bitcoinPaymentSats: true }
-  await page.route(`${TAXI}/v1/info`, (route) => route.fulfill({ json: capable }))
-  const claim = live.assetRules.find((rule) => rule.assetId === null)!.claim
+  const running = { ...live, paused: false }
+  await page.route(`${TAXI}/v1/info`, (route) => route.fulfill({ json: running }))
+  const claim = bitcoinRule!.claim
   const carriers = [
     'No Taxi: sub-dust coin',
     ...(claim === 'purchase' ? [] : ['Receiver uses own sats']),
@@ -57,7 +64,7 @@ test('sub-dust bitcoin through the Taxi, on live mutinynet without moving money'
     'Direct delivery, no claim',
   ]
 
-  await test.step('a Taxi that can carry the amount offers the carriers its rule allows', async () => {
+  await test.step('a running Taxi offers the carriers its bitcoin rule allows', async () => {
     await openSend(page, request('0.000001'))
     const carrier = page.getByTestId('taxi-send-mode')
     await expect(carrier).toHaveText('Carrier: No Taxi: sub-dust coin')
@@ -87,7 +94,7 @@ test('sub-dust bitcoin through the Taxi, on live mutinynet without moving money'
     await page.getByRole('button', { name: 'Taxi: off', exact: true }).click()
     await page.getByRole('option', { name: 'sats · 0 sats', exact: true }).click()
     await expect(page.getByTestId('bip21')).toContainText(
-      `amount=0.000001&taxi=${encodeURIComponent(TAXI)}&taxikey=${capable.operatorKey}&taxifare=sats`,
+      `amount=0.000001&taxi=${encodeURIComponent(TAXI)}&taxikey=${running.operatorKey}&taxifare=sats`,
     )
     await expect(
       page.getByText(
@@ -116,7 +123,7 @@ test('sub-dust bitcoin through the Taxi, on live mutinynet without moving money'
       network: 'mutinynet',
       senderKey: hex.encode(schnorr.getPublicKey(secret)),
       taxiUrl: TAXI,
-      operatorKey: capable.operatorKey,
+      operatorKey: running.operatorKey,
       transferId: FAILED_TRANSFER,
       expectedTxid: 'a'.repeat(64),
       expectedVout: 0,

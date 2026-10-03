@@ -1,9 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SingleKey, Transaction } from '@arkade-os/sdk'
-import { TaxiClient } from '@arkade-taxi/client'
+import { TaxiClient, verifyQuote } from '@arkade-taxi/client'
 import { base64, hex } from '@scure/base'
-import { FailedDirectTaxi, PendingDirectTaxi, getPendingDirectTaxi, sendDirectTaxi } from '../../lib/directTaxiSend'
-import { ASSET_ID, BITCOIN_INFO, KEYS, RECEIVER_ADDRESS, TAXI_URL, taxiFetch, withRule } from './receiverTaxiFixtures'
+import {
+  FailedDirectTaxi,
+  PendingDirectTaxi,
+  getPendingDirectTaxi,
+  selectSatsForTaxi,
+  sendDirectTaxi,
+} from '../../lib/directTaxiSend'
+import { assetSwapRepository } from '../../lib/swapRepository'
+import {
+  ASSET_ID,
+  BITCOIN_INFO,
+  KEYS,
+  RECEIVER_ADDRESS,
+  TAXI_URL,
+  legacyBitcoinQuote,
+  senderCoin,
+  taxiFetch,
+  withRule,
+} from './receiverTaxiFixtures'
 
 // jsdom has no IndexedDB, and a send reads the funding reservations from this repository.
 vi.mock('../../lib/swapRepository', async (importOriginal) => {
@@ -13,10 +30,15 @@ vi.mock('../../lib/swapRepository', async (importOriginal) => {
     assetSwapRepository: new InMemoryAssetSwapRepository(),
   }
 })
-vi.mock('@arkade-taxi/client', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@arkade-taxi/client')>()),
-  signSponsoredPayment: vi.fn(async () => 'signed'),
-}))
+vi.mock('@arkade-taxi/client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@arkade-taxi/client')>()
+  return {
+    ...actual,
+    signLockup: vi.fn(async () => 'signed'),
+    signSponsoredPayment: vi.fn(async () => 'signed'),
+    verifyQuote: vi.fn(actual.verifyQuote),
+  }
+})
 
 const wallet = { identity: SingleKey.fromRandomBytes() }
 const TXID = 'a'.repeat(64)
@@ -194,20 +216,205 @@ describe('a new Taxi payment the Taxi then fails to submit', () => {
 })
 
 describe('sending sub-dust bitcoin through the Taxi', () => {
-  it('refuses before asking any Taxi, until the client can bind an exact amount', async () => {
-    const fetch = taxiFetch({ info: BITCOIN_INFO })
-    vi.stubGlobal('fetch', fetch)
-    vi.stubGlobal('navigator', { locks: { request: (_: string, run: () => unknown) => run() } })
-    const send = sendDirectTaxi({
-      wallet: wallet as never,
-      aspInfo: { network: 'regtest' } as never,
+  const send = (over: Record<string, unknown>) =>
+    sendDirectTaxi({
+      aspInfo: {
+        network: 'regtest',
+        signerPubkey: KEYS.server,
+        dust: 330n,
+        vtxoMinAmount: 1n,
+        checkpointTapscript: '',
+      },
       taxi: { url: TAXI_URL },
       receiverAddress: RECEIVER_ADDRESS,
       amount: 100n,
       mode: 'recycle',
-      confirmPayment: vi.fn(),
+      confirmPayment: async () => true,
+      ...over,
+    } as never)
+  const lockup = () => {
+    const tx = new Transaction()
+    tx.addInput({ txid: 'b'.repeat(64), index: 0 })
+    tx.addOutput({ script: new Uint8Array([0x51, 0x20, ...hex.decode(KEYS.receiver)]), amount: 330n })
+    const arkTx = base64.encode(tx.toPSBT())
+    return { arkTx, txid: Transaction.fromPSBT(base64.decode(arkTx)).id }
+  }
+  const locked = (txid: string) => ({ transferId: 't-1', state: 'locked', outpoint: { txid, vout: 0 }, updatedAt: 2 })
+  const posts = (fetch: ReturnType<typeof taxiFetch>) => fetch.mock.calls.filter(([, init]) => init?.method === 'POST')
+  const journalKeys = () => Object.keys(localStorage).filter((name) => name.startsWith('directTaxiPending'))
+
+  beforeEach(() => {
+    vi.stubEnv('VITE_EMULATOR_PUBKEY', KEYS.emulator)
+    vi.stubGlobal('navigator', { locks: { request: (_: string, run: () => unknown) => run() } })
+  })
+
+  it('asks a Taxi for exactly the amount typed, and moves nothing when the quote ignores it', async () => {
+    const senderKey = hex.encode(await wallet.identity.xOnlyPublicKey())
+    const fetch = taxiFetch({ info: BITCOIN_INFO, transfer: legacyBitcoinQuote(senderKey) })
+    vi.stubGlobal('fetch', fetch)
+    const coin = await senderCoin(wallet.identity, 1_000)
+    const confirmPayment = vi.fn()
+    await expect(
+      send({ wallet: { identity: wallet.identity, getSpendableVtxos: async () => [coin] }, confirmPayment }),
+    ).rejects.toThrow("This Taxi can't carry an exact sub-dust amount")
+    const [[url, init]] = posts(fetch)
+    expect(url).toBe(`${TAXI_URL}/v1/transfers`)
+    const body = JSON.parse(String(init!.body))
+    expect(body).toMatchObject({ paymentSats: '100', senderSats: '1000', claimMode: 'recycle', fareId: 'sats' })
+    expect(body).not.toHaveProperty('assetId')
+    expect(body).not.toHaveProperty('assetUnits')
+    expect(posts(fetch)).toHaveLength(1)
+    expect(confirmPayment).not.toHaveBeenCalled()
+    expect(journalKeys()).toEqual([])
+  })
+
+  it('quotes a recycle from plain unreserved coins, bound to the amount, and journals it in sats', async () => {
+    const { arkTx, txid } = lockup()
+    vi.stubGlobal('fetch', taxiFetch({ info: BITCOIN_INFO, statuses: [locked(txid)] }))
+    const quote = vi.spyOn(TaxiClient.prototype, 'requestVerifiedQuote').mockResolvedValue({
+      verified: {
+        quote: {
+          transferId: 't-1',
+          params: { topup: '230' },
+          fare: { currency: 'sats', units: '0' },
+          expiresAt: Date.now() / 1000 + 600,
+        },
+        params: { operatorKey: hex.decode(KEYS.operator), topup: 230n },
+        envelope: { arkTx, covenantOutputIndex: 0 },
+      },
+      senderInputs: [],
+    } as never)
+    let journaled: Record<string, unknown> = {}
+    vi.spyOn(TaxiClient.prototype, 'submitLockup').mockImplementation(async () => {
+      journaled = JSON.parse(localStorage.getItem(journalKeys()[0])!)
+      return { txid, outpoint: { txid, vout: 0 } }
     })
-    await expect(send).rejects.toThrow("This wallet can't send an exact sub-dust amount through Taxi yet")
-    expect(fetch).not.toHaveBeenCalled()
+    const reserved = { txid: 'd'.repeat(64), vout: 0, value: 400 }
+    const assetCoin = { txid: 'd'.repeat(64), vout: 1, value: 330, assets: [{ assetId: ASSET_ID, amount: 5n }] }
+    const plain = { txid: 'd'.repeat(64), vout: 2, value: 1_000 }
+    vi.spyOn(assetSwapRepository, 'getAllSwaps').mockResolvedValue([
+      { fundingIntent: { state: 'prepared', inputs: [{ txid: reserved.txid, vout: reserved.vout }] } },
+    ] as never)
+    const confirmPayment = vi.fn(async () => true)
+    const coins = async () => [reserved, assetCoin, plain]
+    await expect(
+      send({ wallet: { identity: wallet.identity, getSpendableVtxos: coins }, confirmPayment }),
+    ).resolves.toBe(txid)
+    const [[args]] = quote.mock.calls
+    expect(args).toMatchObject({
+      selectedVtxos: [plain],
+      paymentSats: 100n,
+      fareId: 'sats',
+      claimMode: 'recycle',
+      expect: { maxTopupSats: 230n, maxFare: { currency: 'sats', units: 0n }, recoveryRecipient: 'sender' },
+    })
+    expect(args).not.toHaveProperty('assetId')
+    expect(args).not.toHaveProperty('assetUnits')
+    expect(confirmPayment).toHaveBeenCalledWith({
+      mode: 'recycle',
+      assetAmount: 100n,
+      fareCurrency: 'sats',
+      fareUnits: 0n,
+      carrierSats: 230n,
+    })
+    expect(journaled).toMatchObject({
+      assetAmount: '100',
+      attempt: { kind: 'covenant', carrierCeiling: '230', maxFare: { currency: 'sats', units: '0' } },
+    })
+    expect(journaled).not.toHaveProperty('assetId')
+  })
+
+  it('quotes a direct delivery whose sender contributes exactly the amount', async () => {
+    const { arkTx, txid } = lockup()
+    vi.stubGlobal('fetch', taxiFetch({ info: BITCOIN_INFO, statuses: [locked(txid)] }))
+    const quote = vi.spyOn(TaxiClient.prototype, 'requestVerifiedSponsoredQuote').mockResolvedValue({
+      verified: {
+        quote: {
+          transferId: 't-1',
+          params: { contribution: '230' },
+          fare: { currency: 'sats', units: '0' },
+          expiresAt: Date.now() / 1000 + 600,
+        },
+        params: { operatorKey: hex.decode(KEYS.operator), contribution: 230n },
+        envelope: { arkTx, covenantOutputIndex: 0 },
+      },
+      senderInputs: [],
+    } as never)
+    vi.spyOn(TaxiClient.prototype, 'submitSponsoredLockup').mockResolvedValue({ txid, outpoint: { txid, vout: 0 } })
+    const coins = async () => [{ txid: 'd'.repeat(64), vout: 0, value: 1_000 }]
+    await expect(
+      send({ wallet: { identity: wallet.identity, getSpendableVtxos: coins }, mode: 'sponsored' }),
+    ).resolves.toBe(txid)
+    expect(quote).toHaveBeenCalledWith(
+      expect.objectContaining({
+        paymentSats: 100n,
+        expect: { maxContributionSats: 230n, maxFare: { currency: 'sats', units: 0n } },
+      }),
+    )
+  })
+
+  it('resumes a stored payment the Taxi never received, bound again to its exact amount', async () => {
+    const { arkTx, txid } = lockup()
+    const quoted = { transferId: 't-1', state: 'quoted', updatedAt: 1 }
+    vi.stubGlobal('fetch', taxiFetch({ info: BITCOIN_INFO, statuses: [quoted, locked(txid)] }))
+    vi.mocked(verifyQuote).mockReturnValueOnce({
+      quote: { transferId: 't-1' },
+      envelope: { arkTx, covenantOutputIndex: 0 },
+    } as never)
+    const submit = vi
+      .spyOn(TaxiClient.prototype, 'submitLockup')
+      .mockResolvedValue({ txid, outpoint: { txid, vout: 0 } })
+    const payment = await storedPayment({
+      assetId: undefined,
+      assetAmount: '100',
+      expectedTxid: txid,
+      attempt: {
+        kind: 'covenant',
+        signed: 'signed',
+        senderInputs: [],
+        serverKey: KEYS.server,
+        emulatorKey: KEYS.emulator,
+        serverUnrollScript: '',
+        hrp: 'tark',
+        vtxoMinAmount: '1',
+        carrierCeiling: '230',
+        maxFare: { currency: 'sats', units: '0' },
+        quote: { transferId: 't-1', params: { topup: '230' }, fare: { currency: 'sats', units: '0' } },
+        minLocktime: '0',
+      },
+    })
+    await expect(payment.resume()).resolves.toBe(txid)
+    const [args] = vi.mocked(verifyQuote).mock.lastCall!
+    expect(args.expect).toMatchObject({
+      paymentSats: 100n,
+      maxTopupSats: 230n,
+      maxFare: { currency: 'sats', units: 0n },
+    })
+    expect(args.expect.assetId).toBeUndefined()
+    expect(args).not.toHaveProperty('assetUnits')
+    expect(submit).toHaveBeenCalledWith(expect.anything(), 'signed')
+  })
+})
+
+describe('selectSatsForTaxi', () => {
+  const plain = (value: number, vout: number) => ({ txid: 'c'.repeat(64), vout, value })
+
+  it('covers the amount with plain coins, smallest first, never an asset coin', () => {
+    const assetCoin = { ...plain(50, 9), assets: [{ assetId: ASSET_ID, amount: 1n }] }
+    expect(selectSatsForTaxi([plain(2_000, 1), assetCoin, plain(500, 2)], 100n, 1n)).toEqual([plain(500, 2)])
+    expect(selectSatsForTaxi([plain(60, 1), plain(2_000, 2), plain(50, 3)], 100n, 1n)).toEqual([
+      plain(50, 3),
+      plain(60, 1),
+    ])
+  })
+
+  it('leaves change of nothing or at least the Arkade minimum, taking another coin if it must', () => {
+    expect(selectSatsForTaxi([plain(100, 1), plain(500, 2)], 100n, 10n)).toEqual([plain(100, 1)])
+    expect(selectSatsForTaxi([plain(105, 1), plain(2_000, 2)], 100n, 10n)).toEqual([plain(105, 1), plain(2_000, 2)])
+    expect(() => selectSatsForTaxi([plain(105, 1)], 100n, 10n)).toThrow('Insufficient sats for this Taxi payment')
+  })
+
+  it('refuses coins that cannot cover the amount', () => {
+    expect(() => selectSatsForTaxi([plain(99, 1)], 100n, 1n)).toThrow('Insufficient sats for this Taxi payment')
   })
 })

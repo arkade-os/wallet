@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import { DefaultVtxo, type ExtendedVirtualCoin, type Identity } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 import type { Bip21Taxi } from '../../lib/bip21'
 import type { TaxiInfo, TaxiProbeContext } from '../../lib/receiverTaxi'
@@ -104,11 +105,10 @@ export const BITCOIN_RULE: TaxiInfo['assetRules'][number] = {
   fares: [{ id: 'sats', currency: 'sats', pricing: { kind: 'flat', units: '0' } }],
 }
 
-/** The live mutinynet bitcoin rule, on a Taxi that can carry an exact sub-dust amount. */
+/** The live mutinynet bitcoin rule. */
 export const BITCOIN_INFO = {
   ...INFO,
   assetRules: [...INFO.assetRules, BITCOIN_RULE],
-  bitcoinPaymentSats: true,
 } as TaxiInfo
 
 export const withBitcoinRule = (over: Record<string, unknown>) =>
@@ -137,7 +137,7 @@ const reply = (body: unknown, status = 200) => ({ ok: status < 400, status, text
 
 /** A Taxi at TAXI_URL answering /v1/info and POST /v1/receive-quotes; anything else is a 404. `refuseBelow` is
  * the floor its locktime margin needs, as its 503 no_locktime_headroom refuses anything earlier. `statuses`
- * answer transfer status polls in turn, the last one repeating. */
+ * answer transfer status polls in turn, the last one repeating; `transfer` answers a new transfer quote. */
 export const taxiFetch = (
   over: {
     info?: unknown
@@ -146,6 +146,7 @@ export const taxiFetch = (
     ttlSeconds?: number
     refuseBelow?: bigint
     statuses?: unknown[]
+    transfer?: unknown
   } = {},
 ) => {
   let polls = 0
@@ -153,6 +154,8 @@ export const taxiFetch = (
     if (url === `${TAXI_URL}/v1/info`) return reply(over.info ?? INFO)
     if (over.statuses && init?.method === 'GET' && /\/v1\/(sponsored-)?transfers\/[^/]+$/.test(url))
       return reply(over.statuses[Math.min(polls++, over.statuses.length - 1)])
+    if (over.transfer && init?.method === 'POST' && /\/v1\/(sponsored-)?transfers$/.test(url))
+      return reply(over.transfer)
     if (url === `${TAXI_URL}/v1/receive-quotes` && init?.method === 'POST') {
       const hint = JSON.parse(String(init.body)).fundingExpiry?.value
       if (over.refuseBelow !== undefined && BigInt(hint) < over.refuseBelow)
@@ -172,6 +175,53 @@ export const coin = (value: number, expiry: bigint | undefined, vout = 0) => ({
   vout,
   value,
   ...(expiry === undefined ? {} : { expiresAt: new Date(Number(expiry) * 1000) }),
+})
+
+/** A coin at `identity`'s default script, real enough for the Taxi client to fund a quote with. */
+export const senderCoin = async (identity: Identity, value: number): Promise<ExtendedVirtualCoin> => {
+  const tree = new DefaultVtxo.Script({
+    pubKey: await identity.xOnlyPublicKey(),
+    serverPubKey: hex.decode(KEYS.server),
+    csvTimelock: DefaultVtxo.Script.DEFAULT_TIMELOCK,
+  })
+  return {
+    txid: 'e'.repeat(64),
+    vout: 0,
+    value,
+    status: { confirmed: true },
+    createdAt: new Date(0),
+    script: hex.encode(tree.pkScript),
+    isUnrolled: false,
+    isSpent: false,
+    isSwept: false,
+    isPreconfirmed: false,
+    virtualStatus: { state: 'settled' },
+    expiresAt: new Date('2100-01-01T00:00:00Z'),
+    tapTree: tree.encode(),
+    forfeitTapLeafScript: tree.forfeit(),
+    intentTapLeafScript: tree.exit(),
+  }
+}
+
+/** A Taxi predating paymentSats ignores it and advances what it derives from the coins: vtxoMinAmount. */
+export const legacyBitcoinQuote = (senderKey: string) => ({
+  transferId: 't-1',
+  params: {
+    receiverKey: KEYS.receiver,
+    senderKey,
+    operatorKey: KEYS.operator,
+    operatorSignerKey: KEYS.operatorSigner,
+    dust: '330',
+    topup: '1',
+    locktime: '3800000000',
+    exitDelay: { value: '86016', type: 'seconds' },
+    claimMode: 'recycle',
+    recoveryRecipient: 'sender',
+  },
+  covenantAddress: COVENANT_ADDRESS,
+  fare: { currency: 'sats', units: '0' },
+  expiresAt: 4_100_000_000,
+  unsignedLockupTx: 'never-read',
 })
 
 export const unreachable = () =>

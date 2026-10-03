@@ -134,8 +134,9 @@ export default function TaxiChoice({
     return () => {
       cancelled = true
     }
+    // Not svcWallet: the service worker's self-heal replaces it, and re-running would drop her chosen Taxi.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url, aspInfo.url, aspInfo.signerPubkey, assetId, satoshis, receiverAddress, svcWallet])
+  }, [url, aspInfo.url, aspInfo.signerPubkey, assetId, satoshis, receiverAddress])
 
   if (!url || offer.status === 'checking') return null
   if (offer.status === 'unavailable') return <TextSecondary>{`Taxi unavailable: ${offer.reason}`}</TextSecondary>
