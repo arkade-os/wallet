@@ -130,4 +130,53 @@ describe('fiat utilities', () => {
       cup: 42000000,
     })
   })
+
+  it('drops unusable rates from the blockchain.info fallback', async () => {
+    fetchMocker.mockRejectOnce(new Error('yadio down'))
+    // Raw JSON so JSON.parse yields Infinity; JPY is a literal 0. Both are rates
+    // the feed must report as "no price" rather than hand to the provider.
+    fetchMocker.mockResponseOnce('{"EUR":{"last":1e999},"USD":{"last":200},"CHF":{"last":93},"JPY":{"last":0}}')
+    fetchMocker.mockResponseOnce(JSON.stringify({ BTC: { CUP: 42000000 } }))
+    const result = await getPriceFeed()
+    expect(result).toStrictEqual({
+      eur: undefined,
+      usd: 200,
+      chf: 93,
+      jpy: undefined,
+      gbp: undefined,
+      cny: undefined,
+      brl: undefined,
+      cup: 42000000,
+    })
+  })
+
+  it('aborts the request still in flight when the deadline fires', async () => {
+    vi.useFakeTimers()
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const signals: (AbortSignal | undefined)[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, init?: RequestInit) => {
+        signals.push(init?.signal ?? undefined)
+        // Never settles on its own: only the abort releases it.
+        return new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(init.signal?.reason))
+        })
+      }),
+    )
+    try {
+      // Both the Yadio attempt and the blockchain.info fallback hit the deadline.
+      const pending = getPriceFeed()
+      await vi.advanceTimersByTimeAsync(20_000)
+      await expect(pending).resolves.toBeUndefined()
+      expect(signals).toHaveLength(2)
+      // The load-bearing part: the deadline must tear the request down, not
+      // merely stop waiting on it.
+      expect(signals.every((signal) => signal?.aborted)).toBe(true)
+    } finally {
+      vi.unstubAllGlobals()
+      consoleSpy.mockRestore()
+      vi.useRealTimers()
+    }
+  })
 })
