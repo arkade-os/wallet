@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { decodeBip21 } from '../../lib/bip21'
 import { navigateHome } from '../e2e/utils'
 import {
   advances,
@@ -33,6 +34,9 @@ const satsRequest = async (bob: Actor, fare: string | null): Promise<string> => 
   if (fare) {
     await bob.page.getByRole('button', { name: 'Taxi: off', exact: true }).click()
     await bob.page.getByRole('option', { name: `${fare} · 0 sats`, exact: true }).click()
+    await expect
+      .poll(async () => decodeBip21((await bob.page.getByTestId('bip21').textContent())!))
+      .toMatchObject({ satoshis: SATS, taxi: { url: required('TAXI_E2E_BASE_URL'), fareId: fare } })
   }
   const request = (await bob.page.getByTestId('bip21').textContent())!
   await navigateHome(bob.page)
@@ -111,8 +115,10 @@ test(
           await bob.page.getByRole('button', { name: 'Taxi: off', exact: true }).click()
           await expect(bob.page.getByRole('option')).toHaveText(['No Taxi', 'sats · 1 sats'])
           await bob.page.getByRole('option', { name: 'sats · 1 sats', exact: true }).click()
+          await expect(bob.page.getByTestId('bip21')).toContainText(
+            `amount=0.000001&taxi=${encodeURIComponent(taxiUrl)}&taxikey=${operatorKey}&taxifare=sats`,
+          )
           const request = (await bob.page.getByTestId('bip21').textContent())!
-          expect(request).toContain(`taxikey=${operatorKey}&taxifare=sats`)
           await navigateHome(bob.page)
           await openSatsSend(alice, request, SATS)
           await alice.page.getByTestId('taxi-send-mode').click()

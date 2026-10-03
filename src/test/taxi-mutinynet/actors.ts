@@ -20,6 +20,7 @@ import { base64, hex } from '@scure/base'
 import { Transaction } from '@scure/btc-signer'
 import { EventSource } from 'eventsource'
 import { nip19 } from 'nostr-tools'
+import { decodeBip21 } from '../../lib/bip21'
 import { dismissPaymentSuccess, navigateHome, navigateToSettings } from '../e2e/utils'
 import { enterReceiveAmount, holdings, openSatsSend, tr, type Actor, type TaxiStatus } from '../taxi-live/actors'
 import { assertNoSecrets } from './safety'
@@ -228,6 +229,9 @@ export async function satsRequest(bob: Actor, sats: number, fare: string): Promi
   await enterReceiveAmount(bob.page, String(sats))
   await bob.page.getByRole('button', { name: 'Taxi: off', exact: true }).click()
   await bob.page.getByRole('option', { name: `${fare} · 0 sats`, exact: true }).click()
+  await expect
+    .poll(async () => decodeBip21((await bob.page.getByTestId('bip21').textContent())!))
+    .toMatchObject({ satoshis: sats, taxi: { url: TAXI, fareId: fare } })
   const request = (await bob.page.getByTestId('bip21').textContent())!
   expect(request).toContain(`taxi=${encodeURIComponent(TAXI)}`)
   await navigateHome(bob.page)

@@ -42,9 +42,33 @@ test('Alice sends XYZ through Taxi', { tag: '@asset-modes' }, async ({ browser }
   }
   const evidence: { step: string; alice: Holdings; bob: Holdings; taxi: Holdings }[] = []
   const reconciledTransfers: string[] = []
-  const diagnostics: { at: number; actor: string; event: string; path?: string; status?: number }[] = []
-  const record = (actor: string, event: string, path?: string, status?: number) => {
-    diagnostics.push({ at: Date.now(), actor, event, path, status })
+  type Diagnostic = {
+    at: number
+    actor: string
+    event: string
+    path?: string
+    status?: number
+    units?: string
+    sats?: string
+    newCoins?: number
+    newUnits?: string
+  }
+  const diagnostics: Diagnostic[] = []
+  const record = (
+    actor: string,
+    event: string,
+    path?: string,
+    status?: number,
+    totals?: Pick<Diagnostic, 'units' | 'sats' | 'newCoins' | 'newUnits'>,
+  ) => {
+    diagnostics.push({
+      at: Date.now(),
+      actor,
+      event,
+      path,
+      status,
+      ...totals,
+    })
     if (diagnostics.length > 100) diagnostics.shift()
   }
   const taxiPrefix = `${required('TAXI_E2E_BASE_URL').replace(/\/$/, '')}/`
@@ -52,6 +76,79 @@ test('Alice sends XYZ through Taxi', { tag: '@asset-modes' }, async ({ browser }
     ['Alice', aliceContext],
     ['Bob', bobContext],
   ] as const) {
+    await context.exposeBinding(
+      '__TAXI_RECORD_WORKER_DIAGNOSTIC__',
+      (
+        _source,
+        data: {
+          event: string
+          units?: string
+          sats?: string
+          newCoins?: number
+          newUnits?: string
+        },
+      ) => {
+        if (!['worker-vtxo-update', 'worker-balance'].includes(data.event)) return
+        const decimal = (value: unknown) =>
+          typeof value === 'string' && /^(0|[1-9][0-9]*)$/.test(value) ? value : undefined
+        record(actor, data.event, undefined, undefined, {
+          units: decimal(data.units),
+          sats: decimal(data.sats),
+          newUnits: decimal(data.newUnits),
+          newCoins: Number.isSafeInteger(data.newCoins) && data.newCoins! >= 0 ? data.newCoins : undefined,
+        })
+      },
+    )
+    await context.addInitScript(() => {
+      const diagnosticWindow = window as typeof window & {
+        __TAXI_RUN_ASSET_ID__?: string
+        __TAXI_RECORD_WORKER_DIAGNOSTIC__: (data: {
+          event: string
+          units?: string
+          sats?: string
+          newCoins?: number
+          newUnits?: string
+        }) => Promise<void>
+      }
+      const units = (assets: { assetId: string; amount: bigint }[] | undefined) => {
+        if (!diagnosticWindow.__TAXI_RUN_ASSET_ID__) return undefined
+        return String(
+          (Array.isArray(assets) ? assets : [])
+            .filter(
+              (asset) =>
+                asset.assetId === diagnosticWindow.__TAXI_RUN_ASSET_ID__ &&
+                /^(0|[1-9][0-9]*)$/.test(String(asset.amount)),
+            )
+            .reduce((sum, asset) => sum + BigInt(asset.amount), 0n),
+        )
+      }
+      navigator.serviceWorker.addEventListener('message', ({ data }) => {
+        try {
+          if (data?.type === 'VTXO_UPDATE') {
+            const coins = data.payload?.newVtxos ?? []
+            void diagnosticWindow
+              .__TAXI_RECORD_WORKER_DIAGNOSTIC__({
+                event: 'worker-vtxo-update',
+                newCoins: coins.length,
+                newUnits: units(
+                  coins.flatMap((coin: { assets?: { assetId: string; amount: bigint }[] }) => coin.assets ?? []),
+                ),
+              })
+              .catch(() => undefined)
+          } else if (data?.type === 'BALANCE') {
+            void diagnosticWindow
+              .__TAXI_RECORD_WORKER_DIAGNOSTIC__({
+                event: 'worker-balance',
+                units: units(data.payload?.assets),
+                sats: String(data.payload?.total ?? 0),
+              })
+              .catch(() => undefined)
+          }
+        } catch {
+          return
+        }
+      })
+    })
     context.on('page', (page) => {
       page.on('framenavigated', (frame) => {
         if (frame === page.mainFrame()) record(actor, 'navigation', new URL(frame.url()).pathname)
@@ -73,6 +170,81 @@ test('Alice sends XYZ through Taxi', { tag: '@asset-modes' }, async ({ browser }
   try {
     const alice = await onboard('Alice', await aliceContext.newPage())
     const bob = await onboard('Bob', await bobContext.newPage())
+    const readBobBalance = async (event: string) => {
+      try {
+        const totals = await bob.page.evaluate(
+          (runAssetId) =>
+            new Promise<{ units?: string; sats?: string; event: string }>((resolve) => {
+              const id = crypto.randomUUID()
+              let done = false
+              const timer = setTimeout(() => {
+                done = true
+                navigator.serviceWorker.removeEventListener('message', receive)
+                resolve({ event: 'rpc-balance-timeout' })
+              }, 3000)
+              const receive = ({ data }: MessageEvent) => {
+                if (data?.id !== id || done) return
+                done = true
+                clearTimeout(timer)
+                navigator.serviceWorker.removeEventListener('message', receive)
+                if (data.error || data.type !== 'BALANCE') return resolve({ event: 'rpc-balance-error' })
+                try {
+                  const decimal = (value: unknown) =>
+                    /^(0|[1-9][0-9]*)$/.test(String(value)) ? String(value) : undefined
+                  const assets = Array.isArray(data.payload?.assets) ? data.payload.assets : []
+                  resolve({
+                    event: 'rpc-balance',
+                    sats: decimal(data.payload?.total),
+                    units: String(
+                      assets
+                        .filter(
+                          (asset: { assetId?: string; amount?: bigint }) =>
+                            asset?.assetId === runAssetId && decimal(asset.amount) !== undefined,
+                        )
+                        .reduce((sum: bigint, asset: { amount: bigint }) => sum + BigInt(asset.amount), 0n),
+                    ),
+                  })
+                } catch {
+                  resolve({ event: 'rpc-balance-invalid' })
+                }
+              }
+              navigator.serviceWorker.addEventListener('message', receive)
+              void navigator.serviceWorker
+                .getRegistration()
+                .then((registration) => {
+                  if (done) return
+                  const worker = navigator.serviceWorker.controller ?? registration?.active
+                  if (worker) worker.postMessage({ id, tag: 'WALLET_UPDATER', type: 'GET_BALANCE' })
+                  else {
+                    done = true
+                    clearTimeout(timer)
+                    navigator.serviceWorker.removeEventListener('message', receive)
+                    resolve({ event: 'rpc-balance-no-active-worker' })
+                  }
+                })
+                .catch(() => {
+                  done = true
+                  clearTimeout(timer)
+                  navigator.serviceWorker.removeEventListener('message', receive)
+                  resolve({ event: 'rpc-balance-error' })
+                })
+            }),
+          assetId,
+        )
+        record('Bob', `${event}:${totals.event}`, undefined, undefined, {
+          units: totals.units,
+          sats: totals.sats,
+        })
+        const shown = await bob.page.evaluate(
+          (id) =>
+            document.querySelector(`[data-testid="asset-row-XYZ-${id}"]`)?.textContent?.match(/([0-9]+) XYZ$/)?.[1],
+          assetId,
+        )
+        if (shown !== undefined) record('Bob', `${event}:ui-asset-row`, undefined, undefined, { units: shown })
+      } catch {
+        record('Bob', `${event}:diagnostic-unavailable`)
+      }
+    }
     const snapshot = async (step: string) => {
       const [aliceBalance, bobBalance, taxiBalance] = await Promise.all([
         holdings(alice.address, assetId),
@@ -81,6 +253,7 @@ test('Alice sends XYZ through Taxi', { tag: '@asset-modes' }, async ({ browser }
       ])
       const state = { step, alice: aliceBalance, bob: bobBalance, taxi: taxiBalance }
       evidence.push(state)
+      if (step !== 'observed') await readBobBalance(`ledger:${step}`)
       return state
     }
     const expectBalances = async (expected: Omit<(typeof evidence)[number], 'step'>) => {
@@ -96,6 +269,13 @@ test('Alice sends XYZ through Taxi', { tag: '@asset-modes' }, async ({ browser }
       await mintAsset(alice.page, { amount: '20', name: 'Taxi Regtest XYZ', ticker: 'XYZ', decimals: 0 })
       const rowId = await alice.page.getByTestId(/^asset-row-XYZ-/).getAttribute('data-testid')
       assetId = rowId!.slice('asset-row-XYZ-'.length)
+      for (const actor of [alice, bob]) {
+        const setAsset = (id: string) => {
+          ;(window as typeof window & { __TAXI_RUN_ASSET_ID__?: string }).__TAXI_RUN_ASSET_ID__ = id
+        }
+        await actor.page.addInitScript(setAsset, assetId)
+        await actor.page.evaluate(setAsset, assetId)
+      }
       await admin('policy', 'PATCH', { assetRules: [...originalRules, xyzRule(assetId)] })
       await importAsset(bob, assetId)
       expect(await holdings(bob.address, assetId)).toEqual({ sats: '0', units: '0' })
@@ -213,6 +393,7 @@ test('Alice sends XYZ through Taxi', { tag: '@asset-modes' }, async ({ browser }
         bob: { sats: (BigInt(before.bob.sats) + 330n).toString(), units: '4' },
         taxi: before.taxi,
       })
+      await readBobBalance('after-normal-send')
     })
 
     await test.step('A paused Taxi refuses the send without debiting either wallet', async () => {
@@ -235,7 +416,13 @@ test('Alice sends XYZ through Taxi', { tag: '@asset-modes' }, async ({ browser }
     })
 
     await navigateToAssets(bob.page)
-    await expect(bob.page.getByTestId(`asset-row-XYZ-${assetId}`)).toContainText('4 XYZ')
+    await readBobBalance('before-final-asset-assertion')
+    try {
+      await expect(bob.page.getByTestId(`asset-row-XYZ-${assetId}`)).toContainText('4 XYZ')
+    } catch (error) {
+      await readBobBalance('after-final-asset-assertion-failed')
+      throw error
+    }
   } catch (error) {
     scenarioFailed = true
     throw error
