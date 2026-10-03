@@ -134,7 +134,11 @@ async function refundAttempt(alice: Actor, record: PendingTaxiRecord) {
       recoveryRecipient: 'sender',
     },
   })
-  const lockup = await client.submitLockup(verified, attempt.signed)
+  const status = await client.status(record.transferId)
+  expect(status.transferId).toBe(record.transferId)
+  expect(status.state).toBe('locked')
+  if (!status.outpoint) throw new Error('Locked Taxi transfer has no outpoint')
+  const lockup = { txid: status.outpoint.txid, outpoint: { ...status.outpoint } }
   expect(lockup.outpoint).toEqual({ txid: record.expectedTxid, vout: record.expectedVout })
   // Preserve the Taxi's pinned URLs while routing their Docker transport aliases, as the backend fixture does.
   const originalFetch = globalThis.fetch

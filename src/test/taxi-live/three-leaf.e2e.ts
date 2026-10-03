@@ -6,6 +6,7 @@ import {
   confirmSend,
   expectLeaves,
   expectLedger,
+  fund,
   importAsset,
   ledger,
   mintXyz,
@@ -33,7 +34,7 @@ test(
   'Wallets with a delegate leaf send and claim through the Taxi',
   { tag: '@three-leaf' },
   async ({ browser }, testInfo) => {
-    await stage(browser, testInfo, async ({ join, evidence }) => {
+    await stage(browser, testInfo, async ({ faucet, join, evidence }) => {
       const alice = await join('Alice', { sats: 5_000 })
       const cleo = await join('Cleo', { leaves: 3, sats: 5_000 })
       const bob = await join('Bob', { leaves: 3, sats: 1_000 })
@@ -95,7 +96,15 @@ test(
       await test.step('L5: a 3-leaf sender sends an exact sub-dust amount', async () => {
         await withPolicy({ assetRules: [satsRule(null)] }, async () => {
           const parties = { cleo: cleo.address, bob: bob.address, taxi: operatorAddress() }
+          const expectedCleoSats = Number((await ledger({ cleo: cleo.address }, '')).cleo.sats) + 1_000
+          await fund(faucet, cleo, 1_000)
+          await expect
+            .poll(async () => Number((await cleo.page.getByTestId('main-balance').innerText()).replace(/[^\d.-]/g, '')))
+            .toBe(expectedCleoSats)
           const before = await ledger(parties, '')
+          const assetsBefore = await Promise.all(
+            [xyzA, xyzC].map(async (assetId) => ({ assetId, balances: await ledger(parties, assetId) })),
+          )
           const known = await advances()
           await openSatsSend(cleo, bob.address, 100, 'Receiver uses own sats')
           await cleo.page.getByRole('button', { name: tr.common.continue, exact: true }).click()
@@ -107,6 +116,13 @@ test(
             bob: shift(before.bob, 100n),
             taxi: before.taxi,
           })
+          for (const { assetId, balances } of assetsBefore) {
+            await expectLedger(parties, assetId, {
+              cleo: shift(balances.cleo, -100n),
+              bob: shift(balances.bob, 100n),
+              taxi: balances.taxi,
+            })
+          }
           await expect.poll(async () => (await taxiStatus(id)).state).toBe('recycled')
         })
       })
