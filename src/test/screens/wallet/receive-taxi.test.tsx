@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ArkAddress, type ExtendedVirtualCoin } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
@@ -127,6 +127,26 @@ describe('the receiver names his own Taxi in an asset request', () => {
     await userEvent.click(screen.getByRole('option', { name: /flat/i }))
     expect(screen.getByTestId('bip21').textContent).toContain('&taxifare=flat')
     expect(screen.getByTestId('bip21').textContent).toContain(`&taxikey=${KEYS.operator}`)
+  })
+
+  it('bounds an unanswered Taxi probe and shows it as unavailable after abort', async () => {
+    const controller = new AbortController()
+    const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(controller.signal)
+    const fetch = vi.fn(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(init.signal!.reason), { once: true })
+        }),
+    )
+    vi.stubGlobal('fetch', fetch)
+    renderAssetReceive()
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    expect(timeout).toHaveBeenCalledWith(10_000)
+    expect(fetch).toHaveBeenCalledWith(`${TAXI_URL}/v1/info`, expect.objectContaining({ signal: controller.signal }))
+    act(() => controller.abort())
+    expect(await screen.findByText("Taxi unavailable: it can't be reached")).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /taxi/i })).toBeNull()
+    expect(screen.getByTestId('bip21').textContent).not.toContain('taxi=')
   })
 
   it('encodes no taxi params when the user leaves it off', async () => {

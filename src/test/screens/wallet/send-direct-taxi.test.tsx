@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { hex } from '@scure/base'
 import { emptySendInfo, FlowContext, type SendInfo } from '../../../providers/flow'
@@ -127,6 +127,26 @@ afterEach(() => {
 })
 
 describe('sending a sub-dust bitcoin amount to an Arkade address', FORM_TEST, () => {
+  it('bounds an unanswered Taxi probe and shows it as unavailable after abort', async () => {
+    const controller = new AbortController()
+    const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(controller.signal)
+    const fetch = vi.fn(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(init.signal!.reason), { once: true })
+        }),
+    )
+    vi.stubGlobal('fetch', fetch)
+    renderSend(request('0.000001'))
+    await waitFor(() => expect(fetch).toHaveBeenCalled(), SLOW)
+    expect(timeout).toHaveBeenCalledWith(10_000)
+    expect(fetch).toHaveBeenCalledWith(`${TAXI_URL}/v1/info`, expect.objectContaining({ signal: controller.signal }))
+    act(() => controller.abort())
+    expect(await screen.findByText("Taxi unavailable: it can't be reached", {}, SLOW)).toBeInTheDocument()
+    expect(screen.queryByText('Checking Taxi…')).toBeNull()
+    expect(screen.queryByTestId('taxi-send-mode')).toBeNull()
+  })
+
   it("offers the carriers the Taxi's bitcoin rule allows, starting with none", async () => {
     renderSend(request('0.000001'))
     const carrier = await screen.findByTestId('taxi-send-mode', {}, SLOW)

@@ -192,7 +192,9 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
   }, [])
 
   const current = unlocked
-    ? (offers.find((offer) => offerKey(offer) === requested) ?? offers.find((offer) => !declined.has(offerKey(offer))))
+    ? requested !== undefined
+      ? offers.find((offer) => offerKey(offer) === requested)
+      : offers.find((offer) => !declined.has(offerKey(offer)))
     : undefined
   const currentKey = current && offerKey(current)
   const plan = planned && planned.key === currentKey ? planned.plan : undefined
@@ -250,6 +252,7 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
       })
       claimedRef.current.add(key)
       setOffers((prev) => prev.filter((other) => other !== offer))
+      setRequested((prev) => (prev === key ? undefined : prev))
       reloadWallet().catch(consoleError)
     } catch (err) {
       consoleError(err, `claiming Taxi transfer ${id} failed`)

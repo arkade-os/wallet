@@ -256,6 +256,34 @@ describe('ReceiverClaimsProvider', () => {
     expect(secondFrames.some(({ plan }) => plan === firstPlan)).toBe(false)
   })
 
+  it('closes an explicitly requested claim when it disappears instead of opening another delivery', async () => {
+    await mounted()
+    const first = offerOf(satsFareClaim(7n)).verified
+    const second = offerOf(assetFareClaim(9n)).verified
+    offer(first)
+    offer(second)
+    await waitFor(() => expect(claimButton()).toBeEnabled())
+    fireEvent.click(screen.getByTestId('probe'))
+    act(() => latestWatch().onGone(offerKey(first)))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Claim' })).toBeNull())
+    expect(sheet.frames.some(({ transferId }) => transferId === second.claim.transferId)).toBe(false)
+    fireEvent.click(screen.getByTestId('probe'))
+    await waitFor(() => expect(sheet.frames.at(-1)?.transferId).toBe(second.claim.transferId))
+  })
+
+  it('offers the next delivery after an explicitly requested claim succeeds', async () => {
+    await mounted()
+    const first = offerOf(satsFareClaim(7n)).verified
+    const second = offerOf(assetFareClaim(9n)).verified
+    offer(first)
+    offer(second)
+    await waitFor(() => expect(claimButton()).toBeEnabled())
+    fireEvent.click(screen.getByTestId('probe'))
+    press('Claim')
+    await waitFor(() => expect(first.client.recycle).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(sheet.frames.at(-1)?.transferId).toBe(second.claim.transferId))
+  })
+
   it('plans the claim again from the coins as they are when the user confirms', async () => {
     await mounted()
     const { verified, recycle } = offerOf()

@@ -79,7 +79,7 @@ import {
   type DirectTaxiMode,
   type DirectTaxiTerms,
 } from '../../../lib/directTaxiSend'
-import { arkadeContextOf, probeBitcoinTaxi, TAXI_REFUSAL_TEXT } from '../../../lib/receiverTaxi'
+import { arkadeContextOf, boundedFetch, probeBitcoinTaxi, TAXI_REFUSAL_TEXT } from '../../../lib/receiverTaxi'
 
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
 
@@ -325,7 +325,7 @@ export default function SendForm() {
     const check = async (): Promise<SubdustOffer> => {
       const ctx = {
         ...arkadeContextOf(aspInfo, () => Promise.reject(new Error('offering a Taxi reads no chain tip'))),
-        fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
+        fetch: boundedFetch,
         pageProtocol: window.location.protocol,
       }
       // ponytail: one /v1/info per amount edit; cache per URL if volume matters

@@ -13,6 +13,7 @@ import { consoleError } from '../../../lib/logs'
 import { assetSwapRepository, unreservedCoins } from '../../../lib/swapRepository'
 import {
   arkadeContextOf,
+  boundedFetch,
   probeBitcoinTaxi,
   probeOwnTaxi,
   receiverFareUnits,
@@ -53,7 +54,7 @@ const checkOwnTaxi = async (
     base = {
       ...arkadeContextOf(aspInfo, () => Promise.reject(new Error('offering a Taxi reads no chain tip'))),
       receiverAddress,
-      fetch: (input, init) => fetch(input, init),
+      fetch: boundedFetch,
       pageProtocol: window.location.protocol,
     }
   } catch (error) {
