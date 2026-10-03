@@ -178,6 +178,8 @@ describe('Wallet swap flow', () => {
     // The flag's clip path id is unique per instance, so it is matched by
     // prefix rather than by the literal id.
     expect(document.querySelector('clipPath[id^="br-flag-circle"]')).not.toBeNull()
+    // And the flag itself is still the Brazilian one, colours and all.
+    expect(document.querySelector('path[fill="#009B3A"]')).not.toBeNull()
   })
 
   it('finds Bitcoin when searching "btc", even though its swap-entry ticker is sats', async () => {

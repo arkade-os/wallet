@@ -113,6 +113,7 @@ export function getCurrency(
   if (region === 'br') return Currencies.BRL
   if (region === 'gb') return Currencies.GBP
   if (region === 'ch') return Currencies.CHF
+  if (region === 'cu') return Currencies.CUP
   if (language === 'ja' || region === 'jp') return Currencies.JPY
   if (language === 'zh' || region === 'cn') return Currencies.CNY
   if (europeanRegions.has(region) || europeanLanguages.has(language)) return Currencies.EUR
