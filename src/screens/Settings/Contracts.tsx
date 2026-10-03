@@ -28,9 +28,8 @@ import { AspContext } from '../../providers/asp'
 import { localizedAgo, prettyLongText } from '../../lib/format'
 import { getVmempoolURL, getWebExplorerURL } from '../../lib/explorers'
 import { isBTCAddress } from '../../lib/address'
-import { copyToClipboard } from '../../lib/clipboard'
+import { useCopyToClipboard } from '../../hooks/useCopyToClipboard'
 import { hapticSubtle } from '../../lib/haptics'
-import { useToast } from '../../components/Toast'
 import { consoleError } from '../../lib/logs'
 import { useTranslation } from '../../providers/language'
 
@@ -90,15 +89,14 @@ interface ContractView {
 function CopyRow({ label, value, link }: { label: string; value: string; link?: string }) {
   const [copied, setCopied] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout>>()
-  const { toast } = useToast()
-  const { t } = useTranslation()
+  const copyToClipboard = useCopyToClipboard()
 
   useEffect(() => () => clearTimeout(timerRef.current), [])
 
   const handleCopy = async () => {
     hapticSubtle()
-    await copyToClipboard(value)
-    toast(t('common.copiedToClipboard'))
+    const copied = await copyToClipboard(value)
+    if (!copied) return
     setCopied(true)
     clearTimeout(timerRef.current)
     timerRef.current = setTimeout(() => setCopied(false), 2000)

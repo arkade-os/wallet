@@ -31,8 +31,7 @@ import InputAmount from '../../../components/InputAmount'
 import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
 import SheetModal from '../../../components/SheetModal'
 import Text, { TextSecondary } from '../../../components/Text'
-import { copyToClipboard } from '../../../lib/clipboard'
-import { useToast } from '../../../components/Toast'
+import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard'
 import { prettyLongText, prettyNumber, toSatoshis } from '../../../lib/format'
 import CopyIcon from '../../../icons/Copy'
 import CheckMarkIcon from '../../../icons/CheckMark'
@@ -70,7 +69,7 @@ export default function ReceiveQRCode() {
   const { remember } = useContext(ReceiverClaimsContext)
   const { t } = useTranslation()
 
-  const { toast } = useToast()
+  const copyToClipboard = useCopyToClipboard()
 
   const [assetAmount, setAssetAmount] = useState(BigInt(0))
   const [taxi, setTaxi] = useState<Bip21Taxi>()
@@ -375,10 +374,10 @@ export default function ReceiveQRCode() {
   const handleCopy = async (value: string) => {
     if (generatingInvoice) return
     if (!prefersReducedMotion) hapticSubtle()
-    await copyToClipboard(value)
-    toast(t('common.copiedToClipboard'))
+    const copied = await copyToClipboard(value)
+    // Close the sheet even on failure so the picker is not stranded.
     setShowCopySheet(false)
-    setCopied(value)
+    if (copied) setCopied(value)
   }
 
   const handleCopyButton = async () => {
@@ -386,9 +385,8 @@ export default function ReceiveQRCode() {
     if (!prefersReducedMotion) hapticSubtle()
     setShowCopySheet(true)
     if (qrCodeValue && copied !== qrCodeValue) {
-      await copyToClipboard(qrCodeValue)
-      toast(t('common.copiedToClipboard'))
-      setCopied(qrCodeValue)
+      const written = await copyToClipboard(qrCodeValue)
+      if (written) setCopied(qrCodeValue)
     }
   }
 
