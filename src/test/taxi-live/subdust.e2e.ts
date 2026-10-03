@@ -83,29 +83,55 @@ test(
         await expect.poll(async () => (await taxiStatus(advance.id)).state).toBe('recycled')
       }
 
-      await test.step('S4: a disabled bitcoin rule, or one priced in sats, offers no Taxi on either side', async () => {
+      await test.step('S4: a disabled bitcoin rule offers no Taxi on either side', async () => {
         const known = await advances()
-        for (const [rule, reason] of [
-          [satsRule(null, { enabled: false }), "it doesn't carry sub-dust bitcoin"],
-          // The Taxi refuses a positive sats fare on bitcoin, so the wallet must not offer one.
-          [
-            satsRule(null, {
-              fares: [{ id: 'sats', currency: { kind: 'sats' }, pricing: { kind: 'flat', units: '1' } }],
-            }),
-            'it offers no fare this payment can use',
-          ],
-        ] as const) {
-          await withPolicy({ assetRules: [rule] }, async () => {
-            await openSatsSend(alice, bob.address, SATS)
-            await noTaxiOffered(alice.page, reason)
-            await navigateHome(bob.page)
-            await bob.page.getByText(tr.wallet.receive, { exact: true }).click()
-            await enterReceiveAmount(bob.page, String(SATS))
-            await expect(bob.page.getByText(`Taxi unavailable: ${reason}`, { exact: true })).toBeVisible()
-            await expect(bob.page.getByTestId('bip21')).not.toContainText('taxi=')
-          })
-        }
+        await withPolicy({ assetRules: [satsRule(null, { enabled: false })] }, async () => {
+          const reason = "it doesn't carry sub-dust bitcoin"
+          await openSatsSend(alice, bob.address, SATS)
+          await noTaxiOffered(alice.page, reason)
+          await navigateHome(bob.page)
+          await bob.page.getByText(tr.wallet.receive, { exact: true }).click()
+          await enterReceiveAmount(bob.page, String(SATS))
+          await expect(bob.page.getByText(`Taxi unavailable: ${reason}`, { exact: true })).toBeVisible()
+          await expect(bob.page.getByTestId('bip21')).not.toContainText('taxi=')
+        })
         expect(await newAdvances(known)).toEqual([])
+      })
+
+      await test.step('S4: a priced sats fare offers direct delivery only; canceling its real quote moves no funds', async () => {
+        const rule = satsRule(null, {
+          fares: [{ id: 'sats', currency: { kind: 'sats' }, pricing: { kind: 'flat', units: '1' } }],
+        })
+        await withPolicy({ assetRules: [rule], quoteTtlSeconds: 20 }, async () => {
+          const before = await ledger(parties, '')
+          const known = await advances()
+          await navigateHome(bob.page)
+          await bob.page.getByText(tr.wallet.receive, { exact: true }).click()
+          await enterReceiveAmount(bob.page, String(SATS))
+          await bob.page.getByRole('button', { name: 'Taxi: off', exact: true }).click()
+          await expect(bob.page.getByRole('option')).toHaveText(['No Taxi', 'sats · 1 sats'])
+          await bob.page.getByRole('option', { name: 'sats · 1 sats', exact: true }).click()
+          const request = (await bob.page.getByTestId('bip21').textContent())!
+          expect(request).toContain(`taxikey=${operatorKey}&taxifare=sats`)
+          await navigateHome(bob.page)
+          await openSatsSend(alice, request, SATS)
+          await alice.page.getByTestId('taxi-send-mode').click()
+          await expect(alice.page.getByRole('menuitem')).toHaveText([
+            'No Taxi: sub-dust coin',
+            'Direct delivery, no claim',
+          ])
+          await alice.page.getByRole('menuitem', { name: 'Direct delivery, no claim', exact: true }).click()
+          await alice.page.getByRole('button', { name: tr.common.continue, exact: true }).click()
+          await expect(alice.page.getByTestId('taxi-confirm-costs')).toContainText(
+            `Send ${SATS} sats. Fare: 1 sats. Taxi adds ${TOPUP} sats`,
+          )
+          const advance = await newAdvance(known)
+          expect(advance).toMatchObject({ kind: 'sponsored', dust: '330', topup: String(TOPUP) })
+          await alice.page.getByRole('button', { name: 'Cancel', exact: true }).click()
+          await expectLedger(parties, '', before)
+          await expect.poll(async () => (await taxiStatus(advance.id, undefined, true)).state).toBe('expired')
+          expect((await taxiStatus(advance.id, undefined, true)).outpoint).toBeUndefined()
+        })
       })
 
       await withPolicy({ assetRules: [satsRule(null)] }, async () => {

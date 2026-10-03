@@ -21,7 +21,6 @@ export default defineConfig({
   testDir: './src/test/taxi-live',
   testMatch: '**/*.e2e.ts',
   globalSetup: './src/test/taxi-live/global-setup.ts',
-  // The harness caps a wallet run at 900 s, so the matrix runs in tagged batches.
   grep: process.env.TAXI_E2E_WALLET_GREP ? new RegExp(process.env.TAXI_E2E_WALLET_GREP) : undefined,
   timeout: 600_000,
   expect: { timeout: 60_000 },

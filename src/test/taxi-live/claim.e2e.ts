@@ -95,9 +95,10 @@ test('The claim sheet: what it shows, when, and on which screens', { tag: '@clai
     })
 
     await test.step('C8: a claim whose request never reaches the emulator can be retried after reload', async () => {
-      const { id } = await send(bob)
-      const parties = { bob: bob.address, taxi: operatorAddress() }
+      const parties = { alice: alice.address, bob: bob.address, taxi: operatorAddress() }
       const before = await ledger(parties, assetId)
+      const { id } = await send(bob)
+      const locked = await ledger(parties, assetId)
       const { emulatorUrl } = (await (await fetch(`${required('TAXI_E2E_BASE_URL')}/v1/info`)).json()) as {
         emulatorUrl: string
       }
@@ -116,7 +117,7 @@ test('The claim sheet: what it shows, when, and on which screens', { tag: '@clai
         expect(attempts).toBeGreaterThan(0)
         await expect(claimButton(bob.page)).toBeDisabled()
         expect((await taxiStatus(id)).state).toBe('locked')
-        expect(await ledger(parties, assetId)).toEqual(before)
+        expect(await ledger(parties, assetId)).toEqual(locked)
       } finally {
         await bob.page.unroute(emulator)
       }
@@ -124,6 +125,7 @@ test('The claim sheet: what it shows, when, and on which screens', { tag: '@clai
       await expect(bob.page.getByText(TITLE, { exact: true })).toBeVisible()
       await claimed(bob, id)
       await expectLedger(parties, assetId, {
+        alice: shift(before.alice, 0n, -1n),
         bob: shift(before.bob, 0n, 1n),
         taxi: before.taxi,
       })

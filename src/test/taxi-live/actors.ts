@@ -322,7 +322,10 @@ export async function mintXyz(actor: Actor): Promise<string> {
 }
 
 export async function importAsset(actor: Actor, assetId: string): Promise<void> {
-  await enableAssets(actor.page)
+  const enabled = await actor.page.evaluate(() =>
+    Boolean(JSON.parse(localStorage.getItem('config') ?? '{}').apps?.assets?.enabled),
+  )
+  if (!enabled) await enableAssets(actor.page)
   await navigateToAssets(actor.page)
   await actor.page.getByRole('button', { name: tr.mint.import, exact: true }).click()
   await actor.page.locator('input[name="asset-id"]').fill(assetId)

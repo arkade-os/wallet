@@ -52,11 +52,13 @@ test('A Taxi payment whose outcome the wallet did not see', { tag: '@pending' },
     await admin('policy', 'PATCH', { assetRules: [...policyRulesForPatch(assetRules), xyzRule(assetId)] })
     await importAsset(bob, assetId)
     const parties = { alice: alice.address, bob: bob.address, taxi: operatorAddress() }
+    let request = ''
 
     // Quotes a recycle for Bob and stops at Alice's confirmation sheet.
     const quote = async () => {
       const known = await advances()
-      await prepareSend(alice, await receiveRequest(bob, assetId), 'Receiver uses own sats')
+      request = await receiveRequest(bob, assetId)
+      await prepareSend(alice, request, 'Receiver uses own sats')
       await taxiConfirmation(alice)
       return newAdvance(known)
     }
@@ -83,7 +85,7 @@ test('A Taxi payment whose outcome the wallet did not see', { tag: '@pending' },
         await tab.goto('/')
         await expect(tab.getByTestId('home-action-receive')).toBeVisible()
         await tab.getByText(tr.wallet.send, { exact: true }).click()
-        await tab.locator('input[name="send-address"]').fill(await receiveRequest(bob, assetId))
+        await tab.locator('input[name="send-address"]').fill(request)
         await expect(tab.getByRole('button', { name: CHECK, exact: true })).toBeEnabled()
         await expect(tab.locator('input[name="send-amount"]')).not.toBeEditable()
         await expect(tab.getByTestId('taxi-send-mode')).toBeDisabled()

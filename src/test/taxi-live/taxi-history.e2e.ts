@@ -28,6 +28,7 @@ import {
   tr,
   xyzRule,
   type Actor,
+  type Ledger,
   type TaxiPolicy,
 } from './actors'
 
@@ -128,6 +129,8 @@ async function unreachableTaxi({ alice }: Scene, open?: string): Promise<void> {
 test('Taxi activity and its available actions', { tag: '@history' }, async ({ browser }, testInfo) => {
   await scene(browser, testInfo, {}, async (s) => {
     const { alice, bob, assetId } = s
+    const parties = { alice: alice.address, bob: bob.address, taxi: operatorAddress() }
+    let beforePurchase: Ledger
     let stranded = ''
 
     await test.step('a recycled send reads Awaiting claim; Bob claims it from his activity and it reads Received', () =>
@@ -135,6 +138,7 @@ test('Taxi activity and its available actions', { tag: '@history' }, async ({ br
 
     await test.step('a payment whose answer was lost survives a reload as Pending, and Check again confirms it', async () => {
       const request = await receiveRequest(bob, assetId)
+      beforePurchase = await ledger(parties, assetId)
       const before = await advances()
       await prepareSend(alice, request, 'Sender pays asset fare')
       await taxiConfirmation(alice)
@@ -169,16 +173,15 @@ test('Taxi activity and its available actions', { tag: '@history' }, async ({ br
       unreachableTaxi(s, 'Awaiting claim'))
 
     await test.step('a purchased carrier is claimed from the receiver activity with matching balances', async () => {
-      const parties = { bob: bob.address, taxi: operatorAddress() }
-      const before = await ledger(parties, assetId)
       await openTaxiRow(bob, 'Claimable')
       await expect(bob.page.getByTestId('Carrier sats purchased')).toHaveText('330 sats')
       await expect(bob.page.getByTestId('Delivery')).toHaveText('Claimable')
       await claimFromActivity(bob)
       await expect.poll(async () => (await taxiStatus(stranded)).state).toBe('purchased')
       await expectLedger(parties, assetId, {
-        bob: shift(before.bob, 330n, 1n),
-        taxi: shift(before.taxi, -330n, 1n),
+        alice: shift(beforePurchase.alice, 0n, -2n),
+        bob: shift(beforePurchase.bob, 330n, 1n),
+        taxi: shift(beforePurchase.taxi, -330n, 1n),
       })
       await expect(await taxiRows(bob, 'Claimed')).toHaveCount(2)
     })
