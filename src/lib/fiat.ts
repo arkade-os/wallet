@@ -8,19 +8,22 @@ const FETCH_TIMEOUT_MS = 10_000
 
 // Keeps a single deadline over the whole request: both `fetch` (headers) and
 // body consumption can hang independently, and either would otherwise block the
-// feed (and its fallback) forever. The deadline aborts the request instead of
-// racing it, so a request the deadline beat is torn down rather than left
-// running in the background until the connection closes on its own.
+// feed (and its fallback) forever. The deadline is raced against each step
+// instead of being passed as an AbortSignal: the jsdom environment supplies its
+// own AbortSignal while Request comes from undici, whose constructor rejects a
+// signal that is not `instanceof` its own ("Expected signal to be an instance of
+// AbortSignal"), so aborting the request throws there instead of cancelling it.
+// The price is that a request the deadline beat stays open until its connection
+// closes on its own.
 const fetchJsonWithTimeout = async (url: string): Promise<Record<string, any>> => {
-  const controller = new AbortController()
-  const timeout = setTimeout(
-    () => controller.abort(new Error(`Request timed out after ${FETCH_TIMEOUT_MS}ms`)),
-    FETCH_TIMEOUT_MS,
-  )
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  const deadline = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => reject(new Error(`Request timed out after ${FETCH_TIMEOUT_MS}ms`)), FETCH_TIMEOUT_MS)
+  })
   try {
-    const resp = await fetch(url, { signal: controller.signal })
+    const resp = await Promise.race([fetch(url), deadline])
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-    return await resp.json()
+    return await Promise.race([resp.json(), deadline])
   } finally {
     clearTimeout(timeout)
   }
