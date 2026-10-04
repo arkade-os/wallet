@@ -13,7 +13,7 @@ export const MANIFEST_PATH = `${VENDOR_DIR}/manifest.json`
 
 const TS_SDK = 'https://github.com/arkade-os/ts-sdk.git'
 const ARKADE_TAXI = 'https://github.com/ArkLabsHQ/arkade-taxi.git'
-const SDK_COMMIT = 'f0dfc648c873e2f5b78ded940eaff5eb8787245e'
+const SDK_COMMIT = '0956388adecc1cfec6536e2d21e9851cc4cf2d88'
 const TAXI_COMMIT = '946e851c03fa2f81c4311f6551e4acb8dfcf67f0'
 
 // Moving to a new candidate is an edit HERE, so `verify.mjs` can refuse an

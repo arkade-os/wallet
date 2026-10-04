@@ -11,8 +11,8 @@ overrides:
   # Candidate carrier artifacts, transitive resolutions included: the packed Taxi
   # client pins '@arkade-os/sdk' and '@arkade-os/swap' at bare registry
   # coordinates, which would otherwise resolve to the published builds.
-  '@arkade-os/sdk': 'file:vendor/carrier/arkade-os-sdk-0.4.77-f0dfc648.tgz'
-  '@arkade-os/swap': 'file:vendor/carrier/arkade-os-swap-0.0.23-f0dfc648.tgz'
+  '@arkade-os/sdk': 'file:vendor/carrier/arkade-os-sdk-0.4.78-0956388a.tgz'
+  '@arkade-os/swap': 'file:vendor/carrier/arkade-os-swap-0.0.24-0956388a.tgz'
   '@arkade-taxi/client': 'file:vendor/carrier/arkade-taxi-client-0.0.0-946e851c.tgz'
   '@arkade-taxi/covenant': 'file:vendor/carrier/arkade-taxi-covenant-0.0.0-946e851c.tgz'
   '@arkade-taxi/protocol': 'file:vendor/carrier/arkade-taxi-protocol-0.0.0-946e851c.tgz'

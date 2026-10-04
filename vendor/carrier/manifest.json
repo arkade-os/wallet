@@ -1,18 +1,18 @@
 {
   "note": "Frozen candidate packages, built from source and never published to any registry. These digests are of THIS bundle: repacking @arkade-os/sdk from the same commit emits different declaration-chunk names, though no runtime module differs, so a re-pack is a deliberate re-freeze — run scripts/carrier-artifacts/pack.mjs, then pnpm install, then scripts/carrier-artifacts/verify.mjs.",
-  "packedAtUtc": "2026-10-02T21:53:01.794Z",
+  "packedAtUtc": "2026-10-04T07:39:55.630Z",
   "artifacts": [
     {
-      "file": "arkade-os-sdk-0.4.77-f0dfc648.tgz",
+      "file": "arkade-os-sdk-0.4.78-0956388a.tgz",
       "package": "@arkade-os/sdk",
-      "version": "0.4.77",
+      "version": "0.4.78",
       "license": "MIT",
       "licenseFrom": "the package manifest",
-      "sha256": "4fb162e7e9245a4beb89e6056ad729fc5ba4e9a631553abcbf3c6b09a975c638",
-      "bytes": 2761696,
+      "sha256": "8d5c66c33f912ae35e17aa87089e089e73bab0a3316326a6eda1923d885d5739",
+      "bytes": 2768959,
       "source": {
         "repository": "https://github.com/arkade-os/ts-sdk.git",
-        "commit": "f0dfc648c873e2f5b78ded940eaff5eb8787245e",
+        "commit": "0956388adecc1cfec6536e2d21e9851cc4cf2d88",
         "directory": "packages/ts-sdk"
       },
       "toolchain": {
@@ -24,16 +24,16 @@
       }
     },
     {
-      "file": "arkade-os-swap-0.0.23-f0dfc648.tgz",
+      "file": "arkade-os-swap-0.0.24-0956388a.tgz",
       "package": "@arkade-os/swap",
-      "version": "0.0.23",
+      "version": "0.0.24",
       "license": "MIT",
       "licenseFrom": "the package manifest",
-      "sha256": "6496c8cf0e80593580b1177004c678aab17655493fc7254ff13e6e43899322af",
-      "bytes": 361937,
+      "sha256": "02e30eb469bcb62acc738c09af327a641ec24bcd2fd1bcbcb85f2921668e8e41",
+      "bytes": 363011,
       "source": {
         "repository": "https://github.com/arkade-os/ts-sdk.git",
-        "commit": "f0dfc648c873e2f5b78ded940eaff5eb8787245e",
+        "commit": "0956388adecc1cfec6536e2d21e9851cc4cf2d88",
         "directory": "packages/swap"
       },
       "toolchain": {
