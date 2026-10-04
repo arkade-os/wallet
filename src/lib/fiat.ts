@@ -104,7 +104,9 @@ const fetchYadioPrices = async (): Promise<FiatPrices | undefined> => {
   // degrades the CUP display, never the rest of the feed.
   if (!btc) return undefined
   const rates = [btc.EUR, btc.USD, btc.CHF, btc.JPY, btc.GBP, btc.CNY, btc.BRL].map(toRate)
-  if (rates.includes(undefined)) return undefined
+  // The type predicate is load-bearing: it is what narrows `rates` to numbers, so
+  // the destructured feed cannot hand the provider an unusable rate.
+  if (!rates.every((rate): rate is number => rate !== undefined)) return undefined
   const [eur, usd, chf, jpy, gbp, cny, brl] = rates
   return { eur, usd, chf, jpy, gbp, cny, brl, cup: toRate(btc.CUP) }
 }

@@ -49,7 +49,7 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
   const toGBP = (sats = 0) => Decimal.mul(fromSatoshis(sats), prices.current.gbp ?? 0).toNumber()
   const toCNY = (sats = 0) => Decimal.mul(fromSatoshis(sats), prices.current.cny ?? 0).toNumber()
   const toBRL = (sats = 0) => Decimal.mul(fromSatoshis(sats), prices.current.brl ?? 0).toNumber()
-  const toCUP = (sats = 0) => (prices.current.cup ? Decimal.mul(fromSatoshis(sats), prices.current.cup).toNumber() : 0)
+  const toCUP = (sats = 0) => Decimal.mul(fromSatoshis(sats), prices.current.cup ?? 0).toNumber()
   const toBTC = (sats = 0) => (selectedBitcoinUnit === Unit.BTC ? fromSatoshis(sats) : sats)
 
   const fromFiatAmount = (amount = 0, currency: Currencies) => {
