@@ -191,9 +191,8 @@ function ContractCard({ item, open, onToggle }: { item: ContractView; open: bool
   const { contract, address, explorer, encoded, status } = item
   const { language, t } = useTranslation()
 
-  const refundLocktime = !isNaN(parseInt(contract.params?.refundLocktime))
-    ? parseInt(contract.params.refundLocktime)
-    : 0
+  const raw = parseInt(contract.params?.refundLocktime ?? '')
+  const refundLocktime = isNaN(raw) ? 0 : raw
 
   return (
     <Shadow lighter border>
@@ -268,7 +267,13 @@ export default function Contracts() {
       try {
         const cm = await svcWallet.getContractManager()
         const data = await cm.getContracts()
-        setContracts(data.slice().sort((a, b) => (a.state === b.state ? 0 : a.state === 'active' ? -1 : 1)))
+        setContracts(
+          data
+            .slice()
+            .sort((a, b) =>
+              a.state === b.state ? (b.createdAt ?? 0) - (a.createdAt ?? 0) : a.state === 'active' ? -1 : 1,
+            ),
+        )
       } catch (err) {
         consoleError(err)
       } finally {
