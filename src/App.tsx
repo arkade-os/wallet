@@ -24,8 +24,6 @@ const DESKTOP_WALLET_PAGES = new Set([
   Pages.Activity,
   Pages.AccountDetail,
   Pages.BitcoinDetail,
-  Pages.AppLendasat,
-  Pages.AppSatora,
   Pages.AppAssets,
   Pages.AppAssetDetail,
   Pages.AppAssetImport,
