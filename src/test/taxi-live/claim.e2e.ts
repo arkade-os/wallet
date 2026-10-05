@@ -1,5 +1,8 @@
 import { devices, expect, test, type Page } from '@playwright/test'
 import { randomBytes } from 'node:crypto'
+import { ArkAddress, RestIndexerProvider } from '@arkade-os/sdk'
+import { base64, hex } from '@scure/base'
+import { Transaction } from '@scure/btc-signer'
 import { navigateToSettings } from '../e2e/utils'
 import {
   admin,
@@ -11,6 +14,7 @@ import {
   ledger,
   mintXyz,
   newAdvance,
+  newAdvances,
   operatorAddress,
   policyRulesForPatch,
   prepareSend,
@@ -20,6 +24,7 @@ import {
   sheet,
   stage,
   taxiStatus,
+  taxiRows,
   tr,
   xyzRule,
   type Actor,
@@ -175,6 +180,96 @@ test('The claim sheet: what it shows, when, and on which screens', { tag: '@clai
       await bob.page.getByText(tr.unlock.unlockWallet).click()
       await expect(bob.page.getByText(TITLE, { exact: true })).toBeVisible()
       await claimed(bob, id)
+    })
+
+    await test.step('Free deliveries drain after a feed outage, reusing one receiver coin', async () => {
+      const queuedBob = await join('Bob automatic', { sats: 1_000, autoClaimFreeTaxi: true })
+      await importAsset(queuedBob, assetId)
+      const request = await receiveRequest(queuedBob, assetId)
+      const indexer = new RestIndexerProvider(required('TAXI_E2E_ARKD_URL'))
+      const coins = async () =>
+        (
+          await indexer.getVtxos({
+            scripts: [hex.encode(ArkAddress.decode(queuedBob.address).pkScript)],
+            spendableOnly: true,
+          })
+        ).vtxos
+      await expect.poll(async () => (await coins()).map(({ value }) => String(value))).toEqual(['1000'])
+      const [funding] = await coins()
+      const parties = { alice: alice.address, bob: queuedBob.address, taxi: operatorAddress() }
+      const before = await ledger(parties, assetId)
+      const known = await advances()
+      const feed = '**/v1/claims/events**'
+      let aborted = 0
+      await queuedBob.page.route(feed, async (route) => {
+        aborted++
+        await route.abort()
+      })
+      try {
+        await queuedBob.page.reload()
+        await expect(queuedBob.page.getByTestId('home-action-receive')).toBeVisible()
+        await expect.poll(() => aborted).toBeGreaterThan(0)
+        for (let i = 0; i < 3; i++) {
+          await prepareSend(alice, request, 'Receiver uses own sats')
+          await expect(alice.page.getByTestId('taxi-confirm-costs')).toContainText('Free')
+          await confirmSend(alice, true)
+          await expect
+            .poll(async () => (await newAdvances(known)).map(({ state }) => state))
+            .toEqual(Array(i + 1).fill('locked'))
+        }
+        const queued = await newAdvances(known)
+        expect(queued.map(({ topup }) => topup)).toEqual(['330', '330', '330'])
+        await expect(queuedBob.page.getByText(TITLE, { exact: true })).not.toBeVisible()
+        await expectLedger(parties, assetId, {
+          alice: shift(before.alice, 0n, -3n),
+          bob: before.bob,
+          taxi: shift(before.taxi, -990n),
+        })
+      } finally {
+        await queuedBob.page.unroute(feed)
+      }
+      await expect
+        .poll(async () => (await newAdvances(known)).map(({ state }) => state))
+        .toEqual(['recycled', 'recycled', 'recycled'])
+      const settled = await newAdvances(known)
+      const txids = settled.map(({ spentTxid }) => spentTxid!)
+      expect(txids.every((txid) => /^[0-9a-f]{64}$/.test(txid))).toBe(true)
+      expect(new Set(txids).size).toBe(3)
+      await expectLedger(parties, assetId, {
+        alice: shift(before.alice, 0n, -3n),
+        bob: shift(before.bob, 0n, 3n),
+        taxi: before.taxi,
+      })
+      await expect(queuedBob.page.getByText(TITLE, { exact: true })).not.toBeVisible()
+      await expect(await taxiRows(queuedBob, 'Claimed')).toHaveCount(3)
+      await expect(async () => {
+        const raw = await indexer.getVirtualTxs(txids)
+        expect(raw.txs).toHaveLength(3)
+        const claims = raw.txs.map((psbt) => Transaction.fromPSBT(base64.decode(psbt)))
+        const checkpoints = await indexer.getVirtualTxs(claims.map((tx) => hex.encode(tx.getInput(1).txid!)))
+        expect(checkpoints.txs).toHaveLength(3)
+        const inputByClaim = new Map(
+          checkpoints.txs.map((psbt) => {
+            const checkpoint = Transaction.fromPSBT(base64.decode(psbt))
+            return [checkpoint.id, checkpoint.getInput(0)]
+          }),
+        )
+        let cursor = { txid: funding.txid, vout: funding.vout }
+        for (let i = 0; i < 3; i++) {
+          const next = claims.find((tx) => {
+            const input = inputByClaim.get(hex.encode(tx.getInput(1).txid!))!
+            return hex.encode(input.txid!) === cursor.txid && input.index === cursor.vout
+          })
+          expect(next, 'each automatic claim spends the preceding receiver change').toBeDefined()
+          expect(next!.getOutput(0).amount).toBe(330n)
+          expect(next!.getOutput(1).amount).toBe(1_000n)
+          cursor = { txid: next!.id, vout: 1 }
+        }
+        const final = await coins()
+        expect(final).toHaveLength(1)
+        expect({ txid: final[0].txid, vout: final[0].vout }).toEqual(cursor)
+      }).toPass({ timeout: 60_000 })
+      evidence.automaticQueue = { transfers: settled, before, after: await ledger(parties, assetId) }
     })
 
     await test.step('C4 and C7: on a phone, Dave claims a purchased carrier without sats of his own', async () => {

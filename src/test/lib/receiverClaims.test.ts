@@ -1,10 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Identity } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 import { TaxiClient, type CovenantTransfer, type EventSourceLike, type SubscribeClaimsArgs } from '@arkade-taxi/client'
 import {
   ClaimSpent,
   claimVerified,
+  guardedClaimIdentity,
   offerKey,
+  isFreeReceiverClaim,
   planReceiverClaim,
   taxiActivityFromOffer,
   walletClaimWatch,
@@ -29,6 +32,83 @@ vi.mock('../../lib/logs', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/logs')>()),
   consoleError,
 }))
+
+describe('claim signing authorization', () => {
+  it('preserves identity binding and revokes a retained signer session before it can sign', async () => {
+    let allowed = true
+    const session = {
+      getPublicKey: vi.fn(async () => new Uint8Array()),
+      init: vi.fn(async () => {}),
+      getNonces: vi.fn(async () => new Map()),
+      aggregatedNonces: vi.fn(async () => ({ hasAllNonces: true })),
+      sign: vi.fn(async () => new Map()),
+    }
+    const identity: Identity = {
+      xOnlyPublicKey: vi.fn(async () => new Uint8Array()),
+      compressedPublicKey: vi.fn(async () => new Uint8Array()),
+      sign: vi.fn(async function (this: Identity, tx) {
+        expect(this).toBe(identity)
+        return tx
+      }),
+      signMessage: vi.fn(async function (this: Identity) {
+        expect(this).toBe(identity)
+        return new Uint8Array()
+      }),
+      signerSession: vi.fn(function (this: Identity) {
+        expect(this).toBe(identity)
+        return session
+      }),
+    }
+    const guarded = guardedClaimIdentity(identity, () => allowed)
+    await guarded.sign({} as never)
+    await guarded.signMessage(new Uint8Array(), 'schnorr')
+    const retained = guarded.signerSession()
+    allowed = false
+    expect(() => guarded.sign({} as never)).toThrow(/no longer authorized/)
+    expect(() => guarded.signMessage(new Uint8Array(), 'schnorr')).toThrow(/no longer authorized/)
+    expect(() => retained.init({} as never, new Uint8Array(), 0n)).toThrow(/no longer authorized/)
+    expect(() => retained.sign()).toThrow(/no longer authorized/)
+    expect(identity.sign).toHaveBeenCalledTimes(1)
+    expect(identity.signMessage).toHaveBeenCalledTimes(1)
+    expect(session.init).not.toHaveBeenCalled()
+    expect(session.sign).not.toHaveBeenCalled()
+  })
+})
+
+describe('free receiver claim policy', () => {
+  it.each([bitcoinClaim(280n), satsFareClaim(0n), assetFareClaim(0n)])(
+    'accepts only lossless free recycling',
+    (claim) => {
+      expect(isFreeReceiverClaim(claim, planReceiverClaim(claim, coins([1000n])))).toBe(true)
+    },
+  )
+
+  it.each([satsFareClaim(7n), assetFareClaim(9n)])('requires confirmation for a positive receiver fare', (claim) => {
+    expect(isFreeReceiverClaim(claim, planReceiverClaim(claim, coins([1000n])))).toBe(false)
+  })
+
+  it('refuses a net reduction of receiver sats or delivered assets even when the fare is zero', () => {
+    const claim = assetFareClaim(0n)
+    const plan = planReceiverClaim(claim, coins([1000n])) as RecyclePlan
+    expect(isFreeReceiverClaim(claim, { ...plan, mergedSats: 999n })).toBe(false)
+    expect(
+      isFreeReceiverClaim(claim, {
+        kind: 'recycle',
+        coin: coins([1000n])[0],
+        mergedSats: 1000n,
+        feeUnits: 0n,
+        deliveredUnits: 499n,
+      }),
+    ).toBe(false)
+    expect(isFreeReceiverClaim(claim, { kind: 'wait-for-reclaim', reason: 'fare-exceeds-delivery' })).toBe(false)
+  })
+
+  it('allows a free purchase with no wallet contribution', () => {
+    const claim = bitcoinClaim(280n, 'purchase')
+    expect(isFreeReceiverClaim(claim, planReceiverClaim(claim, []))).toBe(true)
+    expect(isFreeReceiverClaim(satsFareClaim(1n), { kind: 'purchase', receivedSats: 330n })).toBe(false)
+  })
+})
 
 describe('planReceiverClaim', () => {
   it('claims by merging an existing coin and shows the sats fare it costs', async () => {
@@ -151,6 +231,29 @@ const RECYCLED = { ...satsFareClaim(7n), state: 'recycled' as const, claimable: 
 
 describe('watchReceiverClaims', () => {
   beforeEach(() => consoleError.mockClear())
+
+  it('preserves verified capability references across expansion and withdraws them from an empty snapshot', async () => {
+    const first = fakeTaxi()
+    const previous = watch(first.client)
+    first.feed.args!.onSnapshot({ claims: [satsFareClaim(7n)] })
+    await settle()
+    const [verified] = previous.offers
+    previous.stop()
+    const second = fakeTaxi()
+    const additional = fakeTaxi()
+    const expanded = watch(second.client, {
+      initialOffers: previous.offers,
+      clientFor: (url) => (url === TAXI_URL ? second.client : additional.client),
+      taxis: [TAXI, { ...TAXI, url: 'https://taxi.additional.example' }],
+    })
+    second.feed.args!.onSnapshot({ claims: [satsFareClaim(7n)] })
+    await settle()
+    expect(expanded.offers[0]).toBe(verified)
+    expect(second.client.verifyIncomingClaim).not.toHaveBeenCalled()
+    second.feed.args!.onSnapshot({ claims: [] })
+    expect(expanded.onGone).toHaveBeenCalledWith(offerKey(verified))
+    expanded.stop()
+  })
 
   it("offers a claim only once it verifies against the running context's keys and the Taxi the wallet named", async () => {
     const { client, feed } = fakeTaxi()

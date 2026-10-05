@@ -1,19 +1,22 @@
 import { createElement, useContext } from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ExtendedVirtualCoin } from '@arkade-os/sdk'
+import type { ExtendedVirtualCoin, Identity } from '@arkade-os/sdk'
 import type { AssetSwap } from '@arkade-os/swap'
 import type { CovenantTransfer } from '@arkade-taxi/client'
 import { hex } from '@scure/base'
+import { ConfigContext } from '../../providers/config'
 import { AspContext } from '../../providers/asp'
 import { WalletContext } from '../../providers/wallet'
 import { ReceiverClaimsContext, ReceiverClaimsProvider } from '../../providers/receiverClaims'
 import { rememberReceiverTaxi } from '../../lib/storage'
+import { withTaxiPaymentLock } from '../../lib/directTaxiSend'
 import { assetSwapRepository } from '../../lib/swapRepository'
 import { offerKey, type ClaimClient, type ClaimWatch, type VerifiedClaim } from '../../lib/receiverClaims'
+import * as taxiActivity from '../../lib/taxiActivity'
 import { readTaxiActivity, recordTaxiActivity } from '../../lib/taxiActivity'
-import { mockAspContextValue, mockSvcWallet, mockWalletContextValue } from '../screens/mocks'
-import { BOB_ADDRESS, assetFareClaim, coins, satsFareClaim } from '../lib/receiverClaimsFixtures'
+import { mockAspContextValue, mockConfigContextValue, mockSvcWallet, mockWalletContextValue } from '../screens/mocks'
+import { BOB_ADDRESS, assetFareClaim, bitcoinClaim, coins, satsFareClaim } from '../lib/receiverClaimsFixtures'
 import { ASSET_ID, KEYS, TAXI_URL } from '../lib/receiverTaxiFixtures'
 
 const pollTaxiActivity = vi.hoisted(() => vi.fn(async () => {}))
@@ -62,12 +65,17 @@ const svcWallet = {
 }
 
 const Probe = () => {
-  const { claimable, openClaim } = useContext(ReceiverClaimsContext)
+  const { claimable, openClaim, remember } = useContext(ReceiverClaimsContext)
   const [first] = claimable
   return (
-    <button type='button' data-testid='probe' onClick={() => first && openClaim(first)}>
-      {[...claimable].join(',')}
-    </button>
+    <>
+      <button type='button' onClick={() => remember({ ...TAXI, url: 'https://taxi.additional.example' })}>
+        Remember another Taxi
+      </button>
+      <button type='button' data-testid='probe' onClick={() => first && openClaim(first)}>
+        {[...claimable].join(',')}
+      </button>
+    </>
   )
 }
 
@@ -88,17 +96,31 @@ const JOURNAL = {
   },
 }
 
-const tree = (wallet: { initialized?: boolean; authState?: string } = {}, network = 'regtest') => (
+const tree = (
+  wallet: { initialized?: boolean; authState?: string; vtxos?: { spendable: unknown[]; spent: unknown[] } } = {},
+  network = 'regtest',
+  config: { autoClaimFreeTaxi?: boolean; configLoaded?: boolean } = {},
+) => (
   <AspContext.Provider
     value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network, signerPubkey: KEYS.server } }}
   >
     <WalletContext.Provider
       value={{ ...mockWalletContextValue, svcWallet, initialized: true, authState: 'authenticated', ...wallet } as any}
     >
-      <ReceiverClaimsProvider>
-        <div data-testid='app' />
-        <Probe />
-      </ReceiverClaimsProvider>
+      <ConfigContext.Provider
+        value={
+          {
+            ...mockConfigContextValue,
+            configLoaded: config.configLoaded ?? true,
+            config: { ...mockConfigContextValue.config, autoClaimFreeTaxi: config.autoClaimFreeTaxi ?? true },
+          } as any
+        }
+      >
+        <ReceiverClaimsProvider>
+          <div data-testid='app' />
+          <Probe />
+        </ReceiverClaimsProvider>
+      </ConfigContext.Provider>
     </WalletContext.Provider>
   </AspContext.Provider>
 )
@@ -124,14 +146,31 @@ const claimButton = () => screen.getByRole('button', { name: 'Claim' })
 // A click alone: the drawer's drag handlers need pointer capture, which jsdom lacks.
 const press = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
 
-const mounted = async (wallet = {}) => {
-  const view = render(tree(wallet))
+const mounted = async (wallet = {}, config = {}) => {
+  const view = render(tree(wallet, 'regtest', config))
   await waitFor(() => expect(watchReceiverClaims).toHaveBeenCalled())
   return view
 }
 
 describe('ReceiverClaimsProvider', () => {
   beforeEach(() => {
+    const locks = new Map<string, Promise<void>>()
+    Object.defineProperty(navigator, 'locks', {
+      configurable: true,
+      value: {
+        request: (name: string, run: () => Promise<unknown>) => {
+          const next = (locks.get(name) ?? Promise.resolve()).then(run)
+          locks.set(
+            name,
+            next.then(
+              () => {},
+              () => {},
+            ),
+          )
+          return next
+        },
+      },
+    })
     localStorage.clear()
     stop.mockClear()
     watchReceiverClaims.mockClear()
@@ -152,6 +191,367 @@ describe('ReceiverClaimsProvider', () => {
     expect(stop).toHaveBeenCalledTimes(1)
     unmount()
     expect(stop).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([bitcoinClaim(280n), satsFareClaim(0n), assetFareClaim(0n)])(
+    'automatically claims a verified free delivery',
+    async (delivery) => {
+      await mounted()
+      const { verified, recycle } = offerOf(delivery)
+      offer(verified)
+      await waitFor(() => expect(recycle).toHaveBeenCalledTimes(1))
+      await waitFor(() => expect(screen.getByTestId('probe')).not.toHaveTextContent(offerKey(verified)))
+      expect(readTaxiActivity('regtest')).toMatchObject([{ state: 'recycled', claimTxid: 'f'.repeat(64) }])
+    },
+  )
+
+  it('automatically purchases a free delivery without a funding coin', async () => {
+    spendable = async () => []
+    await mounted()
+    const item = offerOf(bitcoinClaim(280n, 'purchase'))
+    const purchase = vi.fn(async () => 'e'.repeat(64))
+    item.verified.client.purchase = purchase
+    offer(item.verified)
+    await waitFor(() => expect(purchase).toHaveBeenCalledTimes(1))
+    expect(item.recycle).not.toHaveBeenCalled()
+  })
+
+  it('continues past priced and waiting deliveries to another free claim', async () => {
+    spendable = async () => []
+    await mounted()
+    const priced = offerOf()
+    const waiting = offerOf(bitcoinClaim(280n))
+    const free = offerOf(bitcoinClaim(270n, 'purchase'))
+    const purchase = vi.fn(async () => 'e'.repeat(64))
+    free.verified.client.purchase = purchase
+    offer(priced.verified)
+    offer(waiting.verified)
+    offer(free.verified)
+    await waitFor(() => expect(purchase).toHaveBeenCalledTimes(1))
+    expect(priced.recycle).not.toHaveBeenCalled()
+    expect(waiting.recycle).not.toHaveBeenCalled()
+  })
+
+  it('serializes claims, awaits wallet reload, and never reuses a stale consumed coin', async () => {
+    let release: () => void = () => {}
+    const reloadWallet = vi.fn(() => new Promise<void>((resolve) => (release = resolve)))
+    await mounted({ reloadWallet })
+    const first = offerOf(bitcoinClaim(280n))
+    const second = offerOf(bitcoinClaim(270n))
+    offer(first.verified)
+    offer(second.verified)
+    await waitFor(() => expect(first.recycle).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(reloadWallet).toHaveBeenCalledTimes(1))
+    expect(second.recycle).not.toHaveBeenCalled()
+    spendable = async () => coins([1000n, 1050n])
+    await act(async () => release())
+    await waitFor(() => expect(second.recycle).toHaveBeenCalledTimes(1))
+    const [, input] = second.recycle.mock.calls[0] as unknown as Parameters<ClaimClient['recycle']>
+    expect(input.input).toMatchObject({ vout: 1, value: 1050n })
+    await act(async () => release())
+  })
+
+  it('resumes a waiting free claim on focus when a compatible coin appears', async () => {
+    spendable = async () => []
+    await mounted()
+    const item = offerOf(bitcoinClaim(280n))
+    offer(item.verified)
+    await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent(offerKey(item.verified)))
+    spendable = async () => coins([1000n])
+    act(() => void window.dispatchEvent(new Event('focus')))
+    await waitFor(() => expect(item.recycle).toHaveBeenCalledTimes(1))
+  })
+
+  it('never automatically retries a one-shot failure and continues to the next free offer', async () => {
+    await mounted()
+    const first = offerOf(
+      bitcoinClaim(280n),
+      vi.fn(async () => {
+        throw new Error('claim failed')
+      }),
+    )
+    const second = offerOf(bitcoinClaim(270n, 'purchase'))
+    const purchase = vi.fn(async () => 'e'.repeat(64))
+    second.verified.client.purchase = purchase
+    offer(first.verified)
+    offer(second.verified)
+    await waitFor(() => expect(purchase).toHaveBeenCalledTimes(1))
+    offer(first.verified)
+    act(() => void window.dispatchEvent(new Event('focus')))
+    await act(async () => {})
+    expect(first.recycle).toHaveBeenCalledTimes(1)
+    expect(await screen.findByTestId('claim-spent')).toBeInTheDocument()
+  })
+
+  it.each(['lock', 'network', 'unmount', 'withdraw'])(
+    'does not sign a free claim after %s while its funding read is pending',
+    async (change) => {
+      const view = await mounted()
+      let release: (value: ExtendedVirtualCoin[]) => void = () => {}
+      const readFunding = vi.fn(() => new Promise<ExtendedVirtualCoin[]>((resolve) => (release = resolve)))
+      spendable = readFunding
+      const item = offerOf(bitcoinClaim(280n))
+      offer(item.verified)
+      await waitFor(() => expect(readFunding).toHaveBeenCalled())
+      if (change === 'lock') view.rerender(tree({ initialized: false, authState: 'locked' }))
+      if (change === 'network') view.rerender(tree({}, 'mutinynet'))
+      if (change === 'unmount') view.unmount()
+      if (change === 'withdraw') act(() => latestWatch().onGone(offerKey(item.verified)))
+      await act(async () => release(coins([1000n])))
+      expect(item.recycle).not.toHaveBeenCalled()
+    },
+  )
+
+  it('coalesces duplicate events while a free claim is in flight', async () => {
+    await mounted()
+    let release: (txid: string) => void = () => {}
+    const item = offerOf(
+      bitcoinClaim(280n),
+      vi.fn(() => new Promise<string>((resolve) => (release = resolve))),
+    )
+    offer(item.verified)
+    await waitFor(() => expect(item.recycle).toHaveBeenCalledTimes(1))
+    offer(item.verified)
+    offer(item.verified)
+    fireEvent.click(screen.getByTestId('probe'))
+    press('Claim')
+    await act(async () => release('f'.repeat(64)))
+    offer(item.verified)
+    expect(item.recycle).toHaveBeenCalledTimes(1)
+  })
+
+  it('excludes funding held by the direct Taxi payment journal from automatic claims', async () => {
+    const senderKey = hex.encode(await svcWallet.identity.xOnlyPublicKey())
+    localStorage.setItem(
+      `directTaxiPending:regtest:${senderKey}`,
+      JSON.stringify({
+        ...JOURNAL,
+        senderKey,
+        attempt: { ...JOURNAL.attempt, senderInputs: [{ txid: 'c'.repeat(64), vout: 0 }] },
+      }),
+    )
+    spendable = async () => coins([1000n, 2000n])
+    await mounted()
+    const item = offerOf(bitcoinClaim(280n))
+    offer(item.verified)
+    await waitFor(() => expect(item.recycle).toHaveBeenCalledTimes(1))
+    const [, input] = item.recycle.mock.calls[0] as unknown as Parameters<ClaimClient['recycle']>
+    expect(input.input).toMatchObject({ vout: 1, value: 2000n })
+  })
+
+  it('leaves a free recycle pending when all compatible coins are reserved', async () => {
+    const reservations = vi
+      .spyOn(assetSwapRepository, 'getAllSwaps')
+      .mockResolvedValue([
+        { fundingIntent: { state: 'submitted', inputs: [{ txid: 'c'.repeat(64), vout: 0 }] } } as unknown as AssetSwap,
+      ])
+    try {
+      await mounted()
+      const item = offerOf(bitcoinClaim(280n))
+      offer(item.verified)
+      await screen.findByTestId('claim-plan')
+      await act(async () => {})
+      expect(item.recycle).not.toHaveBeenCalled()
+      expect(screen.getByTestId('probe')).toHaveTextContent(offerKey(item.verified))
+    } finally {
+      reservations.mockRestore()
+    }
+  })
+
+  it('resumes waiting free claims when wallet coin state changes', async () => {
+    spendable = async () => []
+    const view = await mounted()
+    const item = offerOf(bitcoinClaim(280n))
+    offer(item.verified)
+    await screen.findByTestId('claim-plan')
+    spendable = async () => coins([1000n])
+    view.rerender(tree({ vtxos: { spendable: coins([1000n]), spent: [] } }))
+    await waitFor(() => expect(item.recycle).toHaveBeenCalledTimes(1))
+  })
+
+  it('keeps free claiming manual when automatic claims are disabled', async () => {
+    await mounted({}, { autoClaimFreeTaxi: false })
+    const item = offerOf(bitcoinClaim(280n))
+    offer(item.verified)
+    await waitFor(() => expect(claimButton()).toBeEnabled())
+    expect(item.recycle).not.toHaveBeenCalled()
+    press('Claim')
+    await waitFor(() => expect(item.recycle).toHaveBeenCalledTimes(1))
+  })
+
+  it('waits for the configuration to load before automatically claiming', async () => {
+    const view = await mounted({}, { configLoaded: false })
+    const item = offerOf(bitcoinClaim(280n))
+    offer(item.verified)
+    await waitFor(() => expect(claimButton()).toBeEnabled())
+    expect(item.recycle).not.toHaveBeenCalled()
+    view.rerender(tree({}, 'regtest', { configLoaded: true }))
+    await waitFor(() => expect(item.recycle).toHaveBeenCalledTimes(1))
+  })
+
+  it('does not sign if automatic claims are disabled while reading funding', async () => {
+    const view = await mounted()
+    let release: (value: ExtendedVirtualCoin[]) => void = () => {}
+    const readFunding = vi.fn(() => new Promise<ExtendedVirtualCoin[]>((resolve) => (release = resolve)))
+    spendable = readFunding
+    const item = offerOf(bitcoinClaim(280n))
+    offer(item.verified)
+    await waitFor(() => expect(readFunding).toHaveBeenCalled())
+    view.rerender(tree({}, 'regtest', { autoClaimFreeTaxi: false }))
+    await act(async () => release(coins([1000n])))
+    expect(item.recycle).not.toHaveBeenCalled()
+  })
+
+  it('waits behind the same wallet payment lock used by a concurrent Taxi send', async () => {
+    await mounted()
+    let release: () => void = () => {}
+    let entered = false
+    const held = withTaxiPaymentLock(
+      svcWallet,
+      'regtest',
+      () =>
+        new Promise<void>((resolve) => {
+          entered = true
+          release = resolve
+        }),
+    )
+    await waitFor(() => expect(entered).toBe(true))
+    const item = offerOf(bitcoinClaim(280n))
+    offer(item.verified)
+    await act(async () => {})
+    expect(item.recycle).not.toHaveBeenCalled()
+    await act(async () => {
+      release()
+      await held
+    })
+    await waitFor(() => expect(item.recycle).toHaveBeenCalledTimes(1))
+  })
+
+  it('keeps free claiming manual when the browser cannot coordinate wallet inputs', async () => {
+    Object.defineProperty(navigator, 'locks', { configurable: true, value: undefined })
+    await mounted()
+    const item = offerOf(bitcoinClaim(280n))
+    offer(item.verified)
+    await waitFor(() => expect(claimButton()).toBeEnabled())
+    expect(item.recycle).not.toHaveBeenCalled()
+    press('Claim')
+    await waitFor(() => expect(item.recycle).toHaveBeenCalledTimes(1))
+  })
+
+  it('never repeats a successful financial claim when activity storage throws', async () => {
+    const records = vi.spyOn(taxiActivity, 'recordTaxiActivity').mockImplementation(() => {
+      throw new Error('storage full')
+    })
+    try {
+      await mounted()
+      const item = offerOf(bitcoinClaim(280n))
+      offer(item.verified)
+      await waitFor(() => expect(item.recycle).toHaveBeenCalledTimes(1))
+      await waitFor(() => expect(screen.getByTestId('probe')).not.toHaveTextContent(offerKey(item.verified)))
+      offer(item.verified)
+      act(() => void window.dispatchEvent(new Event('focus')))
+      await act(async () => {})
+      expect(item.recycle).toHaveBeenCalledTimes(1)
+    } finally {
+      records.mockRestore()
+    }
+  })
+
+  it.each(['lock', 'network', 'disabled', 'unmount', 'withdraw'])(
+    'checks authorization at the actual signer after provider reads when %s',
+    async (change) => {
+      const view = await mounted()
+      let release: () => void = () => {}
+      let entered = false
+      const sign = vi.spyOn(svcWallet.identity, 'sign').mockResolvedValue({} as never)
+      try {
+        const recycle = vi.fn(async (_transfer: CovenantTransfer, input: { identity: Identity }) => {
+          entered = true
+          await new Promise<void>((resolve) => (release = resolve))
+          await input.identity.sign({} as never)
+          return 'f'.repeat(64)
+        })
+        const item = offerOf(bitcoinClaim(280n), recycle as never)
+        offer(item.verified)
+        await waitFor(() => expect(entered).toBe(true))
+        if (change === 'lock') view.rerender(tree({ initialized: false, authState: 'locked' }))
+        if (change === 'network') view.rerender(tree({}, 'mutinynet'))
+        if (change === 'disabled') view.rerender(tree({}, 'regtest', { autoClaimFreeTaxi: false }))
+        if (change === 'unmount') view.unmount()
+        if (change === 'withdraw') act(() => latestWatch().onGone(offerKey(item.verified)))
+        await act(async () => release())
+        expect(sign).not.toHaveBeenCalled()
+      } finally {
+        sign.mockRestore()
+      }
+    },
+  )
+
+  it('shows a free claim planning failure instead of silently hiding the delivery', async () => {
+    spendable = vi.fn(async () => {
+      throw new Error('funding read unavailable')
+    })
+    await mounted()
+    const item = offerOf(bitcoinClaim(280n))
+    offer(item.verified)
+    expect(await screen.findByText('funding read unavailable')).toBeInTheDocument()
+    expect(item.recycle).not.toHaveBeenCalled()
+    const reads = (spendable as ReturnType<typeof vi.fn>).mock.calls.length
+    await act(async () => {})
+    expect((spendable as ReturnType<typeof vi.fn>).mock.calls.length).toBe(reads)
+  })
+
+  it('keeps an in-flight verified claim authorized when remembering another Taxi', async () => {
+    await mounted()
+    let release: () => void = () => {}
+    let entered = false
+    const sign = vi.spyOn(svcWallet.identity, 'sign').mockResolvedValue({} as never)
+    try {
+      const recycle = vi.fn(async (_transfer: CovenantTransfer, input: { identity: Identity }) => {
+        entered = true
+        await new Promise<void>((resolve) => (release = resolve))
+        await input.identity.sign({} as never)
+        return 'f'.repeat(64)
+      })
+      const item = offerOf(bitcoinClaim(280n), recycle as never)
+      offer(item.verified)
+      await waitFor(() => expect(entered).toBe(true))
+      fireEvent.click(screen.getByRole('button', { name: 'Remember another Taxi' }))
+      await waitFor(() => expect(watchReceiverClaims).toHaveBeenCalledTimes(2))
+      offer({ ...item.verified })
+      await act(async () => release())
+      expect(sign).toHaveBeenCalledTimes(1)
+      expect(recycle).toHaveBeenCalledTimes(1)
+      expect(screen.queryByTestId('claim-spent')).toBeNull()
+      expect(readTaxiActivity('regtest')).toMatchObject([{ state: 'recycled', claimTxid: 'f'.repeat(64) }])
+    } finally {
+      sign.mockRestore()
+    }
+  })
+
+  it('keeps an existing paid claim visible when remembering another Taxi restarts the watch', async () => {
+    await mounted()
+    const item = offerOf()
+    offer(item.verified)
+    await waitFor(() => expect(claimButton()).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Remember another Taxi', hidden: true }))
+    await waitFor(() => expect(watchReceiverClaims).toHaveBeenCalledTimes(2))
+    offer(item.verified)
+    await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent(offerKey(item.verified)))
+    await waitFor(() => expect(claimButton()).toBeEnabled())
+    expect(item.recycle).not.toHaveBeenCalled()
+  })
+
+  it('ignores callbacks from a stopped feed', async () => {
+    const view = await mounted()
+    const old = latestWatch()
+    view.rerender(tree({}, 'mutinynet'))
+    await waitFor(() => expect(watchReceiverClaims).toHaveBeenCalledTimes(2))
+    const item = offerOf(bitcoinClaim(280n))
+    act(() => old.onOffer(item.verified))
+    await act(async () => {})
+    expect(item.recycle).not.toHaveBeenCalled()
+    expect(screen.getByTestId('probe')).not.toHaveTextContent(offerKey(item.verified))
   })
 
   it('puts a verified claim in front of the user and claims nothing until he confirms', async () => {

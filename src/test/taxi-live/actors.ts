@@ -112,12 +112,23 @@ export async function faucetWallet(): Promise<Wallet> {
   return faucet
 }
 
-export async function onboard(name: string, page: Page, { leaves = 2 }: { leaves?: 2 | 3 } = {}): Promise<Actor> {
+export async function onboard(
+  name: string,
+  page: Page,
+  { leaves = 2, autoClaimFreeTaxi = false }: { leaves?: 2 | 3; autoClaimFreeTaxi?: boolean } = {},
+): Promise<Actor> {
   // Persisted config outranks the build's VITE_DELEGATE_ENABLED, so this is how one actor picks its leaves.
-  await page.addInitScript((delegate) => {
-    const config = JSON.parse(localStorage.getItem('config') ?? '{}')
-    localStorage.setItem('config', JSON.stringify({ ...config, currency: 'BTC', unit: 'sats', delegate }))
-  }, leaves === 3)
+  // Manual claim scenes opt out explicitly; queue scenes opt in through the same persisted setting.
+  await page.addInitScript(
+    ({ delegate, autoClaimFreeTaxi }) => {
+      const config = JSON.parse(localStorage.getItem('config') ?? '{}')
+      localStorage.setItem(
+        'config',
+        JSON.stringify({ ...config, currency: 'BTC', unit: 'sats', delegate, autoClaimFreeTaxi }),
+      )
+    },
+    { delegate: leaves === 3, autoClaimFreeTaxi },
+  )
   await page.goto('/')
   await page.getByText(`+ ${tr.init.createWallet}`, { exact: true }).click()
   await expect(page.getByTestId('home-action-receive')).toBeVisible()
@@ -577,7 +588,10 @@ const isTerminal = ({ kind, state }: Advance) =>
 export type Stage = {
   faucet: Wallet
   evidence: Record<string, unknown>
-  join: (name: string, options?: { leaves?: 2 | 3; device?: BrowserContextOptions; sats?: number }) => Promise<Actor>
+  join: (
+    name: string,
+    options?: { leaves?: 2 | 3; device?: BrowserContextOptions; sats?: number; autoClaimFreeTaxi?: boolean },
+  ) => Promise<Actor>
 }
 
 /** Fresh wallets for one scene; afterwards the Taxi is restored, and every advance the scene made must be terminal,
@@ -592,7 +606,7 @@ export async function stage(browser: Browser, testInfo: TestInfo, play: (s: Stag
   const known = await advances()
   const contexts: BrowserContext[] = []
   let guardEvidence: Promise<unknown> | undefined
-  const join: Stage['join'] = async (name, { leaves, device, sats } = {}) => {
+  const join: Stage['join'] = async (name, { leaves, device, sats, autoClaimFreeTaxi } = {}) => {
     const context = await browser.newContext({
       ...device,
       baseURL: testInfo.project.use.baseURL,
@@ -601,7 +615,7 @@ export async function stage(browser: Browser, testInfo: TestInfo, play: (s: Stag
       reducedMotion: 'reduce',
     })
     contexts.push(context)
-    const actor = await onboard(name, await context.newPage(), { leaves })
+    const actor = await onboard(name, await context.newPage(), { leaves, autoClaimFreeTaxi })
     actor.page.on('response', (response) => {
       const path = new URL(response.url()).pathname
       if (!guardEvidence && response.status() === 503 && /^\/(taxi\/)?v1\/(transfers|sponsored-transfers)/.test(path)) {

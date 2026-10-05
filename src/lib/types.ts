@@ -15,6 +15,7 @@ export type Config = {
     }
   }
   aspUrl: string
+  autoClaimFreeTaxi?: boolean
   currency: Currencies
   delegate: boolean
   importedAssets: string[]

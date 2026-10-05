@@ -1,7 +1,7 @@
 /**
  * The receiver's side of a Taxi delivery: which claims to put in
  * front of him, what claiming one costs, and the claim itself. Nothing here
- * claims unasked; `claimVerified` runs only on his confirmation.
+ * charges unasked; free verified deliveries may be claimed automatically.
  */
 import {
   EsploraProvider,
@@ -91,6 +91,17 @@ export const planReceiverClaim = <C extends PlanCoin>(claim: ReceiverClaim, coin
     : { kind: 'recycle', coin, mergedSats, feeSats }
 }
 
+export const isFreeReceiverClaim = (claim: ReceiverClaim, plan: ClaimPlan): boolean => {
+  if ((receiverFareOf(claim)?.units ?? 0n) !== 0n || plan.kind === 'wait-for-reclaim') return false
+  if (plan.kind === 'purchase') return true
+  return (
+    plan.mergedSats >= BigInt(plan.coin.value) &&
+    ('feeSats' in plan
+      ? plan.feeSats === 0n
+      : plan.feeUnits === 0n && plan.deliveredUnits === BigInt(claim.claim?.assetUnits ?? 0))
+  )
+}
+
 type Skip = 'not-claimable' | 'not-this-wallet' | 'other-operator' | 'unsupported-claim' | 'unknown-unclaimed-mode'
 
 /** The remembered Taxi a claim was made under, or why it is not one to offer. */
@@ -165,6 +176,7 @@ export const taxiActivityFromOffer = ({ taxi, claim }: Pick<VerifiedClaim, 'taxi
 }
 
 export interface ClaimWatch {
+  initialOffers?: readonly VerifiedClaim[]
   taxis: readonly RememberedTaxi[]
   receiverAddress: string
   clientFor: (url: string) => ClaimClient
@@ -185,12 +197,26 @@ const feedClosed = (error: TaxiError): boolean =>
 
 /** Subscribe to each Taxi's claims for this wallet, one stream per URL; returns the unsubscribe. */
 export const watchReceiverClaims = (watch: ClaimWatch): (() => void) => {
-  const verified = new Map<string, VerifiedClaim>()
+  const verified = new Map<string, VerifiedClaim>(
+    (watch.initialOffers ?? [])
+      .filter(
+        (offer) =>
+          offer.claim.receiverAddress === watch.receiverAddress &&
+          watch.taxis.some(
+            (taxi) =>
+              taxi.url === offer.taxi.url &&
+              taxi.operatorKey === offer.taxi.operatorKey &&
+              taxi.network === offer.taxi.network,
+          ),
+      )
+      .map((offer) => [offerKey(offer), offer]),
+  )
   const verifying = new Set<string>()
   const withdrawnDuringVerification = new Set<string>()
   let stopped = false
 
   const consider = async (url: string, taxis: readonly RememberedTaxi[], client: ClaimClient, claim: ReceiverClaim) => {
+    if (stopped) return
     const id = claim.transferId
     const key = claimKey(url, id)
     const taxi = triage(claim, taxis, watch.receiverAddress)
@@ -231,6 +257,7 @@ export const watchReceiverClaims = (watch: ClaimWatch): (() => void) => {
   const follow = (url: string, taxis: readonly RememberedTaxi[]): (() => void) => {
     const client = watch.clientFor(url)
     const onClaims = ({ claims }: { claims: ReceiverClaim[] }) => {
+      if (stopped) return
       for (const claim of claims) consider(url, taxis, client, claim).catch(consoleError)
     }
     let unsubscribe = () => {}
@@ -242,6 +269,7 @@ export const watchReceiverClaims = (watch: ClaimWatch): (() => void) => {
         unsubscribe = client.subscribeClaims({
           receiverAddresses: [watch.receiverAddress],
           onSnapshot: (snapshot) => {
+            if (stopped) return
             outage = false
             delay = FIRST_RETRY_MS
             // A snapshot is every active claim, so a verified one it leaves out ended while the feed was down.
@@ -295,6 +323,56 @@ export class ClaimSpent extends Error {
   }
 }
 
+export const guardedClaimIdentity = (identity: Identity, allowed: () => boolean): Identity => {
+  const check = () => {
+    if (!allowed()) throw new Error('Taxi claim is no longer authorized by this wallet')
+  }
+  return {
+    xOnlyPublicKey: () => {
+      check()
+      return identity.xOnlyPublicKey()
+    },
+    compressedPublicKey: () => {
+      check()
+      return identity.compressedPublicKey()
+    },
+    sign: (...args) => {
+      check()
+      return identity.sign(...args)
+    },
+    signMessage: (...args) => {
+      check()
+      return identity.signMessage(...args)
+    },
+    signerSession: () => {
+      check()
+      const signer = identity.signerSession()
+      return {
+        getPublicKey: () => {
+          check()
+          return signer.getPublicKey()
+        },
+        init: (...args) => {
+          check()
+          return signer.init(...args)
+        },
+        getNonces: () => {
+          check()
+          return signer.getNonces()
+        },
+        aggregatedNonces: (...args) => {
+          check()
+          return signer.aggregatedNonces(...args)
+        },
+        sign: () => {
+          check()
+          return signer.sign()
+        },
+      }
+    },
+  }
+}
+
 /** Claim a verified transfer; recycle merges the planned coin, purchase needs none. */
 export const claimVerified = async (
   offer: VerifiedClaim,
@@ -344,6 +422,7 @@ export const walletClaimWatch = (args: {
   > & { url: string }
   taxis: readonly RememberedTaxi[]
   receiverAddress: string
+  initialOffers?: ClaimWatch['initialOffers']
   onOffer: ClaimWatch['onOffer']
   onGone: ClaimWatch['onGone']
 }): ClaimWatch => {

@@ -9,6 +9,7 @@ import { setDocumentThemeColor } from '../lib/documentSurface'
 
 const defaultConfig: Config = {
   announcementsSeen: [],
+  autoClaimFreeTaxi: true,
   apps: { assets: { enabled: false } },
   aspUrl: defaultArkServer(),
   dismissedBanners: [],

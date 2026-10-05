@@ -377,15 +377,23 @@ export const journalDirectTaxi = (record: PendingTaxiRecord): void => {
   }
 }
 
+export const withTaxiPaymentLock = async <T>(
+  wallet: Pick<IWallet, 'identity'>,
+  network: string,
+  run: (senderKey: string) => Promise<T>,
+): Promise<T> => {
+  const senderKey = hex.encode(await wallet.identity.xOnlyPublicKey())
+  if (!navigator.locks) throw new Error('This browser cannot safely coordinate Taxi payments')
+  return navigator.locks.request(pendingKey(network, senderKey), () => run(senderKey))
+}
+
 /** Resumes the journaled payment only when it is this transfer, under the lock a new send takes. */
 export const resumePendingDirectTaxi = async (
   wallet: Pick<IWallet, 'identity'>,
   network: string,
   transferId: string,
 ): Promise<string | undefined> => {
-  const senderKey = hex.encode(await wallet.identity.xOnlyPublicKey())
-  if (!navigator.locks) throw new Error('This browser cannot safely coordinate Taxi payments')
-  return navigator.locks.request(pendingKey(network, senderKey), async () => {
+  return withTaxiPaymentLock(wallet, network, async (senderKey) => {
     const record = readPending(network, senderKey)
     return record?.transferId === transferId ? restorePending(record).resume() : undefined
   })
@@ -425,9 +433,7 @@ interface DirectTaxiSendArgs {
 export const sendDirectTaxi = async (args: DirectTaxiSendArgs): Promise<string> => {
   if (args.taxi.payer === 'sender' && (!args.assetId || args.mode === 'recycle'))
     throw new Error('This request requires sender-covered delivery without receiver repayment')
-  const senderKey = hex.encode(await args.wallet.identity.xOnlyPublicKey())
-  if (!navigator.locks) throw new Error('This browser cannot safely coordinate Taxi payments')
-  return navigator.locks.request(pendingKey(args.aspInfo.network, senderKey), async () => {
+  return withTaxiPaymentLock(args.wallet, args.aspInfo.network, async (senderKey) => {
     const pending = readPending(args.aspInfo.network, senderKey)
     if (pending) throw restorePending(pending)
     return sendDirectTaxiLocked(args, senderKey)

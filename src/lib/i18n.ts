@@ -131,6 +131,9 @@ export const translations = {
       light: 'Light',
       haptics: 'Haptics',
       feedback: 'Feedback',
+      autoClaimFreeTaxi: 'Automatically claim free Taxi deliveries',
+      autoClaimFreeTaxiSubtext:
+        'Claim when no fee is charged to you and a safe coin is available to repay the carrier.',
       hapticFeedback: 'Haptic feedback',
       hapticSubtext: 'Vibration on button taps and interactions',
       notifications: 'Notifications',
@@ -981,6 +984,9 @@ export const translations = {
       light: 'Claro',
       haptics: 'Vibración',
       feedback: 'Retroalimentación',
+      autoClaimFreeTaxi: 'Reclamar automáticamente las entregas gratuitas de Taxi',
+      autoClaimFreeTaxiSubtext:
+        'Reclama cuando no pagas comisión y tienes una moneda segura para devolver el préstamo.',
       hapticFeedback: 'Vibración táctil',
       hapticSubtext: 'Vibración al tocar botones e interactuar',
       notifications: 'Notificaciones',
