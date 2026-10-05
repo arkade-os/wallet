@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './src/test/e2e',
+  testIgnore: '**/taxi/**',
   timeout: 60000,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
@@ -24,8 +25,6 @@ export default defineConfig({
     contextOptions: { reducedMotion: 'reduce' },
   },
   webServer: {
-    // Nothing listens on the Taxi URL: receiverTaxi.test.ts serves it through page.route, and no
-    // other spec opens the asset receive screen, the only place the wallet reads it.
     command:
       'VITE_NOSTR_RELAY_URL=ws://localhost:10547 VITE_DELEGATE_ENABLED=false VITE_TAXI_URL=http://localhost:7400 pnpm start',
     port: 3002,

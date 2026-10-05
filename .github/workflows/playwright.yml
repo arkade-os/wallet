@@ -17,8 +17,10 @@ jobs:
       fail-fast: false
       matrix:
         project: ["Mobile Chrome", "Google Chrome"]
-        group: [assets-send, core]
+        group: [assets-send, core, taxi]
         include:
+          - group: taxi
+            test_files: src/test/e2e/taxi/taxi.test.ts
           - group: assets-send
             test_files: >-
               src/test/e2e/asset.test.ts
@@ -57,13 +59,35 @@ jobs:
       run: pnpm exec playwright install chrome chromium --with-deps
     - name: Verify the installed carrier packages
       run: node scripts/carrier-artifacts/verify.mjs --installed
+    - uses: actions/checkout@v4
+      if: matrix.group == 'taxi'
+      with:
+        repository: ArkLabsHQ/arkade-taxi
+        ref: ffdeff7c1b171e660e1c119cd6994c440a456338
+        path: .local-tests/taxi-service
+        persist-credentials: false
+    - name: Build Taxi image
+      if: matrix.group == 'taxi'
+      run: docker build -t arkade-taxi:regtest .local-tests/taxi-service
+    - name: Start Taxi regtest environment
+      if: matrix.group == 'taxi'
+      run: node regtest/regtest.mjs start --profile taxi --env .env.taxi-regtest
     - name: Start regtest environment
+      if: matrix.group != 'taxi'
       run: node regtest/regtest.mjs start --env .env.regtest
     - name: Start nostr relay
+      if: matrix.group != 'taxi'
       run: docker compose -f docker-compose.nak.yml up -d --build
     - name: Verify environment
+      if: matrix.group != 'taxi'
       run: pnpm regtest:setup
+    - name: Run Taxi Playwright tests
+      if: matrix.group == 'taxi'
+      run: pnpm exec playwright test --config playwright.taxi-regtest.config.ts --project="${{ matrix.project }}"
+      env:
+        CI: true
     - name: Run Playwright tests
+      if: matrix.group != 'taxi'
       run: sleep 5 && pnpm run test:e2e --project="${{ matrix.project }}" ${{ matrix.test_files }}
       env:
         CI: true
@@ -80,4 +104,8 @@ jobs:
       if: always()
       run: |
         docker compose -f docker-compose.nak.yml down -v 2>/dev/null || true
-        node regtest/regtest.mjs clean --env .env.regtest
+        if [ "${{ matrix.group }}" = taxi ]; then
+          node regtest/regtest.mjs clean --env .env.taxi-regtest
+        else
+          node regtest/regtest.mjs clean --env .env.regtest
+        fi

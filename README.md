@@ -181,3 +181,19 @@ otherwise it will never run on CI.
 macOS AirPlay Receiver uses port 5000 by default, which conflicts with the regtest stack.
 
 - **Fix:** Go to `System Settings > General > AirDrop & Handoff` and disable **AirPlay Receiver**.
+
+Taxi financial browser scenarios use the optional `arkade-regtest` Taxi profile:
+
+```bash
+docker build -t arkade-taxi:regtest /path/to/arkade-taxi
+node regtest/regtest.mjs start --profile taxi --env .env.taxi-regtest
+pnpm exec playwright test --config playwright.taxi-regtest.config.ts
+node regtest/regtest.mjs clean --env .env.taxi-regtest
+```
+
+The suite checks exact sub-dust amounts, carrier repayment, asset purchase and
+sponsored delivery, three free claims after reopening, activity details, and
+paused-service refusal against actual services and participant balances. Its
+separate delay configuration leaves the ordinary wallet regtest setup unchanged.
+Local diagnostic harnesses and mock-heavy Taxi suites are preserved under the
+ignored `.local-tests/taxi/` directory; they are not part of published builds or CI.
