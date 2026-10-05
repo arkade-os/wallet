@@ -11,6 +11,7 @@ import {
   BOOTSTRAP,
   CANDIDATE_SDK_SYMBOL,
   CANDIDATE_SWAP_SYMBOL,
+  CANDIDATE_TAXI_SYMBOL,
   DIRECT_DEPENDENCIES,
   ENVIRONMENT,
   EXEMPT_INSTALLS,
@@ -231,11 +232,14 @@ check(
   '--installed was given, and there is no @arkade-taxi/client install to inspect',
 )
 if (entry) {
+  const taxiEntry = resolveInstalled(at('package.json'), '@arkade-os/taxi')
   for (const [name, symbol] of [
     ['@arkade-os/sdk', CANDIDATE_SDK_SYMBOL],
     ['@arkade-os/swap', CANDIDATE_SWAP_SYMBOL],
+    ['@arkade-os/taxi', CANDIDATE_TAXI_SYMBOL],
   ]) {
-    for (const from of [at('package.json'), entry]) {
+    const roots = name === '@arkade-os/taxi' ? [at('package.json')] : [at('package.json'), entry, taxiEntry]
+    for (const from of roots) {
       try {
         await assertCandidateExport(packageRootFrom(from, name), name, symbol)
       } catch (error) {

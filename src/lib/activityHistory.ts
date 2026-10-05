@@ -397,6 +397,35 @@ const projectActivities = (activities: Activity[], options: ActivityHistoryOptio
     swaps,
     activities.flatMap((activity) => activity.txs),
   )
+  const assetSwapTx = (swap: WalletAssetSwap, rawMembers: ArkTransaction[], historyKey: string): Tx =>
+    swapRow(swap, () => {
+      const carrier = readCarrierActivity(swap.carrier)
+      const funding = rawMembers.find((tx) => txidOfArkTransaction(tx) === swap.fundingTxid)
+      return {
+        ...graftMetadata(
+          buildAssetSwapActivityTx(
+            swap,
+            carrier,
+            rawMembers.map((tx) => arkTransactionToTx(tx)),
+            {
+              network,
+              assetDisplay,
+              allocation: activityAllocation.swap(swap.id),
+            },
+          ),
+          funding && metadata[txidOfArkTransaction(funding)],
+        ),
+        historyKey,
+        ...(carrier
+          ? {
+              carrierMembers: mergeMembers(
+                membersOfTransactions(rawMembers),
+                carrier.txids.map((txid) => ({ txid, type: 'related' })),
+              ),
+            }
+          : {}),
+      }
+    })
   const renderedAssetSwaps = new Set<string>()
   const emittedRawMembers = new Set<string>()
   const swapByTxid = new Map<string, WalletAssetSwap | null>()
@@ -460,32 +489,7 @@ const projectActivities = (activities: Activity[], options: ActivityHistoryOptio
     )
     if (swap && (swapAllocation?.status === 'missing' || hasVerifiedMembership)) {
       rows.push(
-        swapRow(swap, () => {
-          const rawMembers = mergeArkTransactionMembers(activity.txs, correlatedMembers.get(swap.id) ?? [])
-          const members = rawMembers.map((tx) => arkTransactionToTx(tx))
-          const carrier = readCarrierActivity(swap.carrier)
-          // a grouped row takes its metadata from the tx the group is anchored on
-          const funding = rawMembers.find((tx) => txidOfArkTransaction(tx) === swap.fundingTxid)
-          return {
-            ...graftMetadata(
-              buildAssetSwapActivityTx(swap, carrier, members, {
-                network,
-                assetDisplay,
-                allocation: swapAllocation,
-              }),
-              funding && metadata[txidOfArkTransaction(funding)],
-            ),
-            historyKey: activity.id,
-            ...(carrier
-              ? {
-                  carrierMembers: mergeMembers(
-                    membersOfTransactions(rawMembers),
-                    carrier.txids.map((txid) => ({ txid, type: 'related' })),
-                  ),
-                }
-              : {}),
-          }
-        }),
+        assetSwapTx(swap, mergeArkTransactionMembers(activity.txs, correlatedMembers.get(swap.id) ?? []), activity.id),
       )
       renderedAssetSwaps.add(swap.id)
       continue
@@ -517,33 +521,8 @@ const projectActivities = (activities: Activity[], options: ActivityHistoryOptio
   }
   for (const swap of swaps) {
     if (!swap.id || !swap.offerHex || renderedAssetSwaps.has(swap.id)) continue
-    rows.push(
-      swapRow(swap, () => {
-        const carrier = readCarrierActivity(swap.carrier)
-        const rawMembers = [...(correlatedMembers.get(swap.id) ?? [])].sort((a, b) => a.createdAt - b.createdAt)
-        const members = rawMembers.map((tx) => arkTransactionToTx(tx))
-        const funding = rawMembers.find((tx) => txidOfArkTransaction(tx) === swap.fundingTxid)
-        return {
-          ...graftMetadata(
-            buildAssetSwapActivityTx(swap, carrier, members, {
-              network,
-              assetDisplay,
-              allocation: activityAllocation.swap(swap.id),
-            }),
-            funding && metadata[txidOfArkTransaction(funding)],
-          ),
-          historyKey: `swap:${swap.id}`,
-          ...(carrier
-            ? {
-                carrierMembers: mergeMembers(
-                  rawMembers.map((tx) => ({ txid: txidOfArkTransaction(tx), type: String(tx.type).toLowerCase() })),
-                  carrier.txids.map((txid) => ({ txid, type: 'related' })),
-                ),
-              }
-            : {}),
-        }
-      }),
-    )
+    const rawMembers = [...(correlatedMembers.get(swap.id) ?? [])].sort((a, b) => a.createdAt - b.createdAt)
+    rows.push(assetSwapTx(swap, rawMembers, `swap:${swap.id}`))
     renderedAssetSwaps.add(swap.id)
   }
   for (const member of activityAllocation.members()) {

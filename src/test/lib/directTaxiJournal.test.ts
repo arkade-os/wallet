@@ -121,41 +121,6 @@ describe('journalDirectTaxi', () => {
   })
 })
 
-describe('taxiActivityFromPending', () => {
-  it('takes the loan and fare from a covenant quote', async () => {
-    const record = await journal({ attempt: attempt('covenant', { topup: '330' }) })
-    expect(taxiActivityFromPending(record, 1_500)).toEqual({
-      role: 'sender',
-      network: 'regtest',
-      taxiUrl: TAXI_URL,
-      transferId: TRANSFER,
-      mode: 'recycle',
-      assetId: ASSET_ID,
-      units: '1',
-      carrierSats: '330',
-      fare: { currency: 'sats', units: '7' },
-      destination: RECEIVER_ADDRESS,
-      lockupTxid: LOCKUP,
-      state: 'quoted',
-      updatedAt: 1_500,
-      createdAt: 1_500,
-    })
-  })
-
-  it('takes a sponsored contribution as the carrier', async () => {
-    const record = await journal({ mode: 'sponsored', attempt: attempt('sponsored', { contribution: '329' }) })
-    expect(taxiActivityFromPending(record, 1_500)).toMatchObject({ mode: 'sponsored', carrierSats: '329' })
-  })
-
-  it('names no carrier or fare without the signed attempt, and reads an empty asset as bitcoin', async () => {
-    const activity = taxiActivityFromPending(await journal({ assetId: '', assetAmount: '100' }), 1_500)
-    expect(activity).toMatchObject({ units: '100' })
-    expect(activity).not.toHaveProperty('assetId')
-    expect(activity).not.toHaveProperty('carrierSats')
-    expect(activity).not.toHaveProperty('fare')
-  })
-})
-
 describe('resumePendingDirectTaxi', () => {
   it('resumes only the journaled transfer, under the lock a new send takes', async () => {
     await journal()

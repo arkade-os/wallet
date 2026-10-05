@@ -13,7 +13,7 @@ export const MANIFEST_PATH = `${VENDOR_DIR}/manifest.json`
 
 const TS_SDK = 'https://github.com/arkade-os/ts-sdk.git'
 const ARKADE_TAXI = 'https://github.com/ArkLabsHQ/arkade-taxi.git'
-const SDK_COMMIT = '03131f899fa30e78fb61075021136023900d823f'
+const SDK_COMMIT = '73b789a1a6c6edc4a820a1a9b9e86908cca07c68'
 const TAXI_COMMIT = '946e851c03fa2f81c4311f6551e4acb8dfcf67f0'
 
 // Moving to a new candidate is an edit HERE, so `verify.mjs` can refuse an
@@ -21,6 +21,7 @@ const TAXI_COMMIT = '946e851c03fa2f81c4311f6551e4acb8dfcf67f0'
 export const PINNED_SOURCES = {
   '@arkade-os/sdk': { repository: TS_SDK, commit: SDK_COMMIT, directory: 'packages/ts-sdk' },
   '@arkade-os/swap': { repository: TS_SDK, commit: SDK_COMMIT, directory: 'packages/swap' },
+  '@arkade-os/taxi': { repository: TS_SDK, commit: SDK_COMMIT, directory: 'packages/taxi' },
   '@arkade-taxi/covenant': { repository: ARKADE_TAXI, commit: TAXI_COMMIT, directory: 'packages/covenant' },
   '@arkade-taxi/protocol': { repository: ARKADE_TAXI, commit: TAXI_COMMIT, directory: 'packages/protocol' },
   '@arkade-taxi/client': { repository: ARKADE_TAXI, commit: TAXI_COMMIT, directory: 'packages/client' },
@@ -29,7 +30,13 @@ export const PINNED_SOURCES = {
 export const PINNED_PACKAGES = Object.keys(PINNED_SOURCES)
 
 /** Frozen packages the wallet declares directly, rather than reaching transitively. */
-export const DIRECT_DEPENDENCIES = ['@arkade-os/sdk', '@arkade-os/swap', '@arkade-taxi/client', '@arkade-taxi/protocol']
+export const DIRECT_DEPENDENCIES = [
+  '@arkade-os/sdk',
+  '@arkade-os/swap',
+  '@arkade-os/taxi',
+  '@arkade-taxi/client',
+  '@arkade-taxi/protocol',
+]
 
 /** Why this archive is not the pinned source, or `undefined` when it is. */
 export function pinnedSourceMismatch(artifact) {
@@ -48,6 +55,7 @@ export const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex'
 // in `adc6b329` and neither published build of any version exports one.
 export const CANDIDATE_SWAP_SYMBOL = 'FundingOutputMismatchError'
 export const CANDIDATE_SDK_SYMBOL = 'SendDeadlineExceededError'
+export const CANDIDATE_TAXI_SYMBOL = 'TaxiClaimQueue'
 
 // A gzipped tar without a tar dependency: decode the POSIX ustar fields, skip the rest by size.
 export function readTarMember(archivePath, member) {

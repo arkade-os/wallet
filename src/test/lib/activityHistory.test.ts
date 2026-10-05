@@ -162,7 +162,7 @@ describe('activitiesToTxs', () => {
     expect(rows.map((row) => row.historyKey).sort()).toEqual(['swap:intent-1', 'swap:intent-2'])
   })
 
-  it('coalesces uniquely correlated raw funding and carrier members before resolver grouping', () => {
+  it('preserves funding metadata, carrier members and Taxi overlays when resolver grouping arrives', () => {
     const fundingTxid = '1'.repeat(64)
     const claimTxid = '2'.repeat(64)
     const carrier: NonNullable<WalletAssetSwap['carrier']> = {
@@ -173,6 +173,7 @@ describe('activitiesToTxs', () => {
       purchasedSats: '330',
       receiptSats: '0',
       serviceFareSats: '0',
+      taxi: { transferId: 'carrier-transfer' },
       state: 'claimed',
       txids: [claimTxid],
     }
@@ -184,18 +185,42 @@ describe('activitiesToTxs', () => {
     })
     const claim = arkTx(claimTxid, { amount: 0, createdAt: 1_700_000_005_000 })
 
-    const before = activitiesToTxs([activity('raw-funding', [funding]), activity('raw-claim', [claim])], {
-      ...empty,
+    const options = {
       swaps: [record],
-    })
-    const after = activitiesToTxs([activity('swap:intent-1', [funding, claim], swapIntent('intent-1'))], {
-      ...empty,
-      swaps: [record],
-    })
+      metadata: {
+        [fundingTxid]: { destination: 'tark1recipient', networkFee: 12, savedAt: 0 },
+        [claimTxid]: { destination: 'different-recipient', networkFee: 99, savedAt: 0 },
+      },
+      taxi: [
+        {
+          role: 'receiver' as const,
+          network: 'regtest',
+          taxiUrl: 'https://taxi.example',
+          transferId: 'carrier-transfer',
+          units: '992',
+          assetId: record.toAsset,
+          mode: 'purchase' as const,
+          state: 'purchased',
+          claimTxid,
+          createdAt: 1_700_000_000,
+          updatedAt: 1_700_000_005,
+        },
+      ],
+    }
+    const before = activitiesToTxs([activity('raw-funding', [funding]), activity('raw-claim', [claim])], options)
+    const after = activitiesToTxs([activity('swap:intent-1', [funding, claim], swapIntent('intent-1'))], options)
 
+    expect(before).toEqual(after)
     for (const rows of [before, after]) {
       expect(rows).toHaveLength(1)
-      expect(rows[0]).toMatchObject({ amount: 10_000, historyKey: 'swap:intent-1', type: 'swap' })
+      expect(rows[0]).toMatchObject({
+        amount: 10_000,
+        historyKey: 'swap:intent-1',
+        type: 'swap',
+        destination: 'tark1recipient',
+        networkFee: 12,
+        taxi: { transferId: 'carrier-transfer', state: 'purchased' },
+      })
       expect(rows[0].carrierMembers).toEqual([
         { txid: fundingTxid, type: 'sent' },
         { txid: claimTxid, type: 'received' },

@@ -5,12 +5,8 @@ import { fromSatoshis, prettyNumber, toSatoshis } from './format'
 import { isValidArkAddress } from '@arkade-os/sdk'
 import { centsToUnits } from './assets'
 
-export interface Bip21Taxi {
-  url: string
-  operatorKey?: string
-  fareId?: string
-  payer?: 'receiver' | 'sender'
-}
+import { decodeTaxiParams, encodeTaxiParams, type Bip21Taxi } from '@arkade-os/taxi'
+export type { Bip21Taxi } from '@arkade-os/taxi'
 
 export interface Bip21Decoded {
   address?: string
@@ -90,42 +86,10 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
       }
     }
 
-    // Malformed legacy keys drop the Taxi; explicit repayment preferences must never be weakened.
-    const payerParams = [...params].filter(([key]) => key.toLowerCase() === 'taxipayer')
-    const payer = payerParams[0]?.[1]
-    if (payerParams.length > 1 || (payer !== undefined && payer !== 'receiver' && payer !== 'sender'))
-      throw new Error('Invalid Taxi repayment preference')
-    const taxiUrl = getParam('taxi')
-    const taxiKey = getParam('taxikey')
-    if (taxiUrl != null && (taxiKey === null || /^[0-9a-f]{64}$/.test(taxiKey))) {
-      try {
-        const parsed = new URL(taxiUrl)
-        if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-          const fareId = getParam('taxifare')
-          result.taxi = {
-            url: taxiUrl,
-            ...(taxiKey ? { operatorKey: taxiKey } : {}),
-            ...(fareId ? { fareId } : {}),
-            ...(payer ? { payer } : {}),
-          }
-        }
-      } catch {
-        // not a parseable URL — leave result.taxi undefined
-      }
-    }
-    if (payer !== undefined && !result.taxi) throw new Error('Invalid Taxi repayment preference')
+    result.taxi = decodeTaxiParams(params)
   }
 
   return result
-}
-
-// Only ever appended after an ark= param, so it always continues a query.
-const taxiParams = (taxi?: Bip21Taxi) => {
-  if (!taxi) return ''
-  const fare = taxi.fareId ? `&taxifare=${encodeURIComponent(taxi.fareId)}` : ''
-  const payer = taxi.payer ? `&taxipayer=${encodeURIComponent(taxi.payer)}` : ''
-  const key = taxi.operatorKey ? `&taxikey=${encodeURIComponent(taxi.operatorKey)}` : ''
-  return `&taxi=${encodeURIComponent(taxi.url)}${key}${fare}${payer}`
 }
 
 export const encodeBip21 = (
@@ -142,7 +106,7 @@ export const encodeBip21 = (
     (invoice ? `lightning=${invoice}&` : lnurl ? `lightning=${lnurl}&` : '') +
     // useGrouping=false: BIP21 amounts must be plain decimals, never '1,000'
     (sats ? `amount=${prettyNumber(fromSatoshis(sats), 8, false)}` : '')
-  return (bip21.endsWith('&') || bip21.endsWith('?') ? bip21.slice(0, -1) : bip21) + taxiParams(taxi)
+  return (bip21.endsWith('&') || bip21.endsWith('?') ? bip21.slice(0, -1) : bip21) + encodeTaxiParams(taxi)
 }
 
 export const encodeBip21Asset = (
@@ -151,7 +115,7 @@ export const encodeBip21Asset = (
   cents: bigint,
   decimals?: number,
   taxi?: Bip21Taxi,
-) => `bitcoin:?ark=${arkAddress}&assetid=${assetId}&amount=${centsToUnits(cents, decimals)}${taxiParams(taxi)}`
+) => `bitcoin:?ark=${arkAddress}&assetid=${assetId}&amount=${centsToUnits(cents, decimals)}${encodeTaxiParams(taxi)}`
 
 export const isBip21 = (data: string): boolean => {
   try {

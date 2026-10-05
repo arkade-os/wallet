@@ -1,4 +1,4 @@
-import { createElement, useContext } from 'react'
+import { StrictMode, createElement, useContext } from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ExtendedVirtualCoin, Identity } from '@arkade-os/sdk'
@@ -100,9 +100,13 @@ const tree = (
   wallet: { initialized?: boolean; authState?: string; vtxos?: { spendable: unknown[]; spent: unknown[] } } = {},
   network = 'regtest',
   config: { autoClaimFreeTaxi?: boolean; configLoaded?: boolean } = {},
+  serverUrl = mockAspContextValue.aspInfo.url,
 ) => (
   <AspContext.Provider
-    value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network, signerPubkey: KEYS.server } }}
+    value={{
+      ...mockAspContextValue,
+      aspInfo: { ...mockAspContextValue.aspInfo, network, signerPubkey: KEYS.server, url: serverUrl },
+    }}
   >
     <WalletContext.Provider
       value={{ ...mockWalletContextValue, svcWallet, initialized: true, authState: 'authenticated', ...wallet } as any}
@@ -193,6 +197,15 @@ describe('ReceiverClaimsProvider', () => {
     expect(stop).toHaveBeenCalledTimes(2)
   })
 
+  it('claims after React replays the provider lifecycle in StrictMode', async () => {
+    render(<StrictMode>{tree()}</StrictMode>)
+    await waitFor(() => expect(watchReceiverClaims).toHaveBeenCalled())
+    const item = offerOf(bitcoinClaim(280n))
+    offer(item.verified)
+    await waitFor(() => expect(item.recycle).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(screen.getByTestId('probe')).not.toHaveTextContent(offerKey(item.verified)))
+  })
+
   it.each([bitcoinClaim(280n), satsFareClaim(0n), assetFareClaim(0n)])(
     'automatically claims a verified free delivery',
     async (delivery) => {
@@ -204,33 +217,6 @@ describe('ReceiverClaimsProvider', () => {
       expect(readTaxiActivity('regtest')).toMatchObject([{ state: 'recycled', claimTxid: 'f'.repeat(64) }])
     },
   )
-
-  it('automatically purchases a free delivery without a funding coin', async () => {
-    spendable = async () => []
-    await mounted()
-    const item = offerOf(bitcoinClaim(280n, 'purchase'))
-    const purchase = vi.fn(async () => 'e'.repeat(64))
-    item.verified.client.purchase = purchase
-    offer(item.verified)
-    await waitFor(() => expect(purchase).toHaveBeenCalledTimes(1))
-    expect(item.recycle).not.toHaveBeenCalled()
-  })
-
-  it('continues past priced and waiting deliveries to another free claim', async () => {
-    spendable = async () => []
-    await mounted()
-    const priced = offerOf()
-    const waiting = offerOf(bitcoinClaim(280n))
-    const free = offerOf(bitcoinClaim(270n, 'purchase'))
-    const purchase = vi.fn(async () => 'e'.repeat(64))
-    free.verified.client.purchase = purchase
-    offer(priced.verified)
-    offer(waiting.verified)
-    offer(free.verified)
-    await waitFor(() => expect(purchase).toHaveBeenCalledTimes(1))
-    expect(priced.recycle).not.toHaveBeenCalled()
-    expect(waiting.recycle).not.toHaveBeenCalled()
-  })
 
   it('serializes claims, awaits wallet reload, and never reuses a stale consumed coin', async () => {
     let release: () => void = () => {}
@@ -283,7 +269,44 @@ describe('ReceiverClaimsProvider', () => {
     expect(await screen.findByTestId('claim-spent')).toBeInTheDocument()
   })
 
-  it.each(['lock', 'network', 'unmount', 'withdraw'])(
+  it('keeps an uncertain claim one-shot across locking, stale feed events and stale coins', async () => {
+    const view = await mounted()
+    const item = offerOf(
+      bitcoinClaim(280n),
+      vi.fn(async () => {
+        throw new Error('claim accepted but response lost')
+      }),
+    )
+    offer(item.verified)
+    expect(await screen.findByTestId('claim-spent')).toBeInTheDocument()
+    view.rerender(tree({ initialized: false, authState: 'locked' }))
+    view.rerender(tree())
+    await waitFor(() => expect(watchReceiverClaims).toHaveBeenCalledTimes(2))
+    offer({ ...item.verified })
+    act(() => void window.dispatchEvent(new Event('focus')))
+    await act(async () => {})
+    expect(item.recycle).toHaveBeenCalledTimes(1)
+    expect(await screen.findByTestId('claim-spent')).toBeInTheDocument()
+    expect(claimButton()).toBeDisabled()
+  })
+
+  it('keeps a completed claim completed across locking and a stale feed event', async () => {
+    const view = await mounted()
+    const item = offerOf(bitcoinClaim(280n))
+    offer(item.verified)
+    await waitFor(() => expect(screen.getByTestId('probe')).not.toHaveTextContent(offerKey(item.verified)))
+    expect(item.recycle).toHaveBeenCalledTimes(1)
+    view.rerender(tree({ initialized: false, authState: 'locked' }))
+    view.rerender(tree())
+    await waitFor(() => expect(watchReceiverClaims).toHaveBeenCalledTimes(2))
+    offer({ ...item.verified })
+    act(() => void window.dispatchEvent(new Event('focus')))
+    await act(async () => {})
+    expect(item.recycle).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('probe')).not.toHaveTextContent(offerKey(item.verified))
+  })
+
+  it.each(['lock', 'network', 'server', 'unmount', 'withdraw'])(
     'does not sign a free claim after %s while its funding read is pending',
     async (change) => {
       const view = await mounted()
@@ -295,6 +318,7 @@ describe('ReceiverClaimsProvider', () => {
       await waitFor(() => expect(readFunding).toHaveBeenCalled())
       if (change === 'lock') view.rerender(tree({ initialized: false, authState: 'locked' }))
       if (change === 'network') view.rerender(tree({}, 'mutinynet'))
+      if (change === 'server') view.rerender(tree({}, 'regtest', {}, 'https://other.arkd.example'))
       if (change === 'unmount') view.unmount()
       if (change === 'withdraw') act(() => latestWatch().onGone(offerKey(item.verified)))
       await act(async () => release(coins([1000n])))
@@ -457,7 +481,7 @@ describe('ReceiverClaimsProvider', () => {
     }
   })
 
-  it.each(['lock', 'network', 'disabled', 'unmount', 'withdraw'])(
+  it.each(['lock', 'reunlock', 'network', 'server', 'disabled', 'unmount', 'withdraw'])(
     'checks authorization at the actual signer after provider reads when %s',
     async (change) => {
       const view = await mounted()
@@ -475,7 +499,12 @@ describe('ReceiverClaimsProvider', () => {
         offer(item.verified)
         await waitFor(() => expect(entered).toBe(true))
         if (change === 'lock') view.rerender(tree({ initialized: false, authState: 'locked' }))
+        if (change === 'reunlock') {
+          view.rerender(tree({ initialized: false, authState: 'locked' }))
+          view.rerender(tree())
+        }
         if (change === 'network') view.rerender(tree({}, 'mutinynet'))
+        if (change === 'server') view.rerender(tree({}, 'regtest', {}, 'https://other.arkd.example'))
         if (change === 'disabled') view.rerender(tree({}, 'regtest', { autoClaimFreeTaxi: false }))
         if (change === 'unmount') view.unmount()
         if (change === 'withdraw') act(() => latestWatch().onGone(offerKey(item.verified)))
