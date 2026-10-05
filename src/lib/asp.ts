@@ -76,42 +76,6 @@ export const aspErrorText = (info: AspInfo, fallback: string, outdatedText?: str
       'Your wallet is outdated and needs to be updated to be compatible with the latest Arkade version.')
     : fallback
 
-export const collaborativeExit = async (wallet: IWallet, amount: number, address: string): Promise<string> => {
-  const vtxos = await wallet.getVtxos()
-  const selectedVtxos = []
-  let selectedAmount = 0
-
-  for (const vtxo of vtxos) {
-    if (selectedAmount >= amount) break
-    selectedVtxos.push(vtxo)
-    selectedAmount += vtxo.value
-  }
-
-  if (selectedAmount < amount) throw new Error('Insufficient funds')
-
-  const outputs = [{ address, amount: BigInt(amount) }]
-
-  const changeAmount = selectedAmount - amount
-
-  if (changeAmount > 0) {
-    const { offchainAddr } = await getReceivingAddresses(wallet)
-    outputs.push({ address: offchainAddr, amount: BigInt(changeAmount) })
-  }
-
-  outputs.reverse() // fix for exit with assets
-
-  try {
-    return await wallet.settle({ inputs: selectedVtxos, outputs })
-  } catch (error) {
-    await captureSettleError(error, wallet, 'collaborativeExit', {
-      amount,
-      changeAmount,
-      ...summarizeInputs(selectedVtxos),
-    })
-    throw error
-  }
-}
-
 // Compare by batch expiry ascending; VTXOs without an expiry sort last.
 export const byExpiryAsc = (a: { expiresAt?: Date | null }, b: { expiresAt?: Date | null }): number =>
   (a.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY) - (b.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY)
@@ -122,7 +86,8 @@ export const collaborativeExitWithFees = async (
   outputAmount: number,
   address: string,
 ): Promise<string> => {
-  const vtxos = await wallet.getVtxos()
+  // The SDK's own settle selector: escrowed, gated and intent-locked coins stay out.
+  const vtxos = await wallet.getSpendableVtxos({ withRecoverable: true, genericallySpendableOnly: true })
   const selectedVtxos = []
   let selectedAmount = 0
 
@@ -335,7 +300,7 @@ export const settleVtxos = async (
 
 export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> => {
   const cm = await wallet.getContractManager()
-  const contractWithVtxos = await cm.getContractsWithVtxos({ type: 'delegate' })
+  const contractWithVtxos = await cm.getContractsWithVtxos({ type: 'delegate' }, undefined, { unspentOnly: true })
   const dm = await wallet.getDelegateManager()
 
   if (!dm) {
@@ -365,7 +330,8 @@ export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> 
       const contractDelegatePubKey = hex.encode(contractParams.delegatePubKey) // x-only (32 bytes)
       return contractDelegatePubKey === delegateInfoPubKey
     })
-    .flatMap((_) => _.vtxos)
+    // A worker older than SDK 0.4.77 ignores `unspentOnly`.
+    .flatMap((_) => _.vtxos.filter((vtxo) => !isVtxoSpent(vtxo)))
 
   if (vtxosToDelegate.length === 0) return
   const destination = await wallet.getAddress()

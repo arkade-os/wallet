@@ -1,7 +1,8 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useMemo, useState } from 'react'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
+import SegmentedControl from '../../../components/SegmentedControl'
 import { FlowContext } from '../../../providers/flow'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
@@ -25,8 +26,7 @@ import InputAmount from '../../../components/InputAmount'
 import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
 import SheetModal from '../../../components/SheetModal'
 import Text, { TextSecondary } from '../../../components/Text'
-import { copyToClipboard } from '../../../lib/clipboard'
-import { useToast } from '../../../components/Toast'
+import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard'
 import { prettyLongText, prettyNumber, toSatoshis } from '../../../lib/format'
 import CopyIcon from '../../../icons/Copy'
 import CheckMarkIcon from '../../../icons/CheckMark'
@@ -45,18 +45,6 @@ import { AssetsContext } from '../../../providers/assets'
 import { SwapsContext } from '../../../providers/swaps'
 import { useTranslation } from '../../../providers/language'
 
-/**
- * Decide which value the QR should encode. Honours an explicit copy-sheet
- * selection, but only while that value is still one we currently offer — once
- * the selected address is regenerated or removed (e.g. an amount
- * change), fall back to the unified BIP21 URI. This stops async rebuilds from
- * silently reverting the user's pick and copying the wrong thing.
- */
-export const resolveQrValue = (selected: string, options: { bip21: string; btc: string; ark: string }): string => {
-  const candidates = [options.bip21, options.btc, options.ark].filter(Boolean)
-  return selected && candidates.includes(selected) ? selected : options.bip21
-}
-
 export default function ReceiveQRCode() {
   const { aspInfo } = useContext(AspContext)
   const { isRegistered } = useContext(AssetsContext)
@@ -70,7 +58,7 @@ export default function ReceiveQRCode() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { t } = useTranslation()
 
-  const { toast } = useToast()
+  const copyToClipboard = useCopyToClipboard()
 
   const [assetAmount, setAssetAmount] = useState(BigInt(0))
   const [amountTextValue, setAmountTextValue] = useState('')
@@ -99,8 +87,11 @@ export default function ReceiveQRCode() {
   const [noPaymentMethods, setNoPaymentMethods] = useState(false)
   const [arkAddress, setArkAddress] = useState(offchainAddr)
   const [btcAddress, setBtcAddress] = useState(boardingAddr)
-  const [qrCodeValue, setQrCodeValue] = useState('')
-  const [selectedValue, setSelectedValue] = useState('')
+  // The user's chosen payment method. This is the source of truth, not the
+  // encoded value: an invoice is re-minted on every amount change, so a
+  // value-keyed selection would be dropped and never come back. Keying on the
+  // method id lets the choice survive the invoice being briefly absent.
+  const [selectedMethod, setSelectedMethod] = useState('unified')
   const [bip21Uri, setBip21Uri] = useState('')
   const [lnReceiveError, setLnReceiveError] = useState('')
   // A negotiation that failed at the local registration step left nothing
@@ -237,18 +228,56 @@ export default function ReceiveQRCode() {
     setArkAddress(ark)
     setBtcAddress(btc)
     setBip21Uri(bip21)
-    // Preserve an explicit copy-sheet selection across rebuilds; only fall back
-    // to the unified URI when the selected value is no longer one we offer.
-    setQrCodeValue(resolveQrValue(selectedValue, { bip21, btc, ark }))
   }, [
     assetAmount,
     addressesLoaded,
-    selectedValue,
+    isAssetReceive,
     recvInfo.offchainAddr,
     recvInfo.boardingAddr,
     recvInfo.satoshis,
     recvInfo.invoice,
   ])
+
+  /**
+   * The payment methods we can render right now, in display order.
+   *
+   * Keyed off a stable id rather than the URI itself: the Lightning invoice is
+   * re-minted whenever the amount is renegotiated, so a selection tracked by
+   * value would silently fall back to unified on the next rebuild and never come
+   * back. The ids are what the selector and the copy sheet both key off, so
+   * choosing a method means the same thing wherever it is changed from.
+   *
+   * The Lightning entry only exists once a solver has minted an invoice, which
+   * needs an amount of at least the corridor minimum — below that there is
+   * nothing to offer and the entry is simply absent.
+   *
+   * Labels are deliberately short: these sit in a horizontal control, and
+   * "Lightning invoice" / "Arkade address" crowd it on a narrow phone. The copy
+   * sheet keeps the descriptive wording, where the row shows the value anyway.
+   */
+  const paymentMethods = useMemo(() => {
+    const methods: { id: string; label: string; value: string }[] = []
+    if (bip21Uri) methods.push({ id: 'unified', label: t('receive.unified'), value: bip21Uri })
+    if (recvInfo.invoice)
+      methods.push({ id: 'lightning', label: t('receive.methodLightning'), value: recvInfo.invoice })
+    if (arkAddress) methods.push({ id: 'ark', label: t('receive.methodArkade'), value: arkAddress })
+    if (btcAddress) methods.push({ id: 'bitcoin', label: t('receive.methodBitcoin'), value: btcAddress })
+    return methods
+  }, [bip21Uri, recvInfo.invoice, arkAddress, btcAddress, t])
+
+  // What the QR encodes, and what the selector highlights, are two different
+  // questions. The *choice* is `selectedMethod` and it is remembered even while
+  // the method is momentarily un-offerable (an invoice being re-negotiated), so
+  // it comes back on its own. What we *show* has to be something we actually
+  // hold right now, so it falls back to unified — and the highlight follows the
+  // fallback, because leaving it lit on a method with no value is a lie.
+  const activeMethod = useMemo(() => {
+    if (paymentMethods.some((m) => m.id === selectedMethod)) return selectedMethod
+    if (paymentMethods.some((m) => m.id === 'unified')) return 'unified'
+    return paymentMethods[0]?.id ?? ''
+  }, [paymentMethods, selectedMethod])
+
+  const qrCodeValue = paymentMethods.find((m) => m.id === activeMethod)?.value ?? ''
 
   // Payment listener
   useEffect(() => {
@@ -312,10 +341,10 @@ export default function ReceiveQRCode() {
   const handleCopy = async (value: string) => {
     if (generatingInvoice) return
     if (!prefersReducedMotion) hapticSubtle()
-    await copyToClipboard(value)
-    toast(t('common.copiedToClipboard'))
+    const copied = await copyToClipboard(value)
+    // Close the sheet even on failure so the picker is not stranded.
     setShowCopySheet(false)
-    setCopied(value)
+    if (copied) setCopied(value)
   }
 
   const handleCopyButton = async () => {
@@ -323,9 +352,8 @@ export default function ReceiveQRCode() {
     if (!prefersReducedMotion) hapticSubtle()
     setShowCopySheet(true)
     if (qrCodeValue && copied !== qrCodeValue) {
-      await copyToClipboard(qrCodeValue)
-      toast(t('common.copiedToClipboard'))
-      setCopied(qrCodeValue)
+      const written = await copyToClipboard(qrCodeValue)
+      if (written) setCopied(qrCodeValue)
     }
   }
 
@@ -395,6 +423,16 @@ export default function ReceiveQRCode() {
   // handleAmountConfirm/handleAmountClear decide between asset units and sats.
   const hasAmount = assetMeta ? assetAmount > BigInt(0) : satoshis > 0
 
+  /**
+   * Point the QR at one method. Selecting only chooses what is shown — the Copy
+   * button still copies whatever is on screen, so choosing a method never
+   * overwrites the clipboard behind the user's back.
+   */
+  const handleMethodChange = (id: string) => {
+    if (!paymentMethods.some((m) => m.id === id)) return
+    setSelectedMethod(id)
+  }
+
   // Mobile keyboard — bypass sheet on save, go straight to QR
   if (showKeys) {
     return (
@@ -453,8 +491,20 @@ export default function ReceiveQRCode() {
                   ) : null}
                 </FlexCol>
               ) : null}
+              {paymentMethods.length > 1 ? (
+                <div className='mt-20 mb-3 w-full max-w-85'>
+                  <SegmentedControl
+                    options={paymentMethods.map((m) => m.id)}
+                    selected={activeMethod}
+                    onChange={handleMethodChange}
+                    getLabel={(id) => paymentMethods.find((m) => m.id === id)?.label ?? id}
+                  />
+                </div>
+              ) : null}
               <div
-                className='receive-invoice-stage mt-20 aspect-square w-full max-w-85'
+                className={`receive-invoice-stage aspect-square w-full max-w-85 ${
+                  paymentMethods.length > 1 ? '' : 'mt-20'
+                }`}
                 data-generating={generatingInvoice}
               >
                 <div
@@ -576,9 +626,8 @@ export default function ReceiveQRCode() {
             invoice={recvInfo.invoice ?? ''}
             onCopy={handleCopy}
             onSelect={(v) => {
-              setSelectedValue(v)
-              setQrCodeValue(v)
-              handleCopy(v)
+              const method = paymentMethods.find((m) => m.value === v)
+              if (method) handleMethodChange(method.id)
             }}
             copied={copied}
           />
