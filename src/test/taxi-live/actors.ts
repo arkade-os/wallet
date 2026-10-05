@@ -500,9 +500,9 @@ export async function taxiConfirmation(alice: Actor): Promise<void> {
   await expect(costs).toContainText('330')
 }
 
-export async function claim(bob: Actor, plan: RegExp): Promise<void> {
+export async function claim(bob: Actor, plan: string | RegExp): Promise<void> {
   await expect(bob.page.getByText('Claim your Taxi delivery', { exact: true })).toBeVisible()
-  await expect(bob.page.getByTestId('claim-plan')).toContainText(plan)
+  await expect(bob.page.getByTestId('claim-plan')).toHaveText(plan)
   await bob.page.getByRole('button', { name: 'Claim', exact: true }).click()
   await expect(bob.page.getByText('Claim your Taxi delivery', { exact: true })).not.toBeVisible()
   const success = bob.page.getByRole('button', { name: /Sounds good|Tap to go home/ })
@@ -570,7 +570,7 @@ export async function recycleOne(alice: Actor, bob: Actor, assetId: string, requ
   await prepareSend(alice, request ?? (await receiveRequest(bob, assetId)), 'Receiver uses own sats')
   await confirmSend(alice, true)
   const advance = await newAdvance(known)
-  await claim(bob, /merges with the delivery/)
+  await claim(bob, /^Your sats balance stays unchanged: your [\d,]+ sats coin comes back whole\.$/)
   await expectLedger(parties, assetId, {
     alice: shift(before.alice, 0n, -1n),
     bob: shift(before.bob, 0n, 1n),

@@ -84,7 +84,7 @@ test(
         await prepareSend(cleo, await receiveRequest(bob, xyzC, null, '1', 'sender'), 'Sender pays asset fare')
         await confirmSend(cleo, true)
         const purchase = await newAdvance(known)
-        await claim(bob, /330 sats with no sats needed/)
+        await claim(bob, 'The sender paid for the carrier. You receive 330 sats with no sats needed.')
         await expectLedger(parties, xyzC, {
           cleo: shift(purchased.cleo, 0n, -2n),
           bob: shift(purchased.bob, 330n, 1n),
@@ -110,7 +110,7 @@ test(
           await cleo.page.getByRole('button', { name: tr.common.continue, exact: true }).click()
           await confirmSend(cleo, true)
           const { id } = await newAdvance(known)
-          await claim(bob, /merges with the delivery/)
+          await claim(bob, 'Your 330 sats coin merges with the delivery and comes back as 430 sats.')
           await expectLedger(parties, '', {
             cleo: shift(before.cleo, -100n),
             bob: shift(before.bob, 100n),

@@ -96,7 +96,7 @@ test('A Taxi payment whose outcome the wallet did not see', { tag: '@pending' },
       }
       expect(await journaled(alice)).toBe(false)
       expect(await newAdvances(known)).toEqual([])
-      await claim(bob, /merges with the delivery/)
+      await claim(bob, 'Your sats balance stays unchanged: your 1,000 sats coin comes back whole.')
       await expect.poll(async () => (await taxiStatus(id)).state).toBe('recycled')
       await expectLedger(parties, assetId, {
         alice: shift(before.alice, 0n, -1n),

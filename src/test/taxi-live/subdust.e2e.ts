@@ -88,7 +88,7 @@ test(
         await claim(
           bob,
           new RegExp(
-            `Your ${coin.toLocaleString('en-US')} sats coin merges with the delivery and comes back as ${(coin + BigInt(SATS)).toLocaleString('en-US')} sats\\.`,
+            `^Your ${coin.toLocaleString('en-US')} sats coin merges with the delivery and comes back as ${(coin + BigInt(SATS)).toLocaleString('en-US')} sats\\.$`,
           ),
         )
         await expectLedger(parties, '', {

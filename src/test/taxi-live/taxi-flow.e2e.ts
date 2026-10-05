@@ -305,7 +305,9 @@ test('Alice sends XYZ through Taxi', { tag: '@asset-modes' }, async ({ browser }
       const { advances: beforeQuotes } = await admin<{ advances: { id: string }[] }>('advances')
       await prepareSend(alice, request, 'Sender pays asset fare')
       await taxiConfirmation(alice)
-      await expect(alice.page.getByTestId('taxi-confirm-costs')).toContainText(/fare/i)
+      await expect(alice.page.getByTestId('taxi-confirm-costs')).toHaveText(
+        'Send 1 XYZ. Service fee: 1 XYZ. Taxi carrier: 330 sats. The receiver claims the purchased carrier without their own sats.',
+      )
       const { advances } = await admin<{
         advances: {
           id: string
@@ -346,7 +348,7 @@ test('Alice sends XYZ through Taxi', { tag: '@asset-modes' }, async ({ browser }
       const { advances: reconciled } = await admin<{ advances: { id: string }[] }>('advances')
       expect(reconciled.map((advance) => advance.id).sort()).toEqual(advances.map((advance) => advance.id).sort())
       reconciledTransfers.push(transferId)
-      await claim(bob, /330|purchase|carrier/i)
+      await claim(bob, 'The sender paid for the carrier. You receive 330 sats with no sats needed.')
       await expectBalances({
         alice: { sats: before.alice.sats, units: (BigInt(before.alice.units) - 2n).toString() },
         bob: { sats: '330', units: '1' },
@@ -360,7 +362,7 @@ test('Alice sends XYZ through Taxi', { tag: '@asset-modes' }, async ({ browser }
       const before = await snapshot('before recycle')
       await prepareSend(alice, request, 'Receiver uses own sats')
       await confirmSend(alice, true)
-      await claim(bob, /comes back|merges|repaid/i)
+      await claim(bob, 'Your sats balance stays unchanged: your 330 sats coin comes back whole.')
       await expectBalances({
         alice: { sats: before.alice.sats, units: (BigInt(before.alice.units) - 1n).toString() },
         bob: { sats: before.bob.sats, units: '2' },

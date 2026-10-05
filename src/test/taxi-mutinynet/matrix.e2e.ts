@@ -179,7 +179,7 @@ test('Chrome sender and Edge receiver: exact bitcoin, asset recycle, claims, his
         await alice.page.getByRole('button', { name: 'Check again', exact: true }).click()
         if (amount === 329) {
           await bob.page.evaluate(() => window.dispatchEvent(new Event('focus')))
-          await claim(bob, /merges with the delivery/)
+          await claim(bob, 'Your 1,500 sats coin merges with the delivery and comes back as 1,829 sats.')
         } else {
           await claimFromActivity(bob)
         }
@@ -279,7 +279,7 @@ test('Chrome sender and Edge receiver: exact bitcoin, asset recycle, claims, his
       expect(requests).toHaveLength(count)
       expect(await ledger(parties, assetId, ARKD)).toEqual(before)
       const transfer = await openTransfer(() => prepareSend(alice, request, 'Receiver uses own sats'), 330)
-      await claim(bob, /merges with the delivery/)
+      await claim(bob, 'Your sats balance stays unchanged: your 1,929 sats coin comes back whole.')
       await verifyRecycled(transfer.id)
       await expect
         .poll(() => ledger(parties, assetId, ARKD))
@@ -322,7 +322,10 @@ test('Chrome sender and Edge receiver: exact bitcoin, asset recycle, claims, his
       try {
         if ((await status(transfer.id)).state === 'locked' && bob) {
           await bob.page.evaluate(() => window.dispatchEvent(new Event('focus')))
-          await claim(bob, /merges with the delivery/)
+          await claim(
+            bob,
+            /^Your sats balance stays unchanged: your [\d,]+ sats coin comes back whole\.$|^Your [\d,]+ sats coin merges with the delivery and comes back as [\d,]+ sats\.$/,
+          )
           await expect.poll(async () => (await status(transfer.id)).state).toBe('recycled')
         }
         const remaining = await status(transfer.id)

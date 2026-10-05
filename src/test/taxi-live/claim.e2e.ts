@@ -32,7 +32,7 @@ import {
 } from './actors'
 
 const TITLE = 'Claim your Taxi delivery'
-const MERGE = 'Your 1,000 sats coin merges with the delivery and comes back as 1,000 sats.'
+const MERGE = 'Your sats balance stays unchanged: your 1,000 sats coin comes back whole.'
 
 const refocus = (page: Page) => page.evaluate(() => window.dispatchEvent(new Event('focus')))
 const claimButton = (page: Page) => sheet(page).getByRole('button', { name: 'Claim', exact: true })
@@ -88,9 +88,17 @@ test('The claim sheet: what it shows, when, and on which screens', { tag: '@clai
     await test.step('C1 and C2: a recycle sheet in full, put off and offered again on focus', async () => {
       const { id } = await send(bob)
       await expect(bob.page.getByText(TITLE, { exact: true })).toBeVisible()
-      await expect(bob.page.getByText('1 XYZ arrived through your Taxi.', { exact: true })).toBeVisible()
+      const delivery = sheet(bob.page).getByTestId(`asset-row-XYZ-${assetId}`)
+      await expect
+        .poll(() => delivery.locator('.asset-card__name').evaluate((node) => node.firstChild?.textContent))
+        .toBe('Taxi Alice XYZ')
+      await expect(delivery.getByText('Unverified', { exact: true })).toBeVisible()
+      await expect(delivery.locator('.asset-card__balance')).toHaveText('1 XYZ')
       await expect(bob.page.getByTestId('claim-fare')).toHaveText(
         'The sender paid the fare. Recycling repays Taxi’s loan using your own sats.',
+      )
+      await expect(bob.page.getByTestId('claim-carrier')).toHaveText(
+        'Carrier repayment: 330 sats returned to Taxi when you claim. You need a sats coin to complete this.',
       )
       await expect(bob.page.getByTestId('claim-plan')).toHaveText(MERGE)
       await expect(bob.page.getByTestId('unclaimed-note')).toHaveText(
@@ -277,7 +285,12 @@ test('The claim sheet: what it shows, when, and on which screens', { tag: '@clai
       const before = await ledger(parties, assetId)
       const { id } = await send(dave, 'Sender pays asset fare')
       await expect(dave.page.getByText(TITLE, { exact: true })).toBeVisible()
-      await expect(dave.page.getByText('1 XYZ arrived through your Taxi.', { exact: true })).toBeVisible()
+      const delivery = sheet(dave.page).getByTestId(`asset-row-XYZ-${assetId}`)
+      await expect
+        .poll(() => delivery.locator('.asset-card__name').evaluate((node) => node.firstChild?.textContent))
+        .toBe('Taxi Alice XYZ')
+      await expect(delivery.getByText('Unverified', { exact: true })).toBeVisible()
+      await expect(delivery.locator('.asset-card__balance')).toHaveText('1 XYZ')
       await expect(dave.page.getByTestId('claim-fare')).toHaveText(
         'The sender paid the fare and carrier. You do not need sats to claim.',
       )

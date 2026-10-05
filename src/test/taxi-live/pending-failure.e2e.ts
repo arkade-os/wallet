@@ -235,7 +235,7 @@ test(
           await alice.page.getByRole('button', { name: 'Check again', exact: true }).click()
           await expect(alice.page.getByTestId('Delivery')).toHaveText('Awaiting claim')
           await expect.poll(() => journaled(alice.page)).toBe(false)
-          await claim(bob, /merges with the delivery/)
+          await claim(bob, 'Your sats balance stays unchanged: your 1,000 sats coin comes back whole.')
           await expect.poll(async () => (await taxiStatus(pending.id)).state).toBe('recycled')
           expect(await newAdvances(pending.before)).toHaveLength(1)
           await expectLedger(parties, assetId, {
