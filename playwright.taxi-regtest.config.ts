@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
 
-const walletPort = Number(process.env.TAXI_REGTEST_WALLET_PORT ?? '3003')
+const walletPort = Number(process.env.TAXI_REGTEST_WALLET_PORT ?? '3002')
 if (!Number.isInteger(walletPort) || walletPort < 1 || walletPort > 65535)
   throw new Error('Invalid TAXI_REGTEST_WALLET_PORT')
 
