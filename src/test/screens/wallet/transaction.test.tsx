@@ -99,6 +99,120 @@ function CancellationHarness({
   )
 }
 
+const recoverableSwap: AssetSwap = { ...pendingSwap, status: 'recoverable' }
+
+function RecoveryHarness({ recover }: { recover: (id: string) => Promise<boolean> }) {
+  const [swaps, setSwaps] = useState([recoverableSwap])
+  const recoverSwap = async (id: string) => {
+    const recovered = await recover(id)
+    // what the driver's re-scan writes for a deposit that went home
+    if (recovered) setSwaps([{ ...recoverableSwap, status: 'cancelled', spentTxid: 'recovery-round' }])
+    return recovered
+  }
+
+  return (
+    <NavigationContext.Provider value={mockNavigationContextValue}>
+      <ConfigContext.Provider value={mockConfigContextValue}>
+        <FiatContext.Provider value={mockFiatContextValue}>
+          <AspContext.Provider value={mockAspContextValue}>
+            <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: pendingSwapTx }}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [pendingSwapTx] } as any}>
+                <SwapsContext.Provider value={{ swaps, cancelSwap: vi.fn(), recoverSwap } as any}>
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <Transaction />
+                  </LimitsContext.Provider>
+                </SwapsContext.Provider>
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </AspContext.Provider>
+        </FiatContext.Provider>
+      </ConfigContext.Provider>
+    </NavigationContext.Provider>
+  )
+}
+
+/** A rejection as it arrives from the driving tab: a plain Error, `name` and `reason` copied. */
+const crossed = (name: string, message: string, reason?: string) =>
+  Object.assign(new Error(message), { name }, reason === undefined ? {} : { reason })
+
+const confirmRecover = async () => {
+  await userEvent.click(screen.getByRole('button', { name: 'Recover funds' }))
+  await userEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Recover funds' }))
+}
+
+describe('Transaction screen — recoverable swap', () => {
+  it('offers recovery instead of cancel, and leaves the branch once the deposit is home', async () => {
+    let finish: (recovered: boolean) => void = () => {}
+    const recover = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finish = resolve
+        }),
+    )
+    render(<RecoveryHarness recover={recover} />)
+
+    expect(screen.getByText(/deposit expired before the swap was filled/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cancel swap' })).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Recover funds' }))
+    const dialog = screen.getByRole('alertdialog')
+    expect(within(dialog).getByRole('heading', { name: 'Recover swap funds?' })).toBeInTheDocument()
+    expect(within(dialog).getByText(/together with any other expired coins/)).toBeInTheDocument()
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Recover funds' }))
+    expect(recover).toHaveBeenCalledWith('funding-txid')
+    expect(screen.getByRole('button', { name: 'Recovering…' })).toBeDisabled()
+
+    await act(async () => finish(true))
+
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /Recover funds|Recovering|Retry recovery/ })).not.toBeInTheDocument(),
+    )
+    expect(screen.queryByText(/deposit expired/)).not.toBeInTheDocument()
+    expect(screen.getByTestId('Status')).toHaveTextContent('Cancelled')
+  })
+
+  it('says so when the round left this deposit out, and offers a retry', async () => {
+    render(<RecoveryHarness recover={vi.fn().mockResolvedValue(false)} />)
+
+    await confirmRecover()
+
+    expect(await screen.findByText(/did not include this deposit yet/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retry recovery' })).toBeInTheDocument()
+  })
+
+  it.each([
+    ['nothing-swept', /nothing left to recover/],
+    ['unknown-swap', /nothing left to recover/],
+    ['no-recovery-support', /cannot run a recovery round/],
+    ['readonly', /cannot run a recovery round/],
+  ])('maps a %s refusal from the driving tab to its copy', async (reason, copy) => {
+    const recover = vi.fn().mockRejectedValue(crossed('SwapDriveRefusedError', 'refused', reason))
+    render(<RecoveryHarness recover={recover} />)
+
+    await confirmRecover()
+
+    expect(await screen.findByText(copy)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retry recovery' })).toBeInTheDocument()
+  })
+
+  it('reads a driver that acked but did not answer as still running, not failed', async () => {
+    render(<RecoveryHarness recover={vi.fn().mockRejectedValue(crossed('DriverTimedOut', 'late'))} />)
+
+    await confirmRecover()
+
+    expect(await screen.findByText(/Recovery is still running/)).toBeInTheDocument()
+  })
+
+  it('shows the round’s own error verbatim', async () => {
+    render(<RecoveryHarness recover={vi.fn().mockRejectedValue(new Error('No recoverable VTXOs found'))} />)
+
+    await confirmRecover()
+
+    expect(await screen.findByText('No recoverable VTXOs found')).toBeInTheDocument()
+  })
+})
+
 describe('Transaction screen', () => {
   it('confirms a pending swap cancellation and stays on the updated receipt', async () => {
     let finishCancel: () => void = () => {}

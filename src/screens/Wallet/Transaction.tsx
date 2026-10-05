@@ -51,7 +51,7 @@ import {
 export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo } = useContext(FlowContext)
-  const { cancelSwap, swaps } = useContext(SwapsContext)
+  const { cancelSwap, recoverSwap, swaps } = useContext(SwapsContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { assetMetadataCache, isVerifiedAsset, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } =
     useContext(WalletContext)
@@ -110,6 +110,9 @@ export default function Transaction() {
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false)
   const [cancelFailed, setCancelFailed] = useState(false)
   const [cancellingSwap, setCancellingSwap] = useState(false)
+  const [recoverConfirmOpen, setRecoverConfirmOpen] = useState(false)
+  const [recoverFailed, setRecoverFailed] = useState(false)
+  const [recoveringSwap, setRecoveringSwap] = useState(false)
 
   useEffect(() => {
     setButtonLabel(settling ? t('transaction.settling') : defaultButtonLabel)
@@ -163,6 +166,40 @@ export default function Transaction() {
       setCancelFailed(true)
     } finally {
       setCancellingSwap(false)
+    }
+  }
+
+  /** By `name` and `reason`, not `instanceof`: a refusal from the driving tab
+   * crosses the channel as a plain Error carrying both. */
+  const recoverErrorText = (err: unknown): string => {
+    const { name, reason } = err as { name?: string; reason?: string }
+    if (name === 'DriverTimedOut') return t('transaction.recoverInProgress')
+    if (name === 'SwapDriveRefusedError') {
+      if (reason === 'nothing-swept' || reason === 'unknown-swap') return t('transaction.recoverNothing')
+      if (reason === 'no-recovery-support' || reason === 'readonly') return t('transaction.recoverUnsupported')
+    }
+    return extractError(err)
+  }
+
+  const handleRecoverSwap = async () => {
+    if (!liveSwap || recoveringSwap) return
+    hapticTap()
+    setRecoverConfirmOpen(false)
+    setRecoverFailed(false)
+    setError('')
+    setRecoveringSwap(true)
+    try {
+      // A recovered deposit is written `cancelled` and announced from there,
+      // which also takes this screen off the recover branch.
+      if (!(await recoverSwap(liveSwap.id))) {
+        setError(t('transaction.recoverNotIncluded'))
+        setRecoverFailed(true)
+      }
+    } catch (err) {
+      setError(recoverErrorText(err))
+      setRecoverFailed(true)
+    } finally {
+      setRecoveringSwap(false)
     }
   }
 
@@ -299,7 +336,8 @@ export default function Transaction() {
     ? assetMetadataCache.get(tx.assetSwap.toAssetId)?.metadata?.icon
     : undefined
   const showCancelSwap = swapTx && liveSwap && (liveSwap.status === 'pending' || liveSwap.status === 'cancelling')
-  const visibleError = cancelFailed && !showCancelSwap ? '' : error
+  const showRecoverSwap = swapTx && liveSwap?.status === 'recoverable'
+  const visibleError = (cancelFailed && !showCancelSwap) || (recoverFailed && !showRecoverSwap) ? '' : error
 
   const Body = () => (
     <Content>
@@ -313,6 +351,10 @@ export default function Transaction() {
           ) : unconfirmedBoardingTx ? (
             <Info color='orange' icon={<VtxosIcon />} title={t('transaction.unconfirmed')}>
               <Text wrap>{t('transaction.unconfirmedText')}</Text>
+            </Info>
+          ) : showRecoverSwap ? (
+            <Info color='orange' icon={<VtxosIcon />} title={t('transaction.recoverable')}>
+              <Text wrap>{t('transaction.recoverableText')}</Text>
             </Info>
           ) : tx.preconfirmed && tx.boardingTxid ? (
             <Info color='orange' icon={<VtxosIcon />} title={t('transaction.pendingBoarding')}>
@@ -378,6 +420,36 @@ export default function Transaction() {
               <AlertDialogCancel className='min-h-11'>{t('transaction.keepSwap')}</AlertDialogCancel>
               <AlertDialogAction className='min-h-11' variant='destructive' onClick={handleCancelSwap}>
                 {t('transaction.cancelSwap')}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
+    ) : showRecoverSwap ? (
+      <>
+        <ButtonsOnBottom>
+          <Button
+            label={
+              recoveringSwap
+                ? t('transaction.recovering')
+                : recoverFailed
+                  ? t('transaction.retryRecover')
+                  : t('transaction.recoverSwap')
+            }
+            disabled={recoveringSwap}
+            onClick={() => setRecoverConfirmOpen(true)}
+          />
+        </ButtonsOnBottom>
+        <AlertDialog open={recoverConfirmOpen} onOpenChange={setRecoverConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('transaction.recoverSwapTitle')}</AlertDialogTitle>
+              <AlertDialogDescription>{t('transaction.recoverSwapBody')}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className='min-h-11'>{t('common.cancel')}</AlertDialogCancel>
+              <AlertDialogAction className='min-h-11' onClick={handleRecoverSwap}>
+                {t('transaction.recoverSwap')}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

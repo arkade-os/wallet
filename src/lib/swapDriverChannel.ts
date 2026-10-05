@@ -51,7 +51,7 @@ const ACK_MS = 1_500
 const RESULT_MS = 120_000
 
 /** The actions the swap client owns, and so the ones only the holder can run. */
-export type DriverOp = 'exchange' | 'cancelSwap' | 'quotePay' | 'acceptPay' | 'receiveLightning'
+export type DriverOp = 'exchange' | 'cancelSwap' | 'recoverSwap' | 'quotePay' | 'acceptPay' | 'receiveLightning'
 
 /** What the holder runs on a follower's behalf. */
 export type DriverHandler = (op: DriverOp, args: unknown[]) => Promise<unknown>
@@ -79,6 +79,20 @@ export class DriverUnavailable extends Error {
 }
 
 /**
+ * The holder acked but did not answer within `RESULT_MS`.
+ *
+ * Not `DriverUnavailable`: a tab IS driving, and the action may still be
+ * running there — a recovery waits on a batch round — so the honest answer is
+ * "not yet", never "nobody".
+ */
+export class DriverTimedOut extends Error {
+  constructor() {
+    super('the swap driver did not answer in time')
+    this.name = 'DriverTimedOut'
+  }
+}
+
+/**
  * This tab won the lock while it was waiting to be served.
  *
  * Not a failure: the holder closed and our own queued lock request was granted,
@@ -95,7 +109,7 @@ type Wire =
   | { kind: 'request'; id: string; op: DriverOp; args: unknown[] }
   | { kind: 'ack'; id: string }
   | { kind: 'result'; id: string; ok: true; value: unknown }
-  | { kind: 'result'; id: string; ok: false; error: { name: string; message: string } }
+  | { kind: 'result'; id: string; ok: false; error: WireError }
   | { kind: 'update'; update: DriverUpdate }
 
 /**
@@ -107,14 +121,19 @@ type Wire =
  * wallet branches on sets `this.name` to its own class name, so the name is the
  * part that carries the meaning — which is why the screens test it that way.
  */
-const toWire = (err: unknown): { name: string; message: string } => {
+type WireError = { name: string; message: string; reason?: string }
+
+/** `reason` too, when the error carries one: `SwapDriveRefusedError` is branched on by it. */
+const toWire = (err: unknown): WireError => {
   const error = err instanceof Error ? err : new Error(extractError(err))
-  return { name: error.name, message: error.message }
+  const { reason } = error as { reason?: unknown }
+  return { name: error.name, message: error.message, ...(typeof reason === 'string' ? { reason } : {}) }
 }
 
-const fromWire = ({ name, message }: { name: string; message: string }): Error => {
+const fromWire = ({ name, message, reason }: WireError): Error => {
   const error = new Error(message)
   error.name = name
+  if (reason !== undefined) Object.assign(error, { reason })
   return error
 }
 
@@ -208,14 +227,13 @@ export const openDriverChannel = (): DriverChannel => {
           pending.delete(id)
           finish()
         }
-        const giveUp = () => done(() => reject(new DriverUnavailable()))
         // Losing the ack race is the answer, not a step towards one: no tab is
         // driving, so there is nothing to wait for.
-        timer = setTimeout(giveUp, ACK_MS)
+        timer = setTimeout(() => done(() => reject(new DriverUnavailable())), ACK_MS)
         pending.set(id, {
           ack: () => {
             clearTimeout(timer)
-            timer = setTimeout(giveUp, RESULT_MS)
+            timer = setTimeout(() => done(() => reject(new DriverTimedOut())), RESULT_MS)
           },
           settle: (result) => done(() => (result.ok ? resolve(result.value as T) : reject(fromWire(result.error)))),
           fail: (err) => done(() => reject(err)),

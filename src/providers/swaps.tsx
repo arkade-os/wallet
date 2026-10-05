@@ -95,6 +95,10 @@ interface SwapsContextProps {
   /** Fund an arkade↔arkade asset swap for the plan the composer quoted. */
   exchange: (market: DiscoveredMarket, plan: OfferPlan, quote?: AssetSwapQuoteSnapshot) => Promise<Swap>
   cancelSwap: (id: string) => Promise<void>
+  /** Run a recovery round for a swept offer deposit. Resolves with whether THIS
+   * deposit went home; throws `SwapDriveRefusedError` (by `name` across tabs) or
+   * the round's own error. */
+  recoverSwap: (id: string) => Promise<boolean>
   /** Negotiate a payment. Nothing is funded: the pay screen accepts. */
   quotePay: (destination: string) => Promise<Quote>
   /** Fund it — which IS the acceptance. Resolves with the funding txid. */
@@ -123,6 +127,7 @@ export const SwapsContext = createContext<SwapsContextProps>({
   },
   exchange: notInitialized,
   cancelSwap: notInitialized,
+  recoverSwap: notInitialized,
   quotePay: notInitialized,
   acceptPay: notInitialized,
   receiveLightning: notInitialized,
@@ -543,6 +548,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         return exchangeHere(args[0] as OfferPlan, args[1] as AssetSwapQuoteSnapshot | undefined)
       case 'cancelSwap':
         return cancelSwapHere(args[0] as string)
+      case 'recoverSwap':
+        return recoverSwapHere(args[0] as string)
       case 'quotePay':
         return quotePayHere(args[0] as string)
       case 'acceptPay':
@@ -634,6 +641,21 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     await refreshSwaps()
     reportCancel(outcome)
     reloadRef.current().catch(consoleError)
+  }
+
+  const recoverSwap = (id: string): Promise<boolean> => runOnDriver('recoverSwap', [id])
+
+  /**
+   * No toast of its own: a deposit that went home is written `cancelled`, and
+   * that update is announced like any other ended swap. What only the caller
+   * can say — that the round left this deposit out — goes back as the value.
+   */
+  const recoverSwapHere = async (id: string): Promise<boolean> => {
+    const client = await driving()
+    const { recovered } = await client.recover(id as AssetSwapId)
+    await refreshSwaps()
+    reloadRef.current().catch(consoleError)
+    return recovered
   }
 
   // ------------------------------------------------------------- payments
@@ -770,6 +792,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       runDiscovery,
       exchange,
       cancelSwap,
+      recoverSwap,
       quotePay,
       acceptPay,
       receiveLightning,
