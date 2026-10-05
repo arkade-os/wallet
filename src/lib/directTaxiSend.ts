@@ -211,7 +211,10 @@ const checkOutpoint = (record: PendingTaxiRecord, outpoint: { txid: string; vout
 
 const waitForSettlement = async (record: PendingTaxiRecord, client: TaxiClient, submit?: () => Promise<void>) => {
   const deadline = Date.now() + 30_000
+  let delay = 1_000
+  let reads = 0
   while (Date.now() < deadline) {
+    reads += 1
     const status =
       record.mode === 'sponsored'
         ? await client.sponsoredStatus(record.transferId)
@@ -237,7 +240,8 @@ const waitForSettlement = async (record: PendingTaxiRecord, client: TaxiClient, 
     } else if (!['quoted', 'locking', 'recovering'].includes(status.state)) {
       throw new Error(`Taxi transfer is ${status.state}; its outcome is not confirmed`)
     }
-    await sleep(500)
+    await sleep(Math.min(delay, Math.max(0, deadline - Date.now())))
+    if (reads > 1) delay = Math.min(delay * 2, 4_000)
   }
   throw new Error('Taxi payment outcome is not confirmed')
 }
@@ -439,12 +443,12 @@ interface QuotePlan {
   payment: { assetId: AssetIdValue; assetUnits: bigint } | { paymentSats: bigint }
 }
 
-/** Plain coins, smallest first, covering `required` with change of nothing or at least `vtxoMinAmount`:
- * the lockup admits no output below it. */
+/** Prefer plain coins; asset funding must leave all holdings in spendable sender change. */
 export const selectSatsForTaxi = <C extends Pick<ExtendedVirtualCoin, 'value' | 'assets'>>(
   coins: readonly C[],
   required: bigint,
   vtxoMinAmount: bigint,
+  dust: bigint,
 ): C[] => {
   const selected: C[] = []
   let total = 0n
@@ -454,8 +458,19 @@ export const selectSatsForTaxi = <C extends Pick<ExtendedVirtualCoin, 'value' | 
     selected.push(coin)
     total += BigInt(coin.value)
   }
-  if (!covered()) throw new Error('Insufficient sats for this Taxi payment')
-  return selected
+  if (covered()) return selected
+  const assetMinimum = dust > vtxoMinAmount ? dust : vtxoMinAmount
+  const assetCoins = coins.filter((coin) => coin.assets?.length).sort((a, b) => a.value - b.value)
+  const sufficient = assetCoins.find((coin) => total + BigInt(coin.value) - required >= assetMinimum)
+  if (sufficient) return [...selected, sufficient]
+  for (const coin of assetCoins) {
+    selected.push(coin)
+    total += BigInt(coin.value)
+    if (total - required >= assetMinimum) return selected
+  }
+  if (assetCoins.length && total >= required)
+    throw new Error(`This Taxi payment needs ${assetMinimum} sats left for spendable asset change`)
+  throw new Error('Insufficient sats for this Taxi payment')
 }
 
 const assetPlan = async (
@@ -518,7 +533,7 @@ const bitcoinPlan = async (
   if (!offer.modes.includes(mode)) throw new Error(`Taxi does not support ${mode} claims`)
   const available = await unreservedCoins(wallet, assetSwapRepository)
   return {
-    selected: selectSatsForTaxi(available, amount + offer.fareUnits, ctx.vtxoMinAmount),
+    selected: selectSatsForTaxi(available, amount + offer.fareUnits, ctx.vtxoMinAmount, ctx.dust),
     fareId: offer.fare.id,
     maxFare: { currency: 'sats', units: offer.fareUnits },
     carrierCeiling: offer.topup,

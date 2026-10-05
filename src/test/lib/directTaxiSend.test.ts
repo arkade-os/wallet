@@ -162,6 +162,67 @@ describe('checking a Taxi payment that is still on record', () => {
   })
 })
 
+describe('Taxi settlement polling cadence', () => {
+  const locking = { transferId: 't-1', state: 'locking', submissionPhase: 'claimed', updatedAt: 1 }
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(0)
+    vi.stubGlobal('fetch', taxiFetch())
+  })
+  afterEach(() => vi.useRealTimers())
+
+  it('checks immediately, then gives a quick settlement one second before reading again', async () => {
+    const status = vi.spyOn(TaxiClient.prototype, 'status').mockResolvedValueOnce(locking as never)
+    status.mockResolvedValue(LOCKED as never)
+    const payment = await storedPayment()
+    const outcome = payment.resume()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(status).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(999)
+    expect(status).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1)
+    await expect(outcome).resolves.toBe(TXID)
+    expect(status).toHaveBeenCalledTimes(2)
+    expect(localStorage.getItem(key)).toBeNull()
+  })
+
+  it('limits a slow pending payment to ten reads within the thirty-second budget, keeping its journal', async () => {
+    const reads: number[] = []
+    vi.spyOn(TaxiClient.prototype, 'status').mockImplementation(async () => {
+      reads.push(Date.now())
+      await new Promise((resolve) => setTimeout(resolve, 800))
+      return locking as never
+    })
+    const payment = await storedPayment()
+    let finishedAt: number | undefined
+    const outcome = payment.resume().catch((error: unknown) => {
+      finishedAt = Date.now()
+      return error
+    })
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(finishedAt).toBe(30_000)
+    expect(await outcome).toBeInstanceOf(PendingDirectTaxi)
+    expect(reads[0]).toBe(0)
+    expect(reads.length).toBeLessThanOrEqual(10)
+    expect(reads.every((started) => started < 30_000)).toBe(true)
+    expect(localStorage.getItem(key)).not.toBeNull()
+  })
+
+  it('stops on a reported failure after backing off, without another read or clearing the journal', async () => {
+    const status = vi
+      .spyOn(TaxiClient.prototype, 'status')
+      .mockImplementation(async () => (Date.now() < 8_000 ? locking : FAILED) as never)
+    const payment = await storedPayment()
+    const outcome = payment.resume().catch((error: unknown) => error)
+    await vi.advanceTimersByTimeAsync(8_000)
+    expect(await outcome).toBeInstanceOf(FailedDirectTaxi)
+    expect(status).toHaveBeenCalledTimes(5)
+    await vi.advanceTimersByTimeAsync(8_000)
+    expect(status).toHaveBeenCalledTimes(5)
+    expect(localStorage.getItem(key)).not.toBeNull()
+  })
+})
 describe('a new Taxi payment the Taxi then fails to submit', () => {
   it('refuses receiver-repaid modes when the request requires sender-funded delivery', async () => {
     await expect(
@@ -329,6 +390,53 @@ describe('sending sub-dust bitcoin through the Taxi', () => {
     expect(journaled).not.toHaveProperty('assetId')
   })
 
+  it.each([false, true])(
+    'funds a bitcoin payment from asset coins without losing holdings (aggregate: %s)',
+    async (aggregate) => {
+      const { arkTx, txid } = lockup()
+      vi.stubGlobal('fetch', taxiFetch({ info: BITCOIN_INFO, statuses: [locked(txid)] }))
+      const quote = vi.spyOn(TaxiClient.prototype, 'requestVerifiedQuote').mockResolvedValue({
+        verified: {
+          quote: {
+            transferId: 't-1',
+            params: { topup: '320' },
+            fare: { currency: 'sats', units: '0' },
+            expiresAt: Date.now() / 1000 + 600,
+          },
+          params: { operatorKey: hex.decode(KEYS.operator), topup: 320n },
+          envelope: { arkTx, covenantOutputIndex: 0 },
+        },
+        senderInputs: [],
+      } as never)
+      vi.spyOn(TaxiClient.prototype, 'submitLockup').mockResolvedValue({ txid, outpoint: { txid, vout: 0 } })
+      const usdt = { txid: 'd'.repeat(64), vout: 0, value: 330, assets: [{ assetId: ASSET_ID, amount: 3861n }] }
+      const aas = {
+        txid: 'd'.repeat(64),
+        vout: 1,
+        value: aggregate ? 330 : 660,
+        assets: [{ assetId: 'f'.repeat(64) + '0000', amount: 1n }],
+      }
+      const reserved = { txid: 'd'.repeat(64), vout: 2, value: 1_000, assets: [{ assetId: ASSET_ID, amount: 100n }] }
+      vi.spyOn(assetSwapRepository, 'getAllSwaps').mockResolvedValue([
+        { fundingIntent: { state: 'prepared', inputs: [{ txid: reserved.txid, vout: reserved.vout }] } },
+      ] as never)
+      await expect(
+        send({
+          wallet: { identity: wallet.identity, getSpendableVtxos: async () => [usdt, aas, reserved] },
+          amount: 10n,
+        }),
+      ).resolves.toBe(txid)
+      expect(quote.mock.lastCall![0]).toMatchObject({
+        selectedVtxos: aggregate ? [usdt, aas] : [aas],
+        paymentSats: 10n,
+        fareId: 'sats',
+        expect: { maxTopupSats: 320n, maxFare: { currency: 'sats', units: 0n }, recoveryRecipient: 'sender' },
+      })
+      expect(quote.mock.lastCall![0].selectedVtxos).not.toContain(reserved)
+      expect(quote.mock.lastCall![0]).not.toHaveProperty('assetId')
+    },
+  )
+
   it.each(['purchase', 'sponsored'])('refuses %s instead of increasing the receiver payment to dust', async (mode) => {
     const info = {
       ...BITCOIN_INFO,
@@ -387,22 +495,59 @@ describe('sending sub-dust bitcoin through the Taxi', () => {
 describe('selectSatsForTaxi', () => {
   const plain = (value: number, vout: number) => ({ txid: 'c'.repeat(64), vout, value })
 
-  it('covers the amount with plain coins, smallest first, never an asset coin', () => {
+  it('prefers plain coins covering the amount, smallest first', () => {
     const assetCoin = { ...plain(50, 9), assets: [{ assetId: ASSET_ID, amount: 1n }] }
-    expect(selectSatsForTaxi([plain(2_000, 1), assetCoin, plain(500, 2)], 100n, 1n)).toEqual([plain(500, 2)])
-    expect(selectSatsForTaxi([plain(60, 1), plain(2_000, 2), plain(50, 3)], 100n, 1n)).toEqual([
+    expect(selectSatsForTaxi([plain(2_000, 1), assetCoin, plain(500, 2)], 100n, 1n, 330n)).toEqual([plain(500, 2)])
+    expect(selectSatsForTaxi([plain(60, 1), plain(2_000, 2), plain(50, 3)], 100n, 1n, 330n)).toEqual([
       plain(50, 3),
       plain(60, 1),
     ])
   })
 
   it('leaves change of nothing or at least the Arkade minimum, taking another coin if it must', () => {
-    expect(selectSatsForTaxi([plain(100, 1), plain(500, 2)], 100n, 10n)).toEqual([plain(100, 1)])
-    expect(selectSatsForTaxi([plain(105, 1), plain(2_000, 2)], 100n, 10n)).toEqual([plain(105, 1), plain(2_000, 2)])
-    expect(() => selectSatsForTaxi([plain(105, 1)], 100n, 10n)).toThrow('Insufficient sats for this Taxi payment')
+    expect(selectSatsForTaxi([plain(100, 1), plain(500, 2)], 100n, 10n, 330n)).toEqual([plain(100, 1)])
+    expect(selectSatsForTaxi([plain(105, 1), plain(2_000, 2)], 100n, 10n, 330n)).toEqual([
+      plain(105, 1),
+      plain(2_000, 2),
+    ])
+    expect(() => selectSatsForTaxi([plain(105, 1)], 100n, 10n, 330n)).toThrow('Insufficient sats for this Taxi payment')
+  })
+
+  it('uses a larger asset coin while preserving a dust-sized sender change', () => {
+    const usdt = { ...plain(330, 1), assets: [{ assetId: ASSET_ID, amount: 3861n }] }
+    const aas = { ...plain(660, 2), assets: [{ assetId: 'f'.repeat(64) + '0000', amount: 1n }] }
+    expect(selectSatsForTaxi([usdt, aas], 10n, 1n, 330n)).toEqual([aas])
+    expect(aas.value - 10).toBe(650)
+    expect(aas.assets).toEqual([{ assetId: 'f'.repeat(64) + '0000', amount: 1n }])
+  })
+
+  it('combines multiple asset coins into one spendable change when a single coin cannot cover it', () => {
+    const usdt = { ...plain(330, 1), assets: [{ assetId: ASSET_ID, amount: 3861n }] }
+    const aas = { ...plain(660, 2), assets: [{ assetId: 'f'.repeat(64) + '0000', amount: 1n }] }
+    const selected = selectSatsForTaxi([usdt, aas], 650n, 1n, 330n)
+    expect(selected).toEqual([usdt, aas])
+    expect(selected.reduce((sum, coin) => sum + BigInt(coin.value), 0n) - 650n).toBe(340n)
+    expect(selected.flatMap((coin) => coin.assets)).toEqual([...usdt.assets, ...aas.assets])
+  })
+
+  it('combines plain sats with asset funding but keeps plain-only funding preferred', () => {
+    const plainCoin = plain(5, 1)
+    const assetCoin = { ...plain(335, 2), assets: [{ assetId: ASSET_ID, amount: 5n }] }
+    expect(selectSatsForTaxi([plainCoin, assetCoin], 10n, 1n, 330n)).toEqual([plainCoin, assetCoin])
+    expect(selectSatsForTaxi([assetCoin, plain(1_000, 3)], 10n, 1n, 330n)).toEqual([plain(1_000, 3)])
+  })
+
+  it.each([10n, 330n])('does not sweep asset change or consume the asset carrier entirely at %s sats', (required) => {
+    const assetCoin = { ...plain(330, 1), assets: [{ assetId: ASSET_ID, amount: 5n }] }
+    expect(() => selectSatsForTaxi([assetCoin], required, 1n, 330n)).toThrow('spendable asset change')
+  })
+
+  it('keeps asset change at the greater of dust and the Arkade output minimum', () => {
+    const assetCoin = { ...plain(660, 1), assets: [{ assetId: ASSET_ID, amount: 5n }] }
+    expect(() => selectSatsForTaxi([assetCoin], 10n, 700n, 330n)).toThrow('spendable asset change')
   })
 
   it('refuses coins that cannot cover the amount', () => {
-    expect(() => selectSatsForTaxi([plain(99, 1)], 100n, 1n)).toThrow('Insufficient sats for this Taxi payment')
+    expect(() => selectSatsForTaxi([plain(99, 1)], 100n, 1n, 330n)).toThrow('Insufficient sats for this Taxi payment')
   })
 })
