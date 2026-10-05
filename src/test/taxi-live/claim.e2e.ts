@@ -95,7 +95,7 @@ test('The claim sheet: what it shows, when, and on which screens', { tag: '@clai
       await expect(delivery.getByText('Unverified', { exact: true })).toBeVisible()
       await expect(delivery.locator('.asset-card__balance')).toHaveText('1 XYZ')
       await expect(bob.page.getByTestId('claim-fare')).toHaveText(
-        'The sender paid the fare. Recycling repays Taxi’s loan using your own sats.',
+        'Taxi service fare: Free for you. The sender covers the fare.',
       )
       await expect(bob.page.getByTestId('claim-carrier')).toHaveText(
         'Carrier repayment: 330 sats returned to Taxi when you claim. You need a sats coin to complete this.',
