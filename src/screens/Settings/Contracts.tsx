@@ -189,7 +189,7 @@ function Chip({ label, active, onClick }: { label: string; active: boolean; onCl
 
 function ContractCard({ item, open, onToggle }: { item: ContractView; open: boolean; onToggle: () => void }) {
   const { contract, address, explorer, encoded, status } = item
-  const { t } = useTranslation()
+  const { language, t } = useTranslation()
 
   const refundLocktime = !isNaN(parseInt(contract.params?.refundLocktime))
     ? parseInt(contract.params.refundLocktime)
@@ -226,7 +226,7 @@ function ContractCard({ item, open, onToggle }: { item: ContractView; open: bool
             <CopyRow label={t('common.address')} value={address} link={explorer || undefined} />
             <CopyRow label={t('contracts.script')} value={contract.script} />
             {refundLocktime ? (
-              <CopyRow label={t('contracts.refundLocktime')} value={prettyDate(refundLocktime)} />
+              <CopyRow label={t('contracts.refundLocktime')} value={prettyDate(refundLocktime, language)} />
             ) : null}
             {encoded ? <CopyRow label={t('contracts.parameters')} value={encoded} /> : null}
           </>
