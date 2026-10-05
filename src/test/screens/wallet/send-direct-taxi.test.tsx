@@ -160,8 +160,27 @@ describe('sending a sub-dust bitcoin amount to an Arkade address', FORM_TEST, ()
     expect((await screen.findAllByRole('radio', {}, SLOW)).map((item) => item.getAttribute('aria-label'))).toEqual([
       'No Taxi: sub-dust coin',
       'Receiver uses own sats',
-      'Direct delivery, no claim',
     ])
+  })
+
+  it('refuses a Taxi that can only deliver a full dust coin instead of the requested amount', async () => {
+    const info = {
+      ...BITCOIN_INFO,
+      assetRules: BITCOIN_INFO.assetRules.map((rule) =>
+        rule.assetId === null
+          ? { ...rule, fares: [{ id: 'sats', currency: 'sats', pricing: { kind: 'flat', units: '1' } }] }
+          : rule,
+      ),
+    }
+    vi.stubGlobal('fetch', taxiFetch({ info }))
+    const navigate = renderSend(request('0.0000005'))
+    expect(
+      await screen.findByText('Taxi unavailable: it cannot deliver this exact amount', {}, SLOW),
+    ).toBeInTheDocument()
+    expect(screen.queryByTestId('taxi-send-mode')).toBeNull()
+    await pay()
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), SLOW)
+    expect(sendDirectTaxi).not.toHaveBeenCalled()
   })
 
   it('uses the named Taxi by default without an extra carrier selection', async () => {
@@ -242,13 +261,13 @@ describe('sending a sub-dust bitcoin amount to an Arkade address', FORM_TEST, ()
 
   it('hands sendDirectTaxi the Taxi the request names, pinned to its key and fare', async () => {
     renderSend(request('0.000001', NAMED))
-    await chooseCarrier('Direct delivery, no claim')
+    await chooseCarrier('Receiver uses own sats')
     await pay()
     await waitFor(
       () =>
         expect(sendDirectTaxi).toHaveBeenCalledWith(
           expect.objectContaining({
-            mode: 'sponsored',
+            mode: 'recycle',
             taxi: { url: TAXI_URL, operatorKey: KEYS.operator, fareId: 'sats' },
           }),
         ),

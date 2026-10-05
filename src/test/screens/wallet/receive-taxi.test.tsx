@@ -74,7 +74,7 @@ beforeAll(() => {
 const aspInfo = { ...mockAspContextValue.aspInfo, signerPubkey: KEYS.server, dust: 330n }
 
 let reconnectWallet = () => {}
-let changeReceiveRequest: (request: { assetId?: string; satoshis?: number }) => void = () => {}
+let changeReceiveRequest: (request: { assetId?: string; satoshis?: number; invoice?: string }) => void = () => {}
 const Wallet = ({ children }: { children: React.ReactNode }) => {
   const [wallet, setWallet] = useState(svcWallet)
   reconnectWallet = () => setWallet({ ...svcWallet })
@@ -85,7 +85,9 @@ const Wallet = ({ children }: { children: React.ReactNode }) => {
   )
 }
 
-const renderAssetReceive = (request: { assetId?: string; satoshis?: number } = { assetId: ASSET_ID }) => {
+const renderAssetReceive = (
+  request: { assetId?: string; satoshis?: number; invoice?: string } = { assetId: ASSET_ID },
+) => {
   const ReceiveFlow = ({ children }: { children: React.ReactNode }) => {
     const [current, setCurrent] = useState(request)
     changeReceiveRequest = setCurrent
@@ -278,6 +280,27 @@ describe('the receiver names his Taxi for a sub-dust bitcoin request', () => {
     expect(readReceiverTaxis()).toEqual([{ network: 'regtest', url: TAXI_URL, operatorKey: KEYS.operator }])
     expect(screen.queryByText(/\b0 sats\b/)).toBeNull()
   })
+
+  it.each(['Arkade', 'Bitcoin', 'Lightning'])(
+    'shows Taxi only on Unified and preserves the choice after visiting %s',
+    async (method) => {
+      vi.stubGlobal('fetch', taxiFetch({ info: BITCOIN_INFO }))
+      renderAssetReceive({ satoshis: 50, invoice: 'lnbc1testfixture' })
+      await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxifare=sats'))
+      await userEvent.click(screen.getByText(method, { exact: true }))
+      expect(screen.queryByRole('button', { name: /Taxi delivery/ })).toBeNull()
+      await waitFor(() => expect(screen.getByTestId('bip21').textContent).not.toContain('taxi='))
+      await userEvent.click(screen.getByText('Unified', { exact: true }))
+      expect(await screen.findByRole('button', { name: /Taxi delivery.*Free/ })).toBeInTheDocument()
+      await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxifare=sats'))
+      await userEvent.click(screen.getByRole('button', { name: /Taxi delivery/ }))
+      await userEvent.click(screen.getByRole('radio', { name: 'No Taxi' }))
+      await userEvent.click(screen.getByText(method, { exact: true }))
+      await userEvent.click(screen.getByText('Unified', { exact: true }))
+      expect(screen.getByRole('button', { name: /Taxi delivery.*No Taxi/ })).toBeInTheDocument()
+      expect(screen.getByTestId('bip21').textContent).not.toContain('taxi=')
+    },
+  )
 
   it('preserves an explicit No Taxi choice when the wallet reconnects', async () => {
     vi.stubGlobal('fetch', taxiFetch({ info: BITCOIN_INFO }))

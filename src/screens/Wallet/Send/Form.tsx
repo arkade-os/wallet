@@ -351,9 +351,11 @@ export default function SendForm() {
         sendInfo.arkAddress!,
         BigInt(sendSats),
       )
-      return offer.ok
-        ? { status: 'available', modes: offer.modes, requestId: subdustRequestId, fareUnits: offer.fareUnits }
-        : { status: 'unavailable', reason: TAXI_REFUSAL_TEXT[offer.reason] }
+      if (!offer.ok) return { status: 'unavailable', reason: TAXI_REFUSAL_TEXT[offer.reason] }
+      const modes = offer.modes.filter((mode) => mode !== 'sponsored')
+      return modes.length
+        ? { status: 'available', modes, requestId: subdustRequestId, fareUnits: offer.fareUnits }
+        : { status: 'unavailable', reason: 'it cannot deliver this exact amount' }
     }
     check()
       .catch((error): SubdustOffer => {

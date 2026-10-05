@@ -145,9 +145,10 @@ export default function ReceiveQRCode() {
   const createBip21 = (): { ark: string; btc: string; bip21: string } => {
     const ark = vtxoTxsAllowed() ? recvInfo.offchainAddr : ''
     const btc = utxoTxsAllowed() ? recvInfo.boardingAddr : ''
+    const requestTaxi = activeMethod === 'unified' ? taxi : undefined
     const bip21 = isAssetReceive
-      ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals, ark ? taxi : undefined)
-      : encodeBip21(btc, ark, recvInfo.invoice ?? '', satoshis, '', ark && subdustRequest ? taxi : undefined)
+      ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals, ark ? requestTaxi : undefined)
+      : encodeBip21(btc, ark, recvInfo.invoice ?? '', satoshis, '', ark && subdustRequest ? requestTaxi : undefined)
 
     return { ark, btc, bip21 }
   }
@@ -250,30 +251,6 @@ export default function ReceiveQRCode() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [svcWallet, satoshis, isAssetReceive, aspInfo.network, negotiateAttempt])
 
-  // Build BIP21 URI
-  useEffect(() => {
-    if (!addressesLoaded) return
-
-    const { ark, btc, bip21 } = createBip21()
-    if ((isAssetReceive || subdustRequest) && ark && taxi) {
-      remember({ network: aspInfo.network, url: taxi.url, operatorKey: taxi.operatorKey })
-    }
-
-    setNoPaymentMethods(!ark && !btc && !isAssetReceive)
-    setArkAddress(ark)
-    setBtcAddress(btc)
-    setBip21Uri(bip21)
-  }, [
-    assetAmount,
-    taxi,
-    addressesLoaded,
-    isAssetReceive,
-    recvInfo.offchainAddr,
-    recvInfo.boardingAddr,
-    recvInfo.satoshis,
-    recvInfo.invoice,
-  ])
-
   /**
    * The payment methods we can render right now, in display order.
    *
@@ -312,6 +289,31 @@ export default function ReceiveQRCode() {
     if (paymentMethods.some((m) => m.id === 'unified')) return 'unified'
     return paymentMethods[0]?.id ?? ''
   }, [paymentMethods, selectedMethod])
+
+  // Build BIP21 URI
+  useEffect(() => {
+    if (!addressesLoaded) return
+
+    const { ark, btc, bip21 } = createBip21()
+    if (activeMethod === 'unified' && (isAssetReceive || subdustRequest) && ark && taxi) {
+      remember({ network: aspInfo.network, url: taxi.url, operatorKey: taxi.operatorKey })
+    }
+
+    setNoPaymentMethods(!ark && !btc && !isAssetReceive)
+    setArkAddress(ark)
+    setBtcAddress(btc)
+    setBip21Uri(bip21)
+  }, [
+    activeMethod,
+    assetAmount,
+    taxi,
+    addressesLoaded,
+    isAssetReceive,
+    recvInfo.offchainAddr,
+    recvInfo.boardingAddr,
+    recvInfo.satoshis,
+    recvInfo.invoice,
+  ])
 
   const qrCodeValue = paymentMethods.find((m) => m.id === activeMethod)?.value ?? ''
 
@@ -603,24 +605,28 @@ export default function ReceiveQRCode() {
                   </Text>
                 ) : null}
               </div>
-              {assetId && arkAddress ? (
-                <TaxiChoice
-                  key={taxiRequestId}
-                  assetId={assetId}
-                  receiverAddress={arkAddress}
-                  ticker={assetPresentation.ticker}
-                  decimals={assetMeta?.metadata?.decimals}
-                  value={taxi}
-                  onChange={setTaxi}
-                />
-              ) : subdustRequest && arkAddress ? (
-                <TaxiChoice
-                  key={taxiRequestId}
-                  satoshis={satoshis}
-                  receiverAddress={arkAddress}
-                  value={taxi}
-                  onChange={setTaxi}
-                />
+              {(assetId || subdustRequest) && arkAddress ? (
+                <div hidden={activeMethod !== 'unified'}>
+                  {assetId ? (
+                    <TaxiChoice
+                      key={taxiRequestId}
+                      assetId={assetId}
+                      receiverAddress={arkAddress}
+                      ticker={assetPresentation.ticker}
+                      decimals={assetMeta?.metadata?.decimals}
+                      value={taxi}
+                      onChange={setTaxi}
+                    />
+                  ) : (
+                    <TaxiChoice
+                      key={taxiRequestId}
+                      satoshis={satoshis}
+                      receiverAddress={arkAddress}
+                      value={taxi}
+                      onChange={setTaxi}
+                    />
+                  )}
+                </div>
               ) : null}
               <span hidden data-testid='bip21'>
                 {bip21Uri}
