@@ -232,13 +232,20 @@ check(
   '--installed was given, and there is no @arkade-taxi/client install to inspect',
 )
 if (entry) {
-  const taxiEntry = resolveInstalled(at('package.json'), '@arkade-os/taxi')
+  let taxiEntry
+  try {
+    taxiEntry = resolveInstalled(at('package.json'), '@arkade-os/taxi')
+    check(taxiEntry !== undefined, '@arkade-os/taxi is not installed beside @arkade-taxi/client')
+  } catch (error) {
+    failures.push(error.message)
+  }
   for (const [name, symbol] of [
     ['@arkade-os/sdk', CANDIDATE_SDK_SYMBOL],
     ['@arkade-os/swap', CANDIDATE_SWAP_SYMBOL],
     ['@arkade-os/taxi', CANDIDATE_TAXI_SYMBOL],
   ]) {
-    const roots = name === '@arkade-os/taxi' ? [at('package.json')] : [at('package.json'), entry, taxiEntry]
+    const roots =
+      name === '@arkade-os/taxi' ? [at('package.json')] : [at('package.json'), entry, taxiEntry].filter(Boolean)
     for (const from of roots) {
       try {
         await assertCandidateExport(packageRootFrom(from, name), name, symbol)

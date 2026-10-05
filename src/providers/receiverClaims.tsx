@@ -160,7 +160,7 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
     if (!unlocked || !aspInfo.url || !url || !emulatorKey) return
     if (readReceiverTaxis().some((taxi) => taxi.network === network && taxi.url === url)) return
     let stopped = false
-    taxiClient(url, fetch)
+    taxiClient(url)
       .info()
       .then((info) => {
         if (stopped) return

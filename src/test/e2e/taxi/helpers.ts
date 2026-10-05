@@ -134,7 +134,11 @@ export async function pay(alice: Actor) {
   await costs.or(error).first().waitFor({ state: 'visible' })
   if (await error.isVisible()) throw new Error(await error.innerText())
   await alice.page.getByRole('button', { name: 'Pay', exact: true }).click()
-  await dismissPaymentSuccess(alice.page)
+  const deadline = Date.now() + 60000
+  const success = alice.page.getByRole('button', { name: /Sounds good|Tap to go home/ })
+  await success.or(error).first().waitFor({ state: 'visible', timeout: 60000 })
+  if (await error.isVisible()) throw new Error(await error.innerText())
+  await dismissPaymentSuccess(alice.page, Math.max(1, deadline - Date.now()))
 }
 
 export async function claim(bob: Actor, plan: RegExp | string) {
