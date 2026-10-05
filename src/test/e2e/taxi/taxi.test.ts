@@ -31,7 +31,7 @@ test('Exact sub-dust bitcoin repays Taxi and preserves every participant balance
     ),
   )
   const policy = await admin<Policy>('policy')
-  const known = await advances()
+  let known = await advances()
   try {
     await admin('policy', 'PATCH', { assetRules: [rule(null)] })
     const alice = await actor(await contexts[0].newPage(), 5000)
@@ -43,6 +43,15 @@ test('Exact sub-dust bitcoin repays Taxi and preserves every participant balance
     await expect(alice.page.getByTestId('taxi-confirm-costs')).toContainText(
       'Send 100 sats. Service fee: Free. Taxi adds 230 sats',
     )
+    await test.step('Leaving approval releases the payment lock without debiting anyone', async () => {
+      await alice.page.goBack({ waitUntil: 'commit' })
+      await expect(alice.page.getByTestId('home-action-receive')).toBeVisible()
+      await expect(alice.page.getByTestId('taxi-confirm-costs')).not.toBeVisible()
+      expect(await ledger(parties)).toEqual(before)
+      known = await advances()
+      await send(alice, bob.address, '100', 'Receiver uses own sats')
+      await expect(alice.page.getByTestId('taxi-confirm-costs')).toBeVisible()
+    })
     await pay(alice)
     const [transfer] = await fresh(known)
     expect(await fresh(known)).toHaveLength(1)

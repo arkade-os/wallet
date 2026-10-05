@@ -64,7 +64,6 @@ export default function TaxiDeliveryOptions({
               <RadioGroupItem
                 value={option.value}
                 disabled={option.disabled}
-                aria-label={option.label}
                 aria-labelledby={`${id}-${option.value}-label`}
                 aria-describedby={`${id}-${option.value}-description`}
                 className='mt-0.5'

@@ -1,11 +1,20 @@
-import { exec } from 'child_process'
+import { execFile } from 'child_process'
 import { promisify } from 'util'
 
-const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
 
 export async function faucetOffchain(address: string, amount: number): Promise<void> {
-  // uses fulmine to fund wallets offchain, which is much faster
-  await execAsync(`curl -X POST http://localhost:7011/api/v1/send/offchain \
-        -H "Content-Type: application/json" \
-        -d '{"address": "${address}", "amount": ${amount}}'`)
+  await execFileAsync(process.execPath, [
+    'regtest/regtest.mjs',
+    'ark',
+    '--env',
+    '.env.regtest',
+    'send',
+    '--to',
+    address,
+    '--amount',
+    String(amount),
+    '--password',
+    process.env.ARKD_PASSWORD ?? 'secret',
+  ])
 }

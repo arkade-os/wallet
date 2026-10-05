@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import Advanced from '../../../screens/Settings/Advanced'
 import { DevModeContext } from '../../../providers/devMode'
 import { OptionsContext } from '../../../providers/options'
@@ -18,6 +18,8 @@ function renderAdvanced(devMode: boolean) {
 }
 
 describe('Advanced screen', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
   it('lets the wallet turn off free Taxi auto-claims without changing its other settings', () => {
     vi.stubGlobal('PointerEvent', MouseEvent)
     const backupAndUpdateConfig = vi.fn()
@@ -35,7 +37,6 @@ describe('Advanced screen', () => {
     expect(toggle).toBeChecked()
     fireEvent.click(toggle)
     expect(backupAndUpdateConfig).toHaveBeenCalledWith({ ...config, autoClaimFreeTaxi: false })
-    vi.unstubAllGlobals()
   })
 
   it('does not show Contracts when dev mode is off', () => {

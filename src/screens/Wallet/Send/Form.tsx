@@ -228,10 +228,17 @@ export default function SendForm() {
   // Apart from receiverTaxi, which routesToReceiverTaxi reads as an asset request.
   const [bitcoinTaxi, setBitcoinTaxi] = useState<Bip21Taxi>()
   const [subdustOffer, setSubdustOffer] = useState<SubdustOffer>()
-  const [approval, setApproval] = useState<{
-    terms: AssetPaymentTerms | DirectTaxiTerms
-    answer: (ok: boolean) => void
-  }>()
+  const [approval, setApproval] = useState<{ terms: AssetPaymentTerms | DirectTaxiTerms }>()
+  const approvalMounted = useRef(true)
+  const approvalAnswer = useRef<(ok: boolean) => void>()
+  useEffect(() => {
+    approvalMounted.current = true
+    return () => {
+      approvalMounted.current = false
+      approvalAnswer.current?.(false)
+      approvalAnswer.current = undefined
+    }
+  }, [])
   const directTaxiUserChoice = useRef(false)
   const [directTaxiMode, setDirectTaxiMode] = useState<'normal' | DirectTaxiMode>('normal')
   const pendingDirectTaxi = useRef<{ payment: PendingDirectTaxi; send: SendInfo }>()
@@ -998,12 +1005,18 @@ export default function SendForm() {
     timeoutRef.current = setTimeout(() => setReadyToParse(true), RECIPIENT_DEBOUNCE_MS)
   }
 
-  const approvalUi: PayRailUi = {
-    confirmPayment: (terms) => new Promise((answer) => setApproval({ terms, answer })),
-  }
+  const confirmPayment = (terms: AssetPaymentTerms | DirectTaxiTerms) =>
+    new Promise<boolean>((answer) => {
+      if (!approvalMounted.current) return answer(false)
+      approvalAnswer.current?.(false)
+      approvalAnswer.current = answer
+      setApproval({ terms })
+    })
+  const approvalUi: PayRailUi = { confirmPayment }
 
   const answerApproval = (ok: boolean) => {
-    approval?.answer(ok)
+    approvalAnswer.current?.(ok)
+    approvalAnswer.current = undefined
     setApproval(undefined)
   }
 
@@ -1039,7 +1052,7 @@ export default function SendForm() {
           assetId: asset?.assetId,
           amount: asset ? asset.amount : BigInt(originalSend.satoshis ?? 0),
           mode: directTaxiMode,
-          confirmPayment: (terms) => new Promise((answer) => setApproval({ terms, answer })),
+          confirmPayment,
         })
       }
       pendingDirectTaxi.current = undefined
