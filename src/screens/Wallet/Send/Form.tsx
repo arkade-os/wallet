@@ -1273,7 +1273,7 @@ export default function SendForm() {
   const overlayOpen = scan || (keys && !amountIsReadOnly)
   const sendOverlayStyle = { ...overlayStyle, position: 'fixed' as const, zIndex: 20 }
 
-  const Keys = () => (
+  const keyboard = (
     <Keyboard
       asset={activeAsset ?? undefined}
       back={() => setKeys(false)}
@@ -1284,9 +1284,7 @@ export default function SendForm() {
 
   if (keys && !amountIsReadOnly) {
     return prefersReducedMotion ? (
-      <div style={sendOverlayStyle}>
-        <Keys />
-      </div>
+      <div style={sendOverlayStyle}>{keyboard}</div>
     ) : (
       <AnimatePresence>
         <motion.div
@@ -1297,7 +1295,7 @@ export default function SendForm() {
           exit='exit'
           style={sendOverlayStyle}
         >
-          <Keys />
+          {keyboard}
         </motion.div>
       </AnimatePresence>
     )
