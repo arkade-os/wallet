@@ -156,8 +156,6 @@ export async function createWalletWithFiat(page: Page): Promise<void> {
   await navigateToSettings(page)
   await page.getByText(tr.settings.currency).click()
   await page.getByText('USD').click()
-  await page.getByLabel(tr.common.back).click()
-  await page.getByLabel(tr.common.back).click()
   await navigateHome(page)
 }
 
@@ -169,10 +167,7 @@ export async function createWalletWithPassword(page: Page, password: string): Pr
   await page.locator('div[data-testid="new-password"] input').fill(password)
   await page.locator('div[data-testid="confirm-password"] input').fill(password)
   await page.getByText(tr.components.savePassword).click()
-  // go back from Password → Advanced → Menu, then close settings
-  await page.getByLabel(tr.common.back).click()
-  await page.getByLabel(tr.common.back).click()
-  await page.getByLabel(tr.common.back).click()
+  await navigateHome(page)
 }
 
 export async function createWalletAndGetBIP21(page: Page, isMobile?: boolean, sats?: number): Promise<string> {
@@ -288,21 +283,21 @@ export async function receiveLightning(page: Page, isMobile: boolean, sats: numb
 export async function navigateToSettings(page: Page): Promise<void> {
   if (
     await page
-      .getByText(tr.settings.title, { exact: true })
+      .getByTestId('header-title-settings')
       .isVisible()
       .catch(() => false)
   )
     return
   await navigateHome(page)
-  await page.getByTestId('top-right-settings').click()
-  await page.getByText(tr.settings.title, { exact: true }).waitFor({ state: 'visible', timeout: 30000 })
+  await navLocator(page, 'settings').click()
+  await page.getByTestId('header-title-settings').waitFor({ state: 'visible', timeout: 3000 })
 }
 
 export async function resetWallet(page: Page): Promise<void> {
   await navigateToSettings(page)
   await page.getByText(tr.settings.resetWallet, { exact: true }).click()
   await page.getByTestId('checkbox').click()
-  await page.getByRole('contentinfo').getByText(tr.settings.resetWallet, { exact: true }).click()
+  await page.getByRole('button').getByText(tr.settings.resetWallet, { exact: true }).click()
 }
 
 async function getSecret(page: Page): Promise<string> {
