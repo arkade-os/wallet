@@ -57,6 +57,10 @@ const RECEIVER_SCRIPT = hex.encode(ArkAddress.decode(RECEIVER_ADDRESS).pkScript)
 let spendable: ExtendedVirtualCoin[] = []
 const svcWallet = { ...mockSvcWallet, getSpendableVtxos: async () => spendable }
 
+beforeEach(() => {
+  if (!globalThis.PointerEvent) vi.stubGlobal('PointerEvent', MouseEvent)
+})
+
 beforeAll(() => {
   if (!navigator.serviceWorker) {
     Object.defineProperty(navigator, 'serviceWorker', {
@@ -70,6 +74,7 @@ beforeAll(() => {
 const aspInfo = { ...mockAspContextValue.aspInfo, signerPubkey: KEYS.server, dust: 330n }
 
 let reconnectWallet = () => {}
+let changeReceiveRequest: (request: { assetId?: string; satoshis?: number }) => void = () => {}
 const Wallet = ({ children }: { children: React.ReactNode }) => {
   const [wallet, setWallet] = useState(svcWallet)
   reconnectWallet = () => setWallet({ ...svcWallet })
@@ -80,34 +85,44 @@ const Wallet = ({ children }: { children: React.ReactNode }) => {
   )
 }
 
-const renderAssetReceive = (request: { assetId?: string; satoshis?: number } = { assetId: ASSET_ID }) =>
-  render(
+const renderAssetReceive = (request: { assetId?: string; satoshis?: number } = { assetId: ASSET_ID }) => {
+  const ReceiveFlow = ({ children }: { children: React.ReactNode }) => {
+    const [current, setCurrent] = useState(request)
+    changeReceiveRequest = setCurrent
+    return (
+      <FlowContext.Provider
+        value={
+          {
+            ...mockFlowContextValue,
+            recvInfo: {
+              ...mockFlowContextValue.recvInfo,
+              ...current,
+              offchainAddr: RECEIVER_ADDRESS,
+              boardingAddr: 'bc1testaddr',
+            },
+          } as any
+        }
+      >
+        {children}
+      </FlowContext.Provider>
+    )
+  }
+  return render(
     <NavigationContext.Provider value={mockNavigationContextValue}>
       <AspContext.Provider value={{ ...mockAspContextValue, aspInfo }}>
         <ConfigContext.Provider value={mockConfigContextValue as any}>
-          <FlowContext.Provider
-            value={
-              {
-                ...mockFlowContextValue,
-                recvInfo: {
-                  ...mockFlowContextValue.recvInfo,
-                  ...request,
-                  offchainAddr: RECEIVER_ADDRESS,
-                  boardingAddr: 'bc1testaddr',
-                },
-              } as any
-            }
-          >
+          <ReceiveFlow>
             <Wallet>
               <LimitsContext.Provider value={mockLimitsContextValue}>
                 <ReceiveQRCode />
               </LimitsContext.Provider>
             </Wallet>
-          </FlowContext.Provider>
+          </ReceiveFlow>
         </ConfigContext.Provider>
       </AspContext.Provider>
     </NavigationContext.Provider>,
   )
+}
 
 describe('the receiver names his own Taxi in an asset request', () => {
   beforeEach(() => {
@@ -124,7 +139,7 @@ describe('the receiver names his own Taxi in an asset request', () => {
     vi.stubGlobal('fetch', taxiFetch())
     renderAssetReceive()
     await userEvent.click(await screen.findByRole('button', { name: /taxi/i }))
-    await userEvent.click(screen.getByRole('option', { name: /flat/i }))
+    await userEvent.click(screen.getByRole('radio', { name: 'Use Taxi' }))
     expect(screen.getByTestId('bip21').textContent).toContain('&taxifare=flat')
     expect(screen.getByTestId('bip21').textContent).toContain(`&taxikey=${KEYS.operator}`)
   })
@@ -201,10 +216,10 @@ describe('the receiver names his own Taxi in an asset request', () => {
     vi.stubGlobal('fetch', taxiFetch({ info: withRule({ fares }) }))
     renderAssetReceive()
     await userEvent.click(await screen.findByRole('button', { name: /taxi/i }))
-    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+    expect(screen.getAllByRole('radio').map((option) => option.getAttribute('aria-label'))).toEqual([
       'No Taxi',
-      'flat · 7 sats',
-      'pct · 5 sats',
+      'Use Taxi · 7 sats',
+      'Use Taxi · 5 sats',
     ])
   })
 
@@ -231,7 +246,7 @@ describe('the receiver names his own Taxi in an asset request', () => {
     renderAssetReceive()
     expect(readReceiverTaxis()).toEqual([])
     await userEvent.click(await screen.findByRole('button', { name: /taxi/i }))
-    await userEvent.click(screen.getByRole('option', { name: /flat/i }))
+    await userEvent.click(screen.getByRole('radio', { name: 'Use Taxi' }))
     expect(readReceiverTaxis()).toEqual([{ network: 'regtest', url: TAXI_URL, operatorKey: KEYS.operator }])
   })
 })
@@ -248,32 +263,56 @@ describe('the receiver names his Taxi for a sub-dust bitcoin request', () => {
     vi.unstubAllGlobals()
   })
 
-  it('offers the Taxi for an amount below dust, encodes the chosen sats fare and remembers the Taxi', async () => {
+  it('automatically enables a free Taxi below dust, encodes its fare and remembers it', async () => {
     vi.stubGlobal('fetch', taxiFetch({ info: BITCOIN_INFO }))
     renderAssetReceive({ satoshis: 100 })
-    await userEvent.click(await screen.findByRole('button', { name: 'Taxi: off' }))
-    await userEvent.click(screen.getByRole('option', { name: 'sats · 0 sats' }))
+    await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxifare=sats'))
     expect(screen.getByTestId('bip21').textContent).toContain(
       `amount=0.000001&taxi=${encodeURIComponent(TAXI_URL)}&taxikey=${KEYS.operator}&taxifare=sats`,
     )
     expect(
       screen.getByText(
-        'The payer pays this fare, and it arrives as a full 330-sat coin. Claiming may use 230 sats of your own.',
+        'Taxi adds 230 sats to deliver a full 330-sat coin. To claim your 100 sats, use a coin of at least 230 sats from your wallet to repay Taxi. This is not a service fee.',
       ),
     ).toBeInTheDocument()
     expect(readReceiverTaxis()).toEqual([{ network: 'regtest', url: TAXI_URL, operatorKey: KEYS.operator }])
+    expect(screen.queryByText(/\b0 sats\b/)).toBeNull()
+  })
+
+  it('preserves an explicit No Taxi choice when the wallet reconnects', async () => {
+    vi.stubGlobal('fetch', taxiFetch({ info: BITCOIN_INFO }))
+    renderAssetReceive({ satoshis: 50 })
+    await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxifare=sats'))
+    await userEvent.click(screen.getByRole('button', { name: /Taxi delivery/ }))
+    await userEvent.click(screen.getByRole('radio', { name: 'No Taxi' }))
+    act(() => reconnectWallet())
+    expect(screen.getByTestId('bip21').textContent).not.toContain('taxi=')
+    expect(screen.getByRole('button', { name: /Taxi delivery.*No Taxi/ })).toBeInTheDocument()
+  })
+
+  it('defaults a fresh sub-dust amount and removes Taxi params at dust', async () => {
+    vi.stubGlobal('fetch', taxiFetch({ info: BITCOIN_INFO }))
+    renderAssetReceive({ satoshis: 50 })
+    await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxifare=sats'))
+    await userEvent.click(screen.getByRole('button', { name: /Taxi delivery/ }))
+    await userEvent.click(screen.getByRole('radio', { name: 'No Taxi' }))
+    expect(screen.getByTestId('bip21').textContent).not.toContain('taxi=')
+    act(() => changeReceiveRequest({ satoshis: 100 }))
+    await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxifare=sats'))
+    expect(screen.getByText(/To claim your 100 sats/)).toBeInTheDocument()
+    act(() => changeReceiveRequest({ satoshis: 330 }))
+    await waitFor(() => expect(screen.getByTestId('bip21').textContent).not.toContain('taxi='))
+    expect(screen.queryByRole('button', { name: /Taxi delivery/ })).toBeNull()
   })
 
   it('warns a receiver with no coin at this address covering the top-up that he may not be able to claim', async () => {
     spendable = [...coins([229n], RECEIVER_SCRIPT), ...coins([1000n])]
     vi.stubGlobal('fetch', taxiFetch({ info: BITCOIN_INFO }))
     renderAssetReceive({ satoshis: 100 })
-    await userEvent.click(await screen.findByRole('button', { name: 'Taxi: off' }))
-    await userEvent.click(screen.getByRole('option', { name: 'sats · 0 sats' }))
+    await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxifare=sats'))
     expect(
       screen.getByText(
-        'The payer pays this fare, and it arrives as a full 330-sat coin. Claiming may need a coin of at least ' +
-          "230 sats of your own, and you have none; if you can't claim it, it can go back to the payer.",
+        'Taxi adds 230 sats to deliver a full 330-sat coin. To claim your 100 sats, use a coin of at least 230 sats from your wallet to repay Taxi. This is not a service fee. You do not currently have a compatible coin to claim it. If unclaimed, the payment can return to the payer.',
       ),
     ).toBeInTheDocument()
   })
@@ -282,11 +321,10 @@ describe('the receiver names his Taxi for a sub-dust bitcoin request', () => {
     const fetch = taxiFetch({ info: BITCOIN_INFO })
     vi.stubGlobal('fetch', fetch)
     renderAssetReceive({ satoshis: 100 })
-    await userEvent.click(await screen.findByRole('button', { name: 'Taxi: off' }))
-    await userEvent.click(screen.getByRole('option', { name: 'sats · 0 sats' }))
+    await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxifare=sats'))
     const probes = fetch.mock.calls.length
     act(() => reconnectWallet())
-    expect(await screen.findByRole('button', { name: 'Taxi: sats · 0 sats' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /Taxi delivery.*Free/ })).toBeInTheDocument()
     expect(screen.getByTestId('bip21').textContent).toContain('&taxifare=sats')
     expect(fetch.mock.calls).toHaveLength(probes)
   })

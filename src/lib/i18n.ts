@@ -610,6 +610,8 @@ export const translations = {
     },
     errors: {
       lnurl: 'LNURL error',
+      taxiFundingUnavailable:
+        "Taxi can't fund this payment from its available coins while keeping its reserve. Your wallet balance is not the issue.",
       solverNotResponding: 'The Lightning solver did not respond (waited {seconds}s) — try again later',
       onchainAmountTooLow:
         'Send failed: an output is below the onchain minimum (330 sats) — adjust the amount and try again',
@@ -1460,6 +1462,8 @@ export const translations = {
     },
     errors: {
       lnurl: 'Error LNURL',
+      taxiFundingUnavailable:
+        'Taxi no puede financiar este pago con sus monedas disponibles y mantener su reserva. El saldo de tu wallet no es el problema.',
       solverNotResponding: 'El solver de Lightning no respondió (esperó {seconds}s), inténtalo de nuevo más tarde',
       onchainAmountTooLow:
         'Envío fallido: un output está por debajo del mínimo onchain (330 sats). Ajusta el monto e inténtalo de nuevo',

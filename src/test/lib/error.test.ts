@@ -1,7 +1,26 @@
 import { describe, expect, it } from 'vitest'
 import { extractError } from '../../lib/error'
+import { TaxiError } from '@arkade-taxi/client'
 
 describe('extractError', () => {
+  it('identifies a Taxi funding refusal by its stable code instead of blaming the payer', () => {
+    expect(extractError(new TaxiError('operator_inventory_insufficient', 'changed server detail'))).toBe(
+      "Taxi can't fund this payment from its available coins while keeping its reserve. Your wallet balance is not the issue.",
+    )
+    expect(
+      extractError({ response: { data: { code: 'operator_inventory_insufficient', error: 'server detail' } } }),
+    ).toBe(
+      "Taxi can't fund this payment from its available coins while keeping its reserve. Your wallet balance is not the issue.",
+    )
+  })
+
+  it('explains legacy Taxi funding messages without remapping ordinary insufficient funds', () => {
+    expect(extractError('insufficient compatible safe inventory after reservations and reserve')).toBe(
+      "Taxi can't fund this payment from its available coins while keeping its reserve. Your wallet balance is not the issue.",
+    )
+    expect(extractError(new Error('Insufficient funds'))).toBe('Insufficient funds')
+  })
+
   it('keeps valid known mappings for plain string messages', () => {
     expect(extractError('already unrolled')).toBe(
       'Your funds were recently settled onchain — please try again in a few hours',

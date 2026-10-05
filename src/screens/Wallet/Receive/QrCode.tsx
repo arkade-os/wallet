@@ -72,7 +72,7 @@ export default function ReceiveQRCode() {
   const copyToClipboard = useCopyToClipboard()
 
   const [assetAmount, setAssetAmount] = useState(BigInt(0))
-  const [taxi, setTaxi] = useState<Bip21Taxi>()
+  const [taxiSelection, setTaxiSelection] = useState<{ requestId: string; value: Bip21Taxi }>()
   const [amountTextValue, setAmountTextValue] = useState('')
 
   const [sharing, setSharing] = useState(false)
@@ -94,6 +94,9 @@ export default function ReceiveQRCode() {
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
   const isAssetReceive = assetId && assetId !== ''
   const subdustRequest = !isAssetReceive && satoshis > 0 && satoshis < Number(aspInfo.dust)
+  const taxiRequestId = `${aspInfo.network}:${assetId ?? ''}:${satoshis}:${offchainAddr}`
+  const taxi = taxiSelection?.requestId === taxiRequestId ? taxiSelection.value : undefined
+  const setTaxi = (value?: Bip21Taxi) => setTaxiSelection(value ? { requestId: taxiRequestId, value } : undefined)
   const hasError = Boolean(addressError)
 
   const [generatingInvoice, setGeneratingInvoice] = useState(false)
@@ -602,6 +605,7 @@ export default function ReceiveQRCode() {
               </div>
               {assetId && arkAddress ? (
                 <TaxiChoice
+                  key={taxiRequestId}
                   assetId={assetId}
                   receiverAddress={arkAddress}
                   ticker={assetPresentation.ticker}
@@ -610,7 +614,13 @@ export default function ReceiveQRCode() {
                   onChange={setTaxi}
                 />
               ) : subdustRequest && arkAddress ? (
-                <TaxiChoice satoshis={satoshis} receiverAddress={arkAddress} value={taxi} onChange={setTaxi} />
+                <TaxiChoice
+                  key={taxiRequestId}
+                  satoshis={satoshis}
+                  receiverAddress={arkAddress}
+                  value={taxi}
+                  onChange={setTaxi}
+                />
               ) : null}
               <span hidden data-testid='bip21'>
                 {bip21Uri}

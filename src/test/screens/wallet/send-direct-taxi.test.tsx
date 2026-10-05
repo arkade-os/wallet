@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { hex } from '@scure/base'
@@ -105,8 +105,8 @@ const button = (name: string) => screen.getByRole('button', { name })
 
 const chooseCarrier = async (mode: string) => {
   await userEvent.click(await screen.findByTestId('taxi-send-mode', {}, SLOW))
-  await userEvent.click(await screen.findByRole('menuitem', { name: mode }, SLOW))
-  await waitFor(() => expect(screen.getByTestId('taxi-send-mode')).toHaveTextContent(`Carrier: ${mode}`), SLOW)
+  await userEvent.click(await screen.findByRole('radio', { name: mode }, SLOW))
+  await waitFor(() => expect(screen.getByTestId('taxi-send-mode')).toHaveTextContent(mode), SLOW)
 }
 
 const pay = async () => {
@@ -114,7 +114,12 @@ const pay = async () => {
   await userEvent.click(button('Continue'))
 }
 
+beforeAll(() => {
+  if (!globalThis.PointerEvent) vi.stubGlobal('PointerEvent', MouseEvent)
+})
+
 beforeEach(() => {
+  if (!globalThis.PointerEvent) vi.stubGlobal('PointerEvent', MouseEvent)
   localStorage.clear()
   vi.stubEnv('VITE_TAXI_URL', TAXI_URL)
   vi.stubEnv('VITE_EMULATOR_PUBKEY', KEYS.emulator)
@@ -147,16 +152,49 @@ describe('sending a sub-dust bitcoin amount to an Arkade address', FORM_TEST, ()
     expect(screen.queryByTestId('taxi-send-mode')).toBeNull()
   })
 
-  it("offers the carriers the Taxi's bitcoin rule allows, starting with none", async () => {
+  it('defaults to a compatible Taxi for sub-dust requests', async () => {
     renderSend(request('0.000001'))
     const carrier = await screen.findByTestId('taxi-send-mode', {}, SLOW)
-    expect(carrier).toHaveTextContent('Carrier: No Taxi: sub-dust coin')
+    expect(carrier).toHaveTextContent('Receiver uses own sats')
     await userEvent.click(carrier)
-    expect((await screen.findAllByRole('menuitem', {}, SLOW)).map((item) => item.textContent)).toEqual([
+    expect((await screen.findAllByRole('radio', {}, SLOW)).map((item) => item.getAttribute('aria-label'))).toEqual([
       'No Taxi: sub-dust coin',
       'Receiver uses own sats',
       'Direct delivery, no claim',
     ])
+  })
+
+  it('uses the named Taxi by default without an extra carrier selection', async () => {
+    renderSend(request('0.0000005', NAMED))
+    await screen.findByTestId('taxi-send-mode', {}, SLOW)
+    await pay()
+    await waitFor(
+      () =>
+        expect(sendDirectTaxi).toHaveBeenCalledWith(
+          expect.objectContaining({
+            amount: 50n,
+            mode: 'recycle',
+            taxi: { url: TAXI_URL, operatorKey: KEYS.operator, fareId: 'sats' },
+          }),
+        ),
+      SLOW,
+    )
+  })
+
+  it('respects an explicit No Taxi choice and sends without Taxi', async () => {
+    const navigate = renderSend(request('0.0000005'))
+    await chooseCarrier('No Taxi: sub-dust coin')
+    await pay()
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), SLOW)
+    expect(sendDirectTaxi).not.toHaveBeenCalled()
+  })
+
+  it('defaults a fresh request after an explicit opt-out', async () => {
+    renderSend(request('0.0000005'))
+    await chooseCarrier('No Taxi: sub-dust coin')
+    fireEvent.change(document.querySelector('input[name="send-address"]')!, { target: { value: request('0.000001') } })
+    await waitFor(() => expect(screen.getByTestId('taxi-send-mode')).toHaveTextContent('Receiver uses own sats'), SLOW)
+    expect(screen.getByTestId('taxi-send-mode')).toHaveTextContent('Free')
   })
 
   it('stops at Continue when the Taxi quotes another amount than she typed, and moves nothing', async () => {
@@ -227,7 +265,7 @@ describe('sending a sub-dust bitcoin amount to an Arkade address', FORM_TEST, ()
     await chooseCarrier('Receiver uses own sats')
     await pay()
     expect(await screen.findByTestId('taxi-confirm-costs', {}, SLOW)).toHaveTextContent(
-      'Send 100 sats. Fare: 0 sats. Taxi adds 230 sats so it arrives as a full 330-sat coin. ' +
+      'Send 100 sats. Service fee: Free. Taxi adds 230 sats so it arrives as a full 330-sat coin. ' +
         "The receiver claims it with a coin of at least 230 sats of their own, repaying Taxi. If it isn't claimed, " +
         'your 100 sats come back to you.',
     )

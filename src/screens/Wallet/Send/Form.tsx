@@ -1,6 +1,7 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { BrantaService, type Payment } from '@branta-ops/branta/v2'
 import Button from '../../../components/Button'
+import TaxiDeliveryOptions from '../../../components/TaxiDeliveryOptions'
 import ErrorMessage from '../../../components/Error'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
@@ -161,13 +162,13 @@ const BITCOIN_TAXI_MODES = {
 type SubdustOffer =
   | { status: 'checking' }
   | { status: 'unavailable'; reason: string }
-  | { status: 'available'; modes: DirectTaxiMode[] }
+  | { status: 'available'; modes: DirectTaxiMode[]; requestId: string; fareUnits: bigint }
 
 const bitcoinTaxiTerms = ({ mode, assetAmount: sent, fareUnits, carrierSats: topup }: DirectTaxiTerms): string => {
   const coin = sent + topup
   const unclaimed = ` If it isn't claimed, your ${sent} sats come back to you.`
   return (
-    `Send ${sent} sats. Fare: ${fareUnits} sats. Taxi adds ${topup} sats so it arrives as a full ${coin}-sat coin. ` +
+    `Send ${sent} sats. Service fee: ${fareUnits === 0n ? 'Free' : `${fareUnits} sats`}. Taxi adds ${topup} sats so it arrives as a full ${coin}-sat coin. ` +
     (mode === 'recycle'
       ? `The receiver claims it with a coin of at least ${topup} sats of their own, repaying Taxi.${unclaimed}`
       : mode === 'purchase'
@@ -230,6 +231,7 @@ export default function SendForm() {
     terms: AssetPaymentTerms | DirectTaxiTerms
     answer: (ok: boolean) => void
   }>()
+  const directTaxiUserChoice = useRef(false)
   const [directTaxiMode, setDirectTaxiMode] = useState<'normal' | DirectTaxiMode>('normal')
   const pendingDirectTaxi = useRef<{ payment: PendingDirectTaxi; send: SendInfo }>()
   const [checkingTaxiPayment, setCheckingTaxiPayment] = useState(true)
@@ -312,10 +314,24 @@ export default function SendForm() {
       sendSats < Number(aspInfo.dust) &&
       subdustTaxiUrl,
   )
-  const subdustModes = wantsSubdustTaxi && subdustOffer?.status === 'available' ? subdustOffer.modes : undefined
+  const subdustRequestId = `${aspInfo.url}:${aspInfo.signerPubkey}:${sendInfo.arkAddress}:${sendSats}:${subdustTaxiUrl}:${bitcoinTaxi?.operatorKey}:${bitcoinTaxi?.fareId}`
+  const subdustModes =
+    wantsSubdustTaxi && subdustOffer?.status === 'available' && subdustOffer.requestId === subdustRequestId
+      ? subdustOffer.modes
+      : undefined
   const payViaDirectTaxi = (canUseDirectTaxi || Boolean(subdustModes)) && directTaxiMode !== 'normal'
 
-  useEffect(() => setDirectTaxiMode('normal'), [sendInfo.arkAddress, sendInfo.assets?.[0]?.assetId, subdustOffer])
+  useEffect(() => {
+    directTaxiUserChoice.current = false
+    setDirectTaxiMode('normal')
+  }, [
+    sendInfo.arkAddress,
+    sendInfo.assets?.[0]?.assetId,
+    sendSats,
+    subdustTaxiUrl,
+    bitcoinTaxi?.operatorKey,
+    bitcoinTaxi?.fareId,
+  ])
 
   useEffect(() => {
     setSubdustOffer(undefined)
@@ -336,7 +352,7 @@ export default function SendForm() {
         BigInt(sendSats),
       )
       return offer.ok
-        ? { status: 'available', modes: offer.modes }
+        ? { status: 'available', modes: offer.modes, requestId: subdustRequestId, fareUnits: offer.fareUnits }
         : { status: 'unavailable', reason: TAXI_REFUSAL_TEXT[offer.reason] }
     }
     check()
@@ -345,7 +361,11 @@ export default function SendForm() {
         return { status: 'unavailable', reason: TAXI_REFUSAL_TEXT.unverifiable }
       })
       .then((next) => {
-        if (!cancelled) setSubdustOffer(next)
+        if (cancelled) return
+        setSubdustOffer(next)
+        if (next.status === 'available' && !directTaxiUserChoice.current) {
+          setDirectTaxiMode(next.modes.includes('recycle') ? 'recycle' : next.modes[0])
+        }
       })
     return () => {
       cancelled = true
@@ -1466,22 +1486,46 @@ export default function SendForm() {
                 </TextSecondary>
               ) : null}
               {carrierModes ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    className='button secondary'
-                    data-testid='taxi-send-mode'
-                    disabled={Boolean(pendingDirectTaxi.current)}
-                  >
-                    {`Carrier: ${carrierModes[directTaxiMode]}`}
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    {(Object.keys(carrierModes) as (keyof typeof TAXI_SEND_MODES)[]).map((mode) => (
-                      <DropdownMenuItem key={mode} onClick={() => setDirectTaxiMode(mode)}>
-                        {carrierModes[mode]}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <TaxiDeliveryOptions
+                  testId='taxi-send-mode'
+                  value={directTaxiMode}
+                  disabled={Boolean(pendingDirectTaxi.current)}
+                  onChange={(mode) => {
+                    directTaxiUserChoice.current = true
+                    setDirectTaxiMode(mode as keyof typeof TAXI_SEND_MODES)
+                  }}
+                  description={
+                    directTaxiMode === 'normal'
+                      ? isAssetSend
+                        ? 'Use sats from your wallet to carry the asset.'
+                        : 'This amount arrives as a sub-dust coin and cannot be spent directly.'
+                      : directTaxiMode === 'recycle'
+                        ? isAssetSend
+                          ? 'The receiver claims the asset using their own sats to repay Taxi.'
+                          : `Taxi adds ${Number(aspInfo.dust) - sendSats} sats. The receiver needs a coin of at least ${Number(aspInfo.dust) - sendSats} sats to claim your ${sendSats} sats and repay Taxi.`
+                        : directTaxiMode === 'purchase'
+                          ? 'The receiver claims the delivery without using sats from their wallet.'
+                          : 'The receiver gets a spendable delivery with no claim needed. You pay for the carrier.'
+                  }
+                  options={(Object.keys(carrierModes) as (keyof typeof TAXI_SEND_MODES)[]).map((mode) => ({
+                    value: mode,
+                    label: carrierModes[mode]!,
+                    cost:
+                      subdustOffer?.status === 'available' && mode === 'recycle' && subdustOffer.fareUnits === 0n
+                        ? 'Free'
+                        : undefined,
+                    description:
+                      mode === 'normal'
+                        ? isAssetSend
+                          ? 'Use your own sats for the carrier.'
+                          : 'Receive a sub-dust coin that cannot be spent directly.'
+                        : mode === 'recycle'
+                          ? 'The receiver uses their own sats to repay Taxi when claiming.'
+                          : mode === 'purchase'
+                            ? 'Buy the carrier so the receiver needs no sats to claim.'
+                            : 'Pay for the carrier and deliver directly, without a claim.',
+                  }))}
+                />
               ) : null}
               {deductFromAmount ? <InfoLine color='orange' text={t('send.feesDeductedFromAmount')} /> : null}
             </FlexCol>
@@ -1528,7 +1572,7 @@ export default function SendForm() {
               ? 'mode' in approval.terms
                 ? approval.terms.assetId === undefined
                   ? bitcoinTaxiTerms(approval.terms)
-                  : `Send ${prettyAssetAmount(approval.terms.assetAmount, activeAsset?.decimals ?? 8)} ${activeAsset?.ticker ?? ''}. Fare: ${approval.terms.fareCurrency === 'sats' ? `${approval.terms.fareUnits} sats` : `${prettyAssetAmount(approval.terms.fareUnits, activeAsset?.decimals ?? 8)} ${activeAsset?.ticker ?? ''}`}. Taxi carrier: ${approval.terms.carrierSats} sats. ${approval.terms.mode === 'recycle' ? 'The receiver uses their own sats to repay the carrier.' : approval.terms.mode === 'purchase' ? 'The receiver claims the purchased carrier without their own sats.' : 'The receiver gets a direct delivery with no claim needed.'}`
+                  : `Send ${prettyAssetAmount(approval.terms.assetAmount, activeAsset?.decimals ?? 8)} ${activeAsset?.ticker ?? ''}. Service fee: ${approval.terms.fareUnits === 0n ? 'Free' : approval.terms.fareCurrency === 'sats' ? `${approval.terms.fareUnits} sats` : `${prettyAssetAmount(approval.terms.fareUnits, activeAsset?.decimals ?? 8)} ${activeAsset?.ticker ?? ''}`}. Taxi carrier: ${approval.terms.carrierSats} sats. ${approval.terms.mode === 'recycle' ? 'The receiver uses their own sats to repay the carrier.' : approval.terms.mode === 'purchase' ? 'The receiver claims the purchased carrier without their own sats.' : 'The receiver gets a direct delivery with no claim needed.'}`
                 : `Pay ${prettyNumber(Number(approval.terms.payAmountSats))} sats to send ${prettyAssetAmount(approval.terms.assetAmount, activeAsset?.decimals ?? 8)} ${activeAsset?.ticker ?? ''}`
               : ''}
           </Text>

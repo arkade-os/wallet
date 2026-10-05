@@ -1,8 +1,7 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { ArkAddress, type IWallet, type NetworkName } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
-import Button from '../../../components/Button'
-import FlexCol from '../../../components/FlexCol'
+import TaxiDeliveryOptions from '../../../components/TaxiDeliveryOptions'
 import { TextSecondary } from '../../../components/Text'
 import { AspContext, type AspInfo } from '../../../providers/asp'
 import { WalletContext } from '../../../providers/wallet'
@@ -91,7 +90,7 @@ const checkOwnTaxi = async (
 }
 
 const fareLabel = ({ fare, units }: Fare, assetUnits: (units: bigint) => string): string =>
-  `${fare.id} · ${fare.currency === 'sats' ? `${units} sats` : assetUnits(units)}`
+  units === 0n ? 'Free' : fare.currency === 'sats' ? `${units} sats` : assetUnits(units)
 
 interface TaxiChoiceProps {
   /** Absent for a sub-dust bitcoin request of `satoshis`. */
@@ -117,9 +116,10 @@ export default function TaxiChoice({
   const { svcWallet } = useContext(WalletContext)
   const url = aspInfo.network ? getReceiverTaxiUrlForNetwork(aspInfo.network as NetworkName) : undefined
   const [offer, setOffer] = useState<TaxiOffer>({ status: 'checking' })
-  const [open, setOpen] = useState(false)
+  const userChoice = useRef(false)
 
   useEffect(() => {
+    userChoice.current = false
     onChange(undefined)
     if (!url) return
     let cancelled = false
@@ -130,7 +130,12 @@ export default function TaxiChoice({
         return { status: 'unavailable', reason: TAXI_REFUSAL_TEXT.unreachable }
       })
       .then((next) => {
-        if (!cancelled) setOffer(next)
+        if (cancelled) return
+        setOffer(next)
+        if (!assetId && next.status === 'available' && !userChoice.current) {
+          const fare = next.fares.find(({ units }) => units === 0n) ?? next.fares[0]
+          onChange({ url: next.url, operatorKey: next.operatorKey, fareId: fare.fare.id })
+        }
       })
     return () => {
       cancelled = true
@@ -144,48 +149,47 @@ export default function TaxiChoice({
 
   const assetUnits = (units: bigint) => `${centsToUnits(units, decimals)} ${ticker}`
   const chosen = offer.fares.find(({ fare }) => fare.id === value?.fareId)
-  const choose = (fare?: Fare) => {
+  const choose = (fareId: string) => {
+    userChoice.current = true
+    const fare = offer.fares.find(({ fare }) => fare.id === fareId)
     onChange(fare && { url: offer.url, operatorKey: offer.operatorKey, fareId: fare.fare.id })
-    setOpen(false)
   }
-  const optionClass = 'rounded-md px-3 py-2 text-left aria-selected:bg-neutral-100 dark:aria-selected:bg-neutral-800'
+  const description = chosen
+    ? offer.topup === undefined
+      ? chosen.units === 0n
+        ? 'The payer needs no carrier. Taxi has no service fee; you use your own sats to claim the delivery.'
+        : 'The payer needs no carrier. You pay the service fee when you claim the delivery.'
+      : `Taxi adds ${offer.topup} sats to deliver a full ${aspInfo.dust}-sat coin. To claim your ${satoshis} sats, use a coin of at least ${offer.topup} sats from your wallet to repay Taxi. This is not a service fee.` +
+        (offer.claimCoin === false
+          ? ' You do not currently have a compatible coin to claim it. If unclaimed, the payment can return to the payer.'
+          : '')
+    : assetId
+      ? 'The payer must provide the sats needed to carry this asset.'
+      : 'Without Taxi, this amount arrives as a sub-dust coin and cannot be spent directly.'
 
   return (
-    <FlexCol gap='0.25rem'>
-      <Button
-        secondary
-        label={`Taxi: ${chosen ? fareLabel(chosen, assetUnits) : 'off'}`}
-        onClick={() => setOpen(!open)}
-      />
-      {open ? (
-        <div role='listbox' aria-label='Taxi fare' className='flex flex-col gap-1'>
-          <button type='button' role='option' aria-selected={!chosen} className={optionClass} onClick={() => choose()}>
-            No Taxi
-          </button>
-          {offer.fares.map((fare) => (
-            <button
-              key={fare.fare.id}
-              type='button'
-              role='option'
-              aria-selected={chosen?.fare.id === fare.fare.id}
-              className={optionClass}
-              onClick={() => choose(fare)}
-            >
-              {fareLabel(fare, assetUnits)}
-            </button>
-          ))}
-        </div>
-      ) : null}
-      {chosen ? (
-        <TextSecondary>
-          {offer.topup === undefined
-            ? 'The payer needs no carrier; you pay this fare when you claim.'
-            : `The payer pays this fare, and it arrives as a full ${aspInfo.dust}-sat coin. ` +
-              (offer.claimCoin === false
-                ? `Claiming may need a coin of at least ${offer.topup} sats of your own, and you have none; if you can't claim it, it can go back to the payer.`
-                : `Claiming may use ${offer.topup} sats of your own.`)}
-        </TextSecondary>
-      ) : null}
-    </FlexCol>
+    <TaxiDeliveryOptions
+      value={chosen?.fare.id ?? 'none'}
+      onChange={choose}
+      description={description}
+      options={[
+        {
+          value: 'none',
+          label: 'No Taxi',
+          description: assetId
+            ? 'The payer provides the carrier sats.'
+            : 'Receive a sub-dust coin that cannot be spent directly.',
+        },
+        ...offer.fares.map((fare) => ({
+          value: fare.fare.id,
+          label: offer.fares.length === 1 ? 'Use Taxi' : `Use Taxi · ${fareLabel(fare, assetUnits)}`,
+          cost: fareLabel(fare, assetUnits),
+          description:
+            offer.topup === undefined
+              ? 'Claim the asset delivery using sats from your wallet.'
+              : 'Claim your payment using sats from your wallet to repay Taxi.',
+        })),
+      ]}
+    />
   )
 }
