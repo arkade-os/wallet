@@ -68,7 +68,7 @@ test(
         const parties = { cleo: cleo.address, bob: bob.address, taxi: operatorAddress() }
         const sponsored = await ledger(parties, xyzC)
         let known = await advances()
-        await prepareSend(cleo, await receiveRequest(bob, xyzC), 'Sender sponsors carrier')
+        await prepareSend(cleo, await receiveRequest(bob, xyzC, null, '1', 'sender'), 'Sender sponsors carrier')
         await confirmSend(cleo, true)
         const { id } = await newAdvance(known)
         await expectLedger(parties, xyzC, {
@@ -81,7 +81,7 @@ test(
 
         const purchased = await ledger(parties, xyzC)
         known = await advances()
-        await prepareSend(cleo, await receiveRequest(bob, xyzC), 'Sender pays asset fare')
+        await prepareSend(cleo, await receiveRequest(bob, xyzC, null, '1', 'sender'), 'Sender pays asset fare')
         await confirmSend(cleo, true)
         const purchase = await newAdvance(known)
         await claim(bob, /330 sats with no sats needed/)

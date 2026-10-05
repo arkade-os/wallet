@@ -163,6 +163,11 @@ describe('checking a Taxi payment that is still on record', () => {
 })
 
 describe('a new Taxi payment the Taxi then fails to submit', () => {
+  it('refuses receiver-repaid modes when the request requires sender-funded delivery', async () => {
+    await expect(
+      sendDirectTaxi({ wallet, taxi: { url: TAXI_URL, payer: 'sender' }, assetId: ASSET_ID, mode: 'recycle' } as never),
+    ).rejects.toThrow('requires sender-covered delivery')
+  })
   it('stops at the failure on its first status check, keeping the record', async () => {
     vi.stubEnv('VITE_EMULATOR_PUBKEY', KEYS.emulator)
     vi.stubGlobal('navigator', { locks: { request: (_: string, run: () => unknown) => run() } })
@@ -324,33 +329,16 @@ describe('sending sub-dust bitcoin through the Taxi', () => {
     expect(journaled).not.toHaveProperty('assetId')
   })
 
-  it('quotes a direct delivery whose sender contributes exactly the amount', async () => {
-    const { arkTx, txid } = lockup()
-    vi.stubGlobal('fetch', taxiFetch({ info: BITCOIN_INFO, statuses: [locked(txid)] }))
-    const quote = vi.spyOn(TaxiClient.prototype, 'requestVerifiedSponsoredQuote').mockResolvedValue({
-      verified: {
-        quote: {
-          transferId: 't-1',
-          params: { contribution: '230' },
-          fare: { currency: 'sats', units: '0' },
-          expiresAt: Date.now() / 1000 + 600,
-        },
-        params: { operatorKey: hex.decode(KEYS.operator), contribution: 230n },
-        envelope: { arkTx, covenantOutputIndex: 0 },
-      },
-      senderInputs: [],
-    } as never)
-    vi.spyOn(TaxiClient.prototype, 'submitSponsoredLockup').mockResolvedValue({ txid, outpoint: { txid, vout: 0 } })
-    const coins = async () => [{ txid: 'd'.repeat(64), vout: 0, value: 1_000 }]
-    await expect(
-      send({ wallet: { identity: wallet.identity, getSpendableVtxos: coins }, mode: 'sponsored' }),
-    ).resolves.toBe(txid)
-    expect(quote).toHaveBeenCalledWith(
-      expect.objectContaining({
-        paymentSats: 100n,
-        expect: { maxContributionSats: 230n, maxFare: { currency: 'sats', units: 0n } },
-      }),
-    )
+  it.each(['purchase', 'sponsored'])('refuses %s instead of increasing the receiver payment to dust', async (mode) => {
+    const info = {
+      ...BITCOIN_INFO,
+      assetRules: BITCOIN_INFO.assetRules.map((rule) => (rule.assetId === null ? { ...rule, claim: 'either' } : rule)),
+    }
+    const fetch = taxiFetch({ info })
+    vi.stubGlobal('fetch', fetch)
+    await expect(send({ wallet, mode })).rejects.toThrow('Only recycle preserves an exact sub-dust amount')
+    expect(posts(fetch)).toHaveLength(0)
+    expect(journalKeys()).toEqual([])
   })
 
   it('resumes a stored payment the Taxi never received, bound again to its exact amount', async () => {

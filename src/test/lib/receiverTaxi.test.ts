@@ -261,11 +261,31 @@ describe('probeBitcoinTaxi', () => {
 })
 
 describe('receiverPaidCarrier', () => {
+  it('resolves and binds the operator identity for a URL-only request', async () => {
+    const taxi = { url: TAXI.url }
+    const fetch = taxiFetch()
+    const ctx = arkadeContext({ fetch })
+    expect(await probeReceiverTaxi(taxi, ctx)).toMatchObject({ ok: true })
+    const carrier = await receiverPaidCarrier(taxi, INFO, ctx, {
+      makerPublicKey: hex.decode(KEYS.maker),
+      fundingExpiry: DEFAULT_FLOOR,
+      minimum: EARLY_FLOOR,
+    })
+    expect(carrier.choice.taxi).toEqual({ url: TAXI.url, operatorKey: INFO.operatorKey })
+  })
   // The minimum the rail derives from the fixture clock: NOW + 900s funding + 3600s claim.
   const MINIMUM = NOW + 4_500n
   const payer = { makerPublicKey: hex.decode(KEYS.maker), fundingExpiry: 4_500_000_000n, minimum: MINIMUM }
   const quoteBody = (fetch: ReturnType<typeof taxiFetch>) =>
     JSON.parse(fetch.mock.calls.find(([url]) => url === `${TAXI_URL}/v1/receive-quotes`)![1].body)
+
+  it('refuses a sender-covered preference before requesting receiver repayment', async () => {
+    const fetch = taxiFetch()
+    await expect(
+      receiverPaidCarrier({ ...TAXI, payer: 'sender' }, INFO, arkadeContext({ fetch }), payer),
+    ).rejects.toThrow('requires sender-covered delivery')
+    expect(fetch).not.toHaveBeenCalled()
+  })
 
   it('asks for a receiver-paid quote and maps the verified descriptor', async () => {
     const fetch = taxiFetch()

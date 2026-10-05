@@ -135,7 +135,7 @@ interface TaxiRoute {
 
 const taxiCarrier = async (req: AssetPaymentRequest, deps: AssetRfqSendDeps): Promise<TaxiRoute | undefined> => {
   const { taxi } = req
-  if (!taxi) return undefined
+  if (!taxi || taxi.payer === 'sender') return undefined
   const ctx = {
     ...deps.arkade,
     assetId: req.assetId,

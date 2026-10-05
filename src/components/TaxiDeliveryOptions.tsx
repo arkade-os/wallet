@@ -2,7 +2,7 @@ import { useId, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { RadioGroup, RadioGroupItem } from './ui/radio-group'
 
-type DeliveryOption = { value: string; label: string; description: string; cost?: string }
+type DeliveryOption = { value: string; label: string; description: string; cost?: string; disabled?: boolean }
 
 export default function TaxiDeliveryOptions({
   value,
@@ -59,10 +59,11 @@ export default function TaxiDeliveryOptions({
           {options.map((option) => (
             <label
               key={option.value}
-              className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 ${value === option.value ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted'}`}
+              className={`flex items-start gap-3 rounded-lg border p-3 ${option.disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} ${value === option.value ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted'}`}
             >
               <RadioGroupItem
                 value={option.value}
+                disabled={option.disabled}
                 aria-label={option.label}
                 aria-labelledby={`${id}-${option.value}-label`}
                 aria-describedby={`${id}-${option.value}-description`}

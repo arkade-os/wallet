@@ -409,7 +409,7 @@ const priceFare = (fare: TaxiFare, base: bigint): bigint => {
 interface DirectTaxiSendArgs {
   wallet: IWallet
   aspInfo: AspInfo
-  taxi: { url: string; operatorKey?: string; fareId?: Bip21Taxi['fareId'] }
+  taxi: { url: string; operatorKey?: string; fareId?: Bip21Taxi['fareId']; payer?: Bip21Taxi['payer'] }
   receiverAddress: string
   /** Absent for sub-dust bitcoin, whose `amount` is then in sats. */
   assetId?: string
@@ -419,6 +419,8 @@ interface DirectTaxiSendArgs {
 }
 
 export const sendDirectTaxi = async (args: DirectTaxiSendArgs): Promise<string> => {
+  if (args.taxi.payer === 'sender' && (!args.assetId || args.mode === 'recycle'))
+    throw new Error('This request requires sender-covered delivery without receiver repayment')
   const senderKey = hex.encode(await args.wallet.identity.xOnlyPublicKey())
   if (!navigator.locks) throw new Error('This browser cannot safely coordinate Taxi payments')
   return navigator.locks.request(pendingKey(args.aspInfo.network, senderKey), async () => {
@@ -505,6 +507,7 @@ const bitcoinPlan = async (
   ctx: ArkadeContext,
   { wallet, taxi, receiverAddress, amount, mode }: DirectTaxiSendArgs,
 ): Promise<QuotePlan> => {
+  if (mode !== 'recycle') throw new Error('Only recycle preserves an exact sub-dust amount')
   const offer = vetBitcoinTaxi(info, ctx, {
     receiverAddress,
     amount,

@@ -2,7 +2,7 @@
  * The receiver's Taxi, seen from the payer: probe it, then ask it for a
  * receive quote the receiver pays for. Every identity checked here comes from
  * the wallet's own Arkade server; the Taxi only ever supplies its operator key,
- * and that must equal the one the receiver named.
+ * and is pinned when the receiver named one.
  */
 import { ArkAddress, asset, getNetwork, toXOnlySignerHex, type ArkInfo, type NetworkName } from '@arkade-os/sdk'
 import type { ArkadeCarrierChoice } from '@arkade-os/swap'
@@ -199,10 +199,10 @@ export const receiverFareUnits = (fare: TaxiFare | undefined, loan: bigint): big
   return max !== null && floored > max ? max : floored
 }
 
-const vetInfo = (taxi: Bip21Taxi, info: TaxiInfo, ctx: TaxiProbeContext): ProbeResult => {
+const vetInfo = (taxi: Bip21Taxi, info: TaxiInfo, ctx: TaxiProbeContext, receiverPaid = true): ProbeResult => {
   const refuse = (reason: ProbeRefusal): ProbeResult => ({ ok: false, reason })
   // `info()` has already refused any key that is not lowercase hex, as bip21 does for taxikey.
-  if (info.operatorKey !== taxi.operatorKey) return refuse('operator-key-mismatch')
+  if (taxi.operatorKey !== undefined && info.operatorKey !== taxi.operatorKey) return refuse('operator-key-mismatch')
   if (info.serverKey !== hex.encode(ctx.serverKey)) return refuse('server-key-mismatch')
   if (info.emulatorKey !== hex.encode(ctx.emulatorKey)) return refuse('emulator-key-mismatch')
   if (hrpOf(ctx.receiverAddress) !== ctx.hrp) return refuse('network-mismatch')
@@ -211,7 +211,7 @@ const vetInfo = (taxi: Bip21Taxi, info: TaxiInfo, ctx: TaxiProbeContext): ProbeR
   if (rule?.enabled !== true) return refuse('asset-not-served')
   if (rule.unclaimedMode !== 'reclaim') return refuse('unsupported-unclaimed-mode')
   // What serving the asset takes on a receiver-paid quote, read from the same fields the verifier reads.
-  if (rule.claim !== 'recycle' && rule.claim !== 'either') return refuse('recycle-not-allowed')
+  if (receiverPaid && rule.claim !== 'recycle' && rule.claim !== 'either') return refuse('recycle-not-allowed')
   const cap = rule.maxTopupSats === null ? wireUnits(info.maxPerPaymentTopupSats) : wireUnits(rule.maxTopupSats)
   if (cap === undefined || cap < ctx.dust) return refuse('loan-cap-below-dust')
   return { ok: true, info }
@@ -228,10 +228,10 @@ export const probeReceiverTaxi = async (taxi: Bip21Taxi, ctx: TaxiProbeContext):
   return receiverFareUnits(fare, ctx.dust) === undefined ? { ok: false, reason: 'fare-unavailable' } : vetted
 }
 
-/** The receiver's own Taxi, held to exactly the probe a payer will run; only its operator key is taken on its word. */
+/** Check the receiver's own Taxi before displaying either repayment choice. */
 export const probeOwnTaxi = async (url: string, ctx: TaxiProbeContext): Promise<ProbeResult> => {
   const info = await fetchInfo(url, ctx)
-  return info ? vetInfo({ url, operatorKey: info.operatorKey }, info, ctx) : { ok: false, reason: 'unreachable' }
+  return info ? vetInfo({ url, operatorKey: info.operatorKey }, info, ctx, false) : { ok: false, reason: 'unreachable' }
 }
 
 type BitcoinTaxiContext = Pick<ArkadeContext, 'serverKey' | 'emulatorKey' | 'hrp' | 'dust' | 'vtxoMinAmount'>
@@ -308,6 +308,7 @@ export const receiverPaidCarrier = async (
     minimum: bigint
   },
 ): Promise<ReceiverPaidCarrier> => {
+  if (taxi.payer === 'sender') throw new Error('This request requires sender-covered delivery')
   const { makerPublicKey } = payer
   const assetId = taxiAssetId(ctx.assetId)
   const fare = taxi.fareId ? { fareId: taxi.fareId } : {}
@@ -355,7 +356,7 @@ export const receiverPaidCarrier = async (
         loanSats,
         expiresAt,
       },
-      taxi: { url: taxi.url, operatorKey: taxi.operatorKey },
+      taxi: { url: taxi.url, operatorKey: info.operatorKey },
     },
     inputExpiryFloor: { kind: floor.kind, value: BigInt(floor.value) },
   }

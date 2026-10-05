@@ -152,7 +152,7 @@ test('Taxi activity and its available actions', { tag: '@history' }, async ({ br
       claimedFromActivity(s))
 
     await test.step('a payment whose answer was lost survives a reload as Pending, and Check again confirms it', async () => {
-      const request = await receiveRequest(bob, assetId)
+      const request = await receiveRequest(bob, assetId, null, '1', 'sender')
       beforePurchase = await ledger(parties, assetId)
       const before = await advances()
       await prepareSend(alice, request, 'Sender pays asset fare')

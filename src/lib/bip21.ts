@@ -7,8 +7,9 @@ import { centsToUnits } from './assets'
 
 export interface Bip21Taxi {
   url: string
-  operatorKey: string
+  operatorKey?: string
   fareId?: string
+  payer?: 'receiver' | 'sender'
 }
 
 export interface Bip21Decoded {
@@ -89,21 +90,30 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
       }
     }
 
-    // taxi/taxikey/taxifare are all-or-nothing: any invalid member drops the whole triple,
-    // and the rest still decodes as an ordinary payment request.
+    // Malformed legacy keys drop the Taxi; explicit repayment preferences must never be weakened.
+    const payerParams = [...params].filter(([key]) => key.toLowerCase() === 'taxipayer')
+    const payer = payerParams[0]?.[1]
+    if (payerParams.length > 1 || (payer !== undefined && payer !== 'receiver' && payer !== 'sender'))
+      throw new Error('Invalid Taxi repayment preference')
     const taxiUrl = getParam('taxi')
     const taxiKey = getParam('taxikey')
-    if (taxiUrl != null && taxiKey != null && /^[0-9a-f]{64}$/.test(taxiKey)) {
+    if (taxiUrl != null && (taxiKey === null || /^[0-9a-f]{64}$/.test(taxiKey))) {
       try {
         const parsed = new URL(taxiUrl)
         if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
           const fareId = getParam('taxifare')
-          result.taxi = { url: taxiUrl, operatorKey: taxiKey, ...(fareId ? { fareId } : {}) }
+          result.taxi = {
+            url: taxiUrl,
+            ...(taxiKey ? { operatorKey: taxiKey } : {}),
+            ...(fareId ? { fareId } : {}),
+            ...(payer ? { payer } : {}),
+          }
         }
       } catch {
         // not a parseable URL — leave result.taxi undefined
       }
     }
+    if (payer !== undefined && !result.taxi) throw new Error('Invalid Taxi repayment preference')
   }
 
   return result
@@ -113,7 +123,9 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
 const taxiParams = (taxi?: Bip21Taxi) => {
   if (!taxi) return ''
   const fare = taxi.fareId ? `&taxifare=${encodeURIComponent(taxi.fareId)}` : ''
-  return `&taxi=${encodeURIComponent(taxi.url)}&taxikey=${encodeURIComponent(taxi.operatorKey)}${fare}`
+  const payer = taxi.payer ? `&taxipayer=${encodeURIComponent(taxi.payer)}` : ''
+  const key = taxi.operatorKey ? `&taxikey=${encodeURIComponent(taxi.operatorKey)}` : ''
+  return `&taxi=${encodeURIComponent(taxi.url)}${key}${fare}${payer}`
 }
 
 export const encodeBip21 = (

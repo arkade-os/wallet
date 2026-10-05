@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { ArkAddress } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
+import { decodeBip21 } from '../../lib/bip21'
 import { navigateHome } from '../e2e/utils'
 import {
   admin,
@@ -46,28 +47,36 @@ test(
       await importAsset(bob, assetId)
       const parties = { alice: alice.address, bob: bob.address, carol: carol.address, taxi: operatorAddress() }
       const taxiUrl = required('TAXI_E2E_BASE_URL')
-      const { operatorKey } = (await (await fetch(`${taxiUrl}/v1/info`)).json()) as { operatorKey: string }
       let request = ''
 
       await test.step('R5: a request offers no Taxi, or one fare per fare a receiver can pay', async () => {
         const bip21 = bob.page.getByTestId('bip21')
         await openAssetReceive(bob, assetId)
-        await bob.page.getByRole('button', { name: 'Taxi: off', exact: true }).click()
-        await expect(bob.page.getByRole('listbox', { name: 'Taxi fare' }).getByRole('option')).toHaveText([
-          'No Taxi',
-          'receiver-sats · 0 sats',
-          'receiver-asset · 1 XYZ',
-        ])
-        await bob.page.getByRole('option', { name: 'receiver-sats · 0 sats', exact: true }).click()
+        await bob.page.getByRole('button', { name: /Taxi delivery/ }).click()
+        const choices = ['No Taxi', 'Sender covers carrier', 'I have sats · Free', 'I have sats · 1 XYZ']
+        const radios = bob.page.getByRole('radio')
+        await expect(radios).toHaveCount(choices.length)
+        for (const [index, name] of choices.entries()) await expect(radios.nth(index)).toHaveAccessibleName(name)
+        await bob.page.getByRole('radio', { name: 'I have sats · Free', exact: true }).click()
         await expect(bip21).toContainText(
-          `&taxi=${encodeURIComponent(taxiUrl)}&taxikey=${operatorKey}&taxifare=receiver-sats`,
+          `&taxi=${encodeURIComponent(taxiUrl)}&taxifare=receiver-sats&taxipayer=receiver`,
         )
         await expect(
-          bob.page.getByText('The payer needs no carrier; you pay this fare when you claim.', { exact: true }),
+          bob.page.getByText(
+            'The payer needs no carrier. Taxi has no service fee; you use your own sats to claim the delivery.',
+            { exact: true },
+          ),
         ).toBeVisible()
         request = (await bip21.textContent())!
-        await bob.page.getByRole('button', { name: 'Taxi: receiver-sats · 0 sats', exact: true }).click()
-        await bob.page.getByRole('option', { name: 'No Taxi', exact: true }).click()
+        expect(request).not.toContain('taxikey=')
+        await bob.page.getByRole('radio', { name: 'Sender covers carrier', exact: true }).click()
+        await expect
+          .poll(async () => decodeBip21((await bip21.textContent())!))
+          .toMatchObject({
+            taxi: { url: taxiUrl, payer: 'sender' },
+          })
+        expect(decodeBip21((await bip21.textContent())!).taxi?.fareId).toBeUndefined()
+        await bob.page.getByRole('radio', { name: 'No Taxi', exact: true }).click()
         await expect(bip21).not.toContainText('taxi=')
         await withPolicy({ assetRules: policyRulesForPatch(assetRules) }, async () => {
           await openAssetReceive(bob, assetId)
@@ -97,11 +106,9 @@ test(
       await test.step('R2: a Taxi key that does not match is refused before any quote; a normal send works', async () => {
         const known = await advances()
         const before = await ledger(parties, assetId)
-        await prepareSend(
-          alice,
-          request.replace(/taxikey=[0-9a-f]{64}/, `taxikey=${'11'.repeat(32)}`),
-          'Receiver uses own sats',
-        )
+        const mismatch = `${request}&taxikey=${'11'.repeat(32)}`
+        expect(decodeBip21(mismatch).taxi?.operatorKey).toBe('11'.repeat(32))
+        await prepareSend(alice, mismatch, 'Receiver uses own sats')
         await expect(refusal(alice)).toHaveText('Taxi operator key changed')
         expect(await newAdvances(known)).toEqual([])
         await prepareSend(alice, request)

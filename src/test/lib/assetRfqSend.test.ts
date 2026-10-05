@@ -105,6 +105,14 @@ beforeEach(() => {
 })
 
 describe('payAssetRequest', () => {
+  it('buys the carrier without requesting a receiver-paid loan when the receiver has no sats', async () => {
+    const fetch = taxiFetch()
+    const d = deps({ fetch })
+    await payAssetRequest({ ...REQUEST, taxi: { ...TAXI, payer: 'sender' } }, d)
+    expect(carriersOf(d)).toEqual([{ mode: 'purchase' }])
+    expect(fetch).not.toHaveBeenCalled()
+    onlyTheConfirmation(PURCHASE_PRICE)
+  })
   it('pays with a receiver-paid carrier when the probe passes', async () => {
     const d = deps()
     await payAssetRequest(REQUEST, d)

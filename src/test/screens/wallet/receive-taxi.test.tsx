@@ -129,6 +129,7 @@ const renderAssetReceive = (
 describe('the receiver names his own Taxi in an asset request', () => {
   beforeEach(() => {
     localStorage.clear()
+    spendable = coins([1000n], RECEIVER_SCRIPT)
     vi.stubEnv('VITE_TAXI_URL', TAXI_URL)
     vi.stubEnv('VITE_EMULATOR_PUBKEY', KEYS.emulator)
   })
@@ -137,13 +138,54 @@ describe('the receiver names his own Taxi in an asset request', () => {
     vi.unstubAllGlobals()
   })
 
+  it('encodes sender-covered assets without advertising receiver repayment', async () => {
+    spendable = []
+    vi.stubGlobal('fetch', taxiFetch())
+    renderAssetReceive()
+    await userEvent.click(await screen.findByRole('button', { name: /taxi/i }))
+    expect(screen.getByRole('radio', { name: 'I have sats' })).toHaveAttribute('aria-disabled', 'true')
+    await userEvent.click(screen.getByRole('radio', { name: 'Sender covers carrier' }))
+    expect(screen.getByTestId('bip21').textContent).toContain('&taxipayer=sender')
+    expect(screen.getByTestId('bip21').textContent).not.toContain('taxifare=')
+  })
+
+  it('includes the sats fare when checking whether an asset claim can be repaid', async () => {
+    spendable = coins([336n], RECEIVER_SCRIPT)
+    vi.stubGlobal(
+      'fetch',
+      taxiFetch({
+        info: withRule({ fares: [{ id: 'priced', currency: 'sats', pricing: { kind: 'flat', units: '7' } }] }),
+      }),
+    )
+    renderAssetReceive()
+    await userEvent.click(await screen.findByRole('button', { name: /taxi/i }))
+    expect(screen.getByRole('radio', { name: 'I have sats' })).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('offers sender-covered delivery when the Taxi only permits asset purchase claims', async () => {
+    vi.stubGlobal(
+      'fetch',
+      taxiFetch({
+        info: withRule({
+          claim: 'purchase',
+          fares: [{ id: 'purchase', currency: 'sameAsset', pricing: { kind: 'flat', units: '1' } }],
+        }),
+      }),
+    )
+    renderAssetReceive()
+    await userEvent.click(await screen.findByRole('button', { name: /taxi/i }))
+    expect(screen.queryByRole('radio', { name: /I have sats/ })).toBeNull()
+    await userEvent.click(screen.getByRole('radio', { name: 'Sender covers carrier' }))
+    expect(screen.getByTestId('bip21').textContent).toContain('taxipayer=sender')
+  })
+
   it('offers the configured Taxi and its fares, and encodes the chosen one', async () => {
     vi.stubGlobal('fetch', taxiFetch())
     renderAssetReceive()
     await userEvent.click(await screen.findByRole('button', { name: /taxi/i }))
-    await userEvent.click(screen.getByRole('radio', { name: 'Use Taxi' }))
-    expect(screen.getByTestId('bip21').textContent).toContain('&taxifare=flat')
-    expect(screen.getByTestId('bip21').textContent).toContain(`&taxikey=${KEYS.operator}`)
+    await userEvent.click(screen.getByRole('radio', { name: 'I have sats' }))
+    expect(screen.getByTestId('bip21').textContent).toContain('&taxifare=flat&taxipayer=receiver')
+    expect(screen.getByTestId('bip21').textContent).not.toContain('taxikey=')
   })
 
   it('bounds an unanswered Taxi probe and shows it as unavailable after abort', async () => {
@@ -220,8 +262,9 @@ describe('the receiver names his own Taxi in an asset request', () => {
     await userEvent.click(await screen.findByRole('button', { name: /taxi/i }))
     expect(screen.getAllByRole('radio').map((option) => option.getAttribute('aria-label'))).toEqual([
       'No Taxi',
-      'Use Taxi · 7 sats',
-      'Use Taxi · 5 sats',
+      'Sender covers carrier',
+      'I have sats · 7 sats',
+      'I have sats · 5 sats',
     ])
   })
 
@@ -248,7 +291,7 @@ describe('the receiver names his own Taxi in an asset request', () => {
     renderAssetReceive()
     expect(readReceiverTaxis()).toEqual([])
     await userEvent.click(await screen.findByRole('button', { name: /taxi/i }))
-    await userEvent.click(screen.getByRole('radio', { name: 'Use Taxi' }))
+    await userEvent.click(screen.getByRole('radio', { name: 'I have sats' }))
     expect(readReceiverTaxis()).toEqual([{ network: 'regtest', url: TAXI_URL, operatorKey: KEYS.operator }])
   })
 })
@@ -256,7 +299,7 @@ describe('the receiver names his own Taxi in an asset request', () => {
 describe('the receiver names his Taxi for a sub-dust bitcoin request', () => {
   beforeEach(() => {
     localStorage.clear()
-    spendable = coins([230n], RECEIVER_SCRIPT)
+    spendable = coins([1000n], RECEIVER_SCRIPT)
     vi.stubEnv('VITE_TAXI_URL', TAXI_URL)
     vi.stubEnv('VITE_EMULATOR_PUBKEY', KEYS.emulator)
   })
@@ -265,12 +308,25 @@ describe('the receiver names his Taxi for a sub-dust bitcoin request', () => {
     vi.unstubAllGlobals()
   })
 
+  it('includes a Taxi and funding preference in amountless Unified requests', async () => {
+    vi.stubGlobal('fetch', taxiFetch({ info: BITCOIN_INFO }))
+    renderAssetReceive({ satoshis: 0 })
+    await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxipayer=receiver'))
+    expect(screen.getByTestId('bip21').textContent).not.toContain('amount=')
+    expect(screen.getByTestId('bip21').textContent).not.toContain('taxikey=')
+    expect(screen.getByText(/The sender chooses the amount/)).toBeInTheDocument()
+    expect(screen.queryByText(/\b0 sats\b/)).toBeNull()
+    expect(screen.getByTestId('bip21').textContent).not.toContain('taxifare=')
+    await userEvent.click(screen.getByText('Arkade', { exact: true }))
+    await waitFor(() => expect(screen.getByTestId('bip21').textContent).not.toContain('taxi='))
+  })
+
   it('automatically enables a free Taxi below dust, encodes its fare and remembers it', async () => {
     vi.stubGlobal('fetch', taxiFetch({ info: BITCOIN_INFO }))
     renderAssetReceive({ satoshis: 100 })
-    await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxifare=sats'))
+    await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxipayer=receiver'))
     expect(screen.getByTestId('bip21').textContent).toContain(
-      `amount=0.000001&taxi=${encodeURIComponent(TAXI_URL)}&taxikey=${KEYS.operator}&taxifare=sats`,
+      `amount=0.000001&taxi=${encodeURIComponent(TAXI_URL)}&taxipayer=receiver`,
     )
     expect(
       screen.getByText(
@@ -286,13 +342,13 @@ describe('the receiver names his Taxi for a sub-dust bitcoin request', () => {
     async (method) => {
       vi.stubGlobal('fetch', taxiFetch({ info: BITCOIN_INFO }))
       renderAssetReceive({ satoshis: 50, invoice: 'lnbc1testfixture' })
-      await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxifare=sats'))
+      await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxipayer=receiver'))
       await userEvent.click(screen.getByText(method, { exact: true }))
       expect(screen.queryByRole('button', { name: /Taxi delivery/ })).toBeNull()
       await waitFor(() => expect(screen.getByTestId('bip21').textContent).not.toContain('taxi='))
       await userEvent.click(screen.getByText('Unified', { exact: true }))
       expect(await screen.findByRole('button', { name: /Taxi delivery.*Free/ })).toBeInTheDocument()
-      await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxifare=sats'))
+      await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxipayer=receiver'))
       await userEvent.click(screen.getByRole('button', { name: /Taxi delivery/ }))
       await userEvent.click(screen.getByRole('radio', { name: 'No Taxi' }))
       await userEvent.click(screen.getByText(method, { exact: true }))
@@ -305,7 +361,7 @@ describe('the receiver names his Taxi for a sub-dust bitcoin request', () => {
   it('preserves an explicit No Taxi choice when the wallet reconnects', async () => {
     vi.stubGlobal('fetch', taxiFetch({ info: BITCOIN_INFO }))
     renderAssetReceive({ satoshis: 50 })
-    await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxifare=sats'))
+    await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxipayer=receiver'))
     await userEvent.click(screen.getByRole('button', { name: /Taxi delivery/ }))
     await userEvent.click(screen.getByRole('radio', { name: 'No Taxi' }))
     act(() => reconnectWallet())
@@ -316,39 +372,37 @@ describe('the receiver names his Taxi for a sub-dust bitcoin request', () => {
   it('defaults a fresh sub-dust amount and removes Taxi params at dust', async () => {
     vi.stubGlobal('fetch', taxiFetch({ info: BITCOIN_INFO }))
     renderAssetReceive({ satoshis: 50 })
-    await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxifare=sats'))
+    await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxipayer=receiver'))
     await userEvent.click(screen.getByRole('button', { name: /Taxi delivery/ }))
     await userEvent.click(screen.getByRole('radio', { name: 'No Taxi' }))
     expect(screen.getByTestId('bip21').textContent).not.toContain('taxi=')
     act(() => changeReceiveRequest({ satoshis: 100 }))
-    await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxifare=sats'))
+    await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxipayer=receiver'))
     expect(screen.getByText(/To claim your 100 sats/)).toBeInTheDocument()
     act(() => changeReceiveRequest({ satoshis: 330 }))
     await waitFor(() => expect(screen.getByTestId('bip21').textContent).not.toContain('taxi='))
     expect(screen.queryByRole('button', { name: /Taxi delivery/ })).toBeNull()
   })
 
-  it('warns a receiver with no coin at this address covering the top-up that he may not be able to claim', async () => {
+  it('does not advertise own repayment when no compatible coin covers the top-up', async () => {
     spendable = [...coins([229n], RECEIVER_SCRIPT), ...coins([1000n])]
     vi.stubGlobal('fetch', taxiFetch({ info: BITCOIN_INFO }))
     renderAssetReceive({ satoshis: 100 })
-    await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxifare=sats'))
-    expect(
-      screen.getByText(
-        'Taxi adds 230 sats to deliver a full 330-sat coin. To claim your 100 sats, use a coin of at least 230 sats from your wallet to repay Taxi. This is not a service fee. You do not currently have a compatible coin to claim it. If unclaimed, the payment can return to the payer.',
-      ),
-    ).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxipayer=sender'))
+    expect(screen.getByText(/Sender-covered delivery cannot preserve this exact sub-dust amount/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /Taxi delivery/ }))
+    expect(screen.getByRole('radio', { name: 'I have sats' })).toHaveAttribute('aria-disabled', 'true')
   })
 
   it('keeps the chosen Taxi, unasked, when the wallet comes back as a new instance', async () => {
     const fetch = taxiFetch({ info: BITCOIN_INFO })
     vi.stubGlobal('fetch', fetch)
     renderAssetReceive({ satoshis: 100 })
-    await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxifare=sats'))
+    await waitFor(() => expect(screen.getByTestId('bip21').textContent).toContain('&taxipayer=receiver'))
     const probes = fetch.mock.calls.length
     act(() => reconnectWallet())
     expect(await screen.findByRole('button', { name: /Taxi delivery.*Free/ })).toBeInTheDocument()
-    expect(screen.getByTestId('bip21').textContent).toContain('&taxifare=sats')
+    expect(screen.getByTestId('bip21').textContent).toContain('&taxipayer=receiver')
     expect(fetch.mock.calls).toHaveLength(probes)
   })
 

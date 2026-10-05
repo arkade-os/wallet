@@ -93,7 +93,7 @@ export default function ReceiveQRCode() {
   const { boardingAddr, offchainAddr, satoshis, assetId, addressError } = recvInfo
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
   const isAssetReceive = assetId && assetId !== ''
-  const subdustRequest = !isAssetReceive && satoshis > 0 && satoshis < Number(aspInfo.dust)
+  const bitcoinTaxiRequest = !isAssetReceive && (satoshis ?? 0) >= 0 && (satoshis ?? 0) < Number(aspInfo.dust)
   const taxiRequestId = `${aspInfo.network}:${assetId ?? ''}:${satoshis}:${offchainAddr}`
   const taxi = taxiSelection?.requestId === taxiRequestId ? taxiSelection.value : undefined
   const setTaxi = (value?: Bip21Taxi) => setTaxiSelection(value ? { requestId: taxiRequestId, value } : undefined)
@@ -145,10 +145,11 @@ export default function ReceiveQRCode() {
   const createBip21 = (): { ark: string; btc: string; bip21: string } => {
     const ark = vtxoTxsAllowed() ? recvInfo.offchainAddr : ''
     const btc = utxoTxsAllowed() ? recvInfo.boardingAddr : ''
-    const requestTaxi = activeMethod === 'unified' ? taxi : undefined
+    const requestTaxi =
+      activeMethod === 'unified' && taxi ? { url: taxi.url, fareId: taxi.fareId, payer: taxi.payer } : undefined
     const bip21 = isAssetReceive
       ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals, ark ? requestTaxi : undefined)
-      : encodeBip21(btc, ark, recvInfo.invoice ?? '', satoshis, '', ark && subdustRequest ? requestTaxi : undefined)
+      : encodeBip21(btc, ark, recvInfo.invoice ?? '', satoshis, '', ark && bitcoinTaxiRequest ? requestTaxi : undefined)
 
     return { ark, btc, bip21 }
   }
@@ -295,7 +296,7 @@ export default function ReceiveQRCode() {
     if (!addressesLoaded) return
 
     const { ark, btc, bip21 } = createBip21()
-    if (activeMethod === 'unified' && (isAssetReceive || subdustRequest) && ark && taxi) {
+    if (activeMethod === 'unified' && (isAssetReceive || bitcoinTaxiRequest) && ark && taxi?.operatorKey) {
       remember({ network: aspInfo.network, url: taxi.url, operatorKey: taxi.operatorKey })
     }
 
@@ -605,7 +606,7 @@ export default function ReceiveQRCode() {
                   </Text>
                 ) : null}
               </div>
-              {(assetId || subdustRequest) && arkAddress ? (
+              {(assetId || bitcoinTaxiRequest) && arkAddress ? (
                 <div hidden={activeMethod !== 'unified'}>
                   {assetId ? (
                     <TaxiChoice

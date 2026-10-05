@@ -22,12 +22,12 @@ import {
   type TaxiProbeContext,
 } from '../../../lib/receiverTaxi'
 
-type Fare = { fare: TaxiFare; units: bigint }
+type Fare = { fare: TaxiFare; units: bigint; claimCoin?: boolean }
 
 type TaxiOffer =
   | { status: 'checking' }
   | { status: 'unavailable'; reason: string }
-  | { status: 'available'; url: string; operatorKey: string; fares: Fare[]; topup?: bigint; claimCoin?: boolean }
+  | { status: 'available'; url: string; operatorKey: string; fares: Fare[]; topup?: bigint }
 
 /** Whether a recycle claim finds a coin to merge, as planReceiverClaim picks it: here, covering the top-up. */
 const holdsClaimCoin = async (wallet: Pick<IWallet, 'getSpendableVtxos'>, receiverAddress: string, topup: bigint) => {
@@ -61,8 +61,14 @@ const checkOwnTaxi = async (
     return unavailable('unverifiable')
   }
   if (!assetId) {
-    const vet = await probeBitcoinTaxi({ url }, base, receiverAddress, BigInt(satoshis))
+    const vet = await probeBitcoinTaxi(
+      { url },
+      base,
+      receiverAddress,
+      satoshis > 0 ? BigInt(satoshis) : base.vtxoMinAmount,
+    )
     if (!vet.ok) return unavailable(vet.reason)
+    if (!vet.modes.includes('recycle')) return unavailable('recycle-not-allowed')
     const claimCoin = wallet
       ? await holdsClaimCoin(wallet, receiverAddress, vet.topup).catch((error) => {
           consoleError(error, 'cannot read the coins a Taxi claim would use')
@@ -73,20 +79,33 @@ const checkOwnTaxi = async (
       status: 'available',
       url,
       operatorKey: vet.info.operatorKey,
-      fares: vet.fares,
+      fares: vet.fares.map((fare) => ({ ...fare, claimCoin })),
       topup: vet.topup,
-      claimCoin,
     }
   }
   const ctx = { ...base, assetId }
   const probe = await probeOwnTaxi(url, ctx)
   if (!probe.ok) return unavailable(probe.reason)
-  const fares = (ruleFor(probe.info, assetId)?.fares ?? []).flatMap((fare) => {
+  const rule = ruleFor(probe.info, assetId)
+  const fares = (rule?.claim === 'purchase' ? [] : (rule?.fares ?? [])).flatMap((fare) => {
     const units = receiverFareUnits(fare, ctx.dust)
     return units === undefined ? [] : [{ fare, units }]
   })
-  if (fares.length === 0) return unavailable('no-receiver-fare')
-  return { status: 'available', url, operatorKey: probe.info.operatorKey, fares }
+  if (fares.length === 0 && !rule?.fares.some((fare) => fare.currency === 'sameAsset'))
+    return unavailable('no-receiver-fare')
+  const checkedFares = await Promise.all(
+    fares.map(async (fare) => ({
+      ...fare,
+      claimCoin: wallet
+        ? await holdsClaimCoin(
+            wallet,
+            receiverAddress,
+            base.dust + (fare.fare.currency === 'sats' ? fare.units : 0n),
+          ).catch(() => undefined)
+        : undefined,
+    })),
+  )
+  return { status: 'available', url, operatorKey: probe.info.operatorKey, fares: checkedFares }
 }
 
 const fareLabel = ({ fare, units }: Fare, assetUnits: (units: bigint) => string): string =>
@@ -134,7 +153,16 @@ export default function TaxiChoice({
         setOffer(next)
         if (!assetId && next.status === 'available' && !userChoice.current) {
           const fare = next.fares.find(({ units }) => units === 0n) ?? next.fares[0]
-          onChange({ url: next.url, operatorKey: next.operatorKey, fareId: fare.fare.id })
+          onChange(
+            fare.claimCoin !== true
+              ? { url: next.url, operatorKey: next.operatorKey, payer: 'sender' }
+              : {
+                  url: next.url,
+                  operatorKey: next.operatorKey,
+                  ...(next.fares.length === 1 && fare.units === 0n ? {} : { fareId: fare.fare.id }),
+                  payer: 'receiver',
+                },
+          )
         }
       })
     return () => {
@@ -148,28 +176,55 @@ export default function TaxiChoice({
   if (offer.status === 'unavailable') return <TextSecondary>{`Taxi unavailable: ${offer.reason}`}</TextSecondary>
 
   const assetUnits = (units: bigint) => `${centsToUnits(units, decimals)} ${ticker}`
-  const chosen = offer.fares.find(({ fare }) => fare.id === value?.fareId)
+  const chosen =
+    value && value.payer !== 'sender'
+      ? value.fareId
+        ? offer.fares.find(({ fare }) => fare.id === value.fareId)
+        : offer.fares.length === 1
+          ? offer.fares[0]
+          : undefined
+      : undefined
   const choose = (fareId: string) => {
     userChoice.current = true
-    const fare = offer.fares.find(({ fare }) => fare.id === fareId)
-    onChange(fare && { url: offer.url, operatorKey: offer.operatorKey, fareId: fare.fare.id })
+    const fare = offer.fares.find(({ fare }) => `receiver:${fare.id}` === fareId)
+    onChange(
+      fareId === 'sender'
+        ? { url: offer.url, operatorKey: offer.operatorKey, payer: 'sender' }
+        : fare && {
+            url: offer.url,
+            operatorKey: offer.operatorKey,
+            ...(offer.fares.length === 1 && fare.units === 0n ? {} : { fareId: fare.fare.id }),
+            payer: 'receiver',
+          },
+    )
   }
-  const description = chosen
-    ? offer.topup === undefined
-      ? chosen.units === 0n
-        ? 'The payer needs no carrier. Taxi has no service fee; you use your own sats to claim the delivery.'
-        : 'The payer needs no carrier. You pay the service fee when you claim the delivery.'
-      : `Taxi adds ${offer.topup} sats to deliver a full ${aspInfo.dust}-sat coin. To claim your ${satoshis} sats, use a coin of at least ${offer.topup} sats from your wallet to repay Taxi. This is not a service fee.` +
-        (offer.claimCoin === false
-          ? ' You do not currently have a compatible coin to claim it. If unclaimed, the payment can return to the payer.'
-          : '')
-    : assetId
-      ? 'The payer must provide the sats needed to carry this asset.'
-      : 'Without Taxi, this amount arrives as a sub-dust coin and cannot be spent directly.'
+  const description =
+    !assetId && !satoshis && value
+      ? value.payer === 'sender'
+        ? 'The sender covers any carrier. Exact sub-dust delivery is unavailable without sats of your own; request at least the dust amount.'
+        : 'The sender chooses the amount. Taxi is used only below the dust amount; you use your own sats to repay its carrier when claiming.'
+      : value?.payer === 'sender'
+        ? assetId
+          ? 'The sender provides the carrier. You receive the asset without using sats from your wallet.'
+          : 'Sender-covered delivery cannot preserve this exact sub-dust amount. You need your own sats to claim it, or request at least the dust amount.'
+        : chosen
+          ? offer.topup === undefined
+            ? chosen.units === 0n
+              ? 'The payer needs no carrier. Taxi has no service fee; you use your own sats to claim the delivery.'
+              : 'The payer needs no carrier. You pay the service fee when you claim the delivery.'
+            : `Taxi adds ${offer.topup} sats to deliver a full ${aspInfo.dust}-sat coin. To claim your ${satoshis} sats, use a coin of at least ${offer.topup} sats from your wallet to repay Taxi. This is not a service fee.` +
+              (chosen.claimCoin === false
+                ? ' You do not currently have a compatible coin to claim it. If unclaimed, the payment can return to the payer.'
+                : '')
+          : assetId
+            ? 'The payer must provide the sats needed to carry this asset.'
+            : !satoshis
+              ? 'Taxi is off. Sub-dust payments cannot be spent directly.'
+              : 'Without Taxi, this amount arrives as a sub-dust coin and cannot be spent directly.'
 
   return (
     <TaxiDeliveryOptions
-      value={chosen?.fare.id ?? 'none'}
+      value={value?.payer === 'sender' ? 'sender' : chosen ? `receiver:${chosen.fare.id}` : 'none'}
       onChange={choose}
       description={description}
       options={[
@@ -180,14 +235,24 @@ export default function TaxiChoice({
             ? 'The payer provides the carrier sats.'
             : 'Receive a sub-dust coin that cannot be spent directly.',
         },
+        {
+          value: 'sender',
+          label: 'Sender covers carrier',
+          description: assetId
+            ? 'Receive without using your own sats.'
+            : 'Unavailable for an exact sub-dust payment; request at least the dust amount.',
+        },
         ...offer.fares.map((fare) => ({
-          value: fare.fare.id,
-          label: offer.fares.length === 1 ? 'Use Taxi' : `Use Taxi · ${fareLabel(fare, assetUnits)}`,
+          value: `receiver:${fare.fare.id}`,
+          label: offer.fares.length === 1 ? 'I have sats' : `I have sats · ${fareLabel(fare, assetUnits)}`,
           cost: fareLabel(fare, assetUnits),
+          disabled: fare.claimCoin === false,
           description:
-            offer.topup === undefined
-              ? 'Claim the asset delivery using sats from your wallet.'
-              : 'Claim your payment using sats from your wallet to repay Taxi.',
+            fare.claimCoin === false
+              ? 'You do not currently have a compatible coin to repay Taxi.'
+              : offer.topup === undefined
+                ? 'Claim the asset delivery using sats from your wallet.'
+                : 'Claim your payment using sats from your wallet to repay Taxi.',
         })),
       ]}
     />

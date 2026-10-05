@@ -211,6 +211,7 @@ export default function SendForm() {
   const [proceed, setProceed] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [readyToParse, setReadyToParse] = useState(false)
+  const [parsingRecipient, setParsingRecipient] = useState(false)
   const [recipient, setRecipient] = useState('')
   const [recipientError, setRecipientError] = useState('')
   const [receivingAddresses, setReceivingAddresses] = useState<Addresses>()
@@ -295,7 +296,8 @@ export default function SendForm() {
   const isAssetSend = activeAsset !== null
   // Only when her asset balance can't cover it; she then pays in bitcoin, so that balance stops gating Continue.
   const payViaReceiverTaxi = routesToReceiverTaxi(sendInfo, receiverTaxi, activeAsset?.balance ?? BigInt(0))
-  const directTaxiUrl = receiverTaxi?.taxi.url ?? getReceiverTaxiUrlForNetwork(aspInfo.network as NetworkName)
+  const directRequestTaxi = receiverTaxi?.assetId === activeAsset?.assetId ? receiverTaxi?.taxi : undefined
+  const directTaxiUrl = directRequestTaxi?.url ?? getReceiverTaxiUrlForNetwork(aspInfo.network as NetworkName)
   const canUseDirectTaxi = Boolean(
     !sendInfo.account &&
       isAssetSend &&
@@ -314,7 +316,7 @@ export default function SendForm() {
       sendSats < Number(aspInfo.dust) &&
       subdustTaxiUrl,
   )
-  const subdustRequestId = `${aspInfo.url}:${aspInfo.signerPubkey}:${sendInfo.arkAddress}:${sendSats}:${subdustTaxiUrl}:${bitcoinTaxi?.operatorKey}:${bitcoinTaxi?.fareId}`
+  const subdustRequestId = `${aspInfo.url}:${aspInfo.signerPubkey}:${sendInfo.arkAddress}:${sendSats}:${subdustTaxiUrl}:${bitcoinTaxi?.operatorKey}:${bitcoinTaxi?.fareId}:${bitcoinTaxi?.payer}`
   const subdustModes =
     wantsSubdustTaxi && subdustOffer?.status === 'available' && subdustOffer.requestId === subdustRequestId
       ? subdustOffer.modes
@@ -331,11 +333,23 @@ export default function SendForm() {
     subdustTaxiUrl,
     bitcoinTaxi?.operatorKey,
     bitcoinTaxi?.fareId,
+    bitcoinTaxi?.payer,
+    directRequestTaxi?.payer,
+    directRequestTaxi?.operatorKey,
+    directTaxiUrl,
   ])
 
   useEffect(() => {
     setSubdustOffer(undefined)
     if (!wantsSubdustTaxi) return
+    if (bitcoinTaxi?.payer === 'sender') {
+      setSubdustOffer({
+        status: 'unavailable',
+        reason:
+          'Sender-covered delivery cannot preserve this exact sub-dust amount. Ask the receiver to request at least the dust amount or use their own sats.',
+      })
+      return
+    }
     let cancelled = false
     setSubdustOffer({ status: 'checking' })
     const check = async (): Promise<SubdustOffer> => {
@@ -352,7 +366,7 @@ export default function SendForm() {
         BigInt(sendSats),
       )
       if (!offer.ok) return { status: 'unavailable', reason: TAXI_REFUSAL_TEXT[offer.reason] }
-      const modes = offer.modes.filter((mode) => mode !== 'sponsored')
+      const modes = offer.modes.filter((mode) => mode === 'recycle')
       return modes.length
         ? { status: 'available', modes, requestId: subdustRequestId, fareUnits: offer.fareUnits }
         : { status: 'unavailable', reason: 'it cannot deliver this exact amount' }
@@ -505,16 +519,18 @@ export default function SendForm() {
   useEffect(() => {
     if (!readyToParse) return
     setRecipientError('')
+    setParsingRecipient(true)
+    let cancelled = false
     const parseRecipient = async () => {
       setReceiverTaxi(undefined)
       setBitcoinTaxi(undefined)
-      if (!recipient) return
+      if (!recipient) return setRecipientError(t('send.invalidRecipient'))
       const lowerCaseData = recipient.toLowerCase().replace(/^lightning:/, '')
       if (isURLWithLightningQueryString(recipient)) {
         const url = new URL(recipient)
         return setRecipient(url.searchParams.get('lightning')!)
       }
-      if (isBip21(lowerCaseData)) {
+      if (lowerCaseData.trim().startsWith('bitcoin:')) {
         const { address, arkAddress, invoice, lnUrl, satoshis, assetId, assetAmount, taxi } = decodeBip21(
           recipient.trim(),
         )
@@ -543,6 +559,7 @@ export default function SendForm() {
               trusted: isVerifiedAsset(assetId),
             }
           }
+          if (cancelled) return
           setSelectedAsset(found)
           const rawAmount = assetAmount ? unitsToCents(assetAmount, found.decimals) : BigInt(0)
           if (assetAmount) setAmountTextValue(assetAmount)
@@ -621,6 +638,15 @@ export default function SendForm() {
       setReadyToParse(false)
     }
     parseRecipient()
+      .catch((error) => {
+        if (!cancelled) setRecipientError(extractError(error))
+      })
+      .finally(() => {
+        if (!cancelled) setParsingRecipient(false)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [recipient, isAssetSend, readyToParse])
 
   // fetch branta payment info for the current recipient (SDK strict mode gates non-ZK)
@@ -966,6 +992,7 @@ export default function SendForm() {
   const handleRecipientChange = (recipient: string) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
     setRecipient(recipient)
+    setParsingRecipient(true)
     setReadyToParse(false)
     setRawScanData('')
     timeoutRef.current = setTimeout(() => setReadyToParse(true), RECIPIENT_DEBOUNCE_MS)
@@ -1006,8 +1033,8 @@ export default function SendForm() {
           wallet: svcWallet,
           aspInfo,
           taxi: asset
-            ? { url, operatorKey: receiverTaxi?.taxi.operatorKey }
-            : { url, operatorKey: bitcoinTaxi?.operatorKey, fareId: bitcoinTaxi?.fareId },
+            ? { url, operatorKey: directRequestTaxi?.operatorKey, payer: directRequestTaxi?.payer }
+            : { url, operatorKey: bitcoinTaxi?.operatorKey, fareId: bitcoinTaxi?.fareId, payer: bitcoinTaxi?.payer },
           receiverAddress: originalSend.arkAddress!,
           assetId: asset?.assetId,
           amount: asset ? asset.amount : BigInt(originalSend.satoshis ?? 0),
@@ -1190,7 +1217,9 @@ export default function SendForm() {
       : ''
 
   const carrierModes: Partial<Record<keyof typeof TAXI_SEND_MODES, string>> | undefined = canUseDirectTaxi
-    ? TAXI_SEND_MODES
+    ? directRequestTaxi?.payer === 'sender'
+      ? { normal: TAXI_SEND_MODES.normal, purchase: TAXI_SEND_MODES.purchase, sponsored: TAXI_SEND_MODES.sponsored }
+      : TAXI_SEND_MODES
     : subdustModes
       ? Object.fromEntries((['normal', ...subdustModes] as const).map((mode) => [mode, BITCOIN_TAXI_MODES[mode]]))
       : undefined
@@ -1202,25 +1231,28 @@ export default function SendForm() {
       ? true
       : pendingDirectTaxi.current
         ? processing
-        : isAssetSend
-          ? !(arkAddress && assetAmt > 0) ||
-            (activeAsset ? assetAmt > activeAsset.balance && !payViaReceiverTaxi : true) ||
-            taxiLacksSats ||
-            Boolean(recipientError) ||
-            Boolean(carrierError) ||
-            aspInfo.unreachable ||
-            Boolean(error) ||
-            processing
-          : !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
-            (lnUrlResponse?.maxSendable && satoshis > lnUrlResponse.maxSendable) ||
-            (lnUrlResponse?.minSendable && satoshis < lnUrlResponse.minSendable) ||
-            amountIsAboveMaxLimit(satoshis) ||
-            amountIsBelowMinLimit(satoshis) ||
-            satoshis > liquidBalance ||
-            aspInfo.unreachable ||
-            Boolean(error) ||
-            satoshis < 1 ||
-            processing
+        : parsingRecipient || Boolean(recipientError)
+          ? true
+          : isAssetSend
+            ? !(arkAddress && assetAmt > 0) ||
+              (activeAsset ? assetAmt > activeAsset.balance && !payViaReceiverTaxi : true) ||
+              taxiLacksSats ||
+              Boolean(recipientError) ||
+              Boolean(carrierError) ||
+              aspInfo.unreachable ||
+              Boolean(error) ||
+              processing
+            : (wantsSubdustTaxi && bitcoinTaxi?.payer === 'sender') ||
+              !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
+              (lnUrlResponse?.maxSendable && satoshis > lnUrlResponse.maxSendable) ||
+              (lnUrlResponse?.minSendable && satoshis < lnUrlResponse.minSendable) ||
+              amountIsAboveMaxLimit(satoshis) ||
+              amountIsBelowMinLimit(satoshis) ||
+              satoshis > liquidBalance ||
+              aspInfo.unreachable ||
+              Boolean(error) ||
+              satoshis < 1 ||
+              processing
 
   // unverified assets are never offered in the picker; they can still arrive
   // preselected via sendInfo.assets from the Assets app detail screen
@@ -1280,6 +1312,7 @@ export default function SendForm() {
         label={t('send.recipientAddress')}
         onData={(data) => {
           setRecipient(data)
+          setParsingRecipient(true)
           setRawScanData(data)
           setReadyToParse(true)
         }}

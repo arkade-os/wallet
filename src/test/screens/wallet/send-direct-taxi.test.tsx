@@ -66,11 +66,18 @@ const Flow = ({ children }: { children: React.ReactNode }) => {
 }
 
 /** Alice, holding plenty of bitcoin and no assets, pays `uri`. */
-const renderSend = (uri?: string, wallet: Record<string, unknown> = {}) => {
+const renderSend = (uri?: string, wallet: Record<string, unknown> = {}, heldAsset?: bigint) => {
   const navigate = vi.fn()
   const walletContext = {
     ...mockWalletContextValue,
     availableBalance: 50_000,
+    ...(heldAsset === undefined
+      ? {}
+      : {
+          assetBalances: [{ assetId: ASSET_ID, amount: heldAsset }],
+          availableAssetBalances: [{ assetId: ASSET_ID, amount: heldAsset }],
+          assetMetadataCache: new Map([[ASSET_ID, { metadata: { name: 'RideCoin', ticker: 'RDC', decimals: 0 } }]]),
+        }),
     svcWallet: {
       ...mockSvcWallet,
       getAddress: () => Promise.resolve(RECEIVER_ADDRESS),
@@ -132,6 +139,68 @@ afterEach(() => {
 })
 
 describe('sending a sub-dust bitcoin amount to an Arkade address', FORM_TEST, () => {
+  it('offers only sender-funded carrier modes for an asset receiver without sats', async () => {
+    renderSend(
+      'bitcoin:?ark=' + RECEIVER_ADDRESS + '&assetid=' + ASSET_ID + '&amount=500' + NAMED + '&taxipayer=sender',
+      {},
+      500n,
+    )
+    await userEvent.click(await screen.findByTestId('taxi-send-mode', {}, SLOW))
+    expect(screen.getAllByRole('radio').map((item) => item.getAttribute('aria-label'))).toEqual([
+      'Sender pays sats',
+      'Sender pays asset fare',
+      'Sender sponsors carrier',
+    ])
+  })
+
+  it('does not offer purchase claims that would change an exact sub-dust amount to dust', async () => {
+    vi.stubGlobal(
+      'fetch',
+      taxiFetch({
+        info: {
+          ...BITCOIN_INFO,
+          assetRules: BITCOIN_INFO.assetRules.map((rule) =>
+            rule.assetId === null ? { ...rule, claim: 'either' } : rule,
+          ),
+        },
+      }),
+    )
+    renderSend(request('0.0000005'))
+    await userEvent.click(await screen.findByTestId('taxi-send-mode', {}, SLOW))
+    expect(screen.getAllByRole('radio').map((item) => item.getAttribute('aria-label'))).toEqual([
+      'No Taxi: sub-dust coin',
+      'Receiver uses own sats',
+    ])
+  })
+
+  it.each(['invalid', 'receiver&taxipayer=sender'])(
+    'blocks the previous destination after malformed repayment preference %s',
+    async (payer) => {
+      const navigate = renderSend(request('0.0000005', NAMED))
+      await screen.findByTestId('taxi-send-mode', {}, SLOW)
+      await waitFor(() => expect(button('Continue')).toBeEnabled(), SLOW)
+      fireEvent.change(document.querySelector('input[name="send-address"]')!, {
+        target: { value: request('0.0000005', NAMED + '&taxipayer=' + payer) },
+      })
+      expect(button('Continue')).toBeDisabled()
+      await waitFor(() => expect(screen.getByText('Invalid Taxi repayment preference')).toBeInTheDocument(), SLOW)
+      expect(button('Continue')).toBeDisabled()
+      expect(sendDirectTaxi).not.toHaveBeenCalled()
+      expect(navigate).not.toHaveBeenCalled()
+    },
+  )
+
+  it('blocks an exact sub-dust request whose receiver asks the sender to cover the carrier', async () => {
+    const navigate = renderSend(request('0.0000005', NAMED + '&taxipayer=sender'))
+    expect(
+      await screen.findByText(/Sender-covered delivery cannot preserve this exact sub-dust amount/, {}, SLOW),
+    ).toBeInTheDocument()
+    expect(button('Continue')).toBeDisabled()
+    expect(screen.queryByTestId('taxi-send-mode')).toBeNull()
+    expect(sendDirectTaxi).not.toHaveBeenCalled()
+    expect(navigate).not.toHaveBeenCalled()
+  })
+
   it('bounds an unanswered Taxi probe and shows it as unavailable after abort', async () => {
     const controller = new AbortController()
     const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(controller.signal)
@@ -181,6 +250,51 @@ describe('sending a sub-dust bitcoin amount to an Arkade address', FORM_TEST, ()
     await pay()
     await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), SLOW)
     expect(sendDirectTaxi).not.toHaveBeenCalled()
+  })
+
+  it.each(['receiver', 'sender'])('uses an amountless %s hint only when the sender chooses sub-dust', async (payer) => {
+    const fetch = taxiFetch({ info: BITCOIN_INFO })
+    vi.stubGlobal('fetch', fetch)
+    renderSend('bitcoin:?ark=' + RECEIVER_ADDRESS + '&taxi=' + encodeURIComponent(TAXI_URL) + '&taxipayer=' + payer)
+    await waitFor(
+      () =>
+        expect((document.querySelector('input[name="send-address"]') as HTMLInputElement).value).toContain(
+          'taxipayer=',
+        ),
+      SLOW,
+    )
+    expect(screen.queryByTestId('taxi-send-mode')).toBeNull()
+    expect(fetch).not.toHaveBeenCalled()
+    fireEvent.change(document.querySelector('input[name="send-amount"]')!, { target: { value: '1000' } })
+    await waitFor(() => expect(button('Continue')).toBeEnabled(), SLOW)
+    expect(screen.queryByTestId('taxi-send-mode')).toBeNull()
+    expect(fetch).not.toHaveBeenCalled()
+    fireEvent.change(document.querySelector('input[name="send-amount"]')!, { target: { value: '50' } })
+    if (payer === 'receiver') {
+      expect(await screen.findByTestId('taxi-send-mode', {}, SLOW)).toHaveTextContent('Receiver uses own sats')
+    } else {
+      expect(
+        await screen.findByText(/Sender-covered delivery cannot preserve this exact sub-dust amount/, {}, SLOW),
+      ).toBeInTheDocument()
+      expect(button('Continue')).toBeDisabled()
+    }
+  })
+
+  it('uses a URL-only request without requiring a taxikey', async () => {
+    renderSend(request('0.0000005', '&taxi=' + encodeURIComponent(TAXI_URL) + '&taxipayer=receiver'))
+    await screen.findByTestId('taxi-send-mode', {}, SLOW)
+    await pay()
+    await waitFor(
+      () =>
+        expect(sendDirectTaxi).toHaveBeenCalledWith(
+          expect.objectContaining({
+            amount: 50n,
+            mode: 'recycle',
+            taxi: { url: TAXI_URL, operatorKey: undefined, fareId: undefined, payer: 'receiver' },
+          }),
+        ),
+      SLOW,
+    )
   })
 
   it('uses the named Taxi by default without an extra carrier selection', async () => {

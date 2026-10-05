@@ -76,9 +76,9 @@ describe('bip21 utilities', () => {
       expect(out.assetAmount).toBe('500')
     })
 
-    it('drops taxi without taxikey rather than throwing', () => {
+    it('accepts a Taxi URL without taxikey', () => {
       const out = decodeBip21(`bitcoin:?ark=${ARK}&assetid=${ASSET}&amount=500&taxi=https%3A%2F%2Ftaxi.example`)
-      expect(out.taxi).toBeUndefined()
+      expect(out.taxi).toEqual({ url: 'https://taxi.example' })
       expect(out.assetAmount).toBe('500')
     })
 
@@ -112,6 +112,33 @@ describe('bip21 utilities', () => {
       expect(satoshis).toBeUndefined()
       expect(invoice).toBeUndefined()
       expect(lnUrl).toBeUndefined()
+    })
+  })
+
+  describe('URL-only Taxi requests', () => {
+    it('encodes and decodes the URL and preference without a public key', () => {
+      const taxi = { url: 'https://taxi.example', payer: 'sender' as const }
+      const uri = encodeBip21Asset(ARK, ASSET, 500n, 0, taxi)
+      expect(uri).not.toContain('taxikey')
+      expect(decodeBip21(uri).taxi).toEqual(taxi)
+    })
+  })
+
+  describe('Taxi repayment preference', () => {
+    it.each(['receiver', 'sender'] as const)('round trips %s for bitcoin and assets', (payer) => {
+      const taxi = { url: 'https://taxi.example', operatorKey: KEY, fareId: 'flat', payer }
+      for (const uri of [encodeBip21('bc1x', ARK, '', 50, '', taxi), encodeBip21Asset(ARK, ASSET, 500n, 0, taxi)]) {
+        expect(uri).toContain('&taxipayer=' + payer)
+        expect(decodeBip21(uri).taxi).toEqual(taxi)
+      }
+    })
+    it('refuses to weaken sender-covered requests when their Taxi descriptor is invalid', () => {
+      expect(() => decodeBip21('bitcoin:?taxikey=broken&taxipayer=sender')).toThrow('Invalid Taxi repayment preference')
+    })
+    it.each(['invalid', '', 'receiver&TaxiPayer=sender'])('refuses an ambiguous preference %s', (value) => {
+      expect(() =>
+        decodeBip21('bitcoin:?taxi=https%3A%2F%2Ftaxi.example&taxikey=' + KEY + '&taxipayer=' + value),
+      ).toThrow('Invalid Taxi repayment preference')
     })
   })
 

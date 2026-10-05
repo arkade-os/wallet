@@ -282,7 +282,7 @@ test('Alice sends XYZ through Taxi', { tag: '@asset-modes' }, async ({ browser }
       await expect.poll(async () => (await holdings(alice.address, assetId)).units).toBe('20')
     })
 
-    let request = await receiveRequest(bob, assetId)
+    let request = await receiveRequest(bob, assetId, null, '1', 'sender')
     await test.step('Canceling the fare confirmation spends neither party’s money', async () => {
       const before = await snapshot('before canceled purchase')
       await admin('policy', 'PATCH', { quoteTtlSeconds: 20 })
@@ -369,7 +369,7 @@ test('Alice sends XYZ through Taxi', { tag: '@asset-modes' }, async ({ browser }
     })
 
     await test.step('Alice sponsors the carrier with XYZ; Bob receives it directly', async () => {
-      request = await receiveRequest(bob, assetId)
+      request = await receiveRequest(bob, assetId, null, '1', 'sender')
       const before = await snapshot('before sponsored send')
       await prepareSend(alice, request, 'Sender sponsors carrier')
       await confirmSend(alice, true)

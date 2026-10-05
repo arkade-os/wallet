@@ -41,6 +41,7 @@ import {
   waitForPaymentReceived,
 } from '../e2e/utils'
 import { translations } from '../../lib/i18n'
+import { decodeBip21 } from '../../lib/bip21'
 
 export const tr = translations.en
 export type Actor = { name: string; page: Page; address: string }
@@ -414,18 +415,35 @@ export async function receiveRequest(
   assetId: string,
   fare: string | null = 'receiver-sats',
   amount = '1',
+  payer: 'receiver' | 'sender' | 'legacy' = 'receiver',
 ): Promise<string> {
   const page = bob.page
   await openAssetReceive(bob, assetId, amount)
-  if (fare) {
-    await page.getByRole('button', { name: 'Taxi: off', exact: true }).click()
-    await page.getByRole('option', { name: `${fare} · 0 sats`, exact: true }).click()
-    await expect(page.getByTestId('bip21')).toContainText(`taxifare=${fare}`)
+  if (fare || payer === 'sender') {
+    await page.getByRole('button', { name: /Taxi delivery/ }).click()
+    const choice =
+      payer === 'sender' ? 'Sender covers carrier' : payer === 'legacy' ? 'No Taxi' : /^I have sats(?: · Free)?$/
+    if (payer === 'legacy')
+      await expect(page.getByRole('radio', { name: /^I have sats(?: · Free)?$/, exact: true })).toBeDisabled()
+    await page.getByRole('radio', { name: choice, exact: true }).click()
+    if (payer !== 'legacy') {
+      await expect
+        .poll(async () => decodeBip21((await page.getByTestId('bip21').textContent())!))
+        .toMatchObject({
+          taxi: { payer },
+        })
+    }
   }
-  const request = await page.getByTestId('bip21').textContent()
+  let request = (await page.getByTestId('bip21').textContent())!
   expect(request).toContain(`assetid=${assetId}&amount=${amount}`)
+  expect(request).not.toContain('taxikey=')
+  if (payer === 'legacy') {
+    request += `&taxi=${encodeURIComponent(required('TAXI_E2E_BASE_URL'))}&taxifare=${fare}`
+    expect(decodeBip21(request).taxi).toMatchObject({ fareId: fare })
+    expect(decodeBip21(request).taxi?.payer).toBeUndefined()
+  }
   await navigateHome(page)
-  return request!
+  return request
 }
 
 export async function prepareSend(alice: Actor, request: string, mode?: string, amount = '1'): Promise<void> {
@@ -437,7 +455,7 @@ export async function prepareSend(alice: Actor, request: string, mode?: string, 
   if (amount !== '1') await page.locator('input[name="send-amount"]').fill(amount)
   if (mode) {
     await page.getByTestId('taxi-send-mode').click()
-    await page.getByRole('menuitem', { name: mode, exact: true }).click()
+    await page.getByRole('radio', { name: mode, exact: true }).click()
   }
   await page.getByRole('button', { name: tr.common.continue, exact: true }).click()
 }
@@ -453,7 +471,7 @@ export async function openSatsSend(alice: Actor, recipient: string, sats: number
   await expect(amount).toHaveValue(String(sats))
   if (mode) {
     await page.getByTestId('taxi-send-mode').click()
-    await page.getByRole('menuitem', { name: mode, exact: true }).click()
+    await page.getByRole('radio', { name: mode, exact: true }).click()
   }
 }
 

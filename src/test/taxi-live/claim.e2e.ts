@@ -52,9 +52,13 @@ test('The claim sheet: what it shows, when, and on which screens', { tag: '@clai
     await importAsset(bob, assetId)
     await importAsset(dave, assetId)
 
-    const send = async (to: Actor, mode = 'Receiver uses own sats') => {
+    const send = async (
+      to: Actor,
+      mode = 'Receiver uses own sats',
+      payer: 'receiver' | 'sender' | 'legacy' = mode === 'Receiver uses own sats' ? 'receiver' : 'sender',
+    ) => {
       const known = await advances()
-      await prepareSend(alice, await receiveRequest(to, assetId), mode)
+      await prepareSend(alice, await receiveRequest(to, assetId, 'receiver-sats', '1', payer), mode)
       await confirmSend(alice, true)
       const advance = await newAdvance(known)
       await expect.poll(async () => (await taxiStatus(advance.id)).state).toBe('locked')
@@ -62,7 +66,7 @@ test('The claim sheet: what it shows, when, and on which screens', { tag: '@clai
     }
 
     await test.step('C3: with no coin to merge, the sheet says so and Claim waits until Bob has one', async () => {
-      const { id } = await send(bob)
+      const { id } = await send(bob, 'Receiver uses own sats', 'legacy')
       await expect(bob.page.getByText(TITLE, { exact: true })).toBeVisible()
       await expect(bob.page.getByTestId('claim-plan')).toHaveText(
         'Claiming needs a coin of at least 330 sats, and you have none.',

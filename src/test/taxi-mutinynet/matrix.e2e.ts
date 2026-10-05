@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { ArkAddress, type Wallet } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
+import { decodeBip21 } from '../../lib/bip21'
 import { dismissPaymentSuccess, navigateHome } from '../e2e/utils'
 import {
   claim,
@@ -107,9 +108,6 @@ test('Chrome sender and Edge receiver: exact bitcoin, asset recycle, claims, his
     const bob = await join('Bob', 1_500)
     evidence.addresses = { alice: alice.address, bob: bob.address, funder: funderAddress }
     const parties = { alice: alice.address, bob: bob.address }
-    const zeroFare = info.assetRules
-      .find((rule) => rule.assetId === null)!
-      .fares.find((fare) => fare.currency === 'sats' && fare.pricing.kind === 'flat' && fare.pricing.units === '0')!.id
     const openTransfer = async (prepare: () => Promise<void>, topup: number) => {
       await preflight()
       const transfer = await ownTransfer(alice.page, prepare)
@@ -158,8 +156,12 @@ test('Chrome sender and Edge receiver: exact bitcoin, asset recycle, claims, his
     for (const amount of [329, 100]) {
       await test.step(`Exact ${amount}-sat delivery${amount === 100 ? ' using the receiver’s named Taxi' : ''}`, async () => {
         const before = await ledger(parties, '', ARKD)
-        const request = amount === 100 ? await satsRequest(bob, amount, zeroFare) : bob.address
-        if (amount === 100) expect(request).toContain(`taxikey=${info.operatorKey}&taxifare=${zeroFare}`)
+        const request = amount === 100 ? await satsRequest(bob, amount) : bob.address
+        if (amount === 100) {
+          expect(request).toContain('taxipayer=receiver')
+          expect(request).not.toContain('taxifare=')
+          expect(request).not.toContain('taxikey=')
+        }
         await openSatsSend(alice, request, amount, 'Receiver uses own sats')
         const transfer = await openTransfer(
           () => alice.page.getByRole('button', { name: tr.common.continue, exact: true }).click(),
@@ -227,8 +229,10 @@ test('Chrome sender and Edge receiver: exact bitcoin, asset recycle, claims, his
           for (const actor of [alice, bob]) await actor.page.unroute(route)
         }
       }
-      const request = await satsRequest(bob, 100, zeroFare)
-      await openSatsSend(alice, request.replace(/taxikey=[0-9a-f]{64}/, `taxikey=${'11'.repeat(32)}`), 100)
+      const request = await satsRequest(bob, 100)
+      const mismatch = `${request}&taxikey=${'11'.repeat(32)}`
+      expect(decodeBip21(mismatch).taxi?.operatorKey).toBe('11'.repeat(32))
+      await openSatsSend(alice, mismatch, 100)
       await expect(alice.page.getByText(/^Taxi unavailable:/)).toContainText(/operator/)
       await expect(alice.page.getByTestId('taxi-send-mode')).toHaveCount(0)
       expect(requests).toHaveLength(count)

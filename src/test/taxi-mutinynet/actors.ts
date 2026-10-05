@@ -223,17 +223,19 @@ export async function coinSpent(
   }).toPass({ timeout: 60_000 })
 }
 
-export async function satsRequest(bob: Actor, sats: number, fare: string): Promise<string> {
+export async function satsRequest(bob: Actor, sats: number): Promise<string> {
   await navigateHome(bob.page)
   await bob.page.getByText(tr.wallet.receive, { exact: true }).click()
   await enterReceiveAmount(bob.page, String(sats))
-  await bob.page.getByRole('button', { name: 'Taxi: off', exact: true }).click()
-  await bob.page.getByRole('option', { name: `${fare} · 0 sats`, exact: true }).click()
+  await bob.page.getByRole('button', { name: /Taxi delivery/ }).click()
+  await bob.page.getByRole('radio', { name: /^I have sats(?: · Free)?$/, exact: true }).click()
   await expect
     .poll(async () => decodeBip21((await bob.page.getByTestId('bip21').textContent())!))
-    .toMatchObject({ satoshis: sats, taxi: { url: TAXI, fareId: fare } })
+    .toMatchObject({ satoshis: sats, taxi: { url: TAXI, payer: 'receiver' } })
   const request = (await bob.page.getByTestId('bip21').textContent())!
   expect(request).toContain(`taxi=${encodeURIComponent(TAXI)}`)
+  expect(request).not.toContain('taxikey=')
+  expect(request).not.toContain('taxifare=')
   await navigateHome(bob.page)
   return request
 }
