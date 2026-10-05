@@ -1,4 +1,7 @@
 import { test, expect, createWallet, navLocator, navigateToActivity } from './utils'
+import { translations } from '../../lib/i18n'
+
+const tr = translations.en
 
 test('should create a new wallet', async ({ page }) => {
   // Create wallet
@@ -15,5 +18,5 @@ test('should create a new wallet', async ({ page }) => {
   await expect(navLocator(page, 'settings')).toBeVisible()
 
   await navigateToActivity(page)
-  await expect(page.getByText('No transactions yet')).toBeVisible()
+  await expect(page.getByText(tr.components.noTransactions)).toBeVisible()
 })

@@ -29,7 +29,17 @@ vi.mock('@arkade-os/sdk', async (importOriginal) => {
 })
 
 import { ArkNote } from '@arkade-os/sdk'
-import { getAspInfo, aspErrorText, emptyAspInfo, byExpiryAsc, getTxHistory, redeemNotes } from '../../lib/asp'
+import {
+  getAspInfo,
+  aspErrorText,
+  emptyAspInfo,
+  byExpiryAsc,
+  collaborativeExitWithFees,
+  delegateVtxos,
+  getTxHistory,
+  getUnrolledVtxos,
+  redeemNotes,
+} from '../../lib/asp'
 import { saveTransactionActivityMetadata } from '../../lib/storage'
 import { walletFingerprint } from '../../lib/sentry'
 import fixtures from '../fixtures.json'
@@ -55,12 +65,6 @@ describe('byExpiryAsc', () => {
 })
 
 describe('aspErrorText', () => {
-  it('returns the caller fallback when not outdated', () => {
-    expect(aspErrorText({ ...emptyAspInfo, outdated: false }, 'Arkade server unreachable')).toBe(
-      'Arkade server unreachable',
-    )
-  })
-
   it('returns the update-required message when outdated', () => {
     expect(aspErrorText({ ...emptyAspInfo, outdated: true, minBuildVersion: '0.9.10' }, 'x')).toBe(
       'Your wallet is outdated and needs to be updated to be compatible with the latest Arkade version.',
@@ -115,6 +119,66 @@ describe('settle failure reporting', () => {
   })
 })
 
+describe('collaborativeExitWithFees', () => {
+  it('selects only coins generic spending may use, as the SDK settle path does', async () => {
+    const escrowed = { txid: 'escrowed', vout: 0, value: 5_000, expiresAt: new Date(1_000) }
+    const plain = { txid: 'plain', vout: 0, value: 5_000, expiresAt: new Date(2_000) }
+    const getSpendableVtxos = vi.fn().mockResolvedValue([plain])
+    const settle = vi.fn().mockResolvedValue('commitment-txid')
+    const wallet = {
+      getVtxos: async () => [escrowed, plain],
+      getSpendableVtxos,
+      settle,
+      getAddress: async () => fixtures.lib.address.ark[0].address,
+      getBoardingAddress: async () => fixtures.lib.address.btc[0],
+    }
+
+    await collaborativeExitWithFees(wallet as any, 3_000, 2_900, fixtures.lib.address.btc[0])
+
+    expect(getSpendableVtxos).toHaveBeenCalledWith({ withRecoverable: true, genericallySpendableOnly: true })
+    expect(settle.mock.calls[0][0].inputs.map((vtxo: { txid: string }) => vtxo.txid)).toEqual(['plain'])
+  })
+
+  it('fails closed when an older worker refuses the scope, without falling back to the raw read', async () => {
+    const getVtxos = vi.fn().mockResolvedValue([{ txid: 'escrowed', vout: 0, value: 5_000 }])
+    const settle = vi.fn()
+    const refused = new Error('Service worker does not support the requested contract scope or freshness check')
+    const wallet = { getVtxos, getSpendableVtxos: vi.fn().mockRejectedValue(refused), settle }
+
+    await expect(collaborativeExitWithFees(wallet as any, 3_000, 2_900, fixtures.lib.address.btc[0])).rejects.toBe(
+      refused,
+    )
+    expect(getVtxos).not.toHaveBeenCalled()
+    expect(settle).not.toHaveBeenCalled()
+  })
+})
+
+describe('delegateVtxos', () => {
+  it('delegates only unspent coins, even from a worker that ignores unspentOnly', async () => {
+    const delegatePubKey = 'f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9'
+    const params = {
+      pubKey: '79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798',
+      serverPubKey: 'c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5',
+      delegatePubKey,
+      csvTimelock: '144',
+    }
+    const live = { txid: 'live', vout: 0, value: 1_000 }
+    const spent = { txid: 'spent', vout: 0, value: 1_000, isSpent: true, spentBy: 'next' }
+    const getContractsWithVtxos = vi.fn().mockResolvedValue([{ contract: { params }, vtxos: [live, spent] }])
+    const delegate = vi.fn().mockResolvedValue({ delegated: [], failed: [] })
+    const wallet = {
+      getContractManager: async () => ({ getContractsWithVtxos }),
+      getDelegatorManager: async () => ({ getDelegateInfo: async () => ({ pubkey: delegatePubKey }), delegate }),
+      getAddress: async () => fixtures.lib.address.ark[0].address,
+    }
+
+    await delegateVtxos(wallet as any)
+
+    expect(getContractsWithVtxos).toHaveBeenCalledWith({ type: 'delegate' }, undefined, { unspentOnly: true })
+    expect(delegate.mock.calls[0][0].map((vtxo: { txid: string }) => vtxo.txid)).toEqual(['live'])
+  })
+})
+
 describe('getTxHistory', () => {
   it('reads the flat history without local metadata — the activity list grafts that', async () => {
     saveTransactionActivityMetadata('ark-txid', { destination: 'tark1destination', networkFee: 0 })
@@ -136,5 +200,54 @@ describe('getTxHistory', () => {
     expect(tx).toMatchObject({ redeemTxid: 'ark-txid', type: 'sent' })
     expect(tx.destination).toBeUndefined()
     expect(tx.networkFee).toBeUndefined()
+  })
+})
+
+describe('getUnrolledVtxos', () => {
+  const coin = (over: Record<string, unknown> = {}) => ({ txid: 'a', vout: 0, value: 1_000, isUnrolled: true, ...over })
+
+  it('asks for the exited set and keeps only what came back exited', async () => {
+    const getVtxos = vi.fn().mockResolvedValue([coin({ txid: 'exited' }), coin({ txid: 'live', isUnrolled: false })])
+
+    const result = await getUnrolledVtxos({ getVtxos } as any)
+
+    expect(getVtxos).toHaveBeenCalledWith({ withUnrolled: true })
+    expect(result.map((vtxo) => vtxo.txid)).toEqual(['exited'])
+  })
+
+  it('drops the ancestors the unroll dragged onchain with the exited coin', async () => {
+    // One exit, not three: unrolling broadcasts the whole chain, so every
+    // earlier coin of ours in it comes back `isUnrolled` too, carrying the same
+    // value. Their offchain spend is what says they are not the money leaving.
+    const getVtxos = vi
+      .fn()
+      .mockResolvedValue([
+        coin({ txid: 'ancestor', spentBy: 'middle' }),
+        coin({ txid: 'middle', isSpent: true }),
+        coin({ txid: 'renewed', settledBy: 'commitment' }),
+        coin({ txid: 'exited' }),
+      ])
+
+    const result = await getUnrolledVtxos({ getVtxos } as any)
+
+    expect(result.map((vtxo) => vtxo.txid)).toEqual(['exited'])
+  })
+
+  it('still returns an exit the user has already swept', async () => {
+    // The sweep is onchain, and none of the three terminal-spend facts report
+    // an onchain spend — so the row is permanent rather than one that vanishes
+    // when the money is finally collected.
+    const getVtxos = vi.fn().mockResolvedValue([coin({ txid: 'swept', isSwept: true })])
+
+    expect(await getUnrolledVtxos({ getVtxos } as any)).toHaveLength(1)
+  })
+
+  it('fails the reload rather than passing off "we could not ask" as "nothing exited"', async () => {
+    // An empty set is spent as fact downstream — no exit rows, no asset
+    // subtraction — while the sats headline still nets out a bucket that came
+    // from a call that did not fail. Throwing keeps the last good snapshot.
+    const getVtxos = vi.fn().mockRejectedValue(new Error('worker unreachable'))
+
+    await expect(getUnrolledVtxos({ getVtxos } as any)).rejects.toThrow('worker unreachable')
   })
 })

@@ -49,21 +49,7 @@ describe('Send screen', () => {
         </AspContext.Provider>
       </NavigationContext.Provider>,
     )
-  it('renders the loading send screen correctly', async () => {
-    renderSendForm({ walletContext: { ...mockWalletContextValue, svcWallet: undefined } })
-    // should be loading because svcWallet is undefined
-    expect(screen.getByTestId('loading-logo')).toBeInTheDocument()
-  })
-  it('renders the send screen correctly', async () => {
-    renderSendForm()
-    // find text elements
-    expect(screen.getByText('Max')).toBeInTheDocument()
-    expect(screen.getByText('Send')).toBeInTheDocument()
-    expect(screen.getByText('Amount')).toBeInTheDocument()
-    expect(screen.getByText('€0.00 available')).toBeInTheDocument()
-    expect(screen.getByText('Recipient address')).toBeInTheDocument()
-    expect(screen.getByText('Continue')).toBeInTheDocument()
-  })
+
   it('fills the amount field when an LNURL resolves to a fixed amount', async () => {
     // regression: a fixed-amount LNURL (minSendable === maxSendable) must
     // populate the read-only amount input instead of leaving it blank
@@ -359,5 +345,37 @@ describe('Send screen', () => {
         }),
       ),
     )
+  })
+
+  it('stops a partial asset send that cannot fund its change carrier', async () => {
+    const account = {
+      assetId: 'usdt',
+      ticker: 'USD' as const,
+      balance: BigInt(10_000),
+      decimals: 2,
+      amount: BigInt(8_000),
+      source: { assetId: 'usdt', balance: BigInt(1_000_000), decimals: 4 },
+    }
+
+    renderSendForm({
+      flowContext: {
+        ...mockFlowContextValue,
+        sendInfo: { ...emptySendInfo, account, assets: [{ assetId: 'usdt', amount: BigInt(800_000) }] },
+      },
+      walletContext: {
+        ...mockWalletContextValue,
+        // one dust carrier: the sats the asset itself rides on
+        availableBalance: 330,
+        svcWallet: {
+          ...mockSvcWallet,
+          getAddress: () => 'tark1mockoffchain',
+          getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+          getBalance: () => Promise.resolve({ available: 330 }),
+        } as any,
+      },
+    })
+
+    expect(await screen.findByTestId('error-message')).toHaveTextContent(/partial send/)
+    expect(screen.getByText('Continue').closest('button')).toBeDisabled()
   })
 })

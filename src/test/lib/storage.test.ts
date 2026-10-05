@@ -4,7 +4,6 @@ import {
   readAssetMetadataFromStorage,
   CachedAssetDetails,
   ASSET_METADATA_TTL_MS,
-  clearStorage,
   readAllTransactionActivityMetadata,
   saveTransactionActivityMetadata,
 } from '../../lib/storage'
@@ -60,6 +59,32 @@ describe('asset metadata storage', () => {
     expect(loaded!.has('stale')).toBe(false)
   })
 
+  it('keeps an expired entry that a row still has to name', () => {
+    // The owned-balance prefetch never refreshes an asset the wallet no longer
+    // holds, so evicting its entry deletes the only name and icon its swap row
+    // has. That is the 24h-late failure this exemption exists to stop.
+    const expired = Date.now() - ASSET_METADATA_TTL_MS - 1
+    const cache = new Map<string, CachedAssetDetails>()
+    cache.set('swapped-away', makeCached('swapped-away', 'DePix', expired))
+    cache.set('forgotten', makeCached('forgotten', 'Nothing References Me', expired))
+
+    saveAssetMetadataToStorage(cache, new Set(['swapped-away']))
+    const loaded = readAssetMetadataFromStorage()
+
+    expect(loaded!.get('swapped-away')?.metadata?.name).toBe('DePix')
+    // unreferenced entries still expire, so localStorage stays bounded
+    expect(loaded!.has('forgotten')).toBe(false)
+  })
+
+  it('evicts expired entries when no referenced set is given', () => {
+    const cache = new Map<string, CachedAssetDetails>()
+    cache.set('stale', makeCached('stale', 'Stale Token', Date.now() - ASSET_METADATA_TTL_MS - 1))
+
+    saveAssetMetadataToStorage(cache)
+
+    expect(readAssetMetadataFromStorage()!.has('stale')).toBe(false)
+  })
+
   it('should overwrite on re-save', () => {
     const cache1 = new Map<string, CachedAssetDetails>()
     cache1.set('a', makeCached('a', 'First'))
@@ -96,22 +121,5 @@ describe('transaction activity metadata storage', () => {
       networkFee: 0,
     })
     expect(stored['missing']).toBeUndefined()
-  })
-})
-
-describe.skip('clearStorage preserves approvedAssetIcons', () => {
-  beforeEach(() => {
-    localStorage.clear()
-  })
-
-  it('should preserve approvedAssetIcons across clearStorage', async () => {
-    localStorage.setItem('approvedAssetIcons', JSON.stringify(['asset1', 'asset2']))
-    localStorage.setItem('someOtherKey', 'value')
-
-    await clearStorage()
-
-    const approved = localStorage.getItem('approvedAssetIcons')
-    expect(approved).toBe(JSON.stringify(['asset1', 'asset2']))
-    expect(localStorage.getItem('someOtherKey')).toBeNull()
   })
 })

@@ -26,6 +26,7 @@ import {
 } from '../lib/swapDisplay'
 import UnverifiedBadge from './UnverifiedBadge'
 import { useTransactionAmountDisplay } from '../hooks/useTransactionAmountDisplay'
+import { useTranslation } from '../providers/language'
 
 const border = '1px solid color-mix(in srgb, var(--fg) 6%, transparent)'
 
@@ -43,16 +44,24 @@ const TransactionLine = ({
   const { config } = useContext(ConfigContext)
   const { fromFiatAmount, toFiatAmount } = useContext(FiatContext)
   const { assetMetadataCache } = useContext(WalletContext)
+  const { language, t } = useTranslation()
 
-  const date = tx.createdAt ? prettyDate(tx.createdAt) : tx.boardingTxid ? 'Unconfirmed' : 'Unknown'
+  const date = tx.createdAt
+    ? prettyDate(tx.createdAt, language)
+    : tx.boardingTxid
+      ? t('transaction.unconfirmed')
+      : t('common.unknown')
   const swap = tx.type === 'swap'
   const swapStatus = swap ? swapStatusForTx(tx) : undefined
   const issuance = isIssuance(tx)
   const burn = isBurn(tx)
-  const prefix = issuance ? '+' : burn || tx.type === 'sent' ? '-' : '+'
+  // A unilateral exit: the money left the Ark layer for the chain. Debited like
+  // a send, but never labelled as one — nobody was paid.
+  const exit = tx.type === 'exit'
+  const prefix = issuance ? '+' : burn || exit || tx.type === 'sent' ? '-' : '+'
   const amountDisplay = useTransactionAmountDisplay(tx)
 
-  const lnSwapKind = lnSwapLabel(tx)
+  const lnSwapKind = lnSwapLabel(tx, t)
   const lnSwapOutcome = tx.lnSwap?.outcome
   const iconTone =
     tx.preconfirmed && tx.boardingTxid
@@ -86,7 +95,7 @@ const TransactionLine = ({
       />
     ) : issuance ? (
       <ReceivedIcon />
-    ) : burn ? (
+    ) : burn || exit ? (
       <SentIcon />
     ) : tx.type === 'sent' ? (
       <SentIcon />
@@ -102,21 +111,23 @@ const TransactionLine = ({
     lnSwapKind ??
     (swap
       ? swapStatus === 'pending'
-        ? 'Swap pending'
+        ? t('transaction.swapPending')
         : swapStatus === 'failed'
-          ? 'Swap failed'
+          ? t('transaction.swapFailed')
           : swapStatus === 'cancelled'
-            ? 'Swap cancelled'
+            ? t('transaction.swapCancelled')
             : swapStatus === 'recoverable'
-              ? 'Swap recoverable'
-              : 'Swap'
+              ? t('transaction.swapRecoverable')
+              : t('transaction.swap')
       : issuance
-        ? 'Issuance'
+        ? t('transaction.issuance')
         : burn
-          ? 'Burn'
-          : tx.type === 'sent'
-            ? 'Sent'
-            : 'Received')
+          ? t('transaction.burn')
+          : exit
+            ? t('transaction.exited')
+            : tx.type === 'sent'
+              ? t('transaction.sent')
+              : t('transaction.received'))
   const Kind = () => <span className='activity-row__kind'>{kind}</span>
 
   const swapRoute = swap ? swapRouteLabel(tx) : ''
@@ -213,6 +224,7 @@ function SwapAmountInfo({
   toFiatAmount: (satoshis: number, currency: Currencies) => number
   tx: Tx
 }) {
+  const { t } = useTranslation()
   const status = swapStatusForTx(tx)
   const amount = swapUnitOfAccountAmount({
     currency: configFiat,
@@ -231,7 +243,7 @@ function SwapAmountInfo({
 
   return (
     <span className={`activity-row__amount${statusClassName}`}>
-      {amount ? <PrivacyAmount masked={amount.masked}>{amount.value}</PrivacyAmount> : swapStatusLabel(tx)}
+      {amount ? <PrivacyAmount masked={amount.masked}>{amount.value}</PrivacyAmount> : swapStatusLabel(tx, t)}
     </span>
   )
 }
@@ -256,6 +268,7 @@ export default function TransactionsList({
   const { setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { assetMetadataCache, txs: allTxs } = useContext(WalletContext)
+  const { t } = useTranslation()
   const visibleTxs = allTxs
     .filter((tx) => !shouldHideDevAssetTx(tx, assetMetadataCache))
     .filter((tx) => matchesAssetFilter(tx, assetIdFilter))
@@ -316,8 +329,14 @@ export default function TransactionsList({
   }
 
   const ariaLabel = (tx?: Tx) => {
-    if (!tx) return 'Pressing Enter enables keyboard navigation of the transaction list'
-    return `Transaction ${tx.type} of amount ${tx.amount}. Press Escape to exit keyboard navigation.`
+    if (!tx) return t('transaction.keyboardNavHint')
+    const typeLabel =
+      tx.type === 'sent'
+        ? t('transaction.sent')
+        : tx.type === 'exit'
+          ? t('transaction.exited')
+          : t('transaction.received')
+    return t('transaction.keyboardNavAria', { type: typeLabel, amount: String(tx.amount) })
   }
 
   const handleClick = (tx: Tx) => {

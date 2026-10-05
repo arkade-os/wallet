@@ -23,8 +23,6 @@ import WalletSwap from '../screens/Wallet/Swap/Index'
 import Settings from '../screens/Settings/Index'
 
 import InitSuccess from '../screens/Init/Success'
-import AppLendasat from '../screens/Apps/Lendasat/Index'
-import AppSatora from '../screens/Apps/Satora/Index'
 import AppAssets from '../screens/Apps/Assets/Index'
 import AppAssetDetail from '../screens/Apps/Assets/Detail'
 import AppAssetImport from '../screens/Apps/Assets/Import'
@@ -43,8 +41,6 @@ export enum Pages {
   Activity,
   AccountDetail,
   BitcoinDetail,
-  AppLendasat,
-  AppSatora,
   AppAssets,
   AppAssetDetail,
   AppAssetImport,
@@ -81,6 +77,10 @@ export enum Pages {
 // Root pages - switches between these get no animation
 const ROOT_PAGES = new Set([Pages.Wallet])
 
+// Boot pages: arriving home from one plays the wallet load-in stagger;
+// returning from an in-app page (Swap, Send, ...) must not replay it.
+const BOOT_PAGES = new Set([Pages.Init, Pages.InitConnect, Pages.Loading, Pages.Unavailable, Pages.Unlock])
+
 // Coordination point for sub-navigation (e.g., Settings options)
 // Sub-navigation providers register here so the main popstate handler can delegate
 // Shared flag: set by goBack() before calling history.back(), read by popstate handler
@@ -104,10 +104,6 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <AccountDetail />
     case Pages.BitcoinDetail:
       return <BitcoinDetail />
-    case Pages.AppLendasat:
-      return <AppLendasat />
-    case Pages.AppSatora:
-      return <AppSatora />
     case Pages.AppAssets:
       return <AppAssets />
     case Pages.AppAssetDetail:
@@ -202,7 +198,7 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
   const previousPage = useRef<Pages>(Pages.Init)
   const skipNextPopstate = useRef(false)
 
-  const isInitialLoad = screen === Pages.Wallet
+  const isInitialLoad = screen === Pages.Wallet && BOOT_PAGES.has(previousPage.current)
 
   const handlePopState = useCallback(() => {
     const fromButton = isButtonBack.current

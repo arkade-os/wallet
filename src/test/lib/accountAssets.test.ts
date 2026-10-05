@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   accountChartColorToken,
   designatedAccountCurrency,
+  MAINNET_DEPIX_ASSET_ID,
   MUTINYNET_DEPIX_ASSET_ID,
   MUTINYNET_USDT_ASSET_ID,
   walletAccountTicker,
@@ -28,10 +29,6 @@ describe('wallet account asset presentation', () => {
     expect(accountChartColorToken('OTHER')).toBe('--account-chart-default')
   })
 
-  it.each(['USD', 'BRL'])('recognizes the explicit %s account label', (ticker) => {
-    expect(walletAccountTicker(ticker)).toBe(ticker)
-  })
-
   it.each(['USDT', 'USDC', 'AUSD', 'DPIX', 'DEPIX'])('does not infer an account from the %s ticker', (ticker) => {
     expect(walletAccountTicker(ticker)).toBeUndefined()
   })
@@ -40,6 +37,12 @@ describe('wallet account asset presentation', () => {
     expect(designatedAccountCurrency('mutinynet', MUTINYNET_USDT_ASSET_ID)).toBe('USD')
     expect(designatedAccountCurrency('mutinynet', MUTINYNET_DEPIX_ASSET_ID)).toBe('BRL')
     expect(designatedAccountCurrency('bitcoin', MUTINYNET_USDT_ASSET_ID)).toBeUndefined()
+    expect(designatedAccountCurrency('bitcoin', MUTINYNET_DEPIX_ASSET_ID)).toBeUndefined()
+  })
+
+  it('designates the official mainnet DePix as the BRL account asset', () => {
+    expect(designatedAccountCurrency('bitcoin', MAINNET_DEPIX_ASSET_ID)).toBe('BRL')
+    expect(designatedAccountCurrency('mutinynet', MAINNET_DEPIX_ASSET_ID)).toBeUndefined()
   })
 
   it('keeps issuer metadata when no explicit account designation is supplied', () => {

@@ -36,6 +36,7 @@ import { hapticTap } from '../../lib/haptics'
 import { useTransactionAmountDisplay } from '../../hooks/useTransactionAmountDisplay'
 import { useLnSendReceipt } from '../../hooks/useLnSendReceipt'
 import TransactionAmountSummary from '../../components/TransactionAmountSummary'
+import { useTranslation } from '../../providers/language'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,6 +55,7 @@ export default function Transaction() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { assetMetadataCache, isVerifiedAsset, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } =
     useContext(WalletContext)
+  const { language, t } = useTranslation()
 
   const liveSwap = txInfo?.assetSwap?.fundingTxid
     ? swaps.find((swap) => swap.fundingTxid === txInfo.assetSwap?.fundingTxid)
@@ -83,13 +85,14 @@ export default function Transaction() {
       : txInfo
   const swapTx = tx?.type === 'swap'
   const amountDisplay = useTransactionAmountDisplay(tx)
-  const lnSendReceipt = useLnSendReceipt(tx)
+  const lnSendReceipt = useLnSendReceipt(tx, t)
   const issuanceTx = tx
     ? tx.assetAction === 'issued' || tx.assetAction === 'reissued' || (!tx.assetAction && isIssuance(tx))
     : false
   const burnTx = tx ? tx.assetAction === 'burned' || (!tx.assetAction && isBurn(tx)) : false
+  const exitTx = tx?.type === 'exit'
   const boardingTx = Boolean(tx?.boardingTxid)
-  const defaultButtonLabel = 'Settle transaction'
+  const defaultButtonLabel = boardingTx ? t('transaction.completeBoarding') : t('transaction.settleTransaction')
   const boardingExitDelay = Number(aspInfo?.boardingExitDelay || 0)
   const unconfirmedBoardingTx = boardingTx && !tx?.createdAt
   const expiredBoardingTx =
@@ -109,7 +112,7 @@ export default function Transaction() {
   const [cancellingSwap, setCancellingSwap] = useState(false)
 
   useEffect(() => {
-    setButtonLabel(settling ? 'Settling...' : defaultButtonLabel)
+    setButtonLabel(settling ? t('transaction.settling') : defaultButtonLabel)
   }, [settling, defaultButtonLabel])
 
   useEffect(() => {
@@ -165,15 +168,23 @@ export default function Transaction() {
 
   if (!tx) return <></>
 
-  const status = expiredBoardingTx
-    ? 'Expired'
-    : unconfirmedBoardingTx
-      ? 'Unconfirmed'
-      : boardingTx && tx.preconfirmed
-        ? 'Pending boarding'
-        : settleSuccess || tx.settled
-          ? 'Settled'
-          : 'Preconfirmed'
+  // Status booleans mirror the state machine; the translated `status` string is
+  // display-only so control flow never depends on the active locale.
+  const statusExpired = Boolean(expiredBoardingTx)
+  const statusUnconfirmed = Boolean(unconfirmedBoardingTx)
+  const statusPendingBoarding = Boolean(boardingTx && tx.preconfirmed)
+  const statusSettled = Boolean(settleSuccess || tx.settled)
+  const statusPreconfirmed = !statusExpired && !statusUnconfirmed && !statusPendingBoarding && !statusSettled
+
+  const status = statusExpired
+    ? t('transaction.expired')
+    : statusUnconfirmed
+      ? t('transaction.unconfirmed')
+      : statusPendingBoarding
+        ? t('transaction.pendingBoarding')
+        : statusSettled
+          ? t('transaction.settled')
+          : t('transaction.preconfirmed')
 
   const fees = tx.networkFee ?? (tx.type === 'sent' ? defaultFee : 0)
   // On asset transfers tx.amount is only the data carrier, not the asset value.
@@ -181,41 +192,56 @@ export default function Transaction() {
   const assetTransfer = Boolean(tx.assets?.length)
   const summaryLabel =
     tx.assetAction === 'reissued'
-      ? 'Amount reissued'
+      ? t('transaction.amountReissued')
       : issuanceTx
-        ? 'Amount issued'
+        ? t('transaction.amountIssued')
         : burnTx
-          ? 'Amount burned'
-          : tx.type === 'sent'
-            ? 'Amount sent'
-            : 'Amount received'
-  const date = tx.createdAt ? prettyDate(tx.createdAt) : !unconfirmedBoardingTx ? 'Unknown' : 'Unconfirmed'
+          ? t('transaction.amountBurned')
+          : exitTx
+            ? t('transaction.amountExited')
+            : tx.type === 'sent'
+              ? t('transaction.amountSent')
+              : t('transaction.amountReceived')
+  const date = tx.createdAt
+    ? prettyDate(tx.createdAt, language)
+    : !unconfirmedBoardingTx
+      ? t('common.unknown')
+      : t('transaction.unconfirmed')
   const txid = tx.boardingTxid || tx.redeemTxid || tx.roundTxid || ''
   const displayedAssets = amountDisplay?.raw.filter((amount) => amount.assetId) ?? []
   const assetIds = displayedAssets.map((amount) => ({
     assetId: amount.assetId!,
     label:
       displayedAssets.length === 1
-        ? `Asset ID${amount.unverified ? ' (unverified)' : ''}`
-        : `Asset ID (${amount.ticker}${amount.unverified ? ', unverified' : ''})`,
+        ? amount.unverified
+          ? t('transaction.assetIdUnverified')
+          : t('transaction.assetId')
+        : amount.unverified
+          ? t('transaction.assetIdTickerUnverified', { ticker: amount.ticker })
+          : t('transaction.assetIdTicker', { ticker: amount.ticker }),
   }))
   const assetTotals = assetTransfer
     ? amountDisplay?.raw.map((amount) => ({
         ...amount,
-        label: amountDisplay.raw.length === 1 ? 'Total' : `Total (${amount.ticker})`,
+        label:
+          amountDisplay.raw.length === 1 ? t('common.total') : t('transaction.totalTicker', { ticker: amount.ticker }),
       }))
     : undefined
   const swapAssetIds = [
     tx.assetSwap?.fromAssetId && tx.assetSwap.fromAssetId !== 'btc'
       ? {
           assetId: tx.assetSwap.fromAssetId,
-          label: `From asset ID${isVerifiedAsset(tx.assetSwap.fromAssetId) ? '' : ' (unverified)'}`,
+          label: isVerifiedAsset(tx.assetSwap.fromAssetId)
+            ? t('transaction.fromAssetId')
+            : t('transaction.fromAssetIdUnverified'),
         }
       : undefined,
     tx.assetSwap?.toAssetId && tx.assetSwap.toAssetId !== 'btc'
       ? {
           assetId: tx.assetSwap.toAssetId,
-          label: `To asset ID${isVerifiedAsset(tx.assetSwap.toAssetId) ? '' : ' (unverified)'}`,
+          label: isVerifiedAsset(tx.assetSwap.toAssetId)
+            ? t('transaction.toAssetId')
+            : t('transaction.toAssetIdUnverified'),
         }
       : undefined,
   ].filter((entry): entry is { assetId: string; label: string } => Boolean(entry))
@@ -224,14 +250,14 @@ export default function Transaction() {
   const details: DetailsProps = swapTx
     ? {
         assetIds: swapAssetIds,
-        assetTotals: swapReceived ? [{ ...swapReceived, label: 'Total received' }] : undefined,
+        assetTotals: swapReceived ? [{ ...swapReceived, label: t('transaction.totalReceived') }] : undefined,
         date,
         fees: 0,
         fundedTxid: tx.assetSwap?.fundingTxid,
         priceRate: swapPriceRateLabel(tx),
-        spendLabel: tx.assetSwap?.status === 'cancelled' ? 'Cancelled' : 'Completed',
+        spendLabel: tx.assetSwap?.status === 'cancelled' ? t('transaction.cancelled') : t('transaction.completed'),
         spendTxid: tx.assetSwap?.fillTxid,
-        status: swapStatusLabel(tx),
+        status: swapStatusLabel(tx, t),
         swapFees: swapFeeAmount(tx),
         swapFrom: formatSwapAssetAmount(tx, 'from'),
         // restored swaps may lack feeBps (market card unreachable during the
@@ -246,7 +272,11 @@ export default function Transaction() {
         date,
         destination: tx.type === 'sent' && !boardingTx && !issuanceTx && !burnTx ? tx.destination : undefined,
         fees,
-        isOffchainTx: !tx.boardingTxid && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid)),
+        // An exit is the one row whose txid is genuinely onchain, so it links
+        // to the block explorer rather than to Arkade's. Without the guard its
+        // `redeemTxid` alone would class it offchain and send the link to the
+        // vmempool explorer, which has never heard of the transaction.
+        isOffchainTx: !tx.boardingTxid && !exitTx && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid)),
         // Details' fallback row only (amountDisplay owns the rendered rows):
         // gross, matching the hook's convention
         satoshis: assetTransfer ? undefined : tx.amount,
@@ -259,7 +289,7 @@ export default function Transaction() {
         // how the swap branch above expresses the same thing.
         ...lnSendReceipt,
         txid: lnSendReceipt ? undefined : txid,
-        type: boardingTx ? 'Boarding' : undefined,
+        type: boardingTx ? t('transaction.boarding') : undefined,
         wallet,
       }
 
@@ -278,21 +308,21 @@ export default function Transaction() {
         <FlexCol>
           <ErrorMessage error={Boolean(visibleError)} text={visibleError} />
           {expiredBoardingTx ? (
-            <Info color='red' icon={<VtxosIcon />} title='Expired'>
-              <Text wrap>Boarding transaction expired.</Text>
+            <Info color='red' icon={<VtxosIcon />} title={t('transaction.expired')}>
+              <Text wrap>{t('transaction.boardingExpired')}</Text>
             </Info>
           ) : unconfirmedBoardingTx ? (
-            <Info color='orange' icon={<VtxosIcon />} title='Unconfirmed'>
-              <Text wrap>Onchain transaction unconfirmed. Please wait for confirmation.</Text>
+            <Info color='orange' icon={<VtxosIcon />} title={t('transaction.unconfirmed')}>
+              <Text wrap>{t('transaction.unconfirmedText')}</Text>
             </Info>
           ) : tx.preconfirmed && tx.boardingTxid ? (
-            <Info color='orange' icon={<VtxosIcon />} title='Pending boarding'>
-              <Text wrap>Onboard transaction confirmed on-chain.</Text>
+            <Info color='orange' icon={<VtxosIcon />} title={t('transaction.pendingBoarding')}>
+              <Text wrap>{t('transaction.pendingBoardingText')}</Text>
             </Info>
           ) : null}
           {settleSuccess ? (
-            <Info color='green' icon={<CheckMarkIcon small />} title='Success'>
-              <TextSecondary>Transaction settled successfully</TextSecondary>
+            <Info color='green' icon={<CheckMarkIcon small />} title={t('transaction.success')}>
+              <TextSecondary>{t('transaction.settledSuccessfully')}</TextSecondary>
             </Info>
           ) : null}
           {swapTx && tx.assetSwap ? (
@@ -305,10 +335,13 @@ export default function Transaction() {
     </Content>
   )
 
+  const showCompleteBoarding =
+    statusPendingBoarding && utxoTxsAllowed() && vtxoTxsAllowed() && !settleSuccess && !settling
+
   // if server defines that UTXO transactions are not allowed,
   // don't allow settlement since it is a UTXO transaction.
   const showSettleButtons =
-    status === 'Preconfirmed' &&
+    statusPreconfirmed &&
     hasInputsToSettle &&
     utxoTxsAllowed() &&
     vtxoTxsAllowed() &&
@@ -316,6 +349,8 @@ export default function Transaction() {
     !expiredBoardingTx &&
     amountAboveDust &&
     !settling
+
+  const showSettleActions = showCompleteBoarding || showSettleButtons
 
   const Buttons = () =>
     showCancelSwap ? (
@@ -325,10 +360,10 @@ export default function Transaction() {
             variant='destructive'
             label={
               cancellingSwap
-                ? 'Cancelling…'
+                ? t('transaction.cancelling')
                 : cancelFailed || liveSwap.status === 'cancelling'
-                  ? 'Retry cancel'
-                  : 'Cancel swap'
+                  ? t('transaction.retryCancel')
+                  : t('transaction.cancelSwap')
             }
             disabled={cancellingSwap}
             onClick={() => setCancelConfirmOpen(true)}
@@ -337,31 +372,29 @@ export default function Transaction() {
         <AlertDialog open={cancelConfirmOpen} onOpenChange={setCancelConfirmOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Cancel swap?</AlertDialogTitle>
-              <AlertDialogDescription>
-                If the swap is still pending, this will return its locked funds to your wallet.
-              </AlertDialogDescription>
+              <AlertDialogTitle>{t('transaction.cancelSwapTitle')}</AlertDialogTitle>
+              <AlertDialogDescription>{t('transaction.cancelSwapBody')}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel className='min-h-11'>Keep swap</AlertDialogCancel>
+              <AlertDialogCancel className='min-h-11'>{t('transaction.keepSwap')}</AlertDialogCancel>
               <AlertDialogAction className='min-h-11' variant='destructive' onClick={handleCancelSwap}>
-                Cancel swap
+                {t('transaction.cancelSwap')}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
       </>
-    ) : showSettleButtons ? (
+    ) : showSettleActions ? (
       <>
         <ButtonsOnBottom>
           <Button onClick={handleSettle} label={buttonLabel} disabled={settling} />
-          <Button onClick={() => setReminderIsOpen(true)} label='Add reminder' secondary />
+          <Button onClick={() => setReminderIsOpen(true)} label={t('transaction.addReminder')} secondary />
         </ButtonsOnBottom>
         <Reminder
           isOpen={reminderIsOpen}
           callback={() => setReminderIsOpen(false)}
           duration={duration}
-          name='Settle transaction'
+          name={boardingTx ? t('transaction.completeBoarding') : t('transaction.settleTransaction')}
           startTime={startTime}
         />
       </>
@@ -369,7 +402,7 @@ export default function Transaction() {
 
   return (
     <>
-      <Header text='Transaction' back />
+      <Header text={t('wallet.transaction')} back />
       {settling ? <WaitingForRound settle /> : <Body />}
       <Buttons />
     </>

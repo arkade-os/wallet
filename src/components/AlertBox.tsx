@@ -5,6 +5,7 @@ import FlexCol from './FlexCol'
 import FlexRow from './FlexRow'
 import Text from './Text'
 import DOMPurify from 'dompurify'
+import { useTranslation } from '../providers/language'
 
 interface AlertBoxProps {
   children: React.ReactNode
@@ -70,10 +71,11 @@ export function InfoBox({ html }: { html: string }) {
 }
 
 export function CreatePasswordWarning({ onClick, onDismiss }: { onClick: () => void; onDismiss: () => void }) {
+  const { t } = useTranslation()
   return (
     <AlertBox icon={<LogoIconAnimated />} onClick={onClick} onDismiss={onDismiss}>
       <FlexCol>
-        <AlertText>Protect your wallet with a password</AlertText>
+        <AlertText>{t('components.protectWalletWithPassword')}</AlertText>
       </FlexCol>
     </AlertBox>
   )

@@ -4,7 +4,7 @@ import { useContext } from 'react'
 import { BackupContext, BackupProvider } from '../../providers/backup'
 import { ConfigContext } from '../../providers/config'
 import { mockConfigContextValue } from '../screens/mocks'
-import { saveSolverCardsToStorage } from '../../lib/storage'
+import { saveSolverCards } from '../../lib/solverCards'
 import type { Config } from '../../lib/types'
 import type { BackupEvent } from '../../lib/nostr'
 
@@ -92,7 +92,7 @@ describe('BackupProvider restore', () => {
         },
       },
     ] as any
-    saveSolverCardsToStorage(cards)
+    saveSolverCards(cards)
 
     const updatedConfig = { ...localConfig, nostrBackup: true }
     renderProvider(() => undefined)

@@ -1,7 +1,6 @@
 import { AssetDetails } from '@arkade-os/sdk'
 import { Config, LnSendActivity, Wallet } from '../lib/types'
 import { consoleError } from './logs'
-import { LocalCardInput, validateCard } from '@arkade-os/solver-discovery'
 
 // clear localStorage but persist config (with asset data reset)
 export async function clearStorage(): Promise<void> {
@@ -56,6 +55,11 @@ export const readWalletFromStorage = (): Wallet | undefined => {
 export type TransactionActivityMetadata = {
   assetAction?: 'issued' | 'reissued' | 'burned'
   destination?: string
+  /** When a unilaterally exited VTXO's exit transaction confirmed onchain, in
+   * unix seconds. Shares its entry with the receive row that was created by the
+   * same txid — harmless, since the graft in `activityHistory` reads none of
+   * the other fields from here. See `lib/exitHistory`. */
+  exitedAt?: number
   lnSend?: LnSendActivity
   networkFee?: number
   savedAt: number
@@ -95,12 +99,26 @@ export const ASSET_METADATA_TTL_MS = 24 * 60 * 60 * 1000
 
 export type CachedAssetDetails = AssetDetails & { cachedAt: number; hasIcon?: boolean }
 
-export const saveAssetMetadataToStorage = (cache: Map<string, CachedAssetDetails>): void => {
+/**
+ * Persist the asset metadata cache, dropping stale entries.
+ *
+ * `keep` names the assets the UI can still be asked to render — every asset a
+ * swap record or history row mentions, not just the ones the wallet currently
+ * holds. Those are exempt from the TTL eviction: their metadata is not
+ * refreshed by the owned-balance prefetch, so evicting one deletes the only
+ * name and icon the row has and it never comes back. A swap out of the last of
+ * an asset used to go unnamed exactly 24h later for precisely this reason.
+ * Unreferenced entries still expire, which is what keeps localStorage bounded.
+ */
+export const saveAssetMetadataToStorage = (
+  cache: Map<string, CachedAssetDetails>,
+  keep: ReadonlySet<string> = new Set(),
+): void => {
   const now = Date.now()
   const obj: Record<string, CachedAssetDetails> = {}
   cache.forEach((v, k) => {
     // evict expired entries to prevent unbounded localStorage growth
-    if (now - v.cachedAt >= ASSET_METADATA_TTL_MS) return
+    if (now - v.cachedAt >= ASSET_METADATA_TTL_MS && !keep.has(k)) return
     obj[k] = v
   })
   setStorageItem(
@@ -115,25 +133,4 @@ export const readAssetMetadataFromStorage = (): Map<string, CachedAssetDetails> 
     Object.values(obj).forEach((x) => (x.supply = BigInt(x.supply)))
     return new Map(Object.entries(obj))
   })
-}
-
-export const saveSolverCardsToStorage = (cards: LocalCardInput[]): void => {
-  const data = Array.isArray(cards) ? cards.filter(isLocalCardInput) : []
-  setStorageItem('solverCards', JSON.stringify(data))
-}
-
-export const readSolverCardsFromStorage = (): LocalCardInput[] => {
-  const items = getStorageItem('solverCards', [], (val) => JSON.parse(val))
-  return Array.isArray(items) ? items.filter(isLocalCardInput) : []
-}
-
-const isLocalCardInput = (obj: unknown): obj is LocalCardInput => {
-  const input = obj as LocalCardInput | null
-  return Boolean(
-    input &&
-      typeof input.network === 'string' &&
-      typeof input.label === 'string' &&
-      typeof input.card === 'object' &&
-      validateCard(input.card).ok,
-  )
 }

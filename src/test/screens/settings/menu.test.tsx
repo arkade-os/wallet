@@ -17,15 +17,15 @@ describe('Settings menu', () => {
     renderSettingsMenu()
 
     const orderedOptions = [
-      'display',
-      'notifications',
-      'notes',
-      'about',
-      'support',
-      'advanced',
-      'backup',
-      'lock wallet',
-      'reset wallet',
+      'Display',
+      'Notifications',
+      'Notes',
+      'About',
+      'Support',
+      'Advanced',
+      'Backup',
+      'Lock',
+      'Reset wallet',
     ].map((label) => screen.getByText(label))
 
     for (let index = 0; index < orderedOptions.length - 1; index++) {

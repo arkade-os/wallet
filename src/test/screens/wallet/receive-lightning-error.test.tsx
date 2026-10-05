@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, beforeAll } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { FlowContext } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import { AspContext } from '../../../providers/asp'
@@ -13,6 +13,7 @@ import { ToastProvider } from '../../../components/Toast'
 import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
 import { LockupRegistrationFailed } from '@arkade-os/swap'
 import { LnReceiveHeldElsewhere } from '../../../lib/lnReceive'
+import { lnReceiveRendezvous } from '../../../lib/lnSwap'
 import {
   mockAspContextValue,
   mockConfigContextValue,
@@ -32,6 +33,12 @@ import {
  * well, just not here — and the fix is closing that tab, which the copy has to
  * say or the user has nothing to act on.
  */
+const rfqMock = vi.hoisted(() => ({
+  negotiateError: null as unknown,
+  SolverNotRespondingError: class SolverNotRespondingError extends Error {
+    timeoutMs = 30000
+  },
+}))
 vi.mock('qr', () => ({ default: () => Array.from({ length: 21 }, () => new Uint8Array(21).fill(1)) }))
 
 // The negotiation itself is covered in `lib/lnReceive.test.ts`. Here it only has
@@ -39,10 +46,14 @@ vi.mock('qr', () => ({ default: () => Array.from({ length: 21 }, () => new Uint8
 vi.mock('../../../lib/swapMarkets', () => ({ discoverMarkets: async () => [] }))
 vi.mock('../../../lib/lnSwap', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../lib/lnSwap')>()),
-  lnReceiveRendezvous: () => ({ minSats: 1, maxSats: 1_000_000 }),
+  lnReceiveRendezvous: vi.fn(() => ({ minSats: 1, maxSats: 1_000_000 })),
 }))
 vi.mock('../../../lib/nostrRfq', () => ({
-  withRfqTransport: async (_r: unknown, run: (t: unknown) => Promise<unknown>) => run({}),
+  withRfqTransport: async (_r: unknown, run: (t: unknown) => Promise<unknown>) => {
+    if (rfqMock.negotiateError) throw rfqMock.negotiateError
+    return run({})
+  },
+  SolverNotRespondingError: rfqMock.SolverNotRespondingError,
 }))
 vi.mock('../../../lib/lnReceive', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../lib/lnReceive')>()),
@@ -59,6 +70,14 @@ beforeAll(() => {
 })
 
 const track = vi.fn()
+const setRecvInfo = vi.fn()
+const copyToClipboard = vi.fn()
+const shareData = vi.fn()
+vi.mock('../../../lib/clipboard', () => ({ copyToClipboard: (...args: unknown[]) => copyToClipboard(...args) }))
+vi.mock('../../../lib/share', () => ({
+  canBrowserShareData: () => true,
+  shareData: (...args: unknown[]) => shareData(...args),
+}))
 
 const tree = (satoshis: number) => (
   <ToastProvider>
@@ -79,6 +98,7 @@ const tree = (satoshis: number) => (
                 value={
                   {
                     ...mockFlowContextValue,
+                    setRecvInfo,
                     recvInfo: {
                       ...mockFlowContextValue.recvInfo,
                       satoshis,
@@ -106,7 +126,12 @@ const tree = (satoshis: number) => (
 
 const renderWithTrack = (satoshis = 10_000) => render(tree(satoshis))
 
-beforeEach(() => track.mockReset())
+beforeEach(() => {
+  track.mockReset()
+  rfqMock.negotiateError = null
+  setRecvInfo.mockClear()
+  vi.mocked(lnReceiveRendezvous).mockClear()
+})
 
 describe('Receive screen, Lightning failures', () => {
   it('names the other tab when the receive manager is held elsewhere', async () => {
@@ -152,5 +177,92 @@ describe('Receive screen, Lightning failures', () => {
     // The pre-existing branch, asserted so the new one cannot swallow it.
     expect(await screen.findByText(/Lightning unavailable: No Lightning solver available/)).toBeInTheDocument()
     expect(screen.queryByText(/Another tab/)).not.toBeInTheDocument()
+  })
+
+  it('translates a missing receive solver instead of leaking the raw throw', async () => {
+    vi.mocked(lnReceiveRendezvous).mockReturnValueOnce(undefined)
+    renderWithTrack()
+
+    expect(await screen.findByText(/Lightning unavailable: No Lightning solver available/)).toBeInTheDocument()
+    expect(screen.queryByText(/no_lightning_solver/)).not.toBeInTheDocument()
+  })
+})
+
+describe('Receive screen, invoice generation', () => {
+  it('blocks every copy/share path while pending and restores them immediately when ready', async () => {
+    let finish!: () => void
+    track.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve
+        }),
+    )
+    copyToClipboard.mockClear()
+    shareData.mockClear()
+    renderWithTrack()
+
+    await waitFor(() => expect(track).toHaveBeenCalled())
+    expect(screen.getByRole('status')).toHaveTextContent('Generating invoice…')
+    expect(screen.getByText('Requesting 10,000 sats')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Copy QR code' })).not.toBeInTheDocument()
+    const copy = screen.getByRole('button', { name: 'Copy' })
+    const share = screen.getByRole('button', { name: 'Share' })
+    expect(copy).toBeDisabled()
+    expect(share).toBeDisabled()
+    fireEvent.click(copy)
+    fireEvent.click(share)
+    fireEvent.click(screen.getByLabelText('Copy QR code'))
+    expect(copyToClipboard).not.toHaveBeenCalled()
+    expect(shareData).not.toHaveBeenCalled()
+
+    await act(async () => finish())
+    expect(screen.getByText('Requesting 10,000 sats')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled()
+    expect(copy).toBeEnabled()
+    expect(share).toBeEnabled()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('restores other receiving methods when generation fails', async () => {
+    track.mockRejectedValue(new Error('Solver timed out'))
+    renderWithTrack()
+    expect(await screen.findByText(/Lightning unavailable: Solver timed out/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Share' })).toBeEnabled()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('localizes the solver timeout instead of leaking the raw English message', async () => {
+    rfqMock.negotiateError = new rfqMock.SolverNotRespondingError()
+    renderWithTrack()
+    expect(
+      await screen.findByText(/Lightning unavailable: The Lightning solver did not respond \(waited 30s\)/),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Share' })).toBeEnabled()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(rfqMock.negotiateError).toBeInstanceOf(rfqMock.SolverNotRespondingError)
+  })
+
+  it('clearing the amount during generation immediately restores the QR', async () => {
+    let finish!: () => void
+    track.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve
+        }),
+    )
+    const { rerender } = renderWithTrack()
+    await waitFor(() => expect(track).toHaveBeenCalled())
+    rerender(tree(0))
+    expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Share' })).toBeEnabled()
+    await act(async () => finish())
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(setRecvInfo).not.toHaveBeenCalled()
+    expect(screen.queryByText(/Requesting/)).not.toBeInTheDocument()
   })
 })

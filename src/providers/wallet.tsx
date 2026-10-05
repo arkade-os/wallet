@@ -17,6 +17,7 @@ import {
   type Activity,
   type Identity,
   type ServiceWorkerWalletMode,
+  toXOnlySignerHex,
 } from '@arkade-os/sdk'
 import {
   clearStorage,
@@ -31,20 +32,23 @@ import {
 } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
 import { getRestApiExplorerURL } from '../lib/explorers'
-import { getBalance, getVtxos, settleVtxos } from '../lib/asp'
+import { getBalance, getUnrolledVtxos, getVtxos, settleVtxos } from '../lib/asp'
+import { resolveExits, subtractExitedAssets, type ExitRecord } from '../lib/exitHistory'
 import { AspContext } from './asp'
 import { AssetsContext } from './assets'
 import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
 import { arkNoteInUrl } from '../lib/arknote'
 import { deepLinkInUrl } from '../lib/deepLink'
+import { assetNameChanged, referencedAssetIds } from '../lib/assets'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { activitiesToTxs, getActivities } from '../lib/activityHistory'
+import { arkTransactionToTx } from '../lib/transactionHistory'
 import { Indexer } from '../lib/indexer'
 import { lnSendViews, swapActivityInputs, type LnSendView } from '../lib/lnSendRecords'
 import { assetSwapResolver } from '../lib/activity/assetSwapResolver'
-import { swapActivityResolver } from '@arkade-os/swap'
+import { getAssetSwaps, swapActivityResolver } from '@arkade-os/swap'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
@@ -52,8 +56,10 @@ import { resolveWalletMode } from '../lib/walletMode'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
 import { setLoadingStatus } from '../lib/loadingStatus'
 import { hex } from '@scure/base'
-import * as secp from '@noble/secp256k1'
+import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { ConfigContext } from './config'
+import { translate } from './language'
+import { detectLanguage } from '../lib/language'
 import {
   defaultPassword,
   getDelegateUrlForNetwork,
@@ -64,6 +70,7 @@ import {
 import { AssetIconApprovalManager } from '../lib/assetIconApproval'
 import { IndexedDBStorageAdapter } from '@arkade-os/sdk/adapters/indexedDB'
 import { BackupContext } from './backup'
+import { restoreImportedWallet } from '../lib/importRestore'
 
 const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
 const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
@@ -111,6 +118,12 @@ interface WalletContextProps {
   svcWallet: ServiceWorkerWallet | undefined
   vtxoManager: IVtxoManager | undefined
   txs: Tx[]
+  /** History rows before grouping, and deliberately not derived from
+   * `assetSwaps`. The restore scan takes its candidates from `sent` rows, and
+   * `txs` replaces a swap's funding row with the grouped one the moment its
+   * record exists — so feeding it `txs` hides the very tx the record was built
+   * from, and no later scan can re-answer that record. */
+  ungroupedTxs: Tx[]
   /** Set by the asset-swaps provider, which owns the records. This provider
    * merges them into `txs`; the dependency runs one way, so they travel up
    * rather than being read back down. */
@@ -163,16 +176,35 @@ export const WalletContext = createContext<WalletContextProps>({
   dismissLoadError: () => {},
   authState: 'unknown',
   txs: [],
+  ungroupedTxs: [],
   setAssetSwaps: () => {},
   vtxos: { spendable: [], spent: [] },
   devAutoInitFailed: false,
 })
+
+/** The asset legs stored swap records mention.
+ *
+ * Read straight from the repository rather than from this provider's
+ * `assetSwaps` state: that state is published upward by `AssetSwapsProvider`
+ * and is still empty on the reload that renders the first history, which is
+ * exactly the reload whose rows need naming. A read failure yields no ids
+ * rather than failing the reload — an unnamed row beats no wallet. */
+const readSwapRecordAssets = async (): Promise<string[]> => {
+  try {
+    const swaps = (await getAssetSwaps(assetSwapRepository)) as WalletAssetSwap[]
+    return swaps.flatMap((swap) => [swap.fromAsset, swap.toAsset])
+  } catch (err) {
+    consoleError(err, 'failed to read swap records while prefetching asset metadata')
+    return []
+  }
+}
 
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { isRegistered } = useContext(AssetsContext)
   const { initialiseNostrBackup } = useContext(BackupContext)
   const { config, updateConfig } = useContext(ConfigContext)
+  const lang = config?.language ?? detectLanguage()
   const { navigate } = useContext(NavigationContext)
   const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo } = useContext(FlowContext)
   const { notifyTxSettled } = useContext(NotificationsContext)
@@ -183,7 +215,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     activities: Activity[]
     metadata: Record<string, TransactionActivityMetadata>
     lnSends: LnSendView[]
-  }>({ activities: [], metadata: {}, lnSends: [] })
+    exits: ExitRecord[]
+  }>({ activities: [], metadata: {}, lnSends: [], exits: [] })
   const [assetSwaps, setAssetSwaps] = useState<WalletAssetSwap[]>([])
   const [balance, setBalance] = useState(0)
   const [availableBalance, setAvailableBalance] = useState(0)
@@ -202,7 +235,19 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const hasLoadedOnce = useRef(false)
   const assetMetadataCache = useRef<Map<string, CachedAssetDetails>>(readAssetMetadataFromStorage() ?? new Map())
+  // Every asset the UI can still be asked to name (see `referencedAssetIds`).
+  // A ref because it gates persistence in `setCacheEntry`, not rendering.
+  const referencedAssetIdsRef = useRef<Set<string>>(new Set())
   const iconApprovalManager = useRef(new AssetIconApprovalManager()).current
+
+  // Rows name assets through `assetMetadataCache`, which is a ref, so filling it
+  // repaints nothing on its own. The metadata prefetch answers over the network
+  // and routinely lands after the first history load, and a restored wallet has
+  // an empty cache to start with, so every asset row rendered its truncated id
+  // until some unrelated change happened to rebuild this memo — which is why
+  // making one new swap named every older row at once. Bumped by `setCacheEntry`
+  // when it writes a name that differs from the one already cached.
+  const [assetDisplayVersion, setAssetDisplayVersion] = useState(0)
 
   // Derived rather than merged once at load: the swap records are read from
   // IndexedDB, so they can arrive after the first history load — recomputing on
@@ -213,10 +258,17 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         swaps: assetSwaps,
         metadata: history.metadata,
         lnSends: history.lnSends,
+        exits: history.exits,
         network: aspInfo.network,
         assetDisplay: (id) => assetMetadataCache.current.get(id)?.metadata,
       }),
-    [history, assetSwaps, aspInfo.network],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [history, assetSwaps, aspInfo.network, assetDisplayVersion],
+  )
+
+  const ungroupedTxs = useMemo(
+    () => history.activities.flatMap((activity) => activity.txs).map((tx) => arkTransactionToTx(tx)),
+    [history],
   )
 
   const verifiedAssetsFetched = useRef(false)
@@ -233,6 +285,18 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // user's saved theme (applyTheme(Auto) then falls back to the OS palette).
   const configRef = useRef(config)
   configRef.current = config
+  // Same hazard: a listener that captured an early `aspInfo` captured it before
+  // the server answered, when the network was still unset. The exit timestamp
+  // lookup needs the live one to pick an explorer. Synced after commit rather
+  // than during render, so the ref only ever holds a network React actually
+  // rendered with — a render that gets discarded must not leave its network
+  // behind for `reloadWallet` to pick an explorer from. Declared here, above
+  // every effect that reloads, so it is the first to run on the commit that
+  // brings the network in.
+  const networkRef = useRef(aspInfo.network)
+  useEffect(() => {
+    networkRef.current = aspInfo.network
+  }, [aspInfo.network])
 
   // Each init gets its own AbortSignal; lock/reset aborts the current signal
   // with 'lock-reset' so stale paths can decide whether to tear down the SW.
@@ -276,8 +340,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         ? { ...details, metadata: { ...details.metadata, icon: undefined } }
         : details
     const entry: CachedAssetDetails = { ...moderated, cachedAt: Date.now(), hasIcon }
+    const previous = assetMetadataCache.current.get(assetId)
     assetMetadataCache.current.set(assetId, entry)
-    saveAssetMetadataToStorage(assetMetadataCache.current)
+    saveAssetMetadataToStorage(assetMetadataCache.current, referencedAssetIdsRef.current)
+    // Only what `assetDisplay` reads is worth a repaint. A TTL refresh rewriting
+    // the same name must not re-derive every row, and the prefetch loop writes
+    // one entry per owned asset with an await between each.
+    if (assetNameChanged(previous?.metadata, entry.metadata)) setAssetDisplayVersion((version) => version + 1)
     return entry
   }
 
@@ -469,12 +538,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     // if app url is present, navigate to it
     if (!deepLinkInfo?.appId) return
     switch (deepLinkInfo?.appId) {
-      case 'lendasat':
-        navigate(Pages.AppLendasat)
-        break
-      case 'satora':
-        navigate(Pages.AppSatora)
-        break
       default:
         navigate(Pages.Wallet)
     }
@@ -485,39 +548,69 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const isFirstLoad = !hasLoadedOnce.current
     if (isFirstLoad) setLoadError(null)
     try {
-      if (isFirstLoad) setLoadingStatus('Fetching coins...')
+      if (isFirstLoad) setLoadingStatus(translate(lang, 'loading.fetchingCoins'))
       const vtxos = await getVtxos(swWallet)
-      if (isFirstLoad) setLoadingStatus('Fetching transactions...')
+      // Fetched apart from the set above, which must not learn about exits —
+      // see `getUnrolledVtxos`. Cheap: the worker answers both from its local
+      // repo, so this is a postMessage, not a request.
+      const unrolledVtxos = await getUnrolledVtxos(swWallet)
+      if (isFirstLoad) setLoadingStatus(translate(lang, 'loading.fetchingTransactions'))
       const activities = await getActivities(swWallet)
+      // Before the metadata snapshot below, not after: `resolveExits` persists
+      // what it learns, and the history memo reads a snapshot taken here, so a
+      // write that lands after this line stays invisible until the next reload.
+      const exits = await resolveExits(unrolledVtxos, networkRef.current)
       const metadata = readAllTransactionActivityMetadata()
       // Read, never resolved here: `RfqSwapManager` owns a send's outcome and
       // has already written it (see providers/lnSwaps), so this pass only picks
       // up what the store says.
       const lnSends = await lnSendViews()
-      if (isFirstLoad) setLoadingStatus('Updating balance...')
-      const { total, available, assets, availableAssets } = await getBalance(swWallet)
-      // prefetch asset metadata before triggering re-renders
-      if (isFirstLoad && assets.length > 0) setLoadingStatus('Loading asset metadata...')
-      for (const ab of assets) {
-        const cached = assetMetadataCache.current.get(ab.assetId)
+      if (isFirstLoad) setLoadingStatus(translate(lang, 'loading.updatingBalance'))
+      const { total, available, assets, availableAssets, unrolled } = await getBalance(swWallet)
+      // An exited coin is no longer Arkade money: it cannot be spent offchain,
+      // no batch can lift it back, and this wallet has no path that moves it —
+      // the sweep belongs to the exit tool. The SDK's `total` is right for what
+      // it claims (every sat the wallet owns), but this headline means the
+      // narrower thing, so the bucket is netted out at the display boundary and
+      // the exit is explained by a history row instead. `available` already
+      // excludes it, so Send, Swap and coin selection need nothing.
+      const ownedAssets = subtractExitedAssets(assets, unrolledVtxos)
+      // Naming is not a property of the balance sheet. A row names an asset
+      // long after the wallet stops holding it — swap the last of an asset away
+      // and its swap rows still have to say what was traded — so the prefetch
+      // covers every asset the UI can reference, not just the owned ones. Only
+      // the owned list was covered before, which is why such a row fell back to
+      // a truncated asset id with a letter where its logo belongs, and why the
+      // fall happened a day late: the entry survived until the TTL evicted it.
+      const referenced = referencedAssetIds({
+        owned: ownedAssets,
+        rows: activities.flatMap((activity) =>
+          activity.txs.flatMap((tx) => (arkTransactionToTx(tx).assets ?? []).map((asset) => asset.assetId)),
+        ),
+        swaps: await readSwapRecordAssets(),
+      })
+      referencedAssetIdsRef.current = referenced
+      if (isFirstLoad && referenced.size > 0) setLoadingStatus(translate(lang, 'loading.loadingAssetMetadata'))
+      for (const assetId of referenced) {
+        const cached = assetMetadataCache.current.get(assetId)
         if (cached && Date.now() - cached.cachedAt < ASSET_METADATA_TTL_MS) continue
         try {
-          const meta = await swWallet.assetManager.getAssetDetails(ab.assetId)
-          if (meta) setCacheEntry(ab.assetId, meta)
+          const meta = await swWallet.assetManager.getAssetDetails(assetId)
+          if (meta) setCacheEntry(assetId, meta)
         } catch (err) {
-          consoleError(err, `error prefetching metadata for ${ab.assetId}`)
+          consoleError(err, `error prefetching metadata for ${assetId}`)
         }
       }
-      setBalance(total)
+      setBalance(total - unrolled)
       setAvailableBalance(available)
-      setAssetBalances(assets)
+      setAssetBalances(ownedAssets)
       setAvailableAssetBalances(availableAssets)
-      if (assets.length > 0 && !configRef.current.apps.assets.enabled) {
+      if (ownedAssets.length > 0 && !configRef.current.apps.assets.enabled) {
         const live = configRef.current
         updateConfig({ ...live, apps: { ...live.apps, assets: { enabled: true } } })
       }
       setVtxos(vtxos)
-      setHistory({ activities, metadata, lnSends })
+      setHistory({ activities, metadata, lnSends, exits })
       if (!hasLoadedOnce.current) {
         hasLoadedOnce.current = true
         setDataReady(true)
@@ -560,7 +653,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       minCheckpointExitDelaySeconds,
     } = params
     try {
-      setLoadingStatus('Starting wallet...')
+      setLoadingStatus(translate(lang, 'loading.startingWallet'))
       const walletRepository = new IndexedDBWalletRepository()
       const contractRepository = new IndexedDBContractRepository()
 
@@ -591,7 +684,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       })()
 
       await Promise.all([walletRepository.getWalletState(), zombieCheck])
-      setLoadingStatus('Connecting to service worker...')
+      setLoadingStatus(translate(lang, 'loading.connectingToServiceWorker'))
 
       const svcWallet = await ServiceWorkerWallet.setup({
         serviceWorkerPath: '/wallet-service-worker.mjs',
@@ -635,7 +728,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       svcWallet.activity.use(swapActivityResolver({ listSwaps: () => swapActivityInputs(activityIndexer) }))
 
       if (!skipMigration) {
-        setLoadingStatus('Migrating data...')
+        setLoadingStatus(translate(lang, 'loading.migratingData'))
         try {
           const oldStorage = new IndexedDBStorageAdapter('arkade-service-worker')
           const walletStatus = await getMigrationStatus('wallet', oldStorage)
@@ -660,9 +753,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (restoring) {
-        setLoadingStatus('Recovering addresses...')
+        setLoadingStatus(translate(lang, 'loading.recoveringAddresses'))
         try {
-          await svcWallet.restore()
+          await restoreImportedWallet(svcWallet, {
+            arkServerUrl,
+            repository: assetSwapRepository,
+            indexer: activityIndexer,
+            ...(aspInfo.signerPubkey ? { serverPubkey: hex.decode(toXOnlySignerHex(aspInfo.signerPubkey)) } : {}),
+          })
         } catch (err) {
           consoleError(err, 'Error scanning for rotated addresses on restore')
         }
@@ -749,7 +847,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (isTimeoutError && retryCount < maxRetries) {
         // exponential backoff: wait 1s, 2s, 4s, 8s, 16s for each retry
         const delay = Math.pow(2, retryCount) * 1000
-        setLoadingStatus('Retrying connection...')
+        setLoadingStatus(translate(lang, 'loading.retryingConnection'))
         consoleError(
           new Error(
             `Service worker activation timed out, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`,
@@ -812,7 +910,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       updateConfig({ ...config, pubkey, walletMode })
     } else if (credentials.privateKey) {
       identity = SingleKey.fromPrivateKey(credentials.privateKey)
-      pubkey = hex.encode(secp.getPublicKey(credentials.privateKey))
+      pubkey = hex.encode(secp256k1.getPublicKey(credentials.privateKey))
       walletMode = 'static'
       initialiseNostrBackup(credentials.privateKey)
       updateConfig({ ...config, pubkey, walletMode })
@@ -987,6 +1085,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         lockWallet,
         restartWallet,
         txs,
+        ungroupedTxs,
         setAssetSwaps,
         balance,
         availableBalance,

@@ -137,6 +137,7 @@ export const mockWalletContextValue = {
   assetMetadataCache: new Map(),
   setCacheEntry: () => ({ cachedAt: 0 }) as any,
   txs: [mockTxInfo],
+  ungroupedTxs: [mockTxInfo],
   vtxos: { spendable: [], spent: [] },
   iconApprovalManager: new AssetIconApprovalManager(),
   isVerifiedAsset: () => false,

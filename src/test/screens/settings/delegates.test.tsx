@@ -1,11 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import Delegates from '../../../screens/Settings/Delegates'
 import { ConfigContext } from '../../../providers/config'
 import { mockAspContextValue, mockConfigContextValue } from '../mocks'
 import { AspContext } from '../../../providers/asp'
 import createFetchMock from 'vitest-fetch-mock'
 import { getDelegateUrlForNetwork } from '../../../lib/constants'
+import { ToastProvider } from '../../../components/Toast'
+import { copyToClipboard } from '../../../lib/clipboard'
+
+vi.mock('../../../lib/clipboard', () => ({ copyToClipboard: vi.fn() }))
 
 let fetchMocker: ReturnType<typeof createFetchMock>
 let mockDelegatesAspContextValue = { ...mockAspContextValue }
@@ -38,24 +42,6 @@ describe('Delegates screen', () => {
 
   afterEach(() => {
     fetchMocker.disableMocks()
-  })
-
-  it('renders the delegates screen with the correct elements when config delegate is false', () => {
-    render(
-      <AspContext.Provider value={mockDelegatesAspContextValue as any}>
-        <ConfigContext.Provider value={getMockConfigWithDelegate(false) as any}>
-          <Delegates />
-        </ConfigContext.Provider>
-      </AspContext.Provider>,
-    )
-    expect(screen.getByText('Delegates')).toBeInTheDocument()
-    expect(screen.getByText('Learn more')).toBeInTheDocument()
-    expect(screen.getByText('What is a Delegate?')).toBeInTheDocument()
-    expect(screen.getByText('Use default Arkade delegate')).toBeInTheDocument()
-    expect(screen.getByText(/Delegates can only renew your VTXOs/)).toBeInTheDocument()
-    expect(screen.getByText('The wallet will reload to apply the change.')).toBeInTheDocument()
-    expect(screen.getByTestId('toggle-delegates').getAttribute('checked')).toBeFalsy()
-    expect(() => screen.getByTestId('delegate-card')).toThrow()
   })
 
   it('renders the delegate card when toggle is on', async () => {
@@ -105,5 +91,52 @@ describe('Delegates screen', () => {
     expect(screen.getByText('What is a Delegate?')).toBeInTheDocument()
     expect(screen.getByText('No delegate found for this network.')).toBeInTheDocument()
     expect(() => screen.getByTestId('delegate-card')).toThrow()
+  })
+
+  describe('copy feedback', () => {
+    const rows = [
+      ['address', /^address:/, expect.stringMatching(/^tark1/)],
+      ['pubkey', /^pubkey:/, '03bab0ac7577f83c5f08a616513e738fee0e45e1cda229880287d8659af3452f10'],
+      ['fee', /^fee:/, '0'],
+    ] as const
+
+    const renderCard = async () => {
+      render(
+        <AspContext.Provider value={mockDelegatesAspContextValue as any}>
+          <ConfigContext.Provider value={getMockConfigWithDelegate(true) as any}>
+            <ToastProvider>
+              <Delegates />
+            </ToastProvider>
+          </ConfigContext.Provider>
+        </AspContext.Provider>,
+      )
+      await screen.findByText('Arkade Default')
+    }
+
+    beforeEach(() => {
+      vi.mocked(copyToClipboard).mockReset()
+    })
+
+    it.each(rows)('confirms the %s copy when the write lands', async (_, row, value) => {
+      vi.mocked(copyToClipboard).mockResolvedValue(true)
+      await renderCard()
+
+      fireEvent.click(screen.getByText(row))
+
+      expect(await screen.findByText('Copied to clipboard')).toBeInTheDocument()
+      expect(copyToClipboard).toHaveBeenCalledWith(value)
+      expect(screen.queryByText('Failed to copy')).not.toBeInTheDocument()
+    })
+
+    it.each(rows)('reports the %s copy failure instead of claiming success', async (_, row, value) => {
+      vi.mocked(copyToClipboard).mockResolvedValue(false)
+      await renderCard()
+
+      fireEvent.click(screen.getByText(row))
+
+      expect(await screen.findByText('Failed to copy')).toBeInTheDocument()
+      expect(copyToClipboard).toHaveBeenCalledWith(value)
+      expect(screen.queryByText('Copied to clipboard')).not.toBeInTheDocument()
+    })
   })
 })

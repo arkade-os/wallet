@@ -16,11 +16,11 @@ import { lnReceiveRendezvous, lnSendRendezvous } from '../../lib/lnSwap'
 import {
   claimReceive,
   requestLnReceive,
-  sealingKey,
   toReceiveOrigin,
   toReceiveSwap,
   type LnReceiveRequest,
 } from '../../lib/lnReceive'
+import { getCovclaimdPubkeyForNetwork } from '@/lib/constants'
 
 const requestLightningReceive = vi.hoisted(() => vi.fn())
 const pushClaim = vi.hoisted(() => vi.fn())
@@ -77,11 +77,24 @@ describe('lnReceiveRendezvous', () => {
     expect(lnReceiveRendezvous([market({ transports: undefined })])).toBeUndefined()
     expect(lnReceiveRendezvous([market({ quote_corridor: 'onchain' })])).toBeUndefined()
   })
+
+  it('rejects a Lightning quote whose receive side is not Arkade', () => {
+    expect(
+      lnReceiveRendezvous([
+        market({
+          base_asset: { id: 'bitcoin:bitcoin/slip44:0' },
+          quote_asset: { id: 'bolt11:bitcoin/slip44:0' },
+        }),
+      ]),
+    ).toBeUndefined()
+  })
 })
 
-describe('sealingKey', () => {
+const MUTINYNET_COVCLAIMD_PK = '034eb1f33220c697a5eab424e9f3b053760fa635f7bd9cc39c15bcecd30b5bf59d'
+
+describe('covclaimdPubkey', () => {
   it('is a 33-byte compressed point, the only form ECIES can seal to', async () => {
-    const key = sealingKey()
+    const key = getCovclaimdPubkeyForNetwork('mutinynet')!
     expect(key).toHaveLength(33)
     expect([0x02, 0x03]).toContain(key[0])
     // The check is the seal itself: sealClaimPacket ECDHs against this key, so
@@ -89,11 +102,11 @@ describe('sealingKey', () => {
     await expect(sealClaimPacket({ preimage: new Uint8Array(32).fill(7), covclaimdPubkey: key })).resolves.toBeDefined()
   })
 
-  it('is fresh per receive, so two lockups are not linkable by their packet', () => {
-    // Not an AEAD concern — sealClaimPacket draws its own ephemeral key and
-    // nonce each call — but a reused recipient key would tag every receive of
-    // this wallet as one payee to anyone collecting RFQ requests.
-    expect(sealingKey()).not.toEqual(sealingKey())
+  it('is undefined where no covclaimd is configured, rather than a throwaway key', () => {
+    for (const network of ['bitcoin', 'signet', 'testnet'] as const) {
+      expect(getCovclaimdPubkeyForNetwork(network)).toBeUndefined()
+    }
+    expect(hex.encode(getCovclaimdPubkeyForNetwork('mutinynet')!)).toBe(MUTINYNET_COVCLAIMD_PK)
   })
 })
 
@@ -341,6 +354,18 @@ describe('requestLnReceive', () => {
     requestLightningReceive.mockResolvedValue(packageResult())
     await negotiate()
     expect(requestLightningReceive.mock.calls[0][3]).toMatchObject({ amount: 10_000, amountSide: 'to' })
+  })
+
+  it('passes no covclaimd key on a network that has none, so nothing is sealed', async () => {
+    requestLightningReceive.mockResolvedValue(packageResult())
+    await negotiate('bitcoin')
+    expect(requestLightningReceive.mock.calls[0][3].covclaimdPubkey).toBeUndefined()
+  })
+
+  it('still passes the pinned key where a covclaimd IS configured', async () => {
+    requestLightningReceive.mockResolvedValue(packageResult())
+    await negotiate('mutinynet')
+    expect(hex.encode(requestLightningReceive.mock.calls[0][3].covclaimdPubkey)).toBe(MUTINYNET_COVCLAIMD_PK)
   })
 })
 

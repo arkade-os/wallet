@@ -16,6 +16,9 @@ const style = {
   display: 'flex',
   flexDirection: 'column' as const,
   willChange: 'transform, opacity',
+  // permanent transform: removing it when the animation lands re-rasters the
+  // promoted sticky home header at a stale scale (one-frame giant-header flash)
+  transform: 'translateZ(0)',
 }
 
 export function PageTransition({ children, direction, pageKey }: PageTransitionProps) {

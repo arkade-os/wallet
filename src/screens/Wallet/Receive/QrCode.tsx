@@ -1,7 +1,8 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useMemo, useState } from 'react'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
+import SegmentedControl from '../../../components/SegmentedControl'
 import { FlowContext } from '../../../providers/flow'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
@@ -24,14 +25,13 @@ import { extractError } from '../../../lib/error'
 import { LnReceiveHeldElsewhere, requestLnReceive } from '../../../lib/lnReceive'
 import { lnReceiveRendezvous } from '../../../lib/lnSwap'
 import { getEmulatorPubkeyForNetwork } from '../../../lib/constants'
-import { withRfqTransport } from '../../../lib/nostrRfq'
+import { withRfqTransport, SolverNotRespondingError } from '../../../lib/nostrRfq'
 import { discoverMarkets } from '../../../lib/swapMarkets'
 import InputAmount from '../../../components/InputAmount'
 import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
 import SheetModal from '../../../components/SheetModal'
 import Text, { TextSecondary } from '../../../components/Text'
-import { copyToClipboard } from '../../../lib/clipboard'
-import { useToast } from '../../../components/Toast'
+import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard'
 import { prettyLongText, prettyNumber, toSatoshis } from '../../../lib/format'
 import CopyIcon from '../../../icons/Copy'
 import CheckMarkIcon from '../../../icons/CheckMark'
@@ -48,18 +48,10 @@ import { FiatContext } from '../../../providers/fiat'
 import { AspContext } from '../../../providers/asp'
 import { AssetsContext } from '../../../providers/assets'
 import { LnReceiveContext } from '../../../providers/lnReceive'
+import { useTranslation } from '../../../providers/language'
 
-/**
- * Decide which value the QR should encode. Honours an explicit copy-sheet
- * selection, but only while that value is still one we currently offer — once
- * the selected address is regenerated or removed (e.g. an amount
- * change), fall back to the unified BIP21 URI. This stops async rebuilds from
- * silently reverting the user's pick and copying the wrong thing.
- */
-export const resolveQrValue = (selected: string, options: { bip21: string; btc: string; ark: string }): string => {
-  const candidates = [options.bip21, options.btc, options.ark].filter(Boolean)
-  return selected && candidates.includes(selected) ? selected : options.bip21
-}
+/** Throw marker the catch side maps to a translatable message in the UI. */
+const NO_LIGHTNING_SOLVER_ERROR = 'no_lightning_solver'
 
 export default function ReceiveQRCode() {
   const { aspInfo } = useContext(AspContext)
@@ -72,8 +64,9 @@ export default function ReceiveQRCode() {
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { assetMetadataCache, svcWallet } = useContext(WalletContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
+  const { t } = useTranslation()
 
-  const { toast } = useToast()
+  const copyToClipboard = useCopyToClipboard()
 
   const [assetAmount, setAssetAmount] = useState(BigInt(0))
   const [amountTextValue, setAmountTextValue] = useState('')
@@ -98,11 +91,15 @@ export default function ReceiveQRCode() {
   const isAssetReceive = assetId && assetId !== ''
   const hasError = Boolean(addressError)
 
+  const [generatingInvoice, setGeneratingInvoice] = useState(false)
   const [noPaymentMethods, setNoPaymentMethods] = useState(false)
   const [arkAddress, setArkAddress] = useState(offchainAddr)
   const [btcAddress, setBtcAddress] = useState(boardingAddr)
-  const [qrCodeValue, setQrCodeValue] = useState('')
-  const [selectedValue, setSelectedValue] = useState('')
+  // The user's chosen payment method. This is the source of truth, not the
+  // encoded value: an invoice is re-minted on every amount change, so a
+  // value-keyed selection would be dropped and never come back. Keying on the
+  // method id lets the choice survive the invoice being briefly absent.
+  const [selectedMethod, setSelectedMethod] = useState('unified')
   const [bip21Uri, setBip21Uri] = useState('')
   const [lnReceiveError, setLnReceiveError] = useState('')
   // A negotiation that failed at the local registration step left nothing
@@ -169,16 +166,18 @@ export default function ReceiveQRCode() {
     setLnReceiveError('')
     setLnRetryable(false)
     setLnHeldElsewhere(false)
+    setGeneratingInvoice(false)
     if (!svcWallet || isAssetReceive || satoshis <= 0) return
     if (recvInfo.pendingLnReceive?.payAmount && recvInfo.invoice) return
     const network = aspInfo.network as NetworkName
 
     let abandoned = false
     const negotiate = async () => {
+      setGeneratingInvoice(true)
       // per-network pin as the fallback co-signer key, for solver cards that
       // predate `emulator_pubkey` — the card's own value wins where it has one.
       const rendezvous = lnReceiveRendezvous(await discoverMarkets(network), getEmulatorPubkeyForNetwork(network))
-      if (!rendezvous) throw new Error('No Lightning solver available')
+      if (!rendezvous) throw new Error(NO_LIGHTNING_SOLVER_ERROR)
       if (satoshis < rendezvous.minSats || satoshis > rendezvous.maxSats) {
         throw new Error(
           `Amount outside solver bounds (${prettyNumber(rendezvous.minSats)}-${prettyNumber(rendezvous.maxSats)} sats)`,
@@ -199,6 +198,7 @@ export default function ReceiveQRCode() {
       // an invoice they have not seen, so this cannot be late — but the
       // ordering is what keeps the monitored set a superset of what is payable.
       await track(pending)
+      if (abandoned) return
       setLnReceiveError('')
       setRecvInfo((prev) => ({
         ...prev,
@@ -212,18 +212,27 @@ export default function ReceiveQRCode() {
       }))
     }
 
-    negotiate().catch((err) => {
-      if (abandoned) return
-      const error = extractError(err)
-      consoleError(error, 'error negotiating lightning receive')
-      setLnHeldElsewhere(err instanceof LnReceiveHeldElsewhere)
-      setLnReceiveError(error)
-      // The one failure here that is not "Lightning is unavailable": the quote
-      // was fine and our own contract store refused the write. No invoice came
-      // back, so the abandoned quote is inert and cannot be resumed — calling
-      // again is the fix, and it derives a fresh preimage and rfq id.
-      setLnRetryable(err instanceof LockupRegistrationFailed)
-    })
+    negotiate()
+      .catch((err) => {
+        if (abandoned) return
+        if (err instanceof SolverNotRespondingError) {
+          consoleError(err, 'error negotiating lightning receive')
+          setLnReceiveError(t('errors.solverNotResponding', { seconds: Math.round(err.timeoutMs / 1000) }))
+          return
+        }
+        const error = extractError(err)
+        consoleError(error, 'error negotiating lightning receive')
+        setLnHeldElsewhere(err instanceof LnReceiveHeldElsewhere)
+        setLnReceiveError(error)
+        // The one failure here that is not "Lightning is unavailable": the quote
+        // was fine and our own contract store refused the write. No invoice came
+        // back, so the abandoned quote is inert and cannot be resumed — calling
+        // again is the fix, and it derives a fresh preimage and rfq id.
+        setLnRetryable(err instanceof LockupRegistrationFailed)
+      })
+      .finally(() => {
+        if (!abandoned) setGeneratingInvoice(false)
+      })
     // The amount changed under an in-flight negotiation, so its invoice would
     // be for the wrong number. Nothing to cancel on the solver — an unpaid hold
     // invoice simply expires.
@@ -243,18 +252,56 @@ export default function ReceiveQRCode() {
     setArkAddress(ark)
     setBtcAddress(btc)
     setBip21Uri(bip21)
-    // Preserve an explicit copy-sheet selection across rebuilds; only fall back
-    // to the unified URI when the selected value is no longer one we offer.
-    setQrCodeValue(resolveQrValue(selectedValue, { bip21, btc, ark }))
   }, [
     assetAmount,
     addressesLoaded,
-    selectedValue,
+    isAssetReceive,
     recvInfo.offchainAddr,
     recvInfo.boardingAddr,
     recvInfo.satoshis,
     recvInfo.invoice,
   ])
+
+  /**
+   * The payment methods we can render right now, in display order.
+   *
+   * Keyed off a stable id rather than the URI itself: the Lightning invoice is
+   * re-minted whenever the amount is renegotiated, so a selection tracked by
+   * value would silently fall back to unified on the next rebuild and never come
+   * back. The ids are what the selector and the copy sheet both key off, so
+   * choosing a method means the same thing wherever it is changed from.
+   *
+   * The Lightning entry only exists once a solver has minted an invoice, which
+   * needs an amount of at least the corridor minimum — below that there is
+   * nothing to offer and the entry is simply absent.
+   *
+   * Labels are deliberately short: these sit in a horizontal control, and
+   * "Lightning invoice" / "Arkade address" crowd it on a narrow phone. The copy
+   * sheet keeps the descriptive wording, where the row shows the value anyway.
+   */
+  const paymentMethods = useMemo(() => {
+    const methods: { id: string; label: string; value: string }[] = []
+    if (bip21Uri) methods.push({ id: 'unified', label: t('receive.unified'), value: bip21Uri })
+    if (recvInfo.invoice)
+      methods.push({ id: 'lightning', label: t('receive.methodLightning'), value: recvInfo.invoice })
+    if (arkAddress) methods.push({ id: 'ark', label: t('receive.methodArkade'), value: arkAddress })
+    if (btcAddress) methods.push({ id: 'bitcoin', label: t('receive.methodBitcoin'), value: btcAddress })
+    return methods
+  }, [bip21Uri, recvInfo.invoice, arkAddress, btcAddress, t])
+
+  // What the QR encodes, and what the selector highlights, are two different
+  // questions. The *choice* is `selectedMethod` and it is remembered even while
+  // the method is momentarily un-offerable (an invoice being re-negotiated), so
+  // it comes back on its own. What we *show* has to be something we actually
+  // hold right now, so it falls back to unified — and the highlight follows the
+  // fallback, because leaving it lit on a method with no value is a lie.
+  const activeMethod = useMemo(() => {
+    if (paymentMethods.some((m) => m.id === selectedMethod)) return selectedMethod
+    if (paymentMethods.some((m) => m.id === 'unified')) return 'unified'
+    return paymentMethods[0]?.id ?? ''
+  }, [paymentMethods, selectedMethod])
+
+  const qrCodeValue = paymentMethods.find((m) => m.id === activeMethod)?.value ?? ''
 
   // Payment listener
   useEffect(() => {
@@ -308,6 +355,7 @@ export default function ReceiveQRCode() {
 
   // Handlers
   const handleShare = () => {
+    if (generatingInvoice) return
     setSharing(true)
     shareData(data)
       .catch(consoleError)
@@ -315,20 +363,21 @@ export default function ReceiveQRCode() {
   }
 
   const handleCopy = async (value: string) => {
+    if (generatingInvoice) return
     if (!prefersReducedMotion) hapticSubtle()
-    await copyToClipboard(value)
-    toast('Copied to clipboard')
+    const copied = await copyToClipboard(value)
+    // Close the sheet even on failure so the picker is not stranded.
     setShowCopySheet(false)
-    setCopied(value)
+    if (copied) setCopied(value)
   }
 
   const handleCopyButton = async () => {
+    if (generatingInvoice) return
     if (!prefersReducedMotion) hapticSubtle()
     setShowCopySheet(true)
     if (qrCodeValue && copied !== qrCodeValue) {
-      await copyToClipboard(qrCodeValue)
-      toast('Copied to clipboard')
-      setCopied(qrCodeValue)
+      const written = await copyToClipboard(qrCodeValue)
+      if (written) setCopied(qrCodeValue)
     }
   }
 
@@ -377,21 +426,27 @@ export default function ReceiveQRCode() {
     trusted: Boolean(assetId && isRegistered(assetId)),
   }
 
-  // What the monitored receive is doing, if there is one. The VTXO listener
-  // above still reports the credit; this is what can say the payment was LOST —
-  // `refunded` on a receive leg means the solver reclaimed a lockup we never
-  // claimed, which nothing else on this screen could distinguish from waiting.
   const rfqId = recvInfo.pendingLnReceive?.rfqId
   const receiveState = rfqId ? status(rfqId) : undefined
   const claimError = rfqId ? claimErrorFor(rfqId) : undefined
   const receiveLost = receiveState === 'refunded'
 
-  const data = { title: 'Receive', text: qrCodeValue }
-  const shareDisabled = !canBrowserShareData(data) || sharing || hasError || noPaymentMethods
+  const data = { title: t('wallet.receive'), text: qrCodeValue }
+  const shareDisabled = !canBrowserShareData(data) || sharing || hasError || noPaymentMethods || generatingInvoice
 
   // Whether an amount is currently requested. Keyed off assetMeta to match how
   // handleAmountConfirm/handleAmountClear decide between asset units and sats.
   const hasAmount = assetMeta ? assetAmount > BigInt(0) : satoshis > 0
+
+  /**
+   * Point the QR at one method. Selecting only chooses what is shown — the Copy
+   * button still copies whatever is on screen, so choosing a method never
+   * overwrites the clipboard behind the user's back.
+   */
+  const handleMethodChange = (id: string) => {
+    if (!paymentMethods.some((m) => m.id === id)) return
+    setSelectedMethod(id)
+  }
 
   // Mobile keyboard — bypass sheet on save, go straight to QR
   if (showKeys) {
@@ -414,20 +469,20 @@ export default function ReceiveQRCode() {
     )
   }
 
-  const amountLabel = hasAmount ? 'Edit amount' : 'Add amount'
+  const amountLabel = hasAmount ? t('receive.editAmount') : t('receive.addAmount')
   const unitLabel = assetMeta ? assetPresentation.ticker : 'sats'
 
   return (
     <>
-      <Header text='Receive' back={() => navigate(Pages.Wallet)} />
+      <Header text={t('wallet.receive')} back={() => navigate(Pages.Wallet)} />
       <Content noFade>
         <Padded>
           {hasError ? (
-            <ErrorMessage error text={`Failed to get address: ${addressError}`} />
+            <ErrorMessage error text={t('receive.failedToGetAddress', { error: addressError ?? '' })} />
           ) : !addressesLoaded || (!qrCodeValue && !noPaymentMethods) ? (
-            <LoadingLogo text='Loading...' />
+            <LoadingLogo text={t('common.loading')} />
           ) : noPaymentMethods ? (
-            <p>No valid payment methods available for this amount</p>
+            <p>{t('receive.noPaymentMethods')}</p>
           ) : (
             <FlexCol gap='0.5rem' centered>
               {/* Two different things, told apart. "No solver" leaves the ark
@@ -435,55 +490,107 @@ export default function ReceiveQRCode() {
                   grey line; a payment that was paid and then lost, or a claim
                   that keeps failing, is not. */}
               {receiveLost ? (
-                <ErrorMessage error text='Lightning payment lost: the solver reclaimed it before it could be claimed' />
+                <ErrorMessage error text={t('receive.lightningPaymentLost')} />
               ) : claimError ? (
-                <ErrorMessage error text={`Claiming the Lightning payment failed: ${claimError}`} />
+                <ErrorMessage error text={t('receive.claimFailed', { error: claimError })} />
               ) : null}
               {lnReceiveError ? (
                 <FlexCol gap='0.25rem' centered>
                   <TextSecondary>
                     {lnHeldElsewhere
-                      ? 'Another tab is handling Lightning receives — close it to receive here'
-                      : `Lightning unavailable: ${lnReceiveError}`}
+                      ? t('receive.lightningHeldElsewhere')
+                      : lnReceiveError === NO_LIGHTNING_SOLVER_ERROR
+                        ? t('receive.lightningUnavailable', { error: t('receive.noLightningSolver') })
+                        : t('receive.lightningUnavailable', { error: lnReceiveError })}
                   </TextSecondary>
                   {lnRetryable ? (
-                    <Button label='Try again' onClick={() => setNegotiateAttempt((n) => n + 1)} secondary />
+                    <Button label={t('common.tryAgain')} onClick={() => setNegotiateAttempt((n) => n + 1)} secondary />
                   ) : null}
                 </FlexCol>
               ) : null}
-              <button
-                type='button'
-                onClick={() => handleCopy(qrCodeValue)}
-                onPointerDown={() => setQrTransform(prefersReducedMotion ? '' : 'scale(0.97)')}
-                onPointerUp={() => setQrTransform('')}
-                onPointerLeave={() => setQrTransform('')}
-                onPointerCancel={() => setQrTransform('')}
-                aria-label='Copy QR code'
-                style={{
-                  padding: 0,
-                  width: '100%',
-                  border: 'none',
-                  margin: '0 auto',
-                  display: 'block',
-                  marginTop: '5rem',
-                  maxWidth: '340px',
-                  cursor: 'pointer',
-                  background: 'none',
-                  transition: prefersReducedMotion
-                    ? 'none'
-                    : `transform 240ms cubic-bezier(${EASE_OUT_QUINT.join(',')})`,
-                  WebkitTapHighlightColor: 'transparent',
-                  touchAction: 'manipulation',
-                  transform: qrTransform,
-                }}
-              >
-                <QrCode value={qrCodeValue} />
-              </button>
-              {satoshis > 0 ? (
-                <Text small color='neutral-500'>
-                  Requesting {prettyNumber(satoshis, 0)} {unitLabel}
-                </Text>
+              {paymentMethods.length > 1 ? (
+                <div className='mt-20 mb-3 w-full max-w-85'>
+                  <SegmentedControl
+                    options={paymentMethods.map((m) => m.id)}
+                    selected={activeMethod}
+                    onChange={handleMethodChange}
+                    getLabel={(id) => paymentMethods.find((m) => m.id === id)?.label ?? id}
+                  />
+                </div>
               ) : null}
+              <div
+                className={`receive-invoice-stage aspect-square w-full max-w-85 ${
+                  paymentMethods.length > 1 ? '' : 'mt-20'
+                }`}
+                data-generating={generatingInvoice}
+              >
+                <div
+                  className='receive-invoice-loading flex flex-col items-center justify-center gap-2 text-center'
+                  aria-hidden={!generatingInvoice}
+                >
+                  <div className='receive-invoice-pixels mb-5 grid-cols-4 gap-1.25' aria-hidden='true'>
+                    {Array.from({ length: 16 }, (_, index) => (
+                      <span
+                        key={index}
+                        className='size-3 rounded-xs bg-purple-700 dark:bg-purple-300'
+                        style={{ animationDelay: `${index * 75}ms` }}
+                      />
+                    ))}
+                  </div>
+                  <div role='status' aria-live='polite'>
+                    <Text medium>{t('receive.generatingInvoice')}</Text>
+                  </div>
+                  <Text small color='neutral-500'>
+                    {generatingInvoice
+                      ? t('receive.requestingAmount', { amount: prettyNumber(satoshis, 0), unit: unitLabel })
+                      : '\u00a0'}
+                  </Text>
+                </div>
+                <button
+                  type='button'
+                  className='receive-invoice-qr'
+                  disabled={generatingInvoice}
+                  aria-hidden={generatingInvoice}
+                  onClick={() => handleCopy(qrCodeValue)}
+                  onPointerDown={() => setQrTransform(prefersReducedMotion ? '' : 'scale(0.97)')}
+                  onPointerUp={() => setQrTransform('')}
+                  onPointerLeave={() => setQrTransform('')}
+                  onPointerCancel={() => setQrTransform('')}
+                  aria-label={t('receive.copyQrCode')}
+                  style={{
+                    padding: 0,
+                    width: '100%',
+                    border: 'none',
+                    display: 'block',
+                    cursor: generatingInvoice ? 'default' : 'pointer',
+                    background: 'none',
+                    WebkitTapHighlightColor: 'transparent',
+                    touchAction: 'manipulation',
+                  }}
+                >
+                  <div
+                    style={{
+                      transform: qrTransform,
+                      transition: prefersReducedMotion
+                        ? 'none'
+                        : `transform 240ms cubic-bezier(${EASE_OUT_QUINT.join(',')})`,
+                    }}
+                  >
+                    <QrCode value={qrCodeValue} />
+                  </div>
+                </button>
+              </div>
+              <div
+                className='min-h-5'
+                aria-hidden={generatingInvoice}
+                style={{ visibility: generatingInvoice ? 'hidden' : 'visible' }}
+              >
+                {satoshis > 0 && !generatingInvoice ? (
+                  <Text small color='neutral-500'>
+                    {t('receive.requestingAmount', { amount: prettyNumber(satoshis, 0), unit: unitLabel })}
+                  </Text>
+                ) : null}
+              </div>
             </FlexCol>
           )}
         </Padded>
@@ -496,19 +603,19 @@ export default function ReceiveQRCode() {
             onClick={() => (isMobileBrowser ? setShowKeys(true) : setShowAmountSheet(true))}
             secondary
           />
-          <Button label='Copy' onClick={handleCopyButton} secondary />
+          <Button label={t('receive.copy')} onClick={handleCopyButton} secondary disabled={generatingInvoice} />
         </FlexRow>
-        <Button label='Share' onClick={handleShare} disabled={shareDisabled} />
+        <Button label={t('receive.share')} onClick={handleShare} disabled={shareDisabled} />
       </ButtonsOnBottom>
 
       {/* Amount bottom sheet */}
       <SheetModal isOpen={showAmountSheet} onClose={() => setShowAmountSheet(false)}>
         <FlexCol gap='1rem' padding='0.5rem 0'>
           <Text big bold>
-            Add amount
+            {t('receive.addAmount')}
           </Text>
           <InputAmount
-            label='Amount'
+            label={t('receive.amount')}
             asset={assetOption}
             value={amountTextValue}
             focus={!isMobileBrowser}
@@ -518,8 +625,8 @@ export default function ReceiveQRCode() {
             onEnter={handleAmountConfirm}
             onFocus={() => setShowKeys(isMobileBrowser)}
           />
-          <Button label='Set amount' onClick={() => handleAmountConfirm()} disabled={!amountTextValue} />
-          {hasAmount ? <Button label='Clear amount' onClick={handleAmountClear} secondary /> : null}
+          <Button label={t('receive.setAmount')} onClick={() => handleAmountConfirm()} disabled={!amountTextValue} />
+          {hasAmount ? <Button label={t('receive.clearAmount')} onClick={handleAmountClear} secondary /> : null}
         </FlexCol>
       </SheetModal>
 
@@ -527,7 +634,7 @@ export default function ReceiveQRCode() {
       <SheetModal isOpen={showCopySheet} onClose={() => setShowCopySheet(false)}>
         <FlexCol gap='1rem' padding='0.5rem 0'>
           <Text big bold>
-            Copy address
+            {t('receive.copyAddress')}
           </Text>
           <AddressList
             bip21Uri={bip21Uri}
@@ -536,12 +643,11 @@ export default function ReceiveQRCode() {
             invoice={recvInfo.invoice ?? ''}
             onCopy={handleCopy}
             onSelect={(v) => {
-              setSelectedValue(v)
-              setQrCodeValue(v)
-              handleCopy(v)
+              const method = paymentMethods.find((m) => m.value === v)
+              if (method) handleMethodChange(method.id)
             }}
             copied={copied}
-          />
+          />{' '}
         </FlexCol>
       </SheetModal>
     </>
@@ -565,12 +671,13 @@ function AddressList({
   onSelect: (value: string) => void
   copied: string
 }) {
+  const { t } = useTranslation()
   return (
     <FlexCol gap='0.75rem'>
       {bip21Uri ? (
         <AddressLine
           testId='bip21'
-          title='Unified'
+          title={t('receive.unified')}
           value={bip21Uri}
           onCopy={onCopy}
           onSelect={onSelect}
@@ -580,7 +687,7 @@ function AddressList({
       {arkAddress ? (
         <AddressLine
           testId='ark'
-          title='Arkade address'
+          title={t('receive.arkadeAddress')}
           value={arkAddress}
           onCopy={onCopy}
           onSelect={onSelect}
@@ -590,7 +697,7 @@ function AddressList({
       {btcAddress ? (
         <AddressLine
           testId='btc'
-          title='Bitcoin address'
+          title={t('receive.bitcoinAddress')}
           value={btcAddress}
           onCopy={onCopy}
           onSelect={onSelect}
@@ -600,7 +707,7 @@ function AddressList({
       {invoice ? (
         <AddressLine
           testId='invoice'
-          title='Lightning invoice'
+          title={t('receive.lightningInvoice')}
           value={invoice}
           onCopy={onCopy}
           onSelect={onSelect}
@@ -626,6 +733,7 @@ function AddressLine({
   onSelect: (value: string) => void
   copied: string
 }) {
+  const { t } = useTranslation()
   return (
     <Focusable
       onEnter={() => {
@@ -640,7 +748,7 @@ function AddressLine({
         </FlexCol>
         <Button
           copy
-          ariaLabel={`Copy ${title}`}
+          ariaLabel={t('receive.copyAria', { title })}
           testId={testId + '-address-copy'}
           onClick={(event) => {
             event.stopPropagation()

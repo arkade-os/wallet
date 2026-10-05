@@ -15,7 +15,7 @@ import type { NetworkName } from '@arkade-os/sdk'
 import betaSolverCard from './beta-solver.card.json'
 import { getSolverRegistryUrl } from './constants'
 import { consoleLog } from './logs'
-import { readSolverCardsFromStorage } from './storage'
+import { readSolverCards } from './solverCards'
 import { assetSwapRepository } from './swapRepository'
 
 /**
@@ -52,7 +52,7 @@ export const discoverMarkets = async (network: NetworkName, useCache = true): Pr
     network,
     registryUrl: getSolverRegistryUrl(network),
     repository: assetSwapRepository,
-    localCards: [...BUNDLED_CARDS, ...readSolverCardsFromStorage()].filter((c) => c.network === network),
+    localCards: [...BUNDLED_CARDS, ...readSolverCards()].filter((c) => c.network === network),
     logger: (...args) => consoleLog('solver discovery:', ...args),
     useCache,
   })

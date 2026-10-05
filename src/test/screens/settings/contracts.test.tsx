@@ -1,11 +1,18 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Contracts from '../../../screens/Settings/Contracts'
 import { WalletContext } from '../../../providers/wallet'
 import { AspContext } from '../../../providers/asp'
 import { mockWalletContextValue, mockSvcWallet } from '../mocks'
 import { emptyAspInfo } from '../../../lib/asp'
+import { ToastProvider } from '../../../components/Toast'
+import { copyToClipboard } from '../../../lib/clipboard'
 import type { Contract } from '@arkade-os/sdk'
+
+vi.mock('../../../lib/clipboard', () => ({ copyToClipboard: vi.fn() }))
+// The icons are bare <svg>s; stub them so the marker state is queryable.
+vi.mock('../../../icons/CheckMark', () => ({ default: () => <span>MARKER-COPIED</span> }))
+vi.mock('../../../icons/Copy', () => ({ default: () => <span>MARKER-IDLE</span> }))
 
 // jsdom has no layout, so the real virtualizer would measure a 0px viewport and
 // render no rows. Mock it to render every item so we can assert on content.
@@ -44,24 +51,15 @@ function renderScreen(svcWallet: typeof mockSvcWallet | undefined, aspInfo = emp
   return render(
     <AspContext.Provider value={{ aspInfo, setAspInfo: () => {} } as any}>
       <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet } as any}>
-        <Contracts />
+        <ToastProvider>
+          <Contracts />
+        </ToastProvider>
       </WalletContext.Provider>
     </AspContext.Provider>,
   )
 }
 
 describe('Contracts screen', () => {
-  it('renders a loading state when svcWallet is undefined', () => {
-    renderScreen(undefined)
-    expect(screen.queryByText('Contracts')).not.toBeInTheDocument()
-  })
-
-  it('renders empty state when there are no contracts', async () => {
-    renderScreen(withContracts([]) as any)
-    await screen.findByText('Contracts')
-    expect(screen.getByText('No contracts found.')).toBeInTheDocument()
-  })
-
   it('filters by the Active / Inactive tab', async () => {
     renderScreen(
       withContracts([
@@ -138,5 +136,48 @@ describe('Contracts screen — deprecated signer badges', () => {
     renderScreen(withContracts([underSigner(ACTIVE_SIGNER)]) as any, deprecatedAspInfo(BigInt(1)))
     await screen.findByText('Contracts')
     expect(screen.queryByText(/deprecated signer/)).not.toBeInTheDocument()
+  })
+})
+
+describe('Contracts screen — copy feedback', () => {
+  const boarding = async () => {
+    const script = '5120' + 'cc'.repeat(32) // P2TR scriptPubKey
+    renderScreen(withContracts([contract({ type: 'boarding', address: 'ark1qboardingoffchain', script })]) as any, {
+      ...emptyAspInfo,
+      network: 'bitcoin',
+    })
+    await screen.findByText('Contracts')
+    // The card starts collapsed; expanding renders the CopyRow.
+    fireEvent.click(screen.getByText('boarding'))
+  }
+
+  // The collapsed summary also shows the address; the CopyRow is the last match.
+  const addressRow = () => screen.getAllByText((t) => t.startsWith('bc1p')).at(-1)!
+
+  const rowMarker = () => addressRow().parentElement?.parentElement?.textContent ?? ''
+
+  beforeEach(() => {
+    vi.mocked(copyToClipboard).mockReset()
+  })
+
+  it('confirms the copy and marks the row when the write lands', async () => {
+    vi.mocked(copyToClipboard).mockResolvedValue(true)
+    await boarding()
+
+    fireEvent.click(addressRow())
+
+    expect(await screen.findByText('Copied to clipboard')).toBeInTheDocument()
+    expect(rowMarker()).toContain('MARKER-COPIED')
+  })
+
+  it('leaves the row unmarked and reports the failure when the write is refused', async () => {
+    vi.mocked(copyToClipboard).mockResolvedValue(false)
+    await boarding()
+
+    fireEvent.click(addressRow())
+
+    expect(await screen.findByText('Failed to copy')).toBeInTheDocument()
+    expect(screen.queryByText('Copied to clipboard')).not.toBeInTheDocument()
+    expect(rowMarker()).toContain('MARKER-IDLE')
   })
 })

@@ -10,6 +10,7 @@ import Success from '../../../components/Success'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
+import { useTranslation } from '../../../providers/language'
 
 export default function NotesSuccess() {
   const { config, useFiat } = useContext(ConfigContext)
@@ -17,6 +18,7 @@ export default function NotesSuccess() {
   const { noteInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { navigate } = useContext(NavigationContext)
+  const { t } = useTranslation()
 
   useEffect(() => {
     notifyPaymentReceived(noteInfo.satoshis)
@@ -28,12 +30,12 @@ export default function NotesSuccess() {
 
   return (
     <>
-      <Header text='Success' />
+      <Header text={t('common.success')} />
       <Content>
-        <Success headline='Note redeemed!' text={`${displayAmount} redeemed successfully`} />
+        <Success headline={t('notes.noteRedeemed')} text={`${displayAmount} ${t('notes.redeemedSuccessfully')}`} />
       </Content>
       <ButtonsOnBottom>
-        <Button label='Sounds good' onClick={() => navigate(Pages.Wallet)} />
+        <Button label={t('notes.soundsGood')} onClick={() => navigate(Pages.Wallet)} />
       </ButtonsOnBottom>
     </>
   )

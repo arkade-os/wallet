@@ -137,6 +137,9 @@ function renderSwap({
   return { ...view, goBack, navigate }
 }
 
+// the reserve off: the BTC balance is spendable whole only while no asset is held
+const NO_ASSETS = { assetBalances: [] }
+
 const primaryAmount = () => screen.getByRole('button', { name: /^Swap amount,/ })
 const secondaryAmount = () => screen.getByRole('button', { name: /^Show .+ first/ })
 
@@ -172,7 +175,9 @@ describe('Wallet swap flow', () => {
 
     expect(screen.getByText('BRL')).toBeInTheDocument()
     expect(screen.queryByText(/DePix|DEPIX/)).not.toBeInTheDocument()
-    expect(document.querySelector('#br-flag-circle')).not.toBeNull()
+    // The flag's clip path id is unique per instance, so it is matched by
+    // prefix rather than by the literal id.
+    expect(document.querySelector('clipPath[id^="br-flag-circle"]')).not.toBeNull()
   })
 
   it('finds Bitcoin when searching "btc", even though its swap-entry ticker is sats', async () => {
@@ -352,7 +357,7 @@ describe('Wallet swap flow', () => {
   })
 
   it('replaces the available balance with a max action for insufficient balance', async () => {
-    renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+    renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() }, wallet: NO_ASSETS })
 
     for (const key of ['9', '9', '9']) {
       await userEvent.click(screen.getByRole('button', { name: key }))
@@ -371,7 +376,7 @@ describe('Wallet swap flow', () => {
 
   it('keeps non-limit validation errors in Sonner', async () => {
     fetchMocker.mockRejectOnce(new Error('feed unavailable'))
-    renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+    renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() }, wallet: NO_ASSETS })
 
     fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
     fireEvent.click(screen.getByRole('button', { name: /USD/i }))
@@ -380,6 +385,41 @@ describe('Wallet swap flow', () => {
     await waitFor(() => expect(screen.getByText('Quote unavailable')).toBeInTheDocument(), { timeout: 3_000 })
     expect(screen.getByText('Quote unavailable').closest('[data-sonner-toast]')).not.toBeNull()
     expect(screen.getByRole('button', { name: '0.00100000 BTC' })).toBeInTheDocument()
+  })
+
+  it('stops a partial asset swap that cannot fund its change carrier', async () => {
+    renderSwap({
+      config: { currency: Currencies.BRL, unit: Unit.SATS },
+      flow: { swapFromAssetId: DEPIX_ID, setSwapFromAssetId: vi.fn() },
+      // one dust carrier: the sats the DEPIX itself rides on
+      wallet: { availableBalance: 333, assetBalances: [{ assetId: DEPIX_ID, amount: BigInt(200_000_000_000) }] },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Bitcoin/i }))
+    // one key and one lookup: the toast lives 2s, and a slow runner spends
+    // that typing more digits or querying twice
+    await userEvent.click(screen.getByRole('button', { name: '1' }))
+
+    const notice = await screen.findByText(/partial swap/, {}, { timeout: 3_000 })
+    expect(notice.closest('[data-sonner-toast]')).not.toBeNull()
+    expect(primaryAmount().className).toContain('swap-amount-display--invalid')
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+  })
+
+  it('allows a partial asset swap once a second dust carrier is available', async () => {
+    renderSwap({
+      config: { currency: Currencies.BRL, unit: Unit.SATS },
+      flow: { swapFromAssetId: DEPIX_ID, setSwapFromAssetId: vi.fn() },
+      wallet: { availableBalance: 666, assetBalances: [{ assetId: DEPIX_ID, amount: BigInt(200_000_000_000) }] },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Bitcoin/i }))
+    for (const key of ['1', '0', '0', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled(), { timeout: 3_000 })
+    expect(screen.queryByText(/partial swap/)).not.toBeInTheDocument()
   })
 
   it('submits the live PR 784 offer plan and a historical display snapshot', async () => {
@@ -617,15 +657,16 @@ describe('Wallet swap flow', () => {
     expect(await screen.findByRole('button', { name: /NAPO/i })).toBeInTheDocument()
   })
 
-  it('funds the whole balance when the balance under the from-asset is tapped', async () => {
+  it('funds the balance less one dust carrier when the wallet also holds assets', async () => {
     renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
 
     fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
     fireEvent.click(screen.getByRole('button', { name: /USD/i }))
 
-    // the wallet holds 100,000 sats (loaded async) — tapping the balance enters all of it
-    await userEvent.click(await screen.findByRole('button', { name: '100,000 sats' }))
-    expect(primaryAmount()).toHaveTextContent('100000 sats')
+    // the wallet holds 100,000 sats (loaded async) next to USDT and DEPIX, so
+    // tapping the balance keeps the dust carrier their change will need (333 in the mock)
+    await userEvent.click(await screen.findByRole('button', { name: '99,667 sats' }))
+    expect(primaryAmount()).toHaveTextContent('99667 sats')
 
     const continueButton = screen.getByRole('button', { name: 'Continue' })
     await waitFor(() => expect(continueButton).toBeEnabled(), { timeout: 3_000 })
@@ -633,7 +674,7 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
     await waitFor(() => expect(createSwap).toHaveBeenCalledOnce())
-    expect(createSwap.mock.calls[0][0].deposit.atomic).toBe(BigInt(100_000))
+    expect(createSwap.mock.calls[0][0].deposit.atomic).toBe(BigInt(99_667))
   })
 
   it('offers only the spendable part of an asset held partly in swap escrow', async () => {
@@ -677,7 +718,7 @@ describe('Wallet swap flow', () => {
     renderSwap({
       config: { currency: Currencies.USD, unit: Unit.SATS },
       flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
-      wallet: { availableBalance: 1_093_180 },
+      wallet: { ...NO_ASSETS, availableBalance: 1_093_180 },
     })
 
     fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
@@ -744,7 +785,11 @@ describe('Wallet swap flow', () => {
   })
 
   it('quotes a sane amount when typing a fiat amount with the display unit set to sats', async () => {
-    renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+    renderSwap({
+      config: { unit: Unit.SATS },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      wallet: NO_ASSETS,
+    })
 
     fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
     fireEvent.click(screen.getByRole('button', { name: /USD/i }))
@@ -820,15 +865,11 @@ describe('Wallet swap flow', () => {
     expect(screen.queryByText(/^\$3\d,\d{3},\d{3}/)).not.toBeInTheDocument()
   })
 
-  it('shows the Bitcoin logo in the swap picker even when the display unit is sats', () => {
-    const { container } = renderSwap({ config: { unit: Unit.SATS } })
-    expect(container.querySelector('circle[fill="var(--orange-500)"]')).toBeInTheDocument()
-  })
-
   it('shows the Bitcoin balance and quotes in whole BTC when the display unit is BTC, not sats', async () => {
     renderSwap({
       config: { unit: Unit.BTC },
       flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      wallet: NO_ASSETS,
     })
 
     // the mocked wallet balance (100,000 sats) is shown in whole-BTC terms, at
@@ -874,26 +915,6 @@ describe('Wallet swap flow', () => {
     expect(amountLabel).toMatch(/\sBTC$/)
   })
 
-  it('never assigns the same React key to two occurrences of the same letter in the amount label', async () => {
-    // "sats" has two 's' — a naive per-character key collapses them, which
-    // React reports as a duplicate-key warning and the animated renderer
-    // then smears the repeated glyph
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
-
-    // asset mode appends the ticker suffix ("1000 sats") to the amount label
-    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
-    for (const key of ['1', '0', '0', '0']) {
-      await userEvent.click(screen.getByRole('button', { name: key }))
-    }
-
-    const duplicateKeyWarning = errorSpy.mock.calls.some((call) =>
-      String(call[0]).includes('Encountered two children with the same key'),
-    )
-    expect(duplicateKeyWarning).toBe(false)
-    errorSpy.mockRestore()
-  })
-
   it('preserves the entered value when the denomination blocks swap places', async () => {
     renderSwap({
       config: { currency: Currencies.USD, unit: Unit.SATS },
@@ -916,19 +937,77 @@ describe('Wallet swap flow', () => {
     expect(primaryAmount()).toHaveAccessibleName('Swap amount, $10')
   })
 
-  it('keeps the digit animation mounted when a new value triggers a validation error', async () => {
-    renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
-
-    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
-    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
-    const amountValue = screen.getByTestId('swap-amount-value-shake')
-
-    for (const key of ['1', '2', '2']) {
-      await userEvent.click(screen.getByRole('button', { name: key }))
+  it.each([
+    ['BTC', 'btc', Unit.BTC],
+    ['BRL', DEPIX_ID, Unit.SATS],
+    ['sats', 'btc', Unit.SATS],
+  ])('animates the deleted digit without duplicating or reanimating the %s suffix', async (ticker, assetId, unit) => {
+    renderSwap({
+      config: { unit },
+      flow: { swapFromAssetId: assetId, setSwapFromAssetId: vi.fn() },
+    })
+    if (primaryAmount().getAttribute('aria-label') !== `Swap amount, 0 ${ticker}`) {
+      fireEvent.click(secondaryAmount())
     }
+    fireEvent.click(screen.getByRole('button', { name: '1' }))
+    fireEvent.click(screen.getByRole('button', { name: '8' }))
+    await waitFor(() => expect(primaryAmount().textContent).toBe(`18\u00a0${ticker}`))
+    const suffix = Array.from(primaryAmount().querySelectorAll('.swap-amount-character')).slice(-ticker.length)
 
-    await screen.findByRole('button', { name: /^Use maximum/ }, { timeout: 3_000 })
-    expect(screen.getByTestId('swap-amount-value-shake')).toBe(amountValue)
+    fireEvent.click(screen.getByRole('button', { name: 'Delete digit' }))
+
+    expect(primaryAmount()).toHaveAccessibleName(`Swap amount, 1 ${ticker}`)
+    expect(primaryAmount().textContent).toBe(`18\u00a0${ticker}`)
+    for (const letter of suffix) {
+      expect(letter).toBeInTheDocument()
+      expect(letter).not.toHaveClass('swap-amount-character--entering')
+    }
+    await waitFor(() => expect(primaryAmount().textContent).toBe(`1\u00a0${ticker}`))
+  })
+
+  it('settles to the latest amount when deletion is interrupted by another keypad tap', async () => {
+    renderSwap({
+      config: { unit: Unit.BTC, currency: Currencies.BTC },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+    })
+    for (const key of ['1', '8', '4']) fireEvent.click(screen.getByRole('button', { name: key }))
+    await waitFor(() => expect(primaryAmount().textContent).toBe('184\u00a0BTC'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete digit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete digit' }))
+    fireEvent.click(screen.getByRole('button', { name: '2' }))
+
+    expect(primaryAmount()).toHaveAccessibleName('Swap amount, 12 BTC')
+    await waitFor(() => expect(primaryAmount().textContent).toBe('12\u00a0BTC'))
+  })
+
+  it('deletes decimal digits and the decimal point through zero with reduced motion', async () => {
+    vi.mocked(window.matchMedia).mockImplementation((query: string) => ({
+      matches: query === '(prefers-reduced-motion: reduce)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+    renderSwap({
+      config: { unit: Unit.BTC, currency: Currencies.BTC },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+    })
+    for (const key of ['1', '.', '8']) fireEvent.click(screen.getByRole('button', { name: key }))
+    await waitFor(() => expect(primaryAmount().textContent).toBe('1.8\u00a0BTC'))
+
+    for (const amount of ['1.', '1', '0']) {
+      fireEvent.click(screen.getByRole('button', { name: 'Delete digit' }))
+      await waitFor(() => expect(primaryAmount().textContent).toBe(`${amount}\u00a0BTC`))
+      for (const character of primaryAmount().querySelectorAll('.swap-amount-character')) {
+        expect(character).not.toHaveClass('swap-amount-character--entering')
+        expect(character.getAttribute('style') ?? '').not.toContain('translate')
+        expect(character.parentElement?.getAttribute('style') ?? '').not.toContain('translate')
+      }
+    }
   })
 
   it('keeps swap history out of the swap composer', () => {

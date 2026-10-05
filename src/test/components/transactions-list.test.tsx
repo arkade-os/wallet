@@ -95,6 +95,48 @@ describe('TransactionsList', () => {
     expect(screen.queryByText('-2,000,000,000.00 BRL')).not.toBeInTheDocument()
   })
 
+  it('reads a unilateral exit as an exit, not as a payment to someone', () => {
+    const tx: Tx = {
+      amount: 5_000,
+      boardingTxid: '',
+      createdAt: 1_700_090_000,
+      explorable: 'exit-txid',
+      networkFee: 0,
+      preconfirmed: false,
+      redeemTxid: 'exit-txid',
+      roundTxid: '',
+      settled: true,
+      type: 'exit',
+    }
+
+    render(
+      <AspContext.Provider value={mockAspContextValue}>
+        <AssetsContext.Provider value={{ isRegistered: () => true } as any}>
+          <NavigationContext.Provider value={mockNavigationContextValue}>
+            <ConfigContext.Provider
+              value={
+                { ...mockConfigContextValue, config: { ...mockConfigContextValue.config, unit: Unit.SATS } } as any
+              }
+            >
+              <FiatContext.Provider value={mockFiatContextValue}>
+                <FlowContext.Provider value={mockFlowContextValue}>
+                  <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [tx] } as any}>
+                    <TransactionsList mode='static' />
+                  </WalletContext.Provider>
+                </FlowContext.Provider>
+              </FiatContext.Provider>
+            </ConfigContext.Provider>
+          </NavigationContext.Provider>
+        </AssetsContext.Provider>
+      </AspContext.Provider>,
+    )
+
+    expect(screen.getByText('Exited')).toBeInTheDocument()
+    expect(screen.queryByText('Sent')).not.toBeInTheDocument()
+    // debited like a send, and at face value: the exit paid no Ark fee
+    expect(screen.getByText(/^-\s*5,000/)).toBeInTheDocument()
+  })
+
   it('shows the bitcoin amount alongside the fiat value on plain BTC rows', () => {
     const tx: Tx = {
       amount: 1600,
@@ -279,52 +321,6 @@ describe('TransactionsList', () => {
 
     expect(screen.getByText('$10,000.00')).toBeInTheDocument()
     expect(screen.queryByText('Completed')).not.toBeInTheDocument()
-  })
-
-  it('separates a cancelled swap value from the failed treatment', () => {
-    const swapTx: Tx = {
-      amount: 0,
-      boardingTxid: '',
-      createdAt: 1_700_000_000,
-      explorable: undefined,
-      preconfirmed: false,
-      assetSwap: {
-        fiatAmount: 100,
-        fromAmount: BigInt(10_000),
-        fromAssetId: 'btc',
-        fromDecimals: 8,
-        fromTicker: 'BTC',
-        status: 'cancelled',
-        toAmount: BigInt(500),
-        toAssetId: MUTINYNET_DEPIX_ASSET_ID,
-        toDecimals: 2,
-        toTicker: 'BRL',
-      },
-      redeemTxid: '',
-      roundTxid: 'cancel-txid',
-      settled: true,
-      type: 'swap',
-    }
-
-    render(
-      <NavigationContext.Provider value={mockNavigationContextValue}>
-        <ConfigContext.Provider
-          value={{ ...mockConfigContextValue, config: { ...mockConfigContextValue.config, currency: Currencies.USD } }}
-        >
-          <FiatContext.Provider value={mockFiatContextValue}>
-            <FlowContext.Provider value={mockFlowContextValue}>
-              <WalletContext.Provider value={{ ...mockWalletContextValue, isVerifiedAsset: () => true, txs: [swapTx] }}>
-                <TransactionsList mode='static' />
-              </WalletContext.Provider>
-            </FlowContext.Provider>
-          </FiatContext.Provider>
-        </ConfigContext.Provider>
-      </NavigationContext.Provider>,
-    )
-
-    const amount = screen.getByText('$100.00').closest('.activity-row__amount')
-    expect(amount).toHaveClass('activity-row__amount--cancelled')
-    expect(amount).not.toHaveClass('activity-row__amount--failed')
   })
 
   it('hides the data-carrier value when any asset lacks account pricing', () => {

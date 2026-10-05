@@ -9,26 +9,24 @@
   },
   "markets": [
     {
-      "pair": "BTC/lightning:BTC",
       "base_asset": {
-        "id": "btc",
+        "id": "arkade:bitcoin/slip44:0",
         "name": "Bitcoin",
         "ticker": "BTC",
         "decimals": 8
       },
       "quote_asset": {
-        "id": "btc",
+        "id": "bolt11:bitcoin/slip44:0",
         "name": "Bitcoin",
         "ticker": "BTC",
         "decimals": 8
       },
-      "quote_corridor": "lightning",
       "fee_bps": 30,
-      "min_base_amount": "0",
-      "max_base_amount": "0",
+      "min_base_amount": "500",
+      "max_base_amount": "50000",
       "min_quote_amount": "500",
       "max_quote_amount": "50000"
     }
   ],
-  "sig": "d46becad2e325adf6e87b53e271e7faf21c0a49ba9dd249b4c0f6865f42f55fa93035fc953003578810f89af54f0d913382df26556ec9e616d7d606669b36e1f"
+  "sig": "7a74b326cc033b26aac4778cffd74685cce2ef57e244e675805b85261ab6078fb2d82096c08363a9dfc63baaa826d6fa5520e38cdc0ee3d3ebeb772fc4e04412"
 }

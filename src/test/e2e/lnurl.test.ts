@@ -3,8 +3,10 @@ import { isValidLnUrl, checkLnUrlConditions, fetchInvoice } from '../../lib/lnur
 import { decodeInvoice } from '../../lib/bolt11'
 import { exec } from 'child_process'
 import { promisify } from 'util'
+import { translations } from '../../lib/i18n'
 
 const execAsync = promisify(exec)
+const tr = translations.en
 
 test.skip('should have lnurl with no amount', async ({ page }) => {
   // create wallet
@@ -12,10 +14,10 @@ test.skip('should have lnurl with no amount', async ({ page }) => {
 
   // go to receive page
   await navigateHome(page)
-  await page.getByText('Receive', { exact: true }).click()
+  await page.getByText(tr.wallet.receive, { exact: true }).click()
 
   // copy lnurl
-  await page.getByText('Copy').click()
+  await page.getByText(tr.common.copy).click()
   await page.getByTestId('lnurl-address-copy').click()
   const lnurl = await readClipboard(page)
 
@@ -30,10 +32,10 @@ test.skip('should check conditions from lnurl', async ({ page }) => {
 
   // go to receive page
   await navigateHome(page)
-  await page.getByText('Receive', { exact: true }).click()
+  await page.getByText(tr.wallet.receive, { exact: true }).click()
 
   // copy lnurl
-  await page.getByText('Copy').click()
+  await page.getByText(tr.common.copy).click()
   await page.getByTestId('lnurl-address-copy').click()
   const lnurl = await readClipboard(page)
 
@@ -57,10 +59,10 @@ test.skip('should fetch invoice from lnurl', async ({ page }) => {
 
   // go to receive page
   await navigateHome(page)
-  await page.getByText('Receive', { exact: true }).click()
+  await page.getByText(tr.wallet.receive, { exact: true }).click()
 
   // copy lnurl
-  await page.getByText('Copy').click()
+  await page.getByText(tr.common.copy).click()
   await page.getByTestId('lnurl-address-copy').click()
   const lnurl = await readClipboard(page)
 
@@ -87,10 +89,10 @@ test.skip('should receive payment', async ({ page }) => {
 
   // go to receive page
   await navigateHome(page)
-  await page.getByText('Receive', { exact: true }).click()
+  await page.getByText(tr.wallet.receive, { exact: true }).click()
 
   // copy lnurl
-  await page.getByText('Copy').click()
+  await page.getByText(tr.common.copy).click()
   await page.getByTestId('lnurl-address-copy').click()
   const lnurl = await readClipboard(page)
 
@@ -110,6 +112,6 @@ test.skip('should receive payment', async ({ page }) => {
 
   // transaction should be visible on main page
   await navigateHome(page)
-  await page.waitForSelector('text=Received', { timeout: 10000 })
+  await page.waitForSelector(`text=${tr.transaction.received}`, { timeout: 10000 })
   await expect(page.getByText('+ 1,992 sats', { exact: true })).toBeVisible()
 })

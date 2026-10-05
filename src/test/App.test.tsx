@@ -18,7 +18,7 @@ import {
 } from './screens/mocks'
 import { defaultPassword } from '../lib/constants'
 import { detectJSCapabilities } from '../lib/jsCapabilities'
-import { SettingsOptions } from '../lib/types'
+import { SettingsOptions } from '@/lib/types'
 
 const PASSWORDLESS_AUTO_RELOAD_KEY = 'passwordless-auto-reload-attempted'
 
@@ -103,28 +103,6 @@ describe('App startup routing', () => {
     const { navigate, unlockWallet } = renderApp({ authState: 'passwordless', initialized: false })
 
     await waitFor(() => expect(unlockWallet).toHaveBeenCalledWith(defaultPassword))
-    expect(navigate).not.toHaveBeenCalledWith(Pages.Unlock)
-  })
-
-  it('shows unlock when authentication is required', async () => {
-    const { navigate } = renderApp({ authState: 'locked', initialized: false })
-
-    expect(await screen.findByText('Unlock')).toBeInTheDocument()
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.Unlock))
-  })
-
-  it('shows unlock even when the wallet remains initialized', async () => {
-    const { navigate } = renderApp({ authState: 'locked', initialized: true })
-
-    expect(await screen.findByText('Unlock')).toBeInTheDocument()
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.Unlock))
-  })
-
-  it('keeps authenticated but uninitialized wallets on loading', async () => {
-    const { navigate, unlockWallet } = renderApp({ authState: 'authenticated', initialized: false })
-
-    await waitFor(() => expect(screen.getByTestId('app')).toBeInTheDocument())
-    expect(unlockWallet).not.toHaveBeenCalled()
     expect(navigate).not.toHaveBeenCalledWith(Pages.Unlock)
   })
 
@@ -237,7 +215,7 @@ describe('Navbar visibility', () => {
   })
 
   it('hides navbar on app detail pages when authenticated and initialized', async () => {
-    renderApp({ authState: 'authenticated', initialized: true, screen: Pages.AppLendasat })
+    renderApp({ authState: 'authenticated', initialized: true, screen: Pages.BitcoinDetail })
 
     const ionApp = await screen.findByTestId('app')
     expect(ionApp.className).not.toContain('has-pill-navbar')

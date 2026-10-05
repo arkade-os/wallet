@@ -30,7 +30,12 @@ const LOCKUP =
 // the contract row's business, not this store's.
 const script = { pkScript: ArkAddress.decode(LOCKUP).pkScript } as LnSendRecordInput['script']
 
-const secrets: ProvisionedKey = { pubkey: new Uint8Array(32).fill(0xab), descriptor: 'wpkh(...)/0' }
+const secrets: ProvisionedKey = {
+  pubkey: new Uint8Array(32).fill(0xab),
+  descriptor: 'wpkh(...)/0',
+  pkScript: script.pkScript,
+  address: LOCKUP,
+}
 
 const RFQ_ID = 'a'.repeat(64)
 
