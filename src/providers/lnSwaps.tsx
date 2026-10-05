@@ -96,7 +96,7 @@ export const LnSwapsProvider = ({ children }: { children: ReactNode }) => {
         refundArkade: async (swap: RfqSwap) => {
           const script = swap.lockup?.script
           if (!script) throw new Error(`swap ${swap.rfqId} was restored without its covenant`)
-          const vtxos = await findLockupVtxos(indexer, swap.lockupPkScript)
+          const vtxos = await findLockupVtxos(contracts, swap.lockupPkScript)
           if (vtxos.length === 0) return null
           const sender = await lnSendRefundSigner(svcWallet, swap.rfqId)
           return pushRefundWithoutReceiver(ark, { script, sender, vtxos })

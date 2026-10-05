@@ -4,8 +4,7 @@ import FlexCol from './FlexCol'
 import { prettyLongText } from '../lib/format'
 import { useState } from 'react'
 import Focusable from './Focusable'
-import { copyToClipboard } from '../lib/clipboard'
-import { useToast } from './Toast'
+import { useCopyToClipboard } from '../hooks/useCopyToClipboard'
 import { hapticSubtle } from '../lib/haptics'
 import { useTranslation } from '../providers/language'
 import ExternalLinkIcon from '../icons/ExternalLink'
@@ -17,13 +16,12 @@ export default function Table({ data, variant = 'default' }: { data: TableData; 
   const isReceipt = variant === 'receipt'
   const [focused, setFocused] = useState(false)
 
-  const { toast } = useToast()
+  const copyToClipboard = useCopyToClipboard()
   const { t } = useTranslation()
 
   const copy = (value: string) => {
     hapticSubtle()
     copyToClipboard(value)
-    toast(t('common.copiedToClipboard'))
   }
 
   const focusOnFirstRow = () => {
