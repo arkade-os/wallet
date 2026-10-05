@@ -129,3 +129,52 @@ describe('Contracts screen — deprecated signer badges', () => {
     expect(screen.queryByText(/deprecated signer/)).not.toBeInTheDocument()
   })
 })
+
+describe('Contracts screen — refund locktime & ordering', () => {
+  const withLocktime = (refundLocktime?: string) =>
+    contract({
+      type: 'vhtlc',
+      address: 'ark1qlock',
+      script: 'ark1qlock',
+      params: refundLocktime ? { refundLocktime } : {},
+    })
+  const nowSec = () => Math.floor(Date.now() / 1000)
+
+  it('shows the past-locktime badge when the locktime timestamp is in the past', async () => {
+    renderScreen(withContracts([withLocktime(String(nowSec() - 86400))]) as any)
+    await screen.findByText('Contracts')
+    expect(screen.getByText('Past refund locktime')).toBeInTheDocument()
+  })
+
+  it('hides the badge when the locktime timestamp is in the future', async () => {
+    renderScreen(withContracts([withLocktime(String(nowSec() + 86400))]) as any)
+    await screen.findByText('Contracts')
+    expect(screen.queryByText('Past refund locktime')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['zero', '0'],
+    ['absent', undefined],
+  ])('shows no badge or date row when locktime is %s', async (_n, v) => {
+    renderScreen(withContracts([withLocktime(v)]) as any)
+    await screen.findByText('Contracts')
+    expect(screen.queryByText('Past refund locktime')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('vhtlc'))
+    expect(screen.queryByText('Refund locktime')).not.toBeInTheDocument()
+  })
+
+  it('sorts newest first within the same state', async () => {
+    renderScreen(
+      withContracts([
+        contract({ label: 'older', address: 'ark1qa', createdAt: 1000 }),
+        contract({ label: 'newest', address: 'ark1qb', createdAt: 3000 }),
+        contract({ label: 'middle', address: 'ark1qc', createdAt: 2000 }),
+      ]) as any,
+    )
+    await screen.findByText('Contracts')
+    const order = ['newest', 'middle', 'older'].map((l) => screen.getByText(l))
+    order.slice(1).forEach((el, i) => {
+      expect(order[i].compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+  })
+})
