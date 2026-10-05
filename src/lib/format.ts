@@ -141,9 +141,13 @@ export const prettyCurrencyAssetAmount = (
   return prettyNumber(unitAmount, fiatDecimals, useGrouping, fiatDecimals)
 }
 
+export const isUnixTimestamp = (value: number): boolean => {
+  return value >= 500_000_000
+}
+
 export const prettyDate = (unixTs: number, lang: Language = Language.English): string => {
   if (!unixTs) return ''
-  if (unixTs < 500_000_000) return '' // block height, not a valid timestamp
+  if (!isUnixTimestamp(unixTs)) return '' // block height, not a valid timestamp
   const date = new Date(unixTs * 1000)
   return new Intl.DateTimeFormat(lang === Language.Spanish ? 'es' : 'en', {
     day: 'numeric',

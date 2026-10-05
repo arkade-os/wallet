@@ -25,7 +25,7 @@ import ChevronUpIcon from '../../icons/ChevronUp'
 import ExternalLinkIcon from '../../icons/ExternalLink'
 import { WalletContext } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
-import { localizedAgo, prettyDate, prettyLongText } from '../../lib/format'
+import { isUnixTimestamp, localizedAgo, prettyDate, prettyLongText } from '../../lib/format'
 import { getVmempoolURL, getWebExplorerURL } from '../../lib/explorers'
 import { isBTCAddress } from '../../lib/address'
 import { copyToClipboard } from '../../lib/clipboard'
@@ -149,7 +149,7 @@ function DeprecatedSignerBadge({ status }: { status: SignerStatus | null }) {
 
 function PastRefundLocktimeBadge({ refundLocktime }: { refundLocktime: number }) {
   const { t } = useTranslation()
-  if (refundLocktime && Date.now() > refundLocktime * 1000)
+  if (isUnixTimestamp(refundLocktime) && Date.now() > refundLocktime * 1000)
     return (
       <Text tiny color='orange'>
         {t('contracts.pastRefundLocktime')}
@@ -224,7 +224,7 @@ function ContractCard({ item, open, onToggle }: { item: ContractView; open: bool
             <hr className='dashed' />
             <CopyRow label={t('common.address')} value={address} link={explorer || undefined} />
             <CopyRow label={t('contracts.script')} value={contract.script} />
-            {refundLocktime ? (
+            {isUnixTimestamp(refundLocktime) ? (
               <CopyRow label={t('contracts.refundLocktime')} value={prettyDate(refundLocktime, language)} />
             ) : null}
             {encoded ? <CopyRow label={t('contracts.parameters')} value={encoded} /> : null}
@@ -317,7 +317,7 @@ export default function Contracts() {
         if (q && !v.search.includes(q)) return false
         return true
       })
-      .sort((a, b) => b.contract.createdAt - a.contract.createdAt)
+      .sort((a, b) => (b.contract.createdAt ?? 0) - (a.contract.createdAt ?? 0))
   }, [views, tab, typeFilter, query])
 
   // Virtualize the list so it stays smooth with many contracts. Row heights vary

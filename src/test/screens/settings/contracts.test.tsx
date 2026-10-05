@@ -155,6 +155,7 @@ describe('Contracts screen — refund locktime & ordering', () => {
   it.each([
     ['zero', '0'],
     ['absent', undefined],
+    ['block height', '800000'],
   ])('shows no badge or date row when locktime is %s', async (_n, v) => {
     renderScreen(withContracts([withLocktime(v)]) as any)
     await screen.findByText('Contracts')
