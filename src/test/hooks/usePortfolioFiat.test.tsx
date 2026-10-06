@@ -43,9 +43,9 @@ function wrapper({
       <FiatContext.Provider
         value={{
           ...mockFiatContextValue,
-          fromFiatAmount: (amount: number, currency: Currencies) =>
-            Math.floor(currency === Currencies.USD ? amount * 1_000 : currency === Currencies.BRL ? amount * 200 : 0),
           toFiat: (sats?: number) => sats ?? 0,
+          toFiatAmount: (sats: number, currency: Currencies) =>
+            currency === Currencies.USD ? sats / 1_000 : currency === Currencies.BRL ? sats / 200 : 0,
         }}
       >
         <WalletContext.Provider
@@ -77,8 +77,8 @@ const makeChfWrapper = (isVerifiedAsset: (assetId: string) => boolean) => {
       <FiatContext.Provider
         value={{
           ...mockFiatContextValue,
-          fromFiatAmount: (amount: number, currency: Currencies) => (currency === Currencies.CHF ? amount * 2000 : 0),
           toFiat: (sats?: number) => sats ?? 0,
+          toFiatAmount: (sats: number, currency: Currencies) => (currency === Currencies.CHF ? sats / 2000 : 0),
         }}
       >
         <WalletContext.Provider
@@ -111,8 +111,8 @@ function escrowWrapper({ children }: { children: ReactNode }) {
       <FiatContext.Provider
         value={{
           ...mockFiatContextValue,
-          fromFiatAmount: (amount: number, currency: Currencies) => (currency === Currencies.USD ? amount * 1_000 : 0),
           toFiat: (sats?: number) => sats ?? 0,
+          toFiatAmount: (sats: number, currency: Currencies) => (currency === Currencies.USD ? sats / 1_000 : 0),
         }}
       >
         <WalletContext.Provider
@@ -142,9 +142,8 @@ describe('usePortfolioFiat', () => {
     })
     const row = result.current.rows.find((entry) => entry.assetId === MUTINYNET_DEPIX_ASSET_ID)
     expect(row).toMatchObject({
-      balance: BigInt(0),
-      spendableBalance: BigInt(0),
-      displayBalance: { amount: BigInt(420000), decimals: 8 },
+      balance: BigInt(420000),
+      spendableBalance: BigInt(420000),
       sourceAsset: { balance: BigInt(420000), decimals: 8 },
     })
     expect(row?.fiatAmount).toBeCloseTo(0.84)

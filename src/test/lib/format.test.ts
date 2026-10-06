@@ -119,12 +119,12 @@ describe('format utilities', () => {
 
     it('uses a strict bound for compact amounts below the currency minor unit', () => {
       for (const amount of [BigInt(1), BigInt(420000), BigInt(999999)]) {
-        expect(prettyCurrencyAssetAmount(amount, 8, 'DEPIX', { compact: true })).toBe('<0.01')
+        expect(prettyCurrencyAssetAmount(amount, 8, 'DEPIX', true)).toBe('<0.01')
       }
-      expect(prettyCurrencyAssetAmount(BigInt(-1), 8, 'DEPIX', { compact: true })).toBe('>-0.01')
-      expect(prettyCurrencyAssetAmount(BigInt(0), 8, 'DEPIX', { compact: true })).toBe('0.00')
-      expect(prettyCurrencyAssetAmount(BigInt(1000000), 8, 'DEPIX', { compact: true })).toBe('0.01')
-      expect(prettyCurrencyAssetAmount(BigInt(1), 8, 'JPY', { compact: true })).toBe('<1')
+      expect(prettyCurrencyAssetAmount(BigInt(-1), 8, 'DEPIX', true)).toBe('>-0.01')
+      expect(prettyCurrencyAssetAmount(BigInt(0), 8, 'DEPIX', true)).toBe('0.00')
+      expect(prettyCurrencyAssetAmount(BigInt(1000000), 8, 'DEPIX', true)).toBe('0.01')
+      expect(prettyCurrencyAssetAmount(BigInt(1), 8, 'JPY', true)).toBe('<1')
       expect(prettyCurrencyAssetAmount(BigInt(1), 8, undefined)).toBe('0.00000001')
     })
 

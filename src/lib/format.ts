@@ -135,7 +135,7 @@ export const prettyCurrencyAssetAmount = (
   amount: bigint,
   decimals: number,
   ticker: string | undefined,
-  { compact = false, useGrouping = true }: { compact?: boolean; useGrouping?: boolean } = {},
+  compact = false,
 ): string => {
   const fiat = fiatForTicker(ticker)
   if (!fiat) return prettyAssetAmount(amount, decimals, compact)
@@ -144,10 +144,10 @@ export const prettyCurrencyAssetAmount = (
   const fiatDecimals = fiatDecimalsFor(fiat)
   const minimumUnit = new Decimal(10).pow(-fiatDecimals)
   if (compact && amount !== BigInt(0) && new Decimal(unitAmount).abs().lt(minimumUnit)) {
-    const threshold = prettyNumber(minimumUnit, fiatDecimals, useGrouping, fiatDecimals)
+    const threshold = prettyNumber(minimumUnit, fiatDecimals, true, fiatDecimals)
     return amount < BigInt(0) ? `>-${threshold}` : `<${threshold}`
   }
-  return prettyNumber(unitAmount, compact ? fiatDecimals : Math.max(decimals, fiatDecimals), useGrouping, fiatDecimals)
+  return prettyNumber(unitAmount, compact ? fiatDecimals : Math.max(decimals, fiatDecimals), true, fiatDecimals)
 }
 
 export const prettyDate = (num: number, lang: Language = Language.English): string => {

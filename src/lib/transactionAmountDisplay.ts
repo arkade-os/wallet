@@ -38,7 +38,6 @@ interface BuildTransactionAmountDisplayArgs {
   assets?: Asset[]
   bitcoinUnit: Unit
   currency: Currencies
-  fromFiatAmount: (amount: number, currency: Currencies) => number
   isVerifiedAsset: (assetId: string) => boolean
   metadataForAsset?: (assetId: string) => AssetMetadata | undefined
   network?: string
@@ -50,7 +49,6 @@ export function buildTransactionAmountDisplay({
   assets,
   bitcoinUnit,
   currency,
-  fromFiatAmount,
   isVerifiedAsset,
   metadataForAsset = () => undefined,
   network,
@@ -61,7 +59,7 @@ export function buildTransactionAmountDisplay({
   // resolved currency/metadata instead of re-deriving them
   const resolved = assets?.length
     ? assets.map((asset) =>
-        resolveAsset(asset, metadataForAsset(asset.assetId), network, isVerifiedAsset, fromFiatAmount),
+        resolveAsset(asset, metadataForAsset(asset.assetId), network, isVerifiedAsset, toFiatAmount),
       )
     : undefined
   const raw = resolved ? resolved.map((entry) => entry.raw) : [rawBitcoinAmount(satoshis, bitcoinUnit)]
@@ -80,7 +78,7 @@ function resolveAsset(
   metadata: AssetMetadata | undefined,
   network: string | undefined,
   isVerifiedAsset: (assetId: string) => boolean,
-  fromFiatAmount: (amount: number, currency: Currencies) => number,
+  toFiatAmount: (satoshis: number, currency: Currencies) => number,
 ): { raw: RawAssetAmountDisplay; satsEquivalent?: number } {
   const amount = absoluteBigInt(BigInt(asset.amount))
   const trusted = isVerifiedAsset(asset.assetId)
@@ -88,9 +86,7 @@ function resolveAsset(
   const ticker =
     accountCurrency ?? metadata?.ticker?.trim().toUpperCase() ?? metadata?.name ?? shortAssetId(asset.assetId)
   const decimals = metadata?.decimals ?? 8
-  const value = accountCurrency
-    ? fiatAccountAssetSatoshis(amount, decimals, accountCurrency, fromFiatAmount)
-    : undefined
+  const value = accountCurrency ? fiatAccountAssetSatoshis(amount, decimals, accountCurrency, toFiatAmount) : undefined
   const satsEquivalent =
     value !== undefined && Number.isFinite(value) && (amount === BigInt(0) || value !== 0) ? Math.abs(value) : undefined
 

@@ -56,8 +56,8 @@ export default function AssetsSection() {
             name={row.name}
             ticker={row.ticker}
             icon={row.icon}
-            decimals={row.displayBalance?.decimals ?? row.decimals}
-            balance={row.displayBalance?.amount ?? row.balance}
+            decimals={row.decimals}
+            balance={row.balance}
             fiatText={row.hasFiatPrice ? fiatLabel(row.fiatAmount) : undefined}
             onClick={() => handleAssetClick(row)}
           />

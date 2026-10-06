@@ -62,7 +62,7 @@ export default function AssetCard({
   const isBitcoin = trustedTicker?.toUpperCase() === 'BTC'
   const prettyBalance = isBitcoin
     ? prettyBitcoinAmount(Number(rawBalance), bitcoinUnit)
-    : prettyCurrencyAssetAmount(rawBalance, decimals ?? 8, trustedTicker, { compact: !exactAmount })
+    : prettyCurrencyAssetAmount(rawBalance, decimals ?? 8, trustedTicker, !exactAmount)
   const leftSecondary = isBitcoin ? prettyBalance : `${prettyBalance} ${tokenTick}`
   const maskedBalance = isBitcoin ? prettyBitcoinHide(Number(rawBalance), bitcoinUnit) : `•••• ${tokenTick}`
   const maskedFiatText = maskedFiatUnit(fiatText)

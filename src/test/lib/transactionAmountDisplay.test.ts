@@ -11,7 +11,6 @@ describe('transaction amount display', () => {
       assets: [{ assetId: MUTINYNET_USDT_ASSET_ID, amount: BigInt(420000) }],
       bitcoinUnit: Unit.BTC,
       currency: Currencies.USD,
-      fromFiatAmount: (amount) => amount * 1000,
       isVerifiedAsset: () => true,
       metadataForAsset: () => ({ ...metadata, decimals: 8 }),
       network: 'mutinynet',
@@ -27,12 +26,12 @@ describe('transaction amount display', () => {
       assets: [{ assetId: MUTINYNET_USDT_ASSET_ID, amount: BigInt(200) }],
       bitcoinUnit: Unit.BTC,
       currency: Currencies.EUR,
-      fromFiatAmount: (amount, currency) => (currency === Currencies.USD ? amount * 1_000 : 0),
       isVerifiedAsset: () => true,
       metadataForAsset: () => metadata,
       network: 'mutinynet',
       satoshis: 0,
-      toFiatAmount: (satoshis, currency) => (currency === Currencies.EUR ? satoshis * 0.000875 : 0),
+      toFiatAmount: (satoshis, currency) =>
+        currency === Currencies.EUR ? satoshis * 0.000875 : currency === Currencies.USD ? satoshis / 1_000 : 0,
     })
 
     expect(result.configured?.value).toBe('€1.75')
@@ -44,7 +43,6 @@ describe('transaction amount display', () => {
       assets: [{ assetId: MUTINYNET_USDT_ASSET_ID, amount: BigInt(200) }],
       bitcoinUnit: Unit.BTC,
       currency: Currencies.EUR,
-      fromFiatAmount: () => 2_000,
       isVerifiedAsset: () => false,
       metadataForAsset: () => metadata,
       network: 'mutinynet',
@@ -61,7 +59,6 @@ describe('transaction amount display', () => {
       assets: [{ assetId: MUTINYNET_USDT_ASSET_ID, amount: BigInt(200) }],
       bitcoinUnit: Unit.BTC,
       currency: Currencies.EUR,
-      fromFiatAmount: () => 0,
       isVerifiedAsset: () => true,
       metadataForAsset: () => metadata,
       network: 'mutinynet',
@@ -77,7 +74,6 @@ describe('transaction amount display', () => {
     const result = buildTransactionAmountDisplay({
       bitcoinUnit: Unit.SATS,
       currency: Currencies.BTC,
-      fromFiatAmount: () => 0,
       isVerifiedAsset: () => false,
       satoshis: 1_234,
       toFiatAmount: (satoshis) => satoshis,
