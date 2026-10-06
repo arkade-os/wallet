@@ -2,7 +2,7 @@ import Header from './Header'
 import Text from '../../components/Text'
 import Content from '../../components/Content'
 import { useEffect, useState } from 'react'
-import { prettyAgo, prettyLongText } from '../../lib/format'
+import { localizedAgo, prettyLongText } from '../../lib/format'
 import { clearLogs, getLogs, LogLine } from '../../lib/logs'
 import FlexCol from '../../components/FlexCol'
 import FlexRow from '../../components/FlexRow'
@@ -10,13 +10,14 @@ import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { EmptyLogsList } from '../../components/Empty'
 import Focusable from '../../components/Focusable'
-import { copyToClipboard } from '../../lib/clipboard'
-import { useToast } from '../../components/Toast'
+import { useCopyToClipboard } from '../../hooks/useCopyToClipboard'
+import { useTranslation } from '../../providers/language'
 
 function LogsTable({ logs }: { logs: LogLine[] }) {
   const [focused, setFocused] = useState(false)
 
-  const { toast } = useToast()
+  const copyToClipboard = useCopyToClipboard()
+  const { t } = useTranslation()
 
   const color = (level: string): string => {
     if (level === 'info') return ''
@@ -33,11 +34,6 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
 
   const key = ({ time, msg, level }: LogLine) => `${time}${msg}${level}`
 
-  const copy = (value: string) => {
-    copyToClipboard(value)
-    toast('Copied to clipboard')
-  }
-
   const focusOnFirstRow = () => {
     setFocused(true)
     if (logs.length === 0) return
@@ -53,8 +49,8 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
   }
 
   const ariaLabel = (l?: LogLine) => {
-    if (!l) return 'Pressing Enter enables keyboard navigation of the logs'
-    return `Log at ${prettyAgo(l.time)} with message ${l.msg}. Press Escape to exit keyboard navigation.`
+    if (!l) return t('logs.pressEnter')
+    return t('logs.logAt', { time: localizedAgo(l.time, t), msg: l.msg })
   }
 
   return (
@@ -64,16 +60,16 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
           {[...logs].reverse().map(({ time, msg, level }) => (
             <Focusable
               inactive={!focused}
-              onEnter={() => copy(msg)}
+              onEnter={() => copyToClipboard(msg)}
               onEscape={focusOnOuterShell}
               id={key({ time, msg, level })}
               key={key({ time, msg, level })}
               ariaLabel={ariaLabel({ time, msg, level })}
             >
               <FlexRow between>
-                <Text color={color(level)}>{prettyAgo(time)}</Text>
+                <Text color={color(level)}>{localizedAgo(time, t)}</Text>
                 <Text color='neutral-500' copy={msg}>
-                  {prettyLongText(msg.replace('...', ''), numChars(prettyAgo(time)))}
+                  {prettyLongText(msg.replace('...', ''), numChars(localizedAgo(time, t)))}
                 </Text>
               </FlexRow>
             </Focusable>
@@ -87,6 +83,7 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
 export default function Logs() {
   const [logs, setLogs] = useState<LogLine[]>([])
   const [load, setLoad] = useState(true)
+  const { t } = useTranslation()
 
   useEffect(() => {
     if (!load) return
@@ -123,12 +120,12 @@ export default function Logs() {
 
   return (
     <>
-      <Header auxFunc={handleClear} auxText='Clear' back text='Logs' />
+      <Header auxFunc={handleClear} auxText={t('settings.clear')} back text={t('settings.logs')} />
       <Content>
         <LogsTable logs={logs} />
       </Content>
       <ButtonsOnBottom>
-        <Button onClick={handleExport} label='Export to CSV file' disabled={logs.length === 0} />
+        <Button onClick={handleExport} label={t('settings.exportToCsv')} disabled={logs.length === 0} />
       </ButtonsOnBottom>
     </>
   )

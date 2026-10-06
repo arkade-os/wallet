@@ -6,6 +6,8 @@ vi.mock('../../lib/logs', async (importOriginal) => ({
   consoleError: (...args: unknown[]) => consoleError(...args),
 }))
 import { lnSwapLabel, lnurlLabel } from '../../lib/swapDisplay'
+import { translate } from '../../lib/i18n'
+import { Language } from '../../lib/types'
 import { createDefaultActivityRegistry, ServiceWorkerWallet, type Activity, type ArkTransaction } from '@arkade-os/sdk'
 import { activitiesToTxs, getActivities } from '../../lib/activityHistory'
 import { ASSET_SWAP_ACTIVITY_KIND, swapRecordResolver, type LnSendView } from '../../lib/swapRecords'
@@ -15,6 +17,8 @@ import type { ExitRecord } from '../../lib/exitHistory'
 import type { WalletAssetSwap } from '../../lib/swapRepository'
 import { lnurlActivityResolver, sentActivityResolver, type SentPayment } from '@arkade-os/lnurl-client/arkade'
 import type { StoredPayment } from '@arkade-os/lnurl-client'
+
+const t = (key: string) => translate(Language.English, key)
 
 beforeEach(() => localStorage.clear())
 
@@ -300,7 +304,7 @@ describe('swapRecordResolver', () => {
     )
 
     expect(row.type).toBe('received')
-    expect(lnSwapLabel(row)).toBe('Lightning receive')
+    expect(lnSwapLabel(row, t)).toBe('Lightning receive')
   })
 
   it('carries a corridor spend into the same group, so a refund is not a stray row', async () => {
@@ -536,7 +540,7 @@ describe('lightning send activities', () => {
       historyKey: `swap:${RFQ_ID}`,
       lnSwap: { label: 'Lightning send', outcome: 'pending', fundingTxid: 'funding-txid' },
     })
-    expect(lnSwapLabel(row)).toBe('Lightning send pending')
+    expect(lnSwapLabel(row, t)).toBe('Lightning send pending')
   })
 
   it('shows an on-chain send in flight too — the corridor that needed it most', () => {
@@ -550,7 +554,7 @@ describe('lightning send activities', () => {
       historyKey: `swap:${RFQ_ID}`,
       lnSwap: { label: 'Onchain send', outcome: 'pending', fundingTxid: 'funding-txid' },
     })
-    expect(lnSwapLabel(row)).toBe('Onchain send pending')
+    expect(lnSwapLabel(row, t)).toBe('Onchain send pending')
   })
 
   it('gives that row the invoice and fee saved against the funding tx', () => {
@@ -641,7 +645,7 @@ describe('lightning send activities', () => {
     })
 
     expect(row.lnSwap).toMatchObject({ outcome: 'refunded', spendTxid: 'refund-txid' })
-    expect(lnSwapLabel(row)).toBe('Lightning send refunded')
+    expect(lnSwapLabel(row, t)).toBe('Lightning send refunded')
   })
 
   it('yields to the group once one exists, under the same key', () => {
@@ -710,7 +714,7 @@ describe('lightning receive activities', () => {
     )
 
     expect(row.lnSwap?.outcome).toBe('lost')
-    expect(lnSwapLabel(row)).toBe('Lightning receive lost')
+    expect(lnSwapLabel(row, t)).toBe('Lightning receive lost')
   })
 
   it('falls back to plain member rows rather than dropping a group it cannot anchor', () => {

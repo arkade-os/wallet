@@ -28,7 +28,7 @@ vi.mock('@arkade-os/swap/protocol', () => ({
 let stored: any[] = []
 vi.mock('../../lib/swapRepository', () => ({
   assetSwapRepository: {
-    getAllSwapRecords: async () => stored,
+    getSwapRecordsPage: async () => ({ items: stored }),
     getSwapRecord: async (id: string) => stored.find((r) => r.id === id),
     saveSwapRecord: async () => {},
   },
@@ -144,7 +144,7 @@ describe('the claim itself', () => {
       },
     }
     const repo = {
-      getAllSwapRecords: async () => [record],
+      getSwapRecordsPage: async () => ({ items: [record] }),
       getSwapRecord: async (id: string) => (id === record.id ? record : undefined),
       saveSwapRecord: async () => {},
     }

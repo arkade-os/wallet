@@ -121,8 +121,7 @@ describe('Receive screen, Lightning failures', () => {
     // the receive is negotiated ON that tab and comes back here. What is left
     // is nobody driving, which is temporary and worth a retry, and says nothing
     // about tabs because the user has nothing to do with tabs.
-    expect(await screen.findByText(/Lightning receive is temporarily unavailable/)).toBeInTheDocument()
-    expect(screen.queryByText(/Lightning unavailable/)).not.toBeInTheDocument()
+    expect(await screen.findByText(/Lightning unavailable: No Lightning solver available/)).toBeInTheDocument()
     expect(screen.queryByText(/tab/i)).not.toBeInTheDocument()
     expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument()
   })
@@ -159,12 +158,12 @@ describe('Receive screen, Lightning failures', () => {
   it('clears the no-driver message when the amount goes away', async () => {
     receiveLightning.mockRejectedValue(new SwapsHeldElsewhere())
     const { rerender } = renderWithTrack()
-    expect(await screen.findByText(/Lightning receive is temporarily unavailable/)).toBeInTheDocument()
+    expect(await screen.findByText(/Lightning unavailable/)).toBeInTheDocument()
 
     // Same dead zone: a message about a negotiation this screen is no longer
     // attempting, offering a retry that reruns the effect back into its guard.
     rerender(tree(0))
-    await waitFor(() => expect(screen.queryByText(/temporarily unavailable/)).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByText(/Lightning unavailable/)).not.toBeInTheDocument())
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
   })
 

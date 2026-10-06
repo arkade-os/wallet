@@ -13,7 +13,6 @@ import {
   type Activity,
   type Identity,
   type ServiceWorkerWalletMode,
-  toXOnlySignerHex,
 } from '@arkade-os/sdk'
 import {
   clearStorage,
@@ -64,8 +63,8 @@ import {
 } from '../lib/constants'
 import { AssetIconApprovalManager } from '../lib/assetIconApproval'
 import { BackupContext } from './backup'
-import { restoreImportedWallet } from '../lib/importRestore'
 import { getAssetSwaps } from '@arkade-os/swap/protocol'
+import { useTranslation } from '../providers/language'
 
 const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
 const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
@@ -200,6 +199,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { navigate } = useContext(NavigationContext)
   const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo } = useContext(FlowContext)
   const { notifyTxSettled } = useContext(NotificationsContext)
+  const { t } = useTranslation()
 
   // One atomic snapshot: the metadata graft must land in the same render as
   // the history it belongs to.
@@ -543,13 +543,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const isFirstLoad = !hasLoadedOnce.current
     if (isFirstLoad) setLoadError(null)
     try {
-      if (isFirstLoad) setLoadingStatus('Fetching coins...')
+      if (isFirstLoad) setLoadingStatus(t('loading.fetchingCoins'))
       const vtxos = await getVtxos(swWallet)
       // Fetched apart from the set above, which must not learn about exits —
       // see `getUnrolledVtxos`. Cheap: the worker answers both from its local
       // repo, so this is a postMessage, not a request.
       const unrolledVtxos = await getUnrolledVtxos(swWallet)
-      if (isFirstLoad) setLoadingStatus('Fetching transactions...')
+      if (isFirstLoad) setLoadingStatus(t('loading.fetchingTransactions'))
       const activities = await getActivities(swWallet)
       // Before the metadata snapshot below, not after: `resolveExits` persists
       // what it learns, and the history memo reads a snapshot taken here, so a
@@ -560,7 +560,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // has already written it (see providers/swaps), so this pass only picks
       // up what the store says.
       const lnSends = await lnSendViews()
-      if (isFirstLoad) setLoadingStatus('Updating balance...')
+      if (isFirstLoad) setLoadingStatus(t('loading.updatingBalance'))
       const { total, available, assets, availableAssets, unrolled } = await getBalance(swWallet)
       // An exited coin is no longer Arkade money: it cannot be spent offchain,
       // no batch can lift it back, and this wallet has no path that moves it —
@@ -585,7 +585,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         swaps: await readSwapRecordAssets(),
       })
       referencedAssetIdsRef.current = referenced
-      if (isFirstLoad && referenced.size > 0) setLoadingStatus('Loading asset metadata...')
+      if (isFirstLoad && referenced.size > 0) setLoadingStatus(t('loading.loadingAssetMetadata'))
       for (const assetId of referenced) {
         const cached = assetMetadataCache.current.get(assetId)
         if (cached && Date.now() - cached.cachedAt < ASSET_METADATA_TTL_MS) continue
@@ -646,7 +646,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       minCheckpointExitDelaySeconds,
     } = params
     try {
-      setLoadingStatus('Starting wallet...')
+      setLoadingStatus(t('loading.startingWallet'))
       const walletRepository = new IndexedDBWalletRepository()
       const contractRepository = new IndexedDBContractRepository()
 
@@ -677,7 +677,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       })()
 
       await Promise.all([walletRepository.getWalletState(), zombieCheck])
-      setLoadingStatus('Connecting to service worker...')
+      setLoadingStatus(t('loading.connectingToServiceWorker'))
 
       const svcWallet = await ServiceWorkerWallet.setup({
         serviceWorkerPath: '/wallet-service-worker.mjs',
@@ -695,6 +695,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         },
         settlementConfig: { vtxoThreshold: wallet.thresholdMs ? Math.floor(wallet.thresholdMs / 1000) : 1 },
       })
+
+      // The first data load waits on the swap client (see SwapsProvider), so
+      // the worker is no longer what the screen is waiting on.
+      setLoadingStatus(t('loading.loadingWalletData'))
 
       // The registry ships with the SDK built-ins already in it; only ours has
       // to be added, and `use()` is idempotent by id across reinit paths. Both
@@ -715,13 +719,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       svcWallet.activity.use(createLnurlActivityResolver())
       svcWallet.activity.use(createSentActivityResolver())
 
+      // Before `setSvcWallet`: the swap client is built only once the wallet is
+      // set, and its construction restore rebuilds swaps from the history this
+      // fills in. Swaps are not restored here — that is the client's job.
       if (restoring) {
-        setLoadingStatus('Recovering addresses...')
+        setLoadingStatus(t('loading.recoveringAddresses'))
         try {
-          await restoreImportedWallet(svcWallet, {
-            repository: assetSwapRepository,
-            ...(aspInfo.signerPubkey ? { operatorPubkey: hex.decode(toXOnlySignerHex(aspInfo.signerPubkey)) } : {}),
-          })
+          await svcWallet.restore()
         } catch (err) {
           consoleError(err, 'Error scanning for rotated addresses on restore')
         }
@@ -822,7 +826,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (isTimeoutError && retryCount < maxRetries) {
         // exponential backoff: wait 1s, 2s, 4s, 8s, 16s for each retry
         const delay = Math.pow(2, retryCount) * 1000
-        setLoadingStatus('Retrying connection...')
+        setLoadingStatus(t('loading.retryingConnection'))
         consoleError(
           new Error(
             `Service worker activation timed out, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`,

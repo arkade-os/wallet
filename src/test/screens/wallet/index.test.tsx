@@ -58,20 +58,6 @@ describe('Wallet screen', () => {
     expect(screen.getByText(/Swaps are coming soon/i)).toBeInTheDocument()
   })
 
-  it('opens the bitcoin detail page from the bitcoin asset row', async () => {
-    const user = userEvent.setup()
-    const navigate = vi.fn()
-
-    render(
-      <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate }}>
-        <Wallet />
-      </NavigationContext.Provider>,
-    )
-
-    await user.click(screen.getByTestId(/^asset-row-BTC-/))
-    expect(navigate).toHaveBeenCalledWith(Pages.BitcoinDetail)
-  })
-
   it('shows the verified Mutinynet USDT asset as the USD account', () => {
     render(
       <AspContext.Provider

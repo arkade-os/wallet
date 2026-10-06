@@ -10,9 +10,12 @@ import {
   swapStatusLabel,
   swapUnitOfAccountAmount,
 } from '../../lib/swapDisplay'
+import { translate } from '../../lib/i18n'
 import type { WalletAssetSwap } from '../../lib/swapRepository'
 import { MUTINYNET_USDT_ASSET_ID } from '../../lib/accountAssets'
-import { Currencies, Tx, Unit } from '../../lib/types'
+import { Currencies, Language, Tx, Unit } from '../../lib/types'
+
+const t = (key: string) => translate(Language.English, key)
 
 const PRICE = 63_750 // USD per whole BTC
 
@@ -219,9 +222,9 @@ describe('lnSwapLabel', () => {
   const row = (lnSwap?: Tx['lnSwap']) => ({ lnSwap }) as Tx
 
   it('names the outcome, and calls a refund a refund rather than a failure', () => {
-    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'refunded' }))).toBe('Lightning send refunded')
-    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'pending' }))).toBe('Lightning send pending')
-    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'failed' }))).toBe('Lightning send failed')
+    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'refunded' }), t)).toBe('Lightning send refunded')
+    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'pending' }), t)).toBe('Lightning send pending')
+    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'failed' }), t)).toBe('Lightning send failed')
   })
 
   it('calls a lost receive lost, which is the opposite of a refund', () => {
@@ -230,27 +233,33 @@ describe('lnSwapLabel', () => {
     // SOLVER's, so the lockup going back means the payment never arrived —
     // money gone, not money returned. Reading it as "refunded" would tell the
     // user the exact opposite of what happened.
-    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'lost' }))).toBe('Lightning receive lost')
-    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'lost' }))).not.toContain('refunded')
+    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'lost' }), t)).toBe('Lightning receive lost')
+    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'lost' }), t)).not.toContain('refunded')
   })
 
   it('still calls a SEND that came back refunded, on the same token set', () => {
     // The two legs read `refunded` in opposite directions, and the package is
     // what tells them apart — the wallet must not collapse the distinction.
-    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'refunded' }))).toBe('Lightning send refunded')
+    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'refunded' }), t)).toBe('Lightning send refunded')
   })
 
   it('says nothing extra once the payment simply went through', () => {
-    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'settled' }))).toBe('Lightning send')
-    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'settled' }))).toBe('Lightning receive')
+    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'settled' }), t)).toBe('Lightning send')
+    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'settled' }), t)).toBe('Lightning receive')
   })
 
   it('falls back to the corridor name for an outcome token it does not know', () => {
-    expect(lnSwapLabel(row({ outcome: 'something-new' }))).toBe('Lightning send')
+    expect(lnSwapLabel(row({ outcome: 'something-new' }), t)).toBe('Lightning send')
   })
 
   it('leaves a row the resolver never tagged alone', () => {
-    expect(lnSwapLabel(row())).toBeUndefined()
+    expect(lnSwapLabel(row(), t)).toBeUndefined()
+  })
+
+  it('translates the labels it knows as whole phrases', () => {
+    const es = (key: string) => translate(Language.Spanish, key)
+    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'refunded' }), es)).toBe('Envío Lightning reembolsado')
+    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'lost' }), es)).toBe('Recepción Lightning perdida')
   })
 })
 
@@ -283,7 +292,7 @@ describe('the status a corridor send reports', () => {
     ({ settled, lnSwap: { fundingTxid: 'funding-txid', outcome } }) as unknown as Tx
 
   it('reads the swap, not the funding transaction that has confirmed under it', () => {
-    expect(swapStatusLabel(corridor('pending', true))).toBe('Pending')
+    expect(swapStatusLabel(corridor('pending', true), t)).toBe('Pending')
   })
 
   it.each([
@@ -292,15 +301,21 @@ describe('the status a corridor send reports', () => {
     ['failed', 'Failed'],
     ['lost', 'Failed'],
   ])('renders the %s outcome as %s', (outcome, label) => {
-    expect(swapStatusLabel(corridor(outcome))).toBe(label)
+    expect(swapStatusLabel(corridor(outcome), t)).toBe(label)
   })
 
   it('never calls a refund a failure — the covenant gave the money back', () => {
     expect(swapStatusForTx(corridor('refunded'))).toBe('refunded')
   })
 
+  it('translates the status', () => {
+    const es = (key: string) => translate(Language.Spanish, key)
+    expect(swapStatusLabel(corridor('pending'), es)).toBe('Pendiente')
+    expect(swapStatusLabel(corridor('refunded'), es)).toBe('Reembolsada')
+  })
+
   it('leaves a plain transaction on its own confirmation state', () => {
-    expect(swapStatusLabel({ settled: true } as Tx)).toBe('Completed')
-    expect(swapStatusLabel({ settled: false } as Tx)).toBe('Pending')
+    expect(swapStatusLabel({ settled: true } as Tx, t)).toBe('Completed')
+    expect(swapStatusLabel({ settled: false } as Tx, t)).toBe('Pending')
   })
 })

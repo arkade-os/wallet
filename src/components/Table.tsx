@@ -4,9 +4,9 @@ import FlexCol from './FlexCol'
 import { prettyLongText } from '../lib/format'
 import { useState } from 'react'
 import Focusable from './Focusable'
-import { copyToClipboard } from '../lib/clipboard'
-import { useToast } from './Toast'
+import { useCopyToClipboard } from '../hooks/useCopyToClipboard'
 import { hapticSubtle } from '../lib/haptics'
+import { useTranslation } from '../providers/language'
 import ExternalLinkIcon from '../icons/ExternalLink'
 
 export type TableLine = [string, string | undefined, JSX.Element?, (() => void)?]
@@ -16,12 +16,12 @@ export default function Table({ data, variant = 'default' }: { data: TableData; 
   const isReceipt = variant === 'receipt'
   const [focused, setFocused] = useState(false)
 
-  const { toast } = useToast()
+  const copyToClipboard = useCopyToClipboard()
+  const { t } = useTranslation()
 
   const copy = (value: string) => {
     hapticSubtle()
     copyToClipboard(value)
-    toast('Copied to clipboard')
   }
 
   const focusOnFirstRow = () => {
@@ -39,8 +39,8 @@ export default function Table({ data, variant = 'default' }: { data: TableData; 
   }
 
   const ariaLabel = (title?: string, value?: string) => {
-    if (!title || !value) return 'Pressing Enter enables keyboard navigation of the table'
-    return `Title ${title} with status ${value}. Press Escape to exit keyboard navigation.`
+    if (!title || !value) return t('table.keyboardNavIntro')
+    return t('table.keyboardNavTitle', { title, value })
   }
 
   return (

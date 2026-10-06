@@ -6,6 +6,7 @@ import Text from './Text'
 import FlexRow from './FlexRow'
 import Focusable from './Focusable'
 import { hapticLight } from '../lib/haptics'
+import { useTranslation } from '../providers/language'
 
 interface HeaderProps {
   auxAriaLabel?: string
@@ -18,6 +19,7 @@ interface HeaderProps {
 }
 
 export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, auxIcon }: HeaderProps) {
+  const { t } = useTranslation()
   const { goBack } = useContext(NavigationContext)
 
   const handleBack = back
@@ -50,7 +52,7 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
         <div style={{ minWidth: '4rem', marginLeft: '0.5rem' }}>
           {handleBack ? (
             <Focusable onEnter={handleBack} fit round>
-              <div onClick={handleBack} style={{ cursor: 'pointer' }} aria-label='Go back'>
+              <div onClick={handleBack} style={{ cursor: 'pointer' }} aria-label={t('common.back')}>
                 <BackIcon />
               </div>
             </Focusable>

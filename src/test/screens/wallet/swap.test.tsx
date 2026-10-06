@@ -175,7 +175,9 @@ describe('Wallet swap flow', () => {
 
     expect(screen.getByText('BRL')).toBeInTheDocument()
     expect(screen.queryByText(/DePix|DEPIX/)).not.toBeInTheDocument()
-    expect(document.querySelector('#br-flag-circle')).not.toBeNull()
+    // The flag's clip path id is unique per instance, so it is matched by
+    // prefix rather than by the literal id.
+    expect(document.querySelector('clipPath[id^="br-flag-circle"]')).not.toBeNull()
   })
 
   it('finds Bitcoin when searching "btc", even though its swap-entry ticker is sats', async () => {

@@ -34,17 +34,7 @@
  * this side as a `ServiceWorkerWallet` proxy, so moving the client in would mean
  * standing a second wallet up inside it.
  */
-import {
-  ReactNode,
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react'
+import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { asset, type Asset, type NetworkName, type PaymentRouter } from '@arkade-os/sdk'
 import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
 import {
@@ -64,7 +54,6 @@ import { discoverMarkets } from '../lib/swapMarkets'
 import { createSendRouter } from '../lib/sendRouter'
 import { claimFeeRate } from '../lib/claimFee'
 import { onchainClaimEndpoint } from '../lib/onchainPayout'
-import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
 import { toInvoiceFacts } from '../lib/lnSwap'
 import { makeSwapClient, SwapsHeldElsewhere } from '../lib/swapClient'
 import {
@@ -106,6 +95,10 @@ interface SwapsContextProps {
   /** Fund an arkade↔arkade asset swap for the plan the composer quoted. */
   exchange: (market: DiscoveredMarket, plan: OfferPlan, quote?: AssetSwapQuoteSnapshot) => Promise<Swap>
   cancelSwap: (id: string) => Promise<void>
+  /** Run a recovery round for a swept offer deposit. Resolves with whether THIS
+   * deposit went home; throws `SwapDriveRefusedError` (by `name` across tabs) or
+   * the round's own error. */
+  recoverSwap: (id: string) => Promise<boolean>
   /** Negotiate a payment. Nothing is funded: the pay screen accepts. */
   quotePay: (destination: string) => Promise<Quote>
   /** Fund it — which IS the acceptance. Resolves with the funding txid. */
@@ -136,6 +129,7 @@ export const SwapsContext = createContext<SwapsContextProps>({
   },
   exchange: notInitialized,
   cancelSwap: notInitialized,
+  recoverSwap: notInitialized,
   quotePay: notInitialized,
   acceptPay: notInitialized,
   receiveLightning: notInitialized,
@@ -161,6 +155,14 @@ const CLIENT_LOCK = 'swap-client'
  * was never ours to wait for.
  */
 const LOCK_GRACE_MS = 500
+
+/**
+ * How long the first history load waits on this tab's swap client before going
+ * ahead without it. Usually the lock is granted and the restore is a local read
+ * well inside this; neither holds when another tab owns the client, or on the
+ * first restore after an upgrade.
+ */
+const FIRST_LOAD_GRACE_MS = 3_000
 
 /** Whether the trader is paying OUT. `paid` and `claimed` are how BOTH
  *  directions succeed, so every send announced itself as money received; only a
@@ -207,6 +209,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   // reload through a ref rather than the value captured at start.
   const reloadRef = useRef(reloadWallet)
   reloadRef.current = reloadWallet
+  const dataReadyRef = useRef(dataReady)
+  dataReadyRef.current = dataReady
 
   // Assigned only once the Web Lock is HELD, which is what lets an action tell
   // "another tab owns this" from "the client is not running" — see `driving`.
@@ -293,25 +297,12 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     setEmulatorPubkey(getEmulatorPubkeyForNetwork(network))
   }
 
-  // A card the Nostr restore writes lands well after the per-network run, and
-  // left the swap screen reading "coming soon" until a reload.
-  const cardsVersion = useSyncExternalStore(subscribeSolverCards, getSolverCardsVersion, getSolverCardsVersion)
-  const discoveredNetwork = useRef<string>()
-
   useEffect(() => {
-    if (!aspInfo.network) return
-    const switched = discoveredNetwork.current !== aspInfo.network
-    discoveredNetwork.current = aspInfo.network
-    // `switched` doubles as `useCache`: a network switch empties the list and
-    // may serve from the TTL cache, while a card write refreshes in place and
-    // must bypass it, since that cache is exactly what a new card invalidates.
-    if (switched) {
-      setEmulatorPubkey(undefined)
-      setAllMarkets([])
-    }
-    runDiscovery(switched)
+    setEmulatorPubkey(undefined)
+    setAllMarkets([])
+    runDiscovery()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aspInfo.network, cardsVersion])
+  }, [aspInfo.network])
 
   // ------------------------------------------------------------- the announcer
 
@@ -426,6 +417,15 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     let stopServing = () => {}
     const controller = new AbortController()
 
+    // The first history load lives in `drive`, which runs only once the lock is
+    // granted — and while another tab holds it, that is never. Nor is the
+    // restore it waits on bounded: the first one after an upgrade scans the
+    // whole history against the indexer. Past the grace, load without it; the
+    // load in `drive` still runs whenever the restore lands.
+    const firstLoad = setTimeout(() => {
+      if (!stopped && !dataReadyRef.current) reloadRef.current().catch(consoleError)
+    }, FIRST_LOAD_GRACE_MS)
+
     const drive = async () => {
       if (stopped) return
       // Per CLIENT, not per tab: a network switch builds a new one that replays.
@@ -489,6 +489,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       stopped = true
+      clearTimeout(firstLoad)
       held.current = undefined
       granted.current = undefined
       // Stop answering BEFORE the lock is released, so the window where this
@@ -569,6 +570,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         return exchangeHere(args[0] as OfferPlan, args[1] as AssetSwapQuoteSnapshot | undefined)
       case 'cancelSwap':
         return cancelSwapHere(args[0] as string)
+      case 'recoverSwap':
+        return recoverSwapHere(args[0] as string)
       case 'quotePay':
         return quotePayHere(args[0] as string)
       case 'acceptPay':
@@ -660,6 +663,21 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     await refreshSwaps()
     reportCancel(outcome)
     reloadRef.current().catch(consoleError)
+  }
+
+  const recoverSwap = (id: string): Promise<boolean> => runOnDriver('recoverSwap', [id])
+
+  /**
+   * No toast of its own: a deposit that went home is written `cancelled`, and
+   * that update is announced like any other ended swap. What only the caller
+   * can say — that the round left this deposit out — goes back as the value.
+   */
+  const recoverSwapHere = async (id: string): Promise<boolean> => {
+    const client = await driving()
+    const { recovered } = await client.recover(id as AssetSwapId)
+    await refreshSwaps()
+    reloadRef.current().catch(consoleError)
+    return recovered
   }
 
   // ------------------------------------------------------------- payments
@@ -801,6 +819,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       runDiscovery,
       exchange,
       cancelSwap,
+      recoverSwap,
       quotePay,
       acceptPay,
       receiveLightning,

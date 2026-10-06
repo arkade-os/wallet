@@ -27,6 +27,7 @@ const ready = vi.hoisted(() => vi.fn())
 const dispose = vi.hoisted(() => vi.fn())
 const accept = vi.hoisted(() => vi.fn())
 const receive = vi.hoisted(() => vi.fn())
+const recover = vi.hoisted(() => vi.fn())
 /** Set by the provider's own `onUpdate`, so a test can push one through. */
 const listeners = vi.hoisted(() => [] as ((update: SwapUpdate) => void)[])
 
@@ -44,7 +45,7 @@ vi.mock('../../lib/swapClient', async (importOriginal) => ({
     pay: vi.fn(),
     exchange: vi.fn(),
     resolve: vi.fn(),
-    recover: vi.fn(),
+    recover,
     swaps: async () => [],
     markets: async () => [],
     start: async () => {},
@@ -64,6 +65,8 @@ vi.mock('../../lib/swapMarkets', async (importOriginal) => ({
 }))
 
 const SWAP_ID = 'rfq:quote-1'
+/** A swept offer's id, as the wallet's swap list carries it. */
+const OFFER_ID = 'funding-txid'
 
 /** A negotiated payment, reduced to what `acceptPay` hands the client. */
 const quote = { id: 'quote-1' } as unknown as Quote
@@ -93,10 +96,11 @@ const minted = () =>
   }) as unknown as Swap
 
 function Harness({ tab = 'a' }: { tab?: string }) {
-  const { acceptPay, receiveLightning, outcomeOf, errorOf, sendRouter } = useContext(SwapsContext)
+  const { acceptPay, receiveLightning, recoverSwap, outcomeOf, errorOf, sendRouter } = useContext(SwapsContext)
   const [rejected, setRejected] = useState('')
   const [invoice, setInvoice] = useState('')
   const [routed, setRouted] = useState('')
+  const [recovered, setRecovered] = useState('')
   return (
     <div data-testid={`tab-${tab}`}>
       <button onClick={() => acceptPay(quote).catch((err: Error) => setRejected(err.name))}>{`Pay ${tab}`}</button>
@@ -115,10 +119,18 @@ function Harness({ tab = 'a' }: { tab?: string }) {
             .catch((err: Error) => setRejected(err.name))
         }
       >{`Receive ${tab}`}</button>
+      <button
+        onClick={() =>
+          recoverSwap(OFFER_ID)
+            .then((went) => setRecovered(String(went)))
+            .catch((err: Error & { reason?: string }) => setRejected(`${err.name}:${err.reason ?? ''}`))
+        }
+      >{`Recover ${tab}`}</button>
       <span data-testid='status'>{outcomeOf(SWAP_ID) ?? 'none'}</span>
       <span data-testid='error'>{errorOf(SWAP_ID) ?? 'none'}</span>
       <span data-testid='rejected'>{rejected || 'none'}</span>
       <span data-testid='invoice'>{invoice || 'none'}</span>
+      <span data-testid='recovered'>{recovered || 'none'}</span>
     </div>
   )
 }
@@ -228,6 +240,7 @@ beforeEach(() => {
   dispose.mockReset().mockResolvedValue(undefined)
   accept.mockReset().mockResolvedValue(monitored('funded'))
   receive.mockReset().mockResolvedValue(minted())
+  recover.mockReset().mockResolvedValue({ recovered: true, txid: 'round-txid', swap: monitored('cancelled') })
   withLocks(fakeLocks())
 })
 
@@ -391,6 +404,58 @@ describe('SwapsProvider single-driver rule', () => {
 
     await userEvent.click(screen.getByText('Pay a'))
     await waitFor(() => expect(accept).toHaveBeenCalled())
+  })
+})
+
+describe('SwapsProvider recovery', () => {
+  it('runs the recovery on the client, and reloads the balance it moved', async () => {
+    renderProvider()
+    await waitFor(() => expect(ready).toHaveBeenCalled())
+
+    await userEvent.click(screen.getByText('Recover a'))
+
+    await waitFor(() => expect(screen.getByTestId('recovered')).toHaveTextContent('true'))
+    expect(recover).toHaveBeenCalledWith(OFFER_ID)
+    expect(reloadWallet).toHaveBeenCalled()
+  })
+
+  it('hands back a round that left this deposit out, rather than calling it done', async () => {
+    recover.mockResolvedValue({ recovered: false, txid: 'round-txid', swap: monitored('needs_recovery') })
+    renderProvider()
+    await waitFor(() => expect(ready).toHaveBeenCalled())
+
+    await userEvent.click(screen.getByText('Recover a'))
+
+    await waitFor(() => expect(screen.getByTestId('recovered')).toHaveTextContent('false'))
+  })
+
+  it('runs another tab’s recovery on the driver, once', async () => {
+    renderTwoTabs()
+    await waitFor(() => expect(ready).toHaveBeenCalledTimes(1))
+
+    const b = within(screen.getByTestId('tab-b'))
+    await userEvent.click(b.getByText('Recover b'))
+
+    await waitFor(() => expect(b.getByTestId('recovered')).toHaveTextContent('true'), { timeout: 3000 })
+    expect(recover).toHaveBeenCalledTimes(1)
+  })
+
+  it('carries a refusal’s reason to the tab that asked', async () => {
+    recover.mockRejectedValue(
+      Object.assign(new Error('offer swap is cancelled, so it has nothing swept to recover'), {
+        name: 'SwapDriveRefusedError',
+        reason: 'nothing-swept',
+      }),
+    )
+    renderTwoTabs()
+    await waitFor(() => expect(ready).toHaveBeenCalledTimes(1))
+
+    const b = within(screen.getByTestId('tab-b'))
+    await userEvent.click(b.getByText('Recover b'))
+
+    await waitFor(() => expect(b.getByTestId('rejected')).toHaveTextContent('SwapDriveRefusedError:nothing-swept'), {
+      timeout: 3000,
+    })
   })
 })
 

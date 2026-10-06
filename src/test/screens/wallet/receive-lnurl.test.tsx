@@ -141,6 +141,17 @@ describe('Receive screen, rail composition', () => {
 
     await waitFor(() => expect(receiveLightning).toHaveBeenCalledWith(10_000))
   })
+
+  it('shows the lightning address in the QR when Lightning is selected', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    renderReceive()
+
+    await screen.findByText('alice@lnurl.test')
+    fireEvent.click(screen.getByText('Lightning'))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy QR code' })))
+
+    expect(copyToClipboard.mock.calls.at(-1)![0]).toBe('alice@lnurl.test')
+  })
 })
 
 describe('Receive screen, lnurl onboarding', () => {

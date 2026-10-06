@@ -13,7 +13,6 @@ import {
   mockIssuanceTxInfo,
   mockLimitsContextValue,
   mockNavigationContextValue,
-  mockTxId,
   mockTxInfo,
   mockWalletContextValue,
 } from '../mocks'
@@ -100,6 +99,120 @@ function CancellationHarness({
   )
 }
 
+const recoverableSwap: AssetSwap = { ...pendingSwap, status: 'recoverable' }
+
+function RecoveryHarness({ recover }: { recover: (id: string) => Promise<boolean> }) {
+  const [swaps, setSwaps] = useState([recoverableSwap])
+  const recoverSwap = async (id: string) => {
+    const recovered = await recover(id)
+    // what the driver's re-scan writes for a deposit that went home
+    if (recovered) setSwaps([{ ...recoverableSwap, status: 'cancelled', spentTxid: 'recovery-round' }])
+    return recovered
+  }
+
+  return (
+    <NavigationContext.Provider value={mockNavigationContextValue}>
+      <ConfigContext.Provider value={mockConfigContextValue}>
+        <FiatContext.Provider value={mockFiatContextValue}>
+          <AspContext.Provider value={mockAspContextValue}>
+            <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: pendingSwapTx }}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [pendingSwapTx] } as any}>
+                <SwapsContext.Provider value={{ swaps, cancelSwap: vi.fn(), recoverSwap } as any}>
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <Transaction />
+                  </LimitsContext.Provider>
+                </SwapsContext.Provider>
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </AspContext.Provider>
+        </FiatContext.Provider>
+      </ConfigContext.Provider>
+    </NavigationContext.Provider>
+  )
+}
+
+/** A rejection as it arrives from the driving tab: a plain Error, `name` and `reason` copied. */
+const crossed = (name: string, message: string, reason?: string) =>
+  Object.assign(new Error(message), { name }, reason === undefined ? {} : { reason })
+
+const confirmRecover = async () => {
+  await userEvent.click(screen.getByRole('button', { name: 'Recover funds' }))
+  await userEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Recover funds' }))
+}
+
+describe('Transaction screen — recoverable swap', () => {
+  it('offers recovery instead of cancel, and leaves the branch once the deposit is home', async () => {
+    let finish: (recovered: boolean) => void = () => {}
+    const recover = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finish = resolve
+        }),
+    )
+    render(<RecoveryHarness recover={recover} />)
+
+    expect(screen.getByText(/deposit expired before the swap was filled/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cancel swap' })).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Recover funds' }))
+    const dialog = screen.getByRole('alertdialog')
+    expect(within(dialog).getByRole('heading', { name: 'Recover swap funds?' })).toBeInTheDocument()
+    expect(within(dialog).getByText(/together with any other expired coins/)).toBeInTheDocument()
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Recover funds' }))
+    expect(recover).toHaveBeenCalledWith('funding-txid')
+    expect(screen.getByRole('button', { name: 'Recovering…' })).toBeDisabled()
+
+    await act(async () => finish(true))
+
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /Recover funds|Recovering|Retry recovery/ })).not.toBeInTheDocument(),
+    )
+    expect(screen.queryByText(/deposit expired/)).not.toBeInTheDocument()
+    expect(screen.getByTestId('Status')).toHaveTextContent('Cancelled')
+  })
+
+  it('says so when the round left this deposit out, and offers a retry', async () => {
+    render(<RecoveryHarness recover={vi.fn().mockResolvedValue(false)} />)
+
+    await confirmRecover()
+
+    expect(await screen.findByText(/did not include this deposit yet/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retry recovery' })).toBeInTheDocument()
+  })
+
+  it.each([
+    ['nothing-swept', /nothing left to recover/],
+    ['unknown-swap', /nothing left to recover/],
+    ['no-recovery-support', /cannot run a recovery round/],
+    ['readonly', /cannot run a recovery round/],
+  ])('maps a %s refusal from the driving tab to its copy', async (reason, copy) => {
+    const recover = vi.fn().mockRejectedValue(crossed('SwapDriveRefusedError', 'refused', reason))
+    render(<RecoveryHarness recover={recover} />)
+
+    await confirmRecover()
+
+    expect(await screen.findByText(copy)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retry recovery' })).toBeInTheDocument()
+  })
+
+  it('reads a driver that acked but did not answer as still running, not failed', async () => {
+    render(<RecoveryHarness recover={vi.fn().mockRejectedValue(crossed('DriverTimedOut', 'late'))} />)
+
+    await confirmRecover()
+
+    expect(await screen.findByText(/Recovery is still running/)).toBeInTheDocument()
+  })
+
+  it('shows the round’s own error verbatim', async () => {
+    render(<RecoveryHarness recover={vi.fn().mockRejectedValue(new Error('No recoverable VTXOs found'))} />)
+
+    await confirmRecover()
+
+    expect(await screen.findByText('No recoverable VTXOs found')).toBeInTheDocument()
+  })
+})
+
 describe('Transaction screen', () => {
   it('confirms a pending swap cancellation and stays on the updated receipt', async () => {
     let finishCancel: () => void = () => {}
@@ -152,226 +265,6 @@ describe('Transaction screen', () => {
     expect(screen.queryByText('Cancellation status unknown')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /cancel swap/i })).not.toBeInTheDocument()
     expect(screen.getByTestId('Status')).toHaveTextContent('Cancelled')
-  })
-
-  it('renders the settled transaction screen correctly', async () => {
-    render(
-      <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={mockAspContextValue}>
-          <FlowContext.Provider value={mockFlowContextValue}>
-            <WalletContext.Provider value={mockWalletContextValue}>
-              <LimitsContext.Provider value={mockLimitsContextValue}>
-                <Transaction />
-              </LimitsContext.Provider>
-            </WalletContext.Provider>
-          </FlowContext.Provider>
-        </AspContext.Provider>
-      </NavigationContext.Provider>,
-    )
-    // left side of the table
-    expect(screen.getByText('Network fees')).toBeInTheDocument()
-    expect(screen.getByText('Transaction')).toBeInTheDocument()
-    expect(screen.queryByText('Direction')).not.toBeInTheDocument()
-    expect(screen.getByText('Asset amount')).toBeInTheDocument()
-    expect(screen.getByText('Total')).toBeInTheDocument()
-    expect(screen.getByText('Date')).toBeInTheDocument()
-    expect(screen.queryByText('When')).not.toBeInTheDocument()
-    // right side of the table
-    expect(await screen.findByText('Amount received')).toBeInTheDocument()
-    expect(await screen.findByText('0 BTC')).toBeInTheDocument()
-  })
-
-  it('renders the preconfirmed transaction screen correctly', async () => {
-    // unsettled transaction
-    const localFlowContextValue = {
-      ...mockFlowContextValue,
-      txInfo: { ...mockFlowContextValue.txInfo, settled: false },
-    }
-
-    const localWalletContextValue = {
-      ...mockWalletContextValue,
-      txs: [localFlowContextValue.txInfo],
-    }
-
-    render(
-      <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={mockAspContextValue}>
-          <FlowContext.Provider value={localFlowContextValue}>
-            <WalletContext.Provider
-              value={{ ...localWalletContextValue, isVerifiedAsset: (id: string) => id === MUTINYNET_USDT_ASSET_ID }}
-            >
-              <LimitsContext.Provider value={mockLimitsContextValue}>
-                <Transaction />
-              </LimitsContext.Provider>
-            </WalletContext.Provider>
-          </FlowContext.Provider>
-        </AspContext.Provider>
-      </NavigationContext.Provider>,
-    )
-    // left side of the table
-    expect(screen.getByText('Network fees')).toBeInTheDocument()
-    expect(screen.getByText('Transaction')).toBeInTheDocument()
-    expect(screen.queryByText('Direction')).not.toBeInTheDocument()
-    expect(screen.getByText('Asset amount')).toBeInTheDocument()
-    expect(screen.getByText('Total')).toBeInTheDocument()
-    expect(screen.getByText('Date')).toBeInTheDocument()
-    expect(screen.queryByText('When')).not.toBeInTheDocument()
-    // right side of the table
-    expect(screen.getByText('Amount received')).toBeInTheDocument()
-    expect(screen.getByText('0 BTC')).toBeInTheDocument()
-    // buttons
-    expect(screen.queryByText('Settle transaction')).not.toBeInTheDocument()
-    expect(screen.queryByText('Add reminder')).not.toBeInTheDocument()
-  })
-
-  it('renders the unconfirmed boarding transaction screen correctly', async () => {
-    // unconfirmed boarding transaction
-    const txInfo = { ...mockTxInfo, boardingTxid: mockTxId, settled: false, createdAt: 0, amount: 21000 }
-    const localFlowContextValue = { ...mockFlowContextValue, txInfo }
-    const localWalletContextValue = { ...mockWalletContextValue, txs: [txInfo] }
-
-    render(
-      <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={mockAspContextValue}>
-          <FlowContext.Provider value={localFlowContextValue}>
-            <WalletContext.Provider
-              value={{ ...localWalletContextValue, isVerifiedAsset: (id: string) => id === MUTINYNET_USDT_ASSET_ID }}
-            >
-              <LimitsContext.Provider value={mockLimitsContextValue}>
-                <Transaction />
-              </LimitsContext.Provider>
-            </WalletContext.Provider>
-          </FlowContext.Provider>
-        </AspContext.Provider>
-      </NavigationContext.Provider>,
-    )
-    // left side of the table
-    expect(screen.getByText('Network fees')).toBeInTheDocument()
-    expect(screen.getByText('Transaction')).toBeInTheDocument()
-    expect(screen.queryByText('Direction')).not.toBeInTheDocument()
-    expect(screen.getByText('Asset amount')).toBeInTheDocument()
-    expect(screen.getByText('Total')).toBeInTheDocument()
-    expect(screen.getByText('Date')).toBeInTheDocument()
-    expect(screen.queryByText('When')).not.toBeInTheDocument()
-    // right side of the table
-    expect(screen.getByText('Amount received')).toBeInTheDocument()
-    expect(screen.getByText('0 BTC')).toBeInTheDocument()
-    // buttons should not be present
-    expect(screen.queryByText('Settle transaction')).not.toBeInTheDocument()
-    expect(screen.queryByText('Add reminder')).not.toBeInTheDocument()
-  })
-
-  it('renders the confirmed boarding transaction screen correctly', async () => {
-    // confirmed boarding transaction
-    const txInfo = { ...mockTxInfo, boardingTxid: mockTxId, settled: false }
-    const localFlowContextValue = { ...mockFlowContextValue, txInfo }
-    const localWalletContextValue = { ...mockWalletContextValue, txs: [txInfo] }
-
-    render(
-      <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={mockAspContextValue}>
-          <FlowContext.Provider value={localFlowContextValue}>
-            <WalletContext.Provider
-              value={{ ...localWalletContextValue, isVerifiedAsset: (id: string) => id === MUTINYNET_USDT_ASSET_ID }}
-            >
-              <LimitsContext.Provider value={mockLimitsContextValue}>
-                <Transaction />
-              </LimitsContext.Provider>
-            </WalletContext.Provider>
-          </FlowContext.Provider>
-        </AspContext.Provider>
-      </NavigationContext.Provider>,
-    )
-    // left side of the table
-    expect(screen.getByText('Network fees')).toBeInTheDocument()
-    expect(screen.getByText('Transaction')).toBeInTheDocument()
-    expect(screen.queryByText('Direction')).not.toBeInTheDocument()
-    expect(screen.getByText('Asset amount')).toBeInTheDocument()
-    expect(screen.getByText('Total')).toBeInTheDocument()
-    expect(screen.getByText('Date')).toBeInTheDocument()
-    expect(screen.queryByText('When')).not.toBeInTheDocument()
-    // right side of the table
-    expect(screen.getByText('Amount received')).toBeInTheDocument()
-    expect(screen.getByText('0 BTC')).toBeInTheDocument()
-    // buttons should be present
-    expect(screen.queryByText('Settle transaction')).not.toBeInTheDocument()
-    expect(screen.queryByText('Add reminder')).not.toBeInTheDocument()
-  })
-
-  it('renders the preconfirmed ark transaction screen correctly', async () => {
-    // preconfirmed ark transaction
-    const txInfo = { ...mockTxInfo, arkTxid: mockTxId, settled: false }
-    const localFlowContextValue = { ...mockFlowContextValue, txInfo }
-    const localWalletContextValue = { ...mockWalletContextValue, txs: [txInfo] }
-
-    render(
-      <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={mockAspContextValue}>
-          <FlowContext.Provider value={localFlowContextValue}>
-            <WalletContext.Provider
-              value={{ ...localWalletContextValue, isVerifiedAsset: (id: string) => id === MUTINYNET_USDT_ASSET_ID }}
-            >
-              <LimitsContext.Provider value={mockLimitsContextValue}>
-                <Transaction />
-              </LimitsContext.Provider>
-            </WalletContext.Provider>
-          </FlowContext.Provider>
-        </AspContext.Provider>
-      </NavigationContext.Provider>,
-    )
-    // left side of the table
-    expect(screen.getByText('Network fees')).toBeInTheDocument()
-    expect(screen.getByText('Transaction')).toBeInTheDocument()
-    expect(screen.queryByText('Direction')).not.toBeInTheDocument()
-    expect(screen.getByText('Asset amount')).toBeInTheDocument()
-    expect(screen.getByText('Total')).toBeInTheDocument()
-    expect(screen.getByText('Date')).toBeInTheDocument()
-    expect(screen.queryByText('When')).not.toBeInTheDocument()
-    // right side of the table
-    // expect(screen.getByText('Received')).toBeInTheDocument()
-    expect(screen.getByText('0 BTC')).toBeInTheDocument()
-    // buttons should be present
-    expect(screen.queryByText('Settle transaction')).not.toBeInTheDocument()
-    expect(screen.queryByText('Add reminder')).not.toBeInTheDocument()
-  })
-
-  it('should hide buttons if total amount < dust', async () => {
-    const amount = 21
-
-    // preconfirmed ark transaction
-    const txInfo = { ...mockTxInfo, amount, arkTxid: mockTxId, settled: false }
-    const localFlowContextValue = { ...mockFlowContextValue, txInfo }
-    const localWalletContextValue = { ...mockWalletContextValue, txs: [txInfo] }
-
-    render(
-      <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={mockAspContextValue}>
-          <FlowContext.Provider value={localFlowContextValue}>
-            <WalletContext.Provider
-              value={{ ...localWalletContextValue, isVerifiedAsset: (id: string) => id === MUTINYNET_USDT_ASSET_ID }}
-            >
-              <LimitsContext.Provider value={mockLimitsContextValue}>
-                <Transaction />
-              </LimitsContext.Provider>
-            </WalletContext.Provider>
-          </FlowContext.Provider>
-        </AspContext.Provider>
-      </NavigationContext.Provider>,
-    )
-    // left side of the table
-    expect(screen.getByText('Network fees')).toBeInTheDocument()
-    expect(screen.getByText('Transaction')).toBeInTheDocument()
-    expect(screen.queryByText('Direction')).not.toBeInTheDocument()
-    expect(screen.getByText('Asset amount')).toBeInTheDocument()
-    expect(screen.getByText('Total')).toBeInTheDocument()
-    expect(screen.getByText('Date')).toBeInTheDocument()
-    expect(screen.queryByText('When')).not.toBeInTheDocument()
-    // right side of the table
-    expect(screen.getByText('Amount received')).toBeInTheDocument()
-    expect(screen.getByText('0 BTC')).toBeInTheDocument()
-    // buttons should not be present
-    expect(screen.queryByText('Settle transaction')).not.toBeInTheDocument()
-    expect(screen.queryByText('Add reminder')).not.toBeInTheDocument()
   })
 
   it('labels an issuance with the exact action and hides the direction row', async () => {

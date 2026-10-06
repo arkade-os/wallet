@@ -61,6 +61,7 @@ import {
 import { hapticLight } from '../../../lib/haptics'
 import { testDomains } from '../../../lib/constants'
 import UnverifiedBadge from '../../../components/UnverifiedBadge'
+import { useTranslation } from '../../../providers/language'
 
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
 
@@ -150,6 +151,7 @@ export default function SendForm() {
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
   const { sendRouter } = useContext(SwapsContext)
+  const { t } = useTranslation()
   const {
     assetBalances,
     availableAssetBalances,
@@ -218,7 +220,13 @@ export default function SendForm() {
   const liquidBalance = liquidBtcBalance(availableBalance, reserveApplied, aspInfo.dust)
 
   const smartSetError = (str: string) => {
-    setError(str === '' ? (aspInfo.unreachable ? aspErrorText(aspInfo, 'Arkade server unreachable') : '') : str)
+    setError(
+      str === ''
+        ? aspInfo.unreachable
+          ? aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))
+          : ''
+        : str,
+    )
   }
 
   // Prefer display-currency entry when conversion is available; otherwise
@@ -276,7 +284,7 @@ export default function SendForm() {
     getReceivingAddresses(svcWallet)
       .then(({ boardingAddr, offchainAddr }) => {
         if (!boardingAddr || !offchainAddr) {
-          throw new Error('unable to get receiving addresses')
+          throw new Error(t('send.unableToGetReceivingAddresses'))
         }
         setReceivingAddresses({ boardingAddr, offchainAddr })
       })
@@ -344,7 +352,7 @@ export default function SendForm() {
       }
       if (isBip21(lowerCaseData)) {
         const { address, arkAddress, invoice, lnUrl, satoshis, assetId, assetAmount } = decodeBip21(recipient.trim())
-        if (!address && !arkAddress && !invoice && !lnUrl) return setRecipientError('Unable to parse bip21')
+        if (!address && !arkAddress && !invoice && !lnUrl) return setRecipientError(t('send.unableToParseBip21'))
         if (assetId) {
           let found = assetOptions.find((a) => a.assetId === assetId)
           if (!found) {
@@ -370,6 +378,7 @@ export default function SendForm() {
           }
           setSelectedAsset(found)
           const rawAmount = assetAmount ? unitsToCents(assetAmount, found.decimals) : BigInt(0)
+          if (assetAmount) setAmountTextValue(assetAmount)
           return setSendInfo((prev) => ({
             ...prev,
             address,
@@ -402,7 +411,7 @@ export default function SendForm() {
       }
       if (isLightningInvoice(lowerCaseData)) {
         if (isAssetSend) {
-          return setRecipientError('Assets can only be sent to Arkade addresses')
+          return setRecipientError(t('send.assetsOnlyToArkade'))
         }
         // Amount from the wallet's own decoder; expiry and chain are re-checked
         // by the RFQ client before any solver sees the invoice.
@@ -410,9 +419,9 @@ export default function SendForm() {
         try {
           satoshis = decodeInvoice(lowerCaseData).amountSats
         } catch {
-          return setRecipientError('Unable to decode invoice')
+          return setRecipientError(t('send.unableToDecodeInvoice'))
         }
-        if (!satoshis) return setRecipientError('Invoice must have amount defined')
+        if (!satoshis) return setRecipientError(t('send.invoiceMustHaveAmount'))
         setSendInfo((prev) => ({
           ...prev,
           ...noTarget,
@@ -429,7 +438,7 @@ export default function SendForm() {
       }
       if (isBTCAddress(recipient)) {
         if (isAssetSend) {
-          return setRecipientError('Assets can only be sent to Arkade addresses')
+          return setRecipientError(t('send.assetsOnlyToArkade'))
         }
         return setSendInfo((prev) => ({ ...prev, ...noTarget, address: recipient }))
       }
@@ -445,7 +454,7 @@ export default function SendForm() {
       if (isValidLnUrl(lowerCaseData)) {
         return setSendInfo((prev) => ({ ...prev, ...noTarget, lnUrl: lowerCaseData }))
       }
-      setRecipientError('Invalid recipient address')
+      setRecipientError(t('send.invalidRecipient'))
       setReadyToParse(false)
     }
     parseRecipient()
@@ -521,9 +530,9 @@ export default function SendForm() {
     const { satoshis } = sendInfo
     const { minSendable: min, maxSendable: max } = lnUrlResponse
     if (!min || !max) return
-    if (min > balance) return setError('Insufficient funds for LNURL')
-    if (satoshis && satoshis < min) return setError(`Amount below LNURL min limit`)
-    if (satoshis && satoshis > max) return setError(`Amount above LNURL max limit`)
+    if (min > balance) return setError(t('send.insufficientFundsForLnurl'))
+    if (satoshis && satoshis < min) return setError(t('send.amountBelowLnurlMin'))
+    if (satoshis && satoshis > max) return setError(t('send.amountAboveLnurlMax'))
     if (min === max) {
       setAmountIsReadOnly(true)
     } else {
@@ -545,7 +554,7 @@ export default function SendForm() {
       .resolve(sendInfo.lnUrl)
       .then((conditions) => {
         if (!live) return
-        if (!conditions) return lnurlFailed('Unable to fetch LNURL conditions')
+        if (!conditions) return lnurlFailed(t('send.unableToFetchLnurl'))
         const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
         const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
         // when the LNURL resolves to a fixed amount, set amountTextValue
@@ -561,7 +570,7 @@ export default function SendForm() {
         if (!live) return
         if (e instanceof LnurlError && e.httpStatus === 404) {
           consoleError(e, 'LNURL not found')
-          lnurlFailed('LNURL not found')
+          lnurlFailed(t('send.lnurlNotFound'))
           return
         }
         consoleError(e, 'Error checking LNURL conditions')
@@ -584,11 +593,11 @@ export default function SendForm() {
     const { address, arkAddress, invoice, lnUrl } = sendInfo
     // check server limits for onchain transactions
     if (address && !arkAddress && !invoice && !lnUrl && !utxoTxsAllowed()) {
-      return setRecipientError('Sending onchain not allowed')
+      return setRecipientError(t('send.sendingOnchainNotAllowed'))
     }
     // check server limits for offchain transactions
     if (!address && (arkAddress || invoice || lnUrl) && !vtxoTxsAllowed()) {
-      return setRecipientError('Sending offchain not allowed')
+      return setRecipientError(t('send.sendingOffchainNotAllowed'))
     }
     // check if server key is valid
     if (arkAddress && arkAddress.length > 0) {
@@ -596,7 +605,7 @@ export default function SendForm() {
       const { serverPubKey: expectedServerPubKey } = decodeArkAddress(offchainAddr)
       if (serverPubKey !== expectedServerPubKey) {
         // if there's no other way to pay, show error
-        if (!address && !invoice) return setRecipientError('Arkade server key mismatch')
+        if (!address && !invoice) return setRecipientError(t('send.arkadeServerKeyMismatch'))
         // remove ark address from possibilities to send and continue
         // we will try to pay to lightning or mainnet instead
         setSendInfo({ ...sendInfo, arkAddress: '' })
@@ -610,41 +619,41 @@ export default function SendForm() {
   useEffect(() => {
     if (isAssetSend && activeAsset) {
       const assetAmount = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
-      setLabel(assetAmount > activeAsset.balance ? 'Insufficient asset balance' : 'Continue')
+      setLabel(assetAmount > activeAsset.balance ? t('send.insufficientAssetBalance') : t('send.continue'))
       return
     }
     const satoshis = sendInfo.satoshis ?? 0
     setLabel(
       satoshis > liquidBalance
-        ? 'Insufficient funds'
+        ? t('send.insufficientFunds')
         : lnUrlResponse?.minSendable && satoshis < lnUrlResponse.minSendable
-          ? 'Amount below LNURL min limit'
+          ? t('send.amountBelowLnurlMin')
           : lnUrlResponse?.maxSendable && satoshis > lnUrlResponse.maxSendable
-            ? 'Amount above LNURL max limit'
+            ? t('send.amountAboveLnurlMax')
             : satoshis && satoshis < 1
-              ? 'Amount below 1 satoshi'
+              ? t('send.amountBelowOneSat')
               : amountIsAboveMaxLimit(satoshis)
-                ? 'Amount above max limit'
+                ? t('send.amountAboveMax')
                 : satoshis && amountIsBelowMinLimit(satoshis)
-                  ? 'Amount below min limit'
-                  : 'Continue',
+                  ? t('send.amountBelowMin')
+                  : t('send.continue'),
     )
   }, [sendInfo.satoshis, sendInfo.assets, sendInfo.account, liquidBalance, activeAsset, lnUrlResponse])
 
   // manage server unreachable error
   useEffect(() => {
-    const errTxt = aspErrorText(aspInfo, 'Arkade server unreachable')
+    const errTxt = aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))
     if (!aspInfo.unreachable) {
       // Server reachable again: clear either unavailable variant we may have
       // shown (generic unreachable or the outdated-client message) without
       // clobbering unrelated errors.
-      const outdatedTxt = aspErrorText({ ...aspInfo, outdated: true }, errTxt)
+      const outdatedTxt = aspErrorText({ ...aspInfo, outdated: true }, errTxt, t('errors.outdatedWallet'))
       setError((prev) => (prev === errTxt || prev === outdatedTxt ? '' : prev))
       return
     }
     setError(errTxt)
-    setLabel('Server unreachable')
-  }, [aspInfo.unreachable, aspInfo.outdated])
+    setLabel(t('send.serverUnreachable'))
+  }, [aspInfo.unreachable, aspInfo.outdated, t])
 
   // proceed to next step
   useEffect(() => {
@@ -690,7 +699,7 @@ export default function SendForm() {
     }
   }, [liquidBalance, sendInfo.satoshis, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.lnUrl])
 
-  if (!svcWallet) return <LoadingLogo text='Loading...' />
+  if (!svcWallet) return <LoadingLogo text={t('common.loading')} />
 
   const handleError = (err: any) => {
     consoleError(err, 'error sending payment')
@@ -730,7 +739,7 @@ export default function SendForm() {
       }
     } else {
       const num = Number(value)
-      if (Number.isNaN(num) || !Number.isFinite(num)) return setError('Invalid amount')
+      if (Number.isNaN(num) || !Number.isFinite(num)) return setError(t('send.invalidAmount'))
       const sats = fiatEntry ? fromFiat(num) : config.unit === Unit.BTC ? toSatoshis(num) : Math.floor(num)
       setSendInfo({ ...sendInfo, satoshis: sats })
     }
@@ -754,7 +763,7 @@ export default function SendForm() {
     setSelectedAsset(asset)
     if (asset) {
       if (isBTCAddress(recipient)) {
-        return setError('Assets can only be sent to Arkade addresses')
+        return setError(t('send.assetsOnlyToArkade'))
       }
       setSendInfo({
         ...sendInfo,
@@ -796,7 +805,7 @@ export default function SendForm() {
           const arkResponse = await fetchArkAddress(sendInfo.lnUrl)
           if (stale()) return setProcessing(false)
           if (!isValidArkAddress(arkResponse.address)) {
-            handleError('Invalid Arkade address received from LNURL')
+            handleError(t('send.invalidArkadeAddressFromLnurl'))
             return
           }
           setSendInfo((prev) => ({
@@ -807,7 +816,7 @@ export default function SendForm() {
           }))
         } else {
           // The client refuses an invoice for any other amount before a solver is asked.
-          if (satoshis < 1) return handleError('Amount too low')
+          if (satoshis < 1) return handleError(t('send.amountTooLow'))
           const pendingLnSend = await quoteLnurl(
             await sendRouter({ swapsOptional: true }),
             sendInfo.lnUrl,
@@ -873,7 +882,9 @@ export default function SendForm() {
       return (
         <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
           <Text color='neutral-500' smaller>
-            {`${prettyAssetAmount(activeAsset.balance, activeAsset.decimals)} ${activeAsset.ticker} available`}
+            {t('send.available', {
+              amount: `${prettyAssetAmount(activeAsset.balance, activeAsset.decimals)} ${activeAsset.ticker}`,
+            })}
           </Text>
         </div>
       )
@@ -885,7 +896,7 @@ export default function SendForm() {
 
     const label = (
       <Text color='neutral-500' smaller>
-        {`${amount} available`}
+        {t('send.available', { amount })}
       </Text>
     )
     if (amountIsReadOnly) return label
@@ -945,10 +956,12 @@ export default function SendForm() {
   // balance column on narrow screens
   const assetLabelFor = (asset: AssetOption) =>
     verifiedDesignatedCurrency(aspInfo.network, asset.assetId, isVerifiedAsset) ?? asset.ticker
-  const selectedAssetLabel = activeAsset ? assetLabelFor(activeAsset) : 'Bitcoin'
+  const selectedAssetLabel = activeAsset ? assetLabelFor(activeAsset) : t('send.bitcoin')
   const selectedAssetBalance = activeAsset
-    ? `${prettyAssetAmount(activeAsset.balance, activeAsset.decimals)} ${activeAsset.ticker} available`
-    : `${prettyUnitBalance(liquidBalance)} available`
+    ? t('send.available', {
+        amount: `${prettyAssetAmount(activeAsset.balance, activeAsset.decimals)} ${activeAsset.ticker}`,
+      })
+    : t('send.available', { amount: prettyUnitBalance(liquidBalance) })
 
   const overlayOpen = scan || (keys && !amountIsReadOnly)
   const sendOverlayStyle = { ...overlayStyle, position: 'fixed' as const, zIndex: 20 }
@@ -989,7 +1002,7 @@ export default function SendForm() {
     const scanner = (
       <Scanner
         close={() => setScan(false)}
-        label='Recipient address'
+        label={t('send.recipientAddress')}
         onData={(data) => {
           setRecipient(data)
           setRawScanData(data)
@@ -1024,7 +1037,7 @@ export default function SendForm() {
         className='send-form'
         style={{ display: 'flex', flexDirection: 'column', height: '100%' }}
       >
-        <Header text='Send' back />
+        <Header text={t('send.title')} back />
         <Content>
           <Padded>
             <FlexCol gap='1.25rem' className='send-form-stack'>
@@ -1033,7 +1046,7 @@ export default function SendForm() {
                 disabled={processing}
                 error={recipientError}
                 focus={focus === 'recipient'}
-                label='Recipient address'
+                label={t('send.recipientAddress')}
                 name='send-address'
                 onChange={handleRecipientChange}
                 onEnter={handleEnter}
@@ -1045,7 +1058,7 @@ export default function SendForm() {
               />
               {brantaLoading ? (
                 <Text color='neutral-500' smaller>
-                  Verifying address...
+                  {t('send.verifyingAddress')}
                 </Text>
               ) : null}
               {brantaPayment
@@ -1061,7 +1074,7 @@ export default function SendForm() {
                               </Text>
                             ) : null}
                             <Text smaller color='neutral-500'>
-                              Verified by Branta
+                              {t('send.verifiedByBranta')}
                             </Text>
                           </FlexCol>
                           {(() => {
@@ -1095,7 +1108,7 @@ export default function SendForm() {
               {verifiedAssetOptions.length > 0 || selectedAsset ? (
                 <FlexCol gap='0.5rem' className='send-asset-field'>
                   <Text smaller color='neutral-500'>
-                    Asset
+                    {t('send.asset')}
                   </Text>
                   <DropdownMenu
                     open={showAssetSelector}
@@ -1131,7 +1144,7 @@ export default function SendForm() {
                             <span className='send-asset-option__main'>
                               <AssetIcon asset={null} />
                               <span>
-                                <span className='send-asset-option__name'>Bitcoin</span>
+                                <span className='send-asset-option__name'>{t('send.bitcoin')}</span>
                               </span>
                             </span>
                             <span className='send-asset-option__amount'>{prettyUnitBalance(liquidBalance)}</span>
@@ -1168,7 +1181,7 @@ export default function SendForm() {
               ) : null}
               <FlexCol gap='0.5rem'>
                 <InputAmount
-                  label='Amount'
+                  label={t('common.amount')}
                   name='send-amount'
                   valueSats={valueSats}
                   right={<Available />}
@@ -1187,7 +1200,7 @@ export default function SendForm() {
                   focus={focus === 'amount' && !isMobileBrowser}
                 />
               </FlexCol>
-              {deductFromAmount ? <InfoLine color='orange' text='Fees will be deducted from the amount sent' /> : null}
+              {deductFromAmount ? <InfoLine color='orange' text={t('send.feesDeductedFromAmount')} /> : null}
             </FlexCol>
           </Padded>
         </Content>
@@ -1197,13 +1210,13 @@ export default function SendForm() {
       </div>
       <SheetModal isOpen={showReserveModal} onClose={() => setShowReserveModal(false)}>
         <FlexCol gap='1rem'>
-          <Text bold>Balance reserve</Text>
+          <Text bold>{t('send.balanceReserve')}</Text>
           <Text color='neutral-500' small wrap>
-            {`${aspInfo.dust} sats are kept in reserve to protect your assets. Your max sendable amount is ${prettyNumber(liquidBalance)} sats.`}
+            {t('send.balanceReserveText', { dust: aspInfo.dust.toString(), max: prettyNumber(liquidBalance) })}
           </Text>
           <FlexCol gap='0.5rem'>
-            <Button onClick={confirmSendAll} label='Send max' />
-            <Button onClick={() => setShowReserveModal(false)} label='Cancel' secondary />
+            <Button onClick={confirmSendAll} label={t('send.sendMax')} />
+            <Button onClick={() => setShowReserveModal(false)} label={t('common.cancel')} secondary />
           </FlexCol>
         </FlexCol>
       </SheetModal>

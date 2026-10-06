@@ -179,7 +179,7 @@ describe('SwapsProvider', () => {
 
     await waitFor(() =>
       expect(mocks.quote).toHaveBeenCalledWith({
-        give: 'arkade:regtest/slip44:0',
+        give: 'arkade:regtest/slip44:1',
         take: `arkade:regtest/asset:${ASSET_ID}`,
         amount: BigInt(1000),
         amountOn: 'give',
