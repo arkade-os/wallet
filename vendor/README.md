@@ -1,8 +1,8 @@
 # vendor
 
-`arkade-os-lnurl-client-0.4.4.tgz` is `@arkade-os/lnurl-client` packed from
+`arkade-os-lnurl-client-0.4.5.tgz` is `@arkade-os/lnurl-client` packed from
 [ArkLabsHQ/lnurl-server](https://github.com/ArkLabsHQ/lnurl-server) `packages/client` at commit
-`9c3428b`. It is vendored because the package is not on npm yet.
+`242237a` (merged to `main` in `aef56c9`). It is vendored because the package is not on npm yet.
 
 ## Refresh
 
