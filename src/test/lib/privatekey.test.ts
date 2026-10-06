@@ -52,17 +52,7 @@ describe('privatekey utilities', () => {
     })
 
     it('should throw on invalid private key', () => {
-      expect(() => privateKeyToNsec(Uint8Array.from([1]))).toThrow('Invalid private key')
-    })
-  })
-
-  describe('privateKeyToNpub', () => {
-    it('should return npub from private key', () => {
-      expect(privateKeyToNpub(hex.decode(hexs))).toEqual(npub)
-    })
-
-    it('should throw on invalid private key', () => {
-      expect(() => privateKeyToNpub(Uint8Array.from([1]))).toThrow('Invalid private key')
+      expect(() => privateKeyToNsec(Uint8Array.from([1]))).toThrow('restore.invalidPrivateKey')
     })
   })
 

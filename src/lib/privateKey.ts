@@ -19,11 +19,6 @@ export const privateKeyToNsec = (privateKey: Uint8Array): string => {
   return nip19.nsecEncode(privateKey)
 }
 
-export const privateKeyToNpub = (privateKey: Uint8Array): string => {
-  if (invalidPrivateKey(privateKey)) throw 'Invalid private key'
-  return nip19.npubEncode(getPublicKey(privateKey))
-}
-
 export const getPrivateKey = async (password: string): Promise<Uint8Array> => {
   const encryptedPrivateKey = getEncryptedPrivateKey()
   if (!encryptedPrivateKey) throw new Error('No encrypted private key found')
