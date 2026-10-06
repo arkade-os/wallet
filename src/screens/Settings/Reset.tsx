@@ -6,6 +6,7 @@ import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import Header from './Header'
 import Text, { TextSecondary } from '../../components/Text'
+import WarningBox from '../../components/Warning'
 import Checkbox from '../../components/Checkbox'
 import { consoleError } from '../../lib/logs'
 import { WalletAlternativeIcon } from '../../icons/Wallet'
@@ -44,6 +45,7 @@ export default function Reset() {
             <WalletAlternativeIcon />
             <Text>{t('settings.didYouBackup')}</Text>
             <TextSecondary>{t('settings.cannotUndo')}</TextSecondary>
+            <WarningBox text={t('settings.paymentResetWarning')} />
           </CenterScreen>
         </Padded>
       </Content>

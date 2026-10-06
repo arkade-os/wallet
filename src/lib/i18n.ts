@@ -154,6 +154,8 @@ export const translations = {
       resetWallet: 'Reset wallet',
       didYouBackup: 'Did you backup your wallet?',
       cannotUndo: 'This operation cannot be undone.',
+      paymentResetWarning:
+        'Resetting deletes recovery records without cancelling signed Taxi payments. Pending payments may still complete. Restoring this wallet and sending again can pay twice. Check pending payments before continuing.',
       iHaveBackedUp: 'I have backed up my wallet',
       passwordChangedToBiometrics: 'Password changed to biometrics',
       passwordRemoved: 'Password removed',
@@ -1007,6 +1009,8 @@ export const translations = {
       resetWallet: 'Restablecer wallet',
       didYouBackup: '¿Has hecho un respaldo de tu wallet?',
       cannotUndo: 'Esta operación no se puede deshacer.',
+      paymentResetWarning:
+        'Restablecer borra los registros de recuperación sin cancelar los pagos Taxi firmados. Los pagos pendientes aún pueden completarse. Restaurar esta wallet y volver a enviar puede pagar dos veces. Comprueba los pagos pendientes antes de continuar.',
       iHaveBackedUp: 'He hecho un respaldo de mi wallet',
       passwordChangedToBiometrics: 'Contraseña cambiada a datos biométricos',
       passwordRemoved: 'Contraseña eliminada',
