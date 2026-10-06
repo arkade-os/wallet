@@ -26,7 +26,7 @@ export default function InputNsec({ value, cursor, error, helperText, onChange, 
       inputRef.current?.setSelectionRange(pendingCursor.current, pendingCursor.current)
       pendingCursor.current = null
     }
-  }, [value])
+  }, [value, cursor])
 
   return (
     <div className='flex w-full flex-col gap-2'>
@@ -45,6 +45,7 @@ export default function InputNsec({ value, cursor, error, helperText, onChange, 
             const suffix = value.slice(token.end)
             const separator = /^\s/.test(suffix) ? '' : ' '
             const completed = value.slice(0, token.start) + next + separator + suffix
+            // Advance over the inserted or existing space to the next word.
             const nextCursor = token.start + next.length + 1
             pendingCursor.current = nextCursor
             hapticLight()
