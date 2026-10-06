@@ -58,10 +58,11 @@ export default function InitRestore() {
   const [rotationChoice, setRotationChoice] = useState<RotationChoice>('Inherit')
 
   useEffect(() => {
+    setMnemonic(undefined)
+    setPrivateKey(undefined)
+
     const trimmed = someKey?.trim() ?? ''
     if (!trimmed) {
-      setMnemonic(undefined)
-      setPrivateKey(undefined)
       setLabel(buttonLabel)
       setError('')
       return
@@ -73,40 +74,35 @@ export default function InitRestore() {
       setMnemonic(isValid ? trimmed : undefined)
       setLabel(isValid ? buttonLabel : t('init.invalidRecoveryPhrase'))
       setError(isValid ? '' : t('init.invalidRecoveryPhrase'))
-      setPrivateKey(undefined)
       return
     }
 
     // Detect nsec (input starts with 'nsec' and is 63 characters long)
     if (trimmed.match(/^nsec/) && trimmed.length > 60) {
-      setMnemonic(undefined)
       if (trimmed.length !== 63) {
-        setPrivateKey(undefined)
         setLabel(t('init.unableToValidateKey'))
         setError(t('restore.invalidLengthNsec'))
         return
       }
       try {
-        const pk = nsecToPrivateKey(trimmed)
-        setPrivateKey(pk)
+        const privateKey = nsecToPrivateKey(trimmed)
+        setPrivateKey(privateKey)
         setLabel(buttonLabel)
         setError('')
-        return
       } catch (err) {
         setPrivateKey(undefined)
         setLabel(t('init.unableToValidateKey'))
         setError(t(extractError(err)))
-        return
       }
+      return
     }
 
     // Otherwise try hex private key
     if (trimmed.match(/^[0-9a-fA-F]{64}$/) && trimmed.length === 64) {
-      setMnemonic(undefined)
       try {
-        const pk = hex.decode(trimmed)
-        const invalid = invalidPrivateKey(pk)
-        setPrivateKey(invalid ? undefined : pk)
+        const privateKey = hex.decode(trimmed)
+        const invalid = invalidPrivateKey(privateKey)
+        setPrivateKey(invalid ? undefined : privateKey)
         setLabel(invalid ? t(invalid) : buttonLabel)
         setError(invalid ? t(invalid) : '')
       } catch (err) {
@@ -114,7 +110,6 @@ export default function InitRestore() {
         setError(t(extractError(err)))
       }
     }
-    return
   }, [someKey, buttonLabel])
 
   const handleCancel = () => navigate(Pages.Init)
