@@ -59,7 +59,6 @@ import {
 } from '../lib/constants'
 import { AssetIconApprovalManager } from '../lib/assetIconApproval'
 import { BackupContext } from './backup'
-import { restoreImportedWallet } from '../lib/importRestore'
 import { getAssetSwaps } from '@arkade-os/swap/protocol'
 import { useTranslation } from '../providers/language'
 
@@ -714,10 +713,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         }),
       )
 
+      // Before `setSvcWallet`: the swap client is built only once the wallet is
+      // set, and its construction restore rebuilds swaps from the history this
+      // fills in. Swaps are not restored here — that is the client's job.
       if (restoring) {
         setLoadingStatus(t('loading.recoveringAddresses'))
         try {
-          await restoreImportedWallet(svcWallet)
+          await svcWallet.restore()
         } catch (err) {
           consoleError(err, 'Error scanning for rotated addresses on restore')
         }
