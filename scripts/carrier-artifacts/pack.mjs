@@ -217,7 +217,7 @@ try {
     join(outDir, 'manifest.json'),
     `${JSON.stringify(
       {
-        note: 'Frozen candidate packages, built from source and never published to any registry. These digests are of THIS bundle: repacking @arkade-os/sdk from the same commit emits different declaration-chunk names, though no runtime module differs, so a re-pack is a deliberate re-freeze — run scripts/carrier-artifacts/pack.mjs, then pnpm install, then scripts/carrier-artifacts/verify.mjs.',
+        note: 'Frozen candidate packages, built from source and never published to any registry. These digests are of THIS bundle: repacking @arkade-os/sdk from the same commit emits different declaration-chunk names, though no runtime module differs, so a re-pack is a deliberate re-freeze — run node scripts/carrier-artifacts/pack.mjs, then node scripts/carrier-artifacts/verify.mjs, then pnpm install, then node scripts/carrier-artifacts/verify.mjs --installed.',
         packedAtUtc: new Date().toISOString(),
         artifacts,
       },
