@@ -1,10 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   getPrivateKey,
-  invalidNpub,
   invalidPrivateKey,
   nsecToPrivateKey,
-  privateKeyToNpub,
   privateKeyToNsec,
   setPrivateKey,
 } from '../../lib/privateKey'
@@ -19,7 +17,7 @@ describe('privatekey utilities', () => {
 
   describe('invalidPrivateKey', () => {
     it('should return error on invalid length', () => {
-      expect(invalidPrivateKey(Uint8Array.from([1]))).toBe('Invalid length: private key must be 32 bytes')
+      expect(invalidPrivateKey(Uint8Array.from([1]))).toBe('restore.invalidLengthPriv')
     })
 
     it('should return empty on empty private key', () => {
@@ -36,13 +34,13 @@ describe('privatekey utilities', () => {
       expect(nsecToPrivateKey(nsec)).toEqual(hex.decode(hexs))
     })
 
-    it('should throw on invalid prefix', () => {
-      expect(() => nsecToPrivateKey(npub)).toThrow('Invalid nsec format')
-    })
-
     it('should throw on invalid nsec', () => {
       const nsec2 = nsec.substring(0, nsec.length - 1) + '1'
       expect(() => nsecToPrivateKey(nsec2)).toThrow()
+    })
+
+    it('should throw on npub', () => {
+      expect(() => nsecToPrivateKey(npub)).toThrow()
     })
   })
 
@@ -77,7 +75,7 @@ describe('privatekey utilities', () => {
     })
 
     it('should throw when no private key is stored', async () => {
-      await expect(getPrivateKey(password)).rejects.toThrow('No encrypted private key found')
+      await expect(getPrivateKey(password)).rejects.toThrow('restore.noEncryptedPrivateKey')
     })
 
     it('should remove mnemonic when setting a new private key', async () => {

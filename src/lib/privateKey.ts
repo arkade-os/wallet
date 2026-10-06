@@ -1,4 +1,4 @@
-import { getPublicKey, nip19 } from 'nostr-tools'
+import { nip19 } from 'nostr-tools'
 import { defaultPassword } from './constants'
 import { MNEMONIC_STORAGE_KEY, NSEC_STORAGE_KEY } from './storageKeys'
 
@@ -10,18 +10,18 @@ export const invalidPrivateKey = (key: Uint8Array): string => {
 
 export const nsecToPrivateKey = (nsec: string): Uint8Array => {
   const { type, data } = nip19.decode(nsec)
-  if (type !== 'nsec') throw 'Invalid nsec format'
+  if (type !== 'nsec') throw 'restore.invalidFormatNsec'
   return data
 }
 
 export const privateKeyToNsec = (privateKey: Uint8Array): string => {
-  if (invalidPrivateKey(privateKey)) throw 'Invalid private key'
+  if (invalidPrivateKey(privateKey)) throw 'restore.invalidPrivateKey'
   return nip19.nsecEncode(privateKey)
 }
 
 export const getPrivateKey = async (password: string): Promise<Uint8Array> => {
   const encryptedPrivateKey = getEncryptedPrivateKey()
-  if (!encryptedPrivateKey) throw new Error('No encrypted private key found')
+  if (!encryptedPrivateKey) throw new Error('restore.noEncryptedPrivateKey')
   return decryptPrivateKey(encryptedPrivateKey, password)
 }
 
@@ -32,7 +32,7 @@ export const setPrivateKey = async (privateKey: Uint8Array, password: string): P
     localStorage.removeItem(MNEMONIC_STORAGE_KEY)
   } catch (error) {
     console.error('Failed to encrypt and store private key:', error)
-    throw new Error('Failed to set private key')
+    throw new Error('restore.failedToStoreEncryptedPrivateKey')
   }
 }
 
@@ -59,7 +59,7 @@ const storeEncryptedPrivateKey = (encryptedPrivateKey: string): void => {
     localStorage.setItem(NSEC_STORAGE_KEY, encryptedPrivateKey)
   } catch (error) {
     console.error('Failed to store encrypted private key:', error)
-    throw new Error('Failed to store encrypted private key')
+    throw new Error('restore.failedToStoreEncryptedPrivateKey')
   }
 }
 

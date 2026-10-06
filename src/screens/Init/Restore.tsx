@@ -67,36 +67,54 @@ export default function InitRestore() {
       return
     }
 
-    // Detect mnemonic (input contains spaces)
-    if (trimmed.includes(' ')) {
-      if (validateMnemonic(trimmed, wordlist)) {
-        setMnemonic(trimmed)
-        setPrivateKey(undefined)
-        setLabel(buttonLabel)
-        setError('')
-      } else {
-        setMnemonic(undefined)
-        setPrivateKey(undefined)
-        setLabel(t('init.invalidRecoveryPhrase'))
-        setError(t('init.invalidRecoveryPhrase'))
-      }
+    // Detect mnemonic (input contains 12 words separated by spaces)
+    if (trimmed.includes(' ') && trimmed.split(' ').length === 12) {
+      const isValid = validateMnemonic(trimmed, wordlist)
+      setMnemonic(isValid ? trimmed : undefined)
+      setLabel(isValid ? buttonLabel : t('init.invalidRecoveryPhrase'))
+      setError(isValid ? '' : t('init.invalidRecoveryPhrase'))
+      setPrivateKey(undefined)
       return
     }
 
-    // Otherwise try nsec/hex private key
-    setMnemonic(undefined)
-    let pk = undefined
-    try {
-      if (trimmed.match(/^nsec/)) pk = nsecToPrivateKey(trimmed)
-      else pk = hex.decode(trimmed)
-      const invalid = invalidPrivateKey(pk)
-      setLabel(invalid ? t('init.unableToValidatePrivateKey') : buttonLabel)
-      setError(invalid)
-    } catch (err) {
-      setLabel(t('init.unableToValidateKey'))
-      setError(extractError(err))
+    // Detect nsec (input starts with 'nsec' and is 63 characters long)
+    if (trimmed.match(/^nsec/) && trimmed.length > 60) {
+      setMnemonic(undefined)
+      if (trimmed.length !== 63) {
+        setPrivateKey(undefined)
+        setLabel(t('init.unableToValidateKey'))
+        setError(t('restore.invalidLengthNsec'))
+        return
+      }
+      try {
+        const pk = nsecToPrivateKey(trimmed)
+        setPrivateKey(pk)
+        setLabel(buttonLabel)
+        setError('')
+        return
+      } catch (err) {
+        setPrivateKey(undefined)
+        setLabel(t('init.unableToValidateKey'))
+        setError(t(extractError(err)))
+        return
+      }
     }
-    setPrivateKey(pk)
+
+    // Otherwise try hex private key
+    if (trimmed.match(/^[0-9a-fA-F]{64}$/) && trimmed.length === 64) {
+      setMnemonic(undefined)
+      try {
+        const pk = hex.decode(trimmed)
+        const invalid = invalidPrivateKey(pk)
+        setPrivateKey(invalid ? undefined : pk)
+        setLabel(invalid ? t(invalid) : buttonLabel)
+        setError(invalid ? t(invalid) : '')
+      } catch (err) {
+        setLabel(t('init.unableToValidateKey'))
+        setError(t(extractError(err)))
+      }
+    }
+    return
   }, [someKey, buttonLabel])
 
   const handleCancel = () => navigate(Pages.Init)

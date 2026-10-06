@@ -799,6 +799,14 @@ export const translations = {
       second: 'second',
       seconds: 'seconds',
     },
+    restore: {
+      invalidPrivateKey: 'Invalid private key',
+      invalidFormatNsec: 'Unable to validate nsec format',
+      noEncryptedPrivateKey: 'No encrypted private key found',
+      invalidLengthNsec: 'Invalid length: nsec must be 63 characters',
+      invalidLengthPrivateKey: 'Invalid length: private key must be 32 bytes',
+      failedToStoreEncryptedPrivateKey: 'Failed to store encrypted private key',
+    },
   },
   es: {
     table: {
@@ -1599,6 +1607,14 @@ export const translations = {
       minutes: 'minutos',
       second: 'segundo',
       seconds: 'segundos',
+    },
+    restore: {
+      invalidPrivateKey: 'Clave privada no válida',
+      invalidFormatNsec: 'No se pudo validar el formato de nsec',
+      noEncryptedPrivateKey: 'No se encontró ninguna clave privada cifrada',
+      invalidLengthNsec: 'Longitud no válida: la clave nsec debe tener 63 caracteres',
+      invalidLengthPrivateKey: 'Longitud no válida: la clave privada debe tener 32 bytes',
+      failedToStoreEncryptedPrivateKey: 'No se pudo almacenar la clave privada cifrada',
     },
   },
 } as const
