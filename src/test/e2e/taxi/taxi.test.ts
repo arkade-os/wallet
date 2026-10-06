@@ -20,7 +20,7 @@ import {
   type Advance,
 } from './helpers'
 
-test('Exact sub-dust bitcoin repays Taxi and preserves every participant balance', async ({ browser }, testInfo) => {
+test('Sub-dust approval, claim and live Taxi receipts', async ({ browser }, testInfo) => {
   const contexts = await Promise.all(
     [0, 1].map(() =>
       browser.newContext({
@@ -56,15 +56,32 @@ test('Exact sub-dust bitcoin repays Taxi and preserves every participant balance
     const [transfer] = await fresh(known)
     expect(await fresh(known)).toHaveLength(1)
     expect(transfer).toMatchObject({ kind: 'covenant', topup: '230' })
-    await claim(bob, 'Your 1,000 sats coin merges with the delivery and comes back as 1,100 sats.')
-    await expect.poll(async () => (await status(transfer.id)).state, { timeout: 60_000 }).toBe('recycled')
-    await expect
-      .poll(() => ledger(parties), { timeout: 60_000 })
-      .toEqual({
-        alice: shift(before.alice, -100n),
-        bob: shift(before.bob, 100n),
-        taxi: before.taxi,
+    await test.step('The sender sees a pending delivery receipt', async () => {
+      await navigateHome(alice.page)
+      await alice.page.getByTestId('activity-view-all').click()
+      const receipt = alice.page.getByTestId('tx-row').filter({
+        has: alice.page.locator('.activity-row__meta', { hasText: /^Awaiting claim · / }),
       })
+      await expect(receipt).toHaveCount(1)
+      await receipt.click()
+      await expect(alice.page.getByTestId('Transfer ID')).toContainText(transfer.id.slice(0, 11))
+      await expect(alice.page.getByTestId('Delivery')).toHaveText('Awaiting claim')
+    })
+    await bob.page.bringToFront()
+    await claim(bob, 'Your 1,000 sats coin merges with the delivery and comes back as 1,100 sats.')
+    await alice.page.bringToFront()
+    await test.step('The open sender receipt updates when the delivery is claimed', async () => {
+      await expect
+        .poll(
+          async () => ({
+            state: (await status(transfer.id)).state,
+            delivery: await alice.page.getByTestId('Delivery').innerText(),
+          }),
+          { timeout: 60_000 },
+        )
+        .toEqual({ state: 'recycled', delivery: 'Claimed' })
+      await expect(alice.page.getByTestId('Carrier sats')).toHaveText('Borrowed 230 sats')
+    })
     await navigateHome(bob.page)
     await bob.page.getByTestId('activity-view-all').click()
     const row = bob.page
@@ -158,13 +175,26 @@ for (const queuedOnly of [true, false]) {
               dave: shift(before.dave, 330n, 1n),
               taxi: shift(before.taxi, -330n, 1n),
             })
+            await navigateHome(dave.page)
+            await dave.page.getByTestId('activity-view-all').click()
+            await dave.page
+              .getByTestId('tx-row')
+              .filter({
+                has: dave.page.locator('.activity-row__meta', { hasText: /^Claimed · / }),
+              })
+              .click()
+            await expect(dave.page.getByTestId('Transfer ID')).toContainText(transfer.id.slice(0, 11))
+            await expect(dave.page.getByTestId('Carrier sats purchased')).toHaveText('330 sats')
+            await expect(dave.page.getByTestId('Delivery')).toHaveText('Claimed')
           })
           await test.step('Sponsored assets arrive directly with their carrier and no claim', async () => {
             const before = await ledger(parties, assetId)
             const known = await advances()
             await send(alice, request(dave.address, 'sender'), '1', 'Sender sponsors carrier')
             await pay(alice)
-            expect(await fresh(known)).toMatchObject([{ kind: 'sponsored', state: 'locked' }])
+            const transfers = await fresh(known)
+            expect(transfers).toMatchObject([{ kind: 'sponsored', state: 'locked' }])
+            const [transfer] = transfers
             await conserved({
               ...before,
               alice: shift(before.alice, 0n, -2n),
@@ -172,6 +202,17 @@ for (const queuedOnly of [true, false]) {
               taxi: shift(before.taxi, -330n, 1n),
             })
             await expect(dave.page.getByText('Claim your Taxi delivery', { exact: true })).not.toBeVisible()
+            await navigateHome(alice.page)
+            await alice.page.getByTestId('activity-view-all').click()
+            await alice.page
+              .getByTestId('tx-row')
+              .filter({
+                has: alice.page.locator('.activity-row__meta', { hasText: /^Completed · / }),
+              })
+              .click()
+            await expect(alice.page.getByTestId('Transfer ID')).toContainText(transfer.id.slice(0, 11))
+            await expect(alice.page.getByTestId('Carrier sats purchased')).toHaveText('330 sats')
+            await expect(alice.page.getByTestId('Delivery')).toHaveText('Completed')
           })
           await test.step('A paused service creates no payment and changes no balances', async () => {
             const before = await ledger(parties, assetId)

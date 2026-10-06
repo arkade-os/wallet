@@ -1,18 +1,18 @@
 {
   "note": "Frozen candidate packages, built from source and never published to any registry. These digests are of THIS bundle: repacking @arkade-os/sdk from the same commit emits different declaration-chunk names, though no runtime module differs, so a re-pack is a deliberate re-freeze — run scripts/carrier-artifacts/pack.mjs, then pnpm install, then scripts/carrier-artifacts/verify.mjs.",
-  "packedAtUtc": "2026-10-06T02:18:18.778Z",
+  "packedAtUtc": "2026-10-06T06:01:54.762Z",
   "artifacts": [
     {
-      "file": "arkade-os-sdk-0.4.78-421b7c84.tgz",
+      "file": "arkade-os-sdk-0.4.78-4f66c13f.tgz",
       "package": "@arkade-os/sdk",
       "version": "0.4.78",
       "license": "MIT",
       "licenseFrom": "the package manifest",
-      "sha256": "1b042dc3fbb42372c1661d18df5f1c62902bfe4631a3e4bee0ee82038c6f6fb9",
-      "bytes": 2770497,
+      "sha256": "b2019bc9a7e67f136a2114f3ac23deb908b0fd42b25ce36763cc35e9d1ed2f54",
+      "bytes": 2771724,
       "source": {
         "repository": "https://github.com/arkade-os/ts-sdk.git",
-        "commit": "421b7c846ab3ebd7e05b9f7a78c8f0e2a44245a0",
+        "commit": "4f66c13f5b51281951e9be739d4e6f7423ca6a9d",
         "directory": "packages/ts-sdk"
       },
       "toolchain": {
@@ -24,16 +24,16 @@
       }
     },
     {
-      "file": "arkade-os-swap-0.0.24-421b7c84.tgz",
+      "file": "arkade-os-swap-0.0.24-4f66c13f.tgz",
       "package": "@arkade-os/swap",
       "version": "0.0.24",
       "license": "MIT",
       "licenseFrom": "the package manifest",
-      "sha256": "5c1fe74d37a5a749a831f69de161a206b351a18a1cba01c1548d767a09fa458a",
-      "bytes": 363045,
+      "sha256": "73ca93195905a719c410264f9c93ca7786f2ca7a7b3074041a4d42da58186286",
+      "bytes": 369645,
       "source": {
         "repository": "https://github.com/arkade-os/ts-sdk.git",
-        "commit": "421b7c846ab3ebd7e05b9f7a78c8f0e2a44245a0",
+        "commit": "4f66c13f5b51281951e9be739d4e6f7423ca6a9d",
         "directory": "packages/swap"
       },
       "toolchain": {
@@ -45,16 +45,16 @@
       }
     },
     {
-      "file": "arkade-os-taxi-0.0.1-421b7c84.tgz",
+      "file": "arkade-os-taxi-0.0.1-4f66c13f.tgz",
       "package": "@arkade-os/taxi",
       "version": "0.0.1",
       "license": "MIT",
       "licenseFrom": "the package manifest",
-      "sha256": "06ec0c993e37e42463a7f52aef22de6648c6f3421cc4d1067b56fbda7efaee06",
-      "bytes": 47532,
+      "sha256": "8eb4c1932c5b9fa222935f8e8a10f44cedc2f2b6d9eaafbe004fcbd56f190f16",
+      "bytes": 50017,
       "source": {
         "repository": "https://github.com/arkade-os/ts-sdk.git",
-        "commit": "421b7c846ab3ebd7e05b9f7a78c8f0e2a44245a0",
+        "commit": "4f66c13f5b51281951e9be739d4e6f7423ca6a9d",
         "directory": "packages/taxi"
       },
       "toolchain": {
@@ -71,7 +71,7 @@
       "version": "0.0.0",
       "license": "MIT",
       "licenseFrom": "the LICENSE file of the source repository",
-      "sha256": "209f7d7adcf68516654db5f81d73509e0f0bf30eeb538ce9184c2ad134f089ca",
+      "sha256": "c914cd3e276942e425136bbea184c590bc5111cd6e193d0eb3a62d8940797e42",
       "bytes": 62905,
       "source": {
         "repository": "https://github.com/ArkLabsHQ/arkade-taxi.git",
