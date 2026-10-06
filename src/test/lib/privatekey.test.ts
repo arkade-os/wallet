@@ -17,7 +17,7 @@ describe('privatekey utilities', () => {
 
   describe('invalidPrivateKey', () => {
     it('should return error on invalid length', () => {
-      expect(invalidPrivateKey(Uint8Array.from([1]))).toBe('restore.invalidLengthPriv')
+      expect(invalidPrivateKey(Uint8Array.from([1]))).toBe('restore.invalidLengthPrivateKey')
     })
 
     it('should return empty on empty private key', () => {

@@ -98,7 +98,7 @@ export default function InitRestore() {
     }
 
     // Otherwise try hex private key
-    if (trimmed.match(/^[0-9a-fA-F]{64}$/) && trimmed.length === 64) {
+    if (trimmed.match(/^[0-9a-fA-F]{64}$/)) {
       try {
         const privateKey = hex.decode(trimmed)
         const invalid = invalidPrivateKey(privateKey)

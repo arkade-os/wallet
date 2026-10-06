@@ -4,7 +4,7 @@ import { MNEMONIC_STORAGE_KEY, NSEC_STORAGE_KEY } from './storageKeys'
 
 export const invalidPrivateKey = (key: Uint8Array): string => {
   if (key.length === 0) return ''
-  if (key.length !== 32) return 'restore.invalidLengthPriv'
+  if (key.length !== 32) return 'restore.invalidLengthPrivateKey'
   return ''
 }
 
