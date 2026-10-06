@@ -12,7 +12,7 @@ import {
 } from 'react'
 import { toXOnlySignerHex, type IWallet, type NetworkName } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
-import { TaxiClaimQueue, type ClaimQueueSnapshot } from '@arkade-os/taxi'
+import { TaxiClaimQueue, type ClaimQueueSnapshot } from '@arkade-taxi/client/wallet'
 import ErrorBoundary from '../components/ErrorBoundary'
 import SheetModal from '../components/SheetModal'
 import ClaimSheet from '../screens/Wallet/Receive/ClaimSheet'

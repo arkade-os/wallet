@@ -37,6 +37,7 @@ export declare const pinnedSourceMismatch: (artifact: unknown) => string | undef
 export declare const CANDIDATE_SWAP_SYMBOL: string
 export declare const CANDIDATE_SDK_SYMBOL: string
 export declare const CANDIDATE_TAXI_SYMBOL: string
+export declare const CANDIDATE_TAXI_RFQ_SYMBOL: string
 export declare const sha256: (bytes: Uint8Array) => string
 export declare const readTarMember: (archivePath: string, member: string) => string | undefined
 export declare const archiveManifest: (archivePath: string) => Record<string, unknown>
@@ -64,4 +65,9 @@ export declare const workflowJobs: (yaml: string) => Map<string, string[]>
 export declare const licenseOf: (manifest: { license?: string }, sourceRoot: string) => string
 export declare const resolveInstalled: (fromFile: string, name: string) => string | undefined
 export declare const packageRootFrom: (fromFile: string, name: string) => string
-export declare const assertCandidateExport: (packageRoot: string, name: string, symbol: string) => Promise<string>
+export declare const assertCandidateExport: (
+  packageRoot: string,
+  name: string,
+  symbol: string,
+  subpath?: string,
+) => Promise<string>

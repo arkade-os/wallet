@@ -12,6 +12,7 @@ import {
   CANDIDATE_SDK_SYMBOL,
   CANDIDATE_SWAP_SYMBOL,
   CANDIDATE_TAXI_SYMBOL,
+  CANDIDATE_TAXI_RFQ_SYMBOL,
   DIRECT_DEPENDENCIES,
   ENVIRONMENT,
   EXEMPT_INSTALLS,
@@ -237,26 +238,29 @@ check(
   '--installed was given, and there is no @arkade-taxi/client install to inspect',
 )
 if (entry) {
-  let taxiEntry
-  try {
-    taxiEntry = resolveInstalled(at('package.json'), '@arkade-os/taxi')
-    check(taxiEntry !== undefined, '@arkade-os/taxi is not installed beside @arkade-taxi/client')
-  } catch (error) {
-    failures.push(error.message)
-  }
   for (const [name, symbol] of [
     ['@arkade-os/sdk', CANDIDATE_SDK_SYMBOL],
     ['@arkade-os/swap', CANDIDATE_SWAP_SYMBOL],
-    ['@arkade-os/taxi', CANDIDATE_TAXI_SYMBOL],
   ]) {
-    const roots =
-      name === '@arkade-os/taxi' ? [at('package.json')] : [at('package.json'), entry, taxiEntry].filter(Boolean)
+    const roots = [at('package.json'), entry]
     for (const from of roots) {
       try {
         await assertCandidateExport(packageRootFrom(from, name), name, symbol)
       } catch (error) {
         failures.push(error.message)
       }
+    }
+  }
+  for (const symbol of [CANDIDATE_TAXI_SYMBOL, CANDIDATE_TAXI_RFQ_SYMBOL]) {
+    try {
+      await assertCandidateExport(
+        packageRootFrom(entry, '@arkade-taxi/client'),
+        '@arkade-taxi/client',
+        symbol,
+        './wallet',
+      )
+    } catch (error) {
+      failures.push(error.message)
     }
   }
 }

@@ -4,7 +4,7 @@ import {
   TaxiUnavailableError,
   type DirectTaxiSendArgs as TaxiSendArgs,
   type PendingTaxiRecord,
-} from '@arkade-os/taxi'
+} from '@arkade-taxi/client/wallet'
 import { hex } from '@scure/base'
 import type { AspInfo } from '../providers/asp'
 import { consoleError } from './logs'
@@ -27,7 +27,7 @@ export {
   type DirectTaxiMode,
   type DirectTaxiTerms,
   type PendingTaxiRecord,
-} from '@arkade-os/taxi'
+} from '@arkade-taxi/client/wallet'
 
 const sender = (aspInfo?: AspInfo) =>
   createTaxiSender({

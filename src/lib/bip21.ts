@@ -5,8 +5,8 @@ import { fromSatoshis, prettyNumber, toSatoshis } from './format'
 import { isValidArkAddress } from '@arkade-os/sdk'
 import { centsToUnits } from './assets'
 
-import { decodeTaxiParams, encodeTaxiParams, type Bip21Taxi } from '@arkade-os/taxi'
-export type { Bip21Taxi } from '@arkade-os/taxi'
+import { decodeTaxiParams, encodeTaxiParams, type Bip21Taxi } from '@arkade-taxi/client/wallet'
+export type { Bip21Taxi } from '@arkade-taxi/client/wallet'
 
 export interface Bip21Decoded {
   address?: string

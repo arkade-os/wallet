@@ -1,6 +1,6 @@
 import { EsploraProvider, type ArkInfo, type NetworkName } from '@arkade-os/sdk'
 import { getRestApiExplorerURL } from './explorers'
-import { arkadeContextOf as contextOf, type ArkadeContext, type ProbeRefusal } from '@arkade-os/taxi'
+import { arkadeContextOf as contextOf, type ArkadeContext, type ProbeRefusal } from '@arkade-taxi/client/wallet'
 import { getEmulatorPubkeyForNetwork } from './constants'
 
 export {
@@ -25,7 +25,7 @@ export {
   type TaxiFare,
   type TaxiInfo,
   type TaxiProbeContext,
-} from '@arkade-os/taxi'
+} from '@arkade-taxi/client/wallet'
 
 export const TAXI_REFUSAL_TEXT: Record<ProbeRefusal | 'no-receiver-fare' | 'unverifiable', string> = {
   unreachable: "it can't be reached",

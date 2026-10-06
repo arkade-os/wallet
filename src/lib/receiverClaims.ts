@@ -1,5 +1,5 @@
 import { type ArkInfo } from '@arkade-os/sdk'
-import { createClaimWatch, watchReceiverClaims as watchClaims, type ClaimWatch } from '@arkade-os/taxi'
+import { createClaimWatch, watchReceiverClaims as watchClaims, type ClaimWatch } from '@arkade-taxi/client/wallet'
 import { consoleError } from './logs'
 import { walletArkadeContext } from './receiverTaxi'
 import type { RememberedTaxi } from './storage'
@@ -20,7 +20,7 @@ export {
   type ReceiverClaim,
   type RecyclePlan,
   type VerifiedClaim,
-} from '@arkade-os/taxi'
+} from '@arkade-taxi/client/wallet'
 
 export const watchReceiverClaims = (watch: ClaimWatch): (() => void) => watchClaims({ ...watch, onError: consoleError })
 

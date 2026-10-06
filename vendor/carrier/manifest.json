@@ -1,18 +1,18 @@
 {
   "note": "Frozen candidate packages, built from source and never published to any registry. These digests are of THIS bundle: repacking @arkade-os/sdk from the same commit emits different declaration-chunk names, though no runtime module differs, so a re-pack is a deliberate re-freeze — run scripts/carrier-artifacts/pack.mjs, then pnpm install, then scripts/carrier-artifacts/verify.mjs.",
-  "packedAtUtc": "2026-10-06T06:01:54.762Z",
+  "packedAtUtc": "2026-10-06T07:59:17.608Z",
   "artifacts": [
     {
-      "file": "arkade-os-sdk-0.4.78-4f66c13f.tgz",
+      "file": "arkade-os-sdk-0.4.78-27f22047.tgz",
       "package": "@arkade-os/sdk",
       "version": "0.4.78",
       "license": "MIT",
       "licenseFrom": "the package manifest",
-      "sha256": "b2019bc9a7e67f136a2114f3ac23deb908b0fd42b25ce36763cc35e9d1ed2f54",
-      "bytes": 2771724,
+      "sha256": "0a0d1f32750fb21827b48095feade742f2f59a70f2c7280d52ad196f3ceecdea",
+      "bytes": 2773075,
       "source": {
         "repository": "https://github.com/arkade-os/ts-sdk.git",
-        "commit": "4f66c13f5b51281951e9be739d4e6f7423ca6a9d",
+        "commit": "27f22047daa260e96e0055636874987a27e4743f",
         "directory": "packages/ts-sdk"
       },
       "toolchain": {
@@ -24,16 +24,16 @@
       }
     },
     {
-      "file": "arkade-os-swap-0.0.24-4f66c13f.tgz",
+      "file": "arkade-os-swap-0.0.24-27f22047.tgz",
       "package": "@arkade-os/swap",
       "version": "0.0.24",
       "license": "MIT",
       "licenseFrom": "the package manifest",
-      "sha256": "73ca93195905a719c410264f9c93ca7786f2ca7a7b3074041a4d42da58186286",
-      "bytes": 369645,
+      "sha256": "4e566d6fa895c6e03b63a81cb7a3f87004677731b4f879429bc199dd79450b2b",
+      "bytes": 361678,
       "source": {
         "repository": "https://github.com/arkade-os/ts-sdk.git",
-        "commit": "4f66c13f5b51281951e9be739d4e6f7423ca6a9d",
+        "commit": "27f22047daa260e96e0055636874987a27e4743f",
         "directory": "packages/swap"
       },
       "toolchain": {
@@ -45,37 +45,16 @@
       }
     },
     {
-      "file": "arkade-os-taxi-0.0.1-4f66c13f.tgz",
-      "package": "@arkade-os/taxi",
-      "version": "0.0.1",
-      "license": "MIT",
-      "licenseFrom": "the package manifest",
-      "sha256": "8eb4c1932c5b9fa222935f8e8a10f44cedc2f2b6d9eaafbe004fcbd56f190f16",
-      "bytes": 50017,
-      "source": {
-        "repository": "https://github.com/arkade-os/ts-sdk.git",
-        "commit": "4f66c13f5b51281951e9be739d4e6f7423ca6a9d",
-        "directory": "packages/taxi"
-      },
-      "toolchain": {
-        "node": "v24.16.0",
-        "pnpm": "10.25.0",
-        "declaredPackageManager": "pnpm@10.25.0",
-        "command": "pnpm --filter @arkade-os/taxi pack",
-        "platform": "win32-x64"
-      }
-    },
-    {
-      "file": "arkade-taxi-client-0.0.0-946e851c.tgz",
+      "file": "arkade-taxi-client-0.0.0-200b010c.tgz",
       "package": "@arkade-taxi/client",
       "version": "0.0.0",
       "license": "MIT",
       "licenseFrom": "the LICENSE file of the source repository",
-      "sha256": "c914cd3e276942e425136bbea184c590bc5111cd6e193d0eb3a62d8940797e42",
-      "bytes": 62905,
+      "sha256": "30fcfbc1256032fba3ce0c12eec4af92f35b5ec3bc7895c899747b54056b564a",
+      "bytes": 95866,
       "source": {
         "repository": "https://github.com/ArkLabsHQ/arkade-taxi.git",
-        "commit": "946e851c03fa2f81c4311f6551e4acb8dfcf67f0",
+        "commit": "200b010c6f9fe8ab36caffa2396ad6c1a0399ace",
         "directory": "packages/client"
       },
       "toolchain": {
@@ -87,16 +66,16 @@
       }
     },
     {
-      "file": "arkade-taxi-covenant-0.0.0-946e851c.tgz",
+      "file": "arkade-taxi-covenant-0.0.0-200b010c.tgz",
       "package": "@arkade-taxi/covenant",
       "version": "0.0.0",
       "license": "MIT",
       "licenseFrom": "the LICENSE file of the source repository",
-      "sha256": "8fb25534b91cec54e82496afef52fd1169724dbdedfca7987ee08db8eb1614d9",
+      "sha256": "4b49ee1d2e90623e0934a8e1e6e5999927fc86775a972bae11af4a47b99dcefa",
       "bytes": 29193,
       "source": {
         "repository": "https://github.com/ArkLabsHQ/arkade-taxi.git",
-        "commit": "946e851c03fa2f81c4311f6551e4acb8dfcf67f0",
+        "commit": "200b010c6f9fe8ab36caffa2396ad6c1a0399ace",
         "directory": "packages/covenant"
       },
       "toolchain": {
@@ -108,7 +87,7 @@
       }
     },
     {
-      "file": "arkade-taxi-protocol-0.0.0-946e851c.tgz",
+      "file": "arkade-taxi-protocol-0.0.0-200b010c.tgz",
       "package": "@arkade-taxi/protocol",
       "version": "0.0.0",
       "license": "MIT",
@@ -117,7 +96,7 @@
       "bytes": 24049,
       "source": {
         "repository": "https://github.com/ArkLabsHQ/arkade-taxi.git",
-        "commit": "946e851c03fa2f81c4311f6551e4acb8dfcf67f0",
+        "commit": "200b010c6f9fe8ab36caffa2396ad6c1a0399ace",
         "directory": "packages/protocol"
       },
       "toolchain": {

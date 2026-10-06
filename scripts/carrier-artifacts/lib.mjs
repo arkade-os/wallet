@@ -13,15 +13,14 @@ export const MANIFEST_PATH = `${VENDOR_DIR}/manifest.json`
 
 const TS_SDK = 'https://github.com/arkade-os/ts-sdk.git'
 const ARKADE_TAXI = 'https://github.com/ArkLabsHQ/arkade-taxi.git'
-const SDK_COMMIT = '4f66c13f5b51281951e9be739d4e6f7423ca6a9d'
-const TAXI_COMMIT = '946e851c03fa2f81c4311f6551e4acb8dfcf67f0'
+const SDK_COMMIT = '27f22047daa260e96e0055636874987a27e4743f'
+const TAXI_COMMIT = '200b010c6f9fe8ab36caffa2396ad6c1a0399ace'
 
 // Moving to a new candidate is an edit HERE, so `verify.mjs` can refuse an
 // archive whose manifest names any other commit.
 export const PINNED_SOURCES = {
   '@arkade-os/sdk': { repository: TS_SDK, commit: SDK_COMMIT, directory: 'packages/ts-sdk' },
   '@arkade-os/swap': { repository: TS_SDK, commit: SDK_COMMIT, directory: 'packages/swap' },
-  '@arkade-os/taxi': { repository: TS_SDK, commit: SDK_COMMIT, directory: 'packages/taxi' },
   '@arkade-taxi/covenant': { repository: ARKADE_TAXI, commit: TAXI_COMMIT, directory: 'packages/covenant' },
   '@arkade-taxi/protocol': { repository: ARKADE_TAXI, commit: TAXI_COMMIT, directory: 'packages/protocol' },
   '@arkade-taxi/client': { repository: ARKADE_TAXI, commit: TAXI_COMMIT, directory: 'packages/client' },
@@ -30,13 +29,7 @@ export const PINNED_SOURCES = {
 export const PINNED_PACKAGES = Object.keys(PINNED_SOURCES)
 
 /** Frozen packages the wallet declares directly, rather than reaching transitively. */
-export const DIRECT_DEPENDENCIES = [
-  '@arkade-os/sdk',
-  '@arkade-os/swap',
-  '@arkade-os/taxi',
-  '@arkade-taxi/client',
-  '@arkade-taxi/protocol',
-]
+export const DIRECT_DEPENDENCIES = ['@arkade-os/sdk', '@arkade-os/swap', '@arkade-taxi/client', '@arkade-taxi/protocol']
 
 /** Why this archive is not the pinned source, or `undefined` when it is. */
 export function pinnedSourceMismatch(artifact) {
@@ -56,6 +49,7 @@ export const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex'
 export const CANDIDATE_SWAP_SYMBOL = 'FundingOutputMismatchError'
 export const CANDIDATE_SDK_SYMBOL = 'SendDeadlineExceededError'
 export const CANDIDATE_TAXI_SYMBOL = 'TaxiClaimQueue'
+export const CANDIDATE_TAXI_RFQ_SYMBOL = 'requestTaxiArkadeSwap'
 
 // A gzipped tar without a tar dependency: decode the POSIX ustar fields, skip the rest by size.
 export function readTarMember(archivePath, member) {
@@ -457,10 +451,16 @@ export function packageRootFrom(fromFile, name) {
 
 // Load what actually resolved and require the named export. An import that
 // merely succeeds does not separate a candidate from the registry build.
-export async function assertCandidateExport(packageRoot, name, symbol) {
+export async function assertCandidateExport(packageRoot, name, symbol, subpath = '.') {
   const manifest = readJson(join(packageRoot, 'package.json'))
-  const entry = manifest.exports?.['.']?.import?.default ?? manifest.module ?? manifest.main
-  if (!entry) throw new Error(`${name} at ${packageRoot} declares no ESM entry`)
+  const exported = manifest.exports?.[subpath]
+  const entry =
+    exported?.import?.default ??
+    exported?.import ??
+    exported?.default ??
+    (subpath === '.' ? (manifest.module ?? manifest.main) : undefined)
+  if (!entry)
+    throw new Error(`${name}${subpath === '.' ? '' : subpath.slice(1)} at ${packageRoot} declares no ESM entry`)
   const namespace = await import(pathToFileURL(join(packageRoot, entry)).href)
   if (!(symbol in namespace))
     throw new Error(`${name} resolved to ${packageRoot}, which does not export ${symbol}: that is not the candidate`)

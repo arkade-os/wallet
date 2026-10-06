@@ -1,4 +1,4 @@
-import { CarrierMetadataError, type CarrierActivity, type CarrierState } from '@arkade-os/taxi'
+import { CarrierMetadataError, type CarrierActivity, type CarrierState } from '@arkade-taxi/client/wallet'
 import { translate } from './i18n'
 import { Language } from './types'
 
@@ -12,7 +12,7 @@ export {
   type CarrierActivity,
   type CarrierMode,
   type CarrierState,
-} from '@arkade-os/taxi'
+} from '@arkade-taxi/client/wallet'
 
 const MAX_SATS = 2_100_000_000_000_000n
 

@@ -1,5 +1,5 @@
 import { useMemo, useSyncExternalStore } from 'react'
-import { TaxiActivityStore, type TaxiActivity } from '@arkade-os/taxi'
+import { TaxiActivityStore, type TaxiActivity } from '@arkade-taxi/client/wallet'
 import { centsToUnits } from './assets'
 import { pluralSats } from './carrierActivity'
 import { prettyHide } from './format'
@@ -9,7 +9,7 @@ import { boundedFetch, taxiClient } from './receiverTaxi'
 import type { CarrierReceiptRows } from './swapDisplay'
 import { Language, type Tx } from './types'
 
-export { isTaxiActivityOpen, taxiActivityKey, taxiActivityTxids, type TaxiActivity } from '@arkade-os/taxi'
+export { isTaxiActivityOpen, taxiActivityKey, taxiActivityTxids, type TaxiActivity } from '@arkade-taxi/client/wallet'
 
 export type TaxiTone = 'pending' | 'failed' | 'done' | 'void'
 
