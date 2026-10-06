@@ -1,14 +1,11 @@
 import type { ServiceWorkerWalletMode } from '@arkade-os/sdk'
-import { invalidPrivateKey, nsecToPrivateKey } from '../../lib/privateKey'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useMemo, useState } from 'react'
 import { defaultPassword } from '../../lib/constants'
 import { FlowContext } from '../../providers/flow'
-import ErrorMessage from '../../components/Error'
 import Content from '../../components/Content'
 import FlexCol from '../../components/FlexCol'
-import { extractError } from '../../lib/error'
 import LoadingLogo from '../../components/LoadingLogo'
 import { consoleError } from '../../lib/logs'
 import Button from '../../components/Button'
@@ -17,13 +14,11 @@ import Padded from '../../components/Padded'
 import Text, { TextSecondary } from '../../components/Text'
 import SegmentedControl from '../../components/SegmentedControl'
 import { DevModeContext } from '../../providers/devMode'
-import { hex } from '@scure/base'
 import { OnboardStaggerContainer, OnboardStaggerChild } from '../../components/OnboardLoadIn'
-import { validateMnemonic } from '@scure/bip39'
-import { wordlist } from '@scure/bip39/wordlists/english'
 import { deriveNostrKeyFromMnemonic } from '../../lib/mnemonic'
 import { AspContext } from '../../providers/asp'
 import InputNsec from '../../components/InputNsec'
+import { getRecoveryWord, parseRecoveryInput } from '../../lib/recoveryInput'
 import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '../../providers/language'
 
@@ -48,60 +43,40 @@ export default function InitRestore() {
 
   const buttonLabel = t('common.continue')
 
-  const [error, setError] = useState('')
-  const [label, setLabel] = useState(buttonLabel)
-  const [mnemonic, setMnemonic] = useState<string>()
-  const [privateKey, setPrivateKey] = useState<Uint8Array>()
+  const [input, setInput] = useState<{ value: string; cursor: number | null }>({ value: '', cursor: null })
+  const [submitted, setSubmitted] = useState(false)
   const [restoring, setRestoring] = useState(false)
   const [restoreDone, setRestoreDone] = useState(false)
-  const [someKey, setSomeKey] = useState<string>()
   const [rotationChoice, setRotationChoice] = useState<RotationChoice>('Inherit')
-
-  useEffect(() => {
-    const trimmed = someKey?.trim() ?? ''
-    if (!trimmed) {
-      setMnemonic(undefined)
-      setPrivateKey(undefined)
-      setLabel(buttonLabel)
-      setError('')
-      return
+  const parsed = useMemo(() => parseRecoveryInput(input.value), [input.value])
+  const mnemonic = parsed.kind === 'phrase' ? parsed.mnemonic : undefined
+  const privateKey = parsed.kind === 'key' ? parsed.privateKey : undefined
+  const activeWord = getRecoveryWord(input.value, input.cursor)
+  let error = ''
+  if (parsed.kind === 'phrase' && parsed.error === 'word') {
+    if (submitted || activeWord?.index !== parsed.wordIndex) {
+      error = t('init.recoveryWordError', { number: parsed.wordIndex! + 1 })
     }
+  } else if (submitted && parsed.kind !== 'empty' && parsed.error) {
+    if (parsed.error === 'count') error = t('init.recoveryWordCountError')
+    if (parsed.error === 'checksum') error = t('init.recoveryChecksumError')
+    if (parsed.error === 'key') error = t('init.recoveryKeyError')
+  }
+  const helperText =
+    parsed.kind === 'phrase'
+      ? t(parsed.count === 1 ? 'init.recoveryOneWord' : 'init.recoveryWordCount', { count: parsed.count })
+      : t('init.recoveryInputHint')
 
-    // Detect mnemonic (input contains spaces)
-    if (trimmed.includes(' ')) {
-      if (validateMnemonic(trimmed, wordlist)) {
-        setMnemonic(trimmed)
-        setPrivateKey(undefined)
-        setLabel(buttonLabel)
-        setError('')
-      } else {
-        setMnemonic(undefined)
-        setPrivateKey(undefined)
-        setLabel(t('init.invalidRecoveryPhrase'))
-        setError(t('init.invalidRecoveryPhrase'))
-      }
-      return
-    }
-
-    // Otherwise try nsec/hex private key
-    setMnemonic(undefined)
-    let pk = undefined
-    try {
-      if (trimmed.match(/^nsec/)) pk = nsecToPrivateKey(trimmed)
-      else pk = hex.decode(trimmed)
-      const invalid = invalidPrivateKey(pk)
-      setLabel(invalid ? t('init.unableToValidatePrivateKey') : buttonLabel)
-      setError(invalid)
-    } catch (err) {
-      setLabel(t('init.unableToValidateKey'))
-      setError(extractError(err))
-    }
-    setPrivateKey(pk)
-  }, [someKey, buttonLabel])
+  const handleChange = (value: string, cursor: number | null) => {
+    if (value !== input.value) setSubmitted(false)
+    setInput({ value, cursor })
+  }
 
   const handleCancel = () => navigate(Pages.Init)
 
   const handleProceed = () => {
+    setSubmitted(true)
+    if ((!mnemonic && !privateKey) || restoring) return
     setRestoring(true)
     let seckey: Uint8Array
     if (mnemonic) {
@@ -126,12 +101,9 @@ export default function InitRestore() {
       .finally(() => setRestoreDone(true))
   }
 
-  const handleExitComplete = () => {
-    if (error) return setRestoring(false)
-    else navigate(Pages.InitConnect)
-  }
+  const handleExitComplete = () => navigate(Pages.InitConnect)
 
-  const disabled = Boolean((!privateKey && !mnemonic) || error)
+  const disabled = !input.value.trim()
 
   if (restoring)
     return (
@@ -152,8 +124,14 @@ export default function InitRestore() {
             <OnboardStaggerChild>
               <FlexCol between>
                 <FlexCol>
-                  <InputNsec onChange={setSomeKey} />
-                  <ErrorMessage error={Boolean(error)} text={error} />
+                  <InputNsec
+                    value={input.value}
+                    cursor={input.cursor}
+                    onChange={handleChange}
+                    onSubmit={handleProceed}
+                    error={error}
+                    helperText={helperText}
+                  />
                   {devMode && mnemonic ? (
                     <FlexCol gap='0.5rem'>
                       <Text thin>{t('init.addressRotation')}</Text>
@@ -173,7 +151,7 @@ export default function InitRestore() {
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Button onClick={handleProceed} label={label} disabled={disabled} />
+        <Button onClick={handleProceed} label={buttonLabel} disabled={disabled} />
         <Button onClick={handleCancel} label={t('common.cancel')} secondary />
       </ButtonsOnBottom>
     </>
