@@ -154,6 +154,14 @@ const CLIENT_LOCK = 'swap-client'
  */
 const LOCK_GRACE_MS = 500
 
+/**
+ * How long the first history load waits on this tab's swap client before going
+ * ahead without it. Usually the lock is granted and the restore is a local read
+ * well inside this; neither holds when another tab owns the client, or on the
+ * first restore after an upgrade.
+ */
+const FIRST_LOAD_GRACE_MS = 3_000
+
 /** Whether the trader is paying OUT. `paid` and `claimed` are how BOTH
  *  directions succeed, so every send announced itself as money received; only a
  *  receive takes delivery inside Arkade. Optional so `announce` cannot throw. */
@@ -199,6 +207,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   // reload through a ref rather than the value captured at start.
   const reloadRef = useRef(reloadWallet)
   reloadRef.current = reloadWallet
+  const dataReadyRef = useRef(dataReady)
+  dataReadyRef.current = dataReady
 
   // Assigned only once the Web Lock is HELD, which is what lets an action tell
   // "another tab owns this" from "the client is not running" — see `driving`.
@@ -405,6 +415,15 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     let stopServing = () => {}
     const controller = new AbortController()
 
+    // The first history load lives in `drive`, which runs only once the lock is
+    // granted — and while another tab holds it, that is never. Nor is the
+    // restore it waits on bounded: the first one after an upgrade scans the
+    // whole history against the indexer. Past the grace, load without it; the
+    // load in `drive` still runs whenever the restore lands.
+    const firstLoad = setTimeout(() => {
+      if (!stopped && !dataReadyRef.current) reloadRef.current().catch(consoleError)
+    }, FIRST_LOAD_GRACE_MS)
+
     const drive = async () => {
       if (stopped) return
       // Per CLIENT, not per tab: a network switch builds a new one that replays.
@@ -468,6 +487,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       stopped = true
+      clearTimeout(firstLoad)
       held.current = undefined
       granted.current = undefined
       // Stop answering BEFORE the lock is released, so the window where this

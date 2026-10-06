@@ -694,6 +694,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         settlementConfig: { vtxoThreshold: wallet.thresholdMs ? Math.floor(wallet.thresholdMs / 1000) : 1 },
       })
 
+      // The first data load waits on the swap client (see SwapsProvider), so
+      // the worker is no longer what the screen is waiting on.
+      setLoadingStatus(t('loading.loadingWalletData'))
+
       // The registry ships with the SDK built-ins already in it; only ours has
       // to be added, and `use()` is idempotent by id across reinit paths. Both
       // families over the client's own records, which is now all of them. Its
