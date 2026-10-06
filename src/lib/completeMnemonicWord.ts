@@ -15,29 +15,10 @@ export function completeMnemonicWord(value: string): string {
   }
 
   const token = match[1]
-  const tokenStart = value.length - token.length
-
-  if (token.length < 4) {
-    return value
-  }
-
   const lowerToken = token.toLowerCase()
-  let singleMatch: string | null = null
-  let matchCount = 0
+  const found = wordlist.filter((w) => w.startsWith(lowerToken))
+  if (found.length !== 1 || found[0] === lowerToken) return value
 
-  for (const word of wordlist) {
-    if (word.startsWith(lowerToken)) {
-      matchCount++
-      singleMatch = word
-      if (matchCount > 1) {
-        break
-      }
-    }
-  }
-
-  if (matchCount !== 1 || singleMatch === null || lowerToken === singleMatch) {
-    return value
-  }
-
-  return value.slice(0, tokenStart) + singleMatch + ' '
+  const tokenStart = value.length - token.length
+  return value.slice(0, tokenStart) + found[0] + ' '
 }

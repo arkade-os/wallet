@@ -3,16 +3,19 @@ import { translations } from '../../lib/i18n'
 
 const tr = translations.en
 
-test('restores from a metal-plate prefix by autocompleting each BIP39 word after four letters', async ({ page }) => {
+test('restores from a unique BIP39 prefix by autocompleting the word', async ({ page }) => {
   await page.goto('/')
   await page.getByText(tr.init.otherLoginOptions).click()
   await page.getByText(tr.init.restoreWallet).click()
 
   const input = page.locator('input[name="private-key"]')
   await input.click()
-  await input.pressSequentially('aban')
-  await expect(input).toHaveValue('abandon ')
+  await input.pressSequentially('ah')
+  await expect(input).toHaveValue('ahead ')
 
-  await input.pressSequentially('abou')
-  await expect(input).toHaveValue('abandon about ')
+  await input.pressSequentially('agr')
+  await expect(input).toHaveValue('ahead agree ')
+
+  await input.pressSequentially('aban')
+  await expect(input).toHaveValue('ahead agree abandon ')
 })
