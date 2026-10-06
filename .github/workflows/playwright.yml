@@ -63,7 +63,7 @@ jobs:
       if: matrix.group == 'taxi'
       with:
         repository: ArkLabsHQ/arkade-taxi
-        ref: 49cdaaa50fd2d65cb47907447653537108e9e853
+        ref: 182c18f0189a3594f62874f88c752ae24fab2f25
         path: .local-tests/taxi-service
         persist-credentials: false
     - name: Build Taxi image
