@@ -1,6 +1,5 @@
 import type { ActivityResolver } from '@arkade-os/sdk'
 import { getAssetSwaps } from '@arkade-os/swap'
-import { allocateIndexedActivityEvidence, indexActivityEvidence } from '../activityEvidence'
 import { readCarrierActivity } from '../carrierActivity'
 import { assetSwapRepository, type WalletAssetSwap } from '../swapRepository'
 import { txidOfArkTransaction } from '../transactionHistory'
@@ -15,22 +14,16 @@ const readSwaps = async (): Promise<WalletAssetSwap[]> =>
  * derived in `activitiesToTxs` from the live record, so nothing here needs to
  * survive past the group id. */
 export const assetSwapResolver = (read: () => Promise<WalletAssetSwap[]> = () => readSwaps()): ActivityResolver => {
-  let evidence = indexActivityEvidence([])
-  let swapById = new Map<string, WalletAssetSwap>()
-  let legacyByTxid = new Map<string, WalletAssetSwap[]>()
+  let byTxid = new Map<string, WalletAssetSwap[]>()
   return {
     id: ASSET_SWAP_RESOLVER_ID,
     async prepare() {
       // re-read on every history load: the restore scan writes its records
       // after the first one, and an index cached at construction would leave
       // those swaps ungrouped until the next reconnect
-      const swaps = await read()
-      evidence = indexActivityEvidence(swaps)
-      const byId = new Map<string, WalletAssetSwap>()
       const next = new Map<string, WalletAssetSwap[]>()
-      for (const swap of swaps) {
-        if (!byId.has(swap.id)) byId.set(swap.id, swap)
-        if (evidence.operations.get(swap.id)?.status !== 'missing') continue
+      for (const swap of await read()) {
+        if (!swap.id) continue
         const add = (txid: string | undefined) => {
           if (!txid) return
           const records = next.get(txid) ?? []
@@ -42,25 +35,10 @@ export const assetSwapResolver = (read: () => Promise<WalletAssetSwap[]> = () =>
         // so a claim or recovery enriches the swap instead of adding a row
         for (const txid of readCarrierActivity(swap.carrier)?.txids ?? []) add(txid)
       }
-      swapById = byId
-      legacyByTxid = next
+      byTxid = next
     },
     resolve(tx) {
-      const allocation = allocateIndexedActivityEvidence(evidence, [tx]).member(tx)
-      const evidenced = allocation?.allocations.flatMap(({ swapId, contribution }) => {
-        const swap = swapById.get(swapId)
-        if (!swap) return []
-        const carrier = readCarrierActivity(swap.carrier)
-        return {
-          groupId: `swap:${swap.id}`,
-          kind: ASSET_SWAP_ACTIVITY_KIND,
-          label: 'Swap',
-          metadata: { swapId: swap.id, ...(carrier ? { carrier } : {}) },
-          amount: Number(contribution.sats),
-        }
-      })
-      if (evidenced?.length) return evidenced
-      const records = legacyByTxid.get(txidOfArkTransaction(tx))
+      const records = byTxid.get(txidOfArkTransaction(tx))
       if (records?.length !== 1) return undefined
       const swap = records[0]
       const carrier = readCarrierActivity(swap.carrier)

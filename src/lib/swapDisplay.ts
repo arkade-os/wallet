@@ -9,7 +9,6 @@ import {
 } from './carrierActivity'
 import { prettyCurrencyAssetAmount, prettyFiatAmount, prettyFiatHide, prettyHide, prettyNumber } from './format'
 import { designatedAccountCurrency, walletAccountTicker } from './accountAssets'
-import type { SwapActivityAllocation } from './activityEvidence'
 import type { WalletAssetSwap } from './swapRepository'
 import { Currencies, Language, Tx, Unit } from './types'
 import { translate } from './i18n'
@@ -240,7 +239,6 @@ export function swapUnitOfAccountAmount({
 interface AssetSwapActivityOptions {
   network?: string
   assetDisplay?: (assetId: string) => { ticker?: string; decimals?: number } | undefined
-  allocation?: SwapActivityAllocation
 }
 
 /** The carrier receipt rows. What the user BOUGHT is separated from what Taxi
@@ -304,7 +302,7 @@ export const buildAssetSwapActivityTx = (
   swap: WalletAssetSwap,
   carrier: CarrierActivity | undefined,
   members: Tx[],
-  { network, assetDisplay, allocation }: AssetSwapActivityOptions = {},
+  { network, assetDisplay }: AssetSwapActivityOptions = {},
 ): Tx => {
   const quote = swap.quote
   // the package's AssetSwapStatus also covers its RFQ and onchain corridors
@@ -326,21 +324,8 @@ export const buildAssetSwapActivityTx = (
     .flatMap((tx) => tx.assets ?? [])
     .find((asset) => asset.assetId === swap.toAsset && asset.amount > BigInt(0))
   const receivedSats = receivedFills.find((tx) => tx.amount > 0)?.amount
-  const legacyReceivedAmount =
+  const receivedAmount =
     swap.toAsset === 'btc' && receivedSats ? BigInt(receivedSats) : (receivedAsset?.amount ?? BigInt(swap.toAmount))
-  const evidenced = allocation?.status === 'valid'
-  const fundedAsset = allocation?.funding?.assets.find((asset) => asset.assetId === swap.fromAsset)?.amount
-  const filledAsset = allocation?.fill?.assets.find((asset) => asset.assetId === swap.toAsset)?.amount
-  const fromAmount = evidenced
-    ? swap.fromAsset === 'btc'
-      ? (allocation.funding?.sats ?? BigInt(swap.fromAmount))
-      : (fundedAsset ?? BigInt(swap.fromAmount))
-    : BigInt(swap.fromAmount)
-  const receivedAmount = evidenced
-    ? swap.toAsset === 'btc'
-      ? (allocation.fill?.sats ?? BigInt(swap.toAmount))
-      : (filledAsset ?? BigInt(swap.toAmount))
-    : legacyReceivedAmount
   // the currency designation outranks the asset's self-reported ticker, so
   // restored swaps read "BRL to sats", not "DEPIX to sats"; BTC is always
   // shown in sats, matching the live swap screen
@@ -350,7 +335,7 @@ export const buildAssetSwapActivityTx = (
       : (designatedAccountCurrency(network, assetId) ?? assetDisplay?.(assetId)?.ticker ?? assetId.slice(0, 8))
   const derivedDecimals = (assetId: string) => (assetId === 'btc' ? 0 : assetDisplay?.(assetId)?.decimals)
   return {
-    amount: evidenced ? Number(allocation.funding?.sats ?? 0n) : (members[0]?.amount ?? 0),
+    amount: members[0]?.amount ?? 0,
     boardingTxid: '',
     ...(carrier ? { carrier } : {}),
     createdAt: Math.floor(swap.createdAt / 1000),
@@ -364,7 +349,7 @@ export const buildAssetSwapActivityTx = (
       fromAssetId: swap.fromAsset,
       fromTicker: quote?.fromTicker ?? derivedTicker(swap.fromAsset),
       fromDecimals: quote?.fromDecimals ?? derivedDecimals(swap.fromAsset),
-      fromAmount,
+      fromAmount: BigInt(swap.fromAmount),
       toAssetId: swap.toAsset,
       toTicker: quote?.toTicker ?? derivedTicker(swap.toAsset),
       toDecimals: quote?.toDecimals ?? derivedDecimals(swap.toAsset),

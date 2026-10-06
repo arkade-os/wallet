@@ -64,7 +64,6 @@ export interface AssetSwapQuoteSnapshot {
 export type WalletAssetSwap = AssetSwap & {
   quote?: AssetSwapQuoteSnapshot
   carrier?: unknown
-  activityEvidence?: unknown
   /** Set when the bought asset was paid to someone else's address: the swap was a payment. */
   payee?: string
 }

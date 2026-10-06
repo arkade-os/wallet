@@ -170,7 +170,7 @@ const bitcoinTaxiTerms = ({ mode, assetAmount: sent, fareUnits, carrierSats: top
   return (
     `Send ${sent} sats. Service fee: ${fareUnits === 0n ? 'Free' : `${fareUnits} sats`}. Taxi adds ${topup} sats so it arrives as a full ${coin}-sat coin. ` +
     (mode === 'recycle'
-      ? `The receiver claims it with a coin of at least ${topup} sats of their own, repaying Taxi.${unclaimed}`
+      ? `The receiver claims it with a coin of at least ${topup - sent} sats of their own, repaying Taxi.${unclaimed}`
       : mode === 'purchase'
         ? `The receiver claims the whole ${coin}-sat coin without sats of their own.${unclaimed}`
         : `The receiver gets the ${coin}-sat coin directly, with no claim needed.`)
@@ -1250,7 +1250,6 @@ export default function SendForm() {
             ? !(arkAddress && assetAmt > 0) ||
               (activeAsset ? assetAmt > activeAsset.balance && !payViaReceiverTaxi : true) ||
               taxiLacksSats ||
-              Boolean(recipientError) ||
               Boolean(carrierError) ||
               aspInfo.unreachable ||
               Boolean(error) ||
@@ -1548,7 +1547,7 @@ export default function SendForm() {
                       : directTaxiMode === 'recycle'
                         ? isAssetSend
                           ? 'The receiver claims the asset using their own sats to repay Taxi.'
-                          : `Taxi adds ${Number(aspInfo.dust) - sendSats} sats. The receiver needs a coin of at least ${Number(aspInfo.dust) - sendSats} sats to claim your ${sendSats} sats and repay Taxi.`
+                          : `Taxi adds ${aspInfo.dust} sats. The receiver needs a coin of at least ${Number(aspInfo.dust) - sendSats} sats to claim your ${sendSats} sats and repay Taxi.`
                         : directTaxiMode === 'purchase'
                           ? 'The receiver claims the delivery without using sats from their wallet.'
                           : 'The receiver gets a spendable delivery with no claim needed. You pay for the carrier.'

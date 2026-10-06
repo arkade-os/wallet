@@ -41,7 +41,7 @@ test('Sub-dust approval, claim and live Taxi receipts', async ({ browser }, test
     const before = await ledger(parties)
     await send(alice, bob.address, '100', 'Receiver uses own sats')
     await expect(alice.page.getByTestId('taxi-confirm-costs')).toContainText(
-      'Send 100 sats. Service fee: Free. Taxi adds 230 sats',
+      'Send 100 sats. Service fee: Free. Taxi adds 330 sats',
     )
     await test.step('Leaving approval releases the payment lock without debiting anyone', async () => {
       await alice.page.goBack({ waitUntil: 'commit' })
@@ -55,7 +55,7 @@ test('Sub-dust approval, claim and live Taxi receipts', async ({ browser }, test
     await pay(alice)
     const [transfer] = await fresh(known)
     expect(await fresh(known)).toHaveLength(1)
-    expect(transfer).toMatchObject({ kind: 'covenant', topup: '230' })
+    expect(transfer).toMatchObject({ kind: 'covenant', topup: '330' })
     await test.step('The sender sees a pending delivery receipt', async () => {
       await navigateHome(alice.page)
       await alice.page.getByTestId('activity-view-all').click()
@@ -80,7 +80,7 @@ test('Sub-dust approval, claim and live Taxi receipts', async ({ browser }, test
           { timeout: 60_000 },
         )
         .toEqual({ state: 'recycled', delivery: 'Claimed' })
-      await expect(alice.page.getByTestId('Carrier sats')).toHaveText('Borrowed 230 sats')
+      await expect(alice.page.getByTestId('Carrier sats')).toHaveText('Borrowed 330 sats')
     })
     await navigateHome(bob.page)
     await bob.page.getByTestId('activity-view-all').click()
@@ -90,7 +90,7 @@ test('Sub-dust approval, claim and live Taxi receipts', async ({ browser }, test
     await expect(row).toHaveCount(1)
     await row.click()
     await expect(bob.page.getByTestId('Transfer ID')).toContainText(transfer.id.slice(0, 11))
-    await expect(bob.page.getByTestId('Carrier sats')).toHaveText('Borrowed 230 sats')
+    await expect(bob.page.getByTestId('Carrier sats')).toHaveText('Borrowed 330 sats')
     await expect(bob.page.getByTestId('Delivery')).toHaveText('Claimed')
   } finally {
     await restorePolicy(policy)

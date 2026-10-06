@@ -15,15 +15,11 @@ import { walletArkadeContext } from './receiverTaxi'
 import { assetSwapRepository, unreservedCoins } from './swapRepository'
 
 export {
-  assetRfqSolvers,
-  FILL_MARGIN_SECONDS,
   hasSatsForReceiverTaxi,
   payAssetRequest,
   PaymentDeclined,
   routesToReceiverTaxi,
-  type AssetPaymentRequest,
   type AssetPaymentTerms,
-  type AssetRfqSendDeps,
   type PayRailUi,
 } from '@arkade-taxi/client/wallet'
 

@@ -9,7 +9,7 @@ import { boundedFetch, taxiClient } from './receiverTaxi'
 import type { CarrierReceiptRows } from './swapDisplay'
 import { Language, type Tx } from './types'
 
-export { isTaxiActivityOpen, taxiActivityKey, taxiActivityTxids, type TaxiActivity } from '@arkade-taxi/client/wallet'
+export { taxiActivityKey, taxiActivityTxids, type TaxiActivity } from '@arkade-taxi/client/wallet'
 
 export type TaxiTone = 'pending' | 'failed' | 'done' | 'void'
 

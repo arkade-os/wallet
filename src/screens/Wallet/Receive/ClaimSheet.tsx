@@ -16,7 +16,6 @@ import type { AssetDetails } from '@arkade-os/sdk'
 interface ClaimSheetProps {
   claim: ReceiverClaim
   plan?: ClaimPlan
-  asset?: { ticker: string; decimals?: number }
   claiming?: boolean
   /** A claim was attempted and failed; this page cannot attempt it again. */
   spent?: boolean
@@ -48,16 +47,7 @@ const planLine = (plan: ClaimPlan, units: (value: bigint) => string, isAsset: bo
 }
 
 /** What claiming a Taxi delivery costs the receiver, shown before he signs anything. */
-export default function ClaimSheet({
-  claim,
-  plan,
-  asset,
-  claiming,
-  spent,
-  error,
-  onClaim,
-  onDismiss,
-}: ClaimSheetProps) {
+export default function ClaimSheet({ claim, plan, claiming, spent, error, onClaim, onDismiss }: ClaimSheetProps) {
   const { assetMetadataCache, svcWallet, setCacheEntry, isVerifiedAsset } = useContext(WalletContext)
   const { aspInfo } = useContext(AspContext)
   const assetId = deliveredAssetId(claim)
@@ -82,8 +72,7 @@ export default function ClaimSheet({
 
   const metadata =
     (assetId && assetMetadataCache.get(assetId)?.metadata) ||
-    (loadedAsset?.id === assetId ? loadedAsset?.details.metadata : undefined) ||
-    asset
+    (loadedAsset?.id === assetId ? loadedAsset?.details.metadata : undefined)
   const hasDecimals =
     metadata?.decimals !== undefined &&
     Number.isInteger(metadata.decimals) &&
@@ -100,7 +89,9 @@ export default function ClaimSheet({
   const locktime = kind === 'height' ? `block ${value}` : new Date(Number(value) * 1000).toLocaleString()
   const delivery = assetId
     ? units(BigInt(descriptor.assetUnits ?? 0))
-    : sats(BigInt(descriptor.params.dust) - BigInt(descriptor.params.topup))
+    : sats(
+        BigInt(descriptor.params.dust) + BigInt(descriptor.params.paymentSats ?? 0) - BigInt(descriptor.params.topup),
+      )
 
   return (
     <FlexCol gap='1rem'>

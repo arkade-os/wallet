@@ -3,7 +3,6 @@ import {
   createTaxiSender,
   TaxiUnavailableError,
   type DirectTaxiSendArgs as TaxiSendArgs,
-  type PendingTaxiRecord,
 } from '@arkade-taxi/client/wallet'
 import { hex } from '@scure/base'
 import type { AspInfo } from '../providers/asp'
@@ -26,7 +25,6 @@ export {
   taxiActivityFromPending,
   type DirectTaxiMode,
   type DirectTaxiTerms,
-  type PendingTaxiRecord,
 } from '@arkade-taxi/client/wallet'
 
 const sender = (aspInfo?: AspInfo) =>
@@ -50,8 +48,6 @@ const sender = (aspInfo?: AspInfo) =>
 
 export const getPendingDirectTaxi = (wallet: Pick<IWallet, 'identity'>, network: string) =>
   sender().getPendingDirectTaxi(wallet, network)
-
-export const journalDirectTaxi = (record: PendingTaxiRecord): void => sender().journalDirectTaxi(record)
 
 export const withTaxiPaymentLock = <T>(
   wallet: Pick<IWallet, 'identity'>,

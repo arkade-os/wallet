@@ -1,28 +1,19 @@
 import { type ArkInfo } from '@arkade-os/sdk'
-import { createClaimWatch, watchReceiverClaims as watchClaims, type ClaimWatch } from '@arkade-taxi/client/wallet'
+import { createClaimWatch, type ClaimWatch, type RememberedTaxi } from '@arkade-taxi/client/wallet'
 import { consoleError } from './logs'
 import { walletArkadeContext } from './receiverTaxi'
-import type { RememberedTaxi } from './storage'
 
 export {
   ClaimSpent,
   claimKey,
   deliveredAssetId,
-  guardedClaimIdentity,
-  isFreeReceiverClaim,
   offerKey,
-  planReceiverClaim,
   receiverFareOf,
   taxiActivityFromOffer,
-  type ClaimClient,
+  watchReceiverClaims,
   type ClaimPlan,
-  type ClaimWatch,
   type ReceiverClaim,
-  type RecyclePlan,
-  type VerifiedClaim,
 } from '@arkade-taxi/client/wallet'
-
-export const watchReceiverClaims = (watch: ClaimWatch): (() => void) => watchClaims({ ...watch, onError: consoleError })
 
 export const walletClaimWatch = (args: {
   aspInfo: Pick<

@@ -29,11 +29,11 @@ type TaxiOffer =
   | { status: 'unavailable'; reason: string }
   | { status: 'available'; url: string; operatorKey: string; fares: Fare[]; topup?: bigint }
 
-/** Whether a recycle claim finds a coin to merge, as planReceiverClaim picks it: here, covering the top-up. */
-const holdsClaimCoin = async (wallet: Pick<IWallet, 'getSpendableVtxos'>, receiverAddress: string, topup: bigint) => {
+/** Whether a recycle claim finds a coin to merge, as planReceiverClaim picks it: one of at least `needed` sats. */
+const holdsClaimCoin = async (wallet: Pick<IWallet, 'getSpendableVtxos'>, receiverAddress: string, needed: bigint) => {
   const script = hex.encode(ArkAddress.decode(receiverAddress).pkScript)
   const coins = await unreservedCoins(wallet, assetSwapRepository)
-  return coins.some((coin) => coin.script === script && BigInt(coin.value) >= topup)
+  return coins.some((coin) => coin.script === script && BigInt(coin.value) >= needed)
 }
 
 const checkOwnTaxi = async (
@@ -61,16 +61,12 @@ const checkOwnTaxi = async (
     return unavailable('unverifiable')
   }
   if (!assetId) {
-    const vet = await probeBitcoinTaxi(
-      { url },
-      base,
-      receiverAddress,
-      satoshis > 0 ? BigInt(satoshis) : base.vtxoMinAmount,
-    )
+    const amount = satoshis > 0 ? BigInt(satoshis) : base.vtxoMinAmount
+    const vet = await probeBitcoinTaxi({ url }, base, receiverAddress, amount)
     if (!vet.ok) return unavailable(vet.reason)
     if (!vet.modes.includes('recycle')) return unavailable('recycle-not-allowed')
     const claimCoin = wallet
-      ? await holdsClaimCoin(wallet, receiverAddress, vet.topup).catch((error) => {
+      ? await holdsClaimCoin(wallet, receiverAddress, base.dust - amount).catch((error) => {
           consoleError(error, 'cannot read the coins a Taxi claim would use')
           return undefined
         })
@@ -212,7 +208,7 @@ export default function TaxiChoice({
             ? chosen.units === 0n
               ? 'The payer needs no carrier. Taxi has no service fee; you use your own sats to claim the delivery.'
               : 'The payer needs no carrier. You pay the service fee when you claim the delivery.'
-            : `Taxi adds ${offer.topup} sats to deliver a full ${aspInfo.dust}-sat coin. To claim your ${satoshis} sats, use a coin of at least ${offer.topup} sats from your wallet to repay Taxi. This is not a service fee.` +
+            : `Taxi adds ${offer.topup} sats to deliver a full ${Number(offer.topup) + satoshis!}-sat coin. To claim your ${satoshis} sats, use a coin of at least ${Number(aspInfo.dust) - satoshis!} sats from your wallet to repay Taxi. This is not a service fee.` +
               (chosen.claimCoin === false
                 ? ' You do not currently have a compatible coin to claim it. If unclaimed, the payment can return to the payer.'
                 : '')

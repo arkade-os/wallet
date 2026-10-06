@@ -12,7 +12,7 @@ import {
 } from 'react'
 import { toXOnlySignerHex, type IWallet, type NetworkName } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
-import { TaxiClaimQueue, type ClaimQueueSnapshot } from '@arkade-taxi/client/wallet'
+import { TaxiClaimQueue, type ClaimQueueSnapshot, type RememberedTaxi } from '@arkade-taxi/client/wallet'
 import ErrorBoundary from '../components/ErrorBoundary'
 import SheetModal from '../components/SheetModal'
 import ClaimSheet from '../screens/Wallet/Receive/ClaimSheet'
@@ -24,14 +24,13 @@ import { consoleError } from '../lib/logs'
 import {
   ClaimSpent,
   claimKey,
-  deliveredAssetId,
   offerKey,
   receiverFareOf,
   taxiActivityFromOffer,
   walletClaimWatch,
   watchReceiverClaims,
 } from '../lib/receiverClaims'
-import { readReceiverTaxis, rememberReceiverTaxi, type RememberedTaxi } from '../lib/storage'
+import { readReceiverTaxis, rememberReceiverTaxi } from '../lib/storage'
 import { assetSwapRepository, unreservedCoins } from '../lib/swapRepository'
 import { getEmulatorPubkeyForNetwork, getReceiverTaxiUrlForNetwork } from '../lib/constants'
 import { taxiClient } from '../lib/receiverTaxi'
@@ -76,10 +75,8 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
   useLayoutEffect(() => {
     autoClaimsRef.current = autoClaims
   }, [autoClaims])
-  const { svcWallet, assetMetadataCache, reloadWallet, initialized, authState, vtxos } = useContext(WalletContext)
-  // As App decides: only 'locked' routes to Unlock (App.tsx:109, :137), so 'passwordless', the state
-  // a new or restored wallet runs in, counts. Locking also clears `initialized` but keeps `svcWallet`
-  // and its identity alive (wallet.tsx:1007-1020), so the wallet object says nothing about the lock.
+  const { svcWallet, reloadWallet, initialized, authState, vtxos } = useContext(WalletContext)
+  // As App routes it, only 'locked' is locked ('passwordless' counts); svcWallet survives locking, so it can't tell.
   const unlocked = Boolean(initialized) && authState !== 'locked'
   const unlockedRef = useRef(unlocked)
   useLayoutEffect(() => {
@@ -294,8 +291,6 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
     if (currentKey && !busy) queue?.claim(currentKey).catch(consoleError)
   }
 
-  const assetId = current && deliveredAssetId(current.claim)
-  const metadata = assetId ? assetMetadataCache.get(assetId)?.metadata : undefined
   const claimable = useMemo(() => new Set(offers.map(offerKey)), [offers])
   const value = useMemo(() => ({ remember, claimable, openClaim }), [remember, claimable, openClaim])
 
@@ -309,7 +304,6 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
               <ClaimSheet
                 claim={current.claim}
                 plan={plan}
-                asset={metadata?.ticker ? { ticker: metadata.ticker, decimals: metadata.decimals } : undefined}
                 claiming={claiming}
                 spent={spent.has(offerKey(current))}
                 error={error}

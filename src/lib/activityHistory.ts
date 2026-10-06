@@ -1,7 +1,6 @@
 import type { Activity, ArkTransaction } from '@arkade-os/sdk'
 import { isRfqSwapTerminal } from '@arkade-os/swap'
 import { ASSET_SWAP_ACTIVITY_KIND } from './activity/assetSwapResolver'
-import { allocateActivityEvidence } from './activityEvidence'
 import { readCarrierActivity, type CarrierActivity } from './carrierActivity'
 import { consoleError } from './logs'
 import type { TransactionActivityMetadata } from './storage'
@@ -393,10 +392,6 @@ const projectActivities = (activities: Activity[], options: ActivityHistoryOptio
   // Only a tx a delivery names as its claim: this repo's fixtures carry negative SENT amounts for plain sends.
   const claimTxids = new Set(taxi.flatMap((r) => (r.role === 'receiver' ? [r.claimTxid, r.spentTxid] : [])))
   const rows: Tx[] = []
-  const activityAllocation = allocateActivityEvidence(
-    swaps,
-    activities.flatMap((activity) => activity.txs),
-  )
   const assetSwapTx = (swap: WalletAssetSwap, rawMembers: ArkTransaction[], historyKey: string): Tx =>
     swapRow(swap, () => {
       const carrier = readCarrierActivity(swap.carrier)
@@ -407,11 +402,7 @@ const projectActivities = (activities: Activity[], options: ActivityHistoryOptio
             swap,
             carrier,
             rawMembers.map((tx) => arkTransactionToTx(tx)),
-            {
-              network,
-              assetDisplay,
-              allocation: activityAllocation.swap(swap.id),
-            },
+            { network, assetDisplay },
           ),
           funding && metadata[txidOfArkTransaction(funding)],
         ),
@@ -438,7 +429,6 @@ const projectActivities = (activities: Activity[], options: ActivityHistoryOptio
     } catch {
       continue
     }
-    if (activityAllocation.swap(swap.id)?.status !== 'missing') continue
     const carrier = readCarrierActivity(swap.carrier)
     for (const txid of [swap.fundingTxid, swap.spentTxid, ...(carrier?.txids ?? [])].filter((id): id is string =>
       Boolean(id),
@@ -480,14 +470,7 @@ const projectActivities = (activities: Activity[], options: ActivityHistoryOptio
     }
     const swapId = swapIdOf(activity)
     const swap = swapId ? swaps.find((record) => record.id === swapId) : undefined
-    const swapAllocation = swap ? activityAllocation.swap(swap.id) : undefined
-    const hasVerifiedMembership = Boolean(
-      swap &&
-        activity.txs.some((tx) =>
-          activityAllocation.member(tx)?.allocations.some((allocation) => allocation.swapId === swap.id),
-        ),
-    )
-    if (swap && (swapAllocation?.status === 'missing' || hasVerifiedMembership)) {
+    if (swap) {
       rows.push(
         assetSwapTx(swap, mergeArkTransactionMembers(activity.txs, correlatedMembers.get(swap.id) ?? []), activity.id),
       )
@@ -499,7 +482,6 @@ const projectActivities = (activities: Activity[], options: ActivityHistoryOptio
     for (const tx of activity.txs) {
       const txid = txidOfArkTransaction(tx)
       const memberKey = `${txid}:${String(tx.type).toLowerCase()}`
-      if (activityAllocation.member(tx)?.allocations.length) continue
       if (emittedRawMembers.has(memberKey)) continue
       const correlatedSwap = swapId ? undefined : swapByTxid.get(txid)
       if (correlatedSwap) {
@@ -524,16 +506,6 @@ const projectActivities = (activities: Activity[], options: ActivityHistoryOptio
     const rawMembers = [...(correlatedMembers.get(swap.id) ?? [])].sort((a, b) => a.createdAt - b.createdAt)
     rows.push(assetSwapTx(swap, rawMembers, `swap:${swap.id}`))
     renderedAssetSwaps.add(swap.id)
-  }
-  for (const member of activityAllocation.members()) {
-    if (!member.allocations.length || (member.remainderSats === 0n && member.remainderAssets.length === 0)) continue
-    const row = arkTransactionToTx(member.tx, metadata[member.txid])
-    rows.push({
-      ...row,
-      amount: Number(member.remainderSats),
-      assets: member.remainderAssets.length ? member.remainderAssets : undefined,
-      historyKey: `arkade-wallet:asset-swap-residual:${member.txid}:${member.direction}`,
-    })
   }
   // The sends history cannot see, from the store that can — see
   // `ungroupedLnSendTx`. Keyed on the rfq id rather than the funding txid: that

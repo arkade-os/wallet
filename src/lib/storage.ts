@@ -1,4 +1,5 @@
 import { AssetDetails } from '@arkade-os/sdk'
+import type { RememberedTaxi } from '@arkade-taxi/client/wallet'
 import { Config, LnSendActivity, Wallet } from '../lib/types'
 import { consoleError } from './logs'
 
@@ -93,13 +94,6 @@ export const readAllTransactionActivityMetadata = (): Record<string, Transaction
   getStorageItem<Record<string, TransactionActivityMetadata>>(TRANSACTION_ACTIVITY_METADATA_KEY, {}, (value) =>
     JSON.parse(value),
   )
-
-/** A Taxi this wallet named in one of its receive requests: its claim feed is watched across reloads. */
-export interface RememberedTaxi {
-  network: string
-  url: string
-  operatorKey: string
-}
 
 const RECEIVER_TAXIS_KEY = 'receiverTaxis'
 const RECEIVER_TAXIS_LIMIT = 16

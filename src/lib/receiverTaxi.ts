@@ -5,25 +5,12 @@ import { getEmulatorPubkeyForNetwork } from './constants'
 
 export {
   boundedFetch,
-  callerMinimum,
-  isMixedContent,
   probeBitcoinTaxi,
   probeOwnTaxi,
-  probeReceiverTaxi,
   receiverFareUnits,
-  receiverPaidCarrier,
   ruleFor,
-  taxiAssetId,
   taxiClient,
-  vetBitcoinTaxi,
-  type ArkadeContext,
-  type BitcoinTaxiOffer,
-  type LocktimeDomain,
-  type ProbeRefusal,
-  type ProbeResult,
-  type ReceiverPaidCarrier,
   type TaxiFare,
-  type TaxiInfo,
   type TaxiProbeContext,
 } from '@arkade-taxi/client/wallet'
 
