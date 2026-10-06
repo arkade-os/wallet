@@ -13,6 +13,7 @@ export default defineConfig({
   workers: 1,
   reporter: 'list',
   use: {
+    contextOptions: { reducedMotion: 'reduce' },
     baseURL: `http://localhost:${walletPort}`,
     headless: true,
     ignoreHTTPSErrors: true,
