@@ -13,7 +13,6 @@ import {
   type Activity,
   type Identity,
   type ServiceWorkerWalletMode,
-  toXOnlySignerHex,
 } from '@arkade-os/sdk'
 import {
   clearStorage,
@@ -718,10 +717,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (restoring) {
         setLoadingStatus(t('loading.recoveringAddresses'))
         try {
-          await restoreImportedWallet(svcWallet, {
-            repository: assetSwapRepository,
-            ...(aspInfo.signerPubkey ? { operatorPubkey: hex.decode(toXOnlySignerHex(aspInfo.signerPubkey)) } : {}),
-          })
+          await restoreImportedWallet(svcWallet)
         } catch (err) {
           consoleError(err, 'Error scanning for rotated addresses on restore')
         }

@@ -1,45 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-const events: string[] = []
-const registerAssetSwapRestore = vi.hoisted(() =>
-  vi.fn(() => {
-    events.push('register')
-    return () => undefined
-  }),
-)
-
-vi.mock('@arkade-os/swap', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@arkade-os/swap')>()),
-  registerAssetSwapRestore,
-}))
+import { describe, expect, it, vi } from 'vitest'
 
 import { restoreImportedWallet, type RestorableWallet } from '../../lib/importRestore'
 
 describe('restoreImportedWallet', () => {
-  beforeEach(() => {
-    events.length = 0
-    registerAssetSwapRestore.mockClear()
-  })
+  it('runs explicit wallet recovery', async () => {
+    const wallet = { restore: vi.fn(async () => undefined) } as unknown as RestorableWallet
 
-  it('registers swap recovery before explicit wallet recovery', async () => {
-    const wallet = {
-      restore: vi.fn(async () => void events.push('restore')),
-    } as unknown as RestorableWallet
-    const repository = { name: 'asset swaps' }
-    const indexer = { name: 'indexer' }
-    const serverPubkey = new Uint8Array(32).fill(0xab)
+    await restoreImportedWallet(wallet)
 
-    await restoreImportedWallet(wallet, {
-      repository: repository as never,
-      indexer: indexer as never,
-      operatorPubkey: serverPubkey,
-    })
-
-    expect(events).toEqual(['register', 'restore'])
-    expect(registerAssetSwapRestore).toHaveBeenCalledWith(wallet, {
-      repository,
-      indexer,
-      operatorPubkey: serverPubkey,
-    })
+    expect(wallet.restore).toHaveBeenCalledOnce()
   })
 })
