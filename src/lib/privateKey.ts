@@ -4,19 +4,7 @@ import { MNEMONIC_STORAGE_KEY, NSEC_STORAGE_KEY } from './storageKeys'
 
 export const invalidPrivateKey = (key: Uint8Array): string => {
   if (key.length === 0) return ''
-  if (key.length !== 32) return 'Invalid length: private key must be 32 bytes'
-  return ''
-}
-
-export const invalidNpub = (npub: string): string => {
-  if (!npub) return 'Please enter a npub'
-  if (!/^npub/.test(npub)) return 'Invalid prefix: must start with npub'
-  if (npub.length !== 63) return 'Invalid length: npub must be 63 characters'
-  try {
-    nip19.decode(npub)
-  } catch {
-    return 'Unable to validate npub format'
-  }
+  if (key.length !== 32) return 'restore.invalidLengthPriv'
   return ''
 }
 

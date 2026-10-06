@@ -31,29 +31,6 @@ describe('privatekey utilities', () => {
     })
   })
 
-  describe('invalidNpub', () => {
-    it('should return empty on valid npub', () => {
-      expect(invalidNpub(npub)).toBe('')
-    })
-
-    it('should return error on empty npub', () => {
-      expect(invalidNpub('')).toBe('Please enter a npub')
-    })
-
-    it('should return error on invalid prefix', () => {
-      expect(invalidNpub('xxx')).toBe('Invalid prefix: must start with npub')
-    })
-
-    it('should return error on invalid length', () => {
-      expect(invalidNpub('npub')).toBe('Invalid length: npub must be 63 characters')
-    })
-
-    it('should return error on invalid format', () => {
-      const npub2 = npub.substring(0, npub.length - 1) + '1'
-      expect(invalidNpub(npub2)).toBe('Unable to validate npub format')
-    })
-  })
-
   describe('nsecToPrivateKey', () => {
     it('should return private key from nsec', () => {
       expect(nsecToPrivateKey(nsec)).toEqual(hex.decode(hexs))
