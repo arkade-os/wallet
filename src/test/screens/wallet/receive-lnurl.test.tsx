@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, configure, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { SingleKey } from '@arkade-os/sdk'
 import { encodeLnurl } from '@arkade-os/lnurl-client/arkade'
 import { FlowContext } from '../../../providers/flow'
@@ -34,6 +34,9 @@ import {
   namedAddress,
   namelessAddress,
 } from '../../lib/receive/fakeLnurlServer'
+
+// Every wait here sits behind a receiver load (signing, then fetches), which a full parallel run stretches past 1s.
+configure({ asyncUtilTimeout: 3_000 })
 
 vi.mock('qr', () => ({ default: () => Array.from({ length: 21 }, () => new Uint8Array(21).fill(1)) }))
 const copyToClipboard = vi.fn<(value: string) => Promise<void>>(async () => {})
@@ -138,7 +141,7 @@ describe('Receive screen, rail composition', () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
     renderReceive(10_000)
 
-    expect(await screen.findByText('alice@lnurl.test', {}, { timeout: 3_000 })).toBeInTheDocument()
+    expect(await screen.findByText('alice@lnurl.test')).toBeInTheDocument()
     expect(receiveLightning).not.toHaveBeenCalled()
   })
 
@@ -185,8 +188,8 @@ describe('Receive screen, rail composition', () => {
     serve({ modes: ['self', 'session'], addresses: [address] })
     renderReceive(10_000)
 
-    await waitFor(() => expect(callbacks()).toHaveLength(1), { timeout: 3_000 })
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled(), { timeout: 3_000 })
+    await waitFor(() => expect(callbacks()).toHaveLength(1))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled())
     expect(await qrLightning()).toBe(fakeInvoice(10_000_000))
     fireEvent.click(screen.getByText('Lightning'))
     expect(await copiedQr()).toBe(fakeInvoice(10_000_000))
@@ -197,7 +200,7 @@ describe('Receive screen, rail composition', () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], invoiceError: 'below the corridor minimum' })
     renderReceive(10_000)
 
-    expect(await screen.findByText(/below the corridor minimum/, {}, { timeout: 3_000 })).toBeInTheDocument()
+    expect(await screen.findByText(/below the corridor minimum/)).toBeInTheDocument()
     fireEvent.click(screen.getByText('Lightning'))
     expect(await copiedQr()).toBe('alice@lnurl.test')
   })
@@ -209,8 +212,8 @@ describe('Receive screen, rail composition', () => {
     serve({ modes: ['self', 'session'], addresses: [address] })
     renderReceive(10_000, { receiveViaLnurl: true })
 
-    await waitFor(() => expect(callbacks()).toHaveLength(3), { timeout: 3_000 })
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled(), { timeout: 3_000 })
+    await waitFor(() => expect(callbacks()).toHaveLength(3))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled())
     fireEvent.click(screen.getByText('Arkade'))
     expect(await copiedQr()).toBe(LNURL_DESTINATIONS.arkade)
     fireEvent.click(screen.getByText('Bitcoin'))
@@ -224,7 +227,7 @@ describe('Receive screen, rail composition', () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], destinationError: 'no covenant destinations' })
     renderReceive(10_000, { receiveViaLnurl: true })
 
-    expect(await screen.findByText(/no covenant destinations/, {}, { timeout: 3_000 })).toBeInTheDocument()
+    expect(await screen.findAllByText(/no covenant destinations/)).toHaveLength(2)
     fireEvent.click(screen.getByText('Arkade'))
     expect(await copiedQr()).toBe(DECODABLE_ARK)
     fireEvent.click(screen.getByText('Bitcoin'))
@@ -235,9 +238,22 @@ describe('Receive screen, rail composition', () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], foreignDestinations: true })
     renderReceive(10_000, { receiveViaLnurl: true })
 
-    expect(await screen.findByText(/another operator.*not this wallet's/, {}, { timeout: 3_000 })).toBeInTheDocument()
+    expect(await screen.findByText(/Arkade uses the wallet's own address: .*another operator/)).toBeInTheDocument()
+    expect(screen.getByText(/Bitcoin uses the wallet's own address: .*not this wallet's/)).toBeInTheDocument()
     fireEvent.click(screen.getByText('Arkade'))
     expect(await copiedQr()).toBe(DECODABLE_ARK)
+    fireEvent.click(screen.getByText('Bitcoin'))
+    expect(await copiedQr()).toBe(WALLET_BOARDING_ADDRESS)
+  })
+
+  it('falls back only on the rail the LNURL cannot serve for the amount', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    renderReceive(5_000, { receiveViaLnurl: true })
+
+    expect(await screen.findByText(/Bitcoin uses the wallet's own address: Amount must be/)).toBeInTheDocument()
+    expect(screen.queryByText(/Arkade uses the wallet's own address/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('Arkade'))
+    expect(await copiedQr()).toBe(LNURL_DESTINATIONS.arkade)
     fireEvent.click(screen.getByText('Bitcoin'))
     expect(await copiedQr()).toBe(WALLET_BOARDING_ADDRESS)
   })

@@ -115,7 +115,7 @@ export function fakeLnurlServer(opts: {
         paymentOptions: [
           { id: 'lightning', type: 'lightning' },
           { id: 'arkade', type: 'arkade' },
-          { id: 'onchain', type: 'onchain' },
+          { id: 'onchain', type: 'onchain', minSendable: 10_000_000 },
         ],
       })
     }

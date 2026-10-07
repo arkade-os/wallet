@@ -134,9 +134,10 @@ export default function ReceiveQRCode() {
   })
   const invoice = recvInfo.invoice || lnurlRails.targets.lightning || ''
   const generatingInvoice = swapRail.generatingInvoice || lnurlRails.generating
-  const destinationError = [...new Set([lnurlRails.errors.arkade, lnurlRails.errors.onchain].filter(Boolean))].join(
-    '; ',
-  )
+  const fallbacks = [
+    { label: t('receive.methodArkade'), error: lnurlRails.errors.arkade },
+    { label: t('receive.methodBitcoin'), error: lnurlRails.errors.onchain },
+  ].filter((rail) => rail.error)
 
   const createBip21 = (): { ark: string; btc: string; bip21: string } => {
     const ark = vtxoTxsAllowed() ? lnurlRails.targets.arkade || recvInfo.offchainAddr : ''
@@ -393,9 +394,11 @@ export default function ReceiveQRCode() {
               {lnurlRails.errors.lightning ? (
                 <TextSecondary>{t('receive.noInvoiceForAmount', { error: lnurlRails.errors.lightning })}</TextSecondary>
               ) : null}
-              {destinationError ? (
-                <TextSecondary>{t('receive.ownAddressesInstead', { error: destinationError })}</TextSecondary>
-              ) : null}
+              {fallbacks.map(({ label, error }) => (
+                <TextSecondary key={label}>
+                  {t('receive.ownAddressInstead', { rail: label, error: error ?? '' })}
+                </TextSecondary>
+              ))}
               {paymentMethods.length > 1 ? (
                 <div className='mt-20 mb-3 w-full max-w-85'>
                   <SegmentedControl
