@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import type { Identity } from '@arkade-os/sdk'
 import type { PaymentSyncStore } from '@arkade-os/lnurl-client'
-import { lnurlSyncWritesSettled, syncLnurlActivity } from '../../lib/lnurlActivitySync'
+import { lnurlResyncOnPayment, lnurlSyncWritesSettled, syncLnurlActivity } from '../../lib/lnurlActivitySync'
 import { lnurlPaymentSyncStore } from '../../lib/lnurlPaymentRepository'
 import { lnurlReceiver } from '../../lib/receive/lnurlRail'
 
@@ -98,5 +98,44 @@ describe('syncLnurlActivity', () => {
     receiverMock.mockReturnValue({ owned: vi.fn().mockResolvedValue(undefined) } as never)
 
     await expect(syncLnurlActivity(identity, ARKADE_ADDRESS)).resolves.toEqual({ synced: 0, failures: [] })
+  })
+})
+
+describe('lnurlResyncOnPayment', () => {
+  it('pulls activity shortly after a payment lands and again once the server caught up, reloading on news', async () => {
+    vi.useFakeTimers()
+    try {
+      const sync = vi.fn().mockResolvedValueOnce(0).mockResolvedValueOnce(1)
+      const reload = vi.fn()
+      const resync = lnurlResyncOnPayment(sync, reload)
+
+      resync.onPayment()
+      resync.onPayment()
+      await vi.advanceTimersByTimeAsync(5_000)
+      expect(sync).toHaveBeenCalledTimes(1)
+      expect(reload).not.toHaveBeenCalled()
+
+      await vi.advanceTimersByTimeAsync(20_000)
+      expect(sync).toHaveBeenCalledTimes(2)
+      expect(reload).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('pulls nothing once cancelled, as a lock or reset does', async () => {
+    vi.useFakeTimers()
+    try {
+      const sync = vi.fn().mockResolvedValue(1)
+      const resync = lnurlResyncOnPayment(sync, vi.fn())
+
+      resync.onPayment()
+      resync.cancel()
+      await vi.advanceTimersByTimeAsync(60_000)
+
+      expect(sync).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

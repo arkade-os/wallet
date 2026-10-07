@@ -1,5 +1,6 @@
 import type { PaymentSyncStore } from '@arkade-os/lnurl-client'
 import type { ArkadeSigner } from '@arkade-os/lnurl-client/arkade'
+import { consoleError } from './logs'
 import { lnurlReceiver } from './receive/lnurlRail'
 import { lnurlPaymentSyncStore } from './lnurlPaymentRepository'
 
@@ -51,4 +52,32 @@ export async function syncLnurlActivity(
       : store,
   })?.owned()
   return (await receiver?.sync()) ?? { synced: 0, failures: [] }
+}
+
+const RESYNC_DELAYS_MS = [3_000, 20_000]
+
+/** Startup alone leaves a payment received while the wallet is open unattributed until the
+ *  next start. The server records it as it settles, so pull once shortly after it lands and
+ *  once more after the server has caught up; `onSynced` reloads the history when either wrote. */
+export function lnurlResyncOnPayment(sync: () => Promise<number>, onSynced: () => void) {
+  let timers: ReturnType<typeof setTimeout>[] = []
+  const cancel = () => {
+    timers.forEach(clearTimeout)
+    timers = []
+  }
+  return {
+    onPayment() {
+      cancel()
+      timers = RESYNC_DELAYS_MS.map((ms) =>
+        setTimeout(() => {
+          sync()
+            .then((synced) => {
+              if (synced > 0) onSynced()
+            })
+            .catch((err) => consoleError(err, 'lnurl activity sync failed'))
+        }, ms),
+      )
+    },
+    cancel,
+  }
 }
