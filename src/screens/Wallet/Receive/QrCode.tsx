@@ -128,10 +128,15 @@ export default function ReceiveQRCode() {
   const swapRail = useSwapRail(!lnurlConfigured || lnurlRail.status === 'failed')
   const lnurl = lnurlRail.receiver?.lnurl ?? ''
   const lightningAddress = lnurlRail.receiver?.lightningAddress ?? ''
-  const lnurlRails = useLnurlRails(lnurlRail.receiver, satoshis, config.receiveViaLnurl)
+  const lnurlRails = useLnurlRails(lnurlRail.receiver, satoshis, config.receiveViaLnurl, {
+    arkade: recvInfo.offchainAddr,
+    onchain: recvInfo.boardingAddr,
+  })
   const invoice = recvInfo.invoice || lnurlRails.targets.lightning || ''
   const generatingInvoice = swapRail.generatingInvoice || lnurlRails.generating
-  const destinationError = lnurlRails.errors.arkade || lnurlRails.errors.onchain
+  const destinationError = [...new Set([lnurlRails.errors.arkade, lnurlRails.errors.onchain].filter(Boolean))].join(
+    '; ',
+  )
 
   const createBip21 = (): { ark: string; btc: string; bip21: string } => {
     const ark = vtxoTxsAllowed() ? lnurlRails.targets.arkade || recvInfo.offchainAddr : ''

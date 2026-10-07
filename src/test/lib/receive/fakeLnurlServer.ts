@@ -1,3 +1,4 @@
+import { ArkAddress } from '@arkade-os/sdk'
 import { bech32 } from '@scure/base'
 import { vi } from 'vitest'
 
@@ -46,7 +47,20 @@ export const namelessAddress = (handle = 'sess1'): FakeAddress => ({
 export const fakeInvoice = (amountMsat: number): string =>
   bech32.encode(`lnbcrt${amountMsat * 10}p`, bech32.toWords(new Uint8Array(64)), 2000)
 
-export const LNURL_DESTINATIONS = { arkade: 'ark1lnurlcovenantdestination', onchain: 'bcrt1lnurlboardingaddress' }
+export const WALLET_BOARDING_ADDRESS = 'bc1testaddr'
+const ownArk = ArkAddress.decode(DECODABLE_ARK)
+const otherKey = (fill: number) => new Uint8Array(32).fill(fill)
+
+/** What an honest server answers: a fresh address on the wallet's operator, and its registered boarding address. */
+export const LNURL_DESTINATIONS = {
+  arkade: new ArkAddress(ownArk.serverPubKey, otherKey(7), ownArk.hrp).encode(),
+  onchain: WALLET_BOARDING_ADDRESS,
+}
+
+export const FOREIGN_DESTINATIONS = {
+  arkade: new ArkAddress(otherKey(9), otherKey(7), ownArk.hrp).encode(),
+  onchain: 'bc1qforeignaddress',
+}
 
 /** The endpoints `arkadeLnurl` calls, backed by one in-memory address list. */
 export function fakeLnurlServer(opts: {
@@ -59,6 +73,7 @@ export function fakeLnurlServer(opts: {
   capabilitiesFail?: boolean
   invoiceError?: string
   destinationError?: string
+  foreignDestinations?: boolean
 }) {
   const addresses = [...(opts.addresses ?? [])]
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -108,7 +123,8 @@ export function fakeLnurlServer(opts: {
       const rail = url.searchParams.get('paymentOption')
       if (rail === 'arkade' || rail === 'onchain') {
         if (opts.destinationError) return json(200, { status: 'ERROR', reason: opts.destinationError })
-        return json(200, { status: 'OK', paymentOption: rail, paymentDestination: LNURL_DESTINATIONS[rail] })
+        const destinations = opts.foreignDestinations ? FOREIGN_DESTINATIONS : LNURL_DESTINATIONS
+        return json(200, { status: 'OK', paymentOption: rail, paymentDestination: destinations[rail] })
       }
       if (opts.invoiceError) return json(200, { status: 'ERROR', reason: opts.invoiceError })
       return json(200, { pr: fakeInvoice(Number(url.searchParams.get('amount'))), routes: [] })

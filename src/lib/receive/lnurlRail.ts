@@ -8,6 +8,8 @@ import {
   type Receiver,
 } from '@arkade-os/lnurl-client/arkade'
 import { createLnurlClient, LnurlError, type DomainCapabilities, type PaymentSyncStore } from '@arkade-os/lnurl-client'
+import { ArkAddress } from '@arkade-os/sdk'
+import { hex } from '@scure/base'
 import { consoleError } from '../logs'
 import { extractError } from '../error'
 import { fromRuntimeEnv } from '../constants'
@@ -53,8 +55,22 @@ export function lnurlReceiver(deps: {
 export type LnurlRailType = 'lightning' | 'arkade' | 'onchain'
 type PerRail = Partial<Record<LnurlRailType, string>>
 
+const sameOperator = (a: string, b: string) => {
+  try {
+    const [x, y] = [ArkAddress.decode(a), ArkAddress.decode(b)]
+    return x.hrp === y.hrp && hex.encode(x.serverPubKey) === hex.encode(y.serverPubKey)
+  } catch {
+    return false
+  }
+}
+
 /** What any payer resolving the receiver's LNURL gets for `amountSat` on each rail: an invoice, or a destination. */
-export async function resolveLnurlRails(receiver: Receiver, amountSat: number, rails: LnurlRailType[]) {
+export async function resolveLnurlRails(
+  receiver: Receiver,
+  amountSat: number,
+  rails: LnurlRailType[],
+  own: { arkade: string; onchain: string },
+) {
   const payRequest = await receiver.payRequest()
   return Promise.allSettled(
     rails.map(async (rail) => {
@@ -65,6 +81,14 @@ export async function resolveLnurlRails(receiver: Receiver, amountSat: number, r
       if (!target || (result.kind === 'bolt11') !== (rail === 'lightning')) {
         throw new LnurlError(`the LNURL answered the ${rail} rail with nothing payable on it`)
       }
+      // An honest server answers onchain with the boarding address this wallet registered and arkade on its
+      // own operator; a per-payment covenant's leaves can't be checked from here, so that part stays trust.
+      if (rail === 'onchain' && target !== own.onchain) {
+        throw new LnurlError("the LNURL gave an on-chain address that is not this wallet's")
+      }
+      if (rail === 'arkade' && !sameOperator(target, own.arkade)) {
+        throw new LnurlError('the LNURL gave an Arkade address on another operator')
+      }
       return target
     }),
   )
@@ -72,7 +96,13 @@ export async function resolveLnurlRails(receiver: Receiver, amountSat: number, r
 
 /** `resolveLnurlRails` for the amount being requested, asked again whenever it changes. Lightning
  *  always goes through the LNURL; the Arkade and on-chain legs only when `allRails` is set. */
-export function useLnurlRails(receiver: Receiver | undefined, amountSat: number, allRails: boolean) {
+export function useLnurlRails(
+  receiver: Receiver | undefined,
+  amountSat: number,
+  allRails: boolean,
+  own: { arkade: string; onchain: string },
+) {
+  const { arkade: ownArkade, onchain: ownOnchain } = own
   const [targets, setTargets] = useState<PerRail>({})
   const [errors, setErrors] = useState<PerRail>({})
   const [generating, setGenerating] = useState(false)
@@ -84,7 +114,7 @@ export function useLnurlRails(receiver: Receiver | undefined, amountSat: number,
     if (!receiver || amountSat <= 0) return
     const rails: LnurlRailType[] = allRails ? ['lightning', 'arkade', 'onchain'] : ['lightning']
     let stale = false
-    resolveLnurlRails(receiver, amountSat, rails)
+    resolveLnurlRails(receiver, amountSat, rails, { arkade: ownArkade, onchain: ownOnchain })
       .then((results) => {
         if (stale) return
         const resolved: PerRail = {}
@@ -110,7 +140,7 @@ export function useLnurlRails(receiver: Receiver | undefined, amountSat: number,
     return () => {
       stale = true
     }
-  }, [receiver, amountSat, allRails])
+  }, [receiver, amountSat, allRails, ownArkade, ownOnchain])
 
   return { targets, errors, generating }
 }

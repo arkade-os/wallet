@@ -28,6 +28,7 @@ import {
   DECODABLE_ARK,
   LNURL_BASE,
   LNURL_DESTINATIONS,
+  WALLET_BOARDING_ADDRESS,
   fakeInvoice,
   fakeLnurlServer,
   namedAddress,
@@ -69,7 +70,7 @@ const renderReceive = (satoshis = 0, config: Partial<Config> = {}) =>
                         ...mockFlowContextValue.recvInfo,
                         satoshis,
                         offchainAddr: DECODABLE_ARK,
-                        boardingAddr: 'bc1testaddr',
+                        boardingAddr: WALLET_BOARDING_ADDRESS,
                       },
                     } as never
                   }
@@ -227,7 +228,18 @@ describe('Receive screen, rail composition', () => {
     fireEvent.click(screen.getByText('Arkade'))
     expect(await copiedQr()).toBe(DECODABLE_ARK)
     fireEvent.click(screen.getByText('Bitcoin'))
-    expect(await copiedQr()).toBe('bc1testaddr')
+    expect(await copiedQr()).toBe(WALLET_BOARDING_ADDRESS)
+  })
+
+  it('refuses an Arkade address on another operator and an on-chain address that is not its own', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], foreignDestinations: true })
+    renderReceive(10_000, { receiveViaLnurl: true })
+
+    expect(await screen.findByText(/another operator.*not this wallet's/, {}, { timeout: 3_000 })).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Arkade'))
+    expect(await copiedQr()).toBe(DECODABLE_ARK)
+    fireEvent.click(screen.getByText('Bitcoin'))
+    expect(await copiedQr()).toBe(WALLET_BOARDING_ADDRESS)
   })
 })
 
