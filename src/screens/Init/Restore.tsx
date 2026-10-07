@@ -52,6 +52,7 @@ export default function InitRestore() {
   const mnemonic = parsed.kind === 'phrase' ? parsed.mnemonic : undefined
   const privateKey = parsed.kind === 'key' ? parsed.privateKey : undefined
   const activeWord = getRecoveryWord(input.value, input.cursor)
+
   let error = ''
   if (parsed.kind === 'phrase' && parsed.error === 'word') {
     if (submitted || activeWord?.index !== parsed.wordIndex) {
@@ -62,6 +63,7 @@ export default function InitRestore() {
     if (parsed.error === 'checksum') error = t('init.recoveryChecksumError')
     if (parsed.error === 'key') error = t('init.recoveryKeyError')
   }
+
   const helperText =
     parsed.kind === 'phrase'
       ? t(parsed.count === 1 ? 'init.recoveryOneWord' : 'init.recoveryWordCount', { count: parsed.count })
