@@ -1,3 +1,4 @@
+import { bech32 } from '@scure/base'
 import { vi } from 'vitest'
 
 export const LNURL_BASE = 'https://lnurl.test'
@@ -41,6 +42,10 @@ export const namelessAddress = (handle = 'sess1'): FakeAddress => ({
   domain: LNURL_DOMAIN,
 })
 
+/** The client checks an invoice's amount, which it reads off the bech32 prefix alone. */
+export const fakeInvoice = (amountMsat: number): string =>
+  bech32.encode(`lnbcrt${amountMsat * 10}p`, bech32.toWords(new Uint8Array(64)), 2000)
+
 /** The endpoints `arkadeLnurl` calls, backed by one in-memory address list. */
 export function fakeLnurlServer(opts: {
   modes: string[]
@@ -50,6 +55,7 @@ export function fakeLnurlServer(opts: {
   /** The identity's existing session row, which the server hands back to a nameless claim. */
   sessionRow?: FakeAddress
   capabilitiesFail?: boolean
+  invoiceError?: string
 }) {
   const addresses = [...(opts.addresses ?? [])]
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -79,6 +85,24 @@ export function fakeLnurlServer(opts: {
       const row = named(body.username ?? 'brave-otter')
       addresses.push(row)
       return json(200, row)
+    }
+    // `/lnurl/<id>` is a nameless receiver's LNURL, which the server serves with the same rails.
+    if (method === 'GET' && (path.startsWith('/.well-known/lnurlp/') || /^\/lnurl\/[^/]+$/.test(path))) {
+      return json(200, {
+        tag: 'payRequest',
+        callback: `${LNURL_BASE}/callback/${path.split('/').pop()}`,
+        minSendable: 1_000,
+        maxSendable: 100_000_000_000,
+        metadata: '[]',
+        paymentOptions: [
+          { id: 'lightning', type: 'lightning' },
+          { id: 'arkade', type: 'arkade' },
+        ],
+      })
+    }
+    if (path.startsWith('/callback/')) {
+      if (opts.invoiceError) return json(200, { status: 'ERROR', reason: opts.invoiceError })
+      return json(200, { pr: fakeInvoice(Number(url.searchParams.get('amount'))), routes: [] })
     }
     if (path.endsWith('/arkade') && method === 'POST') return json(200, {})
     if (method === 'PATCH') {

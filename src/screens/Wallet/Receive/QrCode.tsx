@@ -43,7 +43,7 @@ import { AspContext } from '../../../providers/asp'
 import { AssetsContext } from '../../../providers/assets'
 import { useSwapRail } from '../../../lib/receive/swapRail'
 import SwapRailStatus from './SwapRail'
-import { configuredLnurlServer, useLnurlRail } from '../../../lib/receive/lnurlRail'
+import { configuredLnurlServer, useLnurlInvoice, useLnurlRail } from '../../../lib/receive/lnurlRail'
 import LnurlRailPanel from './LnurlRail'
 import { useTranslation } from '../../../providers/language'
 
@@ -126,16 +126,18 @@ export default function ReceiveQRCode() {
     boardingAddress: recvInfo.boardingAddr || undefined,
   })
   const swapRail = useSwapRail(!lnurlConfigured || lnurlRail.status === 'failed')
-  const { generatingInvoice } = swapRail
   const lnurl = lnurlRail.receiver?.lnurl ?? ''
   const lightningAddress = lnurlRail.receiver?.lightningAddress ?? ''
+  const lnurlInvoice = useLnurlInvoice(lnurlRail.receiver, satoshis)
+  const invoice = recvInfo.invoice || lnurlInvoice.invoice
+  const generatingInvoice = swapRail.generatingInvoice || lnurlInvoice.generating
 
   const createBip21 = (): { ark: string; btc: string; bip21: string } => {
     const ark = vtxoTxsAllowed() ? recvInfo.offchainAddr : ''
     const btc = utxoTxsAllowed() ? recvInfo.boardingAddr : ''
     const bip21 = isAssetReceive
       ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals)
-      : encodeBip21(btc, ark, recvInfo.invoice ?? '', satoshis, lnurl)
+      : encodeBip21(btc, ark, invoice, satoshis, lnurl)
 
     return { ark, btc, bip21 }
   }
@@ -157,7 +159,7 @@ export default function ReceiveQRCode() {
     recvInfo.offchainAddr,
     recvInfo.boardingAddr,
     recvInfo.satoshis,
-    recvInfo.invoice,
+    invoice,
     lnurl,
   ])
 
@@ -170,9 +172,9 @@ export default function ReceiveQRCode() {
    * back. The ids are what the selector and the copy sheet both key off, so
    * choosing a method means the same thing wherever it is changed from.
    *
-   * The Lightning entry only exists once a solver has minted an invoice, which
-   * needs an amount of at least the corridor minimum — below that there is
-   * nothing to offer and the entry is simply absent.
+   * Lightning is an invoice once an amount is set (the receiver's own LNURL issues
+   * it, or a solver when no lnurl-server is reachable); without one it is the
+   * receiver's address, or its LNURL while nameless — the same rail either way.
    *
    * Labels are deliberately short: these sit in a horizontal control, and
    * "Lightning invoice" / "Arkade address" crowd it on a narrow phone. The copy
@@ -181,15 +183,12 @@ export default function ReceiveQRCode() {
   const paymentMethods = useMemo(() => {
     const methods: { id: string; label: string; value: string }[] = []
     if (bip21Uri) methods.push({ id: 'unified', label: t('receive.unified'), value: bip21Uri })
-    if (recvInfo.invoice)
-      methods.push({ id: 'lightning', label: t('receive.methodLightning'), value: recvInfo.invoice })
-    // Same label as the invoice: the swap rail that mints one only runs when the lnurl rail failed.
-    if (lightningAddress)
-      methods.push({ id: 'lnaddress', label: t('receive.methodLightning'), value: lightningAddress })
+    const lightning = invoice || lightningAddress || lnurl
+    if (lightning) methods.push({ id: 'lightning', label: t('receive.methodLightning'), value: lightning })
     if (arkAddress) methods.push({ id: 'ark', label: t('receive.methodArkade'), value: arkAddress })
     if (btcAddress) methods.push({ id: 'bitcoin', label: t('receive.methodBitcoin'), value: btcAddress })
     return methods
-  }, [bip21Uri, recvInfo.invoice, lightningAddress, arkAddress, btcAddress, t])
+  }, [bip21Uri, invoice, lightningAddress, lnurl, arkAddress, btcAddress, t])
 
   // What the QR encodes, and what the selector highlights, are two different
   // questions. The *choice* is `selectedMethod` and it is remembered even while
@@ -383,6 +382,9 @@ export default function ReceiveQRCode() {
           ) : (
             <FlexCol gap='0.5rem' centered>
               <SwapRailStatus rail={swapRail} />
+              {lnurlInvoice.error ? (
+                <TextSecondary>{t('receive.noInvoiceForAmount', { error: lnurlInvoice.error })}</TextSecondary>
+              ) : null}
               {paymentMethods.length > 1 ? (
                 <div className='mt-20 mb-3 w-full max-w-85'>
                   <SegmentedControl
@@ -516,8 +518,9 @@ export default function ReceiveQRCode() {
             bip21Uri={bip21Uri}
             btcAddress={btcAddress}
             arkAddress={arkAddress}
-            invoice={recvInfo.invoice ?? ''}
+            invoice={invoice}
             lightningAddress={lightningAddress}
+            lnurl={lnurl}
             onCopy={handleCopy}
             onSelect={(v) => {
               const method = paymentMethods.find((m) => m.value === v)
@@ -537,6 +540,7 @@ function AddressList({
   arkAddress,
   invoice,
   lightningAddress,
+  lnurl,
   onCopy,
   onSelect,
   copied,
@@ -546,6 +550,7 @@ function AddressList({
   arkAddress: string
   invoice: string
   lightningAddress: string
+  lnurl: string
   onCopy: (value: string) => void
   onSelect: (value: string) => void
   copied: string
@@ -593,11 +598,11 @@ function AddressList({
           copied={copied}
         />
       ) : null}
-      {lightningAddress ? (
+      {lightningAddress || lnurl ? (
         <AddressLine
           testId='lnaddress'
-          title='Lightning address'
-          value={lightningAddress}
+          title={lightningAddress ? 'Lightning address' : 'LNURL'}
+          value={lightningAddress || lnurl}
           onCopy={onCopy}
           onSelect={onSelect}
           copied={copied}

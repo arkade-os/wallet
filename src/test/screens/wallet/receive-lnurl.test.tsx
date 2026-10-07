@@ -26,6 +26,7 @@ import {
 import {
   DECODABLE_ARK,
   LNURL_BASE,
+  fakeInvoice,
   fakeLnurlServer,
   namedAddress,
   namelessAddress,
@@ -91,11 +92,18 @@ const serve = (opts: Parameters<typeof fakeLnurlServer>[0]) => {
   vi.stubGlobal('fetch', server.fetch)
 }
 
-const qrLightning = async (): Promise<string | null> => {
+const copiedQr = async (): Promise<string> => {
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy QR code' })))
-  const uri = copyToClipboard.mock.calls.at(-1)![0]
-  return new URLSearchParams(uri.split('?')[1]).get('lightning')
+  return copyToClipboard.mock.calls.at(-1)![0]
 }
+
+const qrLightning = async (): Promise<string | null> =>
+  new URLSearchParams((await copiedQr()).split('?')[1]).get('lightning')
+
+const callbacks = () =>
+  server.fetch.mock.calls
+    .map(([input]) => new URL(String(input)))
+    .filter((url) => url.pathname.startsWith('/callback/'))
 
 beforeEach(() => {
   receiveLightning.mockReset()
@@ -151,6 +159,42 @@ describe('Receive screen, rail composition', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy QR code' })))
 
     expect(copyToClipboard.mock.calls.at(-1)![0]).toBe('alice@lnurl.test')
+  })
+
+  it('shows a nameless receiver its LNURL when Lightning is selected', async () => {
+    serve({ modes: ['session'], addresses: [namelessAddress()] })
+    renderReceive()
+
+    await screen.findByText(/No name yet/)
+    const lnurl = await qrLightning()
+    fireEvent.click(screen.getByText('Lightning'))
+
+    expect(lnurl).toMatch(/^lnurl1/i)
+    expect(await copiedQr()).toBe(lnurl)
+  })
+
+  it.each([
+    ['named', namedAddress('alice'), 'lightning'],
+    ['nameless', namelessAddress(), null],
+  ] as const)('pays an amount at the invoice its LNURL issues for it, %s', async (_, address, railId) => {
+    serve({ modes: ['self', 'session'], addresses: [address] })
+    renderReceive(10_000)
+
+    await waitFor(() => expect(callbacks()).toHaveLength(1))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled())
+    expect(await qrLightning()).toBe(fakeInvoice(10_000_000))
+    fireEvent.click(screen.getByText('Lightning'))
+    expect(await copiedQr()).toBe(fakeInvoice(10_000_000))
+    expect(callbacks()[0].searchParams.get('paymentOption')).toBe(railId)
+  })
+
+  it('keeps the address on the Lightning tab, and says why, when no invoice comes back', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], invoiceError: 'below the corridor minimum' })
+    renderReceive(10_000)
+
+    expect(await screen.findByText(/below the corridor minimum/)).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Lightning'))
+    expect(await copiedQr()).toBe('alice@lnurl.test')
   })
 })
 

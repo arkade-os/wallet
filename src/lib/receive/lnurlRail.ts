@@ -7,10 +7,13 @@ import {
   type NameOptions,
   type Receiver,
 } from '@arkade-os/lnurl-client/arkade'
-import { LnurlError, type DomainCapabilities, type PaymentSyncStore } from '@arkade-os/lnurl-client'
+import { createLnurlClient, LnurlError, type DomainCapabilities, type PaymentSyncStore } from '@arkade-os/lnurl-client'
 import { consoleError } from '../logs'
+import { extractError } from '../error'
 import { fromRuntimeEnv } from '../constants'
 import { lnurlPaymentSyncStore } from '../lnurlPaymentRepository'
+
+const lnurlClient = createLnurlClient()
 
 /** An lnurl-server this wallet holds addresses at. */
 export interface LnurlServer {
@@ -51,6 +54,51 @@ export function lnurlReceiver(deps: {
   const server = configuredLnurlServer()
   if (!server) return undefined
   return arkadeLnurl({ ...deps, baseUrl: server.baseUrl, domain: server.domain })
+}
+
+/** The invoice any payer resolving the receiver's LNURL gets for `amountSat`, on its lightning rail. */
+export async function lnurlInvoice(receiver: Receiver, amountSat: number): Promise<string> {
+  const payRequest = await receiver.payRequest()
+  // The client refuses a rail id on a session payRequest, whose callback is Lightning already.
+  const paymentOption =
+    payRequest.source.surface === 'session'
+      ? undefined
+      : payRequest.paymentOptions?.find((o) => o.type === 'lightning' && o.available !== false)?.id
+  const result = await lnurlClient.requestInvoice(payRequest, { amountSat, paymentOption })
+  if (result.kind !== 'bolt11') throw new LnurlError(`the LNURL answered with a ${result.paymentOption} destination`)
+  return result.pr
+}
+
+/** `lnurlInvoice` for the amount being requested, asked again whenever it changes. */
+export function useLnurlInvoice(receiver: Receiver | undefined, amountSat: number) {
+  const [invoice, setInvoice] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    setInvoice('')
+    setError('')
+    setGenerating(Boolean(receiver) && amountSat > 0)
+    if (!receiver || amountSat <= 0) return
+    let stale = false
+    lnurlInvoice(receiver, amountSat)
+      .then((pr) => {
+        if (!stale) setInvoice(pr)
+      })
+      .catch((err) => {
+        if (stale) return
+        consoleError(err, 'lnurl invoice request failed')
+        setError(extractError(err))
+      })
+      .finally(() => {
+        if (!stale) setGenerating(false)
+      })
+    return () => {
+      stale = true
+    }
+  }, [receiver, amountSat])
+
+  return { invoice, generating, error }
 }
 
 const CLAIM_ERROR_MESSAGES: Record<string, string> = {
