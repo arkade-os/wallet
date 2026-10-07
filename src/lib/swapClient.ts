@@ -80,10 +80,9 @@ const onchainClaim = (wallet: SwapClientConfig['wallet'], network: NetworkName):
     if (!payoutPkScript) {
       throw new Error(`swap ${swap.rfqId} carries no payout script — refusing to claim to anywhere else`)
     }
-    const [preimage, feeRateSatVb] = await Promise.all([
-      preimageForSwapRecord(wallet, secrets),
-      claimFeeRate(esploraUrl),
-    ])
+    const feeRateSatVb = await claimFeeRate(esploraUrl)
+    if (feeRateSatVb === undefined) throw new Error('no fee estimate — not revealing the preimage this pass')
+    const preimage = await preimageForSwapRecord(wallet, secrets)
     return claimOnchainFill(chain, {
       htlc: swap.htlc,
       utxo,
