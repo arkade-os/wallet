@@ -88,6 +88,14 @@ export const translations = {
       biometricsDescription:
         'This will allow you to log in easily through biometrics without a need to remember the password.',
       invalidRecoveryPhrase: 'Invalid recovery phrase',
+      wordSuggestions: 'Word suggestions',
+      recoveryInputHint: 'Type or paste your recovery phrase or private key.',
+      recoveryOneWord: '1 word entered',
+      recoveryWordCount: '{count} words entered',
+      recoveryWordError: 'Word {number} isn’t recognized. Check its spelling.',
+      recoveryWordCountError: 'Enter the complete recovery phrase: 12, 15, 18, 21 or 24 words.',
+      recoveryChecksumError: 'This recovery phrase doesn’t validate. Check the words and their order.',
+      recoveryKeyError: 'Enter a valid nsec private key or a 64-character hexadecimal private key.',
       unableToValidatePrivateKey: 'Unable to validate private key format',
       unableToValidateKey: 'Unable to validate key format',
       rotationSubtext:
@@ -887,6 +895,14 @@ export const translations = {
       biometricsDescription:
         'Esto te permitirá iniciar sesión fácilmente con datos biométricos sin necesidad de recordar la contraseña.',
       invalidRecoveryPhrase: 'Frase de recuperación inválida',
+      wordSuggestions: 'Sugerencias de palabras',
+      recoveryInputHint: 'Escribe o pega tu frase de recuperación o clave privada.',
+      recoveryOneWord: '1 palabra introducida',
+      recoveryWordCount: '{count} palabras introducidas',
+      recoveryWordError: 'No se reconoce la palabra {number}. Revisa su escritura.',
+      recoveryWordCountError: 'Introduce la frase de recuperación completa: 12, 15, 18, 21 o 24 palabras.',
+      recoveryChecksumError: 'La frase de recuperación no es válida. Revisa las palabras y su orden.',
+      recoveryKeyError: 'Introduce una clave privada nsec válida o una clave privada hexadecimal de 64 caracteres.',
       unableToValidatePrivateKey: 'No se pudo validar el formato de la clave privada',
       unableToValidateKey: 'No se pudo validar el formato de la clave',
       rotationSubtext:
