@@ -411,7 +411,7 @@ describe('Send screen', () => {
 
   it('returns to the app with error=denied when the send is dismissed', () => {
     vi.mocked(redirectToCallback).mockClear()
-    const setAppIntent = vi.fn()
+    const resetFlow = vi.fn()
     const callback = 'https://arkade.trade/vault'
     renderSendForm({
       flowContext: {
@@ -422,7 +422,7 @@ describe('Send screen', () => {
           callback,
           prefilled: true,
         },
-        setAppIntent,
+        resetFlow,
       },
       walletContext: {
         ...mockWalletContextValue,
@@ -435,7 +435,7 @@ describe('Send screen', () => {
     })
 
     fireEvent.click(screen.getByLabelText('Go back'))
-    expect(setAppIntent).toHaveBeenCalledWith(undefined)
+    expect(resetFlow).toHaveBeenCalled()
     expect(redirectToCallback).toHaveBeenCalledWith(callback, { error: 'denied' })
   })
 })

@@ -169,6 +169,7 @@ export const mockFlowContextValue = {
   setDeepLinkInfo: () => {},
   appIntent: undefined as AppIntentState | undefined,
   setAppIntent: () => {},
+  resetFlow: () => {},
 }
 
 export const mockLimitsContextValue = {
