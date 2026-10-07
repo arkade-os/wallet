@@ -118,7 +118,7 @@ export default function SendDetails() {
     // otherwise fee math and labels drift when the language changes.
     const destinationType =
       lnurlRoute && destination === lnUrl
-        ? pendingLnSend!.railId === LNURL_ARKADE_RAIL
+        ? pendingLnSend?.railId === LNURL_ARKADE_RAIL
           ? 'arkade'
           : 'lightning'
         : destination === arkAddress
