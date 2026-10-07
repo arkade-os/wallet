@@ -114,23 +114,34 @@ export default function SendDetails() {
             : address && utxoTxsAllowed()
               ? address
               : ''
-    const direction =
+    // Routing is a protocol decision; it must never depend on a localized string,
+    // otherwise fee math and labels drift when the language changes.
+    const destinationType =
       lnurlRoute && destination === lnUrl
         ? pendingLnSend!.railId === LNURL_ARKADE_RAIL
-          ? t('send.payingInsideArkade')
-          : t('send.payingToLightning')
+          ? 'arkade'
+          : 'lightning'
         : destination === arkAddress
-          ? t('send.payingInsideArkade')
+          ? 'arkade'
           : destination === invoice
-            ? t('send.payingToLightning')
+            ? 'lightning'
             : destination === address
-              ? t('send.payingToMainnet')
-              : ''
+              ? 'mainnet'
+              : 'none'
+    // `direction` is display-only; keep logic keyed on `destinationType`.
+    const direction =
+      destinationType === 'arkade'
+        ? t('send.payingInsideArkade')
+        : destinationType === 'lightning'
+          ? t('send.payingToLightning')
+          : destinationType === 'mainnet'
+            ? t('send.payingToMainnet')
+            : ''
 
     // The RFQ lockup carries exactly the invoice amount (exact-out, fee_bps
     // from the card; 0 today), so total == satoshis on the Lightning path.
     const total = pendingLnSend ? pendingLnSend.total : satoshis
-    const amount = direction === t('send.payingToMainnet') ? satoshis - calcOnchainOutputFee() : satoshis
+    const amount = destinationType === 'mainnet' ? satoshis - calcOnchainOutputFee() : satoshis
     const fees = total - amount > 0 ? total - amount : 0
     setDetails({
       destination,
@@ -140,7 +151,7 @@ export default function SendDetails() {
       total,
     })
     // Provisional on this path until the router settles it below.
-    if (direction === t('send.payingToMainnet') && amount > 0) {
+    if (destinationType === 'mainnet' && amount > 0) {
       setButtonLabel(t('send.gettingQuote'))
       return setPricing(true)
     }
