@@ -301,7 +301,7 @@ export const settleVtxos = async (
 export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> => {
   const cm = await wallet.getContractManager()
   const contractWithVtxos = await cm.getContractsWithVtxos({ type: 'delegate' }, undefined, { unspentOnly: true })
-  const dm = await wallet.getDelegatorManager()
+  const dm = await wallet.getDelegateManager()
 
   if (!dm) {
     throw new Error('Delegator manager not found')

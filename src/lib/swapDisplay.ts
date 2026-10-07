@@ -4,7 +4,17 @@ import { designatedAccountCurrency, walletAccountTicker } from './accountAssets'
 import type { WalletAssetSwap } from './swapRepository'
 import { Currencies, Tx, Unit } from './types'
 
-export type SwapStatus = 'pending' | 'failed' | 'completed' | 'cancelled' | 'recoverable'
+export type SwapStatus = 'pending' | 'failed' | 'completed' | 'cancelled' | 'recoverable' | 'refunded'
+
+/** The resolver's tokens as a status. `lost` is a receive leg's money gone. */
+const CORRIDOR_STATUS: Record<string, SwapStatus> = {
+  pending: 'pending',
+  settled: 'completed',
+  refunded: 'refunded',
+  cancelled: 'cancelled',
+  failed: 'failed',
+  lost: 'failed',
+}
 
 export interface SwapDisplayAmount {
   masked: string
@@ -18,8 +28,14 @@ interface SwapUnitOfAccountAmountOptions {
   tx: Tx
 }
 
+/** Where the SWAP stands — never where its funding transaction stands. A
+ *  corridor send has no `assetSwap`, so it fell through to `tx.settled`: a
+ *  funded lockup nobody has spent is a settled transaction and an in-flight
+ *  swap, and the screen read `Settled` for it. */
 export function swapStatusForTx(tx: Tx): SwapStatus {
   if (tx.assetSwap?.status) return tx.assetSwap.status
+  const outcome = tx.lnSwap?.outcome
+  if (outcome) return CORRIDOR_STATUS[outcome] ?? 'pending'
   return tx.settled ? 'completed' : 'pending'
 }
 
@@ -27,10 +43,12 @@ export type Translate = (key: string, params?: Record<string, string | number>) 
 
 export function swapStatusLabel(tx: Tx, t: Translate): string {
   const status = swapStatusForTx(tx)
-  if (status === 'failed') return t('transaction.swapFailed')
+  if (status === 'failed') return t('transaction.failed')
   if (status === 'cancelled') return t('transaction.cancelled')
-  if (status === 'recoverable') return t('transaction.swapRecoverable')
-  if (status === 'pending') return t('transaction.swapPending')
+  if (status === 'recoverable') return t('transaction.recoverable')
+  if (status === 'pending') return t('transaction.pending')
+  // Not "Failed": the covenant returned the funds.
+  if (status === 'refunded') return t('transaction.refunded')
   return t('transaction.completed')
 }
 
