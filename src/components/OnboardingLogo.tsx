@@ -1,7 +1,8 @@
 import { RefObject, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, useAnimationControls } from 'framer-motion'
-import { delay, EASE_OUT_QUINT_TUPLE, SPRING_BACK, SQUASH } from '../lib/animations'
+import { EASE_OUT_QUINT_TUPLE, SPRING_BACK, SQUASH } from '../lib/animations'
+import { sleep as delay } from '../lib/sleep'
 import PixelLogoSvg from './PixelLogoSvg'
 import PixelSplash from './PixelSplash'
 

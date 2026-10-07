@@ -112,8 +112,6 @@ export const onboardStaggerChild: Variants = {
 
 const EASE_IN = [0.55, 0, 1, 0.45] as [number, number, number, number]
 
-export const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
-
 export const SQUASH: TargetAndTransition = {
   y: 20,
   scaleY: 0.75,

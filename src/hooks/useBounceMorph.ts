@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAnimationControls } from 'framer-motion'
-import { delay, SPRING_BACK, SQUASH } from '../lib/animations'
+import { SPRING_BACK, SQUASH } from '../lib/animations'
+import { sleep as delay } from '../lib/sleep'
 
 // Shape indices: 0=Arcade, 1=Invader, 2=Heart
 // Sequence: Arcade → Invader → Heart → Arcade (loop or stop)
