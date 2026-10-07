@@ -3,11 +3,6 @@ import type { ArkadeSigner } from '@arkade-os/lnurl-client/arkade'
 import { lnurlReceiver } from './receive/lnurlRail'
 import { lnurlPaymentSyncStore } from './lnurlPaymentRepository'
 
-export interface LnurlSyncOutcome {
-  synced: number
-  failures: unknown[]
-}
-
 const inFlightWrites = new Set<Promise<void>>()
 
 const tracked = async (write: Promise<void>): Promise<void> => {
@@ -36,7 +31,7 @@ export async function syncLnurlActivity(
   identity: ArkadeSigner,
   arkadeAddress: string,
   opts: { boardingAddress?: string; store?: PaymentSyncStore; signal?: AbortSignal } = {},
-): Promise<LnurlSyncOutcome> {
+) {
   const store = opts.store ?? lnurlPaymentSyncStore
   const { signal } = opts
   const receiver = await lnurlReceiver({

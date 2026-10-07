@@ -338,35 +338,20 @@ export default function SendDetails() {
       <Header text={t('send.signTransaction')} back />
       <Content>
         {sending ? (
-          lnurlRoute ? (
-            <LoadingLogo
-              text={details?.direction || 'Paying'}
-              done={sendDone}
-              exitMode='fly-up'
-              onExitComplete={handleExitComplete}
-            />
-          ) : details?.destination === invoice ? (
-            <LoadingLogo
-              text={t('send.payingToLightning')}
-              done={sendDone}
-              exitMode='fly-up'
-              onExitComplete={handleExitComplete}
-            />
-          ) : details?.destination === arkAddress ? (
-            <LoadingLogo
-              text={t('send.payingInsideArkade')}
-              done={sendDone}
-              exitMode='fly-up'
-              onExitComplete={handleExitComplete}
-            />
-          ) : (
-            <LoadingLogo
-              text={t('send.payingToMainnet')}
-              done={sendDone}
-              exitMode='fly-up'
-              onExitComplete={handleExitComplete}
-            />
-          )
+          <LoadingLogo
+            text={
+              lnurlRoute
+                ? details?.direction || 'Paying'
+                : details?.destination === invoice
+                  ? t('send.payingToLightning')
+                  : details?.destination === arkAddress
+                    ? t('send.payingInsideArkade')
+                    : t('send.payingToMainnet')
+            }
+            done={sendDone}
+            exitMode='fly-up'
+            onExitComplete={handleExitComplete}
+          />
         ) : (
           <Padded>
             <FlexCol>

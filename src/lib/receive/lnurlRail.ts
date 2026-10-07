@@ -15,12 +15,6 @@ import { lnurlPaymentSyncStore } from '../lnurlPaymentRepository'
 
 const lnurlClient = createLnurlClient()
 
-/** An lnurl-server this wallet holds addresses at. */
-export interface LnurlServer {
-  baseUrl: string
-  domain: string
-}
-
 /**
  * The server this build offers addresses at, or undefined when none is set.
  *
@@ -30,7 +24,7 @@ export interface LnurlServer {
  * `VITE_LNURL_DOMAIN` is only needed where the LUD-16 domain differs from the
  * API host, which is the unusual case.
  */
-export const configuredLnurlServer = (): LnurlServer | undefined => {
+export const configuredLnurlServer = () => {
   const baseUrl = fromRuntimeEnv(import.meta.env.VITE_LNURL_SERVER?.trim())
   if (!baseUrl) return undefined
   try {

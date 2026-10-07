@@ -5,9 +5,6 @@ import {
   createLnurlActivityResolver,
   createLnurlPaymentRepository,
   createLnurlPaymentSyncStore,
-  normalizeStoredPayment,
-  readLnurlWatermark,
-  saveLnurlWatermark,
   type LnurlPaymentStore,
 } from '../../lib/lnurlPaymentRepository'
 
@@ -59,18 +56,6 @@ const createMemoryStore = (): LnurlPaymentStore => {
     },
   }
 }
-
-describe('normalizeStoredPayment', () => {
-  it('defaults handle on a row written before the field existed', () => {
-    const legacy: Partial<StoredPayment> = makePayment('hash-1')
-    delete legacy.handle
-    expect(normalizeStoredPayment(legacy as Omit<StoredPayment, 'handle'>).handle).toBe('')
-  })
-
-  it('leaves an existing handle untouched', () => {
-    expect(normalizeStoredPayment(makePayment('hash-1', SERVER_A, { handle: 'bob' })).handle).toBe('bob')
-  })
-})
 
 describe('lnurlPaymentRepository', () => {
   it('upserting the same key twice leaves one record with the later values', async () => {
@@ -199,13 +184,14 @@ describe('lnurl payment sync store', () => {
       nextSince: 1700000000,
     }
 
+    const store = createLnurlPaymentSyncStore(repository)
     const result = await syncPayments([{ baseUrl: SERVER_A, token: 'tok', handle: 'alice', domain: 'example.com' }], {
       client: () => ({ listPayments: async () => page }),
-      store: createLnurlPaymentSyncStore(repository),
+      store,
     })
 
     expect(result).toEqual({ synced: 1, failures: [] })
-    expect(readLnurlWatermark(SERVER_A, ALICE)).toBe(1700000000)
+    expect(await store.readWatermark(SERVER_A, ALICE)).toBe(1700000000)
     expect(await repository.all()).toEqual([
       expect.objectContaining({ identifier: 'verify-1', paymentReference: 'txid-1' }),
     ])
@@ -213,23 +199,25 @@ describe('lnurl payment sync store', () => {
 })
 
 describe('lnurl watermarks', () => {
+  const store = createLnurlPaymentSyncStore(createLnurlPaymentRepository(createMemoryStore()))
+
   beforeEach(() => {
     localStorage.clear()
   })
 
-  it('returns undefined when unset', () => {
-    expect(readLnurlWatermark(SERVER_A, ALICE)).toBeUndefined()
+  it('returns undefined when unset', async () => {
+    expect(await store.readWatermark(SERVER_A, ALICE)).toBeUndefined()
   })
 
-  it('round-trips per baseUrl and lightning address', () => {
-    saveLnurlWatermark(SERVER_A, ALICE, 42)
-    expect(readLnurlWatermark(SERVER_A, ALICE)).toBe(42)
-    expect(readLnurlWatermark(SERVER_B, ALICE)).toBeUndefined()
-    expect(readLnurlWatermark(SERVER_A, BOB)).toBeUndefined()
-    saveLnurlWatermark(SERVER_B, ALICE, 7)
-    saveLnurlWatermark(SERVER_A, BOB, 9)
-    expect(readLnurlWatermark(SERVER_A, ALICE)).toBe(42)
-    expect(readLnurlWatermark(SERVER_B, ALICE)).toBe(7)
-    expect(readLnurlWatermark(SERVER_A, BOB)).toBe(9)
+  it('round-trips per baseUrl and lightning address', async () => {
+    await store.writeWatermark(SERVER_A, ALICE, 42)
+    expect(await store.readWatermark(SERVER_A, ALICE)).toBe(42)
+    expect(await store.readWatermark(SERVER_B, ALICE)).toBeUndefined()
+    expect(await store.readWatermark(SERVER_A, BOB)).toBeUndefined()
+    await store.writeWatermark(SERVER_B, ALICE, 7)
+    await store.writeWatermark(SERVER_A, BOB, 9)
+    expect(await store.readWatermark(SERVER_A, ALICE)).toBe(42)
+    expect(await store.readWatermark(SERVER_B, ALICE)).toBe(7)
+    expect(await store.readWatermark(SERVER_A, BOB)).toBe(9)
   })
 })

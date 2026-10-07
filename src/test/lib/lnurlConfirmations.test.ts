@@ -1,6 +1,6 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import type { LnurlClient, VerifyStatus } from '@arkade-os/lnurl-client'
-import { createPendingConfirmations } from '../../lib/lnurlConfirmations'
+import { CONFIRMATION_TIMEOUT_MS, createPendingConfirmations } from '../../lib/lnurlConfirmations'
 
 const settled = (over: Partial<VerifyStatus> = {}): VerifyStatus =>
   ({ kind: 'destination', settled: true, paymentOption: 'ark', ...over }) as VerifyStatus
@@ -83,14 +83,13 @@ describe('pendingConfirmations', () => {
     confirmations.add({
       verifyUrl: 'v/1',
       verifyBatch: 'https://a/batch',
-      timeoutMs: 5_000,
       onSettled: vi.fn(),
       onError,
     })
 
-    await vi.advanceTimersByTimeAsync(4_000)
+    await vi.advanceTimersByTimeAsync(CONFIRMATION_TIMEOUT_MS - 2_000)
     expect(onError).not.toHaveBeenCalled()
-    expect(batchVerify).toHaveBeenCalledTimes(2)
+    expect(batchVerify).toHaveBeenCalledTimes(CONFIRMATION_TIMEOUT_MS / 2_000 - 1)
 
     await vi.advanceTimersByTimeAsync(2_000)
     expect(onError).toHaveBeenCalledWith(new Error('receiver did not confirm settlement in time'))

@@ -190,10 +190,8 @@ export default function SendForm() {
   const [valueSats, setValueSats] = useState<number | undefined>(undefined)
 
   const timeoutRef = useRef<NodeJS.Timeout>()
-  const lnUrlRef = useRef<string>()
-  lnUrlRef.current = sendInfo.lnUrl
-  const satoshisRef = useRef<number>()
-  satoshisRef.current = sendInfo.satoshis ?? 0
+  const sendInfoRef = useRef(sendInfo)
+  sendInfoRef.current = sendInfo
 
   const prefersReducedMotion = useReducedMotion()
   const accountAsset = useMemo<AssetOption | null>(
@@ -554,7 +552,6 @@ export default function SendForm() {
       .resolve(sendInfo.lnUrl)
       .then((conditions) => {
         if (!live) return
-        if (!conditions) return lnurlFailed(t('send.unableToFetchLnurl'))
         const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
         const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
         // when the LNURL resolves to a fixed amount, set amountTextValue
@@ -794,7 +791,7 @@ export default function SendForm() {
     const satoshis = sendInfo.satoshis ?? 0
     // The recipient and amount stay editable during the awaits below; a result for either's old value is dropped.
     const target = sendInfo.lnUrl
-    const stale = () => lnUrlRef.current !== target || satoshisRef.current !== satoshis
+    const stale = () => sendInfoRef.current.lnUrl !== target || (sendInfoRef.current.satoshis ?? 0) !== satoshis
     try {
       if (sendInfo.lnUrl && lnUrlResponse) {
         // Check if Ark method is available

@@ -10,8 +10,6 @@ export interface ReceiverConfirmation {
   verifyUrl: string
   /** The LUD-XX verifyBatch endpoint advertised next to it, when one exists. */
   verifyBatch?: string
-  /** Fail the entry when no settled answer has arrived within this window. */
-  timeoutMs?: number
   onSettled: (status: VerifyStatus) => void
   onError: (err: Error) => void
 }
@@ -23,33 +21,20 @@ interface Entry extends ReceiverConfirmation {
 }
 
 const POLL_MS = 2_000
-const DEFAULT_TIMEOUT_MS = 180_000
+export const CONFIRMATION_TIMEOUT_MS = 180_000
 
-export interface PendingConfirmations {
-  /** Registers one pending confirmation and starts the shared loop. */
-  add(confirmation: ReceiverConfirmation): void
-  /** Drops every pending entry; called on wallet reset. */
-  forget(): void
-}
-
-export function createPendingConfirmations(client: LnurlClient = createLnurlClient()): PendingConfirmations {
-  let entries = new Set<Entry>()
+export function createPendingConfirmations(client: LnurlClient = createLnurlClient()) {
+  const entries = new Set<Entry>()
   let timer: ReturnType<typeof setInterval> | undefined
   let ticking = false
 
-  function settle(entry: Entry, status: VerifyStatus): void {
-    if (!entries.has(entry)) return
-    entries.delete(entry)
+  function finish(entry: Entry, notify: () => void): void {
+    if (!entries.delete(entry)) return
     maybeStop()
-    entry.onSettled(status)
+    notify()
   }
-
-  function fail(entry: Entry, err: Error): void {
-    if (!entries.has(entry)) return
-    entries.delete(entry)
-    maybeStop()
-    entry.onError(err)
-  }
+  const settle = (entry: Entry, status: VerifyStatus) => finish(entry, () => entry.onSettled(status))
+  const fail = (entry: Entry, err: Error) => finish(entry, () => entry.onError(err))
 
   function maybeStop(): void {
     if (timer && entries.size === 0) {
@@ -112,19 +97,16 @@ export function createPendingConfirmations(client: LnurlClient = createLnurlClie
   }
 
   return {
-    add(confirmation) {
+    add(confirmation: ReceiverConfirmation) {
       // A re-init resumes the same stored sends again; one wait per verify URL is enough.
       if ([...entries].some((e) => e.verifyUrl === confirmation.verifyUrl)) return
-      const entry: Entry = { ...confirmation, deadline: Date.now() + (confirmation.timeoutMs ?? DEFAULT_TIMEOUT_MS) }
+      const entry: Entry = { ...confirmation, deadline: Date.now() + CONFIRMATION_TIMEOUT_MS }
       entries.add(entry)
       ensure()
     },
     forget() {
-      entries = new Set()
-      if (timer) {
-        clearInterval(timer)
-        timer = undefined
-      }
+      entries.clear()
+      maybeStop()
     },
   }
 }

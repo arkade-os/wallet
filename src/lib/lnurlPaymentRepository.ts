@@ -12,13 +12,6 @@ export interface LnurlPaymentStore {
   clear(): Promise<void>
 }
 
-/** Rows written before `handle` existed have none; default it rather than
- *  drop them, since every consumer downstream now expects the field. */
-export const normalizeStoredPayment = (record: Omit<StoredPayment, 'handle'> & { handle?: string }): StoredPayment => ({
-  handle: '',
-  ...record,
-})
-
 const LNURL_PAYMENTS_DB = 'arkade-lnurl-payments'
 const LNURL_PAYMENTS_STORE = 'payments'
 
@@ -45,9 +38,7 @@ export const createIndexedDbLnurlPaymentStore = (
             const request = db.transaction(storeName, 'readonly').objectStore(storeName).getAll()
             request.onsuccess = () => {
               db.close()
-              resolve(
-                (request.result as (Omit<StoredPayment, 'handle'> & { handle?: string })[]).map(normalizeStoredPayment),
-              )
+              resolve(request.result as StoredPayment[])
             }
             request.onerror = () => reject(request.error)
           }),
@@ -90,11 +81,7 @@ export function createLnurlPaymentRepository(store: LnurlPaymentStore = indexedD
   clear(): Promise<void>
 } {
   return {
-    upsert: async (records) => {
-      const latest = new Map<string, StoredPayment>()
-      for (const record of records) latest.set(record.key, record)
-      await store.write([...latest.values()])
-    },
+    upsert: (records) => store.write(records),
     all: () => store.read(),
     clear: () => store.clear(),
   }
@@ -124,24 +111,17 @@ const watermarkEntryKey = (baseUrl: string, lightningAddress: string): string =>
 const readWatermarkMap = (): Record<string, number> =>
   getStorageItem<Record<string, number>>(LNURL_WATERMARKS_STORAGE_KEY, {}, (value) => JSON.parse(value))
 
-export const readLnurlWatermark = (baseUrl: string, lightningAddress: string): number | undefined =>
-  readWatermarkMap()[watermarkEntryKey(baseUrl, lightningAddress)]
-
-export const saveLnurlWatermark = (baseUrl: string, lightningAddress: string, since: number): void => {
-  const stored = readWatermarkMap()
-  stored[watermarkEntryKey(baseUrl, lightningAddress)] = since
-  setStorageItemSafely(LNURL_WATERMARKS_STORAGE_KEY, JSON.stringify(stored), 'Failed to save lnurl watermark')
-}
-
 /** What `syncPayments` from `@arkade-os/lnurl-client` writes through. The package
  * ships no storage because IndexedDB exists in neither Node nor React Native. */
 export const createLnurlPaymentSyncStore = (
   repository: ReturnType<typeof createLnurlPaymentRepository> = lnurlPaymentRepository,
 ): PaymentSyncStore => ({
   upsert: (records) => repository.upsert(records),
-  readWatermark: async (baseUrl, lightningAddress) => readLnurlWatermark(baseUrl, lightningAddress),
+  readWatermark: async (baseUrl, lightningAddress) => readWatermarkMap()[watermarkEntryKey(baseUrl, lightningAddress)],
   writeWatermark: async (baseUrl, lightningAddress, since) => {
-    saveLnurlWatermark(baseUrl, lightningAddress, since)
+    const stored = readWatermarkMap()
+    stored[watermarkEntryKey(baseUrl, lightningAddress)] = since
+    setStorageItemSafely(LNURL_WATERMARKS_STORAGE_KEY, JSON.stringify(stored), 'Failed to save lnurl watermark')
   },
 })
 
