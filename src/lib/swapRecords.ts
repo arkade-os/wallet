@@ -136,8 +136,10 @@ const sendViewOf = (record: CorridorSwapRecord): LnSendView | undefined => {
     createdAt: record.createdAt,
     spendTxid: record.refundTxid ?? record.lockupSpendTxids?.[0],
     corridor: record.route?.take?.corridor,
-    takeAmount: Number(record.take.amount),
-    feeAmount: Number(record.fee.amount),
+    // A restored record's take and fee are stand-ins: v1 stored only the funded amount.
+    ...(record.market?.kind === 'restored'
+      ? {}
+      : { takeAmount: Number(record.take.amount), feeAmount: Number(record.fee.amount) }),
     // `MarketRef` is a union and only the card arm publishes a name.
     solver: record.market?.kind === 'card' ? record.market.solver : undefined,
     claimTxid: stringField(record.profile, 'claimTxid'),
