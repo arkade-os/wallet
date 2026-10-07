@@ -1485,8 +1485,7 @@ iframe {
   background-color: inherit;
 }
 
-.desktop-wallet-shell,
-.home-notices--desktop {
+.desktop-wallet-shell {
   display: none;
 }
 
@@ -1639,21 +1638,6 @@ iframe {
   .wallet-home-content > .content-shell > div {
     padding-right: 2rem !important;
     padding-left: 2rem !important;
-  }
-
-  .home-notices--mobile {
-    display: none;
-  }
-
-  .home-notices--desktop {
-    position: fixed;
-    bottom: 1rem;
-    left: 1rem;
-    z-index: 60;
-    display: block;
-    width: 13rem;
-    max-height: calc(100dvh - 15rem);
-    overflow-y: auto;
   }
 
   .home-stack {
