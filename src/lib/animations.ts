@@ -1,4 +1,4 @@
-import { Variants } from 'framer-motion'
+import { TargetAndTransition, Variants } from 'framer-motion'
 
 // Easing: Emil Kowalski's curves
 export const EASE_OUT_QUINT = [0.23, 1, 0.32, 1]
@@ -108,4 +108,22 @@ export const onboardStaggerChild: Variants = {
     opacity: 1,
     transition: { duration: STAGGER_DURATION, ease: EASE_OUT_QUINT_TUPLE },
   },
+}
+
+const EASE_IN = [0.55, 0, 1, 0.45] as [number, number, number, number]
+
+export const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+
+export const SQUASH: TargetAndTransition = {
+  y: 20,
+  scaleY: 0.75,
+  scaleX: 1.15,
+  transition: { duration: 0.06, ease: EASE_IN },
+}
+
+export const SPRING_BACK: TargetAndTransition = {
+  y: 0,
+  scaleY: 1,
+  scaleX: 1,
+  transition: { type: 'spring', stiffness: 600, damping: 18, mass: 0.6 },
 }
