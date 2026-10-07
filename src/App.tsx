@@ -73,7 +73,7 @@ export default function App() {
   const { aspInfo } = useContext(AspContext)
   const { configLoaded } = useContext(ConfigContext)
   const { direction, navigate, screen } = useContext(NavigationContext)
-  const { appIntent, initInfo, setAppIntent, setSendInfo } = useContext(FlowContext)
+  const { appIntent, initInfo, resetFlow, setAppIntent, setSendInfo } = useContext(FlowContext)
   const { option } = useContext(OptionsContext)
   const { authState, unlockWallet, walletLoaded, initialized, wallet, dataReady, loadError, devAutoInitFailed } =
     useContext(WalletContext)
@@ -122,7 +122,10 @@ export default function App() {
   useEffect(() => {
     if (!navigate) return
     const handleGlobalDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') navigate(Pages.Wallet)
+      if (event.key === 'Escape') {
+        resetFlow()
+        navigate(Pages.Wallet)
+      }
     }
     window.addEventListener('keydown', handleGlobalDown)
     return () => window.removeEventListener('keydown', handleGlobalDown)

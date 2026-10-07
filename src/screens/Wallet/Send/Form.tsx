@@ -132,7 +132,7 @@ export default function SendForm() {
   const { config, effectiveTheme, useFiat } = useContext(ConfigContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const { toFiat, fromFiat, fiatDecimals } = useContext(FiatContext)
-  const { appIntent, sendInfo, setAppIntent, setNoteInfo, setSendInfo } = useContext(FlowContext)
+  const { appIntent, sendInfo, resetFlow, setAppIntent, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
   const { t } = useTranslation()
@@ -186,14 +186,10 @@ export default function SendForm() {
   }, [pendingAppRequest, appIntent, setAppIntent])
 
   const leaveAppSend = () => {
-    if (appIntent?.status !== 'send') return
-    const callback = appIntent.callback
-    setAppIntent(undefined)
-    if (callback) {
-      redirectToCallback(callback, { error: 'denied' })
-      return
-    }
-    navigate(Pages.Wallet)
+    const callback = appIntent?.callback
+    resetFlow()
+    if (callback) redirectToCallback(callback, { error: 'denied' })
+    else navigate(Pages.Wallet)
   }
 
   const prefersReducedMotion = useReducedMotion()

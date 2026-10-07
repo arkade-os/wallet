@@ -1,11 +1,23 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { redirectToCallback } from '../../lib/appIntent'
+import { redirectToCallback, type AppIntentState } from '../../lib/appIntent'
 import AppIntentScreen from '../../screens/AppIntent/Index'
+import SendSuccess from '../../screens/Wallet/Send/Success'
 import { FlowContext } from '../../providers/flow'
+import { AspContext } from '../../providers/asp'
+import { ConfigContext } from '../../providers/config'
+import { FiatContext } from '../../providers/fiat'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { WalletContext } from '../../providers/wallet'
-import { mockFlowContextValue, mockNavigationContextValue, mockSvcWallet, mockWalletContextValue } from './mocks'
+import {
+  mockAspContextValue,
+  mockConfigContextValue,
+  mockFiatContextValue,
+  mockFlowContextValue,
+  mockNavigationContextValue,
+  mockSvcWallet,
+  mockWalletContextValue,
+} from './mocks'
 
 vi.mock('../../lib/appIntent', async () => {
   const actual = await vi.importActual<typeof import('../../lib/appIntent')>('../../lib/appIntent')
@@ -16,6 +28,7 @@ const PUBKEY = '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f817
 const XONLY = '79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798'
 const ADDRESS = 'tark1qqexample'
 const CALLBACK = 'https://arkade.trade/connect'
+const TXID = 'b'.repeat(64)
 
 const renderScreen = (appIntent: unknown, navigate = vi.fn()) => {
   const setAppIntent = vi.fn()
@@ -36,6 +49,38 @@ const renderScreen = (appIntent: unknown, navigate = vi.fn()) => {
       </FlowContext.Provider>
     </NavigationContext.Provider>,
   )
+  return { navigate, setAppIntent }
+}
+
+const renderSendSuccess = (appIntent: AppIntentState) => {
+  const navigate = vi.fn()
+  const setAppIntent = vi.fn()
+
+  render(
+    <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate }}>
+      <ConfigContext.Provider value={mockConfigContextValue}>
+        <FiatContext.Provider value={mockFiatContextValue}>
+          <AspContext.Provider value={mockAspContextValue}>
+            <FlowContext.Provider
+              value={
+                {
+                  ...mockFlowContextValue,
+                  appIntent,
+                  sendInfo: { ...mockFlowContextValue.sendInfo, txid: TXID },
+                  setAppIntent,
+                } as any
+              }
+            >
+              <WalletContext.Provider value={mockWalletContextValue}>
+                <SendSuccess />
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </AspContext.Provider>
+        </FiatContext.Provider>
+      </ConfigContext.Provider>
+    </NavigationContext.Provider>,
+  )
+
   return { navigate, setAppIntent }
 }
 
@@ -81,6 +126,33 @@ describe('App intent screen', () => {
     fireEvent.click(screen.getByTestId('app-intent-home'))
     expect(setAppIntent).toHaveBeenCalledWith(undefined)
     expect(redirectToCallback).not.toHaveBeenCalled()
+    expect(navigate).toHaveBeenCalledWith(Pages.Wallet)
+  })
+
+  it('returns to the calling app after a send completes', () => {
+    const { navigate, setAppIntent } = renderSendSuccess({
+      status: 'send',
+      request: 'bitcoin:tark1destination',
+      callback: CALLBACK,
+    })
+
+    fireEvent.click(screen.getByRole('button'))
+
+    expect(redirectToCallback).toHaveBeenCalledWith(CALLBACK, { status: 'sent', txid: TXID })
+    expect(setAppIntent).toHaveBeenCalledWith(undefined)
+    expect(navigate).not.toHaveBeenCalled()
+  })
+
+  it('goes home after a send completes when there is no callback', () => {
+    const { navigate, setAppIntent } = renderSendSuccess({
+      status: 'send',
+      request: 'bitcoin:tark1destination',
+    })
+
+    fireEvent.click(screen.getByRole('button'))
+
+    expect(redirectToCallback).not.toHaveBeenCalled()
+    expect(setAppIntent).toHaveBeenCalledWith(undefined)
     expect(navigate).toHaveBeenCalledWith(Pages.Wallet)
   })
 })

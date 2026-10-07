@@ -94,6 +94,7 @@ interface FlowContextProps {
   setTxInfo: (arg0: TxInfo) => void
   assetInfo: AssetDetails
   setAssetInfo: (arg0: AssetDetails) => void
+  resetFlow: () => void
 }
 
 export const emptyInitInfo: InitInfo = {
@@ -143,6 +144,7 @@ export const FlowContext = createContext<FlowContextProps>({
   setTxInfo: () => {},
   assetInfo: emptyAssetInfo,
   setAssetInfo: () => {},
+  resetFlow: () => {},
 })
 
 export const FlowProvider = ({ children }: { children: ReactNode }) => {
@@ -156,6 +158,18 @@ export const FlowProvider = ({ children }: { children: ReactNode }) => {
   const [swapFromAssetId, setSwapFromAssetId] = useState<string | undefined>()
   const [txInfo, setTxInfo] = useState<TxInfo>()
   const [assetInfo, setAssetInfo] = useState<AssetDetails>(emptyAssetInfo)
+
+  const resetFlow = () => {
+    setAppIntent(undefined)
+    setAssetInfo(emptyAssetInfo)
+    setDeepLinkInfo(undefined)
+    setInitInfo(emptyInitInfo)
+    setNoteInfo(emptyNoteInfo)
+    setRecvInfo(emptyRecvInfo)
+    setSendInfo(emptySendInfo)
+    setSwapFromAssetId(undefined)
+    setTxInfo(undefined)
+  }
 
   return (
     <FlowContext.Provider
@@ -178,6 +192,7 @@ export const FlowProvider = ({ children }: { children: ReactNode }) => {
         setTxInfo,
         assetInfo,
         setAssetInfo,
+        resetFlow,
       }}
     >
       {children}
