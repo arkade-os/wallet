@@ -134,6 +134,10 @@ export const translations = {
       hapticFeedback: 'Haptic feedback',
       hapticSubtext: 'Vibration on button taps and interactions',
       lightningAddress: 'Lightning address',
+      lnurlYours: 'Your lightning address',
+      lnurlServer: 'Server',
+      lnurlLimits: 'What payers can send',
+      lnurlNone: 'No lightning address yet: get one on the Receive screen.',
       receive: 'Receive',
       receiveViaLnurl: 'Route every receive through it',
       receiveViaLnurlSubtext:
@@ -951,6 +955,10 @@ export const translations = {
       hapticFeedback: 'Vibración táctil',
       hapticSubtext: 'Vibración al tocar botones e interactuar',
       lightningAddress: 'Dirección Lightning',
+      lnurlYours: 'Tu dirección Lightning',
+      lnurlServer: 'Servidor',
+      lnurlLimits: 'Lo que pueden enviar los pagadores',
+      lnurlNone: 'Aún no tienes dirección Lightning: obtén una en la pantalla Recibir.',
       receive: 'Recibir',
       receiveViaLnurl: 'Recibir todo a través de ella',
       receiveViaLnurlSubtext:

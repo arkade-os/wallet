@@ -7,7 +7,13 @@ import {
   type NameOptions,
   type Receiver,
 } from '@arkade-os/lnurl-client/arkade'
-import { createLnurlClient, LnurlError, type DomainCapabilities, type PaymentSyncStore } from '@arkade-os/lnurl-client'
+import {
+  createLnurlClient,
+  LnurlError,
+  type DomainCapabilities,
+  type PaymentOption,
+  type PaymentSyncStore,
+} from '@arkade-os/lnurl-client'
 import { ArkAddress } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 import { consoleError } from '../logs'
@@ -50,6 +56,19 @@ export function lnurlReceiver(deps: {
   const server = configuredLnurlServer()
   if (!server) return undefined
   return arkadeLnurl({ ...deps, baseUrl: server.baseUrl, domain: server.domain })
+}
+
+/** What a payer can send on each rail, in sats, as the receiver's own payRequest advertises it. */
+export async function lnurlRailLimits(receiver: Receiver) {
+  const payRequest = await receiver.payRequest()
+  const options: PaymentOption[] = payRequest.paymentOptions ?? [{ id: 'lightning', type: 'lightning' }]
+  return options
+    .filter((o) => o.available !== false)
+    .map((o) => ({
+      type: o.type,
+      min: Math.ceil((o.minSendable ?? payRequest.minSendable) / 1000),
+      max: Math.floor((o.maxSendable ?? payRequest.maxSendable) / 1000),
+    }))
 }
 
 export type LnurlRailType = 'lightning' | 'arkade' | 'onchain'
