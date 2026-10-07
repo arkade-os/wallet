@@ -4,7 +4,7 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/lnurl-client": "file:vendor/arkade-os-lnurl-client-0.4.5.tgz",
+    "@arkade-os/lnurl-client": "file:vendor/arkade-os-lnurl-client-0.4.6.tgz",
     "@arkade-os/sdk": "0.5.0-rc.15",
     "@arkade-os/solver-discovery": "0.2.7",
     "@arkade-os/swap": "0.1.0-rc.18",
