@@ -113,107 +113,75 @@ export default function Wallet() {
     }
   }, [prefersReducedMotion])
 
-  const homeNotices = (
-    <FlexCol gap='0.75rem'>
-      {nudge}
-      <DismissibleBanner
-        id='pwa-install'
-        icon={<HomeIcon />}
-        title='Add Arkade to your home screen'
-        description={pwaDescription}
-        action={
-          canPromptInstall()
-            ? {
-                label: 'Install',
-                onClick: async () => {
-                  const outcome = await promptPwaInstall().catch(() => null)
-                  if (outcome) dismissPwaBanner()
-                },
-              }
-            : undefined
-        }
-        onDismiss={dismissPwaBanner}
-        visible={pwaBannerVisible}
-      />
-    </FlexCol>
-  )
-
   return (
-    <>
-      {announcement}
-      {hasHomeNotices ? (
-        <aside className='home-notices home-notices--desktop' aria-label='Wallet notices'>
-          {homeNotices}
-        </aside>
-      ) : null}
-      <Content className={homeScrolled ? 'wallet-home-content wallet-home-content--scrolled' : 'wallet-home-content'}>
-        <Padded>
-          <HomeHeader
-            ref={logoRef}
-            balance={portfolioBalance}
-            balanceProgress={balanceCollapseProgress}
-            balanceUnit={portfolioBalanceUnit}
-            logoVisible={!bootAnimActive}
-            maskedBalance={maskedPortfolioBalance}
-          />
-          <WalletStaggerContainer animate={shouldStagger} className='home-stack' hold={bootAnimActive}>
-            <WalletStaggerChild animate={shouldStagger} className='home-stack__hero'>
-              <PortfolioHero ref={balanceRef} collapseProgress={balanceCollapseProgress} />
-            </WalletStaggerChild>
-            <WalletStaggerChild animate={shouldStagger} className='home-stack__actions'>
-              <HomeQuickActions />
-            </WalletStaggerChild>
-            {hasHomeNotices ? (
-              <WalletStaggerChild animate={shouldStagger} className='home-notices home-notices--mobile'>
-                <FlexCol gap='0.75rem'>
-                  {nudge}
-                  <DismissibleBanner
-                    id='pwa-install'
-                    icon={<HomeIcon />}
-                    title={t('wallet.addArkadeToHome')}
-                    description={pwaDescription}
-                    action={
-                      canPromptInstall()
-                        ? {
-                            label: t('wallet.install'),
-                            onClick: async () => {
-                              const outcome = await promptPwaInstall().catch(() => null)
-                              if (outcome) dismissPwaBanner()
-                            },
-                          }
-                        : undefined
-                    }
-                    onDismiss={dismissPwaBanner}
-                    visible={pwaBannerVisible}
-                  />
-                </FlexCol>
-              </WalletStaggerChild>
-            ) : null}
-            {error ? (
-              <WalletStaggerChild animate={shouldStagger}>
-                <ErrorMessage
-                  error={error}
-                  text={aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))}
+    <Content className={homeScrolled ? 'wallet-home-content wallet-home-content--scrolled' : 'wallet-home-content'}>
+      <Padded>
+        {announcement}
+        <HomeHeader
+          ref={logoRef}
+          balance={portfolioBalance}
+          balanceProgress={balanceCollapseProgress}
+          balanceUnit={portfolioBalanceUnit}
+          logoVisible={!bootAnimActive}
+          maskedBalance={maskedPortfolioBalance}
+        />
+        <WalletStaggerContainer animate={shouldStagger} className='home-stack' hold={bootAnimActive}>
+          <WalletStaggerChild animate={shouldStagger} className='home-stack__hero'>
+            <PortfolioHero ref={balanceRef} collapseProgress={balanceCollapseProgress} />
+          </WalletStaggerChild>
+          <WalletStaggerChild animate={shouldStagger} className='home-stack__actions'>
+            <HomeQuickActions />
+          </WalletStaggerChild>
+          {hasHomeNotices ? (
+            <WalletStaggerChild animate={shouldStagger}>
+              <FlexCol gap='0.75rem'>
+                {nudge}
+                <DismissibleBanner
+                  id='pwa-install'
+                  icon={<HomeIcon />}
+                  title={t('wallet.addArkadeToHome')}
+                  description={pwaDescription}
+                  action={
+                    canPromptInstall()
+                      ? {
+                          label: t('wallet.install'),
+                          onClick: async () => {
+                            const outcome = await promptPwaInstall().catch(() => null)
+                            if (outcome) dismissPwaBanner()
+                          },
+                        }
+                      : undefined
+                  }
+                  onDismiss={dismissPwaBanner}
+                  visible={pwaBannerVisible}
                 />
-              </WalletStaggerChild>
-            ) : null}
-            <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
-              <AssetsSection />
+              </FlexCol>
             </WalletStaggerChild>
-            <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
-              <UpsellsSection />
+          ) : null}
+          {error ? (
+            <WalletStaggerChild animate={shouldStagger}>
+              <ErrorMessage
+                error={error}
+                text={aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))}
+              />
             </WalletStaggerChild>
+          ) : null}
+          <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
+            <AssetsSection />
+          </WalletStaggerChild>
+          <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
+            <UpsellsSection />
+          </WalletStaggerChild>
+          <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
+            <RecentActivitySection />
+          </WalletStaggerChild>
+          {psaMessage ? (
             <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
-              <RecentActivitySection />
+              <InfoBox html={psaMessage} />
             </WalletStaggerChild>
-            {psaMessage ? (
-              <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
-                <InfoBox html={psaMessage} />
-              </WalletStaggerChild>
-            ) : null}
-          </WalletStaggerContainer>
-        </Padded>
-      </Content>
-    </>
+          ) : null}
+        </WalletStaggerContainer>
+      </Padded>
+    </Content>
   )
 }
