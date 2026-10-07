@@ -214,8 +214,8 @@ export const LnReceiveProvider = ({ children }: { children: ReactNode }) => {
           },
         })
 
-        // Prunes retired records, rebuilds the rest from their contract rows,
-        // and reports the ones it could not — a covenant mismatch or a missing
+        // Rebuilds the active swaps from their contract rows (finished ones stay
+        // stored), and reports the ones it could not — a covenant mismatch or a missing
         // contract row says something true about that one record and is never a
         // reason to strand the others. A restore that fails outright must not
         // stop `start` for the swaps that did rebuild.

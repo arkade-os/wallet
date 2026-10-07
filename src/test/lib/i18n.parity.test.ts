@@ -75,10 +75,14 @@ describe('i18n dictionary integrity', () => {
       'mint.tickerLabel',
       'mint.max',
       'vtxos.subdust',
-      'apps.satora',
-      'apps.lendasat',
       'apps.dfx',
       'formatting.unit',
+      // Payment-method names in the receive selector. These are the protocol
+      // and product names the user is choosing between, not descriptive text,
+      // so they stay as-is in both languages.
+      'receive.methodLightning',
+      'receive.methodArkade',
+      'receive.methodBitcoin',
     ])
 
     const unlocalized = collectLeafKeys(translations.en)

@@ -7,9 +7,8 @@ import CopyIcon from '../icons/Copy'
 import FlexCol from './FlexCol'
 import FlexRow from './FlexRow'
 import Shadow from './Shadow'
-import { copyToClipboard } from '../lib/clipboard'
+import { useCopyToClipboard } from '../hooks/useCopyToClipboard'
 import CheckMarkIcon from '../icons/CheckMark'
-import { useToast } from './Toast'
 import Focusable from './Focusable'
 import { hapticSubtle } from '../lib/haptics'
 import { useTranslation } from '../providers/language'
@@ -34,7 +33,7 @@ export default function ExpandAddresses({
   const [copied, setCopied] = useState('')
   const [expand, setExpand] = useState(false)
 
-  const { toast } = useToast()
+  const copyToClipboard = useCopyToClipboard()
   const { t } = useTranslation()
 
   useEffect(() => {
@@ -52,9 +51,8 @@ export default function ExpandAddresses({
 
   const handleCopy = async (value: string) => {
     hapticSubtle()
-    await copyToClipboard(value)
-    toast(t('common.copiedToClipboard'))
-    setCopied(value)
+    const copied = await copyToClipboard(value)
+    if (copied) setCopied(value)
   }
 
   const handleExpand = () => {

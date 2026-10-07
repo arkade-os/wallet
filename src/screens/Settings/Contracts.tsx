@@ -25,12 +25,11 @@ import ChevronUpIcon from '../../icons/ChevronUp'
 import ExternalLinkIcon from '../../icons/ExternalLink'
 import { WalletContext } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
-import { localizedAgo, prettyLongText } from '../../lib/format'
+import { isUnixTimestamp, localizedAgo, prettyDate, prettyLongText } from '../../lib/format'
 import { getVmempoolURL, getWebExplorerURL } from '../../lib/explorers'
 import { isBTCAddress } from '../../lib/address'
-import { copyToClipboard } from '../../lib/clipboard'
+import { useCopyToClipboard } from '../../hooks/useCopyToClipboard'
 import { hapticSubtle } from '../../lib/haptics'
-import { useToast } from '../../components/Toast'
 import { consoleError } from '../../lib/logs'
 import { useTranslation } from '../../providers/language'
 
@@ -90,15 +89,14 @@ interface ContractView {
 function CopyRow({ label, value, link }: { label: string; value: string; link?: string }) {
   const [copied, setCopied] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout>>()
-  const { toast } = useToast()
-  const { t } = useTranslation()
+  const copyToClipboard = useCopyToClipboard()
 
   useEffect(() => () => clearTimeout(timerRef.current), [])
 
   const handleCopy = async () => {
     hapticSubtle()
-    await copyToClipboard(value)
-    toast(t('common.copiedToClipboard'))
+    const copied = await copyToClipboard(value)
+    if (!copied) return
     setCopied(true)
     clearTimeout(timerRef.current)
     timerRef.current = setTimeout(() => setCopied(false), 2000)
@@ -147,6 +145,17 @@ function DeprecatedSignerBadge({ status }: { status: SignerStatus | null }) {
   return null
 }
 
+function PastRefundLocktimeBadge({ refundLocktime }: { refundLocktime: number }) {
+  const { t } = useTranslation()
+  if (isUnixTimestamp(refundLocktime) && Date.now() > refundLocktime * 1000)
+    return (
+      <Text tiny color='orange'>
+        {t('contracts.pastRefundLocktime')}
+      </Text>
+    )
+  return null
+}
+
 function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
     <div
@@ -178,7 +187,10 @@ function Chip({ label, active, onClick }: { label: string; active: boolean; onCl
 
 function ContractCard({ item, open, onToggle }: { item: ContractView; open: boolean; onToggle: () => void }) {
   const { contract, address, explorer, encoded, status } = item
-  const { t } = useTranslation()
+  const { language, t } = useTranslation()
+
+  const raw = parseInt(contract.params?.refundLocktime ?? '')
+  const refundLocktime = isNaN(raw) ? 0 : raw
 
   return (
     <Shadow lighter border>
@@ -191,6 +203,7 @@ function ContractCard({ item, open, onToggle }: { item: ContractView; open: bool
               {prettyLongText(address)}
             </Text>
             <DeprecatedSignerBadge status={status} />
+            <PastRefundLocktimeBadge refundLocktime={refundLocktime} />
           </FlexCol>
           <FlexRow>
             <FlexCol gap='0.5rem' end>
@@ -209,6 +222,9 @@ function ContractCard({ item, open, onToggle }: { item: ContractView; open: bool
             <hr className='dashed' />
             <CopyRow label={t('common.address')} value={address} link={explorer || undefined} />
             <CopyRow label={t('contracts.script')} value={contract.script} />
+            {isUnixTimestamp(refundLocktime) ? (
+              <CopyRow label={t('contracts.refundLocktime')} value={prettyDate(refundLocktime, language)} />
+            ) : null}
             {encoded ? <CopyRow label={t('contracts.parameters')} value={encoded} /> : null}
           </>
         ) : null}
@@ -249,7 +265,13 @@ export default function Contracts() {
       try {
         const cm = await svcWallet.getContractManager()
         const data = await cm.getContracts()
-        setContracts(data.slice().sort((a, b) => (a.state === b.state ? 0 : a.state === 'active' ? -1 : 1)))
+        setContracts(
+          data
+            .slice()
+            .sort((a, b) =>
+              a.state === b.state ? (b.createdAt ?? 0) - (a.createdAt ?? 0) : a.state === 'active' ? -1 : 1,
+            ),
+        )
       } catch (err) {
         consoleError(err)
       } finally {
@@ -285,13 +307,15 @@ export default function Contracts() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return views.filter((v) => {
-      const active = v.contract.state === 'active'
-      if (tab === 'Active' ? !active : active) return false
-      if (typeFilter !== 'all' && v.contract.type !== typeFilter) return false
-      if (q && !v.search.includes(q)) return false
-      return true
-    })
+    return views
+      .filter((v) => {
+        const active = v.contract.state === 'active'
+        if (tab === 'Active' ? !active : active) return false
+        if (typeFilter !== 'all' && v.contract.type !== typeFilter) return false
+        if (q && !v.search.includes(q)) return false
+        return true
+      })
+      .sort((a, b) => (b.contract.createdAt ?? 0) - (a.contract.createdAt ?? 0))
   }, [views, tab, typeFilter, query])
 
   // Virtualize the list so it stays smooth with many contracts. Row heights vary

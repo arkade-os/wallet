@@ -13,7 +13,7 @@ import {
   ArkError,
   DelegateInfo,
   toXOnlySignerHex,
-  hasTerminalSpend,
+  isVtxoSpent,
 } from '@arkade-os/sdk'
 import { Addresses, Tx, Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
@@ -76,42 +76,6 @@ export const aspErrorText = (info: AspInfo, fallback: string, outdatedText?: str
       'Your wallet is outdated and needs to be updated to be compatible with the latest Arkade version.')
     : fallback
 
-export const collaborativeExit = async (wallet: IWallet, amount: number, address: string): Promise<string> => {
-  const vtxos = await wallet.getVtxos()
-  const selectedVtxos = []
-  let selectedAmount = 0
-
-  for (const vtxo of vtxos) {
-    if (selectedAmount >= amount) break
-    selectedVtxos.push(vtxo)
-    selectedAmount += vtxo.value
-  }
-
-  if (selectedAmount < amount) throw new Error('Insufficient funds')
-
-  const outputs = [{ address, amount: BigInt(amount) }]
-
-  const changeAmount = selectedAmount - amount
-
-  if (changeAmount > 0) {
-    const { offchainAddr } = await getReceivingAddresses(wallet)
-    outputs.push({ address: offchainAddr, amount: BigInt(changeAmount) })
-  }
-
-  outputs.reverse() // fix for exit with assets
-
-  try {
-    return await wallet.settle({ inputs: selectedVtxos, outputs })
-  } catch (error) {
-    await captureSettleError(error, wallet, 'collaborativeExit', {
-      amount,
-      changeAmount,
-      ...summarizeInputs(selectedVtxos),
-    })
-    throw error
-  }
-}
-
 // Compare by batch expiry ascending; VTXOs without an expiry sort last.
 export const byExpiryAsc = (a: { expiresAt?: Date | null }, b: { expiresAt?: Date | null }): number =>
   (a.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY) - (b.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY)
@@ -122,7 +86,8 @@ export const collaborativeExitWithFees = async (
   outputAmount: number,
   address: string,
 ): Promise<string> => {
-  const vtxos = await wallet.getVtxos()
+  // The SDK's own settle selector: escrowed, gated and intent-locked coins stay out.
+  const vtxos = await wallet.getSpendableVtxos({ withRecoverable: true, genericallySpendableOnly: true })
   const selectedVtxos = []
   let selectedAmount = 0
 
@@ -230,7 +195,7 @@ export const getVtxos = async (wallet: ServiceWorkerWallet): Promise<{ spendable
  * chain also ends up onchain and also comes back flagged — each with the same
  * value, since a chain of offchain transfers carries the amount forward. Those
  * ancestors were spent offchain when their successor was created, so
- * `hasTerminalSpend` is exactly the line between them and the coin that
+ * `isVtxoSpent` is exactly the line between them and the coin that
  * actually left: one exit, one row.
  *
  * It is also the line `computeOffchainBalance` draws — it skips terminal spends
@@ -239,7 +204,7 @@ export const getVtxos = async (wallet: ServiceWorkerWallet): Promise<{ spendable
  * the same coins.
  *
  * The set still stands after the user finishes the sweep with the exit tool:
- * the three facts behind `hasTerminalSpend` all report an OFFCHAIN spend, and
+ * the three facts behind `isVtxoSpent` all report an OFFCHAIN spend, and
  * the SDK is explicit that unrolling or sweeping sets none of them.
  *
  * Throws rather than degrading to an empty set. An empty answer is not a safe
@@ -253,7 +218,7 @@ export const getVtxos = async (wallet: ServiceWorkerWallet): Promise<{ spendable
  * surfaces the retry. */
 export const getUnrolledVtxos = async (wallet: ServiceWorkerWallet): Promise<Vtxo[]> => {
   const vtxos = await wallet.getVtxos({ withUnrolled: true })
-  return vtxos.filter((vtxo) => vtxo.isUnrolled && !hasTerminalSpend(vtxo))
+  return vtxos.filter((vtxo) => vtxo.isUnrolled && !isVtxoSpent(vtxo))
 }
 
 export const getReceivingAddresses = async (wallet: IWallet): Promise<Addresses> => {
@@ -335,7 +300,7 @@ export const settleVtxos = async (
 
 export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> => {
   const cm = await wallet.getContractManager()
-  const contractWithVtxos = await cm.getContractsWithVtxos({ type: 'delegate' })
+  const contractWithVtxos = await cm.getContractsWithVtxos({ type: 'delegate' }, undefined, { unspentOnly: true })
   const dm = await wallet.getDelegatorManager()
 
   if (!dm) {
@@ -365,7 +330,8 @@ export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> 
       const contractDelegatePubKey = hex.encode(contractParams.delegatePubKey) // x-only (32 bytes)
       return contractDelegatePubKey === delegateInfoPubKey
     })
-    .flatMap((_) => _.vtxos)
+    // A worker older than SDK 0.4.77 ignores `unspentOnly`.
+    .flatMap((_) => _.vtxos.filter((vtxo) => !isVtxoSpent(vtxo)))
 
   if (vtxosToDelegate.length === 0) return
   const destination = await wallet.getAddress()

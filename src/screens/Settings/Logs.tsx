@@ -10,14 +10,13 @@ import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { EmptyLogsList } from '../../components/Empty'
 import Focusable from '../../components/Focusable'
-import { copyToClipboard } from '../../lib/clipboard'
-import { useToast } from '../../components/Toast'
+import { useCopyToClipboard } from '../../hooks/useCopyToClipboard'
 import { useTranslation } from '../../providers/language'
 
 function LogsTable({ logs }: { logs: LogLine[] }) {
   const [focused, setFocused] = useState(false)
 
-  const { toast } = useToast()
+  const copyToClipboard = useCopyToClipboard()
   const { t } = useTranslation()
 
   const color = (level: string): string => {
@@ -34,11 +33,6 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
   }
 
   const key = ({ time, msg, level }: LogLine) => `${time}${msg}${level}`
-
-  const copy = (value: string) => {
-    copyToClipboard(value)
-    toast(t('common.copiedToClipboard'))
-  }
 
   const focusOnFirstRow = () => {
     setFocused(true)
@@ -66,7 +60,7 @@ function LogsTable({ logs }: { logs: LogLine[] }) {
           {[...logs].reverse().map(({ time, msg, level }) => (
             <Focusable
               inactive={!focused}
-              onEnter={() => copy(msg)}
+              onEnter={() => copyToClipboard(msg)}
               onEscape={focusOnOuterShell}
               id={key({ time, msg, level })}
               key={key({ time, msg, level })}
