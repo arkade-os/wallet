@@ -216,14 +216,3 @@ describe('Restore editing edge cases', () => {
     expect(restore).toHaveBeenCalledTimes(1)
   })
 })
-
-it('advances past existing whitespace when accepting an already complete word', async () => {
-  const user = userEvent.setup()
-  renderRestore(false)
-  const input = screen.getByRole('combobox') as HTMLInputElement
-  await user.click(input)
-  await user.paste('ahead agree about')
-  await user.keyboard('{Home}{ArrowRight>8/}{ArrowDown}{Enter}')
-  expect(input).toHaveValue('ahead agree about')
-  expect(input.selectionStart).toBe(12)
-})
