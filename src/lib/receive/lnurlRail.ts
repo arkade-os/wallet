@@ -53,11 +53,7 @@ export function lnurlReceiver(deps: {
 /** The invoice any payer resolving the receiver's LNURL gets for `amountSat`, on its lightning rail. */
 export async function lnurlInvoice(receiver: Receiver, amountSat: number): Promise<string> {
   const payRequest = await receiver.payRequest()
-  // The client refuses a rail id on a session payRequest, whose callback is Lightning already.
-  const paymentOption =
-    payRequest.source.surface === 'session'
-      ? undefined
-      : payRequest.paymentOptions?.find((o) => o.type === 'lightning' && o.available !== false)?.id
+  const paymentOption = payRequest.paymentOptions?.find((o) => o.type === 'lightning' && o.available !== false)?.id
   const result = await lnurlClient.requestInvoice(payRequest, { amountSat, paymentOption })
   if (result.kind !== 'bolt11') throw new LnurlError(`the LNURL answered with a ${result.paymentOption} destination`)
   return result.pr

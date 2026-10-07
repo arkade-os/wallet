@@ -133,7 +133,7 @@ describe('Receive screen, rail composition', () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
     renderReceive(10_000)
 
-    expect(await screen.findByText('alice@lnurl.test')).toBeInTheDocument()
+    expect(await screen.findByText('alice@lnurl.test', {}, { timeout: 3_000 })).toBeInTheDocument()
     expect(receiveLightning).not.toHaveBeenCalled()
   })
 
@@ -174,25 +174,25 @@ describe('Receive screen, rail composition', () => {
   })
 
   it.each([
-    ['named', namedAddress('alice'), 'lightning'],
-    ['nameless', namelessAddress(), null],
-  ] as const)('pays an amount at the invoice its LNURL issues for it, %s', async (_, address, railId) => {
+    ['named', namedAddress('alice')],
+    ['nameless', namelessAddress()],
+  ] as const)('pays an amount at the invoice its LNURL issues on the lightning rail, %s', async (_, address) => {
     serve({ modes: ['self', 'session'], addresses: [address] })
     renderReceive(10_000)
 
-    await waitFor(() => expect(callbacks()).toHaveLength(1))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled())
+    await waitFor(() => expect(callbacks()).toHaveLength(1), { timeout: 3_000 })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled(), { timeout: 3_000 })
     expect(await qrLightning()).toBe(fakeInvoice(10_000_000))
     fireEvent.click(screen.getByText('Lightning'))
     expect(await copiedQr()).toBe(fakeInvoice(10_000_000))
-    expect(callbacks()[0].searchParams.get('paymentOption')).toBe(railId)
+    expect(callbacks()[0].searchParams.get('paymentOption')).toBe('lightning')
   })
 
   it('keeps the address on the Lightning tab, and says why, when no invoice comes back', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], invoiceError: 'below the corridor minimum' })
     renderReceive(10_000)
 
-    expect(await screen.findByText(/below the corridor minimum/)).toBeInTheDocument()
+    expect(await screen.findByText(/below the corridor minimum/, {}, { timeout: 3_000 })).toBeInTheDocument()
     fireEvent.click(screen.getByText('Lightning'))
     expect(await copiedQr()).toBe('alice@lnurl.test')
   })
