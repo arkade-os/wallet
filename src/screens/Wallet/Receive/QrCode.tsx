@@ -43,7 +43,7 @@ import { AspContext } from '../../../providers/asp'
 import { AssetsContext } from '../../../providers/assets'
 import { useSwapRail } from '../../../lib/receive/swapRail'
 import SwapRailStatus from './SwapRail'
-import { configuredLnurlServer, useLnurlInvoice, useLnurlRail } from '../../../lib/receive/lnurlRail'
+import { configuredLnurlServer, useLnurlRail, useLnurlRails } from '../../../lib/receive/lnurlRail'
 import LnurlRailPanel from './LnurlRail'
 import { useTranslation } from '../../../providers/language'
 
@@ -128,13 +128,14 @@ export default function ReceiveQRCode() {
   const swapRail = useSwapRail(!lnurlConfigured || lnurlRail.status === 'failed')
   const lnurl = lnurlRail.receiver?.lnurl ?? ''
   const lightningAddress = lnurlRail.receiver?.lightningAddress ?? ''
-  const lnurlInvoice = useLnurlInvoice(lnurlRail.receiver, satoshis)
-  const invoice = recvInfo.invoice || lnurlInvoice.invoice
-  const generatingInvoice = swapRail.generatingInvoice || lnurlInvoice.generating
+  const lnurlRails = useLnurlRails(lnurlRail.receiver, satoshis, config.receiveViaLnurl)
+  const invoice = recvInfo.invoice || lnurlRails.targets.lightning || ''
+  const generatingInvoice = swapRail.generatingInvoice || lnurlRails.generating
+  const destinationError = lnurlRails.errors.arkade || lnurlRails.errors.onchain
 
   const createBip21 = (): { ark: string; btc: string; bip21: string } => {
-    const ark = vtxoTxsAllowed() ? recvInfo.offchainAddr : ''
-    const btc = utxoTxsAllowed() ? recvInfo.boardingAddr : ''
+    const ark = vtxoTxsAllowed() ? lnurlRails.targets.arkade || recvInfo.offchainAddr : ''
+    const btc = utxoTxsAllowed() ? lnurlRails.targets.onchain || recvInfo.boardingAddr : ''
     const bip21 = isAssetReceive
       ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals)
       : encodeBip21(btc, ark, invoice, satoshis, lnurl)
@@ -161,6 +162,8 @@ export default function ReceiveQRCode() {
     recvInfo.satoshis,
     invoice,
     lnurl,
+    lnurlRails.targets.arkade,
+    lnurlRails.targets.onchain,
   ])
 
   /**
@@ -382,8 +385,11 @@ export default function ReceiveQRCode() {
           ) : (
             <FlexCol gap='0.5rem' centered>
               <SwapRailStatus rail={swapRail} />
-              {lnurlInvoice.error ? (
-                <TextSecondary>{t('receive.noInvoiceForAmount', { error: lnurlInvoice.error })}</TextSecondary>
+              {lnurlRails.errors.lightning ? (
+                <TextSecondary>{t('receive.noInvoiceForAmount', { error: lnurlRails.errors.lightning })}</TextSecondary>
+              ) : null}
+              {destinationError ? (
+                <TextSecondary>{t('receive.ownAddressesInstead', { error: destinationError })}</TextSecondary>
               ) : null}
               {paymentMethods.length > 1 ? (
                 <div className='mt-20 mb-3 w-full max-w-85'>

@@ -50,35 +50,59 @@ export function lnurlReceiver(deps: {
   return arkadeLnurl({ ...deps, baseUrl: server.baseUrl, domain: server.domain })
 }
 
-/** The invoice any payer resolving the receiver's LNURL gets for `amountSat`, on its lightning rail. */
-export async function lnurlInvoice(receiver: Receiver, amountSat: number): Promise<string> {
+export type LnurlRailType = 'lightning' | 'arkade' | 'onchain'
+type PerRail = Partial<Record<LnurlRailType, string>>
+
+/** What any payer resolving the receiver's LNURL gets for `amountSat` on each rail: an invoice, or a destination. */
+export async function resolveLnurlRails(receiver: Receiver, amountSat: number, rails: LnurlRailType[]) {
   const payRequest = await receiver.payRequest()
-  const paymentOption = payRequest.paymentOptions?.find((o) => o.type === 'lightning' && o.available !== false)?.id
-  const result = await lnurlClient.requestInvoice(payRequest, { amountSat, paymentOption })
-  if (result.kind !== 'bolt11') throw new LnurlError(`the LNURL answered with a ${result.paymentOption} destination`)
-  return result.pr
+  return Promise.allSettled(
+    rails.map(async (rail) => {
+      const paymentOption = payRequest.paymentOptions?.find((o) => o.type === rail && o.available !== false)?.id
+      if (!paymentOption && rail !== 'lightning') throw new LnurlError(`the LNURL offers no ${rail} rail`)
+      const result = await lnurlClient.requestInvoice(payRequest, { amountSat, paymentOption })
+      const target = result.kind === 'bolt11' ? result.pr : result.paymentDestination
+      if (!target || (result.kind === 'bolt11') !== (rail === 'lightning')) {
+        throw new LnurlError(`the LNURL answered the ${rail} rail with nothing payable on it`)
+      }
+      return target
+    }),
+  )
 }
 
-/** `lnurlInvoice` for the amount being requested, asked again whenever it changes. */
-export function useLnurlInvoice(receiver: Receiver | undefined, amountSat: number) {
-  const [invoice, setInvoice] = useState('')
+/** `resolveLnurlRails` for the amount being requested, asked again whenever it changes. Lightning
+ *  always goes through the LNURL; the Arkade and on-chain legs only when `allRails` is set. */
+export function useLnurlRails(receiver: Receiver | undefined, amountSat: number, allRails: boolean) {
+  const [targets, setTargets] = useState<PerRail>({})
+  const [errors, setErrors] = useState<PerRail>({})
   const [generating, setGenerating] = useState(false)
-  const [error, setError] = useState('')
 
   useEffect(() => {
-    setInvoice('')
-    setError('')
+    setTargets({})
+    setErrors({})
     setGenerating(Boolean(receiver) && amountSat > 0)
     if (!receiver || amountSat <= 0) return
+    const rails: LnurlRailType[] = allRails ? ['lightning', 'arkade', 'onchain'] : ['lightning']
     let stale = false
-    lnurlInvoice(receiver, amountSat)
-      .then((pr) => {
-        if (!stale) setInvoice(pr)
+    resolveLnurlRails(receiver, amountSat, rails)
+      .then((results) => {
+        if (stale) return
+        const resolved: PerRail = {}
+        const failed: PerRail = {}
+        results.forEach((result, i) => {
+          if (result.status === 'fulfilled') resolved[rails[i]] = result.value
+          else {
+            consoleError(result.reason, `lnurl ${rails[i]} request failed`)
+            failed[rails[i]] = extractError(result.reason)
+          }
+        })
+        setTargets(resolved)
+        setErrors(failed)
       })
       .catch((err) => {
         if (stale) return
-        consoleError(err, 'lnurl invoice request failed')
-        setError(extractError(err))
+        consoleError(err, 'lnurl payRequest failed')
+        setErrors(Object.fromEntries(rails.map((rail) => [rail, extractError(err)])))
       })
       .finally(() => {
         if (!stale) setGenerating(false)
@@ -86,9 +110,9 @@ export function useLnurlInvoice(receiver: Receiver | undefined, amountSat: numbe
     return () => {
       stale = true
     }
-  }, [receiver, amountSat])
+  }, [receiver, amountSat, allRails])
 
-  return { invoice, generating, error }
+  return { targets, errors, generating }
 }
 
 const CLAIM_ERROR_MESSAGES: Record<string, string> = {

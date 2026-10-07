@@ -61,6 +61,7 @@ const SETTINGS_OPTION_KEY: Record<SettingsOptions, string> = {
   [SettingsOptions.Lock]: 'settings.lock',
   [SettingsOptions.Logs]: 'settings.logs',
   [SettingsOptions.Language]: 'settings.language',
+  [SettingsOptions.Lnurl]: 'settings.lightningAddress',
   [SettingsOptions.Notifications]: 'settings.notifications',
   [SettingsOptions.Notes]: 'settings.notes',
   [SettingsOptions.Password]: 'settings.changePassword',

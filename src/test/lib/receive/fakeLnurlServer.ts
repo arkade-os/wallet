@@ -46,6 +46,8 @@ export const namelessAddress = (handle = 'sess1'): FakeAddress => ({
 export const fakeInvoice = (amountMsat: number): string =>
   bech32.encode(`lnbcrt${amountMsat * 10}p`, bech32.toWords(new Uint8Array(64)), 2000)
 
+export const LNURL_DESTINATIONS = { arkade: 'ark1lnurlcovenantdestination', onchain: 'bcrt1lnurlboardingaddress' }
+
 /** The endpoints `arkadeLnurl` calls, backed by one in-memory address list. */
 export function fakeLnurlServer(opts: {
   modes: string[]
@@ -56,6 +58,7 @@ export function fakeLnurlServer(opts: {
   sessionRow?: FakeAddress
   capabilitiesFail?: boolean
   invoiceError?: string
+  destinationError?: string
 }) {
   const addresses = [...(opts.addresses ?? [])]
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -97,10 +100,16 @@ export function fakeLnurlServer(opts: {
         paymentOptions: [
           { id: 'lightning', type: 'lightning' },
           { id: 'arkade', type: 'arkade' },
+          { id: 'onchain', type: 'onchain' },
         ],
       })
     }
     if (path.startsWith('/callback/')) {
+      const rail = url.searchParams.get('paymentOption')
+      if (rail === 'arkade' || rail === 'onchain') {
+        if (opts.destinationError) return json(200, { status: 'ERROR', reason: opts.destinationError })
+        return json(200, { status: 'OK', paymentOption: rail, paymentDestination: LNURL_DESTINATIONS[rail] })
+      }
       if (opts.invoiceError) return json(200, { status: 'ERROR', reason: opts.invoiceError })
       return json(200, { pr: fakeInvoice(Number(url.searchParams.get('amount'))), routes: [] })
     }

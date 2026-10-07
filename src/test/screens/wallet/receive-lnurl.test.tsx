@@ -23,9 +23,11 @@ import {
   mockSvcWallet,
   mockWalletContextValue,
 } from '../mocks'
+import type { Config } from '../../../lib/types'
 import {
   DECODABLE_ARK,
   LNURL_BASE,
+  LNURL_DESTINATIONS,
   fakeInvoice,
   fakeLnurlServer,
   namedAddress,
@@ -48,12 +50,14 @@ beforeAll(() => {
 const receiveLightning = vi.fn()
 const svcWallet = { ...mockSvcWallet, identity: SingleKey.fromHex('03'.repeat(32)) }
 
-const renderReceive = (satoshis = 0) =>
+const renderReceive = (satoshis = 0, config: Partial<Config> = {}) =>
   render(
     <ToastProvider>
       <NavigationContext.Provider value={mockNavigationContextValue}>
         <AspContext.Provider value={mockAspContextValue as never}>
-          <ConfigContext.Provider value={mockConfigContextValue as never}>
+          <ConfigContext.Provider
+            value={{ ...mockConfigContextValue, config: { ...mockConfigContextValue.config, ...config } } as never}
+          >
             <FiatContext.Provider value={mockFiatContextValue as never}>
               <NotificationsContext.Provider value={{ notifyPaymentReceived: () => {} } as never}>
                 <FlowContext.Provider
@@ -195,6 +199,35 @@ describe('Receive screen, rail composition', () => {
     expect(await screen.findByText(/below the corridor minimum/, {}, { timeout: 3_000 })).toBeInTheDocument()
     fireEvent.click(screen.getByText('Lightning'))
     expect(await copiedQr()).toBe('alice@lnurl.test')
+  })
+
+  it.each([
+    ['named', namedAddress('alice')],
+    ['nameless', namelessAddress()],
+  ] as const)('routes every rail of an amount through the LNURL when set to, %s', async (_, address) => {
+    serve({ modes: ['self', 'session'], addresses: [address] })
+    renderReceive(10_000, { receiveViaLnurl: true })
+
+    await waitFor(() => expect(callbacks()).toHaveLength(3), { timeout: 3_000 })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled(), { timeout: 3_000 })
+    fireEvent.click(screen.getByText('Arkade'))
+    expect(await copiedQr()).toBe(LNURL_DESTINATIONS.arkade)
+    fireEvent.click(screen.getByText('Bitcoin'))
+    expect(await copiedQr()).toBe(LNURL_DESTINATIONS.onchain)
+    expect(callbacks().map((url) => url.searchParams.get('paymentOption'))).toEqual(
+      expect.arrayContaining(['lightning', 'arkade', 'onchain']),
+    )
+  })
+
+  it("keeps the wallet's own addresses, and says why, when the LNURL gives no destination", async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], destinationError: 'no covenant destinations' })
+    renderReceive(10_000, { receiveViaLnurl: true })
+
+    expect(await screen.findByText(/no covenant destinations/, {}, { timeout: 3_000 })).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Arkade'))
+    expect(await copiedQr()).toBe(DECODABLE_ARK)
+    fireEvent.click(screen.getByText('Bitcoin'))
+    expect(await copiedQr()).toBe('bc1testaddr')
   })
 })
 

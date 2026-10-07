@@ -21,6 +21,7 @@ export type Config = {
   nostrBackup: boolean
   notifications: boolean
   pubkey: string
+  receiveViaLnurl: boolean
   showBalance: boolean
   dismissedBanners: string[]
   theme: Themes
@@ -78,6 +79,7 @@ export enum SettingsOptions {
   Lock = 'lock wallet',
   Logs = 'logs',
   Language = 'language',
+  Lnurl = 'lightning address',
   Notifications = 'notifications',
   Notes = 'notes',
   Password = 'change password',

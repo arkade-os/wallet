@@ -133,6 +133,11 @@ export const translations = {
       feedback: 'Feedback',
       hapticFeedback: 'Haptic feedback',
       hapticSubtext: 'Vibration on button taps and interactions',
+      lightningAddress: 'Lightning address',
+      receive: 'Receive',
+      receiveViaLnurl: 'Route every receive through it',
+      receiveViaLnurlSubtext:
+        'With an amount set, the Arkade and Bitcoin addresses also come from your lightning address, so its server tracks every payment. Off: only Lightning does.',
       notifications: 'Notifications',
       allowNotifications: 'Allow notifications',
       notificationsIntro:
@@ -393,6 +398,7 @@ export const translations = {
       noPaymentMethods: 'No valid payment methods available for this amount',
       lightningUnavailable: 'Lightning unavailable: {error}',
       noInvoiceForAmount: 'No invoice for this amount: {error}',
+      ownAddressesInstead: "Showing the wallet's own addresses: {error}",
       noLightningSolver: 'No Lightning solver available',
       lightningPaymentLost: 'Lightning payment lost: the solver reclaimed it before it could be claimed',
       claimFailed: 'Claiming the Lightning payment failed: {error}',
@@ -944,6 +950,11 @@ export const translations = {
       feedback: 'Retroalimentación',
       hapticFeedback: 'Vibración táctil',
       hapticSubtext: 'Vibración al tocar botones e interactuar',
+      lightningAddress: 'Dirección Lightning',
+      receive: 'Recibir',
+      receiveViaLnurl: 'Recibir todo a través de ella',
+      receiveViaLnurlSubtext:
+        'Con un monto, las direcciones Arkade y Bitcoin también vienen de tu dirección Lightning, así su servidor registra cada pago. Desactivado: solo Lightning.',
       notifications: 'Notificaciones',
       allowNotifications: 'Permitir notificaciones',
       notificationsIntro:
@@ -1205,6 +1216,7 @@ export const translations = {
       noPaymentMethods: 'No hay métodos de pago válidos para este monto',
       lightningUnavailable: 'Lightning no disponible: {error}',
       noInvoiceForAmount: 'Sin factura para este monto: {error}',
+      ownAddressesInstead: 'Mostrando las direcciones propias de la billetera: {error}',
       noLightningSolver: 'No hay solucionador Lightning disponible',
       lightningPaymentLost: 'Pago Lightning perdido: el solver lo reclamó antes de poder cobrarse',
       claimFailed: 'Fallo al cobrar el pago Lightning: {error}',
