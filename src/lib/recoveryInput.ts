@@ -17,7 +17,12 @@ export function isPrivateKeyInput(value: string): boolean {
 export function getRecoveryWord(value: string, cursor: number | null) {
   if (cursor === null) return undefined
   return [...value.matchAll(/\S+/g)]
-    .map((match, index) => ({ word: match[0], start: match.index, end: match.index + match[0].length, index }))
+    .map((match, idx) => ({
+      word: match[0],
+      start: match.index!,
+      end: match.index! + match[0].length,
+      index: idx,
+    }))
     .find(({ start, end }) => cursor >= start && cursor <= end)
 }
 
