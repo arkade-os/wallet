@@ -3,6 +3,7 @@ import { useContext, useEffect, useState } from 'react'
 import Padded from '../../components/Padded'
 import Toggle from '../../components/Toggle'
 import Content from '../../components/Content'
+import FlexCol from '../../components/FlexCol'
 import Table, { type TableData } from '../../components/Table'
 import { TextSecondary } from '../../components/Text'
 import { ConfigContext } from '../../providers/config'
@@ -74,7 +75,7 @@ export default function Lnurl() {
       <Header text={t('settings.lightningAddress')} back />
       <Content>
         <Padded>
-          <div className='settings-page'>
+          <FlexCol gap='1.25rem' className='settings-page'>
             <section className='settings-section'>
               <p className='settings-section-label'>{t('settings.lnurlYours')}</p>
               {rail.status === 'ready' ? (
@@ -104,7 +105,7 @@ export default function Lnurl() {
                 subtext={t('settings.receiveViaLnurlSubtext')}
               />
             </section>
-          </div>
+          </FlexCol>
         </Padded>
       </Content>
     </>
