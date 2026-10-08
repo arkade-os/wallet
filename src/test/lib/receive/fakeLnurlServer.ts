@@ -1,5 +1,6 @@
 import { ArkAddress } from '@arkade-os/sdk'
-import { bech32 } from '@scure/base'
+import { bech32, createBase58check } from '@scure/base'
+import { sha256 } from '@noble/hashes/sha2.js'
 import { vi } from 'vitest'
 
 export const LNURL_BASE = 'https://lnurl.test'
@@ -62,6 +63,43 @@ export const FOREIGN_DESTINATIONS = {
   onchain: 'bc1qforeignaddress',
 }
 
+const tronAddress = (fill: number) =>
+  createBase58check(sha256).encode(Uint8Array.from([0x41, ...otherKey(fill).slice(0, 20)]))
+const USDT_ARBITRUM = '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9'
+
+/** lnurl-server's FixedFloat options as it advertises them (ec6573e). */
+export const TOKEN_OPTIONS = [
+  {
+    id: 'ff-usdtarbitrum',
+    type: 'eip155',
+    asset: `eip155:42161/erc20:${USDT_ARBITRUM}`,
+    unit: 'USDT',
+    provider: 'FixedFloat',
+    verifiable: true,
+    minSendable: 2_844_000,
+    maxSendable: 100_000_000,
+  },
+  {
+    id: 'ff-usdttrc',
+    type: 'tron',
+    asset: `tron:0x2b6653dc/trc20:${tronAddress(1)}`,
+    unit: 'USDT',
+    provider: 'FixedFloat',
+    verifiable: true,
+    minSendable: 11_996_000,
+    maxSendable: 100_000_000,
+  },
+]
+export const TOKEN_UNITS = [{ code: 'USDT', decimals: 6, name: 'Tether USD' }]
+export const TOKEN_DEPOSITS: Record<string, string> = {
+  'ff-usdtarbitrum': `0x${'ab'.repeat(20)}`,
+  'ff-usdttrc': tronAddress(2),
+}
+/** 8.578 USDT per 10 000 sats, in base units. */
+export const tokenPayment = (amountMsat: number) => String(Math.floor((amountMsat * 8578) / 10_000))
+export const arbitrumUri = (amountMsat: number) =>
+  `ethereum:${USDT_ARBITRUM}@42161/transfer?address=${TOKEN_DEPOSITS['ff-usdtarbitrum']}&uint256=${tokenPayment(amountMsat)}`
+
 /** The endpoints `arkadeLnurl` calls, backed by one in-memory address list. */
 export function fakeLnurlServer(opts: {
   modes: string[]
@@ -74,6 +112,10 @@ export function fakeLnurlServer(opts: {
   invoiceError?: string
   destinationError?: string
   foreignDestinations?: boolean
+  tokens?: boolean
+  tokenErrors?: Record<string, string>
+  tokenTag?: string
+  quoteTtlMs?: number
 }) {
   const addresses = [...(opts.addresses ?? [])]
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -116,11 +158,32 @@ export function fakeLnurlServer(opts: {
           { id: 'lightning', type: 'lightning' },
           { id: 'arkade', type: 'arkade' },
           { id: 'onchain', type: 'onchain', minSendable: 10_000_000 },
+          ...(opts.tokens ? TOKEN_OPTIONS : []),
         ],
+        ...(opts.tokens ? { units: TOKEN_UNITS } : {}),
       })
     }
     if (path.startsWith('/callback/')) {
       const rail = url.searchParams.get('paymentOption')
+      const token = TOKEN_OPTIONS.find((o) => o.id === rail)
+      if (token) {
+        if (opts.tokenErrors?.[token.id]) return json(200, { status: 'ERROR', reason: opts.tokenErrors[token.id] })
+        const amountMsat = Number(url.searchParams.get('amount'))
+        return json(200, {
+          status: 'OK',
+          paymentOption: token.id,
+          paymentDestination: TOKEN_DEPOSITS[token.id],
+          ...(token.type === 'eip155' ? { paymentURI: arbitrumUri(amountMsat) } : {}),
+          ...(opts.tokenTag ? { paymentDestinationTag: opts.tokenTag } : {}),
+          provider: token.provider,
+          paymentQuote: {
+            id: 'AB12CD',
+            expiresAt: new Date(Date.now() + (opts.quoteTtlMs ?? 15 * 60_000)).toISOString(),
+            requested: { amount: String(amountMsat), unit: 'msat' },
+            payment: { amount: tokenPayment(amountMsat), unit: token.unit },
+          },
+        })
+      }
       if (rail === 'arkade' || rail === 'onchain') {
         if (opts.destinationError) return json(200, { status: 'ERROR', reason: opts.destinationError })
         const destinations = opts.foreignDestinations ? FOREIGN_DESTINATIONS : LNURL_DESTINATIONS
