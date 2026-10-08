@@ -116,6 +116,8 @@ export function fakeLnurlServer(opts: {
   tokenErrors?: Record<string, string>
   tokenTag?: string
   quoteTtlMs?: number
+  /** Replaces a token quote's payment.amount, as a misbehaving server might. */
+  paymentAmount?: string
 }) {
   const addresses = [...(opts.addresses ?? [])]
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -180,7 +182,7 @@ export function fakeLnurlServer(opts: {
             id: 'AB12CD',
             expiresAt: new Date(Date.now() + (opts.quoteTtlMs ?? 15 * 60_000)).toISOString(),
             requested: { amount: String(amountMsat), unit: 'msat' },
-            payment: { amount: tokenPayment(amountMsat), unit: token.unit },
+            payment: { amount: opts.paymentAmount ?? tokenPayment(amountMsat), unit: token.unit },
           },
         })
       }

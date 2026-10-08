@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, configure, renderHook, waitFor } from '@testing-library/react'
 import { createLnurlClient, type PayRequest } from '@arkade-os/lnurl-client'
 import type { Receiver } from '@arkade-os/lnurl-client/arkade'
-import { lnurlTokenRails, useLnurlTokenRails } from '../../../lib/receive/lnurlTokenRails'
+import { lnurlTokenRails, useLnurlTokenRails, wholeTokens } from '../../../lib/receive/lnurlTokenRails'
 import {
   LNURL_BASE,
   TOKEN_DEPOSITS,
@@ -49,6 +49,16 @@ describe('lnurlTokenRails', () => {
   it('omits an option whose bounds exclude the amount', () => {
     // 5 000 sats clears Arbitrum's 2 844 minimum, not Tron's 11 996.
     expect(lnurlTokenRails(payRequest(TOKEN_OPTIONS), 5_000).map((r) => r.id)).toEqual(['ff-usdtarbitrum'])
+  })
+})
+
+describe('wholeTokens', () => {
+  it('reads plain base units as the exact token amount', () => {
+    expect(wholeTokens('17156000', 6)).toBe('17.156')
+  })
+
+  it.each(['17.156', '', '1e7', '0', '007'])('refuses %j as unreadable', (raw) => {
+    expect(wholeTokens(raw, 6)).toBeUndefined()
   })
 })
 
@@ -185,6 +195,14 @@ describe('useLnurlTokenRails', () => {
     tron.release()
     arbitrum.release()
     await waitFor(() => expect(result.current.quote?.optionId).toBe('ff-usdtarbitrum'))
+  })
+
+  it('refuses a quote whose amount is not plain base units', async () => {
+    serve({ paymentAmount: '007' })
+    const { result } = renderTokens('ff-usdtarbitrum')
+
+    await waitFor(() => expect(result.current.error).toMatch(/amount is unreadable/))
+    expect(result.current.quote).toBeUndefined()
   })
 
   it('refuses a deposit that needs a memo the QR cannot carry', async () => {

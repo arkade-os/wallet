@@ -31,6 +31,11 @@ export interface LnurlTokenQuote {
   expiresAt: number
 }
 
+/** A quote's base units as an exact amount of whole tokens, or undefined for anything but a plain
+ *  positive integer: the payer is told to send exactly this. */
+export const wholeTokens = (baseUnits: unknown, decimals: number): string | undefined =>
+  typeof baseUnits === 'string' && /^[1-9]\d*$/.test(baseUnits) ? centsToUnits(BigInt(baseUnits), decimals) : undefined
+
 /** The token options a payer is offered: up, verifiable, naming the third party that holds the
  *  deposit, and, given an amount, accepting it. */
 export function lnurlTokenRails(payRequest: PayRequest, amountSat?: number): LnurlTokenRail[] {
@@ -96,11 +101,13 @@ export function useLnurlTokenRails(
         if (!(expiresAt - Date.now() >= MIN_QUOTE_MS)) {
           throw new LnurlError("the quote expires too soon to pay; check the device's clock")
         }
+        const amount = wholeTokens(result.paymentQuote.payment.amount, rail.unit.decimals)
+        if (!amount) throw new LnurlError("the quote's amount is unreadable")
         const quote = {
           optionId: rail.id,
           value: result.paymentURI ?? result.paymentDestination,
           destination: result.paymentDestination,
-          amount: centsToUnits(BigInt(result.paymentQuote.payment.amount), rail.unit.decimals),
+          amount,
           expiresAt,
         }
         setAnswer({ asked, quote })
