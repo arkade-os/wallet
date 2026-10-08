@@ -47,6 +47,9 @@ export interface DetailsProps {
   invoice?: string
   isOffchainTx?: boolean
   priceRate?: string
+  rail?: string
+  /** The wallet's own lightning address an lnurl receive arrived at — not the payer. */
+  receivedAt?: string
   satoshis?: number
   spendLabel?: string
   spendTxid?: string
@@ -93,6 +96,8 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     invoice,
     isOffchainTx,
     priceRate,
+    rail,
+    receivedAt,
     satoshis,
     spendLabel,
     spendTxid,
@@ -203,6 +208,8 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     [t('accounts.arknote'), arknote, <NotesIcon key='notes-icon' small />],
     [t('accounts.invoice'), invoice, <TypeIcon key='invoice-icon' />],
     [t('accounts.destination'), destination, <TypeIcon key='destination-icon' />],
+    ['Received at', receivedAt, <TypeIcon key='received-at-icon' />],
+    ['Rail', rail, <DirectionIcon key='rail-icon' />],
     [t('accounts.funded'), fundedTxid, <HashIcon key='funded-icon' />, offchainTxOnClick(fundedTxid)],
     [spendLabel ?? t('accounts.completed'), spendTxid, <HashIcon key='spend-icon' />, offchainTxOnClick(spendTxid)],
     // Says the recipient was paid; `spendTxid` only proves the solver acted.

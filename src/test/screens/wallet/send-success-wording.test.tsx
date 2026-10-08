@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import SendSuccess from '../../../screens/Wallet/Send/Success'
-import { ONCHAIN_SWAP_RAIL, WALLET_EXIT_RAIL } from '../../../lib/sendRouter'
+import { LNURL_ARKADE_RAIL, LNURL_LIGHTNING_RAIL, ONCHAIN_SWAP_RAIL, WALLET_EXIT_RAIL } from '../../../lib/sendRouter'
 import { AspContext } from '../../../providers/asp'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
@@ -89,5 +89,19 @@ describe('what the send success screen claims', () => {
     expect((await screen.findAllByText(/on the way/i)).length).toBeGreaterThan(0)
     expect(await screen.findByText(/keep the wallet open/i)).toBeDefined()
     expect(screen.queryByText(/sent successfully/i)).toBeNull()
+  })
+
+  it('says an LNURL send over Lightning is on the way, though the flow carries no invoice', async () => {
+    renderSuccess({ lnUrl: 'alice@pay.example', total: 10_000, railId: LNURL_LIGHTNING_RAIL })
+
+    expect((await screen.findAllByText(/on the way/i)).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/keep the wallet open/i)).toBeNull()
+  })
+
+  it('says sent for an LNURL send paid inside Arkade, even beside a unified QR address', async () => {
+    renderSuccess({ lnUrl: 'alice@pay.example', address: ONCHAIN, total: 10_000, railId: LNURL_ARKADE_RAIL })
+
+    expect(await screen.findByText(/sent successfully/i)).toBeDefined()
+    expect(screen.queryByText(/on the way/i)).toBeNull()
   })
 })

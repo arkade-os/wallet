@@ -19,6 +19,7 @@ import { PrivacyAmount } from './PrivacyAmount'
 import SwapRouteIcon from './SwapRouteIcon'
 import {
   lnSwapLabel,
+  lnurlLabel,
   swapRouteLabel,
   swapStatusForTx,
   swapStatusLabel,
@@ -109,6 +110,7 @@ const TransactionLine = ({
 
   const kind =
     lnSwapKind ??
+    lnurlLabel(tx) ??
     (swap
       ? swapStatus === 'pending'
         ? t('transaction.swapPending')

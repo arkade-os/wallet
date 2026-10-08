@@ -60,7 +60,7 @@ network — no `VITE_ARK_SERVER` needed. The regtest Boltz endpoint
 (`http://localhost:9069`) is likewise built in.
 
 > To exercise the LNURL / nostr-backup features as well, start with:
-> `VITE_LNURL_SERVER_URL=http://localhost:9090 VITE_NOSTR_RELAY_URL=ws://localhost:10547 pnpm start`
+> `VITE_LNURL_SERVER=http://localhost:9090 VITE_NOSTR_RELAY_URL=ws://localhost:10547 pnpm start`
 
 ## 3. Fund the wallet
 

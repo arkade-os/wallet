@@ -6,6 +6,7 @@ import { ClearButtonOnInput, ScanButtonOnInput } from './Button'
 import FlexRow from './FlexRow'
 
 interface InputWithScannerProps {
+  disabled?: boolean
   error?: string
   focus?: boolean
   label?: string
@@ -18,6 +19,7 @@ interface InputWithScannerProps {
 }
 
 export default function InputWithScanner({
+  disabled,
   error,
   focus,
   label,
@@ -39,15 +41,18 @@ export default function InputWithScanner({
   }
 
   const handlePaste = (data: string) => {
+    if (disabled) return
     onChange(data)
   }
 
   const handleClear = () => {
+    if (disabled) return
     hapticLight()
     onChange('')
   }
 
   const handleScan = () => {
+    if (disabled) return
     hapticLight()
     openScan()
   }
@@ -61,6 +66,7 @@ export default function InputWithScanner({
           ref={input}
           name={name}
           value={value}
+          disabled={disabled}
           className='input'
           onChange={handleChange}
           placeholder={placeholder}
