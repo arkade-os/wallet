@@ -8,7 +8,7 @@ import { chainLabel } from './chainLabels'
 
 const lnurlClient = createLnurlClient()
 
-// The server leaves at least 60 s on a quote, so less means a skewed clock, where re-asking at
+// A quote with under a minute left cannot be paid in time, and on a skewed clock re-asking at
 // expiry would spend a provider order and a solver swap on every answer.
 const MIN_QUOTE_MS = 60_000
 const MAX_TIMEOUT_MS = 2 ** 31 - 1
