@@ -194,6 +194,8 @@ https://arkade.money/?action=send&request=<percent-encoded BIP21>&callback=https
 
 Success opens `callback?status=sent&txid=<txid>` when there is a txid. Backing out opens `callback?error=denied`. `callback` is optional on send.
 
+Error codes in `callback?error=<code>`: `denied` (the user declined or backed out) and `invalid` (the request was malformed, such as a bad action, address, or BIP21; sent only when the request still carried a valid `callback`).
+
 `callback` must be `https`, or `http` on `localhost`, `127.0.0.1`, or `[::1]`. The whole query must stay under 6000 characters. The wallet appends its params; it does not fill a template, and it will not leave a pre-set `address` in place on decline.
 
 An installed wallet on Chrome or Edge also handles the `web+arkade` protocol (`public/manifest.json` sends it to the hash). The actions are the same:
