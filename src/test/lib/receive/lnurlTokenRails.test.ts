@@ -104,7 +104,10 @@ describe('useLnurlTokenRails', () => {
     server = fakeLnurlServer({ modes: ['self'], tokens: true, ...opts })
     vi.stubGlobal('fetch', server.fetch)
   }
-  const receiver = { payRequest: () => createLnurlClient().resolve('alice@lnurl.test') } as unknown as Receiver
+  const receiver = {
+    lnurl: 'LNURL1ALICE',
+    payRequest: () => createLnurlClient().resolve('alice@lnurl.test'),
+  } as unknown as Receiver
   // Every render's output: a render the effect has not caught up with is still something a caller shows.
   let seen: ReturnType<typeof useLnurlTokenRails>[] = []
   const renderTokens = (selected?: string, enabled = true) => {
@@ -231,6 +234,42 @@ describe('useLnurlTokenRails', () => {
     tron.release()
     arbitrum.release()
     await waitFor(() => expect(result.current.quote?.optionId).toBe('ff-usdtarbitrum'))
+  })
+
+  it('shows a replaced receiver neither the old options nor the old quote', async () => {
+    serve()
+    let fetchBob!: () => void
+    const bobFetched = new Promise<void>((resolve) => (fetchBob = resolve))
+    const bob = {
+      lnurl: 'LNURL1BOB',
+      payRequest: async () => {
+        await bobFetched
+        return createLnurlClient().resolve('bob@lnurl.test')
+      },
+    } as unknown as Receiver
+    seen = []
+    const { result, rerender } = renderHook(
+      (props) => {
+        const out = useLnurlTokenRails(props.receiver, 20_000, true, 'ff-usdtarbitrum')
+        seen.push(out)
+        return out
+      },
+      { initialProps: { receiver } },
+    )
+    await waitFor(() => expect(result.current.quote).toBeDefined())
+    const from = seen.length
+
+    rerender({ receiver: bob })
+    await act(async () => {})
+
+    expect(seen.slice(from).filter((r) => r.quote || r.rails.length)).toEqual([])
+    const pending = holdQuotes(server, 'ff-usdtarbitrum')
+    fetchBob()
+    await waitFor(() => expect(pending.held).toHaveLength(1))
+    expect(pending.held[0].pathname).toBe('/callback/bob')
+    expect(seen.slice(from).filter((r) => r.quote)).toEqual([])
+    pending.release()
+    await waitFor(() => expect(result.current.quote).toBeDefined())
   })
 
   it('refuses a quote far from what the amount is worth at the BTC price the wallet shows', async () => {

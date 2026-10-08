@@ -18,6 +18,7 @@ const MAX_TIMEOUT_MS = 2 ** 31 - 1
 export type LnurlTokenRail = TokenOption & { chain: string; provider: string }
 
 interface Asked {
+  lnurl: string
   optionId: string
   amountSat: number
   round: number
@@ -71,25 +72,28 @@ export function useLnurlTokenRails(
   selected: string | undefined,
 ) {
   const { toFiatAmount } = useContext(FiatContext)
-  const [payRequest, setPayRequest] = useState<PayRequest>()
+  const [fetched, setFetched] = useState<{ lnurl: string; payRequest: PayRequest }>()
   const [answer, setAnswer] = useState<{ asked: Asked; quote?: LnurlTokenQuote; error?: string }>()
   const [round, setRound] = useState(0)
 
+  // Keyed on the LNURL, the receiver's identity: an upgrade keeps it, a different receiver never does.
   useEffect(() => {
-    setPayRequest(undefined)
     if (!enabled || !receiver) return
+    const { lnurl } = receiver
     let stale = false
     receiver
       .payRequest()
-      .then((next) => {
-        if (!stale) setPayRequest(next)
+      .then((payRequest) => {
+        if (!stale) setFetched({ lnurl, payRequest })
       })
       .catch((err) => consoleError(err, 'lnurl token options failed'))
     return () => {
       stale = true
     }
-  }, [receiver, enabled])
+  }, [receiver?.lnurl, enabled])
 
+  const source = enabled && receiver && fetched?.lnurl === receiver.lnurl ? fetched : undefined
+  const payRequest = source?.payRequest
   const rails = useMemo(
     () => (payRequest && amountSat > 0 ? lnurlTokenRails(payRequest, amountSat) : []),
     [payRequest, amountSat],
@@ -97,12 +101,12 @@ export function useLnurlTokenRails(
   const rail = rails.find((r) => r.id === selected)
 
   useEffect(() => {
-    if (!payRequest || !rail) return
-    const asked = { optionId: rail.id, amountSat, round }
+    if (!source || !rail) return
+    const asked = { lnurl: source.lnurl, optionId: rail.id, amountSat, round }
     let stale = false
     let expiry: ReturnType<typeof setTimeout> | undefined
     lnurlClient
-      .requestInvoice(payRequest, { amountSat, paymentOption: rail.id })
+      .requestInvoice(source.payRequest, { amountSat, paymentOption: rail.id })
       .then((result) => {
         if (stale) return
         // The client has already checked the option, the address's chain and a whole amount of the token.
@@ -143,12 +147,16 @@ export function useLnurlTokenRails(
       // Not kept for a return to these inputs: with its timer cleared it could expire unseen.
       setAnswer(undefined)
     }
-  }, [payRequest, amountSat, rail?.id, round])
+  }, [source, amountSat, rail?.id, round])
 
-  // The render after an amount, option or expiry change runs before the effect asks again, so a held
-  // answer counts only for the inputs it was asked with; anything else is a deposit for another payment.
+  // The render after a receiver, amount, option or expiry change runs before the effect asks again, so a
+  // held answer counts only for the inputs it was asked with; anything else is a deposit for another payment.
   const current =
-    answer && answer.asked.optionId === rail?.id && answer.asked.amountSat === amountSat && answer.asked.round === round
+    answer &&
+    answer.asked.lnurl === source?.lnurl &&
+    answer.asked.optionId === rail?.id &&
+    answer.asked.amountSat === amountSat &&
+    answer.asked.round === round
       ? answer
       : undefined
   return { rails, quote: current?.quote, quoting: Boolean(rail) && !current, error: current?.error ?? '' }
