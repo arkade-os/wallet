@@ -28,6 +28,8 @@ const PUBKEY = '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f817
 const XONLY = '79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798'
 const ADDRESS = 'tark1qqexample'
 const CALLBACK = 'https://arkade.trade/connect'
+const SAFARI_USER_AGENT =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15'
 const TXID = 'b'.repeat(64)
 
 const renderScreen = (appIntent: unknown, navigate = vi.fn()) => {
@@ -115,6 +117,7 @@ describe('App intent screen', () => {
   })
 
   it('on Safari, Open in App stays here and explains that the installed app cannot be opened', () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(SAFARI_USER_AGENT)
     renderScreen({ status: 'connect', callback: CALLBACK })
     fireEvent.click(screen.getByTestId('app-intent-open-in-app'))
     expect(screen.getByTestId('app-intent-open-in-app-help')).toHaveTextContent(/Safari can't open the installed app/)

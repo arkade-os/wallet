@@ -19,7 +19,7 @@ import AssetCard from '../../../components/AssetCard'
 import { accountAssetLabel, rawAssetPresentation, verifiedDesignatedCurrency } from '../../../lib/accountAssets'
 import { AspContext } from '../../../providers/asp'
 import { useTranslation } from '../../../providers/language'
-import { callbackHost, redirectToCallback } from '../../../lib/appIntent'
+import { appIntentHandoff, callbackHost, redirectToCallback } from '../../../lib/appIntent'
 
 export default function SendSuccess() {
   const { config, useFiat } = useContext(ConfigContext)
@@ -76,14 +76,12 @@ export default function SendSuccess() {
       : t('send.sentSuccessfully', { amount: displayAmount })
 
   const finish = () => {
-    if (appIntent?.status === 'send' && appIntent.callback) {
-      const callback = appIntent.callback
-      const txid = sendInfo.txid || undefined
-      setAppIntent(undefined)
-      redirectToCallback(callback, { status: 'sent', txid })
+    const handoff = appIntentHandoff(appIntent, 'sent', sendInfo.txid)
+    if (appIntent?.status === 'send') setAppIntent(undefined)
+    if (handoff) {
+      redirectToCallback(handoff.callback, handoff.params)
       return
     }
-    if (appIntent?.status === 'send') setAppIntent(undefined)
     navigate(Pages.Wallet)
   }
 

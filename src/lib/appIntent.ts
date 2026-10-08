@@ -53,10 +53,10 @@ export type AppIntentParse =
   | { ok: true; intent: AppIntent }
   | { ok: false; error: AppIntentErrorCode; callback?: string }
 
-/** In-memory flow value. `started` / `prefilled` are not part of the URL. */
+/** In-memory flow value. `started` is not part of the URL. */
 export type AppIntentState =
   | { status: 'connect'; callback: string }
-  | { status: 'send'; request: string; callback?: string; started?: boolean; prefilled?: boolean }
+  | { status: 'send'; request: string; callback?: string; started?: boolean }
   | { status: 'invalid'; error: AppIntentErrorCode; callback?: string }
 
 export type AppIntentStep = 'none' | 'connect' | 'send' | 'invalid'
@@ -144,6 +144,21 @@ export const callbackUrl = (callback: string, params: Record<string, string | un
 
 export const redirectToCallback = (callback: string, params: Record<string, string | undefined>): void => {
   window.location.assign(callbackUrl(callback, params))
+}
+
+/** What Escape or a finished send should tell the caller. No callback means stay in the wallet. */
+export const appIntentHandoff = (
+  intent: AppIntentState | undefined,
+  outcome: 'denied' | 'sent',
+  txid?: string,
+): { callback: string; params: Record<string, string | undefined> } | undefined => {
+  if (!intent?.callback) return undefined
+  if (outcome === 'sent') {
+    if (intent.status !== 'send') return undefined
+    return { callback: intent.callback, params: { status: 'sent', txid: txid || undefined } }
+  }
+  if (intent.status !== 'send' && intent.status !== 'connect') return undefined
+  return { callback: intent.callback, params: { error: 'denied' } }
 }
 
 /** Drop the app-link params and leave the rest of the URL (hash, `dev`) alone. */

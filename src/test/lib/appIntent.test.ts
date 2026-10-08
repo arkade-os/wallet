@@ -4,6 +4,7 @@ import {
   callbackUrl,
   nextAppIntentNavigation,
   parseAppIntent,
+  appIntentHandoff,
   browserHandlesAppProtocol,
   openInstalledApp,
   protocolIntentSearch,
@@ -157,6 +158,27 @@ describe('protocolIntentSearch', () => {
       ok: true,
       intent: { action: 'send', request: REQUEST },
     })
+  })
+})
+
+describe('appIntentHandoff', () => {
+  const send = { status: 'send' as const, request: REQUEST, callback: CALLBACK }
+
+  it('Escape on a finished send reports sent, and a decline reports denied', () => {
+    expect(appIntentHandoff(send, 'sent', 'abc')).toEqual({
+      callback: CALLBACK,
+      params: { status: 'sent', txid: 'abc' },
+    })
+    expect(appIntentHandoff(send, 'denied')).toEqual({
+      callback: CALLBACK,
+      params: { error: 'denied' },
+    })
+    expect(appIntentHandoff({ status: 'connect', callback: CALLBACK }, 'denied')).toEqual({
+      callback: CALLBACK,
+      params: { error: 'denied' },
+    })
+    expect(appIntentHandoff({ status: 'send', request: REQUEST }, 'sent', 'abc')).toBeUndefined()
+    expect(appIntentHandoff(undefined, 'denied')).toBeUndefined()
   })
 })
 

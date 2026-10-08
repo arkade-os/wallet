@@ -36,7 +36,7 @@ import { decodeInvoice } from '../../../lib/bolt11'
 import { lnSendRendezvous, requestLnSend } from '../../../lib/lnSwap'
 import { withRfqTransport, SolverNotRespondingError } from '../../../lib/nostrRfq'
 import { discoverMarkets } from '../../../lib/swapMarkets'
-import { redirectToCallback } from '../../../lib/appIntent'
+import { appIntentHandoff, redirectToCallback } from '../../../lib/appIntent'
 import OpenInApp from '../../AppIntent/OpenInApp'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
@@ -132,7 +132,7 @@ export default function SendForm() {
   const { config, effectiveTheme, useFiat } = useContext(ConfigContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const { toFiat, fromFiat, fiatDecimals } = useContext(FiatContext)
-  const { appIntent, sendInfo, resetFlow, setAppIntent, setNoteInfo, setSendInfo } = useContext(FlowContext)
+  const { appIntent, sendInfo, resetFlow, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
   const { t } = useTranslation()
@@ -159,11 +159,9 @@ export default function SendForm() {
   const [keys, setKeys] = useState(false)
   const [proceed, setProceed] = useState(false)
   const [processing, setProcessing] = useState(false)
-  const [readyToParse, setReadyToParse] = useState(false)
-  const [recipient, setRecipient] = useState('')
-  // An app link hands its BIP21 over once. Backing out to the details screen
-  // remounts this form; filling again would undo edits.
-  const pendingAppRequest = appIntent?.status === 'send' && !appIntent.prefilled ? appIntent.request : ''
+  // sendInfo.recipient survives a remount when the user comes back from details.
+  const [readyToParse, setReadyToParse] = useState(Boolean(sendInfo.recipient))
+  const [recipient, setRecipient] = useState(sendInfo.recipient ?? '')
   const [recipientError, setRecipientError] = useState('')
   const [receivingAddresses, setReceivingAddresses] = useState<Addresses>()
   const [scan, setScan] = useState(false)
@@ -178,17 +176,10 @@ export default function SendForm() {
 
   const timeoutRef = useRef<NodeJS.Timeout>()
 
-  useEffect(() => {
-    if (!pendingAppRequest || appIntent?.status !== 'send') return
-    setRecipient(pendingAppRequest)
-    setReadyToParse(true)
-    setAppIntent({ ...appIntent, prefilled: true })
-  }, [pendingAppRequest, appIntent, setAppIntent])
-
   const leaveAppSend = () => {
-    const callback = appIntent?.callback
+    const handoff = appIntentHandoff(appIntent, 'denied')
     resetFlow()
-    if (callback) redirectToCallback(callback, { error: 'denied' })
+    if (handoff) redirectToCallback(handoff.callback, handoff.params)
     else navigate(Pages.Wallet)
   }
 

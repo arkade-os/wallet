@@ -386,9 +386,8 @@ describe('Send screen', () => {
     expect(screen.getByText('Continue').closest('button')).toBeDisabled()
   })
 
-  it('prefills a send opened from an app link, once', async () => {
+  it('shows the payment request the app link already stored', async () => {
     const request = 'bitcoin:bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4?amount=0.0001'
-    const setAppIntent = vi.fn()
     const walletValue = {
       ...mockWalletContextValue,
       svcWallet: {
@@ -401,13 +400,12 @@ describe('Send screen', () => {
       flowContext: {
         ...mockFlowContextValue,
         appIntent: { status: 'send', request, callback: 'https://arkade.trade/vault' },
-        setAppIntent,
+        sendInfo: { ...emptySendInfo, recipient: request },
       },
       walletContext: walletValue,
     })
 
     expect(await screen.findByDisplayValue(request)).toBeInTheDocument()
-    expect(setAppIntent).toHaveBeenCalledWith(expect.objectContaining({ prefilled: true, request }))
   })
 
   it('returns to the app with error=denied when the send is dismissed', () => {
@@ -421,7 +419,6 @@ describe('Send screen', () => {
           status: 'send',
           request: 'bitcoin:bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
           callback,
-          prefilled: true,
         },
         resetFlow,
       },
@@ -450,7 +447,6 @@ describe('Send screen', () => {
         appIntent: {
           status: 'send',
           request: 'bitcoin:bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
-          prefilled: true,
         },
         resetFlow,
       },

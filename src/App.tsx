@@ -13,7 +13,7 @@ import BootError from './components/BootError'
 import LoadingLogo from './components/LoadingLogo'
 import { useReducedMotion } from './hooks/useReducedMotion'
 import { useLoadingStatus } from './hooks/useLoadingStatus'
-import { nextAppIntentNavigation, redirectToCallback } from './lib/appIntent'
+import { appIntentHandoff, nextAppIntentNavigation, redirectToCallback } from './lib/appIntent'
 import { defaultPassword } from './lib/constants'
 import { consoleError } from './lib/logs'
 import DesktopWalletShell from './components/DesktopWalletShell'
@@ -73,7 +73,7 @@ export default function App() {
   const { aspInfo } = useContext(AspContext)
   const { configLoaded } = useContext(ConfigContext)
   const { direction, navigate, screen } = useContext(NavigationContext)
-  const { appIntent, initInfo, resetFlow, setAppIntent, setSendInfo } = useContext(FlowContext)
+  const { appIntent, initInfo, resetFlow, sendInfo, setAppIntent, setSendInfo } = useContext(FlowContext)
   const { option } = useContext(OptionsContext)
   const { authState, unlockWallet, walletLoaded, initialized, wallet, dataReady, loadError, devAutoInitFailed } =
     useContext(WalletContext)
@@ -122,16 +122,17 @@ export default function App() {
   useEffect(() => {
     if (!navigate) return
     const handleGlobalDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        const callback = appIntent?.status === 'send' ? appIntent.callback : undefined
-        resetFlow()
-        if (callback) redirectToCallback(callback, { error: 'denied' })
-        else navigate(Pages.Wallet)
-      }
+      if (event.key !== 'Escape') return
+      // Success already broadcast. Report sent. Anything earlier is a decline,
+      // including connect. Read the txid before resetFlow clears it.
+      const handoff = appIntentHandoff(appIntent, screen === Pages.SendSuccess ? 'sent' : 'denied', sendInfo.txid)
+      resetFlow()
+      if (handoff) redirectToCallback(handoff.callback, handoff.params)
+      else navigate(Pages.Wallet)
     }
     window.addEventListener('keydown', handleGlobalDown)
     return () => window.removeEventListener('keydown', handleGlobalDown)
-  }, [navigate, appIntent])
+  }, [navigate, appIntent, screen, sendInfo.txid])
 
   useEffect(() => {
     if (isIAB) return navigate(Pages.InAppBrowser)
