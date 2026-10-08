@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, configure, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { SingleKey } from '@arkade-os/sdk'
 import { encodeLnurl } from '@arkade-os/lnurl-client/arkade'
 import { FlowContext } from '../../../providers/flow'
@@ -28,7 +28,9 @@ import {
   DECODABLE_ARK,
   LNURL_BASE,
   LNURL_DESTINATIONS,
+  TOKEN_DEPOSITS,
   WALLET_BOARDING_ADDRESS,
+  arbitrumUri,
   fakeInvoice,
   fakeLnurlServer,
   namedAddress,
@@ -391,5 +393,110 @@ describe('Receive screen, naming a nameless receiver', () => {
     await screen.findByText(/No name yet/)
     expect(await qrLightning()).toMatch(/^lnurl1/i)
     expect(screen.queryByRole('button', { name: 'Add a name' })).not.toBeInTheDocument()
+  })
+})
+
+describe('Receive screen, token rails', () => {
+  const tokensOn = { receiveViaLnurl: true, receiveViaTokens: true }
+  const payRequests = () => server.calls('GET', '/.well-known/lnurlp/alice')
+  const tokenQuotes = () => callbacks().filter((url) => url.searchParams.get('paymentOption')?.startsWith('ff-'))
+  const tokenSelect = () => screen.queryByRole('combobox', { name: 'Pay with a token' })
+  const pick = async (label: string) => {
+    const select = await screen.findByRole('combobox', { name: 'Pay with a token' })
+    const option = within(select).getByRole('option', { name: label }) as HTMLOptionElement
+    fireEvent.change(select, { target: { value: option.value } })
+  }
+
+  it('renders a USDT (Arbitrum One) method with an EIP-681 value', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+    renderReceive(20_000, tokensOn)
+
+    await pick('USDT (Arbitrum One)')
+
+    expect(await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')).toBeInTheDocument()
+    expect(screen.getByText(/^Quote by FixedFloat, valid for \d+:\d\d$/)).toBeInTheDocument()
+    expect(await copiedQr()).toBe(arbitrumUri(20_000_000))
+  })
+
+  it('renders a tron option with the bare address and no deeplink', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+    renderReceive(20_000, tokensOn)
+
+    await pick('USDT (Tron)')
+
+    expect(await screen.findByText('Send exactly 17.156 USDT on Tron')).toBeInTheDocument()
+    expect(await copiedQr()).toBe(TOKEN_DEPOSITS['ff-usdttrc'])
+  })
+
+  it('renders nothing when no token option is advertised', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    renderReceive(20_000, tokensOn)
+
+    await waitFor(() => expect(payRequests()).toHaveLength(2))
+    await waitFor(() => expect(callbacks()).toHaveLength(3))
+    expect(tokenSelect()).not.toBeInTheDocument()
+  })
+
+  it('asks for no token quote until a token method is picked', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+    renderReceive(20_000, tokensOn)
+
+    await screen.findByRole('combobox', { name: 'Pay with a token' })
+    await waitFor(() => expect(callbacks()).toHaveLength(3))
+    expect(tokenQuotes()).toHaveLength(0)
+  })
+
+  it('offers only the token methods whose bounds hold the amount', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+    renderReceive(5_000, tokensOn)
+
+    const select = await screen.findByRole('combobox', { name: 'Pay with a token' })
+    expect(
+      within(select)
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['Pay with a token', 'USDT (Arbitrum One)'])
+  })
+
+  it('offers no token method without an amount', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+    renderReceive(0, tokensOn)
+
+    await waitFor(() => expect(payRequests()).toHaveLength(1))
+    await screen.findByText('alice@lnurl.test')
+    expect(tokenSelect()).not.toBeInTheDocument()
+  })
+
+  it('says why a token has no quote', async () => {
+    serve({
+      modes: ['self'],
+      addresses: [namedAddress('alice')],
+      tokens: true,
+      tokenErrors: { 'ff-usdtarbitrum': 'paymentOption ff-usdtarbitrum is busy, try again shortly' },
+    })
+    renderReceive(20_000, tokensOn)
+
+    await pick('USDT (Arbitrum One)')
+
+    expect(await screen.findByText(/No quote for this token: .*busy/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeDisabled()
+  })
+
+  it('token rails are absent when receiveViaTokens is off', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+    renderReceive(20_000, { receiveViaLnurl: true })
+
+    await waitFor(() => expect(callbacks()).toHaveLength(3))
+    expect(tokenSelect()).not.toBeInTheDocument()
+    expect(payRequests()).toHaveLength(1)
+  })
+
+  it('token rails are absent when receiveViaLnurl is off even with receiveViaTokens on', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+    renderReceive(20_000, { receiveViaTokens: true })
+
+    await waitFor(() => expect(callbacks()).toHaveLength(1))
+    expect(tokenSelect()).not.toBeInTheDocument()
+    expect(payRequests()).toHaveLength(1)
   })
 })
