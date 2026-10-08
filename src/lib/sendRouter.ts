@@ -19,7 +19,15 @@ import {
   type RouteQuote,
   type RouteResult,
 } from '@arkade-os/sdk'
-import { LIGHTNING_RAIL, ONCHAIN_SWAP_RAIL, lightningRail, onchainSwapRail, type SwapRailClient } from '@arkade-os/swap'
+import {
+  LIGHTNING_RAIL,
+  ONCHAIN_SWAP_RAIL,
+  lightningRail,
+  onchainSwapRail,
+  receiverExact,
+  type Quote,
+  type SwapRailClient,
+} from '@arkade-os/swap'
 import { sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { collaborativeExitWithFees, sendAssets } from './asp'
 import { decodeInvoice } from './bolt11'
@@ -83,6 +91,53 @@ export const assetRail = (deps: { assets: Asset[] }): PaymentRail => ({
   }),
 })
 
+/** A quote/accept pair reaching the driver's client over the driver channel,
+ *  for the tab that has none of its own. */
+export interface LightningDelegate {
+  quote: (destination: string, amount?: number) => Promise<Quote>
+  accept: (quote: Quote) => Promise<string>
+}
+
+/** Registered instead of `lightningRail` when this tab has no client: adapts
+ *  the delegate's `Quote` to a `RouteQuote` the same way the package rail does.
+ *
+ *  `available()` is always true — an out-of-bounds amount surfaces from
+ *  `quote()` as the solver-bounds message instead, so `lnSendRefusal`'s
+ *  "No Lightning solver available" is unreachable here.
+ *
+ *  `settled()` never resolves: the handle only reports `sent` once `accept`
+ *  returns a funding txid. The swap's own outcome has no `onUpdate` to reach
+ *  this tab through and arrives over `outcomeOf` instead. */
+export const delegateLightningRail = (deps: LightningDelegate): PaymentRail => ({
+  id: LIGHTNING_RAIL,
+  match: (req) => invoiceTarget(req.raw) !== undefined,
+  available: () => true,
+  quote: async (req) => {
+    const invoice = invoiceTarget(req.raw)
+    if (invoice === undefined) throw new Error(`${LIGHTNING_RAIL}: the request carries no BOLT11 invoice`)
+    const quote = await deps.quote(invoice, req.amount)
+    if (!quote.lock) throw new Error('lightning: the quote carries no payment hash')
+    const amounts = receiverExact(LIGHTNING_RAIL, {
+      amount: quote.take.amount,
+      fee: quote.fee.amount,
+      total: quote.give.amount,
+    })
+    return {
+      railId: LIGHTNING_RAIL,
+      ...amounts,
+      validUntil: quote.expiresAt,
+      meta: { quoteId: quote.id, expiresAt: quote.expiresAt, paymentHash: quote.lock.hash },
+      send: async () =>
+        makeHandle(LIGHTNING_RAIL, async (emit) => {
+          const txid = await deps.accept(quote)
+          emit({ status: 'sent', result: { railId: LIGHTNING_RAIL, txid } })
+          // Never settles here — see the rail's doc comment.
+          return new Promise<RouteResult>(() => {})
+        }),
+    }
+  },
+})
+
 /** Optional per-rail deps: a rail whose deps are absent is not registered,
  *  which is the drop `available()` performs, one step earlier. */
 export interface SendRouterDeps {
@@ -93,6 +148,9 @@ export interface SendRouterDeps {
   claimFeeRateSatVb?: number
   outputFee?: () => number
   assets?: Asset[]
+  /** Registers `delegateLightningRail` in place of `lightningRail` when there
+   *  is no `client`. */
+  lnDelegate?: LightningDelegate
 }
 
 export const createSendRouter = (deps: SendRouterDeps): PaymentRouter => {
@@ -106,6 +164,7 @@ export const createSendRouter = (deps: SendRouterDeps): PaymentRouter => {
   }
   if (deps.outputFee) router.use(walletExitRail({ outputFee: deps.outputFee }))
   if (deps.client) router.use(lightningRail(deps.client))
+  else if (deps.lnDelegate) router.use(delegateLightningRail(deps.lnDelegate))
   if (deps.assets) router.use(assetRail({ assets: deps.assets }))
   return router
 }

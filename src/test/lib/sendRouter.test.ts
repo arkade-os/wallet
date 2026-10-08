@@ -2,11 +2,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { makeHandle, type PaymentHandle } from '@arkade-os/sdk'
-import { ONCHAIN_SWAP_RAIL, claimFeeSats, type SwapRailClient } from '@arkade-os/swap'
+import { ONCHAIN_SWAP_RAIL, claimFeeSats, type Quote, type SwapRailClient } from '@arkade-os/swap'
 import { decodeBolt11, lightningCorridor, resolveRoute } from '@arkade-os/swap/advanced'
 import {
   ASSET_RAIL,
   createSendRouter,
+  delegateLightningRail,
   LIGHTNING_RAIL,
   lnSendRefusal,
   lnSendRequest,
@@ -411,6 +412,86 @@ describe('the lightning rail', () => {
     const result = await (await quote.send()).settled()
     expect(accept).toHaveBeenCalledTimes(1)
     expect(result).toMatchObject({ railId: LIGHTNING_RAIL, txid: 'funding-txid' })
+  })
+})
+
+describe('delegating lightning rail: no client, a quote/accept pair instead', () => {
+  const FIXED_EXPIRY = Math.floor(Date.now() / 1000) + 60
+  const quoteOf = (amount: bigint, over: Record<string, unknown> = {}) =>
+    ({
+      id: 'quote-1',
+      expiresAt: FIXED_EXPIRY,
+      market: { key: 'market-1' },
+      lock: { hash: PAYMENT_HASH },
+      take: { amount },
+      fee: { amount: SPREAD },
+      give: { amount: amount + SPREAD },
+      ...over,
+    }) as unknown as Quote
+
+  const delegate = (over: Partial<Parameters<typeof delegateLightningRail>[0]> = {}) => ({
+    quote: vi.fn(async () => quoteOf(BigInt(INVOICE_SATS))),
+    accept: vi.fn(async () => 'funding-txid'),
+    ...over,
+  })
+
+  it('is what createSendRouter registers in place of the client rail, only when there is no client', async () => {
+    const d = delegate()
+    const withDelegate = createSendRouter({ wallet: {} as never, lnDelegate: d })
+    expect(await railIds(withDelegate, INVOICE, INVOICE_SATS)).toEqual([LIGHTNING_RAIL])
+
+    // A client, when there is one, still wins — the delegate is a fallback.
+    const withClient = createSendRouter({ wallet: {} as never, client: fakeClient(), lnDelegate: d })
+    expect(await railIds(withClient, INVOICE, INVOICE_SATS)).toEqual([LIGHTNING_RAIL])
+    await (await withClient.options({ raw: INVOICE, amount: INVOICE_SATS }))[0].quote()
+    expect(d.quote).not.toHaveBeenCalled()
+  })
+
+  it('forwards the invoice and amount to the delegate, not the client', async () => {
+    const d = delegate()
+    const rail = delegateLightningRail(d)
+    await rail.quote({ raw: INVOICE, amount: INVOICE_SATS }, {} as never)
+    expect(d.quote).toHaveBeenCalledWith(INVOICE, INVOICE_SATS)
+  })
+
+  it('refuses a quote with no payment hash rather than handing one to the wrong-invoice guard', async () => {
+    const d = delegate({ quote: vi.fn(async () => quoteOf(BigInt(INVOICE_SATS), { lock: undefined })) })
+    const rail = delegateLightningRail(d)
+    await expect(rail.quote({ raw: INVOICE, amount: INVOICE_SATS }, {} as never)).rejects.toThrow(
+      'the quote carries no payment hash',
+    )
+  })
+
+  it('maps take/fee/give through receiverExact, and sets validUntil from the quote', async () => {
+    const d = delegate()
+    const rail = delegateLightningRail(d)
+    const quote = await rail.quote({ raw: INVOICE, amount: INVOICE_SATS }, {} as never)
+    expect(quote).toMatchObject({
+      railId: LIGHTNING_RAIL,
+      amount: INVOICE_SATS,
+      fee: Number(SPREAD),
+      total: INVOICE_SATS + Number(SPREAD),
+      validUntil: FIXED_EXPIRY,
+      meta: { paymentHash: PAYMENT_HASH },
+    })
+  })
+
+  it('reports the funding txid once accepted, and stays pending rather than resolving', async () => {
+    const d = delegate()
+    const rail = delegateLightningRail(d)
+    const quote = await rail.quote({ raw: INVOICE, amount: INVOICE_SATS }, {} as never)
+    const handle = await quote.send()
+
+    const updates: unknown[] = []
+    handle.subscribe((u) => updates.push(u))
+    await vi.waitFor(() => expect(d.accept).toHaveBeenCalledTimes(1))
+    await vi.waitFor(() =>
+      expect(updates).toContainEqual({ status: 'sent', result: { railId: LIGHTNING_RAIL, txid: 'funding-txid' } }),
+    )
+
+    // `settled()` is only useful when it can resolve; here it never does, so
+    // nothing but a timeout can observe it finishing.
+    await expect(handle.settled({ timeoutMs: 20 })).rejects.toThrow()
   })
 })
 

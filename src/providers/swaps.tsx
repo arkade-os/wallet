@@ -99,14 +99,17 @@ interface SwapsContextProps {
    * deposit went home; throws `SwapDriveRefusedError` (by `name` across tabs) or
    * the round's own error. */
   recoverSwap: (id: string) => Promise<boolean>
-  /** Negotiate a payment. Nothing is funded: the pay screen accepts. */
-  quotePay: (destination: string) => Promise<Quote>
+  /** Negotiate a payment. Nothing is funded: the pay screen accepts. `amount`
+   * is for an amountless invoice whose sats came from elsewhere (BIP21); an
+   * invoice that already names an amount must not also pin one here. */
+  quotePay: (destination: string, amount?: number) => Promise<Quote>
   /** Fund it — which IS the acceptance. Resolves with the funding txid. */
   acceptPay: (quote: Quote) => Promise<string>
   /** Negotiate a Lightning receive and begin driving it, in that order. */
   receiveLightning: (amountSats: number) => Promise<AcceptedLnReceive>
-  /** The send path's router. Throws `SwapsHeldElsewhere` rather than dropping
-   * the solver rails and offboarding through the costlier exit. */
+  /** The send path's router. Never throws for who holds the lock: a follower
+   * tab gets a router with the exit and asset rails plus a Lightning rail that
+   * delegates to the driver, rather than no router at all. */
   sendRouter: (deps?: { outputFee?: () => number; assets?: Asset[] }) => Promise<PaymentRouter>
   /** Where a driven swap stands, or undefined when it is not monitored. */
   outcomeOf: (id: string) => Outcome | undefined
@@ -517,6 +520,28 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     return pending
   }, [])
 
+  /** Wait out THIS tab's own grant when it is merely young — see `LOCK_GRACE_MS`.
+   *  Shared by `runOnDriver` and `clientIfDriving` so "wait out my own grant" is
+   *  defined once. */
+  const awaitOwnGrant = async (): Promise<void> => {
+    if (!held.current && granted.current) {
+      await Promise.race([granted.current, new Promise((resolve) => setTimeout(resolve, LOCK_GRACE_MS))])
+    }
+  }
+
+  /**
+   * The client for `sendRouter`, which never throws: a follower tab, or a
+   * driving tab whose client failed to start, both resolve `undefined` rather
+   * than reject, so the send still builds a router from whichever rails it can.
+   */
+  const clientIfDriving = async (): Promise<SwapClient | undefined> => {
+    await awaitOwnGrant()
+    if (!held.current) return undefined
+    // A client that failed to start is "no client" here, not a rejection —
+    // the `onUpdate`/`drive` catch already logs it.
+    return held.current.catch(() => undefined)
+  }
+
   // ------------------------------------------------------- who runs an action
 
   /**
@@ -544,9 +569,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const runOnDriver = async <T,>(op: DriverOp, args: unknown[], here?: () => Promise<T>): Promise<T> => {
     const locally = () => (here ? here() : (runHere(op, args) as Promise<T>))
     if (!navigator.locks) return locally()
-    if (!held.current && granted.current) {
-      await Promise.race([granted.current, new Promise((resolve) => setTimeout(resolve, LOCK_GRACE_MS))])
-    }
+    await awaitOwnGrant()
     if (held.current) return locally()
     if (!granted.current) throw new Error('the swap client is not running')
     try {
@@ -571,7 +594,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       case 'recoverSwap':
         return recoverSwapHere(args[0] as string)
       case 'quotePay':
-        return quotePayHere(args[0] as string)
+        return quotePayHere(args[0] as string, args[1] as number | undefined)
       case 'acceptPay':
         return acceptPayHere(args[0] as string)
       case 'receiveLightning':
@@ -722,14 +745,14 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
    * can produce the one message a user can act on without a round trip. The
    * holder's own pre-flight still runs; this just refuses the obvious locally.
    */
-  const quotePay = (destination: string): Promise<Quote> => {
+  const quotePay = (destination: string, amount?: number): Promise<Quote> => {
     if (destination.toLowerCase().startsWith('ln')) {
-      assertWithinBounds(toInvoiceFacts(destination, aspInfo.network as NetworkName).amountSats, 'quote')
+      assertWithinBounds(amount ?? toInvoiceFacts(destination, aspInfo.network as NetworkName).amountSats, 'quote')
     }
-    return runOnDriver('quotePay', [destination])
+    return runOnDriver('quotePay', [destination, amount])
   }
 
-  const quotePayHere = async (destination: string): Promise<Quote> => {
+  const quotePayHere = async (destination: string, amount?: number): Promise<Quote> => {
     const client = await driving()
     // No corridor to pick, no market to find: `to` is parsed once at the client
     // boundary and the corridor pair it yields selects the route. The wallet's
@@ -737,9 +760,15 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     // override — and they are what the bounds check reads the amount from,
     // which is why an invoice is decoded here and nowhere else.
     if (destination.toLowerCase().startsWith('ln')) {
-      assertWithinBounds(toInvoiceFacts(destination, aspInfo.network as NetworkName).amountSats, 'quote')
+      assertWithinBounds(amount ?? toInvoiceFacts(destination, aspInfo.network as NetworkName).amountSats, 'quote')
     }
-    const quote = await client.quote({ to: destination })
+    // `amount` only comes from an amountless invoice (see `lnSendRequest`), and
+    // only then — pinning it twice throws `AmountMismatch` even when the two
+    // agree. Mirrors the package rail's `inputFor`.
+    const quote = await client.quote({
+      to: destination,
+      ...(amount === undefined ? {} : { amount: BigInt(amount), amountOn: 'take' }),
+    })
     remember(quote)
     return quote
   }
@@ -793,11 +822,22 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   }
 
   /** The fee rate is read per router, not pinned: the solver rail grosses the
-   *  take leg up by it, so a stale one short-pays the recipient. */
+   *  take leg up by it, so a stale one short-pays the recipient.
+   *
+   * Never throws for "who holds the lock": `clientIfDriving` resolves
+   * `undefined` for a follower tab, and the router then carries only the exit
+   * and asset rails plus a Lightning rail that delegates over the driver
+   * channel — see `delegateLightningRail`. */
   const sendRouter = async (deps: { outputFee?: () => number; assets?: Asset[] } = {}): Promise<PaymentRouter> => {
-    const client = await driving()
-    const claimFeeRateSatVb = await claimFeeRate(onchainClaimEndpoint(aspInfo.network as NetworkName))
-    return createSendRouter({ wallet: svcWallet!, client, claimFeeRateSatVb, ...deps })
+    if (!svcWallet) throw new Error('Wallet not ready')
+    const client = await clientIfDriving()
+    // Esplora's fee estimate only matters to `onchainSwapRail`; a follower or
+    // an asset send should not wait on it.
+    const claimFeeRateSatVb = client
+      ? await claimFeeRate(onchainClaimEndpoint(aspInfo.network as NetworkName))
+      : undefined
+    const lnDelegate = client ? undefined : { quote: quotePay, accept: acceptPay }
+    return createSendRouter({ wallet: svcWallet, client, claimFeeRateSatVb, lnDelegate, ...deps })
   }
 
   const outcomeOf = useCallback((id: string) => outcomes.get(id), [outcomes])
