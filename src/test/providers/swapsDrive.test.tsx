@@ -8,12 +8,32 @@ import { WalletContext } from '../../providers/wallet'
 import { SwapsContext, SwapsProvider } from '../../providers/swaps'
 import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
 import { MUTINYNET_USDT_ASSET_ID } from '../../lib/accountAssets'
+import { lnSendRequest, ONCHAIN_SWAP_RAIL, WALLET_EXIT_RAIL } from '../../lib/sendRouter'
+import fixtures from '../fixtures.json'
 
 const success = vi.hoisted(() => vi.fn())
 vi.mock('../../components/Toast', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../components/Toast')>()),
   toast: { success: (m: string) => success(m), error: vi.fn(), info: vi.fn() },
 }))
+
+const claimFeeRate = vi.hoisted(() => vi.fn(async () => 4))
+vi.mock('../../lib/claimFee', () => ({ claimFeeRate: () => claimFeeRate() }))
+
+const sendAssets = vi.hoisted(() => vi.fn(async () => 'asset-txid'))
+vi.mock('../../lib/asp', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/asp')>()),
+  sendAssets: (...args: unknown[]) => sendAssets(...(args as [])),
+}))
+
+// The fixture invoice is long expired; the bounds check only needs it decodable.
+vi.mock('../../lib/lnSwap', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/lnSwap')>()
+  return {
+    ...actual,
+    toInvoiceFacts: (invoice: string, network: never) => actual.toInvoiceFacts(invoice, network, 1_734_606_756),
+  }
+})
 
 /**
  * The single-driver rule and the RFQ status plumbing.
@@ -28,6 +48,7 @@ const dispose = vi.hoisted(() => vi.fn())
 const accept = vi.hoisted(() => vi.fn())
 const receive = vi.hoisted(() => vi.fn())
 const recover = vi.hoisted(() => vi.fn())
+const quoteFn = vi.hoisted(() => vi.fn())
 /** Set by the provider's own `onUpdate`, so a test can push one through. */
 const listeners = vi.hoisted(() => [] as ((update: SwapUpdate) => void)[])
 
@@ -40,7 +61,7 @@ vi.mock('../../lib/swapClient', async (importOriginal) => ({
     onUpdate: (fn: (update: SwapUpdate) => void) => (listeners.push(fn), () => {}),
     accept,
     cancel: vi.fn(),
-    quote: vi.fn(),
+    quote: quoteFn,
     receive,
     pay: vi.fn(),
     exchange: vi.fn(),
@@ -95,11 +116,32 @@ const minted = () =>
     expiresAt: 4_000_000_000,
   }) as unknown as Swap
 
+const BTC_ADDRESS = fixtures.lib.address.btc[0]
+const ARK_ADDRESS = fixtures.lib.address.ark[0].address
+const LN_INVOICE = fixtures.lib.bolt11.invoice
+const LN_INVOICE_SATS = fixtures.lib.bolt11.amountSats
+const ASSETS = [{ assetId: MUTINYNET_USDT_ASSET_ID, amount: BigInt(500) }]
+
+/** A delegate-rail quote, shaped as the real client's `quote()` would return it. */
+const lnQuote = () =>
+  ({
+    id: 'quote-1',
+    expiresAt: Math.floor(Date.now() / 1000) + 60,
+    lock: { hash: fixtures.lib.bolt11.paymentHash },
+    take: { amount: BigInt(LN_INVOICE_SATS) },
+    fee: { amount: BigInt(10) },
+    give: { amount: BigInt(LN_INVOICE_SATS + 10) },
+  }) as unknown as Quote
+
 function Harness({ tab = 'a' }: { tab?: string }) {
-  const { acceptPay, receiveLightning, recoverSwap, outcomeOf, errorOf } = useContext(SwapsContext)
+  const { acceptPay, receiveLightning, recoverSwap, sendRouter, outcomeOf, errorOf } = useContext(SwapsContext)
   const [rejected, setRejected] = useState('')
   const [invoice, setInvoice] = useState('')
   const [recovered, setRecovered] = useState('')
+  const [railIds, setRailIds] = useState('')
+  const [assetTxid, setAssetTxid] = useState('')
+  const [lnTxid, setLnTxid] = useState('')
+  const [lnSettled, setLnSettled] = useState('pending')
   return (
     <div data-testid={`tab-${tab}`}>
       <button onClick={() => acceptPay(quote).catch((err: Error) => setRejected(err.name))}>{`Pay ${tab}`}</button>
@@ -117,11 +159,53 @@ function Harness({ tab = 'a' }: { tab?: string }) {
             .catch((err: Error & { reason?: string }) => setRejected(`${err.name}:${err.reason ?? ''}`))
         }
       >{`Recover ${tab}`}</button>
+      <button
+        onClick={() =>
+          sendRouter({ outputFee: () => 500 })
+            .then((router) => router.options({ raw: BTC_ADDRESS, amount: 50_000 }))
+            .then((options) => setRailIds(options.map((o) => o.railId).join(',')))
+            .catch((err: Error) => setRejected(err.name || err.message))
+        }
+      >{`Onchain options ${tab}`}</button>
+      <button
+        onClick={() =>
+          sendRouter({ assets: ASSETS as never })
+            .then((router) => router.options({ raw: ARK_ADDRESS }))
+            .then((options) => options[0].quote())
+            .then((q) => q.send())
+            .then((handle) => handle.settled())
+            .then((result) => setAssetTxid((result as { txid: string }).txid))
+            .catch((err: Error) => setRejected(err.name || err.message))
+        }
+      >{`Asset send ${tab}`}</button>
+      <button
+        onClick={() =>
+          sendRouter()
+            .then((router) => router.options(lnSendRequest(LN_INVOICE, LN_INVOICE_SATS)))
+            .then((options) => options[0].quote())
+            .then((q) => q.send())
+            .then((handle) => {
+              handle.subscribe((u) => {
+                const result = (u as { result?: { txid?: string } }).result
+                if (result?.txid) setLnTxid(result.txid)
+              })
+              handle
+                .settled({ timeoutMs: 100 })
+                .then(() => setLnSettled('settled'))
+                .catch(() => setLnSettled('timed-out'))
+            })
+            .catch((err: Error) => setRejected(err.name || err.message))
+        }
+      >{`Lightning send ${tab}`}</button>
       <span data-testid='status'>{outcomeOf(SWAP_ID) ?? 'none'}</span>
       <span data-testid='error'>{errorOf(SWAP_ID) ?? 'none'}</span>
       <span data-testid='rejected'>{rejected || 'none'}</span>
       <span data-testid='invoice'>{invoice || 'none'}</span>
       <span data-testid='recovered'>{recovered || 'none'}</span>
+      <span data-testid='railIds'>{railIds || 'none'}</span>
+      <span data-testid='assetTxid'>{assetTxid || 'none'}</span>
+      <span data-testid='lnTxid'>{lnTxid || 'none'}</span>
+      <span data-testid='lnSettled'>{lnSettled}</span>
     </div>
   )
 }
@@ -154,12 +238,13 @@ const wrap = (children: React.ReactNode, network = 'mutinynet') => (
   </AspContext.Provider>
 )
 
-const renderProvider = () =>
+const renderProvider = (network?: string) =>
   render(
     wrap(
       <SwapsProvider>
         <Harness />
       </SwapsProvider>,
+      network,
     ),
   )
 
@@ -232,6 +317,9 @@ beforeEach(() => {
   accept.mockReset().mockResolvedValue(monitored('funded'))
   receive.mockReset().mockResolvedValue(minted())
   recover.mockReset().mockResolvedValue({ recovered: true, txid: 'round-txid', swap: monitored('cancelled') })
+  quoteFn.mockReset()
+  claimFeeRate.mockClear()
+  sendAssets.mockClear()
   withLocks(fakeLocks())
 })
 
@@ -240,7 +328,7 @@ afterEach(() => vi.clearAllMocks())
 /** Two providers in one window stand in for two tabs: each opens its own
  * BroadcastChannel, and a channel never delivers to the instance that posted,
  * so the two talk to each other exactly as two tabs would. */
-const renderTwoTabs = () =>
+const renderTwoTabs = (network?: string) =>
   render(
     wrap(
       <>
@@ -251,6 +339,7 @@ const renderTwoTabs = () =>
           <Harness tab='b' />
         </SwapsProvider>
       </>,
+      network,
     ),
   )
 
@@ -582,5 +671,60 @@ describe('SwapsProvider outcomes', () => {
 
     listeners[0](update(monitored('paid')))
     await waitFor(() => expect(screen.getByTestId('error')).toHaveTextContent('none'))
+  })
+})
+
+describe('SwapsProvider sendRouter: never throws for who holds the lock', () => {
+  it('drops the onchain-swap rail for a follower tab, and never waits on a fee estimate', async () => {
+    renderTwoTabs()
+    await waitFor(() => expect(ready).toHaveBeenCalledTimes(1))
+
+    const b = within(screen.getByTestId('tab-b'))
+    await userEvent.click(b.getByText('Onchain options b'))
+
+    await waitFor(() => expect(b.getByTestId('railIds')).toHaveTextContent(WALLET_EXIT_RAIL))
+    expect(b.getByTestId('railIds')).not.toHaveTextContent(ONCHAIN_SWAP_RAIL)
+    expect(claimFeeRate).not.toHaveBeenCalled()
+  })
+
+  it('lets a follower tab send an asset without waiting on a fee estimate', async () => {
+    renderTwoTabs()
+    await waitFor(() => expect(ready).toHaveBeenCalledTimes(1))
+
+    const b = within(screen.getByTestId('tab-b'))
+    await userEvent.click(b.getByText('Asset send b'))
+
+    await waitFor(() => expect(b.getByTestId('assetTxid')).toHaveTextContent('asset-txid'))
+    expect(sendAssets).toHaveBeenCalledWith(expect.anything(), ARK_ADDRESS, ASSETS)
+    expect(claimFeeRate).not.toHaveBeenCalled()
+  })
+
+  it('delegates a Lightning quote and accept to the driver, and never settles the handle locally', async () => {
+    const Q = lnQuote()
+    quoteFn.mockResolvedValue(Q)
+    accept.mockResolvedValue(monitored('funded', { fundingTxid: 'funding-txid' }))
+    renderTwoTabs('bitcoin')
+    await waitFor(() => expect(ready).toHaveBeenCalledTimes(1))
+
+    const b = within(screen.getByTestId('tab-b'))
+    await userEvent.click(b.getByText('Lightning send b'))
+
+    // Quote and accept are two round trips over the channel, each racing a
+    // grace wait of its own, so this clears the single-call default budget.
+    await waitFor(() => expect(quoteFn).toHaveBeenCalledWith({ to: LN_INVOICE }), { timeout: 3000 })
+    await waitFor(() => expect(accept).toHaveBeenCalledWith(Q), { timeout: 3000 })
+    await waitFor(() => expect(b.getByTestId('lnTxid')).toHaveTextContent('funding-txid'))
+
+    // `settled()` only ever resolves through `outcomeOf`, never on its own.
+    await waitFor(() => expect(b.getByTestId('lnSettled')).toHaveTextContent('timed-out'))
+  })
+
+  it('still resolves exit and asset rails when the holder’s own client.ready rejected', async () => {
+    ready.mockRejectedValue(new Error('client start failed'))
+    renderProvider()
+
+    await userEvent.click(screen.getByText('Onchain options a'))
+    await waitFor(() => expect(screen.getByTestId('railIds')).toHaveTextContent(WALLET_EXIT_RAIL))
+    expect(screen.getByTestId('railIds')).not.toHaveTextContent(ONCHAIN_SWAP_RAIL)
   })
 })
