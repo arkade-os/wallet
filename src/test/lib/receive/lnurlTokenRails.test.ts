@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createElement, type ReactNode } from 'react'
 import { act, configure, renderHook, waitFor } from '@testing-library/react'
-import { createLnurlClient, type PayRequest } from '@arkade-os/lnurl-client'
+import { createLnurlClient, tokenOptions, type PayRequest, type TokenOption } from '@arkade-os/lnurl-client'
 import type { Receiver } from '@arkade-os/lnurl-client/arkade'
 import { lnurlTokenRails, plausibleQuote, useLnurlTokenRails, wholeTokens } from '../../../lib/receive/lnurlTokenRails'
 import { FiatContext } from '../../../providers/fiat'
@@ -18,6 +18,12 @@ import {
 } from './fakeLnurlServer'
 
 configure({ asyncUtilTimeout: 3_000 })
+
+// Passes through, so one test can hand lnurlTokenRails an option the real client never returns.
+vi.mock('@arkade-os/lnurl-client', async (importOriginal) => {
+  const client = await importOriginal<typeof import('@arkade-os/lnurl-client')>()
+  return { ...client, tokenOptions: vi.fn(client.tokenOptions) }
+})
 
 const payRequest = (paymentOptions: object[]): PayRequest => ({
   tag: 'payRequest',
@@ -53,6 +59,13 @@ describe('lnurlTokenRails', () => {
   it('omits an option whose bounds exclude the amount', () => {
     // 5 000 sats clears Arbitrum's 2 844 minimum, not Tron's 11 996.
     expect(lnurlTokenRails(payRequest(TOKEN_OPTIONS), 5_000).map((r) => r.id)).toEqual(['ff-usdtarbitrum'])
+  })
+
+  it('omits an option that comes back without an asset', () => {
+    const [option] = tokenOptions(payRequest(TOKEN_OPTIONS))
+    vi.mocked(tokenOptions).mockReturnValueOnce([{ ...option, asset: undefined } as unknown as TokenOption])
+
+    expect(lnurlTokenRails(payRequest(TOKEN_OPTIONS), 20_000)).toEqual([])
   })
 })
 
