@@ -13,7 +13,7 @@ import BootError from './components/BootError'
 import LoadingLogo from './components/LoadingLogo'
 import { useReducedMotion } from './hooks/useReducedMotion'
 import { useLoadingStatus } from './hooks/useLoadingStatus'
-import { nextAppIntentNavigation } from './lib/appIntent'
+import { nextAppIntentNavigation, redirectToCallback } from './lib/appIntent'
 import { defaultPassword } from './lib/constants'
 import { consoleError } from './lib/logs'
 import DesktopWalletShell from './components/DesktopWalletShell'
@@ -123,13 +123,15 @@ export default function App() {
     if (!navigate) return
     const handleGlobalDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        const callback = appIntent?.status === 'send' ? appIntent.callback : undefined
         resetFlow()
-        navigate(Pages.Wallet)
+        if (callback) redirectToCallback(callback, { error: 'denied' })
+        else navigate(Pages.Wallet)
       }
     }
     window.addEventListener('keydown', handleGlobalDown)
     return () => window.removeEventListener('keydown', handleGlobalDown)
-  }, [navigate])
+  }, [navigate, appIntent])
 
   useEffect(() => {
     if (isIAB) return navigate(Pages.InAppBrowser)
