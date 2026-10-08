@@ -3,11 +3,12 @@ import { consoleError } from './logs'
 const FEE_ESTIMATE_TIMEOUT_MS = 15_000
 
 /**
- * Two jobs, which is why raising it is not the one-line fix it looks like: the
- * rate used when no estimate is usable, AND — through `usableRate` — the bar an
- * estimate must clear to be believed at all. At 3 the wallet would stop
+ * sat/vB floor for a real reading, not a fallback when no estimate is usable:
+ * without an estimate the caller refuses to claim rather than revealing the
+ * preimage at a made-up rate. Through `usableRate` it is also the bar an
+ * estimate must clear to be believed at all — at 3 the wallet would stop
  * believing a genuine 1-2 sat/vB network and overpay whenever the mempool is
- * calm. A better fallback means splitting the two constants first.
+ * calm.
  */
 export const MIN_CLAIM_FEE_RATE = 1
 
@@ -37,6 +38,9 @@ const readSource = async (
     if (!response.ok) return undefined
     if (!response.headers.get('content-type')?.includes('json')) return undefined
     const body = (await response.json()) as Record<string, unknown>
+    // A 200 JSON body with none of the known keys is wrong shape: treat it as no answer.
+    const hasKnownKey = keys.some((key) => typeof body[key] === 'number' && Number.isFinite(body[key]))
+    if (!hasKnownKey) return undefined
     // First USABLE tier, not first present: `??` would take one reported as 0
     // and drop a deadline-racing claim to the floor beside a good one.
     return { rate: keys.map((key) => body[key]).find(usableRate) }
@@ -45,8 +49,8 @@ const readSource = async (
   }
 }
 
-/** sat/vB. Two blocks: an unconfirmed claim loses the fill. */
-export const claimFeeRate = async (baseUrl: string, fetchImpl: typeof fetch = fetch): Promise<number> => {
+/** sat/vB. Returns `undefined` when no fee source answers; the caller must refuse to claim. */
+export const claimFeeRate = async (baseUrl: string, fetchImpl: typeof fetch = fetch): Promise<number | undefined> => {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), FEE_ESTIMATE_TIMEOUT_MS)
   try {
@@ -55,11 +59,11 @@ export const claimFeeRate = async (baseUrl: string, fetchImpl: typeof fetch = fe
       const reading = await readSource(`${base}${path}`, keys, fetchImpl, controller.signal)
       if (reading) return reading.rate === undefined ? MIN_CLAIM_FEE_RATE : Math.ceil(reading.rate)
     }
-    consoleError(`no fee source answered at ${base}, claiming at ${MIN_CLAIM_FEE_RATE} sat/vB`, 'claim fee')
-    return MIN_CLAIM_FEE_RATE
+    consoleError(`no fee source answered at ${base}`, 'claim fee')
+    return undefined
   } catch (err) {
     consoleError(err, 'claim fee')
-    return MIN_CLAIM_FEE_RATE
+    return undefined
   } finally {
     clearTimeout(timer)
   }

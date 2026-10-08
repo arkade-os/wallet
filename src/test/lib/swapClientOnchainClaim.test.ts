@@ -46,7 +46,8 @@ const v2Record = (rfqId = 'rfq-1') => ({
   updatedAt: 1,
 })
 
-vi.mock('../../lib/claimFee', () => ({ claimFeeRate: async () => 11 }))
+const claimFeeRateMock = vi.fn(async (): Promise<number | undefined> => 11)
+vi.mock('../../lib/claimFee', () => ({ claimFeeRate: (...args: unknown[]) => claimFeeRateMock(...(args as [])) }))
 
 vi.mock('@arkade-os/sdk', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@arkade-os/sdk')>()),
@@ -72,6 +73,7 @@ const claimOf = () => {
 beforeEach(() => {
   claimOnchainFill.mockClear()
   preimageForSwapRecord.mockClear()
+  claimFeeRateMock.mockClear()
   stored = [v2Record()]
   rfqClaimSecretOf.mockReturnValue({ salt: 'seed' } as never)
 })
@@ -165,5 +167,12 @@ describe('the claim itself', () => {
     rfqClaimSecretOf.mockReturnValue(undefined as never)
     await expect(claimOf()(swap(), utxo)).rejects.toThrow(/without its hashlock/i)
     expect(claimOnchainFill).not.toHaveBeenCalled()
+  })
+
+  it('throws when claimFeeRate returns undefined and neither claimOnchainFill nor preimageForSwapRecord is called', async () => {
+    claimFeeRateMock.mockResolvedValueOnce(undefined)
+    await expect(claimOf()(swap(), utxo)).rejects.toThrow('no fee estimate — not revealing the preimage this pass')
+    expect(claimOnchainFill).not.toHaveBeenCalled()
+    expect(preimageForSwapRecord).not.toHaveBeenCalled()
   })
 })
