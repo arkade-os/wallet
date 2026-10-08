@@ -37,6 +37,7 @@ import {
   holdQuotes,
   namedAddress,
   namelessAddress,
+  solanaUri,
 } from '../../lib/receive/fakeLnurlServer'
 
 // Every wait here sits behind a receiver load (signing, then fetches), which a full parallel run stretches past 1s.
@@ -436,6 +437,17 @@ describe('Receive screen, token rails', () => {
 
     expect(await screen.findByText('Send exactly 17.156 USDT on Tron')).toBeInTheDocument()
     expect(await copiedQr()).toBe(TOKEN_DEPOSITS['ff-usdttrc'])
+  })
+
+  it('renders a simulated Solana option with a Solana Pay value', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], simulated: true })
+    renderReceive(20_000, tokensOn)
+
+    await pick('USDT (Solana Devnet)')
+
+    expect(await screen.findByText('Send exactly 17.156 USDT on Solana Devnet')).toBeInTheDocument()
+    expect(screen.getByText(/^Quote by Simulated, valid for \d+:\d\d$/)).toBeInTheDocument()
+    expect(await copiedQr()).toBe(solanaUri(20_000_000))
   })
 
   it('shows no QR for the old amount while the new amount is quoted', async () => {

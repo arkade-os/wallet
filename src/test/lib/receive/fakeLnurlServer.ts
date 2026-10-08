@@ -1,5 +1,5 @@
 import { ArkAddress } from '@arkade-os/sdk'
-import { bech32, createBase58check } from '@scure/base'
+import { base58, bech32, createBase58check } from '@scure/base'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { vi } from 'vitest'
 
@@ -90,16 +90,36 @@ export const TOKEN_OPTIONS = [
     maxSendable: 100_000_000,
   },
 ]
+const SOLANA_MINT = base58.encode(otherKey(3))
+/** lnurl-server's simulator: a testnet chain, an ffsim- id and provider "Simulated" (ec6573e). */
+export const SIM_SOLANA_OPTION = {
+  id: 'ffsim-usdtsol',
+  type: 'solana',
+  asset: `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:${SOLANA_MINT}`,
+  unit: 'USDT',
+  provider: 'Simulated',
+  verifiable: true,
+  minSendable: 1_000_000,
+  maxSendable: 100_000_000,
+}
 export const TOKEN_UNITS = [{ code: 'USDT', decimals: 6, name: 'Tether USD' }]
 export const TOKEN_DEPOSITS: Record<string, string> = {
   'ff-usdtarbitrum': `0x${'ab'.repeat(20)}`,
   'ff-usdttrc': tronAddress(2),
+  'ffsim-usdtsol': base58.encode(otherKey(4)),
 }
 /** 8.578 USDT per 10 000 sats, in base units: a quote at a BTC price of BTC_USD. */
 export const tokenPayment = (amountMsat: number) => String(Math.floor((amountMsat * 8578) / 10_000))
 export const BTC_USD = 85_780
 export const arbitrumUri = (amountMsat: number) =>
   `ethereum:${USDT_ARBITRUM}@42161/transfer?address=${TOKEN_DEPOSITS['ff-usdtarbitrum']}&uint256=${tokenPayment(amountMsat)}`
+/** Solana Pay carries the amount in whole tokens, not base units. */
+export const solanaUri = (amountMsat: number) =>
+  `solana:${TOKEN_DEPOSITS['ffsim-usdtsol']}?amount=${Number(tokenPayment(amountMsat)) / 1e6}&spl-token=${SOLANA_MINT}`
+const TOKEN_URIS: Record<string, (amountMsat: number) => string> = {
+  'ff-usdtarbitrum': arbitrumUri,
+  'ffsim-usdtsol': solanaUri,
+}
 
 /** The endpoints `arkadeLnurl` calls, backed by one in-memory address list. */
 export function fakeLnurlServer(opts: {
@@ -114,6 +134,7 @@ export function fakeLnurlServer(opts: {
   destinationError?: string
   foreignDestinations?: boolean
   tokens?: boolean
+  simulated?: boolean
   tokenErrors?: Record<string, string>
   tokenTag?: string
   quoteTtlMs?: number
@@ -162,13 +183,14 @@ export function fakeLnurlServer(opts: {
           { id: 'arkade', type: 'arkade' },
           { id: 'onchain', type: 'onchain', minSendable: 10_000_000 },
           ...(opts.tokens ? TOKEN_OPTIONS : []),
+          ...(opts.simulated ? [SIM_SOLANA_OPTION] : []),
         ],
-        ...(opts.tokens ? { units: TOKEN_UNITS } : {}),
+        ...(opts.tokens || opts.simulated ? { units: TOKEN_UNITS } : {}),
       })
     }
     if (path.startsWith('/callback/')) {
       const rail = url.searchParams.get('paymentOption')
-      const token = TOKEN_OPTIONS.find((o) => o.id === rail)
+      const token = [...TOKEN_OPTIONS, SIM_SOLANA_OPTION].find((o) => o.id === rail)
       if (token) {
         if (opts.tokenErrors?.[token.id]) return json(200, { status: 'ERROR', reason: opts.tokenErrors[token.id] })
         const amountMsat = Number(url.searchParams.get('amount'))
@@ -176,7 +198,7 @@ export function fakeLnurlServer(opts: {
           status: 'OK',
           paymentOption: token.id,
           paymentDestination: TOKEN_DEPOSITS[token.id],
-          ...(token.type === 'eip155' ? { paymentURI: arbitrumUri(amountMsat) } : {}),
+          ...(TOKEN_URIS[token.id] ? { paymentURI: TOKEN_URIS[token.id](amountMsat) } : {}),
           ...(opts.tokenTag ? { paymentDestinationTag: opts.tokenTag } : {}),
           provider: token.provider,
           paymentQuote: {
