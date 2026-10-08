@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useContext, useEffect, useMemo, useState } from 'react'
 import type { Receiver } from '@arkade-os/lnurl-client/arkade'
 import { createLnurlClient, LnurlError, tokenOptions, type PayRequest, type TokenOption } from '@arkade-os/lnurl-client'
 import { centsToUnits } from '../assets'
 import { consoleError } from '../logs'
 import { extractError } from '../error'
+import { Currencies } from '../types'
+import { FiatContext } from '../../providers/fiat'
 import { chainLabel } from './chainLabels'
 
 const lnurlClient = createLnurlClient()
@@ -36,6 +38,15 @@ export interface LnurlTokenQuote {
 export const wholeTokens = (baseUnits: unknown, decimals: number): string | undefined =>
   typeof baseUnits === 'string' && /^[1-9]\d*$/.test(baseUnits) ? centsToUnits(BigInt(baseUnits), decimals) : undefined
 
+/** False when a USD stablecoin quote is outside 0.8x to 1.25x of what the requested sats are worth at the
+ *  wallet's own price: the provider's spread is a few percent, so further off is a server misquoting.
+ *  No price yet, or a unit that is not USD, gets no opinion. */
+export function plausibleQuote(unit: string, tokens: string, requestedUsd: number): boolean {
+  if (!['USDT', 'USDC'].includes(unit) || !(requestedUsd > 0)) return true
+  const ratio = Number(tokens) / requestedUsd
+  return ratio >= 0.8 && ratio <= 1.25
+}
+
 /** The token options a payer is offered: up, verifiable, naming the third party that holds the
  *  deposit, and, given an amount, accepting it. */
 export function lnurlTokenRails(payRequest: PayRequest, amountSat?: number): LnurlTokenRail[] {
@@ -58,6 +69,7 @@ export function useLnurlTokenRails(
   enabled: boolean,
   selected: string | undefined,
 ) {
+  const { toFiatAmount } = useContext(FiatContext)
   const [payRequest, setPayRequest] = useState<PayRequest>()
   const [answer, setAnswer] = useState<{ asked: Asked; quote?: LnurlTokenQuote; error?: string }>()
   const [round, setRound] = useState(0)
@@ -103,6 +115,12 @@ export function useLnurlTokenRails(
         }
         const amount = wholeTokens(result.paymentQuote.payment.amount, rail.unit.decimals)
         if (!amount) throw new LnurlError("the quote's amount is unreadable")
+        const usd = toFiatAmount(amountSat, Currencies.USD)
+        if (!plausibleQuote(rail.unit.code, amount, usd)) {
+          throw new LnurlError(
+            `the quoted ${amount} ${rail.unit.code} is far from the ${usd.toFixed(2)} USD this amount is worth`,
+          )
+        }
         const quote = {
           optionId: rail.id,
           value: result.paymentURI ?? result.paymentDestination,

@@ -1,9 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createElement, type ReactNode } from 'react'
 import { act, configure, renderHook, waitFor } from '@testing-library/react'
 import { createLnurlClient, type PayRequest } from '@arkade-os/lnurl-client'
 import type { Receiver } from '@arkade-os/lnurl-client/arkade'
-import { lnurlTokenRails, useLnurlTokenRails, wholeTokens } from '../../../lib/receive/lnurlTokenRails'
+import { lnurlTokenRails, plausibleQuote, useLnurlTokenRails, wholeTokens } from '../../../lib/receive/lnurlTokenRails'
+import { FiatContext } from '../../../providers/fiat'
+import { Currencies } from '../../../lib/types'
 import {
+  BTC_USD,
   LNURL_BASE,
   TOKEN_DEPOSITS,
   TOKEN_OPTIONS,
@@ -59,6 +63,25 @@ describe('wholeTokens', () => {
 
   it.each(['17.156', '', '1e7', '0', '007'])('refuses %j as unreadable', (raw) => {
     expect(wholeTokens(raw, 6)).toBeUndefined()
+  })
+})
+
+describe('plausibleQuote', () => {
+  it('accepts a stablecoin quote within 0.8x to 1.25x of what the sats are worth', () => {
+    expect(['8', '10', '12.5'].map((tokens) => plausibleQuote('USDT', tokens, 10))).toEqual([true, true, true])
+  })
+
+  it('refuses one outside that band', () => {
+    expect(['7.99', '12.51', '171.56'].map((tokens) => plausibleQuote('USDC', tokens, 10))).toEqual([
+      false,
+      false,
+      false,
+    ])
+  })
+
+  it('has no opinion without a price, or for a unit that is not USD', () => {
+    expect(plausibleQuote('USDT', '171.56', 0)).toBe(true)
+    expect(plausibleQuote('EURC', '171.56', 10)).toBe(true)
   })
 })
 
@@ -195,6 +218,34 @@ describe('useLnurlTokenRails', () => {
     tron.release()
     arbitrum.release()
     await waitFor(() => expect(result.current.quote?.optionId).toBe('ff-usdtarbitrum'))
+  })
+
+  it('refuses a quote far from what the amount is worth at the BTC price the wallet shows', async () => {
+    serve({ paymentAmount: '171560000' })
+    const atMarket = ({ children }: { children: ReactNode }) =>
+      createElement(
+        FiatContext.Provider,
+        {
+          value: {
+            toFiatAmount: (sats: number, currency: Currencies) =>
+              currency === Currencies.USD ? (sats * BTC_USD) / 1e8 : 0,
+          } as never,
+        },
+        children,
+      )
+    const { result } = renderHook(() => useLnurlTokenRails(receiver, 20_000, true, 'ff-usdtarbitrum'), {
+      wrapper: atMarket,
+    })
+
+    await waitFor(() => expect(result.current.error).toMatch(/171\.56 USDT is far from/))
+    expect(result.current.quote).toBeUndefined()
+  })
+
+  it('takes the quote as given while the wallet has no BTC price', async () => {
+    serve({ paymentAmount: '171560000' })
+    const { result } = renderTokens('ff-usdtarbitrum')
+
+    await waitFor(() => expect(result.current.quote?.amount).toBe('171.56'))
   })
 
   it('refuses a quote whose amount is not plain base units', async () => {

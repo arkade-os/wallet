@@ -95,8 +95,9 @@ export const TOKEN_DEPOSITS: Record<string, string> = {
   'ff-usdtarbitrum': `0x${'ab'.repeat(20)}`,
   'ff-usdttrc': tronAddress(2),
 }
-/** 8.578 USDT per 10 000 sats, in base units. */
+/** 8.578 USDT per 10 000 sats, in base units: a quote at a BTC price of BTC_USD. */
 export const tokenPayment = (amountMsat: number) => String(Math.floor((amountMsat * 8578) / 10_000))
+export const BTC_USD = 85_780
 export const arbitrumUri = (amountMsat: number) =>
   `ethereum:${USDT_ARBITRUM}@42161/transfer?address=${TOKEN_DEPOSITS['ff-usdtarbitrum']}&uint256=${tokenPayment(amountMsat)}`
 

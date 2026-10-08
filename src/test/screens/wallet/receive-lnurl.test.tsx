@@ -25,6 +25,7 @@ import {
 } from '../mocks'
 import type { Config } from '../../../lib/types'
 import {
+  BTC_USD,
   DECODABLE_ARK,
   LNURL_BASE,
   LNURL_DESTINATIONS,
@@ -63,6 +64,7 @@ beforeAll(() => {
 
 const receiveLightning = vi.fn()
 const svcWallet = { ...mockSvcWallet, identity: SingleKey.fromHex('03'.repeat(32)) }
+const atMarket = (sats: number) => (sats * BTC_USD) / 1e8
 
 const receiveTree = (satoshis = 0, config: Partial<Config> = {}) => (
   <ToastProvider>
@@ -71,7 +73,7 @@ const receiveTree = (satoshis = 0, config: Partial<Config> = {}) => (
         <ConfigContext.Provider
           value={{ ...mockConfigContextValue, config: { ...mockConfigContextValue.config, ...config } } as never}
         >
-          <FiatContext.Provider value={mockFiatContextValue as never}>
+          <FiatContext.Provider value={{ ...mockFiatContextValue, toFiatAmount: atMarket } as never}>
             <NotificationsContext.Provider value={{ notifyPaymentReceived: () => {} } as never}>
               <FlowContext.Provider
                 value={
