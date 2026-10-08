@@ -433,7 +433,7 @@ export default function ReceiveQRCode() {
                   {tokenMethods.length ? (
                     <select
                       aria-label={t('receive.payWithToken')}
-                      className='w-full rounded-lg border border-neutral-100 bg-transparent p-3 text-sm text-inherit'
+                      className='w-full rounded-lg border border-neutral-100 bg-transparent p-3 text-sm text-inherit dark:scheme-dark'
                       value={activeToken ? activeMethod : ''}
                       onChange={(event) => handleMethodChange(event.target.value)}
                     >
