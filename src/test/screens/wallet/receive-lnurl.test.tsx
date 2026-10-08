@@ -33,6 +33,7 @@ import {
   arbitrumUri,
   fakeInvoice,
   fakeLnurlServer,
+  holdQuotes,
   namedAddress,
   namelessAddress,
 } from '../../lib/receive/fakeLnurlServer'
@@ -40,7 +41,14 @@ import {
 // Every wait here sits behind a receiver load (signing, then fetches), which a full parallel run stretches past 1s.
 configure({ asyncUtilTimeout: 3_000 })
 
-vi.mock('qr', () => ({ default: () => Array.from({ length: 21 }, () => new Uint8Array(21).fill(1)) }))
+// Every value the QR is rendered with, including renders the DOM no longer shows by the time a test looks.
+const qrValues = vi.hoisted(() => [] as string[])
+vi.mock('../../../components/QrCode', () => ({
+  default: ({ value }: { value: string }) => {
+    qrValues.push(value)
+    return null
+  },
+}))
 const copyToClipboard = vi.fn<(value: string) => Promise<void>>(async () => {})
 vi.mock('../../../lib/clipboard', () => ({ copyToClipboard: (v: string) => copyToClipboard(v) }))
 
@@ -56,45 +64,45 @@ beforeAll(() => {
 const receiveLightning = vi.fn()
 const svcWallet = { ...mockSvcWallet, identity: SingleKey.fromHex('03'.repeat(32)) }
 
-const renderReceive = (satoshis = 0, config: Partial<Config> = {}) =>
-  render(
-    <ToastProvider>
-      <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={mockAspContextValue as never}>
-          <ConfigContext.Provider
-            value={{ ...mockConfigContextValue, config: { ...mockConfigContextValue.config, ...config } } as never}
-          >
-            <FiatContext.Provider value={mockFiatContextValue as never}>
-              <NotificationsContext.Provider value={{ notifyPaymentReceived: () => {} } as never}>
-                <FlowContext.Provider
-                  value={
-                    {
-                      ...mockFlowContextValue,
-                      setRecvInfo: vi.fn(),
-                      recvInfo: {
-                        ...mockFlowContextValue.recvInfo,
-                        satoshis,
-                        offchainAddr: DECODABLE_ARK,
-                        boardingAddr: WALLET_BOARDING_ADDRESS,
-                      },
-                    } as never
-                  }
-                >
-                  <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet } as never}>
-                    <LimitsContext.Provider value={mockLimitsContextValue}>
-                      <SwapsContext.Provider value={{ receiveLightning, outcomeOf: () => undefined } as never}>
-                        <ReceiveQRCode />
-                      </SwapsContext.Provider>
-                    </LimitsContext.Provider>
-                  </WalletContext.Provider>
-                </FlowContext.Provider>
-              </NotificationsContext.Provider>
-            </FiatContext.Provider>
-          </ConfigContext.Provider>
-        </AspContext.Provider>
-      </NavigationContext.Provider>
-    </ToastProvider>,
-  )
+const receiveTree = (satoshis = 0, config: Partial<Config> = {}) => (
+  <ToastProvider>
+    <NavigationContext.Provider value={mockNavigationContextValue}>
+      <AspContext.Provider value={mockAspContextValue as never}>
+        <ConfigContext.Provider
+          value={{ ...mockConfigContextValue, config: { ...mockConfigContextValue.config, ...config } } as never}
+        >
+          <FiatContext.Provider value={mockFiatContextValue as never}>
+            <NotificationsContext.Provider value={{ notifyPaymentReceived: () => {} } as never}>
+              <FlowContext.Provider
+                value={
+                  {
+                    ...mockFlowContextValue,
+                    setRecvInfo: vi.fn(),
+                    recvInfo: {
+                      ...mockFlowContextValue.recvInfo,
+                      satoshis,
+                      offchainAddr: DECODABLE_ARK,
+                      boardingAddr: WALLET_BOARDING_ADDRESS,
+                    },
+                  } as never
+                }
+              >
+                <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet } as never}>
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <SwapsContext.Provider value={{ receiveLightning, outcomeOf: () => undefined } as never}>
+                      <ReceiveQRCode />
+                    </SwapsContext.Provider>
+                  </LimitsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </NotificationsContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </AspContext.Provider>
+    </NavigationContext.Provider>
+  </ToastProvider>
+)
+const renderReceive = (satoshis = 0, config: Partial<Config> = {}) => render(receiveTree(satoshis, config))
 
 let server: ReturnType<typeof fakeLnurlServer>
 const serve = (opts: Parameters<typeof fakeLnurlServer>[0]) => {
@@ -426,6 +434,24 @@ describe('Receive screen, token rails', () => {
 
     expect(await screen.findByText('Send exactly 17.156 USDT on Tron')).toBeInTheDocument()
     expect(await copiedQr()).toBe(TOKEN_DEPOSITS['ff-usdttrc'])
+  })
+
+  it('shows no QR for the old amount while the new amount is quoted', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+    const { rerender } = renderReceive(20_000, tokensOn)
+    await pick('USDT (Arbitrum One)')
+    expect(await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')).toBeInTheDocument()
+    const pending = holdQuotes(server, 'ff-usdtarbitrum')
+    const from = qrValues.length
+
+    rerender(receiveTree(30_000, tokensOn))
+    await waitFor(() => expect(pending.held).toHaveLength(1))
+
+    expect(qrValues.slice(from)).not.toContain(arbitrumUri(20_000_000))
+    expect(screen.queryByText(/Send exactly/)).not.toBeInTheDocument()
+    pending.release()
+    expect(await screen.findByText('Send exactly 25.734 USDT on Arbitrum One')).toBeInTheDocument()
+    expect(await copiedQr()).toBe(arbitrumUri(30_000_000))
   })
 
   it('renders nothing when no token option is advertised', async () => {

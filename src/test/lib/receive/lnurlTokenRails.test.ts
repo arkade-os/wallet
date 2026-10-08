@@ -3,7 +3,15 @@ import { act, configure, renderHook, waitFor } from '@testing-library/react'
 import { createLnurlClient, type PayRequest } from '@arkade-os/lnurl-client'
 import type { Receiver } from '@arkade-os/lnurl-client/arkade'
 import { lnurlTokenRails, useLnurlTokenRails } from '../../../lib/receive/lnurlTokenRails'
-import { LNURL_BASE, TOKEN_DEPOSITS, TOKEN_OPTIONS, TOKEN_UNITS, arbitrumUri, fakeLnurlServer } from './fakeLnurlServer'
+import {
+  LNURL_BASE,
+  TOKEN_DEPOSITS,
+  TOKEN_OPTIONS,
+  TOKEN_UNITS,
+  arbitrumUri,
+  fakeLnurlServer,
+  holdQuotes,
+} from './fakeLnurlServer'
 
 configure({ asyncUtilTimeout: 3_000 })
 
@@ -51,10 +59,20 @@ describe('useLnurlTokenRails', () => {
     vi.stubGlobal('fetch', server.fetch)
   }
   const receiver = { payRequest: () => createLnurlClient().resolve('alice@lnurl.test') } as unknown as Receiver
-  const renderTokens = (selected?: string, enabled = true) =>
-    renderHook((props) => useLnurlTokenRails(receiver, props.amountSat, enabled, props.selected), {
-      initialProps: { selected, amountSat: 20_000 },
-    })
+  // Every render's output: a render the effect has not caught up with is still something a caller shows.
+  let seen: ReturnType<typeof useLnurlTokenRails>[] = []
+  const renderTokens = (selected?: string, enabled = true) => {
+    seen = []
+    return renderHook(
+      (props) => {
+        const out = useLnurlTokenRails(receiver, props.amountSat, enabled, props.selected)
+        seen.push(out)
+        return out
+      },
+      { initialProps: { selected, amountSat: 20_000 } },
+    )
+  }
+  const staleSince = (from: number) => seen.slice(from).filter((r) => r.quote || !r.quoting)
   const quotes = () =>
     server.fetch.mock.calls
       .map(([input]) => new URL(String(input)))
@@ -120,6 +138,55 @@ describe('useLnurlTokenRails', () => {
     expect(quotes().map((url) => url.searchParams.get('amount'))).toEqual(['20000000', '30000000'])
   })
 
+  it('exposes no quote for the old amount while the new one is asked for', async () => {
+    serve()
+    const { result, rerender } = renderTokens('ff-usdtarbitrum')
+    await waitFor(() => expect(result.current.quote?.amount).toBe('17.156'))
+    const pending = holdQuotes(server, 'ff-usdtarbitrum')
+    const from = seen.length
+
+    rerender({ selected: 'ff-usdtarbitrum', amountSat: 30_000 })
+    await waitFor(() => expect(pending.held).toHaveLength(1))
+
+    expect(staleSince(from)).toEqual([])
+    pending.release()
+    await waitFor(() => expect(result.current.quote?.amount).toBe('25.734'))
+  })
+
+  it('exposes no quote for the old option while the new one is asked for', async () => {
+    serve()
+    const { result, rerender } = renderTokens('ff-usdtarbitrum')
+    await waitFor(() => expect(result.current.quote?.optionId).toBe('ff-usdtarbitrum'))
+    const pending = holdQuotes(server, 'ff-usdttrc')
+    const from = seen.length
+
+    rerender({ selected: 'ff-usdttrc', amountSat: 20_000 })
+    await waitFor(() => expect(pending.held).toHaveLength(1))
+
+    expect(staleSince(from)).toEqual([])
+    pending.release()
+    await waitFor(() => expect(result.current.quote?.optionId).toBe('ff-usdttrc'))
+  })
+
+  it('does not bring back the old quote of an option picked again before the other answers', async () => {
+    serve()
+    const { result, rerender } = renderTokens('ff-usdtarbitrum')
+    await waitFor(() => expect(result.current.quote?.optionId).toBe('ff-usdtarbitrum'))
+    const tron = holdQuotes(server, 'ff-usdttrc')
+    rerender({ selected: 'ff-usdttrc', amountSat: 20_000 })
+    await waitFor(() => expect(tron.held).toHaveLength(1))
+    const arbitrum = holdQuotes(server, 'ff-usdtarbitrum')
+    const from = seen.length
+
+    rerender({ selected: 'ff-usdtarbitrum', amountSat: 20_000 })
+    await waitFor(() => expect(arbitrum.held).toHaveLength(1))
+
+    expect(staleSince(from)).toEqual([])
+    tron.release()
+    arbitrum.release()
+    await waitFor(() => expect(result.current.quote?.optionId).toBe('ff-usdtarbitrum'))
+  })
+
   it('refuses a deposit that needs a memo the QR cannot carry', async () => {
     serve({ tokenTag: '12345' })
     const { result } = renderTokens('ff-usdtarbitrum')
@@ -132,15 +199,20 @@ describe('useLnurlTokenRails', () => {
     beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }))
     afterEach(() => vi.useRealTimers())
 
-    it('asks for a new quote once the quote expires', async () => {
+    it('asks for a new quote once the quote expires, exposing the expired one no more', async () => {
       serve({ quoteTtlMs: 61_000 })
       const { result } = renderTokens('ff-usdtarbitrum')
       await waitFor(() => expect(result.current.quote).toBeDefined())
+      const pending = holdQuotes(server, 'ff-usdtarbitrum')
+      const from = seen.length
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(61_000)
       })
+      await waitFor(() => expect(pending.held).toHaveLength(1))
 
+      expect(staleSince(from)).toEqual([])
+      pending.release()
       await waitFor(() => expect(quotes()).toHaveLength(2))
       await waitFor(() => expect(result.current.quote).toBeDefined())
     })

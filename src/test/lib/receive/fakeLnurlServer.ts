@@ -208,3 +208,23 @@ export function fakeLnurlServer(opts: {
     )
   return { fetch: fetchMock, addresses, calls }
 }
+
+/** Routes fetch through `server`, holding each quote for `optionId` until released, so a test can look
+ *  at what is exposed between asking and the answer. */
+export function holdQuotes(server: ReturnType<typeof fakeLnurlServer>, optionId: string) {
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => (release = resolve))
+  const held: URL[] = []
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input))
+      if (url.pathname.startsWith('/callback/') && url.searchParams.get('paymentOption') === optionId) {
+        held.push(url)
+        await gate
+      }
+      return server.fetch(input, init)
+    }),
+  )
+  return { held, release }
+}
