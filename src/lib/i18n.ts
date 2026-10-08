@@ -88,6 +88,14 @@ export const translations = {
       biometricsDescription:
         'This will allow you to log in easily through biometrics without a need to remember the password.',
       invalidRecoveryPhrase: 'Invalid recovery phrase',
+      wordSuggestions: 'Word suggestions',
+      recoveryInputHint: 'Type or paste your recovery phrase or private key.',
+      recoveryOneWord: '1 word entered',
+      recoveryWordCount: '{count} words entered',
+      recoveryWordError: 'Word {number} isn’t recognized. Check its spelling.',
+      recoveryWordCountError: 'Enter the complete recovery phrase: 12, 15, 18, 21 or 24 words.',
+      recoveryChecksumError: 'This recovery phrase doesn’t validate. Check the words and their order.',
+      recoveryKeyError: 'Enter a valid nsec private key or a 64-character hexadecimal private key.',
       unableToValidatePrivateKey: 'Unable to validate private key format',
       unableToValidateKey: 'Unable to validate key format',
       rotationSubtext:
@@ -748,8 +756,6 @@ export const translations = {
       permissionDenied: 'Notifications permission denied',
     },
     apps: {
-      satora: 'Satora',
-      lendasat: 'Lendasat',
       dfx: 'DFX',
       dfxConnectionFailed: 'Failed to connect to DFX. Please go back and try again.',
     },
@@ -758,24 +764,6 @@ export const translations = {
       whatYouCanDo: 'What you can do:',
       maybeLater: 'Maybe later',
       tryTitle: 'Try {title}',
-      lendasatMessage: 'Take loans with Bitcoin as collateral. Receive USDC or USDT in 2 minutes.',
-      lendasatPoint1Title: 'Choose a loan',
-      lendasatPoint1Body:
-        'Pick your preferred loan terms from a list of offers or post your own loan request. We will find you the right match.',
-      lendasatPoint2Title: 'Lock your Bitcoin',
-      lendasatPoint2Body:
-        'Lock Bitcoin worth more than your loan amount as collateral. Your Bitcoin stays safe while you get the cash you need.',
-      lendasatPoint3Title: 'Receive the funds',
-      lendasatPoint3Body:
-        'Get your loan instantly via your preferred method: bank transfer, stablecoins (USDT/USDC), or VISA card.',
-      satoraMessage: 'Swap Bitcoin to USDC or USDT instantly.',
-      satoraPoint1Title: 'Swap to stablecoins',
-      satoraPoint1Body: 'Swap native $BTC for $USDT or $USDC on Ethereum and Polygon.',
-      satoraPoint2Title: 'Trustless Atomic Swaps',
-      satoraPoint2Body:
-        'When a swap is started, both parties lock their funds in smart contracts. The swap either completes fully or both parties get refunded.',
-      satoraPoint3Title: 'Self-custodial',
-      satoraPoint3Body: 'Satora is fully self-custodial. Your keys, your coins.',
       nostrMessage: 'Backup to Nostr.',
       nostrPoint1Title: 'Backup settings',
       nostrPoint1Body: 'Have your Arkade wallet settings safely backed up on Nostr.',
@@ -887,6 +875,14 @@ export const translations = {
       biometricsDescription:
         'Esto te permitirá iniciar sesión fácilmente con datos biométricos sin necesidad de recordar la contraseña.',
       invalidRecoveryPhrase: 'Frase de recuperación inválida',
+      wordSuggestions: 'Sugerencias de palabras',
+      recoveryInputHint: 'Escribe o pega tu frase de recuperación o clave privada.',
+      recoveryOneWord: '1 palabra introducida',
+      recoveryWordCount: '{count} palabras introducidas',
+      recoveryWordError: 'No se reconoce la palabra {number}. Revisa su escritura.',
+      recoveryWordCountError: 'Introduce la frase de recuperación completa: 12, 15, 18, 21 o 24 palabras.',
+      recoveryChecksumError: 'La frase de recuperación no es válida. Revisa las palabras y su orden.',
+      recoveryKeyError: 'Introduce una clave privada nsec válida o una clave privada hexadecimal de 64 caracteres.',
       unableToValidatePrivateKey: 'No se pudo validar el formato de la clave privada',
       unableToValidateKey: 'No se pudo validar el formato de la clave',
       rotationSubtext:
@@ -1551,8 +1547,6 @@ export const translations = {
       permissionDenied: 'Permiso de notificaciones denegado',
     },
     apps: {
-      satora: 'Satora',
-      lendasat: 'Lendasat',
       dfx: 'DFX',
       dfxConnectionFailed: 'No se pudo conectar con DFX. Vuelve atrás e inténtalo de nuevo.',
     },
@@ -1561,24 +1555,6 @@ export const translations = {
       whatYouCanDo: 'Lo que puedes hacer:',
       maybeLater: 'Quizás más tarde',
       tryTitle: 'Probar {title}',
-      lendasatMessage: 'Pide préstamos con Bitcoin como garantía. Recibe USDC o USDT en 2 minutos.',
-      lendasatPoint1Title: 'Elige un préstamo',
-      lendasatPoint1Body:
-        'Elige las condiciones de préstamo que prefieras de una lista de ofertas o publica tu propia solicitud. Te buscaremos la mejor coincidencia.',
-      lendasatPoint2Title: 'Bloquea tu Bitcoin',
-      lendasatPoint2Body:
-        'Bloquea Bitcoin por un valor mayor que el monto del préstamo como garantía. Tu Bitcoin permanece seguro mientras consigues el efectivo que necesitas.',
-      lendasatPoint3Title: 'Recibe los fondos',
-      lendasatPoint3Body:
-        'Obtén tu préstamo al instante por tu método preferido: transferencia bancaria, stablecoins (USDT/USDC) o tarjeta VISA.',
-      satoraMessage: 'Cambia Bitcoin a USDC o USDT al instante.',
-      satoraPoint1Title: 'Cambia a stablecoins',
-      satoraPoint1Body: 'Cambia $BTC nativo por $USDT o $USDC en Ethereum y Polygon.',
-      satoraPoint2Title: 'Atomic Swaps sin confianza',
-      satoraPoint2Body:
-        'Cuando se inicia un swap, ambas partes bloquean sus fondos en contratos inteligentes. El swap se completa por completo o ambas partes reciben su reembolso.',
-      satoraPoint3Title: 'Autocustodia',
-      satoraPoint3Body: 'Satora es totalmente autocustodial. Tus claves, tus monedas.',
       nostrMessage: 'Respalda en Nostr.',
       nostrPoint1Title: 'Respaldar ajustes',
       nostrPoint1Body: 'Ten tus ajustes de la wallet Arkade respaldados de forma segura en Nostr.',

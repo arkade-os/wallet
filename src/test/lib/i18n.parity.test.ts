@@ -75,8 +75,6 @@ describe('i18n dictionary integrity', () => {
       'mint.tickerLabel',
       'mint.max',
       'vtxos.subdust',
-      'apps.satora',
-      'apps.lendasat',
       'apps.dfx',
       'formatting.unit',
       // Payment-method names in the receive selector. These are the protocol

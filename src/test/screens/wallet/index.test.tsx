@@ -17,6 +17,35 @@ import { AspContext } from '../../../providers/asp'
 import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
 
 describe('Wallet screen', () => {
+  it('renders the wallet screen with the correct elements', async () => {
+    const user = userEvent.setup()
+    const navigate = vi.fn()
+
+    render(
+      <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate }}>
+        <AssetSwapsContext.Provider value={{ swapAvailable: true, swaps: [] } as any}>
+          <Wallet />
+        </AssetSwapsContext.Provider>
+      </NavigationContext.Provider>,
+    )
+    expect(screen.getAllByText('$0.00').length).toBeGreaterThan(0)
+    expect(screen.getByText('Send')).toBeInTheDocument()
+    expect(screen.getByText('Receive')).toBeInTheDocument()
+    expect(screen.getByTestId('home-action-swap')).toBeEnabled()
+    await user.click(screen.getByTestId('home-action-swap'))
+    expect(navigate).toHaveBeenCalledWith(Pages.WalletSwap)
+    expect(screen.getByText('Accounts')).toBeInTheDocument()
+    expect(screen.getByText('Bitcoin')).toBeInTheDocument()
+    expect(screen.getByText('Recent activity')).toBeInTheDocument()
+    expect(screen.getByText('Do more with your money')).toBeInTheDocument()
+    expect(screen.queryByText('Borrow against your bitcoin')).not.toBeInTheDocument()
+    await user.click(screen.getByTestId('top-right-activity'))
+    expect(navigate).toHaveBeenCalledWith(Pages.Activity)
+
+    await user.click(screen.getByTestId('top-right-settings'))
+    expect(navigate).toHaveBeenCalledWith(Pages.Settings)
+  })
+
   it('does not use swap history to enter an unavailable swap composer', async () => {
     const navigate = vi.fn()
 
