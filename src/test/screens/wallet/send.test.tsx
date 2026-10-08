@@ -21,7 +21,7 @@ import {
 } from '../mocks'
 import { AspContext } from '../../../providers/asp'
 import { WalletContext } from '../../../providers/wallet'
-import { NavigationContext } from '../../../providers/navigation'
+import { NavigationContext, Pages } from '../../../providers/navigation'
 import { redirectToCallback } from '../../../lib/appIntent'
 import SendForm from '../../../screens/Wallet/Send/Form'
 import { ConfigContext } from '../../../providers/config'
@@ -34,10 +34,11 @@ describe('Send screen', () => {
     configContext = mockConfigContextValue,
     fiatContext = mockFiatContextValue,
     flowContext = mockFlowContextValue,
+    navigationContext = mockNavigationContextValue,
     walletContext = { ...mockWalletContextValue, svcWallet: mockSvcWallet as any },
   } = {}) =>
     render(
-      <NavigationContext.Provider value={mockNavigationContextValue}>
+      <NavigationContext.Provider value={navigationContext}>
         <AspContext.Provider value={mockAspContextValue}>
           <ConfigContext.Provider value={configContext as any}>
             <FiatContext.Provider value={fiatContext as any}>
@@ -437,5 +438,36 @@ describe('Send screen', () => {
     fireEvent.click(screen.getByLabelText('Go back'))
     expect(resetFlow).toHaveBeenCalled()
     expect(redirectToCallback).toHaveBeenCalledWith(callback, { error: 'denied' })
+  })
+
+  it('returns to the wallet when an app send without a callback is dismissed', () => {
+    vi.mocked(redirectToCallback).mockClear()
+    const resetFlow = vi.fn()
+    const navigate = vi.fn()
+    renderSendForm({
+      flowContext: {
+        ...mockFlowContextValue,
+        appIntent: {
+          status: 'send',
+          request: 'bitcoin:bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
+          prefilled: true,
+        },
+        resetFlow,
+      },
+      navigationContext: { ...mockNavigationContextValue, navigate },
+      walletContext: {
+        ...mockWalletContextValue,
+        svcWallet: {
+          ...mockSvcWallet,
+          getAddress: () => 'tark1mockoffchain',
+          getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+        } as any,
+      },
+    })
+
+    fireEvent.click(screen.getByLabelText('Go back'))
+    expect(resetFlow).toHaveBeenCalled()
+    expect(redirectToCallback).not.toHaveBeenCalled()
+    expect(navigate).toHaveBeenCalledWith(Pages.Wallet)
   })
 })
