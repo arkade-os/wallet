@@ -263,7 +263,11 @@ describe('Receive screen, rail composition', () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
     renderReceive(5_000, { receiveViaLnurl: true })
 
-    expect(await screen.findByText(/Bitcoin uses the wallet's own address: Amount must be/)).toBeInTheDocument()
+    expect(
+      await screen.findByText(
+        "Bitcoin uses the wallet's own address: Amount must be between 10,000 and 100,000,000 sats",
+      ),
+    ).toBeInTheDocument()
     expect(screen.queryByText(/Arkade uses the wallet's own address/)).not.toBeInTheDocument()
     fireEvent.click(screen.getByText('Arkade'))
     expect(await copiedQr()).toBe(LNURL_DESTINATIONS.arkade)

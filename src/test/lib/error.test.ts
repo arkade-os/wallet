@@ -39,4 +39,10 @@ describe('extractError', () => {
       'Your funds were recently settled onchain — please try again shortly',
     )
   })
+
+  it("states an LNURL rail's amount range in sats, not millisats", () => {
+    expect(extractError('Amount must be between 10000000 and 100000000000 millisats')).toBe(
+      'Amount must be between 10,000 and 100,000,000 sats',
+    )
+  })
 })
