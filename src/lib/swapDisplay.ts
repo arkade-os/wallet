@@ -1,6 +1,7 @@
 import Decimal from 'decimal.js'
 import { prettyCurrencyAssetAmount, prettyFiatAmount, prettyFiatHide, prettyHide, prettyNumber } from './format'
 import { designatedAccountCurrency, walletAccountTicker } from './accountAssets'
+import { reportingSatsForFiatAmount } from './fiat'
 import type { WalletAssetSwap } from './swapRepository'
 import { Currencies, Tx, Unit } from './types'
 
@@ -13,7 +14,6 @@ export interface SwapDisplayAmount {
 
 interface SwapUnitOfAccountAmountOptions {
   currency: Currencies
-  fromFiatAmount: (amount: number, currency: Currencies) => number
   toFiatAmount: (satoshis: number, currency: Currencies) => number
   tx: Tx
 }
@@ -103,7 +103,7 @@ function swapAssetDisplayAmount(amount: bigint, decimals: number, ticker: string
   const accountTicker = walletAccountTicker(ticker) ?? ticker
   return {
     masked: prettyHide('hidden', accountTicker),
-    value: `${prettyCurrencyAssetAmount(amount, decimals, accountTicker)} ${accountTicker}`,
+    value: `${prettyCurrencyAssetAmount(amount, decimals, accountTicker, true)} ${accountTicker}`,
   }
 }
 
@@ -186,7 +186,6 @@ export function swapPriceRateLabel(tx: Tx): string | undefined {
 
 export function swapUnitOfAccountAmount({
   currency,
-  fromFiatAmount,
   toFiatAmount,
   tx,
 }: SwapUnitOfAccountAmountOptions): SwapDisplayAmount | undefined {
@@ -211,9 +210,12 @@ export function swapUnitOfAccountAmount({
   } else if (swap?.fiatAmount !== undefined && swap.fiatCurrency !== Currencies.BTC) {
     // a fiat snapshot in a stable (non-BTC) currency: reconvert it into the
     // display currency. The round-trip through sats is price-stable in its own
-    // currency, and fromFiatAmount for a real fiat never depends on the unit.
+    // currency, and keeps fractional sats so a sub-sat swap doesn't read $0.00.
     const sourceCurrency = (swap.fiatCurrency as Currencies | undefined) ?? Currencies.USD
-    selectedCurrencyAmount = toFiatAmount(fromFiatAmount(swap.fiatAmount, sourceCurrency), currency)
+    selectedCurrencyAmount = toFiatAmount(
+      reportingSatsForFiatAmount(swap.fiatAmount, sourceCurrency, toFiatAmount),
+      currency,
+    )
   } else {
     // no snapshot (restored swap), or a BTC-denominated one we can't trust:
     // value the BTC leg at the current rate instead
