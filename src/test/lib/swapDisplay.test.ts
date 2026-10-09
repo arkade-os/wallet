@@ -13,6 +13,7 @@ import { Currencies, Language, Tx, Unit } from '../../lib/types'
 import { translate } from '../../lib/i18n'
 
 const PRICE = 63_750 // USD per whole BTC
+const EUR_PRICE = 31_875 // EUR per whole BTC, distinct so cross-fiat mixups show
 
 // Mirror providers/fiat.tsx: fiat conversions go through the price feed and are
 // unit-independent, while the BTC "currency" routes through fromBTC/toBTC,
@@ -20,7 +21,7 @@ const PRICE = 63_750 // USD per whole BTC
 const makeFiat = (unit: Unit) => ({
   toFiatAmount: (sats: number, currency: Currencies) => {
     if (currency === Currencies.BTC) return unit === Unit.BTC ? sats / 1e8 : sats
-    return (sats / 1e8) * PRICE // sats -> fiat
+    return (sats / 1e8) * (currency === Currencies.EUR ? EUR_PRICE : PRICE) // sats -> fiat
   },
 })
 
@@ -112,6 +113,15 @@ describe('swapUnitOfAccountAmount', () => {
     tx.assetSwap!.fiatAmount = 1.02
     const result = swapUnitOfAccountAmount({ currency: Currencies.USD, toFiatAmount, tx })
     expect(result?.value).toBe('$1.02')
+  })
+
+  it('converts a USD snapshot into EUR at the EUR price', () => {
+    const { toFiatAmount } = makeFiat(Unit.SATS)
+    const tx = btcCurrencySwap()
+    tx.assetSwap!.fiatCurrency = 'USD'
+    tx.assetSwap!.fiatAmount = 1.02
+    const result = swapUnitOfAccountAmount({ currency: Currencies.EUR, toFiatAmount, tx })
+    expect(result?.value).toBe('€0.51')
   })
 
   it('keeps a sub-satoshi fiat snapshot nonzero', () => {
