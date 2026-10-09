@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, configure, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { SingleKey } from '@arkade-os/sdk'
 import { encodeLnurl } from '@arkade-os/lnurl-client/arkade'
 import { FlowContext } from '../../../providers/flow'
@@ -25,20 +25,32 @@ import {
 } from '../mocks'
 import type { Config } from '../../../lib/types'
 import {
+  BTC_USD,
   DECODABLE_ARK,
   LNURL_BASE,
   LNURL_DESTINATIONS,
+  TOKEN_DEPOSITS,
   WALLET_BOARDING_ADDRESS,
+  arbitrumUri,
   fakeInvoice,
   fakeLnurlServer,
+  holdQuotes,
   namedAddress,
   namelessAddress,
+  solanaUri,
 } from '../../lib/receive/fakeLnurlServer'
 
 // Every wait here sits behind a receiver load (signing, then fetches), which a full parallel run stretches past 1s.
 configure({ asyncUtilTimeout: 3_000 })
 
-vi.mock('qr', () => ({ default: () => Array.from({ length: 21 }, () => new Uint8Array(21).fill(1)) }))
+// Every value the QR is rendered with, including renders the DOM no longer shows by the time a test looks.
+const qrValues = vi.hoisted(() => [] as string[])
+vi.mock('../../../components/QrCode', () => ({
+  default: ({ value }: { value: string }) => {
+    qrValues.push(value)
+    return null
+  },
+}))
 const copyToClipboard = vi.fn<(value: string) => Promise<void>>(async () => {})
 vi.mock('../../../lib/clipboard', () => ({ copyToClipboard: (v: string) => copyToClipboard(v) }))
 
@@ -53,46 +65,47 @@ beforeAll(() => {
 
 const receiveLightning = vi.fn()
 const svcWallet = { ...mockSvcWallet, identity: SingleKey.fromHex('03'.repeat(32)) }
+const atMarket = (sats: number) => (sats * BTC_USD) / 1e8
 
-const renderReceive = (satoshis = 0, config: Partial<Config> = {}) =>
-  render(
-    <ToastProvider>
-      <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={mockAspContextValue as never}>
-          <ConfigContext.Provider
-            value={{ ...mockConfigContextValue, config: { ...mockConfigContextValue.config, ...config } } as never}
-          >
-            <FiatContext.Provider value={mockFiatContextValue as never}>
-              <NotificationsContext.Provider value={{ notifyPaymentReceived: () => {} } as never}>
-                <FlowContext.Provider
-                  value={
-                    {
-                      ...mockFlowContextValue,
-                      setRecvInfo: vi.fn(),
-                      recvInfo: {
-                        ...mockFlowContextValue.recvInfo,
-                        satoshis,
-                        offchainAddr: DECODABLE_ARK,
-                        boardingAddr: WALLET_BOARDING_ADDRESS,
-                      },
-                    } as never
-                  }
-                >
-                  <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet } as never}>
-                    <LimitsContext.Provider value={mockLimitsContextValue}>
-                      <SwapsContext.Provider value={{ receiveLightning, outcomeOf: () => undefined } as never}>
-                        <ReceiveQRCode />
-                      </SwapsContext.Provider>
-                    </LimitsContext.Provider>
-                  </WalletContext.Provider>
-                </FlowContext.Provider>
-              </NotificationsContext.Provider>
-            </FiatContext.Provider>
-          </ConfigContext.Provider>
-        </AspContext.Provider>
-      </NavigationContext.Provider>
-    </ToastProvider>,
-  )
+const receiveTree = (satoshis = 0, config: Partial<Config> = {}) => (
+  <ToastProvider>
+    <NavigationContext.Provider value={mockNavigationContextValue}>
+      <AspContext.Provider value={mockAspContextValue as never}>
+        <ConfigContext.Provider
+          value={{ ...mockConfigContextValue, config: { ...mockConfigContextValue.config, ...config } } as never}
+        >
+          <FiatContext.Provider value={{ ...mockFiatContextValue, toFiatAmount: atMarket } as never}>
+            <NotificationsContext.Provider value={{ notifyPaymentReceived: () => {} } as never}>
+              <FlowContext.Provider
+                value={
+                  {
+                    ...mockFlowContextValue,
+                    setRecvInfo: vi.fn(),
+                    recvInfo: {
+                      ...mockFlowContextValue.recvInfo,
+                      satoshis,
+                      offchainAddr: DECODABLE_ARK,
+                      boardingAddr: WALLET_BOARDING_ADDRESS,
+                    },
+                  } as never
+                }
+              >
+                <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet } as never}>
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <SwapsContext.Provider value={{ receiveLightning, outcomeOf: () => undefined } as never}>
+                      <ReceiveQRCode />
+                    </SwapsContext.Provider>
+                  </LimitsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </NotificationsContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </AspContext.Provider>
+    </NavigationContext.Provider>
+  </ToastProvider>
+)
+const renderReceive = (satoshis = 0, config: Partial<Config> = {}) => render(receiveTree(satoshis, config))
 
 let server: ReturnType<typeof fakeLnurlServer>
 const serve = (opts: Parameters<typeof fakeLnurlServer>[0]) => {
@@ -250,7 +263,11 @@ describe('Receive screen, rail composition', () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
     renderReceive(5_000, { receiveViaLnurl: true })
 
-    expect(await screen.findByText(/Bitcoin uses the wallet's own address: Amount must be/)).toBeInTheDocument()
+    expect(
+      await screen.findByText(
+        "Bitcoin uses the wallet's own address: Amount must be between 10,000 and 100,000,000 sats",
+      ),
+    ).toBeInTheDocument()
     expect(screen.queryByText(/Arkade uses the wallet's own address/)).not.toBeInTheDocument()
     fireEvent.click(screen.getByText('Arkade'))
     expect(await copiedQr()).toBe(LNURL_DESTINATIONS.arkade)
@@ -391,5 +408,140 @@ describe('Receive screen, naming a nameless receiver', () => {
     await screen.findByText(/No name yet/)
     expect(await qrLightning()).toMatch(/^lnurl1/i)
     expect(screen.queryByRole('button', { name: 'Add a name' })).not.toBeInTheDocument()
+  })
+})
+
+describe('Receive screen, token rails', () => {
+  const tokensOn = { receiveViaLnurl: true, receiveViaTokens: true }
+  const payRequests = () => server.calls('GET', '/.well-known/lnurlp/alice')
+  const tokenQuotes = () => callbacks().filter((url) => url.searchParams.get('paymentOption')?.startsWith('ff-'))
+  const tokenSelect = () => screen.queryByRole('combobox', { name: 'Pay with a token' })
+  const pick = async (label: string) => {
+    const select = await screen.findByRole('combobox', { name: 'Pay with a token' })
+    const option = within(select).getByRole('option', { name: label }) as HTMLOptionElement
+    fireEvent.change(select, { target: { value: option.value } })
+  }
+
+  it('renders a USDT (Arbitrum One) method with an EIP-681 value', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+    renderReceive(20_000, tokensOn)
+
+    await pick('USDT (Arbitrum One)')
+
+    expect(await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')).toBeInTheDocument()
+    expect(screen.getByText(/^Quote by FixedFloat, valid for \d+:\d\d$/)).toBeInTheDocument()
+    expect(await copiedQr()).toBe(arbitrumUri(20_000_000))
+  })
+
+  it('renders a tron option with the bare address and no deeplink', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+    renderReceive(20_000, tokensOn)
+
+    await pick('USDT (Tron)')
+
+    expect(await screen.findByText('Send exactly 17.156 USDT on Tron')).toBeInTheDocument()
+    expect(await copiedQr()).toBe(TOKEN_DEPOSITS['ff-usdttrc'])
+  })
+
+  it('renders a simulated Solana option with a Solana Pay value', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], simulated: true })
+    renderReceive(20_000, tokensOn)
+
+    await pick('USDT (Solana Devnet)')
+
+    expect(await screen.findByText('Send exactly 17.156 USDT on Solana Devnet')).toBeInTheDocument()
+    expect(screen.getByText(/^Quote by Simulated, valid for \d+:\d\d$/)).toBeInTheDocument()
+    expect(await copiedQr()).toBe(solanaUri(20_000_000))
+  })
+
+  it('shows no QR for the old amount while the new amount is quoted', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+    const { rerender } = renderReceive(20_000, tokensOn)
+    await pick('USDT (Arbitrum One)')
+    expect(await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')).toBeInTheDocument()
+    const pending = holdQuotes(server, 'ff-usdtarbitrum')
+    const from = qrValues.length
+
+    rerender(receiveTree(30_000, tokensOn))
+    await waitFor(() => expect(pending.held).toHaveLength(1))
+
+    expect(qrValues.slice(from)).not.toContain(arbitrumUri(20_000_000))
+    expect(screen.queryByText(/Send exactly/)).not.toBeInTheDocument()
+    pending.release()
+    expect(await screen.findByText('Send exactly 25.734 USDT on Arbitrum One')).toBeInTheDocument()
+    expect(await copiedQr()).toBe(arbitrumUri(30_000_000))
+  })
+
+  it('renders nothing when no token option is advertised', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    renderReceive(20_000, tokensOn)
+
+    // One fetch: both rail hooks share the receiver's memoised payRequest (client 0.5.2).
+    await waitFor(() => expect(payRequests()).toHaveLength(1))
+    await waitFor(() => expect(callbacks()).toHaveLength(3))
+    expect(tokenSelect()).not.toBeInTheDocument()
+  })
+
+  it('asks for no token quote until a token method is picked', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+    renderReceive(20_000, tokensOn)
+
+    await screen.findByRole('combobox', { name: 'Pay with a token' })
+    await waitFor(() => expect(callbacks()).toHaveLength(3))
+    expect(tokenQuotes()).toHaveLength(0)
+  })
+
+  it('offers only the token methods whose bounds hold the amount', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+    renderReceive(5_000, tokensOn)
+
+    const select = await screen.findByRole('combobox', { name: 'Pay with a token' })
+    expect(
+      within(select)
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['Pay with a token', 'USDT (Arbitrum One)'])
+  })
+
+  it('offers no token method without an amount', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+    renderReceive(0, tokensOn)
+
+    await waitFor(() => expect(payRequests()).toHaveLength(1))
+    await screen.findByText('alice@lnurl.test')
+    expect(tokenSelect()).not.toBeInTheDocument()
+  })
+
+  it('says why a token has no quote', async () => {
+    serve({
+      modes: ['self'],
+      addresses: [namedAddress('alice')],
+      tokens: true,
+      tokenErrors: { 'ff-usdtarbitrum': 'paymentOption ff-usdtarbitrum is busy, try again shortly' },
+    })
+    renderReceive(20_000, tokensOn)
+
+    await pick('USDT (Arbitrum One)')
+
+    expect(await screen.findByText(/No quote for this token: .*busy/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeDisabled()
+  })
+
+  it('token rails are absent when receiveViaTokens is off', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+    renderReceive(20_000, { receiveViaLnurl: true })
+
+    await waitFor(() => expect(callbacks()).toHaveLength(3))
+    expect(tokenSelect()).not.toBeInTheDocument()
+    expect(payRequests()).toHaveLength(1)
+  })
+
+  it('token rails are absent when receiveViaLnurl is off even with receiveViaTokens on', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+    renderReceive(20_000, { receiveViaTokens: true })
+
+    await waitFor(() => expect(callbacks()).toHaveLength(1))
+    expect(tokenSelect()).not.toBeInTheDocument()
+    expect(payRequests()).toHaveLength(1)
   })
 })

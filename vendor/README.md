@@ -1,8 +1,9 @@
 # vendor
 
-`arkade-os-lnurl-client-0.4.6.tgz` is `@arkade-os/lnurl-client` packed from
+`arkade-os-lnurl-client-0.5.2.tgz` is `@arkade-os/lnurl-client` packed from
 [ArkLabsHQ/lnurl-server](https://github.com/ArkLabsHQ/lnurl-server) `packages/client` at commit
-`a556f3a` (merged to `main` in `0200eee`). It is vendored because the package is not on npm yet.
+`28c6aa5` on `main`, the merge of ArkLabsHQ/lnurl-server#72 (the `payRequest()` memo), after #76 (bounded SSE frames, verify bound to its payment). It is vendored
+because the package is not on npm yet.
 
 ## Refresh
 

@@ -142,6 +142,13 @@ export const translations = {
       receiveViaLnurl: 'Route every receive through it',
       receiveViaLnurlSubtext:
         'With an amount set, the Arkade and Bitcoin addresses also come from your lightning address, so its server tracks every payment. Off: only Lightning does.',
+      receiveViaTokens: 'Accept tokens',
+      receiveViaTokensSubtext:
+        'With an amount set, payers can also send {units}, which a third party swaps to Arkade BTC.',
+      tokenExplainerTitle: 'Before you accept tokens',
+      tokenExplainer:
+        'Payers send tokens to {provider}, a third party that holds the deposit while it pays a Lightning invoice. An intent-solver swap then delivers that payment to you as Arkade BTC. A late, short or excess deposit is resolved with {provider}.',
+      tokenExplainerConfirm: 'Turn on',
       notifications: 'Notifications',
       allowNotifications: 'Allow notifications',
       notificationsIntro:
@@ -426,6 +433,12 @@ export const translations = {
       copyAddress: 'Copy address',
       requestingAmount: 'Requesting {amount} {unit}',
       copyAria: 'Copy {title}',
+      payWithToken: 'Pay with a token',
+      gettingQuote: 'Getting quote…',
+      noTokenQuote: 'No quote for this token: {error}',
+      tokenSendExactly: 'Send exactly {amount} {unit} on {chain}',
+      tokenQuoteValid: 'Quote by {provider}, valid for {time}',
+      tokenDepositAddress: '{token} deposit address',
     },
     scanner: {
       pointAtQr: 'Point at the QR code',
@@ -604,6 +617,7 @@ export const translations = {
       onchainAmountTooLow:
         'Send failed: an output is below the onchain minimum (330 sats) — adjust the amount and try again',
       amountNotInRange: 'Amount not in LNURL range.',
+      amountBetween: 'Amount must be between {min} and {max} sats',
       noEncryptedMnemonic: 'No encrypted mnemonic found',
       invalidMnemonic: 'Invalid mnemonic phrase',
       insufficientFunds: 'Insufficient funds',
@@ -963,6 +977,13 @@ export const translations = {
       receiveViaLnurl: 'Recibir todo a través de ella',
       receiveViaLnurlSubtext:
         'Con un monto, las direcciones Arkade y Bitcoin también vienen de tu dirección Lightning, así su servidor registra cada pago. Desactivado: solo Lightning.',
+      receiveViaTokens: 'Aceptar tokens',
+      receiveViaTokensSubtext:
+        'Con un monto, quien te paga también puede enviar {units}, que un tercero convierte a BTC en Arkade.',
+      tokenExplainerTitle: 'Antes de aceptar tokens',
+      tokenExplainer:
+        'Quien te paga envía tokens a {provider}, un tercero que guarda el depósito mientras paga una factura Lightning. Luego, un swap de intent-solver te entrega ese pago como BTC en Arkade. Un depósito tardío, insuficiente o excesivo se resuelve con {provider}.',
+      tokenExplainerConfirm: 'Activar',
       notifications: 'Notificaciones',
       allowNotifications: 'Permitir notificaciones',
       notificationsIntro:
@@ -1248,6 +1269,12 @@ export const translations = {
       copyAddress: 'Copiar dirección',
       requestingAmount: 'Solicitando {amount} {unit}',
       copyAria: 'Copiar {title}',
+      payWithToken: 'Pagar con un token',
+      gettingQuote: 'Obteniendo cotización…',
+      noTokenQuote: 'Sin cotización para este token: {error}',
+      tokenSendExactly: 'Envía exactamente {amount} {unit} en {chain}',
+      tokenQuoteValid: 'Cotización de {provider}, válida por {time}',
+      tokenDepositAddress: 'Dirección de depósito {token}',
     },
     scanner: {
       pointAtQr: 'Apunta al código QR',
@@ -1427,6 +1454,7 @@ export const translations = {
       onchainAmountTooLow:
         'Envío fallido: un output está por debajo del mínimo onchain (330 sats). Ajusta el monto e inténtalo de nuevo',
       amountNotInRange: 'Monto fuera del rango LNURL.',
+      amountBetween: 'El monto debe estar entre {min} y {max} sats',
       noEncryptedMnemonic: 'No se encontró mnemonic cifrado',
       invalidMnemonic: 'Frase mnemonic inválida',
       insufficientFunds: 'Fondos insuficientes',

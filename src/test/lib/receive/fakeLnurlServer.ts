@@ -1,5 +1,6 @@
 import { ArkAddress } from '@arkade-os/sdk'
-import { bech32 } from '@scure/base'
+import { base58, bech32, createBase58check } from '@scure/base'
+import { sha256 } from '@noble/hashes/sha2.js'
 import { vi } from 'vitest'
 
 export const LNURL_BASE = 'https://lnurl.test'
@@ -62,6 +63,64 @@ export const FOREIGN_DESTINATIONS = {
   onchain: 'bc1qforeignaddress',
 }
 
+const tronAddress = (fill: number) =>
+  createBase58check(sha256).encode(Uint8Array.from([0x41, ...otherKey(fill).slice(0, 20)]))
+const USDT_ARBITRUM = '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9'
+
+/** lnurl-server's FixedFloat options as it advertises them (ec6573e). */
+export const TOKEN_OPTIONS = [
+  {
+    id: 'ff-usdtarbitrum',
+    type: 'eip155',
+    asset: `eip155:42161/erc20:${USDT_ARBITRUM}`,
+    unit: 'USDT',
+    provider: 'FixedFloat',
+    verifiable: true,
+    minSendable: 2_844_000,
+    maxSendable: 100_000_000,
+  },
+  {
+    id: 'ff-usdttrc',
+    type: 'tron',
+    asset: `tron:0x2b6653dc/trc20:${tronAddress(1)}`,
+    unit: 'USDT',
+    provider: 'FixedFloat',
+    verifiable: true,
+    minSendable: 11_996_000,
+    maxSendable: 100_000_000,
+  },
+]
+const SOLANA_MINT = base58.encode(otherKey(3))
+/** lnurl-server's simulator: a testnet chain, an ffsim- id and provider "Simulated" (ec6573e). */
+export const SIM_SOLANA_OPTION = {
+  id: 'ffsim-usdtsol',
+  type: 'solana',
+  asset: `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:${SOLANA_MINT}`,
+  unit: 'USDT',
+  provider: 'Simulated',
+  verifiable: true,
+  minSendable: 1_000_000,
+  maxSendable: 100_000_000,
+}
+export const TOKEN_UNITS = [{ code: 'USDT', decimals: 6, name: 'Tether USD' }]
+export const TOKEN_DEPOSITS: Record<string, string> = {
+  'ff-usdtarbitrum': `0x${'ab'.repeat(20)}`,
+  'ff-usdttrc': tronAddress(2),
+  'ffsim-usdtsol': base58.encode(otherKey(4)),
+}
+/** 8.578 USDT per 10 000 sats, in base units: a quote at a BTC price of BTC_USD. */
+export const tokenPayment = (amountMsat: number) => String(Math.floor((amountMsat * 8578) / 10_000))
+export const BTC_USD = 85_780
+export const arbitrumUri = (amountMsat: number) =>
+  `ethereum:${USDT_ARBITRUM}@42161/transfer?address=${TOKEN_DEPOSITS['ff-usdtarbitrum']}&uint256=${tokenPayment(amountMsat)}`
+/** Solana Pay carries the amount in whole tokens, not base units. */
+export const solanaUri = (amountMsat: number) =>
+  `solana:${TOKEN_DEPOSITS['ffsim-usdtsol']}?amount=${Number(tokenPayment(amountMsat)) / 1e6}&spl-token=${SOLANA_MINT}`
+const TOKEN_URIS: Record<string, (amountMsat: number) => string> = {
+  'ff-usdtarbitrum': arbitrumUri,
+  'ffsim-usdtsol': solanaUri,
+}
+
 /** The endpoints `arkadeLnurl` calls, backed by one in-memory address list. */
 export function fakeLnurlServer(opts: {
   modes: string[]
@@ -74,6 +133,13 @@ export function fakeLnurlServer(opts: {
   invoiceError?: string
   destinationError?: string
   foreignDestinations?: boolean
+  tokens?: boolean
+  simulated?: boolean
+  tokenErrors?: Record<string, string>
+  tokenTag?: string
+  quoteTtlMs?: number
+  /** Replaces a token quote's payment.amount, as a misbehaving server might. */
+  paymentAmount?: string
 }) {
   const addresses = [...(opts.addresses ?? [])]
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -116,11 +182,33 @@ export function fakeLnurlServer(opts: {
           { id: 'lightning', type: 'lightning' },
           { id: 'arkade', type: 'arkade' },
           { id: 'onchain', type: 'onchain', minSendable: 10_000_000 },
+          ...(opts.tokens ? TOKEN_OPTIONS : []),
+          ...(opts.simulated ? [SIM_SOLANA_OPTION] : []),
         ],
+        ...(opts.tokens || opts.simulated ? { units: TOKEN_UNITS } : {}),
       })
     }
     if (path.startsWith('/callback/')) {
       const rail = url.searchParams.get('paymentOption')
+      const token = [...TOKEN_OPTIONS, SIM_SOLANA_OPTION].find((o) => o.id === rail)
+      if (token) {
+        if (opts.tokenErrors?.[token.id]) return json(200, { status: 'ERROR', reason: opts.tokenErrors[token.id] })
+        const amountMsat = Number(url.searchParams.get('amount'))
+        return json(200, {
+          status: 'OK',
+          paymentOption: token.id,
+          paymentDestination: TOKEN_DEPOSITS[token.id],
+          ...(TOKEN_URIS[token.id] ? { paymentURI: TOKEN_URIS[token.id](amountMsat) } : {}),
+          ...(opts.tokenTag ? { paymentDestinationTag: opts.tokenTag } : {}),
+          provider: token.provider,
+          paymentQuote: {
+            id: 'AB12CD',
+            expiresAt: new Date(Date.now() + (opts.quoteTtlMs ?? 15 * 60_000)).toISOString(),
+            requested: { amount: String(amountMsat), unit: 'msat' },
+            payment: { amount: opts.paymentAmount ?? tokenPayment(amountMsat), unit: token.unit },
+          },
+        })
+      }
       if (rail === 'arkade' || rail === 'onchain') {
         if (opts.destinationError) return json(200, { status: 'ERROR', reason: opts.destinationError })
         const destinations = opts.foreignDestinations ? FOREIGN_DESTINATIONS : LNURL_DESTINATIONS
@@ -144,4 +232,24 @@ export function fakeLnurlServer(opts: {
       ([input, init]) => (init?.method ?? 'GET') === method && new URL(String(input)).pathname === path,
     )
   return { fetch: fetchMock, addresses, calls }
+}
+
+/** Routes fetch through `server`, holding each quote for `optionId` until released, so a test can look
+ *  at what is exposed between asking and the answer. */
+export function holdQuotes(server: ReturnType<typeof fakeLnurlServer>, optionId: string) {
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => (release = resolve))
+  const held: URL[] = []
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input))
+      if (url.pathname.startsWith('/callback/') && url.searchParams.get('paymentOption') === optionId) {
+        held.push(url)
+        await gate
+      }
+      return server.fetch(input, init)
+    }),
+  )
+  return { held, release }
 }
