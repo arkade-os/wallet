@@ -18,10 +18,6 @@ const PRICE = 63_750 // USD per whole BTC
 // unit-independent, while the BTC "currency" routes through fromBTC/toBTC,
 // which DO depend on the wallet's bitcoin-unit setting.
 const makeFiat = (unit: Unit) => ({
-  fromFiatAmount: (amount: number, currency: Currencies) => {
-    if (currency === Currencies.BTC) return unit === Unit.BTC ? Math.round(amount * 1e8) : Math.floor(amount)
-    return Math.round((amount / PRICE) * 1e8) // fiat -> sats
-  },
   toFiatAmount: (sats: number, currency: Currencies) => {
     if (currency === Currencies.BTC) return unit === Unit.BTC ? sats / 1e8 : sats
     return (sats / 1e8) * PRICE // sats -> fiat
@@ -88,10 +84,9 @@ describe('swapUnitOfAccountAmount', () => {
     // Regression: viewing a BTC-currency swap while the unit is BTC used to
     // route fiatAmount (sats) through fromBTC -> toSatoshis -> x1e8, rendering
     // $102,265,046 for a $1.02 swap.
-    const { toFiatAmount, fromFiatAmount } = makeFiat(Unit.BTC)
+    const { toFiatAmount } = makeFiat(Unit.BTC)
     const result = swapUnitOfAccountAmount({
       currency: Currencies.USD,
-      fromFiatAmount,
       toFiatAmount,
       tx: btcCurrencySwap(),
     })
@@ -100,10 +95,9 @@ describe('swapUnitOfAccountAmount', () => {
 
   it('shows the BTC-leg satoshis when the unit of account is BTC, regardless of unit setting', () => {
     for (const unit of [Unit.SATS, Unit.BTC]) {
-      const { toFiatAmount, fromFiatAmount } = makeFiat(unit)
+      const { toFiatAmount } = makeFiat(unit)
       const result = swapUnitOfAccountAmount({
         currency: Currencies.BTC,
-        fromFiatAmount,
         toFiatAmount,
         tx: btcCurrencySwap(),
       })
@@ -112,12 +106,21 @@ describe('swapUnitOfAccountAmount', () => {
   })
 
   it('reconverts a stable fiat snapshot into the display currency', () => {
-    const { toFiatAmount, fromFiatAmount } = makeFiat(Unit.SATS)
+    const { toFiatAmount } = makeFiat(Unit.SATS)
     const tx = btcCurrencySwap()
     tx.assetSwap!.fiatCurrency = 'USD'
     tx.assetSwap!.fiatAmount = 1.02
-    const result = swapUnitOfAccountAmount({ currency: Currencies.USD, fromFiatAmount, toFiatAmount, tx })
+    const result = swapUnitOfAccountAmount({ currency: Currencies.USD, toFiatAmount, tx })
     expect(result?.value).toBe('$1.02')
+  })
+
+  it('keeps a sub-satoshi fiat snapshot nonzero', () => {
+    const { toFiatAmount } = makeFiat(Unit.SATS)
+    const tx = btcCurrencySwap()
+    tx.assetSwap!.fiatCurrency = 'USD'
+    tx.assetSwap!.fiatAmount = 0.0003 // ~0.47 sats
+    const result = swapUnitOfAccountAmount({ currency: Currencies.USD, toFiatAmount, tx })
+    expect(result?.value).toBe('<$0.01')
   })
 })
 

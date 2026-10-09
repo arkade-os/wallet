@@ -42,7 +42,7 @@ const TransactionLine = ({
   mode: 'virtual' | 'static'
 }) => {
   const { config } = useContext(ConfigContext)
-  const { fromFiatAmount, toFiatAmount } = useContext(FiatContext)
+  const { toFiatAmount } = useContext(FiatContext)
   const { assetMetadataCache } = useContext(WalletContext)
   const { language, t } = useTranslation()
 
@@ -179,12 +179,7 @@ const TransactionLine = ({
   const Right = () => (
     <div className='activity-row__right'>
       {swap ? (
-        <SwapAmountInfo
-          configFiat={config.currency}
-          fromFiatAmount={fromFiatAmount}
-          toFiatAmount={toFiatAmount}
-          tx={tx}
-        />
+        <SwapAmountInfo configFiat={config.currency} toFiatAmount={toFiatAmount} tx={tx} />
       ) : amountDisplay?.primary ? (
         <>
           <span
@@ -215,12 +210,10 @@ const TransactionLine = ({
 
 function SwapAmountInfo({
   configFiat,
-  fromFiatAmount,
   toFiatAmount,
   tx,
 }: {
   configFiat: Currencies
-  fromFiatAmount: (amount: number, currency: Currencies) => number
   toFiatAmount: (satoshis: number, currency: Currencies) => number
   tx: Tx
 }) {
@@ -228,7 +221,6 @@ function SwapAmountInfo({
   const status = swapStatusForTx(tx)
   const amount = swapUnitOfAccountAmount({
     currency: configFiat,
-    fromFiatAmount,
     toFiatAmount,
     tx,
   })
