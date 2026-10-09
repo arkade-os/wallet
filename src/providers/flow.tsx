@@ -1,3 +1,4 @@
+import { readInitialAppIntent, type AppIntentState } from '../lib/appIntent'
 import type { LnSendRequest } from '../lib/lnSwap'
 import { ReactNode, SetStateAction, createContext, useState } from 'react'
 import type { Asset, AssetDetails, ServiceWorkerWalletMode } from '@arkade-os/sdk'
@@ -78,6 +79,7 @@ interface FlowContextProps {
   initInfo: InitInfo
   noteInfo: NoteInfo
   deepLinkInfo: DeepLinkInfo | undefined
+  appIntent: AppIntentState | undefined
   recvInfo: RecvInfo
   sendInfo: SendInfo
   swapFromAssetId: string | undefined
@@ -85,12 +87,14 @@ interface FlowContextProps {
   setInitInfo: (arg0: InitInfo) => void
   setNoteInfo: (arg0: NoteInfo) => void
   setDeepLinkInfo: (arg0: DeepLinkInfo) => void
+  setAppIntent: (arg0: AppIntentState | undefined) => void
   setRecvInfo: (arg0: SetStateAction<RecvInfo>) => void
   setSendInfo: (arg0: SetStateAction<SendInfo>) => void
   setSwapFromAssetId: (arg0: string | undefined) => void
   setTxInfo: (arg0: TxInfo) => void
   assetInfo: AssetDetails
   setAssetInfo: (arg0: AssetDetails) => void
+  resetFlow: () => void
 }
 
 export const emptyInitInfo: InitInfo = {
@@ -125,6 +129,7 @@ export const FlowContext = createContext<FlowContextProps>({
   initInfo: emptyInitInfo,
   noteInfo: emptyNoteInfo,
   deepLinkInfo: undefined,
+  appIntent: undefined,
   recvInfo: emptyRecvInfo,
   sendInfo: emptySendInfo,
   swapFromAssetId: undefined,
@@ -132,23 +137,39 @@ export const FlowContext = createContext<FlowContextProps>({
   setInitInfo: () => {},
   setNoteInfo: () => {},
   setDeepLinkInfo: () => {},
+  setAppIntent: () => {},
   setRecvInfo: () => {},
   setSendInfo: () => {},
   setSwapFromAssetId: () => {},
   setTxInfo: () => {},
   assetInfo: emptyAssetInfo,
   setAssetInfo: () => {},
+  resetFlow: () => {},
 })
 
 export const FlowProvider = ({ children }: { children: ReactNode }) => {
   const [initInfo, setInitInfo] = useState(emptyInitInfo)
   const [noteInfo, setNoteInfo] = useState(emptyNoteInfo)
   const [deepLinkInfo, setDeepLinkInfo] = useState<DeepLinkInfo | undefined>()
+  // Captured during the first render, before any navigation pushState clears the query.
+  const [appIntent, setAppIntent] = useState<AppIntentState | undefined>(readInitialAppIntent)
   const [recvInfo, setRecvInfo] = useState(emptyRecvInfo)
   const [sendInfo, setSendInfo] = useState(emptySendInfo)
   const [swapFromAssetId, setSwapFromAssetId] = useState<string | undefined>()
   const [txInfo, setTxInfo] = useState<TxInfo>()
   const [assetInfo, setAssetInfo] = useState<AssetDetails>(emptyAssetInfo)
+
+  const resetFlow = () => {
+    setAppIntent(undefined)
+    setAssetInfo(emptyAssetInfo)
+    setDeepLinkInfo(undefined)
+    setInitInfo(emptyInitInfo)
+    setNoteInfo(emptyNoteInfo)
+    setRecvInfo(emptyRecvInfo)
+    setSendInfo(emptySendInfo)
+    setSwapFromAssetId(undefined)
+    setTxInfo(undefined)
+  }
 
   return (
     <FlowContext.Provider
@@ -156,6 +177,7 @@ export const FlowProvider = ({ children }: { children: ReactNode }) => {
         initInfo,
         noteInfo,
         deepLinkInfo,
+        appIntent,
         recvInfo,
         sendInfo,
         swapFromAssetId,
@@ -163,12 +185,14 @@ export const FlowProvider = ({ children }: { children: ReactNode }) => {
         setInitInfo,
         setNoteInfo,
         setDeepLinkInfo,
+        setAppIntent,
         setRecvInfo,
         setSendInfo,
         setSwapFromAssetId,
         setTxInfo,
         assetInfo,
         setAssetInfo,
+        resetFlow,
       }}
     >
       {children}
