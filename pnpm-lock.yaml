@@ -236,7 +236,7 @@ packages:
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
   '@arkade-os/lnurl-client@file:vendor/arkade-os-lnurl-client-0.5.0.tgz':
-    resolution: {integrity: sha512-j5AExxhJlp26rzkYLZI2c6B22UBgvhVidz0stIr/VzI3HOBS3u+n7zzln6IcxMgpUnxHItbhH+AqUi0KaXQp4A==, tarball: file:vendor/arkade-os-lnurl-client-0.5.0.tgz}
+    resolution: {integrity: sha512-VTswu4xxPJfvCfdUXLv6R7wHKDtuA9XS7PlPILk8mPCvUR6XTniES1eMC05eKHD+oX5anrO3CyF1fMBWDReXzA==, tarball: file:vendor/arkade-os-lnurl-client-0.5.0.tgz}
     version: 0.5.0
     engines: {node: '>=22.12.0'}
     peerDependencies:
@@ -4179,8 +4179,8 @@ snapshots:
 
   '@arkade-os/lnurl-client@file:vendor/arkade-os-lnurl-client-0.5.0.tgz(@arkade-os/sdk@0.5.0-rc.17)':
     dependencies:
-      '@noble/curves': 2.0.1
-      '@noble/hashes': 2.0.1
+      '@noble/curves': 2.4.0
+      '@noble/hashes': 2.4.0
       '@scure/base': 2.0.0
     optionalDependencies:
       '@arkade-os/sdk': 0.5.0-rc.17
