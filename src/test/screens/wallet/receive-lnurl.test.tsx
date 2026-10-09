@@ -476,7 +476,8 @@ describe('Receive screen, token rails', () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
     renderReceive(20_000, tokensOn)
 
-    await waitFor(() => expect(payRequests()).toHaveLength(2))
+    // One fetch: both rail hooks share the receiver's memoised payRequest (client 0.5.2).
+    await waitFor(() => expect(payRequests()).toHaveLength(1))
     await waitFor(() => expect(callbacks()).toHaveLength(3))
     expect(tokenSelect()).not.toBeInTheDocument()
   })
