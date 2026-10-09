@@ -40,11 +40,11 @@ export const defaultArkServer = () => {
 export const isMainnet = (network: NetworkName | string): boolean =>
   !!network && network !== 'testnet' && network !== 'mutinynet' && network !== 'signet' && network !== 'regtest'
 
-const DELEGATE_URL: Record<NetworkName, string | null> = {
+const DELEGATEE_URL: Record<NetworkName, string | null> = {
   bitcoin: 'https://delegate.arkade.money',
-  mutinynet: `https://delegator.mutinynet.arkade.sh`,
+  mutinynet: 'https://delegatee.mutinynet.arkade.sh',
   signet: null,
-  regtest: 'http://localhost:7012',
+  regtest: 'http://localhost:7280',
   testnet: null,
 }
 
@@ -148,18 +148,18 @@ export const getEmulatorPubkeyOverrideForNetwork = (network: NetworkName): strin
   return configured && COMPRESSED_PUBKEY_HEX.test(configured) ? configured : undefined
 }
 
-export const getDelegateUrlForNetwork = (network: NetworkName): string | undefined => {
-  return DELEGATE_URL[network] ?? undefined
-}
+export const getDelegateeUrlForNetwork = (network: NetworkName): string | undefined =>
+  serviceUrlForNetwork(fromRuntimeEnv(import.meta.env.VITE_DELEGATEE_URL), DELEGATEE_URL, network)
+
+/** @deprecated use getDelegateeUrlForNetwork */
+export const getDelegateUrlForNetwork = getDelegateeUrlForNetwork
 
 export const getDelegateForNetwork = (network: NetworkName): Delegate | undefined => {
-  const url = getDelegateUrlForNetwork(network)
+  const url = getDelegateeUrlForNetwork(network)
   if (!url) return undefined
   return {
     url,
-    fee: 0,
     pubkey: '', // Placeholder, as the actual pubkey should be fetched from the delegate server
-    address: '', // Placeholder, as the actual address should be fetched from the delegate server
     name: 'Arkade Default',
   }
 }

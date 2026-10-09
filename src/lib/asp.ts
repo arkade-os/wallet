@@ -7,12 +7,9 @@ import {
   ExtendedVirtualCoin,
   FeeInfo,
   WalletBalance,
-  DelegateContractHandler,
   IVtxoManager,
   Asset,
   ArkError,
-  DelegateInfo,
-  toXOnlySignerHex,
   isVtxoSpent,
 } from '@arkade-os/sdk'
 import { Addresses, Tx, Vtxo } from './types'
@@ -20,7 +17,6 @@ import { AspInfo } from '../providers/asp'
 import { consoleError } from './logs'
 import { getConfirmedAndNotExpiredUtxos } from './utxo'
 import * as Sentry from '@sentry/react'
-import { hex } from '@scure/base'
 import { arkTransactionToTx, sortLocalTxs } from './transactionHistory'
 import { walletFingerprint } from './sentry'
 
@@ -295,49 +291,6 @@ export const settleVtxos = async (
       ...summarizeInputs(inputs),
     })
     throw error
-  }
-}
-
-export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> => {
-  const cm = await wallet.getContractManager()
-  const contractWithVtxos = await cm.getContractsWithVtxos({ type: 'delegate' }, undefined, { unspentOnly: true })
-  const dm = await wallet.getDelegateManager()
-
-  if (!dm) {
-    throw new Error('Delegator manager not found')
-  }
-
-  let delegateInfo: DelegateInfo
-  try {
-    delegateInfo = await dm.getDelegateInfo()
-  } catch (error) {
-    consoleError(error, 'Error fetching delegate info')
-    return
-  }
-
-  let delegateInfoPubKey: string
-  try {
-    delegateInfoPubKey = toXOnlySignerHex(delegateInfo.pubkey)
-  } catch (error) {
-    consoleError(error, 'Invalid delegate pubkey')
-    return
-  }
-
-  const vtxosToDelegate = contractWithVtxos
-    .filter(({ contract, vtxos }) => {
-      if (vtxos.length === 0) return false
-      const contractParams = DelegateContractHandler.deserializeParams(contract.params)
-      const contractDelegatePubKey = hex.encode(contractParams.delegatePubKey) // x-only (32 bytes)
-      return contractDelegatePubKey === delegateInfoPubKey
-    })
-    // A worker older than SDK 0.4.77 ignores `unspentOnly`.
-    .flatMap((_) => _.vtxos.filter((vtxo) => !isVtxoSpent(vtxo)))
-
-  if (vtxosToDelegate.length === 0) return
-  const destination = await wallet.getAddress()
-  const result = await dm.delegate(vtxosToDelegate, destination)
-  if (result.failed.length > 0) {
-    consoleError(result.failed, 'Delegation partial failure:')
   }
 }
 
