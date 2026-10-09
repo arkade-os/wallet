@@ -36,6 +36,18 @@ async function setup() {
     // Verify nostr relay (nak is a WebSocket server, check container is running)
     await waitForService('nak', 'docker exec nak nak --version', 10, 1000)
 
+    // The e2e faucet is the delegator's Fulmine wallet, which arkade-regtest no longer funds
+    // (arkade-regtest#66): redeem a credit note into it, as it used to.
+    const balance = JSON.parse(execSync('curl -s http://localhost:7011/api/v1/balance').toString())
+    if (BigInt(balance.amount ?? 0) === 0n) {
+      const arkd = `${process.env.REGTEST_CONTAINER_PREFIX ?? ''}arkd`
+      const note = execSync(`docker exec ${arkd} arkd note --amount 100000000`).toString().trim()
+      execSync(
+        `curl -sf -X POST http://localhost:7011/api/v1/note/redeem -H 'Content-Type: application/json' -d '{"note":"${note}"}'`,
+      )
+      console.log('  ✔ faucet funded')
+    }
+
     console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     console.log('  ✓ regtest environment verified')
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n')

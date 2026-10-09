@@ -67,8 +67,6 @@ describe('i18n dictionary integrity', () => {
       'send.bitcoin',
       'components.lnurlAddress',
       'accounts.arknote',
-      'delegate.pubkeyLabel',
-      'delegate.feeLabel',
       'contracts.script',
       'mint.arkadeMint',
       'mint.ticker',

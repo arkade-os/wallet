@@ -24,7 +24,7 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
 | `VITE_APP_VERSION`            | App version string shown in support diagnostics                     | `VITE_APP_VERSION=1.2.3`                                                             |
 | `VITE_CHATWOOT_WEBSITE_TOKEN` | ChatWoot website token for customer support integration             | `VITE_CHATWOOT_WEBSITE_TOKEN=your-token`                                             |
 | `VITE_CHATWOOT_BASE_URL`      | ChatWoot server base URL for customer support integration           | `VITE_CHATWOOT_BASE_URL=https://app.chatwoot.com`                                    |
-| `VITE_DELEGATOR_URL`          | Delegator service URL for the wallet service worker                 | `VITE_DELEGATOR_URL=https://delegator.example.com`                                   |
+| `VITE_DELEGATEE_URL`          | Delegatee service URL for covenant-based delegation                 | `VITE_DELEGATEE_URL=https://delegatee.mutinynet.arkade.sh`                            |
 | `VITE_MAX_PERCENTAGE`         | Override the max fee percentage (default 10)                        | `VITE_MAX_PERCENTAGE=5`                                                              |
 | `VITE_NOSTR_RELAY_URL`        | Override the default Nostr relay URLs for backup                    | `VITE_NOSTR_RELAY_URL=wss://relay.example.com`                                       |
 | `VITE_PSA_MESSAGE`            | Message to show on the wallet index page                            | `VITE_PSA_MESSAGE=@arkade_os on TG for support`                                      |
@@ -36,6 +36,26 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
 | `VITE_VTXO_MIN_AMOUNT`        | Override the server's vtxoMinAmount                                 | `VITE_VTXO_MIN_AMOUNT=330`                                                           |
 | `CI`                          | Set to `true` for Continuous Integration environments               | `CI=true`                                                                            |
 | `GENERATE_SOURCEMAP`          | Disable source map generation during build                          | `GENERATE_SOURCEMAP=false`                                                           |
+
+## Local Mutinynet wallet
+
+```bash
+VITE_ARK_SERVER=https://mutinynet.arkade.sh \
+VITE_DELEGATEE_URL=https://delegatee.mutinynet.arkade.sh \
+pnpm start
+```
+
+Open http://localhost:3002 and enable **Settings → Delegates → Use default Arkade delegate**.
+The SDK is embedded in `vendor/arkade-os-sdk-0.5.0-rc.18-delegatee.tgz`; `pnpm install` uses it
+for both the wallet and its dependencies.
+At every startup with delegation on, the wallet checks the delegatee's server and emulator keys,
+registers the delegatee's default templates for the wallet key (`renewal.json` for VTXOs,
+`boarding.json` for on-chain deposits), sends the VTXOs still at an older contract to the renewal
+address and retires those contracts. The delegatee renews them near expiry at the same address. The wallet counts and spends them like
+its other coins (forfeit with the server, or exit alone after the Ark server's exit delay).
+The keys, params and template ids are kept in the config, which the Nostr backup saves; a
+restored wallet derives the same addresses from its key alone.
+The renewal window and the maximum renewal fee are fixed per network in `src/lib/delegatee.ts`.
 
 ## Docker
 
@@ -152,6 +172,9 @@ Run the tests with:
 ```bash
 pnpm run test:e2e
 ```
+
+`delegate.test.ts` also needs the delegatee of arkade-regtest's `delegatee` profile, at
+`VITE_DELEGATEE_URL` (default `http://localhost:7280`); it skips when no delegatee answers.
 
 Run the tests in interactive mode with:
 
