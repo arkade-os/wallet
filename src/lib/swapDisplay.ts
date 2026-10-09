@@ -103,7 +103,7 @@ function swapAssetDisplayAmount(amount: bigint, decimals: number, ticker: string
   const accountTicker = walletAccountTicker(ticker) ?? ticker
   return {
     masked: prettyHide('hidden', accountTicker),
-    value: `${prettyCurrencyAssetAmount(amount, decimals, accountTicker)} ${accountTicker}`,
+    value: `${prettyCurrencyAssetAmount(amount, decimals, accountTicker, true)} ${accountTicker}`,
   }
 }
 
