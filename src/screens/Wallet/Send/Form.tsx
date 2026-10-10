@@ -1042,6 +1042,32 @@ export default function SendForm() {
     navigate(Pages.SendSuccess)
   }
 
+  const restoreTaxiSend = (send: SendInfo) => {
+    setSendInfo(send)
+    setRecipient(send.arkAddress!)
+    const [asset] = send.assets ?? []
+    if (asset) {
+      const metadata = assetMetadataCache.get(asset.assetId)?.metadata
+      const presentation = rawAssetPresentation(metadata, `${asset.assetId.slice(0, 8)}...`)
+      const option = assetOptions.find((other) => other.assetId === asset.assetId) ?? {
+        assetId: asset.assetId,
+        balance: availableAssetBalances.find((other) => other.assetId === asset.assetId)?.amount ?? 0n,
+        ...presentation,
+        decimals: metadata?.decimals ?? 8,
+        trusted: isVerifiedAsset(asset.assetId),
+      }
+      setSelectedAsset(option)
+      setEntryMode('unit')
+      setAmountTextValue(centsToUnits(asset.amount, option.decimals))
+      setValueSats(undefined)
+    } else {
+      setSelectedAsset(null)
+      const sats = send.satoshis ?? 0
+      setAmountTextValue(sats ? getTextValue(sats) : '')
+      setValueSats(sats || undefined)
+    }
+  }
+
   const payWithDirectTaxi = async (forget = false) => {
     const originalSend = pendingDirectTaxi.current?.send ?? sendInfo
     try {
@@ -1069,8 +1095,7 @@ export default function SendForm() {
       pendingDirectTaxi.current = undefined
       // Only forget() settles without a txid, once it has cleared the record.
       if (txid === undefined) {
-        setSendInfo(originalSend)
-        setRecipient(originalSend.arkAddress!)
+        restoreTaxiSend(originalSend)
         setError('')
         return setProcessing(false)
       }
@@ -1080,8 +1105,7 @@ export default function SendForm() {
     } catch (error) {
       if (error instanceof ReturnedDirectTaxi) {
         pendingDirectTaxi.current = undefined
-        setSendInfo(pendingSendInfo(error))
-        setRecipient(error.record.receiverAddress)
+        restoreTaxiSend(pendingSendInfo(error))
         setReturnedTaxiNotice(error.message)
         setError('')
         setProcessing(false)

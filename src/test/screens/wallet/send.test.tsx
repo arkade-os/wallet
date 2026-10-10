@@ -8,7 +8,13 @@ vi.mock('../../../lib/directTaxiSend', async () => {
   const actual = await vi.importActual<typeof import('../../../lib/directTaxiSend')>('../../../lib/directTaxiSend')
   return { ...actual, getPendingDirectTaxi: vi.fn(), sendDirectTaxi: vi.fn() }
 })
-import { FailedDirectTaxi, PendingDirectTaxi, getPendingDirectTaxi, sendDirectTaxi } from '../../../lib/directTaxiSend'
+import {
+  FailedDirectTaxi,
+  PendingDirectTaxi,
+  ReturnedDirectTaxi,
+  getPendingDirectTaxi,
+  sendDirectTaxi,
+} from '../../../lib/directTaxiSend'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import createFetchMock from 'vitest-fetch-mock'
 import { emptySendInfo, FlowContext } from '../../../providers/flow'
@@ -503,6 +509,81 @@ describe('Send screen', () => {
     )
     return { payment, resume, forget }
   }
+
+  it.each(['returned', 'forgotten'] as const)(
+    'restores the bitcoin amount field when a pending Taxi payment is %s',
+    async (outcome) => {
+      const { payment, resume, forget } = pendingPayment()
+      if (outcome === 'returned') resume.mockRejectedValue(new ReturnedDirectTaxi(payment.record))
+      else resume.mockRejectedValue(payment)
+      vi.mocked(getPendingDirectTaxi).mockResolvedValue(payment)
+      const { setSendInfo } = appSendSetup(false)
+      const button = await screen.findByText(outcome === 'returned' ? 'Check Taxi payment' : 'Forget Taxi payment')
+      fireEvent.click(button)
+      await waitFor(() => expect(document.querySelector('input[name="send-amount"]')).toHaveValue(100))
+      expect(await screen.findByText('0.00000100 BTC')).toBeInTheDocument()
+      expect(setSendInfo).toHaveBeenCalledWith({ arkAddress: 'old-taxi-recipient', satoshis: 100 })
+      expect(forget).toHaveBeenCalledTimes(outcome === 'forgotten' ? 1 : 0)
+      expect(sendDirectTaxi).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each(['returned', 'forgotten'] as const)(
+    'restores the recorded asset amount with its own decimals when a pending Taxi payment is %s',
+    async (outcome) => {
+      const { payment, resume, forget } = pendingPayment()
+      const record = { ...payment.record, assetId: 'recorded-asset', assetAmount: '12345' }
+      const pending = new FailedDirectTaxi(record, resume, 'pending', undefined, forget)
+      if (outcome === 'returned') resume.mockRejectedValue(new ReturnedDirectTaxi(record))
+      else resume.mockRejectedValue(pending)
+      vi.mocked(getPendingDirectTaxi).mockResolvedValue(pending)
+      const setSendInfo = vi.fn()
+      renderSendForm({
+        flowContext: {
+          ...mockFlowContextValue,
+          sendInfo: {
+            ...emptySendInfo,
+            recipient: 'bitcoin:bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
+            assets: [{ assetId: 'other-asset', amount: 1n }],
+          },
+          setSendInfo,
+        },
+        walletContext: {
+          ...mockWalletContextValue,
+          availableBalance: 1_000_000,
+          assetBalances: [
+            { assetId: 'recorded-asset', amount: 20000n },
+            { assetId: 'other-asset', amount: 100n },
+          ] as any,
+          availableAssetBalances: [
+            { assetId: 'recorded-asset', amount: 20000n },
+            { assetId: 'other-asset', amount: 100n },
+          ] as any,
+          assetMetadataCache: new Map([
+            ['recorded-asset', { metadata: { name: 'Recorded', ticker: 'REC', decimals: 2 } } as any],
+            ['other-asset', { metadata: { name: 'Other', ticker: 'OTHER', decimals: 0 } } as any],
+          ]),
+          svcWallet: {
+            ...mockSvcWallet,
+            getAddress: () => 'tark1mockoffchain',
+            getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+          } as any,
+        },
+      })
+      await waitFor(() => expect(screen.getByTestId('asset-selector')).toHaveTextContent('OTHER'))
+      const button = await screen.findByText(outcome === 'returned' ? 'Check Taxi payment' : 'Forget Taxi payment')
+      fireEvent.click(button)
+      await waitFor(() => expect(document.querySelector('input[name="send-amount"]')).toHaveValue(123.45))
+      expect(screen.getByTestId('asset-selector')).toHaveTextContent('REC')
+      expect(setSendInfo).toHaveBeenCalledWith({
+        arkAddress: 'old-taxi-recipient',
+        assets: [{ assetId: 'recorded-asset', amount: 12345n }],
+        satoshis: 0,
+      })
+      expect(forget).toHaveBeenCalledTimes(outcome === 'forgotten' ? 1 : 0)
+      expect(sendDirectTaxi).not.toHaveBeenCalled()
+    },
+  )
 
   const appSendSetup = (app = true) => {
     const navigate = vi.fn()
