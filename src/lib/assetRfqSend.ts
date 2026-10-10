@@ -1,13 +1,9 @@
 import { type ArkInfo, type IWallet, type NetworkName } from '@arkade-os/sdk'
 import { fundOffer } from '@arkade-os/swap'
+import { boundedFetch } from '@arkade-taxi/client/wallet'
+import { requestCarrierArkadeSwap } from './carrierRfq'
 import type { DiscoveredMarket } from '@arkade-os/solver-discovery'
-import {
-  assetRfqSolvers,
-  boundedFetch,
-  requestTaxiArkadeSwap,
-  type AssetRfqSendDeps,
-  type PayRailUi,
-} from '@arkade-taxi/client/wallet'
+import { assetRfqSolvers, type AssetRfqSendDeps, type PayRailUi } from './assetRfqWorkflow'
 import { getEmulatorPubkeyOverrideForNetwork } from './constants'
 import { consoleError } from './logs'
 import { withRfqTransport } from './nostrRfq'
@@ -21,7 +17,7 @@ export {
   routesToReceiverTaxi,
   type AssetPaymentTerms,
   type PayRailUi,
-} from '@arkade-taxi/client/wallet'
+} from './assetRfqWorkflow'
 
 export const walletAssetRfqDeps = (args: {
   aspInfo: Pick<ArkInfo, 'network' | 'signerPubkey' | 'dust' | 'vtxoMinAmount' | 'vtxoTreeExpiry'> & {
@@ -42,7 +38,7 @@ export const walletAssetRfqDeps = (args: {
     pageProtocol: window.location.protocol,
     repository: assetSwapRepository,
     emulatorPubkey: getEmulatorPubkeyOverrideForNetwork(args.aspInfo.network as NetworkName),
-    requestArkadeSwap: requestTaxiArkadeSwap,
+    requestArkadeSwap: requestCarrierArkadeSwap,
     fundOffer,
     unreservedCoins: (wallet) => unreservedCoins(wallet, assetSwapRepository),
     withRfqTransport,

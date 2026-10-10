@@ -19,7 +19,7 @@ import {
   CANDIDATE_SDK_SYMBOL,
   CANDIDATE_SWAP_SYMBOL,
   CANDIDATE_TAXI_SYMBOL,
-  CANDIDATE_TAXI_RFQ_SYMBOL,
+  CANDIDATE_TAXI_FILL_SYMBOL,
   PINNED_PACKAGES,
   PINNED_SOURCES,
   VENDOR_DIR,
@@ -121,6 +121,8 @@ try {
   const beforeInstall = Object.fromEntries(taxiTarballs.map((path) => [path, sha256(readFileSync(path))]))
 
   const consumerManifest = harness.buildConsumerManifest(taxiTarballs, consumer)
+  consumerManifest.dependencies['@arkade-os/sdk'] = spec(consumer, candidate['@arkade-os/sdk'])
+  consumerManifest.dependencies['@arkade-os/swap'] = spec(consumer, candidate['@arkade-os/swap'])
   consumerManifest.pnpm.overrides['@arkade-os/sdk'] = spec(consumer, candidate['@arkade-os/sdk'])
   consumerManifest.pnpm.overrides['@arkade-os/swap'] = spec(consumer, candidate['@arkade-os/swap'])
   writeFileSync(join(consumer, 'package.json'), `${JSON.stringify(consumerManifest, null, 2)}\n`)
@@ -144,13 +146,17 @@ try {
     ['@arkade-os/sdk', CANDIDATE_SDK_SYMBOL],
     ['@arkade-os/swap', CANDIDATE_SWAP_SYMBOL],
   ])
-    await assertCandidateExport(packageRootFrom(entry, name), name, symbol)
-  for (const symbol of [CANDIDATE_TAXI_SYMBOL, CANDIDATE_TAXI_RFQ_SYMBOL])
+    await assertCandidateExport(packageRootFrom(join(consumer, 'package.json'), name), name, symbol)
+  for (const [symbol, subpath, requiredMethod] of [
+    [CANDIDATE_TAXI_SYMBOL, './wallet'],
+    [CANDIDATE_TAXI_FILL_SYMBOL, '.', 'submitFill'],
+  ])
     await assertCandidateExport(
       packageRootFrom(entry, '@arkade-taxi/client'),
       '@arkade-taxi/client',
       symbol,
-      './wallet',
+      subpath,
+      requiredMethod,
     )
   await import(pathToFileURL(entry).href)
 

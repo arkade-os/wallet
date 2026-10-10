@@ -11,7 +11,7 @@ import {
   CANDIDATE_SDK_SYMBOL,
   CANDIDATE_SWAP_SYMBOL,
   CANDIDATE_TAXI_SYMBOL,
-  CANDIDATE_TAXI_RFQ_SYMBOL,
+  CANDIDATE_TAXI_FILL_SYMBOL,
   DIRECT_DEPENDENCIES,
   MANIFEST_PATH,
   PINNED_PACKAGES,
@@ -148,7 +148,7 @@ if (entry) {
     ['@arkade-os/sdk', CANDIDATE_SDK_SYMBOL],
     ['@arkade-os/swap', CANDIDATE_SWAP_SYMBOL],
   ]) {
-    const roots = [at('package.json'), entry]
+    const roots = name === '@arkade-os/sdk' ? [at('package.json'), entry] : [at('package.json')]
     for (const from of roots) {
       try {
         await assertCandidateExport(packageRootFrom(from, name), name, symbol)
@@ -157,13 +157,17 @@ if (entry) {
       }
     }
   }
-  for (const symbol of [CANDIDATE_TAXI_SYMBOL, CANDIDATE_TAXI_RFQ_SYMBOL]) {
+  for (const [symbol, subpath, requiredMethod] of [
+    [CANDIDATE_TAXI_SYMBOL, './wallet'],
+    [CANDIDATE_TAXI_FILL_SYMBOL, '.', 'submitFill'],
+  ]) {
     try {
       await assertCandidateExport(
         packageRootFrom(entry, '@arkade-taxi/client'),
         '@arkade-taxi/client',
         symbol,
-        './wallet',
+        subpath,
+        requiredMethod,
       )
     } catch (error) {
       failures.push(error.message)

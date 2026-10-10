@@ -1,8 +1,8 @@
-import { CarrierMetadataError, type CarrierActivity, type CarrierState } from '@arkade-taxi/client/wallet'
+import { CarrierMetadataError, type CarrierActivity, type CarrierState } from './carrierMetadata'
 import { translate } from './i18n'
 import { Language } from './types'
 
-export { hasTaxiCarrier, isCanonicalTxid, readCarrierActivity, type CarrierActivity } from '@arkade-taxi/client/wallet'
+export { hasTaxiCarrier, isCanonicalTxid, readCarrierActivity, type CarrierActivity } from './carrierMetadata'
 
 const MAX_SATS = 2_100_000_000_000_000n
 

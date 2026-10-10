@@ -13,8 +13,8 @@ export const MANIFEST_PATH = `${VENDOR_DIR}/manifest.json`
 
 const TS_SDK = 'https://github.com/arkade-os/ts-sdk.git'
 const ARKADE_TAXI = 'https://github.com/ArkLabsHQ/arkade-taxi.git'
-const SDK_COMMIT = '010f0dd29b8ea54efd5c04c97a40aca406d0c216'
-const TAXI_COMMIT = '11f954914573dec8aa34a60182f4648aee4d448b'
+const SDK_COMMIT = 'e614c953d6ce929a04698d6e72bdc73f3d4bc29d'
+const TAXI_COMMIT = 'f445a800977775d46d6145599b4f618d876ed75a'
 
 // Moving to a new candidate is an edit HERE, so `verify.mjs` can refuse an
 // archive whose manifest names any other commit.
@@ -44,12 +44,11 @@ export function pinnedSourceMismatch(artifact) {
 
 export const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex')
 
-// What separates each candidate from the REGISTRY build: both symbols were added
-// in `adc6b329` and neither published build of any version exports one.
-export const CANDIDATE_SWAP_SYMBOL = 'FundingOutputMismatchError'
+// Capabilities required from these frozen candidates.
+export const CANDIDATE_SWAP_SYMBOL = 'buildOfferFillPlan'
 export const CANDIDATE_SDK_SYMBOL = 'SendDeadlineExceededError'
 export const CANDIDATE_TAXI_SYMBOL = 'TaxiClaimQueue'
-export const CANDIDATE_TAXI_RFQ_SYMBOL = 'requestTaxiArkadeSwap'
+export const CANDIDATE_TAXI_FILL_SYMBOL = 'TaxiClient'
 
 // A gzipped tar without a tar dependency: decode the POSIX ustar fields, skip the rest by size.
 export function readTarMember(archivePath, member) {
@@ -152,7 +151,7 @@ export function packageRootFrom(fromFile, name) {
 
 // Load what actually resolved and require the named export. An import that
 // merely succeeds does not separate a candidate from the registry build.
-export async function assertCandidateExport(packageRoot, name, symbol, subpath = '.') {
+export async function assertCandidateExport(packageRoot, name, symbol, subpath = '.', requiredMethod) {
   const manifest = readJson(join(packageRoot, 'package.json'))
   const exported = manifest.exports?.[subpath]
   const entry =
@@ -165,5 +164,7 @@ export async function assertCandidateExport(packageRoot, name, symbol, subpath =
   const namespace = await import(pathToFileURL(join(packageRoot, entry)).href)
   if (!(symbol in namespace))
     throw new Error(`${name} resolved to ${packageRoot}, which does not export ${symbol}: that is not the candidate`)
+  if (requiredMethod && typeof namespace[symbol]?.prototype?.[requiredMethod] !== 'function')
+    throw new Error(`${name} resolved to ${packageRoot}, which has no callable ${symbol}.${requiredMethod}`)
   return packageRoot
 }
