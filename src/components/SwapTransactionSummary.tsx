@@ -14,14 +14,13 @@ interface SwapTransactionSummaryProps {
 
 export default function SwapTransactionSummary({ fromIcon, toIcon, tx }: SwapTransactionSummaryProps) {
   const { config } = useContext(ConfigContext)
-  const { fromFiatAmount, toFiatAmount } = useContext(FiatContext)
+  const { toFiatAmount } = useContext(FiatContext)
   const swap = tx.assetSwap
 
   if (!swap) return null
 
   const amount = swapUnitOfAccountAmount({
     currency: config.currency,
-    fromFiatAmount,
     toFiatAmount,
     tx,
   })

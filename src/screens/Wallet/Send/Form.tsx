@@ -47,6 +47,8 @@ import {
   type AssetPaymentTerms,
   type PayRailUi,
 } from '../../../lib/assetRfqSend'
+import { appIntentHandoff, redirectToCallback } from '../../../lib/appIntent'
+import OpenInApp from '../../AppIntent/OpenInApp'
 import { InfoLine } from '../../../components/Info'
 import { centsToUnits, liquidBtcBalance, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
@@ -182,7 +184,7 @@ export default function SendForm() {
   const { config, effectiveTheme, useFiat } = useContext(ConfigContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const { toFiat, fromFiat, fiatDecimals } = useContext(FiatContext)
-  const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
+  const { appIntent, sendInfo, resetFlow, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
   const { t } = useTranslation()
@@ -210,9 +212,10 @@ export default function SendForm() {
   const [keys, setKeys] = useState(false)
   const [proceed, setProceed] = useState(false)
   const [processing, setProcessing] = useState(false)
-  const [readyToParse, setReadyToParse] = useState(false)
+  // sendInfo.recipient survives a remount when the user comes back from details.
+  const [readyToParse, setReadyToParse] = useState(Boolean(sendInfo.recipient))
   const [parsingRecipient, setParsingRecipient] = useState(false)
-  const [recipient, setRecipient] = useState('')
+  const [recipient, setRecipient] = useState(sendInfo.recipient ?? '')
   const [recipientError, setRecipientError] = useState('')
   const [receivingAddresses, setReceivingAddresses] = useState<Addresses>()
   const [scan, setScan] = useState(false)
@@ -263,6 +266,7 @@ export default function SendForm() {
       .then((payment) => {
         if (!active) return
         if (payment && !pendingDirectTaxi.current) {
+          if (appIntent?.status === 'send') return leaveAppSend()
           pendingDirectTaxi.current = { payment, send: pendingSendInfo(payment) }
           setError(payment.message)
         }
@@ -282,6 +286,13 @@ export default function SendForm() {
   }, [svcWallet, aspInfo.network])
 
   const timeoutRef = useRef<NodeJS.Timeout>()
+
+  const leaveAppSend = () => {
+    const handoff = appIntentHandoff(appIntent, 'denied')
+    resetFlow()
+    if (handoff) redirectToCallback(handoff.callback, handoff.params)
+    else navigate(Pages.Wallet)
+  }
 
   const prefersReducedMotion = useReducedMotion()
   const accountAsset = useMemo<AssetOption | null>(
@@ -1098,8 +1109,10 @@ export default function SendForm() {
     const satoshis = sendInfo.satoshis ?? 0
     try {
       const recorded = await getPendingDirectTaxi(svcWallet, aspInfo.network)
-      if (recorded && !pendingDirectTaxi.current)
+      if (recorded && !pendingDirectTaxi.current) {
+        if (appIntent?.status === 'send') return leaveAppSend()
         pendingDirectTaxi.current = { payment: recorded, send: pendingSendInfo(recorded) }
+      }
       if (pendingDirectTaxi.current) return await payWithDirectTaxi()
       if (payViaReceiverTaxi && sendInfo.arkAddress) return await payWithReceiverTaxi()
       if (payViaDirectTaxi) return await payWithDirectTaxi()
@@ -1355,7 +1368,7 @@ export default function SendForm() {
         className='send-form'
         style={{ display: 'flex', flexDirection: 'column', height: '100%' }}
       >
-        <Header text={t('send.title')} back />
+        <Header text={t('send.title')} back={appIntent?.status === 'send' ? leaveAppSend : true} />
         <Content>
           <Padded>
             <FlexCol gap='1.25rem' className='send-form-stack'>
@@ -1368,6 +1381,7 @@ export default function SendForm() {
                   {`Taxi transfer ${failedTaxi.record.transferId}: its coins may stay locked until the operator resolves it. Forgetting it lets you send again; it does not cancel it, and if the operator later completes it, sending again pays the receiver twice.`}
                 </TextSecondary>
               ) : null}
+              <OpenInApp />
               <InputAddress
                 error={recipientError}
                 focus={focus === 'recipient'}

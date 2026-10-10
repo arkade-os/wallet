@@ -1629,9 +1629,10 @@ function estimateRowUsdPrice(
   const convertFiat = (amount: number, from: Currencies, to: Currencies) =>
     toFiatAmount(fromFiatAmount(amount, from), to)
   if (row.assetId === 'btc' || ticker === 'BTC') return convertFiat(toFiat(100_000_000), fiat, Currencies.USD)
-  if (ticker === 'USD' || ticker === 'USDT' || ticker === 'USDC' || ticker === 'AUSD')
-    return convertFiat(1, Currencies.USD, Currencies.USD)
-  if (ticker === 'CHF') return convertFiat(1, Currencies.CHF, Currencies.USD)
+  // verified fiat accounts price from their designation, not their ticker —
+  // and the row's full-precision fiatAmount never has to divide a truncated balance
+  if (row.fiatCurrency) return convertFiat(1, row.fiatCurrency, Currencies.USD)
+  if (ticker === 'USDT' || ticker === 'USDC' || ticker === 'AUSD') return convertFiat(1, Currencies.USD, Currencies.USD)
 
   const rawBalance = typeof row.balance === 'bigint' ? Number(row.balance) : row.balance
   const unitBalance = rawBalance / 10 ** row.decimals

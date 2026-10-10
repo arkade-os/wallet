@@ -1,4 +1,14 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('../../../lib/appIntent', async () => {
+  const actual = await vi.importActual<typeof import('../../../lib/appIntent')>('../../../lib/appIntent')
+  return { ...actual, redirectToCallback: vi.fn() }
+})
+vi.mock('../../../lib/directTaxiSend', async () => {
+  const actual = await vi.importActual<typeof import('../../../lib/directTaxiSend')>('../../../lib/directTaxiSend')
+  return { ...actual, getPendingDirectTaxi: vi.fn(), sendDirectTaxi: vi.fn() }
+})
+import { FailedDirectTaxi, PendingDirectTaxi, getPendingDirectTaxi, sendDirectTaxi } from '../../../lib/directTaxiSend'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import createFetchMock from 'vitest-fetch-mock'
 import { emptySendInfo, FlowContext } from '../../../providers/flow'
@@ -16,7 +26,8 @@ import {
 } from '../mocks'
 import { AspContext } from '../../../providers/asp'
 import { WalletContext } from '../../../providers/wallet'
-import { NavigationContext } from '../../../providers/navigation'
+import { NavigationContext, Pages } from '../../../providers/navigation'
+import { redirectToCallback } from '../../../lib/appIntent'
 import SendForm from '../../../screens/Wallet/Send/Form'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
@@ -24,14 +35,24 @@ import { OptionsContext } from '../../../providers/options'
 import { Currencies, Unit } from '../../../lib/types'
 
 describe('Send screen', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+  })
+  beforeEach(() => {
+    vi.mocked(getPendingDirectTaxi).mockReset().mockResolvedValue(undefined)
+    vi.mocked(sendDirectTaxi).mockReset()
+    vi.mocked(redirectToCallback).mockClear()
+  })
   const renderSendForm = ({
     configContext = mockConfigContextValue,
     fiatContext = mockFiatContextValue,
     flowContext = mockFlowContextValue,
+    navigationContext = mockNavigationContextValue,
     walletContext = { ...mockWalletContextValue, svcWallet: mockSvcWallet as any },
   } = {}) =>
     render(
-      <NavigationContext.Provider value={mockNavigationContextValue}>
+      <NavigationContext.Provider value={navigationContext}>
         <AspContext.Provider value={mockAspContextValue}>
           <ConfigContext.Provider value={configContext as any}>
             <FiatContext.Provider value={fiatContext as any}>
@@ -377,5 +398,252 @@ describe('Send screen', () => {
 
     expect(await screen.findByTestId('error-message')).toHaveTextContent(/partial send/)
     expect(screen.getByText('Continue').closest('button')).toBeDisabled()
+  })
+
+  it('shows the payment request the app link already stored', async () => {
+    const request = 'bitcoin:bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4?amount=0.0001'
+    const walletValue = {
+      ...mockWalletContextValue,
+      svcWallet: {
+        ...mockSvcWallet,
+        getAddress: () => 'tark1mockoffchain',
+        getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+      } as any,
+    }
+    renderSendForm({
+      flowContext: {
+        ...mockFlowContextValue,
+        appIntent: { status: 'send', request, callback: 'https://arkade.trade/vault' },
+        sendInfo: { ...emptySendInfo, recipient: request },
+      },
+      walletContext: walletValue,
+    })
+
+    expect(await screen.findByDisplayValue(request)).toBeInTheDocument()
+  })
+
+  it('returns to the app with error=denied when the send is dismissed', () => {
+    vi.mocked(redirectToCallback).mockClear()
+    const resetFlow = vi.fn()
+    const callback = 'https://arkade.trade/vault'
+    renderSendForm({
+      flowContext: {
+        ...mockFlowContextValue,
+        appIntent: {
+          status: 'send',
+          request: 'bitcoin:bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
+          callback,
+        },
+        resetFlow,
+      },
+      walletContext: {
+        ...mockWalletContextValue,
+        svcWallet: {
+          ...mockSvcWallet,
+          getAddress: () => 'tark1mockoffchain',
+          getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+        } as any,
+      },
+    })
+
+    fireEvent.click(screen.getByLabelText('Go back'))
+    expect(resetFlow).toHaveBeenCalled()
+    expect(redirectToCallback).toHaveBeenCalledWith(callback, { error: 'denied' })
+  })
+
+  it('returns to the wallet when an app send without a callback is dismissed', () => {
+    vi.mocked(redirectToCallback).mockClear()
+    const resetFlow = vi.fn()
+    const navigate = vi.fn()
+    renderSendForm({
+      flowContext: {
+        ...mockFlowContextValue,
+        appIntent: {
+          status: 'send',
+          request: 'bitcoin:bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
+        },
+        resetFlow,
+      },
+      navigationContext: { ...mockNavigationContextValue, navigate },
+      walletContext: {
+        ...mockWalletContextValue,
+        svcWallet: {
+          ...mockSvcWallet,
+          getAddress: () => 'tark1mockoffchain',
+          getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+        } as any,
+      },
+    })
+
+    fireEvent.click(screen.getByLabelText('Go back'))
+    expect(resetFlow).toHaveBeenCalled()
+    expect(redirectToCallback).not.toHaveBeenCalled()
+    expect(navigate).toHaveBeenCalledWith(Pages.Wallet)
+  })
+  const pendingPayment = () => {
+    const resume = vi.fn().mockResolvedValue('old-taxi-txid')
+    const forget = vi.fn()
+    const payment = new FailedDirectTaxi(
+      {
+        network: 'regtest',
+        senderKey: '11'.repeat(32),
+        taxiUrl: 'https://taxi.example',
+        operatorKey: '22'.repeat(32),
+        transferId: 'old-taxi-transfer',
+        expectedTxid: '33'.repeat(32),
+        expectedVout: 0,
+        mode: 'recycle',
+        receiverAddress: 'old-taxi-recipient',
+        assetAmount: '100',
+      },
+      resume,
+      'pending',
+      undefined,
+      forget,
+    )
+    return { payment, resume, forget }
+  }
+
+  const appSendSetup = (app = true) => {
+    const navigate = vi.fn()
+    const resetFlow = vi.fn()
+    const setSendInfo = vi.fn()
+    const sendBitcoin = vi.fn()
+    const callback = 'https://arkade.trade/new-payment'
+    const request = 'bitcoin:bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4?amount=0.0001'
+    renderSendForm({
+      flowContext: {
+        ...mockFlowContextValue,
+        appIntent: app ? { status: 'send', request, callback } : undefined,
+        sendInfo: {
+          ...emptySendInfo,
+          address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
+          recipient: request,
+          satoshis: 10_000,
+        },
+        setSendInfo,
+        resetFlow,
+      },
+      navigationContext: { ...mockNavigationContextValue, navigate },
+      walletContext: {
+        ...mockWalletContextValue,
+        availableBalance: 1_000_000,
+        svcWallet: {
+          ...mockSvcWallet,
+          sendBitcoin,
+          getAddress: () => 'tark1mockoffchain',
+          getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+        } as any,
+      },
+    })
+    return { navigate, resetFlow, setSendInfo, sendBitcoin, callback }
+  }
+
+  it.each(['startup', 'continue'] as const)(
+    'denies a new app request when %s discovers an older pending Taxi payment',
+    async (discovery) => {
+      const { payment, resume, forget } = pendingPayment()
+      if (discovery === 'startup') vi.mocked(getPendingDirectTaxi).mockResolvedValue(payment)
+      else vi.mocked(getPendingDirectTaxi).mockResolvedValueOnce(undefined).mockResolvedValue(payment)
+      const { callback, resetFlow, navigate, setSendInfo, sendBitcoin } = appSendSetup()
+      if (discovery === 'continue') {
+        const button = screen.getByText('Continue').closest('button')!
+        await waitFor(() => expect(button).toBeEnabled())
+        fireEvent.click(button)
+      }
+      await waitFor(() => expect(redirectToCallback).toHaveBeenCalledWith(callback, { error: 'denied' }))
+      expect(resetFlow).toHaveBeenCalledOnce()
+      expect(resume).not.toHaveBeenCalled()
+      expect(forget).not.toHaveBeenCalled()
+      expect(sendDirectTaxi).not.toHaveBeenCalled()
+      expect(sendBitcoin).not.toHaveBeenCalled()
+      expect(navigate).not.toHaveBeenCalledWith(Pages.SendSuccess)
+      expect(setSendInfo).not.toHaveBeenCalledWith(expect.objectContaining({ txid: 'old-taxi-txid' }))
+      expect(redirectToCallback).toHaveBeenCalledOnce()
+    },
+  )
+
+  it('still resumes the older Taxi payment outside an app request', async () => {
+    const { payment, resume, forget } = pendingPayment()
+    vi.mocked(getPendingDirectTaxi).mockResolvedValue(payment)
+    const { navigate, setSendInfo } = appSendSetup(false)
+    const button = await screen.findByText('Check Taxi payment')
+    fireEvent.click(button)
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendSuccess))
+    expect(resume).toHaveBeenCalledOnce()
+    expect(forget).not.toHaveBeenCalled()
+    expect(sendDirectTaxi).not.toHaveBeenCalled()
+    expect(setSendInfo).toHaveBeenCalledWith({ arkAddress: 'old-taxi-recipient', satoshis: 100, txid: 'old-taxi-txid' })
+    expect(redirectToCallback).not.toHaveBeenCalled()
+  })
+
+  it('continues a new app request normally when no Taxi payment is pending', async () => {
+    const { navigate, resetFlow } = appSendSetup()
+    const button = screen.getByText('Continue').closest('button')!
+    await waitFor(() => expect(button).toBeEnabled())
+    fireEvent.click(button)
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails))
+    expect(resetFlow).not.toHaveBeenCalled()
+    expect(redirectToCallback).not.toHaveBeenCalled()
+    expect(sendDirectTaxi).not.toHaveBeenCalled()
+  })
+
+  it('checks an app request own held Taxi submission without denying or sending again', async () => {
+    vi.stubEnv('VITE_TAXI_URL', 'http://localhost:7070')
+    vi.stubGlobal('PointerEvent', MouseEvent)
+    const receiver =
+      'tark1qplnj2gett9j483fchy6chaxn4y52c4g7n5djh9xua3ywdxw0ldatc3e9xcj9xpx0r5tmr0dgvu2f4s352muklg0tcxx0scnnkraajy9jgz4xl'
+    const assetId = '44'.repeat(32)
+    const resume = vi.fn().mockResolvedValue('new-taxi-txid')
+    const pending = new PendingDirectTaxi(
+      {
+        ...pendingPayment().payment.record,
+        receiverAddress: receiver,
+        assetId,
+        assetAmount: '100',
+      },
+      resume,
+      new Error('reply lost'),
+    )
+    vi.mocked(sendDirectTaxi).mockRejectedValue(pending)
+    const navigate = vi.fn()
+    const resetFlow = vi.fn()
+    const setSendInfo = vi.fn()
+    renderSendForm({
+      flowContext: {
+        ...mockFlowContextValue,
+        appIntent: { status: 'send', request: receiver, callback: 'https://arkade.trade/new-payment' },
+        sendInfo: { ...emptySendInfo, arkAddress: receiver, assets: [{ assetId, amount: 100n }], satoshis: 0 },
+        setSendInfo,
+        resetFlow,
+      },
+      navigationContext: { ...mockNavigationContextValue, navigate },
+      walletContext: {
+        ...mockWalletContextValue,
+        availableBalance: 1_000_000,
+        assetBalances: [{ assetId, amount: 100n }] as any,
+        availableAssetBalances: [{ assetId, amount: 100n }] as any,
+        assetMetadataCache: new Map([[assetId, { metadata: { name: 'Asset', ticker: 'ASSET', decimals: 0 } } as any]]),
+        svcWallet: {
+          ...mockSvcWallet,
+          getAddress: () => receiver,
+          getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+        } as any,
+      },
+    })
+    fireEvent.click(await screen.findByTestId('taxi-send-mode'))
+    fireEvent.click(screen.getByRole('radio', { name: 'Receiver uses own sats' }))
+    const button = screen.getByText('Continue').closest('button')!
+    await waitFor(() => expect(button).toBeEnabled())
+    fireEvent.click(button)
+    const check = await screen.findByText('Check Taxi payment')
+    vi.mocked(getPendingDirectTaxi).mockResolvedValue(pending)
+    fireEvent.click(check)
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendSuccess))
+    expect(sendDirectTaxi).toHaveBeenCalledOnce()
+    expect(resume).toHaveBeenCalledOnce()
+    expect(resetFlow).not.toHaveBeenCalled()
+    expect(redirectToCallback).not.toHaveBeenCalled()
+    expect(setSendInfo).toHaveBeenCalledWith(expect.objectContaining({ txid: 'new-taxi-txid' }))
   })
 })
