@@ -234,7 +234,7 @@ packages:
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
   '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.5.0-rc.18-delegatee.tgz':
-    resolution: {integrity: sha512-aNHIEVexRBPZuUxBl32y8eFiRFGx8c+OGsjgjnCvBiVCCxVBoiMZgq9Sd34X8kiAhh/gL2JZFUVQVNJbuLeZGg==, tarball: file:vendor/arkade-os-sdk-0.5.0-rc.18-delegatee.tgz}
+    resolution: {integrity: sha512-4L/kTeCpYeNUO5eaLzjW0GhPe11EVydMuhLcFPnoLbL2l20avAcFiFwMY6CLAoFnAboVDA//yy785SS6kR8SEg==, tarball: file:vendor/arkade-os-sdk-0.5.0-rc.18-delegatee.tgz}
     version: 0.5.0-rc.18
     engines: {node: '>=22.13.0 <27'}
     peerDependencies:
