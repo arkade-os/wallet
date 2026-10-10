@@ -1,4 +1,5 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App, { appReloader } from '../App'
 import { AspContext } from '../providers/asp'
@@ -15,8 +16,17 @@ import {
   mockOptionsContextValue,
   mockWalletContextValue,
 } from './screens/mocks'
+import { SwapsContext } from '../providers/swaps'
+import type { Outcome } from '@arkade-os/swap'
+import { redirectToCallback } from '../lib/appIntent'
 import { defaultPassword } from '../lib/constants'
 import { detectJSCapabilities } from '../lib/jsCapabilities'
+import { SettingsOptions } from '@/lib/types'
+
+vi.mock('../lib/appIntent', async (original) => ({
+  ...(await original<typeof import('../lib/appIntent')>()),
+  redirectToCallback: vi.fn(),
+}))
 
 const PASSWORDLESS_AUTO_RELOAD_KEY = 'passwordless-auto-reload-attempted'
 
@@ -28,19 +38,29 @@ function renderApp({
   authState,
   initialized,
   unlockWallet = vi.fn().mockResolvedValue(undefined),
+  screen: screenOverride = Pages.Init,
+  option,
+  flow = {},
+  outcomeOf = () => undefined,
 }: {
   authState: WalletAuthState
   initialized: boolean
   unlockWallet?: ReturnType<typeof vi.fn>
+  screen?: Pages
+  option?: SettingsOptions
+  flow?: Partial<typeof mockFlowContextValue>
+  outcomeOf?: (id: string) => Outcome | undefined
 }) {
   const navigate = vi.fn()
 
   render(
-    <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate, screen: Pages.Init }}>
+    <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate, screen: screenOverride }}>
       <AspContext.Provider value={mockAspContextValue as any}>
         <ConfigContext.Provider value={{ ...mockConfigContextValue, configLoaded: true } as any}>
-          <FlowContext.Provider value={mockFlowContextValue as any}>
-            <OptionsContext.Provider value={mockOptionsContextValue as any}>
+          <FlowContext.Provider value={{ ...mockFlowContextValue, ...flow } as any}>
+            <OptionsContext.Provider
+              value={{ ...mockOptionsContextValue, ...(option !== undefined && { option }) } as any}
+            >
               <WalletContext.Provider
                 value={{
                   ...mockWalletContextValue,
@@ -52,7 +72,9 @@ function renderApp({
                   wallet: { nextRollover: 0, pubkey: 'stored-pubkey' },
                 }}
               >
-                <App />
+                <SwapsContext.Provider value={{ outcomeOf } as never}>
+                  <App />
+                </SwapsContext.Provider>
               </WalletContext.Provider>
             </OptionsContext.Provider>
           </FlowContext.Provider>
@@ -166,5 +188,168 @@ describe('App startup routing', () => {
     expect(unlockWallet).toHaveBeenCalledWith(defaultPassword)
     await vi.advanceTimersByTimeAsync(1000)
     expect(reloadSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('Navbar visibility', () => {
+  beforeEach(() => {
+    setupTestEnvironment()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('hides navbar on unlock screen even when navigation context has Wallet tab', async () => {
+    renderApp({ authState: 'locked', initialized: false, screen: Pages.Wallet })
+
+    await screen.findByText('Unlock')
+    const ionApp = screen.getByTestId('app')
+    expect(ionApp.className).not.toContain('has-pill-navbar')
+  })
+
+  it('hides navbar during loading hold', async () => {
+    renderApp({ authState: 'authenticated', initialized: false, screen: Pages.Wallet })
+
+    const ionApp = await screen.findByTestId('app')
+    expect(ionApp.className).not.toContain('has-pill-navbar')
+  })
+
+  it('hides navbar on wallet root when authenticated and initialized', async () => {
+    const user = userEvent.setup()
+    const { navigate } = renderApp({ authState: 'authenticated', initialized: true, screen: Pages.Wallet })
+
+    const ionApp = await screen.findByTestId('app')
+    expect(ionApp.className).not.toContain('has-pill-navbar')
+    expect(screen.getByRole('main')).toHaveClass('desktop-wallet-main--root')
+    expect(screen.getByText('Arkade')).toBeInTheDocument()
+    expect(screen.getByTestId('desktop-nav-home')).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByLabelText('Wallet navigation').parentElement).toBe(screen.getByRole('main').parentElement)
+    expect(screen.getByRole('main')).not.toContainElement(screen.getByLabelText('Wallet navigation'))
+
+    await user.click(screen.getByTestId('desktop-nav-activity'))
+    expect(navigate).toHaveBeenCalledWith(Pages.Activity)
+  })
+
+  it('hides navbar on settings menu when authenticated and initialized', async () => {
+    renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      screen: Pages.Settings,
+      option: SettingsOptions.Menu,
+    })
+
+    const ionApp = await screen.findByTestId('app')
+    expect(ionApp.className).not.toContain('has-pill-navbar')
+    expect(screen.getByRole('main')).toHaveClass('desktop-wallet-main--root')
+    expect(screen.getByTestId('desktop-nav-settings')).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('hides navbar on settings sub-page when authenticated and initialized', async () => {
+    renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      screen: Pages.Settings,
+      option: SettingsOptions.Password,
+    })
+
+    const ionApp = await screen.findByTestId('app')
+    expect(ionApp.className).not.toContain('has-pill-navbar')
+    expect(screen.getByRole('main')).toHaveClass('desktop-wallet-main--panel')
+  })
+
+  it('hides navbar on app detail pages when authenticated and initialized', async () => {
+    renderApp({ authState: 'authenticated', initialized: true, screen: Pages.BitcoinDetail })
+
+    const ionApp = await screen.findByTestId('app')
+    expect(ionApp.className).not.toContain('has-pill-navbar')
+    expect(screen.getByRole('main')).toHaveClass('desktop-wallet-main--panel')
+    expect(screen.getByTestId('desktop-nav-home')).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('keeps Activity active on transaction details', async () => {
+    renderApp({ authState: 'authenticated', initialized: true, screen: Pages.Transaction })
+
+    expect(await screen.findByRole('main')).toHaveClass('desktop-wallet-main--panel')
+    expect(screen.getByTestId('desktop-nav-activity')).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByTestId('desktop-nav-home')).not.toHaveAttribute('aria-current')
+  })
+})
+
+describe('Escape during an onchain app send', () => {
+  beforeEach(() => {
+    setupTestEnvironment()
+    vi.mocked(redirectToCallback).mockClear()
+  })
+  afterEach(() => vi.unstubAllEnvs())
+
+  const appIntent = {
+    status: 'send' as const,
+    request: 'bitcoin:bcrt1qrecipient',
+    callback: 'https://app.example/return',
+    started: true,
+  }
+  const committedIntent = { ...appIntent, committedOnchain: { swapId: 'rfq:owned', fundingTxid: 'funding-txid' } }
+  const sendInfo = {
+    address: 'bcrt1qrecipient',
+    railId: 'onchain-swap',
+    swapId: 'rfq:owned',
+    txid: 'funding-txid',
+    total: 1000,
+  }
+
+  it('navigates inside the wallet and retains the funded handoff until its own claim completes', async () => {
+    let outcome: Outcome = 'funded'
+    const resetFlow = vi.fn()
+    const { navigate } = renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      screen: Pages.SendSuccess,
+      flow: { appIntent, sendInfo, resetFlow },
+      outcomeOf: () => outcome,
+    })
+    await screen.findByTestId('app')
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(navigate).toHaveBeenCalledWith(Pages.Wallet)
+    expect(resetFlow).not.toHaveBeenCalled()
+    expect(redirectToCallback).not.toHaveBeenCalled()
+    outcome = 'claimed'
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(redirectToCallback).toHaveBeenCalledWith(appIntent.callback, { status: 'sent', txid: 'funding-txid' })
+    expect(resetFlow).toHaveBeenCalledOnce()
+  })
+
+  it('retains B through Escape after manual C replaces the editable send', async () => {
+    let outcome: Outcome = 'funded'
+    const resetFlow = vi.fn()
+    renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      screen: Pages.Wallet,
+      flow: { appIntent: committedIntent, sendInfo: { arkAddress: 'ark1manual', txid: 'manual-txid' }, resetFlow },
+      outcomeOf: () => outcome,
+    })
+    await screen.findByTestId('app')
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(redirectToCallback).not.toHaveBeenCalled()
+    expect(resetFlow).not.toHaveBeenCalled()
+    outcome = 'claimed'
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(redirectToCallback).toHaveBeenCalledWith(appIntent.callback, { status: 'sent', txid: 'funding-txid' })
+  })
+
+  it('reports sent from the wallet after returning internally from a claimed swap', async () => {
+    const resetFlow = vi.fn()
+    renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      screen: Pages.Wallet,
+      flow: { appIntent, sendInfo, resetFlow },
+      outcomeOf: () => 'claimed',
+    })
+    await screen.findByTestId('app')
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(redirectToCallback).toHaveBeenCalledWith(appIntent.callback, { status: 'sent', txid: 'funding-txid' })
+    expect(resetFlow).toHaveBeenCalledOnce()
   })
 })

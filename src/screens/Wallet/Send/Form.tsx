@@ -33,9 +33,11 @@ import { LimitsContext } from '../../../providers/limits'
 import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl, LnUrlResponse } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
 import { decodeInvoice } from '../../../lib/bolt11'
-import { LIGHTNING_RAIL, lnSendRefusal, lnSendRequest } from '../../../lib/sendRouter'
+import { appSendNeedsDriver, LIGHTNING_RAIL, lnSendRefusal, lnSendRequest } from '../../../lib/sendRouter'
 import { SwapsContext } from '../../../providers/swaps'
 import { discoverMarkets } from '../../../lib/swapMarkets'
+import { appIntentHandoff, redirectToCallback } from '../../../lib/appIntent'
+import OpenInApp from '../../AppIntent/OpenInApp'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
 import { centsToUnits, liquidBtcBalance, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
@@ -130,10 +132,10 @@ export default function SendForm() {
   const { config, effectiveTheme, useFiat } = useContext(ConfigContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const { toFiat, fromFiat, fiatDecimals } = useContext(FiatContext)
-  const { sendInfo, setNoteInfo, setSendInfo } = useContext(FlowContext)
+  const { appIntent, sendInfo, resetFlow, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
-  const { sendRouter } = useContext(SwapsContext)
+  const { outcomeOf, sendRouter } = useContext(SwapsContext)
   const { t } = useTranslation()
   const {
     assetBalances,
@@ -158,8 +160,9 @@ export default function SendForm() {
   const [keys, setKeys] = useState(false)
   const [proceed, setProceed] = useState(false)
   const [processing, setProcessing] = useState(false)
-  const [readyToParse, setReadyToParse] = useState(false)
-  const [recipient, setRecipient] = useState('')
+  // sendInfo.recipient survives a remount when the user comes back from details.
+  const [readyToParse, setReadyToParse] = useState(Boolean(sendInfo.recipient))
+  const [recipient, setRecipient] = useState(sendInfo.recipient ?? '')
   const [recipientError, setRecipientError] = useState('')
   const [receivingAddresses, setReceivingAddresses] = useState<Addresses>()
   const [scan, setScan] = useState(false)
@@ -173,6 +176,18 @@ export default function SendForm() {
   const [valueSats, setValueSats] = useState<number | undefined>(undefined)
 
   const timeoutRef = useRef<NodeJS.Timeout>()
+
+  const leaveAppSend = () => {
+    if (appSendNeedsDriver(appIntent, sendInfo, outcomeOf)) {
+      navigate(Pages.Wallet)
+      return
+    }
+    const committed = appIntent?.status === 'send' && appIntent.committedOnchain
+    const handoff = appIntentHandoff(appIntent, committed ? 'sent' : 'denied')
+    resetFlow()
+    if (handoff) redirectToCallback(handoff.callback, handoff.params)
+    else navigate(Pages.Wallet)
+  }
 
   const prefersReducedMotion = useReducedMotion()
   const accountAsset = useMemo<AssetOption | null>(
@@ -996,11 +1011,12 @@ export default function SendForm() {
         className='send-form'
         style={{ display: 'flex', flexDirection: 'column', height: '100%' }}
       >
-        <Header text={t('send.title')} back />
+        <Header text={t('send.title')} back={appIntent?.status === 'send' ? leaveAppSend : true} />
         <Content>
           <Padded>
             <FlexCol gap='1.25rem' className='send-form-stack'>
               <ErrorMessage error={Boolean(error || carrierError)} text={error || carrierError} />
+              <OpenInApp />
               <InputAddress
                 error={recipientError}
                 focus={focus === 'recipient'}

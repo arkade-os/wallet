@@ -42,8 +42,6 @@ test('should lock and unlock wallet without previous password', async ({ page })
   await page.locator('div[data-testid="new-password"] input').fill('testpassword')
   await page.locator('div[data-testid="confirm-password"] input').fill('testpassword')
   await page.getByText(tr.components.savePassword).click()
-  await page.getByLabel('Go back').click()
-  await page.getByLabel('Go back').click()
 
   // Lock wallet
   await navigateToSettings(page)

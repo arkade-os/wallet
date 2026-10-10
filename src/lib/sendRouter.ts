@@ -19,12 +19,21 @@ import {
   type RouteQuote,
   type RouteResult,
 } from '@arkade-os/sdk'
-import { LIGHTNING_RAIL, ONCHAIN_SWAP_RAIL, lightningRail, onchainSwapRail, type SwapRailClient } from '@arkade-os/swap'
+import {
+  LIGHTNING_RAIL,
+  ONCHAIN_SWAP_RAIL,
+  lightningRail,
+  onchainSwapRail,
+  type Outcome,
+  type SwapRailClient,
+} from '@arkade-os/swap'
 import { sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { collaborativeExitWithFees, sendAssets } from './asp'
 import { decodeInvoice } from './bolt11'
 import { consoleError } from './logs'
 import { prettyNumber } from './format'
+import type { AppIntentState } from './appIntent'
+import type { SendInfo } from '../providers/flow'
 import { defaultFee } from './constants'
 
 export const WALLET_EXIT_RAIL = 'onchain'
@@ -230,3 +239,26 @@ export const quoteIsForThisSend = (
   routedAddress: string,
 ): boolean =>
   screen.destination === routedAddress && quote.amount === screen.satoshis && quote.total <= (screen.total ?? 0)
+
+export const onchainSendNeedsDriver = (sendInfo: SendInfo, outcomeOf: (id: string) => Outcome | undefined): boolean =>
+  Boolean(sendInfo.address) &&
+  !sendInfo.arkAddress &&
+  !sendInfo.invoice &&
+  !sendInfo.account &&
+  !sendInfo.assets?.length &&
+  sendInfo.railId !== WALLET_EXIT_RAIL &&
+  Boolean(sendInfo.swapId || sendInfo.txid || sendInfo.railId === ONCHAIN_SWAP_RAIL) &&
+  (!sendInfo.swapId || outcomeOf(sendInfo.swapId) !== 'claimed')
+
+export const appSendNeedsDriver = (
+  intent: AppIntentState | undefined,
+  sendInfo: SendInfo,
+  outcomeOf: (id: string) => Outcome | undefined,
+): boolean => {
+  if (intent?.status !== 'send' || !intent.callback) return false
+  const committed = intent.committedOnchain
+  return (
+    Boolean(committed && (!committed.swapId || outcomeOf(committed.swapId) !== 'claimed')) ||
+    onchainSendNeedsDriver(sendInfo, outcomeOf)
+  )
+}

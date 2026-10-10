@@ -17,6 +17,7 @@ import { sendOffChain } from '../../../lib/asp'
 import {
   ASSET_RAIL,
   ONCHAIN_ROUTE_LOG,
+  ONCHAIN_SWAP_RAIL,
   fundedResult,
   previewOnchainCost,
   quoteIsForThisInvoice,
@@ -38,7 +39,7 @@ import { useTranslation } from '../../../providers/language'
 export default function SendDetails() {
   const displayContext = useAmountDisplayContext()
   const { navigate } = useContext(NavigationContext)
-  const { sendInfo, setSendInfo } = useContext(FlowContext)
+  const { appIntent, sendInfo, setAppIntent, setSendInfo } = useContext(FlowContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
@@ -185,12 +186,21 @@ export default function SendDetails() {
    *  No fallback key: the store and every row builder are keyed BY the funding
    *  txid, so anything else would never be looked up. What made this miss was
    *  WHEN it ran — on the terminal outcome, minutes after the user had gone. */
-  const handleSent = (txid: string | undefined, total: number, fee: number, railId: string) => {
+  const handleSent = (txid: string | undefined, total: number, fee: number, railId: string, swapId?: string) => {
     if (txid) {
       saveTransactionActivityMetadata(txid, { destination: details?.destination, networkFee: fee })
     }
     reloadWallet().catch(consoleError)
-    setSendInfo({ ...sendInfo, total, txid, railId })
+    if (
+      railId === ONCHAIN_SWAP_RAIL &&
+      appIntent?.status === 'send' &&
+      appIntent.callback &&
+      sendInfo.recipient === appIntent.request &&
+      !appIntent.committedOnchain
+    ) {
+      setAppIntent({ ...appIntent, committedOnchain: { swapId, fundingTxid: txid } })
+    }
+    setSendInfo({ ...sendInfo, total, txid, railId, swapId })
     setSendDone(true)
   }
 
@@ -214,7 +224,7 @@ export default function SendDetails() {
   const payLightning = async (quote: RouteQuote, shownInvoice: string) => {
     if (!quoteIsForThisInvoice(quote, shownInvoice)) return handleError('Quote is for a different invoice')
     const result = await fundedResult(await quote.send())
-    handleSent(result?.txid, quote.total, quote.fee, quote.railId)
+    handleSent(result?.txid, quote.total, quote.fee, quote.railId, result?.swapId)
   }
 
   /** One rail and no counterparty; routed so every branch here has one shape. */
@@ -257,7 +267,7 @@ export default function SendDetails() {
       // then replies (#949), so a rejection here can mean a covenant that IS
       // funded. Trying the exit rail next would pay the recipient twice.
       const result = await fundedResult(await quote.send())
-      return handleSent(result?.txid, quote.total, quote.fee, option.railId)
+      return handleSent(result?.txid, quote.total, quote.fee, option.railId, result?.swapId)
     }
     throw new Error('No route for this payment')
   }

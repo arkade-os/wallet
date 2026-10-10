@@ -1,7 +1,10 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import SendSuccess from '../../../screens/Wallet/Send/Success'
 import { ONCHAIN_SWAP_RAIL, WALLET_EXIT_RAIL } from '../../../lib/sendRouter'
+import type { Outcome } from '@arkade-os/swap'
+import { SwapsContext } from '../../../providers/swaps'
+import { redirectToCallback } from '../../../lib/appIntent'
 import { AspContext } from '../../../providers/asp'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
@@ -18,28 +21,42 @@ import {
   mockWalletContextValue,
 } from '../mocks'
 
+vi.mock('../../../lib/appIntent', async (original) => ({
+  ...(await original<typeof import('../../../lib/appIntent')>()),
+  redirectToCallback: vi.fn(),
+}))
+
 const notifications = { notifyPaymentSent: vi.fn() }
 
 const ONCHAIN = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
 
-const renderSuccess = (sendInfo: SendInfo) =>
-  render(
+const renderSuccess = (
+  sendInfo: SendInfo,
+  flow = {},
+  outcomeOf: (id: string) => Outcome | undefined = () => undefined,
+) => {
+  const tree = () => (
     <NavigationContext.Provider value={mockNavigationContextValue}>
       <ConfigContext.Provider value={mockConfigContextValue}>
         <FiatContext.Provider value={mockFiatContextValue}>
           <AspContext.Provider value={mockAspContextValue}>
             <NotificationsContext.Provider value={notifications as never}>
               <WalletContext.Provider value={mockWalletContextValue as never}>
-                <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo }}>
-                  <SendSuccess />
+                <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo, ...flow }}>
+                  <SwapsContext.Provider value={{ outcomeOf } as never}>
+                    <SendSuccess />
+                  </SwapsContext.Provider>
                 </FlowContext.Provider>
               </WalletContext.Provider>
             </NotificationsContext.Provider>
           </AspContext.Provider>
         </FiatContext.Provider>
       </ConfigContext.Provider>
-    </NavigationContext.Provider>,
+    </NavigationContext.Provider>
   )
+  const view = render(tree())
+  return { ...view, refresh: () => view.rerender(tree()) }
+}
 
 /** Reached on the FUNDING now, so what it says has to be true at that instant. */
 describe('what the send success screen claims', () => {
@@ -89,5 +106,114 @@ describe('what the send success screen claims', () => {
     expect((await screen.findAllByText(/on the way/i)).length).toBeGreaterThan(0)
     expect(await screen.findByText(/keep the wallet open/i)).toBeDefined()
     expect(screen.queryByText(/sent successfully/i)).toBeNull()
+  })
+})
+
+const appSend = {
+  status: 'send' as const,
+  request: `bitcoin:${ONCHAIN}`,
+  callback: 'https://app.example/return',
+  started: true,
+}
+const fundedSend: SendInfo & { swapId: string } = {
+  address: ONCHAIN,
+  railId: ONCHAIN_SWAP_RAIL,
+  swapId: 'rfq:owned',
+  txid: 'funding-txid',
+  total: 10_000,
+}
+
+const committedAppSend = { ...appSend, committedOnchain: { swapId: 'rfq:owned', fundingTxid: 'funding-txid' } }
+
+describe('onchain app handoff', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it.each(['funded', 'needs_recovery', 'refunded'] as const)(
+    'keeps a %s swap in the wallet without clearing its handoff',
+    (outcome) => {
+      const setAppIntent = vi.fn()
+      renderSuccess(fundedSend, { appIntent: committedAppSend, setAppIntent }, () => outcome)
+      expect(screen.getByText(/keep the wallet open/i)).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button'))
+      expect(redirectToCallback).not.toHaveBeenCalled()
+      expect(setAppIntent).not.toHaveBeenCalled()
+    },
+  )
+
+  it('does not let another claimed record unlock the funded swap', () => {
+    const outcomeOf = vi.fn((id: string) => (id === 'rfq:other' ? ('claimed' as const) : undefined))
+    renderSuccess(fundedSend, { appIntent: committedAppSend }, outcomeOf)
+    fireEvent.click(screen.getByRole('button'))
+    expect(outcomeOf).toHaveBeenCalledWith('rfq:owned')
+    expect(redirectToCallback).not.toHaveBeenCalled()
+  })
+
+  it('keeps a funded send with no swap id open', () => {
+    renderSuccess(
+      { ...fundedSend, swapId: undefined } as SendInfo,
+      { appIntent: { ...committedAppSend, committedOnchain: { fundingTxid: 'funding-txid' } } },
+      () => 'claimed',
+    )
+    fireEvent.click(screen.getByRole('button'))
+    expect(redirectToCallback).not.toHaveBeenCalled()
+  })
+
+  it('returns once with the funding txid after its exact record is claimed', () => {
+    let outcome: Outcome = 'funded'
+    const setAppIntent = vi.fn()
+    const view = renderSuccess(fundedSend, { appIntent: committedAppSend, setAppIntent }, () => outcome)
+    fireEvent.click(screen.getByRole('button'))
+    expect(redirectToCallback).not.toHaveBeenCalled()
+    outcome = 'claimed'
+    view.refresh()
+    expect(screen.queryByText(/keep the wallet open/i)).toBeNull()
+    fireEvent.click(screen.getByRole('button'))
+    fireEvent.click(screen.getByRole('button'))
+    expect(redirectToCallback).toHaveBeenCalledExactlyOnceWith(appSend.callback, {
+      status: 'sent',
+      txid: 'funding-txid',
+    })
+    expect(setAppIntent).toHaveBeenCalledOnce()
+  })
+
+  it('does not complete the external handoff with a later manual send after navigating home', () => {
+    const sendInfo: SendInfo = { ...fundedSend }
+    const view = renderSuccess(sendInfo, { appIntent: committedAppSend }, () => 'funded')
+    fireEvent.click(screen.getByRole('button'))
+    expect(redirectToCallback).not.toHaveBeenCalled()
+    for (const field of Object.keys(sendInfo)) delete sendInfo[field as keyof typeof sendInfo]
+    Object.assign(sendInfo, { arkAddress: 'ark1manual', txid: 'manual-txid', total: 2000 })
+    view.refresh()
+    expect(screen.getByText(/keep the wallet open/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button'))
+    expect(redirectToCallback).not.toHaveBeenCalled()
+  })
+
+  it('returns B funding txid after B claims even when the success screen now shows manual C', () => {
+    renderSuccess(
+      { arkAddress: 'ark1manual', txid: 'manual-txid', total: 2000 },
+      { appIntent: committedAppSend },
+      () => 'claimed',
+    )
+    fireEvent.click(screen.getByRole('button'))
+    expect(redirectToCallback).toHaveBeenCalledWith(appSend.callback, { status: 'sent', txid: 'funding-txid' })
+  })
+
+  it('finishes inside the wallet when the app send has no callback', () => {
+    const setAppIntent = vi.fn()
+    renderSuccess(fundedSend, { appIntent: { ...committedAppSend, callback: undefined }, setAppIntent }, () => 'funded')
+    fireEvent.click(screen.getByRole('button'))
+    expect(setAppIntent).toHaveBeenCalledWith(undefined)
+    expect(redirectToCallback).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { arkAddress: 'ark1...', address: '' },
+    { address: ONCHAIN, railId: WALLET_EXIT_RAIL },
+    { invoice: 'lnbc10u1p...' },
+  ])('returns an ordinary committed send without waiting for a swap claim', (destination) => {
+    renderSuccess({ ...destination, total: 10_000, txid: 'direct-txid' }, { appIntent: appSend })
+    fireEvent.click(screen.getByRole('button'))
+    expect(redirectToCallback).toHaveBeenCalledWith(appSend.callback, { status: 'sent', txid: 'direct-txid' })
   })
 })

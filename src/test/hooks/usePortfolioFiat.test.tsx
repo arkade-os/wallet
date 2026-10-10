@@ -20,18 +20,21 @@ function wrapper({
   children,
   network = 'mutinynet',
   verified = true,
+  depixAmount,
 }: {
   children: ReactNode
   network?: string
   verified?: boolean
+  depixAmount?: bigint
 }) {
+  const hasFractionalDepix = depixAmount !== undefined
   const assetBalances = [
     { assetId: MUTINYNET_USDT_ASSET_ID, amount: BigInt(1_234) },
-    { assetId: MUTINYNET_DEPIX_ASSET_ID, amount: BigInt(2_000) },
+    { assetId: MUTINYNET_DEPIX_ASSET_ID, amount: depixAmount ?? BigInt(2_000) },
   ]
   const assetMetadataCache = new Map([
     [MUTINYNET_USDT_ASSET_ID, assetDetails(MUTINYNET_USDT_ASSET_ID, 'USDT')],
-    [MUTINYNET_DEPIX_ASSET_ID, assetDetails(MUTINYNET_DEPIX_ASSET_ID, 'DEPIX')],
+    [MUTINYNET_DEPIX_ASSET_ID, assetDetails(MUTINYNET_DEPIX_ASSET_ID, 'DEPIX', hasFractionalDepix ? 8 : 2)],
   ])
   return (
     <AspContext.Provider
@@ -40,9 +43,9 @@ function wrapper({
       <FiatContext.Provider
         value={{
           ...mockFiatContextValue,
-          fromFiatAmount: (amount: number, currency: Currencies) =>
-            currency === Currencies.USD ? amount * 1_000 : currency === Currencies.BRL ? amount * 200 : 0,
           toFiat: (sats?: number) => sats ?? 0,
+          toFiatAmount: (sats: number, currency: Currencies) =>
+            currency === Currencies.USD ? sats / 1_000 : currency === Currencies.BRL ? sats / 200 : 0,
         }}
       >
         <WalletContext.Provider
@@ -74,8 +77,8 @@ const makeChfWrapper = (isVerifiedAsset: (assetId: string) => boolean) => {
       <FiatContext.Provider
         value={{
           ...mockFiatContextValue,
-          fromFiatAmount: (amount: number, currency: Currencies) => (currency === Currencies.CHF ? amount * 2000 : 0),
           toFiat: (sats?: number) => sats ?? 0,
+          toFiatAmount: (sats: number, currency: Currencies) => (currency === Currencies.CHF ? sats / 2000 : 0),
         }}
       >
         <WalletContext.Provider
@@ -108,8 +111,8 @@ function escrowWrapper({ children }: { children: ReactNode }) {
       <FiatContext.Provider
         value={{
           ...mockFiatContextValue,
-          fromFiatAmount: (amount: number, currency: Currencies) => (currency === Currencies.USD ? amount * 1_000 : 0),
           toFiat: (sats?: number) => sats ?? 0,
+          toFiatAmount: (sats: number, currency: Currencies) => (currency === Currencies.USD ? sats / 1_000 : 0),
         }}
       >
         <WalletContext.Provider
@@ -133,6 +136,32 @@ function escrowWrapper({ children }: { children: ReactNode }) {
 }
 
 describe('usePortfolioFiat', () => {
+  it('retains tiny owned balances and sub-sat valuation without increasing account spending limits', () => {
+    const { result } = renderHook(() => usePortfolioFiat(), {
+      wrapper: ({ children }) => wrapper({ children, depixAmount: BigInt(420000) }),
+    })
+    const row = result.current.rows.find((entry) => entry.assetId === MUTINYNET_DEPIX_ASSET_ID)
+    expect(row).toMatchObject({
+      balance: BigInt(420000),
+      spendableBalance: BigInt(420000),
+      sourceAsset: { balance: BigInt(420000), decimals: 8 },
+    })
+    expect(row?.fiatAmount).toBeCloseTo(0.84)
+    expect(row?.satsEquivalent).toBeCloseTo(0.84)
+    expect(result.current.totalSats).toBeCloseTo(12840.84)
+  })
+
+  it('retains fractional sats when a fiat holding is worth more than one sat', () => {
+    const { result } = renderHook(() => usePortfolioFiat(), {
+      wrapper: ({ children }) => wrapper({ children, depixAmount: BigInt(920000) }),
+    })
+    const row = result.current.rows.find((entry) => entry.assetId === MUTINYNET_DEPIX_ASSET_ID)
+
+    expect(row?.fiatAmount).toBeCloseTo(1.84)
+    expect(row?.satsEquivalent).toBeCloseTo(1.84)
+    expect(result.current.totalSats).toBeCloseTo(12841.84)
+  })
+
   it('reports owned holdings but caps the spendable figure at what generic spending accepts', () => {
     const { result } = renderHook(() => usePortfolioFiat(), { wrapper: escrowWrapper })
 
