@@ -161,7 +161,11 @@ export async function mint(alice: Actor) {
   await assetScreen(page, tr.mint.title).getByRole('button', { name: tr.mint.mint, exact: true }).click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 10_000 })
   await page.getByText(tr.mint.assetMinted, { exact: true }).waitFor({ timeout: 60_000 })
-  return (await alice.page.getByTestId(/^asset-row-XYZ-/).getAttribute('data-testid'))!.slice('asset-row-XYZ-'.length)
+  const assetId = (await alice.page.getByTestId(/^asset-row-XYZ-/).getAttribute('data-testid'))!.slice(
+    'asset-row-XYZ-'.length,
+  )
+  await page.getByRole('button', { name: tr.mint.backToArkadeMint, exact: true }).click()
+  return assetId
 }
 
 export async function importAsset(bob: Actor, assetId: string) {
