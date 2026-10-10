@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect, vi } from 'vitest'
-import { getSolverRegistryUrl, isMainnet } from '../../lib/constants'
+import { getDelegateUrlForNetwork, getSolverRegistryUrl, isMainnet } from '../../lib/constants'
 
 describe('isMainnet', () => {
   it('returns true for bitcoin and unrecognized networks', () => {
@@ -42,5 +42,21 @@ describe('getSolverRegistryUrl', () => {
   it('reads an unsubstituted runtime placeholder as no override, not a URL', () => {
     vi.stubEnv('VITE_SOLVER_REGISTRY_URL', '__VITE_SOLVER_REGISTRY_URL__')
     expect(getSolverRegistryUrl('bitcoin')).toBe('https://arkade-os.github.io/solver-registry/bitcoin.json')
+  })
+})
+
+describe('getDelegateUrlForNetwork', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('lets an explicit VITE_DELEGATOR_URL name the delegator for any network', () => {
+    vi.stubEnv('VITE_DELEGATOR_URL', 'http://127.0.0.1:39112')
+    expect(getDelegateUrlForNetwork('regtest')).toBe('http://127.0.0.1:39112')
+    expect(getDelegateUrlForNetwork('signet')).toBe('http://127.0.0.1:39112')
+  })
+
+  it('reads an unsubstituted runtime placeholder as no override, not a URL', () => {
+    vi.stubEnv('VITE_DELEGATOR_URL', '__VITE_DELEGATOR_URL__')
+    expect(getDelegateUrlForNetwork('regtest')).toBe('http://localhost:7012')
+    expect(getDelegateUrlForNetwork('signet')).toBeUndefined()
   })
 })

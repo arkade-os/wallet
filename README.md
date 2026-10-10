@@ -165,14 +165,15 @@ Access the playwright code generator tool with:
 pnpm run test:codegen
 ```
 
-On CI the suite runs as four parallel jobs: two browser projects (`Mobile Chrome`,
-`Google Chrome`) times two file groups defined in `.github/workflows/playwright.yml`:
+On CI the suite runs as six parallel jobs: two browser projects (`Mobile Chrome`,
+`Google Chrome`) times three groups defined in `.github/workflows/playwright.yml`:
 
 - `assets-send`: `asset.test.ts`, `send.test.ts`
-- `core`: every other file in `src/test/e2e/`
+- `core`: the remaining ordinary E2E files listed in the workflow
+- `taxi`: `src/test/e2e/taxi/`, using `playwright.taxi-regtest.config.ts` and the shared Taxi profile
 
-The groups list files explicitly, so **a new test file must be added to one of them**,
-otherwise it will never run on CI.
+New ordinary E2E files must be added to one of the first two groups. The Taxi config
+discovers tests in its directory automatically.
 
 ## App links
 
@@ -214,3 +215,19 @@ The browser asks once before it lets the installed app own that protocol. Safari
 macOS AirPlay Receiver uses port 5000 by default, which conflicts with the regtest stack.
 
 - **Fix:** Go to `System Settings > General > AirDrop & Handoff` and disable **AirPlay Receiver**.
+
+Taxi financial browser scenarios use the optional `arkade-regtest` Taxi profile:
+
+```bash
+docker build -t arkade-taxi:regtest /path/to/arkade-taxi
+node regtest/regtest.mjs start --profile taxi --env .env.taxi-regtest
+pnpm exec playwright test --config playwright.taxi-regtest.config.ts
+node regtest/regtest.mjs clean --env .env.taxi-regtest
+```
+
+The suite checks exact sub-dust amounts, carrier repayment, asset purchase and
+sponsored delivery, three free claims after reopening, activity details, and
+paused-service refusal against actual services and participant balances. Its
+separate delay configuration leaves the ordinary wallet regtest setup unchanged.
+Local diagnostic harnesses and mock-heavy Taxi suites are preserved under the
+ignored `.local-tests/taxi/` directory; they are not part of published builds or CI.

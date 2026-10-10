@@ -5,6 +5,9 @@ import { getActiveLanguage } from './language'
 const t = (key: string, params?: Record<string, string | number>): string => translate(getActiveLanguage(), key, params)
 
 export const mapKnownErrors = (message: string): string => {
+  if (message === 'insufficient compatible safe inventory after reservations and reserve')
+    return t('errors.taxiFundingUnavailable')
+
   // "vtxo script can be used for intent registration in N seconds"
   const secondsMatch = message.match(/vtxo script can be used for intent registration in (\d+) seconds/i)
   if (secondsMatch) {
@@ -23,6 +26,12 @@ export const mapKnownErrors = (message: string): string => {
 }
 
 export const extractError = (error: any): string => {
+  if (
+    error?.code === 'operator_inventory_insufficient' ||
+    error?.response?.data?.code === 'operator_inventory_insufficient'
+  )
+    return t('errors.taxiFundingUnavailable')
+
   if (typeof error === 'string') return mapKnownErrors(error)
   if (typeof error?.response?.data?.error === 'string') return mapKnownErrors(error.response.data.error)
   if (error.message) {

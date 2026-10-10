@@ -1,9 +1,18 @@
 import Decimal from 'decimal.js'
+import {
+  carrierBorrowedLabel,
+  carrierDeliveryLabel,
+  carrierPurchasedLiteralLabel,
+  carrierPurchasedReceiptLabel,
+  carrierServiceFareLabel,
+  type CarrierActivity,
+} from './carrierActivity'
 import { prettyCurrencyAssetAmount, prettyFiatAmount, prettyFiatHide, prettyHide, prettyNumber } from './format'
 import { designatedAccountCurrency, walletAccountTicker } from './accountAssets'
 import { reportingSatsForFiatAmount } from './fiat'
 import type { WalletAssetSwap } from './swapRepository'
-import { Currencies, Tx, Unit } from './types'
+import { Currencies, Language, Tx, Unit } from './types'
+import { translate } from './i18n'
 
 export type SwapStatus = 'pending' | 'failed' | 'completed' | 'cancelled' | 'recoverable'
 
@@ -234,11 +243,66 @@ interface AssetSwapActivityOptions {
   assetDisplay?: (assetId: string) => { ticker?: string; decimals?: number } | undefined
 }
 
+/** The carrier receipt rows. What the user BOUGHT is separated from what Taxi
+ *  LENT: a recycle buys only the receipt reserve, a purchase the whole carrier. */
+export interface CarrierReceiptRows {
+  carrierDelivery?: string
+  carrierFare?: SwapDisplayAmount
+  carrierLoan?: SwapDisplayAmount
+  carrierPurchase?: SwapDisplayAmount
+  carrierPurchased?: SwapDisplayAmount
+}
+
+export const carrierDetails = (
+  carrier: CarrierActivity | undefined,
+  language = Language.English,
+): CarrierReceiptRows => {
+  if (!carrier) return {}
+  return {
+    carrierLoan:
+      carrier.mode === 'recycle'
+        ? {
+            value: carrierBorrowedLabel(carrier, language),
+            masked: translate(language, 'transaction.carrierBorrowed', {
+              amount: prettyHide(carrier.loanSats, translate(language, 'common.sats')),
+            }),
+          }
+        : undefined,
+    carrierPurchased:
+      carrier.mode === 'recycle'
+        ? {
+            value: carrierPurchasedReceiptLabel(carrier, language),
+            masked: translate(language, 'transaction.carrierReceiptReserve', {
+              amount: prettyHide(carrier.purchasedSats, ''),
+            }),
+          }
+        : undefined,
+    carrierPurchase:
+      carrier.mode === 'purchase'
+        ? {
+            value: carrierPurchasedLiteralLabel(carrier, language),
+            masked: prettyHide(carrier.purchasedSats, translate(language, 'common.sats')),
+          }
+        : undefined,
+    carrierFare: carrier.taxi
+      ? {
+          value: carrierServiceFareLabel(carrier, language),
+          masked: prettyHide(carrier.serviceFareSats, translate(language, 'common.sats')),
+        }
+      : undefined,
+    carrierDelivery: carrierDeliveryLabel(carrier, language),
+  }
+}
+
 /** The display row for one swap, from its record and the wallet rows that
  * funded and filled it. Facts are recomputed from the tx couple and asset
- * metadata where possible; the quote snapshot only fills what cannot be. */
+ * metadata where possible; the quote snapshot only fills what cannot be.
+ *
+ * The carrier arrives already parsed: the record's own JSON is a shape the
+ * store hands back, not a type this row may trust. */
 export const buildAssetSwapActivityTx = (
   swap: WalletAssetSwap,
+  carrier: CarrierActivity | undefined,
   members: Tx[],
   { network, assetDisplay }: AssetSwapActivityOptions = {},
 ): Tx => {
@@ -254,14 +318,16 @@ export const buildAssetSwapActivityTx = (
         : swap.status === 'recoverable'
           ? 'recoverable'
           : 'pending'
-  const fill = swap.spentTxid
-    ? members.find((tx) => [tx.boardingTxid, tx.redeemTxid, tx.roundTxid].includes(swap.spentTxid!))
-    : undefined
-  const receivedAsset = fill?.assets?.find((asset) => asset.assetId === swap.toAsset && asset.amount > BigInt(0))
+  const fills = swap.spentTxid
+    ? members.filter((tx) => [tx.boardingTxid, tx.redeemTxid, tx.roundTxid].includes(swap.spentTxid!))
+    : []
+  const receivedFills = fills.filter((tx) => tx.type === 'received')
+  const receivedAsset = receivedFills
+    .flatMap((tx) => tx.assets ?? [])
+    .find((asset) => asset.assetId === swap.toAsset && asset.amount > BigInt(0))
+  const receivedSats = receivedFills.find((tx) => tx.amount > 0)?.amount
   const receivedAmount =
-    swap.toAsset === 'btc' && fill?.amount && fill.amount > 0
-      ? BigInt(fill.amount)
-      : (receivedAsset?.amount ?? BigInt(swap.toAmount))
+    swap.toAsset === 'btc' && receivedSats ? BigInt(receivedSats) : (receivedAsset?.amount ?? BigInt(swap.toAmount))
   // the currency designation outranks the asset's self-reported ticker, so
   // restored swaps read "BRL to sats", not "DEPIX to sats"; BTC is always
   // shown in sats, matching the live swap screen
@@ -273,6 +339,7 @@ export const buildAssetSwapActivityTx = (
   return {
     amount: members[0]?.amount ?? 0,
     boardingTxid: '',
+    ...(carrier ? { carrier } : {}),
     createdAt: Math.floor(swap.createdAt / 1000),
     explorable: undefined,
     preconfirmed: status === 'pending',

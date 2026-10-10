@@ -117,7 +117,7 @@ export default function Server() {
             />
             <ErrorMessage error={Boolean(error)} text={error} />
             {info && !error ? <WarningBox green text={t('settings.serverFound')} /> : null}
-            <WarningBox text={t('settings.serverResetWarning')} />
+            <WarningBox text={t('settings.serverResetWarning') + ' ' + t('settings.paymentResetWarning')} />
           </FlexCol>
         </Padded>
       </Content>

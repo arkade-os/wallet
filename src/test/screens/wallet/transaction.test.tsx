@@ -27,6 +27,8 @@ import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
 import { AssetSwapsContext } from '../../../providers/assetSwaps'
 import type { WalletAssetSwap as AssetSwap } from '../../../lib/swapRepository'
 
+const FUNDING_TXID = '1'.repeat(64)
+
 const pendingSwapTx = {
   ...mockTxInfo,
   amount: 0,
@@ -41,17 +43,17 @@ const pendingSwapTx = {
     toDecimals: 2,
     toTicker: 'BET',
     status: 'pending' as const,
-    fundingTxid: 'funding-txid',
+    fundingTxid: FUNDING_TXID,
   },
   preconfirmed: true,
-  redeemTxid: 'funding-txid',
+  redeemTxid: FUNDING_TXID,
   roundTxid: '',
   settled: false,
   type: 'swap',
 }
 
 const pendingSwap: AssetSwap = {
-  id: 'funding-txid',
+  id: FUNDING_TXID,
   fromAsset: 'btc',
   toAsset: 'asset-beta',
   fromAmount: '10000',
@@ -59,7 +61,7 @@ const pendingSwap: AssetSwap = {
   swapAddress: 'tark1q...',
   swapPkScript: `5120${'ab'.repeat(32)}`,
   offerHex: '0100',
-  fundingTxid: 'funding-txid',
+  fundingTxid: FUNDING_TXID,
   status: 'pending',
   createdAt: 1,
 }
@@ -116,7 +118,7 @@ describe('Transaction screen', () => {
     expect(within(dialog).getByText(/return its locked funds to your wallet/)).toBeInTheDocument()
 
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel swap' }))
-    expect(cancel).toHaveBeenCalledWith('funding-txid')
+    expect(cancel).toHaveBeenCalledWith(FUNDING_TXID)
     expect(screen.getByRole('button', { name: 'Cancelling…' })).toBeDisabled()
 
     await act(async () => finishCancel())

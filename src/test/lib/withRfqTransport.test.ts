@@ -44,6 +44,22 @@ describe('withRfqTransport', () => {
     await expect(withRfqTransport(rendezvous, timedOut, { timeoutMs: 5_000 })).rejects.toThrow('waited 5s')
   })
 
+  it('closes the transport whether the negotiation succeeds or fails', async () => {
+    const close = vi.fn(async () => {})
+    nostrRfqTransport.mockReturnValue({ close } as unknown as RfqTransport)
+    await withRfqTransport(rendezvous, async () => 'ok')
+    await expect(withRfqTransport(rendezvous, () => Promise.reject(new Error('boom')))).rejects.toThrow('boom')
+    expect(close).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not let a failing close mask the negotiation result', async () => {
+    const close = async () => {
+      throw new Error('teardown')
+    }
+    nostrRfqTransport.mockReturnValue({ close } as unknown as RfqTransport)
+    await expect(withRfqTransport(rendezvous, async () => 'ok')).resolves.toBe('ok')
+  })
+
   it('leaves every other failure untouched', async () => {
     // A refusal or a bad quote carries its own message; widening the rewrite to
     // catch those would replace a specific cause with a misleading one.

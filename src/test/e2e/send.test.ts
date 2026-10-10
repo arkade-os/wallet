@@ -77,22 +77,23 @@ test('should send sats (some and max) to ark address', async ({ page, isMobile }
   await page.waitForSelector('text=- 3,000 sats', { timeout: 10000 })
 })
 
-test('should send usds (some and max) to ark address', async ({ page, isMobile }) => {
+test('should send bitcoin in USD (some and max) to ark address', async ({ page, isMobile }) => {
+  await page.route('https://blockchain.info/ticker', (route) => route.fulfill({ json: { USD: { last: 100000 } } }))
   // create wallet
   await createWalletWithFiat(page)
-  const usdsReceived = await fundWallet(page, 5000)
-  const usdsToSend = 2
-  const usdsRemaining = (usdsReceived - usdsToSend).toFixed(2)
+  await fundWallet(page, 5000)
+  await expect(page.getByTestId('main-balance')).toHaveText('$5.00')
 
   const someArkAddress =
     'tark1qr340xg400jtxat9hdd0ungyu6s05zjtdf85uj9smyzxshf98nda' +
     'h6u2nredqtn0cr4p4zqz53gsmhju4l9t7x47kzleesa9dprx7e56xhzlen'
 
   // send page
-  await prePay(page, someArkAddress, isMobile, usdsToSend)
+  await prePay(page, someArkAddress, isMobile, 2)
 
   // details page
   await expect(page.getByTestId('Network fees')).toContainText('$0.00')
+  await expect(page.getByTestId(tr.accounts.assetAmount)).toHaveText('2,000 sats')
   await expect(page.getByTestId('primary-amount')).toContainText('$2.00')
   await expect(page.getByTestId('Total')).toContainText('$2.00')
 
@@ -114,26 +115,28 @@ test('should send usds (some and max) to ark address', async ({ page, isMobile }
   await page.locator('input[name="send-address"]').fill(someArkAddress)
 
   // switch entry to the display currency, then click max
-  await page.waitForSelector(`text=$${usdsRemaining} available`, { timeout: 2100 })
+  await page.waitForSelector(`text=${availableMessage('$3.00')}`, { timeout: 2100 })
   await page.getByTestId('input-amount-max').click()
   const inputAmount = await page.locator('input[name="send-amount"]').inputValue()
-  expect(Number(inputAmount).toFixed(2)).toBe(usdsRemaining)
+  expect(Number(inputAmount)).toBe(3)
 
   // continue to details page
   await page.getByText(tr.common.continue).click()
 
   // details page
   await expect(page.getByTestId('Network fees')).toContainText('$0.00')
-  await expect(page.getByTestId('primary-amount')).toContainText(`$${usdsRemaining}`)
-  await expect(page.getByTestId('Total')).toContainText(`$${usdsRemaining}`)
+  await expect(page.getByTestId(tr.accounts.assetAmount)).toHaveText('3,000 sats')
+  await expect(page.getByTestId('primary-amount')).toContainText('$3.00')
+  await expect(page.getByTestId('Total')).toContainText('$3.00')
 
   await page.getByText(tr.send.tapToSign).click()
   await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await page.waitForSelector(`text=$${usdsRemaining} sent successfully`, { timeout: 10000 })
+  await page.waitForSelector(`text=${successMessage('$3.00')}`, { timeout: 10000 })
 
   // main page
   await dismissPaymentSuccess(page)
-  await page.waitForSelector(`text=$${usdsRemaining}`, { timeout: 10000 })
+  await page.waitForSelector('text=$3.00', { timeout: 10000 })
+  await expect(page.getByTestId('main-balance')).toHaveText('$0.00')
 })
 
 test('should send assets (some and max) to ark address', async ({ page, isMobile }) => {

@@ -369,4 +369,14 @@ describe('format utilities', () => {
       expect(isBurn({ type: 'sent', amount: 0, assets: [{ assetId: 'abc', amount: BigInt(100) }] } as Tx)).toBe(false)
     })
   })
+
+  it('reads neither a burn nor an issuance into a transfer the Taxi carried, whose sats net to zero', () => {
+    const taxi = { transferId: 'transfer-1' } as Tx['taxi']
+    expect(isBurn({ type: 'sent', amount: 0, assets: [{ assetId: 'abc', amount: BigInt(-1) }], taxi } as Tx)).toBe(
+      false,
+    )
+    expect(isIssuance({ type: 'sent', amount: 0, assets: [{ assetId: 'abc', amount: BigInt(1) }], taxi } as Tx)).toBe(
+      false,
+    )
+  })
 })

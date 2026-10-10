@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './src/test/e2e',
+  testIgnore: '**/taxi/**',
   timeout: 60000,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
@@ -25,7 +26,7 @@ export default defineConfig({
   },
   webServer: {
     command:
-      'VITE_NOSTR_RELAY_URL=ws://localhost:10547 VITE_DELEGATE_ENABLED=false pnpm start',
+      'VITE_NOSTR_RELAY_URL=ws://localhost:10547 VITE_DELEGATE_ENABLED=false VITE_TAXI_URL=http://localhost:7400 pnpm start',
     port: 3002,
   },
   projects: [

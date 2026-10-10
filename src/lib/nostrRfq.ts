@@ -85,5 +85,7 @@ export const withRfqTransport = async <T>(
     return await fn(transport)
   } catch (error) {
     throw friendlier(error, timeoutMs)
+  } finally {
+    await transport.close().catch(() => {})
   }
 }

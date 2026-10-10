@@ -17,8 +17,10 @@ jobs:
       fail-fast: false
       matrix:
         project: ["Mobile Chrome", "Google Chrome"]
-        group: [assets-send, core]
+        group: [assets-send, core, taxi]
         include:
+          - group: taxi
+            test_files: src/test/e2e/taxi/taxi.test.ts
           - group: assets-send
             test_files: >-
               src/test/e2e/asset.test.ts
@@ -49,20 +51,53 @@ jobs:
         node-version-file: '.nvmrc'
     - name: Install pnpm
       uses: pnpm/action-setup@v4
+    - name: Verify carrier artifacts
+      run: node scripts/carrier-artifacts/verify.mjs
     - name: Install dependencies
       run: pnpm install
     - name: Install Playwright Browsers
       run: pnpm exec playwright install chrome chromium --with-deps
+    - name: Verify the installed carrier packages
+      run: node scripts/carrier-artifacts/verify.mjs --installed
+    - uses: actions/checkout@v4
+      if: matrix.group == 'taxi'
+      with:
+        repository: ArkLabsHQ/arkade-taxi
+        ref: f445a800977775d46d6145599b4f618d876ed75a
+        path: .local-tests/taxi-service
+        persist-credentials: false
+    - name: Build Taxi image
+      if: matrix.group == 'taxi'
+      run: docker build -t arkade-taxi:regtest .local-tests/taxi-service
+    - name: Start Taxi regtest environment
+      if: matrix.group == 'taxi'
+      run: node regtest/regtest.mjs start --profile taxi --env .env.taxi-regtest
     - name: Start regtest environment
+      if: matrix.group != 'taxi'
       run: node regtest/regtest.mjs start --env .env.regtest
     - name: Start nostr relay
+      if: matrix.group != 'taxi'
       run: docker compose -f docker-compose.nak.yml up -d --build
     - name: Verify environment
+      if: matrix.group != 'taxi'
       run: pnpm regtest:setup
+    - name: Run Taxi Playwright tests
+      if: matrix.group == 'taxi'
+      run: pnpm exec playwright test --config playwright.taxi-regtest.config.ts --project="${{ matrix.project }}"
+      env:
+        CI: true
     - name: Run Playwright tests
+      if: matrix.group != 'taxi'
       run: sleep 5 && pnpm run test:e2e --project="${{ matrix.project }}" ${{ matrix.test_files }}
       env:
         CI: true
+    - name: Preserve failed browser evidence
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playwright-${{ matrix.group }}-${{ matrix.project }}
+        path: test-results/
+        retention-days: 7
     - name: Capture logs on failure
       if: failure()
       run: |
@@ -76,4 +111,8 @@ jobs:
       if: always()
       run: |
         docker compose -f docker-compose.nak.yml down -v 2>/dev/null || true
-        node regtest/regtest.mjs clean --env .env.regtest
+        if [ "${{ matrix.group }}" = taxi ]; then
+          node regtest/regtest.mjs clean --env .env.taxi-regtest
+        else
+          node regtest/regtest.mjs clean --env .env.regtest
+        fi

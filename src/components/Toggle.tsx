@@ -24,6 +24,7 @@ export default function Toggle({ checked, onClick, text, subtext, testId }: Togg
         </span>
         <Switch
           checked={checked}
+          aria-label={text}
           onCheckedChange={handleChange}
           data-testid={testId}
           data-checked={checked ? 'true' : 'false'}

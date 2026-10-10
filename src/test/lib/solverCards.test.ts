@@ -57,4 +57,38 @@ describe('stored solver card compatibility', () => {
 
     expect(readSolverCards().map(({ label }) => label)).toEqual(['legacy', 'caip19'])
   })
+
+  /**
+   * The store's validator and the one inside `@arkade-os/swap` must be the same
+   * build. While they diverged, a card advertising either field was dropped on
+   * read and on write — the solver silently vanished from the user's list while
+   * the swap package the same wallet ships considered the card valid.
+   */
+  it('keeps cards advertising the fields the shipped swap package accepts', () => {
+    const market = {
+      base_asset: asset('arkade:mutinynet/slip44:1'),
+      quote_asset: { ...asset(`arkade:mutinynet/asset:${'f'.repeat(68)}`), ticker: 'TOK', decimals: 2 },
+      price_feed: 'https://feed.test/price',
+      price_feed_schema: { type: 'json', price_path: '/price' },
+      price_decimals: 6,
+      ...bounds,
+    }
+    localStorage.setItem(
+      'solverCards',
+      JSON.stringify([
+        {
+          network: 'mutinynet',
+          label: 'solver_fee',
+          card: { version: 0, ...solver, markets: [{ ...market, solver_fee: { base: { bps: 30, flat: '100' } } }] },
+        },
+        {
+          network: 'mutinynet',
+          label: 'charges_delivered_carrier',
+          card: { version: 0, ...solver, markets: [{ ...market, charges_delivered_carrier: true }] },
+        },
+      ]),
+    )
+
+    expect(readSolverCards().map(({ label }) => label)).toEqual(['solver_fee', 'charges_delivered_carrier'])
+  })
 })

@@ -17,8 +17,9 @@ import HashIcon from '../icons/Hash'
 import InfoIcon from '../icons/Info'
 import ArrowUpDownIcon from '../icons/ArrowUpDown'
 import { Wallet } from '../lib/types'
-import { SwapDisplayAmount } from '../lib/swapDisplay'
+import { SwapDisplayAmount, type CarrierReceiptRows } from '../lib/swapDisplay'
 import type { TransactionAmountDisplay } from '../lib/transactionAmountDisplay'
+import { isCanonicalTxid } from '../lib/carrierActivity'
 import {
   openInNewTab,
   openOffchainTxInNewTab,
@@ -34,6 +35,7 @@ export interface DetailsProps {
   assetIds?: { assetId: string; label: string }[]
   assetTotals?: (SwapDisplayAmount & { label: string })[]
   amountDisplay?: TransactionAmountDisplay
+  carrier?: CarrierReceiptRows
   date?: string
   destination?: string
   direction?: string
@@ -43,6 +45,7 @@ export interface DetailsProps {
   invoice?: string
   isOffchainTx?: boolean
   priceRate?: string
+  relatedTxids?: string[]
   satoshis?: number
   spendLabel?: string
   spendTxid?: string
@@ -50,6 +53,8 @@ export interface DetailsProps {
   swapFees?: SwapDisplayAmount
   swapFrom?: SwapDisplayAmount
   swapTo?: SwapDisplayAmount
+  /** A row whose carrier descriptor alone names the transfer has no URL to show. */
+  taxi?: { url?: string; transferId: string; mode?: string; updated?: string }
   total?: number
   txid?: string
   type?: string
@@ -71,6 +76,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     assetIds,
     assetTotals,
     amountDisplay,
+    carrier,
     date,
     direction,
     destination,
@@ -80,6 +86,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     invoice,
     isOffchainTx,
     priceRate,
+    relatedTxids,
     satoshis,
     spendLabel,
     spendTxid,
@@ -87,6 +94,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     swapFees,
     swapFrom,
     swapTo,
+    taxi,
     txid,
     type,
     total,
@@ -171,6 +179,15 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     formatSensitiveDetail(amount),
     <TotalIcon key={`${label}-${amount.value}`} />,
   ])
+  const primaryTxids = new Set([fundedTxid, spendTxid, txid].filter((id): id is string => Boolean(id)))
+  const related = [...new Set((relatedTxids ?? []).filter(isCanonicalTxid))].filter((id) => !primaryTxids.has(id))
+  const relatedRows: TableData = related.map((id, index) => {
+    const label =
+      related.length === 1
+        ? t('transaction.relatedTransaction')
+        : t('transaction.relatedTransactionN', { index: index + 1 })
+    return [label, id, <HashIcon key={`${label}-${id}`} />, offchainTxOnClick(id)]
+  })
 
   const data: TableData = [
     [t('accounts.swapFrom'), formatSensitiveDetail(swapFrom), <ArrowUpDownIcon key='swap-from-icon' />],
@@ -182,6 +199,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     [t('accounts.funded'), fundedTxid, <HashIcon key='funded-icon' />, offchainTxOnClick(fundedTxid)],
     [spendLabel ?? t('accounts.completed'), spendTxid, <HashIcon key='spend-icon' />, offchainTxOnClick(spendTxid)],
     [t('accounts.transactionId'), txid, <HashIcon key='txid-icon' />, showTxidLink ? txidOnClick : undefined],
+    ...relatedRows,
     ...assetIdRows,
     [t('common.direction'), direction, <DirectionIcon key='direction-icon' />],
     [t('common.type'), type, <TypeIcon key='type-icon' />],
@@ -193,6 +211,23 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     [t('accounts.priceRate'), priceRate, <ArrowUpDownIcon key='price-rate-icon' />],
     [t('accounts.networkFees'), fees === undefined ? undefined : formatAmount(fees), <FeesIcon key='fees-icon' />],
     [t('accounts.swapFees'), formatSensitiveDetail(swapFees), <FeesIcon key='swap-fees-icon' />],
+    [t('transaction.taxiUrl'), taxi?.url, <TypeIcon key='taxi-url-icon' />],
+    [t('transaction.taxiTransferId'), taxi?.transferId, <HashIcon key='taxi-transfer-icon' />],
+    [t('transaction.taxiMode'), taxi?.mode, <TypeIcon key='taxi-mode-icon' />],
+    [t('transaction.taxiUpdated'), taxi?.updated, <WhenIcon key='taxi-updated-icon' />],
+    [t('transaction.carrierLoan'), formatSensitiveDetail(carrier?.carrierLoan), <AmountIcon key='carrier-loan-icon' />],
+    [
+      t('transaction.carrierPurchased'),
+      formatSensitiveDetail(carrier?.carrierPurchased),
+      <AmountIcon key='carrier-purchased-icon' />,
+    ],
+    [
+      t('transaction.carrierPurchase'),
+      formatSensitiveDetail(carrier?.carrierPurchase),
+      <AmountIcon key='carrier-purchase-icon' />,
+    ],
+    [t('transaction.carrierFare'), formatSensitiveDetail(carrier?.carrierFare), <FeesIcon key='carrier-fare-icon' />],
+    [t('transaction.carrierDelivery'), carrier?.carrierDelivery, <StatusIcon key='carrier-delivery-icon' />],
     ...assetTotalRows,
     [t('common.total'), formatAmount(total), <TotalIcon key='total-icon' />],
   ]

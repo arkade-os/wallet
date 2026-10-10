@@ -13,7 +13,7 @@ const explorers: Explorers = {
     web: 'https://mempool.space',
   },
   regtest: {
-    api: 'http://localhost:3000/api',
+    api: import.meta.env.VITE_ESPLORA_URL || 'http://localhost:3000/api',
     web: 'http://localhost:5000',
   },
   signet: {
