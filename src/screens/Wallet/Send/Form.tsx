@@ -525,10 +525,11 @@ export default function SendForm() {
       setSelectedAsset(null)
       return
     }
-    if (!sendInfo.assets?.length || assetOptions.length === 0) return
-    const presetAssetId = sendInfo.assets[0].assetId
-    const found = assetOptions.find((a) => a.assetId === presetAssetId)
-    if (found && !selectedAsset) setSelectedAsset(found)
+    if (assetOptions.length === 0) return
+    setSelectedAsset((current) => {
+      const assetId = current?.assetId ?? sendInfo.assets?.[0]?.assetId
+      return assetOptions.find((option) => option.assetId === assetId) ?? current
+    })
   }, [assetOptions, sendInfo.account, sendInfo.assets])
 
   // parse recipient data

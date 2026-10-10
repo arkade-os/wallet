@@ -15,9 +15,11 @@ import {
   getPendingDirectTaxi,
   sendDirectTaxi,
 } from '../../../lib/directTaxiSend'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { useState } from 'react'
+import { ArkAddress, SingleKey } from '@arkade-os/sdk'
 import createFetchMock from 'vitest-fetch-mock'
-import { emptySendInfo, FlowContext } from '../../../providers/flow'
+import { emptySendInfo, FlowContext, type SendInfo } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import {
   mockAspContextValue,
@@ -50,32 +52,32 @@ describe('Send screen', () => {
     vi.mocked(sendDirectTaxi).mockReset()
     vi.mocked(redirectToCallback).mockClear()
   })
-  const renderSendForm = ({
+  const sendForm = ({
     configContext = mockConfigContextValue,
     fiatContext = mockFiatContextValue,
     flowContext = mockFlowContextValue,
     navigationContext = mockNavigationContextValue,
     walletContext = { ...mockWalletContextValue, svcWallet: mockSvcWallet as any },
-  } = {}) =>
-    render(
-      <NavigationContext.Provider value={navigationContext}>
-        <AspContext.Provider value={mockAspContextValue}>
-          <ConfigContext.Provider value={configContext as any}>
-            <FiatContext.Provider value={fiatContext as any}>
-              <OptionsContext.Provider value={mockOptionsContextValue as any}>
-                <FlowContext.Provider value={flowContext as any}>
-                  <WalletContext.Provider value={walletContext as any}>
-                    <LimitsContext.Provider value={mockLimitsContextValue}>
-                      <SendForm />
-                    </LimitsContext.Provider>
-                  </WalletContext.Provider>
-                </FlowContext.Provider>
-              </OptionsContext.Provider>
-            </FiatContext.Provider>
-          </ConfigContext.Provider>
-        </AspContext.Provider>
-      </NavigationContext.Provider>,
-    )
+  } = {}) => (
+    <NavigationContext.Provider value={navigationContext}>
+      <AspContext.Provider value={mockAspContextValue}>
+        <ConfigContext.Provider value={configContext as any}>
+          <FiatContext.Provider value={fiatContext as any}>
+            <OptionsContext.Provider value={mockOptionsContextValue as any}>
+              <FlowContext.Provider value={flowContext as any}>
+                <WalletContext.Provider value={walletContext as any}>
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <SendForm />
+                  </LimitsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </OptionsContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </AspContext.Provider>
+    </NavigationContext.Provider>
+  )
+  const renderSendForm = (context: Parameters<typeof sendForm>[0] = {}) => render(sendForm(context))
 
   it('fills the amount field when an LNURL resolves to a fixed amount', async () => {
     // regression: a fixed-amount LNURL (minSendable === maxSendable) must
@@ -584,6 +586,144 @@ describe('Send screen', () => {
       expect(sendDirectTaxi).not.toHaveBeenCalled()
     },
   )
+
+  it('refreshes a returned Taxi asset balance so the recorded payment can continue', async () => {
+    const { payment, resume } = pendingPayment()
+    const key = await SingleKey.fromHex('11'.repeat(32)).xOnlyPublicKey()
+    const address = new ArkAddress(key, key, 'tark').encode()
+    const record = { ...payment.record, receiverAddress: address, assetId: 'recorded-asset', assetAmount: '12345' }
+    resume.mockRejectedValue(new ReturnedDirectTaxi(record))
+    vi.mocked(getPendingDirectTaxi).mockResolvedValue(
+      new FailedDirectTaxi(record, resume, 'pending', undefined, vi.fn()),
+    )
+    let releaseReload!: () => void
+    const reload = new Promise<void>((resolve) => {
+      releaseReload = resolve
+    })
+    const reloadWallet = vi.fn()
+    const recordSendInfo = vi.fn()
+    const navigate = vi.fn()
+    const assetBalances = [{ assetId: 'recorded-asset', amount: 20000n }]
+    const assetMetadataCache = new Map([
+      ['recorded-asset', { cachedAt: 0, metadata: { name: 'Recorded', ticker: 'REC', decimals: 2 } }],
+    ])
+    const svcWallet = {
+      ...mockSvcWallet,
+      getAddress: () => address,
+      getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+    }
+    function ReloadingForm() {
+      const [sendInfo, setSendInfo] = useState<SendInfo>({
+        ...emptySendInfo,
+        arkAddress: address,
+        assets: [{ assetId: 'recorded-asset', amount: 12345n }],
+      })
+      const [availableAssetBalances, setAvailableAssetBalances] = useState([{ assetId: 'recorded-asset', amount: 0n }])
+      recordSendInfo.mockImplementation(setSendInfo)
+      reloadWallet.mockImplementation(async () => {
+        await reload
+        setAvailableAssetBalances(assetBalances)
+      })
+      return sendForm({
+        flowContext: { ...mockFlowContextValue, sendInfo, setSendInfo: recordSendInfo },
+        navigationContext: { ...mockNavigationContextValue, navigate },
+        walletContext: {
+          ...mockWalletContextValue,
+          availableBalance: 1_000_000,
+          assetBalances: assetBalances as any,
+          availableAssetBalances: availableAssetBalances as any,
+          assetMetadataCache,
+          svcWallet: svcWallet as any,
+          reloadWallet,
+        },
+      })
+    }
+    render(<ReloadingForm />)
+    fireEvent.click(await screen.findByText('Check Taxi payment'))
+    await waitFor(() => expect(document.querySelector('input[name="send-amount"]')).toHaveValue(123.45))
+    expect(screen.getByText('Insufficient asset balance').closest('button')).toBeDisabled()
+    expect(reloadWallet).toHaveBeenCalledOnce()
+    await act(async () => {
+      releaseReload()
+      await reload
+    })
+    const continueButton = await screen.findByText('Continue')
+    await waitFor(() => expect(continueButton.closest('button')).toBeEnabled())
+    expect(screen.getByTestId('asset-selector')).toHaveTextContent('REC')
+    expect(screen.getByTestId('asset-selector')).toHaveTextContent('200 REC')
+    expect(document.querySelector('input[name="send-amount"]')).toHaveValue(123.45)
+    expect(recordSendInfo).toHaveBeenLastCalledWith({
+      arkAddress: address,
+      assets: [{ assetId: 'recorded-asset', amount: 12345n }],
+      satoshis: 0,
+    })
+    vi.mocked(getPendingDirectTaxi).mockResolvedValue(undefined)
+    fireEvent.click(continueButton)
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails))
+    expect(sendDirectTaxi).not.toHaveBeenCalled()
+  })
+
+  it('refreshes metadata for the chosen asset without restoring a different preset or changing its amount', async () => {
+    const setSendInfo = vi.fn()
+    const walletContext = {
+      ...mockWalletContextValue,
+      availableBalance: 1_000_000,
+      assetBalances: [
+        { assetId: 'preset-asset', amount: 1000n },
+        { assetId: 'chosen-asset', amount: 2000n },
+      ] as any,
+      availableAssetBalances: [
+        { assetId: 'preset-asset', amount: 1000n },
+        { assetId: 'chosen-asset', amount: 2000n },
+      ] as any,
+      assetMetadataCache: new Map([
+        ['preset-asset', { cachedAt: 0, metadata: { name: 'Preset', ticker: 'AAA', decimals: 2 } }],
+        ['chosen-asset', { cachedAt: 0, metadata: { name: 'Chosen', ticker: 'BBB', decimals: 2 } }],
+      ]),
+      isVerifiedAsset: () => true,
+      svcWallet: {
+        ...mockSvcWallet,
+        getAddress: () => 'tark1mockoffchain',
+        getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+      } as any,
+    }
+    const flowContext = {
+      ...mockFlowContextValue,
+      sendInfo: { ...emptySendInfo, assets: [{ assetId: 'preset-asset', amount: 1n }] },
+      setSendInfo,
+    }
+    const view = renderSendForm({ flowContext, walletContext })
+    await waitFor(() => expect(screen.getByTestId('asset-selector')).toHaveTextContent('AAA'))
+    fireEvent.click(screen.getByTestId('asset-selector'))
+    fireEvent.click(await screen.findByTestId('asset-bbb-option'))
+    const amount = document.querySelector('input[name="send-amount"]')!
+    fireEvent.change(amount, { target: { value: '1.5' } })
+    expect(setSendInfo).toHaveBeenLastCalledWith(
+      expect.objectContaining({ assets: [{ assetId: 'chosen-asset', amount: 150n }] }),
+    )
+    const calls = setSendInfo.mock.calls.length
+    view.rerender(
+      sendForm({
+        flowContext,
+        walletContext: {
+          ...walletContext,
+          availableAssetBalances: [...walletContext.availableAssetBalances] as any,
+          assetMetadataCache: new Map([
+            ['preset-asset', walletContext.assetMetadataCache.get('preset-asset')!],
+            ['chosen-asset', { cachedAt: 1, metadata: { name: 'Chosen refreshed', ticker: 'BBB2', decimals: 3 } }],
+          ]),
+        },
+      }),
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('asset-selector').querySelector('.send-asset-trigger__name')).toHaveTextContent(
+        /^BBB2$/,
+      ),
+    )
+    expect(screen.getByTestId('asset-selector')).toHaveTextContent('2 BBB2')
+    expect(amount).toHaveValue(1.5)
+    expect(setSendInfo).toHaveBeenCalledTimes(calls)
+  })
 
   const appSendSetup = (app = true) => {
     const navigate = vi.fn()
