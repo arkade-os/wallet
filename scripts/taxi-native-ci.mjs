@@ -474,6 +474,7 @@ async function main() {
     'connected native RFQ relay',
     async () => (await stat(solverEnv.RELAY_HEALTH_PATH).catch(() => null))?.mtimeMs > boot + 1000,
   )
+  await run('wallet-git-info', 'pnpm', ['git-info'])
   await run('wallet-worker', 'pnpm', ['build:worker'])
   await run('playwright', 'pnpm', [
     'exec',
