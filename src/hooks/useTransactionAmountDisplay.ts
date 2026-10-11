@@ -10,13 +10,12 @@ import { Tx } from '../lib/types'
 /** The builder args every call site derives from context the same way. */
 export function useAmountDisplayContext() {
   const { config } = useContext(ConfigContext)
-  const { fromFiatAmount, toFiatAmount } = useContext(FiatContext)
+  const { toFiatAmount } = useContext(FiatContext)
   const { assetMetadataCache, isVerifiedAsset } = useContext(WalletContext)
   const { aspInfo } = useContext(AspContext)
   return {
     bitcoinUnit: config.unit,
     currency: config.currency,
-    fromFiatAmount,
     isVerifiedAsset,
     metadataForAsset: (assetId: string) => assetMetadataCache.get(assetId)?.metadata,
     network: aspInfo.network,
