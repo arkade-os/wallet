@@ -319,7 +319,9 @@ test('Native BTC exact-out asset payment repays the Taxi loan once', async ({ br
     expect(record.route.take.instrument).toEqual({ kind: 'address', address: record.assetPayment?.receiveAddress })
     expect(record.assetPayment?.receiveAddress).not.toBe(bob.address)
     expect(record.fundingTxid).toMatch(/^[0-9a-f]{64}$/)
-    await expect.poll(async () => (await fresh(known)).length, { timeout: 60_000 }).toBe(1)
+    await expect
+      .poll(async () => (await fresh(known)).map(({ state }) => state), { timeout: 60_000 })
+      .toEqual(['locked'])
     const [transfer] = await fresh(known)
     expect(transfer.kind).toBe('covenant')
     expect(transfer.topup).toBe(record.assetPayment?.carrier?.loanSats)
