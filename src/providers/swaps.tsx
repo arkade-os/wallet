@@ -905,6 +905,10 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   /** The fee rate is read per router, not pinned: the solver rail grosses the
    *  take leg up by it, so a stale one short-pays the recipient. */
   const sendRouter = async (deps: { outputFee?: () => number; assets?: Asset[] } = {}): Promise<PaymentRouter> => {
+    if (!held.current && granted.current) {
+      await Promise.race([granted.current, new Promise((resolve) => setTimeout(resolve, LOCK_GRACE_MS))])
+    }
+    if (!held.current) throw new SwapsHeldElsewhere()
     const client = await driving()
     const claimFeeRateSatVb = await claimFeeRate(onchainClaimEndpoint(aspInfo.network as NetworkName))
     return createSendRouter({ wallet: svcWallet!, client, claimFeeRateSatVb, ...deps })
