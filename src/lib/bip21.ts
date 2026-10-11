@@ -5,6 +5,9 @@ import { fromSatoshis, prettyNumber, toSatoshis } from './format'
 import { isValidArkAddress } from '@arkade-os/sdk'
 import { centsToUnits } from './assets'
 
+import { decodeTaxiParams, encodeTaxiParams, type Bip21Taxi } from '@arkade-taxi/client/wallet'
+export type { Bip21Taxi } from '@arkade-taxi/client/wallet'
+
 export interface Bip21Decoded {
   address?: string
   arkAddress?: string
@@ -14,6 +17,7 @@ export interface Bip21Decoded {
   invoice?: string
   lnUrl?: string
   assetId?: string
+  taxi?: Bip21Taxi
 }
 
 /** decode a bip21 uri */
@@ -26,6 +30,7 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
     assetId: undefined,
     assetAmount: undefined,
     arkAddress: undefined,
+    taxi: undefined,
   }
 
   const bip21Url = uri.trim()
@@ -80,24 +85,37 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
         result.invoice = lightning
       }
     }
+
+    result.taxi = decodeTaxiParams(params)
   }
 
   return result
 }
 
-export const encodeBip21 = (address: string, arkAddress: string, invoice: string, sats: number, lnurl?: string) => {
+export const encodeBip21 = (
+  address: string,
+  arkAddress: string,
+  invoice: string,
+  sats: number,
+  lnurl?: string,
+  taxi?: Bip21Taxi,
+) => {
   const bip21 =
     `bitcoin:${address}?` +
     (arkAddress ? `ark=${arkAddress}&` : '') +
     (invoice ? `lightning=${invoice}&` : lnurl ? `lightning=${lnurl}&` : '') +
     // useGrouping=false: BIP21 amounts must be plain decimals, never '1,000'
     (sats ? `amount=${prettyNumber(fromSatoshis(sats), 8, false)}` : '')
-  return bip21.endsWith('&') || bip21.endsWith('?') ? bip21.slice(0, -1) : bip21
+  return (bip21.endsWith('&') || bip21.endsWith('?') ? bip21.slice(0, -1) : bip21) + encodeTaxiParams(taxi)
 }
 
-export const encodeBip21Asset = (arkAddress: string, assetId: string, cents: bigint, decimals?: number) => {
-  return `bitcoin:?ark=${arkAddress}&assetid=${assetId}&amount=${centsToUnits(cents, decimals)}`
-}
+export const encodeBip21Asset = (
+  arkAddress: string,
+  assetId: string,
+  cents: bigint,
+  decimals?: number,
+  taxi?: Bip21Taxi,
+) => `bitcoin:?ark=${arkAddress}&assetid=${assetId}&amount=${centsToUnits(cents, decimals)}${encodeTaxiParams(taxi)}`
 
 export const isBip21 = (data: string): boolean => {
   try {

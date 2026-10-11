@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   buildAssetSwapActivityTx,
+  carrierDetails,
   lnSwapLabel,
   swapAmountBeforeFee,
   swapFeeAmount,
@@ -305,5 +306,45 @@ describe('the status a corridor send reports', () => {
   it('leaves a plain transaction on its own confirmation state', () => {
     expect(swapStatusLabel({ settled: true } as Tx, t)).toBe('Completed')
     expect(swapStatusLabel({ settled: false } as Tx, t)).toBe('Pending')
+  })
+})
+
+describe('native negotiated carrier facts', () => {
+  it('shows a zero-receipt carrier loan without inventing a receipt or a claim outcome', () => {
+    const rows = carrierDetails({
+      receiveAddress: 'taxi-covenant',
+      validUntil: 1700000010,
+      carrier: {
+        mode: 'recycle_receiver',
+        physicalSats: '331',
+        loanSats: '331',
+        receiptSats: '0',
+        serviceFareSats: '0',
+        pricedSats: '0',
+        expiresAt: 1700000040,
+      },
+    })
+    expect(rows.carrierLoan?.value).toBe('Borrowed 331 sats')
+    expect(rows).not.toHaveProperty('carrierPurchased')
+    expect(rows).not.toHaveProperty('carrierDelivery')
+  })
+  it('shows the physical carrier purchase and negotiated fee separately', () => {
+    const rows = carrierDetails({
+      receiveAddress: 'payee',
+      validUntil: 1700000010,
+      carrier: {
+        mode: 'purchase',
+        physicalSats: '331',
+        loanSats: '0',
+        receiptSats: '331',
+        serviceFareSats: '7',
+        pricedSats: '338',
+        expiresAt: 1700000040,
+      },
+    })
+    expect(rows.carrierPurchase?.value).toBe('331 sats')
+    expect(rows.carrierFare?.value).toBe('7 sats')
+    expect(rows).not.toHaveProperty('carrierLoan')
+    expect(rows).not.toHaveProperty('carrierDelivery')
   })
 })
