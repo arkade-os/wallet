@@ -1,10 +1,56 @@
 // @vitest-environment node
 import assert from 'node:assert/strict'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { it } from 'vitest'
-import { appendEvidence, cleanupOwnedStages } from './taxi-native-ci.mjs'
+import { appendEvidence, cleanupOwnedStages, port, refs } from './taxi-native-ci.mjs'
+
+it('uses the actual workflow source checkpoints for every native checkout', async () => {
+  const workflow = await readFile(new URL('../.github/workflows/playwright.yml', import.meta.url), 'utf8')
+  const pins = new Map(
+    [...workflow.matchAll(/^\s+repository: (\S+)\r?\n\s+ref: ([a-f0-9]{40})\r?$/gm)].map(([, repo, ref]) => [
+      repo,
+      ref,
+    ]),
+  )
+  for (const [name, repository] of [
+    ['solver', 'arkade-os/intent-solver'],
+    ['taxi', 'ArkLabsHQ/arkade-taxi'],
+    ['regtest', 'ArkLabsHQ/arkade-regtest'],
+  ])
+    assert.equal(refs[name], pins.get(repository), `Wrong ${name} source checkpoint`)
+  assert(Object.isFrozen(refs))
+})
+
+it('refuses an occupied required port and leaves its existing owner running', async () => {
+  const server = createServer((_request, response) => response.end('existing owner'))
+  await new Promise((done, reject) => server.once('error', reject).listen(0, '127.0.0.1', done))
+  const occupied = server.address().port
+  try {
+    await assert.rejects(port(occupied), /Required native port .* is unavailable/)
+  } finally {
+    try {
+      assert.equal(await (await fetch(`http://127.0.0.1:${occupied}`)).text(), 'existing owner')
+    } finally {
+      await new Promise((done) => server.close(done))
+    }
+  }
+})
+
+it('uses an available required port while retaining distinct dynamic allocations', async () => {
+  const server = createServer()
+  await new Promise((done, reject) => server.once('error', reject).listen(0, '127.0.0.1', done))
+  const requested = server.address().port
+  await new Promise((done) => server.close(done))
+
+  assert.equal(await port(requested), String(requested))
+  const first = await port()
+  const second = await port()
+  assert.notEqual(first, second)
+  for (const value of [first, second]) assert(!['60413', '60423', '60432', '60433'].includes(value))
+})
 
 it('cleans actual infrastructure after failure before any relay was created', async () => {
   const calls = []

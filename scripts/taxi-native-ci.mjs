@@ -8,11 +8,11 @@ import { resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { parseEnv, promisify } from 'node:util'
 
-const refs = {
-  solver: '85d3c56c4e6e48db99dff0f51101bc213cdf6b4c',
+export const refs = Object.freeze({
+  solver: 'ecb4c5f3f2d84b2f906beafd294a03008e4f1953',
   taxi: 'e7cdfa4124e4a10706c3f1ebaba677965133e73c',
   regtest: '78d0b7a9677077ca64bf09b4e825520ba462446b',
-}
+})
 const projects = ['Mobile Chrome', 'Google Chrome']
 const walletRoot = process.cwd()
 const solverRoot = resolve(process.env.TAXI_NATIVE_SOLVER_ROOT ?? '.local-tests/native-solver')
@@ -97,9 +97,16 @@ async function waitFor(name, check, timeout = 120_000) {
   throw new Error(`Timed out waiting for ${name}`)
 }
 
-async function port() {
+export async function port(preferred = 0) {
+  if (preferred && allocatedPorts.has(String(preferred)))
+    throw new Error(`Required native port ${preferred} is unavailable`)
   const server = createServer()
-  await new Promise((done, reject) => server.once('error', reject).listen(0, '127.0.0.1', done))
+  try {
+    await new Promise((done, reject) => server.once('error', reject).listen(preferred, '127.0.0.1', done))
+  } catch (error) {
+    if (preferred) throw new Error(`Required native port ${preferred} is unavailable`, { cause: error })
+    throw error
+  }
   const value = server.address().port
   await new Promise((done) => server.close(done))
   if (allocatedPorts.has(String(value))) return port()
@@ -213,7 +220,9 @@ async function main() {
   }
   const defaults = parseEnv(await readFile(resolve(regtestRoot, '.env.defaults'), 'utf8'))
   const infra = { ...defaults, REGTEST_PROJECT: namespace, REGTEST_CONTAINER_PREFIX: `${namespace}-` }
-  for (const key of Object.keys(defaults).filter((key) => key.endsWith('_PORT'))) infra[key] = await port()
+  infra.MEMPOOL_WEB_PORT = await port(3000)
+  for (const key of Object.keys(defaults).filter((key) => key.endsWith('_PORT') && key !== 'MEMPOOL_WEB_PORT'))
+    infra[key] = await port()
   for (const key of ['ARKD_IMAGE', 'ARKD_WALLET_IMAGE', 'EMULATOR_IMAGE']) {
     assert(process.env[key], `Provide explicitly pinned ${key}`)
     infra[key] = process.env[key]
@@ -427,7 +436,6 @@ async function main() {
     TAXI_NATIVE_RFQ_ATOMIC_UNITS: '1000',
     TAXI_NATIVE_RFQ_FARE_SATS: '7',
     VITE_EMULATOR_PUBKEY: emulator.signerPubkey,
-    VITE_ESPLORA_URL: solverEnv.ARK_ESPLORA_URL,
     ARKD_PASSWORD: infra.ARKD_PASSWORD,
   }
   const walletEnvFile = resolve(root, 'wallet.env')
