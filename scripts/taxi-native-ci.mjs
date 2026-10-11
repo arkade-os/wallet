@@ -218,7 +218,7 @@ async function main() {
     assert(process.env[key], `Provide explicitly pinned ${key}`)
     infra[key] = process.env[key]
   }
-  for (const key of ['EMULATOR_SECRET_KEY', 'TAXI_OPERATOR_PRIVKEY', 'ARKD_WALLET_SIGNER_KEY']) {
+  for (const key of ['TAXI_OPERATOR_PRIVKEY', 'ARKD_WALLET_SIGNER_KEY']) {
     infra[key] = randomBytes(32).toString('hex')
     secrets.add(infra[key])
   }
