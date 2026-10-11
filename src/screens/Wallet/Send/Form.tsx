@@ -525,10 +525,12 @@ export default function SendForm() {
       setSelectedAsset(null)
       return
     }
-    if (assetOptions.length === 0) return
     setSelectedAsset((current) => {
       const assetId = current?.assetId ?? sendInfo.assets?.[0]?.assetId
-      return assetOptions.find((option) => option.assetId === assetId) ?? current
+      return (
+        assetOptions.find((option) => option.assetId === assetId) ??
+        (current ? { ...current, balance: BigInt(0) } : null)
+      )
     })
   }, [assetOptions, sendInfo.account, sendInfo.assets])
 

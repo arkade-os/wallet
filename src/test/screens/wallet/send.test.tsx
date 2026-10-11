@@ -725,6 +725,81 @@ describe('Send screen', () => {
     expect(setSendInfo).toHaveBeenCalledTimes(calls)
   })
 
+  it.each(['missing from a nonempty list', 'missing from an empty list'] as const)(
+    'disables the chosen asset while %s and restores its balance without changing the draft',
+    async (missing) => {
+      const recordSendInfo = vi.fn()
+      const key = await SingleKey.fromHex('11'.repeat(32)).xOnlyPublicKey()
+      const address = new ArkAddress(key, key, 'tark').encode()
+      const owned = [
+        { assetId: 'preset-asset', amount: 1000n },
+        { assetId: 'chosen-asset', amount: 2000n },
+      ]
+      const svcWallet = {
+        ...mockSvcWallet,
+        getAddress: () => address,
+        getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+      }
+      function RefreshingForm({ balances }: { balances: typeof owned }) {
+        const [sendInfo, setSendInfo] = useState<SendInfo>({
+          ...emptySendInfo,
+          arkAddress: address,
+          assets: [{ assetId: 'preset-asset', amount: 1n }],
+        })
+        recordSendInfo.mockImplementation(setSendInfo)
+        return sendForm({
+          flowContext: { ...mockFlowContextValue, sendInfo, setSendInfo: recordSendInfo },
+          walletContext: {
+            ...mockWalletContextValue,
+            availableBalance: 1_000_000,
+            assetBalances: balances as any,
+            availableAssetBalances: balances as any,
+            assetMetadataCache: new Map([
+              ['preset-asset', { cachedAt: 0, metadata: { name: 'Preset', ticker: 'AAA', decimals: 2 } }],
+              ['chosen-asset', { cachedAt: 0, metadata: { name: 'Chosen', ticker: 'BBB', decimals: 2 } }],
+            ]),
+            isVerifiedAsset: () => true,
+            svcWallet: svcWallet as any,
+          },
+        })
+      }
+      const view = render(<RefreshingForm balances={owned} />)
+      await waitFor(() => expect(screen.getByTestId('asset-selector')).toHaveTextContent('AAA'))
+      fireEvent.click(screen.getByTestId('asset-selector'))
+      fireEvent.click(await screen.findByTestId('asset-bbb-option'))
+      const amount = document.querySelector('input[name="send-amount"]')!
+      fireEvent.change(amount, { target: { value: '1.5' } })
+      await waitFor(() => expect(screen.getByText('Continue').closest('button')).toBeEnabled())
+      expect(recordSendInfo).toHaveBeenLastCalledWith(
+        expect.objectContaining({ assets: [{ assetId: 'chosen-asset', amount: 150n }] }),
+      )
+      const calls = recordSendInfo.mock.calls.length
+      view.rerender(<RefreshingForm balances={missing === 'missing from an empty list' ? [] : owned.slice(0, 1)} />)
+      await waitFor(() =>
+        expect(screen.getByTestId('asset-selector').querySelector('.send-asset-trigger__balance')).toHaveTextContent(
+          /^0 BBB available$/,
+        ),
+      )
+      expect(screen.getByText('Insufficient asset balance').closest('button')).toBeDisabled()
+      expect(screen.getByTestId('asset-selector').querySelector('.send-asset-trigger__name')).toHaveTextContent(/^BBB$/)
+      expect(amount).toHaveValue(1.5)
+      expect(recordSendInfo).toHaveBeenCalledTimes(calls)
+      view.rerender(<RefreshingForm balances={[owned[0], { assetId: 'chosen-asset', amount: 3000n }]} />)
+      await waitFor(() =>
+        expect(screen.getByTestId('asset-selector').querySelector('.send-asset-trigger__balance')).toHaveTextContent(
+          /^30 BBB available$/,
+        ),
+      )
+      await waitFor(() => expect(screen.getByText('Continue').closest('button')).toBeEnabled())
+      expect(screen.getByTestId('asset-selector').querySelector('.send-asset-trigger__name')).toHaveTextContent(/^BBB$/)
+      expect(amount).toHaveValue(1.5)
+      expect(recordSendInfo).toHaveBeenCalledTimes(calls)
+      expect(recordSendInfo).toHaveBeenLastCalledWith(
+        expect.objectContaining({ assets: [{ assetId: 'chosen-asset', amount: 150n }] }),
+      )
+    },
+  )
+
   const appSendSetup = (app = true) => {
     const navigate = vi.fn()
     const resetFlow = vi.fn()
