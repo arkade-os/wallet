@@ -2,15 +2,15 @@ import assert from 'node:assert/strict'
 import { execFile, spawn } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
-import { mkdir, readFile, writeFile, stat, rm } from 'node:fs/promises'
+import { appendFile, mkdir, readFile, writeFile, stat, rm } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { parseEnv, promisify } from 'node:util'
 
 const refs = {
-  solver: 'd53423b4bb5a7a2788b6996e2fa82af889b5ca50',
-  taxi: '5912272438528ce17c78171e3580a4c3b317bca9',
+  solver: '85d3c56c4e6e48db99dff0f51101bc213cdf6b4c',
+  taxi: 'e7cdfa4124e4a10706c3f1ebaba677965133e73c',
   regtest: '78d0b7a9677077ca64bf09b4e825520ba462446b',
 }
 const projects = ['Mobile Chrome', 'Google Chrome']
@@ -34,6 +34,7 @@ const redact = (text) => {
 const execute = promisify(execFile)
 let env = { ...process.env }
 let relayFile
+let relayStarted = false
 let started = false
 let daemon
 let daemonOutput = ''
@@ -42,6 +43,22 @@ let context
 let cleanupPromise
 let daemonError
 const registryBackups = new Map()
+
+export async function appendEvidence(file, text) {
+  await appendFile(file, `${redact(text)}\n`)
+}
+
+export async function cleanupOwnedStages({ relayStarted, captureLogs, cleanRelay, cleanInfra, cleanImages }) {
+  const failures = []
+  for (const stage of [captureLogs, ...(relayStarted ? [cleanRelay] : []), cleanInfra, cleanImages]) {
+    try {
+      await stage()
+    } catch (error) {
+      failures.push(error.message)
+    }
+  }
+  return failures
+}
 
 async function run(name, command, args, options = {}) {
   const windowsPnpm = process.platform === 'win32' && command === 'pnpm'
@@ -61,10 +78,10 @@ async function run(name, command, args, options = {}) {
       shell: windowsPnpm,
       ...options,
     })
-    await writeFile(resolve(evidence, `${name}.log`), redact(`${result.stdout}\n${result.stderr}`))
+    await appendEvidence(resolve(evidence, `${name}.log`), `${result.stdout}\n${result.stderr}`)
     return result.stdout
   } catch (error) {
-    await writeFile(resolve(evidence, `${name}.log`), redact(`${error.stdout ?? ''}\n${error.stderr ?? ''}`))
+    await appendEvidence(resolve(evidence, `${name}.log`), `${error.stdout ?? ''}\n${error.stderr ?? ''}`)
     throw new Error(`${name} failed (exit ${error.code ?? 'unknown'}); see sanitized evidence`)
   }
 }
@@ -123,44 +140,55 @@ async function cleanOwnedResources() {
   if (feed) await new Promise((done) => feed.close(done))
   if (daemon) await writeFile(resolve(evidence, 'solver.log'), redact(daemonOutput))
   if (started) {
-    await run('service-logs', 'docker', [
-      'compose',
-      '-p',
-      namespace,
-      '-f',
-      resolve(regtestRoot, 'docker/compose.base.yml'),
-      '-f',
-      resolve(regtestRoot, 'docker/compose.ark.yml'),
-      '-f',
-      resolve(regtestRoot, 'docker/compose.evm.yml'),
-      '--profile',
-      'taxi',
-      '--profile',
-      'ark',
-      '--profile',
-      'emulator',
-      '--profile',
-      'base',
-      'logs',
-      '--no-color',
-    ]).catch(() => {})
-    if (relayFile)
-      await run('relay-cleanup', 'docker', [
-        'compose',
-        '-p',
-        `${namespace}-relay`,
-        '-f',
-        relayFile,
-        'down',
-        '-v',
-      ]).catch((error) => failures.push(error.message))
-    await run('infra-cleanup', process.execPath, [
-      resolve(regtestRoot, 'regtest.mjs'),
-      'clean',
-      '--env',
-      env.TAXI_REGTEST_ENV_FILE,
-    ]).catch((error) => failures.push(error.message))
-    await run('image-cleanup', 'docker', ['image', 'rm', `${namespace}-taxi`, `${namespace}-nak`]).catch(() => {})
+    failures.push(
+      ...(await cleanupOwnedStages({
+        relayStarted,
+        captureLogs: () =>
+          run('service-logs', 'docker', [
+            'compose',
+            '-p',
+            namespace,
+            '-f',
+            resolve(regtestRoot, 'docker/compose.base.yml'),
+            '-f',
+            resolve(regtestRoot, 'docker/compose.ark.yml'),
+            '-f',
+            resolve(regtestRoot, 'docker/compose.evm.yml'),
+            '--profile',
+            'taxi',
+            '--profile',
+            'ark',
+            '--profile',
+            'emulator',
+            '--profile',
+            'base',
+            'logs',
+            '--no-color',
+          ]),
+        cleanRelay: () =>
+          run('relay-cleanup', 'docker', ['compose', '-p', `${namespace}-relay`, '-f', relayFile, 'down', '-v']),
+        cleanInfra: () =>
+          run('infra-cleanup', process.execPath, [
+            resolve(regtestRoot, 'regtest.mjs'),
+            'clean',
+            '--env',
+            env.TAXI_REGTEST_ENV_FILE,
+          ]),
+        cleanImages: async () => {
+          const owned = [`${namespace}-taxi`, `${namespace}-nak`]
+          const inventory = await run('image-inventory', 'docker', [
+            'image',
+            'ls',
+            '--format',
+            '{{.Repository}}',
+            '--filter',
+            `reference=${namespace}-*`,
+          ])
+          const remaining = owned.filter((image) => inventory.split(/\r?\n/).includes(image))
+          if (remaining.length) await run('image-cleanup', 'docker', ['image', 'rm', ...remaining])
+        },
+      })),
+    )
     if (failures.length === 0) await writeFile(stateFile, JSON.stringify({ complete: true }), { mode: 0o600 })
   }
   for (const [file, original] of registryBackups) {
@@ -221,7 +249,9 @@ async function main() {
   await run('taxi-build', 'docker', ['build', '-t', infra.TAXI_IMAGE, taxiRoot])
   await run('nak-build', 'docker', ['build', '-t', `${namespace}-nak`, '-f', resolve('nak.Dockerfile'), walletRoot])
   relayFile = resolve(root, 'relay.json')
-  await writeFile(stateFile, JSON.stringify({ namespace, root, relayFile, infrastructureEnv }), { mode: 0o600 })
+  await writeFile(stateFile, JSON.stringify({ namespace, root, relayFile, infrastructureEnv, relayStarted }), {
+    mode: 0o600,
+  })
   started = true
   await run('infra-start', process.execPath, [
     resolve(regtestRoot, 'regtest.mjs'),
@@ -286,6 +316,10 @@ async function main() {
       },
     }),
   )
+  relayStarted = true
+  await writeFile(stateFile, JSON.stringify({ namespace, root, relayFile, infrastructureEnv, relayStarted }), {
+    mode: 0o600,
+  })
   await run('relay-start', 'docker', ['compose', '-p', `${namespace}-relay`, '-f', relayFile, 'up', '-d'])
   feed = createServer((request, response) => {
     response.writeHead(request.url === '/price' ? 200 : 404, {
@@ -451,56 +485,62 @@ async function main() {
   ])
 }
 
-if (process.argv[2] === '--cleanup') {
-  try {
-    const state = JSON.parse(await readFile(stateFile, 'utf8'))
-    if (state.complete === true) process.exit(0)
-    assert.match(state.namespace, /^taxi-native-[0-9a-f]{8}$/)
-    assert.equal(state.root, resolve('.local-tests', state.namespace))
-    assert.equal(state.relayFile, resolve(state.root, 'relay.json'))
-    assert.equal(state.infrastructureEnv, resolve(state.root, 'infrastructure.env'))
-    namespace = state.namespace
-    root = state.root
-    relayFile = state.relayFile
-    env = {
-      ...env,
-      ...parseEnv(await readFile(state.infrastructureEnv, 'utf8')),
-      TAXI_REGTEST_ENV_FILE: state.infrastructureEnv,
+async function cli() {
+  if (process.argv[2] === '--cleanup') {
+    try {
+      const state = JSON.parse(await readFile(stateFile, 'utf8'))
+      if (state.complete === true) process.exit(0)
+      assert.match(state.namespace, /^taxi-native-[0-9a-f]{8}$/)
+      assert.equal(state.root, resolve('.local-tests', state.namespace))
+      assert.equal(state.relayFile, resolve(state.root, 'relay.json'))
+      assert.equal(state.infrastructureEnv, resolve(state.root, 'infrastructure.env'))
+      assert.equal(typeof state.relayStarted, 'boolean')
+      namespace = state.namespace
+      root = state.root
+      relayFile = state.relayFile
+      relayStarted = state.relayStarted
+      env = {
+        ...env,
+        ...parseEnv(await readFile(state.infrastructureEnv, 'utf8')),
+        TAXI_REGTEST_ENV_FILE: state.infrastructureEnv,
+      }
+      for (const [key, value] of Object.entries(env))
+        if (/SECRET|PASSWORD|PRIVKEY|MNEMONIC|SIGNER_KEY/.test(key) && value) secrets.add(value)
+      assert.equal(env.REGTEST_PROJECT, namespace)
+      assert.equal(env.REGTEST_CONTAINER_PREFIX, `${namespace}-`)
+      started = true
+      await cleanup()
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        console.error(redact(error.message))
+        process.exitCode = 1
+      }
     }
-    for (const [key, value] of Object.entries(env))
-      if (/SECRET|PASSWORD|PRIVKEY|MNEMONIC|SIGNER_KEY/.test(key) && value) secrets.add(value)
-    assert.equal(env.REGTEST_PROJECT, namespace)
-    assert.equal(env.REGTEST_CONTAINER_PREFIX, `${namespace}-`)
-    started = true
-    await cleanup()
-  } catch (error) {
-    if (error.code !== 'ENOENT') {
+  } else if (process.argv[2] === '--self-test') {
+    for (const ref of Object.values(refs)) assert.match(ref, /^[0-9a-f]{40}$/)
+    secrets.add('private test phrase')
+    assert.equal(redact('a private test phrase b'), 'a [redacted] b')
+    assert.equal(redact('{"private_key":"unknown-key"}'), '{"private_key":"[redacted]"}')
+    assert.deepEqual(parseEnv('KEY="value"'), { KEY: 'value' })
+    assert.equal(parseEnv("KEY='C:\\Git\\native wallet'").KEY, 'C:\\Git\\native wallet')
+    console.log('Native CI static self-check passed')
+  } else {
+    for (const signal of ['SIGINT', 'SIGTERM'])
+      process.once(signal, () => {
+        process.exitCode = 1
+        cleanup().finally(() => process.exit(1))
+      })
+    try {
+      await main()
+      console.log('Native Taxi browser project passed')
+    } catch (error) {
       console.error(redact(error.message))
       process.exitCode = 1
+    } finally {
+      await mkdir(evidence, { recursive: true })
+      await cleanup()
     }
   }
-} else if (process.argv[2] === '--self-test') {
-  for (const ref of Object.values(refs)) assert.match(ref, /^[0-9a-f]{40}$/)
-  secrets.add('private test phrase')
-  assert.equal(redact('a private test phrase b'), 'a [redacted] b')
-  assert.equal(redact('{"private_key":"unknown-key"}'), '{"private_key":"[redacted]"}')
-  assert.deepEqual(parseEnv('KEY="value"'), { KEY: 'value' })
-  assert.equal(parseEnv("KEY='C:\\Git\\native wallet'").KEY, 'C:\\Git\\native wallet')
-  console.log('Native CI static self-check passed')
-} else {
-  for (const signal of ['SIGINT', 'SIGTERM'])
-    process.once(signal, () => {
-      process.exitCode = 1
-      cleanup().finally(() => process.exit(1))
-    })
-  try {
-    await main()
-    console.log('Native Taxi browser project passed')
-  } catch (error) {
-    console.error(redact(error.message))
-    process.exitCode = 1
-  } finally {
-    await mkdir(evidence, { recursive: true })
-    await cleanup()
-  }
 }
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await cli()
