@@ -36,7 +36,7 @@ import { FiatContext } from '../../providers/fiat'
 import { FlowContext, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { buildConstantMarketSeries, buildCrossRatePoints, fetchHistoricalMarketData } from '../../lib/marketData'
-import { accountChartColorToken } from '../../lib/accountAssets'
+import { accountChartColorToken, normalizeAssetMinorUnits } from '../../lib/accountAssets'
 import { WalletContext } from '../../providers/wallet'
 import { useTranslation } from '../../providers/language'
 
@@ -126,7 +126,7 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
       : BigInt(Math.max(0, Math.floor(row.spendableBalance)))
   const formattedBalance = isBitcoin
     ? prettyBitcoinAmount(safeBitcoinBalance, bitcoinUnit)
-    : `${prettyCurrencyAssetAmount(rawBalance, row.decimals, row.ticker)} ${row.ticker}`
+    : `${prettyCurrencyAssetAmount(rawBalance, row.decimals, row.ticker, true)} ${row.ticker}`
   const maskedBalance = isBitcoin ? prettyBitcoinHide(safeBitcoinBalance, bitcoinUnit) : `•••• ${row.ticker}`
   const chartColor = useTokenColor(accountChartColorToken(row.ticker), config.theme)
   const chartTheme = useResolvedChartTheme(config.theme)
@@ -148,10 +148,14 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
       ? {
           assetId: row.assetId,
           ticker: accountTicker,
-          // the composer caps at this, so it is the spendable amount; the header
-          // above keeps showing the owned total
-          balance: rawSpendableBalance,
-          decimals: row.decimals,
+          // the composer caps at this, so it is the spendable amount normalized
+          // to account minor units; the header above keeps the full-precision total
+          balance: normalizeAssetMinorUnits(
+            rawSpendableBalance,
+            row.decimals,
+            fiatDecimalsFor(accountTicker as Currencies),
+          ),
+          decimals: fiatDecimalsFor(accountTicker as Currencies),
           amount: BigInt(0),
           source: row.sourceAsset,
         }

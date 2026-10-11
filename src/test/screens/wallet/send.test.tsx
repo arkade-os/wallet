@@ -1,4 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
+
+vi.mock('../../../lib/appIntent', async () => {
+  const actual = await vi.importActual<typeof import('../../../lib/appIntent')>('../../../lib/appIntent')
+  return { ...actual, redirectToCallback: vi.fn() }
+})
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import createFetchMock from 'vitest-fetch-mock'
 import { emptySendInfo, FlowContext } from '../../../providers/flow'
@@ -16,7 +21,8 @@ import {
 } from '../mocks'
 import { AspContext } from '../../../providers/asp'
 import { WalletContext } from '../../../providers/wallet'
-import { NavigationContext } from '../../../providers/navigation'
+import { NavigationContext, Pages } from '../../../providers/navigation'
+import { redirectToCallback } from '../../../lib/appIntent'
 import SendForm from '../../../screens/Wallet/Send/Form'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
@@ -28,10 +34,11 @@ describe('Send screen', () => {
     configContext = mockConfigContextValue,
     fiatContext = mockFiatContextValue,
     flowContext = mockFlowContextValue,
+    navigationContext = mockNavigationContextValue,
     walletContext = { ...mockWalletContextValue, svcWallet: mockSvcWallet as any },
   } = {}) =>
     render(
-      <NavigationContext.Provider value={mockNavigationContextValue}>
+      <NavigationContext.Provider value={navigationContext}>
         <AspContext.Provider value={mockAspContextValue}>
           <ConfigContext.Provider value={configContext as any}>
             <FiatContext.Provider value={fiatContext as any}>
@@ -377,5 +384,86 @@ describe('Send screen', () => {
 
     expect(await screen.findByTestId('error-message')).toHaveTextContent(/partial send/)
     expect(screen.getByText('Continue').closest('button')).toBeDisabled()
+  })
+
+  it('shows the payment request the app link already stored', async () => {
+    const request = 'bitcoin:bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4?amount=0.0001'
+    const walletValue = {
+      ...mockWalletContextValue,
+      svcWallet: {
+        ...mockSvcWallet,
+        getAddress: () => 'tark1mockoffchain',
+        getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+      } as any,
+    }
+    renderSendForm({
+      flowContext: {
+        ...mockFlowContextValue,
+        appIntent: { status: 'send', request, callback: 'https://arkade.trade/vault' },
+        sendInfo: { ...emptySendInfo, recipient: request },
+      },
+      walletContext: walletValue,
+    })
+
+    expect(await screen.findByDisplayValue(request)).toBeInTheDocument()
+  })
+
+  it('returns to the app with error=denied when the send is dismissed', () => {
+    vi.mocked(redirectToCallback).mockClear()
+    const resetFlow = vi.fn()
+    const callback = 'https://arkade.trade/vault'
+    renderSendForm({
+      flowContext: {
+        ...mockFlowContextValue,
+        appIntent: {
+          status: 'send',
+          request: 'bitcoin:bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
+          callback,
+        },
+        resetFlow,
+      },
+      walletContext: {
+        ...mockWalletContextValue,
+        svcWallet: {
+          ...mockSvcWallet,
+          getAddress: () => 'tark1mockoffchain',
+          getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+        } as any,
+      },
+    })
+
+    fireEvent.click(screen.getByLabelText('Go back'))
+    expect(resetFlow).toHaveBeenCalled()
+    expect(redirectToCallback).toHaveBeenCalledWith(callback, { error: 'denied' })
+  })
+
+  it('returns to the wallet when an app send without a callback is dismissed', () => {
+    vi.mocked(redirectToCallback).mockClear()
+    const resetFlow = vi.fn()
+    const navigate = vi.fn()
+    renderSendForm({
+      flowContext: {
+        ...mockFlowContextValue,
+        appIntent: {
+          status: 'send',
+          request: 'bitcoin:bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
+        },
+        resetFlow,
+      },
+      navigationContext: { ...mockNavigationContextValue, navigate },
+      walletContext: {
+        ...mockWalletContextValue,
+        svcWallet: {
+          ...mockSvcWallet,
+          getAddress: () => 'tark1mockoffchain',
+          getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+        } as any,
+      },
+    })
+
+    fireEvent.click(screen.getByLabelText('Go back'))
+    expect(resetFlow).toHaveBeenCalled()
+    expect(redirectToCallback).not.toHaveBeenCalled()
+    expect(navigate).toHaveBeenCalledWith(Pages.Wallet)
   })
 })

@@ -56,7 +56,7 @@ export default function InputAmount({
   valueSats,
 }: InputAmountProps) {
   const { config, useFiat } = useContext(ConfigContext)
-  const { toFiat, fromFiat, fiatDecimals, fromFiatAmount } = useContext(FiatContext)
+  const { toFiat, fromFiat, fiatDecimals, toFiatAmount } = useContext(FiatContext)
 
   const [error, setError] = useState('')
   const [internalMode, setInternalMode] = useState<InputAmountMode>('unit')
@@ -141,7 +141,7 @@ export default function InputAmount({
           unitsToCents(plainDecimalValue, asset.decimals),
           asset.decimals,
           asset.ticker,
-          fromFiatAmount,
+          toFiatAmount,
         )
       : undefined
   const assetFiatLabel =

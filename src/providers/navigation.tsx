@@ -34,6 +34,7 @@ import AppAssetsSettings from '../screens/Apps/Assets/Settings'
 import AppDfx from '../screens/Apps/Dfx/Index'
 import InAppBrowser from '../screens/Wallet/InAppBrowser'
 import Unavailable from '../screens/Wallet/Unavailable'
+import AppIntentScreen from '../screens/AppIntent/Index'
 
 export type NavigationDirection = 'forward' | 'back' | 'none'
 
@@ -72,6 +73,7 @@ export enum Pages {
   Vtxos,
   Wallet,
   WalletSwap,
+  AppIntent,
 }
 
 // Root pages - switches between these get no animation
@@ -166,6 +168,8 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <Wallet />
     case Pages.WalletSwap:
       return <WalletSwap />
+    case Pages.AppIntent:
+      return <AppIntentScreen />
     default:
       return <></>
   }

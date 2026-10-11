@@ -33,7 +33,8 @@ describe('Send details amount hierarchy', () => {
             value={{
               ...mockFiatContextValue,
               fromFiatAmount: (amount, currency) => (currency === Currencies.USD ? amount * 1_000 : 0),
-              toFiatAmount: (satoshis, currency) => (currency === Currencies.EUR ? satoshis * 0.000875 : 0),
+              toFiatAmount: (satoshis, currency) =>
+                currency === Currencies.EUR ? satoshis * 0.000875 : currency === Currencies.USD ? satoshis / 1_000 : 0,
             }}
           >
             <AspContext.Provider
