@@ -154,8 +154,8 @@ jobs:
       - name: Clean owned native Taxi infrastructure
         if: always()
         run: node scripts/taxi-native-ci.mjs --cleanup
-      - name: Preserve native Taxi failure evidence
-        if: failure()
+      - name: Preserve native Taxi evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: taxi-native-${{ matrix.project }}
