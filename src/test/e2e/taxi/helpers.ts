@@ -194,10 +194,15 @@ export function rule(assetId: string | null) {
   }
 }
 
-export type Policy = { assetRules: Awaited<ReturnType<TaxiClient['info']>>['assetRules']; paused: boolean }
+export type Policy = {
+  assetRules: Awaited<ReturnType<TaxiClient['info']>>['assetRules']
+  paused: boolean
+  quoteTtlSeconds: number
+}
 export const restorePolicy = (policy: Policy) =>
   admin('policy', 'PATCH', {
     paused: policy.paused,
+    quoteTtlSeconds: policy.quoteTtlSeconds,
     assetRules: policy.assetRules.map((rule) => ({
       assetId: rule.assetId,
       enabled: rule.enabled,

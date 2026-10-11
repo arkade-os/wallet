@@ -24,7 +24,16 @@ async function watchFixture(ignore) {
     server = await createServer({
       configFile: false,
       root,
-      plugins: [tailwindcss()],
+      plugins: [
+        tailwindcss(),
+        {
+          name: 'ready-before-create-server-returns',
+          async configureServer(server) {
+            if (!server.watcher._readyEmitted) await new Promise((done) => server.watcher.once('ready', done))
+            await new Promise((done) => setImmediate(done))
+          },
+        },
+      ],
       logLevel: 'silent',
       server: {
         host: '127.0.0.1',
@@ -36,7 +45,9 @@ async function watchFixture(ignore) {
         },
       },
     })
-    const ready = new Promise((done) => server.watcher.once('ready', done))
+    const ready = server.watcher._readyEmitted
+      ? Promise.resolve()
+      : new Promise((done) => server.watcher.once('ready', done))
     await server.listen()
     const port = server.httpServer.address().port
     const messages = []

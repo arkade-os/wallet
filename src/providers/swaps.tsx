@@ -39,6 +39,7 @@ import { asset, type Asset, type NetworkName, type PaymentRouter } from '@arkade
 import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
 import {
   arkadeAsset,
+  assetSwapIdOf,
   btcOn,
   InsufficientFunds,
   type AssetId,
@@ -102,7 +103,7 @@ interface SwapsContextProps {
   swaps: WalletAssetSwap[]
   runDiscovery: (useCache?: boolean) => void
   /** Fund an arkade↔arkade asset swap for the plan the composer quoted. */
-  exchange: (market: DiscoveredMarket, plan: OfferPlan, quote?: AssetSwapQuoteSnapshot) => Promise<Swap>
+  exchange: (plan: OfferPlan, quote?: AssetSwapQuoteSnapshot) => Promise<Swap>
   cancelSwap: (id: string) => Promise<void>
   /** Run a recovery round for a swept offer deposit. Resolves with whether THIS
    * deposit went home; throws `SwapDriveRefusedError` (by `name` across tabs) or
@@ -619,9 +620,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       ? btcOn('arkade', network)
       : arkadeAsset(network, asset.AssetId.fromString(discoveryId))
 
-  /** The market is the client's to select, so only the plan and the snapshot
-   * need to reach the tab that will fund this. */
-  const exchange = (_market: DiscoveredMarket, plan: OfferPlan, quote?: AssetSwapQuoteSnapshot): Promise<Swap> =>
+  const exchange = (plan: OfferPlan, quote?: AssetSwapQuoteSnapshot): Promise<Swap> =>
     runOnDriver('exchange', [plan, quote])
 
   const exchangeHere = async (plan: OfferPlan, quote?: AssetSwapQuoteSnapshot): Promise<Swap> => {
@@ -630,13 +629,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     const client = await driving()
     const give = assetIdFor(network, plan.deposit.asset.id)
     const take = assetIdFor(network, plan.receive.asset.id)
-    // Quote and accept rather than `client.exchange`, for one reason: the
-    // composer has been pricing this plan live and the user confirmed a number.
-    // `exchange` re-quotes internally and would fund whatever came back.
-    // Quoting here lets the confirmed amount be a floor — the swap is refused
-    // rather than funded at a worse rate than the one on screen. The market is
-    // the client's to select; it is taken here only so the caller's own
-    // pair lookup and the client's cannot silently disagree about the pair.
+    // Re-quote through the client's current market, preserving the confirmed receive floor.
     const quoted = await client.quote({ give, take, amount: plan.deposit.atomic, amountOn: 'give' })
     if (quoted.take.amount < plan.receive.atomic) {
       throw new Error('The rate moved while you were confirming — go back and try again')
@@ -650,7 +643,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     // the row its tickers, never its money.
     if (quote) {
       try {
-        saveQuoteSnapshot(swap.id, quote)
+        saveQuoteSnapshot(quoted.id, quote)
       } catch (err) {
         consoleError(err, 'failed to store the swap quote snapshot')
       }
@@ -824,7 +817,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const fundedAssetPayment = async (client: SwapClient, sender: string): Promise<Swap> => {
     const pending = readAssetPayment(sender, aspInfo.network)
     if (!pending) throw new Error('No asset payment to check')
-    const swap = (await client.swaps()).find((swap) => swap.id === pending.quoteId)
+    const swap = (await client.swaps()).find((swap) => swap.id === assetSwapIdOf('offer', pending.quoteId))
     if (!swap?.fundingTxid) throw new Error('Check asset payment: its funding is still unresolved')
     announceHere(swap)
     await refreshSwaps()
@@ -870,7 +863,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
           clearAssetPayment(sender, aspInfo.network, quote.id)
         throw error
       }
-      if (!swap.fundingTxid || swap.id !== quote.id)
+      if (!swap.fundingTxid || swap.id !== assetSwapIdOf('offer', quote.id))
         throw new Error('Check asset payment: its funding is still unresolved')
       announceHere(swap)
       await refreshSwaps()

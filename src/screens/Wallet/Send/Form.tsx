@@ -282,9 +282,7 @@ export default function SendForm() {
         if (!active) return
         if (assetPayment) {
           if (appIntent?.status === 'send') return leaveAppSend()
-          setPendingAssetPayment(assetPayment)
-          assetPaymentScope.current = { wallet: svcWallet, network: aspInfo.network }
-          restoreTaxiSend(assetPaymentSend(assetPayment))
+          restorePendingAssetPayment(assetPayment)
           setError('Check asset payment: its funding is still unresolved')
         }
         if (payment && !pendingDirectTaxi.current) {
@@ -1057,6 +1055,12 @@ export default function SendForm() {
     satoshis: 0,
   })
 
+  const restorePendingAssetPayment = (payment: PendingAssetPayment) => {
+    setPendingAssetPayment(payment)
+    assetPaymentScope.current = { wallet: svcWallet, network: aspInfo.network }
+    restoreTaxiSend(assetPaymentSend(payment))
+  }
+
   const checkPendingAssetPayment = async (payment: PendingAssetPayment) => {
     const swap = await checkAssetPayment()
     setPendingAssetPayment(undefined)
@@ -1188,9 +1192,7 @@ export default function SendForm() {
             assetPaymentAttempt.current.appIntent !== appIntent)
         )
           return leaveAppSend()
-        setPendingAssetPayment(assetPayment)
-        assetPaymentScope.current = { wallet: svcWallet, network: aspInfo.network }
-        restoreTaxiSend(assetPaymentSend(assetPayment))
+        restorePendingAssetPayment(assetPayment)
         return await checkPendingAssetPayment(assetPayment)
       }
       const recorded = await getPendingDirectTaxi(svcWallet, aspInfo.network)
@@ -1245,9 +1247,7 @@ export default function SendForm() {
               assetPaymentAttempt.current.appIntent !== appIntent)
           )
             return leaveAppSend()
-          setPendingAssetPayment(pending)
-          assetPaymentScope.current = { wallet: svcWallet, network: aspInfo.network }
-          restoreTaxiSend(assetPaymentSend(pending))
+          restorePendingAssetPayment(pending)
         }
       } catch (storageError) {
         setTaxiGuardFailed(true)

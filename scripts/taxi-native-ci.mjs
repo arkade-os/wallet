@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { parseEnv, promisify } from 'node:util'
 
 export const refs = Object.freeze({
-  solver: 'ecb4c5f3f2d84b2f906beafd294a03008e4f1953',
+  solver: '9fd60fbaa0df6f6f343ead8c065a43436c365127',
   taxi: 'e7cdfa4124e4a10706c3f1ebaba677965133e73c',
   regtest: '78d0b7a9677077ca64bf09b4e825520ba462446b',
 })

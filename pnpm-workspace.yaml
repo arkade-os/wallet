@@ -8,8 +8,8 @@ onlyBuiltDependencies:
   - '@arkade-os/sdk'
 
 overrides:
-  '@arkade-os/sdk': 'file:vendor/carrier/arkade-os-sdk-0.5.0-rc.18-99313fa7.tgz'
-  '@arkade-os/swap': 'file:vendor/carrier/arkade-os-swap-0.1.0-rc.21-99313fa7.tgz'
+  '@arkade-os/sdk': 'file:vendor/carrier/arkade-os-sdk-0.5.0-rc.18-c4fc8db5.tgz'
+  '@arkade-os/swap': 'file:vendor/carrier/arkade-os-swap-0.1.0-rc.21-c4fc8db5.tgz'
   '@arkade-taxi/covenant': 'file:vendor/carrier/arkade-taxi-covenant-0.0.0-f27ae4b6.tgz'
   '@arkade-taxi/protocol': 'file:vendor/carrier/arkade-taxi-protocol-0.0.0-f27ae4b6.tgz'
   '@arkade-taxi/client': 'file:vendor/carrier/arkade-taxi-client-0.0.0-f27ae4b6.tgz'

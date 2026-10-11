@@ -87,11 +87,11 @@ function Harness() {
       <button
         onClick={() =>
           void exchange(
-            market() as never,
             {
               deposit: { asset: { id: 'btc', decimals: 0 }, atomic: BigInt(1000) },
               receive: { asset: { id: ASSET_ID, decimals: 0 }, atomic: BigInt(1000) },
             } as never,
+            { fromTicker: 'BTC' },
           ).catch((error: Error) => {
             const node = document.querySelector('[data-testid="exchange-error"]')
             if (node) node.textContent = error.message
@@ -185,7 +185,7 @@ describe('SwapsProvider', () => {
       expiresAt: Math.floor(Date.now() / 1000) + 600,
     } as Quote
     mocks.quote.mockResolvedValue(quoted)
-    mocks.accept.mockResolvedValue({ ...swap, id: quoted.id })
+    mocks.accept.mockResolvedValue({ ...swap, id: `offer:${quoted.id}` })
     function AssetPaymentScreen() {
       const { quoteAssetPayment, acceptAssetPayment } = useContext(SwapsContext)
       const [state, setState] = useState('ready')
@@ -284,7 +284,7 @@ describe('SwapsProvider', () => {
     fireEvent.click(screen.getByText('check'))
     await screen.findByText('Check asset payment: its funding is still unresolved')
     expect(localStorage.length).toBe(1)
-    mocks.swaps.mockResolvedValue([{ ...swap, id: 'original', fundingTxid: 'original-txid' }])
+    mocks.swaps.mockResolvedValue([{ ...swap, id: 'offer:original', fundingTxid: 'original-txid' }])
     fireEvent.click(screen.getByText('Check asset payment: its funding is still unresolved'))
     await screen.findByText('original-txid')
     expect(mocks.quote).toHaveBeenCalledOnce()
@@ -365,7 +365,8 @@ describe('SwapsProvider', () => {
   })
 
   it('quotes the pair as CAIP-19 ids', async () => {
-    mocks.quote.mockResolvedValue({ take: { amount: BigInt(1000) } })
+    mocks.quote.mockResolvedValue({ id: 'market-quote', take: { amount: BigInt(1000) } })
+    mocks.accept.mockResolvedValue({ ...swap, id: 'offer:market-quote' })
     renderProvider()
 
     screen.getByText('exchange').click()
@@ -378,6 +379,14 @@ describe('SwapsProvider', () => {
         amountOn: 'give',
       }),
     )
+  })
+
+  it('stores the exchange snapshot under the quote id used by history', async () => {
+    mocks.quote.mockResolvedValue({ id: 'market-quote', take: { amount: BigInt(1000) } })
+    mocks.accept.mockResolvedValue({ ...swap, id: 'offer:market-quote' })
+    renderProvider()
+    screen.getByText('exchange').click()
+    await waitFor(() => expect(mocks.saveSnapshot).toHaveBeenCalledWith('market-quote', { fromTicker: 'BTC' }))
   })
 
   it('reports the fill that beat the cancel as a completion', async () => {

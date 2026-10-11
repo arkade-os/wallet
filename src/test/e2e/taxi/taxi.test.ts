@@ -275,7 +275,7 @@ test('Native BTC exact-out asset payment repays the Taxi loan once', async ({ br
   try {
     const assetRule = rule(assetId)
     assetRule.fares = [{ id: 'sats', currency: { kind: 'sats' }, pricing: { kind: 'flat', units: fareText } }]
-    await admin('policy', 'PATCH', { assetRules: [rule(null), assetRule] })
+    await admin('policy', 'PATCH', { assetRules: [rule(null), assetRule], quoteTtlSeconds: 120 })
     const alice = await actor(await contexts[0].newPage(), 100_000)
     const bob = await actor(await contexts[1].newPage(), 1000)
     await importAsset(alice, assetId)
