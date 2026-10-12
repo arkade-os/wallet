@@ -15,7 +15,7 @@
     "@scure/base": "2.0.0",
     "@scure/bip32": "2.0.0",
     "@scure/bip39": "2.0.0",
-    "@scure/btc-signer": "2.0.1",
+    "@scure/btc-signer": "2.4.1",
     "@sentry/react": "^9.15.0",
     "@tanstack/react-virtual": "^3.13.19",
     "class-variance-authority": "^0.7.1",
