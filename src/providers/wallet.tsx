@@ -37,7 +37,6 @@ import { deepLinkInUrl } from '../lib/deepLink'
 import { assetNameChanged, referencedAssetIds } from '../lib/assets'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
-import { useTaxiActivity, forgetTaxiActivity } from '../lib/taxiActivity'
 import { activitiesToTxs, getActivities } from '../lib/activityHistory'
 import { arkTransactionToTx } from '../lib/transactionHistory'
 import { Indexer } from '../lib/indexer'
@@ -206,7 +205,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     lnSends: LnSendView[]
     exits: ExitRecord[]
   }>({ activities: [], metadata: {}, lnSends: [], exits: [] })
-  const taxiActivities = useTaxiActivity(aspInfo.network)
   const [assetSwaps, setAssetSwaps] = useState<WalletAssetSwap[]>([])
   const [balance, setBalance] = useState(0)
   const [availableBalance, setAvailableBalance] = useState(0)
@@ -249,12 +247,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         metadata: history.metadata,
         lnSends: history.lnSends,
         exits: history.exits,
-        taxi: taxiActivities,
         network: aspInfo.network,
         assetDisplay: (id) => assetMetadataCache.current.get(id)?.metadata,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [history, assetSwaps, taxiActivities, aspInfo.network, assetDisplayVersion],
+    [history, assetSwaps, aspInfo.network, assetDisplayVersion],
   )
 
   const ungroupedTxs = useMemo(
@@ -988,7 +985,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     // previous wallet's swaps in the activity list. Never fatal — a reset that
     // aborted here would leave the wallet itself half-cleared, which is worse
     // than stale swap rows.
-    forgetTaxiActivity()
     await assetSwapRepository.clear().catch((err) => consoleError(err, 'failed to clear swap records'))
     setAssetSwaps([])
     await svcWallet.clear()

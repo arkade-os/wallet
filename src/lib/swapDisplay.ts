@@ -1,12 +1,9 @@
-import { translate } from './i18n'
-import type { RecordedAssetPayment } from '@arkade-os/swap'
-import { pluralSats } from './carrierActivity'
 import Decimal from 'decimal.js'
 import { prettyCurrencyAssetAmount, prettyFiatAmount, prettyFiatHide, prettyHide, prettyNumber } from './format'
 import { designatedAccountCurrency, walletAccountTicker } from './accountAssets'
 import { reportingSatsForFiatAmount } from './fiat'
 import type { WalletAssetSwap } from './swapRepository'
-import { Currencies, Language, Tx, Unit } from './types'
+import { Currencies, Tx, Unit } from './types'
 
 export type SwapStatus = 'pending' | 'failed' | 'completed' | 'cancelled' | 'recoverable' | 'refunded'
 
@@ -255,40 +252,6 @@ interface AssetSwapActivityOptions {
   assetDisplay?: (assetId: string) => { ticker?: string; decimals?: number } | undefined
 }
 
-export interface CarrierReceiptRows {
-  carrierDelivery?: string
-  carrierFare?: SwapDisplayAmount
-  carrierLoan?: SwapDisplayAmount
-  carrierPurchase?: SwapDisplayAmount
-  carrierPurchased?: SwapDisplayAmount
-}
-
-export const carrierDetails = (
-  payment: RecordedAssetPayment | undefined,
-  language = Language.English,
-): CarrierReceiptRows => {
-  const carrier = payment?.carrier
-  if (!carrier) return {}
-  const satsLabel = translate(language, 'common.sats')
-  const sats = (value: string) => ({ value: pluralSats(value, language), masked: prettyHide(value, satsLabel) })
-  return {
-    ...(carrier.loanSats !== '0'
-      ? {
-          carrierLoan: {
-            value: translate(language, 'transaction.carrierBorrowed', {
-              amount: pluralSats(carrier.loanSats, language),
-            }),
-            masked: translate(language, 'transaction.carrierBorrowed', {
-              amount: prettyHide(carrier.loanSats, satsLabel),
-            }),
-          },
-        }
-      : {}),
-    ...(carrier.mode === 'purchase' ? { carrierPurchase: sats(carrier.physicalSats) } : {}),
-    ...(carrier.serviceFareSats !== '0' ? { carrierFare: sats(carrier.serviceFareSats) } : {}),
-  }
-}
-
 /** The display row for one swap, from its record and the wallet rows that
  * funded and filled it. Facts are recomputed from the tx couple and asset
  * metadata where possible; the quote snapshot only fills what cannot be. */
@@ -335,8 +298,6 @@ export const buildAssetSwapActivityTx = (
     roundTxid: '',
     settled: status !== 'pending',
     type: 'swap',
-    destination: quote?.payee,
-    assetPayment: swap.assetPayment,
     assetSwap: {
       fromAssetId: swap.fromAsset,
       fromTicker: quote?.fromTicker ?? derivedTicker(swap.fromAsset),

@@ -24,8 +24,6 @@ import { FiatContext } from '../../../providers/fiat'
 import { Currencies } from '../../../lib/types'
 import { AssetsContext } from '../../../providers/assets'
 import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
-import { ReceiverClaimsContext } from '../../../providers/receiverClaims'
-import type { TaxiActivity } from '../../../lib/taxiActivity'
 import { SwapsContext } from '../../../providers/swaps'
 import type { WalletAssetSwap as AssetSwap } from '../../../lib/swapRepository'
 
@@ -845,49 +843,4 @@ describe('Transaction screen', () => {
     expect(screen.getByTestId('Asset ID (unknown-…, unverified)')).toHaveTextContent('unknown-asset')
     expect(screen.queryByText('€100.00')).not.toBeInTheDocument()
   })
-})
-
-it('offers a verified receiver delivery claim without offering swap cancellation', async () => {
-  const taxi = {
-    network: 'regtest',
-    taxiUrl: 'http://localhost:3001',
-    transferId: 'ready',
-    role: 'receiver',
-    state: 'locked',
-    mode: 'recycle',
-    units: '1000',
-    createdAt: 1700000000,
-    updatedAt: 1700000000,
-  } satisfies TaxiActivity
-  const txInfo = {
-    ...mockTxInfo,
-    taxi,
-    type: 'received',
-    redeemTxid: '',
-    boardingTxid: '',
-    roundTxid: '',
-    settled: true,
-  }
-  const openClaim = vi.fn()
-  render(
-    <NavigationContext.Provider value={mockNavigationContextValue}>
-      <AspContext.Provider value={mockAspContextValue}>
-        <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
-          <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [txInfo] }}>
-            <ReceiverClaimsContext.Provider
-              value={{ remember: vi.fn(), claimable: new Set(['http://localhost:3001 ready']), openClaim }}
-            >
-              <LimitsContext.Provider value={mockLimitsContextValue}>
-                <Transaction />
-              </LimitsContext.Provider>
-            </ReceiverClaimsContext.Provider>
-          </WalletContext.Provider>
-        </FlowContext.Provider>
-      </AspContext.Provider>
-    </NavigationContext.Provider>,
-  )
-  await userEvent.click(await screen.findByText('Claim'))
-  expect(openClaim).toHaveBeenCalledWith('http://localhost:3001 ready')
-  expect(screen.queryByText('Cancel swap')).not.toBeInTheDocument()
-  expect(screen.getByText('This delivery is waiting for you. Claim it to add it to your balance.')).toBeInTheDocument()
 })

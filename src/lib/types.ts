@@ -1,5 +1,3 @@
-import type { RecordedAssetPayment } from '@arkade-os/swap'
-import type { TaxiActivity } from './taxiActivity'
 import { Asset, NetworkName, type ExtendedVirtualCoin, type ServiceWorkerWalletMode } from '@arkade-os/sdk'
 
 export type Addresses = {
@@ -14,7 +12,6 @@ export type Config = {
       enabled: boolean
     }
   }
-  autoClaimFreeTaxi?: boolean
   aspUrl: string
   currency: Currencies
   delegate: boolean
@@ -170,8 +167,6 @@ export type Tx = {
   redeemTxid: string
   roundTxid: string
   settled: boolean
-  taxi?: TaxiActivity
-  assetPayment?: RecordedAssetPayment
   type: TxKind
   assetSwap?: {
     fromAssetId?: string

@@ -8,19 +8,12 @@ vi.mock('../../lib/logs', async (importOriginal) => ({
 import { lnSwapLabel } from '../../lib/swapDisplay'
 import { translate } from '../../lib/i18n'
 import { Language } from '../../lib/types'
-import {
-  createDefaultActivityRegistry,
-  ServiceWorkerWallet,
-  TxType,
-  type Activity,
-  type ArkTransaction,
-} from '@arkade-os/sdk'
+import { createDefaultActivityRegistry, ServiceWorkerWallet, type Activity, type ArkTransaction } from '@arkade-os/sdk'
 import { activitiesToTxs, getActivities } from '../../lib/activityHistory'
 import { ASSET_SWAP_ACTIVITY_KIND, swapRecordResolver, type LnSendView } from '../../lib/swapRecords'
 import type { SwapRecord } from '@arkade-os/swap'
 import { readAllTransactionActivityMetadata, saveTransactionActivityMetadata } from '../../lib/storage'
 import type { ExitRecord } from '../../lib/exitHistory'
-import type { TaxiActivity } from '../../lib/taxiActivity'
 import type { WalletAssetSwap } from '../../lib/swapRepository'
 
 const t = (key: string) => translate(Language.English, key)
@@ -729,71 +722,4 @@ describe('unilateral exits', () => {
     expect(row.redeemTxid).toBe('exit-txid')
     expect(row.boardingTxid).toBe('')
   })
-})
-
-describe('verified Taxi history', () => {
-  const delivery = {
-    network: 'regtest',
-    taxiUrl: 'http://localhost:3001',
-    transferId: 'delivery',
-    role: 'receiver',
-    state: 'recycled',
-    mode: 'recycle',
-    units: '1000',
-    assetId: 'fa'.repeat(34),
-    claimTxid: 'claim',
-    createdAt: 1700000000,
-    updatedAt: 1700000001,
-  } satisfies TaxiActivity
-
-  it('shows verified own claim gains as received and preserves unrelated sends', () => {
-    const gain = arkTx('claim', {
-      type: TxType.TxSent,
-      amount: -7,
-      assets: [{ assetId: delivery.assetId, amount: 1000n }],
-    })
-    const unrelated = arkTx('other', { type: TxType.TxSent, amount: -7 })
-    const rows = activitiesToTxs([activity('claim', [gain]), activity('other', [unrelated])], {
-      ...empty,
-      taxi: [delivery],
-    })
-    expect(rows.find((row) => row.redeemTxid === 'claim')).toMatchObject({ type: 'received', taxi: delivery })
-    expect(rows.find((row) => row.redeemTxid === 'other')).toMatchObject({ type: 'sent' })
-    expect(rows).toHaveLength(2)
-  })
-
-  it('retains a pending delivery whose transaction has not reached history', () => {
-    const pending = { ...delivery, state: 'locked' as const, claimTxid: undefined }
-    expect(activitiesToTxs([], { ...empty, taxi: [pending] })).toEqual([
-      expect.objectContaining({ type: 'received', taxi: pending, historyKey: 'taxi:receiver:localhost:3001:delivery' }),
-    ])
-  })
-})
-
-it('keeps an externally delivered native offer in history without claiming receiver settlement', () => {
-  const payment = swap({
-    status: 'fulfilled',
-    quote: { payee: 'human-payee' },
-    assetPayment: {
-      receiveAddress: 'taxi-covenant',
-      validUntil: 1700000010,
-      carrier: {
-        mode: 'recycle_receiver',
-        physicalSats: '331',
-        loanSats: '331',
-        receiptSats: '0',
-        serviceFareSats: '0',
-        pricedSats: '0',
-        expiresAt: 1700000040,
-        quoteId: 'quote',
-        taxiUrl: 'https://taxi.example',
-        taxiKey: 'ab'.repeat(32),
-      },
-    },
-  })
-  const rows = activitiesToTxs([], { ...empty, swaps: [payment] })
-  expect(rows).toHaveLength(1)
-  expect(rows[0]).toMatchObject({ type: 'swap', destination: 'human-payee', assetPayment: payment.assetPayment })
-  expect(rows[0]).not.toHaveProperty('taxi')
-  expect(rows[0]).not.toHaveProperty('carrier')
 })

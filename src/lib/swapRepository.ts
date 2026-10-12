@@ -15,15 +15,11 @@
  * WHOLE database, asset swaps and markets cache included. Rolling back this
  * release means rolling back the data, not just the bundle.
  */
-import type { ExtendedVirtualCoin, IWallet } from '@arkade-os/sdk'
-import { IndexedDbAssetSwapRepository, type AssetSwap, type RecordedAssetPayment } from '@arkade-os/swap'
+import { IndexedDbAssetSwapRepository, type AssetSwap } from '@arkade-os/swap'
 
 /** Shared per tab: the repository opens its database lazily on first use, and
  * a second instance would open a second connection to the same stores. */
 export const assetSwapRepository = new IndexedDbAssetSwapRepository()
-
-export const unreservedCoins = async (wallet: Pick<IWallet, 'getSpendableVtxos'>): Promise<ExtendedVirtualCoin[]> =>
-  wallet.getSpendableVtxos({ withRecoverable: false, genericallySpendableOnly: true })
 
 /** Display facts frozen at quote time — only what the activity UI reads.
  * Every field is optional: a restore can only backfill what is recoverable
@@ -32,7 +28,6 @@ export const unreservedCoins = async (wallet: Pick<IWallet, 'getSpendableVtxos'>
  * being a quote-time fact — read it from the tx (creation and restore alike)
  * and drop the field here. */
 export interface AssetSwapQuoteSnapshot {
-  payee?: string
   fromTicker?: string
   fromDecimals?: number
   toTicker?: string
@@ -45,7 +40,7 @@ export interface AssetSwapQuoteSnapshot {
 /** The package's record plus the quote snapshot it deliberately does not own.
  * The repository stores records whole, so `quote` survives package-side writes
  * (`cancelOffer`, the watcher) untouched. */
-export type WalletAssetSwap = AssetSwap & { quote?: AssetSwapQuoteSnapshot; assetPayment?: RecordedAssetPayment }
+export type WalletAssetSwap = AssetSwap & { quote?: AssetSwapQuoteSnapshot }
 
 /**
  * Where the snapshot is kept.

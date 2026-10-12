@@ -23,11 +23,7 @@ RUN corepack enable && corepack prepare pnpm@10.25.0 --activate
 
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY vendor/carrier ./vendor/carrier
-COPY scripts/carrier-artifacts ./scripts/carrier-artifacts
-RUN node scripts/carrier-artifacts/verify.mjs
 RUN pnpm install --frozen-lockfile
-RUN node scripts/carrier-artifacts/verify.mjs --installed
 
 COPY . .
 RUN echo "export const gitCommit = '${GIT_COMMIT}'" > src/_gitCommit.ts && \

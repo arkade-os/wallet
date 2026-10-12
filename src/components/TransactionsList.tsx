@@ -26,7 +26,6 @@ import {
 } from '../lib/swapDisplay'
 import UnverifiedBadge from './UnverifiedBadge'
 import { useTransactionAmountDisplay } from '../hooks/useTransactionAmountDisplay'
-import { isTaxiOnlyTx, taxiActivityView } from '../lib/taxiActivity'
 import { useTranslation } from '../providers/language'
 
 const border = '1px solid color-mix(in srgb, var(--fg) 6%, transparent)'
@@ -62,8 +61,6 @@ const TransactionLine = ({
   const prefix = issuance ? '+' : burn || exit || tx.type === 'sent' ? '-' : '+'
   const amountDisplay = useTransactionAmountDisplay(tx)
 
-  const taxiView = tx.taxi && taxiActivityView(tx.taxi)
-  const taxiOnly = isTaxiOnlyTx(tx)
   const lnSwapKind = lnSwapLabel(tx, t)
   const lnSwapOutcome = tx.lnSwap?.outcome
   const iconTone =
@@ -72,14 +69,12 @@ const TransactionLine = ({
       : // `lost` earns the same tone as `failed`: on a receive leg the covenant
         // going back means the payment never arrived, so it is money gone.
         burn ||
-          taxiView?.tone === 'failed' ||
-          taxiView?.tone === 'void' ||
           swapStatus === 'failed' ||
           swapStatus === 'cancelled' ||
           lnSwapOutcome === 'failed' ||
           lnSwapOutcome === 'lost'
         ? 'burn'
-        : taxiView?.tone === 'pending' || swapStatus === 'pending' || lnSwapOutcome === 'pending'
+        : swapStatus === 'pending' || lnSwapOutcome === 'pending'
           ? 'pending'
           : 'default'
   const Icon = () => {
@@ -113,7 +108,6 @@ const TransactionLine = ({
   }
 
   const kind =
-    (taxiOnly ? t(tx.taxi?.role === 'sender' ? 'transaction.taxiPayment' : 'transaction.taxiDelivery') : undefined) ??
     lnSwapKind ??
     (swap
       ? swapStatus === 'pending'
@@ -137,11 +131,7 @@ const TransactionLine = ({
   const Kind = () => <span className='activity-row__kind'>{kind}</span>
 
   const swapRoute = swap ? swapRouteLabel(tx) : ''
-  const taxiLabel =
-    taxiOnly && taxiView ? t(taxiView.label) : tx.taxi ? t('transaction.taxiState', { state: t(taxiView!.label) }) : ''
-  const When = () => (
-    <span className='activity-row__meta'>{[swapRoute, taxiLabel, date].filter(Boolean).join(' � ')}</span>
-  )
+  const When = () => <span className='activity-row__meta'>{swapRoute ? `${swapRoute} · ${date}` : date}</span>
 
   const RawAmounts = () => {
     const configured = amountDisplay?.configured

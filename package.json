@@ -4,9 +4,9 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
-    "@arkade-os/sdk": "file:./vendor/carrier/arkade-os-sdk-0.5.0-rc.18-c4fc8db5.tgz",
+    "@arkade-os/sdk": "0.5.0-rc.17",
     "@arkade-os/solver-discovery": "0.2.7",
-    "@arkade-os/swap": "file:./vendor/carrier/arkade-os-swap-0.1.0-rc.21-c4fc8db5.tgz",
+    "@arkade-os/swap": "0.1.0-rc.20",
     "@base-ui/react": "^1.4.1",
     "@branta-ops/branta": "3.1.3",
     "@fontsource-variable/geist": "^5.2.8",
@@ -15,7 +15,7 @@
     "@scure/base": "2.0.0",
     "@scure/bip32": "2.0.0",
     "@scure/bip39": "2.0.0",
-    "@scure/btc-signer": "2.4.1",
+    "@scure/btc-signer": "2.0.1",
     "@sentry/react": "^9.15.0",
     "@tanstack/react-virtual": "^3.13.19",
     "class-variance-authority": "^0.7.1",
@@ -39,8 +39,7 @@
     "tailwindcss": "^4.2.2",
     "tw-animate-css": "^1.4.0",
     "vaul-base": "^1.0.0",
-    "web-haptics": "^0.0.6",
-    "@arkade-taxi/client": "file:./vendor/carrier/arkade-taxi-client-0.0.0-f27ae4b6.tgz"
+    "web-haptics": "^0.0.6"
   },
   "scripts": {
     "prepare": "husky install",
@@ -57,8 +56,8 @@
     "test:codegen": "playwright codegen localhost:3002",
     "lint": "eslint \"src/**/*.{ts,tsx,js,jsx}\"",
     "lint:fix": "eslint \"src/**/*.{ts,tsx,js,jsx}\" --fix",
-    "format": "prettier --write src scripts/carrier-artifacts",
-    "format:check": "prettier --check src scripts/carrier-artifacts",
+    "format": "prettier --write src",
+    "format:check": "prettier --check src",
     "probe:solver": "node scripts/probe-rfq-solver.mjs",
     "git-info": "node scripts/git-commit-info.js",
     "csp:check": "node scripts/csp-hash.mjs",
@@ -67,8 +66,7 @@
     "regtest:start": "node regtest/regtest.mjs start --env .env.regtest && node scripts/gen-relay-tls-cert.mjs && docker compose -f docker-compose.nak.yml up -d && pnpm build:markets",
     "regtest:stop": "docker compose -f docker-compose.nak.yml down && node regtest/regtest.mjs stop --env .env.regtest",
     "regtest:clean": "docker compose -f docker-compose.nak.yml down -v && node regtest/regtest.mjs clean --env .env.regtest",
-    "regtest:setup": "node src/test/setup.mjs",
-    "verify:artifacts": "node scripts/carrier-artifacts/verify.mjs"
+    "regtest:setup": "node src/test/setup.mjs"
   },
   "eslintConfig": {
     "extends": [
