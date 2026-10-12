@@ -51,6 +51,7 @@ import {
 } from '../../lib/taxiActivity'
 import { consoleError } from '../../lib/logs'
 import { useTranslation } from '../../providers/language'
+import { truncatedAssetId } from '../../lib/assets'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -371,8 +372,20 @@ export default function Transaction() {
 
   const taxiOnly = isTaxiOnlyTx(tx)
   const taxiUnsettled = taxiOnly && taxiView?.tone !== 'done'
+  const taxiAssetMetadata = taxi?.assetId ? assetMetadataCache.get(taxi.assetId)?.metadata : undefined
   const carrier = taxi
-    ? taxiCarrierRows(taxi, language, taxi.assetId ? assetMetadataCache.get(taxi.assetId)?.metadata : undefined)
+    ? taxiCarrierRows(
+        taxi,
+        language,
+        taxi.assetId
+          ? {
+              decimals: taxiAssetMetadata?.decimals,
+              ticker: isVerifiedAsset(taxi.assetId)
+                ? (taxiAssetMetadata?.ticker ?? truncatedAssetId(taxi.assetId))
+                : truncatedAssetId(taxi.assetId),
+            }
+          : undefined,
+      )
     : carrierDetails(tx.assetPayment, language)
   const taxiDetails = taxi
     ? {
