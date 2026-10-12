@@ -5,7 +5,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState, type Rea
 import { isInAppBrowser } from './lib/browser'
 import { detectJSCapabilities } from './lib/jsCapabilities'
 import { WalletContext } from './providers/wallet'
-import { FlowContext } from './providers/flow'
+import { emptySendInfo, FlowContext } from './providers/flow'
 import { AspContext } from './providers/asp'
 import { setBootAnimActive as syncBootAnimFlag } from './lib/logoAnchor'
 import { PageTransition } from './components/PageTransition'
@@ -13,10 +13,43 @@ import BootError from './components/BootError'
 import LoadingLogo from './components/LoadingLogo'
 import { useReducedMotion } from './hooks/useReducedMotion'
 import { useLoadingStatus } from './hooks/useLoadingStatus'
+import { appSendNeedsDriver } from './lib/sendRouter'
+import { SwapsContext } from './providers/swaps'
+import { appIntentHandoff, nextAppIntentNavigation, redirectToCallback } from './lib/appIntent'
 import { defaultPassword } from './lib/constants'
 import { consoleError } from './lib/logs'
+import DesktopWalletShell from './components/DesktopWalletShell'
+import { OptionsContext } from './providers/options'
+import { SettingsOptions } from './lib/types'
 
 const PASSWORDLESS_AUTO_RELOAD_KEY = 'passwordless-auto-reload-attempted'
+const DESKTOP_WALLET_PAGES = new Set([
+  Pages.Activity,
+  Pages.AccountDetail,
+  Pages.BitcoinDetail,
+  Pages.AppAssets,
+  Pages.AppAssetDetail,
+  Pages.AppAssetImport,
+  Pages.AppAssetMint,
+  Pages.AppAssetMintSuccess,
+  Pages.AppAssetReissue,
+  Pages.AppAssetBurn,
+  Pages.AppAssetsSettings,
+  Pages.AppDfx,
+  Pages.NotesRedeem,
+  Pages.NotesForm,
+  Pages.NotesSuccess,
+  Pages.ReceiveQRCode,
+  Pages.ReceiveSuccess,
+  Pages.SendForm,
+  Pages.SendDetails,
+  Pages.SendSuccess,
+  Pages.Settings,
+  Pages.Transaction,
+  Pages.Vtxos,
+  Pages.Wallet,
+  Pages.WalletSwap,
+])
 export const appReloader = {
   reload: () => window.location.reload(),
 }
@@ -42,10 +75,12 @@ export default function App() {
   const { aspInfo } = useContext(AspContext)
   const { configLoaded } = useContext(ConfigContext)
   const { direction, navigate, screen } = useContext(NavigationContext)
-  const { initInfo } = useContext(FlowContext)
+  const { appIntent, initInfo, resetFlow, sendInfo, setAppIntent, setSendInfo } = useContext(FlowContext)
+  const { option } = useContext(OptionsContext)
   const { authState, unlockWallet, walletLoaded, initialized, wallet, dataReady, loadError, devAutoInitFailed } =
     useContext(WalletContext)
 
+  const { outcomeOf } = useContext(SwapsContext)
   const loadingStatus = useLoadingStatus()
   const isIAB = useMemo(() => isInAppBrowser(), [])
   const [isCapable, setIsCapable] = useState(false)
@@ -63,6 +98,7 @@ export default function App() {
   const passwordlessBootAttempted = useRef(false)
   const passwordlessReloadTimer = useRef<ReturnType<typeof setTimeout>>()
   const devAutoInitHomeRedirected = useRef(false)
+  const appSendStarted = useRef(false)
   const hasDevAutoInit =
     import.meta.env.DEV &&
     Boolean(import.meta.env.VITE_DEV_NSEC || import.meta.env.VITE_DEV_MNEMONIC) &&
@@ -89,11 +125,25 @@ export default function App() {
   useEffect(() => {
     if (!navigate) return
     const handleGlobalDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') navigate(Pages.Wallet)
+      if (event.key !== 'Escape') return
+      // Success already broadcast. Report sent. Anything earlier is a decline,
+      // including connect. Read the txid before resetFlow clears it.
+      if (appSendNeedsDriver(appIntent, sendInfo, outcomeOf)) {
+        navigate(Pages.Wallet)
+        return
+      }
+      const sent =
+        screen === Pages.SendSuccess ||
+        Boolean(appIntent?.status === 'send' && appIntent.committedOnchain) ||
+        Boolean(sendInfo.swapId && outcomeOf(sendInfo.swapId) === 'claimed')
+      const handoff = appIntentHandoff(appIntent, sent ? 'sent' : 'denied', sendInfo.txid)
+      resetFlow()
+      if (handoff) redirectToCallback(handoff.callback, handoff.params)
+      else navigate(Pages.Wallet)
     }
     window.addEventListener('keydown', handleGlobalDown)
     return () => window.removeEventListener('keydown', handleGlobalDown)
-  }, [navigate])
+  }, [navigate, appIntent, screen, sendInfo, outcomeOf])
 
   useEffect(() => {
     if (isIAB) return navigate(Pages.InAppBrowser)
@@ -178,10 +228,39 @@ export default function App() {
   useEffect(() => {
     if (!hasDevAutoInit) return
     if (!initialized || !dataReady || !wallet.pubkey || authState !== 'authenticated') return
+    if (appIntent) return
     if (devAutoInitHomeRedirected.current) return
     devAutoInitHomeRedirected.current = true
     if (screen !== Pages.Wallet) navigate(Pages.Wallet)
-  }, [hasDevAutoInit, initialized, dataReady, wallet.pubkey, authState, screen, navigate])
+  }, [hasDevAutoInit, initialized, dataReady, wallet.pubkey, authState, screen, navigate, appIntent])
+
+  const intentReady = Boolean(
+    wallet.pubkey &&
+      authState === 'authenticated' &&
+      initialized &&
+      dataReady &&
+      !aspInfo.unreachable &&
+      !isIAB &&
+      !initInfo.password &&
+      !initInfo.privateKey &&
+      jsCapabilitiesChecked &&
+      isCapable,
+  )
+
+  // After the boot redirects above, so a connect or send link wins over "go home".
+  useEffect(() => {
+    const step = nextAppIntentNavigation(appIntent, intentReady)
+    if (step === 'send') {
+      if (appSendStarted.current || appIntent?.status !== 'send') return
+      appSendStarted.current = true
+      setAppIntent({ ...appIntent, started: true })
+      setSendInfo({ ...emptySendInfo, recipient: appIntent.request })
+      navigate(Pages.SendForm)
+      return
+    }
+    if (step === 'none' || screen === Pages.AppIntent) return
+    navigate(Pages.AppIntent)
+  }, [appIntent, intentReady, navigate, screen, setAppIntent, setSendInfo])
 
   // `screen` starts at `Init` and Init is what bounces an existing wallet on,
   // so onboarding mounted every boot — invisible, but focusable and read aloud.
@@ -239,13 +318,35 @@ export default function App() {
       pageComponent(page)
     )
 
+  const usesDesktopWalletShell = DESKTOP_WALLET_PAGES.has(page)
+  const isDesktopRoot =
+    page === Pages.Wallet || page === Pages.Activity || (page === Pages.Settings && option === SettingsOptions.Menu)
+  const animatedPage = (
+    <PageAnimWrapper animated={shouldAnimatePage} direction={effectiveDirection}>
+      <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+        {comp}
+      </PageTransition>
+    </PageAnimWrapper>
+  )
+
   return (
     <div className='page' data-testid='app'>
-      <PageAnimWrapper animated={shouldAnimatePage} direction={effectiveDirection}>
-        <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
-          {comp}
-        </PageTransition>
-      </PageAnimWrapper>
+      {usesDesktopWalletShell ? (
+        <>
+          <DesktopWalletShell page={page} logoVisible={!bootAnimActive} />
+          <main
+            className={
+              isDesktopRoot
+                ? 'desktop-wallet-main desktop-wallet-main--root'
+                : 'desktop-wallet-main desktop-wallet-main--panel'
+            }
+          >
+            {animatedPage}
+          </main>
+        </>
+      ) : (
+        animatedPage
+      )}
       {bootAnimActive ? (
         loadError ? (
           <BootError />

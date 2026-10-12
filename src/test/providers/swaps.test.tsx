@@ -1,5 +1,5 @@
-import { useContext } from 'react'
-import { render, screen, waitFor } from '@testing-library/react'
+import { useContext, useState } from 'react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Quote, Swap } from '@arkade-os/swap'
 import { AspContext } from '../../providers/asp'
@@ -8,6 +8,7 @@ import { SwapsContext, SwapsProvider } from '../../providers/swaps'
 import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
 
 const mocks = vi.hoisted(() => ({
+  created: vi.fn(),
   discoverMarkets: vi.fn(),
   offerSwaps: vi.fn(),
   quote: vi.fn(),
@@ -27,15 +28,18 @@ vi.mock('../../lib/swapRecords', () => ({
   offerSwaps: mocks.offerSwaps,
 }))
 vi.mock('../../lib/swapClient', () => ({
-  makeSwapClient: () => ({
-    ready: Promise.resolve(),
-    onUpdate: () => () => {},
-    quote: mocks.quote,
-    receive: mocks.receive,
-    accept: mocks.accept,
-    cancel: mocks.cancel,
-    [Symbol.asyncDispose]: mocks.dispose,
-  }),
+  makeSwapClient: () => {
+    mocks.created()
+    return {
+      ready: Promise.resolve(),
+      onUpdate: () => () => {},
+      quote: mocks.quote,
+      receive: mocks.receive,
+      accept: mocks.accept,
+      cancel: mocks.cancel,
+      [Symbol.asyncDispose]: mocks.dispose,
+    }
+  },
   SwapsHeldElsewhere: class SwapsHeldElsewhere extends Error {},
 }))
 vi.mock('../../components/Toast', () => ({
@@ -91,7 +95,7 @@ function Harness() {
   )
 }
 
-const renderProvider = (wallet = {}) =>
+const renderProvider = (wallet = {}, children = <Harness />) =>
   render(
     <AspContext.Provider value={mockAspContextValue}>
       <WalletContext.Provider
@@ -105,9 +109,7 @@ const renderProvider = (wallet = {}) =>
           } as never
         }
       >
-        <SwapsProvider>
-          <Harness />
-        </SwapsProvider>
+        <SwapsProvider>{children}</SwapsProvider>
       </WalletContext.Provider>
     </AspContext.Provider>,
   )
@@ -127,6 +129,21 @@ beforeEach(() => {
 afterEach(() => vi.clearAllMocks())
 
 describe('SwapsProvider', () => {
+  it('keeps the client live while its mounted wallet content navigates', async () => {
+    function NavigatingScreens() {
+      const [page, setPage] = useState('send success')
+      return <button onClick={() => setPage('wallet')}>{page}</button>
+    }
+    const view = renderProvider({}, <NavigatingScreens />)
+    await waitFor(() => expect(mocks.created).toHaveBeenCalledOnce())
+    fireEvent.click(screen.getByText('send success'))
+    expect(screen.getByText('wallet')).toBeInTheDocument()
+    expect(mocks.created).toHaveBeenCalledOnce()
+    expect(mocks.dispose).not.toHaveBeenCalled()
+    view.unmount()
+    await waitFor(() => expect(mocks.dispose).toHaveBeenCalledOnce())
+  })
+
   it('loads swaps and filters corridor markets from the offer list', async () => {
     mocks.offerSwaps.mockResolvedValue([swap])
     mocks.discoverMarkets.mockResolvedValue([market(), market({ quote_corridor: 'lightning' })])

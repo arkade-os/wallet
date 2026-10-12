@@ -144,7 +144,14 @@ const satsConfig = {
 
 const renderSign = (
   sendInfo: SendInfo,
-  { limits = mockLimitsContextValue, outputFee = FEE, config = mockConfigContextValue } = {},
+  {
+    limits = mockLimitsContextValue,
+    outputFee = FEE,
+    config = mockConfigContextValue,
+    setSendInfo = mockFlowContextValue.setSendInfo,
+    appIntent = mockFlowContextValue.appIntent,
+    setAppIntent = mockFlowContextValue.setAppIntent,
+  } = {},
 ) =>
   render(
     <NavigationContext.Provider value={mockNavigationContextValue}>
@@ -152,7 +159,7 @@ const renderSign = (
         <FiatContext.Provider value={mockFiatContextValue}>
           <AspContext.Provider value={mockAspContextValue}>
             <FeesContext.Provider value={{ calcOnchainOutputFee: () => outputFee } as never}>
-              <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo }}>
+              <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo, setSendInfo, appIntent, setAppIntent }}>
                 <WalletContext.Provider
                   value={{ ...mockWalletContextValue, balance: 1_000_000, svcWallet: mockSvcWallet as never }}
                 >
@@ -185,6 +192,72 @@ describe('signing an on-chain send', () => {
     consoleLog.mockClear()
     optionsFor = () => []
   })
+
+  it('retains the exact tagged swap id with its funding result before settlement', async () => {
+    const sent = vi.fn()
+    const setSendInfo = vi.fn()
+    optionsFor = () => [
+      {
+        railId: 'onchain-swap',
+        quote: async () => ({
+          amount: 9_500,
+          fee: 500,
+          total: 10_000,
+          send: async () => {
+            sent()
+            return fundedHandle({ railId: 'onchain-swap', swapId: 'rfq:owned', txid: 'funding-txid' })
+          },
+        }),
+      },
+    ]
+    renderSign({ address: ADDRESS, satoshis: 10_000 }, { setSendInfo })
+    await sign()
+    await waitFor(() =>
+      expect(setSendInfo).toHaveBeenCalledWith(
+        expect.objectContaining({ swapId: 'rfq:owned', txid: 'funding-txid', railId: 'onchain-swap' }),
+      ),
+    )
+    expect(sent).toHaveBeenCalledOnce()
+    expect(collaborativeExitWithFees).not.toHaveBeenCalled()
+  })
+
+  it.each(['original', 'manual', 'already-bound'] as const)(
+    'binds only the original app send and preserves an existing commitment (%s)',
+    async (kind) => {
+      const request = `bitcoin:${ADDRESS}`
+      const appIntent = {
+        status: 'send' as const,
+        request,
+        callback: 'https://app.example/return',
+        ...(kind === 'already-bound' ? { committedOnchain: { swapId: 'rfq:older', fundingTxid: 'older-txid' } } : {}),
+      }
+      const setAppIntent = vi.fn()
+      optionsFor = () => [
+        {
+          railId: 'onchain-swap',
+          quote: async () => ({
+            amount: 9_500,
+            fee: 500,
+            total: 10_000,
+            send: async () => fundedHandle({ railId: 'onchain-swap', swapId: 'rfq:owned', txid: 'funding-txid' }),
+          }),
+        },
+      ]
+      const setSendInfo = vi.fn()
+      renderSign(
+        { address: ADDRESS, satoshis: 10_000, recipient: kind === 'manual' ? `bitcoin:${OTHER}` : request },
+        { appIntent, setAppIntent, setSendInfo },
+      )
+      await sign()
+      await waitFor(() => expect(setSendInfo).toHaveBeenCalledWith(expect.objectContaining({ swapId: 'rfq:owned' })))
+      if (kind === 'original')
+        expect(setAppIntent).toHaveBeenCalledExactlyOnceWith({
+          ...appIntent,
+          committedOnchain: { swapId: 'rfq:owned', fundingTxid: 'funding-txid' },
+        })
+      else expect(setAppIntent).not.toHaveBeenCalled()
+    },
+  )
 
   it('names the UTXO limit rather than blaming routing when on-chain sends are not permitted', async () => {
     const consulted = vi.fn((req: { raw: string; amount?: number }) => [exitOption(req)])
