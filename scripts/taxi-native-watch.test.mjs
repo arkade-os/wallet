@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { createServer } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
-import { it } from 'vitest'
+import { it, vi } from 'vitest'
 
 async function watchFixture(ignore) {
   const root = await mkdtemp(join(tmpdir(), 'wallet-native-watch-'))
@@ -24,16 +24,7 @@ async function watchFixture(ignore) {
     server = await createServer({
       configFile: false,
       root,
-      plugins: [
-        tailwindcss(),
-        {
-          name: 'ready-before-create-server-returns',
-          async configureServer(server) {
-            if (!server.watcher._readyEmitted) await new Promise((done) => server.watcher.once('ready', done))
-            await new Promise((done) => setImmediate(done))
-          },
-        },
-      ],
+      plugins: [tailwindcss()],
       logLevel: 'silent',
       server: {
         host: '127.0.0.1',
@@ -45,9 +36,6 @@ async function watchFixture(ignore) {
         },
       },
     })
-    const ready = server.watcher._readyEmitted
-      ? Promise.resolve()
-      : new Promise((done) => server.watcher.once('ready', done))
     await server.listen()
     const port = server.httpServer.address().port
     const messages = []
@@ -65,7 +53,15 @@ async function watchFixture(ignore) {
     const response = await fetch(`http://127.0.0.1:${port}/app.css`)
     assert.equal(response.status, 200)
     assert((await response.text()).includes('bg-red-500'))
-    await ready
+    await vi.waitFor(() => {
+      const watched = Object.entries(server.watcher.getWatched())
+      for (const file of [heartbeat, source]) {
+        assert(
+          watched.some(([directory, files]) => resolve(directory) === dirname(file) && files.includes(basename(file))),
+          `The owned fixture is not watched yet: ${file}`,
+        )
+      }
+    })
     const changes = []
     server.watcher.on('change', (file) => changes.push(file.replaceAll('\\', '/')))
     const heartbeatUpdate = new Promise((done) => (completed = done))
