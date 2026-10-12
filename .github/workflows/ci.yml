@@ -17,15 +17,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@v4
 
     - name: Setup Node.js
-      uses: actions/setup-node@v7
+      uses: actions/setup-node@v4
       with:
         node-version-file: '.nvmrc'
 
     - name: Install pnpm
-      uses: pnpm/action-setup@v6
+      uses: pnpm/action-setup@v4
 
     - name: Get pnpm store directory
       shell: bash
@@ -33,15 +33,21 @@ jobs:
         echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
     - name: Setup pnpm cache
-      uses: actions/cache@v6
+      uses: actions/cache@v3
       with:
         path: ${{ env.STORE_PATH }}
         key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
         restore-keys: |
           ${{ runner.os }}-pnpm-store-
 
+    - name: Verify carrier artifacts
+      run: node scripts/carrier-artifacts/verify.mjs
+
     - name: Install dependencies
       run: pnpm install
+
+    - name: Verify the installed carrier packages
+      run: node scripts/carrier-artifacts/verify.mjs --installed
     
     - name: Run formatter
       run: pnpm format:check

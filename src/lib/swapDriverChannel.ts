@@ -51,7 +51,16 @@ const ACK_MS = 1_500
 const RESULT_MS = 120_000
 
 /** The actions the swap client owns, and so the ones only the holder can run. */
-export type DriverOp = 'exchange' | 'cancelSwap' | 'recoverSwap' | 'quotePay' | 'acceptPay' | 'receiveLightning'
+export type DriverOp =
+  | 'exchange'
+  | 'cancelSwap'
+  | 'recoverSwap'
+  | 'quotePay'
+  | 'acceptPay'
+  | 'receiveLightning'
+  | 'quoteAssetPayment'
+  | 'acceptAssetPayment'
+  | 'checkAssetPayment'
 
 /** What the holder runs on a follower's behalf. */
 export type DriverHandler = (op: DriverOp, args: unknown[]) => Promise<unknown>

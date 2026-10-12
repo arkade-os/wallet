@@ -1,7 +1,9 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { useAnimationControls } from 'framer-motion'
-import { SPRING_BACK, SQUASH } from '../lib/animations'
-import { sleep as delay } from '../lib/sleep'
+
+const EASE_IN = [0.55, 0, 1, 0.45] as [number, number, number, number]
+
+const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
 // Shape indices: 0=Arcade, 1=Invader, 2=Heart
 // Sequence: Arcade → Invader → Heart → Arcade (loop or stop)
@@ -56,10 +58,20 @@ export function useBounceMorph({ reducedMotion, onBounce }: UseBounceMorphOption
       onBounceRef.current?.()
       setActiveShape(nextShape)
 
-      await controlsRef.current.start(SQUASH)
+      await controlsRef.current.start({
+        y: 20,
+        scaleY: 0.75,
+        scaleX: 1.15,
+        transition: { duration: 0.06, ease: EASE_IN },
+      })
       if (cancelled) return
 
-      await controlsRef.current.start(SPRING_BACK)
+      await controlsRef.current.start({
+        y: 0,
+        scaleY: 1,
+        scaleX: 1,
+        transition: { type: 'spring', stiffness: 600, damping: 18, mass: 0.6 },
+      })
     }
 
     async function runLoop() {

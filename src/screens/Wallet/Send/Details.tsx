@@ -49,7 +49,7 @@ export default function SendDetails() {
 
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
-  const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? 0
+  const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? 8
   const assetAmountValue = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
 
   const [buttonLabel, setButtonLabel] = useState('')

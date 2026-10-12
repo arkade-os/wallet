@@ -23,6 +23,23 @@ import { LanguageContext, translate } from '../../../providers/language'
 import { Language } from '../../../lib/types'
 import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
 
+vi.mock('../../../screens/Wallet/Receive/TaxiChoice', () => ({
+  default: ({ onChange }: { onChange: (taxi: unknown) => void }) => (
+    <button
+      onClick={() =>
+        onChange({
+          url: 'http://localhost:3001',
+          fareId: 'free',
+          payer: 'receiver',
+          operatorKey: 'ab'.repeat(32),
+        })
+      }
+    >
+      Choose Taxi
+    </button>
+  ),
+}))
+
 // Mock qr module used by QrCode component
 vi.mock('qr', () => ({
   default: () => Array.from({ length: 21 }, () => new Uint8Array(21).fill(1)),
@@ -464,5 +481,27 @@ describe('Receive QR Code screen — copy feedback', () => {
     })
 
     expect(await screen.findByText('Failed to copy')).toBeInTheDocument()
+  })
+})
+
+describe('Receive QR Taxi selection', () => {
+  it('encodes the verified Taxi only in the unified request, without its local operator pin', async () => {
+    renderReceiveQrCode(tapFixture())
+    fireEvent.click(await screen.findByText('Choose Taxi'))
+    fireEvent.click(screen.getByRole('button', { name: 'Copy QR code' }))
+    await waitFor(() => expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).toContain('taxi='))
+    expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).not.toContain('ab'.repeat(32))
+    fireEvent.click(screen.getByText('Arkade'))
+    fireEvent.click(screen.getByRole('button', { name: 'Copy QR code' }))
+    await waitFor(() => expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).toBe('ark1testaddr'))
+  })
+
+  it('drops the prior Taxi choice when the receive address changes', async () => {
+    const view = renderReceiveQrCode(tapFixture())
+    fireEvent.click(await screen.findByText('Choose Taxi'))
+    view.rerender(buildTree(tapFixture({ off: 'ark1newaddr', bd: 'bc1newaddr' })))
+    fireEvent.click(screen.getByRole('button', { name: 'Copy QR code' }))
+    await waitFor(() => expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).toContain('ark1newaddr'))
+    expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).not.toContain('taxi=')
   })
 })

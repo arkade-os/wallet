@@ -20,7 +20,8 @@ import ChevronUpIcon from '../icons/ChevronUp'
 import InfoIcon from '../icons/Info'
 import ArrowUpDownIcon from '../icons/ArrowUpDown'
 import { Wallet } from '../lib/types'
-import { SwapDisplayAmount } from '../lib/swapDisplay'
+import { SwapDisplayAmount, type CarrierReceiptRows } from '../lib/swapDisplay'
+import { isCanonicalTxid } from '../lib/carrierActivity'
 import type { TransactionAmountDisplay } from '../lib/transactionAmountDisplay'
 import {
   openInNewTab,
@@ -38,6 +39,9 @@ export interface DetailsProps {
   assetIds?: { assetId: string; label: string }[]
   assetTotals?: (SwapDisplayAmount & { label: string })[]
   amountDisplay?: TransactionAmountDisplay
+  carrier?: CarrierReceiptRows
+  relatedTxids?: string[]
+  taxi?: { url?: string; transferId: string; mode?: string; updated?: string }
   date?: string
   destination?: string
   direction?: string
@@ -84,6 +88,9 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     assetIds,
     assetTotals,
     amountDisplay,
+    carrier,
+    relatedTxids,
+    taxi,
     date,
     direction,
     destination,
@@ -196,6 +203,16 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     <TotalIcon key={`${label}-${amount.value}`} />,
   ])
 
+  const primaryTxids = new Set([fundedTxid, spendTxid, txid].filter((id): id is string => Boolean(id)))
+  const related = [...new Set((relatedTxids ?? []).filter(isCanonicalTxid))].filter((id) => !primaryTxids.has(id))
+  const relatedRows: TableData = related.map((id, index) => {
+    const label =
+      related.length === 1
+        ? t('transaction.relatedTransaction')
+        : t('transaction.relatedTransactionN', { index: index + 1 })
+    return [label, id, <HashIcon key={`${label}-${id}`} />, offchainTxOnClick(id)]
+  })
+
   const data: TableData = [
     [t('accounts.swapFrom'), formatSensitiveDetail(swapFrom), <ArrowUpDownIcon key='swap-from-icon' />],
     [t('accounts.swapTo'), formatSensitiveDetail(swapTo), <ArrowUpDownIcon key='swap-to-icon' />],
@@ -208,6 +225,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     // Says the recipient was paid; `spendTxid` only proves the solver acted.
     [t('accounts.paidOnchain'), claimTxid, <HashIcon key='claim-icon' />, onchainTxOnClick(claimTxid)],
     [t('accounts.transactionId'), txid, <HashIcon key='txid-icon' />, showTxidLink ? txidOnClick : undefined],
+    ...relatedRows,
     ...assetIdRows,
     [t('accounts.corridor'), corridor, <DirectionIcon key='corridor-icon' />],
     [t('accounts.solver'), solver, <ServerIcon key='solver-icon' />],
@@ -230,6 +248,23 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
       recipientGets === undefined ? undefined : formatAmount(recipientGets),
       <TotalIcon key='recipient-gets-icon' />,
     ],
+    [t('transaction.taxiUrl'), taxi?.url, <TypeIcon key='taxi-url-icon' />],
+    [t('transaction.taxiTransferId'), taxi?.transferId, <HashIcon key='taxi-transfer-icon' />],
+    [t('transaction.taxiMode'), taxi?.mode, <TypeIcon key='taxi-mode-icon' />],
+    [t('transaction.taxiUpdated'), taxi?.updated, <WhenIcon key='taxi-updated-icon' />],
+    [t('transaction.carrierLoan'), formatSensitiveDetail(carrier?.carrierLoan), <AmountIcon key='carrier-loan-icon' />],
+    [
+      t('transaction.carrierPurchased'),
+      formatSensitiveDetail(carrier?.carrierPurchased),
+      <AmountIcon key='carrier-purchased-icon' />,
+    ],
+    [
+      t('transaction.carrierPurchase'),
+      formatSensitiveDetail(carrier?.carrierPurchase),
+      <AmountIcon key='carrier-purchase-icon' />,
+    ],
+    [t('transaction.carrierFare'), formatSensitiveDetail(carrier?.carrierFare), <FeesIcon key='carrier-fare-icon' />],
+    [t('transaction.carrierDelivery'), carrier?.carrierDelivery, <StatusIcon key='carrier-delivery-icon' />],
     ...assetTotalRows,
     [t('accounts.total'), formatAmount(total), <TotalIcon key='total-icon' />],
   ]

@@ -13,8 +13,7 @@ interface DismissibleBannerProps {
   icon: ReactNode
   title: string
   description?: string
-  descriptionTestId?: string
-  action?: { label: string; onClick: () => void; testId?: string }
+  action?: { label: string; onClick: () => void }
   onDismiss: () => void
   visible: boolean
 }
@@ -22,14 +21,13 @@ interface DismissibleBannerProps {
 const BANNER_SHADOW =
   '0px 0px 0px 1px rgba(0, 0, 0, 0.06), 0px 1px 2px -1px rgba(0, 0, 0, 0.06), 0px 2px 4px 0px rgba(0, 0, 0, 0.04)'
 
-function TextButton({ onClick, label, testId }: { onClick: () => void; label: string; testId?: string }) {
+function TextButton({ onClick, label }: { onClick: () => void; label: string }) {
   const handleClick = () => {
     hapticSubtle()
     onClick()
   }
   return (
     <button
-      data-testid={testId}
       onClick={handleClick}
       style={{
         background: 'none',
@@ -73,7 +71,7 @@ const iconStyle: React.CSSProperties = {
   color: 'var(--white)',
 }
 
-function BannerContent({ icon, title, description, descriptionTestId, action, onDismiss }: DismissibleBannerProps) {
+function BannerContent({ icon, title, description, action, onDismiss }: DismissibleBannerProps) {
   const { t } = useTranslation()
   return (
     <div style={containerStyle}>
@@ -85,14 +83,14 @@ function BannerContent({ icon, title, description, descriptionTestId, action, on
           </Text>
           {description ? (
             <div style={{ marginTop: '0.25rem' }}>
-              <Text color='neutral-700' small wrap testId={descriptionTestId}>
+              <Text color='neutral-700' small wrap>
                 {description}
               </Text>
             </div>
           ) : null}
           <div style={{ marginTop: description ? '0' : '0.25rem' }}>
             <FlexRow gap='1rem'>
-              {action ? <TextButton onClick={action.onClick} label={action.label} testId={action.testId} /> : null}
+              {action ? <TextButton onClick={action.onClick} label={action.label} /> : null}
               <TextButton onClick={onDismiss} label={t('common.dismiss')} />
             </FlexRow>
           </div>

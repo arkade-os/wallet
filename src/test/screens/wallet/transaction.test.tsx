@@ -24,6 +24,8 @@ import { FiatContext } from '../../../providers/fiat'
 import { Currencies } from '../../../lib/types'
 import { AssetsContext } from '../../../providers/assets'
 import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
+import { ReceiverClaimsContext } from '../../../providers/receiverClaims'
+import type { TaxiActivity } from '../../../lib/taxiActivity'
 import { SwapsContext } from '../../../providers/swaps'
 import type { WalletAssetSwap as AssetSwap } from '../../../lib/swapRepository'
 
@@ -289,7 +291,7 @@ describe('Transaction screen', () => {
 
     expect(screen.getByText('Amount issued')).toBeInTheDocument()
     expect(screen.queryByText('Direction')).not.toBeInTheDocument()
-    expect(screen.getByTestId('Total')).toHaveTextContent('10,000')
+    expect(screen.getByTestId('Total')).toHaveTextContent('0.0001')
   })
 
   it('labels a unilateral exit and links it to the block explorer, not to Arkade', async () => {
@@ -343,7 +345,7 @@ describe('Transaction screen', () => {
     await userEvent.click(row.querySelector('.table-row__external') as HTMLElement)
 
     // the exit tx is on the chain — the vmempool explorer (:7080) never saw it
-    expect(open).toHaveBeenCalledWith('http://localhost:3000/tx/exit-txid', '_blank', 'noreferrer')
+    expect(open).toHaveBeenCalledWith('http://localhost:5000/tx/exit-txid', '_blank', 'noreferrer')
     open.mockRestore()
   })
 
@@ -838,9 +840,54 @@ describe('Transaction screen', () => {
     // remains visible and independently identified.
     expect(screen.queryByTestId('Amount')).not.toBeInTheDocument()
     expect(screen.getByTestId('Total (USDT)')).toHaveTextContent('100 USDT')
-    expect(screen.getByTestId('Total (unknown-…)')).toHaveTextContent('50 unknown-…')
+    expect(screen.getByTestId('Total (unknown-…)')).toHaveTextContent('0.0000005 unknown-…')
     expect(screen.getByTestId('Asset ID (USDT, unverified)')).toHaveTextContent('usdt-asset')
     expect(screen.getByTestId('Asset ID (unknown-…, unverified)')).toHaveTextContent('unknown-asset')
     expect(screen.queryByText('€100.00')).not.toBeInTheDocument()
   })
+})
+
+it('offers a verified receiver delivery claim without offering swap cancellation', async () => {
+  const taxi = {
+    network: 'regtest',
+    taxiUrl: 'http://localhost:3001',
+    transferId: 'ready',
+    role: 'receiver',
+    state: 'locked',
+    mode: 'recycle',
+    units: '1000',
+    createdAt: 1700000000,
+    updatedAt: 1700000000,
+  } satisfies TaxiActivity
+  const txInfo = {
+    ...mockTxInfo,
+    taxi,
+    type: 'received',
+    redeemTxid: '',
+    boardingTxid: '',
+    roundTxid: '',
+    settled: true,
+  }
+  const openClaim = vi.fn()
+  render(
+    <NavigationContext.Provider value={mockNavigationContextValue}>
+      <AspContext.Provider value={mockAspContextValue}>
+        <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
+          <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [txInfo] }}>
+            <ReceiverClaimsContext.Provider
+              value={{ remember: vi.fn(), claimable: new Set(['http://localhost:3001 ready']), openClaim }}
+            >
+              <LimitsContext.Provider value={mockLimitsContextValue}>
+                <Transaction />
+              </LimitsContext.Provider>
+            </ReceiverClaimsContext.Provider>
+          </WalletContext.Provider>
+        </FlowContext.Provider>
+      </AspContext.Provider>
+    </NavigationContext.Provider>,
+  )
+  await userEvent.click(await screen.findByText('Claim'))
+  expect(openClaim).toHaveBeenCalledWith('http://localhost:3001 ready')
+  expect(screen.queryByText('Cancel swap')).not.toBeInTheDocument()
+  expect(screen.getByText('This delivery is waiting for you. Claim it to add it to your balance.')).toBeInTheDocument()
 })
