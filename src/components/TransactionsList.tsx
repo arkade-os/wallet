@@ -140,7 +140,7 @@ const TransactionLine = ({
   const taxiLabel =
     taxiOnly && taxiView ? t(taxiView.label) : tx.taxi ? t('transaction.taxiState', { state: t(taxiView!.label) }) : ''
   const When = () => (
-    <span className='activity-row__meta'>{[swapRoute, taxiLabel, date].filter(Boolean).join(' � ')}</span>
+    <span className='activity-row__meta'>{[swapRoute, taxiLabel, date].filter(Boolean).join(' · ')}</span>
   )
 
   const RawAmounts = () => {

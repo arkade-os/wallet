@@ -48,13 +48,39 @@ export async function appendEvidence(file, text) {
   await appendFile(file, `${redact(text)}\n`)
 }
 
-export async function cleanupOwnedStages({ relayStarted, captureLogs, cleanRelay, cleanInfra, cleanImages }) {
+export async function cleanupOwnedStages({
+  before = [],
+  context,
+  closeFeed,
+  saveLogs,
+  relayStarted,
+  captureLogs,
+  cleanRelay,
+  cleanInfra,
+  cleanImages,
+  registryBackups = [],
+}) {
   const failures = []
-  for (const stage of [captureLogs, ...(relayStarted ? [cleanRelay] : []), cleanInfra, cleanImages]) {
+  const stages = [
+    ...before,
+    ...(context ? [() => context.wallet.dispose(), () => context.close()] : []),
+    closeFeed,
+    saveLogs,
+    captureLogs,
+    ...(relayStarted ? [cleanRelay] : []),
+    cleanInfra,
+    cleanImages,
+    ...[...registryBackups].map(
+      ([file, original]) =>
+        () =>
+          original === null ? rm(file, { force: true }) : writeFile(file, original),
+    ),
+  ]
+  for (const stage of stages.filter(Boolean)) {
     try {
       await stage()
     } catch (error) {
-      failures.push(error.message)
+      failures.push(redact(error?.message ?? String(error)))
     }
   }
   return failures
@@ -131,78 +157,75 @@ function cleanup() {
 }
 
 async function cleanOwnedResources() {
-  await mkdir(evidence, { recursive: true })
-  const failures = []
-  if (daemon && !daemonError && daemon.exitCode === null && daemon.signalCode === null) {
-    const exited = new Promise((done) => daemon.once('exit', done))
-    daemon.kill('SIGTERM')
-    await Promise.race([exited, new Promise((done) => setTimeout(done, 10_000))])
-    if (daemon.exitCode === null && daemon.signalCode === null) daemon.kill('SIGKILL')
-    await exited
-  }
-  if (context) {
-    await context.wallet.dispose()
-    context.close()
-  }
-  if (feed) await new Promise((done) => feed.close(done))
-  if (daemon) await writeFile(resolve(evidence, 'solver.log'), redact(daemonOutput))
-  if (started) {
-    failures.push(
-      ...(await cleanupOwnedStages({
-        relayStarted,
-        captureLogs: () =>
-          run('service-logs', 'docker', [
-            'compose',
-            '-p',
-            namespace,
-            '-f',
-            resolve(regtestRoot, 'docker/compose.base.yml'),
-            '-f',
-            resolve(regtestRoot, 'docker/compose.ark.yml'),
-            '-f',
-            resolve(regtestRoot, 'docker/compose.evm.yml'),
-            '--profile',
-            'taxi',
-            '--profile',
-            'ark',
-            '--profile',
-            'emulator',
-            '--profile',
-            'base',
-            'logs',
-            '--no-color',
-          ]),
-        cleanRelay: () =>
-          run('relay-cleanup', 'docker', ['compose', '-p', `${namespace}-relay`, '-f', relayFile, 'down', '-v']),
-        cleanInfra: () =>
-          run('infra-cleanup', process.execPath, [
-            resolve(regtestRoot, 'regtest.mjs'),
-            'clean',
-            '--env',
-            env.TAXI_REGTEST_ENV_FILE,
-          ]),
-        cleanImages: async () => {
-          const owned = [`${namespace}-taxi`, `${namespace}-nak`]
-          const inventory = await run('image-inventory', 'docker', [
-            'image',
-            'ls',
-            '--format',
-            '{{.Repository}}',
-            '--filter',
-            `reference=${namespace}-*`,
-          ])
-          const remaining = owned.filter((image) => inventory.split(/\r?\n/).includes(image))
-          if (remaining.length) await run('image-cleanup', 'docker', ['image', 'rm', ...remaining])
-        },
-      })),
-    )
-    if (failures.length === 0) await writeFile(stateFile, JSON.stringify({ complete: true }), { mode: 0o600 })
-  }
-  for (const [file, original] of registryBackups) {
-    if (original === null) await rm(file, { force: true })
-    else await writeFile(file, original)
-  }
+  const failures = await cleanupOwnedStages({
+    before: [
+      () => mkdir(evidence, { recursive: true }),
+      async () => {
+        if (daemon && !daemonError && daemon.exitCode === null && daemon.signalCode === null) {
+          const exited = new Promise((done) => daemon.once('exit', done))
+          daemon.kill('SIGTERM')
+          await Promise.race([exited, new Promise((done) => setTimeout(done, 10_000))])
+          if (daemon.exitCode === null && daemon.signalCode === null) daemon.kill('SIGKILL')
+          await exited
+        }
+      },
+    ],
+    context,
+    closeFeed: feed && (() => new Promise((done) => feed.close(done))),
+    saveLogs: daemon && (() => writeFile(resolve(evidence, 'solver.log'), redact(daemonOutput))),
+    ...(started
+      ? {
+          relayStarted,
+          captureLogs: () =>
+            run('service-logs', 'docker', [
+              'compose',
+              '-p',
+              namespace,
+              '-f',
+              resolve(regtestRoot, 'docker/compose.base.yml'),
+              '-f',
+              resolve(regtestRoot, 'docker/compose.ark.yml'),
+              '-f',
+              resolve(regtestRoot, 'docker/compose.evm.yml'),
+              '--profile',
+              'taxi',
+              '--profile',
+              'ark',
+              '--profile',
+              'emulator',
+              '--profile',
+              'base',
+              'logs',
+              '--no-color',
+            ]),
+          cleanRelay: () =>
+            run('relay-cleanup', 'docker', ['compose', '-p', `${namespace}-relay`, '-f', relayFile, 'down', '-v']),
+          cleanInfra: () =>
+            run('infra-cleanup', process.execPath, [
+              resolve(regtestRoot, 'regtest.mjs'),
+              'clean',
+              '--env',
+              env.TAXI_REGTEST_ENV_FILE,
+            ]),
+          cleanImages: async () => {
+            const owned = [`${namespace}-taxi`, `${namespace}-nak`]
+            const inventory = await run('image-inventory', 'docker', [
+              'image',
+              'ls',
+              '--format',
+              '{{.Repository}}',
+              '--filter',
+              `reference=${namespace}-*`,
+            ])
+            const remaining = owned.filter((image) => inventory.split(/\r?\n/).includes(image))
+            if (remaining.length) await run('image-cleanup', 'docker', ['image', 'rm', ...remaining])
+          },
+        }
+      : {}),
+    registryBackups,
+  })
   if (failures.length) throw new Error(failures.join('; '))
+  if (started) await writeFile(stateFile, JSON.stringify({ complete: true }), { mode: 0o600 })
 }
 
 async function main() {
@@ -546,7 +569,6 @@ async function cli() {
       console.error(redact(error.message))
       process.exitCode = 1
     } finally {
-      await mkdir(evidence, { recursive: true })
       await cleanup()
     }
   }
