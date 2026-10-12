@@ -24,7 +24,12 @@ const artifacts = manifest.artifacts ?? []
 if (JSON.stringify(artifacts.map(({ package: name }) => name).sort()) !== JSON.stringify([...PINNED_PACKAGES].sort()))
   throw new Error('bundle must contain exactly the five pinned packages')
 for (const artifact of artifacts) {
-  if (artifact.file !== artifact.file.split(/[\\/]/).pop()) throw new Error('archive filename must be a basename')
+  if (
+    typeof artifact.file !== 'string' ||
+    !artifact.file.endsWith('.tgz') ||
+    artifact.file !== artifact.file.split(/[\\/]/).pop()
+  )
+    throw new Error('archive filename must be a .tgz basename')
   const mismatch = pinnedSourceMismatch(artifact)
   if (mismatch) throw new Error(mismatch)
   const bytes = readFileSync(join(bundle, artifact.file))
