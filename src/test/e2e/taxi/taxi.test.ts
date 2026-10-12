@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { RestIndexerProvider } from '@arkade-os/sdk'
-import { centsToUnits } from '../../../lib/assets'
+import { centsToUnits, truncatedAssetId } from '../../../lib/assets'
 import { prettyNumber } from '../../../lib/format'
 import { navigateHome } from '../utils'
 import {
@@ -170,7 +170,9 @@ for (const queuedOnly of [true, false]) {
             await pay(alice)
             const [transfer] = await fresh(known)
             expect(await fresh(known)).toHaveLength(1)
-            await expect(dave.page.getByRole('dialog').getByTestId(`asset-row-XYZ-${assetId}`)).toContainText('1 XYZ')
+            const claimAsset = dave.page.getByRole('dialog').getByTestId(new RegExp(`^asset-row-.*-${assetId}$`))
+            await expect(claimAsset.locator('.asset-card__balance')).toHaveText(`1 ${truncatedAssetId(assetId)}`)
+            await expect(claimAsset.getByText('Unverified', { exact: true })).toBeVisible()
             await claim(dave, 'The sender paid for the carrier. You receive 330 sats with no sats needed.')
             await expect.poll(async () => (await status(transfer.id)).state, { timeout: 60_000 }).toBe('purchased')
             await conserved({
