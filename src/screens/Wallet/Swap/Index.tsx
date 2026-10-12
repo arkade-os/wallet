@@ -464,10 +464,7 @@ export default function WalletSwap() {
     setConfirmError('')
     setConfirming(true)
     try {
-      // The market the plan was quoted against, not one re-looked-up at confirm
-      // time: `accept` funds the plan the user just read, and a second lookup
-      // could name a different card.
-      await exchange(pair.market, plan, buildQuoteSnapshot(plan, quote, config.currency))
+      await exchange(plan, buildQuoteSnapshot(plan, quote, config.currency))
       setDrawer(null)
       setSuccessQuote(quote)
       hapticLight()
