@@ -86,7 +86,10 @@ const europeanLanguages = new Set([
 export function detectLanguage(
   locale = typeof navigator === 'undefined' ? 'en' : navigator.language || 'en',
 ): Language {
-  return locale.toLowerCase().startsWith('es') ? Language.Spanish : Language.English
+  const normalized = locale.toLowerCase()
+  if (normalized.startsWith('es')) return Language.Spanish
+  if (normalized.startsWith('pt')) return Language.Portuguese
+  return Language.English
 }
 
 // Module-level mirror of the active language so lib code that has no React
