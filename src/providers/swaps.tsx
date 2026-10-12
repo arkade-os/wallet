@@ -841,7 +841,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       }
       const quote = typeof ref === 'string' ? issued.current.get(ref) : ref
       const request = assetPaymentRequests.current.get(id)
-      if (!quote || !request) throw new Error('This quote is no longer available � go back and try again')
+      if (!quote || !request) throw new Error('This quote is no longer available — go back and try again')
       if (await getPendingDirectTaxi(svcWallet!, aspInfo.network))
         throw new Error('Check Taxi payment before starting another')
       storeAssetPayment(sender, aspInfo.network, {

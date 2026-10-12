@@ -1,6 +1,6 @@
 // @vitest-environment node
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -97,6 +97,61 @@ it('preserves the first crash diagnosis when fallback captures empty logs', asyn
     assert(saved.includes('Taxi crashed: provider rejected startup'))
     assert(saved.includes('"private_key":"[redacted]"'))
     assert(!saved.includes('never-upload'))
+  } finally {
+    await rm(directory, { recursive: true })
+  }
+})
+
+it('cleans infrastructure and restores registries after browser cleanup rejects', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'taxi-native-cleanup-'))
+  const file = join(directory, 'registry.json')
+  const temporary = join(directory, 'temporary.json')
+  const calls = []
+  try {
+    await writeFile(file, 'modified registry')
+    await writeFile(temporary, 'temporary registry')
+    const failures = await cleanupOwnedStages({
+      before: [
+        async () => {
+          throw new Error('Evidence directory failed')
+        },
+      ],
+      context: {
+        wallet: {
+          dispose: async () => {
+            throw new Error('Wallet dispose failed')
+          },
+        },
+        close: async () => {
+          throw new Error('Context close failed {"private_key":"never-upload"}')
+        },
+      },
+      closeFeed: async () => calls.push('feed'),
+      saveLogs: async () => {
+        throw null
+      },
+      relayStarted: true,
+      captureLogs: async () => calls.push('logs'),
+      cleanRelay: async () => calls.push('relay'),
+      cleanInfra: async () => calls.push('infra'),
+      cleanImages: async () => calls.push('images'),
+      registryBackups: [
+        [join(directory, 'missing', 'registry.json'), 'original registry'],
+        [file, 'original registry'],
+        [temporary, null],
+      ],
+    })
+    assert.deepEqual(calls, ['feed', 'logs', 'relay', 'infra', 'images'])
+    assert.deepEqual(failures.slice(0, 4), [
+      'Evidence directory failed',
+      'Wallet dispose failed',
+      'Context close failed {"private_key":"[redacted]"}',
+      'null',
+    ])
+    assert.equal(failures.length, 5)
+    assert.match(failures[4], /ENOENT/)
+    assert.equal(await readFile(file, 'utf8'), 'original registry')
+    await assert.rejects(readFile(temporary), { code: 'ENOENT' })
   } finally {
     await rm(directory, { recursive: true })
   }
