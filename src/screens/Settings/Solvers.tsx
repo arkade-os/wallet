@@ -144,7 +144,7 @@ function BundledCardLine({ input }: { input: LocalCardInput }) {
             <Text>{input.label ?? card.name}</Text>
             <TextSecondary>{pairs}</TextSecondary>
           </FlexCol>
-          <FlexRow end minWidth='60px'>
+          <FlexRow end minWidth='64px'>
             <div onClick={toggleShowCard} style={{ cursor: 'pointer' }}>
               <TextSecondary>{t('solvers.builtIn')}</TextSecondary>
             </div>
@@ -276,7 +276,7 @@ export default function Solvers() {
         <Padded>
           <FlexCol>
             <FlexRow between>
-              <Text>{title}</Text>
+              <Text wrap>{title}</Text>
               <Button onClick={() => setShowEditor(true)} text={t('solvers.addNew')} />
             </FlexRow>
             {showEditor ? <Editor toClose={() => setShowEditor(false)} onChange={handleChange} /> : null}
