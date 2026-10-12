@@ -1562,6 +1562,7 @@ iframe {
   }
 
   .desktop-wallet-nav__item {
+    cursor: pointer;
     display: flex;
     min-height: 2.75rem;
     width: 100%;
