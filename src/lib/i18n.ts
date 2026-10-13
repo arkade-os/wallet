@@ -49,7 +49,9 @@ export const translations = {
       goHome: 'Go to wallet',
       missingCallback: 'This link has nowhere to return to.',
       missingRequest: 'This payment link is missing a payment request.',
-      openInApp: 'Open in App',
+      open: 'Open',
+      openInApp: 'Open in the App',
+      openInAppHint: 'Finish this request in the installed Arkade app.',
       openInAppSafari:
         "Safari can't open the installed app from this page. Open Arkade from your Home Screen, or finish the request here.",
       pubkey: 'Public key',
@@ -860,7 +862,9 @@ export const translations = {
       goHome: 'Ir a la wallet',
       missingCallback: 'Este enlace no tiene a dónde volver.',
       missingRequest: 'A este enlace de pago le falta la solicitud.',
+      open: 'Abrir',
       openInApp: 'Abrir en la app',
+      openInAppHint: 'Termina esta solicitud en la app instalada de Arkade.',
       openInAppSafari:
         'Safari no puede abrir la app instalada desde esta página. Abre Arkade desde la pantalla de inicio, o termina la solicitud aquí.',
       pubkey: 'Clave pública',
@@ -1675,7 +1679,9 @@ export const translations = {
       goHome: 'Ir para a carteira',
       missingCallback: 'Este link não tem um destino de retorno.',
       missingRequest: 'Falta a solicitação neste link de pagamento.',
+      open: 'Abrir',
       openInApp: 'Abrir no app',
+      openInAppHint: 'Conclua esta solicitação no app Arkade instalado.',
       openInAppSafari:
         'O Safari não pode abrir o app instalado a partir desta página. Abra o Arkade pela tela inicial ou conclua a solicitação aqui.',
       pubkey: 'Chave pública',
