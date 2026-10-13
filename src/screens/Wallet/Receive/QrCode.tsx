@@ -129,7 +129,7 @@ export default function ReceiveQRCode() {
     boardingAddress: recvInfo.boardingAddr || undefined,
   })
   const swapRail = useSwapRail(!lnurlConfigured || lnurlRail.status === 'failed')
-  const lnurl = lnurlRail.receiver?.lnurl ?? ''
+  const lnurl = lnurlRail.lnurl ?? ''
   const lightningAddress = lnurlRail.receiver?.lightningAddress ?? ''
   const lnurlRails = useLnurlRails(lnurlRail.receiver, satoshis, config.receiveViaLnurl, {
     arkade: recvInfo.offchainAddr,

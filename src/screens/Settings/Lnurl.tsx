@@ -16,6 +16,9 @@ import { configuredLnurlServer, lnurlRailLimits, useLnurlRail } from '../../lib/
 import { lnurlTokenRails, type LnurlTokenRail } from '../../lib/receive/lnurlTokenRails'
 import { prettyNumber } from '../../lib/format'
 import { consoleError } from '../../lib/logs'
+import ErrorMessage from '../../components/Error'
+import { NameForm } from '../Wallet/Receive/LnurlRail'
+import type { AddressListEntry } from '@arkade-os/lnurl-client'
 
 // Kept in announcementsSeen: the explainer is a one-time notice, shown before the first opt-in only.
 export const TOKEN_EXPLAINER = 'token rails explainer'
@@ -30,6 +33,7 @@ export default function Lnurl() {
   const [limits, setLimits] = useState<ReturnType<typeof lnurlRailLimits>>([])
   const [tokens, setTokens] = useState<LnurlTokenRail[]>([])
   const [explaining, setExplaining] = useState(false)
+  const [owned, setOwned] = useState<AddressListEntry[]>([])
 
   useEffect(() => {
     if (!svcWallet) return
@@ -48,6 +52,7 @@ export default function Lnurl() {
   useEffect(() => {
     setLimits([])
     setTokens([])
+    setOwned([])
     if (!rail.receiver) return
     let stale = false
     rail.receiver
@@ -57,6 +62,10 @@ export default function Lnurl() {
         setLimits(lnurlRailLimits(payRequest))
         setTokens(lnurlTokenRails(payRequest))
       })
+      .catch(consoleError)
+    rail
+      .addresses()
+      .then((all) => !stale && setOwned(all))
       .catch(consoleError)
     return () => {
       stale = true
@@ -68,11 +77,23 @@ export default function Lnurl() {
     arkade: t('receive.methodArkade'),
     onchain: t('receive.methodBitcoin'),
   }
+  // The wallet-id LNURL (sessionLnurl) is an address in its own right, beside any names.
+  // The server's list may lag a registration made this second; the held receiver is always one of them.
+  const listed = owned.length
+    ? owned.map((a) => ({ address: a.lightningAddress, lnurl: a.sessionLnurl }))
+    : rail.receiver
+      ? [{ address: rail.receiver.lightningAddress ?? null, lnurl: rail.receiver.lnurl }]
+      : []
   const yours: TableData = [
-    [t('settings.lightningAddress'), rail.receiver?.lightningAddress],
-    ['LNURL', rail.receiver?.lnurl],
+    ...listed.flatMap(
+      ({ address, lnurl }): TableData => [
+        ...(lnurl ? [['LNURL', lnurl] as [string, string]] : []),
+        ...(address ? [[t('settings.lightningAddress'), address] as [string, string]] : []),
+      ],
+    ),
     [t('settings.lnurlServer'), server?.domain],
   ]
+  const namingChoices = rail.receiver?.lightningAddress ? [] : rail.choices.filter((c) => c !== 'session')
   const sendable: TableData = limits.map(({ type, min, max }) => [
     railLabels[type] ?? type,
     `${prettyNumber(min, 0)} – ${prettyNumber(max, 0)} sats`,
@@ -118,6 +139,17 @@ export default function Lnurl() {
                 </TextSecondary>
               )}
             </section>
+            {namingChoices.length > 0 && rail.status !== 'failed' ? (
+              <section className='settings-section'>
+                <p className='settings-section-label'>{t('settings.lnurlAddName')}</p>
+                <NameForm
+                  choices={namingChoices}
+                  busy={rail.busy}
+                  onName={(opts) => (rail.receiver ? rail.upgrade(opts) : rail.claim(opts))}
+                />
+                <ErrorMessage error={Boolean(rail.error)} text={rail.error} />
+              </section>
+            ) : null}
             {sendable.length ? (
               <section className='settings-section'>
                 <p className='settings-section-label'>{t('settings.lnurlLimits')}</p>

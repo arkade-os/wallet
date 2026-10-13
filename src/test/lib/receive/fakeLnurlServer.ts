@@ -13,6 +13,7 @@ export interface FakeAddress {
   handle: string
   username: string | null
   lightningAddress: string | null
+  lnurl: string
   nameless: boolean
   sessionLnurl: string | null
   status: 'active'
@@ -26,6 +27,7 @@ const named = (username: string, sessionLnurl: string | null = null): FakeAddres
   handle: username,
   username,
   lightningAddress: `${username}@${LNURL_DOMAIN}`,
+  lnurl: `LNURL1${username.toUpperCase()}`,
   nameless: false,
   sessionLnurl,
   status: 'active',
@@ -38,6 +40,7 @@ export const namelessAddress = (handle = 'sess1'): FakeAddress => ({
   handle,
   username: null,
   lightningAddress: null,
+  lnurl: `LNURL1WELLKNOWN${handle.toUpperCase()}`,
   nameless: true,
   sessionLnurl: `LNURL1${handle.toUpperCase()}`,
   status: 'active',

@@ -44,12 +44,63 @@ describe('useLnurlRail', () => {
     expect(server.calls('GET', '/lnurl/domain')).toHaveLength(0)
   })
 
-  it('onboards with only the advertised choices when nothing is owned', async () => {
-    serve({ modes: ['random', 'session'] })
+  it('onboards with only the advertised choices when nothing is owned and nameless is not offered', async () => {
+    serve({ modes: ['self', 'random'] })
     const { result } = renderRail()
 
     await waitFor(() => expect(result.current.status).toBe('onboarding'))
+    expect(result.current.choices).toEqual(['self', 'random'])
+  })
+
+  it('registers the wallet LNURL on its own when nothing is owned and the server allows it', async () => {
+    serve({ modes: ['random', 'session'] })
+    const { result } = renderRail()
+
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    expect(result.current.receiver?.handle).toBe('sess1')
     expect(result.current.choices).toEqual(['random', 'session'])
+    expect(server.calls('POST', '/lnurl/address')).toHaveLength(1)
+  })
+
+  it('hands out the wallet LNURL before registration lands, and the same one after', async () => {
+    serve({ modes: ['session'] })
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const inner = server.fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (new URL(String(input)).pathname === '/lnurl/address') await gate
+        return inner(input, init)
+      }),
+    )
+    const { result } = renderRail()
+
+    await waitFor(() => expect(result.current.lnurl).toMatch(/^lnurl1/i))
+    expect(result.current.status).toBe('loading')
+    const early = result.current.lnurl
+    await act(async () => release())
+
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    expect(result.current.lnurl).toBe(early)
+  })
+
+  it('fails soft, so the swap rail takes over, when registering the wallet LNURL is refused', async () => {
+    serve({ modes: ['session'], reject: { code: 'limit_reached', error: 'slow down' } })
+    const { result } = renderRail()
+
+    await waitFor(() => expect(result.current.status).toBe('failed'))
+    expect(result.current.error).toBe('Too many attempts — try again shortly.')
+  })
+
+  it('lists every address the identity owns on this domain', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice'), namelessAddress()] })
+    const { result } = renderRail()
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+
+    const all = await result.current.addresses()
+
+    expect(all.map((a) => a.handle)).toEqual(['alice', 'sess1'])
   })
 
   it('loads the choices for a nameless receiver so it can be named later', async () => {

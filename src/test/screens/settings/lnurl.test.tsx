@@ -13,6 +13,7 @@ import {
   WALLET_BOARDING_ADDRESS,
   fakeLnurlServer,
   namedAddress,
+  namelessAddress,
 } from '../../lib/receive/fakeLnurlServer'
 
 configure({ asyncUtilTimeout: 3_000 })
@@ -34,8 +35,9 @@ const svcWallet = {
 const backupAndUpdateConfig = vi.fn<(config: Config) => void>()
 
 const renderPage = (opts: Parameters<typeof fakeLnurlServer>[0], config: Partial<Config> = {}) => {
-  vi.stubGlobal('fetch', fakeLnurlServer(opts).fetch)
-  return render(
+  const server = fakeLnurlServer(opts)
+  vi.stubGlobal('fetch', server.fetch)
+  const rendered = render(
     <BackupContext.Provider value={{ backupAndUpdateConfig } as never}>
       <ConfigContext.Provider
         value={{ ...mockConfigContextValue, config: { ...mockConfigContextValue.config, ...config } } as never}
@@ -46,6 +48,7 @@ const renderPage = (opts: Parameters<typeof fakeLnurlServer>[0], config: Partial
       </ConfigContext.Provider>
     </BackupContext.Provider>,
   )
+  return { ...rendered, calls: server.calls }
 }
 
 beforeEach(() => {
@@ -69,10 +72,36 @@ describe('Lightning address settings', () => {
     expect(screen.getAllByText('1 – 100,000,000 sats')).toHaveLength(2)
   })
 
-  it('points a wallet without an address to the Receive screen', async () => {
-    renderPage({ modes: ['self'] })
+  it('lists the wallet LNURL beside every lightning address', async () => {
+    renderPage({ modes: ['self'], addresses: [namedAddress('alice'), namelessAddress()] })
 
-    expect(await screen.findByText(/get one on the Receive screen/)).toBeInTheDocument()
+    expect(await screen.findByText('alice@lnurl.test')).toBeInTheDocument()
+    expect(await screen.findByText('LNURL1SESS1')).toBeInTheDocument()
+    expect(screen.queryByText('LNURL1ALICE')).not.toBeInTheDocument()
+  })
+
+  it('claims a reserved name with its claim code', async () => {
+    const server = renderPage({ modes: ['admin'] })
+
+    fireEvent.change(await screen.findByPlaceholderText('Choose a name'), { target: { value: 'vip' } })
+    fireEvent.change(screen.getByPlaceholderText('Claim code'), { target: { value: 'secret' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Claim name' }))
+
+    expect(await screen.findByText('vip@lnurl.test')).toBeInTheDocument()
+    const [, init] = server.calls('POST', '/lnurl/address')[0]
+    expect(JSON.parse(init!.body as string)).toMatchObject({ username: 'vip', claimCode: 'secret' })
+  })
+
+  it('names a nameless address with a claim code, in place', async () => {
+    const server = renderPage({ modes: ['admin', 'session'], addresses: [namelessAddress()] })
+
+    fireEvent.change(await screen.findByPlaceholderText('Choose a name'), { target: { value: 'vip' } })
+    fireEvent.change(screen.getByPlaceholderText('Claim code'), { target: { value: 'secret' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Claim name' }))
+
+    expect(await screen.findByText('vip@lnurl.test')).toBeInTheDocument()
+    expect(server.calls('PATCH', '/lnurl/address/sess1')).toHaveLength(1)
+    expect(server.calls('POST', '/lnurl/address')).toHaveLength(0)
   })
 
   it('leaves token options out of what payers can send on each rail', async () => {

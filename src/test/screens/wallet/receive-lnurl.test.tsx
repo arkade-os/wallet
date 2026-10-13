@@ -186,7 +186,7 @@ describe('Receive screen, rail composition', () => {
     serve({ modes: ['session'], addresses: [namelessAddress()] })
     renderReceive()
 
-    await screen.findByText(/No name yet/)
+    await waitFor(async () => expect(await qrLightning()).toMatch(/^lnurl1/i))
     const lnurl = await qrLightning()
     fireEvent.click(screen.getByText('Lightning'))
 
@@ -281,30 +281,50 @@ describe('Receive screen, lnurl onboarding', () => {
     self: () => screen.queryByPlaceholderText('Choose a name'),
     random: () => screen.queryByRole('button', { name: 'Pick one for me' }),
     admin: () => screen.queryByPlaceholderText('Claim code'),
-    session: () => screen.queryByRole('button', { name: 'No name' }),
   }
+  const claims = () => server.calls('POST', '/lnurl/address')
 
-  it.each(['self', 'random', 'admin', 'session'] as const)(
-    'offers only the %s choice when only it is advertised',
-    async (mode) => {
-      serve({ modes: [mode] })
+  it('registers the wallet LNURL on its own, so the first QR already carries it', async () => {
+    serve({ modes: ['self', 'session'] })
+    renderReceive()
+
+    expect(await screen.findByRole('button', { name: 'Add a name' })).toBeInTheDocument()
+    expect(JSON.parse(claims()[0][1]!.body as string)).toMatchObject({ nameless: true })
+    expect(screen.queryByText(/@lnurl\.test/)).not.toBeInTheDocument()
+    expect(await qrLightning()).toMatch(/^lnurl1/i)
+  })
+
+  it('offers a name, never a claim code, when the server has no nameless mode', async () => {
+    serve({ modes: ['self', 'random', 'admin'] })
+    renderReceive()
+
+    await screen.findByPlaceholderText('Choose a name')
+    expect(controls.random()).not.toBeNull()
+    expect(controls.admin()).toBeNull()
+    expect(claims()).toHaveLength(0)
+  })
+
+  it.each([[['admin']], [['random']], [['admin', 'random']]])(
+    'leaves naming to Settings when the user cannot choose a name (%j)',
+    async (modes) => {
+      serve({ modes, addresses: [] })
       renderReceive()
 
-      await screen.findByText('Get a lightning address')
-      for (const [other, control] of Object.entries(controls)) {
-        // A claim code is always paired with the name it unlocks.
-        const expected = other === mode || (mode === 'admin' && other === 'self')
-        expect(control() !== null, other).toBe(expected)
-      }
+      await waitFor(() => expect(server.calls('GET', '/lnurl/domain')).toHaveLength(1))
+      await act(async () => {})
+      for (const control of Object.values(controls)) expect(control()).toBeNull()
+      expect(claims()).toHaveLength(0)
     },
   )
 
-  it('offers no choice at all when the server requires an API key', async () => {
+  it('claims nothing and offers no choice when the server requires an API key', async () => {
     serve({ modes: ['self', 'random', 'session'], requireApiKey: true })
     renderReceive()
 
-    expect(await screen.findByText(/does not offer addresses/)).toBeInTheDocument()
+    await waitFor(() => expect(server.calls('GET', '/lnurl/domain')).toHaveLength(1))
+    await act(async () => {})
     for (const control of Object.values(controls)) expect(control()).toBeNull()
+    expect(claims()).toHaveLength(0)
   })
 
   it('claims a chosen name and puts its LNURL in the QR', async () => {
@@ -321,7 +341,7 @@ describe('Receive screen, lnurl onboarding', () => {
   })
 
   it('claims a server-picked name', async () => {
-    serve({ modes: ['random'] })
+    serve({ modes: ['self', 'random'] })
     renderReceive()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Pick one for me' }))
@@ -329,35 +349,9 @@ describe('Receive screen, lnurl onboarding', () => {
     expect(await screen.findByText('brave-otter@lnurl.test')).toBeInTheDocument()
   })
 
-  it('claims a reserved name with its claim code', async () => {
-    serve({ modes: ['admin'] })
-    renderReceive()
-
-    fireEvent.change(await screen.findByPlaceholderText('Choose a name'), { target: { value: 'vip' } })
-    fireEvent.change(screen.getByPlaceholderText('Claim code'), { target: { value: 'secret' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Claim name' }))
-
-    expect(await screen.findByText('vip@lnurl.test')).toBeInTheDocument()
-    const [, init] = server.calls('POST', '/lnurl/address')[0]
-    expect(JSON.parse(init!.body as string)).toMatchObject({ username: 'vip', claimCode: 'secret' })
-  })
-
-  it('claims without a name: the QR carries the session LNURL and a name can be added', async () => {
-    serve({ modes: ['self', 'session'] })
-    renderReceive()
-
-    fireEvent.click(await screen.findByRole('button', { name: 'No name' }))
-
-    expect(await screen.findByRole('button', { name: 'Add a name' })).toBeInTheDocument()
-    expect(screen.queryByText(/@lnurl\.test/)).not.toBeInTheDocument()
-    expect(await qrLightning()).toMatch(/^lnurl1/i)
-  })
-
   it('shows the name when a nameless claim finds the identity already upgraded', async () => {
     serve({ modes: ['session'], sessionRow: namedAddress('erin', 'LNURL1SESSIONERIN') })
     renderReceive()
-
-    fireEvent.click(await screen.findByRole('button', { name: 'No name' }))
 
     expect(await screen.findByText('erin@lnurl.test')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Add a name' })).not.toBeInTheDocument()
@@ -383,7 +377,6 @@ describe('Receive screen, naming a nameless receiver', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Add a name' }))
     const before = await qrLightning()
     expect(before).toMatch(/^lnurl1/i)
-    expect(screen.queryByRole('button', { name: 'No name' })).not.toBeInTheDocument()
     fireEvent.change(screen.getByPlaceholderText('Choose a name'), { target: { value: 'dave' } })
     fireEvent.click(screen.getByRole('button', { name: 'Claim name' }))
 
@@ -401,14 +394,17 @@ describe('Receive screen, naming a nameless receiver', () => {
     expect(screen.queryByRole('button', { name: 'Add a name' })).not.toBeInTheDocument()
   })
 
-  it('offers no "Add a name" when the server allows no naming mode', async () => {
-    serve({ modes: ['session'], addresses: [namelessAddress()] })
-    renderReceive()
+  it.each([[['session']], [['admin', 'random', 'session']]])(
+    'offers no "Add a name" when the user cannot choose one (%j)',
+    async (modes) => {
+      serve({ modes, addresses: [namelessAddress()] })
+      renderReceive()
 
-    await screen.findByText(/No name yet/)
-    expect(await qrLightning()).toMatch(/^lnurl1/i)
-    expect(screen.queryByRole('button', { name: 'Add a name' })).not.toBeInTheDocument()
-  })
+      await waitFor(() => expect(server.calls('GET', '/lnurl/domain')).toHaveLength(1))
+      expect(await qrLightning()).toMatch(/^lnurl1/i)
+      expect(screen.queryByRole('button', { name: 'Add a name' })).not.toBeInTheDocument()
+    },
+  )
 })
 
 describe('Receive screen, token rails', () => {

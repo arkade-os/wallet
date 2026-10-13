@@ -7,42 +7,25 @@ import Input from '../../../components/Input'
 import Text, { TextSecondary } from '../../../components/Text'
 import type { LnurlRail, OnboardingChoice } from '../../../lib/receive/lnurlRail'
 
+// Reserved names (claim codes) are named from Settings only, so Receive stays one tap for everyone else.
+const RECEIVE_CHOICES: OnboardingChoice[] = ['self', 'random']
+
 export default function LnurlRailPanel({ rail }: { rail: LnurlRail }) {
   const [naming, setNaming] = useState(false)
 
-  if (rail.status === 'off') return null
-  if (rail.status === 'loading') return <TextSecondary>Loading lightning address…</TextSecondary>
+  if (rail.status === 'off' || rail.status === 'loading') return null
   if (rail.status === 'failed') return <TextSecondary>Lightning address unavailable: {rail.error}</TextSecondary>
-
-  if (rail.status === 'onboarding') {
-    return (
-      <FlexCol gap='0.5rem'>
-        <TextSecondary>Get a lightning address</TextSecondary>
-        {rail.choices.length ? (
-          <NameForm
-            choices={rail.choices}
-            busy={rail.busy}
-            onName={(opts) => rail.claim(opts)}
-            onNameless={() => rail.claim({ nameless: true })}
-          />
-        ) : (
-          <TextSecondary>This server does not offer addresses to this wallet</TextSecondary>
-        )}
-        <ErrorMessage error={Boolean(rail.error)} text={rail.error} />
-      </FlexCol>
-    )
-  }
 
   const address = rail.receiver?.lightningAddress
   if (address) return <Text centered>{address}</Text>
 
-  const namingChoices = rail.choices.filter((choice) => choice !== 'session')
+  const choices = rail.choices.includes('self') ? rail.choices.filter((c) => RECEIVE_CHOICES.includes(c)) : []
+  const onName = (opts: NameOptions) => (rail.receiver ? rail.upgrade(opts) : rail.claim(opts))
   return (
     <FlexCol gap='0.5rem'>
-      <TextSecondary>No name yet — payers can scan the QR</TextSecondary>
-      {naming ? (
-        <NameForm choices={namingChoices} busy={rail.busy} onName={(opts) => rail.upgrade(opts)} />
-      ) : namingChoices.length ? (
+      {naming || (!rail.receiver && choices.length) ? (
+        <NameForm choices={choices} busy={rail.busy} onName={onName} />
+      ) : choices.length ? (
         <Button label='Add a name' onClick={() => setNaming(true)} secondary />
       ) : null}
       <ErrorMessage error={Boolean(rail.error)} text={rail.error} />
@@ -50,16 +33,14 @@ export default function LnurlRailPanel({ rail }: { rail: LnurlRail }) {
   )
 }
 
-function NameForm({
+export function NameForm({
   choices,
   busy,
   onName,
-  onNameless,
 }: {
   choices: OnboardingChoice[]
   busy: boolean
   onName: (opts: NameOptions) => void
-  onNameless?: () => void
 }) {
   const [username, setUsername] = useState('')
   const [claimCode, setClaimCode] = useState('')
@@ -90,9 +71,6 @@ function NameForm({
       ) : null}
       {choices.includes('random') ? (
         <Button label='Pick one for me' disabled={busy} onClick={() => onName({})} secondary />
-      ) : null}
-      {onNameless && choices.includes('session') ? (
-        <Button label='No name' disabled={busy} onClick={onNameless} secondary />
       ) : null}
     </FlexCol>
   )

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   arkadeLnurl,
+  encodeLnurl,
   type ArkadeLnurl,
   type ArkadeSigner,
   type ClaimOptions,
@@ -9,7 +10,9 @@ import {
 } from '@arkade-os/lnurl-client/arkade'
 import {
   createLnurlClient,
+  deriveSessionId,
   LnurlError,
+  type AddressListEntry,
   type DomainCapabilities,
   type PaymentOption,
   type PaymentSyncStore,
@@ -196,11 +199,15 @@ export const onboardingChoices = (capabilities: DomainCapabilities): OnboardingC
 export interface LnurlRail {
   status: 'off' | 'loading' | 'onboarding' | 'ready' | 'failed'
   receiver: Receiver | undefined
+  /** What the QR carries: the receiver's LNURL, or the wallet-id LNURL while it is still being registered. */
+  lnurl: string | undefined
   choices: OnboardingChoice[]
   busy: boolean
   error: string
   claim: (opts: ClaimOptions) => Promise<void>
   upgrade: (opts: NameOptions) => Promise<void>
+  /** Every address this identity owns on the server, nameless ones included. */
+  addresses: () => Promise<AddressListEntry[]>
 }
 
 export function useLnurlRail(deps: {
@@ -223,6 +230,7 @@ export function useLnurlRail(deps: {
   const [loadFailed, setLoadFailed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [walletLnurl, setWalletLnurl] = useState<string>()
   const current = useRef(facade)
   current.current = facade
 
@@ -232,19 +240,35 @@ export function useLnurlRail(deps: {
     setError('')
     setLoadFailed(false)
     setBusy(false)
+    setWalletLnurl(undefined)
     if (!facade) return
     let stale = false
+    // The wallet id is derived locally, so the QR need not wait on the server's round trips.
+    // ponytail: a payer scanning before registration lands gets "no longer active"; retrying succeeds.
+    const baseUrl = configuredLnurlServer()?.baseUrl
+    facade
+      .token()
+      .then((token) => !stale && baseUrl && setWalletLnurl(encodeLnurl(`${baseUrl}/lnurl/${deriveSessionId(token)}`)))
+      .catch(() => {}) // load() reports the same failure
     const load = async () => {
       const owned = await facade.owned()
       if (stale) return
-      setReceiver(owned)
       // A named receiver needs no choices; a nameless one needs them for "Add a name".
-      if (owned?.lightningAddress) return
+      if (owned?.lightningAddress) return setReceiver(owned)
       if (!owned) {
-        const capabilities = await facade.capabilities()
-        if (!stale) setChoices(onboardingChoices(capabilities))
+        const offered = onboardingChoices(await facade.capabilities())
+        if (stale) return
+        setChoices(offered)
+        // Not a name: the LNURL encodes the wallet id. Registering it lets the server answer it offline, with the
+        // Arkade and on-chain rails bound, so the first QR already works. The server returns an existing row on repeat.
+        if (!offered.includes('session')) return
+        const claimed = await facade.claim({ nameless: true })
+        if (stale) return
+        setReceiver(claimed)
+        claimed.sync().catch((err) => consoleError(err, 'lnurl activity sync after claim failed'))
         return
       }
+      setReceiver(owned)
       // Already payable: failing to learn how to name it must not cost the QR its LNURL.
       const capabilities = await facade.capabilities().catch((err) => {
         if (!stale) setError(lnurlClaimErrorMessage(err))
@@ -299,6 +323,7 @@ export function useLnurlRail(deps: {
   return {
     status,
     receiver,
+    lnurl: receiver?.lnurl ?? (status === 'loading' ? walletLnurl : undefined),
     choices,
     busy,
     error,
@@ -307,6 +332,12 @@ export function useLnurlRail(deps: {
     },
     upgrade: async (opts) => {
       if (receiver) await run(() => receiver.upgrade(opts), false)
+    },
+    addresses: async () => {
+      const server = configuredLnurlServer()
+      if (!facade || !server) return []
+      const all = await createLnurlClient({ baseUrl: server.baseUrl }).listAddresses(await facade.token())
+      return all.filter((a) => a.domain.toLowerCase() === server.domain)
     },
   }
 }
