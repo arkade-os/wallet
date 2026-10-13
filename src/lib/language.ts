@@ -92,6 +92,12 @@ export function detectLanguage(
   return Language.English
 }
 
+export function getLocale(language: Language): string {
+  if (language === Language.Portuguese) return 'pt'
+  if (language === Language.Spanish) return 'es'
+  return 'en'
+}
+
 // Module-level mirror of the active language so lib code that has no React
 // context (e.g. server-error formatting in lib/error.ts) can still localize.
 // LanguageProvider keeps it in sync with the persisted config. Note: tests that

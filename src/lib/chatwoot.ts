@@ -1,4 +1,5 @@
 import { fromRuntimeEnv } from './constants'
+import { getLocale } from './language'
 import { consoleError } from './logs'
 import { Language } from './types'
 
@@ -48,7 +49,7 @@ export interface ChatwootSettings {
   locale: string
 }
 
-export const getChatwootLocale = (language: Language): string => (language === Language.Spanish ? 'es' : 'en')
+export const getChatwootLocale = (language: Language): string => getLocale(language)
 
 export const getChatwootSettings = (locale = 'en'): ChatwootSettings => {
   return {

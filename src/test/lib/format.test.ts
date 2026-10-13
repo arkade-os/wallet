@@ -208,6 +208,20 @@ describe('format utilities', () => {
       expect(result).toBe(expected)
     })
 
+    it('formats dates in Portuguese when the Portuguese locale is requested', () => {
+      const d = new Date('2023-12-25T10:30:00Z')
+      const tsSec = Math.floor(d.getTime() / 1000)
+      const result = prettyDate(tsSec, Language.Portuguese)
+      const expected = new Intl.DateTimeFormat('pt', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        minute: '2-digit',
+        hour: '2-digit',
+      }).format(d)
+      expect(result).toBe(expected)
+    })
+
     it('keeps English formatting by default', () => {
       const d = new Date('2023-12-25T10:30:00Z')
       const tsSec = Math.floor(d.getTime() / 1000)

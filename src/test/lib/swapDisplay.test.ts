@@ -263,6 +263,13 @@ describe('lnSwapLabel', () => {
     expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'settled' }), es)).toBe('Recepción Lightning')
   })
 
+  it('localizes the corridor stem and outcome in Portuguese', () => {
+    const pt = (key: string): string => translate(Language.Portuguese, key)
+    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'refunded' }), pt)).toBe('Envio Lightning reembolsado')
+    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'lost' }), pt)).toBe('Recebimento Lightning perdido')
+    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'settled' }), pt)).toBe('Recebimento Lightning')
+  })
+
   it('leaves a row the resolver never tagged alone', () => {
     expect(lnSwapLabel(row(), t)).toBeUndefined()
   })
