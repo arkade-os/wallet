@@ -1,4 +1,5 @@
 import { Asset, NetworkName, type ExtendedVirtualCoin, type ServiceWorkerWalletMode } from '@arkade-os/sdk'
+import type { Delegation } from './delegatee'
 
 export type Addresses = {
   boardingAddr: string
@@ -15,6 +16,8 @@ export type Config = {
   aspUrl: string
   currency: Currencies
   delegate: boolean
+  /** The watches the delegatee keeps for this wallet, set once delegation is enabled. */
+  delegation?: Delegation
   importedAssets: string[]
   language?: Language
   haptics: boolean
@@ -32,11 +35,10 @@ export type Config = {
 }
 
 export type Delegate = {
-  fee: number
   url: string
   name: string
   pubkey: string
-  address: string
+  emulatorPubkey?: string
 }
 
 export enum Currencies {

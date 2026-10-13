@@ -35,7 +35,6 @@ import {
   emptyAspInfo,
   byExpiryAsc,
   collaborativeExitWithFees,
-  delegateVtxos,
   getTxHistory,
   getUnrolledVtxos,
   redeemNotes,
@@ -150,32 +149,6 @@ describe('collaborativeExitWithFees', () => {
     )
     expect(getVtxos).not.toHaveBeenCalled()
     expect(settle).not.toHaveBeenCalled()
-  })
-})
-
-describe('delegateVtxos', () => {
-  it('delegates only unspent coins, even from a worker that ignores unspentOnly', async () => {
-    const delegatePubKey = 'f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9'
-    const params = {
-      pubKey: '79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798',
-      serverPubKey: 'c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5',
-      delegatePubKey,
-      csvTimelock: '144',
-    }
-    const live = { txid: 'live', vout: 0, value: 1_000 }
-    const spent = { txid: 'spent', vout: 0, value: 1_000, isSpent: true, spentBy: 'next' }
-    const getContractsWithVtxos = vi.fn().mockResolvedValue([{ contract: { params }, vtxos: [live, spent] }])
-    const delegate = vi.fn().mockResolvedValue({ delegated: [], failed: [] })
-    const wallet = {
-      getContractManager: async () => ({ getContractsWithVtxos }),
-      getDelegateManager: async () => ({ getDelegateInfo: async () => ({ pubkey: delegatePubKey }), delegate }),
-      getAddress: async () => fixtures.lib.address.ark[0].address,
-    }
-
-    await delegateVtxos(wallet as any)
-
-    expect(getContractsWithVtxos).toHaveBeenCalledWith({ type: 'delegate' }, undefined, { unspentOnly: true })
-    expect(delegate.mock.calls[0][0].map((vtxo: { txid: string }) => vtxo.txid)).toEqual(['live'])
   })
 })
 

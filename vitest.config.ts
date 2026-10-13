@@ -13,7 +13,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.ts',
-    exclude: ['**/e2e/**', '**/node_modules/**'],
+    // regtest/ is the arkade-regtest submodule, whose tests run under node:test
+    exclude: ['**/e2e/**', '**/node_modules/**', 'regtest/**'],
     // The 5 s default is what the slowest React-flow tests run against under
     // full-suite contention, not in isolation: the two in `swap.test.tsx` take
     // ~2.2 s and ~1.0 s alone and cross 5 s under load. Margin, not masking — a
