@@ -23,10 +23,10 @@
       },
       "fee_bps": 30,
       "min_base_amount": "500",
-      "max_base_amount": "50000",
+      "max_base_amount": "100000",
       "min_quote_amount": "500",
-      "max_quote_amount": "50000"
+      "max_quote_amount": "100000"
     }
   ],
-  "sig": "7a74b326cc033b26aac4778cffd74685cce2ef57e244e675805b85261ab6078fb2d82096c08363a9dfc63baaa826d6fa5520e38cdc0ee3d3ebeb772fc4e04412"
+  "sig": "7f41233b597eaeb7f697cc1d66a7841df5f262e7977f3a40b00598a68cb34cacf17854a7cf6d86277ad4ba2b364cf1e89185d13f62c57d2db5e4d11367dcbbd4"
 }
