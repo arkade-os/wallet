@@ -81,35 +81,37 @@ export default function AppIntentScreen() {
         <Header text={t('appIntent.title')} back={() => finish({ error: 'denied' })} />
         <Content>
           <Padded>
-            <FlexCol gap='1rem'>
+            <FlexCol gap='0.75rem'>
+              <OpenInApp />
               <ErrorMessage error={Boolean(error)} text={error} />
-              <Text big bold wrap>
+              <Text bold wrap>
                 {t('appIntent.wantsAddress', { host: host || t('common.unknown') })}
               </Text>
               <Text color='neutral-700' small wrap>
                 {t('appIntent.shareExplainer')}
               </Text>
-              <OpenInApp />
-              {address ? (
-                <FlexCol gap='0.25rem'>
-                  <Text tiny color='neutral-500'>
-                    {t('appIntent.address')}
-                  </Text>
-                  <Text copy={address} small wrap testId='app-intent-address'>
-                    {address}
-                  </Text>
-                </FlexCol>
-              ) : null}
-              {pubkey ? (
-                <FlexCol gap='0.25rem'>
-                  <Text tiny color='neutral-500'>
-                    {t('appIntent.pubkey')}
-                  </Text>
-                  <Text copy={pubkey} small wrap testId='app-intent-pubkey'>
-                    {pubkey}
-                  </Text>
-                </FlexCol>
-              ) : null}
+              <FlexCol gap='0.75rem'>
+                {address ? (
+                  <FlexCol gap='0.125rem'>
+                    <Text tiny color='neutral-500'>
+                      {t('appIntent.address')}
+                    </Text>
+                    <Text copy={address} small wrap testId='app-intent-address'>
+                      {address}
+                    </Text>
+                  </FlexCol>
+                ) : null}
+                {pubkey ? (
+                  <FlexCol gap='0.125rem'>
+                    <Text tiny color='neutral-500'>
+                      {t('appIntent.pubkey')}
+                    </Text>
+                    <Text copy={pubkey} small wrap testId='app-intent-pubkey'>
+                      {pubkey}
+                    </Text>
+                  </FlexCol>
+                ) : null}
+              </FlexCol>
             </FlexCol>
           </Padded>
         </Content>
