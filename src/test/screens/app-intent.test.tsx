@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { redirectToCallback, type AppIntentState } from '../../lib/appIntent'
 import AppIntentScreen from '../../screens/AppIntent/Index'
 import SendSuccess from '../../screens/Wallet/Send/Success'
@@ -89,6 +89,10 @@ const renderSendSuccess = (appIntent: AppIntentState) => {
 describe('App intent screen', () => {
   beforeEach(() => {
     vi.mocked(redirectToCallback).mockClear()
+  })
+
+  afterEach(() => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 })
   })
 
   it('shares the receive address and x-only pubkey after confirmation', async () => {
