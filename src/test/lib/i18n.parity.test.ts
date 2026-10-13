@@ -21,10 +21,12 @@ function resolve(dict: unknown, key: string): unknown {
 }
 
 describe('i18n dictionary integrity', () => {
-  it('en and es expose the same key set', () => {
+  it('en, es and pt expose the same key set', () => {
     const en = collectLeafKeys(translations.en)
     const es = collectLeafKeys(translations.es)
+    const pt = collectLeafKeys(translations.pt)
     expect(new Set(es)).toEqual(new Set(en))
+    expect(new Set(pt)).toEqual(new Set(en))
   })
 
   it('every t()/translate() key used in source resolves in the EN dictionary', () => {
@@ -41,8 +43,6 @@ describe('i18n dictionary integrity', () => {
       for (const match of content.matchAll(/translate\([^)]*?,\s*['"]([A-Za-z0-9_.]+)['"]/g)) used.add(match[1])
     }
     const missing = [...used].filter((key) => typeof resolve(translations.en, key) !== 'string').sort()
-    console.log('unique t() keys used:', used.size)
-    console.log('missing from EN dict:', missing)
     expect(missing).toEqual([])
   })
 
@@ -52,43 +52,84 @@ describe('i18n dictionary integrity', () => {
     // Any key in the es dictionary that is NOT listed here must be an actual
     // translation, not an English fallback.
     const allowList = new Set([
+      'accounts.arknote',
+      'apps.dfx',
       'common.sat',
       'common.sats',
       'common.total',
-      'settings.general',
-      'settings.dust',
-      'settings.solvers',
-      'settings.auto',
-      'settings.arkadeMint',
-      'wallet.wallet',
-      'transaction.totalTicker',
-      'transaction.boarding',
-      'transaction.swap',
-      'send.bitcoin',
       'components.lnurlAddress',
-      'accounts.arknote',
-      'delegate.pubkeyLabel',
-      'delegate.feeLabel',
       'contracts.script',
+      'delegate.feeLabel',
+      'delegate.pubkeyLabel',
+      'formatting.unit',
       'mint.arkadeMint',
+      'mint.max',
       'mint.ticker',
       'mint.tickerLabel',
-      'mint.max',
-      'vtxos.subdust',
-      'apps.dfx',
-      'formatting.unit',
-      // Payment-method names in the receive selector. These are the protocol
-      // and product names the user is choosing between, not descriptive text,
-      // so they stay as-is in both languages.
       'receive.methodLightning',
       'receive.methodArkade',
       'receive.methodBitcoin',
+      'send.bitcoin',
+      'settings.arkadeMint',
+      'settings.auto',
+      'settings.dust',
+      'settings.general',
+      'settings.solvers',
+      'transaction.boarding',
+      'transaction.swap',
+      'transaction.totalTicker',
+      'vtxos.subdust',
+      'wallet.wallet',
     ])
 
     const unlocalized = collectLeafKeys(translations.en)
       .filter((key) => !allowList.has(key))
       .filter((key) => resolve(translations.es, key) === resolve(translations.en, key))
-    console.log('es strings identical to en (not allowed):', unlocalized)
+    expect(unlocalized).toEqual([])
+  })
+
+  it('pt values are real translations unless the term is universal/technical', () => {
+    // Proper nouns, protocol names and technical terms legitimately keep their
+    // English form in the Portuguese UI (LNURL, Arkade, sats, swap, pubkey...).
+    // Any key in the pt dictionary that is NOT listed here must be an actual
+    // translation, not an English fallback.
+    const allowList = new Set([
+      'accounts.arknote',
+      'apps.dfx',
+      'backup.title',
+      'common.sat',
+      'common.sats',
+      'common.total',
+      'components.lnurlAddress',
+      'contracts.script',
+      'delegate.feeLabel',
+      'delegate.pubkeyLabel',
+      'formatting.unit',
+      'mint.arkadeMint',
+      'mint.max',
+      'mint.ticker',
+      'mint.tickerLabel',
+      'receive.methodLightning',
+      'receive.methodArkade',
+      'receive.methodBitcoin',
+      'send.bitcoin',
+      'settings.arkadeMint',
+      'settings.auto',
+      'settings.backup',
+      'settings.dust',
+      'settings.feedback',
+      'settings.general',
+      'settings.solvers',
+      'transaction.boarding',
+      'transaction.swap',
+      'transaction.totalTicker',
+      'vtxos.subdust',
+      'wallet.wallet',
+    ])
+
+    const unlocalized = collectLeafKeys(translations.en)
+      .filter((key) => !allowList.has(key))
+      .filter((key) => resolve(translations.pt, key) === resolve(translations.en, key))
     expect(unlocalized).toEqual([])
   })
 })
