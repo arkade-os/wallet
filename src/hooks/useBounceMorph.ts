@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { useAnimationControls } from 'framer-motion'
 
 const EASE_IN = [0.55, 0, 1, 0.45] as [number, number, number, number]
@@ -32,18 +32,8 @@ export function useBounceMorph({ reducedMotion, onBounce }: UseBounceMorphOption
   // Stable ref so the loop always uses the current controls without needing it in deps
   const controlsRef = useRef(bounceControls)
   controlsRef.current = bounceControls
-  // Mirrors the controls' own layout-effect mount, which ends a commit before the loop's
-  // passive cleanup cancels it; start() throws in that gap.
-  const controlsMounted = useRef(false)
-  useLayoutEffect(() => {
-    controlsMounted.current = true
-    return () => {
-      controlsMounted.current = false
-    }
-  }, [])
 
   const stopRequested = useRef(false)
-  const cancelled = useRef(false)
   const onBounceRef = useRef(onBounce)
   onBounceRef.current = onBounce
 
@@ -51,7 +41,7 @@ export function useBounceMorph({ reducedMotion, onBounce }: UseBounceMorphOption
     stopRequested.current = true
   }, [])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (reducedMotion) {
       stopRequested.current = false
       setActiveShape(0)
@@ -61,29 +51,22 @@ export function useBounceMorph({ reducedMotion, onBounce }: UseBounceMorphOption
 
     stopRequested.current = false
     setStopped(false)
-    cancelled.current = false
-
-    const animate = async (definition: Parameters<typeof bounceControls.start>[0]) => {
-      if (controlsMounted.current) await controlsRef.current.start(definition)
-    }
+    let cancelled = false
 
     async function bounceAndMorph(nextShape: number) {
-      // Hidden, not unmounted: hold the sequence (and its particle bursts) until shown again.
-      while (!controlsMounted.current && !cancelled.current) await delay(60)
-      if (cancelled.current) return
       setBounceCount((c) => c + 1)
       onBounceRef.current?.()
       setActiveShape(nextShape)
 
-      await animate({
+      await controlsRef.current.start({
         y: 20,
         scaleY: 0.75,
         scaleX: 1.15,
         transition: { duration: 0.06, ease: EASE_IN },
       })
-      if (cancelled.current) return
+      if (cancelled) return
 
-      await animate({
+      await controlsRef.current.start({
         y: 0,
         scaleY: 1,
         scaleX: 1,
@@ -93,7 +76,7 @@ export function useBounceMorph({ reducedMotion, onBounce }: UseBounceMorphOption
 
     async function runLoop() {
       await delay(180)
-      if (cancelled.current) return
+      if (cancelled) return
 
       // eslint-disable-next-line no-constant-condition
       while (true) {
@@ -102,37 +85,37 @@ export function useBounceMorph({ reducedMotion, onBounce }: UseBounceMorphOption
           // do the final morph then stop gracefully
           if (stopRequested.current && nextShape === 0) {
             await bounceAndMorph(0)
-            if (cancelled.current) return
+            if (cancelled) return
             await delay(180) // let morph CSS transition settle
-            if (cancelled.current) return
+            if (cancelled) return
             setStopped(true)
             return
           }
 
           await bounceAndMorph(nextShape)
-          if (cancelled.current) return
+          if (cancelled) return
 
           await delay(60)
-          if (cancelled.current) return
+          if (cancelled) return
         }
 
         // End of full cycle (back at Arcade) — check stop
         if (stopRequested.current) {
           await delay(180)
-          if (cancelled.current) return
+          if (cancelled) return
           setStopped(true)
           return
         }
 
         await delay(60)
-        if (cancelled.current) return
+        if (cancelled) return
       }
     }
 
     runLoop()
 
     return () => {
-      cancelled.current = true
+      cancelled = true
       controlsRef.current.stop()
     }
     // Only re-run if reducedMotion changes. bounceControls is stable (useConstant),

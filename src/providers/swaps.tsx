@@ -800,8 +800,12 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     swapsOptional,
     ...deps
   }: { outputFee?: () => number; assets?: Asset[]; swapsOptional?: boolean } = {}): Promise<PaymentRouter> => {
+    if (!held.current && granted.current) {
+      await Promise.race([granted.current, new Promise((resolve) => setTimeout(resolve, LOCK_GRACE_MS))])
+    }
     // A router cannot cross to the driving tab, so without the client here it is built without it.
     if (swapsOptional && !held.current) return createSendRouter({ wallet: svcWallet!, ...deps })
+    if (!held.current) throw new SwapsHeldElsewhere()
     const client = await driving()
     const claimFeeRateSatVb = await claimFeeRate(onchainClaimEndpoint(aspInfo.network as NetworkName))
     return createSendRouter({ wallet: svcWallet!, client, claimFeeRateSatVb, ...deps })

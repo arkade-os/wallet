@@ -1,3 +1,4 @@
+import Decimal from 'decimal.js'
 import { consoleError } from './logs'
 import { Currencies, Unit } from './types'
 
@@ -24,6 +25,18 @@ export const FIAT_SYMBOLS: Partial<Record<Currencies, string>> = {
 export const fiatDecimalsFor = (currency: Currencies, bitcoinUnit = Unit.BTC): number => {
   if (currency === Currencies.BTC) return bitcoinUnit === Unit.BTC ? 8 : 0
   return currency === Currencies.JPY ? 0 : 2
+}
+
+/** Fiat → sats without flooring, for reporting/display only — spending paths
+ * keep the provider's floor-to-sat `fromFiatAmount`. Derives the rate from
+ * `toFiatAmount` so both directions share one price source. */
+export const reportingSatsForFiatAmount = (
+  amount: number,
+  currency: Currencies,
+  toFiatAmount: (satoshis: number, currency: Currencies) => number,
+): number => {
+  const fiatPerBtc = toFiatAmount(100_000_000, currency)
+  return fiatPerBtc ? Decimal.div(amount, fiatPerBtc).mul(100_000_000).toNumber() : 0
 }
 
 export const getPriceFeed = async (): Promise<FiatPrices | undefined> => {

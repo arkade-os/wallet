@@ -22,6 +22,8 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
   const { t } = useTranslation()
   const { goBack } = useContext(NavigationContext)
 
+  const testId = 'header-title-' + text.toLowerCase().replace(/\s/g, '-')
+
   const handleBack = back
     ? () => {
         hapticLight()
@@ -60,7 +62,9 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
             '\u00A0'
           )}
         </div>
-        <p className='title'>{text}</p>
+        <p className='title' data-testid={testId}>
+          {text}
+        </p>
         <div style={style} onClick={auxFunc} aria-label={auxAriaLabel} data-testid='header-aux-btn'>
           {auxText || auxIcon ? (
             <Focusable onEnter={auxFunc} fit round>

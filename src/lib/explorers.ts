@@ -14,7 +14,7 @@ const explorers: Explorers = {
   },
   regtest: {
     api: 'http://localhost:3000/api',
-    web: 'http://localhost:5000',
+    web: 'http://localhost:3000',
   },
   signet: {
     api: 'https://mutinynet.com/api',

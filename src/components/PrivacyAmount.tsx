@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { MouseEvent, ReactNode, useContext } from 'react'
 import { ConfigContext } from '../providers/config'
+import { BackupContext } from '../providers/backup'
 import { hapticLight } from '../lib/haptics'
 import { cn } from '../lib/utils'
 import { useTranslation } from '../providers/language'
@@ -16,11 +17,13 @@ interface PrivacyAmountProps {
 export function PrivacyAmount({ children, className, interactive = false, masked, testId }: PrivacyAmountProps) {
   const { t } = useTranslation()
   const { config } = useContext(ConfigContext)
+  const { backupAndUpdateConfig } = useContext(BackupContext)
   const visible = config.showBalance
 
   const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
     hapticLight()
+    backupAndUpdateConfig({ ...config, showBalance: !visible })
   }
 
   const value = (

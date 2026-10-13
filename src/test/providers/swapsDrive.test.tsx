@@ -26,6 +26,8 @@ vi.mock('../../components/Toast', async (importOriginal) => ({
 const ready = vi.hoisted(() => vi.fn())
 const dispose = vi.hoisted(() => vi.fn())
 const accept = vi.hoisted(() => vi.fn())
+const clientQuote = vi.hoisted(() => vi.fn())
+const offboard = vi.hoisted(() => vi.fn())
 const receive = vi.hoisted(() => vi.fn())
 const recover = vi.hoisted(() => vi.fn())
 /** Set by the provider's own `onUpdate`, so a test can push one through. */
@@ -40,7 +42,7 @@ vi.mock('../../lib/swapClient', async (importOriginal) => ({
     onUpdate: (fn: (update: SwapUpdate) => void) => (listeners.push(fn), () => {}),
     accept,
     cancel: vi.fn(),
-    quote: vi.fn(),
+    quote: clientQuote,
     receive,
     pay: vi.fn(),
     exchange: vi.fn(),
@@ -52,6 +54,15 @@ vi.mock('../../lib/swapClient', async (importOriginal) => ({
     stop: async () => {},
     [Symbol.asyncDispose]: dispose,
   }),
+}))
+
+vi.mock('../../lib/asp', async (original) => ({
+  ...(await original<typeof import('../../lib/asp')>()),
+  collaborativeExitWithFees: offboard,
+}))
+vi.mock('../../lib/claimFee', async (original) => ({
+  ...(await original<typeof import('../../lib/claimFee')>()),
+  claimFeeRate: async () => 2,
 }))
 
 vi.mock('../../lib/swapRepository', async () => {
@@ -101,6 +112,7 @@ function Harness({ tab = 'a' }: { tab?: string }) {
   const [invoice, setInvoice] = useState('')
   const [routed, setRouted] = useState('')
   const [recovered, setRecovered] = useState('')
+  const [router, setRouter] = useState('')
   return (
     <div data-testid={`tab-${tab}`}>
       <button onClick={() => acceptPay(quote).catch((err: Error) => setRejected(err.name))}>{`Pay ${tab}`}</button>
@@ -112,6 +124,13 @@ function Harness({ tab = 'a' }: { tab?: string }) {
         }
       >{`Route ${tab}`}</button>
       <span data-testid='routed'>{routed || 'none'}</span>
+      <button
+        onClick={() =>
+          sendRouter({ outputFee: () => 100 })
+            .then((router) => setRouter(typeof router.options))
+            .catch((err: Error) => setRejected(err.name))
+        }
+      >{`Router ${tab}`}</button>
       <button
         onClick={() =>
           receiveLightning(1000)
@@ -131,6 +150,7 @@ function Harness({ tab = 'a' }: { tab?: string }) {
       <span data-testid='rejected'>{rejected || 'none'}</span>
       <span data-testid='invoice'>{invoice || 'none'}</span>
       <span data-testid='recovered'>{recovered || 'none'}</span>
+      <span data-testid='router'>{router || 'none'}</span>
     </div>
   )
 }
@@ -239,6 +259,8 @@ beforeEach(() => {
   ready.mockReset().mockResolvedValue(undefined)
   dispose.mockReset().mockResolvedValue(undefined)
   accept.mockReset().mockResolvedValue(monitored('funded'))
+  clientQuote.mockReset()
+  offboard.mockReset()
   receive.mockReset().mockResolvedValue(minted())
   recover.mockReset().mockResolvedValue({ recovered: true, txid: 'round-txid', swap: monitored('cancelled') })
   withLocks(fakeLocks())
@@ -264,6 +286,40 @@ const renderTwoTabs = () =>
   )
 
 describe('SwapsProvider single-driver rule', () => {
+  it('refuses a follower send router without quoting, accepting or offboarding', async () => {
+    renderTwoTabs()
+    await waitFor(() => expect(ready).toHaveBeenCalledTimes(1))
+    const b = within(screen.getByTestId('tab-b'))
+
+    await userEvent.click(b.getByText('Router b'))
+
+    await waitFor(() => expect(b.getByTestId('rejected')).toHaveTextContent('SwapsHeldElsewhere'))
+    expect(b.getByTestId('router')).toHaveTextContent('none')
+    expect(clientQuote).not.toHaveBeenCalled()
+    expect(accept).not.toHaveBeenCalled()
+    expect(offboard).not.toHaveBeenCalled()
+    expect(ready).toHaveBeenCalledTimes(1)
+  })
+
+  it('waits for its queued startup grant before constructing a local send router', async () => {
+    const locks = gatedLocks()
+    withLocks(locks)
+    renderProvider()
+
+    await userEvent.click(screen.getByText('Router a'))
+    expect(screen.getByTestId('rejected')).toHaveTextContent('none')
+    expect(screen.getByTestId('router')).toHaveTextContent('none')
+    expect(ready).not.toHaveBeenCalled()
+
+    locks.open()
+    await waitFor(() => expect(screen.getByTestId('router')).toHaveTextContent('function'))
+    expect(screen.getByTestId('rejected')).toHaveTextContent('none')
+    expect(ready).toHaveBeenCalledTimes(1)
+    expect(clientQuote).not.toHaveBeenCalled()
+    expect(accept).not.toHaveBeenCalled()
+    expect(offboard).not.toHaveBeenCalled()
+  })
+
   it('lets only one tab drive, and runs the other tab’s action on it', async () => {
     renderTwoTabs()
     await waitFor(() => expect(ready).toHaveBeenCalledTimes(1))

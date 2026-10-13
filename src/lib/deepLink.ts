@@ -1,3 +1,4 @@
+// Hash links (`#app+...`, ark notes) are separate from query-string app links in lib/appIntent.ts.
 export const deepLinkInUrl = (): { appId: string; query: string } | undefined => {
   const clean = window.location.hash.slice(1)
   // Expected format: app+{app_id}?{query_params}

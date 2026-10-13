@@ -1,4 +1,4 @@
-import { useContext, useEffect } from 'react'
+import { useContext, useEffect, useRef } from 'react'
 import { FlowContext } from '../../../providers/flow'
 import { NotificationsContext } from '../../../providers/notifications'
 import { NavigationContext, Pages } from '../../../providers/navigation'
@@ -17,19 +17,32 @@ import { FiatContext } from '../../../providers/fiat'
 import { WalletContext } from '../../../providers/wallet'
 import AssetCard from '../../../components/AssetCard'
 import { accountAssetLabel, rawAssetPresentation, verifiedDesignatedCurrency } from '../../../lib/accountAssets'
-import { LNURL_ARKADE_RAIL, LNURL_LIGHTNING_RAIL, WALLET_EXIT_RAIL } from '../../../lib/sendRouter'
+import {
+  appSendNeedsDriver,
+  LNURL_ARKADE_RAIL,
+  LNURL_LIGHTNING_RAIL,
+  onchainSendNeedsDriver,
+  WALLET_EXIT_RAIL,
+} from '../../../lib/sendRouter'
+import { SwapsContext } from '../../../providers/swaps'
 import { AspContext } from '../../../providers/asp'
 import { useTranslation } from '../../../providers/language'
+import { appIntentHandoff, callbackHost, redirectToCallback } from '../../../lib/appIntent'
 
 export default function SendSuccess() {
   const { config, useFiat } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
-  const { sendInfo } = useContext(FlowContext)
+  const { appIntent, sendInfo, setAppIntent } = useContext(FlowContext)
   const { notifyPaymentSent } = useContext(NotificationsContext)
   const { assetMetadataCache, isVerifiedAsset } = useContext(WalletContext)
   const { navigate } = useContext(NavigationContext)
   const { aspInfo } = useContext(AspContext)
   const { t } = useTranslation()
+  const { outcomeOf } = useContext(SwapsContext)
+  const handedOff = useRef(false)
+  const needsDriver = onchainSendNeedsDriver(sendInfo, outcomeOf)
+  const appNeedsDriver = appSendNeedsDriver(appIntent, sendInfo, outcomeOf)
+  const pendingWarning = 'An onchain payment is still on the way � keep the wallet open until it completes'
 
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
@@ -71,14 +84,36 @@ export default function SendSuccess() {
   const isOnchainSend =
     Boolean(sendInfo.address) && !sendInfo.arkAddress && !sendInfo.invoice && !paidOutright && !lnurlSwap
   const isSwapSend = Boolean(sendInfo.invoice) || lnurlSwap || isOnchainSend
+  const returnHost = appIntent?.status === 'send' && appIntent.callback ? callbackHost(appIntent.callback) : ''
   const headline = isSwapSend ? t('send.paymentOnTheWay') : t('send.paymentSent')
   // Only on-chain, and not a hedge: THIS wallet holds the L1 claim key and the
   // drive spending it runs in the page, so a closed tab forfeits the fill.
-  const detail = isOnchainSend
-    ? `${displayAmount} on the way — keep the wallet open until it completes`
-    : isSwapSend
-      ? t('send.onTheWay', { amount: displayAmount })
-      : t('send.sentSuccessfully', { amount: displayAmount })
+  const detail =
+    appNeedsDriver && appIntent?.status === 'send' && appIntent.committedOnchain?.swapId !== sendInfo.swapId
+      ? pendingWarning
+      : isOnchainSend && (!appIntent || needsDriver)
+        ? `${displayAmount} on the way — keep the wallet open until it completes`
+        : returnHost
+          ? t('appIntent.sentReturn', { amount: displayAmount, host: returnHost })
+          : isSwapSend
+            ? t('send.onTheWay', { amount: displayAmount })
+            : t('send.sentSuccessfully', { amount: displayAmount })
+
+  const finish = () => {
+    if (appNeedsDriver) {
+      navigate(Pages.Wallet)
+      return
+    }
+    if (handedOff.current) return
+    handedOff.current = true
+    const handoff = appIntentHandoff(appIntent, 'sent', sendInfo.txid)
+    if (appIntent?.status === 'send') setAppIntent(undefined)
+    if (handoff) {
+      redirectToCallback(handoff.callback, handoff.params)
+      return
+    }
+    navigate(Pages.Wallet)
+  }
 
   if (isAssetSend && assetId) {
     return (
@@ -94,6 +129,7 @@ export default function SendSuccess() {
               <AssetCard
                 assetId={assetId}
                 balance={assetAmountValue}
+                exactAmount
                 decimals={assetDecimals}
                 icon={assetIcon}
                 name={assetName}
@@ -101,13 +137,16 @@ export default function SendSuccess() {
                 logoTicker={designatedCurrency}
               />
               <Text centered color='neutral-700' thin small wrap>
-                {t('send.sentSuccessfully', { amount: displayAmount })}
+                {appNeedsDriver ? pendingWarning : t('send.sentSuccessfully', { amount: displayAmount })}
               </Text>
             </FlexCol>
           </Padded>
         </Content>
         <ButtonsOnBottom>
-          <Button label={t('transaction.soundsGood')} onClick={() => navigate(Pages.Wallet)} />
+          <Button
+            label={returnHost ? t('appIntent.returnTo', { host: returnHost }) : t('transaction.soundsGood')}
+            onClick={finish}
+          />
         </ButtonsOnBottom>
       </>
     )
@@ -118,7 +157,7 @@ export default function SendSuccess() {
       headline={headline}
       text={detail}
       ariaLabel={`${headline}. ${t('wallet.tapToGoHome')}`}
-      onDone={() => navigate(Pages.Wallet)}
+      onDone={finish}
     />
   )
 }
