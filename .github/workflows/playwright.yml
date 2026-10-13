@@ -40,15 +40,15 @@ jobs:
               src/test/e2e/serverdown.test.ts
               src/test/e2e/swap.test.ts
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         submodules: recursive
         persist-credentials: false
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-node@v7
       with:
         node-version-file: '.nvmrc'
     - name: Install pnpm
-      uses: pnpm/action-setup@v4
+      uses: pnpm/action-setup@v6
     - name: Install dependencies
       run: pnpm install
     - name: Install Playwright Browsers
