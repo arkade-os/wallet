@@ -1708,7 +1708,7 @@ export const translations = {
       enableNostrBackups: 'Ativar backups do Nostr',
       enoughToRestore: 'Isso é suficiente para restaurar sua carteira.',
       forYourEyesOnly: 'Só para você; não compartilhe.',
-      keepSafe: 'Mantenha seu {secret} em segurança',
+      keepSafe: 'Mantenha sua {secret} em segurança',
       keyBacksUpWallet:
         'Sua chave privada é usada para fazer backup da sua carteira. Mantenha-a sempre em segredo e em segurança.',
       nostrBackupUpdated: 'Backup do Nostr atualizado',
@@ -1867,7 +1867,7 @@ export const translations = {
       delegatorManagerNotFound: 'Gerenciador de delegados não encontrado',
       insufficientFunds: 'Saldo insuficiente',
       invalidMnemonic: 'Frase mnemônica inválida',
-      lnurl: 'Error LNURL',
+      lnurl: 'Erro LNURL',
       noEligibleToSettle: 'Não há UTXOs ou VTXOs elegíveis para liquidação',
       noEncryptedMnemonic: 'Não foi encontrada uma mnemônica criptografada',
       onchainAmountTooLow:
