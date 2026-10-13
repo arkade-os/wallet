@@ -378,12 +378,12 @@ export default function Transaction() {
             <SwapTransactionSummary fromIcon={swapFromIcon} toIcon={swapToIcon} tx={tx} />
           ) : null}
           {receiverConfirmed === true ? (
-            <Info color='green' icon={<CheckMarkIcon small />} title='Receiver confirmed'>
-              <TextSecondary>The receiver's server confirmed this payment settled.</TextSecondary>
+            <Info color='green' icon={<CheckMarkIcon small />} title={t('transaction.receiverConfirmed')}>
+              <TextSecondary>{t('transaction.receiverConfirmedText')}</TextSecondary>
             </Info>
           ) : receiverConfirmed === false ? (
-            <Info color='orange' icon={<VtxosIcon />} title='Not confirmed'>
-              <TextSecondary>The receiver has not confirmed this payment settled.</TextSecondary>
+            <Info color='orange' icon={<VtxosIcon />} title={t('transaction.receiverNotConfirmed')}>
+              <TextSecondary>{t('transaction.receiverNotConfirmedText')}</TextSecondary>
             </Info>
           ) : null}
           {amountDisplay ? <TransactionAmountSummary amount={amountDisplay} label={summaryLabel} /> : null}

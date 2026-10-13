@@ -321,9 +321,10 @@ export default function SendDetails() {
     if (isAssetSend && arkAddress) {
       if (!sendInfo.assets || sendInfo.assets.length === 0) return handleError('Missing assets list')
       payAssets(arkAddress, sendInfo.assets).catch(handleError)
-    } else if (lnurlRoute) {
-      if (!details.destination) return handleError('Sending offchain not allowed')
+    } else if (lnurlRoute && details.destination === lnUrl) {
       payLnurl(pendingLnSend!, lnUrl!).catch(handleError)
+    } else if (lnurlRoute && !address) {
+      return handleError('Sending offchain not allowed')
     } else if (arkAddress) {
       if (!details.total) return handleError(t('send.missingTotalAmount'))
       sendOffChain(svcWallet, details.total, arkAddress)
@@ -350,7 +351,7 @@ export default function SendDetails() {
         {sending ? (
           <LoadingLogo
             text={
-              lnurlRoute
+              lnurlRoute && details?.destination === lnUrl
                 ? details?.direction || 'Paying'
                 : details?.destination === invoice
                   ? t('send.payingToLightning')

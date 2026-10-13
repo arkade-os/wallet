@@ -151,6 +151,25 @@ describe('signing an LNURL send', () => {
     await waitFor(() => expect(String(sendFailure())).toMatch(/offchain not allowed/i))
     expect(sent).not.toHaveBeenCalled()
   })
+
+  it('pays the BIP21 address it shows, not the LNURL, on an account that may not send offchain', async () => {
+    const sent = vi.fn()
+    renderSign(
+      {
+        address: 'bc1qfallback',
+        lnUrl: TARGET,
+        satoshis: SATS,
+        pendingLnSend: lnurlQuote(LNURL_ARKADE_RAIL, sent) as never,
+      },
+      { ...mockLimitsContextValue, vtxoTxsAllowed: () => false },
+    )
+    expect(await screen.findByText('Paying to mainnet')).toBeInTheDocument()
+    await sign()
+
+    await waitFor(() => expect(sendFailure() ?? setSendInfo.mock.calls.at(-1)).toBeDefined())
+    expect(sent).not.toHaveBeenCalled()
+    expect(String(sendFailure() ?? '')).not.toMatch(/offchain not allowed/i)
+  })
 })
 
 describe('Review Focus 5: verifyBatch send confirmations', () => {
