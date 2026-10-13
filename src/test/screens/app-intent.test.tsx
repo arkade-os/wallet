@@ -116,12 +116,22 @@ describe('App intent screen', () => {
     expect(redirectToCallback).toHaveBeenCalledWith(CALLBACK, { error: 'invalid' })
   })
 
-  it('on Safari, Open in App stays here and explains that the installed app cannot be opened', () => {
+  it('on a mobile Safari viewport, Open in App stays here and explains that the installed app cannot be opened', async () => {
     vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(SAFARI_USER_AGENT)
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 })
     renderScreen({ status: 'connect', callback: CALLBACK })
-    fireEvent.click(screen.getByTestId('app-intent-open-in-app'))
+    fireEvent.click(await screen.findByTestId('app-intent-open-in-app'))
     expect(screen.getByTestId('app-intent-open-in-app-help')).toHaveTextContent(/Safari can't open the installed app/)
     expect(redirectToCallback).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    expect(screen.queryByTestId('app-intent-open-in-app')).not.toBeInTheDocument()
+  })
+
+  it('hides Open in App on desktop viewports', async () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1280 })
+    renderScreen({ status: 'connect', callback: CALLBACK })
+    await screen.findByText('arkade.trade is asking for your Arkade address.')
+    expect(screen.queryByTestId('app-intent-open-in-app')).not.toBeInTheDocument()
   })
 
   it('goes home when an invalid link has no callback', () => {
