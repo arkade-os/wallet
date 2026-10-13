@@ -22,6 +22,7 @@ export type Config = {
   notifications: boolean
   pubkey: string
   receiveViaLnurl: boolean
+  receiveViaTokens: boolean
   showBalance: boolean
   dismissedBanners: string[]
   theme: Themes

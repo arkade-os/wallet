@@ -13,6 +13,7 @@ import {
   type DomainCapabilities,
   type PaymentOption,
   type PaymentSyncStore,
+  type PayRequest,
 } from '@arkade-os/lnurl-client'
 import { ArkAddress } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
@@ -58,12 +59,12 @@ export function lnurlReceiver(deps: {
   return arkadeLnurl({ ...deps, baseUrl: server.baseUrl, domain: server.domain })
 }
 
-/** What a payer can send on each rail, in sats, as the receiver's own payRequest advertises it. */
-export async function lnurlRailLimits(receiver: Receiver) {
-  const payRequest = await receiver.payRequest()
+/** What a payer can send on each bitcoin rail, in sats, as the receiver's own payRequest advertises it.
+ *  Token options are not rails of their own here: their `type` is a chain namespace. */
+export function lnurlRailLimits(payRequest: PayRequest) {
   const options: PaymentOption[] = payRequest.paymentOptions ?? [{ id: 'lightning', type: 'lightning' }]
   return options
-    .filter((o) => o.available !== false)
+    .filter((o) => o.available !== false && o.asset === undefined)
     .map((o) => ({
       type: o.type,
       min: Math.ceil((o.minSendable ?? payRequest.minSendable) / 1000),
