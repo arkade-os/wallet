@@ -8,6 +8,7 @@ interface SegmentedControlProps {
 export default function SegmentedControl({ options, selected, onChange, getLabel }: SegmentedControlProps) {
   return (
     <div
+      role='radiogroup'
       style={{
         display: 'flex',
         borderRadius: '0.5rem',
@@ -18,7 +19,10 @@ export default function SegmentedControl({ options, selected, onChange, getLabel
       {options.map((opt, i) => {
         const isSelected = selected === opt
         return (
-          <div
+          <button
+            role='radio'
+            aria-checked={isSelected}
+            className='focusable'
             key={opt}
             onClick={() => onChange(opt)}
             style={{
@@ -44,7 +48,7 @@ export default function SegmentedControl({ options, selected, onChange, getLabel
             >
               {getLabel ? getLabel(opt) : opt}
             </span>
-          </div>
+          </button>
         )
       })}
     </div>
