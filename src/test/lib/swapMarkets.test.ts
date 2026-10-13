@@ -1,7 +1,38 @@
-import { describe, expect, it } from 'vitest'
-import { planOffer, type DiscoveredMarket } from '@arkade-os/solver-discovery'
-import { preFeeDisplayRate } from '../../lib/swapMarkets'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { DEFAULT_NETWORK, planOffer, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+import { BUNDLED_CARDS, discoveryOptions, preFeeDisplayRate } from '../../lib/swapMarkets'
 import { btcUsdt } from './swapFixtures'
+
+describe('discoveryOptions', () => {
+  beforeEach(() => localStorage.clear())
+
+  const stored = (network: string) =>
+    localStorage.setItem(
+      'solverCards',
+      JSON.stringify([{ network, label: 'beta-solver', card: BUNDLED_CARDS[0].card }]),
+    )
+
+  it('offers the bundled card, and a stored one, on a network discovery names', () => {
+    stored('bitcoin')
+    const opts = discoveryOptions('bitcoin')
+    expect(opts.network).toBe('bitcoin')
+    expect(opts.registryUrl).toBeDefined()
+    expect(opts.localCards).toHaveLength(2)
+  })
+
+  it('offers no card on a network solver discovery has no name for', () => {
+    // Settings stamps `aspInfo.network` on the cards it stores, so a card added
+    // while on testnet carries `network: 'testnet'`. The filter used to compare
+    // that raw name while `network` fell back to DEFAULT_NETWORK — so the card
+    // passed, and was then discovered as a mainnet market.
+    stored('testnet')
+    expect(discoveryOptions('testnet')).toMatchObject({
+      network: DEFAULT_NETWORK,
+      registryUrl: undefined,
+      localCards: [],
+    })
+  })
+})
 
 describe('preFeeDisplayRate', () => {
   it('quotes the feed price giving the base side and its inverse giving the quote side', () => {

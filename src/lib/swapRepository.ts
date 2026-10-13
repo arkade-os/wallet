@@ -6,10 +6,9 @@
  * one seam instead of three ad hoc keys.
  *
  * A fourth store, `rfqSwaps`, arrived with `DB_VERSION` 2 and is written by
- * `RfqSwapManager` rather than by anything here: `LnReceiveProvider` wires this
- * object in as the manager's `repository`, and the manager composes every
- * record itself. So this file enumerates four consumers, only three of which
- * call it directly.
+ * `RfqSwapManager` rather than by anything here: `createSwapClient` takes this
+ * object as its `repository`, and its manager composes every record itself. So
+ * this file enumerates four consumers, only three of which call it directly.
  *
  * That version bump is one-way. A browser at 2 cannot be served a bundle
  * pinning an older `@arkade-os/swap`: the open fails `VersionError` across the
@@ -42,3 +41,29 @@ export interface AssetSwapQuoteSnapshot {
  * The repository stores records whole, so `quote` survives package-side writes
  * (`cancelOffer`, the watcher) untouched. */
 export type WalletAssetSwap = AssetSwap & { quote?: AssetSwapQuoteSnapshot }
+
+/**
+ * Where the snapshot is kept.
+ *
+ * A store of its own rather than a field on the record, because the record is
+ * the client's: `SwapRecord` is rewritten whole on every drive pass, so a
+ * wallet-private key on it would survive exactly until the next one. The v1
+ * `AssetSwap` tolerated the extra field and the v2 record does not, which is
+ * why this moved out.
+ */
+export const QUOTE_SNAPSHOTS = 'swapQuoteSnapshots'
+
+const readSnapshots = (): Record<string, AssetSwapQuoteSnapshot> => {
+  try {
+    return JSON.parse(localStorage.getItem(QUOTE_SNAPSHOTS) ?? '{}') as Record<string, AssetSwapQuoteSnapshot>
+  } catch {
+    return {}
+  }
+}
+
+/** The snapshot for a swap, or undefined when none was stored. */
+export const quoteSnapshotOf = (id: string): AssetSwapQuoteSnapshot | undefined => readSnapshots()[id]
+
+export const saveQuoteSnapshot = (id: string, quote: AssetSwapQuoteSnapshot): void => {
+  localStorage.setItem(QUOTE_SNAPSHOTS, JSON.stringify({ ...readSnapshots(), [id]: quote }))
+}

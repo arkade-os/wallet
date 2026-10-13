@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App, { appReloader } from '../App'
@@ -16,9 +16,17 @@ import {
   mockOptionsContextValue,
   mockWalletContextValue,
 } from './screens/mocks'
+import { SwapsContext } from '../providers/swaps'
+import type { Outcome } from '@arkade-os/swap'
+import { redirectToCallback } from '../lib/appIntent'
 import { defaultPassword } from '../lib/constants'
 import { detectJSCapabilities } from '../lib/jsCapabilities'
 import { SettingsOptions } from '@/lib/types'
+
+vi.mock('../lib/appIntent', async (original) => ({
+  ...(await original<typeof import('../lib/appIntent')>()),
+  redirectToCallback: vi.fn(),
+}))
 
 const PASSWORDLESS_AUTO_RELOAD_KEY = 'passwordless-auto-reload-attempted'
 
@@ -32,12 +40,16 @@ function renderApp({
   unlockWallet = vi.fn().mockResolvedValue(undefined),
   screen: screenOverride = Pages.Init,
   option,
+  flow = {},
+  outcomeOf = () => undefined,
 }: {
   authState: WalletAuthState
   initialized: boolean
   unlockWallet?: ReturnType<typeof vi.fn>
   screen?: Pages
   option?: SettingsOptions
+  flow?: Partial<typeof mockFlowContextValue>
+  outcomeOf?: (id: string) => Outcome | undefined
 }) {
   const navigate = vi.fn()
 
@@ -45,7 +57,7 @@ function renderApp({
     <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate, screen: screenOverride }}>
       <AspContext.Provider value={mockAspContextValue as any}>
         <ConfigContext.Provider value={{ ...mockConfigContextValue, configLoaded: true } as any}>
-          <FlowContext.Provider value={mockFlowContextValue as any}>
+          <FlowContext.Provider value={{ ...mockFlowContextValue, ...flow } as any}>
             <OptionsContext.Provider
               value={{ ...mockOptionsContextValue, ...(option !== undefined && { option }) } as any}
             >
@@ -60,7 +72,9 @@ function renderApp({
                   wallet: { nextRollover: 0, pubkey: 'stored-pubkey' },
                 }}
               >
-                <App />
+                <SwapsContext.Provider value={{ outcomeOf } as never}>
+                  <App />
+                </SwapsContext.Provider>
               </WalletContext.Provider>
             </OptionsContext.Provider>
           </FlowContext.Provider>
@@ -104,6 +118,36 @@ describe('App startup routing', () => {
 
     await waitFor(() => expect(unlockWallet).toHaveBeenCalledWith(defaultPassword))
     expect(navigate).not.toHaveBeenCalledWith(Pages.Unlock)
+  })
+
+  it('shows unlock when authentication is required', async () => {
+    const { navigate } = renderApp({ authState: 'locked', initialized: false })
+
+    expect(await screen.findByText('Unlock')).toBeInTheDocument()
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.Unlock))
+  })
+
+  it('shows unlock even when the wallet remains initialized', async () => {
+    const { navigate } = renderApp({ authState: 'locked', initialized: true })
+
+    expect(await screen.findByText('Unlock')).toBeInTheDocument()
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.Unlock))
+  })
+
+  it('keeps authenticated but uninitialized wallets on loading', async () => {
+    const { navigate, unlockWallet } = renderApp({ authState: 'authenticated', initialized: false })
+
+    await waitFor(() => expect(screen.getByTestId('app')).toBeInTheDocument())
+    expect(unlockWallet).not.toHaveBeenCalled()
+    expect(navigate).not.toHaveBeenCalledWith(Pages.Unlock)
+  })
+
+  it('never mounts onboarding for a wallet that already exists', async () => {
+    renderApp({ authState: 'authenticated', initialized: true })
+
+    await waitFor(() => expect(screen.getByTestId('app')).toBeInTheDocument())
+    expect(screen.queryByText(/Welcome to Arkade/i)).toBeNull()
+    expect(screen.queryByText(/Create wallet/i)).toBeNull()
   })
 
   it('holds on loading during dev auto-init from VITE_DEV_MNEMONIC instead of redirecting', async () => {
@@ -229,5 +273,83 @@ describe('Navbar visibility', () => {
     expect(await screen.findByRole('main')).toHaveClass('desktop-wallet-main--panel')
     expect(screen.getByTestId('desktop-nav-activity')).toHaveAttribute('aria-current', 'page')
     expect(screen.getByTestId('desktop-nav-home')).not.toHaveAttribute('aria-current')
+  })
+})
+
+describe('Escape during an onchain app send', () => {
+  beforeEach(() => {
+    setupTestEnvironment()
+    vi.mocked(redirectToCallback).mockClear()
+  })
+  afterEach(() => vi.unstubAllEnvs())
+
+  const appIntent = {
+    status: 'send' as const,
+    request: 'bitcoin:bcrt1qrecipient',
+    callback: 'https://app.example/return',
+    started: true,
+  }
+  const committedIntent = { ...appIntent, committedOnchain: { swapId: 'rfq:owned', fundingTxid: 'funding-txid' } }
+  const sendInfo = {
+    address: 'bcrt1qrecipient',
+    railId: 'onchain-swap',
+    swapId: 'rfq:owned',
+    txid: 'funding-txid',
+    total: 1000,
+  }
+
+  it('navigates inside the wallet and retains the funded handoff until its own claim completes', async () => {
+    let outcome: Outcome = 'funded'
+    const resetFlow = vi.fn()
+    const { navigate } = renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      screen: Pages.SendSuccess,
+      flow: { appIntent, sendInfo, resetFlow },
+      outcomeOf: () => outcome,
+    })
+    await screen.findByTestId('app')
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(navigate).toHaveBeenCalledWith(Pages.Wallet)
+    expect(resetFlow).not.toHaveBeenCalled()
+    expect(redirectToCallback).not.toHaveBeenCalled()
+    outcome = 'claimed'
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(redirectToCallback).toHaveBeenCalledWith(appIntent.callback, { status: 'sent', txid: 'funding-txid' })
+    expect(resetFlow).toHaveBeenCalledOnce()
+  })
+
+  it('retains B through Escape after manual C replaces the editable send', async () => {
+    let outcome: Outcome = 'funded'
+    const resetFlow = vi.fn()
+    renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      screen: Pages.Wallet,
+      flow: { appIntent: committedIntent, sendInfo: { arkAddress: 'ark1manual', txid: 'manual-txid' }, resetFlow },
+      outcomeOf: () => outcome,
+    })
+    await screen.findByTestId('app')
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(redirectToCallback).not.toHaveBeenCalled()
+    expect(resetFlow).not.toHaveBeenCalled()
+    outcome = 'claimed'
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(redirectToCallback).toHaveBeenCalledWith(appIntent.callback, { status: 'sent', txid: 'funding-txid' })
+  })
+
+  it('reports sent from the wallet after returning internally from a claimed swap', async () => {
+    const resetFlow = vi.fn()
+    renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      screen: Pages.Wallet,
+      flow: { appIntent, sendInfo, resetFlow },
+      outcomeOf: () => 'claimed',
+    })
+    await screen.findByTestId('app')
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(redirectToCallback).toHaveBeenCalledWith(appIntent.callback, { status: 'sent', txid: 'funding-txid' })
+    expect(resetFlow).toHaveBeenCalledOnce()
   })
 })

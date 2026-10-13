@@ -192,7 +192,7 @@ Pay (the existing send screen, prefilled — nothing is broadcast until the user
 https://arkade.money/?action=send&request=<percent-encoded BIP21>&callback=https%3A%2F%2Farkade.trade%2Fvault
 ```
 
-Success opens `callback?status=sent&txid=<txid>` when there is a txid. Backing out opens `callback?error=denied`. `callback` is optional on send.
+Success opens `callback?status=sent&txid=<txid>` when there is a txid. `sent` reports that the payment was committed; for swaps, `txid` is the funding transaction. An onchain swap keeps the wallet open and defers this callback until its payout claim is broadcast. Backing out opens `callback?error=denied`. `callback` is optional on send.
 
 Error codes in `callback?error=<code>`: `denied` (the user declined or backed out) and `invalid` (the request was malformed, such as a bad action, address, or BIP21; sent only when the request still carried a valid `callback`).
 

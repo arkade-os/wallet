@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { EASE_IN_OUT_QUINT_TUPLE } from '../lib/animations'
 import { hapticSubtle } from '../lib/haptics'
 import { useReducedMotion } from '../hooks/useReducedMotion'
+import { useTranslation } from '../providers/language'
 
 export type ActivityFilterValue = 'all' | 'swaps'
 
@@ -12,6 +13,7 @@ export default function ActivityFilter({
   value: ActivityFilterValue
   onChange: (value: ActivityFilterValue) => void
 }) {
+  const { t } = useTranslation()
   const prefersReduced = useReducedMotion()
 
   const selectFilter = (next: ActivityFilterValue) => {
@@ -21,7 +23,7 @@ export default function ActivityFilter({
   }
 
   return (
-    <div className='activity-filter' role='group' aria-label='Filter activity'>
+    <div className='activity-filter' role='group' aria-label={t('components.filterActivity')}>
       {(['all', 'swaps'] as const).map((option) => (
         <button
           key={option}

@@ -77,6 +77,8 @@ describe('i18n dictionary integrity', () => {
       'vtxos.subdust',
       'apps.dfx',
       'formatting.unit',
+      'accounts.solver',
+      'accounts.total',
       // Payment-method names in the receive selector. These are the protocol
       // and product names the user is choosing between, not descriptive text,
       // so they stay as-is in both languages.

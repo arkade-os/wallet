@@ -56,7 +56,13 @@ export type AppIntentParse =
 /** In-memory flow value. `started` is not part of the URL. */
 export type AppIntentState =
   | { status: 'connect'; callback: string }
-  | { status: 'send'; request: string; callback?: string; started?: boolean }
+  | {
+      status: 'send'
+      request: string
+      callback?: string
+      started?: boolean
+      readonly committedOnchain?: Readonly<{ swapId?: string; fundingTxid?: string }>
+    }
   | { status: 'invalid'; error: AppIntentErrorCode; callback?: string }
 
 export type AppIntentStep = 'none' | 'connect' | 'send' | 'invalid'
@@ -155,7 +161,8 @@ export const appIntentHandoff = (
   if (!intent?.callback) return undefined
   if (outcome === 'sent') {
     if (intent.status !== 'send') return undefined
-    return { callback: intent.callback, params: { status: 'sent', txid: txid || undefined } }
+    const fundingTxid = intent.committedOnchain ? intent.committedOnchain.fundingTxid : txid
+    return { callback: intent.callback, params: { status: 'sent', txid: fundingTxid || undefined } }
   }
   if (intent.status !== 'send' && intent.status !== 'connect') return undefined
   return { callback: intent.callback, params: { error: 'denied' } }
