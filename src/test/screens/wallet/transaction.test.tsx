@@ -229,7 +229,7 @@ describe('Transaction screen', () => {
     await userEvent.click(row.querySelector('.table-row__external') as HTMLElement)
 
     // the exit tx is on the chain — the vmempool explorer (:7080) never saw it
-    expect(open).toHaveBeenCalledWith('http://localhost:5000/tx/exit-txid', '_blank', 'noreferrer')
+    expect(open).toHaveBeenCalledWith('http://localhost:3000/tx/exit-txid', '_blank', 'noreferrer')
     open.mockRestore()
   })
 
