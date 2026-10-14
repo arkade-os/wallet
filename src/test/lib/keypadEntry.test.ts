@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_ENTRY_DIGITS, digitsToValue, popDigit, pushDigit, valueToDigits } from '../../lib/keypadEntry'
+import { digitsToValue, maxEntryDigits, popDigit, pushDigit, valueToDigits } from '../../lib/keypadEntry'
 
 describe('keypadEntry', () => {
   it.each([
@@ -14,16 +14,29 @@ describe('keypadEntry', () => {
   })
 
   it('fills from the right and drops leading zeros', () => {
-    expect(pushDigit(pushDigit('', '1'), '2')).toBe('12')
-    expect(pushDigit('', '0')).toBe('')
+    expect(pushDigit(pushDigit('', '1', 0), '2', 0)).toBe('12')
+    expect(pushDigit('', '0', 0)).toBe('')
     expect(popDigit('12')).toBe('1')
     expect(popDigit('')).toBe('')
   })
 
-  it('refuses digits past the cap, so a value never reaches exponent notation', () => {
-    const full = '9'.repeat(MAX_ENTRY_DIGITS)
-    expect(pushDigit(full, '9')).toBe(full)
-    expect(digitsToValue(full, 8)).not.toMatch(/e/)
+  it.each([
+    [0, 16],
+    [8, 20],
+    [18, 30],
+  ])('refuses digits past the cap at %i decimals', (decimals, cap) => {
+    expect(maxEntryDigits(decimals)).toBe(cap)
+    const full = '9'.repeat(cap)
+    expect(pushDigit(full, '9', decimals)).toBe(full)
+    expect(pushDigit(full.slice(1), '9', decimals)).toBe(full)
+  })
+
+  it('keeps a long 18-decimal asset balance whole', () => {
+    expect(valueToDigits('1000.5', 18)).toBe('10005' + '0'.repeat(17))
+  })
+
+  it('clamps an over-cap value instead of dropping its low digits', () => {
+    expect(valueToDigits('1' + '0'.repeat(20), 0)).toBe('9'.repeat(16))
   })
 
   it.each([

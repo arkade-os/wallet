@@ -119,7 +119,7 @@ export default function Keyboard({
 
   const handleKeyPress = (k: string) => {
     if (k === 'x') return setDigits(popDigit)
-    setDigits((prev) => pushDigit(prev, k))
+    setDigits((prev) => pushDigit(prev, k, getMaxDecimals()))
   }
 
   const handleMaxPress = () => {

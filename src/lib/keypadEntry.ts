@@ -1,8 +1,8 @@
-// 16 digits keeps 21M BTC in sats (2.1e15) and any fiat entry below Number's exact-integer range.
-export const MAX_ENTRY_DIGITS = 16
+// Scales with decimals so an 18-decimal asset still has a 12-digit whole part.
+export const maxEntryDigits = (decimals: number): number => Math.max(16, decimals + 12)
 
-export const pushDigit = (digits: string, key: string): string => {
-  if (!/^\d$/.test(key) || digits.length >= MAX_ENTRY_DIGITS) return digits
+export const pushDigit = (digits: string, key: string, decimals: number): string => {
+  if (!/^\d$/.test(key) || digits.length >= maxEntryDigits(decimals)) return digits
   return digits === '' && key === '0' ? '' : digits + key
 }
 
@@ -18,5 +18,6 @@ export const digitsToValue = (digits: string, decimals: number): string => {
 export const valueToDigits = (value: string, decimals: number): string => {
   const [whole = '', frac = ''] = value.replaceAll(',', '').split('.')
   const digits = (whole + frac.padEnd(decimals, '0').slice(0, decimals)).replace(/^0+/, '')
-  return digits.slice(0, MAX_ENTRY_DIGITS)
+  const cap = maxEntryDigits(decimals)
+  return digits.length > cap ? '9'.repeat(cap) : digits
 }
