@@ -69,6 +69,8 @@ export const mockConfigContextValue = {
     pubkey: '',
     receiveViaLnurl: false,
     receiveViaTokens: false,
+    receiveUnifiedMode: 'full' as const,
+    receiveQrForm: {},
     showBalance: true,
     theme: Themes.Dark,
     unit: Unit.BTC,
