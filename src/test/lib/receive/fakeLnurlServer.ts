@@ -143,6 +143,8 @@ export function fakeLnurlServer(opts: {
   quoteTtlMs?: number
   /** Replaces a token quote's payment.amount, as a misbehaving server might. */
   paymentAmount?: string
+  /** Replaces a token quote's paymentURI. */
+  paymentURI?: string
 }) {
   const addresses = [...(opts.addresses ?? [])]
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -201,7 +203,11 @@ export function fakeLnurlServer(opts: {
           status: 'OK',
           paymentOption: token.id,
           paymentDestination: TOKEN_DEPOSITS[token.id],
-          ...(TOKEN_URIS[token.id] ? { paymentURI: TOKEN_URIS[token.id](amountMsat) } : {}),
+          ...(opts.paymentURI !== undefined
+            ? { paymentURI: opts.paymentURI }
+            : TOKEN_URIS[token.id]
+              ? { paymentURI: TOKEN_URIS[token.id](amountMsat) }
+              : {}),
           ...(opts.tokenTag ? { paymentDestinationTag: opts.tokenTag } : {}),
           provider: token.provider,
           paymentQuote: {

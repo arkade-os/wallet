@@ -17,6 +17,13 @@ const MAX_TIMEOUT_MS = 2 ** 31 - 1
 
 export type LnurlTokenRail = TokenOption & { chain: string; provider: string }
 
+/** The server's payment URI, kept only when it is a wallet payment scheme naming the quoted deposit;
+ *  otherwise the bare deposit, so the QR, Share and a phone's wallet link can never pay elsewhere. */
+export function payableUri(uri: string | undefined, destination: string): string {
+  const ok = uri && /^(ethereum|solana):/i.test(uri) && uri.toLowerCase().includes(destination.toLowerCase())
+  return ok ? uri : destination
+}
+
 interface Asked {
   lnurl: string
   optionId: string
@@ -128,7 +135,7 @@ export function useLnurlTokenRails(
         }
         const quote = {
           optionId: rail.id,
-          value: result.paymentURI ?? result.paymentDestination,
+          value: payableUri(result.paymentURI, result.paymentDestination),
           destination: result.paymentDestination,
           amount,
           expiresAt,

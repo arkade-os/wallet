@@ -272,6 +272,19 @@ describe('useLnurlTokenRails', () => {
     await waitFor(() => expect(result.current.quote).toBeDefined())
   })
 
+  it.each([
+    ['a non-payment scheme', 'javascript:alert(1)'],
+    [
+      'a URI paying another address',
+      `ethereum:0xdAC17F958D2ee523a2206206994597C13D831ec7@42161/transfer?address=0x${'cd'.repeat(20)}`,
+    ],
+  ])('shows the bare deposit address, not %s', async (_, paymentURI) => {
+    serve({ paymentURI })
+    const { result } = renderTokens('ff-usdtarbitrum')
+    await waitFor(() => expect(result.current.quote).toBeDefined())
+    expect(result.current.quote!.value).toBe(TOKEN_DEPOSITS['ff-usdtarbitrum'])
+  })
+
   it('refuses a quote far from what the amount is worth at the BTC price the wallet shows', async () => {
     serve({ paymentAmount: '171560000' })
     const atMarket = ({ children }: { children: ReactNode }) =>
