@@ -21,7 +21,7 @@ import { NotificationsContext } from '../../../providers/notifications'
 import { BackupContext } from '../../../providers/backup'
 import { ToastProvider } from '../../../components/Toast'
 import { LanguageContext, translate } from '../../../providers/language'
-import { Language } from '../../../lib/types'
+import { Language, Unit } from '../../../lib/types'
 import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
 
 // Mock qr module used by QrCode component
@@ -149,12 +149,8 @@ describe('Receive QR Code screen', () => {
     backupAndUpdateConfig.mockClear()
   })
 
-  // Regression for the switched-QR path. We can't drive the Copy sheet in
-  // jsdom (IonModal portals children outside the React root so synthetic
-  // clicks on rows never fire). Instead we swap recvInfo addresses via
-  // rerender — this hits the same setQrCodeValue code path through the
-  // BIP21 effect's dep change — and assert the second tap copies the new
-  // value rather than a stale closure of the first.
+  // Regression for the switched-QR path: new recvInfo addresses re-derive the QR through the BIP21
+  // effect, and the second tap must copy the new value, not a stale closure of the first.
   it('tapping the QR after qrCodeValue changes copies the new value', async () => {
     const { rerender } = render(buildTree(tapFixture({ off: 'ark1AAAAAA', bd: 'bc1AAAAAA' })))
 
@@ -367,6 +363,45 @@ describe('Receive QR Code screen', () => {
       await waitFor(() => expect(screen.queryByTestId('invoice-address-copy')).not.toBeInTheDocument())
       expect(screen.getByRole('radio', { name: /Payment link/ })).toHaveAttribute('aria-checked', 'true')
       expect(await clickQr()).toMatch(/^bitcoin:/)
+    })
+
+    it.each([
+      [Unit.BTC, 'Amount (BTC)', '0.0005'],
+      [Unit.SATS, 'Amount (sats)', '50000'],
+    ])('titles the amount row with its unit in %s and copies the bare value', async (unit, title, value) => {
+      renderReceiveQrCode({
+        ...amountFixture('lnbc10u1ptest'),
+        config: { config: { ...mockConfigContextValue.config, unit } },
+      })
+
+      expect(await screen.findByText(title)).toBeInTheDocument()
+      await act(async () => fireEvent.click(screen.getByTestId('amount-address-copy')))
+      expect(copyToClipboardMock).toHaveBeenLastCalledWith(value)
+    })
+
+    it('groups the part rows as a radiogroup named for the method', async () => {
+      renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
+
+      const group = await screen.findByRole('radiogroup', { name: 'Unified · Full details' })
+      expect(group).toContainElement(screen.getByRole('radio', { name: /Lightning invoice/ }))
+    })
+
+    it('keeps assetid= in the asset QR whatever form plain Arkade receives remember', async () => {
+      const assetId = 'ab'.repeat(32)
+      renderReceiveQrCode({
+        config: withQrForm({ ark: 'ark' }),
+        flow: { recvInfo: { ...tapFixture().flow!.recvInfo!, assetId } },
+        wallet: {
+          svcWallet: mockSvcWallet as any,
+          assetMetadataCache: new Map([[assetId, { metadata: { decimals: 2, ticker: 'TKN' } }]]) as any,
+        },
+      })
+      await screen.findByTestId('ark-address-copy')
+
+      expect(await clickQr()).toContain(`assetid=${assetId}`)
+      expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+      fireEvent.click(screen.getByText('Arkade address'))
+      expect(backupAndUpdateConfig).not.toHaveBeenCalled()
     })
 
     it('asset receive shows the link and the Arkade address with no selector', async () => {

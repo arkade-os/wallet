@@ -196,14 +196,13 @@ export default function ReceiveQRCode() {
               },
             ]
           : []),
-        { id: 'link' as const, value: bip21Uri, selectable: true },
-        { id: 'ark' as const, value: arkAddress, selectable: true },
+        { id: 'link' as const, value: bip21Uri, selectable: false },
+        { id: 'ark' as const, value: arkAddress, selectable: false },
       ].filter((p) => p.value)
     : []
-  // The asset flow is an Arkade receive, so it shares Arkade's remembered form.
-  const formKey: ReceiveMethod = isAssetReceive ? 'ark' : shown
+  // The bare Arkade address would drop assetid= and have the payer send BTC, so the asset QR is always its link.
   const parts = isAssetReceive ? assetParts : receiveParts(shown, inputs)
-  const inQr = qrPart(parts, config.receiveQrForm[formKey])
+  const inQr = isAssetReceive ? assetParts.find((p) => p.id === 'link') : qrPart(parts, config.receiveQrForm[shown])
   const qrCodeValue = inQr?.value ?? ''
   const generating = shown === 'token' ? tokenRails.quoting : generatingInvoice
 
@@ -326,6 +325,11 @@ export default function ReceiveQRCode() {
       // superseded swap stays monitored until it settles or its window shuts;
       // what must stop is presenting its invoice.
       else setRecvInfo({ ...recvInfo, satoshis: sats, invoice: undefined, pendingLnReceive: undefined })
+      // Dropped here, not in an effect, so no render pairs the new amount with the old pick and orders a quote.
+      if (method === 'token' && !tokenRails.offers(sats, tokenId)) {
+        setMethod(config.receiveUnifiedMode)
+        setTokenId(undefined)
+      }
       if (amountForTokens) {
         setAmountForTokens(false)
         if (sats > 0) setShowTokenSheet(true)
@@ -358,8 +362,8 @@ export default function ReceiveQRCode() {
   }
 
   const showPart = (id: PartId) => {
-    if (config.receiveQrForm[formKey] === id) return
-    backupAndUpdateConfig({ ...config, receiveQrForm: { ...config.receiveQrForm, [formKey]: id } })
+    if (config.receiveQrForm[shown] === id) return
+    backupAndUpdateConfig({ ...config, receiveQrForm: { ...config.receiveQrForm, [shown]: id } })
   }
 
   const methodLabel = (m: ReceiveMethod) =>
@@ -374,7 +378,7 @@ export default function ReceiveQRCode() {
           : m === 'btc'
             ? t('receive.methodBitcoin')
             : activeToken
-              ? `${activeToken.unit.code} · ${activeToken.chain}`
+              ? t('receive.methodToken', { unit: activeToken.unit.code, chain: activeToken.chain })
               : t('receive.methodStablecoins')
   const titleOf = (p: ReceivePart) =>
     ({
@@ -382,7 +386,7 @@ export default function ReceiveQRCode() {
       amount:
         shown === 'token' && activeToken
           ? t('receive.tokenAmount', { unit: activeToken.unit.code })
-          : t('receive.partAmount'),
+          : t('receive.partAmountUnit', { unit: amountUnit }),
       lnaddress: t('settings.lightningAddress'),
       lnurl: t('receive.partLnurl'),
       invoice: t('receive.lightningInvoice'),
@@ -409,15 +413,12 @@ export default function ReceiveQRCode() {
     icon: assetPresentation.icon,
     trusted: Boolean(assetId && isRegistered(assetId)),
   }
+  const amountUnit = assetMeta ? assetPresentation.ticker : config.unit === Unit.BTC ? config.unit : 'sats'
 
+  const quoteExpired = shown === 'token' && tokenRails.expired
   const data = { title: t('wallet.receive'), text: qrCodeValue }
   const shareDisabled =
-    !canBrowserShareData(data) ||
-    sharing ||
-    hasError ||
-    noPaymentMethods ||
-    generating ||
-    (shown === 'token' && tokenRails.expired)
+    !canBrowserShareData(data) || sharing || hasError || noPaymentMethods || generating || quoteExpired
 
   // Whether an amount is currently requested. Keyed off assetMeta to match how
   // handleAmountConfirm/handleAmountClear decide between asset units and sats.
@@ -496,57 +497,58 @@ export default function ReceiveQRCode() {
                   <Text small color='neutral-500'>
                     {generating
                       ? t('receive.requestingAmount', { amount: prettyNumber(satoshis, 0), unit: unitLabel })
-                      : ' '}
+                      : '\u00a0'}
                   </Text>
                 </div>
-                <button
-                  type='button'
-                  className='receive-invoice-qr'
-                  disabled={generating || !qrCodeValue}
-                  aria-hidden={generating}
-                  onClick={() => handleCopy(qrCodeValue)}
-                  onPointerDown={() => setQrTransform(prefersReducedMotion ? '' : 'scale(0.97)')}
-                  onPointerUp={() => setQrTransform('')}
-                  onPointerLeave={() => setQrTransform('')}
-                  onPointerCancel={() => setQrTransform('')}
-                  aria-label={t('receive.copyQrCode')}
-                  style={{
-                    padding: 0,
-                    width: '100%',
-                    border: 'none',
-                    display: 'block',
-                    cursor: generating ? 'default' : 'pointer',
-                    background: 'none',
-                    WebkitTapHighlightColor: 'transparent',
-                    touchAction: 'manipulation',
-                  }}
-                >
-                  <div
-                    style={{
-                      transform: qrTransform,
-                      transition: prefersReducedMotion
-                        ? 'none'
-                        : `transform 240ms cubic-bezier(${EASE_OUT_QUINT.join(',')})`,
-                    }}
-                  >
-                    <QrCode
-                      value={qrCodeValue}
-                      logo={shown === 'token' && activeToken ? railLogo(activeToken, '#ffffff') : undefined}
+                {quoteExpired ? (
+                  <div className='flex flex-col items-center justify-center gap-2 text-center'>
+                    <Text bold>{t('receive.quoteExpired')}</Text>
+                    <TextSecondary centered>{t('receive.quoteExpiredSub')}</TextSecondary>
+                    <Button
+                      label={t('receive.getNewQuote')}
+                      onClick={tokenRails.regenerate}
+                      disabled={tokenRails.quoting}
                     />
                   </div>
-                </button>
+                ) : (
+                  <button
+                    type='button'
+                    className='receive-invoice-qr'
+                    disabled={generating || !qrCodeValue}
+                    aria-hidden={generating}
+                    onClick={() => handleCopy(qrCodeValue)}
+                    onPointerDown={() => setQrTransform(prefersReducedMotion ? '' : 'scale(0.97)')}
+                    onPointerUp={() => setQrTransform('')}
+                    onPointerLeave={() => setQrTransform('')}
+                    onPointerCancel={() => setQrTransform('')}
+                    aria-label={t('receive.copyQrCode')}
+                    style={{
+                      padding: 0,
+                      width: '100%',
+                      border: 'none',
+                      display: 'block',
+                      cursor: generating ? 'default' : 'pointer',
+                      background: 'none',
+                      WebkitTapHighlightColor: 'transparent',
+                      touchAction: 'manipulation',
+                    }}
+                  >
+                    <div
+                      style={{
+                        transform: qrTransform,
+                        transition: prefersReducedMotion
+                          ? 'none'
+                          : `transform 240ms cubic-bezier(${EASE_OUT_QUINT.join(',')})`,
+                      }}
+                    >
+                      <QrCode
+                        value={qrCodeValue}
+                        logo={shown === 'token' && activeToken ? railLogo(activeToken, '#ffffff') : undefined}
+                      />
+                    </div>
+                  </button>
+                )}
               </div>
-              {shown === 'token' && tokenRails.expired ? (
-                <div className='flex flex-col items-center gap-2 text-center'>
-                  <Text bold>{t('receive.quoteExpired')}</Text>
-                  <TextSecondary centered>{t('receive.quoteExpiredSub')}</TextSecondary>
-                  <Button
-                    label={t('receive.getNewQuote')}
-                    onClick={tokenRails.regenerate}
-                    disabled={tokenRails.quoting}
-                  />
-                </div>
-              ) : null}
               <div className='mb-3 flex w-full max-w-85 flex-col gap-2'>
                 {isAssetReceive ? null : (
                   <ReceiveSelector
@@ -571,6 +573,7 @@ export default function ReceiveQRCode() {
                 {pickerOpen || generating ? null : (
                   <ReceiveParts
                     method={isAssetReceive ? 'ark' : shown}
+                    label={methodLabel(shown)}
                     parts={parts}
                     titleOf={titleOf}
                     inQr={inQr?.id}

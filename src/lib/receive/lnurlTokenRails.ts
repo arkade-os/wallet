@@ -237,5 +237,8 @@ export function useLnurlTokenRails(
     error: current?.error ?? '',
     expired,
     regenerate: () => setRound((n) => n + 1),
+    /** Whether option `id` would be offered for `sats`, so a caller can drop a pick before the amount lands. */
+    offers: (sats: number, id?: string) =>
+      Boolean(payRequest && sats > 0 && lnurlTokenRails(payRequest, sats).some((r) => r.id === id)),
   }
 }

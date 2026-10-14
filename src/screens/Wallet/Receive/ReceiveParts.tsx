@@ -21,6 +21,7 @@ const testIdOf = (id: PartId, method: ReceiveMethod): string =>
 
 export default function ReceiveParts(p: {
   method: ReceiveMethod
+  label: string
   parts: ReceivePart[]
   titleOf: (part: ReceivePart) => string
   inQr?: PartId
@@ -30,7 +31,11 @@ export default function ReceiveParts(p: {
 }) {
   const { t } = useTranslation()
   return (
-    <div className='flex flex-col gap-1'>
+    <div
+      role={p.parts.some((part) => part.selectable) ? 'radiogroup' : undefined}
+      aria-label={p.label}
+      className='flex flex-col gap-1'
+    >
       {p.parts.map((part) => {
         const on = part.id === p.inQr
         const title = p.titleOf(part)

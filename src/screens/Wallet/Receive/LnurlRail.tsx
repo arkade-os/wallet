@@ -4,7 +4,7 @@ import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
 import FlexCol from '../../../components/FlexCol'
 import Input from '../../../components/Input'
-import Text, { TextSecondary } from '../../../components/Text'
+import { TextSecondary } from '../../../components/Text'
 import type { LnurlRail, OnboardingChoice } from '../../../lib/receive/lnurlRail'
 
 // Reserved names (claim codes) are named from Settings only, so Receive stays one tap for everyone else.
@@ -16,8 +16,7 @@ export default function LnurlRailPanel({ rail }: { rail: LnurlRail }) {
   if (rail.status === 'off' || rail.status === 'loading') return null
   if (rail.status === 'failed') return <TextSecondary>Lightning address unavailable: {rail.error}</TextSecondary>
 
-  const address = rail.receiver?.lightningAddress
-  if (address) return <Text centered>{address}</Text>
+  if (rail.receiver?.lightningAddress) return null
 
   const choices = rail.choices.includes('self') ? rail.choices.filter((c) => RECEIVE_CHOICES.includes(c)) : []
   const onName = (opts: NameOptions) => (rail.receiver ? rail.upgrade(opts) : rail.claim(opts))

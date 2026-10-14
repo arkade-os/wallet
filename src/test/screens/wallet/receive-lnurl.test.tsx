@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { useState } from 'react'
 import { SingleKey } from '@arkade-os/sdk'
 import { encodeLnurl } from '@arkade-os/lnurl-client/arkade'
 import { FlowContext } from '../../../providers/flow'
@@ -76,7 +77,11 @@ const backupAndUpdateConfig = vi.fn<(config: Config) => void>()
 const svcWallet = { ...mockSvcWallet, identity: SingleKey.fromHex('03'.repeat(32)) }
 const atMarket = (sats: number) => (sats * BTC_USD) / 1e8
 
-const receiveTree = (satoshis = 0, config: Partial<Config> = {}) => (
+const receiveTree = (
+  satoshis = 0,
+  config: Partial<Config> = {},
+  setRecvInfo: (info: { satoshis: number }) => void = vi.fn(),
+) => (
   <ToastProvider>
     <NavigationContext.Provider value={mockNavigationContextValue}>
       <AspContext.Provider value={mockAspContextValue as never}>
@@ -89,7 +94,7 @@ const receiveTree = (satoshis = 0, config: Partial<Config> = {}) => (
                 value={
                   {
                     ...mockFlowContextValue,
-                    setRecvInfo: vi.fn(),
+                    setRecvInfo,
                     recvInfo: {
                       ...mockFlowContextValue.recvInfo,
                       satoshis,
@@ -117,9 +122,19 @@ const receiveTree = (satoshis = 0, config: Partial<Config> = {}) => (
   </ToastProvider>
 )
 const renderReceive = (satoshis = 0, config: Partial<Config> = {}) => render(receiveTree(satoshis, config))
+// Keeps the amount the screen sets, for flows that clear or change it through the screen's own buttons.
+function LiveAmount({ initial, config }: { initial: number; config: Partial<Config> }) {
+  const [satoshis, setSatoshis] = useState(initial)
+  return receiveTree(satoshis, config, (info) => setSatoshis(info.satoshis))
+}
 const pickMethod = async (label: string | RegExp) => {
   fireEvent.click(await screen.findByRole('button', { name: /Showing/ }))
   fireEvent.click(await screen.findByRole('radio', { name: label }))
+}
+// A named receiver's address shows as the Lightning address row's preview in the open selector.
+const selectorShows = async (address: string) => {
+  fireEvent.click(await screen.findByRole('button', { name: /Showing/ }))
+  return screen.findByText(address)
 }
 const copyPart = async (testId: string) => {
   // Found outside act: inside it, the state updates that reveal the row are held back.
@@ -175,7 +190,7 @@ describe('Receive screen, rail composition', () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
     renderReceive(10_000)
 
-    expect(await screen.findByText('alice@lnurl.test')).toBeInTheDocument()
+    expect(await selectorShows('alice@lnurl.test')).toBeInTheDocument()
     expect(receiveLightning).not.toHaveBeenCalled()
   })
 
@@ -392,7 +407,7 @@ describe('Receive screen, lnurl onboarding', () => {
     fireEvent.change(await screen.findByPlaceholderText('Choose a name'), { target: { value: 'alice' } })
     fireEvent.click(screen.getByRole('button', { name: 'Claim name' }))
 
-    expect(await screen.findByText('alice@lnurl.test')).toBeInTheDocument()
+    expect(await selectorShows('alice@lnurl.test')).toBeInTheDocument()
     expect((await qrLightning())?.toLowerCase()).toBe(
       encodeLnurl(`${LNURL_BASE}/.well-known/lnurlp/alice`).toLowerCase(),
     )
@@ -404,14 +419,14 @@ describe('Receive screen, lnurl onboarding', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Pick one for me' }))
 
-    expect(await screen.findByText('brave-otter@lnurl.test')).toBeInTheDocument()
+    expect(await selectorShows('brave-otter@lnurl.test')).toBeInTheDocument()
   })
 
   it('shows the name when a nameless claim finds the identity already upgraded', async () => {
     serve({ modes: ['session'], sessionRow: namedAddress('erin', 'LNURL1SESSIONERIN') })
     renderReceive()
 
-    expect(await screen.findByText('erin@lnurl.test')).toBeInTheDocument()
+    expect(await selectorShows('erin@lnurl.test')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Add a name' })).not.toBeInTheDocument()
   })
 
@@ -438,7 +453,7 @@ describe('Receive screen, naming a nameless receiver', () => {
     fireEvent.change(screen.getByPlaceholderText('Choose a name'), { target: { value: 'dave' } })
     fireEvent.click(screen.getByRole('button', { name: 'Claim name' }))
 
-    expect(await screen.findByText('dave@lnurl.test')).toBeInTheDocument()
+    expect(await selectorShows('dave@lnurl.test')).toBeInTheDocument()
     expect(await qrLightning()).toBe(before)
     expect(server.calls('PATCH', '/lnurl/address/sess1')).toHaveLength(1)
   })
@@ -475,7 +490,7 @@ describe('Receive screen, token rails', () => {
   }
   const openTokenSheet = async () => {
     await pickMethod('Stablecoins')
-    return screen.findByRole('radiogroup')
+    return (await screen.findByTestId('select-option-0')).closest<HTMLElement>('[role="radiogroup"]')!
   }
   const pick = async (label: string) => {
     fireEvent.click(within(await openTokenSheet()).getByText(label))
@@ -489,7 +504,41 @@ describe('Receive screen, token rails', () => {
 
     expect(await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')).toBeInTheDocument()
     expect(screen.getByText(/^Quote by FixedFloat, valid for \d+:\d\d$/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Showing.*USDT on Arbitrum One/ })).toBeInTheDocument()
     expect(await copiedQr()).toBe(arbitrumUri(20_000_000))
+  })
+
+  it('shows an expired quote with no deposit to scan, share or copy until a new one is asked for', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+    renderReceive(20_000, tokensOn)
+    await pick('USDT (Arbitrum One)')
+    await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')
+    const deposit = TOKEN_DEPOSITS['ff-usdtarbitrum']
+    const from = qrValues.length
+
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 16 * 60_000)
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    clock.mockRestore()
+
+    expect(screen.getByText('Quote expired')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Get a new quote' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Copy QR code' })).not.toBeInTheDocument()
+    expect(screen.queryByTestId('token-address-copy')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Share' })).toBeDisabled()
+
+    const pending = holdQuotes(server, 'ff-usdtarbitrum')
+    fireEvent.click(screen.getByRole('button', { name: 'Get a new quote' }))
+    await waitFor(() => expect(pending.held).toHaveLength(1))
+    expect(screen.queryByText('Quote expired')).not.toBeInTheDocument()
+    expect(screen.getByText('Getting quote…')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Share' })).toBeDisabled()
+    expect(qrValues.slice(from).filter((v) => v.includes(deposit))).toEqual([])
+
+    pending.release()
+    expect(await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')).toBeInTheDocument()
+    expect(tokenQuotes()).toHaveLength(2)
   })
 
   it('renders a tron option with the bare address and no deeplink', async () => {
@@ -538,6 +587,24 @@ describe('Receive screen, token rails', () => {
       expect(await screen.findByText('Set an amount first')).toBeInTheDocument()
       expect(screen.getByText(/Stablecoin payments are quoted for an exact amount/)).toBeInTheDocument()
       expect(screen.getByTestId('keyboard-amount')).toBeInTheDocument()
+    })
+
+    it('drops a token pick when the amount is cleared, so a new amount places no order', async () => {
+      serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+      render(<LiveAmount initial={20_000} config={tokensOn} />)
+      await pick('USDT (Arbitrum One)')
+      await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit amount' }))
+      fireEvent.click(await screen.findByTestId('clear-amount'))
+      fireEvent.click(await screen.findByRole('button', { name: 'Add amount' }))
+      for (const key of '3000000') fireEvent.click(await screen.findByTestId(`keyboard-${key}`))
+      fireEvent.click(screen.getByTestId('save-amount'))
+
+      expect(await screen.findByRole('button', { name: /Showing.*Unified · Full details/ })).toBeInTheDocument()
+      await waitFor(async () => expect(await qrLightning()).toBe(fakeInvoice(30_000_000)))
+      expect(tokenQuotes()).toHaveLength(1)
+      expect(screen.queryByText(/Send exactly/)).not.toBeInTheDocument()
     })
 
     it('offers no wallet link for a bare Tron address', async () => {
