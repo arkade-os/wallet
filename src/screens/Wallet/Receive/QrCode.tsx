@@ -47,8 +47,16 @@ import { configuredLnurlServer, useLnurlRail, useLnurlRails } from '../../../lib
 import { useLnurlTokenRails, type LnurlTokenQuote, type LnurlTokenRail } from '../../../lib/receive/lnurlTokenRails'
 import LnurlRailPanel from './LnurlRail'
 import { useTranslation } from '../../../providers/language'
+import Select from '../../../components/Select'
+import TokenLogo, { tokenLogoTickerForTicker } from '../../../components/TokenLogo'
+import ChevronDownIcon from '../../../icons/ChevronDown'
 
 const TOKEN = 'token:'
+
+function railLogo(rail: LnurlTokenRail) {
+  const ticker = tokenLogoTickerForTicker(rail.unit.code)
+  return ticker ? <TokenLogo ticker={ticker} /> : null
+}
 
 export default function ReceiveQRCode() {
   const { aspInfo } = useContext(AspContext)
@@ -78,6 +86,7 @@ export default function ReceiveQRCode() {
   // Copy address sheet state
   const [showCopySheet, setShowCopySheet] = useState(false)
   const [copied, setCopied] = useState('')
+  const [showTokenSheet, setShowTokenSheet] = useState(false)
 
   const prefersReducedMotion = useReducedMotion()
 
@@ -431,21 +440,22 @@ export default function ReceiveQRCode() {
                     getLabel={(id) => paymentMethods.find((m) => m.id === id)?.label ?? id}
                   />
                   {tokenMethods.length ? (
-                    <select
-                      aria-label={t('receive.payWithToken')}
-                      className='w-full rounded-lg border border-neutral-100 bg-transparent p-3 text-sm text-inherit dark:scheme-dark'
-                      value={activeToken ? activeMethod : ''}
-                      onChange={(event) => handleMethodChange(event.target.value)}
+                    <button
+                      type='button'
+                      aria-haspopup='dialog'
+                      onClick={() => setShowTokenSheet(true)}
+                      className={`flex w-full cursor-pointer items-center gap-3 rounded-lg border border-neutral-100 px-3 py-3 text-left text-sm ${activeToken ? 'bg-neutral-100 font-semibold' : 'text-neutral-500'}`}
                     >
-                      <option value='' disabled>
-                        {t('receive.payWithToken')}
-                      </option>
-                      {tokenMethods.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.label}
-                        </option>
-                      ))}
-                    </select>
+                      {activeToken ? (
+                        <span className='flex size-5 shrink-0 [&>svg]:size-full'>{railLogo(activeToken)}</span>
+                      ) : null}
+                      <span className='flex-1'>
+                        {activeToken
+                          ? paymentMethods.find((m) => m.id === activeMethod)?.label
+                          : t('receive.payWithToken')}
+                      </span>
+                      <ChevronDownIcon />
+                    </button>
                   ) : null}
                 </div>
               ) : null}
@@ -559,6 +569,29 @@ export default function ReceiveQRCode() {
           />
           <Button label={t('receive.setAmount')} onClick={() => handleAmountConfirm()} disabled={!amountTextValue} />
           {hasAmount ? <Button label={t('receive.clearAmount')} onClick={handleAmountClear} secondary /> : null}
+        </FlexCol>
+      </SheetModal>
+
+      <SheetModal isOpen={showTokenSheet} onClose={() => setShowTokenSheet(false)}>
+        <FlexCol gap='1rem' padding='0.5rem 0'>
+          <Text big bold>
+            {t('receive.payWithToken')}
+          </Text>
+          <div className='hide-scrollbar max-h-[60vh] w-full overflow-y-auto'>
+            <Select
+              options={tokenMethods.map((m) => m.id)}
+              labels={tokenMethods.map((m) => m.label)}
+              selected={activeToken ? activeMethod : ''}
+              renderStart={(id) => {
+                const rail = tokenRails.rails.find((r) => TOKEN + r.id === id)
+                return rail ? railLogo(rail) : null
+              }}
+              onChange={(id) => {
+                setShowTokenSheet(false)
+                handleMethodChange(id)
+              }}
+            />
+          </div>
         </FlexCol>
       </SheetModal>
 

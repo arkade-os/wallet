@@ -411,11 +411,13 @@ describe('Receive screen, token rails', () => {
   const tokensOn = { receiveViaLnurl: true, receiveViaTokens: true }
   const payRequests = () => server.calls('GET', '/.well-known/lnurlp/alice')
   const tokenQuotes = () => callbacks().filter((url) => url.searchParams.get('paymentOption')?.startsWith('ff-'))
-  const tokenSelect = () => screen.queryByRole('combobox', { name: 'Pay with a token' })
+  const tokenSelect = () => screen.queryByRole('button', { name: 'Pay with a token' })
+  const openTokenSheet = async () => {
+    fireEvent.click(await screen.findByRole('button', { name: 'Pay with a token' }))
+    return screen.findByRole('radiogroup')
+  }
   const pick = async (label: string) => {
-    const select = await screen.findByRole('combobox', { name: 'Pay with a token' })
-    const option = within(select).getByRole('option', { name: label }) as HTMLOptionElement
-    fireEvent.change(select, { target: { value: option.value } })
+    fireEvent.click(within(await openTokenSheet()).getByText(label))
   }
 
   it('renders a USDT (Arbitrum One) method with an EIP-681 value', async () => {
@@ -482,7 +484,7 @@ describe('Receive screen, token rails', () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
     renderReceive(20_000, tokensOn)
 
-    await screen.findByRole('combobox', { name: 'Pay with a token' })
+    await screen.findByRole('button', { name: 'Pay with a token' })
     await waitFor(() => expect(callbacks()).toHaveLength(3))
     expect(tokenQuotes()).toHaveLength(0)
   })
@@ -491,12 +493,12 @@ describe('Receive screen, token rails', () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
     renderReceive(5_000, tokensOn)
 
-    const select = await screen.findByRole('combobox', { name: 'Pay with a token' })
+    const sheet = await openTokenSheet()
     expect(
-      within(select)
-        .getAllByRole('option')
-        .map((o) => o.textContent),
-    ).toEqual(['Pay with a token', 'USDT (Arbitrum One)'])
+      within(sheet)
+        .getAllByRole('radio')
+        .map((o) => o.closest('label')?.textContent),
+    ).toEqual(['USDT (Arbitrum One)'])
   })
 
   it('offers no token method without an amount', async () => {
