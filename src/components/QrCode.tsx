@@ -188,7 +188,8 @@ export default function QrCode({ value, logo }: QrCodeProps) {
     }
 
     return {
-      logoPercent: ((logoCircleR * 1.5) / svgSize) * 100,
+      // 1.25x the clearing's radius keeps a corner badge (TokenOnChainLogo) inside the white circle.
+      logoPercent: ((logoCircleR * 1.25) / svgSize) * 100,
       svg: (
         <svg
           viewBox={`0 0 ${svgSize} ${svgSize}`}
