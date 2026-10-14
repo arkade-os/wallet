@@ -351,10 +351,32 @@ describe('useLnurlTokenRails', () => {
       expect(result.current.quote).toBeUndefined()
       expect(quotes()).toHaveLength(1)
 
+      const pending = holdQuotes(server, 'ff-usdtarbitrum')
+      const from = seen.length
       act(() => result.current.regenerate())
+      await waitFor(() => expect(pending.held).toHaveLength(1))
+      expect(result.current.quote).toBeUndefined()
+      expect(staleSince(from)).toEqual([])
+
+      pending.release()
       await waitFor(() => expect(quotes()).toHaveLength(2))
       await waitFor(() => expect(result.current.quote).toBeDefined())
       expect(result.current.expired).toBe(false)
+    })
+
+    it('expires a quote whose deadline passed while its timer was held back', async () => {
+      serve({ quoteTtlMs: 120_000 })
+      const { result } = renderTokens('ff-usdtarbitrum')
+      await waitFor(() => expect(result.current.quote).toBeDefined())
+
+      vi.setSystemTime(result.current.quote!.expiresAt)
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange'))
+      })
+
+      expect(result.current.expired).toBe(true)
+      expect(result.current.quote).toBeUndefined()
+      expect(quotes()).toHaveLength(1)
     })
 
     it('does not report a quote asked after an expiry, for a new amount, as expired', async () => {

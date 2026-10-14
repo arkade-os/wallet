@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useState } from 'react'
+import { useContext, useEffect, useMemo, useReducer, useState } from 'react'
 import type { Receiver } from '@arkade-os/lnurl-client/arkade'
 import {
   createLnurlClient,
@@ -128,6 +128,13 @@ export function useLnurlTokenRails(
   const [answer, setAnswer] = useState<{ asked: Asked; quote?: LnurlTokenQuote; error?: string }>()
   const [round, setRound] = useState(0)
   const [expiredRound, setExpiredRound] = useState<number>()
+  const [, wake] = useReducer((n: number) => n + 1, 0)
+
+  // A sleeping phone holds the expiry timer back, so waking re-checks the deadline itself.
+  useEffect(() => {
+    document.addEventListener('visibilitychange', wake)
+    return () => document.removeEventListener('visibilitychange', wake)
+  }, [])
 
   // Keyed on the LNURL, the receiver's identity: an upgrade keeps it, a different receiver never does.
   useEffect(() => {
@@ -222,7 +229,7 @@ export function useLnurlTokenRails(
     answer.asked.round === round
       ? answer
       : undefined
-  const expired = Boolean(current?.quote) && expiredRound === round
+  const expired = current?.quote !== undefined && (expiredRound === round || Date.now() >= current.quote.expiresAt)
   return {
     rails,
     quote: expired ? undefined : current?.quote,
