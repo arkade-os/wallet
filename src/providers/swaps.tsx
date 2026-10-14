@@ -162,6 +162,10 @@ const LOCK_GRACE_MS = 500
  */
 const FIRST_LOAD_GRACE_MS = 3_000
 
+/** How often an open tab re-reads its market list. Cheap: a tick inside the
+ * markets cache's TTL is a repository read, not a fetch. */
+const DISCOVERY_REFRESH_MS = 5 * 60_000
+
 /** Whether the trader is paying OUT. `paid` and `claimed` are how BOTH
  *  directions succeed, so every send announced itself as money received; only a
  *  receive takes delivery inside Arkade. Optional so `announce` cannot throw. */
@@ -299,6 +303,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     setEmulatorPubkey(undefined)
     setAllMarkets([])
     runDiscovery()
+    const refresh = setInterval(() => runDiscovery(), DISCOVERY_REFRESH_MS)
+    return () => clearInterval(refresh)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aspInfo.network])
 

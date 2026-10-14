@@ -1,5 +1,5 @@
 import { useContext, useState } from 'react'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Quote, Swap } from '@arkade-os/swap'
 import { AspContext } from '../../providers/asp'
@@ -155,6 +155,22 @@ describe('SwapsProvider', () => {
     await waitFor(() => expect(screen.getByTestId('market-count')).toHaveTextContent('1'))
     expect(screen.getByTestId('available')).toHaveTextContent('true')
     expect(setAssetSwaps).toHaveBeenCalledWith([swap])
+  })
+
+  it('re-reads the markets through the cache every five minutes, until unmounted', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+    try {
+      const view = renderProvider()
+      expect(mocks.discoverMarkets).toHaveBeenCalledTimes(1)
+      await act(async () => vi.advanceTimersByTime(5 * 60_000))
+      expect(mocks.discoverMarkets).toHaveBeenCalledTimes(2)
+      expect(mocks.discoverMarkets).toHaveBeenLastCalledWith('regtest', true)
+      view.unmount()
+      await act(async () => vi.advanceTimersByTime(5 * 60_000))
+      expect(mocks.discoverMarkets).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('quotes destinations through the swap client', async () => {
