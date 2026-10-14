@@ -432,6 +432,8 @@ export default function ReceiveQRCode() {
         back={closeAmountEntry}
         initialValue={assetAmount || satoshis}
         onClear={hasAmount ? handleAmountClear : undefined}
+        title={amountForTokens ? t('receive.setAmountFirst') : undefined}
+        subtitle={amountForTokens ? t('receive.setAmountFirstSub') : undefined}
         onSave={(value: string, inputMode: KeyboardInputMode) => {
           setShowKeys(false)
           setShowAmountSheet(false)
@@ -471,7 +473,8 @@ export default function ReceiveQRCode() {
               ) : null}
               <div
                 // Height-capped so the whole code sits above the bottom buttons on a short phone.
-                className='receive-invoice-stage mt-4 aspect-square w-full max-w-[min(21.25rem,calc(100dvh-26rem))]'
+                // Shrunk while the selector is open so its five rows fit above the footer at 375×667.
+                className={`receive-invoice-stage mt-4 aspect-square w-full ${pickerOpen ? 'max-w-[11rem]' : 'max-w-[min(21.25rem,calc(100dvh-26rem))]'}`}
                 data-generating={generating}
               >
                 <div

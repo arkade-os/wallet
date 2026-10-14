@@ -325,6 +325,19 @@ describe('Receive QR Code screen', () => {
       for (const row of screen.getAllByRole('radio')) expect(stage?.contains(row)).toBe(false)
     })
 
+    it('shrinks the QR while the selector is open', async () => {
+      const { container } = renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
+      const selector = await screen.findByRole('button', { name: /Showing/ })
+      const stage = () => container.querySelector('.receive-invoice-stage')!
+      const closed = stage().className
+
+      fireEvent.click(selector)
+      expect(stage().className).not.toBe(closed)
+      expect(stage()).toHaveClass('max-w-[11rem]')
+      fireEvent.click(selector)
+      expect(stage().className).toBe(closed)
+    })
+
     it('translates the method labels like the rest of the screen', async () => {
       renderReceiveQrCode({ ...amountFixture('lnbc10u1ptest'), language: Language.Spanish })
 

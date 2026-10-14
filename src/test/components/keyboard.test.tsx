@@ -7,14 +7,19 @@ import { WalletContext } from '../../providers/wallet'
 import { mockConfigContextValue, mockFiatContextValue, mockWalletContextValue } from '../screens/mocks'
 import { Currencies, Unit } from '../../lib/types'
 
-const renderKeyboard = (unit: Unit, onSave = vi.fn(), currency = Currencies.BTC) => {
+const renderKeyboard = (
+  unit: Unit,
+  onSave = vi.fn(),
+  currency = Currencies.BTC,
+  heading: { title?: string; subtitle?: string } = {},
+) => {
   render(
     <ConfigContext.Provider
       value={{ ...mockConfigContextValue, config: { ...mockConfigContextValue.config, unit, currency } } as never}
     >
       <FiatContext.Provider value={mockFiatContextValue as never}>
         <WalletContext.Provider value={{ ...mockWalletContextValue, availableBalance: 1_000_000 } as never}>
-          <Keyboard back={() => {}} onSave={onSave} />
+          <Keyboard back={() => {}} onSave={onSave} {...heading} />
         </WalletContext.Provider>
       </FiatContext.Provider>
     </ConfigContext.Provider>,
@@ -55,5 +60,20 @@ describe('Keyboard, right-to-left entry', () => {
     expect(screen.getByText('120 sats')).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Toggle currency'))
     expect(screen.getByTestId('keyboard-amount')).toHaveTextContent('$120.00')
+  })
+})
+
+describe('Keyboard, heading', () => {
+  it('is titled Amount by default, with no subtitle', () => {
+    renderKeyboard(Unit.SATS)
+    expect(screen.getByText('Amount')).toBeInTheDocument()
+    expect(screen.queryByText('Why an amount')).not.toBeInTheDocument()
+  })
+
+  it('shows a custom title and subtitle', () => {
+    renderKeyboard(Unit.SATS, vi.fn(), Currencies.BTC, { title: 'Set an amount first', subtitle: 'Why an amount' })
+    expect(screen.getByText('Set an amount first')).toBeInTheDocument()
+    expect(screen.queryByText('Amount')).not.toBeInTheDocument()
+    expect(screen.getByText('Why an amount')).toBeInTheDocument()
   })
 })

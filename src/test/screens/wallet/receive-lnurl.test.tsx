@@ -530,6 +530,16 @@ describe('Receive screen, token rails', () => {
       )
     })
 
+    it('asks for an amount on the keypad before offering stablecoins', async () => {
+      serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+      renderReceive(0, tokensOn)
+      await pickMethod(/Stablecoins/)
+
+      expect(await screen.findByText('Set an amount first')).toBeInTheDocument()
+      expect(screen.getByText(/Stablecoin payments are quoted for an exact amount/)).toBeInTheDocument()
+      expect(screen.getByTestId('keyboard-amount')).toBeInTheDocument()
+    })
+
     it('offers no wallet link for a bare Tron address', async () => {
       serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
       renderReceive(20_000, tokensOn)
