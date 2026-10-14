@@ -1,5 +1,5 @@
 import { useContext, useState } from 'react'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Quote, Swap } from '@arkade-os/swap'
 import { AspContext } from '../../providers/asp'
@@ -10,6 +10,7 @@ import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
 const mocks = vi.hoisted(() => ({
   created: vi.fn(),
   discoverMarkets: vi.fn(),
+  watchSwapMarkets: vi.fn(),
   offerSwaps: vi.fn(),
   quote: vi.fn(),
   receive: vi.fn(),
@@ -19,7 +20,10 @@ const mocks = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
 }))
 
-vi.mock('../../lib/swapMarkets', () => ({ discoverMarkets: mocks.discoverMarkets }))
+vi.mock('../../lib/swapMarkets', () => ({
+  discoverMarkets: mocks.discoverMarkets,
+  watchSwapMarkets: mocks.watchSwapMarkets,
+}))
 vi.mock('../../lib/swapRepository', () => ({
   saveQuoteSnapshot: vi.fn(),
 }))
@@ -117,6 +121,7 @@ const renderProvider = (wallet = {}, children = <Harness />) =>
 beforeEach(() => {
   Object.defineProperty(navigator, 'locks', { value: undefined, configurable: true })
   mocks.discoverMarkets.mockResolvedValue([])
+  mocks.watchSwapMarkets.mockReturnValue(() => {})
   mocks.offerSwaps.mockResolvedValue([])
   mocks.quote.mockResolvedValue({ id: 'quote-1' } as Quote)
   mocks.receive.mockResolvedValue(swap)
@@ -146,7 +151,10 @@ describe('SwapsProvider', () => {
 
   it('loads swaps and filters corridor markets from the offer list', async () => {
     mocks.offerSwaps.mockResolvedValue([swap])
-    mocks.discoverMarkets.mockResolvedValue([market(), market({ quote_corridor: 'lightning' })])
+    mocks.watchSwapMarkets.mockImplementation((_network: string, onMarkets: (markets: unknown[]) => void) => {
+      onMarkets([market(), market({ quote_corridor: 'lightning' })])
+      return () => {}
+    })
     const setAssetSwaps = vi.fn()
 
     renderProvider({ setAssetSwaps })
@@ -157,20 +165,14 @@ describe('SwapsProvider', () => {
     expect(setAssetSwaps).toHaveBeenCalledWith([swap])
   })
 
-  it('re-reads the markets through the cache every five minutes, until unmounted', async () => {
-    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
-    try {
-      const view = renderProvider()
-      expect(mocks.discoverMarkets).toHaveBeenCalledTimes(1)
-      await act(async () => vi.advanceTimersByTime(5 * 60_000))
-      expect(mocks.discoverMarkets).toHaveBeenCalledTimes(2)
-      expect(mocks.discoverMarkets).toHaveBeenLastCalledWith('regtest', true)
-      view.unmount()
-      await act(async () => vi.advanceTimersByTime(5 * 60_000))
-      expect(mocks.discoverMarkets).toHaveBeenCalledTimes(2)
-    } finally {
-      vi.useRealTimers()
-    }
+  it('watches the network’s markets while mounted and stops watching on unmount', () => {
+    const stop = vi.fn()
+    mocks.watchSwapMarkets.mockReturnValue(stop)
+    const view = renderProvider()
+    expect(mocks.watchSwapMarkets).toHaveBeenCalledWith('regtest', expect.any(Function))
+    expect(stop).not.toHaveBeenCalled()
+    view.unmount()
+    expect(stop).toHaveBeenCalledOnce()
   })
 
   it('quotes destinations through the swap client', async () => {

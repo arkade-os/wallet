@@ -8,7 +8,7 @@
  * client's `DiscoveryConfig` and the package's own `discoverMarkets`, which is
  * what lets one definition feed the client and the lock-free read below.
  */
-import { discoverMarkets as discover, type DiscoverMarketsOptions } from '@arkade-os/swap/protocol'
+import { discoverMarkets as discover, watchMarkets, type DiscoverMarketsOptions } from '@arkade-os/swap/protocol'
 import {
   DEFAULT_NETWORK,
   displayPrice,
@@ -48,7 +48,7 @@ import { assetSwapRepository } from './swapRepository'
 export const BUNDLED_CARDS: LocalCardInput[] = [{ card: betaSolverCard as LocalCardInput['card'], network: 'bitcoin' }]
 
 /**
- * What the client discovers markets with. Caching (one hour, with a stale
+ * What the client discovers markets with. Caching (ten minutes, with a stale
  * fallback for an unreachable registry) lives in the repository it writes
  * through, which is why `repository` is the client's to supply and not here.
  *
@@ -102,3 +102,6 @@ export const preFeeDisplayRate = (plan: OfferPlan): number => {
  */
 export const discoverMarkets = async (network: NetworkName, useCache = true): Promise<DiscoveredMarket[]> =>
   discover({ ...discoveryOptions(network), repository: assetSwapRepository, useCache })
+
+export const watchSwapMarkets = (network: NetworkName, onMarkets: (markets: DiscoveredMarket[]) => void) =>
+  watchMarkets({ ...discoveryOptions(network), repository: assetSwapRepository }, onMarkets)
