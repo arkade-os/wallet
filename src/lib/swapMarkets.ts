@@ -103,5 +103,7 @@ export const preFeeDisplayRate = (plan: OfferPlan): number => {
 export const discoverMarkets = async (network: NetworkName, useCache = true): Promise<DiscoveredMarket[]> =>
   discover({ ...discoveryOptions(network), repository: assetSwapRepository, useCache })
 
+/** {@link discoverMarkets} kept current for a long-lived tab. The repository is what lets a
+ * failed re-read answer from the cache rather than shrink the list to the local cards. */
 export const watchSwapMarkets = (network: NetworkName, onMarkets: (markets: DiscoveredMarket[]) => void) =>
   watchMarkets({ ...discoveryOptions(network), repository: assetSwapRepository }, onMarkets)
