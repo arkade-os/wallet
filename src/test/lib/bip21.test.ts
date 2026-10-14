@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import fixtures from '../fixtures.json'
-import { decodeBip21, encodeBip21 } from '../../lib/bip21'
+import { decodeBip21, encodeBip21, encodeBitcoinLink } from '../../lib/bip21'
 import { toSatoshis } from '../../lib/format'
 
 describe('bip21 utilities', () => {
@@ -53,6 +53,12 @@ describe('bip21 utilities', () => {
     it('should decode a mixed-case amount key', () => {
       const { satoshis } = decodeBip21('bitcoin:bc1qexampleaddr?Amount=0.0005')
       expect(satoshis).toBe(50_000)
+    })
+
+    it.each(['alice@lnurl.test', 'lnbob@lnurl.test'])('reads a Lightning address back from our own link (%s)', (ln) => {
+      const decoded = decodeBip21(encodeBitcoinLink({ lightning: ln }))
+      expect(decoded.lnUrl).toBe(ln)
+      expect(decoded.invoice).toBeUndefined()
     })
 
     it('should throw an error for an invalid address', () => {
