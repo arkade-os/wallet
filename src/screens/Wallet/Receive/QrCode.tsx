@@ -48,15 +48,14 @@ import { useLnurlTokenRails, type LnurlTokenQuote, type LnurlTokenRail } from '.
 import LnurlRailPanel from './LnurlRail'
 import { useTranslation } from '../../../providers/language'
 import Select from '../../../components/Select'
-import TokenLogo, { tokenLogoTickerForTicker } from '../../../components/TokenLogo'
+import { TokenOnChainLogo } from '../../../components/ChainLogo'
 import ChevronDownIcon from '../../../icons/ChevronDown'
 
 const TOKEN = 'token:'
 
-function railLogo(rail: LnurlTokenRail) {
-  const ticker = tokenLogoTickerForTicker(rail.unit.code)
-  return ticker ? <TokenLogo ticker={ticker} /> : null
-}
+const railLogo = (rail: LnurlTokenRail, ring: string) => (
+  <TokenOnChainLogo ticker={rail.unit.code} chainId={rail.asset?.chainId ?? ''} ring={ring} />
+)
 
 export default function ReceiveQRCode() {
   const { aspInfo } = useContext(AspContext)
@@ -432,7 +431,7 @@ export default function ReceiveQRCode() {
                 <TextSecondary>{t('receive.noTokenQuote', { error: tokenRails.error })}</TextSecondary>
               ) : null}
               {showSelector ? (
-                <div className='mt-20 mb-3 flex w-full max-w-85 flex-col gap-2'>
+                <div className='mt-4 mb-3 flex w-full max-w-85 flex-col gap-2'>
                   <SegmentedControl
                     options={segments.map((m) => m.id)}
                     selected={activeMethod}
@@ -447,7 +446,7 @@ export default function ReceiveQRCode() {
                       className={`flex w-full cursor-pointer items-center gap-3 rounded-lg border border-neutral-100 px-3 py-3 text-left text-sm ${activeToken ? 'bg-neutral-100 font-semibold' : 'text-neutral-500'}`}
                     >
                       {activeToken ? (
-                        <span className='flex size-5 shrink-0 [&>svg]:size-full'>{railLogo(activeToken)}</span>
+                        <span className='flex size-5 shrink-0'>{railLogo(activeToken, 'var(--neutral-100)')}</span>
                       ) : null}
                       <span className='flex-1'>
                         {activeToken
@@ -460,7 +459,8 @@ export default function ReceiveQRCode() {
                 </div>
               ) : null}
               <div
-                className={`receive-invoice-stage aspect-square w-full max-w-85 ${showSelector ? '' : 'mt-20'}`}
+                // Height-capped so the whole code sits above the bottom buttons on a short phone.
+                className={`receive-invoice-stage aspect-square w-full max-w-[min(21.25rem,calc(100dvh-26rem))] ${showSelector ? '' : 'mt-20'}`}
                 data-generating={generating}
               >
                 <div
@@ -515,7 +515,7 @@ export default function ReceiveQRCode() {
                         : `transform 240ms cubic-bezier(${EASE_OUT_QUINT.join(',')})`,
                     }}
                   >
-                    <QrCode value={qrCodeValue} />
+                    <QrCode value={qrCodeValue} logo={activeToken ? railLogo(activeToken, '#ffffff') : undefined} />
                   </div>
                 </button>
               </div>
@@ -584,7 +584,7 @@ export default function ReceiveQRCode() {
               selected={activeToken ? activeMethod : ''}
               renderStart={(id) => {
                 const rail = tokenRails.rails.find((r) => TOKEN + r.id === id)
-                return rail ? railLogo(rail) : null
+                return rail ? railLogo(rail, 'var(--popover)') : null
               }}
               onChange={(id) => {
                 setShowTokenSheet(false)
@@ -710,7 +710,7 @@ function AddressList({
       {lightningAddress || lnurl ? (
         <AddressLine
           testId='lnaddress'
-          title={lightningAddress ? 'Lightning address' : 'LNURL'}
+          title={lightningAddress ? t('settings.lightningAddress') : 'LNURL'}
           value={lightningAddress || lnurl}
           onCopy={onCopy}
           onSelect={onSelect}

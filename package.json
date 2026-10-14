@@ -19,6 +19,7 @@
     "@scure/btc-signer": "2.4.1",
     "@sentry/react": "^9.15.0",
     "@tanstack/react-virtual": "^3.13.19",
+    "@web3icons/react": "4.1.24",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk-base": "^1.0.0",
