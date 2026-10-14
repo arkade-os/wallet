@@ -8,7 +8,8 @@ RUN apk add --no-cache gcc musl-dev
 # modules fetched before a failure stay in the cache, so each attempt only resumes what is missing.
 RUN for attempt in 1 2 3 4 5; do \
       go install github.com/fiatjaf/nak@v0.18.7 && exit 0; \
-      echo "go install failed (attempt $attempt), retrying"; sleep $((attempt * 10)); \
+      echo "go install failed (attempt $attempt of 5)"; \
+      if [ "$attempt" -lt 5 ]; then sleep "$((attempt * 10))"; fi; \
     done; exit 1
 
 # runtime stage
