@@ -548,7 +548,7 @@ export default function ReceiveQRCode() {
                 </div>
                 <button
                   type='button'
-                  className='receive-invoice-qr'
+                  className='receive-invoice-qr focusable'
                   disabled={generatingInvoice}
                   aria-hidden={generatingInvoice}
                   onClick={() => handleCopy(qrCodeValue)}
@@ -560,12 +560,11 @@ export default function ReceiveQRCode() {
                   style={{
                     padding: 0,
                     width: '100%',
-                    border: 'none',
                     display: 'block',
-                    cursor: generatingInvoice ? 'default' : 'pointer',
                     background: 'none',
-                    WebkitTapHighlightColor: 'transparent',
                     touchAction: 'manipulation',
+                    WebkitTapHighlightColor: 'transparent',
+                    cursor: generatingInvoice ? 'default' : 'pointer',
                   }}
                 >
                   <div

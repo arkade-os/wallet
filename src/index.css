@@ -261,7 +261,10 @@ iframe {
 }
 
 button.focusable {
-  border: 1px solid transparent;
+  border: 1px solid var(--neutral-100);
+  &.receive-invoice-qr {
+    border: 1px solid transparent;
+  }
   &:focus-visible {
     border: 1px solid var(--purple-700);
   }

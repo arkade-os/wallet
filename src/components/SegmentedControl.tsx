@@ -8,11 +8,9 @@ interface SegmentedControlProps {
 export default function SegmentedControl({ options, selected, onChange, getLabel }: SegmentedControlProps) {
   return (
     <div
-      role='radiogroup'
+      role='tablist'
       style={{
         display: 'flex',
-        borderRadius: '0.5rem',
-        border: '1px solid var(--neutral-100)',
         width: '100%',
       }}
     >
@@ -20,22 +18,25 @@ export default function SegmentedControl({ options, selected, onChange, getLabel
         const isSelected = selected === opt
         return (
           <button
-            role='radio'
+            role='tab'
             aria-checked={isSelected}
             className='focusable'
             key={opt}
             onClick={() => onChange(opt)}
             style={{
               flex: 1,
-              padding: '0.75rem 0.25rem',
               display: 'flex',
+              cursor: 'pointer',
               alignItems: 'center',
               justifyContent: 'center',
-              cursor: 'pointer',
-              backgroundColor: isSelected ? 'var(--neutral-100)' : 'transparent',
-              borderLeft: i > 0 ? '1px solid var(--neutral-100)' : undefined,
+              padding: '0.75rem 0.25rem',
               transition: 'background-color 0.15s',
               WebkitTapHighlightColor: 'transparent',
+              borderTopLeftRadius: i === 0 ? '0.5rem' : undefined,
+              borderBottomLeftRadius: i === 0 ? '0.5rem' : undefined,
+              borderTopRightRadius: i === options.length - 1 ? '0.5rem' : undefined,
+              borderBottomRightRadius: i === options.length - 1 ? '0.5rem' : undefined,
+              backgroundColor: isSelected ? 'var(--neutral-100)' : 'transparent',
             }}
           >
             <span
