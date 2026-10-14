@@ -656,6 +656,7 @@ export const translations = {
     },
     solvers: {
       builtIn: 'Built-in',
+      publishedMarkets: 'Markets published by the solver',
       builtInPlusOwnSingular: '{builtIn} built-in solver card, plus {own} of your own.',
       builtInPlusOwnPlural: '{builtIn} built-in solver cards, plus {own} of your own.',
       buildShipsSingular: 'This build ships {count} solver card; add your own to reach more solvers.',
@@ -1502,6 +1503,7 @@ export const translations = {
     },
     solvers: {
       builtIn: 'Integrado',
+      publishedMarkets: 'Mercados publicados por el solver',
       builtInPlusOwnSingular: '{builtIn} tarjeta de solver integrada, más {own} propias.',
       builtInPlusOwnPlural: '{builtIn} tarjetas de solver integradas, más {own} propias.',
       buildShipsSingular: 'Este build incluye {count} tarjeta de solver; añade las tuyas para llegar a más solvers.',
