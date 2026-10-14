@@ -1,6 +1,6 @@
 import { encodeBitcoinLink } from '../bip21'
 
-export type ReceiveMethod = 'lnaddress' | 'full' | 'ark' | 'btc' | 'token'
+export type ReceiveMethod = 'lnaddress' | 'full' | 'lightning' | 'ark' | 'btc' | 'token'
 export type PartId = 'link' | 'lnaddress' | 'lnurl' | 'invoice' | 'ark' | 'btc' | 'amount' | 'deposit'
 export interface ReceivePart {
   id: PartId
@@ -31,6 +31,7 @@ export function receiveMethods(i: ReceiveInputs): ReceiveMethod[] {
   return [
     i.lightningAddress ? 'lnaddress' : undefined,
     i.ark || i.btc ? 'full' : undefined,
+    i.lnurl || i.lightningAddress || (i.sats > 0 && i.invoice) ? 'lightning' : undefined,
     i.ark ? 'ark' : undefined,
     i.btc ? 'btc' : undefined,
     i.tokensOffered ? 'token' : undefined,
@@ -56,6 +57,16 @@ export function receiveParts(method: ReceiveMethod, i: ReceiveInputs): ReceivePa
         ...(amounted ? part('invoice', i.invoice) : part('lnurl', i.lnurl)),
         ...part('ark', i.ark),
         ...part('btc', i.btc),
+      ]
+    }
+    case 'lightning': {
+      const target = amounted ? i.invoice : i.lnurl || i.lightningAddress
+      return [
+        ...amountPart(i),
+        ...(target ? part('link', `lightning:${target}`) : []),
+        ...(amounted
+          ? part('invoice', i.invoice)
+          : [...part('lnurl', i.lnurl), ...part('lnaddress', i.lightningAddress)]),
       ]
     }
     case 'ark':

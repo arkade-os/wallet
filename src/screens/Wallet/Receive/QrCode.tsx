@@ -373,13 +373,15 @@ export default function ReceiveQRCode() {
         : t('receive.methodLnAddress')
       : m === 'full'
         ? t('receive.methodFull')
-        : m === 'ark'
-          ? t('receive.methodArkade')
-          : m === 'btc'
-            ? t('receive.methodBitcoin')
-            : activeToken
-              ? t('receive.methodToken', { unit: activeToken.unit.code, chain: activeToken.chain })
-              : t('receive.methodStablecoins')
+        : m === 'lightning'
+          ? t('receive.methodLightning')
+          : m === 'ark'
+            ? t('receive.methodArkade')
+            : m === 'btc'
+              ? t('receive.methodBitcoin')
+              : activeToken
+                ? t('receive.methodToken', { unit: activeToken.unit.code, chain: activeToken.chain })
+                : t('receive.methodStablecoins')
   const titleOf = (p: ReceivePart) =>
     ({
       link: t('receive.partLink'),
@@ -565,7 +567,12 @@ export default function ReceiveQRCode() {
                     rows={methods.map((m) => ({
                       id: m,
                       title: m === 'token' ? t('receive.methodStablecoins') : methodLabel(m),
-                      preview: m === 'lnaddress' ? lightningAddress : undefined,
+                      preview:
+                        m === 'lnaddress'
+                          ? lightningAddress
+                          : m === 'lightning'
+                            ? lightningAddress || (lnurl ? t('components.lnurlAddress') : undefined)
+                            : undefined,
                       note: m === 'token' && !satoshis ? t('receive.needsAmount') : undefined,
                     }))}
                   />
@@ -590,7 +597,7 @@ export default function ReceiveQRCode() {
               >
                 {shown === 'token' && activeToken && tokenRails.quote ? (
                   <TokenQuoteNote rail={activeToken} quote={tokenRails.quote} />
-                ) : inQr?.id === 'lnaddress' ? (
+                ) : inQr?.id === 'lnaddress' || (shown === 'lightning' && inQr?.id === 'lnurl') ? (
                   <Text small color='neutral-500' wrap centered>
                     {t('receive.hintLnAddressRaw')}
                   </Text>
@@ -598,7 +605,7 @@ export default function ReceiveQRCode() {
                   <Text small color='neutral-500' wrap centered>
                     {t('receive.hintDropsAmount')}
                   </Text>
-                ) : shown === 'lnaddress' && !satoshis ? (
+                ) : (shown === 'lnaddress' || shown === 'lightning') && !satoshis ? (
                   <Text small color='neutral-500' wrap centered>
                     {t('receive.hintLnAddress')}
                   </Text>

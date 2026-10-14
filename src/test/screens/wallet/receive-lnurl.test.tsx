@@ -131,10 +131,10 @@ const pickMethod = async (label: string | RegExp) => {
   fireEvent.click(await screen.findByRole('button', { name: /Showing/ }))
   fireEvent.click(await screen.findByRole('radio', { name: label }))
 }
-// A named receiver's address shows as the Lightning address row's preview in the open selector.
+// A named receiver's address previews the Lightning address and Lightning rows in the open selector.
 const selectorShows = async (address: string) => {
   fireEvent.click(await screen.findByRole('button', { name: /Showing/ }))
-  return screen.findByText(address)
+  return (await screen.findAllByText(address))[0]
 }
 const copyPart = async (testId: string) => {
   // Found outside act: inside it, the state updates that reveal the row are held back.
@@ -233,6 +233,16 @@ describe('Receive screen, rail composition', () => {
     await waitFor(async () => expect(await copiedQr()).toMatch(/^lnurl1/i))
     fireEvent.click(screen.getByRole('button', { name: /Showing/ }))
     expect(screen.queryByRole('radio', { name: /Lightning address/ })).not.toBeInTheDocument()
+  })
+
+  it('offers a nameless receiver Lightning, which puts its LNURL in the QR', async () => {
+    serve({ modes: ['session'], addresses: [namelessAddress()] })
+    renderReceive()
+
+    await pickMethod(/^Lightning\s*LNURL$/)
+
+    expect(await copiedQr()).toMatch(/^lightning:lnurl1/i)
+    expect(screen.getByText('Reusable · the payer picks the amount')).toBeInTheDocument()
   })
 
   it.each([

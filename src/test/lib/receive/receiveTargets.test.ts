@@ -57,6 +57,17 @@ describe('receiveParts', () => {
     expect(ids('btc', base)).toEqual(['link=bitcoin:bc1x', 'btc=bc1x'])
   })
 
+  it('Lightning links the LNURL, or the address of a receiver without one, with no amount', () => {
+    expect(ids('lightning', base)).toEqual(['link=lightning:LNURL1X', 'lnurl=LNURL1X', 'lnaddress=alice@a.test'])
+    expect(ids('lightning', { ...base, lightningAddress: '' })).toEqual(['link=lightning:LNURL1X', 'lnurl=LNURL1X'])
+    expect(ids('lightning', { ...base, lnurl: '' })).toEqual(['link=lightning:alice@a.test', 'lnaddress=alice@a.test'])
+  })
+
+  it('Lightning links the invoice with an amount, and has no link until it exists', () => {
+    expect(ids('lightning', withAmount)).toEqual(['amount=20000', 'link=lightning:lnbc1x', 'invoice=lnbc1x'])
+    expect(ids('lightning', { ...withAmount, invoice: '' })).toEqual(['amount=20000'])
+  })
+
   it('a token quote shows its URI and deposit, and a bare Tron deposit has no link row', () => {
     const quote = { value: 'ethereum:0xt@42161/transfer?address=0xd&uint256=1', destination: '0xd', amount: '17.156' }
     expect(ids('token', { ...withAmount, quote })).toEqual(['amount=17.156', `link=${quote.value}`, 'deposit=0xd'])
@@ -73,7 +84,13 @@ describe('receiveParts', () => {
 
 describe('receiveMethods', () => {
   it('offers every method with an lnurl-server and tokens on', () => {
-    expect(receiveMethods(base)).toEqual(['lnaddress', 'full', 'ark', 'btc', 'token'])
+    expect(receiveMethods(base)).toEqual(['lnaddress', 'full', 'lightning', 'ark', 'btc', 'token'])
+  })
+
+  it('offers Lightning for a nameless LNURL, and for an amount whose invoice came without one', () => {
+    expect(receiveMethods({ ...base, lightningAddress: '' })).toContain('lightning')
+    expect(receiveMethods({ ...withAmount, lnurl: '', lightningAddress: '' })).toContain('lightning')
+    expect(receiveMethods({ ...withAmount, lnurl: '', lightningAddress: '', invoice: '' })).not.toContain('lightning')
   })
 
   it('offers no Lightning address or stablecoins without an lnurl-server', () => {
