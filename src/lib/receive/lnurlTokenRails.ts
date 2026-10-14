@@ -1,6 +1,13 @@
 import { useContext, useEffect, useMemo, useState } from 'react'
 import type { Receiver } from '@arkade-os/lnurl-client/arkade'
-import { createLnurlClient, LnurlError, tokenOptions, type PayRequest, type TokenOption } from '@arkade-os/lnurl-client'
+import {
+  createLnurlClient,
+  LnurlError,
+  tokenOptions,
+  type PayRequest,
+  type TokenAsset,
+  type TokenOption,
+} from '@arkade-os/lnurl-client'
 import { centsToUnits } from '../assets'
 import { consoleError } from '../logs'
 import { extractError } from '../error'
@@ -17,12 +24,50 @@ const MAX_TIMEOUT_MS = 2 ** 31 - 1
 
 export type LnurlTokenRail = TokenOption & { chain: string; provider: string }
 
-/** The server's payment URI, kept only when it is a wallet payment scheme naming the quoted deposit;
- *  otherwise the bare deposit, so the QR, Share and a phone's wallet link can never pay elsewhere. */
-export function payableUri(uri: string | undefined, destination: string): string {
-  const ok = uri && /^(ethereum|solana):/i.test(uri) && uri.toLowerCase().includes(destination.toLowerCase())
-  return ok ? uri : destination
+interface QuotedPayment {
+  destination: string
+  /** The quote's amount in the token's base units, as EIP-681's uint256 carries it. */
+  baseUnits: string
+  /** The same amount in whole tokens, as Solana Pay's amount carries it. */
+  amount: string
 }
+
+const decimal = (s: string | null) => s?.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '')
+
+/** True when `uri` is an EIP-681 token transfer or a Solana Pay SPL transfer of exactly the quoted
+ *  token, chain, recipient and amount, read from their own fields. Any parse doubt is a mismatch. */
+function paysQuote(uri: string, { destination, baseUnits, amount }: QuotedPayment, asset: TokenAsset): boolean {
+  let url: URL
+  try {
+    url = new URL(uri)
+  } catch {
+    return false
+  }
+  const q = url.searchParams
+  if (asset.namespace === 'eip155' && url.protocol === 'ethereum:') {
+    const target = /^(0x[0-9a-f]{40})(?:@(\d+))?\/transfer$/i.exec(url.pathname)
+    return (
+      target !== null &&
+      target[1].toLowerCase() === asset.reference.toLowerCase() &&
+      (target[2] ?? '1') === asset.chainReference &&
+      q.get('address')?.toLowerCase() === destination.toLowerCase() &&
+      q.get('uint256') === baseUnits
+    )
+  }
+  if (asset.namespace === 'solana' && url.protocol === 'solana:') {
+    return (
+      url.pathname === destination &&
+      q.get('spl-token') === asset.reference &&
+      decimal(q.get('amount')) === decimal(amount)
+    )
+  }
+  return false
+}
+
+/** The server's payment URI when it pays exactly the quote, else the bare deposit address: the QR,
+ *  Share and a phone's wallet link must never pay anyone but the deposit the screen shows. */
+export const payableUri = (uri: string | undefined, quote: QuotedPayment, asset: TokenAsset): string =>
+  uri && paysQuote(uri, quote, asset) ? uri : quote.destination
 
 interface Asked {
   lnurl: string
@@ -135,7 +180,15 @@ export function useLnurlTokenRails(
         }
         const quote = {
           optionId: rail.id,
-          value: payableUri(result.paymentURI, result.paymentDestination),
+          value: payableUri(
+            result.paymentURI,
+            {
+              destination: result.paymentDestination,
+              baseUnits: String(result.paymentQuote.payment.amount),
+              amount,
+            },
+            rail.asset,
+          ),
           destination: result.paymentDestination,
           amount,
           expiresAt,

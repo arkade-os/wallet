@@ -272,13 +272,18 @@ describe('useLnurlTokenRails', () => {
     await waitFor(() => expect(result.current.quote).toBeDefined())
   })
 
+  const quotedUri = arbitrumUri(20_000_000)
+  const deposit = TOKEN_DEPOSITS['ff-usdtarbitrum']
   it.each([
     ['a non-payment scheme', 'javascript:alert(1)'],
     [
-      'a URI paying another address',
-      `ethereum:0xdAC17F958D2ee523a2206206994597C13D831ec7@42161/transfer?address=0x${'cd'.repeat(20)}`,
+      'the deposit only in a memo',
+      quotedUri.replace(`address=${deposit}`, `address=0x${'cd'.repeat(20)}&memo=${deposit}`),
     ],
-  ])('shows the bare deposit address, not %s', async (_, paymentURI) => {
+    ['another amount', quotedUri.replace(/uint256=\d+/, 'uint256=1')],
+    ['another chain', quotedUri.replace('@42161', '@1')],
+    ['another token', quotedUri.replace(/^ethereum:0x[0-9a-f]{40}/i, `ethereum:0x${'ef'.repeat(20)}`)],
+  ])('shows the bare deposit address, not a URI with %s', async (_, paymentURI) => {
     serve({ paymentURI })
     const { result } = renderTokens('ff-usdtarbitrum')
     await waitFor(() => expect(result.current.quote).toBeDefined())
