@@ -127,6 +127,7 @@ export function useLnurlTokenRails(
   const [fetched, setFetched] = useState<{ lnurl: string; payRequest: PayRequest }>()
   const [answer, setAnswer] = useState<{ asked: Asked; quote?: LnurlTokenQuote; error?: string }>()
   const [round, setRound] = useState(0)
+  const [expiredRound, setExpiredRound] = useState<number>()
 
   // Keyed on the LNURL, the receiver's identity: an upgrade keeps it, a different receiver never does.
   useEffect(() => {
@@ -194,7 +195,8 @@ export function useLnurlTokenRails(
           expiresAt,
         }
         setAnswer({ asked, quote })
-        expiry = setTimeout(() => setRound((n) => n + 1), Math.min(expiresAt - Date.now(), MAX_TIMEOUT_MS))
+        // Expiry only marks the quote dead: a new one is a new provider order, placed on request.
+        expiry = setTimeout(() => setExpiredRound(round), Math.min(expiresAt - Date.now(), MAX_TIMEOUT_MS))
       })
       .catch((err) => {
         if (stale) return
@@ -206,6 +208,7 @@ export function useLnurlTokenRails(
       clearTimeout(expiry)
       // Not kept for a return to these inputs: with its timer cleared it could expire unseen.
       setAnswer(undefined)
+      setExpiredRound(undefined)
     }
   }, [source, amountSat, rail?.id, round])
 
@@ -219,5 +222,13 @@ export function useLnurlTokenRails(
     answer.asked.round === round
       ? answer
       : undefined
-  return { rails, quote: current?.quote, quoting: Boolean(rail) && !current, error: current?.error ?? '' }
+  const expired = Boolean(current?.quote) && expiredRound === round
+  return {
+    rails,
+    quote: expired ? undefined : current?.quote,
+    quoting: Boolean(rail) && !current,
+    error: current?.error ?? '',
+    expired,
+    regenerate: () => setRound((n) => n + 1),
+  }
 }
