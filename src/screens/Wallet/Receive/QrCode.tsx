@@ -241,6 +241,43 @@ export default function ReceiveQRCode() {
   const tokenMethods = paymentMethods.filter((m) => m.id.startsWith(TOKEN))
   const showSelector = segments.length > 1 || tokenMethods.length > 0
 
+  // The copy sheet offers what the shown method carries: the unified URI and the addresses inside it, or one value.
+  const rows = {
+    bip21: { testId: 'bip21', title: t('receive.unified'), value: bip21Uri },
+    ark: { testId: 'ark', title: t('receive.arkadeAddress'), value: arkAddress },
+    btc: { testId: 'btc', title: t('receive.bitcoinAddress'), value: btcAddress },
+    invoice: { testId: 'invoice', title: t('receive.lightningInvoice'), value: invoice },
+    lnaddress: {
+      testId: 'lnaddress',
+      title: lightningAddress ? t('settings.lightningAddress') : 'LNURL',
+      value: lightningAddress || lnurl,
+    },
+  }
+  const copyRows = (
+    activeToken
+      ? tokenQuote
+        ? [
+            {
+              testId: 'token',
+              title: t('receive.tokenDepositAddress', { token: `${activeToken.unit.code} (${activeToken.chain})` }),
+              value: tokenQuote.destination,
+            },
+            {
+              testId: 'token-amount',
+              title: t('receive.tokenAmount', { unit: activeToken.unit.code }),
+              value: tokenQuote.amount,
+            },
+          ]
+        : []
+      : activeMethod === 'ark'
+        ? [rows.ark]
+        : activeMethod === 'bitcoin'
+          ? [rows.btc]
+          : activeMethod === 'lightning'
+            ? [invoice ? rows.invoice : rows.lnaddress]
+            : [rows.bip21, rows.ark, rows.btc, rows.invoice, rows.lnaddress]
+  ).filter((row) => row.value)
+
   // Payment listener
   useEffect(() => {
     if (!svcWallet) return
@@ -312,7 +349,8 @@ export default function ReceiveQRCode() {
   const handleCopyButton = async () => {
     if (generating) return
     if (!prefersReducedMotion) hapticSubtle()
-    setShowCopySheet(true)
+    // One relevant value is copied outright; the toast confirms it, so a one-row sheet adds nothing.
+    if (copyRows.length > 1) setShowCopySheet(true)
     // A token's QR value is a payment URI, which a wallet's address field rejects.
     const value = tokenQuote?.destination ?? qrCodeValue
     if (value && copied !== value) {
@@ -603,135 +641,23 @@ export default function ReceiveQRCode() {
           <Text big bold>
             {t('receive.copyAddress')}
           </Text>
-          <AddressList
-            tokenDeposit={
-              activeToken && tokenQuote
-                ? {
-                    title: t('receive.tokenDepositAddress', {
-                      token: `${activeToken.unit.code} (${activeToken.chain})`,
-                    }),
-                    value: tokenQuote.destination,
-                    amountTitle: t('receive.tokenAmount', { unit: activeToken.unit.code }),
-                    amount: tokenQuote.amount,
-                  }
-                : undefined
-            }
-            bip21Uri={bip21Uri}
-            btcAddress={btcAddress}
-            arkAddress={arkAddress}
-            invoice={invoice}
-            lightningAddress={lightningAddress}
-            lnurl={lnurl}
-            onCopy={handleCopy}
-            onSelect={(v) => {
-              const method = paymentMethods.find((m) => m.value === v)
-              if (method) handleMethodChange(method.id)
-            }}
-            copied={copied}
-          />
+          <FlexCol gap='0.75rem'>
+            {copyRows.map((row) => (
+              <AddressLine
+                key={row.testId}
+                {...row}
+                onCopy={handleCopy}
+                onSelect={(v) => {
+                  const method = paymentMethods.find((m) => m.value === v)
+                  if (method) handleMethodChange(method.id)
+                }}
+                copied={copied}
+              />
+            ))}
+          </FlexCol>
         </FlexCol>
       </SheetModal>
     </>
-  )
-}
-
-function AddressList({
-  tokenDeposit,
-  bip21Uri,
-  btcAddress,
-  arkAddress,
-  invoice,
-  lightningAddress,
-  lnurl,
-  onCopy,
-  onSelect,
-  copied,
-}: {
-  tokenDeposit?: { title: string; value: string; amountTitle: string; amount: string }
-  bip21Uri: string
-  btcAddress: string
-  arkAddress: string
-  invoice: string
-  lightningAddress: string
-  lnurl: string
-  onCopy: (value: string) => void
-  onSelect: (value: string) => void
-  copied: string
-}) {
-  const { t } = useTranslation()
-  return (
-    <FlexCol gap='0.75rem'>
-      {tokenDeposit ? (
-        <>
-          <AddressLine
-            testId='token'
-            title={tokenDeposit.title}
-            value={tokenDeposit.value}
-            onCopy={onCopy}
-            onSelect={onSelect}
-            copied={copied}
-          />
-          <AddressLine
-            testId='token-amount'
-            title={tokenDeposit.amountTitle}
-            value={tokenDeposit.amount}
-            onCopy={onCopy}
-            onSelect={onSelect}
-            copied={copied}
-          />
-        </>
-      ) : null}
-      {bip21Uri ? (
-        <AddressLine
-          testId='bip21'
-          title={t('receive.unified')}
-          value={bip21Uri}
-          onCopy={onCopy}
-          onSelect={onSelect}
-          copied={copied}
-        />
-      ) : null}
-      {arkAddress ? (
-        <AddressLine
-          testId='ark'
-          title={t('receive.arkadeAddress')}
-          value={arkAddress}
-          onCopy={onCopy}
-          onSelect={onSelect}
-          copied={copied}
-        />
-      ) : null}
-      {btcAddress ? (
-        <AddressLine
-          testId='btc'
-          title={t('receive.bitcoinAddress')}
-          value={btcAddress}
-          onCopy={onCopy}
-          onSelect={onSelect}
-          copied={copied}
-        />
-      ) : null}
-      {invoice ? (
-        <AddressLine
-          testId='invoice'
-          title={t('receive.lightningInvoice')}
-          value={invoice}
-          onCopy={onCopy}
-          onSelect={onSelect}
-          copied={copied}
-        />
-      ) : null}
-      {lightningAddress || lnurl ? (
-        <AddressLine
-          testId='lnaddress'
-          title={lightningAddress ? t('settings.lightningAddress') : 'LNURL'}
-          value={lightningAddress || lnurl}
-          onCopy={onCopy}
-          onSelect={onSelect}
-          copied={copied}
-        />
-      ) : null}
-    </FlexCol>
   )
 }
 

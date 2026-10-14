@@ -281,6 +281,18 @@ describe('Receive screen, rail composition', () => {
     fireEvent.click(screen.getByText('Bitcoin'))
     expect(await copiedQr()).toBe(WALLET_BOARDING_ADDRESS)
   })
+
+  it('copies a single-address method outright, without the copy sheet', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    renderReceive(10_000)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled())
+
+    fireEvent.click(screen.getByText('Arkade'))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy' })))
+
+    expect(copyToClipboard).toHaveBeenLastCalledWith(DECODABLE_ARK)
+    expect(screen.queryByText('Copy address')).not.toBeInTheDocument()
+  })
 })
 
 describe('Receive screen, lnurl onboarding', () => {
@@ -456,8 +468,11 @@ describe('Receive screen, token rails', () => {
 
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy' })))
     expect(copyToClipboard).toHaveBeenLastCalledWith(TOKEN_DEPOSITS['ff-usdtarbitrum'])
+    const amountCopy = await screen.findByTestId('token-amount-address-copy')
+    expect(screen.queryByTestId('bip21-address-copy')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('ark-address-copy')).not.toBeInTheDocument()
 
-    await act(async () => fireEvent.click(await screen.findByTestId('token-amount-address-copy')))
+    await act(async () => fireEvent.click(amountCopy))
     expect(copyToClipboard).toHaveBeenLastCalledWith('17.156')
   })
 
