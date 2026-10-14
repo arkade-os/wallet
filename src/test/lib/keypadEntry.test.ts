@@ -42,8 +42,10 @@ describe('keypadEntry', () => {
     expect(valueToDigits('1000.5', 18)).toBe('10005' + '0'.repeat(17))
   })
 
-  it('clamps an over-cap value instead of dropping its low digits', () => {
-    expect(valueToDigits('1' + '0'.repeat(20), 0)).toBe('9'.repeat(16))
+  it('keeps an over-cap value exact, and takes no more digits on it', () => {
+    const balance = '1' + '0'.repeat(20)
+    expect(valueToDigits(balance, 0)).toBe(balance)
+    expect(pushDigit(balance, '5', 0)).toBe(balance)
   })
 
   it.each([

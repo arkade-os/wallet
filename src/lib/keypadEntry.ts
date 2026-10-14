@@ -21,7 +21,6 @@ export const digitsToValue = (digits: string, decimals: number): string => {
 
 export const valueToDigits = (value: string, decimals: number): string => {
   const [whole = '', frac = ''] = value.replaceAll(',', '').split('.')
-  const digits = (whole + frac.padEnd(decimals, '0').slice(0, decimals)).replace(/^0+/, '')
-  const cap = maxEntryDigits(decimals)
-  return digits.length > cap ? '9'.repeat(cap) : digits
+  // Never clamped: Max loads a balance, and a past-cap balance must stay exact. pushDigit stops further typing.
+  return (whole + frac.padEnd(decimals, '0').slice(0, decimals)).replace(/^0+/, '')
 }
