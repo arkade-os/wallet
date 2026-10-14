@@ -21,7 +21,7 @@ import { centsToUnits, unitsToCents } from '../../../lib/assets'
 import ErrorMessage from '../../../components/Error'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
-import InputAmount from '../../../components/InputAmount'
+import InputAmount, { type InputAmountMode } from '../../../components/InputAmount'
 import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
 import SheetModal from '../../../components/SheetModal'
 import Text, { TextSecondary } from '../../../components/Text'
@@ -31,7 +31,7 @@ import { hapticSubtle } from '../../../lib/haptics'
 import { isMobileBrowser } from '../../../lib/browser'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
-import { AssetOption, Unit } from '../../../lib/types'
+import { AssetOption, Currencies, Unit } from '../../../lib/types'
 import { EASE_OUT_QUINT, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
 import { walletAssetPresentationForId } from '../../../lib/accountAssets'
 import { ConfigContext } from '../../../providers/config'
@@ -68,7 +68,7 @@ export default function ReceiveQRCode() {
   const { isRegistered } = useContext(AssetsContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { backupAndUpdateConfig } = useContext(BackupContext)
-  const { fromFiat } = useContext(FiatContext)
+  const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
@@ -80,6 +80,9 @@ export default function ReceiveQRCode() {
 
   const [assetAmount, setAssetAmount] = useState(BigInt(0))
   const [amountTextValue, setAmountTextValue] = useState('')
+  const currencyConversionUseful = config.currency !== Currencies.BTC && toFiat(100_000_000) > 0 && fromFiat(1) > 0
+  const [entryMode, setEntryMode] = useState<InputAmountMode>(useFiat && currencyConversionUseful ? 'fiat' : 'unit')
+  const fiatEntry = entryMode === 'fiat' && useFiat && currencyConversionUseful
 
   const [sharing, setSharing] = useState(false)
   const [addressesLoaded, setAddressesLoaded] = useState(false)
@@ -316,8 +319,10 @@ export default function ReceiveQRCode() {
     } else {
       const num = Number(value)
       if (Number.isNaN(num) || !Number.isFinite(num)) throw new Error('Invalid amount')
-      const shouldConvertFromFiat = inputMode === 'fiat' || (useFiat && inputMode === undefined)
-      const shouldConvertToSats = inputMode === 'btc' || (!useFiat && config.unit === Unit.BTC)
+      const shouldConvertFromFiat = inputMode ? inputMode === 'fiat' : fiatEntry
+      const shouldConvertToSats = inputMode
+        ? inputMode === 'btc' || (!useFiat && config.unit === Unit.BTC)
+        : config.unit === Unit.BTC
       const sats = shouldConvertFromFiat ? fromFiat(num) : shouldConvertToSats ? toSatoshis(num) : num
       if (sats === satoshis) setRecvInfo({ ...recvInfo, satoshis: sats })
       // The negotiated invoice is for the old amount, and the negotiate effect
@@ -336,6 +341,21 @@ export default function ReceiveQRCode() {
         if (sats > 0) setShowTokenSheet(true)
       }
     }
+  }
+
+  // Re-expresses the typed text in the new denomination, read with the mode it was typed in.
+  const handleEntryModeChange = (mode: InputAmountMode) => {
+    setEntryMode(mode)
+    const num = Number(amountTextValue)
+    if (!amountTextValue || !Number.isFinite(num)) return
+    const sats = fiatEntry ? fromFiat(num) : config.unit === Unit.BTC ? toSatoshis(num) : num
+    setAmountTextValue(
+      mode === 'fiat' && useFiat && currencyConversionUseful
+        ? prettyNumber(toFiat(sats), fiatDecimals(), false)
+        : config.unit === Unit.BTC
+          ? prettyNumber(fromSatoshis(sats), 8, false)
+          : prettyNumber(sats, 0, false),
+    )
   }
 
   const handleAmountClear = () => {
@@ -664,6 +684,9 @@ export default function ReceiveQRCode() {
             readOnly={isMobileBrowser}
             name='receive-amount-sheet'
             onChange={setAmountTextValue}
+            onModeChange={handleEntryModeChange}
+            mode={entryMode}
+            switchable
             onEnter={handleAmountConfirm}
             onFocus={() => setShowKeys(isMobileBrowser)}
           />

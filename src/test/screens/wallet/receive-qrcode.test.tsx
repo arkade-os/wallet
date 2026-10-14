@@ -21,7 +21,7 @@ import { NotificationsContext } from '../../../providers/notifications'
 import { BackupContext } from '../../../providers/backup'
 import { ToastProvider } from '../../../components/Toast'
 import { LanguageContext, translate } from '../../../providers/language'
-import { Language, Unit } from '../../../lib/types'
+import { Currencies, Language, Unit } from '../../../lib/types'
 import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
 
 // Mock qr module used by QrCode component
@@ -82,6 +82,7 @@ type RenderOverrides = {
   flow?: Partial<typeof mockFlowContextValue>
   wallet?: Partial<typeof mockWalletContextValue>
   config?: Partial<typeof mockConfigContextValue>
+  fiat?: Partial<typeof mockFiatContextValue>
   language?: Language
 }
 
@@ -100,7 +101,7 @@ function buildTree(overrides?: RenderOverrides) {
         <NavigationContext.Provider value={mockNavigationContextValue}>
           <AspContext.Provider value={mockAspContextValue}>
             <ConfigContext.Provider value={config as any}>
-              <FiatContext.Provider value={mockFiatContextValue as any}>
+              <FiatContext.Provider value={{ ...mockFiatContextValue, ...overrides?.fiat } as any}>
                 <NotificationsContext.Provider value={mockNotificationsContextValue as any}>
                   <FlowContext.Provider value={flow as any}>
                     <WalletContext.Provider value={wallet as any}>
@@ -423,6 +424,57 @@ describe('Receive QR Code screen', () => {
       expect(screen.getByTestId('ark-address-copy')).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: /Showing/ })).not.toBeInTheDocument()
     })
+  })
+})
+
+describe('Receive QR Code screen — amount sheet denomination', () => {
+  const sheetFixture = (unit: Unit, setRecvInfo: (info: { satoshis: number }) => void) =>
+    buildTree({
+      ...tapFixture(),
+      flow: { ...tapFixture().flow, setRecvInfo } as any,
+      config: {
+        ...mockConfigContextValue,
+        useFiat: true,
+        config: { ...mockConfigContextValue.config, currency: Currencies.USD, unit },
+      },
+      fiat: {
+        toFiat: (sats?: number) => (sats ?? 0) / 1000,
+        fromFiat: (fiat?: number) => Math.floor((fiat ?? 0) * 1000),
+      },
+    })
+  const sheetInput = () => document.querySelector('input[name="receive-amount-sheet"]') as HTMLInputElement
+  const openSheet = async () => fireEvent.click(await screen.findByRole('button', { name: 'Add amount' }))
+  const setAmount = (value: string) => {
+    fireEvent.change(sheetInput(), { target: { value } })
+    fireEvent.click(screen.getByRole('button', { name: 'Set amount' }))
+  }
+
+  it.each([
+    [Unit.BTC, '0.0002', 20_000],
+    [Unit.SATS, '1234', 1234],
+  ])('reads the amount in %s once the sheet is switched from fiat', async (unit, typed, sats) => {
+    const setRecvInfo = vi.fn()
+    render(sheetFixture(unit, setRecvInfo))
+    await openSheet()
+
+    fireEvent.click(screen.getByTestId('input-amount-switch'))
+    setAmount(typed)
+
+    expect(setRecvInfo).toHaveBeenLastCalledWith(expect.objectContaining({ satoshis: sats }))
+  })
+
+  it('re-expresses the typed amount when switched, and reads fiat again after switching back', async () => {
+    const setRecvInfo = vi.fn()
+    render(sheetFixture(Unit.BTC, setRecvInfo))
+    await openSheet()
+
+    fireEvent.click(screen.getByTestId('input-amount-switch'))
+    fireEvent.change(sheetInput(), { target: { value: '0.0002' } })
+    fireEvent.click(screen.getByTestId('input-amount-switch'))
+    expect(sheetInput()).toHaveValue(20)
+    setAmount('5')
+
+    expect(setRecvInfo).toHaveBeenLastCalledWith(expect.objectContaining({ satoshis: 5000 }))
   })
 })
 
