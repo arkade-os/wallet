@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
@@ -31,7 +32,7 @@ import { isMobileBrowser } from '../../../lib/browser'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { AssetOption, Unit } from '../../../lib/types'
-import { EASE_OUT_QUINT } from '../../../lib/animations'
+import { EASE_OUT_QUINT, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
 import { walletAssetPresentationForId } from '../../../lib/accountAssets'
 import { ConfigContext } from '../../../providers/config'
 import { BackupContext } from '../../../providers/backup'
@@ -476,8 +477,7 @@ export default function ReceiveQRCode() {
               ) : null}
               <div
                 // Height-capped so the whole code sits above the bottom buttons on a short phone.
-                // Shrunk while the selector is open so its five rows fit above the footer at 375×667.
-                className={`receive-invoice-stage mt-4 aspect-square w-full ${pickerOpen ? 'max-w-[11rem]' : 'max-w-[min(21.25rem,calc(100dvh-26rem))]'}`}
+                className='receive-invoice-stage mt-4 aspect-square w-full max-w-[min(21.25rem,calc(100dvh-26rem))]'
                 data-generating={generating}
               >
                 <div
@@ -503,7 +503,7 @@ export default function ReceiveQRCode() {
                   </Text>
                 </div>
                 {quoteExpired ? (
-                  <div className='flex flex-col items-center justify-center gap-2 text-center'>
+                  <div className='receive-invoice-expired flex flex-col items-center justify-center gap-2 text-center'>
                     <Text bold>{t('receive.quoteExpired')}</Text>
                     <TextSecondary centered>{t('receive.quoteExpiredSub')}</TextSecondary>
                     <Button
@@ -563,6 +563,7 @@ export default function ReceiveQRCode() {
                     active={shown}
                     open={pickerOpen}
                     onToggle={() => setPickerOpen((o) => !o)}
+                    onClose={() => setPickerOpen(false)}
                     onPick={pickMethod}
                     rows={methods.map((m) => ({
                       id: m,
@@ -577,18 +578,34 @@ export default function ReceiveQRCode() {
                     }))}
                   />
                 )}
-                {pickerOpen || generating ? null : (
-                  <ReceiveParts
-                    method={isAssetReceive ? 'ark' : shown}
-                    label={methodLabel(shown)}
-                    parts={parts}
-                    titleOf={titleOf}
-                    inQr={inQr?.id}
-                    copied={copied}
-                    onShow={showPart}
-                    onCopy={handleCopy}
-                  />
-                )}
+                {/* 'wait' keeps one set of rows, and so one of each copy test id, in the DOM at a time. */}
+                <AnimatePresence mode='wait' initial={false}>
+                  {generating ? null : (
+                    <motion.div
+                      key={isAssetReceive ? 'asset' : shown}
+                      initial={prefersReducedMotion ? false : { opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0, transition: { duration: 0.22, ease: EASE_OUT_QUINT_TUPLE } }}
+                      exit={
+                        prefersReducedMotion
+                          ? undefined
+                          : { opacity: 0, transition: { duration: 0.12, ease: EASE_OUT_QUINT_TUPLE } }
+                      }
+                      aria-hidden={pickerOpen || undefined}
+                      {...(pickerOpen && { inert: '' })}
+                    >
+                      <ReceiveParts
+                        method={isAssetReceive ? 'ark' : shown}
+                        label={methodLabel(shown)}
+                        parts={parts}
+                        titleOf={titleOf}
+                        inQr={inQr?.id}
+                        copied={copied}
+                        onShow={showPart}
+                        onCopy={handleCopy}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
               <div
                 className='min-h-5'

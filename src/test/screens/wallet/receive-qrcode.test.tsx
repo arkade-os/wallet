@@ -321,16 +321,21 @@ describe('Receive QR Code screen', () => {
       for (const row of screen.getAllByRole('radio')) expect(stage?.contains(row)).toBe(false)
     })
 
-    it('shrinks the QR while the selector is open', async () => {
+    it('floats the method list over the rows, leaving the QR its size, and closes it on Escape', async () => {
       const { container } = renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
       const selector = await screen.findByRole('button', { name: /Showing/ })
       const stage = () => container.querySelector('.receive-invoice-stage')!
       const closed = stage().className
 
       fireEvent.click(selector)
-      expect(stage().className).not.toBe(closed)
-      expect(stage()).toHaveClass('max-w-[11rem]')
-      fireEvent.click(selector)
+      expect(selector).toHaveAttribute('aria-expanded', 'true')
+      expect(screen.getByRole('radio', { name: 'Arkade' })).toBeInTheDocument()
+      expect(stage().className).toBe(closed)
+
+      fireEvent.keyDown(document, { key: 'Escape' })
+      expect(selector).toHaveAttribute('aria-expanded', 'false')
+      expect(selector).toHaveFocus()
+      await waitFor(() => expect(screen.queryByRole('radio', { name: 'Arkade' })).not.toBeInTheDocument())
       expect(stage().className).toBe(closed)
     })
 
