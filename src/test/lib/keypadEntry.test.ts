@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { digitsToValue, maxEntryDigits, popDigit, pushDigit, valueToDigits } from '../../lib/keypadEntry'
+import { MAX_SATS, digitsToValue, maxEntryDigits, popDigit, pushDigit, valueToDigits } from '../../lib/keypadEntry'
 
 describe('keypadEntry', () => {
   it.each([
@@ -29,6 +29,13 @@ describe('keypadEntry', () => {
     const full = '9'.repeat(cap)
     expect(pushDigit(full, '9', decimals)).toBe(full)
     expect(pushDigit(full.slice(1), '9', decimals)).toBe(full)
+  })
+
+  it.each([0, 8])('refuses a digit past 21 M BTC at %i decimals, short of the digit cap', (decimals) => {
+    const max = MAX_SATS.toString()
+    expect(pushDigit(max.slice(0, -1), '0', decimals, MAX_SATS)).toBe(max)
+    expect(pushDigit(max.slice(0, -1), '1', decimals, MAX_SATS)).toBe(max.slice(0, -1))
+    expect(pushDigit(max, '0', decimals, MAX_SATS)).toBe(max)
   })
 
   it('keeps a long 18-decimal asset balance whole', () => {

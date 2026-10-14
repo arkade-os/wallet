@@ -15,7 +15,7 @@ import SwapIcon from '../icons/Swap'
 import { AssetOption, Currencies, Unit } from '../lib/types'
 import { centsToUnits, prettyAssetAmount, unitsToCents } from '../lib/assets'
 import { useTranslation } from '../providers/language'
-import { digitsToValue, popDigit, pushDigit, valueToDigits } from '../lib/keypadEntry'
+import { MAX_SATS, digitsToValue, popDigit, pushDigit, valueToDigits } from '../lib/keypadEntry'
 
 export type KeyboardInputMode = 'sats' | 'fiat' | 'asset' | 'btc'
 
@@ -123,7 +123,8 @@ export default function Keyboard({
 
   const handleKeyPress = (k: string) => {
     if (k === 'x') return setDigits(popDigit)
-    setDigits((prev) => pushDigit(prev, k, getMaxDecimals()))
+    const bitcoin = inputMode === 'sats' || inputMode === 'btc'
+    setDigits((prev) => pushDigit(prev, k, getMaxDecimals(), bitcoin ? MAX_SATS : undefined))
   }
 
   const handleMaxPress = () => {

@@ -1,3 +1,4 @@
+import type { ComponentProps } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import Keyboard from '../../components/Keyboard'
@@ -11,7 +12,7 @@ const renderKeyboard = (
   unit: Unit,
   onSave = vi.fn(),
   currency = Currencies.BTC,
-  heading: { title?: string; subtitle?: string } = {},
+  props: Partial<ComponentProps<typeof Keyboard>> = {},
 ) => {
   render(
     <ConfigContext.Provider
@@ -19,7 +20,7 @@ const renderKeyboard = (
     >
       <FiatContext.Provider value={mockFiatContextValue as never}>
         <WalletContext.Provider value={{ ...mockWalletContextValue, availableBalance: 1_000_000 } as never}>
-          <Keyboard back={() => {}} onSave={onSave} {...heading} />
+          <Keyboard back={() => {}} onSave={onSave} {...props} />
         </WalletContext.Provider>
       </FiatContext.Provider>
     </ConfigContext.Provider>,
@@ -45,6 +46,37 @@ describe('Keyboard, right-to-left entry', () => {
     expect(screen.getByTestId('keyboard-amount')).toHaveTextContent('0.00000001 BTC')
     fireEvent.click(screen.getByTestId('save-amount'))
     expect(onSave).toHaveBeenCalledWith('0.00000001', 'btc')
+  })
+
+  it('backspaces to empty and then has nothing to save', () => {
+    renderKeyboard(Unit.SATS)
+    press('1', '2', 'x', 'x')
+    expect(screen.getByTestId('keyboard-amount')).toHaveTextContent('0 sats')
+    expect(screen.getByTestId('save-amount')).toBeDisabled()
+  })
+
+  it('stops at 21 M BTC', () => {
+    const onSave = renderKeyboard(Unit.BTC)
+    press(...'2100000000000000', '0')
+    expect(screen.getByTestId('keyboard-amount')).toHaveTextContent('21000000.00000000 BTC')
+    fireEvent.click(screen.getByTestId('save-amount'))
+    expect(onSave).toHaveBeenCalledWith('21000000.00000000', 'btc')
+  })
+
+  it('fills Max from the available balance', () => {
+    const onSave = renderKeyboard(Unit.SATS)
+    fireEvent.click(screen.getByText(/^1,000,000/))
+    expect(screen.getByTestId('keyboard-amount')).toHaveTextContent('1000000 sats')
+    fireEvent.click(screen.getByTestId('save-amount'))
+    expect(onSave).toHaveBeenCalledWith('1000000', 'sats')
+  })
+
+  it("enters Send's default BTC mode in a fiat wallet and saves a plain decimal string", () => {
+    const onSave = renderKeyboard(Unit.BTC, vi.fn(), Currencies.USD, { defaultMode: 'btc' })
+    press('2', '0', '0', '0', '0')
+    expect(screen.getByTestId('keyboard-amount')).toHaveTextContent('0.00020000 BTC')
+    fireEvent.click(screen.getByTestId('save-amount'))
+    expect(onSave).toHaveBeenCalledWith('0.00020000', 'btc')
   })
 
   it('has no decimal-point key', () => {

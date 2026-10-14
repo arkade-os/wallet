@@ -1,9 +1,13 @@
 // Scales with decimals so an 18-decimal asset still has a 12-digit whole part.
 export const maxEntryDigits = (decimals: number): number => Math.max(16, decimals + 12)
 
-export const pushDigit = (digits: string, key: string, decimals: number): string => {
+/** All bitcoin there will ever be, in sats: in sats and BTC modes the digits count sats. */
+export const MAX_SATS = 2_100_000_000_000_000n
+
+export const pushDigit = (digits: string, key: string, decimals: number, maxUnits?: bigint): string => {
   if (!/^\d$/.test(key) || digits.length >= maxEntryDigits(decimals)) return digits
-  return digits === '' && key === '0' ? '' : digits + key
+  if (digits === '' && key === '0') return ''
+  return maxUnits !== undefined && BigInt(digits + key) > maxUnits ? digits : digits + key
 }
 
 export const popDigit = (digits: string): string => digits.slice(0, -1)
