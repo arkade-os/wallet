@@ -53,6 +53,13 @@ vi.mock('../../../components/QrCode', () => ({
 }))
 const copyToClipboard = vi.fn<(value: string) => Promise<void>>(async () => {})
 vi.mock('../../../lib/clipboard', () => ({ copyToClipboard: (v: string) => copyToClipboard(v) }))
+const browser = vi.hoisted(() => ({ mobile: false }))
+vi.mock('../../../lib/browser', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../lib/browser')>()),
+  get isMobileBrowser() {
+    return browser.mobile
+  },
+}))
 
 beforeAll(() => {
   if (!navigator.serviceWorker) {
@@ -439,6 +446,44 @@ describe('Receive screen, token rails', () => {
 
     expect(await screen.findByText('Send exactly 17.156 USDT on Tron')).toBeInTheDocument()
     expect(await copiedQr()).toBe(TOKEN_DEPOSITS['ff-usdttrc'])
+  })
+
+  it('copies the deposit address and the exact amount, never the payment URI', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+    renderReceive(20_000, tokensOn)
+    await pick('USDT (Arbitrum One)')
+    await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy' })))
+    expect(copyToClipboard).toHaveBeenLastCalledWith(TOKEN_DEPOSITS['ff-usdtarbitrum'])
+
+    await act(async () => fireEvent.click(await screen.findByTestId('token-amount-address-copy')))
+    expect(copyToClipboard).toHaveBeenLastCalledWith('17.156')
+  })
+
+  describe('on a phone', () => {
+    beforeEach(() => (browser.mobile = true))
+    afterEach(() => (browser.mobile = false))
+
+    it('opens the payment URI in the installed wallet', async () => {
+      serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+      renderReceive(20_000, tokensOn)
+      await pick('USDT (Arbitrum One)')
+
+      expect(await screen.findByRole('link', { name: 'Open in wallet' })).toHaveAttribute(
+        'href',
+        arbitrumUri(20_000_000),
+      )
+    })
+
+    it('offers no wallet link for a bare Tron address', async () => {
+      serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+      renderReceive(20_000, tokensOn)
+      await pick('USDT (Tron)')
+
+      await screen.findByText('Send exactly 17.156 USDT on Tron')
+      expect(screen.queryByRole('link', { name: 'Open in wallet' })).not.toBeInTheDocument()
+    })
   })
 
   it('renders a simulated Solana option with a Solana Pay value', async () => {

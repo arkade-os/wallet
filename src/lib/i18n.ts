@@ -453,6 +453,8 @@ export const translations = {
       tokenSendExactly: 'Send exactly {amount} {unit} on {chain}',
       tokenQuoteValid: 'Quote by {provider}, valid for {time}',
       tokenDepositAddress: '{token} deposit address',
+      tokenAmount: 'Exact amount ({unit})',
+      openInWallet: 'Open in wallet',
     },
     scanner: {
       pointAtQr: 'Point at the QR code',
@@ -1328,6 +1330,8 @@ export const translations = {
       tokenSendExactly: 'Envía exactamente {amount} {unit} en {chain}',
       tokenQuoteValid: 'Cotización de {provider}, válida por {time}',
       tokenDepositAddress: 'Dirección de depósito {token}',
+      tokenAmount: 'Monto exacto ({unit})',
+      openInWallet: 'Abrir en la billetera',
     },
     scanner: {
       pointAtQr: 'Apunta al código QR',

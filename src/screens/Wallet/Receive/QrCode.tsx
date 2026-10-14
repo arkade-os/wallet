@@ -313,9 +313,11 @@ export default function ReceiveQRCode() {
     if (generating) return
     if (!prefersReducedMotion) hapticSubtle()
     setShowCopySheet(true)
-    if (qrCodeValue && copied !== qrCodeValue) {
-      const written = await copyToClipboard(qrCodeValue)
-      if (written) setCopied(qrCodeValue)
+    // A token's QR value is a payment URI, which a wallet's address field rejects.
+    const value = tokenQuote?.destination ?? qrCodeValue
+    if (value && copied !== value) {
+      const written = await copyToClipboard(value)
+      if (written) setCopied(value)
     }
   }
 
@@ -609,6 +611,8 @@ export default function ReceiveQRCode() {
                       token: `${activeToken.unit.code} (${activeToken.chain})`,
                     }),
                     value: tokenQuote.destination,
+                    amountTitle: t('receive.tokenAmount', { unit: activeToken.unit.code }),
+                    amount: tokenQuote.amount,
                   }
                 : undefined
             }
@@ -643,7 +647,7 @@ function AddressList({
   onSelect,
   copied,
 }: {
-  tokenDeposit?: { title: string; value: string }
+  tokenDeposit?: { title: string; value: string; amountTitle: string; amount: string }
   bip21Uri: string
   btcAddress: string
   arkAddress: string
@@ -658,14 +662,24 @@ function AddressList({
   return (
     <FlexCol gap='0.75rem'>
       {tokenDeposit ? (
-        <AddressLine
-          testId='token'
-          title={tokenDeposit.title}
-          value={tokenDeposit.value}
-          onCopy={onCopy}
-          onSelect={onSelect}
-          copied={copied}
-        />
+        <>
+          <AddressLine
+            testId='token'
+            title={tokenDeposit.title}
+            value={tokenDeposit.value}
+            onCopy={onCopy}
+            onSelect={onSelect}
+            copied={copied}
+          />
+          <AddressLine
+            testId='token-amount'
+            title={tokenDeposit.amountTitle}
+            value={tokenDeposit.amount}
+            onCopy={onCopy}
+            onSelect={onSelect}
+            copied={copied}
+          />
+        </>
       ) : null}
       {bip21Uri ? (
         <AddressLine
@@ -779,8 +793,17 @@ function TokenQuoteNote({ rail, quote }: { rail: LnurlTokenRail; quote: LnurlTok
       <Text small>
         {t('receive.tokenSendExactly', { amount: quote.amount, unit: rail.unit.code, chain: rail.chain })}
       </Text>
-      <Text small color='neutral-500'>
+      <Text small color='neutral-500' wrap centered>
         {t('receive.tokenQuoteValid', { provider: rail.provider, time })}
+        {/* A phone hands the URI to its installed wallet; Tron's bare address has no scheme to open. */}
+        {isMobileBrowser && quote.value !== quote.destination ? (
+          <>
+            {' · '}
+            <a href={quote.value} className='font-semibold text-purple-700 dark:text-purple-300'>
+              {t('receive.openInWallet')}
+            </a>
+          </>
+        ) : null}
       </Text>
     </FlexCol>
   )
