@@ -354,6 +354,18 @@ describe('Receive QR Code screen', () => {
       expect(selector).toHaveFocus()
     })
 
+    it('closes the method list when keyboard focus leaves it, leaving focus where it went', async () => {
+      renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
+      const selector = await screen.findByRole('button', { name: /Showing/ })
+      fireEvent.click(selector)
+
+      const outside = screen.getByRole('button', { name: 'Copy QR code' })
+      act(() => outside.focus())
+
+      expect(selector).toHaveAttribute('aria-expanded', 'false')
+      expect(outside).toHaveFocus()
+    })
+
     it.each([
       [false, true],
       [true, false],
@@ -474,20 +486,24 @@ describe('Receive QR Code screen', () => {
 
 describe('Receive QR Code screen — amount sheet denomination', () => {
   // `rate` sats per dollar; 0 means no rate, so no conversion.
-  const sheetFixture = (unit: Unit, setRecvInfo: (info: { satoshis: number }) => void, rate = 1000) =>
-    buildTree({
-      ...tapFixture(),
-      flow: { ...tapFixture().flow, setRecvInfo } as any,
-      config: {
-        ...mockConfigContextValue,
-        useFiat: true,
-        config: { ...mockConfigContextValue.config, currency: Currencies.USD, unit },
-      },
-      fiat: {
-        toFiat: (sats?: number) => (rate ? (sats ?? 0) / rate : 0),
-        fromFiat: (fiat?: number) => Math.floor((fiat ?? 0) * rate),
-      },
-    })
+  const sheetOptions = (
+    unit: Unit,
+    setRecvInfo: (info: { satoshis: number }) => void,
+    rate = 1000,
+  ): RenderOverrides => ({
+    ...tapFixture(),
+    flow: { ...tapFixture().flow, setRecvInfo } as any,
+    config: {
+      ...mockConfigContextValue,
+      useFiat: true,
+      config: { ...mockConfigContextValue.config, currency: Currencies.USD, unit },
+    },
+    fiat: {
+      toFiat: (sats?: number) => (rate ? (sats ?? 0) / rate : 0),
+      fromFiat: (fiat?: number) => Math.floor((fiat ?? 0) * rate),
+    },
+  })
+  const sheetFixture = (...args: Parameters<typeof sheetOptions>) => buildTree(sheetOptions(...args))
   const sheetInput = () => document.querySelector('input[name="receive-amount-sheet"]') as HTMLInputElement
   const openSheet = async () => fireEvent.click(await screen.findByRole('button', { name: 'Add amount' }))
   const setAmount = (value: string) => {
@@ -549,6 +565,26 @@ describe('Receive QR Code screen — amount sheet denomination', () => {
     setAmount('0.0002')
 
     expect(setRecvInfo).toHaveBeenLastCalledWith(expect.objectContaining({ satoshis: 20_000 }))
+  })
+
+  it('leaves an asset amount as typed when the rate goes', async () => {
+    const assetId = 'ab'.repeat(32)
+    const assetTree = (rate: number) =>
+      buildTree({
+        ...sheetOptions(Unit.BTC, vi.fn(), rate),
+        flow: { ...tapFixture().flow, recvInfo: { ...tapFixture().flow!.recvInfo!, assetId } } as any,
+        wallet: {
+          svcWallet: mockSvcWallet as any,
+          assetMetadataCache: new Map([[assetId, { metadata: { decimals: 2, ticker: 'TKN' } }]]) as any,
+        },
+      })
+    const { rerender } = render(assetTree(1000))
+    await openSheet()
+    fireEvent.change(sheetInput(), { target: { value: '12.5' } })
+
+    rerender(assetTree(0))
+
+    expect(sheetInput()).toHaveValue(12.5)
   })
 })
 

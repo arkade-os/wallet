@@ -95,10 +95,10 @@ export default function ReceiveQRCode() {
   const textOf = (sats: number, fiat: boolean) => textFromSats(sats, fiat, config.unit, toFiat, fiatDecimals)
 
   useEffect(() => {
-    if (currencyConversionUseful || entryMode !== 'fiat') return
+    if (recvInfo.assetId || currencyConversionUseful || entryMode !== 'fiat') return
     setEntryMode('unit')
     setAmountTextValue(sheetSats ? textOf(sheetSats, false) : '')
-  }, [config.unit, currencyConversionUseful, entryMode, sheetSats])
+  }, [recvInfo.assetId, config.unit, currencyConversionUseful, entryMode, sheetSats])
 
   const [sharing, setSharing] = useState(false)
   const [addressesLoaded, setAddressesLoaded] = useState(false)
@@ -364,7 +364,7 @@ export default function ReceiveQRCode() {
 
   const handleSheetAmountChange = (value: string) => {
     setAmountTextValue(value)
-    setSheetSats(satsFromEntry(Number(value), fiatEntry, config.unit, fromFiat))
+    if (!assetMeta) setSheetSats(satsFromEntry(Number(value), fiatEntry, config.unit, fromFiat))
   }
 
   const handleEntryModeChange = (mode: InputAmountMode) => {

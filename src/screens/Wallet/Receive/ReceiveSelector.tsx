@@ -100,6 +100,13 @@ export default function ReceiveSelector(p: {
                 animate={{ opacity: 1, y: 0 }}
                 exit={reduced ? undefined : { opacity: 0, y: -4, pointerEvents: 'none' }}
                 transition={{ duration: 0.2, ease: EASE_OUT_QUINT_TUPLE }}
+                onBlur={(e) => {
+                  // Null relatedTarget is a backdrop tap or window blur; the backdrop handles the former.
+                  const to = e.relatedTarget as Node | null
+                  if (!to || e.currentTarget.contains(to)) return
+                  refocus.current = false
+                  onClose()
+                }}
                 style={{ ...box, maxHeight: `calc(100dvh - ${box.top}px - 0.5rem)` }}
                 className='hide-scrollbar fixed z-50 flex flex-col gap-0.5 overflow-y-auto rounded-xl border border-neutral-100 bg-popover p-1 text-popover-foreground shadow-md'
               >
