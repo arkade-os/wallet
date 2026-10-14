@@ -52,7 +52,6 @@ test.skip('should change from lnurl to bolt11 with amount', async ({ page, isMob
   }
 
   // copy invoice
-  await page.getByText(tr.receive.copy).click()
   await page.getByTestId('invoice-address-copy').click()
   const invoice = await readClipboard(page)
   await sleep(1000)
