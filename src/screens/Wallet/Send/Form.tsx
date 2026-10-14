@@ -40,7 +40,7 @@ import { appIntentHandoff, redirectToCallback } from '../../../lib/appIntent'
 import OpenInApp from '../../AppIntent/OpenInApp'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
-import { centsToUnits, liquidBtcBalance, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
+import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
 import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -211,7 +211,9 @@ export default function SendForm() {
   const RECIPIENT_DEBOUNCE_MS = 800
   const hasAssets = assetBalances.length > 0
   const reserveApplied = !isAssetSend && hasAssets
-  const liquidBalance = liquidBtcBalance(availableBalance, reserveApplied, aspInfo.dust)
+  // The SDK's `available` already holds back the dust carrier asset change
+  // needs, so a BTC spend may take all of it.
+  const liquidBalance = availableBalance
 
   const smartSetError = (str: string) => {
     setError(
