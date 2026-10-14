@@ -95,6 +95,26 @@ export const encodeBip21 = (address: string, arkAddress: string, invoice: string
   return bip21.endsWith('&') || bip21.endsWith('?') ? bip21.slice(0, -1) : bip21
 }
 
+// BIP21 amount= only sizes on-chain and Arkade parts; an invoice already carries its own.
+export const encodeBitcoinLink = ({
+  address = '',
+  ark = '',
+  lightning = '',
+  sats = 0,
+}: {
+  address?: string
+  ark?: string
+  lightning?: string
+  sats?: number
+}): string => {
+  const params = [
+    ark ? `ark=${ark}` : '',
+    lightning ? `lightning=${lightning}` : '',
+    sats && (address || ark) ? `amount=${prettyNumber(fromSatoshis(sats), 8, false)}` : '',
+  ].filter(Boolean)
+  return `bitcoin:${address}${params.length ? `?${params.join('&')}` : ''}`
+}
+
 export const encodeBip21Asset = (arkAddress: string, assetId: string, cents: bigint, decimals?: number) => {
   return `bitcoin:?ark=${arkAddress}&assetid=${assetId}&amount=${centsToUnits(cents, decimals)}`
 }
