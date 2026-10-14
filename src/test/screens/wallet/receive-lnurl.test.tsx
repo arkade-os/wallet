@@ -245,6 +245,19 @@ describe('Receive screen, rail composition', () => {
     expect(screen.getByText('Reusable · the payer picks the amount')).toBeInTheDocument()
   })
 
+  it('puts lightning:<invoice> in the QR and the payment link row for Lightning with an amount', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    renderReceive(10_000)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled())
+
+    await pickMethod(/^Lightning/)
+
+    const link = `lightning:${fakeInvoice(10_000_000)}`
+    await waitFor(async () => expect(await copiedQr()).toBe(link))
+    await copyPart('bip21')
+    expect(copyToClipboard).toHaveBeenLastCalledWith(link)
+  })
+
   it.each([
     ['named', namedAddress('alice')],
     ['nameless', namelessAddress()],

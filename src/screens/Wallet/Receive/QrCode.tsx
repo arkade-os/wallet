@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
@@ -26,12 +26,19 @@ import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
 import SheetModal from '../../../components/SheetModal'
 import Text, { TextSecondary } from '../../../components/Text'
 import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard'
-import { fromSatoshis, prettyNumber, toSatoshis } from '../../../lib/format'
+import {
+  canConvertCurrency,
+  fromSatoshis,
+  prettyNumber,
+  satsFromEntry,
+  textFromSats,
+  toSatoshis,
+} from '../../../lib/format'
 import { hapticSubtle } from '../../../lib/haptics'
 import { isMobileBrowser } from '../../../lib/browser'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
-import { AssetOption, Currencies, Unit } from '../../../lib/types'
+import { AssetOption, Unit } from '../../../lib/types'
 import { EASE_OUT_QUINT, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
 import { walletAssetPresentationForId } from '../../../lib/accountAssets'
 import { ConfigContext } from '../../../providers/config'
@@ -80,9 +87,18 @@ export default function ReceiveQRCode() {
 
   const [assetAmount, setAssetAmount] = useState(BigInt(0))
   const [amountTextValue, setAmountTextValue] = useState('')
-  const currencyConversionUseful = config.currency !== Currencies.BTC && toFiat(100_000_000) > 0 && fromFiat(1) > 0
+  // The sheet's amount as typed, so a denomination switch re-expresses it without the rounding of re-parsing.
+  const [sheetSats, setSheetSats] = useState(0)
+  const currencyConversionUseful = canConvertCurrency(config.currency, toFiat, fromFiat)
   const [entryMode, setEntryMode] = useState<InputAmountMode>(useFiat && currencyConversionUseful ? 'fiat' : 'unit')
   const fiatEntry = entryMode === 'fiat' && useFiat && currencyConversionUseful
+  const textOf = (sats: number, fiat: boolean) => textFromSats(sats, fiat, config.unit, toFiat, fiatDecimals)
+
+  useEffect(() => {
+    if (currencyConversionUseful || entryMode !== 'fiat') return
+    setEntryMode('unit')
+    setAmountTextValue(sheetSats ? textOf(sheetSats, false) : '')
+  }, [config.unit, currencyConversionUseful, entryMode, sheetSats])
 
   const [sharing, setSharing] = useState(false)
   const [addressesLoaded, setAddressesLoaded] = useState(false)
@@ -319,11 +335,14 @@ export default function ReceiveQRCode() {
     } else {
       const num = Number(value)
       if (Number.isNaN(num) || !Number.isFinite(num)) throw new Error('Invalid amount')
-      const shouldConvertFromFiat = inputMode ? inputMode === 'fiat' : fiatEntry
-      const shouldConvertToSats = inputMode
-        ? inputMode === 'btc' || (!useFiat && config.unit === Unit.BTC)
-        : config.unit === Unit.BTC
-      const sats = shouldConvertFromFiat ? fromFiat(num) : shouldConvertToSats ? toSatoshis(num) : num
+      const shouldConvertFromFiat = inputMode === 'fiat'
+      const shouldConvertToSats = inputMode === 'btc' || (!useFiat && config.unit === Unit.BTC)
+      const keypadSats = shouldConvertFromFiat ? fromFiat(num) : shouldConvertToSats ? toSatoshis(num) : num
+      const sats = inputMode
+        ? keypadSats
+        : value === amountTextValue
+          ? sheetSats
+          : satsFromEntry(num, fiatEntry, config.unit, fromFiat)
       if (sats === satoshis) setRecvInfo({ ...recvInfo, satoshis: sats })
       // The negotiated invoice is for the old amount, and the negotiate effect
       // refuses to renegotiate while one exists — so leaving it in place would
@@ -343,24 +362,21 @@ export default function ReceiveQRCode() {
     }
   }
 
-  // Re-expresses the typed text in the new denomination, read with the mode it was typed in.
+  const handleSheetAmountChange = (value: string) => {
+    setAmountTextValue(value)
+    setSheetSats(satsFromEntry(Number(value), fiatEntry, config.unit, fromFiat))
+  }
+
   const handleEntryModeChange = (mode: InputAmountMode) => {
     setEntryMode(mode)
-    const num = Number(amountTextValue)
-    if (!amountTextValue || !Number.isFinite(num)) return
-    const sats = fiatEntry ? fromFiat(num) : config.unit === Unit.BTC ? toSatoshis(num) : num
-    setAmountTextValue(
-      mode === 'fiat' && useFiat && currencyConversionUseful
-        ? prettyNumber(toFiat(sats), fiatDecimals(), false)
-        : config.unit === Unit.BTC
-          ? prettyNumber(fromSatoshis(sats), 8, false)
-          : prettyNumber(sats, 0, false),
-    )
+    if (!sheetSats) return
+    setAmountTextValue(textOf(sheetSats, mode === 'fiat' && useFiat && currencyConversionUseful))
   }
 
   const handleAmountClear = () => {
     handleAmountConfirm('0')
     setAmountTextValue('')
+    setSheetSats(0)
   }
 
   const closeAmountEntry = () => {
@@ -369,17 +385,22 @@ export default function ReceiveQRCode() {
     setAmountForTokens(false)
   }
 
-  const pickMethod = (id: string) => {
+  const pickMethod = (id: string): boolean => {
     setPickerOpen(false)
     const next = id as ReceiveMethod
     if (next === 'token') {
-      if (satoshis) return setShowTokenSheet(true)
-      setAmountForTokens(true)
-      return isMobileBrowser ? setShowKeys(true) : setShowAmountSheet(true)
+      if (satoshis) setShowTokenSheet(true)
+      else {
+        setAmountForTokens(true)
+        if (isMobileBrowser) setShowKeys(true)
+        else setShowAmountSheet(true)
+      }
+      return true
     }
     setMethod(next)
     if ((next === 'lnaddress' || next === 'full') && !satoshis && next !== config.receiveUnifiedMode)
       backupAndUpdateConfig({ ...config, receiveUnifiedMode: next })
+    return false
   }
 
   const showPart = (id: PartId) => {
@@ -598,34 +619,28 @@ export default function ReceiveQRCode() {
                     }))}
                   />
                 )}
-                {/* 'wait' keeps one set of rows, and so one of each copy test id, in the DOM at a time. */}
-                <AnimatePresence mode='wait' initial={false}>
-                  {generating ? null : (
-                    <motion.div
-                      key={isAssetReceive ? 'asset' : shown}
-                      initial={prefersReducedMotion ? false : { opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0, transition: { duration: 0.22, ease: EASE_OUT_QUINT_TUPLE } }}
-                      exit={
-                        prefersReducedMotion
-                          ? undefined
-                          : { opacity: 0, transition: { duration: 0.12, ease: EASE_OUT_QUINT_TUPLE } }
-                      }
-                      aria-hidden={pickerOpen || undefined}
-                      {...(pickerOpen && { inert: '' })}
-                    >
-                      <ReceiveParts
-                        method={isAssetReceive ? 'ark' : shown}
-                        label={methodLabel(shown)}
-                        parts={parts}
-                        titleOf={titleOf}
-                        inQr={inQr?.id}
-                        copied={copied}
-                        onShow={showPart}
-                        onCopy={handleCopy}
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                {/* Remounted per method so the new rows fade in; no exit, so stale rows are never there to tap. */}
+                {generating ? null : (
+                  <motion.div
+                    key={isAssetReceive ? 'asset' : shown}
+                    initial={prefersReducedMotion ? false : { opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.22, ease: EASE_OUT_QUINT_TUPLE }}
+                    aria-hidden={pickerOpen || undefined}
+                    {...(pickerOpen && { inert: '' })}
+                  >
+                    <ReceiveParts
+                      method={isAssetReceive ? 'ark' : shown}
+                      label={methodLabel(shown)}
+                      parts={parts}
+                      titleOf={titleOf}
+                      inQr={inQr?.id}
+                      copied={copied}
+                      onShow={showPart}
+                      onCopy={handleCopy}
+                    />
+                  </motion.div>
+                )}
               </div>
               <div
                 className='min-h-5'
@@ -683,7 +698,7 @@ export default function ReceiveQRCode() {
             focus={!isMobileBrowser}
             readOnly={isMobileBrowser}
             name='receive-amount-sheet'
-            onChange={setAmountTextValue}
+            onChange={handleSheetAmountChange}
             onModeChange={handleEntryModeChange}
             mode={entryMode}
             switchable

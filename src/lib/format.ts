@@ -271,3 +271,25 @@ export const isBurn = (tx: Tx): boolean => {
 export const toUint8Array = (str: string): Uint8Array => {
   return new TextEncoder().encode(str)
 }
+
+export const canConvertCurrency = (
+  currency: Currencies,
+  toFiat: (sats: number) => number,
+  fromFiat: (fiat: number) => number,
+): boolean => currency !== Currencies.BTC && toFiat(100_000_000) > 0 && fromFiat(1) > 0
+
+export const satsFromEntry = (num: number, fiat: boolean, unit: Unit, fromFiat: (fiat: number) => number): number =>
+  fiat ? fromFiat(num) : unit === Unit.BTC ? toSatoshis(num) : Math.floor(num)
+
+export const textFromSats = (
+  sats: number,
+  fiat: boolean,
+  unit: Unit,
+  toFiat: (sats: number) => number,
+  fiatDecimals: () => number,
+): string =>
+  fiat
+    ? prettyNumber(toFiat(sats), fiatDecimals(), false)
+    : unit === Unit.BTC
+      ? prettyNumber(fromSatoshis(sats), 8, false)
+      : prettyNumber(sats, 0, false)

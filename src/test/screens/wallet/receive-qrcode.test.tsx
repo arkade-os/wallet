@@ -23,6 +23,8 @@ import { ToastProvider } from '../../../components/Toast'
 import { LanguageContext, translate } from '../../../providers/language'
 import { Currencies, Language, Unit } from '../../../lib/types'
 import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
+import ReceiveSelector from '../../../screens/Wallet/Receive/ReceiveSelector'
+import { useState } from 'react'
 
 // Mock qr module used by QrCode component
 vi.mock('qr', () => ({
@@ -340,6 +342,49 @@ describe('Receive QR Code screen', () => {
       expect(stage().className).toBe(closed)
     })
 
+    it('closes the method list on a tap outside it, back on the button', async () => {
+      renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
+      const selector = await screen.findByRole('button', { name: /Showing/ })
+
+      fireEvent.click(selector)
+      expect(screen.getByRole('radio', { name: 'Unified · Full details' })).toHaveFocus()
+      fireEvent.click(screen.getByTestId('receive-selector-backdrop'))
+
+      expect(selector).toHaveAttribute('aria-expanded', 'false')
+      expect(selector).toHaveFocus()
+    })
+
+    it.each([
+      [false, true],
+      [true, false],
+    ])('returns focus to the button after a pick unless it opened a sheet (%s)', (opensSheet, focused) => {
+      function Harness() {
+        const [open, setOpen] = useState(true)
+        const close = () => setOpen(false)
+        const pick = () => {
+          close()
+          return opensSheet
+        }
+        const rows = [{ id: 'ark', title: 'Arkade' }]
+        return (
+          <ReceiveSelector
+            label='Arkade'
+            rows={rows}
+            active='ark'
+            open={open}
+            onToggle={close}
+            onClose={close}
+            onPick={pick}
+          />
+        )
+      }
+      render(<Harness />)
+
+      fireEvent.click(screen.getByRole('radio', { name: 'Arkade' }))
+
+      expect(screen.getByRole('button', { name: /Showing/ }) === document.activeElement).toBe(focused)
+    })
+
     it('translates the method labels like the rest of the screen', async () => {
       renderReceiveQrCode({ ...amountFixture('lnbc10u1ptest'), language: Language.Spanish })
 
@@ -428,7 +473,8 @@ describe('Receive QR Code screen', () => {
 })
 
 describe('Receive QR Code screen — amount sheet denomination', () => {
-  const sheetFixture = (unit: Unit, setRecvInfo: (info: { satoshis: number }) => void) =>
+  // `rate` sats per dollar; 0 means no rate, so no conversion.
+  const sheetFixture = (unit: Unit, setRecvInfo: (info: { satoshis: number }) => void, rate = 1000) =>
     buildTree({
       ...tapFixture(),
       flow: { ...tapFixture().flow, setRecvInfo } as any,
@@ -438,8 +484,8 @@ describe('Receive QR Code screen — amount sheet denomination', () => {
         config: { ...mockConfigContextValue.config, currency: Currencies.USD, unit },
       },
       fiat: {
-        toFiat: (sats?: number) => (sats ?? 0) / 1000,
-        fromFiat: (fiat?: number) => Math.floor((fiat ?? 0) * 1000),
+        toFiat: (sats?: number) => (rate ? (sats ?? 0) / rate : 0),
+        fromFiat: (fiat?: number) => Math.floor((fiat ?? 0) * rate),
       },
     })
   const sheetInput = () => document.querySelector('input[name="receive-amount-sheet"]') as HTMLInputElement
@@ -475,6 +521,34 @@ describe('Receive QR Code screen — amount sheet denomination', () => {
     setAmount('5')
 
     expect(setRecvInfo).toHaveBeenLastCalledWith(expect.objectContaining({ satoshis: 5000 }))
+  })
+
+  it('keeps the typed amount exact across a round trip of switches', async () => {
+    const setRecvInfo = vi.fn()
+    render(sheetFixture(Unit.BTC, setRecvInfo, 110.99))
+    await openSheet()
+
+    fireEvent.change(sheetInput(), { target: { value: '5' } })
+    fireEvent.click(screen.getByTestId('input-amount-switch'))
+    fireEvent.click(screen.getByTestId('input-amount-switch'))
+    expect(sheetInput()).toHaveValue(4.99)
+    fireEvent.click(screen.getByRole('button', { name: 'Set amount' }))
+
+    expect(setRecvInfo).toHaveBeenLastCalledWith(expect.objectContaining({ satoshis: 554 }))
+  })
+
+  it('falls back to the bitcoin unit when the rate goes, and stays there when it returns', async () => {
+    const setRecvInfo = vi.fn()
+    const { rerender } = render(sheetFixture(Unit.BTC, setRecvInfo))
+    await openSheet()
+    expect(screen.getByRole('button', { name: `Enter amount in ${Unit.BTC}` })).toBeInTheDocument()
+
+    rerender(sheetFixture(Unit.BTC, setRecvInfo, 0))
+    rerender(sheetFixture(Unit.BTC, setRecvInfo))
+    expect(await screen.findByRole('button', { name: `Enter amount in ${Currencies.USD}` })).toBeInTheDocument()
+    setAmount('0.0002')
+
+    expect(setRecvInfo).toHaveBeenLastCalledWith(expect.objectContaining({ satoshis: 20_000 }))
   })
 })
 

@@ -2,9 +2,9 @@ import { useContext, useEffect, useRef, useState } from 'react'
 import { FiatContext } from '../providers/fiat'
 import InputContainer from './InputContainer'
 import { ConfigContext } from '../providers/config'
-import { fromSatoshis, prettyNumber, toSatoshis } from '../lib/format'
+import { canConvertCurrency, fromSatoshis, prettyNumber, toSatoshis } from '../lib/format'
 import { FIAT_SYMBOLS } from '../lib/fiat'
-import { AssetOption, Currencies, Unit } from '../lib/types'
+import { AssetOption, Unit } from '../lib/types'
 import { TextSecondary } from './Text'
 import { hapticLight } from '../lib/haptics'
 import { fiatAccountAssetSatoshis } from '../lib/accountAssets'
@@ -71,7 +71,7 @@ export default function InputAmount({
   // control the mode so other entry surfaces — the mobile keyboard — stay on
   // the same denomination); a plain one follows the wallet-wide useFiat flag.
   const mode = controlledMode ?? internalMode
-  const currencyConversionUseful = config.currency !== Currencies.BTC && toFiat(100_000_000) > 0 && fromFiat(1) > 0
+  const currencyConversionUseful = canConvertCurrency(config.currency, toFiat, fromFiat)
   const fiatEntry = switchable ? mode === 'fiat' && useFiat && currencyConversionUseful : useFiat
 
   const toSats = (value: number): number => {
@@ -180,7 +180,7 @@ export default function InputAmount({
           name={name}
           type='number'
           onFocus={onFocus}
-          className='input'
+          className='input [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:[-webkit-appearance:none] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:[-webkit-appearance:none]'
           inputMode='decimal'
           disabled={disabled}
           readOnly={readOnly}
