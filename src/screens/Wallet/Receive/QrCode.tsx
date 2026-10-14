@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useCallback, useContext, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
@@ -171,6 +171,7 @@ export default function ReceiveQRCode() {
 
   const [method, setMethod] = useState<ReceiveMethod>(config.receiveUnifiedMode)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const closePicker = useCallback(() => setPickerOpen(false), [])
   const [tokenId, setTokenId] = useState<string>()
   const [amountForTokens, setAmountForTokens] = useState(false)
   const tokenRails = useLnurlTokenRails(
@@ -604,7 +605,7 @@ export default function ReceiveQRCode() {
                     active={shown}
                     open={pickerOpen}
                     onToggle={() => setPickerOpen((o) => !o)}
-                    onClose={() => setPickerOpen(false)}
+                    onClose={closePicker}
                     onPick={pickMethod}
                     rows={methods.map((m) => ({
                       id: m,
