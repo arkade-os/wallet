@@ -36,6 +36,7 @@ let env = { ...process.env }
 let relayFile
 let relayStarted = false
 let started = false
+let imagesAttempted = false
 let daemon
 let daemonOutput = ''
 let feed
@@ -207,6 +208,10 @@ async function cleanOwnedResources() {
               '--env',
               env.TAXI_REGTEST_ENV_FILE,
             ]),
+        }
+      : {}),
+    ...(imagesAttempted
+      ? {
           cleanImages: async () => {
             const owned = [`${namespace}-taxi`, `${namespace}-nak`]
             const inventory = await run('image-inventory', 'docker', [
@@ -278,6 +283,7 @@ async function main() {
   const infrastructureEnv = resolve(root, 'infrastructure.env')
   await privateEnv(infrastructureEnv, infra)
   env = { ...env, ...infra, TAXI_REGTEST_ENV_FILE: infrastructureEnv }
+  imagesAttempted = true
   await run('taxi-build', 'docker', ['build', '-t', infra.TAXI_IMAGE, taxiRoot])
   await run('nak-build', 'docker', ['build', '-t', `${namespace}-nak`, '-f', resolve('nak.Dockerfile'), walletRoot])
   relayFile = resolve(root, 'relay.json')
@@ -541,6 +547,7 @@ async function cli() {
       assert.equal(env.REGTEST_PROJECT, namespace)
       assert.equal(env.REGTEST_CONTAINER_PREFIX, `${namespace}-`)
       started = true
+      imagesAttempted = true
       await cleanup()
     } catch (error) {
       if (error.code !== 'ENOENT') {

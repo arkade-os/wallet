@@ -1,9 +1,12 @@
 // @vitest-environment node
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { promisify } from 'node:util'
+import { fileURLToPath } from 'node:url'
 import { it } from 'vitest'
 import { appendEvidence, cleanupOwnedStages, port, refs } from './taxi-native-ci.mjs'
 
@@ -153,6 +156,78 @@ it('cleans infrastructure and restores registries after browser cleanup rejects'
     assert.equal(await readFile(file, 'utf8'), 'original registry')
     await assert.rejects(readFile(temporary), { code: 'ENOENT' })
   } finally {
+    await rm(directory, { recursive: true })
+  }
+})
+
+it('cleans only owned images when the second build fails before infrastructure starts', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'taxi-native-build-cleanup-'))
+  const callsFile = join(directory, 'calls.jsonl')
+  const shim = join(directory, 'commands.cjs')
+  try {
+    await mkdir(join(directory, 'regtest'))
+    await writeFile(join(directory, 'regtest', '.env.defaults'), '')
+    await writeFile(
+      shim,
+      `
+const { appendFileSync } = require('node:fs')
+const { basename } = require('node:path')
+const { promisify } = require('node:util')
+const child = require('node:child_process')
+const refs = ${JSON.stringify(refs)}
+let image
+function execFile() {}
+execFile[promisify.custom] = async (command, args, options) => {
+  appendFileSync(${JSON.stringify(callsFile)}, JSON.stringify({ command, args }) + '\\n')
+  if (command === 'git') return { stdout: refs[basename(options.cwd)] + '\\n', stderr: '' }
+  if (command === 'docker' && args[0] === 'build') {
+    if (!image) { image = args[2]; return { stdout: '', stderr: '' } }
+    throw Object.assign(new Error('NAK build failed'), { code: 1, stdout: '', stderr: '' })
+  }
+  if (command === 'docker' && args[0] === 'image') return { stdout: args[1] === 'ls' ? image + '\\n' : '', stderr: '' }
+  throw new Error('Unexpected command: ' + command)
+}
+child.execFile = execFile
+require('node:module').syncBuiltinESMExports()
+`,
+    )
+    const script = fileURLToPath(new URL('./taxi-native-ci.mjs', import.meta.url))
+    const result = await promisify(execFile)(process.execPath, ['--require', shim, script, 'Google Chrome'], {
+      cwd: directory,
+      env: {
+        ...process.env,
+        TAXI_NATIVE_SOLVER_ROOT: join(directory, 'solver'),
+        TAXI_NATIVE_TAXI_ROOT: join(directory, 'taxi'),
+        ARKD_IMAGE: 'fixture-arkd',
+        ARKD_WALLET_IMAGE: 'fixture-wallet',
+        EMULATOR_IMAGE: 'fixture-emulator',
+      },
+      windowsHide: true,
+    }).catch((error) => error)
+    assert.equal(result.code, 1)
+    assert.match(result.stderr, /nak-build failed/)
+    const calls = (await readFile(callsFile, 'utf8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line))
+    const builds = calls.filter(({ command, args }) => command === 'docker' && args[0] === 'build')
+    assert.equal(builds.length, 2)
+    const owned = builds[0].args[2]
+    assert.match(owned, /^taxi-native-[0-9a-f]{8}-taxi$/)
+    assert.deepEqual(
+      calls.filter(({ args }) => args[0] === 'image').map(({ args }) => args),
+      [
+        ['image', 'ls', '--format', '{{.Repository}}', '--filter', `reference=${owned.slice(0, -5)}-*`],
+        ['image', 'rm', owned],
+      ],
+    )
+    assert(
+      calls.every(
+        ({ command, args }) => command === 'git' || (command === 'docker' && ['build', 'image'].includes(args[0])),
+      ),
+    )
+  } finally {
+    assert.equal(dirname(directory), tmpdir())
     await rm(directory, { recursive: true })
   }
 })

@@ -16,6 +16,7 @@ import {
   VENDOR_DIR,
   archiveManifest,
   assertCandidateExport,
+  assertInstalledPackages,
   fileSpec,
   packageRootFrom,
   pinnedSourceMismatch,
@@ -127,6 +128,8 @@ for (const name of PINNED_PACKAGES) {
   check(resolution.test(lock), `pnpm-lock.yaml does not bind ${name} to its archive bytes`)
 }
 
+if (failures.length) fail(failures.join('\n  - '))
+
 let entry
 try {
   entry = resolveInstalled(at('package.json'), '@arkade-taxi/client')
@@ -138,6 +141,12 @@ check(
   '--installed was given, and there is no @arkade-taxi/client install to inspect',
 )
 if (entry) {
+  try {
+    assertInstalledPackages([at('package.json')], manifest.artifacts, at(VENDOR_DIR))
+  } catch (error) {
+    failures.push(error.message)
+  }
+  if (failures.length) fail(failures.join('\n  - '))
   for (const name of PINNED_PACKAGES) {
     try {
       const from = name.startsWith('@arkade-taxi/') ? entry : at('package.json')
@@ -162,6 +171,7 @@ if (entry) {
   } catch (error) {
     failures.push(error.message)
   }
+  if (failures.length) fail(failures.join('\n  - '))
   for (const [name, symbol] of [
     ['@arkade-os/sdk', CANDIDATE_SDK_SYMBOL],
     ['@arkade-os/swap', CANDIDATE_SWAP_SYMBOL],
