@@ -9,8 +9,8 @@ describe('SegmentedControl', () => {
 
     expect(screen.getByRole('tablist')).toBeInTheDocument()
     expect(screen.getAllByRole('tab')).toHaveLength(2)
-    expect(screen.getByRole('tab', { name: 'BTC' })).toHaveAttribute('aria-checked', 'false')
-    expect(screen.getByRole('tab', { name: 'USD' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('tab', { name: 'BTC' })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.getByRole('tab', { name: 'USD' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('calls onChange with the clicked option', async () => {

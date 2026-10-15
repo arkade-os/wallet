@@ -18,10 +18,10 @@ export default function SegmentedControl({ options, selected, onChange, getLabel
         const isSelected = selected === opt
         return (
           <button
-            role='tab'
-            aria-checked={isSelected}
-            className='focusable'
             key={opt}
+            role='tab'
+            className='focusable'
+            aria-selected={isSelected}
             onClick={() => onChange(opt)}
             style={{
               flex: 1,
@@ -30,7 +30,6 @@ export default function SegmentedControl({ options, selected, onChange, getLabel
               alignItems: 'center',
               justifyContent: 'center',
               padding: '0.75rem 0.25rem',
-              transition: 'background-color 0.15s',
               WebkitTapHighlightColor: 'transparent',
               borderTopLeftRadius: i === 0 ? '0.5rem' : undefined,
               borderBottomLeftRadius: i === 0 ? '0.5rem' : undefined,
