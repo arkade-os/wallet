@@ -5,7 +5,7 @@ import TaxiDeliveryOptions from '../../../components/TaxiDeliveryOptions'
 import { TextSecondary } from '../../../components/Text'
 import { AspContext, type AspInfo } from '../../../providers/asp'
 import { WalletContext } from '../../../providers/wallet'
-import { centsToUnits } from '../../../lib/assets'
+import { atomicToUnits } from '../../../lib/assets'
 import type { Bip21Taxi } from '../../../lib/bip21'
 import { getReceiverTaxiUrlForNetwork } from '../../../lib/constants'
 import { consoleError } from '../../../lib/logs'
@@ -171,7 +171,7 @@ export default function TaxiChoice({
   if (!url || offer.status === 'checking') return null
   if (offer.status === 'unavailable') return <TextSecondary>{`Taxi unavailable: ${offer.reason}`}</TextSecondary>
 
-  const assetUnits = (units: bigint) => `${centsToUnits(units, decimals)} ${ticker}`
+  const assetUnits = (units: bigint) => `${atomicToUnits(units, decimals)} ${ticker}`
   const chosen =
     value && value.payer !== 'sender'
       ? value.fareId

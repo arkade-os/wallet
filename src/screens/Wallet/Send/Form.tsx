@@ -51,7 +51,7 @@ import {
 import { appIntentHandoff, redirectToCallback } from '../../../lib/appIntent'
 import OpenInApp from '../../AppIntent/OpenInApp'
 import { InfoLine } from '../../../components/Info'
-import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
+import { atomicToUnits, prettyAssetAmount, unitsToAtomic } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
 import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -540,7 +540,7 @@ export default function SendForm() {
           name: presentation.name,
           ticker: presentation.ticker,
           icon: presentation.icon,
-          decimals: meta?.metadata?.decimals ?? 8,
+          decimals: meta?.metadata?.decimals ?? 0,
           trusted: isVerifiedAsset(ab.assetId),
         })
       }
@@ -606,13 +606,13 @@ export default function SendForm() {
               name: presentation.name,
               ticker: presentation.ticker,
               icon: presentation.icon,
-              decimals: meta?.metadata?.decimals ?? 8,
+              decimals: meta?.metadata?.decimals ?? 0,
               trusted: isVerifiedAsset(assetId),
             }
           }
           if (cancelled) return
           setSelectedAsset(found)
-          const rawAmount = assetAmount ? unitsToCents(assetAmount, found.decimals) : BigInt(0)
+          const rawAmount = assetAmount ? unitsToAtomic(assetAmount, found.decimals) : BigInt(0)
           if (assetAmount) setAmountTextValue(assetAmount)
           return setSendInfo((prev) => ({
             ...prev,
@@ -956,7 +956,7 @@ export default function SendForm() {
     setAmountTextValue(value)
     if (isAssetSend) {
       if (sendInfo.account) {
-        const accountAmount = unitsToCents(value, sendInfo.account.decimals)
+        const accountAmount = unitsToAtomic(value, sendInfo.account.decimals)
         setSendInfo({
           ...sendInfo,
           account: { ...sendInfo.account, amount: accountAmount },
@@ -974,7 +974,7 @@ export default function SendForm() {
         })
       } else if (selectedAsset) {
         const decimals = selectedAsset?.decimals
-        const cents = unitsToCents(value, decimals)
+        const cents = unitsToAtomic(value, decimals)
         setSendInfo({
           ...sendInfo,
           assets: [{ assetId: selectedAsset.assetId, amount: cents }],
@@ -1105,7 +1105,7 @@ export default function SendForm() {
       }
       setSelectedAsset(option)
       setEntryMode('unit')
-      setAmountTextValue(centsToUnits(asset.amount, option.decimals))
+      setAmountTextValue(atomicToUnits(asset.amount, option.decimals))
       setValueSats(undefined)
     } else {
       setSelectedAsset(null)
@@ -1275,12 +1275,12 @@ export default function SendForm() {
         assets: [{ assetId: sendInfo.account.source.assetId, amount: sendInfo.account.source.balance }],
         satoshis: 0,
       })
-      setAmountTextValue(centsToUnits(sendInfo.account.balance, sendInfo.account.decimals))
+      setAmountTextValue(atomicToUnits(sendInfo.account.balance, sendInfo.account.decimals))
     } else if (isAssetSend && selectedAsset) {
       const { assetId, balance, decimals } = selectedAsset
       const assets = [{ assetId, amount: balance }]
       setSendInfo({ ...sendInfo, assets, satoshis: 0 })
-      setAmountTextValue(centsToUnits(balance, decimals))
+      setAmountTextValue(atomicToUnits(balance, decimals))
     } else {
       setAmount(liquidBalance)
       setValueSats(liquidBalance)

@@ -293,7 +293,7 @@ describe('Transaction screen', () => {
 
     expect(screen.getByText('Amount issued')).toBeInTheDocument()
     expect(screen.queryByText('Direction')).not.toBeInTheDocument()
-    expect(screen.getByTestId('Total')).toHaveTextContent('0.0001')
+    expect(screen.getByTestId('Total')).toHaveTextContent('10,000')
   })
 
   it('labels a unilateral exit and links it to the block explorer, not to Arkade', async () => {
@@ -842,7 +842,7 @@ describe('Transaction screen', () => {
     // remains visible and independently identified.
     expect(screen.queryByTestId('Amount')).not.toBeInTheDocument()
     expect(screen.getByTestId('Total (USDT)')).toHaveTextContent('100 USDT')
-    expect(screen.getByTestId('Total (unknown-…)')).toHaveTextContent('0.0000005 unknown-…')
+    expect(screen.getByTestId('Total (unknown-…)')).toHaveTextContent('50 unknown-…')
     expect(screen.getByTestId('Asset ID (USDT, unverified)')).toHaveTextContent('usdt-asset')
     expect(screen.getByTestId('Asset ID (unknown-…, unverified)')).toHaveTextContent('unknown-asset')
     expect(screen.queryByText('€100.00')).not.toBeInTheDocument()

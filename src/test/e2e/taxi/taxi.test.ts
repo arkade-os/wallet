@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { RestIndexerProvider } from '@arkade-os/sdk'
-import { centsToUnits, truncatedAssetId } from '../../../lib/assets'
+import { atomicToUnits, truncatedAssetId } from '../../../lib/assets'
 import { prettyNumber } from '../../../lib/format'
 import { navigateHome } from '../utils'
 import {
@@ -263,7 +263,7 @@ test('Native BTC exact-out asset payment repays the Taxi loan once', async ({ br
   const decimals = details.metadata?.decimals
   if (decimals === undefined || !Number.isInteger(decimals) || decimals < 0 || decimals > 8)
     throw new Error('Native RFQ fixture needs registered decimals from 0 to 8')
-  const amount = centsToUnits(units, decimals)
+  const amount = atomicToUnits(units, decimals)
   const contexts = await Promise.all(
     [0, 1].map(() =>
       browser.newContext({

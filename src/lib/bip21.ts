@@ -3,7 +3,7 @@
 
 import { fromSatoshis, prettyNumber, toSatoshis } from './format'
 import { isValidArkAddress } from '@arkade-os/sdk'
-import { centsToUnits } from './assets'
+import { atomicToUnits } from './assets'
 
 import { decodeTaxiParams, encodeTaxiParams, type Bip21Taxi } from '@arkade-taxi/client/wallet'
 export type { Bip21Taxi } from '@arkade-taxi/client/wallet'
@@ -115,7 +115,7 @@ export const encodeBip21Asset = (
   cents: bigint,
   decimals?: number,
   taxi?: Bip21Taxi,
-) => `bitcoin:?ark=${arkAddress}&assetid=${assetId}&amount=${centsToUnits(cents, decimals)}${encodeTaxiParams(taxi)}`
+) => `bitcoin:?ark=${arkAddress}&assetid=${assetId}&amount=${atomicToUnits(cents, decimals)}${encodeTaxiParams(taxi)}`
 
 export const isBip21 = (data: string): boolean => {
   try {
