@@ -17,7 +17,7 @@ import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
 import Input from '../../../components/Input'
 import AssetCard from '../../../components/AssetCard'
-import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
+import { atomicToUnits, prettyAssetAmount, unitsToAtomic } from '../../../lib/assets'
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
 import { useTranslation } from '../../../providers/language'
 
@@ -38,11 +38,11 @@ export default function AppAssetBurn() {
   const name = assetInfo.metadata?.name ?? t('mint.unknown')
   const ticker = assetInfo.metadata?.ticker ?? assetInfo.assetId.slice(0, 8)
   const icon = assetInfo.metadata?.icon
-  const decimals = assetInfo.metadata?.decimals ?? 8
+  const decimals = assetInfo.metadata?.decimals ?? 0
   const balance = assetBalances.find((a) => a.assetId === assetInfo.assetId)?.amount ?? BigInt(0)
 
   const handleAmountChange = (value: string) => {
-    const cents = unitsToCents(value, decimals)
+    const cents = unitsToAtomic(value, decimals)
     setAmount(cents)
   }
 
@@ -147,7 +147,7 @@ export default function AppAssetBurn() {
               placeholder='0'
               label={t('mint.amountToBurn')}
               onChange={handleAmountChange}
-              value={amount ? centsToUnits(amount, decimals) : ''}
+              value={amount ? atomicToUnits(amount, decimals) : ''}
             />
           </FlexCol>
         </Padded>

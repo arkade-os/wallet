@@ -45,7 +45,7 @@ export default function SendSuccess() {
   const assetTicker = assetPresentation.ticker
   const assetIcon = assetPresentation.icon
   const assetAmountValue = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
-  const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? 8
+  const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? 0
 
   // Show payment sent notification
   useEffect(() => {

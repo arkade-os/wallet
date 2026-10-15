@@ -18,7 +18,7 @@ import { Asset, Coin, ExtendedVirtualCoin, type NetworkName } from '@arkade-os/s
 import { LockupRegistrationFailed } from '@arkade-os/swap'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
-import { unitsToCents } from '../../../lib/assets'
+import { unitsToAtomic } from '../../../lib/assets'
 import ErrorMessage from '../../../components/Error'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
@@ -386,7 +386,7 @@ export default function ReceiveQRCode() {
     setShowAmountSheet(false)
     if (assetMeta) {
       const decimals = assetMeta.metadata?.decimals
-      const cents = unitsToCents(value, decimals)
+      const cents = unitsToAtomic(value, decimals)
       return setAssetAmount(cents)
     } else {
       const num = Number(value)
