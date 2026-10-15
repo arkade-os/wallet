@@ -6,6 +6,7 @@ import { AspContext } from '../../providers/asp'
 import { WalletContext } from '../../providers/wallet'
 import { SwapsContext, SwapsProvider } from '../../providers/swaps'
 import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
+import { storeAssetPayment } from '../../lib/pendingAssetPayment'
 
 const mocks = vi.hoisted(() => ({
   created: vi.fn(),
@@ -14,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   offerSwaps: vi.fn(),
   quote: vi.fn(),
   saveSnapshot: vi.fn(),
+  getSwapRecord: vi.fn(),
   receive: vi.fn(),
   accept: vi.fn(),
   cancel: vi.fn(),
@@ -33,6 +35,7 @@ vi.mock('../../lib/swapMarkets', () => ({
   watchSwapMarkets: mocks.watchSwapMarkets,
 }))
 vi.mock('../../lib/swapRepository', () => ({
+  assetSwapRepository: { getSwapRecord: mocks.getSwapRecord },
   saveQuoteSnapshot: mocks.saveSnapshot,
   quoteSnapshotOf: () => undefined,
 }))
@@ -131,6 +134,7 @@ const renderProvider = (wallet = {}, children = <Harness />) =>
 beforeEach(() => {
   localStorage.clear()
   mocks.swaps.mockResolvedValue([])
+  mocks.getSwapRecord.mockResolvedValue(undefined)
   Object.defineProperty(navigator, 'locks', { value: undefined, configurable: true })
   mocks.discoverMarkets.mockResolvedValue([])
   mocks.watchSwapMarkets.mockReturnValue(() => {})
@@ -157,6 +161,34 @@ function Payer() {
             { receiveAddress: 'recipient', carrier: { mode: 'purchase' } },
           )
           await acceptAssetPayment(quote)
+        } catch (error) {
+          setState((error as Error).message)
+        }
+      }}
+    >
+      {state}
+    </button>
+  )
+}
+
+const unsentRecord = (over: Record<string, unknown> = {}) => ({
+  id: 'original',
+  family: 'offer',
+  status: 'cancelled',
+  route: { give: { instrument: { kind: 'wallet' } } },
+  expiresAt: 200,
+  fundingNotSubmitted: { reason: 'send_deadline', validUntil: 100 },
+  ...over,
+})
+
+function PaymentCheck() {
+  const { checkAssetPayment } = useContext(SwapsContext)
+  const [state, setState] = useState('check')
+  return (
+    <button
+      onClick={async () => {
+        try {
+          setState((await checkAssetPayment()).fundingTxid!)
         } catch (error) {
           setState((error as Error).message)
         }
@@ -263,29 +295,12 @@ describe('SwapsProvider', () => {
   it('checks only the original stored swap after ambiguity, without accepting or quoting again', async () => {
     mocks.quote.mockResolvedValue({ id: 'original', give: { amount: 1000n } })
     mocks.accept.mockRejectedValue(new Error('reply lost'))
-    function Check() {
-      const { checkAssetPayment } = useContext(SwapsContext)
-      const [state, setState] = useState('check')
-      return (
-        <button
-          onClick={async () => {
-            try {
-              setState((await checkAssetPayment()).fundingTxid!)
-            } catch (error) {
-              setState((error as Error).message)
-            }
-          }}
-        >
-          {state}
-        </button>
-      )
-    }
     const view = renderProvider({}, <Payer />)
     fireEvent.click(screen.getByText('pay asset'))
     await screen.findByText('reply lost')
     view.unmount()
     mocks.swaps.mockResolvedValue([{ ...swap, id: 'another', fundingTxid: 'wrong' }])
-    const check = renderProvider({}, <Check />)
+    const check = renderProvider({}, <PaymentCheck />)
     fireEvent.click(screen.getByText('check'))
     await screen.findByText('Check asset payment: its funding is still unresolved')
     expect(localStorage.length).toBe(1)
@@ -297,6 +312,81 @@ describe('SwapsProvider', () => {
     expect(localStorage.length).toBe(0)
     check.unmount()
   })
+
+  it('releases only the original proven-unsent payment after remount, allowing a new payment', async () => {
+    mocks.quote.mockResolvedValue({ id: 'original', give: { amount: 1000n } })
+    mocks.accept.mockRejectedValueOnce(new Error('reply lost'))
+    const payer = renderProvider({}, <Payer />)
+    fireEvent.click(screen.getByText('pay asset'))
+    await screen.findByText('reply lost')
+    payer.unmount()
+    mocks.getSwapRecord.mockResolvedValue(unsentRecord())
+    const check = renderProvider({}, <PaymentCheck />)
+    fireEvent.click(screen.getByText('check'))
+    await screen.findByText('The payment was not sent. Please try again.')
+    expect(mocks.getSwapRecord).toHaveBeenCalledWith('original')
+    expect(localStorage.length).toBe(0)
+    expect(mocks.quote).toHaveBeenCalledOnce()
+    expect(mocks.accept).toHaveBeenCalledOnce()
+    check.unmount()
+    mocks.quote.mockResolvedValue({ id: 'next', give: { amount: 1000n } })
+    mocks.accept.mockResolvedValue({ ...swap, id: 'offer:next' })
+    renderProvider({}, <Payer />)
+    fireEvent.click(screen.getByText('pay asset'))
+    await waitFor(() => expect(mocks.accept).toHaveBeenCalledTimes(2))
+    expect(mocks.quote).toHaveBeenCalledTimes(2)
+    expect(localStorage.length).toBe(0)
+  })
+
+  it.each([
+    ['missing record', undefined],
+    ['wrong record', unsentRecord({ id: 'other' })],
+    ['wrong family', unsentRecord({ family: 'rfq', state: 'failed' })],
+    ['cancelled without proof', unsentRecord({ fundingNotSubmitted: undefined })],
+    ['malformed proof', unsentRecord({ fundingNotSubmitted: { reason: 'send_deadline', validUntil: '100' } })],
+    ['proof beyond expiry', unsentRecord({ fundingNotSubmitted: { reason: 'send_deadline', validUntil: 201 } })],
+    ['already funded', unsentRecord({ fundingTxid: 'submitted' })],
+    ['unresolved record', unsentRecord({ status: 'pending' })],
+  ])('retains the journal for %s', async (_name, record) => {
+    storeAssetPayment('test-sender-regtest', 'regtest', {
+      quoteId: 'original',
+      arkAddress: 'recipient',
+      assetId: ASSET_ID,
+      amount: '500',
+      payAmountSats: '1000',
+    })
+    mocks.getSwapRecord.mockResolvedValue(record)
+    renderProvider({}, <PaymentCheck />)
+    fireEvent.click(screen.getByText('check'))
+    await screen.findByText('Check asset payment: its funding is still unresolved')
+    expect(localStorage.length).toBe(1)
+    expect(mocks.accept).not.toHaveBeenCalled()
+    expect(mocks.quote).not.toHaveBeenCalled()
+  })
+
+  it.each(['read', 'clear'])(
+    'retains the journal when storage %s fails during proven-unsent recovery',
+    async (stage) => {
+      storeAssetPayment('test-sender-regtest', 'regtest', {
+        quoteId: 'original',
+        arkAddress: 'recipient',
+        assetId: ASSET_ID,
+        amount: '500',
+        payAmountSats: '1000',
+      })
+      mocks.getSwapRecord.mockResolvedValue(unsentRecord())
+      if (stage === 'read') mocks.getSwapRecord.mockRejectedValue(new Error('storage unavailable'))
+      else
+        vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+          throw new Error('storage unavailable')
+        })
+      renderProvider({}, <PaymentCheck />)
+      fireEvent.click(screen.getByText('check'))
+      await screen.findByText('storage unavailable')
+      expect(localStorage.length).toBe(1)
+      expect(mocks.accept).not.toHaveBeenCalled()
+    },
+  )
 
   it('clears only a real SDK insufficient-funds refusal before persistence', async () => {
     mocks.quote.mockResolvedValue({ id: 'unfundable', give: { asset: 'btc', amount: 1000n } })
