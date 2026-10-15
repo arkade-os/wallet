@@ -1100,7 +1100,7 @@ export default function SendForm() {
         assetId: asset.assetId,
         balance: availableAssetBalances.find((other) => other.assetId === asset.assetId)?.amount ?? 0n,
         ...presentation,
-        decimals: metadata?.decimals ?? 8,
+        decimals: metadata?.decimals ?? 0,
         trusted: isVerifiedAsset(asset.assetId),
       }
       setSelectedAsset(option)

@@ -950,13 +950,13 @@ describe('Send screen', () => {
     },
   )
 
-  it('restores and checks original native payment terms instead of sending a new draft', async () => {
+  it.each([undefined, 2])('restores original Taxi asset units (%s decimals)', async (decimals) => {
     const pending = {
       quoteId: 'original-quote',
       arkAddress:
         'tark1qplnj2gett9j483fchy6chaxn4y52c4g7n5djh9xua3ywdxw0ldatc3e9xcj9xpx0r5tmr0dgvu2f4s352muklg0tcxx0scnnkraajy9jgz4xl',
       assetId: '44'.repeat(32),
-      amount: '500',
+      amount: '1000',
       payAmountSats: '1000',
     }
     vi.mocked(getPendingAssetPayment).mockResolvedValue(pending)
@@ -969,6 +969,13 @@ describe('Send screen', () => {
           flowContext: { ...mockFlowContextValue, setSendInfo } as any,
           walletContext: {
             ...mockWalletContextValue,
+            assetBalances: [],
+            availableAssetBalances: [],
+            assetMetadataCache: new Map(
+              decimals === undefined
+                ? []
+                : [[pending.assetId, { cachedAt: 0, metadata: { name: 'Asset', ticker: 'ASSET', decimals } }]],
+            ),
             svcWallet: {
               ...mockSvcWallet,
               getAddress: () => 'tark1ownaddress',
@@ -981,12 +988,16 @@ describe('Send screen', () => {
     )
     const button = await screen.findByText('Check asset payment')
     await waitFor(() => expect(button.closest('button')).toBeEnabled())
+    expect(document.querySelector('input[name="send-amount"]')).toHaveValue(decimals === undefined ? 1000 : 10)
+    expect(setSendInfo).toHaveBeenCalledWith(
+      expect.objectContaining({ assets: [{ assetId: pending.assetId, amount: 1000n }] }),
+    )
     fireEvent.click(button)
     await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendSuccess))
     expect(checkAssetPayment).toHaveBeenCalledOnce()
     expect(setSendInfo).toHaveBeenCalledWith({
       arkAddress: pending.arkAddress,
-      assets: [{ assetId: pending.assetId, amount: 500n }],
+      assets: [{ assetId: pending.assetId, amount: 1000n }],
       satoshis: 0,
       txid: 'original-txid',
       swapId: pending.quoteId,
