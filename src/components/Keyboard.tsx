@@ -13,7 +13,7 @@ import { ConfigContext } from '../providers/config'
 import FlexCol from './FlexCol'
 import SwapIcon from '../icons/Swap'
 import { AssetOption, Currencies, Unit } from '../lib/types'
-import { centsToUnits, prettyAssetAmount, unitsToCents } from '../lib/assets'
+import { centsToUnits, DEFAULT_ASSET_DECIMALS, prettyAssetAmount, unitsToCents } from '../lib/assets'
 import { useTranslation } from '../providers/language'
 
 export type KeyboardInputMode = 'sats' | 'fiat' | 'asset' | 'btc'
@@ -74,7 +74,7 @@ export default function Keyboard({
     if (initialValue && inputMode && toFiat && fiatDecimals) {
       if (inputMode === 'asset') {
         // plain decimal string: grouped output would fail the save gate's Number()
-        setTextValue(centsToUnits(BigInt(initialValue), asset?.decimals ?? 0))
+        setTextValue(centsToUnits(BigInt(initialValue), asset?.decimals ?? DEFAULT_ASSET_DECIMALS))
       } else if (inputMode === 'fiat') {
         setTextValue(prettyNumber(toFiat(Number(initialValue)), fiatDecimals(), false))
       } else if (inputMode === 'btc') {
@@ -103,7 +103,7 @@ export default function Keyboard({
   const getMaxDecimals = () => {
     switch (inputMode) {
       case 'asset':
-        return asset?.decimals ?? 0
+        return asset?.decimals ?? DEFAULT_ASSET_DECIMALS
       case 'fiat':
         return fiatDecimals()
       case 'btc':
@@ -206,7 +206,7 @@ export default function Keyboard({
           }),
     balance:
       inputMode === 'asset'
-        ? `${prettyAssetAmount(asset?.balance ?? BigInt(0), asset?.decimals ?? 0)} ${asset?.ticker}`
+        ? `${prettyAssetAmount(asset?.balance ?? BigInt(0), asset?.decimals ?? DEFAULT_ASSET_DECIMALS)} ${asset?.ticker}`
         : inputMode === 'fiat'
           ? prettyFiatAmount(toFiat(available), config.currency, { bitcoinUnit: config.unit })
           : prettyBitcoinAmount(available),

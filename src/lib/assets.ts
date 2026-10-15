@@ -2,6 +2,10 @@ import Decimal from 'decimal.js'
 
 export const MAX_DECIMALS = 8 // Arbitrary value to allow at least 1 sat/asset
 
+// an asset with no decimals in its metadata is read as whole units: guessing
+// too few decimals understates an amount, guessing too many overstates it
+export const DEFAULT_ASSET_DECIMALS = 0
+
 // discovered assets may carry up to 18 decimals (solver-discovery's cap);
 // conversions must stay exact for them even though displays default to 8
 const MAX_CONVERSION_DECIMALS = 18

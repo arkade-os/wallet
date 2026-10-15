@@ -10,6 +10,7 @@ import {
 import { fiatAccountAssetSatoshis, verifiedDesignatedCurrency } from './accountAssets'
 import { Currencies, Unit } from './types'
 import type { SwapDisplayAmount } from './swapDisplay'
+import { DEFAULT_ASSET_DECIMALS } from './assets'
 
 export type SensitiveAmountDisplay = SwapDisplayAmount
 
@@ -85,7 +86,7 @@ function resolveAsset(
   const accountCurrency = verifiedDesignatedCurrency(network, asset.assetId, isVerifiedAsset)
   const ticker =
     accountCurrency ?? metadata?.ticker?.trim().toUpperCase() ?? metadata?.name ?? shortAssetId(asset.assetId)
-  const decimals = metadata?.decimals ?? 8
+  const decimals = metadata?.decimals ?? DEFAULT_ASSET_DECIMALS
   const value = accountCurrency ? fiatAccountAssetSatoshis(amount, decimals, accountCurrency, toFiatAmount) : undefined
   const satsEquivalent =
     value !== undefined && Number.isFinite(value) && (amount === BigInt(0) || value !== 0) ? Math.abs(value) : undefined

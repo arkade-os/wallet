@@ -13,6 +13,7 @@ import { walletAssetPresentationForId } from '../../../lib/accountAssets'
 import { AspContext } from '../../../providers/asp'
 import { AssetsContext } from '../../../providers/assets'
 import { useTranslation } from '../../../providers/language'
+import { DEFAULT_ASSET_DECIMALS } from '../../../lib/assets'
 
 function formatAssetLabel(
   a: { assetId: string; amount: bigint },
@@ -25,7 +26,11 @@ function formatAssetLabel(
   const ticker = presentation.ticker || presentation.name
   // fiat-style formatting keys on the ticker string, which unregistered
   // assets self-report — only a registered id earns currency treatment
-  const amount = prettyCurrencyAssetAmount(a.amount, meta?.decimals ?? 0, isRegistered(a.assetId) ? ticker : undefined)
+  const amount = prettyCurrencyAssetAmount(
+    a.amount,
+    meta?.decimals ?? DEFAULT_ASSET_DECIMALS,
+    isRegistered(a.assetId) ? ticker : undefined,
+  )
   return `${amount} ${ticker}`
 }
 

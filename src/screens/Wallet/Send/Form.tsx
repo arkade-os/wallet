@@ -40,7 +40,13 @@ import { appIntentHandoff, redirectToCallback } from '../../../lib/appIntent'
 import OpenInApp from '../../AppIntent/OpenInApp'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
-import { centsToUnits, liquidBtcBalance, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
+import {
+  centsToUnits,
+  DEFAULT_ASSET_DECIMALS,
+  liquidBtcBalance,
+  prettyAssetAmount,
+  unitsToCents,
+} from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
 import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -304,7 +310,7 @@ export default function SendForm() {
           name: presentation.name,
           ticker: presentation.ticker,
           icon: presentation.icon,
-          decimals: meta?.metadata?.decimals ?? 8,
+          decimals: meta?.metadata?.decimals ?? DEFAULT_ASSET_DECIMALS,
           trusted: isVerifiedAsset(ab.assetId),
         })
       }
@@ -360,7 +366,7 @@ export default function SendForm() {
               name: presentation.name,
               ticker: presentation.ticker,
               icon: presentation.icon,
-              decimals: meta?.metadata?.decimals ?? 8,
+              decimals: meta?.metadata?.decimals ?? DEFAULT_ASSET_DECIMALS,
               trusted: isVerifiedAsset(assetId),
             }
           }

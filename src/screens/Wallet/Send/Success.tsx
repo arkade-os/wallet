@@ -20,6 +20,7 @@ import { accountAssetLabel, rawAssetPresentation, verifiedDesignatedCurrency } f
 import { AspContext } from '../../../providers/asp'
 import { useTranslation } from '../../../providers/language'
 import { appIntentHandoff, callbackHost, redirectToCallback } from '../../../lib/appIntent'
+import { DEFAULT_ASSET_DECIMALS } from '../../../lib/assets'
 
 export default function SendSuccess() {
   const { config, useFiat } = useContext(ConfigContext)
@@ -45,7 +46,7 @@ export default function SendSuccess() {
   const assetTicker = assetPresentation.ticker
   const assetIcon = assetPresentation.icon
   const assetAmountValue = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
-  const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? 8
+  const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? DEFAULT_ASSET_DECIMALS
 
   // Show payment sent notification
   useEffect(() => {
