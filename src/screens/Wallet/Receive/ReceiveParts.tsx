@@ -1,9 +1,6 @@
-import { motion } from 'framer-motion'
 import Button from '../../../components/Button'
 import CopyIcon from '../../../icons/Copy'
 import CheckMarkIcon from '../../../icons/CheckMark'
-import { useReducedMotion } from '../../../hooks/useReducedMotion'
-import { EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
 import { prettyLongText } from '../../../lib/format'
 import type { PartId, ReceiveMethod, ReceivePart } from '../../../lib/receive/receiveTargets'
 import { useTranslation } from '../../../providers/language'
@@ -33,7 +30,6 @@ export default function ReceiveParts(p: {
   onCopy: (value: string) => void
 }) {
   const { t } = useTranslation()
-  const reduced = useReducedMotion()
   const choices = p.parts.filter((part) => part.selectable)
   const tabStop = choices.some((c) => c.id === p.inQr) ? p.inQr : choices[0]?.id
   return (
@@ -62,23 +58,11 @@ export default function ReceiveParts(p: {
             tabIndex={part.selectable ? (part.id === tabStop ? 0 : -1) : undefined}
             role={part.selectable ? 'radio' : undefined}
             aria-checked={part.selectable ? on : undefined}
-            className={`flex items-center gap-3 rounded-lg border px-3 py-2 transition-colors duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none ${on ? 'border-neutral-500 bg-neutral-100' : 'border-transparent'} ${part.selectable ? 'cursor-pointer' : ''}`}
+            className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none ${on ? 'bg-neutral-100' : ''} ${part.selectable ? 'cursor-pointer' : ''}`}
           >
             {part.selectable ? <Radio on={on} /> : <span className='size-4 shrink-0' />}
             <span className='flex min-w-0 flex-1 flex-col'>
-              <span className='flex items-center gap-2 text-xs text-neutral-500'>
-                {title}
-                {on ? (
-                  <motion.span
-                    initial={reduced ? false : { opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.2, ease: EASE_OUT_QUINT_TUPLE }}
-                    className='rounded bg-[var(--fg)] px-1.5 py-px text-[10px] font-semibold text-[var(--bg)] uppercase'
-                  >
-                    {t('receive.inQr')}
-                  </motion.span>
-                ) : null}
-              </span>
+              <span className='text-xs text-neutral-500'>{title}</span>
               <span
                 className={`truncate text-sm ${part.id === 'amount' || part.id === 'lnaddress' ? 'font-semibold' : 'font-mono'}`}
               >
