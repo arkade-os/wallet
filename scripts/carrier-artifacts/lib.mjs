@@ -2,7 +2,7 @@
 
 import { createRequire } from 'node:module'
 import { createHash } from 'node:crypto'
-import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs'
+import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { gunzipSync } from 'node:zlib'
@@ -52,7 +52,7 @@ export const CANDIDATE_SDK_SYMBOL = 'SendDeadlineExceededError'
 export const CANDIDATE_TAXI_SYMBOL = 'TaxiClaimQueue'
 export const CANDIDATE_TAXI_FILL_SYMBOL = 'TaxiClient'
 
-export function readTarMember(archivePath, member) {
+function* tarMembers(archivePath) {
   const buffer = gunzipSync(readFileSync(archivePath))
   let offset = 0
   while (offset + 512 <= buffer.length) {
@@ -61,12 +61,82 @@ export function readTarMember(archivePath, member) {
     const prefix = header.subarray(345, 500).toString('utf8').replace(/\0.*$/, '')
     const name = header.subarray(0, 100).toString('utf8').replace(/\0.*$/, '')
     const path = prefix ? `${prefix}/${name}` : name
-    const size = Number.parseInt(header.subarray(124, 136).toString('ascii').replace(/\0.*$/, '').trim(), 8) || 0
+    const size = Number.parseInt(header.subarray(124, 136).toString('ascii').replace(/\0.*$/, '').trim(), 8)
     offset += 512
-    if (path === member) return buffer.subarray(offset, offset + size).toString('utf8')
+    if (!Number.isSafeInteger(size) || size < 0 || offset + size > buffer.length)
+      throw new Error(`${archivePath}: invalid tar member ${path}`)
+    yield { path, bytes: buffer.subarray(offset, offset + size), type: header[156] }
     offset += Math.ceil(size / 512) * 512
   }
+}
+
+export function readTarMember(archivePath, member) {
+  for (const { path, bytes } of tarMembers(archivePath)) if (path === member) return bytes.toString('utf8')
   return undefined
+}
+
+export function assertInstalledPackage(archivePath, packageRoot) {
+  const members = new Map()
+  for (const { path, bytes, type } of tarMembers(archivePath)) {
+    const relative = path.slice('package/'.length)
+    if (
+      !path.startsWith('package/') ||
+      relative.includes('\\') ||
+      relative.split('/').some((part) => !part || part === '.' || part === '..') ||
+      (type !== 0 && type !== 48) ||
+      members.has(relative)
+    )
+      throw new Error(`${archivePath}: unsupported package member ${path}`)
+    members.set(relative, bytes)
+  }
+  const inspect = (directory, prefix = '') => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name)
+      if (
+        !prefix &&
+        entry.name === 'node_modules' &&
+        (entry.isDirectory() || (entry.isSymbolicLink() && statSync(path).isDirectory()))
+      )
+        continue
+      const relative = `${prefix}${entry.name}`
+      if (entry.isDirectory()) inspect(path, `${relative}/`)
+      else {
+        if (!entry.isFile()) throw new Error(`${packageRoot}: installed file is not regular: ${relative}`)
+        if (!members.has(relative)) throw new Error(`${packageRoot}: unexpected installed file: ${relative}`)
+      }
+    }
+  }
+  inspect(packageRoot)
+  for (const [relative, bytes] of members) {
+    const path = join(packageRoot, relative)
+    if (!existsSync(path) || !lstatSync(path).isFile())
+      throw new Error(`${packageRoot}: installed file is not regular: ${relative}`)
+    if (!readFileSync(path).equals(bytes)) throw new Error(`${packageRoot}: installed bytes differ: ${relative}`)
+  }
+}
+
+export function assertInstalledPackages(fromFiles, artifacts, vendorRoot) {
+  const byName = new Map(artifacts.map((artifact) => [artifact.package, artifact]))
+  const pending = []
+  const seen = new Set()
+  const enqueue = (from) => {
+    const manifest = readJson(from)
+    for (const name of Object.keys({
+      ...manifest.dependencies,
+      ...manifest.peerDependencies,
+      ...manifest.optionalDependencies,
+    }))
+      if (byName.has(name)) pending.push([from, name])
+  }
+  for (const from of fromFiles) enqueue(from)
+  while (pending.length) {
+    const [from, name] = pending.pop()
+    const root = packageRootFrom(from, name)
+    if (seen.has(root)) continue
+    assertInstalledPackage(join(vendorRoot, byName.get(name).file), root)
+    seen.add(root)
+    enqueue(join(root, 'package.json'))
+  }
 }
 
 export const archiveManifest = (archivePath) => {

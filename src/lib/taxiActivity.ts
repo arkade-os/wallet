@@ -106,7 +106,16 @@ export const taxiCarrierRows = (
   asset?: { ticker?: string; decimals?: number },
 ): CarrierReceiptRows => {
   const satsLabel = translate(language, 'common.sats')
-  const sats = (value: string) => ({ value: pluralSats(value, language), masked: prettyHide(value, satsLabel) })
+  const sats = (value: string) => {
+    let formatted: string
+    try {
+      formatted = pluralSats(value, language)
+    } catch {
+      return undefined
+    }
+    return { value: formatted, masked: prettyHide(value, satsLabel) }
+  }
+  const carrierSats = r.carrierSats ? sats(r.carrierSats) : undefined
   const borrowed = (amount: string) => translate(language, 'transaction.carrierBorrowed', { amount })
   const fare =
     r.fare?.currency === 'sats'
@@ -116,15 +125,15 @@ export const taxiCarrierRows = (
           masked: prettyHide(r.fare.units, asset?.ticker ?? ''),
         }
   return {
-    ...(r.carrierSats && r.mode === 'recycle'
+    ...(carrierSats && r.mode === 'recycle'
       ? {
           carrierLoan: {
-            value: borrowed(pluralSats(r.carrierSats, language)),
-            masked: borrowed(prettyHide(r.carrierSats, satsLabel)),
+            value: borrowed(carrierSats.value),
+            masked: borrowed(carrierSats.masked),
           },
         }
       : {}),
-    ...(r.carrierSats && r.mode && r.mode !== 'recycle' ? { carrierPurchase: sats(r.carrierSats) } : {}),
+    ...(carrierSats && r.mode && r.mode !== 'recycle' ? { carrierPurchase: carrierSats } : {}),
     ...(fare ? { carrierFare: fare } : {}),
     carrierDelivery: translate(language, taxiActivityView(r).label),
   }
