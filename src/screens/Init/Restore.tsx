@@ -22,7 +22,7 @@ import { getRecoveryWord, parseRecoveryInput } from '../../lib/recoveryInput'
 import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '../../providers/language'
 import { overlaySlideUp, overlayStyle } from '@/lib/animations'
-import { AnimatePresence, motion, prefersReducedMotion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import Scanner from '@/components/Scanner'
 
 type RotationChoice = 'Inherit' | 'Static' | 'HD'
@@ -57,6 +57,8 @@ export default function InitRestore() {
   const mnemonic = parsed.kind === 'phrase' ? parsed.mnemonic : undefined
   const privateKey = parsed.kind === 'key' ? parsed.privateKey : undefined
   const activeWord = getRecoveryWord(input.value, input.cursor)
+
+  const prefersReducedMotion = useReducedMotion()
 
   let error = ''
   if (parsed.kind === 'phrase' && parsed.error === 'word') {
