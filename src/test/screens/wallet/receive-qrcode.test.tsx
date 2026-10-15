@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { render, screen, act, fireEvent, waitFor } from '@testing-library/react'
 import { FlowContext } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
@@ -429,6 +429,35 @@ describe('Receive QR Code screen', () => {
       press('End')
       expect(radio('Bitcoin')).toHaveFocus()
       expect(onPick).not.toHaveBeenCalled()
+    })
+
+    it('keeps the open method list under its button when anything scrolls', () => {
+      let bottom = 100
+      const rect = vi
+        .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+        .mockImplementation(() => ({ bottom, left: 0, width: 200 }) as DOMRect)
+      onTestFinished(() => {
+        rect.mockRestore()
+      })
+      render(
+        <ReceiveSelector
+          label='Arkade'
+          rows={[{ id: 'ark', title: 'Arkade' }]}
+          active='ark'
+          open
+          onToggle={vi.fn()}
+          onClose={vi.fn()}
+          onPick={vi.fn()}
+        />,
+      )
+      const list = screen.getByRole('radiogroup')
+      expect(list.style.top).toBe('104px')
+
+      bottom = 40
+      act(() => {
+        document.body.dispatchEvent(new Event('scroll'))
+      })
+      expect(list.style.top).toBe('44px')
     })
 
     it('moves the QR through the parts with the arrow keys, and only from a row', () => {

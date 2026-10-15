@@ -51,7 +51,12 @@ export default function ReceiveSelector(p: {
     }
     place()
     window.addEventListener('resize', place)
-    return () => window.removeEventListener('resize', place)
+    // Capture: a scroll in any container can move the anchor, and scroll does not bubble.
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
   }, [open])
 
   useEffect(() => {
