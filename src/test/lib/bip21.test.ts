@@ -61,6 +61,12 @@ describe('bip21 utilities', () => {
       expect(decoded.invoice).toBeUndefined()
     })
 
+    it('never reads a value with @ as an invoice', () => {
+      const decoded = decodeBip21('bitcoin:?lightning=lnbad@')
+      expect(decoded.invoice).toBeUndefined()
+      expect(decoded.lnUrl).toBeUndefined()
+    })
+
     it('should throw an error for an invalid address', () => {
       expect(() => decodeBip21('invalidBip21')).toThrow('Invalid BIP21 URI')
     })

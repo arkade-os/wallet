@@ -75,9 +75,9 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
 
     const lightning = getParam('lightning')
     if (lightning) {
-      // Not BIP321 (BOLT11 only), but encodeBitcoinLink emits Lightning addresses here. Checked first: 'lnbob@…' is no invoice.
-      if (lightning.includes('@') && isValidLnUrl(lightning)) {
-        result.lnUrl = lightning
+      // Not BIP321 (BOLT11 only), but encodeBitcoinLink emits Lightning addresses here. Bech32 has no '@', so 'lnbob@…' is no invoice.
+      if (lightning.includes('@')) {
+        if (isValidLnUrl(lightning)) result.lnUrl = lightning
       } else if (lightning.toLowerCase().startsWith('lnurl')) {
         result.lnUrl = lightning
       } else if (lightning.toLowerCase().startsWith('ln')) {
