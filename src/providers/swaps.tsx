@@ -37,6 +37,7 @@
 import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { asset, type Asset, type NetworkName, type PaymentRouter } from '@arkade-os/sdk'
 import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
+import { fundingWasNotSubmitted } from '@arkade-os/swap/advanced'
 import {
   arkadeAsset,
   assetSwapIdOf,
@@ -70,6 +71,7 @@ import {
   type DriverUpdate,
 } from '../lib/swapDriverChannel'
 import {
+  assetSwapRepository,
   quoteSnapshotOf,
   saveQuoteSnapshot,
   type AssetSwapQuoteSnapshot,
@@ -818,7 +820,14 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     const pending = readAssetPayment(sender, aspInfo.network)
     if (!pending) throw new Error('No asset payment to check')
     const swap = (await client.swaps()).find((swap) => swap.id === assetSwapIdOf('offer', pending.quoteId))
-    if (!swap?.fundingTxid) throw new Error('Check asset payment: its funding is still unresolved')
+    if (!swap?.fundingTxid) {
+      const record = await assetSwapRepository.getSwapRecord(pending.quoteId)
+      if (record?.id === pending.quoteId && record.family === 'offer' && fundingWasNotSubmitted(record)) {
+        clearAssetPayment(sender, aspInfo.network, pending.quoteId)
+        throw new Error('The payment was not sent. Please try again.')
+      }
+      throw new Error('Check asset payment: its funding is still unresolved')
+    }
     announceHere(swap)
     await refreshSwaps()
     clearAssetPayment(sender, aspInfo.network, pending.quoteId)

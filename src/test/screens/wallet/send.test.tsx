@@ -994,6 +994,53 @@ describe('Send screen', () => {
     expect(sendDirectTaxi).not.toHaveBeenCalled()
   })
 
+  it.each(['absent', 'unreadable'] as const)(
+    'refreshes the pending form only after a successful journal reread (%s)',
+    async (journal) => {
+      const pending = {
+        quoteId: 'original-quote',
+        arkAddress:
+          'tark1qplnj2gett9j483fchy6chaxn4y52c4g7n5djh9xua3ywdxw0ldatc3e9xcj9xpx0r5tmr0dgvu2f4s352muklg0tcxx0scnnkraajy9jgz4xl',
+        assetId: '44'.repeat(32),
+        amount: '500',
+        payAmountSats: '1000',
+      }
+      vi.mocked(getPendingAssetPayment).mockResolvedValue(pending)
+      const checkAssetPayment = vi.fn().mockImplementation(async () => {
+        if (journal === 'absent') vi.mocked(getPendingAssetPayment).mockResolvedValue(undefined)
+        else vi.mocked(getPendingAssetPayment).mockRejectedValue(new Error('journal unreadable'))
+        throw new Error('The payment was not sent. Please try again.')
+      })
+      const navigate = vi.fn()
+      render(
+        <SwapsContext.Provider value={{ checkAssetPayment } as never}>
+          {sendForm({
+            navigationContext: { ...mockNavigationContextValue, navigate },
+            walletContext: {
+              ...mockWalletContextValue,
+              svcWallet: {
+                ...mockSvcWallet,
+                getAddress: () => 'tark1ownaddress',
+                getBoardingAddress: async () => 'bcrt1ownaddress',
+              } as any,
+            },
+          })}
+        </SwapsContext.Provider>,
+      )
+      const button = await screen.findByText('Check asset payment')
+      await waitFor(() => expect(button.closest('button')).toBeEnabled())
+      fireEvent.click(button)
+      await screen.findByText(
+        journal === 'absent' ? 'The payment was not sent. Please try again.' : 'journal unreadable',
+      )
+      expect(checkAssetPayment).toHaveBeenCalledOnce()
+      expect(navigate).not.toHaveBeenCalledWith(Pages.SendSuccess)
+      if (journal === 'absent') expect(screen.queryByText('Check asset payment')).not.toBeInTheDocument()
+      else expect(screen.getByText('Check asset payment').closest('button')).toBeDisabled()
+      expect(sendDirectTaxi).not.toHaveBeenCalled()
+    },
+  )
+
   it('keeps Continue disabled when the native journal cannot be read', async () => {
     vi.mocked(getPendingAssetPayment).mockRejectedValue(new Error('corrupt pending state'))
     appSendSetup(false)

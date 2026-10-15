@@ -1248,7 +1248,7 @@ export default function SendForm() {
           )
             return leaveAppSend()
           restorePendingAssetPayment(pending)
-        }
+        } else setPendingAssetPayment(undefined)
       } catch (storageError) {
         setTaxiGuardFailed(true)
         return handleError(storageError)
