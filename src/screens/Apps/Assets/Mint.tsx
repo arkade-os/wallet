@@ -22,7 +22,7 @@ import { saveTransactionActivityMetadata } from '../../../lib/storage'
 import type { AssetDetails, IssuanceParams, KnownMetadata } from '@arkade-os/sdk'
 import Input from '../../../components/Input'
 import AssetCard from '../../../components/AssetCard'
-import { MAX_DECIMALS, unitsToCents } from '../../../lib/assets'
+import { MAX_DECIMALS, unitsToAtomic } from '../../../lib/assets'
 import { isInvalidDecimals, isInvalidMintAmount, isValidUrl } from '../../../lib/validators'
 import InputAssetAmount from '@/components/InputAssetAmount'
 import InputAssetDecimals from '@/components/InputAssetDecimals'
@@ -97,7 +97,7 @@ export default function AppAssetMint() {
     const invalidDecimalsReason = isInvalidDecimals(decimalsText)
     if (invalidDecimalsReason) return setError(invalidDecimalsReason)
     // convert amount to cents and validate
-    const cents = unitsToCents(amountTextValue, Number(decimalsText))
+    const cents = unitsToAtomic(amountTextValue, Number(decimalsText))
     const invalidCentsReason = isInvalidMintAmount(cents)
     if (invalidCentsReason) return setError(invalidCentsReason)
     // validate icon URL

@@ -3,7 +3,7 @@
 
 import { fromSatoshis, prettyNumber, toSatoshis } from './format'
 import { isValidArkAddress } from '@arkade-os/sdk'
-import { centsToUnits } from './assets'
+import { atomicToUnits } from './assets'
 
 export interface Bip21Decoded {
   address?: string
@@ -96,7 +96,7 @@ export const encodeBip21 = (address: string, arkAddress: string, invoice: string
 }
 
 export const encodeBip21Asset = (arkAddress: string, assetId: string, cents: bigint, decimals?: number) => {
-  return `bitcoin:?ark=${arkAddress}&assetid=${assetId}&amount=${centsToUnits(cents, decimals)}`
+  return `bitcoin:?ark=${arkAddress}&assetid=${assetId}&amount=${atomicToUnits(cents, decimals)}`
 }
 
 export const isBip21 = (data: string): boolean => {

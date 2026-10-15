@@ -73,6 +73,7 @@ vi.mock('../../lib/swapRepository', async () => {
 vi.mock('../../lib/swapMarkets', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/swapMarkets')>()),
   discoverMarkets: async () => [],
+  watchSwapMarkets: () => () => {},
 }))
 
 const SWAP_ID = 'rfq:quote-1'

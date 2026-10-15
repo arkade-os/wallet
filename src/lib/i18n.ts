@@ -690,6 +690,7 @@ export const translations = {
     },
     solvers: {
       builtIn: 'Built-in',
+      publishedMarkets: 'Markets published by the solver',
       builtInPlusOwnSingular: '{builtIn} built-in solver card, plus {own} of your own.',
       builtInPlusOwnPlural: '{builtIn} built-in solver cards, plus {own} of your own.',
       buildShipsSingular: 'This build ships {count} solver card; add your own to reach more solvers.',
@@ -860,7 +861,9 @@ export const translations = {
       badCallback: 'The return link must be an https address.',
       missingRequest: 'This payment link is missing a payment request.',
       badRequest: 'This payment link is not a valid Bitcoin request.',
-      openInApp: 'Open in App',
+      openInApp: 'Open in the app',
+      open: 'Open',
+      openInAppHint: 'Finish this request in the installed Arkade app.',
       openInAppSafari:
         "Safari can't open the installed app from this page. Open Arkade from your Home Screen, or finish the request here.",
     },
@@ -1570,6 +1573,7 @@ export const translations = {
     },
     solvers: {
       builtIn: 'Integrado',
+      publishedMarkets: 'Mercados publicados por el solver',
       builtInPlusOwnSingular: '{builtIn} tarjeta de solver integrada, más {own} propias.',
       builtInPlusOwnPlural: '{builtIn} tarjetas de solver integradas, más {own} propias.',
       buildShipsSingular: 'Este build incluye {count} tarjeta de solver; añade las tuyas para llegar a más solvers.',
@@ -1741,6 +1745,8 @@ export const translations = {
       missingRequest: 'A este enlace de pago le falta la solicitud.',
       badRequest: 'Este enlace de pago no es una solicitud de Bitcoin válida.',
       openInApp: 'Abrir en la app',
+      open: 'Abrir',
+      openInAppHint: 'Termina esta solicitud en la app de Arkade instalada.',
       openInAppSafari:
         'Safari no puede abrir la app instalada desde esta página. Abre Arkade desde la pantalla de inicio, o termina la solicitud aquí.',
     },

@@ -50,7 +50,7 @@ import {
 import { sideLimits, type DiscoveredMarket, type OfferPlan, type Side } from '@arkade-os/solver-discovery'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
-import { discoverMarkets } from '../lib/swapMarkets'
+import { discoverMarkets, watchSwapMarkets } from '../lib/swapMarkets'
 import { createSendRouter } from '../lib/sendRouter'
 import { claimFeeRate } from '../lib/claimFee'
 import { onchainClaimEndpoint } from '../lib/onchainPayout'
@@ -300,7 +300,10 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     setEmulatorPubkey(undefined)
     setAllMarkets([])
-    runDiscovery()
+    if (!aspInfo.network) return
+    const network = aspInfo.network as NetworkName
+    setEmulatorPubkey(getEmulatorPubkeyForNetwork(network))
+    return watchSwapMarkets(network, setAllMarkets)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aspInfo.network])
 

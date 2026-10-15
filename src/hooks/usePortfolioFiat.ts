@@ -71,7 +71,7 @@ export function usePortfolioFiat(): PortfolioFiat {
   // Non-bitcoin asset rows from real SDK data.
   for (const ab of assetBalances) {
     const meta = assetMetadataCache.get(ab.assetId)?.metadata
-    const assetDecimals = meta?.decimals ?? 8
+    const assetDecimals = meta?.decimals ?? 0
     // absent from availableAssets means every unit of it is escrowed, locked or
     // awaiting recovery — owned, but nothing of it is selectable
     const spendableAmount = availableAssetBalances.find((a) => a.assetId === ab.assetId)?.amount ?? BigInt(0)

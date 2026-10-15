@@ -17,7 +17,7 @@ import { LimitsContext } from '../../../providers/limits'
 import { Asset, Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
-import { unitsToCents } from '../../../lib/assets'
+import { unitsToAtomic } from '../../../lib/assets'
 import ErrorMessage from '../../../components/Error'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
@@ -364,7 +364,7 @@ export default function ReceiveQRCode() {
     setShowAmountSheet(false)
     if (assetMeta) {
       const decimals = assetMeta.metadata?.decimals
-      const cents = unitsToCents(value, decimals)
+      const cents = unitsToAtomic(value, decimals)
       return setAssetAmount(cents)
     } else {
       const num = Number(value)
@@ -527,7 +527,7 @@ export default function ReceiveQRCode() {
                 </div>
                 <button
                   type='button'
-                  className='receive-invoice-qr'
+                  className='receive-invoice-qr focusable'
                   disabled={generating || !qrCodeValue}
                   aria-hidden={generating}
                   onClick={() => handleCopy(qrCodeValue)}
@@ -539,12 +539,11 @@ export default function ReceiveQRCode() {
                   style={{
                     padding: 0,
                     width: '100%',
-                    border: 'none',
                     display: 'block',
-                    cursor: generating ? 'default' : 'pointer',
                     background: 'none',
-                    WebkitTapHighlightColor: 'transparent',
                     touchAction: 'manipulation',
+                    WebkitTapHighlightColor: 'transparent',
+                    cursor: generating ? 'default' : 'pointer',
                   }}
                 >
                   <div
