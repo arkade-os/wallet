@@ -33,6 +33,7 @@ export default function InputNsec({ value, cursor, error, helperText, onChange, 
   }, [value, cursor])
 
   const handlePaste = (data: string) => {
+    hapticLight()
     onChange(data, data.length)
   }
 

@@ -22,7 +22,7 @@ import { getRecoveryWord, parseRecoveryInput } from '../../lib/recoveryInput'
 import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '../../providers/language'
 import { overlaySlideUp, overlayStyle } from '@/lib/animations'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, prefersReducedMotion } from 'framer-motion'
 import Scanner from '@/components/Scanner'
 
 type RotationChoice = 'Inherit' | 'Static' | 'HD'
@@ -123,20 +123,21 @@ export default function InitRestore() {
     )
 
   if (scan) {
-    // an element, never a component defined here: a fresh component type on
-    // every render remounts the scanner, and each remount asks for the camera
     const scanner = (
       <Scanner
         close={() => setScan(false)}
-        label={t('send.recipientAddress')}
+        label={t('components.recoveryPhraseOrKey')}
+        onError={(e) => consoleError(e, 'Scanner error')}
         onData={(data) => {
           handleChange(data, null)
           setScan(false)
         }}
-        onError={(e) => (error = e)}
       />
     )
-    return (
+    const sendOverlayStyle = { ...overlayStyle, position: 'fixed' as const, zIndex: 20 }
+    return prefersReducedMotion ? (
+      <div style={sendOverlayStyle}>{scanner}</div>
+    ) : (
       <AnimatePresence>
         <motion.div
           key='scanner'
@@ -144,10 +145,10 @@ export default function InitRestore() {
           initial='initial'
           animate='animate'
           exit='exit'
-          style={{ ...overlayStyle, position: 'fixed' as const, zIndex: 20 }}
+          style={sendOverlayStyle}
         >
           {scanner}
-        </motion.div>{' '}
+        </motion.div>
       </AnimatePresence>
     )
   }
