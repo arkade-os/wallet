@@ -94,10 +94,10 @@ describe('asset utilities', () => {
   })
 
   describe('unitsToCents', () => {
-    it('should convert units to cents using default decimals=8', () => {
+    it('should read units as whole when decimals are missing', () => {
       expect(unitsToCents('0')).toBe(BigInt(0))
-      expect(unitsToCents('1')).toBe(BigInt(100_000_000))
-      expect(unitsToCents('123')).toBe(BigInt(12_300_000_000))
+      expect(unitsToCents('1')).toBe(BigInt(1))
+      expect(unitsToCents('123', undefined)).toBe(BigInt(123))
     })
 
     it('should support decimals=0 as a no-op', () => {
@@ -152,9 +152,10 @@ describe('asset utilities', () => {
   })
 
   describe('centsToUnits', () => {
-    it('should convert cents to units using default decimals=8', () => {
+    it('should read cents as whole units when decimals are missing', () => {
       expect(centsToUnits(BigInt(0))).toBe('0')
-      expect(centsToUnits(BigInt(100_000_000))).toBe('1')
+      expect(centsToUnits(BigInt(100_000_000))).toBe('100000000')
+      expect(centsToUnits(BigInt(5), undefined)).toBe('5')
     })
 
     it('should support decimals=0 as a no-op', () => {

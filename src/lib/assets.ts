@@ -21,7 +21,7 @@ export const isValidDecimals = (d: number): boolean => Number.isInteger(d) && d 
 const conversionDecimals = (d: number): number =>
   Number.isInteger(d) && d >= 0 && d <= MAX_CONVERSION_DECIMALS ? d : 0
 
-export function unitsToCents(units: string, decimals = MAX_DECIMALS): bigint {
+export function unitsToCents(units: string, decimals = DEFAULT_ASSET_DECIMALS): bigint {
   if (!units || units === '') return BigInt(0)
   const safeDecimals = conversionDecimals(decimals)
   const negative = units.startsWith('-')
@@ -30,7 +30,7 @@ export function unitsToCents(units: string, decimals = MAX_DECIMALS): bigint {
   return negative ? -BigInt(digits) : BigInt(digits)
 }
 
-export function centsToUnits(cents: bigint, decimals = MAX_DECIMALS): string {
+export function centsToUnits(cents: bigint, decimals = DEFAULT_ASSET_DECIMALS): string {
   const safeDecimals = conversionDecimals(decimals)
   if (safeDecimals === 0) return cents.toString()
   const negative = cents < BigInt(0)
