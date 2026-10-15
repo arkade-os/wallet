@@ -26,7 +26,6 @@ import { useAmountDisplayContext } from '../../../hooks/useTransactionAmountDisp
 import TransactionAmountSummary from '../../../components/TransactionAmountSummary'
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
 import { useTranslation } from '../../../providers/language'
-import { DEFAULT_ASSET_DECIMALS } from '../../../lib/assets'
 
 export default function SendDetails() {
   const displayContext = useAmountDisplayContext()
@@ -41,7 +40,7 @@ export default function SendDetails() {
 
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
-  const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? DEFAULT_ASSET_DECIMALS
+  const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? 0
   const assetAmountValue = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
 
   const [buttonLabel, setButtonLabel] = useState('')

@@ -8,7 +8,7 @@ import { AssetOption, Currencies, Unit } from '../lib/types'
 import { TextSecondary } from './Text'
 import { hapticLight } from '../lib/haptics'
 import { fiatAccountAssetSatoshis } from '../lib/accountAssets'
-import { unitsToCents } from '../lib/assets'
+import { unitsToAtomic } from '../lib/assets'
 import ArrowUpDownIcon from '../icons/ArrowUpDown'
 
 export type InputAmountMode = 'unit' | 'fiat'
@@ -138,7 +138,7 @@ export default function InputAmount({
   const assetSatoshis =
     asset?.assetId && asset.trusted && plainDecimalValue
       ? fiatAccountAssetSatoshis(
-          unitsToCents(plainDecimalValue, asset.decimals),
+          unitsToAtomic(plainDecimalValue, asset.decimals),
           asset.decimals,
           asset.ticker,
           toFiatAmount,

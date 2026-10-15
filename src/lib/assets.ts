@@ -2,10 +2,6 @@ import Decimal from 'decimal.js'
 
 export const MAX_DECIMALS = 8 // Arbitrary value to allow at least 1 sat/asset
 
-// an asset with no decimals in its metadata is read as whole units: guessing
-// too few decimals understates an amount, guessing too many overstates it
-export const DEFAULT_ASSET_DECIMALS = 0
-
 // discovered assets may carry up to 18 decimals (solver-discovery's cap);
 // conversions must stay exact for them even though displays default to 8
 const MAX_CONVERSION_DECIMALS = 18
@@ -21,7 +17,8 @@ export const isValidDecimals = (d: number): boolean => Number.isInteger(d) && d 
 const conversionDecimals = (d: number): number =>
   Number.isInteger(d) && d >= 0 && d <= MAX_CONVERSION_DECIMALS ? d : 0
 
-export function unitsToCents(units: string, decimals = DEFAULT_ASSET_DECIMALS): bigint {
+// missing decimals read as whole units: understating an amount beats overstating it
+export function unitsToAtomic(units: string, decimals = 0): bigint {
   if (!units || units === '') return BigInt(0)
   const safeDecimals = conversionDecimals(decimals)
   const negative = units.startsWith('-')
@@ -30,11 +27,11 @@ export function unitsToCents(units: string, decimals = DEFAULT_ASSET_DECIMALS): 
   return negative ? -BigInt(digits) : BigInt(digits)
 }
 
-export function centsToUnits(cents: bigint, decimals = DEFAULT_ASSET_DECIMALS): string {
+export function atomicToUnits(atomic: bigint, decimals = 0): string {
   const safeDecimals = conversionDecimals(decimals)
-  if (safeDecimals === 0) return cents.toString()
-  const negative = cents < BigInt(0)
-  const digits = (negative ? -cents : cents).toString().padStart(safeDecimals + 1, '0')
+  if (safeDecimals === 0) return atomic.toString()
+  const negative = atomic < BigInt(0)
+  const digits = (negative ? -atomic : atomic).toString().padStart(safeDecimals + 1, '0')
   const fraction = digits.slice(-safeDecimals).replace(/0+$/, '')
   return `${negative ? '-' : ''}${digits.slice(0, -safeDecimals)}${fraction ? `.${fraction}` : ''}`
 }
@@ -74,19 +71,19 @@ export const prettyAssetNumber = (num?: string | number, maximumFractionDigits =
 export const prettyAssetAmount = (cents: bigint, decimals: number, tidy = false): string => {
   const realDecimals = conversionDecimals(decimals)
 
-  if (!tidy) return prettyAssetNumber(centsToUnits(cents, realDecimals), realDecimals)
+  if (!tidy) return prettyAssetNumber(atomicToUnits(cents, realDecimals), realDecimals)
 
   const billion = 10 ** 9
   const million = 10 ** 6
   const thousand = 10 ** 3
   const trillion = 10 ** 12
   const tenthousand = 10 ** 4
-  const strUnits = centsToUnits(cents, realDecimals)
+  const strUnits = atomicToUnits(cents, realDecimals)
 
   const safeToUseNumber = cents < BigInt(Number.MAX_SAFE_INTEGER) && cents > BigInt(Number.MIN_SAFE_INTEGER)
 
   if (safeToUseNumber) {
-    const units = Number(centsToUnits(cents, realDecimals))
+    const units = Number(atomicToUnits(cents, realDecimals))
     const absoluteUnits = units < 0 ? -units : units
     if (absoluteUnits >= trillion) {
       return `${prettyAssetNumber(units / trillion, 0)}T`

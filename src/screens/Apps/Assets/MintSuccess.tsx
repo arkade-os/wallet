@@ -12,7 +12,6 @@ import { FlowContext } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
 import AssetCard from '../../../components/AssetCard'
 import { useTranslation } from '../../../providers/language'
-import { DEFAULT_ASSET_DECIMALS } from '../../../lib/assets'
 
 export default function AppAssetMintSuccess() {
   const { replace } = useContext(NavigationContext)
@@ -24,7 +23,7 @@ export default function AppAssetMintSuccess() {
   const details = fromCache ?? assetInfo
   const name = details.metadata?.name ?? t('mint.unknown')
   const ticker = details.metadata?.ticker ?? ''
-  const decimals = details.metadata?.decimals ?? DEFAULT_ASSET_DECIMALS
+  const decimals = details.metadata?.decimals ?? 0
   const icon = details.metadata?.icon
 
   const handleViewAsset = () => {

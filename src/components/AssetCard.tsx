@@ -1,6 +1,6 @@
 import AssetAvatar from './AssetAvatar'
 import TokenLogo, { tokenLogoTickerForTicker } from './TokenLogo'
-import { DEFAULT_ASSET_DECIMALS, truncatedAssetId } from '../lib/assets'
+import { truncatedAssetId } from '../lib/assets'
 import { hapticLight } from '../lib/haptics'
 import { PrivacyAmount, maskedFiat } from './PrivacyAmount'
 import { prettyBitcoinAmount, prettyBitcoinHide, prettyCurrencyAssetAmount } from '../lib/format'
@@ -62,7 +62,7 @@ export default function AssetCard({
   const isBitcoin = trustedTicker?.toUpperCase() === 'BTC'
   const prettyBalance = isBitcoin
     ? prettyBitcoinAmount(Number(rawBalance), bitcoinUnit)
-    : prettyCurrencyAssetAmount(rawBalance, decimals ?? DEFAULT_ASSET_DECIMALS, trustedTicker, !exactAmount)
+    : prettyCurrencyAssetAmount(rawBalance, decimals ?? 0, trustedTicker, !exactAmount)
   const leftSecondary = isBitcoin ? prettyBalance : `${prettyBalance} ${tokenTick}`
   const maskedBalance = isBitcoin ? prettyBitcoinHide(Number(rawBalance), bitcoinUnit) : `•••• ${tokenTick}`
   const maskedFiatText = maskedFiatUnit(fiatText)

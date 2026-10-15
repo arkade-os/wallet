@@ -6,7 +6,6 @@ import { AspContext } from '../providers/asp'
 import { FiatContext } from '../providers/fiat'
 import { WalletContext } from '../providers/wallet'
 import { designatedAccountCurrency, type FiatAccountSourceAsset } from '../lib/accountAssets'
-import { DEFAULT_ASSET_DECIMALS } from '../lib/assets'
 
 export interface PortfolioRow {
   /** 'btc' for the native bitcoin row, otherwise the asset's on-chain id. */
@@ -72,7 +71,7 @@ export function usePortfolioFiat(): PortfolioFiat {
   // Non-bitcoin asset rows from real SDK data.
   for (const ab of assetBalances) {
     const meta = assetMetadataCache.get(ab.assetId)?.metadata
-    const assetDecimals = meta?.decimals ?? DEFAULT_ASSET_DECIMALS
+    const assetDecimals = meta?.decimals ?? 0
     // absent from availableAssets means every unit of it is escrowed, locked or
     // awaiting recovery — owned, but nothing of it is selectable
     const spendableAmount = availableAssetBalances.find((a) => a.assetId === ab.assetId)?.amount ?? BigInt(0)

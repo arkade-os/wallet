@@ -17,7 +17,6 @@ import { EmptyAssetsList } from '../../../components/Empty'
 import { AspContext } from '../../../providers/asp'
 import AssetCard from '../../../components/AssetCard'
 import { useTranslation } from '../../../providers/language'
-import { DEFAULT_ASSET_DECIMALS } from '../../../lib/assets'
 
 interface AssetListItem {
   assetId: string
@@ -70,7 +69,7 @@ export default function AppAssets() {
           name: meta?.metadata?.name,
           ticker: meta?.metadata?.ticker,
           icon: meta?.metadata?.icon,
-          decimals: meta?.metadata?.decimals ?? DEFAULT_ASSET_DECIMALS,
+          decimals: meta?.metadata?.decimals ?? 0,
         }
       })
 
