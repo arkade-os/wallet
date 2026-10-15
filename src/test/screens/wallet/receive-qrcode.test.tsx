@@ -397,6 +397,38 @@ describe('Receive QR Code screen', () => {
       expect(screen.getByRole('button', { name: /Showing/ }) === document.activeElement).toBe(focused)
     })
 
+    it('moves focus through the methods with the arrow keys, without picking', () => {
+      const onPick = vi.fn()
+      const rows = ['Unified', 'Arkade', 'Bitcoin'].map((title) => ({ id: title, title }))
+      render(
+        <ReceiveSelector
+          label='Arkade'
+          rows={rows}
+          active='Arkade'
+          open
+          onToggle={vi.fn()}
+          onClose={vi.fn()}
+          onPick={onPick}
+        />,
+      )
+      const radio = (name: string) => screen.getByRole('radio', { name })
+      const press = (key: string) => fireEvent.keyDown(document.activeElement!, { key })
+
+      expect(radio('Arkade')).toHaveFocus()
+      expect(rows.map((r) => radio(r.title).tabIndex)).toEqual([-1, 0, -1])
+      press('ArrowDown')
+      expect(radio('Bitcoin')).toHaveFocus()
+      press('ArrowDown')
+      expect(radio('Unified')).toHaveFocus()
+      press('ArrowUp')
+      expect(radio('Bitcoin')).toHaveFocus()
+      press('Home')
+      expect(radio('Unified')).toHaveFocus()
+      press('End')
+      expect(radio('Bitcoin')).toHaveFocus()
+      expect(onPick).not.toHaveBeenCalled()
+    })
+
     it('translates the method labels like the rest of the screen', async () => {
       renderReceiveQrCode({ ...amountFixture('lnbc10u1ptest'), language: Language.Spanish })
 

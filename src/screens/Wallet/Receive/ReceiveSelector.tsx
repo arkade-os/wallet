@@ -107,6 +107,23 @@ export default function ReceiveSelector(p: {
                   refocus.current = false
                   onClose()
                 }}
+                onKeyDown={(e) => {
+                  // Arrows move focus only: picking Stablecoins opens a sheet, so selection waits for Enter or Space.
+                  const items = [...e.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]')]
+                  const i = items.indexOf(document.activeElement as HTMLElement)
+                  const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key]
+                  const next =
+                    e.key === 'Home'
+                      ? 0
+                      : e.key === 'End'
+                        ? items.length - 1
+                        : step
+                          ? (i + step + items.length) % items.length
+                          : -1
+                  if (next < 0) return
+                  e.preventDefault()
+                  items[next].focus()
+                }}
                 style={{ ...box, maxHeight: `calc(100dvh - ${box.top}px - 0.5rem)` }}
                 className='hide-scrollbar fixed z-50 flex flex-col gap-0.5 overflow-y-auto rounded-xl border border-neutral-100 bg-popover p-1 text-popover-foreground shadow-md'
               >
@@ -117,6 +134,7 @@ export default function ReceiveSelector(p: {
                     type='button'
                     role='radio'
                     aria-checked={r.id === p.active}
+                    tabIndex={r.id === p.active ? 0 : -1}
                     onClick={() => {
                       refocus.current = !p.onPick(r.id)
                     }}
