@@ -77,6 +77,16 @@ describe('Solvers screen', () => {
     expect(screen.getByText('You have 1 solver card stored in your wallet.')).toBeInTheDocument()
   })
 
+  it('labels a pointer card instead of listing no pairs', () => {
+    localStorage.setItem(
+      'solverCards',
+      JSON.stringify([{ network: 'regtest', label: 'Pointer', card: { version: 0, name: 'Pointer' } }]),
+    )
+    renderSolvers()
+
+    expect(screen.getByText('Markets published by the solver')).toBeInTheDocument()
+  })
+
   it('removes a stored solver card', async () => {
     localStorage.setItem(
       'solverCards',
