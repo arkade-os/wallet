@@ -21,6 +21,9 @@ import InputNsec from '../../components/InputNsec'
 import { getRecoveryWord, parseRecoveryInput } from '../../lib/recoveryInput'
 import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '../../providers/language'
+import { overlaySlideUp, overlayStyle } from '@/lib/animations'
+import { AnimatePresence, motion } from 'framer-motion'
+import Scanner from '@/components/Scanner'
 
 type RotationChoice = 'Inherit' | 'Static' | 'HD'
 
@@ -43,11 +46,13 @@ export default function InitRestore() {
 
   const buttonLabel = t('common.continue')
 
-  const [input, setInput] = useState<{ value: string; cursor: number | null }>({ value: '', cursor: null })
+  const [scan, setScan] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [restoring, setRestoring] = useState(false)
   const [restoreDone, setRestoreDone] = useState(false)
   const [rotationChoice, setRotationChoice] = useState<RotationChoice>('Inherit')
+  const [input, setInput] = useState<{ value: string; cursor: number | null }>({ value: '', cursor: null })
+
   const parsed = useMemo(() => parseRecoveryInput(input.value), [input.value])
   const mnemonic = parsed.kind === 'phrase' ? parsed.mnemonic : undefined
   const privateKey = parsed.kind === 'key' ? parsed.privateKey : undefined
@@ -117,6 +122,36 @@ export default function InitRestore() {
       />
     )
 
+  if (scan) {
+    // an element, never a component defined here: a fresh component type on
+    // every render remounts the scanner, and each remount asks for the camera
+    const scanner = (
+      <Scanner
+        close={() => setScan(false)}
+        label={t('send.recipientAddress')}
+        onData={(data) => {
+          handleChange(data, null)
+          setScan(false)
+        }}
+        onError={(e) => (error = e)}
+      />
+    )
+    return (
+      <AnimatePresence>
+        <motion.div
+          key='scanner'
+          variants={overlaySlideUp}
+          initial='initial'
+          animate='animate'
+          exit='exit'
+          style={{ ...overlayStyle, position: 'fixed' as const, zIndex: 20 }}
+        >
+          {scanner}
+        </motion.div>{' '}
+      </AnimatePresence>
+    )
+  }
+
   return (
     <>
       <Header text={t('init.restoreWallet')} back />
@@ -127,12 +162,13 @@ export default function InitRestore() {
               <FlexCol between>
                 <FlexCol>
                   <InputNsec
+                    error={error}
                     value={input.value}
                     cursor={input.cursor}
+                    helperText={helperText}
                     onChange={handleChange}
                     onSubmit={handleProceed}
-                    error={error}
-                    helperText={helperText}
+                    openScan={() => setScan(true)}
                   />
                   {devMode && mnemonic ? (
                     <FlexCol gap='0.5rem'>
