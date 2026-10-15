@@ -659,16 +659,17 @@ describe('Wallet swap flow', () => {
     expect(await screen.findByRole('button', { name: /NAPO/i })).toBeInTheDocument()
   })
 
-  it('funds the balance less one dust carrier when the wallet also holds assets', async () => {
+  it('funds the SDK available balance as-is, without holding back a second dust carrier', async () => {
     renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
 
     fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
     fireEvent.click(screen.getByRole('button', { name: /USD/i }))
 
-    // the wallet holds 100,000 sats (loaded async) next to USDT and DEPIX, so
-    // tapping the balance keeps the dust carrier their change will need (333 in the mock)
-    await userEvent.click(await screen.findByRole('button', { name: '99,667 sats' }))
-    expect(primaryAmount()).toHaveTextContent('99667 sats')
+    // the wallet holds 100,000 sats available (loaded async) next to USDT and
+    // DEPIX; the SDK's `available` already excludes the dust carrier their
+    // change needs, so the wallet must not subtract it again
+    await userEvent.click(await screen.findByRole('button', { name: '100,000 sats' }))
+    expect(primaryAmount()).toHaveTextContent('100000 sats')
 
     const continueButton = screen.getByRole('button', { name: 'Continue' })
     await waitFor(() => expect(continueButton).toBeEnabled(), { timeout: 3_000 })
@@ -676,7 +677,7 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
     await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][0].deposit.atomic).toBe(BigInt(99_667))
+    expect(exchange.mock.calls[0][0].deposit.atomic).toBe(BigInt(100_000))
   })
 
   it('offers only the spendable part of an asset held partly in swap escrow', async () => {

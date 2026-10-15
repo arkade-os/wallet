@@ -9,9 +9,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { parseEnv, promisify } from 'node:util'
 
 export const refs = Object.freeze({
-  solver: '9fd60fbaa0df6f6f343ead8c065a43436c365127',
+  solver: '4e364eb20f5666d61b5a999821691513288796cc',
   taxi: 'e7cdfa4124e4a10706c3f1ebaba677965133e73c',
-  regtest: '78d0b7a9677077ca64bf09b4e825520ba462446b',
+  regtest: 'baab2f453b726872c7da85a6407da429352e96df',
 })
 const projects = ['Mobile Chrome', 'Google Chrome']
 const walletRoot = process.cwd()

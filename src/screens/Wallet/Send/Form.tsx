@@ -51,7 +51,7 @@ import {
 import { appIntentHandoff, redirectToCallback } from '../../../lib/appIntent'
 import OpenInApp from '../../AppIntent/OpenInApp'
 import { InfoLine } from '../../../components/Info'
-import { centsToUnits, liquidBtcBalance, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
+import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
 import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -440,7 +440,7 @@ export default function SendForm() {
   const RECIPIENT_DEBOUNCE_MS = 800
   const hasAssets = assetBalances.length > 0
   const reserveApplied = !isAssetSend && hasAssets
-  const liquidBalance = liquidBtcBalance(availableBalance, reserveApplied, aspInfo.dust)
+  const liquidBalance = availableBalance
   const taxiLacksSats = payViaReceiverTaxi && !hasSatsForReceiverTaxi(liquidBalance, aspInfo.dust)
 
   const smartSetError = (str: string) => {

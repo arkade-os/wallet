@@ -12,7 +12,7 @@ export const MANIFEST_PATH = `${VENDOR_DIR}/manifest.json`
 
 const TS_SDK = 'https://github.com/arkade-os/ts-sdk.git'
 const ARKADE_TAXI = 'https://github.com/ArkLabsHQ/arkade-taxi.git'
-const SDK_COMMIT = 'c4fc8db5d5e59d469a7d00d6dfc6547aef51bdbe'
+const SDK_COMMIT = '57512284f5e2c4c6c37737c03cd1775cf5c2d639'
 const TAXI_COMMIT = 'f27ae4b6238569ff496d11a05faba32344b55245'
 
 export const PINNED_SOURCES = {
@@ -26,8 +26,8 @@ export const PINNED_SOURCES = {
 export const PINNED_PACKAGES = Object.keys(PINNED_SOURCES)
 
 export const PINNED_DIGESTS = {
-  '@arkade-os/sdk': '3b6420b48917d08539e699a652d29c20fd1a52353de179542cd22bc44cfd0046',
-  '@arkade-os/swap': 'ae00802cec67aa8237b6b6c70903460da81aa7d5e9f1d4a3ba5aee2a694b15fb',
+  '@arkade-os/sdk': 'd020fb4b36dc231a849071ce50b147464f986aa0fc17b92a9ac8906bc5e59f4c',
+  '@arkade-os/swap': '168358b2c06b41f6eaba8f11a7e063bd27af56a05be6e4b3085c176a6b2906cc',
   '@arkade-taxi/covenant': '8c9e70c792c5110b6f8b63e2f500004af8311e6f03b5aae3509b8b48a9db260b',
   '@arkade-taxi/protocol': 'd47edd6d09302725998dc4add79ac8bc60abcf625ca0a7ee69ca87d64809f0f4',
   '@arkade-taxi/client': 'fe8b2d8fe83e55e47ed798b50caa1c181a1d2da3fb31e95e82804d50ee8b21a3',

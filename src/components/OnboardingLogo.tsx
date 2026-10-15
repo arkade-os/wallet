@@ -1,15 +1,13 @@
 import { RefObject, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, useAnimationControls } from 'framer-motion'
-import { EASE_OUT_QUINT_TUPLE } from '../lib/animations'
+import { EASE_OUT_QUINT_TUPLE, SPRING_BACK, SQUASH } from '../lib/animations'
+import { sleep as delay } from '../lib/sleep'
 import PixelLogoSvg from './PixelLogoSvg'
 import PixelSplash from './PixelSplash'
 
 const LARGE_SIZE = 100
 const SMALL_SIZE = 28
-const EASE_IN = [0.55, 0, 1, 0.45] as [number, number, number, number]
-
-const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
 // Shape indices in pixel-shapes.ts: 0=Arcade, 1=Invader, 2=Heart
 // Sequence: Arcade → Invader → Heart → Arcade (fly)
@@ -50,21 +48,11 @@ export default function OnboardingLogo({ targetRef, onComplete, onFlyStart, redu
       setActiveShape(nextShape)
 
       // Quick squash down (gravity)
-      await bounceControls.start({
-        y: 20,
-        scaleY: 0.75,
-        scaleX: 1.15,
-        transition: { duration: 0.06, ease: EASE_IN },
-      })
+      await bounceControls.start(SQUASH)
       if (cancelled.current) return
 
       // Spring recovery — overshoots past origin, one clean bounce, settles
-      await bounceControls.start({
-        y: 0,
-        scaleY: 1,
-        scaleX: 1,
-        transition: { type: 'spring', stiffness: 600, damping: 18, mass: 0.6 },
-      })
+      await bounceControls.start(SPRING_BACK)
     }
 
     async function bounceAndMorphAndFly(nextShape: number) {
@@ -74,12 +62,7 @@ export default function OnboardingLogo({ targetRef, onComplete, onFlyStart, redu
       setActiveShape(nextShape)
 
       // Quick squash down
-      await bounceControls.start({
-        y: 20,
-        scaleY: 0.75,
-        scaleX: 1.15,
-        transition: { duration: 0.06, ease: EASE_IN },
-      })
+      await bounceControls.start(SQUASH)
       if (cancelled.current) return
 
       // Calculate fly target
