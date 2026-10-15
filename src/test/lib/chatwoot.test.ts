@@ -4,15 +4,15 @@ import { getChatwootLocale, getChatwootSettings } from '../../lib/chatwoot'
 
 describe('chatwoot localization', () => {
   it('maps the active language to the Chatwoot widget locale', () => {
-    expect(getChatwootLocale(Language.Spanish)).toBe('es')
-    expect(getChatwootLocale(Language.English)).toBe('en')
-    expect(getChatwootLocale(Language.Portuguese)).toBe('pt')
+    Object.values(Language).forEach((lang) => {
+      expect(getChatwootLocale(lang)).toBe(lang)
+    })
   })
 
   it('applies the locale to the widget settings', () => {
-    expect(getChatwootSettings(getChatwootLocale(Language.Spanish)).locale).toBe('es')
-    expect(getChatwootSettings(getChatwootLocale(Language.English)).locale).toBe('en')
-    expect(getChatwootSettings(getChatwootLocale(Language.Portuguese)).locale).toBe('pt')
+    Object.values(Language).forEach((lang) => {
+      expect(getChatwootSettings(getChatwootLocale(lang)).locale).toBe(getChatwootLocale(lang))
+    })
     expect(getChatwootSettings().locale).toBe('en')
   })
 })

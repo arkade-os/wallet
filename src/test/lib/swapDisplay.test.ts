@@ -256,18 +256,18 @@ describe('lnSwapLabel', () => {
     expect(lnSwapLabel(row({ outcome: 'something-new' }), t)).toBe('Lightning send')
   })
 
-  it('localizes the corridor stem and outcome in Spanish', () => {
-    const es = (key: string): string => translate(Language.Spanish, key)
-    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'refunded' }), es)).toBe('Envío Lightning reembolsado')
-    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'lost' }), es)).toBe('Recepción Lightning perdida')
-    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'settled' }), es)).toBe('Recepción Lightning')
-  })
-
-  it('localizes the corridor stem and outcome in Portuguese', () => {
-    const pt = (key: string): string => translate(Language.Portuguese, key)
-    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'refunded' }), pt)).toBe('Envio Lightning reembolsado')
-    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'lost' }), pt)).toBe('Recebimento Lightning perdido')
-    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'settled' }), pt)).toBe('Recebimento Lightning')
+  it('localizes the corridor stem and outcome in all languages', () => {
+    const fixtures = [
+      { test: { label: 'Lightning send', outcome: 'refunded' }, key: 'transaction.lightningSendRefunded' },
+      { test: { label: 'Lightning receive', outcome: 'lost' }, key: 'transaction.lightningReceiveLost' },
+      { test: { label: 'Lightning receive', outcome: 'settled' }, key: 'transaction.lightningReceive' },
+    ]
+    Object.values(Language).forEach((lang) => {
+      const translateFn = (key: string): string => translate(lang, key)
+      fixtures.forEach(({ test, key }) => {
+        expect(lnSwapLabel(row(test), translateFn)).toBe(translate(lang, key))
+      })
+    })
   })
 
   it('leaves a row the resolver never tagged alone', () => {

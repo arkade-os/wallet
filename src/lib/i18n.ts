@@ -1,7 +1,5 @@
 import { Language } from './types'
 
-export type LanguageCode = 'en' | 'es' | 'pt'
-
 export const translations = {
   en: {
     accounts: {
