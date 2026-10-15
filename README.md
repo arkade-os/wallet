@@ -102,6 +102,20 @@ Install dependencies
 pnpm install
 ```
 
+### Frozen SDK 0.5 consumer packages
+
+`vendor/carrier/manifest.json` records the five candidate archives from SDK
+`3c369d3a` and Taxi `f27ae4b6`. Their version numbers may also exist in the
+registry; the workspace overrides and lock integrity bind this wallet to the
+committed archive bytes. Run `pnpm verify:artifacts` before installation and
+`pnpm verify:artifacts --installed` afterward to check the installed exports and
+shared signer resolution.
+
+To restore this exact bundle, run
+`node scripts/carrier-artifacts/pack.mjs --bundle <frozen-bundle-directory>`.
+The command authenticates the pinned source commits and digests before copying
+all five archives; it does not rebuild or repack the SDK.
+
 ## Development
 
 ### `pnpm run start`
@@ -165,14 +179,27 @@ Access the playwright code generator tool with:
 pnpm run test:codegen
 ```
 
-On CI the suite runs as four parallel jobs: two browser projects (`Mobile Chrome`,
+On CI the standard suite runs as four parallel jobs: two browser projects (`Mobile Chrome`,
 `Google Chrome`) times two file groups defined in `.github/workflows/playwright.yml`:
 
-- `assets-send`: `asset.test.ts`, `send.test.ts`
+- `assets-send`: `asset.test.ts`, `send.test.ts`, `send-onchain-fallback.test.ts`
 - `core`: every other file in `src/test/e2e/`
 
 The groups list files explicitly, so **a new test file must be added to one of them**,
 otherwise it will never run on CI.
+
+Two separate native Taxi jobs run all four Taxi cases in each browser project.
+They verify the five frozen packages in both wallet and solver, then start an
+isolated Arkade/emulator/Taxi stack, fund the current solver, mint ARFQ and publish
+its actual signed discovery card through a local WSS relay. The exact-out case
+checks the single fill, receiver recycle and all four parties' final balances.
+
+`node --experimental-eventsource scripts/taxi-native-ci.mjs "Google Chrome"`
+runs that lane from a prepared checkout with its exact solver, Taxi and regtest
+sources and the three provider images set as in the workflow. It owns its Docker
+namespace, private fixture files and daemon, and restores the generated registry
+files during cleanup. `Mobile Chrome` selects the other project. A missing native
+fixture fails the test rather than skipping it.
 
 ## App links
 

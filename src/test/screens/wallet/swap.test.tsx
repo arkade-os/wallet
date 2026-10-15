@@ -246,7 +246,7 @@ describe('Wallet swap flow', () => {
     expect(document.body).not.toHaveTextContent(/[$€]/)
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
     await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][2]).not.toHaveProperty('fromFiatAmount')
+    expect(exchange.mock.calls[0][1]).not.toHaveProperty('fromFiatAmount')
 
     first.unmount()
     exchange.mockClear()
@@ -265,7 +265,7 @@ describe('Wallet swap flow', () => {
     expect(document.body).not.toHaveTextContent(/[$€]/)
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
     await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][2]).not.toHaveProperty('fromFiatAmount')
+    expect(exchange.mock.calls[0][1]).not.toHaveProperty('fromFiatAmount')
   })
 
   it('keeps the priced receive conversion when only the give asset is unpriced', async () => {
@@ -289,7 +289,7 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
     await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][2]).not.toHaveProperty('fromFiatAmount')
+    expect(exchange.mock.calls[0][1]).not.toHaveProperty('fromFiatAmount')
   })
 
   it('hides identity conversion for a BTC-currency sats swap and preserves the exact amount', async () => {
@@ -310,7 +310,7 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
     await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][1].deposit.atomic).toBe(BigInt(1_000))
+    expect(exchange.mock.calls[0][0].deposit.atomic).toBe(BigInt(1_000))
   })
 
   it('hides identity conversion for a BRL-currency BRL swap and preserves the exact amount', async () => {
@@ -332,7 +332,7 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
     await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][1].deposit.atomic).toBe(BigInt(100_000_000_000))
+    expect(exchange.mock.calls[0][0].deposit.atomic).toBe(BigInt(100_000_000_000))
   })
 
   it('clears a currency amount when its price conversion becomes unavailable', async () => {
@@ -438,13 +438,13 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
     await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][1].deposit.atomic).toBe(BigInt(50_000))
+    expect(exchange.mock.calls[0][0].deposit.atomic).toBe(BigInt(50_000))
     // the default display unit is BTC (mockConfigContextValue) — the swap
     // entry/ticker/decimals follow it, same as the rest of the wallet
-    expect(exchange.mock.calls[0][2]).toMatchObject({ fromTicker: 'BTC', toTicker: 'USD', feeBps: 30 })
+    expect(exchange.mock.calls[0][1]).toMatchObject({ fromTicker: 'BTC', toTicker: 'USD', feeBps: 30 })
     // fromDecimals must pair with fromTicker ('BTC' -> 8), the solver's real
     // protocol decimals — otherwise the persisted receipt mislabels the scale
-    expect(exchange.mock.calls[0][2]).toMatchObject({ fromDecimals: 8 })
+    expect(exchange.mock.calls[0][1]).toMatchObject({ fromDecimals: 8 })
   })
 
   it('quotes the covenant floor with the market fee conceded', async () => {
@@ -478,12 +478,12 @@ describe('Wallet swap flow', () => {
 
     await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
     expect(screen.getByText('BTC to USD · Waiting for fill')).toBeInTheDocument()
-    const plan = exchange.mock.calls[0][1]
+    const plan = exchange.mock.calls[0][0]
     expect(plan.deposit.atomic).toBe(BigInt(10_000))
     // 10_000 sats * 0.1 cents/sat * (10000 - 30)bps = 997 cents
     expect(plan.receive.atomic).toBe(BigInt(997))
     // the persisted quote snapshot must carry the same correct fiat value
-    expect(exchange.mock.calls[0][2]).toMatchObject({ fromFiatAmount: 10 })
+    expect(exchange.mock.calls[0][1]).toMatchObject({ fromFiatAmount: 10 })
   })
 
   it('never shows a fractional sats fee — sats and ₿ are whole numbers', async () => {
@@ -541,7 +541,7 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
     await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][2].fromFiatAmount).toBeCloseTo(4.99, 2)
+    expect(exchange.mock.calls[0][1].fromFiatAmount).toBeCloseTo(4.99, 2)
   })
 
   it('snapshots a fiat entry at the rate the entry was converted with, not the solver-rate reconstruction', async () => {
@@ -564,7 +564,7 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
     await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][2].fromFiatAmount).toBeCloseTo(50, 2)
+    expect(exchange.mock.calls[0][1].fromFiatAmount).toBeCloseTo(50, 2)
   })
 
   it('promotes the converted value when toggling denominations, not the raw digits (#839)', async () => {
@@ -589,7 +589,7 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
     await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][2].fromFiatAmount).toBeCloseTo(50, 2)
+    expect(exchange.mock.calls[0][1].fromFiatAmount).toBeCloseTo(50, 2)
   })
 
   it('keeps the visible fiat amount in sync with the keypad after changing denominations', async () => {
@@ -677,7 +677,7 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
     await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][1].deposit.atomic).toBe(BigInt(100_000))
+    expect(exchange.mock.calls[0][0].deposit.atomic).toBe(BigInt(100_000))
   })
 
   it('offers only the spendable part of an asset held partly in swap escrow', async () => {
@@ -705,7 +705,7 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
     await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][1].deposit.atomic).toBe(BigInt(10_000))
+    expect(exchange.mock.calls[0][0].deposit.atomic).toBe(BigInt(10_000))
   })
 
   it('hides Use max when the selected asset has no balance', () => {
@@ -740,7 +740,7 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
     await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][1].deposit.atomic).toBe(BigInt(1_093_180))
+    expect(exchange.mock.calls[0][0].deposit.atomic).toBe(BigInt(1_093_180))
   })
 
   it('reuses one cached feed value across quotes instead of refetching per keystroke', async () => {
@@ -782,7 +782,7 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
     await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    const plan = exchange.mock.calls[0][1]
+    const plan = exchange.mock.calls[0][0]
     expect(plan.deposit.atomic).toBe(BigInt(1_000))
     expect(plan.receive.atomic).toBe(BigInt(99))
   })
@@ -807,7 +807,7 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
     await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    const plan = exchange.mock.calls[0][1]
+    const plan = exchange.mock.calls[0][0]
     // $100 at $100,000/BTC = 0.001 BTC = 100,000 sats, not "0" (rounded to
     // whole BTC) and not a comma-grouped string the solver can't parse
     expect(plan.deposit.atomic).toBe(BigInt(100_000))
@@ -849,8 +849,8 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
     await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][1].deposit.atomic).toBe(BigInt(minSats))
-    expect(exchange.mock.calls[0][1].receive.atomic).toBe(BigInt(99))
+    expect(exchange.mock.calls[0][0].deposit.atomic).toBe(BigInt(minSats))
+    expect(exchange.mock.calls[0][0].receive.atomic).toBe(BigInt(99))
   })
 
   it('quotes the minimum in the asset being sent (USD), not the asset being received (sats) — vice versa', async () => {
@@ -916,10 +916,10 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
     await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    const plan = exchange.mock.calls[0][1]
+    const plan = exchange.mock.calls[0][0]
     // 0.001 BTC = 100,000 sats
     expect(plan.deposit.atomic).toBe(BigInt(100_000))
-    expect(exchange.mock.calls[0][2]).toMatchObject({ fromTicker: 'BTC', fromDecimals: 8 })
+    expect(exchange.mock.calls[0][1]).toMatchObject({ fromTicker: 'BTC', fromDecimals: 8 })
   })
 
   it('follows the wallet bitcoin-unit setting for the swap amount, including when the currency-of-account is BTC', async () => {
