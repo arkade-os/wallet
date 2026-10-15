@@ -48,23 +48,86 @@ const plan = {
 const assetId = deliveredAssetId(claim)!
 
 describe('Taxi claim asset amounts', () => {
-  it.each([
-    { verified: false, decimals: 4, ticker: truncatedAssetId(assetId), delivery: '1', fare: '0.1', retained: '0.9' },
-    { verified: true, decimals: 4, ticker: 'USD', delivery: '1.00', fare: '0.10', retained: '0.90' },
-    { verified: false, decimals: undefined, ticker: 'atomic units', delivery: '10K', fare: '1,000', retained: '9,000' },
-    { verified: true, decimals: 19, ticker: 'atomic units', delivery: '10K', fare: '1,000', retained: '9,000' },
-  ])(
-    'uses $ticker with verified=$verified and decimals=$decimals',
-    ({ verified, decimals, ticker, delivery, fare, retained }) => {
+  it.each(
+    [
+      {
+        verified: false,
+        metadataTicker: 'USD',
+        decimals: 4,
+        ticker: truncatedAssetId(assetId),
+        delivery: '1',
+        fare: '0.1',
+        retained: '0.9',
+      },
+      {
+        verified: true,
+        metadataTicker: 'USD',
+        decimals: 4,
+        ticker: 'USD',
+        delivery: '1.00',
+        fare: '0.10',
+        retained: '0.90',
+      },
+      {
+        verified: false,
+        metadataTicker: 'USD',
+        decimals: undefined,
+        ticker: 'atomic units',
+        delivery: '10K',
+        fare: '1,000',
+        retained: '9,000',
+      },
+      {
+        verified: true,
+        metadataTicker: 'USD',
+        decimals: 19,
+        ticker: 'atomic units',
+        delivery: '10K',
+        fare: '1,000',
+        retained: '9,000',
+      },
+      {
+        verified: false,
+        metadataTicker: undefined,
+        decimals: 4,
+        ticker: truncatedAssetId(assetId),
+        delivery: '1',
+        fare: '0.1',
+        retained: '0.9',
+      },
+      {
+        verified: true,
+        metadataTicker: '',
+        decimals: 4,
+        ticker: truncatedAssetId(assetId),
+        delivery: '1',
+        fare: '0.1',
+        retained: '0.9',
+      },
+      {
+        verified: false,
+        metadataTicker: '   ',
+        decimals: 4,
+        ticker: truncatedAssetId(assetId),
+        delivery: '1',
+        fare: '0.1',
+        retained: '0.9',
+      },
+    ].flatMap((testCase) => [true, false].map((showBalance) => ({ ...testCase, showBalance }))),
+  )(
+    'uses $ticker with verified=$verified, decimals=$decimals and showBalance=$showBalance',
+    ({ verified, metadataTicker, decimals, ticker, delivery, fare, retained, showBalance }) => {
       render(
         <AspContext.Provider value={mockAspContextValue}>
-          <ConfigContext.Provider value={mockConfigContextValue}>
+          <ConfigContext.Provider
+            value={{ ...mockConfigContextValue, config: { ...mockConfigContextValue.config, showBalance } }}
+          >
             <WalletContext.Provider
               value={{
                 ...mockWalletContextValue,
                 isVerifiedAsset: () => verified,
                 assetMetadataCache: new Map([
-                  [assetId, { assetId, cachedAt: 0, supply: 10000n, metadata: { ticker: 'USD', decimals } }],
+                  [assetId, { assetId, cachedAt: 0, supply: 10000n, metadata: { ticker: metadataTicker, decimals } }],
                 ]),
               }}
             >
@@ -73,7 +136,9 @@ describe('Taxi claim asset amounts', () => {
           </ConfigContext.Provider>
         </AspContext.Provider>,
       )
-      expect(screen.getByText(`${delivery} ${ticker}`)).toBeInTheDocument()
+      expect(
+        screen.getByText(showBalance ? `${delivery} ${ticker}` : `\u2022\u2022\u2022\u2022 ${ticker}`),
+      ).toBeInTheDocument()
       expect(screen.getByTestId('claim-fare')).toHaveTextContent(`Fare: ${fare} ${ticker}, paid out of the delivery.`)
       expect(screen.getByTestId('claim-plan')).toHaveTextContent(`You receive ${retained} ${ticker}.`)
       if (!verified) expect(screen.getByText('Unverified')).toBeInTheDocument()

@@ -5,6 +5,7 @@ import { dirname, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseEnv, promisify } from 'node:util'
 import { nativeRegistry } from './taxi-native-registry.mjs'
+import { cleanupOwnedStages } from './taxi-native-ci.mjs'
 import { endpoint, loadNativeEnv, requiredValue, sanitizedError } from './taxi-native-env.mjs'
 
 const run = promisify(execFile)
@@ -143,8 +144,8 @@ try {
   process.exitCode = 1
 } finally {
   process.chdir(walletRoot)
-  if (context) {
-    await context.wallet.dispose()
-    context.close()
+  for (const failure of await cleanupOwnedStages({ context })) {
+    console.error(sanitizedError(new Error(failure), env))
+    process.exitCode = 1
   }
 }

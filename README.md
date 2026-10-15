@@ -105,7 +105,7 @@ pnpm install
 ### Frozen SDK 0.5 consumer packages
 
 `vendor/carrier/manifest.json` records the five candidate archives from SDK
-`57512284` and Taxi `f27ae4b6`. Their version numbers may also exist in the
+`3c369d3a` and Taxi `f27ae4b6`. Their version numbers may also exist in the
 registry; the workspace overrides and lock integrity bind this wallet to the
 committed archive bytes. Run `pnpm verify:artifacts` before installation and
 `pnpm verify:artifacts --installed` afterward to check the installed exports and
