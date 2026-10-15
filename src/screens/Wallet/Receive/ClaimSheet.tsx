@@ -83,8 +83,7 @@ export default function ClaimSheet({ claim, plan, claiming, spent, error, onClai
   const presentation = rawAssetPresentation(metadata, assetId ? truncatedAssetId(assetId) : 'Asset')
   const designatedCurrency = verifiedDesignatedCurrency(aspInfo.network, assetId, isVerifiedAsset)
   const trustedTicker = assetId && hasDecimals && isVerifiedAsset(assetId) ? presentation.ticker : undefined
-  const ticker =
-    hasDecimals && presentation.ticker && assetId ? (trustedTicker ?? truncatedAssetId(assetId)) : 'atomic units'
+  const ticker = hasDecimals && assetId ? trustedTicker || truncatedAssetId(assetId) : 'atomic units'
   const units = (value: bigint) => `${prettyCurrencyAssetAmount(value, decimals, trustedTicker)} ${ticker}`
   const { kind, value } = descriptor.recoveryLocktime
   const locktime = kind === 'height' ? `block ${value}` : new Date(Number(value) * 1000).toLocaleString()

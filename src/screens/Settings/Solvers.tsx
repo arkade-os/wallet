@@ -128,7 +128,7 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose?: () => void
 function BundledCardLine({ input }: { input: LocalCardInput }) {
   const { t } = useTranslation()
   const card = input.card as Card
-  const pairs = card.markets?.map((m) => m.pair).join(', ') ?? ''
+  const pairs = card.markets?.map((m) => m.pair).join(', ') ?? t('solvers.publishedMarkets')
   const [showCard, setShowCard] = useState(false)
 
   const toggleShowCard = () => {
@@ -162,7 +162,7 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
   const [error, setError] = useState<string>('')
 
   const card = input.card as Card
-  const pairs = card.markets?.map((m) => m.pair).join(', ') ?? ''
+  const pairs = card.markets?.map((m) => m.pair).join(', ') ?? t('solvers.publishedMarkets')
 
   const handleConfirmRemove = () => {
     setConfirmRemove(true)

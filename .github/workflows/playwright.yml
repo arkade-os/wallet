@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project: ["Mobile Chrome", "Google Chrome"]
+        project: ['Mobile Chrome', 'Google Chrome']
         group: [assets-send, core]
         include:
           - group: assets-send
@@ -42,61 +42,63 @@ jobs:
               src/test/e2e/solvers.test.ts
               src/test/e2e/swaps.test.ts
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-        persist-credentials: false
-    - uses: actions/setup-node@v4
-      with:
-        node-version-file: '.nvmrc'
-    - name: Install pnpm
-      uses: pnpm/action-setup@v4
-    - name: Verify carrier artifacts
-      run: node scripts/carrier-artifacts/verify.mjs
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+      - name: Verify carrier artifacts
+        run: node scripts/carrier-artifacts/verify.mjs
 
-    - name: Install dependencies
-      run: pnpm install
+      - name: Install dependencies
+        run: pnpm install
 
-    - name: Verify the installed carrier packages
-      run: node scripts/carrier-artifacts/verify.mjs --installed
-    - name: Install Playwright Browsers
-      run: pnpm exec playwright install chrome chromium --with-deps
-    - name: Start regtest environment
-      run: node regtest/regtest.mjs start --env .env.regtest
-    # The cert is what makes wss://localhost:10548 exist, and a solver card's
-    # relays must be wss:// — `regtest:start` generates it, these open-coded
-    # steps did not, so relay-tls has been serving nothing.
-    - name: Start nostr relay
-      run: node scripts/gen-relay-tls-cert.mjs && docker compose -f docker-compose.nak.yml up -d --build
-    - name: Verify environment
-      run: pnpm regtest:setup
-    - name: Run Playwright tests
-      run: sleep 5 && pnpm run test:e2e --project="${{ matrix.project }}" ${{ matrix.test_files }}
-      env:
-        CI: true
-    - name: Capture logs on failure
-      if: failure()
-      run: |
-        echo "=== docker ps ==="
-        docker ps --format "table {{.Names}}\t{{.Status}}" || true
-        echo "=== boltz logs (last 50) ==="
-        docker logs boltz 2>&1 | tail -50 || true
-        echo "=== arkd logs (last 50) ==="
-        docker logs arkd 2>&1 | tail -50 || true
-    - name: Cleanup
-      if: always()
-      run: |
-        docker compose -f docker-compose.nak.yml down -v 2>/dev/null || true
-        node regtest/regtest.mjs clean --env .env.regtest
+      - name: Verify the installed carrier packages
+        run: node scripts/carrier-artifacts/verify.mjs --installed
+      - name: Install Playwright Browsers
+        run: pnpm exec playwright install chrome chromium --with-deps
+      - name: Start regtest environment
+        run: node regtest/regtest.mjs start --env .env.regtest
+      # The cert is what makes wss://localhost:10548 exist, and a solver card's
+      # relays must be wss:// — `regtest:start` generates it, these open-coded
+      # steps did not, so relay-tls has been serving nothing.
+      - name: Start nostr relay
+        run: node scripts/gen-relay-tls-cert.mjs && docker compose -f docker-compose.nak.yml up -d --build
+      - name: Verify environment
+        run: pnpm regtest:setup
+      - name: Run Playwright tests
+        run: sleep 5 && pnpm run test:e2e --project="${{ matrix.project }}" ${{ matrix.test_files }}
+        env:
+          CI: true
+      - name: Capture logs on failure
+        if: failure()
+        run: |
+          echo "=== docker ps ==="
+          docker ps --format "table {{.Names}}\t{{.Status}}" || true
+          echo "=== boltz logs (last 50) ==="
+          docker logs boltz 2>&1 | tail -50 || true
+          echo "=== arkd logs (last 50) ==="
+          docker logs arkd 2>&1 | tail -50 || true
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose -f docker-compose.nak.yml down -v 2>/dev/null || true
+          node regtest/regtest.mjs clean --env .env.regtest
 
   taxi-native:
     name: Native Taxi (${{ matrix.project }})
+    permissions:
+      contents: read
     timeout-minutes: 30
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        project: ["Mobile Chrome", "Google Chrome"]
+        project: ['Mobile Chrome', 'Google Chrome']
     env:
       ARKD_IMAGE: ghcr.io/arkade-os/arkd:v0.9.16
       ARKD_WALLET_IMAGE: ghcr.io/arkade-os/arkd-wallet:v0.9.16
@@ -108,13 +110,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: ArkLabsHQ/arkade-regtest
-          ref: 78d0b7a9677077ca64bf09b4e825520ba462446b
+          ref: baab2f453b726872c7da85a6407da429352e96df
           path: regtest
           persist-credentials: false
       - uses: actions/checkout@v4
         with:
           repository: arkade-os/intent-solver
-          ref: 9fd60fbaa0df6f6f343ead8c065a43436c365127
+          ref: f45bb0a8f359de10d27062583d40c4dbe0c6ff44
           path: .local-tests/native-solver
           persist-credentials: false
       - uses: actions/checkout@v4
@@ -125,7 +127,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
-          node-version-file: ".nvmrc"
+          node-version-file: '.nvmrc'
       - uses: pnpm/action-setup@v4
       - name: Verify native wallet archives
         run: node scripts/carrier-artifacts/verify.mjs

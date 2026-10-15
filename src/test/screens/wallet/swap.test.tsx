@@ -1,6 +1,6 @@
 import userEvent from '@testing-library/user-event'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import createFetchMock from 'vitest-fetch-mock'
 import WalletSwap from '../../../screens/Wallet/Swap/Index'
 import { ToastProvider } from '../../../components/Toast'
@@ -144,6 +144,8 @@ const primaryAmount = () => screen.getByRole('button', { name: /^Swap amount,/ }
 const secondaryAmount = () => screen.getByRole('button', { name: /^Show .+ first/ })
 
 describe('Wallet swap flow', () => {
+  afterEach(() => vi.useRealTimers())
+
   beforeEach(() => {
     exchange.mockClear()
     cancelSwap.mockClear()
@@ -657,16 +659,17 @@ describe('Wallet swap flow', () => {
     expect(await screen.findByRole('button', { name: /NAPO/i })).toBeInTheDocument()
   })
 
-  it('funds the balance less one dust carrier when the wallet also holds assets', async () => {
+  it('funds the SDK available balance as-is, without holding back a second dust carrier', async () => {
     renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
 
     fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
     fireEvent.click(screen.getByRole('button', { name: /USD/i }))
 
-    // the wallet holds 100,000 sats (loaded async) next to USDT and DEPIX, so
-    // tapping the balance keeps the dust carrier their change will need (333 in the mock)
-    await userEvent.click(await screen.findByRole('button', { name: '99,667 sats' }))
-    expect(primaryAmount()).toHaveTextContent('99667 sats')
+    // the wallet holds 100,000 sats available (loaded async) next to USDT and
+    // DEPIX; the SDK's `available` already excludes the dust carrier their
+    // change needs, so the wallet must not subtract it again
+    await userEvent.click(await screen.findByRole('button', { name: '100,000 sats' }))
+    expect(primaryAmount()).toHaveTextContent('100000 sats')
 
     const continueButton = screen.getByRole('button', { name: 'Continue' })
     await waitFor(() => expect(continueButton).toBeEnabled(), { timeout: 3_000 })
@@ -674,7 +677,7 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
     await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][0].deposit.atomic).toBe(BigInt(99_667))
+    expect(exchange.mock.calls[0][0].deposit.atomic).toBe(BigInt(100_000))
   })
 
   it('offers only the spendable part of an asset held partly in swap escrow', async () => {
@@ -811,18 +814,22 @@ describe('Wallet swap flow', () => {
   })
 
   it('quotes the minimum in the asset being sent (BTC), not the asset being received (USDT)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
 
     fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
     fireEvent.click(screen.getByRole('button', { name: /USD/i }))
     // switch to asset-unit entry and type a sats amount well under the
     // market's minimum receivable USDT notional
-    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
     for (const key of ['1', '0', '0']) {
-      await userEvent.click(screen.getByRole('button', { name: key }))
+      fireEvent.click(screen.getByRole('button', { name: key }))
     }
 
+    await act(async () => vi.advanceTimersByTimeAsync(600))
+    vi.useRealTimers()
     await waitFor(() => expect(screen.getByText(/^Minimum /)).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
     expect(screen.getByText(/^Minimum /).closest('[aria-live]')).not.toBeNull()
     expect(screen.getByText(/^Minimum /).closest('[data-sonner-toast]')).toBeNull()
     // the market card's 1,000-sat give-side floor outranks the smaller
@@ -833,22 +840,34 @@ describe('Wallet swap flow', () => {
     // exactly the displayed minimum clears the error — round-to-nearest used
     // to show a minimum one sat short, forcing users to overshoot it
     const minSats = (screen.getByText(/^Minimum \S+ sats$/).textContent ?? '').replace(/[^0-9]/g, '')
-    for (let i = 0; i < 3; i++) await userEvent.click(screen.getByRole('button', { name: 'Delete digit' }))
-    for (const key of minSats) await userEvent.click(screen.getByRole('button', { name: key }))
-    await waitFor(() => expect(screen.queryByText(/^Minimum /)).not.toBeInTheDocument(), { timeout: 5_000 })
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    for (let i = 0; i < 3; i++) fireEvent.click(screen.getByRole('button', { name: 'Delete digit' }))
+    for (const key of minSats) fireEvent.click(screen.getByRole('button', { name: key }))
+    await act(async () => vi.advanceTimersByTimeAsync(600))
+    vi.useRealTimers()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled(), { timeout: 5_000 })
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+    await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
+    expect(exchange.mock.calls[0][0].deposit.atomic).toBe(BigInt(minSats))
+    expect(exchange.mock.calls[0][0].receive.atomic).toBe(BigInt(99))
   })
 
   it('quotes the minimum in the asset being sent (USD), not the asset being received (sats) — vice versa', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     renderSwap({ flow: { swapFromAssetId: USDT_ID, setSwapFromAssetId: vi.fn() } })
 
     fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
     fireEvent.click(screen.getByRole('button', { name: /Bitcoin/i }))
     // type a USD amount well under the market's minimum receivable sats notional
     for (const key of ['0', '.', '0', '1']) {
-      await userEvent.click(screen.getByRole('button', { name: key }))
+      fireEvent.click(screen.getByRole('button', { name: key }))
     }
 
+    await act(async () => vi.advanceTimersByTimeAsync(600))
+    vi.useRealTimers()
     await waitFor(() => expect(screen.getByText(/^Minimum /)).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
     expect(screen.getByText(/^Minimum \S+ USD$/)).toBeInTheDocument()
   })
 
