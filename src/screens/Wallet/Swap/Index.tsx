@@ -17,7 +17,7 @@ import ChevronDownIcon from '../../../icons/ChevronDown'
 import InfoIcon from '../../../icons/Info'
 import SwapIcon from '../../../icons/Swap'
 import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
-import { centsToUnits, unitsToCents } from '../../../lib/assets'
+import { atomicToUnits, unitsToAtomic } from '../../../lib/assets'
 import { extractError } from '../../../lib/error'
 import { formatFiatAmountParts, normalizeBitcoinUnit, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
@@ -231,7 +231,7 @@ export default function WalletSwap() {
   const currentPlan = status === 'success' && planMatchesAssetAmount ? plan : null
   const quoteStale = Boolean(toAsset && Number(assetAmount) > 0 && !currentPlan)
   const planError = currentPlan ? validatePlan(currentPlan, assetBalanceAtomic(fromAsset), aspInfo.dust) : undefined
-  const amountAtomic = unitsToCents(assetAmount, fromAsset.decimals)
+  const amountAtomic = unitsToAtomic(assetAmount, fromAsset.decimals)
   const exceedsBalance = amountAtomic > assetBalanceAtomic(fromAsset)
   // a partial asset deposit leaves asset change, and that change needs a second
   // dust carrier; without one the SDK fails with a bare "Insufficient funds"
@@ -437,7 +437,7 @@ export default function WalletSwap() {
     // enter the exact balance in the asset's own units — sidestep the fiat
     // round-trip so "max" funds the whole balance to the last atomic unit
     setSelectedAmountMode('asset')
-    setAmount(centsToUnits(rawBalance, fromAsset.decimals))
+    setAmount(atomicToUnits(rawBalance, fromAsset.decimals))
   }
 
   const handleBack = () => {
@@ -1655,5 +1655,5 @@ function firstPositiveBalanceAsset(assets: SwapAsset[]): SwapAsset | undefined {
 }
 
 function formatAssetBalance(asset: SwapAsset): string {
-  return `${formatAssetQuantity(centsToUnits(assetBalanceAtomic(asset), asset.decimals), asset.decimals)} ${asset.ticker}`
+  return `${formatAssetQuantity(atomicToUnits(assetBalanceAtomic(asset), asset.decimals), asset.decimals)} ${asset.ticker}`
 }

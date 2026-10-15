@@ -23,7 +23,7 @@ export default function AppAssetMintSuccess() {
   const details = fromCache ?? assetInfo
   const name = details.metadata?.name ?? t('mint.unknown')
   const ticker = details.metadata?.ticker ?? ''
-  const decimals = details.metadata?.decimals ?? 8
+  const decimals = details.metadata?.decimals ?? 0
   const icon = details.metadata?.icon
 
   const handleViewAsset = () => {
