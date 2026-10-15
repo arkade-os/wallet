@@ -24,6 +24,8 @@ import { LanguageContext, translate } from '../../../providers/language'
 import { Currencies, Language, Unit } from '../../../lib/types'
 import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
 import ReceiveSelector from '../../../screens/Wallet/Receive/ReceiveSelector'
+import ReceiveParts from '../../../screens/Wallet/Receive/ReceiveParts'
+import type { PartId, ReceivePart } from '../../../lib/receive/receiveTargets'
 import { useState } from 'react'
 
 // Mock qr module used by QrCode component
@@ -427,6 +429,50 @@ describe('Receive QR Code screen', () => {
       press('End')
       expect(radio('Bitcoin')).toHaveFocus()
       expect(onPick).not.toHaveBeenCalled()
+    })
+
+    it('moves the QR through the parts with the arrow keys, and only from a row', () => {
+      const onShow = vi.fn()
+      const parts: ReceivePart[] = [
+        { id: 'amount', value: '1000', selectable: false },
+        { id: 'link', value: 'bitcoin:x', selectable: true },
+        { id: 'ark', value: 'ark1x', selectable: true },
+        { id: 'btc', value: 'bc1x', selectable: true },
+      ]
+      const renderParts = (inQr?: PartId) => (
+        <ReceiveParts
+          method='full'
+          label='Parts'
+          parts={parts}
+          titleOf={(x) => x.id}
+          inQr={inQr}
+          copied=''
+          onShow={onShow}
+          onCopy={vi.fn()}
+        />
+      )
+      const { rerender } = render(renderParts())
+      expect(screen.getAllByRole('radio').map((r) => r.tabIndex)).toEqual([0, -1, -1])
+
+      rerender(renderParts('ark'))
+      const radios = screen.getAllByRole('radio')
+      expect(radios.map((r) => r.tabIndex)).toEqual([-1, 0, -1])
+      const press = (key: string) => fireEvent.keyDown(document.activeElement!, { key })
+      act(() => radios[1].focus())
+      press('ArrowDown')
+      expect(radios[2]).toHaveFocus()
+      expect(onShow).toHaveBeenLastCalledWith('btc')
+      press('ArrowDown')
+      expect(radios[0]).toHaveFocus()
+      expect(onShow).toHaveBeenLastCalledWith('link')
+      press('End')
+      expect(onShow).toHaveBeenLastCalledWith('btc')
+      press('Home')
+      expect(onShow).toHaveBeenLastCalledWith('link')
+
+      onShow.mockClear()
+      fireEvent.keyDown(screen.getByTestId('ark-address-copy'), { key: 'ArrowDown' })
+      expect(onShow).not.toHaveBeenCalled()
     })
 
     it('translates the method labels like the rest of the screen', async () => {

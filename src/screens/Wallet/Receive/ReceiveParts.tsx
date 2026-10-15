@@ -7,7 +7,7 @@ import { EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
 import { prettyLongText } from '../../../lib/format'
 import type { PartId, ReceiveMethod, ReceivePart } from '../../../lib/receive/receiveTargets'
 import { useTranslation } from '../../../providers/language'
-import { Radio } from './ReceiveSelector'
+import { Radio, moveRadioFocus } from './ReceiveSelector'
 
 // Copy buttons keep the ids the E2E helpers and screen tests already click.
 const testIdOf = (id: PartId, method: ReceiveMethod): string =>
@@ -34,10 +34,16 @@ export default function ReceiveParts(p: {
 }) {
   const { t } = useTranslation()
   const reduced = useReducedMotion()
+  const choices = p.parts.filter((part) => part.selectable)
+  const tabStop = choices.some((c) => c.id === p.inQr) ? p.inQr : choices[0]?.id
   return (
     <div
-      role={p.parts.some((part) => part.selectable) ? 'radiogroup' : undefined}
+      role={choices.length ? 'radiogroup' : undefined}
       aria-label={p.label}
+      onKeyDown={(e) => {
+        const next = moveRadioFocus(e)
+        if (next >= 0) p.onShow(choices[next].id)
+      }}
       className='flex flex-col gap-1'
     >
       {p.parts.map((part) => {
@@ -53,7 +59,7 @@ export default function ReceiveParts(p: {
                 p.onShow(part.id)
               }
             }}
-            tabIndex={part.selectable ? 0 : undefined}
+            tabIndex={part.selectable ? (part.id === tabStop ? 0 : -1) : undefined}
             role={part.selectable ? 'radio' : undefined}
             aria-checked={part.selectable ? on : undefined}
             className={`flex items-center gap-3 rounded-lg border px-3 py-2 transition-colors duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none ${on ? 'border-neutral-500 bg-neutral-100' : 'border-transparent'} ${part.selectable ? 'cursor-pointer' : ''}`}

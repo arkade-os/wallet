@@ -1,4 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import ChevronDownIcon from '../../../icons/ChevronDown'
@@ -107,24 +114,12 @@ export default function ReceiveSelector(p: {
                   refocus.current = false
                   onClose()
                 }}
-                onKeyDown={(e) => {
-                  // Arrows move focus only: picking Stablecoins opens a sheet, so selection waits for Enter or Space.
-                  const items = [...e.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]')]
-                  const i = items.indexOf(document.activeElement as HTMLElement)
-                  const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key]
-                  const next =
-                    e.key === 'Home'
-                      ? 0
-                      : e.key === 'End'
-                        ? items.length - 1
-                        : step
-                          ? (i + step + items.length) % items.length
-                          : -1
-                  if (next < 0) return
-                  e.preventDefault()
-                  items[next].focus()
+                // Arrows move focus only: picking Stablecoins opens a sheet, so selection waits for Enter or Space.
+                onKeyDown={moveRadioFocus}
+                style={{
+                  ...box,
+                  maxHeight: `calc(100dvh - ${box.top}px - 0.5rem - env(safe-area-inset-bottom, 0px))`,
                 }}
-                style={{ ...box, maxHeight: `calc(100dvh - ${box.top}px - 0.5rem)` }}
                 className='hide-scrollbar fixed z-50 flex flex-col gap-0.5 overflow-y-auto rounded-xl border border-neutral-100 bg-popover p-1 text-popover-foreground shadow-md'
               >
                 {p.rows.map((r) => (
@@ -156,6 +151,29 @@ export default function ReceiveSelector(p: {
       )}
     </div>
   )
+}
+
+/** Arrow keys, Home and End move focus between a radiogroup's radios; returns the new index, or -1 when not handled. */
+const STEPS: Record<string, number> = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }
+
+export const moveRadioFocus = (e: ReactKeyboardEvent<HTMLElement>): number => {
+  const items = [...e.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]')]
+  const i = items.indexOf(e.target as HTMLElement)
+  const step = STEPS[e.key]
+  const next =
+    i < 0
+      ? -1
+      : e.key === 'Home'
+        ? 0
+        : e.key === 'End'
+          ? items.length - 1
+          : step
+            ? (i + step + items.length) % items.length
+            : -1
+  if (next < 0) return -1
+  e.preventDefault()
+  items[next].focus()
+  return next
 }
 
 export const Radio = ({ on }: { on: boolean }) => (
