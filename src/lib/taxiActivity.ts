@@ -1,6 +1,6 @@
 import { useMemo, useSyncExternalStore } from 'react'
 import { TaxiActivityStore, type TaxiActivity } from '@arkade-taxi/client/wallet'
-import { centsToUnits } from './assets'
+import { atomicToUnits } from './assets'
 import { pluralSats } from './carrierActivity'
 import { prettyHide } from './format'
 import { translate } from './i18n'
@@ -112,7 +112,7 @@ export const taxiCarrierRows = (
     r.fare?.currency === 'sats'
       ? sats(r.fare.units)
       : r.fare && {
-          value: `${centsToUnits(BigInt(r.fare.units), asset?.decimals ?? 0)} ${asset?.ticker ?? ''}`.trim(),
+          value: `${atomicToUnits(BigInt(r.fare.units), asset?.decimals ?? 0)} ${asset?.ticker ?? ''}`.trim(),
           masked: prettyHide(r.fare.units, asset?.ticker ?? ''),
         }
   return {

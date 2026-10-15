@@ -51,7 +51,7 @@ import {
 import { appIntentHandoff, redirectToCallback } from '../../../lib/appIntent'
 import OpenInApp from '../../AppIntent/OpenInApp'
 import { InfoLine } from '../../../components/Info'
-import { centsToUnits, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
+import { atomicToUnits, prettyAssetAmount, truncatedAssetId, unitsToAtomic } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
 import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -234,7 +234,10 @@ export default function SendForm() {
   // Apart from receiverTaxi, which routesToReceiverTaxi reads as an asset request.
   const [bitcoinTaxi, setBitcoinTaxi] = useState<Bip21Taxi>()
   const [subdustOffer, setSubdustOffer] = useState<SubdustOffer>()
-  const [approval, setApproval] = useState<{ terms: AssetPaymentTerms | DirectTaxiTerms }>()
+  const [approval, setApproval] = useState<{
+    terms: AssetPaymentTerms | DirectTaxiTerms
+    asset?: Pick<AssetOption, 'decimals' | 'ticker'>
+  }>()
   const approvalMounted = useRef(true)
   const approvalAnswer = useRef<(ok: boolean) => void>()
   useEffect(() => {
@@ -540,7 +543,7 @@ export default function SendForm() {
           name: presentation.name,
           ticker: presentation.ticker,
           icon: presentation.icon,
-          decimals: meta?.metadata?.decimals ?? 8,
+          decimals: meta?.metadata?.decimals ?? 0,
           trusted: isVerifiedAsset(ab.assetId),
         })
       }
@@ -606,13 +609,13 @@ export default function SendForm() {
               name: presentation.name,
               ticker: presentation.ticker,
               icon: presentation.icon,
-              decimals: meta?.metadata?.decimals ?? 8,
+              decimals: meta?.metadata?.decimals ?? 0,
               trusted: isVerifiedAsset(assetId),
             }
           }
           if (cancelled) return
           setSelectedAsset(found)
-          const rawAmount = assetAmount ? unitsToCents(assetAmount, found.decimals) : BigInt(0)
+          const rawAmount = assetAmount ? unitsToAtomic(assetAmount, found.decimals) : BigInt(0)
           if (assetAmount) setAmountTextValue(assetAmount)
           return setSendInfo((prev) => ({
             ...prev,
@@ -956,7 +959,7 @@ export default function SendForm() {
     setAmountTextValue(value)
     if (isAssetSend) {
       if (sendInfo.account) {
-        const accountAmount = unitsToCents(value, sendInfo.account.decimals)
+        const accountAmount = unitsToAtomic(value, sendInfo.account.decimals)
         setSendInfo({
           ...sendInfo,
           account: { ...sendInfo.account, amount: accountAmount },
@@ -974,7 +977,7 @@ export default function SendForm() {
         })
       } else if (selectedAsset) {
         const decimals = selectedAsset?.decimals
-        const cents = unitsToCents(value, decimals)
+        const cents = unitsToAtomic(value, decimals)
         setSendInfo({
           ...sendInfo,
           assets: [{ assetId: selectedAsset.assetId, amount: cents }],
@@ -1039,7 +1042,18 @@ export default function SendForm() {
       if (!approvalMounted.current) return answer(false)
       approvalAnswer.current?.(false)
       approvalAnswer.current = answer
-      setApproval({ terms })
+      const assetId = terms.assetId
+      const asset = activeAsset?.assetId === assetId ? activeAsset : undefined
+      const metadata = assetId ? assetMetadataCache.get(assetId)?.metadata : undefined
+      setApproval({
+        terms,
+        asset: assetId
+          ? {
+              decimals: asset?.decimals ?? metadata?.decimals ?? 0,
+              ticker: asset?.ticker || rawAssetPresentation(metadata).ticker || truncatedAssetId(assetId),
+            }
+          : undefined,
+      })
     })
   const approvalUi: PayRailUi = { confirmPayment }
 
@@ -1105,7 +1119,7 @@ export default function SendForm() {
       }
       setSelectedAsset(option)
       setEntryMode('unit')
-      setAmountTextValue(centsToUnits(asset.amount, option.decimals))
+      setAmountTextValue(atomicToUnits(asset.amount, option.decimals))
       setValueSats(undefined)
     } else {
       setSelectedAsset(null)
@@ -1275,12 +1289,12 @@ export default function SendForm() {
         assets: [{ assetId: sendInfo.account.source.assetId, amount: sendInfo.account.source.balance }],
         satoshis: 0,
       })
-      setAmountTextValue(centsToUnits(sendInfo.account.balance, sendInfo.account.decimals))
+      setAmountTextValue(atomicToUnits(sendInfo.account.balance, sendInfo.account.decimals))
     } else if (isAssetSend && selectedAsset) {
       const { assetId, balance, decimals } = selectedAsset
       const assets = [{ assetId, amount: balance }]
       setSendInfo({ ...sendInfo, assets, satoshis: 0 })
-      setAmountTextValue(centsToUnits(balance, decimals))
+      setAmountTextValue(atomicToUnits(balance, decimals))
     } else {
       setAmount(liquidBalance)
       setValueSats(liquidBalance)
@@ -1741,8 +1755,8 @@ export default function SendForm() {
               ? 'mode' in approval.terms
                 ? approval.terms.assetId === undefined
                   ? bitcoinTaxiTerms(approval.terms)
-                  : `Send ${prettyAssetAmount(approval.terms.assetAmount, activeAsset?.decimals ?? 8)} ${activeAsset?.ticker ?? ''}. Service fee: ${approval.terms.fareUnits === 0n ? 'Free' : approval.terms.fareCurrency === 'sats' ? `${approval.terms.fareUnits} sats` : `${prettyAssetAmount(approval.terms.fareUnits, activeAsset?.decimals ?? 8)} ${activeAsset?.ticker ?? ''}`}. Taxi carrier: ${approval.terms.carrierSats} sats. ${approval.terms.mode === 'recycle' ? 'The receiver uses their own sats to repay the carrier.' : approval.terms.mode === 'purchase' ? 'The receiver claims the purchased carrier without their own sats.' : 'The receiver gets a direct delivery with no claim needed.'}`
-                : `Pay ${prettyNumber(Number(approval.terms.payAmountSats))} sats to send ${prettyAssetAmount(approval.terms.assetAmount, activeAsset?.decimals ?? 8)} ${activeAsset?.ticker ?? ''}`
+                  : `Send ${prettyAssetAmount(approval.terms.assetAmount, approval.asset?.decimals ?? 0)} ${approval.asset?.ticker ?? ''}. Service fee: ${approval.terms.fareUnits === 0n ? 'Free' : approval.terms.fareCurrency === 'sats' ? `${approval.terms.fareUnits} sats` : `${prettyAssetAmount(approval.terms.fareUnits, approval.asset?.decimals ?? 0)} ${approval.asset?.ticker ?? ''}`}. Taxi carrier: ${approval.terms.carrierSats} sats. ${approval.terms.mode === 'recycle' ? 'The receiver uses their own sats to repay the carrier.' : approval.terms.mode === 'purchase' ? 'The receiver claims the purchased carrier without their own sats.' : 'The receiver gets a direct delivery with no claim needed.'}`
+                : `Pay ${prettyNumber(Number(approval.terms.payAmountSats))} sats to send ${prettyAssetAmount(approval.terms.assetAmount, approval.asset?.decimals ?? 0)} ${approval.asset?.ticker ?? ''}`
               : ''}
           </Text>
           <FlexCol gap='0.5rem'>

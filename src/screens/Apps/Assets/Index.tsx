@@ -69,7 +69,7 @@ export default function AppAssets() {
           name: meta?.metadata?.name,
           ticker: meta?.metadata?.ticker,
           icon: meta?.metadata?.icon,
-          decimals: meta?.metadata?.decimals ?? 8,
+          decimals: meta?.metadata?.decimals ?? 0,
         }
       })
 

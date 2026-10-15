@@ -85,7 +85,7 @@ function resolveAsset(
   const accountCurrency = verifiedDesignatedCurrency(network, asset.assetId, isVerifiedAsset)
   const ticker =
     accountCurrency ?? metadata?.ticker?.trim().toUpperCase() ?? metadata?.name ?? shortAssetId(asset.assetId)
-  const decimals = metadata?.decimals ?? 8
+  const decimals = metadata?.decimals ?? 0
   const value = accountCurrency ? fiatAccountAssetSatoshis(amount, decimals, accountCurrency, toFiatAmount) : undefined
   const satsEquivalent =
     value !== undefined && Number.isFinite(value) && (amount === BigInt(0) || value !== 0) ? Math.abs(value) : undefined

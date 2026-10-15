@@ -13,6 +13,12 @@ vi.mock('../../../lib/directTaxiSend', async () => {
     sendDirectTaxi: vi.fn(),
   }
 })
+vi.mock('../../../lib/assetRfqSend', async () => {
+  const actual = await vi.importActual<typeof import('../../../lib/assetRfqSend')>('../../../lib/assetRfqSend')
+  return { ...actual, payAssetRequest: vi.fn() }
+})
+import { payAssetRequest, PaymentDeclined } from '../../../lib/assetRfqSend'
+import { encodeBip21Asset } from '../../../lib/bip21'
 import {
   FailedDirectTaxi,
   PendingDirectTaxi,
@@ -55,9 +61,11 @@ describe('Send screen', () => {
     vi.mocked(getPendingAssetPayment).mockReset().mockResolvedValue(undefined)
     vi.mocked(getPendingDirectTaxi).mockReset().mockResolvedValue(undefined)
     vi.mocked(sendDirectTaxi).mockReset()
+    vi.mocked(payAssetRequest).mockReset()
     vi.mocked(redirectToCallback).mockClear()
   })
   const sendForm = ({
+    aspContext = mockAspContextValue,
     configContext = mockConfigContextValue,
     fiatContext = mockFiatContextValue,
     flowContext = mockFlowContextValue,
@@ -66,7 +74,7 @@ describe('Send screen', () => {
     outcomeOf = undefined as ((id: string) => Outcome | undefined) | undefined,
   } = {}) => (
     <NavigationContext.Provider value={navigationContext}>
-      <AspContext.Provider value={mockAspContextValue}>
+      <AspContext.Provider value={aspContext}>
         <ConfigContext.Provider value={configContext as any}>
           <FiatContext.Provider value={fiatContext as any}>
             <OptionsContext.Provider value={mockOptionsContextValue as any}>
@@ -1160,5 +1168,111 @@ describe('Send screen', () => {
     expect(resetFlow).not.toHaveBeenCalled()
     expect(redirectToCallback).not.toHaveBeenCalled()
     expect(setSendInfo).toHaveBeenCalledWith(expect.objectContaining({ txid: 'new-taxi-txid' }))
+  })
+  it.each([
+    ['direct', 'Bitcoin'],
+    ['direct', 'BBB'],
+    ['native', 'BBB'],
+  ] as const)('keeps %s quote approval paired with its asset after switching to %s', async (rail, selection) => {
+    vi.stubEnv('VITE_TAXI_URL', 'http://localhost:7070')
+    vi.stubGlobal('PointerEvent', MouseEvent)
+    const key = await SingleKey.fromHex('11'.repeat(32)).xOnlyPublicKey()
+    const receiver = new ArkAddress(key, key, 'tark').encode()
+    const assetId = '11'.repeat(34)
+    const otherId = '22'.repeat(34)
+    let releaseQuote!: () => void
+    const quoteReady = new Promise<void>((resolve) => {
+      releaseQuote = resolve
+    })
+    vi.mocked(sendDirectTaxi).mockImplementation(async (args) => {
+      await quoteReady
+      await args.confirmPayment({
+        mode: 'recycle',
+        assetId,
+        assetAmount: 1000n,
+        fareCurrency: 'asset',
+        fareUnits: 200n,
+        carrierSats: 330n,
+      })
+      throw new PaymentDeclined()
+    })
+    vi.mocked(payAssetRequest).mockImplementation(async (request, deps) => {
+      await quoteReady
+      await deps.ui.confirmPayment({ assetId: request.assetId, assetAmount: request.amount, payAmountSats: 2000n })
+      throw new PaymentDeclined()
+    })
+    const balances = [
+      { assetId, amount: rail === 'native' ? 0n : 10000n },
+      { assetId: otherId, amount: 20000n },
+    ]
+    const svcWallet = {
+      ...mockSvcWallet,
+      getAddress: () => receiver,
+      getBoardingAddress: async () => 'bcrt1mockboarding',
+    }
+    const recordSendInfo = vi.fn()
+    function QuotingForm() {
+      const [sendInfo, setSendInfo] = useState<SendInfo>({
+        ...emptySendInfo,
+        arkAddress: receiver,
+        recipient:
+          rail === 'native'
+            ? encodeBip21Asset(receiver, assetId, 1000n, 2, { url: 'http://localhost:7070' })
+            : receiver,
+        assets: [{ assetId, amount: 1000n }],
+        satoshis: 0,
+      })
+      recordSendInfo.mockImplementation(setSendInfo)
+      return sendForm({
+        aspContext: {
+          ...mockAspContextValue,
+          aspInfo: { ...mockAspContextValue.aspInfo, signerPubkey: '11'.repeat(32) },
+        },
+        flowContext: { ...mockFlowContextValue, sendInfo, setSendInfo: recordSendInfo },
+        walletContext: {
+          ...mockWalletContextValue,
+          availableBalance: 1_000_000,
+          assetBalances: balances as any,
+          availableAssetBalances: balances as any,
+          assetMetadataCache: new Map([
+            [assetId, { cachedAt: 0, metadata: { name: 'Original', ticker: 'AAA', decimals: 2 } }],
+            [otherId, { cachedAt: 0, metadata: { name: 'Other', ticker: 'BBB', decimals: 4 } }],
+          ]),
+          isVerifiedAsset: () => true,
+          svcWallet: svcWallet as any,
+        },
+      })
+    }
+    render(<QuotingForm />)
+    await waitFor(() => expect(screen.getByTestId('asset-selector')).toHaveTextContent('AAA'))
+    if (rail === 'direct') {
+      fireEvent.click(await screen.findByTestId('taxi-send-mode'))
+      fireEvent.click(screen.getByRole('radio', { name: 'Receiver uses own sats' }))
+    }
+    const button = screen.getByText('Continue').closest('button')!
+    await waitFor(() => expect(button).toBeEnabled())
+    fireEvent.click(button)
+    await waitFor(() => expect(rail === 'direct' ? sendDirectTaxi : payAssetRequest).toHaveBeenCalledOnce())
+    expect(vi.mocked(rail === 'direct' ? sendDirectTaxi : payAssetRequest).mock.calls[0][0]).toMatchObject({
+      assetId,
+      amount: 1000n,
+    })
+    fireEvent.click(screen.getByTestId('asset-selector'))
+    fireEvent.click(
+      selection === 'Bitcoin'
+        ? await screen.findByRole('menuitem', { name: /Bitcoin/ })
+        : await screen.findByTestId('asset-bbb-option'),
+    )
+    await waitFor(() => expect(screen.getByTestId('asset-selector')).toHaveTextContent(selection))
+    await act(async () => {
+      releaseQuote()
+    })
+    if (rail === 'direct')
+      expect(await screen.findByTestId('taxi-confirm-costs')).toHaveTextContent(
+        'Send 10 AAA. Service fee: 2 AAA. Taxi carrier: 330 sats.',
+      )
+    else expect(await screen.findByText(/sats to send/)).toHaveTextContent('Pay 2,000 sats to send 10 AAA')
+    fireEvent.click(screen.getByText('Cancel'))
+    await waitFor(() => expect(screen.queryByText('Confirm payment')).not.toBeInTheDocument())
   })
 })

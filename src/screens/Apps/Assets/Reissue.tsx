@@ -18,7 +18,7 @@ import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
 import Input from '../../../components/Input'
-import { prettyAssetAmount, unitsToCents } from '../../../lib/assets'
+import { prettyAssetAmount, unitsToAtomic } from '../../../lib/assets'
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
 import { useTranslation } from '../../../providers/language'
 
@@ -39,11 +39,11 @@ export default function AppAssetReissue() {
   const name = assetInfo.metadata?.name ?? t('mint.unknown')
   const ticker = assetInfo.metadata?.ticker ?? ''
   const icon = assetInfo.metadata?.icon
-  const decimals = assetInfo.metadata?.decimals ?? 8
+  const decimals = assetInfo.metadata?.decimals ?? 0
   const balance = assetBalances.find((a) => a.assetId === assetInfo.assetId)?.amount ?? BigInt(0)
 
   const handleAmountChange = (value: string) => {
-    const cents = unitsToCents(value, decimals)
+    const cents = unitsToAtomic(value, decimals)
     setAmount(cents)
   }
 
