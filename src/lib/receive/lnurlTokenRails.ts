@@ -8,7 +8,7 @@ import {
   type TokenAsset,
   type TokenOption,
 } from '@arkade-os/lnurl-client'
-import { centsToUnits } from '../assets'
+import { atomicToUnits } from '../assets'
 import { consoleError } from '../logs'
 import { extractError } from '../error'
 import { Currencies } from '../types'
@@ -89,7 +89,7 @@ export interface LnurlTokenQuote {
 /** A quote's base units as an exact amount of whole tokens, or undefined for anything but a plain
  *  positive integer: the payer is told to send exactly this. */
 export const wholeTokens = (baseUnits: unknown, decimals: number): string | undefined =>
-  typeof baseUnits === 'string' && /^[1-9]\d*$/.test(baseUnits) ? centsToUnits(BigInt(baseUnits), decimals) : undefined
+  typeof baseUnits === 'string' && /^[1-9]\d*$/.test(baseUnits) ? atomicToUnits(BigInt(baseUnits), decimals) : undefined
 
 /** False when a USD stablecoin quote is outside 0.8x to 1.25x of what the requested sats are worth at the
  *  wallet's own price: the provider's spread is a few percent, so further off is a server misquoting.
@@ -108,7 +108,7 @@ export function lnurlTokenRails(payRequest: PayRequest, amountSat?: number): Lnu
     const inBounds =
       amountSat === undefined ||
       (msat >= (o.minSendable ?? payRequest.minSendable) && msat <= (o.maxSendable ?? payRequest.maxSendable))
-    // centsToUnits is exact only up to 18 decimals, and the amount shown is what the payer sends.
+    // atomicToUnits is exact only up to 18 decimals, and the amount shown is what the payer sends.
     const offered = o.available && o.verifiable !== false && o.unit.decimals <= 18 && inBounds
     // The client never returns an option without an asset; checked anyway, since its chain names the method.
     return offered && o.provider && o.asset ? [{ ...o, chain: chainLabel(o.asset.chainId), provider: o.provider }] : []

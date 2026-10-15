@@ -260,6 +260,17 @@ iframe {
   }
 }
 
+button.focusable {
+  transition: background-color 0.15s;
+  border: 1px solid var(--neutral-100);
+  &.receive-invoice-qr {
+    border: 1px solid transparent;
+  }
+  &:focus-visible {
+    border: 1px solid var(--purple-700);
+  }
+}
+
 .buttons-on-bottom {
   padding: 1rem;
 }

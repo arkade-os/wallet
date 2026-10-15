@@ -17,7 +17,7 @@ import { LimitsContext } from '../../../providers/limits'
 import { Asset, Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
-import { centsToUnits, unitsToCents } from '../../../lib/assets'
+import { atomicToUnits, unitsToAtomic } from '../../../lib/assets'
 import ErrorMessage from '../../../components/Error'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
@@ -212,7 +212,7 @@ export default function ReceiveQRCode() {
           ? [
               {
                 id: 'amount' as const,
-                value: centsToUnits(assetAmount, assetMeta?.metadata?.decimals ?? 0),
+                value: atomicToUnits(assetAmount, assetMeta?.metadata?.decimals ?? 0),
                 selectable: false,
               },
             ]
@@ -331,7 +331,7 @@ export default function ReceiveQRCode() {
     setShowAmountSheet(false)
     if (assetMeta) {
       const decimals = assetMeta.metadata?.decimals
-      const cents = unitsToCents(value, decimals)
+      const cents = unitsToAtomic(value, decimals)
       return setAssetAmount(cents)
     } else {
       const num = Number(value)
@@ -557,7 +557,7 @@ export default function ReceiveQRCode() {
                 ) : (
                   <button
                     type='button'
-                    className='receive-invoice-qr'
+                    className='receive-invoice-qr focusable'
                     disabled={generating || !qrCodeValue}
                     aria-hidden={generating}
                     onClick={() => handleCopy(qrCodeValue)}
