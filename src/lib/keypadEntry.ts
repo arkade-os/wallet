@@ -21,6 +21,6 @@ export const digitsToValue = (digits: string, decimals: number): string => {
 
 export const valueToDigits = (value: string, decimals: number): string => {
   const [whole = '', frac = ''] = value.replaceAll(',', '').split('.')
-  // Never clamped: Max loads a balance, and a past-cap balance must stay exact. pushDigit stops further typing.
+  // Not clamped, so Max loads a past-cap balance exactly (pushDigit stops typing); excess fraction digits drop.
   return (whole + frac.padEnd(decimals, '0').slice(0, decimals)).replace(/^0+/, '')
 }
