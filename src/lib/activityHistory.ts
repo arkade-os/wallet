@@ -1,5 +1,6 @@
 import type { Activity } from '@arkade-os/sdk'
 import { isRfqSwapTerminal } from '@arkade-os/swap'
+import { LNURL_GROUP_PREFIX, SENT_GROUP_PREFIX } from '@arkade-os/lnurl-client/arkade'
 import { ASSET_SWAP_ACTIVITY_KIND, CORRIDOR_LABEL, type LnSendView } from './swapRecords'
 import { consoleError } from './logs'
 import type { TransactionActivityMetadata } from './storage'
@@ -61,6 +62,18 @@ const rfqSwapKindOf = (activity: Activity): string | undefined =>
  * says the same thing, but only by string surgery on a namespace the package
  * owns. */
 const rfqIdOf = (activity: Activity): string | undefined => activity.intent?.metadata?.rfqId as string | undefined
+
+/** The lightning address and the rail — from either lnurl-client
+ * resolver's metadata. Groups are told apart by id prefix, the package's own
+ * namespace, rather than `intent.kind`, which it does not export as a constant. */
+const lnurlIntentOf = (activity: Activity): Tx['lnurl'] => {
+  if (!activity.id.startsWith(LNURL_GROUP_PREFIX) && !activity.id.startsWith(SENT_GROUP_PREFIX)) return undefined
+  const meta = activity.intent?.metadata
+  return {
+    address: (meta?.lightningAddress as string | null | undefined) ?? (meta?.target as string | undefined) ?? undefined,
+    rail: meta?.rail as string | undefined,
+  }
+}
 
 /** The record's own facts, which no transaction in history carries. */
 const corridorFacts = (record: LnSendView | undefined) => ({
@@ -250,7 +263,18 @@ const exitTx = (exit: ExitRecord): Tx => ({
 export const activitiesToTxs = (activities: Activity[], options: ActivityHistoryOptions): Tx[] => {
   const { swaps, metadata, network, assetDisplay, lnSends = [], exits = [] } = options
   const rows: Tx[] = []
+  const groupsOf = new Map<string, number>()
+  for (const tx of activities.flatMap((activity) => activity.txs)) {
+    groupsOf.set(txidOfArkTransaction(tx), (groupsOf.get(txidOfArkTransaction(tx)) ?? 0) + 1)
+  }
   for (const activity of activities) {
+    // The SDK emits a tx under every group claiming it; a swap's row already stands for its LNURL send.
+    if (
+      activity.id.startsWith(SENT_GROUP_PREFIX) &&
+      activity.txs.every((tx) => (groupsOf.get(txidOfArkTransaction(tx)) ?? 0) > 1)
+    ) {
+      continue
+    }
     const swapKind = rfqSwapKindOf(activity)
     if (swapKind === 'lightning_send' || swapKind === 'onchain_send') {
       const row = corridorSendTx(activity, metadata, lnSends)
@@ -286,9 +310,14 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
     }
     // members of one activity share `activity.id`, so the member txid is what
     // keeps the row key unique
+    const lnurl = lnurlIntentOf(activity)
     for (const tx of activity.txs) {
       const txid = txidOfArkTransaction(tx)
-      rows.push({ ...arkTransactionToTx(tx, metadata[txid]), historyKey: `${activity.id}:${txid}` })
+      rows.push({
+        ...arkTransactionToTx(tx, metadata[txid]),
+        ...(lnurl ? { lnurl } : {}),
+        historyKey: `${activity.id}:${txid}`,
+      })
     }
   }
   // The sends history cannot see, from the store that can — see

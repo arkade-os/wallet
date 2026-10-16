@@ -41,6 +41,7 @@ import { activitiesToTxs, getActivities } from '../lib/activityHistory'
 import { arkTransactionToTx } from '../lib/transactionHistory'
 import { Indexer } from '../lib/indexer'
 import { lnSendViews, swapRecordResolver, type LnSendView } from '../lib/swapRecords'
+import { createLnurlActivityResolver, lnurlPaymentRepository } from '../lib/lnurlPaymentRepository'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
@@ -712,6 +713,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           return vtxos
         }),
       )
+      svcWallet.activity.use(createLnurlActivityResolver())
 
       // Before `setSvcWallet`: the swap client is built only once the wallet is
       // set, and its construction restore rebuilds swaps from the history this
@@ -986,6 +988,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     // aborted here would leave the wallet itself half-cleared, which is worse
     // than stale swap rows.
     await assetSwapRepository.clear().catch((err) => consoleError(err, 'failed to clear swap records'))
+    // Same reason, and it holds preimages. Its watermarks go with localStorage, so a restore resyncs.
+    await lnurlPaymentRepository.clear().catch((err) => consoleError(err, 'failed to clear lnurl payments'))
     setAssetSwaps([])
     await svcWallet.clear()
     await svcWallet.walletRepository.clear()
