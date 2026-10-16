@@ -40,7 +40,10 @@ export const createIndexedDbLnurlPaymentStore = (
               db.close()
               resolve(request.result as StoredPayment[])
             }
-            request.onerror = () => reject(request.error)
+            request.onerror = () => {
+              db.close()
+              reject(request.error)
+            }
           }),
       ),
     write: (records) =>
@@ -54,7 +57,10 @@ export const createIndexedDbLnurlPaymentStore = (
               db.close()
               resolve()
             }
-            tx.onerror = () => reject(tx.error)
+            tx.onerror = () => {
+              db.close()
+              reject(tx.error)
+            }
           }),
       ),
     clear: () =>
@@ -67,7 +73,10 @@ export const createIndexedDbLnurlPaymentStore = (
               db.close()
               resolve()
             }
-            tx.onerror = () => reject(tx.error)
+            tx.onerror = () => {
+              db.close()
+              reject(tx.error)
+            }
           }),
       ),
   }

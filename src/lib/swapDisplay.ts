@@ -104,12 +104,13 @@ export function lnSwapLabel(tx: Tx, t: Translate): string | undefined {
 /** How an lnurl-tagged row reads: the address (a receive's is our own, so "at") when the resolver named
  * one, else the rail it went over. Distinct from `lnSwapLabel` — this is a
  * plain payment, not a corridor swap with its own outcome vocabulary. */
-export function lnurlLabel(tx: Tx): string | undefined {
+export function lnurlLabel(tx: Tx, t: Translate): string | undefined {
   const lnurl = tx.lnurl
   if (!lnurl) return undefined
-  const verb = tx.type === 'sent' ? 'Sent' : 'Received'
-  if (lnurl.address) return `${verb} ${tx.type === 'sent' ? 'to' : 'at'} ${lnurl.address}`
-  if (lnurl.rail) return `${verb} via ${lnurl.rail}`
+  const sent = tx.type === 'sent'
+  if (lnurl.address)
+    return t(sent ? 'transaction.lnurlSentTo' : 'transaction.lnurlReceivedAt', { address: lnurl.address })
+  if (lnurl.rail) return t(sent ? 'transaction.lnurlSentVia' : 'transaction.lnurlReceivedVia', { rail: lnurl.rail })
   return undefined
 }
 
