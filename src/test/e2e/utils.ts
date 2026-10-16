@@ -203,7 +203,7 @@ export async function getInvoiceFromLND(amount = 2100): Promise<string> {
   return invoice
 }
 
-export async function prePay(page: Page, address: string, isMobile = false, amount = 0): Promise<void> {
+export async function prePay(page: Page, address: string, isMobile = false, amount = 0, decimals = 0): Promise<void> {
   // go to send page
   await navigateHome(page)
   await page.getByText(tr.wallet.send, { exact: true }).click()
@@ -217,7 +217,7 @@ export async function prePay(page: Page, address: string, isMobile = false, amou
     if (isMobile) {
       await page.locator('input[name="send-amount"]').click()
       await page.waitForSelector(`text=${tr.common.save}`, { state: 'visible' })
-      await handleKeyboardInput(page, amount)
+      await handleKeyboardInput(page, amount, decimals)
     } else {
       await page.locator('input[name="send-amount"]').fill(amount.toString())
     }
@@ -357,9 +357,11 @@ export async function waitForPaymentReceived(page: Page): Promise<void> {
   await dismissPaymentSuccess(page)
 }
 
-export async function handleKeyboardInput(page: Page, sats: number): Promise<void> {
+/** Types `value` on the right-to-left keypad, which has no decimal point: pass the mode's decimals
+ * (2 for USD, an asset's own) so 2 becomes $2.00 rather than $0.02. */
+export async function handleKeyboardInput(page: Page, value: number, decimals = 0): Promise<void> {
   await page.waitForSelector(`text=${tr.common.save}`, { state: 'visible' })
-  const digits = sats.toString().split('')
+  const digits = value.toFixed(decimals).replace('.', '').replace(/^0+/, '').split('')
   for (const digit of digits) {
     await page.getByTestId(`keyboard-${digit}`).click()
   }
