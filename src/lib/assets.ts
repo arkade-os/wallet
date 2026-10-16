@@ -157,10 +157,3 @@ export const referencedAssetIds = (sources: {
 
 const isNameableAssetId = (assetId: string | undefined): assetId is string =>
   typeof assetId === 'string' && assetId.length > 0 && assetId !== 'btc'
-
-/** The BTC a spend may take. While the wallet holds assets one carrier stays
- * back: every asset output rides on `dust` sats (the server's threshold),
- * asset change needs one of its own, and spending the last one fails inside
- * coin selection with a bare "Insufficient funds". Never negative. */
-export const liquidBtcBalance = (availableBalance: number, holdsAssets: boolean, dust: bigint): number =>
-  Math.max(0, availableBalance - (holdsAssets ? Number(dust) : 0))

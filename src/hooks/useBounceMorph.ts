@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { useAnimationControls } from 'framer-motion'
 import { SPRING_BACK, SQUASH } from '../lib/animations'
 import { sleep as delay } from '../lib/sleep'
@@ -32,7 +32,6 @@ export function useBounceMorph({ reducedMotion, onBounce }: UseBounceMorphOption
   controlsRef.current = bounceControls
 
   const stopRequested = useRef(false)
-  const cancelled = useRef(false)
   const onBounceRef = useRef(onBounce)
   onBounceRef.current = onBounce
 
@@ -40,7 +39,7 @@ export function useBounceMorph({ reducedMotion, onBounce }: UseBounceMorphOption
     stopRequested.current = true
   }, [])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (reducedMotion) {
       stopRequested.current = false
       setActiveShape(0)
@@ -50,7 +49,7 @@ export function useBounceMorph({ reducedMotion, onBounce }: UseBounceMorphOption
 
     stopRequested.current = false
     setStopped(false)
-    cancelled.current = false
+    let cancelled = false
 
     async function bounceAndMorph(nextShape: number) {
       setBounceCount((c) => c + 1)
@@ -58,14 +57,14 @@ export function useBounceMorph({ reducedMotion, onBounce }: UseBounceMorphOption
       setActiveShape(nextShape)
 
       await controlsRef.current.start(SQUASH)
-      if (cancelled.current) return
+      if (cancelled) return
 
       await controlsRef.current.start(SPRING_BACK)
     }
 
     async function runLoop() {
       await delay(180)
-      if (cancelled.current) return
+      if (cancelled) return
 
       // eslint-disable-next-line no-constant-condition
       while (true) {
@@ -74,37 +73,37 @@ export function useBounceMorph({ reducedMotion, onBounce }: UseBounceMorphOption
           // do the final morph then stop gracefully
           if (stopRequested.current && nextShape === 0) {
             await bounceAndMorph(0)
-            if (cancelled.current) return
+            if (cancelled) return
             await delay(180) // let morph CSS transition settle
-            if (cancelled.current) return
+            if (cancelled) return
             setStopped(true)
             return
           }
 
           await bounceAndMorph(nextShape)
-          if (cancelled.current) return
+          if (cancelled) return
 
           await delay(60)
-          if (cancelled.current) return
+          if (cancelled) return
         }
 
         // End of full cycle (back at Arcade) — check stop
         if (stopRequested.current) {
           await delay(180)
-          if (cancelled.current) return
+          if (cancelled) return
           setStopped(true)
           return
         }
 
         await delay(60)
-        if (cancelled.current) return
+        if (cancelled) return
       }
     }
 
     runLoop()
 
     return () => {
-      cancelled.current = true
+      cancelled = true
       controlsRef.current.stop()
     }
     // Only re-run if reducedMotion changes. bounceControls is stable (useConstant),
