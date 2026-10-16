@@ -124,7 +124,7 @@ describe('resuming receiver confirmations', () => {
 
     expect(addConfirmation).toHaveBeenCalledTimes(1)
     expect(addConfirmation).toHaveBeenCalledWith(
-      expect.objectContaining({ verifyUrl: 'https://a/v/1', verifyBatch: 'https://a/batch' }),
+      expect.objectContaining({ verifyUrl: 'https://a/v/1', verifyBatch: 'https://a/batch', startedAt: 1 }),
     )
     addConfirmation.mock.calls[0][0].onSettled()
     expect(lnurlSends().find((s) => s.txid === 'pending')?.receiverConfirmed).toBe(true)

@@ -41,10 +41,11 @@ export const recordLnurlSend = (handle: PaymentHandle, quote: RouteQuote, target
 }
 
 /** Waits on the receiver's confirmation of a send and records the outcome on its row. */
-export const watchLnurlConfirmation = (txid: string, verify: string, verifyBatch?: string): void =>
+export const watchLnurlConfirmation = (txid: string, verify: string, verifyBatch?: string, startedAt?: number): void =>
   pendingConfirmations.add({
     verifyUrl: verify,
     ...(verifyBatch !== undefined ? { verifyBatch } : {}),
+    ...(startedAt !== undefined ? { startedAt } : {}),
     onSettled: () => markLnurlReceiverConfirmed(txid, true),
     onError: () => markLnurlReceiverConfirmed(txid, false),
   })
@@ -53,7 +54,7 @@ export const watchLnurlConfirmation = (txid: string, verify: string, verifyBatch
 export const resumeLnurlConfirmations = (): void => {
   for (const sent of lnurlSends()) {
     if (sent.verify && sent.receiverConfirmed === undefined)
-      watchLnurlConfirmation(sent.txid, sent.verify, sent.verifyBatch)
+      watchLnurlConfirmation(sent.txid, sent.verify, sent.verifyBatch, sent.createdAt)
   }
 }
 
