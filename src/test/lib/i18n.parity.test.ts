@@ -1,5 +1,46 @@
 import { describe, expect, it } from 'vitest'
-import { translations } from '../../lib/i18n'
+import { translations } from '@/lib/i18n'
+import { Language } from '@/lib/types'
+
+// Proper nouns, protocol names and technical terms legitimately keep their
+// English form in other languages' UI (LNURL, Arkade, sats, swap, pubkey...).
+// Any key in the language dictionary that is NOT listed here must be an actual
+// translation, not an English fallback.
+const keepEnglishTermAllowList = new Set([
+  'accounts.arknote',
+  'accounts.solver',
+  'accounts.total',
+  'apps.dfx',
+  'backup.title',
+  'common.sat',
+  'common.sats',
+  'common.total',
+  'components.lnurlAddress',
+  'contracts.script',
+  'delegate.feeLabel',
+  'delegate.pubkeyLabel',
+  'formatting.unit',
+  'mint.arkadeMint',
+  'mint.max',
+  'mint.ticker',
+  'mint.tickerLabel',
+  'receive.methodLightning',
+  'receive.methodArkade',
+  'receive.methodBitcoin',
+  'send.bitcoin',
+  'settings.arkadeMint',
+  'settings.auto',
+  'settings.backup',
+  'settings.dust',
+  'settings.feedback',
+  'settings.general',
+  'settings.solvers',
+  'transaction.boarding',
+  'transaction.swap',
+  'transaction.totalTicker',
+  'vtxos.subdust',
+  'wallet.wallet',
+])
 
 function collectLeafKeys(obj: unknown, prefix = ''): string[] {
   const keys: string[] = []
@@ -21,10 +62,14 @@ function resolve(dict: unknown, key: string): unknown {
 }
 
 describe('i18n dictionary integrity', () => {
-  it('en and es expose the same key set', () => {
-    const en = collectLeafKeys(translations.en)
-    const es = collectLeafKeys(translations.es)
-    expect(new Set(es)).toEqual(new Set(en))
+  const englishSet = new Set(collectLeafKeys(translations.en))
+
+  it('es expose the same key set', () => {
+    expect(englishSet).toEqual(new Set(collectLeafKeys(translations.es)))
+  })
+
+  it('pt expose the same key set', () => {
+    expect(englishSet).toEqual(new Set(collectLeafKeys(translations.pt)))
   })
 
   it('every t()/translate() key used in source resolves in the EN dictionary', () => {
@@ -34,63 +79,19 @@ describe('i18n dictionary integrity', () => {
       const content = (raw ?? '') as string
       if (!content) continue
       for (const match of content.matchAll(/\bt\(\s*['"]([A-Za-z0-9_.]+)['"]/g)) used.add(match[1])
-      // `translate(language, key)` takes the key as the SECOND positional
-      // argument. Keep the regex tied to that signature — if it ever changes to
-      // `translate(key, language)`, this pattern would silently start collecting
-      // the locale argument instead of the key.
       for (const match of content.matchAll(/translate\([^)]*?,\s*['"]([A-Za-z0-9_.]+)['"]/g)) used.add(match[1])
     }
     const missing = [...used].filter((key) => typeof resolve(translations.en, key) !== 'string').sort()
-    console.log('unique t() keys used:', used.size)
-    console.log('missing from EN dict:', missing)
     expect(missing).toEqual([])
   })
 
-  it('es values are real translations unless the term is universal/technical', () => {
-    // Proper nouns, protocol names and technical terms legitimately keep their
-    // English form in the Spanish UI (LNURL, Arkade, sats, swap, pubkey...).
-    // Any key in the es dictionary that is NOT listed here must be an actual
-    // translation, not an English fallback.
-    const allowList = new Set([
-      'common.sat',
-      'common.sats',
-      'common.total',
-      'settings.general',
-      'settings.dust',
-      'settings.solvers',
-      'settings.auto',
-      'settings.arkadeMint',
-      'wallet.wallet',
-      'transaction.totalTicker',
-      'transaction.boarding',
-      'transaction.swap',
-      'send.bitcoin',
-      'components.lnurlAddress',
-      'accounts.arknote',
-      'delegate.pubkeyLabel',
-      'delegate.feeLabel',
-      'contracts.script',
-      'mint.arkadeMint',
-      'mint.ticker',
-      'mint.tickerLabel',
-      'mint.max',
-      'vtxos.subdust',
-      'apps.dfx',
-      'formatting.unit',
-      'accounts.solver',
-      'accounts.total',
-      // Payment-method names in the receive selector. These are the protocol
-      // and product names the user is choosing between, not descriptive text,
-      // so they stay as-is in both languages.
-      'receive.methodLightning',
-      'receive.methodArkade',
-      'receive.methodBitcoin',
-    ])
-
-    const unlocalized = collectLeafKeys(translations.en)
-      .filter((key) => !allowList.has(key))
-      .filter((key) => resolve(translations.es, key) === resolve(translations.en, key))
-    console.log('es strings identical to en (not allowed):', unlocalized)
-    expect(unlocalized).toEqual([])
+  it('language values are real translations unless the term is universal/technical', () => {
+    Object.values(Language).forEach((lang) => {
+      if (lang === Language.English) return
+      const unlocalized = collectLeafKeys(translations.en)
+        .filter((key) => !keepEnglishTermAllowList.has(key))
+        .filter((key) => resolve(translations[lang], key) === resolve(translations.en, key))
+      expect(unlocalized).toEqual([])
+    })
   })
 })
