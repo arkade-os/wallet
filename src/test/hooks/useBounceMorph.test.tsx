@@ -108,6 +108,7 @@ const tree = () => (
 
 afterEach(() => {
   suspended = false
+  onBounce.mockReset()
   vi.useRealTimers()
 })
 
