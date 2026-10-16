@@ -7,6 +7,8 @@ import {
   lnurlClaimErrorMessage,
   onboardingChoices,
 } from '../../../lib/receive/lnurlRail'
+import { translate } from '../../../lib/i18n'
+import { Language } from '../../../lib/types'
 
 const BASE_URL = 'https://lnurl.test'
 const DOMAIN = 'lnurl.test'
@@ -241,14 +243,18 @@ describe('lnurlReceiver', () => {
 })
 
 describe('lnurlClaimErrorMessage', () => {
+  const en = (key: string) => translate(Language.English, key)
+  const es = (key: string) => translate(Language.Spanish, key)
+
   it('translates a known server code', () => {
-    expect(lnurlClaimErrorMessage(new LnurlError('username already taken', { code: 'taken' }))).toBe(
-      'That name is already taken.',
-    )
+    const taken = new LnurlError('username already taken', { code: 'taken' })
+    expect(lnurlClaimErrorMessage(taken, en)).toBe('That name is already taken.')
+    expect(lnurlClaimErrorMessage(taken, es)).toBe('Ese nombre ya está en uso.')
   })
 
   it('falls back to the error message for anything else', () => {
-    expect(lnurlClaimErrorMessage(new Error('offline'))).toBe('offline')
+    expect(lnurlClaimErrorMessage(new Error('offline'), en)).toBe('offline')
+    expect(lnurlClaimErrorMessage('?', es)).toBe('No se pudo obtener una dirección Lightning.')
   })
 })
 
