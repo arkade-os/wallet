@@ -2565,7 +2565,9 @@ export function interpolate(template: string, params?: Record<string, string | n
 }
 
 export function getTranslationDict(language: Language): TranslationDict {
-  return language === Language.Spanish ? translations.es : translations.en
+  if (language === Language.Spanish) return translations.es
+  if (language === Language.Portuguese) return translations.pt
+  return translations.en
 }
 
 export function translate(language: Language, key: string, params?: Record<string, string | number>): string {
