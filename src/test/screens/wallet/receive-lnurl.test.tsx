@@ -74,7 +74,7 @@ const receiveLightning = vi.fn()
 const svcWallet = { ...mockSvcWallet, identity: SingleKey.fromHex('03'.repeat(32)) }
 const atMarket = (sats: number) => (sats * BTC_USD) / 1e8
 
-const receiveTree = (satoshis = 0, config: Partial<Config> = {}) => (
+const receiveTree = (satoshis = 0, config: Partial<Config> = {}, recv: object = {}) => (
   <ToastProvider>
     <NavigationContext.Provider value={mockNavigationContextValue}>
       <AspContext.Provider value={mockAspContextValue as never}>
@@ -93,6 +93,7 @@ const receiveTree = (satoshis = 0, config: Partial<Config> = {}) => (
                       satoshis,
                       offchainAddr: DECODABLE_ARK,
                       boardingAddr: WALLET_BOARDING_ADDRESS,
+                      ...recv,
                     },
                   } as never
                 }
@@ -112,7 +113,8 @@ const receiveTree = (satoshis = 0, config: Partial<Config> = {}) => (
     </NavigationContext.Provider>
   </ToastProvider>
 )
-const renderReceive = (satoshis = 0, config: Partial<Config> = {}) => render(receiveTree(satoshis, config))
+const renderReceive = (satoshis = 0, config: Partial<Config> = {}, recv: object = {}) =>
+  render(receiveTree(satoshis, config, recv))
 
 let server: ReturnType<typeof fakeLnurlServer>
 const serve = (opts: Parameters<typeof fakeLnurlServer>[0]) => {
@@ -214,6 +216,14 @@ describe('Receive screen, rail composition', () => {
     fireEvent.click(screen.getByText('Lightning'))
     expect(await copiedQr()).toBe(fakeInvoice(10_000_000))
     expect(callbacks()[0].searchParams.get('paymentOption')).toBe('lightning')
+  })
+
+  it("shows its LNURL's invoice, not a swap invoice an earlier visit left in the flow", async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    renderReceive(10_000, {}, { invoice: 'lnbc10staleswap' })
+
+    await waitFor(() => expect(callbacks()).toHaveLength(1))
+    await waitFor(async () => expect(await qrLightning()).toBe(fakeInvoice(10_000_000)))
   })
 
   it('keeps the address on the Lightning tab, and says why, when no invoice comes back', async () => {
