@@ -12,6 +12,8 @@ export interface ReceiverConfirmation {
   verifyBatch?: string
   onSettled: (status: VerifyStatus) => void
   onError: (err: Error) => void
+  /** When the wait began, so a resumed send keeps its window instead of a fresh one. Defaults to now. */
+  startedAt?: number
 }
 
 interface Entry extends ReceiverConfirmation {
@@ -100,7 +102,10 @@ export function createPendingConfirmations(client: LnurlClient = createLnurlClie
     add(confirmation: ReceiverConfirmation) {
       // A re-init resumes the same stored sends again; one wait per verify URL is enough.
       if ([...entries].some((e) => e.verifyUrl === confirmation.verifyUrl)) return
-      const entry: Entry = { ...confirmation, deadline: Date.now() + CONFIRMATION_TIMEOUT_MS }
+      const entry: Entry = {
+        ...confirmation,
+        deadline: (confirmation.startedAt ?? Date.now()) + CONFIRMATION_TIMEOUT_MS,
+      }
       entries.add(entry)
       ensure()
     },

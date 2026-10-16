@@ -811,7 +811,7 @@ export default function SendForm() {
     const stale = () => sendInfoRef.current.lnUrl !== target || (sendInfoRef.current.satoshis ?? 0) !== satoshis
     try {
       if (sendInfo.lnUrl && lnUrlResponse) {
-        // Check if Ark method is available
+        // ?method=ark wins over the router's rails; it pays a plain Arkade send, so no receiver confirmation.
         const arkMethod = lnUrlResponse.transferAmounts?.find((method) => method.method === 'Ark' && method.available)
 
         if (arkMethod) {

@@ -100,6 +100,19 @@ describe('pendingConfirmations', () => {
     expect(batchVerify).toHaveBeenCalledTimes(callsAtFailure)
   })
 
+  it('keeps a resumed wait to the window its send started, rather than a fresh one', async () => {
+    const batchVerify = vi.fn().mockRejectedValue(new Error('network error'))
+    const confirmations = createPendingConfirmations(fakeClient({ batchVerify }))
+    const onError = vi.fn()
+    const startedAt = Date.now() - (CONFIRMATION_TIMEOUT_MS - 10_000)
+    confirmations.add({ verifyUrl: 'v/1', verifyBatch: 'https://a/batch', onSettled: vi.fn(), onError, startedAt })
+
+    await vi.advanceTimersByTimeAsync(8_000)
+    expect(onError).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(2_000)
+    expect(onError).toHaveBeenCalledWith(new Error('receiver did not confirm settlement in time'))
+  })
+
   it('falls back to pollVerify for an entry with no verifyBatch endpoint', async () => {
     const pollVerify = vi.fn().mockResolvedValue(settled())
     const confirmations = createPendingConfirmations(fakeClient({ pollVerify }))
