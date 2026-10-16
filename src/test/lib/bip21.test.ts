@@ -85,6 +85,20 @@ describe('bip21 utilities', () => {
     })
   })
 
+  describe('encodeBitcoinLink', () => {
+    it('sizes the on-chain and Arkade parts with amount=', () => {
+      expect(encodeBitcoinLink({ address: 'bc1x', ark: 'ark1x', lightning: 'lnbc1x', sats: 1000 })).toBe(
+        'bitcoin:bc1x?ark=ark1x&lightning=lnbc1x&amount=0.00001',
+      )
+    })
+
+    it('leaves amount= out of a Lightning-only link, whose invoice or LNURL carries the amount', () => {
+      expect(encodeBitcoinLink({ lightning: 'alice@lnurl.test', sats: 1000 })).toBe(
+        'bitcoin:?lightning=alice@lnurl.test',
+      )
+    })
+  })
+
   describe('encodeBip21', () => {
     it('should encode a valid bip21 URI', () => {
       const { address, bip21, arkAddress, invoice, satoshis } = fixtures.lib.bip21
