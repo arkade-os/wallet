@@ -18,6 +18,7 @@ import CoinsIcon from '../icons/Coins'
 import HashIcon from '../icons/Hash'
 import SolverIcon from '@/icons/Solver'
 import GlobeOutlineIcon from '@/icons/GlobeOutline'
+import BoltOutlineIcon from '@/icons/BoltOutline'
 
 export interface Option {
   icon: ReactElement
@@ -64,6 +65,11 @@ export const options: Option[] = [
   {
     icon: <SolverIcon />,
     option: SettingsOptions.Solvers,
+    section: SettingsSections.Advanced,
+  },
+  {
+    icon: <BoltOutlineIcon />,
+    option: SettingsOptions.Lnurl,
     section: SettingsSections.Advanced,
   },
   {

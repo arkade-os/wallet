@@ -80,6 +80,7 @@ export enum SettingsOptions {
   Lock = 'lock wallet',
   Logs = 'logs',
   Language = 'language',
+  Lnurl = 'lightning address',
   Notifications = 'notifications',
   Notes = 'notes',
   Password = 'change password',
