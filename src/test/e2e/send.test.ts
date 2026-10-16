@@ -89,7 +89,7 @@ test('should send usds (some and max) to ark address', async ({ page, isMobile }
     'h6u2nredqtn0cr4p4zqz53gsmhju4l9t7x47kzleesa9dprx7e56xhzlen'
 
   // send page
-  await prePay(page, someArkAddress, isMobile, usdsToSend)
+  await prePay(page, someArkAddress, isMobile, usdsToSend, 2)
 
   // details page
   await expect(page.getByTestId('Network fees')).toContainText('$0.00')
@@ -175,7 +175,7 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
   // fill amount
   if (isMobile) {
     await page.locator('input[name="send-amount"]').click()
-    await handleKeyboardInput(page, sendAmount)
+    await handleKeyboardInput(page, sendAmount, 2)
   } else {
     await page.locator('input[name="send-amount"]').fill(sendAmount.toString())
   }
@@ -298,7 +298,7 @@ test.skip('should send usds (some and max) to onchain address with chain swap', 
   const someOnchainAddress = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
 
   // send page
-  await prePay(page, someOnchainAddress, isMobile, usdsToSend)
+  await prePay(page, someOnchainAddress, isMobile, usdsToSend, 2)
 
   // details page
   await expect(page.getByTestId('Amount')).toContainText(`$${usdsToSend.toFixed(2)}`)

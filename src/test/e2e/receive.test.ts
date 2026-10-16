@@ -125,7 +125,7 @@ test.skip('changing amount should update the invoice (fiat mode)', async ({ page
   // fill amount to receive if provided
   await page.getByText(tr.receive.addAmount).click()
   if (isMobile) {
-    await handleKeyboardInput(page, usds)
+    await handleKeyboardInput(page, usds, 2)
   } else {
     await page.locator('input[name="receive-amount-sheet"]').fill(usds.toString())
     await page.getByText(tr.receive.setAmount).click()
@@ -147,10 +147,10 @@ test.skip('changing amount should update the invoice (fiat mode)', async ({ page
   await page.getByText(tr.receive.editAmount).click()
   if (isMobile) {
     // delete previous amount
-    for (let i = 0; i < usds.toString().length + 1; i++) {
+    for (let i = 0; i < usds.toFixed(2).replace('.', '').length; i++) {
       await page.getByTestId('keyboard-x').click()
     }
-    await handleKeyboardInput(page, newUsds)
+    await handleKeyboardInput(page, newUsds, 2)
   } else {
     await page.locator('input[name="receive-amount-sheet"]').fill(newUsds.toString())
     await page.getByText(tr.receive.setAmount).click()
