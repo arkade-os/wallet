@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from '../../providers/language'
 import {
   arkadeLnurl,
   encodeLnurl,
@@ -158,23 +159,23 @@ export function useLnurlRails(
   return { targets, errors, generating }
 }
 
-const CLAIM_ERROR_MESSAGES: Record<string, string> = {
-  taken: 'That name is already taken.',
-  invalid_username: 'That name is not allowed here.',
-  blacklisted: 'That name is not allowed here.',
-  invalid_claim: 'That claim code is not valid.',
-  forbidden_mode: 'This server does not offer that option.',
-  limit_reached: 'Too many attempts — try again shortly.',
+const CLAIM_ERROR_KEYS: Record<string, string> = {
+  taken: 'receive.claimTaken',
+  invalid_username: 'receive.claimNotAllowed',
+  blacklisted: 'receive.claimNotAllowed',
+  invalid_claim: 'receive.claimCodeInvalid',
+  forbidden_mode: 'receive.claimModeUnavailable',
+  limit_reached: 'receive.claimRateLimited',
 }
 
 /** User-facing text for a failed claim, keyed off the server's machine code
  *  where one exists so the message survives its wording changing. */
-export const lnurlClaimErrorMessage = (error: unknown): string => {
+export const lnurlClaimErrorMessage = (error: unknown, t: (key: string) => string): string => {
   if (error instanceof LnurlError && error.code) {
-    const known = CLAIM_ERROR_MESSAGES[error.code]
-    if (known) return known
+    const key = CLAIM_ERROR_KEYS[error.code]
+    if (key) return t(key)
   }
-  return error instanceof Error ? error.message : 'Could not get a lightning address.'
+  return error instanceof Error ? error.message : t('receive.lnaddressClaimFailed')
 }
 
 /** A server allocation mode, as offered to the user. `admin` is a claim code for a reserved name. */
@@ -207,6 +208,7 @@ export function useLnurlRail(deps: {
   boardingAddress?: string
 }): LnurlRail {
   const { enabled, identity, arkadeAddress, boardingAddress } = deps
+  const { t } = useTranslation()
   const facade = useMemo(
     () =>
       enabled && identity && arkadeAddress
@@ -222,7 +224,9 @@ export function useLnurlRail(deps: {
   const [error, setError] = useState('')
   const [walletLnurl, setWalletLnurl] = useState<string>()
   const current = useRef(facade)
-  current.current = facade
+  useLayoutEffect(() => {
+    current.current = facade
+  }, [facade])
 
   useEffect(() => {
     setReceiver(undefined)
@@ -261,7 +265,7 @@ export function useLnurlRail(deps: {
       setReceiver(owned)
       // Already payable: failing to learn how to name it must not cost the QR its LNURL.
       const capabilities = await facade.capabilities().catch((err) => {
-        if (!stale) setError(lnurlClaimErrorMessage(err))
+        if (!stale) setError(lnurlClaimErrorMessage(err, t))
         return undefined
       })
       if (!stale && capabilities) setChoices(onboardingChoices(capabilities))
@@ -270,7 +274,7 @@ export function useLnurlRail(deps: {
       .catch((err) => {
         if (stale) return
         consoleError(err, 'lnurl address lookup failed')
-        setError(lnurlClaimErrorMessage(err))
+        setError(lnurlClaimErrorMessage(err, t))
         setLoadFailed(true)
       })
       .finally(() => {
@@ -294,7 +298,7 @@ export function useLnurlRail(deps: {
       if (syncAfter) next.sync().catch((err) => consoleError(err, 'lnurl activity sync after claim failed'))
     } catch (err) {
       consoleError(err, 'lnurl claim failed')
-      if (current.current === owner) setError(lnurlClaimErrorMessage(err))
+      if (current.current === owner) setError(lnurlClaimErrorMessage(err, t))
     } finally {
       if (current.current === owner) setBusy(false)
     }
