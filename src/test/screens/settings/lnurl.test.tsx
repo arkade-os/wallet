@@ -104,6 +104,14 @@ describe('Lightning address settings', () => {
     expect(server.calls('POST', '/lnurl/address')).toHaveLength(0)
   })
 
+  it('says so when what payers can send cannot be read', async () => {
+    renderPage({ modes: ['self'], addresses: [namedAddress('alice')], payRequestFail: true })
+
+    expect(await screen.findByText('alice@lnurl.test')).toBeInTheDocument()
+    expect(await screen.findByText(/payRequest unavailable/)).toBeInTheDocument()
+    expect(screen.queryByText(/ sats$/)).not.toBeInTheDocument()
+  })
+
   it('leaves token options out of what payers can send on each rail', async () => {
     renderPage({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
 
