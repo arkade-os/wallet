@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useReducer, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useReducer, useState } from 'react'
 import type { Receiver } from '@arkade-os/lnurl-client/arkade'
 import {
   createLnurlClient,
@@ -109,7 +109,7 @@ export function lnurlTokenRails(payRequest: PayRequest, amountSat?: number): Lnu
       amountSat === undefined ||
       (msat >= (o.minSendable ?? payRequest.minSendable) && msat <= (o.maxSendable ?? payRequest.maxSendable))
     // atomicToUnits is exact only up to 18 decimals, and the amount shown is what the payer sends.
-    const offered = o.available && o.verifiable !== false && o.unit.decimals <= 18 && inBounds
+    const offered = o.available && o.verifiable === true && o.unit.decimals <= 18 && inBounds
     // The client never returns an option without an asset; checked anyway, since its chain names the method.
     return offered && o.provider && o.asset ? [{ ...o, chain: chainLabel(o.asset.chainId), provider: o.provider }] : []
   })
@@ -213,7 +213,8 @@ export function useLnurlTokenRails(
     return () => {
       stale = true
       clearTimeout(expiry)
-      // Not kept for a return to these inputs: with its timer cleared it could expire unseen.
+      // Neither carries over: the old timer is cleared (it could expire unseen), and an expiry marked this round
+      // would kill the next inputs' quote.
       setAnswer(undefined)
       setExpiredRound(undefined)
     }
@@ -230,13 +231,14 @@ export function useLnurlTokenRails(
       ? answer
       : undefined
   const expired = current?.quote !== undefined && (expiredRound === round || Date.now() >= current.quote.expiresAt)
+  const regenerate = useCallback(() => setRound((n) => n + 1), [])
   return {
     rails,
     quote: expired ? undefined : current?.quote,
     quoting: Boolean(rail) && !current,
     error: current?.error ?? '',
     expired,
-    regenerate: () => setRound((n) => n + 1),
+    regenerate,
     /** Whether option `id` would be offered for `sats`, so a caller can drop a pick before the amount lands. */
     offers: (sats: number, id?: string) =>
       Boolean(payRequest && sats > 0 && lnurlTokenRails(payRequest, sats).some((r) => r.id === id)),

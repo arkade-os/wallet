@@ -49,6 +49,7 @@ describe('lnurlTokenRails', () => {
   it.each([
     ['available: false', { available: false }],
     ['verifiable: false', { verifiable: false }],
+    ['no verifiable flag', { verifiable: undefined }],
     ['no provider', { provider: undefined }],
   ])('omits an option with %s', (_, override) => {
     const rails = lnurlTokenRails(payRequest([{ ...TOKEN_OPTIONS[0], ...override }, TOKEN_OPTIONS[1]]), 20_000)
@@ -136,6 +137,28 @@ describe('useLnurlTokenRails', () => {
     await act(async () => {})
     expect(result.current.rails).toEqual([])
     expect(server.fetch).not.toHaveBeenCalled()
+  })
+
+  it('says which options an amount would be offered, once the payRequest is in', async () => {
+    serve()
+    const { result } = renderTokens()
+    expect(result.current.offers(20_000, 'ff-usdtarbitrum')).toBe(false)
+
+    await waitFor(() => expect(result.current.rails).toHaveLength(2))
+    expect(result.current.offers(20_000, 'ff-usdtarbitrum')).toBe(true)
+    expect(result.current.offers(5_000, 'ff-usdttrc')).toBe(false)
+    expect(result.current.offers(20_000, 'ff-unknown')).toBe(false)
+    expect(result.current.offers(20_000, undefined)).toBe(false)
+    expect(result.current.offers(0, 'ff-usdtarbitrum')).toBe(false)
+  })
+
+  it('keeps regenerate the same function across renders', async () => {
+    serve()
+    const { result, rerender } = renderTokens()
+    const first = result.current.regenerate
+
+    rerender({ selected: undefined, amountSat: 25_000 })
+    expect(result.current.regenerate).toBe(first)
   })
 
   it('asks for no quote until an option is picked', async () => {
