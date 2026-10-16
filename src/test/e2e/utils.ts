@@ -185,8 +185,6 @@ export async function createWalletAndGetBIP21(page: Page, isMobile?: boolean, sa
     }
   }
 
-  await page.waitForSelector(`text=${tr.common.copy}`, { state: 'visible' })
-  await page.getByText(tr.common.copy).click()
   await page.getByTestId('bip21-address-copy').click()
   const bip21 = await readClipboard(page)
   return bip21
@@ -263,7 +261,6 @@ async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = f
   }
 
   // copy address/invoice
-  await page.getByText('Copy').click()
   await page.getByTestId(`${type}-address-copy`).click()
   return await readClipboard(page)
 }

@@ -29,6 +29,8 @@ interface KeyboardProps {
   onSave: (value: string, inputMode: KeyboardInputMode) => void
   onClear?: () => void
   initialValue?: bigint | number
+  title?: string
+  subtitle?: string
 }
 
 export default function Keyboard({
@@ -39,6 +41,8 @@ export default function Keyboard({
   onClear,
   onSave,
   initialValue,
+  title,
+  subtitle,
 }: KeyboardProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
@@ -248,7 +252,7 @@ export default function Keyboard({
         auxFunc={showSecondaryValue ? handleToggleCurrency : undefined}
         auxIcon={showSecondaryValue ? <SwapIcon /> : undefined}
         back={back}
-        text={t('common.amount')}
+        text={title ?? t('common.amount')}
       />
       <Content>
         <FlexCol centered gap='0.5rem'>
@@ -262,6 +266,7 @@ export default function Keyboard({
               <TextSecondary centered>{amount.balance}</TextSecondary>
             </div>
           )}
+          {subtitle ? <TextSecondary centered>{subtitle}</TextSecondary> : null}
         </FlexCol>
       </Content>
       <div style={gridStyle}>
