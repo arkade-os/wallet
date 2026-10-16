@@ -584,7 +584,12 @@ export default function ReceiveQRCode() {
             onClick={() => (isMobileBrowser ? setShowKeys(true) : setShowAmountSheet(true))}
             secondary
           />
-          <Button label={t('receive.copy')} onClick={handleCopyButton} secondary disabled={generating} />
+          <Button
+            label={t('receive.copy')}
+            onClick={handleCopyButton}
+            secondary
+            disabled={generating || Boolean(activeToken && !tokenQuote)}
+          />
         </FlexRow>
         <Button label={t('receive.share')} onClick={handleShare} disabled={shareDisabled} />
       </ButtonsOnBottom>
