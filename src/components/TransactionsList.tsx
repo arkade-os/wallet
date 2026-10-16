@@ -110,7 +110,7 @@ const TransactionLine = ({
 
   const kind =
     lnSwapKind ??
-    lnurlLabel(tx) ??
+    lnurlLabel(tx, t) ??
     (swap
       ? swapStatus === 'pending'
         ? t('transaction.swapPending')
