@@ -202,6 +202,16 @@ describe('SwapsProvider', () => {
     await waitFor(() => expect(mocks.discoverMarkets).toHaveBeenCalledWith('regtest', false))
   })
 
+  it('rebuilds the swap client when a pinned card changes, so it routes with the card', async () => {
+    renderProvider()
+    await waitFor(() => expect(mocks.created).toHaveBeenCalledOnce())
+
+    act(() => saveSolverCards([]))
+
+    await waitFor(() => expect(mocks.created).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(mocks.dispose).toHaveBeenCalledOnce())
+  })
+
   it('quotes destinations through the swap client', async () => {
     renderProvider()
 

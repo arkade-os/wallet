@@ -531,8 +531,12 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       controller.abort()
       release()
     }
+    // `cardsVersion` too: the client takes its discovery options once, pinned
+    // cards included, so one built before a card was pinned routes without it,
+    // and its cache writes overwrite the entry the market read above serves
+    // from. Rebuilding is the same stop and restore an unlock goes through.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [svcWallet, aspInfo.url, aspInfo.network])
+  }, [svcWallet, aspInfo.url, aspInfo.network, cardsVersion])
 
   /**
    * The client, for the tab that holds it.
