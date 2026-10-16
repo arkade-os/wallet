@@ -309,6 +309,10 @@ export default function Transaction() {
         date,
         destination: tx.type === 'sent' && !boardingTx && !issuanceTx && !burnTx ? tx.destination : undefined,
         fees,
+        // Sends already carry their target as `destination`, saved at send time;
+        // the resolver's address/rail is the only source for a receive.
+        receivedAt: tx.type !== 'sent' ? tx.lnurl?.address : undefined,
+        rail: tx.type !== 'sent' ? tx.lnurl?.rail : undefined,
         // An exit is the one row whose txid is genuinely onchain, so it links
         // to the block explorer rather than to Arkade's. Without the guard its
         // `redeemTxid` alone would class it offchain and send the link to the
