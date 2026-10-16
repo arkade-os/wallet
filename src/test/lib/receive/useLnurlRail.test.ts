@@ -1,8 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { SingleKey } from '@arkade-os/sdk'
-import { useLnurlRail } from '../../../lib/receive/lnurlRail'
-import { DECODABLE_ARK, LNURL_BASE, fakeLnurlServer, namedAddress, namelessAddress } from './fakeLnurlServer'
+import { useLnurlRail, useLnurlRails } from '../../../lib/receive/lnurlRail'
+import {
+  DECODABLE_ARK,
+  LNURL_BASE,
+  LNURL_DESTINATIONS,
+  WALLET_BOARDING_ADDRESS,
+  fakeLnurlServer,
+  namedAddress,
+  namelessAddress,
+} from './fakeLnurlServer'
 
 const identity = SingleKey.fromHex('02'.repeat(32))
 
@@ -195,5 +203,29 @@ describe('useLnurlRail', () => {
 
     await waitFor(() => expect(result.current.status).toBe('failed'))
     expect(result.current.error).not.toBe('')
+  })
+})
+
+describe('useLnurlRails', () => {
+  const asked = (rail: string) =>
+    server.fetch.mock.calls.filter(([url]) => String(url).includes(`paymentOption=${rail}`))
+
+  it('asks for a leg only once its own address is known, so none is refused as foreign', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    const rail = renderRail()
+    await waitFor(() => expect(rail.result.current.status).toBe('ready'))
+    const receiver = rail.result.current.receiver
+    const { result, rerender } = renderHook(({ own }) => useLnurlRails(receiver, 20_000, true, own), {
+      initialProps: { own: { arkade: '', onchain: '' } },
+    })
+
+    await waitFor(() => expect(result.current.targets.lightning).toBeDefined())
+    expect(result.current.errors).toEqual({})
+    expect(asked('arkade')).toHaveLength(0)
+    expect(asked('onchain')).toHaveLength(0)
+
+    rerender({ own: { arkade: DECODABLE_ARK, onchain: WALLET_BOARDING_ADDRESS } })
+    await waitFor(() => expect(result.current.targets).toEqual(expect.objectContaining(LNURL_DESTINATIONS)))
+    expect(result.current.errors).toEqual({})
   })
 })

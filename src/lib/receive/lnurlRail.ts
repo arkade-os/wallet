@@ -89,8 +89,8 @@ export async function resolveLnurlRails(
       if (!target || (result.kind === 'bolt11') !== (rail === 'lightning')) {
         throw new LnurlError(`the LNURL answered the ${rail} rail with nothing payable on it`)
       }
-      // An honest server answers onchain with the boarding address this wallet registered and arkade on its
-      // own operator; a per-payment covenant's leaves can't be checked from here, so that part stays trust.
+      // On-chain must be the boarding address this wallet registered. Arkade is checked only to be on this
+      // operator: a dishonest server could still hand out another user's address there, so that part stays trust.
       if (rail === 'onchain' && target !== own.onchain) {
         throw new LnurlError("the LNURL gave an on-chain address that is not this wallet's")
       }
@@ -120,7 +120,12 @@ export function useLnurlRails(
     setErrors({})
     setGenerating(Boolean(receiver) && amountSat > 0)
     if (!receiver || amountSat <= 0) return
-    const rails: LnurlRailType[] = allRails ? ['lightning', 'arkade', 'onchain'] : ['lightning']
+    // A leg whose own address hasn't loaded yet would be refused as foreign; ask for it once it has.
+    const rails: LnurlRailType[] = [
+      'lightning',
+      ...(allRails && ownArkade ? (['arkade'] as const) : []),
+      ...(allRails && ownOnchain ? (['onchain'] as const) : []),
+    ]
     let stale = false
     resolveLnurlRails(receiver, amountSat, rails, { arkade: ownArkade, onchain: ownOnchain })
       .then((results) => {
