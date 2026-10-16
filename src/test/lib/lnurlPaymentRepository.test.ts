@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
+import { LNURL_WATERMARKS_STORAGE_KEY } from '../../lib/storageKeys'
 import { syncPayments, type PaymentPage, type StoredPayment } from '@arkade-os/lnurl-client'
 import { TxType, type ArkTransaction } from '@arkade-os/sdk'
 import {
@@ -219,5 +220,12 @@ describe('lnurl watermarks', () => {
     expect(await store.readWatermark(SERVER_A, ALICE)).toBe(42)
     expect(await store.readWatermark(SERVER_B, ALICE)).toBe(7)
     expect(await store.readWatermark(SERVER_A, BOB)).toBe(9)
+  })
+
+  it.each(['null', '[]', '7'])('treats a stored %s as no watermarks, and still writes', async (raw) => {
+    localStorage.setItem(LNURL_WATERMARKS_STORAGE_KEY, raw)
+    expect(await store.readWatermark(SERVER_A, ALICE)).toBeUndefined()
+    await store.writeWatermark(SERVER_A, ALICE, 5)
+    expect(await store.readWatermark(SERVER_A, ALICE)).toBe(5)
   })
 })
