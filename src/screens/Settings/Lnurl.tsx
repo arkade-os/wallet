@@ -16,6 +16,7 @@ import { configuredLnurlServer, lnurlRailLimits, useLnurlRail } from '../../lib/
 import { lnurlTokenRails, type LnurlTokenRail } from '../../lib/receive/lnurlTokenRails'
 import { prettyNumber } from '../../lib/format'
 import { consoleError } from '../../lib/logs'
+import { extractError } from '../../lib/error'
 import ErrorMessage from '../../components/Error'
 import { NameForm } from '../Wallet/Receive/LnurlRail'
 import type { AddressListEntry } from '@arkade-os/lnurl-client'
@@ -31,6 +32,7 @@ export default function Lnurl() {
   const server = configuredLnurlServer()
   const [addresses, setAddresses] = useState<{ arkade: string; boarding?: string }>()
   const [limits, setLimits] = useState<ReturnType<typeof lnurlRailLimits>>([])
+  const [limitsError, setLimitsError] = useState('')
   const [tokens, setTokens] = useState<LnurlTokenRail[]>([])
   const [explaining, setExplaining] = useState(false)
   const [owned, setOwned] = useState<AddressListEntry[]>([])
@@ -51,6 +53,7 @@ export default function Lnurl() {
 
   useEffect(() => {
     setLimits([])
+    setLimitsError('')
     setTokens([])
     setOwned([])
     if (!rail.receiver) return
@@ -62,7 +65,10 @@ export default function Lnurl() {
         setLimits(lnurlRailLimits(payRequest))
         setTokens(lnurlTokenRails(payRequest))
       })
-      .catch(consoleError)
+      .catch((err) => {
+        consoleError(err, 'lnurl payRequest failed')
+        if (!stale) setLimitsError(extractError(err))
+      })
     rail
       .addresses()
       .then((all) => !stale && setOwned(all))
@@ -91,7 +97,7 @@ export default function Lnurl() {
         ...(address ? [[t('settings.lightningAddress'), address] as [string, string]] : []),
       ],
     ),
-    [t('settings.lnurlServer'), server?.domain],
+    ...(server ? [[t('settings.lnurlServer'), server.domain] as [string, string]] : []),
   ]
   const namingChoices = rail.receiver?.lightningAddress ? [] : rail.choices.filter((c) => c !== 'session')
   const sendable: TableData = limits.map(({ type, min, max }) => [
@@ -101,7 +107,7 @@ export default function Lnurl() {
   const units = [...new Set(tokens.map((o) => o.unit.code))].join('/')
   const providers = [...new Set(tokens.map((o) => o.provider))].join(', ')
 
-  const handleChange = async () => {
+  const handleChange = () => {
     backupAndUpdateConfig({ ...config, receiveViaLnurl: !config.receiveViaLnurl })
   }
 
@@ -150,10 +156,11 @@ export default function Lnurl() {
                 <ErrorMessage error={Boolean(rail.error)} text={rail.error} />
               </section>
             ) : null}
-            {sendable.length ? (
+            {sendable.length || limitsError ? (
               <section className='settings-section'>
                 <p className='settings-section-label'>{t('settings.lnurlLimits')}</p>
-                <Table data={sendable} variant='receipt' />
+                {sendable.length ? <Table data={sendable} variant='receipt' /> : null}
+                <ErrorMessage error={Boolean(limitsError)} text={limitsError} />
               </section>
             ) : null}
             <section className='settings-section'>
