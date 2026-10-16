@@ -1,15 +1,17 @@
 import { useContext, useState } from 'react'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Quote, Swap } from '@arkade-os/swap'
 import { AspContext } from '../../providers/asp'
 import { WalletContext } from '../../providers/wallet'
 import { SwapsContext, SwapsProvider } from '../../providers/swaps'
 import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
+import { saveSolverCards } from '../../lib/solverCards'
 
 const mocks = vi.hoisted(() => ({
   created: vi.fn(),
   discoverMarkets: vi.fn(),
+  watchSwapMarkets: vi.fn(),
   offerSwaps: vi.fn(),
   quote: vi.fn(),
   receive: vi.fn(),
@@ -19,7 +21,10 @@ const mocks = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
 }))
 
-vi.mock('../../lib/swapMarkets', () => ({ discoverMarkets: mocks.discoverMarkets }))
+vi.mock('../../lib/swapMarkets', () => ({
+  discoverMarkets: mocks.discoverMarkets,
+  watchSwapMarkets: mocks.watchSwapMarkets,
+}))
 vi.mock('../../lib/swapRepository', () => ({
   saveQuoteSnapshot: vi.fn(),
 }))
@@ -117,6 +122,7 @@ const renderProvider = (wallet = {}, children = <Harness />) =>
 beforeEach(() => {
   Object.defineProperty(navigator, 'locks', { value: undefined, configurable: true })
   mocks.discoverMarkets.mockResolvedValue([])
+  mocks.watchSwapMarkets.mockReturnValue(() => {})
   mocks.offerSwaps.mockResolvedValue([])
   mocks.quote.mockResolvedValue({ id: 'quote-1' } as Quote)
   mocks.receive.mockResolvedValue(swap)
@@ -146,7 +152,10 @@ describe('SwapsProvider', () => {
 
   it('loads swaps and filters corridor markets from the offer list', async () => {
     mocks.offerSwaps.mockResolvedValue([swap])
-    mocks.discoverMarkets.mockResolvedValue([market(), market({ quote_corridor: 'lightning' })])
+    mocks.watchSwapMarkets.mockImplementation((_network: string, onMarkets: (markets: unknown[]) => void) => {
+      onMarkets([market(), market({ quote_corridor: 'lightning' })])
+      return () => {}
+    })
     const setAssetSwaps = vi.fn()
 
     renderProvider({ setAssetSwaps })
@@ -155,6 +164,52 @@ describe('SwapsProvider', () => {
     await waitFor(() => expect(screen.getByTestId('market-count')).toHaveTextContent('1'))
     expect(screen.getByTestId('available')).toHaveTextContent('true')
     expect(setAssetSwaps).toHaveBeenCalledWith([swap])
+  })
+
+  it('hides a canonical corridor market that names the rail on the asset id', async () => {
+    mocks.watchSwapMarkets.mockImplementation((_network: string, onMarkets: (markets: unknown[]) => void) => {
+      onMarkets([
+        market(),
+        market({
+          base_asset: { id: 'arkade:bitcoin/slip44:0', ticker: 'BTC', decimals: 8 },
+          quote_asset: { id: 'bolt11:bitcoin/slip44:0', ticker: 'BTC', decimals: 8 },
+        }),
+      ])
+      return () => {}
+    })
+
+    renderProvider()
+
+    await waitFor(() => expect(screen.getByTestId('market-count')).toHaveTextContent('1'))
+  })
+
+  it('watches the network’s markets while mounted and stops watching on unmount', () => {
+    const stop = vi.fn()
+    mocks.watchSwapMarkets.mockReturnValue(stop)
+    const view = renderProvider()
+    expect(mocks.watchSwapMarkets).toHaveBeenCalledWith('regtest', expect.any(Function))
+    expect(stop).not.toHaveBeenCalled()
+    view.unmount()
+    expect(stop).toHaveBeenCalledOnce()
+  })
+
+  it('re-reads markets past the cache when a pinned card changes', async () => {
+    renderProvider()
+    expect(mocks.discoverMarkets).not.toHaveBeenCalled()
+
+    act(() => saveSolverCards([]))
+
+    await waitFor(() => expect(mocks.discoverMarkets).toHaveBeenCalledWith('regtest', false))
+  })
+
+  it('rebuilds the swap client when a pinned card changes, so it routes with the card', async () => {
+    renderProvider()
+    await waitFor(() => expect(mocks.created).toHaveBeenCalledOnce())
+
+    act(() => saveSolverCards([]))
+
+    await waitFor(() => expect(mocks.created).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(mocks.dispose).toHaveBeenCalledOnce())
   })
 
   it('quotes destinations through the swap client', async () => {

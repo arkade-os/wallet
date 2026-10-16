@@ -34,7 +34,17 @@
  * this side as a `ServiceWorkerWallet` proxy, so moving the client in would mean
  * standing a second wallet up inside it.
  */
-import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  ReactNode,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import { asset, type Asset, type NetworkName, type PaymentRouter } from '@arkade-os/sdk'
 import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
 import {
@@ -47,11 +57,12 @@ import {
   type Swap,
   type SwapClient,
 } from '@arkade-os/swap'
-import { sideLimits, type DiscoveredMarket, type OfferPlan, type Side } from '@arkade-os/solver-discovery'
+import { isRfqMarket, sideLimits, type DiscoveredMarket, type OfferPlan, type Side } from '@arkade-os/solver-discovery'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
-import { discoverMarkets } from '../lib/swapMarkets'
-import { createSendRouter } from '../lib/sendRouter'
+import { discoverMarkets, watchSwapMarkets } from '../lib/swapMarkets'
+import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
+import { createSendRouter, isLightningMarket } from '../lib/sendRouter'
 import { claimFeeRate } from '../lib/claimFee'
 import { onchainClaimEndpoint } from '../lib/onchainPayout'
 import { toInvoiceFacts } from '../lib/lnSwap'
@@ -282,8 +293,12 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     // Corridor (RFQ) markets are hidden from the offer composer: `exchange`
     // builds offers, and a corridor is negotiated with a solver instead.
     // Keeping them here would let one Lightning card turn the whole swap
-    // surface on with nothing behind it.
-    setMarkets(all.filter((m) => !m.quote_corridor))
+    // surface on with nothing behind it. `isRfqMarket` reads the rail off the
+    // asset id, so a canonical card with no `quote_corridor` field still hides.
+    // Left in, it also breaks pairing for the rest: `findMarket` resolves the
+    // wallet's `btc` against the first BTC leg it meets, and the bundled card's
+    // canonical `arkade:bitcoin/slip44:0` then misses every legacy `btc` market.
+    setMarkets(all.filter((m) => !isRfqMarket(m)))
   }
 
   const runDiscovery = (useCache = true) => {
@@ -298,9 +313,25 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     setEmulatorPubkey(undefined)
     setAllMarkets([])
-    runDiscovery()
+    if (!aspInfo.network) return
+    const network = aspInfo.network as NetworkName
+    setEmulatorPubkey(getEmulatorPubkeyForNetwork(network))
+    return watchSwapMarkets(network, setAllMarkets)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aspInfo.network])
+
+  // Pinned cards are a market source living outside React, and the markets
+  // cache is keyed on network and registry, not on them: the watch would keep
+  // serving the pre-card entry for its whole TTL. So a card write re-reads past
+  // the cache, which also rewrites it for the watch's next tick.
+  const cardsVersion = useSyncExternalStore(subscribeSolverCards, getSolverCardsVersion, getSolverCardsVersion)
+  const seenCardsVersion = useRef(cardsVersion)
+  useEffect(() => {
+    if (seenCardsVersion.current === cardsVersion) return
+    seenCardsVersion.current = cardsVersion
+    runDiscovery(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardsVersion])
 
   // ------------------------------------------------------------- the announcer
 
@@ -500,8 +531,12 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       controller.abort()
       release()
     }
+    // `cardsVersion` too: the client takes its discovery options once, pinned
+    // cards included, so one built before a card was pinned routes without it,
+    // and its cache writes overwrite the entry the market read above serves
+    // from. Rebuilding is the same stop and restore an unlock goes through.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [svcWallet, aspInfo.url, aspInfo.network])
+  }, [svcWallet, aspInfo.url, aspInfo.network, cardsVersion])
 
   /**
    * The client, for the tab that holds it.
@@ -704,7 +739,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
    * leg, base (arkade) the receive leg.
    */
   const assertWithinBounds = (sats: number, side: Side) => {
-    const market = allMarketsRef.current.find((m) => m.quote_corridor === 'lightning')
+    const market = allMarketsRef.current.find(isLightningMarket)
     // No card, or a disabled side: leave it to the client, which answers
     // "no route" rather than an invented range.
     const bounds = market && sideLimits(market, side)

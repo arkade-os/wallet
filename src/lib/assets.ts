@@ -17,7 +17,8 @@ export const isValidDecimals = (d: number): boolean => Number.isInteger(d) && d 
 const conversionDecimals = (d: number): number =>
   Number.isInteger(d) && d >= 0 && d <= MAX_CONVERSION_DECIMALS ? d : 0
 
-export function unitsToCents(units: string, decimals = MAX_DECIMALS): bigint {
+// missing decimals read as whole units: understating an amount beats overstating it
+export function unitsToAtomic(units: string, decimals = 0): bigint {
   if (!units || units === '') return BigInt(0)
   const safeDecimals = conversionDecimals(decimals)
   const negative = units.startsWith('-')
@@ -26,11 +27,11 @@ export function unitsToCents(units: string, decimals = MAX_DECIMALS): bigint {
   return negative ? -BigInt(digits) : BigInt(digits)
 }
 
-export function centsToUnits(cents: bigint, decimals = MAX_DECIMALS): string {
+export function atomicToUnits(atomic: bigint, decimals = 0): string {
   const safeDecimals = conversionDecimals(decimals)
-  if (safeDecimals === 0) return cents.toString()
-  const negative = cents < BigInt(0)
-  const digits = (negative ? -cents : cents).toString().padStart(safeDecimals + 1, '0')
+  if (safeDecimals === 0) return atomic.toString()
+  const negative = atomic < BigInt(0)
+  const digits = (negative ? -atomic : atomic).toString().padStart(safeDecimals + 1, '0')
   const fraction = digits.slice(-safeDecimals).replace(/0+$/, '')
   return `${negative ? '-' : ''}${digits.slice(0, -safeDecimals)}${fraction ? `.${fraction}` : ''}`
 }
@@ -70,19 +71,19 @@ export const prettyAssetNumber = (num?: string | number, maximumFractionDigits =
 export const prettyAssetAmount = (cents: bigint, decimals: number, tidy = false): string => {
   const realDecimals = conversionDecimals(decimals)
 
-  if (!tidy) return prettyAssetNumber(centsToUnits(cents, realDecimals), realDecimals)
+  if (!tidy) return prettyAssetNumber(atomicToUnits(cents, realDecimals), realDecimals)
 
   const billion = 10 ** 9
   const million = 10 ** 6
   const thousand = 10 ** 3
   const trillion = 10 ** 12
   const tenthousand = 10 ** 4
-  const strUnits = centsToUnits(cents, realDecimals)
+  const strUnits = atomicToUnits(cents, realDecimals)
 
   const safeToUseNumber = cents < BigInt(Number.MAX_SAFE_INTEGER) && cents > BigInt(Number.MIN_SAFE_INTEGER)
 
   if (safeToUseNumber) {
-    const units = Number(centsToUnits(cents, realDecimals))
+    const units = Number(atomicToUnits(cents, realDecimals))
     const absoluteUnits = units < 0 ? -units : units
     if (absoluteUnits >= trillion) {
       return `${prettyAssetNumber(units / trillion, 0)}T`
@@ -156,10 +157,3 @@ export const referencedAssetIds = (sources: {
 
 const isNameableAssetId = (assetId: string | undefined): assetId is string =>
   typeof assetId === 'string' && assetId.length > 0 && assetId !== 'btc'
-
-/** The BTC a spend may take. While the wallet holds assets one carrier stays
- * back: every asset output rides on `dust` sats (the server's threshold),
- * asset change needs one of its own, and spending the last one fails inside
- * coin selection with a bare "Insufficient funds". Never negative. */
-export const liquidBtcBalance = (availableBalance: number, holdsAssets: boolean, dust: bigint): number =>
-  Math.max(0, availableBalance - (holdsAssets ? Number(dust) : 0))
