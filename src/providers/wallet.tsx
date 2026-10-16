@@ -756,7 +756,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         return synced
       }
       const reloadAfterSync = () => {
-        reloadWallet(svcWallet).catch(consoleError)
+        if (!signal.aborted) reloadWallet(svcWallet).catch(consoleError)
       }
       syncLnurl()
         .then((synced) => {
