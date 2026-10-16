@@ -1,4 +1,4 @@
-import { useContext, useEffect } from 'react'
+import { useContext, useEffect, useRef } from 'react'
 import { FlowContext } from '../../../providers/flow'
 import { NotificationsContext } from '../../../providers/notifications'
 import { NavigationContext, Pages } from '../../../providers/navigation'
@@ -17,6 +17,8 @@ import { FiatContext } from '../../../providers/fiat'
 import { WalletContext } from '../../../providers/wallet'
 import AssetCard from '../../../components/AssetCard'
 import { accountAssetLabel, rawAssetPresentation, verifiedDesignatedCurrency } from '../../../lib/accountAssets'
+import { appSendNeedsDriver, onchainSendNeedsDriver, WALLET_EXIT_RAIL } from '../../../lib/sendRouter'
+import { SwapsContext } from '../../../providers/swaps'
 import { AspContext } from '../../../providers/asp'
 import { useTranslation } from '../../../providers/language'
 import { appIntentHandoff, callbackHost, redirectToCallback } from '../../../lib/appIntent'
@@ -30,6 +32,11 @@ export default function SendSuccess() {
   const { navigate } = useContext(NavigationContext)
   const { aspInfo } = useContext(AspContext)
   const { t } = useTranslation()
+  const { outcomeOf } = useContext(SwapsContext)
+  const handedOff = useRef(false)
+  const needsDriver = onchainSendNeedsDriver(sendInfo, outcomeOf)
+  const appNeedsDriver = appSendNeedsDriver(appIntent, sendInfo, outcomeOf)
+  const pendingWarning = 'An onchain payment is still on the way � keep the wallet open until it completes'
 
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
@@ -45,7 +52,7 @@ export default function SendSuccess() {
   const assetTicker = assetPresentation.ticker
   const assetIcon = assetPresentation.icon
   const assetAmountValue = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
-  const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? 8
+  const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? 0
 
   // Show payment sent notification
   useEffect(() => {
@@ -62,20 +69,35 @@ export default function SendSuccess() {
       ? prettyFiatAmount(toFiat(totalSats), config.currency, { bitcoinUnit: config.unit })
       : prettyAmount(totalSats)
 
-  // A Lightning send is committed, not completed: the covenant is funded and
-  // the solver still has to pay the invoice. It settles or it refunds, both
-  // without us, so this is not a pending-failure warning — it is simply the
-  // accurate word. An Arkade send, by contrast, really is sent.
-  const isLightningSend = Boolean(sendInfo.invoice)
+  // Reached ON the funding now, so "sent" would be false as it is read: the
+  // on-chain corridor still owes an L1 confirmation. An Arkade send does not.
+  // Which rail paid decides that, not the destination's shape: the exit owes no
+  // claim at all. An unknown rail keeps the cautious wording.
+  const paidOutright = sendInfo.railId === WALLET_EXIT_RAIL
+  const isOnchainSend = Boolean(sendInfo.address) && !sendInfo.arkAddress && !sendInfo.invoice && !paidOutright
+  const isSwapSend = Boolean(sendInfo.invoice) || isOnchainSend
   const returnHost = appIntent?.status === 'send' && appIntent.callback ? callbackHost(appIntent.callback) : ''
-  const headline = isLightningSend ? t('send.paymentOnTheWay') : t('send.paymentSent')
-  const detail = returnHost
-    ? t('appIntent.sentReturn', { amount: displayAmount, host: returnHost })
-    : isLightningSend
-      ? t('send.onTheWay', { amount: displayAmount })
-      : t('send.sentSuccessfully', { amount: displayAmount })
+  const headline = isSwapSend ? t('send.paymentOnTheWay') : t('send.paymentSent')
+  // Only on-chain, and not a hedge: THIS wallet holds the L1 claim key and the
+  // drive spending it runs in the page, so a closed tab forfeits the fill.
+  const detail =
+    appNeedsDriver && appIntent?.status === 'send' && appIntent.committedOnchain?.swapId !== sendInfo.swapId
+      ? pendingWarning
+      : isOnchainSend && (!appIntent || needsDriver)
+        ? `${displayAmount} on the way — keep the wallet open until it completes`
+        : returnHost
+          ? t('appIntent.sentReturn', { amount: displayAmount, host: returnHost })
+          : isSwapSend
+            ? t('send.onTheWay', { amount: displayAmount })
+            : t('send.sentSuccessfully', { amount: displayAmount })
 
   const finish = () => {
+    if (appNeedsDriver) {
+      navigate(Pages.Wallet)
+      return
+    }
+    if (handedOff.current) return
+    handedOff.current = true
     const handoff = appIntentHandoff(appIntent, 'sent', sendInfo.txid)
     if (appIntent?.status === 'send') setAppIntent(undefined)
     if (handoff) {
@@ -107,7 +129,7 @@ export default function SendSuccess() {
                 logoTicker={designatedCurrency}
               />
               <Text centered color='neutral-700' thin small wrap>
-                {t('send.sentSuccessfully', { amount: displayAmount })}
+                {appNeedsDriver ? pendingWarning : t('send.sentSuccessfully', { amount: displayAmount })}
               </Text>
             </FlexCol>
           </Padded>

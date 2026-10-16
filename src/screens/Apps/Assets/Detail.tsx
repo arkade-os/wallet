@@ -71,7 +71,7 @@ export default function AppAssetDetail() {
   const name = meta?.name ?? t('mint.unknownAsset')
   const ticker = meta?.ticker ?? ''
   const title = ticker || name
-  const decimals = meta?.decimals ?? 8
+  const decimals = meta?.decimals ?? 0
   const supply = assetInfo.supply
   const controlAssetId = assetInfo.controlAssetId
   const truncateId = (id: string) => `${id.slice(0, 12)}...${id.slice(-12)}`

@@ -17,17 +17,17 @@ import ChevronDownIcon from '../../../icons/ChevronDown'
 import InfoIcon from '../../../icons/Info'
 import SwapIcon from '../../../icons/Swap'
 import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
-import { centsToUnits, liquidBtcBalance, unitsToCents } from '../../../lib/assets'
+import { atomicToUnits, unitsToAtomic } from '../../../lib/assets'
 import { extractError } from '../../../lib/error'
 import { formatFiatAmountParts, normalizeBitcoinUnit, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
 import { swapRouteTicker } from '../../../lib/swapDisplay'
-import { BTC_ASSET_ID, findMarket, makeCachedFeedFetch, QUOTE_OPTIONS, validatePlan } from '@arkade-os/swap'
+import { BTC_ASSET_ID, findMarket, makeCachedFeedFetch, QUOTE_OPTIONS, validatePlan } from '@arkade-os/swap/protocol'
 import { preFeeDisplayRate } from '../../../lib/swapMarkets'
 import { type AssetSwapQuoteSnapshot } from '../../../lib/swapRepository'
 import { Currencies, Unit } from '../../../lib/types'
 import { AspContext } from '../../../providers/asp'
-import { AssetSwapsContext } from '../../../providers/assetSwaps'
+import { SwapsContext } from '../../../providers/swaps'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { FlowContext } from '../../../providers/flow'
@@ -86,7 +86,7 @@ const emptySwapAsset: SwapAsset = {
 
 export default function WalletSwap() {
   const { aspInfo } = useContext(AspContext)
-  const { createSwap, markets, swapAvailable } = useContext(AssetSwapsContext)
+  const { exchange, markets, swapAvailable } = useContext(SwapsContext)
   const { config } = useContext(ConfigContext)
   const { fiatDecimals, fromFiatAmount, toFiat, toFiatAmount } = useContext(FiatContext)
   const { swapFromAssetId, setSwapFromAssetId } = useContext(FlowContext)
@@ -99,7 +99,9 @@ export default function WalletSwap() {
   const btcUnit = normalizeBitcoinUnit(config.unit)
   const swapAssets = useMemo<SwapAsset[]>(() => {
     const marketAssets = markets.flatMap((market) => [market.base_asset, market.quote_asset])
-    const uniqueAssets = new Map(marketAssets.map((asset) => [asset.id, asset]))
+    const uniqueAssets = new Map(
+      marketAssets.filter((asset) => !asset.id.match('slip44:0')).map((asset) => [asset.id, asset]),
+    )
     uniqueAssets.set(BTC_ASSET_ID, {
       id: BTC_ASSET_ID,
       name: 'Bitcoin',
@@ -118,7 +120,8 @@ export default function WalletSwap() {
           ticker: btcUnit === Unit.BTC ? 'BTC' : btcUnit,
           currency: Currencies.BTC,
           decimals: btcUnit === Unit.BTC ? 8 : 0,
-          balance: BigInt(liquidBtcBalance(availableBalance, availableAssetBalances.length > 0, aspInfo.dust)),
+          // the SDK's `available` already holds back the asset dust carrier
+          balance: BigInt(availableBalance),
           fiatText: bitcoinRow?.hasFiatPrice
             ? prettyFiatAmount(bitcoinRow.fiatAmount, config.currency, { bitcoinUnit: config.unit })
             : undefined,
@@ -228,7 +231,7 @@ export default function WalletSwap() {
   const currentPlan = status === 'success' && planMatchesAssetAmount ? plan : null
   const quoteStale = Boolean(toAsset && Number(assetAmount) > 0 && !currentPlan)
   const planError = currentPlan ? validatePlan(currentPlan, assetBalanceAtomic(fromAsset), aspInfo.dust) : undefined
-  const amountAtomic = unitsToCents(assetAmount, fromAsset.decimals)
+  const amountAtomic = unitsToAtomic(assetAmount, fromAsset.decimals)
   const exceedsBalance = amountAtomic > assetBalanceAtomic(fromAsset)
   // a partial asset deposit leaves asset change, and that change needs a second
   // dust carrier; without one the SDK fails with a bare "Insufficient funds"
@@ -434,7 +437,7 @@ export default function WalletSwap() {
     // enter the exact balance in the asset's own units — sidestep the fiat
     // round-trip so "max" funds the whole balance to the last atomic unit
     setSelectedAmountMode('asset')
-    setAmount(centsToUnits(rawBalance, fromAsset.decimals))
+    setAmount(atomicToUnits(rawBalance, fromAsset.decimals))
   }
 
   const handleBack = () => {
@@ -457,12 +460,15 @@ export default function WalletSwap() {
   }, [handleSuccessDone, successQuote])
 
   const confirmSwap = async () => {
-    if (!plan || !toAsset || confirming || !canContinue) return
+    if (!plan || !toAsset || !pair?.market || confirming || !canContinue) return
 
     setConfirmError('')
     setConfirming(true)
     try {
-      await createSwap(plan, buildQuoteSnapshot(plan, quote, config.currency))
+      // The market the plan was quoted against, not one re-looked-up at confirm
+      // time: `accept` funds the plan the user just read, and a second lookup
+      // could name a different card.
+      await exchange(pair.market, plan, buildQuoteSnapshot(plan, quote, config.currency))
       setDrawer(null)
       setSuccessQuote(quote)
       hapticLight()
@@ -1649,5 +1655,5 @@ function firstPositiveBalanceAsset(assets: SwapAsset[]): SwapAsset | undefined {
 }
 
 function formatAssetBalance(asset: SwapAsset): string {
-  return `${formatAssetQuantity(centsToUnits(assetBalanceAtomic(asset), asset.decimals), asset.decimals)} ${asset.ticker}`
+  return `${formatAssetQuantity(atomicToUnits(assetBalanceAtomic(asset), asset.decimals), asset.decimals)} ${asset.ticker}`
 }

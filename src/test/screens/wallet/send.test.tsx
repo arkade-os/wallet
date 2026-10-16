@@ -23,6 +23,8 @@ import { AspContext } from '../../../providers/asp'
 import { WalletContext } from '../../../providers/wallet'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { redirectToCallback } from '../../../lib/appIntent'
+import { SwapsContext } from '../../../providers/swaps'
+import type { Outcome } from '@arkade-os/swap'
 import SendForm from '../../../screens/Wallet/Send/Form'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
@@ -36,6 +38,7 @@ describe('Send screen', () => {
     flowContext = mockFlowContextValue,
     navigationContext = mockNavigationContextValue,
     walletContext = { ...mockWalletContextValue, svcWallet: mockSvcWallet as any },
+    outcomeOf = undefined as ((id: string) => Outcome | undefined) | undefined,
   } = {}) =>
     render(
       <NavigationContext.Provider value={navigationContext}>
@@ -46,7 +49,13 @@ describe('Send screen', () => {
                 <FlowContext.Provider value={flowContext as any}>
                   <WalletContext.Provider value={walletContext as any}>
                     <LimitsContext.Provider value={mockLimitsContextValue}>
-                      <SendForm />
+                      {outcomeOf ? (
+                        <SwapsContext.Provider value={{ outcomeOf } as never}>
+                          <SendForm />
+                        </SwapsContext.Provider>
+                      ) : (
+                        <SendForm />
+                      )}
                     </LimitsContext.Provider>
                   </WalletContext.Provider>
                 </FlowContext.Provider>
@@ -406,6 +415,45 @@ describe('Send screen', () => {
     })
 
     expect(await screen.findByDisplayValue(request)).toBeInTheDocument()
+  })
+
+  it.each(['funded', 'claimed'] as const)('leaves manual C without confusing the %s external B handoff', (outcome) => {
+    vi.mocked(redirectToCallback).mockClear()
+    const resetFlow = vi.fn()
+    const navigate = vi.fn()
+    const callback = 'https://app.example/return'
+    renderSendForm({
+      flowContext: {
+        ...mockFlowContextValue,
+        appIntent: {
+          status: 'send',
+          request: 'bitcoin:bcrt1qoriginal',
+          callback,
+          committedOnchain: { swapId: 'rfq:owned', fundingTxid: 'funding-txid' },
+        },
+        sendInfo: emptySendInfo,
+        resetFlow,
+      },
+      navigationContext: { ...mockNavigationContextValue, navigate },
+      outcomeOf: () => outcome,
+      walletContext: {
+        ...mockWalletContextValue,
+        svcWallet: {
+          ...mockSvcWallet,
+          getAddress: () => 'tark1mockoffchain',
+          getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+        } as any,
+      },
+    })
+    fireEvent.click(screen.getByLabelText('Go back'))
+    if (outcome === 'funded') {
+      expect(redirectToCallback).not.toHaveBeenCalled()
+      expect(resetFlow).not.toHaveBeenCalled()
+      expect(navigate).toHaveBeenCalledWith(Pages.Wallet)
+    } else {
+      expect(redirectToCallback).toHaveBeenCalledWith(callback, { status: 'sent', txid: 'funding-txid' })
+      expect(resetFlow).toHaveBeenCalledOnce()
+    }
   })
 
   it('returns to the app with error=denied when the send is dismissed', () => {

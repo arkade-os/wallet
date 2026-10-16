@@ -13,7 +13,7 @@ import { ConfigContext } from '../providers/config'
 import FlexCol from './FlexCol'
 import SwapIcon from '../icons/Swap'
 import { AssetOption, Currencies, Unit } from '../lib/types'
-import { centsToUnits, prettyAssetAmount, unitsToCents } from '../lib/assets'
+import { atomicToUnits, prettyAssetAmount, unitsToAtomic } from '../lib/assets'
 import { useTranslation } from '../providers/language'
 
 export type KeyboardInputMode = 'sats' | 'fiat' | 'asset' | 'btc'
@@ -74,7 +74,7 @@ export default function Keyboard({
     if (initialValue && inputMode && toFiat && fiatDecimals) {
       if (inputMode === 'asset') {
         // plain decimal string: grouped output would fail the save gate's Number()
-        setTextValue(centsToUnits(BigInt(initialValue), asset?.decimals ?? 0))
+        setTextValue(atomicToUnits(BigInt(initialValue), asset?.decimals ?? 0))
       } else if (inputMode === 'fiat') {
         setTextValue(prettyNumber(toFiat(Number(initialValue)), fiatDecimals(), false))
       } else if (inputMode === 'btc') {
@@ -88,7 +88,7 @@ export default function Keyboard({
   useEffect(() => {
     const strValue = textValue.replaceAll(',', '')
     if (inputMode === 'asset' && asset) {
-      setAssetInCents(unitsToCents(strValue, asset.decimals))
+      setAssetInCents(unitsToAtomic(strValue, asset.decimals))
     } else {
       setAmountInSats(
         inputMode === 'fiat'
@@ -151,7 +151,7 @@ export default function Keyboard({
     if (asset) {
       const { balance, decimals } = asset
       // plain decimal string: toLocaleString grouping breaks Number() parsing
-      setTextValue(centsToUnits(balance, decimals))
+      setTextValue(atomicToUnits(balance, decimals))
       return
     } else {
       const maxSats = available - defaultFee
