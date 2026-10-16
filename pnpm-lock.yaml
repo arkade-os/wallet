@@ -16,14 +16,14 @@ importers:
   .:
     dependencies:
       '@arkade-os/sdk':
-        specifier: 0.4.79
-        version: 0.4.79
+        specifier: 0.5.0-rc.24
+        version: 0.5.0-rc.24
       '@arkade-os/solver-discovery':
-        specifier: 0.2.5
-        version: 0.2.5
+        specifier: 0.3.0
+        version: 0.3.0
       '@arkade-os/swap':
-        specifier: 0.0.25
-        version: 0.0.25(nostr-tools@2.17.2(typescript@5.9.3))
+        specifier: 0.1.0-rc.27
+        version: 0.1.0-rc.27(nostr-tools@2.17.2(typescript@5.9.3))
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -49,8 +49,8 @@ importers:
         specifier: 2.0.0
         version: 2.0.0
       '@scure/btc-signer':
-        specifier: 2.0.1
-        version: 2.0.1
+        specifier: 2.4.1
+        version: 2.4.1
       '@sentry/react':
         specifier: ^9.15.0
         version: 9.46.0(react@18.3.1)
@@ -232,9 +232,9 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/sdk@0.4.79':
-    resolution: {integrity: sha512-AGvTLGtmdSG+VX5BCt7D1JXDc2KFl3QQSwXGMxAw1MqUjQ2kJHzZyuw6AiLamZ797R6jvQKZI3VSVkbbmDKFZg==}
-    engines: {node: '>=22.12.0 <27'}
+  '@arkade-os/sdk@0.5.0-rc.24':
+    resolution: {integrity: sha512-MCHYsjSlEjPac3fasAAXP99FB2hVYZXb4nADygH1j7BAgS5+37WiFi2vjWyDofVPabERaP0uaV//UL5rM32L7Q==}
+    engines: {node: '>=22.13.0 <27'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
       expo: '>=54.0.0'
@@ -253,16 +253,13 @@ packages:
       expo-task-manager:
         optional: true
 
-  '@arkade-os/solver-discovery@0.2.5':
-    resolution: {integrity: sha512-eCJESOApkm78OWLPSRSi7RajysHPAkRozD2Um+IimRbbgSK7e+/1Ufw4hrOR8LuPKwMRvDQx7nUbcl1CL8HsDg==}
-    engines: {node: '>=18'}
+  '@arkade-os/solver-discovery@0.3.0':
+    resolution: {integrity: sha512-FMAhWG3vZrKIlCP1U8E5iAgB6O1wc6O1CMk+HlQ4xUf066p/S8PuRgmHtkHcL1YrGsdWhKfP/SSFwgLIbGTQjg==}
+    engines: {node: '>=20.19'}
 
-  '@arkade-os/solver-discovery@0.2.7':
-    resolution: {integrity: sha512-T5dfiezUG5YKtzOmX1Z2E0LePF3bx6unsqq7UPgha0Zp9PQFcodYMYl6T1i0AbruaGup5XWq8Die5wusiA5qUA==}
-    engines: {node: '>=18'}
-
-  '@arkade-os/swap@0.0.25':
-    resolution: {integrity: sha512-SqEZJl7KnTSP4dLAwjMQL4IjDg++8rKRjuh/pqf+ct6651dtQTEBVxLoxuP28SCWRs15Tz0qrzF0XvrSnEIdJg==}
+  '@arkade-os/swap@0.1.0-rc.27':
+    resolution: {integrity: sha512-pYb48+cOB+tQCCq1DwGW0yPujmsY2psyRTj9ofxef/0A9Z1GpvbC+Sa65j8R0HNf9rdB7jdWLaetp38aWXJgUg==}
+    engines: {node: '>=22.13.0'}
     peerDependencies:
       nostr-tools: ^2.12.0
     peerDependenciesMeta:
@@ -1172,9 +1169,6 @@ packages:
 
   '@scure/bip39@2.4.0':
     resolution: {integrity: sha512-82dxFbZUYboyOf0AXiydsQrFQ5Q4h9mX+O2UkE91ROYmsc0BKMGZLwDmy96Jpa2+vrtoxomjUhy1RPIgH/r2nA==}
-
-  '@scure/btc-signer@2.0.1':
-    resolution: {integrity: sha512-vk5a/16BbSFZkhh1JIJ0+4H9nceZVo5WzKvJGGWiPp3sQOExeW+L53z3dI6u0adTPoE8ZbL+XEb6hEGzVZSvvQ==}
 
   '@scure/btc-signer@2.4.1':
     resolution: {integrity: sha512-ch6h66o9nPhEoe/KciMMUJeH2MBPB8UAJI1if35Fxl6885lKTsc9YoCRqTW0/RjI0Vv9GSg1tmKtHHODyAw81g==}
@@ -3010,10 +3004,6 @@ packages:
     resolution: {integrity: sha512-agQGBnBCw8OoKQZMUxcaQPaOowdfxyEmBsq4CNAXAXCyB8KxlRG0lTl5GADJIsMEDaFb0trhXBHKYsjTWa5kuw==}
     engines: {node: '>= 20.19.0'}
 
-  micro-packed@0.8.0:
-    resolution: {integrity: sha512-AKb8znIvg9sooythbXzyFeChEY0SkW0C6iXECpy/ls0e5BtwXO45J9wD9SLzBztnS4XmF/5kwZknsq+jyynd/A==}
-    engines: {node: '>= 20.19.0'}
-
   micromatch@4.0.8:
     resolution: {integrity: sha512-PXwfBhYu0hBCPw8Dn0E+WDYb7af3dSLVWKi3HGv84IdF4TyFoC0ysxFd0Goxw7nSv4T/PzEJQxsYsEiFCKo2BA==}
     engines: {node: '>=8.6'}
@@ -3835,8 +3825,8 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
-  uint8array-tools@0.0.10:
-    resolution: {integrity: sha512-sSbrZqlr04w4p8KKpHw0ME/R4JzQaadum+BWhMlk2M7LrDyXWTfJOco3d1jNMdQNxgk5DDm88R3IWYH0nR+tzQ==}
+  uint8array-tools@0.0.8:
+    resolution: {integrity: sha512-xS6+s8e0Xbx++5/0L+yyexukU7pz//Yg6IHg3BKhXotg1JcYtgxVcUctQ0HxLByiJzpAkNFawz1Nz5Xadzo82g==}
     engines: {node: '>=14.0.0'}
 
   uint8array-tools@0.0.9:
@@ -3906,8 +3896,8 @@ packages:
     resolution: {integrity: sha512-hVDIBwsRruT73PbK7uP5ebUt+ezEtCmzZz3F59BSr2F6OVFnJ/6h8liuvdLrQ88Xmnk6/+xGGuq+pG9WwTuy3A==}
     engines: {node: ^20.17.0 || >=22.9.0}
 
-  varuint-bitcoin@2.0.1:
-    resolution: {integrity: sha512-TTl5qSPJ3FzjuTHo0Ex9WUE3jTxnUsQHR38vIDhHApoVstzJK4gE20WqmTWOT5oo7ilvOSNejXt4CJrfDcqm5A==}
+  varuint-bitcoin@2.0.0:
+    resolution: {integrity: sha512-6QZbU/rHO2ZQYpWFDALCDSRsXbAs1VOEmXAxtbtjLtKuMJ/FQ8YbhfxlaiKv5nklci0M6lZtlZyxo9Q+qNnyog==}
 
   vary@1.1.2:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
@@ -4167,7 +4157,7 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/sdk@0.4.79':
+  '@arkade-os/sdk@0.5.0-rc.24':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 8.0.0
@@ -4187,19 +4177,21 @@ snapshots:
       - ecpair
       - utf-8-validate
 
-  '@arkade-os/solver-discovery@0.2.5': {}
-
-  '@arkade-os/solver-discovery@0.2.7': {}
-
-  '@arkade-os/swap@0.0.25(nostr-tools@2.17.2(typescript@5.9.3))':
+  '@arkade-os/solver-discovery@0.3.0':
     dependencies:
-      '@arkade-os/sdk': 0.4.79
-      '@arkade-os/solver-discovery': 0.2.7
+      '@noble/curves': 2.4.0
+      '@noble/hashes': 2.4.0
+
+  '@arkade-os/swap@0.1.0-rc.27(nostr-tools@2.17.2(typescript@5.9.3))':
+    dependencies:
+      '@arkade-os/sdk': 0.5.0-rc.24
+      '@arkade-os/solver-discovery': 0.3.0
       '@noble/ciphers': 2.1.1
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
       '@scure/base': 2.4.0
       '@scure/btc-signer': 2.4.1
+      light-bolt11-decoder: 3.2.0
     optionalDependencies:
       nostr-tools: 2.17.2(typescript@5.9.3)
     transitivePeerDependencies:
@@ -4558,27 +4550,27 @@ snapshots:
     optionalDependencies:
       '@types/react': 18.3.26
 
-  '@bitcoinerlab/descriptors-core@3.1.7(@noble/curves@2.4.0)(@noble/hashes@2.0.1)(@scure/base@2.0.0)(@scure/bip32@2.4.0)(@scure/btc-signer@2.0.1)':
+  '@bitcoinerlab/descriptors-core@3.1.7(@noble/curves@2.4.0)(@noble/hashes@2.4.0)(@scure/base@2.0.0)(@scure/bip32@2.4.0)(@scure/btc-signer@2.4.1)':
     dependencies:
       '@bitcoinerlab/miniscript': 2.0.0
       lodash.memoize: 4.1.2
       uint8array-tools: 0.0.9
-      varuint-bitcoin: 2.0.1
+      varuint-bitcoin: 2.0.0
     optionalDependencies:
       '@noble/curves': 2.4.0
-      '@noble/hashes': 2.0.1
+      '@noble/hashes': 2.4.0
       '@scure/base': 2.0.0
       '@scure/bip32': 2.4.0
-      '@scure/btc-signer': 2.0.1
+      '@scure/btc-signer': 2.4.1
 
   '@bitcoinerlab/descriptors-scure@3.1.7':
     dependencies:
-      '@bitcoinerlab/descriptors-core': 3.1.7(@noble/curves@2.4.0)(@noble/hashes@2.0.1)(@scure/base@2.0.0)(@scure/bip32@2.4.0)(@scure/btc-signer@2.0.1)
+      '@bitcoinerlab/descriptors-core': 3.1.7(@noble/curves@2.4.0)(@noble/hashes@2.4.0)(@scure/base@2.0.0)(@scure/bip32@2.4.0)(@scure/btc-signer@2.4.1)
       '@noble/curves': 2.4.0
-      '@noble/hashes': 2.0.1
+      '@noble/hashes': 2.4.0
       '@scure/base': 2.0.0
       '@scure/bip32': 2.4.0
-      '@scure/btc-signer': 2.0.1
+      '@scure/btc-signer': 2.4.1
     transitivePeerDependencies:
       - bip32
       - bitcoinjs-lib
@@ -5059,13 +5051,6 @@ snapshots:
   '@scure/bip39@2.4.0':
     dependencies:
       '@noble/hashes': 2.4.0
-
-  '@scure/btc-signer@2.0.1':
-    dependencies:
-      '@noble/curves': 2.0.1
-      '@noble/hashes': 2.0.1
-      '@scure/base': 2.0.0
-      micro-packed: 0.8.0
 
   '@scure/btc-signer@2.4.1':
     dependencies:
@@ -7038,10 +7023,6 @@ snapshots:
     dependencies:
       '@scure/base': 2.4.0
 
-  micro-packed@0.8.0:
-    dependencies:
-      '@scure/base': 2.0.0
-
   micromatch@4.0.8:
     dependencies:
       braces: 3.0.3
@@ -7984,7 +7965,7 @@ snapshots:
 
   typescript@5.9.3: {}
 
-  uint8array-tools@0.0.10: {}
+  uint8array-tools@0.0.8: {}
 
   uint8array-tools@0.0.9: {}
 
@@ -8040,9 +8021,9 @@ snapshots:
 
   validate-npm-package-name@7.0.2: {}
 
-  varuint-bitcoin@2.0.1:
+  varuint-bitcoin@2.0.0:
     dependencies:
-      uint8array-tools: 0.0.10
+      uint8array-tools: 0.0.8
 
   vary@1.1.2: {}
 

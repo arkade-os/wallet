@@ -13,6 +13,8 @@ import BootError from './components/BootError'
 import LoadingLogo from './components/LoadingLogo'
 import { useReducedMotion } from './hooks/useReducedMotion'
 import { useLoadingStatus } from './hooks/useLoadingStatus'
+import { appSendNeedsDriver } from './lib/sendRouter'
+import { SwapsContext } from './providers/swaps'
 import { appIntentHandoff, nextAppIntentNavigation, redirectToCallback } from './lib/appIntent'
 import { defaultPassword } from './lib/constants'
 import { consoleError } from './lib/logs'
@@ -78,6 +80,7 @@ export default function App() {
   const { authState, unlockWallet, walletLoaded, initialized, wallet, dataReady, loadError, devAutoInitFailed } =
     useContext(WalletContext)
 
+  const { outcomeOf } = useContext(SwapsContext)
   const loadingStatus = useLoadingStatus()
   const isIAB = useMemo(() => isInAppBrowser(), [])
   const [isCapable, setIsCapable] = useState(false)
@@ -125,14 +128,22 @@ export default function App() {
       if (event.key !== 'Escape') return
       // Success already broadcast. Report sent. Anything earlier is a decline,
       // including connect. Read the txid before resetFlow clears it.
-      const handoff = appIntentHandoff(appIntent, screen === Pages.SendSuccess ? 'sent' : 'denied', sendInfo.txid)
+      if (appSendNeedsDriver(appIntent, sendInfo, outcomeOf)) {
+        navigate(Pages.Wallet)
+        return
+      }
+      const sent =
+        screen === Pages.SendSuccess ||
+        Boolean(appIntent?.status === 'send' && appIntent.committedOnchain) ||
+        Boolean(sendInfo.swapId && outcomeOf(sendInfo.swapId) === 'claimed')
+      const handoff = appIntentHandoff(appIntent, sent ? 'sent' : 'denied', sendInfo.txid)
       resetFlow()
       if (handoff) redirectToCallback(handoff.callback, handoff.params)
       else navigate(Pages.Wallet)
     }
     window.addEventListener('keydown', handleGlobalDown)
     return () => window.removeEventListener('keydown', handleGlobalDown)
-  }, [navigate, appIntent, screen, sendInfo.txid])
+  }, [navigate, appIntent, screen, sendInfo, outcomeOf])
 
   useEffect(() => {
     if (isIAB) return navigate(Pages.InAppBrowser)
@@ -251,6 +262,9 @@ export default function App() {
     navigate(Pages.AppIntent)
   }, [appIntent, intentReady, navigate, screen, setAppIntent, setSendInfo])
 
+  // `screen` starts at `Init` and Init is what bounces an existing wallet on,
+  // so onboarding mounted every boot — invisible, but focusable and read aloud.
+  const onboardingIsMoot = hasStoredWallet && authState === 'authenticated' && screen === Pages.Init
   const page =
     isDevAutoInitializing || !(allChecksReady || isNewUser)
       ? Pages.Loading
@@ -258,7 +272,9 @@ export default function App() {
         ? Pages.Loading
         : shouldShowUnlock
           ? Pages.Unlock
-          : screen
+          : onboardingIsMoot
+            ? Pages.Wallet
+            : screen
 
   // Boot animation: persists on Loading, then flies to the LogoIcon position when
   // Wallet is reached. For any other destination (Unlock, Init, etc.), exits with fly-up.

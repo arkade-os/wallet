@@ -5,7 +5,7 @@
 // environment-agnostic, so the test runs under node where realms agree.
 import { describe, it, expect } from 'vitest'
 import { generateSecretKey, getPublicKey } from 'nostr-tools'
-import { RFQ_AD_KIND, RFQ_DIRECTED_KIND, nostrRfqTransport } from '@arkade-os/swap/nostr'
+import { RFQ_DIRECTED_KIND, nostrRfqTransport } from '@arkade-os/swap/nostr'
 
 /**
  * The transport itself moved into `@arkade-os/swap`, where its behaviour —
@@ -28,11 +28,6 @@ describe('vendored @arkade-os/swap/nostr', () => {
     // simply never see the solver.
     expect(RFQ_DIRECTED_KIND).toBeGreaterThanOrEqual(20_000)
     expect(RFQ_DIRECTED_KIND).toBeLessThan(30_000)
-  })
-
-  it('keeps the solver ad addressable, not ephemeral', () => {
-    expect(RFQ_AD_KIND).toBeGreaterThanOrEqual(30_000)
-    expect(RFQ_AD_KIND).toBeLessThan(40_000)
   })
 
   it('constructs against an injected pool without touching the network', () => {

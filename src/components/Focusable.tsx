@@ -1,4 +1,5 @@
 import { ReactNode } from 'react'
+import { useTranslation } from '../providers/language'
 
 export default function Focusable({
   ariaLabel,
@@ -21,6 +22,8 @@ export default function Focusable({
   fit?: boolean
   id?: string
 }) {
+  const { t } = useTranslation()
+
   const style: React.CSSProperties = {
     borderRadius: round ? '0.5rem' : undefined,
     width: fit ? 'fit-content' : '100%',
@@ -47,7 +50,7 @@ export default function Focusable({
       role={role ?? 'button'}
       onKeyDown={handleKeyDown}
       tabIndex={inactive ? -1 : 0}
-      aria-label={ariaLabel ?? 'Focusable element'}
+      aria-label={ariaLabel ?? t('components.focusableElement')}
     >
       {children}
     </div>
