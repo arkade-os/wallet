@@ -6,15 +6,18 @@ import FlexCol from '../../../components/FlexCol'
 import Input from '../../../components/Input'
 import { TextSecondary } from '../../../components/Text'
 import type { LnurlRail, OnboardingChoice } from '../../../lib/receive/lnurlRail'
+import { useTranslation } from '../../../providers/language'
 
 // Reserved names (claim codes) are named from Settings only, so Receive stays one tap for everyone else.
 const RECEIVE_CHOICES: OnboardingChoice[] = ['self', 'random']
 
 export default function LnurlRailPanel({ rail }: { rail: LnurlRail }) {
+  const { t } = useTranslation()
   const [naming, setNaming] = useState(false)
 
   if (rail.status === 'off' || rail.status === 'loading') return null
-  if (rail.status === 'failed') return <TextSecondary>Lightning address unavailable: {rail.error}</TextSecondary>
+  if (rail.status === 'failed')
+    return <TextSecondary>{t('receive.lnaddressUnavailable', { error: rail.error })}</TextSecondary>
 
   if (rail.receiver?.lightningAddress) return null
 
@@ -25,7 +28,7 @@ export default function LnurlRailPanel({ rail }: { rail: LnurlRail }) {
       {naming || (!rail.receiver && choices.length) ? (
         <NameForm choices={choices} busy={rail.busy} onName={onName} />
       ) : choices.length ? (
-        <Button label='Add a name' onClick={() => setNaming(true)} secondary />
+        <Button label={t('receive.addName')} onClick={() => setNaming(true)} secondary />
       ) : null}
       <ErrorMessage error={Boolean(rail.error)} text={rail.error} />
     </FlexCol>
@@ -41,6 +44,7 @@ export function NameForm({
   busy: boolean
   onName: (opts: NameOptions) => void
 }) {
+  const { t } = useTranslation()
   const [username, setUsername] = useState('')
   const [claimCode, setClaimCode] = useState('')
   const self = choices.includes('self')
@@ -51,25 +55,25 @@ export function NameForm({
     <FlexCol gap='0.5rem'>
       {self || admin ? (
         <>
-          <Input name='lnurl-username' placeholder='Choose a name' value={username} onChange={setUsername} />
+          <Input name='lnurl-username' placeholder={t('receive.chooseName')} value={username} onChange={setUsername} />
           {admin ? (
             <Input
               name='lnurl-claim-code'
-              label={self ? 'Claim code (optional)' : 'Claim code'}
-              placeholder='Claim code'
+              label={self ? t('receive.claimCodeOptional') : t('receive.claimCode')}
+              placeholder={t('receive.claimCode')}
               value={claimCode}
               onChange={setClaimCode}
             />
           ) : null}
           <Button
-            label='Claim name'
+            label={t('receive.claimName')}
             disabled={busy || !canClaim}
             onClick={() => onName(claimCode ? { username, claimCode } : { username })}
           />
         </>
       ) : null}
       {choices.includes('random') ? (
-        <Button label='Pick one for me' disabled={busy} onClick={() => onName({})} secondary />
+        <Button label={t('receive.pickForMe')} disabled={busy} onClick={() => onName({})} secondary />
       ) : null}
     </FlexCol>
   )
