@@ -117,3 +117,18 @@ describe('Keyboard, right-to-left entry', () => {
     expect(screen.getByTestId('keyboard-amount')).toHaveTextContent('1.234 TOK')
   })
 })
+
+describe('Keyboard, heading', () => {
+  it('is titled Amount by default, with no subtitle', () => {
+    renderKeyboard(Unit.SATS)
+    expect(screen.getByText('Amount')).toBeInTheDocument()
+    expect(screen.queryByText('Why an amount')).not.toBeInTheDocument()
+  })
+
+  it('shows a custom title and subtitle', () => {
+    renderKeyboard(Unit.SATS, vi.fn(), Currencies.BTC, { title: 'Set an amount first', subtitle: 'Why an amount' })
+    expect(screen.getByText('Set an amount first')).toBeInTheDocument()
+    expect(screen.queryByText('Amount')).not.toBeInTheDocument()
+    expect(screen.getByText('Why an amount')).toBeInTheDocument()
+  })
+})
