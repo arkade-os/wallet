@@ -22,8 +22,9 @@ import { getRecoveryWord, parseRecoveryInput } from '../../lib/recoveryInput'
 import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '../../providers/language'
 import { overlaySlideUp, overlayStyle } from '@/lib/animations'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import Scanner from '@/components/Scanner'
+import { useReducedMotion } from '@/hooks/useReducedMotion'
 
 type RotationChoice = 'Inherit' | 'Static' | 'HD'
 
