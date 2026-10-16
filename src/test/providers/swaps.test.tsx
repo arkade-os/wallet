@@ -1,11 +1,12 @@
 import { useContext, useState } from 'react'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Quote, Swap } from '@arkade-os/swap'
 import { AspContext } from '../../providers/asp'
 import { WalletContext } from '../../providers/wallet'
 import { SwapsContext, SwapsProvider } from '../../providers/swaps'
 import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
+import { saveSolverCards } from '../../lib/solverCards'
 
 const mocks = vi.hoisted(() => ({
   created: vi.fn(),
@@ -173,6 +174,15 @@ describe('SwapsProvider', () => {
     expect(stop).not.toHaveBeenCalled()
     view.unmount()
     expect(stop).toHaveBeenCalledOnce()
+  })
+
+  it('re-reads markets past the cache when a pinned card changes', async () => {
+    renderProvider()
+    expect(mocks.discoverMarkets).not.toHaveBeenCalled()
+
+    act(() => saveSolverCards([]))
+
+    await waitFor(() => expect(mocks.discoverMarkets).toHaveBeenCalledWith('regtest', false))
   })
 
   it('quotes destinations through the swap client', async () => {

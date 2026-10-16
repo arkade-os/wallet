@@ -34,7 +34,17 @@
  * this side as a `ServiceWorkerWallet` proxy, so moving the client in would mean
  * standing a second wallet up inside it.
  */
-import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  ReactNode,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import { asset, type Asset, type NetworkName, type PaymentRouter } from '@arkade-os/sdk'
 import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
 import {
@@ -51,6 +61,7 @@ import { sideLimits, type DiscoveredMarket, type OfferPlan, type Side } from '@a
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import { discoverMarkets, watchSwapMarkets } from '../lib/swapMarkets'
+import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
 import { createSendRouter } from '../lib/sendRouter'
 import { claimFeeRate } from '../lib/claimFee'
 import { onchainClaimEndpoint } from '../lib/onchainPayout'
@@ -304,6 +315,19 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     return watchSwapMarkets(network, setAllMarkets)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aspInfo.network])
+
+  // Pinned cards are a market source living outside React, and the markets
+  // cache is keyed on network and registry, not on them: the watch would keep
+  // serving the pre-card entry for its whole TTL. So a card write re-reads past
+  // the cache, which also rewrites it for the watch's next tick.
+  const cardsVersion = useSyncExternalStore(subscribeSolverCards, getSolverCardsVersion, getSolverCardsVersion)
+  const seenCardsVersion = useRef(cardsVersion)
+  useEffect(() => {
+    if (seenCardsVersion.current === cardsVersion) return
+    seenCardsVersion.current = cardsVersion
+    runDiscovery(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardsVersion])
 
   // ------------------------------------------------------------- the announcer
 
