@@ -3,6 +3,7 @@
 
 import { fromSatoshis, prettyNumber, toSatoshis } from './format'
 import { isValidArkAddress } from '@arkade-os/sdk'
+import { isValidLnUrl } from '@arkade-os/lnurl-client'
 import { atomicToUnits } from './assets'
 
 export interface Bip21Decoded {
@@ -74,7 +75,10 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
 
     const lightning = getParam('lightning')
     if (lightning) {
-      if (lightning.toLowerCase().startsWith('lnurl')) {
+      // Not BIP321 (BOLT11 only), but encodeBitcoinLink emits addresses here; isValidLnUrl takes user@domain. No '@' in bech32.
+      if (lightning.includes('@')) {
+        if (isValidLnUrl(lightning)) result.lnUrl = lightning
+      } else if (lightning.toLowerCase().startsWith('lnurl')) {
         result.lnUrl = lightning
       } else if (lightning.toLowerCase().startsWith('ln')) {
         result.invoice = lightning
@@ -93,6 +97,29 @@ export const encodeBip21 = (address: string, arkAddress: string, invoice: string
     // useGrouping=false: BIP21 amounts must be plain decimals, never '1,000'
     (sats ? `amount=${prettyNumber(fromSatoshis(sats), 8, false)}` : '')
   return bip21.endsWith('&') || bip21.endsWith('?') ? bip21.slice(0, -1) : bip21
+}
+
+// Escapes only what would end or split a query value: a server-supplied Lightning address must not add amount=.
+const queryValue = (value: string) => value.replace(/[%&=#+?\s]/g, encodeURIComponent)
+
+// BIP21 amount= only sizes on-chain and Arkade parts; an invoice already carries its own.
+export const encodeBitcoinLink = ({
+  address = '',
+  ark = '',
+  lightning = '',
+  sats = 0,
+}: {
+  address?: string
+  ark?: string
+  lightning?: string
+  sats?: number
+}): string => {
+  const params = [
+    ark ? `ark=${queryValue(ark)}` : '',
+    lightning ? `lightning=${queryValue(lightning)}` : '',
+    sats && (address || ark) ? `amount=${prettyNumber(fromSatoshis(sats), 8, false)}` : '',
+  ].filter(Boolean)
+  return `bitcoin:${address}${params.length ? `?${params.join('&')}` : ''}`
 }
 
 export const encodeBip21Asset = (arkAddress: string, assetId: string, cents: bigint, decimals?: number) => {
