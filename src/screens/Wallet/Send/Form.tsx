@@ -33,14 +33,14 @@ import { LimitsContext } from '../../../providers/limits'
 import { checkLnUrlConditions, fetchInvoice, fetchArkAddress, isValidLnUrl, LnUrlResponse } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
 import { decodeInvoice } from '../../../lib/bolt11'
-import { lnSendRendezvous, requestLnSend } from '../../../lib/lnSwap'
-import { withRfqTransport, SolverNotRespondingError } from '../../../lib/nostrRfq'
+import { appSendNeedsDriver, LIGHTNING_RAIL, lnSendRefusal, lnSendRequest } from '../../../lib/sendRouter'
+import { SwapsContext } from '../../../providers/swaps'
 import { discoverMarkets } from '../../../lib/swapMarkets'
 import { appIntentHandoff, redirectToCallback } from '../../../lib/appIntent'
 import OpenInApp from '../../AppIntent/OpenInApp'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
-import { centsToUnits, liquidBtcBalance, prettyAssetAmount, unitsToCents } from '../../../lib/assets'
+import { atomicToUnits, prettyAssetAmount, unitsToAtomic } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
 import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -60,7 +60,7 @@ import {
   DropdownMenuTrigger,
 } from '../../../components/ui/dropdown-menu'
 import { hapticLight } from '../../../lib/haptics'
-import { getEmulatorPubkeyForNetwork, testDomains } from '../../../lib/constants'
+import { testDomains } from '../../../lib/constants'
 import UnverifiedBadge from '../../../components/UnverifiedBadge'
 import { useTranslation } from '../../../providers/language'
 
@@ -135,6 +135,7 @@ export default function SendForm() {
   const { appIntent, sendInfo, resetFlow, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
+  const { outcomeOf, sendRouter } = useContext(SwapsContext)
   const { t } = useTranslation()
   const {
     assetBalances,
@@ -177,7 +178,12 @@ export default function SendForm() {
   const timeoutRef = useRef<NodeJS.Timeout>()
 
   const leaveAppSend = () => {
-    const handoff = appIntentHandoff(appIntent, 'denied')
+    if (appSendNeedsDriver(appIntent, sendInfo, outcomeOf)) {
+      navigate(Pages.Wallet)
+      return
+    }
+    const committed = appIntent?.status === 'send' && appIntent.committedOnchain
+    const handoff = appIntentHandoff(appIntent, committed ? 'sent' : 'denied')
     resetFlow()
     if (handoff) redirectToCallback(handoff.callback, handoff.params)
     else navigate(Pages.Wallet)
@@ -205,7 +211,9 @@ export default function SendForm() {
   const RECIPIENT_DEBOUNCE_MS = 800
   const hasAssets = assetBalances.length > 0
   const reserveApplied = !isAssetSend && hasAssets
-  const liquidBalance = liquidBtcBalance(availableBalance, reserveApplied, aspInfo.dust)
+  // The SDK's `available` already holds back the dust carrier asset change
+  // needs, so a BTC spend may take all of it.
+  const liquidBalance = availableBalance
 
   const smartSetError = (str: string) => {
     setError(
@@ -304,7 +312,7 @@ export default function SendForm() {
           name: presentation.name,
           ticker: presentation.ticker,
           icon: presentation.icon,
-          decimals: meta?.metadata?.decimals ?? 8,
+          decimals: meta?.metadata?.decimals ?? 0,
           trusted: isVerifiedAsset(ab.assetId),
         })
       }
@@ -360,12 +368,12 @@ export default function SendForm() {
               name: presentation.name,
               ticker: presentation.ticker,
               icon: presentation.icon,
-              decimals: meta?.metadata?.decimals ?? 8,
+              decimals: meta?.metadata?.decimals ?? 0,
               trusted: isVerifiedAsset(assetId),
             }
           }
           setSelectedAsset(found)
-          const rawAmount = assetAmount ? unitsToCents(assetAmount, found.decimals) : BigInt(0)
+          const rawAmount = assetAmount ? unitsToAtomic(assetAmount, found.decimals) : BigInt(0)
           if (assetAmount) setAmountTextValue(assetAmount)
           return setSendInfo((prev) => ({
             ...prev,
@@ -416,6 +424,9 @@ export default function SendForm() {
           pendingLnSend: lowerCaseData === prev.invoice ? prev.pendingLnSend : undefined,
         }))
         setAmountTextValue(getTextValue(satoshis))
+        // The field text may be fiat, and cents cannot round-trip sats; this is
+        // the amount the invoice named, which the field must never re-derive.
+        setValueSats(satoshis)
         setAmountIsReadOnly(true)
         return
       }
@@ -537,6 +548,7 @@ export default function SendForm() {
         if (min === max) {
           setSendInfo({ ...sendInfo, satoshis: min })
           setAmountTextValue(getTextValue(min))
+          setValueSats(min)
           setAmountIsReadOnly(true)
         }
         return setLnUrlResponse({ ...conditions, minSendable: min, maxSendable: max })
@@ -639,32 +651,18 @@ export default function SendForm() {
       // locally, verify, and carry the address+amount to the pay screen. The
       // negotiation is the only interactive step — funding IS acceptance.
       const negotiate = async () => {
-        if (!svcWallet) return handleError(t('send.walletNotReady'))
-        const network = aspInfo.network as NetworkName
-        // No emulator URL is looked up here: this corridor needs the co-signer's
-        // x-only KEY, never an endpoint. It rides the solver's own card; the
-        // per-network pin is passed as the fallback for cards that predate the
-        // field (see lnSendRendezvous). Neither available yields no rendezvous,
-        // which the line below already reports.
-        const rendezvous = lnSendRendezvous(await discoverMarkets(network), getEmulatorPubkeyForNetwork(network))
-        if (!rendezvous) return handleError(t('send.noLightningSolver'))
-        const sats = sendInfo.satoshis ?? 0
-        if (sats < rendezvous.minSats || sats > rendezvous.maxSats) {
-          return handleError(
-            `Amount outside solver bounds (${prettyNumber(rendezvous.minSats)}-${prettyNumber(rendezvous.maxSats)} sats)`,
-          )
-        }
-        await withRfqTransport(rendezvous, async (transport) => {
-          const pendingLnSend = await requestLnSend({
-            wallet: svcWallet,
-            arkServerUrl: aspInfo.url,
-            transport,
-            invoice: sendInfo.invoice!,
-            network,
-            rendezvous,
-          })
-          setSendInfo((prev) => ({ ...prev, pendingLnSend }))
-        })
+        if (!svcWallet) return handleError('Wallet not ready')
+        // For the refusal message only — the rail ranks off the client's own
+        // snapshot; a second read let a cold cache throw on the error path.
+        const markets = await discoverMarkets(aspInfo.network as NetworkName)
+        const router = await sendRouter()
+        const options = await router.options(lnSendRequest(sendInfo.invoice!, sendInfo.satoshis))
+        const route = options.find((option) => option.railId === LIGHTNING_RAIL)
+        if (!route) return handleError(lnSendRefusal(markets, sendInfo.satoshis))
+        // Unguarded: a quote that throws names an unpayable invoice or a
+        // covenant that did not match, and neither reads as "no route".
+        const pendingLnSend = await route.quote()
+        setSendInfo((prev) => ({ ...prev, pendingLnSend }))
       }
       negotiate().catch(handleError)
     }
@@ -688,13 +686,7 @@ export default function SendForm() {
 
   const handleError = (err: any) => {
     consoleError(err, 'error sending payment')
-    if (err instanceof SolverNotRespondingError) {
-      setError(t('errors.solverNotResponding', { seconds: Math.round(err.timeoutMs / 1000) }))
-    } else if (/AMOUNT_TOO_LOW|amount is lower than/i.test(extractError(err))) {
-      setError(t('errors.onchainAmountTooLow'))
-    } else {
-      setError(extractError(err))
-    }
+    setError(extractError(err))
     setProcessing(false)
   }
 
@@ -703,7 +695,7 @@ export default function SendForm() {
     setAmountTextValue(value)
     if (isAssetSend) {
       if (sendInfo.account) {
-        const accountAmount = unitsToCents(value, sendInfo.account.decimals)
+        const accountAmount = unitsToAtomic(value, sendInfo.account.decimals)
         setSendInfo({
           ...sendInfo,
           account: { ...sendInfo.account, amount: accountAmount },
@@ -721,7 +713,7 @@ export default function SendForm() {
         })
       } else if (selectedAsset) {
         const decimals = selectedAsset?.decimals
-        const cents = unitsToCents(value, decimals)
+        const cents = unitsToAtomic(value, decimals)
         setSendInfo({
           ...sendInfo,
           assets: [{ assetId: selectedAsset.assetId, amount: cents }],
@@ -772,6 +764,9 @@ export default function SendForm() {
   const handleRecipientChange = (recipient: string) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
     setRecipient(recipient)
+    // A new destination pins no amount until it is parsed.
+    setValueSats(undefined)
+    setAmountIsReadOnly(false)
     setReadyToParse(false)
     setRawScanData('')
     timeoutRef.current = setTimeout(() => setReadyToParse(true), RECIPIENT_DEBOUNCE_MS)
@@ -837,12 +832,12 @@ export default function SendForm() {
         assets: [{ assetId: sendInfo.account.source.assetId, amount: sendInfo.account.source.balance }],
         satoshis: 0,
       })
-      setAmountTextValue(centsToUnits(sendInfo.account.balance, sendInfo.account.decimals))
+      setAmountTextValue(atomicToUnits(sendInfo.account.balance, sendInfo.account.decimals))
     } else if (isAssetSend && selectedAsset) {
       const { assetId, balance, decimals } = selectedAsset
       const assets = [{ assetId, amount: balance }]
       setSendInfo({ ...sendInfo, assets, satoshis: 0 })
-      setAmountTextValue(centsToUnits(balance, decimals))
+      setAmountTextValue(atomicToUnits(balance, decimals))
     } else {
       setAmount(liquidBalance)
       setValueSats(liquidBalance)
@@ -878,11 +873,16 @@ export default function SendForm() {
       ? prettyFiatAmount(liquidBalance ? toFiat(liquidBalance) : 0, config.currency)
       : prettyUnitBalance(liquidBalance)
 
+    const label = (
+      <Text color='neutral-500' smaller>
+        {t('send.available', { amount })}
+      </Text>
+    )
+    if (amountIsReadOnly) return label
+
     return (
       <div onClick={handleSendAll} style={{ cursor: 'pointer' }}>
-        <Text color='neutral-500' smaller>
-          {t('send.available', { amount })}
-        </Text>
+        {label}
       </div>
     )
   }

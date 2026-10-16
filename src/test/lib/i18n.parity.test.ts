@@ -8,6 +8,8 @@ import { Language } from '@/lib/types'
 // translation, not an English fallback.
 const keepEnglishTermAllowList = new Set([
   'accounts.arknote',
+  'accounts.solver',
+  'accounts.total',
   'apps.dfx',
   'backup.title',
   'common.sat',
@@ -60,12 +62,14 @@ function resolve(dict: unknown, key: string): unknown {
 }
 
 describe('i18n dictionary integrity', () => {
-  it('all languages expose the same key set', () => {
-    const englishSet = new Set(collectLeafKeys(translations.en))
-    Object.values(Language).forEach((lang) => {
-      const languageSet = new Set(collectLeafKeys(translations[lang]))
-      expect(languageSet).toEqual(englishSet)
-    })
+  const englishSet = new Set(collectLeafKeys(translations.en))
+
+  it('es expose the same key set', () => {
+    expect(englishSet).toEqual(new Set(collectLeafKeys(translations.es)))
+  })
+
+  it('pt expose the same key set', () => {
+    expect(englishSet).toEqual(new Set(collectLeafKeys(translations.pt)))
   })
 
   it('every t()/translate() key used in source resolves in the EN dictionary', () => {

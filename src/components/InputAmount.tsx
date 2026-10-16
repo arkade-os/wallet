@@ -8,8 +8,9 @@ import { AssetOption, Currencies, Unit } from '../lib/types'
 import { TextSecondary } from './Text'
 import { hapticLight } from '../lib/haptics'
 import { fiatAccountAssetSatoshis } from '../lib/accountAssets'
-import { unitsToCents } from '../lib/assets'
+import { unitsToAtomic } from '../lib/assets'
 import ArrowUpDownIcon from '../icons/ArrowUpDown'
+import { useTranslation } from '../providers/language'
 
 export type InputAmountMode = 'unit' | 'fiat'
 
@@ -55,6 +56,7 @@ export default function InputAmount({
   value,
   valueSats,
 }: InputAmountProps) {
+  const { t } = useTranslation()
   const { config, useFiat } = useContext(ConfigContext)
   const { toFiat, fromFiat, fiatDecimals, toFiatAmount } = useContext(FiatContext)
 
@@ -138,7 +140,7 @@ export default function InputAmount({
   const assetSatoshis =
     asset?.assetId && asset.trusted && plainDecimalValue
       ? fiatAccountAssetSatoshis(
-          unitsToCents(plainDecimalValue, asset.decimals),
+          unitsToAtomic(plainDecimalValue, asset.decimals),
           asset.decimals,
           asset.ticker,
           toFiatAmount,
@@ -206,7 +208,7 @@ export default function InputAmount({
               hapticLight()
               onMax()
             }}
-            aria-label='Set maximum amount'
+            aria-label={t('components.setMaximumAmount')}
             data-testid='input-amount-max'
           >
             Max

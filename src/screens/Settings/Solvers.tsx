@@ -4,8 +4,15 @@ import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import Header from './Header'
 import Text, { TextSecondary } from '../../components/Text'
-import { Card, LocalCardInput, validateCard, Network } from '@arkade-os/solver-discovery'
-import { marketPairLabel } from '@arkade-os/swap'
+import {
+  Card,
+  LocalCardInput,
+  legacyMarketCorridor,
+  pairSideLabel,
+  validateCard,
+  Network,
+  type Market,
+} from '@arkade-os/solver-discovery'
 import { readSolverCards, saveSolverCards } from '@/lib/solverCards'
 import { BUNDLED_CARDS } from '@/lib/swapMarkets'
 import FlexRow from '@/components/FlexRow'
@@ -33,6 +40,12 @@ const putSolverCard = (input: LocalCardInput, replacing?: string) => {
 const removeSolverCard = (input: LocalCardInput) => {
   saveSolverCards(readSolverCards().filter((card) => !isSameCard(card, input.label, input.network as Network)))
 }
+
+/** A canonical card carries no `pair`; its label is derived from the asset ids'
+ *  rails, as the registry reducer derives it for a published index. */
+const marketLabel = (market: Market): string =>
+  market.pair ??
+  `${pairSideLabel(legacyMarketCorridor(market, 'base'), market.base_asset.ticker)}/${pairSideLabel(legacyMarketCorridor(market, 'quote'), market.quote_asset.ticker)}`
 
 const getCardsForNetwork = (network: Network): LocalCardInput[] => {
   return readSolverCards().filter((c) => c.network === network)
@@ -129,7 +142,7 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose?: () => void
 function BundledCardLine({ input }: { input: LocalCardInput }) {
   const { t } = useTranslation()
   const card = input.card as Card
-  const pairs = card.markets?.map(marketPairLabel).join(', ') ?? ''
+  const pairs = card.markets?.map(marketLabel).join(', ') ?? t('solvers.publishedMarkets')
   const [showCard, setShowCard] = useState(false)
 
   const toggleShowCard = () => {
@@ -163,7 +176,7 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
   const [error, setError] = useState<string>('')
 
   const card = input.card as Card
-  const pairs = card.markets?.map(marketPairLabel).join(', ') ?? ''
+  const pairs = card.markets?.map(marketLabel).join(', ') ?? t('solvers.publishedMarkets')
 
   const handleConfirmRemove = () => {
     setConfirmRemove(true)

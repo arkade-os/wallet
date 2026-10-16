@@ -1,4 +1,4 @@
-import { centsToUnits, prettyAssetAmount } from './assets'
+import { atomicToUnits, prettyAssetAmount } from './assets'
 import { prettyDelta } from './deltas'
 import { fiatDecimalsFor, FIAT_SYMBOLS } from './fiat'
 import { Currencies, Language, Tx, Unit } from './types'
@@ -141,7 +141,7 @@ export const prettyCurrencyAssetAmount = (
   const fiat = fiatForTicker(ticker)
   if (!fiat) return prettyAssetAmount(amount, decimals, compact)
 
-  const unitAmount = centsToUnits(amount, decimals)
+  const unitAmount = atomicToUnits(amount, decimals)
   const fiatDecimals = fiatDecimalsFor(fiat)
   const minimumUnit = new Decimal(10).pow(-fiatDecimals)
   if (compact && amount !== BigInt(0) && new Decimal(unitAmount).abs().lt(minimumUnit)) {
@@ -258,7 +258,7 @@ function formatDecimalText(
 
 export const formatAssetAmount = (amount: bigint, decimals: number): string => {
   if (decimals === 0) return prettyNumber(amount, 0)
-  return prettyNumber(centsToUnits(amount, decimals), decimals)
+  return prettyNumber(atomicToUnits(amount, decimals), decimals)
 }
 
 export const isIssuance = (tx: Tx): boolean => {
