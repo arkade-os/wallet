@@ -109,7 +109,7 @@ export function lnurlTokenRails(payRequest: PayRequest, amountSat?: number): Lnu
       amountSat === undefined ||
       (msat >= (o.minSendable ?? payRequest.minSendable) && msat <= (o.maxSendable ?? payRequest.maxSendable))
     // atomicToUnits is exact only up to 18 decimals, and the amount shown is what the payer sends.
-    const offered = o.available && o.verifiable !== false && o.unit.decimals <= 18 && inBounds
+    const offered = o.available && o.verifiable === true && o.unit.decimals <= 18 && inBounds
     // The client never returns an option without an asset; checked anyway, since its chain names the method.
     return offered && o.provider && o.asset ? [{ ...o, chain: chainLabel(o.asset.chainId), provider: o.provider }] : []
   })

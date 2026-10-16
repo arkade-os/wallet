@@ -49,6 +49,7 @@ describe('lnurlTokenRails', () => {
   it.each([
     ['available: false', { available: false }],
     ['verifiable: false', { verifiable: false }],
+    ['no verifiable flag', { verifiable: undefined }],
     ['no provider', { provider: undefined }],
   ])('omits an option with %s', (_, override) => {
     const rails = lnurlTokenRails(payRequest([{ ...TOKEN_OPTIONS[0], ...override }, TOKEN_OPTIONS[1]]), 20_000)

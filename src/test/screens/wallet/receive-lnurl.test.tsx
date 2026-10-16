@@ -583,6 +583,7 @@ describe('Receive screen, token rails', () => {
 
     expect(await screen.findByText(/No quote for this token: .*busy/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeDisabled()
   })
 
   it('token rails are absent when receiveViaTokens is off', async () => {
