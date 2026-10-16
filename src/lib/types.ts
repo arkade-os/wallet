@@ -1,4 +1,5 @@
 import { Asset, NetworkName, type ExtendedVirtualCoin, type ServiceWorkerWalletMode } from '@arkade-os/sdk'
+import type { PartId, ReceiveMethod } from './receive/receiveTargets'
 
 export type Addresses = {
   boardingAddr: string
@@ -24,6 +25,8 @@ export type Config = {
   receiveViaTokens: boolean
   /** Handle of the lightning address the wallet receives on, when it owns several; empty for the server default. */
   lnurlPrimary: string
+  receiveUnifiedMode: Extract<ReceiveMethod, 'lnaddress' | 'full'>
+  receiveQrForm: Partial<Record<ReceiveMethod, PartId>>
   showBalance: boolean
   dismissedBanners: string[]
   theme: Themes

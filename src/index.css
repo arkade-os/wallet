@@ -4240,6 +4240,17 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   transition-delay: 0s, 0s, var(--invoice-exit);
 }
 
+.receive-invoice-expired {
+  animation: receive-invoice-enter var(--invoice-enter) var(--invoice-ease);
+}
+
+@keyframes receive-invoice-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
 .receive-invoice-pixels {
   display: grid;
   opacity: 0;
@@ -4274,6 +4285,10 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   .receive-invoice-stage[data-generating='true'] .receive-invoice-pixels span {
     animation: none;
     opacity: 0.65;
+  }
+
+  .receive-invoice-expired {
+    animation: none;
   }
 }
 
