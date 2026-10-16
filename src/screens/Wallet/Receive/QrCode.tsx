@@ -155,14 +155,16 @@ export default function ReceiveQRCode() {
     arkadeAddress: recvInfo.offchainAddr,
     boardingAddress: recvInfo.boardingAddr || undefined,
   })
-  const swapRail = useSwapRail(!lnurlConfigured || lnurlRail.status === 'failed')
+  const swapRailOn = !lnurlConfigured || lnurlRail.status === 'failed'
+  const swapRail = useSwapRail(swapRailOn)
   const lnurl = lnurlRail.lnurl ?? ''
   const lightningAddress = lnurlRail.receiver?.lightningAddress ?? ''
   const lnurlRails = useLnurlRails(lnurlRail.receiver, satoshis, config.receiveViaLnurl, {
     arkade: recvInfo.offchainAddr,
     onchain: recvInfo.boardingAddr,
   })
-  const invoice = recvInfo.invoice || lnurlRails.targets.lightning || ''
+  // A swap invoice left in the flow by an earlier visit isn't this rail's while the LNURL serves Lightning.
+  const invoice = (swapRailOn ? recvInfo.invoice : undefined) || lnurlRails.targets.lightning || ''
   const generatingInvoice = swapRail.generatingInvoice || lnurlRails.generating
   const fallbacks = [
     { label: t('receive.methodArkade'), error: lnurlRails.errors.arkade },

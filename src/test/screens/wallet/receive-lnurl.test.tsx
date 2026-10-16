@@ -86,6 +86,7 @@ const receiveTree = (
   satoshis = 0,
   config: Partial<Config> = {},
   setRecvInfo: (info: { satoshis: number }) => void = vi.fn(),
+  recv: object = {},
 ) => (
   <ToastProvider>
     <NavigationContext.Provider value={mockNavigationContextValue}>
@@ -105,6 +106,7 @@ const receiveTree = (
                       satoshis,
                       offchainAddr: DECODABLE_ARK,
                       boardingAddr: WALLET_BOARDING_ADDRESS,
+                      ...recv,
                     },
                   } as never
                 }
@@ -126,7 +128,8 @@ const receiveTree = (
     </NavigationContext.Provider>
   </ToastProvider>
 )
-const renderReceive = (satoshis = 0, config: Partial<Config> = {}) => render(receiveTree(satoshis, config))
+const renderReceive = (satoshis = 0, config: Partial<Config> = {}, recv: object = {}) =>
+  render(receiveTree(satoshis, config, vi.fn(), recv))
 // Keeps the amount the screen sets, for flows that clear or change it through the screen's own buttons.
 function LiveAmount({ initial, config }: { initial: number; config: Partial<Config> }) {
   const [satoshis, setSatoshis] = useState(initial)
@@ -276,6 +279,14 @@ describe('Receive screen, rail composition', () => {
     await copyPart('invoice')
     expect(copyToClipboard).toHaveBeenLastCalledWith(fakeInvoice(10_000_000))
     expect(callbacks()[0].searchParams.get('paymentOption')).toBe('lightning')
+  })
+
+  it("shows its LNURL's invoice, not a swap invoice an earlier visit left in the flow", async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    renderReceive(10_000, {}, { invoice: 'lnbc10staleswap' })
+
+    await waitFor(() => expect(callbacks()).toHaveLength(1))
+    await waitFor(async () => expect(await qrLightning()).toBe(fakeInvoice(10_000_000)))
   })
 
   it('shows Full details, and says why, when no invoice comes back', async () => {
