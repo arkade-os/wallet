@@ -265,12 +265,14 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
   const rows: Tx[] = []
   const groupsOf = new Map<string, number>()
   for (const tx of activities.flatMap((activity) => activity.txs)) {
-    groupsOf.set(txidOfArkTransaction(tx), (groupsOf.get(txidOfArkTransaction(tx)) ?? 0) + 1)
+    const txid = txidOfArkTransaction(tx)
+    groupsOf.set(txid, (groupsOf.get(txid) ?? 0) + 1)
   }
   for (const activity of activities) {
     // The SDK emits a tx under every group claiming it; a swap's row already stands for its LNURL send.
     if (
       activity.id.startsWith(SENT_GROUP_PREFIX) &&
+      activity.txs.length > 0 &&
       activity.txs.every((tx) => (groupsOf.get(txidOfArkTransaction(tx)) ?? 0) > 1)
     ) {
       continue
