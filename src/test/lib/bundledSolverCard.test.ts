@@ -1,7 +1,9 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
-import { discover, marketCorridor, sideLimits, validateCard } from '@arkade-os/solver-discovery'
+import { discover, isRfqMarket, marketCorridor, sideLimits, validateCard } from '@arkade-os/solver-discovery'
+import { BTC_ASSET_ID, findMarket } from '@arkade-os/swap/protocol'
 import betaSolverCard from '../../lib/beta-solver.card.json'
+import { isLightningMarket } from '../../lib/sendRouter'
 
 /**
  * The bundled solver card is the only thing that makes the Lightning-send
@@ -25,6 +27,54 @@ describe('bundled Arkade Labs solver card', () => {
     expect(warnings).toEqual([])
     expect(markets).toHaveLength(1)
     expect(marketCorridor(markets[0], 'quote')).toBe('bolt11')
+  })
+
+  it('is told apart as a Lightning corridor without the legacy `quote_corridor` field', async () => {
+    // The card is canonical: the rail is the asset id's namespace, and discovery
+    // leaves `quote_corridor` unset on a pinned card. A check on the field
+    // would let the corridor into the offer composer and skip its bounds.
+    const { markets } = await load()
+    expect(markets[0].quote_corridor).toBeUndefined()
+    expect(isRfqMarket(markets[0])).toBe(true)
+    expect(isLightningMarket(markets[0])).toBe(true)
+  })
+
+  it('leaves a legacy-id asset market pairable once the corridor is filtered out', async () => {
+    // A user-pinned card in the legacy shape (bare `btc`), as solvers still hand
+    // out. Left among the composer's markets, the bundled card's canonical BTC
+    // leg wins `findMarket`'s id resolution and this pair resolves to nothing.
+    const depix = '0abcbc23c60028511880807dfe42aa16de88bd56df210a0b9135262d5d3959510000'
+    const legacy = {
+      version: 0,
+      name: 'legacy-solver',
+      markets: [
+        {
+          pair: 'BTC/DePix',
+          base_asset: { id: 'btc', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+          quote_asset: { id: depix, name: 'Decentralized PIX', ticker: 'DePix', decimals: 8 },
+          fee_bps: 140,
+          price_decimals: 0,
+          price_feed: 'https://example.com/price',
+          price_feed_schema: { type: 'json', price_path: '/price' },
+          min_base_amount: '1001',
+          max_base_amount: '10000000000000',
+          min_quote_amount: '330',
+          max_quote_amount: '10000000000000',
+        },
+      ],
+    }
+    const { markets } = await discover({
+      registries: [],
+      localCards: [
+        { card: betaSolverCard as never, network: 'bitcoin' },
+        { card: legacy as never, network: 'bitcoin', label: 'legacy' },
+      ],
+      network: 'bitcoin',
+    })
+    const composer = markets.filter((m) => !isRfqMarket(m))
+    expect(composer.map((m) => m.solver)).toEqual(['legacy-solver'])
+    expect(findMarket(composer, BTC_ASSET_ID, depix)?.market?.solver).toBe('legacy-solver')
+    expect(findMarket(composer, depix, BTC_ASSET_ID)?.market?.solver).toBe('legacy-solver')
   })
 
   it('carries the rendezvous through discovery, so the maker can address the solver', async () => {

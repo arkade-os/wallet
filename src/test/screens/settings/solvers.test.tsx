@@ -87,6 +87,13 @@ describe('Solvers screen', () => {
     expect(screen.getByText('Markets published by the solver')).toBeInTheDocument()
   })
 
+  it('derives a canonical card’s pair label from its asset ids', () => {
+    renderSolvers('bitcoin')
+
+    // the bundled card names its legs only by CAIP-19 id and carries no `pair`
+    expect(screen.getByText('BTC/lightning:BTC')).toBeInTheDocument()
+  })
+
   it('removes a stored solver card', async () => {
     localStorage.setItem(
       'solverCards',

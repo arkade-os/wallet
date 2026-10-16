@@ -166,6 +166,23 @@ describe('SwapsProvider', () => {
     expect(setAssetSwaps).toHaveBeenCalledWith([swap])
   })
 
+  it('hides a canonical corridor market that names the rail on the asset id', async () => {
+    mocks.watchSwapMarkets.mockImplementation((_network: string, onMarkets: (markets: unknown[]) => void) => {
+      onMarkets([
+        market(),
+        market({
+          base_asset: { id: 'arkade:bitcoin/slip44:0', ticker: 'BTC', decimals: 8 },
+          quote_asset: { id: 'bolt11:bitcoin/slip44:0', ticker: 'BTC', decimals: 8 },
+        }),
+      ])
+      return () => {}
+    })
+
+    renderProvider()
+
+    await waitFor(() => expect(screen.getByTestId('market-count')).toHaveTextContent('1'))
+  })
+
   it('watches the network’s markets while mounted and stops watching on unmount', () => {
     const stop = vi.fn()
     mocks.watchSwapMarkets.mockReturnValue(stop)
