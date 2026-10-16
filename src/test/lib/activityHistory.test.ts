@@ -18,7 +18,7 @@ import type { WalletAssetSwap } from '../../lib/swapRepository'
 import { lnurlActivityResolver, sentActivityResolver, type SentPayment } from '@arkade-os/lnurl-client/arkade'
 import type { StoredPayment } from '@arkade-os/lnurl-client'
 
-const t = (key: string) => translate(Language.English, key)
+const t = (key: string, params?: Record<string, string | number>) => translate(Language.English, key, params)
 
 beforeEach(() => localStorage.clear())
 
@@ -855,7 +855,7 @@ describe('lnurl resolvers, driven end to end from the vendored package', () => {
     const [row] = activitiesToTxs(await activityHistoryOf([claim], [namedReceive()], []), empty)
 
     expect(row.lnurl).toEqual({ address: 'alice@lnurl.example', rail: 'lightning' })
-    expect(lnurlLabel(row)).toBe('Received at alice@lnurl.example')
+    expect(lnurlLabel(row, t)).toBe('Received at alice@lnurl.example')
   })
 
   it('carries a nameless receive by its rail alone', async () => {
@@ -863,7 +863,7 @@ describe('lnurl resolvers, driven end to end from the vendored package', () => {
     const [row] = activitiesToTxs(await activityHistoryOf([claim], [namelessReceive()], []), empty)
 
     expect(row.lnurl).toEqual({ address: undefined, rail: 'arkade' })
-    expect(lnurlLabel(row)).toBe('Received via arkade')
+    expect(lnurlLabel(row, t)).toBe('Received via arkade')
   })
 
   it('carries a real send onto the row and its rendered label', async () => {
@@ -871,6 +871,6 @@ describe('lnurl resolvers, driven end to end from the vendored package', () => {
     const [row] = activitiesToTxs(await activityHistoryOf([paid], [], [sentPayment()]), empty)
 
     expect(row.lnurl).toEqual({ address: 'bob@pay.example', rail: 'lnurl-arkade' })
-    expect(lnurlLabel(row)).toBe('Sent to bob@pay.example')
+    expect(lnurlLabel(row, t)).toBe('Sent to bob@pay.example')
   })
 })
