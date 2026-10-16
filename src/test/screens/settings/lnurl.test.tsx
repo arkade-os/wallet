@@ -72,6 +72,13 @@ describe('Lightning address settings', () => {
     expect(screen.getAllByText('1 – 100,000,000 sats')).toHaveLength(2)
   })
 
+  it('says why the lightning address could not be loaded, and offers no naming', async () => {
+    renderPage({ modes: ['self'], capabilitiesFail: true })
+
+    expect(await screen.findByText('domain lookup failed')).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('Choose a name')).not.toBeInTheDocument()
+  })
+
   it('lists the wallet LNURL beside every lightning address', async () => {
     renderPage({ modes: ['self'], addresses: [namedAddress('alice'), namelessAddress()] })
 
