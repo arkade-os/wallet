@@ -36,7 +36,7 @@ export default function SendSuccess() {
   const handedOff = useRef(false)
   const needsDriver = onchainSendNeedsDriver(sendInfo, outcomeOf)
   const appNeedsDriver = appSendNeedsDriver(appIntent, sendInfo, outcomeOf)
-  const pendingWarning = 'An onchain payment is still on the way � keep the wallet open until it completes'
+  const pendingWarning = t('send.pendingOnchain')
 
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
