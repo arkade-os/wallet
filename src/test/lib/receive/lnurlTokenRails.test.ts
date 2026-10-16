@@ -306,6 +306,8 @@ describe('useLnurlTokenRails', () => {
     ['another amount', quotedUri.replace(/uint256=\d+/, 'uint256=1')],
     ['another chain', quotedUri.replace('@42161', '@1')],
     ['another token', quotedUri.replace(/^ethereum:0x[0-9a-f]{40}/i, `ethereum:0x${'ef'.repeat(20)}`)],
+    ['a second, conflicting recipient', `${quotedUri}&address=0x${'cd'.repeat(20)}`],
+    ['the amount repeated', `${quotedUri}&uint256=1`],
   ])('shows the bare deposit address, not a URI with %s', async (_, paymentURI) => {
     serve({ paymentURI })
     const { result } = renderTokens('ff-usdtarbitrum')

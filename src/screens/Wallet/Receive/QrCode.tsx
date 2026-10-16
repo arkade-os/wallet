@@ -465,7 +465,13 @@ export default function ReceiveQRCode() {
   const quoteExpired = shown === 'token' && tokenRails.expired
   const data = { title: t('wallet.receive'), text: qrCodeValue }
   const shareDisabled =
-    !canBrowserShareData(data) || sharing || hasError || noPaymentMethods || generating || quoteExpired
+    !canBrowserShareData(data) ||
+    sharing ||
+    hasError ||
+    noPaymentMethods ||
+    generating ||
+    quoteExpired ||
+    (shown === 'token' && !tokenRails.quote)
 
   // Whether an amount is currently requested. Keyed off assetMeta to match how
   // handleAmountConfirm/handleAmountClear decide between asset units and sats.

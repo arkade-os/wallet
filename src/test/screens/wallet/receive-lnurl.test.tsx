@@ -739,6 +739,10 @@ describe('Receive screen, token rails', () => {
       tokens: true,
       tokenErrors: { 'ff-usdtarbitrum': 'paymentOption ff-usdtarbitrum is busy, try again shortly' },
     })
+    share.can = true
+    onTestFinished(() => {
+      share.can = false
+    })
     renderReceive(20_000, tokensOn)
 
     await pick('USDT (Arbitrum One)')
@@ -746,6 +750,7 @@ describe('Receive screen, token rails', () => {
     expect(await screen.findByText(/No quote for this token: .*busy/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeDisabled()
     expect(screen.queryByTestId('token-address-copy')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Share' })).toBeDisabled()
   })
 
   it('token rails are absent when receiveViaTokens is off', async () => {
