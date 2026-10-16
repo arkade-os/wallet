@@ -409,7 +409,13 @@ export default function ReceiveQRCode() {
   }
 
   const data = { title: t('wallet.receive'), text: qrCodeValue }
-  const shareDisabled = !canBrowserShareData(data) || sharing || hasError || noPaymentMethods || generating
+  const shareDisabled =
+    !canBrowserShareData(data) ||
+    sharing ||
+    hasError ||
+    noPaymentMethods ||
+    generating ||
+    Boolean(activeToken && !tokenQuote)
 
   // Whether an amount is currently requested. Keyed off assetMeta to match how
   // handleAmountConfirm/handleAmountClear decide between asset units and sats.
