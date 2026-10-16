@@ -92,6 +92,12 @@ describe('bip21 utilities', () => {
       )
     })
 
+    it('keeps a query delimiter inside a value from adding a parameter', () => {
+      const link = encodeBitcoinLink({ address: 'bc1x', lightning: 'alice@lnurl.test&amount=1', sats: 1000 })
+      expect(decodeBip21(link).satoshis).toBe(1000)
+      expect(new URLSearchParams(link.split('?')[1]).get('lightning')).toBe('alice@lnurl.test&amount=1')
+    })
+
     it('leaves amount= out of a Lightning-only link, whose invoice or LNURL carries the amount', () => {
       expect(encodeBitcoinLink({ lightning: 'alice@lnurl.test', sats: 1000 })).toBe(
         'bitcoin:?lightning=alice@lnurl.test',
