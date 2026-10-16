@@ -197,6 +197,22 @@ describe('useLnurlRail', () => {
     expect(result.current.busy).toBe(false)
   })
 
+  it('settles back on the same receiver when the boarding address arrives after a session registered', async () => {
+    serve({ modes: ['session'] })
+    const { result, rerender } = renderHook(
+      ({ boardingAddress }: { boardingAddress?: string }) =>
+        useLnurlRail({ enabled: true, identity, arkadeAddress: DECODABLE_ARK, boardingAddress }),
+      { initialProps: { boardingAddress: undefined as string | undefined } },
+    )
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    const lnurl = result.current.lnurl
+
+    rerender({ boardingAddress: WALLET_BOARDING_ADDRESS })
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    expect(result.current.lnurl).toBe(lnurl)
+    expect(result.current.error).toBe('')
+  })
+
   it('fails soft when the server is unreachable', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')))
     const { result } = renderRail()

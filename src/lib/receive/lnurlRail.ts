@@ -174,7 +174,7 @@ export function useLnurlRails(
   return { targets, errors, generating }
 }
 
-const CLAIM_ERROR_KEYS: Record<string, string> = {
+const CLAIM_ERROR_KEYS: Partial<Record<string, string>> = {
   taken: 'receive.claimTaken',
   invalid_username: 'receive.claimNotAllowed',
   blacklisted: 'receive.claimNotAllowed',
