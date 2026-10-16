@@ -57,8 +57,7 @@ export default function HomeQuickActions() {
       icon: <ScanIcon />,
       label: t('wallet.scan'),
       onClick: () => {
-        setSendInfo({ ...emptySendInfo, scan: true })
-        navigate(Pages.SendForm)
+        navigate(Pages.WalletScan)
       },
       testId: 'home-action-scan',
     },

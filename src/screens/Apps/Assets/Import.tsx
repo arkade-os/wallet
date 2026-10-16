@@ -66,7 +66,17 @@ export default function AppAssetImport() {
   if (loading) return <LoadingLogo text={t('loading.fetchAssetDetails')} />
 
   if (scan)
-    return <Scanner close={() => setScan(false)} label={t('notes.arkNote')} onData={setAssetId} onError={setError} />
+    return (
+      <Scanner
+        close={() => setScan(false)}
+        label={t('notes.arkNote')}
+        onData={(data) => {
+          setAssetId(data)
+          setScan(false)
+        }}
+        onError={setError}
+      />
+    )
 
   return (
     <>
