@@ -25,7 +25,7 @@ import { extractError } from '../error'
 import { fromRuntimeEnv } from '../constants'
 import { lnurlPaymentSyncStore } from '../lnurlPaymentRepository'
 
-export { resolveLnurlRails, type LnurlRailType } from '@arkade-os/lnurl-client/arkade'
+export { lnurlRailLimits, resolveLnurlRails, type LnurlRailType } from '@arkade-os/lnurl-client/arkade'
 
 /**
  * The server this build offers addresses at, or undefined when none is set.

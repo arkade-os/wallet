@@ -142,6 +142,22 @@ export const translations = {
       hapticFeedback: 'Haptic feedback',
       hapticSubtext: 'Vibration on button taps and interactions',
       lightningAddress: 'Lightning address',
+      lnurlYours: 'Your lightning addresses',
+      lnurlServer: 'Server',
+      lnurlLimits: 'What payers can send',
+      lnurlNone: 'No lightning address yet.',
+      lnurlAddName: 'Add a name',
+      receive: 'Receive',
+      receiveViaLnurl: 'Route every receive through it',
+      receiveViaLnurlSubtext:
+        'With an amount set, the Arkade and Bitcoin addresses also come from your lightning address, so its server tracks every payment. Off: only Lightning does.',
+      receiveViaTokens: 'Accept tokens',
+      receiveViaTokensSubtext:
+        'With an amount set, payers can also send {units}, which a third party swaps to Arkade BTC.',
+      tokenExplainerTitle: 'Before you accept tokens',
+      tokenExplainer:
+        'Payers send tokens to {provider}, a third party that holds the deposit while it pays a Lightning invoice. An intent-solver swap then delivers that payment to you as Arkade BTC. A late, short or excess deposit is resolved with {provider}.',
+      tokenExplainerConfirm: 'Turn on',
       notifications: 'Notifications',
       allowNotifications: 'Allow notifications',
       notificationsIntro:
@@ -1024,6 +1040,22 @@ export const translations = {
       hapticFeedback: 'Vibración táctil',
       hapticSubtext: 'Vibración al tocar botones e interactuar',
       lightningAddress: 'Dirección Lightning',
+      lnurlYours: 'Tus direcciones Lightning',
+      lnurlServer: 'Servidor',
+      lnurlLimits: 'Lo que pueden enviar los pagadores',
+      lnurlNone: 'Aún no tienes dirección Lightning.',
+      lnurlAddName: 'Añadir un nombre',
+      receive: 'Recibir',
+      receiveViaLnurl: 'Recibir todo a través de ella',
+      receiveViaLnurlSubtext:
+        'Con un monto, las direcciones Arkade y Bitcoin también vienen de tu dirección Lightning, así su servidor registra cada pago. Desactivado: solo Lightning.',
+      receiveViaTokens: 'Aceptar tokens',
+      receiveViaTokensSubtext:
+        'Con un monto, quien te paga también puede enviar {units}, que un tercero convierte a BTC en Arkade.',
+      tokenExplainerTitle: 'Antes de aceptar tokens',
+      tokenExplainer:
+        'Quien te paga envía tokens a {provider}, un tercero que guarda el depósito mientras paga una factura Lightning. Luego, un swap de intent-solver te entrega ese pago como BTC en Arkade. Un depósito tardío, insuficiente o excesivo se resuelve con {provider}.',
+      tokenExplainerConfirm: 'Activar',
       notifications: 'Notificaciones',
       allowNotifications: 'Permitir notificaciones',
       notificationsIntro:
