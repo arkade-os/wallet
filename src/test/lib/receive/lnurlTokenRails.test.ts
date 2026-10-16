@@ -338,22 +338,77 @@ describe('useLnurlTokenRails', () => {
     beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }))
     afterEach(() => vi.useRealTimers())
 
-    it('asks for a new quote once the quote expires, exposing the expired one no more', async () => {
+    it('expires without asking again, and regenerates on request', async () => {
       serve({ quoteTtlMs: 61_000 })
       const { result } = renderTokens('ff-usdtarbitrum')
       await waitFor(() => expect(result.current.quote).toBeDefined())
-      const pending = holdQuotes(server, 'ff-usdtarbitrum')
-      const from = seen.length
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(61_000)
       })
-      await waitFor(() => expect(pending.held).toHaveLength(1))
 
+      expect(result.current.expired).toBe(true)
+      expect(result.current.quote).toBeUndefined()
+      expect(quotes()).toHaveLength(1)
+
+      const pending = holdQuotes(server, 'ff-usdtarbitrum')
+      const from = seen.length
+      act(() => result.current.regenerate())
+      await waitFor(() => expect(pending.held).toHaveLength(1))
+      expect(result.current.quote).toBeUndefined()
       expect(staleSince(from)).toEqual([])
+
       pending.release()
       await waitFor(() => expect(quotes()).toHaveLength(2))
       await waitFor(() => expect(result.current.quote).toBeDefined())
+      expect(result.current.expired).toBe(false)
+    })
+
+    it('expires a quote whose deadline passed while its timer was held back', async () => {
+      serve({ quoteTtlMs: 120_000 })
+      const { result } = renderTokens('ff-usdtarbitrum')
+      await waitFor(() => expect(result.current.quote).toBeDefined())
+
+      vi.setSystemTime(result.current.quote!.expiresAt)
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange'))
+      })
+
+      expect(result.current.expired).toBe(true)
+      expect(result.current.quote).toBeUndefined()
+      expect(quotes()).toHaveLength(1)
+    })
+
+    it('does not report a quote asked after an expiry, for a new amount, as expired', async () => {
+      serve({ quoteTtlMs: 61_000 })
+      const { result, rerender } = renderTokens('ff-usdtarbitrum')
+      await waitFor(() => expect(result.current.quote).toBeDefined())
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(61_000)
+      })
+      expect(result.current.expired).toBe(true)
+
+      rerender({ selected: 'ff-usdtarbitrum', amountSat: 30_000 })
+      await waitFor(() => expect(result.current.quote).toBeDefined())
+      expect(result.current.expired).toBe(false)
+    })
+
+    it('does not report a quote as expired when the amount changed before the old one expired', async () => {
+      serve({ quoteTtlMs: 120_000 })
+      const { result, rerender } = renderTokens('ff-usdtarbitrum')
+      await waitFor(() => expect(result.current.quote).toBeDefined())
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30_000)
+      })
+
+      rerender({ selected: 'ff-usdtarbitrum', amountSat: 30_000 })
+      await waitFor(() => expect(result.current.quote).toBeDefined())
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100_000)
+      })
+
+      expect(result.current.expired).toBe(false)
+      expect(result.current.quote).toBeDefined()
     })
 
     it('refuses a quote that leaves under a minute instead of re-asking in a loop', async () => {
