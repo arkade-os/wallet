@@ -99,6 +99,9 @@ export const encodeBip21 = (address: string, arkAddress: string, invoice: string
   return bip21.endsWith('&') || bip21.endsWith('?') ? bip21.slice(0, -1) : bip21
 }
 
+// Escapes only what would end or split a query value: a server-supplied Lightning address must not add amount=.
+const queryValue = (value: string) => value.replace(/[%&=#+?\s]/g, encodeURIComponent)
+
 // BIP21 amount= only sizes on-chain and Arkade parts; an invoice already carries its own.
 export const encodeBitcoinLink = ({
   address = '',
@@ -112,8 +115,8 @@ export const encodeBitcoinLink = ({
   sats?: number
 }): string => {
   const params = [
-    ark ? `ark=${ark}` : '',
-    lightning ? `lightning=${lightning}` : '',
+    ark ? `ark=${queryValue(ark)}` : '',
+    lightning ? `lightning=${queryValue(lightning)}` : '',
     sats && (address || ark) ? `amount=${prettyNumber(fromSatoshis(sats), 8, false)}` : '',
   ].filter(Boolean)
   return `bitcoin:${address}${params.length ? `?${params.join('&')}` : ''}`
