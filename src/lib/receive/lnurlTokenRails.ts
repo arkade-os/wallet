@@ -44,21 +44,26 @@ function paysQuote(uri: string, { destination, baseUnits, amount }: QuotedPaymen
     return false
   }
   const q = url.searchParams
+  // Wallets disagree on which of several values they would pay, so a bound field must appear exactly once.
+  const only = (key: string) => {
+    const values = q.getAll(key)
+    return values.length === 1 ? values[0] : undefined
+  }
   if (asset.namespace === 'eip155' && url.protocol === 'ethereum:') {
     const target = /^(0x[0-9a-f]{40})(?:@(\d+))?\/transfer$/i.exec(url.pathname)
     return (
       target !== null &&
       target[1].toLowerCase() === asset.reference.toLowerCase() &&
       (target[2] ?? '1') === asset.chainReference &&
-      q.get('address')?.toLowerCase() === destination.toLowerCase() &&
-      q.get('uint256') === baseUnits
+      only('address')?.toLowerCase() === destination.toLowerCase() &&
+      only('uint256') === baseUnits
     )
   }
   if (asset.namespace === 'solana' && url.protocol === 'solana:') {
     return (
       url.pathname === destination &&
-      q.get('spl-token') === asset.reference &&
-      decimal(q.get('amount')) === decimal(amount)
+      only('spl-token') === asset.reference &&
+      decimal(only('amount') ?? null) === decimal(amount)
     )
   }
   return false
