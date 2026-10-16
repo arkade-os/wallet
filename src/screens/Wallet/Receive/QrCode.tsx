@@ -44,8 +44,18 @@ import { AssetsContext } from '../../../providers/assets'
 import { useSwapRail } from '../../../lib/receive/swapRail'
 import SwapRailStatus from './SwapRail'
 import { configuredLnurlServer, useLnurlRail, useLnurlRails } from '../../../lib/receive/lnurlRail'
+import { useLnurlTokenRails, type LnurlTokenQuote, type LnurlTokenRail } from '../../../lib/receive/lnurlTokenRails'
 import LnurlRailPanel from './LnurlRail'
 import { useTranslation } from '../../../providers/language'
+import Select from '../../../components/Select'
+import { TokenOnChainLogo } from '../../../components/ChainLogo'
+import ChevronDownIcon from '../../../icons/ChevronDown'
+
+const TOKEN = 'token:'
+
+const railLogo = (rail: LnurlTokenRail, ring: string) => (
+  <TokenOnChainLogo ticker={rail.unit.code} chainId={rail.asset?.chainId ?? ''} ring={ring} />
+)
 
 export default function ReceiveQRCode() {
   const { aspInfo } = useContext(AspContext)
@@ -75,6 +85,7 @@ export default function ReceiveQRCode() {
   // Copy address sheet state
   const [showCopySheet, setShowCopySheet] = useState(false)
   const [copied, setCopied] = useState('')
+  const [showTokenSheet, setShowTokenSheet] = useState(false)
 
   const prefersReducedMotion = useReducedMotion()
 
@@ -132,6 +143,12 @@ export default function ReceiveQRCode() {
     arkade: recvInfo.offchainAddr,
     onchain: recvInfo.boardingAddr,
   })
+  const tokenRails = useLnurlTokenRails(
+    lnurlRail.receiver,
+    satoshis,
+    config.receiveViaLnurl && config.receiveViaTokens,
+    selectedMethod.startsWith(TOKEN) ? selectedMethod.slice(TOKEN.length) : undefined,
+  )
   const invoice = recvInfo.invoice || lnurlRails.targets.lightning || ''
   const generatingInvoice = swapRail.generatingInvoice || lnurlRails.generating
   const fallbacks = [
@@ -196,8 +213,13 @@ export default function ReceiveQRCode() {
     if (lightning) methods.push({ id: 'lightning', label: t('receive.methodLightning'), value: lightning })
     if (arkAddress) methods.push({ id: 'ark', label: t('receive.methodArkade'), value: arkAddress })
     if (btcAddress) methods.push({ id: 'bitcoin', label: t('receive.methodBitcoin'), value: btcAddress })
+    // Offered before they are quoted: picking one is what asks for its quote.
+    for (const rail of tokenRails.rails) {
+      const value = tokenRails.quote?.optionId === rail.id ? tokenRails.quote.value : ''
+      methods.push({ id: TOKEN + rail.id, label: `${rail.unit.code} (${rail.chain})`, value })
+    }
     return methods
-  }, [bip21Uri, invoice, lightningAddress, lnurl, arkAddress, btcAddress, t])
+  }, [bip21Uri, invoice, lightningAddress, lnurl, arkAddress, btcAddress, tokenRails.rails, tokenRails.quote, t])
 
   // What the QR encodes, and what the selector highlights, are two different
   // questions. The *choice* is `selectedMethod` and it is remembered even while
@@ -212,6 +234,49 @@ export default function ReceiveQRCode() {
   }, [paymentMethods, selectedMethod])
 
   const qrCodeValue = paymentMethods.find((m) => m.id === activeMethod)?.value ?? ''
+  const activeToken = tokenRails.rails.find((r) => TOKEN + r.id === activeMethod)
+  const tokenQuote = activeToken ? tokenRails.quote : undefined
+  const generating = activeToken ? tokenRails.quoting : generatingInvoice
+  const segments = paymentMethods.filter((m) => !m.id.startsWith(TOKEN))
+  const tokenMethods = paymentMethods.filter((m) => m.id.startsWith(TOKEN))
+  const showSelector = segments.length > 1 || tokenMethods.length > 0
+
+  // The copy sheet offers what the shown method carries: the unified URI and the addresses inside it, or one value.
+  const rows = {
+    bip21: { testId: 'bip21', title: t('receive.unified'), value: bip21Uri },
+    ark: { testId: 'ark', title: t('receive.arkadeAddress'), value: arkAddress },
+    btc: { testId: 'btc', title: t('receive.bitcoinAddress'), value: btcAddress },
+    invoice: { testId: 'invoice', title: t('receive.lightningInvoice'), value: invoice },
+    lnaddress: {
+      testId: 'lnaddress',
+      title: lightningAddress ? t('settings.lightningAddress') : 'LNURL',
+      value: lightningAddress || lnurl,
+    },
+  }
+  const copyRows = (
+    activeToken
+      ? tokenQuote
+        ? [
+            {
+              testId: 'token',
+              title: t('receive.tokenDepositAddress', { token: `${activeToken.unit.code} (${activeToken.chain})` }),
+              value: tokenQuote.destination,
+            },
+            {
+              testId: 'token-amount',
+              title: t('receive.tokenAmount', { unit: activeToken.unit.code }),
+              value: tokenQuote.amount,
+            },
+          ]
+        : []
+      : activeMethod === 'ark'
+        ? [rows.ark]
+        : activeMethod === 'bitcoin'
+          ? [rows.btc]
+          : activeMethod === 'lightning'
+            ? [invoice ? rows.invoice : rows.lnaddress]
+            : [rows.bip21, rows.ark, rows.btc, rows.invoice, rows.lnaddress]
+  ).filter((row) => row.value)
 
   // Payment listener
   useEffect(() => {
@@ -265,7 +330,7 @@ export default function ReceiveQRCode() {
 
   // Handlers
   const handleShare = () => {
-    if (generatingInvoice) return
+    if (generating) return
     setSharing(true)
     shareData(data)
       .catch(consoleError)
@@ -273,7 +338,7 @@ export default function ReceiveQRCode() {
   }
 
   const handleCopy = async (value: string) => {
-    if (generatingInvoice) return
+    if (generating) return
     if (!prefersReducedMotion) hapticSubtle()
     const copied = await copyToClipboard(value)
     // Close the sheet even on failure so the picker is not stranded.
@@ -282,12 +347,15 @@ export default function ReceiveQRCode() {
   }
 
   const handleCopyButton = async () => {
-    if (generatingInvoice) return
+    if (generating) return
     if (!prefersReducedMotion) hapticSubtle()
-    setShowCopySheet(true)
-    if (qrCodeValue && copied !== qrCodeValue) {
-      const written = await copyToClipboard(qrCodeValue)
-      if (written) setCopied(qrCodeValue)
+    // One relevant value is copied outright; the toast confirms it, so a one-row sheet adds nothing.
+    if (copyRows.length > 1) setShowCopySheet(true)
+    // A token's QR value is a payment URI, which a wallet's address field rejects.
+    const value = tokenQuote?.destination ?? qrCodeValue
+    if (value && copied !== value) {
+      const written = await copyToClipboard(value)
+      if (written) setCopied(value)
     }
   }
 
@@ -337,7 +405,7 @@ export default function ReceiveQRCode() {
   }
 
   const data = { title: t('wallet.receive'), text: qrCodeValue }
-  const shareDisabled = !canBrowserShareData(data) || sharing || hasError || noPaymentMethods || generatingInvoice
+  const shareDisabled = !canBrowserShareData(data) || sharing || hasError || noPaymentMethods || generating
 
   // Whether an amount is currently requested. Keyed off assetMeta to match how
   // handleAmountConfirm/handleAmountClear decide between asset units and sats.
@@ -384,7 +452,7 @@ export default function ReceiveQRCode() {
         <Padded>
           {hasError ? (
             <ErrorMessage error text={t('receive.failedToGetAddress', { error: addressError ?? '' })} />
-          ) : !addressesLoaded || (!qrCodeValue && !noPaymentMethods) ? (
+          ) : !addressesLoaded || (!paymentMethods.some((m) => m.value) && !noPaymentMethods) ? (
             <LoadingLogo text={t('common.loading')} />
           ) : noPaymentMethods ? (
             <p>{t('receive.noPaymentMethods')}</p>
@@ -399,25 +467,45 @@ export default function ReceiveQRCode() {
                   {t('receive.ownAddressInstead', { rail: label, error: error ?? '' })}
                 </TextSecondary>
               ))}
-              {paymentMethods.length > 1 ? (
-                <div className='mt-20 mb-3 w-full max-w-85'>
+              {activeToken && tokenRails.error ? (
+                <TextSecondary>{t('receive.noTokenQuote', { error: tokenRails.error })}</TextSecondary>
+              ) : null}
+              {showSelector ? (
+                <div className='mt-4 mb-3 flex w-full max-w-85 flex-col gap-2'>
                   <SegmentedControl
-                    options={paymentMethods.map((m) => m.id)}
+                    options={segments.map((m) => m.id)}
                     selected={activeMethod}
                     onChange={handleMethodChange}
                     getLabel={(id) => paymentMethods.find((m) => m.id === id)?.label ?? id}
                   />
+                  {tokenMethods.length ? (
+                    <button
+                      type='button'
+                      aria-haspopup='dialog'
+                      onClick={() => setShowTokenSheet(true)}
+                      className={`flex w-full cursor-pointer items-center gap-3 rounded-lg border border-neutral-100 px-3 py-3 text-left text-sm ${activeToken ? 'bg-neutral-100 font-semibold' : 'text-neutral-500'}`}
+                    >
+                      {activeToken ? (
+                        <span className='flex size-5 shrink-0'>{railLogo(activeToken, 'var(--neutral-100)')}</span>
+                      ) : null}
+                      <span className='flex-1'>
+                        {activeToken
+                          ? paymentMethods.find((m) => m.id === activeMethod)?.label
+                          : t('receive.payWithToken')}
+                      </span>
+                      <ChevronDownIcon />
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
               <div
-                className={`receive-invoice-stage aspect-square w-full max-w-85 ${
-                  paymentMethods.length > 1 ? '' : 'mt-20'
-                }`}
-                data-generating={generatingInvoice}
+                // Height-capped so the whole code sits above the bottom buttons on a short phone.
+                className={`receive-invoice-stage aspect-square w-full max-w-[min(21.25rem,calc(100dvh-26rem))] ${showSelector ? '' : 'mt-20'}`}
+                data-generating={generating}
               >
                 <div
                   className='receive-invoice-loading flex flex-col items-center justify-center gap-2 text-center'
-                  aria-hidden={!generatingInvoice}
+                  aria-hidden={!generating}
                 >
                   <div className='receive-invoice-pixels mb-5 grid-cols-4 gap-1.25' aria-hidden='true'>
                     {Array.from({ length: 16 }, (_, index) => (
@@ -429,10 +517,10 @@ export default function ReceiveQRCode() {
                     ))}
                   </div>
                   <div role='status' aria-live='polite'>
-                    <Text medium>{t('receive.generatingInvoice')}</Text>
+                    <Text medium>{activeToken ? t('receive.gettingQuote') : t('receive.generatingInvoice')}</Text>
                   </div>
                   <Text small color='neutral-500'>
-                    {generatingInvoice
+                    {generating
                       ? t('receive.requestingAmount', { amount: prettyNumber(satoshis, 0), unit: unitLabel })
                       : '\u00a0'}
                   </Text>
@@ -440,8 +528,8 @@ export default function ReceiveQRCode() {
                 <button
                   type='button'
                   className='receive-invoice-qr focusable'
-                  disabled={generatingInvoice}
-                  aria-hidden={generatingInvoice}
+                  disabled={generating || !qrCodeValue}
+                  aria-hidden={generating}
                   onClick={() => handleCopy(qrCodeValue)}
                   onPointerDown={() => setQrTransform(prefersReducedMotion ? '' : 'scale(0.97)')}
                   onPointerUp={() => setQrTransform('')}
@@ -455,7 +543,7 @@ export default function ReceiveQRCode() {
                     background: 'none',
                     touchAction: 'manipulation',
                     WebkitTapHighlightColor: 'transparent',
-                    cursor: generatingInvoice ? 'default' : 'pointer',
+                    cursor: generating ? 'default' : 'pointer',
                   }}
                 >
                   <div
@@ -466,16 +554,18 @@ export default function ReceiveQRCode() {
                         : `transform 240ms cubic-bezier(${EASE_OUT_QUINT.join(',')})`,
                     }}
                   >
-                    <QrCode value={qrCodeValue} />
+                    <QrCode value={qrCodeValue} logo={activeToken ? railLogo(activeToken, '#ffffff') : undefined} />
                   </div>
                 </button>
               </div>
               <div
                 className='min-h-5'
-                aria-hidden={generatingInvoice}
-                style={{ visibility: generatingInvoice ? 'hidden' : 'visible' }}
+                aria-hidden={generating}
+                style={{ visibility: generating ? 'hidden' : 'visible' }}
               >
-                {satoshis > 0 && !generatingInvoice ? (
+                {activeToken && tokenQuote ? (
+                  <TokenQuoteNote rail={activeToken} quote={tokenQuote} />
+                ) : satoshis > 0 && !generating ? (
                   <Text small color='neutral-500'>
                     {t('receive.requestingAmount', { amount: prettyNumber(satoshis, 0), unit: unitLabel })}
                   </Text>
@@ -494,7 +584,7 @@ export default function ReceiveQRCode() {
             onClick={() => (isMobileBrowser ? setShowKeys(true) : setShowAmountSheet(true))}
             secondary
           />
-          <Button label={t('receive.copy')} onClick={handleCopyButton} secondary disabled={generatingInvoice} />
+          <Button label={t('receive.copy')} onClick={handleCopyButton} secondary disabled={generating} />
         </FlexRow>
         <Button label={t('receive.share')} onClick={handleShare} disabled={shareDisabled} />
       </ButtonsOnBottom>
@@ -521,107 +611,52 @@ export default function ReceiveQRCode() {
         </FlexCol>
       </SheetModal>
 
+      <SheetModal isOpen={showTokenSheet} onClose={() => setShowTokenSheet(false)}>
+        <FlexCol gap='1rem' padding='0.5rem 0'>
+          <Text big bold>
+            {t('receive.payWithToken')}
+          </Text>
+          <div className='hide-scrollbar max-h-[60vh] w-full overflow-y-auto'>
+            <Select
+              options={tokenMethods.map((m) => m.id)}
+              labels={tokenMethods.map((m) => m.label)}
+              selected={activeToken ? activeMethod : ''}
+              renderStart={(id) => {
+                const rail = tokenRails.rails.find((r) => TOKEN + r.id === id)
+                return rail ? railLogo(rail, 'var(--popover)') : null
+              }}
+              onChange={(id) => {
+                setShowTokenSheet(false)
+                handleMethodChange(id)
+              }}
+            />
+          </div>
+        </FlexCol>
+      </SheetModal>
+
       {/* Copy address bottom sheet */}
       <SheetModal isOpen={showCopySheet} onClose={() => setShowCopySheet(false)}>
         <FlexCol gap='1rem' padding='0.5rem 0'>
           <Text big bold>
             {t('receive.copyAddress')}
           </Text>
-          <AddressList
-            bip21Uri={bip21Uri}
-            btcAddress={btcAddress}
-            arkAddress={arkAddress}
-            invoice={invoice}
-            lightningAddress={lightningAddress}
-            lnurl={lnurl}
-            onCopy={handleCopy}
-            onSelect={(v) => {
-              const method = paymentMethods.find((m) => m.value === v)
-              if (method) handleMethodChange(method.id)
-            }}
-            copied={copied}
-          />
+          <FlexCol gap='0.75rem'>
+            {copyRows.map((row) => (
+              <AddressLine
+                key={row.testId}
+                {...row}
+                onCopy={handleCopy}
+                onSelect={(v) => {
+                  const method = paymentMethods.find((m) => m.value === v)
+                  if (method) handleMethodChange(method.id)
+                }}
+                copied={copied}
+              />
+            ))}
+          </FlexCol>
         </FlexCol>
       </SheetModal>
     </>
-  )
-}
-
-function AddressList({
-  bip21Uri,
-  btcAddress,
-  arkAddress,
-  invoice,
-  lightningAddress,
-  lnurl,
-  onCopy,
-  onSelect,
-  copied,
-}: {
-  bip21Uri: string
-  btcAddress: string
-  arkAddress: string
-  invoice: string
-  lightningAddress: string
-  lnurl: string
-  onCopy: (value: string) => void
-  onSelect: (value: string) => void
-  copied: string
-}) {
-  const { t } = useTranslation()
-  return (
-    <FlexCol gap='0.75rem'>
-      {bip21Uri ? (
-        <AddressLine
-          testId='bip21'
-          title={t('receive.unified')}
-          value={bip21Uri}
-          onCopy={onCopy}
-          onSelect={onSelect}
-          copied={copied}
-        />
-      ) : null}
-      {arkAddress ? (
-        <AddressLine
-          testId='ark'
-          title={t('receive.arkadeAddress')}
-          value={arkAddress}
-          onCopy={onCopy}
-          onSelect={onSelect}
-          copied={copied}
-        />
-      ) : null}
-      {btcAddress ? (
-        <AddressLine
-          testId='btc'
-          title={t('receive.bitcoinAddress')}
-          value={btcAddress}
-          onCopy={onCopy}
-          onSelect={onSelect}
-          copied={copied}
-        />
-      ) : null}
-      {invoice ? (
-        <AddressLine
-          testId='invoice'
-          title={t('receive.lightningInvoice')}
-          value={invoice}
-          onCopy={onCopy}
-          onSelect={onSelect}
-          copied={copied}
-        />
-      ) : null}
-      {lightningAddress || lnurl ? (
-        <AddressLine
-          testId='lnaddress'
-          title={lightningAddress ? t('settings.lightningAddress') : 'LNURL'}
-          value={lightningAddress || lnurl}
-          onCopy={onCopy}
-          onSelect={onSelect}
-          copied={copied}
-        />
-      ) : null}
-    </FlexCol>
   )
 }
 
@@ -666,5 +701,35 @@ function AddressLine({
         </Button>
       </FlexRow>
     </Focusable>
+  )
+}
+
+function TokenQuoteNote({ rail, quote }: { rail: LnurlTokenRail; quote: LnurlTokenQuote }) {
+  const { t } = useTranslation()
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(tick)
+  }, [])
+  const seconds = Math.max(0, Math.ceil((quote.expiresAt - now) / 1000))
+  const time = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+  return (
+    <FlexCol gap='0.25rem' centered>
+      <Text small>
+        {t('receive.tokenSendExactly', { amount: quote.amount, unit: rail.unit.code, chain: rail.chain })}
+      </Text>
+      <Text small color='neutral-500' wrap centered>
+        {t('receive.tokenQuoteValid', { provider: rail.provider, time })}
+        {/* A phone hands the URI to its installed wallet; Tron's bare address has no scheme to open. */}
+        {isMobileBrowser && quote.value !== quote.destination ? (
+          <>
+            {' · '}
+            <a href={quote.value} className='font-semibold text-purple-700 dark:text-purple-300'>
+              {t('receive.openInWallet')}
+            </a>
+          </>
+        ) : null}
+      </Text>
+    </FlexCol>
   )
 }
