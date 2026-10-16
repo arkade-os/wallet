@@ -118,6 +118,7 @@ export function useSwapRail(enabled = true): SwapRail {
     return () => {
       abandoned = true
     }
+    // invoice and pendingLnReceive are only the guard above: listing them would re-run this on its own result.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, svcWallet, satoshis, isAssetReceive, aspInfo.network, negotiateAttempt, recvInfo.received])
 
