@@ -20,6 +20,7 @@ const defaultConfig: Config = {
   nostrBackup: false,
   notifications: false,
   pubkey: '',
+  receiveViaLnurl: false,
   showBalance: true,
   theme: Themes.Auto,
   unit: Unit.BTC,

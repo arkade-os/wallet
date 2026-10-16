@@ -141,6 +141,7 @@ export const translations = {
       feedback: 'Feedback',
       hapticFeedback: 'Haptic feedback',
       hapticSubtext: 'Vibration on button taps and interactions',
+      lightningAddress: 'Lightning address',
       notifications: 'Notifications',
       allowNotifications: 'Allow notifications',
       notificationsIntro:
@@ -401,6 +402,8 @@ export const translations = {
       failedToGetAddress: 'Failed to get address: {error}',
       noPaymentMethods: 'No valid payment methods available for this amount',
       lightningUnavailable: 'Lightning unavailable: {error}',
+      noInvoiceForAmount: 'No invoice for this amount: {error}',
+      ownAddressInstead: "{rail} uses the wallet's own address: {error}",
       noLightningSolver: 'No Lightning solver available',
       lightningPaymentLost: 'Lightning payment lost: the solver reclaimed it before it could be claimed',
       claimFailed: 'Claiming the Lightning payment failed: {error}',
@@ -988,6 +991,7 @@ export const translations = {
       feedback: 'Retroalimentación',
       hapticFeedback: 'Vibración táctil',
       hapticSubtext: 'Vibración al tocar botones e interactuar',
+      lightningAddress: 'Dirección Lightning',
       notifications: 'Notificaciones',
       allowNotifications: 'Permitir notificaciones',
       notificationsIntro:
@@ -1249,6 +1253,8 @@ export const translations = {
       failedToGetAddress: 'Error al obtener la dirección: {error}',
       noPaymentMethods: 'No hay métodos de pago válidos para este monto',
       lightningUnavailable: 'Lightning no disponible: {error}',
+      noInvoiceForAmount: 'Sin factura para este monto: {error}',
+      ownAddressInstead: '{rail} usa la dirección propia de la billetera: {error}',
       noLightningSolver: 'No hay solucionador Lightning disponible',
       lightningPaymentLost: 'Pago Lightning perdido: el solver lo reclamó antes de poder cobrarse',
       claimFailed: 'Fallo al cobrar el pago Lightning: {error}',
