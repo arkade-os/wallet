@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { act, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { SingleKey } from '@arkade-os/sdk'
 import { encodeLnurl } from '@arkade-os/lnurl-client/arkade'
@@ -53,6 +53,11 @@ vi.mock('../../../components/QrCode', () => ({
 }))
 const copyToClipboard = vi.fn<(value: string) => Promise<void>>(async () => {})
 vi.mock('../../../lib/clipboard', () => ({ copyToClipboard: (v: string) => copyToClipboard(v) }))
+const share = vi.hoisted(() => ({ can: false, shareData: vi.fn() }))
+vi.mock('../../../lib/share', () => ({
+  canBrowserShareData: () => share.can,
+  shareData: (data: unknown) => share.shareData(data),
+}))
 const browser = vi.hoisted(() => ({ mobile: false }))
 vi.mock('../../../lib/browser', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../lib/browser')>()),
@@ -587,6 +592,10 @@ describe('Receive screen, token rails', () => {
       tokens: true,
       tokenErrors: { 'ff-usdtarbitrum': 'paymentOption ff-usdtarbitrum is busy, try again shortly' },
     })
+    share.can = true
+    onTestFinished(() => {
+      share.can = false
+    })
     renderReceive(20_000, tokensOn)
 
     await pick('USDT (Arbitrum One)')
@@ -594,6 +603,7 @@ describe('Receive screen, token rails', () => {
     expect(await screen.findByText(/No quote for this token: .*busy/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Copy' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Share' })).toBeDisabled()
   })
 
   it('token rails are absent when receiveViaTokens is off', async () => {
