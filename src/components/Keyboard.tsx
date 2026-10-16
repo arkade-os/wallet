@@ -119,7 +119,7 @@ export default function Keyboard({
             : Number(strValue),
       )
     }
-  }, [digits, inputMode])
+  }, [digits, inputMode, textValue])
 
   const handleKeyPress = (k: string) => {
     if (k === 'x') return setDigits(popDigit)
