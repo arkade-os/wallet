@@ -118,7 +118,10 @@ export const createLnurlActivityResolver = (
 const watermarkEntryKey = (baseUrl: string, lightningAddress: string): string => `${baseUrl}|${lightningAddress}`
 
 const readWatermarkMap = (): Record<string, number> =>
-  getStorageItem<Record<string, number>>(LNURL_WATERMARKS_STORAGE_KEY, {}, (value) => JSON.parse(value))
+  getStorageItem<Record<string, number>>(LNURL_WATERMARKS_STORAGE_KEY, {}, (value) => {
+    const parsed: unknown = JSON.parse(value)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, number>) : {}
+  })
 
 /** What `syncPayments` from `@arkade-os/lnurl-client` writes through. The package
  * ships no storage because IndexedDB exists in neither Node nor React Native. */
