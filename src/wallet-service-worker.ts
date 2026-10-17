@@ -1,6 +1,7 @@
 import {
   IndexedDBWalletRepository,
   IndexedDBContractRepository,
+  IndexedDBIntentRepository,
   MessageBus,
   WalletMessageHandler,
 } from '@arkade-os/sdk'
@@ -16,6 +17,7 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
 
 const walletRepository = new IndexedDBWalletRepository()
 const contractRepository = new IndexedDBContractRepository()
+const intentRepository = new IndexedDBIntentRepository()
 
 // Allow the page to force activation of a newly installed worker.
 self.addEventListener('message', (event: ExtendableMessageEvent) => {
@@ -28,6 +30,7 @@ const worker = new MessageBus(walletRepository, contractRepository, {
   messageHandlers: [new WalletMessageHandler()],
   tickIntervalMs: 5000,
   messageTimeoutMs: 60_000,
+  intentRepository,
 })
 worker.start().catch(console.error)
 
