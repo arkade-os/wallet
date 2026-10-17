@@ -11,7 +11,7 @@ const testIdOf = (id: PartId, method: ReceiveMethod): string =>
   ({
     link: 'bip21',
     lnaddress: 'lnaddress',
-    lnurl: 'lnaddress',
+    lnurl: 'lnurl',
     invoice: 'invoice',
     ark: 'ark',
     btc: 'btc',
