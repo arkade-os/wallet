@@ -1,9 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { LNURL_WATERMARKS_STORAGE_KEY } from '../../lib/storageKeys'
 import { syncPayments, type PaymentPage, type StoredPayment } from '@arkade-os/lnurl-client'
 import { TxType, type ArkTransaction } from '@arkade-os/sdk'
 import {
   clearLnurlPaymentsForReset,
+  createIndexedDbLnurlPaymentStore,
   createLnurlActivityResolver,
   createLnurlPaymentRepository,
   createLnurlPaymentSyncStore,
@@ -76,6 +77,85 @@ const heldWriteStore = (order: string[] = []): LnurlPaymentStore & { release: ()
 }
 
 const tick = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0))
+
+type TxOutcome = 'complete' | 'abort' | 'error'
+
+interface FakeRequest {
+  result: unknown
+  onsuccess: (() => void) | null
+}
+
+interface FakeTx {
+  error: DOMException | null
+  oncomplete: (() => void) | null
+  onerror: (() => void) | null
+  onabort: (() => void) | null
+  objectStore: () => { put: () => void; clear: () => void; getAll: () => FakeRequest }
+}
+
+const stubIndexedDb = ({
+  records = [] as StoredPayment[],
+  outcomes = [] as TxOutcome[],
+  failTransaction = false,
+} = {}) => {
+  let closes = 0
+  const db = {
+    close: () => {
+      closes += 1
+    },
+    transaction: (): FakeTx => {
+      if (failTransaction) throw new DOMException('the connection is closing', 'InvalidStateError')
+      const outcome = outcomes.shift() ?? 'complete'
+      const requests: FakeRequest[] = []
+      const tx: FakeTx = {
+        error: null,
+        oncomplete: null,
+        onerror: null,
+        onabort: null,
+        objectStore: () => ({
+          put: () => undefined,
+          clear: () => undefined,
+          getAll: () => {
+            const request: FakeRequest = { result: [...records], onsuccess: null }
+            requests.push(request)
+            return request
+          },
+        }),
+      }
+      setTimeout(() => {
+        if (outcome === 'complete') {
+          for (const request of requests) request.onsuccess?.()
+          tx.oncomplete?.()
+          return
+        }
+        // As in IDB: `error` bubbles before the abort that sets `tx.error`.
+        if (outcome === 'error') {
+          tx.onerror?.()
+          tx.error = new DOMException('quota exceeded', 'QuotaExceededError')
+        }
+        tx.onabort?.()
+      }, 0)
+      return tx
+    },
+  }
+  vi.stubGlobal('indexedDB', {
+    open: () => {
+      const request: { result: unknown; onsuccess: (() => void) | null } = { result: db, onsuccess: null }
+      setTimeout(() => request.onsuccess?.(), 0)
+      return request
+    },
+  })
+  return { closes: () => closes }
+}
+
+const outcomeOf = (promise: Promise<unknown>): Promise<'resolved' | 'rejected' | 'pending'> =>
+  Promise.race([
+    promise.then(
+      () => 'resolved' as const,
+      () => 'rejected' as const,
+    ),
+    new Promise<'pending'>((resolve) => setTimeout(() => resolve('pending'), 100)),
+  ])
 
 describe('lnurlPaymentRepository', () => {
   it('upserting the same key twice leaves one record with the later values', async () => {
@@ -218,6 +298,81 @@ describe('clearLnurlPaymentsForReset', () => {
 
     expect(await repository.all()).toEqual([])
     expect(localStorage.getItem(LNURL_WATERMARKS_STORAGE_KEY)).toBeNull()
+  })
+})
+
+describe('createIndexedDbLnurlPaymentStore', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('rejects a write whose transaction only aborts, and closes the db', async () => {
+    const idb = stubIndexedDb({ outcomes: ['abort'] })
+    const write = createIndexedDbLnurlPaymentStore().write([makePayment('hash-1')])
+
+    expect(await outcomeOf(write)).toBe('rejected')
+    await expect(write).rejects.toMatchObject({ name: 'AbortError' })
+    expect(idb.closes()).toBe(1)
+  })
+
+  it('rejects a clear whose transaction only aborts, and closes the db', async () => {
+    const idb = stubIndexedDb({ outcomes: ['abort'] })
+    const clear = createIndexedDbLnurlPaymentStore().clear()
+
+    expect(await outcomeOf(clear)).toBe('rejected')
+    await expect(clear).rejects.toMatchObject({ name: 'AbortError' })
+    expect(idb.closes()).toBe(1)
+  })
+
+  it('rejects with the transaction error when onerror is followed by onabort', async () => {
+    const idb = stubIndexedDb({ outcomes: ['error'] })
+
+    await expect(createIndexedDbLnurlPaymentStore().write([makePayment('hash-1')])).rejects.toMatchObject({
+      name: 'QuotaExceededError',
+    })
+
+    expect(idb.closes()).toBe(1)
+  })
+
+  it.each([
+    ['read', (store: LnurlPaymentStore) => store.read()],
+    ['write', (store: LnurlPaymentStore) => store.write([makePayment('hash-1')])],
+    ['clear', (store: LnurlPaymentStore) => store.clear()],
+  ])('closes the db when %s throws synchronously', async (_operation, call) => {
+    const idb = stubIndexedDb({ failTransaction: true })
+
+    await expect(call(createIndexedDbLnurlPaymentStore())).rejects.toMatchObject({ name: 'InvalidStateError' })
+
+    expect(idb.closes()).toBe(1)
+  })
+
+  it('resolves a committed write and closes the db', async () => {
+    const idb = stubIndexedDb()
+
+    await expect(createIndexedDbLnurlPaymentStore().write([makePayment('hash-1')])).resolves.toBeUndefined()
+
+    expect(idb.closes()).toBe(1)
+  })
+
+  it('reads back the stored records and closes the db', async () => {
+    const records = [makePayment('hash-1'), makePayment('hash-2')]
+    const idb = stubIndexedDb({ records })
+
+    await expect(createIndexedDbLnurlPaymentStore().read()).resolves.toEqual(records)
+
+    expect(idb.closes()).toBe(1)
+  })
+
+  it('settles a reset while an aborting write is in flight', async () => {
+    const idb = stubIndexedDb({ outcomes: ['abort'] })
+    const repository = createLnurlPaymentRepository(createIndexedDbLnurlPaymentStore())
+    const pending = repository.upsert([makePayment('hash-1')]).catch((err: unknown) => err)
+
+    const reset = clearLnurlPaymentsForReset(repository)
+
+    expect(await outcomeOf(reset)).toBe('resolved')
+    await expect(pending).resolves.toMatchObject({ name: 'AbortError' })
+    expect(idb.closes()).toBe(2)
   })
 })
 
