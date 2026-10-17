@@ -89,6 +89,7 @@ export function createLnurlPaymentRepository(store: LnurlPaymentStore = indexedD
   all(): Promise<StoredPayment[]>
   clear(): Promise<void>
   closeWrites(): void
+  reopenWrites(): void
   writesClosed(): boolean
   writesSettled(): Promise<void>
 } {
@@ -112,6 +113,9 @@ export function createLnurlPaymentRepository(store: LnurlPaymentStore = indexedD
     closeWrites: () => {
       closed = true
     },
+    reopenWrites: () => {
+      closed = false
+    },
     writesClosed: () => closed,
     writesSettled: async () => {
       await Promise.allSettled([...inFlight])
@@ -124,14 +128,19 @@ export const lnurlPaymentRepository: ReturnType<typeof createLnurlPaymentReposit
 /** A reset's LNURL step: shut the store to new writes, let the ones already in
  *  flight land, then clear. Rejects if the clear fails so the caller can abort
  *  with the wallet intact — finishing a reset that still holds the previous
- *  wallet's preimages is the worse outcome. The gate never reopens; every reset
- *  reloads the app. */
+ *  wallet's preimages is the worse outcome. A failed clear reopens the gate: the
+ *  reset is abandoned with the wallet intact, so the store keeps working. */
 export const clearLnurlPaymentsForReset = async (
   repository: ReturnType<typeof createLnurlPaymentRepository> = lnurlPaymentRepository,
 ): Promise<void> => {
   repository.closeWrites()
   await repository.writesSettled()
-  await repository.clear()
+  try {
+    await repository.clear()
+  } catch (err) {
+    repository.reopenWrites()
+    throw err
+  }
 }
 
 /** Wraps the package's resolver with a re-read on every `prepare()`: the sync
