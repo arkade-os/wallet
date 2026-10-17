@@ -41,8 +41,8 @@ import { activitiesToTxs, getActivities } from '../lib/activityHistory'
 import { arkTransactionToTx } from '../lib/transactionHistory'
 import { Indexer } from '../lib/indexer'
 import { lnSendViews, swapRecordResolver, type LnSendView } from '../lib/swapRecords'
-import { createLnurlActivityResolver, lnurlPaymentRepository } from '../lib/lnurlPaymentRepository'
-import { lnurlResyncOnPayment, lnurlSyncWritesSettled, syncLnurlActivity } from '../lib/lnurlActivitySync'
+import { clearLnurlPaymentsForReset, createLnurlActivityResolver } from '../lib/lnurlPaymentRepository'
+import { lnurlResyncOnPayment, syncLnurlActivity } from '../lib/lnurlActivitySync'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
@@ -1011,15 +1011,16 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     lnurlResyncRef.current?.cancel()
     removeServiceWorkerMessageHandler()
     if (!svcWallet) throw new Error('Service worker not initialized')
-    await lnurlSyncWritesSettled()
+    // Before anything destructive, and fatal: these records hold preimages, so a
+    // reset that completed without them gone would hand the next wallet the
+    // previous one's payment history. Rejecting here leaves the wallet intact.
+    await clearLnurlPaymentsForReset()
     await clearStorage()
     // swap records outlive localStorage now: without this a reset leaves the
     // previous wallet's swaps in the activity list. Never fatal — a reset that
     // aborted here would leave the wallet itself half-cleared, which is worse
     // than stale swap rows.
     await assetSwapRepository.clear().catch((err) => consoleError(err, 'failed to clear swap records'))
-    // Same reason, and it holds preimages. Its watermarks go with localStorage, so a restore resyncs.
-    await lnurlPaymentRepository.clear().catch((err) => consoleError(err, 'failed to clear lnurl payments'))
     setAssetSwaps([])
     await svcWallet.clear()
     await svcWallet.walletRepository.clear()
