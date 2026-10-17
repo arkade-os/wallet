@@ -36,7 +36,7 @@ const lnurlClient = createLnurlClient()
  * API host, which is the unusual case.
  */
 export const configuredLnurlServer = () => {
-  const baseUrl = fromRuntimeEnv(import.meta.env.VITE_LNURL_SERVER?.trim())
+  const baseUrl = fromRuntimeEnv(import.meta.env.VITE_LNURL_SERVER?.trim())?.replace(/\/+$/, '')
   if (!baseUrl) return undefined
   try {
     const domain = (
