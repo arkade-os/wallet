@@ -88,6 +88,13 @@ describe('what the send success screen claims', () => {
     expect(await screen.findByText(/keep the wallet open/i)).toBeDefined()
   })
 
+  it('asks the on-chain sender to stay in their own language', async () => {
+    renderSuccess({ address: ONCHAIN, total: 10_000 }, {}, undefined, Language.Spanish)
+
+    expect(await screen.findByText(/en camino — mantén la wallet abierta hasta que se complete/)).toBeDefined()
+    expect(screen.queryByText(/keep the wallet open/i)).toBeNull()
+  })
+
   it('does not ask a Lightning sender to stay — the solver claims, not us', async () => {
     renderSuccess({ invoice: 'lnbc10u1p...', total: 10_000 })
 
