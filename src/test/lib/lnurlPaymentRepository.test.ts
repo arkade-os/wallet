@@ -3,6 +3,7 @@ import { LNURL_WATERMARKS_STORAGE_KEY } from '../../lib/storageKeys'
 import { syncPayments, type PaymentPage, type StoredPayment } from '@arkade-os/lnurl-client'
 import { TxType, type ArkTransaction } from '@arkade-os/sdk'
 import {
+  clearLnurlPaymentsForReset,
   createLnurlActivityResolver,
   createLnurlPaymentRepository,
   createLnurlPaymentSyncStore,
@@ -58,6 +59,24 @@ const createMemoryStore = (): LnurlPaymentStore => {
   }
 }
 
+/** A store whose `write` hangs until `release()`, to hold one write in flight. */
+const heldWriteStore = (order: string[] = []): LnurlPaymentStore & { release: () => void } => {
+  const store = createMemoryStore()
+  let release!: () => void
+  const held = new Promise<void>((resolve) => (release = resolve))
+  const write = store.write
+  return Object.assign(store, {
+    write: async (records: StoredPayment[]) => {
+      await held
+      order.push('write')
+      await write(records)
+    },
+    release: () => release(),
+  })
+}
+
+const tick = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0))
+
 describe('lnurlPaymentRepository', () => {
   it('upserting the same key twice leaves one record with the later values', async () => {
     const repository = createLnurlPaymentRepository(createMemoryStore())
@@ -106,6 +125,97 @@ describe('lnurlPaymentRepository', () => {
     await repository.clear()
 
     expect(await repository.all()).toEqual([])
+  })
+
+  it('ignores an upsert once writes are closed', async () => {
+    const repository = createLnurlPaymentRepository(createMemoryStore())
+
+    repository.closeWrites()
+    await repository.upsert([makePayment('hash-1')])
+
+    expect(await repository.all()).toEqual([])
+  })
+
+  it('settles only once a write that was already in flight lands', async () => {
+    const store = heldWriteStore()
+    const repository = createLnurlPaymentRepository(store)
+
+    const pending = repository.upsert([makePayment('hash-1')])
+    repository.closeWrites()
+    let settled = false
+    const writes = repository.writesSettled().then(() => (settled = true))
+    await tick()
+    expect(settled).toBe(false)
+
+    store.release()
+    await writes
+    await pending
+
+    expect(settled).toBe(true)
+    expect(await repository.all()).toHaveLength(1)
+  })
+
+  it('settles even when the in-flight write rejects', async () => {
+    const store = createMemoryStore()
+    store.write = async () => {
+      throw new Error('quota exceeded')
+    }
+    const repository = createLnurlPaymentRepository(store)
+
+    await expect(repository.upsert([makePayment('hash-1')])).rejects.toThrow('quota exceeded')
+    await expect(repository.writesSettled()).resolves.toBeUndefined()
+  })
+})
+
+describe('clearLnurlPaymentsForReset', () => {
+  it('waits out a write already in flight, then clears', async () => {
+    const order: string[] = []
+    const store = heldWriteStore(order)
+    const clear = store.clear
+    store.clear = async () => {
+      order.push('clear')
+      await clear()
+    }
+    const repository = createLnurlPaymentRepository(store)
+
+    const pending = repository.upsert([makePayment('hash-1')])
+    const reset = clearLnurlPaymentsForReset(repository)
+    await tick()
+    expect(order).toEqual([])
+
+    store.release()
+    await reset
+    await pending
+
+    expect(order).toEqual(['write', 'clear'])
+    expect(await repository.all()).toEqual([])
+  })
+
+  it('rejects when the clear fails, leaving the records intact', async () => {
+    const store = createMemoryStore()
+    store.clear = async () => {
+      throw new Error('indexeddb unavailable')
+    }
+    const repository = createLnurlPaymentRepository(store)
+    await repository.upsert([makePayment('hash-1', SERVER_A, { preimage: 'ff'.repeat(32) })])
+
+    await expect(clearLnurlPaymentsForReset(repository)).rejects.toThrow('indexeddb unavailable')
+
+    expect(await repository.all()).toHaveLength(1)
+  })
+
+  // The claim-triggered `sync()` calls in `receive/lnurlRail.ts` are
+  // fire-and-forget and tracked by no caller, so the gate has to refuse them.
+  it('ignores a sync-store write that starts after it', async () => {
+    const repository = createLnurlPaymentRepository(createMemoryStore())
+    const syncStore = createLnurlPaymentSyncStore(repository)
+
+    await clearLnurlPaymentsForReset(repository)
+    await syncStore.upsert([makePayment('late')])
+    await syncStore.writeWatermark(SERVER_A, ALICE, 42)
+
+    expect(await repository.all()).toEqual([])
+    expect(localStorage.getItem(LNURL_WATERMARKS_STORAGE_KEY)).toBeNull()
   })
 })
 
