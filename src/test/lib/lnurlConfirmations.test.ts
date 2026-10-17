@@ -27,7 +27,9 @@ describe('pendingConfirmations', () => {
     await vi.advanceTimersByTimeAsync(2_000)
 
     expect(batchVerify).toHaveBeenCalledTimes(1)
-    expect(batchVerify).toHaveBeenCalledWith('https://a/batch', ['https://a/verify/1', 'https://a/verify/2'])
+    expect(batchVerify).toHaveBeenCalledWith('https://a/batch', ['https://a/verify/1', 'https://a/verify/2'], {
+      signal: expect.any(AbortSignal),
+    })
   })
 
   it('ignores a verify URL it is already waiting on', async () => {
@@ -44,7 +46,9 @@ describe('pendingConfirmations', () => {
 
     await vi.advanceTimersByTimeAsync(2_000)
 
-    expect(batchVerify).toHaveBeenCalledWith('https://a/batch', ['https://a/verify/1'])
+    expect(batchVerify).toHaveBeenCalledWith('https://a/batch', ['https://a/verify/1'], {
+      signal: expect.any(AbortSignal),
+    })
   })
 
   it('marks an entry settled from its batch answer and drops it from later ticks', async () => {
@@ -98,6 +102,21 @@ describe('pendingConfirmations', () => {
     const callsAtFailure = batchVerify.mock.calls.length
     await vi.advanceTimersByTimeAsync(4_000)
     expect(batchVerify).toHaveBeenCalledTimes(callsAtFailure)
+  })
+
+  it('cuts off a batch request held open, so later ticks and the deadline still run', async () => {
+    const batchVerify = vi.fn(
+      (_endpoint: string, _urls: readonly string[], opts?: { signal?: AbortSignal }) =>
+        new Promise<never>((_, reject) => opts?.signal?.addEventListener('abort', () => reject(new Error('aborted')))),
+    )
+    const confirmations = createPendingConfirmations(fakeClient({ batchVerify } as Partial<LnurlClient>))
+    const onError = vi.fn()
+    confirmations.add({ verifyUrl: 'v/1', verifyBatch: 'https://a/batch', onSettled: vi.fn(), onError })
+
+    await vi.advanceTimersByTimeAsync(CONFIRMATION_TIMEOUT_MS + 2_000)
+
+    expect(batchVerify.mock.calls.length).toBeGreaterThan(1)
+    expect(onError).toHaveBeenCalledWith(new Error('receiver did not confirm settlement in time'))
   })
 
   it('keeps a resumed wait to the window its send started, rather than a fresh one', async () => {

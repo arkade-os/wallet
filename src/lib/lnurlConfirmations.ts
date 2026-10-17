@@ -23,6 +23,8 @@ interface Entry extends ReceiverConfirmation {
 }
 
 const POLL_MS = 2_000
+/** A batch request held open would stall every later tick, deadline sweep included. */
+const BATCH_TIMEOUT_MS = 10_000
 export const CONFIRMATION_TIMEOUT_MS = 180_000
 
 export function createPendingConfirmations(client: LnurlClient = createLnurlClient()) {
@@ -67,10 +69,13 @@ export function createPendingConfirmations(client: LnurlClient = createLnurlClie
     }
 
     for (const [endpoint, group] of groups) {
+      const abort = new AbortController()
+      const cutoff = setTimeout(() => abort.abort(), Math.min(BATCH_TIMEOUT_MS, ...group.map((e) => e.deadline - now)))
       try {
         const body = await client.batchVerify(
           endpoint,
           group.map((e) => e.verifyUrl),
+          { signal: abort.signal },
         )
         for (const entry of group) {
           const answer = body.results[entry.verifyUrl]
@@ -82,6 +87,8 @@ export function createPendingConfirmations(client: LnurlClient = createLnurlClie
         }
       } catch {
         // Unsettled entries simply await the next tick.
+      } finally {
+        clearTimeout(cutoff)
       }
     }
   }
