@@ -58,6 +58,32 @@ describe('syncLnurlActivity', () => {
     expect(store.writeWatermark).not.toHaveBeenCalled()
   })
 
+  it('still reads watermarks through the abort wrapper when the store is a class instance', async () => {
+    class Store implements PaymentSyncStore {
+      async upsert() {}
+      async readWatermark() {
+        return 42
+      }
+      async writeWatermark() {}
+    }
+    let read: number | undefined
+    receiverMock.mockImplementation(
+      ({ store: synced }) =>
+        ({
+          owned: vi.fn().mockResolvedValue({
+            sync: async () => {
+              read = await synced!.readWatermark('https://lnurl.test', 'alice@lnurl.test')
+              return { synced: 0, failures: [] }
+            },
+          }),
+        }) as never,
+    )
+
+    await syncLnurlActivity(identity, ARKADE_ADDRESS, { store: new Store(), signal: new AbortController().signal })
+
+    expect(read).toBe(42)
+  })
+
   it('resolves to zero when no server is configured', async () => {
     receiverMock.mockReturnValue(undefined)
 

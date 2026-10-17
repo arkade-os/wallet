@@ -25,7 +25,7 @@ export async function syncLnurlActivity(
     boardingAddress: opts.boardingAddress,
     store: signal
       ? {
-          ...store,
+          readWatermark: (baseUrl, lightningAddress) => store.readWatermark(baseUrl, lightningAddress),
           upsert: async (records) => {
             if (!signal.aborted) await store.upsert(records)
           },
