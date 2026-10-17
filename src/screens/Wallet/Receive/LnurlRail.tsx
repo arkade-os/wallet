@@ -4,7 +4,7 @@ import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
 import FlexCol from '../../../components/FlexCol'
 import Input from '../../../components/Input'
-import Text, { TextSecondary } from '../../../components/Text'
+import { TextSecondary } from '../../../components/Text'
 import type { LnurlRail, OnboardingChoice } from '../../../lib/receive/lnurlRail'
 import { useTranslation } from '../../../providers/language'
 
@@ -19,8 +19,7 @@ export default function LnurlRailPanel({ rail }: { rail: LnurlRail }) {
   if (rail.status === 'failed')
     return <TextSecondary>{t('receive.lnaddressUnavailable', { error: rail.error })}</TextSecondary>
 
-  const address = rail.receiver?.lightningAddress
-  if (address) return <Text centered>{address}</Text>
+  if (rail.receiver?.lightningAddress) return null
 
   const choices = rail.choices.includes('self') ? rail.choices.filter((c) => RECEIVE_CHOICES.includes(c)) : []
   const onName = (opts: NameOptions) => (rail.receiver ? rail.upgrade(opts) : rail.claim(opts))
