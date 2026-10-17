@@ -1,0 +1,436 @@
+diff --git a/dist/advanced.cjs b/dist/advanced.cjs
+index b01cfd9cf09fab09f0390f40f162d0fb59d6dd51..ed8d9a7fe853b093f3c35b650362f897ff6b9700 100644
+--- a/dist/advanced.cjs
++++ b/dist/advanced.cjs
+@@ -4625,11 +4625,24 @@ var candidateWitnessItems = (tx, inputIndex) => [
+   ...(0, import_sdk14.getArkPsbtFields)(tx, inputIndex, import_sdk14.ConditionWitness).flat(),
+   ...tx.getInput(inputIndex).finalScriptWitness ?? []
+ ];
++const spendsRefundLeaf = (tx, inputIndex) => {
++  const input = tx.getInput(inputIndex);
++  const witness = input.finalScriptWitness;
++  const leaves = input.tapLeafScript ?? [];
++  const script = witness && witness.length >= 2 ? witness[witness.length - 2] : leaves.length === 1 ? import_sdk14.scriptFromTapLeafScript(leaves[0]) : void 0;
++  if (!script) return false;
++  try {
++    const { type } = import_sdk14.decodeTapscript(script);
++    return type === "multisig" || type === "csv-multisig" || type === "cltv-multisig";
++  } catch {
++    return false;
++  }
++};
+ async function readLockupFate(indexer, input) {
+   const { vtxos } = await indexer.getVtxos({ scripts: [import_base10.hex.encode(input.swapPkScript)] });
+   const all = vtxos ?? [];
+   if (all.length === 0) return { fate: "unknown" };
+-  const exited = all.filter((vtxo) => vtxo.isUnrolled && !(0, import_sdk14.isVtxoSpent)(vtxo));
++  const exited = all.filter((vtxo) => vtxo.isUnrolled && !import_sdk14.isVtxoSpent(vtxo));
+   if (exited.length > 0) {
+     return {
+       fate: "exited",
+@@ -4640,7 +4653,7 @@ async function readLockupFate(indexer, input) {
+   let everySpendNamed = true;
+   let sweptLeft = false;
+   for (const vtxo of all) {
+-    if (!(0, import_sdk14.isVtxoSpent)(vtxo)) {
++    if (!import_sdk14.isVtxoSpent(vtxo)) {
+       if (!(input.receiver && vtxo.isSwept)) return { fate: "open" };
+       sweptLeft = true;
+       continue;
+@@ -4654,7 +4667,7 @@ async function readLockupFate(indexer, input) {
+   }
+   const spends = [...spentBy.values()];
+   const { txs } = await indexer.getVirtualTxs([...spentBy.keys()]);
+-  const observed = /* @__PURE__ */ new Set();
++  const refunded = /* @__PURE__ */ new Set();
+   for (const raw of txs) {
+     let tx;
+     try {
+@@ -4662,21 +4675,25 @@ async function readLockupFate(indexer, input) {
+     } catch {
+       continue;
+     }
+-    if (spentBy.has(tx.id)) observed.add(tx.id);
++    if (!spentBy.has(tx.id)) continue;
+     for (let i = 0; i < tx.inputsLength; i++) {
+       const spent = tx.getInput(i);
+       if (!spent.txid) continue;
+       const txid = import_base10.hex.encode(spent.txid);
+-      if (!all.some((vtxo) => vtxo.txid === txid && vtxo.vout === spent.index)) continue;
++      const vtxo = all.find(
++        (vtxo2) => vtxo2.txid === txid && vtxo2.vout === spent.index && vtxo2.spentBy === tx.id
++      );
++      if (!vtxo) continue;
+       for (const candidate of candidateWitnessItems(tx, i)) {
+         if (hashesTo(candidate, input.paymentHash)) {
+           return { fate: "claimed", preimage: candidate, spends };
+         }
+       }
++      if (spendsRefundLeaf(tx, i)) refunded.add(`${vtxo.txid}:${vtxo.vout}`);
+     }
+   }
+   if (sweptLeft) return { fate: "open" };
+-  return everySpendNamed && observed.size === spentBy.size ? { fate: "returned", spends } : { fate: "unknown" };
++  return everySpendNamed && all.every((vtxo) => refunded.has(`${vtxo.txid}:${vtxo.vout}`)) ? { fate: "returned", spends } : { fate: "unknown" };
+ }
+ var assertNoneSwept = (vtxos, contract) => {
+   const swept = vtxos.filter((vtxo) => vtxo.recoverable);
+@@ -8065,6 +8082,41 @@ var createSwapDrive = (config) => {
+     await adoptLegacyRfqSwaps(repository);
+     const all = await collectSwapRecords(repository);
+     const { corridor, offer } = splitRecords(all.filter(readableRecord));
++if (mode !== "readonly") {
++  for (const [index, record] of corridor.entries()) {
++    if (record.kind !== "lightning_send" || record.state !== "refunded" || record.refundTxid)
++      continue;
++    try {
++      const fate = await readLockupFate(indexer, {
++        swapPkScript: import_base18.hex.decode(record.lockupPkScript),
++        paymentHash: record.lock.hash
++      });
++      if (fate.fate !== "claimed") continue;
++      const current = await repository.getSwapRecord(record.id);
++      if (current?.family !== "rfq" || current.kind !== "lightning_send" || current.state !== "refunded" || current.refundTxid || current.updatedAt !== record.updatedAt || current.lock.hash !== record.lock.hash || current.lockupPkScript !== record.lockupPkScript)
++        continue;
++      const corrected = {
++        ...current,
++        state: "settled",
++        settlementPreimageHex: import_base18.hex.encode(fate.preimage),
++        lockupSpendTxids: [
++          ...new Set(
++            fate.spends.flatMap((spend) => spend.txid ? [spend.txid] : [])
++          )
++        ],
++        updatedAt: now()
++      };
++      await repository.saveSwapRecord(corrected);
++      corridor[index] = corrected;
++    } catch (error) {
++      console.warn(
++        `[swap] could not verify stored Lightning refund ${record.id}`,
++        error
++      );
++    }
++  }
++}
++
+     const retiredScripts = /* @__PURE__ */ new Set();
+     for (const record of [...corridor, ...offer]) {
+       records.set(record.id, record);
+diff --git a/dist/chunk-BWUC2LDD.js b/dist/chunk-BWUC2LDD.js
+index 819c775a89d1f3ceee9997e35b88e6ce7d1995c3..87c8a9eaa9b1daef58fdd2b498a1b58c863ef39a 100644
+--- a/dist/chunk-BWUC2LDD.js
++++ b/dist/chunk-BWUC2LDD.js
+@@ -17,6 +17,7 @@ import {
+   encodeCarrierRequest,
+   familyOfSwapId,
+   findLockupVtxos,
++  readLockupFate,
+   fromAtomicDecimal,
+   fundingWasNotSubmitted,
+   fundsFromWallet,
+@@ -2446,6 +2447,41 @@ var createSwapDrive = (config) => {
+     await adoptLegacyRfqSwaps(repository);
+     const all = await collectSwapRecords(repository);
+     const { corridor, offer } = splitRecords(all.filter(readableRecord));
++if (mode !== "readonly") {
++  for (const [index, record] of corridor.entries()) {
++    if (record.kind !== "lightning_send" || record.state !== "refunded" || record.refundTxid)
++      continue;
++    try {
++      const fate = await readLockupFate(indexer, {
++        swapPkScript: hex6.decode(record.lockupPkScript),
++        paymentHash: record.lock.hash
++      });
++      if (fate.fate !== "claimed") continue;
++      const current = await repository.getSwapRecord(record.id);
++      if (current?.family !== "rfq" || current.kind !== "lightning_send" || current.state !== "refunded" || current.refundTxid || current.updatedAt !== record.updatedAt || current.lock.hash !== record.lock.hash || current.lockupPkScript !== record.lockupPkScript)
++        continue;
++      const corrected = {
++        ...current,
++        state: "settled",
++        settlementPreimageHex: hex6.encode(fate.preimage),
++        lockupSpendTxids: [
++          ...new Set(
++            fate.spends.flatMap((spend) => spend.txid ? [spend.txid] : [])
++          )
++        ],
++        updatedAt: now()
++      };
++      await repository.saveSwapRecord(corrected);
++      corridor[index] = corrected;
++    } catch (error) {
++      console.warn(
++        `[swap] could not verify stored Lightning refund ${record.id}`,
++        error
++      );
++    }
++  }
++}
++
+     const retiredScripts = /* @__PURE__ */ new Set();
+     for (const record of [...corridor, ...offer]) {
+       records.set(record.id, record);
+diff --git a/dist/chunk-VFZJNU27.js b/dist/chunk-VFZJNU27.js
+index 07837185e4863b40abd61dbbae4b2949676bf70c..b4c2a44d2b2cb53110d120f25ecc9c1792c90453 100644
+--- a/dist/chunk-VFZJNU27.js
++++ b/dist/chunk-VFZJNU27.js
+@@ -1,3 +1,4 @@
++import { decodeTapscript as claimStatusDecodeTapscript, scriptFromTapLeafScript as claimStatusScriptFromTapLeafScript } from "@arkade-os/sdk";
+ import {
+   BTC_ASSET_ID,
+   L1_NETWORKS,
+@@ -1000,6 +1001,19 @@ var candidateWitnessItems = (tx, inputIndex) => [
+   ...getArkPsbtFields(tx, inputIndex, ConditionWitness).flat(),
+   ...tx.getInput(inputIndex).finalScriptWitness ?? []
+ ];
++const spendsRefundLeaf = (tx, inputIndex) => {
++  const input = tx.getInput(inputIndex);
++  const witness = input.finalScriptWitness;
++  const leaves = input.tapLeafScript ?? [];
++  const script = witness && witness.length >= 2 ? witness[witness.length - 2] : leaves.length === 1 ? claimStatusScriptFromTapLeafScript(leaves[0]) : void 0;
++  if (!script) return false;
++  try {
++    const { type } = claimStatusDecodeTapscript(script);
++    return type === "multisig" || type === "csv-multisig" || type === "cltv-multisig";
++  } catch {
++    return false;
++  }
++};
+ async function readLockupFate(indexer, input) {
+   const { vtxos } = await indexer.getVtxos({ scripts: [hex2.encode(input.swapPkScript)] });
+   const all = vtxos ?? [];
+@@ -1029,7 +1043,7 @@ async function readLockupFate(indexer, input) {
+   }
+   const spends = [...spentBy.values()];
+   const { txs } = await indexer.getVirtualTxs([...spentBy.keys()]);
+-  const observed = /* @__PURE__ */ new Set();
++  const refunded = /* @__PURE__ */ new Set();
+   for (const raw of txs) {
+     let tx;
+     try {
+@@ -1037,21 +1051,25 @@ async function readLockupFate(indexer, input) {
+     } catch {
+       continue;
+     }
+-    if (spentBy.has(tx.id)) observed.add(tx.id);
++    if (!spentBy.has(tx.id)) continue;
+     for (let i = 0; i < tx.inputsLength; i++) {
+       const spent = tx.getInput(i);
+       if (!spent.txid) continue;
+       const txid = hex2.encode(spent.txid);
+-      if (!all.some((vtxo) => vtxo.txid === txid && vtxo.vout === spent.index)) continue;
++      const vtxo = all.find(
++        (vtxo2) => vtxo2.txid === txid && vtxo2.vout === spent.index && vtxo2.spentBy === tx.id
++      );
++      if (!vtxo) continue;
+       for (const candidate of candidateWitnessItems(tx, i)) {
+         if (hashesTo(candidate, input.paymentHash)) {
+           return { fate: "claimed", preimage: candidate, spends };
+         }
+       }
++      if (spendsRefundLeaf(tx, i)) refunded.add(`${vtxo.txid}:${vtxo.vout}`);
+     }
+   }
+   if (sweptLeft) return { fate: "open" };
+-  return everySpendNamed && observed.size === spentBy.size ? { fate: "returned", spends } : { fate: "unknown" };
++  return everySpendNamed && all.every((vtxo) => refunded.has(`${vtxo.txid}:${vtxo.vout}`)) ? { fate: "returned", spends } : { fate: "unknown" };
+ }
+ var assertNoneSwept = (vtxos, contract) => {
+   const swept = vtxos.filter((vtxo) => vtxo.recoverable);
+diff --git a/dist/index.cjs b/dist/index.cjs
+index f7446af30824644f3152613313291ca173310725..7caaa2c2470bc9f2327df5b3a654bcf22186b40c 100644
+--- a/dist/index.cjs
++++ b/dist/index.cjs
+@@ -2813,11 +2813,24 @@ var candidateWitnessItems = (tx, inputIndex) => [
+   ...(0, import_sdk8.getArkPsbtFields)(tx, inputIndex, import_sdk8.ConditionWitness).flat(),
+   ...tx.getInput(inputIndex).finalScriptWitness ?? []
+ ];
++const spendsRefundLeaf = (tx, inputIndex) => {
++  const input = tx.getInput(inputIndex);
++  const witness = input.finalScriptWitness;
++  const leaves = input.tapLeafScript ?? [];
++  const script = witness && witness.length >= 2 ? witness[witness.length - 2] : leaves.length === 1 ? import_sdk8.scriptFromTapLeafScript(leaves[0]) : void 0;
++  if (!script) return false;
++  try {
++    const { type } = import_sdk8.decodeTapscript(script);
++    return type === "multisig" || type === "csv-multisig" || type === "cltv-multisig";
++  } catch {
++    return false;
++  }
++};
+ async function readLockupFate(indexer, input) {
+   const { vtxos } = await indexer.getVtxos({ scripts: [import_base7.hex.encode(input.swapPkScript)] });
+   const all = vtxos ?? [];
+   if (all.length === 0) return { fate: "unknown" };
+-  const exited = all.filter((vtxo) => vtxo.isUnrolled && !(0, import_sdk8.isVtxoSpent)(vtxo));
++  const exited = all.filter((vtxo) => vtxo.isUnrolled && !import_sdk8.isVtxoSpent(vtxo));
+   if (exited.length > 0) {
+     return {
+       fate: "exited",
+@@ -2828,7 +2841,7 @@ async function readLockupFate(indexer, input) {
+   let everySpendNamed = true;
+   let sweptLeft = false;
+   for (const vtxo of all) {
+-    if (!(0, import_sdk8.isVtxoSpent)(vtxo)) {
++    if (!import_sdk8.isVtxoSpent(vtxo)) {
+       if (!(input.receiver && vtxo.isSwept)) return { fate: "open" };
+       sweptLeft = true;
+       continue;
+@@ -2842,7 +2855,7 @@ async function readLockupFate(indexer, input) {
+   }
+   const spends = [...spentBy.values()];
+   const { txs } = await indexer.getVirtualTxs([...spentBy.keys()]);
+-  const observed = /* @__PURE__ */ new Set();
++  const refunded = /* @__PURE__ */ new Set();
+   for (const raw of txs) {
+     let tx;
+     try {
+@@ -2850,21 +2863,25 @@ async function readLockupFate(indexer, input) {
+     } catch {
+       continue;
+     }
+-    if (spentBy.has(tx.id)) observed.add(tx.id);
++    if (!spentBy.has(tx.id)) continue;
+     for (let i = 0; i < tx.inputsLength; i++) {
+       const spent = tx.getInput(i);
+       if (!spent.txid) continue;
+       const txid = import_base7.hex.encode(spent.txid);
+-      if (!all.some((vtxo) => vtxo.txid === txid && vtxo.vout === spent.index)) continue;
++      const vtxo = all.find(
++        (vtxo2) => vtxo2.txid === txid && vtxo2.vout === spent.index && vtxo2.spentBy === tx.id
++      );
++      if (!vtxo) continue;
+       for (const candidate of candidateWitnessItems(tx, i)) {
+         if (hashesTo(candidate, input.paymentHash)) {
+           return { fate: "claimed", preimage: candidate, spends };
+         }
+       }
++      if (spendsRefundLeaf(tx, i)) refunded.add(`${vtxo.txid}:${vtxo.vout}`);
+     }
+   }
+   if (sweptLeft) return { fate: "open" };
+-  return everySpendNamed && observed.size === spentBy.size ? { fate: "returned", spends } : { fate: "unknown" };
++  return everySpendNamed && all.every((vtxo) => refunded.has(`${vtxo.txid}:${vtxo.vout}`)) ? { fate: "returned", spends } : { fate: "unknown" };
+ }
+ var assertNoneSwept = (vtxos, contract) => {
+   const swept = vtxos.filter((vtxo) => vtxo.recoverable);
+@@ -8041,6 +8058,41 @@ var createSwapDrive = (config) => {
+     await adoptLegacyRfqSwaps(repository);
+     const all = await collectSwapRecords(repository);
+     const { corridor, offer } = splitRecords(all.filter(readableRecord));
++if (mode !== "readonly") {
++  for (const [index, record] of corridor.entries()) {
++    if (record.kind !== "lightning_send" || record.state !== "refunded" || record.refundTxid)
++      continue;
++    try {
++      const fate = await readLockupFate(indexer, {
++        swapPkScript: import_base18.hex.decode(record.lockupPkScript),
++        paymentHash: record.lock.hash
++      });
++      if (fate.fate !== "claimed") continue;
++      const current = await repository.getSwapRecord(record.id);
++      if (current?.family !== "rfq" || current.kind !== "lightning_send" || current.state !== "refunded" || current.refundTxid || current.updatedAt !== record.updatedAt || current.lock.hash !== record.lock.hash || current.lockupPkScript !== record.lockupPkScript)
++        continue;
++      const corrected = {
++        ...current,
++        state: "settled",
++        settlementPreimageHex: import_base18.hex.encode(fate.preimage),
++        lockupSpendTxids: [
++          ...new Set(
++            fate.spends.flatMap((spend) => spend.txid ? [spend.txid] : [])
++          )
++        ],
++        updatedAt: now()
++      };
++      await repository.saveSwapRecord(corrected);
++      corridor[index] = corrected;
++    } catch (error) {
++      console.warn(
++        `[swap] could not verify stored Lightning refund ${record.id}`,
++        error
++      );
++    }
++  }
++}
++
+     const retiredScripts = /* @__PURE__ */ new Set();
+     for (const record of [...corridor, ...offer]) {
+       records.set(record.id, record);
+diff --git a/dist/protocol.cjs b/dist/protocol.cjs
+index 05802a6c4d5de50c26d1e2914bf03ce5a6fe1b2f..c035f2d088068c473c1a3f1d4c5e607560f99230 100644
+--- a/dist/protocol.cjs
++++ b/dist/protocol.cjs
+@@ -3290,11 +3290,24 @@ var candidateWitnessItems = (tx, inputIndex) => [
+   ...(0, import_sdk8.getArkPsbtFields)(tx, inputIndex, import_sdk8.ConditionWitness).flat(),
+   ...tx.getInput(inputIndex).finalScriptWitness ?? []
+ ];
++const spendsRefundLeaf = (tx, inputIndex) => {
++  const input = tx.getInput(inputIndex);
++  const witness = input.finalScriptWitness;
++  const leaves = input.tapLeafScript ?? [];
++  const script = witness && witness.length >= 2 ? witness[witness.length - 2] : leaves.length === 1 ? import_sdk8.scriptFromTapLeafScript(leaves[0]) : void 0;
++  if (!script) return false;
++  try {
++    const { type } = import_sdk8.decodeTapscript(script);
++    return type === "multisig" || type === "csv-multisig" || type === "cltv-multisig";
++  } catch {
++    return false;
++  }
++};
+ async function readLockupFate(indexer, input) {
+   const { vtxos } = await indexer.getVtxos({ scripts: [import_base7.hex.encode(input.swapPkScript)] });
+   const all = vtxos ?? [];
+   if (all.length === 0) return { fate: "unknown" };
+-  const exited = all.filter((vtxo) => vtxo.isUnrolled && !(0, import_sdk8.isVtxoSpent)(vtxo));
++  const exited = all.filter((vtxo) => vtxo.isUnrolled && !import_sdk8.isVtxoSpent(vtxo));
+   if (exited.length > 0) {
+     return {
+       fate: "exited",
+@@ -3305,7 +3318,7 @@ async function readLockupFate(indexer, input) {
+   let everySpendNamed = true;
+   let sweptLeft = false;
+   for (const vtxo of all) {
+-    if (!(0, import_sdk8.isVtxoSpent)(vtxo)) {
++    if (!import_sdk8.isVtxoSpent(vtxo)) {
+       if (!(input.receiver && vtxo.isSwept)) return { fate: "open" };
+       sweptLeft = true;
+       continue;
+@@ -3319,7 +3332,7 @@ async function readLockupFate(indexer, input) {
+   }
+   const spends = [...spentBy.values()];
+   const { txs } = await indexer.getVirtualTxs([...spentBy.keys()]);
+-  const observed = /* @__PURE__ */ new Set();
++  const refunded = /* @__PURE__ */ new Set();
+   for (const raw of txs) {
+     let tx;
+     try {
+@@ -3327,21 +3340,25 @@ async function readLockupFate(indexer, input) {
+     } catch {
+       continue;
+     }
+-    if (spentBy.has(tx.id)) observed.add(tx.id);
++    if (!spentBy.has(tx.id)) continue;
+     for (let i = 0; i < tx.inputsLength; i++) {
+       const spent = tx.getInput(i);
+       if (!spent.txid) continue;
+       const txid = import_base7.hex.encode(spent.txid);
+-      if (!all.some((vtxo) => vtxo.txid === txid && vtxo.vout === spent.index)) continue;
++      const vtxo = all.find(
++        (vtxo2) => vtxo2.txid === txid && vtxo2.vout === spent.index && vtxo2.spentBy === tx.id
++      );
++      if (!vtxo) continue;
+       for (const candidate of candidateWitnessItems(tx, i)) {
+         if (hashesTo(candidate, input.paymentHash)) {
+           return { fate: "claimed", preimage: candidate, spends };
+         }
+       }
++      if (spendsRefundLeaf(tx, i)) refunded.add(`${vtxo.txid}:${vtxo.vout}`);
+     }
+   }
+   if (sweptLeft) return { fate: "open" };
+-  return everySpendNamed && observed.size === spentBy.size ? { fate: "returned", spends } : { fate: "unknown" };
++  return everySpendNamed && all.every((vtxo) => refunded.has(`${vtxo.txid}:${vtxo.vout}`)) ? { fate: "returned", spends } : { fate: "unknown" };
+ }
+ var assertNoneSwept = (vtxos, contract) => {
+   const swept = vtxos.filter((vtxo) => vtxo.recoverable);
