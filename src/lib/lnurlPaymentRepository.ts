@@ -30,55 +30,46 @@ export const createIndexedDbLnurlPaymentStore = (
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
+  /** Settles on `abort`, never `error`: a failure at commit (a quota overrun, say)
+   *  fires only `abort`, and a request's `error` bubbles here before `tx.error` is
+   *  set, then the abort that follows carries it. */
+  const run = <T>(mode: IDBTransactionMode, work: (store: IDBObjectStore) => () => T): Promise<T> =>
+    open().then(
+      (db) =>
+        new Promise<T>((resolve, reject) => {
+          const fail = (error: unknown) => {
+            db.close()
+            reject(error ?? new DOMException('Transaction aborted', 'AbortError'))
+          }
+          try {
+            const tx = db.transaction(storeName, mode)
+            const result = work(tx.objectStore(storeName))
+            tx.oncomplete = () => {
+              db.close()
+              resolve(result())
+            }
+            tx.onabort = () => fail(tx.error)
+          } catch (err) {
+            fail(err)
+          }
+        }),
+    )
   return {
     read: () =>
-      open().then(
-        (db) =>
-          new Promise<StoredPayment[]>((resolve, reject) => {
-            const request = db.transaction(storeName, 'readonly').objectStore(storeName).getAll()
-            request.onsuccess = () => {
-              db.close()
-              resolve(request.result as StoredPayment[])
-            }
-            request.onerror = () => {
-              db.close()
-              reject(request.error)
-            }
-          }),
-      ),
+      run('readonly', (store) => {
+        const request = store.getAll()
+        return () => request.result as StoredPayment[]
+      }),
     write: (records) =>
-      open().then(
-        (db) =>
-          new Promise<void>((resolve, reject) => {
-            const tx = db.transaction(storeName, 'readwrite')
-            const store = tx.objectStore(storeName)
-            for (const record of records) store.put(record)
-            tx.oncomplete = () => {
-              db.close()
-              resolve()
-            }
-            tx.onerror = () => {
-              db.close()
-              reject(tx.error)
-            }
-          }),
-      ),
+      run('readwrite', (store) => {
+        for (const record of records) store.put(record)
+        return () => undefined
+      }),
     clear: () =>
-      open().then(
-        (db) =>
-          new Promise<void>((resolve, reject) => {
-            const tx = db.transaction(storeName, 'readwrite')
-            tx.objectStore(storeName).clear()
-            tx.oncomplete = () => {
-              db.close()
-              resolve()
-            }
-            tx.onerror = () => {
-              db.close()
-              reject(tx.error)
-            }
-          }),
-      ),
+      run('readwrite', (store) => {
+        store.clear()
+        return () => undefined
+      }),
   }
 }
 
