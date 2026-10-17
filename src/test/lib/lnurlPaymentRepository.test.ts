@@ -108,7 +108,7 @@ const stubIndexedDb = ({
       const outcome = outcomes.shift() ?? 'complete'
       const requests: FakeRequest[] = []
       const tx: FakeTx = {
-        error: outcome === 'error' ? new DOMException('quota exceeded', 'QuotaExceededError') : null,
+        error: null,
         oncomplete: null,
         onerror: null,
         onabort: null,
@@ -128,7 +128,11 @@ const stubIndexedDb = ({
           tx.oncomplete?.()
           return
         }
-        if (outcome === 'error') tx.onerror?.()
+        // As in IDB: `error` bubbles before the abort that sets `tx.error`.
+        if (outcome === 'error') {
+          tx.onerror?.()
+          tx.error = new DOMException('quota exceeded', 'QuotaExceededError')
+        }
         tx.onabort?.()
       }, 0)
       return tx
@@ -307,7 +311,7 @@ describe('createIndexedDbLnurlPaymentStore', () => {
     const write = createIndexedDbLnurlPaymentStore().write([makePayment('hash-1')])
 
     expect(await outcomeOf(write)).toBe('rejected')
-    await expect(write).rejects.toThrow(/abort/i)
+    await expect(write).rejects.toMatchObject({ name: 'AbortError' })
     expect(idb.closes()).toBe(1)
   })
 
@@ -316,16 +320,18 @@ describe('createIndexedDbLnurlPaymentStore', () => {
     const clear = createIndexedDbLnurlPaymentStore().clear()
 
     expect(await outcomeOf(clear)).toBe('rejected')
-    await expect(clear).rejects.toThrow(/abort/i)
+    await expect(clear).rejects.toMatchObject({ name: 'AbortError' })
     expect(idb.closes()).toBe(1)
   })
 
   it('rejects with the transaction error when onerror is followed by onabort', async () => {
     const idb = stubIndexedDb({ outcomes: ['error'] })
 
-    await expect(createIndexedDbLnurlPaymentStore().write([makePayment('hash-1')])).rejects.toThrow(/quota/i)
+    await expect(createIndexedDbLnurlPaymentStore().write([makePayment('hash-1')])).rejects.toMatchObject({
+      name: 'QuotaExceededError',
+    })
 
-    expect(idb.closes()).toBeGreaterThanOrEqual(1)
+    expect(idb.closes()).toBe(1)
   })
 
   it.each([
@@ -335,7 +341,7 @@ describe('createIndexedDbLnurlPaymentStore', () => {
   ])('closes the db when %s throws synchronously', async (_operation, call) => {
     const idb = stubIndexedDb({ failTransaction: true })
 
-    await expect(call(createIndexedDbLnurlPaymentStore())).rejects.toThrow(/closing/i)
+    await expect(call(createIndexedDbLnurlPaymentStore())).rejects.toMatchObject({ name: 'InvalidStateError' })
 
     expect(idb.closes()).toBe(1)
   })
