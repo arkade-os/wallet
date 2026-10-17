@@ -4,29 +4,13 @@ import { consoleError } from './logs'
 import { lnurlReceiver } from './receive/lnurlRail'
 import { lnurlPaymentSyncStore } from './lnurlPaymentRepository'
 
-const inFlightWrites = new Set<Promise<void>>()
-
-const tracked = async (write: Promise<void>): Promise<void> => {
-  inFlightWrites.add(write)
-  try {
-    await write
-  } finally {
-    inFlightWrites.delete(write)
-  }
-}
-
-/** Resolves once every store write a sync started has landed. After the
- *  signal aborts no new one starts, so a reset that awaits this clears last. */
-export const lnurlSyncWritesSettled = async (): Promise<void> => {
-  await Promise.allSettled([...inFlightWrites])
-}
-
 /**
  * Pulls payment activity for the identity's address owned at the configured
  * lnurl-server, writing through `store`. Resolves to zero rather than
  * throwing when there is no configured server or no owned address — the
  * caller (startup) must never be blocked by this. Writes stop once `signal`
- * aborts: a reset clears the store while a sync may still be in flight.
+ * aborts, which a lock does; a reset instead closes the store itself, so that
+ * the writers this module does not own are covered too.
  */
 export async function syncLnurlActivity(
   identity: ArkadeSigner,
@@ -43,10 +27,10 @@ export async function syncLnurlActivity(
       ? {
           ...store,
           upsert: async (records) => {
-            if (!signal.aborted) await tracked(store.upsert(records))
+            if (!signal.aborted) await store.upsert(records)
           },
           writeWatermark: async (baseUrl, lightningAddress, since) => {
-            if (!signal.aborted) await tracked(store.writeWatermark(baseUrl, lightningAddress, since))
+            if (!signal.aborted) await store.writeWatermark(baseUrl, lightningAddress, since)
           },
         }
       : store,
