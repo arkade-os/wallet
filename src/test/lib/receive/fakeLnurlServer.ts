@@ -145,6 +145,7 @@ export function fakeLnurlServer(opts: {
   paymentAmount?: string
   /** Replaces a token quote's paymentURI. */
   paymentURI?: string
+  payRequestFail?: boolean
 }) {
   const addresses = [...(opts.addresses ?? [])]
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -177,6 +178,7 @@ export function fakeLnurlServer(opts: {
     }
     // `/lnurl/<id>` is a nameless receiver's LNURL, which the server serves with the same rails.
     if (method === 'GET' && (path.startsWith('/.well-known/lnurlp/') || /^\/lnurl\/[^/]+$/.test(path))) {
+      if (opts.payRequestFail) return json(500, { status: 'ERROR', reason: 'payRequest unavailable' })
       return json(200, {
         tag: 'payRequest',
         callback: `${LNURL_BASE}/callback/${path.split('/').pop()}`,
