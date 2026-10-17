@@ -15,6 +15,7 @@ import {
   arbitrumUri,
   fakeLnurlServer,
   holdQuotes,
+  solanaUri,
 } from './fakeLnurlServer'
 
 configure({ asyncUtilTimeout: 3_000 })
@@ -313,6 +314,24 @@ describe('useLnurlTokenRails', () => {
     const { result } = renderTokens('ff-usdtarbitrum')
     await waitFor(() => expect(result.current.quote).toBeDefined())
     expect(result.current.quote!.value).toBe(TOKEN_DEPOSITS['ff-usdtarbitrum'])
+  })
+
+  const solanaQuote = solanaUri(20_000_000)
+  it('keeps a Solana Pay URI that names each bound field once', async () => {
+    serve({ simulated: true })
+    const { result } = renderTokens('ffsim-usdtsol')
+    await waitFor(() => expect(result.current.quote).toBeDefined())
+    expect(result.current.quote!.value).toBe(solanaQuote)
+  })
+
+  it.each([
+    ['the mint repeated', `${solanaQuote}&spl-token=${new URL(solanaQuote).searchParams.get('spl-token')}`],
+    ['the amount repeated', `${solanaQuote}&amount=1`],
+  ])('shows the bare Solana deposit, not a URI with %s', async (_, paymentURI) => {
+    serve({ paymentURI, simulated: true })
+    const { result } = renderTokens('ffsim-usdtsol')
+    await waitFor(() => expect(result.current.quote).toBeDefined())
+    expect(result.current.quote!.value).toBe(TOKEN_DEPOSITS['ffsim-usdtsol'])
   })
 
   it('refuses a quote far from what the amount is worth at the BTC price the wallet shows', async () => {
