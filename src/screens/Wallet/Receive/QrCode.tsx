@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useState } from 'react'
+import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
@@ -73,8 +73,8 @@ const railLogo = (rail: LnurlTokenRail, ring: string) => (
 export default function ReceiveQRCode() {
   const { aspInfo } = useContext(AspContext)
   const { isRegistered } = useContext(AssetsContext)
-  const { config, useFiat } = useContext(ConfigContext)
-  const { backupAndUpdateConfig } = useContext(BackupContext)
+  const { config, updateConfig, useFiat } = useContext(ConfigContext)
+  const { backupAndUpdateConfig, backupConfig } = useContext(BackupContext)
   const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
@@ -400,9 +400,23 @@ export default function ReceiveQRCode() {
     return false
   }
 
+  // Arrow keys move the QR row by row: save each pick locally, and back it up remotely once they settle.
+  const pendingBackup = useRef<{ config: typeof config; timer: ReturnType<typeof setTimeout> }>(undefined)
+  const flushBackup = () => {
+    const pending = pendingBackup.current
+    if (!pending) return
+    clearTimeout(pending.timer)
+    pendingBackup.current = undefined
+    backupConfig(pending.config).catch((err) => consoleError(err, 'receive form backup failed'))
+  }
+  useEffect(() => flushBackup, [])
+
   const showPart = (id: PartId) => {
     if (config.receiveQrForm[shown] === id) return
-    backupAndUpdateConfig({ ...config, receiveQrForm: { ...config.receiveQrForm, [shown]: id } })
+    const next = { ...config, receiveQrForm: { ...config.receiveQrForm, [shown]: id } }
+    updateConfig(next)
+    if (pendingBackup.current) clearTimeout(pendingBackup.current.timer)
+    pendingBackup.current = { config: next, timer: setTimeout(flushBackup, 800) }
   }
 
   const methodLabel = (m: ReceiveMethod) =>
