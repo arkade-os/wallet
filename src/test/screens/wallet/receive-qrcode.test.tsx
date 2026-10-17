@@ -75,6 +75,8 @@ beforeAll(() => {
 })
 
 const backupAndUpdateConfig = vi.fn()
+const updateConfig = vi.fn()
+const backupConfig = vi.fn(async () => {})
 
 const mockNotificationsContextValue = {
   notifyPaymentReceived: () => {},
@@ -104,13 +106,13 @@ function buildTree(overrides?: RenderOverrides) {
       <ToastProvider>
         <NavigationContext.Provider value={mockNavigationContextValue}>
           <AspContext.Provider value={mockAspContextValue}>
-            <ConfigContext.Provider value={config as any}>
+            <ConfigContext.Provider value={{ ...config, updateConfig } as any}>
               <FiatContext.Provider value={{ ...mockFiatContextValue, ...overrides?.fiat } as any}>
                 <NotificationsContext.Provider value={mockNotificationsContextValue as any}>
                   <FlowContext.Provider value={flow as any}>
                     <WalletContext.Provider value={wallet as any}>
                       <LimitsContext.Provider value={mockLimitsContextValue}>
-                        <BackupContext.Provider value={{ backupAndUpdateConfig } as any}>
+                        <BackupContext.Provider value={{ backupAndUpdateConfig, backupConfig } as any}>
                           <ReceiveQRCode />
                         </BackupContext.Provider>
                       </LimitsContext.Provider>
@@ -152,6 +154,8 @@ describe('Receive QR Code screen', () => {
   beforeEach(() => {
     copyToClipboardMock.mockClear()
     backupAndUpdateConfig.mockClear()
+    updateConfig.mockClear()
+    backupConfig.mockClear()
   })
 
   // Regression for the switched-QR path: new recvInfo addresses re-derive the QR through the BIP21
@@ -294,9 +298,7 @@ describe('Receive QR Code screen', () => {
 
       fireEvent.click(await screen.findByRole('radio', { name: /Lightning invoice/ }))
 
-      expect(backupAndUpdateConfig).toHaveBeenLastCalledWith(
-        expect.objectContaining({ receiveQrForm: { full: 'invoice' } }),
-      )
+      expect(updateConfig).toHaveBeenLastCalledWith(expect.objectContaining({ receiveQrForm: { full: 'invoice' } }))
       expect(copyToClipboardMock).not.toHaveBeenCalled()
     })
 
