@@ -30,9 +30,9 @@ export const createIndexedDbLnurlPaymentStore = (
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
-  /** Every operation goes through here because a failure at commit — a quota
-   *  overrun, say — finds every request already done, so `abort` is the only
-   *  event left to fire and anything waiting on `error` would hang forever. */
+  /** Settles on `abort`, never `error`: a failure at commit (a quota overrun, say)
+   *  fires only `abort`, and a request's `error` bubbles here before `tx.error` is
+   *  set, then the abort that follows carries it. */
   const run = <T>(mode: IDBTransactionMode, work: (store: IDBObjectStore) => () => T): Promise<T> =>
     open().then(
       (db) =>
@@ -48,7 +48,6 @@ export const createIndexedDbLnurlPaymentStore = (
               db.close()
               resolve(result())
             }
-            tx.onerror = () => fail(tx.error)
             tx.onabort = () => fail(tx.error)
           } catch (err) {
             fail(err)
