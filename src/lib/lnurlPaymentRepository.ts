@@ -41,16 +41,26 @@ export const createIndexedDbLnurlPaymentStore = (
             db.close()
             reject(error ?? new DOMException('Transaction aborted', 'AbortError'))
           }
+          let started: IDBTransaction | undefined
           try {
             const tx = db.transaction(storeName, mode)
+            started = tx
             const result = work(tx.objectStore(storeName))
             tx.oncomplete = () => {
               db.close()
-              resolve(result())
+              try {
+                resolve(result())
+              } catch (err) {
+                reject(err)
+              }
             }
             tx.onabort = () => fail(tx.error)
           } catch (err) {
-            fail(err)
+            // close() lets a live transaction commit what `work` queued before it threw.
+            if (started) {
+              started.onabort = () => fail(err)
+              started.abort()
+            } else fail(err)
           }
         }),
     )
