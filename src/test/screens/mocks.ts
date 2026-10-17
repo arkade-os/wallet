@@ -67,6 +67,7 @@ export const mockConfigContextValue = {
     nostrBackup: true,
     notifications: true,
     pubkey: '',
+    receiveViaLnurl: false,
     showBalance: true,
     theme: Themes.Dark,
     unit: Unit.BTC,
