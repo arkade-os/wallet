@@ -84,7 +84,7 @@ export default function SendSuccess() {
     appNeedsDriver && appIntent?.status === 'send' && appIntent.committedOnchain?.swapId !== sendInfo.swapId
       ? pendingWarning
       : isOnchainSend && (!appIntent || needsDriver)
-        ? `${displayAmount} on the way — keep the wallet open until it completes`
+        ? t('send.onTheWayKeepOpen', { amount: displayAmount })
         : returnHost
           ? t('appIntent.sentReturn', { amount: displayAmount, host: returnHost })
           : isSwapSend
