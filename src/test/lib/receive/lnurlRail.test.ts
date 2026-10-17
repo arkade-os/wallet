@@ -46,6 +46,11 @@ describe('configuredLnurlServer', () => {
     expect(configuredLnurlServer()).toEqual({ baseUrl: BASE_URL, domain: DOMAIN })
   })
 
+  it('drops trailing slashes, so paths built on the server have one separator', () => {
+    vi.stubEnv('VITE_LNURL_SERVER', `${BASE_URL}//`)
+    expect(configuredLnurlServer()).toEqual({ baseUrl: BASE_URL, domain: DOMAIN })
+  })
+
   it('is undefined when the Docker image left the placeholders unsubstituted', () => {
     vi.stubEnv('VITE_LNURL_SERVER', '__VITE_LNURL_SERVER__')
     vi.stubEnv('VITE_LNURL_DOMAIN', '__VITE_LNURL_DOMAIN__')
