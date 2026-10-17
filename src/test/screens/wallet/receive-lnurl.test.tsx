@@ -80,7 +80,7 @@ beforeAll(() => {
 const receiveLightning = vi.fn()
 const backupAndUpdateConfig = vi.fn<(config: Config) => void>()
 const updateConfig = vi.fn<(config: Config) => void>()
-const backupConfig = vi.fn(async (_config: Config) => {})
+const backupConfig = vi.fn<(config: Config) => Promise<void>>(async () => {})
 const svcWallet = { ...mockSvcWallet, identity: SingleKey.fromHex('03'.repeat(32)) }
 const atMarket = (sats: number) => (sats * BTC_USD) / 1e8
 
