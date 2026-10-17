@@ -406,6 +406,30 @@ describe('Receive screen, rail composition', () => {
     expect(backupConfig).toHaveBeenLastCalledWith(expect.objectContaining({ receiveQrForm: { ark: 'ark' } }))
   })
 
+  it('backs up the config as it is when the picks settle, keeping a mode picked meanwhile', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    function LiveConfig() {
+      const [config, setConfig] = useState<Partial<Config>>({})
+      updateConfig.mockImplementation(setConfig)
+      backupAndUpdateConfig.mockImplementation(setConfig)
+      return receiveTree(0, config)
+    }
+    try {
+      render(<LiveConfig />)
+      await pickMethod('Arkade')
+      fireEvent.click(await screen.findByRole('radio', { name: /Arkade address/ }))
+      await pickMethod(/Lightning address/)
+
+      await waitFor(() => expect(backupConfig).toHaveBeenCalledTimes(1), { timeout: 2000 })
+      expect(backupConfig).toHaveBeenLastCalledWith(
+        expect.objectContaining({ receiveUnifiedMode: 'lnaddress', receiveQrForm: { ark: 'ark' } }),
+      )
+    } finally {
+      updateConfig.mockReset()
+      backupAndUpdateConfig.mockReset()
+    }
+  })
+
   it('gives the LNURL and the Lightning address rows their own copy buttons', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
     renderReceive()
