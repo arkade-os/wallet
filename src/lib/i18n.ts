@@ -159,7 +159,7 @@ export const translations = {
       resetWallet: 'Reset wallet',
       didYouBackup: 'Did you backup your wallet?',
       cannotUndo: 'This operation cannot be undone.',
-      resetFailed: 'Could not reset the wallet. Nothing was cleared — close any other tabs and try again.',
+      resetFailed: 'Could not reset the wallet. Some data may have been cleared — close any other tabs and try again.',
       iHaveBackedUp: 'I have backed up my wallet',
       passwordChangedToBiometrics: 'Password changed to biometrics',
       passwordRemoved: 'Password removed',
@@ -1013,7 +1013,8 @@ export const translations = {
       resetWallet: 'Restablecer wallet',
       didYouBackup: '¿Has hecho un respaldo de tu wallet?',
       cannotUndo: 'Esta operación no se puede deshacer.',
-      resetFailed: 'No se pudo restablecer la wallet. No se borró nada; cierra otras pestañas e inténtalo de nuevo.',
+      resetFailed:
+        'No se pudo restablecer la wallet. Es posible que se hayan borrado algunos datos; cierra otras pestañas e inténtalo de nuevo.',
       iHaveBackedUp: 'He hecho un respaldo de mi wallet',
       passwordChangedToBiometrics: 'Contraseña cambiada a datos biométricos',
       passwordRemoved: 'Contraseña eliminada',
