@@ -191,7 +191,7 @@ describe('clearLnurlPaymentsForReset', () => {
     expect(await repository.all()).toEqual([])
   })
 
-  it('rejects when the clear fails, leaving the records intact', async () => {
+  it('rejects when the clear fails, leaving the records intact and the store open', async () => {
     const store = createMemoryStore()
     store.clear = async () => {
       throw new Error('indexeddb unavailable')
@@ -202,6 +202,8 @@ describe('clearLnurlPaymentsForReset', () => {
     await expect(clearLnurlPaymentsForReset(repository)).rejects.toThrow('indexeddb unavailable')
 
     expect(await repository.all()).toHaveLength(1)
+    await repository.upsert([makePayment('hash-2')])
+    expect(await repository.all()).toHaveLength(2)
   })
 
   // The claim-triggered `sync()` calls in `receive/lnurlRail.ts` are
