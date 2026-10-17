@@ -88,15 +88,51 @@ export function createLnurlPaymentRepository(store: LnurlPaymentStore = indexedD
   upsert(records: StoredPayment[]): Promise<void>
   all(): Promise<StoredPayment[]>
   clear(): Promise<void>
+  closeWrites(): void
+  writesClosed(): boolean
+  writesSettled(): Promise<void>
 } {
+  const inFlight = new Set<Promise<void>>()
+  let closed = false
   return {
-    upsert: (records) => store.write(records),
+    // Refusing and registering happen in one synchronous turn, so no write can
+    // slip past `closeWrites` and then land after `writesSettled` resolved.
+    upsert: async (records) => {
+      if (closed) return
+      const write = store.write(records)
+      inFlight.add(write)
+      try {
+        await write
+      } finally {
+        inFlight.delete(write)
+      }
+    },
     all: () => store.read(),
     clear: () => store.clear(),
+    closeWrites: () => {
+      closed = true
+    },
+    writesClosed: () => closed,
+    writesSettled: async () => {
+      await Promise.allSettled([...inFlight])
+    },
   }
 }
 
 export const lnurlPaymentRepository: ReturnType<typeof createLnurlPaymentRepository> = createLnurlPaymentRepository()
+
+/** A reset's LNURL step: shut the store to new writes, let the ones already in
+ *  flight land, then clear. Rejects if the clear fails so the caller can abort
+ *  with the wallet intact — finishing a reset that still holds the previous
+ *  wallet's preimages is the worse outcome. The gate never reopens; every reset
+ *  reloads the app. */
+export const clearLnurlPaymentsForReset = async (
+  repository: ReturnType<typeof createLnurlPaymentRepository> = lnurlPaymentRepository,
+): Promise<void> => {
+  repository.closeWrites()
+  await repository.writesSettled()
+  await repository.clear()
+}
 
 /** Wraps the package's resolver with a re-read on every `prepare()`: the sync
  *  loop writes after the first history load, and a snapshot cached at
@@ -131,6 +167,7 @@ export const createLnurlPaymentSyncStore = (
   upsert: (records) => repository.upsert(records),
   readWatermark: async (baseUrl, lightningAddress) => readWatermarkMap()[watermarkEntryKey(baseUrl, lightningAddress)],
   writeWatermark: async (baseUrl, lightningAddress, since) => {
+    if (repository.writesClosed()) return
     const stored = readWatermarkMap()
     stored[watermarkEntryKey(baseUrl, lightningAddress)] = since
     setStorageItemSafely(LNURL_WATERMARKS_STORAGE_KEY, JSON.stringify(stored), 'Failed to save lnurl watermark')
