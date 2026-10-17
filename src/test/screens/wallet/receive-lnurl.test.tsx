@@ -79,6 +79,8 @@ beforeAll(() => {
 
 const receiveLightning = vi.fn()
 const backupAndUpdateConfig = vi.fn<(config: Config) => void>()
+const updateConfig = vi.fn<(config: Config) => void>()
+const backupConfig = vi.fn(async (_config: Config) => {})
 const svcWallet = { ...mockSvcWallet, identity: SingleKey.fromHex('03'.repeat(32)) }
 const atMarket = (sats: number) => (sats * BTC_USD) / 1e8
 
@@ -108,7 +110,13 @@ const receiveTree = (
     <NavigationContext.Provider value={mockNavigationContextValue}>
       <AspContext.Provider value={mockAspContextValue as never}>
         <ConfigContext.Provider
-          value={{ ...mockConfigContextValue, config: { ...mockConfigContextValue.config, ...config } } as never}
+          value={
+            {
+              ...mockConfigContextValue,
+              updateConfig,
+              config: { ...mockConfigContextValue.config, ...config },
+            } as never
+          }
         >
           <FiatContext.Provider value={{ ...mockFiatContextValue, toFiatAmount: atMarket } as never}>
             <NotificationsContext.Provider value={{ notifyPaymentReceived: () => {} } as never}>
@@ -132,7 +140,7 @@ const receiveTree = (
                     <SwapsContext.Provider
                       value={{ receiveLightning, outcomeOf: () => undefined, errorOf: () => undefined } as never}
                     >
-                      <BackupContext.Provider value={{ backupAndUpdateConfig } as never}>
+                      <BackupContext.Provider value={{ backupAndUpdateConfig, backupConfig } as never}>
                         {statefulFlow ? (
                           <ReceiveFlow satoshis={satoshis} recv={recv}>
                             <ReceiveQRCode />
@@ -196,6 +204,8 @@ const callbacks = () =>
 beforeEach(() => {
   receiveLightning.mockReset()
   backupAndUpdateConfig.mockClear()
+  updateConfig.mockClear()
+  backupConfig.mockClear()
   copyToClipboard.mockClear()
   vi.stubEnv('VITE_LNURL_SERVER', LNURL_BASE)
   vi.stubEnv('VITE_LNURL_DOMAIN', '')
@@ -443,10 +453,33 @@ describe('Receive screen, rail composition', () => {
     await pickMethod('Arkade')
     fireEvent.click(await screen.findByRole('radio', { name: /Arkade address/ }))
     await waitFor(() =>
-      expect(backupAndUpdateConfig).toHaveBeenLastCalledWith(
-        expect.objectContaining({ receiveQrForm: { ark: 'ark' } }),
-      ),
+      expect(updateConfig).toHaveBeenLastCalledWith(expect.objectContaining({ receiveQrForm: { ark: 'ark' } })),
     )
+  })
+
+  it('backs a run of part picks up once, with the last one', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    renderReceive(10_000)
+    await pickMethod('Arkade')
+    fireEvent.click(await screen.findByRole('radio', { name: /Arkade address/ }))
+    fireEvent.click(screen.getByRole('radio', { name: /Payment link/ }))
+    fireEvent.click(screen.getByRole('radio', { name: /Arkade address/ }))
+
+    expect(updateConfig).toHaveBeenCalledTimes(3)
+    expect(backupConfig).not.toHaveBeenCalled()
+    await waitFor(() => expect(backupConfig).toHaveBeenCalledTimes(1), { timeout: 2000 })
+    expect(backupConfig).toHaveBeenLastCalledWith(expect.objectContaining({ receiveQrForm: { ark: 'ark' } }))
+  })
+
+  it('gives the LNURL and the Lightning address rows their own copy buttons', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    renderReceive()
+    await pickMethod(/^Lightning/)
+
+    await copyPart('lnaddress')
+    expect(copyToClipboard).toHaveBeenLastCalledWith('alice@lnurl.test')
+    await copyPart('lnurl')
+    expect(copyToClipboard.mock.calls.at(-1)![0]).toMatch(/^lnurl1/i)
   })
 })
 
