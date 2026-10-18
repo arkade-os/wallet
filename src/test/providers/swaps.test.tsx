@@ -7,6 +7,7 @@ import { WalletContext } from '../../providers/wallet'
 import { SwapsContext, SwapsProvider } from '../../providers/swaps'
 import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
 import { storeAssetPayment } from '../../lib/pendingAssetPayment'
+import { saveSolverCards } from '../../lib/solverCards'
 
 const mocks = vi.hoisted(() => ({
   created: vi.fn(),
@@ -431,6 +432,23 @@ describe('SwapsProvider', () => {
     expect(setAssetSwaps).toHaveBeenCalledWith([swap])
   })
 
+  it('hides a canonical corridor market that names the rail on the asset id', async () => {
+    mocks.watchSwapMarkets.mockImplementation((_network: string, onMarkets: (markets: unknown[]) => void) => {
+      onMarkets([
+        market(),
+        market({
+          base_asset: { id: 'arkade:bitcoin/slip44:0', ticker: 'BTC', decimals: 8 },
+          quote_asset: { id: 'bolt11:bitcoin/slip44:0', ticker: 'BTC', decimals: 8 },
+        }),
+      ])
+      return () => {}
+    })
+
+    renderProvider()
+
+    await waitFor(() => expect(screen.getByTestId('market-count')).toHaveTextContent('1'))
+  })
+
   it('watches the network’s markets while mounted and stops watching on unmount', () => {
     const stop = vi.fn()
     mocks.watchSwapMarkets.mockReturnValue(stop)
@@ -439,6 +457,25 @@ describe('SwapsProvider', () => {
     expect(stop).not.toHaveBeenCalled()
     view.unmount()
     expect(stop).toHaveBeenCalledOnce()
+  })
+
+  it('re-reads markets past the cache when a pinned card changes', async () => {
+    renderProvider()
+    expect(mocks.discoverMarkets).not.toHaveBeenCalled()
+
+    act(() => saveSolverCards([]))
+
+    await waitFor(() => expect(mocks.discoverMarkets).toHaveBeenCalledWith('regtest', false))
+  })
+
+  it('rebuilds the swap client when a pinned card changes, so it routes with the card', async () => {
+    renderProvider()
+    await waitFor(() => expect(mocks.created).toHaveBeenCalledOnce())
+
+    act(() => saveSolverCards([]))
+
+    await waitFor(() => expect(mocks.created).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(mocks.dispose).toHaveBeenCalledOnce())
   })
 
   it('quotes destinations through the swap client', async () => {
