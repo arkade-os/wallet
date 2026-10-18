@@ -24,6 +24,7 @@ import { LimitsContext } from '../../providers/limits'
 import { getInputsToSettle } from '../../lib/asp'
 import SwapTransactionSummary from '../../components/SwapTransactionSummary'
 import {
+  carrierDetails,
   formatSwapAssetAmount,
   swapAmountBeforeFee,
   swapFeeAmount,
@@ -36,7 +37,21 @@ import { hapticTap } from '../../lib/haptics'
 import { useTransactionAmountDisplay } from '../../hooks/useTransactionAmountDisplay'
 import { useCorridorSendReceipt } from '../../hooks/useCorridorSendReceipt'
 import TransactionAmountSummary from '../../components/TransactionAmountSummary'
+import { ClientErrorCode, TaxiError } from '@arkade-taxi/client'
+import { ReceiverClaimsContext } from '../../providers/receiverClaims'
+import { claimKey } from '../../lib/receiverClaims'
+import { PendingDirectTaxi, ReturnedDirectTaxi, checkTaxiPayment, getPendingDirectTaxi } from '../../lib/directTaxiSend'
+import {
+  isTaxiOnlyTx,
+  taxiActivityKey,
+  taxiActivityTxids,
+  taxiActivityView,
+  taxiCarrierRows,
+  type TaxiTone,
+} from '../../lib/taxiActivity'
+import { consoleError } from '../../lib/logs'
 import { useTranslation } from '../../providers/language'
+import { truncatedAssetId } from '../../lib/assets'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,14 +63,62 @@ import {
   AlertDialogTitle,
 } from '../../components/ui/alert-dialog'
 
+const TAXI_INFO_COLOR: Record<TaxiTone, string> = {
+  pending: 'orange',
+  failed: 'red',
+  done: 'green',
+  void: 'neutral-500',
+}
+const TAXI_MODE_KEY = {
+  recycle: 'transaction.taxiModeRecycle',
+  purchase: 'transaction.taxiModePurchase',
+  sponsored: 'transaction.taxiModeSponsored',
+} as const
+
 export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo } = useContext(FlowContext)
   const { cancelSwap, recoverSwap, swaps } = useContext(SwapsContext)
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
-  const { assetMetadataCache, isVerifiedAsset, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } =
-    useContext(WalletContext)
+  const {
+    assetMetadataCache,
+    isVerifiedAsset,
+    reloadWallet,
+    txs,
+    settlePreconfirmed,
+    vtxos,
+    vtxoManager,
+    wallet,
+    svcWallet,
+  } = useContext(WalletContext)
+  const { claimable, openClaim } = useContext(ReceiverClaimsContext)
   const { language, t } = useTranslation()
+
+  // By record key, not historyKey: the record survives its Taxi-only row giving way to the SDK row.
+  const taxiKey = txInfo?.taxi && taxiActivityKey(txInfo.taxi)
+  const taxi = txs.find((row) => row.taxi && taxiActivityKey(row.taxi) === taxiKey)?.taxi ?? txInfo?.taxi
+  const [pendingTransfer, setPendingTransfer] = useState<string>()
+  const [checkingTaxi, setCheckingTaxi] = useState(false)
+  const taxiView =
+    taxi &&
+    taxiActivityView(taxi, {
+      claimable: claimable.has(claimKey(taxi.taxiUrl, taxi.transferId)),
+      pending: pendingTransfer === taxi.transferId,
+    })
+  const taxiSender = taxi?.role === 'sender'
+
+  useEffect(() => {
+    if (!taxiSender || !svcWallet || checkingTaxi) return
+    let active = true
+    getPendingDirectTaxi(svcWallet, aspInfo.network)
+      .then((payment) => {
+        if (active) setPendingTransfer(payment?.record.transferId)
+      })
+      .catch((err) => consoleError(err, 'could not read the pending Taxi payment'))
+    return () => {
+      active = false
+    }
+  }, [taxiSender, svcWallet, aspInfo.network, checkingTaxi])
 
   const liveSwap = txInfo?.assetSwap?.fundingTxid
     ? swaps.find((swap) => swap.fundingTxid === txInfo.assetSwap?.fundingTxid)
@@ -223,6 +286,29 @@ export default function Transaction() {
           ? t('transaction.settled')
           : t('transaction.preconfirmed')
 
+  const taxiCheckError = (err: unknown): string => {
+    if (err instanceof ReturnedDirectTaxi) return ''
+    const cause = err instanceof PendingDirectTaxi ? err.cause : err
+    return cause instanceof TaxiError && (cause.code === ClientErrorCode.Network || cause.code === ClientErrorCode.Http)
+      ? t('transaction.taxiUnreachable')
+      : extractError(cause)
+  }
+
+  const handleTaxiCheck = async () => {
+    if (!taxi || checkingTaxi) return
+    hapticTap()
+    setError('')
+    setCheckingTaxi(true)
+    try {
+      await checkTaxiPayment(taxi, svcWallet)
+    } catch (err) {
+      setError(taxiCheckError(err))
+    } finally {
+      setCheckingTaxi(false)
+    }
+    reloadWallet().catch(consoleError)
+  }
+
   const fees = tx.networkFee ?? (tx.type === 'sent' ? defaultFee : 0)
   // On asset transfers tx.amount is only the data carrier, not the asset value.
   // The asset-aware rows below replace the legacy Amount/Total rows.
@@ -284,12 +370,42 @@ export default function Transaction() {
   ].filter((entry): entry is { assetId: string; label: string } => Boolean(entry))
   const swapReceived = swapTx ? formatSwapAssetAmount(tx, 'to') : undefined
 
+  const taxiOnly = isTaxiOnlyTx(tx)
+  const taxiUnsettled = taxiOnly && taxiView?.tone !== 'done'
+  const taxiAssetMetadata = taxi?.assetId ? assetMetadataCache.get(taxi.assetId)?.metadata : undefined
+  const carrier = taxi
+    ? taxiCarrierRows(
+        taxi,
+        language,
+        taxi.assetId
+          ? {
+              decimals: taxiAssetMetadata?.decimals,
+              ticker: isVerifiedAsset(taxi.assetId)
+                ? (taxiAssetMetadata?.ticker ?? truncatedAssetId(taxi.assetId))
+                : truncatedAssetId(taxi.assetId),
+            }
+          : undefined,
+      )
+    : carrierDetails(tx.assetPayment, language)
+  const taxiDetails = taxi
+    ? {
+        url: taxi.taxiUrl.replace(/^https?:\/\//, ''),
+        transferId: taxi.transferId,
+        mode: taxi.mode && t(TAXI_MODE_KEY[taxi.mode]),
+        updated: prettyDate(taxi.updatedAt, language),
+      }
+    : undefined
+  const relatedTxids = taxi ? taxiActivityTxids(taxi) : []
   const details: DetailsProps = swapTx
     ? {
         assetIds: swapAssetIds,
         assetTotals: swapReceived ? [{ ...swapReceived, label: t('transaction.totalReceived') }] : undefined,
+        carrier,
+        taxi: taxiDetails,
+        relatedTxids,
         date,
         fees: 0,
+        destination: tx.destination,
         fundedTxid: tx.assetSwap?.fundingTxid,
         priceRate: swapPriceRateLabel(tx),
         spendLabel: tx.assetSwap?.status === 'cancelled' ? t('transaction.cancelled') : t('transaction.completed'),
@@ -305,7 +421,10 @@ export default function Transaction() {
     : {
         amountDisplay,
         assetIds,
-        assetTotals,
+        assetTotals: taxiUnsettled ? undefined : assetTotals,
+        carrier,
+        taxi: taxiDetails,
+        relatedTxids,
         date,
         destination: tx.type === 'sent' && !boardingTx && !issuanceTx && !burnTx ? tx.destination : undefined,
         fees,
@@ -316,9 +435,9 @@ export default function Transaction() {
         isOffchainTx: !tx.boardingTxid && !exitTx && (Boolean(tx.redeemTxid) || Boolean(tx.roundTxid)),
         // Details' fallback row only (amountDisplay owns the rendered rows):
         // gross, matching the hook's convention
-        satoshis: assetTransfer ? undefined : tx.amount,
-        status,
-        total: assetTransfer ? undefined : tx.amount,
+        satoshis: assetTransfer || taxiUnsettled ? undefined : tx.amount,
+        status: taxiOnly ? undefined : status,
+        total: assetTransfer || taxiUnsettled ? undefined : tx.amount,
         // An ordinary payment PLUS swap facts, so it spreads here rather than
         // getting a third branch that would restate ten rows to add six.
         ...corridorReceipt,
@@ -366,6 +485,15 @@ export default function Transaction() {
               <TextSecondary>{t('transaction.settledSuccessfully')}</TextSecondary>
             </Info>
           ) : null}
+          {taxiView ? (
+            <Info color={TAXI_INFO_COLOR[taxiView.tone]} icon={<VtxosIcon />} title={t(taxiView.label)}>
+              <Text wrap>{t(taxiView.explanation)}</Text>
+              {taxi?.failureDetail ? <Text wrap>{taxi.failureDetail}</Text> : null}
+              {taxi?.failureCode ? (
+                <TextSecondary>{t('transaction.taxiFailureCode', { code: taxi.failureCode })}</TextSecondary>
+              ) : null}
+            </Info>
+          ) : null}
           {swapTx && tx.assetSwap ? (
             <SwapTransactionSummary fromIcon={swapFromIcon} toIcon={swapToIcon} tx={tx} />
           ) : null}
@@ -394,7 +522,22 @@ export default function Transaction() {
   const showSettleActions = showCompleteBoarding || showSettleButtons
 
   const Buttons = () =>
-    showCancelSwap ? (
+    taxiView?.action === 'claim' ? (
+      <ButtonsOnBottom>
+        <Button
+          label={t('transaction.taxiClaim')}
+          onClick={() => taxi && openClaim(claimKey(taxi.taxiUrl, taxi.transferId))}
+        />
+      </ButtonsOnBottom>
+    ) : taxiView?.action === 'check' ? (
+      <ButtonsOnBottom>
+        <Button
+          label={checkingTaxi ? t('transaction.taxiChecking') : t('transaction.taxiCheckAgain')}
+          disabled={checkingTaxi}
+          onClick={handleTaxiCheck}
+        />
+      </ButtonsOnBottom>
+    ) : showCancelSwap ? (
       <>
         <ButtonsOnBottom>
           <Button

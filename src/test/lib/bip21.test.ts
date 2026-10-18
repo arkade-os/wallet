@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import fixtures from '../fixtures.json'
-import { decodeBip21, encodeBip21 } from '../../lib/bip21'
+import { Bip21Taxi, decodeBip21, encodeBip21, encodeBip21Asset } from '../../lib/bip21'
 import { toSatoshis } from '../../lib/format'
+
+const ARK = 'ark1qtaxitest'
+const ASSET = 'testasset'
+const KEY = 'a'.repeat(64)
 
 describe('bip21 utilities', () => {
   describe('decodeBip21', () => {
@@ -59,6 +63,44 @@ describe('bip21 utilities', () => {
       expect(() => decodeBip21('invalidBip21')).toThrow('Invalid BIP21 URI')
     })
 
+    it('accepts uppercase param names with a lowercase key value', () => {
+      const uri = `bitcoin:?ark=${ARK}&ASSETID=${ASSET}&amount=500&TAXI=https%3A%2F%2Ftaxi.example&TaxiKey=${KEY}`
+      expect(decodeBip21(uri).taxi).toEqual({ url: 'https://taxi.example', operatorKey: KEY })
+    })
+
+    it('drops all three taxi params when the key value has uppercase letters', () => {
+      const uri = `bitcoin:?ark=${ARK}&assetid=${ASSET}&amount=500&taxi=https%3A%2F%2Ftaxi.example&taxikey=${KEY.toUpperCase()}`
+      const out = decodeBip21(uri)
+      expect(out.taxi).toBeUndefined()
+      expect(out.assetId).toBe(ASSET)
+      expect(out.assetAmount).toBe('500')
+    })
+
+    it('accepts a Taxi URL without taxikey', () => {
+      const out = decodeBip21(`bitcoin:?ark=${ARK}&assetid=${ASSET}&amount=500&taxi=https%3A%2F%2Ftaxi.example`)
+      expect(out.taxi).toEqual({ url: 'https://taxi.example' })
+      expect(out.assetAmount).toBe('500')
+    })
+
+    it('drops a taxikey that is not 64 lowercase hex characters', () => {
+      expect(decodeBip21(`bitcoin:?ark=${ARK}&taxi=https%3A%2F%2Ftaxi.example&taxikey=NOTHEX`).taxi).toBeUndefined()
+    })
+
+    it('drops a non-http taxi url', () => {
+      expect(decodeBip21(`bitcoin:?ark=${ARK}&taxi=file%3A%2F%2F%2Fetc&taxikey=${KEY}`).taxi).toBeUndefined()
+    })
+
+    it('drops an orphan taxifare with no valid taxi/taxikey', () => {
+      const out = decodeBip21(`bitcoin:?ark=${ARK}&assetid=${ASSET}&amount=500&taxifare=flat`)
+      expect(out.taxi).toBeUndefined()
+      expect(out.assetAmount).toBe('500')
+    })
+
+    it('treats an empty taxifare as absent', () => {
+      const out = decodeBip21(`bitcoin:?ark=${ARK}&taxi=https%3A%2F%2Ftaxi.example&taxikey=${KEY}&taxifare=`)
+      expect(out.taxi).toEqual({ url: 'https://taxi.example', operatorKey: KEY })
+    })
+
     it('should decode a bip21 URI with an asset ID', () => {
       const bip21 =
         'bitcoin:bcrt1pj7fdvrpdsn0cl6722tmcvwcw4yqpe46020g43nhgzl90qq4aqjrs33du9f?ark=tark1qplnj2gett9j483fchy6chaxn4y52c4g7n5djh9xua3ywdxw0ldatc3e9xcj9xpx0r5tmr0dgvu2f4s352muklg0tcxx0scnnkraajy9jgz4xl&assetId=0abcbc23c60028511880807dfe42aa16de88bd56df210a0b9135262d5d3959510000&amount=21000'
@@ -70,6 +112,33 @@ describe('bip21 utilities', () => {
       expect(satoshis).toBeUndefined()
       expect(invoice).toBeUndefined()
       expect(lnUrl).toBeUndefined()
+    })
+  })
+
+  describe('URL-only Taxi requests', () => {
+    it('encodes and decodes the URL and preference without a public key', () => {
+      const taxi = { url: 'https://taxi.example', payer: 'sender' as const }
+      const uri = encodeBip21Asset(ARK, ASSET, 500n, 0, taxi)
+      expect(uri).not.toContain('taxikey')
+      expect(decodeBip21(uri).taxi).toEqual(taxi)
+    })
+  })
+
+  describe('Taxi repayment preference', () => {
+    it.each(['receiver', 'sender'] as const)('round trips %s for bitcoin and assets', (payer) => {
+      const taxi = { url: 'https://taxi.example', operatorKey: KEY, fareId: 'flat', payer }
+      for (const uri of [encodeBip21('bc1x', ARK, '', 50, '', taxi), encodeBip21Asset(ARK, ASSET, 500n, 0, taxi)]) {
+        expect(uri).toContain('&taxipayer=' + payer)
+        expect(decodeBip21(uri).taxi).toEqual(taxi)
+      }
+    })
+    it('refuses to weaken sender-covered requests when their Taxi descriptor is invalid', () => {
+      expect(() => decodeBip21('bitcoin:?taxikey=broken&taxipayer=sender')).toThrow('Invalid Taxi repayment preference')
+    })
+    it.each(['invalid', '', 'receiver&TaxiPayer=sender'])('refuses an ambiguous preference %s', (value) => {
+      expect(() =>
+        decodeBip21('bitcoin:?taxi=https%3A%2F%2Ftaxi.example&taxikey=' + KEY + '&taxipayer=' + value),
+      ).toThrow('Invalid Taxi repayment preference')
     })
   })
 
@@ -90,6 +159,43 @@ describe('bip21 utilities', () => {
       const uri = encodeBip21('bc1qexampleaddr', '', '', 100_000_000_000)
       expect(uri).not.toContain(',')
       expect(uri).toContain('amount=1000')
+    })
+
+    it('names a Taxi for a sub-dust amount, and decodes it back', () => {
+      const taxi: Bip21Taxi = { url: 'https://taxi.example', operatorKey: KEY, fareId: 'flat' }
+      const uri = encodeBip21('bc1x', ARK, '', 100, '', taxi)
+      expect(uri).toBe(
+        `bitcoin:bc1x?ark=${ARK}&amount=0.000001&taxi=https%3A%2F%2Ftaxi.example&taxikey=${KEY}&taxifare=flat`,
+      )
+      expect(decodeBip21(uri)).toMatchObject({ satoshis: 100, taxi })
+      expect(encodeBip21('bc1x', ARK, '', 100, '')).toBe(`bitcoin:bc1x?ark=${ARK}&amount=0.000001`)
+    })
+  })
+
+  describe('encodeBip21Asset taxi params', () => {
+    it('encodes the three taxi params', () => {
+      expect(
+        encodeBip21Asset(ARK, ASSET, 500n, 0, { url: 'https://taxi.example', operatorKey: KEY, fareId: 'flat' }),
+      ).toBe(
+        `bitcoin:?ark=${ARK}&assetid=${ASSET}&amount=500&taxi=https%3A%2F%2Ftaxi.example&taxikey=${KEY}&taxifare=flat`,
+      )
+    })
+
+    it('omits the taxi params when none are given', () => {
+      expect(encodeBip21Asset(ARK, ASSET, 500n, 0)).toBe(`bitcoin:?ark=${ARK}&assetid=${ASSET}&amount=500`)
+    })
+
+    it('round-trips through decode', () => {
+      const taxi: Bip21Taxi = { url: 'https://taxi.example', operatorKey: KEY, fareId: 'flat' }
+      const uri = encodeBip21Asset(ARK, ASSET, 500n, 0, taxi)
+      expect(decodeBip21(uri).taxi).toEqual(taxi)
+    })
+
+    it('percent-encodes the taxikey like its siblings, so it cannot add a parameter', () => {
+      const uri = encodeBip21Asset(ARK, ASSET, 500n, 0, { url: 'https://taxi.example', operatorKey: 'k&taxi=x' })
+      expect(uri).toBe(
+        `bitcoin:?ark=${ARK}&assetid=${ASSET}&amount=500&taxi=https%3A%2F%2Ftaxi.example&taxikey=k%26taxi%3Dx`,
+      )
     })
   })
 

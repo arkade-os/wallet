@@ -24,6 +24,11 @@ import { FiatContext } from '../../../providers/fiat'
 import { Currencies } from '../../../lib/types'
 import { AssetsContext } from '../../../providers/assets'
 import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
+import { ReceiverClaimsContext } from '../../../providers/receiverClaims'
+import type { TaxiActivity } from '../../../lib/taxiActivity'
+import { TaxiActivityStore } from '@arkade-taxi/client/wallet'
+import { truncatedAssetId } from '../../../lib/assets'
+import { prettyLongText } from '../../../lib/format'
 import { SwapsContext } from '../../../providers/swaps'
 import type { WalletAssetSwap as AssetSwap } from '../../../lib/swapRepository'
 
@@ -844,3 +849,208 @@ describe('Transaction screen', () => {
     expect(screen.queryByText('€100.00')).not.toBeInTheDocument()
   })
 })
+
+it.each([
+  {
+    verified: false,
+    showBalance: true,
+    currency: 'asset',
+    expected: `0.1 ${truncatedAssetId(MUTINYNET_USDT_ASSET_ID)}`,
+  },
+  {
+    verified: false,
+    showBalance: false,
+    currency: 'asset',
+    expected: `········ ${truncatedAssetId(MUTINYNET_USDT_ASSET_ID)}`,
+  },
+  { verified: true, showBalance: true, currency: 'asset', expected: '0.1 USD' },
+  { verified: true, showBalance: false, currency: 'asset', expected: '········ USD' },
+  { verified: false, showBalance: true, currency: 'sats', expected: '1,000 sats' },
+  { verified: false, showBalance: false, currency: 'sats', expected: '········ sats' },
+] as const)(
+  'displays the Taxi $currency fare with verified=$verified and showBalance=$showBalance',
+  ({ verified, showBalance, currency, expected }) => {
+    const taxi = {
+      network: 'regtest',
+      taxiUrl: 'http://localhost:3001',
+      transferId: 'receipt',
+      role: 'receiver',
+      state: 'claimed',
+      mode: 'recycle',
+      assetId: MUTINYNET_USDT_ASSET_ID,
+      units: '10000',
+      fare: { currency, units: '1000' },
+      createdAt: 1700000000,
+      updatedAt: 1700000000,
+    } satisfies TaxiActivity
+    const txInfo = { ...mockTxInfo, taxi, type: 'received', settled: true }
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider
+          value={{ ...mockConfigContextValue, config: { ...mockConfigContextValue.config, showBalance } }}
+        >
+          <AspContext.Provider value={mockAspContextValue}>
+            <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
+              <WalletContext.Provider
+                value={{
+                  ...mockWalletContextValue,
+                  txs: [txInfo],
+                  isVerifiedAsset: () => verified,
+                  assetMetadataCache: new Map([
+                    [
+                      MUTINYNET_USDT_ASSET_ID,
+                      {
+                        assetId: MUTINYNET_USDT_ASSET_ID,
+                        cachedAt: 0,
+                        supply: 10000n,
+                        metadata: { ticker: 'USD', decimals: 4 },
+                      },
+                    ],
+                  ]),
+                }}
+              >
+                <LimitsContext.Provider value={mockLimitsContextValue}>
+                  <Transaction />
+                </LimitsContext.Provider>
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </AspContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+    const fare = screen.getByTestId('Taxi service fee')
+    expect(fare).toHaveTextContent(prettyLongText(expected))
+    expect(fare.closest('[aria-label]')).toHaveAttribute('aria-label', expect.stringContaining(expected))
+  },
+)
+
+it('offers a verified receiver delivery claim without offering swap cancellation', async () => {
+  const taxi = {
+    network: 'regtest',
+    taxiUrl: 'http://localhost:3001',
+    transferId: 'ready',
+    role: 'receiver',
+    state: 'locked',
+    mode: 'recycle',
+    units: '1000',
+    createdAt: 1700000000,
+    updatedAt: 1700000000,
+  } satisfies TaxiActivity
+  const txInfo = {
+    ...mockTxInfo,
+    taxi,
+    type: 'received',
+    redeemTxid: '',
+    boardingTxid: '',
+    roundTxid: '',
+    settled: true,
+  }
+  const openClaim = vi.fn()
+  render(
+    <NavigationContext.Provider value={mockNavigationContextValue}>
+      <AspContext.Provider value={mockAspContextValue}>
+        <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
+          <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [txInfo] }}>
+            <ReceiverClaimsContext.Provider
+              value={{ remember: vi.fn(), claimable: new Set(['http://localhost:3001 ready']), openClaim }}
+            >
+              <LimitsContext.Provider value={mockLimitsContextValue}>
+                <Transaction />
+              </LimitsContext.Provider>
+            </ReceiverClaimsContext.Provider>
+          </WalletContext.Provider>
+        </FlowContext.Provider>
+      </AspContext.Provider>
+    </NavigationContext.Provider>,
+  )
+  await userEvent.click(await screen.findByText('Claim'))
+  expect(openClaim).toHaveBeenCalledWith('http://localhost:3001 ready')
+  expect(screen.queryByText('Cancel swap')).not.toBeInTheDocument()
+  expect(screen.getByText('This delivery is waiting for you. Claim it to add it to your balance.')).toBeInTheDocument()
+})
+
+it.each([
+  ['recycle', '2100000000000001', 'sats', '7', undefined, undefined, '7 sats'],
+  ['purchase', '18446744073709551615', 'sats', '7', undefined, undefined, '7 sats'],
+  ['recycle', '331', 'sats', '2100000000000001', 'Borrowed 331 sats', undefined, undefined],
+  ['purchase', '331', 'sats', '18446744073709551615', undefined, '331 sats', undefined],
+  [
+    'recycle',
+    '2100000000000000',
+    'sats',
+    '2100000000000000',
+    'Borrowed 2,100,000,000,000,000 sats',
+    undefined,
+    '2,100,000,000,000,000 sats',
+  ],
+  [
+    'purchase',
+    '2100000000000000',
+    'asset',
+    '18446744073709551615',
+    undefined,
+    '2,100,000,000,000,000 sats',
+    `18446744073709551615 ${truncatedAssetId(MUTINYNET_USDT_ASSET_ID)}`,
+  ],
+] as const)(
+  'renders a stored %s receipt with carrier=%s and %s fare=%s',
+  (mode, carrierSats, currency, units, loan, purchase, fare) => {
+    const record = {
+      network: 'regtest',
+      taxiUrl: 'http://localhost:3001',
+      transferId: 'receipt-bounds',
+      role: 'receiver',
+      state: mode === 'recycle' ? 'recycled' : 'purchased',
+      mode,
+      assetId: MUTINYNET_USDT_ASSET_ID,
+      units: '10000',
+      carrierSats,
+      fare: { currency, units },
+      createdAt: 1700000000,
+      updatedAt: 1700000000,
+    } satisfies TaxiActivity
+    let stored: string | null = null
+    const store = new TaxiActivityStore({
+      storage: {
+        getItem: () => stored,
+        setItem: (_key, value) => {
+          stored = value
+        },
+        removeItem: () => {
+          stored = null
+        },
+      },
+    })
+    store.record(record)
+    expect(store.read('regtest')).toEqual([record])
+    const before = stored
+    const [taxi] = store.read('regtest')
+    const txInfo = { ...mockTxInfo, taxi, type: 'received', settled: true }
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <AspContext.Provider value={mockAspContextValue}>
+            <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [txInfo] }}>
+                <LimitsContext.Provider value={mockLimitsContextValue}>
+                  <Transaction />
+                </LimitsContext.Provider>
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </AspContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+    for (const [label, expected] of [
+      ['Carrier sats', loan],
+      ['Carrier sats purchased', purchase],
+      ['Taxi service fee', fare],
+    ] as const) {
+      if (expected === undefined) expect(screen.queryByTestId(label)).not.toBeInTheDocument()
+      else expect(screen.getByTestId(label)).toHaveTextContent(prettyLongText(expected))
+    }
+    expect(screen.getByTestId('Delivery')).toHaveTextContent('Claimed')
+    expect(stored).toBe(before)
+    expect(store.read('regtest')).toEqual([record])
+  },
+)

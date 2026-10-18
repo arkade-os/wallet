@@ -47,9 +47,12 @@ import {
 } from 'react'
 import { asset, type Asset, type NetworkName, type PaymentRouter } from '@arkade-os/sdk'
 import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
+import { fundingWasNotSubmitted } from '@arkade-os/swap/advanced'
 import {
   arkadeAsset,
+  assetSwapIdOf,
   btcOn,
+  InsufficientFunds,
   type AssetId,
   type AssetSwapId,
   type Outcome,
@@ -61,8 +64,11 @@ import { isRfqMarket, sideLimits, type DiscoveredMarket, type OfferPlan, type Si
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import { discoverMarkets, watchSwapMarkets } from '../lib/swapMarkets'
-import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
 import { createSendRouter, isLightningMarket } from '../lib/sendRouter'
+import type { AssetPayment, AssetPaymentRequest } from '../lib/assetRfqWorkflow'
+import { withTaxiPaymentLock, getPendingDirectTaxi } from '../lib/directTaxiSend'
+import { readAssetPayment, storeAssetPayment, clearAssetPayment } from '../lib/pendingAssetPayment'
+import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
 import { claimFeeRate } from '../lib/claimFee'
 import { onchainClaimEndpoint } from '../lib/onchainPayout'
 import { toInvoiceFacts } from '../lib/lnSwap'
@@ -75,7 +81,13 @@ import {
   type DriverOp,
   type DriverUpdate,
 } from '../lib/swapDriverChannel'
-import { saveQuoteSnapshot, type AssetSwapQuoteSnapshot, type WalletAssetSwap } from '../lib/swapRepository'
+import {
+  assetSwapRepository,
+  quoteSnapshotOf,
+  saveQuoteSnapshot,
+  type AssetSwapQuoteSnapshot,
+  type WalletAssetSwap,
+} from '../lib/swapRepository'
 import { displayAssetOf, offerSwaps } from '../lib/swapRecords'
 import { verifiedDesignatedCurrency } from '../lib/accountAssets'
 import { getEmulatorPubkeyForNetwork } from '../lib/constants'
@@ -104,7 +116,7 @@ interface SwapsContextProps {
   swaps: WalletAssetSwap[]
   runDiscovery: (useCache?: boolean) => void
   /** Fund an arkade↔arkade asset swap for the plan the composer quoted. */
-  exchange: (market: DiscoveredMarket, plan: OfferPlan, quote?: AssetSwapQuoteSnapshot) => Promise<Swap>
+  exchange: (plan: OfferPlan, quote?: AssetSwapQuoteSnapshot) => Promise<Swap>
   cancelSwap: (id: string) => Promise<void>
   /** Run a recovery round for a swept offer deposit. Resolves with whether THIS
    * deposit went home; throws `SwapDriveRefusedError` (by `name` across tabs) or
@@ -114,6 +126,9 @@ interface SwapsContextProps {
   quotePay: (destination: string) => Promise<Quote>
   /** Fund it — which IS the acceptance. Resolves with the funding txid. */
   acceptPay: (quote: Quote) => Promise<string>
+  quoteAssetPayment: (request: AssetPaymentRequest, payment: AssetPayment) => Promise<Quote>
+  acceptAssetPayment: (quote: Quote) => Promise<Swap>
+  checkAssetPayment: () => Promise<Swap>
   /** Negotiate a Lightning receive and begin driving it, in that order. */
   receiveLightning: (amountSats: number) => Promise<AcceptedLnReceive>
   /** The send path's router. Throws `SwapsHeldElsewhere` rather than dropping
@@ -141,6 +156,9 @@ export const SwapsContext = createContext<SwapsContextProps>({
   recoverSwap: notInitialized,
   quotePay: notInitialized,
   acceptPay: notInitialized,
+  quoteAssetPayment: notInitialized,
+  acceptAssetPayment: notInitialized,
+  checkAssetPayment: notInitialized,
   receiveLightning: notInitialized,
   sendRouter: notInitialized,
   outcomeOf: () => undefined,
@@ -609,6 +627,12 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         return quotePayHere(args[0] as string)
       case 'acceptPay':
         return acceptPayHere(args[0] as string)
+      case 'quoteAssetPayment':
+        return quoteAssetPaymentHere(args[0] as AssetPaymentRequest, args[1] as AssetPayment)
+      case 'acceptAssetPayment':
+        return acceptAssetPaymentHere(args[0] as string)
+      case 'checkAssetPayment':
+        return checkAssetPaymentHere()
       case 'receiveLightning':
         return receiveLightningHere(args[0] as number)
       default:
@@ -633,9 +657,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       ? btcOn('arkade', network)
       : arkadeAsset(network, asset.AssetId.fromString(discoveryId))
 
-  /** The market is the client's to select, so only the plan and the snapshot
-   * need to reach the tab that will fund this. */
-  const exchange = (_market: DiscoveredMarket, plan: OfferPlan, quote?: AssetSwapQuoteSnapshot): Promise<Swap> =>
+  const exchange = (plan: OfferPlan, quote?: AssetSwapQuoteSnapshot): Promise<Swap> =>
     runOnDriver('exchange', [plan, quote])
 
   const exchangeHere = async (plan: OfferPlan, quote?: AssetSwapQuoteSnapshot): Promise<Swap> => {
@@ -644,13 +666,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     const client = await driving()
     const give = assetIdFor(network, plan.deposit.asset.id)
     const take = assetIdFor(network, plan.receive.asset.id)
-    // Quote and accept rather than `client.exchange`, for one reason: the
-    // composer has been pricing this plan live and the user confirmed a number.
-    // `exchange` re-quotes internally and would fund whatever came back.
-    // Quoting here lets the confirmed amount be a floor — the swap is refused
-    // rather than funded at a worse rate than the one on screen. The market is
-    // the client's to select; it is taken here only so the caller's own
-    // pair lookup and the client's cannot silently disagree about the pair.
+    // Re-quote through the client's current market, preserving the confirmed receive floor.
     const quoted = await client.quote({ give, take, amount: plan.deposit.atomic, amountOn: 'give' })
     if (quoted.take.amount < plan.receive.atomic) {
       throw new Error('The rate moved while you were confirming — go back and try again')
@@ -664,7 +680,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     // the row its tickers, never its money.
     if (quote) {
       try {
-        saveQuoteSnapshot(swap.id, quote)
+        saveQuoteSnapshot(quoted.id, quote)
       } catch (err) {
         consoleError(err, 'failed to store the swap quote snapshot')
       }
@@ -804,6 +820,102 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     return swap.fundingTxid
   }
 
+  const assetPaymentRequests = useRef(new Map<string, AssetPaymentRequest>())
+  const quoteAssetPayment = (request: AssetPaymentRequest, payment: AssetPayment): Promise<Quote> =>
+    runOnDriver('quoteAssetPayment', [request, payment])
+
+  const quoteAssetPaymentHere = async (request: AssetPaymentRequest, payment: AssetPayment): Promise<Quote> =>
+    withTaxiPaymentLock(svcWallet!, aspInfo.network, async (sender) => {
+      if (readAssetPayment(sender, aspInfo.network)) throw new Error('Check asset payment before starting another')
+      if (await getPendingDirectTaxi(svcWallet!, aspInfo.network))
+        throw new Error('Check Taxi payment before starting another')
+      const client = await driving()
+      const network = aspInfo.network as NetworkName
+      const quote = await client.quote({
+        give: assetIdFor(network, BTC_ASSET_ID),
+        take: assetIdFor(network, request.assetId),
+        amount: request.amount,
+        amountOn: 'take',
+        assetPayment: payment,
+      })
+      assetPaymentRequests.current.set(quote.id, { ...request })
+      remember(quote)
+      try {
+        saveQuoteSnapshot(quote.id, { ...quoteSnapshotOf(quote.id), payee: request.arkAddress })
+      } catch (err) {
+        consoleError(err, 'failed to store the asset payment payee')
+      }
+      return quote
+    })
+
+  const acceptAssetPayment = (quote: Quote): Promise<Swap> =>
+    runOnDriver('acceptAssetPayment', [quote.id], () => acceptAssetPaymentHere(quote))
+
+  const fundedAssetPayment = async (client: SwapClient, sender: string): Promise<Swap> => {
+    const pending = readAssetPayment(sender, aspInfo.network)
+    if (!pending) throw new Error('No asset payment to check')
+    const swap = (await client.swaps()).find((swap) => swap.id === assetSwapIdOf('offer', pending.quoteId))
+    if (!swap?.fundingTxid) {
+      const record = await assetSwapRepository.getSwapRecord(pending.quoteId)
+      if (record?.id === pending.quoteId && record.family === 'offer' && fundingWasNotSubmitted(record)) {
+        clearAssetPayment(sender, aspInfo.network, pending.quoteId)
+        throw new Error('The payment was not sent. Please try again.')
+      }
+      throw new Error('Check asset payment: its funding is still unresolved')
+    }
+    announceHere(swap)
+    await refreshSwaps()
+    clearAssetPayment(sender, aspInfo.network, pending.quoteId)
+    reloadRef.current().catch(consoleError)
+    return swap
+  }
+
+  const checkAssetPayment = (): Promise<Swap> => runOnDriver('checkAssetPayment', [])
+  const checkAssetPaymentHere = async (): Promise<Swap> =>
+    withTaxiPaymentLock(svcWallet!, aspInfo.network, async (sender) => fundedAssetPayment(await driving(), sender))
+
+  const acceptAssetPaymentHere = async (ref: Quote | string): Promise<Swap> =>
+    withTaxiPaymentLock(svcWallet!, aspInfo.network, async (sender) => {
+      const client = await driving()
+      const pending = readAssetPayment(sender, aspInfo.network)
+      const id = typeof ref === 'string' ? ref : ref.id
+      if (pending) {
+        if (pending.quoteId !== id) throw new Error('Check asset payment before starting another')
+        return fundedAssetPayment(client, sender)
+      }
+      const quote = typeof ref === 'string' ? issued.current.get(ref) : ref
+      const request = assetPaymentRequests.current.get(id)
+      if (!quote || !request) throw new Error('This quote is no longer available — go back and try again')
+      if (await getPendingDirectTaxi(svcWallet!, aspInfo.network))
+        throw new Error('Check Taxi payment before starting another')
+      storeAssetPayment(sender, aspInfo.network, {
+        quoteId: quote.id,
+        arkAddress: request.arkAddress,
+        assetId: request.assetId,
+        amount: request.amount.toString(),
+        payAmountSats: quote.give.amount.toString(),
+      })
+      let swap: Swap
+      try {
+        swap = await client.accept(quote)
+      } catch (error) {
+        if (
+          error instanceof InsufficientFunds &&
+          error.asset === quote.give.asset &&
+          error.required === quote.give.amount
+        )
+          clearAssetPayment(sender, aspInfo.network, quote.id)
+        throw error
+      }
+      if (!swap.fundingTxid || swap.id !== assetSwapIdOf('offer', quote.id))
+        throw new Error('Check asset payment: its funding is still unresolved')
+      announceHere(swap)
+      await refreshSwaps()
+      clearAssetPayment(sender, aspInfo.network, quote.id)
+      reloadRef.current().catch(consoleError)
+      return swap
+    })
+
   const receiveLightning = (amountSats: number): Promise<AcceptedLnReceive> => {
     assertWithinBounds(amountSats, 'base')
     return runOnDriver('receiveLightning', [amountSats])
@@ -854,6 +966,9 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       recoverSwap,
       quotePay,
       acceptPay,
+      quoteAssetPayment,
+      acceptAssetPayment,
+      checkAssetPayment,
       receiveLightning,
       sendRouter,
       outcomeOf,
