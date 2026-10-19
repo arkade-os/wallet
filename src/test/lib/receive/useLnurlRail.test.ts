@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { SingleKey } from '@arkade-os/sdk'
+import { createElement, type ReactNode } from 'react'
+import { LanguageContext } from '../../../providers/language'
+import { translate } from '../../../lib/i18n'
+import { Language } from '../../../lib/types'
 import { useLnurlRail, useLnurlRails } from '../../../lib/receive/lnurlRail'
 import {
   DECODABLE_ARK,
@@ -162,6 +166,88 @@ describe('useLnurlRail', () => {
     expect(result.current.receiver?.handle).toBe('sess1')
     expect(result.current.choices).toEqual([])
     expect(result.current.error).toBe('domain lookup failed')
+  })
+
+  it('exposes an owned nameless receiver while capabilities are still loading', async () => {
+    serve({ modes: ['session'], addresses: [namelessAddress()] })
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const inner = server.fetch
+    const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (new URL(String(input)).pathname === '/lnurl/domain') await gate
+      return inner(input, init)
+    })
+    vi.stubGlobal('fetch', fetch)
+    const { result } = renderRail()
+
+    await waitFor(() => expect(fetch.mock.calls.some(([input]) => String(input).includes('/lnurl/domain'))).toBe(true))
+    expect(result.current.status).toBe('loading')
+    expect(result.current.receiver?.handle).toBe('sess1')
+    expect(result.current.lnurl).toBe(result.current.receiver?.lnurl)
+    await act(async () => release())
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+  })
+
+  it('does not automatically claim after pending capabilities become stale', async () => {
+    serve({ modes: ['session'] })
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const inner = server.fetch
+    const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (new URL(String(input)).pathname === '/lnurl/domain') await gate
+      return inner(input, init)
+    })
+    vi.stubGlobal('fetch', fetch)
+    const { result, rerender } = renderHook(
+      ({ enabled }) => useLnurlRail({ enabled, identity, arkadeAddress: DECODABLE_ARK }),
+      { initialProps: { enabled: true } },
+    )
+    await waitFor(() => expect(fetch.mock.calls.some(([input]) => String(input).includes('/lnurl/domain'))).toBe(true))
+
+    rerender({ enabled: false })
+    await act(async () => release())
+
+    expect(result.current.status).toBe('off')
+    expect(result.current.receiver).toBeUndefined()
+    expect(server.calls('POST', '/lnurl/address')).toHaveLength(0)
+  })
+
+  it('translates a pending discovery failure using the current language without restarting discovery', async () => {
+    serve({ modes: ['session'] })
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const inner = server.fetch
+    const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (new URL(String(input)).pathname === '/lnurl/domain') {
+        await gate
+        return new Response(JSON.stringify({ code: 'taken', error: 'username already taken' }), { status: 409 })
+      }
+      return inner(input, init)
+    })
+    vi.stubGlobal('fetch', fetch)
+    let language = Language.English
+    const wrapper = ({ children }: { children: ReactNode }) => {
+      const activeLanguage = language
+      return createElement(
+        LanguageContext.Provider,
+        { value: { language: activeLanguage, t: (key) => translate(activeLanguage, key) } },
+        children,
+      )
+    }
+    const { result, rerender } = renderHook(
+      () => useLnurlRail({ enabled: true, identity, arkadeAddress: DECODABLE_ARK }),
+      { wrapper },
+    )
+    await waitFor(() => expect(fetch.mock.calls.some(([input]) => String(input).includes('/lnurl/domain'))).toBe(true))
+
+    language = Language.Spanish
+    rerender()
+    await act(async () => release())
+
+    await waitFor(() => expect(result.current.status).toBe('failed'))
+    expect(result.current.error).toBe('Ese nombre ya está en uso.')
+    expect(fetch.mock.calls.filter(([input]) => String(input).includes('/lnurl/domain'))).toHaveLength(1)
+    expect(server.calls('GET', '/lnurl/address')).toHaveLength(1)
   })
 
   it('drops a claim that lands after the facade changed', async () => {

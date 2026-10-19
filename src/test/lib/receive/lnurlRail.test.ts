@@ -1,14 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SingleKey } from '@arkade-os/sdk'
-import { LnurlError } from '@arkade-os/lnurl-client'
+import { LnurlError, type PayRequest } from '@arkade-os/lnurl-client'
 import {
   configuredLnurlServer,
   lnurlReceiver,
   lnurlClaimErrorMessage,
   onboardingChoices,
+  resolveLnurlRails,
 } from '../../../lib/receive/lnurlRail'
 import { translate } from '../../../lib/i18n'
 import { Language } from '../../../lib/types'
+import { fakeInvoice, WALLET_BOARDING_ADDRESS } from './fakeLnurlServer'
 
 const BASE_URL = 'https://lnurl.test'
 const DOMAIN = 'lnurl.test'
@@ -287,5 +289,72 @@ describe('onboardingChoices', () => {
 
   it('offers nothing when the server wants an API key the wallet cannot send', () => {
     expect(onboardingChoices(caps(['self', 'random'], true))).toEqual([])
+  })
+})
+
+describe('resolveLnurlRails consumer boundaries', () => {
+  const own = { arkade: ARK, onchain: WALLET_BOARDING_ADDRESS }
+  const payRequest = (paymentOptions: PayRequest['paymentOptions']): PayRequest => ({
+    tag: 'payRequest',
+    callback: `${BASE_URL}/callback/alice`,
+    minSendable: 1_000,
+    maxSendable: 100_000_000,
+    metadata: '[]',
+    source: { url: `${BASE_URL}/.well-known/lnurlp/alice`, surface: 'address' },
+    paymentOptions,
+  })
+
+  it('selects the bitcoin option after token, disabled and empty-id options', async () => {
+    const invoice = fakeInvoice(20_000)
+    fetchMock.mockResolvedValue(jsonResponse(200, { pr: invoice, routes: [], paymentOption: 'bitcoin' }))
+    const receiver = {
+      payRequest: async () =>
+        payRequest([
+          { id: 'token', type: 'lightning', asset: 'eip155:1/erc20:token' },
+          { id: 'disabled', type: 'lightning', available: false },
+          { id: '', type: 'lightning' },
+          { id: 'bitcoin', type: 'lightning' },
+        ]),
+    }
+
+    expect(await resolveLnurlRails(receiver, 20, ['lightning'], own)).toEqual([{ status: 'fulfilled', value: invoice }])
+    expect(new URL(String(fetchMock.mock.calls[0][0])).searchParams.get('paymentOption')).toBe('bitcoin')
+  })
+
+  it.each([{ options: [] }, { options: [{ id: 'onchain', type: 'onchain' }] }])(
+    'does not use legacy Lightning when explicit options omit it: $options',
+    async ({ options }) => {
+      const receiver = { payRequest: async () => payRequest(options) }
+
+      expect(await resolveLnurlRails(receiver, 20, ['lightning'], own)).toEqual([
+        { status: 'rejected', reason: expect.objectContaining({ message: 'the LNURL offers no lightning rail' }) },
+      ])
+      expect(fetchMock).not.toHaveBeenCalled()
+    },
+  )
+
+  it('rejects amounts outside the selected option limits before the callback', async () => {
+    const receiver = {
+      payRequest: async () => payRequest([{ id: 'onchain', type: 'onchain', minSendable: 30_000 }]),
+    }
+
+    expect(await resolveLnurlRails(receiver, 20, ['onchain'], own)).toEqual([
+      { status: 'rejected', reason: expect.objectContaining({ message: expect.stringContaining('30000') }) },
+    ])
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects a callback that echoes another payment option', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(200, { paymentOption: 'other', paymentDestination: WALLET_BOARDING_ADDRESS }),
+    )
+    const receiver = { payRequest: async () => payRequest([{ id: 'onchain', type: 'onchain' }]) }
+
+    expect(await resolveLnurlRails(receiver, 20, ['onchain'], own)).toEqual([
+      {
+        status: 'rejected',
+        reason: expect.objectContaining({ message: 'The callback answered for other, not onchain' }),
+      },
+    ])
   })
 })

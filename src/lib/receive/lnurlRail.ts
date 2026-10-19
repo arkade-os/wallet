@@ -2,11 +2,14 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from '../../providers/language'
 import {
   arkadeLnurl,
+  bootstrapReceiver,
   encodeLnurl,
+  resolveLnurlRails,
   type ArkadeLnurl,
   type ArkadeSigner,
   type ClaimOptions,
   type NameOptions,
+  type LnurlRailType,
   type Receiver,
 } from '@arkade-os/lnurl-client/arkade'
 import {
@@ -17,14 +20,12 @@ import {
   type DomainCapabilities,
   type PaymentSyncStore,
 } from '@arkade-os/lnurl-client'
-import { ArkAddress } from '@arkade-os/sdk'
-import { hex } from '@scure/base'
 import { consoleError } from '../logs'
 import { extractError } from '../error'
 import { fromRuntimeEnv } from '../constants'
 import { lnurlPaymentSyncStore } from '../lnurlPaymentRepository'
 
-const lnurlClient = createLnurlClient()
+export { resolveLnurlRails, type LnurlRailType } from '@arkade-os/lnurl-client/arkade'
 
 /**
  * The server this build offers addresses at, or undefined when none is set.
@@ -61,47 +62,7 @@ export function lnurlReceiver(deps: {
   return arkadeLnurl({ ...deps, baseUrl: server.baseUrl, domain: server.domain })
 }
 
-export type LnurlRailType = 'lightning' | 'arkade' | 'onchain'
 type PerRail = Partial<Record<LnurlRailType, string>>
-
-const sameOperator = (a: string, b: string) => {
-  try {
-    const [x, y] = [ArkAddress.decode(a), ArkAddress.decode(b)]
-    return x.hrp === y.hrp && hex.encode(x.serverPubKey) === hex.encode(y.serverPubKey)
-  } catch {
-    return false
-  }
-}
-
-/** What any payer resolving the receiver's LNURL gets for `amountSat` on each rail: an invoice, or a destination. */
-export async function resolveLnurlRails(
-  receiver: Receiver,
-  amountSat: number,
-  rails: LnurlRailType[],
-  own: { arkade: string; onchain: string },
-) {
-  const payRequest = await receiver.payRequest()
-  return Promise.allSettled(
-    rails.map(async (rail) => {
-      const paymentOption = payRequest.paymentOptions?.find((o) => o.type === rail && o.available !== false)?.id
-      if (!paymentOption && rail !== 'lightning') throw new LnurlError(`the LNURL offers no ${rail} rail`)
-      const result = await lnurlClient.requestInvoice(payRequest, { amountSat, paymentOption })
-      const target = result.kind === 'bolt11' ? result.pr : result.paymentDestination
-      if (!target || (result.kind === 'bolt11') !== (rail === 'lightning')) {
-        throw new LnurlError(`the LNURL answered the ${rail} rail with nothing payable on it`)
-      }
-      // On-chain must be the boarding address this wallet registered. Arkade is checked only to be on this
-      // operator: a dishonest server could still hand out another user's address there, so that part stays trust.
-      if (rail === 'onchain' && target !== own.onchain) {
-        throw new LnurlError("the LNURL gave an on-chain address that is not this wallet's")
-      }
-      if (rail === 'arkade' && !sameOperator(target, own.arkade)) {
-        throw new LnurlError('the LNURL gave an Arkade address on another operator')
-      }
-      return target
-    }),
-  )
-}
 
 /** `resolveLnurlRails` for the amount being requested, asked again whenever it changes. Lightning
  *  always goes through the LNURL; the Arkade and on-chain legs only when `allRails` is set. */
@@ -224,9 +185,11 @@ export function useLnurlRail(deps: {
   const [error, setError] = useState('')
   const [walletLnurl, setWalletLnurl] = useState<string>()
   const current = useRef(facade)
+  const currentTranslation = useRef(t)
   useLayoutEffect(() => {
     current.current = facade
-  }, [facade])
+    currentTranslation.current = t
+  }, [facade, t])
 
   useEffect(() => {
     setReceiver(undefined)
@@ -245,36 +208,39 @@ export function useLnurlRail(deps: {
       .then((token) => !stale && baseUrl && setWalletLnurl(encodeLnurl(`${baseUrl}/lnurl/${deriveSessionId(token)}`)))
       .catch(() => {}) // load() reports the same failure
     const load = async () => {
-      const owned = await facade.owned()
+      const result = await bootstrapReceiver(
+        {
+          owned: async () => {
+            const owned = await facade.owned()
+            if (stale) throw new Error('LNURL discovery is no longer current')
+            if (owned) setReceiver(owned)
+            return owned
+          },
+          capabilities: () => facade.capabilities(),
+          claim: async (opts) => {
+            if (stale) throw new Error('LNURL discovery is no longer current')
+            return facade.claim(opts)
+          },
+        },
+        { autoClaimNameless: true },
+      )
       if (stale) return
-      // A named receiver needs no choices; a nameless one needs them for "Add a name".
-      if (owned?.lightningAddress) return setReceiver(owned)
-      if (!owned) {
-        const offered = onboardingChoices(await facade.capabilities())
-        if (stale) return
-        setChoices(offered)
-        // Not a name: the LNURL encodes the wallet id. Registering it lets the server answer it offline, with the
-        // Arkade and on-chain rails bound, so the first QR already works. The server returns an existing row on repeat.
-        if (!offered.includes('session')) return
-        const claimed = await facade.claim({ nameless: true })
-        if (stale) return
-        setReceiver(claimed)
-        claimed.sync().catch((err) => consoleError(err, 'lnurl activity sync after claim failed'))
-        return
+      if (result.capabilities) setChoices(onboardingChoices(result.capabilities))
+      if (result.kind === 'ready') {
+        setReceiver(result.receiver)
+        if ('capabilitiesError' in result) {
+          setError(lnurlClaimErrorMessage(result.capabilitiesError, currentTranslation.current))
+        }
+        if (result.claimed) {
+          result.receiver.sync().catch((err) => consoleError(err, 'lnurl activity sync after claim failed'))
+        }
       }
-      setReceiver(owned)
-      // Already payable: failing to learn how to name it must not cost the QR its LNURL.
-      const capabilities = await facade.capabilities().catch((err) => {
-        if (!stale) setError(lnurlClaimErrorMessage(err, t))
-        return undefined
-      })
-      if (!stale && capabilities) setChoices(onboardingChoices(capabilities))
     }
     load()
       .catch((err) => {
         if (stale) return
         consoleError(err, 'lnurl address lookup failed')
-        setError(lnurlClaimErrorMessage(err, t))
+        setError(lnurlClaimErrorMessage(err, currentTranslation.current))
         setLoadFailed(true)
       })
       .finally(() => {
@@ -298,7 +264,7 @@ export function useLnurlRail(deps: {
       if (syncAfter) next.sync().catch((err) => consoleError(err, 'lnurl activity sync after claim failed'))
     } catch (err) {
       consoleError(err, 'lnurl claim failed')
-      if (current.current === owner) setError(lnurlClaimErrorMessage(err, t))
+      if (current.current === owner) setError(lnurlClaimErrorMessage(err, currentTranslation.current))
     } finally {
       if (current.current === owner) setBusy(false)
     }
