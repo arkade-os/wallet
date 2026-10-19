@@ -480,6 +480,9 @@ export default function ReceiveQRCode() {
               {activeToken && tokenRails.error ? (
                 <TextSecondary>{t('receive.noTokenQuote', { error: tokenRails.error })}</TextSecondary>
               ) : null}
+              {activeToken && !tokenRails.quoting && (tokenRails.expired || tokenRails.error) ? (
+                <Button label={t('common.tryAgain')} onClick={tokenRails.regenerate} secondary />
+              ) : null}
               {showSelector ? (
                 <div className='mt-4 mb-3 flex w-full max-w-85 flex-col gap-2'>
                   <SegmentedControl
