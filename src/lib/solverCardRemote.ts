@@ -1,5 +1,6 @@
 import { stableStringify, type Card, type Network } from '@arkade-os/solver-discovery'
 import { nostrCardFetcher } from '@arkade-os/swap/nostr'
+import { SimplePool } from 'nostr-tools'
 
 export interface CardRendezvous {
   pubkey: string
@@ -23,6 +24,18 @@ export const isSameCardContent = (a: unknown, b: unknown): boolean => {
   }
 }
 
+// One pool for the app lifetime, lent to every card check. The fetcher tears down
+// what it opened: with a fresh pool per check it nukes the whole relay
+// connection each time, and that CLOSE races the socket lifecycle — the send
+// it triggers rejects detached and lands in the console on every open. A lent
+// pool is never closed, only the subscription on it.
+let sharedPool: SimplePool | undefined
+
+const poolForCards = (): SimplePool => {
+  if (!sharedPool) sharedPool = new SimplePool({})
+  return sharedPool
+}
+
 export interface RemoteSolverCard {
   card: unknown
   createdAt: number
@@ -37,7 +50,7 @@ export interface RemoteSolverCard {
 export const fetchRemoteSolverCard = async (card: Card, network: Network): Promise<RemoteSolverCard | null> => {
   const rendezvous = getCardRendezvous(card)
   if (!rendezvous) return null
-  const fetcher = nostrCardFetcher()
+  const fetcher = nostrCardFetcher({ pool: poolForCards() })
   const solvers = [
     {
       name: card.name,

@@ -2,10 +2,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Card, Network } from '@arkade-os/solver-discovery'
 import { fetchRemoteSolverCard, getCardRendezvous, isSameCardContent } from '../../lib/solverCardRemote'
 
-const { mockFetchTransportCards } = vi.hoisted(() => ({ mockFetchTransportCards: vi.fn() }))
+const { mockFetchTransportCards, capturedFetcherOptions } = vi.hoisted(() => ({
+  mockFetchTransportCards: vi.fn(),
+  capturedFetcherOptions: [] as Array<{ pool?: unknown }>,
+}))
 
 vi.mock('@arkade-os/swap/nostr', () => ({
-  nostrCardFetcher: () => ({ fetch: mockFetchTransportCards }),
+  nostrCardFetcher: (options?: { pool?: unknown }) => {
+    capturedFetcherOptions.push(options ?? {})
+    return { fetch: mockFetchTransportCards }
+  },
 }))
 
 const network = 'regtest' as Network
@@ -13,6 +19,7 @@ const network = 'regtest' as Network
 describe('solverCardRemote', () => {
   beforeEach(() => {
     mockFetchTransportCards.mockReset()
+    capturedFetcherOptions.length = 0
   })
 
   it('reports no rendezvous without a discovery pubkey', () => {
@@ -59,6 +66,23 @@ describe('solverCardRemote', () => {
     }
     mockFetchTransportCards.mockResolvedValue([])
     await expect(fetchRemoteSolverCard(card, network)).resolves.toBeNull()
+  })
+
+  it('lends one shared pool to every check', async () => {
+    const withRelay = (name: string, pubkey: string): Card => ({
+      version: 0,
+      name,
+      discovery_pubkey: pubkey,
+      transports: { nostr: { relays: ['wss://example.com'] } },
+      markets: [],
+    })
+    mockFetchTransportCards.mockResolvedValue([])
+    await fetchRemoteSolverCard(withRelay('One', 'e'.repeat(64)), network)
+    await fetchRemoteSolverCard(withRelay('Two', 'f'.repeat(64)), network)
+    expect(mockFetchTransportCards).toHaveBeenCalledTimes(2)
+    expect(capturedFetcherOptions).toHaveLength(2)
+    expect(capturedFetcherOptions[0].pool).toBeDefined()
+    expect(capturedFetcherOptions[0].pool).toBe(capturedFetcherOptions[1].pool)
   })
 
   it('returns the latest remote card with its publish time', async () => {
