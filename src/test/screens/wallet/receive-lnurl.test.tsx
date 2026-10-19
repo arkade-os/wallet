@@ -416,15 +416,21 @@ describe('Receive screen, rail composition', () => {
     }
     try {
       render(<LiveConfig />)
-      await pickMethod('Arkade')
-      fireEvent.click(await screen.findByRole('radio', { name: /Arkade address/ }))
-      await pickMethod(/Lightning address/)
+      await selectorShows('alice@lnurl.test')
+      fireEvent.click(screen.getByRole('radio', { name: 'Arkade' }))
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+      fireEvent.click(screen.getByRole('radio', { name: /Arkade address/ }))
+      fireEvent.click(screen.getByRole('button', { name: /Showing/ }))
+      fireEvent.click(screen.getByRole('radio', { name: /Lightning address/ }))
 
-      await waitFor(() => expect(backupConfig).toHaveBeenCalledTimes(1), { timeout: 2000 })
+      expect(backupConfig).not.toHaveBeenCalled()
+      act(() => vi.advanceTimersByTime(800))
+      expect(backupConfig).toHaveBeenCalledTimes(1)
       expect(backupConfig).toHaveBeenLastCalledWith(
         expect.objectContaining({ receiveUnifiedMode: 'lnaddress', receiveQrForm: { ark: 'ark' } }),
       )
     } finally {
+      vi.useRealTimers()
       updateConfig.mockReset()
       backupAndUpdateConfig.mockReset()
     }
@@ -763,8 +769,10 @@ describe('Receive screen, token rails', () => {
     await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')
     expect(screen.getByRole('link', { name: 'Open in wallet' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Share' })).toBeEnabled()
-    expect(screen.getByTestId('token-address-copy')).toBeVisible()
-    expect(screen.getByTestId('token-amount-address-copy')).toBeVisible()
+    await waitFor(() => {
+      expect(screen.getByTestId('token-address-copy')).toBeVisible()
+      expect(screen.getByTestId('token-amount-address-copy')).toBeVisible()
+    })
     const from = qrValues.length
 
     const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 120_000)
