@@ -715,6 +715,28 @@ describe('Receive screen, token rails', () => {
       expect(screen.getByTestId('keyboard-amount')).toBeInTheDocument()
     })
 
+    it('preserves an amount draft when the token quote expires while the keypad is open', async () => {
+      serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+      renderReceive(20_000, tokensOn)
+      await pick('USDT (Arbitrum One)')
+      await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit amount' }))
+      const keypad = await screen.findByTestId('keyboard-amount')
+      const initial = keypad.textContent
+      fireEvent.click(screen.getByTestId('keyboard-1'))
+      const edited = keypad.textContent
+      expect(edited).not.toBe(initial)
+
+      const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 16 * 60_000)
+      try {
+        act(() => document.dispatchEvent(new Event('visibilitychange')))
+        expect(screen.getByTestId('keyboard-amount').textContent).toBe(edited)
+      } finally {
+        clock.mockRestore()
+      }
+    })
+
     it('drops a token pick when the amount is cleared, so a new amount places no order', async () => {
       serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
       render(<LiveAmount initial={20_000} config={tokensOn} />)
