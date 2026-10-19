@@ -42,6 +42,45 @@ const quote = (railId: string, over: Partial<RouteQuote> = {}): RouteQuote => ({
 const sentTx = (arkTxid: string) =>
   ({ key: { arkTxid, boardingTxid: '', commitmentTxid: '' }, type: 'SENT', amount: 2_100 }) as ArkTransaction
 
+describe('reading persisted LNURL sends', () => {
+  it.each(['null', '{}', '42', '"stored text"', 'true', '{malformed'])(
+    'falls back to an empty array for %s without rewriting storage',
+    (stored) => {
+      localStorage.setItem(LNURL_SENDS_STORAGE_KEY, stored)
+
+      expect(() => lnurlSends().find((sent) => sent.txid === 'pending')).not.toThrow()
+      expect(lnurlSends()).toEqual([])
+      expect(() => resumeLnurlConfirmations()).not.toThrow()
+      expect(localStorage.getItem(LNURL_SENDS_STORAGE_KEY)).toBe(stored)
+    },
+  )
+
+  it('preserves valid pending send records and their verification data', () => {
+    const rows = [
+      {
+        txid: 'pending',
+        target: TARGET,
+        railId: LNURL_ARKADE_RAIL,
+        amountSat: 2_100,
+        feeSat: 0,
+        createdAt: 123,
+        preimage: 'ab'.repeat(32),
+        verify: 'https://a/v',
+        expect: { paymentOption: 'arkade', paymentDestination: 'ark1recipient' },
+      },
+    ]
+    const stored = JSON.stringify(rows)
+    localStorage.setItem(LNURL_SENDS_STORAGE_KEY, stored)
+
+    expect(lnurlSends()).toEqual(rows)
+    resumeLnurlConfirmations()
+    expect(addConfirmation).toHaveBeenCalledWith(
+      expect.objectContaining({ key: 'pending', startedAt: 123, expect: rows[0].expect }),
+    )
+    expect(localStorage.getItem(LNURL_SENDS_STORAGE_KEY)).toBe(stored)
+  })
+})
+
 describe('recording an LNURL send', () => {
   it('writes what was paid, to whom and by which rail, once the rail names a txid', async () => {
     const handle = makeHandle(LNURL_ARKADE_RAIL, async (emit) => {

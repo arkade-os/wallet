@@ -6,7 +6,10 @@ import { getStorageItem } from './storage'
 import { LNURL_SENDS_STORAGE_KEY } from './storageKeys'
 
 export const lnurlSends = (): SentPayment[] =>
-  getStorageItem<SentPayment[]>(LNURL_SENDS_STORAGE_KEY, [], (value) => JSON.parse(value))
+  getStorageItem<SentPayment[]>(LNURL_SENDS_STORAGE_KEY, [], (value) => {
+    const parsed: unknown = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed : []
+  })
 
 const listeners = new Set<() => void>()
 export const subscribeLnurlSends = (listener: () => void): (() => void) => {
