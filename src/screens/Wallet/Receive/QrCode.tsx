@@ -544,7 +544,15 @@ export default function ReceiveQRCode() {
                 </TextSecondary>
               ))}
               {shown === 'token' && tokenRails.error ? (
-                <TextSecondary>{t('receive.noTokenQuote', { error: tokenRails.error })}</TextSecondary>
+                <FlexCol gap='0.5rem' centered>
+                  <TextSecondary>{t('receive.noTokenQuote', { error: tokenRails.error })}</TextSecondary>
+                  <Button
+                    label={t('receive.getNewQuote')}
+                    onClick={tokenRails.regenerate}
+                    disabled={tokenRails.quoting}
+                    secondary
+                  />
+                </FlexCol>
               ) : null}
               <div
                 // Height-capped so the whole code sits above the bottom buttons on a short phone.
