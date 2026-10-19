@@ -148,6 +148,9 @@ export const translations = {
       lnurlNone: 'No lightning address yet.',
       lnurlAddName: 'Add a name',
       receive: 'Receive',
+      receiveViaLnurl: 'Route Arkade and Bitcoin through it',
+      receiveViaLnurlSubtext:
+        'With an amount set, the Arkade and Bitcoin addresses also come from your lightning address, so its server tracks those payments. Off: those methods stay direct.',
       receiveViaTokens: 'Accept tokens',
       receiveViaTokensSubtext:
         'With an amount set, payers can also send {units}, which a third party swaps to Arkade BTC.',
@@ -441,6 +444,7 @@ export const translations = {
       claimRateLimited: 'Too many attempts — try again shortly.',
       lnaddressClaimFailed: 'Could not get a lightning address.',
       noInvoiceForAmount: 'No invoice for this amount: {error}',
+      ownAddressInstead: "{rail} uses the wallet's own address: {error}",
       noLightningSolver: 'No Lightning solver available',
       lightningPaymentLost: 'Lightning payment lost: the solver reclaimed it before it could be claimed',
       claimFailed: 'Claiming the Lightning payment failed: {error}',
@@ -1077,6 +1081,9 @@ export const translations = {
       lnurlNone: 'Aún no tienes dirección Lightning.',
       lnurlAddName: 'Añadir un nombre',
       receive: 'Recibir',
+      receiveViaLnurl: 'Recibir Arkade y Bitcoin a través de ella',
+      receiveViaLnurlSubtext:
+        'Con un monto, las direcciones Arkade y Bitcoin también vienen de tu dirección Lightning, así su servidor registra esos pagos. Desactivado: esos métodos siguen siendo directos.',
       receiveViaTokens: 'Aceptar tokens',
       receiveViaTokensSubtext:
         'Con un monto, quien te paga también puede enviar {units}, que un tercero convierte a BTC en Arkade.',
@@ -1372,6 +1379,7 @@ export const translations = {
       claimRateLimited: 'Demasiados intentos; inténtalo de nuevo en un momento.',
       lnaddressClaimFailed: 'No se pudo obtener una dirección Lightning.',
       noInvoiceForAmount: 'Sin factura para este monto: {error}',
+      ownAddressInstead: '{rail} usa la dirección propia de la billetera: {error}',
       noLightningSolver: 'No hay solucionador Lightning disponible',
       lightningPaymentLost: 'Pago Lightning perdido: el solver lo reclamó antes de poder cobrarse',
       claimFailed: 'Fallo al cobrar el pago Lightning: {error}',

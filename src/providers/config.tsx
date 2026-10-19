@@ -20,6 +20,7 @@ const defaultConfig: Config = {
   nostrBackup: false,
   notifications: false,
   pubkey: '',
+  receiveViaLnurl: false,
   receiveViaTokens: false,
   receiveUnifiedMode: 'full',
   receiveQrForm: {},

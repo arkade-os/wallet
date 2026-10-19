@@ -219,8 +219,16 @@ describe('Lightning address settings', () => {
 describe('Lightning address settings, tokens', () => {
   const tokensServed = { modes: ['self'], addresses: [namedAddress('alice')], tokens: true }
 
-  it('turns token consent on without changing another receive setting', async () => {
-    renderPage(tokensServed)
+  it('turns Arkade and Bitcoin routing on and off', async () => {
+    renderPage(tokensServed, { receiveViaLnurl: false })
+
+    fireEvent.click(await screen.findByTestId('receive-via-lnurl'))
+
+    expect(backupAndUpdateConfig).toHaveBeenCalledWith(expect.objectContaining({ receiveViaLnurl: true }))
+  })
+
+  it('keeps token consent independent of routing every receive through the address', async () => {
+    renderPage(tokensServed, { receiveViaLnurl: false })
 
     fireEvent.click(await screen.findByTestId('receive-via-tokens'))
     const sheet = screen.getByTestId('sheet-modal')
@@ -228,15 +236,16 @@ describe('Lightning address settings, tokens', () => {
     expect(backupAndUpdateConfig).not.toHaveBeenCalled()
     fireEvent.click(within(sheet).getByRole('button', { name: 'Turn on' }))
 
-    expect(backupAndUpdateConfig).toHaveBeenCalledWith(expect.objectContaining({ receiveViaTokens: true }))
+    expect(backupAndUpdateConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ receiveViaLnurl: false, receiveViaTokens: true }),
+    )
   })
 
-  it('offers no token switch, nor an empty Receive section, when the server advertises no token option', async () => {
-    renderPage({ modes: ['self'], addresses: [namedAddress('alice')] })
+  it('offers no token switch when the server advertises no token option', async () => {
+    renderPage({ modes: ['self'], addresses: [namedAddress('alice')] }, { receiveViaLnurl: true })
 
     await screen.findByText('10,000 – 100,000,000 sats')
     expect(screen.queryByText('Accept tokens')).not.toBeInTheDocument()
-    expect(screen.queryByText('Receive', { selector: '.settings-section-label' })).not.toBeInTheDocument()
   })
 
   it('the explainer shows once and not again', async () => {

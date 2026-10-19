@@ -442,6 +442,72 @@ describe('Receive screen, rail composition', () => {
     expect(screen.getByRole('button', { name: /Showing.*Full details/ })).toBeInTheDocument()
     expect(await qrLightning()).toBeNull()
   })
+
+  it.each([
+    ['named', namedAddress('alice')],
+    ['nameless', namelessAddress()],
+  ] as const)('routes every rail of an amount through the LNURL when set to, %s', async (_, address) => {
+    serve({ modes: ['self', 'session'], addresses: [address] })
+    renderReceive(10_000, { receiveViaLnurl: true })
+
+    await waitFor(() => expect(callbacks()).toHaveLength(3))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled())
+    await pickMethod('Arkade')
+    await copyPart('ark')
+    expect(copyToClipboard).toHaveBeenLastCalledWith(LNURL_DESTINATIONS.arkade)
+    await pickMethod('Bitcoin')
+    await copyPart('btc')
+    expect(copyToClipboard).toHaveBeenLastCalledWith(LNURL_DESTINATIONS.onchain)
+    expect(callbacks().map((url) => url.searchParams.get('paymentOption'))).toEqual(
+      expect.arrayContaining(['lightning', 'arkade', 'onchain']),
+    )
+  })
+
+  it("keeps the wallet's own addresses, and says why, when the LNURL gives no destination", async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], destinationError: 'no covenant destinations' })
+    renderReceive(10_000, { receiveViaLnurl: true })
+
+    expect(await screen.findAllByText(/no covenant destinations/)).toHaveLength(2)
+    await pickMethod('Arkade')
+    await copyPart('ark')
+    expect(copyToClipboard).toHaveBeenLastCalledWith(DECODABLE_ARK)
+    await pickMethod('Bitcoin')
+    await copyPart('btc')
+    expect(copyToClipboard).toHaveBeenLastCalledWith(WALLET_BOARDING_ADDRESS)
+  })
+
+  it('refuses an Arkade address on another operator and an on-chain address that is not its own', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], foreignDestinations: true })
+    renderReceive(10_000, { receiveViaLnurl: true })
+
+    expect(await screen.findByText(/Arkade uses the wallet's own address: .*another operator/)).toBeInTheDocument()
+    expect(screen.getByText(/Bitcoin uses the wallet's own address: .*not this wallet's/)).toBeInTheDocument()
+    await pickMethod('Arkade')
+    await copyPart('ark')
+    expect(copyToClipboard).toHaveBeenLastCalledWith(DECODABLE_ARK)
+    await pickMethod('Bitcoin')
+    await copyPart('btc')
+    expect(copyToClipboard).toHaveBeenLastCalledWith(WALLET_BOARDING_ADDRESS)
+  })
+
+  it('falls back only on the rail the LNURL cannot serve for the amount', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    renderReceive(5_000, { receiveViaLnurl: true })
+
+    expect(
+      await screen.findByText(
+        "Bitcoin uses the wallet's own address: Amount must be between 10,000 and 100,000,000 sats",
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/Arkade uses the wallet's own address/)).not.toBeInTheDocument()
+    await pickMethod('Arkade')
+    await copyPart('ark')
+    expect(copyToClipboard).toHaveBeenLastCalledWith(LNURL_DESTINATIONS.arkade)
+    await pickMethod('Bitcoin')
+    await copyPart('btc')
+    expect(copyToClipboard).toHaveBeenLastCalledWith(WALLET_BOARDING_ADDRESS)
+  })
+
   it('shows the bare Arkade address with no amount', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
     renderReceive()
@@ -1052,5 +1118,19 @@ describe('Receive screen, token rails', () => {
         .map((url) => url.searchParams.get('paymentOption'))
         .sort(),
     ).toEqual(['ff-usdtarbitrum', 'lightning'])
+  })
+
+  it('keeps the selected token quote when routing every receive is turned off', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+    const routedTokens = { receiveViaLnurl: true, receiveViaTokens: true }
+    const { rerender } = renderReceive(20_000, routedTokens)
+    await pick('USDT (Arbitrum One)')
+    await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')
+
+    rerender(receiveTree(20_000, { ...routedTokens, receiveViaLnurl: false }))
+
+    expect(screen.getByRole('button', { name: /Showing.*USDT on Arbitrum One/ })).toBeInTheDocument()
+    expect(screen.getByText('Send exactly 17.156 USDT on Arbitrum One')).toBeInTheDocument()
+    expect(await copiedQr()).toBe(arbitrumUri(20_000_000))
   })
 })

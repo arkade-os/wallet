@@ -120,6 +120,10 @@ export default function Lnurl() {
   const units = [...new Set(tokens.map((o) => o.unit.code))].join('/')
   const providers = [...new Set(tokens.map((o) => o.provider))].join(', ')
 
+  const handleChange = () => {
+    backupAndUpdateConfig({ ...config, receiveViaLnurl: !config.receiveViaLnurl })
+  }
+
   const handleTokensChange = () => {
     if (!config.receiveViaTokens && !config.announcementsSeen.includes(TOKEN_EXPLAINER)) return setExplaining(true)
     backupAndUpdateConfig({ ...config, receiveViaTokens: !config.receiveViaTokens })
@@ -175,9 +179,16 @@ export default function Lnurl() {
                 <ErrorMessage error={Boolean(limitsError)} text={limitsError} />
               </section>
             ) : null}
-            {tokens.length > 0 ? (
-              <section className='settings-section'>
-                <p className='settings-section-label'>{t('settings.receive')}</p>
+            <section className='settings-section'>
+              <p className='settings-section-label'>{t('settings.receive')}</p>
+              <Toggle
+                checked={config.receiveViaLnurl}
+                onClick={handleChange}
+                text={t('settings.receiveViaLnurl')}
+                subtext={t('settings.receiveViaLnurlSubtext')}
+                testId='receive-via-lnurl'
+              />
+              {tokens.length > 0 ? (
                 <Toggle
                   checked={config.receiveViaTokens}
                   onClick={handleTokensChange}
@@ -185,8 +196,8 @@ export default function Lnurl() {
                   subtext={t('settings.receiveViaTokensSubtext', { units })}
                   testId='receive-via-tokens'
                 />
-              </section>
-            ) : null}
+              ) : null}
+            </section>
           </FlexCol>
         </Padded>
       </Content>

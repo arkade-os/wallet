@@ -67,6 +67,7 @@ export const mockConfigContextValue = {
     nostrBackup: true,
     notifications: true,
     pubkey: '',
+    receiveViaLnurl: false,
     receiveViaTokens: false,
     receiveUnifiedMode: 'full' as const,
     receiveQrForm: {},
