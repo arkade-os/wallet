@@ -620,6 +620,98 @@ describe('Receive screen, token rails', () => {
     expect(tokenQuotes()).toHaveLength(1)
   })
 
+  it('retries an expired token quote only on explicit action and hides the old deposit while waiting', async () => {
+    const options = {
+      modes: ['self'],
+      addresses: [namedAddress('alice')],
+      tokens: true,
+      quoteTtlMs: 120_000,
+      tokenDestination: TOKEN_DEPOSITS['ff-usdtarbitrum'],
+    }
+    serve(options)
+    share.can = true
+    onTestFinished(() => {
+      share.can = false
+    })
+    renderReceive(20_000, tokensOn)
+    await pick('USDT (Arbitrum One)')
+    await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')
+    expect(screen.getByRole('button', { name: 'Share' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy' })))
+    expect(await screen.findByTestId('token-address-copy')).toBeInTheDocument()
+    expect(screen.getByTestId('token-amount-address-copy')).toBeInTheDocument()
+    copyToClipboard.mockClear()
+    const from = qrValues.length
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 120_000)
+    onTestFinished(() => clock.mockRestore())
+    act(() => document.dispatchEvent(new Event('visibilitychange')))
+
+    expect(screen.queryByTestId('token-address-copy')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('token-amount-address-copy')).not.toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Share' })).toBeDisabled()
+    expect(tokenQuotes()).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'USDT (Arbitrum One)' }))
+    fireEvent.click(within(await screen.findByRole('radiogroup')).getByText('USDT (Arbitrum One)'))
+    expect(tokenQuotes()).toHaveLength(1)
+    const pending = holdQuotes(server, 'ff-usdtarbitrum')
+    options.tokenDestination = `0x${'cd'.repeat(20)}`
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(pending.held).toHaveLength(1))
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Send exactly/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Share' })).toBeDisabled()
+    expect(qrValues.slice(from)).not.toContain(arbitrumUri(20_000_000))
+    expect(copyToClipboard).not.toHaveBeenCalled()
+
+    pending.release()
+    await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')
+    expect(await copiedQr()).toBe(`0x${'cd'.repeat(20)}`)
+    expect(tokenQuotes()).toHaveLength(2)
+    expect(tokenQuotes().map((url) => url.searchParams.get('paymentOption'))).toEqual([
+      'ff-usdtarbitrum',
+      'ff-usdtarbitrum',
+    ])
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+  })
+
+  it('retries a transient token failure only on explicit action for the selected rail', async () => {
+    const tokenErrors: Record<string, string> = { 'ff-usdtarbitrum': 'provider temporarily busy' }
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true, tokenErrors })
+    renderReceive(20_000, tokensOn)
+    await pick('USDT (Arbitrum One)')
+    await screen.findByText(/No quote for this token: .*temporarily busy/)
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Share' })).toBeDisabled()
+    expect(tokenQuotes()).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'USDT (Arbitrum One)' }))
+    fireEvent.click(within(await screen.findByRole('radiogroup')).getByText('USDT (Arbitrum One)'))
+    expect(tokenQuotes()).toHaveLength(1)
+    delete tokenErrors['ff-usdtarbitrum']
+    const pending = holdQuotes(server, 'ff-usdtarbitrum')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(pending.held).toHaveLength(1))
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/No quote for this token/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeDisabled()
+    pending.release()
+
+    await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')
+    expect(await copiedQr()).toBe(arbitrumUri(20_000_000))
+    expect(tokenQuotes()).toHaveLength(2)
+    expect(tokenQuotes().map((url) => url.searchParams.get('paymentOption'))).toEqual([
+      'ff-usdtarbitrum',
+      'ff-usdtarbitrum',
+    ])
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+  })
+
   it('refuses a required Solana memo without exposing a token destination or QR', async () => {
     serve({
       modes: ['self'],
