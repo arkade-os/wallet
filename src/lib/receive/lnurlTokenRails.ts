@@ -3,12 +3,12 @@ import type { Receiver } from '@arkade-os/lnurl-client/arkade'
 import {
   createLnurlClient,
   LnurlError,
+  normalizeTokenQuote,
   tokenOptions,
   type PayRequest,
-  type TokenAsset,
   type TokenOption,
+  type TokenQuote,
 } from '@arkade-os/lnurl-client'
-import { atomicToUnits } from '../assets'
 import { consoleError } from '../logs'
 import { extractError } from '../error'
 import { Currencies } from '../types'
@@ -24,56 +24,6 @@ const MAX_TIMEOUT_MS = 2 ** 31 - 1
 
 export type LnurlTokenRail = TokenOption & { chain: string; provider: string }
 
-interface QuotedPayment {
-  destination: string
-  /** The quote's amount in the token's base units, as EIP-681's uint256 carries it. */
-  baseUnits: string
-  /** The same amount in whole tokens, as Solana Pay's amount carries it. */
-  amount: string
-}
-
-const decimal = (s: string | null) => s?.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '')
-
-/** True when `uri` is an EIP-681 token transfer or a Solana Pay SPL transfer of exactly the quoted
- *  token, chain, recipient and amount, read from their own fields. Any parse doubt is a mismatch. */
-function paysQuote(uri: string, { destination, baseUnits, amount }: QuotedPayment, asset: TokenAsset): boolean {
-  let url: URL
-  try {
-    url = new URL(uri)
-  } catch {
-    return false
-  }
-  const q = url.searchParams
-  // Wallets disagree on which of several values they would pay, so a bound field must appear exactly once.
-  const only = (key: string) => {
-    const values = q.getAll(key)
-    return values.length === 1 ? values[0] : undefined
-  }
-  if (asset.namespace === 'eip155' && url.protocol === 'ethereum:') {
-    const target = /^(0x[0-9a-f]{40})(?:@(\d+))?\/transfer$/i.exec(url.pathname)
-    return (
-      target !== null &&
-      target[1].toLowerCase() === asset.reference.toLowerCase() &&
-      (target[2] ?? '1') === asset.chainReference &&
-      only('address')?.toLowerCase() === destination.toLowerCase() &&
-      only('uint256') === baseUnits
-    )
-  }
-  if (asset.namespace === 'solana' && url.protocol === 'solana:') {
-    return (
-      url.pathname === destination &&
-      only('spl-token') === asset.reference &&
-      decimal(only('amount') ?? null) === decimal(amount)
-    )
-  }
-  return false
-}
-
-/** The server's payment URI when it pays exactly the quote, else the bare deposit address: the QR,
- *  Share and a phone's wallet link must never pay anyone but the deposit the screen shows. */
-export const payableUri = (uri: string | undefined, quote: QuotedPayment, asset: TokenAsset): string =>
-  uri && paysQuote(uri, quote, asset) ? uri : quote.destination
-
 interface Asked {
   lnurl: string
   optionId: string
@@ -81,20 +31,7 @@ interface Asked {
   round: number
 }
 
-export interface LnurlTokenQuote {
-  optionId: string
-  /** What the QR carries: the EIP-681 or Solana Pay URI, or the bare address on Tron, which has none. */
-  value: string
-  destination: string
-  /** The exact amount to send, in whole tokens. */
-  amount: string
-  expiresAt: number
-}
-
-/** A quote's base units as an exact amount of whole tokens, or undefined for anything but a plain
- *  positive integer: the payer is told to send exactly this. */
-export const wholeTokens = (baseUnits: unknown, decimals: number): string | undefined =>
-  typeof baseUnits === 'string' && /^[1-9]\d*$/.test(baseUnits) ? atomicToUnits(BigInt(baseUnits), decimals) : undefined
+export type LnurlTokenQuote = Pick<TokenQuote, 'optionId' | 'value' | 'destination' | 'amount' | 'expiresAt'>
 
 /** False when a USD stablecoin quote is outside 0.8x to 1.25x of what the requested sats are worth at the
  *  wallet's own price: the provider's spread is a few percent, so further off is a server misquoting.
@@ -113,7 +50,6 @@ export function lnurlTokenRails(payRequest: PayRequest, amountSat?: number): Lnu
     const inBounds =
       amountSat === undefined ||
       (msat >= (o.minSendable ?? payRequest.minSendable) && msat <= (o.maxSendable ?? payRequest.maxSendable))
-    // atomicToUnits is exact only up to 18 decimals, and the amount shown is what the payer sends.
     const offered = o.available && o.verifiable === true && o.unit.decimals <= 18 && inBounds
     // The client never returns an option without an asset; checked anyway, since its chain names the method.
     return offered && o.provider && o.asset ? [{ ...o, chain: chainLabel(o.asset.chainId), provider: o.provider }] : []
@@ -174,37 +110,21 @@ export function useLnurlTokenRails(
       .requestInvoice(source.payRequest, { amountSat, paymentOption: rail.id })
       .then((result) => {
         if (stale) return
-        // The client has already checked the option, the address's chain and a whole amount of the token.
-        if (result.kind !== 'destination' || !result.paymentDestination || !result.paymentQuote) {
+        if (result.kind !== 'destination') {
           throw new LnurlError(`the LNURL answered ${rail.id} with nothing payable on it`)
         }
         if (result.paymentDestinationTag) throw new LnurlError('the deposit needs a memo this QR cannot carry')
-        const expiresAt = Date.parse(result.paymentQuote.expiresAt ?? '')
+        const quote = normalizeTokenQuote(rail, result)
+        const { amount, expiresAt } = quote
         if (!(expiresAt - Date.now() >= MIN_QUOTE_MS)) {
           throw new LnurlError("the quote expires too soon to pay; check the device's clock")
         }
-        const amount = wholeTokens(result.paymentQuote.payment.amount, rail.unit.decimals)
-        if (!amount) throw new LnurlError("the quote's amount is unreadable")
+        if (!/^[1-9]\d*$/.test(quote.baseUnits)) throw new LnurlError("the quote's amount is unreadable")
         const usd = toFiatAmount(amountSat, Currencies.USD)
         if (!plausibleQuote(rail.unit.code, amount, usd)) {
           throw new LnurlError(
             `the quoted ${amount} ${rail.unit.code} is far from the ${usd.toFixed(2)} USD this amount is worth`,
           )
-        }
-        const quote = {
-          optionId: rail.id,
-          value: payableUri(
-            result.paymentURI,
-            {
-              destination: result.paymentDestination,
-              baseUnits: String(result.paymentQuote.payment.amount),
-              amount,
-            },
-            rail.asset,
-          ),
-          destination: result.paymentDestination,
-          amount,
-          expiresAt,
         }
         setAnswer({ asked, quote })
         // Expiry only marks the quote dead: a new one is a new provider order, placed on request.

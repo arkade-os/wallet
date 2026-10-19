@@ -140,9 +140,13 @@ export function fakeLnurlServer(opts: {
   simulated?: boolean
   tokenErrors?: Record<string, string>
   tokenTag?: string
+  tokenOption?: string
+  tokenDestination?: string
   quoteTtlMs?: number
+  quoteExpiresAt?: string
   /** Replaces a token quote's payment.amount, as a misbehaving server might. */
   paymentAmount?: string
+  paymentUnit?: string
   /** Replaces a token quote's paymentURI. */
   paymentURI?: string
 }) {
@@ -201,8 +205,8 @@ export function fakeLnurlServer(opts: {
         const amountMsat = Number(url.searchParams.get('amount'))
         return json(200, {
           status: 'OK',
-          paymentOption: token.id,
-          paymentDestination: TOKEN_DEPOSITS[token.id],
+          paymentOption: opts.tokenOption ?? token.id,
+          paymentDestination: opts.tokenDestination ?? TOKEN_DEPOSITS[token.id],
           ...(opts.paymentURI !== undefined
             ? { paymentURI: opts.paymentURI }
             : TOKEN_URIS[token.id]
@@ -212,9 +216,9 @@ export function fakeLnurlServer(opts: {
           provider: token.provider,
           paymentQuote: {
             id: 'AB12CD',
-            expiresAt: new Date(Date.now() + (opts.quoteTtlMs ?? 15 * 60_000)).toISOString(),
+            expiresAt: opts.quoteExpiresAt ?? new Date(Date.now() + (opts.quoteTtlMs ?? 15 * 60_000)).toISOString(),
             requested: { amount: String(amountMsat), unit: 'msat' },
-            payment: { amount: opts.paymentAmount ?? tokenPayment(amountMsat), unit: token.unit },
+            payment: { amount: opts.paymentAmount ?? tokenPayment(amountMsat), unit: opts.paymentUnit ?? token.unit },
           },
         })
       }
