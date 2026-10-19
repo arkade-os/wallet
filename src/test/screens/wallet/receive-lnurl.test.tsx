@@ -270,15 +270,19 @@ describe('Receive screen, rail composition', () => {
     serve({ modes: ['self'] })
     const inner = server.fetch
     let release!: () => void
+    let discoveryRequested = false
     const gate = new Promise<void>((resolve) => (release = resolve))
     vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
-      if (new URL(String(input)).pathname === '/lnurl/domain') await gate
+      if (new URL(String(input)).pathname === '/lnurl/domain') {
+        discoveryRequested = true
+        await gate
+      }
       return inner(input, init)
     })
     renderReceive(10_000)
 
     try {
-      await waitFor(async () => expect(await qrLightning()).toMatch(/^lnurl1/i))
+      await waitFor(() => expect(discoveryRequested).toBe(true))
       expect(receiveLightning).not.toHaveBeenCalled()
     } finally {
       await act(async () => release())
