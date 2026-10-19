@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useState, useSyncExternalStore } from 'react'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Padded from '../../components/Padded'
@@ -35,7 +35,7 @@ import { SwapsContext } from '../../providers/swaps'
 import { hapticTap } from '../../lib/haptics'
 import { useTransactionAmountDisplay } from '../../hooks/useTransactionAmountDisplay'
 import { useCorridorSendReceipt } from '../../hooks/useCorridorSendReceipt'
-import { lnurlSends } from '../../lib/lnurlSends'
+import { lnurlSends, subscribeLnurlSends } from '../../lib/lnurlSends'
 import TransactionAmountSummary from '../../components/TransactionAmountSummary'
 import { useTranslation } from '../../providers/language'
 import {
@@ -114,6 +114,11 @@ export default function Transaction() {
   const [recoverConfirmOpen, setRecoverConfirmOpen] = useState(false)
   const [recoverFailed, setRecoverFailed] = useState(false)
   const [recoveringSwap, setRecoveringSwap] = useState(false)
+  const txid = tx?.boardingTxid || tx?.redeemTxid || tx?.roundTxid || ''
+  const receiverConfirmed = useSyncExternalStore(
+    subscribeLnurlSends,
+    () => lnurlSends().find((s) => s.txid === txid)?.receiverConfirmed,
+  )
 
   useEffect(() => {
     setButtonLabel(settling ? t('transaction.settling') : defaultButtonLabel)
@@ -245,10 +250,6 @@ export default function Transaction() {
     : !unconfirmedBoardingTx
       ? t('common.unknown')
       : t('transaction.unconfirmed')
-  const txid = tx.boardingTxid || tx.redeemTxid || tx.roundTxid || ''
-  // Set only once the confirmation loop resolves; absent while still pending
-  // or when the rail never handed out a verify URL to track.
-  const receiverConfirmed = lnurlSends().find((s) => s.txid === txid)?.receiverConfirmed
   const displayedAssets = amountDisplay?.raw.filter((amount) => amount.assetId) ?? []
   const assetIds = displayedAssets.map((amount) => ({
     assetId: amount.assetId!,

@@ -9,6 +9,7 @@ import {
   createLnurlPaymentRepository,
   createLnurlPaymentSyncStore,
   type LnurlPaymentStore,
+  type LnurlPaymentWatermarkStore,
 } from '../../lib/lnurlPaymentRepository'
 
 const SERVER_A = 'https://lnurl-a.test'
@@ -267,6 +268,70 @@ describe('lnurlPaymentRepository', () => {
 })
 
 describe('clearLnurlPaymentsForReset', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('purges persisted watermarks with the payment records', async () => {
+    const repository = createLnurlPaymentRepository(createMemoryStore())
+    await repository.upsert([makePayment('hash-1')])
+    await repository.writeWatermark(SERVER_A, ALICE, 42)
+
+    await clearLnurlPaymentsForReset(repository)
+
+    expect(await repository.all()).toEqual([])
+    expect(localStorage.getItem(LNURL_WATERMARKS_STORAGE_KEY)).toBeNull()
+  })
+
+  it('drains accepted watermark writes and clears cursors before records', async () => {
+    const order: string[] = []
+    let release!: () => void
+    const held = new Promise<void>((resolve) => (release = resolve))
+    const watermarks: LnurlPaymentWatermarkStore = {
+      read: async () => undefined,
+      write: async () => {
+        await held
+        order.push('watermark write')
+      },
+      clear: async () => {
+        order.push('watermark clear')
+      },
+    }
+    const payments = createMemoryStore()
+    payments.clear = async () => {
+      order.push('payment clear')
+    }
+    const repository = createLnurlPaymentRepository(payments, watermarks)
+    const pending = repository.writeWatermark(SERVER_A, ALICE, 42)
+    const reset = clearLnurlPaymentsForReset(repository)
+    await tick()
+    await repository.writeWatermark(SERVER_A, ALICE, 43)
+    expect(order).toEqual([])
+
+    release()
+    await Promise.all([pending, reset])
+
+    expect(order).toEqual(['watermark write', 'watermark clear', 'payment clear'])
+  })
+
+  it('reopens writes without purging records when watermark deletion fails', async () => {
+    const payments = createMemoryStore()
+    const clear = vi.spyOn(payments, 'clear')
+    const repository = createLnurlPaymentRepository(payments, {
+      read: async () => undefined,
+      write: async () => undefined,
+      clear: async () => {
+        throw new Error('watermark deletion failed')
+      },
+    })
+    await repository.upsert([makePayment('before-reset')])
+
+    await expect(clearLnurlPaymentsForReset(repository)).rejects.toThrow('watermark deletion failed')
+    await repository.upsert([makePayment('after-reset')])
+
+    expect(clear).not.toHaveBeenCalled()
+    expect(await repository.all()).toHaveLength(2)
+    expect(repository.writesClosed()).toBe(false)
+  })
+
   it('waits out a write already in flight, then clears', async () => {
     const order: string[] = []
     const store = heldWriteStore(order)
@@ -521,6 +586,16 @@ describe('lnurl watermarks', () => {
     expect(await store.readWatermark(SERVER_A, ALICE)).toBe(42)
     expect(await store.readWatermark(SERVER_B, ALICE)).toBe(7)
     expect(await store.readWatermark(SERVER_A, BOB)).toBe(9)
+  })
+
+  it('surfaces watermark persistence failures to the sync caller', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
+      throw new Error('quota exceeded')
+    })
+
+    await expect(store.writeWatermark(SERVER_A, ALICE, 42)).rejects.toThrow('quota exceeded')
+
+    expect(await store.readWatermark(SERVER_A, ALICE)).toBeUndefined()
   })
 
   it.each(['null', '[]', '7'])('treats a stored %s as no watermarks, and still writes', async (raw) => {
