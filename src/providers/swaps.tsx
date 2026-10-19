@@ -842,6 +842,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     if (swapsOptional && !held.current) return createSendRouter({ wallet: svcWallet!, ...deps })
     if (!held.current) throw new SwapsHeldElsewhere()
     const client = await driving()
+    // LNURL keeps the local Lightning client but needs no onchain claim fee.
+    if (swapsOptional) return createSendRouter({ wallet: svcWallet!, client, ...deps })
     const claimFeeRateSatVb = await claimFeeRate(onchainClaimEndpoint(aspInfo.network as NetworkName))
     return createSendRouter({ wallet: svcWallet!, client, claimFeeRateSatVb, ...deps })
   }
