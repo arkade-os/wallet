@@ -116,8 +116,7 @@ export default function ReceiveQRCode() {
       })
   }, [svcWallet])
 
-  // A reachable lnurl-server replaces the swap rail; an unreachable one falls back to it. Not while
-  // onboarding: a swap invoice would outlive the claim and take the QR's lightning= from the LNURL.
+  // A pending Receive-screen claim must not leave a swap invoice taking the QR's lightning= from the LNURL.
   const lnurlConfigured = Boolean(configuredLnurlServer())
   const lnurlRail = useLnurlRail({
     enabled: lnurlConfigured && !isAssetReceive,
@@ -125,7 +124,10 @@ export default function ReceiveQRCode() {
     arkadeAddress: recvInfo.offchainAddr,
     boardingAddress: recvInfo.boardingAddr || undefined,
   })
-  const swapRailOn = !lnurlConfigured || lnurlRail.status === 'failed'
+  const swapRailOn =
+    !lnurlConfigured ||
+    lnurlRail.status === 'failed' ||
+    (lnurlRail.status === 'onboarding' && !lnurlRail.choices.includes('self'))
   const swapRail = useSwapRail(swapRailOn)
   const lnurl = lnurlRail.lnurl ?? ''
   const lightningAddress = lnurlRail.receiver?.lightningAddress ?? ''
