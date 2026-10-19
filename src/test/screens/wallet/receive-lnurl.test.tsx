@@ -741,6 +741,8 @@ describe('Receive screen, token rails', () => {
     await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')
     expect(screen.getByRole('link', { name: 'Open in wallet' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Share' })).toBeEnabled()
+    expect(screen.getByTestId('token-address-copy')).toBeVisible()
+    expect(screen.getByTestId('token-amount-address-copy')).toBeVisible()
     const from = qrValues.length
 
     const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 120_000)
@@ -853,7 +855,7 @@ describe('Receive screen, token rails', () => {
 
     expect(await screen.findByText(/No quote for this token: .*busy/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Copy' })).toBeDisabled()
+    expect(screen.queryByTestId('token-address-copy')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Share' })).toBeDisabled()
   })
 
