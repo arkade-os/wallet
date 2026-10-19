@@ -872,6 +872,42 @@ describe('Receive screen, token rails', () => {
     expect(tokenQuotes()).toHaveLength(0)
   })
 
+  it('retries a failed token quote only on request and hides payment actions until it succeeds', async () => {
+    const tokenErrors: Record<string, string> = { 'ff-usdtarbitrum': 'provider is busy' }
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true, tokenErrors })
+    share.can = true
+    onTestFinished(() => {
+      share.can = false
+    })
+    renderReceive(20_000, tokensOn)
+    await pick('USDT (Arbitrum One)')
+    await screen.findByText(/No quote for this token: .*provider is busy/)
+    expect(tokenQuotes()).toHaveLength(1)
+
+    act(() => document.dispatchEvent(new Event('visibilitychange')))
+    expect(tokenQuotes()).toHaveLength(1)
+    const pending = holdQuotes(server, 'ff-usdtarbitrum')
+    delete tokenErrors['ff-usdtarbitrum']
+    fireEvent.click(screen.getByRole('button', { name: 'Get a new quote' }))
+    await waitFor(() => expect(pending.held).toHaveLength(1))
+
+    expect(screen.getByRole('button', { name: /Showing.*USDT on Arbitrum One/ })).toBeInTheDocument()
+    expect(screen.getByText('Getting quote…')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Get a new quote' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/No quote for this token/)).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Copy QR code')).toBeDisabled()
+    expect(screen.queryByTestId('token-address-copy')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('token-amount-address-copy')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Share' })).toBeDisabled()
+
+    pending.release()
+    expect(await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')).toBeInTheDocument()
+    expect(await copiedQr()).toBe(arbitrumUri(20_000_000))
+    expect(screen.getByTestId('token-address-copy')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Share' })).toBeEnabled()
+    expect(tokenQuotes()).toHaveLength(2)
+  })
+
   it('says why a token has no quote', async () => {
     serve({
       modes: ['self'],
