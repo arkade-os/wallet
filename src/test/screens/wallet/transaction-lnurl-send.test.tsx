@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Transaction from '../../../screens/Wallet/Transaction'
 import { AspContext } from '../../../providers/asp'
@@ -9,6 +9,7 @@ import { WalletContext } from '../../../providers/wallet'
 import type { Tx } from '../../../lib/types'
 import { mergeSentPayment, type SentPayment } from '@arkade-os/lnurl-client/arkade'
 import { LNURL_SENDS_STORAGE_KEY } from '../../../lib/storageKeys'
+import { markLnurlReceiverConfirmed } from '../../../lib/lnurlSends'
 import {
   mockAspContextValue,
   mockFlowContextValue,
@@ -94,5 +95,15 @@ describe('LNURL send receiver confirmation', () => {
     expect(await screen.findByTestId('Transaction ID')).toHaveTextContent(txid)
     expect(screen.queryByText('Receiver confirmed')).not.toBeInTheDocument()
     expect(screen.queryByText('Not confirmed')).not.toBeInTheDocument()
+  })
+
+  it.each([true, false])('updates an open receipt when receiver confirmation becomes %s', async (confirmed) => {
+    recordSent()
+    renderReceipt(sentTx)
+    expect(await screen.findByTestId('Transaction ID')).toHaveTextContent(txid)
+
+    act(() => markLnurlReceiverConfirmed(txid, confirmed))
+
+    expect(await screen.findByText(confirmed ? 'Receiver confirmed' : 'Not confirmed')).toBeInTheDocument()
   })
 })

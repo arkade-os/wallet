@@ -37,7 +37,7 @@ import { buildTransactionAmountDisplay } from '../../../lib/transactionAmountDis
 import { useAmountDisplayContext } from '../../../hooks/useTransactionAmountDisplay'
 import TransactionAmountSummary from '../../../components/TransactionAmountSummary'
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
-import { recordLnurlSend, watchLnurlConfirmation } from '../../../lib/lnurlSends'
+import { lnurlSends, recordLnurlSend, watchLnurlConfirmation } from '../../../lib/lnurlSends'
 import { useTranslation } from '../../../providers/language'
 
 export default function SendDetails() {
@@ -259,7 +259,14 @@ export default function SendDetails() {
     const result = await fundedResult(handle)
     // A rail whose destination cannot identify the payment supplies no verify
     // URL, and absence is "no answer available" rather than a failure.
-    if (result?.txid && lnurlMeta.verify) watchLnurlConfirmation(result.txid, lnurlMeta.verify, lnurlMeta.verifyBatch)
+    if (result?.txid && lnurlMeta.verify)
+      watchLnurlConfirmation(
+        result.txid,
+        lnurlMeta.verify,
+        lnurlMeta.verifyBatch,
+        lnurlSends().find((sent) => sent.txid === result.txid)?.createdAt,
+        lnurlMeta.expect,
+      )
     handleSent(result?.txid, quote.total, quote.fee, quote.railId)
   }
 

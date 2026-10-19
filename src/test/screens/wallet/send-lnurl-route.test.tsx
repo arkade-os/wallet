@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeHandle } from '@arkade-os/sdk'
+import type { VerifyExpectation } from '@arkade-os/lnurl-client'
 import SendDetails from '../../../screens/Wallet/Send/Details'
 import { AspContext } from '../../../providers/asp'
 import { ConfigContext } from '../../../providers/config'
@@ -38,7 +39,7 @@ const SATS = 5_000
 const lnurlQuote = (
   railId: string,
   sent = vi.fn(),
-  over: { target?: string; fee?: number; verify?: string; verifyBatch?: string } = {},
+  over: { target?: string; fee?: number; verify?: string; verifyBatch?: string; expect?: VerifyExpectation } = {},
 ) => ({
   railId,
   amount: SATS,
@@ -50,6 +51,7 @@ const lnurlQuote = (
       via: railId === LNURL_ARKADE_RAIL ? 'ark' : 'lightning',
       ...(over.verify ? { verify: over.verify } : {}),
       ...(over.verifyBatch ? { verifyBatch: over.verifyBatch } : {}),
+      ...(over.expect ? { expect: over.expect } : {}),
     },
   },
   send: async () => {
@@ -178,10 +180,38 @@ describe('Review Focus 5: verifyBatch send confirmations', () => {
     addConfirmation.mockClear()
   })
 
+  it('keeps the original confirmation window when funding takes time', async () => {
+    let now = 1_000
+    vi.spyOn(Date, 'now').mockImplementation(() => now)
+    let fund!: () => void
+    const quote = lnurlQuote(LNURL_LIGHTNING_RAIL, vi.fn(), { verify: 'https://alice.example/verify/slow' })
+    quote.send = async () =>
+      makeHandle(LNURL_LIGHTNING_RAIL, (emit) => {
+        fund = () => emit({ status: 'sent', result: { railId: LNURL_LIGHTNING_RAIL, txid: 'slow-funding' } })
+        return new Promise(() => {})
+      })
+    renderSign({ lnUrl: TARGET, satoshis: SATS, pendingLnSend: quote as never })
+    await sign()
+    await waitFor(() => expect(fund).toBeDefined())
+    now = 61_000
+    fund()
+
+    await waitFor(() =>
+      expect(addConfirmation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          key: 'slow-funding',
+          startedAt: 1_000,
+        }),
+      ),
+    )
+    expect(lnurlSends()[0].createdAt).toBe(1_000)
+  })
+
   it('registers a confirmation for the verify URL the rail carried, without delaying the send', async () => {
     const quote = lnurlQuote(LNURL_ARKADE_RAIL, vi.fn(), {
       verify: 'https://alice.example/verify/1',
       verifyBatch: 'https://alice.example/verifyBatch',
+      expect: { paymentOption: 'arkade', paymentDestination: 'ark1recipient' },
     })
     renderSign({ lnUrl: TARGET, satoshis: SATS, pendingLnSend: quote as never })
     await sign()
@@ -192,6 +222,9 @@ describe('Review Focus 5: verifyBatch send confirmations', () => {
     )
     expect(addConfirmation).toHaveBeenCalledWith(
       expect.objectContaining({
+        key: `${LNURL_ARKADE_RAIL}-txid`,
+        startedAt: lnurlSends()[0].createdAt,
+        expect: { paymentOption: 'arkade', paymentDestination: 'ark1recipient' },
         verifyUrl: 'https://alice.example/verify/1',
         verifyBatch: 'https://alice.example/verifyBatch',
       }),

@@ -42,8 +42,7 @@ import { arkTransactionToTx } from '../lib/transactionHistory'
 import { Indexer } from '../lib/indexer'
 import { lnSendViews, swapRecordResolver, type LnSendView } from '../lib/swapRecords'
 import { clearLnurlPaymentsForReset, createLnurlActivityResolver } from '../lib/lnurlPaymentRepository'
-import { createSentActivityResolver, resumeLnurlConfirmations } from '../lib/lnurlSends'
-import { pendingConfirmations } from '../lib/lnurlConfirmations'
+import { createSentActivityResolver, forgetLnurlSends, resumeLnurlConfirmations } from '../lib/lnurlSends'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
@@ -991,6 +990,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     // reset that completed without them gone would hand the next wallet the
     // previous one's payment history. Rejecting here leaves the wallet intact.
     await clearLnurlPaymentsForReset()
+    forgetLnurlSends()
     await clearStorage()
     // swap records outlive localStorage now: without this a reset leaves the
     // previous wallet's swaps in the activity list. Never fatal — a reset that
@@ -998,7 +998,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     // than stale swap rows.
     await assetSwapRepository.clear().catch((err) => consoleError(err, 'failed to clear swap records'))
     setAssetSwaps([])
-    pendingConfirmations.forget()
     await svcWallet.clear()
     await svcWallet.walletRepository.clear()
     await svcWallet.contractRepository.clear()
