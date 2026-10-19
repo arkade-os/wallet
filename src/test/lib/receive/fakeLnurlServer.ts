@@ -137,6 +137,7 @@ export function fakeLnurlServer(opts: {
       if (opts.reject) return json(409, opts.reject)
       const handle = decodeURIComponent(path.split('/').pop()!)
       const index = addresses.findIndex((a) => a.handle === handle)
+      if (index < 0) return json(404, { error: 'address not found' })
       addresses[index] = named(body.username ?? 'brave-otter', addresses[index].sessionLnurl)
       return json(200, addresses[index])
     }
