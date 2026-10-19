@@ -1,7 +1,16 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_NETWORK, planOffer, type DiscoveredMarket } from '@arkade-os/solver-discovery'
-import { BUNDLED_CARDS, discoveryOptions, preFeeDisplayRate } from '../../lib/swapMarkets'
+import { BUNDLED_CARDS, discoveryOptions, preFeeDisplayRate, watchSwapMarkets } from '../../lib/swapMarkets'
 import { btcUsdt } from './swapFixtures'
+
+const mocks = vi.hoisted(() => ({
+  watchMarkets: vi.fn(),
+}))
+
+vi.mock('@arkade-os/swap/protocol', () => ({
+  discoverMarkets: vi.fn(),
+  watchMarkets: mocks.watchMarkets,
+}))
 
 describe('discoveryOptions', () => {
   beforeEach(() => localStorage.clear())
@@ -31,6 +40,23 @@ describe('discoveryOptions', () => {
       registryUrl: undefined,
       localCards: [],
     })
+  })
+})
+
+describe('watchSwapMarkets', () => {
+  it('bypasses the market cache so every watch tick reads solver-published cards', () => {
+    const stop = vi.fn()
+    mocks.watchMarkets.mockReturnValue(stop)
+
+    expect(watchSwapMarkets('bitcoin', () => {})).toBe(stop)
+    expect(mocks.watchMarkets).toHaveBeenCalledWith(
+      expect.objectContaining({
+        network: 'bitcoin',
+        repository: expect.anything(),
+        useCache: false,
+      }),
+      expect.any(Function),
+    )
   })
 })
 

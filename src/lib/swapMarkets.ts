@@ -104,6 +104,8 @@ export const discoverMarkets = async (network: NetworkName, useCache = true): Pr
   discover({ ...discoveryOptions(network), repository: assetSwapRepository, useCache })
 
 /** {@link discoverMarkets} kept current for a long-lived tab. The repository is what lets a
- * failed re-read answer from the cache rather than shrink the list to the local cards. */
+ * failed re-read answer from the cache rather than shrink the list to the local cards.
+ * The watch bypasses a fresh cache on purpose: a cache hit would skip the registry and the
+ * solver's published card, so its five-minute tick could keep stale limits for another ten. */
 export const watchSwapMarkets = (network: NetworkName, onMarkets: (markets: DiscoveredMarket[]) => void) =>
-  watchMarkets({ ...discoveryOptions(network), repository: assetSwapRepository }, onMarkets)
+  watchMarkets({ ...discoveryOptions(network), repository: assetSwapRepository, useCache: false }, onMarkets)
