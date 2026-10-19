@@ -29,7 +29,6 @@ import {
   BTC_USD,
   DECODABLE_ARK,
   LNURL_BASE,
-  LNURL_DESTINATIONS,
   TOKEN_DEPOSITS,
   WALLET_BOARDING_ADDRESS,
   arbitrumUri,
@@ -301,64 +300,6 @@ describe('Receive screen, rail composition', () => {
     fireEvent.click(screen.getByText('Lightning'))
     expect(await copiedQr()).toBe('alice@lnurl.test')
   })
-
-  it.each([
-    ['named', namedAddress('alice')],
-    ['nameless', namelessAddress()],
-  ] as const)('routes every rail of an amount through the LNURL when set to, %s', async (_, address) => {
-    serve({ modes: ['self', 'session'], addresses: [address] })
-    renderReceive(10_000, { receiveViaLnurl: true })
-
-    await waitFor(() => expect(callbacks()).toHaveLength(3))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled())
-    fireEvent.click(screen.getByText('Arkade'))
-    expect(await copiedQr()).toBe(LNURL_DESTINATIONS.arkade)
-    fireEvent.click(screen.getByText('Bitcoin'))
-    expect(await copiedQr()).toBe(LNURL_DESTINATIONS.onchain)
-    expect(callbacks().map((url) => url.searchParams.get('paymentOption'))).toEqual(
-      expect.arrayContaining(['lightning', 'arkade', 'onchain']),
-    )
-  })
-
-  it("keeps the wallet's own addresses, and says why, when the LNURL gives no destination", async () => {
-    serve({ modes: ['self'], addresses: [namedAddress('alice')], destinationError: 'no covenant destinations' })
-    renderReceive(10_000, { receiveViaLnurl: true })
-
-    expect(await screen.findAllByText(/no covenant destinations/)).toHaveLength(2)
-    fireEvent.click(screen.getByText('Arkade'))
-    expect(await copiedQr()).toBe(DECODABLE_ARK)
-    fireEvent.click(screen.getByText('Bitcoin'))
-    expect(await copiedQr()).toBe(WALLET_BOARDING_ADDRESS)
-  })
-
-  it('refuses an Arkade address on another operator and an on-chain address that is not its own', async () => {
-    serve({ modes: ['self'], addresses: [namedAddress('alice')], foreignDestinations: true })
-    renderReceive(10_000, { receiveViaLnurl: true })
-
-    expect(await screen.findByText(/Arkade uses the wallet's own address: .*another operator/)).toBeInTheDocument()
-    expect(screen.getByText(/Bitcoin uses the wallet's own address: .*not this wallet's/)).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Arkade'))
-    expect(await copiedQr()).toBe(DECODABLE_ARK)
-    fireEvent.click(screen.getByText('Bitcoin'))
-    expect(await copiedQr()).toBe(WALLET_BOARDING_ADDRESS)
-  })
-
-  it('falls back only on the rail the LNURL cannot serve for the amount', async () => {
-    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
-    renderReceive(5_000, { receiveViaLnurl: true })
-
-    expect(
-      await screen.findByText(
-        "Bitcoin uses the wallet's own address: Amount must be between 10,000 and 100,000,000 sats",
-      ),
-    ).toBeInTheDocument()
-    expect(screen.queryByText(/Arkade uses the wallet's own address/)).not.toBeInTheDocument()
-    fireEvent.click(screen.getByText('Arkade'))
-    expect(await copiedQr()).toBe(LNURL_DESTINATIONS.arkade)
-    fireEvent.click(screen.getByText('Bitcoin'))
-    expect(await copiedQr()).toBe(WALLET_BOARDING_ADDRESS)
-  })
-
   it('copies a single-address method outright, without the copy sheet', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
     renderReceive(10_000)
@@ -504,7 +445,7 @@ describe('Receive screen, naming a nameless receiver', () => {
 })
 
 describe('Receive screen, token rails', () => {
-  const tokensOn = { receiveViaLnurl: true, receiveViaTokens: true }
+  const tokensOn = { receiveViaTokens: true }
   const payRequests = () => server.calls('GET', '/.well-known/lnurlp/alice')
   const tokenQuotes = () => callbacks().filter((url) => url.searchParams.get('paymentOption')?.startsWith('ff-'))
   const tokenSelect = () => screen.queryByRole('button', { name: 'Pay with a token' })
@@ -755,7 +696,7 @@ describe('Receive screen, token rails', () => {
 
     // One fetch: both rail hooks share the receiver's memoised payRequest (client 0.5.2).
     await waitFor(() => expect(payRequests()).toHaveLength(1))
-    await waitFor(() => expect(callbacks()).toHaveLength(3))
+    await waitFor(() => expect(callbacks()).toHaveLength(1))
     expect(tokenSelect()).not.toBeInTheDocument()
   })
 
@@ -764,7 +705,7 @@ describe('Receive screen, token rails', () => {
     renderReceive(20_000, tokensOn)
 
     await screen.findByRole('button', { name: 'Pay with a token' })
-    await waitFor(() => expect(callbacks()).toHaveLength(3))
+    await waitFor(() => expect(callbacks()).toHaveLength(1))
     expect(tokenQuotes()).toHaveLength(0)
   })
 
@@ -812,16 +753,7 @@ describe('Receive screen, token rails', () => {
 
   it('token rails are absent when receiveViaTokens is off', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
-    renderReceive(20_000, { receiveViaLnurl: true })
-
-    await waitFor(() => expect(callbacks()).toHaveLength(3))
-    expect(tokenSelect()).not.toBeInTheDocument()
-    expect(payRequests()).toHaveLength(1)
-  })
-
-  it('token rails are absent when receiveViaLnurl is off even with receiveViaTokens on', async () => {
-    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
-    renderReceive(20_000, { receiveViaTokens: true })
+    renderReceive(20_000)
 
     await waitFor(() => expect(callbacks()).toHaveLength(1))
     expect(tokenSelect()).not.toBeInTheDocument()

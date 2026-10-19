@@ -21,7 +21,6 @@ export type Config = {
   nostrBackup: boolean
   notifications: boolean
   pubkey: string
-  receiveViaLnurl: boolean
   receiveViaTokens: boolean
   showBalance: boolean
   dismissedBanners: string[]

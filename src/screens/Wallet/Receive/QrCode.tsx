@@ -142,27 +142,22 @@ export default function ReceiveQRCode() {
   const swapRail = useSwapRail(swapRailOn)
   const lnurl = lnurlRail.lnurl ?? ''
   const lightningAddress = lnurlRail.receiver?.lightningAddress ?? ''
-  const lnurlRails = useLnurlRails(lnurlRail.receiver, satoshis, config.receiveViaLnurl, {
+  const lnurlRails = useLnurlRails(lnurlRail.receiver, satoshis, false, {
     arkade: recvInfo.offchainAddr,
     onchain: recvInfo.boardingAddr,
   })
   const tokenRails = useLnurlTokenRails(
     lnurlRail.receiver,
     satoshis,
-    config.receiveViaLnurl && config.receiveViaTokens,
+    config.receiveViaTokens,
     selectedMethod.startsWith(TOKEN) ? selectedMethod.slice(TOKEN.length) : undefined,
   )
   // A swap invoice left in the flow by an earlier visit isn't this rail's while the LNURL serves Lightning.
   const invoice = (swapRailOn ? recvInfo.invoice : undefined) || lnurlRails.targets.lightning || ''
   const generatingInvoice = swapRail.generatingInvoice || lnurlRails.generating
-  const fallbacks = [
-    { label: t('receive.methodArkade'), error: lnurlRails.errors.arkade },
-    { label: t('receive.methodBitcoin'), error: lnurlRails.errors.onchain },
-  ].filter((rail) => rail.error)
-
   const createBip21 = (): { ark: string; btc: string; bip21: string } => {
-    const ark = vtxoTxsAllowed() ? lnurlRails.targets.arkade || recvInfo.offchainAddr : ''
-    const btc = utxoTxsAllowed() ? lnurlRails.targets.onchain || recvInfo.boardingAddr : ''
+    const ark = vtxoTxsAllowed() ? recvInfo.offchainAddr : ''
+    const btc = utxoTxsAllowed() ? recvInfo.boardingAddr : ''
     const bip21 = isAssetReceive
       ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals)
       : encodeBip21(btc, ark, invoice, satoshis, lnurl)
@@ -189,8 +184,6 @@ export default function ReceiveQRCode() {
     recvInfo.satoshis,
     invoice,
     lnurl,
-    lnurlRails.targets.arkade,
-    lnurlRails.targets.onchain,
   ])
 
   /**
@@ -472,11 +465,6 @@ export default function ReceiveQRCode() {
               {lnurlRails.errors.lightning ? (
                 <TextSecondary>{t('receive.noInvoiceForAmount', { error: lnurlRails.errors.lightning })}</TextSecondary>
               ) : null}
-              {fallbacks.map(({ label, error }) => (
-                <TextSecondary key={label}>
-                  {t('receive.ownAddressInstead', { rail: label, error: error ?? '' })}
-                </TextSecondary>
-              ))}
               {activeToken && tokenRails.error ? (
                 <TextSecondary>{t('receive.noTokenQuote', { error: tokenRails.error })}</TextSecondary>
               ) : null}

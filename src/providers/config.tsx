@@ -20,7 +20,6 @@ const defaultConfig: Config = {
   nostrBackup: false,
   notifications: false,
   pubkey: '',
-  receiveViaLnurl: false,
   receiveViaTokens: false,
   showBalance: true,
   theme: Themes.Auto,
