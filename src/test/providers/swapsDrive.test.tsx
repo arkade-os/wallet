@@ -8,6 +8,8 @@ import { WalletContext } from '../../providers/wallet'
 import { SwapsContext, SwapsProvider } from '../../providers/swaps'
 import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
 import { MUTINYNET_USDT_ASSET_ID } from '../../lib/accountAssets'
+import { createSendRouter } from '../../lib/sendRouter'
+import { makeSwapClient } from '../../lib/swapClient'
 
 const success = vi.hoisted(() => vi.fn())
 vi.mock('../../components/Toast', async (importOriginal) => ({
@@ -30,12 +32,13 @@ const clientQuote = vi.hoisted(() => vi.fn())
 const offboard = vi.hoisted(() => vi.fn())
 const receive = vi.hoisted(() => vi.fn())
 const recover = vi.hoisted(() => vi.fn())
+const claimFeeRate = vi.hoisted(() => vi.fn<() => Promise<number | undefined>>())
 /** Set by the provider's own `onUpdate`, so a test can push one through. */
 const listeners = vi.hoisted(() => [] as ((update: SwapUpdate) => void)[])
 
 vi.mock('../../lib/swapClient', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/swapClient')>()),
-  makeSwapClient: () => ({
+  makeSwapClient: vi.fn(() => ({
     get ready() {
       return ready()
     },
@@ -53,7 +56,7 @@ vi.mock('../../lib/swapClient', async (importOriginal) => ({
     start: async () => {},
     stop: async () => {},
     [Symbol.asyncDispose]: dispose,
-  }),
+  })),
 }))
 
 vi.mock('../../lib/asp', async (original) => ({
@@ -62,8 +65,13 @@ vi.mock('../../lib/asp', async (original) => ({
 }))
 vi.mock('../../lib/claimFee', async (original) => ({
   ...(await original<typeof import('../../lib/claimFee')>()),
-  claimFeeRate: async () => 2,
+  claimFeeRate,
 }))
+
+vi.mock('../../lib/sendRouter', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/sendRouter')>()
+  return { ...actual, createSendRouter: vi.fn(actual.createSendRouter) }
+})
 
 vi.mock('../../lib/swapRepository', async () => {
   const { InMemoryAssetSwapRepository: InMemory } = await import('@arkade-os/swap')
@@ -261,6 +269,7 @@ beforeEach(() => {
   dispose.mockReset().mockResolvedValue(undefined)
   accept.mockReset().mockResolvedValue(monitored('funded'))
   clientQuote.mockReset()
+  claimFeeRate.mockReset().mockResolvedValue(2)
   offboard.mockReset()
   receive.mockReset().mockResolvedValue(minted())
   recover.mockReset().mockResolvedValue({ recovered: true, txid: 'round-txid', swap: monitored('cancelled') })
@@ -287,6 +296,42 @@ const renderTwoTabs = () =>
   )
 
 describe('SwapsProvider single-driver rule', () => {
+  it('builds an optional router on the driver without waiting for onchain fees, retaining its client', async () => {
+    claimFeeRate.mockReturnValue(new Promise(() => {}))
+    renderProvider()
+    await waitFor(() => expect(reloadWallet).toHaveBeenCalled())
+    expect(ready).toHaveBeenCalledTimes(1)
+    const client = vi.mocked(makeSwapClient).mock.results[0].value
+
+    await userEvent.click(screen.getByText('Route a'))
+
+    await waitFor(() => expect(screen.getByTestId('routed')).toHaveTextContent('router'))
+    expect(claimFeeRate).not.toHaveBeenCalled()
+    expect(createSendRouter).toHaveBeenCalledWith(expect.objectContaining({ client }))
+    expect(vi.mocked(createSendRouter).mock.calls[0][0].client).toBe(client)
+  })
+
+  it('waits for onchain fees on the normal driver router and retains the returned rate', async () => {
+    let finishFee!: (rate: number) => void
+    claimFeeRate.mockReturnValue(new Promise<number>((resolve) => (finishFee = resolve)))
+    renderProvider()
+    await waitFor(() => expect(reloadWallet).toHaveBeenCalled())
+    expect(ready).toHaveBeenCalledTimes(1)
+    const client = vi.mocked(makeSwapClient).mock.results[0].value
+
+    await userEvent.click(screen.getByText('Router a'))
+    await waitFor(() => expect(claimFeeRate).toHaveBeenCalledTimes(1))
+    expect(screen.getByTestId('router')).toHaveTextContent('none')
+    expect(createSendRouter).not.toHaveBeenCalled()
+
+    finishFee(7)
+    await waitFor(() => expect(screen.getByTestId('router')).toHaveTextContent('function'))
+    const deps = vi.mocked(createSendRouter).mock.calls[0][0]
+    expect(deps.client).toBe(client)
+    expect(deps.claimFeeRateSatVb).toBe(7)
+    expect(deps.outputFee?.()).toBe(100)
+  })
+
   it('refuses a follower send router without quoting, accepting or offboarding', async () => {
     renderTwoTabs()
     await waitFor(() => expect(ready).toHaveBeenCalledTimes(1))
