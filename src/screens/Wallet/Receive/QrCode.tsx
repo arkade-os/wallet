@@ -102,6 +102,13 @@ export default function ReceiveQRCode() {
 
   const [sharing, setSharing] = useState(false)
   const [addressesLoaded, setAddressesLoaded] = useState(false)
+  const [addresses, setAddresses] = useState<{
+    wallet: typeof svcWallet
+    offchainAddr: string
+    boardingAddr: string
+  }>()
+  const ownAddresses = addresses?.wallet === svcWallet ? addresses : undefined
+  const addressesCurrent = addressesLoaded && Boolean(ownAddresses)
   const [qrTransform, setQrTransform] = useState('')
 
   // Amount sheet state
@@ -127,46 +134,54 @@ export default function ReceiveQRCode() {
   // Fetch addresses on mount
   useEffect(() => {
     if (!svcWallet) return
-    if (boardingAddr && offchainAddr) {
-      setAddressesLoaded(true)
-      return
-    }
+    if (ownAddresses?.offchainAddr === offchainAddr && ownAddresses?.boardingAddr === boardingAddr) return
+    let stale = false
+    setAddressesLoaded(false)
     getReceivingAddresses(svcWallet)
       .then(({ offchainAddr, boardingAddr }) => {
+        if (stale) return
         if (!offchainAddr) throw 'Unable to get offchain address'
         if (!boardingAddr) throw 'Unable to get boarding address'
-        setRecvInfo({ ...recvInfo, boardingAddr, offchainAddr, satoshis: 0, addressError: undefined })
+        setAddresses({ wallet: svcWallet, offchainAddr, boardingAddr })
+        setRecvInfo((prev) => ({ ...prev, boardingAddr, offchainAddr, addressError: undefined }))
         setAddressesLoaded(true)
       })
       .catch((err) => {
+        if (stale) return
         const error = extractError(err)
         consoleError(error, 'error getting addresses')
-        setRecvInfo({ ...recvInfo, addressError: error })
+        setRecvInfo((prev) => ({ ...prev, addressError: error }))
         setAddressesLoaded(true)
       })
-  }, [svcWallet])
+    return () => {
+      stale = true
+    }
+  }, [svcWallet, offchainAddr, boardingAddr])
 
   // A pending Receive-screen claim must not leave a swap invoice taking the QR's lightning= from the LNURL.
   const lnurlConfigured = Boolean(configuredLnurlServer())
   const lnurlRail = useLnurlRail({
     enabled: lnurlConfigured && !isAssetReceive,
     identity: svcWallet?.identity,
-    arkadeAddress: recvInfo.offchainAddr,
-    boardingAddress: recvInfo.boardingAddr || undefined,
+    arkadeAddress: ownAddresses?.offchainAddr,
+    boardingAddress: ownAddresses?.boardingAddr,
   })
   const swapRailOn =
     !lnurlConfigured ||
     lnurlRail.status === 'failed' ||
     (lnurlRail.status === 'onboarding' && !lnurlRail.choices.includes('self'))
   const swapRail = useSwapRail(swapRailOn)
-  const lnurl = lnurlRail.lnurl ?? ''
-  const lightningAddress = lnurlRail.receiver?.lightningAddress ?? ''
-  const lnurlRails = useLnurlRails(lnurlRail.receiver, satoshis, false, {
-    arkade: recvInfo.offchainAddr,
-    onchain: recvInfo.boardingAddr,
+  const receiver = ownAddresses ? lnurlRail.receiver : undefined
+  const lnurl = addressesCurrent ? (lnurlRail.lnurl ?? '') : ''
+  const lightningAddress = addressesCurrent ? (receiver?.lightningAddress ?? '') : ''
+  const lnurlRails = useLnurlRails(receiver, satoshis, false, {
+    arkade: ownAddresses?.offchainAddr ?? '',
+    onchain: ownAddresses?.boardingAddr ?? '',
   })
   // A swap invoice left in the flow by an earlier visit isn't this rail's while the LNURL serves Lightning.
-  const invoice = (swapRailOn ? recvInfo.invoice : undefined) || lnurlRails.targets.lightning || ''
+  const invoice = addressesCurrent
+    ? (swapRailOn ? recvInfo.invoice : undefined) || lnurlRails.targets.lightning || ''
+    : ''
   const generatingInvoice = swapRail.generatingInvoice || lnurlRails.generating
 
   const [method, setMethod] = useState<ReceiveMethod>(config.receiveUnifiedMode)
@@ -175,15 +190,15 @@ export default function ReceiveQRCode() {
   const [tokenId, setTokenId] = useState<string>()
   const [amountForTokens, setAmountForTokens] = useState(false)
   const tokenRails = useLnurlTokenRails(
-    lnurlRail.receiver,
+    receiver,
     satoshis,
-    config.receiveViaTokens,
+    addressesCurrent && config.receiveViaTokens,
     method === 'token' ? tokenId : undefined,
   )
   const activeToken = tokenRails.rails.find((r) => r.id === tokenId)
   const inputs: ReceiveInputs = {
-    ark: arkAddress,
-    btc: btcAddress,
+    ark: addressesCurrent ? arkAddress : '',
+    btc: addressesCurrent ? btcAddress : '',
     invoice,
     lnurl,
     lightningAddress,
@@ -192,7 +207,8 @@ export default function ReceiveQRCode() {
     quote: tokenRails.quote,
     // With an amount the advertised options are known, and none means no method; without one,
     // picking it is what asks for the amount.
-    tokensOffered: lnurlConfigured && config.receiveViaTokens && (!satoshis || tokenRails.rails.length > 0),
+    tokensOffered:
+      addressesCurrent && lnurlConfigured && config.receiveViaTokens && (!satoshis || tokenRails.rails.length > 0),
   }
   const methods = receiveMethods(inputs)
   // A method with nothing to put in the QR (its invoice failed, its token left the amount's bounds) shows Full details;
@@ -202,29 +218,30 @@ export default function ReceiveQRCode() {
       ? Boolean(activeToken)
       : generatingInvoice || Boolean(qrPart(receiveParts(method, inputs), config.receiveQrForm[method]))
   const shown: ReceiveMethod = methods.includes(method) && holdsQr ? method : 'full'
-  const assetParts: ReceivePart[] = isAssetReceive
-    ? [
-        ...(assetAmount > BigInt(0)
-          ? [
-              {
-                id: 'amount' as const,
-                value: atomicToUnits(assetAmount, assetMeta?.metadata?.decimals ?? 0),
-                selectable: false,
-              },
-            ]
-          : []),
-        { id: 'link' as const, value: bip21Uri, selectable: false },
-        { id: 'ark' as const, value: arkAddress, selectable: false },
-      ].filter((p) => p.value)
-    : []
+  const assetParts: ReceivePart[] =
+    isAssetReceive && addressesCurrent
+      ? [
+          ...(assetAmount > BigInt(0)
+            ? [
+                {
+                  id: 'amount' as const,
+                  value: atomicToUnits(assetAmount, assetMeta?.metadata?.decimals ?? 0),
+                  selectable: false,
+                },
+              ]
+            : []),
+          { id: 'link' as const, value: bip21Uri, selectable: false },
+          { id: 'ark' as const, value: arkAddress, selectable: false },
+        ].filter((p) => p.value)
+      : []
   // The bare Arkade address would drop assetid= and have the payer send BTC, so the asset QR is always its link.
   const parts = isAssetReceive ? assetParts : receiveParts(shown, inputs)
   const inQr = isAssetReceive ? assetParts.find((p) => p.id === 'link') : qrPart(parts, config.receiveQrForm[shown])
-  const qrCodeValue = inQr?.value ?? ''
+  const qrCodeValue = addressesCurrent ? (inQr?.value ?? '') : ''
   const generating = shown === 'token' ? tokenRails.quoting : generatingInvoice
   const createBip21 = (): { ark: string; btc: string; bip21: string } => {
-    const ark = vtxoTxsAllowed() ? recvInfo.offchainAddr : ''
-    const btc = utxoTxsAllowed() ? recvInfo.boardingAddr : ''
+    const ark = vtxoTxsAllowed() ? ownAddresses?.offchainAddr || '' : ''
+    const btc = utxoTxsAllowed() ? ownAddresses?.boardingAddr || '' : ''
     const bip21 = isAssetReceive
       ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals)
       : encodeBip21(btc, ark, invoice, satoshis, lnurl)
@@ -242,16 +259,7 @@ export default function ReceiveQRCode() {
     setArkAddress(ark)
     setBtcAddress(btc)
     setBip21Uri(bip21)
-  }, [
-    assetAmount,
-    addressesLoaded,
-    isAssetReceive,
-    recvInfo.offchainAddr,
-    recvInfo.boardingAddr,
-    recvInfo.satoshis,
-    invoice,
-    lnurl,
-  ])
+  }, [assetAmount, addressesLoaded, isAssetReceive, ownAddresses, recvInfo.satoshis, invoice, lnurl])
 
   // Payment listener
   useEffect(() => {
@@ -475,6 +483,7 @@ export default function ReceiveQRCode() {
   const quoteExpired = shown === 'token' && tokenRails.expired
   const data = { title: t('wallet.receive'), text: qrCodeValue }
   const shareDisabled =
+    !addressesCurrent ||
     !canBrowserShareData(data) ||
     sharing ||
     hasError ||
@@ -517,7 +526,7 @@ export default function ReceiveQRCode() {
         <Padded>
           {hasError ? (
             <ErrorMessage error text={t('receive.failedToGetAddress', { error: addressError ?? '' })} />
-          ) : !addressesLoaded || (!bip21Uri && !noPaymentMethods) ? (
+          ) : !addressesCurrent || (!bip21Uri && !noPaymentMethods) ? (
             <LoadingLogo text={t('common.loading')} />
           ) : noPaymentMethods ? (
             <p>{t('receive.noPaymentMethods')}</p>

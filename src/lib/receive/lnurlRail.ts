@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from '../../providers/language'
 import {
   arkadeLnurl,
+  arkadeIdentityRequest,
   bootstrapReceiver,
   resolveLnurlRails,
   type ArkadeLnurl,
@@ -47,6 +48,25 @@ export const configuredLnurlServer = () => {
   }
 }
 
+const receiverWrites = new WeakMap<ArkadeSigner, Map<string, Promise<unknown>>>()
+
+const orderReceiverWrites = <T>(identity: ArkadeSigner, server: string, action: () => Promise<T>): Promise<T> => {
+  let pending = receiverWrites.get(identity)
+  if (!pending) receiverWrites.set(identity, (pending = new Map()))
+  const previous = pending.get(server) ?? Promise.resolve()
+  const next = previous.catch(() => {}).then(action)
+  pending.set(server, next)
+  const clear = () => {
+    if (pending.get(server) === next) pending.delete(server)
+  }
+  next.then(clear, clear)
+  return next
+}
+
+type WalletLnurl = Omit<ArkadeLnurl, 'owned'> & {
+  owned: (signal?: AbortSignal) => Promise<Receiver | undefined>
+}
+
 /** The facade bound to this build's server and receive identity, or undefined
  *  when unconfigured — claiming, discovery and payer routing all go through it. */
 export function lnurlReceiver(deps: {
@@ -54,10 +74,58 @@ export function lnurlReceiver(deps: {
   arkadeAddress: string
   boardingAddress?: string
   store?: PaymentSyncStore
-}): ArkadeLnurl | undefined {
+}): WalletLnurl | undefined {
   const server = configuredLnurlServer()
   if (!server) return undefined
-  return arkadeLnurl({ ...deps, baseUrl: server.baseUrl, domain: server.domain })
+  const client = createLnurlClient({ baseUrl: server.baseUrl })
+  let discoverySignal: AbortSignal | undefined
+  const assertCurrent = () => {
+    if (discoverySignal?.aborted) throw new Error('LNURL registration is no longer current')
+  }
+  const facade = arkadeLnurl({
+    ...deps,
+    ...server,
+    client: {
+      ...client,
+      registerAddress: (request) => {
+        assertCurrent()
+        return client.registerAddress(request)
+      },
+      registerArkadeIdentity: (request) => {
+        assertCurrent()
+        return client.registerArkadeIdentity(request)
+      },
+      listAddresses: async (token) => {
+        if (discoverySignal?.aborted) return []
+        const owned = (await client.listAddresses(token)).filter(
+          (row) => row.status === 'active' && row.domain.toLowerCase() === server.domain,
+        )
+        for (const row of owned) {
+          if (discoverySignal?.aborted) return []
+          const request = await arkadeIdentityRequest({ ...deps, token, handle: row.handle, domain: server.domain })
+          if (discoverySignal?.aborted) return []
+          await client.registerArkadeIdentity(request)
+        }
+        return discoverySignal?.aborted ? [] : owned
+      },
+    },
+  })
+  const ordered = <T>(action: () => Promise<T>) =>
+    orderReceiverWrites(deps.identity, `${server.baseUrl}/${server.domain}`, action)
+  return {
+    ...facade,
+    owned: (signal) =>
+      ordered(async () => {
+        if (signal?.aborted) return undefined
+        discoverySignal = signal
+        return facade.owned()
+      }),
+    claim: (opts) =>
+      ordered(() => {
+        assertCurrent()
+        return facade.claim(opts)
+      }),
+  }
 }
 
 type PerRail = Partial<Record<LnurlRailType, string>>
@@ -198,6 +266,7 @@ export function useLnurlRail(deps: {
     setWalletLnurl(undefined)
     if (!facade) return
     let stale = false
+    const discovery = new AbortController()
     // The wallet id is derived locally, so the QR need not wait on the server's round trips.
     // ponytail: a payer scanning before registration lands gets "no longer active"; retrying succeeds.
     facade
@@ -208,7 +277,7 @@ export function useLnurlRail(deps: {
       const result = await bootstrapReceiver(
         {
           owned: async () => {
-            const owned = await facade.owned()
+            const owned = await facade.owned(discovery.signal)
             if (stale) throw new Error('LNURL discovery is no longer current')
             if (owned) setReceiver(owned)
             return owned
@@ -245,6 +314,7 @@ export function useLnurlRail(deps: {
       })
     return () => {
       stale = true
+      discovery.abort()
     }
   }, [facade])
 
