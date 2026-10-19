@@ -5,6 +5,7 @@ import { AspContext } from '../../../providers/asp'
 import { BackupContext } from '../../../providers/backup'
 import { mockAspContextValue } from '../mocks'
 import { readSolverCards } from '../../../lib/solverCards'
+import { prettyLongText } from '../../../lib/format'
 
 const { mockFetchTransportCards } = vi.hoisted(() => ({ mockFetchTransportCards: vi.fn() }))
 
@@ -140,7 +141,7 @@ describe('Solvers screen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Info' }))
 
     await waitFor(() => expect(screen.getByText('Solver card info')).toBeInTheDocument())
-    expect(screen.getByText(pubkey)).toBeInTheDocument()
+    expect(screen.getByText(prettyLongText(pubkey))).toBeInTheDocument()
   })
 
   it('shows original and current values in the detail view', async () => {
@@ -205,5 +206,19 @@ describe('Solvers screen', () => {
     await waitFor(() => expect(screen.getByText('Solver card info')).toBeInTheDocument())
     expect(screen.queryByRole('tab')).not.toBeInTheDocument()
     expect(screen.getByText(/no Nostr relays/)).toBeInTheDocument()
+  })
+
+  it('shows the raw card JSON in the detail view', async () => {
+    localStorage.setItem(
+      'solverCards',
+      JSON.stringify([{ network: 'regtest', label: 'Pinned', card: { version: 0, name: 'Pinned', markets: [] } }]),
+    )
+    renderSolvers()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Info' }))
+
+    await waitFor(() => expect(screen.getByText('Solver card info')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('View raw JSON'))
+    await waitFor(() => expect(screen.getByText(/"name": "Pinned"/)).toBeInTheDocument())
   })
 })

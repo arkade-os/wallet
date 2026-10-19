@@ -184,25 +184,31 @@ function MarketLines({ markets }: { markets: Market[] }) {
   const { t } = useTranslation()
   if (markets.length === 0) return <TextSecondary>{t('solvers.publishedMarkets')}</TextSecondary>
   return (
-    <FlexCol gap='4px'>
+    <FlexCol gap='8px'>
       {markets.map((m) => (
         <FlexCol gap='2px' key={stableStringify(m)}>
-          <Text small>{marketLabel(m)}</Text>
+          <Text small bold>
+            {marketLabel(m)}
+          </Text>
+          <TextSecondary>{t('solvers.fieldFee') + ' ' + m.fee_bps + ' bps'}</TextSecondary>
+          <TextSecondary>{t('solvers.fieldBase') + ' ' + m.min_base_amount + ' - ' + m.max_base_amount}</TextSecondary>
           <TextSecondary>
-            {'fee ' +
-              m.fee_bps +
-              ' bps | base ' +
-              m.min_base_amount +
-              '-' +
-              m.max_base_amount +
-              ' | quote ' +
-              m.min_quote_amount +
-              '-' +
-              m.max_quote_amount}
+            {t('solvers.fieldQuote') + ' ' + m.min_quote_amount + ' - ' + m.max_quote_amount}
           </TextSecondary>
         </FlexCol>
       ))}
     </FlexCol>
+  )
+}
+
+function DetailRow({ label, value, copy }: { label: string; value: string; copy?: string }) {
+  return (
+    <FlexRow between>
+      <TextSecondary>{label}</TextSecondary>
+      <Text small right copy={copy}>
+        {value}
+      </Text>
+    </FlexRow>
   )
 }
 
@@ -213,57 +219,86 @@ function CardDetails({ input, network }: { input: LocalCardInput; network: Netwo
   const markets = card.markets ?? []
   const remote = useRemoteCard(card, network)
   const [view, setView] = useState<'original' | 'current'>('original')
-  const remoteMarkets =
-    remote.status === 'has-remote' &&
-    remote.card &&
-    typeof remote.card === 'object' &&
-    Array.isArray((remote.card as Card).markets)
-      ? ((remote.card as Card).markets as Market[])
-      : []
-  const showingCurrent = view === 'current' && remote.status === 'has-remote'
+  const [showRaw, setShowRaw] = useState(false)
+  const remoteCard =
+    remote.status === 'has-remote' && remote.card && typeof remote.card === 'object' ? (remote.card as Card) : null
+  const remoteMarkets = remoteCard?.markets ?? []
+  const showingCurrent = view === 'current' && remoteCard !== null
+  const shownCard: unknown = remote.status === 'has-remote' && view === 'current' ? remote.card : card
   return (
     <FlexCol gap='12px'>
-      <FlexCol gap='4px'>
+      <FlexCol gap='2px'>
         <Text bold>{t('solvers.cardInfo')}</Text>
         <TextSecondary>{input.label}</TextSecondary>
       </FlexCol>
       <FlexCol gap='4px'>
-        <TextSecondary>{'name: ' + card.name + ' | version: ' + card.version + ' | network: ' + network}</TextSecondary>
+        <DetailRow label={t('solvers.fieldName')} value={card.name} />
+        <DetailRow label={t('solvers.fieldVersion')} value={String(card.version)} />
+        <DetailRow label={t('common.network')} value={network} />
         {card.discovery_pubkey ? (
-          <Text small wrap copy={card.discovery_pubkey}>
-            {card.discovery_pubkey}
-          </Text>
-        ) : null}
-        {relays.map((r) => (
-          <TextSecondary key={r}>{r}</TextSecondary>
-        ))}
-        {card.sig ? <TextSecondary>{prettyLongText(card.sig)}</TextSecondary> : null}
-      </FlexCol>
-      {remote.status === 'has-remote' ? (
-        <FlexCol gap='4px'>
-          <SegmentedControl
-            options={['original', 'current']}
-            selected={view}
-            onChange={(v) => setView(v as 'original' | 'current')}
-            getLabel={(v) => (v === 'current' ? t('solvers.currentLabel') : t('solvers.originalLabel'))}
+          <DetailRow
+            label={t('solvers.fieldDiscoveryKey')}
+            value={prettyLongText(card.discovery_pubkey)}
+            copy={card.discovery_pubkey}
           />
-          <Text small bold>
-            {t('solvers.marketsLabel')}
-          </Text>
-          <MarketLines markets={showingCurrent ? remoteMarkets : markets} />
-        </FlexCol>
-      ) : (
-        <FlexCol gap='4px'>
-          <Text small bold>
-            {t('solvers.marketsLabel')}
-          </Text>
-          <MarketLines markets={markets} />
-          {remote.status === 'checking' ? <TextSecondary>{t('solvers.remoteChecking')}</TextSecondary> : null}
-          {remote.status === 'no-relays' ? <TextSecondary>{t('solvers.remoteNoRelays')}</TextSecondary> : null}
-          {remote.status === 'not-found' ? <TextSecondary>{t('solvers.remoteNotFound')}</TextSecondary> : null}
-          {remote.status === 'error' ? <TextSecondary>{t('solvers.remoteError')}</TextSecondary> : null}
-        </FlexCol>
-      )}
+        ) : null}
+        {relays.length > 0 ? (
+          <FlexCol gap='2px'>
+            <TextSecondary>{t('solvers.fieldRelays')}</TextSecondary>
+            {relays.map((relay) => (
+              <Text small key={relay}>
+                {relay}
+              </Text>
+            ))}
+          </FlexCol>
+        ) : null}
+      </FlexCol>
+      {remoteCard !== null ? (
+        <SegmentedControl
+          options={['original', 'current']}
+          selected={view}
+          onChange={(v) => setView(v as 'original' | 'current')}
+          getLabel={(v) => (v === 'current' ? t('solvers.currentLabel') : t('solvers.originalLabel'))}
+        />
+      ) : null}
+      <FlexCol gap='4px'>
+        <Text small bold>
+          {t('solvers.marketsLabel')}
+        </Text>
+        <MarketLines markets={showingCurrent ? remoteMarkets : markets} />
+      </FlexCol>
+      {remote.status === 'checking' ? <TextSecondary>{t('solvers.remoteChecking')}</TextSecondary> : null}
+      {remote.status === 'no-relays' ? <TextSecondary>{t('solvers.remoteNoRelays')}</TextSecondary> : null}
+      {remote.status === 'not-found' ? <TextSecondary>{t('solvers.remoteNotFound')}</TextSecondary> : null}
+      {remote.status === 'error' ? <TextSecondary>{t('solvers.remoteError')}</TextSecondary> : null}
+      <FlexCol gap='4px'>
+        <div onClick={() => setShowRaw((show) => !show)} style={{ cursor: 'pointer' }}>
+          <TextSecondary>{showRaw ? t('solvers.hideRaw') : t('solvers.viewRaw')}</TextSecondary>
+        </div>
+        {showRaw ? (
+          <div
+            style={{
+              maxHeight: '12rem',
+              overflow: 'auto',
+              border: '1px solid var(--neutral-100)',
+              borderRadius: '0.5rem',
+              padding: '0.5rem',
+            }}
+          >
+            <pre
+              style={{
+                margin: 0,
+                fontFamily: 'monospace',
+                fontSize: 11,
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+              }}
+            >
+              {JSON.stringify(shownCard, null, 2)}
+            </pre>
+          </div>
+        ) : null}
+      </FlexCol>
     </FlexCol>
   )
 }
@@ -272,17 +307,12 @@ function BundledCardLine({ input }: { input: LocalCardInput }) {
   const { t } = useTranslation()
   const card = input.card as Card
   const pairs = card.markets?.map(marketLabel).join(', ') ?? t('solvers.publishedMarkets')
-  const [showCard, setShowCard] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
-
-  const toggleShowCard = () => {
-    setShowCard((s) => !s)
-  }
 
   return (
     <Shadow>
       <Modal open={showInfo} onOpenChange={setShowInfo}>
-        <div role='dialog' aria-modal='true'>
+        <div role='dialog' aria-modal='true' style={{ maxHeight: '80vh', overflowY: 'auto' }}>
           <FlexCol gap='1rem'>
             <CardDetails input={input} network={(input.network ?? 'bitcoin') as Network} />
             <FlexRow centered>
@@ -297,14 +327,13 @@ function BundledCardLine({ input }: { input: LocalCardInput }) {
             <Text>{input.label ?? card.name}</Text>
             <TextSecondary>{pairs}</TextSecondary>
           </FlexCol>
-          <FlexRow end minWidth='60px'>
+          <FlexRow end wrap>
             <Button onClick={() => setShowInfo(true)} text={t('solvers.viewInfo')} />
-            <div onClick={toggleShowCard} style={{ cursor: 'pointer' }}>
-              <TextSecondary>{t('solvers.builtIn')}</TextSecondary>
-            </div>
+            <Text small color='neutral-500'>
+              {t('solvers.builtIn')}
+            </Text>
           </FlexRow>
         </FlexRow>
-        {showCard ? <Editor card={card} /> : null}
       </FlexCol>
     </Shadow>
   )
@@ -363,7 +392,7 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
         )}
       </Modal>
       <Modal open={showInfo} onOpenChange={setShowInfo}>
-        <div role='dialog' aria-modal='true'>
+        <div role='dialog' aria-modal='true' style={{ maxHeight: '80vh', overflowY: 'auto' }}>
           <FlexCol gap='1rem'>
             <CardDetails input={input} network={(input.network ?? 'bitcoin') as Network} />
             <FlexRow centered>
@@ -378,7 +407,7 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
             <Text>{input.label}</Text>
             <TextSecondary>{pairs}</TextSecondary>
           </FlexCol>
-          <FlexRow end>
+          <FlexRow end wrap>
             <Button onClick={() => setShowInfo(true)} text={t('solvers.viewInfo')} />
             <Button onClick={handleEdit} text={t('solvers.edit')} />
             <Button onClick={handleConfirmRemove} text={t('solvers.remove')} />
