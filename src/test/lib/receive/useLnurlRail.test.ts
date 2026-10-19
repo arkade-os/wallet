@@ -37,6 +37,21 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+describe('fake LNURL server', () => {
+  it('returns 404 for a missing upgrade handle without changing owned addresses', async () => {
+    const owned = namelessAddress()
+    const fixture = fakeLnurlServer({ modes: ['self'], addresses: [owned] })
+    const response = await fixture.fetch(`${LNURL_BASE}/lnurl/address/missing`, {
+      method: 'PATCH',
+      body: JSON.stringify({ username: 'alice' }),
+    })
+
+    expect(response.status).toBe(404)
+    expect(await response.json()).toEqual({ error: 'address not found' })
+    expect(fixture.addresses).toEqual([owned])
+  })
+})
+
 describe('useLnurlRail', () => {
   it('stays dark and fetches nothing when disabled', async () => {
     serve({ modes: ['self'] })
