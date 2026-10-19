@@ -130,14 +130,9 @@ describe('Lightning address settings', () => {
 describe('Lightning address settings, tokens', () => {
   const tokensServed = { modes: ['self'], addresses: [namedAddress('alice')], tokens: true }
 
-  it.each([
-    ['receiving through the address is off', tokensServed, {}],
-    [
-      'the server advertises no token option',
-      { modes: ['self'], addresses: [namedAddress('alice')] },
-      { receiveViaLnurl: true },
-    ],
-  ])('offers no token switch when %s', async (_, opts, config) => {
+  it('offers no token switch when the server advertises no token option', async () => {
+    const opts = { modes: ['self'], addresses: [namedAddress('alice')] }
+    const config = {}
     renderPage(opts, config)
 
     await screen.findByText('10,000 – 100,000,000 sats')
@@ -145,7 +140,7 @@ describe('Lightning address settings, tokens', () => {
   })
 
   it('the explainer shows once and not again', async () => {
-    const { unmount } = renderPage(tokensServed, { receiveViaLnurl: true })
+    const { unmount } = renderPage(tokensServed)
     expect(await screen.findByText(/payers can also send USDT/)).toBeInTheDocument()
 
     fireEvent.click(screen.getByTestId('receive-via-tokens'))
@@ -167,7 +162,7 @@ describe('Lightning address settings, tokens', () => {
   })
 
   it('turns tokens off without the explainer', async () => {
-    renderPage(tokensServed, { receiveViaLnurl: true, receiveViaTokens: true, announcementsSeen: [TOKEN_EXPLAINER] })
+    renderPage(tokensServed, { receiveViaTokens: true, announcementsSeen: [TOKEN_EXPLAINER] })
 
     fireEvent.click(await screen.findByTestId('receive-via-tokens'))
 
