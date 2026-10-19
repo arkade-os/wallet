@@ -1,6 +1,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, configure, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { SingleKey } from '@arkade-os/sdk'
+import { useState, type ReactNode } from 'react'
 import { encodeLnurl } from '@arkade-os/lnurl-client/arkade'
 import { FlowContext } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
@@ -54,7 +55,22 @@ beforeAll(() => {
 const receiveLightning = vi.fn()
 const svcWallet = { ...mockSvcWallet, identity: SingleKey.fromHex('03'.repeat(32)) }
 
-const renderReceive = (satoshis = 0, config: Partial<Config> = {}, recv: object = {}) =>
+function ReceiveFlow({ children, satoshis, recv }: { children: ReactNode; satoshis: number; recv: object }) {
+  const [recvInfo, setRecvInfo] = useState({
+    ...mockFlowContextValue.recvInfo,
+    satoshis,
+    offchainAddr: DECODABLE_ARK,
+    boardingAddr: WALLET_BOARDING_ADDRESS,
+    ...recv,
+  })
+  return (
+    <FlowContext.Provider value={{ ...mockFlowContextValue, recvInfo, setRecvInfo } as never}>
+      {children}
+    </FlowContext.Provider>
+  )
+}
+
+const renderReceive = (satoshis = 0, config: Partial<Config> = {}, recv: object = {}, statefulFlow = false) =>
   render(
     <ToastProvider>
       <NavigationContext.Provider value={mockNavigationContextValue}>
@@ -81,8 +97,16 @@ const renderReceive = (satoshis = 0, config: Partial<Config> = {}, recv: object 
                 >
                   <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet } as never}>
                     <LimitsContext.Provider value={mockLimitsContextValue}>
-                      <SwapsContext.Provider value={{ receiveLightning, outcomeOf: () => undefined } as never}>
-                        <ReceiveQRCode />
+                      <SwapsContext.Provider
+                        value={{ receiveLightning, outcomeOf: () => undefined, errorOf: () => undefined } as never}
+                      >
+                        {statefulFlow ? (
+                          <ReceiveFlow satoshis={satoshis} recv={recv}>
+                            <ReceiveQRCode />
+                          </ReceiveFlow>
+                        ) : (
+                          <ReceiveQRCode />
+                        )}
                       </SwapsContext.Provider>
                     </LimitsContext.Provider>
                   </WalletContext.Provider>
@@ -157,6 +181,44 @@ describe('Receive screen, rail composition', () => {
     renderReceive(10_000)
 
     await waitFor(() => expect(receiveLightning).toHaveBeenCalledWith(10_000))
+  })
+
+  it.each([
+    { label: 'API-keyed', modes: ['self', 'random', 'session'], requireApiKey: true },
+    { label: 'random-only', modes: ['random'] },
+    { label: 'admin-only', modes: ['admin'] },
+    { label: 'admin and random', modes: ['admin', 'random'] },
+  ])('uses a swap invoice when $label onboarding offers no claim control', async ({ modes, requireApiKey }) => {
+    serve({ modes, requireApiKey })
+    const invoice = fakeInvoice(10_000_000)
+    receiveLightning.mockResolvedValue({ id: 'fallback-swap', invoice, payAmount: 10_000 })
+    renderReceive(10_000, {}, {}, true)
+
+    await waitFor(() => expect(receiveLightning).toHaveBeenCalledWith(10_000))
+    await waitFor(async () => expect(await qrLightning()).toBe(invoice))
+    expect(screen.queryByPlaceholderText('Choose a name')).not.toBeInTheDocument()
+    expect(server.calls('POST', '/lnurl/address')).toHaveLength(0)
+  })
+
+  it('does not negotiate a swap while LNURL discovery is still loading', async () => {
+    serve({ modes: ['self'] })
+    const inner = server.fetch
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (new URL(String(input)).pathname === '/lnurl/domain') await gate
+      return inner(input, init)
+    })
+    renderReceive(10_000)
+
+    try {
+      await waitFor(async () => expect(await qrLightning()).toMatch(/^lnurl1/i))
+      expect(receiveLightning).not.toHaveBeenCalled()
+    } finally {
+      await act(async () => release())
+    }
+    await screen.findByPlaceholderText('Choose a name')
+    expect(receiveLightning).not.toHaveBeenCalled()
   })
 
   it('shows the lightning address in the QR when Lightning is selected', async () => {
