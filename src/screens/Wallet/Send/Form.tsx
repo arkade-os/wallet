@@ -40,6 +40,7 @@ import { FiatContext } from '../../../providers/fiat'
 import { ArkNote, AssetDetails, isValidArkAddress, type NetworkName } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
 import { createLnurlClient, isValidLnUrl, LnurlError, type PayRequest } from '@arkade-os/lnurl-client'
+import { lnurlRailLimits } from '@arkade-os/lnurl-client/arkade'
 import { fetchArkAddress } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
 import { decodeInvoice } from '../../../lib/bolt11'
@@ -85,6 +86,7 @@ const lnurlClient = createLnurlClient()
 
 // resolve() spreads the raw server body, so transferAmounts survives at runtime though PayRequest omits it
 type LnUrlConditions = PayRequest & {
+  sendRanges: { min: number; max: number }[]
   transferAmounts?: { method: string; available: boolean }[]
 }
 
@@ -546,12 +548,9 @@ export default function SendForm() {
   // check lnurl limits
   useEffect(() => {
     if (!lnUrlResponse) return
-    const { satoshis } = sendInfo
     const { minSendable: min, maxSendable: max } = lnUrlResponse
     if (!min || !max) return
     if (min > balance) return setError(t('send.insufficientFundsForLnurl'))
-    if (satoshis && satoshis < min) return setError(t('send.amountBelowLnurlMin'))
-    if (satoshis && satoshis > max) return setError(t('send.amountAboveLnurlMax'))
     if (min === max) {
       setAmountIsReadOnly(true)
     } else {
@@ -573,16 +572,31 @@ export default function SendForm() {
       .resolve(sendInfo.lnUrl)
       .then((conditions) => {
         if (!live) return
-        const min = Math.floor(conditions.minSendable / 1000) // from millisatoshis to satoshis
-        const max = Math.floor(conditions.maxSendable / 1000) // from millisatoshis to satoshis
-        // when the LNURL resolves to a fixed amount, set amountTextValue
-        if (min === max) {
+        const legacyArk = (conditions as LnUrlConditions).transferAmounts?.some(
+          (method) => method.method === 'Ark' && method.available,
+        )
+        // The top-level pair belongs to default Lightning; Arkade can offer a wider range.
+        const sendRanges = lnurlRailLimits(
+          legacyArk ? { ...conditions, paymentOptions: undefined } : conditions,
+        ).filter(
+          ({ type, min, max }) =>
+            (type === 'arkade' || type === 'lightning') &&
+            Number.isSafeInteger(min) &&
+            Number.isSafeInteger(max) &&
+            min > 0 &&
+            min <= max,
+        )
+        const min = sendRanges.length ? Math.min(...sendRanges.map((range) => range.min)) : 0
+        const max = sendRanges.length ? Math.max(...sendRanges.map((range) => range.max)) : 0
+        const fixed = sendRanges.length > 0 && min === max
+        setAmountIsReadOnly(fixed)
+        if (fixed) {
           setSendInfo((prev) => ({ ...prev, satoshis: min }))
           setAmountTextValue(getTextValue(min))
           setValueSats(min)
           setAmountIsReadOnly(true)
         }
-        return setLnUrlResponse({ ...conditions, minSendable: min, maxSendable: max })
+        return setLnUrlResponse({ ...conditions, sendRanges, minSendable: min, maxSendable: max })
       })
       .catch((e) => {
         if (!live) return
@@ -633,6 +647,13 @@ export default function SendForm() {
     setRecipientError('')
   }, [receivingAddresses, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.lnUrl])
 
+  const lnurlAmountUnavailable = Boolean(
+    lnUrlResponse &&
+      !lnUrlResponse.sendRanges.some(
+        ({ min, max }) => (sendInfo.satoshis ?? 0) >= min && (sendInfo.satoshis ?? 0) <= max,
+      ),
+  )
+
   // manage button label and errors
   useEffect(() => {
     if (isAssetSend && activeAsset) {
@@ -648,15 +669,25 @@ export default function SendForm() {
           ? t('send.amountBelowLnurlMin')
           : lnUrlResponse?.maxSendable && satoshis > lnUrlResponse.maxSendable
             ? t('send.amountAboveLnurlMax')
-            : satoshis && satoshis < 1
-              ? t('send.amountBelowOneSat')
-              : amountIsAboveMaxLimit(satoshis)
-                ? t('send.amountAboveMax')
-                : satoshis && amountIsBelowMinLimit(satoshis)
-                  ? t('send.amountBelowMin')
-                  : t('send.continue'),
+            : lnurlAmountUnavailable
+              ? t('send.invalidAmount')
+              : satoshis && satoshis < 1
+                ? t('send.amountBelowOneSat')
+                : amountIsAboveMaxLimit(satoshis)
+                  ? t('send.amountAboveMax')
+                  : satoshis && amountIsBelowMinLimit(satoshis)
+                    ? t('send.amountBelowMin')
+                    : t('send.continue'),
     )
-  }, [sendInfo.satoshis, sendInfo.assets, sendInfo.account, liquidBalance, activeAsset, lnUrlResponse])
+  }, [
+    sendInfo.satoshis,
+    sendInfo.assets,
+    sendInfo.account,
+    liquidBalance,
+    activeAsset,
+    lnUrlResponse,
+    lnurlAmountUnavailable,
+  ])
 
   // manage server unreachable error
   useEffect(() => {
@@ -955,8 +986,7 @@ export default function SendForm() {
       // Unresolved conditions would strand Continue on a locked recipient field.
       (lnUrl && !arkAddress && !address && !invoice && !lnUrlResponse) ||
       Boolean(recipientError) ||
-      (lnUrlResponse?.maxSendable && satoshis > lnUrlResponse.maxSendable) ||
-      (lnUrlResponse?.minSendable && satoshis < lnUrlResponse.minSendable) ||
+      lnurlAmountUnavailable ||
       amountIsAboveMaxLimit(satoshis) ||
       amountIsBelowMinLimit(satoshis) ||
       satoshis > liquidBalance ||

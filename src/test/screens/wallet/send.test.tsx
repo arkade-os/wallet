@@ -923,4 +923,144 @@ describe('a changed recipient', () => {
     expect(navigate).not.toHaveBeenCalledWith(Pages.SendDetails)
     fetchMocker.disableMocks()
   })
+  it.each([500, 200_000])(
+    'quotes a valid %i sat Arkade amount outside the default Lightning bounds',
+    async (amount) => {
+      const body = {
+        ...payRequest,
+        minSendable: 1_000_000,
+        maxSendable: 100_000_000,
+        paymentOptions: [
+          { id: 'ln', type: 'lightning' },
+          { id: 'ark', type: 'arkade', minSendable: 330_000, maxSendable: 1_000_000_000 },
+        ],
+      }
+      const fetchMocker = lnurlServer(undefined, { body })
+      try {
+        const { type, navigate } = renderStateful()
+        type(LNURL)
+        await waitFor(() => expect(current.lnUrl).toBe(LNURL), settle)
+        await new Promise((resolve) => setTimeout(resolve, 50))
+        fireEvent.change(document.querySelector('input[name="send-amount"]')!, { target: { value: String(amount) } })
+        await waitFor(() => expect(current.satoshis).toBe(amount), settle)
+        expect(document.querySelector('footer.buttons-on-bottom button')).toBeEnabled()
+        await clickContinue()
+        await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), settle)
+        expect(current.pendingLnSend).toMatchObject({ railId: LNURL_ARKADE_RAIL, amount })
+      } finally {
+        fetchMocker.disableMocks()
+      }
+    },
+  )
+
+  it('does not pin flexible Arkade amount to a fixed Lightning amount', async () => {
+    const body = {
+      ...payRequest,
+      minSendable: 5_000_000,
+      maxSendable: 5_000_000,
+      paymentOptions: [
+        { id: 'ln', type: 'lightning' },
+        { id: 'ark', type: 'arkade', minSendable: 330_000, maxSendable: 1_000_000_000 },
+      ],
+    }
+    const fetchMocker = lnurlServer(undefined, { body })
+    try {
+      const { type } = renderStateful()
+      fireEvent.change(document.querySelector('input[name="send-amount"]')!, { target: { value: '7000' } })
+      await waitFor(() => expect(current.satoshis).toBe(7000), settle)
+      type(LNURL)
+      await waitFor(() => expect(current.lnUrl).toBe(LNURL), settle)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(current.satoshis).toBe(7000)
+      expect((document.querySelector('input[name="send-amount"]') as HTMLInputElement).readOnly).toBe(false)
+    } finally {
+      fetchMocker.disableMocks()
+    }
+  })
+  it('keeps a gap between supported LNURL ranges disabled and accepts a corrected amount', async () => {
+    const body = {
+      ...payRequest,
+      minSendable: 1_000_000,
+      maxSendable: 2_000_000,
+      paymentOptions: [
+        { id: 'ln', type: 'lightning' },
+        { id: 'ark', type: 'arkade', minSendable: 5_000_000, maxSendable: 10_000_000 },
+      ],
+    }
+    const fetchMocker = lnurlServer(undefined, { body })
+    try {
+      const { type, navigate } = renderStateful()
+      type(LNURL)
+      await waitFor(() => expect(current.lnUrl).toBe(LNURL), settle)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      const amountInput = document.querySelector('input[name="send-amount"]') as HTMLInputElement
+      expect(amountInput.readOnly).toBe(false)
+      fireEvent.change(amountInput, { target: { value: '3000' } })
+      expect(document.querySelector('footer.buttons-on-bottom button')).toBeDisabled()
+      expect(screen.getByText('Invalid amount')).toBeInTheDocument()
+      fireEvent.change(amountInput, { target: { value: '6000' } })
+      await clickContinue()
+      await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), settle)
+      expect(current.pendingLnSend).toMatchObject({ railId: LNURL_ARKADE_RAIL, amount: 6000 })
+    } finally {
+      fetchMocker.disableMocks()
+    }
+  })
+
+  it('does not widen fixed Lightning bounds with disabled, unnamed, token or unsupported options', async () => {
+    const wider = { minSendable: 330_000, maxSendable: 1_000_000_000 }
+    const body = {
+      ...payRequest,
+      paymentOptions: [
+        { id: 'ln', type: 'lightning' },
+        { id: 'disabled', type: 'arkade', available: false, ...wider },
+        { id: '', type: 'arkade', ...wider },
+        { id: 'token', type: 'arkade', asset: { symbol: 'TOKEN' }, ...wider },
+        { id: 'onchain', type: 'onchain', ...wider },
+        { id: 'unknown', type: 'other', ...wider },
+      ],
+    }
+    const fetchMocker = lnurlServer(undefined, { body })
+    try {
+      const { type } = renderStateful()
+      fireEvent.change(document.querySelector('input[name="send-amount"]')!, { target: { value: '7000' } })
+      type(LNURL)
+      await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
+      expect((document.querySelector('input[name="send-amount"]') as HTMLInputElement).readOnly).toBe(true)
+      expect(current.satoshis).toBe(SATS)
+    } finally {
+      fetchMocker.disableMocks()
+    }
+  })
+
+  it('does not infer Lightning or pin an amount from an explicit unsupported options list', async () => {
+    const body = { ...payRequest, paymentOptions: [{ id: 'onchain', type: 'onchain' }] }
+    const fetchMocker = lnurlServer(undefined, { body })
+    try {
+      const { type } = renderStateful()
+      fireEvent.change(document.querySelector('input[name="send-amount"]')!, { target: { value: '7000' } })
+      type(LNURL)
+      await waitFor(() => expect(current.lnUrl).toBe(LNURL), settle)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(current.satoshis).toBe(7000)
+      expect((document.querySelector('input[name="send-amount"]') as HTMLInputElement).readOnly).toBe(false)
+      expect(document.querySelector('footer.buttons-on-bottom button')).toBeDisabled()
+    } finally {
+      fetchMocker.disableMocks()
+    }
+  })
+
+  it('pins the only whole satoshi inside fractional millisatoshi bounds', async () => {
+    const body = { ...payRequest, minSendable: 1_001, maxSendable: 2_999, paymentOptions: undefined }
+    const fetchMocker = lnurlServer(undefined, { body })
+    try {
+      const { type } = renderStateful()
+      type(LNURL)
+      await waitFor(() => screen.getByDisplayValue('2'), settle)
+      expect(current.satoshis).toBe(2)
+      expect((document.querySelector('input[name="send-amount"]') as HTMLInputElement).readOnly).toBe(true)
+    } finally {
+      fetchMocker.disableMocks()
+    }
+  })
 })
