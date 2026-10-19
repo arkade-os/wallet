@@ -20,7 +20,7 @@ export const mapKnownErrors = (message: string): string => {
   }
 
   // lnurl-client states a rail's bounds in millisats; Intl directly, as format.ts would import this file back.
-  const range = message.match(/^Amount must be between (\d+) and (\d+) millisats$/)
+  const range = message.match(/^Amount must be between (\d+) and (\d+) (?:whole )?millisats$/)
   if (range) {
     const sats = new Intl.NumberFormat('en')
     return t('errors.amountBetween', {

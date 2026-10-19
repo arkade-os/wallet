@@ -40,8 +40,8 @@ describe('extractError', () => {
     )
   })
 
-  it("states an LNURL rail's amount range in sats, not millisats", () => {
-    expect(extractError('Amount must be between 10000000 and 100000000000 millisats')).toBe(
+  it.each(['millisats', 'whole millisats'])("states an LNURL rail's %s amount range in sats", (unit) => {
+    expect(extractError(`Amount must be between 10000000 and 100000000000 ${unit}`)).toBe(
       'Amount must be between 10,000 and 100,000,000 sats',
     )
   })
