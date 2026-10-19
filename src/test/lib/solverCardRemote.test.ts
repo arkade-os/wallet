@@ -4,7 +4,7 @@ import { fetchRemoteSolverCard, getCardRendezvous, isSameCardContent } from '../
 
 const { mockFetchTransportCards, capturedFetcherOptions } = vi.hoisted(() => ({
   mockFetchTransportCards: vi.fn(),
-  capturedFetcherOptions: [] as Array<{ pool?: unknown }>,
+  capturedFetcherOptions: [] as { pool?: unknown }[],
 }))
 
 vi.mock('@arkade-os/swap/nostr', () => ({
