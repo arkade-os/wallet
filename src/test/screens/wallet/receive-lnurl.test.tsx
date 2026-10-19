@@ -589,6 +589,56 @@ describe('Receive screen, token rails', () => {
     expect(await copiedQr()).toBe(solanaUri(20_000_000))
   })
 
+  it('offers no token payment actions after the quote expires', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true, quoteTtlMs: 120_000 })
+    browser.mobile = true
+    share.can = true
+    onTestFinished(() => {
+      browser.mobile = false
+      share.can = false
+    })
+    renderReceive(20_000, tokensOn)
+    await pick('USDT (Arbitrum One)')
+    await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')
+    expect(screen.getByRole('link', { name: 'Open in wallet' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Share' })).toBeEnabled()
+    const from = qrValues.length
+
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 120_000)
+    onTestFinished(() => clock.mockRestore())
+    act(() => document.dispatchEvent(new Event('visibilitychange')))
+
+    expect(screen.queryByText(/Send exactly/)).not.toBeInTheDocument()
+    expect(qrValues.slice(from)).not.toContain(arbitrumUri(20_000_000))
+    expect(screen.queryByRole('link', { name: 'Open in wallet' })).not.toBeInTheDocument()
+    expect(screen.queryByTestId('token-address-copy')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('token-amount-address-copy')).not.toBeInTheDocument()
+    expect(
+      screen.queryAllByRole('button', { name: 'Copy QR code' }).filter((b) => !b.hasAttribute('disabled')),
+    ).toEqual([])
+    expect(screen.queryAllByRole('button', { name: 'Share' }).filter((b) => !b.hasAttribute('disabled'))).toEqual([])
+    expect(tokenQuotes()).toHaveLength(1)
+  })
+
+  it('refuses a required Solana memo without exposing a token destination or QR', async () => {
+    serve({
+      modes: ['self'],
+      addresses: [namedAddress('alice')],
+      simulated: true,
+      tokenTag: 'invoice',
+      paymentURI: `${solanaUri(20_000_000)}&memo=invoice`,
+    })
+    renderReceive(20_000, tokensOn)
+    const from = qrValues.length
+    await pick('USDT (Solana Devnet)')
+
+    expect(await screen.findByText(/No quote for this token: .*memo/)).toBeInTheDocument()
+    expect(screen.queryByText(/Send exactly/)).not.toBeInTheDocument()
+    expect(screen.queryByTestId('token-address-copy')).not.toBeInTheDocument()
+    expect(qrValues.slice(from).some((v) => v.includes(TOKEN_DEPOSITS['ffsim-usdtsol']))).toBe(false)
+    expect(screen.queryAllByRole('button', { name: 'Share' }).filter((b) => !b.hasAttribute('disabled'))).toEqual([])
+  })
+
   it('shows no QR for the old amount while the new amount is quoted', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
     const { rerender } = renderReceive(20_000, tokensOn)

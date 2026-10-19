@@ -3,7 +3,7 @@ import { createElement, type ReactNode } from 'react'
 import { act, configure, renderHook, waitFor } from '@testing-library/react'
 import { createLnurlClient, tokenOptions, type PayRequest, type TokenOption } from '@arkade-os/lnurl-client'
 import type { Receiver } from '@arkade-os/lnurl-client/arkade'
-import { lnurlTokenRails, plausibleQuote, useLnurlTokenRails, wholeTokens } from '../../../lib/receive/lnurlTokenRails'
+import { lnurlTokenRails, plausibleQuote, useLnurlTokenRails } from '../../../lib/receive/lnurlTokenRails'
 import { FiatContext } from '../../../providers/fiat'
 import { Currencies } from '../../../lib/types'
 import {
@@ -69,15 +69,13 @@ describe('lnurlTokenRails', () => {
 
     expect(lnurlTokenRails(payRequest(TOKEN_OPTIONS), 20_000)).toEqual([])
   })
-})
 
-describe('wholeTokens', () => {
-  it('reads plain base units as the exact token amount', () => {
-    expect(wholeTokens('17156000', 6)).toBe('17.156')
-  })
+  it('keeps the wallet decimal limit when the client supports more precision', () => {
+    const request = payRequest(TOKEN_OPTIONS)
+    request.units = [{ ...TOKEN_UNITS[0], decimals: 19 }]
 
-  it.each(['17.156', '', '1e7', '0', '007'])('refuses %j as unreadable', (raw) => {
-    expect(wholeTokens(raw, 6)).toBeUndefined()
+    expect(tokenOptions(request)).toHaveLength(2)
+    expect(lnurlTokenRails(request, 20_000)).toEqual([])
   })
 })
 
@@ -299,16 +297,10 @@ describe('useLnurlTokenRails', () => {
   const quotedUri = arbitrumUri(20_000_000)
   const deposit = TOKEN_DEPOSITS['ff-usdtarbitrum']
   it.each([
-    ['a non-payment scheme', 'javascript:alert(1)'],
-    [
-      'the deposit only in a memo',
-      quotedUri.replace(`address=${deposit}`, `address=0x${'cd'.repeat(20)}&memo=${deposit}`),
-    ],
-    ['another amount', quotedUri.replace(/uint256=\d+/, 'uint256=1')],
-    ['another chain', quotedUri.replace('@42161', '@1')],
-    ['another token', quotedUri.replace(/^ethereum:0x[0-9a-f]{40}/i, `ethereum:0x${'ef'.repeat(20)}`)],
+    ['another recipient', quotedUri.replace(`address=${deposit}`, `address=0x${'cd'.repeat(20)}`)],
     ['a second, conflicting recipient', `${quotedUri}&address=0x${'cd'.repeat(20)}`],
-    ['the amount repeated', `${quotedUri}&uint256=1`],
+    ['an extra Ethereum argument', `${quotedUri}&memo=invoice`],
+    ['a fragment', `${quotedUri}#invoice`],
   ])('shows the bare deposit address, not a URI with %s', async (_, paymentURI) => {
     serve({ paymentURI })
     const { result } = renderTokens('ff-usdtarbitrum')
@@ -325,8 +317,8 @@ describe('useLnurlTokenRails', () => {
   })
 
   it.each([
-    ['the mint repeated', `${solanaQuote}&spl-token=${new URL(solanaQuote).searchParams.get('spl-token')}`],
     ['the amount repeated', `${solanaQuote}&amount=1`],
+    ['a duplicate memo', `${solanaQuote}&memo=invoice&memo=invoice`],
   ])('shows the bare Solana deposit, not a URI with %s', async (_, paymentURI) => {
     serve({ paymentURI, simulated: true })
     const { result } = renderTokens('ffsim-usdtsol')
@@ -362,7 +354,7 @@ describe('useLnurlTokenRails', () => {
     await waitFor(() => expect(result.current.quote?.amount).toBe('171.56'))
   })
 
-  it('refuses a quote whose amount is not plain base units', async () => {
+  it('preserves the wallet refusal of noncanonical base units accepted by the client', async () => {
     serve({ paymentAmount: '007' })
     const { result } = renderTokens('ff-usdtarbitrum')
 
@@ -370,9 +362,35 @@ describe('useLnurlTokenRails', () => {
     expect(result.current.quote).toBeUndefined()
   })
 
+  it.each([
+    ['an invalid option', { tokenOption: 'ff-usdttrc' }],
+    ['an invalid recipient', { tokenDestination: 'not-an-address' }],
+    ['an invalid unit', { paymentUnit: 'BTC' }],
+    ['zero base units', { paymentAmount: '0' }],
+    ['fractional base units', { paymentAmount: '17.156' }],
+    ['overlong base units', { paymentAmount: '1'.repeat(79) }],
+    ['an invalid expiry', { quoteExpiresAt: 'not-a-date' }],
+    ['an expired quote', { quoteTtlMs: -1_000 }],
+  ])('surfaces shared validation for %s without offering a quote', async (_, override) => {
+    serve(override)
+    const { result } = renderTokens('ff-usdtarbitrum')
+
+    await waitFor(() => expect(result.current.error).not.toBe(''))
+    expect(result.current.quote).toBeUndefined()
+    expect(quotes()).toHaveLength(1)
+  })
+
   it('refuses a deposit that needs a memo the QR cannot carry', async () => {
     serve({ tokenTag: '12345' })
     const { result } = renderTokens('ff-usdtarbitrum')
+
+    await waitFor(() => expect(result.current.error).toMatch(/memo/))
+    expect(result.current.quote).toBeUndefined()
+  })
+
+  it('refuses even a valid Solana memo URI because address copy would lose the memo', async () => {
+    serve({ simulated: true, tokenTag: 'invoice', paymentURI: `${solanaQuote}&memo=invoice` })
+    const { result } = renderTokens('ffsim-usdtsol')
 
     await waitFor(() => expect(result.current.error).toMatch(/memo/))
     expect(result.current.quote).toBeUndefined()
