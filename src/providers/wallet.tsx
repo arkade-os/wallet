@@ -751,12 +751,22 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // never witness first-hand, so pull them once the wallet is usable.
       // Deliberately not awaited: an unreachable lnurl-server must cost the
       // activity view its attribution, never the wallet its startup.
-      const syncLnurl = async () => {
-        const arkadeAddress = await svcWallet.getAddress()
-        const boardingAddress = await svcWallet.getBoardingAddress().catch(() => undefined)
-        const { synced, failures } = await syncLnurlActivity(identity, arkadeAddress, { boardingAddress, signal })
-        if (failures.length) consoleError(failures, 'lnurl activity sync failed')
-        return synced
+      let lnurlSyncTail = Promise.resolve(0)
+      const syncLnurl = () => {
+        const next = lnurlSyncTail
+          .catch(() => 0)
+          .then(async () => {
+            if (signal.aborted) return 0
+            const arkadeAddress = await svcWallet.getAddress()
+            if (signal.aborted) return 0
+            const boardingAddress = await svcWallet.getBoardingAddress().catch(() => undefined)
+            if (signal.aborted) return 0
+            const { synced, failures } = await syncLnurlActivity(identity, arkadeAddress, { boardingAddress, signal })
+            if (failures.length) consoleError(failures, 'lnurl activity sync failed')
+            return synced
+          })
+        lnurlSyncTail = next
+        return next
       }
       const reloadAfterSync = () => {
         if (!signal.aborted) reloadWallet(svcWallet).catch(consoleError)

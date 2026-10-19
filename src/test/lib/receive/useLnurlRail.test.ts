@@ -71,6 +71,145 @@ describe('useLnurlRail', () => {
     expect(server.calls('GET', '/lnurl/domain')).toHaveLength(0)
   })
 
+  it('refreshes owned aliases on reopening and when the wallet receive addresses change', async () => {
+    serve({
+      modes: ['self'],
+      addresses: [
+        namedAddress('alice'),
+        namelessAddress(),
+        { ...namedAddress('revoked'), status: 'revoked' },
+        { ...namedAddress('foreign'), domain: 'other.test' },
+      ],
+    })
+    const { result, rerender } = renderHook(
+      ({ arkadeAddress, boardingAddress }) => useLnurlRail({ enabled: true, identity, arkadeAddress, boardingAddress }),
+      { initialProps: { arkadeAddress: DECODABLE_ARK, boardingAddress: WALLET_BOARDING_ADDRESS } },
+    )
+
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    expect(server.bindings.get('alice')).toMatchObject({
+      arkadeAddress: DECODABLE_ARK,
+      boardingAddress: WALLET_BOARDING_ADDRESS,
+    })
+    expect(server.bindings.get('sess1')).toMatchObject({ arkadeAddress: DECODABLE_ARK })
+    expect(server.bindings.has('revoked')).toBe(false)
+    expect(server.bindings.has('foreign')).toBe(false)
+    const read = server.calls('GET', '/lnurl/address')[0][1]!
+    const write = server.calls('POST', '/lnurl/address/alice/arkade')[0][1]!
+    expect(write.headers).toMatchObject({ Authorization: (read.headers as Record<string, string>).Authorization })
+    expect(JSON.parse(write.body as string)).toMatchObject({ domain: 'lnurl.test' })
+
+    rerender({ arkadeAddress: LNURL_DESTINATIONS.arkade, boardingAddress: 'bc1qnewboarding' })
+
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    expect(server.bindings.get('alice')).toMatchObject({
+      arkadeAddress: LNURL_DESTINATIONS.arkade,
+      boardingAddress: 'bc1qnewboarding',
+    })
+    expect(server.bindings.get('sess1')).toMatchObject({ arkadeAddress: LNURL_DESTINATIONS.arkade })
+    expect(server.calls('POST', '/lnurl/address')).toHaveLength(0)
+  })
+
+  it('finishes a held older binding before sending the newer receive destination', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const inner = server.fetch
+    const writes: string[] = []
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'POST' && String(input).endsWith('/arkade')) {
+        writes.push(JSON.parse(init.body as string).arkadeAddress)
+        if (writes.length === 1) await gate
+      }
+      return inner(input, init)
+    })
+    const { result, rerender } = renderHook(
+      ({ arkadeAddress }) => useLnurlRail({ enabled: true, identity, arkadeAddress }),
+      { initialProps: { arkadeAddress: DECODABLE_ARK } },
+    )
+    await waitFor(() => expect(writes).toEqual([DECODABLE_ARK]))
+
+    rerender({ arkadeAddress: LNURL_DESTINATIONS.arkade })
+    await act(async () => {})
+    expect(writes).toHaveLength(1)
+    await act(async () => release())
+
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    expect(writes).toEqual([DECODABLE_ARK, LNURL_DESTINATIONS.arkade])
+    expect(server.bindings.get('alice')?.arkadeAddress).toBe(LNURL_DESTINATIONS.arkade)
+  })
+
+  it('leaves an already registered boarding address unchanged when it is temporarily unavailable', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    server.bindings.set('alice', {
+      arkadeAddress: DECODABLE_ARK,
+      claimPublicKey: `02${'01'.repeat(32)}`,
+      boardingAddress: WALLET_BOARDING_ADDRESS,
+    })
+    const { result } = renderRail()
+
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+
+    expect(server.bindings.get('alice')?.boardingAddress).toBe(WALLET_BOARDING_ADDRESS)
+    const write = server.calls('POST', '/lnurl/address/alice/arkade')[0][1]!
+    expect(JSON.parse(write.body as string)).not.toHaveProperty('boardingAddress')
+  })
+
+  it.each(['disabled', 'unmounted'])('does not rebind after a pending discovery is %s', async (stop) => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const inner = server.fetch
+    const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith('/lnurl/address')) await gate
+      return inner(input, init)
+    })
+    vi.stubGlobal('fetch', fetch)
+    const { rerender, unmount } = renderHook(
+      ({ enabled }) => useLnurlRail({ enabled, identity, arkadeAddress: DECODABLE_ARK }),
+      { initialProps: { enabled: true } },
+    )
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+
+    if (stop === 'disabled') rerender({ enabled: false })
+    else unmount()
+    await act(async () => release())
+
+    expect(server.calls('POST', '/lnurl/address/alice/arkade')).toHaveLength(0)
+    expect(server.calls('POST', '/lnurl/address')).toHaveLength(0)
+  })
+
+  it.each([
+    { registrationError: 'registration offline', error: 'registration offline' },
+    { hdHandles: ['alice'], error: 'An HD receiver cannot be downgraded by a static registration' },
+  ])('fails closed when refreshing an owned destination is refused: $error', async (failure) => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], ...failure })
+    const { result } = renderRail()
+
+    await waitFor(() => expect(result.current.status).toBe('failed'))
+    expect(result.current.error).toBe(failure.error)
+    expect(result.current.receiver).toBeUndefined()
+    expect(server.bindings.size).toBe(0)
+    expect(server.calls('POST', '/lnurl/address')).toHaveLength(0)
+  })
+
+  it('can refresh a newer destination after the preceding registration failed', async () => {
+    const options = { modes: ['self'], addresses: [namedAddress('alice')], registrationError: 'offline' }
+    serve(options)
+    const { result, rerender } = renderHook(
+      ({ arkadeAddress }) => useLnurlRail({ enabled: true, identity, arkadeAddress }),
+      { initialProps: { arkadeAddress: DECODABLE_ARK } },
+    )
+    await waitFor(() => expect(result.current.status).toBe('failed'))
+
+    options.registrationError = ''
+    rerender({ arkadeAddress: LNURL_DESTINATIONS.arkade })
+
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    expect(result.current.error).toBe('')
+    expect(server.bindings.get('alice')?.arkadeAddress).toBe(LNURL_DESTINATIONS.arkade)
+  })
+
   it('onboards with only the advertised choices when nothing is owned and nameless is not offered', async () => {
     serve({ modes: ['self', 'random'] })
     const { result } = renderRail()
@@ -265,15 +404,19 @@ describe('useLnurlRail', () => {
     expect(server.calls('GET', '/lnurl/address')).toHaveLength(1)
   })
 
-  it('drops a claim that lands after the facade changed', async () => {
+  it('refreshes a claimed receiver with current addresses when the earlier claim lands after rotation', async () => {
     serve({ modes: ['self'] })
     let release!: () => void
     const gate = new Promise<void>((resolve) => (release = resolve))
     const inner = server.fetch
+    let held = false
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        if (init?.method === 'POST' && new URL(String(input)).pathname === '/lnurl/address') await gate
+        if (init?.method === 'POST' && new URL(String(input)).pathname === '/lnurl/address') {
+          held = true
+          await gate
+        }
         return inner(input, init)
       }),
     )
@@ -287,14 +430,18 @@ describe('useLnurlRail', () => {
     act(() => {
       claiming = result.current.claim({ username: 'carol' })
     })
+    await waitFor(() => expect(held).toBe(true))
     rerender({ boardingAddress: 'bc1second' })
-    await waitFor(() => expect(result.current.status).toBe('onboarding'))
+    expect(result.current.status).toBe('loading')
     await act(async () => {
       release()
       await claiming
     })
 
-    expect(result.current.receiver).toBeUndefined()
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    expect(result.current.receiver?.handle).toBe('carol')
+    expect(server.bindings.get('carol')?.boardingAddress).toBe('bc1second')
+    expect(server.calls('POST', '/lnurl/address/carol/arkade')).toHaveLength(1)
     expect(result.current.busy).toBe(false)
   })
 

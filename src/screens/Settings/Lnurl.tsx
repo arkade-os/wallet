@@ -30,7 +30,8 @@ export default function Lnurl() {
   const { svcWallet } = useContext(WalletContext)
   const { t } = useTranslation()
   const server = configuredLnurlServer()
-  const [addresses, setAddresses] = useState<{ arkade: string; boarding?: string }>()
+  const [addresses, setAddresses] = useState<{ wallet: typeof svcWallet; arkade: string; boarding?: string }>()
+  const ownAddresses = addresses?.wallet === svcWallet ? addresses : undefined
   const [limits, setLimits] = useState<ReturnType<typeof lnurlRailLimits>>([])
   const [limitsError, setLimitsError] = useState('')
   const [tokens, setTokens] = useState<LnurlTokenRail[]>([])
@@ -39,16 +40,24 @@ export default function Lnurl() {
 
   useEffect(() => {
     if (!svcWallet) return
+    let stale = false
     Promise.all([svcWallet.getAddress(), svcWallet.getBoardingAddress().catch(() => undefined)])
-      .then(([arkade, boarding]) => setAddresses({ arkade, boarding }))
-      .catch(consoleError)
+      .then(([arkade, boarding]) => {
+        if (!stale) setAddresses({ wallet: svcWallet, arkade, boarding })
+      })
+      .catch((err) => {
+        if (!stale) consoleError(err)
+      })
+    return () => {
+      stale = true
+    }
   }, [svcWallet])
 
   const rail = useLnurlRail({
     enabled: Boolean(server),
     identity: svcWallet?.identity,
-    arkadeAddress: addresses?.arkade,
-    boardingAddress: addresses?.boarding,
+    arkadeAddress: ownAddresses?.arkade,
+    boardingAddress: ownAddresses?.boarding,
   })
 
   useEffect(() => {
@@ -171,7 +180,7 @@ export default function Lnurl() {
                 text={t('settings.receiveViaLnurl')}
                 subtext={t('settings.receiveViaLnurlSubtext')}
               />
-              {config.receiveViaLnurl && tokens.length > 0 ? (
+              {tokens.length > 0 ? (
                 <Toggle
                   checked={config.receiveViaTokens}
                   onClick={handleTokensChange}

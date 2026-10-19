@@ -19,6 +19,7 @@ export async function syncLnurlActivity(
 ) {
   const store = opts.store ?? lnurlPaymentSyncStore
   const { signal } = opts
+  if (signal?.aborted) return { synced: 0, failures: [] }
   const receiver = await lnurlReceiver({
     identity,
     arkadeAddress,
@@ -34,7 +35,8 @@ export async function syncLnurlActivity(
           },
         }
       : store,
-  })?.owned()
+  })?.owned(signal)
+  if (signal?.aborted) return { synced: 0, failures: [] }
   return (await receiver?.sync()) ?? { synced: 0, failures: [] }
 }
 

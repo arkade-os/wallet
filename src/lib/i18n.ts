@@ -148,9 +148,9 @@ export const translations = {
       lnurlNone: 'No lightning address yet.',
       lnurlAddName: 'Add a name',
       receive: 'Receive',
-      receiveViaLnurl: 'Route every receive through it',
+      receiveViaLnurl: 'Route Arkade and Bitcoin through it',
       receiveViaLnurlSubtext:
-        'With an amount set, the Arkade and Bitcoin addresses also come from your lightning address, so its server tracks every payment. Off: only Lightning does.',
+        'With an amount set, the Arkade and Bitcoin addresses also come from your lightning address, so its server tracks those payments. Off: those methods stay direct.',
       receiveViaTokens: 'Accept tokens',
       receiveViaTokensSubtext:
         'With an amount set, payers can also send {units}, which a third party swaps to Arkade BTC.',
@@ -1061,9 +1061,9 @@ export const translations = {
       lnurlNone: 'Aún no tienes dirección Lightning.',
       lnurlAddName: 'Añadir un nombre',
       receive: 'Recibir',
-      receiveViaLnurl: 'Recibir todo a través de ella',
+      receiveViaLnurl: 'Recibir Arkade y Bitcoin a través de ella',
       receiveViaLnurlSubtext:
-        'Con un monto, las direcciones Arkade y Bitcoin también vienen de tu dirección Lightning, así su servidor registra cada pago. Desactivado: solo Lightning.',
+        'Con un monto, las direcciones Arkade y Bitcoin también vienen de tu dirección Lightning, así su servidor registra esos pagos. Desactivado: esos métodos siguen siendo directos.',
       receiveViaTokens: 'Aceptar tokens',
       receiveViaTokensSubtext:
         'Con un monto, quien te paga también puede enviar {units}, que un tercero convierte a BTC en Arkade.',

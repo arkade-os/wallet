@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { configure, fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { act, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { SingleKey } from '@arkade-os/sdk'
 import Lnurl, { TOKEN_EXPLAINER } from '../../../screens/Settings/Lnurl'
 import { BackupContext } from '../../../providers/backup'
@@ -10,6 +10,7 @@ import type { Config } from '../../../lib/types'
 import {
   DECODABLE_ARK,
   LNURL_BASE,
+  LNURL_DESTINATIONS,
   WALLET_BOARDING_ADDRESS,
   fakeLnurlServer,
   namedAddress,
@@ -34,21 +35,30 @@ const svcWallet = {
 }
 const backupAndUpdateConfig = vi.fn<(config: Config) => void>()
 
-const renderPage = (opts: Parameters<typeof fakeLnurlServer>[0], config: Partial<Config> = {}) => {
+const renderPage = (
+  opts: Parameters<typeof fakeLnurlServer>[0],
+  config: Partial<Config> = {},
+  initialWallet = svcWallet,
+) => {
   const server = fakeLnurlServer(opts)
   vi.stubGlobal('fetch', server.fetch)
-  const rendered = render(
+  const tree = (wallet: typeof svcWallet) => (
     <BackupContext.Provider value={{ backupAndUpdateConfig } as never}>
       <ConfigContext.Provider
         value={{ ...mockConfigContextValue, config: { ...mockConfigContextValue.config, ...config } } as never}
       >
-        <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet } as never}>
+        <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet: wallet } as never}>
           <Lnurl />
         </WalletContext.Provider>
       </ConfigContext.Provider>
-    </BackupContext.Provider>,
+    </BackupContext.Provider>
   )
-  return { ...rendered, calls: server.calls }
+  const rendered = render(tree(initialWallet))
+  return {
+    ...rendered,
+    calls: server.calls,
+    rerenderWallet: (wallet: typeof svcWallet) => rendered.rerender(tree(wallet)),
+  }
 }
 
 beforeEach(() => {
@@ -63,6 +73,65 @@ afterEach(() => {
 })
 
 describe('Lightning address settings', () => {
+  it('waits for a replacement wallet destination instead of rebinding its receiver to the previous wallet', async () => {
+    const page = renderPage({ modes: ['self'], addresses: [namedAddress('alice')] })
+    await screen.findByText('alice@lnurl.test')
+    const writesBefore = page.calls('POST', '/lnurl/address/alice/arkade').length
+    let release!: (address: string) => void
+    const nextWallet = {
+      identity: SingleKey.fromHex('04'.repeat(32)),
+      getAddress: vi.fn(() => new Promise<string>((resolve) => (release = resolve))),
+      getBoardingAddress: async () => 'bc1newwallet',
+    }
+    const signing = vi.spyOn(nextWallet.identity, 'signMessage')
+    onTestFinished(() => signing.mockRestore())
+
+    page.rerenderWallet(nextWallet)
+    await act(async () => {})
+
+    expect(nextWallet.getAddress).toHaveBeenCalledOnce()
+    expect(signing).not.toHaveBeenCalled()
+    expect(page.calls('POST', '/lnurl/address/alice/arkade')).toHaveLength(writesBefore)
+    await act(async () => release(LNURL_DESTINATIONS.arkade))
+    await waitFor(() => expect(page.calls('POST', '/lnurl/address/alice/arkade')).toHaveLength(writesBefore + 1))
+
+    const [, init] = page.calls('POST', '/lnurl/address/alice/arkade').at(-1)!
+    expect(JSON.parse(init!.body as string)).toMatchObject({
+      arkadeAddress: LNURL_DESTINATIONS.arkade,
+      boardingAddress: 'bc1newwallet',
+    })
+  })
+
+  it('ignores an old wallet address read that completes after the replacement wallet is ready', async () => {
+    let releaseOld!: (address: string) => void
+    const previousWallet = {
+      ...svcWallet,
+      getAddress: () => new Promise<string>((resolve) => (releaseOld = resolve)),
+    }
+    const page = renderPage({ modes: ['self'], addresses: [namedAddress('alice')] }, {}, previousWallet)
+    const nextWallet = {
+      identity: SingleKey.fromHex('04'.repeat(32)),
+      getAddress: async () => LNURL_DESTINATIONS.arkade,
+      getBoardingAddress: async () => 'bc1newwallet',
+    }
+    const signing = vi.spyOn(nextWallet.identity, 'signMessage')
+    onTestFinished(() => signing.mockRestore())
+    page.rerenderWallet(nextWallet)
+    await screen.findByText('alice@lnurl.test')
+    expect(page.calls('POST', '/lnurl/address/alice/arkade')).toHaveLength(1)
+    const signedBefore = signing.mock.calls.length
+
+    await act(async () => releaseOld(DECODABLE_ARK))
+
+    expect(signing).toHaveBeenCalledTimes(signedBefore)
+    expect(page.calls('POST', '/lnurl/address/alice/arkade')).toHaveLength(1)
+    const [, init] = page.calls('POST', '/lnurl/address/alice/arkade')[0]
+    expect(JSON.parse(init!.body as string)).toMatchObject({
+      arkadeAddress: LNURL_DESTINATIONS.arkade,
+      boardingAddress: 'bc1newwallet',
+    })
+  })
+
   it('shows the address, its server, and what payers can send on each rail', async () => {
     renderPage({ modes: ['self'], addresses: [namedAddress('alice')] })
 
@@ -130,15 +199,22 @@ describe('Lightning address settings', () => {
 describe('Lightning address settings, tokens', () => {
   const tokensServed = { modes: ['self'], addresses: [namedAddress('alice')], tokens: true }
 
-  it.each([
-    ['receiving through the address is off', tokensServed, {}],
-    [
-      'the server advertises no token option',
-      { modes: ['self'], addresses: [namedAddress('alice')] },
-      { receiveViaLnurl: true },
-    ],
-  ])('offers no token switch when %s', async (_, opts, config) => {
-    renderPage(opts, config)
+  it('keeps token consent independent of routing every receive through the address', async () => {
+    renderPage(tokensServed, { receiveViaLnurl: false })
+
+    fireEvent.click(await screen.findByTestId('receive-via-tokens'))
+    const sheet = screen.getByTestId('sheet-modal')
+    expect(sheet).toHaveTextContent('send tokens to FixedFloat, a third party that holds the deposit')
+    expect(backupAndUpdateConfig).not.toHaveBeenCalled()
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Turn on' }))
+
+    expect(backupAndUpdateConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ receiveViaLnurl: false, receiveViaTokens: true }),
+    )
+  })
+
+  it('offers no token switch when the server advertises no token option', async () => {
+    renderPage({ modes: ['self'], addresses: [namedAddress('alice')] }, { receiveViaLnurl: true })
 
     await screen.findByText('10,000 – 100,000,000 sats')
     expect(screen.queryByText('Accept tokens')).not.toBeInTheDocument()
