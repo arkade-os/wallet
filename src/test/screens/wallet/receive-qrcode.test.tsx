@@ -92,9 +92,20 @@ type RenderOverrides = {
   language?: Language
 }
 
+let receivingAddresses = { offchainAddr: '', boardingAddr: '' }
+const receivingWallet = {
+  ...mockSvcWallet,
+  getAddress: () => Promise.resolve(receivingAddresses.offchainAddr),
+  getBoardingAddress: () => Promise.resolve(receivingAddresses.boardingAddr),
+}
+
 function buildTree(overrides?: RenderOverrides) {
   const flow = { ...mockFlowContextValue, ...overrides?.flow }
   const wallet = { ...mockWalletContextValue, ...overrides?.wallet }
+  if (wallet.svcWallet === mockSvcWallet) {
+    receivingAddresses = { offchainAddr: flow.recvInfo.offchainAddr, boardingAddr: flow.recvInfo.boardingAddr }
+    wallet.svcWallet = receivingWallet as typeof wallet.svcWallet
+  }
   const config = { ...mockConfigContextValue, ...overrides?.config }
 
   const language = overrides?.language ?? Language.English
@@ -175,8 +186,10 @@ describe('Receive QR Code screen', () => {
       rerender(buildTree(tapFixture({ off: 'ark1BBBBBB', bd: 'bc1BBBBBB' })))
     })
 
+    await act(async () => {})
+    const updatedQrButton = await screen.findByRole('button', { name: 'Copy QR code' })
     await act(async () => {
-      fireEvent.click(qrButton)
+      fireEvent.click(updatedQrButton)
     })
     const second = copyToClipboardMock.mock.calls.at(-1)?.[0]
     expect(second).toContain('ark1BBBBBB')
@@ -745,8 +758,10 @@ describe('Receive QR Code screen — copy feedback', () => {
     copyToClipboardMock.mockResolvedValue(false)
     renderReceiveQrCode(tapFixture())
 
+    await act(async () => {})
+    const row = await screen.findByTestId('ark-address-copy')
     await act(async () => {
-      fireEvent.click(await screen.findByTestId('ark-address-copy'))
+      fireEvent.click(row)
     })
 
     expect(await screen.findByText('Failed to copy')).toBeInTheDocument()

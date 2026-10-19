@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { act, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { SingleKey } from '@arkade-os/sdk'
-import { useState, type ReactNode } from 'react'
+import { useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { encodeLnurl } from '@arkade-os/lnurl-client/arkade'
-import { FlowContext } from '../../../providers/flow'
+import { FlowContext, type RecvInfo } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import { AspContext } from '../../../providers/asp'
 import { WalletContext } from '../../../providers/wallet'
@@ -80,7 +80,12 @@ const receiveLightning = vi.fn()
 const backupAndUpdateConfig = vi.fn<(config: Config) => void>()
 const updateConfig = vi.fn<(config: Config) => void>()
 const backupConfig = vi.fn<(config: Config) => Promise<void>>(async () => {})
-const svcWallet = { ...mockSvcWallet, identity: SingleKey.fromHex('03'.repeat(32)) }
+const svcWallet = {
+  ...mockSvcWallet,
+  identity: SingleKey.fromHex('03'.repeat(32)),
+  getAddress: async () => DECODABLE_ARK,
+  getBoardingAddress: async () => WALLET_BOARDING_ADDRESS,
+}
 const atMarket = (sats: number) => (sats * BTC_USD) / 1e8
 
 function ReceiveFlow({ children, satoshis, recv }: { children: ReactNode; satoshis: number; recv: object }) {
@@ -101,9 +106,10 @@ function ReceiveFlow({ children, satoshis, recv }: { children: ReactNode; satosh
 const receiveTree = (
   satoshis = 0,
   config: Partial<Config> = {},
-  setRecvInfo: (info: { satoshis: number }) => void = vi.fn(),
+  setRecvInfo: Dispatch<SetStateAction<RecvInfo>> = vi.fn(),
   recv: object = {},
   statefulFlow = false,
+  wallet = svcWallet,
 ) => (
   <ToastProvider>
     <NavigationContext.Provider value={mockNavigationContextValue}>
@@ -134,7 +140,7 @@ const receiveTree = (
                   } as never
                 }
               >
-                <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet } as never}>
+                <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet: wallet } as never}>
                   <LimitsContext.Provider value={mockLimitsContextValue}>
                     <SwapsContext.Provider
                       value={{ receiveLightning, outcomeOf: () => undefined, errorOf: () => undefined } as never}
@@ -164,7 +170,9 @@ const renderReceive = (satoshis = 0, config: Partial<Config> = {}, recv: object 
 // Keeps the amount the screen sets, for flows that clear or change it through the screen's own buttons.
 function LiveAmount({ initial, config }: { initial: number; config: Partial<Config> }) {
   const [satoshis, setSatoshis] = useState(initial)
-  return receiveTree(satoshis, config, (info) => setSatoshis(info.satoshis))
+  return receiveTree(satoshis, config, (info) =>
+    setSatoshis((typeof info === 'function' ? info({ ...mockFlowContextValue.recvInfo, satoshis }) : info).satoshis),
+  )
 }
 const pickMethod = async (label: string | RegExp) => {
   fireEvent.click(await screen.findByRole('button', { name: /Showing/ }))
@@ -172,6 +180,7 @@ const pickMethod = async (label: string | RegExp) => {
 }
 // A named receiver's address previews the Lightning address and Lightning rows in the open selector.
 const selectorShows = async (address: string) => {
+  await act(async () => {})
   fireEvent.click(await screen.findByRole('button', { name: /Showing/ }))
   return (await screen.findAllByText(address))[0]
 }
@@ -188,6 +197,7 @@ const serve = (opts: Parameters<typeof fakeLnurlServer>[0]) => {
 }
 
 const copiedQr = async (): Promise<string> => {
+  await act(async () => {})
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy QR code' })))
   const value = copyToClipboard.mock.calls.at(-1)![0]
   expect(typeof value).toBe('string')
@@ -218,6 +228,60 @@ afterEach(() => {
 })
 
 describe('Receive screen, rail composition', () => {
+  it('refreshes cached receive addresses before rebinding the LNURL and preserves its amount', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    let release!: () => void
+    const getAddress = vi.spyOn(svcWallet, 'getAddress').mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          release = () => resolve(DECODABLE_ARK)
+        }),
+    )
+    onTestFinished(() => getAddress.mockRestore())
+    renderReceive(20_000, {}, { offchainAddr: LNURL_DESTINATIONS.arkade }, true)
+
+    await waitFor(() => expect(getAddress).toHaveBeenCalledOnce())
+    expect(server.calls('POST', '/lnurl/address/alice/arkade')).toHaveLength(0)
+    await act(async () => release())
+
+    await waitFor(() => expect(server.calls('POST', '/lnurl/address/alice/arkade')).toHaveLength(1))
+    const [, init] = server.calls('POST', '/lnurl/address/alice/arkade')[0]
+    expect(JSON.parse(init!.body as string)).toMatchObject({
+      arkadeAddress: DECODABLE_ARK,
+      boardingAddress: WALLET_BOARDING_ADDRESS,
+    })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled())
+    expect(await qrLightning()).toBe(fakeInvoice(20_000_000))
+  })
+
+  it('exposes no previous-wallet payment actions while replacement addresses are loading', async () => {
+    share.can = true
+    onTestFinished(() => {
+      share.can = false
+    })
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+    const config = { receiveViaTokens: true }
+    const { rerender } = renderReceive(20_000, config)
+    await pickMethod('Arkade')
+    await screen.findByTestId('ark-address-copy')
+    expect(screen.getByRole('button', { name: 'Share' })).toBeEnabled()
+    let release!: () => void
+    const replacement = {
+      ...svcWallet,
+      identity: SingleKey.fromHex('04'.repeat(32)),
+      getAddress: () => new Promise<string>((resolve) => (release = () => resolve(DECODABLE_ARK))),
+    }
+    const before = qrValues.length
+
+    rerender(receiveTree(20_000, config, vi.fn(), {}, false, replacement))
+
+    expect(qrValues.slice(before)).toEqual([])
+    expect(screen.queryByTestId('ark-address-copy')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Share' })).toBeDisabled()
+    await act(async () => release())
+    expect(await screen.findByTestId('ark-address-copy')).toBeInTheDocument()
+  })
+
   it('negotiates through the swap rail and never calls an lnurl-server when none is configured', async () => {
     vi.stubEnv('VITE_LNURL_SERVER', '')
     serve({ modes: ['self'] })
@@ -962,5 +1026,27 @@ describe('Receive screen, token rails', () => {
     await waitFor(() => expect(callbacks()).toHaveLength(1))
     expect(await tokenSelect()).not.toBeInTheDocument()
     expect(payRequests()).toHaveLength(1)
+  })
+
+  it('receives tokens while ordinary Arkade and Bitcoin receives stay direct', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+    renderReceive(20_000, { receiveViaTokens: true })
+
+    await pick('USDT (Arbitrum One)')
+    expect(await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')).toBeInTheDocument()
+    expect(await copiedQr()).toBe(arbitrumUri(20_000_000))
+    expect(tokenQuotes()).toHaveLength(1)
+
+    await pickMethod('Arkade')
+    await copyPart('ark')
+    expect(copyToClipboard).toHaveBeenLastCalledWith(DECODABLE_ARK)
+    await pickMethod('Bitcoin')
+    await copyPart('btc')
+    expect(copyToClipboard).toHaveBeenLastCalledWith(WALLET_BOARDING_ADDRESS)
+    expect(
+      callbacks()
+        .map((url) => url.searchParams.get('paymentOption'))
+        .sort(),
+    ).toEqual(['ff-usdtarbitrum', 'lightning'])
   })
 })
