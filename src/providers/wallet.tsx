@@ -43,6 +43,7 @@ import { Indexer } from '../lib/indexer'
 import { lnSendViews, swapRecordResolver, type LnSendView } from '../lib/swapRecords'
 import { clearLnurlPaymentsForReset, createLnurlActivityResolver } from '../lib/lnurlPaymentRepository'
 import { createSentActivityResolver, forgetLnurlSends, resumeLnurlConfirmations } from '../lib/lnurlSends'
+import { lnurlResyncOnPayment, syncLnurlActivity } from '../lib/lnurlActivitySync'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
@@ -264,6 +265,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const verifiedAssetsFetched = useRef(false)
   const statusPingInterval = useRef<ReturnType<typeof setInterval>>()
   const reloadTimerRef = useRef<ReturnType<typeof setTimeout>>()
+  const lnurlResyncRef = useRef<ReturnType<typeof lnurlResyncOnPayment>>()
   const swMessageHandlerRef = useRef<(event: MessageEvent) => void>()
   const reinitInProgress = useRef(false)
   const initAbortRef = useRef<AbortController | null>(null)
@@ -746,9 +748,32 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
       // Safe on every unlock: watches are keyed by txid and the confirmation queue ignores a key it already holds.
       resumeLnurlConfirmations()
+      // Receives that completed while the wallet was closed are the ones it can
+      // never witness first-hand, so pull them once the wallet is usable.
+      // Deliberately not awaited: an unreachable lnurl-server must cost the
+      // activity view its attribution, never the wallet its startup.
+      const syncLnurl = async () => {
+        const arkadeAddress = await svcWallet.getAddress()
+        const boardingAddress = await svcWallet.getBoardingAddress().catch(() => undefined)
+        const { synced, failures } = await syncLnurlActivity(identity, arkadeAddress, { boardingAddress, signal })
+        if (failures.length) consoleError(failures, 'lnurl activity sync failed')
+        return synced
+      }
+      const reloadAfterSync = () => {
+        if (!signal.aborted) reloadWallet(svcWallet).catch(consoleError)
+      }
+      syncLnurl()
+        .then((synced) => {
+          if (synced > 0) reloadAfterSync()
+        })
+        .catch((error) => {
+          consoleError(error, 'lnurl activity sync failed')
+        })
 
       // Cancel any pending reload from a previous wallet instance
       clearTimeout(reloadTimerRef.current)
+      lnurlResyncRef.current?.cancel()
+      lnurlResyncRef.current = lnurlResyncOnPayment(syncLnurl, reloadAfterSync)
 
       // handle messages from the service worker
       // we listen for UTXO/VTXO updates to refresh the tx history and balance
@@ -759,6 +784,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           // one triggers a reload (avoids redundant fetches).
           clearTimeout(reloadTimerRef.current)
           reloadTimerRef.current = setTimeout(() => reloadWallet(svcWallet), 1000)
+          lnurlResyncRef.current?.onPayment()
         }
       }
 
@@ -971,6 +997,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     statusPingInterval.current = undefined
     clearTimeout(reloadTimerRef.current)
     reloadTimerRef.current = undefined
+    lnurlResyncRef.current?.cancel()
     removeServiceWorkerMessageHandler()
     await svcWallet.clear()
     setAuthState('locked')
@@ -985,6 +1012,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     statusPingInterval.current = undefined
     clearTimeout(reloadTimerRef.current)
     reloadTimerRef.current = undefined
+    lnurlResyncRef.current?.cancel()
     removeServiceWorkerMessageHandler()
     if (!svcWallet) throw new Error('Service worker not initialized')
     // Before anything destructive, and fatal: these records hold preimages, so a
