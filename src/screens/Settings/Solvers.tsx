@@ -149,15 +149,11 @@ function MarketLines({ markets }: { markets: Market[] }) {
   return (
     <FlexCol gap='8px'>
       {markets.map((m) => (
-        <FlexCol gap='2px' key={stableStringify(m)}>
-          <Text small bold>
-            {marketLabel(m)}
-          </Text>
-          <TextSecondary>{t('solvers.fieldFee') + ' ' + m.fee_bps + ' bps'}</TextSecondary>
-          <TextSecondary>{t('solvers.fieldBase') + ' ' + m.min_base_amount + ' - ' + m.max_base_amount}</TextSecondary>
-          <TextSecondary>
-            {t('solvers.fieldQuote') + ' ' + m.min_quote_amount + ' - ' + m.max_quote_amount}
-          </TextSecondary>
+        <FlexCol gap='4px' key={stableStringify(m)}>
+          <DetailRow label='Pair' value={marketLabel(m)} />
+          <DetailRow label={t('solvers.fieldFee')} value={`${m.fee_bps} bps`} />
+          <DetailRow label={t('solvers.fieldBase')} value={`${m.min_base_amount} - ${m.max_base_amount} sats`} />
+          <DetailRow label={t('solvers.fieldQuote')} value={`${m.min_quote_amount} - ${m.max_quote_amount} sats`} />
         </FlexCol>
       ))}
     </FlexCol>
@@ -207,11 +203,8 @@ function CardDetails({ input, network }: { input: LocalCardInput; network: Netwo
         ) : null}
         {relays.length > 0 ? (
           <FlexCol gap='2px'>
-            <TextSecondary>{t('solvers.fieldRelays')}</TextSecondary>
-            {relays.map((relay) => (
-              <Text small key={relay}>
-                {relay}
-              </Text>
+            {relays.map((relay, idx) => (
+              <DetailRow key={relay} label={idx === 0 ? 'Relays' : ''} value={relay} />
             ))}
           </FlexCol>
         ) : null}
@@ -224,10 +217,8 @@ function CardDetails({ input, network }: { input: LocalCardInput; network: Netwo
           getLabel={(v) => (v === 'current' ? t('solvers.currentLabel') : t('solvers.originalLabel'))}
         />
       ) : null}
+      <Text bold>{t('solvers.marketsLabel')}</Text>
       <FlexCol gap='4px'>
-        <Text small bold>
-          {t('solvers.marketsLabel')}
-        </Text>
         <MarketLines markets={showingCurrent ? remoteMarkets : markets} />
       </FlexCol>
       {remote.status === 'checking' ? <TextSecondary>{t('solvers.remoteChecking')}</TextSecondary> : null}
@@ -235,9 +226,10 @@ function CardDetails({ input, network }: { input: LocalCardInput; network: Netwo
       {remote.status === 'not-found' ? <TextSecondary>{t('solvers.remoteNotFound')}</TextSecondary> : null}
       {remote.status === 'error' ? <TextSecondary>{t('solvers.remoteError')}</TextSecondary> : null}
       <FlexCol gap='4px'>
-        <div onClick={() => setShowRaw((show) => !show)} style={{ cursor: 'pointer' }}>
-          <TextSecondary>{showRaw ? t('solvers.hideRaw') : t('solvers.viewRaw')}</TextSecondary>
-        </div>
+        <Button
+          onClick={() => setShowRaw((show) => !show)}
+          text={showRaw ? t('solvers.hideRaw') : t('solvers.viewRaw')}
+        />
         {showRaw ? (
           <div
             style={{
@@ -290,7 +282,7 @@ function BundledCardLine({ input }: { input: LocalCardInput }) {
             <Text>{input.label ?? card.name}</Text>
             <TextSecondary>{pairs}</TextSecondary>
           </FlexCol>
-          <FlexRow end wrap>
+          <FlexRow end>
             <Button onClick={() => setShowInfo(true)} text={t('solvers.viewInfo')} />
             <Text small color='neutral-500'>
               {t('solvers.builtIn')}
@@ -328,6 +320,11 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
       consoleError(err, 'failed to remove solver card')
       setError(t('solvers.failedRemove'))
     }
+  }
+
+  const handleShowInfo = () => {
+    setShowInfo((e) => !e)
+    setShowEditor(false)
   }
 
   return (
@@ -370,8 +367,8 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
             <Text>{input.label}</Text>
             <TextSecondary>{pairs}</TextSecondary>
           </FlexCol>
-          <FlexRow end wrap>
-            <Button onClick={() => setShowInfo(true)} text={t('solvers.viewInfo')} />
+          <FlexRow end>
+            <Button onClick={handleShowInfo} text={t('solvers.viewInfo')} />
             <Button onClick={handleEdit} text={t('solvers.edit')} />
             <Button onClick={handleConfirmRemove} text={t('solvers.remove')} />
           </FlexRow>
