@@ -22,9 +22,9 @@ import ErrorMessage from '@/components/Error'
 import Shadow from '@/components/Shadow'
 import Modal from '@/components/Modal'
 import { consoleError } from '@/lib/logs'
-import { fetchRemoteSolverCard, getCardRendezvous } from '@/lib/solverCardRemote'
 import { prettyLongText } from '@/lib/format'
 import SegmentedControl from '@/components/SegmentedControl'
+import { useRemoteSolverCard } from '@/hooks/useRemoteSolverCard'
 import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '@/providers/language'
 
@@ -143,43 +143,6 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose?: () => void
  * from storage it never lived in, and an edit would silently shadow it with a
  * stored copy — a user who wants different terms adds their own card.
  */
-type RemoteCardState =
-  | { status: 'checking' }
-  | { status: 'no-relays' }
-  | { status: 'not-found' }
-  | { status: 'error' }
-  | { status: 'has-remote'; card: unknown }
-
-function useRemoteCard(card: Card, network: Network): RemoteCardState {
-  const [state, setState] = useState<RemoteCardState>({ status: 'checking' })
-  useEffect(() => {
-    let cancelled = false
-    if (!getCardRendezvous(card)) {
-      setState({ status: 'no-relays' })
-      return
-    }
-    setState({ status: 'checking' })
-    fetchRemoteSolverCard(card, network)
-      .then((remote) => {
-        if (cancelled) return
-        if (!remote) {
-          setState({ status: 'not-found' })
-          return
-        }
-        setState({ status: 'has-remote', card: remote.card })
-      })
-      .catch((err) => {
-        if (cancelled) return
-        consoleError(err, 'failed to load remote solver card')
-        setState({ status: 'error' })
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [card, network])
-  return state
-}
-
 function MarketLines({ markets }: { markets: Market[] }) {
   const { t } = useTranslation()
   if (markets.length === 0) return <TextSecondary>{t('solvers.publishedMarkets')}</TextSecondary>
@@ -217,7 +180,7 @@ function CardDetails({ input, network }: { input: LocalCardInput; network: Netwo
   const card = input.card as Card
   const relays = card.transports?.nostr?.relays ?? []
   const markets = card.markets ?? []
-  const remote = useRemoteCard(card, network)
+  const remote = useRemoteSolverCard(card, network)
   const [view, setView] = useState<'original' | 'current'>('original')
   const [showRaw, setShowRaw] = useState(false)
   const remoteCard =
