@@ -41,7 +41,7 @@ export const isMainnet = (network: NetworkName | string): boolean =>
   !!network && network !== 'testnet' && network !== 'mutinynet' && network !== 'signet' && network !== 'regtest'
 
 const DELEGATEE_URL: Record<NetworkName, string | null> = {
-  bitcoin: 'https://delegate.arkade.money',
+  bitcoin: 'https://delegatee.arkade.sh',
   mutinynet: 'https://delegatee.mutinynet.arkade.sh',
   signet: null,
   regtest: 'http://localhost:7280',
