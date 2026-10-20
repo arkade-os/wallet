@@ -12,6 +12,8 @@ import { FlowContext, type SendInfo } from '../../../providers/flow'
 import { NavigationContext } from '../../../providers/navigation'
 import { NotificationsContext } from '../../../providers/notifications'
 import { WalletContext } from '../../../providers/wallet'
+import { LanguageContext, translate } from '../../../providers/language'
+import { Language } from '../../../lib/types'
 import {
   mockAspContextValue,
   mockConfigContextValue,
@@ -34,6 +36,7 @@ const renderSuccess = (
   sendInfo: SendInfo,
   flow = {},
   outcomeOf: (id: string) => Outcome | undefined = () => undefined,
+  language = Language.English,
 ) => {
   const tree = () => (
     <NavigationContext.Provider value={mockNavigationContextValue}>
@@ -54,8 +57,13 @@ const renderSuccess = (
       </ConfigContext.Provider>
     </NavigationContext.Provider>
   )
-  const view = render(tree())
-  return { ...view, refresh: () => view.rerender(tree()) }
+  const localizedTree = () => (
+    <LanguageContext.Provider value={{ language, t: (key, params) => translate(language, key, params) }}>
+      {tree()}
+    </LanguageContext.Provider>
+  )
+  const view = render(localizedTree())
+  return { ...view, refresh: () => view.rerender(localizedTree()) }
 }
 
 /** Reached on the FUNDING now, so what it says has to be true at that instant. */
@@ -78,6 +86,13 @@ describe('what the send success screen claims', () => {
     renderSuccess({ address: 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7', total: 10_000 })
 
     expect(await screen.findByText(/keep the wallet open/i)).toBeDefined()
+  })
+
+  it('asks the on-chain sender to stay in their own language', async () => {
+    renderSuccess({ address: ONCHAIN, total: 10_000 }, {}, undefined, Language.Spanish)
+
+    expect(await screen.findByText(/en camino — mantén la wallet abierta hasta que se complete/)).toBeDefined()
+    expect(screen.queryByText(/keep the wallet open/i)).toBeNull()
   })
 
   it('does not ask a Lightning sender to stay — the solver claims, not us', async () => {
@@ -127,6 +142,19 @@ const committedAppSend = { ...appSend, committedOnchain: { swapId: 'rfq:owned', 
 
 describe('onchain app handoff', () => {
   beforeEach(() => vi.clearAllMocks())
+
+  it.each([
+    [Language.English, 'An onchain payment is still on the way — keep the wallet open until it completes'],
+    [Language.Spanish, 'Un pago onchain sigue en camino — mantén la wallet abierta hasta que se complete'],
+  ])('localizes the pending warning after a later manual send (%s)', (language, warning) => {
+    renderSuccess(
+      { arkAddress: 'ark1manual', txid: 'manual-txid', total: 2000 },
+      { appIntent: committedAppSend },
+      () => 'funded',
+      language as Language,
+    )
+    expect(screen.getByText(warning)).toBeInTheDocument()
+  })
 
   it.each(['funded', 'needs_recovery', 'refunded'] as const)(
     'keeps a %s swap in the wallet without clearing its handoff',
