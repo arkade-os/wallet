@@ -13,9 +13,6 @@ import type { ActivityResolver } from '@arkade-os/sdk'
 import { getStorageItem } from './storage'
 import { LNURL_WATERMARKS_STORAGE_KEY } from './storageKeys'
 
-export { createIndexedDbLnurlPaymentStore }
-export type { LnurlPaymentStore, LnurlPaymentWatermarkStore }
-
 const indexedDbLnurlPaymentStore = createIndexedDbLnurlPaymentStore()
 const watermarkEntryKey = (baseUrl: string, lightningAddress: string): string => `${baseUrl}|${lightningAddress}`
 
@@ -61,8 +58,4 @@ export const createLnurlActivityResolver = (
   }
 }
 
-export const createLnurlPaymentSyncStore = (
-  repository: ReturnType<typeof createLnurlPaymentRepository> = lnurlPaymentRepository,
-): PaymentSyncStore => repository
-
-export const lnurlPaymentSyncStore: PaymentSyncStore = createLnurlPaymentSyncStore()
+export const lnurlPaymentSyncStore: PaymentSyncStore = lnurlPaymentRepository
