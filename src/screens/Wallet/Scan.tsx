@@ -4,14 +4,14 @@ import { consoleError } from '@/lib/logs'
 import { useTranslation } from '@/providers/language'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
-import { emptySendInfo, FlowContext } from '@/providers/flow'
+import { emptySendInfo, emptyRecvInfo, FlowContext } from '@/providers/flow'
 import { overlaySlideUp, overlayStyle } from '@/lib/animations'
 import { NavigationContext, Pages } from '@/providers/navigation'
 import { isArkNote } from '@/lib/arknote'
 import { ArkNote } from '@arkade-os/sdk'
 
 export default function WalletScan() {
-  const { setNoteInfo, setSendInfo } = useContext(FlowContext)
+  const { setNoteInfo, setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { replace, goBack } = useContext(NavigationContext)
 
   const prefersReducedMotion = useReducedMotion()
@@ -25,6 +25,7 @@ export default function WalletScan() {
         return replace(Pages.NotesRedeem)
       } catch (err) {
         consoleError(err, 'error parsing ark note')
+        setRecvInfo({ ...emptyRecvInfo, addressError: t('receive.invalidNote') })
       }
     } else {
       setSendInfo({ ...emptySendInfo, recipient })
@@ -56,7 +57,7 @@ export default function WalletScan() {
         variants={overlaySlideUp}
       >
         {scanner}
-      </motion.div>{' '}
+      </motion.div>
     </AnimatePresence>
   )
 }

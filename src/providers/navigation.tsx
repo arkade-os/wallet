@@ -174,6 +174,7 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <WalletScan />
     case Pages.WalletSwap:
       return <WalletSwap />
+    default:
       return <></>
   }
 }

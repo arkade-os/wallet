@@ -63,7 +63,10 @@ function ScannerMills({ close, label, onData, onError, onSwitch }: ScannerProps)
         await camera.setDevice(devices[devices.length - 1].deviceId)
         cancel = frameLoop(() => {
           const res = camera.readFrame(canvas)
-          if (res) onData(res)
+          if (res) {
+            stopScan()
+            onData(res)
+          }
         })
       } catch (e) {
         onError(extractError(e))
@@ -114,13 +117,20 @@ function ScannerQr({ calculateScanRegion, close, label, onData, onError, onSwitc
 
   useEffect(() => {
     if (!videoRef.current) return
-    qrScanner.current = new QrScanner(videoRef.current, (result) => onData(result.data), {
-      maxScansPerSecond: 100,
-      highlightScanRegion: true,
-      highlightCodeOutline: true,
-      onDecodeError: () => {},
-      calculateScanRegion,
-    })
+    qrScanner.current = new QrScanner(
+      videoRef.current,
+      (result) => {
+        stopScan()
+        onData(result.data)
+      },
+      {
+        maxScansPerSecond: 100,
+        highlightScanRegion: true,
+        highlightCodeOutline: true,
+        onDecodeError: () => {},
+        calculateScanRegion,
+      },
+    )
     let cancelled = false
     qrScanner.current.start().catch(async () => {
       // qr-scanner throws the same 'Camera not found.' whatever went wrong,
