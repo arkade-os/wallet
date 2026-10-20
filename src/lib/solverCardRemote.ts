@@ -1,6 +1,6 @@
 import { type Card, type Network, type TransportCardFetcher } from '@arkade-os/solver-discovery'
 import { nostrCardFetcher } from '@arkade-os/swap/nostr'
-import { SimplePool } from 'nostr-tools'
+import { sharedNostrPool } from './nostr'
 
 export interface CardRendezvous {
   pubkey: string
@@ -15,26 +15,13 @@ export const getCardRendezvous = (card: Card): CardRendezvous | null => {
   return { pubkey, relays: [...relays] }
 }
 
-// One pool for the app lifetime, lent to every transport-card read: the market
-// watcher, one-shot discovery, and the card detail view. The fetcher tears
-// down what it opened, so a fresh pool per read nukes the whole relay
-// connection each time - and that CLOSE races the socket lifecycle, with the
-// send it triggers rejecting detached into the console. A lent pool is never
-// closed, only the subscription on it.
-let sharedPool: SimplePool | undefined
-
-const poolForCards = (): SimplePool => {
-  if (!sharedPool) sharedPool = new SimplePool({})
-  return sharedPool
-}
-
 // One fetcher on the shared pool, so its last-known-card memory is shared by
 // every reader instead of being thrown away per check.
 let sharedFetcher: TransportCardFetcher | undefined
 
 /** Live solver cards over the shared pool, for discovery and the detail view. */
 export const sharedTransportCards = (): TransportCardFetcher => {
-  if (!sharedFetcher) sharedFetcher = nostrCardFetcher({ pool: poolForCards() })
+  if (!sharedFetcher) sharedFetcher = nostrCardFetcher({ pool: sharedNostrPool() })
   return sharedFetcher
 }
 
