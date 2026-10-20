@@ -22,6 +22,7 @@ import betaSolverCard from './beta-solver.card.json'
 import { getSolverRegistryUrl } from './constants'
 import { consoleLog } from './logs'
 import { readSolverCards } from './solverCards'
+import { sharedTransportCards } from './solverCardRemote'
 import { assetSwapRepository } from './swapRepository'
 
 /**
@@ -71,6 +72,7 @@ export const discoveryOptions = (network: NetworkName): Omit<DiscoverMarketsOpti
     network: known ?? DEFAULT_NETWORK,
     registryUrl: known ? getSolverRegistryUrl(known) : undefined,
     localCards: known ? [...BUNDLED_CARDS, ...readSolverCards()].filter((c) => c.network === known) : [],
+    transportCards: sharedTransportCards(),
     logger: (...args) => consoleLog('solver discovery:', ...args),
   }
 }

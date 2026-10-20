@@ -7,13 +7,30 @@ const mocks = vi.hoisted(() => ({
   watchMarkets: vi.fn(),
 }))
 
+const { mockNostrCardFetcher, seenPools } = vi.hoisted(() => {
+  const seen: ({ pool?: unknown } | undefined)[] = []
+  const mockNostrCardFetcher = vi.fn((options?: { pool?: unknown }) => {
+    seen.push(options)
+    return { fetch: vi.fn() }
+  })
+  return { mockNostrCardFetcher, seenPools: seen }
+})
+
+vi.mock('@arkade-os/swap/nostr', () => ({
+  nostrCardFetcher: mockNostrCardFetcher,
+}))
+
 vi.mock('@arkade-os/swap/protocol', () => ({
   discoverMarkets: vi.fn(),
   watchMarkets: mocks.watchMarkets,
 }))
 
 describe('discoveryOptions', () => {
-  beforeEach(() => localStorage.clear())
+  beforeEach(() => {
+    localStorage.clear()
+    mockNostrCardFetcher.mockClear()
+    seenPools.length = 0
+  })
 
   const stored = (network: string) =>
     localStorage.setItem(
@@ -27,6 +44,17 @@ describe('discoveryOptions', () => {
     expect(opts.network).toBe('bitcoin')
     expect(opts.registryUrl).toBeDefined()
     expect(opts.localCards).toHaveLength(2)
+  })
+
+  it('reads live solver cards over one shared pool', () => {
+    const first = discoveryOptions('bitcoin')
+    const second = discoveryOptions('bitcoin')
+    expect(first.transportCards).toMatchObject({ fetch: expect.any(Function) })
+    expect(mockNostrCardFetcher).toHaveBeenCalled()
+    expect(seenPools.length).toBeGreaterThanOrEqual(2)
+    expect(seenPools[0]?.pool).toBeDefined()
+    for (const seen of seenPools) expect(seen?.pool).toBe(seenPools[0]?.pool)
+    expect(second.transportCards).toBeDefined()
   })
 
   it('offers no card on a network solver discovery has no name for', () => {
@@ -53,6 +81,7 @@ describe('watchSwapMarkets', () => {
       expect.objectContaining({
         network: 'bitcoin',
         repository: expect.anything(),
+        transportCards: expect.anything(),
         useCache: false,
       }),
       expect.any(Function),
