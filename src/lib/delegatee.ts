@@ -61,7 +61,7 @@ type Keys = Pick<AspInfo, 'network' | 'signerPubkey'>
 
 const xOnly = (key: string) => (key.length === 66 ? key.slice(2) : key).toLowerCase()
 
-/** BIP 68 sequence of an arkd delay: blocks below 512, seconds from 512. */
+/** BIP 68 sequence of an arkd delay: blocks below 512, seconds from 512 (the smallest encodable time-based delay). */
 const sequenceOf = (delay: bigint) =>
   Number(timelockToSequence({ value: delay, type: delay < 512n ? 'blocks' : 'seconds' }))
 
@@ -93,16 +93,22 @@ const record = ({ address, templateId, variables }: DelegateeWatchRegistration):
   variables,
 })
 
-let migration: Promise<Delegation> | undefined
+let migration: { wallet: ServiceWorkerWallet; promise: Promise<Delegation> } | undefined
 
 /**
  * Migrate the wallet to the delegatee: register the renewal and boarding watches for its key, send
  * every VTXO still at an older contract (its own default or the retired delegator's) to the renewal
  * address and retire those contracts. Idempotent, so it runs at every startup and picks up coins
- * paid to a retired address since; concurrent calls share one run.
+ * paid to a retired address since; concurrent calls for the same wallet share one run.
  */
-export const enableDelegation = (wallet: ServiceWorkerWallet, aspInfo: AspInfo): Promise<Delegation> =>
-  (migration ??= migrate(wallet, aspInfo).finally(() => (migration = undefined)))
+export const enableDelegation = (wallet: ServiceWorkerWallet, aspInfo: AspInfo): Promise<Delegation> => {
+  if (migration?.wallet === wallet) return migration.promise
+  const promise = migrate(wallet, aspInfo).finally(() => {
+    if (migration?.promise === promise) migration = undefined
+  })
+  migration = { wallet, promise }
+  return promise
+}
 
 const migrate = async (wallet: ServiceWorkerWallet, aspInfo: AspInfo): Promise<Delegation> => {
   const manager = await wallet.getDelegateeManager()
@@ -123,9 +129,17 @@ export const watchDelegation = (wallet: ServiceWorkerWallet, delegation: Delegat
 export const sameDelegation = (a: unknown, b: Delegation): boolean =>
   isCurrentDelegation(a) && a.renewal.address === b.renewal.address && a.boarding.address === b.boarding.address
 
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null
+
+const hasAddress = (value: unknown): value is DelegationRecord => isRecord(value) && typeof value.address === 'string'
+
 /** A delegation stored by an older wallet, under the retired templates, has no params. */
 export const isCurrentDelegation = (delegation: unknown): delegation is Delegation =>
-  typeof delegation === 'object' && delegation !== null && 'params' in delegation && 'renewal' in delegation
+  isRecord(delegation) &&
+  isRecord(delegation.keys) &&
+  isRecord(delegation.params) &&
+  hasAddress(delegation.renewal) &&
+  hasAddress(delegation.boarding)
 
 /** The renewal watch's state at the service. */
 export const getDelegationStatus = async (delegateeUrl: string, delegation: Delegation): Promise<DelegationStatus> => {

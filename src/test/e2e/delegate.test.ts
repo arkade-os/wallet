@@ -79,19 +79,10 @@ test('should receive and keep coins at the delegated renewal address', async ({ 
   await createWallet(page)
   await fundWallet(page, 5000)
 
-  await navigateToSettings(page)
-  await page.getByText(tr.settings.advanced, { exact: true }).click()
-  await page.getByText(tr.settings.delegates, { exact: true }).click()
-  const toggle = page.getByTestId('toggle-delegates')
-  if ((await toggle.getAttribute('data-checked')) !== 'true') {
-    await toggle.click()
-    await waitForWalletPage(page)
-  }
+  await setDelegation(page, true)
 
   // enabling moves the coins to the renewal address, the card shows them
-  await navigateToSettings(page)
-  await page.getByText(tr.settings.advanced, { exact: true }).click()
-  await page.getByText(tr.settings.delegates, { exact: true }).click()
+  await openDelegates(page)
   await expect(page.getByText(/delegated balance: 5,000 sats/)).toBeVisible({ timeout: 90000 })
   await page.getByText(/renewal address:/).click()
   const renewalAddress = await readClipboard(page)

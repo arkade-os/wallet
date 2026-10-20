@@ -806,7 +806,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
             }
           })
           .catch((err) => consoleError(err, 'Error migrating to the delegatee'))
-      } else if (!config.delegate) {
+      } else {
+        // no delegatee for this network (flag or not): the wallet renews its own VTXOs
         vtxoMgr.renewVtxos().catch(() => {})
       }
       return true

@@ -38,7 +38,7 @@ async function setup() {
 
     // The e2e faucet is the delegator's Fulmine wallet, which arkade-regtest no longer funds
     // (arkade-regtest#66): redeem a credit note into it, as it used to.
-    const balance = JSON.parse(execSync('curl -s http://localhost:7011/api/v1/balance').toString())
+    const balance = JSON.parse(execSync('curl -sf http://localhost:7011/api/v1/balance').toString())
     if (BigInt(balance.amount ?? 0) === 0n) {
       const arkd = `${process.env.REGTEST_CONTAINER_PREFIX ?? ''}arkd`
       const note = execSync(`docker exec ${arkd} arkd note --amount 100000000`).toString().trim()

@@ -119,6 +119,22 @@ describe('enableDelegation', () => {
     await enableDelegation(wallet, regtest)
     expect(manager.delegateVtxos).toHaveBeenCalledTimes(2)
   })
+
+  it('runs its own migration for another wallet', async () => {
+    const managerFor = () => ({
+      getInfo: vi.fn().mockResolvedValue(info),
+      defaultTemplates: vi.fn().mockResolvedValue({ boarding: 'b0', renewal: 'r0' }),
+      registerBoarding: vi.fn().mockResolvedValue(registration('bcrt1pboarding', 'b0')),
+      delegateVtxos: vi.fn().mockResolvedValue(registration('tark1renewal', 'r0')),
+    })
+    const [a, b] = [managerFor(), managerFor()]
+    await Promise.all([
+      enableDelegation({ getDelegateeManager: async () => a } as any, regtest),
+      enableDelegation({ getDelegateeManager: async () => b } as any, regtest),
+    ])
+    expect(a.delegateVtxos).toHaveBeenCalledTimes(1)
+    expect(b.delegateVtxos).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('sameDelegation', () => {
@@ -152,5 +168,9 @@ describe('watchDelegation', () => {
     await watchDelegation(wallet, { keys, params, renewal: {} as any, boarding: {} as any })
     expect(createContract.mock.calls.map(([c]: any) => c.params.template)).toEqual(['renewal', 'boarding'])
     expect(isCurrentDelegation({ boarding: {}, watch: {} })).toBe(false)
+    expect(isCurrentDelegation({ keys, params, renewal: { address: 'tark1r' } })).toBe(false)
+    expect(isCurrentDelegation({ keys, params, renewal: { address: 'tark1r' }, boarding: { address: 'bcrt1b' } })).toBe(
+      true,
+    )
   })
 })
