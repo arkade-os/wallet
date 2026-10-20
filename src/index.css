@@ -2126,6 +2126,14 @@ html.palette-dark .send-asset-menu {
     0 2px 4px 0 color-mix(in srgb, var(--fg) 3%, transparent);
 }
 
+.swap-drawer-content .swap-token-list,
+.swap-asset-list-panel .swap-token-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: scroll;
+  overscroll-behavior: contain;
+}
+
 .swap-input-card {
   display: flex;
   min-height: 12.75rem;
@@ -3657,6 +3665,7 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  height: calc(100vh - 4rem);
 }
 
 .swap-step-heading {
@@ -3980,6 +3989,7 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   flex-direction: column;
   gap: 0.875rem;
   padding: 0 1rem 1rem;
+  max-height: 480px;
 }
 
 .swap-token-list,
