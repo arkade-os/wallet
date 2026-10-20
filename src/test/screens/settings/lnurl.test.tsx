@@ -130,13 +130,14 @@ describe('Lightning address settings', () => {
 describe('Lightning address settings, tokens', () => {
   const tokensServed = { modes: ['self'], addresses: [namedAddress('alice')], tokens: true }
 
-  it('offers no token switch when the server advertises no token option', async () => {
+  it('offers no token switch, nor an empty Receive section, when the server advertises no token option', async () => {
     const opts = { modes: ['self'], addresses: [namedAddress('alice')] }
     const config = {}
     renderPage(opts, config)
 
     await screen.findByText('10,000 – 100,000,000 sats')
     expect(screen.queryByText('Accept tokens')).not.toBeInTheDocument()
+    expect(screen.queryByText('Receive', { selector: '.settings-section-label' })).not.toBeInTheDocument()
   })
 
   it('the explainer shows once and not again', async () => {
