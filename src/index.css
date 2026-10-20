@@ -190,7 +190,7 @@ iframe {
     opacity: 0.5;
     pointer-events: none;
   }
-  &.pressed {
+  &:active {
     transform: translateY(4px);
     box-shadow: 0 0 0 0 var(--btn-shadow-color);
   }
@@ -199,7 +199,7 @@ iframe {
     background: none;
     box-shadow: none;
     color: var(--black);
-    &.pressed {
+    &:active {
       transform: scale(0.97);
     }
   }
@@ -217,7 +217,7 @@ iframe {
     padding: 0;
     touch-action: manipulation;
     width: auto;
-    &.pressed {
+    &:active {
       box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 7%, transparent);
       transform: translateY(3px);
     }
@@ -248,7 +248,7 @@ iframe {
       inset 0 0 0 1px var(--control-secondary-ring),
       0 4px 0 0 var(--control-secondary-shadow);
     color: var(--control-secondary-fg);
-    &.pressed {
+    &:active {
       box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent);
       transform: translateY(4px);
     }
