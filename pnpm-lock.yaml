@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.5.0-rc.18-delegatee.tgz
+  '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.5.0-rc.24-delegatee.tgz
   '@babel/core': '>=7.29.6 <8.0.0'
   js-yaml@<4: '>=3.15.0 <4.0.0'
   js-yaml@>=4: '>=4.2.0 <5.0.0'
@@ -17,8 +17,8 @@ importers:
   .:
     dependencies:
       '@arkade-os/sdk':
-        specifier: file:vendor/arkade-os-sdk-0.5.0-rc.18-delegatee.tgz
-        version: file:vendor/arkade-os-sdk-0.5.0-rc.18-delegatee.tgz
+        specifier: file:vendor/arkade-os-sdk-0.5.0-rc.24-delegatee.tgz
+        version: file:vendor/arkade-os-sdk-0.5.0-rc.24-delegatee.tgz
       '@arkade-os/solver-discovery':
         specifier: 0.3.0
         version: 0.3.0
@@ -233,9 +233,9 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.5.0-rc.18-delegatee.tgz':
-    resolution: {integrity: sha512-O56ZuEVYkPAgNhM7lQZgk6AjiogsTWzsRSSzqSOlFsg6Q1tnAsTW8Aqq0AdOX5NLX3IEchqUgqwyKnd+Hjg7bw==, tarball: file:vendor/arkade-os-sdk-0.5.0-rc.18-delegatee.tgz}
-    version: 0.5.0-rc.18
+  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.5.0-rc.24-delegatee.tgz':
+    resolution: {integrity: sha512-+RSRmJLBNFApKuxbXzMHV4mBy3DE6kX4zvGjIPKDeZU6/uCaCvGbkWhyu8zEmdVnTREKZOs77HZ0VI6BzFVyDg==, tarball: file:vendor/arkade-os-sdk-0.5.0-rc.24-delegatee.tgz}
+    version: 0.5.0-rc.24
     engines: {node: '>=22.13.0 <27'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -4159,7 +4159,7 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.5.0-rc.18-delegatee.tgz':
+  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.5.0-rc.24-delegatee.tgz':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 8.0.0
@@ -4186,7 +4186,7 @@ snapshots:
 
   '@arkade-os/swap@0.1.0-rc.27(nostr-tools@2.17.2(typescript@5.9.3))':
     dependencies:
-      '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.5.0-rc.18-delegatee.tgz
+      '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.5.0-rc.24-delegatee.tgz
       '@arkade-os/solver-discovery': 0.3.0
       '@noble/ciphers': 2.1.1
       '@noble/curves': 2.4.0
