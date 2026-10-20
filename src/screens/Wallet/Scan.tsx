@@ -7,17 +7,25 @@ import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { emptySendInfo, FlowContext } from '@/providers/flow'
 import { overlaySlideUp, overlayStyle } from '@/lib/animations'
 import { NavigationContext, Pages } from '@/providers/navigation'
+import { isArkNote } from '@/lib/arknote'
+import { ArkNote } from '@arkade-os/sdk'
 
 export default function WalletScan() {
-  const { setSendInfo } = useContext(FlowContext)
+  const { setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { replace, goBack } = useContext(NavigationContext)
 
   const prefersReducedMotion = useReducedMotion()
   const { t } = useTranslation()
 
   const handleData = (recipient: string) => {
-    if (/^t?arkadecash/.test(recipient)) {
-      // TODO: claim cash
+    if (isArkNote(recipient)) {
+      try {
+        const { value } = ArkNote.fromString(recipient)
+        setNoteInfo({ note: recipient, satoshis: value })
+        return replace(Pages.NotesRedeem)
+      } catch (err) {
+        consoleError(err, 'error parsing ark note')
+      }
     } else {
       setSendInfo({ ...emptySendInfo, recipient })
       replace(Pages.SendForm)
