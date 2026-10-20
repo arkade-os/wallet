@@ -49,9 +49,8 @@ test('should toggle between sats and FIAT on mobile keyboard', async ({ page, is
   await expect(page.getByText(tr.common.amount)).toBeVisible()
   await expect(page.getByTestId('keyboard-1')).toBeVisible()
 
-  // enter a FIAT amount with decimals (e.g., 1.50)
+  // enter a FIAT amount in cents (1.50)
   await page.getByTestId('keyboard-1').click()
-  await page.getByTestId('keyboard-.').click() // Decimal point
   await page.getByTestId('keyboard-5').click()
   await page.getByTestId('keyboard-0').click()
 
@@ -86,27 +85,20 @@ test('should toggle between sats and FIAT on mobile keyboard', async ({ page, is
   await expect(page.getByText(tr.receive.editAmount)).toBeVisible()
 })
 
-test('should prevent decimal input in sats mode', async ({ page, isMobile }) => {
+test('should fill sats from the right', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'This test is only for mobile')
 
   // setup wallet and open keyboard
   await createWallet(page)
   await openKeyboard(page)
 
-  // initially should be in sats mode - enter decimal
   await page.getByTestId('keyboard-5').click()
-
-  // try to enter a decimal point - should be ignored in sats mode
-  await page.getByTestId('keyboard-.').click()
-
-  // try to enter another number
   await page.getByTestId('keyboard-0').click()
 
-  // should show 50 sats (decimal point ignored)
   await expect(page.getByText('50 sats')).toBeVisible()
 })
 
-test('should limit FIAT decimals to 2 places', async ({ page, isMobile }) => {
+test('should fill fiat from the right in cents', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'This test is only for mobile')
 
   // setup wallet and open keyboard
@@ -114,17 +106,14 @@ test('should limit FIAT decimals to 2 places', async ({ page, isMobile }) => {
   await changeCurrency(page, Currencies.USD)
   await openKeyboard(page)
 
-  // enter 1.99 (valid)
   await page.getByTestId('keyboard-1').click()
-  await page.getByTestId('keyboard-.').click()
   await page.getByTestId('keyboard-9').click()
   await page.getByTestId('keyboard-9').click()
-
-  // try to enter a third decimal place - should be ignored
-  await page.getByTestId('keyboard-5').click()
-
-  // should still show 1.99 (third decimal ignored)
   await expect(page.locator('text=/[\\$€]1\\.99/')).toBeVisible()
+
+  // another digit shifts the cents left
+  await page.getByTestId('keyboard-5').click()
+  await expect(page.locator('text=/[\\$€]19\\.95/')).toBeVisible()
 })
 
 test('should limit JPY decimals to 0 places', async ({ page, isMobile }) => {
@@ -138,16 +127,9 @@ test('should limit JPY decimals to 0 places', async ({ page, isMobile }) => {
   // clear any existing amount
   await clearAmount(page)
 
-  // enter some number
   await page.getByTestId('keyboard-5').click()
-
-  // try to enter a decimal point - should be ignored in sats mode
-  await page.getByTestId('keyboard-.').click()
-
-  // try to enter another number
   await page.getByTestId('keyboard-0').click()
 
-  // should show 50 sats (decimal point ignored)
   await expect(page.getByText('¥50')).toBeVisible()
 })
 
@@ -213,6 +195,8 @@ test('should persist fiat in a fiat wallet', async ({ page, isMobile }) => {
 
   // enter some number
   await page.getByTestId('keyboard-5').click()
+  await page.getByTestId('keyboard-0').click()
+  await page.getByTestId('keyboard-0').click()
   await expect(page.locator('text=$5.00')).toBeVisible()
 
   await page.getByTestId('save-amount').click()
