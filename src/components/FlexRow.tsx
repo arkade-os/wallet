@@ -14,7 +14,6 @@ interface FlexRowProps {
   onClick?: () => void
   padding?: string
   testId?: string
-  wrap?: boolean
 }
 
 export default function FlexRow({
@@ -31,7 +30,6 @@ export default function FlexRow({
   onClick,
   padding,
   testId,
-  wrap,
 }: FlexRowProps) {
   const justifyContent = between ? 'space-between' : centered ? 'center' : end ? 'end' : 'start'
   const style: React.CSSProperties = {
@@ -45,7 +43,6 @@ export default function FlexRow({
     minHeight: main ? '20px' : undefined,
     minWidth,
     padding,
-    flexWrap: wrap ? 'wrap' : undefined,
     width: end ? undefined : '100%',
   }
   return (

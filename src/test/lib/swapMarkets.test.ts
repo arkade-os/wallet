@@ -1,20 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_NETWORK, planOffer, type DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { BUNDLED_CARDS, discoveryOptions, preFeeDisplayRate, watchSwapMarkets } from '../../lib/swapMarkets'
+import { sharedTransportCards } from '../../lib/solverCardRemote'
 import { btcUsdt } from './swapFixtures'
 
 const mocks = vi.hoisted(() => ({
   watchMarkets: vi.fn(),
 }))
 
-const { mockNostrCardFetcher, seenPools } = vi.hoisted(() => {
-  const seen: ({ pool?: unknown } | undefined)[] = []
-  const mockNostrCardFetcher = vi.fn((options?: { pool?: unknown }) => {
-    seen.push(options)
-    return { fetch: vi.fn() }
-  })
-  return { mockNostrCardFetcher, seenPools: seen }
-})
+const { mockNostrCardFetcher } = vi.hoisted(() => ({
+  mockNostrCardFetcher: vi.fn(() => ({ fetch: vi.fn() })),
+}))
 
 vi.mock('@arkade-os/swap/nostr', () => ({
   nostrCardFetcher: mockNostrCardFetcher,
@@ -29,7 +25,6 @@ describe('discoveryOptions', () => {
   beforeEach(() => {
     localStorage.clear()
     mockNostrCardFetcher.mockClear()
-    seenPools.length = 0
   })
 
   const stored = (network: string) =>
@@ -46,15 +41,9 @@ describe('discoveryOptions', () => {
     expect(opts.localCards).toHaveLength(2)
   })
 
-  it('reads live solver cards over one shared pool', () => {
-    const first = discoveryOptions('bitcoin')
-    const second = discoveryOptions('bitcoin')
-    expect(first.transportCards).toMatchObject({ fetch: expect.any(Function) })
-    expect(mockNostrCardFetcher).toHaveBeenCalled()
-    expect(seenPools.length).toBeGreaterThanOrEqual(2)
-    expect(seenPools[0]?.pool).toBeDefined()
-    for (const seen of seenPools) expect(seen?.pool).toBe(seenPools[0]?.pool)
-    expect(second.transportCards).toBeDefined()
+  it('hands discovery the shared transport reader', () => {
+    const opts = discoveryOptions('bitcoin')
+    expect(opts.transportCards).toBe(sharedTransportCards())
   })
 
   it('offers no card on a network solver discovery has no name for', () => {
