@@ -3665,7 +3665,7 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  height: calc(100vh - 4rem);
+  max-height: calc(100dvh - 4rem);
 }
 
 .swap-step-heading {
@@ -3986,10 +3986,10 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
 
 .swap-drawer-body {
   display: flex;
-  flex-direction: column;
   gap: 0.875rem;
-  padding: 0 1rem 1rem;
+  flex-direction: column;
   max-height: min(92dvh, 42rem);
+  padding: 0 1rem max(1rem, env(safe-area-inset-bottom, 0px));
 }
 
 .swap-token-list,
