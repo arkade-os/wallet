@@ -20,6 +20,7 @@ export default function LnurlRailPanel({ rail }: { rail: LnurlRail }) {
     return <TextSecondary>{t('receive.lnaddressUnavailable', { error: rail.error })}</TextSecondary>
 
   const address = rail.receiver?.lightningAddress
+  // No error to show: bootstrap never fetches capabilities for a named receiver, and naming is offered only while nameless.
   if (address) return <Text centered>{address}</Text>
 
   const choices = rail.choices.includes('self') ? rail.choices.filter((c) => RECEIVE_CHOICES.includes(c)) : []
