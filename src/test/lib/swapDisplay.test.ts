@@ -264,6 +264,20 @@ describe('lnSwapLabel', () => {
     expect(lnSwapLabel(row({ outcome: 'something-new' }), t)).toBe('Lightning send')
   })
 
+  it('localizes the corridor stem and outcome in all languages', () => {
+    const fixtures = [
+      { test: { label: 'Lightning send', outcome: 'refunded' }, key: 'transaction.lightningSendRefunded' },
+      { test: { label: 'Lightning receive', outcome: 'lost' }, key: 'transaction.lightningReceiveLost' },
+      { test: { label: 'Lightning receive', outcome: 'settled' }, key: 'transaction.lightningReceive' },
+    ]
+    Object.values(Language).forEach((lang) => {
+      const translateFn = (key: string): string => translate(lang, key)
+      fixtures.forEach(({ test, key }) => {
+        expect(lnSwapLabel(row(test), translateFn)).toBe(translate(lang, key))
+      })
+    })
+  })
+
   it('leaves a row the resolver never tagged alone', () => {
     expect(lnSwapLabel(row(), t)).toBeUndefined()
   })

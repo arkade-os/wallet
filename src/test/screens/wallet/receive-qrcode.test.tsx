@@ -337,8 +337,22 @@ describe('Receive QR Code screen', () => {
     // The selector is part of a fully translated screen, so its labels have to
     // come from the dictionary rather than being baked in. Without the three
     // receive.method* keys this renders English labels inside the Spanish UI.
-    it('translates the method labels like the rest of the screen', async () => {
+    it('translates the method labels like the rest of the screen to Spanish', async () => {
       renderReceiveQrCode({ ...amountFixture('lnbc10u1ptest'), language: Language.Spanish })
+
+      await screen.findByText('Unificado')
+      // The other three keep their name in both languages, so only 'Unified'
+      // differs; the point is that it is translated at all.
+      for (const label of ['Unificado', 'Lightning', 'Arkade', 'Bitcoin']) {
+        expect(screen.getByText(label)).toBeInTheDocument()
+      }
+    })
+
+    // The selector is part of a fully translated screen, so its labels have to
+    // come from the dictionary rather than being baked in. Without the three
+    // receive.method* keys this renders English labels inside the Portuguese UI.
+    it('translates the method labels like the rest of the screen to Portuguese', async () => {
+      renderReceiveQrCode({ ...amountFixture('lnbc10u1ptest'), language: Language.Portuguese })
 
       await screen.findByText('Unificado')
       // The other three keep their name in both languages, so only 'Unified'
