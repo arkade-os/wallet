@@ -408,15 +408,17 @@ export default function ReceiveQRCode() {
   // Arrow keys move the QR row by row: save each pick locally, and back it up remotely once they settle.
   // The backup sends the config as it is then, so a method picked meanwhile is not overwritten.
   const latestConfig = useRef(config)
+  const latestBackup = useRef(backupConfig)
   useEffect(() => {
     latestConfig.current = config
-  }, [config])
+    latestBackup.current = backupConfig
+  }, [config, backupConfig])
   const pendingBackup = useRef<ReturnType<typeof setTimeout>>(undefined)
   const flushBackup = () => {
     if (pendingBackup.current === undefined) return
     clearTimeout(pendingBackup.current)
     pendingBackup.current = undefined
-    backupConfig(latestConfig.current).catch((err) => consoleError(err, 'receive form backup failed'))
+    latestBackup.current(latestConfig.current).catch((err) => consoleError(err, 'receive form backup failed'))
   }
   useEffect(() => flushBackup, [])
 

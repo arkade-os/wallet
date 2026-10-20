@@ -111,6 +111,7 @@ const receiveTree = (
   recv: object = {},
   statefulFlow = false,
   wallet = svcWallet,
+  backup = backupConfig,
 ) => (
   <ToastProvider>
     <NavigationContext.Provider value={mockNavigationContextValue}>
@@ -146,7 +147,7 @@ const receiveTree = (
                     <SwapsContext.Provider
                       value={{ receiveLightning, outcomeOf: () => undefined, errorOf: () => undefined } as never}
                     >
-                      <BackupContext.Provider value={{ backupAndUpdateConfig, backupConfig } as never}>
+                      <BackupContext.Provider value={{ backupAndUpdateConfig, backupConfig: backup } as never}>
                         {statefulFlow ? (
                           <ReceiveFlow satoshis={satoshis} recv={recv}>
                             <ReceiveQRCode />
@@ -473,6 +474,20 @@ describe('Receive screen, rail composition', () => {
     expect(backupConfig).not.toHaveBeenCalled()
     await waitFor(() => expect(backupConfig).toHaveBeenCalledTimes(1), { timeout: 2000 })
     expect(backupConfig).toHaveBeenLastCalledWith(expect.objectContaining({ receiveQrForm: { ark: 'ark' } }))
+  })
+
+  it('flushes a pending part backup on leaving through the backup function current then', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    const replaced = vi.fn<(config: Config) => Promise<void>>(async () => {})
+    const { rerender, unmount } = render(receiveTree(10_000))
+    await pickMethod('Arkade')
+    fireEvent.click(await screen.findByRole('radio', { name: /Arkade address/ }))
+    const picked = { receiveQrForm: { ark: 'ark' } } as Partial<Config>
+    rerender(receiveTree(10_000, picked, vi.fn(), {}, false, svcWallet, replaced))
+    unmount()
+
+    expect(backupConfig).not.toHaveBeenCalled()
+    expect(replaced).toHaveBeenCalledExactlyOnceWith(expect.objectContaining(picked))
   })
 
   it('backs up the config as it is when the picks settle, keeping a mode picked meanwhile', async () => {
