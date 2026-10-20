@@ -16,6 +16,9 @@ import {
   prettyBitcoinAmount,
   prettyChartDateTime,
   prettyCurrencyAssetAmount,
+  canConvertCurrency,
+  satsFromEntry,
+  textFromSats,
 } from '../../lib/format'
 import { Currencies, Language, Tx, Unit } from '../../lib/types'
 import { Asset } from '@arkade-os/sdk'
@@ -367,6 +370,36 @@ describe('format utilities', () => {
 
     it('should return false for issuance tx (positive asset amount)', () => {
       expect(isBurn({ type: 'sent', amount: 0, assets: [{ assetId: 'abc', amount: BigInt(100) }] } as Tx)).toBe(false)
+    })
+  })
+
+  describe('amount entry helpers', () => {
+    const toFiat = (sats: number) => sats / 1000
+    const fromFiat = (fiat: number) => Math.floor(fiat * 1000)
+
+    it('converts only away from BTC, with a rate in both directions', () => {
+      expect(canConvertCurrency(Currencies.USD, toFiat, fromFiat)).toBe(true)
+      expect(canConvertCurrency(Currencies.BTC, toFiat, fromFiat)).toBe(false)
+      expect(canConvertCurrency(Currencies.USD, () => 0, fromFiat)).toBe(false)
+      expect(canConvertCurrency(Currencies.USD, toFiat, () => 0)).toBe(false)
+    })
+
+    it.each([
+      [5, true, Unit.SATS, 5000],
+      [0.0002, false, Unit.BTC, 20_000],
+      [12.9, false, Unit.SATS, 12],
+      [12.9, false, Unit.BIP177, 12],
+    ])('reads %s (fiat: %s, unit: %s) as %i sats', (num, fiat, unit, sats) => {
+      expect(satsFromEntry(num, fiat, unit, fromFiat)).toBe(sats)
+    })
+
+    it.each([
+      [20_000, true, Unit.BTC, '20'],
+      [20_000, false, Unit.BTC, '0.0002'],
+      [20_000, false, Unit.SATS, '20000'],
+      [20_000, false, Unit.BIP177, '20000'],
+    ])('writes %i sats (fiat: %s, unit: %s) as %s', (sats, fiat, unit, text) => {
+      expect(textFromSats(sats, fiat, unit, toFiat, () => 2)).toBe(text)
     })
   })
 })

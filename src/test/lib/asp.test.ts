@@ -168,7 +168,7 @@ describe('delegateVtxos', () => {
     const delegate = vi.fn().mockResolvedValue({ delegated: [], failed: [] })
     const wallet = {
       getContractManager: async () => ({ getContractsWithVtxos }),
-      getDelegatorManager: async () => ({ getDelegateInfo: async () => ({ pubkey: delegatePubKey }), delegate }),
+      getDelegateManager: async () => ({ getDelegateInfo: async () => ({ pubkey: delegatePubKey }), delegate }),
       getAddress: async () => fixtures.lib.address.ark[0].address,
     }
 

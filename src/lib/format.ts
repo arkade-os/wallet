@@ -1,4 +1,4 @@
-import { centsToUnits, prettyAssetAmount } from './assets'
+import { atomicToUnits, prettyAssetAmount } from './assets'
 import { prettyDelta } from './deltas'
 import { fiatDecimalsFor, FIAT_SYMBOLS } from './fiat'
 import { Currencies, Language, Tx, Unit } from './types'
@@ -140,7 +140,7 @@ export const prettyCurrencyAssetAmount = (
   const fiat = fiatForTicker(ticker)
   if (!fiat) return prettyAssetAmount(amount, decimals, compact)
 
-  const unitAmount = centsToUnits(amount, decimals)
+  const unitAmount = atomicToUnits(amount, decimals)
   const fiatDecimals = fiatDecimalsFor(fiat)
   const minimumUnit = new Decimal(10).pow(-fiatDecimals)
   if (compact && amount !== BigInt(0) && new Decimal(unitAmount).abs().lt(minimumUnit)) {
@@ -257,7 +257,7 @@ function formatDecimalText(
 
 export const formatAssetAmount = (amount: bigint, decimals: number): string => {
   if (decimals === 0) return prettyNumber(amount, 0)
-  return prettyNumber(centsToUnits(amount, decimals), decimals)
+  return prettyNumber(atomicToUnits(amount, decimals), decimals)
 }
 
 export const isIssuance = (tx: Tx): boolean => {
@@ -271,3 +271,25 @@ export const isBurn = (tx: Tx): boolean => {
 export const toUint8Array = (str: string): Uint8Array => {
   return new TextEncoder().encode(str)
 }
+
+export const canConvertCurrency = (
+  currency: Currencies,
+  toFiat: (sats: number) => number,
+  fromFiat: (fiat: number) => number,
+): boolean => currency !== Currencies.BTC && toFiat(100_000_000) > 0 && fromFiat(1) > 0
+
+export const satsFromEntry = (num: number, fiat: boolean, unit: Unit, fromFiat: (fiat: number) => number): number =>
+  fiat ? fromFiat(num) : unit === Unit.BTC ? toSatoshis(num) : Math.floor(num)
+
+export const textFromSats = (
+  sats: number,
+  fiat: boolean,
+  unit: Unit,
+  toFiat: (sats: number) => number,
+  fiatDecimals: () => number,
+): string =>
+  fiat
+    ? prettyNumber(toFiat(sats), fiatDecimals(), false)
+    : unit === Unit.BTC
+      ? prettyNumber(fromSatoshis(sats), 8, false)
+      : prettyNumber(sats, 0, false)

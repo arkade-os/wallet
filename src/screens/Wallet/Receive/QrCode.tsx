@@ -14,19 +14,13 @@ import { canBrowserShareData, shareData } from '../../../lib/share'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
 import { LimitsContext } from '../../../providers/limits'
-import { Asset, Coin, ExtendedVirtualCoin, type NetworkName } from '@arkade-os/sdk'
-import { LockupRegistrationFailed } from '@arkade-os/swap'
+import { Asset, Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
-import { unitsToCents } from '../../../lib/assets'
+import { unitsToAtomic } from '../../../lib/assets'
 import ErrorMessage from '../../../components/Error'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
-import { LnReceiveHeldElsewhere, requestLnReceive } from '../../../lib/lnReceive'
-import { lnReceiveRendezvous } from '../../../lib/lnSwap'
-import { getEmulatorPubkeyForNetwork } from '../../../lib/constants'
-import { withRfqTransport, SolverNotRespondingError } from '../../../lib/nostrRfq'
-import { discoverMarkets } from '../../../lib/swapMarkets'
 import InputAmount from '../../../components/InputAmount'
 import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
 import SheetModal from '../../../components/SheetModal'
@@ -47,11 +41,9 @@ import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { AspContext } from '../../../providers/asp'
 import { AssetsContext } from '../../../providers/assets'
-import { LnReceiveContext } from '../../../providers/lnReceive'
+import { useSwapRail } from '../../../lib/receive/swapRail'
+import SwapRailStatus from './SwapRail'
 import { useTranslation } from '../../../providers/language'
-
-/** Throw marker the catch side maps to a translatable message in the UI. */
-const NO_LIGHTNING_SOLVER_ERROR = 'no_lightning_solver'
 
 export default function ReceiveQRCode() {
   const { aspInfo } = useContext(AspContext)
@@ -60,7 +52,6 @@ export default function ReceiveQRCode() {
   const { fromFiat } = useContext(FiatContext)
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
-  const { track, status, error: claimErrorFor } = useContext(LnReceiveContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { assetMetadataCache, svcWallet } = useContext(WalletContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
@@ -91,7 +82,6 @@ export default function ReceiveQRCode() {
   const isAssetReceive = assetId && assetId !== ''
   const hasError = Boolean(addressError)
 
-  const [generatingInvoice, setGeneratingInvoice] = useState(false)
   const [noPaymentMethods, setNoPaymentMethods] = useState(false)
   const [arkAddress, setArkAddress] = useState(offchainAddr)
   const [btcAddress, setBtcAddress] = useState(boardingAddr)
@@ -101,16 +91,6 @@ export default function ReceiveQRCode() {
   // method id lets the choice survive the invoice being briefly absent.
   const [selectedMethod, setSelectedMethod] = useState('unified')
   const [bip21Uri, setBip21Uri] = useState('')
-  const [lnReceiveError, setLnReceiveError] = useState('')
-  // A negotiation that failed at the local registration step left nothing
-  // payable behind, so the offer of a retry is honest — see the catch below.
-  const [lnRetryable, setLnRetryable] = useState(false)
-  // Told apart from every other failure because it is not one: another tab of
-  // this wallet holds the receive manager's lock and is driving these swaps
-  // perfectly well. "Lightning unavailable" would be false, and a retry button
-  // would do nothing until that tab closes.
-  const [lnHeldElsewhere, setLnHeldElsewhere] = useState(false)
-  const [negotiateAttempt, setNegotiateAttempt] = useState(0)
 
   // Fetch addresses on mount
   useEffect(() => {
@@ -134,6 +114,9 @@ export default function ReceiveQRCode() {
       })
   }, [svcWallet])
 
+  const swapRail = useSwapRail()
+  const { generatingInvoice } = swapRail
+
   const createBip21 = (): { ark: string; btc: string; bip21: string } => {
     const ark = vtxoTxsAllowed() ? recvInfo.offchainAddr : ''
     const btc = utxoTxsAllowed() ? recvInfo.boardingAddr : ''
@@ -143,104 +126,6 @@ export default function ReceiveQRCode() {
 
     return { ark, btc, bip21 }
   }
-
-  /**
-   * Negotiate a Lightning receive once an amount is set.
-   *
-   * Gated on an amount because the corridor requires one: the solver mints the
-   * invoice, so nothing else implies what it is for. An amount outside the
-   * card's bounds or an unserved corridor leaves the other payment methods
-   * working — this is an EXTRA way to be paid, so a failure here must not take
-   * the ark and on-chain addresses down with it.
-   *
-   * A solver serving the corridor is the only requirement: `LnReceiveProvider`
-   * claims the lockup, so no covclaimd needs to be deployed or reachable for the
-   * corridor to be offered.
-   */
-  useEffect(() => {
-    // Cleared BEFORE the guards, not beside `negotiate` below. Clearing the
-    // amount reruns this effect straight into the early return, and flags left
-    // set there strand the message on a screen that is no longer negotiating —
-    // with a "Try again" that reruns the effect back into the same guard and
-    // does nothing at all.
-    setLnReceiveError('')
-    setLnRetryable(false)
-    setLnHeldElsewhere(false)
-    setGeneratingInvoice(false)
-    if (!svcWallet || isAssetReceive || satoshis <= 0) return
-    if (recvInfo.pendingLnReceive?.payAmount && recvInfo.invoice) return
-    const network = aspInfo.network as NetworkName
-
-    let abandoned = false
-    const negotiate = async () => {
-      setGeneratingInvoice(true)
-      // per-network pin as the fallback co-signer key, for solver cards that
-      // predate `emulator_pubkey` — the card's own value wins where it has one.
-      const rendezvous = lnReceiveRendezvous(await discoverMarkets(network), getEmulatorPubkeyForNetwork(network))
-      if (!rendezvous) throw new Error(NO_LIGHTNING_SOLVER_ERROR)
-      if (satoshis < rendezvous.minSats || satoshis > rendezvous.maxSats) {
-        throw new Error(
-          `Amount outside solver bounds (${prettyNumber(rendezvous.minSats)}-${prettyNumber(rendezvous.maxSats)} sats)`,
-        )
-      }
-      const pending = await withRfqTransport(rendezvous, (transport) =>
-        requestLnReceive({
-          wallet: svcWallet,
-          arkServerUrl: aspInfo.url,
-          transport,
-          rendezvous,
-          network,
-          amountSats: satoshis,
-        }),
-      )
-      if (abandoned) return
-      // Monitored BEFORE the invoice reaches the screen. The payer cannot pay
-      // an invoice they have not seen, so this cannot be late — but the
-      // ordering is what keeps the monitored set a superset of what is payable.
-      await track(pending)
-      if (abandoned) return
-      setLnReceiveError('')
-      setRecvInfo((prev) => ({
-        ...prev,
-        invoice: pending.invoice,
-        pendingLnReceive: {
-          rfqId: pending.rfqId,
-          invoice: pending.invoice,
-          payAmount: pending.payAmount,
-          invoiceExpiresAt: pending.invoiceExpiresAt,
-        },
-      }))
-    }
-
-    negotiate()
-      .catch((err) => {
-        if (abandoned) return
-        if (err instanceof SolverNotRespondingError) {
-          consoleError(err, 'error negotiating lightning receive')
-          setLnReceiveError(t('errors.solverNotResponding', { seconds: Math.round(err.timeoutMs / 1000) }))
-          return
-        }
-        const error = extractError(err)
-        consoleError(error, 'error negotiating lightning receive')
-        setLnHeldElsewhere(err instanceof LnReceiveHeldElsewhere)
-        setLnReceiveError(error)
-        // The one failure here that is not "Lightning is unavailable": the quote
-        // was fine and our own contract store refused the write. No invoice came
-        // back, so the abandoned quote is inert and cannot be resumed — calling
-        // again is the fix, and it derives a fresh preimage and rfq id.
-        setLnRetryable(err instanceof LockupRegistrationFailed)
-      })
-      .finally(() => {
-        if (!abandoned) setGeneratingInvoice(false)
-      })
-    // The amount changed under an in-flight negotiation, so its invoice would
-    // be for the wrong number. Nothing to cancel on the solver — an unpaid hold
-    // invoice simply expires.
-    return () => {
-      abandoned = true
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [svcWallet, satoshis, isAssetReceive, aspInfo.network, negotiateAttempt])
 
   // Build BIP21 URI
   useEffect(() => {
@@ -386,7 +271,7 @@ export default function ReceiveQRCode() {
     setShowAmountSheet(false)
     if (assetMeta) {
       const decimals = assetMeta.metadata?.decimals
-      const cents = unitsToCents(value, decimals)
+      const cents = unitsToAtomic(value, decimals)
       return setAssetAmount(cents)
     } else {
       const num = Number(value)
@@ -425,11 +310,6 @@ export default function ReceiveQRCode() {
     icon: assetPresentation.icon,
     trusted: Boolean(assetId && isRegistered(assetId)),
   }
-
-  const rfqId = recvInfo.pendingLnReceive?.rfqId
-  const receiveState = rfqId ? status(rfqId) : undefined
-  const claimError = rfqId ? claimErrorFor(rfqId) : undefined
-  const receiveLost = receiveState === 'refunded'
 
   const data = { title: t('wallet.receive'), text: qrCodeValue }
   const shareDisabled = !canBrowserShareData(data) || sharing || hasError || noPaymentMethods || generatingInvoice
@@ -485,29 +365,7 @@ export default function ReceiveQRCode() {
             <p>{t('receive.noPaymentMethods')}</p>
           ) : (
             <FlexCol gap='0.5rem' centered>
-              {/* Two different things, told apart. "No solver" leaves the ark
-                  and on-chain addresses working and is worth no more than a
-                  grey line; a payment that was paid and then lost, or a claim
-                  that keeps failing, is not. */}
-              {receiveLost ? (
-                <ErrorMessage error text={t('receive.lightningPaymentLost')} />
-              ) : claimError ? (
-                <ErrorMessage error text={t('receive.claimFailed', { error: claimError })} />
-              ) : null}
-              {lnReceiveError ? (
-                <FlexCol gap='0.25rem' centered>
-                  <TextSecondary>
-                    {lnHeldElsewhere
-                      ? t('receive.lightningHeldElsewhere')
-                      : lnReceiveError === NO_LIGHTNING_SOLVER_ERROR
-                        ? t('receive.lightningUnavailable', { error: t('receive.noLightningSolver') })
-                        : t('receive.lightningUnavailable', { error: lnReceiveError })}
-                  </TextSecondary>
-                  {lnRetryable ? (
-                    <Button label={t('common.tryAgain')} onClick={() => setNegotiateAttempt((n) => n + 1)} secondary />
-                  ) : null}
-                </FlexCol>
-              ) : null}
+              <SwapRailStatus rail={swapRail} />
               {paymentMethods.length > 1 ? (
                 <div className='mt-20 mb-3 w-full max-w-85'>
                   <SegmentedControl
@@ -646,7 +504,7 @@ export default function ReceiveQRCode() {
               if (method) handleMethodChange(method.id)
             }}
             copied={copied}
-          />{' '}
+          />
         </FlexCol>
       </SheetModal>
     </>

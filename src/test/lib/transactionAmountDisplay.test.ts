@@ -70,6 +70,21 @@ describe('transaction amount display', () => {
     expect(result.raw[0].value).toBe('2.00 USD')
   })
 
+  it('reads an asset with no decimals in its metadata as whole units', () => {
+    const result = buildTransactionAmountDisplay({
+      assets: [{ assetId: 'ab'.repeat(34), amount: BigInt(1) }],
+      bitcoinUnit: Unit.BTC,
+      currency: Currencies.USD,
+      isVerifiedAsset: () => false,
+      metadataForAsset: () => ({ ticker: 'CTRL' }),
+      network: 'mutinynet',
+      satoshis: 0,
+      toFiatAmount: () => 0,
+    })
+
+    expect(result.raw[0]).toMatchObject({ ticker: 'CTRL', value: '1 CTRL' })
+  })
+
   it('formats the configured bitcoin unit without inventing an asset conversion', () => {
     const result = buildTransactionAmountDisplay({
       bitcoinUnit: Unit.SATS,
