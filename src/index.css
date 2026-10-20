@@ -2130,7 +2130,7 @@ html.palette-dark .send-asset-menu {
 .swap-asset-list-panel .swap-token-list {
   flex: 1;
   min-height: 0;
-  overflow-y: scroll;
+  overflow-y: auto;
   overscroll-behavior: contain;
 }
 
@@ -3936,7 +3936,7 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
 }
 
 .swap-review-drawer-content {
-  max-height: min(92vh, 42rem) !important;
+  max-height: min(92dvh, 42rem) !important;
   overflow: hidden;
 }
 
@@ -3989,7 +3989,7 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   flex-direction: column;
   gap: 0.875rem;
   padding: 0 1rem 1rem;
-  max-height: 480px;
+  max-height: min(92dvh, 42rem);
 }
 
 .swap-token-list,

@@ -1631,7 +1631,21 @@ function estimateRowUsdPrice(
 
 function filterAssets(assets: SwapAsset[], query: string): SwapAsset[] {
   const normalized = query.trim().toLowerCase()
-  if (!normalized) return assets
+  if (!normalized)
+    return [
+      ...assets,
+      ...assets,
+      ...assets,
+      ...assets,
+      ...assets,
+      ...assets,
+      ...assets,
+      ...assets,
+      ...assets,
+      ...assets,
+      ...assets,
+      ...assets,
+    ]
   return assets.filter((asset) => {
     // the BTC row's ticker is the display unit ('sats'/'₿'), not 'BTC' —
     // let searching "btc" still find it
