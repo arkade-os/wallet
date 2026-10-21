@@ -999,12 +999,14 @@ describe('Receive screen, token rails', () => {
     onTestFinished(() => {
       share.can = false
     })
-    renderReceive(20_000, tokensOn)
+    const { container } = renderReceive(20_000, tokensOn)
 
     await pick('USDT (Arbitrum One)')
 
-    expect(await screen.findByText(/No quote for this token: .*busy/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeDisabled()
+    const stage = container.querySelector('.receive-invoice-stage') as HTMLElement
+    expect(await within(stage).findByText(/No quote for this token: .*busy/)).toBeInTheDocument()
+    expect(within(stage).getByRole('button', { name: 'Get a new quote' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Copy QR code' })).not.toBeInTheDocument()
     expect(screen.queryByTestId('token-address-copy')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Share' })).toBeDisabled()
   })

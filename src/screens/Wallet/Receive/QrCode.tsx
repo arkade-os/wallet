@@ -538,17 +538,6 @@ export default function ReceiveQRCode() {
               {lnurlRails.errors.lightning ? (
                 <TextSecondary>{t('receive.noInvoiceForAmount', { error: lnurlRails.errors.lightning })}</TextSecondary>
               ) : null}
-              {shown === 'token' && tokenRails.error ? (
-                <FlexCol gap='0.5rem' centered>
-                  <TextSecondary>{t('receive.noTokenQuote', { error: tokenRails.error })}</TextSecondary>
-                  <Button
-                    label={t('receive.getNewQuote')}
-                    onClick={tokenRails.regenerate}
-                    disabled={tokenRails.quoting}
-                    secondary
-                  />
-                </FlexCol>
-              ) : null}
               <div
                 // Height-capped so the whole code sits above the bottom buttons on a short phone.
                 className='receive-invoice-stage mt-4 aspect-square w-full max-w-[min(21.25rem,calc(100dvh-26rem))]'
@@ -585,6 +574,11 @@ export default function ReceiveQRCode() {
                       onClick={tokenRails.regenerate}
                       disabled={tokenRails.quoting}
                     />
+                  </div>
+                ) : shown === 'token' && tokenRails.error ? (
+                  <div className='receive-invoice-expired flex flex-col items-center justify-center gap-2 text-center'>
+                    <TextSecondary centered>{t('receive.noTokenQuote', { error: tokenRails.error })}</TextSecondary>
+                    <Button label={t('receive.getNewQuote')} onClick={tokenRails.regenerate} />
                   </div>
                 ) : (
                   <button
