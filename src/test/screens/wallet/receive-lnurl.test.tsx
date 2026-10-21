@@ -448,9 +448,9 @@ describe('Receive screen, token rails', () => {
   const tokensOn = { receiveViaTokens: true }
   const payRequests = () => server.calls('GET', '/.well-known/lnurlp/alice')
   const tokenQuotes = () => callbacks().filter((url) => url.searchParams.get('paymentOption')?.startsWith('ff-'))
-  const tokenSelect = () => screen.queryByRole('button', { name: 'Pay with a token' })
+  const tokenSelect = () => screen.queryByRole('button', { name: 'Pay with stablecoins' })
   const openTokenSheet = async () => {
-    fireEvent.click(await screen.findByRole('button', { name: 'Pay with a token' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Pay with stablecoins' }))
     return screen.findByRole('radiogroup')
   }
   const pick = async (label: string) => {
@@ -704,7 +704,7 @@ describe('Receive screen, token rails', () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
     renderReceive(20_000, tokensOn)
 
-    await screen.findByRole('button', { name: 'Pay with a token' })
+    await screen.findByRole('button', { name: 'Pay with stablecoins' })
     await waitFor(() => expect(callbacks()).toHaveLength(1))
     expect(tokenQuotes()).toHaveLength(0)
   })

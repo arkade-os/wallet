@@ -48,7 +48,7 @@ import { useLnurlTokenRails, type LnurlTokenQuote, type LnurlTokenRail } from '.
 import LnurlRailPanel from './LnurlRail'
 import { useTranslation } from '../../../providers/language'
 import Select from '../../../components/Select'
-import { TokenOnChainLogo } from '../../../components/ChainLogo'
+import { TokenLogoStack, TokenOnChainLogo } from '../../../components/ChainLogo'
 import ChevronDownIcon from '../../../icons/ChevronDown'
 
 const TOKEN = 'token:'
@@ -488,11 +488,13 @@ export default function ReceiveQRCode() {
                     >
                       {activeToken ? (
                         <span className='flex size-5 shrink-0'>{railLogo(activeToken, 'var(--neutral-100)')}</span>
-                      ) : null}
+                      ) : (
+                        <TokenLogoStack tickers={['USDT', 'USDC']} ring='var(--background-color)' />
+                      )}
                       <span className='flex-1'>
                         {activeToken
                           ? paymentMethods.find((m) => m.id === activeMethod)?.label
-                          : t('receive.payWithToken')}
+                          : t('receive.payWithStablecoins')}
                       </span>
                       <ChevronDownIcon />
                     </button>
@@ -620,7 +622,7 @@ export default function ReceiveQRCode() {
       <SheetModal isOpen={showTokenSheet} onClose={() => setShowTokenSheet(false)}>
         <FlexCol gap='1rem' padding='0.5rem 0'>
           <Text big bold>
-            {t('receive.payWithToken')}
+            {t('receive.payWithStablecoins')}
           </Text>
           <div className='hide-scrollbar max-h-[60vh] w-full overflow-y-auto'>
             <Select

@@ -13,7 +13,7 @@ import NetworkPolygonAmoy from '@web3icons/react/icons/networks/NetworkPolygonAm
 import NetworkSepolia from '@web3icons/react/icons/networks/NetworkSepolia'
 import NetworkSolana from '@web3icons/react/icons/networks/NetworkSolana'
 import NetworkTron from '@web3icons/react/icons/networks/NetworkTron'
-import TokenLogo, { tokenLogoTickerForTicker } from './TokenLogo'
+import TokenLogo, { tokenLogoTickerForTicker, type TokenLogoTicker } from './TokenLogo'
 
 type Icon = ComponentType<{ variant?: 'branded' | 'mono' | 'background'; className?: string }>
 
@@ -58,6 +58,23 @@ export function TokenOnChainLogo({ ticker, chainId, ring }: { ticker: string; ch
           <ChainLogo chainId={chainId} />
         </span>
       ) : null}
+    </span>
+  )
+}
+
+/** Token logos overlapping left over right, each ringed in `ring` like the chain badge above. */
+export function TokenLogoStack({ tickers, ring }: { tickers: TokenLogoTicker[]; ring: string }) {
+  return (
+    <span className='flex shrink-0' aria-hidden='true'>
+      {tickers.map((ticker, i) => (
+        <span
+          key={ticker}
+          className={`relative flex size-5 rounded-full [&>svg]:size-full ${i ? '-ml-1.5' : ''}`}
+          style={{ boxShadow: `0 0 0 2px ${ring}`, zIndex: tickers.length - i }}
+        >
+          <TokenLogo ticker={ticker} />
+        </span>
+      ))}
     </span>
   )
 }
