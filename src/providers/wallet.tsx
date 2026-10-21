@@ -744,6 +744,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       setVtxoManager(vtxoMgr)
       setInitialized(walletInitialized)
 
+      // Safe on every unlock: watches are keyed by txid and the confirmation queue ignores a key it already holds.
       resumeLnurlConfirmations()
 
       // Cancel any pending reload from a previous wallet instance

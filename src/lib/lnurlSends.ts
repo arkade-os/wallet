@@ -1,35 +1,17 @@
-import { createLnurlSendTracker, sentActivityResolver, type SentPayment } from '@arkade-os/lnurl-client/arkade'
+import { createLnurlSendTracker, sentActivityResolver } from '@arkade-os/lnurl-client/arkade'
+import { createLocalStorageLnurlSentPaymentStore } from '@arkade-os/lnurl-client/browser'
 import type { ActivityResolver } from '@arkade-os/sdk'
 import { pendingConfirmations } from './lnurlConfirmations'
 import { consoleError } from './logs'
-import { getStorageItem } from './storage'
 import { LNURL_SENDS_STORAGE_KEY } from './storageKeys'
 
-export const lnurlSends = (): SentPayment[] =>
-  getStorageItem<SentPayment[]>(LNURL_SENDS_STORAGE_KEY, [], (value) => {
-    const parsed: unknown = JSON.parse(value)
-    return Array.isArray(parsed) ? parsed : []
-  })
+const tracker = createLnurlSendTracker(createLocalStorageLnurlSentPaymentStore(LNURL_SENDS_STORAGE_KEY), {
+  confirmations: pendingConfirmations,
+  onError: (error) => consoleError(error, 'Failed to record lnurl send'),
+})
 
-const listeners = new Set<() => void>()
-export const subscribeLnurlSends = (listener: () => void): (() => void) => {
-  listeners.add(listener)
-  return () => {
-    listeners.delete(listener)
-  }
-}
-
-const tracker = createLnurlSendTracker(
-  {
-    read: lnurlSends,
-    write: (records) => {
-      localStorage.setItem(LNURL_SENDS_STORAGE_KEY, JSON.stringify(records))
-      for (const listener of listeners) listener()
-    },
-  },
-  { confirmations: pendingConfirmations, onError: (error) => consoleError(error, 'Failed to record lnurl send') },
-)
-
+export const lnurlSends = tracker.all
+export const subscribeLnurlSends = tracker.subscribe
 export const recordLnurlSend = tracker.record
 export const watchLnurlConfirmation = tracker.watch
 export const resumeLnurlConfirmations = tracker.resume

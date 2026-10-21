@@ -40,7 +40,7 @@ import { FiatContext } from '../../../providers/fiat'
 import { ArkNote, AssetDetails, isValidArkAddress, type NetworkName } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
 import { createLnurlClient, isValidLnUrl, LnurlError, type PayRequest } from '@arkade-os/lnurl-client'
-import { lnurlRailLimits } from '@arkade-os/lnurl-client/arkade'
+import { lnurlPayableRanges } from '@arkade-os/lnurl-client/arkade'
 import { fetchArkAddress } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
 import { decodeInvoice } from '../../../lib/bolt11'
@@ -576,19 +576,12 @@ export default function SendForm() {
           (method) => method.method === 'Ark' && method.available,
         )
         // The top-level pair belongs to default Lightning; Arkade can offer a wider range.
-        const sendRanges = lnurlRailLimits(
-          legacyArk ? { ...conditions, paymentOptions: undefined } : conditions,
-        ).filter(
-          ({ type, min, max }) =>
-            (type === 'arkade' || type === 'lightning') &&
-            Number.isSafeInteger(min) &&
-            Number.isSafeInteger(max) &&
-            min > 0 &&
-            min <= max,
-        )
-        const min = sendRanges.length ? Math.min(...sendRanges.map((range) => range.min)) : 0
-        const max = sendRanges.length ? Math.max(...sendRanges.map((range) => range.max)) : 0
-        const fixed = sendRanges.length > 0 && min === max
+        const {
+          ranges: sendRanges,
+          min,
+          max,
+          fixed,
+        } = lnurlPayableRanges(legacyArk ? { ...conditions, paymentOptions: undefined } : conditions)
         setAmountIsReadOnly(fixed)
         if (fixed) {
           setSendInfo((prev) => ({ ...prev, satoshis: min }))

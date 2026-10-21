@@ -1,6 +1,6 @@
 import type { Activity } from '@arkade-os/sdk'
 import { isRfqSwapTerminal } from '@arkade-os/swap'
-import { LNURL_GROUP_PREFIX, SENT_GROUP_PREFIX } from '@arkade-os/lnurl-client/arkade'
+import { lnurlActivity } from '@arkade-os/lnurl-client/arkade'
 import { ASSET_SWAP_ACTIVITY_KIND, CORRIDOR_LABEL, type LnSendView } from './swapRecords'
 import { consoleError } from './logs'
 import type { TransactionActivityMetadata } from './storage'
@@ -63,16 +63,10 @@ const rfqSwapKindOf = (activity: Activity): string | undefined =>
  * owns. */
 const rfqIdOf = (activity: Activity): string | undefined => activity.intent?.metadata?.rfqId as string | undefined
 
-/** The lightning address and the rail — from either lnurl-client
- * resolver's metadata. Groups are told apart by id prefix, the package's own
- * namespace, rather than `intent.kind`, which it does not export as a constant. */
+/** The lightning address and the rail, as either lnurl-client resolver recorded them. */
 const lnurlIntentOf = (activity: Activity): Tx['lnurl'] => {
-  if (!activity.id.startsWith(LNURL_GROUP_PREFIX) && !activity.id.startsWith(SENT_GROUP_PREFIX)) return undefined
-  const meta = activity.intent?.metadata
-  return {
-    address: (meta?.lightningAddress as string | null | undefined) ?? (meta?.target as string | undefined) ?? undefined,
-    rail: meta?.rail as string | undefined,
-  }
+  const lnurl = lnurlActivity(activity)
+  return lnurl && { address: lnurl.address, rail: lnurl.rail }
 }
 
 /** The record's own facts, which no transaction in history carries. */
@@ -271,7 +265,7 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
   for (const activity of activities) {
     // The SDK emits a tx under every group claiming it; a swap's row already stands for its LNURL send.
     if (
-      activity.id.startsWith(SENT_GROUP_PREFIX) &&
+      lnurlActivity(activity)?.direction === 'sent' &&
       activity.txs.length > 0 &&
       activity.txs.every((tx) => (groupsOf.get(txidOfArkTransaction(tx)) ?? 0) > 1)
     ) {

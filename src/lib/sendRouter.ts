@@ -30,7 +30,13 @@ import {
 } from '@arkade-os/swap'
 import { marketCorridor, sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { createLnurlClient, type LnurlClient } from '@arkade-os/lnurl-client'
-import { LNURL_ARKADE_RAIL, LNURL_LIGHTNING_RAIL, lnurlRails } from '@arkade-os/lnurl-client/arkade'
+import {
+  firstQuote,
+  isLnurlRail,
+  LNURL_ARKADE_RAIL,
+  LNURL_LIGHTNING_RAIL,
+  lnurlRails,
+} from '@arkade-os/lnurl-client/arkade'
 import { collaborativeExitWithFees, sendAssets } from './asp'
 import { decodeInvoice } from './bolt11'
 import { consoleError } from './logs'
@@ -140,21 +146,12 @@ export const createSendRouter = (deps: SendRouterDeps): PaymentRouter => {
   return router
 }
 
-export const isLnurlRail = (railId?: string): boolean => railId === LNURL_ARKADE_RAIL || railId === LNURL_LIGHTNING_RAIL
+export { isLnurlRail }
 
-/** Quoting spends nothing, so a leg that cannot quote yields to the next. */
 export const quoteLnurl = async (router: PaymentRouter, target: string, amount: number): Promise<RouteQuote> => {
   const options = (await router.options({ raw: target, amount })).filter((o) => isLnurlRail(o.railId))
-  let refusal: unknown = new Error('No route for this LNURL payment')
-  for (const option of options) {
-    try {
-      return await option.quote()
-    } catch (err) {
-      consoleError(err, `lnurl send: ${option.railId} could not quote`)
-      refusal = err
-    }
-  }
-  throw refusal
+  if (!options.length) throw new Error('No route for this LNURL payment')
+  return firstQuote(options, (railId, err) => consoleError(err, `lnurl send: ${railId} could not quote`))
 }
 
 /** An amount-bearing invoice pins the take leg by existing, and the client throws
