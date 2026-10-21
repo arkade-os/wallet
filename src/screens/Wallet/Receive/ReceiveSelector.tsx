@@ -85,7 +85,7 @@ export default function ReceiveSelector(p: {
         className='mx-auto flex w-fit max-w-full cursor-pointer items-center gap-1.5 rounded-full border border-neutral-100 py-1.5 pr-2 pl-3 text-sm'
       >
         <span className='shrink-0 text-neutral-500'>{t('receive.showing')}</span>
-        {p.icon ? <span className='flex size-4 shrink-0'>{p.icon}</span> : null}
+        {p.icon ? <span className='flex shrink-0'>{p.icon}</span> : null}
         <span className='truncate font-semibold'>{p.label}</span>
         <span
           className={`shrink-0 transition-transform duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none ${p.open ? 'rotate-180' : ''}`}
