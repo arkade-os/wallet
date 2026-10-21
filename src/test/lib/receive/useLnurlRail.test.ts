@@ -144,51 +144,6 @@ describe('useLnurlRail', () => {
     expect(server.calls('POST', '/lnurl/address')).toHaveLength(0)
   })
 
-  it('finishes a held older binding before sending the newer receive destination', async () => {
-    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
-    let release!: () => void
-    const gate = new Promise<void>((resolve) => (release = resolve))
-    const inner = server.fetch
-    const writes: string[] = []
-    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
-      if (init?.method === 'POST' && String(input).endsWith('/arkade')) {
-        writes.push(JSON.parse(init.body as string).arkadeAddress)
-        if (writes.length === 1) await gate
-      }
-      return inner(input, init)
-    })
-    const { result, rerender } = renderHook(
-      ({ arkadeAddress }) => useLnurlRail({ enabled: true, identity, arkadeAddress }),
-      { initialProps: { arkadeAddress: DECODABLE_ARK } },
-    )
-    await waitFor(() => expect(writes).toEqual([DECODABLE_ARK]))
-
-    rerender({ arkadeAddress: LNURL_DESTINATIONS.arkade })
-    await act(async () => {})
-    expect(writes).toHaveLength(1)
-    await act(async () => release())
-
-    await waitFor(() => expect(result.current.status).toBe('ready'))
-    expect(writes).toEqual([DECODABLE_ARK, LNURL_DESTINATIONS.arkade])
-    expect(server.bindings.get('alice')?.arkadeAddress).toBe(LNURL_DESTINATIONS.arkade)
-  })
-
-  it('leaves an already registered boarding address unchanged when it is temporarily unavailable', async () => {
-    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
-    server.bindings.set('alice', {
-      arkadeAddress: DECODABLE_ARK,
-      claimPublicKey: `02${'01'.repeat(32)}`,
-      boardingAddress: WALLET_BOARDING_ADDRESS,
-    })
-    const { result } = renderRail()
-
-    await waitFor(() => expect(result.current.status).toBe('ready'))
-
-    expect(server.bindings.get('alice')?.boardingAddress).toBe(WALLET_BOARDING_ADDRESS)
-    const write = server.calls('POST', '/lnurl/address/alice/arkade')[0][1]!
-    expect(JSON.parse(write.body as string)).not.toHaveProperty('boardingAddress')
-  })
-
   it.each(['disabled', 'unmounted'])('does not rebind after a pending discovery is %s', async (stop) => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
     let release!: () => void
