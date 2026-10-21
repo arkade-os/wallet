@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useState } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
@@ -50,6 +50,7 @@ import { useTranslation } from '../../../providers/language'
 import Select from '../../../components/Select'
 import { TokenLogoStack, TokenOnChainLogo } from '../../../components/ChainLogo'
 import ChevronDownIcon from '../../../icons/ChevronDown'
+import XIcon from '../../../icons/X'
 
 const TOKEN = 'token:'
 
@@ -103,6 +104,7 @@ export default function ReceiveQRCode() {
   // value-keyed selection would be dropped and never come back. Keying on the
   // method id lets the choice survive the invoice being briefly absent.
   const [selectedMethod, setSelectedMethod] = useState('unified')
+  const lastSegment = useRef('unified')
   const [bip21Uri, setBip21Uri] = useState('')
 
   // Fetch addresses on mount
@@ -237,6 +239,8 @@ export default function ReceiveQRCode() {
   const segments = paymentMethods.filter((m) => !m.id.startsWith(TOKEN))
   const tokenMethods = paymentMethods.filter((m) => m.id.startsWith(TOKEN))
   const showSelector = segments.length > 1 || tokenMethods.length > 0
+  const backTo = segments.find((m) => m.id === lastSegment.current) ?? segments[0]
+  const quoteProblem = activeToken && !tokenRails.quoting && (tokenRails.expired || Boolean(tokenRails.error))
 
   // The copy sheet offers what the shown method carries: the unified URI and the addresses inside it, or one value.
   const rows = {
@@ -421,6 +425,7 @@ export default function ReceiveQRCode() {
    */
   const handleMethodChange = (id: string) => {
     if (!paymentMethods.some((m) => m.id === id)) return
+    if (!id.startsWith(TOKEN)) lastSegment.current = id
     setSelectedMethod(id)
   }
 
@@ -465,12 +470,6 @@ export default function ReceiveQRCode() {
               {lnurlRails.errors.lightning ? (
                 <TextSecondary>{t('receive.noInvoiceForAmount', { error: lnurlRails.errors.lightning })}</TextSecondary>
               ) : null}
-              {activeToken && tokenRails.error ? (
-                <TextSecondary>{t('receive.noTokenQuote', { error: tokenRails.error })}</TextSecondary>
-              ) : null}
-              {activeToken && !tokenRails.quoting && (tokenRails.expired || tokenRails.error) ? (
-                <Button label={t('common.tryAgain')} onClick={tokenRails.regenerate} secondary />
-              ) : null}
               {showSelector ? (
                 <div className='mt-4 mb-3 flex w-full max-w-85 flex-col gap-2'>
                   <SegmentedControl
@@ -480,24 +479,36 @@ export default function ReceiveQRCode() {
                     getLabel={(id) => paymentMethods.find((m) => m.id === id)?.label ?? id}
                   />
                   {tokenMethods.length ? (
-                    <button
-                      type='button'
-                      aria-haspopup='dialog'
-                      onClick={() => setShowTokenSheet(true)}
-                      className={`flex w-full cursor-pointer items-center gap-3 rounded-lg border border-neutral-100 px-3 py-3 text-left text-sm ${activeToken ? 'bg-neutral-100 font-semibold' : 'text-neutral-500'}`}
-                    >
-                      {activeToken ? (
-                        <span className='flex size-5 shrink-0'>{railLogo(activeToken, 'var(--neutral-100)')}</span>
-                      ) : (
-                        <TokenLogoStack tickers={['USDT', 'USDC']} ring='var(--background-color)' />
-                      )}
-                      <span className='flex-1'>
-                        {activeToken
-                          ? paymentMethods.find((m) => m.id === activeMethod)?.label
-                          : t('receive.payWithStablecoins')}
-                      </span>
-                      <ChevronDownIcon />
-                    </button>
+                    <div className='flex w-full items-center gap-2'>
+                      <button
+                        type='button'
+                        aria-haspopup='dialog'
+                        onClick={() => setShowTokenSheet(true)}
+                        className={`flex flex-1 cursor-pointer items-center gap-3 rounded-lg border border-neutral-100 px-3 py-3 text-left text-sm ${activeToken ? 'bg-neutral-100 font-semibold' : 'text-neutral-500'}`}
+                      >
+                        {activeToken ? (
+                          <span className='flex size-5 shrink-0'>{railLogo(activeToken, 'var(--neutral-100)')}</span>
+                        ) : (
+                          <TokenLogoStack tickers={['USDT', 'USDC']} ring='var(--background-color)' />
+                        )}
+                        <span className='flex-1'>
+                          {activeToken
+                            ? paymentMethods.find((m) => m.id === activeMethod)?.label
+                            : t('receive.payWithStablecoins')}
+                        </span>
+                        <ChevronDownIcon />
+                      </button>
+                      {activeToken && backTo ? (
+                        <button
+                          type='button'
+                          aria-label={t('receive.backToMethod', { method: backTo.label })}
+                          onClick={() => handleMethodChange(backTo.id)}
+                          className='flex shrink-0 cursor-pointer items-center justify-center self-stretch rounded-lg border border-neutral-100 px-3 text-neutral-500'
+                        >
+                          <XIcon />
+                        </button>
+                      ) : null}
+                    </div>
                   ) : null}
                 </div>
               ) : null}
@@ -528,38 +539,52 @@ export default function ReceiveQRCode() {
                       : '\u00a0'}
                   </Text>
                 </div>
-                <button
-                  type='button'
-                  className='receive-invoice-qr focusable'
-                  disabled={generating || !qrCodeValue}
-                  aria-hidden={generating}
-                  onClick={() => handleCopy(qrCodeValue)}
-                  onPointerDown={() => setQrTransform(prefersReducedMotion ? '' : 'scale(0.97)')}
-                  onPointerUp={() => setQrTransform('')}
-                  onPointerLeave={() => setQrTransform('')}
-                  onPointerCancel={() => setQrTransform('')}
-                  aria-label={t('receive.copyQrCode')}
-                  style={{
-                    padding: 0,
-                    width: '100%',
-                    display: 'block',
-                    background: 'none',
-                    touchAction: 'manipulation',
-                    WebkitTapHighlightColor: 'transparent',
-                    cursor: generating ? 'default' : 'pointer',
-                  }}
-                >
-                  <div
+                {quoteProblem ? (
+                  <div className='flex flex-col items-center justify-center gap-2 text-center'>
+                    {tokenRails.expired ? (
+                      <>
+                        <Text bold>{t('receive.quoteExpired')}</Text>
+                        <TextSecondary centered>{t('receive.quoteExpiredSub')}</TextSecondary>
+                      </>
+                    ) : (
+                      <TextSecondary centered>{t('receive.noTokenQuote', { error: tokenRails.error })}</TextSecondary>
+                    )}
+                    <Button label={t('receive.getNewQuote')} onClick={tokenRails.regenerate} />
+                  </div>
+                ) : (
+                  <button
+                    type='button'
+                    className='receive-invoice-qr focusable'
+                    disabled={generating || !qrCodeValue}
+                    aria-hidden={generating}
+                    onClick={() => handleCopy(qrCodeValue)}
+                    onPointerDown={() => setQrTransform(prefersReducedMotion ? '' : 'scale(0.97)')}
+                    onPointerUp={() => setQrTransform('')}
+                    onPointerLeave={() => setQrTransform('')}
+                    onPointerCancel={() => setQrTransform('')}
+                    aria-label={t('receive.copyQrCode')}
                     style={{
-                      transform: qrTransform,
-                      transition: prefersReducedMotion
-                        ? 'none'
-                        : `transform 240ms cubic-bezier(${EASE_OUT_QUINT.join(',')})`,
+                      padding: 0,
+                      width: '100%',
+                      display: 'block',
+                      background: 'none',
+                      touchAction: 'manipulation',
+                      WebkitTapHighlightColor: 'transparent',
+                      cursor: generating ? 'default' : 'pointer',
                     }}
                   >
-                    <QrCode value={qrCodeValue} logo={activeToken ? railLogo(activeToken, '#ffffff') : undefined} />
-                  </div>
-                </button>
+                    <div
+                      style={{
+                        transform: qrTransform,
+                        transition: prefersReducedMotion
+                          ? 'none'
+                          : `transform 240ms cubic-bezier(${EASE_OUT_QUINT.join(',')})`,
+                      }}
+                    >
+                      <QrCode value={qrCodeValue} logo={activeToken ? railLogo(activeToken, '#ffffff') : undefined} />
+                    </div>
+                  </button>
+                )}
               </div>
               <div
                 className='min-h-5'

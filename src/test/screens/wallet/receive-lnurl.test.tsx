@@ -578,7 +578,7 @@ describe('Receive screen, token rails', () => {
     await pick('USDT (Arbitrum One)')
     await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')
     expect(screen.getByRole('button', { name: 'Share' })).toBeEnabled()
-    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Get a new quote' })).not.toBeInTheDocument()
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy' })))
     expect(await screen.findByTestId('token-address-copy')).toBeInTheDocument()
     expect(screen.getByTestId('token-amount-address-copy')).toBeInTheDocument()
@@ -601,9 +601,9 @@ describe('Receive screen, token rails', () => {
     const pending = holdQuotes(server, 'ff-usdtarbitrum')
     options.tokenDestination = `0x${'cd'.repeat(20)}`
 
-    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Get a new quote' }))
     await waitFor(() => expect(pending.held).toHaveLength(1))
-    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Get a new quote' })).not.toBeInTheDocument()
     expect(screen.queryByText(/Send exactly/)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Copy' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Share' })).toBeDisabled()
@@ -618,7 +618,7 @@ describe('Receive screen, token rails', () => {
       'ff-usdtarbitrum',
       'ff-usdtarbitrum',
     ])
-    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Get a new quote' })).not.toBeInTheDocument()
   })
 
   it('retries a transient token failure only on explicit action for the selected rail', async () => {
@@ -636,9 +636,9 @@ describe('Receive screen, token rails', () => {
     delete tokenErrors['ff-usdtarbitrum']
     const pending = holdQuotes(server, 'ff-usdtarbitrum')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Get a new quote' }))
     await waitFor(() => expect(pending.held).toHaveLength(1))
-    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Get a new quote' })).not.toBeInTheDocument()
     expect(screen.queryByText(/No quote for this token/)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Copy' })).toBeDisabled()
     pending.release()
@@ -650,7 +650,7 @@ describe('Receive screen, token rails', () => {
       'ff-usdtarbitrum',
       'ff-usdtarbitrum',
     ])
-    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Get a new quote' })).not.toBeInTheDocument()
   })
 
   it('refuses a required Solana memo without exposing a token destination or QR', async () => {
@@ -730,6 +730,37 @@ describe('Receive screen, token rails', () => {
     expect(tokenSelect()).not.toBeInTheDocument()
   })
 
+  it('explains an expired quote, and offers a new one, where the code was', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true, quoteTtlMs: 120_000 })
+    const { container } = renderReceive(20_000, tokensOn)
+    await pick('USDT (Arbitrum One)')
+    await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 120_000)
+    onTestFinished(() => clock.mockRestore())
+
+    act(() => document.dispatchEvent(new Event('visibilitychange')))
+
+    const stage = container.querySelector('.receive-invoice-stage')!
+    expect(within(stage as HTMLElement).getByText('Quote expired')).toBeInTheDocument()
+    expect(within(stage as HTMLElement).getByText(/no longer valid\. Do not send to it/)).toBeInTheDocument()
+    expect(within(stage as HTMLElement).getByRole('button', { name: 'Get a new quote' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Copy QR code' })).not.toBeInTheDocument()
+  })
+
+  it('goes back from a stablecoin to the code shown before it', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+    renderReceive(20_000, tokensOn)
+    fireEvent.click(await screen.findByRole('tab', { name: 'Lightning' }))
+    await pick('USDT (Arbitrum One)')
+    await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Lightning' }))
+
+    expect(screen.getByRole('tab', { name: 'Lightning' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('button', { name: 'Back to Lightning' })).not.toBeInTheDocument()
+    expect(await copiedQr()).toMatch(/^lnbc/i)
+  })
+
   it('says why a token has no quote', async () => {
     serve({
       modes: ['self'],
@@ -746,7 +777,8 @@ describe('Receive screen, token rails', () => {
     await pick('USDT (Arbitrum One)')
 
     expect(await screen.findByText(/No quote for this token: .*busy/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Get a new quote' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Copy QR code' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Copy' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Share' })).toBeDisabled()
   })
