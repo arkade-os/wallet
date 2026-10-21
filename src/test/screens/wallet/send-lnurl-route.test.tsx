@@ -11,6 +11,8 @@ import { FlowContext, type SendInfo } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import { NavigationContext } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
+import { LanguageContext, translate } from '../../../providers/language'
+import { Language } from '../../../lib/types'
 import { LNURL_ARKADE_RAIL, LNURL_LIGHTNING_RAIL } from '../../../lib/sendRouter'
 import { lnurlSends } from '../../../lib/lnurlSends'
 import {
@@ -66,30 +68,33 @@ const lnurlQuote = (
 
 const setSendInfo = vi.fn()
 
-const renderSign = (sendInfo: SendInfo, limits = mockLimitsContextValue) =>
+const renderSign = (sendInfo: SendInfo, limits = mockLimitsContextValue, language = Language.English) =>
   render(
-    <NavigationContext.Provider value={mockNavigationContextValue}>
-      <ConfigContext.Provider value={mockConfigContextValue}>
-        <FiatContext.Provider value={mockFiatContextValue}>
-          <AspContext.Provider value={mockAspContextValue}>
-            <FeesContext.Provider value={{ calcOnchainOutputFee: () => 500 } as never}>
-              <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo, setSendInfo }}>
-                <WalletContext.Provider
-                  value={{ ...mockWalletContextValue, balance: 1_000_000, svcWallet: mockSvcWallet as never }}
-                >
-                  <LimitsContext.Provider value={limits}>
-                    <SendDetails />
-                  </LimitsContext.Provider>
-                </WalletContext.Provider>
-              </FlowContext.Provider>
-            </FeesContext.Provider>
-          </AspContext.Provider>
-        </FiatContext.Provider>
-      </ConfigContext.Provider>
-    </NavigationContext.Provider>,
+    <LanguageContext.Provider value={{ language, t: (key, params) => translate(language, key, params) }}>
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <AspContext.Provider value={mockAspContextValue}>
+              <FeesContext.Provider value={{ calcOnchainOutputFee: () => 500 } as never}>
+                <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo, setSendInfo }}>
+                  <WalletContext.Provider
+                    value={{ ...mockWalletContextValue, balance: 1_000_000, svcWallet: mockSvcWallet as never }}
+                  >
+                    <LimitsContext.Provider value={limits}>
+                      <SendDetails />
+                    </LimitsContext.Provider>
+                  </WalletContext.Provider>
+                </FlowContext.Provider>
+              </FeesContext.Provider>
+            </AspContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>
+    </LanguageContext.Provider>,
   )
 
-const sign = async () => fireEvent.click(await screen.findByText('Tap to Sign'))
+const sign = async (language = Language.English) =>
+  fireEvent.click(await screen.findByText(translate(language, 'send.tapToSign')))
 const sendFailure = () => consoleError.mock.calls.find((c) => c[1] === 'error sending payment')?.[0]
 
 describe('signing an LNURL send', () => {
@@ -152,6 +157,22 @@ describe('signing an LNURL send', () => {
 
     await waitFor(() => expect(String(sendFailure())).toMatch(/offchain not allowed/i))
     expect(sent).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['a quote made for another target', { target: 'bob@pay.example' }, mockLimitsContextValue, 'otro pago'],
+    [
+      'on an account that may not send offchain',
+      {},
+      { ...mockLimitsContextValue, vtxoTxsAllowed: (): boolean => false },
+      'offchain no está permitido',
+    ],
+  ])('refuses %s in the wallet language', async (_case, over, limits, spanish) => {
+    const quote = lnurlQuote(LNURL_ARKADE_RAIL, vi.fn(), over)
+    renderSign({ lnUrl: TARGET, satoshis: SATS, pendingLnSend: quote as never }, limits, Language.Spanish)
+    await sign(Language.Spanish)
+
+    await waitFor(() => expect(String(sendFailure())).toContain(spanish))
   })
 
   it('pays the BIP21 address it shows, not the LNURL, on an account that may not send offchain', async () => {

@@ -244,7 +244,7 @@ export default function SendDetails() {
    *  is why the success copy says "on the way" for both rails. The invoice is
    *  re-checked because the quote came from the previous screen. */
   const payLightning = async (quote: RouteQuote, shownInvoice: string) => {
-    if (!quoteIsForThisInvoice(quote, shownInvoice)) return handleError('Quote is for a different invoice')
+    if (!quoteIsForThisInvoice(quote, shownInvoice)) return handleError(t('send.quoteForDifferentInvoice'))
     const result = await fundedResult(await quote.send())
     handleSent(result?.txid, quote.total, quote.fee, quote.railId, result?.swapId)
   }
@@ -253,7 +253,7 @@ export default function SendDetails() {
   const payLnurl = async (quote: RouteQuote, target: string) => {
     const lnurlMeta = lnurlQuoteMeta(quote)
     if (lnurlMeta?.target !== target || quote.amount !== satoshis)
-      return handleError('Quote is for a different payment')
+      return handleError(t('send.quoteForDifferentPayment'))
     const handle = await quote.send()
     recordLnurlSend(handle, quote, target)
     const result = await fundedResult(handle)
@@ -331,7 +331,7 @@ export default function SendDetails() {
     } else if (lnurlRoute && details.destination === lnUrl) {
       payLnurl(pendingLnSend!, lnUrl!).catch(handleError)
     } else if (lnurlRoute && !address) {
-      return handleError('Sending offchain not allowed')
+      return handleError(t('send.sendingOffchainNotAllowed'))
     } else if (arkAddress) {
       if (!details.total) return handleError(t('send.missingTotalAmount'))
       sendOffChain(svcWallet, details.total, arkAddress)
