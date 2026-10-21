@@ -24,7 +24,11 @@ export async function syncLnurlActivity(
     arkadeAddress,
     boardingAddress: opts.boardingAddress,
     store: opts.store ?? lnurlPaymentSyncStore,
-  })?.owned(signal)
+  })
+    ?.owned({ signal, refresh: true })
+    .catch((err) => {
+      if (!signal?.aborted) throw err
+    })
   if (signal?.aborted) return { synced: 0, failures: [] }
   return (await receiver?.sync({ signal })) ?? { synced: 0, failures: [] }
 }
