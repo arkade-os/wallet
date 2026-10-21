@@ -1,9 +1,11 @@
 import { useCallback, useContext, useEffect, useMemo, useReducer, useState } from 'react'
 import type { Receiver } from '@arkade-os/lnurl-client/arkade'
 import {
+  chainName,
   createLnurlClient,
   LnurlError,
-  normalizeTokenQuote,
+  requestTokenQuote,
+  tokenOptionAccepts,
   tokenOptions,
   type PayRequest,
   type TokenOption,
@@ -13,7 +15,6 @@ import { consoleError } from '../logs'
 import { extractError } from '../error'
 import { Currencies } from '../types'
 import { FiatContext } from '../../providers/fiat'
-import { chainLabel } from './chainLabels'
 
 const lnurlClient = createLnurlClient()
 
@@ -45,14 +46,11 @@ export function plausibleQuote(unit: string, tokens: string, requestedUsd: numbe
 /** The token options a payer is offered: up, verifiable, naming the third party that holds the
  *  deposit, and, given an amount, accepting it. */
 export function lnurlTokenRails(payRequest: PayRequest, amountSat?: number): LnurlTokenRail[] {
-  const msat = (amountSat ?? 0) * 1000
   return tokenOptions(payRequest).flatMap((o): LnurlTokenRail[] => {
-    const inBounds =
-      amountSat === undefined ||
-      (msat >= (o.minSendable ?? payRequest.minSendable) && msat <= (o.maxSendable ?? payRequest.maxSendable))
+    const inBounds = amountSat === undefined || tokenOptionAccepts(o, payRequest, amountSat)
     const offered = o.available && o.verifiable === true && o.unit.decimals <= 18 && inBounds
     // The client never returns an option without an asset; checked anyway, since its chain names the method.
-    return offered && o.provider && o.asset ? [{ ...o, chain: chainLabel(o.asset.chainId), provider: o.provider }] : []
+    return offered && o.provider && o.asset ? [{ ...o, chain: chainName(o.asset.chainId), provider: o.provider }] : []
   })
 }
 
@@ -106,20 +104,12 @@ export function useLnurlTokenRails(
     const asked = { lnurl: source.lnurl, optionId: rail.id, amountSat, round }
     let stale = false
     let expiry: ReturnType<typeof setTimeout> | undefined
-    lnurlClient
-      .requestInvoice(source.payRequest, { amountSat, paymentOption: rail.id })
-      .then((result) => {
+    requestTokenQuote(source.payRequest, rail, amountSat, { minLifetimeMs: MIN_QUOTE_MS, client: lnurlClient })
+      .then((quote) => {
         if (stale) return
-        if (result.kind !== 'destination') {
-          throw new LnurlError(`the LNURL answered ${rail.id} with nothing payable on it`)
-        }
-        if (result.paymentDestinationTag) throw new LnurlError('the deposit needs a memo this QR cannot carry')
-        const quote = normalizeTokenQuote(rail, result)
-        const { amount, expiresAt } = quote
-        if (!(expiresAt - Date.now() >= MIN_QUOTE_MS)) {
-          throw new LnurlError("the quote expires too soon to pay; check the device's clock")
-        }
+        if (quote.paymentDestinationTag) throw new LnurlError('the deposit needs a memo this QR cannot carry')
         if (!/^[1-9]\d*$/.test(quote.baseUnits)) throw new LnurlError("the quote's amount is unreadable")
+        const { amount, expiresAt } = quote
         const usd = toFiatAmount(amountSat, Currencies.USD)
         if (!plausibleQuote(rail.unit.code, amount, usd)) {
           throw new LnurlError(

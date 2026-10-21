@@ -17,7 +17,7 @@ import TokenLogo, { tokenLogoTickerForTicker } from './TokenLogo'
 
 type Icon = ComponentType<{ variant?: 'branded' | 'mono' | 'background'; className?: string }>
 
-// Keyed like chainLabels.ts. Imported one by one: the package index would pull in every icon it ships.
+// Keyed like lnurl-client's chainName. Imported one by one: the package index would pull in every icon it ships.
 const CHAIN_ICONS: Record<string, Icon> = {
   'eip155:1': NetworkEthereum,
   'eip155:11155111': NetworkSepolia,
