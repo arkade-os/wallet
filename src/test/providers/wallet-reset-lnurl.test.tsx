@@ -85,6 +85,15 @@ describe('wallet reset LNURL boundary', () => {
     expect(mocks.service.contractRepository.clear).not.toHaveBeenCalled()
   })
 
+  it('keeps the wallet listening for balance updates when the preimage purge fails', async () => {
+    await renderWallet()
+    mocks.purge.mockRejectedValueOnce(new Error('preimage purge failed'))
+
+    await expect(wallet.resetWallet()).rejects.toThrow('preimage purge failed')
+
+    expect(navigator.serviceWorker.removeEventListener).not.toHaveBeenCalled()
+  })
+
   it('invalidates old send subscriptions after purge and before localStorage is cleared', async () => {
     await renderWallet()
     const order: string[] = []
@@ -118,6 +127,7 @@ describe('wallet reset LNURL boundary', () => {
     await act(() => wallet.resetWallet())
 
     expect(order).toEqual(['purge', 'storage clear'])
+    expect(navigator.serviceWorker.removeEventListener).toHaveBeenCalled()
     expect(lnurlSends()).toEqual([])
     expect(mocks.service.clear).toHaveBeenCalledOnce()
     expect(mocks.service.walletRepository.clear).toHaveBeenCalledOnce()

@@ -1007,18 +1007,20 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const resetWallet = async () => {
+    // Aborting the session stops the LNURL history sync writing, so the purge below has nothing racing it.
     abortInitSession()
+    lnurlResyncRef.current?.cancel()
+    if (!svcWallet) throw new Error('Service worker not initialized')
+    // Before anything destructive, and fatal: these records hold preimages, so a
+    // reset that completed without them gone would hand the next wallet the
+    // previous one's payment history. Rejecting here leaves the wallet intact,
+    // and still showing balance updates, as the listeners stop only after it.
+    await clearLnurlPaymentsForReset()
     if (statusPingInterval.current) clearInterval(statusPingInterval.current)
     statusPingInterval.current = undefined
     clearTimeout(reloadTimerRef.current)
     reloadTimerRef.current = undefined
-    lnurlResyncRef.current?.cancel()
     removeServiceWorkerMessageHandler()
-    if (!svcWallet) throw new Error('Service worker not initialized')
-    // Before anything destructive, and fatal: these records hold preimages, so a
-    // reset that completed without them gone would hand the next wallet the
-    // previous one's payment history. Rejecting here leaves the wallet intact.
-    await clearLnurlPaymentsForReset()
     forgetLnurlSends()
     await clearStorage()
     // swap records outlive localStorage now: without this a reset leaves the
