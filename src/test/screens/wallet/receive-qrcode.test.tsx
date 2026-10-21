@@ -315,6 +315,13 @@ describe('Receive QR Code screen', () => {
       expect(copyToClipboardMock).not.toHaveBeenCalled()
     })
 
+    it('keeps each copy button beside its radio row, where assistive tech still reaches it', async () => {
+      renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
+
+      const copy = await screen.findByTestId('invoice-address-copy')
+      expect(screen.getByRole('radio', { name: /Lightning invoice/ })).not.toContainElement(copy)
+    })
+
     it('copies the raw invoice when the invoice row is in the QR', async () => {
       renderReceiveQrCode(amountFixture('lnbc10u1ptest', { full: 'invoice' }))
 
