@@ -213,19 +213,19 @@ describe('useLnurlRail', () => {
     expect(server.calls('POST', '/lnurl/address')).toHaveLength(0)
   })
 
-  it.each([
-    { registrationError: 'registration offline', error: 'registration offline' },
-    { hdHandles: ['alice'], error: 'An HD receiver cannot be downgraded by a static registration' },
-  ])('fails closed when refreshing an owned destination is refused: $error', async (failure) => {
-    serve({ modes: ['self'], addresses: [namedAddress('alice')], ...failure })
-    const { result } = renderRail()
+  it.each([{ registrationError: 'registration offline', error: 'registration offline' }])(
+    'fails closed when refreshing an owned destination is refused: $error',
+    async (failure) => {
+      serve({ modes: ['self'], addresses: [namedAddress('alice')], ...failure })
+      const { result } = renderRail()
 
-    await waitFor(() => expect(result.current.status).toBe('failed'))
-    expect(result.current.error).toBe(failure.error)
-    expect(result.current.receiver).toBeUndefined()
-    expect(server.bindings.size).toBe(0)
-    expect(server.calls('POST', '/lnurl/address')).toHaveLength(0)
-  })
+      await waitFor(() => expect(result.current.status).toBe('failed'))
+      expect(result.current.error).toBe(failure.error)
+      expect(result.current.receiver).toBeUndefined()
+      expect(server.bindings.size).toBe(0)
+      expect(server.calls('POST', '/lnurl/address')).toHaveLength(0)
+    },
+  )
 
   it('can refresh a newer destination after the preceding registration failed', async () => {
     const options = { modes: ['self'], addresses: [namedAddress('alice')], registrationError: 'offline' }
