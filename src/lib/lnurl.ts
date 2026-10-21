@@ -21,7 +21,8 @@ const checkResponse = async <T = any>(response: Response): Promise<T> => {
 
 export const fetchArkAddress = (lnurl: string): Promise<ArkMethodResponse> => {
   return new Promise<ArkMethodResponse>((resolve, reject) => {
-    const url = toPayRequestUrl(lnurl).url + '?method=ark'
+    const url = new URL(toPayRequestUrl(lnurl).url)
+    url.searchParams.set('method', 'ark')
     fetch(url)
       .then(checkResponse<ArkMethodResponse>)
       .then(resolve)
