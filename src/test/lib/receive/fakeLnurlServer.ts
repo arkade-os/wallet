@@ -155,7 +155,6 @@ export function fakeLnurlServer(opts: {
   paymentURI?: string
   payRequestFail?: boolean
   registrationError?: string
-  hdHandles?: string[]
 }) {
   const addresses = [...(opts.addresses ?? [])]
   let rejected = 0
@@ -254,12 +253,6 @@ export function fakeLnurlServer(opts: {
       const row = addresses.find((a) => a.handle === handle && a.domain === body.domain && a.status === 'active')
       if (!row) return json(404, { error: 'address not found' })
       if (opts.registrationError) return json(500, { error: opts.registrationError })
-      if (opts.hdHandles?.includes(handle)) {
-        return json(400, {
-          code: 'invalid_rails',
-          error: 'An HD receiver cannot be downgraded by a static registration',
-        })
-      }
       bindings.set(handle, { ...bindings.get(handle), ...body })
       return json(200, {})
     }
