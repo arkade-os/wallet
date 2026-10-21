@@ -47,12 +47,11 @@ describe('syncLnurlActivity', () => {
     expect(receiverMock).not.toHaveBeenCalled()
   })
 
-  it('passes the lock signal to destination refresh and does not sync a discovery that became stale', async () => {
+  it('refreshes destinations under the lock signal and resolves to zero once discovery aborts', async () => {
     const controller = new AbortController()
-    const sync = vi.fn()
     const owned = vi.fn().mockImplementation(async () => {
       controller.abort()
-      return { sync }
+      throw controller.signal.reason
     })
     receiverMock.mockReturnValue({ owned } as never)
 
@@ -61,8 +60,16 @@ describe('syncLnurlActivity', () => {
       failures: [],
     })
 
-    expect(owned).toHaveBeenCalledWith(controller.signal)
-    expect(sync).not.toHaveBeenCalled()
+    expect(owned).toHaveBeenCalledWith({ signal: controller.signal, refresh: true })
+  })
+
+  it('still fails when discovery fails for another reason', async () => {
+    const failure = new Error('lookup failed')
+    receiverMock.mockReturnValue({ owned: vi.fn().mockRejectedValue(failure) } as never)
+
+    await expect(syncLnurlActivity(identity, ARKADE_ADDRESS, { signal: new AbortController().signal })).rejects.toBe(
+      failure,
+    )
   })
 
   it('hands its signal to the sync, which stops writing once it aborts', async () => {

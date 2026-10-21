@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from '../../providers/language'
 import {
   arkadeLnurl,
-  arkadeIdentityRequest,
   bootstrapReceiver,
   resolveLnurlRails,
   type ArkadeLnurl,
@@ -48,25 +47,6 @@ export const configuredLnurlServer = () => {
   }
 }
 
-const receiverWrites = new WeakMap<ArkadeSigner, Map<string, Promise<unknown>>>()
-
-const orderReceiverWrites = <T>(identity: ArkadeSigner, server: string, action: () => Promise<T>): Promise<T> => {
-  let pending = receiverWrites.get(identity)
-  if (!pending) receiverWrites.set(identity, (pending = new Map()))
-  const previous = pending.get(server) ?? Promise.resolve()
-  const next = previous.catch(() => {}).then(action)
-  pending.set(server, next)
-  const clear = () => {
-    if (pending.get(server) === next) pending.delete(server)
-  }
-  next.then(clear, clear)
-  return next
-}
-
-type WalletLnurl = Omit<ArkadeLnurl, 'owned'> & {
-  owned: (signal?: AbortSignal) => Promise<Receiver | undefined>
-}
-
 /** The facade bound to this build's server and receive identity, or undefined
  *  when unconfigured — claiming, discovery and payer routing all go through it. */
 export function lnurlReceiver(deps: {
@@ -74,58 +54,9 @@ export function lnurlReceiver(deps: {
   arkadeAddress: string
   boardingAddress?: string
   store?: PaymentSyncStore
-}): WalletLnurl | undefined {
+}): ArkadeLnurl | undefined {
   const server = configuredLnurlServer()
-  if (!server) return undefined
-  const client = createLnurlClient({ baseUrl: server.baseUrl })
-  let discoverySignal: AbortSignal | undefined
-  const assertCurrent = () => {
-    if (discoverySignal?.aborted) throw new Error('LNURL registration is no longer current')
-  }
-  const facade = arkadeLnurl({
-    ...deps,
-    ...server,
-    client: {
-      ...client,
-      registerAddress: (request) => {
-        assertCurrent()
-        return client.registerAddress(request)
-      },
-      registerArkadeIdentity: (request) => {
-        assertCurrent()
-        return client.registerArkadeIdentity(request)
-      },
-      listAddresses: async (token) => {
-        if (discoverySignal?.aborted) return []
-        const owned = (await client.listAddresses(token)).filter(
-          (row) => row.status === 'active' && row.domain.toLowerCase() === server.domain,
-        )
-        for (const row of owned) {
-          if (discoverySignal?.aborted) return []
-          const request = await arkadeIdentityRequest({ ...deps, token, handle: row.handle, domain: server.domain })
-          if (discoverySignal?.aborted) return []
-          await client.registerArkadeIdentity(request)
-        }
-        return discoverySignal?.aborted ? [] : owned
-      },
-    },
-  })
-  const ordered = <T>(action: () => Promise<T>) =>
-    orderReceiverWrites(deps.identity, `${server.baseUrl}/${server.domain}`, action)
-  return {
-    ...facade,
-    owned: (signal) =>
-      ordered(async () => {
-        if (signal?.aborted) return undefined
-        discoverySignal = signal
-        return facade.owned()
-      }),
-    claim: (opts) =>
-      ordered(() => {
-        assertCurrent()
-        return facade.claim(opts)
-      }),
-  }
+  return server && arkadeLnurl({ ...deps, ...server })
 }
 
 type PerRail = Partial<Record<LnurlRailType, string>>
@@ -258,6 +189,7 @@ export function useLnurlRail(deps: {
   const [error, setError] = useState('')
   const [walletLnurl, setWalletLnurl] = useState<string>()
   const [namedElsewhere, setNamedElsewhere] = useState(false)
+  const discovery = useRef<AbortController>()
   const current = useRef(facade)
   const currentTranslation = useRef(t)
   useLayoutEffect(() => {
@@ -274,7 +206,8 @@ export function useLnurlRail(deps: {
     setWalletLnurl(undefined)
     if (!facade) return
     let stale = false
-    const discovery = new AbortController()
+    // Aborted with this facade, so neither discovery nor a claim started under it binds stale destinations.
+    const controller = (discovery.current = new AbortController())
     // The wallet id is derived locally, so the QR need not wait on the server's round trips.
     // ponytail: a payer scanning before registration lands gets "no longer active"; retrying succeeds.
     facade
@@ -284,19 +217,15 @@ export function useLnurlRail(deps: {
     const load = async () => {
       const result = await bootstrapReceiver(
         {
-          owned: async () => {
-            const owned = await facade.owned({ handle: primary || undefined, signal: discovery.signal })
-            if (stale) throw new Error('LNURL discovery is no longer current')
-            if (owned) setReceiver(owned)
+          owned: async (opts) => {
+            const owned = await facade.owned({ ...opts, handle: primary || undefined })
+            if (owned && !stale) setReceiver(owned)
             return owned
           },
-          capabilities: () => facade.capabilities(),
-          claim: async (opts) => {
-            if (stale) throw new Error('LNURL discovery is no longer current')
-            return facade.claim(opts)
-          },
+          capabilities: facade.capabilities,
+          claim: facade.claim,
         },
-        { autoClaimNameless: true },
+        { autoClaimNameless: true, refresh: true, signal: controller.signal },
       )
       if (stale) return
       if (result.capabilities) setChoices(onboardingChoices(result.capabilities))
@@ -322,7 +251,7 @@ export function useLnurlRail(deps: {
       })
     return () => {
       stale = true
-      discovery.abort()
+      controller.abort()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- a new primary switches below, without a reload
   }, [facade])
@@ -395,13 +324,14 @@ export function useLnurlRail(deps: {
     ownsName: Boolean(receiver?.lightningAddress) || namedElsewhere,
     claim: async (opts) => {
       if (!facade) return undefined
-      const claimed = await run(() => facade.claim(opts), true)
+      const signal = discovery.current?.signal
+      const claimed = await run(() => facade.claim(opts, { signal }), true)
       if (claimed) return claimed
       // A claim can register its address and then fail to bind it; a refresh binds whatever was left unbound,
       // and a wallet with no address yet adopts the one it finds, which is the one it just claimed.
       const hadReceiver = Boolean(receiver)
       facade
-        .owned({ refresh: true })
+        .owned({ refresh: true, signal })
         .then((next) => {
           if (!next || hadReceiver || current.current !== facade) return
           setReceiver(next)
