@@ -426,6 +426,7 @@ export const translations = {
       copyAddress: 'Copy address',
       requestingAmount: 'Requesting {amount} {unit}',
       copyAria: 'Copy {title}',
+      invalidNote: 'Invalid note',
     },
     scanner: {
       pointAtQr: 'Point at the QR code',
@@ -1292,6 +1293,7 @@ export const translations = {
       copyAddress: 'Copiar dirección',
       requestingAmount: 'Solicitando {amount} {unit}',
       copyAria: 'Copiar {title}',
+      invalidNote: 'Nota inválida',
     },
     scanner: {
       pointAtQr: 'Apunta al código QR',
