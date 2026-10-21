@@ -64,7 +64,7 @@ import ReceiveSelector from './ReceiveSelector'
 import ReceiveParts from './ReceiveParts'
 import { useTranslation } from '../../../providers/language'
 import Select from '../../../components/Select'
-import ChainLogo, { TokenOnChainLogo } from '../../../components/ChainLogo'
+import ChainLogo, { TokenLogoStack, TokenOnChainLogo } from '../../../components/ChainLogo'
 
 const railLogo = (rail: LnurlTokenRail, ring: string) => (
   <TokenOnChainLogo ticker={rail.unit.code} chainId={rail.asset?.chainId ?? ''} ring={ring} />
@@ -630,9 +630,13 @@ export default function ReceiveQRCode() {
                   <ReceiveSelector
                     label={methodLabel(shown)}
                     icon={
-                      shown === 'token' && activeToken ? (
-                        <ChainLogo chainId={activeToken.asset?.chainId ?? ''} />
-                      ) : undefined
+                      shown !== 'token' ? undefined : activeToken ? (
+                        <span className='flex size-4'>
+                          <ChainLogo chainId={activeToken.asset?.chainId ?? ''} />
+                        </span>
+                      ) : (
+                        <TokenLogoStack tickers={['USDT', 'USDC']} ring='var(--background-color)' small />
+                      )
                     }
                     active={shown}
                     open={pickerOpen}
