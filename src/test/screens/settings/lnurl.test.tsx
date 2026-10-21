@@ -34,7 +34,7 @@ const svcWallet = {
 }
 const backupAndUpdateConfig = vi.fn<(config: Config) => void>()
 
-const renderPage = (opts: Parameters<typeof fakeLnurlServer>[0], config: Partial<Config> = {}) => {
+const renderPage = (opts: Parameters<typeof fakeLnurlServer>[0], config: Partial<Config> = {}, wallet = svcWallet) => {
   const server = fakeLnurlServer(opts)
   vi.stubGlobal('fetch', server.fetch)
   const rendered = render(
@@ -42,7 +42,7 @@ const renderPage = (opts: Parameters<typeof fakeLnurlServer>[0], config: Partial
       <ConfigContext.Provider
         value={{ ...mockConfigContextValue, config: { ...mockConfigContextValue.config, ...config } } as never}
       >
-        <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet } as never}>
+        <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet: wallet } as never}>
           <Lnurl />
         </WalletContext.Provider>
       </ConfigContext.Provider>
@@ -77,6 +77,26 @@ describe('Lightning address settings', () => {
 
     expect(await screen.findByText('domain lookup failed')).toBeInTheDocument()
     expect(screen.queryByPlaceholderText('Choose a name')).not.toBeInTheDocument()
+  })
+
+  it('says why a nameless address cannot be named when the domain lookup fails', async () => {
+    renderPage({ modes: ['self'], addresses: [namelessAddress()], capabilitiesFail: true })
+
+    expect(await screen.findByText('domain lookup failed')).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('Choose a name')).not.toBeInTheDocument()
+  })
+
+  it("says why when the wallet's own addresses cannot load, rather than loading forever", async () => {
+    const locked = {
+      ...svcWallet,
+      getAddress: async (): Promise<string> => {
+        throw new Error('wallet is locked')
+      },
+    }
+    renderPage({ modes: ['self'], addresses: [namedAddress('alice')] }, {}, locked)
+
+    expect(await screen.findByText('wallet is locked')).toBeInTheDocument()
+    expect(screen.queryByText('Loading...')).not.toBeInTheDocument()
   })
 
   it('lists the wallet LNURL beside every lightning address', async () => {

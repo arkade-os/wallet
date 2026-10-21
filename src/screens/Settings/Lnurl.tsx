@@ -36,12 +36,17 @@ export default function Lnurl() {
   const [tokens, setTokens] = useState<LnurlTokenRail[]>([])
   const [explaining, setExplaining] = useState(false)
   const [owned, setOwned] = useState<AddressListEntry[]>([])
+  const [addressesError, setAddressesError] = useState('')
 
   useEffect(() => {
     if (!svcWallet) return
+    setAddressesError('')
     Promise.all([svcWallet.getAddress(), svcWallet.getBoardingAddress().catch(() => undefined)])
       .then(([arkade, boarding]) => setAddresses({ arkade, boarding }))
-      .catch(consoleError)
+      .catch((err) => {
+        consoleError(err)
+        setAddressesError(extractError(err))
+      })
   }, [svcWallet])
 
   const rail = useLnurlRail({
@@ -130,14 +135,17 @@ export default function Lnurl() {
             <section className='settings-section'>
               <p className='settings-section-label'>{t('settings.lnurlYours')}</p>
               {rail.status === 'ready' ? (
-                <Table data={yours} variant='receipt' />
+                <>
+                  <Table data={yours} variant='receipt' />
+                  {namingChoices.length ? null : <ErrorMessage error={Boolean(rail.error)} text={rail.error} />}
+                </>
               ) : (
                 <TextSecondary>
                   {rail.status === 'onboarding'
                     ? t('settings.lnurlNone')
                     : rail.status === 'failed'
                       ? rail.error
-                      : t('common.loading')}
+                      : addressesError || t('common.loading')}
                 </TextSecondary>
               )}
             </section>
