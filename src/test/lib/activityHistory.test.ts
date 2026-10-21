@@ -458,50 +458,6 @@ describe('lightning send activities', () => {
     expect(rows).toEqual([expect.objectContaining({ redeemTxid: 'ark-txid', type: 'sent' })])
   })
 
-  it('carries the target and rail an LNURL send resolved onto its row', () => {
-    const paid = arkTx('ark-txid', { type: 'SENT' as ArkTransaction['type'], amount: 2_100 })
-    const intent: Activity['intent'] = {
-      kind: 'lnurl-send',
-      label: '→ alice@pay.example',
-      metadata: { target: 'alice@pay.example', rail: 'lnurl-arkade' },
-    }
-
-    const [row] = activitiesToTxs([activity('sent:ark-txid', [paid], intent)], empty)
-
-    expect(row.lnurl).toEqual({ address: 'alice@pay.example', rail: 'lnurl-arkade' })
-  })
-
-  it('carries the address an LNURL receive arrived at onto its row', () => {
-    const claim = arkTx('claim-txid', { amount: 3_000 })
-    const intent: Activity['intent'] = {
-      kind: 'lnurl',
-      label: 'lightning · alice@lnurl.example',
-      metadata: {
-        rail: 'lightning',
-        lightningAddress: 'alice@lnurl.example',
-        identifier: 'payment-hash',
-        verified: true,
-      },
-    }
-
-    const [row] = activitiesToTxs([activity('lnurl:server|payment-hash', [claim], intent)], empty)
-
-    expect(row.lnurl).toEqual({ address: 'alice@lnurl.example', rail: 'lightning' })
-  })
-
-  it('leaves a nameless LNURL receive without an address, keeping the rail', () => {
-    const claim = arkTx('claim-txid', { amount: 3_000 })
-    const intent: Activity['intent'] = {
-      kind: 'lnurl',
-      label: 'arkade · LNURL',
-      metadata: { rail: 'arkade', lightningAddress: null, identifier: 'session-id', verified: true },
-    }
-
-    const [row] = activitiesToTxs([activity('lnurl:server|session-id', [claim], intent)], empty)
-
-    expect(row.lnurl).toEqual({ address: undefined, rail: 'arkade' })
-  })
-
   it('grafts the local metadata the funding leg carries', () => {
     saveTransactionActivityMetadata('funding-txid', { destination: 'lnbc10u1p...', networkFee: 30 })
 

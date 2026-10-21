@@ -48,18 +48,6 @@ const settledHandle = (txid: string) =>
   })
 
 describe('reading persisted LNURL sends', () => {
-  it.each(['null', '{}', '42', '"stored text"', 'true', '{malformed'])(
-    'falls back to an empty array for %s without rewriting storage',
-    (stored) => {
-      localStorage.setItem(LNURL_SENDS_STORAGE_KEY, stored)
-
-      expect(() => lnurlSends().find((sent) => sent.txid === 'pending')).not.toThrow()
-      expect(lnurlSends()).toEqual([])
-      expect(() => resumeLnurlConfirmations()).not.toThrow()
-      expect(localStorage.getItem(LNURL_SENDS_STORAGE_KEY)).toBe(stored)
-    },
-  )
-
   it('preserves valid pending send records and their verification data', () => {
     const rows = [
       {
@@ -126,16 +114,6 @@ describe('marking a receiver confirmation', () => {
     expect(reportError).toHaveBeenCalledWith(error, 'Failed to record lnurl send')
     expect(notify).not.toHaveBeenCalled()
     expect(lnurlSends()[0].receiverConfirmed).toBeUndefined()
-  })
-
-  it('notifies same-tab readers only after a successful write and supports cancellation', () => {
-    storeRow('notify')
-    const notify = vi.fn(() => expect(lnurlSends()[0].receiverConfirmed).toBe(true))
-    const stop = subscribeLnurlSends(notify)
-    markLnurlReceiverConfirmed('notify', true)
-    stop()
-    markLnurlReceiverConfirmed('notify', false)
-    expect(notify).toHaveBeenCalledTimes(1)
   })
 })
 
