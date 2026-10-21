@@ -17,25 +17,14 @@ export async function syncLnurlActivity(
   arkadeAddress: string,
   opts: { boardingAddress?: string; store?: PaymentSyncStore; signal?: AbortSignal } = {},
 ) {
-  const store = opts.store ?? lnurlPaymentSyncStore
   const { signal } = opts
   const receiver = await lnurlReceiver({
     identity,
     arkadeAddress,
     boardingAddress: opts.boardingAddress,
-    store: signal
-      ? {
-          readWatermark: (baseUrl, lightningAddress) => store.readWatermark(baseUrl, lightningAddress),
-          upsert: async (records) => {
-            if (!signal.aborted) await store.upsert(records)
-          },
-          writeWatermark: async (baseUrl, lightningAddress, since) => {
-            if (!signal.aborted) await store.writeWatermark(baseUrl, lightningAddress, since)
-          },
-        }
-      : store,
+    store: opts.store ?? lnurlPaymentSyncStore,
   })?.owned()
-  return (await receiver?.sync()) ?? { synced: 0, failures: [] }
+  return (await receiver?.sync({ signal })) ?? { synced: 0, failures: [] }
 }
 
 const RESYNC_DELAYS_MS = [3_000, 20_000]

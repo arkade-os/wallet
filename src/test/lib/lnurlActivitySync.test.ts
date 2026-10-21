@@ -34,54 +34,16 @@ describe('syncLnurlActivity', () => {
     expect(receiverMock).toHaveBeenCalledWith(expect.objectContaining({ boardingAddress: 'bc1qboard', store }))
   })
 
-  it('drops writes once the signal aborts, so a reset stays cleared', async () => {
+  it('hands its signal to the sync, which stops writing once it aborts', async () => {
     const store = { upsert: vi.fn(), readWatermark: vi.fn(), writeWatermark: vi.fn() }
     const controller = new AbortController()
-    receiverMock.mockImplementation(
-      ({ store: synced }) =>
-        ({
-          owned: vi.fn().mockResolvedValue({
-            sync: async () => {
-              await synced!.upsert([])
-              controller.abort('lock-reset')
-              await synced!.upsert([])
-              await synced!.writeWatermark('https://lnurl.test', 'alice@lnurl.test', 1)
-              return { synced: 1, failures: [] }
-            },
-          }),
-        }) as never,
-    )
+    const sync = vi.fn().mockResolvedValue({ synced: 0, failures: [] })
+    receiverMock.mockImplementation(() => ({ owned: vi.fn().mockResolvedValue({ sync }) }) as never)
 
     await syncLnurlActivity(identity, ARKADE_ADDRESS, { store, signal: controller.signal })
 
-    expect(store.upsert).toHaveBeenCalledTimes(1)
-    expect(store.writeWatermark).not.toHaveBeenCalled()
-  })
-
-  it('still reads watermarks through the abort wrapper when the store is a class instance', async () => {
-    class Store implements PaymentSyncStore {
-      async upsert() {}
-      async readWatermark() {
-        return 42
-      }
-      async writeWatermark() {}
-    }
-    let read: number | undefined
-    receiverMock.mockImplementation(
-      ({ store: synced }) =>
-        ({
-          owned: vi.fn().mockResolvedValue({
-            sync: async () => {
-              read = await synced!.readWatermark('https://lnurl.test', 'alice@lnurl.test')
-              return { synced: 0, failures: [] }
-            },
-          }),
-        }) as never,
-    )
-
-    await syncLnurlActivity(identity, ARKADE_ADDRESS, { store: new Store(), signal: new AbortController().signal })
-
-    expect(read).toBe(42)
+    expect(receiverMock).toHaveBeenCalledWith(expect.objectContaining({ store }))
+    expect(sync).toHaveBeenCalledWith({ signal: controller.signal })
   })
 
   it('resolves to zero when no server is configured', async () => {

@@ -3,7 +3,6 @@ import { useTranslation } from '../../providers/language'
 import {
   arkadeLnurl,
   bootstrapReceiver,
-  encodeLnurl,
   resolveLnurlRails,
   type ArkadeLnurl,
   type ArkadeSigner,
@@ -13,11 +12,10 @@ import {
   type Receiver,
 } from '@arkade-os/lnurl-client/arkade'
 import {
-  createLnurlClient,
-  deriveSessionId,
   LnurlError,
   type AddressListEntry,
   type DomainCapabilities,
+  type LnurlAddressErrorCode,
   type PaymentSyncStore,
 } from '@arkade-os/lnurl-client'
 import { consoleError } from '../logs'
@@ -120,7 +118,7 @@ export function useLnurlRails(
   return { targets, errors, generating }
 }
 
-const CLAIM_ERROR_KEYS: Partial<Record<string, string>> = {
+const CLAIM_ERROR_KEYS: Partial<Record<LnurlAddressErrorCode, string>> = {
   taken: 'receive.claimTaken',
   invalid_username: 'receive.claimNotAllowed',
   blacklisted: 'receive.claimNotAllowed',
@@ -133,7 +131,7 @@ const CLAIM_ERROR_KEYS: Partial<Record<string, string>> = {
  *  where one exists so the message survives its wording changing. */
 export const lnurlClaimErrorMessage = (error: unknown, t: (key: string) => string): string => {
   if (error instanceof LnurlError && error.code) {
-    const key = CLAIM_ERROR_KEYS[error.code]
+    const key = CLAIM_ERROR_KEYS[error.code as LnurlAddressErrorCode]
     if (key) return t(key)
   }
   return error instanceof Error ? error.message : t('receive.lnaddressClaimFailed')
@@ -202,10 +200,9 @@ export function useLnurlRail(deps: {
     let stale = false
     // The wallet id is derived locally, so the QR need not wait on the server's round trips.
     // ponytail: a payer scanning before registration lands gets "no longer active"; retrying succeeds.
-    const baseUrl = configuredLnurlServer()?.baseUrl
     facade
-      .token()
-      .then((token) => !stale && baseUrl && setWalletLnurl(encodeLnurl(`${baseUrl}/lnurl/${deriveSessionId(token)}`)))
+      .sessionLnurl()
+      .then((lnurl) => !stale && setWalletLnurl(lnurl))
       .catch(() => {}) // load() reports the same failure
     const load = async () => {
       const result = await bootstrapReceiver(
@@ -293,11 +290,6 @@ export function useLnurlRail(deps: {
     upgrade: async (opts) => {
       if (receiver) await run(() => receiver.upgrade(opts), false)
     },
-    addresses: async () => {
-      const server = configuredLnurlServer()
-      if (!facade || !server) return []
-      const all = await createLnurlClient({ baseUrl: server.baseUrl }).listAddresses(await facade.token())
-      return all.filter((a) => a.domain.toLowerCase() === server.domain)
-    },
+    addresses: async () => (facade ? facade.addresses() : []),
   }
 }

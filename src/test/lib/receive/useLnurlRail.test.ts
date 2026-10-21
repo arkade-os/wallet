@@ -265,15 +265,19 @@ describe('useLnurlRail', () => {
     expect(server.calls('GET', '/lnurl/address')).toHaveLength(1)
   })
 
-  it('drops a claim that lands after the facade changed', async () => {
+  it('holds a claim that lands after the facade changed, since discovery waits for it', async () => {
     serve({ modes: ['self'] })
     let release!: () => void
     const gate = new Promise<void>((resolve) => (release = resolve))
     const inner = server.fetch
+    let held = false
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        if (init?.method === 'POST' && new URL(String(input)).pathname === '/lnurl/address') await gate
+        if (init?.method === 'POST' && new URL(String(input)).pathname === '/lnurl/address') {
+          held = true
+          await gate
+        }
         return inner(input, init)
       }),
     )
@@ -287,14 +291,16 @@ describe('useLnurlRail', () => {
     act(() => {
       claiming = result.current.claim({ username: 'carol' })
     })
+    await waitFor(() => expect(held).toBe(true))
     rerender({ boardingAddress: 'bc1second' })
-    await waitFor(() => expect(result.current.status).toBe('onboarding'))
+    expect(result.current.status).toBe('loading')
     await act(async () => {
       release()
       await claiming
     })
 
-    expect(result.current.receiver).toBeUndefined()
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    expect(result.current.receiver?.handle).toBe('carol')
     expect(result.current.busy).toBe(false)
   })
 
