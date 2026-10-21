@@ -48,35 +48,37 @@ export default function ReceiveParts(p: {
         return (
           <div
             key={part.id}
-            onClick={part.selectable ? () => p.onShow(part.id) : undefined}
-            onKeyDown={(e) => {
-              if (part.selectable && e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
-                e.preventDefault()
-                p.onShow(part.id)
-              }
-            }}
-            tabIndex={part.selectable ? (part.id === tabStop ? 0 : -1) : undefined}
-            role={part.selectable ? 'radio' : undefined}
-            aria-checked={part.selectable ? on : undefined}
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none ${on ? 'bg-neutral-100' : ''} ${part.selectable ? 'cursor-pointer' : ''}`}
+            className={`flex items-center gap-3 rounded-lg pr-3 transition-colors duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none ${on ? 'bg-neutral-100' : ''}`}
           >
-            {part.selectable ? <Radio on={on} /> : <span className='size-4 shrink-0' />}
-            <span className='flex min-w-0 flex-1 flex-col'>
-              <span className='text-xs text-neutral-500'>{title}</span>
-              <span
-                className={`truncate text-sm ${part.id === 'amount' || part.id === 'lnaddress' ? 'font-semibold' : 'font-mono'}`}
-              >
-                {part.id === 'amount' || part.id === 'lnaddress' ? part.value : prettyLongText(part.value, 14)}
+            {/* A radio's children are presentational, so the copy button sits beside it, not inside. */}
+            <div
+              onClick={part.selectable ? () => p.onShow(part.id) : undefined}
+              onKeyDown={(e) => {
+                if (part.selectable && e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                  e.preventDefault()
+                  p.onShow(part.id)
+                }
+              }}
+              tabIndex={part.selectable ? (part.id === tabStop ? 0 : -1) : undefined}
+              role={part.selectable ? 'radio' : undefined}
+              aria-checked={part.selectable ? on : undefined}
+              className={`flex min-w-0 flex-1 items-center gap-3 rounded-lg py-2 pl-3 ${part.selectable ? 'cursor-pointer' : ''}`}
+            >
+              {part.selectable ? <Radio on={on} /> : <span className='size-4 shrink-0' />}
+              <span className='flex min-w-0 flex-1 flex-col'>
+                <span className='text-xs text-neutral-500'>{title}</span>
+                <span
+                  className={`truncate text-sm ${part.id === 'amount' || part.id === 'lnaddress' ? 'font-semibold' : 'font-mono'}`}
+                >
+                  {part.id === 'amount' || part.id === 'lnaddress' ? part.value : prettyLongText(part.value, 14)}
+                </span>
               </span>
-            </span>
+            </div>
             <Button
               copy
               ariaLabel={t('receive.copyAria', { title })}
               testId={`${testIdOf(part.id, p.method)}-address-copy`}
-              onClick={(event) => {
-                event.stopPropagation()
-                p.onCopy(part.value)
-              }}
+              onClick={() => p.onCopy(part.value)}
             >
               {p.copied === part.value ? <CheckMarkIcon /> : <CopyIcon />}
             </Button>
