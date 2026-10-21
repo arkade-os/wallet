@@ -420,6 +420,7 @@ export default function ReceiveQRCode() {
     pendingBackup.current = undefined
     latestBackup.current(latestConfig.current).catch((err) => consoleError(err, 'receive form backup failed'))
   }
+  // The cleanup is the point: unmounting flushes a pending backup, read through refs so it is never stale.
   useEffect(() => flushBackup, [])
 
   const showPart = (id: PartId) => {

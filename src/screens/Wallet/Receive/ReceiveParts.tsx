@@ -8,16 +8,18 @@ import { Radio, moveRadioFocus } from './ReceiveSelector'
 
 // Copy buttons keep the ids the E2E helpers and screen tests already click.
 const testIdOf = (id: PartId, method: ReceiveMethod): string =>
-  ({
-    link: 'bip21',
-    lnaddress: 'lnaddress',
-    lnurl: 'lnurl',
-    invoice: 'invoice',
-    ark: 'ark',
-    btc: 'btc',
-    deposit: 'token',
-    amount: method === 'token' ? 'token-amount' : 'amount',
-  })[id]
+  (
+    ({
+      link: 'bip21',
+      lnaddress: 'lnaddress',
+      lnurl: 'lnurl',
+      invoice: 'invoice',
+      ark: 'ark',
+      btc: 'btc',
+      deposit: 'token',
+      amount: method === 'token' ? 'token-amount' : 'amount',
+    }) satisfies Record<PartId, string>
+  )[id]
 
 export default function ReceiveParts(p: {
   method: ReceiveMethod
