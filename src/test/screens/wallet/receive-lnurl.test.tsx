@@ -206,6 +206,7 @@ describe('Receive screen, rail composition', () => {
     renderReceive(10_000)
 
     await waitFor(() => expect(receiveLightning).toHaveBeenCalledWith(10_000))
+    expect(await screen.findByText(/^Lightning address unavailable: /)).toBeInTheDocument()
   })
 
   it.each([
@@ -732,6 +733,10 @@ describe('Receive screen, token rails', () => {
 
   it('explains an expired quote, and offers a new one, where the code was', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true, quoteTtlMs: 120_000 })
+    share.can = true
+    onTestFinished(() => {
+      share.can = false
+    })
     const { container } = renderReceive(20_000, tokensOn)
     await pick('USDT (Arbitrum One)')
     await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')
@@ -745,6 +750,8 @@ describe('Receive screen, token rails', () => {
     expect(within(stage as HTMLElement).getByText(/no longer valid\. Do not send to it/)).toBeInTheDocument()
     expect(within(stage as HTMLElement).getByRole('button', { name: 'Get a new quote' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Copy QR code' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Share' })).toBeDisabled()
   })
 
   it('goes back from a stablecoin to the code shown before it', async () => {
