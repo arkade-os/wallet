@@ -314,6 +314,7 @@ describe('Receive screen, rail composition', () => {
     renderReceive(10_000)
 
     await waitFor(() => expect(receiveLightning).toHaveBeenCalledWith(10_000))
+    expect(await screen.findByText(/^Lightning address unavailable: /)).toBeInTheDocument()
   })
 
   it.each([
