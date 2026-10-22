@@ -375,7 +375,7 @@ describe('Receive screen, rail composition', () => {
 
     await screen.findByRole('button', { name: /Showing.*Lightning address/ })
     expect(await copiedQr()).toBe('alice@lnurl.test')
-    expect(screen.getByText('Lightning wallets only · a phone camera may not open it')).toBeInTheDocument()
+    expect(screen.getByText('Reusable · the payer picks the amount')).toBeInTheDocument()
   })
 
   it('shows a nameless receiver its LNURL when that part is picked', async () => {
@@ -387,27 +387,27 @@ describe('Receive screen, rail composition', () => {
     expect(screen.queryByRole('radio', { name: /Lightning address/ })).not.toBeInTheDocument()
   })
 
-  it('offers a nameless receiver Lightning, which puts its LNURL in the QR', async () => {
+  it('offers a nameless receiver Lightning, which puts its raw LNURL in the QR', async () => {
     serve({ modes: ['session'], addresses: [namelessAddress()] })
     renderReceive()
 
     await pickMethod(/^Lightning\s*LNURL$/)
 
-    expect(await copiedQr()).toMatch(/^lightning:lnurl1/i)
+    expect(await copiedQr()).toMatch(/^lnurl1/i)
     expect(screen.getByText('Reusable · the payer picks the amount')).toBeInTheDocument()
   })
 
-  it('puts lightning:<invoice> in the QR and the payment link row for Lightning with an amount', async () => {
+  it('puts the raw invoice in the QR for Lightning with an amount, and its lightning: link in a row', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
     renderReceive(10_000)
     await waitFor(() => expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled())
 
     await pickMethod(/^Lightning/)
 
-    const link = `lightning:${fakeInvoice(10_000_000)}`
-    await waitFor(async () => expect(await copiedQr()).toBe(link))
+    const invoice = fakeInvoice(10_000_000)
+    await waitFor(async () => expect(await copiedQr()).toBe(invoice))
     await copyPart('bip21')
-    expect(copyToClipboard).toHaveBeenLastCalledWith(link)
+    expect(copyToClipboard).toHaveBeenLastCalledWith(`lightning:${invoice}`)
   })
 
   it.each([
@@ -459,6 +459,15 @@ describe('Receive screen, rail composition', () => {
     expect(screen.getByRole('button', { name: /Showing.*Full details/ })).toBeInTheDocument()
     expect(await qrLightning()).toBeNull()
   })
+  it('shows the bare Arkade address with no amount', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    renderReceive()
+
+    await pickMethod('Arkade')
+
+    expect(await copiedQr()).toBe(DECODABLE_ARK)
+  })
+
   it('copies any part without changing the QR', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
     renderReceive(10_000)
@@ -1055,6 +1064,8 @@ describe('Receive screen, token rails', () => {
     expect(await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')).toBeInTheDocument()
     expect(await copiedQr()).toBe(arbitrumUri(20_000_000))
     expect(tokenQuotes()).toHaveLength(1)
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy' })))
+    expect(copyToClipboard).toHaveBeenLastCalledWith(TOKEN_DEPOSITS['ff-usdtarbitrum'])
 
     await pickMethod('Arkade')
     await copyPart('ark')

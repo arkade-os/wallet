@@ -89,7 +89,16 @@ export function receiveParts(method: ReceiveMethod, i: ReceiveInputs): ReceivePa
   }
 }
 
-export function qrPart(parts: ReceivePart[], remembered?: PartId): ReceivePart | undefined {
+/** The bare value a payer's wallet expects, as the pre-redesign screen showed; Arkade and Bitcoin keep the
+ *  link once an amount is set, which their bare address would drop. */
+export function defaultQrPart(method: ReceiveMethod, i: ReceiveInputs): PartId {
+  if (method === 'lightning') return i.sats > 0 ? 'invoice' : i.lightningAddress ? 'lnaddress' : 'lnurl'
+  if ((method === 'ark' || method === 'btc') && !i.sats) return method
+  return 'link'
+}
+
+export function qrPart(parts: ReceivePart[], remembered?: PartId, preferred?: PartId): ReceivePart | undefined {
   const selectable = parts.filter((p) => p.selectable)
-  return selectable.find((p) => p.id === remembered) ?? selectable.find((p) => p.id === 'link') ?? selectable[0]
+  const find = (id?: PartId) => selectable.find((p) => p.id === id)
+  return find(remembered) ?? find(preferred) ?? find('link') ?? selectable[0]
 }
