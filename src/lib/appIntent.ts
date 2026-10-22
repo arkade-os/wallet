@@ -37,7 +37,7 @@ export const APP_INTENT_MAX_SEARCH_LENGTH = 6_000
 const MAX_CALLBACK_LENGTH = 2_000
 const MAX_REQUEST_LENGTH = 4_500
 
-const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1'])
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]'])
 
 export type AppIntentErrorCode =
   | 'too-long'

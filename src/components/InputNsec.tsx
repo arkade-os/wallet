@@ -1,8 +1,11 @@
 import { useId, useLayoutEffect, useRef, useState } from 'react'
+import { getRecoverySuggestions, getRecoveryWord } from '../lib/recoveryInput'
+import { ClearButtonOnInput, ScanButtonOnInput } from './Button'
 import { Autocomplete } from '@base-ui/react/autocomplete'
 import { useTranslation } from '../providers/language'
-import { getRecoverySuggestions, getRecoveryWord } from '../lib/recoveryInput'
 import { hapticLight } from '../lib/haptics'
+import FlexRow from './FlexRow'
+import Paste from './Paste'
 
 interface InputNsecProps {
   value: string
@@ -11,9 +14,10 @@ interface InputNsecProps {
   helperText: string
   onChange: (value: string, cursor: number | null) => void
   onSubmit: () => void
+  openScan: () => void
 }
 
-export default function InputNsec({ value, cursor, error, helperText, onChange, onSubmit }: InputNsecProps) {
+export default function InputNsec({ value, cursor, error, helperText, onChange, onSubmit, openScan }: InputNsecProps) {
   const { t } = useTranslation()
   const id = useId()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -27,6 +31,23 @@ export default function InputNsec({ value, cursor, error, helperText, onChange, 
       pendingCursor.current = null
     }
   }, [value, cursor])
+
+  const handlePaste = (data: string) => {
+    hapticLight()
+    onChange(data, data.length)
+  }
+
+  const handleClear = () => {
+    hapticLight()
+    onChange('', 0)
+  }
+
+  const handleScan = () => {
+    hapticLight()
+    openScan()
+  }
+
+  const hasValue = Boolean(value && value.length > 0)
 
   return (
     <div className='flex w-full flex-col gap-2'>
@@ -55,7 +76,7 @@ export default function InputNsec({ value, cursor, error, helperText, onChange, 
           }
         }}
       >
-        <div className='input-shell'>
+        <div className='input-shell flex w-full justify-between gap-2'>
           <Autocomplete.Input
             id={id}
             ref={inputRef}
@@ -83,6 +104,16 @@ export default function InputNsec({ value, cursor, error, helperText, onChange, 
               }
             }}
           />
+          <div>
+            {hasValue ? (
+              <ClearButtonOnInput onClick={handleClear} />
+            ) : (
+              <FlexRow gap='0.25rem'>
+                <Paste onPaste={handlePaste} />
+                <ScanButtonOnInput onClick={handleScan} />
+              </FlexRow>
+            )}
+          </div>
         </div>
         {suggestions.length > 0 ? (
           <Autocomplete.Portal>

@@ -16,14 +16,14 @@ importers:
   .:
     dependencies:
       '@arkade-os/sdk':
-        specifier: 0.5.0-rc.24
-        version: 0.5.0-rc.24
+        specifier: 0.5.0-rc.25
+        version: 0.5.0-rc.25
       '@arkade-os/solver-discovery':
         specifier: 0.3.0
         version: 0.3.0
       '@arkade-os/swap':
-        specifier: 0.1.0-rc.27
-        version: 0.1.0-rc.27(nostr-tools@2.17.2(typescript@5.9.3))
+        specifier: 0.1.0-rc.28
+        version: 0.1.0-rc.28(nostr-tools@2.24.1(typescript@5.9.3))
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -88,8 +88,8 @@ importers:
         specifier: ^0.575.0
         version: 0.575.0(react@18.3.1)
       nostr-tools:
-        specifier: ^2.12.0
-        version: 2.17.2(typescript@5.9.3)
+        specifier: 2.24.1
+        version: 2.24.1(typescript@5.9.3)
       qr:
         specifier: ^0.5.2
         version: 0.5.2
@@ -232,8 +232,8 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/sdk@0.5.0-rc.24':
-    resolution: {integrity: sha512-MCHYsjSlEjPac3fasAAXP99FB2hVYZXb4nADygH1j7BAgS5+37WiFi2vjWyDofVPabERaP0uaV//UL5rM32L7Q==}
+  '@arkade-os/sdk@0.5.0-rc.25':
+    resolution: {integrity: sha512-nk6ALd9EStnMthaaOr/R0JgmbqC4DJtLld6YEAPlQR8QRIj8yOxH5RHDDaIwZHyOqUaDgYbrxExxrJUKyZHElA==}
     engines: {node: '>=22.13.0 <27'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -257,11 +257,11 @@ packages:
     resolution: {integrity: sha512-FMAhWG3vZrKIlCP1U8E5iAgB6O1wc6O1CMk+HlQ4xUf066p/S8PuRgmHtkHcL1YrGsdWhKfP/SSFwgLIbGTQjg==}
     engines: {node: '>=20.19'}
 
-  '@arkade-os/swap@0.1.0-rc.27':
-    resolution: {integrity: sha512-pYb48+cOB+tQCCq1DwGW0yPujmsY2psyRTj9ofxef/0A9Z1GpvbC+Sa65j8R0HNf9rdB7jdWLaetp38aWXJgUg==}
+  '@arkade-os/swap@0.1.0-rc.28':
+    resolution: {integrity: sha512-z5Zdx+R3SX2RrCT4GTERaJMOmwI9XowEVx1OJfDN+W9SiPl+RX+V/M3kza/occqg1zhglERQh92RUVz0Qooraw==}
     engines: {node: '>=22.13.0'}
     peerDependencies:
-      nostr-tools: ^2.12.0
+      nostr-tools: 2.24.1
     peerDependenciesMeta:
       nostr-tools:
         optional: true
@@ -918,9 +918,6 @@ packages:
     resolution: {integrity: sha512-pRLMNKTSGRoLq+KnEB/7OY5vijw1XmcheAAOiv6pj7W1FG32kAGqj1C/RK/cqxRGr1Fh+zBi8sDur8kj3EQv6A==}
     engines: {node: '>=18'}
 
-  '@noble/ciphers@0.5.3':
-    resolution: {integrity: sha512-B0+6IIHiqEs3BPMT0hcRmHvEj2QHOLu+uwt+tqDDeVd0oyVzh7BPrDcPjRnV1PV/5LaknXJJQvOuRGR0zQJz+w==}
-
   '@noble/ciphers@1.3.0':
     resolution: {integrity: sha512-2I0gnIVPtfnMw9ee9h1dJG7tp81+8Ob3OJb3Mv37rx5L40/b0i7djjCVvGOVqc9AEIQyvyu1i6ypKdFw8R8gQw==}
     engines: {node: ^14.21.3 || >=16}
@@ -928,12 +925,6 @@ packages:
   '@noble/ciphers@2.1.1':
     resolution: {integrity: sha512-bysYuiVfhxNJuldNXlFEitTVdNnYUc+XNJZd7Qm2a5j1vZHgY+fazadNFWFaMK/2vye0JVlxV3gHmC0WDfAOQw==}
     engines: {node: '>= 20.19.0'}
-
-  '@noble/curves@1.1.0':
-    resolution: {integrity: sha512-091oBExgENk/kGj3AZmtBDMpxQPDtxQABR2B9lb1JbVTs6ytdzZNwvhxQ4MWasRNEzlbEH8jCWFCwhF/Obj5AA==}
-
-  '@noble/curves@1.2.0':
-    resolution: {integrity: sha512-oYclrNgRaM9SsBUBVbb8M6DTV7ZHRTKugureoYEncY5c65HOmRzvSiTE3y5CYaPYJA/GVkrhXEoF0M3Ya9PMnw==}
 
   '@noble/curves@1.9.7':
     resolution: {integrity: sha512-gbKGcRUYIjA3/zCCNaWDciTMFI0dCkvou3TL8Zmy5Nc7sJ47a0jtOeZoTaMxkuqRo9cRhjOdZJXegxYE5FN/xw==}
@@ -950,14 +941,6 @@ packages:
   '@noble/curves@2.4.0':
     resolution: {integrity: sha512-P4/62zrgfH33CneE3Dn4WhJVA22YUU0eR51wKIan4NVRvwsA0YnPTwWGpNbpuacSujmSFLvyzpyuR30+fbq2Ew==}
     engines: {node: '>= 20.19.0'}
-
-  '@noble/hashes@1.3.1':
-    resolution: {integrity: sha512-EbqwksQwz9xDRGfDST86whPBgM65E0OH/pCgqW0GBVzO22bNE+NuIbeTb714+IfSjU3aRk47EUvXIb5bTsenKA==}
-    engines: {node: '>= 16'}
-
-  '@noble/hashes@1.3.2':
-    resolution: {integrity: sha512-MVC8EAQp7MvEcm30KWENFjgR+Mkmf+D189XJTkFIlwohU5hcBbn1ZkKq7KVTi2Hme3PMGF390DaL52beVrIihQ==}
-    engines: {node: '>= 16'}
 
   '@noble/hashes@1.8.0':
     resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
@@ -1152,20 +1135,20 @@ packages:
   '@scure/base@2.4.0':
     resolution: {integrity: sha512-thZ1TuJwFwBblOhgsjDKvvGirBxNp+wSvY/DR6tJBJOTDhdAAcHJ8Vbr2eFnqaxeca4+t0i9KBf+uHYGWwZORg==}
 
-  '@scure/bip32@1.3.1':
-    resolution: {integrity: sha512-osvveYtyzdEVbt3OfwwXFr4P2iVBL5u1Q3q4ONBfDY/UpOuXmOlbgwc1xECEboY8wIays8Yt6onaWMUdUbfl0A==}
-
   '@scure/bip32@2.0.0':
     resolution: {integrity: sha512-V24pyBWzKQqhB0CrV3Xz7JZr/cC2Nhp9LuIr9gOHkAKxSGwYqTIs8u0AkZgKA7HFqRiyoNg/PymiXOExm+3KlQ==}
+
+  '@scure/bip32@2.0.1':
+    resolution: {integrity: sha512-4Md1NI5BzoVP+bhyJaY3K6yMesEFzNS1sE/cP+9nuvE7p/b0kx9XbpDHHFl8dHtufcbdHRUUQdRqLIPHN/s7yA==}
 
   '@scure/bip32@2.4.0':
     resolution: {integrity: sha512-i3DS0CptAocyvqE4n3SUkpzeQK4vJMFwWLofTwRiiKo2aWojBOfyMCgfKw9HVpO6fSY5AK86sHS/Uzn8kK9Few==}
 
-  '@scure/bip39@1.2.1':
-    resolution: {integrity: sha512-Z3/Fsz1yr904dduJD0NpiyRHhRYHdcnyh73FZWiV+/qhWi83wNJ3NWolYqCEN+ZWsUz2TWwajJggcRE9r1zUYg==}
-
   '@scure/bip39@2.0.0':
     resolution: {integrity: sha512-F2Tza4KyTSFO/13JymY6a6UHfSLzx0YGbkQGz7wjGx2BYJLyG/qXELKnFFsDfeIK+WfV2v2+5XOQftvL4d8RBA==}
+
+  '@scure/bip39@2.0.1':
+    resolution: {integrity: sha512-PsxdFj/d2AcJcZDX1FXN3dDgitDDTmwf78rKZq1a6c1P1Nan1X/Sxc7667zU3U+AN60g7SxxP0YCVw2H/hBycg==}
 
   '@scure/bip39@2.4.0':
     resolution: {integrity: sha512-82dxFbZUYboyOf0AXiydsQrFQ5Q4h9mX+O2UkE91ROYmsc0BKMGZLwDmy96Jpa2+vrtoxomjUhy1RPIgH/r2nA==}
@@ -3101,8 +3084,8 @@ packages:
     resolution: {integrity: sha512-wRNIrw4DmVLKQlbgOMdkMx27Wrpzes2hh5Jtbi2bjPd+4wJstWIqP5A+lscnqbm0xxmT5Bpg8Lec5ItEBwx6BQ==}
     engines: {node: '>=18'}
 
-  nostr-tools@2.17.2:
-    resolution: {integrity: sha512-B/6rxJ4hyrwEdxsGYUiw2E/+/ZcKuFzQcrSYDHJpYAV0xae344UU2QdL6VHPlbHsBhMufUDU4+h2emZLpIlwLA==}
+  nostr-tools@2.24.1:
+    resolution: {integrity: sha512-KdrKjC74n/rr6J3eCSfZj8dcbZFvolHYe4S22SefNZ5YWbhHiB0KL/mmJjEZ0u6B9mZK0YcQtl+WQ46KzwapeQ==}
     peerDependencies:
       typescript: '>=5.0.0'
     peerDependenciesMeta:
@@ -4157,7 +4140,7 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/sdk@0.5.0-rc.24':
+  '@arkade-os/sdk@0.5.0-rc.25':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 8.0.0
@@ -4182,9 +4165,9 @@ snapshots:
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
 
-  '@arkade-os/swap@0.1.0-rc.27(nostr-tools@2.17.2(typescript@5.9.3))':
+  '@arkade-os/swap@0.1.0-rc.28(nostr-tools@2.24.1(typescript@5.9.3))':
     dependencies:
-      '@arkade-os/sdk': 0.5.0-rc.24
+      '@arkade-os/sdk': 0.5.0-rc.25
       '@arkade-os/solver-discovery': 0.3.0
       '@noble/ciphers': 2.1.1
       '@noble/curves': 2.4.0
@@ -4193,7 +4176,7 @@ snapshots:
       '@scure/btc-signer': 2.4.1
       light-bolt11-decoder: 3.2.0
     optionalDependencies:
-      nostr-tools: 2.17.2(typescript@5.9.3)
+      nostr-tools: 2.24.1(typescript@5.9.3)
     transitivePeerDependencies:
       - '@ledgerhq/ledger-bitcoin'
       - '@react-native-async-storage/async-storage'
@@ -4851,19 +4834,9 @@ snapshots:
       outvariant: 1.4.3
       strict-event-emitter: 0.5.1
 
-  '@noble/ciphers@0.5.3': {}
-
   '@noble/ciphers@1.3.0': {}
 
   '@noble/ciphers@2.1.1': {}
-
-  '@noble/curves@1.1.0':
-    dependencies:
-      '@noble/hashes': 1.3.1
-
-  '@noble/curves@1.2.0':
-    dependencies:
-      '@noble/hashes': 1.3.2
 
   '@noble/curves@1.9.7':
     dependencies:
@@ -4880,10 +4853,6 @@ snapshots:
   '@noble/curves@2.4.0':
     dependencies:
       '@noble/hashes': 2.4.0
-
-  '@noble/hashes@1.3.1': {}
-
-  '@noble/hashes@1.3.2': {}
 
   '@noble/hashes@1.8.0': {}
 
@@ -5020,16 +4989,16 @@ snapshots:
 
   '@scure/base@2.4.0': {}
 
-  '@scure/bip32@1.3.1':
-    dependencies:
-      '@noble/curves': 1.1.0
-      '@noble/hashes': 1.3.2
-      '@scure/base': 1.1.1
-
   '@scure/bip32@2.0.0':
     dependencies:
       '@noble/curves': 2.0.0
       '@noble/hashes': 2.0.0
+      '@scure/base': 2.0.0
+
+  '@scure/bip32@2.0.1':
+    dependencies:
+      '@noble/curves': 2.0.1
+      '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
 
   '@scure/bip32@2.4.0':
@@ -5038,14 +5007,14 @@ snapshots:
       '@noble/hashes': 2.4.0
       '@scure/base': 2.4.0
 
-  '@scure/bip39@1.2.1':
-    dependencies:
-      '@noble/hashes': 1.3.2
-      '@scure/base': 1.1.1
-
   '@scure/bip39@2.0.0':
     dependencies:
       '@noble/hashes': 2.0.0
+      '@scure/base': 2.0.0
+
+  '@scure/bip39@2.0.1':
+    dependencies:
+      '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
 
   '@scure/bip39@2.4.0':
@@ -7113,14 +7082,14 @@ snapshots:
 
   node-releases@2.0.51: {}
 
-  nostr-tools@2.17.2(typescript@5.9.3):
+  nostr-tools@2.24.1(typescript@5.9.3):
     dependencies:
-      '@noble/ciphers': 0.5.3
-      '@noble/curves': 1.2.0
-      '@noble/hashes': 1.3.1
-      '@scure/base': 1.1.1
-      '@scure/bip32': 1.3.1
-      '@scure/bip39': 1.2.1
+      '@noble/ciphers': 2.1.1
+      '@noble/curves': 2.0.1
+      '@noble/hashes': 2.0.1
+      '@scure/base': 2.0.0
+      '@scure/bip32': 2.0.1
+      '@scure/bip39': 2.0.1
       nostr-wasm: 0.1.0
     optionalDependencies:
       typescript: 5.9.3

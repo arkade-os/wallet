@@ -13,7 +13,16 @@ import InputAmount, { type InputAmountMode } from '../../../components/InputAmou
 import InputAddress from '../../../components/InputAddress'
 import Header from '../../../components/Header'
 import { WalletContext } from '../../../providers/wallet'
-import { fromSatoshis, prettyAmount, prettyFiatAmount, prettyNumber, toSatoshis } from '../../../lib/format'
+import {
+  canConvertCurrency,
+  fromSatoshis,
+  prettyAmount,
+  prettyFiatAmount,
+  prettyNumber,
+  satsFromEntry,
+  textFromSats,
+  toSatoshis,
+} from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
@@ -23,7 +32,7 @@ import Shadow from '../../../components/Shadow'
 import Scanner from '../../../components/Scanner'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
-import { Addresses, AssetOption, Currencies, Themes, Unit } from '../../../lib/types'
+import { Addresses, AssetOption, Themes, Unit } from '../../../lib/types'
 import { aspErrorText, getReceivingAddresses } from '../../../lib/asp'
 import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
@@ -227,7 +236,7 @@ export default function SendForm() {
 
   // Prefer display-currency entry when conversion is available; otherwise
   // fall back to the wallet's bitcoin unit without reinterpreting the text.
-  const currencyConversionUseful = config.currency !== Currencies.BTC && toFiat(100_000_000) > 0 && fromFiat(1) > 0
+  const currencyConversionUseful = canConvertCurrency(config.currency, toFiat, fromFiat)
   const [entryMode, setEntryMode] = useState<InputAmountMode>(useFiat && currencyConversionUseful ? 'fiat' : 'unit')
   const fiatEntry = entryMode === 'fiat' && useFiat && currencyConversionUseful
 
@@ -237,12 +246,7 @@ export default function SendForm() {
     setAmountTextValue(sendInfo.satoshis ? getTextValue(sendInfo.satoshis, false) : '')
   }, [config.unit, currencyConversionUseful, entryMode, sendInfo.satoshis])
 
-  const getTextValue = (sats: number, fiat = fiatEntry) =>
-    fiat
-      ? prettyNumber(toFiat(sats), fiatDecimals(), false)
-      : config.unit === Unit.BTC
-        ? prettyNumber(fromSatoshis(sats), 8, false)
-        : prettyNumber(sats, 0, false)
+  const getTextValue = (sats: number, fiat = fiatEntry) => textFromSats(sats, fiat, config.unit, toFiat, fiatDecimals)
 
   const handleEntryModeChange = (mode: InputAmountMode) => {
     setEntryMode(mode)
@@ -723,7 +727,7 @@ export default function SendForm() {
     } else {
       const num = Number(value)
       if (Number.isNaN(num) || !Number.isFinite(num)) return setError(t('send.invalidAmount'))
-      const sats = fiatEntry ? fromFiat(num) : config.unit === Unit.BTC ? toSatoshis(num) : Math.floor(num)
+      const sats = satsFromEntry(num, fiatEntry, config.unit, fromFiat)
       setSendInfo({ ...sendInfo, satoshis: sats })
     }
   }

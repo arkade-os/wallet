@@ -1,6 +1,6 @@
 import Header from './Header'
 import Content from './Content'
-import { useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import Text, { TextSecondary } from './Text'
 import { FiatContext } from '../providers/fiat'
 import { fromSatoshis, prettyAmount, prettyFiatAmount, prettyNumber, toSatoshis } from '../lib/format'
@@ -15,6 +15,7 @@ import SwapIcon from '../icons/Swap'
 import { AssetOption, Currencies, Unit } from '../lib/types'
 import { atomicToUnits, prettyAssetAmount, unitsToAtomic } from '../lib/assets'
 import { useTranslation } from '../providers/language'
+import { MAX_SATS, digitsToValue, popDigit, pushDigit, valueToDigits } from '../lib/keypadEntry'
 
 export type KeyboardInputMode = 'sats' | 'fiat' | 'asset' | 'btc'
 
@@ -48,7 +49,23 @@ export default function Keyboard({
   const [amountInSats, setAmountInSats] = useState(0)
   const [error, setError] = useState('')
   const [inputMode, setInputMode] = useState<KeyboardInputMode>('sats')
-  const [textValue, setTextValue] = useState('')
+  const getMaxDecimals = () => {
+    switch (inputMode) {
+      case 'asset':
+        return asset?.decimals ?? 0
+      case 'fiat':
+        return fiatDecimals()
+      case 'btc':
+        return 8
+      case 'sats':
+      default:
+        return 0
+    }
+  }
+
+  const [digits, setDigits] = useState('')
+  const textValue = digitsToValue(digits, getMaxDecimals())
+  const setFromValue = (value: string) => setDigits(value ? valueToDigits(value, getMaxDecimals()) : '')
   const currencyConversionUseful = config.currency !== Currencies.BTC && toFiat(100_000_000) > 0 && fromFiat(1) > 0
   const previousCurrencyConversionUseful = useRef(currencyConversionUseful)
   const defaultInputMode: KeyboardInputMode = asset?.assetId
@@ -65,7 +82,7 @@ export default function Keyboard({
 
   useEffect(() => {
     if (previousCurrencyConversionUseful.current !== currencyConversionUseful && inputMode !== defaultInputMode) {
-      setTextValue('')
+      setFromValue('')
     }
     previousCurrencyConversionUseful.current = currencyConversionUseful
   }, [currencyConversionUseful, defaultInputMode, inputMode])
@@ -74,13 +91,13 @@ export default function Keyboard({
     if (initialValue && inputMode && toFiat && fiatDecimals) {
       if (inputMode === 'asset') {
         // plain decimal string: grouped output would fail the save gate's Number()
-        setTextValue(atomicToUnits(BigInt(initialValue), asset?.decimals ?? 0))
+        setFromValue(atomicToUnits(BigInt(initialValue), asset?.decimals ?? 0))
       } else if (inputMode === 'fiat') {
-        setTextValue(prettyNumber(toFiat(Number(initialValue)), fiatDecimals(), false))
+        setFromValue(prettyNumber(toFiat(Number(initialValue)), fiatDecimals(), false))
       } else if (inputMode === 'btc') {
-        setTextValue(prettyNumber(fromSatoshis(Number(initialValue)), 8, false))
+        setFromValue(prettyNumber(fromSatoshis(Number(initialValue)), 8, false))
       } else {
-        setTextValue(prettyNumber(Number(initialValue), 0, false))
+        setFromValue(prettyNumber(Number(initialValue), 0, false))
       }
     }
   }, [initialValue, inputMode, asset, toFiat, fiatDecimals])
@@ -98,78 +115,40 @@ export default function Keyboard({
             : Number(strValue),
       )
     }
-  }, [textValue])
-
-  const getMaxDecimals = () => {
-    switch (inputMode) {
-      case 'asset':
-        return asset?.decimals ?? 0
-      case 'fiat':
-        return fiatDecimals()
-      case 'btc':
-        return 8
-      case 'sats':
-      default:
-        return 0
-    }
-  }
+  }, [digits, inputMode, textValue])
 
   const handleKeyPress = (k: string) => {
-    // Handle decimal point
-    if (k === '.') {
-      const maxDecimals = getMaxDecimals()
-      if (maxDecimals === 0) return // No decimals for sats
-      if (textValue.includes('.')) return // Already has decimal point
-      return setTextValue((prev) => (prev === '' ? '0.' : prev + '.'))
-    }
-
-    // Handle backspace
-    if (k === 'x') {
-      if (textValue.length === 0) return // nothing to delete
-      return setTextValue(textValue.slice(0, -1))
-    }
-
-    // a lone leading zero is replaced, not extended ("0" + "5" → "5", "0" + "0" stays "0")
-    if (textValue === '0') {
-      if (k === '0') return
-      return setTextValue(k)
-    }
-
-    // Handle number input with decimal validation
-    const newText = textValue + k
-    const parts = newText.split('.')
-    if (parts.length > 1) {
-      const decimalPlaces = parts[1].length
-      const maxDecimals = getMaxDecimals()
-      if (decimalPlaces > maxDecimals) return // Exceeded max decimals
-    }
-
-    setTextValue(newText)
+    if (k === 'x') return setDigits(popDigit)
+    const bitcoin = inputMode === 'sats' || inputMode === 'btc'
+    setDigits((prev) => pushDigit(prev, k, getMaxDecimals(), bitcoin ? MAX_SATS : undefined))
   }
 
   const handleMaxPress = () => {
     if (asset) {
       const { balance, decimals } = asset
       // plain decimal string: toLocaleString grouping breaks Number() parsing
-      setTextValue(atomicToUnits(balance, decimals))
+      setFromValue(atomicToUnits(balance, decimals))
       return
     } else {
       const maxSats = available - defaultFee
       const maxTextValue =
         inputMode === 'fiat' ? toFiat(maxSats) : inputMode === 'sats' ? maxSats : fromSatoshis(maxSats)
-      setTextValue(prettyNumber(maxTextValue, getMaxDecimals(), false))
+      setFromValue(prettyNumber(maxTextValue, getMaxDecimals(), false))
     }
   }
 
   const handleToggleCurrency = () => {
     if (inputMode === 'asset') return // No toggle for assets
     if (inputMode === 'sats' || inputMode === 'btc') {
-      // Convert from sats to fiat and round to 2 decimal places
-      setTextValue(amountInSats ? prettyNumber(toFiat(amountInSats), fiatDecimals(), false) : '')
+      setDigits(
+        amountInSats ? valueToDigits(prettyNumber(toFiat(amountInSats), fiatDecimals(), false), fiatDecimals()) : '',
+      )
       setInputMode('fiat')
     } else {
-      setTextValue(amountInSats ? prettyNumber(amountInSats, 0, false) : '')
-      setInputMode(config.unit === Unit.BTC ? 'btc' : 'sats')
+      const next = config.unit === Unit.BTC ? 'btc' : 'sats'
+      const value = next === 'btc' ? prettyNumber(fromSatoshis(amountInSats), 8, false) : String(amountInSats)
+      setDigits(amountInSats ? valueToDigits(value, next === 'btc' ? 8 : 0) : '')
+      setInputMode(next)
     }
   }
 
@@ -187,6 +166,17 @@ export default function Keyboard({
       : prettyAmount(sats, config.unit, 0)
   }
 
+  const btcPrimary = (value: string): ReactNode => {
+    const shown = value || '0.00000000'
+    const lead = shown.match(/^[0.]*/)?.[0] ?? ''
+    return (
+      <>
+        <span className='text-neutral-500'>{lead}</span>
+        {shown.slice(lead.length)} {config.unit}
+      </>
+    )
+  }
+
   // Display amounts based on input mode
   const amount = {
     primary:
@@ -196,7 +186,9 @@ export default function Keyboard({
           ? prettyFiatAmount(amountInSats ? toFiat(amountInSats) : 0, config.currency, {
               bitcoinUnit: config.unit,
             })
-          : `${textValue || '0'} ${config.unit}`,
+          : inputMode === 'btc'
+            ? btcPrimary(textValue)
+            : `${textValue || '0'} ${config.unit}`,
     secondary: !useFiat
       ? ''
       : inputMode === 'fiat'
@@ -244,7 +236,7 @@ export default function Keyboard({
     ['1', '2', '3'],
     ['4', '5', '6'],
     ['7', '8', '9'],
-    ['.', '0', 'x'],
+    ['', '0', 'x'],
   ]
 
   const showSecondaryValue = !asset?.assetId && currencyConversionUseful
@@ -261,7 +253,7 @@ export default function Keyboard({
       <Content>
         <FlexCol centered gap='0.5rem'>
           <ErrorMessage error={Boolean(error)} text={error} />
-          <Text big centered heading color={overBalance ? 'red' : undefined}>
+          <Text big centered heading color={overBalance ? 'red' : undefined} testId='keyboard-amount'>
             {amount.primary}
           </Text>
           {showSecondaryValue ? <TextSecondary centered>≈ {amount.secondary}</TextSecondary> : null}
@@ -275,11 +267,15 @@ export default function Keyboard({
       <div style={gridStyle}>
         {keys.map((row) => (
           <div style={rowStyle} key={row[0]}>
-            {row.map((key) => (
-              <div style={keyStyle} key={key} onClick={() => handleKeyPress(key)}>
-                <p data-testid={`keyboard-${key}`}>{key === 'x' ? <>&larr;</> : key}</p>
-              </div>
-            ))}
+            {row.map((key) =>
+              key ? (
+                <div style={keyStyle} key={key} onClick={() => handleKeyPress(key)}>
+                  <p data-testid={`keyboard-${key}`}>{key === 'x' ? <>&larr;</> : key}</p>
+                </div>
+              ) : (
+                <div style={keyStyle} key='blank' />
+              ),
+            )}
           </div>
         ))}
       </div>

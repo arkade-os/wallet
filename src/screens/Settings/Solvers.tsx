@@ -9,6 +9,7 @@ import {
   LocalCardInput,
   legacyMarketCorridor,
   pairSideLabel,
+  stableStringify,
   validateCard,
   Network,
   type Market,
@@ -21,6 +22,9 @@ import ErrorMessage from '@/components/Error'
 import Shadow from '@/components/Shadow'
 import Modal from '@/components/Modal'
 import { consoleError } from '@/lib/logs'
+import { prettyLongText } from '@/lib/format'
+import SegmentedControl from '@/components/SegmentedControl'
+import { useRemoteSolverCard } from '@/hooks/useRemoteSolverCard'
 import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '@/providers/language'
 
@@ -139,31 +143,152 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose?: () => void
  * from storage it never lived in, and an edit would silently shadow it with a
  * stored copy — a user who wants different terms adds their own card.
  */
+function MarketLines({ markets }: { markets: Market[] }) {
+  const { t } = useTranslation()
+  if (markets.length === 0) return <TextSecondary>{t('solvers.publishedMarkets')}</TextSecondary>
+  return (
+    <FlexCol gap='8px'>
+      {markets.map((m) => (
+        <FlexCol gap='4px' key={stableStringify(m)}>
+          <DetailRow label='Pair' value={marketLabel(m)} />
+          <DetailRow label={t('solvers.fieldFee')} value={`${m.fee_bps} bps`} />
+          <DetailRow label={t('solvers.fieldBase')} value={`${m.min_base_amount} - ${m.max_base_amount} sats`} />
+          <DetailRow label={t('solvers.fieldQuote')} value={`${m.min_quote_amount} - ${m.max_quote_amount} sats`} />
+        </FlexCol>
+      ))}
+    </FlexCol>
+  )
+}
+
+function DetailRow({ label, value, copy }: { label: string; value: string; copy?: string }) {
+  return (
+    <FlexRow between>
+      <TextSecondary>{label}</TextSecondary>
+      <Text small right copy={copy}>
+        {value}
+      </Text>
+    </FlexRow>
+  )
+}
+
+function CardDetails({ input, network }: { input: LocalCardInput; network: Network }) {
+  const { t } = useTranslation()
+  const card = input.card as Card
+  const relays = card.transports?.nostr?.relays ?? []
+  const markets = card.markets ?? []
+  const remote = useRemoteSolverCard(card, network)
+  const [view, setView] = useState<'original' | 'current'>('original')
+  const [showRaw, setShowRaw] = useState(false)
+  const remoteCard =
+    remote.status === 'has-remote' && remote.card && typeof remote.card === 'object' ? (remote.card as Card) : null
+  const remoteMarkets = remoteCard?.markets ?? []
+  const showingCurrent = view === 'current' && remoteCard !== null
+  const shownCard: unknown = remote.status === 'has-remote' && view === 'current' ? remote.card : card
+  return (
+    <FlexCol gap='12px'>
+      <FlexCol gap='2px'>
+        <Text bold>{t('solvers.cardInfo')}</Text>
+        <TextSecondary>{input.label}</TextSecondary>
+      </FlexCol>
+      <FlexCol gap='4px'>
+        <DetailRow label={t('solvers.fieldName')} value={card.name} />
+        <DetailRow label={t('solvers.fieldVersion')} value={String(card.version)} />
+        <DetailRow label={t('common.network')} value={network} />
+        {card.discovery_pubkey ? (
+          <DetailRow
+            label={t('solvers.fieldDiscoveryKey')}
+            value={prettyLongText(card.discovery_pubkey)}
+            copy={card.discovery_pubkey}
+          />
+        ) : null}
+        {relays.length > 0 ? (
+          <FlexCol gap='2px'>
+            {relays.map((relay, idx) => (
+              <DetailRow key={relay} label={idx === 0 ? 'Relays' : ''} value={relay} />
+            ))}
+          </FlexCol>
+        ) : null}
+      </FlexCol>
+      {remoteCard !== null ? (
+        <SegmentedControl
+          options={['original', 'current']}
+          selected={view}
+          onChange={(v) => setView(v as 'original' | 'current')}
+          getLabel={(v) => (v === 'current' ? t('solvers.currentLabel') : t('solvers.originalLabel'))}
+        />
+      ) : null}
+      <Text bold>{t('solvers.marketsLabel')}</Text>
+      <FlexCol gap='4px'>
+        <MarketLines markets={showingCurrent ? remoteMarkets : markets} />
+      </FlexCol>
+      {remote.status === 'checking' ? <TextSecondary>{t('solvers.remoteChecking')}</TextSecondary> : null}
+      {remote.status === 'no-relays' ? <TextSecondary>{t('solvers.remoteNoRelays')}</TextSecondary> : null}
+      {remote.status === 'not-found' ? <TextSecondary>{t('solvers.remoteNotFound')}</TextSecondary> : null}
+      {remote.status === 'error' ? <TextSecondary>{t('solvers.remoteError')}</TextSecondary> : null}
+      <FlexCol gap='4px'>
+        <Button
+          onClick={() => setShowRaw((show) => !show)}
+          text={showRaw ? t('solvers.hideRaw') : t('solvers.viewRaw')}
+        />
+        {showRaw ? (
+          <div
+            style={{
+              maxHeight: '12rem',
+              overflow: 'auto',
+              border: '1px solid var(--neutral-100)',
+              borderRadius: '0.5rem',
+              padding: '0.5rem',
+            }}
+          >
+            <pre
+              style={{
+                margin: 0,
+                fontFamily: 'monospace',
+                fontSize: 11,
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+              }}
+            >
+              {JSON.stringify(shownCard, null, 2)}
+            </pre>
+          </div>
+        ) : null}
+      </FlexCol>
+    </FlexCol>
+  )
+}
+
 function BundledCardLine({ input }: { input: LocalCardInput }) {
   const { t } = useTranslation()
   const card = input.card as Card
   const pairs = card.markets?.map(marketLabel).join(', ') ?? t('solvers.publishedMarkets')
-  const [showCard, setShowCard] = useState(false)
-
-  const toggleShowCard = () => {
-    setShowCard((s) => !s)
-  }
+  const [showInfo, setShowInfo] = useState(false)
 
   return (
     <Shadow>
+      <Modal open={showInfo} onOpenChange={setShowInfo}>
+        <div role='dialog' aria-modal='true' style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+          <FlexCol gap='1rem'>
+            <CardDetails input={input} network={(input.network ?? 'bitcoin') as Network} />
+            <FlexRow centered>
+              <Button onClick={() => setShowInfo(false)} text={t('common.close')} />
+            </FlexRow>
+          </FlexCol>
+        </div>
+      </Modal>
       <FlexCol padding='8px' gap='8px'>
         <FlexRow between>
           <FlexCol gap='4px'>
             <Text>{input.label ?? card.name}</Text>
             <TextSecondary>{pairs}</TextSecondary>
           </FlexCol>
-          <FlexRow end minWidth='60px'>
-            <div onClick={toggleShowCard} style={{ cursor: 'pointer' }}>
-              <TextSecondary>{t('solvers.builtIn')}</TextSecondary>
-            </div>
+          <FlexRow end>
+            <Button onClick={() => setShowInfo(true)} text={t('solvers.viewInfo')} />
+            <Text small color='neutral-500'>
+              {t('solvers.builtIn')}
+            </Text>
           </FlexRow>
         </FlexRow>
-        {showCard ? <Editor card={card} /> : null}
       </FlexCol>
     </Shadow>
   )
@@ -173,6 +298,7 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
   const { t } = useTranslation()
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [showEditor, setShowEditor] = useState(false)
+  const [showInfo, setShowInfo] = useState(false)
   const [error, setError] = useState<string>('')
 
   const card = input.card as Card
@@ -194,6 +320,11 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
       consoleError(err, 'failed to remove solver card')
       setError(t('solvers.failedRemove'))
     }
+  }
+
+  const handleShowInfo = () => {
+    setShowInfo((e) => !e)
+    setShowEditor(false)
   }
 
   return (
@@ -220,6 +351,16 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
           </div>
         )}
       </Modal>
+      <Modal open={showInfo} onOpenChange={setShowInfo}>
+        <div role='dialog' aria-modal='true' style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+          <FlexCol gap='1rem'>
+            <CardDetails input={input} network={(input.network ?? 'bitcoin') as Network} />
+            <FlexRow centered>
+              <Button onClick={() => setShowInfo(false)} text={t('common.close')} />
+            </FlexRow>
+          </FlexCol>
+        </div>
+      </Modal>
       <FlexCol padding='8px' gap='8px'>
         <FlexRow between>
           <FlexCol gap='4px'>
@@ -227,6 +368,7 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
             <TextSecondary>{pairs}</TextSecondary>
           </FlexCol>
           <FlexRow end>
+            <Button onClick={handleShowInfo} text={t('solvers.viewInfo')} />
             <Button onClick={handleEdit} text={t('solvers.edit')} />
             <Button onClick={handleConfirmRemove} text={t('solvers.remove')} />
           </FlexRow>
