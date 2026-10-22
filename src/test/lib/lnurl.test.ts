@@ -7,6 +7,7 @@ afterEach(() => vi.unstubAllGlobals())
 describe('fetchArkAddress', () => {
   it('adds method=ark beside a query the LNURL already carries', async () => {
     const fetch = vi.fn(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       async (_url: string | URL) => new Response(JSON.stringify({ address: 'ark1x', expiryDate: '', hint: '' })),
     )
     vi.stubGlobal('fetch', fetch)
