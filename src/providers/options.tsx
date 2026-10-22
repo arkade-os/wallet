@@ -176,6 +176,9 @@ export const OptionsProvider = ({ children }: { children: ReactNode }) => {
 
   const optionRef = useRef(SettingsOptions.Menu)
   const historyDepth = useRef(0)
+  // Like NavigationProvider's backStack, but for options within Settings
+  // (e.g. Lock → Password → back lands on Lock)
+  const optionBackStack = useRef<SettingsOptions[]>([])
 
   const optionSection = (opt: SettingsOptions): SettingsSections => {
     return options.find((o) => o.option === opt)?.section || SettingsSections.General
@@ -193,7 +196,8 @@ export const OptionsProvider = ({ children }: { children: ReactNode }) => {
   // Internal goBack — called by popstate handler via subNavHandler, does NOT touch browser history
   const internalGoBack = useCallback((fromButton: boolean) => {
     setDirection(fromButton ? 'back' : 'none')
-    const target = getParentOption(optionRef.current)
+    // the stack is only empty on Menu; keep the section parent as a safe default
+    const target = optionBackStack.current.pop() ?? getParentOption(optionRef.current)
     if (historyDepth.current > 0) historyDepth.current--
     optionRef.current = target
     setOption(target)
@@ -203,6 +207,7 @@ export const OptionsProvider = ({ children }: { children: ReactNode }) => {
     if (o === SettingsOptions.Menu) {
       // Reset to menu — don't push history (caller handles history cleanup)
       historyDepth.current = 0
+      optionBackStack.current = []
       optionRef.current = SettingsOptions.Menu
       setDirection('back')
       setOption(SettingsOptions.Menu)
@@ -211,6 +216,7 @@ export const OptionsProvider = ({ children }: { children: ReactNode }) => {
     setDirection('forward')
     history.pushState({}, '', '')
     historyDepth.current++
+    optionBackStack.current.push(optionRef.current)
     optionRef.current = o
     setOption(o)
   }, [])
@@ -230,6 +236,7 @@ export const OptionsProvider = ({ children }: { children: ReactNode }) => {
     subNavHandler.getDepth = () => historyDepth.current
     subNavHandler.reset = () => {
       historyDepth.current = 0
+      optionBackStack.current = []
       optionRef.current = SettingsOptions.Menu
       setOption(SettingsOptions.Menu)
     }
