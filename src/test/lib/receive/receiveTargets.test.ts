@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { qrPart, receiveMethods, receiveParts, type ReceiveInputs } from '../../../lib/receive/receiveTargets'
+import {
+  defaultQrPart,
+  qrPart,
+  receiveMethods,
+  receiveParts,
+  type ReceiveInputs,
+} from '../../../lib/receive/receiveTargets'
 import { encodeBitcoinLink } from '../../../lib/bip21'
 
 const base: ReceiveInputs = {
@@ -117,5 +123,30 @@ describe('qrPart', () => {
   it('falls back to the first selectable part when there is no link', () => {
     const tron = receiveParts('token', { ...withAmount, quote: { value: 'T9yD', destination: 'T9yD', amount: '1' } })
     expect(qrPart(tron, 'link')?.id).toBe('deposit')
+  })
+
+  it('puts the preferred part in the QR unless another one is remembered', () => {
+    const parts = receiveParts('ark', base)
+    expect(qrPart(parts, undefined, 'ark')?.id).toBe('ark')
+    expect(qrPart(parts, 'link', 'ark')?.id).toBe('link')
+    expect(qrPart(receiveParts('lightning', { ...withAmount, invoice: '' }), undefined, 'invoice')).toBeUndefined()
+  })
+})
+
+describe('defaultQrPart', () => {
+  it('shows the raw Lightning, Arkade and Bitcoin values, and links for Unified and stablecoins', () => {
+    expect(defaultQrPart('full', base)).toBe('link')
+    expect(defaultQrPart('lnaddress', base)).toBe('link')
+    expect(defaultQrPart('lightning', base)).toBe('lnaddress')
+    expect(defaultQrPart('lightning', { ...base, lightningAddress: '' })).toBe('lnurl')
+    expect(defaultQrPart('lightning', withAmount)).toBe('invoice')
+    expect(defaultQrPart('ark', base)).toBe('ark')
+    expect(defaultQrPart('btc', base)).toBe('btc')
+    expect(defaultQrPart('token', withAmount)).toBe('link')
+  })
+
+  it('keeps the link for Arkade and Bitcoin once an amount is set, which the bare address would drop', () => {
+    expect(defaultQrPart('ark', withAmount)).toBe('link')
+    expect(defaultQrPart('btc', withAmount)).toBe('link')
   })
 })
