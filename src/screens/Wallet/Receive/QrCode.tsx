@@ -753,16 +753,14 @@ function TokenQuoteNote({ rail, quote }: { rail: LnurlTokenRail; quote: LnurlTok
       </Text>
       <Text small color='neutral-500' wrap centered>
         {t('receive.tokenQuoteValid', { provider: rail.provider, time })}
-        {/* A phone hands the URI to its installed wallet; Tron's bare address has no scheme to open. */}
-        {isMobileBrowser && quote.value !== quote.destination ? (
-          <>
-            {' · '}
-            <a href={quote.value} className='font-semibold text-purple-700 dark:text-purple-300'>
-              {t('receive.openInWallet')}
-            </a>
-          </>
-        ) : null}
       </Text>
+      {isMobileBrowser && quote.value !== quote.destination ? (
+        <Text small color='neutral-500' wrap centered>
+          <a href={quote.value} className='font-semibold text-purple-700 dark:text-purple-300'>
+            {t('receive.openInWallet')}
+          </a>
+        </Text>
+      ) : null}
     </FlexCol>
   )
 }
