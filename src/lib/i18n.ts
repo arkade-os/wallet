@@ -458,6 +458,7 @@ export const translations = {
       bitcoinAddress: 'Bitcoin address',
       lightningInvoice: 'Lightning invoice',
       editAmount: 'Edit amount',
+      copy: 'Copy',
       share: 'Share',
       requestingAmount: 'Requesting {amount} {unit}',
       copyAria: 'Copy {title}',
@@ -485,7 +486,6 @@ export const translations = {
       quoteExpiredSub: 'That deposit address is no longer valid. Do not send to it.',
       getNewQuote: 'Get a new quote',
       hintLnAddress: 'Reusable · the payer picks the amount',
-      hintLnAddressRaw: 'Lightning wallets only · a phone camera may not open it',
       hintDropsAmount: 'The bare address drops the amount; the payer types it',
     },
     scanner: {
@@ -1389,6 +1389,7 @@ export const translations = {
       bitcoinAddress: 'Dirección Bitcoin',
       lightningInvoice: 'Factura Lightning',
       editAmount: 'Editar monto',
+      copy: 'Copiar',
       share: 'Compartir',
       requestingAmount: 'Solicitando {amount} {unit}',
       copyAria: 'Copiar {title}',
@@ -1416,7 +1417,6 @@ export const translations = {
       quoteExpiredSub: 'Esa dirección de depósito ya no es válida. No envíes a ella.',
       getNewQuote: 'Obtener una nueva cotización',
       hintLnAddress: 'Reutilizable · quien paga elige el monto',
-      hintLnAddressRaw: 'Solo billeteras Lightning · la cámara del teléfono puede no abrirla',
       hintDropsAmount: 'La dirección sola no lleva el monto; quien paga lo escribe',
     },
     scanner: {

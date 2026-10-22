@@ -51,6 +51,7 @@ import SwapRailStatus from './SwapRail'
 import { configuredLnurlServer, useLnurlRail, useLnurlRails } from '../../../lib/receive/lnurlRail'
 import { useLnurlTokenRails, type LnurlTokenQuote, type LnurlTokenRail } from '../../../lib/receive/lnurlTokenRails'
 import {
+  defaultQrPart,
   qrPart,
   receiveMethods,
   receiveParts,
@@ -236,7 +237,9 @@ export default function ReceiveQRCode() {
       : []
   // The bare Arkade address would drop assetid= and have the payer send BTC, so the asset QR is always its link.
   const parts = isAssetReceive ? assetParts : receiveParts(shown, inputs)
-  const inQr = isAssetReceive ? assetParts.find((p) => p.id === 'link') : qrPart(parts, config.receiveQrForm[shown])
+  const inQr = isAssetReceive
+    ? assetParts.find((p) => p.id === 'link')
+    : qrPart(parts, config.receiveQrForm[shown], defaultQrPart(shown, inputs))
   const qrCodeValue = addressesCurrent ? (inQr?.value ?? '') : ''
   const generating = shown === 'token' ? tokenRails.quoting : generatingInvoice
   const createBip21 = (): { ark: string; btc: string; bip21: string } => {
@@ -494,6 +497,9 @@ export default function ReceiveQRCode() {
     generating ||
     quoteExpired ||
     (shown === 'token' && !tokenRails.quote)
+  // A token's QR is a payment URI, which a wallet's address field rejects; the bare deposit is what pastes.
+  const copyValue = shown === 'token' ? tokenRails.quote?.destination : qrCodeValue
+  const copyDisabled = !addressesCurrent || !copyValue || generating || quoteExpired
 
   // Whether an amount is currently requested. Keyed off assetMeta to match how
   // handleAmountConfirm/handleAmountClear decide between asset units and sats.
@@ -681,10 +687,6 @@ export default function ReceiveQRCode() {
               >
                 {shown === 'token' && activeToken && tokenRails.quote ? (
                   <TokenQuoteNote rail={activeToken} quote={tokenRails.quote} />
-                ) : inQr?.id === 'lnaddress' || (shown === 'lightning' && inQr?.id === 'lnurl') ? (
-                  <Text small color='neutral-500' wrap centered>
-                    {t('receive.hintLnAddressRaw')}
-                  </Text>
                 ) : (inQr?.id === 'btc' || inQr?.id === 'ark') && hasAmount ? (
                   <Text small color='neutral-500' wrap centered>
                     {t('receive.hintDropsAmount')}
@@ -712,8 +714,14 @@ export default function ReceiveQRCode() {
             onClick={() => (isMobileBrowser ? setShowKeys(true) : setShowAmountSheet(true))}
             secondary
           />
-          <Button label={t('receive.share')} onClick={handleShare} disabled={shareDisabled} />
+          <Button
+            label={t('receive.copy')}
+            onClick={() => copyValue && handleCopy(copyValue)}
+            secondary
+            disabled={copyDisabled}
+          />
         </FlexRow>
+        <Button label={t('receive.share')} onClick={handleShare} disabled={shareDisabled} />
       </ButtonsOnBottom>
 
       {/* Amount bottom sheet */}

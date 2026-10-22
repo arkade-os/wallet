@@ -774,4 +774,17 @@ describe('Receive QR Code screen — copy feedback', () => {
     expect(await screen.findByText('Failed to copy')).toBeInTheDocument()
     expect(screen.getByTestId('ark-address-copy')).not.toHaveTextContent('MARKER-COPIED')
   })
+
+  it('copies what the QR shows from the Copy button', async () => {
+    renderReceiveQrCode(tapFixture())
+
+    await clickQr()
+    const shown = copyToClipboardMock.mock.calls.at(-1)?.[0]
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+    })
+
+    expect(copyToClipboardMock).toHaveBeenCalledTimes(2)
+    expect(copyToClipboardMock).toHaveBeenLastCalledWith(shown)
+  })
 })
