@@ -752,6 +752,16 @@ describe('Receive QR Code screen — copy feedback', () => {
     expect(screen.getByTestId('bip21-address-copy')).toHaveTextContent('MARKER-COPIED')
   })
 
+  it('clears the copied mark after a moment', async () => {
+    renderReceiveQrCode(tapFixture())
+
+    await clickQr()
+
+    await waitFor(() => expect(screen.getByTestId('bip21-address-copy')).toHaveTextContent('MARKER-IDLE'), {
+      timeout: 3000,
+    })
+  })
+
   it('leaves the rows unmarked after a refused copy', async () => {
     copyToClipboardMock.mockResolvedValue(false)
     renderReceiveQrCode(tapFixture())
