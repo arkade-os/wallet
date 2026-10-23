@@ -117,6 +117,11 @@ export default function ReceiveQRCode() {
   const [showKeys, setShowKeys] = useState(false)
 
   const [copied, setCopied] = useState('')
+  useEffect(() => {
+    if (!copied) return
+    const timer = setTimeout(() => setCopied(''), 1500)
+    return () => clearTimeout(timer)
+  }, [copied])
   const [showTokenSheet, setShowTokenSheet] = useState(false)
 
   const prefersReducedMotion = useReducedMotion()
