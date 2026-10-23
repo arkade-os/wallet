@@ -90,6 +90,8 @@ describe('i18n dictionary integrity', () => {
       'receive.methodLightning',
       'receive.methodArkade',
       'receive.methodBitcoin',
+      'receive.methodStablecoins',
+      'receive.partLnurl',
     ])
 
     const unlocalized = collectLeafKeys(translations.en)
