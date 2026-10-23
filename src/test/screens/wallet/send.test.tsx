@@ -30,7 +30,7 @@ import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { OptionsContext } from '../../../providers/options'
 import { SwapsContext } from '../../../providers/swaps'
-import { createSendRouter, LNURL_ARKADE_RAIL } from '../../../lib/sendRouter'
+import { createSendRouter, LNURL_ARKADE_RAIL, LNURL_LIGHTNING_RAIL } from '../../../lib/sendRouter'
 import { Currencies, Unit } from '../../../lib/types'
 import fixtures from '../../fixtures.json'
 
@@ -1062,5 +1062,93 @@ describe('a changed recipient', () => {
     } finally {
       fetchMocker.disableMocks()
     }
+  })
+})
+
+describe('Max to an LNURL whose rail charges a fee', () => {
+  const LNURL = 'alice@pay.example'
+  const BALANCE = 995
+  const FEE = 5
+
+  let current: SendInfo = emptySendInfo
+  const StatefulForm = (options: TreeOptions) => {
+    const [sendInfo, setSendInfo] = useState<SendInfo>(emptySendInfo)
+    current = sendInfo
+    return sendFormTree({ ...options, flowContext: { ...mockFlowContextValue, sendInfo, setSendInfo } })
+  }
+
+  const svcWallet = {
+    ...mockSvcWallet,
+    getAddress: () => fixtures.lib.address.ark[0].address,
+    getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+  } as any
+
+  const run = async (enterAmount: (input: () => HTMLInputElement) => void) => {
+    const fetchMocker = createFetchMock(vi)
+    fetchMocker.enableMocks()
+    fetchMocker.mockResponse(() =>
+      JSON.stringify({
+        tag: 'payRequest',
+        callback: 'https://pay.example/cb',
+        minSendable: 1_000,
+        maxSendable: 1_000_000_000,
+        metadata: '[]',
+        paymentOptions: [{ id: 'ln', type: 'lightning' }],
+      }),
+    )
+    const quoted: number[] = []
+    const sendRouter = async () =>
+      ({
+        options: async ({ raw, amount }: { raw: string; amount: number }) => [
+          {
+            railId: LNURL_LIGHTNING_RAIL,
+            quote: async () => {
+              quoted.push(amount)
+              return {
+                railId: LNURL_LIGHTNING_RAIL,
+                amount,
+                fee: FEE,
+                total: amount + FEE,
+                meta: { lnurl: { target: raw } },
+              }
+            },
+          },
+        ],
+      }) as never
+    const { container } = render(
+      <StatefulForm
+        walletContext={{
+          ...mockWalletContextValue,
+          balance: BALANCE,
+          availableBalance: BALANCE,
+          svcWallet,
+        }}
+        swapsContext={{ sendRouter }}
+      />,
+    )
+    fireEvent.change(container.querySelector('input[name="send-address"]')!, { target: { value: LNURL } })
+    await waitFor(() => expect(current.lnUrl).toBe(LNURL), { timeout: 3_000 })
+    enterAmount(() => container.querySelector<HTMLInputElement>('input[name="send-amount"]')!)
+    const button = await waitFor(() => screen.getByText('Continue').closest('button')!, { timeout: 3_000 })
+    await waitFor(() => expect(button).toBeEnabled(), { timeout: 3_000 })
+    fireEvent.click(button)
+    await waitFor(() => expect(current.pendingLnSend).toBeDefined(), { timeout: 3_000 })
+    fetchMocker.disableMocks()
+    return quoted
+  }
+
+  it('takes the fee out of the amount, so Max spends exactly the balance', async () => {
+    const quoted = await run(() => fireEvent.click(screen.getByText(/available/)))
+
+    expect(quoted).toEqual([BALANCE, BALANCE - FEE])
+    expect(current.pendingLnSend).toMatchObject({ amount: BALANCE - FEE, total: BALANCE })
+    expect(current.satoshis).toBe(BALANCE - FEE)
+  })
+
+  it('leaves a typed amount as typed, even when it is the whole balance', async () => {
+    const quoted = await run((input) => fireEvent.change(input(), { target: { value: String(BALANCE) } }))
+
+    expect(quoted).toEqual([BALANCE])
+    expect(current.pendingLnSend).toMatchObject({ amount: BALANCE, total: BALANCE + FEE })
   })
 })

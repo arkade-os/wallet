@@ -202,6 +202,7 @@ export default function SendForm() {
   const [showAssetSelector, setShowAssetSelector] = useState(false)
   const [showReserveModal, setShowReserveModal] = useState(false)
   const [valueSats, setValueSats] = useState<number | undefined>(undefined)
+  const [sendAll, setSendAll] = useState(false)
 
   const timeoutRef = useRef<NodeJS.Timeout>()
   const sendInfoRef = useRef(sendInfo)
@@ -751,6 +752,7 @@ export default function SendForm() {
 
   const handleAmountChange = (value: string) => {
     setValueSats(undefined)
+    setSendAll(false)
     setAmountTextValue(value)
     if (isAssetSend) {
       if (sendInfo.account) {
@@ -859,13 +861,21 @@ export default function SendForm() {
         } else {
           // The client refuses an invoice for any other amount before a solver is asked.
           if (satoshis < 1) return handleError(t('send.amountTooLow'))
-          const pendingLnSend = await quoteLnurl(
-            await sendRouter({ swapsOptional: true }),
-            sendInfo.lnUrl,
-            Number(satoshis),
-          )
+          const router = await sendRouter({ swapsOptional: true })
+          let pendingLnSend = await quoteLnurl(router, sendInfo.lnUrl, Number(satoshis))
+          // Max means everything leaves the wallet, so a rail's fee comes out of the amount, not on top.
+          for (let tries = 0; sendAll && satoshis === liquidBalance && tries < 2; tries++) {
+            if (pendingLnSend.total <= liquidBalance) break
+            pendingLnSend = await quoteLnurl(router, sendInfo.lnUrl, liquidBalance - pendingLnSend.fee)
+          }
           if (stale()) return setProcessing(false)
-          setSendInfo((prev) => ({ ...prev, arkAddress: undefined, invoice: undefined, pendingLnSend }))
+          const sent = pendingLnSend.amount
+          if (sent !== satoshis) {
+            setAmount(sent)
+            setValueSats(sent)
+            setAmountTextValue(getTextValue(sent))
+          }
+          setSendInfo((prev) => ({ ...prev, arkAddress: undefined, invoice: undefined, satoshis: sent, pendingLnSend }))
         }
       } else {
         setSendInfo({ ...sendInfo, satoshis })
@@ -904,6 +914,7 @@ export default function SendForm() {
     } else {
       setAmount(liquidBalance)
       setValueSats(liquidBalance)
+      setSendAll(true)
       setSendInfo({ ...sendInfo, satoshis: liquidBalance })
       setAmountTextValue(getTextValue(liquidBalance))
     }
