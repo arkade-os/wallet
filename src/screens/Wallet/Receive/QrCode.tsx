@@ -180,7 +180,7 @@ export default function ReceiveQRCode() {
   const receiver = ownAddresses ? lnurlRail.receiver : undefined
   const lnurl = addressesCurrent ? (lnurlRail.lnurl ?? '') : ''
   const lightningAddress = addressesCurrent ? (receiver?.lightningAddress ?? '') : ''
-  const lnurlRails = useLnurlRails(receiver, satoshis, false, {
+  const lnurlRails = useLnurlRails(receiver, satoshis, config.receiveViaLnurl, {
     arkade: ownAddresses?.offchainAddr ?? '',
     onchain: ownAddresses?.boardingAddr ?? '',
   })
@@ -189,6 +189,10 @@ export default function ReceiveQRCode() {
     ? (swapRailOn ? recvInfo.invoice : undefined) || lnurlRails.targets.lightning || ''
     : ''
   const generatingInvoice = swapRail.generatingInvoice || lnurlRails.generating
+  const fallbacks = [
+    { label: t('receive.methodArkade'), error: lnurlRails.errors.arkade },
+    { label: t('receive.methodBitcoin'), error: lnurlRails.errors.onchain },
+  ].filter((rail) => rail.error)
 
   const [method, setMethod] = useState<ReceiveMethod>(config.receiveUnifiedMode)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -248,8 +252,8 @@ export default function ReceiveQRCode() {
   const qrCodeValue = addressesCurrent ? (inQr?.value ?? '') : ''
   const generating = shown === 'token' ? tokenRails.quoting : generatingInvoice
   const createBip21 = (): { ark: string; btc: string; bip21: string } => {
-    const ark = vtxoTxsAllowed() ? ownAddresses?.offchainAddr || '' : ''
-    const btc = utxoTxsAllowed() ? ownAddresses?.boardingAddr || '' : ''
+    const ark = vtxoTxsAllowed() ? lnurlRails.targets.arkade || ownAddresses?.offchainAddr || '' : ''
+    const btc = utxoTxsAllowed() ? lnurlRails.targets.onchain || ownAddresses?.boardingAddr || '' : ''
     const bip21 = isAssetReceive
       ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals)
       : encodeBip21(btc, ark, invoice, satoshis, lnurl)
@@ -267,7 +271,17 @@ export default function ReceiveQRCode() {
     setArkAddress(ark)
     setBtcAddress(btc)
     setBip21Uri(bip21)
-  }, [assetAmount, addressesLoaded, isAssetReceive, ownAddresses, recvInfo.satoshis, invoice, lnurl])
+  }, [
+    assetAmount,
+    addressesLoaded,
+    isAssetReceive,
+    ownAddresses,
+    recvInfo.satoshis,
+    invoice,
+    lnurl,
+    lnurlRails.targets.arkade,
+    lnurlRails.targets.onchain,
+  ])
 
   // Payment listener
   useEffect(() => {
@@ -550,6 +564,11 @@ export default function ReceiveQRCode() {
               {lnurlRails.errors.lightning ? (
                 <TextSecondary>{t('receive.noInvoiceForAmount', { error: lnurlRails.errors.lightning })}</TextSecondary>
               ) : null}
+              {fallbacks.map(({ label, error }) => (
+                <TextSecondary key={label}>
+                  {t('receive.ownAddressInstead', { rail: label, error: error ?? '' })}
+                </TextSecondary>
+              ))}
               <div
                 // Height-capped so the whole code sits above the bottom buttons on a short phone.
                 className='receive-invoice-stage mt-4 aspect-square w-full max-w-[min(21.25rem,calc(100dvh-26rem))]'

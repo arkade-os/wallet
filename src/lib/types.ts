@@ -22,6 +22,7 @@ export type Config = {
   nostrBackup: boolean
   notifications: boolean
   pubkey: string
+  receiveViaLnurl: boolean
   receiveViaTokens: boolean
   receiveUnifiedMode: Extract<ReceiveMethod, 'lnaddress' | 'full'>
   receiveQrForm: Partial<Record<ReceiveMethod, PartId>>
