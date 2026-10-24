@@ -14,6 +14,9 @@ import {
   DelegateInfo,
   toXOnlySignerHex,
   isVtxoSpent,
+  ArkAddress,
+  Estimator,
+  IntentFeeConfig,
 } from '@arkade-os/sdk'
 import { Addresses, Tx, Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
@@ -80,36 +83,78 @@ export const aspErrorText = (info: AspInfo, fallback: string, outdatedText?: str
 export const byExpiryAsc = (a: { expiresAt?: Date | null }, b: { expiresAt?: Date | null }): number =>
   (a.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY) - (b.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY)
 
+/** The SDK's `toOffchainInputFeeParams`, which 0.5.0-rc.25 does not export. */
+const offchainInputFee = (estimator: Estimator, vtxo: ExtendedVirtualCoin): number =>
+  estimator.evalOffchainInput({
+    amount: BigInt(vtxo.value),
+    type: vtxo.isSwept ? 'recoverable' : 'vtxo',
+    weight: 0,
+    birth: vtxo.createdAt,
+    expiry: vtxo.expiresAt,
+  }).satoshis
+
+/** Priced at the most it can be, so a fee that grows with the amount is never short. */
+const outputFeeWithin = (estimator: Estimator, address: string, amount: number): number =>
+  Math.min(
+    amount,
+    estimator.evalOffchainOutput({ amount: BigInt(amount), script: hex.encode(ArkAddress.decode(address).pkScript) })
+      .satoshis,
+  )
+
+/** The coins an exit spends to cover `inputAmount` (payout plus exit fee) after
+ *  each pays its own intent fee, and the change left once it pays for itself. */
+export const planCollaborativeExit = async (
+  wallet: IWallet,
+  inputAmount: number,
+  intentFee: IntentFeeConfig | undefined,
+): Promise<{ inputs: ExtendedVirtualCoin[]; change?: { address: string; amount: bigint }; fee: number }> => {
+  // The SDK's own settle selector: escrowed, gated and intent-locked coins stay out.
+  const vtxos = await wallet.getSpendableVtxos({ withRecoverable: true, genericallySpendableOnly: true })
+  const estimator = new Estimator(intentFee ?? {})
+  const inputs = []
+  let net = 0
+  let fee = 0
+
+  // Coins that owe no intent fee first, each group by batch expiry ascending
+  // (missing expiry last): a young coin's inherited early expiry must not make it pay.
+  const priced = vtxos
+    .map((vtxo) => ({ vtxo, inputFee: offchainInputFee(estimator, vtxo) }))
+    .sort((a, b) => Number(a.inputFee > 0) - Number(b.inputFee > 0) || byExpiryAsc(a.vtxo, b.vtxo))
+
+  for (const { vtxo, inputFee } of priced) {
+    if (net >= inputAmount) break
+    if (inputFee >= vtxo.value) continue
+    inputs.push(vtxo)
+    net += vtxo.value - inputFee
+    fee += inputFee
+  }
+
+  if (net < inputAmount) throw new Error('Insufficient funds')
+
+  const left = net - inputAmount
+  if (left === 0) return { inputs, fee }
+  const { offchainAddr } = await getReceivingAddresses(wallet)
+  const changeFee = outputFeeWithin(estimator, offchainAddr, left)
+  const change = left - changeFee
+  return {
+    inputs,
+    fee: fee + changeFee,
+    ...(change > 0 ? { change: { address: offchainAddr, amount: BigInt(change) } } : {}),
+  }
+}
+
 export const collaborativeExitWithFees = async (
   wallet: IWallet,
   inputAmount: number,
   outputAmount: number,
   address: string,
+  intentFee: IntentFeeConfig | undefined,
 ): Promise<string> => {
-  // The SDK's own settle selector: escrowed, gated and intent-locked coins stay out.
-  const vtxos = await wallet.getSpendableVtxos({ withRecoverable: true, genericallySpendableOnly: true })
-  const selectedVtxos = []
-  let selectedAmount = 0
-
-  // sort vtxos by batch expiry ascending; missing expiry sorts last
-  const vtxosSorted = vtxos.sort(byExpiryAsc)
-
-  for (const vtxo of vtxosSorted) {
-    if (selectedAmount >= inputAmount) break
-    selectedVtxos.push(vtxo)
-    selectedAmount += vtxo.value
-  }
-
-  if (selectedAmount < inputAmount) throw new Error('Insufficient funds')
+  const { inputs: selectedVtxos, change } = await planCollaborativeExit(wallet, inputAmount, intentFee)
+  const changeAmount = Number(change?.amount ?? 0)
 
   const outputs = [{ address, amount: BigInt(outputAmount) }]
-
-  const changeAmount = selectedAmount - inputAmount
-
-  if (changeAmount > 0) {
-    const { offchainAddr } = await getReceivingAddresses(wallet)
-    outputs.push({ address: offchainAddr, amount: BigInt(changeAmount) })
-  }
+  if (change) outputs.push(change)
 
   outputs.reverse() // fix for exit with assets
 
@@ -269,22 +314,29 @@ export const settleVtxos = async (
   wallet: IWallet,
   vtxoManager: IVtxoManager,
   dustAmount: bigint,
-  thresholdMs?: number,
+  thresholdMs: number | undefined,
+  intentFee: IntentFeeConfig | undefined,
 ): Promise<void> => {
-  const { inputs } = await getInputsToSettle(wallet, vtxoManager, thresholdMs)
+  const { boardingUtxos, vtxos } = await getInputsToSettle(wallet, vtxoManager, thresholdMs)
+  const estimator = new Estimator(intentFee ?? {})
+  const priced: { input: ExtendedCoin; fee: number }[] = [
+    ...boardingUtxos.map((input) => ({
+      input,
+      fee: estimator.evalOnchainInput({ amount: BigInt(input.value) }).satoshis,
+    })),
+    ...vtxos.map((input) => ({ input, fee: offchainInputFee(estimator, input) })),
+  ].filter(({ input, fee }) => fee < input.value)
+  const inputs = priced.map(({ input }) => input)
 
   if (inputs.length === 0) throw new Error('No UTXOs or VTXOs eligible to settle')
 
-  const amount = inputs.reduce((sum, input) => sum + input.value, 0)
+  const address = await wallet.getAddress()
+  const net = priced.reduce((sum, { input, fee }) => sum + input.value - fee, 0)
+  const amount = net - outputFeeWithin(estimator, address, net)
 
   if (amount < Number(dustAmount)) throw new Error('Total amount is below dust threshold')
 
-  const outputs = [
-    {
-      address: await wallet.getAddress(),
-      amount: BigInt(amount),
-    },
-  ]
+  const outputs = [{ address, amount: BigInt(amount) }]
 
   try {
     await wallet.settle({ inputs, outputs }, console.log)

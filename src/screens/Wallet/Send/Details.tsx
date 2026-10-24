@@ -40,7 +40,7 @@ export default function SendDetails() {
   const displayContext = useAmountDisplayContext()
   const { navigate } = useContext(NavigationContext)
   const { appIntent, sendInfo, setAppIntent, setSendInfo } = useContext(FlowContext)
-  const { calcOnchainOutputFee } = useContext(FeesContext)
+  const { calcOnchainOutputFee, intentFee } = useContext(FeesContext)
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { assetMetadataCache, balance, reloadWallet, svcWallet } = useContext(WalletContext)
@@ -146,7 +146,7 @@ export default function SendDetails() {
       setPricing(false)
       offerToSign(cost?.total ?? details.total ?? 0)
     }
-    const priced = sendRouter({ outputFee: calcOnchainOutputFee })
+    const priced = sendRouter({ outputFee: calcOnchainOutputFee, intentFee })
       .then((router) => previewOnchainCost(router, details.destination!, details.satoshis!))
       .catch((err) => {
         // The exit rail's own figures stay on screen, and it is what will pay.
@@ -242,7 +242,7 @@ export default function SendDetails() {
    *  what THIS screen is showing — at the moment of the spend, so no carried
    *  quote exists to go stale. A rail that cannot quote is skipped. */
   const payOnchain = async (address: string, shown: DetailsProps): Promise<void> => {
-    const router = await sendRouter({ outputFee: calcOnchainOutputFee })
+    const router = await sendRouter({ outputFee: calcOnchainOutputFee, intentFee })
     // Receiver-exact: "what leaves" was subtracted when `details` was built.
     const options = await router.options({ raw: address, amount: shown.satoshis! })
 

@@ -39,6 +39,7 @@ import {
   getTxHistory,
   getUnrolledVtxos,
   redeemNotes,
+  settleVtxos,
 } from '../../lib/asp'
 import { saveTransactionActivityMetadata } from '../../lib/storage'
 import { walletFingerprint } from '../../lib/sentry'
@@ -48,6 +49,29 @@ beforeEach(() => {
   localStorage.clear()
   captureException.mockClear()
 })
+
+const HOUR = 3_600_000
+const DAY = 24 * HOUR
+// mutinynet's offchain input program as of 2026-10-24.
+const youngCoinFee = { offchainInput: "inputType == 'vtxo' && now() - birth < 86400.0 ? amount * 0.002 : 0.0" }
+
+const aged = (txid: string, value: number, ageMs: number) => ({
+  txid,
+  vout: 0,
+  value,
+  isSwept: false,
+  createdAt: new Date(Date.now() - ageMs),
+  expiresAt: new Date(Date.now() + 29 * DAY),
+})
+
+const feeWallet = (settle: ReturnType<typeof vi.fn>) => ({
+  settle,
+  getAddress: async () => fixtures.lib.address.ark[0].address,
+  getBoardingAddress: async () => fixtures.lib.address.btc[0],
+})
+
+const declaredFee = ({ inputs, outputs }: { inputs: { value: number }[]; outputs: { amount: bigint }[] }) =>
+  inputs.reduce((sum, input) => sum + input.value, 0) - outputs.reduce((sum, output) => sum + Number(output.amount), 0)
 
 describe('byExpiryAsc', () => {
   it('sorts known expiries ascending and places missing expiry last', () => {
@@ -133,7 +157,7 @@ describe('collaborativeExitWithFees', () => {
       getBoardingAddress: async () => fixtures.lib.address.btc[0],
     }
 
-    await collaborativeExitWithFees(wallet as any, 3_000, 2_900, fixtures.lib.address.btc[0])
+    await collaborativeExitWithFees(wallet as any, 3_000, 2_900, fixtures.lib.address.btc[0], {})
 
     expect(getSpendableVtxos).toHaveBeenCalledWith({ withRecoverable: true, genericallySpendableOnly: true })
     expect(settle.mock.calls[0][0].inputs.map((vtxo: { txid: string }) => vtxo.txid)).toEqual(['plain'])
@@ -145,11 +169,54 @@ describe('collaborativeExitWithFees', () => {
     const refused = new Error('Service worker does not support the requested contract scope or freshness check')
     const wallet = { getVtxos, getSpendableVtxos: vi.fn().mockRejectedValue(refused), settle }
 
-    await expect(collaborativeExitWithFees(wallet as any, 3_000, 2_900, fixtures.lib.address.btc[0])).rejects.toBe(
+    await expect(collaborativeExitWithFees(wallet as any, 3_000, 2_900, fixtures.lib.address.btc[0], {})).rejects.toBe(
       refused,
     )
     expect(getVtxos).not.toHaveBeenCalled()
     expect(settle).not.toHaveBeenCalled()
+  })
+
+  it('pays the intent fee arkd charges a young coin', async () => {
+    const settle = vi.fn().mockResolvedValue('commitment-txid')
+    const wallet = { ...feeWallet(settle), getSpendableVtxos: async () => [aged('young', 63_000, HOUR)] }
+    const destination = fixtures.lib.address.btc[0]
+
+    await collaborativeExitWithFees(wallet as any, 61_765, 61_765, destination, youngCoinFee)
+
+    const params = settle.mock.calls[0][0]
+    expect(declaredFee(params)).toBe(126)
+    expect(params.outputs.find((o: { address: string }) => o.address === destination).amount).toBe(BigInt(61_765))
+  })
+
+  it('charges a coin past the young window nothing', async () => {
+    const settle = vi.fn().mockResolvedValue('commitment-txid')
+    const wallet = { ...feeWallet(settle), getSpendableVtxos: async () => [aged('old', 63_000, 2 * DAY)] }
+
+    await collaborativeExitWithFees(wallet as any, 61_765, 61_765, fixtures.lib.address.btc[0], youngCoinFee)
+
+    expect(declaredFee(settle.mock.calls[0][0])).toBe(0)
+  })
+
+  it('spends a coin that owes no intent fee before one that expires sooner', async () => {
+    const settle = vi.fn().mockResolvedValue('commitment-txid')
+    const young = { ...aged('young', 63_000, HOUR), expiresAt: new Date(Date.now() + 5 * DAY) }
+    const wallet = { ...feeWallet(settle), getSpendableVtxos: async () => [aged('old', 63_000, 2 * DAY), young] }
+
+    await collaborativeExitWithFees(wallet as any, 61_765, 61_765, fixtures.lib.address.btc[0], youngCoinFee)
+
+    expect(settle.mock.calls[0][0].inputs.map((vtxo: { txid: string }) => vtxo.txid)).toEqual(['old'])
+  })
+})
+
+describe('settleVtxos', () => {
+  it('renews net of the intent fee each input owes', async () => {
+    const settle = vi.fn().mockResolvedValue(undefined)
+    const wallet = { ...feeWallet(settle), getBoardingUtxos: async () => [] }
+    const vtxoManager = { getExpiringVtxos: async () => [aged('young', 10_000, HOUR), aged('old', 5_000, 2 * DAY)] }
+
+    await settleVtxos(wallet as any, vtxoManager as any, BigInt(330), DAY, youngCoinFee)
+
+    expect(declaredFee(settle.mock.calls[0][0])).toBe(20)
   })
 })
 
