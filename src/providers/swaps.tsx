@@ -117,8 +117,10 @@ interface SwapsContextProps {
   /** Negotiate a Lightning receive and begin driving it, in that order. */
   receiveLightning: (amountSats: number) => Promise<AcceptedLnReceive>
   /** The send path's router. Throws `SwapsHeldElsewhere` rather than dropping
-   * the solver rails and offboarding through the costlier exit. */
-  sendRouter: (deps?: { outputFee?: () => number; assets?: Asset[] }) => Promise<PaymentRouter>
+   * the solver rails and offboarding through the costlier exit. `swapsOptional`
+   * opts out for a caller with no exit rail to fall to (LNURL): a tab not driving
+   * the swap client gets a router without the solver rails instead. */
+  sendRouter: (deps?: { outputFee?: () => number; assets?: Asset[]; swapsOptional?: boolean }) => Promise<PaymentRouter>
   /** Where a driven swap stands, or undefined when it is not monitored. */
   outcomeOf: (id: string) => Outcome | undefined
   /** The last error reported for one, cleared when it ends. */
@@ -829,12 +831,19 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
   /** The fee rate is read per router, not pinned: the solver rail grosses the
    *  take leg up by it, so a stale one short-pays the recipient. */
-  const sendRouter = async (deps: { outputFee?: () => number; assets?: Asset[] } = {}): Promise<PaymentRouter> => {
+  const sendRouter = async ({
+    swapsOptional,
+    ...deps
+  }: { outputFee?: () => number; assets?: Asset[]; swapsOptional?: boolean } = {}): Promise<PaymentRouter> => {
     if (!held.current && granted.current) {
       await Promise.race([granted.current, new Promise((resolve) => setTimeout(resolve, LOCK_GRACE_MS))])
     }
+    // A router cannot cross to the driving tab, so without the client here it is built without it.
+    if (swapsOptional && !held.current) return createSendRouter({ wallet: svcWallet!, ...deps })
     if (!held.current) throw new SwapsHeldElsewhere()
     const client = await driving()
+    // LNURL keeps the local Lightning client but needs no onchain claim fee.
+    if (swapsOptional) return createSendRouter({ wallet: svcWallet!, client, ...deps })
     const claimFeeRateSatVb = await claimFeeRate(onchainClaimEndpoint(aspInfo.network as NetworkName))
     return createSendRouter({ wallet: svcWallet!, client, claimFeeRateSatVb, ...deps })
   }

@@ -60,7 +60,21 @@ network — no `VITE_ARK_SERVER` needed. The regtest Boltz endpoint
 (`http://localhost:9069`) is likewise built in.
 
 > To exercise the LNURL / nostr-backup features as well, start with:
-> `VITE_LNURL_SERVER_URL=http://localhost:9090 VITE_NOSTR_RELAY_URL=ws://localhost:10547 pnpm start`
+> `VITE_LNURL_SERVER=http://localhost:9090 VITE_NOSTR_RELAY_URL=ws://localhost:10547 pnpm start`
+
+### LNURL deployment configuration migration
+
+Rename `VITE_LNURL_SERVER_URL` to `VITE_LNURL_SERVER` in existing deployment
+configuration. The old name is no longer read; leaving only it configured turns
+off the LNURL receive integration. Set optional `VITE_LNURL_DOMAIN` only when the
+Lightning address domain differs from the API URL's hostname.
+
+For a Vite build, set the new variables before `pnpm build`, then redeploy the
+generated files. The Docker image's default build arguments leave placeholders
+for both variables: set them in the container environment and recreate the
+container so `docker-entrypoint.sh` substitutes them at startup. If the image was
+built with concrete LNURL build arguments, rebuild it with the new values or with
+the default placeholders; runtime substitution cannot replace a baked-in URL.
 
 ## 3. Fund the wallet
 
