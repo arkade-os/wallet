@@ -83,6 +83,13 @@ export const aspErrorText = (info: AspInfo, fallback: string, outdatedText?: str
 export const byExpiryAsc = (a: { expiresAt?: Date | null }, b: { expiresAt?: Date | null }): number =>
   (a.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY) - (b.expiresAt?.getTime() ?? Number.POSITIVE_INFINITY)
 
+export class InsufficientFundsError extends Error {
+  constructor() {
+    super('Insufficient funds')
+    this.name = 'InsufficientFundsError'
+  }
+}
+
 /** The SDK's `toOffchainInputFeeParams`, which 0.5.0-rc.25 does not export. */
 const offchainInputFee = (estimator: Estimator, vtxo: ExtendedVirtualCoin): number =>
   estimator.evalOffchainInput({
@@ -129,7 +136,7 @@ export const planCollaborativeExit = async (
     fee += inputFee
   }
 
-  if (net < inputAmount) throw new Error('Insufficient funds')
+  if (net < inputAmount) throw new InsufficientFundsError()
 
   const left = net - inputAmount
   if (left === 0) return { inputs, fee }

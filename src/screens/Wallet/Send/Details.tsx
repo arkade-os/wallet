@@ -13,7 +13,7 @@ import { defaultFee } from '../../../lib/constants'
 import { prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
-import { sendOffChain } from '../../../lib/asp'
+import { InsufficientFundsError, sendOffChain } from '../../../lib/asp'
 import {
   ASSET_RAIL,
   ONCHAIN_ROUTE_LOG,
@@ -245,6 +245,9 @@ export default function SendDetails() {
     const router = await sendRouter({ outputFee: calcOnchainOutputFee, intentFee })
     // Receiver-exact: "what leaves" was subtracted when `details` was built.
     const options = await router.options({ raw: address, amount: shown.satoshis! })
+    let feeChanged = false
+    let insufficient = false
+    let otherwiseRefused = false
 
     for (const option of options) {
       let quote
@@ -252,9 +255,13 @@ export default function SendDetails() {
         quote = await option.quote()
       } catch (err) {
         consoleError(err, `${ONCHAIN_ROUTE_LOG} ${option.railId} could not quote`)
+        if (err instanceof InsufficientFundsError) insufficient = true
+        else otherwiseRefused = true
         continue
       }
       if (!quoteIsForThisSend(quote, shown, address)) {
+        if (quoteIsForThisSend({ ...quote, total: shown.total ?? 0 }, shown, address)) feeChanged = true
+        else otherwiseRefused = true
         consoleLog(
           `${ONCHAIN_ROUTE_LOG} ${option.railId} refused: quote pays ${quote.amount} for ${quote.total}, ` +
             `screen shows ${shown.satoshis} for ${shown.total} to ${shown.destination}`,
@@ -269,6 +276,8 @@ export default function SendDetails() {
       const result = await fundedResult(await quote.send())
       return handleSent(result?.txid, quote.total, quote.fee, option.railId, result?.swapId)
     }
+    if (feeChanged) throw new Error(t('send.feeChanged'))
+    if (insufficient && !otherwiseRefused) throw new Error(t('send.insufficientFunds'))
     throw new Error('No route for this payment')
   }
 
