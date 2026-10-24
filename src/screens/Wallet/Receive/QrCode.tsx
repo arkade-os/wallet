@@ -144,13 +144,15 @@ export default function ReceiveQRCode() {
   const swapRail = useSwapRail(swapRailOn)
   const lnurl = lnurlRail.lnurl ?? ''
   const lightningAddress = lnurlRail.receiver?.lightningAddress ?? ''
-  const lnurlRails = useLnurlRails(lnurlRail.receiver, satoshis, false, {
+  // The payment listener writes the paid amount into `satoshis`; re-quoting it would mint an invoice nobody pays.
+  const requestedSats = recvInfo.received ? 0 : satoshis
+  const lnurlRails = useLnurlRails(lnurlRail.receiver, requestedSats, false, {
     arkade: recvInfo.offchainAddr,
     onchain: recvInfo.boardingAddr,
   })
   const tokenRails = useLnurlTokenRails(
     lnurlRail.receiver,
-    satoshis,
+    requestedSats,
     config.receiveViaTokens,
     selectedMethod.startsWith(TOKEN) ? selectedMethod.slice(TOKEN.length) : undefined,
   )

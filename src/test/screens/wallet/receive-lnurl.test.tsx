@@ -285,6 +285,23 @@ describe('Receive screen, rail composition', () => {
     expect(callbacks()[0].searchParams.get('paymentOption')).toBe('lightning')
   })
 
+  it('asks its LNURL for no further invoice once the payment arrives', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    const addListener = vi.mocked(navigator.serviceWorker.addEventListener)
+    addListener.mockClear()
+    renderReceive(10_000, {}, {}, true)
+    await waitFor(() => expect(callbacks()).toHaveLength(1))
+
+    const payment = { data: { type: 'VTXO_UPDATE', payload: { newVtxos: [{ value: 9_990 }] } } } as MessageEvent
+    await act(async () => {
+      for (const [type, listener] of addListener.mock.calls)
+        if (type === 'message') (listener as EventListener)(payment)
+      await new Promise((resolve) => setTimeout(resolve, 300))
+    })
+
+    expect(callbacks()).toHaveLength(1)
+  })
+
   it("shows its LNURL's invoice, not a swap invoice an earlier visit left in the flow", async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
     renderReceive(10_000, {}, { invoice: 'lnbc10staleswap' })
