@@ -115,10 +115,14 @@ export const planCollaborativeExit = async (
   let net = 0
   let fee = 0
 
-  // sort vtxos by batch expiry ascending; missing expiry sorts last
-  for (const vtxo of vtxos.sort(byExpiryAsc)) {
+  // Coins that owe no intent fee first, each group by batch expiry ascending
+  // (missing expiry last): a young coin's inherited early expiry must not make it pay.
+  const priced = vtxos
+    .map((vtxo) => ({ vtxo, inputFee: offchainInputFee(estimator, vtxo) }))
+    .sort((a, b) => Number(a.inputFee > 0) - Number(b.inputFee > 0) || byExpiryAsc(a.vtxo, b.vtxo))
+
+  for (const { vtxo, inputFee } of priced) {
     if (net >= inputAmount) break
-    const inputFee = offchainInputFee(estimator, vtxo)
     if (inputFee >= vtxo.value) continue
     inputs.push(vtxo)
     net += vtxo.value - inputFee

@@ -196,6 +196,16 @@ describe('collaborativeExitWithFees', () => {
 
     expect(declaredFee(settle.mock.calls[0][0])).toBe(0)
   })
+
+  it('spends a coin that owes no intent fee before one that expires sooner', async () => {
+    const settle = vi.fn().mockResolvedValue('commitment-txid')
+    const young = { ...aged('young', 63_000, HOUR), expiresAt: new Date(Date.now() + 5 * DAY) }
+    const wallet = { ...feeWallet(settle), getSpendableVtxos: async () => [aged('old', 63_000, 2 * DAY), young] }
+
+    await collaborativeExitWithFees(wallet as any, 61_765, 61_765, fixtures.lib.address.btc[0], youngCoinFee)
+
+    expect(settle.mock.calls[0][0].inputs.map((vtxo: { txid: string }) => vtxo.txid)).toEqual(['old'])
+  })
 })
 
 describe('settleVtxos', () => {
