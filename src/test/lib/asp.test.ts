@@ -219,6 +219,18 @@ describe('collaborativeExitWithFees', () => {
     expect(plan.change?.amount).toBe(BigInt(63_000 - 126 - 50_000 - 200))
   })
 
+  it('prices the change at the amount it is emitted with, not before its fee', async () => {
+    const wallet = { ...feeWallet(vi.fn()), getSpendableVtxos: async () => [aged('old', 60_050, 2 * DAY)] }
+
+    // 10_050 left pays 100, but the 9_950 that would remain costs 200.
+    const plan = await planCollaborativeExit(wallet as any, 50_000, {
+      offchainOutput: 'amount < 10000.0 ? 200.0 : 100.0',
+    })
+
+    expect(plan.change?.amount).toBe(BigInt(9_850))
+    expect(plan.fee).toBe(200)
+  })
+
   it('spends a coin that owes no intent fee before one that expires sooner', async () => {
     const settle = vi.fn().mockResolvedValue('commitment-txid')
     const young = { ...aged('young', 63_000, HOUR), expiresAt: new Date(Date.now() + 5 * DAY) }

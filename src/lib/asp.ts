@@ -100,13 +100,21 @@ const offchainInputFee = (estimator: Estimator, vtxo: ExtendedVirtualCoin): numb
     expiry: vtxo.expiresAt,
   }).satoshis
 
-/** Priced at the most it can be, so a fee that grows with the amount is never short. */
-const outputFeeWithin = (estimator: Estimator, address: string, amount: number): number =>
-  Math.min(
-    amount,
-    estimator.evalOffchainOutput({ amount: BigInt(amount), script: hex.encode(ArkAddress.decode(address).pkScript) })
-      .satoshis,
-  )
+const OUTPUT_FEE_ROUNDS = 8
+
+/** The output `out` with `out + fee(out) = amount`, 0 if none is positive. arkd prices the
+ *  output it receives, so a fee taken on `amount` itself can undercount (the SDK's
+ *  `settleChangeAgainstFee`, which 0.5.0-rc.25 does not export). */
+const outputAfterItsFee = (estimator: Estimator, address: string, amount: number): number => {
+  const script = hex.encode(ArkAddress.decode(address).pkScript)
+  let out = amount
+  for (let round = 0; round < OUTPUT_FEE_ROUNDS; round++) {
+    const next = amount - estimator.evalOffchainOutput({ amount: BigInt(Math.max(out, 0)), script }).satoshis
+    if (next === out) return Math.max(out, 0)
+    out = next
+  }
+  throw new Error(`output fee does not settle for ${amount} sats`)
+}
 
 export interface ExitPlan {
   inputs: ExtendedVirtualCoin[]
@@ -148,11 +156,10 @@ export const planCollaborativeExit = async (
   const left = net - inputAmount
   if (left === 0) return { inputs, fee }
   const { offchainAddr } = await getReceivingAddresses(wallet)
-  const changeFee = outputFeeWithin(estimator, offchainAddr, left)
-  const change = left - changeFee
+  const change = outputAfterItsFee(estimator, offchainAddr, left)
   return {
     inputs,
-    fee: fee + changeFee,
+    fee: fee + left - change,
     ...(change > 0 ? { change: { address: offchainAddr, amount: BigInt(change) } } : {}),
   }
 }
@@ -347,7 +354,7 @@ export const settleVtxos = async (
 
   const address = await wallet.getAddress()
   const net = priced.reduce((sum, { input, fee }) => sum + input.value - fee, 0)
-  const amount = net - outputFeeWithin(estimator, address, net)
+  const amount = outputAfterItsFee(estimator, address, net)
 
   if (amount < Number(dustAmount)) throw new Error('Total amount is below dust threshold')
 
