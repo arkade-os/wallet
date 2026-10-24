@@ -38,6 +38,7 @@ import {
   delegateVtxos,
   getTxHistory,
   getUnrolledVtxos,
+  planCollaborativeExit,
   redeemNotes,
   settleVtxos,
 } from '../../lib/asp'
@@ -144,6 +145,20 @@ describe('settle failure reporting', () => {
 })
 
 describe('collaborativeExitWithFees', () => {
+  const exit = async (
+    wallet: unknown,
+    inputAmount: number,
+    outputAmount: number,
+    intentFee: Record<string, string>,
+    destination = fixtures.lib.address.btc[0],
+  ) =>
+    collaborativeExitWithFees(
+      wallet as any,
+      await planCollaborativeExit(wallet as any, inputAmount, intentFee),
+      outputAmount,
+      destination,
+    )
+
   it('selects only coins generic spending may use, as the SDK settle path does', async () => {
     const escrowed = { txid: 'escrowed', vout: 0, value: 5_000, expiresAt: new Date(1_000) }
     const plain = { txid: 'plain', vout: 0, value: 5_000, expiresAt: new Date(2_000) }
@@ -157,7 +172,7 @@ describe('collaborativeExitWithFees', () => {
       getBoardingAddress: async () => fixtures.lib.address.btc[0],
     }
 
-    await collaborativeExitWithFees(wallet as any, 3_000, 2_900, fixtures.lib.address.btc[0], {})
+    await exit(wallet, 3_000, 2_900, {})
 
     expect(getSpendableVtxos).toHaveBeenCalledWith({ withRecoverable: true, genericallySpendableOnly: true })
     expect(settle.mock.calls[0][0].inputs.map((vtxo: { txid: string }) => vtxo.txid)).toEqual(['plain'])
@@ -169,9 +184,7 @@ describe('collaborativeExitWithFees', () => {
     const refused = new Error('Service worker does not support the requested contract scope or freshness check')
     const wallet = { getVtxos, getSpendableVtxos: vi.fn().mockRejectedValue(refused), settle }
 
-    await expect(collaborativeExitWithFees(wallet as any, 3_000, 2_900, fixtures.lib.address.btc[0], {})).rejects.toBe(
-      refused,
-    )
+    await expect(exit(wallet, 3_000, 2_900, {})).rejects.toBe(refused)
     expect(getVtxos).not.toHaveBeenCalled()
     expect(settle).not.toHaveBeenCalled()
   })
@@ -181,7 +194,7 @@ describe('collaborativeExitWithFees', () => {
     const wallet = { ...feeWallet(settle), getSpendableVtxos: async () => [aged('young', 63_000, HOUR)] }
     const destination = fixtures.lib.address.btc[0]
 
-    await collaborativeExitWithFees(wallet as any, 61_765, 61_765, destination, youngCoinFee)
+    await exit(wallet, 61_765, 61_765, youngCoinFee, destination)
 
     const params = settle.mock.calls[0][0]
     expect(declaredFee(params)).toBe(126)
@@ -192,9 +205,18 @@ describe('collaborativeExitWithFees', () => {
     const settle = vi.fn().mockResolvedValue('commitment-txid')
     const wallet = { ...feeWallet(settle), getSpendableVtxos: async () => [aged('old', 63_000, 2 * DAY)] }
 
-    await collaborativeExitWithFees(wallet as any, 61_765, 61_765, fixtures.lib.address.btc[0], youngCoinFee)
+    await exit(wallet, 61_765, 61_765, youngCoinFee)
 
     expect(declaredFee(settle.mock.calls[0][0])).toBe(0)
+  })
+
+  it('makes the change pay its own output fee on top of the inputs', async () => {
+    const wallet = { ...feeWallet(vi.fn()), getSpendableVtxos: async () => [aged('young', 63_000, HOUR)] }
+
+    const plan = await planCollaborativeExit(wallet as any, 50_000, { ...youngCoinFee, offchainOutput: '200.0' })
+
+    expect(plan.fee).toBe(126 + 200)
+    expect(plan.change?.amount).toBe(BigInt(63_000 - 126 - 50_000 - 200))
   })
 
   it('spends a coin that owes no intent fee before one that expires sooner', async () => {
@@ -202,7 +224,7 @@ describe('collaborativeExitWithFees', () => {
     const young = { ...aged('young', 63_000, HOUR), expiresAt: new Date(Date.now() + 5 * DAY) }
     const wallet = { ...feeWallet(settle), getSpendableVtxos: async () => [aged('old', 63_000, 2 * DAY), young] }
 
-    await collaborativeExitWithFees(wallet as any, 61_765, 61_765, fixtures.lib.address.btc[0], youngCoinFee)
+    await exit(wallet, 61_765, 61_765, youngCoinFee)
 
     expect(settle.mock.calls[0][0].inputs.map((vtxo: { txid: string }) => vtxo.txid)).toEqual(['old'])
   })

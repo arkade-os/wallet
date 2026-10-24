@@ -302,8 +302,17 @@ describe('the collaborative exit rail', () => {
     expect(quote).toMatchObject({ railId: WALLET_EXIT_RAIL, amount: 9_500, fee: 500, total: 10_000 })
 
     await quote.send()
-    // 10_000 leaves, the recipient gets 9_500 — exactly as before the router.
-    expect(collaborativeExitWithFees).toHaveBeenCalledWith(expect.anything(), 10_000, 9_500, RECIPIENT, {})
+    // The recipient gets 9_500 from the coins the quote priced, not a second selection.
+    expect(collaborativeExitWithFees).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ inputs: [youngCoin], fee: 0 }),
+      9_500,
+      RECIPIENT,
+    )
+  })
+
+  it('refuses to build an exit rail that could not price the coins it spends', () => {
+    expect(() => router({ intentFee: undefined })).toThrow(/intentFee/)
   })
 
   it('quotes the intent fee arkd charges the coins the exit spends', async () => {

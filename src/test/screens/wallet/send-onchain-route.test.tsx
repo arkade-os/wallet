@@ -355,7 +355,7 @@ describe('signing an on-chain send', () => {
     expect(sent).not.toHaveBeenCalled()
   })
 
-  it('says the fee changed when the only rail now asks more than the screen showed', async () => {
+  it('shows a total that rose since pricing and pays it only on a second signature', async () => {
     const sent = vi.fn()
     const solver = solverThatGetsDearer({ amount: 40_000, total: 40_754 }, { amount: 40_000, total: 41_000 }, sent)
     optionsFor = () => [solver()]
@@ -364,9 +364,13 @@ describe('signing an on-chain send', () => {
     expect(await screen.findByTestId('Total')).toHaveTextContent(/40.?754/)
     await sign()
 
-    await waitFor(() => expect(sendFailure()).toBeDefined())
-    expect(String(sendFailure())).toMatch(/fee changed/i)
+    expect(await screen.findByText(/fee changed/i)).toBeTruthy()
+    expect(screen.getByTestId('Total')).toHaveTextContent(/41.?000/)
     expect(sent).not.toHaveBeenCalled()
+
+    await sign()
+    await waitFor(() => expect(sent).toHaveBeenCalledTimes(1))
+    expect(sendFailure()).toBeUndefined()
   })
 
   it('reports insufficient funds when that is the only reason no rail paid', async () => {

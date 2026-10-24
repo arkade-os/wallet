@@ -108,13 +108,20 @@ const outputFeeWithin = (estimator: Estimator, address: string, amount: number):
       .satoshis,
   )
 
+export interface ExitPlan {
+  inputs: ExtendedVirtualCoin[]
+  change?: { address: string; amount: bigint }
+  /** The intent fee on top of the exit output's: every input's and the change's. */
+  fee: number
+}
+
 /** The coins an exit spends to cover `inputAmount` (payout plus exit fee) after
  *  each pays its own intent fee, and the change left once it pays for itself. */
 export const planCollaborativeExit = async (
   wallet: IWallet,
   inputAmount: number,
   intentFee: IntentFeeConfig | undefined,
-): Promise<{ inputs: ExtendedVirtualCoin[]; change?: { address: string; amount: bigint }; fee: number }> => {
+): Promise<ExitPlan> => {
   // The SDK's own settle selector: escrowed, gated and intent-locked coins stay out.
   const vtxos = await wallet.getSpendableVtxos({ withRecoverable: true, genericallySpendableOnly: true })
   const estimator = new Estimator(intentFee ?? {})
@@ -150,14 +157,15 @@ export const planCollaborativeExit = async (
   }
 }
 
+/** Settles the plan it is given rather than planning again, so it cannot pay
+ *  more than the quote that plan priced. */
 export const collaborativeExitWithFees = async (
   wallet: IWallet,
-  inputAmount: number,
+  plan: ExitPlan,
   outputAmount: number,
   address: string,
-  intentFee: IntentFeeConfig | undefined,
 ): Promise<string> => {
-  const { inputs: selectedVtxos, change } = await planCollaborativeExit(wallet, inputAmount, intentFee)
+  const { inputs: selectedVtxos, change, fee } = plan
   const changeAmount = Number(change?.amount ?? 0)
 
   const outputs = [{ address, amount: BigInt(outputAmount) }]
@@ -169,9 +177,9 @@ export const collaborativeExitWithFees = async (
     return await wallet.settle({ inputs: selectedVtxos, outputs })
   } catch (error) {
     await captureSettleError(error, wallet, 'collaborativeExitWithFees', {
-      inputAmount,
       outputAmount,
       changeAmount,
+      intentFee: fee,
       ...summarizeInputs(selectedVtxos),
     })
     throw error

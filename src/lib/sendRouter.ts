@@ -58,9 +58,8 @@ export const walletExitRail = (deps: {
   quote: async (req, ctx) => {
     const amount = req.amount!
     const exitFee = deps.outputFee()
-    const intentFee = deps.intentFee()
-    const spent = await planCollaborativeExit(ctx.wallet, amount + exitFee, intentFee)
-    const fee = exitFee + spent.fee
+    const plan = await planCollaborativeExit(ctx.wallet, amount + exitFee, deps.intentFee())
+    const fee = exitFee + plan.fee
     const total = amount + fee
     return {
       railId: WALLET_EXIT_RAIL,
@@ -69,7 +68,7 @@ export const walletExitRail = (deps: {
       total,
       send: async () =>
         makeHandle(WALLET_EXIT_RAIL, async (emit) => {
-          const txid = await collaborativeExitWithFees(ctx.wallet, amount + exitFee, amount, req.raw, intentFee)
+          const txid = await collaborativeExitWithFees(ctx.wallet, plan, amount, req.raw)
           const result = { railId: WALLET_EXIT_RAIL, txid }
           emit({ status: 'settled', result })
           return result
@@ -122,7 +121,9 @@ export const createSendRouter = (deps: SendRouterDeps): PaymentRouter => {
   if (deps.client && deps.claimFeeRateSatVb) {
     router.use(onchainSwapRail(deps.client, { claimFeeRateSatVb: deps.claimFeeRateSatVb }))
   }
-  if (deps.outputFee && deps.intentFee) {
+  if (deps.outputFee) {
+    // Refused at wiring rather than dropped: an exit without the programs declares no intent fee.
+    if (!deps.intentFee) throw new Error('send router: the exit rail needs intentFee alongside outputFee')
     router.use(walletExitRail({ outputFee: deps.outputFee, intentFee: deps.intentFee }))
   }
   if (deps.client) router.use(lightningRail(deps.client))

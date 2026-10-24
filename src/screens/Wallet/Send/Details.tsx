@@ -55,6 +55,7 @@ export default function SendDetails() {
   const [buttonLabel, setButtonLabel] = useState('')
   const [details, setDetails] = useState<DetailsProps>()
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [pricing, setPricing] = useState(false)
   const [sending, setSending] = useState(false)
   const [sendDone, setSendDone] = useState(false)
@@ -245,7 +246,7 @@ export default function SendDetails() {
     const router = await sendRouter({ outputFee: calcOnchainOutputFee, intentFee })
     // Receiver-exact: "what leaves" was subtracted when `details` was built.
     const options = await router.options({ raw: address, amount: shown.satoshis! })
-    let feeChanged = false
+    let repriced: RouteQuote | undefined
     let insufficient = false
     let otherwiseRefused = false
 
@@ -260,7 +261,7 @@ export default function SendDetails() {
         continue
       }
       if (!quoteIsForThisSend(quote, shown, address)) {
-        if (quoteIsForThisSend({ ...quote, total: shown.total ?? 0 }, shown, address)) feeChanged = true
+        if (quoteIsForThisSend({ ...quote, total: shown.total ?? 0 }, shown, address)) repriced ??= quote
         else otherwiseRefused = true
         consoleLog(
           `${ONCHAIN_ROUTE_LOG} ${option.railId} refused: quote pays ${quote.amount} for ${quote.total}, ` +
@@ -276,9 +277,17 @@ export default function SendDetails() {
       const result = await fundedResult(await quote.send())
       return handleSent(result?.txid, quote.total, quote.fee, option.railId, result?.swapId)
     }
-    if (feeChanged) throw new Error(t('send.feeChanged'))
+    if (repriced) return askToSignAgain(repriced)
     if (insufficient && !otherwiseRefused) throw new Error(t('send.insufficientFunds'))
     throw new Error('No route for this payment')
+  }
+
+  /** A rail that now costs more is shown, never paid: the new total needs its own tap. */
+  const askToSignAgain = ({ fee, total }: Pick<RouteQuote, 'fee' | 'total'>) => {
+    setDetails((prev) => (prev ? { ...prev, fees: fee, total } : prev))
+    setNotice(t('send.feeChanged'))
+    offerToSign(total)
+    setSending(false)
   }
 
   const handleContinue = async () => {
@@ -289,6 +298,7 @@ export default function SendDetails() {
       return
     }
 
+    setNotice('')
     setSending(true)
 
     if (isAssetSend && arkAddress) {
@@ -343,7 +353,7 @@ export default function SendDetails() {
         ) : (
           <Padded>
             <FlexCol>
-              <ErrorMessage error={Boolean(error)} text={error} />
+              <ErrorMessage error={Boolean(error || notice)} text={error || notice} />
               {details && amountDisplay ? (
                 <TransactionAmountSummary amount={amountDisplay} label={t('send.amountSent')} />
               ) : null}
