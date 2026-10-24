@@ -12,6 +12,7 @@ import {
   invoiceTarget,
   makeHandle,
   type Asset,
+  type IntentFeeConfig,
   type IWallet,
   type PaymentHandle,
   type PaymentRail,
@@ -28,7 +29,7 @@ import {
   type SwapRailClient,
 } from '@arkade-os/swap'
 import { marketCorridor, sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
-import { collaborativeExitWithFees, sendAssets } from './asp'
+import { collaborativeExitWithFees, planCollaborativeExit, sendAssets } from './asp'
 import { decodeInvoice } from './bolt11'
 import { consoleError } from './logs'
 import { prettyNumber } from './format'
@@ -45,7 +46,10 @@ export const ONCHAIN_ROUTE_LOG = 'onchain send:'
 export { LIGHTNING_RAIL, ONCHAIN_SWAP_RAIL }
 
 /** Not the SDK's `onchainRail`: that offboards with its own coin selection. */
-export const walletExitRail = (deps: { outputFee: () => number }): PaymentRail => ({
+export const walletExitRail = (deps: {
+  outputFee: () => number
+  intentFee: () => IntentFeeConfig | undefined
+}): PaymentRail => ({
   id: WALLET_EXIT_RAIL,
   // The same classification the SDK's `onchainRail` uses, so this rail cannot
   // claim an ark address or an invoice if the router is reused for them.
@@ -53,7 +57,9 @@ export const walletExitRail = (deps: { outputFee: () => number }): PaymentRail =
   available: (req) => (req.amount ?? 0) > 0,
   quote: async (req, ctx) => {
     const amount = req.amount!
-    const fee = deps.outputFee()
+    const exitFee = deps.outputFee()
+    const plan = await planCollaborativeExit(ctx.wallet, amount + exitFee, deps.intentFee())
+    const fee = exitFee + plan.fee
     const total = amount + fee
     return {
       railId: WALLET_EXIT_RAIL,
@@ -62,7 +68,7 @@ export const walletExitRail = (deps: { outputFee: () => number }): PaymentRail =
       total,
       send: async () =>
         makeHandle(WALLET_EXIT_RAIL, async (emit) => {
-          const txid = await collaborativeExitWithFees(ctx.wallet, total, amount, req.raw)
+          const txid = await collaborativeExitWithFees(ctx.wallet, plan, amount, req.raw)
           const result = { railId: WALLET_EXIT_RAIL, txid }
           emit({ status: 'settled', result })
           return result
@@ -101,6 +107,8 @@ export interface SendRouterDeps {
   /** sat/vB the L1 claim is priced at; it comes out of the recipient's payout. */
   claimFeeRateSatVb?: number
   outputFee?: () => number
+  /** The operator's programs, which price each coin the exit spends. */
+  intentFee?: () => IntentFeeConfig | undefined
   assets?: Asset[]
 }
 
@@ -113,7 +121,11 @@ export const createSendRouter = (deps: SendRouterDeps): PaymentRouter => {
   if (deps.client && deps.claimFeeRateSatVb) {
     router.use(onchainSwapRail(deps.client, { claimFeeRateSatVb: deps.claimFeeRateSatVb }))
   }
-  if (deps.outputFee) router.use(walletExitRail({ outputFee: deps.outputFee }))
+  if (deps.outputFee) {
+    // Refused at wiring rather than dropped: an exit without the programs declares no intent fee.
+    if (!deps.intentFee) throw new Error('send router: the exit rail needs intentFee alongside outputFee')
+    router.use(walletExitRail({ outputFee: deps.outputFee, intentFee: deps.intentFee }))
+  }
   if (deps.client) router.use(lightningRail(deps.client))
   if (deps.assets) router.use(assetRail({ assets: deps.assets }))
   return router

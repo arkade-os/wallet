@@ -118,7 +118,7 @@ function Harness({ tab = 'a' }: { tab?: string }) {
       <button onClick={() => acceptPay(quote).catch((err: Error) => setRejected(err.name))}>{`Pay ${tab}`}</button>
       <button
         onClick={() =>
-          sendRouter({ outputFee: () => 100 })
+          sendRouter({ outputFee: () => 100, intentFee: () => undefined })
             .then((router) => setRouter(typeof router.options))
             .catch((err: Error) => setRejected(err.name))
         }
