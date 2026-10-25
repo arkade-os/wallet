@@ -38,6 +38,7 @@ import {
   delegateVtxos,
   getTxHistory,
   getUnrolledVtxos,
+  InsufficientFundsError,
   planCollaborativeExit,
   redeemNotes,
   settleVtxos,
@@ -55,6 +56,7 @@ const HOUR = 3_600_000
 const DAY = 24 * HOUR
 // mutinynet's offchain input program as of 2026-10-24.
 const youngCoinFee = { offchainInput: "inputType == 'vtxo' && now() - birth < 86400.0 ? amount * 0.002 : 0.0" }
+const DUST = 330
 
 const aged = (txid: string, value: number, ageMs: number) => ({
   txid,
@@ -154,7 +156,7 @@ describe('collaborativeExitWithFees', () => {
   ) =>
     collaborativeExitWithFees(
       wallet as any,
-      await planCollaborativeExit(wallet as any, inputAmount, intentFee),
+      await planCollaborativeExit(wallet as any, inputAmount, intentFee, DUST),
       outputAmount,
       destination,
     )
@@ -213,7 +215,7 @@ describe('collaborativeExitWithFees', () => {
   it('makes the change pay its own output fee on top of the inputs', async () => {
     const wallet = { ...feeWallet(vi.fn()), getSpendableVtxos: async () => [aged('young', 63_000, HOUR)] }
 
-    const plan = await planCollaborativeExit(wallet as any, 50_000, { ...youngCoinFee, offchainOutput: '200.0' })
+    const plan = await planCollaborativeExit(wallet as any, 50_000, { ...youngCoinFee, offchainOutput: '200.0' }, DUST)
 
     expect(plan.fee).toBe(126 + 200)
     expect(plan.change?.amount).toBe(BigInt(63_000 - 126 - 50_000 - 200))
@@ -223,9 +225,12 @@ describe('collaborativeExitWithFees', () => {
     const wallet = { ...feeWallet(vi.fn()), getSpendableVtxos: async () => [aged('old', 60_050, 2 * DAY)] }
 
     // 10_050 left pays 100, but the 9_950 that would remain costs 200.
-    const plan = await planCollaborativeExit(wallet as any, 50_000, {
-      offchainOutput: 'amount < 10000.0 ? 200.0 : 100.0',
-    })
+    const plan = await planCollaborativeExit(
+      wallet as any,
+      50_000,
+      { offchainOutput: 'amount < 10000.0 ? 200.0 : 100.0' },
+      DUST,
+    )
 
     expect(plan.change?.amount).toBe(BigInt(9_850))
     expect(plan.fee).toBe(200)
@@ -239,6 +244,40 @@ describe('collaborativeExitWithFees', () => {
     await exit(wallet, 61_765, 61_765, youngCoinFee)
 
     expect(settle.mock.calls[0][0].inputs.map((vtxo: { txid: string }) => vtxo.txid)).toEqual(['old'])
+  })
+
+  it('adds a change below dust to the fee, since arkd refuses the output', async () => {
+    const wallet = { ...feeWallet(vi.fn()), getSpendableVtxos: async () => [aged('old', 100_300, 2 * DAY)] }
+
+    const plan = await planCollaborativeExit(wallet as any, 100_000, youngCoinFee, DUST)
+
+    expect(plan).toEqual({ inputs: [expect.objectContaining({ txid: 'old' })], fee: 300 })
+  })
+
+  const assetCoin = {
+    ...aged('assets', 330, HOUR),
+    expiresAt: new Date(Date.now() + DAY),
+    assets: [{ assetId: 'ab'.repeat(34), amount: BigInt(3_886) }],
+  }
+
+  it('refuses rather than leave assets on a change below dust', async () => {
+    const wallet = { ...feeWallet(vi.fn()), getSpendableVtxos: async () => [assetCoin, aged('young', 100_000, HOUR)] }
+
+    await expect(planCollaborativeExit(wallet as any, 100_000, youngCoinFee, DUST)).rejects.toBeInstanceOf(
+      InsufficientFundsError,
+    )
+  })
+
+  it('spends another coin so the change can carry the assets', async () => {
+    const wallet = {
+      ...feeWallet(vi.fn()),
+      getSpendableVtxos: async () => [assetCoin, aged('young', 100_000, HOUR), aged('more', 50_000, HOUR)],
+    }
+
+    const plan = await planCollaborativeExit(wallet as any, 100_000, youngCoinFee, DUST)
+
+    expect(plan.inputs.map((vtxo) => vtxo.txid)).toEqual(['assets', 'young', 'more'])
+    expect(plan.change?.amount).toBe(BigInt(330 - 1 + 100_000 - 200 + 50_000 - 100 - 100_000))
   })
 })
 
