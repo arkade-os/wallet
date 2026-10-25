@@ -45,7 +45,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { asset, type Asset, type NetworkName, type PaymentRouter } from '@arkade-os/sdk'
+import { asset, type Asset, type IntentFeeConfig, type NetworkName, type PaymentRouter } from '@arkade-os/sdk'
 import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
 import {
   arkadeAsset,
@@ -120,7 +120,12 @@ interface SwapsContextProps {
    * the solver rails and offboarding through the costlier exit. `swapsOptional`
    * opts out for a caller with no exit rail to fall to (LNURL): a tab not driving
    * the swap client gets a router without the solver rails instead. */
-  sendRouter: (deps?: { outputFee?: () => number; assets?: Asset[]; swapsOptional?: boolean }) => Promise<PaymentRouter>
+  sendRouter: (deps?: {
+    outputFee?: () => number
+    intentFee?: () => IntentFeeConfig | undefined
+    assets?: Asset[]
+    swapsOptional?: boolean
+  }) => Promise<PaymentRouter>
   /** Where a driven swap stands, or undefined when it is not monitored. */
   outcomeOf: (id: string) => Outcome | undefined
   /** The last error reported for one, cleared when it ends. */
@@ -834,7 +839,12 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const sendRouter = async ({
     swapsOptional,
     ...deps
-  }: { outputFee?: () => number; assets?: Asset[]; swapsOptional?: boolean } = {}): Promise<PaymentRouter> => {
+  }: {
+    outputFee?: () => number
+    intentFee?: () => IntentFeeConfig | undefined
+    assets?: Asset[]
+    swapsOptional?: boolean
+  } = {}): Promise<PaymentRouter> => {
     if (!held.current && granted.current) {
       await Promise.race([granted.current, new Promise((resolve) => setTimeout(resolve, LOCK_GRACE_MS))])
     }

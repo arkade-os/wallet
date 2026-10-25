@@ -135,7 +135,7 @@ function Harness({ tab = 'a' }: { tab?: string }) {
       <span data-testid='routed'>{routed || 'none'}</span>
       <button
         onClick={() =>
-          sendRouter({ outputFee: () => 100 })
+          sendRouter({ outputFee: () => 100, intentFee: () => undefined })
             .then((router) => setRouter(typeof router.options))
             .catch((err: Error) => setRejected(err.name))
         }

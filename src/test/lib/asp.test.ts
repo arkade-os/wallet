@@ -38,7 +38,9 @@ import {
   delegateVtxos,
   getTxHistory,
   getUnrolledVtxos,
+  planCollaborativeExit,
   redeemNotes,
+  settleVtxos,
 } from '../../lib/asp'
 import { saveTransactionActivityMetadata } from '../../lib/storage'
 import { walletFingerprint } from '../../lib/sentry'
@@ -48,6 +50,29 @@ beforeEach(() => {
   localStorage.clear()
   captureException.mockClear()
 })
+
+const HOUR = 3_600_000
+const DAY = 24 * HOUR
+// mutinynet's offchain input program as of 2026-10-24.
+const youngCoinFee = { offchainInput: "inputType == 'vtxo' && now() - birth < 86400.0 ? amount * 0.002 : 0.0" }
+
+const aged = (txid: string, value: number, ageMs: number) => ({
+  txid,
+  vout: 0,
+  value,
+  isSwept: false,
+  createdAt: new Date(Date.now() - ageMs),
+  expiresAt: new Date(Date.now() + 29 * DAY),
+})
+
+const feeWallet = (settle: ReturnType<typeof vi.fn>) => ({
+  settle,
+  getAddress: async () => fixtures.lib.address.ark[0].address,
+  getBoardingAddress: async () => fixtures.lib.address.btc[0],
+})
+
+const declaredFee = ({ inputs, outputs }: { inputs: { value: number }[]; outputs: { amount: bigint }[] }) =>
+  inputs.reduce((sum, input) => sum + input.value, 0) - outputs.reduce((sum, output) => sum + Number(output.amount), 0)
 
 describe('byExpiryAsc', () => {
   it('sorts known expiries ascending and places missing expiry last', () => {
@@ -120,6 +145,20 @@ describe('settle failure reporting', () => {
 })
 
 describe('collaborativeExitWithFees', () => {
+  const exit = async (
+    wallet: unknown,
+    inputAmount: number,
+    outputAmount: number,
+    intentFee: Record<string, string>,
+    destination = fixtures.lib.address.btc[0],
+  ) =>
+    collaborativeExitWithFees(
+      wallet as any,
+      await planCollaborativeExit(wallet as any, inputAmount, intentFee),
+      outputAmount,
+      destination,
+    )
+
   it('selects only coins generic spending may use, as the SDK settle path does', async () => {
     const escrowed = { txid: 'escrowed', vout: 0, value: 5_000, expiresAt: new Date(1_000) }
     const plain = { txid: 'plain', vout: 0, value: 5_000, expiresAt: new Date(2_000) }
@@ -133,7 +172,7 @@ describe('collaborativeExitWithFees', () => {
       getBoardingAddress: async () => fixtures.lib.address.btc[0],
     }
 
-    await collaborativeExitWithFees(wallet as any, 3_000, 2_900, fixtures.lib.address.btc[0])
+    await exit(wallet, 3_000, 2_900, {})
 
     expect(getSpendableVtxos).toHaveBeenCalledWith({ withRecoverable: true, genericallySpendableOnly: true })
     expect(settle.mock.calls[0][0].inputs.map((vtxo: { txid: string }) => vtxo.txid)).toEqual(['plain'])
@@ -145,11 +184,73 @@ describe('collaborativeExitWithFees', () => {
     const refused = new Error('Service worker does not support the requested contract scope or freshness check')
     const wallet = { getVtxos, getSpendableVtxos: vi.fn().mockRejectedValue(refused), settle }
 
-    await expect(collaborativeExitWithFees(wallet as any, 3_000, 2_900, fixtures.lib.address.btc[0])).rejects.toBe(
-      refused,
-    )
+    await expect(exit(wallet, 3_000, 2_900, {})).rejects.toBe(refused)
     expect(getVtxos).not.toHaveBeenCalled()
     expect(settle).not.toHaveBeenCalled()
+  })
+
+  it('pays the intent fee arkd charges a young coin', async () => {
+    const settle = vi.fn().mockResolvedValue('commitment-txid')
+    const wallet = { ...feeWallet(settle), getSpendableVtxos: async () => [aged('young', 63_000, HOUR)] }
+    const destination = fixtures.lib.address.btc[0]
+
+    await exit(wallet, 61_765, 61_765, youngCoinFee, destination)
+
+    const params = settle.mock.calls[0][0]
+    expect(declaredFee(params)).toBe(126)
+    expect(params.outputs.find((o: { address: string }) => o.address === destination).amount).toBe(BigInt(61_765))
+  })
+
+  it('charges a coin past the young window nothing', async () => {
+    const settle = vi.fn().mockResolvedValue('commitment-txid')
+    const wallet = { ...feeWallet(settle), getSpendableVtxos: async () => [aged('old', 63_000, 2 * DAY)] }
+
+    await exit(wallet, 61_765, 61_765, youngCoinFee)
+
+    expect(declaredFee(settle.mock.calls[0][0])).toBe(0)
+  })
+
+  it('makes the change pay its own output fee on top of the inputs', async () => {
+    const wallet = { ...feeWallet(vi.fn()), getSpendableVtxos: async () => [aged('young', 63_000, HOUR)] }
+
+    const plan = await planCollaborativeExit(wallet as any, 50_000, { ...youngCoinFee, offchainOutput: '200.0' })
+
+    expect(plan.fee).toBe(126 + 200)
+    expect(plan.change?.amount).toBe(BigInt(63_000 - 126 - 50_000 - 200))
+  })
+
+  it('prices the change at the amount it is emitted with, not before its fee', async () => {
+    const wallet = { ...feeWallet(vi.fn()), getSpendableVtxos: async () => [aged('old', 60_050, 2 * DAY)] }
+
+    // 10_050 left pays 100, but the 9_950 that would remain costs 200.
+    const plan = await planCollaborativeExit(wallet as any, 50_000, {
+      offchainOutput: 'amount < 10000.0 ? 200.0 : 100.0',
+    })
+
+    expect(plan.change?.amount).toBe(BigInt(9_850))
+    expect(plan.fee).toBe(200)
+  })
+
+  it('spends a coin that owes no intent fee before one that expires sooner', async () => {
+    const settle = vi.fn().mockResolvedValue('commitment-txid')
+    const young = { ...aged('young', 63_000, HOUR), expiresAt: new Date(Date.now() + 5 * DAY) }
+    const wallet = { ...feeWallet(settle), getSpendableVtxos: async () => [aged('old', 63_000, 2 * DAY), young] }
+
+    await exit(wallet, 61_765, 61_765, youngCoinFee)
+
+    expect(settle.mock.calls[0][0].inputs.map((vtxo: { txid: string }) => vtxo.txid)).toEqual(['old'])
+  })
+})
+
+describe('settleVtxos', () => {
+  it('renews net of the intent fee each input owes', async () => {
+    const settle = vi.fn().mockResolvedValue(undefined)
+    const wallet = { ...feeWallet(settle), getBoardingUtxos: async () => [] }
+    const vtxoManager = { getExpiringVtxos: async () => [aged('young', 10_000, HOUR), aged('old', 5_000, 2 * DAY)] }
+
+    await settleVtxos(wallet as any, vtxoManager as any, BigInt(330), DAY, youngCoinFee)
+
+    expect(declaredFee(settle.mock.calls[0][0])).toBe(20)
   })
 })
 
