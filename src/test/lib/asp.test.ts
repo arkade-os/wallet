@@ -39,6 +39,7 @@ import {
   getTxHistory,
   getUnrolledVtxos,
   InsufficientFundsError,
+  maxCollaborativeExit,
   planCollaborativeExit,
   redeemNotes,
   settleVtxos,
@@ -283,6 +284,18 @@ describe('collaborativeExitWithFees', () => {
 
     expect(plan.inputs.map((vtxo) => vtxo.txid)).toEqual(['plain', 'exact', 'carrier'])
     expect(plan).toMatchObject({ fee: 0, change: { amount: BigInt(1_000) } })
+  })
+
+  it('caps a send-max at what the plain coins net, which the planner then spends exactly', async () => {
+    const wallet = { ...feeWallet(vi.fn()), getSpendableVtxos: async () => [aged('young', 100_000, HOUR), assetCoin] }
+
+    const most = await maxCollaborativeExit(wallet as any, youngCoinFee)
+
+    expect(most).toBe(99_800)
+    expect(await planCollaborativeExit(wallet as any, most, youngCoinFee, DUST)).toEqual({
+      inputs: [expect.objectContaining({ txid: 'young' })],
+      fee: 200,
+    })
   })
 
   it('refuses rather than leave assets on a change below dust', async () => {

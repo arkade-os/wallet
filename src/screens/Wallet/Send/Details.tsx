@@ -13,7 +13,7 @@ import { defaultFee } from '../../../lib/constants'
 import { prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
-import { InsufficientFundsError, sendOffChain } from '../../../lib/asp'
+import { InsufficientFundsError, maxCollaborativeExit, sendOffChain } from '../../../lib/asp'
 import {
   ASSET_RAIL,
   ONCHAIN_ROUTE_LOG,
@@ -141,14 +141,23 @@ export default function SendDetails() {
   useEffect(() => {
     if (!pricing || !details?.destination || !details.satoshis) return
     let live = true
-    const settle = (cost?: { fee: number; total: number }) => {
+    const asked = details.satoshis
+    const settle = (cost?: Pick<RouteQuote, 'amount' | 'fee' | 'total'>) => {
       if (!live) return
-      if (cost) setDetails((prev) => (prev ? { ...prev, fees: cost.fee, total: cost.total } : prev))
+      if (cost)
+        setDetails((prev) => (prev ? { ...prev, satoshis: cost.amount, fees: cost.fee, total: cost.total } : prev))
+      if (cost && cost.amount < asked) setNotice(t('send.feesDeductedFromAmount'))
       setPricing(false)
       offerToSign(cost?.total ?? details.total ?? 0)
     }
     const priced = sendRouter({ outputFee: calcOnchainOutputFee, intentFee })
-      .then((router) => previewOnchainCost(router, details.destination!, details.satoshis!))
+      .then(async (router) => {
+        const cost = await previewOnchainCost(router, details.destination!, asked)
+        if (cost || !svcWallet) return cost
+        // As with the exit fee: fees the coins cannot cover on top of the amount come out of it.
+        const most = (await maxCollaborativeExit(svcWallet, intentFee())) - calcOnchainOutputFee()
+        return most > 0 && most < asked ? previewOnchainCost(router, details.destination!, most) : undefined
+      })
       .catch((err) => {
         // The exit rail's own figures stay on screen, and it is what will pay.
         consoleError(err, `${ONCHAIN_ROUTE_LOG} could not price the send`)

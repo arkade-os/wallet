@@ -123,6 +123,22 @@ export interface ExitPlan {
   fee: number
 }
 
+/** Every coin an exit may spend that is worth more than its own intent fee. */
+const exitCandidates = async (wallet: IWallet, estimator: Estimator) => {
+  // The SDK's own settle selector: escrowed, gated and intent-locked coins stay out.
+  const vtxos = await wallet.getSpendableVtxos({ withRecoverable: true, genericallySpendableOnly: true })
+  return vtxos
+    .map((vtxo) => ({ vtxo, inputFee: offchainInputFee(estimator, vtxo) }))
+    .filter(({ vtxo, inputFee }) => inputFee < vtxo.value)
+}
+
+/** The most an exit can cover: every coin without assets, net of its intent fee.
+ *  `planCollaborativeExit` spends exactly those coins for it, leaving no change. */
+export const maxCollaborativeExit = async (wallet: IWallet, intentFee: IntentFeeConfig | undefined): Promise<number> =>
+  (await exitCandidates(wallet, new Estimator(intentFee ?? {})))
+    .filter(({ vtxo }) => !vtxo.assets?.length)
+    .reduce((sum, { vtxo, inputFee }) => sum + vtxo.value - inputFee, 0)
+
 /** The coins an exit spends to cover `inputAmount` (payout plus exit fee) after
  *  each pays its own intent fee, and the change left once it pays for itself.
  *  arkd refuses a change below `dust`, so such a change joins the fee, unless
@@ -133,8 +149,6 @@ export const planCollaborativeExit = async (
   intentFee: IntentFeeConfig | undefined,
   dust: number,
 ): Promise<ExitPlan> => {
-  // The SDK's own settle selector: escrowed, gated and intent-locked coins stay out.
-  const vtxos = await wallet.getSpendableVtxos({ withRecoverable: true, genericallySpendableOnly: true })
   const estimator = new Estimator(intentFee ?? {})
   const inputs = []
   let net = 0
@@ -145,17 +159,14 @@ export const planCollaborativeExit = async (
   // Coins without assets first, since a coin with assets binds the change to dust. Then
   // coins that owe no intent fee, each group by batch expiry ascending (missing expiry
   // last): a young coin's inherited early expiry must not make it pay.
-  const priced = vtxos
-    .map((vtxo) => ({ vtxo, inputFee: offchainInputFee(estimator, vtxo) }))
-    .sort(
-      (a, b) =>
-        Number(Boolean(a.vtxo.assets?.length)) - Number(Boolean(b.vtxo.assets?.length)) ||
-        Number(a.inputFee > 0) - Number(b.inputFee > 0) ||
-        byExpiryAsc(a.vtxo, b.vtxo),
-    )
+  const priced = (await exitCandidates(wallet, estimator)).sort(
+    (a, b) =>
+      Number(Boolean(a.vtxo.assets?.length)) - Number(Boolean(b.vtxo.assets?.length)) ||
+      Number(a.inputFee > 0) - Number(b.inputFee > 0) ||
+      byExpiryAsc(a.vtxo, b.vtxo),
+  )
 
   for (const { vtxo, inputFee } of priced) {
-    if (inputFee >= vtxo.value) continue
     inputs.push(vtxo)
     net += vtxo.value - inputFee
     fee += inputFee
