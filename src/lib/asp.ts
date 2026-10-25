@@ -142,11 +142,17 @@ export const planCollaborativeExit = async (
   let carriesAssets = false
   let changeAddress: string | undefined
 
-  // Coins that owe no intent fee first, each group by batch expiry ascending
-  // (missing expiry last): a young coin's inherited early expiry must not make it pay.
+  // Coins without assets first, since a coin with assets binds the change to dust. Then
+  // coins that owe no intent fee, each group by batch expiry ascending (missing expiry
+  // last): a young coin's inherited early expiry must not make it pay.
   const priced = vtxos
     .map((vtxo) => ({ vtxo, inputFee: offchainInputFee(estimator, vtxo) }))
-    .sort((a, b) => Number(a.inputFee > 0) - Number(b.inputFee > 0) || byExpiryAsc(a.vtxo, b.vtxo))
+    .sort(
+      (a, b) =>
+        Number(Boolean(a.vtxo.assets?.length)) - Number(Boolean(b.vtxo.assets?.length)) ||
+        Number(a.inputFee > 0) - Number(b.inputFee > 0) ||
+        byExpiryAsc(a.vtxo, b.vtxo),
+    )
 
   for (const { vtxo, inputFee } of priced) {
     if (inputFee >= vtxo.value) continue

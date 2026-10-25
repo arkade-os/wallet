@@ -260,6 +260,17 @@ describe('collaborativeExitWithFees', () => {
     assets: [{ assetId: 'ab'.repeat(34), amount: BigInt(3_886) }],
   }
 
+  it('leaves a coin with assets out when the plain coins cover the exit', async () => {
+    const wallet = {
+      ...feeWallet(vi.fn()),
+      getSpendableVtxos: async () => [assetCoin, aged('plain', 100_000, 2 * DAY)],
+    }
+
+    const plan = await planCollaborativeExit(wallet as any, 100_000, { offchainOutput: '1.0' }, DUST)
+
+    expect(plan).toEqual({ inputs: [expect.objectContaining({ txid: 'plain' })], fee: 0 })
+  })
+
   it('refuses rather than leave assets on a change below dust', async () => {
     const wallet = { ...feeWallet(vi.fn()), getSpendableVtxos: async () => [assetCoin, aged('young', 100_000, HOUR)] }
 
@@ -269,15 +280,16 @@ describe('collaborativeExitWithFees', () => {
   })
 
   it('spends another coin so the change can carry the assets', async () => {
+    const moreAssets = { ...aged('more', 50_000, HOUR), assets: assetCoin.assets }
     const wallet = {
       ...feeWallet(vi.fn()),
-      getSpendableVtxos: async () => [assetCoin, aged('young', 100_000, HOUR), aged('more', 50_000, HOUR)],
+      getSpendableVtxos: async () => [assetCoin, aged('young', 100_000, HOUR), moreAssets],
     }
 
     const plan = await planCollaborativeExit(wallet as any, 100_000, youngCoinFee, DUST)
 
-    expect(plan.inputs.map((vtxo) => vtxo.txid)).toEqual(['assets', 'young', 'more'])
-    expect(plan.change?.amount).toBe(BigInt(330 - 1 + 100_000 - 200 + 50_000 - 100 - 100_000))
+    expect(plan.inputs.map((vtxo) => vtxo.txid)).toEqual(['young', 'assets', 'more'])
+    expect(plan.change?.amount).toBe(BigInt(100_000 - 200 + 330 - 1 + 50_000 - 100 - 100_000))
   })
 })
 
