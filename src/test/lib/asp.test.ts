@@ -271,6 +271,20 @@ describe('collaborativeExitWithFees', () => {
     expect(plan).toEqual({ inputs: [expect.objectContaining({ txid: 'plain' })], fee: 0 })
   })
 
+  it('keeps spending when coins with assets cover the exit with no change at all', async () => {
+    const exact = { ...aged('exact', 50_000, 2 * DAY), assets: assetCoin.assets, expiresAt: new Date(Date.now() + DAY) }
+    const carrier = { ...aged('carrier', 1_000, 2 * DAY), assets: assetCoin.assets }
+    const wallet = {
+      ...feeWallet(vi.fn()),
+      getSpendableVtxos: async () => [carrier, exact, aged('plain', 50_000, 2 * DAY)],
+    }
+
+    const plan = await planCollaborativeExit(wallet as any, 100_000, {}, DUST)
+
+    expect(plan.inputs.map((vtxo) => vtxo.txid)).toEqual(['plain', 'exact', 'carrier'])
+    expect(plan).toMatchObject({ fee: 0, change: { amount: BigInt(1_000) } })
+  })
+
   it('refuses rather than leave assets on a change below dust', async () => {
     const wallet = { ...feeWallet(vi.fn()), getSpendableVtxos: async () => [assetCoin, aged('young', 100_000, HOUR)] }
 
