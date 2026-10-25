@@ -289,13 +289,25 @@ describe('collaborativeExitWithFees', () => {
   it('caps a send-max at what the plain coins net, which the planner then spends exactly', async () => {
     const wallet = { ...feeWallet(vi.fn()), getSpendableVtxos: async () => [aged('young', 100_000, HOUR), assetCoin] }
 
-    const most = await maxCollaborativeExit(wallet as any, youngCoinFee)
+    const most = await maxCollaborativeExit(wallet as any, youngCoinFee, DUST)
 
     expect(most).toBe(99_800)
     expect(await planCollaborativeExit(wallet as any, most, youngCoinFee, DUST)).toEqual({
       inputs: [expect.objectContaining({ txid: 'young' })],
       fee: 200,
     })
+  })
+
+  it('counts the BTC on coins with assets in a send-max, keeping a change of dust for the assets', async () => {
+    const richAssets = { ...aged('rich', 50_000, HOUR), assets: assetCoin.assets }
+    const wallet = { ...feeWallet(vi.fn()), getSpendableVtxos: async () => [aged('young', 100_000, HOUR), richAssets] }
+
+    const most = await maxCollaborativeExit(wallet as any, youngCoinFee, DUST)
+    const plan = await planCollaborativeExit(wallet as any, most, youngCoinFee, DUST)
+
+    expect(most).toBe(100_000 - 200 + 50_000 - 100 - DUST)
+    expect(plan.inputs.map((vtxo) => vtxo.txid)).toEqual(['young', 'rich'])
+    expect(plan.change?.amount).toBe(BigInt(DUST))
   })
 
   it('refuses rather than leave assets on a change below dust', async () => {

@@ -7,6 +7,7 @@ import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Details, { DetailsProps } from '../../../components/Details'
 import ErrorMessage from '../../../components/Error'
 import { WalletContext } from '../../../providers/wallet'
+import { AspContext } from '../../../providers/asp'
 import { SwapsContext } from '../../../providers/swaps'
 import Header from '../../../components/Header'
 import { defaultFee } from '../../../lib/constants'
@@ -43,7 +44,8 @@ export default function SendDetails() {
   const { calcOnchainOutputFee, intentFee } = useContext(FeesContext)
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
-  const { assetMetadataCache, balance, reloadWallet, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, availableBalance, balance, reloadWallet, svcWallet } = useContext(WalletContext)
+  const { aspInfo } = useContext(AspContext)
   const { sendRouter } = useContext(SwapsContext)
   const { t } = useTranslation()
 
@@ -153,9 +155,9 @@ export default function SendDetails() {
     const priced = sendRouter({ outputFee: calcOnchainOutputFee, intentFee })
       .then(async (router) => {
         const cost = await previewOnchainCost(router, details.destination!, asked)
-        if (cost || !svcWallet) return cost
-        // As with the exit fee: fees the coins cannot cover on top of the amount come out of it.
-        const most = (await maxCollaborativeExit(svcWallet, intentFee())) - calcOnchainOutputFee()
+        if (cost || !svcWallet || satoshis !== availableBalance) return cost
+        // Max asks for the whole balance, so the fees can only come out of the amount, as the exit fee does.
+        const most = (await maxCollaborativeExit(svcWallet, intentFee(), Number(aspInfo.dust))) - calcOnchainOutputFee()
         return most > 0 && most < asked ? previewOnchainCost(router, details.destination!, most) : undefined
       })
       .catch((err) => {

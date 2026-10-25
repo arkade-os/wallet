@@ -132,12 +132,23 @@ const exitCandidates = async (wallet: IWallet, estimator: Estimator) => {
     .filter(({ vtxo, inputFee }) => inputFee < vtxo.value)
 }
 
-/** The most an exit can cover: every coin without assets, net of its intent fee.
- *  `planCollaborativeExit` spends exactly those coins for it, leaving no change. */
-export const maxCollaborativeExit = async (wallet: IWallet, intentFee: IntentFeeConfig | undefined): Promise<number> =>
-  (await exitCandidates(wallet, new Estimator(intentFee ?? {})))
-    .filter(({ vtxo }) => !vtxo.assets?.length)
-    .reduce((sum, { vtxo, inputFee }) => sum + vtxo.value - inputFee, 0)
+/** The most an exit can cover, which `planCollaborativeExit` then funds exactly: every
+ *  coin net of its intent fee, less a change of `dust` for any assets to stay on, unless
+ *  the coins without assets alone cover more. */
+export const maxCollaborativeExit = async (
+  wallet: IWallet,
+  intentFee: IntentFeeConfig | undefined,
+  dust: number,
+): Promise<number> => {
+  const estimator = new Estimator(intentFee ?? {})
+  const candidates = await exitCandidates(wallet, estimator)
+  const netOf = (coins: typeof candidates) => coins.reduce((sum, { vtxo, inputFee }) => sum + vtxo.value - inputFee, 0)
+  const plain = netOf(candidates.filter(({ vtxo }) => !vtxo.assets?.length))
+  const all = netOf(candidates)
+  if (all === plain) return plain
+  const script = hex.encode(ArkAddress.decode((await getReceivingAddresses(wallet)).offchainAddr).pkScript)
+  return Math.max(plain, all - dust - estimator.evalOffchainOutput({ amount: BigInt(dust), script }).satoshis)
+}
 
 /** The coins an exit spends to cover `inputAmount` (payout plus exit fee) after
  *  each pays its own intent fee, and the change left once it pays for itself.
