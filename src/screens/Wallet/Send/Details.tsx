@@ -144,21 +144,30 @@ export default function SendDetails() {
     if (!pricing || !details?.destination || !details.satoshis) return
     let live = true
     const asked = details.satoshis
-    const settle = (cost?: Pick<RouteQuote, 'amount' | 'fee' | 'total'>) => {
+    type Priced = { cost: Pick<RouteQuote, 'amount' | 'fee' | 'total'>; most?: number }
+    const settle = (priced?: Priced) => {
       if (!live) return
+      const cost = priced?.cost
       if (cost)
         setDetails((prev) => (prev ? { ...prev, satoshis: cost.amount, fees: cost.fee, total: cost.total } : prev))
       if (cost && cost.amount < asked) setNotice(t('send.feesDeductedFromAmount'))
       setPricing(false)
-      offerToSign(cost?.total ?? details.total ?? 0)
+      if (priced?.most === undefined) return offerToSign(cost?.total ?? details.total ?? 0)
+      setButtonLabel(t('send.insufficientFunds'))
+      setError(t('send.insufficientFundsMax', { max: prettyNumber(priced.most) }))
     }
     const priced = sendRouter({ outputFee: calcOnchainOutputFee, intentFee })
-      .then(async (router) => {
+      .then(async (router): Promise<Priced | undefined> => {
         const cost = await previewOnchainCost(router, details.destination!, asked)
-        if (cost || !svcWallet || satoshis !== availableBalance) return cost
-        // Max asks for the whole balance, so the fees can only come out of the amount, as the exit fee does.
+        if (cost || !svcWallet) return cost && { cost }
         const most = (await maxCollaborativeExit(svcWallet, intentFee(), Number(aspInfo.dust))) - calcOnchainOutputFee()
-        return most > 0 && most < asked ? previewOnchainCost(router, details.destination!, most) : undefined
+        const atMost =
+          most > 0 && most < asked ? await previewOnchainCost(router, details.destination!, most) : undefined
+        if (!atMost) return undefined
+        // Max asks for the whole balance, so the fees can only come out of the amount, as the exit fee does.
+        if (satoshis === availableBalance) return { cost: atMost }
+        // Any other amount stays as asked, at the fee of spending every coin: more than they hold.
+        return { cost: { amount: asked, fee: atMost.fee, total: asked + atMost.fee }, most }
       })
       .catch((err) => {
         // The exit rail's own figures stay on screen, and it is what will pay.

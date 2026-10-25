@@ -408,7 +408,7 @@ describe('signing an on-chain send', () => {
       createdAt: new Date(),
       expiresAt: new Date(Date.now() + 7 * 86_400_000),
     }
-    const renderBoarded = (availableBalance: number) => {
+    const renderBoarded = (satoshis: number, availableBalance: number) => {
       optionsFor = (req) => [
         {
           railId: 'onchain',
@@ -419,7 +419,7 @@ describe('signing an on-chain send', () => {
         },
       ]
       renderSign(
-        { address: ADDRESS, satoshis: 100_000 },
+        { address: ADDRESS, satoshis },
         {
           outputFee: 0,
           config: satsConfig,
@@ -431,7 +431,7 @@ describe('signing an on-chain send', () => {
     }
 
     it('takes them out of a send-max', async () => {
-      renderBoarded(100_000)
+      renderBoarded(100_000, 100_000)
 
       expect(await screen.findByText(/deducted from the amount/i)).toBeTruthy()
       expect(screen.getByTestId('Total')).toHaveTextContent(/100.?000/)
@@ -442,12 +442,13 @@ describe('signing an on-chain send', () => {
       )
     })
 
-    it('refuses a specific amount rather than send less', async () => {
-      renderBoarded(150_000)
-      await sign()
+    it('refuses a specific amount before signing, with the fee and the most it can send', async () => {
+      renderBoarded(99_999, 100_000)
 
-      await waitFor(() => expect(sendFailure()).toBeDefined())
-      expect(String(sendFailure())).toMatch(/insufficient funds/i)
+      expect(await screen.findByText(/send up to 99,800 sats/i)).toBeTruthy()
+      expect(screen.getByTestId('Network fees')).toHaveTextContent(/200/)
+      expect(screen.getByTestId('Total')).toHaveTextContent(/100.?199/)
+      expect(screen.queryByText('Tap to Sign')).toBeNull()
       expect(screen.queryByText(/deducted from the amount/i)).toBeNull()
       expect(collaborativeExitWithFees).not.toHaveBeenCalled()
     })
