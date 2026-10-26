@@ -13,7 +13,7 @@ import { defaultFee } from '../../../lib/constants'
 import { prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
-import { sendOffChain } from '../../../lib/asp'
+import { InsufficientFundsError, sendOffChain } from '../../../lib/asp'
 import {
   ASSET_RAIL,
   ONCHAIN_ROUTE_LOG,
@@ -40,7 +40,7 @@ export default function SendDetails() {
   const displayContext = useAmountDisplayContext()
   const { navigate } = useContext(NavigationContext)
   const { appIntent, sendInfo, setAppIntent, setSendInfo } = useContext(FlowContext)
-  const { calcOnchainOutputFee } = useContext(FeesContext)
+  const { calcOnchainOutputFee, intentFee } = useContext(FeesContext)
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { assetMetadataCache, balance, reloadWallet, svcWallet } = useContext(WalletContext)
@@ -55,6 +55,7 @@ export default function SendDetails() {
   const [buttonLabel, setButtonLabel] = useState('')
   const [details, setDetails] = useState<DetailsProps>()
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [pricing, setPricing] = useState(false)
   const [sending, setSending] = useState(false)
   const [sendDone, setSendDone] = useState(false)
@@ -146,7 +147,7 @@ export default function SendDetails() {
       setPricing(false)
       offerToSign(cost?.total ?? details.total ?? 0)
     }
-    const priced = sendRouter({ outputFee: calcOnchainOutputFee })
+    const priced = sendRouter({ outputFee: calcOnchainOutputFee, intentFee })
       .then((router) => previewOnchainCost(router, details.destination!, details.satoshis!))
       .catch((err) => {
         // The exit rail's own figures stay on screen, and it is what will pay.
@@ -242,9 +243,12 @@ export default function SendDetails() {
    *  what THIS screen is showing — at the moment of the spend, so no carried
    *  quote exists to go stale. A rail that cannot quote is skipped. */
   const payOnchain = async (address: string, shown: DetailsProps): Promise<void> => {
-    const router = await sendRouter({ outputFee: calcOnchainOutputFee })
+    const router = await sendRouter({ outputFee: calcOnchainOutputFee, intentFee })
     // Receiver-exact: "what leaves" was subtracted when `details` was built.
     const options = await router.options({ raw: address, amount: shown.satoshis! })
+    let repriced: RouteQuote | undefined
+    let insufficient = false
+    let otherwiseRefused = false
 
     for (const option of options) {
       let quote
@@ -252,9 +256,13 @@ export default function SendDetails() {
         quote = await option.quote()
       } catch (err) {
         consoleError(err, `${ONCHAIN_ROUTE_LOG} ${option.railId} could not quote`)
+        if (err instanceof InsufficientFundsError) insufficient = true
+        else otherwiseRefused = true
         continue
       }
       if (!quoteIsForThisSend(quote, shown, address)) {
+        if (quoteIsForThisSend({ ...quote, total: shown.total ?? 0 }, shown, address)) repriced ??= quote
+        else otherwiseRefused = true
         consoleLog(
           `${ONCHAIN_ROUTE_LOG} ${option.railId} refused: quote pays ${quote.amount} for ${quote.total}, ` +
             `screen shows ${shown.satoshis} for ${shown.total} to ${shown.destination}`,
@@ -269,7 +277,17 @@ export default function SendDetails() {
       const result = await fundedResult(await quote.send())
       return handleSent(result?.txid, quote.total, quote.fee, option.railId, result?.swapId)
     }
+    if (repriced) return askToSignAgain(repriced)
+    if (insufficient && !otherwiseRefused) throw new Error(t('send.insufficientFunds'))
     throw new Error('No route for this payment')
+  }
+
+  /** A rail that now costs more is shown, never paid: the new total needs its own tap. */
+  const askToSignAgain = ({ fee, total }: Pick<RouteQuote, 'fee' | 'total'>) => {
+    setDetails((prev) => (prev ? { ...prev, fees: fee, total } : prev))
+    setNotice(t('send.feeChanged'))
+    offerToSign(total)
+    setSending(false)
   }
 
   const handleContinue = async () => {
@@ -280,6 +298,7 @@ export default function SendDetails() {
       return
     }
 
+    setNotice('')
     setSending(true)
 
     if (isAssetSend && arkAddress) {
@@ -334,7 +353,7 @@ export default function SendDetails() {
         ) : (
           <Padded>
             <FlexCol>
-              <ErrorMessage error={Boolean(error)} text={error} />
+              <ErrorMessage error={Boolean(error || notice)} text={error || notice} />
               {details && amountDisplay ? (
                 <TransactionAmountSummary amount={amountDisplay} label={t('send.amountSent')} />
               ) : null}

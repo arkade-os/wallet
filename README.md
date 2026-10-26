@@ -91,7 +91,7 @@ Pages. Both are static, so:
 
 ### Prerequisites
 
-- Node.js v24.15.0 (see `.nvmrc`)
+- Node.js v24.22.1 (see `.nvmrc`)
 - PNPM >=8
 
 ### Installation
