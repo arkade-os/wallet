@@ -4,6 +4,7 @@ import { makeHandle } from '@arkade-os/sdk'
 import { PRICING_BUDGET_MS } from '../../../lib/sendRouter'
 import SendDetails from '../../../screens/Wallet/Send/Details'
 import { readAllTransactionActivityMetadata } from '../../../lib/storage'
+import { InsufficientFundsError } from '../../../lib/asp'
 import { Unit } from '../../../lib/types'
 import { AspContext } from '../../../providers/asp'
 import { ConfigContext } from '../../../providers/config'
@@ -352,6 +353,40 @@ describe('signing an on-chain send', () => {
 
     await waitFor(() => expect(collaborativeExitWithFees).toHaveBeenCalledTimes(1))
     expect(sent).not.toHaveBeenCalled()
+  })
+
+  it('shows a total that rose since pricing and pays it only on a second signature', async () => {
+    const sent = vi.fn()
+    const solver = solverThatGetsDearer({ amount: 40_000, total: 40_754 }, { amount: 40_000, total: 41_000 }, sent)
+    optionsFor = () => [solver()]
+    renderSign({ address: ADDRESS, satoshis: 40_000 }, { outputFee: 0, config: satsConfig })
+
+    expect(await screen.findByTestId('Total')).toHaveTextContent(/40.?754/)
+    await sign()
+
+    expect(await screen.findByText(/fee changed/i)).toBeTruthy()
+    expect(screen.getByTestId('Total')).toHaveTextContent(/41.?000/)
+    expect(sent).not.toHaveBeenCalled()
+
+    await sign()
+    await waitFor(() => expect(sent).toHaveBeenCalledTimes(1))
+    expect(sendFailure()).toBeUndefined()
+  })
+
+  it('reports insufficient funds when that is the only reason no rail paid', async () => {
+    optionsFor = () => [
+      {
+        railId: 'onchain',
+        quote: async () => {
+          throw new InsufficientFundsError()
+        },
+      },
+    ]
+    renderSign({ address: ADDRESS, satoshis: 10_000 })
+    await sign()
+
+    await waitFor(() => expect(sendFailure()).toBeDefined())
+    expect(String(sendFailure())).toMatch(/insufficient funds/i)
   })
 
   it('funds the solver when its quote is the send the screen is showing', async () => {
