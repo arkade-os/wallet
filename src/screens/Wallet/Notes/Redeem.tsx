@@ -27,7 +27,7 @@ export default function NotesRedeem() {
   const defaultButtonLabel = t('notes.redeemNote')
 
   const [buttonLabel, setButtonLabel] = useState(defaultButtonLabel)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(noteInfo.error ?? '')
   const [redeeming, setRedeeming] = useState(false)
 
   useEffect(() => {
