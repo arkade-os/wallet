@@ -1,20 +1,18 @@
-import { useContext, useState } from 'react'
-import Scanner from '@/components/Scanner'
+import { useContext } from 'react'
+import { ArkNote } from '@arkade-os/sdk'
+import { isArkNote } from '@/lib/arknote'
 import { consoleError } from '@/lib/logs'
+import Scanner from '@/components/Scanner'
 import { useTranslation } from '@/providers/language'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { emptySendInfo, FlowContext } from '@/providers/flow'
 import { overlaySlideUp, overlayStyle } from '@/lib/animations'
 import { NavigationContext, Pages } from '@/providers/navigation'
-import { isArkNote } from '@/lib/arknote'
-import { ArkNote } from '@arkade-os/sdk'
 
 export default function WalletScan() {
   const { setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { replace, goBack } = useContext(NavigationContext)
-
-  const [error, setError] = useState('')
 
   const prefersReducedMotion = useReducedMotion()
   const { t } = useTranslation()
@@ -27,9 +25,8 @@ export default function WalletScan() {
       } catch (err) {
         consoleError(err, 'error parsing ark note')
         setNoteInfo({ note: recipient, satoshis: 0, error: t('receive.invalidNote') })
-      } finally {
-        return replace(Pages.NotesRedeem)
       }
+      return replace(Pages.NotesRedeem)
     } else {
       setSendInfo({ ...emptySendInfo, recipient })
       replace(Pages.SendForm)
@@ -43,17 +40,12 @@ export default function WalletScan() {
       close={goBack}
       onData={handleData}
       label={t('components.scanQr')}
-      onError={(err: string) => {
-        consoleError(err, 'WalletScan')
-        setError(err)
-      }}
+      onError={(err: string) => consoleError(err, 'WalletScan')}
     />
   )
 
-  const body = error ? <div>{error}</div> : scanner
-
   return prefersReducedMotion ? (
-    <div style={sendOverlayStyle}>{body}</div>
+    <div style={sendOverlayStyle}>{scanner}</div>
   ) : (
     <AnimatePresence>
       <motion.div
@@ -64,7 +56,7 @@ export default function WalletScan() {
         style={sendOverlayStyle}
         variants={overlaySlideUp}
       >
-        {body}
+        {scanner}
       </motion.div>
     </AnimatePresence>
   )
