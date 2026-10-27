@@ -311,6 +311,19 @@ describe('SwapsProvider single-driver rule', () => {
     expect(vi.mocked(createSendRouter).mock.calls[0][0].client).toBe(client)
   })
 
+  it('builds an optional router without the client when the client failed to start', async () => {
+    ready.mockRejectedValue(new Error('swap repository unreadable'))
+    renderProvider()
+    await waitFor(() => expect(reloadWallet).toHaveBeenCalled())
+
+    await userEvent.click(screen.getByText('Route a'))
+    await waitFor(() => expect(screen.getByTestId('routed')).toHaveTextContent('router'))
+    expect(vi.mocked(createSendRouter).mock.calls[0][0].client).toBeUndefined()
+
+    await userEvent.click(screen.getByText('Router a'))
+    await waitFor(() => expect(screen.getByTestId('rejected')).toHaveTextContent('Error'))
+  })
+
   it('waits for onchain fees on the normal driver router and retains the returned rate', async () => {
     let finishFee!: (rate: number) => void
     claimFeeRate.mockReturnValue(new Promise<number>((resolve) => (finishFee = resolve)))

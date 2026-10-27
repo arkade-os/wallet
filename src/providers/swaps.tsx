@@ -851,9 +851,12 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     // A router cannot cross to the driving tab, so without the client here it is built without it.
     if (swapsOptional && !held.current) return createSendRouter({ wallet: svcWallet!, ...deps })
     if (!held.current) throw new SwapsHeldElsewhere()
+    // LNURL keeps the local Lightning client but needs no onchain claim fee, and no client that failed to start.
+    if (swapsOptional) {
+      const client = await driving().catch(() => undefined)
+      return createSendRouter({ wallet: svcWallet!, client, ...deps })
+    }
     const client = await driving()
-    // LNURL keeps the local Lightning client but needs no onchain claim fee.
-    if (swapsOptional) return createSendRouter({ wallet: svcWallet!, client, ...deps })
     const claimFeeRateSatVb = await claimFeeRate(onchainClaimEndpoint(aspInfo.network as NetworkName))
     return createSendRouter({
       wallet: svcWallet!,
