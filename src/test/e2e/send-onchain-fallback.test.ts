@@ -102,7 +102,9 @@ test.describe('on-chain send when the solver rail fails', () => {
     await page.getByTestId('loading-logo').waitFor({ timeout: 10_000 })
     await page.waitForSelector('text=Payment sent', { timeout: 60_000 })
 
-    await expectRoute(page, /no relay accepted/)
+    // The transport's eager subscription usually sees the refused socket first and fails
+    // fast (RelayUnavailable); if the RFQ publish wins the race, the publish refusal reports it.
+    await expectRoute(page, /lost every relay connection: wss:\/\/localhost:9\/?: connection failed|no relay accepted/)
     await page.getByRole('button', { name: /Sounds good|Tap to go home/ }).click()
     await page.waitForSelector(`text=- ${prettyNumber(SENT)} sats`, { timeout: 30_000 })
   })

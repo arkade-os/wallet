@@ -35,6 +35,9 @@ const keepEnglishTermAllowList = new Set([
   'settings.feedback',
   'settings.general',
   'settings.solvers',
+  'solvers.fieldBase',
+  'solvers.fieldRelays',
+  'solvers.originalLabel',
   'transaction.boarding',
   'transaction.swap',
   'transaction.totalTicker',
@@ -61,6 +64,18 @@ function resolve(dict: unknown, key: string): unknown {
   }, dict)
 }
 
+function collectUsedKeys(): Set<string> {
+  const files = import.meta.glob('../../**/*.{ts,tsx}', { query: '?raw', import: 'default', eager: true })
+  const used = new Set<string>()
+  for (const raw of Object.values(files)) {
+    const content = (raw ?? '') as string
+    if (!content) continue
+    for (const match of content.matchAll(/\bt\(\s*['"]([A-Za-z0-9_.]+)['"]/g)) used.add(match[1])
+    for (const match of content.matchAll(/translate\([^)]*?,\s*['"]([A-Za-z0-9_.]+)['"]/g)) used.add(match[1])
+  }
+  return used
+}
+
 describe('i18n dictionary integrity', () => {
   const englishSet = new Set(collectLeafKeys(translations.en))
 
@@ -73,16 +88,16 @@ describe('i18n dictionary integrity', () => {
   })
 
   it('every t()/translate() key used in source resolves in the EN dictionary', () => {
-    const files = import.meta.glob('../../**/*.{ts,tsx}', { query: '?raw', import: 'default', eager: true })
-    const used = new Set<string>()
-    for (const raw of Object.values(files)) {
-      const content = (raw ?? '') as string
-      if (!content) continue
-      for (const match of content.matchAll(/\bt\(\s*['"]([A-Za-z0-9_.]+)['"]/g)) used.add(match[1])
-      for (const match of content.matchAll(/translate\([^)]*?,\s*['"]([A-Za-z0-9_.]+)['"]/g)) used.add(match[1])
-    }
+    const used = collectUsedKeys()
     const missing = [...used].filter((key) => typeof resolve(translations.en, key) !== 'string').sort()
     expect(missing).toEqual([])
+  })
+
+  it.skip('theres no unused keys in the translations object', () => {
+    const used = collectUsedKeys()
+    const allKeys = new Set(collectLeafKeys(translations.en))
+    const unused = [...allKeys].filter((key) => !used.has(key)).sort()
+    expect(unused).toEqual([])
   })
 
   it('language values are real translations unless the term is universal/technical', () => {

@@ -53,3 +53,19 @@ test('should show an error when adding an invalid solver card', async ({ page })
   await expect(page.getByText(/invalid card:/)).toBeVisible()
   await page.getByRole('button', { name: 'Cancel' }).click()
 })
+test('should show solver card info in the detail view', async ({ page }) => {
+  test.setTimeout(10_000)
+  await createWallet(page)
+
+  await navigateToSettings(page)
+  await page.getByText(tr.settings.advanced, { exact: true }).click()
+  await page.getByText(tr.settings.solvers, { exact: true }).click()
+
+  await page.getByRole('button', { name: '+ Add new' }).click()
+  await page.locator('textarea').fill(JSON.stringify(mockSolverCard))
+  await page.getByRole('button', { name: 'Save' }).click()
+
+  await expect(page.getByText(mockSolverCard.name)).toBeVisible()
+  await page.getByRole('button', { name: 'Info' }).click()
+  await expect(page.getByText(tr.solvers.cardInfo)).toBeVisible()
+})

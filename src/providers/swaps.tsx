@@ -45,7 +45,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { asset, type Asset, type NetworkName, type PaymentRouter } from '@arkade-os/sdk'
+import { asset, type Asset, type IntentFeeConfig, type NetworkName, type PaymentRouter } from '@arkade-os/sdk'
 import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
 import {
   arkadeAsset,
@@ -118,7 +118,11 @@ interface SwapsContextProps {
   receiveLightning: (amountSats: number) => Promise<AcceptedLnReceive>
   /** The send path's router. Throws `SwapsHeldElsewhere` rather than dropping
    * the solver rails and offboarding through the costlier exit. */
-  sendRouter: (deps?: { outputFee?: () => number; assets?: Asset[] }) => Promise<PaymentRouter>
+  sendRouter: (deps?: {
+    outputFee?: () => number
+    intentFee?: () => IntentFeeConfig | undefined
+    assets?: Asset[]
+  }) => Promise<PaymentRouter>
   /** Where a driven swap stands, or undefined when it is not monitored. */
   outcomeOf: (id: string) => Outcome | undefined
   /** The last error reported for one, cleared when it ends. */
@@ -829,14 +833,22 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
   /** The fee rate is read per router, not pinned: the solver rail grosses the
    *  take leg up by it, so a stale one short-pays the recipient. */
-  const sendRouter = async (deps: { outputFee?: () => number; assets?: Asset[] } = {}): Promise<PaymentRouter> => {
+  const sendRouter = async (
+    deps: { outputFee?: () => number; intentFee?: () => IntentFeeConfig | undefined; assets?: Asset[] } = {},
+  ): Promise<PaymentRouter> => {
     if (!held.current && granted.current) {
       await Promise.race([granted.current, new Promise((resolve) => setTimeout(resolve, LOCK_GRACE_MS))])
     }
     if (!held.current) throw new SwapsHeldElsewhere()
     const client = await driving()
     const claimFeeRateSatVb = await claimFeeRate(onchainClaimEndpoint(aspInfo.network as NetworkName))
-    return createSendRouter({ wallet: svcWallet!, client, claimFeeRateSatVb, ...deps })
+    return createSendRouter({
+      wallet: svcWallet!,
+      client,
+      claimFeeRateSatVb,
+      dust: () => Number(aspInfo.dust),
+      ...deps,
+    })
   }
 
   const outcomeOf = useCallback((id: string) => outcomes.get(id), [outcomes])
@@ -861,7 +873,18 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     }),
     // the actions close over these
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [markets, swapAvailable, swaps, svcWallet, emulatorPubkey, aspInfo.url, aspInfo.network, outcomeOf, errorOf],
+    [
+      markets,
+      swapAvailable,
+      swaps,
+      svcWallet,
+      emulatorPubkey,
+      aspInfo.url,
+      aspInfo.network,
+      aspInfo.dust,
+      outcomeOf,
+      errorOf,
+    ],
   )
 
   return <SwapsContext.Provider value={value}>{children}</SwapsContext.Provider>
