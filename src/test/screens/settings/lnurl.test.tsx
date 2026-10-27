@@ -76,14 +76,14 @@ describe('Lightning address settings', () => {
     renderPage({ modes: ['self'], capabilitiesFail: true })
 
     expect(await screen.findByText('domain lookup failed')).toBeInTheDocument()
-    expect(screen.queryByPlaceholderText('Choose a name')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Claim name' })).not.toBeInTheDocument()
   })
 
   it('says why a nameless address cannot be named when the domain lookup fails', async () => {
     renderPage({ modes: ['self'], addresses: [namelessAddress()], capabilitiesFail: true })
 
     expect(await screen.findByText('domain lookup failed')).toBeInTheDocument()
-    expect(screen.queryByPlaceholderText('Choose a name')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Claim name' })).not.toBeInTheDocument()
   })
 
   it("says why when the wallet's own addresses cannot load, rather than loading forever", async () => {
@@ -107,14 +107,25 @@ describe('Lightning address settings', () => {
     expect(screen.queryByText('LNURL1ALICE')).not.toBeInTheDocument()
   })
 
-  it('claims a reserved name with its claim code', async () => {
-    const server = renderPage({ modes: ['admin'] })
+  const claimInSheet = async (username: string, claimCode: string) => {
+    fireEvent.click(await screen.findByRole('button', { name: 'Claim name' }))
+    const sheet = within(screen.getByTestId('sheet-modal'))
+    fireEvent.change(sheet.getByPlaceholderText('Choose a name'), { target: { value: username } })
+    expect(sheet.queryByPlaceholderText('Claim code')).not.toBeInTheDocument()
+    fireEvent.click(sheet.getByRole('link', { name: 'I have a claim code' }))
+    fireEvent.change(sheet.getByPlaceholderText('Claim code'), { target: { value: claimCode } })
+    fireEvent.click(sheet.getByRole('button', { name: 'Claim name' }))
+  }
 
-    fireEvent.change(await screen.findByPlaceholderText('Choose a name'), { target: { value: 'vip' } })
-    fireEvent.change(screen.getByPlaceholderText('Claim code'), { target: { value: 'secret' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Claim name' }))
+  it('claims a reserved name with its claim code, from a sheet that closes once named', async () => {
+    const server = renderPage({ modes: ['admin', 'random'] })
+    expect(await screen.findByRole('button', { name: 'Pick one for me' })).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('Choose a name')).not.toBeInTheDocument()
+
+    await claimInSheet('vip', 'secret')
 
     expect(await screen.findByText('vip@lnurl.test')).toBeInTheDocument()
+    expect(screen.queryByTestId('sheet-modal')).not.toBeInTheDocument()
     const [, init] = server.calls('POST', '/lnurl/address')[0]
     expect(JSON.parse(init!.body as string)).toMatchObject({ username: 'vip', claimCode: 'secret' })
   })
@@ -122,9 +133,7 @@ describe('Lightning address settings', () => {
   it('names a nameless address with a claim code, in place', async () => {
     const server = renderPage({ modes: ['admin', 'session'], addresses: [namelessAddress()] })
 
-    fireEvent.change(await screen.findByPlaceholderText('Choose a name'), { target: { value: 'vip' } })
-    fireEvent.change(screen.getByPlaceholderText('Claim code'), { target: { value: 'secret' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Claim name' }))
+    await claimInSheet('vip', 'secret')
 
     expect(await screen.findByText('vip@lnurl.test')).toBeInTheDocument()
     expect(server.calls('PATCH', '/lnurl/address/sess1')).toHaveLength(1)

@@ -49,6 +49,7 @@ export function NameForm({
   const { t } = useTranslation()
   const [username, setUsername] = useState('')
   const [claimCode, setClaimCode] = useState('')
+  const [hasCode, setHasCode] = useState(false)
   const self = choices.includes('self')
   const admin = choices.includes('admin')
   const canClaim = Boolean(username) && (self || Boolean(claimCode))
@@ -58,14 +59,27 @@ export function NameForm({
       {self || admin ? (
         <>
           <Input name='lnurl-username' placeholder={t('receive.chooseName')} value={username} onChange={setUsername} />
-          {admin ? (
+          {admin && hasCode ? (
             <Input
               name='lnurl-claim-code'
+              focus
               label={self ? t('receive.claimCodeOptional') : t('receive.claimCode')}
               placeholder={t('receive.claimCode')}
               value={claimCode}
               onChange={setClaimCode}
             />
+          ) : admin ? (
+            <TextSecondary>
+              <a
+                href='#'
+                onClick={(event) => {
+                  event.preventDefault()
+                  setHasCode(true)
+                }}
+              >
+                {t('receive.haveClaimCode')}
+              </a>
+            </TextSecondary>
           ) : null}
           <Button
             label={t('receive.claimName')}

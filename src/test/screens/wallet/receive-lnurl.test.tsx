@@ -335,7 +335,7 @@ describe('Receive screen, lnurl onboarding', () => {
   const controls = {
     self: () => screen.queryByPlaceholderText('Choose a name'),
     random: () => screen.queryByRole('button', { name: 'Pick one for me' }),
-    admin: () => screen.queryByPlaceholderText('Claim code'),
+    admin: () => screen.queryByText('I have a claim code'),
   }
   const claims = () => server.calls('POST', '/lnurl/address')
 

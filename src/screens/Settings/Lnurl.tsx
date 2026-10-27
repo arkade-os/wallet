@@ -20,6 +20,7 @@ import { extractError } from '../../lib/error'
 import ErrorMessage from '../../components/Error'
 import { NameForm } from '../Wallet/Receive/LnurlRail'
 import type { AddressListEntry } from '@arkade-os/lnurl-client'
+import type { NameOptions } from '@arkade-os/lnurl-client/arkade'
 
 // Kept in announcementsSeen: the explainer is a one-time notice, shown before the first opt-in only.
 export const TOKEN_EXPLAINER = 'token rails explainer'
@@ -35,6 +36,7 @@ export default function Lnurl() {
   const [limitsError, setLimitsError] = useState('')
   const [tokens, setTokens] = useState<LnurlTokenRail[]>([])
   const [explaining, setExplaining] = useState(false)
+  const [claiming, setClaiming] = useState(false)
   const [owned, setOwned] = useState<AddressListEntry[]>([])
   const [addressesError, setAddressesError] = useState('')
 
@@ -105,6 +107,8 @@ export default function Lnurl() {
     ...(server ? [[t('settings.lnurlServer'), server.domain] as [string, string]] : []),
   ]
   const namingChoices = rail.receiver?.lightningAddress ? [] : rail.choices.filter((c) => c !== 'session')
+  const naming = namingChoices.length > 0 && rail.status !== 'failed'
+  const name = (opts: NameOptions) => (rail.receiver ? rail.upgrade(opts) : rail.claim(opts))
   const sendable: TableData = limits.map(({ type, min, max }) => [
     railLabels[type] ?? type,
     `${prettyNumber(min, 0)} – ${prettyNumber(max, 0)} sats`,
@@ -149,14 +153,15 @@ export default function Lnurl() {
                 </TextSecondary>
               )}
             </section>
-            {namingChoices.length > 0 && rail.status !== 'failed' ? (
+            {naming ? (
               <section className='settings-section'>
                 <p className='settings-section-label'>{t('settings.lnurlAddName')}</p>
-                <NameForm
-                  choices={namingChoices}
-                  busy={rail.busy}
-                  onName={(opts) => (rail.receiver ? rail.upgrade(opts) : rail.claim(opts))}
-                />
+                {namingChoices.some((c) => c !== 'random') ? (
+                  <Button label={t('receive.claimName')} disabled={rail.busy} onClick={() => setClaiming(true)} />
+                ) : null}
+                {namingChoices.includes('random') ? (
+                  <Button label={t('receive.pickForMe')} disabled={rail.busy} onClick={() => name({})} secondary />
+                ) : null}
                 <ErrorMessage error={Boolean(rail.error)} text={rail.error} />
               </section>
             ) : null}
@@ -182,6 +187,16 @@ export default function Lnurl() {
           </FlexCol>
         </Padded>
       </Content>
+
+      <SheetModal isOpen={claiming ? naming : false} onClose={() => setClaiming(false)}>
+        <FlexCol gap='1rem' padding='0.5rem 0'>
+          <Text big bold>
+            {t('receive.claimName')}
+          </Text>
+          <NameForm choices={namingChoices.filter((c) => c !== 'random')} busy={rail.busy} onName={name} />
+          <ErrorMessage error={Boolean(rail.error)} text={rail.error} />
+        </FlexCol>
+      </SheetModal>
 
       <SheetModal isOpen={explaining} onClose={() => setExplaining(false)}>
         <FlexCol gap='1rem' padding='0.5rem 0'>
