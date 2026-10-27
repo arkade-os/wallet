@@ -601,7 +601,10 @@ export default function ReceiveQRCode() {
                   </Text>
                 ) : null}
               </div>
-              <LnurlRailPanel rail={lnurlRail} />
+              <LnurlRailPanel
+                rail={lnurlRail}
+                showAddress={activeMethod === 'unified' || activeMethod === 'lightning'}
+              />
             </FlexCol>
           )}
         </Padded>

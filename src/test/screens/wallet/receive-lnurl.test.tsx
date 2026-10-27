@@ -258,6 +258,19 @@ describe('Receive screen, rail composition', () => {
     expect(copyToClipboard.mock.calls.at(-1)![0]).toBe('alice@lnurl.test')
   })
 
+  it('shows the lightning address on Unified and Lightning only, and copies it on tap', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    renderReceive()
+
+    const address = await screen.findByText('alice@lnurl.test')
+    await act(async () => fireEvent.click(address))
+    expect(copyToClipboard).toHaveBeenLastCalledWith('alice@lnurl.test')
+    fireEvent.click(screen.getByText('Arkade'))
+    expect(screen.queryByText('alice@lnurl.test')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('Lightning'))
+    expect(screen.getByText('alice@lnurl.test')).toBeInTheDocument()
+  })
+
   it('shows a nameless receiver its LNURL when Lightning is selected', async () => {
     serve({ modes: ['session'], addresses: [namelessAddress()] })
     renderReceive()

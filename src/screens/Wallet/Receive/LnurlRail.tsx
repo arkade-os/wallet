@@ -11,7 +11,7 @@ import { useTranslation } from '../../../providers/language'
 // Reserved names (claim codes) are named from Settings only, so Receive stays one tap for everyone else.
 const RECEIVE_CHOICES: OnboardingChoice[] = ['self', 'random']
 
-export default function LnurlRailPanel({ rail }: { rail: LnurlRail }) {
+export default function LnurlRailPanel({ rail, showAddress }: { rail: LnurlRail; showAddress: boolean }) {
   const { t } = useTranslation()
   const [naming, setNaming] = useState(false)
 
@@ -21,7 +21,12 @@ export default function LnurlRailPanel({ rail }: { rail: LnurlRail }) {
 
   const address = rail.receiver?.lightningAddress
   // No error to show: bootstrap never fetches capabilities for a named receiver, and naming is offered only while nameless.
-  if (address) return <Text centered>{address}</Text>
+  if (address)
+    return showAddress ? (
+      <Text centered copy={address}>
+        {address}
+      </Text>
+    ) : null
 
   const choices = rail.choices.includes('self') ? rail.choices.filter((c) => RECEIVE_CHOICES.includes(c)) : []
   const onName = (opts: NameOptions) => (rail.receiver ? rail.upgrade(opts) : rail.claim(opts))
@@ -52,15 +57,28 @@ export function NameForm({
   const [hasCode, setHasCode] = useState(false)
   const self = choices.includes('self')
   const admin = choices.includes('admin')
-  const code = hasCode ? claimCode : ''
+  // Without `self` a chosen name needs a code, so the code is asked for first and never hidden.
+  const codeFirst = admin && !self
+  const code = codeFirst || hasCode ? claimCode : ''
   const canClaim = Boolean(username) && (self || Boolean(code))
+  const codeInput = (
+    <Input
+      name='lnurl-claim-code'
+      focus
+      label={self ? t('receive.claimCodeOptional') : t('receive.claimCode')}
+      placeholder={t('receive.claimCode')}
+      value={claimCode}
+      onChange={setClaimCode}
+    />
+  )
 
   return (
     <FlexCol gap='0.5rem'>
       {self || admin ? (
         <>
+          {codeFirst ? codeInput : null}
           <Input name='lnurl-username' placeholder={t('receive.chooseName')} value={username} onChange={setUsername} />
-          {admin ? (
+          {admin && !codeFirst ? (
             <TextSecondary>
               <a
                 href='#'
@@ -74,16 +92,7 @@ export function NameForm({
               </a>
             </TextSecondary>
           ) : null}
-          {admin && hasCode ? (
-            <Input
-              name='lnurl-claim-code'
-              focus
-              label={self ? t('receive.claimCodeOptional') : t('receive.claimCode')}
-              placeholder={t('receive.claimCode')}
-              value={claimCode}
-              onChange={setClaimCode}
-            />
-          ) : null}
+          {hasCode && !codeFirst ? codeInput : null}
           <Button
             label={t('receive.claimName')}
             disabled={busy || !canClaim}

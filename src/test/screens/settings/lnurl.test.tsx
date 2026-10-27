@@ -107,13 +107,16 @@ describe('Lightning address settings', () => {
     expect(screen.queryByText('LNURL1ALICE')).not.toBeInTheDocument()
   })
 
+  // These servers have no `self` mode, so a chosen name needs a code: the sheet asks for it first.
   const claimInSheet = async (username: string, claimCode: string) => {
     fireEvent.click(await screen.findByRole('button', { name: 'Claim name' }))
     const sheet = within(screen.getByTestId('sheet-modal'))
-    fireEvent.change(sheet.getByPlaceholderText('Choose a name'), { target: { value: username } })
-    expect(sheet.queryByPlaceholderText('Claim code')).not.toBeInTheDocument()
-    fireEvent.click(sheet.getByRole('link', { name: 'I have a claim code' }))
-    fireEvent.change(sheet.getByPlaceholderText('Claim code'), { target: { value: claimCode } })
+    const [codeField, nameField] = sheet.getAllByRole('textbox')
+    expect(codeField).toHaveAttribute('placeholder', 'Claim code')
+    expect(nameField).toHaveAttribute('placeholder', 'Choose a name')
+    expect(sheet.queryByRole('link', { name: 'I have a claim code' })).not.toBeInTheDocument()
+    fireEvent.change(codeField, { target: { value: claimCode } })
+    fireEvent.change(nameField, { target: { value: username } })
     fireEvent.click(sheet.getByRole('button', { name: 'Claim name' }))
   }
 
