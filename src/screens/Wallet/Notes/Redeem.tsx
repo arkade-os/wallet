@@ -34,9 +34,9 @@ export default function NotesRedeem() {
     setError(
       aspInfo.unreachable
         ? aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))
-        : error,
+        : (noteInfo.error ?? ''),
     )
-  }, [aspInfo.unreachable, aspInfo.outdated, t])
+  }, [aspInfo.unreachable, aspInfo.outdated, noteInfo.error, t])
 
   useEffect(() => {
     setButtonLabel(redeeming ? t('notes.redeeming') : defaultButtonLabel)
