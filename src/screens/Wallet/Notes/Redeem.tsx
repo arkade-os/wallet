@@ -32,7 +32,9 @@ export default function NotesRedeem() {
 
   useEffect(() => {
     setError(
-      aspInfo.unreachable ? aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet')) : '',
+      aspInfo.unreachable
+        ? aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))
+        : error,
     )
   }, [aspInfo.unreachable, aspInfo.outdated, t])
 
