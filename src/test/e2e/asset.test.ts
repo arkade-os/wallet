@@ -21,7 +21,7 @@ test('should navigate to assets and see disabled state', async ({ page }) => {
 
   // assert empty state
   await expect(page.getByText(tr.common.noAssetsYet)).toBeVisible()
-  await expect(page.getByText(tr.components.noAssetsSubtext)).toBeVisible()
+  await expect(page.getByText(tr.common.importOrMintToStart)).toBeVisible()
   await expect(page.getByText(tr.mint.import, { exact: true })).toBeVisible()
   await expect(page.getByText(tr.mint.mint, { exact: true })).toBeVisible()
 })

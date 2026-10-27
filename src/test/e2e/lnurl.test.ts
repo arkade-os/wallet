@@ -17,7 +17,7 @@ test.skip('should have lnurl with no amount', async ({ page }) => {
   await page.getByText(tr.wallet.receive, { exact: true }).click()
 
   // copy lnurl
-  await page.getByText(tr.common.copy).click()
+  await page.getByText(tr.receive.copy).click()
   await page.getByTestId('lnurl-address-copy').click()
   const lnurl = await readClipboard(page)
 
@@ -35,7 +35,7 @@ test.skip('should check conditions from lnurl', async ({ page }) => {
   await page.getByText(tr.wallet.receive, { exact: true }).click()
 
   // copy lnurl
-  await page.getByText(tr.common.copy).click()
+  await page.getByText(tr.receive.copy).click()
   await page.getByTestId('lnurl-address-copy').click()
   const lnurl = await readClipboard(page)
 
@@ -62,7 +62,7 @@ test.skip('should fetch invoice from lnurl', async ({ page }) => {
   await page.getByText(tr.wallet.receive, { exact: true }).click()
 
   // copy lnurl
-  await page.getByText(tr.common.copy).click()
+  await page.getByText(tr.receive.copy).click()
   await page.getByTestId('lnurl-address-copy').click()
   const lnurl = await readClipboard(page)
 
@@ -92,7 +92,7 @@ test.skip('should receive payment', async ({ page }) => {
   await page.getByText(tr.wallet.receive, { exact: true }).click()
 
   // copy lnurl
-  await page.getByText(tr.common.copy).click()
+  await page.getByText(tr.receive.copy).click()
   await page.getByTestId('lnurl-address-copy').click()
   const lnurl = await readClipboard(page)
 

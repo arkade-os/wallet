@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { translations } from '../../lib/i18n'
+import { SETTINGS_OPTION_KEY } from '../../providers/language'
 
 function collectLeafKeys(obj: unknown, prefix = ''): string[] {
   const keys: string[] = []
@@ -26,12 +27,32 @@ function collectUsedKeys(): Set<string> {
   for (const raw of Object.values(files)) {
     const content = (raw ?? '') as string
     if (!content) continue
+    // ex: t('common.total')
     for (const match of content.matchAll(/\bt\(\s*['"]([A-Za-z0-9_.]+)['"]/g)) used.add(match[1])
+    // ex: translate(language, 'common.total')
     for (const match of content.matchAll(/translate\([^)]*?,\s*['"]([A-Za-z0-9_.]+)['"]/g)) used.add(match[1])
+    // ex: t(condition ? 'common.total' : 'common.amount')
     for (const match of content.matchAll(/\bt\([^?)]+ \? ['"]([A-Za-z0-9_.]+)['"] : ['"]([A-Za-z0-9_.]+)['"]/g)) {
       used.add(match[1])
       used.add(match[2])
     }
+    // ex: render(someComponent, 'common.total', 'common.amount')
+    for (const match of content.matchAll(/\brender\([^,]+, ['"]([A-Za-z0-9_.]+)['"], ['"]([A-Za-z0-9_.]+)['"]/g)) {
+      used.add(match[1])
+      used.add(match[2])
+    }
+  }
+  // special case, not found by regexps above. check lnSwapLabel in src/lib/swapDisplay.ts
+  const stemKeys = ['Send', 'Receive']
+  const suffixes = ['Failed', 'Lost', 'Pending', 'Refunded', '']
+  for (const stemKey of stemKeys) {
+    for (const suffix of suffixes) {
+      used.add(`transaction.lightning${stemKey}${suffix}`)
+    }
+  }
+  // Add all keys from SETTINGS_OPTION_KEY to the used set so they are not considered unused.
+  for (const key of Object.values(SETTINGS_OPTION_KEY)) {
+    used.add(key)
   }
   return used
 }
