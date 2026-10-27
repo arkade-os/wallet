@@ -10,8 +10,6 @@ import Content from '../../components/Content'
 import FlexCol from '../../components/FlexCol'
 import { NavigationContext } from '../../providers/navigation'
 import { NudgeContext } from '../../providers/nudge'
-import { InfoBox } from '../../components/AlertBox'
-import { psaMessage } from '../../lib/constants'
 import { AnnouncementContext } from '../../providers/announcements'
 import { WalletStaggerContainer, WalletStaggerChild } from '../../components/WalletLoadIn'
 import { pwaCanInstall, usePwaInstalled, canPromptInstall, promptPwaInstall } from '../../lib/pwa'
@@ -175,11 +173,6 @@ export default function Wallet() {
           <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
             <RecentActivitySection />
           </WalletStaggerChild>
-          {psaMessage ? (
-            <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
-              <InfoBox html={psaMessage} />
-            </WalletStaggerChild>
-          ) : null}
         </WalletStaggerContainer>
       </Padded>
     </Content>
