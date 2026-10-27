@@ -52,13 +52,28 @@ export function NameForm({
   const [hasCode, setHasCode] = useState(false)
   const self = choices.includes('self')
   const admin = choices.includes('admin')
-  const canClaim = Boolean(username) && (self || Boolean(claimCode))
+  const code = hasCode ? claimCode : ''
+  const canClaim = Boolean(username) && (self || Boolean(code))
 
   return (
     <FlexCol gap='0.5rem'>
       {self || admin ? (
         <>
           <Input name='lnurl-username' placeholder={t('receive.chooseName')} value={username} onChange={setUsername} />
+          {admin ? (
+            <TextSecondary>
+              <a
+                href='#'
+                aria-expanded={hasCode}
+                onClick={(event) => {
+                  event.preventDefault()
+                  setHasCode(!hasCode)
+                }}
+              >
+                {t('receive.haveClaimCode')}
+              </a>
+            </TextSecondary>
+          ) : null}
           {admin && hasCode ? (
             <Input
               name='lnurl-claim-code'
@@ -68,23 +83,11 @@ export function NameForm({
               value={claimCode}
               onChange={setClaimCode}
             />
-          ) : admin ? (
-            <TextSecondary>
-              <a
-                href='#'
-                onClick={(event) => {
-                  event.preventDefault()
-                  setHasCode(true)
-                }}
-              >
-                {t('receive.haveClaimCode')}
-              </a>
-            </TextSecondary>
           ) : null}
           <Button
             label={t('receive.claimName')}
             disabled={busy || !canClaim}
-            onClick={() => onName(claimCode ? { username, claimCode } : { username })}
+            onClick={() => onName(code ? { username, claimCode: code } : { username })}
           />
         </>
       ) : null}

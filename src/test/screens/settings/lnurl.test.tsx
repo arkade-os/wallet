@@ -140,6 +140,36 @@ describe('Lightning address settings', () => {
     expect(server.calls('POST', '/lnurl/address')).toHaveLength(0)
   })
 
+  it('hides the claim code again from the same link, and sends no hidden code', async () => {
+    const server = renderPage({ modes: ['self', 'admin'] })
+    fireEvent.click(await screen.findByRole('button', { name: 'Claim name' }))
+    const sheet = within(screen.getByTestId('sheet-modal'))
+    fireEvent.change(sheet.getByPlaceholderText('Choose a name'), { target: { value: 'vip' } })
+    const link = sheet.getByRole('link', { name: 'I have a claim code' })
+
+    fireEvent.click(link)
+    fireEvent.change(sheet.getByPlaceholderText('Claim code'), { target: { value: 'secret' } })
+    expect(link).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.click(link)
+    expect(sheet.queryByPlaceholderText('Claim code')).not.toBeInTheDocument()
+    expect(link).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(sheet.getByRole('button', { name: 'Claim name' }))
+
+    expect(await screen.findByText('vip@lnurl.test')).toBeInTheDocument()
+    const [, init] = server.calls('POST', '/lnurl/address')[0]
+    expect(JSON.parse(init!.body as string)).not.toHaveProperty('claimCode')
+  })
+
+  it('keeps the sheet open with the reason when a claim is refused', async () => {
+    renderPage({ modes: ['admin'], reject: { code: 'invalid_claim', error: 'bad code' } })
+
+    await claimInSheet('vip', 'wrong')
+
+    const sheet = within(screen.getByTestId('sheet-modal'))
+    expect(await sheet.findByText('That claim code is not valid.')).toBeInTheDocument()
+    expect(sheet.getByPlaceholderText('Claim code')).toHaveValue('wrong')
+  })
+
   it('says so when what payers can send cannot be read', async () => {
     renderPage({ modes: ['self'], addresses: [namedAddress('alice')], payRequestFail: true })
 
