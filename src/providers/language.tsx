@@ -45,7 +45,7 @@ export function useTranslation() {
   return { language, t }
 }
 
-const SETTINGS_OPTION_KEY: Record<SettingsOptions, string> = {
+export const SETTINGS_OPTION_KEY: Record<SettingsOptions, string> = {
   [SettingsOptions.Menu]: 'settings.title',
   [SettingsOptions.About]: 'settings.about',
   [SettingsOptions.Advanced]: 'settings.advanced',
