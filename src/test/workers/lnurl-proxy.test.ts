@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { FORWARDED, onRequest } from '../../../functions/.well-known/lnurlp/[[path]]'
-import { onRequest as onSessionRequest } from '../../../functions/lnurl/[[path]]'
+import worker, { FORWARDED } from '../../../workers/lnurl-proxy/index'
 
 const LOOKUP = 'https://arkade.money/.well-known/lnurlp/alice'
 const ORIGIN = 'lnurl-origin.arkade.money'
+const env = { LNURL_ORIGIN: ORIGIN }
 
 const upstream = (body: string, headers: Record<string, string> = {}, status = 200) =>
   vi.fn(async (_req: Request, _init?: RequestInit) => new Response(body, { status, headers }))
@@ -15,7 +15,7 @@ describe('lightning address proxy', () => {
     const fetch = upstream('{"tag":"payRequest"}')
     vi.stubGlobal('fetch', fetch)
 
-    const res = await onRequest({ request: new Request(LOOKUP), env: { LNURL_ORIGIN: ORIGIN } })
+    const res = await worker.fetch(new Request(LOOKUP), env)
 
     expect(await res.text()).toBe('{"tag":"payRequest"}')
     const [sent, init] = fetch.mock.calls[0]
@@ -29,7 +29,7 @@ describe('lightning address proxy', () => {
     vi.stubGlobal('fetch', fetch)
     const headers = { Authorization: 'Basic d2FsbGV0OnNlY3JldA==', Cookie: 'session=1', Accept: 'application/json' }
 
-    await onRequest({ request: new Request(LOOKUP, { headers }), env: { LNURL_ORIGIN: ORIGIN } })
+    await worker.fetch(new Request(LOOKUP, { headers }), env)
 
     const [sent] = fetch.mock.calls[0]
     expect(sent.headers.get('authorization')).toBeNull()
@@ -41,7 +41,7 @@ describe('lightning address proxy', () => {
     const fetch = upstream('{"pr":"lnbc1"}')
     vi.stubGlobal('fetch', fetch)
 
-    await onRequest({ request: new Request(`${LOOKUP}/callback?amount=1000`), env: { LNURL_ORIGIN: ORIGIN } })
+    await worker.fetch(new Request(`${LOOKUP}/callback?amount=1000`), env)
 
     expect(fetch.mock.calls[0][0].url).toBe(`${LOOKUP}/callback?amount=1000`)
   })
@@ -50,10 +50,9 @@ describe('lightning address proxy', () => {
     const fetch = upstream('{"tag":"payRequest"}')
     vi.stubGlobal('fetch', fetch)
     const session = `https://arkade.money/lnurl/${'ab'.repeat(16)}`
-    const env = { LNURL_ORIGIN: ORIGIN }
 
-    await onSessionRequest({ request: new Request(session), env })
-    await onSessionRequest({ request: new Request(`${session}/callback?amount=1000`), env })
+    await worker.fetch(new Request(session), env)
+    await worker.fetch(new Request(`${session}/callback?amount=1000`), env)
 
     expect(fetch.mock.calls.map(([sent]) => sent.url)).toEqual([session, `${session}/callback?amount=1000`])
   })
@@ -64,7 +63,7 @@ describe('lightning address proxy', () => {
       upstream('<script>alert(1)</script>', { 'content-type': 'text/html', 'set-cookie': 'a=b' }, 502),
     )
 
-    const res = await onRequest({ request: new Request(LOOKUP), env: { LNURL_ORIGIN: ORIGIN } })
+    const res = await worker.fetch(new Request(LOOKUP), env)
 
     expect(res.status).toBe(502)
     expect(res.headers.get('content-type')).toBe('application/json')
@@ -78,19 +77,16 @@ describe('lightning address proxy', () => {
   it('forwards nothing but a GET of an address or its callback', async () => {
     const fetch = vi.fn()
     vi.stubGlobal('fetch', fetch)
-    const env = { LNURL_ORIGIN: ORIGIN }
 
-    expect((await onRequest({ request: new Request(LOOKUP, { method: 'POST' }), env })).status).toBe(405)
-    expect((await onRequest({ request: new Request(`${LOOKUP}/other`), env })).status).toBe(404)
-    expect((await onRequest({ request: new Request(`${LOOKUP}/callback/more`), env })).status).toBe(404)
-    expect((await onSessionRequest({ request: new Request('https://arkade.money/lnurl/address'), env })).status).toBe(
-      404,
-    )
+    expect((await worker.fetch(new Request(LOOKUP, { method: 'POST' }), env)).status).toBe(405)
+    expect((await worker.fetch(new Request(`${LOOKUP}/other`), env)).status).toBe(404)
+    expect((await worker.fetch(new Request(`${LOOKUP}/callback/more`), env)).status).toBe(404)
+    expect((await worker.fetch(new Request('https://arkade.money/lnurl/address'), env)).status).toBe(404)
     expect(fetch).not.toHaveBeenCalled()
   })
 
   it('answers 404 while no origin is configured, as an LNURL error a browser payer can read', async () => {
-    const res = await onRequest({ request: new Request(LOOKUP), env: {} })
+    const res = await worker.fetch(new Request(LOOKUP), {})
 
     expect(res.status).toBe(404)
     expect(res.headers.get('access-control-allow-origin')).toBe('*')
@@ -98,16 +94,14 @@ describe('lightning address proxy', () => {
     expect(await res.json()).toEqual({ status: 'ERROR', reason: 'Not found' })
   })
 
-  it('refuses a request that came back through itself instead of looping', async () => {
+  it('refuses a request that came back through itself with a 508 Cloudflare does not mask', async () => {
     const fetch = vi.fn()
     vi.stubGlobal('fetch', fetch)
 
-    const res = await onRequest({
-      request: new Request(LOOKUP, { headers: { [FORWARDED]: '1' } }),
-      env: { LNURL_ORIGIN: ORIGIN },
-    })
+    const res = await worker.fetch(new Request(LOOKUP, { headers: { [FORWARDED]: '1' } }), env)
 
-    expect(res.status).toBe(502)
+    expect(res.status).toBe(508)
+    expect(await res.json()).toEqual({ status: 'ERROR', reason: 'LNURL origin unreachable' })
     expect(fetch).not.toHaveBeenCalled()
   })
 })

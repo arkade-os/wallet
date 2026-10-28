@@ -1,0 +1,11 @@
+name = "arkade-money-lnurl"
+main = "index.ts"
+compatibility_date = "2026-10-01"
+workers_dev = false
+routes = [
+  { pattern = "arkade.money/.well-known/lnurlp/*", zone_name = "arkade.money" },
+  { pattern = "arkade.money/lnurl/*", zone_name = "arkade.money" },
+]
+
+[vars]
+LNURL_ORIGIN = "lnurl-origin.arkade.money"
