@@ -326,9 +326,19 @@ export function useLnurlRail(deps: {
     claim: async (opts) => {
       if (!facade) return undefined
       const claimed = await run(() => facade.claim(opts), true)
-      // A claim can register its address and then fail to bind it; a refresh binds whatever was left unbound.
-      if (!claimed) facade.owned({ refresh: true }).catch(() => {})
-      return claimed
+      if (claimed) return claimed
+      // A claim can register its address and then fail to bind it; a refresh binds whatever was left unbound,
+      // and a wallet with no address yet adopts the one it finds, which is the one it just claimed.
+      const hadReceiver = Boolean(receiver)
+      facade
+        .owned({ refresh: true })
+        .then((next) => {
+          if (!next || hadReceiver || current.current !== facade) return
+          setReceiver(next)
+          setError('')
+        })
+        .catch(() => {})
+      return undefined
     },
     upgrade: async (opts) => {
       if (receiver) await run(() => receiver.upgrade(opts), false)

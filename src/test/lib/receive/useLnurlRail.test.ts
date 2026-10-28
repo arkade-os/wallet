@@ -83,6 +83,8 @@ describe('useLnurlRail', () => {
 
     expect(claimed).toBeUndefined()
     await waitFor(() => expect(server.calls('POST', '/lnurl/address/carol/arkade')).toHaveLength(2))
+    await waitFor(() => expect(result.current.receiver?.lightningAddress).toBe('carol@lnurl.test'))
+    expect(result.current.error).toBe('')
   })
 
   it('receives on the primary address, and switches to a new one without reloading', async () => {
