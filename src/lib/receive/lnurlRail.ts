@@ -118,22 +118,23 @@ export function useLnurlRails(
   return { targets, errors, generating }
 }
 
-const CLAIM_ERROR_KEYS: Partial<Record<LnurlAddressErrorCode, string>> = {
-  taken: 'receive.claimTaken',
-  invalid_username: 'receive.claimNotAllowed',
-  blacklisted: 'receive.claimNotAllowed',
-  invalid_claim: 'receive.claimCodeInvalid',
-  username_required: 'receive.claimCodeNeedsName',
-  forbidden_mode: 'receive.claimModeUnavailable',
-  limit_reached: 'receive.claimRateLimited',
-}
+// Literal t() calls, so the i18n check sees each key in use.
+const claimErrorMessages = (t: (key: string) => string): Partial<Record<LnurlAddressErrorCode, string>> => ({
+  taken: t('receive.claimTaken'),
+  invalid_username: t('receive.claimNotAllowed'),
+  blacklisted: t('receive.claimNotAllowed'),
+  invalid_claim: t('receive.claimCodeInvalid'),
+  username_required: t('receive.claimCodeNeedsName'),
+  forbidden_mode: t('receive.claimModeUnavailable'),
+  limit_reached: t('receive.claimRateLimited'),
+})
 
 /** User-facing text for a failed claim, keyed off the server's machine code
  *  where one exists so the message survives its wording changing. */
 export const lnurlClaimErrorMessage = (error: unknown, t: (key: string) => string): string => {
   if (error instanceof LnurlError && error.code) {
-    const key = CLAIM_ERROR_KEYS[error.code as LnurlAddressErrorCode]
-    if (key) return t(key)
+    const message = claimErrorMessages(t)[error.code as LnurlAddressErrorCode]
+    if (message) return message
   }
   return error instanceof Error ? error.message : t('receive.lnaddressClaimFailed')
 }
