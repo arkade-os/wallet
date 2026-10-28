@@ -47,5 +47,5 @@ A Pages Function cannot do this. Cloudflare ignores `resolveOverride` from Pages
 | `508 LNURL origin unreachable` | The override was ignored, and the request came back through the Worker. |
 | `Error 1016 Origin DNS error` | The override was ignored, and the request went to `<domain>`'s own origin. Check `LNURL_ORIGIN` against the DNS record, character for character. |
 | `404 Not found` on a lookup | `LNURL_ORIGIN` is not set on the Worker. |
-| `401` with `WWW-Authenticate: Basic realm="traefik"` | The server's route for `<domain>` carries an authentication middleware. |
+| `401 Unauthorized` on a lookup | The server's route for `<domain>` carries an authentication middleware. The Worker drops its `WWW-Authenticate` header; ask the server directly to see it: `curl -k --resolve <domain>:443:<server IP> https://<domain>/.well-known/lnurlp/<name>`. |
 | `Unknown or disabled domain` | lnurl-server does not have the domain, or the `Host` header was rewritten on the way. |
