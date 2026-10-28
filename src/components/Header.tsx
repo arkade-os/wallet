@@ -40,7 +40,6 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
   )
 
   const style: React.CSSProperties = {
-    cursor: 'pointer',
     display: 'flex',
     justifyContent: 'flex-end',
     minWidth: '4rem',
@@ -62,7 +61,7 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
         <p className='title' data-testid={testId}>
           {text}
         </p>
-        <button style={style} onClick={auxFunc} aria-label={auxAriaLabel} data-testid='header-aux-btn'>
+        <button type='button' style={style} onClick={auxFunc} aria-label={auxAriaLabel} data-testid='header-aux-btn'>
           {auxText || auxIcon ? (
             auxText ? (
               SideButton(auxText)
