@@ -8,6 +8,8 @@
 //
 // See also: plugins/vite-plugin-basic-auth.ts for the dev server equivalent.
 
+import { LNURL_PATH } from './.well-known/lnurlp/[[path]]'
+
 interface EventContext {
   request: Request
   env: Record<string, string>
@@ -26,6 +28,8 @@ export const onRequest = async (context: EventContext) => {
   const password = context.env.BASIC_AUTH_PASSWORD
 
   if (!username || !password) return context.next()
+  // Payers resolve lightning addresses without credentials; the route only proxies public LNURL data.
+  if (LNURL_PATH.test(new URL(context.request.url).pathname)) return context.next()
 
   const auth = context.request.headers.get('Authorization')
   if (!auth) return unauthorized()
