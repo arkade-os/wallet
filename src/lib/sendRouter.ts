@@ -7,6 +7,7 @@
  */
 import {
   PaymentRouter,
+  arkRail,
   arkTarget,
   btcTarget,
   invoiceTarget,
@@ -29,6 +30,14 @@ import {
   type SwapRailClient,
 } from '@arkade-os/swap'
 import { marketCorridor, sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+import { createLnurlClient, type LnurlClient } from '@arkade-os/lnurl-client'
+import {
+  firstQuote,
+  isLnurlRail,
+  LNURL_ARKADE_RAIL,
+  LNURL_LIGHTNING_RAIL,
+  lnurlRails,
+} from '@arkade-os/lnurl-client/arkade'
 import { collaborativeExitWithFees, planCollaborativeExit, sendAssets } from './asp'
 import { decodeInvoice } from './bolt11'
 import { consoleError } from './logs'
@@ -43,7 +52,7 @@ export const ASSET_RAIL = 'asset'
 
 export const ONCHAIN_ROUTE_LOG = 'onchain send:'
 
-export { LIGHTNING_RAIL, ONCHAIN_SWAP_RAIL }
+export { LIGHTNING_RAIL, LNURL_ARKADE_RAIL, LNURL_LIGHTNING_RAIL, ONCHAIN_SWAP_RAIL }
 
 /** Not the SDK's `onchainRail`: that offboards with its own coin selection. */
 export const walletExitRail = (deps: {
@@ -113,12 +122,22 @@ export interface SendRouterDeps {
   /** The server's floor on a VTXO output, which the exit's change must clear. */
   dust?: () => number
   assets?: Asset[]
+  lnurl?: LnurlClient
 }
 
 export const createSendRouter = (deps: SendRouterDeps): PaymentRouter => {
   const router = new PaymentRouter({
     wallet: deps.wallet,
-    prefs: { priority: [ONCHAIN_SWAP_RAIL, WALLET_EXIT_RAIL, LIGHTNING_RAIL, ASSET_RAIL] },
+    prefs: {
+      priority: [
+        ONCHAIN_SWAP_RAIL,
+        WALLET_EXIT_RAIL,
+        LNURL_ARKADE_RAIL,
+        LNURL_LIGHTNING_RAIL,
+        LIGHTNING_RAIL,
+        ASSET_RAIL,
+      ],
+    },
   })
 
   if (deps.client && deps.claimFeeRateSatVb) {
@@ -133,7 +152,23 @@ export const createSendRouter = (deps: SendRouterDeps): PaymentRouter => {
   }
   if (deps.client) router.use(lightningRail(deps.client))
   if (deps.assets) router.use(assetRail({ assets: deps.assets }))
+  // The Arkade leg needs no swap client, so without one only the Lightning leg drops: the case of
+  // an LNURL send from a tab that is not driving swaps (`sendRouter({ swapsOptional })`).
+  const lnurl = lnurlRails({
+    client: deps.lnurl ?? createLnurlClient(),
+    arkade: arkRail(),
+    ...(deps.client ? { lightning: lightningRail(deps.client) } : {}),
+  })
+  for (const rail of lnurl) router.use(rail)
   return router
+}
+
+export { isLnurlRail }
+
+export const quoteLnurl = async (router: PaymentRouter, target: string, amount: number): Promise<RouteQuote> => {
+  const options = (await router.options({ raw: target, amount })).filter((o) => isLnurlRail(o.railId))
+  if (!options.length) throw new Error('No route for this LNURL payment')
+  return firstQuote(options, (railId, err) => consoleError(err, `lnurl send: ${railId} could not quote`))
 }
 
 /** An amount-bearing invoice pins the take leg by existing, and the client throws
