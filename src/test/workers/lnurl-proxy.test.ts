@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import worker, { FORWARDED } from '../../../workers/lnurl-proxy/index'
 
-const LOOKUP = 'https://arkade.money/.well-known/lnurlp/alice'
-const ORIGIN = 'lnurl-origin.arkade.money'
+const LOOKUP = 'https://wallet.example/.well-known/lnurlp/alice'
+const ORIGIN = 'lnurl-origin.wallet.example'
 const env = { LNURL_ORIGIN: ORIGIN }
 
 const upstream = (body: string, headers: Record<string, string> = {}, status = 200) =>
@@ -49,7 +49,7 @@ describe('lightning address proxy', () => {
   it("forwards a nameless wallet's session lnurl and its callback from /lnurl/", async () => {
     const fetch = upstream('{"tag":"payRequest"}')
     vi.stubGlobal('fetch', fetch)
-    const session = `https://arkade.money/lnurl/${'ab'.repeat(16)}`
+    const session = `https://wallet.example/lnurl/${'ab'.repeat(16)}`
 
     await worker.fetch(new Request(session), env)
     await worker.fetch(new Request(`${session}/callback?amount=1000`), env)
@@ -81,7 +81,7 @@ describe('lightning address proxy', () => {
     expect((await worker.fetch(new Request(LOOKUP, { method: 'POST' }), env)).status).toBe(405)
     expect((await worker.fetch(new Request(`${LOOKUP}/other`), env)).status).toBe(404)
     expect((await worker.fetch(new Request(`${LOOKUP}/callback/more`), env)).status).toBe(404)
-    expect((await worker.fetch(new Request('https://arkade.money/lnurl/address'), env)).status).toBe(404)
+    expect((await worker.fetch(new Request('https://wallet.example/lnurl/address'), env)).status).toBe(404)
     expect(fetch).not.toHaveBeenCalled()
   })
 

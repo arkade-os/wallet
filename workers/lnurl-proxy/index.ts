@@ -1,5 +1,5 @@
-// Sends arkade.money's payer paths to lnurl-server through resolveOverride, keeping Host so the server answers
-// for that domain. Only a zone Worker can: Cloudflare ignores the override from a Pages Function.
+// Sends the wallet domain's payer paths to lnurl-server through resolveOverride, keeping Host so the server
+// answers for that domain. Only a zone Worker can: Cloudflare ignores the override from a Pages Function.
 
 export const FORWARDED = 'x-arkade-lnurl-forwarded'
 // Not the rest of /lnurl/: lnurl-server's API lives there too.
