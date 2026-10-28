@@ -4,7 +4,6 @@ import BackIcon from '../icons/Back'
 import Shadow from './Shadow'
 import Text from './Text'
 import FlexRow from './FlexRow'
-import Focusable from './Focusable'
 import { hapticLight } from '../lib/haptics'
 import { useTranslation } from '../providers/language'
 
@@ -63,15 +62,17 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
         <p className='title' data-testid={testId}>
           {text}
         </p>
-        <div style={style} onClick={auxFunc} aria-label={auxAriaLabel} data-testid='header-aux-btn'>
+        <button style={style} onClick={auxFunc} aria-label={auxAriaLabel} data-testid='header-aux-btn'>
           {auxText || auxIcon ? (
-            <Focusable onEnter={auxFunc} fit round>
-              {auxText ? SideButton(auxText) : <div style={{ padding: '0.5rem' }}>{auxIcon}</div>}
-            </Focusable>
+            auxText ? (
+              SideButton(auxText)
+            ) : (
+              <div style={{ padding: '0.5rem' }}>{auxIcon}</div>
+            )
           ) : (
             '\u00A0'
           )}
-        </div>
+        </button>
       </FlexRow>
     </div>
   )

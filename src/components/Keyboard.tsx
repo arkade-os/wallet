@@ -229,7 +229,6 @@ export default function Keyboard({
     flex: 1,
     display: 'flex',
     justifyContent: 'center',
-    cursor: 'pointer',
   }
 
   const keys = [
