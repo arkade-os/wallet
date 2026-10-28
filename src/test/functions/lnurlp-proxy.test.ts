@@ -89,10 +89,13 @@ describe('lightning address proxy', () => {
     expect(fetch).not.toHaveBeenCalled()
   })
 
-  it('answers 404 while no origin is configured', async () => {
+  it('answers 404 while no origin is configured, as an LNURL error a browser payer can read', async () => {
     const res = await onRequest({ request: new Request(LOOKUP), env: {} })
 
     expect(res.status).toBe(404)
+    expect(res.headers.get('access-control-allow-origin')).toBe('*')
+    expect(res.headers.get('content-security-policy')).toBe("default-src 'none'; sandbox")
+    expect(await res.json()).toEqual({ status: 'ERROR', reason: 'Not found' })
   })
 
   it('refuses a request that came back through itself instead of looping', async () => {

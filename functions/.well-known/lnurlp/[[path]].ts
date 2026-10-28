@@ -20,11 +20,15 @@ const SAFE_HEADERS = {
   'Access-Control-Allow-Origin': '*',
 }
 
+// LNURL's error shape with CORS, so a browser payer reads the reason instead of a network error.
+const refuse = (status: number, reason: string, headers: Record<string, string> = {}) =>
+  new Response(JSON.stringify({ status: 'ERROR', reason }), { status, headers: { ...SAFE_HEADERS, ...headers } })
+
 export const onRequest = async ({ request, env }: EventContext): Promise<Response> => {
   const origin = env.LNURL_ORIGIN
-  if (!origin || !LNURL_PATH.test(new URL(request.url).pathname)) return new Response('Not found', { status: 404 })
-  if (request.method !== 'GET') return new Response('Method not allowed', { status: 405, headers: { Allow: 'GET' } })
-  if (request.headers.has(FORWARDED)) return new Response('LNURL origin unreachable', { status: 502 })
+  if (!origin || !LNURL_PATH.test(new URL(request.url).pathname)) return refuse(404, 'Not found')
+  if (request.method !== 'GET') return refuse(405, 'Method not allowed', { Allow: 'GET' })
+  if (request.headers.has(FORWARDED)) return refuse(502, 'LNURL origin unreachable')
   const forwarded = new Request(request)
   forwarded.headers.set(FORWARDED, '1')
   forwarded.headers.delete('authorization')

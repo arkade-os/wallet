@@ -30,6 +30,15 @@ forwards these to lnurl-server; `functions/lnurl/[[path]].ts` routes the `/lnurl
 `curl -i https://arkade.money/lnurl/<session id>` does the same, with a callback under `https://arkade.money/lnurl/`.
 
 A `502 LNURL origin unreachable` means Cloudflare did not apply the override and the request came
-back to Pages. Check step 1. If it persists, run the same forwarding as a Worker on the routes
-`arkade.money/.well-known/lnurlp/*` and `arkade.money/lnurl/*`, using `fetch(request, { cf: { resolveOverride } })`.
-Cloudflare documents the override for zone Workers.
+back to Pages. Check step 1. If it persists, run this Function's handler as a zone Worker on the routes
+`arkade.money/.well-known/lnurlp/*` and `arkade.money/lnurl/*`. Cloudflare documents the override for
+zone Workers:
+
+```ts
+import { onRequest } from './functions/.well-known/lnurlp/[[path]]'
+export default { fetch: (request: Request, env: Record<string, string>) => onRequest({ request, env }) }
+```
+
+Reuse the handler rather than returning `fetch(request, { cf: { resolveOverride } })` directly. The handler
+keeps the path check, drops `Authorization` and `Cookie`, and serves the answer with inert headers. A
+direct fetch would pass upstream headers such as `Set-Cookie` to the wallet's origin.
