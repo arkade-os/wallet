@@ -738,7 +738,6 @@ export const translations = {
       dfx: 'DFX',
       dfxConnectionFailed: 'Failed to connect to DFX. Please go back and try again.',
     },
-    announcement: {},
     upsells: {
       title: 'Do more with your money',
       buySellTitle: 'Buy or sell bitcoin',
@@ -1523,7 +1522,6 @@ export const translations = {
       dfx: 'DFX',
       dfxConnectionFailed: 'No se pudo conectar con DFX. Vuelve atrás e inténtalo de nuevo.',
     },
-    announcement: {},
     upsells: {
       title: 'Haz más con tu dinero',
       buySellTitle: 'Comprar o vender bitcoin',
