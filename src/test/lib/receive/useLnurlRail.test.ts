@@ -71,6 +71,38 @@ describe('useLnurlRail', () => {
     expect(server.calls('GET', '/lnurl/domain')).toHaveLength(0)
   })
 
+  it('binds an address its claim registered but failed to bind', async () => {
+    serve({ modes: ['self'], bindFails: 1 })
+    const { result } = renderRail()
+    await waitFor(() => expect(result.current.status).toBe('onboarding'))
+
+    let claimed: unknown = 'pending'
+    await act(async () => {
+      claimed = await result.current.claim({ username: 'carol' })
+    })
+
+    expect(claimed).toBeUndefined()
+    await waitFor(() => expect(server.calls('POST', '/lnurl/address/carol/arkade')).toHaveLength(2))
+  })
+
+  it('receives on the primary address, and switches to a new one without reloading', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice'), namedAddress('bob')] })
+    const { result, rerender } = renderHook(
+      ({ primary }) => useLnurlRail({ enabled: true, identity, arkadeAddress: DECODABLE_ARK, primary }),
+      { initialProps: { primary: 'bob' } },
+    )
+    await waitFor(() => expect(result.current.receiver?.lightningAddress).toBe('bob@lnurl.test'))
+
+    const statuses: string[] = []
+    rerender({ primary: 'alice' })
+    await waitFor(() => {
+      statuses.push(result.current.status)
+      expect(result.current.receiver?.lightningAddress).toBe('alice@lnurl.test')
+    })
+    expect(statuses).not.toContain('onboarding')
+    expect(statuses).not.toContain('loading')
+  })
+
   it('onboards with only the advertised choices when nothing is owned and nameless is not offered', async () => {
     serve({ modes: ['self', 'random'] })
     const { result } = renderRail()
@@ -287,7 +319,7 @@ describe('useLnurlRail', () => {
     )
     await waitFor(() => expect(result.current.status).toBe('onboarding'))
 
-    let claiming!: Promise<void>
+    let claiming!: Promise<unknown>
     act(() => {
       claiming = result.current.claim({ username: 'carol' })
     })

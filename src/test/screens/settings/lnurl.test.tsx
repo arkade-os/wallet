@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { configure, fireEvent, render, screen, within } from '@testing-library/react'
+import { configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { SingleKey } from '@arkade-os/sdk'
 import Lnurl, { TOKEN_EXPLAINER } from '../../../screens/Settings/Lnurl'
 import { BackupContext } from '../../../providers/backup'
@@ -70,6 +70,23 @@ describe('Lightning address settings', () => {
     expect(screen.getByText('lnurl.test')).toBeInTheDocument()
     expect(await screen.findByText('10,000 – 100,000,000 sats')).toBeInTheDocument()
     expect(screen.getAllByText('1 – 100,000,000 sats')).toHaveLength(2)
+    expect(screen.queryByText('Primary address')).not.toBeInTheDocument()
+  })
+
+  it('uses the primary address the user chose, among several', async () => {
+    renderPage({ modes: ['self'], addresses: [namedAddress('alice'), namedAddress('bob')] }, { lnurlPrimary: 'bob' })
+
+    await waitFor(() => expect(screen.getByTestId('select-option-1')).toHaveClass('settings-select-row--selected'))
+    expect(screen.getByTestId('select-option-0')).toHaveTextContent('alice@lnurl.test')
+  })
+
+  it('saves the address the user picks as primary', async () => {
+    renderPage({ modes: ['self'], addresses: [namedAddress('alice'), namedAddress('bob')] })
+    await waitFor(() => expect(screen.getByTestId('select-option-0')).toHaveClass('settings-select-row--selected'))
+
+    fireEvent.click(screen.getByTestId('select-option-1'))
+
+    expect(backupAndUpdateConfig).toHaveBeenCalledWith(expect.objectContaining({ lnurlPrimary: 'bob' }))
   })
 
   it('says why the lightning address could not be loaded, and offers no naming', async () => {
@@ -102,7 +119,7 @@ describe('Lightning address settings', () => {
   it('lists the wallet LNURL beside every lightning address', async () => {
     renderPage({ modes: ['self'], addresses: [namedAddress('alice'), namelessAddress()] })
 
-    expect(await screen.findByText('alice@lnurl.test')).toBeInTheDocument()
+    expect((await screen.findAllByText('alice@lnurl.test')).length).toBeGreaterThan(0)
     expect(await screen.findByText('LNURL1SESS1')).toBeInTheDocument()
     expect(screen.queryByText('LNURL1ALICE')).not.toBeInTheDocument()
   })
@@ -113,12 +130,61 @@ describe('Lightning address settings', () => {
     const sheet = within(screen.getByTestId('sheet-modal'))
     const [codeField, nameField] = sheet.getAllByRole('textbox')
     expect(codeField).toHaveAttribute('placeholder', 'Claim code')
-    expect(nameField).toHaveAttribute('placeholder', 'Choose a name')
+    expect(nameField).toHaveAttribute('placeholder', 'Choose a name (optional)')
     expect(sheet.queryByRole('link', { name: 'I have a claim code' })).not.toBeInTheDocument()
     fireEvent.change(codeField, { target: { value: claimCode } })
-    fireEvent.change(nameField, { target: { value: username } })
+    if (username) fireEvent.change(nameField, { target: { value: username } })
     fireEvent.click(sheet.getByRole('button', { name: 'Claim name' }))
   }
+
+  it('claims a reserved name with its code alone, leaving the name to the code', async () => {
+    const server = renderPage({ modes: ['admin', 'random'] })
+
+    await claimInSheet('', 'secret')
+
+    expect(await screen.findByText('brave-otter@lnurl.test')).toBeInTheDocument()
+    const [, init] = server.calls('POST', '/lnurl/address')[0]
+    expect(JSON.parse(init!.body as string)).toMatchObject({ claimCode: 'secret' })
+    expect(JSON.parse(init!.body as string)).not.toHaveProperty('username')
+  })
+
+  it('asks for a name when the code is one for any free name, then claims with it', async () => {
+    renderPage({
+      modes: ['admin'],
+      reject: { code: 'username_required', error: 'this claim code needs a username' },
+      rejectTimes: 1,
+    })
+
+    await claimInSheet('', 'free-code')
+
+    const sheet = within(screen.getByTestId('sheet-modal'))
+    expect(await sheet.findByText('This code is for a name you choose. Add one and claim again.')).toBeInTheDocument()
+    fireEvent.change(sheet.getAllByRole('textbox')[1], { target: { value: 'chosen' } })
+    fireEvent.click(sheet.getByRole('button', { name: 'Claim name' }))
+    expect(await screen.findByText('chosen@lnurl.test')).toBeInTheDocument()
+  })
+
+  it('claims another address with a claim code when the wallet already has one', async () => {
+    const server = renderPage({ modes: ['self'], addresses: [namedAddress('alice')] })
+    expect(await screen.findByText('alice@lnurl.test')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('link', { name: 'I have a claim code' }))
+    const sheet = within(screen.getByTestId('sheet-modal'))
+    const [codeField, nameField] = sheet.getAllByRole('textbox')
+    expect(codeField).toHaveAttribute('placeholder', 'Claim code')
+    expect(nameField).toHaveAttribute('placeholder', 'Choose a name (optional)')
+    fireEvent.change(codeField, { target: { value: 'secret' } })
+    fireEvent.click(sheet.getByRole('button', { name: 'Claim name' }))
+
+    await waitFor(() =>
+      expect(backupAndUpdateConfig).toHaveBeenCalledWith(expect.objectContaining({ lnurlPrimary: 'brave-otter' })),
+    )
+    expect(screen.getAllByText('brave-otter@lnurl.test').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('alice@lnurl.test').length).toBeGreaterThan(0)
+    expect(screen.queryByTestId('sheet-modal')).not.toBeInTheDocument()
+    const [, init] = server.calls('POST', '/lnurl/address')[0]
+    expect(JSON.parse(init!.body as string)).toMatchObject({ claimCode: 'secret' })
+  })
 
   it('claims a reserved name with its claim code, from a sheet that closes once named', async () => {
     const server = renderPage({ modes: ['admin', 'random'] })

@@ -130,6 +130,10 @@ export function fakeLnurlServer(opts: {
   addresses?: FakeAddress[]
   requireApiKey?: boolean
   reject?: { code: string; error: string }
+  /** Refuses with `reject` only this many times, then serves normally. */
+  rejectTimes?: number
+  /** Fails this many identity binds before serving them. */
+  bindFails?: number
   /** The identity's existing session row, which the server hands back to a nameless claim. */
   sessionRow?: FakeAddress
   capabilitiesFail?: boolean
@@ -152,6 +156,9 @@ export function fakeLnurlServer(opts: {
   payRequestFail?: boolean
 }) {
   const addresses = [...(opts.addresses ?? [])]
+  let rejected = 0
+  let bindsFailed = 0
+  const refuse = () => Boolean(opts.reject) && rejected++ < (opts.rejectTimes ?? Infinity)
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input))
     const method = init?.method ?? 'GET'
@@ -168,7 +175,7 @@ export function fakeLnurlServer(opts: {
     }
     if (path === '/lnurl/address' && method === 'GET') return json(200, addresses)
     if (path === '/lnurl/address' && method === 'POST') {
-      if (opts.reject) return json(409, opts.reject)
+      if (refuse()) return json(409, opts.reject)
       if (body.nameless) {
         const held = opts.sessionRow ?? addresses.find((a) => a.sessionLnurl)
         if (held) return json(200, held)
@@ -232,9 +239,15 @@ export function fakeLnurlServer(opts: {
       if (opts.invoiceError) return json(200, { status: 'ERROR', reason: opts.invoiceError })
       return json(200, { pr: fakeInvoice(Number(url.searchParams.get('amount'))), routes: [] })
     }
-    if (path.endsWith('/arkade') && method === 'POST') return json(200, {})
+    if (path.endsWith('/arkade') && method === 'POST') {
+      if (bindsFailed < (opts.bindFails ?? 0)) {
+        bindsFailed++
+        return json(503, { error: 'bind unavailable' })
+      }
+      return json(200, {})
+    }
     if (method === 'PATCH') {
-      if (opts.reject) return json(409, opts.reject)
+      if (refuse()) return json(409, opts.reject)
       const handle = decodeURIComponent(path.split('/').pop()!)
       const index = addresses.findIndex((a) => a.handle === handle)
       if (index < 0) return json(404, { error: 'address not found' })

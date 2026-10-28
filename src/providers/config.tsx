@@ -21,6 +21,7 @@ const defaultConfig: Config = {
   notifications: false,
   pubkey: '',
   receiveViaTokens: false,
+  lnurlPrimary: '',
   showBalance: true,
   theme: Themes.Auto,
   unit: Unit.BTC,

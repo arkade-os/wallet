@@ -123,6 +123,7 @@ const CLAIM_ERROR_KEYS: Partial<Record<LnurlAddressErrorCode, string>> = {
   invalid_username: 'receive.claimNotAllowed',
   blacklisted: 'receive.claimNotAllowed',
   invalid_claim: 'receive.claimCodeInvalid',
+  username_required: 'receive.claimCodeNeedsName',
   forbidden_mode: 'receive.claimModeUnavailable',
   limit_reached: 'receive.claimRateLimited',
 }
@@ -154,7 +155,8 @@ export interface LnurlRail {
   choices: OnboardingChoice[]
   busy: boolean
   error: string
-  claim: (opts: ClaimOptions) => Promise<void>
+  /** The receiver it claimed, or undefined when the claim was refused. */
+  claim: (opts: ClaimOptions) => Promise<Receiver | undefined>
   upgrade: (opts: NameOptions) => Promise<void>
   /** Every address this identity owns on the server, nameless ones included. */
   addresses: () => Promise<AddressListEntry[]>
@@ -165,8 +167,10 @@ export function useLnurlRail(deps: {
   identity?: ArkadeSigner
   arkadeAddress?: string
   boardingAddress?: string
+  /** Handle of the address to receive on when the identity owns several. */
+  primary?: string
 }): LnurlRail {
-  const { enabled, identity, arkadeAddress, boardingAddress } = deps
+  const { enabled, identity, arkadeAddress, boardingAddress, primary } = deps
   const { t } = useTranslation()
   const facade = useMemo(
     () =>
@@ -208,7 +212,7 @@ export function useLnurlRail(deps: {
       const result = await bootstrapReceiver(
         {
           owned: async () => {
-            const owned = await facade.owned()
+            const owned = await facade.owned({ handle: primary || undefined })
             if (stale) throw new Error('LNURL discovery is no longer current')
             if (owned) setReceiver(owned)
             return owned
@@ -246,7 +250,22 @@ export function useLnurlRail(deps: {
     return () => {
       stale = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- a new primary switches below, without a reload
   }, [facade])
+
+  // Switches in place rather than re-bootstrapping, so the screen never falls back to "no address yet".
+  useEffect(() => {
+    if (!facade || loadedFor !== facade || !primary || !receiver || receiver.handle === primary) return
+    let stale = false
+    facade
+      .owned({ handle: primary })
+      .then((next) => !stale && next && setReceiver(next))
+      .catch((err) => consoleError(err, 'lnurl primary address switch failed'))
+    return () => {
+      stale = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when the choice changes, not on every receiver
+  }, [facade, loadedFor, primary])
 
   const run = async (action: () => Promise<Receiver>, syncAfter: boolean) => {
     const owner = facade
@@ -259,6 +278,7 @@ export function useLnurlRail(deps: {
       // The startup sync listed addresses before this one existed; without this a
       // payment arriving this session stays unattributed until the next start.
       if (syncAfter) next.sync().catch((err) => consoleError(err, 'lnurl activity sync after claim failed'))
+      return next
     } catch (err) {
       consoleError(err, 'lnurl claim failed')
       if (current.current === owner) setError(lnurlClaimErrorMessage(err, currentTranslation.current))
@@ -285,7 +305,11 @@ export function useLnurlRail(deps: {
     busy,
     error,
     claim: async (opts) => {
-      if (facade) await run(() => facade.claim(opts), true)
+      if (!facade) return undefined
+      const claimed = await run(() => facade.claim(opts), true)
+      // A claim can register its address and then fail to bind it; a refresh binds whatever was left unbound.
+      if (!claimed) facade.owned({ refresh: true }).catch(() => {})
+      return claimed
     },
     upgrade: async (opts) => {
       if (receiver) await run(() => receiver.upgrade(opts), false)

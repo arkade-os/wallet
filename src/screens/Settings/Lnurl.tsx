@@ -2,6 +2,7 @@ import Header from './Header'
 import { useContext, useEffect, useState } from 'react'
 import Padded from '../../components/Padded'
 import Toggle from '../../components/Toggle'
+import Select from '../../components/Select'
 import Content from '../../components/Content'
 import FlexCol from '../../components/FlexCol'
 import Table, { type TableData } from '../../components/Table'
@@ -12,7 +13,12 @@ import { ConfigContext } from '../../providers/config'
 import { WalletContext } from '../../providers/wallet'
 import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '../../providers/language'
-import { configuredLnurlServer, lnurlRailLimits, useLnurlRail } from '../../lib/receive/lnurlRail'
+import {
+  configuredLnurlServer,
+  lnurlRailLimits,
+  useLnurlRail,
+  type OnboardingChoice,
+} from '../../lib/receive/lnurlRail'
 import { lnurlTokenRails, type LnurlTokenRail } from '../../lib/receive/lnurlTokenRails'
 import { prettyNumber } from '../../lib/format'
 import { consoleError } from '../../lib/logs'
@@ -56,6 +62,7 @@ export default function Lnurl() {
     identity: svcWallet?.identity,
     arkadeAddress: addresses?.arkade,
     boardingAddress: addresses?.boarding,
+    primary: config.lnurlPrimary,
   })
 
   useEffect(() => {
@@ -85,6 +92,9 @@ export default function Lnurl() {
     }
   }, [rail.receiver])
 
+  // A claim or rename that lands changes the address; a refused one leaves the sheet open on its reason.
+  useEffect(() => setClaiming(false), [rail.receiver?.lightningAddress])
+
   const railLabels: Record<string, string> = {
     lightning: t('receive.methodLightning'),
     arkade: t('receive.methodArkade'),
@@ -106,9 +116,18 @@ export default function Lnurl() {
     ),
     ...(server ? [[t('settings.lnurlServer'), server.domain] as [string, string]] : []),
   ]
-  const namingChoices = rail.receiver?.lightningAddress ? [] : rail.choices.filter((c) => c !== 'session')
+  const named = Boolean(rail.receiver?.lightningAddress)
+  const namingChoices = named ? [] : rail.choices.filter((c) => c !== 'session')
   const naming = namingChoices.length > 0 && rail.status !== 'failed'
-  const name = (opts: NameOptions) => (rail.receiver ? rail.upgrade(opts) : rail.claim(opts))
+  // A named wallet can still redeem a code: it claims a further address, as upgrade only renames a nameless one.
+  const sheetChoices: OnboardingChoice[] = named ? ['admin'] : namingChoices.filter((c) => c !== 'random')
+  const name = async (opts: NameOptions) => {
+    if (rail.receiver && !named) return rail.upgrade(opts)
+    const claimed = await rail.claim(opts)
+    // A further address is what the user just asked for, so it becomes the one the wallet receives on.
+    if (claimed && named) backupAndUpdateConfig({ ...config, lnurlPrimary: claimed.handle })
+  }
+  const active = owned.filter((a) => a.status === 'active')
   const sendable: TableData = limits.map(({ type, min, max }) => [
     railLabels[type] ?? type,
     `${prettyNumber(min, 0)} – ${prettyNumber(max, 0)} sats`,
@@ -141,6 +160,19 @@ export default function Lnurl() {
               {rail.status === 'ready' ? (
                 <>
                   <Table data={yours} variant='receipt' />
+                  {named ? (
+                    <TextSecondary>
+                      <a
+                        href='#'
+                        onClick={(event) => {
+                          event.preventDefault()
+                          setClaiming(true)
+                        }}
+                      >
+                        {t('receive.haveClaimCode')}
+                      </a>
+                    </TextSecondary>
+                  ) : null}
                   {namingChoices.length ? null : <ErrorMessage error={Boolean(rail.error)} text={rail.error} />}
                 </>
               ) : (
@@ -153,6 +185,18 @@ export default function Lnurl() {
                 </TextSecondary>
               )}
             </section>
+            {/* Hidden under the claim sheet: Select takes arrow keys page-wide, which the code field would feed it. */}
+            {active.length > 1 && !claiming ? (
+              <section className='settings-section'>
+                <p className='settings-section-label'>{t('settings.lnurlPrimary')}</p>
+                <Select
+                  options={active.map((a) => a.handle)}
+                  labels={active.map((a) => a.lightningAddress ?? 'LNURL')}
+                  selected={rail.receiver?.handle ?? ''}
+                  onChange={(handle) => backupAndUpdateConfig({ ...config, lnurlPrimary: handle })}
+                />
+              </section>
+            ) : null}
             {naming ? (
               <section className='settings-section'>
                 <p className='settings-section-label'>{t('settings.lnurlAddName')}</p>
@@ -188,12 +232,15 @@ export default function Lnurl() {
         </Padded>
       </Content>
 
-      <SheetModal isOpen={claiming ? naming : false} onClose={() => setClaiming(false)}>
+      <SheetModal
+        isOpen={claiming ? sheetChoices.length > 0 && rail.status !== 'failed' : false}
+        onClose={() => setClaiming(false)}
+      >
         <FlexCol gap='1rem' padding='0.5rem 0'>
           <Text big bold>
             {t('receive.claimName')}
           </Text>
-          <NameForm choices={namingChoices.filter((c) => c !== 'random')} busy={rail.busy} onName={name} />
+          <NameForm choices={sheetChoices} busy={rail.busy} onName={name} />
           <ErrorMessage error={Boolean(rail.error)} text={rail.error} />
         </FlexCol>
       </SheetModal>

@@ -60,7 +60,8 @@ export function NameForm({
   // Without `self` a chosen name needs a code, so the code is asked for first and never hidden.
   const codeFirst = admin && !self
   const code = codeFirst || hasCode ? claimCode : ''
-  const canClaim = Boolean(username) && (self || Boolean(code))
+  // A code alone claims the reserved name it unlocks; a free-name code gets `username_required` back.
+  const canClaim = Boolean(code) || (self && Boolean(username))
   const codeInput = (
     <Input
       name='lnurl-claim-code'
@@ -77,7 +78,12 @@ export function NameForm({
       {self || admin ? (
         <>
           {codeFirst ? codeInput : null}
-          <Input name='lnurl-username' placeholder={t('receive.chooseName')} value={username} onChange={setUsername} />
+          <Input
+            name='lnurl-username'
+            placeholder={codeFirst ? t('receive.chooseNameOptional') : t('receive.chooseName')}
+            value={username}
+            onChange={setUsername}
+          />
           {admin && !codeFirst ? (
             <TextSecondary>
               <a
@@ -96,7 +102,7 @@ export function NameForm({
           <Button
             label={t('receive.claimName')}
             disabled={busy || !canClaim}
-            onClick={() => onName(code ? { username, claimCode: code } : { username })}
+            onClick={() => onName({ ...(username && { username }), ...(code && { claimCode: code }) })}
           />
         </>
       ) : null}
