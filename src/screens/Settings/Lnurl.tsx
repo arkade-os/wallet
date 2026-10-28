@@ -117,7 +117,8 @@ export default function Lnurl() {
     ...(server ? [[t('settings.lnurlServer'), server.domain] as [string, string]] : []),
   ]
   const named = Boolean(rail.receiver?.lightningAddress)
-  const namingChoices = named ? [] : rail.choices.filter((c) => c !== 'session')
+  // A wallet that holds a name may still choose another, but never gets a random one.
+  const namingChoices = named ? [] : rail.choices.filter((c) => c !== 'session' && !(c === 'random' && rail.ownsName))
   const naming = namingChoices.length > 0 && rail.status !== 'failed'
   // A named wallet can still redeem a code: it claims a further address, as upgrade only renames a nameless one.
   const sheetChoices: OnboardingChoice[] = named ? ['admin'] : namingChoices.filter((c) => c !== 'random')

@@ -372,6 +372,15 @@ describe('Receive screen, lnurl onboarding', () => {
     expect(claims()).toHaveLength(0)
   })
 
+  it('never offers a random name when the wallet already holds one beside its nameless LNURL', async () => {
+    serve({ modes: ['self', 'random', 'session'], addresses: [namedAddress('alice'), namelessAddress()] })
+    renderReceive()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Add a name' }))
+    expect(await screen.findByPlaceholderText('Choose a name')).toBeInTheDocument()
+    await waitFor(() => expect(controls.random()).toBeNull())
+  })
+
   it.each([[['admin']], [['random']], [['admin', 'random']]])(
     'leaves naming to Settings when the user cannot choose a name (%j)',
     async (modes) => {

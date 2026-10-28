@@ -239,6 +239,13 @@ describe('Lightning address settings', () => {
     expect(sheet.getByPlaceholderText('Claim code')).toHaveValue('wrong')
   })
 
+  it('never offers a random name to a wallet that already holds one, though it may still choose one', async () => {
+    renderPage({ modes: ['self', 'random', 'session'], addresses: [namedAddress('alice'), namelessAddress()] })
+
+    expect(await screen.findByRole('button', { name: 'Claim name' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Pick one for me' })).not.toBeInTheDocument()
+  })
+
   it('says so when what payers can send cannot be read', async () => {
     renderPage({ modes: ['self'], addresses: [namedAddress('alice')], payRequestFail: true })
 

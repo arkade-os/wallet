@@ -28,7 +28,9 @@ export default function LnurlRailPanel({ rail, showAddress }: { rail: LnurlRail;
       </Text>
     ) : null
 
-  const choices = rail.choices.includes('self') ? rail.choices.filter((c) => RECEIVE_CHOICES.includes(c)) : []
+  const choices = rail.choices.includes('self')
+    ? rail.choices.filter((c) => RECEIVE_CHOICES.includes(c) && !(c === 'random' && rail.ownsName))
+    : []
   const onName = (opts: NameOptions) => (rail.receiver ? rail.upgrade(opts) : rail.claim(opts))
   return (
     <FlexCol gap='0.5rem'>

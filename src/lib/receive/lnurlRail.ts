@@ -155,6 +155,8 @@ export interface LnurlRail {
   choices: OnboardingChoice[]
   busy: boolean
   error: string
+  /** Whether the identity holds a named address, the receiver's or another one. */
+  ownsName: boolean
   /** The receiver it claimed, or undefined when the claim was refused. */
   claim: (opts: ClaimOptions) => Promise<Receiver | undefined>
   upgrade: (opts: NameOptions) => Promise<void>
@@ -186,6 +188,7 @@ export function useLnurlRail(deps: {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [walletLnurl, setWalletLnurl] = useState<string>()
+  const [namedElsewhere, setNamedElsewhere] = useState(false)
   const current = useRef(facade)
   const currentTranslation = useRef(t)
   useLayoutEffect(() => {
@@ -267,6 +270,20 @@ export function useLnurlRail(deps: {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when the choice changes, not on every receiver
   }, [facade, loadedFor, primary])
 
+  // A nameless receiver can sit beside a named address (the session one is picked first), so look once.
+  useEffect(() => {
+    setNamedElsewhere(false)
+    if (!facade || !receiver || receiver.lightningAddress) return
+    let stale = false
+    facade
+      .addresses()
+      .then((all) => !stale && setNamedElsewhere(all.some((a) => a.status === 'active' && a.lightningAddress)))
+      .catch((err) => consoleError(err, 'lnurl address list failed'))
+    return () => {
+      stale = true
+    }
+  }, [facade, receiver])
+
   const run = async (action: () => Promise<Receiver>, syncAfter: boolean) => {
     const owner = facade
     setBusy(true)
@@ -304,6 +321,7 @@ export function useLnurlRail(deps: {
     choices,
     busy,
     error,
+    ownsName: Boolean(receiver?.lightningAddress) || namedElsewhere,
     claim: async (opts) => {
       if (!facade) return undefined
       const claimed = await run(() => facade.claim(opts), true)
