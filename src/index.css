@@ -278,7 +278,7 @@ button.focusable {
 @media (prefers-reduced-motion: reduce) {
   button {
     transition: none;
-    &.pressed {
+    &:active {
       transform: none;
     }
   }
