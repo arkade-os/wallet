@@ -136,6 +136,7 @@ export default function ReceiveQRCode() {
     identity: svcWallet?.identity,
     arkadeAddress: recvInfo.offchainAddr,
     boardingAddress: recvInfo.boardingAddr || undefined,
+    primary: config.lnurlPrimary,
   })
   const swapRailOn =
     !lnurlConfigured ||

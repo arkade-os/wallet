@@ -22,6 +22,8 @@ export type Config = {
   notifications: boolean
   pubkey: string
   receiveViaTokens: boolean
+  /** Handle of the lightning address the wallet receives on, when it owns several; empty for the server default. */
+  lnurlPrimary: string
   showBalance: boolean
   dismissedBanners: string[]
   theme: Themes

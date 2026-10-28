@@ -2,6 +2,7 @@ import Header from './Header'
 import { useContext, useEffect, useState } from 'react'
 import Padded from '../../components/Padded'
 import Toggle from '../../components/Toggle'
+import Select from '../../components/Select'
 import Content from '../../components/Content'
 import FlexCol from '../../components/FlexCol'
 import Table, { type TableData } from '../../components/Table'
@@ -61,6 +62,7 @@ export default function Lnurl() {
     identity: svcWallet?.identity,
     arkadeAddress: addresses?.arkade,
     boardingAddress: addresses?.boarding,
+    primary: config.lnurlPrimary,
   })
 
   useEffect(() => {
@@ -119,7 +121,13 @@ export default function Lnurl() {
   const naming = namingChoices.length > 0 && rail.status !== 'failed'
   // A named wallet can still redeem a code: it claims a further address, as upgrade only renames a nameless one.
   const sheetChoices: OnboardingChoice[] = named ? ['admin'] : namingChoices.filter((c) => c !== 'random')
-  const name = (opts: NameOptions) => (rail.receiver && !named ? rail.upgrade(opts) : rail.claim(opts))
+  const name = async (opts: NameOptions) => {
+    if (rail.receiver && !named) return rail.upgrade(opts)
+    const claimed = await rail.claim(opts)
+    // A further address is what the user just asked for, so it becomes the one the wallet receives on.
+    if (claimed && named) backupAndUpdateConfig({ ...config, lnurlPrimary: claimed.handle })
+  }
+  const active = owned.filter((a) => a.status === 'active')
   const sendable: TableData = limits.map(({ type, min, max }) => [
     railLabels[type] ?? type,
     `${prettyNumber(min, 0)} – ${prettyNumber(max, 0)} sats`,
@@ -177,6 +185,18 @@ export default function Lnurl() {
                 </TextSecondary>
               )}
             </section>
+            {/* Hidden under the claim sheet: Select takes arrow keys page-wide, which the code field would feed it. */}
+            {active.length > 1 && !claiming ? (
+              <section className='settings-section'>
+                <p className='settings-section-label'>{t('settings.lnurlPrimary')}</p>
+                <Select
+                  options={active.map((a) => a.handle)}
+                  labels={active.map((a) => a.lightningAddress ?? 'LNURL')}
+                  selected={rail.receiver?.handle ?? ''}
+                  onChange={(handle) => backupAndUpdateConfig({ ...config, lnurlPrimary: handle })}
+                />
+              </section>
+            ) : null}
             {naming ? (
               <section className='settings-section'>
                 <p className='settings-section-label'>{t('settings.lnurlAddName')}</p>
