@@ -135,6 +135,7 @@ const router = (over: Partial<Parameters<typeof createSendRouter>[0]> = {}) =>
     claimFeeRateSatVb: CLAIM_RATE,
     outputFee: () => 500,
     intentFee: () => ({}),
+    dust: () => 330,
     ...over,
   })
 
@@ -313,6 +314,7 @@ describe('the collaborative exit rail', () => {
 
   it('refuses to build an exit rail that could not price the coins it spends', () => {
     expect(() => router({ intentFee: undefined })).toThrow(/intentFee/)
+    expect(() => router({ dust: undefined })).toThrow(/dust/)
   })
 
   it('quotes the intent fee arkd charges the coins the exit spends', async () => {

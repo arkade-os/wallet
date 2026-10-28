@@ -119,49 +119,83 @@ const outputAfterItsFee = (estimator: Estimator, address: string, amount: number
 export interface ExitPlan {
   inputs: ExtendedVirtualCoin[]
   change?: { address: string; amount: bigint }
-  /** The intent fee on top of the exit output's: every input's and the change's. */
+  /** The intent fee on top of the exit output's: every input's, and the change's or a change below dust. */
   fee: number
 }
 
+/** Every coin an exit may spend that is worth more than its own intent fee. */
+const exitCandidates = async (wallet: IWallet, estimator: Estimator) => {
+  // The SDK's own settle selector: escrowed, gated and intent-locked coins stay out.
+  const vtxos = await wallet.getSpendableVtxos({ withRecoverable: true, genericallySpendableOnly: true })
+  return vtxos
+    .map((vtxo) => ({ vtxo, inputFee: offchainInputFee(estimator, vtxo) }))
+    .filter(({ vtxo, inputFee }) => inputFee < vtxo.value)
+}
+
+/** The most an exit can cover, which `planCollaborativeExit` then funds exactly: every
+ *  coin net of its intent fee, less a change of `dust` for any assets to stay on, unless
+ *  the coins without assets alone cover more. */
+export const maxCollaborativeExit = async (
+  wallet: IWallet,
+  intentFee: IntentFeeConfig | undefined,
+  dust: number,
+): Promise<number> => {
+  const estimator = new Estimator(intentFee ?? {})
+  const candidates = await exitCandidates(wallet, estimator)
+  const netOf = (coins: typeof candidates) => coins.reduce((sum, { vtxo, inputFee }) => sum + vtxo.value - inputFee, 0)
+  const plain = netOf(candidates.filter(({ vtxo }) => !vtxo.assets?.length))
+  const all = netOf(candidates)
+  if (all === plain) return plain
+  const script = hex.encode(ArkAddress.decode((await getReceivingAddresses(wallet)).offchainAddr).pkScript)
+  return Math.max(plain, all - dust - estimator.evalOffchainOutput({ amount: BigInt(dust), script }).satoshis)
+}
+
 /** The coins an exit spends to cover `inputAmount` (payout plus exit fee) after
- *  each pays its own intent fee, and the change left once it pays for itself. */
+ *  each pays its own intent fee, and the change left once it pays for itself.
+ *  arkd refuses a change below `dust`, so such a change joins the fee, unless
+ *  assets ride along: they need a change of at least `dust` to land on. */
 export const planCollaborativeExit = async (
   wallet: IWallet,
   inputAmount: number,
   intentFee: IntentFeeConfig | undefined,
+  dust: number,
 ): Promise<ExitPlan> => {
-  // The SDK's own settle selector: escrowed, gated and intent-locked coins stay out.
-  const vtxos = await wallet.getSpendableVtxos({ withRecoverable: true, genericallySpendableOnly: true })
   const estimator = new Estimator(intentFee ?? {})
   const inputs = []
   let net = 0
   let fee = 0
+  let carriesAssets = false
+  let changeAddress: string | undefined
 
-  // Coins that owe no intent fee first, each group by batch expiry ascending
-  // (missing expiry last): a young coin's inherited early expiry must not make it pay.
-  const priced = vtxos
-    .map((vtxo) => ({ vtxo, inputFee: offchainInputFee(estimator, vtxo) }))
-    .sort((a, b) => Number(a.inputFee > 0) - Number(b.inputFee > 0) || byExpiryAsc(a.vtxo, b.vtxo))
+  // Coins without assets first, since a coin with assets binds the change to dust. Then
+  // coins that owe no intent fee, each group by batch expiry ascending (missing expiry
+  // last): a young coin's inherited early expiry must not make it pay.
+  const priced = (await exitCandidates(wallet, estimator)).sort(
+    (a, b) =>
+      Number(Boolean(a.vtxo.assets?.length)) - Number(Boolean(b.vtxo.assets?.length)) ||
+      Number(a.inputFee > 0) - Number(b.inputFee > 0) ||
+      byExpiryAsc(a.vtxo, b.vtxo),
+  )
 
   for (const { vtxo, inputFee } of priced) {
-    if (net >= inputAmount) break
-    if (inputFee >= vtxo.value) continue
     inputs.push(vtxo)
     net += vtxo.value - inputFee
     fee += inputFee
+    carriesAssets ||= Boolean(vtxo.assets?.length)
+    if (net < inputAmount) continue
+
+    const left = net - inputAmount
+    if (left > 0) {
+      changeAddress ??= (await getReceivingAddresses(wallet)).offchainAddr
+      const change = outputAfterItsFee(estimator, changeAddress, left)
+      if (change > 0 && change >= dust) {
+        return { inputs, fee: fee + left - change, change: { address: changeAddress, amount: BigInt(change) } }
+      }
+    }
+    if (!carriesAssets) return { inputs, fee: fee + left }
   }
 
-  if (net < inputAmount) throw new InsufficientFundsError()
-
-  const left = net - inputAmount
-  if (left === 0) return { inputs, fee }
-  const { offchainAddr } = await getReceivingAddresses(wallet)
-  const change = outputAfterItsFee(estimator, offchainAddr, left)
-  return {
-    inputs,
-    fee: fee + left - change,
-    ...(change > 0 ? { change: { address: offchainAddr, amount: BigInt(change) } } : {}),
-  }
+  throw new InsufficientFundsError()
 }
 
 /** Settles the plan it is given rather than planning again, so it cannot pay

@@ -7,13 +7,14 @@ import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Details, { DetailsProps } from '../../../components/Details'
 import ErrorMessage from '../../../components/Error'
 import { WalletContext } from '../../../providers/wallet'
+import { AspContext } from '../../../providers/asp'
 import { SwapsContext } from '../../../providers/swaps'
 import Header from '../../../components/Header'
 import { defaultFee } from '../../../lib/constants'
 import { prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
-import { InsufficientFundsError, sendOffChain } from '../../../lib/asp'
+import { InsufficientFundsError, maxCollaborativeExit, sendOffChain } from '../../../lib/asp'
 import {
   ASSET_RAIL,
   ONCHAIN_ROUTE_LOG,
@@ -43,7 +44,8 @@ export default function SendDetails() {
   const { calcOnchainOutputFee, intentFee } = useContext(FeesContext)
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
-  const { assetMetadataCache, balance, reloadWallet, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, availableBalance, balance, reloadWallet, svcWallet } = useContext(WalletContext)
+  const { aspInfo } = useContext(AspContext)
   const { sendRouter } = useContext(SwapsContext)
   const { t } = useTranslation()
 
@@ -141,14 +143,32 @@ export default function SendDetails() {
   useEffect(() => {
     if (!pricing || !details?.destination || !details.satoshis) return
     let live = true
-    const settle = (cost?: { fee: number; total: number }) => {
+    const asked = details.satoshis
+    type Priced = { cost: Pick<RouteQuote, 'amount' | 'fee' | 'total'>; most?: number }
+    const settle = (priced?: Priced) => {
       if (!live) return
-      if (cost) setDetails((prev) => (prev ? { ...prev, fees: cost.fee, total: cost.total } : prev))
+      const cost = priced?.cost
+      if (cost)
+        setDetails((prev) => (prev ? { ...prev, satoshis: cost.amount, fees: cost.fee, total: cost.total } : prev))
+      if (cost && cost.amount < asked) setNotice(t('send.feesDeductedFromAmount'))
       setPricing(false)
-      offerToSign(cost?.total ?? details.total ?? 0)
+      if (priced?.most === undefined) return offerToSign(cost?.total ?? details.total ?? 0)
+      setButtonLabel(t('send.insufficientFunds'))
+      setError(t('send.insufficientFundsMax', { max: prettyNumber(priced.most) }))
     }
     const priced = sendRouter({ outputFee: calcOnchainOutputFee, intentFee })
-      .then((router) => previewOnchainCost(router, details.destination!, details.satoshis!))
+      .then(async (router): Promise<Priced | undefined> => {
+        const cost = await previewOnchainCost(router, details.destination!, asked)
+        if (cost || !svcWallet) return cost && { cost }
+        const most = (await maxCollaborativeExit(svcWallet, intentFee(), Number(aspInfo.dust))) - calcOnchainOutputFee()
+        const atMost =
+          most > 0 && most < asked ? await previewOnchainCost(router, details.destination!, most) : undefined
+        if (!atMost) return undefined
+        // Max asks for the whole balance, so the fees can only come out of the amount, as the exit fee does.
+        if (satoshis === availableBalance) return { cost: atMost }
+        // Any other amount stays as asked, at the fee of spending every coin: more than they hold.
+        return { cost: { amount: asked, fee: atMost.fee, total: asked + atMost.fee }, most }
+      })
       .catch((err) => {
         // The exit rail's own figures stay on screen, and it is what will pay.
         consoleError(err, `${ONCHAIN_ROUTE_LOG} could not price the send`)
