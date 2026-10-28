@@ -26,6 +26,8 @@ export const onRequest = async ({ request, env }: EventContext): Promise<Respons
   if (request.headers.has(FORWARDED)) return new Response('LNURL origin unreachable', { status: 502 })
   const forwarded = new Request(request)
   forwarded.headers.set(FORWARDED, '1')
+  forwarded.headers.delete('authorization')
+  forwarded.headers.delete('cookie')
   const upstream = await fetch(forwarded, { cf: { resolveOverride: origin } } as RequestInit)
   return new Response(upstream.body, { status: upstream.status, headers: SAFE_HEADERS })
 }

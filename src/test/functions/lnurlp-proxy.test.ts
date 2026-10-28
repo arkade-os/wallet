@@ -23,6 +23,19 @@ describe('lightning address proxy', () => {
     expect(init).toEqual({ cf: { resolveOverride: ORIGIN } })
   })
 
+  it("keeps the wallet's credentials and cookies to itself", async () => {
+    const fetch = upstream('{}')
+    vi.stubGlobal('fetch', fetch)
+    const headers = { Authorization: 'Basic d2FsbGV0OnNlY3JldA==', Cookie: 'session=1', Accept: 'application/json' }
+
+    await onRequest({ request: new Request(LOOKUP, { headers }), env: { LNURL_ORIGIN: ORIGIN } })
+
+    const [sent] = fetch.mock.calls[0]
+    expect(sent.headers.get('authorization')).toBeNull()
+    expect(sent.headers.get('cookie')).toBeNull()
+    expect(sent.headers.get('accept')).toBe('application/json')
+  })
+
   it('forwards the callback too', async () => {
     const fetch = upstream('{"pr":"lnbc1"}')
     vi.stubGlobal('fetch', fetch)

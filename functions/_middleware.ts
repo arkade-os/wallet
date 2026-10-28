@@ -26,6 +26,8 @@ export const onRequest = async (context: EventContext) => {
   const password = context.env.BASIC_AUTH_PASSWORD
 
   if (!username || !password) return context.next()
+  // Payers resolve lightning addresses without credentials; the route only proxies public LNURL data.
+  if (new URL(context.request.url).pathname.startsWith('/.well-known/lnurlp/')) return context.next()
 
   const auth = context.request.headers.get('Authorization')
   if (!auth) return unauthorized()

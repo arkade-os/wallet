@@ -11,10 +11,12 @@ calls the callback lnurl-server puts on the same domain. The Pages Function in
    `lnurl-origin.arkade.money` (CNAME or A to the server). The Function can only redirect to a
    proxied hostname in the same zone.
 2. **Pages project, production environment:** set the variable `LNURL_ORIGIN=lnurl-origin.arkade.money`.
-   Without it, the Function answers 404.
+   Without it, the Function answers 404. With `BASIC_AUTH_*` set, this path stays public: payers
+   resolve addresses without credentials, and the Function forwards no `Authorization` or `Cookie`.
 3. **lnurl-server reverse proxy:** route `Host(arkade.money) && PathPrefix(/.well-known/lnurlp)` to the
    lnurl-server service. Cloudflare connects to it as `arkade.money`, so:
-   - Serve a Cloudflare Origin CA certificate for that name, or use SSL mode "Full", not "Full (strict)".
+   - Serve a Cloudflare Origin CA certificate for that name, and keep the zone's SSL mode at
+     "Full (strict)" so Cloudflare verifies it.
    - Leave Let's Encrypt off for it. Its HTTP challenge would reach Pages.
 4. **lnurl-server:** add the domain with `POST /admin/api/domains`, using `{ "domain": "arkade.money", ... }`.
 5. **Wallet build:** set `VITE_LNURL_DOMAIN=arkade.money`. `VITE_LNURL_SERVER` stays the lnurl-server URL.
