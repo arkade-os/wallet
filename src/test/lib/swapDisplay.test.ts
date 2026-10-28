@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   buildAssetSwapActivityTx,
   lnSwapLabel,
+  lnurlLabel,
   swapAmountBeforeFee,
   swapFeeAmount,
   swapRouteLabel,
@@ -14,7 +15,7 @@ import type { WalletAssetSwap } from '../../lib/swapRepository'
 import { MUTINYNET_USDT_ASSET_ID } from '../../lib/accountAssets'
 import { Currencies, Language, Tx, Unit } from '../../lib/types'
 
-const t = (key: string) => translate(Language.English, key)
+const t = (key: string, params?: Record<string, string | number>) => translate(Language.English, key, params)
 
 const PRICE = 63_750 // USD per whole BTC
 const EUR_PRICE = 31_875 // EUR per whole BTC, distinct so cross-fiat mixups show
@@ -272,6 +273,38 @@ describe('lnSwapLabel', () => {
     const es = (key: string) => translate(Language.Spanish, key)
     expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'refunded' }), es)).toBe('Envío Lightning reembolsado')
     expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'lost' }), es)).toBe('Recepción Lightning perdida')
+  })
+})
+
+describe('lnurlLabel', () => {
+  const receive = (lnurl?: Tx['lnurl']) => ({ type: 'received', lnurl }) as Tx
+  const sent = (lnurl?: Tx['lnurl']) => ({ type: 'sent', lnurl }) as Tx
+
+  it('names the address a receive arrived at, never as the payer', () => {
+    expect(lnurlLabel(receive({ address: 'alice@lnurl.example', rail: 'lightning' }), t)).toBe(
+      'Received at alice@lnurl.example',
+    )
+  })
+
+  it('names the rail for a nameless receive', () => {
+    expect(lnurlLabel(receive({ rail: 'arkade' }), t)).toBe('Received via arkade')
+  })
+
+  it('names who a send paid', () => {
+    expect(lnurlLabel(sent({ address: 'alice@pay.example', rail: 'lnurl-arkade' }), t)).toBe(
+      'Sent to alice@pay.example',
+    )
+  })
+
+  it('leaves a row no lnurl resolver tagged alone', () => {
+    expect(lnurlLabel(receive(), t)).toBeUndefined()
+    expect(lnurlLabel(sent(), t)).toBeUndefined()
+  })
+
+  it('reads in the wallet language', () => {
+    const es = (key: string, params?: Record<string, string | number>) => translate(Language.Spanish, key, params)
+    expect(lnurlLabel(receive({ address: 'alice@lnurl.example' }), es)).toBe('Recibido en alice@lnurl.example')
+    expect(lnurlLabel(sent({ rail: 'arkade' }), es)).toBe('Enviado vía arkade')
   })
 })
 

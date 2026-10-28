@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useState, useSyncExternalStore } from 'react'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import Padded from '../../components/Padded'
@@ -35,6 +35,7 @@ import { SwapsContext } from '../../providers/swaps'
 import { hapticTap } from '../../lib/haptics'
 import { useTransactionAmountDisplay } from '../../hooks/useTransactionAmountDisplay'
 import { useCorridorSendReceipt } from '../../hooks/useCorridorSendReceipt'
+import { lnurlSends, subscribeLnurlSends } from '../../lib/lnurlSends'
 import TransactionAmountSummary from '../../components/TransactionAmountSummary'
 import { useTranslation } from '../../providers/language'
 import {
@@ -113,6 +114,11 @@ export default function Transaction() {
   const [recoverConfirmOpen, setRecoverConfirmOpen] = useState(false)
   const [recoverFailed, setRecoverFailed] = useState(false)
   const [recoveringSwap, setRecoveringSwap] = useState(false)
+  const txid = tx?.boardingTxid || tx?.redeemTxid || tx?.roundTxid || ''
+  const receiverConfirmed = useSyncExternalStore(
+    subscribeLnurlSends,
+    () => lnurlSends().find((s) => s.txid === txid)?.receiverConfirmed,
+  )
 
   useEffect(() => {
     setButtonLabel(settling ? t('transaction.settling') : defaultButtonLabel)
@@ -244,7 +250,6 @@ export default function Transaction() {
     : !unconfirmedBoardingTx
       ? t('common.unknown')
       : t('transaction.unconfirmed')
-  const txid = tx.boardingTxid || tx.redeemTxid || tx.roundTxid || ''
   const displayedAssets = amountDisplay?.raw.filter((amount) => amount.assetId) ?? []
   const assetIds = displayedAssets.map((amount) => ({
     assetId: amount.assetId!,
@@ -309,6 +314,10 @@ export default function Transaction() {
         date,
         destination: tx.type === 'sent' && !boardingTx && !issuanceTx && !burnTx ? tx.destination : undefined,
         fees,
+        // Sends already carry their target as `destination`, saved at send time;
+        // the resolver's address/rail is the only source for a receive.
+        receivedAt: tx.type !== 'sent' ? tx.lnurl?.address : undefined,
+        rail: tx.type !== 'sent' ? tx.lnurl?.rail : undefined,
         // An exit is the one row whose txid is genuinely onchain, so it links
         // to the block explorer rather than to Arkade's. Without the guard its
         // `redeemTxid` alone would class it offchain and send the link to the
@@ -368,6 +377,15 @@ export default function Transaction() {
           ) : null}
           {swapTx && tx.assetSwap ? (
             <SwapTransactionSummary fromIcon={swapFromIcon} toIcon={swapToIcon} tx={tx} />
+          ) : null}
+          {receiverConfirmed === true ? (
+            <Info color='green' icon={<CheckMarkIcon small />} title={t('transaction.receiverConfirmed')}>
+              <TextSecondary>{t('transaction.receiverConfirmedText')}</TextSecondary>
+            </Info>
+          ) : receiverConfirmed === false ? (
+            <Info color='orange' icon={<VtxosIcon />} title={t('transaction.receiverNotConfirmed')}>
+              <TextSecondary>{t('transaction.receiverNotConfirmedText')}</TextSecondary>
+            </Info>
           ) : null}
           {amountDisplay ? <TransactionAmountSummary amount={amountDisplay} label={summaryLabel} /> : null}
           <Details details={details} variant='receipt' />
