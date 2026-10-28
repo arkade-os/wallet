@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FORWARDED, onRequest } from '../../../functions/.well-known/lnurlp/[[path]]'
+import { onRequest as onSessionRequest } from '../../../functions/lnurl/[[path]]'
 
 const LOOKUP = 'https://arkade.money/.well-known/lnurlp/alice'
 const ORIGIN = 'lnurl-origin.arkade.money'
@@ -45,6 +46,18 @@ describe('lightning address proxy', () => {
     expect(fetch.mock.calls[0][0].url).toBe(`${LOOKUP}/callback?amount=1000`)
   })
 
+  it("forwards a nameless wallet's session lnurl and its callback from /lnurl/", async () => {
+    const fetch = upstream('{"tag":"payRequest"}')
+    vi.stubGlobal('fetch', fetch)
+    const session = `https://arkade.money/lnurl/${'ab'.repeat(16)}`
+    const env = { LNURL_ORIGIN: ORIGIN }
+
+    await onSessionRequest({ request: new Request(session), env })
+    await onSessionRequest({ request: new Request(`${session}/callback?amount=1000`), env })
+
+    expect(fetch.mock.calls.map(([sent]) => sent.url)).toEqual([session, `${session}/callback?amount=1000`])
+  })
+
   it('serves whatever comes back as JSON that cannot run or frame on the wallet origin', async () => {
     vi.stubGlobal(
       'fetch',
@@ -70,6 +83,9 @@ describe('lightning address proxy', () => {
     expect((await onRequest({ request: new Request(LOOKUP, { method: 'POST' }), env })).status).toBe(405)
     expect((await onRequest({ request: new Request(`${LOOKUP}/other`), env })).status).toBe(404)
     expect((await onRequest({ request: new Request(`${LOOKUP}/callback/more`), env })).status).toBe(404)
+    expect((await onSessionRequest({ request: new Request('https://arkade.money/lnurl/address'), env })).status).toBe(
+      404,
+    )
     expect(fetch).not.toHaveBeenCalled()
   })
 

@@ -15,6 +15,11 @@ describe('basic auth middleware', () => {
     expect(next).toHaveBeenCalled()
   })
 
+  it("keeps a nameless wallet's session lnurl public too, but not the rest of /lnurl/", async () => {
+    expect((await run(`/lnurl/${'ab'.repeat(16)}/callback`).res).status).toBe(200)
+    expect((await run('/lnurl/address').res).status).toBe(401)
+  })
+
   it('still challenges every other path', async () => {
     const { next, res } = run('/')
 
