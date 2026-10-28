@@ -209,7 +209,6 @@ export const translations = {
       notes: 'Notes',
     },
     wallet: {
-      wallet: 'Wallet',
       receive: 'Receive',
       send: 'Send',
       swap: 'Swap',
@@ -227,7 +226,6 @@ export const translations = {
       transaction: 'Transaction',
       viewAllActivity: 'View all activity',
       walletActions: 'Wallet actions',
-      mainNavigation: 'Main navigation',
       tapToGoHome: 'Tap to go home.',
     },
     transaction: {
@@ -1048,7 +1046,6 @@ export const translations = {
       notes: 'Notas',
     },
     wallet: {
-      wallet: 'Wallet',
       receive: 'Recibir',
       send: 'Enviar',
       swap: 'Intercambiar',
@@ -1066,7 +1063,6 @@ export const translations = {
       transaction: 'Transacción',
       viewAllActivity: 'Ver toda la actividad',
       walletActions: 'Acciones de la wallet',
-      mainNavigation: 'Navegación principal',
       tapToGoHome: 'Toca para ir a la pantalla de inicio.',
     },
     transaction: {
