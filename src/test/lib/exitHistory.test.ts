@@ -2,18 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { getTxStatus } = vi.hoisted(() => ({ getTxStatus: vi.fn() }))
 
-// Keep the real SDK — `ESPLORA_URL` is read for the network fallback — and only
-// stand in for the provider, so the test controls what the chain says.
-vi.mock('@arkade-os/sdk', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@arkade-os/sdk')>()
-  return {
-    ...actual,
-    EsploraProvider: class {
-      constructor(public baseUrl: string) {}
-      getTxStatus = getTxStatus
-    },
-  }
-})
+// Only the connection is stood in for; the real `ELECTRUM_WS_URL` still decides
+// which networks get one.
+vi.mock('../../lib/electrum', () => ({ electrumProvider: () => ({ getTxStatus }) }))
 
 import { resolveExits, subtractExitedAssets } from '../../lib/exitHistory'
 import { readAllTransactionActivityMetadata, saveTransactionActivityMetadata } from '../../lib/storage'
@@ -105,7 +96,7 @@ describe('resolveExits', () => {
   })
 
   it('falls back without persisting when the lookup throws, and does not reject', async () => {
-    getTxStatus.mockRejectedValue(new Error('esplora down'))
+    getTxStatus.mockRejectedValue(new Error('electrum down'))
 
     const [record] = await resolveExits([vtxo()], 'mutinynet')
 
@@ -116,8 +107,8 @@ describe('resolveExits', () => {
   it('gives up on a lookup that never answers rather than parking the reload', async () => {
     vi.useFakeTimers()
     try {
-      // A host that accepts the connection and never replies: `fetch` has no
-      // timeout of its own, so without the race this reload never returns.
+      // A socket that never connects waits with no timeout of its own, so
+      // without the race this reload never returns.
       getTxStatus.mockReturnValue(new Promise(() => {}))
 
       const pending = resolveExits([vtxo()], 'mutinynet')
@@ -131,14 +122,14 @@ describe('resolveExits', () => {
     }
   })
 
-  it('asks nobody when no explorer can be named for the network', async () => {
+  it('asks nobody on a network with no Electrum endpoint', async () => {
     const [record] = await resolveExits([vtxo()], 'not-a-network')
 
     expect(record.exitedAt).toBe(RECEIVED_SECONDS)
     expect(getTxStatus).not.toHaveBeenCalled()
   })
 
-  it('names an explorer on mainnet, where the app table has no api entry', async () => {
+  it('reads mainnet too, not only the test networks', async () => {
     getTxStatus.mockResolvedValue(confirmed(EXITED_SECONDS))
 
     const [record] = await resolveExits([vtxo()], 'bitcoin')
