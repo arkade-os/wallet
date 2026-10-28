@@ -842,7 +842,13 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     if (!held.current) throw new SwapsHeldElsewhere()
     const client = await driving()
     const claimFeeRateSatVb = await claimFeeRate(onchainClaimEndpoint(aspInfo.network as NetworkName))
-    return createSendRouter({ wallet: svcWallet!, client, claimFeeRateSatVb, ...deps })
+    return createSendRouter({
+      wallet: svcWallet!,
+      client,
+      claimFeeRateSatVb,
+      dust: () => Number(aspInfo.dust),
+      ...deps,
+    })
   }
 
   const outcomeOf = useCallback((id: string) => outcomes.get(id), [outcomes])
@@ -867,7 +873,18 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     }),
     // the actions close over these
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [markets, swapAvailable, swaps, svcWallet, emulatorPubkey, aspInfo.url, aspInfo.network, outcomeOf, errorOf],
+    [
+      markets,
+      swapAvailable,
+      swaps,
+      svcWallet,
+      emulatorPubkey,
+      aspInfo.url,
+      aspInfo.network,
+      aspInfo.dust,
+      outcomeOf,
+      errorOf,
+    ],
   )
 
   return <SwapsContext.Provider value={value}>{children}</SwapsContext.Provider>

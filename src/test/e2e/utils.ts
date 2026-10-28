@@ -185,8 +185,8 @@ export async function createWalletAndGetBIP21(page: Page, isMobile?: boolean, sa
     }
   }
 
-  await page.waitForSelector(`text=${tr.common.copy}`, { state: 'visible' })
-  await page.getByText(tr.common.copy).click()
+  await page.waitForSelector(`text=${tr.receive.copy}`, { state: 'visible' })
+  await page.getByText(tr.receive.copy).click()
   await page.getByTestId('bip21-address-copy').click()
   const bip21 = await readClipboard(page)
   return bip21
@@ -306,7 +306,7 @@ async function getSecret(page: Page): Promise<string> {
   // Mnemonic wallets show "View recovery phrase", legacy shows "View private key"
   const viewBtn = page.getByText(tr.backup.viewRecoveryPhrase).or(page.getByText(tr.backup.viewPrivateKey))
   await viewBtn.click()
-  await page.getByText(tr.common.confirm, { exact: true }).click()
+  await page.getByText(tr.backup.confirm, { exact: true }).click()
   const secret = await page.getByTestId('private-key').innerText()
   return secret
 }
