@@ -3107,6 +3107,13 @@ hr {
   height: 100%;
 }
 
+/* A chain badge hangs past the logo's edge, which the round clip would cut off. */
+.settings-select-row__icon:has(> .token-on-chain) {
+  overflow: visible;
+  background: none;
+  box-shadow: none;
+}
+
 .settings-select-row--first {
   border-top: 0;
 }

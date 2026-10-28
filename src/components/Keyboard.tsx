@@ -100,7 +100,7 @@ export default function Keyboard({
         setFromValue(prettyNumber(Number(initialValue), 0, false))
       }
     }
-  }, [initialValue, inputMode, asset, toFiat, fiatDecimals])
+  }, [initialValue, inputMode, asset?.assetId, asset?.decimals, toFiat, fiatDecimals])
 
   useEffect(() => {
     const strValue = textValue.replaceAll(',', '')

@@ -24,6 +24,7 @@ import Haptics from './Haptics'
 import Contracts from './Contracts'
 import Solvers from './Solvers'
 import LanguageSettings from './Language'
+import Lnurl from './Lnurl'
 
 function settingsContent(option: SettingsOptions): JSX.Element {
   switch (option) {
@@ -47,6 +48,8 @@ function settingsContent(option: SettingsOptions): JSX.Element {
       return <Currency />
     case SettingsOptions.Haptics:
       return <Haptics />
+    case SettingsOptions.Lnurl:
+      return <Lnurl />
     case SettingsOptions.Lock:
       return <Lock />
     case SettingsOptions.Logs:
