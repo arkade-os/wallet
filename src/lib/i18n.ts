@@ -209,7 +209,6 @@ export const translations = {
       notes: 'Notes',
     },
     wallet: {
-      wallet: 'Wallet',
       receive: 'Receive',
       send: 'Send',
       swap: 'Swap',
@@ -227,7 +226,6 @@ export const translations = {
       transaction: 'Transaction',
       viewAllActivity: 'View all activity',
       walletActions: 'Wallet actions',
-      mainNavigation: 'Main navigation',
       tapToGoHome: 'Tap to go home.',
     },
     transaction: {
@@ -556,6 +554,7 @@ export const translations = {
       passwordOneNumber: 'contain at least 1 number',
       passwordSpecialChar: 'contain at least 1 special character',
       focusableElement: 'Focusable element',
+      toggleVisibility: 'Toggle visibility',
     },
     accounts: {
       accountUnavailable: 'Account unavailable',
@@ -1048,7 +1047,6 @@ export const translations = {
       notes: 'Notas',
     },
     wallet: {
-      wallet: 'Wallet',
       receive: 'Recibir',
       send: 'Enviar',
       swap: 'Intercambiar',
@@ -1066,7 +1064,6 @@ export const translations = {
       transaction: 'Transacción',
       viewAllActivity: 'Ver toda la actividad',
       walletActions: 'Acciones de la wallet',
-      mainNavigation: 'Navegación principal',
       tapToGoHome: 'Toca para ir a la pantalla de inicio.',
     },
     transaction: {
@@ -1397,6 +1394,7 @@ export const translations = {
       passwordOneNumber: 'contener al menos 1 número',
       passwordSpecialChar: 'contener al menos 1 carácter especial',
       focusableElement: 'Elemento enfocable',
+      toggleVisibility: 'Cambiar visibilidad',
     },
     accounts: {
       accountUnavailable: 'Cuenta no disponible',

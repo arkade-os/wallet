@@ -64,11 +64,11 @@ export default function Table({ data, variant = 'default' }: { data: TableData; 
                   </div>
                   <div className='table-row__value-wrap'>
                     {onClick ? (
-                      <span onClick={onClick} className='table-row__external' aria-hidden='true'>
+                      <span onClick={onClick} className='table-row__external tappable' aria-hidden='true'>
                         <ExternalLinkIcon small />
                       </span>
                     ) : null}
-                    <span className='table-row__value' onClick={() => copy(value)} data-testid={title}>
+                    <span className='table-row__value tappable' onClick={() => copy(value)} data-testid={title}>
                       {prettyLongText(value, onClick ? 8 : undefined)}
                     </span>
                   </div>
@@ -83,7 +83,7 @@ export default function Table({ data, variant = 'default' }: { data: TableData; 
                   </FlexRow>
                   <FlexRow end gap='0.25rem'>
                     {onClick ? (
-                      <span onClick={onClick} style={{ cursor: 'pointer', color: 'var(--neutral-500)' }}>
+                      <span className='tappable' onClick={onClick} style={{ color: 'var(--neutral-500)' }}>
                         <ExternalLinkIcon small />
                       </span>
                     ) : null}

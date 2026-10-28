@@ -1,5 +1,6 @@
 /* UI-specific vars not covered by tokens.css */
 :root {
+  --active-transform-scale: 0.97;
   --background-focused: var(--purple20);
   --btn-shadow-color: var(--purple-950);
   --control-secondary-bg: color-mix(in srgb, var(--purple-100) 18%, var(--neutral-50));
@@ -190,8 +191,8 @@ iframe {
     opacity: 0.5;
     pointer-events: none;
   }
-  &.pressed {
-    transform: translateY(4px);
+  &:active {
+    transform: scale(var(--active-transform-scale));
     box-shadow: 0 0 0 0 var(--btn-shadow-color);
   }
   &.clear {
@@ -199,8 +200,8 @@ iframe {
     background: none;
     box-shadow: none;
     color: var(--black);
-    &.pressed {
-      transform: scale(0.97);
+    &:active {
+      transform: scale(var(--active-transform-scale));
     }
   }
   &.copy {
@@ -217,9 +218,9 @@ iframe {
     padding: 0;
     touch-action: manipulation;
     width: auto;
-    &.pressed {
+    &:active {
       box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 7%, transparent);
-      transform: translateY(3px);
+      transform: scale(var(--active-transform-scale));
     }
   }
   &.dark {
@@ -233,9 +234,6 @@ iframe {
     box-shadow: 0 4px 0 0 rgba(0, 0, 0, 0.1);
     color: var(--neutral-500);
   }
-  &.pill-nav-btn {
-    box-shadow: none;
-  }
   &.red {
     background: var(--red);
     border-color: var(--red);
@@ -248,9 +246,9 @@ iframe {
       inset 0 0 0 1px var(--control-secondary-ring),
       0 4px 0 0 var(--control-secondary-shadow);
     color: var(--control-secondary-fg);
-    &.pressed {
+    &:active {
       box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent);
-      transform: translateY(4px);
+      transform: scale(var(--active-transform-scale));
     }
   }
   &[size='small'] {
@@ -260,14 +258,20 @@ iframe {
   }
 }
 
-button.focusable {
-  transition: background-color 0.15s;
-  border: 1px solid var(--neutral-100);
-  &.receive-invoice-qr {
-    border: 1px solid transparent;
+button {
+  cursor: pointer;
+  &.focusable {
+    transition: background-color 0.15s;
+    border: 1px solid var(--neutral-100);
+    &.receive-invoice-qr {
+      border: 1px solid transparent;
+    }
+    &:focus-visible {
+      border: 1px solid var(--purple-700);
+    }
   }
-  &:focus-visible {
-    border: 1px solid var(--purple-700);
+  &:active {
+    transform: scale(var(--active-transform-scale));
   }
 }
 
@@ -275,10 +279,20 @@ button.focusable {
   padding: 1rem;
 }
 
+.tappable {
+  cursor: pointer;
+  &:active {
+    transform: scale(var(--active-transform-scale));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  button {
+  button,
+  .button,
+  .tappable,
+  .pill-base {
     transition: none;
-    &.pressed {
+    &:active {
       transform: none;
     }
   }
@@ -333,40 +347,6 @@ button.focusable {
         justify-content: flex-end;
       }
     }
-  }
-}
-
-.has-pill-navbar {
-  & .content {
-    --padding-bottom: var(--pill-navbar-clearance);
-  }
-  & .content:has(.scroll-fade) {
-    -webkit-mask-image: linear-gradient(
-      to bottom,
-      #000 0,
-      #000 calc(100% - var(--pill-navbar-clearance) - 56px),
-      rgba(0, 0, 0, 0.86) calc(100% - var(--pill-navbar-clearance) - 12px),
-      rgba(0, 0, 0, 0.54) calc(100% - var(--pill-navbar-clearance) + 18px),
-      rgba(0, 0, 0, 0.16) calc(100% - 18px),
-      transparent 100%
-    );
-    mask-image: linear-gradient(
-      to bottom,
-      #000 0,
-      #000 calc(100% - var(--pill-navbar-clearance) - 56px),
-      rgba(0, 0, 0, 0.86) calc(100% - var(--pill-navbar-clearance) - 12px),
-      rgba(0, 0, 0, 0.54) calc(100% - var(--pill-navbar-clearance) + 18px),
-      rgba(0, 0, 0, 0.16) calc(100% - 18px),
-      transparent 100%
-    );
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-  }
-  & .content.no-content-fade {
-    -webkit-mask-image: none;
-    mask-image: none;
   }
 }
 
@@ -505,7 +485,7 @@ button.focusable {
 }
 
 .home-quick-action:active {
-  transform: scale(0.97);
+  transform: scale(var(--active-transform-scale));
 }
 
 .home-quick-action:disabled,
@@ -746,7 +726,7 @@ button.focusable {
 
 .asset-card--interactive:active,
 .home-upsell-card:active {
-  transform: scale(0.985);
+  transform: scale(var(--active-transform-scale));
 }
 
 .asset-card--interactive:focus-visible,
@@ -932,7 +912,7 @@ button.focusable {
 }
 
 .privacy-amount--interactive:active .privacy-amount__value {
-  transform: scale(0.98);
+  transform: scale(var(--active-transform-scale));
 }
 
 .asset-card__balance.privacy-amount {
@@ -1037,7 +1017,7 @@ button.focusable {
 }
 
 .activity-row:active {
-  transform: scale(0.99);
+  transform: scale(var(--active-transform-scale));
 }
 
 .activity-row:focus-visible,
@@ -1597,7 +1577,7 @@ button.focusable {
   }
 
   .desktop-wallet-nav__item:active {
-    transform: scale(0.98);
+    transform: scale(var(--active-transform-scale));
   }
 
   .desktop-wallet-nav__item:focus-visible {
@@ -1835,7 +1815,7 @@ html.palette-dark .input-shell:focus-within {
 }
 
 .send-asset-trigger:active {
-  transform: scale(0.99);
+  transform: scale(var(--active-transform-scale));
 }
 
 .send-asset-trigger[aria-expanded='true'] {
@@ -1962,7 +1942,7 @@ html.palette-dark .input-shell:focus-within {
 }
 
 .send-asset-option:active {
-  transform: scale(0.99);
+  transform: scale(var(--active-transform-scale));
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -2359,7 +2339,7 @@ html.palette-dark .swap-flip-button {
 }
 
 .swap-amount-secondary:active {
-  transform: scale(0.97);
+  transform: scale(var(--active-transform-scale));
 }
 
 .swap-amount-secondary__icon {
@@ -2415,7 +2395,7 @@ html.palette-dark .swap-flip-button {
 
 .swap-receive-card:active,
 .swap-amount-display:active {
-  transform: scale(0.97);
+  transform: scale(var(--active-transform-scale));
 }
 
 .swap-receive-card__empty {
@@ -2457,7 +2437,7 @@ html.palette-dark .swap-flip-button {
 }
 
 .swap-flip-button:active {
-  transform: scale(0.97);
+  transform: scale(var(--active-transform-scale));
 }
 
 .swap-flip-button:disabled {
@@ -2487,7 +2467,7 @@ html.palette-dark .swap-flip-button {
 }
 
 .swap-keypad button:active {
-  transform: scale(0.97);
+  transform: scale(var(--active-transform-scale));
   background: var(--neutral-50);
 }
 
@@ -2603,126 +2583,6 @@ hr {
   }
 }
 
-/* ============================================================
-   Pill navbar
-   ============================================================ */
-
-.pill-navbar-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  pointer-events: none;
-  isolation: isolate;
-}
-
-.pill-navbar-layer--hidden .pill-navbar {
-  pointer-events: none;
-}
-
-.pill-navbar {
-  position: absolute;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: fit-content;
-  max-width: calc(100vw - 24px);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 999px;
-  background-color: var(--background-color);
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.08),
-    0 1px 3px -1px rgba(0, 0, 0, 0.12),
-    0 8px 20px -4px rgba(0, 0, 0, 0.14);
-  z-index: 1;
-  pointer-events: auto;
-}
-
-.palette-dark .pill-navbar {
-  background-color: var(--neutral-100);
-  box-shadow: var(--elevation-lg);
-}
-
-.pill-nav-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  min-width: 72px;
-  min-height: 44px;
-  padding: 6px 12px;
-  border: none;
-  border-radius: 999px;
-  background: none;
-  color: #808080;
-  cursor: pointer;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  transition:
-    color 150ms ease-out,
-    background-color 150ms ease-out;
-}
-
-.pill-nav-btn--active {
-  color: #040404;
-  background-color: var(--neutral-50);
-}
-
-.palette-dark .pill-nav-btn--active {
-  color: #fbfbfb;
-}
-
-.pill-nav-icon {
-  display: inline-flex;
-}
-
-.pill-nav-icon svg {
-  shape-rendering: geometricPrecision;
-}
-
-.pill-icon-pop {
-  animation: tab-pop 250ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-
-.pill-nav-label {
-  font-size: 0.65rem;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-}
-
-.pill-navbar-haze {
-  position: absolute;
-  left: 50%;
-  bottom: -12px;
-  width: min(460px, calc(100vw - 16px));
-  height: 136px;
-  transform: translateX(-50%);
-  z-index: 0;
-  background: radial-gradient(
-    ellipse 78% 88% at 50% 100%,
-    rgba(var(--fade-rgb), 0.68) 0%,
-    rgba(var(--fade-rgb), 0.5) 24%,
-    rgba(var(--fade-rgb), 0.24) 52%,
-    rgba(var(--fade-rgb), 0.08) 74%,
-    rgba(var(--fade-rgb), 0) 100%
-  );
-  pointer-events: none;
-}
-
-.palette-dark .pill-navbar-haze {
-  background: radial-gradient(
-    ellipse 78% 88% at 50% 100%,
-    rgba(var(--fade-rgb), 0.84) 0%,
-    rgba(var(--fade-rgb), 0.62) 26%,
-    rgba(var(--fade-rgb), 0.32) 54%,
-    rgba(var(--fade-rgb), 0.12) 74%,
-    rgba(var(--fade-rgb), 0) 100%
-  );
-}
-
 /* Tab icon animation wrapper */
 .tab-icon-animated {
   display: inline-flex;
@@ -2751,12 +2611,6 @@ hr {
   }
   [class*='tab-anim-'] {
     animation: none !important;
-  }
-  .pill-icon-pop {
-    animation: none !important;
-  }
-  .pill-nav-btn {
-    transition: none;
   }
 }
 
@@ -2795,6 +2649,9 @@ hr {
   touch-action: manipulation;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+  &:active {
+    transform: scale(var(--active-transform-scale));
+  }
 }
 
 .hit-area {
@@ -2933,7 +2790,7 @@ hr {
    ================================================ */
 
 .settings-page {
-  padding: 0.75rem 0 var(--pill-navbar-footer-clearance, env(safe-area-inset-bottom, 0px));
+  padding: 0.75rem 0 env(safe-area-inset-bottom, 0px);
 }
 
 .settings-section {
@@ -3003,7 +2860,7 @@ hr {
 
 .settings-row:active {
   background: color-mix(in srgb, var(--fg) 3.5%, transparent);
-  transform: scale(0.99);
+  transform: scale(var(--active-transform-scale));
 }
 
 .settings-row__main,
@@ -3344,7 +3201,7 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
 }
 
 .asset-detail-action:active {
-  transform: scale(0.97);
+  transform: scale(var(--active-transform-scale));
 }
 
 .asset-detail-action:disabled {
@@ -3434,7 +3291,7 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
 }
 
 .asset-detail-range-tab:active {
-  transform: scale(0.96);
+  transform: scale(var(--active-transform-scale));
 }
 
 .asset-detail-holdings {
@@ -4057,7 +3914,7 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
 
 /* press feedback only — the persistent selected state must not stay scaled */
 .swap-token-row:active {
-  transform: scale(0.985);
+  transform: scale(var(--active-transform-scale));
 }
 
 .swap-direction-button {
