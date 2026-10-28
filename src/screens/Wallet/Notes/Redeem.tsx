@@ -82,7 +82,7 @@ export default function NotesRedeem() {
         )}
       </Content>
       <ButtonsOnBottom>
-        <Button onClick={handleRedeem} label={buttonLabel} disabled={redeeming || Boolean(error)} />
+        <Button onClick={handleRedeem} label={buttonLabel} disabled={redeeming || Boolean(noteInfo.error)} />
       </ButtonsOnBottom>
     </>
   )
