@@ -75,7 +75,7 @@ test.skip('changing amount should update the invoice (sats mode)', async ({ page
   }
 
   // copy invoice
-  await page.getByText(tr.common.copy).click()
+  await page.getByText(tr.receive.copy).click()
   await page.getByTestId('invoice-address-copy').click()
   const invoice = await readClipboard(page)
   await sleep(1000)
@@ -100,7 +100,7 @@ test.skip('changing amount should update the invoice (sats mode)', async ({ page
   }
 
   // copy invoice
-  await page.getByText(tr.common.copy).click()
+  await page.getByText(tr.receive.copy).click()
   await page.getByTestId('invoice-address-copy').click()
   const newInvoice = await readClipboard(page)
 
@@ -133,7 +133,7 @@ test.skip('changing amount should update the invoice (fiat mode)', async ({ page
 
   // copy invoice
   await sleep(1000)
-  await page.getByText(tr.common.copy).click()
+  await page.getByText(tr.receive.copy).click()
   await page.getByTestId('invoice-address-copy').click()
   const invoice = await readClipboard(page)
 
@@ -158,7 +158,7 @@ test.skip('changing amount should update the invoice (fiat mode)', async ({ page
 
   // copy invoice
   await sleep(1000)
-  await page.getByText(tr.common.copy).click()
+  await page.getByText(tr.receive.copy).click()
   await page.getByTestId('invoice-address-copy').click()
   const newInvoice = await readClipboard(page)
 

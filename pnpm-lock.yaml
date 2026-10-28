@@ -15,15 +15,18 @@ importers:
 
   .:
     dependencies:
+      '@arkade-os/lnurl-client':
+        specifier: 0.9.1
+        version: 0.9.1(@arkade-os/sdk@0.5.0-rc.28)
       '@arkade-os/sdk':
-        specifier: 0.5.0-rc.26
-        version: 0.5.0-rc.26
+        specifier: 0.5.0-rc.28
+        version: 0.5.0-rc.28
       '@arkade-os/solver-discovery':
         specifier: 0.3.0
         version: 0.3.0
       '@arkade-os/swap':
-        specifier: 0.1.0-rc.29
-        version: 0.1.0-rc.29(nostr-tools@2.24.1(typescript@5.9.3))
+        specifier: 0.1.0-rc.31
+        version: 0.1.0-rc.31(nostr-tools@2.24.1(typescript@5.9.3))
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -57,6 +60,9 @@ importers:
       '@tanstack/react-virtual':
         specifier: ^3.13.19
         version: 3.13.19(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@web3icons/react':
+        specifier: 4.1.24
+        version: 4.1.24(react@18.3.1)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -120,6 +126,9 @@ importers:
       web-haptics:
         specifier: ^0.0.6
         version: 0.0.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      ws-electrumx-client:
+        specifier: 1.0.5
+        version: 1.0.5
     devDependencies:
       '@eslint/compat':
         specifier: ^1.3.2
@@ -226,8 +235,17 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/sdk@0.5.0-rc.26':
-    resolution: {integrity: sha512-0mZUC3KG4+yq5TLWewiJnVm82fl//J7txH5opEnBs7VOtzsWe5D27DFABa3qHE2zrGAnt7V46kmW3rTU2GrEcA==}
+  '@arkade-os/lnurl-client@0.9.1':
+    resolution: {integrity: sha512-gXeaCkkb/qQ5OBieX+ftRTGFjwjR1X+OLeG6JE/s7mbVLyPcKm2dbm/i7b9pQyt+IxjFm9s268vibhHqA4glAw==}
+    engines: {node: '>=22.12.0'}
+    peerDependencies:
+      '@arkade-os/sdk': '>=0.5.0-rc.0'
+    peerDependenciesMeta:
+      '@arkade-os/sdk':
+        optional: true
+
+  '@arkade-os/sdk@0.5.0-rc.28':
+    resolution: {integrity: sha512-unBSY3E2MXrH2wkdDkPT4zKdwaSlr/bJ9uX/86C/I4LRXVLuYUkm6FIAiiPwX+VtWBIgMLBdwzrQ76TAXh46Cg==}
     engines: {node: '>=22.13.0 <27'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -251,8 +269,8 @@ packages:
     resolution: {integrity: sha512-FMAhWG3vZrKIlCP1U8E5iAgB6O1wc6O1CMk+HlQ4xUf066p/S8PuRgmHtkHcL1YrGsdWhKfP/SSFwgLIbGTQjg==}
     engines: {node: '>=20.19'}
 
-  '@arkade-os/swap@0.1.0-rc.29':
-    resolution: {integrity: sha512-uNT02man4RN/DNbfh1MMeDSqi6ZMIoYpuLWRfqqDaVjC8bBZ+7FQ8BiICtOgnNFfAEM65+Sr1ti4+Vzm8IY0lQ==}
+  '@arkade-os/swap@0.1.0-rc.31':
+    resolution: {integrity: sha512-rAQex4gmiUCP86WrnCvgNueenD3O0wPn4CLMBXmT84/iQdA9LzhdoOpb1utwWVru6Qw+/yx2mzjES6JTUEdVpQ==}
     engines: {node: '>=22.13.0'}
     peerDependencies:
       nostr-tools: 2.24.1
@@ -1326,6 +1344,14 @@ packages:
 
   '@vitest/spy@5.0.5':
     resolution: {integrity: sha512-lwJRExuH417257Q5wv9QYugN9IMJkoxcrKrYxGPQkBzl7wlNpTUxD/5yNX4ESKVUIShKPgkGchYPFMWOOk0wzw==}
+
+  '@web3icons/common@0.11.53':
+    resolution: {integrity: sha512-bNUB/Lfh9C+6T1juicWARU+oW27scRj7Xw/TkzCXlZBrJICEc/qTcIUStGpCjDq3jQuRfO6JHCbTIiiEPZAzBg==}
+
+  '@web3icons/react@4.1.24':
+    resolution: {integrity: sha512-fQelhpShAdD1z2+0a5sOhusfWHiE/8SE9I+IrXzdDmOHWB7/gzF87wjQYxXjqvjQD3mDGyS7U6r+8CYnu5VJsQ==}
+    peerDependencies:
+      react: ^18.0.0 || ^19.0.0
 
   '@xstate/react@1.6.3':
     resolution: {integrity: sha512-NCUReRHPGvvCvj2yLZUTfR0qVp6+apc8G83oXSjN4rl89ZjyujiKrTff55bze/HrsvCsP/sUJASf2n0nzMF1KQ==}
@@ -3289,7 +3315,15 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/sdk@0.5.0-rc.26':
+  '@arkade-os/lnurl-client@0.9.1(@arkade-os/sdk@0.5.0-rc.28)':
+    dependencies:
+      '@noble/curves': 2.4.0
+      '@noble/hashes': 2.4.0
+      '@scure/base': 2.0.0
+    optionalDependencies:
+      '@arkade-os/sdk': 0.5.0-rc.28
+
+  '@arkade-os/sdk@0.5.0-rc.28':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 8.0.0
@@ -3314,9 +3348,9 @@ snapshots:
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
 
-  '@arkade-os/swap@0.1.0-rc.29(nostr-tools@2.24.1(typescript@5.9.3))':
+  '@arkade-os/swap@0.1.0-rc.31(nostr-tools@2.24.1(typescript@5.9.3))':
     dependencies:
-      '@arkade-os/sdk': 0.5.0-rc.26
+      '@arkade-os/sdk': 0.5.0-rc.28
       '@arkade-os/solver-discovery': 0.3.0
       '@noble/ciphers': 2.1.1
       '@noble/curves': 2.4.0
@@ -4313,6 +4347,13 @@ snapshots:
       vite: 7.3.7(@types/node@24.10.0)(jiti@2.6.1)(lightningcss@1.32.0)
 
   '@vitest/spy@5.0.5': {}
+
+  '@web3icons/common@0.11.53': {}
+
+  '@web3icons/react@4.1.24(react@18.3.1)':
+    dependencies:
+      '@web3icons/common': 0.11.53
+      react: 18.3.1
 
   '@xstate/react@1.6.3(@types/react@18.3.26)(react@18.3.1)(xstate@4.38.3)':
     dependencies:
