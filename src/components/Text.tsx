@@ -47,7 +47,7 @@ export default function Text({
 }: TextProps) {
   const fontSize = tiny ? 12 : smaller ? 13 : small ? 14 : big ? 24 : bigger ? 32 : large ? 18 : 16
 
-  const className = capitalize ? 'first-letter' : ''
+  const className = (capitalize ? 'first-letter ' : '') + (copy ? 'tappable' : '')
 
   const pStyle: any = {
     color: color ? `var(--${color})` : undefined,

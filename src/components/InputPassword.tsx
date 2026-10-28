@@ -46,9 +46,9 @@ export default function InputPassword({
           onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
         />
       </label>
-      <div onClick={() => setVisible(!visible)} style={{ cursor: 'pointer', padding: '12px' }}>
+      <button onClick={() => setVisible(!visible)} style={{ padding: '12px' }}>
         <PasswordIcon visible={visible} />
-      </div>
+      </button>
     </InputContainer>
   )
 }

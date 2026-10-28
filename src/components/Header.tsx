@@ -54,9 +54,9 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
         <div style={{ minWidth: '4rem', marginLeft: '0.5rem' }}>
           {handleBack ? (
             <Focusable onEnter={handleBack} fit round>
-              <div onClick={handleBack} style={{ cursor: 'pointer' }} aria-label={t('common.back')}>
+              <button onClick={handleBack} aria-label={t('common.back')}>
                 <BackIcon />
-              </div>
+              </button>
             </Focusable>
           ) : (
             '\u00A0'
