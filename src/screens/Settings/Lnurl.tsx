@@ -12,7 +12,12 @@ import { ConfigContext } from '../../providers/config'
 import { WalletContext } from '../../providers/wallet'
 import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '../../providers/language'
-import { configuredLnurlServer, lnurlRailLimits, useLnurlRail } from '../../lib/receive/lnurlRail'
+import {
+  configuredLnurlServer,
+  lnurlRailLimits,
+  useLnurlRail,
+  type OnboardingChoice,
+} from '../../lib/receive/lnurlRail'
 import { lnurlTokenRails, type LnurlTokenRail } from '../../lib/receive/lnurlTokenRails'
 import { prettyNumber } from '../../lib/format'
 import { consoleError } from '../../lib/logs'
@@ -85,6 +90,9 @@ export default function Lnurl() {
     }
   }, [rail.receiver])
 
+  // A claim or rename that lands changes the address; a refused one leaves the sheet open on its reason.
+  useEffect(() => setClaiming(false), [rail.receiver?.lightningAddress])
+
   const railLabels: Record<string, string> = {
     lightning: t('receive.methodLightning'),
     arkade: t('receive.methodArkade'),
@@ -106,9 +114,12 @@ export default function Lnurl() {
     ),
     ...(server ? [[t('settings.lnurlServer'), server.domain] as [string, string]] : []),
   ]
-  const namingChoices = rail.receiver?.lightningAddress ? [] : rail.choices.filter((c) => c !== 'session')
+  const named = Boolean(rail.receiver?.lightningAddress)
+  const namingChoices = named ? [] : rail.choices.filter((c) => c !== 'session')
   const naming = namingChoices.length > 0 && rail.status !== 'failed'
-  const name = (opts: NameOptions) => (rail.receiver ? rail.upgrade(opts) : rail.claim(opts))
+  // A named wallet can still redeem a code: it claims a further address, as upgrade only renames a nameless one.
+  const sheetChoices: OnboardingChoice[] = named ? ['admin'] : namingChoices.filter((c) => c !== 'random')
+  const name = (opts: NameOptions) => (rail.receiver && !named ? rail.upgrade(opts) : rail.claim(opts))
   const sendable: TableData = limits.map(({ type, min, max }) => [
     railLabels[type] ?? type,
     `${prettyNumber(min, 0)} – ${prettyNumber(max, 0)} sats`,
@@ -141,6 +152,19 @@ export default function Lnurl() {
               {rail.status === 'ready' ? (
                 <>
                   <Table data={yours} variant='receipt' />
+                  {named ? (
+                    <TextSecondary>
+                      <a
+                        href='#'
+                        onClick={(event) => {
+                          event.preventDefault()
+                          setClaiming(true)
+                        }}
+                      >
+                        {t('receive.haveClaimCode')}
+                      </a>
+                    </TextSecondary>
+                  ) : null}
                   {namingChoices.length ? null : <ErrorMessage error={Boolean(rail.error)} text={rail.error} />}
                 </>
               ) : (
@@ -188,12 +212,15 @@ export default function Lnurl() {
         </Padded>
       </Content>
 
-      <SheetModal isOpen={claiming ? naming : false} onClose={() => setClaiming(false)}>
+      <SheetModal
+        isOpen={claiming ? sheetChoices.length > 0 && rail.status !== 'failed' : false}
+        onClose={() => setClaiming(false)}
+      >
         <FlexCol gap='1rem' padding='0.5rem 0'>
           <Text big bold>
             {t('receive.claimName')}
           </Text>
-          <NameForm choices={namingChoices.filter((c) => c !== 'random')} busy={rail.busy} onName={name} />
+          <NameForm choices={sheetChoices} busy={rail.busy} onName={name} />
           <ErrorMessage error={Boolean(rail.error)} text={rail.error} />
         </FlexCol>
       </SheetModal>

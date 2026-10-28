@@ -113,12 +113,51 @@ describe('Lightning address settings', () => {
     const sheet = within(screen.getByTestId('sheet-modal'))
     const [codeField, nameField] = sheet.getAllByRole('textbox')
     expect(codeField).toHaveAttribute('placeholder', 'Claim code')
-    expect(nameField).toHaveAttribute('placeholder', 'Choose a name')
+    expect(nameField).toHaveAttribute('placeholder', 'Choose a name (optional)')
     expect(sheet.queryByRole('link', { name: 'I have a claim code' })).not.toBeInTheDocument()
     fireEvent.change(codeField, { target: { value: claimCode } })
-    fireEvent.change(nameField, { target: { value: username } })
+    if (username) fireEvent.change(nameField, { target: { value: username } })
     fireEvent.click(sheet.getByRole('button', { name: 'Claim name' }))
   }
+
+  it('claims a reserved name with its code alone, leaving the name to the code', async () => {
+    const server = renderPage({ modes: ['admin', 'random'] })
+
+    await claimInSheet('', 'secret')
+
+    expect(await screen.findByText('brave-otter@lnurl.test')).toBeInTheDocument()
+    const [, init] = server.calls('POST', '/lnurl/address')[0]
+    expect(JSON.parse(init!.body as string)).toMatchObject({ claimCode: 'secret' })
+    expect(JSON.parse(init!.body as string)).not.toHaveProperty('username')
+  })
+
+  it('asks for a name when the code is one for any free name', async () => {
+    renderPage({ modes: ['admin'], reject: { code: 'username_required', error: 'this claim code needs a username' } })
+
+    await claimInSheet('', 'free-code')
+
+    const sheet = within(screen.getByTestId('sheet-modal'))
+    expect(await sheet.findByText('This code is for a name you choose. Add one and claim again.')).toBeInTheDocument()
+  })
+
+  it('claims another address with a claim code when the wallet already has one', async () => {
+    const server = renderPage({ modes: ['self'], addresses: [namedAddress('alice')] })
+    expect(await screen.findByText('alice@lnurl.test')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('link', { name: 'I have a claim code' }))
+    const sheet = within(screen.getByTestId('sheet-modal'))
+    const [codeField, nameField] = sheet.getAllByRole('textbox')
+    expect(codeField).toHaveAttribute('placeholder', 'Claim code')
+    expect(nameField).toHaveAttribute('placeholder', 'Choose a name (optional)')
+    fireEvent.change(codeField, { target: { value: 'secret' } })
+    fireEvent.click(sheet.getByRole('button', { name: 'Claim name' }))
+
+    expect(await screen.findByText('brave-otter@lnurl.test')).toBeInTheDocument()
+    expect(screen.getByText('alice@lnurl.test')).toBeInTheDocument()
+    expect(screen.queryByTestId('sheet-modal')).not.toBeInTheDocument()
+    const [, init] = server.calls('POST', '/lnurl/address')[0]
+    expect(JSON.parse(init!.body as string)).toMatchObject({ claimCode: 'secret' })
+  })
 
   it('claims a reserved name with its claim code, from a sheet that closes once named', async () => {
     const server = renderPage({ modes: ['admin', 'random'] })

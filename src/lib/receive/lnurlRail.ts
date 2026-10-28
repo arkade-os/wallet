@@ -123,6 +123,7 @@ const CLAIM_ERROR_KEYS: Partial<Record<LnurlAddressErrorCode, string>> = {
   invalid_username: 'receive.claimNotAllowed',
   blacklisted: 'receive.claimNotAllowed',
   invalid_claim: 'receive.claimCodeInvalid',
+  username_required: 'receive.claimCodeNeedsName',
   forbidden_mode: 'receive.claimModeUnavailable',
   limit_reached: 'receive.claimRateLimited',
 }
