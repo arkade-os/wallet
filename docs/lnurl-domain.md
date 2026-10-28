@@ -32,7 +32,8 @@ forwards these to lnurl-server; `functions/lnurl/[[path]].ts` routes the `/lnurl
 A `502 LNURL origin unreachable` means Cloudflare did not apply the override and the request came
 back to Pages. Check step 1. If it persists, run this Function's handler as a zone Worker on the routes
 `arkade.money/.well-known/lnurlp/*` and `arkade.money/lnurl/*`. Cloudflare documents the override for
-zone Workers:
+zone Workers. Give the Worker its own `LNURL_ORIGIN=lnurl-origin.arkade.money`, since it does not see the
+Pages project's variables; without it, the handler answers 404:
 
 ```ts
 import { onRequest } from './functions/.well-known/lnurlp/[[path]]'
