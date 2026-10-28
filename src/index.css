@@ -2126,6 +2126,14 @@ html.palette-dark .send-asset-menu {
     0 2px 4px 0 color-mix(in srgb, var(--fg) 3%, transparent);
 }
 
+.swap-drawer-content .swap-token-list,
+.swap-asset-list-panel .swap-token-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .swap-input-card {
   display: flex;
   min-height: 12.75rem;
@@ -3657,6 +3665,7 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  max-height: calc(100dvh - 4rem);
 }
 
 .swap-step-heading {
@@ -3927,7 +3936,7 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
 }
 
 .swap-review-drawer-content {
-  max-height: min(92vh, 42rem) !important;
+  max-height: min(92dvh, 42rem) !important;
   overflow: hidden;
 }
 
@@ -3977,9 +3986,10 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
 
 .swap-drawer-body {
   display: flex;
-  flex-direction: column;
   gap: 0.875rem;
-  padding: 0 1rem 1rem;
+  flex-direction: column;
+  max-height: min(92dvh, 42rem);
+  padding: 0 1rem max(1rem, env(safe-area-inset-bottom, 0px));
 }
 
 .swap-token-list,

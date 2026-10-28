@@ -134,6 +134,8 @@ const router = (over: Partial<Parameters<typeof createSendRouter>[0]> = {}) =>
     client: fakeClient(),
     claimFeeRateSatVb: CLAIM_RATE,
     outputFee: () => 500,
+    intentFee: () => ({}),
+    dust: () => 330,
     ...over,
   })
 
@@ -280,15 +282,49 @@ describe('previewOnchainCost: what the screen is allowed to show', () => {
 })
 
 describe('the collaborative exit rail', () => {
+  const youngCoin = {
+    txid: 'young',
+    vout: 0,
+    value: 20_000,
+    isSwept: false,
+    createdAt: new Date(Date.now() - 3_600_000),
+    expiresAt: new Date(Date.now() + 29 * 86_400_000),
+  }
+  const wallet = {
+    getSpendableVtxos: async () => [youngCoin],
+    getAddress: async () => ARK_ADDRESS,
+    getBoardingAddress: async () => RECIPIENT,
+  } as never
+
   it('spends what the old call spent: payout out, payout+fee in', async () => {
-    const options = await router({ client: undefined }).options({ raw: RECIPIENT, amount: 9_500 })
+    const options = await router({ client: undefined, wallet }).options({ raw: RECIPIENT, amount: 9_500 })
     const quote = await options[0].quote()
 
     expect(quote).toMatchObject({ railId: WALLET_EXIT_RAIL, amount: 9_500, fee: 500, total: 10_000 })
 
     await quote.send()
-    // 10_000 leaves, the recipient gets 9_500 — exactly as before the router.
-    expect(collaborativeExitWithFees).toHaveBeenCalledWith(expect.anything(), 10_000, 9_500, RECIPIENT)
+    // The recipient gets 9_500 from the coins the quote priced, not a second selection.
+    expect(collaborativeExitWithFees).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ inputs: [youngCoin], fee: 0 }),
+      9_500,
+      RECIPIENT,
+    )
+  })
+
+  it('refuses to build an exit rail that could not price the coins it spends', () => {
+    expect(() => router({ intentFee: undefined })).toThrow(/intentFee/)
+    expect(() => router({ dust: undefined })).toThrow(/dust/)
+  })
+
+  it('quotes the intent fee arkd charges the coins the exit spends', async () => {
+    const intentFee = { offchainInput: "inputType == 'vtxo' && now() - birth < 86400.0 ? amount * 0.002 : 0.0" }
+    const options = await router({ client: undefined, wallet, intentFee: () => intentFee }).options({
+      raw: RECIPIENT,
+      amount: 9_500,
+    })
+
+    expect(await options[0].quote()).toMatchObject({ amount: 9_500, fee: 540, total: 10_040 })
   })
 })
 

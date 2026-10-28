@@ -1,10 +1,8 @@
 import React from 'react'
 import { LogoIconAnimated } from '../icons/Logo'
-import MegaphoneIcon from '../icons/Megaphone'
 import FlexCol from './FlexCol'
 import FlexRow from './FlexRow'
 import Text from './Text'
-import DOMPurify from 'dompurify'
 import { useTranslation } from '../providers/language'
 
 interface AlertBoxProps {
@@ -52,21 +50,6 @@ function AlertText({ children }: { children: React.ReactNode }) {
     <Text color='black' medium smaller wrap heading>
       {children}
     </Text>
-  )
-}
-
-export function InfoBox({ html }: { html: string }) {
-  const sanitizedHtml = DOMPurify.sanitize(html)
-  const style: React.CSSProperties = {
-    color: 'var(--black)',
-    fontSize: '13px',
-    fontWeight: 600,
-    lineHeight: 1.5,
-  }
-  return (
-    <AlertBox icon={<MegaphoneIcon animated />}>
-      <div dangerouslySetInnerHTML={{ __html: sanitizedHtml }} style={style} />
-    </AlertBox>
   )
 }
 

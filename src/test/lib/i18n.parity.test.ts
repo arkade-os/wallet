@@ -78,6 +78,11 @@ describe('i18n dictionary integrity', () => {
       'apps.dfx',
       'formatting.unit',
       'accounts.solver',
+      // 'Original' is spelled the same in Spanish.
+      'solvers.originalLabel',
+      // Nostr relay and market-side terms shared across languages.
+      'solvers.fieldRelays',
+      'solvers.fieldBase',
       'accounts.total',
       // Payment-method names in the receive selector. These are the protocol
       // and product names the user is choosing between, not descriptive text,
