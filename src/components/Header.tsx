@@ -53,11 +53,9 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
       <FlexRow between>
         <div style={{ minWidth: '4rem', marginLeft: '0.5rem' }}>
           {handleBack ? (
-            <Focusable onEnter={handleBack} fit round>
-              <button onClick={handleBack} aria-label={t('common.back')}>
-                <BackIcon />
-              </button>
-            </Focusable>
+            <button type='button' onClick={handleBack} aria-label={t('common.back')}>
+              <BackIcon />
+            </button>
           ) : (
             '\u00A0'
           )}

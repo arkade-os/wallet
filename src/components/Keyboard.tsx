@@ -269,7 +269,7 @@ export default function Keyboard({
           <div style={rowStyle} key={row[0]}>
             {row.map((key) =>
               key ? (
-                <button style={keyStyle} key={key} onClick={() => handleKeyPress(key)}>
+                <button type='button' style={keyStyle} key={key} onClick={() => handleKeyPress(key)}>
                   <p data-testid={`keyboard-${key}`}>{key === 'x' ? <>&larr;</> : key}</p>
                 </button>
               ) : (

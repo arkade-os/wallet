@@ -287,7 +287,10 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  button {
+  button,
+  .button,
+  .tappable,
+  .pill-base {
     transition: none;
     &:active {
       transform: none;
@@ -2787,7 +2790,7 @@ hr {
    ================================================ */
 
 .settings-page {
-  padding: 0.75rem 0 var(env(safe-area-inset-bottom, 0px));
+  padding: 0.75rem 0 env(safe-area-inset-bottom, 0px);
 }
 
 .settings-section {

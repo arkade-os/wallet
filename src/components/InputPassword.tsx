@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from 'react'
 import InputContainer from './InputContainer'
 import { StrengthLabel } from './Strength'
 import PasswordIcon from '../icons/Password'
+import { useTranslation } from '@/providers/language'
 
 interface InputPasswordProps {
   error?: string
@@ -22,6 +23,7 @@ export default function InputPassword({
   strength,
   placeholder,
 }: InputPasswordProps) {
+  const { t } = useTranslation()
   const [visible, setVisible] = useState(false)
 
   const input = useRef<HTMLInputElement>(null)
@@ -46,7 +48,12 @@ export default function InputPassword({
           onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
         />
       </label>
-      <button onClick={() => setVisible(!visible)} style={{ padding: '12px' }}>
+      <button
+        type='button'
+        aria-label={t('components.toggleVisibility')}
+        onClick={() => setVisible(!visible)}
+        style={{ padding: '12px' }}
+      >
         <PasswordIcon visible={visible} />
       </button>
     </InputContainer>

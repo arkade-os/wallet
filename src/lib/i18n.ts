@@ -561,6 +561,7 @@ export const translations = {
       passwordOneNumber: 'contain at least 1 number',
       passwordSpecialChar: 'contain at least 1 special character',
       focusableElement: 'Focusable element',
+      toggleVisibility: 'Toggle visibility',
     },
     accounts: {
       accountUnavailable: 'Account unavailable',
@@ -1430,6 +1431,7 @@ export const translations = {
       passwordOneNumber: 'contener al menos 1 número',
       passwordSpecialChar: 'contener al menos 1 carácter especial',
       focusableElement: 'Elemento enfocable',
+      toggleVisibility: 'Cambiar visibilidad',
     },
     accounts: {
       accountUnavailable: 'Cuenta no disponible',
