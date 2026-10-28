@@ -49,6 +49,7 @@ export { LIGHTNING_RAIL, ONCHAIN_SWAP_RAIL }
 export const walletExitRail = (deps: {
   outputFee: () => number
   intentFee: () => IntentFeeConfig | undefined
+  dust: () => number
 }): PaymentRail => ({
   id: WALLET_EXIT_RAIL,
   // The same classification the SDK's `onchainRail` uses, so this rail cannot
@@ -58,7 +59,7 @@ export const walletExitRail = (deps: {
   quote: async (req, ctx) => {
     const amount = req.amount!
     const exitFee = deps.outputFee()
-    const plan = await planCollaborativeExit(ctx.wallet, amount + exitFee, deps.intentFee())
+    const plan = await planCollaborativeExit(ctx.wallet, amount + exitFee, deps.intentFee(), deps.dust())
     const fee = exitFee + plan.fee
     const total = amount + fee
     return {
@@ -109,6 +110,8 @@ export interface SendRouterDeps {
   outputFee?: () => number
   /** The operator's programs, which price each coin the exit spends. */
   intentFee?: () => IntentFeeConfig | undefined
+  /** The server's floor on a VTXO output, which the exit's change must clear. */
+  dust?: () => number
   assets?: Asset[]
 }
 
@@ -122,9 +125,11 @@ export const createSendRouter = (deps: SendRouterDeps): PaymentRouter => {
     router.use(onchainSwapRail(deps.client, { claimFeeRateSatVb: deps.claimFeeRateSatVb }))
   }
   if (deps.outputFee) {
-    // Refused at wiring rather than dropped: an exit without the programs declares no intent fee.
-    if (!deps.intentFee) throw new Error('send router: the exit rail needs intentFee alongside outputFee')
-    router.use(walletExitRail({ outputFee: deps.outputFee, intentFee: deps.intentFee }))
+    // Refused at wiring rather than dropped: without them an exit underpays or emits a change arkd refuses.
+    if (!deps.intentFee || !deps.dust) {
+      throw new Error('send router: the exit rail needs intentFee and dust alongside outputFee')
+    }
+    router.use(walletExitRail({ outputFee: deps.outputFee, intentFee: deps.intentFee, dust: deps.dust }))
   }
   if (deps.client) router.use(lightningRail(deps.client))
   if (deps.assets) router.use(assetRail({ assets: deps.assets }))
