@@ -268,7 +268,13 @@ export default function Keyboard({
           <div style={rowStyle} key={row[0]}>
             {row.map((key) =>
               key ? (
-                <button type='button' style={keyStyle} key={key} onClick={() => handleKeyPress(key)}>
+                <button
+                  key={key}
+                  type='button'
+                  style={keyStyle}
+                  onClick={() => handleKeyPress(key)}
+                  aria-label={key === 'x' ? t('swap.deleteDigit') : `key number ${key}`}
+                >
                   <p data-testid={`keyboard-${key}`}>{key === 'x' ? <>&larr;</> : key}</p>
                 </button>
               ) : (
