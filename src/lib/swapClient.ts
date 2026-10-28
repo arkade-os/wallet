@@ -27,13 +27,14 @@
  * opened beside it. No transport either — the client opens the card's own Nostr
  * rendezvous, which is the only shipped transport that can attest who answered.
  */
-import { EsploraProvider, type NetworkName } from '@arkade-os/sdk'
+import type { NetworkName } from '@arkade-os/sdk'
 import { createSwapClient, type SwapClient, type SwapClientConfig } from '@arkade-os/swap'
 // `./advanced` is not a compatibility promise — see the note in `swapRecords.ts`.
 import { corridorRecordStore, type OnchainClaim } from '@arkade-os/swap/advanced'
 import { chainSourceFrom, claimOnchainFill, preimageForSwapRecord, rfqClaimSecretOf } from '@arkade-os/swap/protocol'
 import { claimFeeRate } from './claimFee'
 import { getCovclaimdPubkeyForNetwork, getEmulatorPubkeyOverrideForNetwork } from './constants'
+import { electrumProvider } from './electrum'
 import { toInvoiceFacts } from './lnSwap'
 import { l1NetworkOf, onchainClaimEndpoint } from './onchainPayout'
 import { discoveryOptions } from './swapMarkets'
@@ -66,8 +67,7 @@ export class SwapsHeldElsewhere extends Error {
  * the sats back while the screen says the recipient was paid.
  */
 const onchainClaim = (wallet: SwapClientConfig['wallet'], network: NetworkName): OnchainClaim => {
-  const esploraUrl = onchainClaimEndpoint(network)
-  const chain = chainSourceFrom(new EsploraProvider(esploraUrl), l1NetworkOf(network))
+  const chain = chainSourceFrom(electrumProvider(network), l1NetworkOf(network))
   // The package's own reader, NOT `repository.getRfqSwap`: that is the v1 store
   // the v2 client never writes, so the claim would fail after the HTLC is funded.
   const records = corridorRecordStore(assetSwapRepository)
@@ -80,7 +80,7 @@ const onchainClaim = (wallet: SwapClientConfig['wallet'], network: NetworkName):
     if (!payoutPkScript) {
       throw new Error(`swap ${swap.rfqId} carries no payout script — refusing to claim to anywhere else`)
     }
-    const feeRateSatVb = await claimFeeRate(esploraUrl)
+    const feeRateSatVb = await claimFeeRate(onchainClaimEndpoint(network))
     if (feeRateSatVb === undefined) throw new Error('no fee estimate — not revealing the preimage this pass')
     const preimage = await preimageForSwapRecord(wallet, secrets)
     return claimOnchainFill(chain, {
@@ -102,7 +102,7 @@ export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: Netw
     discovery: discoveryOptions(network),
     corridors: {
       onchain: {
-        chain: { esploraUrl: onchainClaimEndpoint(network) },
+        chain: { provider: electrumProvider(network) },
         claim: onchainClaim(wallet, network),
       },
       lightning: {

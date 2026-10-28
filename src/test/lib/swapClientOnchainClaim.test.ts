@@ -49,12 +49,8 @@ const v2Record = (rfqId = 'rfq-1') => ({
 const claimFeeRateMock = vi.fn(async (): Promise<number | undefined> => 11)
 vi.mock('../../lib/claimFee', () => ({ claimFeeRate: (...args: unknown[]) => claimFeeRateMock(...(args as [])) }))
 
-vi.mock('@arkade-os/sdk', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@arkade-os/sdk')>()),
-  EsploraProvider: class {
-    constructor(public url: string) {}
-  },
-}))
+const { electrum } = vi.hoisted(() => ({ electrum: { name: 'electrum' } }))
+vi.mock('../../lib/electrum', () => ({ electrumProvider: () => electrum }))
 
 const { makeSwapClient } = await import('../../lib/swapClient')
 
@@ -82,8 +78,7 @@ describe('the onchain corridor is wired for the trader’s own L1 claim', () => 
   it('supplies both a chain source and a claim — neither is defaulted', () => {
     makeSwapClient(wallet, 'regtest')
     const onchain = captured.config.corridors.onchain
-    expect(onchain.chain.esploraUrl).toEqual(expect.any(String))
-    expect(onchain.chain.esploraUrl).not.toHaveLength(0)
+    expect(onchain.chain).toEqual({ provider: electrum })
     expect(typeof onchain.claim).toBe('function')
   })
 
@@ -98,7 +93,8 @@ describe('the claim itself', () => {
     const result = await claimOf()(swap(), utxo)
 
     expect(claimOnchainFill).toHaveBeenCalledTimes(1)
-    const [, input] = claimOnchainFill.mock.calls[0] as unknown as [unknown, any]
+    const [chain, input] = claimOnchainFill.mock.calls[0] as unknown as [unknown, any]
+    expect(chain).toEqual({ chain: [electrum, 'regtest'] })
     expect(input.payoutPkScript).toBe(PAYOUT)
     expect(input.utxo).toBe(utxo)
     expect(input.feeRateSatVb).toBe(11)

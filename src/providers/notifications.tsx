@@ -1,8 +1,7 @@
-import { ReactNode, createContext, useContext, useEffect, useRef } from 'react'
+import { ReactNode, createContext, useContext } from 'react'
 import { ConfigContext } from './config'
 import { sendNotification } from '../lib/notifications'
 import { prettyNumber } from '../lib/format'
-import { Relay } from 'nostr-tools'
 
 interface NotificationsContextProps {
   notifyPaymentReceived: (s: number, assetLabel?: string) => void
@@ -20,12 +19,6 @@ export const NotificationsContext = createContext<NotificationsContextProps>({
 
 export const NotificationsProvider = ({ children }: { children: ReactNode }) => {
   const { config } = useContext(ConfigContext)
-  const relay = useRef<Relay>()
-
-  const connectRelay = async (): Promise<void> => {
-    relay.current = await Relay.connect('wss://relay.primal.net')
-  }
-
   const sendSystemNotification = (title: string, body: string) => {
     if (!config.notifications) return
     sendNotification(title, body)
@@ -54,17 +47,6 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
     const title = 'Vtxos rolled over'
     sendSystemNotification(title, body)
   }
-
-  useEffect(() => {
-    if (!config.nostrBackup) {
-      if (relay.current) {
-        if (relay.current.connected) relay.current.close()
-        relay.current = undefined
-      }
-      return
-    }
-    connectRelay()
-  }, [config.nostrBackup])
 
   return (
     <NotificationsContext.Provider

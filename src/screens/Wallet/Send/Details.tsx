@@ -7,18 +7,21 @@ import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Details, { DetailsProps } from '../../../components/Details'
 import ErrorMessage from '../../../components/Error'
 import { WalletContext } from '../../../providers/wallet'
+import { AspContext } from '../../../providers/asp'
 import { SwapsContext } from '../../../providers/swaps'
 import Header from '../../../components/Header'
 import { defaultFee } from '../../../lib/constants'
 import { prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
-import { sendOffChain } from '../../../lib/asp'
+import { InsufficientFundsError, maxCollaborativeExit, sendOffChain } from '../../../lib/asp'
 import {
   ASSET_RAIL,
+  LNURL_ARKADE_RAIL,
   ONCHAIN_ROUTE_LOG,
   ONCHAIN_SWAP_RAIL,
   fundedResult,
+  isLnurlRail,
   previewOnchainCost,
   quoteIsForThisInvoice,
   quoteIsForThisSend,
@@ -28,22 +31,25 @@ import { extractError } from '../../../lib/error'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError, consoleLog } from '../../../lib/logs'
 import type { RouteQuote } from '@arkade-os/sdk'
+import { lnurlQuoteMeta } from '@arkade-os/lnurl-client/arkade'
 import { LimitsContext } from '../../../providers/limits'
 import { FeesContext } from '../../../providers/fees'
 import { buildTransactionAmountDisplay } from '../../../lib/transactionAmountDisplay'
 import { useAmountDisplayContext } from '../../../hooks/useTransactionAmountDisplay'
 import TransactionAmountSummary from '../../../components/TransactionAmountSummary'
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
+import { lnurlSends, recordLnurlSend, watchLnurlConfirmation } from '../../../lib/lnurlSends'
 import { useTranslation } from '../../../providers/language'
 
 export default function SendDetails() {
   const displayContext = useAmountDisplayContext()
   const { navigate } = useContext(NavigationContext)
   const { appIntent, sendInfo, setAppIntent, setSendInfo } = useContext(FlowContext)
-  const { calcOnchainOutputFee } = useContext(FeesContext)
+  const { calcOnchainOutputFee, intentFee } = useContext(FeesContext)
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
-  const { assetMetadataCache, balance, reloadWallet, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, availableBalance, balance, reloadWallet, svcWallet } = useContext(WalletContext)
+  const { aspInfo } = useContext(AspContext)
   const { sendRouter } = useContext(SwapsContext)
   const { t } = useTranslation()
 
@@ -55,11 +61,13 @@ export default function SendDetails() {
   const [buttonLabel, setButtonLabel] = useState('')
   const [details, setDetails] = useState<DetailsProps>()
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [pricing, setPricing] = useState(false)
   const [sending, setSending] = useState(false)
   const [sendDone, setSendDone] = useState(false)
 
-  const { address, arkAddress, invoice, pendingLnSend, satoshis } = sendInfo
+  const { address, arkAddress, invoice, lnUrl, pendingLnSend, satoshis } = sendInfo
+  const lnurlRoute = Boolean(lnUrl && pendingLnSend && isLnurlRail(pendingLnSend.railId))
   const amountDisplay = buildTransactionAmountDisplay({
     ...displayContext,
     assets: sendInfo.account
@@ -82,7 +90,7 @@ export default function SendDetails() {
   }
 
   useEffect(() => {
-    if (!address && !arkAddress && !invoice) return setError(t('send.missingAddress'))
+    if (!address && !arkAddress && !invoice && !lnurlRoute) return setError(t('send.missingAddress'))
     if (isAssetSend) {
       if (!assetAmountValue) return setError(t('send.missingAssetAmount'))
       const destination = arkAddress ?? ''
@@ -101,26 +109,43 @@ export default function SendDetails() {
     }
     if (!satoshis) return setError(t('send.missingAmount'))
     const destination =
-      arkAddress && vtxoTxsAllowed()
-        ? arkAddress
-        : invoice && pendingLnSend && vtxoTxsAllowed()
-          ? invoice
-          : address && utxoTxsAllowed()
-            ? address
-            : ''
+      lnurlRoute && vtxoTxsAllowed()
+        ? lnUrl!
+        : arkAddress && vtxoTxsAllowed()
+          ? arkAddress
+          : invoice && pendingLnSend && vtxoTxsAllowed()
+            ? invoice
+            : address && utxoTxsAllowed()
+              ? address
+              : ''
+    // Routing is a protocol decision; it must never depend on a localized string,
+    // otherwise fee math and labels drift when the language changes.
+    const destinationType =
+      lnurlRoute && destination === lnUrl
+        ? pendingLnSend?.railId === LNURL_ARKADE_RAIL
+          ? 'arkade'
+          : 'lightning'
+        : destination === arkAddress
+          ? 'arkade'
+          : destination === invoice
+            ? 'lightning'
+            : destination === address
+              ? 'mainnet'
+              : 'none'
+    // `direction` is display-only; keep logic keyed on `destinationType`.
     const direction =
-      destination === arkAddress
+      destinationType === 'arkade'
         ? t('send.payingInsideArkade')
-        : destination === invoice
+        : destinationType === 'lightning'
           ? t('send.payingToLightning')
-          : destination === address
+          : destinationType === 'mainnet'
             ? t('send.payingToMainnet')
             : ''
 
     // The RFQ lockup carries exactly the invoice amount (exact-out, fee_bps
     // from the card; 0 today), so total == satoshis on the Lightning path.
     const total = pendingLnSend ? pendingLnSend.total : satoshis
-    const amount = direction === t('send.payingToMainnet') ? satoshis - calcOnchainOutputFee() : satoshis
+    const amount = destinationType === 'mainnet' ? satoshis - calcOnchainOutputFee() : satoshis
     const fees = total - amount > 0 ? total - amount : 0
     setDetails({
       destination,
@@ -130,7 +155,7 @@ export default function SendDetails() {
       total,
     })
     // Provisional on this path until the router settles it below.
-    if (direction === t('send.payingToMainnet') && amount > 0) {
+    if (destinationType === 'mainnet' && amount > 0) {
       setButtonLabel(t('send.gettingQuote'))
       return setPricing(true)
     }
@@ -140,14 +165,32 @@ export default function SendDetails() {
   useEffect(() => {
     if (!pricing || !details?.destination || !details.satoshis) return
     let live = true
-    const settle = (cost?: { fee: number; total: number }) => {
+    const asked = details.satoshis
+    type Priced = { cost: Pick<RouteQuote, 'amount' | 'fee' | 'total'>; most?: number }
+    const settle = (priced?: Priced) => {
       if (!live) return
-      if (cost) setDetails((prev) => (prev ? { ...prev, fees: cost.fee, total: cost.total } : prev))
+      const cost = priced?.cost
+      if (cost)
+        setDetails((prev) => (prev ? { ...prev, satoshis: cost.amount, fees: cost.fee, total: cost.total } : prev))
+      if (cost && cost.amount < asked) setNotice(t('send.feesDeductedFromAmount'))
       setPricing(false)
-      offerToSign(cost?.total ?? details.total ?? 0)
+      if (priced?.most === undefined) return offerToSign(cost?.total ?? details.total ?? 0)
+      setButtonLabel(t('send.insufficientFunds'))
+      setError(t('send.insufficientFundsMax', { max: prettyNumber(priced.most) }))
     }
-    const priced = sendRouter({ outputFee: calcOnchainOutputFee })
-      .then((router) => previewOnchainCost(router, details.destination!, details.satoshis!))
+    const priced = sendRouter({ outputFee: calcOnchainOutputFee, intentFee })
+      .then(async (router): Promise<Priced | undefined> => {
+        const cost = await previewOnchainCost(router, details.destination!, asked)
+        if (cost || !svcWallet) return cost && { cost }
+        const most = (await maxCollaborativeExit(svcWallet, intentFee(), Number(aspInfo.dust))) - calcOnchainOutputFee()
+        const atMost =
+          most > 0 && most < asked ? await previewOnchainCost(router, details.destination!, most) : undefined
+        if (!atMost) return undefined
+        // Max asks for the whole balance, so the fees can only come out of the amount, as the exit fee does.
+        if (satoshis === availableBalance) return { cost: atMost }
+        // Any other amount stays as asked, at the fee of spending every coin: more than they hold.
+        return { cost: { amount: asked, fee: atMost.fee, total: asked + atMost.fee }, most }
+      })
       .catch((err) => {
         // The exit rail's own figures stay on screen, and it is what will pay.
         consoleError(err, `${ONCHAIN_ROUTE_LOG} could not price the send`)
@@ -222,9 +265,30 @@ export default function SendDetails() {
    *  is why the success copy says "on the way" for both rails. The invoice is
    *  re-checked because the quote came from the previous screen. */
   const payLightning = async (quote: RouteQuote, shownInvoice: string) => {
-    if (!quoteIsForThisInvoice(quote, shownInvoice)) return handleError('Quote is for a different invoice')
+    if (!quoteIsForThisInvoice(quote, shownInvoice)) return handleError(t('send.quoteForDifferentInvoice'))
     const result = await fundedResult(await quote.send())
     handleSent(result?.txid, quote.total, quote.fee, quote.railId, result?.swapId)
+  }
+
+  /** The quote came from the previous screen, so it is held to what this one shows. */
+  const payLnurl = async (quote: RouteQuote, target: string) => {
+    const lnurlMeta = lnurlQuoteMeta(quote)
+    if (lnurlMeta?.target !== target || quote.amount !== satoshis)
+      return handleError(t('send.quoteForDifferentPayment'))
+    const handle = await quote.send()
+    recordLnurlSend(handle, quote, target)
+    const result = await fundedResult(handle)
+    // A rail whose destination cannot identify the payment supplies no verify
+    // URL, and absence is "no answer available" rather than a failure.
+    if (result?.txid && lnurlMeta.verify)
+      watchLnurlConfirmation(
+        result.txid,
+        lnurlMeta.verify,
+        lnurlMeta.verifyBatch,
+        lnurlSends().find((sent) => sent.txid === result.txid)?.createdAt,
+        lnurlMeta.expect,
+      )
+    handleSent(result?.txid, quote.total, quote.fee, quote.railId)
   }
 
   /** One rail and no counterparty; routed so every branch here has one shape. */
@@ -242,9 +306,12 @@ export default function SendDetails() {
    *  what THIS screen is showing — at the moment of the spend, so no carried
    *  quote exists to go stale. A rail that cannot quote is skipped. */
   const payOnchain = async (address: string, shown: DetailsProps): Promise<void> => {
-    const router = await sendRouter({ outputFee: calcOnchainOutputFee })
+    const router = await sendRouter({ outputFee: calcOnchainOutputFee, intentFee })
     // Receiver-exact: "what leaves" was subtracted when `details` was built.
     const options = await router.options({ raw: address, amount: shown.satoshis! })
+    let repriced: RouteQuote | undefined
+    let insufficient = false
+    let otherwiseRefused = false
 
     for (const option of options) {
       let quote
@@ -252,9 +319,13 @@ export default function SendDetails() {
         quote = await option.quote()
       } catch (err) {
         consoleError(err, `${ONCHAIN_ROUTE_LOG} ${option.railId} could not quote`)
+        if (err instanceof InsufficientFundsError) insufficient = true
+        else otherwiseRefused = true
         continue
       }
       if (!quoteIsForThisSend(quote, shown, address)) {
+        if (quoteIsForThisSend({ ...quote, total: shown.total ?? 0 }, shown, address)) repriced ??= quote
+        else otherwiseRefused = true
         consoleLog(
           `${ONCHAIN_ROUTE_LOG} ${option.railId} refused: quote pays ${quote.amount} for ${quote.total}, ` +
             `screen shows ${shown.satoshis} for ${shown.total} to ${shown.destination}`,
@@ -269,7 +340,17 @@ export default function SendDetails() {
       const result = await fundedResult(await quote.send())
       return handleSent(result?.txid, quote.total, quote.fee, option.railId, result?.swapId)
     }
+    if (repriced) return askToSignAgain(repriced)
+    if (insufficient && !otherwiseRefused) throw new Error(t('send.insufficientFunds'))
     throw new Error('No route for this payment')
+  }
+
+  /** A rail that now costs more is shown, never paid: the new total needs its own tap. */
+  const askToSignAgain = ({ fee, total }: Pick<RouteQuote, 'fee' | 'total'>) => {
+    setDetails((prev) => (prev ? { ...prev, fees: fee, total } : prev))
+    setNotice(t('send.feeChanged'))
+    offerToSign(total)
+    setSending(false)
   }
 
   const handleContinue = async () => {
@@ -280,11 +361,16 @@ export default function SendDetails() {
       return
     }
 
+    setNotice('')
     setSending(true)
 
     if (isAssetSend && arkAddress) {
       if (!sendInfo.assets || sendInfo.assets.length === 0) return handleError('Missing assets list')
       payAssets(arkAddress, sendInfo.assets).catch(handleError)
+    } else if (lnurlRoute && details.destination === lnUrl) {
+      payLnurl(pendingLnSend!, lnUrl!).catch(handleError)
+    } else if (lnurlRoute && !address) {
+      return handleError(t('send.sendingOffchainNotAllowed'))
     } else if (arkAddress) {
       if (!details.total) return handleError(t('send.missingTotalAmount'))
       sendOffChain(svcWallet, details.total, arkAddress)
@@ -309,32 +395,24 @@ export default function SendDetails() {
       <Header text={t('send.signTransaction')} back />
       <Content>
         {sending ? (
-          details?.destination === invoice ? (
-            <LoadingLogo
-              text={t('send.payingToLightning')}
-              done={sendDone}
-              exitMode='fly-up'
-              onExitComplete={handleExitComplete}
-            />
-          ) : details?.destination === arkAddress ? (
-            <LoadingLogo
-              text={t('send.payingInsideArkade')}
-              done={sendDone}
-              exitMode='fly-up'
-              onExitComplete={handleExitComplete}
-            />
-          ) : (
-            <LoadingLogo
-              text={t('send.payingToMainnet')}
-              done={sendDone}
-              exitMode='fly-up'
-              onExitComplete={handleExitComplete}
-            />
-          )
+          <LoadingLogo
+            text={
+              lnurlRoute && details?.destination === lnUrl
+                ? details?.direction || 'Paying'
+                : details?.destination === invoice
+                  ? t('send.payingToLightning')
+                  : details?.destination === arkAddress
+                    ? t('send.payingInsideArkade')
+                    : t('send.payingToMainnet')
+            }
+            done={sendDone}
+            exitMode='fly-up'
+            onExitComplete={handleExitComplete}
+          />
         ) : (
           <Padded>
             <FlexCol>
-              <ErrorMessage error={Boolean(error)} text={error} />
+              <ErrorMessage error={Boolean(error || notice)} text={error || notice} />
               {details && amountDisplay ? (
                 <TransactionAmountSummary amount={amountDisplay} label={t('send.amountSent')} />
               ) : null}
