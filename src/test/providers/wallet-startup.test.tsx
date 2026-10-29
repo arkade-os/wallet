@@ -33,14 +33,7 @@ function Capture() {
   return null
 }
 
-beforeEach(() => {
-  vi.stubGlobal('navigator', {
-    serviceWorker: { getRegistration: async () => undefined, addEventListener: vi.fn(), removeEventListener: vi.fn() },
-  })
-})
-afterEach(() => vi.unstubAllGlobals())
-
-it('starts the worker without holding the boot on contract sync or the boarding fetch', async () => {
+const startWallet = async () => {
   render(
     <AspContext.Provider value={mockAspContextValue}>
       <ConfigContext.Provider value={mockConfigContextValue}>
@@ -51,6 +44,34 @@ it('starts the worker without holding the boot on contract sync or the boarding 
     </AspContext.Provider>,
   )
   await act(() => wallet.initWallet({ privateKey: new Uint8Array(32).fill(1) }))
+}
 
-  expect(mocks.setup).toHaveBeenCalledWith(expect.objectContaining({ lazyInitialization: true, lazyBoarding: true }))
+// reloadWallet is the only caller of an unfiltered getVtxos()
+const reloads = () => mocks.service.getVtxos.mock.calls.filter((args) => args.length === 0).length
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  vi.stubGlobal('navigator', {
+    serviceWorker: { getRegistration: async () => undefined, addEventListener: vi.fn(), removeEventListener: vi.fn() },
+  })
+})
+afterEach(() => vi.unstubAllGlobals())
+
+it('starts the worker without holding the boot on contract sync', async () => {
+  await startWallet()
+
+  expect(mocks.setup).toHaveBeenCalledWith(expect.objectContaining({ lazyInitialization: true }))
+})
+
+it('reloads when a contract event reports a coin', async () => {
+  await startWallet()
+  const before = reloads()
+  const onMessage = vi
+    .mocked(navigator.serviceWorker.addEventListener)
+    .mock.calls.filter(([type]) => type === 'message')
+    .at(-1)![1] as (event: MessageEvent) => void
+
+  onMessage({ data: { type: 'CONTRACT_EVENT', payload: { event: { type: 'vtxo_received' } } } } as MessageEvent)
+
+  await vi.waitFor(() => expect(reloads()).toBe(before + 1), { timeout: 3000 })
 })

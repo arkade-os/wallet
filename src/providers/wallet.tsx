@@ -686,9 +686,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         delegateUrl,
         walletMode: walletMode ?? config.walletMode ?? 'static',
         minCheckpointExitDelaySeconds,
-        // Sync and the boarding fetch finish in the background; the VTXO_UPDATE / UTXO_UPDATE reload repaints.
+        // Contract sync finishes in the background; the coin-event reload below repaints. Not lazyBoarding: its
+        // refresh is never retried, and its UTXO_UPDATE carries every stored coin, which the receive screen reads as a payment.
         lazyInitialization: true,
-        lazyBoarding: true,
         storage: { walletRepository, contractRepository },
         serviceWorkerActivationTimeoutMs: SERVICE_WORKER_ACTIVATION_TIMEOUT_MS,
         messageBusTimeoutMs: MESSAGE_BUS_INIT_TIMEOUT_MS,
@@ -781,7 +781,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // handle messages from the service worker
       // we listen for UTXO/VTXO updates to refresh the tx history and balance
       const handleServiceWorkerMessages = (event: MessageEvent) => {
-        if (event.data && ['VTXO_UPDATE', 'UTXO_UPDATE'].includes(event.data.type)) {
+        const { type, payload } = event.data ?? {}
+        // A lazy boot's first sync can land before VTXO_UPDATE's worker listener exists; CONTRACT_EVENT's is set up first.
+        const coinEvent = type === 'CONTRACT_EVENT' && ['vtxo_received', 'vtxo_spent'].includes(payload?.event?.type)
+        if (coinEvent || ['VTXO_UPDATE', 'UTXO_UPDATE'].includes(type)) {
           // Debounced reload: short delay lets the indexer update its cache.
           // If multiple updates arrive in quick succession, only the last
           // one triggers a reload (avoids redundant fetches).
