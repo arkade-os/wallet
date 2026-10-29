@@ -35,6 +35,7 @@ import AppDfx from '../screens/Apps/Dfx/Index'
 import InAppBrowser from '../screens/Wallet/InAppBrowser'
 import Unavailable from '../screens/Wallet/Unavailable'
 import AppIntentScreen from '../screens/AppIntent/Index'
+import WalletScan from '@/screens/Wallet/Scan'
 
 export type NavigationDirection = 'forward' | 'back' | 'none'
 
@@ -51,6 +52,7 @@ export enum Pages {
   AppAssetBurn,
   AppAssetsSettings,
   AppDfx,
+  AppIntent,
   Init,
   InitRestore,
   InitPassword,
@@ -72,8 +74,8 @@ export enum Pages {
   Unlock,
   Vtxos,
   Wallet,
+  WalletScan,
   WalletSwap,
-  AppIntent,
 }
 
 // Root pages - switches between these get no animation
@@ -124,6 +126,8 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <AppAssetsSettings />
     case Pages.AppDfx:
       return <AppDfx />
+    case Pages.AppIntent:
+      return <AppIntentScreen />
     case Pages.Init:
       return <Init />
     case Pages.InitConnect:
@@ -166,10 +170,10 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <Vtxos />
     case Pages.Wallet:
       return <Wallet />
+    case Pages.WalletScan:
+      return <WalletScan />
     case Pages.WalletSwap:
       return <WalletSwap />
-    case Pages.AppIntent:
-      return <AppIntentScreen />
     default:
       return <></>
   }

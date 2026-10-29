@@ -1056,6 +1056,7 @@ export default function SendForm() {
         close={() => setScan(false)}
         label={t('send.recipientAddress')}
         onData={(data) => {
+          setScan(false)
           setRecipient(data)
           setRawScanData(data)
           setReadyToParse(true)

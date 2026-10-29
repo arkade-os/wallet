@@ -27,14 +27,16 @@ export default function NotesRedeem() {
   const defaultButtonLabel = t('notes.redeemNote')
 
   const [buttonLabel, setButtonLabel] = useState(defaultButtonLabel)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(noteInfo.error ?? '')
   const [redeeming, setRedeeming] = useState(false)
 
   useEffect(() => {
     setError(
-      aspInfo.unreachable ? aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet')) : '',
+      aspInfo.unreachable
+        ? aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))
+        : (noteInfo.error ?? ''),
     )
-  }, [aspInfo.unreachable, aspInfo.outdated, t])
+  }, [aspInfo.unreachable, aspInfo.outdated, noteInfo.error, t])
 
   useEffect(() => {
     setButtonLabel(redeeming ? t('notes.redeeming') : defaultButtonLabel)
@@ -80,7 +82,7 @@ export default function NotesRedeem() {
         )}
       </Content>
       <ButtonsOnBottom>
-        <Button onClick={handleRedeem} label={buttonLabel} disabled={redeeming} />
+        <Button onClick={handleRedeem} label={buttonLabel} disabled={redeeming || Boolean(noteInfo.error)} />
       </ButtonsOnBottom>
     </>
   )
