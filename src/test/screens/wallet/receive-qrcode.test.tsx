@@ -89,6 +89,7 @@ type RenderOverrides = {
   wallet?: Partial<typeof mockWalletContextValue>
   config?: Partial<typeof mockConfigContextValue>
   fiat?: Partial<typeof mockFiatContextValue>
+  limits?: Partial<typeof mockLimitsContextValue>
   language?: Language
 }
 
@@ -122,7 +123,7 @@ function buildTree(overrides?: RenderOverrides) {
                 <NotificationsContext.Provider value={mockNotificationsContextValue as any}>
                   <FlowContext.Provider value={flow as any}>
                     <WalletContext.Provider value={wallet as any}>
-                      <LimitsContext.Provider value={mockLimitsContextValue}>
+                      <LimitsContext.Provider value={{ ...mockLimitsContextValue, ...overrides?.limits }}>
                         <BackupContext.Provider value={{ backupAndUpdateConfig, backupConfig } as any}>
                           <ReceiveQRCode />
                         </BackupContext.Provider>
@@ -167,6 +168,13 @@ describe('Receive QR Code screen', () => {
     backupAndUpdateConfig.mockClear()
     updateConfig.mockClear()
     backupConfig.mockClear()
+  })
+
+  it('disables Copy, like Share, when no payment method is allowed', async () => {
+    renderReceiveQrCode({ ...tapFixture(), limits: { vtxoTxsAllowed: () => false, utxoTxsAllowed: () => false } })
+
+    expect(await screen.findByText('No valid payment methods available for this amount')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeDisabled()
   })
 
   // Regression for the switched-QR path: new recvInfo addresses re-derive the QR through the BIP21
