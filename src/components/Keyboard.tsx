@@ -3,7 +3,14 @@ import Content from './Content'
 import { useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import Text, { TextSecondary } from './Text'
 import { FiatContext } from '../providers/fiat'
-import { fromSatoshis, prettyAmount, prettyFiatAmount, prettyNumber, toSatoshis } from '../lib/format'
+import {
+  canConvertCurrency,
+  fromSatoshis,
+  prettyAmount,
+  prettyFiatAmount,
+  prettyNumber,
+  toSatoshis,
+} from '../lib/format'
 import { WalletContext } from '../providers/wallet'
 import { defaultFee } from '../lib/constants'
 import ErrorMessage from './Error'
@@ -12,7 +19,7 @@ import ButtonsOnBottom from './ButtonsOnBottom'
 import { ConfigContext } from '../providers/config'
 import FlexCol from './FlexCol'
 import SwapIcon from '../icons/Swap'
-import { AssetOption, Currencies, Unit } from '../lib/types'
+import { AssetOption, Unit } from '../lib/types'
 import { atomicToUnits, prettyAssetAmount, unitsToAtomic } from '../lib/assets'
 import { useTranslation } from '../providers/language'
 import { MAX_SATS, digitsToValue, popDigit, pushDigit, valueToDigits } from '../lib/keypadEntry'
@@ -70,7 +77,7 @@ export default function Keyboard({
   const [digits, setDigits] = useState('')
   const textValue = digitsToValue(digits, getMaxDecimals())
   const setFromValue = (value: string) => setDigits(value ? valueToDigits(value, getMaxDecimals()) : '')
-  const currencyConversionUseful = config.currency !== Currencies.BTC && toFiat(100_000_000) > 0 && fromFiat(1) > 0
+  const currencyConversionUseful = canConvertCurrency(config.currency, toFiat, fromFiat)
   const previousCurrencyConversionUseful = useRef(currencyConversionUseful)
   const defaultInputMode: KeyboardInputMode = asset?.assetId
     ? 'asset'
