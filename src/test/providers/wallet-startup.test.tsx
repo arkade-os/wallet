@@ -63,7 +63,7 @@ it('starts the worker without holding the boot on contract sync', async () => {
   expect(mocks.setup).toHaveBeenCalledWith(expect.objectContaining({ lazyInitialization: true }))
 })
 
-it('reloads when a contract event reports a coin', async () => {
+it.each(['vtxo_received', 'vtxo_spent'])('reloads when a contract event reports %s', async (eventType) => {
   await startWallet()
   const before = reloads()
   const onMessage = vi
@@ -71,7 +71,7 @@ it('reloads when a contract event reports a coin', async () => {
     .mock.calls.filter(([type]) => type === 'message')
     .at(-1)![1] as (event: MessageEvent) => void
 
-  onMessage({ data: { type: 'CONTRACT_EVENT', payload: { event: { type: 'vtxo_received' } } } } as MessageEvent)
+  onMessage({ data: { type: 'CONTRACT_EVENT', payload: { event: { type: eventType } } } } as MessageEvent)
 
   await vi.waitFor(() => expect(reloads()).toBe(before + 1), { timeout: 3000 })
 })

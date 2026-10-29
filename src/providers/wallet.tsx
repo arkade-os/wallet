@@ -797,6 +797,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (swMessageHandlerRef.current) {
         removeServiceWorkerMessageHandler(swMessageHandlerRef.current)
       }
+      // Late is safe with a lazy boot: the worker persists coins before announcing them, and the first reload runs after this.
       navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
       swMessageHandlerRef.current = handleServiceWorkerMessages
 
