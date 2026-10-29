@@ -124,13 +124,6 @@ describe('i18n dictionary integrity', () => {
     expect(missing).toEqual([])
   })
 
-  it.skip('theres no unused keys in the translations object', () => {
-    const used = collectUsedKeys()
-    const allKeys = new Set(collectLeafKeys(translations.en))
-    const unused = [...allKeys].filter((key) => !used.has(key)).sort()
-    expect(unused).toEqual([])
-  })
-
   it('language values are real translations unless the term is universal/technical', () => {
     Object.values(Language).forEach((lang) => {
       if (lang === Language.English) return
