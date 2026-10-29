@@ -196,7 +196,10 @@ export const OptionsProvider = ({ children }: { children: ReactNode }) => {
   // Internal goBack — called by popstate handler via subNavHandler, does NOT touch browser history
   const internalGoBack = useCallback((fromButton: boolean) => {
     setDirection(fromButton ? 'back' : 'none')
-    // the stack is only empty on Menu; keep the section parent as a safe default
+    // Defensive guard, not a routine path: every non-Menu option is reached via
+    // navigateToOption (which pushes) and every reset clears the stack together
+    // with historyDepth, so the stack can't run dry while canGoBack() is true.
+    // If that invariant ever breaks, fall back to the section parent.
     const target = optionBackStack.current.pop() ?? getParentOption(optionRef.current)
     if (historyDepth.current > 0) historyDepth.current--
     optionRef.current = target
