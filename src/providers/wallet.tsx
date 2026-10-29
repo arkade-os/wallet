@@ -686,6 +686,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         delegateUrl,
         walletMode: walletMode ?? config.walletMode ?? 'static',
         minCheckpointExitDelaySeconds,
+        // Sync and the boarding fetch finish in the background; the VTXO_UPDATE / UTXO_UPDATE reload repaints.
+        lazyInitialization: true,
+        lazyBoarding: true,
         storage: { walletRepository, contractRepository },
         serviceWorkerActivationTimeoutMs: SERVICE_WORKER_ACTIVATION_TIMEOUT_MS,
         messageBusTimeoutMs: MESSAGE_BUS_INIT_TIMEOUT_MS,
