@@ -27,6 +27,7 @@ export default function Focusable({
   const style: React.CSSProperties = {
     borderRadius: round ? '0.5rem' : undefined,
     width: fit ? 'fit-content' : '100%',
+    cursor: 'pointer',
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

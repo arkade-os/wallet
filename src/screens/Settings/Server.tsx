@@ -85,7 +85,15 @@ export default function Server() {
 
   if (scan)
     return (
-      <Scanner close={() => setScan(false)} label={t('settings.serverUrl')} onData={setAspUrl} onError={setError} />
+      <Scanner
+        close={() => setScan(false)}
+        label={t('settings.serverUrl')}
+        onData={(data) => {
+          setAspUrl(data)
+          setScan(false)
+        }}
+        onError={setError}
+      />
     )
 
   if (blocked) {
