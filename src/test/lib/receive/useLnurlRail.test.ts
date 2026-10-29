@@ -144,8 +144,14 @@ describe('useLnurlRail', () => {
     expect(server.calls('POST', '/lnurl/address')).toHaveLength(0)
   })
 
-  it.each(['disabled', 'unmounted'])('does not rebind after a pending discovery is %s', async (stop) => {
-    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+  it.each([
+    { write: 'rebind', stop: 'disabled' },
+    { write: 'rebind', stop: 'unmounted' },
+    { write: 'claim', stop: 'disabled' },
+    { write: 'claim', stop: 'unmounted' },
+  ])('does not $write after a pending discovery is $stop', async ({ write, stop }) => {
+    // Owning nothing on a server with nameless receivers is bootstrap's auto-claim path.
+    serve(write === 'rebind' ? { modes: ['self'], addresses: [namedAddress('alice')] } : { modes: ['session'] })
     let release!: () => void
     const gate = new Promise<void>((resolve) => (release = resolve))
     const inner = server.fetch
