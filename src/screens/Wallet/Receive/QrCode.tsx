@@ -507,7 +507,7 @@ export default function ReceiveQRCode() {
     (shown === 'token' && !tokenRails.quote)
   // A token's QR is a payment URI, which a wallet's address field rejects; the bare deposit is what pastes.
   const copyValue = shown === 'token' ? tokenRails.quote?.destination : qrCodeValue
-  const copyDisabled = !addressesCurrent || !copyValue || generating || quoteExpired || noPaymentMethods
+  const copyDisabled = hasError || !addressesCurrent || !copyValue || generating || quoteExpired || noPaymentMethods
 
   // Whether an amount is currently requested. Keyed off assetMeta to match how
   // handleAmountConfirm/handleAmountClear decide between asset units and sats.
