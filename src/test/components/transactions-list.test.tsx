@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import TransactionsList from '../../components/TransactionsList'
 import { ConfigContext } from '../../providers/config'
 import { FiatContext } from '../../providers/fiat'
@@ -40,6 +40,123 @@ describe('TransactionsList', () => {
 
     expect(screen.getByText(/Swap/)).toBeInTheDocument()
     expect(screen.queryByText('Sent')).not.toBeInTheDocument()
+  })
+
+  it('shows the address an LNURL receive arrived at, and who a send paid', () => {
+    const receivedTx: Tx = {
+      amount: 1_000,
+      boardingTxid: '',
+      createdAt: 1_700_000_000,
+      explorable: undefined,
+      preconfirmed: false,
+      redeemTxid: 'lnurl-receive',
+      roundTxid: '',
+      settled: true,
+      type: 'received',
+      lnurl: { address: 'alice@lnurl.example', rail: 'lightning' },
+    }
+    const sentTx: Tx = {
+      amount: 500,
+      boardingTxid: '',
+      createdAt: 1_700_000_100,
+      explorable: undefined,
+      preconfirmed: false,
+      redeemTxid: 'lnurl-send',
+      roundTxid: '',
+      settled: true,
+      type: 'sent',
+      lnurl: { address: 'bob@pay.example', rail: 'lnurl-arkade' },
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <FlowContext.Provider value={mockFlowContextValue}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [receivedTx, sentTx] } as any}>
+                <TransactionsList mode='static' />
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByText('Received at alice@lnurl.example')).toBeInTheDocument()
+    expect(screen.getByText('Sent to bob@pay.example')).toBeInTheDocument()
+  })
+
+  it('reads a nameless LNURL receive by its rail', () => {
+    const tx: Tx = {
+      amount: 1_000,
+      boardingTxid: '',
+      createdAt: 1_700_000_000,
+      explorable: undefined,
+      preconfirmed: false,
+      redeemTxid: 'lnurl-receive',
+      roundTxid: '',
+      settled: true,
+      type: 'received',
+      lnurl: { rail: 'arkade' },
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <FlowContext.Provider value={mockFlowContextValue}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [tx] } as any}>
+                <TransactionsList mode='static' />
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByText('Received via arkade')).toBeInTheDocument()
+  })
+
+  it('still reads a plain, unlabelled transfer as Sent or Received', () => {
+    const receivedTx: Tx = {
+      amount: 1_000,
+      boardingTxid: '',
+      createdAt: 1_700_000_000,
+      explorable: undefined,
+      preconfirmed: false,
+      redeemTxid: 'plain-receive',
+      roundTxid: '',
+      settled: true,
+      type: 'received',
+    }
+    const sentTx: Tx = {
+      amount: 500,
+      boardingTxid: '',
+      createdAt: 1_700_000_100,
+      explorable: undefined,
+      preconfirmed: false,
+      redeemTxid: 'plain-send',
+      roundTxid: '',
+      settled: true,
+      type: 'sent',
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <FlowContext.Provider value={mockFlowContextValue}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [receivedTx, sentTx] } as any}>
+                <TransactionsList mode='static' />
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByText('Received')).toBeInTheDocument()
+    expect(screen.getByText('Sent')).toBeInTheDocument()
   })
 
   it('formats designated account activity with the underlying asset decimals', () => {
@@ -387,5 +504,59 @@ describe('TransactionsList', () => {
     expect(screen.getByText('+ 100.00 USD')).toBeInTheDocument()
     expect(screen.queryByText('€3.30')).not.toBeInTheDocument()
     expect(screen.queryByText('€100.00')).not.toBeInTheDocument()
+  })
+
+  describe('virtual mode', () => {
+    const ROW_HEIGHT = 72
+    const VIEWPORT_HEIGHT = 600
+    const TX_COUNT = 300
+
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    // jsdom has no layout, so give elements the heights the real Activity screen has:
+    // .content is the viewport-sized scroller, the list grows to fit every row, and rows are 72px.
+    const mockActivityLayout = () => {
+      vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (this: HTMLElement) {
+        if (this.classList.contains('content')) return VIEWPORT_HEIGHT
+        if (this.classList.contains('activity-list--full')) return TX_COUNT * ROW_HEIGHT
+        return 0
+      })
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+        const height = this.dataset.testid === 'tx-row' ? ROW_HEIGHT : 0
+        return { x: 0, y: 0, top: 0, left: 0, right: 0, bottom: height, width: 0, height, toJSON: () => ({}) }
+      })
+    }
+
+    it('renders only the rows that fit in the scrolling page, not the whole history', () => {
+      mockActivityLayout()
+      const txs = Array.from({ length: TX_COUNT }, (_, i) => ({
+        ...mockWalletContextValue.txs[0],
+        roundTxid: `round-${i}`,
+        historyKey: `tx-${i}`,
+      }))
+
+      render(
+        <NavigationContext.Provider value={mockNavigationContextValue}>
+          <ConfigContext.Provider value={mockConfigContextValue}>
+            <FiatContext.Provider value={mockFiatContextValue}>
+              <FlowContext.Provider value={mockFlowContextValue}>
+                <WalletContext.Provider value={{ ...mockWalletContextValue, txs } as any}>
+                  <div className='content'>
+                    <TransactionsList />
+                  </div>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </FiatContext.Provider>
+          </ConfigContext.Provider>
+        </NavigationContext.Provider>,
+      )
+
+      const rendered = screen.getAllByTestId('tx-row').length
+      // a 600px viewport holds ~9 rows of 72px; overscan adds 5 below
+      expect(rendered).toBeGreaterThan(0)
+      expect(rendered).toBeLessThan(30)
+    })
   })
 })

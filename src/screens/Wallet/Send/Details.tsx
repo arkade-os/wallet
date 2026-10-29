@@ -17,9 +17,11 @@ import FlexCol from '../../../components/FlexCol'
 import { InsufficientFundsError, maxCollaborativeExit, sendOffChain } from '../../../lib/asp'
 import {
   ASSET_RAIL,
+  LNURL_ARKADE_RAIL,
   ONCHAIN_ROUTE_LOG,
   ONCHAIN_SWAP_RAIL,
   fundedResult,
+  isLnurlRail,
   previewOnchainCost,
   quoteIsForThisInvoice,
   quoteIsForThisSend,
@@ -29,12 +31,14 @@ import { extractError } from '../../../lib/error'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError, consoleLog } from '../../../lib/logs'
 import type { RouteQuote } from '@arkade-os/sdk'
+import { lnurlQuoteMeta } from '@arkade-os/lnurl-client/arkade'
 import { LimitsContext } from '../../../providers/limits'
 import { FeesContext } from '../../../providers/fees'
 import { buildTransactionAmountDisplay } from '../../../lib/transactionAmountDisplay'
 import { useAmountDisplayContext } from '../../../hooks/useTransactionAmountDisplay'
 import TransactionAmountSummary from '../../../components/TransactionAmountSummary'
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
+import { lnurlSends, recordLnurlSend, watchLnurlConfirmation } from '../../../lib/lnurlSends'
 import { useTranslation } from '../../../providers/language'
 
 export default function SendDetails() {
@@ -62,7 +66,8 @@ export default function SendDetails() {
   const [sending, setSending] = useState(false)
   const [sendDone, setSendDone] = useState(false)
 
-  const { address, arkAddress, invoice, pendingLnSend, satoshis } = sendInfo
+  const { address, arkAddress, invoice, lnUrl, pendingLnSend, satoshis } = sendInfo
+  const lnurlRoute = Boolean(lnUrl && pendingLnSend && isLnurlRail(pendingLnSend.railId))
   const amountDisplay = buildTransactionAmountDisplay({
     ...displayContext,
     assets: sendInfo.account
@@ -85,7 +90,7 @@ export default function SendDetails() {
   }
 
   useEffect(() => {
-    if (!address && !arkAddress && !invoice) return setError(t('send.missingAddress'))
+    if (!address && !arkAddress && !invoice && !lnurlRoute) return setError(t('send.missingAddress'))
     if (isAssetSend) {
       if (!assetAmountValue) return setError(t('send.missingAssetAmount'))
       const destination = arkAddress ?? ''
@@ -104,26 +109,43 @@ export default function SendDetails() {
     }
     if (!satoshis) return setError(t('send.missingAmount'))
     const destination =
-      arkAddress && vtxoTxsAllowed()
-        ? arkAddress
-        : invoice && pendingLnSend && vtxoTxsAllowed()
-          ? invoice
-          : address && utxoTxsAllowed()
-            ? address
-            : ''
+      lnurlRoute && vtxoTxsAllowed()
+        ? lnUrl!
+        : arkAddress && vtxoTxsAllowed()
+          ? arkAddress
+          : invoice && pendingLnSend && vtxoTxsAllowed()
+            ? invoice
+            : address && utxoTxsAllowed()
+              ? address
+              : ''
+    // Routing is a protocol decision; it must never depend on a localized string,
+    // otherwise fee math and labels drift when the language changes.
+    const destinationType =
+      lnurlRoute && destination === lnUrl
+        ? pendingLnSend?.railId === LNURL_ARKADE_RAIL
+          ? 'arkade'
+          : 'lightning'
+        : destination === arkAddress
+          ? 'arkade'
+          : destination === invoice
+            ? 'lightning'
+            : destination === address
+              ? 'mainnet'
+              : 'none'
+    // `direction` is display-only; keep logic keyed on `destinationType`.
     const direction =
-      destination === arkAddress
+      destinationType === 'arkade'
         ? t('send.payingInsideArkade')
-        : destination === invoice
+        : destinationType === 'lightning'
           ? t('send.payingToLightning')
-          : destination === address
+          : destinationType === 'mainnet'
             ? t('send.payingToMainnet')
             : ''
 
     // The RFQ lockup carries exactly the invoice amount (exact-out, fee_bps
     // from the card; 0 today), so total == satoshis on the Lightning path.
     const total = pendingLnSend ? pendingLnSend.total : satoshis
-    const amount = direction === t('send.payingToMainnet') ? satoshis - calcOnchainOutputFee() : satoshis
+    const amount = destinationType === 'mainnet' ? satoshis - calcOnchainOutputFee() : satoshis
     const fees = total - amount > 0 ? total - amount : 0
     setDetails({
       destination,
@@ -133,7 +155,7 @@ export default function SendDetails() {
       total,
     })
     // Provisional on this path until the router settles it below.
-    if (direction === t('send.payingToMainnet') && amount > 0) {
+    if (destinationType === 'mainnet' && amount > 0) {
       setButtonLabel(t('send.gettingQuote'))
       return setPricing(true)
     }
@@ -243,9 +265,30 @@ export default function SendDetails() {
    *  is why the success copy says "on the way" for both rails. The invoice is
    *  re-checked because the quote came from the previous screen. */
   const payLightning = async (quote: RouteQuote, shownInvoice: string) => {
-    if (!quoteIsForThisInvoice(quote, shownInvoice)) return handleError('Quote is for a different invoice')
+    if (!quoteIsForThisInvoice(quote, shownInvoice)) return handleError(t('send.quoteForDifferentInvoice'))
     const result = await fundedResult(await quote.send())
     handleSent(result?.txid, quote.total, quote.fee, quote.railId, result?.swapId)
+  }
+
+  /** The quote came from the previous screen, so it is held to what this one shows. */
+  const payLnurl = async (quote: RouteQuote, target: string) => {
+    const lnurlMeta = lnurlQuoteMeta(quote)
+    if (lnurlMeta?.target !== target || quote.amount !== satoshis)
+      return handleError(t('send.quoteForDifferentPayment'))
+    const handle = await quote.send()
+    recordLnurlSend(handle, quote, target)
+    const result = await fundedResult(handle)
+    // A rail whose destination cannot identify the payment supplies no verify
+    // URL, and absence is "no answer available" rather than a failure.
+    if (result?.txid && lnurlMeta.verify)
+      watchLnurlConfirmation(
+        result.txid,
+        lnurlMeta.verify,
+        lnurlMeta.verifyBatch,
+        lnurlSends().find((sent) => sent.txid === result.txid)?.createdAt,
+        lnurlMeta.expect,
+      )
+    handleSent(result?.txid, quote.total, quote.fee, quote.railId)
   }
 
   /** One rail and no counterparty; routed so every branch here has one shape. */
@@ -324,6 +367,10 @@ export default function SendDetails() {
     if (isAssetSend && arkAddress) {
       if (!sendInfo.assets || sendInfo.assets.length === 0) return handleError('Missing assets list')
       payAssets(arkAddress, sendInfo.assets).catch(handleError)
+    } else if (lnurlRoute && details.destination === lnUrl) {
+      payLnurl(pendingLnSend!, lnUrl!).catch(handleError)
+    } else if (lnurlRoute && !address) {
+      return handleError(t('send.sendingOffchainNotAllowed'))
     } else if (arkAddress) {
       if (!details.total) return handleError(t('send.missingTotalAmount'))
       sendOffChain(svcWallet, details.total, arkAddress)
@@ -348,28 +395,20 @@ export default function SendDetails() {
       <Header text={t('send.signTransaction')} back />
       <Content>
         {sending ? (
-          details?.destination === invoice ? (
-            <LoadingLogo
-              text={t('send.payingToLightning')}
-              done={sendDone}
-              exitMode='fly-up'
-              onExitComplete={handleExitComplete}
-            />
-          ) : details?.destination === arkAddress ? (
-            <LoadingLogo
-              text={t('send.payingInsideArkade')}
-              done={sendDone}
-              exitMode='fly-up'
-              onExitComplete={handleExitComplete}
-            />
-          ) : (
-            <LoadingLogo
-              text={t('send.payingToMainnet')}
-              done={sendDone}
-              exitMode='fly-up'
-              onExitComplete={handleExitComplete}
-            />
-          )
+          <LoadingLogo
+            text={
+              lnurlRoute && details?.destination === lnUrl
+                ? details?.direction || 'Paying'
+                : details?.destination === invoice
+                  ? t('send.payingToLightning')
+                  : details?.destination === arkAddress
+                    ? t('send.payingInsideArkade')
+                    : t('send.payingToMainnet')
+            }
+            done={sendDone}
+            exitMode='fly-up'
+            onExitComplete={handleExitComplete}
+          />
         ) : (
           <Padded>
             <FlexCol>

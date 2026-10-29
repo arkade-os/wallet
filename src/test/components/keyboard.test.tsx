@@ -93,4 +93,27 @@ describe('Keyboard, right-to-left entry', () => {
     fireEvent.click(screen.getByLabelText('Toggle currency'))
     expect(screen.getByTestId('keyboard-amount')).toHaveTextContent('$120.00')
   })
+
+  it('initializes the amount again when the asset or its precision changes', () => {
+    const tree = (assetId: string, decimals: number) => (
+      <FiatContext.Provider value={mockFiatContextValue as never}>
+        <Keyboard
+          back={() => {}}
+          onSave={() => {}}
+          initialValue={1234n}
+          asset={{ assetId, decimals, name: 'Token', ticker: 'TOK', balance: 0n }}
+        />
+      </FiatContext.Provider>
+    )
+    const { rerender } = render(tree('asset-a', 2))
+    expect(screen.getByTestId('keyboard-amount')).toHaveTextContent('12.34 TOK')
+    press('1')
+    expect(screen.getByTestId('keyboard-amount')).toHaveTextContent('123.41 TOK')
+
+    rerender(tree('asset-b', 2))
+    expect(screen.getByTestId('keyboard-amount')).toHaveTextContent('12.34 TOK')
+    press('1')
+    rerender(tree('asset-b', 3))
+    expect(screen.getByTestId('keyboard-amount')).toHaveTextContent('1.234 TOK')
+  })
 })

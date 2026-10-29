@@ -5,6 +5,7 @@ import {
   MessageBus,
   WalletMessageHandler,
 } from '@arkade-os/sdk'
+import { electrumProvider } from './lib/electrum'
 
 // Health-check ping: responds via MessageChannel so the main thread can
 // detect if this worker is alive before attempting full initialization.
@@ -31,6 +32,7 @@ const worker = new MessageBus(walletRepository, contractRepository, {
   tickIntervalMs: 5000,
   messageTimeoutMs: 60_000,
   intentRepository,
+  onchainProvider: electrumProvider,
 })
 worker.start().catch(console.error)
 

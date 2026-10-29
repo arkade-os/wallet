@@ -12,7 +12,6 @@ export const mainServer = 'https://arkade.computer'
 export const defaultPassword = 'noah'
 export const minSatsToNudge = 100_000
 export const maxPercentage = import.meta.env.VITE_MAX_PERCENTAGE ?? 10
-export const psaMessage = import.meta.env.VITE_PSA_MESSAGE ?? ''
 export const enableChainSwapsReceive = import.meta.env.VITE_CHAIN_SWAPS_RECEIVE_ENABLED === 'true'
 // mutinynet's arkd advertises a 4096s checkpoint exit delay; the SDK's default policy can't tell
 // mutinynet apart from testnet/signet (same bech32) and applies the 86400s mainnet-grade floor,
