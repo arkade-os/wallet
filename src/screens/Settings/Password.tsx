@@ -15,9 +15,12 @@ import { isBiometricsSupported, registerUser } from '../../lib/biometrics'
 import { getPrivateKey, isValidPassword, noUserDefinedPassword, setPrivateKey } from '../../lib/privateKey'
 import { hasMnemonic, getMnemonic, setMnemonic } from '../../lib/mnemonic'
 import { useTranslation } from '../../providers/language'
+import { NavigationContext, Pages } from '@/providers/navigation'
 
 export default function Password() {
   const { updateWallet, wallet } = useContext(WalletContext)
+  const { navigate } = useContext(NavigationContext)
+
   const { t } = useTranslation()
 
   const [authenticated, setAuthenticated] = useState(false)
@@ -100,7 +103,11 @@ export default function Password() {
           </Padded>
         )}
       </Content>
-      {successText ? null : (
+      {successText ? (
+        <ButtonsOnBottom>
+          <Button onClick={() => navigate(Pages.Wallet)} label={t('common.continue')} />
+        </ButtonsOnBottom>
+      ) : (
         <ButtonsOnBottom>
           <Button onClick={handleContinue} label={label} disabled={newPassword === null || saving} loading={saving} />
           {wallet.lockedByBiometrics || !isBiometricsSupported() ? null : (
