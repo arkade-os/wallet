@@ -177,6 +177,15 @@ describe('Receive QR Code screen', () => {
     expect(screen.getByRole('button', { name: 'Copy' })).toBeDisabled()
   })
 
+  it('disables Copy while the address error shows, though addresses from an earlier load remain', async () => {
+    const fixture = tapFixture()
+    renderReceiveQrCode({ ...fixture, flow: { recvInfo: { ...fixture.flow!.recvInfo!, addressError: 'offline' } } })
+
+    expect(await screen.findByText('Failed to get address: offline')).toBeInTheDocument()
+    await act(async () => {})
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeDisabled()
+  })
+
   // Regression for the switched-QR path: new recvInfo addresses re-derive the QR through the BIP21
   // effect, and the second tap must copy the new value, not a stale closure of the first.
   it('tapping the QR after qrCodeValue changes copies the new value', async () => {
