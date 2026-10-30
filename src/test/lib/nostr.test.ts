@@ -68,6 +68,25 @@ describe('NostrStorage.load', () => {
     expect(events[0].receivedAt).toBeGreaterThan(0)
   })
 
+  it('asks relays only for backups we signed', async () => {
+    let filter: unknown
+    const injected = {
+      subscribeMany: (
+        _relays: string[],
+        next: unknown,
+        handlers: { onevent: (e: Event) => void; oneose: () => void },
+      ) => {
+        filter = next
+        queueMicrotask(() => handlers.oneose())
+        return { close: () => {} }
+      },
+    } as unknown as SimplePool
+
+    await new NostrStorage(seckey, injected).load()
+
+    expect(filter).toMatchObject({ kinds: [4], authors: [pubkey], '#p': [pubkey], '#t': ['arkade_backup'] })
+  })
+
   it('skips an event not signed by us', async () => {
     const sk = generateSecretKey() // ephemeral secret key
     const tampered = { ...asDelivered(makeEvent('{"hello":"world"}', sk)) }

@@ -8,9 +8,11 @@ import { setPrivateKey } from '../../lib/privateKey'
 import { setMnemonic } from '../../lib/mnemonic'
 import { consoleError } from '../../lib/logs'
 import { useLoadingStatus } from '../../hooks/useLoadingStatus'
-import { setLoadingStatus } from '../../lib/loadingStatus'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { useTranslation } from '../../providers/language'
+import { isElectrumOffline } from '../../lib/electrum'
+import ErrorMessage from '../../components/Error'
+import Padded from '../../components/Padded'
 
 export default function InitConnect() {
   const { initInfo, setInitInfo } = useContext(FlowContext)
@@ -47,16 +49,39 @@ export default function InitConnect() {
     if (initialized) setConnectDone(true)
   }, [initialized])
 
-  const handleExitComplete = () => {
+  const clearCredentials = () => {
     setInitInfo({ ...initInfo, password: undefined, privateKey: undefined, mnemonic: undefined, walletMode: undefined })
+  }
+
+  const handleExitComplete = () => {
+    clearCredentials()
     navigate(error ? Pages.Init : Pages.Wallet)
   }
 
-  const abortConnectionWithError = (err: any) => {
+  const abortConnectionWithError = (err: unknown) => {
     consoleError(err, 'Error during connection:')
-    setLoadingStatus(t('init.connectionFailed'))
-    setError(t('init.connectionFailed'))
-    setConnectDone(true)
+    // Do not set connectDone. That animation leaves for the welcome screen,
+    // which is the redirect people hit after a failed restore.
+    setError(isElectrumOffline(err) ? t('errors.electrumOffline') : t('init.connectionFailed'))
+  }
+
+  if (error) {
+    return (
+      <>
+        <Header
+          text={t('init.connectingToServer')}
+          back={() => {
+            clearCredentials()
+            navigate(Pages.Init)
+          }}
+        />
+        <Content>
+          <Padded>
+            <ErrorMessage error text={error} />
+          </Padded>
+        </Content>
+      </>
+    )
   }
 
   return (
