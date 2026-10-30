@@ -53,13 +53,7 @@ import { setLoadingStatus } from '../lib/loadingStatus'
 import { hex } from '@scure/base'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { ConfigContext } from './config'
-import {
-  defaultPassword,
-  getDelegateUrlForNetwork,
-  isMainnet,
-  maxPercentage,
-  mutinynetMinCheckpointExitDelaySeconds,
-} from '../lib/constants'
+import { defaultPassword, getDelegateUrlForNetwork, isMainnet, maxPercentage } from '../lib/constants'
 import { AssetIconApprovalManager } from '../lib/assetIconApproval'
 import { BackupContext } from './backup'
 import { getAssetSwaps } from '@arkade-os/swap/protocol'
@@ -79,7 +73,6 @@ interface InitSvcWorkerWalletParams {
   delegateUrl?: string
   walletMode?: ServiceWorkerWalletMode
   restoring?: boolean
-  minCheckpointExitDelaySeconds?: bigint
 }
 
 const defaultWallet: Wallet = {
@@ -640,15 +633,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     identity: Identity,
     params: InitSvcWorkerWalletParams,
   ): Promise<boolean> => {
-    const {
-      arkServerUrl,
-      retryCount = 0,
-      maxRetries = 2,
-      delegateUrl,
-      walletMode,
-      restoring = false,
-      minCheckpointExitDelaySeconds,
-    } = params
+    const { arkServerUrl, retryCount = 0, maxRetries = 2, delegateUrl, walletMode, restoring = false } = params
     try {
       setLoadingStatus(t('loading.startingWallet'))
       const walletRepository = new IndexedDBWalletRepository()
@@ -689,7 +674,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         arkServer: { url: arkServerUrl },
         delegateUrl,
         walletMode: walletMode ?? config.walletMode ?? 'static',
-        minCheckpointExitDelaySeconds,
         // Contract sync finishes in the background; the coin-event reload below repaints. Not lazyBoarding: its
         // refresh is never retried, and its UTXO_UPDATE carries every stored coin, which the receive screen reads as a payment.
         lazyInitialization: true,
@@ -901,9 +885,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
-  const minCheckpointExitDelaySecondsForNetwork = (network: NetworkName | string): bigint | undefined =>
-    network === 'mutinynet' ? mutinynetMinCheckpointExitDelaySeconds : network === 'regtest' ? 512n : undefined
-
   const initWallet = async (credentials: {
     mnemonic?: string
     privateKey?: Uint8Array
@@ -947,7 +928,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       delegateUrl,
       walletMode,
       restoring: credentials.restoring,
-      minCheckpointExitDelaySeconds: minCheckpointExitDelaySecondsForNetwork(network),
     })
     if (!didInit) return
     updateWallet({ ...wallet, network, pubkey })
@@ -987,7 +967,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       identity,
       arkServerUrl,
       delegateUrl,
-      minCheckpointExitDelaySeconds: minCheckpointExitDelaySecondsForNetwork(aspInfo.network),
     })
   }
 
@@ -1007,7 +986,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         identity,
         arkServerUrl,
         delegateUrl,
-        minCheckpointExitDelaySeconds: minCheckpointExitDelaySecondsForNetwork(aspInfo.network),
       })
       if (!initialized) return
     } catch (err) {
