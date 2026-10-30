@@ -24,8 +24,8 @@ pnpm install --frozen-lockfile && pnpm run build
 (cd packages/swap && pnpm pack --pack-destination /tmp/packed)
 ```
 
-Rename each to `<pkg>-<version>-pr<n>-<shortsha>.tgz`, update the four `file:` references, and run
-`pnpm install`.
+Rename each to `<pkg>-<version>-pr<n>-<shortsha>.tgz`, update the table above and the four `file:`
+references, and run `pnpm install`.
 
 To remove: set `@arkade-os/sdk` and `@arkade-os/swap` back to published versions, drop the
 `@arkade-os/sdk` override from both files, delete this directory, and run `pnpm install`.
