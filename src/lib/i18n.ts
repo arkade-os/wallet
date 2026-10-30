@@ -210,6 +210,7 @@ export const translations = {
     },
     errors: {
       amountBetween: 'Amount must be between {min} and {max} sats',
+      electrumOffline: 'Electrum is offline',
       outdatedWallet:
         'Your wallet is outdated and needs to be updated to be compatible with the latest Arkade version.',
       recentlySettledHours: 'Your funds were recently settled onchain — please try again in a few hours',
@@ -1051,6 +1052,7 @@ export const translations = {
     },
     errors: {
       amountBetween: 'El monto debe estar entre {min} y {max} sats',
+      electrumOffline: 'Electrum está fuera de línea',
       outdatedWallet:
         'Tu wallet está desactualizada y necesita actualizarse para ser compatible con la última versión de Arkade.',
       recentlySettledHours: 'Tus fondos se liquidaron recientemente en la cadena — inténtalo de nuevo en unas horas',

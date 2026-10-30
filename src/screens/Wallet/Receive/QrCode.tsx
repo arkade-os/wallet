@@ -21,7 +21,6 @@ import { unitsToAtomic } from '../../../lib/assets'
 import ErrorMessage from '../../../components/Error'
 import { getReceivingAddresses } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
-import { outpointOf, takeFreshCoins } from '../../../lib/boardingCoins'
 import InputAmount from '../../../components/InputAmount'
 import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
 import SheetModal from '../../../components/SheetModal'
@@ -286,59 +285,6 @@ export default function ReceiveQRCode() {
   // Payment listener
   useEffect(() => {
     if (!svcWallet) return
-    let cancelled = false
-    // Outpoints already in the wallet. A boarding notification lists every
-    // stored coin, not just the new one — including the snapshot lazy boarding
-    // emits when its background fetch finishes.
-    const known = new Set<string>()
-    let baselineReady = false
-    let baselineFailed = false
-    const queued: Coin[][] = []
-
-    const report = (sats: number, receivedAssets: Asset[]) => {
-      if (cancelled || (!sats && receivedAssets.length === 0)) return
-      setRecvInfo({ ...recvInfo, received: true, satoshis: sats, receivedAssets })
-      if (!isAssetReceive) notifyPaymentReceived(sats)
-      navigate(Pages.ReceiveSuccess)
-    }
-
-    // The first list after a failed read is the stored snapshot, not a deposit.
-    // Coins that show up in a later list are.
-    const adoptFirstQueued = () => {
-      const [first, ...rest] = queued
-      queued.length = 0
-      if (first) for (const coin of first) known.add(outpointOf(coin))
-      baselineReady = true
-      for (const batch of rest) onBoardingCoins(batch)
-    }
-
-    const onBoardingCoins = (coins: Coin[]) => {
-      if (!baselineReady) {
-        queued.push(coins)
-        if (baselineFailed) adoptFirstQueued()
-        return
-      }
-      report(
-        takeFreshCoins(known, coins).reduce((sum, coin) => sum + coin.value, 0),
-        [],
-      )
-    }
-
-    svcWallet
-      .getBoardingUtxos()
-      .then((existing) => {
-        if (cancelled || baselineReady) return
-        for (const coin of existing) known.add(outpointOf(coin))
-        baselineReady = true
-        const pending = queued.splice(0)
-        for (const batch of pending) onBoardingCoins(batch)
-      })
-      .catch((err) => {
-        consoleError(err, 'Electrum boarding lookup failed')
-        if (cancelled) return
-        baselineFailed = true
-        if (queued.length > 0) adoptFirstQueued()
-      })
 
     const listenForPayments = (event: MessageEvent) => {
       let sats = 0
@@ -368,19 +314,22 @@ export default function ReceiveQRCode() {
 
       if (event.data && event.data.type === 'UTXO_UPDATE') {
         const coins = event.data.payload?.coins
-        if (Array.isArray(coins)) onBoardingCoins(coins as Coin[])
-        else consoleError('UTXO_UPDATE message has unexpected payload shape:', event.data.payload)
-        return
+        if (Array.isArray(coins)) {
+          sats = (coins as Coin[]).reduce((acc, v) => acc + v.value, 0)
+        } else {
+          consoleError('UTXO_UPDATE message has unexpected payload shape:', event.data.payload)
+        }
       }
 
-      report(sats, receivedAssets)
+      if (sats || receivedAssets.length > 0) {
+        setRecvInfo({ ...recvInfo, received: true, satoshis: sats, receivedAssets })
+        if (!isAssetReceive) notifyPaymentReceived(sats)
+        navigate(Pages.ReceiveSuccess)
+      }
     }
 
     navigator.serviceWorker.addEventListener('message', listenForPayments)
-    return () => {
-      cancelled = true
-      navigator.serviceWorker.removeEventListener('message', listenForPayments)
-    }
+    return () => navigator.serviceWorker.removeEventListener('message', listenForPayments)
   }, [svcWallet])
 
   // Handlers

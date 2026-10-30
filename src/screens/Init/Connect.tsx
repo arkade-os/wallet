@@ -11,6 +11,9 @@ import { useLoadingStatus } from '../../hooks/useLoadingStatus'
 import { setLoadingStatus } from '../../lib/loadingStatus'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { useTranslation } from '../../providers/language'
+import { isElectrumOffline } from '../../lib/electrum'
+import ErrorMessage from '../../components/Error'
+import Padded from '../../components/Padded'
 
 export default function InitConnect() {
   const { initInfo, setInitInfo } = useContext(FlowContext)
@@ -52,11 +55,28 @@ export default function InitConnect() {
     navigate(error ? Pages.Init : Pages.Wallet)
   }
 
-  const abortConnectionWithError = (err: any) => {
+  const abortConnectionWithError = (err: unknown) => {
     consoleError(err, 'Error during connection:')
+    if (isElectrumOffline(err)) {
+      setError(t('errors.electrumOffline'))
+      return
+    }
     setLoadingStatus(t('init.connectionFailed'))
     setError(t('init.connectionFailed'))
     setConnectDone(true)
+  }
+
+  if (error === t('errors.electrumOffline')) {
+    return (
+      <>
+        <Header text={t('init.connectingToServer')} back={() => navigate(Pages.Init)} />
+        <Content>
+          <Padded>
+            <ErrorMessage error text={error} />
+          </Padded>
+        </Content>
+      </>
+    )
   }
 
   return (
