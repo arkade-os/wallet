@@ -2518,6 +2518,7 @@ export const translations = {
       scan: 'Escanear',
       send: 'Enviar',
       swap: 'Trocar',
+      syncing: 'Sincronizando...',
       tapToGoHome: 'Toque para ir à tela inicial.',
       transaction: 'Transação',
       viewAll: 'Ver tudo',
