@@ -18,12 +18,18 @@ export async function syncLnurlActivity(
   opts: { boardingAddress?: string; store?: PaymentSyncStore; signal?: AbortSignal } = {},
 ) {
   const { signal } = opts
+  if (signal?.aborted) return { synced: 0, failures: [] }
   const receiver = await lnurlReceiver({
     identity,
     arkadeAddress,
     boardingAddress: opts.boardingAddress,
     store: opts.store ?? lnurlPaymentSyncStore,
-  })?.owned()
+  })
+    ?.owned({ signal, refresh: true })
+    .catch((err) => {
+      if (!signal?.aborted) throw err
+    })
+  if (signal?.aborted) return { synced: 0, failures: [] }
   return (await receiver?.sync({ signal })) ?? { synced: 0, failures: [] }
 }
 

@@ -16,7 +16,7 @@ export interface FakeAddress {
   lnurl: string
   nameless: boolean
   sessionLnurl: string | null
-  status: 'active'
+  status: 'active' | 'revoked'
   domain: string
 }
 
@@ -154,11 +154,13 @@ export function fakeLnurlServer(opts: {
   /** Replaces a token quote's paymentURI. */
   paymentURI?: string
   payRequestFail?: boolean
+  registrationError?: string
 }) {
   const addresses = [...(opts.addresses ?? [])]
   let rejected = 0
   let bindsFailed = 0
   const refuse = () => Boolean(opts.reject) && rejected++ < (opts.rejectTimes ?? Infinity)
+  const bindings = new Map<string, { arkadeAddress: string; claimPublicKey: string; boardingAddress?: string }>()
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input))
     const method = init?.method ?? 'GET'
@@ -178,7 +180,10 @@ export function fakeLnurlServer(opts: {
       if (refuse()) return json(409, opts.reject)
       if (body.nameless) {
         const held = opts.sessionRow ?? addresses.find((a) => a.sessionLnurl)
-        if (held) return json(200, held)
+        if (held) {
+          if (!addresses.includes(held)) addresses.push(held)
+          return json(200, held)
+        }
         const row = namelessAddress()
         addresses.push(row)
         return json(200, row)
@@ -244,6 +249,11 @@ export function fakeLnurlServer(opts: {
         bindsFailed++
         return json(503, { error: 'bind unavailable' })
       }
+      const handle = decodeURIComponent(path.split('/').at(-2)!)
+      const row = addresses.find((a) => a.handle === handle && a.domain === body.domain && a.status === 'active')
+      if (!row) return json(404, { error: 'address not found' })
+      if (opts.registrationError) return json(500, { error: opts.registrationError })
+      bindings.set(handle, { ...bindings.get(handle), ...body })
       return json(200, {})
     }
     if (method === 'PATCH') {
@@ -260,7 +270,7 @@ export function fakeLnurlServer(opts: {
     fetchMock.mock.calls.filter(
       ([input, init]) => (init?.method ?? 'GET') === method && new URL(String(input)).pathname === path,
     )
-  return { fetch: fetchMock, addresses, calls }
+  return { fetch: fetchMock, addresses, bindings, calls }
 }
 
 /** Routes fetch through `server`, holding each quote for `optionId` until released, so a test can look

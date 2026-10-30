@@ -56,8 +56,7 @@ export function lnurlReceiver(deps: {
   store?: PaymentSyncStore
 }): ArkadeLnurl | undefined {
   const server = configuredLnurlServer()
-  if (!server) return undefined
-  return arkadeLnurl({ ...deps, baseUrl: server.baseUrl, domain: server.domain })
+  return server && arkadeLnurl({ ...deps, ...server })
 }
 
 type PerRail = Partial<Record<LnurlRailType, string>>
@@ -190,6 +189,7 @@ export function useLnurlRail(deps: {
   const [error, setError] = useState('')
   const [walletLnurl, setWalletLnurl] = useState<string>()
   const [namedElsewhere, setNamedElsewhere] = useState(false)
+  const discovery = useRef<AbortController>()
   const current = useRef(facade)
   const currentTranslation = useRef(t)
   useLayoutEffect(() => {
@@ -206,6 +206,8 @@ export function useLnurlRail(deps: {
     setWalletLnurl(undefined)
     if (!facade) return
     let stale = false
+    // Aborted with this facade, so neither discovery nor a claim started under it binds stale destinations.
+    const controller = (discovery.current = new AbortController())
     // The wallet id is derived locally, so the QR need not wait on the server's round trips.
     // ponytail: a payer scanning before registration lands gets "no longer active"; retrying succeeds.
     facade
@@ -215,19 +217,15 @@ export function useLnurlRail(deps: {
     const load = async () => {
       const result = await bootstrapReceiver(
         {
-          owned: async () => {
-            const owned = await facade.owned({ handle: primary || undefined })
-            if (stale) throw new Error('LNURL discovery is no longer current')
-            if (owned) setReceiver(owned)
+          owned: async (opts) => {
+            const owned = await facade.owned({ ...opts, handle: primary || undefined })
+            if (owned && !stale) setReceiver(owned)
             return owned
           },
-          capabilities: () => facade.capabilities(),
-          claim: async (opts) => {
-            if (stale) throw new Error('LNURL discovery is no longer current')
-            return facade.claim(opts)
-          },
+          capabilities: facade.capabilities,
+          claim: facade.claim,
         },
-        { autoClaimNameless: true },
+        { autoClaimNameless: true, refresh: true, signal: controller.signal },
       )
       if (stale) return
       if (result.capabilities) setChoices(onboardingChoices(result.capabilities))
@@ -253,6 +251,7 @@ export function useLnurlRail(deps: {
       })
     return () => {
       stale = true
+      controller.abort()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- a new primary switches below, without a reload
   }, [facade])
@@ -325,13 +324,14 @@ export function useLnurlRail(deps: {
     ownsName: Boolean(receiver?.lightningAddress) || namedElsewhere,
     claim: async (opts) => {
       if (!facade) return undefined
-      const claimed = await run(() => facade.claim(opts), true)
+      const signal = discovery.current?.signal
+      const claimed = await run(() => facade.claim(opts, { signal }), true)
       if (claimed) return claimed
       // A claim can register its address and then fail to bind it; a refresh binds whatever was left unbound,
       // and a wallet with no address yet adopts the one it finds, which is the one it just claimed.
       const hadReceiver = Boolean(receiver)
       facade
-        .owned({ refresh: true })
+        .owned({ refresh: true, signal })
         .then((next) => {
           if (!next || hadReceiver || current.current !== facade) return
           setReceiver(next)

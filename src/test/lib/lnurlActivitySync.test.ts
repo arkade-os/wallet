@@ -34,6 +34,44 @@ describe('syncLnurlActivity', () => {
     expect(receiverMock).toHaveBeenCalledWith(expect.objectContaining({ boardingAddress: 'bc1qboard', store }))
   })
 
+  it('does not discover or refresh destinations when the wallet is already locked', async () => {
+    receiverMock.mockClear()
+    const controller = new AbortController()
+    controller.abort()
+
+    await expect(syncLnurlActivity(identity, ARKADE_ADDRESS, { signal: controller.signal })).resolves.toEqual({
+      synced: 0,
+      failures: [],
+    })
+
+    expect(receiverMock).not.toHaveBeenCalled()
+  })
+
+  it('refreshes destinations under the lock signal and resolves to zero once discovery aborts', async () => {
+    const controller = new AbortController()
+    const owned = vi.fn().mockImplementation(async () => {
+      controller.abort()
+      throw controller.signal.reason
+    })
+    receiverMock.mockReturnValue({ owned } as never)
+
+    await expect(syncLnurlActivity(identity, ARKADE_ADDRESS, { signal: controller.signal })).resolves.toEqual({
+      synced: 0,
+      failures: [],
+    })
+
+    expect(owned).toHaveBeenCalledWith({ signal: controller.signal, refresh: true })
+  })
+
+  it('still fails when discovery fails for another reason', async () => {
+    const failure = new Error('lookup failed')
+    receiverMock.mockReturnValue({ owned: vi.fn().mockRejectedValue(failure) } as never)
+
+    await expect(syncLnurlActivity(identity, ARKADE_ADDRESS, { signal: new AbortController().signal })).rejects.toBe(
+      failure,
+    )
+  })
+
   it('hands its signal to the sync, which stops writing once it aborts', async () => {
     const store = { upsert: vi.fn(), readWatermark: vi.fn(), writeWatermark: vi.fn() }
     const controller = new AbortController()
