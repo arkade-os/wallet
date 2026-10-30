@@ -76,6 +76,15 @@ describe('Connect screen — restoring flag', () => {
     )
   })
 
+  it('stays on this screen when a transaction read times out', async () => {
+    const initWallet = vi.fn(() =>
+      Promise.reject(new Error('ElectrumWS request timeout. request ID: 51851 (blockchain.transaction.get)')),
+    )
+    const { navigate } = renderConnect({ privateKey, password: 'pw', restoring: true }, initWallet)
+    expect(await screen.findByTestId('error-message')).toHaveTextContent('Electrum is offline')
+    expect(navigate).not.toHaveBeenCalled()
+  })
+
   it('shows that Electrum is offline and stays on this screen', async () => {
     const initWallet = vi.fn(() => Promise.reject(new Error('INIT_WALLET failed: Electrum is offline')))
     const { navigate } = renderConnect({ privateKey, password: 'pw', restoring: true }, initWallet)

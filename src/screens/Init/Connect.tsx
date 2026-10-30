@@ -57,16 +57,12 @@ export default function InitConnect() {
 
   const abortConnectionWithError = (err: unknown) => {
     consoleError(err, 'Error during connection:')
-    if (isElectrumOffline(err)) {
-      setError(t('errors.electrumOffline'))
-      return
-    }
-    setLoadingStatus(t('init.connectionFailed'))
-    setError(t('init.connectionFailed'))
-    setConnectDone(true)
+    // Do not set connectDone. That animation leaves for the welcome screen,
+    // which is the redirect people hit after a failed restore.
+    setError(isElectrumOffline(err) ? t('errors.electrumOffline') : t('init.connectionFailed'))
   }
 
-  if (error === t('errors.electrumOffline')) {
+  if (error) {
     return (
       <>
         <Header text={t('init.connectingToServer')} back={() => navigate(Pages.Init)} />

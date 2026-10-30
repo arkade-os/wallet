@@ -74,7 +74,25 @@ describe('ProbedElectrumSocket', () => {
     expect(opened[1].request).toHaveBeenCalledTimes(2)
   })
 
-  it('does not send a failed request to Blockstream', async () => {
+  it('retries a timed-out history read on Blockstream', async () => {
+    const opened: FakeSocket[] = []
+    const socket = probed([ELECTRUM_WS_URL.bitcoin, BLOCKSTREAM], (url) => {
+      const client = fakeSocket(url)
+      opened.push(client)
+      if (url === ELECTRUM_WS_URL.bitcoin) {
+        client.request.mockRejectedValue(
+          new Error('ElectrumWS request timeout. request ID: 51851 (blockchain.transaction.get)'),
+        )
+      }
+      queueMicrotask(() => client.emit('connected'))
+      return client
+    })
+
+    await expect(socket.request('blockchain.transaction.get', 'aa' as never)).resolves.toBe(BLOCKSTREAM)
+    expect(opened.map((client) => client.url)).toEqual([ELECTRUM_WS_URL.bitcoin, BLOCKSTREAM])
+  })
+
+  it('does not send a failed broadcast to Blockstream', async () => {
     const opened: FakeSocket[] = []
     const socket = probed([ELECTRUM_WS_URL.bitcoin, BLOCKSTREAM], (url) => {
       const client = fakeSocket(url)
@@ -128,6 +146,10 @@ describe('isElectrumOffline', () => {
   it('matches the offline error after the worker wraps it', () => {
     expect(isElectrumOffline(new ElectrumOfflineError())).toBe(true)
     expect(isElectrumOffline(new Error('INIT_WALLET failed: Electrum is offline'))).toBe(true)
-    expect(isElectrumOffline(new Error('ElectrumWS request timeout'))).toBe(false)
+    expect(isElectrumOffline(new Error('ElectrumWS request timeout. request ID: 1 (blockchain.transaction.get)'))).toBe(
+      true,
+    )
+    expect(isElectrumOffline(new Error('Service worker message timed out (INIT_WALLET)'))).toBe(true)
+    expect(isElectrumOffline(new Error('Invalid password'))).toBe(false)
   })
 })

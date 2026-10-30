@@ -16,15 +16,29 @@ export class ElectrumOfflineError extends Error {
   }
 }
 
+const errorText = (err: unknown): string =>
+  err instanceof Error
+    ? err.message
+    : err && typeof err === 'object' && 'message' in err
+      ? String(err.message)
+      : String(err ?? '')
+
 export const isElectrumOffline = (err: unknown): boolean => {
-  const message =
-    err instanceof Error
-      ? err.message
-      : err && typeof err === 'object' && 'message' in err
-        ? String(err.message)
-        : String(err ?? '')
-  return message.includes('Electrum is offline')
+  const message = errorText(err)
+  // A connected host that times out `blockchain.transaction.get` rejects
+  // INIT_WALLET the same way a dead socket does, and Connect used to leave
+  // for the welcome screen. Those strings are the same failure.
+  return message.includes('Electrum is offline') || message.includes('ElectrumWS') || message.includes('INIT_WALLET')
 }
+
+const isTransportFailure = (err: unknown): boolean => {
+  const message = errorText(err)
+  return message.includes('ElectrumWS request timeout') || message.includes('ElectrumWS connection failed')
+}
+
+/** A broadcast may already be in the mempool when the reply times out. Never send it again. */
+const isBroadcast = (method: string): boolean =>
+  method === 'blockchain.transaction.broadcast' || method === 'blockchain.transaction.broadcast_package'
 
 /** Arkade's own server first. Bitcoin falls back to Blockstream. */
 export const electrumEndpoints = (network: NetworkName): readonly string[] => {
@@ -80,6 +94,9 @@ type ElectrumCaller = {
  */
 export class ProbedElectrumSocket {
   private pending: Promise<ElectrumCaller> | undefined
+  private active: ElectrumCaller | undefined
+  private activeIndex = 0
+  private moving: Promise<void> | undefined
 
   constructor(
     private readonly urls: readonly string[],
@@ -97,20 +114,54 @@ export class ProbedElectrumSocket {
   }
 
   private async connect(): Promise<ElectrumCaller> {
-    for (const url of this.urls) {
-      const ws = this.open(url)
+    for (let i = this.activeIndex; i < this.urls.length; i++) {
+      const ws = this.open(this.urls[i])
       try {
         await whenConnected(ws)
+        this.active = ws
+        this.activeIndex = i
         return ws
       } catch {
         // This host never connected. The next URL is the fallback.
       }
     }
+    this.activeIndex = 0
     throw new ElectrumOfflineError()
   }
 
+  /** One move for a burst of timed-out reads, so they share the next host. */
+  private leave(failed: ElectrumCaller): Promise<void> {
+    if (this.active !== failed) return this.moving ?? Promise.resolve()
+    if (this.activeIndex >= this.urls.length - 1) {
+      this.activeIndex = 0
+      this.pending = undefined
+      this.active = undefined
+      return Promise.reject(new ElectrumOfflineError())
+    }
+    this.activeIndex += 1
+    this.pending = undefined
+    this.active = undefined
+    this.moving = this.socket()
+      .then(() => undefined)
+      .finally(() => {
+        this.moving = undefined
+      })
+    return this.moving
+  }
+
+  private async call<T>(method: string, params: never[], canFailover: boolean): Promise<T> {
+    const ws = await this.socket()
+    try {
+      return (await ws.request(method, ...params)) as T
+    } catch (err) {
+      if (!canFailover || isBroadcast(method) || !isTransportFailure(err)) throw err
+      await this.leave(ws)
+      return this.call(method, params, false)
+    }
+  }
+
   request<T>(method: string, ...params: never[]): Promise<T> {
-    return this.socket().then((ws) => ws.request(method, ...params) as Promise<T>)
+    return this.call(method, params, true)
   }
 
   subscribe(
