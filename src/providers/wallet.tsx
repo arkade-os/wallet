@@ -50,6 +50,7 @@ import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mne
 import { resolveWalletMode } from '../lib/walletMode'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
 import { setLoadingStatus } from '../lib/loadingStatus'
+import { retryBoardingFetch } from '../lib/boardingRefresh'
 import { hex } from '@scure/base'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { ConfigContext } from './config'
@@ -674,9 +675,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         arkServer: { url: arkServerUrl },
         delegateUrl,
         walletMode: walletMode ?? config.walletMode ?? 'static',
-        // Contract sync finishes in the background; the coin-event reload below repaints. Not lazyBoarding: its
-        // refresh is never retried, and its UTXO_UPDATE carries every stored coin, which the receive screen reads as a payment.
+        // Contract sync and the Electrum boarding/history fetch both finish in the background.
+        // Setup awaits that fetch otherwise. A `blockchain.transaction.get` timeout, or a dead
+        // socket (wss://electrum.arkade.sh answering 502), rejects or stalls INIT_WALLET until
+        // "Service worker message timed out" — Connect then sends the user back to Welcome.
+        // The SDK does not retry the background pass; `retryBoardingFetch` does. Its completion
+        // UTXO_UPDATE lists every stored coin; the receive screen baselines those outpoints.
         lazyInitialization: true,
+        lazyBoarding: true,
         storage: { walletRepository, contractRepository },
         serviceWorkerActivationTimeoutMs: SERVICE_WORKER_ACTIVATION_TIMEOUT_MS,
         messageBusTimeoutMs: MESSAGE_BUS_INIT_TIMEOUT_MS,
@@ -737,6 +743,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       setVtxoManager(vtxoMgr)
       setInitialized(walletInitialized)
       setSyncing(true)
+
+      // Not awaited: a dead Electrum host must not hold the connecting screen.
+      void retryBoardingFetch(svcWallet, signal, () => {
+        if (!signal.aborted) reloadWallet(svcWallet).catch((err) => consoleError(err, 'Error reloading wallet'))
+      })
 
       // Safe on every unlock: watches are keyed by txid and the confirmation queue ignores a key it already holds.
       resumeLnurlConfirmations()

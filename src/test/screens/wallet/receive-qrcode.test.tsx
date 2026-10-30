@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, act, fireEvent, waitFor } from '@testing-library/react'
 import { FlowContext } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
@@ -14,7 +14,7 @@ import {
 } from '../mocks'
 import { AspContext } from '../../../providers/asp'
 import { WalletContext } from '../../../providers/wallet'
-import { NavigationContext } from '../../../providers/navigation'
+import { NavigationContext, Pages } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { NotificationsContext } from '../../../providers/notifications'
@@ -80,6 +80,7 @@ type RenderOverrides = {
   wallet?: Partial<typeof mockWalletContextValue>
   config?: Partial<typeof mockConfigContextValue>
   language?: Language
+  navigate?: (page: Pages) => void
 }
 
 function buildTree(overrides?: RenderOverrides) {
@@ -94,7 +95,12 @@ function buildTree(overrides?: RenderOverrides) {
       value={{ language, t: (k: string, p?: Record<string, string | number>) => translate(language, k, p) }}
     >
       <ToastProvider>
-        <NavigationContext.Provider value={mockNavigationContextValue}>
+        <NavigationContext.Provider
+          value={{
+            ...mockNavigationContextValue,
+            navigate: overrides?.navigate ?? mockNavigationContextValue.navigate,
+          }}
+        >
           <AspContext.Provider value={mockAspContextValue}>
             <ConfigContext.Provider value={config as any}>
               <FiatContext.Provider value={mockFiatContextValue as any}>
@@ -464,5 +470,107 @@ describe('Receive QR Code screen — copy feedback', () => {
     })
 
     expect(await screen.findByText('Failed to copy')).toBeInTheDocument()
+  })
+})
+
+describe('receive payment listener', () => {
+  const listeners: ((event: MessageEvent) => void)[] = []
+
+  beforeEach(() => {
+    listeners.length = 0
+    vi.spyOn(navigator.serviceWorker, 'addEventListener').mockImplementation((type, fn) => {
+      if (type === 'message') listeners.push(fn as (event: MessageEvent) => void)
+    })
+    vi.spyOn(navigator.serviceWorker, 'removeEventListener').mockImplementation((type, fn) => {
+      if (type !== 'message') return
+      const index = listeners.indexOf(fn as (event: MessageEvent) => void)
+      if (index >= 0) listeners.splice(index, 1)
+    })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  const emit = (data: unknown) => {
+    for (const listener of [...listeners]) listener({ data } as MessageEvent)
+  }
+
+  const stored = { txid: 'stored', vout: 0, value: 50_000 }
+
+  it('does not treat the stored boarding snapshot as a payment', async () => {
+    let resolveCoins: (coins: (typeof stored)[]) => void = () => {}
+    const getBoardingUtxos = vi.fn(
+      () =>
+        new Promise<(typeof stored)[]>((resolve) => {
+          resolveCoins = resolve
+        }),
+    )
+    const navigate = vi.fn()
+    const base = tapFixture()
+    renderReceiveQrCode({
+      ...base,
+      navigate,
+      wallet: { ...base.wallet, svcWallet: { ...mockSvcWallet, getBoardingUtxos } as any },
+    })
+
+    await waitFor(() => expect(listeners.length).toBeGreaterThan(0))
+    act(() => {
+      emit({ type: 'UTXO_UPDATE', payload: { coins: [stored] } })
+    })
+    expect(navigate).not.toHaveBeenCalled()
+
+    await act(async () => {
+      resolveCoins([stored])
+    })
+    expect(navigate).not.toHaveBeenCalled()
+
+    act(() => {
+      emit({ type: 'UTXO_UPDATE', payload: { coins: [stored, { txid: 'new', vout: 1, value: 21_000 }] } })
+    })
+    expect(navigate).toHaveBeenCalledWith(Pages.ReceiveSuccess)
+  })
+
+  it('uses the first coin list as the baseline when the boarding read fails', async () => {
+    const getBoardingUtxos = vi.fn().mockRejectedValue(new Error('ElectrumWS connect timeout'))
+    const navigate = vi.fn()
+    const base = tapFixture()
+    renderReceiveQrCode({
+      ...base,
+      navigate,
+      wallet: { ...base.wallet, svcWallet: { ...mockSvcWallet, getBoardingUtxos } as any },
+    })
+
+    await waitFor(() => expect(getBoardingUtxos).toHaveBeenCalled())
+    await act(async () => {
+      await getBoardingUtxos.mock.results[0]?.value?.catch(() => undefined)
+    })
+
+    act(() => {
+      emit({ type: 'UTXO_UPDATE', payload: { coins: [stored] } })
+    })
+    expect(navigate).not.toHaveBeenCalled()
+
+    act(() => {
+      emit({ type: 'UTXO_UPDATE', payload: { coins: [stored, { txid: 'new', vout: 1, value: 21_000 }] } })
+    })
+    expect(navigate).toHaveBeenCalledWith(Pages.ReceiveSuccess)
+  })
+
+  it('still reports an offchain receive while the boarding baseline is pending', async () => {
+    const getBoardingUtxos = vi.fn(() => new Promise(() => {}))
+    const navigate = vi.fn()
+    const base = tapFixture()
+    renderReceiveQrCode({
+      ...base,
+      navigate,
+      wallet: { ...base.wallet, svcWallet: { ...mockSvcWallet, getBoardingUtxos } as any },
+    })
+
+    await waitFor(() => expect(listeners.length).toBeGreaterThan(0))
+    act(() => {
+      emit({ type: 'VTXO_UPDATE', payload: { newVtxos: [{ value: 1_000, assets: [] }] } })
+    })
+    expect(navigate).toHaveBeenCalledWith(Pages.ReceiveSuccess)
   })
 })

@@ -67,10 +67,13 @@ beforeEach(() => {
 })
 afterEach(() => vi.unstubAllGlobals())
 
-it('starts the worker without holding the boot on contract sync', async () => {
+it('starts the worker without holding the boot on contract sync or electrum', async () => {
   await startWallet()
 
-  expect(mocks.setup).toHaveBeenCalledWith(expect.objectContaining({ lazyInitialization: true }))
+  // lazyBoarding moves the Electrum boarding/history fetch off INIT_WALLET. A
+  // blockchain.transaction.get timeout there rejects setup, and Connect sends
+  // the user back to the welcome screen.
+  expect(mocks.setup).toHaveBeenCalledWith(expect.objectContaining({ lazyInitialization: true, lazyBoarding: true }))
 })
 
 it('reports syncing until the worker finishes its first sync, then reloads', async () => {
