@@ -5,6 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.5.0-pr1138-cf178d9a.tgz
   '@babel/core': '>=7.29.6 <8.0.0'
   js-yaml@<4: '>=3.15.0 <4.0.0'
   js-yaml@>=4: '>=4.2.0 <5.0.0'
@@ -17,16 +18,16 @@ importers:
     dependencies:
       '@arkade-os/lnurl-client':
         specifier: 0.9.2
-        version: 0.9.2(@arkade-os/sdk@0.5.0)
+        version: 0.9.2(@arkade-os/sdk@file:vendor/arkade-os-sdk-0.5.0-pr1138-cf178d9a.tgz)
       '@arkade-os/sdk':
-        specifier: 0.5.0
-        version: 0.5.0
+        specifier: file:vendor/arkade-os-sdk-0.5.0-pr1138-cf178d9a.tgz
+        version: file:vendor/arkade-os-sdk-0.5.0-pr1138-cf178d9a.tgz
       '@arkade-os/solver-discovery':
         specifier: 0.3.0
         version: 0.3.0
       '@arkade-os/swap':
-        specifier: 0.1.0
-        version: 0.1.0(nostr-tools@2.24.1(typescript@5.9.3))
+        specifier: file:vendor/arkade-os-swap-0.1.0-pr1138-cf178d9a.tgz
+        version: file:vendor/arkade-os-swap-0.1.0-pr1138-cf178d9a.tgz(nostr-tools@2.24.1(typescript@5.9.3))
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -237,6 +238,7 @@ packages:
 
   '@arkade-os/lnurl-client@0.9.2':
     resolution: {integrity: sha512-rpjU67hJUZHyhh7NsgMjVjUVSE4XQA8nPJ4JMYfKQGcX0KS/Q1os1E0KmWozR5OjI3wppCpRwAWG5v6k7FXgBw==}
+    version: 0.9.2
     engines: {node: '>=22.12.0'}
     peerDependencies:
       '@arkade-os/sdk': '>=0.5.0-rc.0'
@@ -244,8 +246,9 @@ packages:
       '@arkade-os/sdk':
         optional: true
 
-  '@arkade-os/sdk@0.5.0':
-    resolution: {integrity: sha512-AIXzsJB0CWZ1zzWOrpeDBJq8cTpBHZ0nDgDALS7qXkUrCWPQ0x8XHBIwoPdWwTKd9Kv87ZYpcSFvsGu3ju2IlQ==}
+  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.5.0-pr1138-cf178d9a.tgz':
+    resolution: {integrity: sha512-jifb5AGoW61q1wzsYEGlh5Yczf0eROSpNV/xRyD54mfKmL73+4Eo2X7+gHxwoO1DkoHPkbgFQqpHYnvlJYInYQ==, tarball: file:vendor/arkade-os-sdk-0.5.0-pr1138-cf178d9a.tgz}
+    version: 0.5.0
     engines: {node: '>=22.13.0 <27'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -269,8 +272,9 @@ packages:
     resolution: {integrity: sha512-FMAhWG3vZrKIlCP1U8E5iAgB6O1wc6O1CMk+HlQ4xUf066p/S8PuRgmHtkHcL1YrGsdWhKfP/SSFwgLIbGTQjg==}
     engines: {node: '>=20.19'}
 
-  '@arkade-os/swap@0.1.0':
-    resolution: {integrity: sha512-8+2ZnzRUf3seDFPwLzYL+Me5/DjK5YSpLZB3PYoeNfpgOuyn12Z6/UOOsI6vcdng/At++w3dZZWLKraEiKyOkw==}
+  '@arkade-os/swap@file:vendor/arkade-os-swap-0.1.0-pr1138-cf178d9a.tgz':
+    resolution: {integrity: sha512-H6TDuNvaxGExAmtABQlfoOtrcXyLhjZpufXW9bdJv5GssB7/MiXHa87kZtl/MU2c/sVIyQ4yPfTqvi+ZYyWSVA==, tarball: file:vendor/arkade-os-swap-0.1.0-pr1138-cf178d9a.tgz}
+    version: 0.1.0
     engines: {node: '>=22.13.0'}
     peerDependencies:
       nostr-tools: 2.24.1
@@ -3315,15 +3319,15 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/lnurl-client@0.9.2(@arkade-os/sdk@0.5.0)':
+  '@arkade-os/lnurl-client@0.9.2(@arkade-os/sdk@file:vendor/arkade-os-sdk-0.5.0-pr1138-cf178d9a.tgz)':
     dependencies:
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
       '@scure/base': 2.0.0
     optionalDependencies:
-      '@arkade-os/sdk': 0.5.0
+      '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.5.0-pr1138-cf178d9a.tgz
 
-  '@arkade-os/sdk@0.5.0':
+  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.5.0-pr1138-cf178d9a.tgz':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 8.0.0
@@ -3348,9 +3352,9 @@ snapshots:
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
 
-  '@arkade-os/swap@0.1.0(nostr-tools@2.24.1(typescript@5.9.3))':
+  '@arkade-os/swap@file:vendor/arkade-os-swap-0.1.0-pr1138-cf178d9a.tgz(nostr-tools@2.24.1(typescript@5.9.3))':
     dependencies:
-      '@arkade-os/sdk': 0.5.0
+      '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.5.0-pr1138-cf178d9a.tgz
       '@arkade-os/solver-discovery': 0.3.0
       '@noble/ciphers': 2.1.1
       '@noble/curves': 2.4.0
