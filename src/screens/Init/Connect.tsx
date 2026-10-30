@@ -49,8 +49,12 @@ export default function InitConnect() {
     if (initialized) setConnectDone(true)
   }, [initialized])
 
-  const handleExitComplete = () => {
+  const clearCredentials = () => {
     setInitInfo({ ...initInfo, password: undefined, privateKey: undefined, mnemonic: undefined, walletMode: undefined })
+  }
+
+  const handleExitComplete = () => {
+    clearCredentials()
     navigate(error ? Pages.Init : Pages.Wallet)
   }
 
@@ -64,7 +68,13 @@ export default function InitConnect() {
   if (error) {
     return (
       <>
-        <Header text={t('init.connectingToServer')} back={() => navigate(Pages.Init)} />
+        <Header
+          text={t('init.connectingToServer')}
+          back={() => {
+            clearCredentials()
+            navigate(Pages.Init)
+          }}
+        />
         <Content>
           <Padded>
             <ErrorMessage error text={error} />

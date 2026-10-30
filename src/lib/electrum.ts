@@ -25,10 +25,14 @@ const errorText = (err: unknown): string =>
 
 export const isElectrumOffline = (err: unknown): boolean => {
   const message = errorText(err)
-  // A connected host that times out `blockchain.transaction.get` rejects
-  // INIT_WALLET the same way a dead socket does, and Connect used to leave
-  // for the welcome screen. Those strings are the same failure.
-  return message.includes('Electrum is offline') || message.includes('ElectrumWS') || message.includes('INIT_WALLET')
+  // A broadcast timeout is not "offline": the transaction may already be in
+  // the mempool. A service-worker timeout is not Electrum either.
+  if (message.includes('blockchain.transaction.broadcast')) return false
+  return (
+    message.includes('Electrum is offline') ||
+    message.includes('ElectrumWS connection failed') ||
+    message.includes('ElectrumWS request timeout')
+  )
 }
 
 const isTransportFailure = (err: unknown): boolean => {
@@ -39,6 +43,49 @@ const isTransportFailure = (err: unknown): boolean => {
 /** A broadcast may already be in the mempool when the reply times out. Never send it again. */
 const isBroadcast = (method: string): boolean =>
   method === 'blockchain.transaction.broadcast' || method === 'blockchain.transaction.broadcast_package'
+
+const REQUEST_WAIT_MS = 10_000
+
+/**
+ * `ws-electrumx-client` does `Object.assign(DEFAULT_OPTIONS, options)`, so every
+ * instance shares one options object and `close()` sets `reconnect = false` for
+ * all of them. A private copy makes `close()` local, which is what lets a failed
+ * probe be closed without killing the socket we keep.
+ */
+const openSocket = (url: string): ElectrumCaller & Connectable => {
+  const ws = new ElectrumWS(url)
+  // Private on the type, present at runtime, and shared across instances until replaced.
+  ;(ws as unknown as { options: { reconnect: boolean; verbose: boolean } }).options = {
+    reconnect: true,
+    verbose: false,
+  }
+  return ws as unknown as ElectrumCaller & Connectable
+}
+
+const abandon = (ws: ElectrumCaller): void => {
+  const closable = ws as ElectrumCaller & { close?: (reason: string) => Promise<unknown> }
+  if (typeof closable.close !== 'function') return
+  void closable.close('electrum host unreachable').catch(() => undefined)
+}
+
+/** The library waits forever for `connected` with no deadline. This one does not. */
+const withDeadline = (ws: ElectrumCaller, method: string, params: never[]): Promise<unknown> =>
+  new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`ElectrumWS request timeout. request ID: 0 (${method})`)),
+      REQUEST_WAIT_MS,
+    )
+    ws.request(method, ...params).then(
+      (value) => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      (err: unknown) => {
+        clearTimeout(timer)
+        reject(err)
+      },
+    )
+  })
 
 /** Arkade's own server first. Bitcoin falls back to Blockstream. */
 export const electrumEndpoints = (network: NetworkName): readonly string[] => {
@@ -89,14 +136,15 @@ type ElectrumCaller = {
 
 /**
  * Opens Arkade, then Blockstream, and keeps the first socket that connects.
- * A request that fails after that stays on that socket: retrying it on the
- * other host would send a broadcast twice.
+ * A later read timeout moves to the next host once. A broadcast timeout does not.
  */
 export class ProbedElectrumSocket {
   private pending: Promise<ElectrumCaller> | undefined
   private active: ElectrumCaller | undefined
   private activeIndex = 0
   private moving: Promise<void> | undefined
+  /** Set when the last host fails, so every in-flight read gets the same error. */
+  private offline = false
 
   constructor(
     private readonly urls: readonly string[],
@@ -104,6 +152,7 @@ export class ProbedElectrumSocket {
   ) {}
 
   private socket(): Promise<ElectrumCaller> {
+    if (this.offline) this.offline = false
     if (!this.pending) {
       this.pending = this.connect().catch((err: unknown) => {
         this.pending = undefined
@@ -122,7 +171,7 @@ export class ProbedElectrumSocket {
         this.activeIndex = i
         return ws
       } catch {
-        // This host never connected. The next URL is the fallback.
+        abandon(ws)
       }
     }
     this.activeIndex = 0
@@ -131,8 +180,10 @@ export class ProbedElectrumSocket {
 
   /** One move for a burst of timed-out reads, so they share the next host. */
   private leave(failed: ElectrumCaller): Promise<void> {
-    if (this.active !== failed) return this.moving ?? Promise.resolve()
+    if (this.offline) return Promise.reject(new ElectrumOfflineError())
+    if (this.active !== failed) return this.moving ?? Promise.reject(new ElectrumOfflineError())
     if (this.activeIndex >= this.urls.length - 1) {
+      this.offline = true
       this.activeIndex = 0
       this.pending = undefined
       this.active = undefined
@@ -152,7 +203,7 @@ export class ProbedElectrumSocket {
   private async call<T>(method: string, params: never[], canFailover: boolean): Promise<T> {
     const ws = await this.socket()
     try {
-      return (await ws.request(method, ...params)) as T
+      return (await withDeadline(ws, method, params)) as T
     } catch (err) {
       if (!canFailover || isBroadcast(method) || !isTransportFailure(err)) throw err
       await this.leave(ws)
@@ -186,13 +237,12 @@ export class ProbedElectrumSocket {
 }
 
 // One provider per network. The socket behind it is chosen by the probe.
+// ElectrumOnchainProvider only uses request, subscribe, unsubscribe, and close
+// on the socket (SDK 0.5.0). The cast breaks if a later SDK reads anything else.
 export const electrumProvider = (network: NetworkName): ElectrumOnchainProvider => {
   let provider = providers.get(network)
   if (!provider) {
-    const socket = new ProbedElectrumSocket(
-      electrumEndpoints(network),
-      (url) => new ElectrumWS(url) as ElectrumCaller & Connectable,
-    )
+    const socket = new ProbedElectrumSocket(electrumEndpoints(network), openSocket)
     provider = new ElectrumOnchainProvider(socket as unknown as ElectrumWS, getNetwork(network))
     providers.set(network, provider)
   }

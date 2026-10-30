@@ -3,7 +3,13 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('ws-electrumx-client', () => ({ ElectrumWS: vi.fn() }))
 
 import { ELECTRUM_WS_URL } from '@arkade-os/sdk'
-import { ElectrumOfflineError, electrumEndpoints, isElectrumOffline, ProbedElectrumSocket } from '../../lib/electrum'
+import {
+  ElectrumOfflineError,
+  electrumEndpoints,
+  electrumProvider,
+  isElectrumOffline,
+  ProbedElectrumSocket,
+} from '../../lib/electrum'
 
 const BLOCKSTREAM = 'wss://blockstream.info/electrum-websocket/api'
 const CLOSED = 3
@@ -18,6 +24,7 @@ type FakeSocket = {
   ws: { readyState: number }
   emit: (event: string) => void
   url: string
+  close?: ReturnType<typeof vi.fn>
 }
 
 function fakeSocket(url: string, readyState = 0): FakeSocket {
@@ -53,6 +60,11 @@ describe('electrum endpoints', () => {
   it('leaves other networks on their own server', () => {
     expect(electrumEndpoints('regtest')).toEqual([ELECTRUM_WS_URL.regtest])
   })
+
+  it('reuses one provider per network', () => {
+    expect(electrumProvider('regtest')).toBe(electrumProvider('regtest'))
+    expect(electrumProvider('signet')).not.toBe(electrumProvider('regtest'))
+  })
 })
 
 const probed = (urls: readonly string[], open: (url: string) => FakeSocket) =>
@@ -63,6 +75,7 @@ describe('ProbedElectrumSocket', () => {
     const opened: FakeSocket[] = []
     const socket = probed([ELECTRUM_WS_URL.bitcoin, BLOCKSTREAM], (url) => {
       const client = fakeSocket(url, url === ELECTRUM_WS_URL.bitcoin ? CLOSED : 0)
+      client.close = vi.fn(async () => true)
       opened.push(client)
       if (url === BLOCKSTREAM) queueMicrotask(() => client.emit('connected'))
       return client
@@ -71,6 +84,8 @@ describe('ProbedElectrumSocket', () => {
     await expect(socket.request('server.ping')).resolves.toBe(BLOCKSTREAM)
     await expect(socket.request('blockchain.transaction.broadcast', 'deadbeef' as never)).resolves.toBe(BLOCKSTREAM)
     expect(opened.map((client) => client.url)).toEqual([ELECTRUM_WS_URL.bitcoin, BLOCKSTREAM])
+    expect(opened[0].close).toHaveBeenCalledOnce()
+    expect(opened[1].close).not.toHaveBeenCalled()
     expect(opened[1].request).toHaveBeenCalledTimes(2)
   })
 
@@ -149,7 +164,10 @@ describe('isElectrumOffline', () => {
     expect(isElectrumOffline(new Error('ElectrumWS request timeout. request ID: 1 (blockchain.transaction.get)'))).toBe(
       true,
     )
-    expect(isElectrumOffline(new Error('Service worker message timed out (INIT_WALLET)'))).toBe(true)
+    expect(isElectrumOffline(new Error('Service worker message timed out (INIT_WALLET)'))).toBe(false)
+    expect(
+      isElectrumOffline(new Error('ElectrumWS request timeout. request ID: 1 (blockchain.transaction.broadcast)')),
+    ).toBe(false)
     expect(isElectrumOffline(new Error('Invalid password'))).toBe(false)
   })
 })
