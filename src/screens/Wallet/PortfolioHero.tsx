@@ -1,6 +1,8 @@
-import { forwardRef } from 'react'
+import { forwardRef, useContext } from 'react'
 import { usePortfolioBalanceDisplay } from '../../hooks/usePortfolioBalanceDisplay'
 import { PrivacyAmount } from '../../components/PrivacyAmount'
+import { WalletContext } from '../../providers/wallet'
+import { useTranslation } from '../../providers/language'
 
 interface PortfolioHeroProps {
   collapseProgress?: number
@@ -16,6 +18,8 @@ const PortfolioHero = forwardRef<HTMLDivElement, PortfolioHeroProps>(function Po
 ) {
   const { balance, maskedBalance, unit, secondaryBalance, secondaryUnit, maskedSecondary, showSecondary } =
     usePortfolioBalanceDisplay()
+  const { syncing } = useContext(WalletContext)
+  const { t } = useTranslation()
   const clampedProgress = Math.max(0, Math.min(1, collapseProgress))
 
   return (
@@ -43,6 +47,11 @@ const PortfolioHero = forwardRef<HTMLDivElement, PortfolioHeroProps>(function Po
             </PrivacyAmount>
             {secondaryUnit ? <span>{secondaryUnit}</span> : null}
           </div>
+        ) : null}
+        {syncing ? (
+          <p role='status' className='mt-1 text-sm text-neutral-500'>
+            {t('wallet.syncing')}
+          </p>
         ) : null}
       </div>
     </div>
