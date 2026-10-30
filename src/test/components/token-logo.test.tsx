@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { render } from '@testing-library/react'
-import TokenLogo, { tokenLogoTickerForTicker, BrazilFlagLogo, UnitedKingdomFlagLogo } from '../../components/TokenLogo'
+import TokenLogo, {
+  tokenLogoTickerForTicker,
+  BrazilFlagLogo,
+  CubaFlagLogo,
+  UnitedKingdomFlagLogo,
+} from '../../components/TokenLogo'
 
 describe('tokenLogoTickerForTicker', () => {
   it('maps every supported currency ticker to a token logo ticker', () => {
-    for (const ticker of ['BTC', 'USD', 'USDT', 'USDC', 'CHF', 'BRL', 'CNY', 'EUR', 'GBP', 'JPY']) {
+    for (const ticker of ['BTC', 'USD', 'USDT', 'USDC', 'CHF', 'BRL', 'CNY', 'CUP', 'EUR', 'GBP', 'JPY']) {
       expect(tokenLogoTickerForTicker(ticker)).toBe(ticker)
     }
   })
@@ -31,6 +36,11 @@ describe('TokenLogo', () => {
     expect(container.querySelector('clipPath[id^="gb-flag-circle"]')).not.toBeNull()
   })
 
+  it('renders the Cuban flag for CUP', () => {
+    const { container } = render(<TokenLogo ticker='CUP' />)
+    expect(container.querySelector('clipPath[id^="cu-flag-circle"]')).not.toBeNull()
+  })
+
   // url(#id) resolves against the whole document, not the local <svg>, so two
   // instances of the same flag used to point at whichever clipPath came first.
   // TokenLogo is rendered per transaction and per swap hop, so a list with two
@@ -42,12 +52,14 @@ describe('TokenLogo', () => {
         <TokenLogo ticker='USD' />
         <BrazilFlagLogo />
         <BrazilFlagLogo />
+        <CubaFlagLogo />
+        <CubaFlagLogo />
         <UnitedKingdomFlagLogo />
         <UnitedKingdomFlagLogo />
       </>,
     )
 
-    for (const prefix of ['us-flag-circle', 'br-flag-circle', 'gb-flag-circle']) {
+    for (const prefix of ['us-flag-circle', 'br-flag-circle', 'cu-flag-circle', 'gb-flag-circle']) {
       const ids = [...container.querySelectorAll('clipPath')].map((el) => el.getAttribute('id'))
       const matching = ids.filter((id) => id?.startsWith(prefix))
       expect(matching).toHaveLength(2)

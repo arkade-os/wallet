@@ -46,6 +46,7 @@ export const fetchHistoricalMarketData = async (
   fiat: Currencies,
   signal?: AbortSignal,
 ): Promise<LivelinePoint[]> => {
+  if (fiat === Currencies.CUP) return []
   const period = secsToPeriod(secs)
   const params = new URLSearchParams({ period, fiat })
   const resp = await fetch(`${host}?${params.toString()}`, { signal })
