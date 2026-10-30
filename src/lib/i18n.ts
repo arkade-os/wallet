@@ -2316,7 +2316,7 @@ export const translations = {
       marketsLabel: 'Mercados',
       noStoredCards: 'Você não tem cartões de solver salvos na sua carteira.',
       originalLabel: 'Original',
-      publishedMarkets: 'Mercados publicados',
+      publishedMarkets: 'Mercados publicados pelo solver',
       remoteError: 'Não foi possível carregar o cartão atual.',
       remoteChecking: 'Verificando o cartão atual…',
       remoteNoRelays: 'Apenas local — nenhum relay Nostr neste cartão.',
