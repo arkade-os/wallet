@@ -414,7 +414,7 @@ export default function SendDetails() {
             <FlexCol>
               <ErrorMessage error={Boolean(error || notice)} text={error || notice} />
               {details && amountDisplay ? (
-                <TransactionAmountSummary amount={amountDisplay} label={t('send.amountSent')} />
+                <TransactionAmountSummary amount={amountDisplay} label={t('send.amountToSend')} />
               ) : null}
               <Details
                 details={

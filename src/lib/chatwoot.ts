@@ -1,6 +1,45 @@
 import { fromRuntimeEnv } from './constants'
+import { getLocale } from './language'
 import { consoleError } from './logs'
 import { Language } from './types'
+
+// from https://www.chatwoot.com/hc/user-guide/articles/1677695546-languages-supported-in-chatwoot
+const ChatwootSupportedLocales = [
+  'ar',
+  'ca',
+  'cs',
+  'da',
+  'de',
+  'el',
+  'en',
+  'es',
+  'fa',
+  'fi',
+  'fr',
+  'hu',
+  'id',
+  'it',
+  'ja',
+  'ko',
+  'lv',
+  'ml',
+  'nl',
+  'no',
+  'pl',
+  'pt',
+  'pt-BR',
+  'ro',
+  'ru',
+  'sk',
+  'sv',
+  'ta',
+  'th',
+  'tr',
+  'uk',
+  'vi',
+  'zh-CN',
+  'zh-TW',
+]
 
 export interface ChatwootSDK {
   setUser: (identifier: string, user: { name?: string; email?: string; avatar_url?: string }) => void
@@ -48,7 +87,10 @@ export interface ChatwootSettings {
   locale: string
 }
 
-export const getChatwootLocale = (language: Language): string => (language === Language.Spanish ? 'es' : 'en')
+export const getChatwootLocale = (language: Language): string => {
+  const locale = getLocale(language)
+  return ChatwootSupportedLocales.includes(locale) ? locale : 'en'
+}
 
 export const getChatwootSettings = (locale = 'en'): ChatwootSettings => {
   return {

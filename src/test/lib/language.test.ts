@@ -1,19 +1,37 @@
 import { describe, expect, it } from 'vitest'
-import { getCurrency } from '../../lib/language'
+import { getCurrency, detectLanguage } from '../../lib/language'
 import { Currencies } from '../../lib/types'
 
 describe('getCurrency', () => {
   it.each([
-    ['fr-FR', Currencies.EUR],
-    ['de-DE', Currencies.EUR],
-    ['pt-PT', Currencies.EUR],
-    ['en-GB', Currencies.GBP],
     ['de-CH', Currencies.CHF],
-    ['pt-BR', Currencies.BRL],
-    ['ja-JP', Currencies.JPY],
-    ['zh-CN', Currencies.CNY],
+    ['de-DE', Currencies.EUR],
+    ['en-GB', Currencies.GBP],
     ['en-US', Currencies.USD],
+    ['en-ES', Currencies.EUR],
+    ['fr-FR', Currencies.EUR],
+    ['ja-JP', Currencies.JPY],
+    ['pt-BR', Currencies.BRL],
+    ['pt-PT', Currencies.EUR],
+    ['zh-CN', Currencies.CNY],
   ])('maps %s to %s', (locale, expected) => {
     expect(getCurrency(locale)).toBe(expected)
+  })
+})
+
+describe('detectLanguage', () => {
+  it.each([
+    ['de-CH', 'en'],
+    ['de-DE', 'en'],
+    ['en-GB', 'en'],
+    ['en-US', 'en'],
+    ['es-ES', 'es'],
+    ['fr-FR', 'en'],
+    ['ja-JP', 'en'],
+    ['pt-BR', 'pt'],
+    ['pt-PT', 'pt'],
+    ['zh-CN', 'en'],
+  ])('maps %s to %s', (locale, expected) => {
+    expect(detectLanguage(locale)).toBe(expected)
   })
 })
