@@ -11,6 +11,7 @@ interface ImportMetaEnv {
   readonly VITE_DEV_AUTO_INIT?: string
   readonly VITE_DELEGATOR_URL?: string
   readonly VITE_EMULATOR_PUBKEY?: string
+  readonly VITE_EMULATOR_URL?: string
   readonly VITE_SOLVER_REGISTRY_URL?: string
   readonly VITE_LNURL_SERVER?: string
   readonly VITE_LNURL_DOMAIN?: string

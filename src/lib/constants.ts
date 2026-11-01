@@ -143,6 +143,21 @@ export const getEmulatorPubkeyOverrideForNetwork = (network: NetworkName): strin
   return configured && COMPRESSED_PUBKEY_HEX.test(configured) ? configured : undefined
 }
 
+// Where a fulfill spend is submitted. Posting and cancelling an offer talk to
+// the operator; taking one is a covenant spend and needs the emulator.
+// Mutinynet is the public session. Regtest is the local stack's port.
+// Mainnet uses the SDK's default emulator host.
+const EMULATOR_URL: Record<NetworkName, string | null> = {
+  bitcoin: 'https://emulator.arkade.computer',
+  mutinynet: 'https://emulator.mutinynet.arkade.sh',
+  signet: null,
+  regtest: 'http://localhost:7073',
+  testnet: null,
+}
+
+export const getEmulatorUrlForNetwork = (network: NetworkName): string | undefined =>
+  serviceUrlForNetwork(import.meta.env.VITE_EMULATOR_URL, EMULATOR_URL, network)
+
 export const getDelegateUrlForNetwork = (network: NetworkName): string | undefined => {
   return DELEGATE_URL[network] ?? undefined
 }
