@@ -1,6 +1,7 @@
 import { AssetDetails } from '@arkade-os/sdk'
 import { Config, LnSendActivity, Wallet } from '../lib/types'
 import { consoleError } from './logs'
+import { isValidUrl } from './validators'
 
 // clear localStorage but persist config (with asset data reset)
 export async function clearStorage(): Promise<void> {
@@ -130,7 +131,12 @@ export const saveAssetMetadataToStorage = (
 export const readAssetMetadataFromStorage = (): Map<string, CachedAssetDetails> | undefined => {
   return getStorageItem('assetMetadataCache', undefined, (val) => {
     const obj = JSON.parse(val) as Record<string, CachedAssetDetails>
-    Object.values(obj).forEach((x) => (x.supply = BigInt(x.supply)))
+    Object.values(obj).forEach((x) => {
+      x.supply = BigInt(x.supply)
+      if (x.metadata?.icon && !isValidUrl(x.metadata.icon)) {
+        delete x.metadata.icon
+      }
+    })
     return new Map(Object.entries(obj))
   })
 }
