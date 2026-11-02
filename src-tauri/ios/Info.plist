@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>NFCReaderUsageDescription</key>
+    <string>Use your Satochip card to connect and sign wallet requests.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Scan payment and wallet connection QR codes.</string>
+    <key>com.apple.developer.nfc.readersession.iso7816.select-identifiers</key>
+    <array>
+        <string>5361746F43686970</string>
+    </array>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>io.arkade.wallet.links</string>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>bitcoin</string>
+                <string>lightning</string>
+                <string>arkade</string>
+                <string>web+arkade</string>
+            </array>
+        </dict>
+    </array>
+    <key>UIFileSharingEnabled</key>
+    <false/>
+    <key>LSSupportsOpeningDocumentsInPlace</key>
+    <false/>
+</dict>
+</plist>

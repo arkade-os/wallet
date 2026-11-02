@@ -1,0 +1,20 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "ios-wallet",
+  "windows": ["main"],
+  "local": true,
+  "platforms": ["iOS"],
+  "permissions": [
+    "satochip:allow-open",
+    "satochip:allow-begin-operation",
+    "satochip:allow-transmit",
+    "satochip:allow-end-operation",
+    "satochip:allow-cancel",
+    "barcode-scanner:allow-scan",
+    "barcode-scanner:allow-cancel",
+    "barcode-scanner:allow-check-permissions",
+    "barcode-scanner:allow-request-permissions",
+    "barcode-scanner:allow-open-app-settings",
+    "notification:default"
+  ]
+}

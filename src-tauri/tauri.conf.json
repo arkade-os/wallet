@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Arkade",
+  "version": "0.1.0",
+  "identifier": "io.arkade.wallet.test",
+  "build": {
+    "beforeDevCommand": "pnpm native:frontend",
+    "beforeBuildCommand": "pnpm native:frontend",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost https: wss: http://127.0.0.1:* http://localhost:*; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'none'"
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": { "schemes": ["bitcoin", "lightning", "arkade", "web+arkade"] }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": ["../public/favicon.ico", "../public/arkade-icon-512.png"],
+    "resources": ["resources/bridge.py", "resources/THIRD_PARTY_NOTICES.md", "resources/licenses/"],
+    "externalBin": ["binaries/satochip-bridge"],
+    "windows": {
+      "webviewInstallMode": { "type": "downloadBootstrapper" }
+    }
+  }
+}

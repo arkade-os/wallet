@@ -1,0 +1,19 @@
+Satochip protocol implementation
+
+This TypeScript module adapts protocol framing, command construction, parsing,
+and secure-channel wire behavior from Satochip-Java:
+https://github.com/Toporin/Satochip-Java
+Revision ad297f14d1dbc0bb6f09e6ba17ca468f945d2a62 (Apache License, Version 2.0).
+
+Upstream author attribution: Satochip Development Team / Toporin.
+The complete Apache license is included alongside this file as
+satochipProtocol.LICENSE and applies to this adapted module.
+
+This version changes the implementation language, uses the wallet's existing
+noble cryptographic primitives and WebCrypto AES-CBC, adds strict response bounds,
+does not cache or retry PINs, and invalidates failed or stale operations.
+
+It includes no source from the separately published SatochipSwift project.
+Recovered response keys and wallet-key binding do not constitute manufacturer
+attestation. The applet's secure response format has no response MAC; returned
+signatures are checked against the expected wallet or Taproot output key.

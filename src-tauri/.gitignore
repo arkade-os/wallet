@@ -1,0 +1,14 @@
+/target/
+/gen/
+/binaries/*.exe
+/binaries/satochip-bridge-*
+/binaries/satochip-bridge
+/.sidecar-venv/
+/.sidecar-build/
+/icons/
+/resources/licenses/
+/.reuse-frontend.json
+
+**/.tauri/
+**/__pycache__/
+*.pyc

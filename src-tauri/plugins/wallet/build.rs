@@ -1,0 +1,23 @@
+fn main() {
+    tauri_plugin::Builder::new(&[
+        "secret_get",
+        "secret_set",
+        "secret_remove",
+        "clipboard_read",
+        "clipboard_write",
+        "share_text",
+        "initial_intent",
+        "pending_intents",
+        "set_back_handler",
+        "background_status",
+        "configure_background",
+        "clear_background",
+        "export_backup",
+        "import_backup",
+        "register_listener",
+        "remove_listener",
+    ])
+    .android_path("android")
+    .ios_path("ios")
+    .build();
+}

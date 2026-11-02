@@ -1,0 +1,12 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "targets": ["deb", "appimage"],
+    "linux": {
+      "deb": {
+        "depends": ["libpcsclite1"],
+        "recommends": ["pcscd", "gnome-keyring", "xdg-desktop-portal", "xdg-desktop-portal-gtk | xdg-desktop-portal-kde"]
+      }
+    }
+  }
+}
