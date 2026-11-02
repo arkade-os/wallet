@@ -133,4 +133,11 @@ describe('i18n dictionary integrity', () => {
       expect(unlocalized).toEqual([])
     })
   })
+
+  it('there are no empty translation values', () => {
+    Object.values(Language).forEach((lang) => {
+      const emptyKeys = collectLeafKeys(translations[lang]).filter((key) => resolve(translations[lang], key) === '')
+      expect(emptyKeys).toEqual([])
+    })
+  })
 })
