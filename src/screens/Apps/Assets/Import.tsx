@@ -18,6 +18,7 @@ import Scanner from '../../../components/Scanner'
 import { isValidAssetId } from '../../../lib/assets'
 import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '../../../providers/language'
+import { isValidUrl } from '@/lib/validators'
 
 export default function AppAssetImport() {
   const { backupAndUpdateConfig } = useContext(BackupContext)
@@ -45,6 +46,10 @@ export default function AppAssetImport() {
     try {
       const details = await svcWallet.assetManager.getAssetDetails(assetId)
       if (!details) throw new Error(t('mint.assetNotFound'))
+
+      if (details.metadata?.icon && !isValidUrl(details.metadata.icon)) {
+        throw new Error(t('mint.invalidIconUrl'))
+      }
 
       const moderated = setCacheEntry(assetId, details)
 
