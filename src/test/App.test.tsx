@@ -41,6 +41,7 @@ function renderApp({
   option,
   flow = {},
   outcomeOf = () => undefined,
+  dataReady,
 }: {
   authState: WalletAuthState
   initialized: boolean
@@ -49,6 +50,7 @@ function renderApp({
   option?: SettingsOptions
   flow?: Partial<typeof mockFlowContextValue>
   outcomeOf?: (id: string) => Outcome | undefined
+  dataReady?: boolean
 }) {
   const navigate = vi.fn()
 
@@ -65,7 +67,7 @@ function renderApp({
                   ...mockWalletContextValue,
                   authState,
                   initialized,
-                  dataReady: initialized,
+                  dataReady: dataReady ?? initialized,
                   unlockWallet,
                   walletLoaded: true,
                   wallet: { nextRollover: 0, pubkey: 'stored-pubkey' },
@@ -187,6 +189,46 @@ describe('App startup routing', () => {
     expect(unlockWallet).toHaveBeenCalledWith(defaultPassword)
     await vi.advanceTimersByTimeAsync(1000)
     expect(reloadSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('App intents', () => {
+  beforeEach(() => {
+    setupTestEnvironment()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllEnvs()
+  })
+
+  it('connect intent: verify navigate was called with Pages.AppIntent', async () => {
+    const { navigate } = renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      dataReady: false,
+      flow: { appIntent: { status: 'connect', callback: 'https://example.com/cb' } },
+    })
+    await screen.findByTestId('app')
+    expect(navigate).toHaveBeenCalledWith(Pages.AppIntent)
+  })
+
+  it('send intent: verify navigate was called with Pages.Wallet', async () => {
+    const { navigate } = renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      dataReady: false,
+      flow: {
+        appIntent: {
+          status: 'send',
+          request:
+            'bitcoin:?ark=tark1qplnj2gett9j483fchy6chaxn4y52c4g7n5djh9xua3ywdxw0ldatc3e9xcj9xpx0r5tmr0dgvu2f4s352muklg0tcxx0scnnkraajy9jgz4xl&amount=0.001',
+          callback: 'https://example.com/cb',
+        },
+      },
+    })
+    await screen.findByTestId('app')
+    expect(navigate).toHaveBeenCalledWith(Pages.Wallet)
   })
 })
 
