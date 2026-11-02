@@ -133,7 +133,7 @@ export const readAssetMetadataFromStorage = (): Map<string, CachedAssetDetails> 
     const obj = JSON.parse(val) as Record<string, CachedAssetDetails>
     Object.values(obj).forEach((x) => {
       x.supply = BigInt(x.supply)
-      if (x.metadata?.icon && !isValidUrl(x.metadata.icon)) {
+      if (x.metadata?.icon && (typeof x.metadata.icon !== 'string' || !isValidUrl(x.metadata.icon))) {
         delete x.metadata.icon
       }
     })
