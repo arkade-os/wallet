@@ -53,6 +53,10 @@ export const AspProvider = ({ children }: { children: ReactNode }) => {
     if (startTime > expiration) return undefined
     const period = aspInfo.scheduledSession.period
     if (period <= 0) return undefined
+    // a period too small will result in too many iterations,
+    // so we limit it to 3600 iterations to prevent performance issues
+    const numberOfIterations = (BigInt(expiration) - startTime) / period
+    if (numberOfIterations > 3600) return undefined
     while (startTime + period < expiration) {
       startTime += period
     }
