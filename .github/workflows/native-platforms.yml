@@ -112,8 +112,9 @@ jobs:
           if [[ "$IOS_SIMULATOR_BOOTED" != true ]]; then xcrun simctl boot "$IOS_SIMULATOR"; fi
           xcrun simctl bootstatus "$IOS_SIMULATOR" -b
       - name: Test wallet Keychain and policy on simulator
-        working-directory: src-tauri/plugins/wallet/ios
-        run: xcodebuild -scheme tauri-plugin-wallet -destination "platform=iOS Simulator,id=$IOS_SIMULATOR" -derivedDataPath "$RUNNER_TEMP/wallet-service-tests" test CODE_SIGNING_ALLOWED=NO
+        run: |
+          xcodegen generate --spec src-tauri/ios/wallet-tests/project.json --project src-tauri/ios/wallet-tests
+          xcodebuild -project src-tauri/ios/wallet-tests/WalletServiceTests.xcodeproj -scheme WalletServiceTests -sdk iphonesimulator -destination "platform=iOS Simulator,id=$IOS_SIMULATOR" -derivedDataPath "$RUNNER_TEMP/wallet-service-tests" test
       - name: Test Satochip transport state on simulator
         working-directory: src-tauri/plugins/satochip/ios
         run: xcodebuild -scheme tauri-plugin-satochip -destination "platform=iOS Simulator,id=$IOS_SIMULATOR" -derivedDataPath "$RUNNER_TEMP/satochip-transport-tests" test CODE_SIGNING_ALLOWED=NO

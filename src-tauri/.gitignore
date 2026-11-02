@@ -6,6 +6,7 @@
 /.sidecar-venv/
 /.sidecar-build/
 /icons/
+/ios/wallet-tests/WalletServiceTests.xcodeproj/
 /resources/licenses/
 /.reuse-frontend.json
 
