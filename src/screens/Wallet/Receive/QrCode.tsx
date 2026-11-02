@@ -51,6 +51,8 @@ import Select from '../../../components/Select'
 import { TokenLogoStack, TokenOnChainLogo } from '../../../components/ChainLogo'
 import ChevronDownIcon from '../../../icons/ChevronDown'
 import XIcon from '../../../icons/X'
+import { watchWalletPayments } from '../../../lib/walletRuntime'
+import { supportsServerLnurl } from '../../../lib/nativeWallet'
 
 const TOKEN = 'token:'
 
@@ -66,7 +68,7 @@ export default function ReceiveQRCode() {
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
-  const { assetMetadataCache, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, svcWallet, wallet } = useContext(WalletContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { t } = useTranslation()
 
@@ -130,7 +132,8 @@ export default function ReceiveQRCode() {
   }, [svcWallet])
 
   // A pending Receive-screen claim must not leave a swap invoice taking the QR's lightning= from the LNURL.
-  const lnurlConfigured = Boolean(configuredLnurlServer())
+  const serverLnurlUnavailable = Boolean(configuredLnurlServer()) && !supportsServerLnurl(wallet)
+  const lnurlConfigured = Boolean(configuredLnurlServer()) && supportsServerLnurl(wallet)
   const lnurlRail = useLnurlRail({
     enabled: lnurlConfigured && !isAssetReceive,
     identity: svcWallet?.identity,
@@ -328,8 +331,7 @@ export default function ReceiveQRCode() {
       }
     }
 
-    navigator.serviceWorker.addEventListener('message', listenForPayments)
-    return () => navigator.serviceWorker.removeEventListener('message', listenForPayments)
+    return watchWalletPayments(svcWallet, listenForPayments)
   }, [svcWallet])
 
   // Handlers
@@ -461,6 +463,11 @@ export default function ReceiveQRCode() {
       <Header text={t('wallet.receive')} back={() => navigate(Pages.Wallet)} />
       <Content noFade>
         <Padded>
+          {serverLnurlUnavailable ? (
+            <TextSecondary wrap>
+              Lightning addresses are unavailable with this card. You can still receive using the options below.
+            </TextSecondary>
+          ) : null}
           {hasError ? (
             <ErrorMessage error text={t('receive.failedToGetAddress', { error: addressError ?? '' })} />
           ) : !addressesLoaded || (!paymentMethods.some((m) => m.value) && !noPaymentMethods) ? (

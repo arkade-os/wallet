@@ -25,6 +25,7 @@ import { usePortfolioBalanceDisplay } from '../../hooks/usePortfolioBalanceDispl
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '../../providers/language'
+import { isNativeHost } from '../../lib/nativeBridge'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
@@ -57,7 +58,7 @@ export default function Wallet() {
 
   const pwaInstalled = usePwaInstalled()
   const dismissed = (config?.dismissedBanners ?? []).includes('pwa-install')
-  const showPwaBanner = pwaCanInstall() && (isIOS() || isAndroid()) && !pwaInstalled && !dismissed
+  const showPwaBanner = !isNativeHost() && pwaCanInstall() && (isIOS() || isAndroid()) && !pwaInstalled && !dismissed
   const pwaBannerVisible = Boolean(nudgeCheckComplete && showPwaBanner)
   const hasHomeNotices = Boolean(nudge || pwaBannerVisible)
 

@@ -1,0 +1,74 @@
+.native-app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.native-app-content {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+.native-app-content > .page {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+}
+.native-incoming-link {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.75rem;
+  background: var(--bg);
+}
+.native-qr-active,
+.native-qr-active body,
+.native-qr-active #root,
+.native-qr-active .page,
+.native-qr-active .desktop-wallet-main,
+.native-qr-active .native-app-content {
+  background: transparent !important;
+}
+.native-qr-active .native-app-content {
+  --background-color: transparent;
+}
+.native-qr-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  color: white;
+}
+.native-qr-heading {
+  padding: max(2rem, env(safe-area-inset-top)) 1.5rem 1rem;
+  background: #000a;
+  text-align: center;
+}
+.native-qr-frame {
+  flex: 1;
+  display: grid;
+  place-items: center;
+}
+.native-qr-frame::after {
+  content: '';
+  width: min(70vw, 18rem);
+  aspect-ratio: 1;
+  border: 2px solid white;
+  border-radius: 1.5rem;
+  box-shadow: 0 0 0 100vmax #0005;
+}
+.native-qr-controls {
+  padding: 1.5rem 1.5rem max(2rem, env(safe-area-inset-bottom));
+  background: #000a;
+  text-align: center;
+  z-index: 1;
+}
+.native-qr-error {
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: var(--bg);
+  color: var(--text-color);
+  border-radius: 0.75rem;
+}

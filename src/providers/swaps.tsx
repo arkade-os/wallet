@@ -45,6 +45,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
+import { attachNativeSwapLifecycle } from '../lib/nativeSwapLifecycle'
 import { asset, type Asset, type IntentFeeConfig, type NetworkName, type PaymentRouter } from '@arkade-os/sdk'
 import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
 import {
@@ -83,6 +84,9 @@ import { consoleError } from '../lib/logs'
 import { extractError } from '../lib/error'
 import { prettyNumber } from '../lib/format'
 import { toast } from '../components/Toast'
+import { isNativeWallet } from '../lib/nativeWallet'
+import { ForegroundWallet } from '../lib/walletRuntime'
+import { isNativeHost } from '../lib/nativeBridge'
 
 /** What the receive screen needs from a negotiated and driven receive. */
 export interface AcceptedLnReceive {
@@ -97,6 +101,9 @@ export interface AcceptedLnReceive {
 }
 
 interface SwapsContextProps {
+  paymentsPaused: boolean
+  resumePendingPayments: () => Promise<void>
+  pauseForBackup: () => Promise<void>
   /** Spot markets — the ones this wallet builds offers on. */
   markets: DiscoveredMarket[]
   /** True when there are markets and the covenant co-signer's key is known. */
@@ -137,6 +144,9 @@ const notInitialized = async (): Promise<never> => {
 }
 
 export const SwapsContext = createContext<SwapsContextProps>({
+  paymentsPaused: false,
+  resumePendingPayments: notInitialized,
+  pauseForBackup: async () => {},
   markets: [],
   swapAvailable: false,
   swaps: [],
@@ -200,7 +210,9 @@ const ENDED: Partial<Record<Outcome, 'received' | 'returned' | 'lost'>> = {
 
 export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
-  const { dataReady, svcWallet, reloadWallet, setAssetSwaps, isVerifiedAsset } = useContext(WalletContext)
+  const { dataReady, svcWallet, reloadWallet, setAssetSwaps, isVerifiedAsset, wallet } = useContext(WalletContext)
+  const hardwareWallet = isNativeWallet(wallet) || (svcWallet instanceof ForegroundWallet && svcWallet.hardwareSigner)
+  const [paymentsPaused, setPaymentsPaused] = useState(false)
 
   const [markets, setMarkets] = useState<DiscoveredMarket[]>([])
   const [emulatorPubkey, setEmulatorPubkey] = useState<Uint8Array>()
@@ -231,6 +243,10 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   // Assigned only once the Web Lock is HELD, which is what lets an action tell
   // "another tab owns this" from "the client is not running" — see `driving`.
   const held = useRef<Promise<SwapClient>>()
+  const activeClient = useRef<SwapClient>()
+  const backupDrain = useRef<{ wallet: typeof svcWallet; promise: Promise<void> }>()
+  const stopForBackup = useRef<() => void>()
+  const stopMarkets = useRef<() => void>()
   // Resolves when this tab's own request is granted, so an action can wait out
   // the grant rather than mistake it for a lock held elsewhere.
   const granted = useRef<Promise<void>>()
@@ -309,6 +325,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const runDiscovery = (useCache = true) => {
+    if (isNativeHost() && !wallet.pubkey) return
+    if (backupDrain.current && backupDrain.current.wallet === svcWallet) return
     if (!aspInfo.network) return
     const network = aspInfo.network as NetworkName
     discoverMarkets(network, useCache)
@@ -317,15 +335,30 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     setEmulatorPubkey(getEmulatorPubkeyForNetwork(network))
   }
 
+  const nativeMarketWallet = isNativeHost() ? wallet.pubkey : undefined
+  const nativeMarketRuntime = isNativeHost() ? svcWallet : undefined
   useEffect(() => {
     setEmulatorPubkey(undefined)
     setAllMarkets([])
     if (!aspInfo.network) return
+    if (isNativeHost() && !wallet.pubkey) return
+    if (backupDrain.current && backupDrain.current.wallet === svcWallet) return
     const network = aspInfo.network as NetworkName
     setEmulatorPubkey(getEmulatorPubkeyForNetwork(network))
-    return watchSwapMarkets(network, setAllMarkets)
+    const unsubscribe = watchSwapMarkets(network, setAllMarkets)
+    let watching = true
+    const stop = () => {
+      if (!watching) return
+      watching = false
+      unsubscribe()
+    }
+    stopMarkets.current = stop
+    return () => {
+      stop()
+      if (stopMarkets.current === stop) stopMarkets.current = undefined
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aspInfo.network])
+  }, [aspInfo.network, nativeMarketWallet, nativeMarketRuntime])
 
   // Pinned cards are a market source living outside React, and the markets
   // cache is keyed on network and registry, not on them: the watch would keep
@@ -435,7 +468,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   // ------------------------------------------------------------ the client
 
   useEffect(() => {
-    if (!svcWallet || !aspInfo.url || !aspInfo.network) return
+    setPaymentsPaused(false)
+    if (!svcWallet || !aspInfo.url || !aspInfo.network || backupDrain.current?.wallet === svcWallet) return
     const network = aspInfo.network as NetworkName
     let stopped = false
     // The lock is released by RETURNING from the callback, never by aborting:
@@ -451,6 +485,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       grant = resolve
     })
     let stopServing = () => {}
+    let ownedClient: SwapClient | undefined
     const controller = new AbortController()
 
     // The first history load lives in `drive`, which runs only once the lock is
@@ -468,7 +503,28 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       restoredRef.current = false
 
       const started = (async () => {
-        const client = makeSwapClient(svcWallet, network)
+        const client = makeSwapClient(svcWallet, network, hardwareWallet)
+        const detachLifecycle = attachNativeSwapLifecycle(client, hardwareWallet, () => {
+          if (!stopped && hardwareWallet) setPaymentsPaused(true)
+        })
+        const dispose = client[Symbol.asyncDispose].bind(client)
+        let disposing: Promise<void> | undefined
+        client[Symbol.asyncDispose] = () => {
+          if (!disposing) {
+            detachLifecycle()
+            disposing = Promise.resolve().then(dispose)
+          }
+          return disposing
+        }
+        activeClient.current = client
+        ownedClient = client
+        if (hardwareWallet) {
+          const start = client.start
+          client.start = async () => {
+            await start()
+            if (!stopped) setPaymentsPaused(false)
+          }
+        }
         client.onUpdate(({ swap, outcome }) => {
           const replay = !restoredRef.current
           applyRef.current({ swap, outcome, replay })
@@ -484,6 +540,10 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         try {
           await client.ready
           restoredRef.current = true
+          if (hardwareWallet && !stopped) {
+            const restored = await client.swaps()
+            if (!stopped) setPaymentsPaused(restored.some((swap) => !ENDED[swap.outcome] && swap.outcome !== 'failed'))
+          }
         } finally {
           await reloadRef.current().catch(consoleError)
         }
@@ -523,11 +583,12 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       drive().catch((err) => consoleError(extractError(err), 'error driving swaps'))
     }
 
-    return () => {
+    const stop = () => {
       stopped = true
       clearTimeout(firstLoad)
       held.current = undefined
       granted.current = undefined
+      if (activeClient.current === ownedClient) activeClient.current = undefined
       // Stop answering BEFORE the lock is released, so the window where this
       // tab has given up the client but would still ack for a new request does
       // not exist. An answer already in flight is not cancelled — it was acked,
@@ -538,12 +599,17 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       controller.abort()
       release()
     }
+    stopForBackup.current = stop
+    return () => {
+      stop()
+      if (stopForBackup.current === stop) stopForBackup.current = undefined
+    }
     // `cardsVersion` too: the client takes its discovery options once, pinned
     // cards included, so one built before a card was pinned routes without it,
     // and its cache writes overwrite the entry the market read above serves
     // from. Rebuilding is the same stop and restore an unlock goes through.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [svcWallet, aspInfo.url, aspInfo.network, cardsVersion])
+  }, [svcWallet, aspInfo.url, aspInfo.network, cardsVersion, hardwareWallet])
 
   /**
    * The client, for the tab that holds it.
@@ -556,8 +622,39 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const driving = useCallback(async (): Promise<SwapClient> => {
     const pending = held.current
     if (!pending) throw new Error('the swap client is not running')
-    return pending
+    const client = await pending
+    if (held.current !== pending) throw new Error('Wallet payments are paused. Open the wallet again after backup.')
+    return client
   }, [])
+
+  const pauseForBackup = (): Promise<void> => {
+    if (backupDrain.current && backupDrain.current.wallet === svcWallet) return backupDrain.current.promise
+    const started = held.current
+    const client = activeClient.current
+    held.current = undefined
+    granted.current = undefined
+    activeClient.current = undefined
+    stopForBackup.current?.()
+    stopMarkets.current?.()
+    stopMarkets.current = undefined
+    setPaymentsPaused(true)
+    const disposal = client?.[Symbol.asyncDispose]()
+    const promise = Promise.all([started?.catch(() => undefined), disposal]).then(() => undefined)
+    backupDrain.current = { wallet: svcWallet, promise }
+    return promise
+  }
+
+  const resumePendingPayments = async () => {
+    const client = await driving()
+    await client.start()
+    await refreshSwaps()
+    reloadRef.current().catch(consoleError)
+  }
+
+  const assertNotBackingUp = () => {
+    if (backupDrain.current && backupDrain.current.wallet === svcWallet)
+      throw new Error('Wallet payments are paused for backup.')
+  }
 
   // ------------------------------------------------------- who runs an action
 
@@ -584,11 +681,13 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
    * does not. Everything else runs from `args` either way.
    */
   const runOnDriver = async <T,>(op: DriverOp, args: unknown[], here?: () => Promise<T>): Promise<T> => {
+    assertNotBackingUp()
     const locally = () => (here ? here() : (runHere(op, args) as Promise<T>))
     if (!navigator.locks) return locally()
     if (!held.current && granted.current) {
       await Promise.race([granted.current, new Promise((resolve) => setTimeout(resolve, LOCK_GRACE_MS))])
     }
+    assertNotBackingUp()
     if (held.current) return locally()
     if (!granted.current) throw new Error('the swap client is not running')
     try {
@@ -845,19 +944,23 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     assets?: Asset[]
     swapsOptional?: boolean
   } = {}): Promise<PaymentRouter> => {
+    assertNotBackingUp()
     if (!held.current && granted.current) {
       await Promise.race([granted.current, new Promise((resolve) => setTimeout(resolve, LOCK_GRACE_MS))])
     }
+    assertNotBackingUp()
     // A router cannot cross to the driving tab, so without the client here it is built without it.
     if (swapsOptional && !held.current) return createSendRouter({ wallet: svcWallet!, ...deps })
     if (!held.current) throw new SwapsHeldElsewhere()
     // LNURL keeps the local Lightning client but needs no onchain claim fee, and no client that failed to start.
     if (swapsOptional) {
       const client = await driving().catch(() => undefined)
+      assertNotBackingUp()
       return createSendRouter({ wallet: svcWallet!, client, ...deps })
     }
     const client = await driving()
     const claimFeeRateSatVb = await claimFeeRate(onchainClaimEndpoint(aspInfo.network as NetworkName))
+    assertNotBackingUp()
     return createSendRouter({
       wallet: svcWallet!,
       client,
@@ -873,6 +976,9 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const swapAvailable = markets.length > 0 && Boolean(emulatorPubkey)
   const value = useMemo(
     () => ({
+      paymentsPaused,
+      resumePendingPayments,
+      pauseForBackup,
       markets,
       swapAvailable,
       swaps,
@@ -900,6 +1006,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       aspInfo.dust,
       outcomeOf,
       errorOf,
+      paymentsPaused,
     ],
   )
 

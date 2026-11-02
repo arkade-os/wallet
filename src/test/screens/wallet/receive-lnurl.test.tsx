@@ -94,7 +94,13 @@ function ReceiveFlow({ children, satoshis, recv }: { children: ReactNode; satosh
   )
 }
 
-const receiveTree = (satoshis = 0, config: Partial<Config> = {}, recv: object = {}, statefulFlow = false) => (
+const receiveTree = (
+  satoshis = 0,
+  config: Partial<Config> = {},
+  recv: object = {},
+  statefulFlow = false,
+  hardware = false,
+) => (
   <ToastProvider>
     <NavigationContext.Provider value={mockNavigationContextValue}>
       <AspContext.Provider value={mockAspContextValue as never}>
@@ -118,7 +124,22 @@ const receiveTree = (satoshis = 0, config: Partial<Config> = {}, recv: object = 
                   } as never
                 }
               >
-                <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet } as never}>
+                <WalletContext.Provider
+                  value={
+                    {
+                      ...mockWalletContextValue,
+                      svcWallet,
+                      ...(hardware
+                        ? {
+                            wallet: {
+                              nextRollover: 0,
+                              signer: { type: 'native', name: 'Satochip', publicKey: '02' + '11'.repeat(32) },
+                            },
+                          }
+                        : {}),
+                    } as never
+                  }
+                >
                   <LimitsContext.Provider value={mockLimitsContextValue}>
                     <SwapsContext.Provider
                       value={{ receiveLightning, outcomeOf: () => undefined, errorOf: () => undefined } as never}
@@ -141,8 +162,13 @@ const receiveTree = (satoshis = 0, config: Partial<Config> = {}, recv: object = 
     </NavigationContext.Provider>
   </ToastProvider>
 )
-const renderReceive = (satoshis = 0, config: Partial<Config> = {}, recv: object = {}, statefulFlow = false) =>
-  render(receiveTree(satoshis, config, recv, statefulFlow))
+const renderReceive = (
+  satoshis = 0,
+  config: Partial<Config> = {},
+  recv: object = {},
+  statefulFlow = false,
+  hardware = false,
+) => render(receiveTree(satoshis, config, recv, statefulFlow, hardware))
 
 let server: ReturnType<typeof fakeLnurlServer>
 const serve = (opts: Parameters<typeof fakeLnurlServer>[0]) => {
@@ -176,6 +202,17 @@ afterEach(() => {
 })
 
 describe('Receive screen, rail composition', () => {
+  it('uses Lightning swaps for a hardware identity without requesting deterministic LNURL signatures', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    const sign = vi.spyOn(svcWallet.identity, 'signMessage')
+    receiveLightning.mockResolvedValue({ id: 'swap-id', invoice: 'lnbc10mock' })
+    renderReceive(10_000, {}, {}, false, true)
+    await waitFor(() => expect(receiveLightning).toHaveBeenCalledWith(10_000))
+    expect(screen.getByText(/Lightning addresses are unavailable with this card/)).toBeInTheDocument()
+    expect(sign).not.toHaveBeenCalled()
+    expect(server.fetch).not.toHaveBeenCalled()
+  })
+
   it('negotiates through the swap rail and never calls an lnurl-server when none is configured', async () => {
     vi.stubEnv('VITE_LNURL_SERVER', '')
     serve({ modes: ['self'] })

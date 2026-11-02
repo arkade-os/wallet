@@ -29,6 +29,28 @@ vi.mock('../lib/appIntent', async (original) => ({
 
 const PASSWORDLESS_AUTO_RELOAD_KEY = 'passwordless-auto-reload-attempted'
 
+it('clears a completed native callback flow while the bundled app stays open', async () => {
+  const host = window as any
+  host.__ARKADE_NATIVE__ = { version: 1, platform: 'android' }
+  host.__TAURI__ = { core: { invoke: vi.fn() } }
+  try {
+    const resetFlow = vi.fn()
+    const { navigate } = renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      flow: { resetFlow },
+      screen: Pages.Wallet,
+    })
+    await screen.findByTestId('app')
+    act(() => window.dispatchEvent(new Event('arkade-native-handoff')))
+    expect(resetFlow).toHaveBeenCalledOnce()
+    expect(navigate).toHaveBeenCalledWith(Pages.Wallet)
+  } finally {
+    delete host.__ARKADE_NATIVE__
+    delete host.__TAURI__
+  }
+})
+
 vi.mock('../lib/jsCapabilities', () => ({
   detectJSCapabilities: vi.fn().mockResolvedValue({ isSupported: true }),
 }))
@@ -52,11 +74,11 @@ function renderApp({
 }) {
   const navigate = vi.fn()
 
-  render(
+  const tree = (nextFlow: Partial<typeof mockFlowContextValue>) => (
     <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate, screen: screenOverride }}>
       <AspContext.Provider value={mockAspContextValue as any}>
         <ConfigContext.Provider value={{ ...mockConfigContextValue, configLoaded: true } as any}>
-          <FlowContext.Provider value={{ ...mockFlowContextValue, ...flow } as any}>
+          <FlowContext.Provider value={{ ...mockFlowContextValue, ...nextFlow } as any}>
             <OptionsContext.Provider
               value={{ ...mockOptionsContextValue, ...(option !== undefined && { option }) } as any}
             >
@@ -79,11 +101,43 @@ function renderApp({
           </FlowContext.Provider>
         </ConfigContext.Provider>
       </AspContext.Provider>
-    </NavigationContext.Provider>,
+    </NavigationContext.Provider>
   )
+  const view = render(tree(flow))
 
-  return { navigate, unlockWallet }
+  return {
+    navigate,
+    unlockWallet,
+    rerenderFlow: (nextFlow: Partial<typeof mockFlowContextValue>) => view.rerender(tree(nextFlow)),
+  }
 }
+
+it('opens later payment links and intentional repeats within the same app session', async () => {
+  setupTestEnvironment()
+  const setAppIntent = vi.fn()
+  const setSendInfo = vi.fn()
+  const first = { status: 'send' as const, request: 'bitcoin:tb1qfirst?amount=0.00000123' }
+  const second = { status: 'send' as const, request: 'bitcoin:tb1qsecond?amount=0.00000456' }
+  const callbacks = { setAppIntent, setSendInfo }
+  const view = renderApp({
+    authState: 'authenticated',
+    initialized: true,
+    screen: Pages.Wallet,
+    flow: { ...callbacks, appIntent: first },
+  })
+  await waitFor(() =>
+    expect(setSendInfo).toHaveBeenLastCalledWith(expect.objectContaining({ recipient: first.request })),
+  )
+  view.rerenderFlow({ ...callbacks, appIntent: undefined })
+  view.rerenderFlow({ ...callbacks, appIntent: second })
+  await waitFor(() =>
+    expect(setSendInfo).toHaveBeenLastCalledWith(expect.objectContaining({ recipient: second.request })),
+  )
+  view.rerenderFlow({ ...callbacks, appIntent: undefined })
+  view.rerenderFlow({ ...callbacks, appIntent: { ...first } })
+  await waitFor(() => expect(setSendInfo).toHaveBeenCalledTimes(3))
+  expect(setSendInfo).toHaveBeenLastCalledWith(expect.objectContaining({ recipient: first.request }))
+})
 
 function setupTestEnvironment() {
   sessionStorage.clear()

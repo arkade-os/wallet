@@ -206,6 +206,7 @@ export enum Unit {
 export type Vtxo = ExtendedVirtualCoin
 
 export type Wallet = {
+  signer?: { type: 'native'; name: string; publicKey: string }
   thresholdMs?: number
   lockedByBiometrics?: boolean
   network?: NetworkName | ''

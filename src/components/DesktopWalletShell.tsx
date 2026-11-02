@@ -8,6 +8,7 @@ import { setDesktopLogoAnchor } from '../lib/logoAnchor'
 import { SettingsOptions } from '../lib/types'
 import { NavigationContext, Pages } from '../providers/navigation'
 import { OptionsContext } from '../providers/options'
+import NativeCardStatus from './NativeCardStatus'
 
 interface DesktopWalletShellProps {
   logoVisible: boolean
@@ -42,8 +43,11 @@ export default function DesktopWalletShell({ logoVisible, page }: DesktopWalletS
   return (
     <aside className='desktop-wallet-shell' aria-label='Wallet navigation'>
       <div className='desktop-wallet-brand' style={{ visibility: logoVisible ? 'visible' : 'hidden' }}>
-        <div ref={logoRef} className='desktop-wallet-brand__mark'>
-          <SmallLogo />
+        <div className='flex items-center gap-2'>
+          <div ref={logoRef} className='desktop-wallet-brand__mark'>
+            <SmallLogo />
+          </div>
+          <NativeCardStatus />
         </div>
         <span>Arkade</span>
       </div>

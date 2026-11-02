@@ -139,7 +139,8 @@
     "vite-plugin-mkcert": "^1.17.9",
     "vitest": "^5.0.5",
     "vitest-fetch-mock": "^0.4.5",
-    "@tauri-apps/cli": "2.12.4"
+    "@tauri-apps/cli": "2.12.4",
+    "fake-indexeddb": "6.2.5"
   },
   "packageManager": "pnpm@10.25.0",
   "engines": {
@@ -152,5 +153,10 @@
     "js-yaml@>=4": ">=4.2.0 <5.0.0",
     "picomatch@<4": ">=2.3.2 <4.0.0",
     "picomatch@>=4": ">=4.0.4"
+  },
+  "pnpm": {
+    "overrides": {
+      "@arkade-os/sdk": "file:vendor/arkade-os-sdk-tree-session.tgz"
+    }
   }
 }

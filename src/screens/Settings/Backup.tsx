@@ -1,4 +1,5 @@
 import { useToast } from '../../components/Toast'
+import NativeWalletBackup from '../../components/NativeWalletBackup'
 import { BackupContext } from '../../providers/backup'
 import { useState, useEffect, useContext, useRef } from 'react'
 import Button from '../../components/Button'
@@ -29,8 +30,15 @@ import { authenticateUser } from '../../lib/biometrics'
 import FingerprintIcon from '../../icons/Fingerprint'
 import InputPassword from '../../components/InputPassword'
 import { useTranslation } from '../../providers/language'
+import { isNativeWallet } from '../../lib/nativeWallet'
+import HardwareBackup from './HardwareBackup'
 
 export default function Backup() {
+  const { wallet } = useContext(WalletContext)
+  return isNativeWallet(wallet) ? <HardwareBackup /> : <SoftwareBackup />
+}
+
+function SoftwareBackup() {
   const { wallet } = useContext(WalletContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { backupConfig, fullBackup } = useContext(BackupContext)
@@ -166,6 +174,7 @@ export default function Backup() {
       <Content>
         <Padded>
           <FlexCol gap='2rem'>
+            <NativeWalletBackup />
             <ErrorMessage error={Boolean(error)} text={error} />
             <FlexCol border gap='0.5rem' padding='0 0 1rem 0'>
               <Text thin>{secretLabel}</Text>

@@ -31,7 +31,7 @@ const BECH32 = /\b(?:bc|tb|bcrt|ark|tark|nsec)1[02-9ac-hj-np-z]{6,}/gi
 // ([0-9]*[munp]?) sits between the prefix and the '1' separator.
 const BOLT11 = /\b(?:lnbc|lntb|lntbs|lnbcrt|lnsb)[0-9]*[munp]?1[02-9ac-hj-np-z]{20,}/gi
 const SENSITIVE_KEY =
-  /preimage|secret|seckey|priv|mnemonic|seed|addr|script|pubkey|outpoint|auth|cookie|token|password|passphrase|api[-_]?key|session/i
+  /preimage|secret|seckey|priv|mnemonic|seed|addr|script|pubkey|outpoint|auth|cookie|token|password|passphrase|api[-_]?key|session|pin|puk/i
 
 // BOLT11 first: an invoice can contain a 40+ char [0-9a-f] run, and letting
 // HEX_RUN punch a hole in it would leave the rest of the invoice in the clear.

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
+import { isNativeHost } from './nativeBridge'
 
 const isServer = (): boolean => typeof window === 'undefined'
 
 const isStandalone = () => navigator.standalone || window.matchMedia('(display-mode: standalone)').matches
 
-export const pwaCanInstall = () => 'serviceWorker' in navigator && !isServer() && !isStandalone()
+export const pwaCanInstall = () => !isServer() && !isNativeHost() && 'serviceWorker' in navigator && !isStandalone()
 
 export const pwaIsInstalled = () => !isServer() && isStandalone()
 

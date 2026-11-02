@@ -1,4 +1,7 @@
+import { useEffect, useRef } from 'react'
 import { hapticLight } from '../lib/haptics'
+import { isNativeHost } from '../lib/nativeBridge'
+import { registerNativeBack } from '../lib/nativeBack'
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
 
 interface SheetModalProps {
@@ -8,6 +11,13 @@ interface SheetModalProps {
 }
 
 export default function SheetModal({ children, isOpen, onClose }: SheetModalProps) {
+  const close = useRef(onClose)
+  close.current = onClose
+  useEffect(() => {
+    if (!isOpen || !isNativeHost()) return
+    return registerNativeBack(() => close.current())
+  }, [isOpen])
+
   const handleOpenChange = (open: boolean) => {
     if (!open) {
       hapticLight()
