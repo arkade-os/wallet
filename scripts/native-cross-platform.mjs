@@ -66,6 +66,9 @@ export function main([requested = 'auto', action = 'dev', ...args] = process.arg
     sidecarTarget(process.platform, process.arch, host, requestedDesktopTarget(args) ?? host)
     run(process.execPath, [resolve(root, 'src-tauri/scripts/build-sidecar.mjs'), '--target', host])
   }
+  if (platform === 'macos' && !help) {
+    run(process.execPath, [cli, 'icon', 'public/arkade-icon-512.png', '--output', 'src-tauri/icons'])
+  }
   run(process.execPath, [cli, ...tauri])
 }
 

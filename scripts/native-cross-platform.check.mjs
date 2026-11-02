@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { basename, join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { resolvePlatform, requestedDesktopTarget, tauriArguments } from './native-cross-platform.mjs'
@@ -68,6 +70,30 @@ test('override fields exist in the installed Tauri configuration schema', () => 
   const mac = schema.definitions.MacConfig.properties
   for (const field of ['minimumSystemVersion', 'hardenedRuntime']) assert.ok(mac[field])
   for (const field of ['depends', 'recommends']) assert.ok(schema.definitions.DebConfig.properties[field])
+})
+
+test('macOS bundle selects a valid ICNS produced from the wallet icon', () => {
+  const base = json('../src-tauri/tauri.conf.json')
+  const mac = json('../src-tauri/tauri.macos.conf.json')
+  const icons = mac.bundle.icon ?? base.bundle.icon
+  const icns = icons.find((path) => path.endsWith('.icns'))
+  assert.ok(icns, 'macOS bundling requires an ICNS icon')
+  const output = mkdtempSync(join(tmpdir(), 'arkade-icons-'))
+  try {
+    const cli = fileURLToPath(new URL('../node_modules/@tauri-apps/cli/tauri.js', import.meta.url))
+    const source = fileURLToPath(new URL('../public/arkade-icon-512.png', import.meta.url))
+    const result = spawnSync(process.execPath, [cli, 'icon', source, '--output', output], {
+      cwd: output, encoding: 'utf8',
+    })
+    assert.equal(result.error, undefined)
+    assert.equal(result.status, 0, result.stdout + result.stderr)
+    const data = readFileSync(join(output, basename(icns)))
+    assert.equal(data.subarray(0, 4).toString(), 'icns')
+    assert.equal(data.readUInt32BE(4), data.length)
+    assert.ok(data.length > 8)
+  } finally {
+    rmSync(output, { recursive: true, force: true })
+  }
 })
 
 test('iOS metadata preparation preserves existing Xcode work and rejects conflicts', () => {

@@ -8,7 +8,7 @@ let package = Package(
     dependencies: [.package(name: "Tauri", path: "../.tauri/tauri-api")],
     targets: [
         .target(name: "tauri-plugin-satochip", dependencies: [
-            .product(name: "Tauri", package: "Tauri", condition: .when(platforms: [.iOS]))
+            .byName(name: "Tauri")
         ], path: "Sources"),
         .testTarget(name: "SatochipNFCTransportTests", dependencies: ["tauri-plugin-satochip"], path: "Tests")
     ]

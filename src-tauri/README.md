@@ -26,6 +26,8 @@ The Satochip plugin uses the pinned Java connector over native `IsoDep`, rather 
 
 Desktop builds must run on the matching OS and architecture: use `pnpm native:linux:build` or `pnpm native:macos:build`. These commands build the sidecar before the host. Linux requires WebKitGTK 4.1, PC/SC development libraries, SWIG and a Secret Service provider; macOS requires Xcode tools and SWIG.
 
+The macOS commands generate the bundled ICNS icon from `public/arkade-icon-512.png` before building. Generated icons stay under the ignored `src-tauri/icons/` directory.
+
 On macOS with Xcode, `pnpm native:ios:init` generates and prepares the iOS project. `pnpm native:ios:prepare --check` checks its metadata without rewriting it, and `pnpm native:ios:build` builds it. See `ios/README.md` for entitlements and device constraints. Apple builds and hardware validation remain required gates; source support does not establish successful Apple validation.
 
 ## Trust and service boundaries
