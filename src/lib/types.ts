@@ -56,6 +56,7 @@ export enum Currencies {
 export enum Language {
   English = 'en',
   Spanish = 'es',
+  Portuguese = 'pt',
 }
 
 export enum SettingsSections {

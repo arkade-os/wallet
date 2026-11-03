@@ -3,6 +3,7 @@ import { prettyDelta } from './deltas'
 import { fiatDecimalsFor, FIAT_SYMBOLS } from './fiat'
 import { Currencies, Language, Tx, Unit } from './types'
 import { Decimal } from 'decimal.js'
+import { getLocale } from './language'
 
 export { prettyDelta, localizedAgo, localizedDelta } from './deltas'
 
@@ -158,7 +159,7 @@ export const prettyDate = (unixTs: number, lang: Language = Language.English): s
   if (!unixTs) return ''
   if (!isUnixTimestamp(unixTs)) return '' // block height, not a valid timestamp
   const date = new Date(unixTs * 1000)
-  return new Intl.DateTimeFormat(lang === Language.Spanish ? 'es' : 'en', {
+  return new Intl.DateTimeFormat(getLocale(lang), {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
