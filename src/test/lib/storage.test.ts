@@ -99,6 +99,47 @@ describe('asset metadata storage', () => {
     expect(loaded!.has('a')).toBe(false)
     expect(loaded!.get('b')?.metadata?.name).toBe('Second')
   })
+
+  it('a valid icon URL round-trips intact', () => {
+    const cache = new Map<string, CachedAssetDetails>()
+    cache.set('icon-token', {
+      ...makeCached('icon-token', 'Icon Token'),
+      metadata: { icon: 'https://example.com/icon.png' },
+    })
+
+    saveAssetMetadataToStorage(cache)
+    const loaded = readAssetMetadataFromStorage()
+
+    expect(loaded!.get('icon-token')?.metadata?.icon).toBe('https://example.com/icon.png')
+  })
+
+  it('an invalid icon URL (no scheme, bare hostname) is stripped on read and the entry otherwise survives.', () => {
+    const cache = new Map<string, CachedAssetDetails>()
+    cache.set('bad-icon', {
+      ...makeCached('bad-icon', 'Bad Icon Token'),
+      metadata: { icon: 'example.com/icon.png' },
+    })
+
+    saveAssetMetadataToStorage(cache)
+    const loaded = readAssetMetadataFromStorage()
+
+    expect(loaded!.get('bad-icon')?.metadata?.icon).toBeUndefined()
+    expect(loaded!.get('bad-icon')?.metadata).toBeDefined()
+  })
+
+  it('a non-string icon value does not throw and does not drop the cache entry.', () => {
+    const cache = new Map<string, CachedAssetDetails>()
+    cache.set('bad-icon-type', {
+      ...makeCached('bad-icon-type', 'Bad Icon Type Token'),
+      metadata: { icon: 12345 as unknown as string },
+    })
+
+    saveAssetMetadataToStorage(cache)
+    const loaded = readAssetMetadataFromStorage()
+
+    expect(loaded!.get('bad-icon-type')?.metadata?.icon).toBeUndefined()
+    expect(loaded!.get('bad-icon-type')?.metadata).toBeDefined()
+  })
 })
 
 describe('transaction activity metadata storage', () => {
