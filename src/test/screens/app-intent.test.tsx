@@ -120,6 +120,14 @@ describe('App intent screen', () => {
     expect(redirectToCallback).toHaveBeenCalledWith(CALLBACK, { error: 'invalid' })
   })
 
+  it('click the back arrow returns to the wallet without calling the callback', async () => {
+    const { navigate } = renderScreen({ status: 'connect', callback: CALLBACK })
+    await screen.findByTestId('header-back-btn')
+    fireEvent.click(screen.getByTestId('header-back-btn'))
+    expect(navigate).toHaveBeenCalledWith(Pages.Wallet)
+    expect(redirectToCallback).not.toHaveBeenCalled()
+  })
+
   it('on a mobile Safari viewport, Open in App stays here and explains that the installed app cannot be opened', async () => {
     vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(SAFARI_USER_AGENT)
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 })
