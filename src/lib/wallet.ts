@@ -1,5 +1,4 @@
 import { HDKey } from '@scure/bip32'
-import { hex } from '@scure/base'
 import { Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
 import { getConfirmedAndNotExpiredUtxos } from './utxo'
