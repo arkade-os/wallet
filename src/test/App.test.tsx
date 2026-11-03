@@ -242,6 +242,7 @@ describe('App intents', () => {
     })
     await screen.findByTestId('app')
     expect(navigate).toHaveBeenCalledWith(Pages.Wallet)
+    expect(navigate).not.toHaveBeenCalledWith(Pages.SendForm)
   })
 })
 
