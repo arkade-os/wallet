@@ -14,10 +14,6 @@ export function getLoadingStatus() {
   return status
 }
 
-export function clearLoadingStatus() {
-  setLoadingStatus('')
-}
-
 export function subscribeLoadingStatus(fn: () => void) {
   listeners.add(fn)
   return () => listeners.delete(fn)
