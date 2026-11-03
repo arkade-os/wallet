@@ -256,21 +256,12 @@ function formatDecimalText(
   return `${negative ? '-' : ''}${groupedInteger}${fraction ? `.${fraction}` : ''}`
 }
 
-export const formatAssetAmount = (amount: bigint, decimals: number): string => {
-  if (decimals === 0) return prettyNumber(amount, 0)
-  return prettyNumber(atomicToUnits(amount, decimals), decimals)
-}
-
 export const isIssuance = (tx: Tx): boolean => {
   return tx.type === 'sent' && tx.amount === 0 && (tx.assets ?? []).some((a) => a.amount > 0)
 }
 
 export const isBurn = (tx: Tx): boolean => {
   return tx.type === 'sent' && tx.amount === 0 && (tx.assets ?? []).some((a) => a.amount < 0)
-}
-
-export const toUint8Array = (str: string): Uint8Array => {
-  return new TextEncoder().encode(str)
 }
 
 export const canConvertCurrency = (

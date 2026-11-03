@@ -58,6 +58,7 @@ import { AssetIconApprovalManager } from '../lib/assetIconApproval'
 import { BackupContext } from './backup'
 import { getAssetSwaps } from '@arkade-os/swap/protocol'
 import { useTranslation } from '../providers/language'
+import { isValidUrl } from '@/lib/validators'
 
 const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
 const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
@@ -325,7 +326,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const setCacheEntry = (assetId: string, details: AssetDetails): CachedAssetDetails => {
     const hasIcon = !!details.metadata?.icon
     const moderated =
-      hasIcon && !iconApprovalManager.isApproved(assetId)
+      hasIcon && (!iconApprovalManager.isApproved(assetId) || !isValidUrl(details.metadata?.icon ?? ''))
         ? { ...details, metadata: { ...details.metadata, icon: undefined } }
         : details
     const entry: CachedAssetDetails = { ...moderated, cachedAt: Date.now(), hasIcon }

@@ -9,7 +9,7 @@ import Header from './Header'
 import Text, { TextSecondary } from '../../components/Text'
 import Checkbox from '../../components/Checkbox'
 import { consoleError } from '../../lib/logs'
-import { WalletAlternativeIcon } from '../../icons/Wallet'
+import Wallet from '../../icons/Wallet'
 import CenterScreen from '../../components/CenterScreen'
 import FlexCol from '../../components/FlexCol'
 import { useTranslation } from '../../providers/language'
@@ -47,7 +47,7 @@ export default function Reset() {
         <Padded>
           <ErrorMessage error={Boolean(error)} text={error} />
           <CenterScreen>
-            <WalletAlternativeIcon />
+            <Wallet />
             <Text>{t('settings.didYouBackup')}</Text>
             <TextSecondary>{t('settings.cannotUndo')}</TextSecondary>
           </CenterScreen>
