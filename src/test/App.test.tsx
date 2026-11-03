@@ -213,6 +213,19 @@ describe('App intents', () => {
     expect(navigate).toHaveBeenCalledWith(Pages.AppIntent)
   })
 
+  it('keeps the loading screen up when returning to the wallet with a connect intent pending', async () => {
+    renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      dataReady: false,
+      screen: Pages.Wallet,
+      flow: { appIntent: { status: 'connect', callback: 'https://example.com/cb' } },
+    })
+
+    await screen.findByTestId('app')
+    expect(screen.queryByTestId('desktop-nav-home')).not.toBeInTheDocument()
+  })
+
   it('send intent: verify navigate was called with Pages.Wallet', async () => {
     const { navigate } = renderApp({
       authState: 'authenticated',
