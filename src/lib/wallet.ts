@@ -14,10 +14,6 @@ export const deriveKeyFromSeed = (seed: Uint8Array): Uint8Array => {
   return key.privateKey!
 }
 
-export const getPrivateKeyFromSeed = (seed: Uint8Array): string => {
-  return hex.encode(deriveKeyFromSeed(seed))
-}
-
 export const calcNextRollover = async (vtxos: Vtxo[], wallet: IWallet, aspInfo: AspInfo): Promise<number> => {
   if (vtxos.length === 0) {
     const utxos = await getConfirmedAndNotExpiredUtxos(wallet)

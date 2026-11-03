@@ -28,7 +28,6 @@
     "framer-motion": "^12.34.3",
     "light-bolt11-decoder": "^3.2.0",
     "liveline": "^0.0.7",
-    "lucide-react": "^0.575.0",
     "nostr-tools": "2.24.1",
     "qr": "^0.5.2",
     "qr-scanner": "^1.4.2",

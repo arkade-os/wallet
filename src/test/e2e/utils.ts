@@ -239,17 +239,6 @@ export async function dismissPaymentSuccess(page: Page, timeout = 60000): Promis
   await page.getByRole('button', { name: /Sounds good|Tap to go home/ }).click({ timeout })
 }
 
-export async function pay(page: Page, address: string, isMobile = false, sats = 0): Promise<void> {
-  // insert value and address, then continue to details page
-  await prePay(page, address, isMobile, sats)
-
-  // continue to send
-  await page.getByText(tr.send.tapToSign, { exact: true }).click()
-  await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await page.waitForSelector(`text=${tr.send.paymentSent}`, { timeout: 30000 })
-  await dismissPaymentSuccess(page, 30000)
-}
-
 async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = false, sats = 0): Promise<string> {
   // go to receive page
   await navigateHome(page)
@@ -278,10 +267,6 @@ export async function receiveOnchain(page: Page, isMobile = false, sats = 0): Pr
 
 export async function receiveOffchain(page: Page): Promise<string> {
   return receive(page, 'ark')
-}
-
-export async function receiveLightning(page: Page, isMobile: boolean, sats: number): Promise<string> {
-  return receive(page, 'invoice', isMobile, sats)
 }
 
 export async function navigateToSettings(page: Page): Promise<void> {
@@ -370,11 +355,6 @@ export async function handleKeyboardInput(page: Page, value: number, decimals = 
     await page.getByTestId(`keyboard-${digit}`).click()
   }
   await page.getByText(tr.common.save, { exact: true }).click()
-}
-
-export async function getFeesFromDetails(page: Page): Promise<number> {
-  const txtValue = await page.getByTestId('Network fees').textContent()
-  return parseInt(txtValue?.replace(' sats', '').replaceAll(',', '') || '0')
 }
 
 export async function navigateToSwaps(page: Page): Promise<void> {
