@@ -25,9 +25,9 @@ test('should keep bottom actions above the system navigation inset', async ({ pa
   await page.getByText(tr.init.restoreWallet, { exact: true }).click()
   await expect(page.getByText(tr.common.cancel, { exact: true })).toBeVisible()
 
-  const gap = await page.evaluate(() => {
-    const buttons = document.querySelectorAll('footer.buttons-on-bottom button')
-    return window.innerHeight - buttons[buttons.length - 1].getBoundingClientRect().bottom
-  })
+  const gap = await page
+    .locator('footer.buttons-on-bottom button')
+    .last()
+    .evaluate((button) => window.innerHeight - button.getBoundingClientRect().bottom)
   expect(gap).toBeGreaterThanOrEqual(inset)
 })
