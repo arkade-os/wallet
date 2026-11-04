@@ -279,6 +279,13 @@ button {
   padding: 1rem;
 }
 
+/* non-iOS: Android draws the page under its nav bar, covering the footer; iOS stays flush (see #725) */
+@supports not (-webkit-touch-callout: none) {
+  .buttons-on-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+  }
+}
+
 .tappable {
   cursor: pointer;
   &:active {
