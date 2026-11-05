@@ -98,6 +98,9 @@ const noTarget = {
   pendingLnSend: undefined,
 }
 
+// decodeBip21 ignores these, but the SDK can verify an on-chain URI that carries both
+const hasBrantaParams = (value: string): boolean => /[?&]branta_id=/i.test(value) && /[?&]branta_secret=/i.test(value)
+
 export const isPlainOnchainTypedRecipient = (value: string): boolean => {
   if (isBTCAddress(value)) return true
   if (!isBip21(value.toLowerCase())) return false
@@ -110,7 +113,8 @@ export const isPlainOnchainTypedRecipient = (value: string): boolean => {
         !decoded.arkAddress &&
         !decoded.invoice &&
         !decoded.lnUrl &&
-        !decoded.assetId,
+        !decoded.assetId &&
+        !hasBrantaParams(value),
     )
   } catch {
     return false

@@ -39,6 +39,14 @@ describe('isPlainOnchainTypedRecipient', () => {
     expect(isPlainOnchainTypedRecipient(`bitcoin:?ark=${ARK_ADDRESS}`)).toBe(false)
   })
 
+  it('returns false for a BIP21 URI carrying branta_id and branta_secret', () => {
+    expect(isPlainOnchainTypedRecipient(`bitcoin:${BTC_ADDRESS}?branta_id=abc&BRANTA_SECRET=def`)).toBe(false)
+  })
+
+  it('returns true for a BIP21 URI with only one branta param', () => {
+    expect(isPlainOnchainTypedRecipient(`bitcoin:${BTC_ADDRESS}?branta_id=abc`)).toBe(true)
+  })
+
   it('returns false for a non-BIP21, non-address value', () => {
     expect(isPlainOnchainTypedRecipient('not a recipient at all')).toBe(false)
   })
