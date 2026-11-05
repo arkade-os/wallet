@@ -1,5 +1,5 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { BrantaService, type Payment } from '@branta-ops/branta/v2'
+import { BrantaEnvironment, BrantaService, VerifyStatus, type Payment, type VerifyResult } from '@branta-ops/branta'
 import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
@@ -78,8 +78,7 @@ import { useTranslation } from '../../../providers/language'
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
 
 const brantaClient = new BrantaService({
-  baseUrl: isProductionEnv ? 'Production' : 'Staging',
-  privacy: 'strict',
+  environment: isProductionEnv ? BrantaEnvironment.Production : BrantaEnvironment.Staging,
 })
 
 const lnurlClient = createLnurlClient()
@@ -115,6 +114,22 @@ export const isPlainOnchainTypedRecipient = (value: string): boolean => {
     )
   } catch {
     return false
+  }
+}
+
+const isHttpsUrl = (val: unknown): boolean => typeof val === 'string' && val.startsWith('https://')
+
+// only a match earns the card; unknown, tampered and incomplete all show nothing
+export const brantaCard = (result: VerifyResult): { payment: Payment; verifyUrl?: string } | null => {
+  const payment = result.status === VerifyStatus.Match ? result.payments[0] : undefined
+  if (!payment) return null
+  return {
+    payment: {
+      ...payment,
+      platformLogoUrl: isHttpsUrl(payment.platformLogoUrl) ? payment.platformLogoUrl : undefined,
+      platformLogoLightUrl: isHttpsUrl(payment.platformLogoLightUrl) ? payment.platformLogoLightUrl : undefined,
+    },
+    verifyUrl: isHttpsUrl(result.verifyUrl) ? result.verifyUrl : undefined,
   }
 }
 
@@ -482,7 +497,7 @@ export default function SendForm() {
     parseRecipient()
   }, [recipient, isAssetSend, readyToParse])
 
-  // fetch branta payment info for the current recipient (SDK strict mode gates non-ZK)
+  // verify the current recipient with branta (the SDK only looks up destinations it can encrypt)
   useEffect(() => {
     const typed = recipient.trim()
     if (!rawScanData && !typed) {
@@ -505,24 +520,14 @@ export default function SendForm() {
     const runLookup = () => {
       if (cancelled) return
       setBrantaLoading(true)
-      const lookup = rawScanData ? brantaClient.getPaymentsByQrCode(rawScanData) : brantaClient.getPayments(typed)
+      const lookup = brantaClient.verify(rawScanData || typed)
 
       lookup
-        .then(({ payments, verifyUrl }) => {
+        .then((result) => {
           if (cancelled) return
-          const payment = payments?.[0] ?? null
-          if (!payment) {
-            setBrantaPayment(null)
-            setBrantaVerifyUrl(undefined)
-            return
-          }
-          const isHttpsUrl = (val: unknown): boolean => typeof val === 'string' && val.startsWith('https://')
-          setBrantaPayment({
-            ...payment,
-            platformLogoUrl: isHttpsUrl(payment.platformLogoUrl) ? payment.platformLogoUrl : undefined,
-            platformLogoLightUrl: isHttpsUrl(payment.platformLogoLightUrl) ? payment.platformLogoLightUrl : undefined,
-          })
-          setBrantaVerifyUrl(isHttpsUrl(verifyUrl) ? verifyUrl : undefined)
+          const card = brantaCard(result)
+          setBrantaPayment(card?.payment ?? null)
+          setBrantaVerifyUrl(card?.verifyUrl)
         })
         .catch((err) => {
           if (cancelled) return

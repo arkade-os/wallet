@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { isPlainOnchainTypedRecipient } from '../../../screens/Wallet/Send/Form'
+import { VerifyStatus } from '@branta-ops/branta'
+import { brantaCard, isPlainOnchainTypedRecipient } from '../../../screens/Wallet/Send/Form'
 
 const BTC_ADDRESS = 'bcrt1pq6gt72nxevsxk5fwl3h2sx56jeah6qfzh98mksxyakkg5l0q65gsa27khh'
 const ARK_ADDRESS =
@@ -40,5 +41,38 @@ describe('isPlainOnchainTypedRecipient', () => {
 
   it('returns false for a non-BIP21, non-address value', () => {
     expect(isPlainOnchainTypedRecipient('not a recipient at all')).toBe(false)
+  })
+})
+
+describe('brantaCard', () => {
+  const VERIFY_URL = 'https://guardrail.branta.pro/v2/verify/abc'
+  const payment = {
+    destinations: [],
+    platform: 'Acme Pay',
+    platformLogoUrl: 'https://guardrail.branta.pro/logo.png',
+    platformLogoLightUrl: 'https://guardrail.branta.pro/logo-light.png',
+  }
+
+  it('returns the first payment and the verify url for a match', () => {
+    const result = { status: VerifyStatus.Match, payments: [payment], verifyUrl: VERIFY_URL }
+    expect(brantaCard(result)).toEqual({ payment, verifyUrl: VERIFY_URL })
+  })
+
+  it.each([VerifyStatus.Unknown, VerifyStatus.Tampered, VerifyStatus.Incomplete])('returns null for %s', (status) => {
+    expect(brantaCard({ status, verifyUrl: VERIFY_URL })).toBeNull()
+  })
+
+  it('drops logo and verify urls that are not https', () => {
+    const result = {
+      status: VerifyStatus.Match,
+      payments: [
+        { ...payment, platformLogoUrl: 'http://logo.test/a.png', platformLogoLightUrl: 'data:image/png;base64,AA' },
+      ],
+      verifyUrl: 'http://guardrail.branta.pro/v2/verify/abc',
+    }
+    const card = brantaCard(result)
+    expect(card?.payment.platformLogoUrl).toBeUndefined()
+    expect(card?.payment.platformLogoLightUrl).toBeUndefined()
+    expect(card?.verifyUrl).toBeUndefined()
   })
 })
