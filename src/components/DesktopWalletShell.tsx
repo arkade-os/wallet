@@ -1,4 +1,5 @@
 import { useCallback, useContext } from 'react'
+import { useTranslation } from '../providers/language'
 import SmallLogo from './SmallLogo'
 import HomeIcon from '../icons/Home'
 import HistoryIcon from '../icons/History'
@@ -17,7 +18,9 @@ interface DesktopWalletShellProps {
 export default function DesktopWalletShell({ logoVisible, page }: DesktopWalletShellProps) {
   const { navigate } = useContext(NavigationContext)
   const { setOption } = useContext(OptionsContext)
+
   const logoRef = useCallback((element: HTMLDivElement | null) => setDesktopLogoAnchor(element), [])
+  const { t } = useTranslation()
 
   const activityActive = page === Pages.Activity || page === Pages.Transaction
   const settingsActive = page === Pages.Settings || page === Pages.Vtxos
@@ -58,7 +61,7 @@ export default function DesktopWalletShell({ logoVisible, page }: DesktopWalletS
           onClick={goHome}
         >
           <HomeIcon />
-          <span>Home</span>
+          <span>{t('common.home')}</span>
         </button>
         <button
           type='button'
@@ -70,7 +73,7 @@ export default function DesktopWalletShell({ logoVisible, page }: DesktopWalletS
           onClick={goToActivity}
         >
           <HistoryIcon size={20} strokeWidth={1.8} />
-          <span>Activity</span>
+          <span>{t('wallet.activity')}</span>
         </button>
         <button
           type='button'
@@ -82,7 +85,7 @@ export default function DesktopWalletShell({ logoVisible, page }: DesktopWalletS
           onClick={goToSettings}
         >
           <SettingsIcon size={19} strokeWidth={1.8} />
-          <span>Settings</span>
+          <span>{t('settings.title')}</span>
         </button>
       </nav>
     </aside>

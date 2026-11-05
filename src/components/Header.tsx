@@ -51,7 +51,7 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
       <FlexRow between>
         <div style={{ minWidth: '4rem', marginLeft: '0.5rem' }}>
           {handleBack ? (
-            <button type='button' onClick={handleBack} aria-label={t('common.back')}>
+            <button type='button' onClick={handleBack} aria-label={t('common.back')} data-testid='header-back-btn'>
               <BackIcon />
             </button>
           ) : (
