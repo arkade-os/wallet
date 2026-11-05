@@ -51,6 +51,11 @@ const receiveLightning = vi.fn()
 const setRecvInfo = vi.fn()
 const copyToClipboard = vi.fn()
 const shareData = vi.fn()
+const svcWallet = {
+  ...mockSvcWallet,
+  getAddress: async () => 'ark1testaddr',
+  getBoardingAddress: async () => 'bc1testaddr',
+}
 vi.mock('../../../lib/clipboard', () => ({ copyToClipboard: (...args: unknown[]) => copyToClipboard(...args) }))
 vi.mock('../../../lib/share', () => ({
   canBrowserShareData: () => true,
@@ -86,7 +91,7 @@ const tree = (satoshis: number) => (
                   } as never
                 }
               >
-                <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet: mockSvcWallet } as never}>
+                <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet } as never}>
                   <LimitsContext.Provider value={mockLimitsContextValue}>
                     <SwapsContext.Provider
                       value={{ receiveLightning, lnStatus: () => undefined, lnError: () => undefined } as never}
@@ -190,16 +195,15 @@ describe('Receive screen, invoice generation', () => {
     copyToClipboard.mockClear()
     shareData.mockClear()
     renderWithTrack()
+    await act(async () => {})
 
     await waitFor(() => expect(receiveLightning).toHaveBeenCalledWith(10_000))
     expect(screen.getByRole('status')).toHaveTextContent('Generating invoice…')
     expect(screen.getByText('Requesting 10,000 sats')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Copy QR code' })).not.toBeInTheDocument()
-    const copy = screen.getByRole('button', { name: 'Copy' })
+    expect(screen.queryByTestId('bip21-address-copy')).not.toBeInTheDocument()
     const share = screen.getByRole('button', { name: 'Share' })
-    expect(copy).toBeDisabled()
     expect(share).toBeDisabled()
-    fireEvent.click(copy)
     fireEvent.click(share)
     fireEvent.click(screen.getByLabelText('Copy QR code'))
     expect(copyToClipboard).not.toHaveBeenCalled()
@@ -208,7 +212,7 @@ describe('Receive screen, invoice generation', () => {
     await act(async () => finish())
     expect(screen.getByText('Requesting 10,000 sats')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled()
-    expect(copy).toBeEnabled()
+    expect(screen.getByTestId('bip21-address-copy')).toBeEnabled()
     expect(share).toBeEnabled()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
@@ -218,7 +222,7 @@ describe('Receive screen, invoice generation', () => {
     renderWithTrack()
     expect(await screen.findByText(/Lightning unavailable: Solver timed out/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: 'Copy' })).toBeEnabled()
+    expect(screen.getByTestId('bip21-address-copy')).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Share' })).toBeEnabled()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
@@ -233,9 +237,11 @@ describe('Receive screen, invoice generation', () => {
     )
     const { rerender } = renderWithTrack()
     await waitFor(() => expect(receiveLightning).toHaveBeenCalledWith(10_000))
+    await act(async () => {})
+    setRecvInfo.mockClear()
     rerender(tree(0))
     expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: 'Copy' })).toBeEnabled()
+    expect(screen.getByTestId('bip21-address-copy')).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Share' })).toBeEnabled()
     await act(async () => finish())
     expect(screen.queryByRole('status')).not.toBeInTheDocument()

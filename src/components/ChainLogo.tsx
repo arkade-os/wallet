@@ -63,13 +63,21 @@ export function TokenOnChainLogo({ ticker, chainId, ring }: { ticker: string; ch
 }
 
 /** Token logos overlapping left over right, each ringed in `ring` like the chain badge above. */
-export function TokenLogoStack({ tickers, ring }: { tickers: TokenLogoTicker[]; ring: string }) {
+export function TokenLogoStack({
+  tickers,
+  ring,
+  small,
+}: {
+  tickers: TokenLogoTicker[]
+  ring: string
+  small?: boolean
+}) {
   return (
     <span className='flex shrink-0' aria-hidden='true'>
       {tickers.map((ticker, i) => (
         <span
           key={ticker}
-          className={`relative flex size-5 rounded-full [&>svg]:size-full ${i ? '-ml-1.5' : ''}`}
+          className={`relative flex rounded-full [&>svg]:size-full ${small ? 'size-4' : 'size-5'} ${i ? (small ? '-ml-1' : '-ml-1.5') : ''}`}
           style={{ boxShadow: `0 0 0 2px ${ring}`, zIndex: tickers.length - i }}
         >
           <TokenLogo ticker={ticker} />
