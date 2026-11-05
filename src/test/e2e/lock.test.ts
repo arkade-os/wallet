@@ -29,6 +29,7 @@ test('should set and verify password', async ({ page }) => {
 
   // Verify password is set
   await expect(page.getByText(tr.settings.passwordChanged)).toBeVisible()
+  await expect(page.getByText(tr.common.continue)).toBeVisible()
 })
 
 test('should lock and unlock wallet without previous password', async ({ page }) => {

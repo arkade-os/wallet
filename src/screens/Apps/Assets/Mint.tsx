@@ -100,7 +100,7 @@ export default function AppAssetMint() {
     const cents = unitsToAtomic(amountTextValue, Number(decimalsText))
     const invalidCentsReason = isInvalidMintAmount(cents)
     if (invalidCentsReason) return setError(invalidCentsReason)
-    // validate icon URL
+    // validate icon URL: must start with http(s)://
     if (iconUrl && !isValidUrl(iconUrl)) return setError(t('mint.invalidIconUrl'))
     // all validations passed
     setError('')

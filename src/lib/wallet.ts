@@ -1,5 +1,4 @@
 import { HDKey } from '@scure/bip32'
-import { hex } from '@scure/base'
 import { Vtxo } from './types'
 import { AspInfo } from '../providers/asp'
 import { getConfirmedAndNotExpiredUtxos } from './utxo'
@@ -12,10 +11,6 @@ export const deriveKeyFromSeed = (seed: Uint8Array): Uint8Array => {
   const masterNode = HDKey.fromMasterSeed(seed)
   const key = masterNode.derive(DERIVATION_PATH).deriveChild(0).deriveChild(0)
   return key.privateKey!
-}
-
-export const getPrivateKeyFromSeed = (seed: Uint8Array): string => {
-  return hex.encode(deriveKeyFromSeed(seed))
 }
 
 export const calcNextRollover = async (vtxos: Vtxo[], wallet: IWallet, aspInfo: AspInfo): Promise<number> => {

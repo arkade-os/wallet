@@ -53,17 +53,12 @@ import { setLoadingStatus } from '../lib/loadingStatus'
 import { hex } from '@scure/base'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { ConfigContext } from './config'
-import {
-  defaultPassword,
-  getDelegateUrlForNetwork,
-  isMainnet,
-  maxPercentage,
-  mutinynetMinCheckpointExitDelaySeconds,
-} from '../lib/constants'
+import { defaultPassword, getDelegateUrlForNetwork, isMainnet, maxPercentage } from '../lib/constants'
 import { AssetIconApprovalManager } from '../lib/assetIconApproval'
 import { BackupContext } from './backup'
 import { getAssetSwaps } from '@arkade-os/swap/protocol'
 import { useTranslation } from '../providers/language'
+import { isValidUrl } from '@/lib/validators'
 
 const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
 const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
@@ -79,7 +74,6 @@ interface InitSvcWorkerWalletParams {
   delegateUrl?: string
   walletMode?: ServiceWorkerWalletMode
   restoring?: boolean
-  minCheckpointExitDelaySeconds?: bigint
 }
 
 const defaultWallet: Wallet = {
@@ -133,6 +127,8 @@ interface WalletContextProps {
   iconApprovalManager: AssetIconApprovalManager
   isVerifiedAsset: (assetId: string) => boolean
   dataReady: boolean
+  /** The worker's first contract sync since setup has not landed: balances and history are stored data. */
+  syncing?: boolean
   loadError: string | null
   dismissLoadError: () => void
   authState: WalletAuthState
@@ -163,6 +159,7 @@ export const WalletContext = createContext<WalletContextProps>({
   iconApprovalManager: new AssetIconApprovalManager(),
   isVerifiedAsset: () => false,
   dataReady: false,
+  syncing: false,
   loadError: null,
   dismissLoadError: () => {},
   authState: 'unknown',
@@ -216,6 +213,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [initialized, setInitialized] = useState<boolean>(false)
   const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
   const [dataReady, setDataReady] = useState(false)
+  const [syncing, setSyncing] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [authState, setAuthState] = useState<WalletAuthState>('unknown')
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
@@ -328,7 +326,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const setCacheEntry = (assetId: string, details: AssetDetails): CachedAssetDetails => {
     const hasIcon = !!details.metadata?.icon
     const moderated =
-      hasIcon && !iconApprovalManager.isApproved(assetId)
+      hasIcon && (!iconApprovalManager.isApproved(assetId) || !isValidUrl(details.metadata?.icon ?? ''))
         ? { ...details, metadata: { ...details.metadata, icon: undefined } }
         : details
     const entry: CachedAssetDetails = { ...moderated, cachedAt: Date.now(), hasIcon }
@@ -636,15 +634,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     identity: Identity,
     params: InitSvcWorkerWalletParams,
   ): Promise<boolean> => {
-    const {
-      arkServerUrl,
-      retryCount = 0,
-      maxRetries = 2,
-      delegateUrl,
-      walletMode,
-      restoring = false,
-      minCheckpointExitDelaySeconds,
-    } = params
+    const { arkServerUrl, retryCount = 0, maxRetries = 2, delegateUrl, walletMode, restoring = false } = params
     try {
       setLoadingStatus(t('loading.startingWallet'))
       const walletRepository = new IndexedDBWalletRepository()
@@ -685,7 +675,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         arkServer: { url: arkServerUrl },
         delegateUrl,
         walletMode: walletMode ?? config.walletMode ?? 'static',
-        minCheckpointExitDelaySeconds,
+        // Contract sync finishes in the background; the coin-event reload below repaints. Not lazyBoarding: its
+        // refresh is never retried, and its UTXO_UPDATE carries every stored coin, which the receive screen reads as a payment.
+        lazyInitialization: true,
         storage: { walletRepository, contractRepository },
         serviceWorkerActivationTimeoutMs: SERVICE_WORKER_ACTIVATION_TIMEOUT_MS,
         messageBusTimeoutMs: MESSAGE_BUS_INIT_TIMEOUT_MS,
@@ -745,6 +737,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       setSvcWallet(svcWallet)
       setVtxoManager(vtxoMgr)
       setInitialized(walletInitialized)
+      setSyncing(true)
 
       // Safe on every unlock: watches are keyed by txid and the confirmation queue ignores a key it already holds.
       resumeLnurlConfirmations()
@@ -775,22 +768,45 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       lnurlResyncRef.current?.cancel()
       lnurlResyncRef.current = lnurlResyncOnPayment(syncLnurl, reloadAfterSync)
 
+      const scheduleReload = () => {
+        // Debounced reload: short delay lets the indexer update its cache.
+        // If multiple updates arrive in quick succession, only the last
+        // one triggers a reload (avoids redundant fetches).
+        clearTimeout(reloadTimerRef.current)
+        reloadTimerRef.current = setTimeout(() => reloadWallet(svcWallet), 1000)
+      }
+
       // handle messages from the service worker
       // we listen for UTXO/VTXO updates to refresh the tx history and balance
       const handleServiceWorkerMessages = (event: MessageEvent) => {
-        if (event.data && ['VTXO_UPDATE', 'UTXO_UPDATE'].includes(event.data.type)) {
-          // Debounced reload: short delay lets the indexer update its cache.
-          // If multiple updates arrive in quick succession, only the last
-          // one triggers a reload (avoids redundant fetches).
-          clearTimeout(reloadTimerRef.current)
-          reloadTimerRef.current = setTimeout(() => reloadWallet(svcWallet), 1000)
+        const { type, payload } = event.data ?? {}
+        // A lazy boot's first sync can land before VTXO_UPDATE's worker listener exists; CONTRACT_EVENT's is set up first.
+        const coinEvent = type === 'CONTRACT_EVENT' && ['vtxo_received', 'vtxo_spent'].includes(payload?.event?.type)
+        if (coinEvent || ['VTXO_UPDATE', 'UTXO_UPDATE'].includes(type)) {
+          scheduleReload()
           lnurlResyncRef.current?.onPayment()
+        }
+      }
+
+      // Until the lazy boot's first sync lands the screen shows stored data, and a coin whose status
+      // changed in place (preconfirmed to settled) raises no coin event, so reload once it has landed.
+      let awaitingFirstSync = true
+      const checkFirstSync = async () => {
+        try {
+          const { lastSyncedAt } = (await svcWallet.getContractManager()).getSyncState()
+          if (!lastSyncedAt || signal.aborted) return
+          awaitingFirstSync = false
+          setSyncing(false)
+          scheduleReload()
+        } catch (err) {
+          consoleError(err, 'Error reading contract sync state')
         }
       }
 
       if (swMessageHandlerRef.current) {
         removeServiceWorkerMessageHandler(swMessageHandlerRef.current)
       }
+      // Late is safe with a lazy boot: the worker persists coins before announcing them, and the first reload runs after this.
       navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
       swMessageHandlerRef.current = handleServiceWorkerMessages
 
@@ -808,6 +824,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           const { walletInitialized } = await Promise.race([svcWallet.getStatus(), statusTimeout])
           consecutivePingFailures = 0
           if (!signal.aborted) setInitialized(walletInitialized)
+          if (awaitingFirstSync) await checkFirstSync()
         } catch (err) {
           consoleError(err, 'Error pinging wallet status')
           consecutivePingFailures++
@@ -869,9 +886,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
-  const minCheckpointExitDelaySecondsForNetwork = (network: NetworkName | string): bigint | undefined =>
-    network === 'mutinynet' ? mutinynetMinCheckpointExitDelaySeconds : network === 'regtest' ? 512n : undefined
-
   const initWallet = async (credentials: {
     mnemonic?: string
     privateKey?: Uint8Array
@@ -915,7 +929,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       delegateUrl,
       walletMode,
       restoring: credentials.restoring,
-      minCheckpointExitDelaySeconds: minCheckpointExitDelaySecondsForNetwork(network),
     })
     if (!didInit) return
     updateWallet({ ...wallet, network, pubkey })
@@ -955,7 +968,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       identity,
       arkServerUrl,
       delegateUrl,
-      minCheckpointExitDelaySeconds: minCheckpointExitDelaySecondsForNetwork(aspInfo.network),
     })
   }
 
@@ -975,7 +987,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         identity,
         arkServerUrl,
         delegateUrl,
-        minCheckpointExitDelaySeconds: minCheckpointExitDelaySecondsForNetwork(aspInfo.network),
       })
       if (!initialized) return
     } catch (err) {
@@ -1089,6 +1100,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         iconApprovalManager,
         isVerifiedAsset,
         dataReady,
+        syncing,
         loadError,
         dismissLoadError,
         reloadWallet,

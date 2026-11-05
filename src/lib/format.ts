@@ -3,6 +3,7 @@ import { prettyDelta } from './deltas'
 import { fiatDecimalsFor, FIAT_SYMBOLS } from './fiat'
 import { Currencies, Language, Tx, Unit } from './types'
 import { Decimal } from 'decimal.js'
+import { getLocale } from './language'
 
 export { prettyDelta, localizedAgo, localizedDelta } from './deltas'
 
@@ -158,7 +159,7 @@ export const prettyDate = (unixTs: number, lang: Language = Language.English): s
   if (!unixTs) return ''
   if (!isUnixTimestamp(unixTs)) return '' // block height, not a valid timestamp
   const date = new Date(unixTs * 1000)
-  return new Intl.DateTimeFormat(lang === Language.Spanish ? 'es' : 'en', {
+  return new Intl.DateTimeFormat(getLocale(lang), {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -255,21 +256,12 @@ function formatDecimalText(
   return `${negative ? '-' : ''}${groupedInteger}${fraction ? `.${fraction}` : ''}`
 }
 
-export const formatAssetAmount = (amount: bigint, decimals: number): string => {
-  if (decimals === 0) return prettyNumber(amount, 0)
-  return prettyNumber(atomicToUnits(amount, decimals), decimals)
-}
-
 export const isIssuance = (tx: Tx): boolean => {
   return tx.type === 'sent' && tx.amount === 0 && (tx.assets ?? []).some((a) => a.amount > 0)
 }
 
 export const isBurn = (tx: Tx): boolean => {
   return tx.type === 'sent' && tx.amount === 0 && (tx.assets ?? []).some((a) => a.amount < 0)
-}
-
-export const toUint8Array = (str: string): Uint8Array => {
-  return new TextEncoder().encode(str)
 }
 
 export const canConvertCurrency = (
