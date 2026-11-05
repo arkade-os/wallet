@@ -43,6 +43,10 @@ describe('isPlainOnchainTypedRecipient', () => {
     expect(isPlainOnchainTypedRecipient(`bitcoin:${BTC_ADDRESS}?branta_id=abc&BRANTA_SECRET=def`)).toBe(false)
   })
 
+  it('returns false for a BIP21 URI whose branta param names are percent-encoded', () => {
+    expect(isPlainOnchainTypedRecipient(`bitcoin:${BTC_ADDRESS}?branta%5Fid=abc&branta%5Fsecret=def`)).toBe(false)
+  })
+
   it('returns true for a BIP21 URI with only one branta param', () => {
     expect(isPlainOnchainTypedRecipient(`bitcoin:${BTC_ADDRESS}?branta_id=abc`)).toBe(true)
   })

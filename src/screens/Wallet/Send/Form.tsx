@@ -98,8 +98,13 @@ const noTarget = {
   pendingLnSend: undefined,
 }
 
-// decodeBip21 ignores these, but the SDK can verify an on-chain URI that carries both
-const hasBrantaParams = (value: string): boolean => /[?&]branta_id=/i.test(value) && /[?&]branta_secret=/i.test(value)
+// decodeBip21 ignores these, but the SDK can verify an on-chain URI that carries both;
+// it matches decoded, lowercased names, so this must too
+const hasBrantaParams = (value: string): boolean => {
+  const query = value.includes('?') ? value.slice(value.indexOf('?') + 1) : ''
+  const names = new Set([...new URLSearchParams(query).keys()].map((name) => name.toLowerCase()))
+  return names.has('branta_id') && names.has('branta_secret')
+}
 
 export const isPlainOnchainTypedRecipient = (value: string): boolean => {
   if (isBTCAddress(value)) return true
