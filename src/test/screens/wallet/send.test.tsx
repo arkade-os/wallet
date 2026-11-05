@@ -5,6 +5,19 @@ vi.mock('../../../lib/appIntent', async () => {
   const actual = await vi.importActual<typeof import('../../../lib/appIntent')>('../../../lib/appIntent')
   return { ...actual, redirectToCallback: vi.fn() }
 })
+
+const { verifyMock } = vi.hoisted(() => ({ verifyMock: vi.fn() }))
+vi.mock('@branta-ops/branta', async () => {
+  const actual = await vi.importActual<typeof import('@branta-ops/branta')>('@branta-ops/branta')
+  // every render runs the lookup, so an unconfigured call must still resolve
+  const unknown = { status: actual.VerifyStatus.Unknown, verifyUrl: 'https://guardrail.branta.pro/v2/verify/none' }
+  return {
+    ...actual,
+    BrantaService: class {
+      verify = (input: string) => Promise.resolve(verifyMock(input) ?? unknown)
+    },
+  }
+})
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import createFetchMock from 'vitest-fetch-mock'
 import { emptySendInfo, FlowContext, type SendInfo } from '../../../providers/flow'
@@ -530,6 +543,35 @@ describe('Send screen', () => {
     })
 
     expect(await screen.findByDisplayValue(request)).toBeInTheDocument()
+  })
+
+  it('verifies a pasted bip21 carrying branta params and shows the card', async () => {
+    const uri =
+      'bitcoin:bcrt1pq6gt72nxevsxk5fwl3h2sx56jeah6qfzh98mksxyakkg5l0q65gsa27khh?branta_id=abc&branta_secret=def'
+    verifyMock.mockResolvedValueOnce({
+      status: 'match',
+      payments: [{ destinations: [], platform: 'Acme Pay', description: 'Order 42' }],
+      verifyUrl: 'https://guardrail.branta.pro/v2/verify/abc',
+    })
+    renderSendForm({
+      flowContext: { ...mockFlowContextValue, sendInfo: { ...emptySendInfo, recipient: uri } },
+      walletContext: {
+        ...mockWalletContextValue,
+        svcWallet: {
+          ...mockSvcWallet,
+          getAddress: () => 'tark1mockoffchain',
+          getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+        } as any,
+      },
+    })
+
+    expect(await screen.findByText('Acme Pay', {}, { timeout: 3000 })).toBeInTheDocument()
+    expect(verifyMock).toHaveBeenCalledWith(uri)
+    expect(screen.getByText('Order 42')).toBeInTheDocument()
+    expect(screen.getByText('Verified by Branta').closest('a')).toHaveAttribute(
+      'href',
+      'https://guardrail.branta.pro/v2/verify/abc',
+    )
   })
 
   it.each(['funded', 'claimed'] as const)('leaves manual C without confusing the %s external B handoff', (outcome) => {

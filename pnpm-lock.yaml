@@ -31,8 +31,8 @@ importers:
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@branta-ops/branta':
-        specifier: 3.1.3
-        version: 3.1.3
+        specifier: 4.0.5
+        version: 4.0.5
       '@fontsource-variable/geist':
         specifier: ^5.2.8
         version: 5.2.8
@@ -462,8 +462,8 @@ packages:
   '@bitcoinerlab/miniscript@2.0.0':
     resolution: {integrity: sha512-P8yyubPf6lphmIZfyD/ZbhT/umJX7zH1mKjGql7z0Qt+xuffnz2AueQqq2/01VE2rTIq80VM0oRFdJClGBYx/g==}
 
-  '@branta-ops/branta@3.1.3':
-    resolution: {integrity: sha512-rcyDBYnYD+cmvQWylJ+n3JdR65FiHP1tVPtWQMhKLmcXx56czL8Ez7+I9jy7pmLBIVwP6mS1EsUqSrvQi22v1w==}
+  '@branta-ops/branta@4.0.5':
+    resolution: {integrity: sha512-oD443iG3bQwULQju3hwO806MA+3UJGfXFFImyqb2T8C7DN2rV4GiJlOoFr2wcLMhC7gCQ90PXsrbH8fgx1E/Jw==}
 
   '@csstools/color-helpers@5.1.0':
     resolution: {integrity: sha512-S11EXWJyy0Mz5SYvRmY8nJYTFFd1LCNV+7cXyAgQtOOuzb4EsgfqDufL+9esx72/eLhsRdGZwaldu/h+E4t4BA==}
@@ -3559,7 +3559,7 @@ snapshots:
     dependencies:
       bip68: 1.0.4
 
-  '@branta-ops/branta@3.1.3': {}
+  '@branta-ops/branta@4.0.5': {}
 
   '@csstools/color-helpers@5.1.0': {}
 
