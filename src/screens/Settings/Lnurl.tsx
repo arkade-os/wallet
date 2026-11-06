@@ -15,6 +15,7 @@ import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '../../providers/language'
 import {
   configuredLnurlServer,
+  lnurlEnabled,
   lnurlRailLimits,
   useLnurlRail,
   type OnboardingChoice,
@@ -58,7 +59,7 @@ export default function Lnurl() {
   }, [svcWallet])
 
   const rail = useLnurlRail({
-    enabled: Boolean(server),
+    enabled: lnurlEnabled(config),
     identity: svcWallet?.identity,
     arkadeAddress: addresses?.arkade,
     boardingAddress: addresses?.boarding,
@@ -150,12 +151,38 @@ export default function Lnurl() {
     })
   }
 
+  const enabledToggle = (
+    <Toggle
+      checked={config.lnurl}
+      onClick={() => backupAndUpdateConfig({ ...config, lnurl: !config.lnurl })}
+      text={t('settings.lnurlEnabled')}
+      subtext={t('settings.lnurlEnabledSubtext')}
+      testId='lnurl-enabled'
+    />
+  )
+
+  if (!config.lnurl) {
+    return (
+      <>
+        <Header text={t('settings.lightningAddress')} back />
+        <Content>
+          <Padded>
+            <div className='settings-page'>
+              <section className='settings-section'>{enabledToggle}</section>
+            </div>
+          </Padded>
+        </Content>
+      </>
+    )
+  }
+
   return (
     <>
       <Header text={t('settings.lightningAddress')} back />
       <Content>
         <Padded>
           <FlexCol gap='1.25rem' className='settings-page'>
+            <section className='settings-section'>{enabledToggle}</section>
             <section className='settings-section'>
               <p className='settings-section-label'>{t('settings.lnurlYours')}</p>
               {rail.status === 'ready' ? (

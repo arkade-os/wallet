@@ -18,8 +18,6 @@ const keepEnglishTermAllowList = new Set([
   'common.total',
   'components.lnurlAddress',
   'contracts.script',
-  'delegate.feeLabel',
-  'delegate.pubkeyLabel',
   'formatting.unit',
   'mint.arkadeMint',
   'mint.max',

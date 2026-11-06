@@ -6,6 +6,8 @@ import { WalletContext } from '../../providers/wallet'
 import { consoleError } from '../logs'
 import { extractError } from '../error'
 import { SwapsHeldElsewhere } from '../swapClient'
+import { getDelegateeEncryptionPubkeyForNetwork } from '../constants'
+import type { NetworkName } from '@arkade-os/sdk'
 
 /** The solver-RFQ Lightning receive: what the Receive screen renders of it. */
 export interface SwapRail {
@@ -16,12 +18,16 @@ export interface SwapRail {
   retry: () => void
   lost: boolean
   claimError: string | undefined
+  waitingForClaim: boolean
+  claiming: boolean
+  claimNowError: string
+  claimNow: () => void
 }
 
 export function useSwapRail(enabled = true): SwapRail {
   const { aspInfo } = useContext(AspContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
-  const { receiveLightning, cancelSwap, outcomeOf, errorOf } = useContext(SwapsContext)
+  const { receiveLightning, cancelSwap, claimSwap, outcomeOf, errorOf } = useContext(SwapsContext)
   const { svcWallet } = useContext(WalletContext)
 
   const { satoshis, assetId } = recvInfo
@@ -38,6 +44,8 @@ export function useSwapRail(enabled = true): SwapRail {
   // the lock next will serve it.
   const [lnNoDriver, setLnNoDriver] = useState(false)
   const [negotiateAttempt, setNegotiateAttempt] = useState(0)
+  const [claiming, setClaiming] = useState(false)
+  const [claimNowError, setClaimNowError] = useState('')
 
   /**
    * Negotiate a Lightning receive once an amount is set.
@@ -49,7 +57,7 @@ export function useSwapRail(enabled = true): SwapRail {
    * the ark and on-chain addresses down with it.
    *
    * A solver serving the corridor is the only requirement: the swap client
-   * claims the lockup, so no covclaimd needs to be deployed or reachable for the
+   * claims the lockup, so no delegatee needs to be deployed or reachable for the
    * corridor to be offered.
    */
   useEffect(() => {
@@ -136,6 +144,18 @@ export function useSwapRail(enabled = true): SwapRail {
   // refuses to inherit the trap, and this screen is why it matters.
   const receiveLost = receiveOutcome === 'lapsed'
 
+  // Funded and still ours to claim: with delegatee configured, the swap waits for its claim.
+  const waitingForClaim =
+    receiveOutcome === 'funded' && getDelegateeEncryptionPubkeyForNetwork(aspInfo.network as NetworkName) !== undefined
+  const claimNow = () => {
+    if (!swapId || claiming) return
+    setClaiming(true)
+    setClaimNowError('')
+    claimSwap(swapId)
+      .catch((err) => setClaimNowError(extractError(err)))
+      .finally(() => setClaiming(false))
+  }
+
   return {
     generatingInvoice,
     error: lnReceiveError,
@@ -144,5 +164,9 @@ export function useSwapRail(enabled = true): SwapRail {
     retry: () => setNegotiateAttempt((n) => n + 1),
     lost: receiveLost,
     claimError,
+    waitingForClaim,
+    claiming,
+    claimNowError,
+    claimNow,
   }
 }

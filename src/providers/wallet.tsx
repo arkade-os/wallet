@@ -43,6 +43,7 @@ import { Indexer } from '../lib/indexer'
 import { lnSendViews, swapRecordResolver, type LnSendView } from '../lib/swapRecords'
 import { clearLnurlPaymentsForReset, createLnurlActivityResolver } from '../lib/lnurlPaymentRepository'
 import { createSentActivityResolver, forgetLnurlSends, resumeLnurlConfirmations } from '../lib/lnurlSends'
+import { lnurlEnabled } from '../lib/receive/lnurlRail'
 import { lnurlResyncOnPayment, syncLnurlActivity } from '../lib/lnurlActivitySync'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
@@ -53,11 +54,12 @@ import { setLoadingStatus } from '../lib/loadingStatus'
 import { hex } from '@scure/base'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { ConfigContext } from './config'
-import { defaultPassword, getDelegateUrlForNetwork, isMainnet, maxPercentage } from '../lib/constants'
+import { defaultPassword, getDelegateeUrlForNetwork, isMainnet, maxPercentage } from '../lib/constants'
 import { AssetIconApprovalManager } from '../lib/assetIconApproval'
 import { BackupContext } from './backup'
 import { getAssetSwaps } from '@arkade-os/swap/protocol'
 import { useTranslation } from '../providers/language'
+import { enableDelegation, isCurrentDelegation, sameDelegation, watchDelegation } from '../lib/delegatee'
 import { isValidUrl } from '@/lib/validators'
 
 const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
@@ -71,7 +73,7 @@ interface InitSvcWorkerWalletParams {
   identity: Identity
   retryCount?: number
   maxRetries?: number
-  delegateUrl?: string
+  delegateeUrl?: string
   walletMode?: ServiceWorkerWalletMode
   restoring?: boolean
 }
@@ -190,7 +192,7 @@ const readSwapRecordAssets = async (): Promise<string[]> => {
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { isRegistered } = useContext(AssetsContext)
-  const { initialiseNostrBackup } = useContext(BackupContext)
+  const { backupAndUpdateConfig, initialiseNostrBackup } = useContext(BackupContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { navigate } = useContext(NavigationContext)
   const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo } = useContext(FlowContext)
@@ -634,7 +636,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     identity: Identity,
     params: InitSvcWorkerWalletParams,
   ): Promise<boolean> => {
-    const { arkServerUrl, retryCount = 0, maxRetries = 2, delegateUrl, walletMode, restoring = false } = params
+    const { arkServerUrl, retryCount = 0, maxRetries = 2, delegateeUrl, walletMode, restoring = false } = params
     try {
       setLoadingStatus(t('loading.startingWallet'))
       const walletRepository = new IndexedDBWalletRepository()
@@ -673,7 +675,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         serviceWorkerPath: '/wallet-service-worker.mjs',
         identity,
         arkServer: { url: arkServerUrl },
-        delegateUrl,
+        delegateeUrl,
         walletMode: walletMode ?? config.walletMode ?? 'static',
         // Contract sync finishes in the background; the coin-event reload below repaints. Not lazyBoarding: its
         // refresh is never retried, and its UTXO_UPDATE carries every stored coin, which the receive screen reads as a payment.
@@ -746,6 +748,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // Deliberately not awaited: an unreachable lnurl-server must cost the
       // activity view its attribution, never the wallet its startup.
       const syncLnurl = async () => {
+        if (!lnurlEnabled(configRef.current)) return 0
         const arkadeAddress = await svcWallet.getAddress()
         const boardingAddress = await svcWallet.getBoardingAddress().catch(() => undefined)
         const { synced, failures } = await syncLnurlActivity(identity, arkadeAddress, { boardingAddress, signal })
@@ -839,10 +842,24 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         }
       }, 1_000)
 
-      // Renew expiring coins on startup (non-delegate mode only).
-      // When delegation is enabled, the SDK's VtxoManager auto-delegates
-      // via onContractEvent, so no wallet-side call is needed.
-      if (!config.delegate) {
+      // A delegation in config (this device or a restored backup) is watched from the
+      // wallet's key alone, enabled or not: its coins are the wallet's.
+      const delegation = configRef.current.delegation
+      if (isCurrentDelegation(delegation)) {
+        watchDelegation(svcWallet, delegation).catch((err) => consoleError(err, 'Error watching delegation'))
+      }
+      // Every startup, in the background: migrate to the delegatee, moving coins still at an older
+      // contract. The record goes to config, which is backed up, when it changes.
+      if (delegateeUrl) {
+        enableDelegation(svcWallet, aspInfo)
+          .then((delegation) => {
+            if (!sameDelegation(configRef.current.delegation, delegation)) {
+              return backupAndUpdateConfig({ ...configRef.current, delegation })
+            }
+          })
+          .catch((err) => consoleError(err, 'Error migrating to the delegatee'))
+      } else {
+        // no delegatee for this network (flag or not): the wallet renews its own VTXOs
         vtxoMgr.renewVtxos().catch(() => {})
       }
       return true
@@ -899,7 +916,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     let pubkey: string
     let walletMode: ServiceWorkerWalletMode
 
-    const delegateUrl = config.delegate ? getDelegateUrlForNetwork(network) : undefined
+    const delegateeUrl = config.delegate ? getDelegateeUrlForNetwork(network) : undefined
 
     if (credentials.mnemonic) {
       const mnemonicIdentity = MnemonicIdentity.fromMnemonic(credentials.mnemonic, { isMainnet: isMainnet(network) })
@@ -926,7 +943,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const didInit = await initSvcWorkerWallet({
       identity,
       arkServerUrl,
-      delegateUrl,
+      delegateeUrl,
       walletMode,
       restoring: credentials.restoring,
     })
@@ -957,17 +974,17 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
    * Reinitialize the service-worker wallet in-place so runtime config changes
    * (e.g., delegate on/off) take effect without forcing a lock/unlock cycle.
    * Keeps local tx/balance state; just rebuilds the SW wallet with the current
-   * delegateUrl flag.
+   * delegateeUrl flag.
    */
   const restartWallet = async (delegateEnabled = config.delegate) => {
     if (!svcWallet) return
     const identity = svcWallet.identity as Identity
     const arkServerUrl = aspInfo.url
-    const delegateUrl = delegateEnabled ? getDelegateUrlForNetwork(aspInfo.network as NetworkName) : undefined
+    const delegateeUrl = delegateEnabled ? getDelegateeUrlForNetwork(aspInfo.network as NetworkName) : undefined
     await initSvcWorkerWallet({
       identity,
       arkServerUrl,
-      delegateUrl,
+      delegateeUrl,
     })
   }
 
@@ -982,11 +999,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     reinitInProgress.current = true
     try {
       const arkServerUrl = aspInfo.url
-      const delegateUrl = config.delegate ? getDelegateUrlForNetwork(aspInfo.network as NetworkName) : undefined
+      const delegateeUrl = config.delegate ? getDelegateeUrlForNetwork(aspInfo.network as NetworkName) : undefined
       const initialized = await initSvcWorkerWallet({
         identity,
         arkServerUrl,
-        delegateUrl,
+        delegateeUrl,
       })
       if (!initialized) return
     } catch (err) {

@@ -226,6 +226,54 @@ describe('Receive screen, rail composition', () => {
     expect(server.calls('POST', '/lnurl/address')).toHaveLength(0)
   })
 
+  it('uses a swap invoice when the lnurl-server cannot mint one for the amount', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], invoiceError: 'below the corridor minimum' })
+    const invoice = fakeInvoice(10_000_000)
+    receiveLightning.mockResolvedValue({ id: 'fallback-swap', invoice, payAmount: 10_000 })
+    renderReceive(10_000, {}, {}, true)
+
+    await waitFor(() => expect(receiveLightning).toHaveBeenCalledWith(10_000))
+    await waitFor(async () => expect(await qrLightning()).toBe(invoice))
+    expect(receiveLightning).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText(/below the corridor minimum/)).not.toBeInTheDocument()
+  })
+
+  it('uses the swap rail, and no lnurl-server, when the user turned LNURL off', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    receiveLightning.mockResolvedValue({ id: 'swap-id', invoice: 'lnbc10mock' })
+    renderReceive(10_000, { lnurl: false })
+
+    await waitFor(() => expect(receiveLightning).toHaveBeenCalledWith(10_000))
+    expect(server.fetch).not.toHaveBeenCalled()
+  })
+
+  it('uses the swap rail once LNURL discovery has loaded past the grace, and keeps its invoice', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    const inner = server.fetch
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (new URL(String(input)).pathname === '/lnurl/domain') await gate
+      return inner(input, init)
+    })
+    receiveLightning.mockResolvedValue({ id: 'slow-swap', invoice: 'lnbc10slowswap', payAmount: 10_000 })
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
+    renderReceive(10_000, {}, {}, true)
+
+    expect(receiveLightning).not.toHaveBeenCalled()
+    await act(async () => vi.advanceTimersByTimeAsync(5_000))
+    await waitFor(() => expect(receiveLightning).toHaveBeenCalledWith(10_000))
+    await waitFor(async () => expect(await qrLightning()).toBe('lnbc10slowswap'))
+
+    await act(async () => release())
+    await screen.findByText('alice@lnurl.test')
+    await waitFor(() => expect(callbacks()).toHaveLength(1))
+    expect(await qrLightning()).toBe('lnbc10slowswap')
+  })
+
   it('does not negotiate a swap while LNURL discovery is still loading', async () => {
     serve({ modes: ['self'] })
     const inner = server.fetch
