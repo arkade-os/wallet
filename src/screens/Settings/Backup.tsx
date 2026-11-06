@@ -12,7 +12,7 @@ import { getPrivateKey, privateKeyToNsec } from '../../lib/privateKey'
 import { hasMnemonic, getMnemonic } from '../../lib/mnemonic'
 import { consoleError } from '../../lib/logs'
 import Shadow from '../../components/Shadow'
-import { defaultPassword } from '../../lib/constants'
+import { defaultPassword, isMainnet } from '../../lib/constants'
 import { ConfigContext } from '../../providers/config'
 import Toggle from '../../components/Toggle'
 import ErrorMessage from '../../components/Error'
@@ -26,6 +26,8 @@ import InputFake from '../../components/InputFake'
 import OkIcon from '../../icons/Ok'
 import { WalletContext } from '../../providers/wallet'
 import { authenticateUser } from '../../lib/biometrics'
+import { passkeyMnemonic } from '../../lib/passkey'
+import { PasskeyCancelled } from '@arkade-os/sdk'
 import FingerprintIcon from '../../icons/Fingerprint'
 import InputPassword from '../../components/InputPassword'
 import { useTranslation } from '../../providers/language'
@@ -38,7 +40,8 @@ export default function Backup() {
   const { toast } = useToast()
   const { t } = useTranslation()
 
-  const isMnemonicWallet = hasMnemonic()
+  const isMnemonicWallet = hasMnemonic() || Boolean(wallet.passkeyPrf)
+  const unlocksWithPasskey = wallet.lockedByBiometrics || wallet.passkeyPrf
 
   const [secret, setSecret] = useState('')
   const [error, setError] = useState('')
@@ -74,9 +77,16 @@ export default function Backup() {
   }
 
   const showPrivateKey = async () => {
-    if (!secret) {
+    if (!secret && wallet.passkeyPrf) {
+      const words = await passkeyMnemonic(wallet, isMainnet(wallet.network ?? '')).catch((err) => {
+        if (!(err instanceof PasskeyCancelled)) setError(t('unlock.passkeyFailed'))
+      })
+      if (!words) return
+      setError('')
+      setSecret(words)
+    } else if (!secret) {
       const password = wallet.lockedByBiometrics
-        ? await authenticateUser(wallet.passkeyId).catch(setError)
+        ? await authenticateUser(wallet.passkeyId, wallet.passkeyRpId).catch(setError)
         : enteredPassword.current
       if (!password) return
       const result = await verifyPassword(password)
@@ -123,10 +133,11 @@ export default function Backup() {
         </TextSecondary>
       </FlexCol>
       {!secret ? (
-        wallet.lockedByBiometrics ? (
+        unlocksWithPasskey ? (
           <FlexCol centered gap='0.5rem'>
             <FingerprintIcon />
             <Text centered>{t('unlock.unlockWithPasskey')}</Text>
+            <ErrorMessage error={Boolean(error)} text={error} />
           </FlexCol>
         ) : (
           <FlexCol gap='0.5rem' testId='backup-password-input'>
