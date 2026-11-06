@@ -27,6 +27,8 @@ export type Config = {
   receiveViaTokens: boolean
   /** Handle of the lightning address the wallet receives on, when it owns several; empty for the server default. */
   lnurlPrimary: string
+  /** Whether the LNURL rail is used when the build has an lnurl-server. */
+  lnurl: boolean
   showBalance: boolean
   dismissedBanners: string[]
   theme: Themes

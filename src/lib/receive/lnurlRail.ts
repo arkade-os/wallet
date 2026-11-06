@@ -22,6 +22,7 @@ import { consoleError } from '../logs'
 import { extractError } from '../error'
 import { fromRuntimeEnv } from '../constants'
 import { lnurlPaymentSyncStore } from '../lnurlPaymentRepository'
+import type { Config } from '../types'
 
 export { lnurlRailLimits, type LnurlRailType } from '@arkade-os/lnurl-client/arkade'
 
@@ -46,6 +47,9 @@ export const configuredLnurlServer = () => {
     return undefined
   }
 }
+
+/** The LNURL rail is used: the build has a server and the user has not turned it off. */
+export const lnurlEnabled = (config: Pick<Config, 'lnurl'>) => config.lnurl && Boolean(configuredLnurlServer())
 
 /** The facade bound to this build's server and receive identity, or undefined
  *  when unconfigured — claiming, discovery and payer routing all go through it. */

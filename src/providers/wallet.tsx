@@ -43,6 +43,7 @@ import { Indexer } from '../lib/indexer'
 import { lnSendViews, swapRecordResolver, type LnSendView } from '../lib/swapRecords'
 import { clearLnurlPaymentsForReset, createLnurlActivityResolver } from '../lib/lnurlPaymentRepository'
 import { createSentActivityResolver, forgetLnurlSends, resumeLnurlConfirmations } from '../lib/lnurlSends'
+import { lnurlEnabled } from '../lib/receive/lnurlRail'
 import { lnurlResyncOnPayment, syncLnurlActivity } from '../lib/lnurlActivitySync'
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
@@ -747,6 +748,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // Deliberately not awaited: an unreachable lnurl-server must cost the
       // activity view its attribution, never the wallet its startup.
       const syncLnurl = async () => {
+        if (!lnurlEnabled(configRef.current)) return 0
         const arkadeAddress = await svcWallet.getAddress()
         const boardingAddress = await svcWallet.getBoardingAddress().catch(() => undefined)
         const { synced, failures } = await syncLnurlActivity(identity, arkadeAddress, { boardingAddress, signal })

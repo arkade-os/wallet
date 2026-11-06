@@ -549,6 +549,9 @@ export const translations = {
       light: 'Light',
       lightningAddress: 'Lightning address',
       lnurlAddName: 'Add a name',
+      lnurlEnabled: 'Lightning address',
+      lnurlEnabledSubtext:
+        'Receive Lightning through a lightning address server. When off, Lightning payments use swaps.',
       lnurlLimits: 'What payers can send',
       lnurlNone: 'No lightning address yet.',
       lnurlPrimary: 'Primary address',
@@ -1396,6 +1399,9 @@ export const translations = {
       light: 'Claro',
       lightningAddress: 'Dirección Lightning',
       lnurlAddName: 'Añadir un nombre',
+      lnurlEnabled: 'Dirección Lightning',
+      lnurlEnabledSubtext:
+        'Recibe Lightning mediante un servidor de direcciones Lightning. Si está desactivado, los pagos Lightning usan swaps.',
       lnurlLimits: 'Lo que pueden enviar los pagadores',
       lnurlNone: 'Aún no tienes dirección Lightning.',
       lnurlPrimary: 'Dirección principal',
@@ -2247,6 +2253,9 @@ export const translations = {
       light: 'Claro',
       lightningAddress: 'Endereço Lightning',
       lnurlAddName: 'Adicionar nome LNURL',
+      lnurlEnabled: 'Endereço Lightning',
+      lnurlEnabledSubtext:
+        'Receba Lightning por um servidor de endereços Lightning. Desativado, os pagamentos Lightning usam swaps.',
       lnurlLimits: 'Limites LNURL',
       lnurlNone: 'Nenhum LNURL',
       lnurlPrimary: 'LNURL principal',

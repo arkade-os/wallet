@@ -43,7 +43,7 @@ import { AspContext } from '../../../providers/asp'
 import { AssetsContext } from '../../../providers/assets'
 import { useSwapRail } from '../../../lib/receive/swapRail'
 import SwapRailStatus from './SwapRail'
-import { configuredLnurlServer, useLnurlRail, useLnurlRails } from '../../../lib/receive/lnurlRail'
+import { lnurlEnabled, useLnurlRail, useLnurlRails } from '../../../lib/receive/lnurlRail'
 import { useLnurlTokenRails, type LnurlTokenQuote, type LnurlTokenRail } from '../../../lib/receive/lnurlTokenRails'
 import LnurlRailPanel from './LnurlRail'
 import { useTranslation } from '../../../providers/language'
@@ -53,6 +53,7 @@ import ChevronDownIcon from '../../../icons/ChevronDown'
 import XIcon from '../../../icons/X'
 
 const TOKEN = 'token:'
+const LNURL_LOADING_GRACE_MS = 5_000
 
 const railLogo = (rail: LnurlTokenRail, ring: string) => (
   <TokenOnChainLogo ticker={rail.unit.code} chainId={rail.asset?.chainId ?? ''} ring={ring} />
@@ -130,7 +131,7 @@ export default function ReceiveQRCode() {
   }, [svcWallet])
 
   // A pending Receive-screen claim must not leave a swap invoice taking the QR's lightning= from the LNURL.
-  const lnurlConfigured = Boolean(configuredLnurlServer())
+  const lnurlConfigured = lnurlEnabled(config)
   const lnurlRail = useLnurlRail({
     enabled: lnurlConfigured && !isAssetReceive,
     identity: svcWallet?.identity,
@@ -138,11 +139,13 @@ export default function ReceiveQRCode() {
     boardingAddress: recvInfo.boardingAddr || undefined,
     primary: config.lnurlPrimary,
   })
-  const swapRailOn =
-    !lnurlConfigured ||
-    lnurlRail.status === 'failed' ||
-    (lnurlRail.status === 'onboarding' && !lnurlRail.choices.includes('self'))
-  const swapRail = useSwapRail(swapRailOn)
+  // A rail still loading after the grace is treated as failed.
+  const [loadingGraceOver, setLoadingGraceOver] = useState(false)
+  useEffect(() => {
+    if (lnurlRail.status !== 'loading') return
+    const timer = setTimeout(() => setLoadingGraceOver(true), LNURL_LOADING_GRACE_MS)
+    return () => clearTimeout(timer)
+  }, [lnurlRail.status])
   const lnurl = lnurlRail.lnurl ?? ''
   const lightningAddress = lnurlRail.receiver?.lightningAddress ?? ''
   // The payment listener writes the paid amount into `satoshis`; re-quoting it would mint an invoice nobody pays.
@@ -151,6 +154,20 @@ export default function ReceiveQRCode() {
     arkade: recvInfo.offchainAddr,
     onchain: recvInfo.boardingAddr,
   })
+  const swapRailWanted =
+    !lnurlConfigured ||
+    lnurlRail.status === 'failed' ||
+    (lnurlRail.status === 'loading' && loadingGraceOver) ||
+    (lnurlRail.status === 'onboarding' && !lnurlRail.choices.includes('self')) ||
+    Boolean(lnurlRails.errors.lightning)
+  // Once the swap rail has an invoice for this amount it stays, so the QR never changes under a payer.
+  const [swapHeldFor, setSwapHeldFor] = useState(0)
+  useEffect(() => {
+    if (!recvInfo.invoice) setSwapHeldFor(0)
+    else if (swapRailWanted) setSwapHeldFor(satoshis)
+  }, [swapRailWanted, recvInfo.invoice, satoshis])
+  const swapRailOn = swapRailWanted || (satoshis > 0 && swapHeldFor === satoshis)
+  const swapRail = useSwapRail(swapRailOn)
   const tokenRails = useLnurlTokenRails(
     lnurlRail.receiver,
     requestedSats,
@@ -470,7 +487,7 @@ export default function ReceiveQRCode() {
           ) : (
             <FlexCol gap='0.5rem' centered>
               <SwapRailStatus rail={swapRail} />
-              {lnurlRails.errors.lightning ? (
+              {lnurlRails.errors.lightning && !invoice ? (
                 <TextSecondary>{t('receive.noInvoiceForAmount', { error: lnurlRails.errors.lightning })}</TextSecondary>
               ) : null}
               {showSelector ? (

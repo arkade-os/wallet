@@ -73,6 +73,21 @@ describe('Lightning address settings', () => {
     expect(screen.queryByText('Primary address')).not.toBeInTheDocument()
   })
 
+  it('turns the lightning address off, and shows only the toggle while it is off', async () => {
+    const { unmount } = renderPage({ modes: ['self'], addresses: [namedAddress('alice')] })
+    await screen.findByText('alice@lnurl.test')
+    fireEvent.click(screen.getByTestId('lnurl-enabled'))
+    expect(backupAndUpdateConfig).toHaveBeenCalledWith(expect.objectContaining({ lnurl: false }))
+    unmount()
+
+    const off = renderPage({ modes: ['self'], addresses: [namedAddress('alice')] }, { lnurl: false })
+    expect(screen.getByTestId('lnurl-enabled')).toHaveAttribute('data-checked', 'false')
+    expect(screen.queryByText('Your lightning addresses')).not.toBeInTheDocument()
+    expect(off.calls('GET', '/lnurl/domain')).toHaveLength(0)
+    fireEvent.click(screen.getByTestId('lnurl-enabled'))
+    expect(backupAndUpdateConfig).toHaveBeenLastCalledWith(expect.objectContaining({ lnurl: true }))
+  })
+
   it('uses the primary address the user chose, among several', async () => {
     renderPage({ modes: ['self'], addresses: [namedAddress('alice'), namedAddress('bob')] }, { lnurlPrimary: 'bob' })
 
