@@ -30,7 +30,7 @@ const testConnection = async (aspInfo: Pick<AspInfo, 'network' | 'signerPubkey'>
   if (!delegate) return undefined
   const info = await new RestDelegateeProvider(delegate.url).getInfo()
   checkDelegateeKeys(info, aspInfo)
-  return { ...delegate, pubkey: info.delegatePubkey, emulatorPubkey: info.emulatorPubkey }
+  return { ...delegate, pubkey: info.cosignerPubkey, emulatorPubkey: info.emulatorPubkey }
 }
 
 // hero component to explain what delegates are

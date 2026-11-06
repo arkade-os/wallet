@@ -23,21 +23,21 @@ vi.mock('@arkade-os/sdk', async (importOriginal) => ({
       return calls.info
     }
     getDelegation = async (address: string) => {
-      calls.urls.push(`${this.url}/v1/delegate/${address}`)
+      calls.urls.push(`${this.url}/v1/delegation?address=${address}`)
       return {
         delegation: { id: 1, address, status: 'active', templateId: 'ef', variables: {}, slots: [] },
-        vtxos: [
-          { outpoint: 'aa:0', amount: 1500, preconfirmed: false, assets: [], onchain: false, renewableAt: 2e9 },
-          { outpoint: 'bb:0', amount: 2000, preconfirmed: false, assets: [], onchain: false },
+        coins: [
+          { outpoint: 'aa:0', amount: 1500, status: 'present', due: 2e9 },
+          { outpoint: 'bb:0', amount: 2000, status: 'present' },
+          { outpoint: 'cc:0', amount: 9000, status: 'spent' },
         ],
-        renewals: [],
       }
     }
   },
 }))
 
 const delegation = {
-  keys: { delegatePubkey: '02', serverPubkey: '02', emulatorPubkey: '02' },
+  keys: { cosignerPubkey: '02', serverPubkey: '02', emulatorPubkey: '02' },
   params: { exitDelay: 0x400001, boardingExitDelay: 0x400002, renewalWindow: 256, maxFee: 100 },
   renewal: { address: 'tark1renewal', templateId: 'ef', variables: { owner: '02' } },
   boarding: { address: 'bcrt1pboarding', templateId: 'b0', variables: { owner: '02' } },
@@ -68,7 +68,7 @@ describe('Delegates screen', () => {
     info = {
       version: 'test',
       network: mockAspContextValue.aspInfo.network,
-      delegatePubkey: '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798',
+      cosignerPubkey: '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798',
       serverPubkey: mockDelegatesAspContextValue.aspInfo.signerPubkey,
       emulatorPubkey: getEmulatorPubkeyHexForNetwork('regtest')!,
     }
@@ -122,7 +122,7 @@ describe('Delegates screen', () => {
     expect(screen.getByText(/renewal address:/)).toBeInTheDocument()
     expect(screen.getByText(/boarding address:/)).toBeInTheDocument()
     expect(screen.getByText(/next renewal/)).toBeInTheDocument()
-    expect(calls.urls.some((u) => u.endsWith('/v1/delegate/tark1renewal'))).toBe(true)
+    expect(calls.urls.some((u) => u.endsWith('/v1/delegation?address=tark1renewal'))).toBe(true)
   })
 
   it('ignores a delegation stored under the retired templates', async () => {

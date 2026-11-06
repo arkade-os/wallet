@@ -144,10 +144,11 @@ export const isCurrentDelegation = (delegation: unknown): delegation is Delegati
 /** The renewal watch's state at the service. */
 export const getDelegationStatus = async (delegateeUrl: string, delegation: Delegation): Promise<DelegationStatus> => {
   const renewal = await new RestDelegateeProvider(delegateeUrl).getDelegation(delegation.renewal.address)
-  const due = renewal.vtxos.map((v) => v.renewableAt).filter((t): t is number => t !== undefined)
+  const present = renewal.coins.filter((c) => c.status === 'present')
+  const due = present.map((c) => c.due).filter((t): t is number => t !== undefined)
   return {
     renewal,
-    delegated: renewal.vtxos.reduce((sum, v) => sum + v.amount, 0),
+    delegated: present.reduce((sum, c) => sum + c.amount, 0),
     nextRenewal: due.length > 0 ? Math.min(...due) : undefined,
   }
 }

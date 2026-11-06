@@ -17,7 +17,7 @@ const aspInfo = { network: 'regtest', signerPubkey: SERVER } as any
 const info = {
   version: 'test',
   network: 'regtest',
-  delegatePubkey: OTHER,
+  cosignerPubkey: OTHER,
   serverPubkey: SERVER,
   emulatorPubkey: getEmulatorPubkeyHexForNetwork('regtest')!,
 }
@@ -26,7 +26,7 @@ const registration = (address: string, templateId: string) => ({
   address,
   templateId,
   variables: { owner: OTHER },
-  keys: { delegatePubkey: OTHER, serverPubkey: SERVER, emulatorPubkey: info.emulatorPubkey },
+  keys: { cosignerPubkey: OTHER, serverPubkey: SERVER, emulatorPubkey: info.emulatorPubkey },
   delegation: { id: 1, address, status: 'active', templateId, variables: {}, slots: [] },
 })
 
@@ -164,7 +164,7 @@ describe('watchDelegation', () => {
         new ArkAddress(hex.decode(SERVER).subarray(1), new Uint8Array(32).fill(1), 'tark').encode(),
       getContractManager: async () => ({ createContract }),
     } as any
-    const keys = { delegatePubkey: OTHER, serverPubkey: SERVER, emulatorPubkey: info.emulatorPubkey }
+    const keys = { cosignerPubkey: OTHER, serverPubkey: SERVER, emulatorPubkey: info.emulatorPubkey }
     await watchDelegation(wallet, { keys, params, renewal: {} as any, boarding: {} as any })
     expect(createContract.mock.calls.map(([c]: any) => c.params.template)).toEqual(['renewal', 'boarding'])
     expect(isCurrentDelegation({ boarding: {}, watch: {} })).toBe(false)
