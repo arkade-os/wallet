@@ -17,6 +17,7 @@ import { FlowContext } from '../providers/flow'
 import { WalletContext } from '../providers/wallet'
 import { ConfigContext } from '../providers/config'
 import Button from './Button'
+import NativeSigningPin from './NativeSigningPin'
 
 const ROOT_SCREENS = new Set([Pages.Wallet, Pages.Init, Pages.Unlock, Pages.Loading, Pages.Unavailable])
 
@@ -127,6 +128,7 @@ export default function NativeAppShell({ children }: { children: ReactNode }) {
       <div className='native-app-content' data-wallet-locked={authState === 'locked'}>
         {children}
       </div>
+      <NativeSigningPin unlocked={authState === 'authenticated' || authState === 'passwordless'} />
     </div>
   )
 }

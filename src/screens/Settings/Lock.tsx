@@ -16,19 +16,24 @@ import { noUserDefinedPassword } from '../../lib/privateKey'
 import { OptionsContext } from '../../providers/options'
 import { SettingsOptions } from '../../lib/types'
 import { useTranslation } from '../../providers/language'
+import { isNativeWallet } from '../../lib/nativeWallet'
 
 export default function Lock() {
   const { setOption } = useContext(OptionsContext)
   const { navigate } = useContext(NavigationContext)
-  const { lockWallet } = useContext(WalletContext)
+  const { lockWallet, wallet } = useContext(WalletContext)
   const { t } = useTranslation()
 
   const [error, setError] = useState('')
   const [noPassword, setNoPassword] = useState(true)
 
   useEffect(() => {
+    if (isNativeWallet(wallet)) {
+      setNoPassword(false)
+      return
+    }
     noUserDefinedPassword().then(setNoPassword)
-  }, [])
+  }, [wallet.signer?.type])
 
   const handleSetPassword = () => {
     setOption(SettingsOptions.Password)
@@ -53,7 +58,11 @@ export default function Lock() {
             <LockIcon big />
             <Text centered>{noPassword ? t('settings.noPasswordDefined') : t('settings.lockYourWallet')}</Text>
             <TextSecondary centered>
-              {noPassword ? t('settings.setPasswordToLock') : t('settings.lockExplanation')}
+              {isNativeWallet(wallet)
+                ? 'Hide your balances and history until you open the wallet again. The card is only needed for signing.'
+                : noPassword
+                  ? t('settings.setPasswordToLock')
+                  : t('settings.lockExplanation')}
             </TextSecondary>
           </CenterScreen>
         </Padded>

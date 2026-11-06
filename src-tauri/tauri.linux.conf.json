@@ -4,7 +4,8 @@
     "targets": ["deb", "appimage"],
     "linux": {
       "deb": {
-        "recommends": ["gnome-keyring", "xdg-desktop-portal", "xdg-desktop-portal-gtk | xdg-desktop-portal-kde"]
+        "depends": ["libpcsclite1"],
+        "recommends": ["pcscd", "gnome-keyring", "xdg-desktop-portal", "xdg-desktop-portal-gtk | xdg-desktop-portal-kde"]
       }
     }
   }

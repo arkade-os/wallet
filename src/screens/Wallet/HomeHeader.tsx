@@ -8,6 +8,7 @@ import { SettingsOptions } from '../../lib/types'
 import { hapticLight } from '../../lib/haptics'
 import { PrivacyAmount, maskedFiat } from '../../components/PrivacyAmount'
 import { useTranslation } from '../../providers/language'
+import NativeCardStatus from '../../components/NativeCardStatus'
 
 interface HomeHeaderProps {
   balance?: string
@@ -48,10 +49,13 @@ const HomeHeader = forwardRef<HTMLDivElement, HomeHeaderProps>(function HomeHead
       <div className='relative flex h-18 w-full items-center justify-between px-5'>
         <div
           ref={ref}
-          className='home-header__mobile-brand flex size-11 items-center justify-center'
+          className='home-header__mobile-brand relative flex size-11 items-center justify-center'
           style={{ visibility: logoVisible ? 'visible' : 'hidden' }}
         >
           <LogoIcon small />
+          <span className='absolute left-full top-1/2 ml-1 flex -translate-y-1/2'>
+            <NativeCardStatus />
+          </span>
         </div>
         <div className='home-header__mobile-actions flex items-center gap-1'>
           <button

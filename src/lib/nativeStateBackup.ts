@@ -657,8 +657,11 @@ function validatePayload(input: unknown): NativeStatePayload {
     if (credentials[key] !== null) {
       assert(text(credentials[key], 64 * 1024).length > 0 && bytes(credentials[key]).length >= 44)
     }
-  assert(wallet.signer === undefined)
-  assert(credentialKeys.filter((key) => credentials[key] !== null).length === 1)
+  if (wallet.signer !== undefined) {
+    const signer = record(wallet.signer)
+    assert(signer.type === 'native' && signer.publicKey === publicKey && typeof signer.name === 'string')
+    assert(credentialKeys.every((key) => credentials[key] === null))
+  } else assert(credentialKeys.filter((key) => credentials[key] !== null).length === 1)
   delete wallet.passkeyId
   wallet.lockedByBiometrics = false
   storage.wallet = JSON.stringify(wallet)

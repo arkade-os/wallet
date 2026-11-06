@@ -6,7 +6,7 @@
     "targets": "all",
     "iOS": {
       "minimumSystemVersion": "14.0",
-      "frameworks": ["AVFoundation"],
+      "frameworks": ["CoreNFC", "AVFoundation"],
       "infoPlist": "ios/Info.plist"
     }
   }

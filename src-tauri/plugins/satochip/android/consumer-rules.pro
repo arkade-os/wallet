@@ -1,0 +1,2 @@
+-keep class io.arkade.satochip.SatochipPlugin { *; }
+-keep class io.arkade.satochip.SignArgs { *; }

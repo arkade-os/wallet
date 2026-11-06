@@ -81,7 +81,7 @@
     "native:ios:prepare": "node scripts/native-cross-platform.mjs ios prepare",
     "native:ios": "node scripts/native-cross-platform.mjs ios dev",
     "native:ios:build": "node scripts/native-cross-platform.mjs ios build",
-    "test:native:platforms": "node --test scripts/native-cross-platform.check.mjs",
+    "test:native:platforms": "node --test scripts/native-cross-platform.check.mjs src-tauri/scripts/build-sidecar.check.mjs",
     "native:android:init": "tauri android init && node src-tauri/android/prepare-host.mjs",
     "test:native": "node --test scripts/native-host.check.mjs src-tauri/android/*.check.mjs",
     "native:android": "node src-tauri/android/prepare-host.mjs && tauri android dev --config src-tauri/tauri.android.conf.json",

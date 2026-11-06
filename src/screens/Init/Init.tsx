@@ -29,7 +29,9 @@ import { WalletContext } from '../../providers/wallet'
 import { DevModeContext } from '../../providers/devMode'
 import Toggle from '../../components/Toggle'
 import { useTranslation } from '../../providers/language'
+import { isNativeHost } from '../../lib/nativeBridge'
 import NativeStateBackup from '../../components/NativeStateBackup'
+import NativeCardConnectSheet from '../../components/NativeCardConnectSheet'
 
 function BulletPoint({ icon, text }: { icon: ReactElement; text: string }) {
   return (
@@ -66,6 +68,7 @@ export default function Init() {
   const prefersReduced = useReducedMotion()
   const { t } = useTranslation()
   const [error, setError] = useState(false)
+  const [cardSheetOpen, setCardSheetOpen] = useState(false)
   const [showOptions, setShowOptions] = useState(false)
   const [showCreateOptions, setShowCreateOptions] = useState(false)
   const [hdRotation, setHdRotation] = useState(false)
@@ -232,6 +235,9 @@ export default function Init() {
             pointerEvents: contentReady ? 'auto' : 'none',
           }}
         >
+          {isNativeHost() && (
+            <Button disabled={error || !aspReady} onClick={() => setCardSheetOpen(true)} label='Connect Satochip' />
+          )}
           <Button disabled={error || !aspReady} onClick={handleNewWallet} label={`+ ${t('init.createWallet')}`} />
           <Button
             disabled={error || !aspReady}
@@ -248,6 +254,14 @@ export default function Init() {
           <Button fancy disabled={error} onClick={handleOldWallet} label={t('init.restoreWallet')} secondary />
         </FlexCol>
       </SheetModal>
+      <NativeCardConnectSheet
+        isOpen={cardSheetOpen}
+        onClose={() => setCardSheetOpen(false)}
+        onConnected={() => {
+          setCardSheetOpen(false)
+          navigate(Pages.Wallet)
+        }}
+      />
       <SheetModal isOpen={showCreateOptions} onClose={() => setShowCreateOptions(false)}>
         <FlexCol gap='1rem'>
           <Text>{t('init.createWallet')}</Text>

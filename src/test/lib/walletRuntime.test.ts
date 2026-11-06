@@ -22,7 +22,7 @@ it('locks the foreground runtime by disposing resources without wiping repositor
   expect(contractClear).not.toHaveBeenCalled()
 })
 
-it('refreshes contract and boarding state through the wallet readers', async () => {
+it('refreshes contract and boarding state without touching the hardware identity', async () => {
   const runtime = Object.create(ForegroundWallet.prototype) as ForegroundWallet
   const getSpendableVtxos = vi.fn().mockResolvedValue([])
   const getBoardingUtxos = vi.fn().mockResolvedValue([])

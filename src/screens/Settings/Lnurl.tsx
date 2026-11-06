@@ -27,11 +27,30 @@ import ErrorMessage from '../../components/Error'
 import { NameForm } from '../Wallet/Receive/LnurlRail'
 import type { AddressListEntry } from '@arkade-os/lnurl-client'
 import type { NameOptions } from '@arkade-os/lnurl-client/arkade'
+import { supportsServerLnurl } from '../../lib/nativeWallet'
 
 // Kept in announcementsSeen: the explainer is a one-time notice, shown before the first opt-in only.
 export const TOKEN_EXPLAINER = 'token rails explainer'
 
 export default function Lnurl() {
+  const { wallet } = useContext(WalletContext)
+  if (supportsServerLnurl(wallet)) return <ServerLnurl />
+  return (
+    <>
+      <Header text='Lightning address' back />
+      <Content>
+        <Padded>
+          <Text wrap>Lightning addresses are unavailable with this card.</Text>
+          <TextSecondary wrap>
+            Receive using an Arkade address, Bitcoin boarding address or Lightning invoice instead.
+          </TextSecondary>
+        </Padded>
+      </Content>
+    </>
+  )
+}
+
+function ServerLnurl() {
   const { backupAndUpdateConfig } = useContext(BackupContext)
   const { config } = useContext(ConfigContext)
   const { svcWallet } = useContext(WalletContext)

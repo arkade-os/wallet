@@ -84,6 +84,8 @@ import { consoleError } from '../lib/logs'
 import { extractError } from '../lib/error'
 import { prettyNumber } from '../lib/format'
 import { toast } from '../components/Toast'
+import { isNativeWallet } from '../lib/nativeWallet'
+import { ForegroundWallet } from '../lib/walletRuntime'
 import { isNativeHost } from '../lib/nativeBridge'
 
 /** What the receive screen needs from a negotiated and driven receive. */
@@ -99,6 +101,8 @@ export interface AcceptedLnReceive {
 }
 
 interface SwapsContextProps {
+  paymentsPaused: boolean
+  resumePendingPayments: () => Promise<void>
   pauseForBackup: () => Promise<void>
   /** Spot markets — the ones this wallet builds offers on. */
   markets: DiscoveredMarket[]
@@ -140,6 +144,8 @@ const notInitialized = async (): Promise<never> => {
 }
 
 export const SwapsContext = createContext<SwapsContextProps>({
+  paymentsPaused: false,
+  resumePendingPayments: notInitialized,
   pauseForBackup: async () => {},
   markets: [],
   swapAvailable: false,
@@ -205,6 +211,8 @@ const ENDED: Partial<Record<Outcome, 'received' | 'returned' | 'lost'>> = {
 export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { dataReady, svcWallet, reloadWallet, setAssetSwaps, isVerifiedAsset, wallet } = useContext(WalletContext)
+  const hardwareWallet = isNativeWallet(wallet) || (svcWallet instanceof ForegroundWallet && svcWallet.hardwareSigner)
+  const [paymentsPaused, setPaymentsPaused] = useState(false)
 
   const [markets, setMarkets] = useState<DiscoveredMarket[]>([])
   const [emulatorPubkey, setEmulatorPubkey] = useState<Uint8Array>()
@@ -460,6 +468,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   // ------------------------------------------------------------ the client
 
   useEffect(() => {
+    setPaymentsPaused(false)
     if (!svcWallet || !aspInfo.url || !aspInfo.network || backupDrain.current?.wallet === svcWallet) return
     const network = aspInfo.network as NetworkName
     let stopped = false
@@ -494,8 +503,10 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       restoredRef.current = false
 
       const started = (async () => {
-        const client = makeSwapClient(svcWallet, network)
-        const detachLifecycle = attachNativeSwapLifecycle(client)
+        const client = makeSwapClient(svcWallet, network, hardwareWallet)
+        const detachLifecycle = attachNativeSwapLifecycle(client, hardwareWallet, () => {
+          if (!stopped && hardwareWallet) setPaymentsPaused(true)
+        })
         const dispose = client[Symbol.asyncDispose].bind(client)
         let disposing: Promise<void> | undefined
         client[Symbol.asyncDispose] = () => {
@@ -507,6 +518,13 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         }
         activeClient.current = client
         ownedClient = client
+        if (hardwareWallet) {
+          const start = client.start
+          client.start = async () => {
+            await start()
+            if (!stopped) setPaymentsPaused(false)
+          }
+        }
         client.onUpdate(({ swap, outcome }) => {
           const replay = !restoredRef.current
           applyRef.current({ swap, outcome, replay })
@@ -522,6 +540,10 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         try {
           await client.ready
           restoredRef.current = true
+          if (hardwareWallet && !stopped) {
+            const restored = await client.swaps()
+            if (!stopped) setPaymentsPaused(restored.some((swap) => !ENDED[swap.outcome] && swap.outcome !== 'failed'))
+          }
         } finally {
           await reloadRef.current().catch(consoleError)
         }
@@ -587,7 +609,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     // and its cache writes overwrite the entry the market read above serves
     // from. Rebuilding is the same stop and restore an unlock goes through.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [svcWallet, aspInfo.url, aspInfo.network, cardsVersion])
+  }, [svcWallet, aspInfo.url, aspInfo.network, cardsVersion, hardwareWallet])
 
   /**
    * The client, for the tab that holds it.
@@ -615,10 +637,18 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     stopForBackup.current?.()
     stopMarkets.current?.()
     stopMarkets.current = undefined
+    setPaymentsPaused(true)
     const disposal = client?.[Symbol.asyncDispose]()
     const promise = Promise.all([started?.catch(() => undefined), disposal]).then(() => undefined)
     backupDrain.current = { wallet: svcWallet, promise }
     return promise
+  }
+
+  const resumePendingPayments = async () => {
+    const client = await driving()
+    await client.start()
+    await refreshSwaps()
+    reloadRef.current().catch(consoleError)
   }
 
   const assertNotBackingUp = () => {
@@ -946,6 +976,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const swapAvailable = markets.length > 0 && Boolean(emulatorPubkey)
   const value = useMemo(
     () => ({
+      paymentsPaused,
+      resumePendingPayments,
       pauseForBackup,
       markets,
       swapAvailable,
@@ -974,6 +1006,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       aspInfo.dust,
       outcomeOf,
       errorOf,
+      paymentsPaused,
     ],
   )
 

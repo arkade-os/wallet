@@ -64,26 +64,6 @@ const start = () =>
   })
 
 describe('secure storage bootstrap recovery', () => {
-  it('preserves an unsupported stored wallet before opening secrets or mounting onboarding', async () => {
-    const wallet = JSON.stringify({
-      nextRollover: 0,
-      pubkey: `02${'11'.repeat(32)}`,
-      signer: { type: 'native', publicKey: `02${'11'.repeat(32)}`, name: 'External signer' },
-    })
-    localStorage.setItem('wallet', wallet)
-    localStorage.setItem('encrypted_mnemonic', 'existing encrypted credential')
-    mocks.initialize.mockResolvedValue(undefined)
-
-    await start()
-
-    expect(mocks.initialize).not.toHaveBeenCalled()
-    expect(mocks.appMounts).toBe(0)
-    expect(screen.getByRole('alert')).toHaveTextContent('This build does not support the stored wallet')
-    expect(screen.queryByRole('button')).not.toBeInTheDocument()
-    expect(localStorage.getItem('wallet')).toBe(wallet)
-    expect(localStorage.getItem('encrypted_mnemonic')).toBe('existing encrypted credential')
-  })
-
   it('retries storage in place and keeps wallet providers closed until access succeeds', async () => {
     let unlock!: () => void
     const unlocked = new Promise<void>((resolve) => {

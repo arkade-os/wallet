@@ -1,6 +1,6 @@
 # iOS wallet services
 
-This static Tauri plugin keeps the existing wallet frontend and SDK. It supplies the shared wallet command protocol through Keychain, UIKit clipboard and share sheets, and document pickers.
+This static Tauri plugin keeps the existing wallet frontend and SDK. It supplies the Android wallet command protocol through Keychain, UIKit clipboard and share sheets, and document pickers. PIN and Satochip NFC belong to the separate signer plugin.
 
 The two encrypted wallet slots use `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` with synchronization disabled. No plaintext fallback exists. `Library` (including WebKit and application databases) and `Documents` are excluded from automatic system backups when the plugin loads and resumes. Users recover through the wallet's explicit encrypted backup flow. Those encrypted exports are bounded to 32 MiB and validated before any temporary file is written; imported files are bounded and validated before returning them to Rust for a second validation.
 
