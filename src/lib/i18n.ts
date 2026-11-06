@@ -244,6 +244,14 @@ export const translations = {
       logInWithPasskey: 'Log in with passkey',
       passkeyFailed: "Couldn't use that passkey. Try again, or create a wallet without one.",
       passkeyHasNoWords: "That passkey doesn't hold a wallet. Restore with your recovery phrase.",
+      passkeyIntro:
+        'Your device will ask you to save a passkey, then to use it once more to open the wallet. If it keeps saying "Try again", press Cancel.',
+      waitingForPasskey: 'Waiting for your passkey…',
+      passkeyNoKeysTitle: "This device can't make wallet keys from a passkey",
+      passkeyNoKeys:
+        "The passkey was saved, but it can't create your wallet's keys here. Instead it will lock a recovery phrase that stays on this device. Back up that phrase: the passkey alone won't restore this wallet anywhere else.",
+      continueWithPasskey: 'Continue with this passkey',
+      passkeyNotUsed: 'No wallet was created. You can delete the passkey "{name}" from your device settings.',
       goToWallet: 'Go to wallet',
       newWalletLive: 'Your new wallet is live!',
       otherLoginOptions: 'Other login options',
@@ -1092,6 +1100,14 @@ export const translations = {
       logInWithPasskey: 'Entrar con passkey',
       passkeyFailed: 'No se pudo usar esa passkey. Vuelve a intentarlo o crea una wallet sin ella.',
       passkeyHasNoWords: 'Esa passkey no contiene una wallet. Restaura con tu frase de recuperación.',
+      passkeyIntro:
+        'Tu dispositivo te pedirá guardar una passkey y luego usarla una vez más para abrir la wallet. Si sigue diciendo "Intentar de nuevo", pulsa Cancelar.',
+      waitingForPasskey: 'Esperando tu passkey…',
+      passkeyNoKeysTitle: 'Este dispositivo no puede crear las claves de la wallet con una passkey',
+      passkeyNoKeys:
+        'La passkey se guardó, pero aquí no puede crear las claves de tu wallet. En su lugar, protegerá una frase de recuperación guardada solo en este dispositivo. Haz una copia de esa frase: la passkey sola no restaurará esta wallet en otro lugar.',
+      continueWithPasskey: 'Continuar con esta passkey',
+      passkeyNotUsed: 'No se creó ninguna wallet. Puedes borrar la passkey "{name}" en los ajustes de tu dispositivo.',
       goToWallet: 'Ir a la wallet',
       newWalletLive: '¡Tu nueva wallet está lista!',
       otherLoginOptions: 'Otras opciones de acceso',
@@ -1944,6 +1960,15 @@ export const translations = {
       logInWithPasskey: 'Entrar com chave de acesso',
       passkeyFailed: 'Não foi possível usar essa chave de acesso. Tente de novo ou crie uma carteira sem ela.',
       passkeyHasNoWords: 'Essa chave de acesso não contém uma carteira. Restaure com sua frase de recuperação.',
+      passkeyIntro:
+        'Seu dispositivo vai pedir para salvar uma chave de acesso e depois usá-la mais uma vez para abrir a carteira. Se continuar dizendo "Tentar novamente", toque em Cancelar.',
+      waitingForPasskey: 'Aguardando sua chave de acesso…',
+      passkeyNoKeysTitle: 'Este dispositivo não consegue criar as chaves da carteira com uma chave de acesso',
+      passkeyNoKeys:
+        'A chave de acesso foi salva, mas aqui ela não consegue criar as chaves da sua carteira. Em vez disso, ela vai proteger uma frase de recuperação guardada só neste dispositivo. Faça backup dessa frase: a chave de acesso sozinha não restaura esta carteira em outro lugar.',
+      continueWithPasskey: 'Continuar com esta chave de acesso',
+      passkeyNotUsed:
+        'Nenhuma carteira foi criada. Você pode apagar a chave de acesso "{name}" nas configurações do dispositivo.',
       goToWallet: 'Ir para a carteira',
       newWalletLive: 'Sua nova carteira está pronta!',
       otherLoginOptions: 'Outras opções de acesso',

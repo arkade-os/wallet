@@ -81,18 +81,27 @@ describe('Init screen — passkey wallets', () => {
 
   beforeEach(() => {
     localStorage.clear()
+    vi.clearAllMocks()
     Object.defineProperty(navigator, 'credentials', { value: {}, configurable: true })
   })
 
-  it('creates a wallet whose words come from a new passkey, storing no password', async () => {
+  const startPasskeyWallet = async () => {
+    fireEvent.click(screen.getByText('Create with passkey'))
+    expect(await screen.findByText(/press Cancel/)).toBeInTheDocument()
+    expect(createPasskeyWallet).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Create passkey' }))
+  }
+
+  it('explains the prompts first, then creates a wallet whose words come from the new passkey', async () => {
     vi.mocked(createPasskeyWallet).mockResolvedValue({
       prf: true,
       mnemonic: words,
       passkeyId: 'ab',
       passkeyRpId: 'localhost',
+      passkeyName: 'Arkade wallet · ab12cd34',
     })
     const { navigate, setInitInfo, updateWallet } = renderWithSpies()
-    fireEvent.click(screen.getByText('Create with passkey'))
+    await startPasskeyWallet()
     await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.InitConnect))
     expect(updateWallet).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -108,16 +117,23 @@ describe('Init screen — passkey wallets', () => {
     expect(setInitInfo.mock.calls.at(-1)?.[0]).not.toHaveProperty('password')
   })
 
-  it('falls back to the same passkey as an unlock key when the authenticator has no PRF', async () => {
-    vi.mocked(createPasskeyWallet).mockResolvedValue({
-      prf: false,
-      mnemonic: words,
-      password: 'cafe',
-      passkeyId: 'ab',
-      passkeyRpId: 'localhost',
-    })
+  const fallback = {
+    prf: false as const,
+    mnemonic: words,
+    password: 'cafe',
+    passkeyId: 'ab',
+    passkeyRpId: 'localhost',
+    passkeyName: 'Arkade wallet · ab12cd34',
+  }
+
+  it('asks before falling back when the passkey cannot derive the wallet keys', async () => {
+    vi.mocked(createPasskeyWallet).mockResolvedValue(fallback)
     const { navigate, setInitInfo, updateWallet } = renderWithSpies()
-    fireEvent.click(screen.getByText('Create with passkey'))
+    await startPasskeyWallet()
+    expect(await screen.findByText(/stays on this device/)).toBeInTheDocument()
+    expect(navigate).not.toHaveBeenCalled()
+    expect(updateWallet).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Continue with this passkey' }))
     await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.InitConnect))
     expect(updateWallet).toHaveBeenCalledWith(
       expect.objectContaining({ lockedByBiometrics: true, passkeyId: 'ab', passkeyRpId: 'localhost' }),
@@ -125,6 +141,17 @@ describe('Init screen — passkey wallets', () => {
     expect(setInitInfo).toHaveBeenCalledWith(
       expect.objectContaining({ mnemonic: words, password: 'cafe', restoring: false }),
     )
+  })
+
+  it('creates nothing when the fallback is declined, and names the passkey left behind', async () => {
+    vi.mocked(createPasskeyWallet).mockResolvedValue(fallback)
+    const { navigate, updateWallet } = renderWithSpies()
+    await startPasskeyWallet()
+    await screen.findByText(/stays on this device/)
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(await screen.findByText(/Arkade wallet · ab12cd34/)).toBeInTheDocument()
+    expect(navigate).not.toHaveBeenCalled()
+    expect(updateWallet).not.toHaveBeenCalled()
   })
 
   it('logs in on a new device from a passkey alone', async () => {

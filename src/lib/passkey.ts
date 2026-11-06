@@ -12,7 +12,7 @@ export const passkeyRpId = (hostname: string = window.location.hostname): string
  * stored; without it the same passkey's user handle is the password that encrypts random words,
  * as the existing biometrics unlock does.
  */
-export type PasskeyWallet = { mnemonic: string; passkeyId: string; passkeyRpId: string } & (
+export type PasskeyWallet = { mnemonic: string; passkeyId: string; passkeyRpId: string; passkeyName: string } & (
   | { prf: true }
   | { prf: false; password: string }
 )
@@ -23,16 +23,23 @@ export async function createPasskeyWallet(
   rpId: string = passkeyRpId(),
 ): Promise<PasskeyWallet> {
   const handle = crypto.getRandomValues(new Uint8Array(21))
+  const passkeyName = `Arkade wallet · ${hex.encode(handle).slice(0, 8)}`
   try {
     const made = await MnemonicIdentity.createPasskey({
       rp: { id: rpId, name: 'Arkade' },
       // Unique: some authenticators silently replace a passkey with the same name for the same site.
-      userName: `Arkade wallet · ${hex.encode(handle).slice(0, 8)}`,
+      userName: passkeyName,
       userId: handle,
       client,
       isMainnet,
     })
-    return { prf: true, mnemonic: made.mnemonic, passkeyId: hex.encode(made.credentialId), passkeyRpId: rpId }
+    return {
+      prf: true,
+      mnemonic: made.mnemonic,
+      passkeyId: hex.encode(made.credentialId),
+      passkeyRpId: rpId,
+      passkeyName,
+    }
   } catch (e) {
     if (!(e instanceof PrfUnavailable) || !e.credentialId) throw e
     return {
@@ -41,6 +48,7 @@ export async function createPasskeyWallet(
       password: hex.encode(handle),
       passkeyId: hex.encode(e.credentialId),
       passkeyRpId: rpId,
+      passkeyName,
     }
   }
 }

@@ -16,7 +16,7 @@ import FlexCol from '../../components/FlexCol'
 import SheetModal from '../../components/SheetModal'
 import { defaultPassword, isMainnet } from '../../lib/constants'
 import { isBiometricsSupported } from '../../lib/biometrics'
-import { createPasskeyWallet, loginWithPasskey } from '../../lib/passkey'
+import { createPasskeyWallet, loginWithPasskey, type PasskeyWallet } from '../../lib/passkey'
 import { consoleError } from '../../lib/logs'
 import { OnboardStaggerChild } from '../../components/OnboardLoadIn'
 import { motion } from 'framer-motion'
@@ -71,6 +71,7 @@ export default function Init() {
   const [showOptions, setShowOptions] = useState(false)
   const [showCreateOptions, setShowCreateOptions] = useState(false)
   const [passkeyError, setPasskeyError] = useState('')
+  const [passkeyStep, setPasskeyStep] = useState<'intro' | 'waiting' | PasskeyWallet | null>(null)
   const [hdRotation, setHdRotation] = useState(false)
   const [contentReady, setContentReady] = useState(prefersReduced)
   const [sunriseVisible, setSunriseVisible] = useState(prefersReduced)
@@ -109,23 +110,37 @@ export default function Init() {
     setPasskeyError(err instanceof PrfUnavailable ? t('init.passkeyHasNoWords') : t('init.passkeyFailed'))
   }
 
+  const finishPasskeyWallet = (made: PasskeyWallet) => {
+    const { passkeyId, passkeyRpId } = made
+    if (made.prf) {
+      updateWallet({ ...wallet, passkeyPrf: true, passkeyId, passkeyRpId, lockedByBiometrics: false })
+      setInitInfo({ mnemonic: made.mnemonic, passkeyPrf: true, restoring: false, walletMode: 'static' })
+    } else {
+      updateWallet({ ...wallet, lockedByBiometrics: true, passkeyId, passkeyRpId })
+      setInitInfo({ mnemonic: made.mnemonic, password: made.password, restoring: false, walletMode: 'static' })
+    }
+    navigate(Pages.InitConnect)
+  }
+
   const handlePasskeyWallet = async () => {
     setPasskeyError('')
+    setPasskeyStep('waiting')
     try {
       const made = await createPasskeyWallet(isMainnet(aspInfo.network))
-      const { passkeyId, passkeyRpId } = made
-      if (made.prf) {
-        updateWallet({ ...wallet, passkeyPrf: true, passkeyId, passkeyRpId, lockedByBiometrics: false })
-        setInitInfo({ mnemonic: made.mnemonic, passkeyPrf: true, restoring: false, walletMode: 'static' })
-      } else {
-        updateWallet({ ...wallet, lockedByBiometrics: true, passkeyId, passkeyRpId })
-        setInitInfo({ mnemonic: made.mnemonic, password: made.password, restoring: false, walletMode: 'static' })
-      }
-      navigate(Pages.InitConnect)
+      if (made.prf) return finishPasskeyWallet(made)
+      // Never fall back silently: this passkey can't restore the wallet anywhere else.
+      setPasskeyStep(made)
     } catch (err) {
+      setPasskeyStep(null)
       passkeyFailure(err)
     }
   }
+
+  const declinePasskeyFallback = (made: PasskeyWallet) => {
+    setPasskeyStep(null)
+    setPasskeyError(t('init.passkeyNotUsed', { name: made.passkeyName }))
+  }
+  const fallbackWallet = typeof passkeyStep === 'object' ? passkeyStep : null
 
   const handlePasskeyLogin = async () => {
     setPasskeyError('')
@@ -277,7 +292,7 @@ export default function Init() {
           {isBiometricsSupported() ? (
             <Button
               disabled={error || !aspReady}
-              onClick={handlePasskeyWallet}
+              onClick={() => setPasskeyStep('intro')}
               label={t('init.createWithPasskey')}
               secondary
             />
@@ -299,6 +314,30 @@ export default function Init() {
             <Button disabled={error} onClick={handlePasskeyLogin} label={t('init.logInWithPasskey')} secondary />
           ) : null}
         </FlexCol>
+      </SheetModal>
+      <SheetModal
+        isOpen={passkeyStep === 'intro' || passkeyStep === 'waiting'}
+        onClose={() => passkeyStep === 'intro' && setPasskeyStep(null)}
+      >
+        <FlexCol gap='1rem'>
+          <Text>{t('init.createWithPasskey')}</Text>
+          <Text color='neutral-800' thin wrap>
+            {passkeyStep === 'waiting' ? t('init.waitingForPasskey') : t('init.passkeyIntro')}
+          </Text>
+          <Button loading={passkeyStep === 'waiting'} onClick={handlePasskeyWallet} label={t('init.createPasskey')} />
+        </FlexCol>
+      </SheetModal>
+      <SheetModal isOpen={!!fallbackWallet} onClose={() => fallbackWallet && declinePasskeyFallback(fallbackWallet)}>
+        {fallbackWallet ? (
+          <FlexCol gap='1rem'>
+            <Text wrap>{t('init.passkeyNoKeysTitle')}</Text>
+            <Text color='neutral-800' thin wrap>
+              {t('init.passkeyNoKeys')}
+            </Text>
+            <Button onClick={() => finishPasskeyWallet(fallbackWallet)} label={t('init.continueWithPasskey')} />
+            <Button onClick={() => declinePasskeyFallback(fallbackWallet)} label={t('common.cancel')} secondary />
+          </FlexCol>
+        ) : null}
       </SheetModal>
       <SheetModal isOpen={showCreateOptions} onClose={() => setShowCreateOptions(false)}>
         <FlexCol gap='1rem'>

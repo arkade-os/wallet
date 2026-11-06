@@ -100,9 +100,10 @@ describe('passkey wallets', () => {
 
   it('gives each passkey its own user name, since some authenticators replace a passkey with the same one', async () => {
     const client = new FakeAuthenticator()
-    await createPasskeyWallet(false, client, 'localhost')
+    const made = await createPasskeyWallet(false, client, 'localhost')
     await createPasskeyWallet(false, client, 'localhost')
     expect(client.held[0].userName).not.toBe(client.held[1].userName)
+    expect(made.passkeyName).toBe(client.held[0].userName)
   })
 
   it('signs in on a new device from the passkey alone, and refuses a passkey that only unlocks local words', async () => {
