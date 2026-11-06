@@ -45,7 +45,7 @@ pnpm start
 ```
 
 Open http://localhost:3002 and enable **Settings → Delegates → Use default Arkade delegate**.
-The SDK is embedded in `vendor/arkade-os-sdk-0.5.0-rc.18-delegatee.tgz`; `pnpm install` uses it
+The SDK is embedded in `vendor/arkade-os-sdk-0.5.3-delegatee.tgz`; `pnpm install` uses it
 for both the wallet and its dependencies.
 At every startup with delegation on, the wallet checks the delegatee's server and emulator keys,
 registers the delegatee's default templates for the wallet key (`renewal.json` for VTXOs,

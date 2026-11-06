@@ -65,7 +65,7 @@ export const getSolverRegistryUrl = (network: Network): string =>
 // The x-only key of the arkade signer co-signing swap covenants (a separate
 // service from arkd). This is a fact about the SOLVER's deployment, not a
 // value the client may look up: clients have no network path to the emulator,
-// only the solver and covclaimd do, so `@arkade-os/swap` deliberately neither
+// only the solver and delegatee do, so `@arkade-os/swap` deliberately neither
 // fetches nor verifies it (arkade-os/ts-sdk#691) and takes it from the caller.
 //
 // This table is now the FALLBACK, not the only source. A corridor market whose
@@ -159,21 +159,23 @@ export const getDelegateForNetwork = (network: NetworkName): Delegate | undefine
   }
 }
 
-// covclaimd — the service that could claim a Lightning-receive lockup for an OFFLINE wallet
+// delegatee — the service that can claim a Lightning-receive lockup for an OFFLINE wallet.
+// The key is the one the preimage is sealed to (GET /v1/info, `encryption_pubkey`).
 
-const COVCLAIMD_PUBKEY: Record<NetworkName, string | null> = {
+const DELEGATEE_ENCRYPTION_PUBKEY: Record<NetworkName, string | null> = {
   bitcoin: null,
-  // comes from GET https://covclaimd.mutinynet.arkade.sh/v1/preimage/covclaimd-pubkey
-  mutinynet: '034eb1f33220c697a5eab424e9f3b053760fa635f7bd9cc39c15bcecd30b5bf59d',
-  // comes from GET http://localhost:7271/v1/preimage/covclaimd-pubkey
-  regtest: '037af11787d87ee1d23ff47b61456d0159572abf1ae6f43ec816a9d605199b0b49',
+  // comes from GET https://delegatee.mutinynet.arkade.sh/v1/info
+  mutinynet: '03547d18ac1f93d337a003a8c73659b9c79da8489041608473ff813a2d1b11c66d',
+  // comes from GET http://localhost:7280/v1/info
+  regtest: '02763418489708ada7d1baed0fbc14a409174ab2013d6c2d717b66645bfe62f395',
   signet: null,
   testnet: null,
 }
 
-// Undefined where no covclaimd is configured, so nothing is sealed and no
-// claim_packet is sent. A stand-in key seals a packet nobody can ever open.
-export const getCovclaimdPubkeyForNetwork = (network: NetworkName): string | undefined => {
-  const pubkey = fromRuntimeEnv(import.meta.env.VITE_COVCLAIMD_PUBKEY) ?? COVCLAIMD_PUBKEY[network]
+// Undefined where no delegatee is configured, so nothing is sealed and no
+// claim packet is sent. A stand-in key seals a packet nobody can ever open.
+export const getDelegateeEncryptionPubkeyForNetwork = (network: NetworkName): string | undefined => {
+  const pubkey =
+    fromRuntimeEnv(import.meta.env.VITE_DELEGATEE_ENCRYPTION_PUBKEY) ?? DELEGATEE_ENCRYPTION_PUBKEY[network]
   return pubkey && COMPRESSED_PUBKEY_HEX.test(pubkey) ? pubkey : undefined
 }

@@ -49,7 +49,7 @@ export function useSwapRail(enabled = true): SwapRail {
    * the ark and on-chain addresses down with it.
    *
    * A solver serving the corridor is the only requirement: the swap client
-   * claims the lockup, so no covclaimd needs to be deployed or reachable for the
+   * claims the lockup, so no delegatee needs to be deployed or reachable for the
    * corridor to be offered.
    */
   useEffect(() => {

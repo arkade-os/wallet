@@ -59,7 +59,7 @@ describe('electrumProvider', () => {
         for (const [options] of factory.mock.calls) {
           expect(options).toEqual(
             expect.objectContaining({
-              onchainProvider: electrumProvider('regtest'),
+              onchainProvider: electrumProvider,
               lazyInitialization: true,
               delegateeProvider: expect.anything(),
             }),

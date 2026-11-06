@@ -33,7 +33,7 @@ import { createSwapClient, type SwapClient, type SwapClientConfig } from '@arkad
 import { corridorRecordStore, type OnchainClaim } from '@arkade-os/swap/advanced'
 import { chainSourceFrom, claimOnchainFill, preimageForSwapRecord, rfqClaimSecretOf } from '@arkade-os/swap/protocol'
 import { claimFeeRate } from './claimFee'
-import { getCovclaimdPubkeyForNetwork, getEmulatorPubkeyOverrideForNetwork } from './constants'
+import { getDelegateeEncryptionPubkeyForNetwork, getEmulatorPubkeyOverrideForNetwork } from './constants'
 import { electrumProvider } from './electrum'
 import { toInvoiceFacts } from './lnSwap'
 import { l1NetworkOf, onchainClaimEndpoint } from './onchainPayout'
@@ -95,6 +95,11 @@ const onchainClaim = (wallet: SwapClientConfig['wallet'], network: NetworkName):
   }
 }
 
+const delegateeOverride = (network: NetworkName) => {
+  const encryptionPubkey = getDelegateeEncryptionPubkeyForNetwork(network)
+  return encryptionPubkey ? { encryptionPubkey } : undefined
+}
+
 export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: NetworkName): SwapClient =>
   createSwapClient({
     wallet,
@@ -111,9 +116,7 @@ export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: Netw
         // network or an already-expired invoice, and skipping that is what loses
         // the payment.
         decode: (bolt11) => toInvoiceFacts(bolt11, network),
-        covclaimd: getCovclaimdPubkeyForNetwork(network)
-          ? { pubkey: getCovclaimdPubkeyForNetwork(network)! }
-          : undefined,
+        delegatee: delegateeOverride(network),
       },
     },
     // Compressed hex only: the package cannot re-add an 02/03 prefix to an
