@@ -18,6 +18,18 @@ export default function SwapRailStatus({ rail }: { rail: SwapRail }) {
       ) : rail.claimError ? (
         <ErrorMessage error text={t('receive.claimFailed', { error: rail.claimError })} />
       ) : null}
+      {rail.waitingForClaim ? (
+        <FlexCol gap='0.25rem' centered>
+          <TextSecondary>{t('receive.waitingForClaim')}</TextSecondary>
+          <Button
+            label={rail.claiming ? t('receive.claiming') : t('receive.claimNow')}
+            onClick={rail.claimNow}
+            disabled={rail.claiming}
+            secondary
+          />
+          {rail.claimNowError ? <ErrorMessage error text={rail.claimNowError} /> : null}
+        </FlexCol>
+      ) : null}
       {rail.error ? (
         <FlexCol gap='0.25rem' centered>
           <TextSecondary>

@@ -110,6 +110,9 @@ interface SwapsContextProps {
    * deposit went home; throws `SwapDriveRefusedError` (by `name` across tabs) or
    * the round's own error. */
   recoverSwap: (id: string) => Promise<boolean>
+  /** Claim a funded lightning receive now instead of waiting for delegatee. Throws
+   * `SwapDriveRefusedError` (by `name` across tabs) for a swap that is not claimable. */
+  claimSwap: (id: string) => Promise<void>
   /** Negotiate a payment. Nothing is funded: the pay screen accepts. */
   quotePay: (destination: string) => Promise<Quote>
   /** Fund it — which IS the acceptance. Resolves with the funding txid. */
@@ -146,6 +149,7 @@ export const SwapsContext = createContext<SwapsContextProps>({
   exchange: notInitialized,
   cancelSwap: notInitialized,
   recoverSwap: notInitialized,
+  claimSwap: notInitialized,
   quotePay: notInitialized,
   acceptPay: notInitialized,
   receiveLightning: notInitialized,
@@ -612,6 +616,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         return cancelSwapHere(args[0] as string)
       case 'recoverSwap':
         return recoverSwapHere(args[0] as string)
+      case 'claimSwap':
+        return claimSwapHere(args[0] as string)
       case 'quotePay':
         return quotePayHere(args[0] as string)
       case 'acceptPay':
@@ -718,6 +724,15 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     await refreshSwaps()
     reloadRef.current().catch(consoleError)
     return recovered
+  }
+
+  const claimSwap = (id: string): Promise<void> => runOnDriver('claimSwap', [id])
+
+  const claimSwapHere = async (id: string): Promise<void> => {
+    const client = await driving()
+    await client.claim(id as AssetSwapId)
+    await refreshSwaps()
+    reloadRef.current().catch(consoleError)
   }
 
   // ------------------------------------------------------------- payments
@@ -880,6 +895,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       exchange,
       cancelSwap,
       recoverSwap,
+      claimSwap,
       quotePay,
       acceptPay,
       receiveLightning,
