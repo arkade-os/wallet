@@ -10,6 +10,8 @@ export interface InitInfo {
   mnemonic?: string
   restoring?: boolean
   walletMode?: ServiceWorkerWalletMode
+  /** The words come from a passkey and are derived again on each unlock, so they are never stored. */
+  passkeyPrf?: boolean
 }
 
 export interface NoteInfo {

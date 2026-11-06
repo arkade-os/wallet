@@ -1,4 +1,5 @@
 import { useContext, useState } from 'react'
+import { PasskeyCancelled } from '@arkade-os/sdk'
 import { WalletContext } from '../../providers/wallet'
 import { consoleError } from '../../lib/logs'
 import NeedsPassword from '../../components/NeedsPassword'
@@ -8,7 +9,7 @@ import { useTranslation } from '../../providers/language'
 
 export default function Unlock() {
   const { navigate } = useContext(NavigationContext)
-  const { unlockWallet } = useContext(WalletContext)
+  const { unlockWallet, unlockWithPasskey } = useContext(WalletContext)
   const { t } = useTranslation()
 
   const [error, setError] = useState('')
@@ -30,6 +31,20 @@ export default function Unlock() {
     }
   }
 
+  const handlePasskey = async () => {
+    setError('')
+    setUnlocking(true)
+    try {
+      await unlockWithPasskey()
+      navigate(Pages.Wallet)
+    } catch (err) {
+      setUnlocking(false)
+      if (err instanceof PasskeyCancelled) return
+      consoleError(err, 'error unlocking wallet with passkey')
+      setError(t('unlock.passkeyFailed'))
+    }
+  }
+
   // While unlocking, render nothing — the boot animation from App.tsx
   // covers this loading state visually.
   if (unlocking) return null
@@ -37,7 +52,7 @@ export default function Unlock() {
   return (
     <>
       <Header text={t('unlock.title')} />
-      <NeedsPassword error={error} onPassword={handleUnlock} />
+      <NeedsPassword error={error} onPassword={handleUnlock} onPasskey={handlePasskey} />
     </>
   )
 }
