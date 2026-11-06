@@ -1,5 +1,5 @@
-import { Asset, ESPLORA_URL, EsploraProvider, NetworkName } from '@arkade-os/sdk'
-import { getRestApiExplorerURL } from './explorers'
+import { Asset, ELECTRUM_WS_URL, NetworkName, OnchainProvider } from '@arkade-os/sdk'
+import { electrumProvider } from './electrum'
 import { consoleError } from './logs'
 import { readAllTransactionActivityMetadata, saveTransactionActivityMetadata } from './storage'
 import type { Vtxo } from './types'
@@ -21,18 +21,10 @@ export interface ExitRecord {
   exitedAt: number
 }
 
-/**
- * Esplora for `network`, or undefined when we cannot name one.
- *
- * `explorers.ts` has no `api` entry for mainnet, and `EsploraProvider`'s own
- * constructor default is the mainnet URL — which would be right on mainnet by
- * coincidence and wrong on every other network. So the SDK's per-network table
- * is the fallback, never the constructor's.
- */
-const exitProvider = (network?: string): EsploraProvider | undefined => {
+/** Electrum for `network`, or undefined when the SDK names no endpoint for it. */
+const exitProvider = (network?: string): OnchainProvider | undefined => {
   const name = network as NetworkName | undefined
-  const url = name ? (getRestApiExplorerURL(name) ?? ESPLORA_URL[name]) : undefined
-  return url ? new EsploraProvider(url) : undefined
+  return name && ELECTRUM_WS_URL[name] ? electrumProvider(name) : undefined
 }
 
 /**
@@ -53,9 +45,9 @@ const receivedAt = (vtxo: Vtxo): number => {
 /**
  * How long one lookup may hold the reload before we give up on it.
  *
- * Esplora is reached with a plain `fetch`, which has no timeout of its own, and
- * `getTxStatus` takes no signal to pass one down. A host that accepts the
- * connection and then never answers is therefore unbounded, and `reloadWallet`
+ * The Electrum client waits for its socket to connect with no timeout of its own,
+ * and `getTxStatus` takes no signal to pass one down. A host that is never
+ * reached is therefore unbounded, and `reloadWallet`
  * awaits this before it commits anything — so on a first load it would park the
  * wallet on the loading screen indefinitely, with no error and no retry.
  *
@@ -69,7 +61,7 @@ const LOOKUP_TIMEOUT_MS = 5_000
 /** The exit tx's confirmation time in unix seconds, or undefined while it is
  * unconfirmed, the lookup fails, or it outlives `LOOKUP_TIMEOUT_MS`. Never
  * throws: the caller runs inside the reload whose catch blocks first load. */
-const confirmedAt = async (provider: EsploraProvider, txid: string): Promise<number | undefined> => {
+const confirmedAt = async (provider: OnchainProvider, txid: string): Promise<number | undefined> => {
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
     const status = await Promise.race([

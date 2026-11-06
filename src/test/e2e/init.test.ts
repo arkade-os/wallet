@@ -18,5 +18,5 @@ test('should create a new wallet', async ({ page }) => {
   await expect(navLocator(page, 'settings')).toBeVisible()
 
   await navigateToActivity(page)
-  await expect(page.getByText(tr.components.noTransactions)).toBeVisible()
+  await expect(page.getByText(tr.common.noTransactionsYet)).toBeVisible()
 })

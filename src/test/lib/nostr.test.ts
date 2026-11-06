@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { finalizeEvent, generateSecretKey, getPublicKey, nip44, type Event } from 'nostr-tools'
+import { finalizeEvent, generateSecretKey, getPublicKey, nip44, type Event, type SimplePool } from 'nostr-tools'
 import { EncryptedDirectMessage } from 'nostr-tools/kinds'
 import { NostrStorage } from '../../lib/nostr'
 
@@ -12,9 +12,14 @@ TextEncoder.prototype.encode = function (input?: string) {
 // events the mocked relay pool hands to the subscription
 let relayEvents: Event[] = []
 
+const { poolConstructions } = vi.hoisted(() => ({ poolConstructions: [] as unknown[] }))
+
 vi.mock('nostr-tools', async (importOriginal) => {
   const actual = await importOriginal<typeof import('nostr-tools')>()
   class MockPool {
+    constructor() {
+      poolConstructions.push(this)
+    }
     subscribeMany(_relays: string[], _filter: unknown, handlers: { onevent: (e: Event) => void; oneose: () => void }) {
       // relays deliver asynchronously; load() closes the subscription on eose
       queueMicrotask(() => {
@@ -88,5 +93,37 @@ describe('NostrStorage.load', () => {
     const events = await new NostrStorage(seckey).load()
 
     expect(events.map((e) => e.content)).toEqual(['{"keep":true}'])
+  })
+
+  it('lends one shared pool to every storage instance', () => {
+    const before = poolConstructions.length
+    new NostrStorage(seckey)
+    new NostrStorage(seckey)
+    expect(poolConstructions.length - before).toBeLessThanOrEqual(1)
+  })
+
+  it('hands out the same pool on every call', async () => {
+    const { sharedNostrPool } = await import('../../lib/nostr')
+    expect(sharedNostrPool()).toBe(sharedNostrPool())
+  })
+
+  it('reads through an injected pool', async () => {
+    relayEvents = [asDelivered(makeEvent('{"injected":true}'))]
+    const injected = {
+      subscribeMany: (
+        _relays: string[],
+        _filter: unknown,
+        handlers: { onevent: (e: Event) => void; oneose: () => void },
+      ) => {
+        queueMicrotask(() => {
+          for (const event of relayEvents) handlers.onevent(event)
+          handlers.oneose()
+        })
+        return { close: () => {} }
+      },
+    } as unknown as SimplePool
+    const found = await new NostrStorage(seckey, injected).load()
+    expect(found).toHaveLength(1)
+    expect(found[0].content).toBe('{"injected":true}')
   })
 })

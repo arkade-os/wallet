@@ -59,7 +59,17 @@ export default function NotesForm() {
   }
 
   if (scan)
-    return <Scanner close={() => setScan(false)} label={t('notes.arkNote')} onData={setNote} onError={setError} />
+    return (
+      <Scanner
+        close={() => setScan(false)}
+        label={t('notes.arkNote')}
+        onData={(data) => {
+          setNote(data)
+          setScan(false)
+        }}
+        onError={setError}
+      />
+    )
 
   return (
     <>

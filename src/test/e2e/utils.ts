@@ -8,17 +8,21 @@ import { translations } from '../../lib/i18n'
 const execAsync = promisify(exec)
 const tr = translations.en
 
+export async function prepareWalletPage(page: Page): Promise<void> {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  // Pre-set currency to BTC/sats so e2e tests see sats amounts.
+  await page.addInitScript(() => {
+    const raw = localStorage.getItem('config')
+    const config = raw ? JSON.parse(raw) : {}
+    config.currency = 'BTC'
+    config.unit = 'sats'
+    localStorage.setItem('config', JSON.stringify(config))
+  })
+}
+
 export const test = base.extend({
   page: async ({ page }, use) => {
-    await page.emulateMedia({ reducedMotion: 'reduce' })
-    // Pre-set currency to BTC/sats so e2e tests see sats amounts.
-    await page.addInitScript(() => {
-      const raw = localStorage.getItem('config')
-      const config = raw ? JSON.parse(raw) : {}
-      config.currency = 'BTC'
-      config.unit = 'sats'
-      localStorage.setItem('config', JSON.stringify(config))
-    })
+    await prepareWalletPage(page)
     await use(page)
   },
 })
@@ -185,8 +189,8 @@ export async function createWalletAndGetBIP21(page: Page, isMobile?: boolean, sa
     }
   }
 
-  await page.waitForSelector(`text=${tr.common.copy}`, { state: 'visible' })
-  await page.getByText(tr.common.copy).click()
+  await page.waitForSelector(`text=${tr.receive.copy}`, { state: 'visible' })
+  await page.getByText(tr.receive.copy).click()
   await page.getByTestId('bip21-address-copy').click()
   const bip21 = await readClipboard(page)
   return bip21
@@ -235,17 +239,6 @@ export async function dismissPaymentSuccess(page: Page, timeout = 60000): Promis
   await page.getByRole('button', { name: /Sounds good|Tap to go home/ }).click({ timeout })
 }
 
-export async function pay(page: Page, address: string, isMobile = false, sats = 0): Promise<void> {
-  // insert value and address, then continue to details page
-  await prePay(page, address, isMobile, sats)
-
-  // continue to send
-  await page.getByText(tr.send.tapToSign, { exact: true }).click()
-  await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
-  await page.waitForSelector(`text=${tr.send.paymentSent}`, { timeout: 30000 })
-  await dismissPaymentSuccess(page, 30000)
-}
-
 async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = false, sats = 0): Promise<string> {
   // go to receive page
   await navigateHome(page)
@@ -276,10 +269,6 @@ export async function receiveOffchain(page: Page): Promise<string> {
   return receive(page, 'ark')
 }
 
-export async function receiveLightning(page: Page, isMobile: boolean, sats: number): Promise<string> {
-  return receive(page, 'invoice', isMobile, sats)
-}
-
 export async function navigateToSettings(page: Page): Promise<void> {
   if (
     await page
@@ -306,7 +295,7 @@ async function getSecret(page: Page): Promise<string> {
   // Mnemonic wallets show "View recovery phrase", legacy shows "View private key"
   const viewBtn = page.getByText(tr.backup.viewRecoveryPhrase).or(page.getByText(tr.backup.viewPrivateKey))
   await viewBtn.click()
-  await page.getByText(tr.common.confirm, { exact: true }).click()
+  await page.getByText(tr.backup.confirm, { exact: true }).click()
   const secret = await page.getByTestId('private-key').innerText()
   return secret
 }
@@ -366,11 +355,6 @@ export async function handleKeyboardInput(page: Page, value: number, decimals = 
     await page.getByTestId(`keyboard-${digit}`).click()
   }
   await page.getByText(tr.common.save, { exact: true }).click()
-}
-
-export async function getFeesFromDetails(page: Page): Promise<number> {
-  const txtValue = await page.getByTestId('Network fees').textContent()
-  return parseInt(txtValue?.replace(' sats', '').replaceAll(',', '') || '0')
 }
 
 export async function navigateToSwaps(page: Page): Promise<void> {

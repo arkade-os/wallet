@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import fixtures from '../fixtures.json'
-import { decodeBip21, encodeBip21 } from '../../lib/bip21'
+import { decodeBip21, encodeBip21, encodeBitcoinLink } from '../../lib/bip21'
 import { toSatoshis } from '../../lib/format'
 
 describe('bip21 utilities', () => {
@@ -55,6 +55,18 @@ describe('bip21 utilities', () => {
       expect(satoshis).toBe(50_000)
     })
 
+    it.each(['alice@lnurl.test', 'lnbob@lnurl.test'])('reads a Lightning address back from our own link (%s)', (ln) => {
+      const decoded = decodeBip21(encodeBitcoinLink({ lightning: ln }))
+      expect(decoded.lnUrl).toBe(ln)
+      expect(decoded.invoice).toBeUndefined()
+    })
+
+    it('never reads a value with @ as an invoice', () => {
+      const decoded = decodeBip21('bitcoin:?lightning=lnbad@')
+      expect(decoded.invoice).toBeUndefined()
+      expect(decoded.lnUrl).toBeUndefined()
+    })
+
     it('should throw an error for an invalid address', () => {
       expect(() => decodeBip21('invalidBip21')).toThrow('Invalid BIP21 URI')
     })
@@ -70,6 +82,27 @@ describe('bip21 utilities', () => {
       expect(satoshis).toBeUndefined()
       expect(invoice).toBeUndefined()
       expect(lnUrl).toBeUndefined()
+    })
+  })
+
+  describe('encodeBitcoinLink', () => {
+    it('sizes the on-chain and Arkade parts with amount=', () => {
+      expect(encodeBitcoinLink({ address: 'bc1x', ark: 'ark1x', lightning: 'lnbc1x', sats: 1000 })).toBe(
+        'bitcoin:bc1x?ark=ark1x&lightning=lnbc1x&amount=0.00001',
+      )
+    })
+
+    it('keeps a query delimiter inside a value from adding a parameter', () => {
+      const link = encodeBitcoinLink({ address: 'bc1x', lightning: 'alice@lnurl.test&amount=1', sats: 1000 })
+      expect(decodeBip21(link).satoshis).toBe(1000)
+      expect(decodeBip21(link).lnUrl).toBe('alice@lnurl.test&amount=1')
+      expect(new URLSearchParams(link.split('?')[1]).get('lightning')).toBe('alice@lnurl.test&amount=1')
+    })
+
+    it('leaves amount= out of a Lightning-only link, whose invoice or LNURL carries the amount', () => {
+      expect(encodeBitcoinLink({ lightning: 'alice@lnurl.test', sats: 1000 })).toBe(
+        'bitcoin:?lightning=alice@lnurl.test',
+      )
     })
   })
 

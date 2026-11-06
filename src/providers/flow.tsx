@@ -14,6 +14,7 @@ export interface InitInfo {
 
 export interface NoteInfo {
   note: string
+  error?: string
   satoshis: number
 }
 

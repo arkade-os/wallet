@@ -82,7 +82,6 @@ test('should send usds (some and max) to ark address', async ({ page, isMobile }
   await createWalletWithFiat(page)
   const usdsReceived = await fundWallet(page, 5000)
   const usdsToSend = 2
-  const usdsRemaining = (usdsReceived - usdsToSend).toFixed(2)
 
   const someArkAddress =
     'tark1qr340xg400jtxat9hdd0ungyu6s05zjtdf85uj9smyzxshf98nda' +
@@ -114,7 +113,12 @@ test('should send usds (some and max) to ark address', async ({ page, isMobile }
   await page.locator('input[name="send-address"]').fill(someArkAddress)
 
   // switch entry to the display currency, then click max
-  await page.waitForSelector(`text=$${usdsRemaining} available`, { timeout: 2100 })
+  // Within a cent: the $2 is spent in rounded sats and what is left is shown rounded to cents.
+  const expectedCents = Math.round((usdsReceived - usdsToSend) * 100)
+  const nearExpected = [-1, 0, 1].map((d) => ((expectedCents + d) / 100).toFixed(2).replace('.', '\\.')).join('|')
+  const available = page.getByText(new RegExp(`\\$(${nearExpected}) available`)).first()
+  await available.waitFor({ timeout: 2100 })
+  const usdsRemaining = (await available.innerText()).match(/\d+\.\d{2}/)![0]
   await page.getByTestId('input-amount-max').click()
   const inputAmount = await page.locator('input[name="send-amount"]').inputValue()
   expect(Number(inputAmount).toFixed(2)).toBe(usdsRemaining)

@@ -73,6 +73,9 @@ export default function InputAmount({
   const mode = controlledMode ?? internalMode
   const currencyConversionUseful = canConvertCurrency(config.currency, toFiat, fromFiat)
   const fiatEntry = switchable ? mode === 'fiat' && useFiat && currencyConversionUseful : useFiat
+  // The entry's finest unit: what the stepper moves by, and the decimals typing keeps.
+  const decimals = asset?.assetId ? asset.decimals : fiatEntry ? fiatDecimals() : config.unit === Unit.BTC ? 8 : 0
+  const step = decimals > 0 ? `0.${'1'.padStart(decimals, '0')}` : '1'
 
   const toSats = (value: number): number => {
     return config.unit === Unit.BTC ? toSatoshis(value) : value
@@ -109,7 +112,8 @@ export default function InputAmount({
 
   const handleAmountChange = (ev: React.ChangeEvent<HTMLInputElement>) => {
     // collapse redundant leading zeros ("00.0004" → "0.0004", "007" → "7")
-    const textValue = ev.currentTarget.value.replace(/^0+(?=\d)/, '')
+    const [whole, fraction] = ev.currentTarget.value.replace(/^0+(?=\d)/, '').split('.')
+    const textValue = fraction === undefined || decimals === 0 ? whole : `${whole}.${fraction.slice(0, decimals)}`
     onChange(textValue)
     if (asset?.assetId) return
     const value = Number(textValue)
@@ -182,6 +186,7 @@ export default function InputAmount({
           onFocus={onFocus}
           className='input [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:[-webkit-appearance:none] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:[-webkit-appearance:none]'
           inputMode='decimal'
+          step={step}
           disabled={disabled}
           readOnly={readOnly}
           onChange={handleAmountChange}

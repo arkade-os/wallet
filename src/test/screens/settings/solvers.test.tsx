@@ -5,6 +5,13 @@ import { AspContext } from '../../../providers/asp'
 import { BackupContext } from '../../../providers/backup'
 import { mockAspContextValue } from '../mocks'
 import { readSolverCards } from '../../../lib/solverCards'
+import { prettyLongText } from '../../../lib/format'
+
+const { mockFetchTransportCards } = vi.hoisted(() => ({ mockFetchTransportCards: vi.fn() }))
+
+vi.mock('@arkade-os/swap/nostr', () => ({
+  nostrCardFetcher: () => ({ fetch: mockFetchTransportCards }),
+}))
 
 vi.mock('@arkade-os/solver-discovery', async () => {
   const actual = await vi.importActual<typeof import('@arkade-os/solver-discovery')>('@arkade-os/solver-discovery')
@@ -40,6 +47,8 @@ function renderSolvers(network: string = 'regtest') {
 describe('Solvers screen', () => {
   beforeEach(() => {
     localStorage.clear()
+    mockFetchTransportCards.mockReset()
+    mockFetchTransportCards.mockResolvedValue([])
   })
 
   it('shows an empty state when no solver cards are stored', () => {
@@ -107,5 +116,109 @@ describe('Solvers screen', () => {
 
     await waitFor(() => expect(readSolverCards()).toHaveLength(0))
     await waitFor(() => expect(screen.queryByText('My Card')).not.toBeInTheDocument())
+  })
+
+  it('shows card info when Info is clicked', async () => {
+    const pubkey = 'b'.repeat(64)
+    localStorage.setItem(
+      'solverCards',
+      JSON.stringify([
+        {
+          network: 'regtest',
+          label: 'Pinned',
+          card: {
+            version: 0,
+            name: 'Pinned',
+            discovery_pubkey: pubkey,
+            transports: { nostr: { relays: ['wss://example.com'] } },
+            markets: [],
+          },
+        },
+      ]),
+    )
+    renderSolvers()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Info' }))
+
+    await waitFor(() => expect(screen.getByText('Solver card info')).toBeInTheDocument())
+    expect(screen.getByText(prettyLongText(pubkey))).toBeInTheDocument()
+  })
+
+  it('shows original and current values in the detail view', async () => {
+    const pubkey = 'c'.repeat(64)
+    const market = {
+      pair: 'BTC/BTC',
+      base_asset: { id: 'btc', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+      quote_asset: { id: 'btc', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+      fee_bps: 30,
+      min_base_amount: '500',
+      max_base_amount: '50000',
+      min_quote_amount: '500',
+      max_quote_amount: '50000',
+    }
+    const transports = { nostr: { relays: ['wss://example.com'] } }
+    localStorage.setItem(
+      'solverCards',
+      JSON.stringify([
+        {
+          network: 'regtest',
+          label: 'Pinned',
+          card: { version: 0, name: 'Pinned', discovery_pubkey: pubkey, transports, markets: [market] },
+        },
+      ]),
+    )
+    mockFetchTransportCards.mockResolvedValue([
+      {
+        pubkey,
+        createdAt: 1700000000,
+        card: {
+          version: 0,
+          name: 'Pinned',
+          discovery_pubkey: pubkey,
+          transports,
+          markets: [{ ...market, max_base_amount: '99999' }],
+        },
+      },
+    ])
+    renderSolvers()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Info' }))
+
+    await waitFor(() => expect(screen.getByRole('tab', { name: 'Original' })).toBeInTheDocument())
+    expect(screen.getByRole('tab', { name: 'Current' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Current' }))
+    await waitFor(() => expect(screen.getByText(/99999/)).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Original' }))
+    await waitFor(() => expect(screen.queryByText(/99999/)).not.toBeInTheDocument())
+  })
+
+  it('shows only the pinned card when no current card is available', async () => {
+    localStorage.setItem(
+      'solverCards',
+      JSON.stringify([{ network: 'regtest', label: 'Pinned', card: { version: 0, name: 'Pinned', markets: [] } }]),
+    )
+    renderSolvers()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Info' }))
+
+    await waitFor(() => expect(screen.getByText('Solver card info')).toBeInTheDocument())
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument()
+    expect(screen.getByText(/no Nostr relays/)).toBeInTheDocument()
+  })
+
+  it('shows the raw card JSON in the detail view', async () => {
+    localStorage.setItem(
+      'solverCards',
+      JSON.stringify([{ network: 'regtest', label: 'Pinned', card: { version: 0, name: 'Pinned', markets: [] } }]),
+    )
+    renderSolvers()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Info' }))
+
+    await waitFor(() => expect(screen.getByText('Solver card info')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('View raw JSON'))
+    await waitFor(() => expect(screen.getByText(/"name": "Pinned"/)).toBeInTheDocument())
   })
 })

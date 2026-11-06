@@ -47,7 +47,7 @@ export default function Text({
 }: TextProps) {
   const fontSize = tiny ? 12 : smaller ? 13 : small ? 14 : big ? 24 : bigger ? 32 : large ? 18 : 16
 
-  const className = capitalize ? 'first-letter' : ''
+  const className = (capitalize ? 'first-letter ' : '') + (copy ? 'tappable' : '')
 
   const pStyle: any = {
     color: color ? `var(--${color})` : undefined,
@@ -76,16 +76,6 @@ export default function Text({
     <p className={className} onClick={handleClick} style={pStyle} title={tooltip} data-testid={testId}>
       {children}
     </p>
-  )
-}
-
-export function TextLabel({ children }: TextProps) {
-  return (
-    <div style={{ padding: '0 1rem 0.5rem 1rem' }}>
-      <Text capitalize color='neutral-500' smaller>
-        {children}
-      </Text>
-    </div>
   )
 }
 

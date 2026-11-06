@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useContext, useRef } from 'react'
+import { useContext, useLayoutEffect, useRef, useState } from 'react'
 import { WalletContext } from '../providers/wallet'
 import { Currencies, Tx } from '../lib/types'
 import { isBurn, isIssuance, prettyDate } from '../lib/format'
@@ -19,6 +19,7 @@ import { PrivacyAmount } from './PrivacyAmount'
 import SwapRouteIcon from './SwapRouteIcon'
 import {
   lnSwapLabel,
+  lnurlLabel,
   swapRouteLabel,
   swapStatusForTx,
   swapStatusLabel,
@@ -109,6 +110,7 @@ const TransactionLine = ({
 
   const kind =
     lnSwapKind ??
+    lnurlLabel(tx, t) ??
     (swap
       ? swapStatus === 'pending'
         ? t('transaction.swapPending')
@@ -270,14 +272,32 @@ export default function TransactionsList({
   const focusedRef = useRef(false)
   const focusedIndexRef = useRef(0)
   const parentRef = useRef<HTMLDivElement>(null)
+  const [scrollMargin, setScrollMargin] = useState(0)
+
+  // The list has no bounded height of its own, so the page's .content is what
+  // actually scrolls. Virtualize against it, or every row is "visible".
+  const getScrollElement = () => parentRef.current?.closest<HTMLElement>('.content') ?? null
 
   const virtualizer = useVirtualizer({
     count: txs.length,
-    getScrollElement: () => parentRef.current,
+    getScrollElement,
     estimateSize: () => 72,
     measureElement: (element) => element?.getBoundingClientRect().height,
     overscan: 5,
+    scrollMargin,
   })
+
+  // Distance from the top of the scroll content to the list (filter and padding
+  // sit above it). Measured once on mount: switching the Activity filter remounts
+  // the list, and a small drift (e.g. the filter appearing later) stays within overscan.
+  useLayoutEffect(() => {
+    const list = parentRef.current
+    const scrollElement = list?.closest<HTMLElement>('.content')
+    if (!list || !scrollElement) return
+    setScrollMargin(
+      list.getBoundingClientRect().top - scrollElement.getBoundingClientRect().top + scrollElement.scrollTop,
+    )
+  }, [])
 
   // The key doubles as a DOM id read back with getElementById, which handles
   // the ':' in an activity id — do not switch those lookups to querySelector.
@@ -365,7 +385,6 @@ export default function TransactionsList({
         style={{
           borderBottom: border,
           minHeight: '200px',
-          overflowY: 'auto',
         }}
       >
         <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>
@@ -386,7 +405,7 @@ export default function TransactionsList({
                   left: 0,
                   position: 'absolute',
                   top: 0,
-                  transform: `translateY(${virtualItem.start}px)`,
+                  transform: `translateY(${virtualItem.start - scrollMargin}px)`,
                   width: '100%',
                 }}
               >

@@ -4,6 +4,7 @@ import { makeHandle } from '@arkade-os/sdk'
 import { PRICING_BUDGET_MS } from '../../../lib/sendRouter'
 import SendDetails from '../../../screens/Wallet/Send/Details'
 import { readAllTransactionActivityMetadata } from '../../../lib/storage'
+import { InsufficientFundsError } from '../../../lib/asp'
 import { Unit } from '../../../lib/types'
 import { AspContext } from '../../../providers/asp'
 import { ConfigContext } from '../../../providers/config'
@@ -151,6 +152,9 @@ const renderSign = (
     setSendInfo = mockFlowContextValue.setSendInfo,
     appIntent = mockFlowContextValue.appIntent,
     setAppIntent = mockFlowContextValue.setAppIntent,
+    intentFee = undefined as Record<string, string> | undefined,
+    svcWallet = mockSvcWallet as object,
+    availableBalance = mockWalletContextValue.availableBalance,
   } = {},
 ) =>
   render(
@@ -158,10 +162,17 @@ const renderSign = (
       <ConfigContext.Provider value={config}>
         <FiatContext.Provider value={mockFiatContextValue}>
           <AspContext.Provider value={mockAspContextValue}>
-            <FeesContext.Provider value={{ calcOnchainOutputFee: () => outputFee } as never}>
+            <FeesContext.Provider
+              value={{ calcOnchainOutputFee: () => outputFee, intentFee: () => intentFee } as never}
+            >
               <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo, setSendInfo, appIntent, setAppIntent }}>
                 <WalletContext.Provider
-                  value={{ ...mockWalletContextValue, balance: 1_000_000, svcWallet: mockSvcWallet as never }}
+                  value={{
+                    ...mockWalletContextValue,
+                    balance: 1_000_000,
+                    availableBalance,
+                    svcWallet: svcWallet as never,
+                  }}
                 >
                   <SwapsContext.Provider value={swaps as never}>
                     <LimitsContext.Provider value={limits}>
@@ -352,6 +363,95 @@ describe('signing an on-chain send', () => {
 
     await waitFor(() => expect(collaborativeExitWithFees).toHaveBeenCalledTimes(1))
     expect(sent).not.toHaveBeenCalled()
+  })
+
+  it('shows a total that rose since pricing and pays it only on a second signature', async () => {
+    const sent = vi.fn()
+    const solver = solverThatGetsDearer({ amount: 40_000, total: 40_754 }, { amount: 40_000, total: 41_000 }, sent)
+    optionsFor = () => [solver()]
+    renderSign({ address: ADDRESS, satoshis: 40_000 }, { outputFee: 0, config: satsConfig })
+
+    expect(await screen.findByTestId('Total')).toHaveTextContent(/40.?754/)
+    await sign()
+
+    expect(await screen.findByText(/fee changed/i)).toBeTruthy()
+    expect(screen.getByTestId('Total')).toHaveTextContent(/41.?000/)
+    expect(sent).not.toHaveBeenCalled()
+
+    await sign()
+    await waitFor(() => expect(sent).toHaveBeenCalledTimes(1))
+    expect(sendFailure()).toBeUndefined()
+  })
+
+  it('reports insufficient funds when that is the only reason no rail paid', async () => {
+    optionsFor = () => [
+      {
+        railId: 'onchain',
+        quote: async () => {
+          throw new InsufficientFundsError()
+        },
+      },
+    ]
+    renderSign({ address: ADDRESS, satoshis: 10_000 })
+    await sign()
+
+    await waitFor(() => expect(sendFailure()).toBeDefined())
+    expect(String(sendFailure())).toMatch(/insufficient funds/i)
+  })
+
+  describe('when the exit cannot pay the intent fees on top of the amount', () => {
+    const boarded = {
+      txid: 'boarded',
+      vout: 0,
+      value: 100_000,
+      isSwept: false,
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 7 * 86_400_000),
+    }
+    const renderBoarded = (satoshis: number, availableBalance: number) => {
+      optionsFor = (req) => [
+        {
+          railId: 'onchain',
+          quote: async () => {
+            if (req.amount! > 99_800) throw new InsufficientFundsError()
+            return exitOption(req, 200).quote()
+          },
+        },
+      ]
+      renderSign(
+        { address: ADDRESS, satoshis },
+        {
+          outputFee: 0,
+          config: satsConfig,
+          intentFee: { offchainInput: "inputType == 'vtxo' && now() - birth < 86400.0 ? amount * 0.002 : 0.0" },
+          svcWallet: { ...mockSvcWallet, getSpendableVtxos: async () => [boarded] },
+          availableBalance,
+        },
+      )
+    }
+
+    it('takes them out of a send-max', async () => {
+      renderBoarded(100_000, 100_000)
+
+      expect(await screen.findByText(/deducted from the amount/i)).toBeTruthy()
+      expect(screen.getByTestId('Total')).toHaveTextContent(/100.?000/)
+      await sign()
+
+      await waitFor(() =>
+        expect(collaborativeExitWithFees).toHaveBeenCalledWith(expect.anything(), 100_000, 99_800, ADDRESS),
+      )
+    })
+
+    it('refuses a specific amount before signing, with the fee and the most it can send', async () => {
+      renderBoarded(99_999, 100_000)
+
+      expect(await screen.findByText(/send up to 99,800 sats/i)).toBeTruthy()
+      expect(screen.getByTestId('Network fees')).toHaveTextContent(/200/)
+      expect(screen.getByTestId('Total')).toHaveTextContent(/100.?199/)
+      expect(screen.queryByText('Tap to Sign')).toBeNull()
+      expect(screen.queryByText(/deducted from the amount/i)).toBeNull()
+      expect(collaborativeExitWithFees).not.toHaveBeenCalled()
+    })
   })
 
   it('funds the solver when its quote is the send the screen is showing', async () => {

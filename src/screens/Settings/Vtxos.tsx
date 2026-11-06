@@ -163,7 +163,7 @@ export default function Vtxos() {
   const handleRollover = async () => {
     try {
       setRollingover(true)
-      await settleVtxos(svcWallet, vtxoManager, aspInfo.dust, wallet.thresholdMs)
+      await settleVtxos(svcWallet, vtxoManager, aspInfo.dust, wallet.thresholdMs, aspInfo.fees?.intentFee)
       await reloadWallet()
       setRollingover(false)
       setSuccess(true)

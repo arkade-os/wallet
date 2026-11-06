@@ -78,7 +78,7 @@ export default function AppIntentScreen() {
     const canShare = Boolean(address && pubkey && !error)
     return (
       <>
-        <Header text={t('appIntent.title')} back={() => finish({ error: 'denied' })} />
+        <Header text={t('appIntent.title')} back={() => finish()} />
         <Content>
           <Padded>
             <FlexCol gap='0.75rem'>

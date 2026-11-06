@@ -24,15 +24,11 @@ import { DevModeProvider } from './providers/devMode'
 import { AssetsProvider } from './providers/assets'
 import { BackupProvider } from './providers/backup'
 import { LanguageProvider } from './providers/language'
+import { reloadOnWorkerTakeover } from './lib/serviceWorkerTakeover'
 
-// Register service worker updatefound listener to reload the page when a new service worker
-// is found thus preventing some nasty race conditions when updating the service worker.
-navigator.serviceWorker?.getRegistration().then((reg) => {
-  reg?.addEventListener('updatefound', () => {
-    console.log('Service worker update found')
-    window.location.reload()
-  })
-})
+// On takeover, not on updatefound: a page reloaded while the new worker still installs boots against the
+// old one, which skipWaiting then retires mid-init, leaving "Connecting to service worker" for the 30s timeout.
+reloadOnWorkerTakeover(navigator.serviceWorker, () => window.location.reload())
 
 // Initialize Sentry only in production and when DSN is provided
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN

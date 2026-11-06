@@ -7,6 +7,7 @@ import Menu from '../../components/Menu'
 import { DevModeContext } from '../../providers/devMode'
 import { AspContext } from '../../providers/asp'
 import { isMainnet } from '../../lib/constants'
+import { configuredLnurlServer } from '../../lib/receive/lnurlRail'
 import Padded from '../../components/Padded'
 import { useTranslation } from '../../providers/language'
 
@@ -18,6 +19,7 @@ export default function Advanced() {
     .filter((o) => o.section === SettingsSections.Advanced)
     .filter((o) => o.option !== SettingsOptions.Contracts || devMode)
     .filter((o) => o.option !== SettingsOptions.Server || !isMainnet(aspInfo.network))
+    .filter((o) => o.option !== SettingsOptions.Lnurl || Boolean(configuredLnurlServer()))
 
   return (
     <>

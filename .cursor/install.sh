@@ -4,12 +4,12 @@ set -eo pipefail
 
 cd "$(dirname "$0")/.."
 
-# The repo pins Node 24.15.0 (.nvmrc / package.json engines). The base image
+# The repo pins Node 24.22.1 (.nvmrc / package.json engines). The base image
 # ships nvm, so activate the pinned version rather than the image's default node.
 export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
 # shellcheck disable=SC1091
 . "$NVM_DIR/nvm.sh"
-nvm install >/dev/null   # reads .nvmrc (24.15.0); no-op if already installed
+nvm install >/dev/null   # reads .nvmrc (24.22.1); no-op if already installed
 nvm use >/dev/null
 node -v
 

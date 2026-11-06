@@ -27,8 +27,8 @@ export default function LanguageSettings() {
               <p className='settings-section-label'>{t('settings.language')}</p>
               <Select
                 onChange={handleChange}
-                options={[Language.English, Language.Spanish]}
-                labels={[t('settings.english'), t('settings.spanish')]}
+                options={[Language.English, Language.Spanish, Language.Portuguese]}
+                labels={[t('settings.english'), t('settings.spanish'), t('settings.portuguese')]}
                 selected={config.language ?? Language.English}
               />
             </section>

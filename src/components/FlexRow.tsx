@@ -31,7 +31,10 @@ export default function FlexRow({
   padding,
   testId,
 }: FlexRowProps) {
+  const className = onClick ? 'tappable' : ''
+
   const justifyContent = between ? 'space-between' : centered ? 'center' : end ? 'end' : 'start'
+
   const style: React.CSSProperties = {
     alignItems: alignItems ?? 'center',
     borderBottom: border ? '1px solid var(--neutral-200)' : undefined,
@@ -46,7 +49,7 @@ export default function FlexRow({
     width: end ? undefined : '100%',
   }
   return (
-    <div data-testid={testId} style={style} onClick={onClick}>
+    <div data-testid={testId} className={className} style={style} onClick={onClick}>
       {children}
     </div>
   )

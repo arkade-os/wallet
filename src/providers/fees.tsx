@@ -1,4 +1,5 @@
 import { ReactNode, createContext, useContext } from 'react'
+import type { IntentFeeConfig } from '@arkade-os/sdk'
 import { Vtxo } from '../lib/types'
 import { AspContext } from './asp'
 
@@ -7,6 +8,8 @@ interface FeesContextProps {
   calcOffchainOutputFee: (vtxo: Vtxo) => number
   calcOnchainInputFee: (vtxo: Vtxo) => number
   calcOnchainOutputFee: () => number
+  /** The operator's programs as served, for the SDK's `Estimator`. */
+  intentFee: () => IntentFeeConfig | undefined
 }
 
 export const FeesContext = createContext<FeesContextProps>({
@@ -14,6 +17,7 @@ export const FeesContext = createContext<FeesContextProps>({
   calcOffchainOutputFee: () => 0,
   calcOnchainOutputFee: () => 0,
   calcOnchainInputFee: () => 0,
+  intentFee: () => undefined,
 })
 
 export const FeesProvider = ({ children }: { children: ReactNode }) => {
@@ -55,6 +59,8 @@ export const FeesProvider = ({ children }: { children: ReactNode }) => {
     return parseInt(aspInfo.fees?.intentFee?.onchainOutput ?? '0', 10) // TODO
   }
 
+  const intentFee = () => aspInfo.fees?.intentFee
+
   return (
     <FeesContext.Provider
       value={{
@@ -62,6 +68,7 @@ export const FeesProvider = ({ children }: { children: ReactNode }) => {
         calcOffchainOutputFee,
         calcOnchainInputFee,
         calcOnchainOutputFee,
+        intentFee,
       }}
     >
       {children}

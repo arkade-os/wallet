@@ -106,9 +106,9 @@ const tree = (satoshis: number) => (
 
 const renderWithTrack = (satoshis = 10_000) => render(tree(satoshis))
 
-beforeEach(() => receiveLightning.mockReset())
 beforeEach(() => {
   setRecvInfo.mockClear()
+  receiveLightning.mockReset()
 })
 
 describe('Receive screen, Lightning failures', () => {

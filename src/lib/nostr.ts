@@ -9,6 +9,20 @@ const nostrAppName = 'arkade_backup'
 const defaultRelays = ['wss://relay.damus.io', 'wss://relay.primal.net', 'wss://nostr.arkade.sh']
 const relays = import.meta.env.VITE_NOSTR_RELAY_URL ? [import.meta.env.VITE_NOSTR_RELAY_URL] : defaultRelays
 
+let sharedPool: SimplePool | undefined
+
+/**
+ * The app's one Nostr connection pool, lent to every Nostr reader and writer:
+ * solver-card discovery, backup save/restore, and the card detail view. The
+ * pool is never closed for the app lifetime - closing and reopening one per
+ * read races the socket lifecycle, and the teardown send rejects detached
+ * into the console. Readers only ever close their own subscription.
+ */
+export const sharedNostrPool = (): SimplePool => {
+  if (!sharedPool) sharedPool = new SimplePool({})
+  return sharedPool
+}
+
 export class NostrStorage {
   private seckey: Uint8Array | null
   private pubkey: string
@@ -18,10 +32,10 @@ export class NostrStorage {
   /**
    * Initialize NostrStorage with either a secret key or public key
    */
-  constructor(seckey?: Uint8Array) {
+  constructor(seckey?: Uint8Array, pool?: SimplePool) {
     if (!seckey) throw new Error('Secret key must be provided')
     this.pubkey = getPublicKey(seckey)
-    this.pool = new SimplePool()
+    this.pool = pool ?? sharedNostrPool()
     this.seckey = seckey
     this.relays = relays
   }

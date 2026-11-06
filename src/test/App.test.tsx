@@ -1,5 +1,4 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App, { appReloader } from '../App'
 import { AspContext } from '../providers/asp'
@@ -37,19 +36,21 @@ vi.mock('../lib/jsCapabilities', () => ({
 function renderApp({
   authState,
   initialized,
-  unlockWallet = vi.fn().mockResolvedValue(undefined),
+  unlockWallet = vi.fn<(password: string) => Promise<void>>().mockResolvedValue(undefined),
   screen: screenOverride = Pages.Init,
   option,
   flow = {},
   outcomeOf = () => undefined,
+  dataReady,
 }: {
   authState: WalletAuthState
   initialized: boolean
-  unlockWallet?: ReturnType<typeof vi.fn>
+  unlockWallet?: (password: string) => Promise<void>
   screen?: Pages
   option?: SettingsOptions
   flow?: Partial<typeof mockFlowContextValue>
   outcomeOf?: (id: string) => Outcome | undefined
+  dataReady?: boolean
 }) {
   const navigate = vi.fn()
 
@@ -66,7 +67,7 @@ function renderApp({
                   ...mockWalletContextValue,
                   authState,
                   initialized,
-                  dataReady: initialized,
+                  dataReady: dataReady ?? initialized,
                   unlockWallet,
                   walletLoaded: true,
                   wallet: { nextRollover: 0, pubkey: 'stored-pubkey' },
@@ -191,88 +192,57 @@ describe('App startup routing', () => {
   })
 })
 
-describe('Navbar visibility', () => {
+describe('App intents', () => {
   beforeEach(() => {
     setupTestEnvironment()
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.unstubAllEnvs()
   })
 
-  it('hides navbar on unlock screen even when navigation context has Wallet tab', async () => {
-    renderApp({ authState: 'locked', initialized: false, screen: Pages.Wallet })
-
-    await screen.findByText('Unlock')
-    const ionApp = screen.getByTestId('app')
-    expect(ionApp.className).not.toContain('has-pill-navbar')
+  it('connect intent: verify navigate was called with Pages.AppIntent', async () => {
+    const { navigate } = renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      dataReady: false,
+      flow: { appIntent: { status: 'connect', callback: 'https://example.com/cb' } },
+    })
+    await screen.findByTestId('app')
+    expect(navigate).toHaveBeenCalledWith(Pages.AppIntent)
   })
 
-  it('hides navbar during loading hold', async () => {
-    renderApp({ authState: 'authenticated', initialized: false, screen: Pages.Wallet })
-
-    const ionApp = await screen.findByTestId('app')
-    expect(ionApp.className).not.toContain('has-pill-navbar')
-  })
-
-  it('hides navbar on wallet root when authenticated and initialized', async () => {
-    const user = userEvent.setup()
-    const { navigate } = renderApp({ authState: 'authenticated', initialized: true, screen: Pages.Wallet })
-
-    const ionApp = await screen.findByTestId('app')
-    expect(ionApp.className).not.toContain('has-pill-navbar')
-    expect(screen.getByRole('main')).toHaveClass('desktop-wallet-main--root')
-    expect(screen.getByText('Arkade')).toBeInTheDocument()
-    expect(screen.getByTestId('desktop-nav-home')).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByLabelText('Wallet navigation').parentElement).toBe(screen.getByRole('main').parentElement)
-    expect(screen.getByRole('main')).not.toContainElement(screen.getByLabelText('Wallet navigation'))
-
-    await user.click(screen.getByTestId('desktop-nav-activity'))
-    expect(navigate).toHaveBeenCalledWith(Pages.Activity)
-  })
-
-  it('hides navbar on settings menu when authenticated and initialized', async () => {
+  it('keeps the loading screen up when returning to the wallet with a connect intent pending', async () => {
     renderApp({
       authState: 'authenticated',
       initialized: true,
-      screen: Pages.Settings,
-      option: SettingsOptions.Menu,
+      dataReady: false,
+      screen: Pages.Wallet,
+      flow: { appIntent: { status: 'connect', callback: 'https://example.com/cb' } },
     })
 
-    const ionApp = await screen.findByTestId('app')
-    expect(ionApp.className).not.toContain('has-pill-navbar')
-    expect(screen.getByRole('main')).toHaveClass('desktop-wallet-main--root')
-    expect(screen.getByTestId('desktop-nav-settings')).toHaveAttribute('aria-current', 'page')
+    await screen.findByTestId('app')
+    expect(screen.queryByTestId('desktop-nav-home')).not.toBeInTheDocument()
   })
 
-  it('hides navbar on settings sub-page when authenticated and initialized', async () => {
-    renderApp({
+  it('send intent: verify navigate was called with Pages.Wallet', async () => {
+    const { navigate } = renderApp({
       authState: 'authenticated',
       initialized: true,
-      screen: Pages.Settings,
-      option: SettingsOptions.Password,
+      dataReady: false,
+      flow: {
+        appIntent: {
+          status: 'send',
+          request:
+            'bitcoin:?ark=tark1qplnj2gett9j483fchy6chaxn4y52c4g7n5djh9xua3ywdxw0ldatc3e9xcj9xpx0r5tmr0dgvu2f4s352muklg0tcxx0scnnkraajy9jgz4xl&amount=0.001',
+          callback: 'https://example.com/cb',
+        },
+      },
     })
-
-    const ionApp = await screen.findByTestId('app')
-    expect(ionApp.className).not.toContain('has-pill-navbar')
-    expect(screen.getByRole('main')).toHaveClass('desktop-wallet-main--panel')
-  })
-
-  it('hides navbar on app detail pages when authenticated and initialized', async () => {
-    renderApp({ authState: 'authenticated', initialized: true, screen: Pages.BitcoinDetail })
-
-    const ionApp = await screen.findByTestId('app')
-    expect(ionApp.className).not.toContain('has-pill-navbar')
-    expect(screen.getByRole('main')).toHaveClass('desktop-wallet-main--panel')
-    expect(screen.getByTestId('desktop-nav-home')).toHaveAttribute('aria-current', 'page')
-  })
-
-  it('keeps Activity active on transaction details', async () => {
-    renderApp({ authState: 'authenticated', initialized: true, screen: Pages.Transaction })
-
-    expect(await screen.findByRole('main')).toHaveClass('desktop-wallet-main--panel')
-    expect(screen.getByTestId('desktop-nav-activity')).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByTestId('desktop-nav-home')).not.toHaveAttribute('aria-current')
+    await screen.findByTestId('app')
+    expect(navigate).toHaveBeenCalledWith(Pages.Wallet)
+    expect(navigate).not.toHaveBeenCalledWith(Pages.SendForm)
   })
 })
 

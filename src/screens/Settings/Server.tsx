@@ -18,6 +18,7 @@ import { consoleError } from '../../lib/logs'
 import LoadingLogo from '../../components/LoadingLogo'
 import { isMainnet } from '../../lib/constants'
 import { useTranslation } from '../../providers/language'
+import { isValidUrl } from '@/lib/validators'
 
 export default function Server() {
   const { aspInfo } = useContext(AspContext)
@@ -32,11 +33,11 @@ export default function Server() {
   const [scan, setScan] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const isValidUrl = (url: string) => {
-    if (url.startsWith('localhost') || url.startsWith('http://localhost')) return true
-    if (url.startsWith('127.0.0.1') || url.startsWith('http://127.0.0.1')) return true
-    const urlPattern = /^(https?:\/\/)?([\w-]+(\.[\w-]+)+)([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?$/
-    return urlPattern.test(url)
+  const isValidServerUrl = (url: string) => {
+    let fullUrl = url
+    if (url.startsWith('localhost') || url.startsWith('127.0.0.1')) fullUrl = 'http://' + url
+    else if (!url.startsWith('http')) fullUrl = 'https://' + url
+    return isValidUrl(fullUrl)
   }
 
   useEffect(() => {
@@ -46,7 +47,7 @@ export default function Server() {
   }, [aspInfo.unreachable, aspInfo.outdated, t])
 
   useEffect(() => {
-    if (!aspUrl || !isValidUrl(aspUrl)) return
+    if (!aspUrl || !isValidServerUrl(aspUrl)) return
     // don't do anything if same server
     if (aspUrl === config.aspUrl) return setError(t('settings.sameServer'))
     // test connection
@@ -85,7 +86,15 @@ export default function Server() {
 
   if (scan)
     return (
-      <Scanner close={() => setScan(false)} label={t('settings.serverUrl')} onData={setAspUrl} onError={setError} />
+      <Scanner
+        close={() => setScan(false)}
+        label={t('settings.serverUrl')}
+        onData={(data) => {
+          setAspUrl(data)
+          setScan(false)
+        }}
+        onError={setError}
+      />
     )
 
   if (blocked) {

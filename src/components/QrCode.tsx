@@ -1,10 +1,12 @@
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, type ReactNode } from 'react'
 import encodeQR from 'qr'
 import FlexCol from './FlexCol'
 import { useReducedMotion } from '../hooks/useReducedMotion'
 
 interface QrCodeProps {
   value: string
+  /** Replaces the Arkade mark in the centre; drawn over the white clearing, which stays unencoded either way. */
+  logo?: ReactNode
 }
 
 // Finder pattern locations (7x7 squares at three corners)
@@ -76,7 +78,8 @@ function renderFinderPattern(
   return elements
 }
 
-export default function QrCode({ value }: QrCodeProps) {
+export default function QrCode({ value, logo }: QrCodeProps) {
+  const hasLogo = Boolean(logo)
   const prefersReduced = useReducedMotion()
   const prevMatrixRef = useRef<boolean[][] | null>(null)
   const renderCountRef = useRef(0)
@@ -173,24 +176,29 @@ export default function QrCode({ value }: QrCodeProps) {
     const logoOffsetY = centerY - logoInnerSize / 2
     const scale = logoInnerSize / 35
 
-    elements.push(
-      <g key='logo' transform={`translate(${logoOffsetX}, ${logoOffsetY}) scale(${scale})`}>
-        <path d='M0 8.75L8.75 0H26.25L35 8.75V17.5H26.25V8.75H8.75V17.5H2.45431e-07L0 8.75Z' fill={logoColor} />
-        <path d='M8.75 26.25V17.5H26.25V26.25H8.75Z' fill={logoColor} />
-        <path d='M8.75 26.25H2.45431e-07V35H8.75V26.25Z' fill={logoColor} />
-        <path d='M26.25 26.25V35H35V26.25H26.25Z' fill={logoColor} />
-      </g>,
-    )
+    if (!hasLogo) {
+      elements.push(
+        <g key='logo' transform={`translate(${logoOffsetX}, ${logoOffsetY}) scale(${scale})`}>
+          <path d='M0 8.75L8.75 0H26.25L35 8.75V17.5H26.25V8.75H8.75V17.5H2.45431e-07L0 8.75Z' fill={logoColor} />
+          <path d='M8.75 26.25V17.5H26.25V26.25H8.75Z' fill={logoColor} />
+          <path d='M8.75 26.25H2.45431e-07V35H8.75V26.25Z' fill={logoColor} />
+          <path d='M26.25 26.25V35H35V26.25H26.25Z' fill={logoColor} />
+        </g>,
+      )
+    }
 
-    return (
-      <svg
-        viewBox={`0 0 ${svgSize} ${svgSize}`}
-        width='100%'
-        height='100%'
-        xmlns='http://www.w3.org/2000/svg'
-        style={{ display: 'block' }}
-      >
-        <style>{`
+    return {
+      // 1.25x the clearing's radius keeps a corner badge (TokenOnChainLogo) inside the white circle.
+      logoPercent: ((logoCircleR * 1.25) / svgSize) * 100,
+      svg: (
+        <svg
+          viewBox={`0 0 ${svgSize} ${svgSize}`}
+          width='100%'
+          height='100%'
+          xmlns='http://www.w3.org/2000/svg'
+          style={{ display: 'block' }}
+        >
+          <style>{`
           @keyframes qr-dot-in {
             from { transform: scale(0); opacity: 0; }
             to { transform: scale(1); opacity: 1; }
@@ -199,10 +207,11 @@ export default function QrCode({ value }: QrCodeProps) {
             circle { animation: none !important; }
           }
         `}</style>
-        {elements}
-      </svg>
-    )
-  }, [value, prefersReduced])
+          {elements}
+        </svg>
+      ),
+    }
+  }, [value, prefersReduced, hasLogo])
 
   return (
     <FlexCol centered>
@@ -212,10 +221,20 @@ export default function QrCode({ value }: QrCodeProps) {
             borderRadius: '1rem',
             maxWidth: '340px',
             overflow: 'hidden',
+            position: 'relative',
             width: '100%',
           }}
         >
-          {svgContent}
+          {svgContent.svg}
+          {logo ? (
+            <div
+              aria-hidden='true'
+              className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2'
+              style={{ width: `${svgContent.logoPercent}%`, aspectRatio: '1' }}
+            >
+              {logo}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </FlexCol>

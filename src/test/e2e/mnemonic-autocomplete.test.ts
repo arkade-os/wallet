@@ -1,5 +1,6 @@
 import { test, expect } from './utils'
 import { translations } from '../../lib/i18n'
+import { sleep } from '@/lib/sleep'
 
 const tr = translations.en
 
@@ -19,6 +20,7 @@ test('suggests recovery words without rewriting typed prefixes or showing premat
   await expect(input).toBeFocused()
 
   await input.pressSequentially('agr')
+  await sleep(100)
   await input.press('ArrowDown')
   await input.press('Enter')
   await expect(input).toHaveValue('ahead agree ')

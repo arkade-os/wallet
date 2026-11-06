@@ -2,7 +2,6 @@ import { NetworkName } from '@arkade-os/sdk/'
 import { Wallet } from '../lib/types'
 
 type ExplorerURLs = {
-  api?: string
   web: string
 }
 
@@ -13,19 +12,15 @@ const explorers: Explorers = {
     web: 'https://mempool.space',
   },
   regtest: {
-    api: 'http://localhost:3000/api',
     web: 'http://localhost:3000',
   },
   signet: {
-    api: 'https://mutinynet.com/api',
     web: 'https://mutinynet.com',
   },
   testnet: {
-    api: 'https://mempool.space/testnet/api',
     web: 'https://mempool.space/testnet',
   },
   mutinynet: {
-    api: 'https://mutinynet.com/api',
     web: 'https://mutinynet.com',
   },
 }
@@ -34,10 +29,6 @@ const vmempoolDefaults: Partial<Record<NetworkName, string>> = {
   bitcoin: 'https://arkade.space',
   mutinynet: 'https://explorer.mutinynet.arkade.sh',
   regtest: 'http://localhost:7080',
-}
-
-export const getRestApiExplorerURL = (network: NetworkName): string | undefined => {
-  return explorers[network]?.api
 }
 
 export const getWebExplorerURL = (network: NetworkName): string => {
