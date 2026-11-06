@@ -1,11 +1,12 @@
 import { ReactNode, createContext, useEffect, useState } from 'react'
-import { readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
+import { readConfigFromStorage, readWalletFromStorage, saveConfigToStorage } from '../lib/storage'
 import { defaultArkServer, devServer } from '../lib/constants'
 import { Config, Currencies, Themes, Unit } from '../lib/types'
 import { normalizeBitcoinUnit } from '../lib/format'
 import { setHapticsEnabled } from '../lib/haptics'
 import { getCurrency, detectLanguage } from '@/lib/language'
 import { setDocumentThemeColor } from '../lib/documentSurface'
+import { isNativeHost } from '../lib/nativeBridge'
 
 const defaultConfig: Config = {
   announcementsSeen: [],
@@ -136,7 +137,12 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
       defaultConfig.aspUrl = 'http://localhost:7070'
       window.location.hash = ''
     }
-    let config = readConfigFromStorage() ?? { ...defaultConfig }
+    const storedConfig = readConfigFromStorage()
+    const freshNativeProfile = isNativeHost() && !storedConfig && !readWalletFromStorage()?.pubkey
+    let config = storedConfig ?? {
+      ...defaultConfig,
+      ...(freshNativeProfile ? { aspUrl: 'https://mutinynet.arkade.sh' } : {}),
+    }
     // merge with defaults to ensure all fields are present
     config = updateDefaultConfig(config)
     const devArkServer = import.meta.env.VITE_ARK_SERVER

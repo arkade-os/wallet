@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-all"
+description = "Enables the all command without any pre-configured scope."
+commands.allow = ["all"]
+
+[[permission]]
+identifier = "deny-all"
+description = "Denies the all command without any pre-configured scope."
+commands.deny = ["all"]

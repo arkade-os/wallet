@@ -208,6 +208,17 @@ describe('Sentry utilities', () => {
       expect(scrubEvent(event).contexts?.app).toEqual({ app_version: '1.2.3' })
     })
 
+    it('removes card PINs and recovery codes from diagnostic context', () => {
+      const event = {
+        contexts: { card: { cardPin: '123456', puk: '0123456789abcdef', version: '0.16-0.1' } },
+      } as unknown as ErrorEvent
+      expect(scrubEvent(event).contexts?.card).toEqual({
+        cardPin: '[redacted]',
+        puk: '[redacted]',
+        version: '0.16-0.1',
+      })
+    })
+
     it.each([
       ['mainnet', fixtures.lib.bolt11.invoice],
       ['regtest', fixtures.lib.bip21.invoice],

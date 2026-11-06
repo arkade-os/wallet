@@ -15,12 +15,13 @@ import { useReducedMotion } from './hooks/useReducedMotion'
 import { useLoadingStatus } from './hooks/useLoadingStatus'
 import { appSendNeedsDriver } from './lib/sendRouter'
 import { SwapsContext } from './providers/swaps'
-import { appIntentHandoff, nextAppIntentNavigation, redirectToCallback } from './lib/appIntent'
+import { appIntentHandoff, nextAppIntentNavigation, redirectToCallback, type AppIntentState } from './lib/appIntent'
 import { defaultPassword } from './lib/constants'
 import { consoleError } from './lib/logs'
 import DesktopWalletShell from './components/DesktopWalletShell'
 import { OptionsContext } from './providers/options'
 import { SettingsOptions } from './lib/types'
+import { isNativeHost } from './lib/nativeBridge'
 
 const PASSWORDLESS_AUTO_RELOAD_KEY = 'passwordless-auto-reload-attempted'
 const DESKTOP_WALLET_PAGES = new Set([
@@ -98,7 +99,7 @@ export default function App() {
   const passwordlessBootAttempted = useRef(false)
   const passwordlessReloadTimer = useRef<ReturnType<typeof setTimeout>>()
   const devAutoInitHomeRedirected = useRef(false)
-  const appSendStarted = useRef(false)
+  const appSendStarted = useRef<AppIntentState>()
   const hasDevAutoInit =
     import.meta.env.DEV &&
     Boolean(import.meta.env.VITE_DEV_NSEC || import.meta.env.VITE_DEV_MNEMONIC) &&
@@ -144,6 +145,16 @@ export default function App() {
     window.addEventListener('keydown', handleGlobalDown)
     return () => window.removeEventListener('keydown', handleGlobalDown)
   }, [navigate, appIntent, screen, sendInfo, outcomeOf])
+
+  useEffect(() => {
+    if (!isNativeHost()) return
+    const finish = () => {
+      resetFlow()
+      navigate(Pages.Wallet)
+    }
+    window.addEventListener('arkade-native-handoff', finish)
+    return () => window.removeEventListener('arkade-native-handoff', finish)
+  }, [resetFlow, navigate])
 
   useEffect(() => {
     if (isIAB) return navigate(Pages.InAppBrowser)
@@ -256,8 +267,8 @@ export default function App() {
   useEffect(() => {
     const step = nextAppIntentNavigation(appIntent, intentReady)
     if (step === 'send') {
-      if (appSendStarted.current || appIntent?.status !== 'send') return
-      appSendStarted.current = true
+      if (appSendStarted.current === appIntent || appIntent?.status !== 'send') return
+      appSendStarted.current = appIntent
       setAppIntent({ ...appIntent, started: true })
       setSendInfo({ ...emptySendInfo, recipient: appIntent.request })
       navigate(Pages.SendForm)

@@ -1,0 +1,112 @@
+name: Native platforms
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [master, next]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-platforms-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            bundle: deb
+          - os: macos-15
+            bundle: app
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+      - name: Install Linux native prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential pkg-config curl wget file libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf dbus-x11 gnome-keyring
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:native:platforms
+      - name: Build native wallet
+        run: pnpm native:build --bundles ${{ matrix.bundle }}
+      - name: Test Rust native workspace on macOS
+        if: runner.os == 'macOS'
+        run: cargo test --manifest-path src-tauri/Cargo.toml --workspace --locked
+      - name: Test Rust native workspace with isolated Secret Service on Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          keyring_root="$(mktemp -d "$RUNNER_TEMP/arkade-keyring.XXXXXX")"
+          export XDG_DATA_HOME="$keyring_root/data" XDG_CONFIG_HOME="$keyring_root/config"
+          export XDG_CACHE_HOME="$keyring_root/cache" XDG_RUNTIME_DIR="$keyring_root/run"
+          export GNOME_KEYRING_CONTROL="$XDG_RUNTIME_DIR/keyring"
+          mkdir -p "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$GNOME_KEYRING_CONTROL"
+          chmod 700 "$XDG_RUNTIME_DIR" "$GNOME_KEYRING_CONTROL"
+          dbus-run-session -- bash -euo pipefail -c '
+            printf "%s" "synthetic-ci-only-pass" | gnome-keyring-daemon --unlock --foreground --components=secrets --control-directory="$GNOME_KEYRING_CONTROL" > "$XDG_RUNTIME_DIR/keyring.log" 2>&1 &
+            keyring_pid=$!
+            trap '\''kill "$keyring_pid" 2>/dev/null || true'\'' EXIT
+            for attempt in {1..20}; do
+              if gdbus call --session --dest org.freedesktop.secrets --object-path /org/freedesktop/secrets --method org.freedesktop.Secret.Service.SetAlias default /org/freedesktop/secrets/collection/login >/dev/null 2>&1; then break; fi
+              sleep 0.25
+            done
+            gdbus call --session --dest org.freedesktop.secrets --object-path /org/freedesktop/secrets --method org.freedesktop.Secret.Service.SetAlias default /org/freedesktop/secrets/collection/login >/dev/null
+            cargo test --manifest-path src-tauri/Cargo.toml --workspace --locked
+          '
+
+  ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:native:platforms
+      - name: Install Xcode project generator
+        run: brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
+      - name: Select installed simulator and Rust target
+        shell: bash
+        run: |
+          if [[ "$(uname -m)" == arm64 ]]; then
+            echo 'IOS_TARGET=aarch64-sim' >> "$GITHUB_ENV"
+            rustup target add aarch64-apple-ios-sim
+          else
+            echo 'IOS_TARGET=x86_64' >> "$GITHUB_ENV"
+            rustup target add x86_64-apple-ios
+          fi
+          xcrun simctl list devices available --json > "$RUNNER_TEMP/simulators.json"
+          python3 -c 'import json,os; data=json.load(open(os.environ["RUNNER_TEMP"]+"/simulators.json")); devices=[d for ds in data["devices"].values() for d in ds if "iPhone" in d["name"] and d.get("isAvailable")]; assert devices,"No iPhone simulator is installed"; print("IOS_SIMULATOR="+devices[0]["udid"]); print("IOS_SIMULATOR_BOOTED="+str(devices[0]["state"]=="Booted").lower())' >> "$GITHUB_ENV"
+      - name: Initialize iOS host without replacing an existing project
+        run: pnpm native:ios:init --ci --skip-targets-install
+      - name: Build simulator wallet without signing
+        run: pnpm native:ios:build --debug --target "$IOS_TARGET" --no-sign --ci
+      - name: Verify generated iOS metadata
+        run: pnpm native:ios:prepare --check
+      - name: Boot iPhone simulator
+        run: |
+          if [[ "$IOS_SIMULATOR_BOOTED" != true ]]; then xcrun simctl boot "$IOS_SIMULATOR"; fi
+          xcrun simctl bootstatus "$IOS_SIMULATOR" -b
+      - name: Test wallet Keychain and policy on simulator
+        run: |
+          xcodegen generate --spec src-tauri/ios/wallet-tests/project.json --project src-tauri/ios/wallet-tests
+          xcodebuild -project src-tauri/ios/wallet-tests/WalletServiceTests.xcodeproj -scheme WalletServiceTests -sdk iphonesimulator -destination "platform=iOS Simulator,id=$IOS_SIMULATOR" -derivedDataPath "$RUNNER_TEMP/wallet-service-tests" test

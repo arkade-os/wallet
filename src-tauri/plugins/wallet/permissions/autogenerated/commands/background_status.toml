@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-background-status"
+description = "Enables the background_status command without any pre-configured scope."
+commands.allow = ["background_status"]
+
+[[permission]]
+identifier = "deny-background-status"
+description = "Denies the background_status command without any pre-configured scope."
+commands.deny = ["background_status"]

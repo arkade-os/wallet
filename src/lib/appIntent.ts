@@ -32,6 +32,7 @@
 // so a bolt11 BIP21 fits and an unbounded URL does not. One action per link.
 
 import { decodeBip21, isBip21 } from './bip21'
+import { isNativeHost } from './nativeBridge'
 
 export const APP_INTENT_MAX_SEARCH_LENGTH = 6_000
 const MAX_CALLBACK_LENGTH = 2_000
@@ -149,6 +150,7 @@ export const callbackUrl = (callback: string, params: Record<string, string | un
 }
 
 export const redirectToCallback = (callback: string, params: Record<string, string | undefined>): void => {
+  if (isNativeHost()) window.dispatchEvent(new Event('arkade-native-handoff'))
   window.location.assign(callbackUrl(callback, params))
 }
 

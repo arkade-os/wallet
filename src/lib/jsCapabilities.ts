@@ -28,7 +28,7 @@ export const detectJSCapabilities = async (): Promise<JSCapabilityCheck> => {
     }
 
     // Check for Service Worker support
-    if (!('serviceWorker' in navigator)) {
+    if (!isNativeHost() && !('serviceWorker' in navigator)) {
       return {
         isSupported: false,
         errorMessage: 'Service Workers are required but not supported in this environment',
@@ -121,3 +121,4 @@ export const getRestrictedEnvironmentMessage = (isIOS: boolean): string => {
   }
   return 'We need JavaScript enabled with full capabilities. Please check your browser settings and enable JavaScript.'
 }
+import { isNativeHost } from './nativeBridge'

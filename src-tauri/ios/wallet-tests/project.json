@@ -1,0 +1,50 @@
+{
+  "name": "WalletServiceTests",
+  "options": {
+    "deploymentTarget": { "iOS": "14.0" },
+    "bundleIdPrefix": "io.arkade.wallet.tests"
+  },
+  "settings": {
+    "base": {
+      "SWIFT_VERSION": "5.0",
+      "SUPPORTED_PLATFORMS": "iphonesimulator",
+      "CODE_SIGN_IDENTITY": "-",
+      "CODE_SIGN_STYLE": "Manual",
+      "CODE_SIGNING_ALLOWED": "YES",
+      "CODE_SIGNING_REQUIRED": "YES",
+      "GENERATE_INFOPLIST_FILE": "YES"
+    }
+  },
+  "packages": {
+    "WalletPlugin": { "path": "../../plugins/wallet/ios" }
+  },
+  "targets": {
+    "KeychainTestHost": {
+      "type": "application",
+      "platform": "iOS",
+      "sources": ["TestHost.swift"],
+      "settings": {
+        "base": {
+          "PRODUCT_BUNDLE_IDENTIFIER": "io.arkade.wallet.tests.keychain-host",
+          "CODE_SIGN_ENTITLEMENTS": "TestHost.entitlements"
+        }
+      }
+    },
+    "WalletServiceTests": {
+      "type": "bundle.unit-test",
+      "platform": "iOS",
+      "sources": ["../../plugins/wallet/ios/Tests"],
+      "dependencies": [
+        { "target": "KeychainTestHost" },
+        { "package": "WalletPlugin", "product": "tauri-plugin-wallet" }
+      ],
+      "settings": { "base": { "BUNDLE_LOADER": "$(TEST_HOST)" } }
+    }
+  },
+  "schemes": {
+    "WalletServiceTests": {
+      "build": { "targets": { "WalletServiceTests": ["test"] } },
+      "test": { "config": "Debug", "targets": ["WalletServiceTests"] }
+    }
+  }
+}

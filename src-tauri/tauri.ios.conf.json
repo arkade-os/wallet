@@ -1,0 +1,13 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "externalBin": [],
+    "resources": [],
+    "targets": "all",
+    "iOS": {
+      "minimumSystemVersion": "14.0",
+      "frameworks": ["AVFoundation"],
+      "infoPlist": "ios/Info.plist"
+    }
+  }
+}

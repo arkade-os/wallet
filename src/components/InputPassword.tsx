@@ -3,6 +3,7 @@ import InputContainer from './InputContainer'
 import { StrengthLabel } from './Strength'
 import PasswordIcon from '../icons/Password'
 import { useTranslation } from '@/providers/language'
+import { useClearOnBackground } from '../hooks/useClearOnBackground'
 
 interface InputPasswordProps {
   error?: string
@@ -12,6 +13,9 @@ interface InputPasswordProps {
   onEnter?: () => void
   placeholder?: string
   strength?: number
+  value?: string
+  autoComplete?: string
+  disabled?: boolean
 }
 
 export default function InputPassword({
@@ -22,9 +26,13 @@ export default function InputPassword({
   onEnter,
   strength,
   placeholder,
+  value,
+  autoComplete,
+  disabled,
 }: InputPasswordProps) {
   const { t } = useTranslation()
   const [visible, setVisible] = useState(false)
+  useClearOnBackground(() => setVisible(false))
 
   const input = useRef<HTMLInputElement>(null)
 
@@ -41,8 +49,12 @@ export default function InputPassword({
         <input
           ref={input}
           name={label}
+          aria-label={label || placeholder}
           className='input'
           onChange={onChange}
+          value={value}
+          autoComplete={autoComplete}
+          disabled={disabled}
           placeholder={placeholder}
           type={visible ? 'text' : 'password'}
           onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
@@ -51,6 +63,7 @@ export default function InputPassword({
       <button
         type='button'
         aria-label={t('components.toggleVisibility')}
+        aria-pressed={visible}
         onClick={() => setVisible(!visible)}
         style={{ padding: '12px' }}
       >

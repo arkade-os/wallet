@@ -5,6 +5,9 @@ import {
   NetworkName,
   SingleKey,
   MnemonicIdentity,
+  RestArkProvider,
+  RestIndexerProvider,
+  RestDelegateProvider,
   AssetDetails,
   WalletBalance,
   IVtxoManager,
@@ -59,6 +62,10 @@ import { BackupContext } from './backup'
 import { getAssetSwaps } from '@arkade-os/swap/protocol'
 import { useTranslation } from '../providers/language'
 import { isValidUrl } from '@/lib/validators'
+import { isNativeHost } from '../lib/nativeBridge'
+import { ForegroundWallet, type WalletRuntime } from '../lib/walletRuntime'
+import { createNativeRepositories } from '../lib/nativeRepositories'
+import { clearNativeBackground } from '../lib/nativeBackground'
 
 const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
 const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
@@ -96,11 +103,11 @@ interface WalletContextProps {
   unlockWallet: (password: string) => Promise<void>
   updateWallet: (w: Wallet | ((prev: Wallet) => Wallet)) => void
   isLocked: () => Promise<boolean>
-  reloadWallet: (svcWallet?: ServiceWorkerWallet) => Promise<void>
+  reloadWallet: (svcWallet?: WalletRuntime) => Promise<void>
   restartWallet: (delegateEnabled?: boolean) => Promise<void>
   wallet: Wallet
   walletLoaded: boolean
-  svcWallet: ServiceWorkerWallet | undefined
+  svcWallet: WalletRuntime | undefined
   vtxoManager: IVtxoManager | undefined
   txs: Tx[]
   /** History rows before grouping, and deliberately not derived from
@@ -211,7 +218,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [wallet, setWallet] = useState(() => readWalletFromStorage() ?? defaultWallet)
   const walletLoaded = true
   const [initialized, setInitialized] = useState<boolean>(false)
-  const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
+  const [svcWallet, setSvcWallet] = useState<WalletRuntime>()
   const [dataReady, setDataReady] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -265,6 +272,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const reloadTimerRef = useRef<ReturnType<typeof setTimeout>>()
   const lnurlResyncRef = useRef<ReturnType<typeof lnurlResyncOnPayment>>()
   const swMessageHandlerRef = useRef<(event: MessageEvent) => void>()
+  const foregroundStopRef = useRef<() => void>()
+  const runtimeRef = useRef<WalletRuntime>()
   const reinitInProgress = useRef(false)
   const initAbortRef = useRef<AbortController | null>(null)
   const reinitSvcWalletRef = useRef<((identity: Identity) => Promise<void>) | null>(null)
@@ -302,18 +311,21 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     initAbortRef.current = null
   }
 
-  const clearIfLockReset = async (svcWallet: ServiceWorkerWallet, signal: AbortSignal) => {
-    if (!signal.aborted || signal.reason !== 'lock-reset') return
+  const clearIfLockReset = async (svcWallet: WalletRuntime, signal: AbortSignal) => {
+    if (!signal.aborted || (signal.reason !== 'lock-reset' && !(svcWallet instanceof ForegroundWallet))) return
     try {
       await svcWallet.clear()
+      if (runtimeRef.current === svcWallet) runtimeRef.current = undefined
     } catch (err) {
       consoleError(err, 'Error clearing stale service worker wallet')
     }
   }
 
   const removeServiceWorkerMessageHandler = (handler = swMessageHandlerRef.current) => {
+    foregroundStopRef.current?.()
+    foregroundStopRef.current = undefined
     if (!handler) return
-    navigator.serviceWorker.removeEventListener('message', handler)
+    navigator.serviceWorker?.removeEventListener('message', handler)
     if (swMessageHandlerRef.current === handler) swMessageHandlerRef.current = undefined
   }
 
@@ -403,6 +415,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     // skip auth check when dev auto-init will handle it
+    if (initialized) {
+      setAuthState('authenticated')
+      return
+    }
     if (isDevAutoInit && !devAutoInitFailed) {
       if (!initialized) return
       setAuthState('authenticated')
@@ -440,7 +456,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       cancelled = true
     }
-  }, [wallet.pubkey])
+  }, [wallet.pubkey, initialized])
 
   // History is loaded after `client.ready` (see SwapsProvider). Skip here when
   // url and network are set — that is the path that starts the swap client.
@@ -536,7 +552,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [initialized, dataReady, noteInfo.satoshis, deepLinkInfo])
 
-  const reloadWallet = async (swWallet = svcWallet) => {
+  const reloadWallet = async (swWallet: WalletRuntime | undefined = svcWallet) => {
     if (!swWallet) return
     const isFirstLoad = !hasLoadedOnce.current
     if (isFirstLoad) setLoadError(null)
@@ -635,15 +651,24 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     params: InitSvcWorkerWalletParams,
   ): Promise<boolean> => {
     const { arkServerUrl, retryCount = 0, maxRetries = 2, delegateUrl, walletMode, restoring = false } = params
+    const foreground = isNativeHost()
     try {
       setLoadingStatus(t('loading.startingWallet'))
-      const walletRepository = new IndexedDBWalletRepository()
-      const contractRepository = new IndexedDBContractRepository()
+      const nativeRepositories = foreground
+        ? await createNativeRepositories({
+            network: aspInfo.network as NetworkName,
+            publicKey: hex.encode(await identity.compressedPublicKey()),
+            legacyDatabase: 'arkade-service-worker',
+          })
+        : undefined
+      const walletRepository = nativeRepositories?.walletRepository ?? new IndexedDBWalletRepository()
+      const contractRepository = nativeRepositories?.contractRepository ?? new IndexedDBContractRepository()
 
       // Zombie SW detection and IndexedDB warmup are independent — run them
       // concurrently. The zombie ping timeout is 500ms: alive workers respond
       // in <10ms, so anything slower is dead.
       const zombieCheck = (async () => {
+        if (foreground) return
         const existingReg = await navigator.serviceWorker.getRegistration()
         const active = existingReg?.active
         if (active) {
@@ -667,26 +692,49 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       })()
 
       await Promise.all([walletRepository.getWalletState(), zombieCheck])
-      setLoadingStatus(t('loading.connectingToServiceWorker'))
+      setLoadingStatus(foreground ? 'Opening your wallet' : t('loading.connectingToServiceWorker'))
 
-      const svcWallet = await ServiceWorkerWallet.setup({
-        serviceWorkerPath: '/wallet-service-worker.mjs',
+      const commonConfig = {
         identity,
-        arkServer: { url: arkServerUrl },
-        delegateUrl,
         walletMode: walletMode ?? config.walletMode ?? 'static',
-        // Contract sync finishes in the background; the coin-event reload below repaints. Not lazyBoarding: its
-        // refresh is never retried, and its UTXO_UPDATE carries every stored coin, which the receive screen reads as a payment.
         lazyInitialization: true,
-        storage: { walletRepository, contractRepository },
-        serviceWorkerActivationTimeoutMs: SERVICE_WORKER_ACTIVATION_TIMEOUT_MS,
-        messageBusTimeoutMs: MESSAGE_BUS_INIT_TIMEOUT_MS,
-        messageTimeouts: {
-          SETTLE: 60_000,
-          SEND: 60_000,
-        },
+        storage: nativeRepositories
+          ? {
+              walletRepository,
+              contractRepository,
+              intentRepository: nativeRepositories.intentRepository,
+              virtualTxRepository: nativeRepositories.virtualTxRepository,
+            }
+          : { walletRepository, contractRepository },
         settlementConfig: { vtxoThreshold: wallet.thresholdMs ? Math.floor(wallet.thresholdMs / 1000) : 1 },
-      })
+      }
+      const svcWallet: WalletRuntime = foreground
+        ? await ForegroundWallet.create({
+            ...commonConfig,
+            arkProvider: new RestArkProvider(arkServerUrl),
+            indexerProvider: new RestIndexerProvider(arkServerUrl),
+            delegateProvider: delegateUrl ? new RestDelegateProvider(delegateUrl) : undefined,
+          })
+        : await ServiceWorkerWallet.setup({
+            ...commonConfig,
+            serviceWorkerPath: '/wallet-service-worker.mjs',
+            arkServer: { url: arkServerUrl },
+            delegateUrl,
+            serviceWorkerActivationTimeoutMs: SERVICE_WORKER_ACTIVATION_TIMEOUT_MS,
+            messageBusTimeoutMs: MESSAGE_BUS_INIT_TIMEOUT_MS,
+            messageTimeouts: {
+              SETTLE: 60_000,
+              SEND: 60_000,
+            },
+          })
+      if (signal.aborted) {
+        await clearIfLockReset(svcWallet, signal)
+        return false
+      }
+      runtimeRef.current = svcWallet
+      if (svcWallet instanceof ForegroundWallet) {
+        svcWallet.clearNativeStorage = nativeRepositories!.clear
+      }
 
       // The first data load waits on the swap client (see SwapsProvider), so
       // the worker is no longer what the screen is waiting on.
@@ -803,12 +851,28 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         }
       }
 
-      if (swMessageHandlerRef.current) {
-        removeServiceWorkerMessageHandler(swMessageHandlerRef.current)
+      removeServiceWorkerMessageHandler()
+      if (svcWallet instanceof ForegroundWallet) {
+        const stopContracts = (await svcWallet.getContractManager()).onContractEvent(() => {
+          scheduleReload()
+          lnurlResyncRef.current?.onPayment()
+        })
+        let stopFunds: (() => void) | undefined
+        try {
+          stopFunds = await svcWallet.notifyIncomingFunds(scheduleReload)
+        } catch (error) {
+          consoleError(error, 'Unable to watch boarding deposits')
+        }
+        const stop = () => {
+          stopContracts()
+          stopFunds?.()
+        }
+        if (signal.aborted) stop()
+        else foregroundStopRef.current = stop
+      } else {
+        navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
+        swMessageHandlerRef.current = handleServiceWorkerMessages
       }
-      // Late is safe with a lazy boot: the worker persists coins before announcing them, and the first reload runs after this.
-      navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
-      swMessageHandlerRef.current = handleServiceWorkerMessages
 
       // ping the service worker wallet status every 1 second
       if (statusPingInterval.current) clearInterval(statusPingInterval.current)
@@ -892,6 +956,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     walletMode?: ServiceWorkerWalletMode
     restoring?: boolean
   }) => {
+    if ('signer' in wallet && wallet.signer !== undefined)
+      throw new Error('This build does not support the stored wallet. Your wallet data is preserved.')
     const arkServerUrl = aspInfo.url
     const network = aspInfo.network as NetworkName
 
@@ -964,10 +1030,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const identity = svcWallet.identity as Identity
     const arkServerUrl = aspInfo.url
     const delegateUrl = delegateEnabled ? getDelegateUrlForNetwork(aspInfo.network as NetworkName) : undefined
+    if (svcWallet instanceof ForegroundWallet) await svcWallet.clear()
     await initSvcWorkerWallet({
       identity,
       arkServerUrl,
       delegateUrl,
+      walletMode: config.walletMode,
     })
   }
 
@@ -987,6 +1055,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         identity,
         arkServerUrl,
         delegateUrl,
+        walletMode: config.walletMode,
       })
       if (!initialized) return
     } catch (err) {
@@ -1003,18 +1072,19 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const lockWallet = async () => {
     abortInitSession()
-    if (!svcWallet) throw new Error('Service worker not initialized')
     if (statusPingInterval.current) clearInterval(statusPingInterval.current)
     statusPingInterval.current = undefined
     clearTimeout(reloadTimerRef.current)
     reloadTimerRef.current = undefined
     lnurlResyncRef.current?.cancel()
     removeServiceWorkerMessageHandler()
-    await svcWallet.clear()
+    if (svcWallet instanceof ForegroundWallet) setSvcWallet(undefined)
+    runtimeRef.current = undefined
     setAuthState('locked')
     setInitialized(false)
     setDataReady(false)
     hasLoadedOnce.current = false
+    await svcWallet?.clear()
   }
 
   const resetWallet = async () => {
@@ -1033,7 +1103,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     reloadTimerRef.current = undefined
     removeServiceWorkerMessageHandler()
     forgetLnurlSends()
-    await clearStorage()
+    await clearNativeBackground()
     // swap records outlive localStorage now: without this a reset leaves the
     // previous wallet's swaps in the activity list. Never fatal — a reset that
     // aborted here would leave the wallet itself half-cleared, which is worse
@@ -1041,8 +1111,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     await assetSwapRepository.clear().catch((err) => consoleError(err, 'failed to clear swap records'))
     setAssetSwaps([])
     await svcWallet.clear()
-    await svcWallet.walletRepository.clear()
-    await svcWallet.contractRepository.clear()
+    if (svcWallet instanceof ForegroundWallet && svcWallet.clearNativeStorage) await svcWallet.clearNativeStorage()
+    else {
+      await svcWallet.walletRepository.clear()
+      await svcWallet.contractRepository.clear()
+    }
+    await clearStorage()
+    runtimeRef.current = undefined
+    setSvcWallet(undefined)
     setDataReady(false)
     hasLoadedOnce.current = false
   }
@@ -1070,6 +1146,19 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       return true
     }
   }
+
+  useEffect(
+    () => () => {
+      if (!isNativeHost()) return
+      abortInitSession()
+      clearInterval(statusPingInterval.current)
+      clearTimeout(reloadTimerRef.current)
+      lnurlResyncRef.current?.cancel()
+      removeServiceWorkerMessageHandler()
+      if (runtimeRef.current instanceof ForegroundWallet) runtimeRef.current.clear().catch(consoleError)
+    },
+    [],
+  )
 
   return (
     <WalletContext.Provider

@@ -11,6 +11,8 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { useTranslation } from '../../../providers/language'
+import { isNativeHost } from '../../../lib/nativeBridge'
+import Button from '../../../components/Button'
 
 export default function AppDfx() {
   const { svcWallet } = useContext(WalletContext)
@@ -54,6 +56,11 @@ export default function AppDfx() {
               <Text color='neutral-800' small thin wrap centered>
                 {t('apps.dfxConnectionFailed')}
               </Text>
+            ) : isNativeHost() ? (
+              <>
+                <Text wrap>Continue with DFX in your browser to buy or sell bitcoin.</Text>
+                <Button label='Open DFX' onClick={() => window.open(dfxUrl!, '_blank', 'noopener,noreferrer')} />
+              </>
             ) : (
               <iframe
                 src={dfxUrl!}

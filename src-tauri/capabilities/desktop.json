@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "desktop-notifications",
+  "description": "Activity notifications and incoming links for the bundled desktop wallet",
+  "windows": ["main"],
+  "local": true,
+  "platforms": ["windows", "linux", "macOS"],
+  "permissions": [
+    "wallet:allow-pending-intents",
+    "notification:allow-is-permission-granted",
+    "notification:allow-request-permission",
+    "notification:allow-notify"
+  ]
+}

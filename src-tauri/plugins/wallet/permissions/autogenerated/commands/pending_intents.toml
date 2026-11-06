@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-pending-intents"
+description = "Enables the pending_intents command without any pre-configured scope."
+commands.allow = ["pending_intents"]
+
+[[permission]]
+identifier = "deny-pending-intents"
+description = "Denies the pending_intents command without any pre-configured scope."
+commands.deny = ["pending_intents"]

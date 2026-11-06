@@ -14,6 +14,11 @@ export default defineConfig({
     },
   },
   plugins: [
+    process.env.ARKADE_NATIVE_BUILD === '1' && {
+      name: 'native-bundled-html',
+      transformIndexHtml: (html: string) =>
+        html.replace(/<script\b[^>]*src="https:\/\/plausible\.io\/js\/script\.js"[^>]*><\/script>/, ''),
+    },
     basicAuth(),
     react(),
     tailwindcss(),

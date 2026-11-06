@@ -51,6 +51,7 @@ import Select from '../../../components/Select'
 import { TokenLogoStack, TokenOnChainLogo } from '../../../components/ChainLogo'
 import ChevronDownIcon from '../../../icons/ChevronDown'
 import XIcon from '../../../icons/X'
+import { watchWalletPayments } from '../../../lib/walletRuntime'
 
 const TOKEN = 'token:'
 
@@ -328,8 +329,7 @@ export default function ReceiveQRCode() {
       }
     }
 
-    navigator.serviceWorker.addEventListener('message', listenForPayments)
-    return () => navigator.serviceWorker.removeEventListener('message', listenForPayments)
+    return watchWalletPayments(svcWallet, listenForPayments)
   }, [svcWallet])
 
   // Handlers
