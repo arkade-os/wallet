@@ -21,20 +21,37 @@ import {
   mockSvcWallet,
 } from './mocks'
 
+const publicKey = `02${'11'.repeat(32)}`
 const mocks = vi.hoisted(() => ({
+  card: { status: 'disconnected', publicKey: '' },
   navigate: vi.fn(),
   send: vi.fn(),
+}))
+vi.mock('../../lib/nativeBridge', async (original) => ({
+  ...(await original<typeof import('../../lib/nativeBridge')>()),
+  getNativeCardState: () => mocks.card,
+}))
+vi.mock('../../components/NativeCardConnectSheet', () => ({
+  default: ({ isOpen, onClose, onConnected }: { isOpen: boolean; onClose: () => void; onConnected: () => void }) =>
+    isOpen ? (
+      <div role='dialog' aria-label='Connect Satochip'>
+        <button onClick={onClose}>Cancel connection</button>
+        <button onClick={onConnected}>Connection complete</button>
+      </div>
+    ) : null,
 }))
 vi.mock('../../hooks/useReducedMotion', () => ({ useReducedMotion: () => true }))
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.card = { status: 'disconnected', publicKey: '' }
   mocks.send.mockResolvedValue('fixture-txid')
   localStorage.removeItem('transactionActivityMetadata')
 })
 
 function show(
   page: React.ReactNode,
+  hardware = true,
   options: {
     flow?: Partial<React.ContextType<typeof FlowContext>>
     reloadWallet?: () => Promise<void>
@@ -58,7 +75,9 @@ function show(
               <WalletContext.Provider
                 value={{
                   ...mockWalletContextValue,
-                  wallet: { nextRollover: 0 },
+                  wallet: hardware
+                    ? { nextRollover: 0, pubkey: publicKey, signer: { type: 'native', publicKey, name: 'Satochip' } }
+                    : { nextRollover: 0 },
                   balance: 10000,
                   svcWallet: { ...mockSvcWallet, send: mocks.send } as never,
                   reloadWallet: options.reloadWallet ?? mockWalletContextValue.reloadWallet,
@@ -74,20 +93,65 @@ function show(
   )
 }
 
-describe('software wallet actions', () => {
-  it('opens the normal Send flow without a connection dialog', () => {
+describe('card connection during Send', () => {
+  it('guides a disconnected wallet before entering Send and supports cancellation', () => {
     show(<HomeQuickActions />)
     fireEvent.click(screen.getByTestId('home-action-send'))
+    expect(screen.getByRole('dialog', { name: 'Connect Satochip' })).toBeInTheDocument()
+    expect(mocks.navigate).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByText('Cancel connection'))
     expect(screen.queryByRole('dialog')).toBeNull()
+    expect(mocks.navigate).not.toHaveBeenCalled()
+  })
+
+  it('continues into Send only after connection completes', () => {
+    show(<HomeQuickActions />)
+    fireEvent.click(screen.getByTestId('home-action-send'))
+    mocks.card = { status: 'connected', publicKey }
+    fireEvent.click(screen.getByText('Connection complete'))
     expect(mocks.navigate).toHaveBeenCalledExactlyOnceWith(Pages.SendForm)
     expect(mocks.send).not.toHaveBeenCalled()
   })
 
-  it('opens the normal Receive flow', () => {
+  it('keeps connected cards and software wallets on the normal Send path', () => {
+    mocks.card = { status: 'connected', publicKey }
+    const view = show(<HomeQuickActions />)
+    fireEvent.click(screen.getByTestId('home-action-send'))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(mocks.navigate).toHaveBeenCalledWith(Pages.SendForm)
+    view.unmount()
+    mocks.card = { status: 'disconnected', publicKey: '' }
+    show(<HomeQuickActions />, false)
+    fireEvent.click(screen.getByTestId('home-action-send'))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(mocks.navigate).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not require the card to receive', () => {
     show(<HomeQuickActions />)
     fireEvent.click(screen.getByTestId('home-action-receive'))
-    expect(mocks.navigate).toHaveBeenCalledExactlyOnceWith(Pages.ReceiveQRCode)
+    expect(mocks.navigate).toHaveBeenCalledWith(Pages.ReceiveQRCode)
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('rechecks the card before signing and requires a new confirmation after reconnect', async () => {
+    show(<SendDetails />)
+    fireEvent.click(await screen.findByText('Tap to Sign'))
+    expect(screen.getByRole('dialog', { name: 'Connect Satochip' })).toBeInTheDocument()
+    expect(mocks.send).not.toHaveBeenCalled()
+    mocks.card = { status: 'connected', publicKey }
+    fireEvent.click(screen.getByText('Connection complete'))
+    expect(mocks.send).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByText('Tap to Sign'))
+    await waitFor(() => expect(mocks.send).toHaveBeenCalledOnce())
+  })
+
+  it('requires the wallet’s own card even when another card is connected', () => {
+    mocks.card = { status: 'connected', publicKey: `02${'22'.repeat(32)}` }
+    show(<HomeQuickActions />)
+    fireEvent.click(screen.getByTestId('home-action-send'))
+    expect(screen.getByRole('dialog', { name: 'Connect Satochip' })).toBeInTheDocument()
+    expect(mocks.navigate).not.toHaveBeenCalled()
   })
 })
 
@@ -102,7 +166,7 @@ describe('deferred direct-send completion', () => {
     const second: SendInfo = { arkAddress: 'tark1other', recipient: 'manual-B', satoshis: 2000 }
     let current = first
     const reloadWallet = vi.fn(async () => {})
-    const view = show(<SendDetails />, {
+    const view = show(<SendDetails />, false, {
       screen: Pages.SendDetails,
       reloadWallet,
       flow: {
@@ -139,7 +203,7 @@ describe('deferred direct-send completion', () => {
     const second: SendInfo = { arkAddress: 'tark1other', recipient: 'manual-B', satoshis: 2000 }
     let current: SendInfo = { arkAddress: 'tark1destination', recipient: 'manual-A', satoshis: 1000 }
     const reloadWallet = vi.fn(async () => {})
-    const view = show(<SendDetails />, {
+    const view = show(<SendDetails />, false, {
       screen: Pages.SendDetails,
       reloadWallet,
       flow: {

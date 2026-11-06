@@ -24,6 +24,7 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_deep_link::init());
     builder
+        .plugin(tauri_plugin_satochip::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_wallet::init())
@@ -76,6 +77,11 @@ pub fn run() {
                 })
                 .build()?;
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if matches!(event, tauri::WindowEvent::Destroyed) {
+                tauri_plugin_satochip::disconnect_on_close(window.app_handle());
+            }
         })
         .build(tauri::generate_context!())
         .expect("Unable to start Arkade native host")

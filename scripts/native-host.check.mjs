@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFile, readdir } from 'node:fs/promises'
 import test from 'node:test'
 
-test('native host forbids remote frames and grants platform access only to local windows', async () => {
+test('native host forbids remote frames and grants card access only to local windows', async () => {
   const root = new URL('../src-tauri/', import.meta.url)
   const config = JSON.parse(await readFile(new URL('tauri.conf.json', root), 'utf8'))
   const framePolicy = config.app.security.csp
@@ -17,8 +17,8 @@ test('native host forbids remote frames and grants platform access only to local
     assert.equal(capability.remote, undefined, `${filename} must not grant native access to remote content`)
     assert.deepEqual(capability.windows, ['main'])
     if (capability.identifier === 'native-wallet') {
-      assert.ok(capability.permissions.includes('wallet:allow-secret-get'))
-      assert.ok(capability.permissions.includes('wallet-sql:allow-restore'))
+      assert.ok(capability.permissions.includes('satochip:allow-inspect'))
+      assert.ok(capability.permissions.includes('satochip:allow-setup-card'))
     }
   }
 })

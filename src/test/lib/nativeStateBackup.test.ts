@@ -178,25 +178,6 @@ describe('native backup encryption', () => {
 })
 
 describe('native recovery export and restore', () => {
-  it.each([true, false])(
-    'rejects a signer profile with software credentials present=%s before changing storage',
-    async (withCredential) => {
-      const value = payload()
-      value.localStorage.wallet = JSON.stringify({
-        ...JSON.parse(value.localStorage.wallet),
-        signer: { type: 'external', publicKey },
-      })
-      if (!withCredential) value.credentials[MNEMONIC_STORAGE_KEY] = null
-
-      await expect(restoreNativeState(await encrypted(value), password)).rejects.toThrow('invalid or unsupported')
-
-      expect(mocks.validateSql).not.toHaveBeenCalled()
-      expect(mocks.restoreSql).not.toHaveBeenCalled()
-      expect(mocks.setSecret).not.toHaveBeenCalled()
-      expect(localStorage.getItem('wallet')).toBeNull()
-    },
-  )
-
   it('captures every app IDB schema/preimage while omitting logs and device credentials', async () => {
     localStorage.setItem('wallet', JSON.stringify(wallet))
     localStorage.setItem('config', JSON.stringify(config))

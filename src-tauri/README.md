@@ -1,5 +1,12 @@
 # Arkade native host
 
+This branch also includes the stacked [Satochip feature](../docs/native-satochip.md).
+Desktop card builds package the pinned Python helper and require Python build tools,
+SWIG and PC/SC development headers on the matching OS/architecture. Linux card use
+requires PC/SC and its reader driver. Android/iOS use native NFC transports. The
+shared app preparation/build scripts remain in `android/`; provider sources remain
+under `plugins/satochip/`. See the feature guide for setup, PIN entry and test limits.
+
 This Tauri host embeds the existing wallet's production build and published SDK.
 Wallet screens, routing, swaps and activity remain in the shared React application.
 The host provides protected credentials, SQLite repositories, QR scanning, backups,

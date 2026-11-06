@@ -24,6 +24,8 @@
     "active": true,
     "targets": ["nsis"],
     "icon": ["../public/favicon.ico", "../public/arkade-icon-512.png"],
+    "resources": ["resources/bridge.py", "resources/THIRD_PARTY_NOTICES.md", "resources/licenses/"],
+    "externalBin": ["binaries/satochip-bridge"],
     "windows": {
       "webviewInstallMode": { "type": "downloadBootstrapper" }
     }

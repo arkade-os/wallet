@@ -16,10 +16,12 @@ def merge_strings(current, required, name):
 
 def merge_info(current, required):
     result = copy.deepcopy(current)
-    for key in ("NSCameraUsageDescription",):
+    for key in ("NFCReaderUsageDescription", "NSCameraUsageDescription"):
         if key in result and (not isinstance(result[key], str) or not result[key].strip()):
             raise ValueError(f"Invalid existing {key}; resolve it in Xcode before preparing")
         result.setdefault(key, required[key])
+    aid = "com.apple.developer.nfc.readersession.iso7816.select-identifiers"
+    result[aid] = merge_strings(result.get(aid, []), required[aid], aid)
     for key in ("UIFileSharingEnabled", "LSSupportsOpeningDocumentsInPlace"):
         if key in result and result[key] is not False:
             raise ValueError(f"{key} must remain false; existing project was preserved")
@@ -42,10 +44,8 @@ def merge_info(current, required):
 
 def merge_entitlements(current, required):
     result = copy.deepcopy(current)
-    for key, value in required.items():
-        if key in result and result[key] != value:
-            raise ValueError(f"Conflicting existing {key}; existing project was preserved")
-        result.setdefault(key, copy.deepcopy(value))
+    key = "com.apple.developer.nfc.readersession.formats"
+    result[key] = merge_strings(result.get(key, []), required[key], key)
     return result
 
 
@@ -101,10 +101,10 @@ def prepare(project, check=False, source=None):
     prepared_info = merge_info(info, read_plist(source / "Info.plist"))
     prepared_entitlements = merge_entitlements(entitlements, read_plist(source / "Entitlements.plist"))
     changes = [(info_path, info, prepared_info), (entitlements_path, entitlements, prepared_entitlements)]
-    if check and any(old != new or not path.exists() for path, old, new in changes):
+    if check and any(old != new for _, old, new in changes):
         raise ValueError("iOS metadata needs preparation; run pnpm native:ios:prepare")
     for path, old, new in changes:
-        if old != new or not path.exists():
+        if old != new:
             write_plist(path, new)
 
 

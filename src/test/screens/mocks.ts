@@ -117,6 +117,7 @@ export const mockNavigationContextValue = {
 }
 
 export const mockWalletContextValue = {
+  connectHardwareWallet: () => Promise.resolve(),
   authState: 'authenticated' as const,
   initWallet: () => Promise.resolve(),
   lockWallet: () => Promise.resolve(),
