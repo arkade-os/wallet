@@ -1,12 +1,19 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Init from '../../screens/Init/Init'
 import { AspContext } from '../../providers/asp'
 import { FlowContext } from '../../providers/flow'
-import { NavigationContext } from '../../providers/navigation'
+import { NavigationContext, Pages } from '../../providers/navigation'
 import { WalletContext } from '../../providers/wallet'
 import { DevModeProvider } from '../../providers/devMode'
 import { mockAspContextValue, mockFlowContextValue, mockNavigationContextValue, mockWalletContextValue } from './mocks'
+import { createPasskeyWallet, loginWithPasskey } from '../../lib/passkey'
+
+vi.mock('../../lib/passkey', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/passkey')>()),
+  createPasskeyWallet: vi.fn(),
+  loginWithPasskey: vi.fn(),
+}))
 
 function withContexts(children: React.ReactNode) {
   return (
@@ -46,5 +53,89 @@ describe('Init screen — devMode triple-tap gesture (pristine wallet)', () => {
     // Now "+ Create wallet" opens the advanced sheet with the rotation toggle
     fireEvent.click(screen.getByText('+ Create wallet'))
     expect(await screen.findByTestId('toggle-hd-rotation')).toBeInTheDocument()
+  })
+})
+
+describe('Init screen — passkey wallets', () => {
+  const words = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
+
+  function renderWithSpies() {
+    const navigate = vi.fn()
+    const setInitInfo = vi.fn()
+    const updateWallet = vi.fn()
+    render(
+      <DevModeProvider>
+        <AspContext.Provider value={mockAspContextValue as any}>
+          <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate } as any}>
+            <FlowContext.Provider value={{ ...mockFlowContextValue, setInitInfo } as any}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, updateWallet } as any}>
+                <Init />
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </NavigationContext.Provider>
+        </AspContext.Provider>
+      </DevModeProvider>,
+    )
+    return { navigate, setInitInfo, updateWallet }
+  }
+
+  beforeEach(() => {
+    localStorage.clear()
+    Object.defineProperty(navigator, 'credentials', { value: {}, configurable: true })
+  })
+
+  it('creates a wallet whose words come from a new passkey, storing no password', async () => {
+    vi.mocked(createPasskeyWallet).mockResolvedValue({
+      prf: true,
+      mnemonic: words,
+      passkeyId: 'ab',
+      passkeyRpId: 'localhost',
+    })
+    const { navigate, setInitInfo, updateWallet } = renderWithSpies()
+    fireEvent.click(screen.getByText('Create with passkey'))
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.InitConnect))
+    expect(updateWallet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        passkeyPrf: true,
+        passkeyId: 'ab',
+        passkeyRpId: 'localhost',
+        lockedByBiometrics: false,
+      }),
+    )
+    expect(setInitInfo).toHaveBeenCalledWith(
+      expect.objectContaining({ mnemonic: words, passkeyPrf: true, restoring: false }),
+    )
+    expect(setInitInfo.mock.calls.at(-1)?.[0]).not.toHaveProperty('password')
+  })
+
+  it('falls back to the same passkey as an unlock key when the authenticator has no PRF', async () => {
+    vi.mocked(createPasskeyWallet).mockResolvedValue({
+      prf: false,
+      mnemonic: words,
+      password: 'cafe',
+      passkeyId: 'ab',
+      passkeyRpId: 'localhost',
+    })
+    const { navigate, setInitInfo, updateWallet } = renderWithSpies()
+    fireEvent.click(screen.getByText('Create with passkey'))
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.InitConnect))
+    expect(updateWallet).toHaveBeenCalledWith(
+      expect.objectContaining({ lockedByBiometrics: true, passkeyId: 'ab', passkeyRpId: 'localhost' }),
+    )
+    expect(setInitInfo).toHaveBeenCalledWith(
+      expect.objectContaining({ mnemonic: words, password: 'cafe', restoring: false }),
+    )
+  })
+
+  it('logs in on a new device from a passkey alone', async () => {
+    vi.mocked(loginWithPasskey).mockResolvedValue({ mnemonic: words, passkeyId: 'cd', passkeyRpId: 'localhost' })
+    const { navigate, setInitInfo, updateWallet } = renderWithSpies()
+    fireEvent.click(screen.getAllByText('Other login options')[0])
+    fireEvent.click(await screen.findByText('Log in with passkey'))
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.InitConnect))
+    expect(updateWallet).toHaveBeenCalledWith(expect.objectContaining({ passkeyPrf: true, passkeyId: 'cd' }))
+    expect(setInitInfo).toHaveBeenCalledWith(
+      expect.objectContaining({ mnemonic: words, passkeyPrf: true, restoring: true }),
+    )
   })
 })

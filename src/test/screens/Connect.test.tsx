@@ -68,3 +68,20 @@ describe('Connect screen — restoring flag', () => {
     )
   })
 })
+
+describe('Connect screen — passkey wallets', () => {
+  it('opens a passkey-derived wallet without a password and stores no words', async () => {
+    const { setMnemonic } = await import('../../lib/mnemonic')
+    vi.mocked(setMnemonic).mockClear()
+    const initWallet = renderConnect({
+      mnemonic: validMnemonic,
+      passkeyPrf: true,
+      restoring: false,
+      walletMode: 'static',
+    })
+    await waitFor(() =>
+      expect(initWallet).toHaveBeenCalledWith({ mnemonic: validMnemonic, walletMode: 'static', restoring: false }),
+    )
+    expect(setMnemonic).not.toHaveBeenCalled()
+  })
+})

@@ -1,7 +1,7 @@
 import { ReactElement, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { generateMnemonic } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
-import type { ServiceWorkerWalletMode } from '@arkade-os/sdk'
+import { PasskeyCancelled, PrfUnavailable, type ServiceWorkerWalletMode } from '@arkade-os/sdk'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../providers/navigation'
@@ -14,7 +14,10 @@ import Padded from '../../components/Padded'
 import Text from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
 import SheetModal from '../../components/SheetModal'
-import { defaultPassword } from '../../lib/constants'
+import { defaultPassword, isMainnet } from '../../lib/constants'
+import { isBiometricsSupported } from '../../lib/biometrics'
+import { createPasskeyWallet, loginWithPasskey } from '../../lib/passkey'
+import { consoleError } from '../../lib/logs'
 import { OnboardStaggerChild } from '../../components/OnboardLoadIn'
 import { motion } from 'framer-motion'
 import { onboardStaggerContainer, EASE_OUT_QUINT_TUPLE } from '../../lib/animations'
@@ -59,7 +62,7 @@ export default function Init() {
   const { aspInfo } = useContext(AspContext)
   const { setInitInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { authState, wallet } = useContext(WalletContext)
+  const { authState, wallet, updateWallet } = useContext(WalletContext)
   const { devMode, handleTap } = useContext(DevModeContext)
 
   const prefersReduced = useReducedMotion()
@@ -67,6 +70,7 @@ export default function Init() {
   const [error, setError] = useState(false)
   const [showOptions, setShowOptions] = useState(false)
   const [showCreateOptions, setShowCreateOptions] = useState(false)
+  const [passkeyError, setPasskeyError] = useState('')
   const [hdRotation, setHdRotation] = useState(false)
   const [contentReady, setContentReady] = useState(prefersReduced)
   const [sunriseVisible, setSunriseVisible] = useState(prefersReduced)
@@ -98,6 +102,44 @@ export default function Init() {
   }
 
   const handleOldWallet = () => navigate(Pages.InitRestore)
+
+  const passkeyFailure = (err: unknown) => {
+    if (err instanceof PasskeyCancelled) return
+    consoleError(err, 'passkey wallet failed')
+    setPasskeyError(err instanceof PrfUnavailable ? t('init.passkeyHasNoWords') : t('init.passkeyFailed'))
+  }
+
+  const handlePasskeyWallet = async () => {
+    setPasskeyError('')
+    try {
+      const made = await createPasskeyWallet(isMainnet(aspInfo.network))
+      const { passkeyId, passkeyRpId } = made
+      if (made.prf) {
+        updateWallet({ ...wallet, passkeyPrf: true, passkeyId, passkeyRpId, lockedByBiometrics: false })
+        setInitInfo({ mnemonic: made.mnemonic, passkeyPrf: true, restoring: false, walletMode: 'static' })
+      } else {
+        updateWallet({ ...wallet, lockedByBiometrics: true, passkeyId, passkeyRpId })
+        setInitInfo({ mnemonic: made.mnemonic, password: made.password, restoring: false, walletMode: 'static' })
+      }
+      navigate(Pages.InitConnect)
+    } catch (err) {
+      passkeyFailure(err)
+    }
+  }
+
+  const handlePasskeyLogin = async () => {
+    setPasskeyError('')
+    try {
+      const found = await loginWithPasskey(isMainnet(aspInfo.network))
+      const { passkeyId, passkeyRpId } = found
+      updateWallet({ ...wallet, passkeyPrf: true, passkeyId, passkeyRpId, lockedByBiometrics: false })
+      setInitInfo({ mnemonic: found.mnemonic, passkeyPrf: true, restoring: true })
+      navigate(Pages.InitConnect)
+    } catch (err) {
+      setShowOptions(false)
+      passkeyFailure(err)
+    }
+  }
 
   const handleLogoComplete = useCallback(() => {
     setContentReady(true)
@@ -232,6 +274,15 @@ export default function Init() {
           }}
         >
           <Button disabled={error || !aspReady} onClick={handleNewWallet} label={`+ ${t('init.createWallet')}`} />
+          {isBiometricsSupported() ? (
+            <Button
+              disabled={error || !aspReady}
+              onClick={handlePasskeyWallet}
+              label={t('init.createWithPasskey')}
+              secondary
+            />
+          ) : null}
+          <ErrorMessage text={passkeyError} error={Boolean(passkeyError)} />
           <Button
             disabled={error || !aspReady}
             onClick={() => setShowOptions(true)}
@@ -244,6 +295,9 @@ export default function Init() {
         <FlexCol gap='1rem'>
           <Text>{t('init.otherLoginOptions')}</Text>
           <Button fancy disabled={error} onClick={handleOldWallet} label={t('init.restoreWallet')} secondary />
+          {isBiometricsSupported() ? (
+            <Button disabled={error} onClick={handlePasskeyLogin} label={t('init.logInWithPasskey')} secondary />
+          ) : null}
         </FlexCol>
       </SheetModal>
       <SheetModal isOpen={showCreateOptions} onClose={() => setShowCreateOptions(false)}>

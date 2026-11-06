@@ -212,6 +212,10 @@ export type Wallet = {
   network?: NetworkName | ''
   nextRollover: number
   passkeyId?: string
+  /** Words derived from the passkey's PRF on each unlock; nothing secret is stored. */
+  passkeyPrf?: boolean
+  /** The site the passkey belongs to; absent for passkeys made on the page's own host. */
+  passkeyRpId?: string
   pubkey?: string
 }
 

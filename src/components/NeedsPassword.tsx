@@ -17,14 +17,20 @@ import { useTranslation } from '../providers/language'
 interface NeedsPasswordProps {
   error: string
   onPassword: (password: string) => void | Promise<void>
+  /** Opens a wallet whose words come from its passkey; such a wallet has no password. */
+  onPasskey?: () => void | Promise<void>
 }
 
-export default function NeedsPassword({ error, onPassword }: NeedsPasswordProps) {
+export default function NeedsPassword({ error, onPassword, onPasskey }: NeedsPasswordProps) {
   const { wallet } = useContext(WalletContext)
   const { t } = useTranslation()
   const [password, setPassword] = useState('')
 
-  const handleBiometrics = () => authenticateUser(wallet.passkeyId).then(onPassword).catch(consoleError)
+  const usesPasskey = wallet.lockedByBiometrics || (wallet.passkeyPrf && onPasskey)
+  const handleBiometrics = () =>
+    wallet.passkeyPrf && onPasskey
+      ? Promise.resolve(onPasskey()).catch(consoleError)
+      : authenticateUser(wallet.passkeyId, wallet.passkeyRpId).then(onPassword).catch(consoleError)
   const handleChange = (ev: any) => setPassword(ev.target.value)
   const handleClick = () => onPassword(password)
 
@@ -32,10 +38,11 @@ export default function NeedsPassword({ error, onPassword }: NeedsPasswordProps)
     <>
       <Content>
         <Padded>
-          {wallet.lockedByBiometrics ? (
+          {usesPasskey ? (
             <CenterScreen onClick={handleBiometrics}>
               <LockIcon big />
               <Text centered>{t('unlock.unlockWithPasskey')}</Text>
+              <ErrorMessage text={error} error={Boolean(error)} />
             </CenterScreen>
           ) : (
             <FlexCol gap='1rem' testId='password'>
@@ -52,7 +59,7 @@ export default function NeedsPassword({ error, onPassword }: NeedsPasswordProps)
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Button onClick={wallet.lockedByBiometrics ? handleBiometrics : handleClick} label={t('unlock.unlockWallet')} />
+        <Button onClick={usesPasskey ? handleBiometrics : handleClick} label={t('unlock.unlockWallet')} />
       </ButtonsOnBottom>
     </>
   )
