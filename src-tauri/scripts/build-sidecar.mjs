@@ -55,6 +55,15 @@ export function virtualenvPython(root, platform) {
   return join(root, '.sidecar-venv', ...(platform === 'win32' ? ['Scripts', 'python.exe'] : ['bin', 'python']))
 }
 
+export function virtualenvEnvironment(scriptsDirectory, environment = process.env, platform = process.platform) {
+  const pathKey =
+    platform === 'win32' ? Object.keys(environment).find((key) => key.toLowerCase() === 'path') || 'PATH' : 'PATH'
+  return {
+    ...environment,
+    [pathKey]: [scriptsDirectory, environment[pathKey]].filter(Boolean).join(platform === 'win32' ? ';' : ':'),
+  }
+}
+
 export function pinnedRequirements(contents) {
   const requirements = contents
     .split(/\r?\n/)
@@ -102,8 +111,13 @@ export function pyInstallerArguments(root) {
   ]
 }
 
-function run(executable, args, capture = false) {
-  const result = spawnSync(executable, args, { stdio: capture ? 'pipe' : 'inherit', encoding: 'utf8', shell: false })
+function run(executable, args, capture = false, env) {
+  const result = spawnSync(executable, args, {
+    stdio: capture ? 'pipe' : 'inherit',
+    encoding: 'utf8',
+    shell: false,
+    env,
+  })
   if (result.error || result.status !== 0) throw new Error(`Sidecar build command failed: ${executable}`)
   return result.stdout?.trim()
 }
@@ -115,7 +129,7 @@ function pythonInfo(executable, prefix = []) {
       [
         ...prefix,
         '-c',
-        'import json,platform,sys; print(json.dumps({"platform":sys.platform,"machine":platform.machine(),"virtualenv":sys.prefix!=sys.base_prefix}))',
+        'import json,platform,sys,sysconfig; print(json.dumps({"platform":sys.platform,"machine":platform.machine(),"virtualenv":sys.prefix!=sys.base_prefix,"scriptsDirectory":sysconfig.get_path("scripts")}))',
       ],
       true,
     ),
@@ -138,16 +152,19 @@ export function buildSidecar(options) {
       run(creator, [...prefix, '-m', 'venv', join(nativeRoot, '.sidecar-venv')])
     }
   }
-  checkPython(pythonInfo(python), process.platform, process.arch, true)
+  const info = pythonInfo(python)
+  checkPython(info, process.platform, process.arch, true)
+  const environment = virtualenvEnvironment(info.scriptsDirectory)
+  const runPython = (args) => run(python, args, false, environment)
   const install = ['-m', 'pip', 'install', '--disable-pip-version-check', '--no-deps', '--no-build-isolation']
   // Source builds prepare metadata before installing other requirements, so their backends must already exist.
-  for (const requirement of bootstrap) run(python, [...install, requirement])
-  run(python, [...install, '-r', requirementsPath])
-  run(python, ['-m', 'pip', 'check'])
-  run(python, [join(nativeRoot, 'scripts', 'collect-licenses.py')])
+  for (const requirement of bootstrap) runPython([...install, requirement])
+  runPython([...install, '-r', requirementsPath])
+  runPython(['-m', 'pip', 'check'])
+  runPython([join(nativeRoot, 'scripts', 'collect-licenses.py')])
   mkdirSync(join(nativeRoot, 'binaries'), { recursive: true })
   mkdirSync(join(nativeRoot, '.sidecar-build'), { recursive: true })
-  run(python, pyInstallerArguments(nativeRoot))
+  runPython(pyInstallerArguments(nativeRoot))
   copyFileSync(join(nativeRoot, 'binaries', target.executable), join(nativeRoot, 'binaries', target.bundled))
   process.stdout.write(`Built Satochip sidecar for ${target.triple}\n`)
 }
