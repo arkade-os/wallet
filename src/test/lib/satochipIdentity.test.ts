@@ -2,18 +2,24 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Buffer } from 'node:buffer'
 import {
+  BIP322,
+  DefaultVtxo,
+  DelegateVtxo,
   MultisigTapscript,
+  Proof,
   setArkPsbtField,
   SingleKey,
   Transaction,
   verifyTapscriptSignatures,
   VtxoScript,
   VtxoTaprootTree,
+  VHTLC,
 } from '@arkade-os/sdk'
 import { schnorr, secp256k1 } from '@noble/curves/secp256k1.js'
 import { hex } from '@scure/base'
 import { p2tr, Script, SigHash } from '@scure/btc-signer'
 import { taprootTweakPrivKey } from '@scure/btc-signer/utils.js'
+import { tapLeafHash } from '@scure/btc-signer/payment.js'
 import { SatochipIdentity } from '../../lib/satochipIdentity'
 
 const secret = new Uint8Array(32).fill(1)
@@ -42,6 +48,119 @@ async function fixture(key: Uint8Array = publicKey) {
   }
   return { card, identity: await SatochipIdentity.create(card) }
 }
+
+function contractLeaves() {
+  const walletKey = publicKey.slice(1)
+  const serverKey = schnorr.getPublicKey(new Uint8Array(32).fill(2))
+  const otherKey = schnorr.getPublicKey(new Uint8Array(32).fill(3))
+  const options = { pubKey: walletKey, serverPubKey: serverKey, csvTimelock: { type: 'blocks' as const, value: 144n } }
+  const standard = new DefaultVtxo.Script(options)
+  const delegated = new DelegateVtxo.Script({ ...options, delegatePubKey: otherKey })
+  const additive = new VtxoScript([
+    MultisigTapscript.encode({ pubkeys: [walletKey, serverKey], type: MultisigTapscript.MultisigType.CHECKSIGADD })
+      .script,
+  ])
+  const cases = [
+    { name: 'default cooperative', script: standard, leaf: standard.forfeit() },
+    { name: 'default CSV exit', script: standard, leaf: standard.exit() },
+    { name: 'delegate cooperative', script: delegated, leaf: delegated.forfeit() },
+    { name: 'delegate CSV exit', script: delegated, leaf: delegated.exit() },
+    { name: 'delegate three cosigners', script: delegated, leaf: delegated.delegate() },
+    { name: 'CHECKSIGADD', script: additive, leaf: additive.leaves[0] },
+  ]
+  for (const [version, ScriptClass] of [
+    ['V1', VHTLC.Script],
+    ['V2', VHTLC.ScriptV2],
+  ] as const) {
+    for (const role of ['sender', 'receiver'] as const) {
+      const script = new ScriptClass({
+        sender: role === 'sender' ? walletKey : otherKey,
+        receiver: role === 'receiver' ? walletKey : otherKey,
+        server: serverKey,
+        preimageHash: new Uint8Array(20).fill(4),
+        refundLocktime: 1_800_000_000n,
+        unilateralClaimDelay: { type: 'blocks', value: 144n },
+        unilateralRefundDelay: { type: 'blocks', value: 288n },
+        unilateralRefundWithoutReceiverDelay: { type: 'blocks', value: 432n },
+      })
+      const paths =
+        role === 'sender'
+          ? (['refund', 'refundWithoutReceiver', 'unilateralRefund', 'unilateralRefundWithoutReceiver'] as const)
+          : (['claim', 'refund', 'unilateralClaim', 'unilateralRefund'] as const)
+      for (const path of paths) cases.push({ name: `VHTLC ${version} ${role} ${path}`, script, leaf: script[path]() })
+    }
+  }
+  return cases
+}
+
+describe('Satochip published SDK signing conformance', () => {
+  it.each(contractLeaves())('signs exact $name leaf bytes and tree commitment', async ({ script, leaf }) => {
+    const { identity, card } = await fixture()
+    const tx = new Transaction({ version: 3 })
+    tx.addInput({
+      txid: new Uint8Array(32).fill(5),
+      index: 0,
+      sequence: 432,
+      witnessUtxo: { script: script.pkScript, amount: 10_000n },
+      tapLeafScript: [leaf],
+      sighashType: SigHash.ALL,
+    })
+    tx.addOutput({ script: payment.script, amount: 9_000n })
+    setArkPsbtField(tx, 0, VtxoTaprootTree, script.encode())
+    const original = tx.toPSBT()
+    const signed = await identity.sign(tx)
+    const body = leaf[1].subarray(0, -1)
+    const digest = tx.preimageWitnessV1(0, [script.pkScript], SigHash.ALL, [10_000n], undefined, body, 0xc0)
+    const signatures = signed.getInput(0).tapScriptSig!
+    expect(signatures).toHaveLength(1)
+    expect(signatures[0][0]).toEqual({ pubKey: publicKey.slice(1), leafHash: tapLeafHash(body, 0xc0) })
+    expect(signatures[0][1][64]).toBe(SigHash.ALL)
+    expect(schnorr.verify(signatures[0][1].subarray(0, 64), digest, publicKey.slice(1))).toBe(true)
+    expect(signed.getInput(0).tapLeafScript).toEqual(tx.getInput(0).tapLeafScript)
+    expect(signed.getInput(0).unknown).toEqual(tx.getInput(0).unknown)
+    expect(signed.getInput(0).witnessUtxo).toEqual(tx.getInput(0).witnessUtxo)
+    expect(signed.getOutput(0)).toEqual(tx.getOutput(0))
+    expect(tx.toPSBT()).toEqual(original)
+    expect(card.signSchnorr).toHaveBeenCalledExactlyOnceWith(digest, null)
+  })
+
+  it('signs the SDK zero-value synthetic proof with its ALL sighash', async () => {
+    const { identity } = await fixture()
+    const { script, leaf } = contractLeaves()[0]
+    const proof = Proof.create('Arkade native signing conformance', [
+      {
+        txid: new Uint8Array(32).fill(6),
+        index: 0,
+        witnessUtxo: { script: script.pkScript, amount: 10_000n },
+        tapLeafScript: [leaf],
+      },
+    ])
+    expect(proof.getInput(0).witnessUtxo!.amount).toBe(0n)
+    const signed = await identity.sign(proof)
+    const body = leaf[1].subarray(0, -1)
+    const digest = proof.preimageWitnessV1(
+      1,
+      [proof.getInput(0).witnessUtxo!.script, script.pkScript],
+      SigHash.ALL,
+      [0n, 10_000n],
+      undefined,
+      body,
+      0xc0,
+    )
+    const signature = signed.getInput(1).tapScriptSig![0][1]
+    expect(signature[64]).toBe(SigHash.ALL)
+    expect(schnorr.verify(signature.subarray(0, 64), digest, publicKey.slice(1))).toBe(true)
+  })
+
+  it('produces a valid zero-value BIP322 proof with the BIP86 key tweak', async () => {
+    const { identity, card } = await fixture()
+    const message = 'Arkade native card proof'
+    const proof = await BIP322.sign(message, identity)
+    expect(BIP322.verify(message, proof, payment.address!)).toBe(true)
+    expect(BIP322.verify(`${message} changed`, proof, payment.address!)).toBe(false)
+    expect(card.signSchnorr).toHaveBeenCalledExactlyOnceWith(expect.any(Uint8Array), new Uint8Array())
+  })
+})
 
 describe('Satochip identity signing preparation', () => {
   it.each([SigHash.DEFAULT, SigHash.ALL, SigHash.ALL_ANYONECANPAY])(

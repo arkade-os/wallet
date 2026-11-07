@@ -74,6 +74,7 @@ final class CardSession implements AutoCloseable {
                 }
             }
             channel.begin();
+            commands.select();
             CardPolicy policy = readPolicy(commands);
             if (policy.seeded) throw new IllegalStateException("This card already has a wallet; its seed will not be replaced.");
             if (!policy.needsSecureChannel) throw new IllegalStateException("Card setup requires a secure channel.");

@@ -37,6 +37,7 @@ import { prettyAssetAmount } from '../../lib/assets'
 import { getAssetURL, getOffchainTxURL, getTxIdURL } from '../../lib/explorers'
 import ExternalLinkIcon from '../../icons/ExternalLink'
 import { useTranslation } from '../../providers/language'
+import { useNativeSigningConnection } from '../../hooks/useNativeSigningConnection'
 
 export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
@@ -63,6 +64,7 @@ export default function Vtxos() {
   const [success, setSuccess] = useState(false)
   const [hasVtxosToSettle, setHasVtxosToSettle] = useState(false)
   const [hasBoardingUtxosToSettle, setHasBoardingUtxosToSettle] = useState(false)
+  const { requireConnection, connectionSheet, notice } = useNativeSigningConnection(label, () => setError(''))
 
   // Update error state if aspInfo.unreachable changes
   useEffect(() => {
@@ -161,6 +163,7 @@ export default function Vtxos() {
   const listableVtxos = allVtxos.filter((vtxo) => vtxo.isSpent === false)
 
   const handleRollover = async () => {
+    if (requireConnection()) return
     try {
       setRollingover(true)
       await settleVtxos(svcWallet, vtxoManager, aspInfo.dust, wallet.thresholdMs, aspInfo.fees?.intentFee)
@@ -347,6 +350,11 @@ export default function Vtxos() {
         <Padded>
           <FlexCol className='scroll-fade'>
             <ErrorMessage error={Boolean(error)} text={error} />
+            {notice ? (
+              <div role='status'>
+                <Text wrap>{notice}</Text>
+              </div>
+            ) : null}
             {rollingover ? (
               <Info color='purple' icon={<LoadingIcon small />} title={t('vtxos.renewing')}>
                 <Text wrap>{t('loading.renewing')}</Text>
@@ -436,6 +444,7 @@ export default function Vtxos() {
           />
         </>
       ) : null}
+      {connectionSheet}
     </>
   )
 }

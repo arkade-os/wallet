@@ -55,6 +55,35 @@ describe('native identity adapter', () => {
     expect(invoke).not.toHaveBeenCalled()
   })
 
+  it('starts a fresh connection after Cancel while the old native response is still pending', async () => {
+    let release!: (value: unknown) => void
+    const response = { publicKey: hex.encode(publicKey), name: 'Satochip' }
+    invoke.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = resolve
+        }),
+    )
+    const first = bridge.connectNativeIdentity(undefined, '123456')
+    const rejected = first.catch((error: unknown) => error)
+    await vi.waitFor(() => expect(release).toBeTypeOf('function'))
+    await bridge.disconnectNativeIdentity()
+    const second = bridge.connectNativeIdentity(undefined, '654321')
+    void second.catch(() => undefined)
+    let connection!: Awaited<typeof second>
+    try {
+      await vi.waitFor(() =>
+        expect(invoke.mock.calls.filter(([command]) => command.endsWith('|connect'))).toHaveLength(2),
+      )
+      connection = await second
+    } finally {
+      release(response)
+      expect(await rejected).toMatchObject({ message: 'Card connection was cancelled' })
+    }
+    expect(bridge.getNativeCardState()).toEqual({ status: 'connected', publicKey: connection.publicKey })
+    expect(invoke.mock.calls.filter(([command]) => command.endsWith('|disconnect'))).toHaveLength(1)
+  })
+
   it('inspects an empty card without authentication or initialization', async () => {
     const info = {
       present: true,

@@ -18,9 +18,10 @@ import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
 import Input from '../../../components/Input'
-import { prettyAssetAmount, unitsToAtomic } from '../../../lib/assets'
+import { atomicToUnits, prettyAssetAmount, unitsToAtomic } from '../../../lib/assets'
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
 import { useTranslation } from '../../../providers/language'
+import { useNativeSigningConnection } from '../../../hooks/useNativeSigningConnection'
 
 export default function AppAssetReissue() {
   const { replace } = useContext(NavigationContext)
@@ -35,6 +36,9 @@ export default function AppAssetReissue() {
   const pendingNav = useRef<() => void>()
   const pendingConfirm = useRef(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const { requireConnection, connectionSheet, notice } = useNativeSigningConnection(t('mint.reissue'), () =>
+    setError(''),
+  )
 
   const name = assetInfo.metadata?.name ?? t('mint.unknown')
   const ticker = assetInfo.metadata?.ticker ?? ''
@@ -57,11 +61,12 @@ export default function AppAssetReissue() {
       return
     }
     setError('')
+    if (requireConnection()) return
     setShowConfirm(true)
   }
 
   const processReissue = async () => {
-    if (!svcWallet) return
+    if (!svcWallet || requireConnection()) return
     setShowConfirm(false)
     setProcessing(true)
     setError('')
@@ -122,6 +127,11 @@ export default function AppAssetReissue() {
         <Padded>
           <FlexCol gap='1rem'>
             <ErrorMessage error={Boolean(error)} text={error} />
+            {notice ? (
+              <div role='status'>
+                <Text wrap>{notice}</Text>
+              </div>
+            ) : null}
             <Shadow border>
               <FlexRow between padding='0.75rem'>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
@@ -143,6 +153,7 @@ export default function AppAssetReissue() {
               type='number'
               placeholder='1000'
               testId='asset-amount'
+              value={amount ? atomicToUnits(amount, decimals) : ''}
               label={t('mint.additionalAmount')}
               onChange={handleAmountChange}
             />
@@ -152,6 +163,7 @@ export default function AppAssetReissue() {
       <ButtonsOnBottom>
         <Button label={t('mint.reissue')} onClick={handleReissueRequest} disabled={!amount} />
       </ButtonsOnBottom>
+      {connectionSheet}
     </>
   )
 }

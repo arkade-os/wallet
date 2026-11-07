@@ -123,7 +123,7 @@ it('guides Android through a fresh card tap after PIN entry and never retries a 
   await act(async () => fail(new Error('NFC connection failed before PIN verification. Tap the card again.')))
   expect(screen.getByText('NFC connection failed before PIN verification. Tap the card again.')).toBeVisible()
   fireEvent(window, new Event('arkade-native-resumed'))
-  expect(mocks.connect).toHaveBeenCalledExactlyOnceWith('123456')
+  expect(mocks.connect).toHaveBeenCalledExactlyOnceWith('123456', undefined, expect.any(AbortSignal))
   expect(screen.getByLabelText('Card PIN')).toHaveValue('')
   expect(screen.getByRole('button', { name: 'Connect and continue' })).toBeEnabled()
 })
@@ -193,7 +193,7 @@ describe('guided Satochip connection', () => {
     expect(mocks.connect).not.toHaveBeenCalled()
     await enterPin('654321')
     await waitFor(() => expect(view.onConnected).toHaveBeenCalledOnce())
-    expect(mocks.connect).toHaveBeenCalledExactlyOnceWith('654321')
+    expect(mocks.connect).toHaveBeenCalledExactlyOnceWith('654321', undefined, expect.any(AbortSignal))
   })
 
   it('accepts Enter as an explicit PIN submission without retrying', async () => {
@@ -202,7 +202,7 @@ describe('guided Satochip connection', () => {
     fireEvent.change(input, { target: { value: '123456' } })
     fireEvent.keyDown(input, { key: 'Enter' })
     await waitFor(() => expect(view.onConnected).toHaveBeenCalledOnce())
-    expect(mocks.connect).toHaveBeenCalledExactlyOnceWith('123456')
+    expect(mocks.connect).toHaveBeenCalledExactlyOnceWith('123456', undefined, expect.any(AbortSignal))
     expect(mocks.setup).not.toHaveBeenCalled()
   })
 
@@ -219,7 +219,7 @@ describe('guided Satochip connection', () => {
     expect(mocks.connect).not.toHaveBeenCalled()
     await enterPin()
     await waitFor(() => expect(view.onConnected).toHaveBeenCalledOnce())
-    expect(mocks.connect).toHaveBeenCalledWith('123456')
+    expect(mocks.connect).toHaveBeenCalledWith('123456', undefined, expect.any(AbortSignal))
     expect(mocks.setup).not.toHaveBeenCalled()
     expect(mocks.disconnect).not.toHaveBeenCalled()
     expect(localStorage.length).toBe(0)
@@ -274,8 +274,11 @@ describe('guided Satochip connection', () => {
     await enterPin()
     fireEvent.click(screen.getByRole('button', { name: 'Connect and continue' }))
     expect(mocks.connect).toHaveBeenCalledOnce()
+    const signal = mocks.connect.mock.calls[0][2] as AbortSignal
+    expect(signal).toBeInstanceOf(AbortSignal)
+    expect(signal.aborted).toBe(false)
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-    expect(mocks.disconnect).toHaveBeenCalledOnce()
+    expect(signal.aborted).toBe(true)
     await act(async () => finish())
     expect(view.onConnected).not.toHaveBeenCalled()
   })
@@ -394,10 +397,16 @@ describe('blank-card setup', () => {
     mocks.inspect.mockResolvedValueOnce(blankCard)
     let finish!: (value: typeof setupCard) => void
     mocks.setup.mockImplementationOnce(() => new Promise<typeof setupCard>((resolve) => (finish = resolve)))
+    mocks.android = true
     const view = show()
     await saveRecovery()
     newPin()
     await waitFor(() => expect(mocks.setup).toHaveBeenCalledOnce())
+    expect(
+      screen.getByText(
+        'Lift your card away, then tap it against the back of your phone. Keep it there until setup is finished.',
+      ),
+    ).toBeVisible()
     const submitted = mocks.setup.mock.calls[0][0]
     const resume = background(event)
     expect(screen.getByLabelText('Choose a PIN')).toHaveValue('')
@@ -411,7 +420,7 @@ describe('blank-card setup', () => {
     await act(async () => finish(setupCard))
     await waitFor(() => expect(view.onConnected).toHaveBeenCalledOnce())
     expect(mocks.setup).toHaveBeenCalledExactlyOnceWith(submitted)
-    expect(mocks.connect).toHaveBeenCalledExactlyOnceWith('123456', setupCard.publicKey)
+    expect(mocks.connect).toHaveBeenCalledExactlyOnceWith('123456', setupCard.publicKey, expect.any(AbortSignal))
   })
 
   it('discards the displayed recovery details when canceled without writing or storing them', async () => {
@@ -456,7 +465,7 @@ describe('blank-card setup', () => {
     expect(view.onConnected).not.toHaveBeenCalled()
     await act(async () => finish(setupCard))
     await waitFor(() => expect(view.onConnected).toHaveBeenCalledOnce())
-    expect(mocks.connect).toHaveBeenCalledWith('123456', setupCard.publicKey)
+    expect(mocks.connect).toHaveBeenCalledWith('123456', setupCard.publicKey, expect.any(AbortSignal))
     expect(mocks.disconnect).not.toHaveBeenCalled()
     expect(localStorage.length).toBe(0)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -505,7 +514,7 @@ describe('blank-card setup', () => {
     await enterPin()
     await waitFor(() => expect(view.onConnected).toHaveBeenCalledOnce())
     expect(mocks.setup).toHaveBeenCalledOnce()
-    expect(mocks.connect).toHaveBeenCalledWith('123456', setupCard.publicKey)
+    expect(mocks.connect).toHaveBeenCalledWith('123456', setupCard.publicKey, expect.any(AbortSignal))
   })
 
   it('keeps the backup key binding when connection fails after a successful setup', async () => {
@@ -520,8 +529,8 @@ describe('blank-card setup', () => {
     await waitFor(() => expect(view.onConnected).toHaveBeenCalledOnce())
     expect(mocks.setup).toHaveBeenCalledOnce()
     expect(mocks.connect.mock.calls).toEqual([
-      ['123456', setupCard.publicKey],
-      ['123456', setupCard.publicKey],
+      ['123456', setupCard.publicKey, expect.any(AbortSignal)],
+      ['123456', setupCard.publicKey, expect.any(AbortSignal)],
     ])
   })
 
@@ -537,7 +546,7 @@ describe('blank-card setup', () => {
     expect(screen.queryByRole('button', { name: 'Set up card' })).not.toBeInTheDocument()
     await enterPin()
     expect(await screen.findByText('This is a different card')).toBeInTheDocument()
-    expect(mocks.connect).toHaveBeenCalledWith('123456', setupCard.publicKey)
+    expect(mocks.connect).toHaveBeenCalledWith('123456', setupCard.publicKey, expect.any(AbortSignal))
     expect(view.onConnected).not.toHaveBeenCalled()
   })
 })
@@ -583,7 +592,7 @@ describe('tap-card setup recovery', () => {
     expect(mocks.inspect).toHaveBeenCalledOnce()
     expect(mocks.setup).toHaveBeenCalledTimes(2)
     expect(mocks.setup.mock.calls[1][0]).toEqual({ pin: '123456', seed: mocks.setup.mock.calls[0][0].seed })
-    expect(mocks.connect).toHaveBeenCalledExactlyOnceWith('123456', setupCard.publicKey)
+    expect(mocks.connect).toHaveBeenCalledExactlyOnceWith('123456', setupCard.publicKey, expect.any(AbortSignal))
   })
 
   it('connects a card found seeded on explicit recheck without another setup and retains the backup key binding', async () => {
@@ -597,7 +606,7 @@ describe('tap-card setup recovery', () => {
     await waitFor(() => expect(view.onConnected).toHaveBeenCalledOnce())
     expect(mocks.inspect).toHaveBeenCalledOnce()
     expect(mocks.setup).toHaveBeenCalledOnce()
-    expect(mocks.connect).toHaveBeenCalledExactlyOnceWith('123456', setupCard.publicKey)
+    expect(mocks.connect).toHaveBeenCalledExactlyOnceWith('123456', setupCard.publicKey, expect.any(AbortSignal))
   })
 
   it('keeps setup blocked and recovery review available when an explicit check fails, then permits dismissal', async () => {

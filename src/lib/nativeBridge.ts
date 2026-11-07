@@ -374,7 +374,7 @@ export function connectNativeIdentity(expectedPublicKey?: string, pin?: string):
       throw new Error('This is a different card. Reconnect the Satochip used by this wallet.')
     return connection
   }
-  if (connecting) return connecting.promise.then(assertExpected)
+  if (connecting?.id === generation) return connecting.promise.then(assertExpected)
   if (nativeSignerInteraction() === 'tap')
     return withTapCard(async (protocol, open) => {
       pin ??= await requestNativeSigningPin()

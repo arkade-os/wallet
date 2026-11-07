@@ -93,7 +93,7 @@ const defaultWallet: Wallet = {
 export type WalletAuthState = 'unknown' | 'passwordless' | 'locked' | 'authenticated'
 
 interface WalletContextProps {
-  connectHardwareWallet: (pin?: string, expectedPublicKey?: string) => Promise<void>
+  connectHardwareWallet: (pin?: string, expectedPublicKey?: string, signal?: AbortSignal) => Promise<void>
   initWallet: (credentials: {
     mnemonic?: string
     privateKey?: Uint8Array
@@ -801,11 +801,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         return false
       }
 
-      setSvcWallet(svcWallet)
-      setVtxoManager(vtxoMgr)
-      setInitialized(walletInitialized)
-      setSyncing(true)
-
       // Safe on every unlock: watches are keyed by txid and the confirmation queue ignores a key it already holds.
       resumeLnurlConfirmations()
       // Receives that completed while the wallet was closed are the ones it can
@@ -887,12 +882,20 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           stopContracts()
           stopFunds?.()
         }
-        if (signal.aborted) stop()
-        else foregroundStopRef.current = stop
+        if (signal.aborted) {
+          stop()
+          return false
+        }
+        foregroundStopRef.current = stop
       } else {
         navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
         swMessageHandlerRef.current = handleServiceWorkerMessages
       }
+
+      setSvcWallet(svcWallet)
+      setVtxoManager(vtxoMgr)
+      setInitialized(walletInitialized)
+      setSyncing(true)
 
       // ping the service worker wallet status every 1 second
       if (statusPingInterval.current) clearInterval(statusPingInterval.current)
@@ -1053,7 +1056,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
-  const connectHardwareWallet = async (pin?: string, expectedPublicKey?: string) => {
+  const connectHardwareWallet = async (pin?: string, expectedPublicKey?: string, signal?: AbortSignal) => {
+    if (signal?.aborted) throw new Error('Card connection cancelled.')
     if (nativeConnectPendingRef.current) throw new Error('A card connection is already in progress.')
     if (!isNativeHost()) throw new Error('Open this wallet in the Arkade native app to connect a card.')
     if (!aspInfo.network || !aspInfo.url) throw new Error('Wait for the test network connection, then try again.')
@@ -1061,29 +1065,45 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     assertNativeWalletAvailable(wallet)
     nativeConnectPendingRef.current = true
     const generation = nativeConnectGenerationRef.current
+    let cancelled = false
+    const cancel = () => {
+      if (cancelled || generation !== nativeConnectGenerationRef.current) return
+      cancelled = true
+      nativeConnectPendingRef.current = false
+      if (!isNativeWallet(wallet)) void lockWallet(false).catch(consoleError)
+      void disconnectNativeIdentity().catch(consoleError)
+    }
+    const checkConnection = () => {
+      if (cancelled || signal?.aborted || generation !== nativeConnectGenerationRef.current)
+        throw new Error('Card connection cancelled.')
+    }
+    signal?.addEventListener('abort', cancel, { once: true })
     try {
       const connection = await connectNativeIdentity(isNativeWallet(wallet) ? wallet.pubkey : expectedPublicKey, pin)
       pin = undefined
-      if (generation !== nativeConnectGenerationRef.current) throw new Error('Card connection cancelled.')
+      checkConnection()
       const record = nativeWalletRecord(wallet, connection, aspInfo.network as NetworkName)
       nativeReadLockedRef.current = false
       await openNativeWallet(record)
-      if (generation !== nativeConnectGenerationRef.current) throw new Error('Card connection cancelled.')
+      checkConnection()
       saveWalletToStorage(record)
       setWallet(record)
       updateConfig({ ...config, pubkey: record.pubkey!, walletMode: 'static', nostrBackup: false })
       setAuthState('authenticated')
       setInitialized(true)
     } catch (error) {
-      await disconnectNativeIdentity().catch(() => {})
-      if (!runtimeRef.current) {
-        setAuthState('locked')
-        setInitialized(false)
+      if (!cancelled && generation === nativeConnectGenerationRef.current) {
+        await disconnectNativeIdentity().catch(() => {})
+        if (!cancelled && generation === nativeConnectGenerationRef.current && !runtimeRef.current) {
+          setAuthState('locked')
+          setInitialized(false)
+        }
       }
       throw error
     } finally {
       pin = undefined
-      nativeConnectPendingRef.current = false
+      signal?.removeEventListener('abort', cancel)
+      if (!cancelled && generation === nativeConnectGenerationRef.current) nativeConnectPendingRef.current = false
     }
   }
 
@@ -1163,8 +1183,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   })
 
   const lockWallet = async (disconnectNative = true) => {
+    const currentRuntime = runtimeRef.current ?? svcWallet
     nativeReadLockedRef.current = true
     nativeConnectGenerationRef.current++
+    nativeConnectPendingRef.current = false
+    nativeOpenPendingRef.current = undefined
     abortInitSession()
     if (statusPingInterval.current) clearInterval(statusPingInterval.current)
     statusPingInterval.current = undefined
@@ -1172,14 +1195,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     reloadTimerRef.current = undefined
     lnurlResyncRef.current?.cancel()
     removeServiceWorkerMessageHandler()
-    if (svcWallet instanceof ForegroundWallet) setSvcWallet(undefined)
+    if (currentRuntime instanceof ForegroundWallet) setSvcWallet(undefined)
     runtimeRef.current = undefined
     setAuthState('locked')
     setInitialized(false)
     setDataReady(false)
     hasLoadedOnce.current = false
     try {
-      await svcWallet?.clear()
+      await currentRuntime?.clear()
     } finally {
       if (disconnectNative && isNativeWallet(wallet)) await disconnectNativeIdentity()
     }

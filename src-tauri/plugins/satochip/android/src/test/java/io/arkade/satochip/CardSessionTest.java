@@ -51,6 +51,7 @@ public class CardSessionTest {
         int verifies;
         boolean pinCleared;
         Exception selectFailure;
+        byte[] selectedStatus;
         Exception statusFailure;
         Exception secureFailure;
         Exception pinFailure;
@@ -60,7 +61,7 @@ public class CardSessionTest {
         final List<String> actions = new ArrayList<>();
 
         Commands() { key[0] = 2; key[32] = 1; }
-        public void select() throws Exception { actions.add("select"); if (selectFailure != null) throw selectFailure; }
+        public void select() throws Exception { actions.add("select"); if (selectFailure != null) throw selectFailure; if (selectedStatus != null) status = selectedStatus.clone(); }
         public byte[] status() throws Exception { actions.add("status"); if (statusFailure != null) throw statusFailure; return status.clone(); }
         public void verifyPin(byte[] pin) throws Exception {
             actions.add("verify");
@@ -512,6 +513,69 @@ public class CardSessionTest {
     }
 
     @Test
+    public void setupReselectsAndRefusesASeededReplacementBeforeAnyPinOrWrite() throws Exception {
+        Commands commands = new Commands();
+        commands.status[9] = 0;
+        commands.status[10] = 0;
+        commands.status[11] = 1;
+        commands.selectedStatus = initializedStatus();
+        commands.selectedStatus[11] = 1;
+        byte[] pin = "123456".getBytes("US-ASCII");
+        byte[] puk = "abcdef0123456789".getBytes("US-ASCII");
+        byte[] seed = new byte[64];
+        Arrays.fill(seed, (byte) 7);
+        assertThrows(IllegalStateException.class, () -> CardSession.setup(commands, channel(), pin, puk, seed));
+        assertEquals(Arrays.asList("select", "status"), commands.actions);
+        assertEquals(0, commands.verifies);
+        assertArrayEquals(new byte[6], pin);
+        assertArrayEquals(new byte[16], puk);
+        assertArrayEquals(new byte[64], seed);
+    }
+
+    @Test
+    public void setupSelectionFailureCannotAuthenticateOrWriteAndClearsSecrets() throws Exception {
+        Commands commands = new Commands();
+        commands.status[9] = 0;
+        commands.status[10] = 0;
+        commands.status[11] = 1;
+        commands.selectFailure = new IOException("removed card");
+        byte[] pin = "123456".getBytes("US-ASCII");
+        byte[] puk = "abcdef0123456789".getBytes("US-ASCII");
+        byte[] seed = new byte[64];
+        Arrays.fill(seed, (byte) 7);
+        assertThrows(IOException.class, () -> CardSession.setup(commands, channel(), pin, puk, seed));
+        assertEquals(Arrays.asList("select"), commands.actions);
+        assertEquals(0, commands.verifies);
+        assertArrayEquals(new byte[6], pin);
+        assertArrayEquals(new byte[16], puk);
+        assertArrayEquals(new byte[64], seed);
+    }
+
+    @Test
+    public void liftedBlankCardIsReselectedBeforeSetupWithoutAPinRetry() throws Exception {
+        Commands commands = new Commands();
+        commands.status[9] = 0;
+        commands.status[10] = 0;
+        commands.status[11] = 1;
+        byte[] inspectedStatus = commands.status.clone();
+        commands.selectedStatus = inspectedStatus;
+        assertFalse(CardSession.inspect(commands, channel()).ready);
+        commands.status = initializedStatus();
+        commands.status[11] = 1;
+        byte[] pin = "123456".getBytes("US-ASCII");
+        byte[] puk = "abcdef0123456789".getBytes("US-ASCII");
+        byte[] seed = new byte[64];
+        Arrays.fill(seed, (byte) 7);
+        CardSession.SetupResult result = CardSession.setup(commands, channel(), pin, puk, seed);
+        assertTrue(result.policy.ready());
+        assertEquals(Arrays.asList("inspect:status", "select", "status", "secure", "setup", "verify", "import", "status", "derive"), commands.actions);
+        assertEquals(1, commands.verifies);
+        assertArrayEquals(new byte[6], pin);
+        assertArrayEquals(new byte[16], puk);
+        assertArrayEquals(new byte[64], seed);
+    }
+
+    @Test
     public void setsUpOnlyAnEmptyCardAndClearsAllProvidedSecrets() throws Exception {
         Commands commands = new Commands();
         commands.status[9] = 0;
@@ -525,7 +589,7 @@ public class CardSessionTest {
         assertTrue(result.policy.ready());
         assertArrayEquals(commands.key, result.publicKey);
         assertNotSame(commands.key, result.publicKey);
-        assertEquals(Arrays.asList("status", "secure", "setup", "verify", "import", "status", "derive"), commands.actions);
+        assertEquals(Arrays.asList("select", "status", "secure", "setup", "verify", "import", "status", "derive"), commands.actions);
         assertEquals(1, commands.verifies);
         assertArrayEquals(new byte[6], pin);
         assertArrayEquals(new byte[16], puk);
@@ -540,7 +604,7 @@ public class CardSessionTest {
         CardSession.SetupResult result = CardSession.setup(commands, channel(), "123456".getBytes("US-ASCII"), null, new byte[64]);
         assertTrue(result.policy.ready());
         assertArrayEquals(commands.key, result.publicKey);
-        assertEquals(Arrays.asList("status", "secure", "verify", "import", "status", "derive"), commands.actions);
+        assertEquals(Arrays.asList("select", "status", "secure", "verify", "import", "status", "derive"), commands.actions);
         assertEquals(1, commands.verifies);
     }
 
@@ -552,7 +616,7 @@ public class CardSessionTest {
         byte[] seed = new byte[64];
         Arrays.fill(seed, (byte) 7);
         assertThrows(IllegalStateException.class, () -> CardSession.setup(commands, channel(), pin, puk, seed));
-        assertEquals(Arrays.asList("status"), commands.actions);
+        assertEquals(Arrays.asList("select", "status"), commands.actions);
         assertEquals(0, commands.verifies);
         assertArrayEquals(new byte[6], pin);
         assertArrayEquals(new byte[16], puk);
@@ -616,7 +680,7 @@ public class CardSessionTest {
         byte[] seed = new byte[64];
         Arrays.fill(seed, (byte) 7);
         assertThrows(IOException.class, () -> CardSession.setup(commands, channel(), pin, null, seed));
-        assertEquals(Arrays.asList("status", "secure", "verify"), commands.actions);
+        assertEquals(Arrays.asList("select", "status", "secure", "verify"), commands.actions);
         assertEquals(1, commands.verifies);
         assertArrayEquals(new byte[6], pin);
         assertArrayEquals(new byte[64], seed);

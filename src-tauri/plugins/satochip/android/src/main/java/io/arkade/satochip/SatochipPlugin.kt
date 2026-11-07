@@ -69,11 +69,14 @@ class SatochipPlugin(private val activity: Activity) : Plugin(activity) {
         }
     }
 
-    private class ConnectRequest(val invoke: Invoke, val generation: Long, val inspect: Boolean = false) {
-        val claimed = AtomicBoolean(false)
-        val finished = AtomicBoolean(false)
-        var pin = ByteArray(0)
-        @Volatile var channel: BoundedCardChannel? = null
+    private class ConnectRequest(
+        val invoke: Invoke,
+        generation: Long,
+        inspect: Boolean = false,
+        pin: ByteArray = ByteArray(0),
+        puk: ByteArray? = null,
+        seed: ByteArray? = null,
+    ) : CardRequest(generation, inspect, pin, puk, seed) {
         var dialog: AlertDialog? = null
         var nativeGuidance = false
     }
@@ -123,8 +126,7 @@ class SatochipPlugin(private val activity: Activity) : Plugin(activity) {
         if (!admit(invoke)) { pin?.fill(0); return }
         val adapter = enabledAdapter(invoke)
         if (adapter == null) { pin?.fill(0); return }
-        val request = ConnectRequest(invoke, generation.incrementAndGet())
-        request.pin = pin ?: ByteArray(0)
+        val request = ConnectRequest(invoke, generation.incrementAndGet(), pin = pin ?: ByteArray(0))
         readerMode.claim(request)
         pending = request
         // IsoDep.isConnected does not prove RF presence after the user enters their PIN.
@@ -188,7 +190,7 @@ class SatochipPlugin(private val activity: Activity) : Plugin(activity) {
                         if (!value.matches(Regex("[0-9]{6,16}"))) {
                             pin.error = "Use a 6–16 digit PIN."
                         } else {
-                            request.pin = value.toByteArray(StandardCharsets.US_ASCII)
+                            if (!request.replacePin(value.toByteArray(StandardCharsets.US_ASCII))) return@setOnClickListener
                             pin.text.clear()
                             alert.dismiss()
                             beginScan(request, adapter)
@@ -200,7 +202,7 @@ class SatochipPlugin(private val activity: Activity) : Plugin(activity) {
     }
 
     private fun isCurrent(request: ConnectRequest): Boolean = pending === request &&
-        !request.finished.get() && generation.get() == request.generation
+        !request.isFinished && generation.get() == request.generation
 
     private fun beginScan(request: ConnectRequest, adapter: NfcAdapter) {
         if (!isCurrent(request)) { cancelConnect(request, "Card connection cancelled."); return }
@@ -232,57 +234,63 @@ class SatochipPlugin(private val activity: Activity) : Plugin(activity) {
     }
 
     private fun openCard(request: ConnectRequest, tag: Tag) {
+        var iso: IsoDep? = null
         try {
             check(isCurrent(request)) { "Card connection cancelled." }
-            val iso = IsoDep.get(tag) ?: throw IllegalStateException("This card does not provide an ISO-DEP NFC interface.")
+            val connection = IsoDep.get(tag) ?: throw IllegalStateException("This card does not provide an ISO-DEP NFC interface.")
+            iso = connection
             val channel = BoundedCardChannel(object : CardChannel {
-                override fun send(command: APDUCommand): APDUResponse = APDUResponse(iso.transceive(command.serialize()))
-                override fun isConnected(): Boolean = iso.isConnected
-            }) { runCatching { iso.close() } }
-            request.channel = channel
+                override fun send(command: APDUCommand): APDUResponse = APDUResponse(connection.transceive(command.serialize()))
+                override fun isConnected(): Boolean = connection.isConnected
+            }) { runCatching { connection.close() } }
+            check(request.attachChannel(channel)) { "Card connection cancelled." }
             check(isCurrent(request)) { "Card connection cancelled." }
-            iso.connect()
-            iso.timeout = 5_000
+            connection.connect()
+            connection.timeout = 5_000
+            check(isCurrent(request)) { "Card connection cancelled." }
             completeCard(request, channel, CardSession.official(channel))
         } catch (error: Exception) {
-            request.channel?.close()
+            runCatching { iso?.close() }
             cancelConnect(request, safeError(error))
-            request.pin.fill(0)
         }
     }
 
     private fun completeCard(request: ConnectRequest, channel: BoundedCardChannel, commands: CardSession.Commands) {
         var opened: CardSession? = null
+        var secrets: CardRequest.Secrets? = null
         try {
             check(isCurrent(request)) { "Card connection cancelled." }
-            val result = if (request.inspect) statusResult(CardSession.inspect(commands, channel)) else {
-                opened = CardSession(commands, channel, request.pin)
+            secrets = request.takeSecrets()
+            val result = if (request.setup) {
+                val initialized = CardSession.setup(commands, channel, secrets.pin, secrets.puk, secrets.seed)
+                statusResult(initialized.policy).put("publicKey", initialized.publicKey.hex())
+            } else if (request.inspect) statusResult(CardSession.inspect(commands, channel)) else {
+                opened = CardSession(commands, channel, secrets.pin)
                 JSObject().put("publicKey", opened.publicKey().hex()).put("name", "Satochip")
             }
             synchronized(stateLock) {
-                if (pending !== request || generation.get() != request.generation ||
-                    !request.finished.compareAndSet(false, true)) {
+                if (!request.finish { pending === request && generation.get() == request.generation }) {
                     opened?.close()
                     channel.close()
                     return
                 }
                 session = opened
-                inspection = if (request.inspect) commands else null
+                inspection = if (request.inspect || request.setup) commands else null
                 transport = channel
                 pending = null
                 busy.set(false)
+                request.invoke.resolve(result)
             }
             main.post { request.dialog?.dismiss(); request.dialog = null }
-            request.invoke.resolve(result)
         } catch (error: Exception) {
             opened?.close()
             cancelConnect(request, safeError(error))
         } finally {
-            if (request.finished.get() && transport !== channel) {
+            if (request.isFinished && transport !== channel) {
                 channel.close()
                 commands.disconnect()
             }
-            request.pin.fill(0)
+            secrets?.close()
         }
     }
 
@@ -307,25 +315,13 @@ class SatochipPlugin(private val activity: Activity) : Plugin(activity) {
             args.seed = ""
         }
         if (!admit(invoke)) { pin.fill(0); puk?.fill(0); seed.fill(0); return }
-        val admittedGeneration = generation.incrementAndGet()
-        executor.execute {
-            try {
-                val commands = inspection ?: throw IllegalStateException("Tap your card again before setting it up.")
-                val channel = transport ?: throw IllegalStateException("Tap your card again before setting it up.")
-                check(channel.isConnected) { "Keep your card against the phone, then inspect it again." }
-                val result = CardSession.setup(commands, channel, pin, puk, seed)
-                check(generation.get() == admittedGeneration) { "Card setup was interrupted. Inspect the card before retrying." }
-                invoke.resolve(statusResult(result.policy).put("publicKey", result.publicKey.hex()))
-            } catch (error: Exception) {
-                if (generation.get() == admittedGeneration) closeSession(true)
-                invoke.reject(safeError(error))
-            } finally {
-                pin.fill(0)
-                puk?.fill(0)
-                seed.fill(0)
-                if (generation.get() == admittedGeneration) busy.set(false)
-            }
-        }
+        val adapter = enabledAdapter(invoke)
+        if (adapter == null) { pin.fill(0); puk?.fill(0); seed.fill(0); return }
+        val request = ConnectRequest(invoke, generation.incrementAndGet(), pin = pin, puk = puk, seed = seed)
+        readerMode.claim(request)
+        pending = request
+        closeSession(releaseReader = false)
+        main.post { beginScan(request, adapter) }
     }
 
     @Command
@@ -372,8 +368,10 @@ class SatochipPlugin(private val activity: Activity) : Plugin(activity) {
                     transport?.begin()
                     CardSession.readPolicy(commands)
                 }
-                check(generation.get() == admittedGeneration) { "Card inspection was interrupted. Tap the card again." }
-                invoke.resolve(statusResult(policy))
+                synchronized(stateLock) {
+                    check(generation.get() == admittedGeneration) { "Card inspection was interrupted. Tap the card again." }
+                    invoke.resolve(statusResult(policy))
+                }
             } catch (error: Exception) {
                 if (generation.get() == admittedGeneration) closeSession(true)
                 invoke.reject(safeError(error))
@@ -402,10 +400,12 @@ class SatochipPlugin(private val activity: Activity) : Plugin(activity) {
     @Command
     fun disconnect(invoke: Invoke) {
         if (!trusted()) { invoke.reject("Native card access is restricted to the wallet host."); return }
-        generation.incrementAndGet()
-        pending?.let { cancelConnect(it, "Card connection cancelled.") }
-        closeSession()
-        busy.set(false)
+        synchronized(stateLock) {
+            generation.incrementAndGet()
+            pending?.let { cancelConnect(it, "Card connection cancelled.") }
+            closeSession()
+            busy.set(false)
+        }
         invoke.resolve(JSObject())
     }
 
@@ -436,7 +436,13 @@ class SatochipPlugin(private val activity: Activity) : Plugin(activity) {
         executor.execute {
             try {
                 val current = session ?: throw IllegalStateException("Hold your Satochip against the phone and connect it again.")
-                invoke.resolve(operation(current))
+                val result = operation(current)
+                synchronized(stateLock) {
+                    check(session === current && generation.get() == admittedGeneration) {
+                        "Card operation was interrupted. Connect the card again."
+                    }
+                    invoke.resolve(result)
+                }
             } catch (error: Exception) {
                 if (generation.get() == admittedGeneration) closeSession(true)
                 invoke.reject(safeError(error))
@@ -468,11 +474,11 @@ class SatochipPlugin(private val activity: Activity) : Plugin(activity) {
     }
 
     private fun cancelConnect(request: ConnectRequest, message: String) {
-        if (!request.finished.compareAndSet(false, true)) return
-        if (pending === request) pending = null
-        request.channel?.close()
-        if (!request.claimed.get()) request.pin.fill(0)
-        if (generation.get() == request.generation) busy.set(false)
+        synchronized(stateLock) {
+            if (!request.cancel()) return
+            if (pending === request) pending = null
+            if (generation.get() == request.generation) busy.set(false)
+        }
         releaseReaderMode(request)
         main.post {
             request.dialog?.dismiss()
@@ -515,11 +521,14 @@ class SatochipPlugin(private val activity: Activity) : Plugin(activity) {
 
     override fun onPause(activity: AppCompatActivity) {
         main.removeCallbacks(presenceCheck)
-        val wasConnected = session != null || inspection != null || pending != null
-        generation.incrementAndGet()
-        pending?.let { cancelConnect(it, "The app left the foreground. Connect the card again to sign.") }
-        closeSession()
-        busy.set(false)
+        val wasConnected = synchronized(stateLock) {
+            val connected = session != null || inspection != null || pending != null
+            generation.incrementAndGet()
+            pending?.let { cancelConnect(it, "The app left the foreground. Connect the card again to sign.") }
+            closeSession()
+            busy.set(false)
+            connected
+        }
         if (wasConnected) trigger("disconnected", JSObject())
     }
 

@@ -58,6 +58,8 @@ function ConnectCard({
   const pending = useRef(false)
   const owned = useRef(Boolean(initialStatus))
   const completed = useRef(false)
+  const connecting = useRef(false)
+  const connectionAbort = useRef<AbortController>()
   const expectedSetupPublicKey = useRef<string>()
 
   const inspect = async (recovering = false) => {
@@ -86,10 +88,14 @@ function ConnectCard({
 
   useEffect(() => {
     active.current = true
+    const controller = new AbortController()
+    connectionAbort.current = controller
     return () => {
       active.current = false
       expectedSetupPublicKey.current = undefined
-      if (owned.current && !completed.current) void disconnectNativeIdentity().catch(() => undefined)
+      controller.abort()
+      if (owned.current && !completed.current && !connecting.current)
+        void disconnectNativeIdentity().catch(() => undefined)
     }
   }, [])
 
@@ -99,11 +105,15 @@ function ConnectCard({
   }, [networkAllowed])
 
   const finish = async (pin: string, expectedPublicKey = expectedSetupPublicKey.current) => {
-    if (expectedPublicKey) await connectHardwareWallet(pin, expectedPublicKey)
-    else await connectHardwareWallet(pin)
-    if (!active.current) return
-    completed.current = true
-    onConnected()
+    connecting.current = true
+    try {
+      await connectHardwareWallet(pin, expectedPublicKey, connectionAbort.current?.signal)
+      if (!active.current) return
+      completed.current = true
+      onConnected()
+    } finally {
+      connecting.current = false
+    }
   }
 
   const connect = async (pin: string) => {
@@ -193,7 +203,7 @@ function ConnectCard({
           ? phase === 'connecting'
             ? 'Lift your card away, then tap it against the back of your phone. Keep it there until connected.'
             : phase === 'setup'
-              ? 'Keep your card against the back of your phone until setup is finished.'
+              ? 'Lift your card away, then tap it against the back of your phone. Keep it there until setup is finished.'
               : status?.present && status.seeded
                 ? 'Enter your PIN, then tap your card again to connect.'
                 : 'Tap your Satochip against the back of your phone to check it.'

@@ -272,6 +272,159 @@ describe('native wallet lifecycle', () => {
     expect(context.svcWallet).toBe(runtime)
   })
 
+  it('does not open or persist a connection canceled before the card responds', async () => {
+    let finish!: (value: Awaited<ReturnType<typeof mocks.connect>>) => void
+    mocks.connect.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)))
+    const controller = new AbortController()
+    mount()
+    let pending!: Promise<void>
+    await act(async () => {
+      pending = context.connectHardwareWallet('123456', undefined, controller.signal)
+    })
+    await act(async () => controller.abort())
+    await act(async () => {
+      finish({ publicKey, name: 'Satochip' })
+      await expect(pending).rejects.toThrow('cancelled')
+    })
+    expect(mocks.create).not.toHaveBeenCalled()
+    expect(localStorage.getItem('wallet')).toBeNull()
+    expect(context.wallet.pubkey).toBeUndefined()
+    expect(context.authState).toBe('locked')
+  })
+
+  it('clears only the transient runtime when onboarding is canceled during wallet creation', async () => {
+    const { runtime } = makeRuntime()
+    let finish!: (value: typeof runtime) => void
+    mocks.create.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)))
+    const controller = new AbortController()
+    mount()
+    let pending!: Promise<void>
+    await act(async () => {
+      pending = context.connectHardwareWallet('123456', undefined, controller.signal)
+    })
+    await waitFor(() => expect(mocks.create).toHaveBeenCalledOnce())
+    await act(async () => controller.abort())
+    await act(async () => {
+      finish(runtime)
+      await expect(pending).rejects.toThrow('cancelled')
+    })
+    expect(runtime.clear).toHaveBeenCalledOnce()
+    expect(runtime.walletRepository.clear).not.toHaveBeenCalled()
+    expect(runtime.contractRepository.clear).not.toHaveBeenCalled()
+    expect(context.svcWallet).toBeUndefined()
+    expect(context.authState).toBe('locked')
+    expect(context.initialized).toBe(false)
+    expect(localStorage.getItem('wallet')).toBeNull()
+  })
+
+  it('keeps the public wallet readable when reconnection is canceled', async () => {
+    localStorage.setItem('wallet', JSON.stringify(nativeWallet))
+    const { runtime, stopContracts, stopFunds } = makeRuntime()
+    mocks.create.mockResolvedValue(runtime)
+    mount()
+    await waitFor(() => expect(context.authState).toBe('authenticated'))
+    await act(() => context.reloadWallet())
+    const controller = new AbortController()
+    let finish!: (value: Awaited<ReturnType<typeof mocks.connect>>) => void
+    mocks.connect.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)))
+    let pending!: Promise<void>
+    await act(async () => {
+      pending = context.connectHardwareWallet('123456', undefined, controller.signal)
+    })
+    await act(async () => controller.abort())
+    await act(async () => {
+      finish({ publicKey, name: 'Satochip' })
+      await expect(pending).rejects.toThrow('cancelled')
+    })
+    expect(context.authState).toBe('authenticated')
+    expect(context.svcWallet).toBe(runtime)
+    expect(context.balance).toBe(1234)
+    expect(context.dataReady).toBe(true)
+    expect(context.txs).toEqual([expect.objectContaining({ redeemTxid: 'stored-payment' })])
+    expect(runtime.clear).not.toHaveBeenCalled()
+    expect(stopContracts).not.toHaveBeenCalled()
+    expect(stopFunds).not.toHaveBeenCalled()
+    expect(JSON.parse(localStorage.getItem('wallet')!)).toEqual(expect.objectContaining(nativeWallet))
+  })
+
+  it('does not disconnect a replacement connection when a canceled operation completes late', async () => {
+    let finish!: (value: Awaited<ReturnType<typeof mocks.connect>>) => void
+    mocks.connect.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)))
+    const controller = new AbortController()
+    mount()
+    let pending!: Promise<void>
+    await act(async () => {
+      pending = context.connectHardwareWallet('123456', undefined, controller.signal)
+    })
+    await act(async () => controller.abort())
+    await act(() => context.connectHardwareWallet('654321'))
+    const disconnects = mocks.disconnect.mock.calls.length
+    await act(async () => {
+      finish({ publicKey, name: 'Satochip' })
+      await expect(pending).rejects.toThrow('cancelled')
+    })
+    expect(mocks.disconnect).toHaveBeenCalledTimes(disconnects)
+    expect(mocks.create).toHaveBeenCalledOnce()
+    expect(context.authState).toBe('authenticated')
+    expect(context.wallet.pubkey).toBe(publicKey)
+  })
+
+  it('does not clear a replacement runtime when canceled wallet creation finishes late', async () => {
+    const first = makeRuntime().runtime
+    const second = makeRuntime().runtime
+    let finish!: (value: typeof first) => void
+    mocks.create.mockReturnValueOnce(new Promise((resolve) => (finish = resolve))).mockResolvedValueOnce(second)
+    const controller = new AbortController()
+    mount()
+    let pending!: Promise<void>
+    await act(async () => {
+      pending = context.connectHardwareWallet('123456', undefined, controller.signal)
+    })
+    await waitFor(() => expect(mocks.create).toHaveBeenCalledOnce())
+    await act(async () => controller.abort())
+    await act(() => context.connectHardwareWallet('654321'))
+    const disconnects = mocks.disconnect.mock.calls.length
+    await act(async () => {
+      finish(first)
+      await expect(pending).rejects.toThrow('cancelled')
+    })
+    expect(first.clear).toHaveBeenCalledOnce()
+    expect(second.clear).not.toHaveBeenCalled()
+    expect(context.svcWallet).toBe(second)
+    expect(context.authState).toBe('authenticated')
+    expect(mocks.disconnect).toHaveBeenCalledTimes(disconnects)
+  })
+
+  it('does not restart native watchers when canceled onboarding finishes registering listeners', async () => {
+    const { runtime, stopContracts, stopFunds } = makeRuntime()
+    let finish!: (value: typeof stopFunds) => void
+    runtime.notifyIncomingFunds.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)))
+    mocks.create.mockResolvedValue(runtime)
+    const controller = new AbortController()
+    const intervals = vi.spyOn(globalThis, 'setInterval')
+    mount()
+    let pending!: Promise<void>
+    await act(async () => {
+      pending = context.connectHardwareWallet('123456', undefined, controller.signal)
+    })
+    await waitFor(() => expect(runtime.notifyIncomingFunds).toHaveBeenCalledOnce())
+    await act(async () => controller.abort())
+    const installed = intervals.mock.calls.length
+    await act(async () => {
+      finish(stopFunds)
+      await expect(pending).rejects.toThrow('cancelled')
+    })
+    expect(intervals).toHaveBeenCalledTimes(installed)
+    intervals.mockRestore()
+    expect(runtime.clear).toHaveBeenCalledOnce()
+    expect(stopContracts).toHaveBeenCalledOnce()
+    expect(stopFunds).toHaveBeenCalledOnce()
+    expect(context.svcWallet).toBeUndefined()
+    expect(context.initialized).toBe(false)
+    expect(context.wallet.pubkey).toBeUndefined()
+    expect(localStorage.getItem('wallet')).toBeNull()
+  })
+
   it('cannot finish a pending connection after the user locks the wallet', async () => {
     let finish!: (value: Awaited<ReturnType<typeof mocks.connect>>) => void
     mocks.connect.mockReturnValueOnce(
@@ -296,6 +449,8 @@ describe('native wallet lifecycle', () => {
     expect(mocks.create).not.toHaveBeenCalled()
     expect(localStorage.getItem('wallet')).toBeNull()
     expect(context.authState).toBe('locked')
+    await act(() => context.connectHardwareWallet())
+    expect(context.authState).toBe('authenticated')
   })
 
   it('cannot reopen a public read runtime after an explicit privacy lock during cold boot', async () => {
