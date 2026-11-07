@@ -59,13 +59,28 @@ test('rejects a global or mismatched Python before dependency installation', () 
 
 test('keeps all dependency versions pinned, including platform-only build dependencies', async () => {
   const contents = await readFile(new URL('../resources/requirements.txt', import.meta.url), 'utf8')
-  const { requirements, setuptools } = pinnedRequirements(contents)
-  assert.match(setuptools, /^setuptools==/)
+  const { requirements } = pinnedRequirements(contents)
   assert.ok(requirements.includes('macholib==1.16.4; sys_platform == "darwin"'))
   assert.ok(requirements.includes('pywin32-ctypes==0.2.3; sys_platform == "win32"'))
   assert.ok(requirements.includes('pefile==2023.2.7; sys_platform == "win32"'))
   assert.throws(() => pinnedRequirements('setuptools>=70\npysatochip==0.18.5'))
   assert.throws(() => pinnedRequirements('pysatochip==0.18.5'))
+})
+
+test('bootstraps the pinned cryptography source-build dependencies in dependency order', () => {
+  const contents = ['cryptography==50.0.2', 'maturin==1.14.1', 'cffi==2.1.1', 'setuptools==84.2.1', 'pycparser==3.12']
+  assert.deepEqual(pinnedRequirements(contents.join('\n')).bootstrap, [
+    'setuptools==84.2.1',
+    'pycparser==3.12',
+    'cffi==2.1.1',
+    'maturin==1.14.1',
+  ])
+  for (const dependency of ['setuptools', 'pycparser', 'cffi', 'maturin']) {
+    assert.throws(
+      () => pinnedRequirements(contents.filter((line) => !line.startsWith(`${dependency}==`)).join('\n')),
+      new RegExp(`Pin ${dependency} before building sidecar dependencies`),
+    )
+  }
 })
 
 test('collects card SDK certificates and native bindings on each host', () => {

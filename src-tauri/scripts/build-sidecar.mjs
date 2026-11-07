@@ -63,9 +63,12 @@ export function pinnedRequirements(contents) {
   if (!requirements.length || requirements.some((line) => !/^[\w.-]+==[\w.+!-]+(?:\s*;.+)?$/.test(line))) {
     throw new Error('Sidecar dependencies must all use exact versions')
   }
-  const setuptools = requirements.find((line) => /^setuptools==[^;\s]+$/.test(line))
-  if (!setuptools) throw new Error('Pin setuptools before building sidecar dependencies')
-  return { requirements, setuptools }
+  const bootstrap = ['setuptools', 'pycparser', 'cffi', 'maturin'].map((dependency) => {
+    const requirement = requirements.find((line) => new RegExp(`^${dependency}==[^;\\s]+$`).test(line))
+    if (!requirement) throw new Error(`Pin ${dependency} before building sidecar dependencies`)
+    return requirement
+  })
+  return { requirements, bootstrap }
 }
 
 export function checkPython(info, platform, arch, requireVirtualenv) {
@@ -122,7 +125,7 @@ function pythonInfo(executable, prefix = []) {
 export function buildSidecar(options) {
   const target = sidecarTarget(process.platform, process.arch, rustHost(run('rustc', ['-vV'], true)), options.target)
   const requirementsPath = join(nativeRoot, 'resources', 'requirements.txt')
-  const { setuptools } = pinnedRequirements(readFileSync(requirementsPath, 'utf8'))
+  const { bootstrap } = pinnedRequirements(readFileSync(requirementsPath, 'utf8'))
   let python
   if (options.useExistingEnvironment) {
     python = options.python
@@ -137,7 +140,8 @@ export function buildSidecar(options) {
   }
   checkPython(pythonInfo(python), process.platform, process.arch, true)
   const install = ['-m', 'pip', 'install', '--disable-pip-version-check', '--no-deps', '--no-build-isolation']
-  run(python, [...install, setuptools])
+  // Source builds prepare metadata before installing other requirements, so their backends must already exist.
+  for (const requirement of bootstrap) run(python, [...install, requirement])
   run(python, [...install, '-r', requirementsPath])
   run(python, ['-m', 'pip', 'check'])
   run(python, [join(nativeRoot, 'scripts', 'collect-licenses.py')])
