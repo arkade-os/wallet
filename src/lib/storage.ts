@@ -2,12 +2,19 @@ import { AssetDetails } from '@arkade-os/sdk'
 import { Config, LnSendActivity, Wallet } from '../lib/types'
 import { consoleError } from './logs'
 import { isValidUrl } from './validators'
+import { clearSecrets } from './secretStore'
+import { isNativeHost } from './nativeBridge'
 
 // clear localStorage but persist config (with asset data reset)
 export async function clearStorage(): Promise<void> {
   const config = readConfigFromStorage()
+  await clearSecrets()
   localStorage.clear()
   if (config) {
+    if (isNativeHost()) {
+      config.pubkey = ''
+      config.walletMode = 'static'
+    }
     config.importedAssets = []
     config.apps.assets.enabled = false
     saveConfigToStorage(config)

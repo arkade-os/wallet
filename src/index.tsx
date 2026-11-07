@@ -25,6 +25,13 @@ import { AssetsProvider } from './providers/assets'
 import { BackupProvider } from './providers/backup'
 import { LanguageProvider } from './providers/language'
 import { reloadOnWorkerTakeover } from './lib/serviceWorkerTakeover'
+import { initializeSecretStore } from './lib/secretStore'
+import NativeAppShell from './components/NativeAppShell'
+import './native.css'
+import { hasPendingNativeStateRestore } from './lib/nativeStateBackup'
+import NativeStateBackup from './components/NativeStateBackup'
+import NativeRecoveryShell from './components/NativeRecoveryShell'
+import { readWalletFromStorage } from './lib/storage'
 
 // On takeover, not on updatefound: a page reloaded while the new worker still installs boots against the
 // old one, which skipWaiting then retires mid-init, leaving "Connecting to service worker" for the 30s timeout.
@@ -45,47 +52,115 @@ if (shouldInitializeSentry(sentryDsn)) {
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
+let bootstrapPending = false
 
-root.render(
-  // <React.StrictMode>
-  <DevModeProvider>
-    <NavigationProvider>
-      <ConfigProvider>
-        <LanguageProvider>
-          <BackupProvider>
-            <AspProvider>
-              <AssetsProvider>
-                <NotificationsProvider>
-                  <FiatProvider>
-                    <FlowProvider>
-                      <WalletProvider>
-                        <SwapsProvider>
-                          <LimitsProvider>
-                            <FeesProvider>
-                              <OptionsProvider>
-                                <NudgeProvider>
-                                  <AnnouncementProvider>
-                                    <ToastProvider>
-                                      <ErrorBoundary>
-                                        <App />
-                                      </ErrorBoundary>
-                                    </ToastProvider>
-                                  </AnnouncementProvider>
-                                </NudgeProvider>
-                              </OptionsProvider>
-                            </FeesProvider>
-                          </LimitsProvider>
-                        </SwapsProvider>
-                      </WalletProvider>
-                    </FlowProvider>
-                  </FiatProvider>
-                </NotificationsProvider>
-              </AssetsProvider>
-            </AspProvider>
-          </BackupProvider>
-        </LanguageProvider>
-      </ConfigProvider>
-    </NavigationProvider>
-  </DevModeProvider>,
-  // </React.StrictMode>,
-)
+async function bootstrap() {
+  if (bootstrapPending) return
+  bootstrapPending = true
+  const storedWallet = readWalletFromStorage()
+  if (
+    storedWallet &&
+    typeof storedWallet === 'object' &&
+    'signer' in storedWallet &&
+    storedWallet.signer !== undefined
+  ) {
+    bootstrapPending = false
+    root.render(
+      <main role='alert' className='flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center'>
+        <h1 className='text-xl font-semibold'>This build does not support the stored wallet</h1>
+        <p>Open a build that supports this wallet to continue. Your wallet data is preserved.</p>
+      </main>,
+    )
+    return
+  }
+  root.render(
+    <main
+      role='status'
+      aria-busy
+      className='flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center'
+    >
+      <h1 className='text-xl font-semibold'>Opening secure storage</h1>
+      <button type='button' disabled className='button dark w-full max-w-xs'>
+        Checking…
+      </button>
+    </main>,
+  )
+  try {
+    await initializeSecretStore()
+  } catch {
+    bootstrapPending = false
+    root.render(
+      <main role='alert' className='flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center'>
+        <h1 className='text-xl font-semibold'>Wallet storage unavailable</h1>
+        <p>Unlock your device’s secure storage or desktop keyring, then retry.</p>
+        <p>Your wallet data is preserved.</p>
+        <button type='button' onClick={() => void bootstrap()} className='button dark w-full max-w-xs'>
+          Retry
+        </button>
+      </main>,
+    )
+    return
+  }
+  bootstrapPending = false
+  if (hasPendingNativeStateRestore()) {
+    root.render(
+      <LanguageProvider>
+        <NativeRecoveryShell>
+          <main className='flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center'>
+            <h1 className='text-xl font-semibold'>Finish restoring your wallet</h1>
+            <p>Select the same encrypted backup to complete the interrupted restore.</p>
+            <NativeStateBackup mode='import' />
+          </main>
+        </NativeRecoveryShell>
+      </LanguageProvider>,
+    )
+    return
+  }
+  root.render(
+    // <React.StrictMode>
+    <DevModeProvider>
+      <NavigationProvider>
+        <ConfigProvider>
+          <LanguageProvider>
+            <BackupProvider>
+              <AspProvider>
+                <AssetsProvider>
+                  <NotificationsProvider>
+                    <FiatProvider>
+                      <FlowProvider>
+                        <WalletProvider>
+                          <SwapsProvider>
+                            <LimitsProvider>
+                              <FeesProvider>
+                                <OptionsProvider>
+                                  <NudgeProvider>
+                                    <AnnouncementProvider>
+                                      <ToastProvider>
+                                        <ErrorBoundary>
+                                          <NativeAppShell>
+                                            <App />
+                                          </NativeAppShell>
+                                        </ErrorBoundary>
+                                      </ToastProvider>
+                                    </AnnouncementProvider>
+                                  </NudgeProvider>
+                                </OptionsProvider>
+                              </FeesProvider>
+                            </LimitsProvider>
+                          </SwapsProvider>
+                        </WalletProvider>
+                      </FlowProvider>
+                    </FiatProvider>
+                  </NotificationsProvider>
+                </AssetsProvider>
+              </AspProvider>
+            </BackupProvider>
+          </LanguageProvider>
+        </ConfigProvider>
+      </NavigationProvider>
+    </DevModeProvider>,
+    // </React.StrictMode>,
+  )
+}
+
+void bootstrap()

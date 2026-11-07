@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-clear-background"
+description = "Enables the clear_background command without any pre-configured scope."
+commands.allow = ["clear_background"]
+
+[[permission]]
+identifier = "deny-clear-background"
+description = "Denies the clear_background command without any pre-configured scope."
+commands.deny = ["clear_background"]

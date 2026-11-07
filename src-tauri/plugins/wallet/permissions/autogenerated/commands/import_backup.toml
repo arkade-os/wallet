@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-import-backup"
+description = "Enables the import_backup command without any pre-configured scope."
+commands.allow = ["import_backup"]
+
+[[permission]]
+identifier = "deny-import-backup"
+description = "Denies the import_backup command without any pre-configured scope."
+commands.deny = ["import_backup"]

@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import type { SetStateAction } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeHandle } from '@arkade-os/sdk'
 import type { VerifyExpectation } from '@arkade-os/lnurl-client'
@@ -15,6 +16,7 @@ import { LanguageContext, translate } from '../../../providers/language'
 import { Language } from '../../../lib/types'
 import { LNURL_ARKADE_RAIL, LNURL_LIGHTNING_RAIL } from '../../../lib/sendRouter'
 import { lnurlSends } from '../../../lib/lnurlSends'
+import { readAllTransactionActivityMetadata } from '../../../lib/storage'
 import {
   mockAspContextValue,
   mockConfigContextValue,
@@ -68,21 +70,40 @@ const lnurlQuote = (
 
 const setSendInfo = vi.fn()
 
-const renderSign = (sendInfo: SendInfo, limits = mockLimitsContextValue, language = Language.English) =>
-  render(
+const renderSign = (
+  sendInfo: SendInfo,
+  limits = mockLimitsContextValue,
+  language = Language.English,
+  reloadWallet = mockWalletContextValue.reloadWallet,
+) => {
+  let currentSendInfo = sendInfo
+  let mounted = true
+  const updateSendInfo = (update: SetStateAction<SendInfo>) => {
+    const next = typeof update === 'function' ? update(currentSendInfo) : update
+    if (next === currentSendInfo) return
+    currentSendInfo = next
+    setSendInfo(next)
+    view.rerender(tree())
+  }
+  const tree = () => (
     <LanguageContext.Provider value={{ language, t: (key, params) => translate(language, key, params) }}>
       <NavigationContext.Provider value={mockNavigationContextValue}>
         <ConfigContext.Provider value={mockConfigContextValue}>
           <FiatContext.Provider value={mockFiatContextValue}>
             <AspContext.Provider value={mockAspContextValue}>
               <FeesContext.Provider value={{ calcOnchainOutputFee: () => 500 } as never}>
-                <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo, setSendInfo }}>
+                <FlowContext.Provider
+                  value={{ ...mockFlowContextValue, sendInfo: currentSendInfo, setSendInfo: updateSendInfo }}
+                >
                   <WalletContext.Provider
-                    value={{ ...mockWalletContextValue, balance: 1_000_000, svcWallet: mockSvcWallet as never }}
+                    value={{
+                      ...mockWalletContextValue,
+                      balance: 1_000_000,
+                      svcWallet: mockSvcWallet as never,
+                      reloadWallet,
+                    }}
                   >
-                    <LimitsContext.Provider value={limits}>
-                      <SendDetails />
-                    </LimitsContext.Provider>
+                    <LimitsContext.Provider value={limits}>{mounted ? <SendDetails /> : null}</LimitsContext.Provider>
                   </WalletContext.Provider>
                 </FlowContext.Provider>
               </FeesContext.Provider>
@@ -90,8 +111,21 @@ const renderSign = (sendInfo: SendInfo, limits = mockLimitsContextValue, languag
           </FiatContext.Provider>
         </ConfigContext.Provider>
       </NavigationContext.Provider>
-    </LanguageContext.Provider>,
+    </LanguageContext.Provider>
   )
+  const view = render(tree())
+  return {
+    ...view,
+    replaceFlow(next: SendInfo, keepMounted: boolean) {
+      currentSendInfo = next
+      mounted = keepMounted
+      view.rerender(tree())
+    },
+    get sendInfo() {
+      return currentSendInfo
+    },
+  }
+}
 
 const sign = async (language = Language.English) =>
   fireEvent.click(await screen.findByText(translate(language, 'send.tapToSign')))
@@ -200,6 +234,57 @@ describe('Review Focus 5: verifyBatch send confirmations', () => {
     localStorage.clear()
     addConfirmation.mockClear()
   })
+
+  it.each(['unmounted', 'mounted'] as const)(
+    'keeps LNURL history and verification without replacing a later send (%s)',
+    async (kind) => {
+      let fund!: () => void
+      const verify = 'https://alice.example/verify/late'
+      const quote = lnurlQuote(LNURL_LIGHTNING_RAIL, vi.fn(), {
+        fee: 70,
+        verify,
+        verifyBatch: 'https://alice.example/verifyBatch',
+      })
+      quote.send = async () =>
+        makeHandle(LNURL_LIGHTNING_RAIL, (emit) => {
+          fund = () =>
+            emit({
+              status: 'sent',
+              result: { railId: LNURL_LIGHTNING_RAIL, txid: 'late-lnurl-funding', swapId: 'rfq-1' },
+            })
+          return new Promise<never>(() => {})
+        })
+      const reloadWallet = vi.fn(async () => {})
+      const view = renderSign(
+        { lnUrl: TARGET, satoshis: SATS, pendingLnSend: quote as never },
+        mockLimitsContextValue,
+        Language.English,
+        reloadWallet,
+      )
+      await sign()
+      await waitFor(() => expect(fund).toBeTypeOf('function'))
+      const laterSend = { arkAddress: 'ark1manual', satoshis: 2_000 }
+      act(() => view.replaceFlow(laterSend, kind === 'mounted'))
+      await act(async () => fund())
+      await waitFor(() => expect(reloadWallet).toHaveBeenCalledOnce())
+      expect(view.sendInfo).toBe(laterSend)
+      expect(lnurlSends()).toEqual([
+        expect.objectContaining({ txid: 'late-lnurl-funding', target: TARGET, feeSat: 70, swapId: 'rfq-1' }),
+      ])
+      expect(addConfirmation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          key: 'late-lnurl-funding',
+          verifyUrl: verify,
+          verifyBatch: 'https://alice.example/verifyBatch',
+          startedAt: lnurlSends()[0].createdAt,
+        }),
+      )
+      expect(readAllTransactionActivityMetadata()['late-lnurl-funding']).toMatchObject({
+        destination: TARGET,
+        networkFee: 70,
+      })
+    },
+  )
 
   it('keeps the original confirmation window when funding takes time', async () => {
     let now = 1_000

@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeHandle } from '@arkade-os/sdk'
+import type { SetStateAction } from 'react'
+import type { AppIntentState } from '../../../lib/appIntent'
 import { PRICING_BUDGET_MS } from '../../../lib/sendRouter'
 import SendDetails from '../../../screens/Wallet/Send/Details'
 import { readAllTransactionActivityMetadata } from '../../../lib/storage'
@@ -13,7 +15,7 @@ import { FiatContext } from '../../../providers/fiat'
 import { FlowContext, type SendInfo } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import { SwapsContext } from '../../../providers/swaps'
-import { NavigationContext } from '../../../providers/navigation'
+import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import {
   mockAspContextValue,
@@ -38,6 +40,7 @@ vi.mock('../../../lib/asp', async (importOriginal) => ({
 /** Readable without waiting out the animation the error renders behind. */
 const consoleError = vi.fn()
 const consoleLog = vi.fn()
+vi.mock('../../../hooks/useReducedMotion', () => ({ useReducedMotion: () => true }))
 vi.mock('../../../lib/logs', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../lib/logs')>()),
   consoleError: (...args: unknown[]) => consoleError(...args),
@@ -149,35 +152,61 @@ const renderSign = (
     limits = mockLimitsContextValue,
     outputFee = FEE,
     config = mockConfigContextValue,
-    setSendInfo = mockFlowContextValue.setSendInfo,
+    setSendInfo = mockFlowContextValue.setSendInfo as (value: SendInfo) => void,
     appIntent = mockFlowContextValue.appIntent,
-    setAppIntent = mockFlowContextValue.setAppIntent,
+    setAppIntent = mockFlowContextValue.setAppIntent as (value: AppIntentState | undefined) => void,
     intentFee = undefined as Record<string, string> | undefined,
     svcWallet = mockSvcWallet as object,
     availableBalance = mockWalletContextValue.availableBalance,
+    reloadWallet = mockWalletContextValue.reloadWallet,
+    navigate = mockNavigationContextValue.navigate,
   } = {},
-) =>
-  render(
-    <NavigationContext.Provider value={mockNavigationContextValue}>
+) => {
+  let currentSendInfo = sendInfo
+  let currentAppIntent = appIntent
+  let mounted = true
+  const updateSendInfo = (update: SetStateAction<SendInfo>) => {
+    const next = typeof update === 'function' ? update(currentSendInfo) : update
+    if (next === currentSendInfo) return
+    currentSendInfo = next
+    setSendInfo(next)
+    view.rerender(tree())
+  }
+  const updateAppIntent = (update: SetStateAction<AppIntentState | undefined>) => {
+    const next = typeof update === 'function' ? update(currentAppIntent) : update
+    if (next === currentAppIntent) return
+    currentAppIntent = next
+    setAppIntent(next)
+    view.rerender(tree())
+  }
+  const tree = () => (
+    <NavigationContext.Provider value={{ ...mockNavigationContextValue, screen: Pages.SendDetails, navigate }}>
       <ConfigContext.Provider value={config}>
         <FiatContext.Provider value={mockFiatContextValue}>
           <AspContext.Provider value={mockAspContextValue}>
             <FeesContext.Provider
               value={{ calcOnchainOutputFee: () => outputFee, intentFee: () => intentFee } as never}
             >
-              <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo, setSendInfo, appIntent, setAppIntent }}>
+              <FlowContext.Provider
+                value={{
+                  ...mockFlowContextValue,
+                  sendInfo: currentSendInfo,
+                  setSendInfo: updateSendInfo,
+                  appIntent: currentAppIntent,
+                  setAppIntent: updateAppIntent,
+                }}
+              >
                 <WalletContext.Provider
                   value={{
                     ...mockWalletContextValue,
                     balance: 1_000_000,
                     availableBalance,
                     svcWallet: svcWallet as never,
+                    reloadWallet,
                   }}
                 >
                   <SwapsContext.Provider value={swaps as never}>
-                    <LimitsContext.Provider value={limits}>
-                      <SendDetails />
-                    </LimitsContext.Provider>
+                    <LimitsContext.Provider value={limits}>{mounted ? <SendDetails /> : null}</LimitsContext.Provider>
                   </SwapsContext.Provider>
                 </WalletContext.Provider>
               </FlowContext.Provider>
@@ -185,8 +214,25 @@ const renderSign = (
           </AspContext.Provider>
         </FiatContext.Provider>
       </ConfigContext.Provider>
-    </NavigationContext.Provider>,
+    </NavigationContext.Provider>
   )
+  const view = render(tree())
+  return {
+    ...view,
+    replaceFlow(nextSendInfo: SendInfo, nextAppIntent: AppIntentState | undefined, keepMounted = true) {
+      currentSendInfo = nextSendInfo
+      currentAppIntent = nextAppIntent
+      mounted = keepMounted
+      view.rerender(tree())
+    },
+    get sendInfo() {
+      return currentSendInfo
+    },
+    get appIntent() {
+      return currentAppIntent
+    },
+  }
+}
 
 const sign = async () => {
   const button = await screen.findByText('Tap to Sign')
@@ -207,6 +253,7 @@ describe('signing an on-chain send', () => {
   it('retains the exact tagged swap id with its funding result before settlement', async () => {
     const sent = vi.fn()
     const setSendInfo = vi.fn()
+    const navigate = vi.fn()
     optionsFor = () => [
       {
         railId: 'onchain-swap',
@@ -221,7 +268,7 @@ describe('signing an on-chain send', () => {
         }),
       },
     ]
-    renderSign({ address: ADDRESS, satoshis: 10_000 }, { setSendInfo })
+    const view = renderSign({ address: ADDRESS, satoshis: 10_000 }, { setSendInfo, navigate })
     await sign()
     await waitFor(() =>
       expect(setSendInfo).toHaveBeenCalledWith(
@@ -230,6 +277,8 @@ describe('signing an on-chain send', () => {
     )
     expect(sent).toHaveBeenCalledOnce()
     expect(collaborativeExitWithFees).not.toHaveBeenCalled()
+    expect(view.sendInfo).toMatchObject({ swapId: 'rfq:owned', txid: 'funding-txid', railId: 'onchain-swap' })
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendSuccess))
   })
 
   it.each(['original', 'manual', 'already-bound'] as const)(
@@ -267,6 +316,70 @@ describe('signing an on-chain send', () => {
           committedOnchain: { swapId: 'rfq:owned', fundingTxid: 'funding-txid' },
         })
       else expect(setAppIntent).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each(['unmounted', 'replaced', 'cleared', 'equal-copy', 'already-bound', 'mounted'] as const)(
+    'keeps a later editable send when old funding arrives (%s)',
+    async (kind) => {
+      localStorage.clear()
+      let fund!: () => void
+      const originalIntent: AppIntentState = {
+        status: 'send',
+        request: `bitcoin:${ADDRESS}`,
+        callback: 'https://app.example/return',
+      }
+      const committedOnchain = { swapId: 'rfq:owned', fundingTxid: 'funding-txid' }
+      optionsFor = () => [
+        {
+          railId: 'onchain-swap',
+          quote: async () => ({
+            amount: 9_500,
+            fee: 500,
+            total: 10_000,
+            send: async () =>
+              makeHandle('onchain-swap', (emit) => {
+                fund = () =>
+                  emit({
+                    status: 'sent',
+                    result: { railId: 'onchain-swap', txid: 'funding-txid', swapId: 'rfq:owned' },
+                  })
+                return new Promise(() => {})
+              }),
+          }),
+        },
+      ]
+      const reloadWallet = vi.fn(async () => {})
+      const navigate = vi.fn()
+      const view = renderSign(
+        { address: ADDRESS, recipient: originalIntent.request, satoshis: 10_000 },
+        { appIntent: originalIntent, reloadWallet, navigate },
+      )
+      await sign()
+      await waitFor(() => expect(fund).toBeTypeOf('function'))
+      const laterSend = { arkAddress: 'ark1manual', satoshis: 2_000 }
+      const laterIntent: AppIntentState | undefined =
+        kind === 'cleared'
+          ? undefined
+          : kind === 'replaced'
+            ? { status: 'send', request: `bitcoin:${OTHER}`, callback: 'https://other.example/return' }
+            : kind === 'equal-copy'
+              ? { ...originalIntent }
+              : kind === 'already-bound'
+                ? { ...originalIntent, committedOnchain: { swapId: 'rfq:older', fundingTxid: 'older-txid' } }
+                : originalIntent
+      act(() => view.replaceFlow(laterSend, laterIntent, kind === 'mounted'))
+      await act(async () => fund())
+      await waitFor(() => expect(reloadWallet).toHaveBeenCalledOnce())
+      expect.soft(view.sendInfo).toBe(laterSend)
+      expect(view.appIntent).toEqual(
+        kind === 'unmounted' || kind === 'mounted' ? { ...originalIntent, committedOnchain } : laterIntent,
+      )
+      expect(readAllTransactionActivityMetadata()['funding-txid']).toMatchObject({
+        destination: ADDRESS,
+        networkFee: 500,
+      })
+      expect(navigate).not.toHaveBeenCalled()
     },
   )
 

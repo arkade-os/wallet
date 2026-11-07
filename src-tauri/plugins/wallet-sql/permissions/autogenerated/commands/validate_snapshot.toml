@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-validate-snapshot"
+description = "Enables the validate_snapshot command without any pre-configured scope."
+commands.allow = ["validate_snapshot"]
+
+[[permission]]
+identifier = "deny-validate-snapshot"
+description = "Denies the validate_snapshot command without any pre-configured scope."
+commands.deny = ["validate_snapshot"]

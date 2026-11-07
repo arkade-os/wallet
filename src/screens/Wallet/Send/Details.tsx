@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import Button from '../../../components/Button'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext } from '../../../providers/flow'
@@ -43,7 +43,7 @@ import { useTranslation } from '../../../providers/language'
 
 export default function SendDetails() {
   const displayContext = useAmountDisplayContext()
-  const { navigate } = useContext(NavigationContext)
+  const { navigate, screen } = useContext(NavigationContext)
   const { appIntent, sendInfo, setAppIntent, setSendInfo } = useContext(FlowContext)
   const { calcOnchainOutputFee, intentFee } = useContext(FeesContext)
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
@@ -65,6 +65,27 @@ export default function SendDetails() {
   const [pricing, setPricing] = useState(false)
   const [sending, setSending] = useState(false)
   const [sendDone, setSendDone] = useState(false)
+
+  const ownership = useRef<{ source: typeof sendInfo; result?: typeof sendInfo; live: boolean }>({
+    source: sendInfo,
+    live: true,
+  }).current
+  const latest = useRef({ sendInfo, screen })
+  latest.current = { sendInfo, screen }
+  useEffect(() => {
+    ownership.live = true
+    return () => {
+      ownership.live = false
+    }
+  }, [ownership])
+  const ownsFlow = () =>
+    ownership.live && (latest.current.sendInfo === ownership.source || latest.current.sendInfo === ownership.result)
+  const finishSend = (result: typeof sendInfo) => {
+    if (!ownsFlow()) return
+    ownership.result = result
+    setSendInfo((current) => (current === sendInfo ? result : current))
+    setSendDone(true)
+  }
 
   const { address, arkAddress, invoice, lnUrl, pendingLnSend, satoshis } = sendInfo
   const lnurlRoute = Boolean(lnUrl && pendingLnSend && isLnurlRail(pendingLnSend.railId))
@@ -218,8 +239,7 @@ export default function SendDetails() {
     // back the txid, so its cache is already current — and the metadata saved
     // just above is what the refreshed history grafts onto this row.
     reloadWallet().catch(consoleError)
-    setSendInfo({ ...sendInfo, total: details?.total, txid })
-    setSendDone(true)
+    finishSend({ ...sendInfo, total: details?.total, txid })
   }
 
   /** Unlike {@link handleTxid} a missing txid is not an error: the solver rail
@@ -241,19 +261,24 @@ export default function SendDetails() {
       sendInfo.recipient === appIntent.request &&
       !appIntent.committedOnchain
     ) {
-      setAppIntent({ ...appIntent, committedOnchain: { swapId, fundingTxid: txid } })
+      setAppIntent((current) =>
+        current === appIntent && current?.status === 'send' && !current.committedOnchain
+          ? { ...current, committedOnchain: { swapId, fundingTxid: txid } }
+          : current,
+      )
     }
-    setSendInfo({ ...sendInfo, total, txid, railId, swapId })
-    setSendDone(true)
+    finishSend({ ...sendInfo, total, txid, railId, swapId })
   }
 
   const handleExitComplete = () => {
+    if (!ownsFlow() || latest.current.screen !== Pages.SendDetails) return
     if (error) return setSending(false)
     else navigate(Pages.SendSuccess)
   }
 
   const handleError = (err: any) => {
     consoleError(err, 'error sending payment')
+    if (!ownsFlow()) return
     setError(extractError(err))
     setSendDone(true)
   }
@@ -347,6 +372,7 @@ export default function SendDetails() {
 
   /** A rail that now costs more is shown, never paid: the new total needs its own tap. */
   const askToSignAgain = ({ fee, total }: Pick<RouteQuote, 'fee' | 'total'>) => {
+    if (!ownsFlow()) return
     setDetails((prev) => (prev ? { ...prev, fees: fee, total } : prev))
     setNotice(t('send.feeChanged'))
     offerToSign(total)
@@ -354,7 +380,7 @@ export default function SendDetails() {
   }
 
   const handleContinue = async () => {
-    if (!details || !svcWallet || pricing) return
+    if (!ownsFlow() || !details || !svcWallet || pricing) return
     if (!isAssetSend && (!details.total || !details.satoshis)) return
     if (isAssetSend && !arkAddress) {
       setError(t('send.assetsOnlyToArkade'))

@@ -1,4 +1,5 @@
 import { useToast } from '../../components/Toast'
+import NativeWalletBackup from '../../components/NativeWalletBackup'
 import { BackupContext } from '../../providers/backup'
 import { useState, useEffect, useContext, useRef } from 'react'
 import Button from '../../components/Button'
@@ -166,6 +167,7 @@ export default function Backup() {
       <Content>
         <Padded>
           <FlexCol gap='2rem'>
+            <NativeWalletBackup />
             <ErrorMessage error={Boolean(error)} text={error} />
             <FlexCol border gap='0.5rem' padding='0 0 1rem 0'>
               <Text thin>{secretLabel}</Text>

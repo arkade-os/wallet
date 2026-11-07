@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-restore"
+description = "Enables the restore command without any pre-configured scope."
+commands.allow = ["restore"]
+
+[[permission]]
+identifier = "deny-restore"
+description = "Denies the restore command without any pre-configured scope."
+commands.deny = ["restore"]
