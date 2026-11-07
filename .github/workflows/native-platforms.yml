@@ -4,26 +4,46 @@ on:
   workflow_dispatch:
   pull_request:
   push:
-    branches: [master, next]
 
 permissions:
   contents: read
 
 concurrency:
-  group: native-platforms-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: native-platforms-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   desktop:
+    name: desktop (${{ matrix.artifact }})
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-24.04
-            bundle: deb
+            platform: linux
+            arch: x64
+            bundle: deb,appimage
+            artifact: linux-x64
           - os: macos-15
-            bundle: app
+            platform: macos
+            arch: arm64
+            bundle: app,dmg
+            artifact: macos-arm64
+          - os: macos-15-intel
+            platform: macos
+            arch: x64
+            bundle: app,dmg
+            artifact: macos-x64
+          - os: windows-2025
+            platform: windows
+            arch: x64
+            bundle: nsis,msi
+            artifact: windows-x64
     runs-on: ${{ matrix.os }}
+    env:
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+      ARTIFACT_ARCH: ${{ matrix.arch }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
@@ -41,10 +61,22 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential pkg-config curl wget file libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf dbus-x11 gnome-keyring
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:native:platforms
+      - name: Check artifact collection
+        run: python scripts/native-artifacts.check.py
+      - name: Verify native architecture
+        run: node -e "if (process.arch !== process.env.ARTIFACT_ARCH) throw new Error('Runner architecture does not match the artifact')"
+      - name: Enable Windows MSI build prerequisite
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $feature = Get-WindowsCapability -Online -Name 'VBSCRIPT*' | Select-Object -First 1
+          if ($feature -and $feature.State -ne 'Installed') {
+            Add-WindowsCapability -Online -Name $feature.Name
+          }
       - name: Build native wallet
-        run: pnpm native:build --bundles ${{ matrix.bundle }}
-      - name: Test Rust native workspace on macOS
-        if: runner.os == 'macOS'
+        run: pnpm native:build --bundles "${{ matrix.bundle }}" --no-sign --ci
+      - name: Test Rust native workspace on macOS and Windows
+        if: runner.os != 'Linux'
         run: cargo test --manifest-path src-tauri/Cargo.toml --workspace --locked
       - name: Test Rust native workspace with isolated Secret Service on Linux
         if: runner.os == 'Linux'
@@ -67,9 +99,70 @@ jobs:
             gdbus call --session --dest org.freedesktop.secrets --object-path /org/freedesktop/secrets --method org.freedesktop.Secret.Service.SetAlias default /org/freedesktop/secrets/collection/login >/dev/null
             cargo test --manifest-path src-tauri/Cargo.toml --workspace --locked
           '
+      - name: Collect desktop binaries and checksums
+        run: python scripts/native-artifacts.py ${{ matrix.platform }} --output native-artifacts/${{ matrix.artifact }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: Arkade-${{ matrix.artifact }}
+          path: native-artifacts/${{ matrix.artifact }}/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      CARGO_BUILD_JOBS: '2'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+      - name: Install Android SDK and Rust targets
+        shell: bash
+        run: |
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          set +o pipefail
+          yes | "$sdkmanager" --licenses > /dev/null
+          set -o pipefail
+          "$sdkmanager" 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.2.12479018'
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:native
+      - run: python scripts/native-artifacts.check.py
+      - name: Initialize and prepare Android host
+        run: |
+          pnpm exec tauri android init --ci --skip-targets-install
+          node src-tauri/android/prepare-host.mjs
+      - name: Build universal debug APK
+        run: pnpm native:android:build --debug --apk --ci --target aarch64 armv7 i686 x86_64
+      - name: Verify APK architectures and collect checksums
+        run: python scripts/native-artifacts.py android --output native-artifacts/android-universal-debug
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: Arkade-android-universal-debug
+          path: native-artifacts/android-universal-debug/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
 
   ios:
+    name: iOS simulator
     runs-on: macos-15
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
@@ -110,3 +203,44 @@ jobs:
         run: |
           xcodegen generate --spec src-tauri/ios/wallet-tests/project.json --project src-tauri/ios/wallet-tests
           xcodebuild -project src-tauri/ios/wallet-tests/WalletServiceTests.xcodeproj -scheme WalletServiceTests -sdk iphonesimulator -destination "platform=iOS Simulator,id=$IOS_SIMULATOR" -derivedDataPath "$RUNNER_TEMP/wallet-service-tests" test
+      - name: Archive simulator app and checksums
+        run: python scripts/native-artifacts.py ios-simulator --output native-artifacts/ios-simulator
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: Arkade-ios-simulator
+          path: native-artifacts/ios-simulator/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+  ios-device:
+    name: iOS unsigned device IPA
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+      - run: rustup target add aarch64-apple-ios
+      - run: pnpm install --frozen-lockfile
+      - name: Install Xcode project generator
+        run: brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
+      - run: pnpm native:ios:init --ci --skip-targets-install
+      - name: Build unsigned device IPA
+        run: pnpm native:ios:build --target aarch64 --no-sign --ci
+      - run: pnpm native:ios:prepare --check
+      - name: Verify unsigned IPA and collect checksums
+        run: python scripts/native-artifacts.py ios-device --output native-artifacts/ios-unsigned
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: Arkade-ios-unsigned
+          path: native-artifacts/ios-unsigned/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0

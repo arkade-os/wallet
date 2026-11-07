@@ -94,3 +94,27 @@ Native CI covers Linux/macOS builds and iOS compilation/simulator tests, includi
 real Keychain calls in a signed simulator test host. Physical-device camera/lifecycle,
 installed OS associations, distribution signing and funded native payments need
 separate release validation.
+
+## CI binary downloads
+
+The **Native platforms** Actions workflow builds on pushes, pull requests and manual
+runs. Push/PR runs for the same source branch share a concurrency group, so only the
+newest build continues. Download packages from the workflow run's **Artifacts** section.
+Artifacts are retained for 14 days and include `SOURCE.json` with the actual build
+commit and `SHA256SUMS` for the packaged files.
+
+| Artifact | Packages |
+| --- | --- |
+| `Arkade-windows-x64` | NSIS installer and MSI |
+| `Arkade-linux-x64` | DEB and archived AppImage |
+| `Arkade-macos-arm64`, `Arkade-macos-x64` | DMG and archived app bundle |
+| `Arkade-android-universal-debug` | Debug APK covering ARM64, ARMv7, x86 and x86_64 |
+| `Arkade-ios-simulator` | Archived simulator app |
+| `Arkade-ios-unsigned` | Unsigned device IPA |
+
+App bundles and AppImages are archived before upload to preserve executable modes
+and symlinks. Every requested package format must exist for upload to succeed.
+Desktop packages are unsigned; the IPA needs signing/provisioning before installation.
+Android APKs use the runner's debug key, so updates over earlier installations are
+not guaranteed. These jobs upload CI artifacts without publishing a release or
+configuring distribution credentials.
