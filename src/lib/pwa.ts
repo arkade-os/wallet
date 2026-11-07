@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react'
+import { isInAppBrowser } from './browser'
 
 const isServer = (): boolean => typeof window === 'undefined'
 
 const isStandalone = () => navigator.standalone || window.matchMedia('(display-mode: standalone)').matches
 
-export const pwaCanInstall = () => 'serviceWorker' in navigator && !isServer() && !isStandalone()
+// Installation is only possible from a real browser: in-app browsers and embedded
+// webviews never fire beforeinstallprompt and offer no "Add to Home Screen" entry
+// point, so showing the install banner there is misleading.
+export const pwaCanInstall = () => !isServer() && 'serviceWorker' in navigator && !isStandalone() && !isInAppBrowser()
 
 export const pwaIsInstalled = () => !isServer() && isStandalone()
 
