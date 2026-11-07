@@ -7,6 +7,7 @@ describe('getCurrency', () => {
     ['de-CH', Currencies.CHF],
     ['de-DE', Currencies.EUR],
     ['en-GB', Currencies.GBP],
+    ['es-CU', Currencies.CUP],
     ['en-US', Currencies.USD],
     ['en-ES', Currencies.EUR],
     ['fr-FR', Currencies.EUR],
