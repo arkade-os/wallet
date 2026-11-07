@@ -118,3 +118,6 @@ Desktop packages are unsigned; the IPA needs signing/provisioning before install
 Android APKs use the runner's debug key, so updates over earlier installations are
 not guaranteed. These jobs upload CI artifacts without publishing a release or
 configuring distribution credentials.
+
+The stacked [Satochip feature](native-satochip.md) adds card onboarding, signing and
+NFC/PC/SC transports to this same wallet frontend.

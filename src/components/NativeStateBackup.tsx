@@ -112,7 +112,7 @@ export default function NativeStateBackup({
             <DrawerDescription>
               {exporting
                 ? 'Includes wallet data and pending payment recovery details. Keep the backup password safe; the app cannot recover it.'
-                : 'Restore into an empty app. You will still need the original wallet password.'}
+                : 'Restore into an empty app. Software wallets still need their original wallet password. Card wallets need their Satochip; card PINs and recovery words are not included.'}
             </DrawerDescription>
             {exporting && beforeExport ? (
               <Text small wrap>
@@ -144,7 +144,7 @@ export default function NativeStateBackup({
                   disabled={busy}
                   onChange={(event) => setAccepted(event.target.checked)}
                 />
-                I have the original wallet password.
+                I have the original wallet password or the matching Satochip.
               </label>
             )}
             <ErrorMessage error={Boolean(error)} text={error} />

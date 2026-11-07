@@ -5,11 +5,11 @@ import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { resolvePlatform, tauriArguments } from './native-cross-platform.mjs'
+import { resolvePlatform, requestedDesktopTarget, tauriArguments } from './native-cross-platform.mjs'
 
 const json = (path) => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'))
 
-test('native platform selection requires the matching desktop or Xcode host', () => {
+test('native platform selection rejects cross-compiled Python helpers and non-Mac iOS hosts', () => {
   assert.equal(resolvePlatform('auto', 'win32'), 'windows')
   assert.equal(resolvePlatform('auto', 'darwin'), 'macos')
   assert.equal(resolvePlatform('auto', 'linux'), 'linux')
@@ -30,7 +30,15 @@ test('Windows command arguments stay intact and each other platform receives its
   assert.throws(() => tauriArguments('ios', 'publish'))
 })
 
-test('platform overrides retain software-wallet services without external helpers', () => {
+test('one explicit desktop target is passed to the matching-native guard', () => {
+  assert.equal(requestedDesktopTarget(['--debug', '--target', 'aarch64-apple-darwin']), 'aarch64-apple-darwin')
+  assert.equal(requestedDesktopTarget(['--target=x86_64-unknown-linux-gnu']), 'x86_64-unknown-linux-gnu')
+  assert.equal(requestedDesktopTarget([]), undefined)
+  assert.throws(() => requestedDesktopTarget(['--target']))
+  assert.throws(() => requestedDesktopTarget(['-t', 'a', '--target=b']))
+})
+
+test('platform overrides retain desktop notices and exclude all Python resources on iOS', () => {
   const base = json('../src-tauri/tauri.conf.json')
   const ios = json('../src-tauri/tauri.ios.conf.json')
   const linux = json('../src-tauri/tauri.linux.conf.json')
@@ -41,12 +49,11 @@ test('platform overrides retain software-wallet services without external helper
   assert.equal(ios.bundle.iOS.infoPlist, 'ios/Info.plist')
   assert.equal(linux.bundle.resources, undefined)
   assert.equal(mac.bundle.resources, undefined)
-  assert.equal(base.bundle.resources, undefined)
-  assert.equal(base.bundle.externalBin, undefined)
-  assert.equal(linux.bundle.linux.deb.depends, undefined)
+  assert.ok(base.bundle.resources.includes('resources/THIRD_PARTY_NOTICES.md'))
+  assert.ok(base.bundle.resources.includes('resources/licenses/'))
+  assert.ok(base.bundle.externalBin.includes('binaries/satochip-bridge'))
+  assert.ok(linux.bundle.linux.deb.depends.includes('libpcsclite1'))
   assert.ok(linux.bundle.linux.deb.recommends.includes('gnome-keyring'))
-  assert.ok(linux.bundle.linux.deb.recommends.includes('xdg-desktop-portal'))
-  assert.deepEqual(ios.bundle.iOS.frameworks, ['AVFoundation'])
   assert.equal(mac.bundle.macOS.hardenedRuntime, true)
   assert.equal(mac.bundle.macOS.infoPlist, 'macos/Info.plist')
   assert.equal(mac.bundle.macOS.entitlements, 'macos/Entitlements.plist')

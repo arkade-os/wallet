@@ -95,8 +95,12 @@ const onchainClaim = (wallet: SwapClientConfig['wallet'], network: NetworkName):
   }
 }
 
-export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: NetworkName): SwapClient => {
-  return createSwapClient({
+export const makeSwapClient = (
+  wallet: SwapClientConfig['wallet'],
+  network: NetworkName,
+  manual = false,
+): SwapClient => {
+  const client = createSwapClient({
     wallet,
     repository: assetSwapRepository,
     discovery: discoveryOptions(network),
@@ -120,8 +124,17 @@ export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: Netw
     // x-only value, so a configured key in that shape reads as NO override and
     // the package falls back to its own per-network pin.
     emulatorPubkey: getEmulatorPubkeyOverrideForNetwork(network),
+    ...(manual ? { policy: { drive: 'manual' as const } } : {}),
     // `drive: "auto"` is the default: construction restores, and arms only when
     // live swaps exist or on the first accept. The Web Lock in `providers/swaps`
     // is what keeps a second tab from arming a second drive over one repository.
   })
+  if (manual) {
+    const accept = client.accept
+    client.accept = async (quote, options) => {
+      await client.start()
+      return accept(quote, options)
+    }
+  }
+  return client
 }

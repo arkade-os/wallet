@@ -160,7 +160,7 @@ describe('native state backup controls', () => {
     ).toBeInTheDocument()
   })
 
-  it('explains the original password requirement and reloads only after restoration completes', async () => {
+  it('explains the original password/card requirement and reloads only after restoration completes', async () => {
     let finish!: () => void
     mocks.importState.mockImplementation(
       () =>
@@ -171,7 +171,7 @@ describe('native state backup controls', () => {
     const restored = vi.fn()
     render(<NativeStateBackup mode='import' onRestored={restored} />)
     fireEvent.click(screen.getByRole('button', { name: 'Restore encrypted wallet backup' }))
-    expect(screen.getByText(/You will still need the original wallet password/)).toBeInTheDocument()
+    expect(screen.getByText(/Software wallets still need their original wallet password/)).toBeInTheDocument()
     fireEvent.change(screen.getByPlaceholderText('At least 12 characters'), {
       target: { value: 'local backup password' },
     })

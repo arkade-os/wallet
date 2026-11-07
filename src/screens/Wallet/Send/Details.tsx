@@ -40,6 +40,9 @@ import TransactionAmountSummary from '../../../components/TransactionAmountSumma
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
 import { lnurlSends, recordLnurlSend, watchLnurlConfirmation } from '../../../lib/lnurlSends'
 import { useTranslation } from '../../../providers/language'
+import { canRequestNativeSigning } from '../../../lib/nativeSignerAvailability'
+import { isNativeWallet } from '../../../lib/nativeWallet'
+import NativeCardConnectSheet from '../../../components/NativeCardConnectSheet'
 
 export default function SendDetails() {
   const displayContext = useAmountDisplayContext()
@@ -48,7 +51,7 @@ export default function SendDetails() {
   const { calcOnchainOutputFee, intentFee } = useContext(FeesContext)
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
-  const { assetMetadataCache, availableBalance, balance, reloadWallet, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, availableBalance, balance, reloadWallet, svcWallet, wallet } = useContext(WalletContext)
   const { aspInfo } = useContext(AspContext)
   const { sendRouter } = useContext(SwapsContext)
   const { t } = useTranslation()
@@ -65,6 +68,7 @@ export default function SendDetails() {
   const [pricing, setPricing] = useState(false)
   const [sending, setSending] = useState(false)
   const [sendDone, setSendDone] = useState(false)
+  const [cardSheetOpen, setCardSheetOpen] = useState(false)
 
   const ownership = useRef<{ source: typeof sendInfo; result?: typeof sendInfo; live: boolean }>({
     source: sendInfo,
@@ -386,6 +390,10 @@ export default function SendDetails() {
       setError(t('send.assetsOnlyToArkade'))
       return
     }
+    if (isNativeWallet(wallet) && !canRequestNativeSigning(wallet.pubkey)) {
+      setCardSheetOpen(true)
+      return
+    }
 
     setNotice('')
     setSending(true)
@@ -454,6 +462,11 @@ export default function SendDetails() {
       <ButtonsOnBottom>
         {sending ? null : <Button onClick={handleContinue} label={buttonLabel} disabled={Boolean(error) || pricing} />}
       </ButtonsOnBottom>
+      <NativeCardConnectSheet
+        isOpen={cardSheetOpen}
+        onClose={() => setCardSheetOpen(false)}
+        onConnected={() => setCardSheetOpen(false)}
+      />
     </>
   )
 }

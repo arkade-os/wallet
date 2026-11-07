@@ -14,12 +14,15 @@ import { mockAspContextValue, mockConfigContextValue } from '../screens/mocks'
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   softwareSetup: vi.fn(),
+  connect: vi.fn(),
   secrets: new Map<string, string>(),
   repositories: vi.fn(),
-  updateConfig: vi.fn(),
 }))
 vi.mock('../../lib/nativeBridge', () => ({
   isNativeHost: () => true,
+  connectNativeIdentity: mocks.connect,
+  disconnectNativeIdentity: vi.fn(async () => {}),
+  loadNativeIdentity: vi.fn(),
 }))
 vi.mock('../../lib/secretStore', () => ({
   hasSecret: (key: string) => mocks.secrets.has(key),
@@ -69,16 +72,7 @@ function mount() {
     )
     return (
       <AspContext.Provider value={mockAspContextValue}>
-        <ConfigContext.Provider
-          value={{
-            ...mockConfigContextValue,
-            config,
-            updateConfig: (value) => {
-              mocks.updateConfig(value)
-              setConfig(value)
-            },
-          }}
-        >
+        <ConfigContext.Provider value={{ ...mockConfigContextValue, config, updateConfig: setConfig }}>
           <WalletProvider>
             <Capture />
           </WalletProvider>
@@ -132,29 +126,6 @@ afterEach(() => {
 })
 
 describe('software credentials in the native wallet host', () => {
-  it('refuses replacing an unsupported stored wallet before creating a signer or changing configuration', async () => {
-    const wallet = JSON.stringify({
-      nextRollover: 0,
-      pubkey: `02${'11'.repeat(32)}`,
-      signer: { type: 'external', publicKey: `02${'11'.repeat(32)}` },
-    })
-    localStorage.setItem('wallet', wallet)
-    mocks.secrets.set('encrypted_private_key', 'existing encrypted credential')
-    mount()
-
-    await act(async () => {
-      await expect(context.initWallet({ privateKey: new Uint8Array(32).fill(7) })).rejects.toThrow(
-        'This build does not support the stored wallet',
-      )
-    })
-
-    expect(mocks.updateConfig).not.toHaveBeenCalled()
-    expect(mocks.create).not.toHaveBeenCalled()
-    expect(mocks.repositories).not.toHaveBeenCalled()
-    expect(localStorage.getItem('wallet')).toBe(wallet)
-    expect(mocks.secrets.get('encrypted_private_key')).toBe('existing encrypted credential')
-  })
-
   it('creates an HD mnemonic wallet in the foreground and reopens it with the same encrypted credentials', async () => {
     await setMnemonic(mnemonic, 'fixture password')
     mount()
@@ -163,6 +134,7 @@ describe('software credentials in the native wallet host', () => {
       expect.objectContaining({ walletMode: 'hd', identity: expect.any(MnemonicIdentity) }),
     )
     expect(context.svcWallet).toBe(runtime)
+    expect(runtime.hardwareSigner).toBe(false)
     const publicKey = context.wallet.pubkey
     await act(() => context.lockWallet())
     await act(() => context.unlockWallet('fixture password'))
@@ -171,6 +143,7 @@ describe('software credentials in the native wallet host', () => {
     expect(mocks.create.mock.calls.every(([config]) => config.walletMode === 'hd')).toBe(true)
     expect(mocks.secrets.get('encrypted_mnemonic')).toBeTruthy()
     expect(localStorage.getItem('encrypted_mnemonic')).toBeNull()
+    expect(mocks.connect).not.toHaveBeenCalled()
     expect(mocks.softwareSetup).not.toHaveBeenCalled()
   })
 
@@ -180,6 +153,8 @@ describe('software credentials in the native wallet host', () => {
     await act(() => context.initWallet({ mnemonic, walletMode: 'hd', restoring: true }))
     expect(runtime.restore).toHaveBeenCalledTimes(1)
     expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ walletMode: 'hd' }))
+    expect(context.wallet.signer).toBeUndefined()
+    expect(mocks.connect).not.toHaveBeenCalled()
   })
 
   it('keeps raw-key software wallets static and requires their password after a manual lock', async () => {
@@ -199,6 +174,7 @@ describe('software credentials in the native wallet host', () => {
     await waitFor(() => expect(context.authState).toBe('authenticated'))
     expect(mocks.secrets.get('encrypted_private_key')).toBeTruthy()
     expect(localStorage.getItem('encrypted_private_key')).toBeNull()
+    expect(mocks.connect).not.toHaveBeenCalled()
     expect(mocks.softwareSetup).not.toHaveBeenCalled()
   })
 })

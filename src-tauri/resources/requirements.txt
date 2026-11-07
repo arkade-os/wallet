@@ -1,0 +1,19 @@
+altgraph==0.17.5
+certifi==2026.10.23
+cffi==2.1.1
+cryptography==50.0.2
+packaging==26.3
+macholib==1.16.4; sys_platform == "darwin"
+maturin==1.14.1
+pefile==2023.2.7; sys_platform == "win32"
+pyaes==1.6.1
+pycparser==3.12
+pycryptodomex==3.24.1
+pyinstaller==6.16.0
+pyinstaller-hooks-contrib==2026.9
+pyOpenSSL==26.4.0
+pysatochip==0.18.5
+pyscard==2.3.2
+pywin32-ctypes==0.2.3; sys_platform == "win32"
+setuptools==84.2.1
+typing_extensions==4.15.0; python_version < "3.13"

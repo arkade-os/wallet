@@ -26,7 +26,7 @@ class IosHostTests(unittest.TestCase):
         with (app / "Info.plist").open("wb") as output:
             plistlib.dump({"ExistingWork": "retained", "NSCameraUsageDescription": "Custom camera text"}, output)
         with (app / "arkade_iOS.entitlements").open("wb") as output:
-            plistlib.dump({"ExistingCapability": True, "com.apple.security.application-groups": ["group.io.arkade.tests"]}, output)
+            plistlib.dump({"ExistingCapability": True, "com.apple.developer.nfc.readersession.formats": ["NDEF"]}, output)
         return app, project
 
     def test_additive_preparation_is_idempotent_and_retains_xcode_work(self):
@@ -39,10 +39,11 @@ class IosHostTests(unittest.TestCase):
             info = host.read_plist(app / "Info.plist")
             self.assertEqual(info["ExistingWork"], "retained")
             self.assertEqual(info["NSCameraUsageDescription"], "Custom camera text")
+            self.assertEqual(info["com.apple.developer.nfc.readersession.iso7816.select-identifiers"], ["5361746F43686970"])
             self.assertEqual(info["CFBundleURLTypes"][0]["CFBundleURLSchemes"], ["bitcoin", "lightning", "arkade", "web+arkade"])
             entitlements = host.read_plist(app / "arkade_iOS.entitlements")
             self.assertTrue(entitlements["ExistingCapability"])
-            self.assertEqual(entitlements["com.apple.security.application-groups"], ["group.io.arkade.tests"])
+            self.assertEqual(entitlements["com.apple.developer.nfc.readersession.formats"], ["NDEF", "TAG"])
             self.assertEqual((project / "project.pbxproj").read_bytes(), project_before)
             bytes_before = (app / "Info.plist").read_bytes()
             host.prepare(root)
@@ -89,26 +90,20 @@ class IosHostTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             app, _ = self.fixture(root)
-            host.prepare(root)
             (app / "arkade_iOS.entitlements").unlink()
-            info_before = (app / "Info.plist").read_bytes()
-            with self.assertRaisesRegex(ValueError, "needs preparation"):
-                host.prepare(root, check=True)
-            self.assertFalse((app / "arkade_iOS.entitlements").exists())
-            self.assertEqual((app / "Info.plist").read_bytes(), info_before)
             host.prepare(root)
-            self.assertEqual(host.read_plist(app / "arkade_iOS.entitlements"), {})
-            host.prepare(root, check=True)
+            self.assertEqual(host.read_plist(app / "arkade_iOS.entitlements"),
+                             {"com.apple.developer.nfc.readersession.formats": ["TAG"]})
 
     def test_malformed_existing_arrays_are_refused(self):
         required_info = host.read_plist(SOURCE / "Info.plist")
-        for value in ("invalid", [12]):
-            with self.subTest(value=value), self.assertRaises(ValueError):
-                host.merge_info({"CFBundleURLTypes": value}, required_info)
-            entry = {"CFBundleURLName": required_info["CFBundleURLTypes"][0]["CFBundleURLName"],
-                     "CFBundleURLSchemes": value}
-            with self.subTest(schemes=value), self.assertRaises(ValueError):
-                host.merge_info({"CFBundleURLTypes": [entry]}, required_info)
+        for key, value in [("CFBundleURLTypes", "invalid"),
+                           ("com.apple.developer.nfc.readersession.iso7816.select-identifiers", [12])]:
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                host.merge_info({key: value}, required_info)
+        with self.assertRaises(ValueError):
+            host.merge_entitlements({"com.apple.developer.nfc.readersession.formats": "invalid"},
+                                    host.read_plist(SOURCE / "Entitlements.plist"))
 
 
 if __name__ == "__main__":

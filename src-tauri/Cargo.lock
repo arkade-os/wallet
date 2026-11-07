@@ -91,6 +91,7 @@ dependencies = [
  "tauri-plugin-deep-link",
  "tauri-plugin-notification",
  "tauri-plugin-opener",
+ "tauri-plugin-satochip",
  "tauri-plugin-single-instance",
  "tauri-plugin-wallet",
  "tauri-plugin-wallet-sql",
@@ -4324,6 +4325,20 @@ dependencies = [
  "url",
  "windows",
  "zbus 5.19.0",
+]
+
+[[package]]
+name = "tauri-plugin-satochip"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "tauri-plugin-wallet",
+ "windows-sys 0.61.2",
+ "zeroize",
 ]
 
 [[package]]

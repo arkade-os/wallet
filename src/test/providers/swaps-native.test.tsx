@@ -47,7 +47,7 @@ function Capture() {
   context = useContext(SwapsContext)
   return null
 }
-function mount(hasWallet = true) {
+function mount(native = true, hasWallet = true) {
   return render(
     <AspContext.Provider value={mockAspContextValue}>
       <WalletContext.Provider
@@ -56,7 +56,13 @@ function mount(hasWallet = true) {
           dataReady: true,
           svcWallet: hasWallet ? ({ identity: {} } as never) : undefined,
           reloadWallet: mocks.reload,
-          wallet: { nextRollover: 0, ...(hasWallet ? { pubkey: `02${'11'.repeat(32)}` } : {}) },
+          wallet: native
+            ? {
+                nextRollover: 0,
+                pubkey: `02${'11'.repeat(32)}`,
+                signer: { type: 'native', name: 'Satochip', publicKey: `02${'11'.repeat(32)}` },
+              }
+            : { nextRollover: 0, ...(hasWallet ? { pubkey: `02${'11'.repeat(32)}` } : {}) },
         }}
       >
         <SwapsProvider>
@@ -81,10 +87,31 @@ beforeEach(() => {
 })
 afterEach(() => cleanup())
 
-it('builds the shared swap client for a software wallet', async () => {
+it('restores pending hardware payments without starting, then resumes only when asked', async () => {
+  const view = mount()
+  await waitFor(() => expect(context.paymentsPaused).toBe(true))
+  expect(mocks.create.mock.calls[0][2]).toBe(true)
+  expect(mocks.start).not.toHaveBeenCalled()
+  await act(() => context.resumePendingPayments())
+  expect(mocks.start).toHaveBeenCalledTimes(1)
+  expect(context.paymentsPaused).toBe(false)
+  view.unmount()
+  await waitFor(() => expect(mocks.dispose).toHaveBeenCalledTimes(1))
+})
+
+it('does not show a resume action for an empty hardware wallet', async () => {
+  mocks.pending = false
   mount()
+  await waitFor(() => expect(mocks.reload).toHaveBeenCalled())
+  expect(context.paymentsPaused).toBe(false)
+  expect(mocks.start).not.toHaveBeenCalled()
+})
+
+it('keeps software wallets on the existing automatic drive', async () => {
+  mount(false)
   await waitFor(() => expect(mocks.create).toHaveBeenCalled())
-  expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ identity: {} }), 'regtest')
+  expect(mocks.create.mock.calls[0][2]).toBe(false)
+  expect(context.paymentsPaused).toBe(false)
 })
 
 it('blocks new payment actions synchronously and waits for disposal before backup can continue', async () => {
@@ -106,6 +133,7 @@ it('blocks new payment actions synchronously and waits for disposal before backu
   })
   await waitFor(() => expect(mocks.dispose).toHaveBeenCalledTimes(1))
   expect(drained).toBe(false)
+  await expect(context.resumePendingPayments()).rejects.toThrow('not running')
   await expect(context.sendRouter({ swapsOptional: true })).rejects.toThrow('paused for backup')
   expect(mocks.stopMarkets).toHaveBeenCalledTimes(1)
   expect(mocks.start).not.toHaveBeenCalled()
@@ -140,6 +168,8 @@ it('starts disposal immediately but waits for pending restoration before backup 
   )
   mount()
   await waitFor(() => expect(mocks.create).toHaveBeenCalledTimes(1))
+  const resume = context.resumePendingPayments()
+  const rejected = expect(resume).rejects.toThrow('paused')
   let pause!: Promise<void>
   let drained = false
   await act(async () => {
@@ -152,6 +182,7 @@ it('starts disposal immediately but waits for pending restoration before backup 
   await act(async () => {
     finishRestore()
     await pause
+    await rejected
   })
   expect(mocks.dispose).toHaveBeenCalledTimes(1)
   expect(mocks.start).not.toHaveBeenCalled()
@@ -159,7 +190,7 @@ it('starts disposal immediately but waits for pending restoration before backup 
 
 it('keeps a fresh native app profile empty until a wallet is created or restored', () => {
   mocks.host = true
-  mount(false)
+  mount(false, false)
   context.runDiscovery(false)
   expect(mocks.watchMarkets).not.toHaveBeenCalled()
   expect(mocks.discoverMarkets).not.toHaveBeenCalled()
@@ -167,6 +198,6 @@ it('keeps a fresh native app profile empty until a wallet is created or restored
 })
 
 it('preserves discovery on the browser welcome screen', () => {
-  mount(false)
+  mount(false, false)
   expect(mocks.watchMarkets).toHaveBeenCalledTimes(1)
 })

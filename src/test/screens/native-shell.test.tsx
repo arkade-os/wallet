@@ -18,6 +18,7 @@ import {
   mockWalletContextValue,
 } from './mocks'
 
+vi.mock('../../components/NativeCardStatus', () => ({ default: () => null }))
 vi.mock('@tauri-apps/plugin-barcode-scanner', () => ({
   checkPermissions: vi.fn(async () => 'granted'),
   scan: vi.fn(() => new Promise(() => {})),
@@ -387,7 +388,7 @@ it('uses normal Back navigation while requests retain the existing safe Escape h
   window.removeEventListener('keydown', escape)
 })
 
-it('keeps root Back active for a busy task sheet and closes it before navigation', async () => {
+it('keeps root Back active for a card sheet, consumes it while busy and closes the sheet before navigation', async () => {
   const goBack = vi.fn()
   const closed = vi.fn()
   let updateBusy!: (busy: boolean) => void
@@ -408,8 +409,8 @@ it('keeps root Back active for a busy task sheet and closes it before navigation
           setOpen(false)
         }}
       >
-        <DrawerTitle>Current task</DrawerTitle>
-        <DrawerDescription>Finish the current task before continuing.</DrawerDescription>
+        <DrawerTitle>Connect Satochip</DrawerTitle>
+        <DrawerDescription>Connect your card to send.</DrawerDescription>
       </SheetModal>,
       Pages.Wallet,
     )
@@ -419,7 +420,7 @@ it('keeps root Back active for a busy task sheet and closes it before navigation
   await waitFor(() => expect(backEnabled()).toBe(true))
   await waitFor(() => expect(listeners.has('back')).toBe(true))
   await act(async () => listeners.get('back')?.({}))
-  expect(screen.getByRole('dialog', { name: 'Current task' })).toBeVisible()
+  expect(screen.getByRole('dialog', { name: 'Connect Satochip' })).toBeVisible()
   expect(closed).not.toHaveBeenCalled()
   expect(goBack).not.toHaveBeenCalled()
   await act(async () => updateBusy(false))
