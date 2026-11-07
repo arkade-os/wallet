@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { spawnSync } from 'node:child_process'
+import { chmod, copyFile, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
 import test from 'node:test'
 import {
   checkPython,
@@ -9,6 +11,7 @@ import {
   pyInstallerArguments,
   rustHost,
   sidecarTarget,
+  virtualenvEnvironment,
   virtualenvPython,
 } from './build-sidecar.mjs'
 
@@ -55,6 +58,41 @@ test('rejects a global or mismatched Python before dependency installation', () 
   checkPython({ platform: 'win32', machine: 'AMD64', virtualenv: true }, 'win32', 'x64', true)
   assert.throws(() => checkPython({ platform: 'darwin', machine: 'x86_64', virtualenv: true }, 'darwin', 'arm64', true))
   assert.throws(() => checkPython({ platform: 'linux', machine: 'x86_64', virtualenv: false }, 'linux', 'x64', true))
+})
+
+test('prepends virtualenv tools to child PATH without mutating the parent environment', () => {
+  const windows = { Path: 'C:\\tools;C:\\Windows', HOME: 'wallet' }
+  assert.deepEqual(virtualenvEnvironment('C:\\venv\\Scripts', windows, 'win32'), {
+    Path: 'C:\\venv\\Scripts;C:\\tools;C:\\Windows',
+    HOME: 'wallet',
+  })
+  assert.equal(windows.Path, 'C:\\tools;C:\\Windows')
+  assert.deepEqual(virtualenvEnvironment('/venv/bin', { PATH: '/usr/bin', path: 'preserved' }, 'darwin'), {
+    PATH: '/venv/bin:/usr/bin',
+    path: 'preserved',
+  })
+})
+
+test('source-build subprocesses can discover an executable installed in the virtualenv', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'sidecar-build-environment-'))
+  assert.equal(dirname(root), tmpdir())
+  const scriptsDirectory = join(root, 'scripts')
+  await mkdir(scriptsDirectory)
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const tool = 'sidecar-backend-fixture'
+  const executable = join(scriptsDirectory, `${tool}${process.platform === 'win32' ? '.exe' : ''}`)
+  await copyFile(process.execPath, executable)
+  await chmod(executable, 0o755)
+  const originalPath = process.env.PATH
+  const result = spawnSync(tool, ['-e', 'process.stdout.write("backend available")'], {
+    env: virtualenvEnvironment(scriptsDirectory),
+    encoding: 'utf8',
+    shell: false,
+  })
+  assert.equal(result.error, undefined)
+  assert.equal(result.status, 0, result.stderr)
+  assert.equal(result.stdout, 'backend available')
+  assert.equal(process.env.PATH, originalPath)
 })
 
 test('keeps all dependency versions pinned, including platform-only build dependencies', async () => {
