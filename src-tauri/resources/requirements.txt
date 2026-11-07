@@ -4,6 +4,7 @@ cffi==2.1.1
 cryptography==50.0.2
 packaging==26.3
 macholib==1.16.4; sys_platform == "darwin"
+maturin==1.14.1
 pefile==2023.2.7; sys_platform == "win32"
 pyaes==1.6.1
 pycparser==3.12
