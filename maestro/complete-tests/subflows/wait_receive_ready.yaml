@@ -1,0 +1,12 @@
+appId: com.android.chrome
+---
+- runFlow: dismiss_clipboard_permission.yaml
+- extendedWaitUntil:
+    notVisible: "Loading..."
+    timeout: 120000
+- extendedWaitUntil:
+    visible: "Add amount"
+    timeout: 60000
+- extendedWaitUntil:
+    visible: "Copy"
+    timeout: 30000

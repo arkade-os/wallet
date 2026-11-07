@@ -1,0 +1,11 @@
+appId: com.android.chrome
+name: Home — Scan opens send flow
+tags:
+  - smoke
+  - send
+---
+- runFlow: ../subflows/ensure_on_wallet_home.yaml
+- runFlow: ../subflows/tap_home_scan.yaml
+- runFlow: ../subflows/assert_send_form.yaml
+- runFlow: ../subflows/tap_header_back.yaml
+- runFlow: ../subflows/go_back_to_home.yaml

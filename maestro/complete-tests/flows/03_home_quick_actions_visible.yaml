@@ -1,0 +1,7 @@
+appId: com.android.chrome
+name: Home — quick actions visible (redesign)
+tags:
+  - smoke
+  - home-redesign
+---
+- runFlow: ../subflows/ensure_on_wallet_home.yaml
