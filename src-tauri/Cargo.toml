@@ -32,3 +32,6 @@ tauri-plugin-clipboard-manager = "=2.5.0"
 
 [workspace]
 members = ["plugins/satochip", "plugins/wallet", "plugins/wallet-sql"]
+
+[profile.release]
+strip = true

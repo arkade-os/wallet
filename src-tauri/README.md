@@ -30,6 +30,12 @@ Install the Android SDK/NDK required by Tauri. Run `pnpm native:android:init` on
 generate and prepare the local Android project, then `pnpm native:android` or
 `pnpm native:android:build --debug --apk --target aarch64`.
 
+Release APKs can target one architecture with `pnpm native:android:build --apk
+--split-per-abi --ci --target aarch64`. Rust release symbols are stripped before
+packaging; collect a single APK with `python scripts/native-artifacts.py
+android-abi/arm64 --output native-artifacts/android-arm64-release`. Replace
+`arm64` with `armv7`, `i686` or `x86_64` for the other supported targets.
+
 Shared preparation and packaging scripts live in `android/`. They configure SDK 36,
 AndroidX, optional camera support, notification permission, payment links and OS backup
 exclusions. Existing Android project changes are retained and incompatible templates

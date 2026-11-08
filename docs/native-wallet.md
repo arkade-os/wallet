@@ -109,6 +109,10 @@ commit and `SHA256SUMS` for the packaged files.
 | `Arkade-linux-x64` | DEB and archived AppImage |
 | `Arkade-macos-arm64`, `Arkade-macos-x64` | DMG and archived app bundle |
 | `Arkade-android-universal-debug` | Debug APK covering ARM64, ARMv7, x86 and x86_64 |
+| `Arkade-android-arm64-release` | Stripped, unsigned release APK for ARM64 phones |
+| `Arkade-android-armv7-release` | Stripped, unsigned release APK for ARMv7 phones |
+| `Arkade-android-i686-release` | Stripped, unsigned release APK for x86 devices/emulators |
+| `Arkade-android-x86_64-release` | Stripped, unsigned release APK for x86_64 emulators/devices |
 | `Arkade-ios-simulator` | Archived simulator app |
 | `Arkade-ios-unsigned` | Unsigned device IPA |
 

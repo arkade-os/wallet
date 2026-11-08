@@ -22,3 +22,8 @@ test('native host forbids remote frames and grants card access only to local win
     }
   }
 })
+
+test('release native libraries are stripped before Android packaging', async () => {
+  const config = await readFile(new URL('../src-tauri/Cargo.toml', import.meta.url), 'utf8')
+  assert.match(config, /\[profile\.release\]\s+strip = true\s*$/m)
+})

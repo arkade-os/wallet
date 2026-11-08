@@ -131,8 +131,18 @@ jobs:
           compression-level: 0
 
   android:
+    name: Android ${{ matrix.abi }}
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - abi: universal-debug
+          - abi: arm64
+          - abi: armv7
+          - abi: i686
+          - abi: x86_64
     env:
       CARGO_BUILD_JOBS: '2'
     steps:
@@ -149,6 +159,8 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+        with:
+          targets: ${{ matrix.abi == 'armv7' && 'armv7-linux-androideabi' || matrix.abi == 'arm64' && 'aarch64-linux-android' || matrix.abi == 'i686' && 'i686-linux-android' || matrix.abi == 'x86_64' && 'x86_64-linux-android' || 'aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android' }}
       - name: Install Android SDK and Rust targets
         shell: bash
         run: |
@@ -160,7 +172,9 @@ jobs:
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
           echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
-          rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+          if [[ '${{ matrix.abi }}' == universal-debug ]]; then
+            rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+          fi
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:native
       - run: python scripts/native-artifacts.check.py
@@ -169,13 +183,21 @@ jobs:
           pnpm exec tauri android init --ci --skip-targets-install
           node src-tauri/android/prepare-host.mjs
       - name: Build universal debug APK
+        if: matrix.abi == 'universal-debug'
         run: pnpm native:android:build --debug --apk --ci --target aarch64 armv7 i686 x86_64
-      - name: Verify APK architectures and collect checksums
+      - name: Build release APK for one ABI
+        if: matrix.abi != 'universal-debug'
+        run: pnpm native:android:build --apk --split-per-abi --ci --target ${{ (matrix.abi == 'armv7' && 'armv7' || matrix.abi) }}
+      - name: Verify universal debug APK architectures and collect checksums
+        if: matrix.abi == 'universal-debug'
         run: python scripts/native-artifacts.py android --output native-artifacts/android-universal-debug
+      - name: Verify release ABI and collect checksums
+        if: matrix.abi != 'universal-debug'
+        run: python scripts/native-artifacts.py android-abi/${{ matrix.abi }} --output native-artifacts/android-${{ matrix.abi }}-release
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: Arkade-android-universal-debug
-          path: native-artifacts/android-universal-debug/
+          name: Arkade-android-${{ matrix.abi }}${{ matrix.abi == 'universal-debug' && '' || '-release' }}
+          path: native-artifacts/android-${{ matrix.abi }}${{ matrix.abi == 'universal-debug' && '-debug' || '-release' }}/
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
