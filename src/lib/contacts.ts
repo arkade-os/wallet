@@ -45,7 +45,7 @@ export function sendDestination(
 }
 
 export function contactDisplayName(contact: Contact | undefined): string {
-  return contact ? contact.name || contact.address.split('@')[0] : ''
+  return contact ? contact.name || contact.address : ''
 }
 
 export function readContacts(): Contact[] {
