@@ -139,10 +139,20 @@ jobs:
       matrix:
         include:
           - abi: universal-debug
+            target: aarch64,armv7,i686,x86_64
+            rust_target: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
           - abi: arm64
+            target: aarch64
+            rust_target: aarch64-linux-android
           - abi: armv7
+            target: armv7
+            rust_target: armv7-linux-androideabi
           - abi: i686
+            target: i686
+            rust_target: i686-linux-android
           - abi: x86_64
+            target: x86_64
+            rust_target: x86_64-linux-android
     env:
       CARGO_BUILD_JOBS: '2'
     steps:
@@ -160,7 +170,7 @@ jobs:
           java-version: '21'
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
         with:
-          targets: ${{ matrix.abi == 'armv7' && 'armv7-linux-androideabi' || matrix.abi == 'arm64' && 'aarch64-linux-android' || matrix.abi == 'i686' && 'i686-linux-android' || matrix.abi == 'x86_64' && 'x86_64-linux-android' || 'aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android' }}
+          targets: ${{ matrix.rust_target }}
       - name: Install Android SDK and Rust targets
         shell: bash
         run: |
@@ -187,7 +197,7 @@ jobs:
         run: pnpm native:android:build --debug --apk --ci --target aarch64 armv7 i686 x86_64
       - name: Build release APK for one ABI
         if: matrix.abi != 'universal-debug'
-        run: pnpm native:android:build --apk --split-per-abi --ci --target ${{ (matrix.abi == 'armv7' && 'armv7' || matrix.abi) }}
+        run: pnpm native:android:build --apk --split-per-abi --ci --target ${{ matrix.target }}
       - name: Verify universal debug APK architectures and collect checksums
         if: matrix.abi == 'universal-debug'
         run: python scripts/native-artifacts.py android --output native-artifacts/android-universal-debug

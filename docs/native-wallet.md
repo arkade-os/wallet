@@ -75,13 +75,13 @@ not transfer. Keep the encrypted export yourself.
 
 Use the matching OS/architecture. See [`src-tauri/README.md`](../src-tauri/README.md).
 
-| Platform | OS vault | Build |
-| --- | --- | --- |
-| Windows | Credential Manager | `pnpm native:build` |
-| Linux | Secret Service | `pnpm native:linux:build` |
-| macOS | Keychain | `pnpm native:macos:build` |
-| Android | Keystore | `pnpm native:android:init`, then `pnpm native:android:build` |
-| iOS 14+ | Keychain | `pnpm native:ios:init`, then `pnpm native:ios:build` |
+| Platform | OS vault           | Build                                                        |
+| -------- | ------------------ | ------------------------------------------------------------ |
+| Windows  | Credential Manager | `pnpm native:build`                                          |
+| Linux    | Secret Service     | `pnpm native:linux:build`                                    |
+| macOS    | Keychain           | `pnpm native:macos:build`                                    |
+| Android  | Keystore           | `pnpm native:android:init`, then `pnpm native:android:build` |
+| iOS 14+  | Keychain           | `pnpm native:ios:init`, then `pnpm native:ios:build`         |
 
 Shared Android preparation/build scripts live in `src-tauri/android/`. Linux needs
 an unlocked Secret Service/default collection and a desktop file portal for backup
@@ -103,22 +103,23 @@ newest build continues. Download packages from the workflow run's **Artifacts** 
 Artifacts are retained for 14 days and include `SOURCE.json` with the actual build
 commit and `SHA256SUMS` for the packaged files.
 
-| Artifact | Packages |
-| --- | --- |
-| `Arkade-windows-x64` | NSIS installer and MSI |
-| `Arkade-linux-x64` | DEB and archived AppImage |
-| `Arkade-macos-arm64`, `Arkade-macos-x64` | DMG and archived app bundle |
-| `Arkade-android-universal-debug` | Debug APK covering ARM64, ARMv7, x86 and x86_64 |
-| `Arkade-android-arm64-release` | Stripped, unsigned release APK for ARM64 phones |
-| `Arkade-android-armv7-release` | Stripped, unsigned release APK for ARMv7 phones |
-| `Arkade-android-i686-release` | Stripped, unsigned release APK for x86 devices/emulators |
-| `Arkade-android-x86_64-release` | Stripped, unsigned release APK for x86_64 emulators/devices |
-| `Arkade-ios-simulator` | Archived simulator app |
-| `Arkade-ios-unsigned` | Unsigned device IPA |
+| Artifact                                 | Packages                                                    |
+| ---------------------------------------- | ----------------------------------------------------------- |
+| `Arkade-windows-x64`                     | NSIS installer and MSI                                      |
+| `Arkade-linux-x64`                       | DEB and archived AppImage                                   |
+| `Arkade-macos-arm64`, `Arkade-macos-x64` | DMG and archived app bundle                                 |
+| `Arkade-android-universal-debug`         | Debug APK covering ARM64, ARMv7, x86 and x86_64             |
+| `Arkade-android-arm64-release`           | Stripped, unsigned release APK for ARM64 phones             |
+| `Arkade-android-armv7-release`           | Stripped, unsigned release APK for ARMv7 phones             |
+| `Arkade-android-i686-release`            | Stripped, unsigned release APK for x86 devices/emulators    |
+| `Arkade-android-x86_64-release`          | Stripped, unsigned release APK for x86_64 emulators/devices |
+| `Arkade-ios-simulator`                   | Archived simulator app                                      |
+| `Arkade-ios-unsigned`                    | Unsigned device IPA                                         |
 
 App bundles and AppImages are archived before upload to preserve executable modes
 and symlinks. Every requested package format must exist for upload to succeed.
 Desktop packages are unsigned; the IPA needs signing/provisioning before installation.
+Android release builds use a size-oriented optimized profile and per-ABI collection.
 Android APKs use the runner's debug key, so updates over earlier installations are
 not guaranteed. These jobs upload CI artifacts without publishing a release or
 configuring distribution credentials.

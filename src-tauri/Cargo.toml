@@ -35,3 +35,7 @@ members = ["plugins/satochip", "plugins/wallet", "plugins/wallet-sql"]
 
 [profile.release]
 strip = true
+lto = true
+codegen-units = 1
+opt-level = "s"
+panic = "abort"

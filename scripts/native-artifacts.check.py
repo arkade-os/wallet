@@ -3,12 +3,15 @@ import importlib.util
 import json
 from pathlib import Path
 import plistlib
+import subprocess
 import struct
+import sys
 import tarfile
 import tempfile
 import unittest
 from unittest.mock import patch
 import zipfile
+import yaml
 
 
 spec = importlib.util.spec_from_file_location("native_artifacts", Path(__file__).with_name("native-artifacts.py"))
@@ -156,6 +159,22 @@ class NativeArtifactsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'section'):
             collector.verify_abi(binary, 183)
 
+    def test_android_abi_kind_aliases_match_gradle_directories(self):
+        self.assertEqual(collector.ANDROID_KINDS, (
+            'android-abi/arm64', 'android-abi/armv7', 'android-abi/i686', 'android-abi/x86_64'
+        ))
+        for target, (directory, _, _) in collector.ANDROID_ARCHES.items():
+            self.assertEqual(collector.ANDROID_KINDS[list(collector.ANDROID_ARCHES).index(target)],
+                             'android-abi/' + target)
+            self.assertIn(directory, ('arm64', 'arm', 'x86', 'x86_64'))
+        result = subprocess.run(
+            [sys.executable, Path(collector.__file__), '--help'],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('android-abi/armv7', result.stdout)
+
     def test_ios_simulator_packages_the_actual_application(self):
         self.bundle("src-tauri/gen/apple/build/arm64-sim/Arkade.app")
         collector.collect("ios-simulator", self.root, self.output)
@@ -198,6 +217,20 @@ class NativeArtifactsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "destination must be empty"):
             collector.collect("windows", self.root, self.output)
         self.assertEqual(old.read_text(), "existing data")
+
+    def test_android_workflow_passes_tauri_target_names(self):
+        workflow = yaml.safe_load(Path(__file__).parents[1].joinpath('.github/workflows/native-platforms.yml').read_text())
+        expected = {
+            'universal-debug': ('aarch64,armv7,i686,x86_64', 'aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android'),
+            'arm64': ('aarch64', 'aarch64-linux-android'),
+            'armv7': ('armv7', 'armv7-linux-androideabi'),
+            'i686': ('i686', 'i686-linux-android'),
+            'x86_64': ('x86_64', 'x86_64-linux-android'),
+        }
+        variants = workflow['jobs']['android']['strategy']['matrix']['include']
+        self.assertEqual(set(expected), {variant['abi'] for variant in variants})
+        for variant in variants:
+            self.assertEqual((variant['target'], variant['rust_target']), expected[variant['abi']])
 
 
 if __name__ == "__main__":

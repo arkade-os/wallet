@@ -13,10 +13,12 @@ import zipfile
 
 KINDS = ("windows", "linux", "macos", "android", "ios-simulator", "ios-device")
 ANDROID_ABIS = ("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+# Public target names differ from Tauri/Gradle output directories for ARMv7 and x86.
 ANDROID_ARCHES = {"arm64": ("arm64", "arm64-v8a", 183),
                   "armv7": ("arm", "armeabi-v7a", 40),
                   "i686": ("x86", "x86", 3),
                   "x86_64": ("x86_64", "x86_64", 62)}
+ANDROID_KINDS = tuple("android-abi/" + target for target in ANDROID_ARCHES)
 
 
 def one(root, pattern, directory=False):
@@ -190,7 +192,7 @@ def collect_android_abi(target, root, output):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Collect complete native CI packages and checksums")
-    parser.add_argument("kind", choices=KINDS + tuple("android-abi/" + target for target in ANDROID_ARCHES))
+    parser.add_argument("kind", choices=KINDS + ANDROID_KINDS)
     parser.add_argument("--output", type=Path)
     arguments = parser.parse_args()
     repository = Path(__file__).resolve().parents[1]
