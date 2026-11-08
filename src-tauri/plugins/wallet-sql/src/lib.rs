@@ -5,17 +5,18 @@ use rusqlite::{
     Connection, OpenFlags,
 };
 use serde_json::{Map, Value};
+use parking_lot::ReentrantMutex;
 use std::{
     collections::HashMap,
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::Arc,
     time::Duration,
 };
 use tauri::{plugin::TauriPlugin, AppHandle, Manager, Runtime, WebviewWindow};
 
 struct Databases {
     directory: PathBuf,
-    connections: Mutex<HashMap<String, Arc<Mutex<Connection>>>>,
+    connections: std::sync::Mutex<HashMap<String, Arc<ReentrantMutex<Connection>>>>,
 }
 
 const TABLES: &[&str] = &[
@@ -343,7 +344,7 @@ fn configure(connection: &mut Connection) -> Result<(), String> {
 }
 
 impl Databases {
-    fn require_no_other_wallet(&self, namespace: &str) -> Result<(), String> {
+    fn require_no_other_wallet_unlocked(&self, namespace: &str) -> Result<(), String> {
         let entries = match std::fs::read_dir(&self.directory) {
             Ok(entries) => entries,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
@@ -396,7 +397,13 @@ impl Databases {
         Ok(())
     }
 
-    fn connection(&self, namespace: &str) -> Result<Arc<Mutex<Connection>>, String> {
+    fn require_no_other_wallet(&self, namespace: &str) -> Result<(), String> {
+        let connection = self.connection(namespace)?;
+        let _guard = connection.lock();
+        self.require_no_other_wallet_unlocked(namespace)
+    }
+
+    fn connection(&self, namespace: &str) -> Result<Arc<ReentrantMutex<Connection>>, String> {
         if !valid_namespace(namespace) {
             return Err("Invalid wallet storage namespace".into());
         }
@@ -411,7 +418,7 @@ impl Databases {
         let mut connection = Connection::open(self.directory.join(format!("{namespace}.sqlite")))
             .map_err(|_| "Unable to open wallet storage")?;
         configure(&mut connection)?;
-        let connection = Arc::new(Mutex::new(connection));
+        let connection = Arc::new(ReentrantMutex::new(connection));
         connections.insert(namespace.to_owned(), Arc::clone(&connection));
         Ok(connection)
     }
@@ -519,9 +526,7 @@ async fn request<R: Runtime>(
 ) -> Result<Vec<Value>, String> {
     let connection = app.state::<Databases>().connection(&namespace)?;
     tauri::async_runtime::spawn_blocking(move || {
-        let connection = connection
-            .lock()
-            .map_err(|_| "Wallet storage unavailable")?;
+        let connection = connection.lock();
         execute(&connection, &sql, values, select)
     })
     .await
@@ -562,9 +567,7 @@ async fn snapshot<R: Runtime>(
     require_window(&window)?;
     let connection = app.state::<Databases>().connection(&namespace)?;
     tauri::async_runtime::spawn_blocking(move || {
-        let connection = connection
-            .lock()
-            .map_err(|_| "Wallet storage unavailable")?;
+        let connection = connection.lock();
         snapshot_connection(&connection, &namespace)
     })
     .await
@@ -583,9 +586,7 @@ async fn validate_snapshot<R: Runtime>(
         .require_no_other_wallet(&namespace)?;
     let connection = app.state::<Databases>().connection(&namespace)?;
     tauri::async_runtime::spawn_blocking(move || {
-        let connection = connection
-            .lock()
-            .map_err(|_| "Wallet storage unavailable")?;
+        let connection = connection.lock();
         if !connection.is_autocommit() {
             return Err("Wait for the active wallet operation before restoring".into());
         }
@@ -608,9 +609,7 @@ async fn restore<R: Runtime>(
         .require_no_other_wallet(&namespace)?;
     let connection = app.state::<Databases>().connection(&namespace)?;
     tauri::async_runtime::spawn_blocking(move || {
-        let connection = connection
-            .lock()
-            .map_err(|_| "Wallet storage unavailable")?;
+        let connection = connection.lock();
         restore_connection(&connection, &namespace, &snapshot)
     })
     .await
@@ -629,7 +628,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         .setup(|app, _| {
             app.manage(Databases {
                 directory: app.path().app_local_data_dir()?.join("wallets"),
-                connections: Mutex::new(HashMap::new()),
+                connections: std::sync::Mutex::new(HashMap::new()),
             });
             Ok(())
         })
@@ -889,6 +888,28 @@ mod tests {
     }
 
     #[test]
+    fn restore_holds_destination_lock_while_other_namespace_becomes_live() {
+        let namespace = format!("arkade-native-mutinynet-02{}", "ab".repeat(32));
+        let other_namespace = format!("arkade-native-regtest-02{}", "ab".repeat(32));
+        let directory = std::env::temp_dir().join(format!("arkade-sql-race-{}-{}", std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        let databases = Databases { directory: directory.clone(), connections: std::sync::Mutex::new(HashMap::new()) };
+        let source = backup_database(&namespace);
+        let snapshot = snapshot_connection(&source, &namespace).unwrap();
+        let connection = databases.connection(&other_namespace).unwrap();
+        let other_connection = connection.lock();
+        execute(&other_connection, "CREATE TABLE ark_wallet_state (payload TEXT)", vec![], false).unwrap();
+        execute(&other_connection, "INSERT INTO ark_wallet_state VALUES (?)", vec![json!("other wallet live")], false).unwrap();
+        assert!(databases.require_no_other_wallet(&namespace).is_err());
+        drop(other_connection);
+        drop(connection);
+        drop(databases);
+        drop(snapshot);
+        drop(source);
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
     fn native_files_survive_reopen_and_are_isolated_by_network_and_key() {
         let directory = std::env::temp_dir().join(format!(
             "arkade-sql-test-{}-{}",
@@ -903,14 +924,14 @@ mod tests {
         {
             let databases = Databases {
                 directory: directory.clone(),
-                connections: Mutex::new(HashMap::new()),
+                connections: std::sync::Mutex::new(HashMap::new()),
             };
             let first = databases.connection(&namespace).unwrap();
             assert!(Arc::ptr_eq(
                 &first,
                 &databases.connection(&namespace).unwrap()
             ));
-            let first = first.lock().unwrap();
+            let first = first.lock();
             execute(
                 &first,
                 "CREATE TABLE ark_wallet_state (payload TEXT)",
@@ -927,7 +948,7 @@ mod tests {
             .unwrap();
             let other = databases.connection(&other_namespace).unwrap();
             assert!(execute(
-                &other.lock().unwrap(),
+                &other.lock(),
                 "SELECT * FROM ark_wallet_state",
                 vec![],
                 true
@@ -939,12 +960,12 @@ mod tests {
         {
             let databases = Databases {
                 directory: directory.clone(),
-                connections: Mutex::new(HashMap::new()),
+                connections: std::sync::Mutex::new(HashMap::new()),
             };
             let connection = databases.connection(&namespace).unwrap();
             assert_eq!(
                 execute(
-                    &connection.lock().unwrap(),
+                    &connection.lock(),
                     "SELECT * FROM ark_wallet_state",
                     vec![],
                     true

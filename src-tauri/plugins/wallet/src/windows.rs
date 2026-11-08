@@ -14,6 +14,7 @@ use windows_sys::Win32::{
     },
 };
 use zeroize::Zeroizing;
+use super::allowed_key;
 
 const UNAVAILABLE: &str = "Secure storage unavailable";
 
@@ -24,6 +25,7 @@ fn target(namespace: &str, key: &str) -> Vec<u16> {
 }
 
 pub fn secret_get(namespace: &str, key: &str) -> Result<Option<String>, String> {
+    allowed_key(key)?;
     let target = target(namespace, key);
     let mut credential: *mut CREDENTIALW = ptr::null_mut();
     unsafe {
@@ -56,6 +58,7 @@ pub fn secret_get(namespace: &str, key: &str) -> Result<Option<String>, String> 
 }
 
 pub fn secret_set(namespace: &str, key: &str, value: &[u8]) -> Result<(), String> {
+    allowed_key(key)?;
     if value.is_empty() || value.len() > super::SECRET_LIMIT {
         return Err("Invalid wallet secret size".into());
     }
@@ -78,6 +81,7 @@ pub fn secret_set(namespace: &str, key: &str, value: &[u8]) -> Result<(), String
 }
 
 pub fn secret_remove(namespace: &str, key: &str) -> Result<(), String> {
+    allowed_key(key)?;
     let target = target(namespace, key);
     if unsafe { CredDeleteW(target.as_ptr(), CRED_TYPE_GENERIC, 0) } == 0
         && unsafe { GetLastError() } != ERROR_NOT_FOUND
@@ -234,5 +238,15 @@ mod tests {
         secret_remove(&namespace, key).unwrap();
         assert_eq!(secret_get(&namespace, key).unwrap(), None);
         secret_remove(&namespace, key).unwrap();
+    }
+
+    #[test]
+    fn windows_credentials_reject_unsupported_keys_before_access() {
+        let namespace = format!("native-plugin-test-invalid-{}", std::process::id());
+        for key in ["", "password", "ENCRYPTED_MNEMONIC", "encrypted_mnemonic\0"] {
+            assert_eq!(secret_get(&namespace, key), Err("Unsupported wallet secret".into()));
+            assert_eq!(secret_set(&namespace, key, b"not-seen"), Err("Unsupported wallet secret".into()));
+            assert_eq!(secret_remove(&namespace, key), Err("Unsupported wallet secret".into()));
+        }
     }
 }

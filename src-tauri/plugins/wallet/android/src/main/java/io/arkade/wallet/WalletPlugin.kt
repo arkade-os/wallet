@@ -72,8 +72,8 @@ class WalletPlugin(private val activity: Activity) : Plugin(activity) {
 
     override fun load(webView: WebView) {
         this.webView = webView
+        activity.window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         main.post {
-            activity.window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
             (activity as? AppCompatActivity)?.let { it.onBackPressedDispatcher.addCallback(it, backCallback) }
         }
     }

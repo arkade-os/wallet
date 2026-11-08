@@ -4363,6 +4363,7 @@ dependencies = [
 name = "tauri-plugin-wallet-sql"
 version = "0.1.0"
 dependencies = [
+ "parking_lot",
  "rusqlite",
  "serde_json",
  "tauri",
