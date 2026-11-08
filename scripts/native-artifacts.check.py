@@ -3,6 +3,7 @@ import importlib.util
 import json
 from pathlib import Path
 import plistlib
+import re
 import subprocess
 import struct
 import sys
@@ -11,7 +12,6 @@ import tempfile
 import unittest
 from unittest.mock import patch
 import zipfile
-import yaml
 
 
 spec = importlib.util.spec_from_file_location("native_artifacts", Path(__file__).with_name("native-artifacts.py"))
@@ -219,7 +219,7 @@ class NativeArtifactsTests(unittest.TestCase):
         self.assertEqual(old.read_text(), "existing data")
 
     def test_android_workflow_passes_tauri_target_names(self):
-        workflow = yaml.safe_load(Path(__file__).parents[1].joinpath('.github/workflows/native-platforms.yml').read_text())
+        workflow = Path(__file__).parents[1].joinpath('.github/workflows/native-platforms.yml').read_text()
         expected = {
             'universal-debug': ('aarch64,armv7,i686,x86_64', 'aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android'),
             'arm64': ('aarch64', 'aarch64-linux-android'),
@@ -227,10 +227,17 @@ class NativeArtifactsTests(unittest.TestCase):
             'i686': ('i686', 'i686-linux-android'),
             'x86_64': ('x86_64', 'x86_64-linux-android'),
         }
-        variants = workflow['jobs']['android']['strategy']['matrix']['include']
-        self.assertEqual(set(expected), {variant['abi'] for variant in variants})
-        for variant in variants:
-            self.assertEqual((variant['target'], variant['rust_target']), expected[variant['abi']])
+        found = {}
+        for line in workflow.splitlines():
+            match = re.match(r'\s+- abi: (.+)$', line)
+            if match:
+                abi = match.group(1)
+                found[abi] = {}
+            else:
+                match = re.match(r'\s+(target|rust_target): (.+)$', line)
+                if match and found:
+                    found[next(reversed(found))][match.group(1)] = match.group(2)
+        self.assertEqual(expected, {abi: (pair['target'], pair['rust_target']) for abi, pair in found.items()})
 
 
 if __name__ == "__main__":
