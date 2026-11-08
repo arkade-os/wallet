@@ -26,6 +26,7 @@ export default function NativeAppShell({ children }: { children: ReactNode }) {
   const { reloadWallet, wallet, authState, dataReady } = useContext(WalletContext)
   const { config, configLoaded } = useContext(ConfigContext)
   const [incoming, setIncoming] = useState<AppIntentState>()
+  const [dismissed, setDismissed] = useState(false)
   const [resumeCount, setResumeCount] = useState(0)
   const overlayCount = useSyncExternalStore(subscribeNativeBack, getNativeBackCount)
   const canOpenRequest = !appIntent && ROOT_SCREENS.has(screen) && overlayCount === 0
@@ -63,7 +64,10 @@ export default function NativeAppShell({ children }: { children: ReactNode }) {
       if (current.current.canOpenRequest && !current.current.appIntent) {
         current.current.appIntent = intent
         current.current.setAppIntent(intent)
-      } else setIncoming(intent)
+      } else {
+        setDismissed(false)
+        setIncoming(intent)
+      }
     }
     let reads = Promise.resolve()
     const readPending = () => {
@@ -97,13 +101,15 @@ export default function NativeAppShell({ children }: { children: ReactNode }) {
   if (!isNativeHost()) return <>{children}</>
   return (
     <div className='native-app-shell'>
-      {incoming ? (
+      {incoming && (!dismissed || canOpenRequest) ? (
         <div role='status' className='native-incoming-link flex-wrap'>
           <div className='w-full min-w-0'>
             <p>A new wallet request is waiting.</p>
             {!canOpenRequest ? <p className='text-xs'>Finish the current task or return to your wallet.</p> : null}
           </div>
-          <Button className='flex-1' secondary label='Dismiss' onClick={() => setIncoming(undefined)} />
+          {!canOpenRequest ? (
+            <Button className='flex-1' secondary label='Dismiss' onClick={() => setDismissed(true)} />
+          ) : null}
           <Button
             className='flex-1'
             label='Open request'
@@ -113,6 +119,7 @@ export default function NativeAppShell({ children }: { children: ReactNode }) {
               current.current.appIntent = incoming
               current.current.setAppIntent(incoming)
               setIncoming(undefined)
+              setDismissed(false)
             }}
           />
         </div>

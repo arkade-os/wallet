@@ -283,7 +283,7 @@ it.each([Pages.SendForm, Pages.SendDetails])(
   },
 )
 
-it('queues a link behind a root overlay and permits dismissal after closing the overlay', async () => {
+it('retains a link behind a root overlay after its banner is dismissed', async () => {
   const wallet = requestWallet(Pages.Wallet, true)
   await waitFor(() => expect(getNativeBackCount()).toBe(1))
   await waitFor(() => expect(listeners.has('intent')).toBe(true))
@@ -291,12 +291,27 @@ it('queues a link behind a root overlay and permits dismissal after closing the 
   expect(wallet.accepted).not.toHaveBeenCalled()
   expect(screen.getByText('Open request').closest('button')).toBeDisabled()
   expect(screen.getByText('Dismiss').closest('button')).toBeEnabled()
-  wallet.closeOverlay()
-  expect(wallet.accepted).not.toHaveBeenCalled()
-  expect(screen.getByRole('button', { name: 'Open request' })).toBeEnabled()
-  fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Dismiss', hidden: true }))
   expect(screen.queryByText('A new wallet request is waiting.')).not.toBeInTheDocument()
+  wallet.closeOverlay()
+  fireEvent.click(screen.getByRole('button', { name: 'Open request' }))
+  expect(wallet.accepted).toHaveBeenCalledExactlyOnceWith({ status: 'send', request: payment, callback: undefined })
+})
+
+it('retains a deferred request when its banner is dismissed and opens it once ready', async () => {
+  const wallet = requestWallet(Pages.SendForm)
+  await waitFor(() => expect(listeners.has('intent')).toBe(true))
+  act(() => listeners.get('intent')?.({ url: payment }))
   expect(wallet.accepted).not.toHaveBeenCalled()
+  expect(screen.getByRole('status')).toHaveTextContent('A new wallet request is waiting')
+  fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+  expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  expect(screen.queryByText('Open request')).not.toBeInTheDocument()
+  wallet.returnToWallet()
+  expect(screen.getByRole('button', { name: 'Open request' })).toBeVisible()
+  expect(screen.getByText('Open request').closest('button')).toBeEnabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Open request' }))
+  expect(wallet.accepted).toHaveBeenCalledExactlyOnceWith({ status: 'send', request: payment, callback: undefined })
 })
 
 it.each([Pages.Init, Pages.Unlock, Pages.Loading])('accepts a cold launch link on root page %s', async (page) => {

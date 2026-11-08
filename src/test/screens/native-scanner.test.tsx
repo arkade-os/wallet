@@ -395,3 +395,25 @@ it('does not reprompt after denied permission and Android resume', async () => {
   expect(scanner.requestPermissions).toHaveBeenCalledOnce()
   expect(scanner.scan).not.toHaveBeenCalled()
 })
+
+it('does not let the old error cleanup stop a retry camera', async () => {
+  const close = vi.fn()
+  const first = render(<NativeScanner close={close} label='Scan one' onData={vi.fn()} onError={vi.fn()} />)
+  let rejectOld!: (error: Error) => void
+  scanner.scan.mockReturnValueOnce(
+    new Promise((_, reject) => {
+      rejectOld = reject
+    }),
+  )
+  await waitFor(() => expect(scanner.scan).toHaveBeenCalledOnce())
+  await act(async () => rejectOld(new Error('camera failed')))
+  fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+  await act(async () => Promise.resolve())
+  expect(scanner.scan).toHaveBeenCalledTimes(2)
+  expect(scanner.cancel).toHaveBeenCalledOnce()
+  scanner.cancel.mockClear()
+  expect(document.documentElement).toHaveClass('native-qr-active')
+  first.unmount()
+  expect(document.documentElement).not.toHaveClass('native-qr-active')
+  expect(scanner.cancel).toHaveBeenCalledOnce()
+})
