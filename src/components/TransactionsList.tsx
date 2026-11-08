@@ -1,7 +1,7 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useContext, useLayoutEffect, useRef, useState } from 'react'
 import { WalletContext } from '../providers/wallet'
-import { Currencies, Tx } from '../lib/types'
+import { Currencies, SettingsOptions, Tx } from '../lib/types'
 import { isBurn, isIssuance, prettyDate } from '../lib/format'
 import AssetAvatar from './AssetAvatar'
 import ReceivedIcon from '../icons/Received'
@@ -28,6 +28,14 @@ import {
 import UnverifiedBadge from './UnverifiedBadge'
 import { useTransactionAmountDisplay } from '../hooks/useTransactionAmountDisplay'
 import { useTranslation } from '../providers/language'
+import {
+  contactAddressForActivity,
+  contactDisplayNameForAddress,
+  contactForAddress,
+  selectContactForDetails,
+} from '../lib/contacts'
+import ContactActivityLine from './ContactActivityLine'
+import { OptionsContext } from '../providers/options'
 
 const border = '1px solid color-mix(in srgb, var(--fg) 6%, transparent)'
 
@@ -45,7 +53,12 @@ const TransactionLine = ({
   const { config } = useContext(ConfigContext)
   const { toFiatAmount } = useContext(FiatContext)
   const { assetMetadataCache } = useContext(WalletContext)
+  const { setOption } = useContext(OptionsContext)
+  const { navigate } = useContext(NavigationContext)
   const { language, t } = useTranslation()
+  const contactAddress = contactAddressForActivity(tx)
+  const contact = contactForAddress(contactAddress)
+  const contactName = contactDisplayNameForAddress(contactAddress)
 
   const date = tx.createdAt
     ? prettyDate(tx.createdAt, language)
@@ -178,6 +191,12 @@ const TransactionLine = ({
     </div>
   )
 
+  const openContact = (address: string) => {
+    selectContactForDetails(address)
+    setOption(SettingsOptions.Contacts)
+    navigate(Pages.Settings)
+  }
+
   const Right = () => (
     <div className='activity-row__right'>
       {swap ? (
@@ -204,7 +223,17 @@ const TransactionLine = ({
       style={{ borderTop: isFirst ? 'none' : border }}
       onClick={onClick}
     >
-      <Left />
+      {contact && contactName ? (
+        <div className='activity-row__left' onClick={(event) => event.stopPropagation()}>
+          <ContactActivityLine
+            name={contactName}
+            label={t('settings.contactSent', { name: contactName })}
+            onSelect={() => openContact(contact.address)}
+          />
+        </div>
+      ) : (
+        <Left />
+      )}
       <Right />
     </div>
   )

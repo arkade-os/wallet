@@ -40,6 +40,7 @@ import TransactionAmountSummary from '../../../components/TransactionAmountSumma
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
 import { lnurlSends, recordLnurlSend, watchLnurlConfirmation } from '../../../lib/lnurlSends'
 import { useTranslation } from '../../../providers/language'
+import { contactForSend, recordSentContact, sendDestination } from '../../../lib/contacts'
 
 export default function SendDetails() {
   const displayContext = useAmountDisplayContext()
@@ -206,8 +207,9 @@ export default function SendDetails() {
 
   const handleTxid = (txid: string) => {
     if (!txid) return handleError(t('send.errorSendingTransaction'))
+    recordSentContact(sendDestination(sendInfo))
     saveTransactionActivityMetadata(txid, {
-      destination: details?.destination,
+      destination: contactForSend(sendInfo)?.address ?? details?.destination,
       networkFee: details?.fees,
     })
     // Refresh now instead of waiting on the worker's VTXO_UPDATE broadcast:
@@ -230,8 +232,12 @@ export default function SendDetails() {
    *  txid, so anything else would never be looked up. What made this miss was
    *  WHEN it ran — on the terminal outcome, minutes after the user had gone. */
   const handleSent = (txid: string | undefined, total: number, fee: number, railId: string, swapId?: string) => {
+    recordSentContact(sendDestination(sendInfo))
     if (txid) {
-      saveTransactionActivityMetadata(txid, { destination: details?.destination, networkFee: fee })
+      saveTransactionActivityMetadata(txid, {
+        destination: contactForSend(sendInfo)?.address ?? details?.destination,
+        networkFee: fee,
+      })
     }
     reloadWallet().catch(consoleError)
     if (

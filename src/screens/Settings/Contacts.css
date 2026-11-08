@@ -1,0 +1,162 @@
+.contact-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding-bottom: 2rem;
+}
+.contact-list-item-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.contact-list-item-copy strong,
+.contact-list-item-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.contact-list-item-copy strong {
+  font-weight: 500;
+}
+.contact-list-item-copy small {
+  color: color-mix(in srgb, var(--fg) 48%, transparent);
+  font-size: var(--text-xs);
+}
+.contact-detail {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--purple-100) 60%, var(--bg));
+  border-radius: var(--radius-xl);
+}
+.contact-avatar {
+  width: 3rem;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--purple-700);
+  background: var(--purple-100);
+}
+.contact-detail-copy h2 {
+  overflow: hidden;
+  font-size: var(--text-lg-size);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.contact-destination {
+  max-width: 100%;
+  color: color-mix(in srgb, var(--fg) 48%, transparent);
+  font-size: var(--text-sm);
+  text-align: left;
+}
+.contact-stats {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  color: color-mix(in srgb, var(--fg) 55%, transparent);
+  font-size: var(--text-sm);
+}
+.contact-detail > .button {
+  grid-column: 1 / -1;
+}
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+.contact-address-input {
+  width: 100%;
+  min-height: 5rem;
+  padding: 0.875rem;
+  resize: vertical;
+  overflow-wrap: anywhere;
+}
+.contact-empty {
+  display: flex;
+  min-height: 10rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  text-align: center;
+  color: color-mix(in srgb, var(--fg) 50%, transparent);
+}
+.contact-empty h2 {
+  color: var(--fg);
+  font-weight: 500;
+  font-size: var(--text-lg-size);
+}
+.contact-empty p {
+  max-width: 19rem;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.contact-picker-trigger {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  border-radius: var(--radius-full);
+  color: color-mix(in srgb, var(--purple-700) 82%, var(--fg));
+  background: color-mix(in srgb, var(--purple-100) 70%, var(--bg));
+  font-size: var(--text-sm);
+}
+
+.contact-picker-trigger:disabled {
+  opacity: 0.55;
+}
+
+.contact-picker-list {
+  display: flex;
+  max-height: min(50vh, 24rem);
+  flex-direction: column;
+  gap: 0.25rem;
+  overflow-y: auto;
+}
+
+.contact-picker-item {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.625rem 0;
+  text-align: left;
+}
+
+.contact-picker-item strong,
+.contact-picker-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contact-picker-item strong {
+  font-weight: 500;
+}
+
+.contact-picker-item span {
+  color: color-mix(in srgb, var(--fg) 48%, transparent);
+  font-size: var(--text-xs);
+}
+
+.contact-activity-line {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: left;
+  border-radius: var(--radius-md);
+}
+
+.contact-activity-line .activity-row__icon {
+  color: color-mix(in srgb, var(--purple-700) 74%, var(--fg));
+}

@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import TransactionsList from '../../components/TransactionsList'
 import { ConfigContext } from '../../providers/config'
 import { FiatContext } from '../../providers/fiat'
@@ -18,8 +18,48 @@ import {
   mockNavigationContextValue,
   mockWalletContextValue,
 } from '../screens/mocks'
+import { OptionsContext } from '../../providers/options'
+import { saveContact } from '../../lib/contacts'
 
 describe('TransactionsList', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('shows a saved contact with its name and person icon', () => {
+    const address = 'alice@pay.example'
+    saveContact(address, 'Alice')
+    const tx = {
+      amount: 500,
+      boardingTxid: '',
+      createdAt: 1_700_000_100,
+      destination: address,
+      lnurl: { address },
+      explorable: undefined,
+      preconfirmed: false,
+      redeemTxid: 'lnurl-send',
+      roundTxid: '',
+      settled: true,
+      type: 'sent',
+    } satisfies Tx
+    const setOption = vi.fn()
+    render(
+      <OptionsContext.Provider value={{ setOption } as any}>
+        <NavigationContext.Provider value={mockNavigationContextValue}>
+          <ConfigContext.Provider value={mockConfigContextValue}>
+            <FiatContext.Provider value={mockFiatContextValue}>
+              <FlowContext.Provider value={mockFlowContextValue}>
+                <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [tx] } as any}>
+                  <TransactionsList mode='static' />
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </FiatContext.Provider>
+          </ConfigContext.Provider>
+        </NavigationContext.Provider>
+      </OptionsContext.Provider>,
+    )
+    expect(screen.getByText('Sent to Alice')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Alice' }))
+    expect(setOption).toHaveBeenCalledWith(expect.anything())
+  })
   it('filters the list by transaction type', () => {
     const swapTx = { ...mockWalletContextValue.txs[0], roundTxid: 'swap-tx', type: 'swap' }
     const sentTx = { ...mockWalletContextValue.txs[0], roundTxid: 'sent-tx', type: 'sent' }

@@ -74,6 +74,7 @@ import { hapticLight } from '../../../lib/haptics'
 import { testDomains } from '../../../lib/constants'
 import UnverifiedBadge from '../../../components/UnverifiedBadge'
 import { useTranslation } from '../../../providers/language'
+import ContactPicker from '../../../components/ContactPicker'
 
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
 
@@ -270,7 +271,10 @@ export default function SendForm() {
   // needs, so a BTC spend may take all of it.
   const liquidBalance = availableBalance
 
-  const smartSetError = (str: string) => {
+  // Also used directly as a promise rejection handler, so it can receive an
+  // Error; the banner renders its text as a child and cannot take the object.
+  const smartSetError = (input: string | Error | unknown) => {
+    const str = typeof input === 'string' ? input : extractError(input)
     setError(
       str === ''
         ? aspInfo.unreachable
@@ -847,6 +851,15 @@ export default function SendForm() {
     timeoutRef.current = setTimeout(() => setReadyToParse(true), RECIPIENT_DEBOUNCE_MS)
   }
 
+  const handleSelectContact = (address: string) => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    setRecipient(address)
+    setValueSats(undefined)
+    setAmountIsReadOnly(false)
+    setRawScanData('')
+    setReadyToParse(true)
+  }
+
   const handleContinue = async () => {
     setProcessing(true)
     const satoshis = sendInfo.satoshis ?? 0
@@ -1124,6 +1137,7 @@ export default function SendForm() {
                 }}
                 value={recipient}
               />
+              <ContactPicker disabled={processing} onSelect={handleSelectContact} />
               {brantaLoading ? (
                 <Text color='neutral-500' smaller>
                   {t('send.verifyingAddress')}

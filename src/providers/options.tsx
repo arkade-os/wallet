@@ -19,6 +19,7 @@ import HashIcon from '../icons/Hash'
 import SolverIcon from '@/icons/Solver'
 import GlobeOutlineIcon from '@/icons/GlobeOutline'
 import BoltOutlineIcon from '@/icons/BoltOutline'
+import UsersRound from '../icons/UsersRound'
 
 export interface Option {
   icon: ReactElement
@@ -27,6 +28,11 @@ export interface Option {
 }
 
 export const options: Option[] = [
+  {
+    icon: <UsersRound />,
+    option: SettingsOptions.Contacts,
+    section: SettingsSections.General,
+  },
   {
     icon: <CoinsIcon />,
     option: SettingsOptions.ArkadeMint,
