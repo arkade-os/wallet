@@ -2,6 +2,7 @@ import { ServiceWorkerWallet, Wallet } from '@arkade-os/sdk'
 import { consoleError } from './logs'
 
 export class ForegroundWallet extends Wallet {
+  hardwareSigner = false
   clearNativeStorage?: () => Promise<void>
   private closed = false
 

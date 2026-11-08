@@ -1,5 +1,12 @@
 # Arkade native host
 
+This branch also includes the stacked [Satochip feature](../docs/native-satochip.md).
+Desktop card builds package the pinned Python helper and require Python build tools,
+SWIG and PC/SC development headers on the matching OS/architecture. Linux card use
+requires PC/SC and its reader driver. Android/iOS use native NFC transports. The
+shared app preparation/build scripts remain in `android/`; provider sources remain
+under `plugins/satochip/`. See the feature guide for setup, PIN entry and test limits.
+
 This Tauri host embeds the existing wallet's production build and published SDK.
 Wallet screens, routing, swaps and activity remain in the shared React application.
 The host provides protected credentials, SQLite repositories, QR scanning, backups,
@@ -22,6 +29,14 @@ pnpm native:dev
 Install the Android SDK/NDK required by Tauri. Run `pnpm native:android:init` once to
 generate and prepare the local Android project, then `pnpm native:android` or
 `pnpm native:android:build --debug --apk --target aarch64`.
+
+Release APKs can target one architecture with `pnpm native:android:build --apk
+--split-per-abi --ci --target aarch64`. Release builds strip Rust symbols and use
+size-oriented optimization, LTO, one codegen unit and abort-on-panic. Collect a single
+APK with `python scripts/native-artifacts.py
+android-abi/arm64 --output native-artifacts/android-arm64-release`. Replace
+`arm64` with `armv7`, `i686` or `x86_64` for the other supported targets. The
+collector maps public `armv7`/`i686` names to Tauri's `arm`/`x86` output folders.
 
 Shared preparation and packaging scripts live in `android/`. They configure SDK 36,
 AndroidX, optional camera support, notification permission, payment links and OS backup

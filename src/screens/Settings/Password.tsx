@@ -16,8 +16,15 @@ import { getPrivateKey, isValidPassword, noUserDefinedPassword, setPrivateKey } 
 import { hasMnemonic, getMnemonic, setMnemonic } from '../../lib/mnemonic'
 import { useTranslation } from '../../providers/language'
 import { NavigationContext, Pages } from '@/providers/navigation'
+import { isNativeWallet } from '../../lib/nativeWallet'
+import HardwareBackup from './HardwareBackup'
 
 export default function Password() {
+  const { wallet } = useContext(WalletContext)
+  return isNativeWallet(wallet) ? <HardwareBackup /> : <SoftwarePassword />
+}
+
+function SoftwarePassword() {
   const { updateWallet, wallet } = useContext(WalletContext)
   const { navigate } = useContext(NavigationContext)
 

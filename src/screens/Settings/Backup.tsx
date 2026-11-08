@@ -30,8 +30,15 @@ import { authenticateUser } from '../../lib/biometrics'
 import FingerprintIcon from '../../icons/Fingerprint'
 import InputPassword from '../../components/InputPassword'
 import { useTranslation } from '../../providers/language'
+import { isNativeWallet } from '../../lib/nativeWallet'
+import HardwareBackup from './HardwareBackup'
 
 export default function Backup() {
+  const { wallet } = useContext(WalletContext)
+  return isNativeWallet(wallet) ? <HardwareBackup /> : <SoftwareBackup />
+}
+
+function SoftwareBackup() {
   const { wallet } = useContext(WalletContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { backupConfig, fullBackup } = useContext(BackupContext)

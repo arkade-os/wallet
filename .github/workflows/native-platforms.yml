@@ -58,7 +58,19 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential pkg-config curl wget file libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf dbus-x11 gnome-keyring
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential pkg-config curl wget file libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev libpcsclite-dev patchelf swig dbus-x11 gnome-keyring
+      - name: Install macOS helper build prerequisite
+        if: runner.os == 'macOS'
+        run: brew list swig >/dev/null 2>&1 || brew install swig
+      - name: Install Windows helper build prerequisite
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Get-Command swig -ErrorAction SilentlyContinue)) {
+            choco install swig --no-progress -y
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          swig -version
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:native:platforms
       - name: Check artifact collection
@@ -74,7 +86,14 @@ jobs:
             Add-WindowsCapability -Online -Name $feature.Name
           }
       - name: Build native wallet
+        if: runner.os != 'Windows'
         run: pnpm native:build --bundles "${{ matrix.bundle }}" --no-sign --ci
+      - name: Build Windows helper and wallet
+        if: runner.os == 'Windows'
+        run: |
+          node src-tauri/scripts/build-sidecar.mjs --python python
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm native:build --bundles "${{ matrix.bundle }}" --no-sign --ci
       - name: Test Rust native workspace on macOS and Windows
         if: runner.os != 'Linux'
         run: cargo test --manifest-path src-tauri/Cargo.toml --workspace --locked
@@ -99,6 +118,8 @@ jobs:
             gdbus call --session --dest org.freedesktop.secrets --object-path /org/freedesktop/secrets --method org.freedesktop.Secret.Service.SetAlias default /org/freedesktop/secrets/collection/login >/dev/null
             cargo test --manifest-path src-tauri/Cargo.toml --workspace --locked
           '
+      - name: Verify Python license collection
+        run: python src-tauri/scripts/collect-licenses.check.py
       - name: Collect desktop binaries and checksums
         run: python scripts/native-artifacts.py ${{ matrix.platform }} --output native-artifacts/${{ matrix.artifact }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -110,8 +131,28 @@ jobs:
           compression-level: 0
 
   android:
+    name: Android ${{ matrix.abi }}
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - abi: universal-debug
+            target: aarch64,armv7,i686,x86_64
+            rust_target: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+          - abi: arm64
+            target: aarch64
+            rust_target: aarch64-linux-android
+          - abi: armv7
+            target: armv7
+            rust_target: armv7-linux-androideabi
+          - abi: i686
+            target: i686
+            rust_target: i686-linux-android
+          - abi: x86_64
+            target: x86_64
+            rust_target: x86_64-linux-android
     env:
       CARGO_BUILD_JOBS: '2'
     steps:
@@ -128,6 +169,8 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+        with:
+          targets: ${{ matrix.rust_target }}
       - name: Install Android SDK and Rust targets
         shell: bash
         run: |
@@ -139,7 +182,9 @@ jobs:
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
           echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
-          rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+          if [[ '${{ matrix.abi }}' == universal-debug ]]; then
+            rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+          fi
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:native
       - run: python scripts/native-artifacts.check.py
@@ -148,13 +193,21 @@ jobs:
           pnpm exec tauri android init --ci --skip-targets-install
           node src-tauri/android/prepare-host.mjs
       - name: Build universal debug APK
+        if: matrix.abi == 'universal-debug'
         run: pnpm native:android:build --debug --apk --ci --target aarch64 armv7 i686 x86_64
-      - name: Verify APK architectures and collect checksums
+      - name: Build release APK for one ABI
+        if: matrix.abi != 'universal-debug'
+        run: pnpm native:android:build --apk --split-per-abi --ci --target ${{ matrix.target }}
+      - name: Verify universal debug APK architectures and collect checksums
+        if: matrix.abi == 'universal-debug'
         run: python scripts/native-artifacts.py android --output native-artifacts/android-universal-debug
+      - name: Verify release ABI and collect checksums
+        if: matrix.abi != 'universal-debug'
+        run: python scripts/native-artifacts.py android-abi/${{ matrix.abi }} --output native-artifacts/android-${{ matrix.abi }}-release
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: Arkade-android-universal-debug
-          path: native-artifacts/android-universal-debug/
+          name: Arkade-android-${{ matrix.abi }}${{ matrix.abi == 'universal-debug' && '' || '-release' }}
+          path: native-artifacts/android-${{ matrix.abi }}${{ matrix.abi != 'universal-debug' && '-release' || '' }}/
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
@@ -203,6 +256,9 @@ jobs:
         run: |
           xcodegen generate --spec src-tauri/ios/wallet-tests/project.json --project src-tauri/ios/wallet-tests
           xcodebuild -project src-tauri/ios/wallet-tests/WalletServiceTests.xcodeproj -scheme WalletServiceTests -sdk iphonesimulator -destination "platform=iOS Simulator,id=$IOS_SIMULATOR" -derivedDataPath "$RUNNER_TEMP/wallet-service-tests" test
+      - name: Test Satochip transport state on simulator
+        working-directory: src-tauri/plugins/satochip/ios
+        run: xcodebuild -scheme tauri-plugin-satochip -destination "platform=iOS Simulator,id=$IOS_SIMULATOR" -derivedDataPath "$RUNNER_TEMP/satochip-transport-tests" test CODE_SIGNING_ALLOWED=NO
       - name: Archive simulator app and checksums
         run: python scripts/native-artifacts.py ios-simulator --output native-artifacts/ios-simulator
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

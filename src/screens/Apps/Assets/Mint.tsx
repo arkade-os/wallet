@@ -29,6 +29,7 @@ import InputAssetDecimals from '@/components/InputAssetDecimals'
 import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '../../../providers/language'
 import { ForegroundWallet, watchWalletPayments } from '../../../lib/walletRuntime'
+import { useNativeSigningConnection } from '../../../hooks/useNativeSigningConnection'
 
 interface KnownAssetOption {
   assetId: string
@@ -54,6 +55,7 @@ export default function AppAssetMint() {
   const [iconUrl, setIconUrl] = useState('')
   const [error, setError] = useState('')
   const [minting, setMinting] = useState(false)
+  const { requireConnection, connectionSheet, notice } = useNativeSigningConnection(t('mint.mint'), () => setError(''))
 
   const [controlAssetId, setControlAssetId] = useState('')
   const [showControlDropdown, setShowControlDropdown] = useState(false)
@@ -122,6 +124,7 @@ export default function AppAssetMint() {
 
     if (iconUrl && !isValidUrl(iconUrl)) return setError(t('mint.invalidIconUrl'))
 
+    if (requireConnection()) return
     const supply = amount
 
     setMinting(true)
@@ -147,8 +150,10 @@ export default function AppAssetMint() {
           amount: ctrlRawAmount,
           metadata: ctrlMeta,
         })
-        saveTransactionActivityMetadata(ctrlResult.arkTxId, { assetAction: 'issued' })
         resolvedControlAssetId = ctrlResult.assetId
+        setControlAssetId(resolvedControlAssetId)
+        setControlMode('Existing')
+        saveTransactionActivityMetadata(ctrlResult.arkTxId, { assetAction: 'issued' })
         iconApprovalManager.approve(resolvedControlAssetId)
 
         setCacheEntry(ctrlResult.assetId, {
@@ -174,8 +179,17 @@ export default function AppAssetMint() {
       if (resolvedControlAssetId) params.controlAssetId = resolvedControlAssetId
 
       const result = await svcWallet.assetManager.issue(params)
-      saveTransactionActivityMetadata(result.arkTxId, { assetAction: 'issued' })
       const newAssetId = result.assetId
+      const assetDetails = {
+        assetId: newAssetId,
+        supply,
+        metadata,
+        controlAssetId: resolvedControlAssetId || undefined,
+      }
+      setAssetInfo(assetDetails)
+      pendingNav.current = () => replace(Pages.AppAssetMintSuccess, Pages.AppAssets)
+      setMintDone(true)
+      saveTransactionActivityMetadata(result.arkTxId, { assetAction: 'issued' })
       iconApprovalManager.approve(newAssetId)
 
       const importedAssets = [...config.importedAssets]
@@ -187,16 +201,7 @@ export default function AppAssetMint() {
       }
       backupAndUpdateConfig({ ...config, importedAssets })
 
-      const assetDetails = {
-        assetId: newAssetId,
-        supply,
-        metadata,
-        controlAssetId: resolvedControlAssetId || undefined,
-      }
       setCacheEntry(newAssetId, assetDetails)
-      setAssetInfo(assetDetails)
-      pendingNav.current = () => replace(Pages.AppAssetMintSuccess, Pages.AppAssets)
-      setMintDone(true)
     } catch (err) {
       consoleError(err, 'error minting asset')
       setError(extractError(err))
@@ -242,6 +247,11 @@ export default function AppAssetMint() {
         <Padded>
           <FlexCol gap='1rem'>
             <ErrorMessage error={Boolean(error)} text={error} />
+            {notice ? (
+              <div role='status'>
+                <Text wrap>{notice}</Text>
+              </div>
+            ) : null}
             <AssetCard
               assetId='preview'
               balance={amount}
@@ -257,6 +267,7 @@ export default function AppAssetMint() {
                   maxLength={40}
                   testId='asset-name'
                   placeholder={t('mint.myToken')}
+                  value={name}
                   onChange={(v: string) => setName(v.slice(0, 40))}
                 />
               </div>
@@ -266,6 +277,7 @@ export default function AppAssetMint() {
                   label={t('mint.ticker')}
                   placeholder='TKN'
                   testId='asset-ticker'
+                  value={ticker}
                   onChange={(v: string) => setTicker(v.slice(0, 8))}
                 />
               </div>
@@ -277,6 +289,7 @@ export default function AppAssetMint() {
                   label={t('mint.amount')}
                   placeholder='1000'
                   testId='asset-amount'
+                  value={amountTextValue}
                   onChange={setAmountTextValue}
                 />
               </div>
@@ -285,6 +298,7 @@ export default function AppAssetMint() {
                   placeholder='0'
                   label={t('mint.decimals')}
                   testId='asset-decimals'
+                  value={decimalsText}
                   onChange={setDecimalsText}
                 />
               </div>
@@ -394,6 +408,7 @@ export default function AppAssetMint() {
                     type='number'
                     label={t('mint.controlAmount')}
                     testId='control-asset-amount'
+                    value={ctrlAmount}
                     onChange={(v: string) => setCtrlAmount(Number(v))}
                   />
                 </FlexCol>
@@ -410,6 +425,7 @@ export default function AppAssetMint() {
         ) : null}
         <Button label={t('mint.mint')} onClick={handleMint} disabled={Boolean(disabledReason)} />
       </ButtonsOnBottom>
+      {connectionSheet}
     </>
   )
 }

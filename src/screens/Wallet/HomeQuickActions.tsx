@@ -9,6 +9,10 @@ import { emptyRecvInfo, emptySendInfo, FlowContext } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { hapticLight } from '../../lib/haptics'
 import { useTranslation } from '../../providers/language'
+import { WalletContext } from '../../providers/wallet'
+import { canRequestNativeSigning } from '../../lib/nativeSignerAvailability'
+import { isNativeWallet } from '../../lib/nativeWallet'
+import NativeCardConnectSheet from '../../components/NativeCardConnectSheet'
 
 interface HomeAction {
   icon: ReactNode
@@ -22,8 +26,15 @@ export default function HomeQuickActions() {
   const { navigate } = useContext(NavigationContext)
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { swapAvailable } = useContext(SwapsContext)
+  const { wallet } = useContext(WalletContext)
   const [swapSheetOpen, setSwapSheetOpen] = useState(false)
+  const [cardSheetOpen, setCardSheetOpen] = useState(false)
   const { t } = useTranslation()
+
+  const openSend = () => {
+    setSendInfo(emptySendInfo)
+    navigate(Pages.SendForm)
+  }
 
   const actions: HomeAction[] = [
     {
@@ -39,8 +50,8 @@ export default function HomeQuickActions() {
       icon: <SendIcon />,
       label: t('wallet.send'),
       onClick: () => {
-        setSendInfo(emptySendInfo)
-        navigate(Pages.SendForm)
+        if (isNativeWallet(wallet) && !canRequestNativeSigning(wallet.pubkey)) setCardSheetOpen(true)
+        else openSend()
       },
       testId: 'home-action-send',
     },
@@ -87,6 +98,14 @@ export default function HomeQuickActions() {
         ))}
       </div>
       <SwapComingSoonSheet isOpen={swapSheetOpen} onClose={() => setSwapSheetOpen(false)} />
+      <NativeCardConnectSheet
+        isOpen={cardSheetOpen}
+        onClose={() => setCardSheetOpen(false)}
+        onConnected={() => {
+          setCardSheetOpen(false)
+          openSend()
+        }}
+      />
     </>
   )
 }

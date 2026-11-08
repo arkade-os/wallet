@@ -31,7 +31,6 @@ import './native.css'
 import { hasPendingNativeStateRestore } from './lib/nativeStateBackup'
 import NativeStateBackup from './components/NativeStateBackup'
 import NativeRecoveryShell from './components/NativeRecoveryShell'
-import { readWalletFromStorage } from './lib/storage'
 
 // On takeover, not on updatefound: a page reloaded while the new worker still installs boots against the
 // old one, which skipWaiting then retires mid-init, leaving "Connecting to service worker" for the 30s timeout.
@@ -57,22 +56,6 @@ let bootstrapPending = false
 async function bootstrap() {
   if (bootstrapPending) return
   bootstrapPending = true
-  const storedWallet = readWalletFromStorage()
-  if (
-    storedWallet &&
-    typeof storedWallet === 'object' &&
-    'signer' in storedWallet &&
-    storedWallet.signer !== undefined
-  ) {
-    bootstrapPending = false
-    root.render(
-      <main role='alert' className='flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center'>
-        <h1 className='text-xl font-semibold'>This build does not support the stored wallet</h1>
-        <p>Open a build that supports this wallet to continue. Your wallet data is preserved.</p>
-      </main>,
-    )
-    return
-  }
   root.render(
     <main
       role='status'

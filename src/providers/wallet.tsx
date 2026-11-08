@@ -62,7 +62,8 @@ import { BackupContext } from './backup'
 import { getAssetSwaps } from '@arkade-os/swap/protocol'
 import { useTranslation } from '../providers/language'
 import { isValidUrl } from '@/lib/validators'
-import { isNativeHost } from '../lib/nativeBridge'
+import { connectNativeIdentity, disconnectNativeIdentity, isNativeHost, loadNativeIdentity } from '../lib/nativeBridge'
+import { assertNativeWalletAvailable, isNativeWallet, nativeWalletRecord } from '../lib/nativeWallet'
 import { ForegroundWallet, type WalletRuntime } from '../lib/walletRuntime'
 import { createNativeRepositories } from '../lib/nativeRepositories'
 import { clearNativeBackground } from '../lib/nativeBackground'
@@ -81,6 +82,7 @@ interface InitSvcWorkerWalletParams {
   delegateUrl?: string
   walletMode?: ServiceWorkerWalletMode
   restoring?: boolean
+  nativeSigner?: boolean
 }
 
 const defaultWallet: Wallet = {
@@ -91,6 +93,7 @@ const defaultWallet: Wallet = {
 export type WalletAuthState = 'unknown' | 'passwordless' | 'locked' | 'authenticated'
 
 interface WalletContextProps {
+  connectHardwareWallet: (pin?: string, expectedPublicKey?: string, signal?: AbortSignal) => Promise<void>
   initWallet: (credentials: {
     mnemonic?: string
     privateKey?: Uint8Array
@@ -144,6 +147,7 @@ interface WalletContextProps {
 }
 
 export const WalletContext = createContext<WalletContextProps>({
+  connectHardwareWallet: () => Promise.resolve(),
   initWallet: () => Promise.resolve(),
   lockWallet: () => Promise.resolve(),
   resetWallet: () => Promise.resolve(),
@@ -273,6 +277,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const lnurlResyncRef = useRef<ReturnType<typeof lnurlResyncOnPayment>>()
   const swMessageHandlerRef = useRef<(event: MessageEvent) => void>()
   const foregroundStopRef = useRef<() => void>()
+  const nativeConnectPendingRef = useRef(false)
+  const nativeConnectGenerationRef = useRef(0)
+  const nativeReadLockedRef = useRef(false)
+  const nativeOpenPendingRef = useRef<Promise<void>>()
   const runtimeRef = useRef<WalletRuntime>()
   const reinitInProgress = useRef(false)
   const initAbortRef = useRef<AbortController | null>(null)
@@ -427,6 +435,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
     if (!wallet.pubkey) {
       setAuthState('authenticated')
+      return
+    }
+
+    if (isNativeWallet(wallet)) {
+      setAuthState(initialized ? 'authenticated' : 'locked')
       return
     }
 
@@ -654,15 +667,18 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const foreground = isNativeHost()
     try {
       setLoadingStatus(t('loading.startingWallet'))
+      const database = params.nativeSigner
+        ? `arkade-native-${aspInfo.network}-${hex.encode(await identity.compressedPublicKey())}`
+        : undefined
       const nativeRepositories = foreground
         ? await createNativeRepositories({
             network: aspInfo.network as NetworkName,
             publicKey: hex.encode(await identity.compressedPublicKey()),
-            legacyDatabase: 'arkade-service-worker',
+            legacyDatabase: database ?? 'arkade-service-worker',
           })
         : undefined
-      const walletRepository = nativeRepositories?.walletRepository ?? new IndexedDBWalletRepository()
-      const contractRepository = nativeRepositories?.contractRepository ?? new IndexedDBContractRepository()
+      const walletRepository = nativeRepositories?.walletRepository ?? new IndexedDBWalletRepository(database)
+      const contractRepository = nativeRepositories?.contractRepository ?? new IndexedDBContractRepository(database)
 
       // Zombie SW detection and IndexedDB warmup are independent — run them
       // concurrently. The zombie ping timeout is 500ms: alive workers respond
@@ -706,7 +722,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
               virtualTxRepository: nativeRepositories.virtualTxRepository,
             }
           : { walletRepository, contractRepository },
-        settlementConfig: { vtxoThreshold: wallet.thresholdMs ? Math.floor(wallet.thresholdMs / 1000) : 1 },
+        settlementConfig: params.nativeSigner
+          ? (false as const)
+          : { vtxoThreshold: wallet.thresholdMs ? Math.floor(wallet.thresholdMs / 1000) : 1 },
       }
       const svcWallet: WalletRuntime = foreground
         ? await ForegroundWallet.create({
@@ -733,6 +751,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
       runtimeRef.current = svcWallet
       if (svcWallet instanceof ForegroundWallet) {
+        svcWallet.hardwareSigner = Boolean(params.nativeSigner)
         svcWallet.clearNativeStorage = nativeRepositories!.clear
       }
 
@@ -782,11 +801,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         return false
       }
 
-      setSvcWallet(svcWallet)
-      setVtxoManager(vtxoMgr)
-      setInitialized(walletInitialized)
-      setSyncing(true)
-
       // Safe on every unlock: watches are keyed by txid and the confirmation queue ignores a key it already holds.
       resumeLnurlConfirmations()
       // Receives that completed while the wallet was closed are the ones it can
@@ -794,6 +808,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // Deliberately not awaited: an unreachable lnurl-server must cost the
       // activity view its attribution, never the wallet its startup.
       const syncLnurl = async () => {
+        if (params.nativeSigner) return 0
         const arkadeAddress = await svcWallet.getAddress()
         const boardingAddress = await svcWallet.getBoardingAddress().catch(() => undefined)
         const { synced, failures } = await syncLnurlActivity(identity, arkadeAddress, { boardingAddress, signal })
@@ -814,7 +829,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // Cancel any pending reload from a previous wallet instance
       clearTimeout(reloadTimerRef.current)
       lnurlResyncRef.current?.cancel()
-      lnurlResyncRef.current = lnurlResyncOnPayment(syncLnurl, reloadAfterSync)
+      lnurlResyncRef.current = params.nativeSigner ? undefined : lnurlResyncOnPayment(syncLnurl, reloadAfterSync)
 
       const scheduleReload = () => {
         // Debounced reload: short delay lets the indexer update its cache.
@@ -867,12 +882,20 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           stopContracts()
           stopFunds?.()
         }
-        if (signal.aborted) stop()
-        else foregroundStopRef.current = stop
+        if (signal.aborted) {
+          stop()
+          return false
+        }
+        foregroundStopRef.current = stop
       } else {
         navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
         swMessageHandlerRef.current = handleServiceWorkerMessages
       }
+
+      setSvcWallet(svcWallet)
+      setVtxoManager(vtxoMgr)
+      setInitialized(walletInitialized)
+      setSyncing(true)
 
       // ping the service worker wallet status every 1 second
       if (statusPingInterval.current) clearInterval(statusPingInterval.current)
@@ -906,7 +929,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // Renew expiring coins on startup (non-delegate mode only).
       // When delegation is enabled, the SDK's VtxoManager auto-delegates
       // via onContractEvent, so no wallet-side call is needed.
-      if (!config.delegate) {
+      if (!config.delegate && !params.nativeSigner) {
         vtxoMgr.renewVtxos().catch(() => {})
       }
       return true
@@ -956,8 +979,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     walletMode?: ServiceWorkerWalletMode
     restoring?: boolean
   }) => {
-    if ('signer' in wallet && wallet.signer !== undefined)
-      throw new Error('This build does not support the stored wallet. Your wallet data is preserved.')
+    if (isNativeWallet(wallet)) throw new Error('Reset the card wallet explicitly before using software credentials.')
     const arkServerUrl = aspInfo.url
     const network = aspInfo.network as NetworkName
 
@@ -1001,7 +1023,95 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setInitialized(true)
   }
 
+  const openNativeWallet = async (record = wallet) => {
+    if (nativeOpenPendingRef.current) return nativeOpenPendingRef.current
+    if (!isNativeHost() || !isNativeWallet(record) || !record.pubkey)
+      throw new Error('Open this wallet in the Arkade native app.')
+    if (!aspInfo.network || !aspInfo.url) throw new Error('Wait for the wallet network connection, then try again.')
+    nativeWalletRecord(record, { publicKey: record.pubkey, name: record.signer!.name }, aspInfo.network as NetworkName)
+    if (runtimeRef.current) {
+      setAuthState('authenticated')
+      return
+    }
+    const generation = nativeConnectGenerationRef.current
+    const pending = (async () => {
+      const identity = await loadNativeIdentity(record.pubkey!)
+      if (generation !== nativeConnectGenerationRef.current) throw new Error('Wallet opening cancelled.')
+      const didInit = await initSvcWorkerWallet({
+        identity,
+        arkServerUrl: aspInfo.url,
+        delegateUrl: config.delegate ? getDelegateUrlForNetwork(aspInfo.network as NetworkName) : undefined,
+        walletMode: 'static',
+        nativeSigner: true,
+      })
+      if (!didInit || generation !== nativeConnectGenerationRef.current) throw new Error('Wallet opening cancelled.')
+      setAuthState('authenticated')
+      setInitialized(true)
+    })()
+    nativeOpenPendingRef.current = pending
+    try {
+      await pending
+    } finally {
+      if (nativeOpenPendingRef.current === pending) nativeOpenPendingRef.current = undefined
+    }
+  }
+
+  const connectHardwareWallet = async (pin?: string, expectedPublicKey?: string, signal?: AbortSignal) => {
+    if (signal?.aborted) throw new Error('Card connection cancelled.')
+    if (nativeConnectPendingRef.current) throw new Error('A card connection is already in progress.')
+    if (!isNativeHost()) throw new Error('Open this wallet in the Arkade native app to connect a card.')
+    if (!aspInfo.network || !aspInfo.url) throw new Error('Wait for the test network connection, then try again.')
+    if (isMainnet(aspInfo.network)) throw new Error('Satochip is currently available on test networks only.')
+    assertNativeWalletAvailable(wallet)
+    nativeConnectPendingRef.current = true
+    const generation = nativeConnectGenerationRef.current
+    let cancelled = false
+    const cancel = () => {
+      if (cancelled || generation !== nativeConnectGenerationRef.current) return
+      cancelled = true
+      nativeConnectPendingRef.current = false
+      if (!isNativeWallet(wallet)) void lockWallet(false).catch(consoleError)
+      void disconnectNativeIdentity().catch(consoleError)
+    }
+    const checkConnection = () => {
+      if (cancelled || signal?.aborted || generation !== nativeConnectGenerationRef.current)
+        throw new Error('Card connection cancelled.')
+    }
+    signal?.addEventListener('abort', cancel, { once: true })
+    try {
+      const connection = await connectNativeIdentity(isNativeWallet(wallet) ? wallet.pubkey : expectedPublicKey, pin)
+      pin = undefined
+      checkConnection()
+      const record = nativeWalletRecord(wallet, connection, aspInfo.network as NetworkName)
+      nativeReadLockedRef.current = false
+      await openNativeWallet(record)
+      checkConnection()
+      saveWalletToStorage(record)
+      setWallet(record)
+      updateConfig({ ...config, pubkey: record.pubkey!, walletMode: 'static', nostrBackup: false })
+      setAuthState('authenticated')
+      setInitialized(true)
+    } catch (error) {
+      if (!cancelled && generation === nativeConnectGenerationRef.current) {
+        await disconnectNativeIdentity().catch(() => {})
+        if (!cancelled && generation === nativeConnectGenerationRef.current && !runtimeRef.current) {
+          setAuthState('locked')
+          setInitialized(false)
+        }
+      }
+      throw error
+    } finally {
+      pin = undefined
+      signal?.removeEventListener('abort', cancel)
+      if (!cancelled && generation === nativeConnectGenerationRef.current) nativeConnectPendingRef.current = false
+    }
+  }
+
   const unlockWallet = async (password: string) => {
+    if (isNativeWallet(wallet)) {
+      nativeReadLockedRef.current = false
+      return openNativeWallet()
+    }
     try {
       if (hasMnemonic()) {
         const mnemonic = await getMnemonic(password)
@@ -1035,7 +1145,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       identity,
       arkServerUrl,
       delegateUrl,
-      walletMode: config.walletMode,
+      nativeSigner: isNativeWallet(wallet),
+      walletMode: isNativeWallet(wallet) ? 'static' : config.walletMode,
     })
   }
 
@@ -1055,7 +1166,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         identity,
         arkServerUrl,
         delegateUrl,
-        walletMode: config.walletMode,
+        nativeSigner: isNativeWallet(wallet),
+        walletMode: isNativeWallet(wallet) ? 'static' : config.walletMode,
       })
       if (!initialized) return
     } catch (err) {
@@ -1070,7 +1182,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     reinitSvcWalletRef.current = reinitSvcWallet
   })
 
-  const lockWallet = async () => {
+  const lockWallet = async (disconnectNative = true) => {
+    const currentRuntime = runtimeRef.current ?? svcWallet
+    nativeReadLockedRef.current = true
+    nativeConnectGenerationRef.current++
+    nativeConnectPendingRef.current = false
+    nativeOpenPendingRef.current = undefined
     abortInitSession()
     if (statusPingInterval.current) clearInterval(statusPingInterval.current)
     statusPingInterval.current = undefined
@@ -1078,16 +1195,22 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     reloadTimerRef.current = undefined
     lnurlResyncRef.current?.cancel()
     removeServiceWorkerMessageHandler()
-    if (svcWallet instanceof ForegroundWallet) setSvcWallet(undefined)
+    if (currentRuntime instanceof ForegroundWallet) setSvcWallet(undefined)
     runtimeRef.current = undefined
     setAuthState('locked')
     setInitialized(false)
     setDataReady(false)
     hasLoadedOnce.current = false
-    await svcWallet?.clear()
+    try {
+      await currentRuntime?.clear()
+    } finally {
+      if (disconnectNative && isNativeWallet(wallet)) await disconnectNativeIdentity()
+    }
   }
 
   const resetWallet = async () => {
+    nativeReadLockedRef.current = true
+    nativeConnectGenerationRef.current++
     // Aborting the session stops the LNURL history sync writing, so the purge below has nothing racing it.
     abortInitSession()
     lnurlResyncRef.current?.cancel()
@@ -1117,6 +1240,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       await svcWallet.contractRepository.clear()
     }
     await clearStorage()
+    if (isNativeWallet(wallet)) await disconnectNativeIdentity()
     runtimeRef.current = undefined
     setSvcWallet(undefined)
     setDataReady(false)
@@ -1147,15 +1271,45 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
+  useEffect(() => {
+    if (
+      !isNativeHost() ||
+      !isNativeWallet(wallet) ||
+      !wallet.pubkey ||
+      nativeReadLockedRef.current ||
+      runtimeRef.current
+    )
+      return
+    if (!aspInfo.network || !aspInfo.url) return
+    openNativeWallet().catch((error) => {
+      if (nativeReadLockedRef.current) return
+      setLoadError(error instanceof Error ? error.message : 'Unable to open stored wallet data.')
+      setAuthState('locked')
+    })
+  }, [wallet.pubkey, wallet.signer?.type, aspInfo.network, aspInfo.url])
+
+  useEffect(() => {
+    if (
+      isNativeWallet(wallet) &&
+      initialized &&
+      wallet.network &&
+      aspInfo.network &&
+      wallet.network !== aspInfo.network
+    )
+      lockWallet().catch(consoleError)
+  }, [aspInfo.network, wallet.network, initialized])
+
   useEffect(
     () => () => {
       if (!isNativeHost()) return
+      nativeConnectGenerationRef.current++
       abortInitSession()
       clearInterval(statusPingInterval.current)
       clearTimeout(reloadTimerRef.current)
       lnurlResyncRef.current?.cancel()
       removeServiceWorkerMessageHandler()
       if (runtimeRef.current instanceof ForegroundWallet) runtimeRef.current.clear().catch(consoleError)
+      disconnectNativeIdentity().catch(consoleError)
     },
     [],
   )
@@ -1164,6 +1318,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     <WalletContext.Provider
       value={{
         authState,
+        connectHardwareWallet,
         initWallet,
         isLocked,
         initialized,

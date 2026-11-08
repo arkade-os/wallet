@@ -3,6 +3,10 @@ import importlib.util
 import json
 from pathlib import Path
 import plistlib
+import re
+import subprocess
+import struct
+import sys
 import tarfile
 import tempfile
 import unittest
@@ -103,6 +107,74 @@ class NativeArtifactsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "one simulator"):
             collector.collect("ios-simulator", self.root, self.output)
 
+    def test_android_abi_package_selection(self):
+        elf = bytearray(64)
+        elf[:7] = b"\x7fELF\x02\x01\x01"
+        elf[16:18] = (3).to_bytes(2, 'little')
+        elf[18:20] = (183).to_bytes(2, 'little')
+        path = 'src-tauri/gen/android/app/build/outputs/apk/arm64/release/app-arm64-release-unsigned.apk'
+        self.archive(path, {'classes.dex': b'dex', 'lib/arm64-v8a/libarkade_native_lib.so': elf})
+        self.archive(path.replace('app-arm64-release', 'other-arm64-release'), {})
+        collector.collect_android_abi('arm64', self.root, self.output)
+        with zipfile.ZipFile(self.output / 'Arkade-android-arm64-release-unsigned.apk') as archive:
+            self.assertEqual(archive.namelist(), ['classes.dex', 'lib/arm64-v8a/libarkade_native_lib.so'])
+        self.assertEqual(json.loads((self.output / 'SOURCE.json').read_text())['abi'], 'arm64-v8a')
+        elf[18:20] = (62).to_bytes(2, 'little')
+        with self.assertRaisesRegex(ValueError, 'ABI'):
+            collector.verify_abi(elf, 183)
+
+    def test_android_abi_preserves_apk_bytes_and_rejects_mixed_abis(self):
+        path = 'src-tauri/gen/android/app/build/outputs/apk/arm64/release/app-arm64-release-unsigned.apk'
+        elf = bytearray(64)
+        elf[:7] = b"\x7fELF\x02\x01\x01"
+        elf[16:18] = (3).to_bytes(2, 'little')
+        elf[18:20] = (183).to_bytes(2, 'little')
+        source = self.archive(path, {'classes.dex': b'dex', 'lib/arm64-v8a/libarkade_native_lib.so': elf})
+        collector.collect_android_abi('arm64', self.root, self.output)
+        self.assertEqual((self.output / 'Arkade-android-arm64-release-unsigned.apk').read_bytes(), source.read_bytes())
+        self.output = self.output.with_name('mixed-artifacts')
+        self.archive(path, {'lib/arm64-v8a/libarkade_native_lib.so': elf, 'lib/x86/libarkade_native_lib.so': elf})
+        with self.assertRaisesRegex(ValueError, 'unexpected native library architecture'):
+            collector.collect_android_abi('arm64', self.root, self.output)
+
+    def test_android_abi_rejects_ambiguous_packages_and_malformed_elf_tables(self):
+        path = 'src-tauri/gen/android/app/build/outputs/apk/arm64/release/app-arm64-release-unsigned.apk'
+        with self.assertRaisesRegex(ValueError, 'Expected one release APK'):
+            collector.collect_android_abi('arm64', self.root, self.output)
+        for binary, message in [
+            (b'\x7fELF', 'little-endian'),
+            (b'\x7fELF\x03\x01\x01' + bytes(64), 'little-endian'),
+        ]:
+            with self.assertRaisesRegex(ValueError, message):
+                collector.verify_abi(binary, 183)
+        binary = bytearray(64)
+        binary[:7] = b'\x7fELF\x02\x01\x01'
+        binary[16:18] = (3).to_bytes(2, 'little')
+        binary[18:20] = (183).to_bytes(2, 'little')
+        binary[44:46] = (1).to_bytes(2, 'little')
+        with self.assertRaisesRegex(ValueError, 'section'):
+            collector.verify_abi(binary, 183)
+        binary[44:46] = (64).to_bytes(2, 'little')
+        binary[48:50] = (1).to_bytes(2, 'little')
+        with self.assertRaisesRegex(ValueError, 'section'):
+            collector.verify_abi(binary, 183)
+
+    def test_android_abi_kind_aliases_match_gradle_directories(self):
+        self.assertEqual(collector.ANDROID_KINDS, (
+            'android-abi/arm64', 'android-abi/armv7', 'android-abi/i686', 'android-abi/x86_64'
+        ))
+        for target, (directory, _, _) in collector.ANDROID_ARCHES.items():
+            self.assertEqual(collector.ANDROID_KINDS[list(collector.ANDROID_ARCHES).index(target)],
+                             'android-abi/' + target)
+            self.assertIn(directory, ('arm64', 'arm', 'x86', 'x86_64'))
+        result = subprocess.run(
+            [sys.executable, Path(collector.__file__), '--help'],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('android-abi/armv7', result.stdout)
+
     def test_ios_simulator_packages_the_actual_application(self):
         self.bundle("src-tauri/gen/apple/build/arm64-sim/Arkade.app")
         collector.collect("ios-simulator", self.root, self.output)
@@ -145,6 +217,29 @@ class NativeArtifactsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "destination must be empty"):
             collector.collect("windows", self.root, self.output)
         self.assertEqual(old.read_text(), "existing data")
+
+    def test_android_workflow_passes_tauri_target_names(self):
+        workflow = Path(__file__).parents[1].joinpath('.github/workflows/native-platforms.yml').read_text()
+        expected = {
+            'universal-debug': ('aarch64,armv7,i686,x86_64', 'aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android'),
+            'arm64': ('aarch64', 'aarch64-linux-android'),
+            'armv7': ('armv7', 'armv7-linux-androideabi'),
+            'i686': ('i686', 'i686-linux-android'),
+            'x86_64': ('x86_64', 'x86_64-linux-android'),
+        }
+        found = {}
+        for line in workflow.splitlines():
+            match = re.match(r'\s+- abi: (.+)$', line)
+            if match:
+                abi = match.group(1)
+                found[abi] = {}
+            else:
+                match = re.match(r'\s+(target|rust_target): (.+)$', line)
+                if match and found:
+                    found[next(reversed(found))][match.group(1)] = match.group(2)
+        self.assertEqual(expected, {abi: (pair['target'], pair['rust_target']) for abi, pair in found.items()})
+        self.assertIn("path: native-artifacts/android-${{ matrix.abi }}${{", workflow)
+        self.assertIn("matrix.abi != 'universal-debug' && '-release' || ''", workflow)
 
 
 if __name__ == "__main__":

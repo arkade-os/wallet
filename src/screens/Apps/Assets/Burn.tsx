@@ -20,6 +20,7 @@ import AssetCard from '../../../components/AssetCard'
 import { atomicToUnits, prettyAssetAmount, unitsToAtomic } from '../../../lib/assets'
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
 import { useTranslation } from '../../../providers/language'
+import { useNativeSigningConnection } from '../../../hooks/useNativeSigningConnection'
 
 export default function AppAssetBurn() {
   const { replace } = useContext(NavigationContext)
@@ -34,6 +35,7 @@ export default function AppAssetBurn() {
   const pendingNav = useRef<() => void>()
   const pendingConfirm = useRef(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const { requireConnection, connectionSheet, notice } = useNativeSigningConnection(t('mint.burn'), () => setError(''))
 
   const name = assetInfo.metadata?.name ?? t('mint.unknown')
   const ticker = assetInfo.metadata?.ticker ?? assetInfo.assetId.slice(0, 8)
@@ -56,11 +58,12 @@ export default function AppAssetBurn() {
       return
     }
     setError('')
+    if (requireConnection()) return
     setShowConfirm(true)
   }
 
   const processBurn = async () => {
-    if (!svcWallet) return
+    if (!svcWallet || requireConnection()) return
 
     setProcessing(true)
     setError('')
@@ -123,6 +126,11 @@ export default function AppAssetBurn() {
         <Padded>
           <FlexCol gap='1rem'>
             <ErrorMessage error={Boolean(error)} text={error} />
+            {notice ? (
+              <div role='status'>
+                <Text wrap>{notice}</Text>
+              </div>
+            ) : null}
             <AssetCard
               assetId={assetInfo.assetId}
               balance={balance}
@@ -155,6 +163,7 @@ export default function AppAssetBurn() {
       <ButtonsOnBottom>
         <Button label={t('mint.burn')} onClick={handleBurnRequest} disabled={amount <= 0} />
       </ButtonsOnBottom>
+      {connectionSheet}
     </>
   )
 }
