@@ -239,7 +239,7 @@ class NativeArtifactsTests(unittest.TestCase):
                     found[next(reversed(found))][match.group(1)] = match.group(2)
         self.assertEqual(expected, {abi: (pair['target'], pair['rust_target']) for abi, pair in found.items()})
         self.assertIn("path: native-artifacts/android-${{ matrix.abi }}${{", workflow)
-        self.assertNotIn("android-${{ matrix.abi }}${{ matrix.abi == 'universal-debug' && '-debug' || '-release' }}/", workflow)
+        self.assertIn("matrix.abi != 'universal-debug' && '-release' || ''", workflow)
 
 
 if __name__ == "__main__":

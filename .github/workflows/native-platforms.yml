@@ -207,7 +207,7 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: Arkade-android-${{ matrix.abi }}${{ matrix.abi == 'universal-debug' && '' || '-release' }}
-          path: native-artifacts/android-${{ matrix.abi }}${{ matrix.abi == 'arm64' && '-release' || matrix.abi == 'armv7' && '-release' || matrix.abi == 'i686' && '-release' || matrix.abi == 'x86_64' && '-release' || '-debug' }}/
+          path: native-artifacts/android-${{ matrix.abi }}${{ matrix.abi != 'universal-debug' && '-release' || '' }}/
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
