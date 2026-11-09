@@ -190,6 +190,19 @@ export function recordSentRecent(address: string | undefined, now = Date.now()):
   } catch {}
 }
 
+/** Record a completed send. The tick may only add a contact, never overwrite
+ *  one the user already named. */
+export function rememberSentDestination(
+  send: Parameters<typeof sendDestination>[0],
+  saveAsContact: boolean,
+  now = Date.now(),
+): void {
+  const address = sendDestination(send)
+  if (!address) return
+  recordSentRecent(address, now)
+  if (saveAsContact && !contactForAddress(address)) saveContact(address, '')
+}
+
 export function forgetContacts(): void {
   for (const key of [CONTACTS_KEY, RECENTS_KEY, SPLIT_KEY]) {
     try {

@@ -5,6 +5,7 @@ import {
   readContacts,
   readRecents,
   recordSentRecent,
+  rememberSentDestination,
   saveContact,
   saveRecentAsContact,
   savableActivityAddress,
@@ -79,6 +80,18 @@ describe('contacts', () => {
     saveRecentAsContact(bitcoin, 'Coffee')
     recordSentRecent(bitcoin, 2000)
     expect(readContacts()).toMatchObject([{ address: bitcoin, sendCount: 2, lastSentAt: 2000 }])
+  })
+
+  it('a stale save tick never overwrites the name of a saved contact', () => {
+    saveContact(alice, 'Alice')
+    rememberSentDestination({ lnUrl: alice }, true, 5000)
+    expect(readContacts()).toMatchObject([{ address: alice, name: 'Alice', sendCount: 1 }])
+  })
+
+  it('the save tick adds an unnamed contact only when none exists', () => {
+    rememberSentDestination({ lnUrl: alice }, true, 5000)
+    expect(readContacts()).toMatchObject([{ address: alice, sendCount: 1, lastSentAt: 5000 }])
+    expect(readContacts()[0].name).toBeUndefined()
   })
 
   it('keeps the contact key and history when its destination is edited', () => {

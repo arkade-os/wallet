@@ -40,7 +40,7 @@ import TransactionAmountSummary from '../../../components/TransactionAmountSumma
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
 import { lnurlSends, recordLnurlSend, watchLnurlConfirmation } from '../../../lib/lnurlSends'
 import { useTranslation } from '../../../providers/language'
-import { recordSentRecent, saveContact, sendDestination } from '../../../lib/contacts'
+import { rememberSentDestination } from '../../../lib/contacts'
 
 export default function SendDetails() {
   const displayContext = useAmountDisplayContext()
@@ -226,12 +226,7 @@ export default function SendDetails() {
 
   /** Every reusable destination becomes a recent; only the opt-in tick makes
    *  it a contact, so the list stays a choice rather than a side effect. */
-  const rememberDestination = () => {
-    const address = sendDestination(sendInfo)
-    if (!address) return
-    recordSentRecent(address)
-    if (saveAsContact) saveContact(address, '')
-  }
+  const rememberDestination = () => rememberSentDestination(sendInfo, Boolean(saveAsContact))
 
   /** Unlike {@link handleTxid} a missing txid is not an error: the solver rail
    *  commits by funding. The fee comes off the QUOTE, not the screen — a rail
