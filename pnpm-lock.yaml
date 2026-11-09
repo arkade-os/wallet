@@ -270,7 +270,7 @@ packages:
         optional: true
 
   '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.5.4.tgz':
-    resolution: {integrity: sha512-OR+tvTElmgnPnaabAyQ2mgfSzpqqX8h2qi4bvxwqEZ1e+DWDT0NpgHlQ6+2z5nZn969xaXJQ1MU2WqZlpg0uLQ==, tarball: file:vendor/arkade-os-sdk-0.5.4.tgz}
+    resolution: {integrity: sha512-O4Va6PZtMsj+/9gdnk0kXG46mL/7eV3qhZvYQSOwAvMqoH4jzA2NhpZ/gYeWxgn+2rY8Qi0pL5pUL7vNxLSybQ==, tarball: file:vendor/arkade-os-sdk-0.5.4.tgz}
     version: 0.5.4
     engines: {node: '>=22.13.0 <27'}
     peerDependencies:
