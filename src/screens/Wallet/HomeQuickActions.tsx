@@ -1,6 +1,7 @@
 import { ReactNode, useContext, useState } from 'react'
 import ReceiveIcon from '../../icons/Receive'
 import ScanIcon from '../../icons/Scan'
+import CashIcon from '../../icons/Notes'
 import SendIcon from '../../icons/Send'
 import SwapIcon from '../../icons/Swap'
 import SwapComingSoonSheet from '../../components/SwapComingSoonSheet'
@@ -60,6 +61,12 @@ export default function HomeQuickActions() {
         navigate(Pages.WalletScan)
       },
       testId: 'home-action-scan',
+    },
+    {
+      icon: <CashIcon />,
+      label: 'Cash',
+      onClick: () => navigate(Pages.Cash),
+      testId: 'home-action-cash',
     },
   ]
 

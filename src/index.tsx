@@ -24,6 +24,7 @@ import { DevModeProvider } from './providers/devMode'
 import { AssetsProvider } from './providers/assets'
 import { BackupProvider } from './providers/backup'
 import { LanguageProvider } from './providers/language'
+import { CashProvider } from './providers/cash'
 import { reloadOnWorkerTakeover } from './lib/serviceWorkerTakeover'
 
 // On takeover, not on updatefound: a page reloaded while the new worker still installs boots against the
@@ -59,23 +60,25 @@ root.render(
                   <FiatProvider>
                     <FlowProvider>
                       <WalletProvider>
-                        <SwapsProvider>
-                          <LimitsProvider>
-                            <FeesProvider>
-                              <OptionsProvider>
-                                <NudgeProvider>
-                                  <AnnouncementProvider>
-                                    <ToastProvider>
-                                      <ErrorBoundary>
-                                        <App />
-                                      </ErrorBoundary>
-                                    </ToastProvider>
-                                  </AnnouncementProvider>
-                                </NudgeProvider>
-                              </OptionsProvider>
-                            </FeesProvider>
-                          </LimitsProvider>
-                        </SwapsProvider>
+                        <CashProvider>
+                          <SwapsProvider>
+                            <LimitsProvider>
+                              <FeesProvider>
+                                <OptionsProvider>
+                                  <NudgeProvider>
+                                    <AnnouncementProvider>
+                                      <ToastProvider>
+                                        <ErrorBoundary>
+                                          <App />
+                                        </ErrorBoundary>
+                                      </ToastProvider>
+                                    </AnnouncementProvider>
+                                  </NudgeProvider>
+                                </OptionsProvider>
+                              </FeesProvider>
+                            </LimitsProvider>
+                          </SwapsProvider>
+                        </CashProvider>
                       </WalletProvider>
                     </FlowProvider>
                   </FiatProvider>

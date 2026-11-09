@@ -17,16 +17,16 @@ importers:
     dependencies:
       '@arkade-os/lnurl-client':
         specifier: 0.9.2
-        version: 0.9.2(@arkade-os/sdk@0.5.2)
+        version: 0.9.2(@arkade-os/sdk@file:vendor/arkade-os-sdk-0.5.4.tgz)
       '@arkade-os/sdk':
-        specifier: 0.5.2
-        version: 0.5.2
+        specifier: file:vendor\arkade-os-sdk-0.5.4.tgz
+        version: file:vendor/arkade-os-sdk-0.5.4.tgz
       '@arkade-os/solver-discovery':
         specifier: 0.3.0
         version: 0.3.0
       '@arkade-os/swap':
-        specifier: 0.1.2
-        version: 0.1.2(nostr-tools@2.24.1(typescript@5.9.3))
+        specifier: file:vendor\arkade-os-swap-0.1.4.tgz
+        version: file:vendor/arkade-os-swap-0.1.4.tgz(nostr-tools@2.24.1(typescript@5.9.3))
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -87,6 +87,9 @@ importers:
       liveline:
         specifier: ^0.0.7
         version: 0.0.7(react@18.3.1)
+      lucide-react:
+        specifier: ^0.575.0
+        version: 0.575.0(react@18.3.1)
       nostr-tools:
         specifier: 2.24.1
         version: 2.24.1(typescript@5.9.3)
@@ -133,6 +136,9 @@ importers:
       '@playwright/test':
         specifier: ^1.60.0
         version: 1.60.0
+      '@rollup/rollup-win32-x64-msvc':
+        specifier: 4.65.1
+        version: 4.65.1
       '@tailwindcss/vite':
         specifier: ^4.2.2
         version: 4.2.4(vite@7.3.7(@types/node@24.10.0)(jiti@2.6.1)(lightningcss@1.32.0))
@@ -234,6 +240,7 @@ packages:
 
   '@arkade-os/lnurl-client@0.9.2':
     resolution: {integrity: sha512-rpjU67hJUZHyhh7NsgMjVjUVSE4XQA8nPJ4JMYfKQGcX0KS/Q1os1E0KmWozR5OjI3wppCpRwAWG5v6k7FXgBw==}
+    version: 0.9.2
     engines: {node: '>=22.12.0'}
     peerDependencies:
       '@arkade-os/sdk': '>=0.5.0-rc.0'
@@ -241,8 +248,30 @@ packages:
       '@arkade-os/sdk':
         optional: true
 
-  '@arkade-os/sdk@0.5.2':
-    resolution: {integrity: sha512-GIxyQyad+MdjMOfE5LwXw76Ynu6Nk6AeN8ApGWhGKaDXjz3F7vAKJotVdEkshxz/X8lV/AHjsDUcsgRcuq25SQ==}
+  '@arkade-os/sdk@0.5.4':
+    resolution: {integrity: sha512-8sfGdPkP4Czy8Ng8pMspPGFlsZi+P4beTDiuPwlvkAGmaBUC7l9fcVBrV5YbxaOVKkmW9mtPBsms6eqwcunUPg==}
+    engines: {node: '>=22.13.0 <27'}
+    peerDependencies:
+      '@react-native-async-storage/async-storage': '>=1.0.0'
+      expo: '>=54.0.0'
+      expo-background-task: ~1.0.10 || >=55.0.0
+      expo-sqlite: ~16.0.10 || >=55.0.0
+      expo-task-manager: ~14.0.9 || >=55.0.0
+    peerDependenciesMeta:
+      '@react-native-async-storage/async-storage':
+        optional: true
+      expo:
+        optional: true
+      expo-background-task:
+        optional: true
+      expo-sqlite:
+        optional: true
+      expo-task-manager:
+        optional: true
+
+  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.5.4.tgz':
+    resolution: {integrity: sha512-OR+tvTElmgnPnaabAyQ2mgfSzpqqX8h2qi4bvxwqEZ1e+DWDT0NpgHlQ6+2z5nZn969xaXJQ1MU2WqZlpg0uLQ==, tarball: file:vendor/arkade-os-sdk-0.5.4.tgz}
+    version: 0.5.4
     engines: {node: '>=22.13.0 <27'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -266,8 +295,9 @@ packages:
     resolution: {integrity: sha512-FMAhWG3vZrKIlCP1U8E5iAgB6O1wc6O1CMk+HlQ4xUf066p/S8PuRgmHtkHcL1YrGsdWhKfP/SSFwgLIbGTQjg==}
     engines: {node: '>=20.19'}
 
-  '@arkade-os/swap@0.1.2':
-    resolution: {integrity: sha512-K84fg2wetMXIfP8t7l8WE+yNdBz3GyH9EEg9s2fjR1hNPwKgJpvzorwGHPK1zf/R/eJakKeXbEmPDjy3oxKVLQ==}
+  '@arkade-os/swap@file:vendor/arkade-os-swap-0.1.4.tgz':
+    resolution: {integrity: sha512-7OHH7+tFnOnWXa8WTl+/T56fSv1xYf2CISZdPhr7sh4XemuYbliFU/lNeA5GoS4QH4Tbk6hX0nk4+fZqybhBMg==, tarball: file:vendor/arkade-os-swap-0.1.4.tgz}
+    version: 0.1.4
     engines: {node: '>=22.13.0'}
     peerDependencies:
       nostr-tools: 2.24.1
@@ -2406,6 +2436,11 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
+  lucide-react@0.575.0:
+    resolution: {integrity: sha512-VuXgKZrk0uiDlWjGGXmKV6MSk9Yy4l10qgVvzGn2AWBx1Ylt0iBexKOAoA6I7JO3m+M9oeovJd3yYENfkUbOeg==}
+    peerDependencies:
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
     hasBin: true
@@ -3307,15 +3342,35 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/lnurl-client@0.9.2(@arkade-os/sdk@0.5.2)':
+  '@arkade-os/lnurl-client@0.9.2(@arkade-os/sdk@file:vendor/arkade-os-sdk-0.5.4.tgz)':
     dependencies:
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
       '@scure/base': 2.0.0
     optionalDependencies:
-      '@arkade-os/sdk': 0.5.2
+      '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.5.4.tgz
 
-  '@arkade-os/sdk@0.5.2':
+  '@arkade-os/sdk@0.5.4':
+    dependencies:
+      '@bitcoinerlab/descriptors-scure': 3.1.7
+      '@marcbachmann/cel-js': 8.0.0
+      '@noble/curves': 2.4.0
+      '@noble/secp256k1': 3.0.0
+      '@scure/base': 2.4.0
+      '@scure/bip39': 2.4.0
+      '@scure/btc-signer': 2.4.1
+      bip68: 1.0.4
+      micro-packed: 0.11.1
+      ws-electrumx-client: 1.0.5
+    transitivePeerDependencies:
+      - '@ledgerhq/ledger-bitcoin'
+      - bip32
+      - bitcoinjs-lib
+      - bufferutil
+      - ecpair
+      - utf-8-validate
+
+  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.5.4.tgz':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 8.0.0
@@ -3340,9 +3395,9 @@ snapshots:
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
 
-  '@arkade-os/swap@0.1.2(nostr-tools@2.24.1(typescript@5.9.3))':
+  '@arkade-os/swap@file:vendor/arkade-os-swap-0.1.4.tgz(nostr-tools@2.24.1(typescript@5.9.3))':
     dependencies:
-      '@arkade-os/sdk': 0.5.2
+      '@arkade-os/sdk': 0.5.4
       '@arkade-os/solver-discovery': 0.3.0
       '@noble/ciphers': 2.1.1
       '@noble/curves': 2.4.0
@@ -3947,8 +4002,7 @@ snapshots:
   '@rollup/rollup-win32-x64-gnu@4.65.1':
     optional: true
 
-  '@rollup/rollup-win32-x64-msvc@4.65.1':
-    optional: true
+  '@rollup/rollup-win32-x64-msvc@4.65.1': {}
 
   '@rtsao/scc@1.1.0': {}
 
@@ -5551,6 +5605,10 @@ snapshots:
   lru-cache@5.1.1:
     dependencies:
       yallist: 3.1.1
+
+  lucide-react@0.575.0(react@18.3.1):
+    dependencies:
+      react: 18.3.1
 
   lz-string@1.5.0: {}
 

@@ -29,6 +29,15 @@ export class NostrStorage {
   private relays: string[]
   private pool: SimplePool
 
+  publicKey() {
+    return this.pubkey
+  }
+
+  secretKey(): Uint8Array {
+    if (!this.seckey) throw new Error('Secret key is required for encryption')
+    return this.seckey
+  }
+
   /**
    * Initialize NostrStorage with either a secret key or public key
    */

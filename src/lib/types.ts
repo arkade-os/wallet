@@ -136,6 +136,7 @@ export type LnSendSpend = {
 export type TxKind = 'received' | 'sent' | 'exit' | 'swap' | (string & {})
 
 export type Tx = {
+  cash?: { id: string; direction: 'issued' | 'claimed'; status?: string }
   amount: number
   assetAction?: 'issued' | 'reissued' | 'burned'
   assets?: Asset[]

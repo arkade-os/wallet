@@ -36,6 +36,10 @@ import InAppBrowser from '../screens/Wallet/InAppBrowser'
 import Unavailable from '../screens/Wallet/Unavailable'
 import AppIntentScreen from '../screens/AppIntent/Index'
 import WalletScan from '@/screens/Wallet/Scan'
+import Cash from '../screens/Wallet/Cash/Index'
+import CashIssue from '../screens/Wallet/Cash/Issue'
+import CashClaim from '../screens/Wallet/Cash/Claim'
+import CashDetail from '../screens/Wallet/Cash/Detail'
 
 export type NavigationDirection = 'forward' | 'back' | 'none'
 
@@ -43,6 +47,10 @@ export enum Pages {
   Activity,
   AccountDetail,
   BitcoinDetail,
+  Cash,
+  CashIssue,
+  CashClaim,
+  CashDetail,
   AppAssets,
   AppAssetDetail,
   AppAssetImport,
@@ -104,6 +112,14 @@ export const pageComponent = (page: Pages): JSX.Element => {
   switch (page) {
     case Pages.Activity:
       return <Activity />
+    case Pages.Cash:
+      return <Cash />
+    case Pages.CashIssue:
+      return <CashIssue />
+    case Pages.CashClaim:
+      return <CashClaim />
+    case Pages.CashDetail:
+      return <CashDetail />
     case Pages.AccountDetail:
       return <AccountDetail />
     case Pages.BitcoinDetail:
