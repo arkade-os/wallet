@@ -318,6 +318,15 @@ export const translations = {
       controlAmount: 'Control Amount',
       controlAmountPositive: 'Control amount must be positive',
       controlAsset: 'Control Asset',
+      controlWaitTimeout: 'The control asset is not spendable yet. Resume the mint to try again.',
+      recoveryPending:
+        'A previous mint is unfinished. Resume it using the same control asset, or discard the recovery record.',
+      recoveryUnknown:
+        'The result of an issuance is unknown. Check your wallet activity and contact support before starting another mint; it may already have succeeded.',
+      resumeMint: 'Resume mint',
+      discardMint: 'Discard recovery record',
+      discardMintWarning:
+        'Discard this recovery record? An issuance may already have succeeded. Check your wallet activity first. Starting again may incur additional fees.',
       decimals: 'Decimals',
       decimalsRange: 'Decimals must be 0-{max}',
       enableArkadeMint: 'Enable Arkade Mint',
@@ -1159,6 +1168,16 @@ export const translations = {
       controlAmount: 'Monto de control',
       controlAmountPositive: 'El monto de control debe ser positivo',
       controlAsset: 'Activo de control',
+      controlWaitTimeout:
+        'El activo de control aún no se puede gastar. Continúa la acuñación para intentarlo de nuevo.',
+      recoveryPending:
+        'Una acuñación anterior está incompleta. Continúala con el mismo activo de control o descarta el registro de recuperación.',
+      recoveryUnknown:
+        'Se desconoce el resultado de una emisión. Revisa la actividad de tu cartera y contacta con soporte antes de iniciar otra acuñación; podría haber tenido éxito.',
+      resumeMint: 'Continuar acuñación',
+      discardMint: 'Descartar registro de recuperación',
+      discardMintWarning:
+        '¿Descartar este registro? Puede que una emisión ya haya tenido éxito. Revisa primero la actividad de tu cartera. Empezar de nuevo puede generar más comisiones.',
       decimals: 'Decimales',
       decimalsRange: 'Los decimales deben estar entre 0 y {max}',
       enableArkadeMint: 'Activar Arkade Mint',
@@ -2004,6 +2023,15 @@ export const translations = {
       controlAmount: 'Valor de controle',
       controlAmountPositive: 'O valor de controle deve ser positivo',
       controlAsset: 'Ativo de controle',
+      controlWaitTimeout: 'O ativo de controle ainda não pode ser gasto. Continue a emissão para tentar novamente.',
+      recoveryPending:
+        'Uma emissão anterior está incompleta. Continue usando o mesmo ativo de controle ou descarte o registro de recuperação.',
+      recoveryUnknown:
+        'O resultado de uma emissão é desconhecido. Verifique a atividade da carteira e contate o suporte antes de iniciar outra emissão; ela pode ter sido concluída.',
+      resumeMint: 'Continuar emissão',
+      discardMint: 'Descartar registro de recuperação',
+      discardMintWarning:
+        'Descartar este registro? Uma emissão pode já ter sido concluída. Verifique primeiro a atividade da carteira. Começar de novo pode gerar taxas adicionais.',
       decimals: 'Casas decimais',
       decimalsRange: 'As casas decimais devem estar entre 0 e {max}',
       enableArkadeMint: 'Ativar Arkade Mint',
