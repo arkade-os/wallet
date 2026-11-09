@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Contacts from '../../../screens/Settings/Contacts'
 import { ConfigContext } from '../../../providers/config'
@@ -92,6 +93,20 @@ describe('Contacts', () => {
     fireEvent.change(screen.getByLabelText('Address'), { target: { value: 'wrong' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save contact' }))
     await waitFor(() => expect(screen.getByText('Enter a valid address')).toBeInTheDocument())
+  })
+
+  it('keeps the contact sheet mounted while typing a name', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'New contact' }))
+    const input = screen.getByLabelText('Name (optional)')
+    await user.type(input, 'Alice')
+
+    expect(screen.getByLabelText('Name (optional)')).toBe(input)
+    expect(input).toHaveValue('Alice')
+    expect(document.activeElement).toBe(input)
+    expect(screen.getByTestId('sheet-modal')).toBeInTheDocument()
   })
 
   it('returns from a contact to the list without leaving the contacts page', () => {

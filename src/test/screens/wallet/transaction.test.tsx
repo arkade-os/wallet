@@ -360,6 +360,40 @@ describe('Transaction screen', () => {
     expect(screen.queryByRole('button', { name: 'Save as contact' })).not.toBeInTheDocument()
   })
 
+  it('keeps the save-contact sheet mounted while typing a name', async () => {
+    const user = userEvent.setup()
+    const sentTx = {
+      ...mockTxInfo,
+      boardingTxid: '',
+      destination: 'carol@pay.example',
+      redeemTxid: 'send-typing',
+      type: 'sent' as const,
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: sentTx }}>
+            <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [sentTx] } as any}>
+              <LimitsContext.Provider value={mockLimitsContextValue}>
+                <Transaction />
+              </LimitsContext.Provider>
+            </WalletContext.Provider>
+          </FlowContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save as contact' }))
+    const input = screen.getByLabelText('Name (optional)')
+    await user.type(input, 'Carol')
+
+    expect(screen.getByLabelText('Name (optional)')).toBe(input)
+    expect(input).toHaveValue('Carol')
+    expect(document.activeElement).toBe(input)
+    expect(screen.getByTestId('sheet-modal')).toBeInTheDocument()
+  })
+
   it('labels a unilateral exit and links it to the block explorer, not to Arkade', async () => {
     const open = vi.spyOn(window, 'open').mockImplementation(() => null)
     const exitTxInfo = {

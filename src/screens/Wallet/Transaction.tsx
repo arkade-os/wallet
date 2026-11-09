@@ -380,7 +380,10 @@ export default function Transaction() {
   const showRecoverSwap = swapTx && liveSwap?.status === 'recoverable'
   const visibleError = (cancelFailed && !showCancelSwap) || (recoverFailed && !showRecoverSwap) ? '' : error
 
-  const Body = () => (
+  // Kept as an element, not an inline component: a new `<Body />` type on each
+  // render would remount the whole subtree and make the save-contact sheet
+  // close and reopen on every keystroke.
+  const body = (
     <>
       <Content>
         <Padded>
@@ -543,7 +546,7 @@ export default function Transaction() {
   return (
     <>
       <Header text={t('wallet.transaction')} back />
-      {settling ? <WaitingForRound settle /> : <Body />}
+      {settling ? <WaitingForRound settle /> : body}
       <Buttons />
     </>
   )
