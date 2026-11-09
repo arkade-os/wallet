@@ -29,6 +29,7 @@ import { WalletContext } from '../../providers/wallet'
 import { DevModeContext } from '../../providers/devMode'
 import Toggle from '../../components/Toggle'
 import { useTranslation } from '../../providers/language'
+import NativeStateBackup from '../../components/NativeStateBackup'
 
 function BulletPoint({ icon, text }: { icon: ReactElement; text: string }) {
   return (
@@ -243,6 +244,7 @@ export default function Init() {
       <SheetModal isOpen={showOptions} onClose={() => setShowOptions(false)}>
         <FlexCol gap='1rem'>
           <Text>{t('init.otherLoginOptions')}</Text>
+          <NativeStateBackup mode='import' />
           <Button fancy disabled={error} onClick={handleOldWallet} label={t('init.restoreWallet')} secondary />
         </FlexCol>
       </SheetModal>

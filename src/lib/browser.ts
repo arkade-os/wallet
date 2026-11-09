@@ -11,6 +11,7 @@ export const isAndroid = (): boolean => {
 }
 
 export const isInAppBrowser = (): boolean => {
+  if (isNativeHost()) return false
   const ua = navigator.userAgent || navigator.vendor || (window as any).opera || ''
 
   // Known in-app browser tokens (sorted by global user base)
@@ -33,3 +34,4 @@ export const isInAppBrowser = (): boolean => {
 
   return false
 }
+import { isNativeHost } from './nativeBridge'

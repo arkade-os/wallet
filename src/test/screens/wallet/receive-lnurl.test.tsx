@@ -118,7 +118,14 @@ const receiveTree = (satoshis = 0, config: Partial<Config> = {}, recv: object = 
                   } as never
                 }
               >
-                <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet } as never}>
+                <WalletContext.Provider
+                  value={
+                    {
+                      ...mockWalletContextValue,
+                      svcWallet,
+                    } as never
+                  }
+                >
                   <LimitsContext.Provider value={mockLimitsContextValue}>
                     <SwapsContext.Provider
                       value={{ receiveLightning, outcomeOf: () => undefined, errorOf: () => undefined } as never}

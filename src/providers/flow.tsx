@@ -92,7 +92,7 @@ interface FlowContextProps {
   setInitInfo: (arg0: InitInfo) => void
   setNoteInfo: (arg0: NoteInfo) => void
   setDeepLinkInfo: (arg0: DeepLinkInfo) => void
-  setAppIntent: (arg0: AppIntentState | undefined) => void
+  setAppIntent: (arg0: SetStateAction<AppIntentState | undefined>) => void
   setRecvInfo: (arg0: SetStateAction<RecvInfo>) => void
   setSendInfo: (arg0: SetStateAction<SendInfo>) => void
   setSwapFromAssetId: (arg0: string | undefined) => void

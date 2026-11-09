@@ -1,0 +1,13 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "targets": ["app", "dmg"],
+    "icon": ["icons/icon.icns", "../public/arkade-icon-512.png"],
+    "macOS": {
+      "minimumSystemVersion": "11.0",
+      "infoPlist": "macos/Info.plist",
+      "entitlements": "macos/Entitlements.plist",
+      "hardenedRuntime": true
+    }
+  }
+}

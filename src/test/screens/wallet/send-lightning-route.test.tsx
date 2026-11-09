@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { hex } from '@scure/base'
 import { getEmulatorPubkeyForNetwork } from '../../../lib/constants'
 import { makeHandle } from '@arkade-os/sdk'
+import type { SetStateAction } from 'react'
 import SendDetails from '../../../screens/Wallet/Send/Details'
 import SendForm from '../../../screens/Wallet/Send/Form'
 import { AspContext } from '../../../providers/asp'
@@ -82,14 +83,24 @@ const lnQuote = (over: { paymentHash?: string; total?: number } = {}, sent = vi.
 
 const setSendInfo = vi.fn()
 
-const renderSign = (sendInfo: SendInfo) =>
-  render(
+const renderSign = (sendInfo: SendInfo) => {
+  let currentSendInfo = sendInfo
+  const updateSendInfo = (update: SetStateAction<SendInfo>) => {
+    const next = typeof update === 'function' ? update(currentSendInfo) : update
+    if (next === currentSendInfo) return
+    currentSendInfo = next
+    setSendInfo(next)
+    view.rerender(tree())
+  }
+  const tree = () => (
     <NavigationContext.Provider value={mockNavigationContextValue}>
       <ConfigContext.Provider value={mockConfigContextValue}>
         <FiatContext.Provider value={mockFiatContextValue}>
           <AspContext.Provider value={mockAspContextValue}>
             <FeesContext.Provider value={{ calcOnchainOutputFee: () => 500 } as never}>
-              <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo, setSendInfo }}>
+              <FlowContext.Provider
+                value={{ ...mockFlowContextValue, sendInfo: currentSendInfo, setSendInfo: updateSendInfo }}
+              >
                 <WalletContext.Provider
                   value={{ ...mockWalletContextValue, balance: 1_000_000, svcWallet: mockSvcWallet as never }}
                 >
@@ -104,8 +115,11 @@ const renderSign = (sendInfo: SendInfo) =>
           </AspContext.Provider>
         </FiatContext.Provider>
       </ConfigContext.Provider>
-    </NavigationContext.Provider>,
+    </NavigationContext.Provider>
   )
+  const view = render(tree())
+  return view
+}
 
 const sign = async () => fireEvent.click(await screen.findByText('Tap to Sign'))
 

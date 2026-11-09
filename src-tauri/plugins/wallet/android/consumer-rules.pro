@@ -1,0 +1,6 @@
+-keep class io.arkade.wallet.WalletPlugin { *; }
+-keep class io.arkade.wallet.SecretArgs { *; }
+-keep class io.arkade.wallet.TextArgs { *; }
+-keep class io.arkade.wallet.BackArgs { *; }
+-keep class io.arkade.wallet.BackgroundArgs { *; }
+-keep class io.arkade.wallet.BackupArgs { *; }

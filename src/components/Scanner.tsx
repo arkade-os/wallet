@@ -10,13 +10,15 @@ import { extractError } from '../lib/error'
 import { cameraErrorText, queryCameraPermission } from '../lib/camera'
 import { useTranslation } from '../providers/language'
 import QrScanner from 'qr-scanner'
+import { isNativeMobile } from '../lib/nativePlatform'
+import NativeScanner from './NativeScanner'
 
 const videoStyle: React.CSSProperties = {
   borderRadius: '0.5rem',
   margin: '0 auto',
 }
 
-interface ScannerProps {
+export interface ScannerProps {
   close: () => void
   label: string
   onData: (arg0: string) => void
@@ -34,6 +36,7 @@ export default function Scanner({ close, label, onData, onError }: ScannerProps)
     )
   }
 
+  if (isNativeMobile()) return <NativeScanner close={close} label={label} onData={onData} onError={onError} />
   return currentImplementation === 'qr' ? (
     <ScannerQr close={close} label={label} onData={onData} onError={onError} onSwitch={handleSwitch} />
   ) : currentImplementation === 'qrmini' ? (

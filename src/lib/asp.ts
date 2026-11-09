@@ -3,7 +3,6 @@ import {
   ArkNote,
   RestArkProvider,
   ExtendedCoin,
-  ServiceWorkerWallet,
   ExtendedVirtualCoin,
   FeeInfo,
   WalletBalance,
@@ -26,6 +25,7 @@ import * as Sentry from '@sentry/react'
 import { hex } from '@scure/base'
 import { arkTransactionToTx, sortLocalTxs } from './transactionHistory'
 import { walletFingerprint } from './sentry'
+import type { WalletRuntime } from './walletRuntime'
 
 const emptyFees: FeeInfo = {
   intentFee: { offchainInput: '', offchainOutput: '', onchainInput: '', onchainOutput: '' },
@@ -269,7 +269,7 @@ export const getTxHistory = async (wallet: IWallet): Promise<Tx[]> => {
   }
 }
 
-export const getVtxos = async (wallet: ServiceWorkerWallet): Promise<{ spendable: Vtxo[]; spent: Vtxo[] }> => {
+export const getVtxos = async (wallet: WalletRuntime): Promise<{ spendable: Vtxo[]; spent: Vtxo[] }> => {
   const vtxos = await wallet.getVtxos()
   const spendable: Vtxo[] = []
   const spent: Vtxo[] = []
@@ -317,7 +317,7 @@ export const getVtxos = async (wallet: ServiceWorkerWallet): Promise<{ spendable
  * history say it did not. Letting it throw hands the reload's catch a whole
  * failure instead, which keeps the last good snapshot and, on a first load,
  * surfaces the retry. */
-export const getUnrolledVtxos = async (wallet: ServiceWorkerWallet): Promise<Vtxo[]> => {
+export const getUnrolledVtxos = async (wallet: WalletRuntime): Promise<Vtxo[]> => {
   const vtxos = await wallet.getVtxos({ withUnrolled: true })
   return vtxos.filter((vtxo) => vtxo.isUnrolled && !isVtxoSpent(vtxo))
 }
@@ -406,7 +406,7 @@ export const settleVtxos = async (
   }
 }
 
-export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> => {
+export const delegateVtxos = async (wallet: WalletRuntime): Promise<void> => {
   const cm = await wallet.getContractManager()
   const contractWithVtxos = await cm.getContractsWithVtxos({ type: 'delegate' }, undefined, { unspentOnly: true })
   const dm = await wallet.getDelegateManager()

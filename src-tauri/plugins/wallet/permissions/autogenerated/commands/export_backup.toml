@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-export-backup"
+description = "Enables the export_backup command without any pre-configured scope."
+commands.allow = ["export_backup"]
+
+[[permission]]
+identifier = "deny-export-backup"
+description = "Denies the export_backup command without any pre-configured scope."
+commands.deny = ["export_backup"]

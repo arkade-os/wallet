@@ -28,6 +28,7 @@ import InputAssetAmount from '@/components/InputAssetAmount'
 import InputAssetDecimals from '@/components/InputAssetDecimals'
 import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '../../../providers/language'
+import { ForegroundWallet, watchWalletPayments } from '../../../lib/walletRuntime'
 
 interface KnownAssetOption {
   assetId: string
@@ -155,12 +156,17 @@ export default function AppAssetMint() {
           supply: ctrlRawAmount,
           metadata: ctrlMeta,
         })
-        await new Promise<boolean>((resolve) => {
-          const listenNewVtxos = (event: MessageEvent) => {
-            if (event.data && event.data.type === 'VTXO_UPDATE') resolve(true)
-          }
-          navigator.serviceWorker.addEventListener('message', listenNewVtxos)
-        })
+        if (svcWallet instanceof ForegroundWallet) {
+          await svcWallet.getSpendableVtxos({ maxSyncAgeMs: 0, requireSynced: true })
+        } else {
+          await new Promise<void>((resolve) => {
+            const stop = watchWalletPayments(svcWallet, (event) => {
+              if (event.data?.type !== 'VTXO_UPDATE') return
+              stop()
+              resolve()
+            })
+          })
+        }
       }
 
       setMintingText(t('loading.mintingAsset'))

@@ -95,8 +95,8 @@ const onchainClaim = (wallet: SwapClientConfig['wallet'], network: NetworkName):
   }
 }
 
-export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: NetworkName): SwapClient =>
-  createSwapClient({
+export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: NetworkName): SwapClient => {
+  return createSwapClient({
     wallet,
     repository: assetSwapRepository,
     discovery: discoveryOptions(network),
@@ -124,3 +124,4 @@ export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: Netw
     // live swaps exist or on the first accept. The Web Lock in `providers/swaps`
     // is what keeps a second tab from arming a second drive over one repository.
   })
+}

@@ -13,9 +13,12 @@ import Wallet from '../../icons/Wallet'
 import CenterScreen from '../../components/CenterScreen'
 import FlexCol from '../../components/FlexCol'
 import { useTranslation } from '../../providers/language'
+import { SwapsContext } from '../../providers/swaps'
+import { isNativeHost } from '../../lib/nativeBridge'
 
 export default function Reset() {
   const { resetWallet } = useContext(WalletContext)
+  const { pauseForBackup } = useContext(SwapsContext)
   const { t } = useTranslation()
 
   const [disabled, setDisabled] = useState(true)
@@ -30,6 +33,7 @@ export default function Reset() {
     setError('')
     setLoading(true)
     try {
+      if (isNativeHost()) await pauseForBackup()
       await resetWallet()
       location.reload()
     } catch (err) {
