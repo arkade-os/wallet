@@ -6,6 +6,7 @@ import { AspContext } from '../../providers/asp'
 import { WalletContext } from '../../providers/wallet'
 import { SwapsContext, SwapsProvider } from '../../providers/swaps'
 import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
+import * as lnSwap from '../../lib/lnSwap'
 import { saveSolverCards } from '../../lib/solverCards'
 
 const mocks = vi.hoisted(() => ({
@@ -57,6 +58,36 @@ const market = (over: Record<string, unknown> = {}) => ({
   base_asset: { id: 'base-asset', ticker: 'B', decimals: 0 },
   ...over,
 })
+
+const lightningMarket = (over: Record<string, unknown> = {}) =>
+  market({
+    base_asset: { id: 'btc', ticker: 'BTC', decimals: 8 },
+    quote_asset: { id: 'btc', ticker: 'BTC', decimals: 8 },
+    quote_corridor: 'lightning',
+    ...over,
+  })
+
+function LightningProbe({ operation }: { operation: 'send' | 'receive' }) {
+  const { quotePay, receiveLightning } = useContext(SwapsContext)
+  const [error, setError] = useState('')
+  return (
+    <>
+      <button
+        onClick={async () => {
+          try {
+            if (operation === 'send') await quotePay('lnbc1invoice')
+            else await receiveLightning(1000)
+          } catch (error) {
+            setError((error as Error).message)
+          }
+        }}
+      >
+        try Lightning
+      </button>
+      <output>{error}</output>
+    </>
+  )
+}
 
 const swap = {
   id: 'swap-1',
@@ -135,6 +166,125 @@ beforeEach(() => {
 afterEach(() => vi.clearAllMocks())
 
 describe('SwapsProvider', () => {
+  it('accepts a Lightning amount supported by an alternate solver', async () => {
+    mocks.watchSwapMarkets.mockImplementation((_network: string, onMarkets: (markets: unknown[]) => void) => {
+      onMarkets([
+        lightningMarket({ min_base_amount: '100', max_base_amount: '500' }),
+        lightningMarket({ min_base_amount: '1000', max_base_amount: '2000' }),
+      ])
+      return () => {}
+    })
+    renderProvider()
+    await waitFor(() => expect(mocks.created).toHaveBeenCalled())
+    fireEvent.click(screen.getByText('receive'))
+    await waitFor(() => expect(mocks.receive).toHaveBeenCalledWith({ amount: BigInt(1000), via: 'lightning' }))
+  })
+
+  it.each(['send', 'receive'] as const)(
+    'accepts %s through a reversed larger BTC Lightning card',
+    async (operation) => {
+      const decoder = vi
+        .spyOn(lnSwap, 'toInvoiceFacts')
+        .mockReturnValue({ raw: 'lnbc1invoice', amountSats: 1000, paymentHash: 'a'.repeat(64), expiresAt: 9999999999 })
+      try {
+        mocks.watchSwapMarkets.mockImplementation((_network: string, onMarkets: (markets: unknown[]) => void) => {
+          onMarkets([
+            lightningMarket({
+              min_base_amount: '100',
+              max_base_amount: '500',
+              min_quote_amount: '100',
+              max_quote_amount: '500',
+            }),
+            lightningMarket({
+              base_corridor: 'lightning',
+              quote_corridor: 'arkade',
+              min_base_amount: operation === 'send' ? '1000' : '3000',
+              max_base_amount: operation === 'send' ? '2000' : '4000',
+              min_quote_amount: operation === 'receive' ? '1000' : '3000',
+              max_quote_amount: operation === 'receive' ? '2000' : '4000',
+            }),
+          ])
+          return () => {}
+        })
+        renderProvider({}, <LightningProbe operation={operation} />)
+        await waitFor(() => expect(mocks.created).toHaveBeenCalled())
+        fireEvent.click(screen.getByText('try Lightning'))
+        await waitFor(() => expect(operation === 'send' ? mocks.quote : mocks.receive).toHaveBeenCalled())
+      } finally {
+        decoder.mockRestore()
+      }
+    },
+  )
+
+  it.each(['send', 'receive'] as const)(
+    'reports the actual %s payout bounds on a reversed-only card',
+    async (operation) => {
+      const decoder = vi
+        .spyOn(lnSwap, 'toInvoiceFacts')
+        .mockReturnValue({ raw: 'lnbc1invoice', amountSats: 1000, paymentHash: 'a'.repeat(64), expiresAt: 9999999999 })
+      try {
+        mocks.watchSwapMarkets.mockImplementation((_network: string, onMarkets: (markets: unknown[]) => void) => {
+          onMarkets([
+            lightningMarket({
+              base_corridor: 'lightning',
+              quote_corridor: 'arkade',
+              min_base_amount: '100',
+              max_base_amount: '500',
+              min_quote_amount: '2000',
+              max_quote_amount: '3000',
+            }),
+          ])
+          return () => {}
+        })
+        renderProvider({}, <LightningProbe operation={operation} />)
+        fireEvent.click(screen.getByText('try Lightning'))
+        expect(
+          await screen.findByText(
+            `Amount outside solver bounds (${operation === 'send' ? '100-500' : '2,000-3,000'} sats)`,
+          ),
+        ).toBeInTheDocument()
+        expect(mocks.quote).not.toHaveBeenCalled()
+        expect(mocks.receive).not.toHaveBeenCalled()
+      } finally {
+        decoder.mockRestore()
+      }
+    },
+  )
+
+  it('reports all applicable disjoint ranges without admitting their gap', async () => {
+    function ReceiveProbe() {
+      const { receiveLightning } = useContext(SwapsContext)
+      const [error, setError] = useState('')
+      return (
+        <>
+          <button
+            onClick={async () => {
+              try {
+                await receiveLightning(1000)
+              } catch (error) {
+                setError((error as Error).message)
+              }
+            }}
+          >
+            try receive
+          </button>
+          <output>{error}</output>
+        </>
+      )
+    }
+    mocks.watchSwapMarkets.mockImplementation((_network: string, onMarkets: (markets: unknown[]) => void) => {
+      onMarkets([
+        lightningMarket({ min_base_amount: '100', max_base_amount: '500' }),
+        lightningMarket({ min_base_amount: '2000', max_base_amount: '3000' }),
+      ])
+      return () => {}
+    })
+    renderProvider({}, <ReceiveProbe />)
+    fireEvent.click(screen.getByText('try receive'))
+    expect(await screen.findByText('Amount outside solver bounds (100-500, 2,000-3,000 sats)')).toBeInTheDocument()
+    expect(mocks.receive).not.toHaveBeenCalled()
+  })
+
   it('keeps the client live while its mounted wallet content navigates', async () => {
     function NavigatingScreens() {
       const [page, setPage] = useState('send success')

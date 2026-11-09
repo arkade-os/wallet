@@ -27,22 +27,23 @@ import SegmentedControl from '@/components/SegmentedControl'
 import { useRemoteSolverCard } from '@/hooks/useRemoteSolverCard'
 import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '@/providers/language'
+import SolverRouting from './SolverRouting'
 
-const isSameCard = (card: LocalCardInput, label: string | undefined, network: Network) =>
-  card.label === label && card.network === network
+const cardIdentity = (input: LocalCardInput): string => {
+  const card = input.card as Card
+  return JSON.stringify([input.network, card.discovery_pubkey ?? [input.label ?? `local:${card.name}`, card.name]])
+}
 
-/** `replacing` is the label a rename vacates, folded into this one write so
- * subscribers never see the intermediate list with the card missing. */
-const putSolverCard = (input: LocalCardInput, replacing?: string) => {
-  const network = input.network as Network
+const putSolverCard = (input: LocalCardInput, replacing?: LocalCardInput) => {
   const others = readSolverCards().filter(
-    (card) => !isSameCard(card, input.label, network) && !(replacing && isSameCard(card, replacing, network)),
+    (card) =>
+      cardIdentity(card) !== cardIdentity(input) && (!replacing || cardIdentity(card) !== cardIdentity(replacing)),
   )
   saveSolverCards([...others, input])
 }
 
 const removeSolverCard = (input: LocalCardInput) => {
-  saveSolverCards(readSolverCards().filter((card) => !isSameCard(card, input.label, input.network as Network)))
+  saveSolverCards(readSolverCards().filter((card) => cardIdentity(card) !== cardIdentity(input)))
 }
 
 /** A canonical card carries no `pair`; its label is derived from the asset ids'
@@ -63,7 +64,17 @@ function Button({ onClick, text }: { onClick?: () => void; text: string }) {
   )
 }
 
-function Editor({ card, toClose, onChange }: { card?: Card; toClose?: () => void; onChange?: () => void }) {
+function Editor({
+  card,
+  original,
+  toClose,
+  onChange,
+}: {
+  card?: Card
+  original?: LocalCardInput
+  toClose?: () => void
+  onChange?: () => void
+}) {
   const { aspInfo } = useContext(AspContext)
   const { t } = useTranslation()
 
@@ -71,7 +82,7 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose?: () => void
 
   const editorRef = useRef<HTMLTextAreaElement>(null)
 
-  const saveCard = (olderCard?: Card) => {
+  const saveCard = () => {
     if (!editorRef.current) return
     if (!toClose || !onChange) return
     const inputValue = editorRef.current.value.trim()
@@ -97,7 +108,7 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose?: () => void
     }
     try {
       // a rename must not leave the old label lingering in storage
-      putSolverCard(input, olderCard && olderCard.name !== card.name ? olderCard.name : undefined)
+      putSolverCard(input, original)
     } catch (err) {
       consoleError(err, 'failed to save solver card')
       setError(t('solvers.failedSave'))
@@ -131,7 +142,7 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose?: () => void
       {toClose && onChange ? (
         <FlexRow>
           <Button onClick={() => toClose()} text={t('common.cancel')} />
-          <Button onClick={() => saveCard(card)} text={t('components.save')} />
+          <Button onClick={saveCard} text={t('components.save')} />
         </FlexRow>
       ) : null}
     </FlexCol>
@@ -373,7 +384,9 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
             <Button onClick={handleConfirmRemove} text={t('solvers.remove')} />
           </FlexRow>
         </FlexRow>
-        {showEditor ? <Editor card={card} toClose={() => setShowEditor(false)} onChange={onChange} /> : null}
+        {showEditor ? (
+          <Editor card={card} original={input} toClose={() => setShowEditor(false)} onChange={onChange} />
+        ) : null}
       </FlexCol>
     </Shadow>
   )
@@ -434,18 +447,19 @@ export default function Solvers() {
               <Text wrap>{title}</Text>
               <Button onClick={() => setShowEditor(true)} text={t('solvers.addNew')} />
             </FlexRow>
+            <SolverRouting network={aspInfo.network} />
             {showEditor ? <Editor toClose={() => setShowEditor(false)} onChange={handleChange} /> : null}
             {bundledCards.length > 0 ? (
               <FlexCol>
                 {bundledCards.map((input) => (
-                  <BundledCardLine key={input.label ?? (input.card as Card).name} input={input} />
+                  <BundledCardLine key={cardIdentity(input)} input={input} />
                 ))}
               </FlexCol>
             ) : null}
             {localCards && localCards.length > 0 ? (
               <FlexCol>
                 {localCards.map((input) => (
-                  <CardLine key={input.label} input={input} onChange={handleChange} />
+                  <CardLine key={cardIdentity(input)} input={input} onChange={handleChange} />
                 ))}
               </FlexCol>
             ) : null}

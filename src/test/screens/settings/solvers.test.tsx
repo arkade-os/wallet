@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Solvers from '../../../screens/Settings/Solvers'
 import { AspContext } from '../../../providers/asp'
@@ -6,8 +6,37 @@ import { BackupContext } from '../../../providers/backup'
 import { mockAspContextValue } from '../mocks'
 import { readSolverCards } from '../../../lib/solverCards'
 import { prettyLongText } from '../../../lib/format'
+import { SwapsContext } from '../../../providers/swaps'
+import { btcUsdt } from '../../lib/swapFixtures'
+import { readSolverRouting } from '../../../lib/solverRouting'
+import { solverDirectionKey, solverId, type DiscoveredMarket } from '@arkade-os/solver-discovery'
 
-const { mockFetchTransportCards } = vi.hoisted(() => ({ mockFetchTransportCards: vi.fn() }))
+const ReactSwapsDefault = {
+  allMarkets: [],
+  markets: [],
+  swaps: [],
+  swapAvailable: false,
+  runDiscovery: vi.fn(),
+  exchange: vi.fn(),
+  cancelSwap: vi.fn(),
+  recoverSwap: vi.fn(),
+  quotePay: vi.fn(),
+  acceptPay: vi.fn(),
+  receiveLightning: vi.fn(),
+  sendRouter: vi.fn(),
+  outcomeOf: vi.fn(),
+  errorOf: vi.fn(),
+}
+
+const { mockFetchTransportCards, mockSolverUsage } = vi.hoisted(() => ({
+  mockFetchTransportCards: vi.fn(),
+  mockSolverUsage: vi.fn(),
+}))
+
+vi.mock('../../../lib/swapRecords', async () => ({
+  ...(await vi.importActual<typeof import('../../../lib/swapRecords')>('../../../lib/swapRecords')),
+  solverUsage: mockSolverUsage,
+}))
 
 vi.mock('@arkade-os/swap/nostr', () => ({
   nostrCardFetcher: () => ({ fetch: mockFetchTransportCards }),
@@ -21,7 +50,7 @@ vi.mock('@arkade-os/solver-discovery', async () => {
   }
 })
 
-function renderSolvers(network: string = 'regtest') {
+function renderSolvers(network: string = 'regtest', allMarkets: DiscoveredMarket[] = []) {
   const backupContextValue = {
     backupAndUpdateConfig: vi.fn(),
     backupConfig: vi.fn().mockResolvedValue(undefined),
@@ -38,7 +67,9 @@ function renderSolvers(network: string = 'regtest') {
       value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network } } as any}
     >
       <BackupContext.Provider value={backupContextValue as any}>
-        <Solvers />
+        <SwapsContext.Provider value={{ ...ReactSwapsDefault, allMarkets }}>
+          <Solvers />
+        </SwapsContext.Provider>
       </BackupContext.Provider>
     </AspContext.Provider>,
   )
@@ -47,8 +78,56 @@ function renderSolvers(network: string = 'regtest') {
 describe('Solvers screen', () => {
   beforeEach(() => {
     localStorage.clear()
+    mockSolverUsage.mockReset().mockResolvedValue({})
     mockFetchTransportCards.mockReset()
     mockFetchTransportCards.mockResolvedValue([])
+  })
+
+  it('groups independently identified same-name discovered and local solvers and persists direction priority', async () => {
+    const first = { ...btcUsdt, solver: 'Same name', discovery_pubkey: 'a'.repeat(64) }
+    const second = { ...first, discovery_pubkey: 'b'.repeat(64), sourceType: 'local' as const }
+    renderSolvers('mutinynet', [first, second])
+    expect(screen.getAllByRole('combobox')).toHaveLength(2)
+    expect(screen.getAllByText('Same name')).toHaveLength(4)
+    expect(screen.getAllByText(`${prettyLongText(first.discovery_pubkey)} · registry`)).toHaveLength(2)
+    expect(screen.getAllByText(`${prettyLongText(second.discovery_pubkey)} · local`)).toHaveLength(2)
+    expect(screen.queryByText(`${prettyLongText(solverId(first, 'mutinynet'))} · registry`)).not.toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Move down Same name' })[0])
+    const direction = solverDirectionKey(first, 'base', 'mutinynet')
+    expect(readSolverRouting('mutinynet', direction).priority).toEqual([
+      solverId(second, 'mutinynet'),
+      solverId(first, 'mutinynet'),
+    ])
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'cost' } })
+    expect(readSolverRouting('mutinynet', direction).mode).toBe('cost')
+    expect(screen.getByText(/Costs are estimated at the trade amount/)).toBeInTheDocument()
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'usage' } })
+    expect(readSolverRouting('mutinynet', direction).mode).toBe('usage')
+  })
+
+  it('shows an error when completed usage cannot be loaded', async () => {
+    mockSolverUsage.mockRejectedValue(new Error('storage unavailable'))
+    renderSolvers('mutinynet', [btcUsdt])
+    expect(await screen.findAllByText('Unable to load completed swap usage.')).toHaveLength(2)
+  })
+
+  it('retains pasted cards with the same name and different discovery keys', async () => {
+    renderSolvers()
+    for (const key of ['a', 'b']) {
+      fireEvent.click(screen.getByRole('button', { name: '+ Add new' }))
+      fireEvent.change(screen.getByPlaceholderText('{ version: 0, name: "My Card", markets: [...] }'), {
+        target: {
+          value: JSON.stringify({ version: 0, name: 'Same name', discovery_pubkey: key.repeat(64), markets: [] }),
+        },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+      await waitFor(() => expect(readSolverCards()).toHaveLength(key === 'a' ? 1 : 2))
+    }
+    expect(screen.getAllByText('Same name')).toHaveLength(2)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remove' })[0])
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Remove' }))
+    await waitFor(() => expect(readSolverCards()).toHaveLength(1))
+    expect((readSolverCards()[0].card as { discovery_pubkey: string }).discovery_pubkey).toBe('b'.repeat(64))
   })
 
   it('shows an empty state when no solver cards are stored', () => {
@@ -101,6 +180,40 @@ describe('Solvers screen', () => {
 
     // the bundled card names its legs only by CAIP-19 id and carries no `pair`
     expect(screen.getByText('BTC/lightning:BTC')).toBeInTheDocument()
+  })
+
+  it('replaces the original unsigned card when renaming and preserves other pins', async () => {
+    localStorage.setItem(
+      'solverCards',
+      JSON.stringify([
+        { network: 'regtest', label: 'Old', card: { version: 0, name: 'Old', markets: [] } },
+        { network: 'regtest', label: 'Other', card: { version: 0, name: 'Other', markets: [] } },
+      ]),
+    )
+    renderSolvers()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0])
+    fireEvent.change(screen.getByPlaceholderText('{ version: 0, name: "My Card", markets: [...] }'), {
+      target: { value: JSON.stringify({ version: 0, name: 'New', markets: [] }) },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(readSolverCards().map(({ label }) => label)).toEqual(['Other', 'New']))
+    expect(screen.queryByText('Old')).not.toBeInTheDocument()
+    expect(screen.getByText('Other')).toBeInTheDocument()
+  })
+
+  it('shows readable rails and display-unit flat fees', () => {
+    const lightning = {
+      ...btcUsdt,
+      source: 'lightning',
+      fee_flat: '500',
+      base_asset: { ...btcUsdt.base_asset, id: 'arkade:mutinynet/slip44:1' },
+      quote_asset: { id: 'bolt11:mutinynet/slip44:1', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+    }
+    renderSolvers('mutinynet', [{ ...btcUsdt, fee_flat: '500' }, lightning])
+    expect(screen.getByText('Arkade BTC → Lightning BTC')).toBeInTheDocument()
+    expect(screen.queryByText(solverDirectionKey(lightning, 'base', 'mutinynet'))).not.toBeInTheDocument()
+    expect(screen.getAllByText(/30 bps \+ 500 sats/)).toHaveLength(2)
+    expect(screen.getAllByText(/30 bps \+ 5 USDT/)).toHaveLength(2)
   })
 
   it('removes a stored solver card', async () => {

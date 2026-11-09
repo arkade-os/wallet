@@ -28,7 +28,7 @@
  * rendezvous, which is the only shipped transport that can attest who answered.
  */
 import type { NetworkName } from '@arkade-os/sdk'
-import { createSwapClient, type SwapClient, type SwapClientConfig } from '@arkade-os/swap'
+import { completedSolverUsage, createSwapClient, type SwapClient, type SwapClientConfig } from '@arkade-os/swap'
 // `./advanced` is not a compatibility promise — see the note in `swapRecords.ts`.
 import { corridorRecordStore, type OnchainClaim } from '@arkade-os/swap/advanced'
 import { chainSourceFrom, claimOnchainFill, preimageForSwapRecord, rfqClaimSecretOf } from '@arkade-os/swap/protocol'
@@ -39,6 +39,7 @@ import { toInvoiceFacts } from './lnSwap'
 import { l1NetworkOf, onchainClaimEndpoint } from './onchainPayout'
 import { discoveryOptions } from './swapMarkets'
 import { assetSwapRepository } from './swapRepository'
+import { readSolverRouting } from './solverRouting'
 
 /**
  * A swap action that reached no driver at all.
@@ -95,11 +96,20 @@ const onchainClaim = (wallet: SwapClientConfig['wallet'], network: NetworkName):
   }
 }
 
-export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: NetworkName): SwapClient =>
-  createSwapClient({
+export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: NetworkName): SwapClient => {
+  const client: SwapClient = createSwapClient({
     wallet,
     repository: assetSwapRepository,
     discovery: discoveryOptions(network),
+    policy: {
+      solverRouting: {
+        failover: true,
+        preferences: async ({ network, direction }) => ({
+          ...readSolverRouting(network, direction),
+          usage: completedSolverUsage(await client.swaps(), network, direction),
+        }),
+      },
+    },
     corridors: {
       onchain: {
         chain: { provider: electrumProvider(network) },
@@ -124,3 +134,6 @@ export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: Netw
     // live swaps exist or on the first accept. The Web Lock in `providers/swaps`
     // is what keeps a second tab from arming a second drive over one repository.
   })
+
+  return client
+}

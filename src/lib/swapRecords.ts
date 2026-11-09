@@ -22,6 +22,7 @@
 import { collectPages, type ActivityResolver } from '@arkade-os/sdk'
 import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
 import {
+  completedSolverUsage,
   isRfqSwapTerminal,
   parseAssetId,
   type AssetId,
@@ -35,7 +36,14 @@ import {
 // re-check on a swap-package bump. It is here rather than `client.swaps()`
 // because this read must work in a tab that does not hold the drive lock, and
 // the client only exists in the tab that does.
-import { ACTIVITY_TOKEN, corridorOutcome, readableRecord, splitRecords } from '@arkade-os/swap/advanced'
+import {
+  ACTIVITY_TOKEN,
+  corridorOutcome,
+  readableRecord,
+  recordOutcome,
+  splitRecords,
+  swapOf,
+} from '@arkade-os/swap/advanced'
 import { consoleError } from './logs'
 import { assetSwapRepository, quoteSnapshotOf, type WalletAssetSwap } from './swapRepository'
 import { txidOfArkTransaction } from './transactionHistory'
@@ -163,6 +171,15 @@ const readRecords = async (): Promise<SwapRecord[]> => {
     return []
   }
 }
+
+export const solverUsage = async (network: string, direction: string): Promise<Record<string, number>> =>
+  completedSolverUsage(
+    (await readRecords()).map((record) =>
+      swapOf(record, record.family === 'offer' ? recordOutcome(record) : corridorOutcome(record.kind, record.state)),
+    ),
+    network,
+    direction,
+  )
 
 /** Every offer swap the wallet can render — the v2 client's own, which is all
  * of them. */

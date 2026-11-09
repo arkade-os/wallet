@@ -11,6 +11,7 @@ import {
   LIGHTNING_RAIL,
   LNURL_ARKADE_RAIL,
   LNURL_LIGHTNING_RAIL,
+  isLightningMarket,
   lnSendRefusal,
   lnSendRequest,
   fundedResult,
@@ -473,6 +474,43 @@ describe('lnSendRefusal only names a cause it has checked', () => {
     })
     expect(lnSendRefusal([canonical], 40_000)).toBe('Amount outside solver bounds (1,000-25,000 sats)')
     expect(lnSendRefusal([canonical], 1_000)).not.toContain('outside solver bounds')
+  })
+
+  it('recognizes reversed BTC Lightning cards and reads their Lightning base bounds', () => {
+    const reversed = lnMarket({
+      base_corridor: 'lightning',
+      quote_corridor: 'arkade',
+      min_base_amount: '1000',
+      max_base_amount: '25000',
+      min_quote_amount: '100000',
+      max_quote_amount: '200000',
+    })
+    expect(isLightningMarket(reversed)).toBe(true)
+    expect(lnSendRefusal([reversed], 40000)).toBe('Amount outside solver bounds (1,000-25,000 sats)')
+    expect(lnSendRefusal([reversed], 1000)).not.toContain('outside solver bounds')
+  })
+
+  it('admits a reversed alternate when the first Lightning card is too small', () => {
+    const reversed = lnMarket({
+      base_corridor: 'lightning',
+      quote_corridor: 'arkade',
+      min_base_amount: '30000',
+      max_base_amount: '50000',
+    })
+    expect(lnSendRefusal([admits, reversed], 40000)).not.toContain('outside solver bounds')
+  })
+
+  it('excludes unrelated Lightning asset legs and non-Arkade counterparties', () => {
+    expect(isLightningMarket(lnMarket({ base_asset: { id: 'a'.repeat(68) } }))).toBe(false)
+    expect(isLightningMarket(lnMarket({ base_corridor: 'onchain' }))).toBe(false)
+    expect(
+      isLightningMarket(
+        lnMarket({
+          base_asset: { id: 'arkade:bitcoin/slip44:0' },
+          quote_asset: { id: 'bolt11:regtest/slip44:1' },
+        }),
+      ),
+    ).toBe(false)
   })
 
   it('blames the bounds only when no solver’s bounds admit the amount', () => {

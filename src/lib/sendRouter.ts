@@ -29,7 +29,7 @@ import {
   type Outcome,
   type SwapRailClient,
 } from '@arkade-os/swap'
-import { marketCorridor, sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+import { assetIdOf, marketCorridor, sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { createLnurlClient, type LnurlClient } from '@arkade-os/lnurl-client'
 import {
   firstQuote,
@@ -185,20 +185,27 @@ export const lnSendRequest = (invoice: string, satoshis?: number): PaymentReques
   return { raw: invoice, ...(satoshis === undefined ? {} : { amount: satoshis }) }
 }
 
-/**
- * A market whose quote leg is Lightning.
- *
- * The rail is the asset id's chain namespace (`bolt11:…`). `quote_corridor:
- * "lightning"` is the legacy field, which {@link marketCorridor} still reads.
- */
-export const isLightningMarket = (market: DiscoveredMarket): boolean => marketCorridor(market, 'quote') === 'bolt11'
+export const isLightningMarket = (market: DiscoveredMarket): boolean => {
+  const baseRail = marketCorridor(market, 'base')
+  const quoteRail = marketCorridor(market, 'quote')
+  if (!((baseRail === 'arkade' && quoteRail === 'bolt11') || (baseRail === 'bolt11' && quoteRail === 'arkade')))
+    return false
+  const base = assetIdOf(market.base_asset) ?? ''
+  const quote = assetIdOf(market.quote_asset) ?? ''
+  const isBtc = (id: string) => id === 'btc' || /\/slip44:[01]$/.test(id)
+  return (
+    isBtc(base) &&
+    isBtc(quote) &&
+    (base === 'btc' || quote === 'btc' || base.slice(base.indexOf(':') + 1) === quote.slice(quote.indexOf(':') + 1))
+  )
+}
 
 /** Why the Lightning rail dropped itself. `options()` logs the rail's error and
  *  returns only survivors, so bounds are named only where checked and missed. */
 export const lnSendRefusal = (markets: DiscoveredMarket[], satoshis?: number): string => {
   const bounds = markets
     .filter(isLightningMarket)
-    .map((m) => sideLimits(m, 'quote'))
+    .map((m) => sideLimits(m, marketCorridor(m, 'base') === 'bolt11' ? 'base' : 'quote'))
     .filter((limits): limits is NonNullable<typeof limits> => limits !== null)
   if (bounds.length === 0) return 'No Lightning solver available'
   const min = bounds.reduce((low, b) => (b.min < low ? b.min : low), bounds[0].min)
