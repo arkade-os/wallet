@@ -265,8 +265,15 @@ export default function SendForm() {
   )
   const activeAsset = accountAsset ?? selectedAsset
   const isAssetSend = activeAsset !== null
-  // An empty destination is not a missing recipient: it issues an Arkade Cash voucher.
-  const isCash = !isAssetSend && !recipient.trim()
+  // No destination at all is not a missing recipient: it issues an Arkade Cash
+  // voucher. A pre-filled target (deep link, previous step) still wins.
+  const isCash =
+    !isAssetSend &&
+    !recipient.trim() &&
+    !sendInfo.address &&
+    !sendInfo.arkAddress &&
+    !sendInfo.invoice &&
+    !sendInfo.lnUrl
 
   const RECIPIENT_DEBOUNCE_MS = 800
   const hasAssets = assetBalances.length > 0
