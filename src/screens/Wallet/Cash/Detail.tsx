@@ -52,7 +52,7 @@ export default function CashDetail() {
             <Text heading bigger>
               {record.amount.toLocaleString()} sats
             </Text>
-            <Text bold>{cashStatusLabel(record.status, record.action)}</Text>
+            <Text bold>{cashStatusLabel(record.status, record.action, record.token)}</Text>
             <TextSecondary>
               {record.action === 'issued' ? 'You issued this voucher' : 'You claimed this voucher'}
             </TextSecondary>

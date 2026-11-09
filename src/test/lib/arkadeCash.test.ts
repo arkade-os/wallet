@@ -84,6 +84,24 @@ describe('Cash SDK adapter', () => {
     const result = await sdkClaim(wallet, makeToken(), { ...record('recover'), updatedAt: 2 })
     expect(result.record).toMatchObject({ action: 'claimed', claimTxIds: ['claim'] })
   })
+
+  it('allows a registered sweep to be resumed', async () => {
+    const wallet = cashWallet(makeToken())
+    wallet.arkadeCash = async (req: any) =>
+      req.action === 'get'
+        ? { ...req, status: 'claimed', cashId: 'cash-id', issueTxIds: [], claimTxIds: [] }
+        : ((wallet.lastRequest = req),
+          { ...req, swept: 5_000, recovering: { amount: 0, vtxos: [] }, unclaimed: { amount: 0, vtxos: [] } })
+    const result = await sdkClaim(wallet, makeToken(), {
+      ...record('recover'),
+      action: 'claimed',
+      outcome: 'sweep-pending',
+      status: 'sweep-pending',
+      updatedAt: 2,
+    })
+    expect(wallet.lastRequest.action).toBe('claim')
+    expect(result.record.status).toBe('sweep-pending')
+  })
 })
 
 const record = (id: string) => ({

@@ -52,11 +52,14 @@ export const issue = async (wallet: CashWallet, amount: number) => {
 
 export const claim = async (wallet: CashWallet, token: string, previous?: CashRecord) => {
   const report = await inspect(wallet, token)
-  if (['unissued', 'claimed', 'exited'].includes(report.status)) throw new Error(`Voucher is ${report.status}`)
+  const pendingSweep = previous?.outcome === 'sweep-pending' || previous?.status === 'sweep-pending'
+  if (['unissued', 'exited'].includes(report.status) || (report.status === 'claimed' && !pendingSweep)) {
+    throw new Error(`Voucher is ${report.status}`)
+  }
   const response = await request(wallet, { action: 'claim', token })
   if (response.action !== 'claim') throw new Error('Voucher claim failed')
   const recovering = response.recovering.amount
-  const outcome = recovering > 0 ? 'recovering' : 'claimed'
+  const outcome = recovering > 0 ? 'recovering' : response.swept > 0 ? 'sweep-pending' : 'claimed'
   const record: CashRecord = {
     id: report.cashId,
     action: 'claimed',
@@ -101,7 +104,7 @@ export const refresh = async (wallet: CashWallet, records: CashRecord[]) => {
           issueTxIds: [...new Set([...record.issueTxIds, ...report.issueTxIds])],
           claimTxIds: [...new Set([...record.claimTxIds, ...report.claimTxIds])],
           token:
-            (record.action === 'claimed' && report.status === 'claimed') || report.status === 'exited'
+            report.status === 'exited' || (report.status === 'claimed' && record.outcome === 'claimed')
               ? undefined
               : record.token,
         }
