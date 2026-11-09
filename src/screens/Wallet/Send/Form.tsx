@@ -402,7 +402,7 @@ export default function SendForm() {
     if (!readyToParse) return
     setRecipientError('')
     const parseRecipient = async () => {
-      if (!recipient) return setSendInfo((prev) => ({ ...prev, ...noTarget }))
+      if (!recipient) return setSendInfo((prev) => ({ ...prev, ...noTarget, recipient: undefined }))
       const lowerCaseData = recipient.toLowerCase().replace(/^lightning:/, '')
       if (isURLWithLightningQueryString(recipient)) {
         const url = new URL(recipient)

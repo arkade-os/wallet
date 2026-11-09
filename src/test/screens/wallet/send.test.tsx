@@ -780,6 +780,37 @@ describe('a changed recipient', () => {
     expect(navigate).toHaveBeenCalledWith(Pages.CashDetail)
   })
 
+  it('issues a voucher after clearing a parsed destination', async () => {
+    const issueCash = vi.fn(async () => ({ id: 'voucher-id' }))
+    const setVoucher = vi.fn()
+    const navigate = vi.fn()
+    const { container } = render(
+      <StatefulForm
+        cashContext={{ setVoucher, clearVoucher: vi.fn(), pendingToken: {} }}
+        walletContext={{ ...walletContext, issueCash }}
+        navigationContext={{ ...mockNavigationContextValue, navigate }}
+        swapsContext={{ sendRouter: vi.fn() }}
+      />,
+    )
+    const input = container.querySelector<HTMLInputElement>('input[name="send-address"]')!
+    const uri = `bitcoin:${BTC}?amount=0.00005000`
+
+    fireEvent.change(input, { target: { value: uri } })
+    await waitFor(() => expect(current.address).toBe(BTC), settle)
+    await waitFor(() => expect(current.recipient).toBe(uri), settle)
+
+    fireEvent.change(input, { target: { value: '' } })
+    await waitFor(() => expect(current.recipient).toBeUndefined(), settle)
+    await waitFor(() => expect(screen.getByText('Issue voucher')).toBeTruthy(), settle)
+    const button = screen.getByText('Issue voucher').closest('button')!
+    await waitFor(() => expect(button).toBeEnabled(), settle)
+    fireEvent.click(button)
+
+    await waitFor(() => expect(issueCash).toHaveBeenCalledWith(SATS), settle)
+    expect(setVoucher).toHaveBeenCalledWith('voucher-id')
+    expect(navigate).toHaveBeenCalledWith(Pages.CashDetail)
+  })
+
   it('pays the BTC address typed after an LNURL, not the LNURL', async () => {
     const fetchMocker = lnurlServer()
     const { sendRouter, navigate, type } = renderStateful()
