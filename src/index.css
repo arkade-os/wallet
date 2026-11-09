@@ -1370,6 +1370,7 @@ button {
 
 .table-row__label {
   display: flex;
+  flex: none;
   min-width: 0;
   align-items: center;
   gap: 0.5rem;
@@ -1402,6 +1403,7 @@ button {
 
 .table-row__value-wrap {
   display: flex;
+  flex-wrap: wrap;
   min-width: 0;
   align-items: center;
   justify-content: flex-end;
@@ -1419,23 +1421,28 @@ button {
 }
 
 .table-row__save {
-  flex: none;
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--radius-full);
-  color: color-mix(in srgb, var(--purple-700) 82%, var(--fg));
-  background: color-mix(in srgb, var(--purple-100) 70%, var(--bg));
+  order: 1;
+  flex: 0 0 100%;
+  padding: 0.125rem 0;
+  color: var(--purpletext);
   font-size: var(--text-xs);
+  font-weight: 500;
+  text-align: right;
   white-space: nowrap;
+}
+
+.table-row__save:active {
+  opacity: 0.65;
 }
 
 .table-row__contact-badge {
   max-width: 9rem;
   flex: none;
   overflow: hidden;
-  padding: 0.125rem 0.5rem;
+  padding: 0.125rem 0.4375rem;
   border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--purple-100) 70%, var(--bg));
-  color: color-mix(in srgb, var(--purple-700) 82%, var(--fg));
+  background: var(--purple10);
+  color: color-mix(in srgb, var(--purple-500) 70%, var(--fg));
   font-size: var(--text-xs);
   text-overflow: ellipsis;
   white-space: nowrap;
