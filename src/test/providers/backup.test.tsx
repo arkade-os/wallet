@@ -105,7 +105,7 @@ describe('BackupProvider restore', () => {
 
     expect(mocks.save).toHaveBeenCalledTimes(3)
     expect(mocks.save).toHaveBeenNthCalledWith(1, JSON.stringify({ config: updatedConfig }))
-    expect(JSON.parse(mocks.save.mock.calls[1][0]).cash.encrypted).toBe(true)
+    expect(JSON.parse(mocks.save.mock.calls[1][0]).cash.records).toEqual([])
     expect(mocks.save).toHaveBeenNthCalledWith(3, JSON.stringify({ solverCards: cards }))
   })
 

@@ -38,12 +38,22 @@ export interface ActivityHistoryOptions {
 export const mergeCashActivities = (activities: Activity[]): Activity[] => {
   const cash = activities.filter((activity) => activity.intent?.kind === 'arkade-cash')
   const ids = new Set(cash.map((activity) => activity.id))
-  const txids = new Set(cash.flatMap((activity) => activity.txs.map((tx) => txidOfArkTransaction(tx))))
-  return activities.filter(
-    (activity) =>
-      activity.intent?.kind === 'arkade-cash' ||
-      (!ids.has(activity.id) && !activity.txs.some((tx) => txids.has(txidOfArkTransaction(tx)))),
+  const cashByTxid = new Map(cash.flatMap((row) => row.txs.map((tx) => [txidOfArkTransaction(tx), row] as const)))
+  const ordinaryTxids = new Set(
+    activities
+      .filter((activity) => activity.intent?.kind !== 'arkade-cash')
+      .flatMap((activity) => activity.txs.map((tx) => txidOfArkTransaction(tx))),
   )
+  // A voucher settlement can share a transaction with an ordinary batch row.
+  // Graft the Cash intent onto that canonical row instead of deleting it.
+  return activities.flatMap((activity) => {
+    if (activity.intent?.kind === 'arkade-cash') {
+      const duplicated = activity.txs.some((tx) => ordinaryTxids.has(txidOfArkTransaction(tx)))
+      return ids.has(activity.id) && !duplicated ? [activity] : []
+    }
+    const linked = activity.txs.map((tx) => cashByTxid.get(txidOfArkTransaction(tx))).find(Boolean)
+    return [linked ? { ...activity, intent: linked.intent } : activity]
+  })
 }
 
 const graftMetadata = (tx: Tx, metadata?: TransactionActivityMetadata): Tx =>

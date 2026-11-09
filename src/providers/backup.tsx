@@ -4,10 +4,10 @@ import { consoleError } from '@/lib/logs'
 import { NostrStorage } from '@/lib/nostr'
 import { readSolverCards, saveSolverCards } from '@/lib/solverCards'
 import { LocalCardInput } from '@arkade-os/solver-discovery'
-import { cashSecretCipher } from '../lib/arkadeCashSecret'
 import { createContext, useContext, useRef, type ReactNode } from 'react'
 import { mergeCash, type CashRecord } from '../lib/arkadeCashTransfer'
 import { mergeBackupSnapshots } from '../lib/cashBackup'
+import { hex } from '@scure/base'
 
 interface BackupContextProps {
   backupAndUpdateConfig: (config: Config) => void
@@ -36,10 +36,14 @@ export function BackupProvider({ children }: { children: ReactNode }) {
   const storage = useRef<NostrStorage | null>(null)
   const configRef = useRef(config)
   const cashRecords = useRef<CashRecord[]>([])
+  const cashKey = useRef<string>()
   configRef.current = config
 
   const initialiseNostrBackup = (key: Uint8Array) => {
     try {
+      const nextKey = hex.encode(key)
+      if (cashKey.current && cashKey.current !== nextKey) cashRecords.current = []
+      cashKey.current = nextKey
       storage.current = new NostrStorage(key)
     } catch (err) {
       consoleError(err, 'Failed to initialize Nostr backup')
@@ -76,8 +80,7 @@ export function BackupProvider({ children }: { children: ReactNode }) {
     const key = storage.current
     if (!current.nostrBackup || !key) return
     const snapshot = { records, updatedAt: Math.floor(Date.now() / 1000) }
-    const content = cashSecretCipher(key.secretKey()).encrypt(JSON.stringify(snapshot))
-    await key.save(JSON.stringify({ cash: { content, encrypted: true } }))
+    await key.save(JSON.stringify({ cash: snapshot }))
   }
 
   const restore = async (key: Uint8Array) => {
@@ -100,12 +103,10 @@ export function BackupProvider({ children }: { children: ReactNode }) {
       if (data.config) {
         loaded.config = data.config
       }
-      if (data.cash) {
+      if (data.cash?.records) {
         try {
           snapshots.push({
-            records: data.cash.content
-              ? JSON.parse(cashSecretCipher(key).decrypt(data.cash.content)).records
-              : data.cash.records,
+            records: data.cash.records,
             updatedAt: data.cash.updatedAt ?? event.created_at,
           })
         } catch (err) {
@@ -148,33 +149,4 @@ export function BackupProvider({ children }: { children: ReactNode }) {
       {children}
     </BackupContext.Provider>
   )
-}
-
-// Cash snapshots may include a recovery secret an older backup still contains.
-export function applyCashBackupRecords(
-  records: CashRecord[],
-  snapshots: { records: CashRecord[]; updatedAt: number }[],
-): CashRecord[] {
-  const ordered = [...snapshots].sort((a, b) => a.updatedAt - b.updatedAt)
-  const cleared = new Set<string>()
-  const secretById = new Map<string, string>()
-  for (const snapshot of ordered) {
-    for (const record of snapshot.records) {
-      if (record.token) secretById.set(record.id, record.token)
-      else if (cleared.has(record.id)) secretById.delete(record.id)
-    }
-    cleared.clear()
-    new Set([...secretById.keys(), ...snapshot.records.map((record) => record.id)]).forEach((id) => {
-      if (!snapshot.records.some((record) => record.id === id)) cleared.add(id)
-    })
-  }
-  const merged = mergeBackupSnapshots(ordered.map((cash) => ({ cash })))
-  return mergeCash(
-    records,
-    merged.map((record) => ({ ...record, token: secretById.get(record.id) })),
-  )
-}
-
-export function mergeLegacyBackups(data: { config?: Config; solverCards?: LocalCardInput[] }): Config | undefined {
-  return data.config
 }

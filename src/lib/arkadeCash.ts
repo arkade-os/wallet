@@ -1,5 +1,5 @@
 import type { Activity, ArkadeCashRequest, ArkadeCashResponse } from '@arkade-os/sdk'
-import { mergeCash, parseCashToken, type CashRecord, type CashRecordStore } from './arkadeCashTransfer'
+import { parseCashToken, type CashRecord } from './arkadeCashTransfer'
 
 export type CashWallet = {
   arkadeCash(request: ArkadeCashRequest): Promise<ArkadeCashResponse | undefined>
@@ -23,7 +23,7 @@ export const inspect = async (wallet: CashWallet, token: string) => {
   return report
 }
 
-export const issue = async (wallet: CashWallet, store: CashRecordStore, amount: number) => {
+export const issue = async (wallet: CashWallet, amount: number) => {
   let token: string
   try {
     const response = await request(wallet, { action: 'create', amount })
@@ -47,17 +47,15 @@ export const issue = async (wallet: CashWallet, store: CashRecordStore, amount: 
     token,
     status: report.status,
   }
-  await store.save(mergeCash(await store.load(), [record]))
   return record
 }
 
-export const claim = async (wallet: CashWallet, store: CashRecordStore, token: string) => {
+export const claim = async (wallet: CashWallet, token: string, previous?: CashRecord) => {
   const report = await inspect(wallet, token)
   if (['unissued', 'claimed', 'exited'].includes(report.status)) throw new Error(`Voucher is ${report.status}`)
   const response = await request(wallet, { action: 'claim', token })
   if (response.action !== 'claim') throw new Error('Voucher claim failed')
   const recovering = response.recovering.amount
-  const previous = (await store.load()).find((item) => item.id === report.cashId)
   const outcome = recovering > 0 ? 'recovering' : 'claimed'
   const record: CashRecord = {
     id: report.cashId,
@@ -73,7 +71,6 @@ export const claim = async (wallet: CashWallet, store: CashRecordStore, token: s
     status: outcome,
     token,
   }
-  await store.save(mergeCash(await store.load(), [record]))
   return { record, recovering, swept: response.swept, unclaimed: response.unclaimed }
 }
 
@@ -88,9 +85,9 @@ export const activities = async (wallet: CashWallet, records: CashRecord[]): Pro
   return result.activities
 }
 
-export const refresh = async (wallet: CashWallet, store: CashRecordStore) => {
-  const records = await Promise.all(
-    (await store.load()).map(async (record) => {
+export const refresh = async (wallet: CashWallet, records: CashRecord[]) => {
+  return Promise.all(
+    records.map(async (record) => {
       if (!record.token) return record
       try {
         const report = await inspect(wallet, record.token)
@@ -113,6 +110,4 @@ export const refresh = async (wallet: CashWallet, store: CashRecordStore) => {
       }
     }),
   )
-  await store.save(records)
-  return records
 }

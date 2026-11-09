@@ -81,9 +81,20 @@ describe('activitiesToTxs', () => {
       }),
     }
     const ordinary = { ...activity('funding', [funding]) }
-    expect(mergeCashActivities([ordinary, cash]).map((item) => item.id)).toEqual(['arkade-cash:public-id'])
+    expect(mergeCashActivities([ordinary, cash]).map((item) => item.id)).toEqual(['funding'])
     const [row] = activitiesToTxs(mergeCashActivities([ordinary, cash]), empty)
     expect(row.cash).toMatchObject({ id: 'public-id', direction: 'issued' })
+  })
+
+  it('keeps an independent ordinary row when a voucher shares its txid', () => {
+    const funding = arkTx('shared', { type: TxType.TxSent })
+    const cash = activity('arkade-cash:public-id', [funding], {
+      kind: 'arkade-cash',
+      metadata: { cashId: 'public-id', direction: 'issued' },
+    })
+    const ordinary = activity('batch', [funding])
+    expect(mergeCashActivities([ordinary, cash]).map((item) => item.id)).toEqual(['batch'])
+    expect(mergeCashActivities([ordinary, cash])[0].intent?.kind).toBe('arkade-cash')
   })
 
   it('maps an issued activity to its public voucher detail', () => {

@@ -19,7 +19,8 @@ const seedRegtestRegistries = async () => {
   ] as const
   await Promise.all(
     files.map(async ([path, contents]) => {
-      if (path.endsWith('regtest.json')) await writeFile(path, contents)
+      if (path.endsWith('regtest.json'))
+        await writeFile(path, contents, { flag: 'wx' }).catch(() => writeFile(path, contents))
     }),
   )
 }
@@ -46,7 +47,7 @@ test('issues, reveals, claims and links a Cash voucher in activity', async ({ pa
   await page.getByRole('button', { name: 'Claim voucher' }).first().click()
   await page.getByRole('textbox').fill(token)
   await page.getByRole('button', { name: 'Claim voucher' }).last().click()
-  await expect(page.getByText('Claimed')).toBeVisible({ timeout: 60_000 })
+  await expect(page.getByText('Claimed', { exact: true })).toBeVisible({ timeout: 60_000 })
 
   await navigateHome(page)
   await page.getByTestId('top-right-activity').or(page.getByTestId('desktop-nav-activity')).first().click()

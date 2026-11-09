@@ -15,18 +15,22 @@ import { ConfigContext } from '../../../providers/config'
 import { Unit } from '../../../lib/types'
 import { toSatoshis } from '../../../lib/format'
 import { extractError } from '../../../lib/error'
+import { FiatContext } from '../../../providers/fiat'
 
 export default function IssueCash() {
   const { issueCash } = useContext(WalletContext)
   const { setVoucher } = useContext(CashContext)
   const { navigate } = useContext(NavigationContext)
   const { config } = useContext(ConfigContext)
+  const { useFiat } = useContext(ConfigContext)
+  const { fromFiat } = useContext(FiatContext)
   const [value, setValue] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const amount = Number(value)
-  const sats = config.unit === Unit.BTC ? toSatoshis(amount) : amount
+  const sats = useFiat ? fromFiat(amount) : config.unit === Unit.BTC ? toSatoshis(amount) : Math.floor(amount)
   const issue = async () => {
+    if (busy) return
     setBusy(true)
     setError('')
     try {

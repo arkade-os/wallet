@@ -12,15 +12,18 @@ export function usePortfolioBalanceDisplay() {
   const { fiatDecimals } = useContext(FiatContext)
   const { totalFiat, totalSats } = usePortfolioFiat()
   const decimals = fiatDecimals()
+  const unknown = totalSats < 0
 
-  const { amount: balance, unit } = formatFiatAmountParts(totalFiat, config.currency, {
+  const formatted = formatFiatAmountParts(totalFiat, config.currency, {
     bitcoinUnit: config.unit,
     maximumFractionDigits: decimals,
     minimumFractionDigits: decimals,
   })
+  const balance = unknown ? 'Unknown' : formatted.amount
+  const unit = unknown ? '' : formatted.unit
 
   // Secondary line: the same total expressed in the configured bitcoin unit.
-  const secondary = formatBitcoinAmountParts(totalSats, config.unit, {
+  const secondary = formatBitcoinAmountParts(Math.max(totalSats, 0), config.unit, {
     maximumFractionDigits: config.unit === Unit.SATS ? 0 : 8,
     minimumFractionDigits: config.unit === Unit.SATS ? 0 : 8,
   })
@@ -41,7 +44,7 @@ export function usePortfolioBalanceDisplay() {
 
   // When the currency is BTC both lines show the same total; hide the
   // redundant secondary line.
-  const showSecondary = config.currency !== Currencies.BTC
+  const showSecondary = !unknown && config.currency !== Currencies.BTC
 
   return {
     balance,

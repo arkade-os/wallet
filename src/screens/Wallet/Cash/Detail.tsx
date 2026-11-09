@@ -42,10 +42,7 @@ export default function CashDetail() {
         </Content>
       </>
     )
-  const available =
-    record.token &&
-    ((record.status === 'claimed' && record.action === 'issued') ||
-      ['available', 'unissued'].includes(record.status ?? 'available'))
+  const available = record.token && (record.status === 'claimed' || record.status === 'available')
   return (
     <>
       <Header text='Cash voucher' back={() => navigate(Pages.Cash)} />

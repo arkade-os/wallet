@@ -41,12 +41,11 @@ describe('Cash SDK adapter', () => {
         claimTxIds: [],
       }),
     }
-    const store = memoryStore()
-    const view = await sdkIssue(wallet, store, 5_000)
+    const view = await sdkIssue(wallet, 5_000)
     expect(view.id).toBe('cash-id')
     expect(view.status).toBe('available')
     expect(view.token).toBe(token)
-    expect(store.records[0]).toMatchObject({ action: 'issued', amount: 5_000, token, issueTxIds: ['funding'] })
+    expect(view).toMatchObject({ action: 'issued', amount: 5_000, token, issueTxIds: ['funding'] })
   })
 
   it('stores both a claim and a pending recovery token', async () => {
@@ -63,12 +62,27 @@ describe('Cash SDK adapter', () => {
             unclaimed: { amount: 0, vtxos: [] },
             claimTxIds: ['claim'],
           })
-    const store = memoryStore()
-    await store.save([{ ...record('recover'), token }])
-    const result = await sdkClaim(wallet, store, token)
+    const previous = { ...record('recover'), token, updatedAt: 2 }
+    const result = await sdkClaim(wallet, token, previous)
     expect(result.recovering).toBe(1_000)
-    expect(store.records[0].claimTxIds).toEqual(['claim'])
+    expect(result.record.claimTxIds).toEqual(['claim'])
     expect(wallet.lastRequest.action).toBe('claim')
+  })
+
+  it('is a pure builder when the provider owns persistence', async () => {
+    const wallet = cashWallet(makeToken())
+    wallet.arkadeCash = async (req: any) =>
+      req.action === 'get'
+        ? { ...req, status: 'available', cashId: 'cash-id', issueTxIds: [], claimTxIds: [] }
+        : {
+            ...req,
+            swept: 5_000,
+            recovering: { amount: 0, vtxos: [] },
+            unclaimed: { amount: 0, vtxos: [] },
+            claimTxIds: ['claim'],
+          }
+    const result = await sdkClaim(wallet, makeToken(), { ...record('recover'), updatedAt: 2 })
+    expect(result.record).toMatchObject({ action: 'claimed', claimTxIds: ['claim'] })
   })
 })
 
@@ -82,20 +96,6 @@ const record = (id: string) => ({
   issueTxIds: ['a'.repeat(64)],
   claimTxIds: [],
 })
-
-function memoryStore() {
-  const store = {
-    records: [] as any[],
-    load: async () => store.records,
-    save: async (records: any[]) => {
-      store.records = records
-    },
-    clear: async () => {
-      store.records = []
-    },
-  }
-  return store
-}
 
 describe('Cash record merging', () => {
   it('only removes a secret when the fresh record explicitly omits it', () => {

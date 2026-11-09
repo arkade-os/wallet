@@ -34,7 +34,6 @@ import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
 import { arkNoteInUrl } from '../lib/arknote'
 import { cashTokenInUrl, deepLinkInUrl } from '../lib/deepLink'
-import { CashContext } from './cash'
 import { assetNameChanged, referencedAssetIds } from '../lib/assets'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
@@ -95,6 +94,7 @@ export type WalletAuthState = 'unknown' | 'passwordless' | 'locked' | 'authentic
 
 export interface WalletContextProps {
   cashRecords?: CashRecord[]
+  pendingCashToken?: { current?: string }
   issueCash?: (amount: number) => Promise<CashRecord>
   claimCash?: (token: string) => Promise<{ record: CashRecord; swept: number; recovering: number }>
   refreshCash?: () => Promise<CashRecord[]>
@@ -151,6 +151,7 @@ export interface WalletContextProps {
 }
 export const WalletContext = createContext<WalletContextProps>({
   cashRecords: [],
+  pendingCashToken: {},
   issueCash: async () => {
     throw new Error('Wallet is locked')
   },
@@ -213,7 +214,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { isRegistered } = useContext(AssetsContext)
   const { initialiseNostrBackup, getCashRecords, backupCashRecords } = useContext(BackupContext)
   const { config, updateConfig } = useContext(ConfigContext)
-  const { pendingToken } = useContext(CashContext)
   const { navigate } = useContext(NavigationContext)
   const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo } = useContext(FlowContext)
   const { notifyTxSettled } = useContext(NotificationsContext)
@@ -232,7 +232,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const cashRecordsRef = useRef(cashRecords)
   cashRecordsRef.current = cashRecords
   const cashStoreRef = useRef<ReturnType<typeof encryptedSecretStorage>>()
-  const pendingCashTokenRef = useRef<string>()
+  const pendingCashToken = useRef<string>()
+  const cashKeyRef = useRef<string>()
   const cashDeepLinkHandled = useRef(false)
   const cashMutation = useRef<Promise<unknown>>(Promise.resolve())
   const mutateCash = (action: () => Promise<void>) => {
@@ -551,16 +552,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         consoleError(err, 'error decoding ark note ')
       }
     }
-    pendingCashTokenRef.current = cashTokenInUrl()
+    pendingCashToken.current = cashTokenInUrl()
     window.location.hash = ''
   }, [])
 
   useEffect(() => {
     // Precedence is given to NoteInfo, but they are mutually exclusive because depend on window.location.hash
     if (!initialized || !dataReady) return
-    if (pendingCashTokenRef.current && !cashDeepLinkHandled.current) {
-      pendingToken.current = pendingCashTokenRef.current
-      pendingCashTokenRef.current = undefined
+    if (pendingCashToken.current && !cashDeepLinkHandled.current) {
       cashDeepLinkHandled.current = true
       navigate(Pages.CashClaim)
       return
@@ -591,7 +590,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       const unrolledVtxos = await getUnrolledVtxos(swWallet)
       if (isFirstLoad) setLoadingStatus(t('loading.fetchingTransactions'))
       const regularActivities = await getActivities(swWallet)
-      const vouchers = await cashActivities(swWallet, cashRecordsRef.current)
+      const vouchers = await cashActivities(swWallet, cashRecordsRef.current).catch((error) => {
+        consoleError(error, 'Failed to load Arkade Cash activity')
+        return []
+      })
       const activities = mergeCashActivities([...regularActivities, ...vouchers])
       // Before the metadata snapshot below, not after: `resolveExits` persists
       // what it learns, and the history memo reads a snapshot taken here, so a
@@ -603,7 +605,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // up what the store says.
       const lnSends = await lnSendViews()
       if (isFirstLoad) setLoadingStatus(t('loading.updatingBalance'))
-      const { total, available, assets, availableAssets, unrolled } = await getBalance(swWallet)
+      const { total, available, assets, availableAssets, unrolled, boarding } = await getBalance(swWallet)
+      if (boarding.loaded === false) setBalance(-1)
+      else setBalance(total - unrolled)
       // An exited coin is no longer Arkade money: it cannot be spent offchain,
       // no batch can lift it back, and this wallet has no path that moves it —
       // the sweep belongs to the exit tool. The SDK's `total` is right for what
@@ -638,7 +642,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           consoleError(err, `error prefetching metadata for ${assetId}`)
         }
       }
-      setBalance(total - unrolled)
       setAvailableBalance(available)
       setAssetBalances(ownedAssets)
       setAvailableAssetBalances(availableAssets)
@@ -650,8 +653,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       setHistory({ activities, metadata, lnSends, exits })
       const pendingToken = cashRecordsRef.current.find((record) => record.status === 'unissued')?.token
       if (pendingToken) {
-        const report = await inspectCashToken(swWallet, pendingToken)
-        if (!cashRecordsRef.current.some((record) => record.id === report.cashId)) {
+        const report = await inspectCashToken(swWallet, pendingToken).catch((error) => {
+          consoleError(error, 'Failed to inspect pending voucher')
+          return undefined
+        })
+        if (report && !cashRecordsRef.current.some((record) => record.id === report.cashId)) {
           await saveCash({
             id: report.cashId,
             action: 'claimed',
@@ -692,7 +698,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (!svcWallet || !cashStoreRef.current || !initialized) throw new Error('Unlock the wallet first')
     let result!: CashRecord
     await mutateCash(async () => {
-      result = await issueCashToken(svcWallet, cashStoreRef.current!, amount)
+      result = await issueCashToken(svcWallet, amount)
       const records = mergeCash(cashRecordsRef.current, [result])
       await cashStoreRef.current?.save(records)
       cashRecordsRef.current = records
@@ -705,12 +711,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const claimCash = async (token: string) => {
     if (!svcWallet || !cashStoreRef.current || !initialized) throw new Error('Unlock the wallet first')
     let result!: Awaited<ReturnType<typeof claimCashToken>>
-    pendingToken.current = token
+    pendingCashToken.current = token
     try {
       await mutateCash(async () => {
         const store = cashStoreRef.current
         if (!store) throw new Error('Unlock the wallet first')
-        result = await claimCashToken(svcWallet, store, token)
+        const previous = cashRecordsRef.current.find((item) => item.token === token)
+        result = await claimCashToken(svcWallet, token, previous)
         const records = mergeCash(cashRecordsRef.current, [result.record])
         await store.save(records)
         cashRecordsRef.current = records
@@ -719,7 +726,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       })
       await reloadWallet(svcWallet)
     } finally {
-      pendingToken.current = undefined
+      pendingCashToken.current = undefined
     }
     return result
   }
@@ -730,7 +737,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     await mutateCash(async () => {
       const store = cashStoreRef.current
       if (!store) throw new Error('Unlock the wallet first')
-      result = mergeCash(cashRecordsRef.current, await refreshCashTokens(svcWallet, store))
+      result = mergeCash(cashRecordsRef.current, await refreshCashTokens(svcWallet, cashRecordsRef.current))
       await store.save(result)
       cashRecordsRef.current = result
       setCashRecords(result)
@@ -1060,10 +1067,18 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       ? deriveNostrKeyFromMnemonic(credentials.mnemonic, isMainnet(network))
       : credentials.privateKey!
     cashStoreRef.current = encryptedSecretStorage(secret)
-    const local = await cashStoreRef.current.load()
+    const keyId = hex.encode(secret)
+    const local =
+      cashKeyRef.current && cashKeyRef.current !== keyId
+        ? await cashStoreRef.current.clear().then(() => [])
+        : await cashStoreRef.current.load().catch((error) => {
+            consoleError(error, 'Failed to load Cash vouchers')
+            return []
+          })
     const restored = getCashRecords()
     const records = mergeCash(local, restored)
     await cashStoreRef.current.save(records)
+    cashKeyRef.current = keyId
     setCashRecords(records)
     updateWallet({ ...wallet, network, pubkey })
     setInitialized(true)
@@ -1247,6 +1262,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         reloadWallet,
         devAutoInitFailed,
         cashRecords,
+        pendingCashToken,
         issueCash,
         claimCash,
         refreshCash,

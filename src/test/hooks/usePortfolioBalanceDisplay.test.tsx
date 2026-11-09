@@ -1,13 +1,14 @@
 import { renderHook } from '@testing-library/react'
 import { ReactNode } from 'react'
 import { describe, expect, it } from 'vitest'
+import { WalletContext } from '../../providers/wallet'
 import { Currencies, Unit } from '../../lib/types'
 import { usePortfolioBalanceDisplay } from '../../hooks/usePortfolioBalanceDisplay'
 import { ConfigContext } from '../../providers/config'
 import { FiatContext } from '../../providers/fiat'
-import { mockConfigContextValue, mockFiatContextValue } from '../screens/mocks'
+import { mockConfigContextValue, mockFiatContextValue, mockWalletContextValue } from '../screens/mocks'
 
-function wrapper({ currency, unit }: { currency: Currencies; unit: Unit }) {
+function wrapper({ currency, unit, balance = 0 }: { currency: Currencies; unit: Unit; balance?: number }) {
   const config = {
     currency,
     unit,
@@ -15,17 +16,19 @@ function wrapper({ currency, unit }: { currency: Currencies; unit: Unit }) {
   } as any
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
-      <ConfigContext.Provider value={{ ...mockConfigContextValue, config } as any}>
-        <FiatContext.Provider
-          value={{
-            ...mockFiatContextValue,
-            toFiat: (sats?: number) => sats ?? 0,
-            fiatDecimals: () => 2,
-          }}
-        >
-          {children}
-        </FiatContext.Provider>
-      </ConfigContext.Provider>
+      <WalletContext.Provider value={{ ...mockWalletContextValue, balance }}>
+        <ConfigContext.Provider value={{ ...mockConfigContextValue, config } as any}>
+          <FiatContext.Provider
+            value={{
+              ...mockFiatContextValue,
+              toFiat: (sats?: number) => sats ?? 0,
+              fiatDecimals: () => 2,
+            }}
+          >
+            {children}
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </WalletContext.Provider>
     )
   }
 }
@@ -46,6 +49,14 @@ describe('usePortfolioBalanceDisplay', () => {
       wrapper: wrapper({ currency: Currencies.BTC, unit: Unit.SATS }),
     })
 
+    expect(result.current.showSecondary).toBe(false)
+  })
+
+  it('shows unknown until boarding has loaded', () => {
+    const { result } = renderHook(() => usePortfolioBalanceDisplay(), {
+      wrapper: wrapper({ currency: Currencies.USD, unit: Unit.SATS, balance: -1 }),
+    })
+    expect(result.current.balance).toBe('Unknown')
     expect(result.current.showSecondary).toBe(false)
   })
 })
