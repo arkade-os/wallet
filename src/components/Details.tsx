@@ -41,6 +41,8 @@ export interface DetailsProps {
   date?: string
   destination?: string
   direction?: string
+  /** Rendered as a small action beside the destination when it is savable. */
+  saveContactAction?: { label: string; onClick: () => void }
   expiry?: string
   fees?: number
   fundedTxid?: string
@@ -90,6 +92,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     date,
     direction,
     destination,
+    saveContactAction,
     expiry,
     fees,
     fundedTxid,
@@ -207,7 +210,25 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     [t('accounts.address'), address, <TypeIcon key='address-icon' />],
     [t('accounts.arknote'), arknote, <NotesIcon key='notes-icon' small />],
     [t('accounts.invoice'), invoice, <TypeIcon key='invoice-icon' />],
-    [t('accounts.destination'), destination, <TypeIcon key='destination-icon' />],
+    [
+      t('accounts.destination'),
+      destination,
+      <TypeIcon key='destination-icon' />,
+      undefined,
+      saveContactAction && destination ? (
+        <button
+          key='save-contact'
+          type='button'
+          className='table-row__save'
+          onClick={(event) => {
+            event.stopPropagation()
+            saveContactAction.onClick()
+          }}
+        >
+          {saveContactAction.label}
+        </button>
+      ) : undefined,
+    ],
     [t('accounts.receivedAt'), receivedAt, <TypeIcon key='received-at-icon' />],
     [t('accounts.rail'), rail, <DirectionIcon key='rail-icon' />],
     [t('accounts.funded'), fundedTxid, <HashIcon key='funded-icon' />, offchainTxOnClick(fundedTxid)],

@@ -101,7 +101,7 @@ export default function DesktopWalletShell({ logoVisible, page }: DesktopWalletS
               ? 'desktop-wallet-nav__item desktop-wallet-nav__item--active'
               : 'desktop-wallet-nav__item'
           }
-          aria-current={settingsActive ? 'page' : undefined}
+          aria-current={settingsActive && !contactsActive ? 'page' : undefined}
           data-testid='desktop-nav-settings'
           onClick={goToSettings}
         >

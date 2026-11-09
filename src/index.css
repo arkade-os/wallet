@@ -1418,6 +1418,16 @@ button {
   color: color-mix(in srgb, var(--fg) 45%, transparent);
 }
 
+.table-row__save {
+  flex: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-full);
+  color: color-mix(in srgb, var(--purple-700) 82%, var(--fg));
+  background: color-mix(in srgb, var(--purple-100) 70%, var(--bg));
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
 .table-row__value {
   display: inline-block;
   max-width: min(14rem, 48vw);

@@ -75,6 +75,8 @@ import { testDomains } from '../../../lib/constants'
 import UnverifiedBadge from '../../../components/UnverifiedBadge'
 import { useTranslation } from '../../../providers/language'
 import ContactPicker from '../../../components/ContactPicker'
+import Checkbox from '../../../components/Checkbox'
+import { contactForAddress, isReusableContact } from '../../../lib/contacts'
 
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
 
@@ -860,6 +862,15 @@ export default function SendForm() {
     setReadyToParse(true)
   }
 
+  const saveableRecipient = sendInfo.address || sendInfo.arkAddress || sendInfo.lnUrl
+  const alreadySaved = Boolean(contactForAddress(saveableRecipient))
+  const canSaveRecipient = Boolean(saveableRecipient && isReusableContact(saveableRecipient) && !alreadySaved)
+
+  const toggleSaveAsContact = () => {
+    if (!canSaveRecipient) return
+    setSendInfo((prev) => ({ ...prev, saveAsContact: !prev.saveAsContact }))
+  }
+
   const handleContinue = async () => {
     setProcessing(true)
     const satoshis = sendInfo.satoshis ?? 0
@@ -1138,6 +1149,7 @@ export default function SendForm() {
                 value={recipient}
               />
               <ContactPicker disabled={processing} onSelect={handleSelectContact} />
+              {canSaveRecipient ? <Checkbox onChange={toggleSaveAsContact} text={t('contacts.saveAsContact')} /> : null}
               {brantaLoading ? (
                 <Text color='neutral-500' smaller>
                   {t('send.verifyingAddress')}

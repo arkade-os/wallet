@@ -4,7 +4,7 @@ import TransactionsList from '../../components/TransactionsList'
 import { ConfigContext } from '../../providers/config'
 import { FiatContext } from '../../providers/fiat'
 import { FlowContext } from '../../providers/flow'
-import { NavigationContext } from '../../providers/navigation'
+import { NavigationContext, Pages } from '../../providers/navigation'
 import { WalletContext } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
 import { AssetsContext } from '../../providers/assets'
@@ -24,7 +24,7 @@ import { saveContact } from '../../lib/contacts'
 describe('TransactionsList', () => {
   beforeEach(() => localStorage.clear())
 
-  it('shows a saved contact with its name and person icon', () => {
+  it('labels a saved contact without turning the row into a contact link', () => {
     const address = 'alice@pay.example'
     saveContact(address, 'Alice')
     const tx = {
@@ -41,12 +41,14 @@ describe('TransactionsList', () => {
       type: 'sent',
     } satisfies Tx
     const setOption = vi.fn()
+    const setTxInfo = vi.fn()
+    const navigate = vi.fn()
     render(
       <OptionsContext.Provider value={{ setOption } as any}>
-        <NavigationContext.Provider value={mockNavigationContextValue}>
+        <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate }}>
           <ConfigContext.Provider value={mockConfigContextValue}>
             <FiatContext.Provider value={mockFiatContextValue}>
-              <FlowContext.Provider value={mockFlowContextValue}>
+              <FlowContext.Provider value={{ ...mockFlowContextValue, setTxInfo }}>
                 <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [tx] } as any}>
                   <TransactionsList mode='static' />
                 </WalletContext.Provider>
@@ -57,8 +59,10 @@ describe('TransactionsList', () => {
       </OptionsContext.Provider>,
     )
     expect(screen.getByText('Sent to Alice')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Alice' }))
-    expect(setOption).toHaveBeenCalledWith(expect.anything())
+    expect(screen.queryByRole('button', { name: 'Alice' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('Sent to Alice'))
+    expect(setTxInfo).toHaveBeenCalledWith(tx)
+    expect(navigate).toHaveBeenCalledWith(Pages.Transaction)
   })
   it('filters the list by transaction type', () => {
     const swapTx = { ...mockWalletContextValue.txs[0], roundTxid: 'swap-tx', type: 'swap' }

@@ -32,6 +32,27 @@
   background: color-mix(in srgb, var(--purple-100) 60%, var(--bg));
   border-radius: var(--radius-xl);
 }
+.contact-detail-head {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: -0.375rem;
+}
+.contact-detail-back {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  margin-left: -0.375rem;
+  border-radius: 50%;
+  color: var(--fg);
+}
+.contact-detail-back svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
 .contact-avatar {
   width: 3rem;
   height: 3rem;
@@ -65,6 +86,44 @@
 }
 .contact-detail > .button {
   grid-column: 1 / -1;
+}
+.contact-detail-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+.contact-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.contact-section-head .button {
+  margin: 0;
+}
+.contact-recent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.contact-convert {
+  flex: none;
+  padding: 0.375rem 0.625rem;
+  border-radius: var(--radius-full);
+  color: color-mix(in srgb, var(--purple-700) 82%, var(--fg));
+  background: color-mix(in srgb, var(--purple-100) 70%, var(--bg));
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+.contact-history {
+  padding-top: 0.25rem;
+  border-top: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
+}
+.contact-history-empty {
+  color: color-mix(in srgb, var(--fg) 52%, transparent);
+  font-size: var(--text-sm);
 }
 .contact-form {
   display: flex;
@@ -146,17 +205,4 @@
 .contact-picker-item span {
   color: color-mix(in srgb, var(--fg) 48%, transparent);
   font-size: var(--text-xs);
-}
-
-.contact-activity-line {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 0.75rem;
-  text-align: left;
-  border-radius: var(--radius-md);
-}
-
-.contact-activity-line .activity-row__icon {
-  color: color-mix(in srgb, var(--purple-700) 74%, var(--fg));
 }

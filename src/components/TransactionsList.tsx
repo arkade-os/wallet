@@ -1,7 +1,7 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useContext, useLayoutEffect, useRef, useState } from 'react'
 import { WalletContext } from '../providers/wallet'
-import { Currencies, SettingsOptions, Tx } from '../lib/types'
+import { Currencies, Tx } from '../lib/types'
 import { isBurn, isIssuance, prettyDate } from '../lib/format'
 import AssetAvatar from './AssetAvatar'
 import ReceivedIcon from '../icons/Received'
@@ -28,14 +28,7 @@ import {
 import UnverifiedBadge from './UnverifiedBadge'
 import { useTransactionAmountDisplay } from '../hooks/useTransactionAmountDisplay'
 import { useTranslation } from '../providers/language'
-import {
-  contactAddressForActivity,
-  contactDisplayNameForAddress,
-  contactForAddress,
-  selectContactForDetails,
-} from '../lib/contacts'
-import ContactActivityLine from './ContactActivityLine'
-import { OptionsContext } from '../providers/options'
+import { contactAddressForActivity, contactDisplayNameForAddress } from '../lib/contacts'
 
 const border = '1px solid color-mix(in srgb, var(--fg) 6%, transparent)'
 
@@ -53,11 +46,8 @@ const TransactionLine = ({
   const { config } = useContext(ConfigContext)
   const { toFiatAmount } = useContext(FiatContext)
   const { assetMetadataCache } = useContext(WalletContext)
-  const { setOption } = useContext(OptionsContext)
-  const { navigate } = useContext(NavigationContext)
   const { language, t } = useTranslation()
   const contactAddress = contactAddressForActivity(tx)
-  const contact = contactForAddress(contactAddress)
   const contactName = contactDisplayNameForAddress(contactAddress)
 
   const date = tx.createdAt
@@ -122,6 +112,7 @@ const TransactionLine = ({
   }
 
   const kind =
+    (contactName ? t('settings.contactSent', { name: contactName }) : undefined) ??
     lnSwapKind ??
     lnurlLabel(tx, t) ??
     (swap
@@ -191,12 +182,6 @@ const TransactionLine = ({
     </div>
   )
 
-  const openContact = (address: string) => {
-    selectContactForDetails(address)
-    setOption(SettingsOptions.Contacts)
-    navigate(Pages.Settings)
-  }
-
   const Right = () => (
     <div className='activity-row__right'>
       {swap ? (
@@ -223,17 +208,7 @@ const TransactionLine = ({
       style={{ borderTop: isFirst ? 'none' : border }}
       onClick={onClick}
     >
-      {contact && contactName ? (
-        <div className='activity-row__left' onClick={(event) => event.stopPropagation()}>
-          <ContactActivityLine
-            name={contactName}
-            label={t('settings.contactSent', { name: contactName })}
-            onSelect={() => openContact(contact.address)}
-          />
-        </div>
-      ) : (
-        <Left />
-      )}
+      <Left />
       <Right />
     </div>
   )
@@ -274,6 +249,8 @@ function SwapAmountInfo({
 interface TransactionsListProps {
   /** Show only transactions for a specific asset. Use 'btc' for bitcoin-only activity. */
   assetIdFilter?: string | string[]
+  /** Show only rows whose reusable destination is exactly this address. */
+  addressFilter?: string
   /** Show only transactions of this type. */
   typeFilter?: Tx['type']
   /** 'virtual' (default) uses virtualization; 'static' renders a simple list. */
@@ -284,6 +261,7 @@ interface TransactionsListProps {
 
 export default function TransactionsList({
   assetIdFilter,
+  addressFilter,
   typeFilter,
   mode = 'virtual',
   limit,
@@ -294,6 +272,7 @@ export default function TransactionsList({
   const { t } = useTranslation()
   const visibleTxs = allTxs
     .filter((tx) => !shouldHideDevAssetTx(tx, assetMetadataCache))
+    .filter((tx) => !addressFilter || contactAddressForActivity(tx) === addressFilter)
     .filter((tx) => matchesAssetFilter(tx, assetIdFilter))
     .filter((tx) => !typeFilter || tx.type === typeFilter)
   const txs = mode === 'static' && limit ? visibleTxs.slice(0, limit) : visibleTxs

@@ -38,6 +38,7 @@ import { useCorridorSendReceipt } from '../../hooks/useCorridorSendReceipt'
 import { lnurlSends, subscribeLnurlSends } from '../../lib/lnurlSends'
 import TransactionAmountSummary from '../../components/TransactionAmountSummary'
 import { useTranslation } from '../../providers/language'
+import { contactForAddress, savableActivityAddress, saveContact } from '../../lib/contacts'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -114,6 +115,7 @@ export default function Transaction() {
   const [recoverConfirmOpen, setRecoverConfirmOpen] = useState(false)
   const [recoverFailed, setRecoverFailed] = useState(false)
   const [recoveringSwap, setRecoveringSwap] = useState(false)
+  const [savedContact, setSavedContact] = useState(false)
   const txid = tx?.boardingTxid || tx?.redeemTxid || tx?.roundTxid || ''
   const receiverConfirmed = useSyncExternalStore(
     subscribeLnurlSends,
@@ -210,6 +212,17 @@ export default function Transaction() {
   }
 
   if (!tx) return <></>
+
+  // Only a reusable destination that is not already a contact earns the action;
+  // an invoice or a Lightning-only send has nothing stable to name.
+  const destinationAddress = tx.type === 'sent' && !tx.boardingTxid ? savableActivityAddress(tx) : undefined
+  const canSaveContact = Boolean(destinationAddress && !contactForAddress(destinationAddress) && !savedContact)
+
+  const handleSaveContact = () => {
+    if (!destinationAddress) return
+    if (!saveContact(destinationAddress, '')) return setError(t('contacts.saveFailed'))
+    setSavedContact(true)
+  }
 
   // Status booleans mirror the state machine; the translated `status` string is
   // display-only so control flow never depends on the active locale.
@@ -313,6 +326,7 @@ export default function Transaction() {
         assetTotals,
         date,
         destination: tx.type === 'sent' && !boardingTx && !issuanceTx && !burnTx ? tx.destination : undefined,
+        saveContactAction: canSaveContact ? { label: t('contacts.convert'), onClick: handleSaveContact } : undefined,
         fees,
         // Sends already carry their target as `destination`, saved at send time;
         // the resolver's address/rail is the only source for a receive.

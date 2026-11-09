@@ -40,7 +40,7 @@ import TransactionAmountSummary from '../../../components/TransactionAmountSumma
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
 import { lnurlSends, recordLnurlSend, watchLnurlConfirmation } from '../../../lib/lnurlSends'
 import { useTranslation } from '../../../providers/language'
-import { contactForSend, recordSentContact, sendDestination } from '../../../lib/contacts'
+import { recordSentRecent, saveContact, sendDestination } from '../../../lib/contacts'
 
 export default function SendDetails() {
   const displayContext = useAmountDisplayContext()
@@ -67,7 +67,7 @@ export default function SendDetails() {
   const [sending, setSending] = useState(false)
   const [sendDone, setSendDone] = useState(false)
 
-  const { address, arkAddress, invoice, lnUrl, pendingLnSend, satoshis } = sendInfo
+  const { address, arkAddress, invoice, lnUrl, pendingLnSend, satoshis, saveAsContact } = sendInfo
   const lnurlRoute = Boolean(lnUrl && pendingLnSend && isLnurlRail(pendingLnSend.railId))
   const amountDisplay = buildTransactionAmountDisplay({
     ...displayContext,
@@ -207,9 +207,9 @@ export default function SendDetails() {
 
   const handleTxid = (txid: string) => {
     if (!txid) return handleError(t('send.errorSendingTransaction'))
-    recordSentContact(sendDestination(sendInfo))
+    rememberDestination()
     saveTransactionActivityMetadata(txid, {
-      destination: contactForSend(sendInfo)?.address ?? details?.destination,
+      destination: details?.destination,
       networkFee: details?.fees,
     })
     // Refresh now instead of waiting on the worker's VTXO_UPDATE broadcast:
@@ -224,6 +224,15 @@ export default function SendDetails() {
     setSendDone(true)
   }
 
+  /** Every reusable destination becomes a recent; only the opt-in tick makes
+   *  it a contact, so the list stays a choice rather than a side effect. */
+  const rememberDestination = () => {
+    const address = sendDestination(sendInfo)
+    if (!address) return
+    recordSentRecent(address)
+    if (saveAsContact) saveContact(address, '')
+  }
+
   /** Unlike {@link handleTxid} a missing txid is not an error: the solver rail
    *  commits by funding. The fee comes off the QUOTE, not the screen — a rail
    *  may charge less than was displayed.
@@ -232,12 +241,9 @@ export default function SendDetails() {
    *  txid, so anything else would never be looked up. What made this miss was
    *  WHEN it ran — on the terminal outcome, minutes after the user had gone. */
   const handleSent = (txid: string | undefined, total: number, fee: number, railId: string, swapId?: string) => {
-    recordSentContact(sendDestination(sendInfo))
+    rememberDestination()
     if (txid) {
-      saveTransactionActivityMetadata(txid, {
-        destination: contactForSend(sendInfo)?.address ?? details?.destination,
-        networkFee: fee,
-      })
+      saveTransactionActivityMetadata(txid, { destination: details?.destination, networkFee: fee })
     }
     reloadWallet().catch(consoleError)
     if (

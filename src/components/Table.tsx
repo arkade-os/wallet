@@ -9,7 +9,7 @@ import { hapticSubtle } from '../lib/haptics'
 import { useTranslation } from '../providers/language'
 import ExternalLinkIcon from '../icons/ExternalLink'
 
-export type TableLine = [string, string | undefined, JSX.Element?, (() => void)?]
+export type TableLine = [string, string | undefined, JSX.Element?, (() => void)?, JSX.Element?]
 export type TableData = TableLine[]
 
 export default function Table({ data, variant = 'default' }: { data: TableData; variant?: 'default' | 'receipt' }) {
@@ -46,7 +46,7 @@ export default function Table({ data, variant = 'default' }: { data: TableData; 
   return (
     <Focusable id='outer' inactive={focused} onEnter={focusOnFirstRow} ariaLabel={ariaLabel()}>
       <FlexCol className={isReceipt ? 'table table--receipt' : undefined} gap={isReceipt ? '0' : '0.5rem'}>
-        {data.map(([title, value, icon, onClick]) =>
+        {data.map(([title, value, icon, onClick, extra]) =>
           value == '' || value === undefined || value === null ? null : (
             <Focusable
               id={title}
@@ -63,6 +63,7 @@ export default function Table({ data, variant = 'default' }: { data: TableData; 
                     <span className='table-row__title'>{title}</span>
                   </div>
                   <div className='table-row__value-wrap'>
+                    {extra}
                     {onClick ? (
                       <span onClick={onClick} className='table-row__external tappable' aria-hidden='true'>
                         <ExternalLinkIcon small />
@@ -82,6 +83,7 @@ export default function Table({ data, variant = 'default' }: { data: TableData; 
                     </Text>
                   </FlexRow>
                   <FlexRow end gap='0.25rem'>
+                    {extra}
                     {onClick ? (
                       <span className='tappable' onClick={onClick} style={{ color: 'var(--neutral-500)' }}>
                         <ExternalLinkIcon small />

@@ -72,6 +72,8 @@ export type SendInfo = {
   swapId?: string
   recipient?: string
   satoshis?: number
+  /** Opt-in tick from the send form: also keep this payee as a named contact. */
+  saveAsContact?: boolean
   scan?: boolean
   total?: number
   text?: string
