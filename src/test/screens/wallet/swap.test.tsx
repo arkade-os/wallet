@@ -2,6 +2,9 @@ import userEvent from '@testing-library/user-event'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import createFetchMock from 'vitest-fetch-mock'
+import { quoteOffer } from '@arkade-os/solver-discovery'
+import { QUOTE_OPTIONS } from '@arkade-os/swap/protocol'
+import * as solverQuoteHook from '../../../hooks/useSolverQuote'
 import WalletSwap from '../../../screens/Wallet/Swap/Index'
 import { ToastProvider } from '../../../components/Toast'
 import { AspContext } from '../../../providers/asp'
@@ -484,6 +487,69 @@ describe('Wallet swap flow', () => {
     expect(plan.receive.atomic).toBe(BigInt(997))
     // the persisted quote snapshot must carry the same correct fiat value
     expect(exchange.mock.calls[0][2]).toMatchObject({ fromFiatAmount: 10 })
+  })
+
+  it.each(['pair', 'orientation'])('refuses a hook plan with a mismatched %s at confirmation', async (mismatch) => {
+    const plan = await quoteOffer(mismatch === 'pair' ? btcDepix : btcUsdt, {
+      give: 'base',
+      giveAmount: '0.0001',
+      ...QUOTE_OPTIONS,
+    })
+    if (mismatch === 'orientation') plan.give = 'quote'
+    const hook = vi.spyOn(solverQuoteHook, 'useSolverQuote').mockReturnValue({
+      plan,
+      status: 'success',
+      solvable: undefined,
+      setGiveAmount: vi.fn(),
+    })
+    const view = renderSwap({
+      config: { unit: Unit.SATS },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+    })
+    try {
+      fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+      fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+      fireEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+      for (const key of ['1', '0', '0', '0', '0']) fireEvent.click(screen.getByRole('button', { name: key }))
+      const continueButton = screen.getByRole('button', { name: 'Continue' })
+      expect(continueButton).toBeEnabled()
+      fireEvent.click(continueButton)
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+      expect(exchange).not.toHaveBeenCalled()
+    } finally {
+      view.unmount()
+      hook.mockRestore()
+    }
+  })
+
+  it('accepts a valid alternate solver market for the current pair and orientation', async () => {
+    const alternate = { ...btcUsdt, solver: 'alternate', source: 'alternate', fee_bps: 20 }
+    const plan = await quoteOffer(alternate, { give: 'base', giveAmount: '0.0001', ...QUOTE_OPTIONS })
+    const hook = vi.spyOn(solverQuoteHook, 'useSolverQuote').mockReturnValue({
+      plan,
+      status: 'success',
+      solvable: undefined,
+      setGiveAmount: vi.fn(),
+    })
+    const view = renderSwap({
+      config: { unit: Unit.SATS },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      swap: { markets: [btcUsdt, alternate] },
+    })
+    try {
+      fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+      fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+      fireEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+      for (const key of ['1', '0', '0', '0', '0']) fireEvent.click(screen.getByRole('button', { name: key }))
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+      await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
+      expect(exchange.mock.calls[0][0]).toEqual(alternate)
+      expect(exchange.mock.calls[0][1]).toBe(plan)
+    } finally {
+      view.unmount()
+      hook.mockRestore()
+    }
   })
 
   it('never shows a fractional sats fee — sats and ₿ are whole numbers', async () => {

@@ -13,5 +13,5 @@ and local discovery dependency references normalized to `0.5.4` and `0.3.0`. No 
 changed during packing. The workspace overrides pin the exact discovery snapshot and published
 SDK `0.5.4` throughout the dependency graph.
 
-Replace the file dependencies and discovery override with their corresponding published releases
-once available, remove these archives, and regenerate the lockfile. No npm release is made by this PR.
+TODO after upstream publication: replace the file dependencies and discovery override with their
+corresponding releases, remove these archives, and regenerate the lockfile. No npm release is made by this PR.

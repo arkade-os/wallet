@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { readSolverRouting, saveSolverRouting, subscribeSolverRouting } from '../../lib/solverRouting'
+import {
+  getSolverRoutingVersion,
+  readSolverRouting,
+  saveSolverRouting,
+  subscribeSolverRouting,
+} from '../../lib/solverRouting'
 
 describe('solver routing preferences', () => {
   beforeEach(() => localStorage.clear())
@@ -27,5 +32,49 @@ describe('solver routing preferences', () => {
     saveSolverRouting('bitcoin', 'a', { mode: 'cost' })
     expect(listener).toHaveBeenCalledOnce()
     unsubscribe()
+  })
+
+  it.each(['solverRouting', null])('dispatches an external storage event for %s once to all subscribers', (key) => {
+    const first = vi.fn()
+    const second = vi.fn()
+    const unsubscribeFirst = subscribeSolverRouting(first)
+    const unsubscribeSecond = subscribeSolverRouting(second)
+    const before = getSolverRoutingVersion()
+    try {
+      window.dispatchEvent(new StorageEvent('storage', { key }))
+      expect(getSolverRoutingVersion()).toBe(before + 1)
+      expect(first).toHaveBeenCalledOnce()
+      expect(second).toHaveBeenCalledOnce()
+    } finally {
+      unsubscribeFirst()
+      unsubscribeSecond()
+    }
+  })
+
+  it('registers one storage handler until the last subscriber leaves', () => {
+    const addListener = vi.spyOn(window, 'addEventListener')
+    const removeListener = vi.spyOn(window, 'removeEventListener')
+    const first = vi.fn()
+    const second = vi.fn()
+    const unsubscribeFirst = subscribeSolverRouting(first)
+    const unsubscribeSecond = subscribeSolverRouting(second)
+    try {
+      expect(addListener).toHaveBeenCalledOnce()
+      unsubscribeFirst()
+      expect(removeListener).not.toHaveBeenCalled()
+      window.dispatchEvent(new StorageEvent('storage', { key: 'solverRouting' }))
+      expect(first).not.toHaveBeenCalled()
+      expect(second).toHaveBeenCalledOnce()
+      unsubscribeSecond()
+      expect(removeListener).toHaveBeenCalledExactlyOnceWith('storage', addListener.mock.calls[0][1])
+      const before = getSolverRoutingVersion()
+      window.dispatchEvent(new StorageEvent('storage', { key: 'solverRouting' }))
+      expect(getSolverRoutingVersion()).toBe(before)
+    } finally {
+      unsubscribeFirst()
+      unsubscribeSecond()
+      addListener.mockRestore()
+      removeListener.mockRestore()
+    }
   })
 })

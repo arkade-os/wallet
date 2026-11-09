@@ -3,6 +3,12 @@ import type { SolverRoutingPreferences } from '@arkade-os/solver-discovery'
 const STORAGE_KEY = 'solverRouting'
 let version = 0
 const listeners = new Set<() => void>()
+const onStorage = (event: StorageEvent) => {
+  if (event.key === STORAGE_KEY || event.key === null) {
+    version += 1
+    listeners.forEach((fn) => fn())
+  }
+}
 const clean = (value: unknown): SolverRoutingPreferences => {
   const prefs = value && typeof value === 'object' ? (value as SolverRoutingPreferences) : {}
   return {
@@ -29,16 +35,9 @@ export const saveSolverRouting = (network: string, direction: string, prefs: Sol
 }
 export const getSolverRoutingVersion = (): number => version
 export const subscribeSolverRouting = (fn: () => void): (() => void) => {
+  if (listeners.size === 0) window.addEventListener('storage', onStorage)
   listeners.add(fn)
-  const onStorage = (event: StorageEvent) => {
-    if (event.key === STORAGE_KEY || event.key === null) {
-      version += 1
-      fn()
-    }
-  }
-  window.addEventListener('storage', onStorage)
   return () => {
-    listeners.delete(fn)
-    window.removeEventListener('storage', onStorage)
+    if (listeners.delete(fn) && listeners.size === 0) window.removeEventListener('storage', onStorage)
   }
 }

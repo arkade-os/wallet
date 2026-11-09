@@ -97,6 +97,7 @@ const onchainClaim = (wallet: SwapClientConfig['wallet'], network: NetworkName):
 }
 
 export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: NetworkName): SwapClient => {
+  // createSwapClient is inert; preference callbacks run lazily after this assignment.
   const client: SwapClient = createSwapClient({
     wallet,
     repository: assetSwapRepository,

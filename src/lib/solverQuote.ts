@@ -51,6 +51,7 @@ export const previewSolverQuote = async (
         signal,
         ...QUOTE_OPTIONS,
       })
+      // Preview eligibility checks bounds and dust; the composer checks the actual wallet balance.
       if (!validatePlan(plan, plan.deposit.atomic, dust)) return plan
       invalidPlan ??= plan
       lastError = new Error('Amount outside solver bounds')

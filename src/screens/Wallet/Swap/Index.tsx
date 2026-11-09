@@ -460,6 +460,8 @@ export default function WalletSwap() {
 
   const confirmSwap = async () => {
     if (!plan || !toAsset || !pair?.market || confirming || !canContinue) return
+    const verifiedPair = findMarket([plan.market as typeof pair.market], fromAsset.assetId, toAsset.assetId)
+    if (!verifiedPair?.market || verifiedPair.give !== plan.give) return
 
     setConfirmError('')
     setConfirming(true)
@@ -467,7 +469,7 @@ export default function WalletSwap() {
       // The market the plan was quoted against, not one re-looked-up at confirm
       // time: `accept` funds the plan the user just read, and a second lookup
       // could name a different card.
-      await exchange(plan.market as typeof pair.market, plan, buildQuoteSnapshot(plan, quote, config.currency))
+      await exchange(verifiedPair.market, plan, buildQuoteSnapshot(plan, quote, config.currency))
       setDrawer(null)
       setSuccessQuote(quote)
       hapticLight()
