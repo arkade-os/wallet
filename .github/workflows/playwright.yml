@@ -12,7 +12,8 @@ jobs:
   test:
     name: E2E (${{ matrix.group }} / ${{ matrix.project }})
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    # Playwright 1.60 does not provide ffmpeg for Ubuntu 26.04.
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
