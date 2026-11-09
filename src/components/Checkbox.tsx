@@ -4,17 +4,20 @@ import { hapticLight } from '../lib/haptics'
 import Text from './Text'
 
 interface CheckboxProps {
+  /** Controlled checked state; omit to keep internal state. */
+  checked?: boolean
   onChange: () => void
   text: string
 }
 
-export default function Checkbox({ onChange, text }: CheckboxProps) {
+export default function Checkbox({ checked: controlled, onChange, text }: CheckboxProps) {
   const checkboxId = useId()
-  const [checked, setChecked] = useState(false)
+  const [internal, setInternal] = useState(false)
+  const checked = controlled ?? internal
 
   const handleChange = (nextChecked: boolean) => {
     if (nextChecked === checked) return
-    setChecked(nextChecked)
+    if (controlled === undefined) setInternal(nextChecked)
     hapticLight()
     onChange()
   }

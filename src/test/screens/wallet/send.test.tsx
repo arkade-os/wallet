@@ -46,6 +46,7 @@ import { SwapsContext } from '../../../providers/swaps'
 import { createSendRouter, LNURL_ARKADE_RAIL, LNURL_LIGHTNING_RAIL } from '../../../lib/sendRouter'
 import { Currencies, Unit } from '../../../lib/types'
 import fixtures from '../../fixtures.json'
+import { saveContact } from '../../../lib/contacts'
 
 type TreeOptions = {
   configContext?: unknown
@@ -92,6 +93,16 @@ const sendFormTree = ({
 describe('Send screen', () => {
   const renderSendForm = (options: TreeOptions = {}) => render(sendFormTree(options))
 
+  it('fills the recipient from a saved contact picker', async () => {
+    const address = 'alice@pay.example'
+    saveContact(address, 'Alice')
+    renderSendForm()
+    fireEvent.click(screen.getByRole('button', { name: 'Contacts' }))
+    fireEvent.click(await screen.findByRole('button', { name: /Alice/ }))
+    await waitFor(() =>
+      expect(document.querySelector<HTMLInputElement>('input[name="send-address"]')?.value).toBe(address),
+    )
+  })
   it('fills the amount field when an LNURL resolves to a fixed amount', async () => {
     // regression: a fixed-amount LNURL (minSendable === maxSendable) must
     // populate the read-only amount input instead of leaving it blank

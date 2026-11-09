@@ -68,6 +68,7 @@ export enum SettingsSections {
 
 export enum SettingsOptions {
   Menu = 'menu',
+  Contacts = 'contacts',
   About = 'about',
   Advanced = 'advanced',
   ArkadeMint = 'Arkade Mint',

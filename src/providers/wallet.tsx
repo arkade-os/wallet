@@ -1033,6 +1033,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     reloadTimerRef.current = undefined
     removeServiceWorkerMessageHandler()
     forgetLnurlSends()
+    // clearStorage() wipes every key, so contacts and recents go with it.
     await clearStorage()
     // swap records outlive localStorage now: without this a reset leaves the
     // previous wallet's swaps in the activity list. Never fatal — a reset that
