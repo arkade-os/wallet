@@ -12,7 +12,9 @@ jobs:
   test:
     name: E2E (${{ matrix.group }} / ${{ matrix.project }})
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    # ubuntu-latest now resolves to 26.04, where `playwright install --with-deps`
+    # cannot install ffmpeg and the job dies before any test runs.
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
