@@ -60,6 +60,17 @@ describe('Cash detail', () => {
     expect(screen.getByRole('button', { name: 'Claim to this wallet' })).toBeTruthy()
   })
 
+  it('keeps share and copy available when the voucher is ready to reclaim', async () => {
+    render(tree([{ ...record, status: 'exitable', outcome: 'exitable' }]))
+
+    await waitFor(() => expect(screen.getByText('Unclaimed')).toBeTruthy())
+    expect(screen.getByRole('img', { name: 'Voucher QR code' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Copy code' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Share' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Claim to this wallet' })).toBeTruthy()
+    expect(screen.getByText('The voucher is ready to reclaim, but the code can still be shared.')).toBeTruthy()
+  })
+
   it('claims an issued voucher to this wallet', async () => {
     const claimCash = vi.fn(async () => ({
       record: { ...record, action: 'claimed', outcome: 'claimed', status: 'claimed', token: undefined },

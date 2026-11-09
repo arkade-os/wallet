@@ -21,13 +21,13 @@ import { extractError } from '../../../lib/error'
 import { prettyLongText } from '../../../lib/format'
 
 const STATUS_REFRESH_MS = 12_000
-const SHAREABLE_STATUSES = new Set(['available', 'unissued'])
+const SHAREABLE_STATUSES = new Set(['available', 'unissued', 'exitable'])
 const MONITORED_STATUSES = new Set(['available', 'unissued', 'expired', 'exitable', 'recovering', 'sweep-pending'])
 const SELF_CLAIM_STATUSES = new Set(['available', 'expired', 'exitable', 'recovering', 'sweep-pending'])
 
 const pillTone = (status?: string) => {
   if (status === 'claimed' || status === 'exited') return 'done'
-  if (status === 'expired' || status === 'exitable') return 'wait'
+  if (status === 'expired') return 'wait'
   if (status === 'recovering' || status === 'sweep-pending' || status === 'unissued') return 'wait'
   return 'live'
 }
@@ -41,7 +41,7 @@ const stateCopy = (action: 'issued' | 'claimed', status: string | undefined) => 
   if (status === 'recovering') return 'Recovery is in progress. The funds arrive here when it settles.'
   if (status === 'sweep-pending') return 'The claim is settling. Keep this page open while it completes.'
   if (status === 'expired') return 'This voucher is past its active window. Reclaim it to move the funds back.'
-  if (status === 'exitable') return 'This voucher can be reclaimed to this wallet.'
+  if (status === 'exitable') return 'This voucher is live and can be claimed or reclaimed.'
   if (status === 'exited') return 'This voucher was exited onchain and cannot be shared or claimed offchain.'
   return ''
 }
@@ -247,9 +247,11 @@ export default function CashDetail() {
                   )}
                 </div>
                 <p className='voucher-hint'>
-                  {status === 'unissued'
-                    ? 'Funding is still being confirmed. The code becomes claimable once the voucher is funded.'
-                    : 'Anyone who has this code can claim it. Showing it in public is like handing it over.'}
+                  {status === 'exitable'
+                    ? 'The voucher is ready to reclaim, but the code can still be shared.'
+                    : status === 'unissued'
+                      ? 'Funding is still being confirmed. The code becomes claimable once the voucher is funded.'
+                      : 'Anyone who has this code can claim it. Showing it in public is like handing it over.'}
                 </p>
               </>
             ) : null}

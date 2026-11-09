@@ -45,7 +45,7 @@ export const cashStatusLabel = (status: string | undefined, action: 'issued' | '
   if (status === 'claimed') return 'Claimed'
   if (status === 'sweep-pending') return 'Claim settling'
   if (status === 'expired') return 'Expired'
-  if (status === 'exitable') return 'Ready to reclaim'
+  if (status === 'exitable') return 'Unclaimed'
   if (status === 'exited') return 'Exited'
   return 'Checking status'
 }
