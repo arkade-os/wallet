@@ -100,7 +100,7 @@ describe('Contacts', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Alice' }))
     fireEvent.click(screen.getByRole('button', { name: 'Contacts' }))
-    expect(screen.getByRole('heading', { name: '1 contacts' })).toBeInTheDocument()
+    expect(screen.getByText('1 contact')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Alice' })).toBeInTheDocument()
   })
 
@@ -110,11 +110,14 @@ describe('Contacts', () => {
     renderPage()
 
     expect(screen.getByText('Recent payees')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: '1 contacts' })).toBeInTheDocument()
+    expect(screen.getByText('1 contact')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Save as contact' }))
+    fireEvent.change(screen.getByLabelText('Name (optional)'), { target: { value: 'Coffee' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save contact' }))
     fireEvent.click(screen.getByRole('button', { name: 'Contacts' }))
-    expect(screen.getByRole('heading', { name: '2 contacts' })).toBeInTheDocument()
+    expect(screen.getByText('2 contacts')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Coffee' })).toBeInTheDocument()
   })
 
   it('opens the saved contact, not a blank editor, from its recent row', () => {
@@ -122,7 +125,7 @@ describe('Contacts', () => {
     saveContact(alice, 'Alice')
     renderPage()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit contact' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open contact' }))
     expect(screen.getByRole('heading', { name: 'Alice' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Name (optional)')).not.toBeInTheDocument()
   })
@@ -138,8 +141,8 @@ describe('Contacts', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save contact' }))
     fireEvent.click(screen.getByRole('button', { name: 'Contacts' }))
 
-    expect(screen.getByRole('heading', { name: '1 contacts' })).toBeInTheDocument()
-    expect(screen.getByText('1 sends recorded locally')).toBeInTheDocument()
+    expect(screen.getByText('1 contact')).toBeInTheDocument()
+    expect(screen.getByText('1 send recorded locally')).toBeInTheDocument()
   })
 
   it('refuses to move a contact onto another contact destination', async () => {
