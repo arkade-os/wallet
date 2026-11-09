@@ -1428,6 +1428,19 @@ button {
   white-space: nowrap;
 }
 
+.table-row__contact-badge {
+  max-width: 9rem;
+  flex: none;
+  overflow: hidden;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--purple-100) 70%, var(--bg));
+  color: color-mix(in srgb, var(--purple-700) 82%, var(--fg));
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .table-row__value {
   display: inline-block;
   max-width: min(14rem, 48vw);

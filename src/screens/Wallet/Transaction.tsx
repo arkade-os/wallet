@@ -220,7 +220,9 @@ export default function Transaction() {
   // Only a reusable destination that is not already a contact earns the action;
   // an invoice or a Lightning-only send has nothing stable to name.
   const destinationAddress = tx.type === 'sent' && !tx.boardingTxid ? savableActivityAddress(tx) : undefined
-  const canSaveContact = Boolean(destinationAddress && !contactForAddress(destinationAddress) && !savedContact)
+  const destinationContact = contactForAddress(destinationAddress)
+  const canSaveContact = Boolean(destinationAddress && !destinationContact && !savedContact)
+  const contactBadge = destinationContact ? destinationContact.name?.trim() || t('contacts.badge') : undefined
 
   const handleSaveContact = () => {
     if (!destinationAddress) return
@@ -332,6 +334,7 @@ export default function Transaction() {
         assetTotals,
         date,
         destination: tx.type === 'sent' && !boardingTx && !issuanceTx && !burnTx ? tx.destination : undefined,
+        contactBadge,
         saveContactAction: canSaveContact
           ? {
               label: t('contacts.convert'),

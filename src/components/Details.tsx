@@ -43,6 +43,8 @@ export interface DetailsProps {
   direction?: string
   /** Rendered as a small action beside the destination when it is savable. */
   saveContactAction?: { label: string; onClick: () => void }
+  /** Small pill beside the destination when it belongs to a saved contact. */
+  contactBadge?: string
   expiry?: string
   fees?: number
   fundedTxid?: string
@@ -92,6 +94,7 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
     date,
     direction,
     destination,
+    contactBadge,
     saveContactAction,
     expiry,
     fees,
@@ -215,7 +218,11 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
       destination,
       <TypeIcon key='destination-icon' />,
       undefined,
-      saveContactAction && destination ? (
+      contactBadge && destination ? (
+        <span key='contact-badge' className='table-row__contact-badge'>
+          {contactBadge}
+        </span>
+      ) : saveContactAction && destination ? (
         <button
           key='save-contact'
           type='button'

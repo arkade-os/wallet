@@ -26,7 +26,7 @@ import { AssetsContext } from '../../../providers/assets'
 import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
 import { SwapsContext } from '../../../providers/swaps'
 import type { WalletAssetSwap as AssetSwap } from '../../../lib/swapRepository'
-import { readContacts } from '../../../lib/contacts'
+import { readContacts, saveContact } from '../../../lib/contacts'
 
 vi.mock('../../../components/SheetModal', () => ({
   default: ({ isOpen, children }: { isOpen: boolean; children?: React.ReactNode }) =>
@@ -327,6 +327,36 @@ describe('Transaction screen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save contact' }))
 
     expect(readContacts()).toMatchObject([{ address, name: 'Alice' }])
+    expect(screen.queryByRole('button', { name: 'Save as contact' })).not.toBeInTheDocument()
+    expect(screen.getByText('Alice')).toBeInTheDocument()
+  })
+
+  it('badges a destination that is already a saved contact', () => {
+    const address = 'bob@pay.example'
+    saveContact(address, 'Bob')
+    const sentTx = {
+      ...mockTxInfo,
+      boardingTxid: '',
+      destination: address,
+      redeemTxid: 'send-contact',
+      type: 'sent' as const,
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: sentTx }}>
+            <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [sentTx] } as any}>
+              <LimitsContext.Provider value={mockLimitsContextValue}>
+                <Transaction />
+              </LimitsContext.Provider>
+            </WalletContext.Provider>
+          </FlowContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByText('Bob')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Save as contact' })).not.toBeInTheDocument()
   })
 
