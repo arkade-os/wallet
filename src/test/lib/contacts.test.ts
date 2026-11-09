@@ -69,6 +69,18 @@ describe('contacts', () => {
     expect(readContacts()).toContainEqual({ address: alice, name: undefined, sendCount: 0, lastSentAt: 0 })
   })
 
+  it('refuses to save a destination that cannot be reused', () => {
+    expect(saveContact(invoice, 'One-time')).toBe(false)
+    expect(readContacts()).toEqual([])
+  })
+
+  it('keeps a saved contact stats in step with later sends', () => {
+    recordSentRecent(bitcoin, 1000)
+    saveRecentAsContact(bitcoin, 'Coffee')
+    recordSentRecent(bitcoin, 2000)
+    expect(readContacts()).toMatchObject([{ address: bitcoin, sendCount: 2, lastSentAt: 2000 }])
+  })
+
   it('keeps the contact key and history when its destination is edited', () => {
     recordSentRecent(bitcoin, 1000)
     saveContact(bitcoin, 'Coffee')

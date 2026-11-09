@@ -7,7 +7,7 @@ import { FlowContext, emptySendInfo } from '../../../providers/flow'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { OptionsContext } from '../../../providers/options'
 import { WalletContext } from '../../../providers/wallet'
-import { recordSentRecent, saveContact } from '../../../lib/contacts'
+import { recordSentRecent, saveContact, saveRecentAsContact } from '../../../lib/contacts'
 import type { Tx } from '../../../lib/types'
 import {
   mockConfigContextValue,
@@ -115,6 +115,45 @@ describe('Contacts', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save as contact' }))
     fireEvent.click(screen.getByRole('button', { name: 'Contacts' }))
     expect(screen.getByRole('heading', { name: '2 contacts' })).toBeInTheDocument()
+  })
+
+  it('opens the saved contact, not a blank editor, from its recent row', () => {
+    recordSentRecent(alice, 1_700_000_000_000)
+    saveContact(alice, 'Alice')
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit contact' }))
+    expect(screen.getByRole('heading', { name: 'Alice' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Name (optional)')).not.toBeInTheDocument()
+  })
+
+  it('keeps one contact with its stats when the destination is edited', () => {
+    recordSentRecent(coffee, 1_700_000_000_000)
+    saveRecentAsContact(coffee, 'Coffee')
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Coffee' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit contact' }))
+    fireEvent.change(screen.getByLabelText('Address'), { target: { value: alice } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save contact' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Contacts' }))
+
+    expect(screen.getByRole('heading', { name: '1 contacts' })).toBeInTheDocument()
+    expect(screen.getByText('1 sends recorded locally')).toBeInTheDocument()
+  })
+
+  it('refuses to move a contact onto another contact destination', async () => {
+    saveContact(alice, 'Alice')
+    saveContact(coffee, 'Coffee')
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Alice' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit contact' }))
+    fireEvent.change(screen.getByLabelText('Address'), { target: { value: coffee } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save contact' }))
+    await waitFor(() =>
+      expect(screen.getAllByText('That address is already saved as another contact').length).toBeGreaterThan(0),
+    )
   })
 
   it('shows only the selected contact payments, and rows still open the transaction', () => {

@@ -220,6 +220,11 @@ export default function Details({ details, variant }: { details?: DetailsProps; 
           key='save-contact'
           type='button'
           className='table-row__save'
+          onKeyDown={(event) => {
+            // The row Focusable cancels Enter/Space activation, so keep the
+            // button's native keyboard activation by not bubbling those keys.
+            if (event.key === 'Enter' || event.key === ' ') event.stopPropagation()
+          }}
           onClick={(event) => {
             event.stopPropagation()
             saveContactAction.onClick()

@@ -132,6 +132,7 @@ export function readRecents(): Recent[] {
 
 export function saveContact(address: string, name: string, previousAddress?: string): boolean {
   const target = address.trim()
+  if (!isReusableContact(target)) return false
   const contacts = readContacts()
   const previous = contacts.find((contact) => contact.address === previousAddress)
   const seen = [...readRecents(), ...contacts].find((item) => item.address === target)
@@ -171,6 +172,21 @@ export function recordSentRecent(address: string | undefined, now = Date.now()):
       ...readRecents().filter((recent) => recent.address !== target),
       { ...previous, address: target, sendCount: (previous?.sendCount ?? 0) + 1, lastSentAt: now },
     ])
+    // A saved contact mirrors the same send so its stats and ordering stay live.
+    const contacts = readList(CONTACTS_KEY)
+    if (!contacts.some((contact) => contact.address === target)) return
+    writeList(
+      CONTACTS_KEY,
+      contacts.map((contact) =>
+        contact.address === target
+          ? {
+              ...contact,
+              sendCount: Math.max(contact.sendCount, previous?.sendCount ?? 0) + 1,
+              lastSentAt: now,
+            }
+          : contact,
+      ),
+    )
   } catch {}
 }
 

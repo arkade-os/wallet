@@ -38,6 +38,7 @@ export default function Contacts() {
   const [editing, setEditing] = useState(false)
   const [address, setAddress] = useState('')
   const [name, setName] = useState('')
+  const [editTarget, setEditTarget] = useState<string>()
   const [error, setError] = useState('')
   const [deleting, setDeleting] = useState(false)
   const contact = contacts.find(({ address }) => address === selected)
@@ -51,12 +52,14 @@ export default function Contacts() {
     setEditing(false)
     setAddress('')
     setName('')
+    setEditTarget(undefined)
     setError('')
   }
 
   const openNew = (preset?: string) => {
     setAddress(preset ?? '')
     setName('')
+    setEditTarget(undefined)
     setError('')
     setEditing(true)
   }
@@ -71,10 +74,14 @@ export default function Contacts() {
 
   const save = () => {
     setError('')
-    if (!isReusableContact(address.trim())) return setError(t('contacts.invalidAddress'))
-    if (!saveContact(address, name)) return setError(t('contacts.saveFailed'))
+    const target = address.trim()
+    if (!isReusableContact(target)) return setError(t('contacts.invalidAddress'))
+    if (contacts.some((contact) => contact.address === target && contact.address !== editTarget)) {
+      return setError(t('contacts.addressTaken'))
+    }
+    if (!saveContact(target, name, editTarget)) return setError(t('contacts.saveFailed'))
     refresh()
-    setSelected(address.trim())
+    setSelected(target)
     closeEditor()
   }
 
@@ -147,6 +154,7 @@ export default function Contacts() {
                     onClick={() => {
                       setAddress(contact.address)
                       setName(contact.name ?? '')
+                      setEditTarget(contact.address)
                       setError('')
                       setEditing(true)
                     }}
@@ -207,7 +215,7 @@ export default function Contacts() {
                 )}
               </section>
             ) : null}
-            {recents.length ? (
+            {contact ? null : recents.length ? (
               <section className='settings-section'>
                 <p className='settings-section-label'>{t('contacts.recents')}</p>
                 <div className='contact-list settings-row-group'>
@@ -226,7 +234,7 @@ export default function Contacts() {
                         <button
                           type='button'
                           className='contact-convert'
-                          onClick={() => openNew(item.address)}
+                          onClick={() => select(item.address)}
                           aria-label={t('contacts.edit')}
                         >
                           {t('contacts.edit')}

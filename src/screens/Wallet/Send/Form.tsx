@@ -1149,7 +1149,13 @@ export default function SendForm() {
                 value={recipient}
               />
               <ContactPicker disabled={processing} onSelect={handleSelectContact} />
-              {canSaveRecipient ? <Checkbox onChange={toggleSaveAsContact} text={t('contacts.saveAsContact')} /> : null}
+              {canSaveRecipient ? (
+                <Checkbox
+                  checked={Boolean(sendInfo.saveAsContact)}
+                  onChange={toggleSaveAsContact}
+                  text={t('contacts.saveAsContact')}
+                />
+              ) : null}
               {brantaLoading ? (
                 <Text color='neutral-500' smaller>
                   {t('send.verifyingAddress')}

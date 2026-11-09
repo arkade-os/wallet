@@ -181,6 +181,7 @@ export const translations = {
     },
     contacts: {
       addNew: 'New contact',
+      addressTaken: 'That address is already saved as another contact',
       convert: 'Save as contact',
       confirmDelete: 'Confirm delete',
       count: '{count} contacts',
@@ -1045,6 +1046,7 @@ export const translations = {
     },
     contacts: {
       addNew: 'Nuevo contacto',
+      addressTaken: 'Esa dirección ya está guardada como otro contacto',
       convert: 'Guardar como contacto',
       confirmDelete: 'Confirmar eliminación',
       count: '{count} contactos',
@@ -1915,6 +1917,7 @@ export const translations = {
     },
     contacts: {
       addNew: 'Novo contacto',
+      addressTaken: 'Esse endereço já está guardado como outro contacto',
       convert: 'Guardar como contacto',
       confirmDelete: 'Confirmar eliminação',
       count: '{count} contactos',
