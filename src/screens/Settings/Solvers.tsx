@@ -339,7 +339,7 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
   }
 
   return (
-    <Shadow>
+    <Shadow testId='stored-solver-card'>
       <Modal open={confirmRemove} onOpenChange={setConfirmRemove}>
         {error ? (
           <ErrorMessage error={Boolean(error)} text={error} />

@@ -104,10 +104,15 @@ export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: Netw
     policy: {
       solverRouting: {
         failover: true,
-        preferences: async ({ network, direction }) => ({
-          ...readSolverRouting(network, direction),
-          usage: completedSolverUsage(await client.swaps(), network, direction),
-        }),
+        preferences: async ({ network, direction }) => {
+          const preferences = readSolverRouting(network, direction)
+          if (preferences.mode !== 'usage') return preferences
+          try {
+            return { ...preferences, usage: completedSolverUsage(await client.swaps(), network, direction) }
+          } catch {
+            return preferences
+          }
+        },
       },
     },
     corridors: {
