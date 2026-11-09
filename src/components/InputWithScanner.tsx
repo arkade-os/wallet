@@ -65,6 +65,7 @@ export default function InputWithScanner({
         <input
           ref={input}
           name={name}
+          aria-label={label || name || placeholder}
           value={value}
           disabled={disabled}
           className='input'

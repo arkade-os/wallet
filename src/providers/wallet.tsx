@@ -734,15 +734,29 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const refreshCash = async () => {
     if (!svcWallet || !cashStoreRef.current) return []
     let result = cashRecordsRef.current
+    let statusChanged = false
     await mutateCash(async () => {
       const store = cashStoreRef.current
       if (!store) throw new Error('Unlock the wallet first')
-      result = mergeCash(cashRecordsRef.current, await refreshCashTokens(svcWallet, cashRecordsRef.current))
+      const previous = cashRecordsRef.current
+      result = mergeCash(previous, await refreshCashTokens(svcWallet, previous))
+      statusChanged = result.some((next) => {
+        const before = previous.find((record) => record.id === next.id)
+        return (
+          !before ||
+          before.status !== next.status ||
+          before.outcome !== next.outcome ||
+          before.token !== next.token ||
+          before.issueTxIds.length !== next.issueTxIds.length ||
+          before.claimTxIds.length !== next.claimTxIds.length
+        )
+      })
       await store.save(result)
       cashRecordsRef.current = result
       setCashRecords(result)
       void backupCashRecords(result).catch((error) => consoleError(error, 'Arkade Cash backup failed'))
     })
+    if (statusChanged) await reloadWallet(svcWallet)
     return result
   }
 

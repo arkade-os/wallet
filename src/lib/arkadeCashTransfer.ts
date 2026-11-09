@@ -38,15 +38,14 @@ export const mergeCash = (left: CashRecord[], right: CashRecord[]) => {
   return [...map.values()].sort((a, b) => b.createdAt - a.createdAt)
 }
 
-export const cashStatusLabel = (status: string | undefined, action: 'issued' | 'claimed', token?: string) => {
-  if (action === 'issued' && status === 'claimed' && token) return 'Reclaim voucher'
+export const cashStatusLabel = (status: string | undefined, action: 'issued' | 'claimed') => {
   if (status === 'available') return action === 'issued' ? 'Unclaimed' : 'Available'
   if (status === 'recovering') return 'Recovery in progress'
   if (status === 'unissued') return 'Checking funding'
   if (status === 'claimed') return 'Claimed'
-  if (status === 'sweep-pending') return 'Claim pending'
+  if (status === 'sweep-pending') return 'Claim settling'
   if (status === 'expired') return 'Expired'
-  if (status === 'exitable') return 'Exit available'
+  if (status === 'exitable') return 'Ready to reclaim'
   if (status === 'exited') return 'Exited'
   return 'Checking status'
 }

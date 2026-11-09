@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
 import { WalletContext } from './wallet'
 import type { CashRecord } from '../lib/arkadeCashTransfer'
 
@@ -16,12 +16,6 @@ export function CashProvider({ children }: { children: ReactNode }) {
   const [id, setId] = useState('')
   // Derived, not stored: the record arrives a render after the id is set.
   const voucher = useMemo(() => cashRecords.find((record) => record.id === id), [cashRecords, id])
-  useEffect(() => {
-    const url = new URL(window.location.href)
-    if (id) url.searchParams.set('cash', id)
-    else url.searchParams.delete('cash')
-    window.history.replaceState(window.history.state, '', url)
-  }, [id])
   return (
     <CashContext.Provider
       value={{

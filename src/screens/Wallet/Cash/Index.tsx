@@ -47,7 +47,7 @@ export default function Cash() {
                 <span className='settings-row__main'>
                   <CashIcon />
                   <span>
-                    <strong>{cashStatusLabel(record.status, record.action, record.token)}</strong>
+                    <strong>{cashStatusLabel(record.status, record.action)}</strong>
                     <br />
                     <small>{record.amount.toLocaleString()} sats</small>
                   </span>

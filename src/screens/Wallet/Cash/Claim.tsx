@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react'
+import { useContext, useMemo, useState } from 'react'
 import Header from '../../../components/Header'
 import Content from '../../../components/Content'
 import Padded from '../../../components/Padded'
@@ -6,15 +6,17 @@ import FlexCol from '../../../components/FlexCol'
 import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import ErrorMessage from '../../../components/Error'
-import WarningBox from '../../../components/Warning'
 import Scanner from '../../../components/Scanner'
-import InputNote from '../../../components/InputNote'
+import InputAddress from '../../../components/InputAddress'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import { CashContext } from '../../../providers/cash'
 import { decodeCashInput } from '../../../lib/arkadeCash'
 import { readCashFromNfc, nfcSupported } from '../../../lib/arkadeCashNfc'
 import { extractError } from '../../../lib/error'
+
+/** What a pasted code looks like once the scheme/link wrapper is stripped. */
+const looksLikeVoucher = (value: string) => /^(?:web\+arkade:\/\/)?t?arkadecash1/i.test(value.trim())
 
 export default function ClaimCash() {
   const { claimCash } = useContext(WalletContext)
@@ -25,8 +27,16 @@ export default function ClaimCash() {
   const [scanning, setScanning] = useState(false)
   const [busy, setBusy] = useState(false)
 
+  // Nudge on a wrong prefix while typing, without nagging about an empty field.
+  const typed = token.trim()
+  const inputError = useMemo(
+    () => (!typed || looksLikeVoucher(typed) ? '' : 'This does not look like a voucher code'),
+    [typed],
+  )
+  const canClaim = Boolean(typed) && !inputError && !busy
+
   const finish = async (value: string) => {
-    if (!value || busy) return
+    if (!value.trim() || busy) return
     setBusy(true)
     setError('')
     try {
@@ -49,8 +59,8 @@ export default function ClaimCash() {
         label='Cash voucher'
         close={() => setScanning(false)}
         onData={(value) => {
-          setToken(value)
           setScanning(false)
+          void finish(value)
         }}
         onError={setError}
       />
@@ -58,24 +68,35 @@ export default function ClaimCash() {
 
   return (
     <>
-      <Header text='Claim Cash' back={() => navigate(Pages.Cash)} />
+      <Header text='Claim voucher' back={() => navigate(Pages.Cash)} />
       <Content>
         <Padded>
           <FlexCol gap='1.25rem'>
-            <WarningBox
-              green
-              text='Anyone with a voucher code can claim it once. Check the amount and source before claiming.'
+            <InputAddress
+              name='voucher-code'
+              label='Voucher code'
+              placeholder='Paste a voucher code'
+              error={inputError}
+              value={token}
+              onChange={setToken}
+              onEnter={() => canClaim && finish(token)}
+              openScan={() => setScanning(true)}
             />
-            <InputNote label='Voucher code' value={token} onChange={setToken} openScan={() => setScanning(true)} />
+            <p className='voucher-hint'>
+              Scan or paste the code you were sent. It can be claimed once, so check the amount before you continue.
+            </p>
             <ErrorMessage error={!!error} text={error} />
             {nfcSupported() && (
               <Button
                 secondary
-                label='Read NFC'
+                label='Read NFC tag'
+                disabled={busy}
                 onClick={async () => {
                   setError('')
                   try {
-                    await finish(await readCashFromNfc(new AbortController().signal))
+                    const value = await readCashFromNfc(new AbortController().signal)
+                    setToken(value)
+                    void finish(value)
                   } catch (err) {
                     setError(extractError(err))
                   }
@@ -86,11 +107,7 @@ export default function ClaimCash() {
         </Padded>
       </Content>
       <ButtonsOnBottom>
-        <Button
-          label={busy ? 'Claiming…' : 'Claim voucher'}
-          disabled={!token.trim() || busy}
-          onClick={() => finish(token)}
-        />
+        <Button label='Claim voucher' disabled={!canClaim} loading={busy} onClick={() => finish(token)} />
       </ButtonsOnBottom>
     </>
   )
