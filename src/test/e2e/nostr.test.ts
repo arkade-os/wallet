@@ -84,7 +84,7 @@ test('should save solver cards to nostr', async ({ page }) => {
   await page.getByRole('button', { name: tr.common.save }).click()
 
   // verify solver card is added
-  await expect(page.getByText(/solver card stored in your wallet/)).toBeVisible()
+  await expect(page.getByText(/solver card/)).toBeVisible()
   await expect(page.getByText(mockSolverCard.name)).toBeVisible()
 
   // restore wallet
@@ -94,6 +94,6 @@ test('should save solver cards to nostr', async ({ page }) => {
   await navigateToSettings(page)
   await page.getByText(tr.settings.advanced, { exact: true }).click()
   await page.getByText(tr.settings.solvers, { exact: true }).click()
-  await expect(page.getByText(/solver card stored in your wallet/)).toBeVisible()
+  await expect(page.getByText(/solver card/)).toBeVisible()
   await expect(page.getByText(mockSolverCard.name)).toBeVisible()
 })

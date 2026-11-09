@@ -10,6 +10,7 @@ import { emptySendInfo, FlowContext } from '@/providers/flow'
 import { CashContext } from '@/providers/cash'
 import { overlaySlideUp, overlayStyle } from '@/lib/animations'
 import { NavigationContext, Pages } from '@/providers/navigation'
+import { decodeCashInput } from '@/lib/arkadeCash'
 
 export default function WalletScan() {
   const { setNoteInfo, setSendInfo } = useContext(FlowContext)
@@ -20,8 +21,14 @@ export default function WalletScan() {
   const { t } = useTranslation()
 
   const handleData = (recipient: string) => {
-    if (/^(?:web\+arkade:\/\/)?t?arkadecash1/i.test(recipient.trim())) {
-      pendingToken.current = recipient.trim()
+    let token: string
+    try {
+      token = decodeCashInput(recipient).toString()
+    } catch {
+      token = ''
+    }
+    if (token) {
+      pendingToken.current = token
       replace(Pages.CashClaim)
       return
     }

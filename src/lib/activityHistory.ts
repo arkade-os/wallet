@@ -52,7 +52,7 @@ export const mergeCashActivities = (activities: Activity[]): Activity[] => {
       return ids.has(activity.id) && !duplicated ? [activity] : []
     }
     const linked = activity.txs.map((tx) => cashByTxid.get(txidOfArkTransaction(tx))).find(Boolean)
-    return [linked ? { ...activity, intent: linked.intent } : activity]
+    return [linked ? { ...activity, amount: linked.amount, intent: linked.intent } : activity]
   })
 }
 

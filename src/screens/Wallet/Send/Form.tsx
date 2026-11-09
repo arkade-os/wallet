@@ -74,6 +74,7 @@ import { hapticLight } from '../../../lib/haptics'
 import { testDomains } from '../../../lib/constants'
 import UnverifiedBadge from '../../../components/UnverifiedBadge'
 import { useTranslation } from '../../../providers/language'
+import { CashContext } from '../../../providers/cash'
 
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
 
@@ -189,6 +190,7 @@ export default function SendForm() {
   const { navigate } = useContext(NavigationContext)
   const { outcomeOf, sendRouter } = useContext(SwapsContext)
   const { t } = useTranslation()
+  const { setVoucher } = useContext(CashContext)
   const {
     assetBalances,
     availableAssetBalances,
@@ -196,6 +198,7 @@ export default function SendForm() {
     availableBalance,
     balance,
     isVerifiedAsset,
+    issueCash,
     setCacheEntry,
     svcWallet,
   } = useContext(WalletContext)
@@ -262,6 +265,8 @@ export default function SendForm() {
   )
   const activeAsset = accountAsset ?? selectedAsset
   const isAssetSend = activeAsset !== null
+  // An empty destination is not a missing recipient: it issues an Arkade Cash voucher.
+  const isCash = !isAssetSend && !recipient.trim()
 
   const RECIPIENT_DEBOUNCE_MS = 800
   const hasAssets = assetBalances.length > 0
@@ -390,7 +395,7 @@ export default function SendForm() {
     if (!readyToParse) return
     setRecipientError('')
     const parseRecipient = async () => {
-      if (!recipient) return
+      if (!recipient) return setSendInfo((prev) => ({ ...prev, ...noTarget }))
       const lowerCaseData = recipient.toLowerCase().replace(/^lightning:/, '')
       if (isURLWithLightningQueryString(recipient)) {
         const url = new URL(recipient)
@@ -669,6 +674,17 @@ export default function SendForm() {
       setLabel(assetAmount > activeAsset.balance ? t('send.insufficientAssetBalance') : t('send.continue'))
       return
     }
+    if (isCash) {
+      const sats = sendInfo.satoshis ?? 0
+      setLabel(
+        sats > liquidBalance
+          ? t('send.insufficientFunds')
+          : sats && sats < 1
+            ? t('send.amountBelowOneSat')
+            : t('send.issueVoucher'),
+      )
+      return
+    }
     const satoshis = sendInfo.satoshis ?? 0
     setLabel(
       satoshis > liquidBalance
@@ -695,6 +711,7 @@ export default function SendForm() {
     activeAsset,
     lnUrlResponse,
     lnurlAmountUnavailable,
+    isCash,
   ])
 
   // manage server unreachable error
@@ -715,6 +732,25 @@ export default function SendForm() {
   // proceed to next step
   useEffect(() => {
     if (!proceed) return
+    if (isCash) {
+      if (!svcWallet || !sendInfo.satoshis) return setProcessing(false)
+      // A destination typed mid-issue, or a changed amount, invalidates the result.
+      const stale = () =>
+        Boolean(sendInfoRef.current.recipient?.trim()) || sendInfoRef.current.satoshis !== sendInfo.satoshis
+      ;(async () => {
+        try {
+          const record = await issueCash!(sendInfo.satoshis!)
+          if (stale()) return setProcessing(false)
+          resetFlow()
+          setProcessing(false)
+          setVoucher(record.id)
+          navigate(Pages.CashDetail)
+        } catch (error) {
+          handleError(error)
+        }
+      })()
+      return
+    }
     if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice && !sendInfo.pendingLnSend) return
     // Everything except an un-negotiated invoice goes straight through: an ark
     // address, an on-chain address, and an invoice whose quote is already in
@@ -740,7 +776,7 @@ export default function SendForm() {
       }
       negotiate().catch(handleError)
     }
-  }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingLnSend])
+  }, [proceed, isCash, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingLnSend])
 
   // deal with fees deduction from amount
   useEffect(() => {
@@ -1000,7 +1036,7 @@ export default function SendForm() {
       aspInfo.unreachable ||
       Boolean(error) ||
       processing
-    : !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
+    : !((address || arkAddress || lnUrl || invoice || isCash) && satoshis && satoshis > 0) ||
       // Unresolved conditions would strand Continue on a locked recipient field.
       (lnUrl && !arkAddress && !address && !invoice && !lnUrlResponse) ||
       Boolean(recipientError) ||
@@ -1124,6 +1160,9 @@ export default function SendForm() {
                 }}
                 value={recipient}
               />
+              <Text smaller color='neutral-500'>
+                {isCash ? t('send.voucherDestination') : t('send.recipientOrVoucher')}
+              </Text>
               {brantaLoading ? (
                 <Text color='neutral-500' smaller>
                   {t('send.verifyingAddress')}

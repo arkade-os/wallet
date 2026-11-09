@@ -59,4 +59,30 @@ describe('usePortfolioBalanceDisplay', () => {
     expect(result.current.balance).toBe('Unknown')
     expect(result.current.showSecondary).toBe(false)
   })
+
+  it('stays unknown when an asset has value but the BTC balance is unloaded', () => {
+    const { result } = renderHook(() => usePortfolioBalanceDisplay(), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <WalletContext.Provider
+          value={{
+            ...mockWalletContextValue,
+            balance: -1,
+            assetBalances: [{ assetId: 'asset', amount: BigInt(10) }],
+          }}
+        >
+          <ConfigContext.Provider
+            value={{
+              ...mockConfigContextValue,
+              config: { ...mockConfigContextValue.config, currency: Currencies.USD, unit: Unit.SATS } as any,
+            }}
+          >
+            <FiatContext.Provider value={{ ...mockFiatContextValue, toFiat: (sats?: number) => sats ?? 0 }}>
+              {children}
+            </FiatContext.Provider>
+          </ConfigContext.Provider>
+        </WalletContext.Provider>
+      ),
+    })
+    expect(result.current.balance).toBe('Unknown')
+  })
 })

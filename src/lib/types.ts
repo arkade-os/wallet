@@ -72,6 +72,7 @@ export enum SettingsOptions {
   Advanced = 'advanced',
   ArkadeMint = 'Arkade Mint',
   Backup = 'backup',
+  Cash = 'vouchers',
   BitcoinUnit = 'bitcoin unit',
   Contracts = 'contracts',
   Currency = 'Currency',

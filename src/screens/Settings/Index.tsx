@@ -25,6 +25,7 @@ import Contracts from './Contracts'
 import Solvers from './Solvers'
 import LanguageSettings from './Language'
 import Lnurl from './Lnurl'
+import Cash from '../Wallet/Cash/Index'
 
 function settingsContent(option: SettingsOptions): JSX.Element {
   switch (option) {
@@ -36,6 +37,8 @@ function settingsContent(option: SettingsOptions): JSX.Element {
       return <Advanced />
     case SettingsOptions.Backup:
       return <Backup />
+    case SettingsOptions.Cash:
+      return <Cash />
     case SettingsOptions.Contracts:
       return <Contracts />
     case SettingsOptions.Delegates:

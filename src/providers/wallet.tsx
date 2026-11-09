@@ -1068,16 +1068,18 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       : credentials.privateKey!
     cashStoreRef.current = encryptedSecretStorage(secret)
     const keyId = hex.encode(secret)
+    let loadFailed = false
     const local =
       cashKeyRef.current && cashKeyRef.current !== keyId
         ? await cashStoreRef.current.clear().then(() => [])
         : await cashStoreRef.current.load().catch((error) => {
             consoleError(error, 'Failed to load Cash vouchers')
+            loadFailed = true
             return []
           })
     const restored = getCashRecords()
     const records = mergeCash(local, restored)
-    await cashStoreRef.current.save(records)
+    if (!loadFailed) await cashStoreRef.current.save(records)
     cashKeyRef.current = keyId
     setCashRecords(records)
     updateWallet({ ...wallet, network, pubkey })

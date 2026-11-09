@@ -6,20 +6,24 @@ import { usePortfolioFiat } from './usePortfolioFiat'
 import { FIAT_SYMBOLS } from '../lib/fiat'
 import { maskedFiat } from '../components/PrivacyAmount'
 import { Currencies, Unit } from '../lib/types'
+import { useTranslation } from '../providers/language'
+import { WalletContext } from '../providers/wallet'
 
 export function usePortfolioBalanceDisplay() {
   const { config } = useContext(ConfigContext)
   const { fiatDecimals } = useContext(FiatContext)
   const { totalFiat, totalSats } = usePortfolioFiat()
   const decimals = fiatDecimals()
-  const unknown = totalSats < 0
+  const { balance: walletBalance } = useContext(WalletContext)
+  const unknown = walletBalance < 0
+  const { t } = useTranslation()
 
   const formatted = formatFiatAmountParts(totalFiat, config.currency, {
     bitcoinUnit: config.unit,
     maximumFractionDigits: decimals,
     minimumFractionDigits: decimals,
   })
-  const balance = unknown ? 'Unknown' : formatted.amount
+  const balance = unknown ? t('common.unknown') : formatted.amount
   const unit = unknown ? '' : formatted.unit
 
   // Secondary line: the same total expressed in the configured bitcoin unit.

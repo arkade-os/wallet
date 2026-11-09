@@ -73,6 +73,11 @@ export const options: Option[] = [
     section: SettingsSections.Advanced,
   },
   {
+    icon: <NotesIcon />,
+    option: SettingsOptions.Cash,
+    section: SettingsSections.General,
+  },
+  {
     icon: <CurrencyIcon />,
     option: SettingsOptions.Currency,
     section: SettingsSections.General,
