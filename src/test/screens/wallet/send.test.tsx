@@ -56,7 +56,12 @@ type TreeOptions = {
   swapsContext?: unknown
   navigationContext?: typeof mockNavigationContextValue
   outcomeOf?: (id: string) => Outcome | undefined
-  cashContext?: { setVoucher: (id: string) => void; clearVoucher: () => void; pendingToken: { current?: string } }
+  cashContext?: {
+    setVoucher: (id: string) => void
+    clearVoucher: () => void
+    pendingToken: { current?: string }
+    voucherId?: string
+  }
 }
 
 const sendFormTree = ({
@@ -67,7 +72,7 @@ const sendFormTree = ({
   swapsContext = {},
   navigationContext = mockNavigationContextValue,
   outcomeOf,
-  cashContext = { setVoucher: vi.fn(), clearVoucher: vi.fn(), pendingToken: {} },
+  cashContext = { setVoucher: vi.fn(), clearVoucher: vi.fn(), pendingToken: {}, voucherId: '' },
 }: TreeOptions = {}) => (
   <NavigationContext.Provider value={navigationContext}>
     <AspContext.Provider value={mockAspContextValue}>
@@ -76,7 +81,7 @@ const sendFormTree = ({
           <OptionsContext.Provider value={mockOptionsContextValue as any}>
             <FlowContext.Provider value={flowContext as any}>
               <WalletContext.Provider value={walletContext as any}>
-                <CashContext.Provider value={cashContext}>
+                <CashContext.Provider value={cashContext as never}>
                   <SwapsContext.Provider
                     value={{ ...(swapsContext as object), ...(outcomeOf ? { outcomeOf } : {}) } as any}
                   >
@@ -748,7 +753,12 @@ describe('a changed recipient', () => {
   }
 
   it('issues a voucher when the destination is left empty', async () => {
-    const issueCash = vi.fn(async () => ({ id: 'voucher-id' }))
+    let finish: () => void = () => {}
+    const issueCash = vi.fn(() =>
+      new Promise<void>((resolve) => {
+        finish = () => resolve()
+      }).then(() => ({ id: 'voucher-id' })),
+    )
     const setVoucher = vi.fn()
     const navigate = vi.fn()
     render(
@@ -763,6 +773,8 @@ describe('a changed recipient', () => {
     const button = await waitFor(() => screen.getByText('Issue voucher').closest('button')!, settle)
     await waitFor(() => expect(button).toBeEnabled(), settle)
     fireEvent.click(button)
+    await waitFor(() => expect(button).toHaveAttribute('aria-busy', 'true'), settle)
+    finish()
     await waitFor(() => expect(issueCash).toHaveBeenCalledWith(SATS), settle)
     expect(setVoucher).toHaveBeenCalledWith('voucher-id')
     expect(navigate).toHaveBeenCalledWith(Pages.CashDetail)

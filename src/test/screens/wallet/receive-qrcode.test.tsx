@@ -97,7 +97,12 @@ type RenderOverrides = {
   wallet?: Partial<typeof mockWalletContextValue>
   config?: Partial<typeof mockConfigContextValue>
   language?: Language
-  cash?: { setVoucher: (id: string) => void; clearVoucher: () => void; pendingToken: { current?: string } }
+  cash?: {
+    setVoucher: (id: string) => void
+    clearVoucher: () => void
+    pendingToken: { current?: string }
+    voucherId?: string
+  }
   navigate?: (page: string) => void
 }
 
@@ -107,7 +112,7 @@ function buildTree(overrides?: RenderOverrides) {
   const config = { ...mockConfigContextValue, ...overrides?.config }
 
   const language = overrides?.language ?? Language.English
-  const cash = overrides?.cash ?? { setVoucher: vi.fn(), clearVoucher: vi.fn(), pendingToken: {} }
+  const cash = overrides?.cash ?? { setVoucher: vi.fn(), clearVoucher: vi.fn(), pendingToken: {}, voucherId: '' }
   const navigation = { ...mockNavigationContextValue, navigate: overrides?.navigate ?? vi.fn() }
 
   return (
@@ -122,7 +127,7 @@ function buildTree(overrides?: RenderOverrides) {
                 <NotificationsContext.Provider value={mockNotificationsContextValue as any}>
                   <FlowContext.Provider value={flow as any}>
                     <WalletContext.Provider value={wallet as any}>
-                      <CashContext.Provider value={cash}>
+                      <CashContext.Provider value={cash as never}>
                         <LimitsContext.Provider value={mockLimitsContextValue}>
                           <ReceiveQRCode />
                         </LimitsContext.Provider>

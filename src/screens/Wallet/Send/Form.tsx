@@ -1319,7 +1319,7 @@ export default function SendForm() {
           </Padded>
         </Content>
         <ButtonsOnBottom>
-          <Button onClick={handleContinue} label={label} disabled={buttonDisabled} />
+          <Button onClick={handleContinue} label={label} disabled={buttonDisabled} loading={processing} />
         </ButtonsOnBottom>
       </div>
       <SheetModal isOpen={showReserveModal} onClose={() => setShowReserveModal(false)}>

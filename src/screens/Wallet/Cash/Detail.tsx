@@ -19,18 +19,33 @@ import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard'
 import { extractError } from '../../../lib/error'
 
 export default function CashDetail() {
-  const { voucher: record } = useContext(CashContext)
-  const { refreshCash } = useContext(WalletContext)
+  const { voucher: record, voucherId } = useContext(CashContext)
+  const { refreshCash, cashRecords } = useContext(WalletContext)
   const { pendingToken, clearVoucher } = useContext(CashContext)
   const { navigate } = useContext(NavigationContext)
   const copy = useCopyToClipboard()
   const [reveal, setReveal] = useState(false)
   const [error, setError] = useState('')
+  // Clear only on unmount: keying this off record.id would wipe the selection
+  // while the list is still loading the record the id points at.
   useEffect(() => {
     pendingToken.current = undefined
-    setReveal(false)
     return () => clearVoucher()
-  }, [record?.id])
+  }, [])
+  useEffect(() => {
+    setReveal(false)
+  }, [voucherId])
+  if (!record && cashRecords?.length === 0)
+    return (
+      <>
+        <Header text='Cash voucher' back={() => navigate(Pages.Cash)} />
+        <Content>
+          <Padded>
+            <TextSecondary>Loading voucher…</TextSecondary>
+          </Padded>
+        </Content>
+      </>
+    )
   if (!record)
     return (
       <>
