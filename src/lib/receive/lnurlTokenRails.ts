@@ -109,7 +109,8 @@ export function useLnurlTokenRails(
         if (stale) return
         if (quote.paymentDestinationTag) throw new LnurlError('the deposit needs a memo this QR cannot carry')
         if (!/^[1-9]\d*$/.test(quote.baseUnits)) throw new LnurlError("the quote's amount is unreadable")
-        const { amount, expiresAt } = quote
+        const { amount, expiresAt, value } = quote
+        if (value.startsWith('javascript:')) throw new LnurlError('quote value contains a javascript URI')
         const usd = toFiatAmount(amountSat, Currencies.USD)
         if (!plausibleQuote(rail.unit.code, amount, usd)) {
           throw new LnurlError(
