@@ -33,11 +33,11 @@ import { AssetsContext } from './assets'
 import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
 import { arkNoteInUrl } from '../lib/arknote'
-import { deepLinkInUrl } from '../lib/deepLink'
+import { cashTokenInUrl, deepLinkInUrl } from '../lib/deepLink'
 import { assetNameChanged, referencedAssetIds } from '../lib/assets'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
-import { activitiesToTxs, getActivities } from '../lib/activityHistory'
+import { activitiesToTxs, getActivities, mergeCashActivities } from '../lib/activityHistory'
 import { arkTransactionToTx } from '../lib/transactionHistory'
 import { Indexer } from '../lib/indexer'
 import { lnSendViews, swapRecordResolver, type LnSendView } from '../lib/swapRecords'
@@ -59,6 +59,15 @@ import { BackupContext } from './backup'
 import { getAssetSwaps } from '@arkade-os/swap/protocol'
 import { useTranslation } from '../providers/language'
 import { isValidUrl } from '@/lib/validators'
+import {
+  activities as cashActivities,
+  issue as issueCashToken,
+  claim as claimCashToken,
+  refresh as refreshCashTokens,
+  inspect as inspectCashToken,
+} from '../lib/arkadeCash'
+import { mergeCash, type CashRecord } from '../lib/arkadeCashTransfer'
+import { encryptedSecretStorage } from '../lib/arkadeCashStore'
 
 const SERVICE_WORKER_ACTIVATION_TIMEOUT_MS = 5_000
 const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
@@ -83,7 +92,12 @@ const defaultWallet: Wallet = {
 
 export type WalletAuthState = 'unknown' | 'passwordless' | 'locked' | 'authenticated'
 
-interface WalletContextProps {
+export interface WalletContextProps {
+  cashRecords?: CashRecord[]
+  pendingCashToken?: { current?: string }
+  issueCash?: (amount: number) => Promise<CashRecord>
+  claimCash?: (token: string) => Promise<{ record: CashRecord; swept: number; recovering: number }>
+  refreshCash?: () => Promise<CashRecord[]>
   initWallet: (credentials: {
     mnemonic?: string
     privateKey?: Uint8Array
@@ -135,8 +149,16 @@ interface WalletContextProps {
   initialized?: boolean
   devAutoInitFailed?: boolean
 }
-
 export const WalletContext = createContext<WalletContextProps>({
+  cashRecords: [],
+  pendingCashToken: {},
+  issueCash: async () => {
+    throw new Error('Wallet is locked')
+  },
+  claimCash: async () => {
+    throw new Error('Wallet is locked')
+  },
+  refreshCash: async () => [],
   initWallet: () => Promise.resolve(),
   lockWallet: () => Promise.resolve(),
   resetWallet: () => Promise.resolve(),
@@ -190,7 +212,7 @@ const readSwapRecordAssets = async (): Promise<string[]> => {
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { isRegistered } = useContext(AssetsContext)
-  const { initialiseNostrBackup } = useContext(BackupContext)
+  const { initialiseNostrBackup, getCashRecords, backupCashRecords } = useContext(BackupContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { navigate } = useContext(NavigationContext)
   const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo } = useContext(FlowContext)
@@ -206,6 +228,19 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     exits: ExitRecord[]
   }>({ activities: [], metadata: {}, lnSends: [], exits: [] })
   const [assetSwaps, setAssetSwaps] = useState<WalletAssetSwap[]>([])
+  const [cashRecords, setCashRecords] = useState<CashRecord[]>([])
+  const cashRecordsRef = useRef(cashRecords)
+  cashRecordsRef.current = cashRecords
+  const cashStoreRef = useRef<ReturnType<typeof encryptedSecretStorage>>()
+  const pendingCashToken = useRef<string>()
+  const cashKeyRef = useRef<string>()
+  const cashDeepLinkHandled = useRef(false)
+  const cashMutation = useRef<Promise<unknown>>(Promise.resolve())
+  const mutateCash = (action: () => Promise<void>) => {
+    cashMutation.current = cashMutation.current.then(action, action)
+    return cashMutation.current
+  }
+
   const [balance, setBalance] = useState(0)
   const [availableBalance, setAvailableBalance] = useState(0)
   const [wallet, setWallet] = useState(() => readWalletFromStorage() ?? defaultWallet)
@@ -517,12 +552,18 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         consoleError(err, 'error decoding ark note ')
       }
     }
+    pendingCashToken.current = cashTokenInUrl()
     window.location.hash = ''
   }, [])
 
   useEffect(() => {
     // Precedence is given to NoteInfo, but they are mutually exclusive because depend on window.location.hash
     if (!initialized || !dataReady) return
+    if (pendingCashToken.current && !cashDeepLinkHandled.current) {
+      cashDeepLinkHandled.current = true
+      navigate(Pages.CashClaim)
+      return
+    }
     if (noteInfo.satoshis) {
       // if voucher present, go to redeem page
       navigate(Pages.NotesRedeem)
@@ -548,7 +589,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // repo, so this is a postMessage, not a request.
       const unrolledVtxos = await getUnrolledVtxos(swWallet)
       if (isFirstLoad) setLoadingStatus(t('loading.fetchingTransactions'))
-      const activities = await getActivities(swWallet)
+      const regularActivities = await getActivities(swWallet)
+      const vouchers = await cashActivities(swWallet, cashRecordsRef.current).catch((error) => {
+        consoleError(error, 'Failed to load Arkade Cash activity')
+        return []
+      })
+      const activities = mergeCashActivities([...regularActivities, ...vouchers])
       // Before the metadata snapshot below, not after: `resolveExits` persists
       // what it learns, and the history memo reads a snapshot taken here, so a
       // write that lands after this line stays invisible until the next reload.
@@ -559,7 +605,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // up what the store says.
       const lnSends = await lnSendViews()
       if (isFirstLoad) setLoadingStatus(t('loading.updatingBalance'))
-      const { total, available, assets, availableAssets, unrolled } = await getBalance(swWallet)
+      const { total, available, assets, availableAssets, unrolled, boarding } = await getBalance(swWallet)
+      if (boarding.loaded === false) setBalance(-1)
+      else setBalance(total - unrolled)
       // An exited coin is no longer Arkade money: it cannot be spent offchain,
       // no batch can lift it back, and this wallet has no path that moves it —
       // the sweep belongs to the exit tool. The SDK's `total` is right for what
@@ -594,7 +642,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           consoleError(err, `error prefetching metadata for ${assetId}`)
         }
       }
-      setBalance(total - unrolled)
       setAvailableBalance(available)
       setAssetBalances(ownedAssets)
       setAvailableAssetBalances(availableAssets)
@@ -604,6 +651,27 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
       setVtxos(vtxos)
       setHistory({ activities, metadata, lnSends, exits })
+      const pendingToken = cashRecordsRef.current.find((record) => record.status === 'unissued')?.token
+      if (pendingToken) {
+        const report = await inspectCashToken(swWallet, pendingToken).catch((error) => {
+          consoleError(error, 'Failed to inspect pending voucher')
+          return undefined
+        })
+        if (report && !cashRecordsRef.current.some((record) => record.id === report.cashId)) {
+          await saveCash({
+            id: report.cashId,
+            action: 'claimed',
+            amount: report.amount,
+            outcome: report.status,
+            issueTxIds: report.issueTxIds,
+            claimTxIds: report.claimTxIds,
+            createdAt: Math.floor(Date.now() / 1000),
+            updatedAt: Date.now(),
+            status: report.status,
+            token: pendingToken,
+          })
+        }
+      }
       if (!hasLoadedOnce.current) {
         hasLoadedOnce.current = true
         setDataReady(true)
@@ -614,6 +682,82 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         setLoadError('Unable to load wallet data. Check your connection and try again.')
       }
     }
+  }
+
+  const saveCash = async (record: CashRecord) => {
+    await mutateCash(async () => {
+      const records = mergeCash(cashRecordsRef.current, [record])
+      await cashStoreRef.current?.save(records)
+      cashRecordsRef.current = records
+      setCashRecords(records)
+      void backupCashRecords(records).catch((error) => consoleError(error, 'Arkade Cash backup failed'))
+    })
+  }
+
+  const issueCash = async (amount: number) => {
+    if (!svcWallet || !cashStoreRef.current || !initialized) throw new Error('Unlock the wallet first')
+    let result!: CashRecord
+    await mutateCash(async () => {
+      result = await issueCashToken(svcWallet, amount)
+      const records = mergeCash(cashRecordsRef.current, [result])
+      await cashStoreRef.current?.save(records)
+      cashRecordsRef.current = records
+      setCashRecords(records)
+      void backupCashRecords(records).catch((error) => consoleError(error, 'Arkade Cash backup failed'))
+    })
+    return result
+  }
+
+  const claimCash = async (token: string) => {
+    if (!svcWallet || !cashStoreRef.current || !initialized) throw new Error('Unlock the wallet first')
+    let result!: Awaited<ReturnType<typeof claimCashToken>>
+    pendingCashToken.current = token
+    try {
+      await mutateCash(async () => {
+        const store = cashStoreRef.current
+        if (!store) throw new Error('Unlock the wallet first')
+        const previous = cashRecordsRef.current.find((item) => item.token === token)
+        result = await claimCashToken(svcWallet, token, previous)
+        const records = mergeCash(cashRecordsRef.current, [result.record])
+        await store.save(records)
+        cashRecordsRef.current = records
+        setCashRecords(records)
+        void backupCashRecords(records).catch((error) => consoleError(error, 'Arkade Cash backup failed'))
+      })
+      await reloadWallet(svcWallet)
+    } finally {
+      pendingCashToken.current = undefined
+    }
+    return result
+  }
+
+  const refreshCash = async () => {
+    if (!svcWallet || !cashStoreRef.current) return []
+    let result = cashRecordsRef.current
+    let statusChanged = false
+    await mutateCash(async () => {
+      const store = cashStoreRef.current
+      if (!store) throw new Error('Unlock the wallet first')
+      const previous = cashRecordsRef.current
+      result = mergeCash(previous, await refreshCashTokens(svcWallet, previous))
+      statusChanged = result.some((next) => {
+        const before = previous.find((record) => record.id === next.id)
+        return (
+          !before ||
+          before.status !== next.status ||
+          before.outcome !== next.outcome ||
+          before.token !== next.token ||
+          before.issueTxIds.length !== next.issueTxIds.length ||
+          before.claimTxIds.length !== next.claimTxIds.length
+        )
+      })
+      await store.save(result)
+      cashRecordsRef.current = result
+      setCashRecords(result)
+      void backupCashRecords(result).catch((error) => consoleError(error, 'Arkade Cash backup failed'))
+    })
+    if (statusChanged) await reloadWallet(svcWallet)
+    return result
   }
 
   const dismissLoadError = () => {
@@ -675,9 +819,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         arkServer: { url: arkServerUrl },
         delegateUrl,
         walletMode: walletMode ?? config.walletMode ?? 'static',
-        // Contract sync finishes in the background; the coin-event reload below repaints. Not lazyBoarding: its
-        // refresh is never retried, and its UTXO_UPDATE carries every stored coin, which the receive screen reads as a payment.
+        // Keep initialization independent of the onchain backend. Its UTXO_UPDATE
+        // still repaints when the background boarding refresh lands.
         lazyInitialization: true,
+        lazyBoarding: true,
         storage: { walletRepository, contractRepository },
         serviceWorkerActivationTimeoutMs: SERVICE_WORKER_ACTIVATION_TIMEOUT_MS,
         messageBusTimeoutMs: MESSAGE_BUS_INIT_TIMEOUT_MS,
@@ -931,6 +1076,26 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       restoring: credentials.restoring,
     })
     if (!didInit) return
+    cashStoreRef.current = undefined
+    const secret = credentials.mnemonic
+      ? deriveNostrKeyFromMnemonic(credentials.mnemonic, isMainnet(network))
+      : credentials.privateKey!
+    cashStoreRef.current = encryptedSecretStorage(secret)
+    const keyId = hex.encode(secret)
+    let loadFailed = false
+    const local =
+      cashKeyRef.current && cashKeyRef.current !== keyId
+        ? await cashStoreRef.current.clear().then(() => [])
+        : await cashStoreRef.current.load().catch((error) => {
+            consoleError(error, 'Failed to load Cash vouchers')
+            loadFailed = true
+            return []
+          })
+    const restored = getCashRecords()
+    const records = mergeCash(local, restored)
+    if (!loadFailed) await cashStoreRef.current.save(records)
+    cashKeyRef.current = keyId
+    setCashRecords(records)
     updateWallet({ ...wallet, network, pubkey })
     setInitialized(true)
   }
@@ -1011,6 +1176,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     lnurlResyncRef.current?.cancel()
     removeServiceWorkerMessageHandler()
     await svcWallet.clear()
+    setCashRecords([])
+    cashRecordsRef.current = []
+    cashStoreRef.current = undefined
     setAuthState('locked')
     setInitialized(false)
     setDataReady(false)
@@ -1018,6 +1186,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const resetWallet = async () => {
+    setCashRecords([])
     // Aborting the session stops the LNURL history sync writing, so the purge below has nothing racing it.
     abortInitSession()
     lnurlResyncRef.current?.cancel()
@@ -1034,6 +1203,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     removeServiceWorkerMessageHandler()
     forgetLnurlSends()
     await clearStorage()
+    await cashStoreRef.current?.clear()
+    cashStoreRef.current = undefined
+    cashRecordsRef.current = []
     // swap records outlive localStorage now: without this a reset leaves the
     // previous wallet's swaps in the activity list. Never fatal — a reset that
     // aborted here would leave the wallet itself half-cleared, which is worse
@@ -1105,6 +1277,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         dismissLoadError,
         reloadWallet,
         devAutoInitFailed,
+        cashRecords,
+        pendingCashToken,
+        issueCash,
+        claimCash,
+        refreshCash,
         vtxos: vtxos ?? { spendable: [], spent: [] },
       }}
     >

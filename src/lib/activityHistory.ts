@@ -35,6 +35,27 @@ export interface ActivityHistoryOptions {
   assetDisplay?: (assetId: string) => { ticker?: string; decimals?: number } | undefined
 }
 
+export const mergeCashActivities = (activities: Activity[]): Activity[] => {
+  const cash = activities.filter((activity) => activity.intent?.kind === 'arkade-cash')
+  const ids = new Set(cash.map((activity) => activity.id))
+  const cashByTxid = new Map(cash.flatMap((row) => row.txs.map((tx) => [txidOfArkTransaction(tx), row] as const)))
+  const ordinaryTxids = new Set(
+    activities
+      .filter((activity) => activity.intent?.kind !== 'arkade-cash')
+      .flatMap((activity) => activity.txs.map((tx) => txidOfArkTransaction(tx))),
+  )
+  // A voucher settlement can share a transaction with an ordinary batch row.
+  // Graft the Cash intent onto that canonical row instead of deleting it.
+  return activities.flatMap((activity) => {
+    if (activity.intent?.kind === 'arkade-cash') {
+      const duplicated = activity.txs.some((tx) => ordinaryTxids.has(txidOfArkTransaction(tx)))
+      return ids.has(activity.id) && !duplicated ? [activity] : []
+    }
+    const linked = activity.txs.map((tx) => cashByTxid.get(txidOfArkTransaction(tx))).find(Boolean)
+    return [linked ? { ...activity, amount: linked.amount, intent: linked.intent } : activity]
+  })
+}
+
 const graftMetadata = (tx: Tx, metadata?: TransactionActivityMetadata): Tx =>
   metadata
     ? {
@@ -263,6 +284,22 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
     groupsOf.set(txid, (groupsOf.get(txid) ?? 0) + 1)
   }
   for (const activity of activities) {
+    if (activity.intent?.kind === 'arkade-cash') {
+      const cashId = activity.intent.metadata?.cashId
+      const direction = activity.intent.metadata?.direction
+      if (typeof cashId === 'string' && (direction === 'issued' || direction === 'claimed')) {
+        activity.txs.forEach((tx, index) =>
+          rows.push({
+            ...arkTransactionToTx(tx),
+            amount: index === 0 ? Math.abs(activity.amount) : 0,
+            type: direction === 'issued' ? 'sent' : 'received',
+            cash: { id: cashId, direction, status: activity.intent?.outcome },
+            historyKey: activity.id + ':' + index,
+          }),
+        )
+        continue
+      }
+    }
     // The SDK emits a tx under every group claiming it; a swap's row already stands for its LNURL send.
     if (
       lnurlActivity(activity)?.direction === 'sent' &&

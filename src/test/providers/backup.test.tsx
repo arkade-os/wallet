@@ -15,6 +15,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/nostr', () => ({
   NostrStorage: class {
+    secretKey() {
+      return new Uint8Array(32).fill(1)
+    }
     async load() {
       return mocks.events
     }
@@ -100,9 +103,10 @@ describe('BackupProvider restore', () => {
 
     await fullBackup(updatedConfig)
 
-    expect(mocks.save).toHaveBeenCalledTimes(2)
+    expect(mocks.save).toHaveBeenCalledTimes(3)
     expect(mocks.save).toHaveBeenNthCalledWith(1, JSON.stringify({ config: updatedConfig }))
-    expect(mocks.save).toHaveBeenNthCalledWith(2, JSON.stringify({ solverCards: cards }))
+    expect(JSON.parse(mocks.save.mock.calls[1][0]).cash.records).toEqual([])
+    expect(mocks.save).toHaveBeenNthCalledWith(3, JSON.stringify({ solverCards: cards }))
   })
 
   it('keeps the local server and applies the rest of the restored config', async () => {

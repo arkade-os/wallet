@@ -51,6 +51,7 @@ export const SETTINGS_OPTION_KEY: Record<SettingsOptions, string> = {
   [SettingsOptions.Advanced]: 'settings.advanced',
   [SettingsOptions.ArkadeMint]: 'settings.arkadeMint',
   [SettingsOptions.Backup]: 'settings.backup',
+  [SettingsOptions.Cash]: 'settings.cash',
   [SettingsOptions.BitcoinUnit]: 'settings.bitcoinUnit',
   [SettingsOptions.Contracts]: 'settings.contracts',
   [SettingsOptions.Currency]: 'settings.currency',

@@ -14,7 +14,7 @@ import {
 } from '../mocks'
 import { AspContext } from '../../../providers/asp'
 import { WalletContext } from '../../../providers/wallet'
-import { NavigationContext } from '../../../providers/navigation'
+import { NavigationContext, Pages } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { NotificationsContext } from '../../../providers/notifications'
@@ -22,6 +22,7 @@ import { ToastProvider } from '../../../components/Toast'
 import { LanguageContext, translate } from '../../../providers/language'
 import { Language } from '../../../lib/types'
 import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
+import { CashContext } from '../../../providers/cash'
 
 // Mock qr module used by QrCode component
 vi.mock('qr', () => ({
@@ -49,6 +50,22 @@ vi.mock('../../../components/SheetModal', () => ({
 }))
 vi.mock('../../../icons/CheckMark', () => ({ default: () => <span>MARKER-COPIED</span> }))
 vi.mock('../../../icons/Copy', () => ({ default: () => <span>MARKER-IDLE</span> }))
+// Drive the claim scanner by hand instead of a camera.
+declare global {
+  // eslint-disable-next-line no-var
+  var __cashScan: string | undefined
+}
+vi.mock('../../../components/Scanner', () => ({
+  default: ({ label, onData }: { label: string; onData: (data: string) => void }) => (
+    <button aria-label={label} onClick={() => onData(globalThis.__cashScan ?? '')}>
+      scan
+    </button>
+  ),
+}))
+// Voucher decoding is exercised by its own lib tests; here we only need routing.
+vi.mock('../../../lib/arkadeCash', () => ({
+  decodeCashInput: (input: string) => ({ toString: () => input.replace(/^web\+arkade:\/\//, '') }),
+}))
 
 // Mock URL.createObjectURL
 if (!globalThis.URL.createObjectURL) {
@@ -80,6 +97,13 @@ type RenderOverrides = {
   wallet?: Partial<typeof mockWalletContextValue>
   config?: Partial<typeof mockConfigContextValue>
   language?: Language
+  cash?: {
+    setVoucher: (id: string) => void
+    clearVoucher: () => void
+    pendingToken: { current?: string }
+    voucherId?: string
+  }
+  navigate?: (page: string) => void
 }
 
 function buildTree(overrides?: RenderOverrides) {
@@ -88,22 +112,26 @@ function buildTree(overrides?: RenderOverrides) {
   const config = { ...mockConfigContextValue, ...overrides?.config }
 
   const language = overrides?.language ?? Language.English
+  const cash = overrides?.cash ?? { setVoucher: vi.fn(), clearVoucher: vi.fn(), pendingToken: {}, voucherId: '' }
+  const navigation = { ...mockNavigationContextValue, navigate: overrides?.navigate ?? vi.fn() }
 
   return (
     <LanguageContext.Provider
       value={{ language, t: (k: string, p?: Record<string, string | number>) => translate(language, k, p) }}
     >
       <ToastProvider>
-        <NavigationContext.Provider value={mockNavigationContextValue}>
+        <NavigationContext.Provider value={navigation as any}>
           <AspContext.Provider value={mockAspContextValue}>
             <ConfigContext.Provider value={config as any}>
               <FiatContext.Provider value={mockFiatContextValue as any}>
                 <NotificationsContext.Provider value={mockNotificationsContextValue as any}>
                   <FlowContext.Provider value={flow as any}>
                     <WalletContext.Provider value={wallet as any}>
-                      <LimitsContext.Provider value={mockLimitsContextValue}>
-                        <ReceiveQRCode />
-                      </LimitsContext.Provider>
+                      <CashContext.Provider value={cash as never}>
+                        <LimitsContext.Provider value={mockLimitsContextValue}>
+                          <ReceiveQRCode />
+                        </LimitsContext.Provider>
+                      </CashContext.Provider>
                     </WalletContext.Provider>
                   </FlowContext.Provider>
                 </NotificationsContext.Provider>
@@ -137,6 +165,19 @@ const tapFixture = (addrs = { off: 'ark1testaddr', bd: 'bc1testaddr' }): RenderO
 describe('Receive QR Code screen', () => {
   beforeEach(() => {
     copyToClipboardMock.mockClear()
+  })
+
+  it('claims the scanned voucher from the receive screen', async () => {
+    const navigate = vi.fn()
+    const cash = { setVoucher: vi.fn(), clearVoucher: vi.fn(), pendingToken: {} as { current?: string } }
+    renderReceiveQrCode({ ...tapFixture(), cash, navigate })
+
+    fireEvent.click(screen.getByText('Claim voucher'))
+    globalThis.__cashScan = 'web+arkade://arkadecash1mocktoken'
+    fireEvent.click(screen.getByRole('button', { name: 'Claim voucher' }))
+
+    await waitFor(() => expect(cash.pendingToken.current).toBe('arkadecash1mocktoken'))
+    expect(navigate).toHaveBeenCalledWith(Pages.CashClaim)
   })
 
   // Regression for the switched-QR path. We can't drive the Copy sheet in

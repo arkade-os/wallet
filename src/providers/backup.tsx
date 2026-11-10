@@ -1,29 +1,23 @@
 import { Config } from '../lib/types'
 import { ConfigContext } from './config'
 import { consoleError } from '@/lib/logs'
-import { BackupEvent, NostrStorage } from '@/lib/nostr'
+import { NostrStorage } from '@/lib/nostr'
 import { readSolverCards, saveSolverCards } from '@/lib/solverCards'
 import { LocalCardInput } from '@arkade-os/solver-discovery'
-import { ReactNode, createContext, useContext, useEffect, useRef } from 'react'
+import { createContext, useContext, useRef, type ReactNode } from 'react'
+import { mergeCash, type CashRecord } from '../lib/arkadeCashTransfer'
+import { mergeBackupSnapshots } from '../lib/cashBackup'
+import { hex } from '@scure/base'
 
-/**
- * What this wallet backs up to Nostr. Events written by older versions also
- * carry Boltz swap arrays; those keys are simply not read any more — the
- * loader ignores unknown fields, so an old backup still restores its config
- * and solver cards rather than failing.
- */
-type NostrStorageData = {
-  config?: Config
-  solverCards?: LocalCardInput[]
-}
-
-type BackupContextProps = {
+interface BackupContextProps {
   backupAndUpdateConfig: (config: Config) => void
   backupConfig: (config: Config, force?: boolean) => Promise<void>
-  backupSolverCards: (solverCards: LocalCardInput[], configOverride?: Config) => Promise<void>
+  backupSolverCards: (cards: LocalCardInput[], config?: Config) => Promise<void>
   fullBackup: (config: Config) => Promise<void>
-  initialiseNostrBackup: (secKey: Uint8Array) => void
-  restore: (secKey: Uint8Array) => Promise<void>
+  initialiseNostrBackup: (key: Uint8Array) => void
+  restore: (key: Uint8Array) => Promise<void>
+  getCashRecords: () => CashRecord[]
+  backupCashRecords: (records: CashRecord[], config?: Config) => Promise<void>
 }
 
 export const BackupContext = createContext<BackupContextProps>({
@@ -33,145 +27,123 @@ export const BackupContext = createContext<BackupContextProps>({
   initialiseNostrBackup: () => {},
   fullBackup: async () => {},
   restore: async () => {},
+  getCashRecords: () => [],
+  backupCashRecords: async () => {},
 })
 
-export const BackupProvider = ({ children }: { children: ReactNode }) => {
+export function BackupProvider({ children }: { children: ReactNode }) {
   const { config, updateConfig } = useContext(ConfigContext)
-
-  const nostrStorage = useRef<NostrStorage | null>(null)
-
-  // restore() awaits the network for up to 10s, so a closed-over config can still
-  // be the pre-hydration default by the time it resolves (see wallet.tsx)
+  const storage = useRef<NostrStorage | null>(null)
   const configRef = useRef(config)
-  useEffect(() => {
-    configRef.current = config
-  }, [config])
+  const cashRecords = useRef<CashRecord[]>([])
+  const cashKey = useRef<string>()
+  configRef.current = config
 
-  const initialiseNostrBackup = (seckey: Uint8Array) => {
+  const initialiseNostrBackup = (key: Uint8Array) => {
     try {
-      nostrStorage.current = new NostrStorage(seckey)
+      const nextKey = hex.encode(key)
+      if (cashKey.current && cashKey.current !== nextKey) cashRecords.current = []
+      cashKey.current = nextKey
+      storage.current = new NostrStorage(key)
     } catch (err) {
-      consoleError(err, 'Failed to initialize NostrStorage:')
+      consoleError(err, 'Failed to initialize Nostr backup')
     }
   }
 
-  /**
-   * backup config to Nostr
-   * @param config Config to backup
-   */
-  const backupConfig = async (config: Config, force = false) => {
-    if (!config.nostrBackup && !force) return
-    const data: NostrStorageData = { config }
-    await nostrStorage.current?.save(JSON.stringify(data))
+  const backupConfig = async (next: Config, force = false) => {
+    if (!next.nostrBackup && !force) return
+    await storage.current?.save(JSON.stringify({ config: next }))
   }
 
-  /**
-   * backup and update config
-   * @param config Config to backup and update
-   */
-  const backupAndUpdateConfig = (config: Config) => {
-    backupConfig(config).catch((err) => consoleError(err, 'backupAndUpdateConfig:'))
-    updateConfig(config)
+  const backupAndUpdateConfig = (next: Config) => {
+    void backupConfig(next).catch((err) => consoleError(err, 'Backup config failed'))
+    updateConfig(next)
   }
 
-  /**
-   * backup solver cards to Nostr
-   * @param solverCards LocalCardInput[] to backup
-   */
-  const backupSolverCards = async (solverCards: LocalCardInput[], configOverride?: Config) => {
-    const effectiveConfig = configOverride ?? config
-    if (!effectiveConfig.nostrBackup) return
-    const data: NostrStorageData = { solverCards }
-    await nostrStorage.current?.save(JSON.stringify(data))
+  const backupSolverCards = async (cards: LocalCardInput[], override?: Config) => {
+    if (!(override ?? configRef.current).nostrBackup) return
+    await storage.current?.save(JSON.stringify({ solverCards: cards }))
   }
 
-  /**
-   * does a full backup of config and solver cards to Nostr
-   * @param config
-   */
-  const fullBackup = async (config: Config) => {
-    const solverCards = readSolverCards()
-    if (!solverCards.length) return backupConfig(config)
-    await backupConfig(config)
-    await backupSolverCards(solverCards, config)
-  }
-
-  /**
-   * Restore data from Nostr
-   * @param seckey secKey to restore data from Nostr
-   */
-  const restore = async (seckey: Uint8Array) => {
-    const provider = new NostrStorage(seckey)
-
-    const data = (await loadData(provider)) as NostrStorageData
-
-    // we enforce delegates on restore, and the server stays the locally configured one
-    if (data?.config) updateConfig({ ...data.config, aspUrl: configRef.current.aspUrl, delegate: true })
-
-    // last, and non-fatal: a quota error writing cards must not fail a restore
-    // whose config already landed, and a missing card is re-addable by hand
-    if (data?.solverCards) {
-      try {
-        saveSolverCards(data.solverCards)
-      } catch (err) {
-        consoleError(err, 'failed to restore solver cards')
-      }
+  const fullBackup = async (next: Config) => {
+    await backupConfig(next)
+    const cards = readSolverCards()
+    await backupCashRecords(cashRecords.current, next)
+    if (cards.length) {
+      await backupSolverCards(cards, next)
     }
   }
 
-  /**
-   * Initially data was saved in a unique event, until we reached the size limit.
-   * Now we can have multiple events, so we need to load and merge them.
-   * Events are sorted to have a deterministic order.
-   * The map in swaps is used to avoid duplicates and use the latest data.
-   * @returns Data stored on Nostr
-   */
-  const loadData = async (provider?: NostrStorage): Promise<NostrStorageData> => {
-    const nostrProvider = provider ?? nostrStorage.current
+  const backupCashRecords = async (records: CashRecord[], override?: Config) => {
+    cashRecords.current = records
+    const current = override ?? configRef.current
+    const key = storage.current
+    if (!current.nostrBackup || !key) return
+    const snapshot = { records, updatedAt: Math.floor(Date.now() / 1000) }
+    await key.save(JSON.stringify({ cash: snapshot }))
+  }
 
-    if (!nostrProvider) return { config: undefined, solverCards: [] }
-
-    const loaded = {
-      config: null as Config | null,
-      solverCards: [] as LocalCardInput[],
-    }
-
-    const events = await nostrProvider.load()
-
-    // An event ranks by the earlier of its own timestamp and its arrival, so its
-    // position never depends on a clock we don't control. Ids break ties.
-    const sortKey = (e: BackupEvent) => Math.min(e.created_at, e.receivedAt)
-    const sorted = events.sort((a, b) => sortKey(a) - sortKey(b) || a.id.localeCompare(b.id))
-
+  const restore = async (key: Uint8Array) => {
+    const incoming = new NostrStorage(key)
+    const events = await incoming.load()
+    const snapshots: { records: CashRecord[]; updatedAt: number }[] = []
+    const loaded: { config?: Config; solverCards?: LocalCardInput[] } = {}
+    const sorted = events.sort(
+      (a, b) => Math.min(a.created_at, a.receivedAt) - Math.min(b.created_at, b.receivedAt) || a.id.localeCompare(b.id),
+    )
     for (const event of sorted) {
       if (!event.content) continue
-
-      let data: NostrStorageData | null = null
+      let data: any
       try {
-        data = JSON.parse(event.content) as NostrStorageData
+        data = JSON.parse(event.content)
       } catch (err) {
         consoleError(err, 'Failed to parse Nostr backup event')
         continue
       }
-      if (!data) continue
-
-      if (data.config) loaded.config = data.config
-
-      if (data.solverCards) loaded.solverCards = data.solverCards
+      if (data.config) {
+        loaded.config = data.config
+      }
+      if (data.cash?.records) {
+        try {
+          snapshots.push({
+            records: data.cash.records,
+            updatedAt: data.cash.updatedAt ?? event.created_at,
+          })
+        } catch (err) {
+          consoleError(err, 'Could not recover a Cash backup')
+        }
+      }
+      if (data.solverCards) {
+        try {
+          loaded.solverCards = data.solverCards
+        } catch (err) {
+          consoleError(err, 'Failed to restore solver cards')
+        }
+      }
     }
-
-    return { config: loaded.config ?? undefined, solverCards: loaded.solverCards }
+    if (loaded.config) updateConfig({ ...loaded.config, aspUrl: configRef.current.aspUrl, delegate: true })
+    if (loaded.solverCards) {
+      try {
+        saveSolverCards(loaded.solverCards)
+      } catch (err) {
+        consoleError(err, 'Failed to restore solver cards')
+      }
+    }
+    cashRecords.current = mergeCash(cashRecords.current, mergeBackupSnapshots(snapshots.map((cash) => ({ cash }))))
+    storage.current = incoming
   }
 
   return (
     <BackupContext.Provider
       value={{
         backupConfig,
-        backupSolverCards,
         backupAndUpdateConfig,
-        initialiseNostrBackup,
+        backupSolverCards,
         fullBackup,
+        initialiseNostrBackup,
         restore,
+        getCashRecords: () => cashRecords.current,
+        backupCashRecords,
       }}
     >
       {children}

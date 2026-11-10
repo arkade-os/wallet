@@ -8,8 +8,14 @@ vi.mock('../../lib/logs', async (importOriginal) => ({
 import { lnSwapLabel, lnurlLabel } from '../../lib/swapDisplay'
 import { translate } from '../../lib/i18n'
 import { Language } from '../../lib/types'
-import { createDefaultActivityRegistry, ServiceWorkerWallet, type Activity, type ArkTransaction } from '@arkade-os/sdk'
-import { activitiesToTxs, getActivities } from '../../lib/activityHistory'
+import {
+  createDefaultActivityRegistry,
+  ServiceWorkerWallet,
+  TxType,
+  type Activity,
+  type ArkTransaction,
+} from '@arkade-os/sdk'
+import { activitiesToTxs, getActivities, mergeCashActivities } from '../../lib/activityHistory'
 import { ASSET_SWAP_ACTIVITY_KIND, swapRecordResolver, type LnSendView } from '../../lib/swapRecords'
 import type { SwapRecord } from '@arkade-os/swap'
 import { readAllTransactionActivityMetadata, saveTransactionActivityMetadata } from '../../lib/storage'
@@ -66,6 +72,48 @@ const swap = (over: Partial<WalletAssetSwap> = {}): WalletAssetSwap =>
 const empty = { swaps: [], metadata: {} }
 
 describe('activitiesToTxs', () => {
+  it('keeps a locally refreshed voucher history alongside ordinary history', () => {
+    const funding = arkTx('funding', { type: TxType.TxSent })
+    const cash = {
+      ...activity('arkade-cash:public-id', [funding], {
+        kind: 'arkade-cash',
+        metadata: { cashId: 'public-id', direction: 'issued' },
+      }),
+    }
+    const ordinary = { ...activity('funding', [funding]) }
+    expect(mergeCashActivities([ordinary, cash]).map((item) => item.id)).toEqual(['funding'])
+    const [row] = activitiesToTxs(mergeCashActivities([ordinary, cash]), empty)
+    expect(row.cash).toMatchObject({ id: 'public-id', direction: 'issued' })
+  })
+
+  it('keeps an independent ordinary row when a voucher shares its txid', () => {
+    const funding = arkTx('shared', { type: TxType.TxSent })
+    const cash = activity('arkade-cash:public-id', [funding], {
+      kind: 'arkade-cash',
+      metadata: { cashId: 'public-id', direction: 'issued' },
+    })
+    const ordinary = activity('batch', [funding])
+    expect(mergeCashActivities([ordinary, cash]).map((item) => item.id)).toEqual(['batch'])
+    expect(mergeCashActivities([ordinary, cash])[0].intent?.kind).toBe('arkade-cash')
+  })
+
+  it('maps an issued activity to its public voucher detail', () => {
+    const [issued] = activitiesToTxs(
+      [
+        {
+          ...activity('arkade-cash:public-id', [arkTx('funding', { type: TxType.TxSent })], {
+            kind: 'arkade-cash',
+            metadata: { cashId: 'public-id', direction: 'issued' },
+            outcome: 'available',
+          }),
+          amount: -1000,
+        },
+      ],
+      empty,
+    )
+    expect(issued).toMatchObject({ cash: { id: 'public-id', direction: 'issued' }, type: 'sent', amount: 1000 })
+  })
+
   it('collapses a swap group into one row keyed on the activity id', () => {
     const fulfilled = swap({ status: 'fulfilled', spentTxid: 'fill-txid' })
     const fill = arkTx('fill-txid', { assets: [{ assetId: fulfilled.toAsset, amount: BigInt(54_321) }] })

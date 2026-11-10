@@ -50,12 +50,13 @@ export function usePortfolioFiat(): PortfolioFiat {
   const { balance, availableBalance, assetBalances, availableAssetBalances, assetMetadataCache, isVerifiedAsset } =
     useContext(WalletContext)
   const { toFiat, toFiatAmount } = useContext(FiatContext)
+  const bitcoinUnknown = balance < 0
 
   const rows: PortfolioRow[] = []
   let totalSats = 0
 
   // bitcoin row first, always present.
-  totalSats += balance
+  if (!bitcoinUnknown) totalSats += balance
   rows.push({
     assetId: 'btc',
     name: 'Bitcoin',
@@ -122,8 +123,8 @@ export function usePortfolioFiat(): PortfolioFiat {
   }
 
   return {
-    totalFiat: toFiat(totalSats),
-    totalSats,
+    totalFiat: bitcoinUnknown ? 0 : toFiat(totalSats),
+    totalSats: bitcoinUnknown ? -1 : totalSats,
     rows,
   }
 }

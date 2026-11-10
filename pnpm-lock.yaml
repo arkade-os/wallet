@@ -17,16 +17,16 @@ importers:
     dependencies:
       '@arkade-os/lnurl-client':
         specifier: 0.9.2
-        version: 0.9.2(@arkade-os/sdk@0.5.2)
+        version: 0.9.2(@arkade-os/sdk@file:vendor/arkade-os-sdk-0.5.4.tgz)
       '@arkade-os/sdk':
-        specifier: 0.5.2
-        version: 0.5.2
+        specifier: file:vendor/arkade-os-sdk-0.5.4.tgz
+        version: file:vendor/arkade-os-sdk-0.5.4.tgz
       '@arkade-os/solver-discovery':
         specifier: 0.3.0
         version: 0.3.0
       '@arkade-os/swap':
-        specifier: 0.1.2
-        version: 0.1.2(nostr-tools@2.24.1(typescript@5.9.3))
+        specifier: file:vendor/arkade-os-swap-0.1.4.tgz
+        version: file:vendor/arkade-os-swap-0.1.4.tgz(nostr-tools@2.24.1(typescript@5.9.3))
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -87,6 +87,9 @@ importers:
       liveline:
         specifier: ^0.0.7
         version: 0.0.7(react@18.3.1)
+      lucide-react:
+        specifier: ^0.575.0
+        version: 0.575.0(react@18.3.1)
       nostr-tools:
         specifier: 2.24.1
         version: 2.24.1(typescript@5.9.3)
@@ -131,8 +134,8 @@ importers:
         specifier: ^1.3.2
         version: 1.4.1(eslint@8.57.1)
       '@playwright/test':
-        specifier: ^1.60.0
-        version: 1.60.0
+        specifier: ^1.65.0
+        version: 1.65.0
       '@tailwindcss/vite':
         specifier: ^4.2.2
         version: 4.2.4(vite@7.3.7(@types/node@24.10.0)(jiti@2.6.1)(lightningcss@1.32.0))
@@ -226,6 +229,10 @@ importers:
       vitest-fetch-mock:
         specifier: ^0.4.5
         version: 0.4.5(vitest@5.0.5(@types/node@24.10.0)(jsdom@26.1.0)(msw@2.14.6(@types/node@24.10.0)(typescript@5.9.3))(vite@7.3.7(@types/node@24.10.0)(jiti@2.6.1)(lightningcss@1.32.0)))
+    optionalDependencies:
+      '@rollup/rollup-win32-x64-msvc':
+        specifier: 4.65.1
+        version: 4.65.1
 
 packages:
 
@@ -234,6 +241,7 @@ packages:
 
   '@arkade-os/lnurl-client@0.9.2':
     resolution: {integrity: sha512-rpjU67hJUZHyhh7NsgMjVjUVSE4XQA8nPJ4JMYfKQGcX0KS/Q1os1E0KmWozR5OjI3wppCpRwAWG5v6k7FXgBw==}
+    version: 0.9.2
     engines: {node: '>=22.12.0'}
     peerDependencies:
       '@arkade-os/sdk': '>=0.5.0-rc.0'
@@ -241,8 +249,30 @@ packages:
       '@arkade-os/sdk':
         optional: true
 
-  '@arkade-os/sdk@0.5.2':
-    resolution: {integrity: sha512-GIxyQyad+MdjMOfE5LwXw76Ynu6Nk6AeN8ApGWhGKaDXjz3F7vAKJotVdEkshxz/X8lV/AHjsDUcsgRcuq25SQ==}
+  '@arkade-os/sdk@0.5.4':
+    resolution: {integrity: sha512-8sfGdPkP4Czy8Ng8pMspPGFlsZi+P4beTDiuPwlvkAGmaBUC7l9fcVBrV5YbxaOVKkmW9mtPBsms6eqwcunUPg==}
+    engines: {node: '>=22.13.0 <27'}
+    peerDependencies:
+      '@react-native-async-storage/async-storage': '>=1.0.0'
+      expo: '>=54.0.0'
+      expo-background-task: ~1.0.10 || >=55.0.0
+      expo-sqlite: ~16.0.10 || >=55.0.0
+      expo-task-manager: ~14.0.9 || >=55.0.0
+    peerDependenciesMeta:
+      '@react-native-async-storage/async-storage':
+        optional: true
+      expo:
+        optional: true
+      expo-background-task:
+        optional: true
+      expo-sqlite:
+        optional: true
+      expo-task-manager:
+        optional: true
+
+  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.5.4.tgz':
+    resolution: {integrity: sha512-Ov8gUMN3qx17RKlv6A5ZtHR5kdvnJ7Icn4WkRkWkyDfvYLO+dRIKj4fLcagG10VPE+VYz+kCMnjB7se66OTlXA==, tarball: file:vendor/arkade-os-sdk-0.5.4.tgz}
+    version: 0.5.4
     engines: {node: '>=22.13.0 <27'}
     peerDependencies:
       '@react-native-async-storage/async-storage': '>=1.0.0'
@@ -266,8 +296,9 @@ packages:
     resolution: {integrity: sha512-FMAhWG3vZrKIlCP1U8E5iAgB6O1wc6O1CMk+HlQ4xUf066p/S8PuRgmHtkHcL1YrGsdWhKfP/SSFwgLIbGTQjg==}
     engines: {node: '>=20.19'}
 
-  '@arkade-os/swap@0.1.2':
-    resolution: {integrity: sha512-K84fg2wetMXIfP8t7l8WE+yNdBz3GyH9EEg9s2fjR1hNPwKgJpvzorwGHPK1zf/R/eJakKeXbEmPDjy3oxKVLQ==}
+  '@arkade-os/swap@file:vendor/arkade-os-swap-0.1.4.tgz':
+    resolution: {integrity: sha512-7OHH7+tFnOnWXa8WTl+/T56fSv1xYf2CISZdPhr7sh4XemuYbliFU/lNeA5GoS4QH4Tbk6hX0nk4+fZqybhBMg==, tarball: file:vendor/arkade-os-swap-0.1.4.tgz}
+    version: 0.1.4
     engines: {node: '>=22.13.0'}
     peerDependencies:
       nostr-tools: 2.24.1
@@ -848,9 +879,9 @@ packages:
     resolution: {integrity: sha512-QNqXyfVS2wm9hweSYD2O7F0G06uurj9kZ96TRQE5Y9hU7+tgdZwIkbAKc5Ocy1HxEY2kuDQa6cQ1WRs/O5LFKA==}
     engines: {node: ^12.20.0 || ^14.18.0 || >=16.0.0}
 
-  '@playwright/test@1.60.0':
-    resolution: {integrity: sha512-O71yZIbAh/PxDMNGns37GHBIfrVkEVyn+AXyIa5dOTfb4/xNvRWV+Vv/NMbNCtODB/pO7vLlF2OTmMVLhmr7Ag==}
-    engines: {node: '>=18'}
+  '@playwright/test@1.65.0':
+    resolution: {integrity: sha512-iGURLGuKDLakSEl7Pgfv8h7f+XLT+V861Wfhz0zlEl5nyFuKUopdkFBPKqTllTUp06aOwPuH8iuUEb3yp3MpbQ==}
+    engines: {node: '>=20'}
     hasBin: true
 
   '@reach/portal@0.13.2':
@@ -1950,11 +1981,6 @@ packages:
   fs.realpath@1.0.0:
     resolution: {integrity: sha512-OO0pH2lK6a0hZnAdau5ItzHPI6pUlvI7jMVnxUQRtw4owF2wk8lOSabtGDCTP4Ggrg2MbGnWO9X8K1t4+fGMDw==}
 
-  fsevents@2.3.2:
-    resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
-    engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
-    os: [darwin]
-
   fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
@@ -2406,6 +2432,11 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
+  lucide-react@0.575.0:
+    resolution: {integrity: sha512-VuXgKZrk0uiDlWjGGXmKV6MSk9Yy4l10qgVvzGn2AWBx1Ylt0iBexKOAoA6I7JO3m+M9oeovJd3yYENfkUbOeg==}
+    peerDependencies:
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
     hasBin: true
@@ -2601,14 +2632,14 @@ packages:
     resolution: {integrity: sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==}
     engines: {node: '>=12'}
 
-  playwright-core@1.60.0:
-    resolution: {integrity: sha512-9bW6zvX/m0lEbgTKJ6YppOKx8H3VOPBMOCFh2irXFOT4BbHgrx5hPjwJYLT40Lu+4qtD36qKc/Hn56StUW57IA==}
-    engines: {node: '>=18'}
+  playwright-core@1.65.0:
+    resolution: {integrity: sha512-vNSKgH6YqtN7cdT/L334zo0a+YwkrpicyrHJlWWPIm/Q+Nn2SWInil01oT0mbu96U4GgoRtCYQD9CzJQgju+lA==}
+    engines: {node: '>=20'}
     hasBin: true
 
-  playwright@1.60.0:
-    resolution: {integrity: sha512-hheHdokM8cdqCb0lcE3s+zT4t4W+vvjpGxsZlDnikarzx8tSzMebh3UiFtgqwFwnTnjYQcsyMF8ei2mCO/tpeA==}
-    engines: {node: '>=18'}
+  playwright@1.65.0:
+    resolution: {integrity: sha512-F3AMWcR44qMBt4kq+6Kb6mX7bjGXshktKFOPULd7reED6ZJWevjbNRqysP7q+AATE9kdPEZBibex1BYsvpVoeA==}
+    engines: {node: '>=20'}
     hasBin: true
 
   possible-typed-array-names@1.1.0:
@@ -3307,15 +3338,35 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/lnurl-client@0.9.2(@arkade-os/sdk@0.5.2)':
+  '@arkade-os/lnurl-client@0.9.2(@arkade-os/sdk@file:vendor/arkade-os-sdk-0.5.4.tgz)':
     dependencies:
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
       '@scure/base': 2.0.0
     optionalDependencies:
-      '@arkade-os/sdk': 0.5.2
+      '@arkade-os/sdk': file:vendor/arkade-os-sdk-0.5.4.tgz
 
-  '@arkade-os/sdk@0.5.2':
+  '@arkade-os/sdk@0.5.4':
+    dependencies:
+      '@bitcoinerlab/descriptors-scure': 3.1.7
+      '@marcbachmann/cel-js': 8.0.0
+      '@noble/curves': 2.4.0
+      '@noble/secp256k1': 3.0.0
+      '@scure/base': 2.4.0
+      '@scure/bip39': 2.4.0
+      '@scure/btc-signer': 2.4.1
+      bip68: 1.0.4
+      micro-packed: 0.11.1
+      ws-electrumx-client: 1.0.5
+    transitivePeerDependencies:
+      - '@ledgerhq/ledger-bitcoin'
+      - bip32
+      - bitcoinjs-lib
+      - bufferutil
+      - ecpair
+      - utf-8-validate
+
+  '@arkade-os/sdk@file:vendor/arkade-os-sdk-0.5.4.tgz':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 8.0.0
@@ -3340,9 +3391,9 @@ snapshots:
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
 
-  '@arkade-os/swap@0.1.2(nostr-tools@2.24.1(typescript@5.9.3))':
+  '@arkade-os/swap@file:vendor/arkade-os-swap-0.1.4.tgz(nostr-tools@2.24.1(typescript@5.9.3))':
     dependencies:
-      '@arkade-os/sdk': 0.5.2
+      '@arkade-os/sdk': 0.5.4
       '@arkade-os/solver-discovery': 0.3.0
       '@noble/ciphers': 2.1.1
       '@noble/curves': 2.4.0
@@ -3849,9 +3900,9 @@ snapshots:
 
   '@pkgr/core@0.2.9': {}
 
-  '@playwright/test@1.60.0':
+  '@playwright/test@1.65.0':
     dependencies:
-      playwright: 1.60.0
+      playwright: 1.65.0
 
   '@reach/portal@0.13.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
@@ -5102,9 +5153,6 @@ snapshots:
 
   fs.realpath@1.0.0: {}
 
-  fsevents@2.3.2:
-    optional: true
-
   fsevents@2.3.3:
     optional: true
 
@@ -5552,6 +5600,10 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
+  lucide-react@0.575.0(react@18.3.1):
+    dependencies:
+      react: 18.3.1
+
   lz-string@1.5.0: {}
 
   magic-string@0.30.21:
@@ -5753,13 +5805,11 @@ snapshots:
 
   picomatch@4.0.7: {}
 
-  playwright-core@1.60.0: {}
+  playwright-core@1.65.0: {}
 
-  playwright@1.60.0:
+  playwright@1.65.0:
     dependencies:
-      playwright-core: 1.60.0
-    optionalDependencies:
-      fsevents: 2.3.2
+      playwright-core: 1.65.0
 
   possible-typed-array-names@1.1.0: {}
 

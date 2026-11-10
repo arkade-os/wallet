@@ -4,17 +4,23 @@ import { consoleError } from '../lib/logs'
 import SpinnerIcon from '../icons/Spinner'
 import { sleep } from '../lib/sleep'
 
-export default function Refresher() {
+interface RefresherProps {
+  onRefresh?: () => Promise<void> | void
+}
+
+export default function Refresher({ onRefresh }: RefresherProps) {
   const { reloadWallet, svcWallet } = useContext(WalletContext)
 
   const [showRefresh, setShowRefresh] = useState(false)
 
   const refresherRef = useRef<HTMLDivElement | null>(null)
+  const onRefreshRef = useRef(onRefresh)
   const reloadWalletRef = useRef(reloadWallet)
   const svcWalletRef = useRef(svcWallet)
   const triggeredRef = useRef(false)
   const touchstartYRef = useRef(0)
 
+  onRefreshRef.current = onRefresh
   reloadWalletRef.current = reloadWallet
   svcWalletRef.current = svcWallet
 
@@ -51,8 +57,12 @@ export default function Refresher() {
 
   const handleRefresh = async () => {
     try {
-      await svcWalletRef.current?.reload()
-      await reloadWalletRef.current()
+      if (onRefreshRef.current) {
+        await onRefreshRef.current()
+      } else {
+        await svcWalletRef.current?.reload()
+        await reloadWalletRef.current()
+      }
     } catch (err) {
       consoleError(err, 'Failed to reload wallet')
     } finally {

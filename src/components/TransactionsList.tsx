@@ -28,6 +28,7 @@ import {
 import UnverifiedBadge from './UnverifiedBadge'
 import { useTransactionAmountDisplay } from '../hooks/useTransactionAmountDisplay'
 import { useTranslation } from '../providers/language'
+import { CashContext } from '../providers/cash'
 
 const border = '1px solid color-mix(in srgb, var(--fg) 6%, transparent)'
 
@@ -108,9 +109,12 @@ const TransactionLine = ({
     return <span className={`activity-row__icon activity-row__icon--${iconTone}`}>{icon}</span>
   }
 
-  const kind =
+  const kind = tx.cash ? (tx.cash.direction === 'issued' ? 'Cash issued' : 'Cash claimed') : undefined
+
+  const kindLabel =
     lnSwapKind ??
     lnurlLabel(tx, t) ??
+    kind ??
     (swap
       ? swapStatus === 'pending'
         ? t('transaction.swapPending')
@@ -130,7 +134,7 @@ const TransactionLine = ({
             : tx.type === 'sent'
               ? t('transaction.sent')
               : t('transaction.received'))
-  const Kind = () => <span className='activity-row__kind'>{kind}</span>
+  const Kind = () => <span className='activity-row__kind'>{kindLabel}</span>
 
   const swapRoute = swap ? swapRouteLabel(tx) : ''
   const When = () => <span className='activity-row__meta'>{swapRoute ? `${swapRoute} · ${date}` : date}</span>
@@ -261,6 +265,7 @@ export default function TransactionsList({
 }: TransactionsListProps) {
   const { setTxInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
+  const { setVoucher } = useContext(CashContext)
   const { assetMetadataCache, txs: allTxs } = useContext(WalletContext)
   const { t } = useTranslation()
   const visibleTxs = allTxs
@@ -352,6 +357,11 @@ export default function TransactionsList({
   }
 
   const handleClick = (tx: Tx) => {
+    if (tx.cash) {
+      setVoucher(tx.cash.id)
+      navigate(Pages.CashDetail)
+      return
+    }
     hapticSubtle()
     setTxInfo(tx)
     navigate(Pages.Transaction)

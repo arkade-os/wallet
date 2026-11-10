@@ -7,17 +7,31 @@ import { useTranslation } from '@/providers/language'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { emptySendInfo, FlowContext } from '@/providers/flow'
+import { CashContext } from '@/providers/cash'
 import { overlaySlideUp, overlayStyle } from '@/lib/animations'
 import { NavigationContext, Pages } from '@/providers/navigation'
+import { decodeCashInput } from '@/lib/arkadeCash'
 
 export default function WalletScan() {
   const { setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { replace, goBack } = useContext(NavigationContext)
+  const { pendingToken } = useContext(CashContext)
 
   const prefersReducedMotion = useReducedMotion()
   const { t } = useTranslation()
 
   const handleData = (recipient: string) => {
+    let token: string
+    try {
+      token = decodeCashInput(recipient).toString()
+    } catch {
+      token = ''
+    }
+    if (token) {
+      pendingToken.current = token
+      replace(Pages.CashClaim)
+      return
+    }
     if (isArkNote(recipient)) {
       try {
         const { value } = ArkNote.fromString(recipient)

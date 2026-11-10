@@ -1,9 +1,10 @@
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { useContext } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { OptionsContext, OptionsProvider } from '../../providers/options'
+import { OptionsContext, OptionsProvider, options } from '../../providers/options'
 import { subNavHandler } from '../../providers/navigation'
 import { SettingsOptions } from '../../lib/types'
+import NotesIcon from '../../icons/Notes'
 
 let setOptionFromProbe: (o: SettingsOptions) => void = () => {}
 
@@ -28,6 +29,12 @@ const back = () => act(() => subNavHandler.goBack(true))
 const currentOption = () => screen.getByTestId('option-probe').getAttribute('data-option')
 
 describe('OptionsProvider back navigation', () => {
+  it('lists Vouchers in settings with the cash icon', () => {
+    const entry = options.find((o) => o.option === SettingsOptions.Cash)
+    expect(entry).toBeDefined()
+    expect(entry!.icon.type).toBe(NotesIcon)
+  })
+
   // setOptionFromProbe and subNavHandler are module-level and re-bound on each
   // render; unmounting runs the provider's effect teardown so no test sees the
   // previous test's handlers.

@@ -51,6 +51,9 @@ import Select from '../../../components/Select'
 import { TokenLogoStack, TokenOnChainLogo } from '../../../components/ChainLogo'
 import ChevronDownIcon from '../../../icons/ChevronDown'
 import XIcon from '../../../icons/X'
+import { decodeCashInput } from '../../../lib/arkadeCash'
+import Scanner from '../../../components/Scanner'
+import { CashContext } from '../../../providers/cash'
 
 const TOKEN = 'token:'
 
@@ -64,6 +67,7 @@ export default function ReceiveQRCode() {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat } = useContext(FiatContext)
   const { navigate } = useContext(NavigationContext)
+  const { pendingToken } = useContext(CashContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { assetMetadataCache, svcWallet } = useContext(WalletContext)
@@ -87,6 +91,7 @@ export default function ReceiveQRCode() {
   const [showCopySheet, setShowCopySheet] = useState(false)
   const [copied, setCopied] = useState('')
   const [showTokenSheet, setShowTokenSheet] = useState(false)
+  const [showScanner, setShowScanner] = useState(false)
 
   const prefersReducedMotion = useReducedMotion()
 
@@ -456,6 +461,24 @@ export default function ReceiveQRCode() {
   const amountLabel = hasAmount ? t('receive.editAmount') : t('receive.addAmount')
   const unitLabel = assetMeta ? assetPresentation.ticker : 'sats'
 
+  if (showScanner)
+    return (
+      <Scanner
+        label={t('receive.claimVoucher')}
+        close={() => setShowScanner(false)}
+        onData={(data) => {
+          try {
+            pendingToken.current = decodeCashInput(data).toString()
+            setShowScanner(false)
+            navigate(Pages.CashClaim)
+          } catch (error) {
+            consoleError(error, 'receive voucher scan')
+          }
+        }}
+        onError={(error) => consoleError(error, 'receive voucher scanner')}
+      />
+    )
+
   return (
     <>
       <Header text={t('wallet.receive')} back={() => navigate(Pages.Wallet)} />
@@ -625,7 +648,10 @@ export default function ReceiveQRCode() {
             disabled={generating || Boolean(activeToken && !tokenQuote)}
           />
         </FlexRow>
-        <Button label={t('receive.share')} onClick={handleShare} disabled={shareDisabled} />
+        <FlexRow gap='0.75rem'>
+          <Button label={t('receive.claimVoucher')} onClick={() => setShowScanner(true)} secondary />
+          <Button label={t('receive.share')} onClick={handleShare} disabled={shareDisabled} />
+        </FlexRow>
       </ButtonsOnBottom>
 
       {/* Amount bottom sheet */}

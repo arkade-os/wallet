@@ -16,6 +16,8 @@ describe('PrivacyAmount', () => {
       fullBackup: vi.fn(),
       initialiseNostrBackup: vi.fn(),
       restore: vi.fn(),
+      getCashRecords: vi.fn(() => []),
+      backupCashRecords: vi.fn(),
     }
 
     render(

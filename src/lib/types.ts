@@ -72,6 +72,7 @@ export enum SettingsOptions {
   Advanced = 'advanced',
   ArkadeMint = 'Arkade Mint',
   Backup = 'backup',
+  Cash = 'vouchers',
   BitcoinUnit = 'bitcoin unit',
   Contracts = 'contracts',
   Currency = 'Currency',
@@ -136,6 +137,7 @@ export type LnSendSpend = {
 export type TxKind = 'received' | 'sent' | 'exit' | 'swap' | (string & {})
 
 export type Tx = {
+  cash?: { id: string; direction: 'issued' | 'claimed'; status?: string }
   amount: number
   assetAction?: 'issued' | 'reissued' | 'burned'
   assets?: Asset[]

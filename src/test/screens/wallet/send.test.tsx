@@ -46,6 +46,7 @@ import { SwapsContext } from '../../../providers/swaps'
 import { createSendRouter, LNURL_ARKADE_RAIL, LNURL_LIGHTNING_RAIL } from '../../../lib/sendRouter'
 import { Currencies, Unit } from '../../../lib/types'
 import fixtures from '../../fixtures.json'
+import { CashContext } from '../../../providers/cash'
 
 type TreeOptions = {
   configContext?: unknown
@@ -55,6 +56,12 @@ type TreeOptions = {
   swapsContext?: unknown
   navigationContext?: typeof mockNavigationContextValue
   outcomeOf?: (id: string) => Outcome | undefined
+  cashContext?: {
+    setVoucher: (id: string) => void
+    clearVoucher: () => void
+    pendingToken: { current?: string }
+    voucherId?: string
+  }
 }
 
 const sendFormTree = ({
@@ -65,6 +72,7 @@ const sendFormTree = ({
   swapsContext = {},
   navigationContext = mockNavigationContextValue,
   outcomeOf,
+  cashContext = { setVoucher: vi.fn(), clearVoucher: vi.fn(), pendingToken: {}, voucherId: '' },
 }: TreeOptions = {}) => (
   <NavigationContext.Provider value={navigationContext}>
     <AspContext.Provider value={mockAspContextValue}>
@@ -73,13 +81,15 @@ const sendFormTree = ({
           <OptionsContext.Provider value={mockOptionsContextValue as any}>
             <FlowContext.Provider value={flowContext as any}>
               <WalletContext.Provider value={walletContext as any}>
-                <SwapsContext.Provider
-                  value={{ ...(swapsContext as object), ...(outcomeOf ? { outcomeOf } : {}) } as any}
-                >
-                  <LimitsContext.Provider value={mockLimitsContextValue}>
-                    <SendForm />
-                  </LimitsContext.Provider>
-                </SwapsContext.Provider>
+                <CashContext.Provider value={cashContext as never}>
+                  <SwapsContext.Provider
+                    value={{ ...(swapsContext as object), ...(outcomeOf ? { outcomeOf } : {}) } as any}
+                  >
+                    <LimitsContext.Provider value={mockLimitsContextValue}>
+                      <SendForm />
+                    </LimitsContext.Provider>
+                  </SwapsContext.Provider>
+                </CashContext.Provider>
               </WalletContext.Provider>
             </FlowContext.Provider>
           </OptionsContext.Provider>
@@ -741,6 +751,65 @@ describe('a changed recipient', () => {
     await waitFor(() => expect(button).toBeEnabled(), settle)
     fireEvent.click(button)
   }
+
+  it('issues a voucher when the destination is left empty', async () => {
+    let finish: () => void = () => {}
+    const issueCash = vi.fn(() =>
+      new Promise<void>((resolve) => {
+        finish = () => resolve()
+      }).then(() => ({ id: 'voucher-id' })),
+    )
+    const setVoucher = vi.fn()
+    const navigate = vi.fn()
+    render(
+      <StatefulForm
+        cashContext={{ setVoucher, clearVoucher: vi.fn(), pendingToken: {} }}
+        walletContext={{ ...walletContext, issueCash }}
+        navigationContext={{ ...mockNavigationContextValue, navigate }}
+        swapsContext={{ sendRouter: vi.fn() }}
+      />,
+    )
+    await waitFor(() => expect(screen.getByText('Leave empty to issue a voucher')).toBeTruthy(), settle)
+    const button = await waitFor(() => screen.getByText('Issue voucher').closest('button')!, settle)
+    await waitFor(() => expect(button).toBeEnabled(), settle)
+    fireEvent.click(button)
+    await waitFor(() => expect(button).toHaveAttribute('aria-busy', 'true'), settle)
+    finish()
+    await waitFor(() => expect(issueCash).toHaveBeenCalledWith(SATS), settle)
+    expect(setVoucher).toHaveBeenCalledWith('voucher-id')
+    expect(navigate).toHaveBeenCalledWith(Pages.CashDetail)
+  })
+
+  it('issues a voucher after clearing a parsed destination', async () => {
+    const issueCash = vi.fn(async () => ({ id: 'voucher-id' }))
+    const setVoucher = vi.fn()
+    const navigate = vi.fn()
+    const { container } = render(
+      <StatefulForm
+        cashContext={{ setVoucher, clearVoucher: vi.fn(), pendingToken: {} }}
+        walletContext={{ ...walletContext, issueCash }}
+        navigationContext={{ ...mockNavigationContextValue, navigate }}
+        swapsContext={{ sendRouter: vi.fn() }}
+      />,
+    )
+    const input = container.querySelector<HTMLInputElement>('input[name="send-address"]')!
+    const uri = `bitcoin:${BTC}?amount=0.00005000`
+
+    fireEvent.change(input, { target: { value: uri } })
+    await waitFor(() => expect(current.address).toBe(BTC), settle)
+    await waitFor(() => expect(current.recipient).toBe(uri), settle)
+
+    fireEvent.change(input, { target: { value: '' } })
+    await waitFor(() => expect(current.recipient).toBeUndefined(), settle)
+    await waitFor(() => expect(screen.getByText('Issue voucher')).toBeTruthy(), settle)
+    const button = screen.getByText('Issue voucher').closest('button')!
+    await waitFor(() => expect(button).toBeEnabled(), settle)
+    fireEvent.click(button)
+
+    await waitFor(() => expect(issueCash).toHaveBeenCalledWith(SATS), settle)
+    expect(setVoucher).toHaveBeenCalledWith('voucher-id')
+    expect(navigate).toHaveBeenCalledWith(Pages.CashDetail)
+  })
 
   it('pays the BTC address typed after an LNURL, not the LNURL', async () => {
     const fetchMocker = lnurlServer()
