@@ -477,6 +477,7 @@ export const translations = {
       missingTotalAmount: 'Missing total amount',
       onTheWay: '{amount} on the way',
       onTheWayKeepOpen: '{amount} on the way — keep the wallet open until it completes',
+      partialSendError: "You don't have enough bitcoin to do a partial send. Please send all or acquire some bitcoin.",
       payingInsideArkade: 'Paying inside Arkade',
       payingToLightning: 'Paying to Lightning',
       payingToMainnet: 'Paying to mainnet',
@@ -1318,6 +1319,8 @@ export const translations = {
       missingTotalAmount: 'Falta el monto total',
       onTheWay: '{amount} en camino',
       onTheWayKeepOpen: '{amount} en camino — mantén la wallet abierta hasta que se complete',
+      partialSendError:
+        'No tienes suficiente bitcoin para hacer un envío parcial. Por favor envía todo o adquiere algo de bitcoin.',
       payingInsideArkade: 'Pagando dentro de Arkade',
       payingToLightning: 'Pagando a Lightning',
       payingToMainnet: 'Pagando a mainnet',
@@ -2163,6 +2166,8 @@ export const translations = {
       missingTotalAmount: 'Valor total ausente',
       onTheWay: '{amount} a caminho',
       onTheWayKeepOpen: '{amount} a caminho — mantenha a carteira aberta até que seja concluído',
+      partialSendError:
+        'Você não tem bitcoin suficiente para fazer um envio parcial. Por favor, envie tudo ou adquira algum bitcoin.',
       payingInsideArkade: 'Pagando dentro da Arkade',
       payingToLightning: 'Pagando via Lightning',
       payingToMainnet: 'Pagando na mainnet',

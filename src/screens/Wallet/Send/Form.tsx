@@ -176,9 +176,6 @@ function AssetIcon({ asset }: { asset: AssetOption | null }) {
   )
 }
 
-const PARTIAL_SEND_ERROR =
-  "You don't have enough bitcoin to do a partial send. Please send all or acquire some bitcoin."
-
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
   const { config, effectiveTheme, useFiat } = useContext(ConfigContext)
@@ -989,7 +986,7 @@ export default function SendForm() {
     assetAmt > BigInt(0) &&
     assetAmt < activeAsset.balance &&
     availableBalance < 2 * Number(aspInfo.dust)
-      ? PARTIAL_SEND_ERROR
+      ? t('send.partialSendError')
       : ''
 
   const buttonDisabled = isAssetSend
