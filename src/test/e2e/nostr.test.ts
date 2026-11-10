@@ -97,6 +97,7 @@ test('should save solver cards to nostr', async ({ page }) => {
   await navigateToSettings(page)
   await page.getByText(tr.settings.advanced, { exact: true }).click()
   await page.getByText(tr.settings.solvers, { exact: true }).click()
+  await page.getByRole('tab', { name: tr.solvers.cardsTab, exact: true }).click()
   await expect(page.getByText(message)).toBeVisible()
   await expect(storedCard).toHaveCount(1)
   await expect(storedCard.getByText(mockSolverCard.name, { exact: true })).toBeVisible()

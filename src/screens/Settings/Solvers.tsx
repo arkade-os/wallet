@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect, useRef } from 'react'
+import { useContext, useState, useEffect, useRef, type RefObject } from 'react'
 import { AspContext } from '../../providers/asp'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
@@ -28,6 +28,7 @@ import { useRemoteSolverCard } from '@/hooks/useRemoteSolverCard'
 import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '@/providers/language'
 import SolverRouting from './SolverRouting'
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer'
 
 const cardIdentity = (input: LocalCardInput): string => {
   const card = input.card as Card
@@ -56,9 +57,17 @@ const getCardsForNetwork = (network: Network): LocalCardInput[] => {
   return readSolverCards().filter((c) => c.network === network)
 }
 
-function Button({ onClick, text }: { onClick?: () => void; text: string }) {
+function Button({
+  onClick,
+  text,
+  buttonRef,
+}: {
+  onClick?: () => void
+  text: string
+  buttonRef?: RefObject<HTMLButtonElement>
+}) {
   return (
-    <button type='button' className='pill-base' onClick={onClick}>
+    <button type='button' className='pill-base' onClick={onClick} ref={buttonRef}>
       {text}
     </button>
   )
@@ -69,11 +78,13 @@ function Editor({
   original,
   toClose,
   onChange,
+  fallbackFocus,
 }: {
   card?: Card
   original?: LocalCardInput
   toClose?: () => void
   onChange?: () => void
+  fallbackFocus: RefObject<HTMLButtonElement>
 }) {
   const { aspInfo } = useContext(AspContext)
   const { t } = useTranslation()
@@ -81,6 +92,7 @@ function Editor({
   const [error, setError] = useState<string>('')
 
   const editorRef = useRef<HTMLTextAreaElement>(null)
+  const previousFocus = useRef(document.activeElement)
 
   const saveCard = () => {
     if (!editorRef.current) return
@@ -114,6 +126,7 @@ function Editor({
       setError(t('solvers.failedSave'))
       return
     }
+    if (original && cardIdentity(input) !== cardIdentity(original)) previousFocus.current = null
     onChange()
     toClose()
   }
@@ -128,24 +141,49 @@ function Editor({
   }
 
   return (
-    <FlexCol>
-      <ErrorMessage error={Boolean(error)} text={error} />
-      <textarea
-        rows={21}
-        ref={editorRef}
-        style={cssStyle}
-        onFocus={() => setError('')}
-        readOnly={!toClose || !onChange}
-        placeholder='{ version: 0, name: "My Card", markets: [...] }'
-        defaultValue={card ? JSON.stringify(card, null, 2) : ''}
-      />
-      {toClose && onChange ? (
-        <FlexRow>
-          <Button onClick={() => toClose()} text={t('common.cancel')} />
-          <Button onClick={saveCard} text={t('components.save')} />
-        </FlexRow>
-      ) : null}
-    </FlexCol>
+    <Drawer
+      open
+      onOpenChange={(open) => {
+        if (!open) toClose?.()
+      }}
+    >
+      <DrawerContent
+        finalFocus={() =>
+          previousFocus.current instanceof HTMLElement &&
+          previousFocus.current !== document.body &&
+          previousFocus.current.isConnected
+            ? previousFocus.current
+            : fallbackFocus.current
+        }
+      >
+        <DrawerHeader className='shrink-0'>
+          <DrawerTitle>{t('solvers.editorTitle')}</DrawerTitle>
+          <DrawerDescription>{t('solvers.editorHint')}</DrawerDescription>
+        </DrawerHeader>
+        <div className='min-h-0 overflow-y-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))]'>
+          <FlexCol>
+            <ErrorMessage error={Boolean(error)} text={error} />
+            <textarea
+              rows={12}
+              className='max-h-[45dvh]'
+              aria-label={t('solvers.editorTitle')}
+              ref={editorRef}
+              style={cssStyle}
+              onFocus={() => setError('')}
+              readOnly={!toClose || !onChange}
+              placeholder='{ version: 0, name: "My Card", markets: [...] }'
+              defaultValue={card ? JSON.stringify(card, null, 2) : ''}
+            />
+            {toClose && onChange ? (
+              <FlexRow>
+                <Button onClick={() => toClose()} text={t('common.cancel')} />
+                <Button onClick={saveCard} text={t('components.save')} />
+              </FlexRow>
+            ) : null}
+          </FlexCol>
+        </div>
+      </DrawerContent>
+    </Drawer>
   )
 }
 
@@ -305,10 +343,19 @@ function BundledCardLine({ input }: { input: LocalCardInput }) {
   )
 }
 
-function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => void }) {
+function CardLine({
+  input,
+  onChange,
+  fallbackFocus,
+}: {
+  input: LocalCardInput
+  onChange: () => void
+  fallbackFocus: RefObject<HTMLButtonElement>
+}) {
   const { t } = useTranslation()
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [showEditor, setShowEditor] = useState(false)
+
   const [showInfo, setShowInfo] = useState(false)
   const [error, setError] = useState<string>('')
 
@@ -385,7 +432,13 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
           </FlexRow>
         </FlexRow>
         {showEditor ? (
-          <Editor card={card} original={input} toClose={() => setShowEditor(false)} onChange={onChange} />
+          <Editor
+            card={card}
+            original={input}
+            toClose={() => setShowEditor(false)}
+            onChange={onChange}
+            fallbackFocus={fallbackFocus}
+          />
         ) : null}
       </FlexCol>
     </Shadow>
@@ -399,6 +452,8 @@ export default function Solvers() {
 
   const [localCards, setLocalCards] = useState<LocalCardInput[]>()
   const [showEditor, setShowEditor] = useState(false)
+  const [view, setView] = useState('priority')
+  const addButtonRef = useRef<HTMLButtonElement>(null)
 
   // The card store notifies discovery on write, so this only owes the backup;
   // on unmount to keep it at one Nostr write per visit rather than per edit.
@@ -445,21 +500,41 @@ export default function Solvers() {
           <FlexCol>
             <FlexRow between>
               <Text wrap>{title}</Text>
-              <Button onClick={() => setShowEditor(true)} text={t('solvers.addNew')} />
+              <Button
+                buttonRef={addButtonRef}
+                onClick={() => {
+                  setView('cards')
+                  setShowEditor(true)
+                }}
+                text={t('solvers.addNew')}
+              />
             </FlexRow>
-            <SolverRouting network={aspInfo.network} />
-            {showEditor ? <Editor toClose={() => setShowEditor(false)} onChange={handleChange} /> : null}
-            {bundledCards.length > 0 ? (
+            <SegmentedControl
+              options={['priority', 'cards']}
+              selected={view}
+              onChange={setView}
+              getLabel={(option) => t(option === 'priority' ? 'solvers.priorityTab' : 'solvers.cardsTab')}
+            />
+            {view === 'priority' ? <SolverRouting network={aspInfo.network} /> : null}
+            {showEditor ? (
+              <Editor toClose={() => setShowEditor(false)} onChange={handleChange} fallbackFocus={addButtonRef} />
+            ) : null}
+            {view === 'cards' && bundledCards.length > 0 ? (
               <FlexCol>
                 {bundledCards.map((input) => (
                   <BundledCardLine key={cardIdentity(input)} input={input} />
                 ))}
               </FlexCol>
             ) : null}
-            {localCards && localCards.length > 0 ? (
+            {view === 'cards' && localCards && localCards.length > 0 ? (
               <FlexCol>
                 {localCards.map((input) => (
-                  <CardLine key={cardIdentity(input)} input={input} onChange={handleChange} />
+                  <CardLine
+                    key={cardIdentity(input)}
+                    input={input}
+                    onChange={handleChange}
+                    fallbackFocus={addButtonRef}
+                  />
                 ))}
               </FlexCol>
             ) : null}

@@ -50,7 +50,11 @@ vi.mock('@arkade-os/solver-discovery', async () => {
   }
 })
 
-function renderSolvers(network: string = 'regtest', allMarkets: DiscoveredMarket[] = []) {
+function renderSolvers(
+  network: string = 'regtest',
+  allMarkets: DiscoveredMarket[] = [],
+  view: 'priority' | 'cards' = 'cards',
+) {
   const backupContextValue = {
     backupAndUpdateConfig: vi.fn(),
     backupConfig: vi.fn().mockResolvedValue(undefined),
@@ -62,7 +66,7 @@ function renderSolvers(network: string = 'regtest', allMarkets: DiscoveredMarket
     restore: vi.fn().mockResolvedValue(undefined),
   }
 
-  return render(
+  const result = render(
     <AspContext.Provider
       value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network } } as any}
     >
@@ -73,6 +77,8 @@ function renderSolvers(network: string = 'regtest', allMarkets: DiscoveredMarket
       </BackupContext.Provider>
     </AspContext.Provider>,
   )
+  if (view === 'cards') fireEvent.click(screen.getByRole('tab', { name: 'Cards' }))
+  return result
 }
 
 describe('Solvers screen', () => {
@@ -86,11 +92,15 @@ describe('Solvers screen', () => {
   it('groups independently identified same-name discovered and local solvers and persists direction priority', async () => {
     const first = { ...btcUsdt, solver: 'Same name', discovery_pubkey: 'a'.repeat(64) }
     const second = { ...first, discovery_pubkey: 'b'.repeat(64), sourceType: 'local' as const }
-    renderSolvers('mutinynet', [first, second])
-    expect(screen.getAllByRole('combobox')).toHaveLength(2)
-    expect(screen.getAllByText('Same name')).toHaveLength(4)
-    expect(screen.getAllByText(`${prettyLongText(first.discovery_pubkey)} · registry`)).toHaveLength(2)
-    expect(screen.getAllByText(`${prettyLongText(second.discovery_pubkey)} · local`)).toHaveLength(2)
+    renderSolvers('mutinynet', [first, second], 'priority')
+    expect(screen.getByRole('tab', { name: 'Priority' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+    expect(screen.queryByText('Same name')).not.toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole('button', { name: /^Arkade .+ → Arkade/ })[0])
+    expect(screen.getAllByRole('combobox')).toHaveLength(1)
+    expect(screen.getAllByText('Same name')).toHaveLength(2)
+    expect(screen.getByText(`${prettyLongText(first.discovery_pubkey)} · registry`)).toBeInTheDocument()
+    expect(screen.getByText(`${prettyLongText(second.discovery_pubkey)} · local`)).toBeInTheDocument()
     expect(screen.queryByText(`${prettyLongText(solverId(first, 'mutinynet'))} · registry`)).not.toBeInTheDocument()
     fireEvent.click(screen.getAllByRole('button', { name: 'Move down Same name' })[0])
     const direction = solverDirectionKey(first, 'base', 'mutinynet')
@@ -103,12 +113,21 @@ describe('Solvers screen', () => {
     expect(screen.getByText(/Costs are estimated at the trade amount/)).toBeInTheDocument()
     fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'usage' } })
     expect(readSolverRouting('mutinynet', direction).mode).toBe('usage')
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Arkade BTC → Arkade USDT' })).toHaveTextContent('Most used')
+    fireEvent.click(screen.getByRole('tab', { name: 'Cards' }))
+    expect(screen.queryByRole('button', { name: /^Arkade .+ → Arkade/ })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Priority' }))
+    expect(screen.getByRole('button', { name: 'Arkade BTC → Arkade USDT' })).toHaveTextContent('Most used')
   })
 
   it('shows an error when completed usage cannot be loaded', async () => {
     mockSolverUsage.mockRejectedValue(new Error('storage unavailable'))
-    renderSolvers('mutinynet', [btcUsdt])
-    expect(await screen.findAllByText('Unable to load completed swap usage.')).toHaveLength(2)
+    renderSolvers('mutinynet', [btcUsdt], 'priority')
+    expect(mockSolverUsage).not.toHaveBeenCalled()
+    fireEvent.click(screen.getAllByRole('button', { name: /^Arkade .+ → Arkade/ })[0])
+    expect(await screen.findByText('Unable to load completed swap usage.')).toBeInTheDocument()
   })
 
   it('retains pasted cards with the same name and different discovery keys', async () => {
@@ -152,15 +171,18 @@ describe('Solvers screen', () => {
   })
 
   it('adds a solver card and renders it in the list', async () => {
-    renderSolvers()
+    renderSolvers('regtest', [], 'priority')
 
     fireEvent.click(screen.getByRole('button', { name: '+ Add new' }))
+    expect(screen.getByRole('dialog', { name: 'Solver card' })).toBeInTheDocument()
     fireEvent.change(screen.getByPlaceholderText('{ version: 0, name: "My Card", markets: [...] }'), {
       target: { value: JSON.stringify({ version: 0, name: 'My Card', markets: [] }) },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     await waitFor(() => expect(screen.getByText('My Card')).toBeInTheDocument())
+    expect(screen.getByRole('tab', { name: 'Cards' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(readSolverCards()).toHaveLength(1)
     expect(screen.getByText('You have 1 solver card stored in your wallet.')).toBeInTheDocument()
   })
@@ -191,7 +213,9 @@ describe('Solvers screen', () => {
       ]),
     )
     renderSolvers()
-    fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0])
+    const editButton = screen.getAllByRole('button', { name: 'Edit' })[0]
+    editButton.focus()
+    fireEvent.click(editButton)
     fireEvent.change(screen.getByPlaceholderText('{ version: 0, name: "My Card", markets: [...] }'), {
       target: { value: JSON.stringify({ version: 0, name: 'New', markets: [] }) },
     })
@@ -199,6 +223,7 @@ describe('Solvers screen', () => {
     await waitFor(() => expect(readSolverCards().map(({ label }) => label)).toEqual(['Other', 'New']))
     expect(screen.queryByText('Old')).not.toBeInTheDocument()
     expect(screen.getByText('Other')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: '+ Add new' })).toHaveFocus())
   })
 
   it('shows readable rails and display-unit flat fees', () => {
@@ -209,11 +234,13 @@ describe('Solvers screen', () => {
       base_asset: { ...btcUsdt.base_asset, id: 'arkade:mutinynet/slip44:1' },
       quote_asset: { id: 'bolt11:mutinynet/slip44:1', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
     }
-    renderSolvers('mutinynet', [{ ...btcUsdt, fee_flat: '500' }, lightning])
-    expect(screen.getByText('Arkade BTC → Lightning BTC')).toBeInTheDocument()
+    renderSolvers('mutinynet', [{ ...btcUsdt, fee_flat: '500' }, lightning], 'priority')
+    fireEvent.click(screen.getByRole('button', { name: 'Arkade BTC → Lightning BTC' }))
     expect(screen.queryByText(solverDirectionKey(lightning, 'base', 'mutinynet'))).not.toBeInTheDocument()
-    expect(screen.getAllByText(/30 bps \+ 500 sats/)).toHaveLength(2)
-    expect(screen.getAllByText(/30 bps \+ 5 USDT/)).toHaveLength(2)
+    expect(screen.getByText(/30 bps \+ 500 sats/)).toBeInTheDocument()
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))
+    fireEvent.click(screen.getAllByRole('button', { name: /^Arkade .+ → Arkade/ })[0])
+    expect(screen.getByText(/30 bps \+ 5 USDT/)).toBeInTheDocument()
   })
 
   it('removes a stored solver card', async () => {
@@ -317,7 +344,7 @@ describe('Solvers screen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Info' }))
 
     await waitFor(() => expect(screen.getByText('Solver card info')).toBeInTheDocument())
-    expect(screen.queryByRole('tab')).not.toBeInTheDocument()
+    expect(within(screen.getByRole('dialog')).queryByRole('tab')).not.toBeInTheDocument()
     expect(screen.getByText(/no Nostr relays/)).toBeInTheDocument()
   })
 

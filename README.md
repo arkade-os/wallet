@@ -216,6 +216,6 @@ macOS AirPlay Receiver uses port 5000 by default, which conflicts with the regte
 
 ### Solver priority
 
-Settings > Solvers lists discovered markets by give/receive direction and retains the built-in and pasted card controls. Manual priority is the default; move buttons switch a direction back to manual order. Most used counts successful swaps from this wallet's persisted history and falls back to saved priority when that history cannot be read. Cost order estimates the requested trade amount from advertised fees and price feeds when quoting; Settings does not quote a reference amount.
+Settings > Solvers has a compact Priority view with one row per give/receive direction. Open a direction to set its order in a sheet; the Cards view manages built-in and pasted cards, with add/edit forms in separate sheets. Manual priority is the default; move buttons switch a direction back to manual order. Most used counts successful swaps from this wallet's persisted history and falls back to saved priority when that history cannot be read. Cost order estimates the requested trade amount from advertised fees and price feeds when quoting; Settings does not quote a reference amount.
 
 Priorities are local to this wallet, scoped by network and ordered direction, and cleared on wallet reset. Solvers with different discovery public keys stay distinct even when names match. Quote preparation can try the next eligible solver; accepting a quote keeps that solver and the confirmed terms throughout funding and recovery.
