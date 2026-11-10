@@ -5,9 +5,53 @@ import { quoteOffer, solverDirectionKey, solverId } from '@arkade-os/solver-disc
 import { ASSET_CARRIER_SATS, findMarket, QUOTE_OPTIONS } from '@arkade-os/swap/protocol'
 import { saveSolverCardEnabled, saveSolverRouting } from '../../lib/solverRouting'
 import { assetSwapRepository } from '../../lib/swapRepository'
+import { solverHealth } from '../../lib/solverHealth'
 
 describe('solver quote preview', () => {
   beforeEach(() => localStorage.clear())
+  it.each(['bounds', 'cancel'])('does not penalize a solver for %s', async (reason) => {
+    const market = { ...btcUsdt, max_base_amount: '1' }
+    const error = Object.assign(new Error('cancelled'), { name: 'AbortError' })
+    const fetchImpl = vi.fn(async () => {
+      if (reason === 'cancel') throw error
+      return new Response(JSON.stringify({ bitcoin: { usd: 100000 } }))
+    }) as typeof fetch
+    for (let i = 0; i < 2; i++) {
+      const pending = previewSolverQuote([market], 'btc', btcUsdt.quote_asset.id, '0.0001', 'mutinynet', fetchImpl)
+      if (reason === 'cancel') await expect(pending).rejects.toBe(error)
+      else await pending
+    }
+    expect(
+      await solverHealth.deprioritized({
+        network: 'mutinynet',
+        direction: solverDirectionKey(market, 'base', 'mutinynet'),
+      }),
+    ).toEqual([])
+    expect(localStorage.getItem('solverHealth')).toBeNull()
+  })
+  it('stops preferring a repeatedly unavailable feed and retains the saved preference', async () => {
+    const dead = { ...btcUsdt, source: 'dead', price_feed: 'https://dead.example/price' }
+    const live = { ...btcUsdt, source: 'live' }
+    const direction = solverDirectionKey(dead, 'base', 'mutinynet')
+    saveSolverRouting('mutinynet', direction, { mode: 'usage', preferFirst: solverId(dead, 'mutinynet') })
+    const calls: string[] = []
+    const fetchImpl = vi.fn(async (url: string | URL | Request) => {
+      calls.push(String(url))
+      if (String(url) === dead.price_feed) throw new Error('offline')
+      return new Response(JSON.stringify({ bitcoin: { usd: 100000 } }))
+    }) as typeof fetch
+    for (let i = 0; i < 2; i++)
+      expect(
+        (await previewSolverQuote([dead, live], 'btc', btcUsdt.quote_asset.id, '0.0001', 'mutinynet', fetchImpl))
+          .market,
+      ).toEqual(live)
+    expect(await solverHealth.deprioritized({ network: 'mutinynet', direction })).toEqual([solverId(dead, 'mutinynet')])
+    calls.length = 0
+    expect(
+      (await previewSolverQuote([dead, live], 'btc', btcUsdt.quote_asset.id, '0.0001', 'mutinynet', fetchImpl)).market,
+    ).toEqual(live)
+    expect(calls).toEqual([live.price_feed])
+  })
   it('shares the trader direction across opposite card orientations', async () => {
     const reversed = {
       ...btcUsdt,

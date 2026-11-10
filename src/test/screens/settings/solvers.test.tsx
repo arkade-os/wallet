@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Solvers from '../../../screens/Settings/Solvers'
 import { AspContext } from '../../../providers/asp'
@@ -10,6 +10,7 @@ import { SwapsContext } from '../../../providers/swaps'
 import { btcUsdt } from '../../lib/swapFixtures'
 import { isSolverCardEnabled, readSolverRouting, saveSolverRouting } from '../../../lib/solverRouting'
 import { solverDirectionKey, solverId, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+import { solverHealth } from '../../../lib/solverHealth'
 
 if (!window.PointerEvent) {
   Object.defineProperty(window, 'PointerEvent', { writable: true, configurable: true, value: MouseEvent })
@@ -91,6 +92,33 @@ describe('Solvers screen', () => {
     mockSolverUsage.mockReset().mockResolvedValue({})
     mockFetchTransportCards.mockReset()
     mockFetchTransportCards.mockResolvedValue([])
+  })
+
+  it('explains reliability demotion while keeping the preferred choice and enable switch', async () => {
+    const preferred = { ...btcUsdt, solver: 'Preferred', source: 'preferred' }
+    const other = { ...btcUsdt, solver: 'Other', source: 'other' }
+    const scope = { network: 'mutinynet', direction: solverDirectionKey(preferred, 'base', 'mutinynet') }
+    const id = solverId(preferred, scope.network)
+    saveSolverRouting(scope.network, scope.direction, { mode: 'usage', preferFirst: id })
+    await solverHealth.record(scope, id, 'failure')
+    await solverHealth.record(scope, id, 'failure')
+    renderSolvers(scope.network, [preferred, other], 'priority')
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Arkade BTC → Arkade USDT' })).toHaveTextContent(
+        'Preferred solver cooling down',
+      ),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Arkade BTC → Arkade USDT' }))
+    expect(screen.getByRole('combobox', { name: /^Prefer first/ })).toHaveValue(id)
+    expect(screen.getByRole('switch', { name: 'Use Preferred for this direction' })).toBeChecked()
+    expect(within(screen.getByRole('dialog')).getAllByRole('listitem')[0]).toHaveTextContent('Other')
+    expect(within(screen.getByRole('dialog')).getByText('Temporarily deprioritized')).toBeInTheDocument()
+    await act(async () => solverHealth.record(scope, id, 'success'))
+    await waitFor(() =>
+      expect(within(screen.getByRole('dialog')).queryByText('Temporarily deprioritized')).not.toBeInTheDocument(),
+    )
+    expect(within(screen.getByRole('dialog')).getAllByRole('listitem')[0]).toHaveTextContent('Preferred')
+    expect(readSolverRouting(scope.network, scope.direction)).toMatchObject({ mode: 'usage', preferFirst: id })
   })
 
   it('saves one preferred solver per direction and keeps automatic ordering across reloads', async () => {

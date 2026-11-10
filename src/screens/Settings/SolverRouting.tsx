@@ -24,6 +24,7 @@ import {
   enableSolverGlobally,
 } from '@/lib/solverRouting'
 import { prettyLongText } from '@/lib/format'
+import { solverHealth } from '@/lib/solverHealth'
 import FlexCol from '@/components/FlexCol'
 import Text, { TextSecondary } from '@/components/Text'
 import Shadow from '@/components/Shadow'
@@ -47,10 +48,12 @@ function DirectionRouting({
   candidates,
   network,
   direction,
+  cooling,
 }: {
   candidates: Candidate[]
   network: string
   direction: string
+  cooling: readonly string[]
 }) {
   const { t } = useTranslation()
   const { swaps } = useContext(SwapsContext)
@@ -77,8 +80,10 @@ function DirectionRouting({
     }
   }, [network, direction, swaps])
   const prefs = readSolverRouting(network, direction)
-  const ordered = orderSolverMarkets(candidates, { network, preferences: { ...prefs, usage, disabled: undefined } })
-  const firstMovable = ordered[0] && solverId(ordered[0].card, network) === prefs.preferFirst ? 1 : 0
+  const ordered = orderSolverMarkets(candidates, {
+    network,
+    preferences: { ...prefs, usage, disabled: undefined, deprioritized: cooling },
+  })
   const enabledIds = new Set(
     orderSolverMarkets(candidates, {
       network,
@@ -93,7 +98,20 @@ function DirectionRouting({
       setError(t('solvers.failedSave'))
     }
   }
+  const canMove = (index: number, delta: number): boolean => {
+    const current = ordered[index]
+    const next = ordered[index + delta]
+    if (!current || !next) return false
+    const currentId = solverId(current.card, network)
+    const nextId = solverId(next.card, network)
+    return (
+      currentId !== prefs.preferFirst &&
+      nextId !== prefs.preferFirst &&
+      cooling.includes(currentId) === cooling.includes(nextId)
+    )
+  }
   const move = (index: number, delta: number) => {
+    if (!canMove(index, delta)) return
     const ids = ordered.map(({ card }) => solverId(card, network))
     ;[ids[index], ids[index + delta]] = [ids[index + delta], ids[index]]
     save({ ...prefs, mode: 'manual', priority: ids })
@@ -125,6 +143,7 @@ function DirectionRouting({
                 {card.solver} · {card.sourceType}: {card.source}
                 {card.discovery_pubkey ? ` · ${prettyLongText(card.discovery_pubkey)}` : ''}
                 {!enabledIds.has(id) ? ` (${t('solvers.paused')})` : ''}
+                {cooling.includes(id) ? ` (${t('solvers.unreliable')})` : ''}
               </option>
             )
           })}
@@ -170,6 +189,7 @@ function DirectionRouting({
               ) : null}
               <div className='min-w-0 flex-1' id={`${listId}-${index}`}>
                 <Text wrap>{card.solver}</Text>
+                {cooling.includes(id) ? <TextSecondary>{t('solvers.unreliable')}</TextSecondary> : null}
                 {!enabled ? (
                   <TextSecondary>{t(globallyEnabled ? 'solvers.paused' : 'solvers.pausedEverywhere')}</TextSecondary>
                 ) : null}
@@ -219,7 +239,7 @@ function DirectionRouting({
                       type='button'
                       className='pill-base flex h-10 w-10 items-center justify-center p-0'
                       aria-label={`${t('solvers.moveUp')} ${card.solver}`}
-                      disabled={index <= firstMovable}
+                      disabled={!canMove(index, -1)}
                       onClick={() => move(index, -1)}
                     >
                       <span aria-hidden='true'>
@@ -230,7 +250,7 @@ function DirectionRouting({
                       type='button'
                       className='pill-base flex h-10 w-10 items-center justify-center p-0'
                       aria-label={`${t('solvers.moveDown')} ${card.solver}`}
-                      disabled={index < firstMovable || index === ordered.length - 1}
+                      disabled={!canMove(index, 1)}
                       onClick={() => move(index, 1)}
                     >
                       <span aria-hidden='true'>
@@ -250,7 +270,8 @@ function DirectionRouting({
 export default function SolverRouting({ network }: { network: string }) {
   const { allMarkets = [] } = useContext(SwapsContext)
   const { t } = useTranslation()
-  useSyncExternalStore(subscribeSolverRouting, getSolverRoutingVersion, getSolverRoutingVersion)
+  const version = useSyncExternalStore(subscribeSolverRouting, getSolverRoutingVersion, getSolverRoutingVersion)
+  const [cooling, setCooling] = useState<Record<string, string[]>>({})
   const [activeDirection, setActiveDirection] = useState<string>()
   const [open, setOpen] = useState(false)
   const directions = new Map<string, Candidate[]>()
@@ -266,6 +287,26 @@ export default function SolverRouting({ network }: { network: string }) {
     }
   }
   const selected = activeDirection ? directions.get(activeDirection) : undefined
+  const directionKeys = JSON.stringify([...directions.keys()])
+  useEffect(() => {
+    let active = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const refresh = async () => {
+      const entries = await Promise.all(
+        (JSON.parse(directionKeys) as string[]).map(
+          async (direction) => [direction, await solverHealth.deprioritized({ network, direction })] as const,
+        ),
+      )
+      if (!active) return
+      setCooling(Object.fromEntries(entries))
+      if (entries.some(([, ids]) => ids.length)) timer = setTimeout(() => void refresh(), 1000)
+    }
+    void refresh()
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
+  }, [network, directionKeys, version])
   return (
     <Drawer open={selected ? open : false} onOpenChange={setOpen}>
       <TextSecondary>{t('solvers.routingHint')}</TextSecondary>
@@ -284,6 +325,7 @@ export default function SolverRouting({ network }: { network: string }) {
               })
               const enabledCount = enabled.length
               const preferred = enabled.find(({ card }) => solverId(card, network) === prefs.preferFirst)
+              const preferredCooling = preferred && cooling[direction]?.includes(prefs.preferFirst ?? '')
               const modeLabel = t(
                 mode === 'usage' ? 'solvers.mostUsed' : mode === 'cost' ? 'solvers.lowestCost' : 'solvers.manualOrder',
               )
@@ -301,9 +343,11 @@ export default function SolverRouting({ network }: { network: string }) {
                   <span className='min-w-0 flex-1'>
                     <span className='block break-words font-medium'>{label}</span>
                     <span className='mt-1 block text-sm text-[var(--neutral-500)]'>
-                      {preferred
-                        ? t('solvers.preferredSummary', { name: preferred.card.solver, mode: modeLabel })
-                        : modeLabel}
+                      {preferredCooling
+                        ? t('solvers.preferredCooling', { mode: modeLabel })
+                        : preferred
+                          ? t('solvers.preferredSummary', { name: preferred.card.solver, mode: modeLabel })
+                          : modeLabel}
                     </span>
                   </span>
                   <span className='shrink-0 text-sm text-[var(--neutral-500)]'>
@@ -334,6 +378,7 @@ export default function SolverRouting({ network }: { network: string }) {
               direction={activeDirection}
               candidates={selected}
               network={network}
+              cooling={cooling[activeDirection] ?? []}
             />
           </div>
           <div className='shrink-0 border-t border-[var(--neutral-100)] px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]'>

@@ -10,12 +10,16 @@ import {
 } from '@arkade-os/solver-discovery'
 
 const STORAGE_KEY = 'solverRouting'
+export const SOLVER_HEALTH_STORAGE_KEY = 'solverHealth'
 let version = 0
 const listeners = new Set<() => void>()
+export const notifySolverRouting = (): void => {
+  version += 1
+  listeners.forEach((fn) => fn())
+}
 const onStorage = (event: StorageEvent) => {
-  if (event.key === STORAGE_KEY || event.key === null) {
-    version += 1
-    listeners.forEach((fn) => fn())
+  if (event.key === STORAGE_KEY || event.key === SOLVER_HEALTH_STORAGE_KEY || event.key === null) {
+    notifySolverRouting()
   }
 }
 const cleanIds = (value: unknown): string[] =>
@@ -43,8 +47,7 @@ export const readSolverRouting = (network: string, direction: string): SolverRou
   clean(read()[JSON.stringify([network, direction])])
 const write = (key: string, value: unknown): void => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...read(), [key]: value }))
-  version += 1
-  listeners.forEach((fn) => fn())
+  notifySolverRouting()
 }
 export const saveSolverRouting = (network: string, direction: string, prefs: SolverRoutingPreferences): void =>
   write(JSON.stringify([network, direction]), clean(prefs))

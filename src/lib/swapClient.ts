@@ -40,6 +40,7 @@ import { l1NetworkOf, onchainClaimEndpoint } from './onchainPayout'
 import { discoveryOptions } from './swapMarkets'
 import { assetSwapRepository } from './swapRepository'
 import { effectiveSolverRouting } from './solverRouting'
+import { solverHealth } from './solverHealth'
 
 /**
  * A swap action that reached no driver at all.
@@ -104,6 +105,7 @@ export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: Netw
     discovery: discoveryOptions(network),
     policy: {
       solverRouting: {
+        health: solverHealth,
         failover: true,
         preferences: async ({ network, direction, candidates }) => {
           const preferences = effectiveSolverRouting(network, direction, candidates)

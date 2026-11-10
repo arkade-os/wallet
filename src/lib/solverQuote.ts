@@ -3,6 +3,7 @@ import {
   orderSolverMarkets,
   rankSolverMarkets,
   solverDirectionKey,
+  solverId,
   toAtomic,
   type DiscoveredMarket,
   type OfferPlan,
@@ -10,6 +11,7 @@ import {
 import { ASSET_CARRIER_SATS, findMarket, QUOTE_OPTIONS, validatePlan } from '@arkade-os/swap/protocol'
 import { effectiveSolverRouting } from './solverRouting'
 import { solverUsage } from './swapRecords'
+import { solverHealth } from './solverHealth'
 
 export const previewSolverQuote = async (
   markets: DiscoveredMarket[],
@@ -28,7 +30,10 @@ export const previewSolverQuote = async (
   if (!candidates.length) throw new Error('Swap unavailable for this pair')
   const first = candidates[0]
   const direction = solverDirectionKey(first.card, first.give, network)
-  const prefs = effectiveSolverRouting(network, direction, candidates)
+  const prefs = {
+    ...effectiveSolverRouting(network, direction, candidates),
+    deprioritized: await solverHealth.deprioritized({ network, direction }),
+  }
   const enabled = orderSolverMarkets(candidates, { network, preferences: prefs })
   if (!enabled.length) throw new Error('No enabled solver for this direction')
   const usage = prefs.mode === 'usage' ? await solverUsage(network, direction).catch(() => undefined) : undefined
@@ -45,12 +50,16 @@ export const previewSolverQuote = async (
   let lastError: unknown = new Error('Quote unavailable')
   for (const { card, give } of ordered) {
     if (signal?.aborted) throw signal.reason
+    let feedRequested = false
     try {
       const plan = await quoteOffer(card, {
         give,
         giveAmount: amount,
         carrierSats: ASSET_CARRIER_SATS,
-        fetchImpl,
+        fetchImpl: async (input, init) => {
+          feedRequested = true
+          return fetchImpl(input, init)
+        },
         signal,
         ...QUOTE_OPTIONS,
       })
@@ -60,6 +69,9 @@ export const previewSolverQuote = async (
       lastError = new Error('Amount outside solver bounds')
     } catch (error) {
       if (signal?.aborted) throw error
+      const aborted = error && typeof error === 'object' && 'name' in error && error.name === 'AbortError'
+      if (feedRequested && !aborted)
+        await solverHealth.record({ network, direction }, solverId(card, network), 'failure')
       lastError = error
     }
   }

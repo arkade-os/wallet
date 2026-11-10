@@ -214,6 +214,8 @@ Switch off a card to pause it across all directions, or switch off a solver in a
 
 Choose Prefer first in a direction sheet to try one enabled solver before the others. Sort the rest by Most used or Lowest estimated cost; a failed preferred solver still falls back to those candidates. No preference restores normal sorting. A missing or paused preferred solver is skipped while its saved choice remains available for later. Manual ordering also keeps the preferred solver first and lets you reorder the remainder.
 
+Repeated quote failures temporarily move a solver behind healthy alternatives, including a saved preferred solver. Two consecutive failures start a one-minute cooldown; further failures double it up to fifteen minutes. A verified quote restores priority, and thirty quiet minutes forget the streak. Reliability is retained across reloads per network and direction. Cooling solvers remain enabled as last-resort fallbacks; the direction sheet explains their reduced priority without changing the saved preference. Cancellations and request limits do not count as solver faults.
+
 Priorities are local to this wallet, scoped by network and ordered direction, and cleared on wallet reset. Solvers with different discovery public keys stay distinct even when names match. Quote preparation can try the next eligible solver; accepting a quote keeps that solver and the confirmed terms throughout funding and recovery.
 
 ## Troubleshooting
