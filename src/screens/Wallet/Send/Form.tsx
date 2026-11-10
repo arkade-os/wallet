@@ -437,10 +437,14 @@ export default function SendForm() {
         // avoid mixed amounts in invoice and satoshis field
         let sats = satoshis
         let invo = invoice
-        if (invoice && satoshis) {
+        if (invoice) {
           try {
-            const decoded = decodeInvoice(invoice)
-            sats = decoded.amountSats
+            const { amountSats } = decodeInvoice(invoice)
+            if (amountSats > 0) {
+              sats = amountSats
+              setValueSats(amountSats)
+              setAmountIsReadOnly(true)
+            }
           } catch (err) {
             invo = undefined
             consoleError(err, t('send.unableToDecodeInvoice'))

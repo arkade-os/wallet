@@ -454,9 +454,13 @@ describe('Send screen', () => {
   it('avoid mixed amounts in invoice and satoshis field', async () => {
     // a 2100 sats lightning invoice
     const INVOICE = fixtures.lib.bolt11.invoice
+    const INVOICE_SATS = 2100
     const BTC_ADDRESS = 'bcrt1mockaddress'
 
-    const setSendInfo = vi.fn()
+    let currentSendInfo = { ...emptySendInfo }
+    const setSendInfo = vi.fn((update) => {
+      currentSendInfo = typeof update === 'function' ? update(currentSendInfo) : update
+    })
     const walletValue = {
       ...mockWalletContextValue,
       svcWallet: {
@@ -474,21 +478,30 @@ describe('Send screen', () => {
 
     renderSendForm({
       configContext: configValue,
-      flowContext: { ...mockFlowContextValue, setSendInfo },
+      flowContext: { ...mockFlowContextValue, sendInfo: currentSendInfo, setSendInfo },
       walletContext: walletValue,
     })
 
     const addressInput = document.querySelector('input[name="send-address"]') as HTMLInputElement
     const amountInput = document.querySelector('input[name="send-amount"]') as HTMLInputElement
 
+    // URI with both lightning and amount: amount is ignored, invoice takes precedence
     fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?lightning=${INVOICE}&amount=0.0001` } })
     await waitFor(() => expect(amountInput.value).toBe('0.000021'))
+    expect(currentSendInfo.invoice).toBe(INVOICE)
+    expect(currentSendInfo.satoshis).toBe(INVOICE_SATS)
 
+    // Invoice-only URI: verify amount display changes from previous URI amount
     fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?lightning=${INVOICE}` } })
     await waitFor(() => expect(amountInput.value).toBe('0.000021'))
+    expect(currentSendInfo.invoice).toBe(INVOICE)
+    expect(currentSendInfo.satoshis).toBe(INVOICE_SATS)
 
+    // Amount-only URI (no invoice): should clear invoice and update satoshis
     fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?amount=0.0001` } })
     await waitFor(() => expect(amountInput.value).toBe('0.0001'))
+    expect(currentSendInfo.invoice).toBeUndefined()
+    expect(currentSendInfo.satoshis).toBe(10000)
   })
 
   it('converts a USD account amount into its designated asset units', async () => {
