@@ -6,7 +6,10 @@ import { previewSolverQuote } from '../../lib/solverQuote'
 import { saveSolverRouting } from '../../lib/solverRouting'
 import { btcUsdt } from '../lib/swapFixtures'
 
-vi.mock('../../lib/solverQuote', () => ({ previewSolverQuote: vi.fn() }))
+vi.mock('../../lib/solverQuote', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/solverQuote')>()),
+  previewSolverQuote: vi.fn(),
+}))
 beforeEach(() => {
   localStorage.clear()
   vi.mocked(previewSolverQuote).mockReset()

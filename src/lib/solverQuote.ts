@@ -13,6 +13,10 @@ import { effectiveSolverRouting } from './solverRouting'
 import { solverUsage } from './swapRecords'
 import { solverHealth } from './solverHealth'
 
+export class SolverDirectionUnavailable extends Error {
+  readonly name = 'SolverDirectionUnavailable'
+}
+
 export const previewSolverQuote = async (
   markets: DiscoveredMarket[],
   from: string,
@@ -27,7 +31,7 @@ export const previewSolverQuote = async (
     const pair = findMarket([card], from, to)
     return pair?.market ? [{ card, give: pair.give }] : []
   })
-  if (!candidates.length) throw new Error('Swap unavailable for this pair')
+  if (!candidates.length) throw new SolverDirectionUnavailable('Swap unavailable for this pair')
   const first = candidates[0]
   const direction = solverDirectionKey(first.card, first.give, network)
   const prefs = {
@@ -35,7 +39,7 @@ export const previewSolverQuote = async (
     deprioritized: await solverHealth.deprioritized({ network, direction }),
   }
   const enabled = orderSolverMarkets(candidates, { network, preferences: prefs })
-  if (!enabled.length) throw new Error('No enabled solver for this direction')
+  if (!enabled.length) throw new SolverDirectionUnavailable('No enabled solver for this direction')
   const usage = prefs.mode === 'usage' ? await solverUsage(network, direction).catch(() => undefined) : undefined
   const decimals = (enabled[0].give === 'base' ? enabled[0].card.base_asset : enabled[0].card.quote_asset).decimals
   const ordered = await rankSolverMarkets(enabled, {
@@ -63,7 +67,7 @@ export const previewSolverQuote = async (
         signal,
         ...QUOTE_OPTIONS,
       })
-      // Preview eligibility checks bounds and dust; the composer checks the actual wallet balance.
+      // A falsy violation means bounds and dust pass; the composer checks the actual wallet balance.
       if (!validatePlan(plan, plan.deposit.atomic, dust)) return plan
       invalidPlan ??= plan
       lastError = new Error('Amount outside solver bounds')
@@ -75,6 +79,7 @@ export const previewSolverQuote = async (
       lastError = error
     }
   }
+  // Preserve an amount violation so the composer can explain why Continue is disabled.
   if (invalidPlan) return invalidPlan
   throw lastError
 }

@@ -2,7 +2,7 @@ import userEvent from '@testing-library/user-event'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import createFetchMock from 'vitest-fetch-mock'
-import { quoteOffer } from '@arkade-os/solver-discovery'
+import { quoteOffer, solverDirectionKey, solverId } from '@arkade-os/solver-discovery'
 import { QUOTE_OPTIONS } from '@arkade-os/swap/protocol'
 import * as solverQuoteHook from '../../../hooks/useSolverQuote'
 import WalletSwap from '../../../screens/Wallet/Swap/Index'
@@ -17,6 +17,7 @@ import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import type { WalletAssetSwap as AssetSwap } from '../../../lib/swapRepository'
 import { Currencies, Unit } from '../../../lib/types'
+import { saveSolverRouting } from '../../../lib/solverRouting'
 import {
   mockAspContextValue,
   mockConfigContextValue,
@@ -390,6 +391,35 @@ describe('Wallet swap flow', () => {
     await waitFor(() => expect(screen.getByText('Quote unavailable')).toBeInTheDocument(), { timeout: 3_000 })
     expect(screen.getByText('Quote unavailable').closest('[data-sonner-toast]')).not.toBeNull()
     expect(screen.getByRole('button', { name: '0.00100000 BTC' })).toBeInTheDocument()
+  })
+
+  it('shows a paused direction as unavailable and quotes again when a solver is enabled', async () => {
+    const alternate = { ...btcUsdt, source: 'alternate' }
+    const direction = solverDirectionKey(btcUsdt, 'base', 'mutinynet')
+    saveSolverRouting('mutinynet', direction, {
+      disabled: [btcUsdt, alternate].map((market) => solverId(market, 'mutinynet')),
+    })
+    const view = renderSwap({
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      wallet: NO_ASSETS,
+      swap: { markets: [btcUsdt, alternate, btcDepix] },
+    })
+    try {
+      fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+      fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+      await userEvent.click(screen.getByRole('button', { name: '5' }))
+
+      expect(await screen.findByText('Swap unavailable for this pair')).toBeInTheDocument()
+      expect(screen.queryByText('Quote unavailable')).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+      expect(exchange).not.toHaveBeenCalled()
+
+      act(() => saveSolverRouting('mutinynet', direction, { disabled: [solverId(btcUsdt, 'mutinynet')] }))
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled())
+    } finally {
+      view.unmount()
+      saveSolverRouting('mutinynet', direction, {})
+    }
   })
 
   it('stops a partial asset swap that cannot fund its change carrier', async () => {

@@ -2,9 +2,14 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { stableStringify, type DiscoveredMarket, type OfferPlan } from '@arkade-os/solver-discovery'
 import { ASSET_CARRIER_SATS, makeCachedFeedFetch } from '@arkade-os/swap/protocol'
 import { getSolverRoutingVersion, subscribeSolverRouting } from '@/lib/solverRouting'
-import { previewSolverQuote } from '@/lib/solverQuote'
+import { previewSolverQuote, SolverDirectionUnavailable } from '@/lib/solverQuote'
 
-type QuoteState = { key: string; plan: OfferPlan | null; status: 'idle' | 'loading' | 'success' | 'error' }
+type QuoteState = {
+  key: string
+  plan: OfferPlan | null
+  status: 'idle' | 'loading' | 'success' | 'error'
+  solvable?: boolean
+}
 export const useSolverQuote = (
   markets: DiscoveredMarket[],
   from: string,
@@ -24,10 +29,16 @@ export const useSolverQuote = (
     setState({ key, plan: null, status: 'loading' })
     void previewSolverQuote(markets, from, to, amount, network, feedFetch, controller.signal, dust).then(
       (plan) => {
-        if (active) setState({ key, plan, status: 'success' })
+        if (active) setState({ key, plan, status: 'success', solvable: true })
       },
-      () => {
-        if (active) setState({ key, plan: null, status: 'error' })
+      (error) => {
+        if (active)
+          setState({
+            key,
+            plan: null,
+            status: 'error',
+            solvable: error instanceof SolverDirectionUnavailable ? false : undefined,
+          })
       },
     )
     return () => {
@@ -40,7 +51,7 @@ export const useSolverQuote = (
   return {
     plan: current?.plan ?? null,
     status: current?.status ?? 'idle',
-    solvable: undefined,
+    solvable: current?.solvable,
     setGiveAmount: setAmount,
   }
 }
