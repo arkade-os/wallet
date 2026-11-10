@@ -6,7 +6,7 @@ settings:
 
 overrides:
   '@arkade-os/sdk': 0.5.4
-  '@arkade-os/solver-discovery': file:vendor/arkade-os-solver-discovery-0.3.0-routing-df7e0ee.tgz
+  '@arkade-os/solver-discovery': file:vendor/arkade-os-solver-discovery-0.3.0-routing-b5b414d.tgz
   '@babel/core': '>=7.29.6 <8.0.0'
   js-yaml@<4: '>=3.15.0 <4.0.0'
   js-yaml@>=4: '>=4.2.0 <5.0.0'
@@ -24,8 +24,8 @@ importers:
         specifier: 0.5.4
         version: 0.5.4
       '@arkade-os/solver-discovery':
-        specifier: file:vendor/arkade-os-solver-discovery-0.3.0-routing-df7e0ee.tgz
-        version: file:vendor/arkade-os-solver-discovery-0.3.0-routing-df7e0ee.tgz
+        specifier: file:vendor/arkade-os-solver-discovery-0.3.0-routing-b5b414d.tgz
+        version: file:vendor/arkade-os-solver-discovery-0.3.0-routing-b5b414d.tgz
       '@arkade-os/swap':
         specifier: file:vendor/arkade-os-swap-0.1.4-routing-0bf144e1.tgz
         version: file:vendor/arkade-os-swap-0.1.4-routing-0bf144e1.tgz(nostr-tools@2.24.1(typescript@5.9.3))
@@ -264,8 +264,8 @@ packages:
       expo-task-manager:
         optional: true
 
-  '@arkade-os/solver-discovery@file:vendor/arkade-os-solver-discovery-0.3.0-routing-df7e0ee.tgz':
-    resolution: {integrity: sha512-plywMWZrZFJmF6BUPbcHMlWCnNA5+gIpkqNP8Mejd0mHGyBCT6uwYUGRJBUfYi7PXTRKF/r/IAa5MxtLJ8Wb/g==, tarball: file:vendor/arkade-os-solver-discovery-0.3.0-routing-df7e0ee.tgz}
+  '@arkade-os/solver-discovery@file:vendor/arkade-os-solver-discovery-0.3.0-routing-b5b414d.tgz':
+    resolution: {integrity: sha512-+g/PNpNvxAh9KnUEsbScnt8kgZoTyf3AHhacLzdncgrlDweNrgnBySXvIBu9A6STENmtjDwAqgP8hS7cg9Npqg==, tarball: file:vendor/arkade-os-solver-discovery-0.3.0-routing-b5b414d.tgz}
     version: 0.3.0
     engines: {node: '>=20.19'}
 
@@ -3339,7 +3339,7 @@ snapshots:
       - ecpair
       - utf-8-validate
 
-  '@arkade-os/solver-discovery@file:vendor/arkade-os-solver-discovery-0.3.0-routing-df7e0ee.tgz':
+  '@arkade-os/solver-discovery@file:vendor/arkade-os-solver-discovery-0.3.0-routing-b5b414d.tgz':
     dependencies:
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
@@ -3347,7 +3347,7 @@ snapshots:
   '@arkade-os/swap@file:vendor/arkade-os-swap-0.1.4-routing-0bf144e1.tgz(nostr-tools@2.24.1(typescript@5.9.3))':
     dependencies:
       '@arkade-os/sdk': 0.5.4
-      '@arkade-os/solver-discovery': file:vendor/arkade-os-solver-discovery-0.3.0-routing-df7e0ee.tgz
+      '@arkade-os/solver-discovery': file:vendor/arkade-os-solver-discovery-0.3.0-routing-b5b414d.tgz
       '@noble/ciphers': 2.1.1
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0

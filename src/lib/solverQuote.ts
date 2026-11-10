@@ -1,5 +1,6 @@
 import {
   quoteOffer,
+  orderSolverMarkets,
   rankSolverMarkets,
   solverDirectionKey,
   toAtomic,
@@ -7,7 +8,7 @@ import {
   type OfferPlan,
 } from '@arkade-os/solver-discovery'
 import { ASSET_CARRIER_SATS, findMarket, QUOTE_OPTIONS, validatePlan } from '@arkade-os/swap/protocol'
-import { readSolverRouting } from './solverRouting'
+import { effectiveSolverRouting } from './solverRouting'
 import { solverUsage } from './swapRecords'
 
 export const previewSolverQuote = async (
@@ -27,10 +28,12 @@ export const previewSolverQuote = async (
   if (!candidates.length) throw new Error('Swap unavailable for this pair')
   const first = candidates[0]
   const direction = solverDirectionKey(first.card, first.give, network)
-  const prefs = readSolverRouting(network, direction)
+  const prefs = effectiveSolverRouting(network, direction, candidates)
+  const enabled = orderSolverMarkets(candidates, { network, preferences: prefs })
+  if (!enabled.length) throw new Error('No enabled solver for this direction')
   const usage = prefs.mode === 'usage' ? await solverUsage(network, direction).catch(() => undefined) : undefined
-  const decimals = (first.give === 'base' ? first.card.base_asset : first.card.quote_asset).decimals
-  const ordered = await rankSolverMarkets(candidates, {
+  const decimals = (enabled[0].give === 'base' ? enabled[0].card.base_asset : enabled[0].card.quote_asset).decimals
+  const ordered = await rankSolverMarkets(enabled, {
     network,
     preferences: { ...prefs, usage },
     amount: { on: 'give', value: toAtomic(amount, decimals) },

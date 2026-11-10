@@ -4,7 +4,15 @@ import {
   readSolverRouting,
   saveSolverRouting,
   subscribeSolverRouting,
+  effectiveSolverRouting,
+  isSolverCardEnabled,
+  isSolverGloballyEnabled,
+  isSolverEnabled,
+  saveSolverCardEnabled,
+  enableSolverGlobally,
 } from '../../lib/solverRouting'
+import { btcUsdt } from './swapFixtures'
+import { solverDirectionKey, solverId } from '@arkade-os/solver-discovery'
 
 describe('solver routing preferences', () => {
   beforeEach(() => localStorage.clear())
@@ -19,6 +27,84 @@ describe('solver routing preferences', () => {
     expect(readSolverRouting('bitcoin', 'a')).toEqual({ mode: 'manual', priority: [] })
     saveSolverRouting('bitcoin', 'a', { mode: 'other', priority: ['a', 3, 'a', '', 'b'], usage: { a: 99 } } as never)
     expect(readSolverRouting('bitcoin', 'a')).toEqual({ mode: 'manual', priority: ['a', 'b'] })
+  })
+  it('persists disabled solver IDs per direction while retaining priority', () => {
+    saveSolverRouting('bitcoin', 'give>take', { mode: 'usage', priority: ['a', 'b'], disabled: ['a'] })
+    expect(readSolverRouting('bitcoin', 'give>take')).toEqual({
+      mode: 'usage',
+      priority: ['a', 'b'],
+      disabled: ['a'],
+    })
+    expect(readSolverRouting('bitcoin', 'take>give').disabled).toBeUndefined()
+    expect(readSolverRouting('mutinynet', 'give>take').disabled).toBeUndefined()
+  })
+  it('combines card pauses with direction choices without changing cards or priority', () => {
+    const input = {
+      network: 'bitcoin' as const,
+      label: 'pin',
+      card: { version: 0, name: 'pin', discovery_pubkey: 'a'.repeat(64) },
+    }
+    const market = {
+      ...btcUsdt,
+      source: 'pin',
+      sourceType: 'local' as const,
+      solver: 'pin',
+      discovery_pubkey: 'a'.repeat(64),
+    }
+    const id = solverId(market, 'bitcoin')
+    const direction = solverDirectionKey(market, 'base', 'bitcoin')
+    localStorage.setItem('solverCards', JSON.stringify([input]))
+    const cards = localStorage.getItem('solverCards')
+    saveSolverRouting('bitcoin', direction, { priority: [id], disabled: [id] })
+    saveSolverCardEnabled(input, false)
+    expect(isSolverCardEnabled(input)).toBe(false)
+    expect(isSolverEnabled(market, 'base', 'bitcoin')).toBe(false)
+    expect(isSolverEnabled(market, 'quote', 'bitcoin')).toBe(false)
+    expect(effectiveSolverRouting('bitcoin', direction, [{ card: market }]).disabled).toEqual([id])
+    expect(localStorage.getItem('solverCards')).toBe(cards)
+    expect(isSolverGloballyEnabled({ ...market, sourceType: 'registry' }, 'bitcoin')).toBe(false)
+    expect(
+      isSolverGloballyEnabled({ ...market, discovery_pubkey: 'A'.repeat(64), sourceType: 'registry' }, 'bitcoin'),
+    ).toBe(false)
+    expect(
+      isSolverGloballyEnabled({ ...market, discovery_pubkey: 'b'.repeat(64), sourceType: 'registry' }, 'bitcoin'),
+    ).toBe(true)
+    expect(isSolverGloballyEnabled(market, 'mutinynet')).toBe(true)
+    expect(isSolverGloballyEnabled({ ...market, solver: 'renamed' }, 'bitcoin')).toBe(false)
+    saveSolverCardEnabled(input, true)
+    expect(isSolverEnabled(market, 'base', 'bitcoin')).toBe(false)
+    expect(isSolverEnabled(market, 'quote', 'bitcoin')).toBe(true)
+    expect(readSolverRouting('bitcoin', direction).priority).toEqual([id])
+  })
+  it('does not report a card paused when its preference write fails', () => {
+    const input = { network: 'bitcoin' as const, label: 'pin', card: { version: 0, name: 'pin' } }
+    const listener = vi.fn()
+    const unsubscribe = subscribeSolverRouting(listener)
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
+      throw new Error('full')
+    })
+    expect(() => saveSolverCardEnabled(input, false)).toThrow('full')
+    expect(isSolverCardEnabled(input)).toBe(true)
+    expect(listener).not.toHaveBeenCalled()
+    setItem.mockRestore()
+    saveSolverCardEnabled(input, false)
+    expect(listener).toHaveBeenCalledOnce()
+    unsubscribe()
+  })
+
+  it('can re-enable a paused registry mirror after its pinned card was removed', () => {
+    const input = {
+      network: 'bitcoin' as const,
+      label: 'Pin',
+      card: { version: 0, name: 'Pin', discovery_pubkey: 'a'.repeat(64) },
+    }
+    const mirror = { ...btcUsdt, discovery_pubkey: 'a'.repeat(64), sourceType: 'registry' as const }
+    localStorage.setItem('solverCards', JSON.stringify([input]))
+    saveSolverCardEnabled(input, false)
+    localStorage.removeItem('solverCards')
+    expect(isSolverGloballyEnabled(mirror, 'bitcoin')).toBe(false)
+    enableSolverGlobally(mirror, 'bitcoin')
+    expect(isSolverGloballyEnabled(mirror, 'bitcoin')).toBe(true)
   })
   it('notifies only after a successful write and propagates storage failures', () => {
     const listener = vi.fn()

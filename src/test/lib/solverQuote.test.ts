@@ -3,7 +3,7 @@ import { previewSolverQuote } from '../../lib/solverQuote'
 import { btcUsdt } from './swapFixtures'
 import { quoteOffer, solverDirectionKey, solverId } from '@arkade-os/solver-discovery'
 import { ASSET_CARRIER_SATS, QUOTE_OPTIONS } from '@arkade-os/swap/protocol'
-import { saveSolverRouting } from '../../lib/solverRouting'
+import { saveSolverCardEnabled, saveSolverRouting } from '../../lib/solverRouting'
 import { assetSwapRepository } from '../../lib/swapRepository'
 
 describe('solver quote preview', () => {
@@ -36,6 +36,46 @@ describe('solver quote preview', () => {
     )
     expect(plan.market).toEqual(preferred)
     expect(fetchImpl).toHaveBeenCalledOnce()
+  })
+
+  it('does not fetch a paused card or a solver disabled for this direction', async () => {
+    const pausedCard = {
+      ...btcUsdt,
+      solver: 'Pin',
+      source: 'Pin',
+      sourceType: 'local' as const,
+      discovery_pubkey: undefined,
+      price_feed: 'https://paused.example/price',
+    }
+    const pausedDirection = { ...btcUsdt, source: 'direction', price_feed: 'https://direction.example/price' }
+    const live = { ...btcUsdt, source: 'live' }
+    saveSolverCardEnabled({ network: 'mutinynet', label: 'Pin', card: { version: 0, name: 'Pin' } }, false)
+    saveSolverRouting('mutinynet', solverDirectionKey(live, 'base', 'mutinynet'), {
+      mode: 'cost',
+      disabled: [solverId(pausedDirection, 'mutinynet')],
+    })
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ bitcoin: { usd: 100000 } }))) as typeof fetch
+    const plan = await previewSolverQuote(
+      [pausedCard, pausedDirection, live],
+      'btc',
+      btcUsdt.quote_asset.id,
+      '0.0001',
+      'mutinynet',
+      fetchImpl,
+    )
+    expect(plan.market).toEqual(live)
+    for (const [url] of vi.mocked(fetchImpl).mock.calls) expect(String(url)).toBe(live.price_feed)
+  })
+
+  it('does not request feeds when every solver for a direction is paused', async () => {
+    saveSolverRouting('mutinynet', solverDirectionKey(btcUsdt, 'base', 'mutinynet'), {
+      disabled: [solverId(btcUsdt, 'mutinynet')],
+    })
+    const fetchImpl = vi.fn() as typeof fetch
+    await expect(
+      previewSolverQuote([btcUsdt], 'btc', btcUsdt.quote_asset.id, '0.0001', 'mutinynet', fetchImpl),
+    ).rejects.toThrow('No enabled solver')
+    expect(fetchImpl).not.toHaveBeenCalled()
   })
 
   it('ranks cost at the entered amount before previewing', async () => {

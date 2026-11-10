@@ -73,6 +73,7 @@ import { claimFeeRate } from '../lib/claimFee'
 import { onchainClaimEndpoint } from '../lib/onchainPayout'
 import { toInvoiceFacts } from '../lib/lnSwap'
 import { makeSwapClient, SwapsHeldElsewhere } from '../lib/swapClient'
+import { isSolverEnabled } from '../lib/solverRouting'
 import {
   DriverPromoted,
   DriverUnavailable,
@@ -754,6 +755,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const assertWithinBounds = (sats: number, payout: 'bolt11' | 'arkade') => {
     const bounds = allMarketsRef.current.filter(isLightningMarket).flatMap((market) => {
       const side = marketCorridor(market, 'base') === payout ? 'base' : 'quote'
+      if (!isSolverEnabled(market, side === 'base' ? 'quote' : 'base', aspInfo.network)) return []
       const limits = sideLimits(market, side)
       return limits ? [limits] : []
     })

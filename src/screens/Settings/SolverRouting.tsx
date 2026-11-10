@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState, useSyncExternalStore } from 'react'
+import { useContext, useEffect, useState, useSyncExternalStore, useId, useRef } from 'react'
 import {
   assetIdOf,
   fromAtomic,
@@ -19,6 +19,9 @@ import {
   saveSolverRouting,
   subscribeSolverRouting,
   getSolverRoutingVersion,
+  effectiveSolverRouting,
+  isSolverGloballyEnabled,
+  enableSolverGlobally,
 } from '@/lib/solverRouting'
 import { prettyLongText } from '@/lib/format'
 import FlexCol from '@/components/FlexCol'
@@ -28,6 +31,7 @@ import ErrorMessage from '@/components/Error'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer'
 import ChevronDownIcon from '@/icons/ChevronDown'
 import ChevronUpIcon from '@/icons/ChevronUp'
+import { Switch } from '@/components/ui/switch'
 
 const railNames = { arkade: 'Arkade', bolt11: 'Lightning', bitcoin: 'Bitcoin', eip155: 'EVM' }
 
@@ -53,6 +57,8 @@ function DirectionRouting({
   const [usage, setUsage] = useState<Record<string, number>>({})
   const [error, setError] = useState('')
   const [usageError, setUsageError] = useState(false)
+  const listId = useId()
+  const orderRef = useRef<HTMLSelectElement>(null)
   useEffect(() => {
     let active = true
     void solverUsage(network, direction).then(
@@ -71,7 +77,13 @@ function DirectionRouting({
     }
   }, [network, direction, swaps])
   const prefs = readSolverRouting(network, direction)
-  const ordered = orderSolverMarkets(candidates, { network, preferences: { ...prefs, usage } })
+  const ordered = orderSolverMarkets(candidates, { network, preferences: { ...prefs, usage, disabled: undefined } })
+  const enabledIds = new Set(
+    orderSolverMarkets(candidates, {
+      network,
+      preferences: effectiveSolverRouting(network, direction, candidates),
+    }).map(({ card }) => solverId(card, network)),
+  )
   const save = (next: SolverRoutingPreferences) => {
     try {
       saveSolverRouting(network, direction, next)
@@ -83,14 +95,17 @@ function DirectionRouting({
   const move = (index: number, delta: number) => {
     const ids = ordered.map(({ card }) => solverId(card, network))
     ;[ids[index], ids[index + delta]] = [ids[index + delta], ids[index]]
-    save({ mode: 'manual', priority: ids })
+    save({ ...prefs, mode: 'manual', priority: ids })
   }
   const directionLabel = directionLabelOf(candidates[0])
   return (
     <FlexCol gap='12px'>
+      <TextSecondary>{t('solvers.pauseHint')}</TextSecondary>
+      {enabledIds.size === 0 ? <TextSecondary>{t('solvers.noneEnabled')}</TextSecondary> : null}
       <label className='flex w-full items-center justify-between gap-3'>
         <span>{t('solvers.orderBy')}</span>
         <select
+          ref={orderRef}
           className='max-w-[60%] rounded-lg border border-[var(--neutral-200)] bg-transparent p-2'
           aria-label={`${t('solvers.orderBy')} ${directionLabel} (${network})`}
           value={prefs.mode ?? 'manual'}
@@ -109,6 +124,8 @@ function DirectionRouting({
       <ul className='m-0 w-full list-none divide-y divide-[var(--neutral-100)] p-0'>
         {ordered.map(({ card, give }, index) => {
           const id = solverId(card, network)
+          const globallyEnabled = isSolverGloballyEnabled(card, network)
+          const enabled = enabledIds.has(id)
           const fee = card.solver_fee?.[give]
           const flat = fee?.flat ?? (!card.solver_fee ? card.fee_flat : undefined)
           const flatAsset = fee ? (give === 'base' ? card.base_asset : card.quote_asset) : card.quote_asset
@@ -123,8 +140,29 @@ function DirectionRouting({
                   {index + 1}
                 </span>
               ) : null}
-              <div className='min-w-0 flex-1'>
+              <div className='min-w-0 flex-1' id={`${listId}-${index}`}>
                 <Text wrap>{card.solver}</Text>
+                {!enabled ? (
+                  <TextSecondary>{t(globallyEnabled ? 'solvers.paused' : 'solvers.pausedEverywhere')}</TextSecondary>
+                ) : null}
+                {!globallyEnabled ? (
+                  <button
+                    type='button'
+                    className='pill-base my-2 text-xs'
+                    aria-label={`${t('solvers.enableCard')}: ${card.solver}`}
+                    onClick={() => {
+                      try {
+                        enableSolverGlobally(card, network)
+                        setError('')
+                        orderRef.current?.focus()
+                      } catch {
+                        setError(t('solvers.failedSave'))
+                      }
+                    }}
+                  >
+                    {t('solvers.enableCard')}
+                  </button>
+                ) : null}
                 <TextSecondary>
                   {card.discovery_pubkey ? prettyLongText(card.discovery_pubkey) : card.source} · {card.sourceType}
                 </TextSecondary>
@@ -133,29 +171,46 @@ function DirectionRouting({
                   {flatLabel ? ` + ${flatLabel}` : ''} · {t('solvers.completedCount', { count: usage[id] ?? 0 })}
                 </TextSecondary>
               </div>
-              <div className='flex shrink-0 gap-1'>
-                <button
-                  type='button'
-                  className='pill-base flex h-10 w-10 items-center justify-center p-0'
-                  aria-label={`${t('solvers.moveUp')} ${card.solver}`}
-                  disabled={index === 0}
-                  onClick={() => move(index, -1)}
-                >
-                  <span aria-hidden='true'>
-                    <ChevronUpIcon />
-                  </span>
-                </button>
-                <button
-                  type='button'
-                  className='pill-base flex h-10 w-10 items-center justify-center p-0'
-                  aria-label={`${t('solvers.moveDown')} ${card.solver}`}
-                  disabled={index === ordered.length - 1}
-                  onClick={() => move(index, 1)}
-                >
-                  <span aria-hidden='true'>
-                    <ChevronDownIcon />
-                  </span>
-                </button>
+              <div className='flex shrink-0 items-center gap-3'>
+                <Switch
+                  size='lg'
+                  checked={enabled}
+                  disabled={!globallyEnabled}
+                  aria-label={t('solvers.directionEnabled', { name: card.solver })}
+                  aria-describedby={`${listId}-${index}`}
+                  onCheckedChange={(next) => {
+                    const disabled = new Set(prefs.disabled)
+                    if (next) disabled.delete(id)
+                    else disabled.add(id)
+                    save({ ...prefs, disabled: [...disabled] })
+                  }}
+                />
+                {(prefs.mode ?? 'manual') === 'manual' ? (
+                  <div className='flex gap-1'>
+                    <button
+                      type='button'
+                      className='pill-base flex h-10 w-10 items-center justify-center p-0'
+                      aria-label={`${t('solvers.moveUp')} ${card.solver}`}
+                      disabled={index === 0}
+                      onClick={() => move(index, -1)}
+                    >
+                      <span aria-hidden='true'>
+                        <ChevronUpIcon />
+                      </span>
+                    </button>
+                    <button
+                      type='button'
+                      className='pill-base flex h-10 w-10 items-center justify-center p-0'
+                      aria-label={`${t('solvers.moveDown')} ${card.solver}`}
+                      disabled={index === ordered.length - 1}
+                      onClick={() => move(index, 1)}
+                    >
+                      <span aria-hidden='true'>
+                        <ChevronDownIcon />
+                      </span>
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </li>
           )
@@ -194,6 +249,10 @@ export default function SolverRouting({ network }: { network: string }) {
             {[...directions].map(([direction, candidates]) => {
               const label = directionLabelOf(candidates[0])
               const mode = readSolverRouting(network, direction).mode
+              const enabledCount = orderSolverMarkets(candidates, {
+                network,
+                preferences: effectiveSolverRouting(network, direction, candidates),
+              }).length
               const modeLabel = t(
                 mode === 'usage' ? 'solvers.mostUsed' : mode === 'cost' ? 'solvers.lowestCost' : 'solvers.manualOrder',
               )
@@ -213,9 +272,11 @@ export default function SolverRouting({ network }: { network: string }) {
                     <span className='mt-1 block text-sm text-[var(--neutral-500)]'>{modeLabel}</span>
                   </span>
                   <span className='shrink-0 text-sm text-[var(--neutral-500)]'>
-                    {t(candidates.length === 1 ? 'solvers.solverCountSingular' : 'solvers.solverCountPlural', {
-                      count: candidates.length,
-                    })}
+                    {enabledCount === candidates.length
+                      ? t(candidates.length === 1 ? 'solvers.solverCountSingular' : 'solvers.solverCountPlural', {
+                          count: candidates.length,
+                        })
+                      : t('solvers.enabledCount', { enabled: enabledCount, count: candidates.length })}
                   </span>
                   <span aria-hidden='true' className='shrink-0 -rotate-90'>
                     <ChevronDownIcon />

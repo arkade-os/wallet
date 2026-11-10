@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { btcOn, createSwapClient, type Swap, type SwapClientConfig } from '@arkade-os/swap'
-import { solverId } from '@arkade-os/solver-discovery'
+import { btcOn, createSwapClient, type Swap, type SwapClientConfig, type SolverRoutingContext } from '@arkade-os/swap'
+import { solverId, solverDirectionKey } from '@arkade-os/solver-discovery'
 import { makeSwapClient } from '../../lib/swapClient'
-import { saveSolverRouting } from '../../lib/solverRouting'
+import { saveSolverCardEnabled, saveSolverRouting } from '../../lib/solverRouting'
+import { btcUsdt } from './swapFixtures'
 
 const mocks = vi.hoisted(() => ({ history: vi.fn<() => Promise<Swap[]>>() }))
 vi.mock('@arkade-os/swap', async (importOriginal) => ({
@@ -46,11 +47,11 @@ const completed: Swap = {
   expiresAt: 2,
 }
 
-const preferencesCallback = () => {
+const preferencesCallback = (candidates: SolverRoutingContext['candidates'] = []) => {
   makeSwapClient({} as SwapClientConfig['wallet'], 'regtest')
   const preferences = vi.mocked(createSwapClient).mock.calls.at(-1)?.[0].policy?.solverRouting?.preferences
   if (!preferences) throw new Error('missing solver routing preferences callback')
-  return () => preferences({ network: 'regtest', direction, candidates: [] })
+  return () => preferences({ network: 'regtest', direction: candidates[0]?.direction ?? direction, candidates })
 }
 
 describe('wallet solver routing policy', () => {
@@ -84,6 +85,27 @@ describe('wallet solver routing policy', () => {
     mocks.history.mockRejectedValue(new Error('history unavailable'))
     await expect(preferencesCallback()()).resolves.toEqual({ mode: 'usage', priority })
     expect(mocks.history).toHaveBeenCalledOnce()
+  })
+
+  it('reads current card pauses for each driver-side preference lookup', async () => {
+    const input = { network: 'regtest' as const, label: 'Pin', card: { version: 0, name: 'Pin' } }
+    const card = { ...btcUsdt, solver: 'Pin', source: 'Pin', sourceType: 'local' as const, discovery_pubkey: undefined }
+    const id = solverId(card, 'regtest')
+    const preferences = preferencesCallback([
+      {
+        card,
+        give: 'base',
+        backend: 'feed',
+        key: 'market',
+        solverId: id,
+        direction: solverDirectionKey(card, 'base', 'regtest'),
+      },
+    ])
+    saveSolverCardEnabled(input, false)
+    await expect(preferences()).resolves.toMatchObject({ disabled: [id] })
+    saveSolverCardEnabled(input, true)
+    expect((await preferences()).disabled).toBeUndefined()
+    expect(mocks.history).not.toHaveBeenCalled()
   })
 
   it('keeps saved priority even if a constructor calls preferences before returning the client', async () => {

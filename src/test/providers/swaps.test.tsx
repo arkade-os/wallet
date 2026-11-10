@@ -8,6 +8,8 @@ import { SwapsContext, SwapsProvider } from '../../providers/swaps'
 import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
 import * as lnSwap from '../../lib/lnSwap'
 import { saveSolverCards } from '../../lib/solverCards'
+import { saveSolverRouting } from '../../lib/solverRouting'
+import { solverDirectionKey, solverId, type DiscoveredMarket } from '@arkade-os/solver-discovery'
 
 const mocks = vi.hoisted(() => ({
   created: vi.fn(),
@@ -151,6 +153,7 @@ const renderProvider = (wallet = {}, children = <Harness />) =>
   )
 
 beforeEach(() => {
+  localStorage.removeItem('solverRouting')
   Object.defineProperty(navigator, 'locks', { value: undefined, configurable: true })
   mocks.discoverMarkets.mockResolvedValue([])
   mocks.watchSwapMarkets.mockReturnValue(() => {})
@@ -283,6 +286,45 @@ describe('SwapsProvider', () => {
     fireEvent.click(screen.getByText('try receive'))
     expect(await screen.findByText('Amount outside solver bounds (100-500, 2,000-3,000 sats)')).toBeInTheDocument()
     expect(mocks.receive).not.toHaveBeenCalled()
+  })
+
+  it.each(['send', 'receive'] as const)('ignores a paused solver when checking %s bounds', async (operation) => {
+    const small = lightningMarket({
+      solver: 'small',
+      source: 'small',
+      min_base_amount: '100',
+      max_base_amount: '500',
+      min_quote_amount: '100',
+      max_quote_amount: '500',
+    }) as DiscoveredMarket
+    const wide = lightningMarket({
+      solver: 'wide',
+      source: 'wide',
+      min_base_amount: '1000',
+      max_base_amount: '2000',
+      min_quote_amount: '1000',
+      max_quote_amount: '2000',
+    }) as DiscoveredMarket
+    const network = mockAspContextValue.aspInfo.network
+    saveSolverRouting(network, solverDirectionKey(wide, operation === 'send' ? 'base' : 'quote', network), {
+      disabled: [solverId(wide, network)],
+    })
+    mocks.watchSwapMarkets.mockImplementation((_network: string, onMarkets: (markets: unknown[]) => void) => {
+      onMarkets([small, wide])
+      return () => {}
+    })
+    const decoder = vi
+      .spyOn(lnSwap, 'toInvoiceFacts')
+      .mockReturnValue({ raw: 'lnbc1invoice', amountSats: 1000, paymentHash: 'a'.repeat(64), expiresAt: 9999999999 })
+    try {
+      renderProvider({}, <LightningProbe operation={operation} />)
+      fireEvent.click(screen.getByText('try Lightning'))
+      expect(await screen.findByText('Amount outside solver bounds (100-500 sats)')).toBeInTheDocument()
+      expect(mocks.quote).not.toHaveBeenCalled()
+      expect(mocks.receive).not.toHaveBeenCalled()
+    } finally {
+      decoder.mockRestore()
+    }
   })
 
   it('keeps the client live while its mounted wallet content navigates', async () => {

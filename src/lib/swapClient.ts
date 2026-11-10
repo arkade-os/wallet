@@ -39,7 +39,7 @@ import { toInvoiceFacts } from './lnSwap'
 import { l1NetworkOf, onchainClaimEndpoint } from './onchainPayout'
 import { discoveryOptions } from './swapMarkets'
 import { assetSwapRepository } from './swapRepository'
-import { readSolverRouting } from './solverRouting'
+import { effectiveSolverRouting } from './solverRouting'
 
 /**
  * A swap action that reached no driver at all.
@@ -105,8 +105,8 @@ export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: Netw
     policy: {
       solverRouting: {
         failover: true,
-        preferences: async ({ network, direction }) => {
-          const preferences = readSolverRouting(network, direction)
+        preferences: async ({ network, direction, candidates }) => {
+          const preferences = effectiveSolverRouting(network, direction, candidates)
           if (preferences.mode !== 'usage') return preferences
           try {
             return { ...preferences, usage: completedSolverUsage(await client.swaps(), network, direction) }

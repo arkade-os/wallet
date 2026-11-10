@@ -8,8 +8,12 @@ import { readSolverCards } from '../../../lib/solverCards'
 import { prettyLongText } from '../../../lib/format'
 import { SwapsContext } from '../../../providers/swaps'
 import { btcUsdt } from '../../lib/swapFixtures'
-import { readSolverRouting } from '../../../lib/solverRouting'
+import { isSolverCardEnabled, readSolverRouting } from '../../../lib/solverRouting'
 import { solverDirectionKey, solverId, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+
+if (!window.PointerEvent) {
+  Object.defineProperty(window, 'PointerEvent', { writable: true, configurable: true, value: MouseEvent })
+}
 
 const ReactSwapsDefault = {
   allMarkets: [],
@@ -130,6 +134,78 @@ describe('Solvers screen', () => {
     expect(await screen.findByText('Unable to load completed swap usage.')).toBeInTheDocument()
   })
 
+  it('keeps paused direction candidates visible and preserves their priority across mode changes', () => {
+    const first = { ...btcUsdt, solver: 'First', source: 'first' }
+    const second = { ...btcUsdt, solver: 'Second', source: 'second' }
+    renderSolvers('mutinynet', [first, second], 'priority')
+    const direction = solverDirectionKey(first, 'base', 'mutinynet')
+    fireEvent.click(screen.getByRole('button', { name: 'Arkade BTC → Arkade USDT' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'Use First for this direction' }))
+    expect(screen.getByRole('switch', { name: 'Use First for this direction' })).not.toBeChecked()
+    expect(screen.getByText('Paused')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Move up Second' }))
+    const priority = [solverId(second, 'mutinynet'), solverId(first, 'mutinynet')]
+    expect(readSolverRouting('mutinynet', direction)).toMatchObject({
+      priority,
+      disabled: [solverId(first, 'mutinynet')],
+    })
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'cost' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.getByRole('button', { name: 'Arkade BTC → Arkade USDT' })).toHaveTextContent('1/2 enabled')
+    fireEvent.click(screen.getByRole('tab', { name: 'Cards' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Priority' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Arkade BTC → Arkade USDT' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'Use First for this direction' }))
+    expect(readSolverRouting('mutinynet', direction)).toEqual({ mode: 'cost', priority })
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Arkade USDT → Arkade BTC' }))
+    expect(screen.getByRole('switch', { name: 'Use First for this direction' })).toBeChecked()
+  })
+
+  it('pauses a whole card without removing it and keeps its direction controls available', () => {
+    const input = { network: 'mutinynet', label: 'Pin', card: { version: 0, name: 'Pin', markets: [] } }
+    localStorage.setItem('solverCards', JSON.stringify([input]))
+    const market = { ...btcUsdt, solver: 'Pin', source: 'Pin', sourceType: 'local' as const }
+    const original = localStorage.getItem('solverCards')
+    renderSolvers('mutinynet', [market])
+    fireEvent.click(screen.getByRole('switch', { name: 'Enable Pin for new swaps' }))
+    expect(localStorage.getItem('solverCards')).toBe(original)
+    expect(screen.getByRole('switch', { name: 'Enable Pin for new swaps' })).not.toBeChecked()
+    fireEvent.click(screen.getByRole('tab', { name: 'Priority' }))
+    expect(screen.getByRole('button', { name: 'Arkade BTC → Arkade USDT' })).toHaveTextContent('0/1 enabled')
+    fireEvent.click(screen.getByRole('button', { name: 'Arkade BTC → Arkade USDT' }))
+    const directionSwitch = screen.getByRole('switch', { name: 'Use Pin for this direction' })
+    expect(directionSwitch).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(directionSwitch)
+    expect(directionSwitch).not.toBeChecked()
+    expect(screen.getByText('Paused for all directions')).toBeInTheDocument()
+    expect(screen.getByText('No solvers enabled for this direction.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^Enable card:/ }))
+    expect(directionSwitch).toBeChecked()
+    expect(screen.getByRole('combobox')).toHaveFocus()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Cards' }))
+    expect(screen.getByRole('switch', { name: 'Enable Pin for new swaps' })).toBeChecked()
+    fireEvent.click(screen.getByRole('tab', { name: 'Priority' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Arkade BTC → Arkade USDT' }))
+    expect(screen.getByRole('switch', { name: 'Use Pin for this direction' })).toBeChecked()
+  })
+
+  it('shows a failed card-pause write without changing the switch', () => {
+    localStorage.setItem(
+      'solverCards',
+      JSON.stringify([{ network: 'regtest', label: 'Pin', card: { version: 0, name: 'Pin', markets: [] } }]),
+    )
+    renderSolvers()
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
+      throw new Error('full')
+    })
+    fireEvent.click(screen.getByRole('switch', { name: 'Enable Pin for new swaps' }))
+    expect(screen.getByRole('switch', { name: 'Enable Pin for new swaps' })).toBeChecked()
+    expect(screen.getByText(/Failed to save|Unable to save/i)).toBeInTheDocument()
+    setItem.mockRestore()
+  })
+
   it('retains pasted cards with the same name and different discovery keys', async () => {
     renderSolvers()
     for (const key of ['a', 'b']) {
@@ -213,6 +289,7 @@ describe('Solvers screen', () => {
       ]),
     )
     renderSolvers()
+    fireEvent.click(screen.getByRole('switch', { name: 'Enable Old for new swaps' }))
     const editButton = screen.getAllByRole('button', { name: 'Edit' })[0]
     editButton.focus()
     fireEvent.click(editButton)
@@ -223,6 +300,8 @@ describe('Solvers screen', () => {
     await waitFor(() => expect(readSolverCards().map(({ label }) => label)).toEqual(['Other', 'New']))
     expect(screen.queryByText('Old')).not.toBeInTheDocument()
     expect(screen.getByText('Other')).toBeInTheDocument()
+    expect(isSolverCardEnabled(readSolverCards().find(({ label }) => label === 'New')!)).toBe(false)
+    expect(screen.getByRole('switch', { name: 'Enable New for new swaps' })).not.toBeChecked()
     await waitFor(() => expect(screen.getByRole('button', { name: '+ Add new' })).toHaveFocus())
   })
 
@@ -281,7 +360,7 @@ describe('Solvers screen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Info' }))
 
     await waitFor(() => expect(screen.getByText('Solver card info')).toBeInTheDocument())
-    expect(screen.getByText(prettyLongText(pubkey))).toBeInTheDocument()
+    expect(within(screen.getByRole('dialog')).getByText(prettyLongText(pubkey))).toBeInTheDocument()
   })
 
   it('shows original and current values in the detail view', async () => {

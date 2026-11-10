@@ -22,6 +22,17 @@ test('should add and remove a solver card from settings', async ({ page }) => {
   await expect(page.getByText(oneSolverCardMessage)).toBeVisible()
   await expect(page.getByTestId('stored-solver-card').getByText(mockSolverCard.name, { exact: true })).toBeVisible()
 
+  const availability = page.getByTestId('stored-solver-card').getByRole('switch')
+  await expect(availability).toBeChecked()
+  await availability.click()
+  await expect(availability).not.toBeChecked()
+  await expect(page.getByText(oneSolverCardMessage)).toBeVisible()
+  await page.getByRole('tab', { name: tr.solvers.priorityTab, exact: true }).click()
+  await page.getByRole('tab', { name: tr.solvers.cardsTab, exact: true }).click()
+  await expect(availability).not.toBeChecked()
+  await availability.click()
+  await expect(availability).toBeChecked()
+
   await page.getByRole('button', { name: 'Remove' }).first().click()
   await page.getByRole('dialog').getByRole('button', { name: 'Remove' }).click()
 

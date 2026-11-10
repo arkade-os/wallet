@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect, useRef, type RefObject } from 'react'
+import { useContext, useState, useEffect, useRef, useSyncExternalStore, type RefObject } from 'react'
 import { AspContext } from '../../providers/asp'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
@@ -29,6 +29,13 @@ import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '@/providers/language'
 import SolverRouting from './SolverRouting'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer'
+import { Switch } from '@/components/ui/switch'
+import {
+  isSolverCardEnabled,
+  saveSolverCardEnabled,
+  subscribeSolverRouting,
+  getSolverRoutingVersion,
+} from '@/lib/solverRouting'
 
 const cardIdentity = (input: LocalCardInput): string => {
   const card = input.card as Card
@@ -40,6 +47,8 @@ const putSolverCard = (input: LocalCardInput, replacing?: LocalCardInput) => {
     (card) =>
       cardIdentity(card) !== cardIdentity(input) && (!replacing || cardIdentity(card) !== cardIdentity(replacing)),
   )
+  if (replacing && cardIdentity(input) !== cardIdentity(replacing) && !isSolverCardEnabled(replacing))
+    saveSolverCardEnabled(input, false)
   saveSolverCards([...others, input])
 }
 
@@ -70,6 +79,36 @@ function Button({
     <button type='button' className='pill-base' onClick={onClick} ref={buttonRef}>
       {text}
     </button>
+  )
+}
+
+function CardAvailability({ input }: { input: LocalCardInput }) {
+  const { t } = useTranslation()
+  const [error, setError] = useState('')
+  const card = input.card as Card
+  const enabled = isSolverCardEnabled(input)
+  return (
+    <div className='flex shrink-0 flex-col items-end gap-2'>
+      <Switch
+        size='lg'
+        checked={enabled}
+        aria-label={`${t('solvers.cardEnabled', { name: input.label ?? card.name })}${card.discovery_pubkey ? ` (${prettyLongText(card.discovery_pubkey)})` : ''}`}
+        onCheckedChange={(next) => {
+          try {
+            saveSolverCardEnabled(input, next)
+            setError('')
+          } catch {
+            setError(t('solvers.failedSave'))
+          }
+        }}
+      />
+      {!enabled ? <TextSecondary>{t('solvers.paused')}</TextSecondary> : null}
+      {error ? (
+        <div className='max-w-48'>
+          <ErrorMessage error text={error} />
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -328,15 +367,17 @@ function BundledCardLine({ input }: { input: LocalCardInput }) {
       <FlexCol padding='8px' gap='8px'>
         <FlexRow between>
           <FlexCol gap='4px'>
-            <Text>{input.label ?? card.name}</Text>
+            <Text wrap>{input.label ?? card.name}</Text>
             <TextSecondary>{pairs}</TextSecondary>
+            {card.discovery_pubkey ? <TextSecondary>{prettyLongText(card.discovery_pubkey)}</TextSecondary> : null}
           </FlexCol>
-          <FlexRow end minWidth='64px'>
-            <Button onClick={() => setShowInfo(true)} text={t('solvers.viewInfo')} />
-            <Text small color='neutral-500'>
-              {t('solvers.builtIn')}
-            </Text>
-          </FlexRow>
+          <CardAvailability input={input} />
+        </FlexRow>
+        <FlexRow end minWidth='64px'>
+          <Button onClick={() => setShowInfo(true)} text={t('solvers.viewInfo')} />
+          <Text small color='neutral-500'>
+            {t('solvers.builtIn')}
+          </Text>
         </FlexRow>
       </FlexCol>
     </Shadow>
@@ -422,14 +463,16 @@ function CardLine({
       <FlexCol padding='8px' gap='8px'>
         <FlexRow between>
           <FlexCol gap='4px'>
-            <Text>{input.label}</Text>
+            <Text wrap>{input.label}</Text>
             <TextSecondary>{pairs}</TextSecondary>
+            {card.discovery_pubkey ? <TextSecondary>{prettyLongText(card.discovery_pubkey)}</TextSecondary> : null}
           </FlexCol>
-          <FlexRow end>
-            <Button onClick={handleShowInfo} text={t('solvers.viewInfo')} />
-            <Button onClick={handleEdit} text={t('solvers.edit')} />
-            <Button onClick={handleConfirmRemove} text={t('solvers.remove')} />
-          </FlexRow>
+          <CardAvailability input={input} />
+        </FlexRow>
+        <FlexRow end>
+          <Button onClick={handleShowInfo} text={t('solvers.viewInfo')} />
+          <Button onClick={handleEdit} text={t('solvers.edit')} />
+          <Button onClick={handleConfirmRemove} text={t('solvers.remove')} />
         </FlexRow>
         {showEditor ? (
           <Editor
@@ -450,6 +493,7 @@ export default function Solvers() {
   const { backupSolverCards } = useContext(BackupContext)
   const { t } = useTranslation()
 
+  useSyncExternalStore(subscribeSolverRouting, getSolverRoutingVersion, getSolverRoutingVersion)
   const [localCards, setLocalCards] = useState<LocalCardInput[]>()
   const [showEditor, setShowEditor] = useState(false)
   const [view, setView] = useState('priority')
@@ -515,6 +559,7 @@ export default function Solvers() {
               onChange={setView}
               getLabel={(option) => t(option === 'priority' ? 'solvers.priorityTab' : 'solvers.cardsTab')}
             />
+            {view === 'cards' ? <TextSecondary>{t('solvers.pauseHint')}</TextSecondary> : null}
             {view === 'priority' ? <SolverRouting network={aspInfo.network} /> : null}
             {showEditor ? (
               <Editor toClose={() => setShowEditor(false)} onChange={handleChange} fallbackFocus={addButtonRef} />
