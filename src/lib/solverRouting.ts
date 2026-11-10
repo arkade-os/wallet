@@ -27,6 +27,7 @@ const clean = (value: unknown): SolverRoutingPreferences => {
   return {
     mode: prefs.mode === 'usage' || prefs.mode === 'cost' ? prefs.mode : 'manual',
     priority: cleanIds(prefs.priority),
+    ...(typeof prefs.preferFirst === 'string' && prefs.preferFirst ? { preferFirst: prefs.preferFirst } : {}),
     ...(disabled.length ? { disabled } : {}),
   }
 }

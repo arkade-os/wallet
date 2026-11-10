@@ -212,6 +212,8 @@ Settings > Solvers has a compact Priority view with one row per give/receive dir
 
 Switch off a card to pause it across all directions, or switch off a solver in a direction sheet to pause only that route. Cards and saved priorities stay intact, and card-wide pauses preserve each direction's choices. A card's declared key also pauses its registry mirrors; cards without a key remain scoped to their local source. Pauses exclude new quote preparation, including cost-feed requests, while issued quotes and active swaps retain their selected solver.
 
+Choose Prefer first in a direction sheet to try one enabled solver before the others. Sort the rest by Most used or Lowest estimated cost; a failed preferred solver still falls back to those candidates. No preference restores normal sorting. A missing or paused preferred solver is skipped while its saved choice remains available for later. Manual ordering also keeps the preferred solver first and lets you reorder the remainder.
+
 Priorities are local to this wallet, scoped by network and ordered direction, and cleared on wallet reset. Solvers with different discovery public keys stay distinct even when names match. Quote preparation can try the next eligible solver; accepting a quote keeps that solver and the confirmed terms throughout funding and recovery.
 
 ## Troubleshooting

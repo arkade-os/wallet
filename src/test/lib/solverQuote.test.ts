@@ -8,6 +8,34 @@ import { assetSwapRepository } from '../../lib/swapRepository'
 
 describe('solver quote preview', () => {
   beforeEach(() => localStorage.clear())
+  it.each([true, false])('tries preferFirst before cost-ranked fallbacks when available=%s', async (available) => {
+    const preferred = { ...btcUsdt, source: 'preferred', price_feed: 'https://preferred.example/price', fee_bps: 500 }
+    const middle = { ...btcUsdt, source: 'middle', price_feed: 'https://middle.example/price', fee_bps: 100 }
+    const cheapest = { ...btcUsdt, source: 'cheapest', price_feed: 'https://cheapest.example/price', fee_bps: 0 }
+    saveSolverRouting('mutinynet', solverDirectionKey(preferred, 'base', 'mutinynet'), {
+      mode: 'cost',
+      preferFirst: solverId(preferred, 'mutinynet'),
+    })
+    const calls: string[] = []
+    const fetchImpl = vi.fn(async (url: string | URL | Request) => {
+      calls.push(String(url))
+      if (!available && String(url) === preferred.price_feed) throw new Error('offline')
+      return new Response(JSON.stringify({ bitcoin: { usd: 100000 } }))
+    }) as typeof fetch
+    const plan = await previewSolverQuote(
+      [middle, cheapest, preferred],
+      'btc',
+      btcUsdt.quote_asset.id,
+      '0.0001',
+      'mutinynet',
+      fetchImpl,
+    )
+    expect(plan.market).toEqual(available ? preferred : cheapest)
+    expect(calls.filter((url) => url === preferred.price_feed)).toHaveLength(2)
+    expect(calls.slice(available ? -1 : -2)).toEqual(
+      available ? [preferred.price_feed] : [preferred.price_feed, cheapest.price_feed],
+    )
+  })
   it('continues after an unavailable feed and preserves the successful market', async () => {
     const dead = { ...btcUsdt, source: 'dead', price_feed: 'https://dead.example/price' }
     const live = { ...btcUsdt, source: 'live' }

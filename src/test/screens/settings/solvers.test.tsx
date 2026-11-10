@@ -8,7 +8,7 @@ import { readSolverCards } from '../../../lib/solverCards'
 import { prettyLongText } from '../../../lib/format'
 import { SwapsContext } from '../../../providers/swaps'
 import { btcUsdt } from '../../lib/swapFixtures'
-import { isSolverCardEnabled, readSolverRouting } from '../../../lib/solverRouting'
+import { isSolverCardEnabled, readSolverRouting, saveSolverRouting } from '../../../lib/solverRouting'
 import { solverDirectionKey, solverId, type DiscoveredMarket } from '@arkade-os/solver-discovery'
 
 if (!window.PointerEvent) {
@@ -93,6 +93,72 @@ describe('Solvers screen', () => {
     mockFetchTransportCards.mockResolvedValue([])
   })
 
+  it('saves one preferred solver per direction and keeps automatic ordering across reloads', async () => {
+    const popular = { ...btcUsdt, solver: 'Popular', source: 'popular' }
+    const preferred = { ...btcUsdt, solver: 'Preferred', source: 'preferred' }
+    const other = { ...btcUsdt, solver: 'Other', source: 'other' }
+    const id = solverId(preferred, 'mutinynet')
+    const direction = solverDirectionKey(preferred, 'base', 'mutinynet')
+    mockSolverUsage.mockResolvedValue({ [solverId(popular, 'mutinynet')]: 20, [solverId(other, 'mutinynet')]: 10 })
+    const view = renderSolvers('mutinynet', [popular, preferred, other], 'priority')
+    fireEvent.click(screen.getByRole('button', { name: 'Arkade BTC → Arkade USDT' }))
+    fireEvent.change(screen.getByRole('combobox', { name: /^Prefer first/ }), { target: { value: id } })
+    fireEvent.change(screen.getByRole('combobox', { name: /^Sort the rest by/ }), { target: { value: 'usage' } })
+    await waitFor(() =>
+      expect(within(screen.getByRole('dialog')).getAllByRole('listitem')[1]).toHaveTextContent('Popular'),
+    )
+    expect(within(screen.getByRole('dialog')).getAllByRole('listitem')[0]).toHaveTextContent('Preferred')
+    expect(within(screen.getByRole('dialog')).getAllByRole('listitem')[2]).toHaveTextContent('Other')
+    fireEvent.change(screen.getByRole('combobox', { name: /^Sort the rest by/ }), { target: { value: 'cost' } })
+    expect(readSolverRouting('mutinynet', direction)).toMatchObject({ mode: 'cost', preferFirst: id })
+    view.unmount()
+    renderSolvers('mutinynet', [popular, preferred, other], 'priority')
+    expect(screen.getByRole('button', { name: 'Arkade BTC → Arkade USDT' })).toHaveTextContent('Preferred first')
+    fireEvent.click(screen.getByRole('button', { name: 'Arkade USDT → Arkade BTC' }))
+    expect(screen.getByRole('combobox', { name: /^Prefer first/ })).toHaveValue('')
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Arkade BTC → Arkade USDT' }))
+    expect(screen.getByRole('combobox', { name: /^Prefer first/ })).toHaveValue(id)
+    fireEvent.click(screen.getByRole('switch', { name: 'Use Preferred for this direction' }))
+    expect(screen.getByRole('combobox', { name: /^Prefer first/ })).toHaveValue(id)
+    expect(readSolverRouting('mutinynet', direction).disabled).toContain(id)
+    fireEvent.change(screen.getByRole('combobox', { name: /^Prefer first/ }), { target: { value: '' } })
+    expect(readSolverRouting('mutinynet', direction).preferFirst).toBeUndefined()
+    expect(readSolverRouting('mutinynet', direction).mode).toBe('cost')
+  })
+
+  it('keeps the preferred solver fixed while manually reordering the remainder', () => {
+    const candidates = ['One', 'Two', 'Three'].map((solver) => ({ ...btcUsdt, solver, source: solver }))
+    const direction = solverDirectionKey(candidates[0], 'base', 'mutinynet')
+    const id = solverId(candidates[0], 'mutinynet')
+    saveSolverRouting('mutinynet', direction, { preferFirst: id })
+    renderSolvers('mutinynet', candidates, 'priority')
+    fireEvent.click(screen.getByRole('button', { name: 'Arkade BTC → Arkade USDT' }))
+    expect(screen.getByRole('button', { name: 'Move down One' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Move up Two' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Move up Three' }))
+    expect(readSolverRouting('mutinynet', direction)).toMatchObject({
+      preferFirst: id,
+      priority: [id, solverId(candidates[2], 'mutinynet'), solverId(candidates[1], 'mutinynet')],
+    })
+  })
+
+  it('retains an unavailable preferred solver when clearing the preference cannot be saved', () => {
+    const direction = solverDirectionKey(btcUsdt, 'base', 'mutinynet')
+    saveSolverRouting('mutinynet', direction, { mode: 'cost', preferFirst: 'missing' })
+    renderSolvers('mutinynet', [btcUsdt], 'priority')
+    fireEvent.click(screen.getByRole('button', { name: 'Arkade BTC → Arkade USDT' }))
+    expect(screen.getByRole('combobox', { name: /^Prefer first/ })).toHaveValue('missing')
+    expect(screen.getByRole('option', { name: 'Unavailable solver' })).toBeInTheDocument()
+    const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('full')
+    })
+    fireEvent.change(screen.getByRole('combobox', { name: /^Prefer first/ }), { target: { value: '' } })
+    expect(screen.getByRole('combobox', { name: /^Prefer first/ })).toHaveValue('missing')
+    expect(screen.getByText(/Failed to save/)).toBeInTheDocument()
+    write.mockRestore()
+  })
+
   it('groups independently identified same-name discovered and local solvers and persists direction priority', async () => {
     const first = { ...btcUsdt, solver: 'Same name', discovery_pubkey: 'a'.repeat(64) }
     const second = { ...first, discovery_pubkey: 'b'.repeat(64), sourceType: 'local' as const }
@@ -101,7 +167,7 @@ describe('Solvers screen', () => {
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
     expect(screen.queryByText('Same name')).not.toBeInTheDocument()
     fireEvent.click(screen.getAllByRole('button', { name: /^Arkade .+ → Arkade/ })[0])
-    expect(screen.getAllByRole('combobox')).toHaveLength(1)
+    expect(screen.getAllByRole('combobox')).toHaveLength(2)
     expect(screen.getAllByText('Same name')).toHaveLength(2)
     expect(screen.getByText(`${prettyLongText(first.discovery_pubkey)} · registry`)).toBeInTheDocument()
     expect(screen.getByText(`${prettyLongText(second.discovery_pubkey)} · local`)).toBeInTheDocument()
@@ -112,10 +178,10 @@ describe('Solvers screen', () => {
       solverId(second, 'mutinynet'),
       solverId(first, 'mutinynet'),
     ])
-    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'cost' } })
+    fireEvent.change(screen.getByRole('combobox', { name: /^Order solvers by/ }), { target: { value: 'cost' } })
     expect(readSolverRouting('mutinynet', direction).mode).toBe('cost')
     expect(screen.getByText(/Costs are estimated at the trade amount/)).toBeInTheDocument()
-    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'usage' } })
+    fireEvent.change(screen.getByRole('combobox', { name: /^Order solvers by/ }), { target: { value: 'usage' } })
     expect(readSolverRouting('mutinynet', direction).mode).toBe('usage')
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
@@ -149,7 +215,7 @@ describe('Solvers screen', () => {
       priority,
       disabled: [solverId(first, 'mutinynet')],
     })
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'cost' } })
+    fireEvent.change(screen.getByRole('combobox', { name: /^Order solvers by/ }), { target: { value: 'cost' } })
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     expect(screen.getByRole('button', { name: 'Arkade BTC → Arkade USDT' })).toHaveTextContent('1/2 enabled')
     fireEvent.click(screen.getByRole('tab', { name: 'Cards' }))
@@ -182,7 +248,7 @@ describe('Solvers screen', () => {
     expect(screen.getByText('No solvers enabled for this direction.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /^Enable card:/ }))
     expect(directionSwitch).toBeChecked()
-    expect(screen.getByRole('combobox')).toHaveFocus()
+    expect(screen.getByRole('combobox', { name: /^Order solvers by/ })).toHaveFocus()
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     fireEvent.click(screen.getByRole('tab', { name: 'Cards' }))
     expect(screen.getByRole('switch', { name: 'Enable Pin for new swaps' })).toBeChecked()

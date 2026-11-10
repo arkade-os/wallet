@@ -16,6 +16,22 @@ import { solverDirectionKey, solverId } from '@arkade-os/solver-discovery'
 
 describe('solver routing preferences', () => {
   beforeEach(() => localStorage.clear())
+  it('persists preferFirst per network and direction and clears it without changing saved priority', () => {
+    saveSolverRouting('bitcoin', 'give>take', { mode: 'usage', priority: ['b', 'a'], preferFirst: 'a' })
+    expect(readSolverRouting('bitcoin', 'give>take')).toEqual({ mode: 'usage', priority: ['b', 'a'], preferFirst: 'a' })
+    expect(readSolverRouting('bitcoin', 'take>give').preferFirst).toBeUndefined()
+    expect(readSolverRouting('mutinynet', 'give>take').preferFirst).toBeUndefined()
+    saveSolverRouting('bitcoin', 'give>take', {
+      ...readSolverRouting('bitcoin', 'give>take'),
+      mode: 'cost',
+      disabled: ['a'],
+    })
+    expect(readSolverRouting('bitcoin', 'give>take')).toMatchObject({ mode: 'cost', disabled: ['a'], preferFirst: 'a' })
+    for (const preferFirst of ['', undefined, 4, ['a']]) {
+      saveSolverRouting('bitcoin', 'give>take', { ...readSolverRouting('bitcoin', 'give>take'), preferFirst } as never)
+      expect(readSolverRouting('bitcoin', 'give>take')).toEqual({ mode: 'cost', priority: ['b', 'a'], disabled: ['a'] })
+    }
+  })
   it('scopes priorities to the network and ordered direction', () => {
     saveSolverRouting('bitcoin', 'give>take', { mode: 'usage', priority: ['a', 'b'] })
     expect(readSolverRouting('bitcoin', 'give>take')).toEqual({ mode: 'usage', priority: ['a', 'b'] })

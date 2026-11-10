@@ -78,6 +78,7 @@ function DirectionRouting({
   }, [network, direction, swaps])
   const prefs = readSolverRouting(network, direction)
   const ordered = orderSolverMarkets(candidates, { network, preferences: { ...prefs, usage, disabled: undefined } })
+  const firstMovable = ordered[0] && solverId(ordered[0].card, network) === prefs.preferFirst ? 1 : 0
   const enabledIds = new Set(
     orderSolverMarkets(candidates, {
       network,
@@ -98,16 +99,43 @@ function DirectionRouting({
     save({ ...prefs, mode: 'manual', priority: ids })
   }
   const directionLabel = directionLabelOf(candidates[0])
+  const orderLabel = t(prefs.preferFirst ? 'solvers.remainingOrder' : 'solvers.orderBy')
   return (
     <FlexCol gap='12px'>
       <TextSecondary>{t('solvers.pauseHint')}</TextSecondary>
       {enabledIds.size === 0 ? <TextSecondary>{t('solvers.noneEnabled')}</TextSecondary> : null}
       <label className='flex w-full items-center justify-between gap-3'>
-        <span>{t('solvers.orderBy')}</span>
+        <span>{t('solvers.preferFirst')}</span>
+        <select
+          className='max-w-[60%] rounded-lg border border-[var(--neutral-200)] bg-transparent p-2'
+          aria-label={`${t('solvers.preferFirst')} ${directionLabel} (${network})`}
+          value={prefs.preferFirst ?? ''}
+          onChange={(event) => save({ ...prefs, preferFirst: event.target.value || undefined })}
+        >
+          <option value=''>{t('solvers.noPreference')}</option>
+          {prefs.preferFirst && !candidates.some(({ card }) => solverId(card, network) === prefs.preferFirst) ? (
+            <option value={prefs.preferFirst} disabled>
+              {t('solvers.preferredUnavailable')}
+            </option>
+          ) : null}
+          {candidates.map(({ card }) => {
+            const id = solverId(card, network)
+            return (
+              <option key={id} value={id}>
+                {card.solver} · {card.sourceType}: {card.source}
+                {card.discovery_pubkey ? ` · ${prettyLongText(card.discovery_pubkey)}` : ''}
+                {!enabledIds.has(id) ? ` (${t('solvers.paused')})` : ''}
+              </option>
+            )
+          })}
+        </select>
+      </label>
+      <label className='flex w-full items-center justify-between gap-3'>
+        <span>{orderLabel}</span>
         <select
           ref={orderRef}
           className='max-w-[60%] rounded-lg border border-[var(--neutral-200)] bg-transparent p-2'
-          aria-label={`${t('solvers.orderBy')} ${directionLabel} (${network})`}
+          aria-label={`${orderLabel} ${directionLabel} (${network})`}
           value={prefs.mode ?? 'manual'}
           onChange={(event) => save({ ...prefs, mode: event.target.value as SolverRoutingPreferences['mode'] })}
         >
@@ -191,7 +219,7 @@ function DirectionRouting({
                       type='button'
                       className='pill-base flex h-10 w-10 items-center justify-center p-0'
                       aria-label={`${t('solvers.moveUp')} ${card.solver}`}
-                      disabled={index === 0}
+                      disabled={index <= firstMovable}
                       onClick={() => move(index, -1)}
                     >
                       <span aria-hidden='true'>
@@ -202,7 +230,7 @@ function DirectionRouting({
                       type='button'
                       className='pill-base flex h-10 w-10 items-center justify-center p-0'
                       aria-label={`${t('solvers.moveDown')} ${card.solver}`}
-                      disabled={index === ordered.length - 1}
+                      disabled={index < firstMovable || index === ordered.length - 1}
                       onClick={() => move(index, 1)}
                     >
                       <span aria-hidden='true'>
@@ -248,11 +276,14 @@ export default function SolverRouting({ network }: { network: string }) {
           <div className='divide-y divide-[var(--neutral-200)]'>
             {[...directions].map(([direction, candidates]) => {
               const label = directionLabelOf(candidates[0])
-              const mode = readSolverRouting(network, direction).mode
-              const enabledCount = orderSolverMarkets(candidates, {
+              const prefs = readSolverRouting(network, direction)
+              const mode = prefs.mode
+              const enabled = orderSolverMarkets(candidates, {
                 network,
                 preferences: effectiveSolverRouting(network, direction, candidates),
-              }).length
+              })
+              const enabledCount = enabled.length
+              const preferred = enabled.find(({ card }) => solverId(card, network) === prefs.preferFirst)
               const modeLabel = t(
                 mode === 'usage' ? 'solvers.mostUsed' : mode === 'cost' ? 'solvers.lowestCost' : 'solvers.manualOrder',
               )
@@ -269,7 +300,11 @@ export default function SolverRouting({ network }: { network: string }) {
                 >
                   <span className='min-w-0 flex-1'>
                     <span className='block break-words font-medium'>{label}</span>
-                    <span className='mt-1 block text-sm text-[var(--neutral-500)]'>{modeLabel}</span>
+                    <span className='mt-1 block text-sm text-[var(--neutral-500)]'>
+                      {preferred
+                        ? t('solvers.preferredSummary', { name: preferred.card.solver, mode: modeLabel })
+                        : modeLabel}
+                    </span>
                   </span>
                   <span className='shrink-0 text-sm text-[var(--neutral-500)]'>
                     {enabledCount === candidates.length
