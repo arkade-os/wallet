@@ -22,6 +22,7 @@
 import { collectPages, type ActivityResolver } from '@arkade-os/sdk'
 import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
 import {
+  completedSolverUsage,
   isRfqSwapTerminal,
   parseAssetId,
   type AssetId,
@@ -35,7 +36,14 @@ import {
 // re-check on a swap-package bump. It is here rather than `client.swaps()`
 // because this read must work in a tab that does not hold the drive lock, and
 // the client only exists in the tab that does.
-import { ACTIVITY_TOKEN, corridorOutcome, readableRecord, splitRecords } from '@arkade-os/swap/advanced'
+import {
+  ACTIVITY_TOKEN,
+  corridorOutcome,
+  readableRecord,
+  recordOutcome,
+  splitRecords,
+  swapOf,
+} from '@arkade-os/swap/advanced'
 import { consoleError } from './logs'
 import { assetSwapRepository, quoteSnapshotOf, type WalletAssetSwap } from './swapRepository'
 import { txidOfArkTransaction } from './transactionHistory'
@@ -153,16 +161,28 @@ const stringField = (bag: Record<string, unknown> | undefined, key: string): str
   return typeof value === 'string' && value ? value : undefined
 }
 
+const loadRecords = async (): Promise<SwapRecord[]> =>
+  (await collectPages<SwapRecord, string>((page) => assetSwapRepository.getSwapRecordsPage(page))).filter(
+    readableRecord,
+  )
+
 const readRecords = async (): Promise<SwapRecord[]> => {
   try {
-    return (await collectPages<SwapRecord, string>((page) => assetSwapRepository.getSwapRecordsPage(page))).filter(
-      readableRecord,
-    )
+    return await loadRecords()
   } catch (err) {
     consoleError(err, 'error reading swap records')
     return []
   }
 }
+
+export const solverUsage = async (network: string, direction: string): Promise<Record<string, number>> =>
+  completedSolverUsage(
+    (await loadRecords()).map((record) =>
+      swapOf(record, record.family === 'offer' ? recordOutcome(record) : corridorOutcome(record.kind, record.state)),
+    ),
+    network,
+    direction,
+  )
 
 /** Every offer swap the wallet can render — the v2 client's own, which is all
  * of them. */

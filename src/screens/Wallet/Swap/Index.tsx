@@ -1,7 +1,7 @@
 import Decimal from 'decimal.js'
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion'
 import { fromAtomic, type OfferPlan } from '@arkade-os/solver-discovery'
-import { useOfferQuote } from '@arkade-os/solver-discovery/react'
+import { useSolverQuote } from '../../../hooks/useSolverQuote'
 import { type ReactNode, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import AssetAvatar from '../../../components/AssetAvatar'
 import Button from '../../../components/Button'
@@ -22,7 +22,7 @@ import { extractError } from '../../../lib/error'
 import { formatFiatAmountParts, normalizeBitcoinUnit, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
 import { swapRouteTicker } from '../../../lib/swapDisplay'
-import { BTC_ASSET_ID, findMarket, makeCachedFeedFetch, QUOTE_OPTIONS, validatePlan } from '@arkade-os/swap/protocol'
+import { BTC_ASSET_ID, findMarket, validatePlan } from '@arkade-os/swap/protocol'
 import { preFeeDisplayRate } from '../../../lib/swapMarkets'
 import { type AssetSwapQuoteSnapshot } from '../../../lib/swapRepository'
 import { Currencies, Unit } from '../../../lib/types'
@@ -206,14 +206,13 @@ export default function WalletSwap() {
   }, [currencyConversionUseful, selectedAmountMode])
 
   const pair = toAsset ? findMarket(markets, fromAsset.assetId, toAsset.assetId) : undefined
-  // per-mount cache: a burst of keystroke-debounced quotes reuses one feed
-  // value instead of getting rate-limited into "Quote unavailable"
-  const feedFetch = useMemo(() => makeCachedFeedFetch(), [])
-  const { plan, setGiveAmount, solvable, status } = useOfferQuote(pair?.market ?? null, {
-    give: pair?.give,
-    fetchImpl: feedFetch,
-    ...QUOTE_OPTIONS,
-  })
+  const { plan, setGiveAmount, solvable, status } = useSolverQuote(
+    markets,
+    fromAsset.assetId,
+    toAsset?.assetId,
+    aspInfo.network,
+    aspInfo.dust,
+  )
   const preservedAmounts = preservedAmountPair?.assetId === fromAsset.assetId ? preservedAmountPair : undefined
   const assetAmount =
     preservedAmounts?.assetAmount ?? amountInAssetUnits(amount, amountMode, fromAsset, unitOfAccountUsd)
@@ -461,6 +460,11 @@ export default function WalletSwap() {
 
   const confirmSwap = async () => {
     if (!plan || !toAsset || !pair?.market || confirming || !canContinue) return
+    const verifiedPair = findMarket([plan.market as typeof pair.market], fromAsset.assetId, toAsset.assetId)
+    if (!verifiedPair?.market || verifiedPair.give !== plan.give) {
+      setConfirmError(t('swap.quoteUnavailable'))
+      return
+    }
 
     setConfirmError('')
     setConfirming(true)
@@ -468,7 +472,7 @@ export default function WalletSwap() {
       // The market the plan was quoted against, not one re-looked-up at confirm
       // time: `accept` funds the plan the user just read, and a second lookup
       // could name a different card.
-      await exchange(pair.market, plan, buildQuoteSnapshot(plan, quote, config.currency))
+      await exchange(verifiedPair.market, plan, buildQuoteSnapshot(plan, quote, config.currency))
       setDrawer(null)
       setSuccessQuote(quote)
       hapticLight()

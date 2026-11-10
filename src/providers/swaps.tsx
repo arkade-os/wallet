@@ -57,7 +57,13 @@ import {
   type Swap,
   type SwapClient,
 } from '@arkade-os/swap'
-import { isRfqMarket, sideLimits, type DiscoveredMarket, type OfferPlan, type Side } from '@arkade-os/solver-discovery'
+import {
+  isRfqMarket,
+  marketCorridor,
+  sideLimits,
+  type DiscoveredMarket,
+  type OfferPlan,
+} from '@arkade-os/solver-discovery'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import { discoverMarkets, watchSwapMarkets } from '../lib/swapMarkets'
@@ -67,6 +73,7 @@ import { claimFeeRate } from '../lib/claimFee'
 import { onchainClaimEndpoint } from '../lib/onchainPayout'
 import { toInvoiceFacts } from '../lib/lnSwap'
 import { makeSwapClient, SwapsHeldElsewhere } from '../lib/swapClient'
+import { isSolverEnabled } from '../lib/solverRouting'
 import {
   DriverPromoted,
   DriverUnavailable,
@@ -97,6 +104,7 @@ export interface AcceptedLnReceive {
 }
 
 interface SwapsContextProps {
+  allMarkets: DiscoveredMarket[]
   /** Spot markets — the ones this wallet builds offers on. */
   markets: DiscoveredMarket[]
   /** True when there are markets and the covenant co-signer's key is known. */
@@ -137,6 +145,7 @@ const notInitialized = async (): Promise<never> => {
 }
 
 export const SwapsContext = createContext<SwapsContextProps>({
+  allMarkets: [],
   markets: [],
   swapAvailable: false,
   swaps: [],
@@ -741,20 +750,18 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
    * later. This is the pre-flight that was lost with the corridor pickers, kept
    * because the message it produces is the only one a user can act on.
    *
-   * A side bounds what the SOLVER pays out on it, so the corridor's two
-   * directions are the two sides of one market: quote (Lightning) is the send
-   * leg, base (arkade) the receive leg.
+   * Bounds apply to the payout rail: Lightning on a send, Arkade on a receive.
    */
-  const assertWithinBounds = (sats: number, side: Side) => {
-    const market = allMarketsRef.current.find(isLightningMarket)
-    // No card, or a disabled side: leave it to the client, which answers
-    // "no route" rather than an invented range.
-    const bounds = market && sideLimits(market, side)
-    if (!bounds) return
-    const [min, max] = [Number(bounds.min), Number(bounds.max)]
-    if (sats < min || sats > max) {
-      throw new Error(`Amount outside solver bounds (${prettyNumber(min)}-${prettyNumber(max)} sats)`)
-    }
+  const assertWithinBounds = (sats: number, payout: 'bolt11' | 'arkade') => {
+    const bounds = allMarketsRef.current.filter(isLightningMarket).flatMap((market) => {
+      const side = marketCorridor(market, 'base') === payout ? 'base' : 'quote'
+      if (!isSolverEnabled(market, side === 'base' ? 'quote' : 'base', aspInfo.network)) return []
+      const limits = sideLimits(market, side)
+      return limits ? [limits] : []
+    })
+    if (!bounds.length || bounds.some(({ min, max }) => BigInt(sats) >= min && BigInt(sats) <= max)) return
+    const ranges = bounds.map(({ min, max }) => `${prettyNumber(Number(min))}-${prettyNumber(Number(max))}`).join(', ')
+    throw new Error(`Amount outside solver bounds (${ranges} sats)`)
   }
 
   /**
@@ -766,7 +773,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
    */
   const quotePay = (destination: string): Promise<Quote> => {
     if (destination.toLowerCase().startsWith('ln')) {
-      assertWithinBounds(toInvoiceFacts(destination, aspInfo.network as NetworkName).amountSats, 'quote')
+      assertWithinBounds(toInvoiceFacts(destination, aspInfo.network as NetworkName).amountSats, 'bolt11')
     }
     return runOnDriver('quotePay', [destination])
   }
@@ -779,7 +786,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     // override — and they are what the bounds check reads the amount from,
     // which is why an invoice is decoded here and nowhere else.
     if (destination.toLowerCase().startsWith('ln')) {
-      assertWithinBounds(toInvoiceFacts(destination, aspInfo.network as NetworkName).amountSats, 'quote')
+      assertWithinBounds(toInvoiceFacts(destination, aspInfo.network as NetworkName).amountSats, 'bolt11')
     }
     const quote = await client.quote({ to: destination })
     remember(quote)
@@ -812,13 +819,13 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const receiveLightning = (amountSats: number): Promise<AcceptedLnReceive> => {
-    assertWithinBounds(amountSats, 'base')
+    assertWithinBounds(amountSats, 'arkade')
     return runOnDriver('receiveLightning', [amountSats])
   }
 
   const receiveLightningHere = async (amountSats: number): Promise<AcceptedLnReceive> => {
     const client = await driving()
-    assertWithinBounds(amountSats, 'base')
+    assertWithinBounds(amountSats, 'arkade')
     // `receive` pins the TAKE leg: the trader is credited `amount` and the
     // payer is shown `amount + fee`, which is what `give` carries below.
     // Driving starts before the invoice comes back, so the monitored set is
@@ -873,6 +880,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const swapAvailable = markets.length > 0 && Boolean(emulatorPubkey)
   const value = useMemo(
     () => ({
+      allMarkets: allMarketsRef.current,
       markets,
       swapAvailable,
       swaps,

@@ -86,15 +86,19 @@ test('should save solver cards to nostr', async ({ page }) => {
   // verify solver card is added
   const message = tr.solvers.storedSingular.replace('{count}', '1')
   await expect(page.getByText(message)).toBeVisible()
-  await expect(page.getByText(mockSolverCard.name)).toBeVisible()
+  const storedCard = page.getByTestId('stored-solver-card')
+  await expect(storedCard).toHaveCount(1)
+  await expect(storedCard.getByText(mockSolverCard.name, { exact: true })).toBeVisible()
 
   // restore wallet
   await resetAndRestoreWallet(page)
 
-  // verify currency is euro
+  // verify solver card was restored
   await navigateToSettings(page)
   await page.getByText(tr.settings.advanced, { exact: true }).click()
   await page.getByText(tr.settings.solvers, { exact: true }).click()
+  await page.getByRole('tab', { name: tr.solvers.cardsTab, exact: true }).click()
   await expect(page.getByText(message)).toBeVisible()
-  await expect(page.getByText(mockSolverCard.name)).toBeVisible()
+  await expect(storedCard).toHaveCount(1)
+  await expect(storedCard.getByText(mockSolverCard.name, { exact: true })).toBeVisible()
 })

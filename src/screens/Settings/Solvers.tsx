@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect, useRef } from 'react'
+import { useContext, useState, useEffect, useRef, useSyncExternalStore, type RefObject } from 'react'
 import { AspContext } from '../../providers/asp'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
@@ -27,22 +27,33 @@ import SegmentedControl from '@/components/SegmentedControl'
 import { useRemoteSolverCard } from '@/hooks/useRemoteSolverCard'
 import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '@/providers/language'
+import SolverRouting from './SolverRouting'
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer'
+import { Switch } from '@/components/ui/switch'
+import {
+  isSolverCardEnabled,
+  saveSolverCardEnabled,
+  subscribeSolverRouting,
+  getSolverRoutingVersion,
+} from '@/lib/solverRouting'
 
-const isSameCard = (card: LocalCardInput, label: string | undefined, network: Network) =>
-  card.label === label && card.network === network
+const cardIdentity = (input: LocalCardInput): string => {
+  const card = input.card as Card
+  return JSON.stringify([input.network, card.discovery_pubkey ?? [input.label ?? `local:${card.name}`, card.name]])
+}
 
-/** `replacing` is the label a rename vacates, folded into this one write so
- * subscribers never see the intermediate list with the card missing. */
-const putSolverCard = (input: LocalCardInput, replacing?: string) => {
-  const network = input.network as Network
+const putSolverCard = (input: LocalCardInput, replacing?: LocalCardInput) => {
   const others = readSolverCards().filter(
-    (card) => !isSameCard(card, input.label, network) && !(replacing && isSameCard(card, replacing, network)),
+    (card) =>
+      cardIdentity(card) !== cardIdentity(input) && (!replacing || cardIdentity(card) !== cardIdentity(replacing)),
   )
+  if (replacing && cardIdentity(input) !== cardIdentity(replacing) && !isSolverCardEnabled(replacing))
+    saveSolverCardEnabled(input, false)
   saveSolverCards([...others, input])
 }
 
 const removeSolverCard = (input: LocalCardInput) => {
-  saveSolverCards(readSolverCards().filter((card) => !isSameCard(card, input.label, input.network as Network)))
+  saveSolverCards(readSolverCards().filter((card) => cardIdentity(card) !== cardIdentity(input)))
 }
 
 /** A canonical card carries no `pair`; its label is derived from the asset ids'
@@ -55,23 +66,74 @@ const getCardsForNetwork = (network: Network): LocalCardInput[] => {
   return readSolverCards().filter((c) => c.network === network)
 }
 
-function Button({ onClick, text }: { onClick?: () => void; text: string }) {
+function Button({
+  onClick,
+  text,
+  buttonRef,
+}: {
+  onClick?: () => void
+  text: string
+  buttonRef?: RefObject<HTMLButtonElement>
+}) {
   return (
-    <button type='button' className='pill-base' onClick={onClick}>
+    <button type='button' className='pill-base' onClick={onClick} ref={buttonRef}>
       {text}
     </button>
   )
 }
 
-function Editor({ card, toClose, onChange }: { card?: Card; toClose?: () => void; onChange?: () => void }) {
+function CardAvailability({ input }: { input: LocalCardInput }) {
+  const { t } = useTranslation()
+  const [error, setError] = useState('')
+  const card = input.card as Card
+  const enabled = isSolverCardEnabled(input)
+  return (
+    <div className='flex shrink-0 flex-col items-end gap-2'>
+      <Switch
+        size='lg'
+        checked={enabled}
+        aria-label={`${t('solvers.cardEnabled', { name: input.label ?? card.name })}${card.discovery_pubkey ? ` (${prettyLongText(card.discovery_pubkey)})` : ''}`}
+        onCheckedChange={(next) => {
+          try {
+            saveSolverCardEnabled(input, next)
+            setError('')
+          } catch {
+            setError(t('solvers.failedSave'))
+          }
+        }}
+      />
+      {!enabled ? <TextSecondary>{t('solvers.paused')}</TextSecondary> : null}
+      {error ? (
+        <div className='max-w-48'>
+          <ErrorMessage error text={error} />
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function Editor({
+  card,
+  original,
+  toClose,
+  onChange,
+  fallbackFocus,
+}: {
+  card?: Card
+  original?: LocalCardInput
+  toClose?: () => void
+  onChange?: () => void
+  fallbackFocus: RefObject<HTMLButtonElement>
+}) {
   const { aspInfo } = useContext(AspContext)
   const { t } = useTranslation()
 
   const [error, setError] = useState<string>('')
 
   const editorRef = useRef<HTMLTextAreaElement>(null)
+  const previousFocus = useRef(document.activeElement)
 
-  const saveCard = (olderCard?: Card) => {
+  const saveCard = () => {
     if (!editorRef.current) return
     if (!toClose || !onChange) return
     const inputValue = editorRef.current.value.trim()
@@ -97,12 +159,13 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose?: () => void
     }
     try {
       // a rename must not leave the old label lingering in storage
-      putSolverCard(input, olderCard && olderCard.name !== card.name ? olderCard.name : undefined)
+      putSolverCard(input, original)
     } catch (err) {
       consoleError(err, 'failed to save solver card')
       setError(t('solvers.failedSave'))
       return
     }
+    if (original && cardIdentity(input) !== cardIdentity(original)) previousFocus.current = null
     onChange()
     toClose()
   }
@@ -117,24 +180,49 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose?: () => void
   }
 
   return (
-    <FlexCol>
-      <ErrorMessage error={Boolean(error)} text={error} />
-      <textarea
-        rows={21}
-        ref={editorRef}
-        style={cssStyle}
-        onFocus={() => setError('')}
-        readOnly={!toClose || !onChange}
-        placeholder='{ version: 0, name: "My Card", markets: [...] }'
-        defaultValue={card ? JSON.stringify(card, null, 2) : ''}
-      />
-      {toClose && onChange ? (
-        <FlexRow>
-          <Button onClick={() => toClose()} text={t('common.cancel')} />
-          <Button onClick={() => saveCard(card)} text={t('components.save')} />
-        </FlexRow>
-      ) : null}
-    </FlexCol>
+    <Drawer
+      open
+      onOpenChange={(open) => {
+        if (!open) toClose?.()
+      }}
+    >
+      <DrawerContent
+        finalFocus={() =>
+          previousFocus.current instanceof HTMLElement &&
+          previousFocus.current !== document.body &&
+          previousFocus.current.isConnected
+            ? previousFocus.current
+            : fallbackFocus.current
+        }
+      >
+        <DrawerHeader className='shrink-0'>
+          <DrawerTitle>{t('solvers.editorTitle')}</DrawerTitle>
+          <DrawerDescription>{t('solvers.editorHint')}</DrawerDescription>
+        </DrawerHeader>
+        <div className='min-h-0 overflow-y-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))]'>
+          <FlexCol>
+            <ErrorMessage error={Boolean(error)} text={error} />
+            <textarea
+              rows={12}
+              className='max-h-[45dvh]'
+              aria-label={t('solvers.editorTitle')}
+              ref={editorRef}
+              style={cssStyle}
+              onFocus={() => setError('')}
+              readOnly={!toClose || !onChange}
+              placeholder='{ version: 0, name: "My Card", markets: [...] }'
+              defaultValue={card ? JSON.stringify(card, null, 2) : ''}
+            />
+            {toClose && onChange ? (
+              <FlexRow>
+                <Button onClick={() => toClose()} text={t('common.cancel')} />
+                <Button onClick={saveCard} text={t('components.save')} />
+              </FlexRow>
+            ) : null}
+          </FlexCol>
+        </div>
+      </DrawerContent>
+    </Drawer>
   )
 }
 
@@ -279,25 +367,36 @@ function BundledCardLine({ input }: { input: LocalCardInput }) {
       <FlexCol padding='8px' gap='8px'>
         <FlexRow between>
           <FlexCol gap='4px'>
-            <Text>{input.label ?? card.name}</Text>
+            <Text wrap>{input.label ?? card.name}</Text>
             <TextSecondary>{pairs}</TextSecondary>
+            {card.discovery_pubkey ? <TextSecondary>{prettyLongText(card.discovery_pubkey)}</TextSecondary> : null}
           </FlexCol>
-          <FlexRow end minWidth='64px'>
-            <Button onClick={() => setShowInfo(true)} text={t('solvers.viewInfo')} />
-            <Text small color='neutral-500'>
-              {t('solvers.builtIn')}
-            </Text>
-          </FlexRow>
+          <CardAvailability input={input} />
+        </FlexRow>
+        <FlexRow end minWidth='64px'>
+          <Button onClick={() => setShowInfo(true)} text={t('solvers.viewInfo')} />
+          <Text small color='neutral-500'>
+            {t('solvers.builtIn')}
+          </Text>
         </FlexRow>
       </FlexCol>
     </Shadow>
   )
 }
 
-function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => void }) {
+function CardLine({
+  input,
+  onChange,
+  fallbackFocus,
+}: {
+  input: LocalCardInput
+  onChange: () => void
+  fallbackFocus: RefObject<HTMLButtonElement>
+}) {
   const { t } = useTranslation()
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [showEditor, setShowEditor] = useState(false)
+
   const [showInfo, setShowInfo] = useState(false)
   const [error, setError] = useState<string>('')
 
@@ -328,7 +427,7 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
   }
 
   return (
-    <Shadow>
+    <Shadow testId='stored-solver-card'>
       <Modal open={confirmRemove} onOpenChange={setConfirmRemove}>
         {error ? (
           <ErrorMessage error={Boolean(error)} text={error} />
@@ -364,16 +463,26 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
       <FlexCol padding='8px' gap='8px'>
         <FlexRow between>
           <FlexCol gap='4px'>
-            <Text>{input.label}</Text>
+            <Text wrap>{input.label}</Text>
             <TextSecondary>{pairs}</TextSecondary>
+            {card.discovery_pubkey ? <TextSecondary>{prettyLongText(card.discovery_pubkey)}</TextSecondary> : null}
           </FlexCol>
-          <FlexRow end>
-            <Button onClick={handleShowInfo} text={t('solvers.viewInfo')} />
-            <Button onClick={handleEdit} text={t('solvers.edit')} />
-            <Button onClick={handleConfirmRemove} text={t('solvers.remove')} />
-          </FlexRow>
+          <CardAvailability input={input} />
         </FlexRow>
-        {showEditor ? <Editor card={card} toClose={() => setShowEditor(false)} onChange={onChange} /> : null}
+        <FlexRow end>
+          <Button onClick={handleShowInfo} text={t('solvers.viewInfo')} />
+          <Button onClick={handleEdit} text={t('solvers.edit')} />
+          <Button onClick={handleConfirmRemove} text={t('solvers.remove')} />
+        </FlexRow>
+        {showEditor ? (
+          <Editor
+            card={card}
+            original={input}
+            toClose={() => setShowEditor(false)}
+            onChange={onChange}
+            fallbackFocus={fallbackFocus}
+          />
+        ) : null}
       </FlexCol>
     </Shadow>
   )
@@ -384,8 +493,11 @@ export default function Solvers() {
   const { backupSolverCards } = useContext(BackupContext)
   const { t } = useTranslation()
 
+  useSyncExternalStore(subscribeSolverRouting, getSolverRoutingVersion, getSolverRoutingVersion)
   const [localCards, setLocalCards] = useState<LocalCardInput[]>()
   const [showEditor, setShowEditor] = useState(false)
+  const [view, setView] = useState('priority')
+  const addButtonRef = useRef<HTMLButtonElement>(null)
 
   // The card store notifies discovery on write, so this only owes the backup;
   // on unmount to keep it at one Nostr write per visit rather than per edit.
@@ -432,20 +544,42 @@ export default function Solvers() {
           <FlexCol>
             <FlexRow between>
               <Text wrap>{title}</Text>
-              <Button onClick={() => setShowEditor(true)} text={t('solvers.addNew')} />
+              <Button
+                buttonRef={addButtonRef}
+                onClick={() => {
+                  setView('cards')
+                  setShowEditor(true)
+                }}
+                text={t('solvers.addNew')}
+              />
             </FlexRow>
-            {showEditor ? <Editor toClose={() => setShowEditor(false)} onChange={handleChange} /> : null}
-            {bundledCards.length > 0 ? (
+            <SegmentedControl
+              options={['priority', 'cards']}
+              selected={view}
+              onChange={setView}
+              getLabel={(option) => t(option === 'priority' ? 'solvers.priorityTab' : 'solvers.cardsTab')}
+            />
+            {view === 'cards' ? <TextSecondary>{t('solvers.pauseHint')}</TextSecondary> : null}
+            {view === 'priority' ? <SolverRouting network={aspInfo.network} /> : null}
+            {showEditor ? (
+              <Editor toClose={() => setShowEditor(false)} onChange={handleChange} fallbackFocus={addButtonRef} />
+            ) : null}
+            {view === 'cards' && bundledCards.length > 0 ? (
               <FlexCol>
                 {bundledCards.map((input) => (
-                  <BundledCardLine key={input.label ?? (input.card as Card).name} input={input} />
+                  <BundledCardLine key={cardIdentity(input)} input={input} />
                 ))}
               </FlexCol>
             ) : null}
-            {localCards && localCards.length > 0 ? (
+            {view === 'cards' && localCards && localCards.length > 0 ? (
               <FlexCol>
                 {localCards.map((input) => (
-                  <CardLine key={input.label} input={input} onChange={handleChange} />
+                  <CardLine
+                    key={cardIdentity(input)}
+                    input={input}
+                    onChange={handleChange}
+                    fallbackFocus={addButtonRef}
+                  />
                 ))}
               </FlexCol>
             ) : null}

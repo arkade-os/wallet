@@ -7,7 +7,8 @@ vi.mock('../../lib/swapRepository', () => ({
   },
 }))
 
-import { lnSendViews } from '../../lib/swapRecords'
+import { lnSendViews, solverUsage } from '../../lib/swapRecords'
+import { assetSwapRepository } from '../../lib/swapRepository'
 
 // Plain JSON, as the store hands it back.
 const send = (market: { kind: string; backend: string }) => ({
@@ -42,5 +43,17 @@ describe('lnSendViews', () => {
     expect(view.amount).toBe(100_000)
     expect(view).not.toHaveProperty('takeAmount')
     expect(view).not.toHaveProperty('feeAmount')
+  })
+
+  it('keeps history readable when the repository is unavailable', async () => {
+    vi.spyOn(assetSwapRepository, 'getSwapRecordsPage').mockRejectedValueOnce(new Error('history unavailable'))
+    await expect(lnSendViews()).resolves.toEqual([])
+  })
+})
+
+describe('solverUsage', () => {
+  it('reports repository read errors instead of displaying zero completed swaps', async () => {
+    vi.spyOn(assetSwapRepository, 'getSwapRecordsPage').mockRejectedValueOnce(new Error('history unavailable'))
+    await expect(solverUsage('bitcoin', 'direction')).rejects.toThrow('history unavailable')
   })
 })

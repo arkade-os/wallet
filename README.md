@@ -206,6 +206,18 @@ web+arkade://send?request=<percent-encoded BIP21>&callback=https%3A%2F%2Farkade.
 
 The browser asks once before it lets the installed app own that protocol. Safari has no manifest protocol handler, so an iOS app uses the https link, which opens in the browser. That page shows **Open in App**: Chrome and Edge launch `web+arkade://` in the installed app, and Safari explains that it cannot switch there, so the request stays on this page. Ark notes keep using `web+arkade://` and are not treated as connect or send.
 
+## Solver priority
+
+Settings > Solvers has a compact Priority view with one row per give/receive direction. Open a direction to set its order in a sheet; the Cards view manages built-in and pasted cards, with add/edit forms in separate sheets. Manual priority is the default; move buttons adjust its saved order. Most used counts successful swaps from this wallet's persisted history and falls back to saved priority when that history cannot be read. Cost order estimates the requested trade amount from advertised fees and price feeds when quoting; Settings does not quote a reference amount.
+
+Switch off a card to pause it across all directions, or switch off a solver in a direction sheet to pause only that route. Cards and saved priorities stay intact, and card-wide pauses preserve each direction's choices. A card's declared key also pauses its registry mirrors; cards without a key remain scoped to their local source. Pauses exclude new quote preparation, including cost-feed requests, while issued quotes and active swaps retain their selected solver.
+
+Choose Prefer first in a direction sheet to try one enabled solver before the others. Sort the rest by Most used or Lowest estimated cost; a failed preferred solver still falls back to those candidates. No preference restores normal sorting. A missing or paused preferred solver is skipped while its saved choice remains available for later. Manual ordering also keeps the preferred solver first and lets you reorder the remainder.
+
+Repeated quote failures temporarily move a solver behind healthy alternatives, including a saved preferred solver. Two consecutive failures start a one-minute cooldown; further failures double it up to fifteen minutes. A verified quote restores priority, and thirty quiet minutes forget the streak. Reliability is retained across reloads per network and direction. Cooling solvers remain enabled as last-resort fallbacks; the direction sheet explains their reduced priority without changing the saved preference. Cancellations and request limits do not count as solver faults.
+
+Priorities are local to this wallet, scoped by network and ordered direction, and cleared on wallet reset. Solvers with different discovery public keys stay distinct even when names match. Quote preparation can try the next eligible solver; accepting a quote keeps that solver and the confirmed terms throughout funding and recovery.
+
 ## Troubleshooting
 
 ### `address already in use` (Port 5000) on macOS

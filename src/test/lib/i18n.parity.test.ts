@@ -39,6 +39,8 @@ const keepEnglishTermAllowList = new Set([
   'solvers.fieldBase',
   'solvers.fieldRelays',
   'solvers.originalLabel',
+  'solvers.solverCountPlural',
+  'solvers.solverCountSingular',
   'transaction.boarding',
   'transaction.swap',
   'transaction.totalTicker',
