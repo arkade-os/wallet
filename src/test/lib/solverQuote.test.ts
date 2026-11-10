@@ -4,6 +4,7 @@ import { btcUsdt } from './swapFixtures'
 import { quoteOffer, solverDirectionKey, solverId } from '@arkade-os/solver-discovery'
 import { ASSET_CARRIER_SATS, QUOTE_OPTIONS } from '@arkade-os/swap/protocol'
 import { saveSolverRouting } from '../../lib/solverRouting'
+import { assetSwapRepository } from '../../lib/swapRepository'
 
 describe('solver quote preview', () => {
   beforeEach(() => localStorage.clear())
@@ -51,6 +52,26 @@ describe('solver quote preview', () => {
       fetchImpl,
     )
     expect(plan.market).toEqual(cheap)
+  })
+
+  it('falls back to saved priority when completed usage cannot be read', async () => {
+    const first = { ...btcUsdt, source: 'first' }
+    const preferred = { ...btcUsdt, source: 'preferred' }
+    saveSolverRouting('mutinynet', solverDirectionKey(first, 'base', 'mutinynet'), {
+      mode: 'usage',
+      priority: [solverId(preferred, 'mutinynet')],
+    })
+    vi.spyOn(assetSwapRepository, 'getSwapRecordsPage').mockRejectedValueOnce(new Error('history unavailable'))
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ bitcoin: { usd: 100000 } }))) as typeof fetch
+    const plan = await previewSolverQuote(
+      [first, preferred],
+      'btc',
+      btcUsdt.quote_asset.id,
+      '0.0001',
+      'mutinynet',
+      fetchImpl,
+    )
+    expect(plan.market).toEqual(preferred)
   })
 
   it('includes the delivered carrier in both cost ranking and preview amounts', async () => {

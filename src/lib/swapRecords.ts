@@ -161,11 +161,14 @@ const stringField = (bag: Record<string, unknown> | undefined, key: string): str
   return typeof value === 'string' && value ? value : undefined
 }
 
+const loadRecords = async (): Promise<SwapRecord[]> =>
+  (await collectPages<SwapRecord, string>((page) => assetSwapRepository.getSwapRecordsPage(page))).filter(
+    readableRecord,
+  )
+
 const readRecords = async (): Promise<SwapRecord[]> => {
   try {
-    return (await collectPages<SwapRecord, string>((page) => assetSwapRepository.getSwapRecordsPage(page))).filter(
-      readableRecord,
-    )
+    return await loadRecords()
   } catch (err) {
     consoleError(err, 'error reading swap records')
     return []
@@ -174,7 +177,7 @@ const readRecords = async (): Promise<SwapRecord[]> => {
 
 export const solverUsage = async (network: string, direction: string): Promise<Record<string, number>> =>
   completedSolverUsage(
-    (await readRecords()).map((record) =>
+    (await loadRecords()).map((record) =>
       swapOf(record, record.family === 'offer' ? recordOutcome(record) : corridorOutcome(record.kind, record.state)),
     ),
     network,

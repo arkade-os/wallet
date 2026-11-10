@@ -173,6 +173,7 @@ export default function SolverRouting({ network }: { network: string }) {
   const directions = new Map<string, Candidate[]>()
   for (const card of allMarkets) {
     for (const give of ['base', 'quote'] as const) {
+      // Missing or zero payout bounds disable this direction in discovery.
       if (!sideLimits(card, give === 'base' ? 'quote' : 'base')) continue
       const direction = solverDirectionKey(card, give, network)
       const group = directions.get(direction) ?? []

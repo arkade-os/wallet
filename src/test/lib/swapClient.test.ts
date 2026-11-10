@@ -85,4 +85,18 @@ describe('wallet solver routing policy', () => {
     await expect(preferencesCallback()()).resolves.toEqual({ mode: 'usage', priority })
     expect(mocks.history).toHaveBeenCalledOnce()
   })
+
+  it('keeps saved priority even if a constructor calls preferences before returning the client', async () => {
+    saveSolverRouting('regtest', direction, { mode: 'usage', priority })
+    const construct = vi.mocked(createSwapClient).getMockImplementation()
+    if (!construct) throw new Error('missing client constructor mock')
+    let eager: unknown
+    vi.mocked(createSwapClient).mockImplementationOnce((config) => {
+      eager = config.policy?.solverRouting?.preferences?.({ network: 'regtest', direction, candidates: [] })
+      return construct(config)
+    })
+    makeSwapClient({} as SwapClientConfig['wallet'], 'regtest')
+    await expect(eager).resolves.toEqual({ mode: 'usage', priority })
+    expect(mocks.history).not.toHaveBeenCalled()
+  })
 })

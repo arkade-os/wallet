@@ -28,7 +28,7 @@ export const previewSolverQuote = async (
   const first = candidates[0]
   const direction = solverDirectionKey(first.card, first.give, network)
   const prefs = readSolverRouting(network, direction)
-  const usage = prefs.mode === 'usage' ? await solverUsage(network, direction) : undefined
+  const usage = prefs.mode === 'usage' ? await solverUsage(network, direction).catch(() => undefined) : undefined
   const decimals = (first.give === 'base' ? first.card.base_asset : first.card.quote_asset).decimals
   const ordered = await rankSolverMarkets(candidates, {
     network,
