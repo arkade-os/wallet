@@ -2,12 +2,41 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { previewSolverQuote } from '../../lib/solverQuote'
 import { btcUsdt } from './swapFixtures'
 import { quoteOffer, solverDirectionKey, solverId } from '@arkade-os/solver-discovery'
-import { ASSET_CARRIER_SATS, QUOTE_OPTIONS } from '@arkade-os/swap/protocol'
+import { ASSET_CARRIER_SATS, findMarket, QUOTE_OPTIONS } from '@arkade-os/swap/protocol'
 import { saveSolverCardEnabled, saveSolverRouting } from '../../lib/solverRouting'
 import { assetSwapRepository } from '../../lib/swapRepository'
 
 describe('solver quote preview', () => {
   beforeEach(() => localStorage.clear())
+  it('shares the trader direction across opposite card orientations', async () => {
+    const reversed = {
+      ...btcUsdt,
+      source: 'reversed',
+      pair: 'USDT/BTC',
+      base_asset: btcUsdt.quote_asset,
+      quote_asset: btcUsdt.base_asset,
+      min_base_amount: btcUsdt.min_quote_amount,
+      max_base_amount: btcUsdt.max_quote_amount,
+      min_quote_amount: btcUsdt.min_base_amount,
+      max_quote_amount: btcUsdt.max_base_amount,
+    }
+    expect(findMarket([reversed], 'btc', btcUsdt.quote_asset.id)?.give).toBe('quote')
+    const direction = solverDirectionKey(btcUsdt, 'base', 'mutinynet')
+    expect(solverDirectionKey(reversed, 'quote', 'mutinynet')).toBe(direction)
+    expect(solverDirectionKey(reversed, 'base', 'mutinynet')).not.toBe(direction)
+    saveSolverRouting('mutinynet', direction, { preferFirst: solverId(btcUsdt, 'mutinynet') })
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ bitcoin: { usd: 100000 } }))) as typeof fetch
+    const plan = await previewSolverQuote(
+      [reversed, btcUsdt],
+      'btc',
+      btcUsdt.quote_asset.id,
+      '0.0001',
+      'mutinynet',
+      fetchImpl,
+    )
+    expect(plan.market).toEqual(btcUsdt)
+    expect(fetchImpl).toHaveBeenCalledOnce()
+  })
   it.each([true, false])('tries preferFirst before cost-ranked fallbacks when available=%s', async (available) => {
     const preferred = { ...btcUsdt, source: 'preferred', price_feed: 'https://preferred.example/price', fee_bps: 500 }
     const middle = { ...btcUsdt, source: 'middle', price_feed: 'https://middle.example/price', fee_bps: 100 }
