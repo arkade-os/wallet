@@ -33,7 +33,9 @@ export function readPendingAssetMint(): PendingAssetMint | null {
     typeof pending.walletAddress !== 'string' ||
     typeof pending.server !== 'string' ||
     typeof pending.amount !== 'string' ||
+    !/^\d+$/.test(pending.amount) ||
     typeof pending.controlAmount !== 'string' ||
+    !/^\d+$/.test(pending.controlAmount) ||
     !pending.metadata ||
     !pending.controlMetadata ||
     !['issuing-control', 'control-ready', 'issuing-asset', 'asset-ready'].includes(pending.stage) ||
@@ -117,10 +119,9 @@ export async function runNewAssetMint(
       throw new Error('A previous asset mint needs recovery before starting a new mint.')
     }
     const save = (next: PendingAssetMint) => {
-      // Keep the result available in this tab even if persisting it fails.
+      savePendingAssetMint(next)
       pending = next
       onChange(next)
-      savePendingAssetMint(next)
     }
     if (!pending) {
       if (!create) throw new Error('No pending asset mint was found.')
