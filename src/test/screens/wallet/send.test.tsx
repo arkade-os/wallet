@@ -127,6 +127,7 @@ describe('Send screen', () => {
     expect(amountInput).toHaveAttribute('readonly')
     fetchMocker.disableMocks()
   })
+
   it('refuses an LNURL invoice whose amount differs from the one requested', async () => {
     const requested = fixtures.lib.bolt11.amountSats + 100
     const fetchMocker = createFetchMock(vi)
@@ -448,6 +449,46 @@ describe('Send screen', () => {
     fireEvent.change(amountInput, { target: { value: '0.0001' } })
 
     await waitFor(() => expect(setSendInfo).toHaveBeenCalledWith(expect.objectContaining({ satoshis: 10000 })))
+  })
+
+  it('avoid mixed amounts in invoice and satoshis field', async () => {
+    // a 2100 sats lightning invoice
+    const INVOICE = fixtures.lib.bolt11.invoice
+    const BTC_ADDRESS = 'bcrt1mockaddress'
+
+    const setSendInfo = vi.fn()
+    const walletValue = {
+      ...mockWalletContextValue,
+      svcWallet: {
+        ...mockSvcWallet,
+        getAddress: () => 'tark1mockoffchain',
+        getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+        getBalance: () => Promise.resolve({ available: 1_000_000 }),
+      } as any,
+    }
+    const configValue = {
+      ...mockConfigContextValue,
+      useFiat: false,
+      config: { ...mockConfigContextValue.config, currency: Currencies.BTC, unit: Unit.BTC },
+    }
+
+    renderSendForm({
+      configContext: configValue,
+      flowContext: { ...mockFlowContextValue, setSendInfo },
+      walletContext: walletValue,
+    })
+
+    const addressInput = document.querySelector('input[name="send-address"]') as HTMLInputElement
+    const amountInput = document.querySelector('input[name="send-amount"]') as HTMLInputElement
+
+    fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?lightning=${INVOICE}&amount=0.0001` } })
+    await waitFor(() => expect(amountInput.value).toBe('0.000021'))
+
+    fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?lightning=${INVOICE}` } })
+    await waitFor(() => expect(amountInput.value).toBe('0.000021'))
+
+    fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?amount=0.0001` } })
+    await waitFor(() => expect(amountInput.value).toBe('0.0001'))
   })
 
   it('converts a USD account amount into its designated asset units', async () => {
@@ -1019,6 +1060,7 @@ describe('a changed recipient', () => {
       fetchMocker.disableMocks()
     }
   })
+
   it('keeps a gap between supported LNURL ranges disabled and accepts a corrected amount', async () => {
     const body = {
       ...payRequest,

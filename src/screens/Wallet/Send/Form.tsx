@@ -434,19 +434,31 @@ export default function SendForm() {
             pendingLnSend: invoice === prev.invoice ? prev.pendingLnSend : undefined,
           }))
         }
+        // avoid mixed amounts in invoice and satoshis field
+        let sats = satoshis
+        let invo = invoice
+        if (invoice && satoshis) {
+          try {
+            const decoded = decodeInvoice(invoice)
+            sats = decoded.amountSats
+          } catch (err) {
+            invo = undefined
+            consoleError(err, t('send.unableToDecodeInvoice'))
+          }
+        }
         setSendInfo((prev) => ({
           ...prev,
           account: prev.account,
           address,
           arkAddress,
           assets: prev.assets,
-          invoice,
+          invoice: invo,
           lnUrl,
           recipient,
-          satoshis: satoshis ?? prev.satoshis,
-          pendingLnSend: invoice && invoice === prev.invoice ? prev.pendingLnSend : undefined,
+          satoshis: sats ?? prev.satoshis,
+          pendingLnSend: invo && invo === prev.invoice ? prev.pendingLnSend : undefined,
         }))
-        if (satoshis) setAmountTextValue(getTextValue(satoshis))
+        if (sats) setAmountTextValue(getTextValue(sats))
         return
       }
       if (isValidArkAddress(lowerCaseData)) {
@@ -717,26 +729,24 @@ export default function SendForm() {
     // address, an on-chain address, and an invoice whose quote is already in
     // hand all have all they need to be signed on the next screen.
     if (!sendInfo.invoice || sendInfo.pendingLnSend || sendInfo.arkAddress) return navigate(Pages.SendDetails)
-    {
-      // RFQ Lightning send: negotiate a quote over Nostr, derive the covenant
-      // locally, verify, and carry the address+amount to the pay screen. The
-      // negotiation is the only interactive step — funding IS acceptance.
-      const negotiate = async () => {
-        if (!svcWallet) return handleError('Wallet not ready')
-        // For the refusal message only — the rail ranks off the client's own
-        // snapshot; a second read let a cold cache throw on the error path.
-        const markets = await discoverMarkets(aspInfo.network as NetworkName)
-        const router = await sendRouter()
-        const options = await router.options(lnSendRequest(sendInfo.invoice!, sendInfo.satoshis))
-        const route = options.find((option) => option.railId === LIGHTNING_RAIL)
-        if (!route) return handleError(lnSendRefusal(markets, sendInfo.satoshis))
-        // Unguarded: a quote that throws names an unpayable invoice or a
-        // covenant that did not match, and neither reads as "no route".
-        const pendingLnSend = await route.quote()
-        setSendInfo((prev) => ({ ...prev, pendingLnSend }))
-      }
-      negotiate().catch(handleError)
+    // RFQ Lightning send: negotiate a quote over Nostr, derive the covenant
+    // locally, verify, and carry the address+amount to the pay screen. The
+    // negotiation is the only interactive step — funding IS acceptance.
+    const negotiate = async () => {
+      if (!svcWallet) return handleError('Wallet not ready')
+      // For the refusal message only — the rail ranks off the client's own
+      // snapshot; a second read let a cold cache throw on the error path.
+      const markets = await discoverMarkets(aspInfo.network as NetworkName)
+      const router = await sendRouter()
+      const options = await router.options(lnSendRequest(sendInfo.invoice!, sendInfo.satoshis))
+      const route = options.find((option) => option.railId === LIGHTNING_RAIL)
+      if (!route) return handleError(lnSendRefusal(markets, sendInfo.satoshis))
+      // Unguarded: a quote that throws names an unpayable invoice or a
+      // covenant that did not match, and neither reads as "no route".
+      const pendingLnSend = await route.quote()
+      setSendInfo((prev) => ({ ...prev, pendingLnSend }))
     }
+    negotiate().catch(handleError)
   }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingLnSend])
 
   // deal with fees deduction from amount
