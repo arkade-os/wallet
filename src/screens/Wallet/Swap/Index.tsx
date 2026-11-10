@@ -461,7 +461,10 @@ export default function WalletSwap() {
   const confirmSwap = async () => {
     if (!plan || !toAsset || !pair?.market || confirming || !canContinue) return
     const verifiedPair = findMarket([plan.market as typeof pair.market], fromAsset.assetId, toAsset.assetId)
-    if (!verifiedPair?.market || verifiedPair.give !== plan.give) return
+    if (!verifiedPair?.market || verifiedPair.give !== plan.give) {
+      setConfirmError(t('swap.quoteUnavailable'))
+      return
+    }
 
     setConfirmError('')
     setConfirming(true)

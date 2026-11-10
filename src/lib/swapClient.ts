@@ -111,6 +111,7 @@ export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: Netw
           try {
             return { ...preferences, usage: completedSolverUsage(await client.swaps(), network, direction) }
           } catch {
+            // Usage stays advisory even if an eager callback reads client before assignment.
             return preferences
           }
         },

@@ -516,6 +516,7 @@ describe('Wallet swap flow', () => {
       fireEvent.click(continueButton)
       fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
       expect(exchange).not.toHaveBeenCalled()
+      expect(screen.getByText('Quote unavailable')).toBeInTheDocument()
     } finally {
       view.unmount()
       hook.mockRestore()
