@@ -23,9 +23,15 @@ export default function InitConnect() {
   const [initialized, setInitialized] = useState(false)
   const [connectDone, setConnectDone] = useState(false)
 
-  const { password, privateKey, mnemonic, walletMode } = initInfo
+  const { password, privateKey, mnemonic, walletMode, passkeyPrf } = initInfo
 
   useEffect(() => {
+    if (passkeyPrf && mnemonic) {
+      initWallet({ mnemonic, walletMode, restoring: initInfo.restoring })
+        .then(() => setInitialized(true))
+        .catch(abortConnectionWithError)
+      return
+    }
     if (!password || (!mnemonic && !privateKey)) {
       abortConnectionWithError(new Error('Missing credentials'))
       return
@@ -48,7 +54,14 @@ export default function InitConnect() {
   }, [initialized])
 
   const handleExitComplete = () => {
-    setInitInfo({ ...initInfo, password: undefined, privateKey: undefined, mnemonic: undefined, walletMode: undefined })
+    setInitInfo({
+      ...initInfo,
+      password: undefined,
+      privateKey: undefined,
+      mnemonic: undefined,
+      walletMode: undefined,
+      passkeyPrf: undefined,
+    })
     navigate(error ? Pages.Init : Pages.Wallet)
   }
 

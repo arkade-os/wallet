@@ -1,4 +1,5 @@
 import Header from './Header'
+import Text from '../../components/Text'
 import ErrorMessage from '../../components/Error'
 import { consoleLog } from '../../lib/logs'
 import Button from '../../components/Button'
@@ -87,6 +88,18 @@ export default function Password() {
     const ok = await saveNewPassword(newPassword, false)
     if (ok) updateWallet({ ...wallet, lockedByBiometrics: false })
   }
+
+  if (wallet.passkeyPrf)
+    return (
+      <>
+        <Header text={t('settings.changePassword')} back />
+        <Content>
+          <Padded>
+            <Text wrap>{t('settings.protectedByPasskey')}</Text>
+          </Padded>
+        </Content>
+      </>
+    )
 
   if (!authenticated && !successText) return <NeedsPassword error={error} onPassword={setOldPassword} />
 
