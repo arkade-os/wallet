@@ -521,6 +521,11 @@ export default function SendForm() {
       return
     }
 
+    if (isArkNote(rawScanData || typed)) {
+      setBrantaLoading(false)
+      return
+    }
+
     let cancelled = false
 
     const runLookup = () => {
