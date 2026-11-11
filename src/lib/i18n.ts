@@ -249,7 +249,7 @@ export const translations = {
       waitingForPasskey: 'Waiting for your passkey…',
       passkeyNoKeysTitle: "This device can't make wallet keys from a passkey",
       passkeyNoKeys:
-        "The passkey was saved, but it can't create your wallet's keys here. Instead it will lock a recovery phrase that stays on this device. Back up that phrase: the passkey alone won't restore this wallet anywhere else.",
+        "The passkey was saved, but it can't create your wallet's keys here. Instead it will guard a recovery phrase that stays on this device. That stops someone at the keyboard, not software running as you. Back up that phrase: the passkey alone won't restore this wallet anywhere else.",
       continueWithPasskey: 'Continue with this passkey',
       passkeyNotUsed: 'No wallet was created. You can delete the passkey "{name}" from your device settings.',
       goToWallet: 'Go to wallet',
@@ -1105,7 +1105,7 @@ export const translations = {
       waitingForPasskey: 'Esperando tu passkey…',
       passkeyNoKeysTitle: 'Este dispositivo no puede crear las claves de la wallet con una passkey',
       passkeyNoKeys:
-        'La passkey se guardó, pero aquí no puede crear las claves de tu wallet. En su lugar, protegerá una frase de recuperación guardada solo en este dispositivo. Haz una copia de esa frase: la passkey sola no restaurará esta wallet en otro lugar.',
+        'La passkey se guardó, pero aquí no puede crear las claves de tu wallet. En su lugar, protegerá una frase de recuperación guardada solo en este dispositivo. Eso detiene a alguien frente al teclado, no al software que se ejecuta con tu cuenta. Haz una copia de esa frase: la passkey sola no restaurará esta wallet en otro lugar.',
       continueWithPasskey: 'Continuar con esta passkey',
       passkeyNotUsed: 'No se creó ninguna wallet. Puedes borrar la passkey "{name}" en los ajustes de tu dispositivo.',
       goToWallet: 'Ir a la wallet',
@@ -1965,7 +1965,7 @@ export const translations = {
       waitingForPasskey: 'Aguardando sua chave de acesso…',
       passkeyNoKeysTitle: 'Este dispositivo não consegue criar as chaves da carteira com uma chave de acesso',
       passkeyNoKeys:
-        'A chave de acesso foi salva, mas aqui ela não consegue criar as chaves da sua carteira. Em vez disso, ela vai proteger uma frase de recuperação guardada só neste dispositivo. Faça backup dessa frase: a chave de acesso sozinha não restaura esta carteira em outro lugar.',
+        'A chave de acesso foi salva, mas aqui ela não consegue criar as chaves da sua carteira. Em vez disso, ela vai proteger uma frase de recuperação guardada só neste dispositivo. Isso impede alguém no teclado, não um software rodando como você. Faça backup dessa frase: a chave de acesso sozinha não restaura esta carteira em outro lugar.',
       continueWithPasskey: 'Continuar com esta chave de acesso',
       passkeyNotUsed:
         'Nenhuma carteira foi criada. Você pode apagar a chave de acesso "{name}" nas configurações do dispositivo.',

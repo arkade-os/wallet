@@ -131,6 +131,7 @@ describe('Init screen — passkey wallets', () => {
     const { navigate, setInitInfo, updateWallet } = renderWithSpies()
     await startPasskeyWallet()
     expect(await screen.findByText(/stays on this device/)).toBeInTheDocument()
+    expect(screen.getByText(/not software running as you/)).toBeInTheDocument()
     expect(navigate).not.toHaveBeenCalled()
     expect(updateWallet).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Continue with this passkey' }))
