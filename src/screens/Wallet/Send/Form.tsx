@@ -434,35 +434,19 @@ export default function SendForm() {
             pendingLnSend: invoice === prev.invoice ? prev.pendingLnSend : undefined,
           }))
         }
-        // avoid mixed amounts in invoice and satoshis field
-        let sats = satoshis
-        let invo = invoice
-        if (invoice) {
-          try {
-            const { amountSats } = decodeInvoice(invoice)
-            if (amountSats > 0) {
-              sats = amountSats
-              setValueSats(amountSats)
-              setAmountIsReadOnly(true)
-            }
-          } catch (err) {
-            invo = undefined
-            consoleError(err, t('send.unableToDecodeInvoice'))
-          }
-        }
         setSendInfo((prev) => ({
           ...prev,
           account: prev.account,
           address,
           arkAddress,
           assets: prev.assets,
-          invoice: invo,
+          invoice,
           lnUrl,
           recipient,
-          satoshis: sats ?? prev.satoshis,
-          pendingLnSend: invo && invo === prev.invoice ? prev.pendingLnSend : undefined,
+          satoshis: satoshis ?? prev.satoshis,
+          pendingLnSend: invoice && invoice === prev.invoice ? prev.pendingLnSend : undefined,
         }))
-        if (sats) setAmountTextValue(getTextValue(sats))
+        if (satoshis) setAmountTextValue(getTextValue(satoshis))
         return
       }
       if (isValidArkAddress(lowerCaseData)) {
@@ -643,7 +627,7 @@ export default function SendForm() {
   useEffect(() => {
     if (!receivingAddresses) return
     const { offchainAddr } = receivingAddresses
-    const { address, arkAddress, invoice, lnUrl } = sendInfo
+    const { address, arkAddress, invoice, lnUrl, satoshis } = sendInfo
     // check server limits for onchain transactions
     if (address && !arkAddress && !invoice && !lnUrl && !utxoTxsAllowed()) {
       return setRecipientError(t('send.sendingOnchainNotAllowed'))
@@ -661,12 +645,30 @@ export default function SendForm() {
         if (!address && !invoice) return setRecipientError(t('send.arkadeServerKeyMismatch'))
         // remove ark address from possibilities to send and continue
         // we will try to pay to lightning or mainnet instead
-        setSendInfo({ ...sendInfo, arkAddress: '' })
+        setSendInfo((prev) => ({ ...prev, arkAddress: '' }))
       }
+    }
+    // avoid mixed amounts between invoice amount and bip21 amount field
+    if (!arkAddress && invoice) {
+      let sats: number | undefined = satoshis
+      let invo: string | undefined = invoice
+      try {
+        const { amountSats } = decodeInvoice(invoice)
+        if (amountSats > 0) {
+          sats = amountSats
+          setAmountTextValue(getTextValue(amountSats))
+          setValueSats(amountSats)
+          setAmountIsReadOnly(true)
+        }
+      } catch {
+        invo = undefined
+        if (!address && !lnUrl) return setRecipientError(t('send.unableToDecodeInvoice'))
+      }
+      setSendInfo((prev) => ({ ...prev, satoshis: sats, invoice: invo }))
     }
     // everything is ok, clean error
     setRecipientError('')
-  }, [receivingAddresses, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.lnUrl])
+  }, [receivingAddresses, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.lnUrl, sendInfo.recipient])
 
   const lnurlAmountUnavailable = Boolean(
     lnUrlResponse &&
