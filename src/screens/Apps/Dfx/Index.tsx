@@ -33,7 +33,8 @@ export default function AppDfx() {
         const signature = bytesToHex(signatureBytes)
 
         setDfxUrl(
-          `https://app.dfx.swiss/buy/?address=${encodeURIComponent(offchainAddr)}&signature=${signature}&wallet=Arkade&headless=true`,
+          `https://app.dfx.swiss/buy/?address=${encodeURIComponent(offchainAddr)}` +
+            `&signature=${encodeURIComponent(signature)}&wallet=Arkade&headless=true`,
         )
       } catch {
         setError(true)
@@ -61,7 +62,7 @@ export default function AppDfx() {
                 style={{ height: '100%' }}
                 allow='clipboard-write; clipboard-read'
                 referrerPolicy='strict-origin-when-cross-origin'
-                sandbox='allow-scripts allow-forms allow-same-origin allow-popups'
+                sandbox='allow-scripts allow-forms allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-modals'
               />
             )}
           </FlexCol>
