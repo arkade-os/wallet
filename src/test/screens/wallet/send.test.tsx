@@ -46,6 +46,7 @@ import { SwapsContext } from '../../../providers/swaps'
 import { createSendRouter, LNURL_ARKADE_RAIL, LNURL_LIGHTNING_RAIL } from '../../../lib/sendRouter'
 import { Currencies, Unit } from '../../../lib/types'
 import fixtures from '../../fixtures.json'
+import { fromSatoshis, prettyNumber } from '@/lib/format'
 
 type TreeOptions = {
   configContext?: unknown
@@ -127,6 +128,7 @@ describe('Send screen', () => {
     expect(amountInput).toHaveAttribute('readonly')
     fetchMocker.disableMocks()
   })
+
   it('refuses an LNURL invoice whose amount differs from the one requested', async () => {
     const requested = fixtures.lib.bolt11.amountSats + 100
     const fetchMocker = createFetchMock(vi)
@@ -448,6 +450,88 @@ describe('Send screen', () => {
     fireEvent.change(amountInput, { target: { value: '0.0001' } })
 
     await waitFor(() => expect(setSendInfo).toHaveBeenCalledWith(expect.objectContaining({ satoshis: 10000 })))
+  })
+
+  it('avoid mixed amounts in invoice and satoshis field', async () => {
+    // a 2100 sats lightning invoice
+    const INVOICE = fixtures.lib.bolt11.invoice
+    const INVOICE_SATS = fixtures.lib.bolt11.amountSats
+    const BTC_ADDRESS = fixtures.lib.address.btc[5]
+
+    const sats2btc = (sats: number) => prettyNumber(fromSatoshis(sats), 8, false)
+
+    let currentSendInfo: SendInfo = emptySendInfo
+    const walletValue = {
+      ...mockWalletContextValue,
+      svcWallet: {
+        ...mockSvcWallet,
+        getAddress: () => 'tark1mockoffchain',
+        getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+        getBalance: () => Promise.resolve({ available: 1_000_000 }),
+      } as any,
+    }
+    const configValue = {
+      ...mockConfigContextValue,
+      useFiat: false,
+      config: { ...mockConfigContextValue.config, currency: Currencies.BTC, unit: Unit.BTC },
+    }
+
+    const StatefulForm = () => {
+      const [sendInfo, setSendInfo] = useState<SendInfo>(emptySendInfo)
+      currentSendInfo = sendInfo
+      return sendFormTree({
+        configContext: configValue,
+        flowContext: { ...mockFlowContextValue, sendInfo, setSendInfo },
+        walletContext: walletValue,
+      })
+    }
+
+    render(<StatefulForm />)
+
+    const addressInput = document.querySelector('input[name="send-address"]') as HTMLInputElement
+    const amountInput = document.querySelector('input[name="send-amount"]') as HTMLInputElement
+
+    // lightning= carries a malformed invoice alongside a valid address=
+    fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?lightning=malformedinvoice` } })
+    await waitFor(() => {
+      expect(currentSendInfo.recipient).toBe(`bitcoin:${BTC_ADDRESS}?lightning=malformedinvoice`)
+      expect(currentSendInfo.invoice).toBeUndefined()
+      expect(currentSendInfo.satoshis).toBe(0)
+      expect(amountInput.value).toBe('')
+    })
+
+    // URI with both lightning and amount: amount is ignored, invoice takes precedence
+    fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?lightning=${INVOICE}&amount=0.0001` } })
+    await waitFor(() => {
+      expect(amountInput.value).toBe(sats2btc(INVOICE_SATS))
+      expect(currentSendInfo.satoshis).toBe(INVOICE_SATS)
+      expect(currentSendInfo.invoice).toBe(INVOICE)
+    })
+
+    // Amount-only URI (no invoice): should clear invoice and update satoshis
+    fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?amount=0.0001` } })
+    await waitFor(() => {
+      expect(amountInput.value).toBe('0.0001')
+      expect(currentSendInfo.invoice).toBeUndefined()
+      expect(currentSendInfo.satoshis).toBe(10000)
+    })
+
+    // Invoice-only URI starts with a different displayed and stored amount.
+    fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?lightning=${INVOICE}` } })
+    await waitFor(() => {
+      expect(amountInput.value).toBe(sats2btc(INVOICE_SATS))
+      expect(currentSendInfo.satoshis).toBe(INVOICE_SATS)
+      expect(currentSendInfo.invoice).toBe(INVOICE)
+    })
+
+    // The same invoice with a conflicting BIP21 amount must be revalidated.
+    fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?lightning=${INVOICE}&amount=0.0001` } })
+    await waitFor(() => {
+      expect(currentSendInfo.recipient).toBe(`bitcoin:${BTC_ADDRESS}?lightning=${INVOICE}&amount=0.0001`)
+      expect(amountInput.value).toBe(sats2btc(INVOICE_SATS))
+      expect(currentSendInfo.satoshis).toBe(INVOICE_SATS)
+      expect(currentSendInfo.invoice).toBe(INVOICE)
+    })
   })
 
   it('converts a USD account amount into its designated asset units', async () => {
@@ -1019,6 +1103,7 @@ describe('a changed recipient', () => {
       fetchMocker.disableMocks()
     }
   })
+
   it('keeps a gap between supported LNURL ranges disabled and accepts a corrected amount', async () => {
     const body = {
       ...payRequest,
