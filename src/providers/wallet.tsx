@@ -23,6 +23,9 @@ import {
   readAllTransactionActivityMetadata,
   CachedAssetDetails,
   ASSET_METADATA_TTL_MS,
+  ASSET_METADATA_FAILURE_TTL_MS,
+  readAssetMetadataFailuresFromStorage,
+  saveAssetMetadataFailuresToStorage,
   type TransactionActivityMetadata,
 } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
@@ -65,6 +68,8 @@ const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
 const DEV_AUTO_INIT_TIMEOUT_MS = 60_000
 const DEV_INITIAL_DATA_TIMEOUT_MS = 20_000
 const DEV_AUTO_INIT_RELOAD_KEY = 'arkade-dev-auto-init-reload-attempted'
+const ASSET_METADATA_FETCH_CONCURRENCY = 4
+const ASSET_METADATA_FETCH_TIMEOUT_MS = 5_000
 
 interface InitSvcWorkerWalletParams {
   arkServerUrl: string
@@ -224,6 +229,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const hasLoadedOnce = useRef(false)
   const assetMetadataCache = useRef<Map<string, CachedAssetDetails>>(readAssetMetadataFromStorage() ?? new Map())
+  const assetMetadataFailures = useRef(readAssetMetadataFailuresFromStorage())
+  const assetMetadataFetches = useRef(new Set<string>())
+  const assetMetadataPrefetchRunning = useRef(false)
   // Every asset the UI can still be asked to name (see `referencedAssetIds`).
   // A ref because it gates persistence in `setCacheEntry`, not rendering.
   const referencedAssetIdsRef = useRef<Set<string>>(new Set())
@@ -323,7 +331,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const isVerifiedAsset = (assetId: string): boolean =>
     Boolean(assetId) && (iconApprovalManager.isVerified(assetId) || isRegistered(assetId))
 
-  const setCacheEntry = (assetId: string, details: AssetDetails): CachedAssetDetails => {
+  const cacheAssetDetails = (assetId: string, details: AssetDetails): CachedAssetDetails => {
     const hasIcon = !!details.metadata?.icon
     const moderated =
       hasIcon && (!iconApprovalManager.isApproved(assetId) || !isValidUrl(details.metadata?.icon ?? ''))
@@ -332,12 +340,97 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const entry: CachedAssetDetails = { ...moderated, cachedAt: Date.now(), hasIcon }
     const previous = assetMetadataCache.current.get(assetId)
     assetMetadataCache.current.set(assetId, entry)
-    saveAssetMetadataToStorage(assetMetadataCache.current, referencedAssetIdsRef.current)
     // Only what `assetDisplay` reads is worth a repaint. A TTL refresh rewriting
-    // the same name must not re-derive every row, and the prefetch loop writes
-    // one entry per owned asset with an await between each.
+    // the same name must not re-derive every row.
     if (assetNameChanged(previous?.metadata, entry.metadata)) setAssetDisplayVersion((version) => version + 1)
     return entry
+  }
+
+  const setCacheEntry = (assetId: string, details: AssetDetails): CachedAssetDetails => {
+    const entry = cacheAssetDetails(assetId, details)
+    if (assetMetadataFailures.current.delete(assetId)) {
+      saveAssetMetadataFailuresToStorage(assetMetadataFailures.current)
+    }
+    saveAssetMetadataToStorage(assetMetadataCache.current, referencedAssetIdsRef.current)
+    return entry
+  }
+
+  const prefetchAssetMetadata = async (swWallet: ServiceWorkerWallet, assetIds: Set<string>) => {
+    if (assetMetadataPrefetchRunning.current) return
+    assetMetadataPrefetchRunning.current = true
+    try {
+      const now = Date.now()
+      let failuresChanged = false
+      for (const [assetId, expiresAt] of assetMetadataFailures.current) {
+        if (expiresAt <= now) {
+          assetMetadataFailures.current.delete(assetId)
+          failuresChanged = true
+        }
+      }
+      const ids = [...assetIds].filter((assetId) => {
+        const cached = assetMetadataCache.current.get(assetId)
+        if (cached && now - cached.cachedAt < ASSET_METADATA_TTL_MS) return false
+        if ((assetMetadataFailures.current.get(assetId) ?? 0) > now) return false
+        if (assetMetadataFetches.current.has(assetId)) return false
+        assetMetadataFetches.current.add(assetId)
+        return true
+      })
+      let nextIndex = 0
+      let cacheChanged = false
+
+      const fetchNext = async () => {
+        while (nextIndex < ids.length) {
+          const assetId = ids[nextIndex++]
+          let timeout: ReturnType<typeof setTimeout> | undefined
+          let request: Promise<AssetDetails | undefined> | undefined
+          let timedOut = false
+          try {
+            request = Promise.resolve().then(() => swWallet.assetManager.getAssetDetails(assetId))
+            const meta = await Promise.race([
+              request,
+              new Promise<never>((_, reject) => {
+                timeout = setTimeout(() => {
+                  timedOut = true
+                  reject(new Error('Asset metadata request timed out'))
+                }, ASSET_METADATA_FETCH_TIMEOUT_MS)
+              }),
+            ])
+            if (meta) {
+              cacheAssetDetails(assetId, meta)
+              cacheChanged = true
+              failuresChanged ||= assetMetadataFailures.current.delete(assetId)
+            } else {
+              assetMetadataFailures.current.set(assetId, Date.now() + ASSET_METADATA_FAILURE_TTL_MS)
+              failuresChanged = true
+            }
+          } catch (err) {
+            assetMetadataFailures.current.set(assetId, Date.now() + ASSET_METADATA_FAILURE_TTL_MS)
+            failuresChanged = true
+            if (timedOut) {
+              saveAssetMetadataFailuresToStorage(assetMetadataFailures.current)
+              failuresChanged = false
+            }
+            consoleError(err, `error prefetching metadata for ${assetId}`)
+          } finally {
+            if (timeout) clearTimeout(timeout)
+            if (timedOut && request) await request.catch(() => undefined)
+            assetMetadataFetches.current.delete(assetId)
+          }
+        }
+        if (cacheChanged) {
+          saveAssetMetadataToStorage(assetMetadataCache.current, referencedAssetIdsRef.current)
+          cacheChanged = false
+        }
+        if (failuresChanged) {
+          saveAssetMetadataFailuresToStorage(assetMetadataFailures.current)
+          failuresChanged = false
+        }
+      }
+
+      await Promise.all(Array.from({ length: Math.min(ASSET_METADATA_FETCH_CONCURRENCY, ids.length) }, fetchNext))
+    } finally {
+      assetMetadataPrefetchRunning.current = false
+    }
   }
 
   // wallet is read synchronously in useState initializer above
@@ -584,16 +677,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       })
       referencedAssetIdsRef.current = referenced
       if (isFirstLoad && referenced.size > 0) setLoadingStatus(t('loading.loadingAssetMetadata'))
-      for (const assetId of referenced) {
-        const cached = assetMetadataCache.current.get(assetId)
-        if (cached && Date.now() - cached.cachedAt < ASSET_METADATA_TTL_MS) continue
-        try {
-          const meta = await swWallet.assetManager.getAssetDetails(assetId)
-          if (meta) setCacheEntry(assetId, meta)
-        } catch (err) {
-          consoleError(err, `error prefetching metadata for ${assetId}`)
-        }
-      }
       setBalance(total - unrolled)
       setAvailableBalance(available)
       setAssetBalances(ownedAssets)
@@ -608,6 +691,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         hasLoadedOnce.current = true
         setDataReady(true)
       }
+      prefetchAssetMetadata(swWallet, referenced).catch((err) => consoleError(err, 'Error prefetching asset metadata'))
     } catch (err) {
       consoleError(err, 'Error reloading wallet')
       if (!hasLoadedOnce.current) {

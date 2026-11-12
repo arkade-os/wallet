@@ -97,6 +97,9 @@ export const readAllTransactionActivityMetadata = (): Record<string, Transaction
 
 // local storage caches the asset details for 24 hours
 export const ASSET_METADATA_TTL_MS = 24 * 60 * 60 * 1000
+export const ASSET_METADATA_FAILURE_TTL_MS = 15 * 60 * 1000
+const ASSET_METADATA_FAILURE_LIMIT = 100
+const ASSET_METADATA_FAILURES_KEY = 'assetMetadataFailures'
 
 export type CachedAssetDetails = AssetDetails & { cachedAt: number; hasIcon?: boolean }
 
@@ -139,4 +142,28 @@ export const readAssetMetadataFromStorage = (): Map<string, CachedAssetDetails> 
     })
     return new Map(Object.entries(obj))
   })
+}
+
+export const readAssetMetadataFailuresFromStorage = (): Map<string, number> => {
+  const now = Date.now()
+  const failures = getStorageItem<Record<string, number>>(ASSET_METADATA_FAILURES_KEY, {}, (value) => JSON.parse(value))
+  return new Map(
+    Object.entries(failures ?? {})
+      .filter(([assetId]) => typeof assetId === 'string' && assetId.length > 0)
+      .filter(([, expiresAt]) => Number.isFinite(expiresAt) && expiresAt > now)
+      .sort(([, first], [, second]) => first - second)
+      .slice(-ASSET_METADATA_FAILURE_LIMIT),
+  )
+}
+
+export const saveAssetMetadataFailuresToStorage = (failures: ReadonlyMap<string, number>): void => {
+  const entries = [...failures]
+    .filter(([, expiresAt]) => Number.isFinite(expiresAt) && expiresAt > Date.now())
+    .sort(([, first], [, second]) => first - second)
+    .slice(-ASSET_METADATA_FAILURE_LIMIT)
+  setStorageItemSafely(
+    ASSET_METADATA_FAILURES_KEY,
+    JSON.stringify(Object.fromEntries(entries)),
+    'Failed to save asset metadata failures',
+  )
 }
