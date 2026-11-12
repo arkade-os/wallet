@@ -456,7 +456,7 @@ describe('Send screen', () => {
     // a 2100 sats lightning invoice
     const INVOICE = fixtures.lib.bolt11.invoice
     const INVOICE_SATS = fixtures.lib.bolt11.amountSats
-    const BTC_ADDRESS = fixtures.lib.address.btc[4]
+    const BTC_ADDRESS = fixtures.lib.address.btc[5]
 
     const sats2btc = (sats: number) => prettyNumber(fromSatoshis(sats), 8, false)
 
