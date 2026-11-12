@@ -1,0 +1,81 @@
+appId: com.android.chrome
+name: Unlock — password and home
+tags:
+  - unlock
+---
+# recordings/taps-20260609-164837.log — nav taps from recording; password via inputText.
+# Uses WALLET_PASSWORD from config.yaml (local, not committed).
+
+- runFlow: ../subflows/open_wallet_url.yaml
+- runFlow: ../subflows/scroll_home_to_top.yaml
+
+# Lock wallet (gestures 1–3)
+- tapOn:
+    point: "92%, 15%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_2s.yaml
+- tapOn:
+    point: "77%, 82%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_2s.yaml
+- tapOn:
+    point: "64%, 92%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_2s.yaml
+- runFlow: ../subflows/_input_wallet_password.yaml
+- runFlow: ../subflows/wait_1s.yaml
+# inputText includes trailing "." — skip old keyboard period tap (was 76%, 92%)
+- runFlow: ../subflows/wait_2s.yaml
+
+# Unlock — first field (gesture 14)
+- tapOn:
+    point: "12%, 57%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_1s.yaml
+- runFlow: ../subflows/_input_wallet_password.yaml
+- runFlow: ../subflows/wait_1s.yaml
+# inputText includes trailing "." — skip old keyboard period tap (was 78%, 92%)
+- runFlow: ../subflows/wait_3s.yaml
+
+# Sheet / nav (gestures 25–29)
+- tapOn:
+    point: "69%, 98%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_2s.yaml
+- tapOn:
+    point: "60%, 85%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_5s.yaml
+- tapOn:
+    point: "9%, 14%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_4s.yaml
+- tapOn:
+    point: "13%, 91%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_2s.yaml
+- tapOn:
+    point: "4%, 15%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_3s.yaml
+
+# Unlock — second field (gestures 30–31, 41–43)
+- tapOn:
+    point: "88%, 83%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_2s.yaml
+- tapOn:
+    point: "59%, 90%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_2s.yaml
+- runFlow: ../subflows/_input_wallet_password.yaml
+- runFlow: ../subflows/wait_1s.yaml
+# inputText includes trailing "." — skip old keyboard period tap (was 79%, 94%)
+- runFlow: ../subflows/wait_1s.yaml
+- tapOn:
+    point: "93%, 92%"
+    waitToSettleTimeoutMs: 800
+- runFlow: ../subflows/wait_3s.yaml
+- tapOn:
+    point: "22%, 93%"
+    waitToSettleTimeoutMs: 800

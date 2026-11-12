@@ -1,0 +1,128 @@
+appId: com.android.chrome
+---
+# Chrome clipboard permission — locale-aware guards; coordinate fallback for Allow.
+
+- runFlow:
+    when:
+      visible: ".*wants to see.*"
+    commands:
+      - tapOn:
+          text: "Allow"
+          optional: true
+      - tapOn:
+          text: "Consenti"
+          optional: true
+      - tapOn:
+          text: "While using the app"
+          optional: true
+      - tapOn:
+          text: "Only this time"
+          optional: true
+      - tapOn:
+          text: "Solo questa volta"
+          optional: true
+      - tapOn:
+          point: "75%, 62%"
+          optional: true
+          waitToSettleTimeoutMs: 800
+      - runFlow: wait_1s.yaml
+
+- runFlow:
+    when:
+      visible: ".*[Cc]lipboard.*"
+    commands:
+      - tapOn:
+          text: "Allow"
+          optional: true
+      - tapOn:
+          text: "Consenti"
+          optional: true
+      - tapOn:
+          text: "While using the app"
+          optional: true
+      - tapOn:
+          text: "Only this time"
+          optional: true
+      - tapOn:
+          text: "Solo questa volta"
+          optional: true
+      - tapOn:
+          point: "75%, 62%"
+          optional: true
+          waitToSettleTimeoutMs: 800
+      - runFlow: wait_1s.yaml
+
+- runFlow:
+    when:
+      visible: ".*[Aa]ppunti.*"
+    commands:
+      - tapOn:
+          text: "Allow"
+          optional: true
+      - tapOn:
+          text: "Consenti"
+          optional: true
+      - tapOn:
+          text: "While using the app"
+          optional: true
+      - tapOn:
+          text: "Only this time"
+          optional: true
+      - tapOn:
+          text: "Solo questa volta"
+          optional: true
+      - tapOn:
+          point: "75%, 62%"
+          optional: true
+          waitToSettleTimeoutMs: 800
+      - runFlow: wait_1s.yaml
+
+- runFlow:
+    when:
+      visible: ".*portapapeles.*"
+    commands:
+      - tapOn:
+          text: "Allow"
+          optional: true
+      - tapOn:
+          text: "Consenti"
+          optional: true
+      - tapOn:
+          text: "While using the app"
+          optional: true
+      - tapOn:
+          text: "Only this time"
+          optional: true
+      - tapOn:
+          text: "Solo questa volta"
+          optional: true
+      - tapOn:
+          point: "75%, 62%"
+          optional: true
+          waitToSettleTimeoutMs: 800
+      - runFlow: wait_1s.yaml
+
+- runFlow:
+    when:
+      visible: ".*Zwischenablage.*"
+    commands:
+      - tapOn:
+          text: "Allow"
+          optional: true
+      - tapOn:
+          text: "Consenti"
+          optional: true
+      - tapOn:
+          text: "While using the app"
+          optional: true
+      - tapOn:
+          text: "Only this time"
+          optional: true
+      - tapOn:
+          text: "Solo questa volta"
+          optional: true
+      - tapOn:
+          point: "75%, 62%"
+          optional: true
+          waitToSettleTimeoutMs: 800
+      - runFlow: wait_1s.yaml
