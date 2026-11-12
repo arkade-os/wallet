@@ -1,5 +1,42 @@
 import { consoleError } from './logs'
 
+// Legacy copy path for in-app browsers and embedded webviews where the
+// navigator.clipboard API is missing or rejects writes. The textarea is
+// attached to the DOM briefly (appendChild before removeChild); a
+// MutationObserver registered on document.body fires synchronously while the
+// value is readable, so callers that pass key material (see Backup.tsx
+// mnemonics/nsec) accept that exposure on this path.
+const copyViaExecCommand = (text: string): boolean => {
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  textarea.style.left = '-9999px'
+  document.body.appendChild(textarea)
+
+  const selection = document.getSelection()
+  const previousRange = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null
+
+  textarea.select()
+  let ok = false
+  try {
+    ok = document.execCommand('copy')
+  } catch (err) {
+    consoleError(err, 'error using legacy copy fallback')
+  }
+
+  if (previousRange) {
+    selection?.removeAllRanges()
+    selection?.addRange(previousRange)
+  }
+  // Clear the value before removal so a MutationObserver retaining the node
+  // cannot read the key material later (see Backup.tsx mnemonic copies).
+  textarea.value = ''
+  document.body.removeChild(textarea)
+  return ok
+}
+
 export const copyToClipboard = async (text: string): Promise<boolean> => {
   if (navigator.clipboard) {
     try {
@@ -9,6 +46,8 @@ export const copyToClipboard = async (text: string): Promise<boolean> => {
       consoleError(err, 'error writing to clipboard')
     }
   }
+  if (copyViaExecCommand(text)) return true
+  consoleError(new Error('execCommand("copy") was rejected'), 'error copying via legacy fallback')
   return false
 }
 

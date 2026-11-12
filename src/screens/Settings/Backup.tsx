@@ -4,7 +4,7 @@ import { useState, useEffect, useContext, useRef } from 'react'
 import Button from '../../components/Button'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
-import { copyToClipboard } from '../../lib/clipboard'
+import { useCopyToClipboard } from '../../hooks/useCopyToClipboard'
 import Header from './Header'
 import Text, { TextSecondary } from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
@@ -37,6 +37,7 @@ export default function Backup() {
 
   const { toast } = useToast()
   const { t } = useTranslation()
+  const copyToClipboard = useCopyToClipboard()
 
   const isMnemonicWallet = hasMnemonic()
 
@@ -66,7 +67,6 @@ export default function Backup() {
   const handleCopy = async () => {
     if (!secret) return
     await copyToClipboard(secret)
-    toast(t('backup.copyToClipboard'))
   }
 
   const onChangePassword = (e: any) => {
