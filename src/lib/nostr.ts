@@ -90,13 +90,13 @@ export class NostrStorage {
       new Promise<BackupEvent[]>((resolve) => {
         const sub = this.pool.subscribeMany(
           this.relays,
-          { kinds: [4], '#p': [this.pubkey], '#t': [nostrAppName] },
+          // authors, not only the p tag: backups used to be signed by a fresh key
+          // every save and addressed to us. Those still match `#p` + `#t`, and so
+          // does anyone else who tags us. Only events we signed are ours.
+          { kinds: [4], authors: [this.pubkey], '#p': [this.pubkey], '#t': [nostrAppName] },
           {
             onevent(event: Event) {
-              if (event.pubkey !== self.pubkey) {
-                consoleError('Received nostr event from wrong pubkey')
-                return
-              }
+              if (event.pubkey !== self.pubkey) return
               // relays are not trusted to have checked the signature themselves
               if (!verifyEvent(event)) {
                 consoleError(new Error(`Invalid signature on event ${event.id}`), 'Skipped event')
