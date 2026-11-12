@@ -58,8 +58,10 @@ export default function AppDfx() {
               <iframe
                 src={dfxUrl!}
                 title={t('apps.dfx')}
-                allow='clipboard-write; clipboard-read'
                 style={{ height: '100%' }}
+                allow='clipboard-write; clipboard-read'
+                referrerPolicy='strict-origin-when-cross-origin'
+                sandbox='allow-scripts allow-forms allow-same-origin allow-popups'
               />
             )}
           </FlexCol>
