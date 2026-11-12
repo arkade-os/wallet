@@ -68,3 +68,13 @@ export const isEmailAddress = (data: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i
   return emailRegex.test(data)
 }
+
+export const haveSameServerPubKey = (addr1: string, addr2: string): boolean => {
+  try {
+    const decoded1 = decodeArkAddress(addr1)
+    const decoded2 = decodeArkAddress(addr2)
+    return decoded1.serverPubKey === decoded2.serverPubKey
+  } catch {
+    return false
+  }
+}

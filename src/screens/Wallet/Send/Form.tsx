@@ -6,7 +6,13 @@ import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext } from '../../../providers/flow'
 import Padded from '../../../components/Padded'
-import { isBTCAddress, decodeArkAddress, isLightningInvoice, isURLWithLightningQueryString } from '../../../lib/address'
+import {
+  isBTCAddress,
+  decodeArkAddress,
+  isLightningInvoice,
+  isURLWithLightningQueryString,
+  haveSameServerPubKey,
+} from '../../../lib/address'
 import { AspContext } from '../../../providers/asp'
 import { isArkNote } from '../../../lib/arknote'
 import InputAmount, { type InputAmountMode } from '../../../components/InputAmount'
@@ -643,9 +649,7 @@ export default function SendForm() {
     }
     // check if server key is valid
     if (arkAddress && arkAddress.length > 0) {
-      const { serverPubKey } = decodeArkAddress(arkAddress)
-      const { serverPubKey: expectedServerPubKey } = decodeArkAddress(offchainAddr)
-      if (serverPubKey !== expectedServerPubKey) {
+      if (!haveSameServerPubKey(arkAddress, offchainAddr)) {
         // if there's no other way to pay, show error
         if (!address && !invoice) return setRecipientError(t('send.arkadeServerKeyMismatch'))
         // remove ark address from possibilities to send and continue
@@ -876,17 +880,21 @@ export default function SendForm() {
         // ?method=ark wins over the router's rails; it pays a plain Arkade send, so no receiver confirmation.
         const arkMethod = lnUrlResponse.transferAmounts?.find((method) => method.method === 'Ark' && method.available)
 
-        if (arkMethod) {
+        if (arkMethod && receivingAddresses?.offchainAddr) {
           // Fetch Ark address instead of Lightning invoice
-          const arkResponse = await fetchArkAddress(sendInfo.lnUrl)
+          const { address: arkAddress } = await fetchArkAddress(sendInfo.lnUrl)
           if (stale()) return setProcessing(false)
-          if (!isValidArkAddress(arkResponse.address)) {
+          if (!isValidArkAddress(arkAddress)) {
             handleError(t('send.invalidArkadeAddressFromLnurl'))
+            return
+          }
+          if (!haveSameServerPubKey(arkAddress, receivingAddresses.offchainAddr)) {
+            handleError(t('send.arkadeServerKeyMismatch'))
             return
           }
           setSendInfo((prev) => ({
             ...prev,
-            arkAddress: arkResponse.address,
+            arkAddress,
             invoice: undefined,
             pendingLnSend: undefined,
           }))
