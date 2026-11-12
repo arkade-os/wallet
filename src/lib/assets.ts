@@ -1,6 +1,7 @@
 import Decimal from 'decimal.js'
 
 export const MAX_DECIMALS = 8 // Arbitrary value to allow at least 1 sat/asset
+export const MAX_REFERENCED_ASSET_IDS = 100
 
 // discovered assets may carry up to 18 decimals (solver-discovery's cap);
 // conversions must stay exact for them even though displays default to 8
@@ -149,9 +150,12 @@ export const referencedAssetIds = (sources: {
   swaps?: string[]
 }): Set<string> => {
   const ids = new Set<string>()
-  for (const { assetId } of sources.owned ?? []) if (isNameableAssetId(assetId)) ids.add(assetId)
-  for (const assetId of sources.rows ?? []) if (isNameableAssetId(assetId)) ids.add(assetId)
-  for (const assetId of sources.swaps ?? []) if (isNameableAssetId(assetId)) ids.add(assetId)
+  const add = (assetId: string | undefined) => {
+    if (ids.size < MAX_REFERENCED_ASSET_IDS && isNameableAssetId(assetId)) ids.add(assetId)
+  }
+  for (const { assetId } of sources.owned ?? []) add(assetId)
+  for (const assetId of sources.rows ?? []) add(assetId)
+  for (const assetId of sources.swaps ?? []) add(assetId)
   return ids
 }
 

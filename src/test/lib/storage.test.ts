@@ -4,6 +4,8 @@ import {
   readAssetMetadataFromStorage,
   CachedAssetDetails,
   ASSET_METADATA_TTL_MS,
+  readAssetMetadataFailuresFromStorage,
+  saveAssetMetadataFailuresToStorage,
   readAllTransactionActivityMetadata,
   saveTransactionActivityMetadata,
 } from '../../lib/storage'
@@ -139,6 +141,17 @@ describe('asset metadata storage', () => {
 
     expect(loaded!.get('bad-icon-type')?.metadata?.icon).toBeUndefined()
     expect(loaded!.get('bad-icon-type')?.metadata).toBeDefined()
+  })
+
+  it('roundtrips unexpired metadata failures and drops expired ones', () => {
+    saveAssetMetadataFailuresToStorage(
+      new Map([
+        ['failed-now', Date.now() + 60_000],
+        ['failed-before', Date.now() - 1],
+      ]),
+    )
+
+    expect(readAssetMetadataFailuresFromStorage()).toEqual(new Map([['failed-now', expect.any(Number)]]))
   })
 })
 
