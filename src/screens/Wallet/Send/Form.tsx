@@ -8,7 +8,6 @@ import { FlowContext } from '../../../providers/flow'
 import Padded from '../../../components/Padded'
 import {
   isBTCAddress,
-  decodeArkAddress,
   isLightningInvoice,
   isURLWithLightningQueryString,
   haveSameServerPubKey,
