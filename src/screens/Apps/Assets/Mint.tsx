@@ -18,7 +18,15 @@ import { FlowContext } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import { extractError } from '../../../lib/error'
-import { saveTransactionActivityMetadata } from '../../../lib/storage'
+import { readConfigFromStorage, saveConfigToStorage, saveTransactionActivityMetadata } from '../../../lib/storage'
+import {
+  clearPendingAssetMint,
+  ControlAssetTimeoutError,
+  readPendingAssetMint,
+  runNewAssetMint,
+  withAssetMintLock,
+  type PendingAssetMint,
+} from '../../../lib/assetMintRecovery'
 import type { AssetDetails, IssuanceParams, KnownMetadata } from '@arkade-os/sdk'
 import Input from '../../../components/Input'
 import AssetCard from '../../../components/AssetCard'
@@ -62,6 +70,26 @@ export default function AppAssetMint() {
   const [mintingText, setMintingText] = useState(() => t('loading.mintingAsset'))
   const [mintDone, setMintDone] = useState(false)
   const pendingNav = useRef<() => void>()
+  const [recovery, setRecovery] = useState<{ pending: PendingAssetMint | null; error: string }>(() => {
+    try {
+      return { pending: readPendingAssetMint(), error: '' }
+    } catch (err) {
+      return { pending: null, error: extractError(err) }
+    }
+  })
+
+  useEffect(() => {
+    const refresh = (event: StorageEvent) => {
+      if (event.key !== 'pendingAssetMint' && event.key !== null) return
+      try {
+        setRecovery({ pending: readPendingAssetMint(), error: '' })
+      } catch (err) {
+        setRecovery({ pending: null, error: extractError(err) })
+      }
+    }
+    window.addEventListener('storage', refresh)
+    return () => window.removeEventListener('storage', refresh)
+  }, [])
 
   useEffect(() => {
     const load = async () => {
@@ -90,6 +118,7 @@ export default function AppAssetMint() {
   }, [svcWallet, assetBalances, assetMetadataCache])
 
   useEffect(() => {
+    if (recovery.pending || recovery.error) return
     // validate amount
     const invalidAmountReason = isInvalidMintAmount(amountTextValue)
     if (invalidAmountReason) return setError(invalidAmountReason)
@@ -106,20 +135,36 @@ export default function AppAssetMint() {
     setError('')
     setAmount(cents)
     setDecimals(Number(decimalsText))
-  }, [amountTextValue, decimalsText, iconUrl])
+  }, [amountTextValue, decimalsText, iconUrl, recovery.pending, recovery.error, t])
 
   const handleMint = async () => {
     if (!svcWallet) return
 
-    if (!amount || amount <= 0) {
+    if (!recovery.pending && controlMode !== 'New') {
+      try {
+        const pending = readPendingAssetMint()
+        if (pending) {
+          setRecovery({ pending, error: '' })
+          return
+        }
+      } catch (err) {
+        setRecovery({ pending: null, error: extractError(err) })
+        return
+      }
+    }
+
+    if (!recovery.pending && (!amount || amount <= 0)) {
       return setError(t('mint.amountMustBePositive'))
     }
 
-    if (decimals === undefined || !Number.isInteger(decimals) || decimals < 0 || decimals > MAX_DECIMALS) {
+    if (
+      !recovery.pending &&
+      (decimals === undefined || !Number.isInteger(decimals) || decimals < 0 || decimals > MAX_DECIMALS)
+    ) {
       return setError(t('mint.invalidDecimals', { max: MAX_DECIMALS }))
     }
 
-    if (iconUrl && !isValidUrl(iconUrl)) return setError(t('mint.invalidIconUrl'))
+    if (!recovery.pending && iconUrl && !isValidUrl(iconUrl)) return setError(t('mint.invalidIconUrl'))
 
     const supply = amount
 
@@ -135,32 +180,56 @@ export default function AppAssetMint() {
 
       let resolvedControlAssetId = controlMode === 'Existing' ? controlAssetId : ''
 
-      if (controlMode === 'New') {
+      if (controlMode === 'New' || recovery.pending) {
         setMintingText(t('loading.mintingControlAsset'))
         const ctrlMeta: KnownMetadata = { decimals: 0 }
         if (name) ctrlMeta.name = `ctrl-${name}`
         if (ticker) ctrlMeta.ticker = `ctrl-${ticker}`
-        const ctrlRawAmount = BigInt(ctrlAmount)
-
-        const ctrlResult = await svcWallet.assetManager.issue({
-          amount: ctrlRawAmount,
-          metadata: ctrlMeta,
-        })
-        saveTransactionActivityMetadata(ctrlResult.arkTxId, { assetAction: 'issued' })
-        resolvedControlAssetId = ctrlResult.assetId
-        iconApprovalManager.approve(resolvedControlAssetId)
-
-        setCacheEntry(ctrlResult.assetId, {
-          assetId: ctrlResult.assetId,
-          supply: ctrlRawAmount,
-          metadata: ctrlMeta,
-        })
-        await new Promise<boolean>((resolve) => {
-          const listenNewVtxos = (event: MessageEvent) => {
-            if (event.data && event.data.type === 'VTXO_UPDATE') resolve(true)
-          }
-          navigator.serviceWorker.addEventListener('message', listenNewVtxos)
-        })
+        const importAssets = (...ids: string[]) => {
+          const current = readConfigFromStorage() ?? config
+          const importedAssets = Array.from(new Set([...current.importedAssets, ...ids]))
+          const updated = { ...current, importedAssets }
+          saveConfigToStorage(updated)
+          backupAndUpdateConfig(updated)
+        }
+        await runNewAssetMint(
+          svcWallet,
+          config.aspUrl,
+          recovery.pending
+            ? null
+            : { amount: supply, metadata, controlAmount: BigInt(ctrlAmount), controlMetadata: ctrlMeta },
+          (pending) => setRecovery({ pending, error: '' }),
+          (pending) => {
+            if (!pending.control) throw new Error('Missing control asset in pending mint.')
+            importAssets(pending.control.assetId)
+            saveTransactionActivityMetadata(pending.control.arkTxId, { assetAction: 'issued' })
+            iconApprovalManager.approve(pending.control.assetId)
+            setCacheEntry(pending.control.assetId, {
+              assetId: pending.control.assetId,
+              supply: BigInt(pending.controlAmount),
+              metadata: pending.controlMetadata,
+            })
+            setMintingText(t('loading.mintingAsset'))
+          },
+          (pending) => {
+            if (!pending.control || !pending.asset) throw new Error('Missing asset in pending mint.')
+            importAssets(pending.control.assetId, pending.asset.assetId)
+            saveTransactionActivityMetadata(pending.asset.arkTxId, { assetAction: 'issued' })
+            iconApprovalManager.approve(pending.asset.assetId)
+            const details = {
+              assetId: pending.asset.assetId,
+              supply: BigInt(pending.amount),
+              metadata: pending.metadata,
+              controlAssetId: pending.control.assetId,
+            }
+            setCacheEntry(pending.asset.assetId, details)
+            setAssetInfo(details)
+          },
+        )
+        setRecovery({ pending: null, error: '' })
+        pendingNav.current = () => replace(Pages.AppAssetMintSuccess, Pages.AppAssets)
+        setMintDone(true)
+        return
       }
 
       setMintingText(t('loading.mintingAsset'))
@@ -193,7 +262,7 @@ export default function AppAssetMint() {
       setMintDone(true)
     } catch (err) {
       consoleError(err, 'error minting asset')
-      setError(extractError(err))
+      setError(err instanceof ControlAssetTimeoutError ? t('mint.controlWaitTimeout') : extractError(err))
       setMinting(false)
     }
   }
@@ -228,6 +297,45 @@ export default function AppAssetMint() {
 
   if (minting || mintDone)
     return <LoadingLogo text={mintingText} done={mintDone} exitMode='fly-up' onExitComplete={handleExitComplete} />
+
+  if (recovery.pending || recovery.error) {
+    const pending = recovery.pending
+    const uncertain = pending?.stage === 'issuing-control' || pending?.stage === 'issuing-asset'
+    return (
+      <>
+        <Header text={t('mint.title')} back />
+        <Content>
+          <Padded>
+            <FlexCol gap='1rem'>
+              <ErrorMessage error={Boolean(error || recovery.error)} text={error || recovery.error} />
+              <Text>{t(uncertain || recovery.error ? 'mint.recoveryUnknown' : 'mint.recoveryPending')}</Text>
+              {pending?.metadata.name ? <Text>{pending.metadata.name}</Text> : null}
+              {pending?.control ? <Text copy={pending.control.assetId}>{pending.control.assetId}</Text> : null}
+            </FlexCol>
+          </Padded>
+        </Content>
+        {pending ? (
+          <ButtonsOnBottom>
+            {!uncertain ? <Button label={t('mint.resumeMint')} onClick={handleMint} /> : null}
+            <Button
+              secondary
+              label={t('mint.discardMint')}
+              onClick={async () => {
+                if (!window.confirm(t('mint.discardMintWarning'))) return
+                try {
+                  await withAssetMintLock(async () => clearPendingAssetMint())
+                  setRecovery({ pending: null, error: '' })
+                  setError('')
+                } catch (err) {
+                  setError(extractError(err))
+                }
+              }}
+            />
+          </ButtonsOnBottom>
+        ) : null}
+      </>
+    )
+  }
 
   return (
     <>

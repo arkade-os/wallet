@@ -1,7 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createElement, type ReactNode } from 'react'
 import { act, configure, renderHook, waitFor } from '@testing-library/react'
-import { createLnurlClient, tokenOptions, type PayRequest, type TokenOption } from '@arkade-os/lnurl-client'
+import {
+  createLnurlClient,
+  requestTokenQuote,
+  tokenOptions,
+  type PayRequest,
+  type TokenOption,
+  type TokenQuote,
+} from '@arkade-os/lnurl-client'
 import type { Receiver } from '@arkade-os/lnurl-client/arkade'
 import { lnurlTokenRails, plausibleQuote, useLnurlTokenRails } from '../../../lib/receive/lnurlTokenRails'
 import { FiatContext } from '../../../providers/fiat'
@@ -23,7 +30,11 @@ configure({ asyncUtilTimeout: 3_000 })
 // Passes through, so one test can hand lnurlTokenRails an option the real client never returns.
 vi.mock('@arkade-os/lnurl-client', async (importOriginal) => {
   const client = await importOriginal<typeof import('@arkade-os/lnurl-client')>()
-  return { ...client, tokenOptions: vi.fn(client.tokenOptions) }
+  return {
+    ...client,
+    requestTokenQuote: vi.fn(client.requestTokenQuote),
+    tokenOptions: vi.fn(client.tokenOptions),
+  }
 })
 
 const payRequest = (paymentOptions: object[]): PayRequest => ({
@@ -324,6 +335,26 @@ describe('useLnurlTokenRails', () => {
     const { result } = renderTokens('ffsim-usdtsol')
     await waitFor(() => expect(result.current.quote).toBeDefined())
     expect(result.current.quote!.value).toBe(TOKEN_DEPOSITS['ffsim-usdtsol'])
+  })
+
+  it.each([
+    ['a JavaScript URI', 'javascript:alert(1)', /javascript URI/],
+    ['a whitespace-prefixed, mixed-case JavaScript URI', ' \tJaVaScRiPt:alert(1)', /javascript URI/],
+    ['a data URI', 'data:text/html,unsafe', /data URI/],
+  ])('refuses a quote containing %s', async (_, paymentURI, expectedError) => {
+    serve()
+    vi.mocked(requestTokenQuote).mockResolvedValueOnce({
+      optionId: 'ff-usdtarbitrum',
+      destination: TOKEN_DEPOSITS['ff-usdtarbitrum'],
+      baseUnits: '1',
+      amount: '0.000001',
+      value: paymentURI,
+      expiresAt: Date.now() + 120_000,
+    } satisfies TokenQuote)
+    const { result } = renderTokens('ff-usdtarbitrum')
+
+    await waitFor(() => expect(result.current.error).toMatch(expectedError))
+    expect(result.current.quote).toBeUndefined()
   })
 
   it('refuses a quote far from what the amount is worth at the BTC price the wallet shows', async () => {
