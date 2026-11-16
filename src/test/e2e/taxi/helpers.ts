@@ -3,9 +3,7 @@ import { ArkAddress, RestIndexerProvider, asset } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 import type { TaxiClient } from '@arkade-taxi/client'
 import type { SwapRecord } from '@arkade-os/swap'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
-import { resolve } from 'node:path'
+import { faucetOffchain } from '../fundedWallet'
 import { translations } from '../../../lib/i18n'
 import {
   createWallet,
@@ -23,7 +21,6 @@ const adminUrl = process.env.TAXI_REGTEST_ADMIN_URL ?? 'http://localhost:7401'
 export type Actor = { page: Page; address: string }
 export type Balance = { sats: string; units: string }
 export type Advance = { id: string; state: string; kind: string; topup: string; spentTxid?: string }
-const run = promisify(execFile)
 
 export async function admin<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
   const response = await fetch(`${adminUrl}/admin/api/${path}`, {
@@ -52,23 +49,7 @@ export async function actor(page: Page, sats: number, autoClaimFreeTaxi = false)
   await createWallet(page)
   const address = await receiveOffchain(page)
   if (sats) {
-    await run(
-      process.execPath,
-      [
-        resolve('regtest/regtest.mjs'),
-        'ark',
-        '--env',
-        resolve(process.env.TAXI_REGTEST_ENV_FILE ?? '.env.taxi-regtest'),
-        'send',
-        '--to',
-        address,
-        '--amount',
-        String(sats),
-        '--password',
-        process.env.ARKD_PASSWORD ?? 'secret',
-      ],
-      { timeout: 90_000 },
-    )
+    await faucetOffchain(address, sats)
     await waitForPaymentReceived(page)
   }
   await navigateHome(page)

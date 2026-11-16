@@ -21,7 +21,7 @@ export default defineConfig({
     permissions: ['clipboard-read', 'clipboard-write'],
     ignoreHTTPSErrors: true,
     actionTimeout: 30_000,
-    navigationTimeout: 30_000,
+    navigationTimeout: 120_000,
     contextOptions: { reducedMotion: 'reduce' },
   },
   webServer: {

@@ -157,6 +157,10 @@ and LNURL server profiles stay off. Wallet tests run with Vitest, while
 `pnpm test:regtest` runs the submodule's CLI checks with Node's native test runner.
 CI runs both.
 
+Browser CI uses the funded Ark CLI for offchain faucets. Its explorer keeps real
+Bitcoin RPC and Electrum data while disabling optional SQL mining analytics,
+whose startup depends on GitHub's public API.
+
 ### Funding your local wallet
 
 To interact with Ark features, you need Regtest coins.

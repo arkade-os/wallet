@@ -218,8 +218,8 @@ it('cleans only owned images when the second build fails before infrastructure s
     await writeFile(
       shim,
       `
-const { appendFileSync } = require('node:fs')
-const { basename } = require('node:path')
+const { appendFileSync, mkdirSync, writeFileSync } = require('node:fs')
+const { basename, join } = require('node:path')
 const { promisify } = require('node:util')
 const child = require('node:child_process')
 const refs = ${JSON.stringify(refs)}
@@ -227,7 +227,16 @@ let image
 function execFile() {}
 execFile[promisify.custom] = async (command, args, options) => {
   appendFileSync(${JSON.stringify(callsFile)}, JSON.stringify({ command, args }) + '\\n')
-  if (command === 'git') return { stdout: refs[basename(options.cwd)] + '\\n', stderr: '' }
+  if (command === 'git') {
+    if (args[0] === 'archive') writeFileSync(args[3], '')
+    return { stdout: refs[basename(options.cwd)] + '\\n', stderr: '' }
+  }
+  if (basename(command).replace('.exe', '') === 'tar') {
+    mkdirSync(join(args[3], 'docker'))
+    writeFileSync(join(args[3], '.env.defaults'), '')
+    writeFileSync(join(args[3], 'docker/compose.base.yml'), 'services:\\n  mempool_api:\\n    environment:\\n      DATABASE_ENABLED: "true"\\n  mempool_web:\\n')
+    return { stdout: '', stderr: '' }
+  }
   if (command === 'docker' && args[0] === 'build') {
     if (!image) { image = args[2]; return { stdout: '', stderr: '' } }
     throw Object.assign(new Error('NAK build failed'), { code: 1, stdout: '', stderr: '' })
@@ -272,7 +281,9 @@ require('node:module').syncBuiltinESMExports()
     )
     assert(
       calls.every(
-        ({ command, args }) => command === 'git' || (command === 'docker' && ['build', 'image'].includes(args[0])),
+        ({ command, args }) =>
+          ['git', 'tar', 'tar.exe'].includes(command.split(/[\\/]/).pop()) ||
+          (command === 'docker' && ['build', 'image'].includes(args[0])),
       ),
     )
   } finally {

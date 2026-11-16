@@ -7,19 +7,21 @@ import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { parseEnv, promisify } from 'node:util'
+import { configureRegtestEsplora } from './regtest-esplora.mjs'
 
 export const refs = Object.freeze({
-  solver: 'e8f980f9f52e867c2d3889a89027d88e7508fc0e',
-  taxi: 'a9d2fbb47149ea3518fe28733d896197094bddf4',
+  solver: '6171ef1f9774aba3083080fd323a42995e8a04d5',
+  taxi: '9095c9d6b5451329b47a588d7e999397e24372c6',
   regtest: '7c91a6bdafd855ba8b8cc19cf35f46257eb1467d',
 })
 const projects = ['Mobile Chrome', 'Google Chrome']
 const walletRoot = process.cwd()
 const solverRoot = resolve(process.env.TAXI_NATIVE_SOLVER_ROOT ?? '.local-tests/native-solver')
 const taxiRoot = resolve(process.env.TAXI_NATIVE_TAXI_ROOT ?? '.local-tests/native-taxi')
-const regtestRoot = resolve('regtest')
+const regtestSource = resolve('regtest')
 let namespace = `taxi-native-${randomUUID().slice(0, 8)}`
 let root = resolve('.local-tests', namespace)
+let regtestRoot = resolve(root, 'regtest')
 const stateFile = resolve('.local-tests/native-ci-state.json')
 const evidence = resolve('.local-tests/native-evidence')
 const secrets = new Set()
@@ -359,11 +361,20 @@ async function main() {
   for (const [name, path] of [
     ['solver', solverRoot],
     ['taxi', taxiRoot],
-    ['regtest', regtestRoot],
+    ['regtest', regtestSource],
   ]) {
     const head = (await run(`${name}-head`, 'git', ['rev-parse', 'HEAD'], { cwd: path })).trim()
     assert.equal(head, refs[name], `Wrong ${name} source checkpoint`)
   }
+  const regtestArchive = resolve(root, 'regtest.tar')
+  await run('regtest-export', 'git', ['archive', '--format=tar', '--output', regtestArchive, refs.regtest], {
+    cwd: regtestSource,
+  })
+  await mkdir(regtestRoot)
+  const tar = process.platform === 'win32' ? resolve(process.env.SystemRoot, 'System32/tar.exe') : 'tar'
+  await run('regtest-extract', tar, ['-xf', regtestArchive, '-C', regtestRoot])
+  await rm(regtestArchive)
+  await configureRegtestEsplora(regtestRoot)
   const defaults = parseEnv(await readFile(resolve(regtestRoot, '.env.defaults'), 'utf8'))
   const infra = { ...defaults, REGTEST_PROJECT: namespace, REGTEST_CONTAINER_PREFIX: `${namespace}-` }
   infra.MEMPOOL_WEB_PORT = await port()
@@ -715,6 +726,7 @@ async function cli() {
       assert.equal(typeof state.taxiStarted, 'boolean')
       namespace = state.namespace
       root = state.root
+      regtestRoot = resolve(root, 'regtest')
       relayFile = state.relayFile
       relayStarted = state.relayStarted
       taxiFile = state.taxiFile
