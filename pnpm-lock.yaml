@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@arkade-os/sdk': 0.5.4
+  '@arkade-os/sdk': 0.5.6
   '@arkade-os/solver-discovery': file:vendor/arkade-os-solver-discovery-0.3.0-routing-6e9b577.tgz
   '@babel/core': '>=7.29.6 <8.0.0'
   js-yaml@<4: '>=3.15.0 <4.0.0'
@@ -19,10 +19,10 @@ importers:
     dependencies:
       '@arkade-os/lnurl-client':
         specifier: 0.9.2
-        version: 0.9.2(@arkade-os/sdk@0.5.4)
+        version: 0.9.2(@arkade-os/sdk@0.5.6)
       '@arkade-os/sdk':
-        specifier: 0.5.4
-        version: 0.5.4
+        specifier: 0.5.6
+        version: 0.5.6
       '@arkade-os/solver-discovery':
         specifier: file:vendor/arkade-os-solver-discovery-0.3.0-routing-6e9b577.tgz
         version: file:vendor/arkade-os-solver-discovery-0.3.0-routing-6e9b577.tgz
@@ -238,21 +238,24 @@ packages:
     resolution: {integrity: sha512-rpjU67hJUZHyhh7NsgMjVjUVSE4XQA8nPJ4JMYfKQGcX0KS/Q1os1E0KmWozR5OjI3wppCpRwAWG5v6k7FXgBw==}
     engines: {node: '>=22.12.0'}
     peerDependencies:
-      '@arkade-os/sdk': 0.5.4
+      '@arkade-os/sdk': 0.5.6
     peerDependenciesMeta:
       '@arkade-os/sdk':
         optional: true
 
-  '@arkade-os/sdk@0.5.4':
-    resolution: {integrity: sha512-8sfGdPkP4Czy8Ng8pMspPGFlsZi+P4beTDiuPwlvkAGmaBUC7l9fcVBrV5YbxaOVKkmW9mtPBsms6eqwcunUPg==}
+  '@arkade-os/sdk@0.5.6':
+    resolution: {integrity: sha512-UMZ46a52Ny2NW0VnRqL52iXR8wIJekPLkxdogsS+RUjiJdxTJKKyOXFMWP/vJQzWjQdpSDDUPuEGHIL3Ko+smg==}
     engines: {node: '>=22.13.0 <27'}
     peerDependencies:
+      '@arkade-os/compiler': ^0.1.0-rc.1
       '@react-native-async-storage/async-storage': '>=1.0.0'
       expo: '>=54.0.0'
       expo-background-task: ~1.0.10 || >=55.0.0
       expo-sqlite: ~16.0.10 || >=55.0.0
       expo-task-manager: ~14.0.9 || >=55.0.0
     peerDependenciesMeta:
+      '@arkade-os/compiler':
+        optional: true
       '@react-native-async-storage/async-storage':
         optional: true
       expo:
@@ -3311,15 +3314,15 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/lnurl-client@0.9.2(@arkade-os/sdk@0.5.4)':
+  '@arkade-os/lnurl-client@0.9.2(@arkade-os/sdk@0.5.6)':
     dependencies:
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
       '@scure/base': 2.0.0
     optionalDependencies:
-      '@arkade-os/sdk': 0.5.4
+      '@arkade-os/sdk': 0.5.6
 
-  '@arkade-os/sdk@0.5.4':
+  '@arkade-os/sdk@0.5.6':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 8.0.0
@@ -3346,7 +3349,7 @@ snapshots:
 
   '@arkade-os/swap@file:vendor/arkade-os-swap-0.1.4-routing-73f69ba5.tgz(nostr-tools@2.24.1(typescript@5.9.3))':
     dependencies:
-      '@arkade-os/sdk': 0.5.4
+      '@arkade-os/sdk': 0.5.6
       '@arkade-os/solver-discovery': file:vendor/arkade-os-solver-discovery-0.3.0-routing-6e9b577.tgz
       '@noble/ciphers': 2.1.1
       '@noble/curves': 2.4.0
@@ -3357,6 +3360,7 @@ snapshots:
     optionalDependencies:
       nostr-tools: 2.24.1(typescript@5.9.3)
     transitivePeerDependencies:
+      - '@arkade-os/compiler'
       - '@ledgerhq/ledger-bitcoin'
       - '@react-native-async-storage/async-storage'
       - bip32
