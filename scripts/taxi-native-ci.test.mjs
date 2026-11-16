@@ -8,7 +8,24 @@ import { dirname, join } from 'node:path'
 import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import { it } from 'vitest'
-import { appendEvidence, cleanupOwnedStages, nativeTaxiCompose, port, refs } from './taxi-native-ci.mjs'
+import {
+  appendEvidence,
+  assertNativeReport,
+  cleanupOwnedStages,
+  nativeTaxiCompose,
+  port,
+  refs,
+} from './taxi-native-ci.mjs'
+
+it('rejects incomplete, skipped, flaky or failed native financial coverage', () => {
+  const stats = { expected: 8, skipped: 0, unexpected: 0, flaky: 0 }
+  assertNativeReport({ stats, errors: [] }, 8)
+  for (const field of Object.keys(stats)) {
+    const value = field === 'expected' ? 7 : 1
+    assert.throws(() => assertNativeReport({ stats: { ...stats, [field]: value }, errors: [] }, 8))
+  }
+  assert.throws(() => assertNativeReport({ stats, errors: [{ message: 'Worker failed' }] }, 8))
+})
 
 it('uses the actual workflow source checkpoints for every native checkout', async () => {
   const workflow = await readFile(new URL('../.github/workflows/playwright.yml', import.meta.url), 'utf8')

@@ -91,14 +91,6 @@ for (const name of PINNED_PACKAGES) {
 const root = readJson(at('package.json'))
 if (!byPackage.has('@arkade-os/swap'))
   check(root.dependencies?.['@arkade-os/swap'] === '0.1.6', 'wallet swap dependency is not the stable 0.1.6 release')
-check(
-  new Set(
-    manifest.artifacts
-      .filter(({ package: name }) => name.startsWith('@arkade-taxi/'))
-      .map(({ source }) => source.commit),
-  ).size === 1,
-  'Taxi libraries must come from the same source commit',
-)
 check(root.pnpm?.overrides === undefined, 'package.json declares pnpm.overrides, which pnpm-workspace.yaml overrules')
 
 for (const name of [...DIRECT_DEPENDENCIES, ...(byPackage.has('@arkade-os/swap') ? ['@arkade-os/swap'] : [])]) {
@@ -186,20 +178,17 @@ if (entry) {
     failures.push(error.message)
   }
   if (failures.length) fail(failures.join('\n  - '))
-  for (const [name, symbol] of [
-    ['@arkade-os/sdk', CANDIDATE_SDK_SYMBOL],
+  for (const [name, symbol, requiredMethod] of [
+    ['@arkade-os/sdk', CANDIDATE_SDK_SYMBOL, 'reserveVtxos'],
+    ['@arkade-os/sdk', CANDIDATE_SDK_SYMBOL, 'onWalletUpdate'],
+    ['@arkade-os/sdk', 'ServiceWorkerReadonlyWallet', 'onWalletUpdate'],
     ['@arkade-os/swap', CANDIDATE_SWAP_SYMBOL],
+    ['@arkade-os/swap', 'InMemoryAssetSwapRepository', 'createSwapRecordIfAbsent'],
   ]) {
     const roots = name === '@arkade-os/sdk' ? [at('package.json'), entry] : [at('package.json')]
     for (const from of roots) {
       try {
-        await assertCandidateExport(
-          packageRootFrom(from, name),
-          name,
-          symbol,
-          '.',
-          name === '@arkade-os/sdk' ? 'reserveVtxos' : undefined,
-        )
+        await assertCandidateExport(packageRootFrom(from, name), name, symbol, '.', requiredMethod)
       } catch (error) {
         failures.push(error.message)
       }

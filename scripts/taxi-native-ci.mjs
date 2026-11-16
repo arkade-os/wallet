@@ -10,8 +10,8 @@ import { parseEnv, promisify } from 'node:util'
 import { configureRegtestEsplora } from './regtest-esplora.mjs'
 
 export const refs = Object.freeze({
-  solver: 'e2ec2e5962d52de96815912414fb94fe663225cb',
-  taxi: 'ba30759c108751ab49767f70ba092003b7634178',
+  solver: '462a6470a873ca6c3f5760dc577e96566f7c558c',
+  taxi: 'e6f4b274c8eadb8bf1bdfec512132aeebc27d2ad',
   regtest: '7c91a6bdafd855ba8b8cc19cf35f46257eb1467d',
 })
 const projects = ['Mobile Chrome', 'Google Chrome']
@@ -55,6 +55,13 @@ const registryBackups = new Map()
 
 export async function appendEvidence(file, text) {
   await appendFile(file, `${redact(text)}\n`)
+}
+
+export function assertNativeReport(report, expected) {
+  assert.equal(report?.stats?.expected, expected, 'Native phase did not run every approved case')
+  for (const field of ['skipped', 'unexpected', 'flaky'])
+    assert.equal(report?.stats?.[field], 0, `Native phase reported ${field} cases`)
+  assert.equal(report.errors?.length ?? 0, 0, 'Native phase reported errors outside a case')
 }
 
 export function nativeTaxiCompose(namespace, infra) {
@@ -714,10 +721,24 @@ async function main() {
     'playwright.taxi-regtest.config.ts',
     `--project=${project}`,
   ])
-  if (manual) {
-    await manualSession()
-    return 'manual'
-  }
+  assertNativeReport(JSON.parse(await readFile(resolve('test-results/native-results.json'), 'utf8')), 8)
+  await run(
+    'native-funding-proof',
+    process.execPath,
+    ['--experimental-eventsource', 'scripts/taxi-native-funding.mjs'],
+    { timeout: 480_000 },
+  )
+  if (manual) await manualSession()
+  await run('playwright-terminal', 'pnpm', [
+    'exec',
+    'playwright',
+    'test',
+    '--config',
+    'playwright.taxi-terminal.config.ts',
+    `--project=${project}`,
+  ])
+  assertNativeReport(JSON.parse(await readFile(resolve('test-results/native-terminal-results.json'), 'utf8')), 1)
+  if (manual) return 'manual'
 }
 
 async function cli() {

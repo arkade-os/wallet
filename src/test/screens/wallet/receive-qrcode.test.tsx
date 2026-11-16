@@ -1,5 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, act, fireEvent, waitFor } from '@testing-library/react'
+import { useLayoutEffect } from 'react'
 import { FlowContext } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import {
@@ -14,7 +15,7 @@ import {
 } from '../mocks'
 import { AspContext } from '../../../providers/asp'
 import { WalletContext } from '../../../providers/wallet'
-import { NavigationContext } from '../../../providers/navigation'
+import { NavigationContext, Pages } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { NotificationsContext } from '../../../providers/notifications'
@@ -97,6 +98,16 @@ type RenderOverrides = {
   wallet?: Partial<typeof mockWalletContextValue>
   config?: Partial<typeof mockConfigContextValue>
   language?: Language
+  navigation?: Partial<typeof mockNavigationContextValue>
+  notifications?: Partial<typeof mockNotificationsContextValue>
+  onLayout?: () => void
+}
+
+function LayoutEvent({ run }: { run?: () => void }) {
+  useLayoutEffect(() => {
+    run?.()
+  }, [run])
+  return null
 }
 
 function buildTree(overrides?: RenderOverrides) {
@@ -111,15 +122,18 @@ function buildTree(overrides?: RenderOverrides) {
       value={{ language, t: (k: string, p?: Record<string, string | number>) => translate(language, k, p) }}
     >
       <ToastProvider>
-        <NavigationContext.Provider value={mockNavigationContextValue}>
+        <NavigationContext.Provider value={{ ...mockNavigationContextValue, ...overrides?.navigation }}>
           <AspContext.Provider value={mockAspContextValue}>
             <ConfigContext.Provider value={config as any}>
               <FiatContext.Provider value={mockFiatContextValue as any}>
-                <NotificationsContext.Provider value={mockNotificationsContextValue as any}>
+                <NotificationsContext.Provider
+                  value={{ ...mockNotificationsContextValue, ...overrides?.notifications } as any}
+                >
                   <FlowContext.Provider value={flow as any}>
                     <WalletContext.Provider value={wallet as any}>
                       <LimitsContext.Provider value={mockLimitsContextValue}>
                         <ReceiveQRCode />
+                        <LayoutEvent run={overrides?.onLayout} />
                       </LimitsContext.Provider>
                     </WalletContext.Provider>
                   </FlowContext.Provider>
@@ -154,6 +168,119 @@ const tapFixture = (addrs = { off: 'ark1testaddr', bd: 'bc1testaddr' }): RenderO
 describe('Receive QR Code screen', () => {
   beforeEach(() => {
     copyToClipboardMock.mockClear()
+  })
+
+  it.each(['VTXO_UPDATE', 'UTXO_UPDATE'])(
+    'ignores a foreign wallet raw %s without reporting a payment',
+    async (type) => {
+      const navigate = vi.fn()
+      const setRecvInfo = vi.fn()
+      const notifyPaymentReceived = vi.fn()
+      const onWalletUpdate = vi.fn(() => () => {})
+      const add = vi.mocked(navigator.serviceWorker.addEventListener)
+      add.mockClear()
+      renderReceiveQrCode({
+        ...tapFixture(),
+        wallet: { svcWallet: { ...mockSvcWallet, onWalletUpdate } as any },
+        flow: { ...tapFixture().flow, setRecvInfo },
+        navigation: { navigate },
+        notifications: { notifyPaymentReceived },
+      })
+      const event = {
+        data: {
+          type,
+          broadcast: true,
+          walletRequestBinding: { scope: 'b'.repeat(64), network: 'regtest' },
+          payload: type === 'VTXO_UPDATE' ? { newVtxos: [{ value: 500 }] } : { coins: [{ value: 500 }] },
+        },
+      } as MessageEvent
+      await act(async () => {
+        for (const [name, listener] of add.mock.calls)
+          if (name === 'message') (listener as (event: MessageEvent) => void)(event)
+      })
+      expect(navigate).not.toHaveBeenCalledWith(Pages.ReceiveSuccess)
+      expect(setRecvInfo).not.toHaveBeenCalledWith(expect.objectContaining({ received: true }))
+      expect(notifyPaymentReceived).not.toHaveBeenCalled()
+      expect(onWalletUpdate).toHaveBeenCalledOnce()
+    },
+  )
+
+  it.each(['VTXO_UPDATE', 'UTXO_UPDATE'])('reports a legitimate captured-wallet %s', async (type) => {
+    let update!: (value: unknown) => void
+    const onWalletUpdate = vi.fn((callback: (value: unknown) => void) => {
+      update = callback
+      return () => {}
+    })
+    const navigate = vi.fn()
+    const setRecvInfo = vi.fn()
+    const notifyPaymentReceived = vi.fn()
+    renderReceiveQrCode({
+      ...tapFixture(),
+      wallet: { svcWallet: { ...mockSvcWallet, onWalletUpdate } as any },
+      flow: { ...tapFixture().flow, setRecvInfo },
+      navigation: { navigate },
+      notifications: { notifyPaymentReceived },
+    })
+    await act(async () =>
+      update({ type, payload: type === 'VTXO_UPDATE' ? { newVtxos: [{ value: 500 }] } : { coins: [{ value: 500 }] } }),
+    )
+    expect(setRecvInfo).toHaveBeenCalledWith(expect.objectContaining({ received: true, satoshis: 500 }))
+    expect(notifyPaymentReceived).toHaveBeenCalledWith(500)
+    expect(navigate).toHaveBeenCalledWith(Pages.ReceiveSuccess)
+  })
+
+  it('ignores a valid old-wallet update during the next wallet render before listener cleanup', async () => {
+    let firstUpdate!: (value: unknown) => void
+    let secondUpdate!: (value: unknown) => void
+    const stopFirst = vi.fn()
+    const stopSecond = vi.fn()
+    const first = {
+      ...mockSvcWallet,
+      onWalletUpdate: (callback: (value: unknown) => void) => {
+        firstUpdate = callback
+        return stopFirst
+      },
+    }
+    const second = {
+      ...mockSvcWallet,
+      onWalletUpdate: (callback: (value: unknown) => void) => {
+        secondUpdate = callback
+        return stopSecond
+      },
+    }
+    const navigate = vi.fn()
+    const notifyPaymentReceived = vi.fn()
+    const setRecvInfo = vi.fn()
+    const view = renderReceiveQrCode({
+      ...tapFixture(),
+      wallet: { svcWallet: first as any },
+      navigation: { navigate },
+      notifications: { notifyPaymentReceived },
+    })
+    const payment = { type: 'VTXO_UPDATE', payload: { newVtxos: [{ value: 500 }] } }
+    view.rerender(
+      buildTree({
+        ...tapFixture({ off: 'ark1walletB', bd: 'bc1walletB' }),
+        wallet: { svcWallet: second as any },
+        flow: { ...tapFixture().flow, setRecvInfo },
+        navigation: { navigate },
+        notifications: { notifyPaymentReceived },
+        onLayout: () => {
+          expect(stopFirst).not.toHaveBeenCalled()
+          firstUpdate(payment)
+        },
+      }),
+    )
+    expect(navigate).not.toHaveBeenCalledWith(Pages.ReceiveSuccess)
+    expect(notifyPaymentReceived).not.toHaveBeenCalled()
+    expect(stopFirst).toHaveBeenCalledOnce()
+    await act(async () => secondUpdate(payment))
+    expect(setRecvInfo).toHaveBeenCalledWith(expect.objectContaining({ received: true, satoshis: 500 }))
+    expect(navigate).toHaveBeenCalledExactlyOnceWith(Pages.ReceiveSuccess)
+    view.unmount()
+    await act(async () => secondUpdate(payment))
+    expect(navigate).toHaveBeenCalledOnce()
+    expect(stopSecond).toHaveBeenCalledOnce()
   })
 
   // Regression for the switched-QR path. We can't drive the Copy sheet in

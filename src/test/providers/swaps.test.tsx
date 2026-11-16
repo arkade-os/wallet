@@ -45,8 +45,8 @@ vi.mock('../../lib/swapRecords', () => ({
   offerSwaps: mocks.offerSwaps,
 }))
 vi.mock('../../lib/swapClient', () => ({
-  makeSwapClient: () => {
-    mocks.created()
+  makeSwapClient: (wallet: unknown) => {
+    mocks.created(wallet)
     return {
       ready: Promise.resolve(),
       onUpdate: () => () => {},
@@ -83,7 +83,8 @@ const swap = {
 const ASSET_ID = 'a'.repeat(68)
 
 function Harness({ canonical = false, network = 'regtest' } = {}) {
-  const { markets, swapAvailable, swaps, quotePay, receiveLightning, exchange, cancelSwap } = useContext(SwapsContext)
+  const { markets, swapAvailable, swaps, quotePay, receiveLightning, quoteExchange, exchange, cancelSwap } =
+    useContext(SwapsContext)
   return (
     <>
       <output data-testid='market-count'>{markets.length}</output>
@@ -94,22 +95,21 @@ function Harness({ canonical = false, network = 'regtest' } = {}) {
       <button onClick={() => void cancelSwap('swap-1')}>cancel</button>
       <button
         onClick={() =>
-          void exchange(
-            {
-              deposit: {
-                asset: { id: canonical ? `arkade:${network}/slip44:1` : 'btc', decimals: 0 },
-                atomic: BigInt(1000),
-              },
-              receive: {
-                asset: { id: canonical ? `arkade:${network}/asset:${ASSET_ID}` : ASSET_ID, decimals: 0 },
-                atomic: BigInt(1000),
-              },
-            } as never,
-            { fromTicker: 'BTC' },
-          ).catch((error: Error) => {
-            const node = document.querySelector('[data-testid="exchange-error"]')
-            if (node) node.textContent = error.message
-          })
+          void quoteExchange({
+            deposit: {
+              asset: { id: canonical ? `arkade:${network}/slip44:1` : 'btc', decimals: 0 },
+              atomic: BigInt(1000),
+            },
+            receive: {
+              asset: { id: canonical ? `arkade:${network}/asset:${ASSET_ID}` : ASSET_ID, decimals: 0 },
+              atomic: BigInt(1000),
+            },
+          } as never)
+            .then((quote) => exchange(quote, { fromTicker: 'BTC' }))
+            .catch((error: Error) => {
+              const node = document.querySelector('[data-testid="exchange-error"]')
+              if (node) node.textContent = error.message
+            })
         }
       >
         exchange
@@ -119,24 +119,29 @@ function Harness({ canonical = false, network = 'regtest' } = {}) {
   )
 }
 
-const renderProvider = (wallet = {}, children = <Harness />) =>
-  render(
-    <AspContext.Provider value={mockAspContextValue}>
-      <WalletContext.Provider
-        value={
-          {
-            ...mockWalletContextValue,
-            dataReady: true,
-            svcWallet: { identity: {} },
-            isVerifiedAsset: () => true,
-            ...wallet,
-          } as never
-        }
-      >
-        <SwapsProvider>{children}</SwapsProvider>
-      </WalletContext.Provider>
-    </AspContext.Provider>,
-  )
+const providerTree = (wallet = {}, children = <Harness />) => (
+  <AspContext.Provider value={mockAspContextValue}>
+    <WalletContext.Provider
+      value={
+        {
+          ...mockWalletContextValue,
+          dataReady: true,
+          svcWallet: { identity: { xOnlyPublicKey: async () => new Uint8Array(32) } },
+          isVerifiedAsset: () => true,
+          ...wallet,
+        } as never
+      }
+    >
+      <SwapsProvider>{children}</SwapsProvider>
+    </WalletContext.Provider>
+  </AspContext.Provider>
+)
+
+const renderProvider = async (wallet = {}, children = <Harness />) => {
+  const view = render(providerTree(wallet, children))
+  await act(async () => {})
+  return view
+}
 
 beforeEach(() => {
   localStorage.clear()
@@ -207,12 +212,156 @@ function PaymentCheck() {
 }
 
 describe('SwapsProvider', () => {
+  it('discards identity resolution from an obsolete wallet before starting a driver', async () => {
+    let finish!: (pubkey: Uint8Array) => void
+    const first = {
+      identity: {
+        xOnlyPublicKey: () =>
+          new Promise<Uint8Array>((resolve) => {
+            finish = resolve
+          }),
+      },
+    }
+    const second = { identity: { xOnlyPublicKey: async () => new Uint8Array(32).fill(1) } }
+    const view = await renderProvider({ svcWallet: first })
+    expect(mocks.created).not.toHaveBeenCalled()
+    view.rerender(providerTree({ svcWallet: second }))
+    await waitFor(() => expect(mocks.created).toHaveBeenCalledOnce())
+    expect(mocks.created.mock.calls[0][0]).toBe(second)
+    await act(async () => finish(new Uint8Array(32)))
+    expect(mocks.created).toHaveBeenCalledOnce()
+  })
+
+  it('prepares a review without funding and accepts exactly its original quote', async () => {
+    const quoted = {
+      id: 'reviewed-quote',
+      give: { amount: 1000n },
+      take: { amount: 1000n },
+      expiresAt: Math.floor(Date.now() / 1000) + 600,
+    } as Quote
+    mocks.quote.mockResolvedValue(quoted)
+    function Trade() {
+      const { quoteExchange, exchange } = useContext(SwapsContext)
+      const [review, setReview] = useState<Quote>()
+      return (
+        <>
+          <button
+            onClick={async () =>
+              setReview(
+                await quoteExchange({
+                  deposit: { asset: { id: 'btc' }, atomic: 1000n },
+                  receive: { asset: { id: ASSET_ID }, atomic: 1000n },
+                } as never),
+              )
+            }
+          >
+            review
+          </button>
+          <button disabled={!review} onClick={() => review && void exchange(review)}>
+            confirm
+          </button>
+        </>
+      )
+    }
+    await renderProvider({}, <Trade />)
+    fireEvent.click(screen.getByText('review'))
+    await waitFor(() => expect(screen.getByText('confirm')).toBeEnabled())
+    expect(mocks.quote).toHaveBeenCalledOnce()
+    expect(mocks.accept).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByText('confirm'))
+    await waitFor(() => expect(mocks.accept).toHaveBeenCalledWith(quoted, { validUntil: quoted.expiresAt }))
+    expect(mocks.accept.mock.calls[0][0]).toBe(quoted)
+    expect(mocks.quote).toHaveBeenCalledOnce()
+  })
+
+  it('refuses a prepared quote after the owning wallet client changes', async () => {
+    const quoted = { id: 'old-wallet-quote', take: { amount: 1000n }, expiresAt: Date.now() / 1000 + 600 } as Quote
+    mocks.quote.mockResolvedValue(quoted)
+    function Trade() {
+      const { quoteExchange, exchange } = useContext(SwapsContext)
+      const [review, setReview] = useState<Quote>()
+      const [error, setError] = useState('')
+      return (
+        <>
+          <button
+            onClick={() =>
+              void quoteExchange({
+                deposit: { asset: { id: 'btc' }, atomic: 1000n },
+                receive: { asset: { id: ASSET_ID }, atomic: 1000n },
+              } as never)
+                .then(setReview)
+                .catch((error: Error) => setError(error.message))
+            }
+          >
+            review
+          </button>
+          <button
+            disabled={!review}
+            onClick={() => review && void exchange(review).catch((error: Error) => setError(error.message))}
+          >
+            confirm
+          </button>
+          <output>{error}</output>
+        </>
+      )
+    }
+    const view = await renderProvider({}, <Trade />)
+    fireEvent.click(screen.getByText('review'))
+    await waitFor(() => expect(screen.getByText('confirm')).toBeEnabled())
+    view.rerender(
+      providerTree({ svcWallet: { identity: { xOnlyPublicKey: async () => new Uint8Array(32) } } }, <Trade />),
+    )
+    await waitFor(() => expect(mocks.created).toHaveBeenCalledTimes(2))
+    fireEvent.click(screen.getByText('confirm'))
+    await screen.findByText('This quote is no longer available — go back and try again')
+    expect(mocks.quote).toHaveBeenCalledOnce()
+    expect(mocks.accept).not.toHaveBeenCalled()
+  })
+
+  it('discards a quote that resolves after the owning client was replaced', async () => {
+    let resolve!: (quote: Quote) => void
+    mocks.quote.mockReturnValue(
+      new Promise<Quote>((done) => {
+        resolve = done
+      }),
+    )
+    function Trade() {
+      const { quoteExchange } = useContext(SwapsContext)
+      const [error, setError] = useState('')
+      return (
+        <>
+          <button
+            onClick={() =>
+              void quoteExchange({
+                deposit: { asset: { id: 'btc' }, atomic: 1000n },
+                receive: { asset: { id: ASSET_ID }, atomic: 1000n },
+              } as never).catch((error: Error) => setError(error.message))
+            }
+          >
+            review
+          </button>
+          <output>{error}</output>
+        </>
+      )
+    }
+    const view = await renderProvider({}, <Trade />)
+    fireEvent.click(screen.getByText('review'))
+    await waitFor(() => expect(mocks.quote).toHaveBeenCalledOnce())
+    view.rerender(
+      providerTree({ svcWallet: { identity: { xOnlyPublicKey: async () => new Uint8Array(32) } } }, <Trade />),
+    )
+    await waitFor(() => expect(mocks.created).toHaveBeenCalledTimes(2))
+    await act(async () => resolve({ id: 'late-quote', take: { amount: 1000n } } as Quote))
+    await screen.findByText('The swap wallet changed — try again')
+    expect(mocks.accept).not.toHaveBeenCalled()
+  })
+
   it('keeps the client live while its mounted wallet content navigates', async () => {
     function NavigatingScreens() {
       const [page, setPage] = useState('send success')
       return <button onClick={() => setPage('wallet')}>{page}</button>
     }
-    const view = renderProvider({}, <NavigatingScreens />)
+    const view = await renderProvider({}, <NavigatingScreens />)
     await waitFor(() => expect(mocks.created).toHaveBeenCalledOnce())
     fireEvent.click(screen.getByText('send success'))
     expect(screen.getByText('wallet')).toBeInTheDocument()
@@ -252,7 +401,7 @@ describe('SwapsProvider', () => {
         </button>
       )
     }
-    renderProvider({}, <AssetPaymentScreen />)
+    await renderProvider({}, <AssetPaymentScreen />)
     fireEvent.click(screen.getByText('ready'))
     await screen.findByText('funding-txid')
     expect(mocks.quote).toHaveBeenCalledWith({
@@ -270,7 +419,7 @@ describe('SwapsProvider', () => {
   it('blocks a new quote after ambiguous acceptance, including a remounted payer with spare funds', async () => {
     mocks.quote.mockResolvedValue({ id: 'ambiguous-asset-quote', give: { amount: 1000n } })
     mocks.accept.mockRejectedValue(new Error('reply lost after submission'))
-    const view = renderProvider({}, <Payer />)
+    const view = await renderProvider({}, <Payer />)
     fireEvent.click(screen.getByText('pay asset'))
     await screen.findByText('reply lost after submission')
     await act(async () => {
@@ -278,7 +427,7 @@ describe('SwapsProvider', () => {
     })
     expect([mocks.quote.mock.calls.length, mocks.accept.mock.calls.length]).toEqual([1, 1])
     view.unmount()
-    renderProvider({}, <Payer />)
+    await renderProvider({}, <Payer />)
     await act(async () => {
       fireEvent.click(screen.getByText('pay asset'))
     })
@@ -292,7 +441,7 @@ describe('SwapsProvider', () => {
     const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('storage unavailable')
     })
-    renderProvider({}, <Payer />)
+    await renderProvider({}, <Payer />)
     fireEvent.click(screen.getByText('pay asset'))
     await screen.findByText('storage unavailable')
     expect(mocks.accept).not.toHaveBeenCalled()
@@ -302,12 +451,12 @@ describe('SwapsProvider', () => {
   it('checks only the original stored swap after ambiguity, without accepting or quoting again', async () => {
     mocks.quote.mockResolvedValue({ id: 'original', give: { amount: 1000n } })
     mocks.accept.mockRejectedValue(new Error('reply lost'))
-    const view = renderProvider({}, <Payer />)
+    const view = await renderProvider({}, <Payer />)
     fireEvent.click(screen.getByText('pay asset'))
     await screen.findByText('reply lost')
     view.unmount()
     mocks.swaps.mockResolvedValue([{ ...swap, id: 'another', fundingTxid: 'wrong' }])
-    const check = renderProvider({}, <PaymentCheck />)
+    const check = await renderProvider({}, <PaymentCheck />)
     fireEvent.click(screen.getByText('check'))
     await screen.findByText('Check asset payment: its funding is still unresolved')
     expect(localStorage.length).toBe(1)
@@ -323,12 +472,12 @@ describe('SwapsProvider', () => {
   it('releases only the original proven-unsent payment after remount, allowing a new payment', async () => {
     mocks.quote.mockResolvedValue({ id: 'original', give: { amount: 1000n } })
     mocks.accept.mockRejectedValueOnce(new Error('reply lost'))
-    const payer = renderProvider({}, <Payer />)
+    const payer = await renderProvider({}, <Payer />)
     fireEvent.click(screen.getByText('pay asset'))
     await screen.findByText('reply lost')
     payer.unmount()
     mocks.getSwapRecord.mockResolvedValue(unsentRecord())
-    const check = renderProvider({}, <PaymentCheck />)
+    const check = await renderProvider({}, <PaymentCheck />)
     fireEvent.click(screen.getByText('check'))
     await screen.findByText('The payment was not sent. Please try again.')
     expect(mocks.getSwapRecord).toHaveBeenCalledWith('original')
@@ -338,7 +487,7 @@ describe('SwapsProvider', () => {
     check.unmount()
     mocks.quote.mockResolvedValue({ id: 'next', give: { amount: 1000n } })
     mocks.accept.mockResolvedValue({ ...swap, id: 'offer:next' })
-    renderProvider({}, <Payer />)
+    await renderProvider({}, <Payer />)
     fireEvent.click(screen.getByText('pay asset'))
     await waitFor(() => expect(mocks.accept).toHaveBeenCalledTimes(2))
     expect(mocks.quote).toHaveBeenCalledTimes(2)
@@ -363,7 +512,7 @@ describe('SwapsProvider', () => {
       payAmountSats: '1000',
     })
     mocks.getSwapRecord.mockResolvedValue(record)
-    renderProvider({}, <PaymentCheck />)
+    await renderProvider({}, <PaymentCheck />)
     fireEvent.click(screen.getByText('check'))
     await screen.findByText('Check asset payment: its funding is still unresolved')
     expect(localStorage.length).toBe(1)
@@ -387,7 +536,7 @@ describe('SwapsProvider', () => {
         vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
           throw new Error('storage unavailable')
         })
-      renderProvider({}, <PaymentCheck />)
+      await renderProvider({}, <PaymentCheck />)
       fireEvent.click(screen.getByText('check'))
       await screen.findByText('storage unavailable')
       expect(localStorage.length).toBe(1)
@@ -398,7 +547,7 @@ describe('SwapsProvider', () => {
   it('clears only a real SDK insufficient-funds refusal before persistence', async () => {
     mocks.quote.mockResolvedValue({ id: 'unfundable', give: { asset: 'btc', amount: 1000n } })
     mocks.accept.mockRejectedValue(new InsufficientFunds('btc' as never, 1000n, 0n))
-    renderProvider({}, <Payer />)
+    await renderProvider({}, <Payer />)
     fireEvent.click(screen.getByText('pay asset'))
     await screen.findByText(/funding needs/)
     expect(localStorage.length).toBe(0)
@@ -408,14 +557,14 @@ describe('SwapsProvider', () => {
   it('retains a named impostor refusal and blocks corruption before a new quote', async () => {
     mocks.quote.mockResolvedValue({ id: 'impostor', give: { amount: 1000n } })
     mocks.accept.mockRejectedValue(Object.assign(new Error('unknown acceptance'), { name: 'InsufficientFunds' }))
-    const view = renderProvider({}, <Payer />)
+    const view = await renderProvider({}, <Payer />)
     fireEvent.click(screen.getByText('pay asset'))
     await screen.findByText('unknown acceptance')
     expect(localStorage.length).toBe(1)
     const storageKey = localStorage.key(0)!
     localStorage.setItem(storageKey, '{}')
     view.unmount()
-    renderProvider({}, <Payer />)
+    await renderProvider({}, <Payer />)
     fireEvent.click(screen.getByText('pay asset'))
     await screen.findByText('Stored asset payment is unreadable; refusing a new payment')
     expect(mocks.quote).toHaveBeenCalledOnce()
@@ -430,7 +579,7 @@ describe('SwapsProvider', () => {
     })
     const setAssetSwaps = vi.fn()
 
-    renderProvider({ setAssetSwaps })
+    await renderProvider({ setAssetSwaps })
 
     await waitFor(() => expect(screen.getByTestId('swap-count')).toHaveTextContent('1'))
     await waitFor(() => expect(screen.getByTestId('market-count')).toHaveTextContent('1'))
@@ -450,15 +599,15 @@ describe('SwapsProvider', () => {
       return () => {}
     })
 
-    renderProvider()
+    await renderProvider()
 
     await waitFor(() => expect(screen.getByTestId('market-count')).toHaveTextContent('1'))
   })
 
-  it('watches the network’s markets while mounted and stops watching on unmount', () => {
+  it('watches the network’s markets while mounted and stops watching on unmount', async () => {
     const stop = vi.fn()
     mocks.watchSwapMarkets.mockReturnValue(stop)
-    const view = renderProvider()
+    const view = await renderProvider()
     expect(mocks.watchSwapMarkets).toHaveBeenCalledWith('regtest', expect.any(Function))
     expect(stop).not.toHaveBeenCalled()
     view.unmount()
@@ -466,7 +615,7 @@ describe('SwapsProvider', () => {
   })
 
   it('re-reads markets past the cache when a pinned card changes', async () => {
-    renderProvider()
+    await renderProvider()
     expect(mocks.discoverMarkets).not.toHaveBeenCalled()
 
     act(() => saveSolverCards([]))
@@ -475,7 +624,7 @@ describe('SwapsProvider', () => {
   })
 
   it('rebuilds the swap client when a pinned card changes, so it routes with the card', async () => {
-    renderProvider()
+    await renderProvider()
     await waitFor(() => expect(mocks.created).toHaveBeenCalledOnce())
 
     act(() => saveSolverCards([]))
@@ -485,7 +634,7 @@ describe('SwapsProvider', () => {
   })
 
   it('quotes destinations through the swap client', async () => {
-    renderProvider()
+    await renderProvider()
 
     await waitFor(() => expect(mocks.quote).not.toHaveBeenCalled())
     screen.getByText('quote').click()
@@ -494,7 +643,7 @@ describe('SwapsProvider', () => {
   })
 
   it('maps a Lightning receive into the UI-facing result', async () => {
-    renderProvider()
+    await renderProvider()
     screen.getByText('receive').click()
 
     await waitFor(() => expect(mocks.receive).toHaveBeenCalledWith({ amount: BigInt(1000), via: 'lightning' }))
@@ -503,7 +652,7 @@ describe('SwapsProvider', () => {
   it('refuses to fund a re-quote worse than the price on screen', async () => {
     mocks.discoverMarkets.mockResolvedValue([market()])
     mocks.quote.mockResolvedValue({ take: { amount: BigInt(999) } })
-    renderProvider()
+    await renderProvider()
 
     screen.getByText('exchange').click()
 
@@ -518,7 +667,7 @@ describe('SwapsProvider', () => {
   it('quotes the pair as CAIP-19 ids', async () => {
     mocks.quote.mockResolvedValue({ id: 'market-quote', take: { amount: BigInt(1000) } })
     mocks.accept.mockResolvedValue({ ...swap, id: 'offer:market-quote' })
-    renderProvider()
+    await renderProvider()
 
     screen.getByText('exchange').click()
 
@@ -535,7 +684,7 @@ describe('SwapsProvider', () => {
   it('preserves canonical discovered currencies when requesting the executable quote', async () => {
     mocks.quote.mockResolvedValue({ id: 'canonical-quote', take: { amount: BigInt(1000) } })
     mocks.accept.mockResolvedValue({ ...swap, id: 'offer:canonical-quote' })
-    renderProvider({}, <Harness canonical />)
+    await renderProvider({}, <Harness canonical />)
     screen.getByText('exchange').click()
     await waitFor(() =>
       expect(mocks.quote).toHaveBeenCalledWith({
@@ -549,7 +698,7 @@ describe('SwapsProvider', () => {
   })
 
   it('refuses a canonical market on another network before requesting or funding a quote', async () => {
-    renderProvider({}, <Harness canonical network='bitcoin' />)
+    await renderProvider({}, <Harness canonical network='bitcoin' />)
     screen.getByText('exchange').click()
     await waitFor(() => expect(screen.getByTestId('exchange-error')).toHaveTextContent('different network or rail'))
     expect(mocks.quote).not.toHaveBeenCalled()
@@ -559,14 +708,14 @@ describe('SwapsProvider', () => {
   it('stores the exchange snapshot under the quote id used by history', async () => {
     mocks.quote.mockResolvedValue({ id: 'market-quote', take: { amount: BigInt(1000) } })
     mocks.accept.mockResolvedValue({ ...swap, id: 'offer:market-quote' })
-    renderProvider()
+    await renderProvider()
     screen.getByText('exchange').click()
     await waitFor(() => expect(mocks.saveSnapshot).toHaveBeenCalledWith('market-quote', { fromTicker: 'BTC' }))
   })
 
   it('reports the fill that beat the cancel as a completion', async () => {
     mocks.cancel.mockResolvedValue({ outcome: 'filled' })
-    renderProvider()
+    await renderProvider()
 
     screen.getByText('cancel').click()
 

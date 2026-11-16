@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { RestIndexerProvider } from '@arkade-os/sdk'
 import {
   actor,
@@ -15,41 +15,7 @@ import {
   type Policy,
 } from './helpers'
 import { handleKeyboardInput, navigateHome } from '../utils'
-
-type Hold = { id: string; outpoints: { txid: string; vout: number }[]; phase?: string }
-
-const journal = (page: Page): Promise<Hold[]> =>
-  page.evaluate(() =>
-    Object.keys(localStorage)
-      .filter((key) => key.startsWith('taxi-input-reservations:regtest:'))
-      .flatMap((key) => JSON.parse(localStorage.getItem(key)!)),
-  )
-
-const durableHolds = (page: Page): Promise<Hold[]> =>
-  page.evaluate(async () => {
-    const databases = await indexedDB.databases()
-    return (
-      await Promise.all(
-        databases
-          .filter(({ name }) => name?.startsWith('arkade-reservations-'))
-          .map(
-            ({ name }) =>
-              new Promise<Hold[]>((resolve, reject) => {
-                const opened = indexedDB.open(name!)
-                opened.onerror = () => reject(opened.error)
-                opened.onsuccess = () => {
-                  const db = opened.result
-                  const transaction = db.transaction('reservations', 'readonly')
-                  const rows = transaction.objectStore('reservations').getAll()
-                  rows.onsuccess = () => resolve(rows.result)
-                  rows.onerror = () => reject(rows.error)
-                  transaction.oncomplete = () => db.close()
-                }
-              }),
-          ),
-      )
-    ).flat()
-  })
+import { durableHolds, journal } from './reservationEvidence'
 
 test('Ambiguous Taxi claim keeps its unspent input reserved across tab and worker restart', async ({
   browser,

@@ -1,71 +1,76 @@
 {
-  "note": "Unpublished review archives; all consumers use these exact bytes. No registry publication.",
-  "packedAtUtc": "2026-11-16T16:13:58.953Z",
+  "note": "Canonical unpublished review archives. All consumers must use these exact bytes; validation status is tracked separately. No registry publication.",
+  "packedAtUtc": "2026-11-16T17:44:27.0307282Z",
   "artifacts": [
     {
-      "file": "arkade-os-sdk-0.5.7-taxi.0-735e40b9.tgz",
+      "file": "arkade-os-sdk-0.5.7-taxi.2-8c428b36.tgz",
       "package": "@arkade-os/sdk",
-      "version": "0.5.7-taxi.0",
+      "version": "0.5.7-taxi.2",
       "license": "MIT",
       "licenseFrom": "archive package manifest",
-      "sha256": "7299b861d45b15423885ddefd252afab5d80b7e41e727cbc4010441db59628d8",
-      "bytes": 2919800,
+      "sha256": "0964b40ca54d4573426ab1a63fadf4661a8e7fa56a442ef0231a1467d10e1237",
+      "bytes": 2960521,
       "source": {
         "repository": "https://github.com/arkade-os/ts-sdk.git",
-        "commit": "735e40b9c99c1c2ef01d75ccbcba1439e06450bf",
+        "commit": "8c428b36d33f5c19584b652bdd98243f15900db1",
         "directory": "packages/sdk",
-        "tree": "a84664780088662418b6978fec15eab842d54a2e"
+        "tree": "23364344b67aacb1dbd9059c26edffed1b28ad16",
+        "directoryTree": "23364344b67aacb1dbd9059c26edffed1b28ad16",
+        "repositoryTree": "3cacd34f7f8bab9481dcd04be4f7f219fb45ebb6"
       },
       "toolchain": {
         "node": "v24.22.1",
         "pnpm": "10.25.0",
         "typescript": "Version 5.9.2",
-        "command": "pnpm -C packages/sdk pack",
+        "command": "pnpm -C packages/sdk pack --pack-destination C:/Git/outputs/arkade-taxi/bundles-20261116",
         "platform": "win32-x64"
       }
     },
     {
-      "file": "arkade-os-swap-0.1.7-taxi.1-309701dc.tgz",
+      "file": "arkade-os-swap-0.2.0-taxi.0-37aa317a.tgz",
       "package": "@arkade-os/swap",
-      "version": "0.1.7-taxi.1",
+      "version": "0.2.0-taxi.0",
       "license": "MIT",
       "licenseFrom": "archive package manifest",
-      "sha256": "f943d702c51544b9fe8d2d8af3092e1ebeb8282e8872719123b8b40a805869ac",
-      "bytes": 674566,
+      "sha256": "faa05b0abb38570bebf603e2c79f94c2fb3c2d8087e43d59d11b4790d9e0f7da",
+      "bytes": 676360,
       "source": {
         "repository": "https://github.com/arkade-os/ts-sdk.git",
-        "commit": "309701dc0dc10a20bdb8e81c8c9ca5aa499498ef",
+        "commit": "37aa317a08750dd39b5a9f639f4d0452d46655fa",
         "directory": "packages/swap",
-        "tree": "aa2036b2a9ce183ee3e467bac68fa5602d6a74c3",
-        "directoryTree": "9c92319e903d8824b2565f78bcdd81bf34723768"
+        "tree": "86f474277188acda7ec3969acb4d5f2d31f11404",
+        "directoryTree": "86f474277188acda7ec3969acb4d5f2d31f11404",
+        "repositoryTree": "e501340fb5478c818695705857ddf7a97f50c01e"
       },
       "toolchain": {
         "node": "v24.22.1",
         "pnpm": "10.25.0",
         "typescript": "Version 5.9.2",
-        "command": "pnpm -C packages/swap pack",
+        "command": "pnpm -C packages/swap pack --out C:/Git/outputs/arkade-taxi/bundles-20261116/arkade-os-swap-0.2.0-taxi.0-37aa317a.tgz",
         "platform": "win32-x64"
       }
     },
     {
-      "file": "arkade-taxi-client-0.1.0-a9d2fbb4.tgz",
+      "file": "arkade-taxi-client-0.2.0-taxi.0-e6f4b274.tgz",
       "package": "@arkade-taxi/client",
-      "version": "0.1.0",
+      "version": "0.2.0-taxi.0",
       "license": "MIT",
       "licenseFrom": "archive manifest and bundled LICENSE",
-      "sha256": "09ce049b167817deb058f720643179d20154aa14a14b3286ea1ea8b732af5924",
-      "bytes": 84031,
+      "sha256": "8b9084f377750f0eb6f2dcf52c998f44b7d1ddb156466038aa3a5c022091e244",
+      "bytes": 84037,
       "source": {
         "repository": "https://github.com/ArkLabsHQ/arkade-taxi.git",
-        "commit": "a9d2fbb47149ea3518fe28733d896197094bddf4",
+        "commit": "e6f4b274c8eadb8bf1bdfec512132aeebc27d2ad",
         "directory": "packages/client",
-        "tree": "6c47af2adc18411b6bb56ebc8f9f099c5baeafa2"
+        "tree": "7d01e821c351b0afd8599618cc23911a6b0d902e",
+        "directoryTree": "7d01e821c351b0afd8599618cc23911a6b0d902e",
+        "repositoryTree": "f65fcd92bcd396ee0d5ebfb8547abeb357fa89f2"
       },
       "toolchain": {
         "node": "v24.22.1",
         "pnpm": "10.34.5",
-        "typescript": "5.9.3",
-        "command": "pnpm --filter @arkade-taxi/client pack",
+        "typescript": "Version 5.9.3",
+        "command": "pnpm --filter @arkade-taxi/client pack --json --pack-destination <canonical-bundle-folder>",
         "platform": "win32-x64"
       }
     },
@@ -81,7 +86,9 @@
         "repository": "https://github.com/ArkLabsHQ/arkade-taxi.git",
         "commit": "a9d2fbb47149ea3518fe28733d896197094bddf4",
         "directory": "packages/covenant",
-        "tree": "cee87a27797b55362c1a76afbc2c6ad23caee1ba"
+        "tree": "cee87a27797b55362c1a76afbc2c6ad23caee1ba",
+        "directoryTree": "cee87a27797b55362c1a76afbc2c6ad23caee1ba",
+        "repositoryTree": "21b5a7a085c2f40ece747abd12d9fe899c936913"
       },
       "toolchain": {
         "node": "v24.22.1",
@@ -103,7 +110,9 @@
         "repository": "https://github.com/ArkLabsHQ/arkade-taxi.git",
         "commit": "a9d2fbb47149ea3518fe28733d896197094bddf4",
         "directory": "packages/protocol",
-        "tree": "3af447b51c4aa24f1b85424283f21e896addebfa"
+        "tree": "3af447b51c4aa24f1b85424283f21e896addebfa",
+        "directoryTree": "3af447b51c4aa24f1b85424283f21e896addebfa",
+        "repositoryTree": "21b5a7a085c2f40ece747abd12d9fe899c936913"
       },
       "toolchain": {
         "node": "v24.22.1",
@@ -113,5 +122,7 @@
         "platform": "win32-x64"
       }
     }
-  ]
+  ],
+  "updatedAtUtc": "2026-11-16T22:17:56.7835187Z",
+  "sourceTreeMeaning": "source.tree and directoryTree identify the package directory; repositoryTree identifies the complete source commit tree."
 }

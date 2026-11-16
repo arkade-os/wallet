@@ -45,10 +45,31 @@ async function swap(
   const receivedText = await metric(tr.swap.receive).innerText()
   const receiveMatch = /^([\d,]+) (ARFQ|sats)$/.exec(receivedText)
   if (!receiveMatch) throw new Error(`The review did not show an exact atomic receive amount: ${receivedText}`)
-  const minimumReceive = BigInt(receiveMatch[1].replaceAll(',', ''))
-  expect(minimumReceive).toBeGreaterThan(0n)
+  const quotedReceive = BigInt(receiveMatch[1].replaceAll(',', ''))
+  expect(quotedReceive).toBeGreaterThan(0n)
   expect(receiveMatch[2]).toBe(forward ? 'ARFQ' : 'sats')
-  await expect(metric(tr.swap.fees)).toHaveText(forward ? '0 ARFQ' : '0 sats')
+  const feeText = await metric(tr.swap.fees).innerText()
+  const feeMatch = /^([\d,]+) (ARFQ|sats)$/.exec(feeText)
+  if (!feeMatch) throw new Error(`The review did not show an exact atomic fee: ${feeText}`)
+  const quotedFee = BigInt(feeMatch[1].replaceAll(',', ''))
+  expect(feeMatch[2]).toBe(forward ? 'ARFQ' : 'sats')
+  const balanceChange = metric(tr.swap.balanceChange)
+  let quotedBalanceChange: bigint | undefined
+  if (forward) {
+    expect(quotedFee).toBe(0n)
+    await expect(balanceChange).toHaveCount(0)
+  } else {
+    expect(quotedFee).toBeGreaterThan(0n)
+    const changeText = await balanceChange.innerText()
+    const changeMatch = /^([+-]?[\d,]+) sats$/.exec(changeText)
+    if (!changeMatch) throw new Error(`The review did not show an exact Bitcoin balance change: ${changeText}`)
+    quotedBalanceChange = BigInt(changeMatch[1].replaceAll(',', ''))
+    expect(quotedBalanceChange).toBeGreaterThan(0n)
+    expect(quotedBalanceChange).toBeLessThan(quotedReceive)
+  }
+  expect((await nativeOffers(page)).map(({ id }) => id).sort()).toEqual(previous.map(({ id }) => id).sort())
+  expect(await ledger(parties, assetId)).toEqual(before)
+  expect((await advances()).map(({ id }) => id).sort()).toEqual(taxiBefore.map(({ id }) => id).sort())
   await info.attach(`${label} review`, {
     body: await review.screenshot({ animations: 'disabled' }),
     contentType: 'image/png',
@@ -69,7 +90,9 @@ async function swap(
   const record = (await fresh())[0]
   expect(record.assetPayment).toBeUndefined()
   expect(record.give.amount).toBe(amount)
-  expect(BigInt(record.take.amount)).toBeGreaterThanOrEqual(minimumReceive)
+  expect(BigInt(record.take.amount)).toBe(quotedReceive)
+  expect(BigInt(record.fee.amount)).toBe(quotedFee)
+  expect(record.fee.asset).toBe(record.take.asset)
   expect(record.fundingTxid).toMatch(/^[0-9a-f]{64}$/)
   expect(record.spentTxid).toMatch(/^[0-9a-f]{64}$/)
   const decoded = decodeOffer(hex.decode(record.offerHex))
@@ -83,6 +106,10 @@ async function swap(
   const taken = BigInt(record.take.amount)
   const carrier = forward ? ASSET_CARRIER_SATS : BigInt(record.carrierSats ?? ASSET_CARRIER_SATS)
   const satsChange = forward ? carrier - given : taken - carrier
+  if (!forward) {
+    expect(quotedFee).toBe(carrier)
+    expect(quotedBalanceChange).toBe(satsChange)
+  }
   const assetChange = forward ? taken : -given
   const expected = {
     trader: shift(before.trader, satsChange, assetChange),
@@ -94,7 +121,18 @@ async function swap(
   expect(await fresh()).toHaveLength(1)
   await info.attach(`${label} financial evidence`, {
     body: JSON.stringify(
-      { program: forward ? 'wantAsset' : 'wantBtc', record, carrier: carrier.toString(), before, after: expected },
+      {
+        program: forward ? 'wantAsset' : 'wantBtc',
+        review: {
+          receive: quotedReceive.toString(),
+          fee: quotedFee.toString(),
+          bitcoinBalanceChange: quotedBalanceChange?.toString(),
+        },
+        record,
+        carrier: carrier.toString(),
+        before,
+        after: expected,
+      },
       null,
       2,
     ),

@@ -14,7 +14,7 @@ import { canBrowserShareData, shareData } from '../../../lib/share'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
 import { LimitsContext } from '../../../providers/limits'
-import { Asset, Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
+import { Asset, Coin, ExtendedVirtualCoin, type WalletUpdate } from '@arkade-os/sdk'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { encodeBip21, encodeBip21Asset, type Bip21Taxi } from '../../../lib/bip21'
 import { unitsToAtomic } from '../../../lib/assets'
@@ -69,6 +69,8 @@ export default function ReceiveQRCode() {
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { assetMetadataCache, svcWallet } = useContext(WalletContext)
+  const renderedSvcWallet = useRef(svcWallet)
+  renderedSvcWallet.current = svcWallet
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { remember } = useContext(ReceiverClaimsContext)
   const { t } = useTranslation()
@@ -301,20 +303,22 @@ export default function ReceiveQRCode() {
   // Payment listener
   useEffect(() => {
     if (!svcWallet) return
+    let listening = true
 
-    const listenForPayments = (event: MessageEvent) => {
+    const listenForPayments = (update: WalletUpdate) => {
+      if (!listening || renderedSvcWallet.current !== svcWallet) return
       let sats = 0
       let receivedAssets: Asset[] = []
 
-      if (event.data && event.data.type === 'VTXO_UPDATE') {
-        const newVtxos = event.data.payload?.newVtxos
+      if (update.type === 'VTXO_UPDATE') {
+        const newVtxos = update.payload?.newVtxos
         if (Array.isArray(newVtxos)) {
           sats = (newVtxos as ExtendedVirtualCoin[]).reduce((acc, v) => acc + v.value, 0)
           for (const v of newVtxos as ExtendedVirtualCoin[]) {
             receivedAssets.push(...(v.assets ?? []))
           }
         } else {
-          consoleError('VTXO_UPDATE message has unexpected payload shape:', event.data.payload)
+          consoleError(update.payload, 'VTXO_UPDATE message has unexpected payload shape')
         }
       }
 
@@ -328,12 +332,12 @@ export default function ReceiveQRCode() {
         return acc
       }, [] as Asset[])
 
-      if (event.data && event.data.type === 'UTXO_UPDATE') {
-        const coins = event.data.payload?.coins
+      if (update.type === 'UTXO_UPDATE') {
+        const coins = update.payload?.coins
         if (Array.isArray(coins)) {
           sats = (coins as Coin[]).reduce((acc, v) => acc + v.value, 0)
         } else {
-          consoleError('UTXO_UPDATE message has unexpected payload shape:', event.data.payload)
+          consoleError(update.payload, 'UTXO_UPDATE message has unexpected payload shape')
         }
       }
 
@@ -344,8 +348,11 @@ export default function ReceiveQRCode() {
       }
     }
 
-    navigator.serviceWorker.addEventListener('message', listenForPayments)
-    return () => navigator.serviceWorker.removeEventListener('message', listenForPayments)
+    const unsubscribe = svcWallet.onWalletUpdate(listenForPayments)
+    return () => {
+      listening = false
+      unsubscribe()
+    }
   }, [svcWallet])
 
   // Handlers

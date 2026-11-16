@@ -44,6 +44,10 @@ test('Ordinary sats transfer preserves balances without a Taxi advance', async (
     const known = await advances()
     await prePay(alice.page, bob.address, Boolean(testInfo.project.use.isMobile), 1000)
     await expect(alice.page.getByTestId('taxi-confirm-costs')).not.toBeVisible()
+    await testInfo.attach('Ordinary 1000 sats confirmation', {
+      body: await alice.page.screenshot({ animations: 'disabled' }),
+      contentType: 'image/png',
+    })
     await alice.page.getByText(tr.send.tapToSign, { exact: true }).click()
     await dismissPaymentSuccess(alice.page)
     await expect

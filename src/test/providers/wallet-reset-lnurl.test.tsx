@@ -9,9 +9,11 @@ import { ConfigContext } from '../../providers/config'
 import { forgetLnurlSends, lnurlSends, recordLnurlSend } from '../../lib/lnurlSends'
 import { mockAspContextValue, mockConfigContextValue } from '../screens/mocks'
 
+const unsubscribeWalletUpdates = vi.hoisted(() => vi.fn())
 const mocks = vi.hoisted(() => ({
   purge: vi.fn(),
   service: {
+    onWalletUpdate: vi.fn(() => unsubscribeWalletUpdates),
     activity: { use: vi.fn() },
     getVtxoManager: vi.fn().mockResolvedValue({ renewVtxos: async () => {} }),
     getStatus: vi.fn().mockResolvedValue({ walletInitialized: true }),
@@ -91,7 +93,7 @@ describe('wallet reset LNURL boundary', () => {
 
     await expect(wallet.resetWallet()).rejects.toThrow('preimage purge failed')
 
-    expect(navigator.serviceWorker.removeEventListener).not.toHaveBeenCalled()
+    expect(unsubscribeWalletUpdates).not.toHaveBeenCalled()
   })
 
   it('invalidates old send subscriptions after purge and before localStorage is cleared', async () => {
@@ -127,7 +129,7 @@ describe('wallet reset LNURL boundary', () => {
     await act(() => wallet.resetWallet())
 
     expect(order).toEqual(['purge', 'storage clear'])
-    expect(navigator.serviceWorker.removeEventListener).toHaveBeenCalled()
+    expect(unsubscribeWalletUpdates).toHaveBeenCalledOnce()
     expect(lnurlSends()).toEqual([])
     expect(mocks.service.clear).toHaveBeenCalledOnce()
     expect(mocks.service.walletRepository.clear).toHaveBeenCalledOnce()

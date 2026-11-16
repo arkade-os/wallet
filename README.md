@@ -207,7 +207,8 @@ On CI the standard suite runs as four parallel jobs: two browser projects (`Mobi
 The groups list files explicitly, so **a new test file must be added to one of them**,
 otherwise it will never run on CI.
 
-Two separate native Taxi jobs run all eight cases in each browser project.
+Two separate native Taxi jobs run eight primary cases and one final recovery case
+in each browser project, for eighteen cases in total.
 They verify each consumer's manifest-listed packages, then start an
 isolated Arkade/emulator/Taxi stack, fund the current solver, mint ARFQ and publish
 its actual signed discovery card through a local WSS relay. The exact-out case
@@ -215,6 +216,14 @@ checks the single fill, receiver recycle and all four parties' final balances.
 Swap-screen cases trade in both directions and verify the compiled programs and
 exact balances. The interrupted-claim case checks that an unspent input stays
 reserved through a tab close and service worker restart.
+Each native job also runs the public SDK's same-quote funding regression: one real
+send loses its reply, empty deposit reads and a reopened database cannot fund it
+again, and restored indexer proof adopts the original transaction. It verifies
+one send and provider submission plus exact three-party balances.
+Only after the primary cases finish, the terminal phase advances that run's
+regtest clock and proves a finalized reclaim unlocks the still-unspent receiver
+input without resubmitting the old claim. Both phase reports reject missing,
+skipped, failed or flaky cases.
 
 `node --experimental-eventsource scripts/taxi-native-ci.mjs "Google Chrome"`
 runs that lane from a prepared checkout with its exact solver, Taxi and regtest
@@ -224,9 +233,10 @@ files during cleanup. `Mobile Chrome` selects the other project. A missing nativ
 fixture fails the test rather than skipping it.
 
 Append `--manual` locally to keep the app, solver and isolated stack running after
-the browser tests. The harness prints the wallet URL and a loopback stop URL;
-posting to the stop URL releases only that run's resources. Manual mode is refused
-in CI.
+the primary tests. The harness prints the wallet URL and a loopback stop URL.
+Posting to the stop URL runs the terminal phase, then releases only that run's
+resources. The clock remains unchanged during the manual session. Manual mode is
+refused in CI.
 
 ## App links
 
