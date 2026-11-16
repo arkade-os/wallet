@@ -20,6 +20,8 @@ The policy applies to the source in this public repository, release artifacts an
 
 Documented alpha, testnet, or unaudited status is severity context, not a blanket exclusion. A testnet-only issue is still relevant when it exposes a flaw that can reach a supported mainnet or published release path.
 
+
+
 ## Threat Model and Trust Boundaries
 
 This repository uses the **Client and SDK** profile. The security boundary includes private keys and seeds, signing intent, transaction construction, network and server validation, backups, recovery state, package integrity, and any code or metadata consumed remotely by the client.
@@ -32,7 +34,7 @@ Users control their own keys. Remote servers, operators, solvers, plugins, peers
 
 ## Security Invariants
 
-- Private keys, seeds, signing material, and production credentials must never be sent to Arkade servers or emitted in logs, analytics, crash reports, or package output.
+- Private keys, seeds, signing material, and production credentials must never be sent to Arkade servers or emitted in logs, analytics, or crash reports. A user-initiated backup or export is the only exception, and it must be explicit, clearly labeled, and treated as sensitive.
 - A client must validate network, server identity, address, amount, fee, asset, signatures, and contract artifact before signing, and must sign only the transaction intent shown to the user.
 - Remote content, relay messages, quotes, package updates, and generated bindings must not gain arbitrary code execution or weaken local transaction checks.
 - Backup, restore, mint, payment, and recovery retries must not duplicate a spend, issuance, payment, or payout when an earlier outcome is unknown.
@@ -57,7 +59,7 @@ These are context for prioritization, not a requirement that reporters assign th
 - A vulnerability only in a third-party dependency, when it cannot be exploited through this repository or a supported deployment. Report that dependency upstream as well.
 - Feature requests, non-security bugs, and reports without a concrete security impact.
 - Social engineering, physical access, or a report that requires an already compromised device or credential, unless the compromise exposes an upstream weakness.
-- Public disclosure before we have coordinated a fix and disclosure date.
+- Public disclosure of new, undisclosed technical details before we have coordinated a fix and disclosure date. A vulnerability that is already public is still reportable when it affects supported code, releases, or deployments.
 - Spam, automated low-signal reports, leaked secrets unrelated to this repository, and requests for payment in exchange for withholding disclosure.
 
 We will not treat an inference or an undocumented assumption about a deployment as an accepted risk. A known limitation becomes an accepted risk only after review and documentation by the repository owner.
