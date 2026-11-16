@@ -13,9 +13,20 @@ import {
   assertNativeReport,
   cleanupOwnedStages,
   nativeTaxiCompose,
+  nativeArkdLoopbackCompose,
   port,
   refs,
 } from './taxi-native-ci.mjs'
+
+it('binds only the ephemeral Arkd HTTP publication to loopback', () => {
+  const source =
+    "services:\n  arkd:\n    ports:\n      - '${ARKD_PORT:-7070}:7070'\n      - '${ARKD_ADMIN_PORT:-7071}:7071'\n"
+  const patched = nativeArkdLoopbackCompose(source)
+  assert.equal(patched, source.replace("'${ARKD_PORT:-7070}:7070'", "'127.0.0.1:${ARKD_PORT:-7070}:7070'"))
+  assert.equal(nativeArkdLoopbackCompose(patched), patched)
+  assert.throws(() => nativeArkdLoopbackCompose('services: {}'), /publication changed/)
+  assert.throws(() => nativeArkdLoopbackCompose(source + source), /publication changed/)
+})
 
 it('rejects incomplete, skipped, flaky or failed native financial coverage', () => {
   const stats = { expected: 8, skipped: 0, unexpected: 0, flaky: 0 }
@@ -252,6 +263,7 @@ execFile[promisify.custom] = async (command, args, options) => {
     mkdirSync(join(args[3], 'docker'))
     writeFileSync(join(args[3], '.env.defaults'), '')
     writeFileSync(join(args[3], 'docker/compose.base.yml'), 'services:\\n  mempool_api:\\n    environment:\\n      DATABASE_ENABLED: "true"\\n  mempool_web:\\n')
+    writeFileSync(join(args[3], 'docker/compose.ark.yml'), "services:\\n  arkd:\\n    ports:\\n      - '\\$" + "{ARKD_PORT:-7070}:7070'\\n")
     return { stdout: '', stderr: '' }
   }
   if (command === 'docker' && args[0] === 'build') {

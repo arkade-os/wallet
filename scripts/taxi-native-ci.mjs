@@ -64,6 +64,15 @@ export function assertNativeReport(report, expected) {
   assert.equal(report.errors?.length ?? 0, 0, 'Native phase reported errors outside a case')
 }
 
+export function nativeArkdLoopbackCompose(source) {
+  const before = "'${ARKD_PORT:-7070}:7070'"
+  const after = "'127.0.0.1:${ARKD_PORT:-7070}:7070'"
+  if (source.split(after).length === 2 && !source.includes(before)) return source
+  assert.equal(source.split(before).length, 2, 'Pinned regtest Arkd publication changed')
+  assert(!source.includes(after), 'Pinned regtest Arkd publication is ambiguous')
+  return source.replace(before, after)
+}
+
 export function nativeTaxiCompose(namespace, infra) {
   assert.match(namespace, /^taxi-native-[0-9a-f]{8}$/)
   return {
@@ -390,6 +399,8 @@ async function main() {
   await run('regtest-extract', tar, ['-xf', regtestArchive, '-C', regtestRoot])
   await rm(regtestArchive)
   await configureRegtestEsplora(regtestRoot)
+  const arkCompose = resolve(regtestRoot, 'docker/compose.ark.yml')
+  await writeFile(arkCompose, nativeArkdLoopbackCompose(await readFile(arkCompose, 'utf8')))
   const defaults = parseEnv(await readFile(resolve(regtestRoot, '.env.defaults'), 'utf8'))
   const infra = { ...defaults, REGTEST_PROJECT: namespace, REGTEST_CONTAINER_PREFIX: `${namespace}-` }
   infra.MEMPOOL_WEB_PORT = await port()

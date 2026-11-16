@@ -30,6 +30,27 @@ const bound = (target, name) => {
   return typeof value === 'function' ? value.bind(target) : value
 }
 
+export function fundingFailure(error) {
+  const result = { sameQuoteFundingProof: 'failed', stage: 'entry', error: 'Error' }
+  if (typeof error?.name === 'string' && /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(error.name)) result.error = error.name
+  if (typeof error?.code === 'string' && /^[A-Z][A-Z0-9_]{0,63}$/.test(error.code)) result.code = error.code
+  const scope = error?.fundingProofScope
+  if (scope && ['arkd', 'taxi'].includes(scope.service)) {
+    const project = (value) => (typeof value === 'string' && /^[a-z0-9_-]{1,64}$/.test(value) ? value : '[invalid]')
+    result.scope = {
+      service: scope.service,
+      expectedProject: project(scope.expectedProject),
+      observedProject: project(scope.observedProject),
+      expectedHostPort: /^[0-9]{1,5}$/.test(scope.expectedHostPort) ? scope.expectedHostPort : '[invalid]',
+      bindings: (Array.isArray(scope.bindings) ? scope.bindings : []).slice(0, 8).map((binding) => ({
+        HostIp: /^[0-9a-fA-F:.]{1,64}$/.test(binding?.HostIp) ? binding.HostIp : '[invalid]',
+        HostPort: /^[0-9]{1,5}$/.test(binding?.HostPort) ? binding.HostPort : '[invalid]',
+      })),
+    }
+  }
+  return result
+}
+
 export async function assertNativeFundingOwnership(
   walletRoot = process.cwd(),
   nativeEnvFile = process.env.TAXI_NATIVE_REGTEST_ENV_FILE,
@@ -73,8 +94,21 @@ export async function assertNativeFundingOwnership(
       { windowsHide: true, timeout: 10_000 },
     )
     const [project, ports] = stdout.trim().split(/\r?\n/)
-    assert.equal(project, namespace)
-    assert.deepEqual(JSON.parse(ports), [{ HostIp: '127.0.0.1', HostPort: hostPort }])
+    let bindings
+    try {
+      bindings = JSON.parse(ports)
+      assert.equal(project, namespace)
+      assert.deepEqual(bindings, [{ HostIp: '127.0.0.1', HostPort: hostPort }])
+    } catch (error) {
+      error.fundingProofScope = {
+        service,
+        expectedProject: namespace,
+        observedProject: project,
+        expectedHostPort: hostPort,
+        bindings,
+      }
+      throw error
+    }
   }
   return { walletRoot, env, infrastructureFile, infrastructure, namespace, root, operatorUrl, adminUrl }
 }
@@ -443,6 +477,7 @@ export async function runFundingProof(
 }
 
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url)
-  runFundingProof(process.argv[2], process.argv[3]).catch(() => {
+  runFundingProof(process.argv[2], process.argv[3]).catch((error) => {
+    console.error(JSON.stringify(fundingFailure(error)))
     process.exitCode = 1
   })

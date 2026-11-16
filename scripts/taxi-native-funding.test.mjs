@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { afterEach, it, vi } from 'vitest'
-import { assertNativeFundingOwnership } from './taxi-native-funding.mjs'
+import { assertNativeFundingOwnership, fundingFailure } from './taxi-native-funding.mjs'
 
 const directories = []
 afterEach(async () => {
@@ -62,6 +62,25 @@ it('checks both owned containers and exact loopback bindings without starting or
     [`${f.namespace}-arkd`, `${f.namespace}-taxi`],
   )
   assert.deepEqual((await readdir(f.root)).sort(), ['infrastructure.env', 'wallet.env'])
+})
+
+it('reports only bounded public ownership fields, never failure prose or arbitrary properties', () => {
+  const error = Object.assign(new Error('password=PRIVATE'), {
+    fundingProofScope: {
+      service: 'arkd',
+      expectedProject: 'taxi-native-a1b2c3d4',
+      observedProject: 'other',
+      expectedHostPort: '32101',
+      bindings: Array.from({ length: 20 }, () => ({ HostIp: '0.0.0.0', HostPort: '32101', privateKey: 'PRIVATE' })),
+      mnemonic: 'PRIVATE',
+    },
+  })
+  const summary = fundingFailure(error)
+  assert.equal(summary.scope.bindings.length, 8)
+  assert.equal(summary.scope.bindings[0].HostIp, '0.0.0.0')
+  assert(!JSON.stringify(summary).includes('PRIVATE'))
+  assert(!JSON.stringify(summary).includes('password'))
+  assert.equal(fundingFailure(undefined).error, 'Error')
 })
 
 it('refuses an infrastructure env outside the exact run before opening it or contacting Docker', async () => {
