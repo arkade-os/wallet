@@ -1,7 +1,7 @@
 import { useContext, useState } from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Quote, Swap } from '@arkade-os/swap'
+import type { OpenRfqAuction, OpenRfqOffer, Quote, Swap } from '@arkade-os/swap'
 import { AspContext } from '../../providers/asp'
 import { WalletContext } from '../../providers/wallet'
 import { SwapsContext, SwapsProvider } from '../../providers/swaps'
@@ -10,6 +10,7 @@ import * as lnSwap from '../../lib/lnSwap'
 import { saveSolverCards } from '../../lib/solverCards'
 import { saveSolverRouting } from '../../lib/solverRouting'
 import { solverDirectionKey, solverId, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+import { btcUsdt } from '../lib/swapFixtures'
 
 const mocks = vi.hoisted(() => ({
   created: vi.fn(),
@@ -17,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   watchSwapMarkets: vi.fn(),
   offerSwaps: vi.fn(),
   quote: vi.fn(),
+  openRfq: vi.fn(),
+  quoteBid: vi.fn(),
   receive: vi.fn(),
   accept: vi.fn(),
   cancel: vi.fn(),
@@ -42,6 +45,8 @@ vi.mock('../../lib/swapClient', () => ({
       ready: Promise.resolve(),
       onUpdate: () => () => {},
       quote: mocks.quote,
+      openRfq: mocks.openRfq,
+      quoteBid: mocks.quoteBid,
       receive: mocks.receive,
       accept: mocks.accept,
       cancel: mocks.cancel,
@@ -102,14 +107,55 @@ const swap = {
 
 const ASSET_ID = 'a'.repeat(68)
 
+function OpenQuoteProbe() {
+  const { openSwapQuotes, cancelOpenSwapQuotes, chooseSwapQuote, acceptSwapQuote } = useContext(SwapsContext)
+  const [auction, setAuction] = useState<OpenRfqAuction>()
+  const [quote, setQuote] = useState<Quote>()
+  const [error, setError] = useState('')
+  const failed = (err: Error) => setError(err.message)
+  return (
+    <>
+      <button onClick={() => void openSwapQuotes('btc', ASSET_ID, 1000n, 'request-1').then(setAuction).catch(failed)}>
+        open offers
+      </button>
+      <button onClick={() => void cancelOpenSwapQuotes('request-1').catch(failed)}>stop offers</button>
+      <button
+        disabled={!auction}
+        onClick={() => void chooseSwapQuote(auction!.id, 'second').then(setQuote).catch(failed)}
+      >
+        choose second
+      </button>
+      <button
+        disabled={!quote}
+        onClick={() => void acceptSwapQuote({ ...quote!, take: { ...quote!.take, amount: 999999n } }).catch(failed)}
+      >
+        accept chosen
+      </button>
+      <output>{error}</output>
+    </>
+  )
+}
+
 function Harness() {
-  const { markets, swapAvailable, swaps, quotePay, receiveLightning, exchange, cancelSwap } = useContext(SwapsContext)
+  const {
+    markets,
+    discoveryReady,
+    swapAvailable,
+    swaps,
+    runDiscovery,
+    quotePay,
+    receiveLightning,
+    exchange,
+    cancelSwap,
+  } = useContext(SwapsContext)
   return (
     <>
       <output data-testid='market-count'>{markets.length}</output>
+      <output data-testid='discovery-ready'>{String(discoveryReady)}</output>
       <output data-testid='available'>{String(swapAvailable)}</output>
       <output data-testid='swap-count'>{swaps.length}</output>
       <button onClick={() => void quotePay('bitcoin:address')}>quote</button>
+      <button onClick={() => runDiscovery(false)}>refresh discovery</button>
       <button onClick={() => void receiveLightning(1000)}>receive</button>
       <button onClick={() => void cancelSwap('swap-1')}>cancel</button>
       <button
@@ -133,24 +179,25 @@ function Harness() {
   )
 }
 
-const renderProvider = (wallet = {}, children = <Harness />) =>
-  render(
-    <AspContext.Provider value={mockAspContextValue}>
-      <WalletContext.Provider
-        value={
-          {
-            ...mockWalletContextValue,
-            dataReady: true,
-            svcWallet: { identity: {} },
-            isVerifiedAsset: () => true,
-            ...wallet,
-          } as never
-        }
-      >
-        <SwapsProvider>{children}</SwapsProvider>
-      </WalletContext.Provider>
-    </AspContext.Provider>,
-  )
+const providerTree = (wallet = {}, children = <Harness />, asp = mockAspContextValue) => (
+  <AspContext.Provider value={asp}>
+    <WalletContext.Provider
+      value={
+        {
+          ...mockWalletContextValue,
+          dataReady: true,
+          svcWallet: { identity: {} },
+          isVerifiedAsset: () => true,
+          ...wallet,
+        } as never
+      }
+    >
+      <SwapsProvider>{children}</SwapsProvider>
+    </WalletContext.Provider>
+  </AspContext.Provider>
+)
+
+const renderProvider = (wallet = {}, children = <Harness />) => render(providerTree(wallet, children))
 
 beforeEach(() => {
   localStorage.removeItem('solverRouting')
@@ -169,6 +216,199 @@ beforeEach(() => {
 afterEach(() => vi.clearAllMocks())
 
 describe('SwapsProvider', () => {
+  it('waits for current discovery before treating an empty market list as settled', () => {
+    let publish!: (markets: DiscoveredMarket[]) => void
+    mocks.watchSwapMarkets.mockImplementation((_network: string, onMarkets: typeof publish) => {
+      publish = onMarkets
+      return () => {}
+    })
+    renderProvider()
+    expect(screen.getByTestId('discovery-ready')).toHaveTextContent('false')
+    act(() => publish([]))
+    expect(screen.getByTestId('discovery-ready')).toHaveTextContent('true')
+    expect(screen.getByTestId('market-count')).toHaveTextContent('0')
+  })
+
+  it('invalidates readiness for pinned-card changes and rejects the old watch result', () => {
+    const publish: ((markets: DiscoveredMarket[]) => void)[] = []
+    const stop = vi.fn()
+    mocks.watchSwapMarkets.mockImplementation((_network: string, onMarkets: (typeof publish)[number]) => {
+      publish.push(onMarkets)
+      return stop
+    })
+    renderProvider()
+    act(() => publish[0]([btcUsdt]))
+    expect(screen.getByTestId('discovery-ready')).toHaveTextContent('true')
+    act(() => saveSolverCards([]))
+    expect(stop).toHaveBeenCalledOnce()
+    expect(screen.getByTestId('discovery-ready')).toHaveTextContent('false')
+    expect(screen.getByTestId('market-count')).toHaveTextContent('1')
+    act(() => publish[0]([]))
+    expect(screen.getByTestId('discovery-ready')).toHaveTextContent('false')
+    expect(screen.getByTestId('market-count')).toHaveTextContent('1')
+    act(() => publish[1]([]))
+    expect(screen.getByTestId('discovery-ready')).toHaveTextContent('true')
+    expect(screen.getByTestId('market-count')).toHaveTextContent('0')
+  })
+
+  it('rejects a late watch result after the network changes', () => {
+    const publish: ((markets: DiscoveredMarket[]) => void)[] = []
+    mocks.watchSwapMarkets.mockImplementation((_network: string, onMarkets: (typeof publish)[number]) => {
+      publish.push(onMarkets)
+      return () => {}
+    })
+    const view = renderProvider()
+    act(() => publish[0]([btcUsdt]))
+    view.rerender(
+      providerTree({}, <Harness />, {
+        ...mockAspContextValue,
+        aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet' },
+      }),
+    )
+    expect(screen.getByTestId('discovery-ready')).toHaveTextContent('false')
+    act(() => publish[0]([btcUsdt]))
+    expect(screen.getByTestId('discovery-ready')).toHaveTextContent('false')
+    expect(screen.getByTestId('market-count')).toHaveTextContent('0')
+    act(() => publish[1]([]))
+    expect(screen.getByTestId('discovery-ready')).toHaveTextContent('true')
+  })
+
+  it('ignores a manual discovery result from the previous pinned-card version', async () => {
+    let finish!: (markets: DiscoveredMarket[]) => void
+    const publish: ((markets: DiscoveredMarket[]) => void)[] = []
+    mocks.discoverMarkets.mockReturnValue(
+      new Promise<DiscoveredMarket[]>((resolve) => {
+        finish = resolve
+      }),
+    )
+    mocks.watchSwapMarkets.mockImplementation((_network: string, onMarkets: (typeof publish)[number]) => {
+      publish.push(onMarkets)
+      return () => {}
+    })
+    renderProvider()
+    act(() => publish[0]([btcUsdt]))
+    fireEvent.click(screen.getByText('refresh discovery'))
+    expect(screen.getByTestId('discovery-ready')).toHaveTextContent('false')
+    act(() => saveSolverCards([]))
+    act(() => publish[1]([]))
+    await act(async () => finish([btcUsdt]))
+    expect(screen.getByTestId('discovery-ready')).toHaveTextContent('true')
+    expect(screen.getByTestId('market-count')).toHaveTextContent('0')
+  })
+
+  it('refreshes the current card scope while discovery remains unready', async () => {
+    mocks.watchSwapMarkets.mockImplementation(() => () => {})
+    mocks.discoverMarkets.mockResolvedValue([])
+    renderProvider()
+    expect(screen.getByTestId('discovery-ready')).toHaveTextContent('false')
+    act(() => saveSolverCards([]))
+    expect(screen.getByTestId('discovery-ready')).toHaveTextContent('false')
+    fireEvent.click(screen.getByText('refresh discovery'))
+    await waitFor(() => expect(screen.getByTestId('discovery-ready')).toHaveTextContent('true'))
+  })
+
+  it('does not turn a failed refresh into a settled empty discovery', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    mocks.watchSwapMarkets.mockImplementation((_network: string, publish: (markets: DiscoveredMarket[]) => void) => {
+      publish([])
+      return () => {}
+    })
+    mocks.discoverMarkets.mockRejectedValue(new Error('registry unavailable'))
+    try {
+      renderProvider()
+      expect(screen.getByTestId('discovery-ready')).toHaveTextContent('true')
+      fireEvent.click(screen.getByText('refresh discovery'))
+      expect(screen.getByTestId('discovery-ready')).toHaveTextContent('false')
+      await waitFor(() => expect(error).toHaveBeenCalledWith('solver discovery failed: registry unavailable'))
+      expect(screen.getByTestId('discovery-ready')).toHaveTextContent('false')
+    } finally {
+      error.mockRestore()
+    }
+  })
+
+  it.each([
+    { name: 'native BTC', wallet: { availableBalance: 1000, availableAssetBalances: [] } },
+    {
+      name: 'Arkade token',
+      wallet: { availableBalance: 0, availableAssetBalances: [{ assetId: ASSET_ID, amount: 1000n }] },
+    },
+  ])('allows public discovery without known markets from $name', async ({ wallet }) => {
+    renderProvider(wallet)
+    await waitFor(() => expect(mocks.created).toHaveBeenCalled())
+    expect(screen.getByTestId('market-count')).toHaveTextContent('0')
+    expect(screen.getByTestId('available')).toHaveTextContent('true')
+  })
+
+  it('keeps the selected auction offer and its original verified quote through acceptance', async () => {
+    const auction: OpenRfqAuction = {
+      id: 'auction-1',
+      input: {
+        give: 'arkade:regtest/slip44:1',
+        take: `arkade:regtest/asset:${ASSET_ID}`,
+        amount: 1000n,
+        amountOn: 'give',
+      },
+      pair: `arkade:regtest/slip44:1~arkade:regtest/asset:${ASSET_ID}`,
+      closedAt: 123,
+      bids: ['first', 'second'].map(
+        (id, index) =>
+          ({
+            id,
+            solverPubkey: 'ab'.repeat(32),
+            solverName: id,
+            market: btcUsdt,
+            signedCard: {},
+            fromAmount: 1000n,
+            toAmount: BigInt(990 - index * 10),
+            expiresAt: 9999999999,
+          }) as OpenRfqOffer,
+      ),
+    }
+    const quote = { id: 'selected-quote', expiresAt: 9999999999, take: { amount: 980n } } as Quote
+    mocks.openRfq.mockResolvedValue(auction)
+    mocks.quoteBid.mockResolvedValue(quote)
+    renderProvider({}, <OpenQuoteProbe />)
+    await waitFor(() => expect(mocks.created).toHaveBeenCalled())
+    fireEvent.click(screen.getByText('open offers'))
+    await waitFor(() => expect(screen.getByText('choose second')).toBeEnabled())
+    expect(mocks.openRfq).toHaveBeenCalledWith(
+      {
+        give: 'arkade:regtest/slip44:1',
+        take: `arkade:regtest/asset:${ASSET_ID}`,
+        amount: 1000n,
+        amountOn: 'give',
+      },
+      expect.objectContaining({ secretKey: expect.any(Uint8Array), signal: expect.any(AbortSignal) }),
+    )
+    const relays = mocks.openRfq.mock.calls[0][1].relays as string[]
+    expect(relays.length).toBeGreaterThan(0)
+    expect(relays.every((value) => /^wss?:/.test(value))).toBe(true)
+    fireEvent.click(screen.getByText('choose second'))
+    await waitFor(() => expect(screen.getByText('accept chosen')).toBeEnabled())
+    expect(mocks.quoteBid).toHaveBeenCalledWith(auction, auction.bids[1])
+    fireEvent.click(screen.getByText('accept chosen'))
+    await waitFor(() => expect(mocks.accept).toHaveBeenCalledWith(quote, { validUntil: quote.expiresAt }))
+    expect(mocks.accept.mock.calls[0][0]).toBe(quote)
+    expect(mocks.quote).not.toHaveBeenCalled()
+  })
+
+  it('aborts an outstanding public request without funding', async () => {
+    mocks.openRfq.mockImplementation(
+      (_input, options) =>
+        new Promise((_resolve, reject) => {
+          options.signal.addEventListener('abort', () => reject(new Error('Request cancelled')))
+        }),
+    )
+    renderProvider({}, <OpenQuoteProbe />)
+    await waitFor(() => expect(mocks.created).toHaveBeenCalled())
+    fireEvent.click(screen.getByText('open offers'))
+    await waitFor(() => expect(mocks.openRfq).toHaveBeenCalled())
+    fireEvent.click(screen.getByText('stop offers'))
+    await screen.findByText('Request cancelled')
+    expect(mocks.openRfq.mock.calls[0][1].signal.aborted).toBe(true)
+    expect(mocks.accept).not.toHaveBeenCalled()
+  })
+
   it('accepts a Lightning amount supported by an alternate solver', async () => {
     mocks.watchSwapMarkets.mockImplementation((_network: string, onMarkets: (markets: unknown[]) => void) => {
       onMarkets([
@@ -385,13 +625,14 @@ describe('SwapsProvider', () => {
     expect(stop).toHaveBeenCalledOnce()
   })
 
-  it('re-reads markets past the cache when a pinned card changes', async () => {
+  it('restarts the cache-bypassing watch when a pinned card changes', async () => {
     renderProvider()
     expect(mocks.discoverMarkets).not.toHaveBeenCalled()
 
     act(() => saveSolverCards([]))
 
-    await waitFor(() => expect(mocks.discoverMarkets).toHaveBeenCalledWith('regtest', false))
+    await waitFor(() => expect(mocks.watchSwapMarkets).toHaveBeenCalledTimes(2))
+    expect(mocks.discoverMarkets).not.toHaveBeenCalled()
   })
 
   it('rebuilds the swap client when a pinned card changes, so it routes with the card', async () => {

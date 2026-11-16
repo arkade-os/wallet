@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { stableStringify, type DiscoveredMarket, type OfferPlan } from '@arkade-os/solver-discovery'
 import { ASSET_CARRIER_SATS, makeCachedFeedFetch } from '@arkade-os/swap/protocol'
 import { getSolverRoutingVersion, subscribeSolverRouting } from '@/lib/solverRouting'
-import { previewSolverQuote, SolverDirectionUnavailable } from '@/lib/solverQuote'
+import { previewSolverQuote, SolverAmountUnavailable, SolverDirectionUnavailable } from '@/lib/solverQuote'
 
 type QuoteState = {
   key: string
@@ -32,11 +32,12 @@ export const useSolverQuote = (
         if (active) setState({ key, plan, status: 'success', solvable: true })
       },
       (error) => {
+        const amountPlan = error instanceof SolverAmountUnavailable ? error.plan : null
         if (active)
           setState({
             key,
-            plan: null,
-            status: 'error',
+            plan: amountPlan,
+            status: amountPlan ? 'success' : 'error',
             solvable: error instanceof SolverDirectionUnavailable ? false : undefined,
           })
       },

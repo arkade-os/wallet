@@ -14,7 +14,15 @@ import { solverUsage } from './swapRecords'
 import { solverHealth } from './solverHealth'
 
 export class SolverDirectionUnavailable extends Error {
-  readonly name = 'SolverDirectionUnavailable'
+  readonly name: string = 'SolverDirectionUnavailable'
+}
+
+export class SolverAmountUnavailable extends SolverDirectionUnavailable {
+  readonly name = 'SolverAmountUnavailable'
+
+  constructor(readonly plan: OfferPlan) {
+    super('Amount outside solver bounds')
+  }
 }
 
 export const previewSolverQuote = async (
@@ -40,6 +48,9 @@ export const previewSolverQuote = async (
   }
   const enabled = orderSolverMarkets(candidates, { network, preferences: prefs })
   if (!enabled.length) throw new SolverDirectionUnavailable('No enabled solver for this direction')
+  const hasNegotiatedSolver = enabled.some(
+    ({ card }) => typeof card.discovery_pubkey === 'string' && (card.transports?.nostr?.relays?.length ?? 0) > 0,
+  )
   const usage = prefs.mode === 'usage' ? await solverUsage(network, direction).catch(() => undefined) : undefined
   const decimals = (enabled[0].give === 'base' ? enabled[0].card.base_asset : enabled[0].card.quote_asset).decimals
   const ordered = await rankSolverMarkets(enabled, {
@@ -51,6 +62,7 @@ export const previewSolverQuote = async (
     signal,
   })
   let invalidPlan: OfferPlan | undefined
+  let quoteFailed = false
   let lastError: unknown = new Error('Quote unavailable')
   for (const { card, give } of ordered) {
     if (signal?.aborted) throw signal.reason
@@ -73,6 +85,7 @@ export const previewSolverQuote = async (
       lastError = new Error('Amount outside solver bounds')
     } catch (error) {
       if (signal?.aborted) throw error
+      quoteFailed = true
       const aborted = error && typeof error === 'object' && 'name' in error && error.name === 'AbortError'
       if (feedRequested && !aborted)
         await solverHealth.record({ network, direction }, solverId(card, network), 'failure')
@@ -80,6 +93,9 @@ export const previewSolverQuote = async (
     }
   }
   // Preserve an amount violation so the composer can explain why Continue is disabled.
-  if (invalidPlan) return invalidPlan
+  if (invalidPlan) {
+    if (!quoteFailed && !hasNegotiatedSolver) throw new SolverAmountUnavailable(invalidPlan)
+    return invalidPlan
+  }
   throw lastError
 }
