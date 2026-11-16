@@ -74,7 +74,8 @@ export const haveSameServerPubKey = (addr1: string, addr2: string): boolean => {
     const decoded1 = decodeArkAddress(addr1)
     const decoded2 = decodeArkAddress(addr2)
     return decoded1.serverPubKey === decoded2.serverPubKey
-  } catch {
+  } catch (err) {
+    console.error('Error comparing server pub keys:', err)
     return false
   }
 }
