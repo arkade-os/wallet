@@ -153,6 +153,30 @@ describe('asset metadata storage', () => {
 
     expect(readAssetMetadataFailuresFromStorage()).toEqual(new Map([['failed-now', expect.any(Number)]]))
   })
+
+  it('saves only the 100 failures that expire latest', () => {
+    const now = Date.now()
+    const entries: [string, number][] = Array.from({ length: 105 }, (_, index) => [
+      `asset-${index}`,
+      now + 60_000 + index * 1_000,
+    ])
+
+    saveAssetMetadataFailuresToStorage(new Map([...entries].reverse()))
+
+    const stored = JSON.parse(localStorage.getItem('assetMetadataFailures')!)
+    expect(Object.entries(stored)).toEqual(entries.slice(5))
+  })
+
+  it('reads only the 100 failures that expire latest', () => {
+    const now = Date.now()
+    const entries: [string, number][] = Array.from({ length: 105 }, (_, index) => [
+      `asset-${index}`,
+      now + 60_000 + index * 1_000,
+    ])
+    localStorage.setItem('assetMetadataFailures', JSON.stringify(Object.fromEntries([...entries].reverse())))
+
+    expect([...readAssetMetadataFailuresFromStorage()]).toEqual(entries.slice(5))
+  })
 })
 
 describe('transaction activity metadata storage', () => {

@@ -152,6 +152,7 @@ export const readAssetMetadataFailuresFromStorage = (): Map<string, number> => {
       .filter(([assetId]) => typeof assetId === 'string' && assetId.length > 0)
       .filter(([, expiresAt]) => Number.isFinite(expiresAt) && expiresAt > now)
       .sort(([, first], [, second]) => first - second)
+      // Keep the latest-expiring failures so the oldest can be retried sooner.
       .slice(-ASSET_METADATA_FAILURE_LIMIT),
   )
 }
@@ -160,6 +161,7 @@ export const saveAssetMetadataFailuresToStorage = (failures: ReadonlyMap<string,
   const entries = [...failures]
     .filter(([, expiresAt]) => Number.isFinite(expiresAt) && expiresAt > Date.now())
     .sort(([, first], [, second]) => first - second)
+    // Keep the latest-expiring failures so the oldest can be retried sooner.
     .slice(-ASSET_METADATA_FAILURE_LIMIT)
   setStorageItemSafely(
     ASSET_METADATA_FAILURES_KEY,

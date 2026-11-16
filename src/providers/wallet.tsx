@@ -1099,6 +1099,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setInitialized(false)
     setDataReady(false)
     hasLoadedOnce.current = false
+    assetMetadataFailures.current = new Map()
+    assetMetadataFetches.current = new Set()
+    assetMetadataPrefetchRunning.current = false
   }
 
   const resetWallet = async () => {
@@ -1129,6 +1132,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     await svcWallet.contractRepository.clear()
     setDataReady(false)
     hasLoadedOnce.current = false
+    assetMetadataFailures.current = new Map()
+    assetMetadataFetches.current = new Set()
+    assetMetadataPrefetchRunning.current = false
   }
 
   const settlePreconfirmed = async () => {
