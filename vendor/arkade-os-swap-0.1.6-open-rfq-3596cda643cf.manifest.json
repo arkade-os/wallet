@@ -4,8 +4,8 @@
   "files": [
     {
       "path": "CHANGELOG.md",
-      "sha256": "2bb56868ce5c0f068fc986885fbbeb071d072072486549788d756e2867cfc9b1",
-      "gitSha256": "1ddd3e2a3e9d3a2dbd3853b849f5ffbcaeeb37d245627e349de8058373437a75"
+      "sha256": "d5e01fe0c2fa0441e7effbd086524a828a22d5dab84a621e6961eeb91a4af099",
+      "gitSha256": "a3dacac88fa3919637d728404013b93823474a26d32b1c86bf5863f501b5ca1c"
     },
     {
       "path": "package.json",
@@ -19,8 +19,8 @@
     },
     {
       "path": "packages/swap/README.md",
-      "sha256": "d9b6efbee8ee052e81e11366f71670a34d7dd1ddd36530d757b504187e53921d",
-      "gitSha256": "67275b292a7c957991cab59ddf13f466252811ffb784d7c97b2ea38ab4935612"
+      "sha256": "bbcb4d4534bec0c58458fc4ff35a10809dd6ad177b941361fe39cb50c0750f5b",
+      "gitSha256": "8ca0fe927e3cdbb5531f1f8dae672b3f1100865c658d582fb36f95c999646e44"
     },
     {
       "path": "packages/swap/src/activity.ts",
@@ -94,8 +94,8 @@
     },
     {
       "path": "packages/swap/src/client/client.ts",
-      "sha256": "5593281aa83f9e639679072cd60223bf5ab16f017a908725eefd4334826f74d9",
-      "gitSha256": "5593281aa83f9e639679072cd60223bf5ab16f017a908725eefd4334826f74d9"
+      "sha256": "3c021e1da9d571080c098ca713f47abd35b234a63c0306270ed66177ffb140fd",
+      "gitSha256": "3c021e1da9d571080c098ca713f47abd35b234a63c0306270ed66177ffb140fd"
     },
     {
       "path": "packages/swap/src/client/corridor.ts",
@@ -384,8 +384,8 @@
     },
     {
       "path": "packages/swap/src/openRfqTransport.ts",
-      "sha256": "de0fb30b7e2610c49eab10e3202d3e637def66aadd8b78e9a9232e22b47db2bd",
-      "gitSha256": "de0fb30b7e2610c49eab10e3202d3e637def66aadd8b78e9a9232e22b47db2bd"
+      "sha256": "523cfa38bf7f6adf6a4ef196087bb99b44c1c94424b944f01c4e6284a6e2e269",
+      "gitSha256": "523cfa38bf7f6adf6a4ef196087bb99b44c1c94424b944f01c4e6284a6e2e269"
     },
     {
       "path": "packages/swap/src/payment/crossAsset.ts",
@@ -563,21 +563,21 @@
       "gitSha256": "571f08835bae031be86b5acde6cd9ee22b3f047524ebf7ab464491be518a48bf"
     }
   ],
-  "sourceCommit": "0d364a618e10a85a9a5f4cdeb47bc23b839c5d17",
-  "capturedAt": "2026-11-16T14:04:38.602180+00:00",
-  "sourceFingerprint": "8b8a82433049e0d7f57cf43242a35f9303b8f7aaa174148a457ae6c5b7073f88",
-  "artifact": "arkade-os-swap-0.1.6-open-rfq-8b8a82433049.tgz",
-  "artifactSha256": "9a5cd0c9022f92d33daf900c6518e36f97585c4c11cb7aa4dbaeaff37c5d7b63",
-  "npmIntegrity": "sha512-KTP/hpCUPm6k78h4ywAyQqLalGd5KXFZGYkMGWj6eHrtW1pYPGRVM6JH24WIndPOtprVjrHOyDZF3tkr1kdBOg==",
+  "sourceCommit": "a625f59d1d11eef53503f612d7f1a2850a129c34",
+  "capturedAt": "2026-11-16T15:07:09.801370+00:00",
+  "sourceFingerprint": "3596cda643cfdaf283a14c4c66208ba2eb78e1c94c17bf54610b195d57e0ad4f",
+  "artifact": "arkade-os-swap-0.1.6-open-rfq-3596cda643cf.tgz",
+  "artifactSha256": "a314898dc1c0d895674cb2d491aede46ac1d300e4ac6ef90e89671d7b28f041e",
+  "npmIntegrity": "sha512-ZGs6p6spFdQ8OxGJa4V/rEDsmFlqXc1utrxBJa9b4tUcB4qKPWCvUNI7V1IRTaNrqlseEj+hbhypO2sOvpzxHQ==",
   "distFileCount": 50,
   "distFiles": [
     {
       "path": "dist/advanced.cjs",
-      "sha256": "6f75dffa29205dcb4d0fce14e99cf507d02c2af6d7c614e73555a22c48e8471d"
+      "sha256": "a2cb20448a68065a4b4ed87b6e1a21afe0aff935215a1f1fa40203e878125c15"
     },
     {
       "path": "dist/index.cjs",
-      "sha256": "5ead622604b3d060fe8d141c8534345e4cc41784cf6e7ba62a5a447b543332e7"
+      "sha256": "264e6c6660508b0717f00e60d7f613eed9cf6a244af477d1ce7eaf1d7cc0ad84"
     },
     {
       "path": "dist/node/index.cjs",
@@ -593,11 +593,11 @@
     },
     {
       "path": "dist/nostr.cjs",
-      "sha256": "1b8f12a9f1220f6fa7d695b56cd960eae277abd96c2250392cecbaa075a69f06"
+      "sha256": "a3792d075c06e408a49ebad7aece5758e164eb042689ebfa1366084edeec3992"
     },
     {
       "path": "dist/protocol.cjs",
-      "sha256": "43b421bf57bb087b211cd6e78637978cb766a050d40fc7a880398e0bc0319b38"
+      "sha256": "5259a3d4eef7703b5fc5f0f19ff4d6f844a9eeb08f14c6a1bb2716bfc848b5bc"
     },
     {
       "path": "dist/advanced.d.cts",
@@ -661,31 +661,31 @@
     },
     {
       "path": "dist/advanced.js",
-      "sha256": "9ade8b5fdb47d4426ffac3105192f9cd8436afffade222e637f3be2551c2808a"
+      "sha256": "d0a6c8ccaf841467cd747bb212ffa6cd8a2e7d8970f52ca48e083e08cc61a8be"
+    },
+    {
+      "path": "dist/chunk-37MNSUHF.js",
+      "sha256": "cd26465059aa27b9d5103e15831c06df7b65bca9bf46f62a54b956e69afc4977"
     },
     {
       "path": "dist/chunk-A3SHHRX4.js",
       "sha256": "635307dffde14e9e5842d0f1bb2832138b67189fb28c66c5ac93680599c489df"
     },
     {
-      "path": "dist/chunk-TSCUUKB2.js",
-      "sha256": "8a8920361dfb9a1302965b8f8ef612885a33659791928cc39f61a69b73522ded"
+      "path": "dist/chunk-BU6LC7BH.js",
+      "sha256": "3bd42a39ecfb9bc4d50007c938fe1968d6dc6de87710e11a10eaf5632e5f065c"
     },
     {
-      "path": "dist/chunk-WUUDPCCE.js",
-      "sha256": "3bd42a39ecfb9bc4d50007c938fe1968d6dc6de87710e11a10eaf5632e5f065c"
+      "path": "dist/chunk-WL2RV2X3.js",
+      "sha256": "8f50f72e77d663a13e2dab04f62e4c1779106e8133983160fefe5b14bc67fccc"
     },
     {
       "path": "dist/chunk-ZCKE4WV6.js",
       "sha256": "97ce1c4b844dab061cf391a5aeed4d11312dbdcd8b5fb5edfaf8b2db197466c2"
     },
     {
-      "path": "dist/chunk-ZU2R5NYR.js",
-      "sha256": "c0087cc4acd9df60c2d6f0f5257fb896ff98351d7b74b2b5aabeaeb4c0d670a6"
-    },
-    {
       "path": "dist/index.js",
-      "sha256": "4ba18144d3f6476c58bae7330d1b54df1e2da4dab199ef3784cca01f39f4ad50"
+      "sha256": "b42cf617fd2d4d059472af7b2ad52f4934e6dd04bf0f5a393aab3599ae21de68"
     },
     {
       "path": "dist/node/index.js",
@@ -701,15 +701,15 @@
     },
     {
       "path": "dist/nostr.js",
-      "sha256": "aa95f66212c016400bb510d1777e91bf28eabce4972a8f388a0e95c24b5e27a0"
+      "sha256": "0bdb7d49ff0b9431f2551567ed5d233634d476672ce06ea896f8ea4bfb3d2a5b"
     },
     {
-      "path": "dist/openRfqTransport-26OVHJXO.js",
-      "sha256": "9feec40e6c1906889b3464f0f6ff32e4c00f3600ed9e54c11ad8d75c6c2d5471"
+      "path": "dist/openRfqTransport-VRB2B2IZ.js",
+      "sha256": "79bdef27bf316c4d139a006f19fee1cf2c8781a6771d50244c9bc5b8e63f1bc7"
     },
     {
       "path": "dist/protocol.js",
-      "sha256": "f7055740f219e6e4659f5b74f5b49763373affec8e8e8c31b348e53d14184df1"
+      "sha256": "caaa8742edc01dd97fdfb51ca0bb1f71457ed5f0483239262855ea7f80c05091"
     },
     {
       "path": "dist/advanced.d.ts",
