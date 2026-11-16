@@ -12,6 +12,7 @@ import { consoleError } from '../../lib/logs'
 import Wallet from '../../icons/Wallet'
 import CenterScreen from '../../components/CenterScreen'
 import FlexCol from '../../components/FlexCol'
+import WarningBox from '../../components/Warning'
 import { useTranslation } from '../../providers/language'
 
 export default function Reset() {
@@ -50,6 +51,7 @@ export default function Reset() {
             <Wallet />
             <Text>{t('settings.didYouBackup')}</Text>
             <TextSecondary>{t('settings.cannotUndo')}</TextSecondary>
+            <WarningBox text={t('settings.paymentResetWarning')} />
           </CenterScreen>
         </Padded>
       </Content>

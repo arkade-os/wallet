@@ -30,23 +30,24 @@ Recovery records are stored in this browser, not in the Nostr backup; use the sa
 
 ## Environment Variables
 
-| Variable                      | Description                                                         | Example Value                                                                        |
-| ----------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `VITE_ARK_SERVER`             | Override the default Arkade server URL                              | `VITE_ARK_SERVER=http://localhost:7070`                                              |
-| `VITE_APP_VERSION`            | App version string shown in support diagnostics                     | `VITE_APP_VERSION=1.2.3`                                                             |
-| `VITE_CHATWOOT_WEBSITE_TOKEN` | ChatWoot website token for customer support integration             | `VITE_CHATWOOT_WEBSITE_TOKEN=your-token`                                             |
-| `VITE_CHATWOOT_BASE_URL`      | ChatWoot server base URL for customer support integration           | `VITE_CHATWOOT_BASE_URL=https://app.chatwoot.com`                                    |
-| `VITE_DELEGATOR_URL`          | Delegator service URL for the wallet service worker                 | `VITE_DELEGATOR_URL=https://delegator.example.com`                                   |
-| `VITE_MAX_PERCENTAGE`         | Override the max fee percentage (default 10)                        | `VITE_MAX_PERCENTAGE=5`                                                              |
-| `VITE_NOSTR_RELAY_URL`        | Override the default Nostr relay URLs for backup                    | `VITE_NOSTR_RELAY_URL=wss://relay.example.com`                                       |
-| `VITE_SENTRY_DSN`             | Enable Sentry error tracking (only in production, not on localhost) | `VITE_SENTRY_DSN=your-sentry-dsn`                                                    |
-| `VITE_UTXO_MAX_AMOUNT`        | Override the server's utxoMaxAmount                                 | `VITE_UTXO_MAX_AMOUNT=-1`                                                            |
-| `VITE_UTXO_MIN_AMOUNT`        | Override the server's utxoMinAmount                                 | `VITE_UTXO_MIN_AMOUNT=330`                                                           |
-| `VITE_VERIFIED_ASSETS_URL`    | URL to fetch the verified assets list                               | `VITE_VERIFIED_ASSETS_URL=https://arklabshq.github.io/asset-registry/mutinynet.json` |
-| `VITE_VTXO_MAX_AMOUNT`        | Override the server's vtxoMaxAmount                                 | `VITE_VTXO_MAX_AMOUNT=-1`                                                            |
-| `VITE_VTXO_MIN_AMOUNT`        | Override the server's vtxoMinAmount                                 | `VITE_VTXO_MIN_AMOUNT=330`                                                           |
-| `CI`                          | Set to `true` for Continuous Integration environments               | `CI=true`                                                                            |
-| `GENERATE_SOURCEMAP`          | Disable source map generation during build                          | `GENERATE_SOURCEMAP=false`                                                           |
+| Variable                      | Description                                                          | Example Value                                                                        |
+| ----------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `VITE_ARK_SERVER`             | Override the default Arkade server URL                               | `VITE_ARK_SERVER=http://localhost:7070`                                              |
+| `VITE_ELECTRUM_URL`           | Regtest-only Electrum WebSocket endpoint for an isolated local stack | `VITE_ELECTRUM_URL=ws://127.0.0.1:50003`                                             |
+| `VITE_APP_VERSION`            | App version string shown in support diagnostics                      | `VITE_APP_VERSION=1.2.3`                                                             |
+| `VITE_CHATWOOT_WEBSITE_TOKEN` | ChatWoot website token for customer support integration              | `VITE_CHATWOOT_WEBSITE_TOKEN=your-token`                                             |
+| `VITE_CHATWOOT_BASE_URL`      | ChatWoot server base URL for customer support integration            | `VITE_CHATWOOT_BASE_URL=https://app.chatwoot.com`                                    |
+| `VITE_DELEGATOR_URL`          | Delegator service URL for the wallet service worker                  | `VITE_DELEGATOR_URL=https://delegator.example.com`                                   |
+| `VITE_MAX_PERCENTAGE`         | Override the max fee percentage (default 10)                         | `VITE_MAX_PERCENTAGE=5`                                                              |
+| `VITE_NOSTR_RELAY_URL`        | Override the default Nostr relay URLs for backup                     | `VITE_NOSTR_RELAY_URL=wss://relay.example.com`                                       |
+| `VITE_SENTRY_DSN`             | Enable Sentry error tracking (only in production, not on localhost)  | `VITE_SENTRY_DSN=your-sentry-dsn`                                                    |
+| `VITE_UTXO_MAX_AMOUNT`        | Override the server's utxoMaxAmount                                  | `VITE_UTXO_MAX_AMOUNT=-1`                                                            |
+| `VITE_UTXO_MIN_AMOUNT`        | Override the server's utxoMinAmount                                  | `VITE_UTXO_MIN_AMOUNT=330`                                                           |
+| `VITE_VERIFIED_ASSETS_URL`    | URL to fetch the verified assets list                                | `VITE_VERIFIED_ASSETS_URL=https://arklabshq.github.io/asset-registry/mutinynet.json` |
+| `VITE_VTXO_MAX_AMOUNT`        | Override the server's vtxoMaxAmount                                  | `VITE_VTXO_MAX_AMOUNT=-1`                                                            |
+| `VITE_VTXO_MIN_AMOUNT`        | Override the server's vtxoMinAmount                                  | `VITE_VTXO_MIN_AMOUNT=330`                                                           |
+| `CI`                          | Set to `true` for Continuous Integration environments                | `CI=true`                                                                            |
+| `GENERATE_SOURCEMAP`          | Disable source map generation during build                           | `GENERATE_SOURCEMAP=false`                                                           |
 
 ## Docker
 
@@ -113,6 +114,18 @@ Install dependencies
 pnpm install
 ```
 
+### Taxi packages
+
+`vendor/carrier/manifest.json` records the source revisions and digests of the
+unpublished SDK reservation candidate, compiled swap candidate and three Taxi
+libraries. Workspace overrides and the lockfile bind every consumer
+to the same SDK and signer. Run `pnpm verify:artifacts` before installation and
+`pnpm verify:artifacts --installed` afterward; verification authenticates installed
+package bytes before importing their code.
+
+`node scripts/carrier-artifacts/pack.mjs --bundle <bundle-directory>` validates
+and copies the manifest-listed archives without rebuilding them.
+
 ## Development
 
 ### `pnpm run start`
@@ -138,6 +151,11 @@ Requires Docker and Node.js v20.19+ or v22.12+. The stack is driven by the in-ho
 `arkade-regtest` Node CLI (`regtest/regtest.mjs`) — no Nigiri required.
 
 Use `pnpm run regtest:stop` to stop it and `pnpm run regtest:clean` to tear it down.
+
+`.env.regtest` selects the wallet's required services explicitly; optional executor
+and LNURL server profiles stay off. Wallet tests run with Vitest, while
+`pnpm test:regtest` runs the submodule's CLI checks with Node's native test runner.
+CI runs both.
 
 ### Funding your local wallet
 
@@ -176,14 +194,32 @@ Access the playwright code generator tool with:
 pnpm run test:codegen
 ```
 
-On CI the suite runs as four parallel jobs: two browser projects (`Mobile Chrome`,
+On CI the standard suite runs as four parallel jobs: two browser projects (`Mobile Chrome`,
 `Google Chrome`) times two file groups defined in `.github/workflows/playwright.yml`:
 
-- `assets-send`: `asset.test.ts`, `send.test.ts`
+- `assets-send`: `asset.test.ts`, `send.test.ts`, `send-onchain-fallback.test.ts`
 - `core`: every other file in `src/test/e2e/`
 
 The groups list files explicitly, so **a new test file must be added to one of them**,
 otherwise it will never run on CI.
+
+Two separate native Taxi jobs run all five payment cases in each browser project.
+They verify each consumer's manifest-listed packages, then start an
+isolated Arkade/emulator/Taxi stack, fund the current solver, mint ARFQ and publish
+its actual signed discovery card through a local WSS relay. The exact-out case
+checks the single fill, receiver recycle and all four parties' final balances.
+
+`node --experimental-eventsource scripts/taxi-native-ci.mjs "Google Chrome"`
+runs that lane from a prepared checkout with its exact solver, Taxi and regtest
+sources and the four provider images set as in the workflow. It owns its Docker
+namespace, private fixture files and daemon, and restores the generated registry
+files during cleanup. `Mobile Chrome` selects the other project. A missing native
+fixture fails the test rather than skipping it.
+
+Append `--manual` locally to keep the app, solver and isolated stack running after
+the browser tests. The harness prints the wallet URL and a loopback stop URL;
+posting to the stop URL releases only that run's resources. Manual mode is refused
+in CI.
 
 ## App links
 

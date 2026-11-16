@@ -3,7 +3,7 @@ name: CI
 on:
   workflow_dispatch:
   push:
-    branches: [ master, next ]
+    branches: [master, next]
   # No branches filter. pull_request.branches matches the BASE, so any list here
   # silently runs zero tests on every PR stacked onto an integration branch.
   pull_request:
@@ -17,46 +17,61 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          persist-credentials: false
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v7
-      with:
-        node-version-file: '.nvmrc'
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
 
-    - name: Install pnpm
-      uses: pnpm/action-setup@v6
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
 
-    - name: Get pnpm store directory
-      shell: bash
-      run: |
-        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
-    - name: Setup pnpm cache
-      uses: actions/cache@v6
-      with:
-        path: ${{ env.STORE_PATH }}
-        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-        restore-keys: |
-          ${{ runner.os }}-pnpm-store-
+      - name: Setup pnpm cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
 
-    - name: Install dependencies
-      run: pnpm install
-    
-    - name: Run formatter
-      run: pnpm format:check
+      - name: Verify carrier artifacts
+        run: node scripts/carrier-artifacts/verify.mjs
 
-    - name: Run linter
-      run: pnpm lint
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-    # src/_gitCommit.ts is gitignored and generated; the unit tests import it
-    # transitively, so it must exist before vitest runs (pnpm build does this
-    # itself, but the tests run first).
-    - name: Generate git commit info
-      run: pnpm git-info
+      - name: Verify the installed carrier packages
+        run: node scripts/carrier-artifacts/verify.mjs --installed
 
-    - name: Run unit tests
-      run: pnpm test:unit
+      - name: Run formatter
+        run: pnpm format:check
 
-    - name: Run build
-      run: pnpm build 
+      - name: Run linter
+        run: pnpm lint
+
+      # src/_gitCommit.ts is gitignored and generated; the unit tests import it
+      # transitively, so it must exist before vitest runs (pnpm build does this
+      # itself, but the tests run first).
+      - name: Generate git commit info
+        run: pnpm git-info
+
+      - name: Run unit tests
+        run: pnpm test:unit
+
+      - name: Run regtest CLI tests
+        run: pnpm test:regtest
+
+      - name: Run typecheck
+        run: pnpm typecheck
+
+      - name: Run build
+        run: pnpm build

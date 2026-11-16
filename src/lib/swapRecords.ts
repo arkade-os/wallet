@@ -116,6 +116,7 @@ const offerViewOf = (record: OfferSwapRecord): WalletAssetSwap => ({
   // Quote-time display facts the client does not own; absent for a restored or
   // pre-migration swap, and every consumer falls back per field.
   quote: quoteSnapshotOf(record.id),
+  assetPayment: record.assetPayment,
 })
 
 /** A v2 corridor record as the send-row builder reads it. Sends only: a receive
