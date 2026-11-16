@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+import * as logs from '../../lib/logs'
 import {
   prettyAmount,
   prettyAgo,
@@ -204,12 +205,44 @@ describe('format utilities', () => {
       const tsSec = Math.floor(date.getTime() / 1000)
       expect(prettyDate(tsSec)).toBe(prettyDate(tsSec, Language.English))
     })
+
+    it('handles invalid timestamps without throwing and preserves valid boundaries', () => {
+      const log = vi.spyOn(logs, 'consoleError').mockImplementation(() => {})
+      try {
+        expect(prettyDate(0)).toBe('')
+        expect(prettyDate(499_999_999)).toBe('')
+        expect(prettyDate(500_000_000)).not.toBe('')
+        expect(prettyDate(8_640_000_000_000)).not.toBe('')
+        for (const timestamp of [8_640_000_000_001, Infinity, -Infinity, NaN]) {
+          expect(prettyDate(timestamp)).toBe('')
+        }
+        expect(log).toHaveBeenCalledTimes(4)
+      } finally {
+        log.mockRestore()
+      }
+    })
   })
 
   describe('prettyChartDateTime', () => {
     it('formats a chart timestamp with its date and time', () => {
       const date = new Date(2026, 6, 13, 14, 34)
       expect(prettyChartDateTime(date.getTime() / 1000)).toBe('Jul 13, 2026, 2:34 PM')
+    })
+
+    it('handles invalid timestamps without rejecting valid pre-epoch dates', () => {
+      const log = vi.spyOn(logs, 'consoleError').mockImplementation(() => {})
+      try {
+        expect(prettyChartDateTime(0)).toBe('')
+        for (const timestamp of [-1, -8_640_000_000_000, 8_640_000_000_000]) {
+          expect(prettyChartDateTime(timestamp)).not.toBe('')
+        }
+        for (const timestamp of [-8_640_000_000_001, 8_640_000_000_001, Infinity, -Infinity, NaN]) {
+          expect(prettyChartDateTime(timestamp)).toBe('')
+        }
+        expect(log).toHaveBeenCalledTimes(5)
+      } finally {
+        log.mockRestore()
+      }
     })
   })
 

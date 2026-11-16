@@ -98,10 +98,8 @@ export const prettyAssetAmount = (cents: bigint, decimals: number, tidy = false)
     }
   }
 
-  // For very large numbers that exceed JavaScript's safe integer range, we fall back to bigint
-  // Due to truncation in bigint division, we won't get decimal places, but this is a rare edge case
-  // and still provides a readable format
-  const units = BigInt(Math.trunc(Number(strUnits)))
+  // Truncate with bigint arithmetic to avoid floating-point rounding and overflow.
+  const units = cents / BigInt(10) ** BigInt(realDecimals)
   const absoluteUnits = units < 0 ? -units : units
 
   if (absoluteUnits >= trillion) {

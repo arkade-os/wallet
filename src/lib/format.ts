@@ -4,6 +4,7 @@ import { fiatDecimalsFor, FIAT_SYMBOLS } from './fiat'
 import { Currencies, Language, Tx, Unit } from './types'
 import { Decimal } from 'decimal.js'
 import { getLocale } from './language'
+import { consoleError } from './logs'
 
 export { prettyDelta, localizedAgo, localizedDelta } from './deltas'
 
@@ -155,10 +156,20 @@ export const isUnixTimestamp = (value: number): boolean => {
   return value >= 500_000_000
 }
 
+const dateFromTimestamp = (timestamp: number): Date | undefined => {
+  const date = new Date(timestamp * 1000)
+  if (Number.isNaN(date.getTime())) {
+    consoleError(new RangeError('Timestamp is outside the supported date range'), 'Failed to format date')
+    return undefined
+  }
+  return date
+}
+
 export const prettyDate = (unixTs: number, lang: Language = Language.English): string => {
-  if (!unixTs) return ''
+  if (unixTs === 0) return ''
+  const date = dateFromTimestamp(unixTs)
+  if (!date) return ''
   if (!isUnixTimestamp(unixTs)) return '' // block height, not a valid timestamp
-  const date = new Date(unixTs * 1000)
   return new Intl.DateTimeFormat(getLocale(lang), {
     day: 'numeric',
     month: 'short',
@@ -177,8 +188,9 @@ const chartDateTimeFormatter = new Intl.DateTimeFormat('en', {
 })
 
 export const prettyChartDateTime = (timestamp: number): string => {
-  if (!timestamp) return ''
-  return chartDateTimeFormatter.format(new Date(timestamp * 1000))
+  if (timestamp === 0) return ''
+  const date = dateFromTimestamp(timestamp)
+  return date ? chartDateTimeFormatter.format(date) : ''
 }
 
 const hideDots = (): string => '·'.repeat(8)
