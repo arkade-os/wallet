@@ -1061,7 +1061,6 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       allMarkets: allMarketsRef.current,
       markets,
       discoveryReady,
-      discoveryScope,
       swapAvailable,
       swaps,
       runDiscovery,
@@ -1084,6 +1083,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     [
       markets,
       discoveryReady,
+      discoveryScope,
       swapAvailable,
       swaps,
       svcWallet,

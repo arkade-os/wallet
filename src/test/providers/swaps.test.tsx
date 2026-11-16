@@ -7,6 +7,7 @@ import { WalletContext } from '../../providers/wallet'
 import { SwapsContext, SwapsProvider } from '../../providers/swaps'
 import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
 import * as lnSwap from '../../lib/lnSwap'
+import * as constants from '../../lib/constants'
 import { saveSolverCards } from '../../lib/solverCards'
 import { saveSolverRouting } from '../../lib/solverRouting'
 import { solverDirectionKey, solverId, type DiscoveredMarket } from '@arkade-os/solver-discovery'
@@ -297,14 +298,25 @@ describe('SwapsProvider', () => {
   })
 
   it('refreshes the current card scope while discovery remains unready', async () => {
+    // Decoding a fresh key would accidentally refresh the stale context memo.
+    const emulatorPubkey = vi.spyOn(constants, 'getEmulatorPubkeyForNetwork').mockReturnValue(new Uint8Array(32))
     mocks.watchSwapMarkets.mockImplementation(() => () => {})
-    mocks.discoverMarkets.mockResolvedValue([])
-    renderProvider()
-    expect(screen.getByTestId('discovery-ready')).toHaveTextContent('false')
-    act(() => saveSolverCards([]))
-    expect(screen.getByTestId('discovery-ready')).toHaveTextContent('false')
-    fireEvent.click(screen.getByText('refresh discovery'))
-    await waitFor(() => expect(screen.getByTestId('discovery-ready')).toHaveTextContent('true'))
+    mocks.discoverMarkets.mockResolvedValue([btcUsdt])
+    try {
+      renderProvider()
+      await waitFor(() => expect(mocks.created).toHaveBeenCalledOnce())
+      expect(screen.getByTestId('discovery-ready')).toHaveTextContent('false')
+      expect(screen.getByTestId('market-count')).toHaveTextContent('0')
+      act(() => saveSolverCards([]))
+      await waitFor(() => expect(mocks.created).toHaveBeenCalledTimes(2))
+      expect(screen.getByTestId('discovery-ready')).toHaveTextContent('false')
+      expect(screen.getByTestId('market-count')).toHaveTextContent('0')
+      fireEvent.click(screen.getByText('refresh discovery'))
+      await waitFor(() => expect(screen.getByTestId('discovery-ready')).toHaveTextContent('true'))
+      expect(screen.getByTestId('market-count')).toHaveTextContent('1')
+    } finally {
+      emulatorPubkey.mockRestore()
+    }
   })
 
   it('does not turn a failed refresh into a settled empty discovery', async () => {

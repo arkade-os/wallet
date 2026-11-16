@@ -58,6 +58,7 @@ export default function QuoteChoices({
   const selection = useRef<string>()
   const epoch = useRef(0)
   const searched = useRef(false)
+  const openingInput = useRef<string>()
   const inputKey = `${network}:${from.assetId}:${from.decimals}:${to.assetId}:${to.decimals}:${amount}:${destination ?? ''}`
   const current = useRef({ inputKey, open })
   current.current = { inputKey, open }
@@ -75,8 +76,13 @@ export default function QuoteChoices({
       request.current = undefined
       selection.current = undefined
       searched.current = false
+      openingInput.current = undefined
     }
   }, [inputKey, open])
+
+  useEffect(() => {
+    openingInput.current = open ? current.current.inputKey : undefined
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -113,8 +119,8 @@ export default function QuoteChoices({
   }, [amount, destination, from.assetId, to.assetId, isCurrent, loading, selecting])
 
   useEffect(() => {
-    if (open && autoSearch && !searched.current) void findOffers()
-  }, [open, autoSearch, findOffers])
+    if (open && autoSearch && openingInput.current === inputKey && !searched.current) void findOffers()
+  }, [open, autoSearch, inputKey, findOffers])
 
   const choose = async (offer: OpenRfqOffer) => {
     if (!auction || loading || selection.current || offer.expiresAt <= Math.floor(Date.now() / 1000)) return

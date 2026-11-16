@@ -138,6 +138,52 @@ describe('Open swap quote choices', () => {
     expect(cancelOpenSwapQuotes).toHaveBeenCalledWith(expect.any(String))
   })
 
+  it('cancels an edited automatic search and requires manual search or refresh for the new input', async () => {
+    let resolveFirst!: (value: OpenRfqAuction) => void
+    openSwapQuotes.mockImplementationOnce(() => new Promise<OpenRfqAuction>((resolve) => (resolveFirst = resolve)))
+    const view = show({ autoSearch: true })
+    await waitFor(() => expect(openSwapQuotes).toHaveBeenCalledOnce())
+    const firstRequest = openSwapQuotes.mock.calls[0][3]
+    view.rerender(contents({ autoSearch: true, amount: 20_000n }))
+    await act(async () => resolveFirst(auction([offer('stale', 1_000n)])))
+    expect(cancelOpenSwapQuotes).toHaveBeenCalledWith(firstRequest)
+    expect(openSwapQuotes).toHaveBeenCalledOnce()
+    expect(screen.queryByText('Solver stale')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Find open offers' }))
+    await screen.findByText('Solver b')
+    expect(openSwapQuotes).toHaveBeenCalledTimes(2)
+    expect(openSwapQuotes.mock.calls[1][2]).toBe(20_000n)
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh offers' }))
+    await waitFor(() => expect(openSwapQuotes).toHaveBeenCalledTimes(3))
+    expect(openSwapQuotes.mock.calls[2][2]).toBe(20_000n)
+  })
+
+  it('waits for reopening after input edits even if discovery becomes ready or the input is restored', async () => {
+    const view = show({ autoSearch: false })
+    view.rerender(contents({ autoSearch: false, amount: 20_000n }))
+    view.rerender(contents({ autoSearch: true, amount: 20_000n }))
+    await act(async () => {})
+    expect(openSwapQuotes).not.toHaveBeenCalled()
+    view.rerender(contents({ autoSearch: true }))
+    await act(async () => {})
+    expect(openSwapQuotes).not.toHaveBeenCalled()
+
+    view.rerender(contents({ autoSearch: true, amount: 20_000n, open: false }))
+    view.rerender(contents({ autoSearch: true, amount: 20_000n }))
+    await screen.findByText('Solver b')
+    expect(openSwapQuotes).toHaveBeenCalledOnce()
+    expect(openSwapQuotes.mock.calls[0][2]).toBe(20_000n)
+  })
+
+  it('still starts automatically when discovery becomes ready for the input that opened the drawer', async () => {
+    const view = show({ autoSearch: false })
+    expect(openSwapQuotes).not.toHaveBeenCalled()
+    view.rerender(contents({ autoSearch: true }))
+    await screen.findByText('Solver b')
+    expect(openSwapQuotes).toHaveBeenCalledOnce()
+  })
+
   it('lets the user choose a lower-ranked offer and verifies it before review', async () => {
     show()
     fireEvent.click(screen.getByRole('button', { name: 'Find open offers' }))
