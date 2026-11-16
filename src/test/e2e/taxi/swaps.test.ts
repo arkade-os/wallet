@@ -29,7 +29,10 @@ async function swap(
   for (const digit of amount) await page.getByRole('button', { name: digit, exact: true }).click()
   const proceed = page.getByRole('button', { name: tr.common.continue, exact: true })
   await expect(proceed).toBeEnabled({ timeout: 60_000 })
-  await info.attach(`${label} composer`, { body: await page.screenshot(), contentType: 'image/png' })
+  await info.attach(`${label} composer`, {
+    body: await page.screenshot({ animations: 'disabled' }),
+    contentType: 'image/png',
+  })
   await proceed.click()
   const review = page.getByRole('dialog')
   await expect(review.getByText(tr.swap.reviewSwap, { exact: true })).toBeVisible()
@@ -46,7 +49,10 @@ async function swap(
   expect(minimumReceive).toBeGreaterThan(0n)
   expect(receiveMatch[2]).toBe(forward ? 'ARFQ' : 'sats')
   await expect(metric(tr.swap.fees)).toHaveText(forward ? '0 ARFQ' : '0 sats')
-  await info.attach(`${label} review`, { body: await page.screenshot(), contentType: 'image/png' })
+  await info.attach(`${label} review`, {
+    body: await review.screenshot({ animations: 'disabled' }),
+    contentType: 'image/png',
+  })
   await review.getByRole('button', { name: tr.swap.confirmSwap, exact: true }).click()
   const success = page.getByRole('button', { name: tr.swap.createdTapHome, exact: true })
   const error = page.locator('.swap-confirm-error')
@@ -94,7 +100,10 @@ async function swap(
     ),
     contentType: 'application/json',
   })
-  await info.attach(`${label} wallet`, { body: await page.screenshot(), contentType: 'image/png' })
+  await info.attach(`${label} wallet`, {
+    body: await page.screenshot({ animations: 'disabled' }),
+    contentType: 'image/png',
+  })
   return record
 }
 

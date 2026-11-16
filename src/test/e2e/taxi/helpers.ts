@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { ArkAddress, RestIndexerProvider, asset } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 import type { TaxiClient } from '@arkade-taxi/client'
@@ -107,6 +107,12 @@ export async function send(alice: Actor, request: string, amount: string, mode: 
   }
   await page.getByTestId('taxi-send-mode').click()
   await page.getByRole('radio', { name: mode, exact: true }).click()
+  await expect(page.getByTestId('taxi-send-mode')).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.getByTestId('taxi-send-mode')).toBeFocused()
+  await test.info().attach(`Collapsed Delivery: ${mode} (${amount})`, {
+    body: await page.screenshot({ animations: 'disabled' }),
+    contentType: 'image/png',
+  })
   await page.getByRole('button', { name: tr.common.continue, exact: true }).click()
 }
 

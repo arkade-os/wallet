@@ -70,6 +70,12 @@ export default function TaxiDeliveryOptions({
                   aria-labelledby={`${id}-${option.value}-label`}
                   aria-describedby={`${id}-${option.value}-description`}
                   className='mt-0.5'
+                  onClick={() => {
+                    if (value === option.value) {
+                      setOpen(false)
+                      trigger.current?.focus()
+                    }
+                  }}
                 />
                 <span className='flex min-w-0 flex-1 flex-col gap-1'>
                   <span className='flex items-center justify-between gap-3 text-sm font-medium'>
