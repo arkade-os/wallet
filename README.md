@@ -207,11 +207,14 @@ On CI the standard suite runs as four parallel jobs: two browser projects (`Mobi
 The groups list files explicitly, so **a new test file must be added to one of them**,
 otherwise it will never run on CI.
 
-Two separate native Taxi jobs run all five payment cases in each browser project.
+Two separate native Taxi jobs run all eight cases in each browser project.
 They verify each consumer's manifest-listed packages, then start an
 isolated Arkade/emulator/Taxi stack, fund the current solver, mint ARFQ and publish
 its actual signed discovery card through a local WSS relay. The exact-out case
 checks the single fill, receiver recycle and all four parties' final balances.
+Swap-screen cases trade in both directions and verify the compiled programs and
+exact balances. The interrupted-claim case checks that an unspent input stays
+reserved through a tab close and service worker restart.
 
 `node --experimental-eventsource scripts/taxi-native-ci.mjs "Google Chrome"`
 runs that lane from a prepared checkout with its exact solver, Taxi and regtest

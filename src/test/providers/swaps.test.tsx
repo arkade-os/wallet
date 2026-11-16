@@ -82,7 +82,7 @@ const swap = {
 
 const ASSET_ID = 'a'.repeat(68)
 
-function Harness() {
+function Harness({ canonical = false, network = 'regtest' } = {}) {
   const { markets, swapAvailable, swaps, quotePay, receiveLightning, exchange, cancelSwap } = useContext(SwapsContext)
   return (
     <>
@@ -96,8 +96,14 @@ function Harness() {
         onClick={() =>
           void exchange(
             {
-              deposit: { asset: { id: 'btc', decimals: 0 }, atomic: BigInt(1000) },
-              receive: { asset: { id: ASSET_ID, decimals: 0 }, atomic: BigInt(1000) },
+              deposit: {
+                asset: { id: canonical ? `arkade:${network}/slip44:1` : 'btc', decimals: 0 },
+                atomic: BigInt(1000),
+              },
+              receive: {
+                asset: { id: canonical ? `arkade:${network}/asset:${ASSET_ID}` : ASSET_ID, decimals: 0 },
+                atomic: BigInt(1000),
+              },
             } as never,
             { fromTicker: 'BTC' },
           ).catch((error: Error) => {
@@ -524,6 +530,30 @@ describe('SwapsProvider', () => {
         amountOn: 'give',
       }),
     )
+  })
+
+  it('preserves canonical discovered currencies when requesting the executable quote', async () => {
+    mocks.quote.mockResolvedValue({ id: 'canonical-quote', take: { amount: BigInt(1000) } })
+    mocks.accept.mockResolvedValue({ ...swap, id: 'offer:canonical-quote' })
+    renderProvider({}, <Harness canonical />)
+    screen.getByText('exchange').click()
+    await waitFor(() =>
+      expect(mocks.quote).toHaveBeenCalledWith({
+        give: 'arkade:regtest/slip44:1',
+        take: `arkade:regtest/asset:${ASSET_ID}`,
+        amount: BigInt(1000),
+        amountOn: 'give',
+      }),
+    )
+    await waitFor(() => expect(mocks.accept).toHaveBeenCalledOnce())
+  })
+
+  it('refuses a canonical market on another network before requesting or funding a quote', async () => {
+    renderProvider({}, <Harness canonical network='bitcoin' />)
+    screen.getByText('exchange').click()
+    await waitFor(() => expect(screen.getByTestId('exchange-error')).toHaveTextContent('different network or rail'))
+    expect(mocks.quote).not.toHaveBeenCalled()
+    expect(mocks.accept).not.toHaveBeenCalled()
   })
 
   it('stores the exchange snapshot under the quote id used by history', async () => {

@@ -25,18 +25,19 @@
       }
     },
     {
-      "file": "arkade-os-swap-0.1.7-taxi.0-a518278d.tgz",
+      "file": "arkade-os-swap-0.1.7-taxi.1-309701dc.tgz",
       "package": "@arkade-os/swap",
-      "version": "0.1.7-taxi.0",
+      "version": "0.1.7-taxi.1",
       "license": "MIT",
       "licenseFrom": "archive package manifest",
-      "sha256": "dc48e9f7469f9f5d74b238c543c6683797dd1ad60dae90848628fcb1316d9f5e",
-      "bytes": 673083,
+      "sha256": "f943d702c51544b9fe8d2d8af3092e1ebeb8282e8872719123b8b40a805869ac",
+      "bytes": 674566,
       "source": {
         "repository": "https://github.com/arkade-os/ts-sdk.git",
-        "commit": "a518278d7815f7ca1f14e12b063d806c495e6636",
+        "commit": "309701dc0dc10a20bdb8e81c8c9ca5aa499498ef",
         "directory": "packages/swap",
-        "tree": "05290d7edc308dff5e0e6f853ee276b81b011aff"
+        "tree": "aa2036b2a9ce183ee3e467bac68fa5602d6a74c3",
+        "directoryTree": "9c92319e903d8824b2565f78bcdd81bf34723768"
       },
       "toolchain": {
         "node": "v24.22.1",

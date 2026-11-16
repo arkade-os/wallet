@@ -7,7 +7,7 @@
     "@arkade-os/lnurl-client": "0.9.2",
     "@arkade-os/sdk": "file:./vendor/carrier/arkade-os-sdk-0.5.7-taxi.0-735e40b9.tgz",
     "@arkade-os/solver-discovery": "0.3.0",
-    "@arkade-os/swap": "file:./vendor/carrier/arkade-os-swap-0.1.7-taxi.0-a518278d.tgz",
+    "@arkade-os/swap": "file:./vendor/carrier/arkade-os-swap-0.1.7-taxi.1-309701dc.tgz",
     "@base-ui/react": "^1.4.1",
     "@branta-ops/branta": "4.0.5",
     "@fontsource-variable/geist": "^5.2.8",

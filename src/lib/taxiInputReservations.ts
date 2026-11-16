@@ -1,6 +1,7 @@
 import type { ServiceWorkerWallet } from '@arkade-os/sdk'
 import type { RecyclePlan, VerifiedClaim } from '@arkade-taxi/client/wallet'
 import { hex } from '@scure/base'
+import { isFinalizedTaxiClaimConflict } from './taxiClaimConflict'
 
 type Outpoint = { txid: string; vout: number }
 type Reservation = { release: () => void | Promise<void> }
@@ -12,11 +13,58 @@ type TaxiInputReservation = {
   outpoints: Outpoint[]
   phase: 'reserving' | 'submitting' | 'submitted'
   claimTxid?: string
+  claimOutpoint?: Outpoint
 }
 
 const txid = (value: unknown): value is string => typeof value === 'string' && /^[0-9a-f]{64}$/.test(value)
-const storageKey = async (wallet: ReservationWallet, network: string, serverUrl: string) =>
-  `taxi-input-reservations:${network}:${serverUrl}:${hex.encode(await wallet.identity.xOnlyPublicKey())}`
+const operatorScope = (serverUrl: string) => {
+  const url = new URL(serverUrl)
+  return `${url.origin}${url.pathname.replace(/\/$/, '')}`
+}
+const storageKey = async (wallet: ReservationWallet, network: string, serverUrl: string) => {
+  const prefix = `taxi-input-reservations:${network}:`
+  const suffix = `:${hex.encode(await wallet.identity.xOnlyPublicKey())}`
+  const scope = operatorScope(serverUrl)
+  const key = `${prefix}${scope}${suffix}`
+  const aliases = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index)).filter(
+    (candidate): candidate is string => {
+      if (!candidate || candidate === key || !candidate.startsWith(prefix) || !candidate.endsWith(suffix)) return false
+      try {
+        return operatorScope(candidate.slice(prefix.length, -suffix.length)) === scope
+      } catch {
+        return false
+      }
+    },
+  )
+  if (aliases.length) {
+    const merged = new Map<string, TaxiInputReservation>()
+    const rank = { reserving: 0, submitting: 1, submitted: 2 }
+    for (const entry of [key, ...aliases].flatMap(read)) {
+      const known = merged.get(entry.id)
+      if (!known) merged.set(entry.id, entry)
+      else {
+        if (
+          JSON.stringify(known.outpoints) !== JSON.stringify(entry.outpoints) ||
+          (known.claimTxid && entry.claimTxid && known.claimTxid !== entry.claimTxid) ||
+          (known.claimOutpoint &&
+            entry.claimOutpoint &&
+            JSON.stringify(known.claimOutpoint) !== JSON.stringify(entry.claimOutpoint))
+        )
+          throw new Error('Taxi payment recovery records conflict')
+        merged.set(entry.id, {
+          ...(rank[known.phase] >= rank[entry.phase] ? known : entry),
+          ...(known.claimTxid || entry.claimTxid ? { claimTxid: known.claimTxid ?? entry.claimTxid } : {}),
+          ...(known.claimOutpoint || entry.claimOutpoint
+            ? { claimOutpoint: known.claimOutpoint ?? entry.claimOutpoint }
+            : {}),
+        })
+      }
+    }
+    localStorage.setItem(key, JSON.stringify([...merged.values()]))
+    for (const alias of aliases) localStorage.removeItem(alias)
+  }
+  return key
+}
 
 const read = (key: string): TaxiInputReservation[] => {
   const raw = localStorage.getItem(key)
@@ -35,7 +83,11 @@ const read = (key: string): TaxiInputReservation[] => {
           (outpoint: Outpoint) => !txid(outpoint?.txid) || !Number.isSafeInteger(outpoint?.vout) || outpoint.vout < 0,
         ) ||
         !['reserving', 'submitting', 'submitted'].includes(entry.phase) ||
-        (entry.claimTxid !== undefined && !txid(entry.claimTxid)),
+        (entry.claimTxid !== undefined && !txid(entry.claimTxid)) ||
+        (entry.claimOutpoint !== undefined &&
+          (!txid(entry.claimOutpoint?.txid) ||
+            !Number.isSafeInteger(entry.claimOutpoint?.vout) ||
+            entry.claimOutpoint.vout < 0)),
     )
   )
     throw new Error('Taxi payment recovery records are invalid')
@@ -66,11 +118,45 @@ const releaseObserved = async (
       )
     const reader = await wallet.getArkadeReader()
     const { vtxos } = await reader.getVtxos({ outpoints: entry.outpoints })
-    if (!spent(vtxos)) return
+    const ownSpent = spent(vtxos)
+    const unspent = (
+      coins: {
+        txid: string
+        vout: number
+        isSpent?: boolean
+        spentBy?: string
+        settledBy?: string
+        isSwept?: boolean
+      }[],
+    ) =>
+      entry.outpoints.every((outpoint) => {
+        const matches = coins.filter((coin) => coin.txid === outpoint.txid && coin.vout === outpoint.vout)
+        return (
+          matches.length === 1 &&
+          matches[0].isSpent === false &&
+          !matches[0].spentBy &&
+          !matches[0].settledBy &&
+          !matches[0].isSwept
+        )
+      })
+    if (
+      !ownSpent &&
+      (!entry.id.startsWith('taxi-claim:') ||
+        !entry.claimOutpoint ||
+        !unspent(vtxos) ||
+        !(await isFinalizedTaxiClaimConflict(reader, entry.claimOutpoint, entry.outpoints)))
+    )
+      return
     const manager = await wallet.getContractManager()
     await manager.refreshOutpoints(entry.outpoints)
     const stored = await manager.getStoredContractsWithVtxos()
-    if (!spent(stored.flatMap(({ vtxos }) => vtxos))) return
+    const local = stored.flatMap(({ vtxos }) => vtxos)
+    if (
+      ownSpent
+        ? !spent(local)
+        : !unspent(local) || !unspent((await reader.getVtxos({ outpoints: entry.outpoints })).vtxos)
+    )
+      return
   }
   await hold.release()
   remove(key, entry.id)
@@ -94,9 +180,11 @@ export const reserveTaxiInputs = async (
   id: string,
   outpoints: Outpoint[],
   resume = false,
+  claimOutpoint?: Outpoint,
 ) => {
   if (!wallet.reserveVtxos) throw new Error('This wallet cannot safely reserve Taxi payment inputs')
   const selected = outpoints.map(({ txid, vout }) => ({ txid, vout }))
+  const originalClaim = claimOutpoint && { txid: claimOutpoint.txid, vout: claimOutpoint.vout }
   const key = await storageKey(wallet, network, serverUrl)
   const known = read(key).find((entry) => entry.id === id)
   if (known && !resume) throw new Error('Check the previous Taxi payment before retrying')
@@ -106,6 +194,7 @@ export const reserveTaxiInputs = async (
     id,
     outpoints: selected,
     phase: resume ? 'submitting' : 'reserving',
+    ...(originalClaim ? { claimOutpoint: originalClaim } : {}),
   }
   write(key, entry)
   const hold = await wallet.reserveVtxos(entry.outpoints, id)
@@ -128,7 +217,16 @@ export const reserveTaxiClaim = (
   serverUrl: string,
   offer: VerifiedClaim,
   plan: RecyclePlan,
-) =>
-  reserveTaxiInputs(wallet, network, serverUrl, `taxi-claim:${offer.taxi.url}:${offer.claim.transferId}`, [
-    { txid: plan.coin.txid, vout: plan.coin.vout },
-  ])
+) => {
+  const original = offer.claim.claim?.outpoint
+  if (!original) throw new Error('Taxi claim recovery outpoint is unavailable')
+  return reserveTaxiInputs(
+    wallet,
+    network,
+    serverUrl,
+    `taxi-claim:${offer.taxi.url}:${offer.claim.transferId}`,
+    [{ txid: plan.coin.txid, vout: plan.coin.vout }],
+    false,
+    original,
+  )
+}

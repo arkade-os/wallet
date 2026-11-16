@@ -5,11 +5,14 @@ import { reconcileTaxiInputReservations, reserveTaxiClaim, reserveTaxiInputs } f
 const server = 'http://arkd.test'
 const txid = '11'.repeat(32)
 const claimTxid = '22'.repeat(32)
+const claimOutpoint = { txid: 'aa'.repeat(32), vout: 0 }
 const outpoint = { txid, vout: 1 }
+const conflictProof = vi.hoisted(() => vi.fn())
+vi.mock('../../lib/taxiClaimConflict', () => ({ isFinalizedTaxiClaimConflict: conflictProof }))
 const offer = {
   taxi: { url: 'https://taxi.test' },
-  claim: { transferId: 'delivery' },
-} as VerifiedClaim
+  claim: { transferId: 'delivery', claim: { outpoint: claimOutpoint } },
+} as unknown as VerifiedClaim
 const plan = { kind: 'recycle', coin: { ...outpoint, value: 1000 } } as RecyclePlan
 
 const setup = () => {
@@ -30,6 +33,7 @@ const setup = () => {
 describe('Taxi receiver input recovery', () => {
   beforeEach(() => {
     localStorage.clear()
+    conflictProof.mockReset().mockResolvedValue(false)
   })
 
   it('persists the selected input before asking the SDK to reserve it', async () => {
@@ -191,5 +195,166 @@ describe('Taxi receiver input recovery', () => {
     await hold.release(claimTxid)
     expect(reserveVtxos).toHaveBeenCalledWith([outpoint], 'taxi-send:delivery')
     expect(refreshOutpoints).toHaveBeenCalledWith([outpoint])
+  })
+
+  it('recovers a raw URL alias using the same durable reservation id', async () => {
+    const first = setup()
+    await reserveTaxiClaim(first.wallet, 'regtest', server, offer, plan)
+    const canonical = localStorage.key(0)!
+    const legacy = canonical.replace(server, `${server}/`)
+    localStorage.setItem(legacy, localStorage.getItem(canonical)!)
+    localStorage.removeItem(canonical)
+    const next = setup()
+    next.getVtxos.mockResolvedValue({ vtxos: [{ ...outpoint, isSpent: true }] })
+    await reconcileTaxiInputReservations(next.wallet, 'regtest', 'HTTP://ARKD.TEST/')
+    expect(next.reserveVtxos).toHaveBeenCalledExactlyOnceWith([outpoint], 'taxi-claim:https://taxi.test:delivery')
+    expect(first.release).not.toHaveBeenCalled()
+    expect(next.release).toHaveBeenCalledOnce()
+    expect(localStorage.length).toBe(0)
+  })
+
+  it.each(['setItem', 'removeItem'] as const)(
+    'retains the hold and raw URL record if migration %s fails',
+    async (method) => {
+      const { wallet, release, getVtxos } = setup()
+      await reserveTaxiClaim(wallet, 'regtest', server, offer, plan)
+      const canonical = localStorage.key(0)!
+      const legacy = canonical.replace(server, `${server}/`)
+      const saved = localStorage.getItem(canonical)!
+      localStorage.setItem(legacy, saved)
+      localStorage.removeItem(canonical)
+      getVtxos.mockResolvedValue({ vtxos: [{ ...outpoint, isSpent: true }] })
+      const storage = Object.getPrototypeOf(localStorage)
+      const original = storage[method]
+      const spy = vi.spyOn(storage, method).mockImplementation(function (this: Storage, ...args: unknown[]) {
+        const key = args[0]
+        if (key === (method === 'setItem' ? canonical : legacy)) throw new Error('migration write failed')
+        return original.apply(this, args)
+      })
+      try {
+        await expect(reconcileTaxiInputReservations(wallet, 'regtest', `${server}/`)).rejects.toThrow(
+          'migration write failed',
+        )
+        expect(release).not.toHaveBeenCalled()
+        expect(getVtxos).not.toHaveBeenCalled()
+        expect(localStorage.getItem(legacy)).toBe(saved)
+      } finally {
+        spy.mockRestore()
+      }
+      await reconcileTaxiInputReservations(wallet, 'regtest', server)
+      expect(release).toHaveBeenCalledOnce()
+      expect(localStorage.length).toBe(0)
+    },
+  )
+
+  it('merges an alias conservatively when another record only proves reservation began', async () => {
+    const { wallet, release } = setup()
+    await reserveTaxiClaim(wallet, 'regtest', server, offer, plan)
+    const canonical = localStorage.key(0)!
+    const entry = JSON.parse(localStorage.getItem(canonical)!)[0]
+    localStorage.setItem(canonical.replace(server, `${server}/`), JSON.stringify([entry]))
+    localStorage.setItem(canonical, JSON.stringify([{ ...entry, phase: 'reserving' }]))
+    await reconcileTaxiInputReservations(wallet, 'regtest', server)
+    expect(release).not.toHaveBeenCalled()
+    expect(localStorage.length).toBe(1)
+    expect(JSON.parse(localStorage.getItem(canonical)!)[0].phase).toBe('submitting')
+  })
+
+  it('preserves both journals and the hold when an alias names conflicting inputs', async () => {
+    const { wallet, release, reserveVtxos } = setup()
+    await reserveTaxiClaim(wallet, 'regtest', server, offer, plan)
+    const canonical = localStorage.key(0)!
+    const entry = JSON.parse(localStorage.getItem(canonical)!)[0]
+    localStorage.setItem(
+      canonical.replace(server, `${server}/`),
+      JSON.stringify([{ ...entry, outpoints: [{ ...outpoint, vout: 2 }] }]),
+    )
+    await expect(reconcileTaxiInputReservations(wallet, 'regtest', server)).rejects.toThrow('recovery records conflict')
+    expect(reserveVtxos).toHaveBeenCalledOnce()
+    expect(release).not.toHaveBeenCalled()
+    expect(localStorage.length).toBe(2)
+  })
+
+  it('does not migrate a journal belonging to another operator path', async () => {
+    const { wallet, release, reserveVtxos } = setup()
+    await reserveTaxiClaim(wallet, 'regtest', server, offer, plan)
+    const key = localStorage.key(0)!
+    await reconcileTaxiInputReservations(wallet, 'regtest', `${server}/other`)
+    expect(reserveVtxos).toHaveBeenCalledOnce()
+    expect(release).not.toHaveBeenCalled()
+    expect(localStorage.key(0)).toBe(key)
+  })
+
+  it('releases an unspent receiver coin after a finalized conflicting claim spend and local refresh', async () => {
+    const { wallet, release, refreshOutpoints } = setup()
+    await reserveTaxiClaim(wallet, 'regtest', server, offer, plan)
+    conflictProof.mockResolvedValue(true)
+    await reconcileTaxiInputReservations(wallet, 'regtest', server)
+    expect(conflictProof).toHaveBeenCalledWith(expect.anything(), claimOutpoint, [outpoint])
+    expect(refreshOutpoints).toHaveBeenCalledExactlyOnceWith([outpoint])
+    expect(release).toHaveBeenCalledOnce()
+    expect(localStorage.length).toBe(0)
+  })
+
+  it.each(['proof', 'refresh', 'storage'])(
+    'retains the claim hold when terminal recovery %s fails',
+    async (failure) => {
+      const { wallet, release, refreshOutpoints } = setup()
+      await reserveTaxiClaim(wallet, 'regtest', server, offer, plan)
+      conflictProof.mockResolvedValue(true)
+      if (failure === 'proof') conflictProof.mockRejectedValue(new Error('recovery failed'))
+      if (failure === 'refresh') refreshOutpoints.mockRejectedValue(new Error('recovery failed'))
+      if (failure === 'storage') release.mockRejectedValue(new Error('recovery failed'))
+      await expect(reconcileTaxiInputReservations(wallet, 'regtest', server)).rejects.toThrow('recovery failed')
+      if (failure !== 'storage') expect(release).not.toHaveBeenCalled()
+      expect(localStorage.length).toBe(1)
+    },
+  )
+
+  it.each([
+    { coins: [] },
+    { coins: [{ ...outpoint, isSpent: true }] },
+    { coins: [{ ...outpoint, isSpent: false, spentBy: claimTxid }] },
+  ])('retains the claim hold if the local input is not explicitly unspent (%j)', async ({ coins }) => {
+    const { wallet, release, getStoredContractsWithVtxos } = setup()
+    await reserveTaxiClaim(wallet, 'regtest', server, offer, plan)
+    conflictProof.mockResolvedValue(true)
+    getStoredContractsWithVtxos.mockResolvedValue([{ vtxos: coins }])
+    await reconcileTaxiInputReservations(wallet, 'regtest', server)
+    expect(release).not.toHaveBeenCalled()
+    expect(localStorage.length).toBe(1)
+  })
+
+  it('never applies receiver conflict proof to sender input reservations', async () => {
+    const { wallet, release } = setup()
+    await reserveTaxiInputs(wallet, 'regtest', server, 'taxi-send:delivery', [outpoint], false, claimOutpoint)
+    conflictProof.mockResolvedValue(true)
+    await reconcileTaxiInputReservations(wallet, 'regtest', server)
+    expect(conflictProof).not.toHaveBeenCalled()
+    expect(release).not.toHaveBeenCalled()
+  })
+
+  it('retains old ambiguous claim journals that have no original outpoint proof', async () => {
+    const { wallet, release } = setup()
+    await reserveTaxiClaim(wallet, 'regtest', server, offer, plan)
+    const key = localStorage.key(0)!
+    const [entry] = JSON.parse(localStorage.getItem(key)!)
+    delete entry.claimOutpoint
+    localStorage.setItem(key, JSON.stringify([entry]))
+    conflictProof.mockResolvedValue(true)
+    await reconcileTaxiInputReservations(wallet, 'regtest', server)
+    expect(conflictProof).not.toHaveBeenCalled()
+    expect(release).not.toHaveBeenCalled()
+  })
+
+  it('retains the claim hold when the fresh own-input read is incomplete after proof', async () => {
+    const { wallet, release, getVtxos, getStoredContractsWithVtxos } = setup()
+    await reserveTaxiClaim(wallet, 'regtest', server, offer, plan)
+    conflictProof.mockResolvedValue(true)
+    getStoredContractsWithVtxos.mockResolvedValue([{ vtxos: [{ ...outpoint, isSpent: false }] }])
+    getVtxos.mockResolvedValueOnce({ vtxos: [{ ...outpoint, isSpent: false }] }).mockResolvedValue({ vtxos: [] })
+    await reconcileTaxiInputReservations(wallet, 'regtest', server)
+    expect(release).not.toHaveBeenCalled()
+    expect(localStorage.length).toBe(1)
   })
 })

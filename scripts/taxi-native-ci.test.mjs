@@ -1,7 +1,7 @@
 // @vitest-environment node
 import assert from 'node:assert/strict'
 import { execFile } from 'node:child_process'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -264,6 +264,10 @@ require('node:module').syncBuiltinESMExports()
     }).catch((error) => error)
     assert.equal(result.code, 1)
     assert.match(result.stderr, /nak-build failed/)
+    assert.deepEqual(
+      (await readdir(join(directory, '.local-tests'))).filter((name) => name.startsWith('taxi-native-')),
+      [],
+    )
     const calls = (await readFile(callsFile, 'utf8'))
       .trim()
       .split('\n')

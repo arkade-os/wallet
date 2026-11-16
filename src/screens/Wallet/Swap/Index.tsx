@@ -1,6 +1,7 @@
 import Decimal from 'decimal.js'
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion'
 import { fromAtomic, type OfferPlan } from '@arkade-os/solver-discovery'
+import type { AssetId } from '@arkade-os/swap'
 import { useOfferQuote } from '@arkade-os/solver-discovery/react'
 import { type ReactNode, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import AssetAvatar from '../../../components/AssetAvatar'
@@ -22,6 +23,7 @@ import { extractError } from '../../../lib/error'
 import { formatFiatAmountParts, normalizeBitcoinUnit, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
 import { swapRouteTicker } from '../../../lib/swapDisplay'
+import { displayAssetOf } from '../../../lib/swapRecords'
 import { BTC_ASSET_ID, findMarket, makeCachedFeedFetch, QUOTE_OPTIONS, validatePlan } from '@arkade-os/swap/protocol'
 import { preFeeDisplayRate } from '../../../lib/swapMarkets'
 import { type AssetSwapQuoteSnapshot } from '../../../lib/swapRepository'
@@ -35,7 +37,7 @@ import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import { usePortfolioFiat, type PortfolioRow } from '../../../hooks/usePortfolioFiat'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
-import { verifiedDesignatedCurrency } from '../../../lib/accountAssets'
+import { verifiedDesignatedCurrency, walletAssetPresentationForId } from '../../../lib/accountAssets'
 import { useTranslation } from '../../../providers/language'
 
 type AssetTarget = 'from' | 'to'
@@ -100,7 +102,10 @@ export default function WalletSwap() {
   const swapAssets = useMemo<SwapAsset[]>(() => {
     const marketAssets = markets.flatMap((market) => [market.base_asset, market.quote_asset])
     const uniqueAssets = new Map(
-      marketAssets.filter((asset) => !asset.id.match('slip44:0')).map((asset) => [asset.id, asset]),
+      marketAssets.map((asset) => {
+        const id = displayAssetOf(asset.id as AssetId)
+        return [id, { ...asset, id }]
+      }),
     )
     uniqueAssets.set(BTC_ASSET_ID, {
       id: BTC_ASSET_ID,
@@ -135,17 +140,25 @@ export default function WalletSwap() {
       // spendable, not owned: the composer offers this as a max
       const spendable = availableAssetBalances.find((balance) => balance.assetId === asset.id)
       const designatedCurrency = verifiedDesignatedCurrency(aspInfo.network, asset.id, isVerifiedAsset)
+      const metadata = assetMetadataCache.get(asset.id)?.metadata
+      const presentation = walletAssetPresentationForId(
+        aspInfo.network,
+        asset.id,
+        isVerifiedAsset,
+        metadata,
+        asset.name,
+      )
       return {
         assetId: asset.id,
-        name: row?.name ?? designatedCurrency ?? asset.name,
-        ticker: row?.ticker ?? designatedCurrency ?? asset.ticker,
+        name: row?.name ?? presentation.name,
+        ticker: row?.ticker ?? (presentation.ticker || asset.ticker),
         currency: designatedCurrency,
         decimals: asset.decimals,
         balance: BigInt(spendable?.amount ?? 0),
         fiatText: row?.hasFiatPrice
           ? prettyFiatAmount(row.fiatAmount, config.currency, { bitcoinUnit: config.unit })
           : undefined,
-        icon: assetMetadataCache.get(asset.id)?.metadata?.icon,
+        icon: metadata?.icon,
         usdPrice: row ? estimateRowUsdPrice(row, config.currency, fromFiatAmount, toFiat, toFiatAmount) : 0,
       }
     })

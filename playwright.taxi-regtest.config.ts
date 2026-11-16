@@ -7,7 +7,7 @@ const baseURL = env.TAXI_NATIVE_WALLET_URL ?? 'http://127.0.0.1:3002'
 
 export default defineConfig({
   testDir: './src/test/e2e/taxi',
-  testMatch: 'taxi.test.ts',
+  testMatch: ['taxi.test.ts', 'swaps.test.ts', 'reservations.test.ts'],
   timeout: 240_000,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,

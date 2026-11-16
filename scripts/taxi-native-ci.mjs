@@ -10,8 +10,8 @@ import { parseEnv, promisify } from 'node:util'
 import { configureRegtestEsplora } from './regtest-esplora.mjs'
 
 export const refs = Object.freeze({
-  solver: '6171ef1f9774aba3083080fd323a42995e8a04d5',
-  taxi: '9095c9d6b5451329b47a588d7e999397e24372c6',
+  solver: 'e2ec2e5962d52de96815912414fb94fe663225cb',
+  taxi: 'ba30759c108751ab49767f70ba092003b7634178',
   regtest: '7c91a6bdafd855ba8b8cc19cf35f46257eb1467d',
 })
 const projects = ['Mobile Chrome', 'Google Chrome']
@@ -23,7 +23,7 @@ let namespace = `taxi-native-${randomUUID().slice(0, 8)}`
 let root = resolve('.local-tests', namespace)
 let regtestRoot = resolve(root, 'regtest')
 const stateFile = resolve('.local-tests/native-ci-state.json')
-const evidence = resolve('.local-tests/native-evidence')
+let evidence = resolve('.local-tests/native-evidence', namespace)
 const secrets = new Set()
 const allocatedPorts = new Set(['60413', '60423', '60432', '60433'])
 const redact = (text) => {
@@ -49,6 +49,7 @@ let daemonOutput = ''
 let feed
 let context
 let cleanupPromise
+let ownsRoot = false
 let daemonError
 const registryBackups = new Map()
 
@@ -306,6 +307,11 @@ async function cleanOwnedResources() {
     registryBackups,
   })
   if (failures.length) throw new Error(failures.join('; '))
+  if (ownsRoot) {
+    assert.match(namespace, /^taxi-native-[0-9a-f]{8}$/)
+    assert.equal(root, resolve(walletRoot, '.local-tests', namespace))
+    await rm(root, { recursive: true, force: true })
+  }
   if (started) await writeFile(stateFile, JSON.stringify({ complete: true }), { mode: 0o600 })
 }
 
@@ -356,7 +362,9 @@ async function main() {
   )
   const manual = process.argv[3] === '--manual'
   assert(!manual || !process.env.CI || process.env.CI === 'false', '--manual is local only')
-  await mkdir(root, { recursive: true, mode: 0o700 })
+  await mkdir(resolve('.local-tests'), { recursive: true })
+  await mkdir(root, { mode: 0o700 })
+  ownsRoot = true
   await mkdir(evidence, { recursive: true })
   for (const [name, path] of [
     ['solver', solverRoot],
@@ -726,6 +734,8 @@ async function cli() {
       assert.equal(typeof state.taxiStarted, 'boolean')
       namespace = state.namespace
       root = state.root
+      ownsRoot = true
+      evidence = resolve('.local-tests/native-evidence', namespace)
       regtestRoot = resolve(root, 'regtest')
       relayFile = state.relayFile
       relayStarted = state.relayStarted

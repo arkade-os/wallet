@@ -52,6 +52,7 @@ import {
   arkadeAsset,
   assetSwapIdOf,
   btcOn,
+  parseAssetId,
   InsufficientFunds,
   type AssetId,
   type AssetSwapId,
@@ -658,11 +659,18 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
   // ----------------------------------------------------------- asset swaps
 
-  /** The composer's asset ids are discovery's; the client's are CAIP-19. */
-  const assetIdFor = (network: NetworkName, discoveryId: string): AssetId =>
-    discoveryId === BTC_ASSET_ID
+  /** Keep canonical market identities; translate legacy wallet asset ids at this boundary. */
+  const assetIdFor = (network: NetworkName, discoveryId: string): AssetId => {
+    if (discoveryId.includes('/')) {
+      const parsed = parseAssetId(discoveryId)
+      if (parsed.rail !== 'arkade' || parsed.reference !== network)
+        throw new Error('Swap asset belongs to a different network or rail')
+      return discoveryId as AssetId
+    }
+    return discoveryId === BTC_ASSET_ID
       ? btcOn('arkade', network)
       : arkadeAsset(network, asset.AssetId.fromString(discoveryId))
+  }
 
   const exchange = (plan: OfferPlan, quote?: AssetSwapQuoteSnapshot): Promise<Swap> =>
     runOnDriver('exchange', [plan, quote])

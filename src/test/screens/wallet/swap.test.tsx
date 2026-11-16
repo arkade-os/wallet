@@ -167,6 +167,35 @@ describe('Wallet swap flow', () => {
     expect(screen.queryByText('DEPIX')).not.toBeInTheDocument()
   })
 
+  it.each([0n, 1000n])('uses imported metadata and raw balances for canonical markets (%s units)', (amount) => {
+    const assetId = 'ab'.repeat(34)
+    const canonical = {
+      ...btcUsdt,
+      base_asset: { id: 'arkade:mutinynet/slip44:1', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+      quote_asset: {
+        id: `arkade:mutinynet/asset:${assetId}`,
+        name: 'Arkade asset abababab',
+        ticker: 'abababab',
+        decimals: 0,
+      },
+    }
+    renderSwap({
+      swap: { markets: [canonical] },
+      config: { unit: Unit.SATS },
+      wallet: {
+        assetBalances: amount ? [{ assetId, amount }] : [],
+        availableAssetBalances: amount ? [{ assetId, amount }] : [],
+        assetMetadataCache: new Map([[assetId, { metadata: { name: 'Native RFQ', ticker: 'ARFQ', decimals: 0 } }]]),
+      },
+    })
+    expect(screen.getAllByText('Bitcoin')).toHaveLength(1)
+    expect(screen.queryByTestId('swap-asset-row-btc')).not.toBeInTheDocument()
+    expect(screen.getByTestId('swap-asset-row-sats')).toBeInTheDocument()
+    expect(screen.getByTestId('swap-asset-row-arfq')).toHaveTextContent(amount ? '1,000 ARFQ' : '0 ARFQ')
+    expect(screen.queryByText('Arkade asset abababab')).not.toBeInTheDocument()
+    expect(canonical.quote_asset.id).toBe(`arkade:mutinynet/asset:${assetId}`)
+  })
+
   it('keeps the BRL identity and flag after spending the full DePix balance', () => {
     renderSwap({
       flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
