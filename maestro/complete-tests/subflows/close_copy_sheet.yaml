@@ -1,0 +1,8 @@
+appId: com.android.chrome
+---
+# recordings/taps-20260609-152620.log tap 13 — dismiss copy sheet
+
+- tapOn:
+    point: "53%, 91%"
+    waitToSettleTimeoutMs: 800
+- runFlow: wait_2s.yaml

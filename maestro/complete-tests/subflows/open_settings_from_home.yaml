@@ -1,0 +1,5 @@
+appId: com.android.chrome
+---
+- runFlow: ensure_on_wallet_home.yaml
+- runFlow: tap_header_settings.yaml
+- runFlow: wait_2s.yaml
