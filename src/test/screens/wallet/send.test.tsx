@@ -790,13 +790,17 @@ describe('a changed recipient', () => {
       { id: 'ark', type: 'arkade' },
     ],
   }
-  const lnurlServer = (held?: Promise<void>, over: { callbackHeld?: Promise<void>; body?: object } = {}) => {
+  const lnurlServer = (
+    held?: Promise<void>,
+    over: { callbackHeld?: Promise<void>; body?: object; arkAddress?: string } = {},
+  ) => {
     const fetchMocker = createFetchMock(vi)
     fetchMocker.enableMocks()
     fetchMocker.mockResponse(async (req) => {
       if (req.url.includes('paymentOption=') || req.url.includes('method=ark')) {
         await over.callbackHeld
-        return JSON.stringify({ paymentOption: 'ark', paymentDestination: ARK, address: ARK, expiryDate: '', hint: '' })
+        const address = over.arkAddress ?? ARK
+        return JSON.stringify({ paymentOption: 'ark', paymentDestination: address, address, expiryDate: '', hint: '' })
       }
       await held
       return JSON.stringify(over.body ?? payRequest)
@@ -1049,6 +1053,23 @@ describe('a changed recipient', () => {
     expect(navigate).not.toHaveBeenCalledWith(Pages.SendDetails)
     fetchMocker.disableMocks()
   })
+
+  it('clears a mismatched LNURL Ark address error when the recipient changes', async () => {
+    const body = { ...payRequest, paymentOptions: undefined, transferAmounts: [{ method: 'Ark', available: true }] }
+    const fetchMocker = lnurlServer(undefined, { body, arkAddress: fixtures.lib.address.ark[1].address })
+    const { type } = renderStateful()
+    type(LNURL)
+    await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
+    await clickContinue()
+    await waitFor(() => screen.getByText('Arkade server key mismatch'), settle)
+    expect(continueButton()).toBeDisabled()
+
+    type(ARK)
+    await waitFor(() => expect(current.arkAddress).toBe(ARK), settle)
+    await waitFor(() => expect(continueButton()).toBeEnabled(), settle)
+    fetchMocker.disableMocks()
+  })
+
   it.each([500, 200_000])(
     'quotes a valid %i sat Arkade amount outside the default Lightning bounds',
     async (amount) => {

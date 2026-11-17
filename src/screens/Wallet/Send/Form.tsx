@@ -888,7 +888,8 @@ export default function SendForm() {
             return
           }
           if (!haveSameServerPubKey(arkAddress, receivingAddresses.offchainAddr)) {
-            handleError(t('send.arkadeServerKeyMismatch'))
+            setRecipientError(t('send.arkadeServerKeyMismatch'))
+            setProcessing(false)
             return
           }
           setSendInfo((prev) => ({
