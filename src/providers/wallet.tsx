@@ -231,7 +231,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const assetMetadataCache = useRef<Map<string, CachedAssetDetails>>(readAssetMetadataFromStorage() ?? new Map())
   const assetMetadataFailures = useRef(readAssetMetadataFailuresFromStorage())
   const assetMetadataFetches = useRef(new Set<string>())
-  const assetMetadataPrefetchRunning = useRef(false)
+  const assetMetadataPrefetchRunning = useRef<{
+    pending?: { wallet: ServiceWorkerWallet; assetIds: Set<string> }
+  } | null>(null)
   // Every asset the UI can still be asked to name (see `referencedAssetIds`).
   // A ref because it gates persistence in `setCacheEntry`, not rendering.
   const referencedAssetIdsRef = useRef<Set<string>>(new Set())
@@ -356,8 +358,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const prefetchAssetMetadata = async (swWallet: ServiceWorkerWallet, assetIds: Set<string>) => {
-    if (assetMetadataPrefetchRunning.current) return
-    assetMetadataPrefetchRunning.current = true
+    if (assetMetadataPrefetchRunning.current) {
+      // The latest reload is authoritative; coalesce overlapping requests into one follow-up.
+      assetMetadataPrefetchRunning.current.pending = { wallet: swWallet, assetIds }
+      return
+    }
+    const run: { pending?: { wallet: ServiceWorkerWallet; assetIds: Set<string> } } = {}
+    assetMetadataPrefetchRunning.current = run
     try {
       const now = Date.now()
       let failuresChanged = false
@@ -429,7 +436,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
       await Promise.all(Array.from({ length: Math.min(ASSET_METADATA_FETCH_CONCURRENCY, ids.length) }, fetchNext))
     } finally {
-      assetMetadataPrefetchRunning.current = false
+      if (assetMetadataPrefetchRunning.current === run) {
+        assetMetadataPrefetchRunning.current = null
+        if (run.pending) {
+          prefetchAssetMetadata(run.pending.wallet, run.pending.assetIds).catch((err) =>
+            consoleError(err, 'Error prefetching asset metadata'),
+          )
+        }
+      }
     }
   }
 
@@ -1101,7 +1115,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     hasLoadedOnce.current = false
     assetMetadataFailures.current = new Map()
     assetMetadataFetches.current = new Set()
-    assetMetadataPrefetchRunning.current = false
+    assetMetadataPrefetchRunning.current = null
   }
 
   const resetWallet = async () => {
@@ -1134,7 +1148,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     hasLoadedOnce.current = false
     assetMetadataFailures.current = new Map()
     assetMetadataFetches.current = new Set()
-    assetMetadataPrefetchRunning.current = false
+    assetMetadataPrefetchRunning.current = null
   }
 
   const settlePreconfirmed = async () => {
