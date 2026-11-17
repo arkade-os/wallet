@@ -16,7 +16,7 @@ import FlexCol from '../../components/FlexCol'
 import SheetModal from '../../components/SheetModal'
 import { defaultPassword, isMainnet } from '../../lib/constants'
 import { isBiometricsSupported } from '../../lib/biometrics'
-import { createPasskeyWallet, loginWithPasskey, type PasskeyWallet } from '../../lib/passkey'
+import { createPasskeyWallet, loginWithPasskey, PasskeyNotConfirmed, type PasskeyWallet } from '../../lib/passkey'
 import { consoleError } from '../../lib/logs'
 import { OnboardStaggerChild } from '../../components/OnboardLoadIn'
 import { motion } from 'framer-motion'
@@ -62,7 +62,7 @@ export default function Init() {
   const { aspInfo } = useContext(AspContext)
   const { setInitInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { authState, wallet, updateWallet } = useContext(WalletContext)
+  const { authState, wallet } = useContext(WalletContext)
   const { devMode, handleTap } = useContext(DevModeContext)
 
   const prefersReduced = useReducedMotion()
@@ -105,6 +105,7 @@ export default function Init() {
   const handleOldWallet = () => navigate(Pages.InitRestore)
 
   const passkeyFailure = (err: unknown) => {
+    if (err instanceof PasskeyNotConfirmed) return setPasskeyError(t('init.passkeyNotUsed', { name: err.passkeyName }))
     if (err instanceof PasskeyCancelled) return
     consoleError(err, 'passkey wallet failed')
     setPasskeyError(err instanceof PrfUnavailable ? t('init.passkeyHasNoWords') : t('init.passkeyFailed'))
@@ -113,11 +114,21 @@ export default function Init() {
   const finishPasskeyWallet = (made: PasskeyWallet) => {
     const { passkeyId, passkeyRpId } = made
     if (made.prf) {
-      updateWallet({ ...wallet, passkeyPrf: true, passkeyId, passkeyRpId, lockedByBiometrics: false })
-      setInitInfo({ mnemonic: made.mnemonic, passkeyPrf: true, restoring: false, walletMode: 'static' })
+      setInitInfo({
+        mnemonic: made.mnemonic,
+        passkeyPrf: true,
+        restoring: false,
+        walletMode: 'static',
+        passkeyUnlock: { passkeyPrf: true, passkeyId, passkeyRpId, lockedByBiometrics: false },
+      })
     } else {
-      updateWallet({ ...wallet, lockedByBiometrics: true, passkeyId, passkeyRpId })
-      setInitInfo({ mnemonic: made.mnemonic, password: made.password, restoring: false, walletMode: 'static' })
+      setInitInfo({
+        mnemonic: made.mnemonic,
+        password: made.password,
+        restoring: false,
+        walletMode: 'static',
+        passkeyUnlock: { lockedByBiometrics: true, passkeyId, passkeyRpId },
+      })
     }
     navigate(Pages.InitConnect)
   }
@@ -147,8 +158,13 @@ export default function Init() {
     try {
       const found = await loginWithPasskey(isMainnet(aspInfo.network))
       const { passkeyId, passkeyRpId } = found
-      updateWallet({ ...wallet, passkeyPrf: true, passkeyId, passkeyRpId, lockedByBiometrics: false })
-      setInitInfo({ mnemonic: found.mnemonic, passkeyPrf: true, restoring: true })
+      setInitInfo({
+        mnemonic: found.mnemonic,
+        passkeyPrf: true,
+        restoring: true,
+        walletMode: 'static',
+        passkeyUnlock: { passkeyPrf: true, passkeyId, passkeyRpId, lockedByBiometrics: false },
+      })
       navigate(Pages.InitConnect)
     } catch (err) {
       setShowOptions(false)

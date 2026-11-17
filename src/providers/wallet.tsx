@@ -31,7 +31,7 @@ import { resolveExits, subtractExitedAssets, type ExitRecord } from '../lib/exit
 import { AspContext } from './asp'
 import { AssetsContext } from './assets'
 import { NotificationsContext } from './notifications'
-import { FlowContext } from './flow'
+import { FlowContext, type InitInfo } from './flow'
 import { arkNoteInUrl } from '../lib/arknote'
 import { deepLinkInUrl } from '../lib/deepLink'
 import { assetNameChanged, referencedAssetIds } from '../lib/assets'
@@ -90,6 +90,7 @@ interface WalletContextProps {
     privateKey?: Uint8Array
     walletMode?: ServiceWorkerWalletMode
     restoring?: boolean
+    passkeyUnlock?: InitInfo['passkeyUnlock']
   }) => Promise<void>
   lockWallet: () => Promise<void>
   resetWallet: () => Promise<void>
@@ -902,6 +903,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     privateKey?: Uint8Array
     walletMode?: ServiceWorkerWalletMode
     restoring?: boolean
+    passkeyUnlock?: InitInfo['passkeyUnlock']
   }) => {
     const arkServerUrl = aspInfo.url
     const network = aspInfo.network as NetworkName
@@ -943,7 +945,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     })
     if (!didInit) return
     openedThisSession.current = true
-    updateWallet({ ...wallet, network, pubkey })
+    // One write with the pubkey: a failed init leaves no unlock method on a wallet that has none.
+    updateWallet({ ...wallet, network, pubkey, ...credentials.passkeyUnlock })
     setInitialized(true)
   }
 
@@ -1067,6 +1070,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     await svcWallet.clear()
     await svcWallet.walletRepository.clear()
     await svcWallet.contractRepository.clear()
+    openedThisSession.current = false
     setDataReady(false)
     hasLoadedOnce.current = false
   }

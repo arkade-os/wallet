@@ -214,7 +214,7 @@ export type Wallet = {
   passkeyId?: string
   /** Words derived from the passkey's PRF on each unlock; nothing secret is stored. */
   passkeyPrf?: boolean
-  /** The site the passkey belongs to; absent for passkeys made on the page's own host. */
+  /** The site the passkey belongs to; the biometrics screens store none, and unlock falls back to the page's host. */
   passkeyRpId?: string
   pubkey?: string
 }

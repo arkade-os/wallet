@@ -7,7 +7,7 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import { WalletContext } from '../../providers/wallet'
 import { DevModeProvider } from '../../providers/devMode'
 import { mockAspContextValue, mockFlowContextValue, mockNavigationContextValue, mockWalletContextValue } from './mocks'
-import { createPasskeyWallet, loginWithPasskey } from '../../lib/passkey'
+import { createPasskeyWallet, loginWithPasskey, PasskeyNotConfirmed } from '../../lib/passkey'
 
 vi.mock('../../lib/passkey', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/passkey')>()),
@@ -103,16 +103,14 @@ describe('Init screen — passkey wallets', () => {
     const { navigate, setInitInfo, updateWallet } = renderWithSpies()
     await startPasskeyWallet()
     await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.InitConnect))
-    expect(updateWallet).toHaveBeenCalledWith(
-      expect.objectContaining({
-        passkeyPrf: true,
-        passkeyId: 'ab',
-        passkeyRpId: 'localhost',
-        lockedByBiometrics: false,
-      }),
-    )
+    expect(updateWallet).not.toHaveBeenCalled()
     expect(setInitInfo).toHaveBeenCalledWith(
-      expect.objectContaining({ mnemonic: words, passkeyPrf: true, restoring: false }),
+      expect.objectContaining({
+        mnemonic: words,
+        passkeyPrf: true,
+        restoring: false,
+        passkeyUnlock: { passkeyPrf: true, passkeyId: 'ab', passkeyRpId: 'localhost', lockedByBiometrics: false },
+      }),
     )
     expect(setInitInfo.mock.calls.at(-1)?.[0]).not.toHaveProperty('password')
   })
@@ -136,11 +134,14 @@ describe('Init screen — passkey wallets', () => {
     expect(updateWallet).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Continue with this passkey' }))
     await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.InitConnect))
-    expect(updateWallet).toHaveBeenCalledWith(
-      expect.objectContaining({ lockedByBiometrics: true, passkeyId: 'ab', passkeyRpId: 'localhost' }),
-    )
+    expect(updateWallet).not.toHaveBeenCalled()
     expect(setInitInfo).toHaveBeenCalledWith(
-      expect.objectContaining({ mnemonic: words, password: 'cafe', restoring: false }),
+      expect.objectContaining({
+        mnemonic: words,
+        password: 'cafe',
+        restoring: false,
+        passkeyUnlock: { lockedByBiometrics: true, passkeyId: 'ab', passkeyRpId: 'localhost' },
+      }),
     )
   })
 
@@ -161,9 +162,26 @@ describe('Init screen — passkey wallets', () => {
     fireEvent.click(screen.getAllByText('Other login options')[0])
     fireEvent.click(await screen.findByText('Log in with passkey'))
     await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.InitConnect))
-    expect(updateWallet).toHaveBeenCalledWith(expect.objectContaining({ passkeyPrf: true, passkeyId: 'cd' }))
+    expect(updateWallet).not.toHaveBeenCalled()
     expect(setInitInfo).toHaveBeenCalledWith(
-      expect.objectContaining({ mnemonic: words, passkeyPrf: true, restoring: true }),
+      expect.objectContaining({
+        mnemonic: words,
+        passkeyPrf: true,
+        restoring: true,
+        walletMode: 'static',
+        passkeyUnlock: { passkeyPrf: true, passkeyId: 'cd', passkeyRpId: 'localhost', lockedByBiometrics: false },
+      }),
     )
+  })
+
+  it('creates nothing when the new passkey fails its confirming use, and names it', async () => {
+    vi.mocked(createPasskeyWallet).mockRejectedValue(new PasskeyNotConfirmed('Arkade wallet · ab12cd34'))
+    const { navigate, setInitInfo, updateWallet } = renderWithSpies()
+    await startPasskeyWallet()
+    expect(await screen.findByText(/Arkade wallet · ab12cd34/)).toBeInTheDocument()
+    expect(screen.queryByText(/stays on this device/)).toBeNull()
+    expect(navigate).not.toHaveBeenCalled()
+    expect(setInitInfo).not.toHaveBeenCalled()
+    expect(updateWallet).not.toHaveBeenCalled()
   })
 })

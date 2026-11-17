@@ -1,4 +1,4 @@
-import { MnemonicIdentity, PrfUnavailable, type WebAuthnClient } from '@arkade-os/sdk'
+import { MnemonicIdentity, PasskeyUnconfirmed, PrfUnavailable, type WebAuthnClient } from '@arkade-os/sdk'
 import { hex } from '@scure/base'
 import { generateMnemonic } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
@@ -16,6 +16,14 @@ export type PasskeyWallet = { mnemonic: string; passkeyId: string; passkeyRpId: 
   | { prf: true }
   | { prf: false; password: string }
 )
+
+/** A new passkey whose first use failed. It may still do PRF, so a fallback wallet tied to it would let a login elsewhere open an empty one. */
+export class PasskeyNotConfirmed extends Error {
+  name = 'PasskeyNotConfirmed'
+  constructor(readonly passkeyName: string) {
+    super('Passkey was not confirmed')
+  }
+}
 
 export async function createPasskeyWallet(
   isMainnet: boolean,
@@ -41,6 +49,7 @@ export async function createPasskeyWallet(
       passkeyName,
     }
   } catch (e) {
+    if (e instanceof PasskeyUnconfirmed) throw new PasskeyNotConfirmed(passkeyName)
     if (!(e instanceof PrfUnavailable) || !e.credentialId) throw e
     return {
       prf: false,

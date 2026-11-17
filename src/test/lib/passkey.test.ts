@@ -4,7 +4,13 @@ import { validateMnemonic } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import { MnemonicIdentity, PrfUnavailable, type WebAuthnClient } from '@arkade-os/sdk'
 import { describe, expect, it } from 'vitest'
-import { createPasskeyWallet, loginWithPasskey, passkeyMnemonic, passkeyRpId } from '../../lib/passkey'
+import {
+  createPasskeyWallet,
+  loginWithPasskey,
+  PasskeyNotConfirmed,
+  passkeyMnemonic,
+  passkeyRpId,
+} from '../../lib/passkey'
 
 type Held = { id: Uint8Array; secret: Uint8Array; userHandle: Uint8Array; rpId: string; userName: string }
 
@@ -96,6 +102,18 @@ describe('passkey wallets', () => {
     if (made.prf) throw new Error('expected the fallback')
     expect(made.password).toBe(hex.encode(client.held[0].userHandle))
     expect(validateMnemonic(made.mnemonic, wordlist)).toBe(true)
+  })
+
+  it('creates no wallet when the new passkey fails its confirming use', async () => {
+    class RefusesAfterCreate extends FakeAuthenticator {
+      async get(): Promise<Credential | null> {
+        throw new DOMException('cancelled', 'NotAllowedError')
+      }
+    }
+    const client = new RefusesAfterCreate()
+    const err = await createPasskeyWallet(false, client, 'localhost').catch((e) => e)
+    expect(err).toBeInstanceOf(PasskeyNotConfirmed)
+    expect(err.passkeyName).toBe(client.held[0].userName)
   })
 
   it('gives each passkey its own user name, since some authenticators replace a passkey with the same one', async () => {
