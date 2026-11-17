@@ -37,15 +37,15 @@ describe('Cash SDK adapter', () => {
         token,
         cashId: 'cash-id',
         status: 'available',
-        issueTxIds: ['funding'],
-        claimTxIds: [],
+        issues: [{ txid: 'funding', amount: 5_000 }],
+        claims: [],
       }),
     }
     const view = await sdkIssue(wallet, 5_000)
     expect(view.id).toBe('cash-id')
     expect(view.status).toBe('available')
     expect(view.token).toBe(token)
-    expect(view).toMatchObject({ action: 'issued', amount: 5_000, token, issueTxIds: ['funding'] })
+    expect(view).toMatchObject({ action: 'issued', amount: 5_000, token, issues: [{ txid: 'funding', amount: 5_000 }] })
   })
 
   it('stores both a claim and a pending recovery token', async () => {
@@ -53,19 +53,19 @@ describe('Cash SDK adapter', () => {
     const wallet = cashWallet(token)
     wallet.arkadeCash = async (req: any) =>
       req.action === 'get'
-        ? { ...req, status: 'available', cashId: 'cash-id', issueTxIds: [], claimTxIds: [] }
+        ? { ...req, status: 'available', cashId: 'cash-id', issues: [], claims: [] }
         : ((wallet.lastRequest = req),
           {
             ...req,
             swept: 5_000,
             recovering: { amount: 1_000, vtxos: [] },
             unclaimed: { amount: 0, vtxos: [] },
-            claimTxIds: ['claim'],
+            claims: [{ txid: 'claim', amount: 5_000 }],
           })
     const previous = { ...record('recover'), token, updatedAt: 2 }
     const result = await sdkClaim(wallet, token, previous)
     expect(result.recovering).toBe(1_000)
-    expect(result.record.claimTxIds).toEqual(['claim'])
+    expect(result.record.claims).toEqual([{ txid: 'claim', amount: 5_000 }])
     expect(wallet.lastRequest.action).toBe('claim')
   })
 
@@ -73,23 +73,23 @@ describe('Cash SDK adapter', () => {
     const wallet = cashWallet(makeToken())
     wallet.arkadeCash = async (req: any) =>
       req.action === 'get'
-        ? { ...req, status: 'available', cashId: 'cash-id', issueTxIds: [], claimTxIds: [] }
+        ? { ...req, status: 'available', cashId: 'cash-id', issues: [], claims: [] }
         : {
             ...req,
             swept: 5_000,
             recovering: { amount: 0, vtxos: [] },
             unclaimed: { amount: 0, vtxos: [] },
-            claimTxIds: ['claim'],
+            claims: [{ txid: 'claim', amount: 5_000 }],
           }
     const result = await sdkClaim(wallet, makeToken(), { ...record('recover'), updatedAt: 2 })
-    expect(result.record).toMatchObject({ action: 'claimed', claimTxIds: ['claim'] })
+    expect(result.record).toMatchObject({ action: 'claimed', claims: [{ txid: 'claim', amount: 5_000 }] })
   })
 
   it('allows a registered sweep to be resumed', async () => {
     const wallet = cashWallet(makeToken())
     wallet.arkadeCash = async (req: any) =>
       req.action === 'get'
-        ? { ...req, status: 'claimed', cashId: 'cash-id', issueTxIds: [], claimTxIds: [] }
+        ? { ...req, status: 'claimed', cashId: 'cash-id', issues: [], claims: [] }
         : ((wallet.lastRequest = req),
           { ...req, swept: 5_000, recovering: { amount: 0, vtxos: [] }, unclaimed: { amount: 0, vtxos: [] } })
     const result = await sdkClaim(wallet, makeToken(), {
@@ -111,8 +111,8 @@ const record = (id: string) => ({
   amount: 1_000,
   createdAt: 1,
   outcome: 'available',
-  issueTxIds: ['a'.repeat(64)],
-  claimTxIds: [],
+  issues: [{ txid: 'a'.repeat(64), amount: 5_000 }],
+  claims: [],
 })
 
 describe('Cash record merging', () => {
@@ -141,11 +141,11 @@ function cashWallet(token?: string): any {
         swept: 5_000,
         recovering: { amount: 1_000, vtxos: [] },
         unclaimed: { amount: 0, vtxos: [] },
-        claimTxIds: ['claim'],
+        claims: [{ txid: 'claim', amount: 5_000 }],
         token: token ?? req.token,
         amount: 5_000,
         status: 'claimed',
-        issueTxIds: [],
+        issues: [],
       }
     },
   } as any

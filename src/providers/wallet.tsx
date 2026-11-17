@@ -663,8 +663,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
             action: 'claimed',
             amount: report.amount,
             outcome: report.status,
-            issueTxIds: report.issueTxIds,
-            claimTxIds: report.claimTxIds,
+            issues: report.issues,
+            claims: report.claims,
             createdAt: Math.floor(Date.now() / 1000),
             updatedAt: Date.now(),
             status: report.status,
@@ -747,8 +747,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           before.status !== next.status ||
           before.outcome !== next.outcome ||
           before.token !== next.token ||
-          before.issueTxIds.length !== next.issueTxIds.length ||
-          before.claimTxIds.length !== next.claimTxIds.length
+          before.issues.length !== next.issues.length ||
+          before.claims.length !== next.claims.length
         )
       })
       await store.save(result)

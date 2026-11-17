@@ -15,8 +15,8 @@ const record: CashRecord = {
   outcome: 'issued',
   status: 'available',
   token: 'arkadecash1token',
-  issueTxIds: ['aa'.repeat(32)],
-  claimTxIds: [],
+  issues: [{ txid: 'aa'.repeat(32), amount: 5_000 }],
+  claims: [],
   createdAt: 1_700_000_000,
   updatedAt: 1_700_000_000,
 }

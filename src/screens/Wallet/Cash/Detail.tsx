@@ -281,13 +281,11 @@ export default function CashDetail() {
               </div>
               <div className='voucher-meta-row'>
                 <dt>Funding</dt>
-                <dd className='mono'>
-                  {record.issueTxIds.length ? prettyLongText(record.issueTxIds[0], 10) : 'Pending'}
-                </dd>
+                <dd className='mono'>{record.issues.length ? prettyLongText(record.issues[0].txid, 10) : 'Pending'}</dd>
               </div>
               <div className='voucher-meta-row'>
                 <dt>Claim</dt>
-                <dd className='mono'>{record.claimTxIds.length ? prettyLongText(record.claimTxIds[0], 10) : '—'}</dd>
+                <dd className='mono'>{record.claims.length ? prettyLongText(record.claims[0].txid, 10) : '—'}</dd>
               </div>
             </dl>
 

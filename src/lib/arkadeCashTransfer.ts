@@ -1,6 +1,7 @@
 import { ArkadeCash, type ArkadeCashRecord } from '@arkade-os/sdk'
 
 export interface CashRecord extends ArkadeCashRecord {
+  amount: number
   token?: string
   status?: string
   updatedAt: number
@@ -30,8 +31,8 @@ export const mergeCash = (left: CashRecord[], right: CashRecord[]) => {
       ...old,
       ...publicRecord,
       token: 'token' in record ? nextToken : old?.token,
-      claimTxIds: record.claimTxIds,
-      issueTxIds: record.issueTxIds,
+      claims: record.claims,
+      issues: record.issues,
       updatedAt: Math.max(record.updatedAt, old?.updatedAt ?? 0),
     })
   }

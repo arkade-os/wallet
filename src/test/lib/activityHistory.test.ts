@@ -801,7 +801,7 @@ describe('unilateral exits', () => {
 // Unlike the hand-built intents above, these drive the REAL package resolvers
 // through the SDK's own grouping, so a package change to the intent shape or
 // `railOf` breaks here too.
-describe('lnurl resolvers, driven end to end from the vendored package', () => {
+describe('lnurl resolvers, driven end to end from the installed package', () => {
   const namedReceive = (): StoredPayment => ({
     key: 'https://lnurl.example|payment-hash-1',
     baseUrl: 'https://lnurl.example',

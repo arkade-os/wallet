@@ -1,4 +1,4 @@
-import type { Activity, ArkadeCashRequest, ArkadeCashResponse } from '@arkade-os/sdk'
+import type { Activity, ArkadeCashRequest, ArkadeCashResponse, ArkadeCashTx } from '@arkade-os/sdk'
 import { parseCashToken, type CashRecord } from './arkadeCashTransfer'
 
 export type CashWallet = {
@@ -10,6 +10,13 @@ const request = async <T extends ArkadeCashRequest>(wallet: CashWallet, req: T) 
   if (!response) throw new Error('This wallet SDK does not support Arkade Cash')
   if (response.action !== req.action) throw new Error('Unexpected voucher response')
   return response as Extract<ArkadeCashResponse, { action: T['action'] }>
+}
+
+// Union voucher transactions by txid; the first sighting of a txid wins.
+const unionTxs = (...lists: ArkadeCashTx[][]): ArkadeCashTx[] => {
+  const byTxid = new Map<string, ArkadeCashTx>()
+  for (const tx of lists.flat()) if (!byTxid.has(tx.txid)) byTxid.set(tx.txid, tx)
+  return [...byTxid.values()]
 }
 
 export const decodeCashInput = (input: string) => {
@@ -40,8 +47,8 @@ export const issue = async (wallet: CashWallet, amount: number) => {
     action: 'issued',
     amount: report.amount || amount,
     outcome: report.status,
-    issueTxIds: report.issueTxIds,
-    claimTxIds: report.claimTxIds,
+    issues: report.issues,
+    claims: report.claims,
     createdAt: Math.floor(Date.now() / 1000),
     updatedAt: Date.now(),
     token,
@@ -65,10 +72,8 @@ export const claim = async (wallet: CashWallet, token: string, previous?: CashRe
     action: 'claimed',
     amount: response.swept + recovering,
     outcome,
-    issueTxIds: report.issueTxIds,
-    claimTxIds: [
-      ...new Set([...(previous?.action === 'claimed' ? previous.claimTxIds : []), ...(response.claimTxIds ?? [])]),
-    ],
+    issues: report.issues,
+    claims: unionTxs(previous?.action === 'claimed' ? previous.claims : [], response.claims ?? []),
     createdAt: previous?.action === 'claimed' ? previous.createdAt : Math.floor(Date.now() / 1000),
     updatedAt: Date.now(),
     status: outcome,
@@ -101,8 +106,8 @@ export const refresh = async (wallet: CashWallet, records: CashRecord[]) => {
           outcome: status,
           status,
           updatedAt: record.updatedAt,
-          issueTxIds: [...new Set([...record.issueTxIds, ...report.issueTxIds])],
-          claimTxIds: [...new Set([...record.claimTxIds, ...report.claimTxIds])],
+          issues: unionTxs(record.issues, report.issues),
+          claims: unionTxs(record.claims, report.claims),
           token:
             report.status === 'exited' || (report.status === 'claimed' && record.outcome === 'claimed')
               ? undefined
