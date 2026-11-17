@@ -305,14 +305,19 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
       continue
     }
     // members of one activity share `activity.id`, so the member txid is what
-    // keeps the row key unique
+    // keeps the row key unique; members can also share a txid (two receives in
+    // one transaction), so repeats get an occurrence suffix
     const lnurl = lnurlIntentOf(activity)
+    const seenKeys = new Map<string, number>()
     for (const tx of activity.txs) {
       const txid = txidOfArkTransaction(tx)
+      const base = `${activity.id}:${txid}`
+      const n = seenKeys.get(base) ?? 0
+      seenKeys.set(base, n + 1)
       rows.push({
         ...arkTransactionToTx(tx, metadata[txid]),
         ...(lnurl ? { lnurl } : {}),
-        historyKey: `${activity.id}:${txid}`,
+        historyKey: n === 0 ? base : `${base}:${n}`,
       })
     }
   }

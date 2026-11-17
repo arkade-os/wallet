@@ -92,6 +92,14 @@ describe('activitiesToTxs', () => {
     expect(txs.map((tx) => tx.historyKey)).toEqual(['boarding:abc:a', 'boarding:abc:b'])
   })
 
+  it('keeps keys distinct when members share a txid', () => {
+    const deposit = activity('boarding:abc', [arkTx('a'), arkTx('a')], { kind: 'boarding', label: 'Deposit' })
+
+    const txs = activitiesToTxs([deposit], empty)
+
+    expect(txs.map((tx) => tx.historyKey)).toEqual(['boarding:abc:a', 'boarding:abc:a:1'])
+  })
+
   it('falls back to plain member rows when the swap record is not there yet', () => {
     const txs = activitiesToTxs([activity('swap:swap-1', [arkTx('funding-txid')], swapIntent('swap-1'))], empty)
 

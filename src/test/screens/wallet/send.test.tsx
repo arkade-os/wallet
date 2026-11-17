@@ -47,6 +47,7 @@ import { createSendRouter, LNURL_ARKADE_RAIL, LNURL_LIGHTNING_RAIL } from '../..
 import { Currencies, Unit } from '../../../lib/types'
 import fixtures from '../../fixtures.json'
 import { saveContact } from '../../../lib/contacts'
+import { fromSatoshis, prettyNumber } from '@/lib/format'
 
 type TreeOptions = {
   configContext?: unknown
@@ -138,6 +139,7 @@ describe('Send screen', () => {
     expect(amountInput).toHaveAttribute('readonly')
     fetchMocker.disableMocks()
   })
+
   it('refuses an LNURL invoice whose amount differs from the one requested', async () => {
     const requested = fixtures.lib.bolt11.amountSats + 100
     const fetchMocker = createFetchMock(vi)
@@ -461,6 +463,88 @@ describe('Send screen', () => {
     await waitFor(() => expect(setSendInfo).toHaveBeenCalledWith(expect.objectContaining({ satoshis: 10000 })))
   })
 
+  it('avoid mixed amounts in invoice and satoshis field', async () => {
+    // a 2100 sats lightning invoice
+    const INVOICE = fixtures.lib.bolt11.invoice
+    const INVOICE_SATS = fixtures.lib.bolt11.amountSats
+    const BTC_ADDRESS = fixtures.lib.address.btc[5]
+
+    const sats2btc = (sats: number) => prettyNumber(fromSatoshis(sats), 8, false)
+
+    let currentSendInfo: SendInfo = emptySendInfo
+    const walletValue = {
+      ...mockWalletContextValue,
+      svcWallet: {
+        ...mockSvcWallet,
+        getAddress: () => 'tark1mockoffchain',
+        getBoardingAddress: () => Promise.resolve('bcrt1mockboarding'),
+        getBalance: () => Promise.resolve({ available: 1_000_000 }),
+      } as any,
+    }
+    const configValue = {
+      ...mockConfigContextValue,
+      useFiat: false,
+      config: { ...mockConfigContextValue.config, currency: Currencies.BTC, unit: Unit.BTC },
+    }
+
+    const StatefulForm = () => {
+      const [sendInfo, setSendInfo] = useState<SendInfo>(emptySendInfo)
+      currentSendInfo = sendInfo
+      return sendFormTree({
+        configContext: configValue,
+        flowContext: { ...mockFlowContextValue, sendInfo, setSendInfo },
+        walletContext: walletValue,
+      })
+    }
+
+    render(<StatefulForm />)
+
+    const addressInput = document.querySelector('input[name="send-address"]') as HTMLInputElement
+    const amountInput = document.querySelector('input[name="send-amount"]') as HTMLInputElement
+
+    // lightning= carries a malformed invoice alongside a valid address=
+    fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?lightning=malformedinvoice` } })
+    await waitFor(() => {
+      expect(currentSendInfo.recipient).toBe(`bitcoin:${BTC_ADDRESS}?lightning=malformedinvoice`)
+      expect(currentSendInfo.invoice).toBeUndefined()
+      expect(currentSendInfo.satoshis).toBe(0)
+      expect(amountInput.value).toBe('')
+    })
+
+    // URI with both lightning and amount: amount is ignored, invoice takes precedence
+    fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?lightning=${INVOICE}&amount=0.0001` } })
+    await waitFor(() => {
+      expect(amountInput.value).toBe(sats2btc(INVOICE_SATS))
+      expect(currentSendInfo.satoshis).toBe(INVOICE_SATS)
+      expect(currentSendInfo.invoice).toBe(INVOICE)
+    })
+
+    // Amount-only URI (no invoice): should clear invoice and update satoshis
+    fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?amount=0.0001` } })
+    await waitFor(() => {
+      expect(amountInput.value).toBe('0.0001')
+      expect(currentSendInfo.invoice).toBeUndefined()
+      expect(currentSendInfo.satoshis).toBe(10000)
+    })
+
+    // Invoice-only URI starts with a different displayed and stored amount.
+    fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?lightning=${INVOICE}` } })
+    await waitFor(() => {
+      expect(amountInput.value).toBe(sats2btc(INVOICE_SATS))
+      expect(currentSendInfo.satoshis).toBe(INVOICE_SATS)
+      expect(currentSendInfo.invoice).toBe(INVOICE)
+    })
+
+    // The same invoice with a conflicting BIP21 amount must be revalidated.
+    fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?lightning=${INVOICE}&amount=0.0001` } })
+    await waitFor(() => {
+      expect(currentSendInfo.recipient).toBe(`bitcoin:${BTC_ADDRESS}?lightning=${INVOICE}&amount=0.0001`)
+      expect(amountInput.value).toBe(sats2btc(INVOICE_SATS))
+      expect(currentSendInfo.satoshis).toBe(INVOICE_SATS)
+      expect(currentSendInfo.invoice).toBe(INVOICE)
+    })
+  })
+
   it('converts a USD account amount into its designated asset units', async () => {
     const setSendInfo = vi.fn()
     const account = {
@@ -717,13 +801,17 @@ describe('a changed recipient', () => {
       { id: 'ark', type: 'arkade' },
     ],
   }
-  const lnurlServer = (held?: Promise<void>, over: { callbackHeld?: Promise<void>; body?: object } = {}) => {
+  const lnurlServer = (
+    held?: Promise<void>,
+    over: { callbackHeld?: Promise<void>; body?: object; arkAddress?: string } = {},
+  ) => {
     const fetchMocker = createFetchMock(vi)
     fetchMocker.enableMocks()
     fetchMocker.mockResponse(async (req) => {
       if (req.url.includes('paymentOption=') || req.url.includes('method=ark')) {
         await over.callbackHeld
-        return JSON.stringify({ paymentOption: 'ark', paymentDestination: ARK, address: ARK, expiryDate: '', hint: '' })
+        const address = over.arkAddress ?? ARK
+        return JSON.stringify({ paymentOption: 'ark', paymentDestination: address, address, expiryDate: '', hint: '' })
       }
       await held
       return JSON.stringify(over.body ?? payRequest)
@@ -731,12 +819,12 @@ describe('a changed recipient', () => {
     return fetchMocker
   }
 
-  const renderStateful = () => {
+  const renderStateful = (walletValue = walletContext) => {
     const sendRouter = vi.fn(async () => createSendRouter({ wallet: svcWallet }))
     const navigate = vi.fn()
     const { container } = render(
       <StatefulForm
-        walletContext={walletContext}
+        walletContext={walletValue}
         swapsContext={{ sendRouter }}
         navigationContext={{ ...mockNavigationContextValue, navigate }}
       />,
@@ -841,6 +929,33 @@ describe('a changed recipient', () => {
     await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), settle)
     expect(current.pendingLnSend?.railId).toBe(LNURL_ARKADE_RAIL)
     fetchMocker.disableMocks()
+  })
+
+  it('keeps the Ark route selected until the receiving address is available', async () => {
+    let releaseAddress: (address: string) => void = () => {}
+    const receivingAddress = new Promise<string>((resolve) => (releaseAddress = resolve))
+    const body = { ...payRequest, paymentOptions: undefined, transferAmounts: [{ method: 'Ark', available: true }] }
+    const fetchMocker = lnurlServer(undefined, { body })
+    const walletValue = {
+      ...walletContext,
+      svcWallet: { ...svcWallet, getAddress: () => receivingAddress },
+    }
+    try {
+      const { sendRouter, type } = renderStateful(walletValue)
+      type(LNURL)
+      await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
+
+      expect(continueButton()).toBeDisabled()
+      expect(sendRouter).not.toHaveBeenCalled()
+
+      releaseAddress(ARK)
+      await waitFor(() => expect(continueButton()).toBeEnabled(), settle)
+      await clickContinue()
+      await waitFor(() => expect(fetchMocker.requests().some((r) => r.url.includes('method=ark'))).toBe(true), settle)
+      expect(sendRouter).not.toHaveBeenCalled()
+    } finally {
+      fetchMocker.disableMocks()
+    }
   })
 
   it('ignores an LNURL that resolves after the recipient changed', async () => {
@@ -976,6 +1091,23 @@ describe('a changed recipient', () => {
     expect(navigate).not.toHaveBeenCalledWith(Pages.SendDetails)
     fetchMocker.disableMocks()
   })
+
+  it('clears a mismatched LNURL Ark address error when the recipient changes', async () => {
+    const body = { ...payRequest, paymentOptions: undefined, transferAmounts: [{ method: 'Ark', available: true }] }
+    const fetchMocker = lnurlServer(undefined, { body, arkAddress: fixtures.lib.address.ark[1].address })
+    const { type } = renderStateful()
+    type(LNURL)
+    await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
+    await clickContinue()
+    await waitFor(() => screen.getByText('Arkade server key mismatch'), settle)
+    expect(continueButton()).toBeDisabled()
+
+    type(ARK)
+    await waitFor(() => expect(current.arkAddress).toBe(ARK), settle)
+    await waitFor(() => expect(continueButton()).toBeEnabled(), settle)
+    fetchMocker.disableMocks()
+  })
+
   it.each([500, 200_000])(
     'quotes a valid %i sat Arkade amount outside the default Lightning bounds',
     async (amount) => {
@@ -1030,6 +1162,7 @@ describe('a changed recipient', () => {
       fetchMocker.disableMocks()
     }
   })
+
   it('keeps a gap between supported LNURL ranges disabled and accepts a corrected amount', async () => {
     const body = {
       ...payRequest,

@@ -16,6 +16,18 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
   </tr>
 </table>
 
+## Recovering an asset mint
+
+Minting with a new control asset requires two separate issuances. The wallet saves a local recovery record before
+submitting each one and imports the control asset as soon as its issuance is known. If the control asset is not yet
+spendable, the wait ends after 60 seconds; return to the mint screen and resume the original mint without issuing
+another control asset. This flow requires Web Locks support and a secure browser context.
+
+If an issuance's outcome is unknown (for example, the browser closed while submitting it), the wallet cannot
+determine safely whether retrying would create a duplicate. Check wallet activity and contact support before
+discarding the recovery record. Discarding it or clearing browser storage can make a later mint incur another fee.
+Recovery records are stored in this browser, not in the Nostr backup; use the same wallet and Arkade server to resume.
+
 ## Environment Variables
 
 | Variable                      | Description                                                         | Example Value                                                                        |

@@ -1,6 +1,7 @@
 import Decimal from 'decimal.js'
 
 export const MAX_DECIMALS = 8 // Arbitrary value to allow at least 1 sat/asset
+export const MAX_REFERENCED_ASSET_IDS = 100
 
 // discovered assets may carry up to 18 decimals (solver-discovery's cap);
 // conversions must stay exact for them even though displays default to 8
@@ -98,10 +99,8 @@ export const prettyAssetAmount = (cents: bigint, decimals: number, tidy = false)
     }
   }
 
-  // For very large numbers that exceed JavaScript's safe integer range, we fall back to bigint
-  // Due to truncation in bigint division, we won't get decimal places, but this is a rare edge case
-  // and still provides a readable format
-  const units = BigInt(Math.trunc(Number(strUnits)))
+  // Truncate with bigint arithmetic to avoid floating-point rounding and overflow.
+  const units = cents / BigInt(10) ** BigInt(realDecimals)
   const absoluteUnits = units < 0 ? -units : units
 
   if (absoluteUnits >= trillion) {
@@ -149,9 +148,12 @@ export const referencedAssetIds = (sources: {
   swaps?: string[]
 }): Set<string> => {
   const ids = new Set<string>()
-  for (const { assetId } of sources.owned ?? []) if (isNameableAssetId(assetId)) ids.add(assetId)
-  for (const assetId of sources.rows ?? []) if (isNameableAssetId(assetId)) ids.add(assetId)
-  for (const assetId of sources.swaps ?? []) if (isNameableAssetId(assetId)) ids.add(assetId)
+  const add = (assetId: string | undefined) => {
+    if (ids.size < MAX_REFERENCED_ASSET_IDS && isNameableAssetId(assetId)) ids.add(assetId)
+  }
+  for (const { assetId } of sources.owned ?? []) add(assetId)
+  for (const assetId of sources.rows ?? []) add(assetId)
+  for (const assetId of sources.swaps ?? []) add(assetId)
   return ids
 }
 

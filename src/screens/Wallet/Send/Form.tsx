@@ -6,7 +6,12 @@ import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext } from '../../../providers/flow'
 import Padded from '../../../components/Padded'
-import { isBTCAddress, decodeArkAddress, isLightningInvoice, isURLWithLightningQueryString } from '../../../lib/address'
+import {
+  isBTCAddress,
+  isLightningInvoice,
+  isURLWithLightningQueryString,
+  haveSameServerPubKey,
+} from '../../../lib/address'
 import { AspContext } from '../../../providers/asp'
 import { isArkNote } from '../../../lib/arknote'
 import InputAmount, { type InputAmountMode } from '../../../components/InputAmount'
@@ -178,9 +183,6 @@ function AssetIcon({ asset }: { asset: AssetOption | null }) {
     </span>
   )
 }
-
-const PARTIAL_SEND_ERROR =
-  "You don't have enough bitcoin to do a partial send. Please send all or acquire some bitcoin."
 
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
@@ -530,6 +532,11 @@ export default function SendForm() {
       return
     }
 
+    if (isArkNote(rawScanData || typed)) {
+      setBrantaLoading(false)
+      return
+    }
+
     let cancelled = false
 
     const runLookup = () => {
@@ -636,7 +643,7 @@ export default function SendForm() {
   useEffect(() => {
     if (!receivingAddresses) return
     const { offchainAddr } = receivingAddresses
-    const { address, arkAddress, invoice, lnUrl } = sendInfo
+    const { address, arkAddress, invoice, lnUrl, satoshis } = sendInfo
     // check server limits for onchain transactions
     if (address && !arkAddress && !invoice && !lnUrl && !utxoTxsAllowed()) {
       return setRecipientError(t('send.sendingOnchainNotAllowed'))
@@ -647,19 +654,35 @@ export default function SendForm() {
     }
     // check if server key is valid
     if (arkAddress && arkAddress.length > 0) {
-      const { serverPubKey } = decodeArkAddress(arkAddress)
-      const { serverPubKey: expectedServerPubKey } = decodeArkAddress(offchainAddr)
-      if (serverPubKey !== expectedServerPubKey) {
+      if (!haveSameServerPubKey(arkAddress, offchainAddr)) {
         // if there's no other way to pay, show error
         if (!address && !invoice) return setRecipientError(t('send.arkadeServerKeyMismatch'))
         // remove ark address from possibilities to send and continue
         // we will try to pay to lightning or mainnet instead
-        setSendInfo({ ...sendInfo, arkAddress: '' })
+        setSendInfo((prev) => ({ ...prev, arkAddress: '' }))
       }
+    }
+    // avoid mixed amounts between invoice amount and bip21 amount field
+    if (!arkAddress && invoice) {
+      let sats: number | undefined = satoshis
+      let invo: string | undefined = invoice
+      try {
+        const { amountSats } = decodeInvoice(invoice)
+        if (amountSats > 0) {
+          sats = amountSats
+          setAmountTextValue(getTextValue(amountSats))
+          setValueSats(amountSats)
+          setAmountIsReadOnly(true)
+        }
+      } catch {
+        invo = undefined
+        if (!address && !lnUrl) return setRecipientError(t('send.unableToDecodeInvoice'))
+      }
+      setSendInfo((prev) => ({ ...prev, satoshis: sats, invoice: invo }))
     }
     // everything is ok, clean error
     setRecipientError('')
-  }, [receivingAddresses, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.lnUrl])
+  }, [receivingAddresses, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.lnUrl, sendInfo.recipient])
 
   const lnurlAmountUnavailable = Boolean(
     lnUrlResponse &&
@@ -726,26 +749,24 @@ export default function SendForm() {
     // address, an on-chain address, and an invoice whose quote is already in
     // hand all have all they need to be signed on the next screen.
     if (!sendInfo.invoice || sendInfo.pendingLnSend || sendInfo.arkAddress) return navigate(Pages.SendDetails)
-    {
-      // RFQ Lightning send: negotiate a quote over Nostr, derive the covenant
-      // locally, verify, and carry the address+amount to the pay screen. The
-      // negotiation is the only interactive step — funding IS acceptance.
-      const negotiate = async () => {
-        if (!svcWallet) return handleError('Wallet not ready')
-        // For the refusal message only — the rail ranks off the client's own
-        // snapshot; a second read let a cold cache throw on the error path.
-        const markets = await discoverMarkets(aspInfo.network as NetworkName)
-        const router = await sendRouter()
-        const options = await router.options(lnSendRequest(sendInfo.invoice!, sendInfo.satoshis))
-        const route = options.find((option) => option.railId === LIGHTNING_RAIL)
-        if (!route) return handleError(lnSendRefusal(markets, sendInfo.satoshis))
-        // Unguarded: a quote that throws names an unpayable invoice or a
-        // covenant that did not match, and neither reads as "no route".
-        const pendingLnSend = await route.quote()
-        setSendInfo((prev) => ({ ...prev, pendingLnSend }))
-      }
-      negotiate().catch(handleError)
+    // RFQ Lightning send: negotiate a quote over Nostr, derive the covenant
+    // locally, verify, and carry the address+amount to the pay screen. The
+    // negotiation is the only interactive step — funding IS acceptance.
+    const negotiate = async () => {
+      if (!svcWallet) return handleError('Wallet not ready')
+      // For the refusal message only — the rail ranks off the client's own
+      // snapshot; a second read let a cold cache throw on the error path.
+      const markets = await discoverMarkets(aspInfo.network as NetworkName)
+      const router = await sendRouter()
+      const options = await router.options(lnSendRequest(sendInfo.invoice!, sendInfo.satoshis))
+      const route = options.find((option) => option.railId === LIGHTNING_RAIL)
+      if (!route) return handleError(lnSendRefusal(markets, sendInfo.satoshis))
+      // Unguarded: a quote that throws names an unpayable invoice or a
+      // covenant that did not match, and neither reads as "no route".
+      const pendingLnSend = await route.quote()
+      setSendInfo((prev) => ({ ...prev, pendingLnSend }))
     }
+    negotiate().catch(handleError)
   }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingLnSend])
 
   // deal with fees deduction from amount
@@ -870,6 +891,9 @@ export default function SendForm() {
     if (!canSaveRecipient) return
     setSendInfo((prev) => ({ ...prev, saveAsContact: !prev.saveAsContact }))
   }
+  const lnUrlArkMethodAvailable = Boolean(
+    lnUrlResponse?.transferAmounts?.some((method) => method.method === 'Ark' && method.available),
+  )
 
   const handleContinue = async () => {
     setProcessing(true)
@@ -880,19 +904,23 @@ export default function SendForm() {
     try {
       if (sendInfo.lnUrl && lnUrlResponse) {
         // ?method=ark wins over the router's rails; it pays a plain Arkade send, so no receiver confirmation.
-        const arkMethod = lnUrlResponse.transferAmounts?.find((method) => method.method === 'Ark' && method.available)
-
-        if (arkMethod) {
+        if (lnUrlArkMethodAvailable) {
+          if (!receivingAddresses?.offchainAddr) return setProcessing(false)
           // Fetch Ark address instead of Lightning invoice
-          const arkResponse = await fetchArkAddress(sendInfo.lnUrl)
+          const { address: arkAddress } = await fetchArkAddress(sendInfo.lnUrl)
           if (stale()) return setProcessing(false)
-          if (!isValidArkAddress(arkResponse.address)) {
+          if (!isValidArkAddress(arkAddress)) {
             handleError(t('send.invalidArkadeAddressFromLnurl'))
+            return
+          }
+          if (!haveSameServerPubKey(arkAddress, receivingAddresses.offchainAddr)) {
+            setRecipientError(t('send.arkadeServerKeyMismatch'))
+            setProcessing(false)
             return
           }
           setSendInfo((prev) => ({
             ...prev,
-            arkAddress: arkResponse.address,
+            arkAddress,
             invoice: undefined,
             pendingLnSend: undefined,
           }))
@@ -1013,7 +1041,7 @@ export default function SendForm() {
     assetAmt > BigInt(0) &&
     assetAmt < activeAsset.balance &&
     availableBalance < 2 * Number(aspInfo.dust)
-      ? PARTIAL_SEND_ERROR
+      ? t('send.partialSendError')
       : ''
 
   const buttonDisabled = isAssetSend
@@ -1027,6 +1055,7 @@ export default function SendForm() {
     : !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
       // Unresolved conditions would strand Continue on a locked recipient field.
       (lnUrl && !arkAddress && !address && !invoice && !lnUrlResponse) ||
+      (lnUrlArkMethodAvailable && !receivingAddresses?.offchainAddr) ||
       Boolean(recipientError) ||
       lnurlAmountUnavailable ||
       amountIsAboveMaxLimit(satoshis) ||
