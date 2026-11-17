@@ -9,6 +9,7 @@ import {
   readClipboard,
   createWalletWithFiat,
   navigateHome,
+  pickReceiveFormat,
 } from './utils'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
@@ -75,6 +76,7 @@ test.skip('changing amount should update the invoice (sats mode)', async ({ page
   }
 
   // copy invoice
+  await pickReceiveFormat(page, tr.receive.lightningInvoice)
   await page.getByTestId('invoice-address-copy').click()
   const invoice = await readClipboard(page)
   await sleep(1000)
@@ -131,6 +133,7 @@ test.skip('changing amount should update the invoice (fiat mode)', async ({ page
 
   // copy invoice
   await sleep(1000)
+  await pickReceiveFormat(page, tr.receive.lightningInvoice)
   await page.getByTestId('invoice-address-copy').click()
   const invoice = await readClipboard(page)
 

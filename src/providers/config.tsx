@@ -22,8 +22,6 @@ const defaultConfig: Config = {
   pubkey: '',
   receiveViaTokens: false,
   lnurlPrimary: '',
-  receiveUnifiedMode: 'full',
-  receiveQrForm: {},
   showBalance: true,
   theme: Themes.Auto,
   unit: Unit.BTC,
@@ -65,7 +63,6 @@ const updateDefaultConfig = (config: Partial<Config>): Config => {
     ...config,
     announcementsSeen: [...announcementsSeen],
     importedAssets: [...importedAssets],
-    receiveQrForm: { ...(config.receiveQrForm ?? {}) },
     apps: {
       assets: { enabled: config.apps?.assets?.enabled ?? defaultConfig.apps.assets.enabled },
     },

@@ -210,7 +210,7 @@ describe('Receive screen, invoice generation', () => {
     expect(shareData).not.toHaveBeenCalled()
 
     await act(async () => finish())
-    expect(screen.getByText('Requesting 10,000 sats')).toBeInTheDocument()
+    expect(screen.getByTestId('receive-amount')).toHaveTextContent('€10,000.00')
     expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled()
     expect(screen.getByTestId('bip21-address-copy')).toBeEnabled()
     expect(share).toBeEnabled()

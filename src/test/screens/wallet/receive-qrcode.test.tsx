@@ -1,5 +1,5 @@
-import { beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
-import { render, screen, act, fireEvent, waitFor } from '@testing-library/react'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { render, screen, act, fireEvent, waitFor, within } from '@testing-library/react'
 import { FlowContext } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import {
@@ -19,14 +19,11 @@ import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { NotificationsContext } from '../../../providers/notifications'
 import { BackupContext } from '../../../providers/backup'
+import { SwapsContext } from '../../../providers/swaps'
 import { ToastProvider } from '../../../components/Toast'
 import { LanguageContext, translate } from '../../../providers/language'
 import { Currencies, Language, Unit } from '../../../lib/types'
 import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
-import ReceiveSelector from '../../../screens/Wallet/Receive/ReceiveSelector'
-import ReceiveParts from '../../../screens/Wallet/Receive/ReceiveParts'
-import type { PartId, ReceivePart } from '../../../lib/receive/receiveTargets'
-import { useState } from 'react'
 
 // Mock qr module used by QrCode component
 vi.mock('qr', () => ({
@@ -38,6 +35,9 @@ const copyToClipboardMock = vi.fn((v) => Promise.resolve(v))
 vi.mock('../../../lib/clipboard', () => ({
   copyToClipboard: (v: string) => copyToClipboardMock(v),
 }))
+
+// jsdom has no Web Share, which would leave Share disabled whatever the screen's state.
+vi.mock('../../../lib/share', () => ({ canBrowserShareData: () => true, shareData: async () => {} }))
 
 // Silence haptics in jsdom (no-op already, but keeps tests deterministic)
 vi.mock('../../../lib/haptics', () => ({
@@ -144,10 +144,6 @@ function renderReceiveQrCode(overrides?: RenderOverrides) {
   return render(buildTree(overrides))
 }
 
-const withQrForm = (receiveQrForm: Record<string, string>): RenderOverrides['config'] => ({
-  config: { ...mockConfigContextValue.config, receiveQrForm },
-})
-
 // Shared fixture for the tap-to-copy tests: no amount,
 // both addresses populated so the screen renders the QR immediately.
 const tapFixture = (addrs = { off: 'ark1testaddr', bd: 'bc1testaddr' }): RenderOverrides => ({
@@ -170,20 +166,29 @@ describe('Receive QR Code screen', () => {
     backupConfig.mockClear()
   })
 
-  it('disables Copy, like Share, when no payment method is allowed', async () => {
+  const expectNoCopyFormatsOrShare = () => {
+    expect(screen.queryByRole('button', { name: 'Copy QR code' })).not.toBeInTheDocument()
+    expect(screen.queryByTestId(/-address-copy$/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Other formats/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Share' })).toBeDisabled()
+  }
+
+  it('renders no copy button, and disables Share, when no payment method is allowed', async () => {
     renderReceiveQrCode({ ...tapFixture(), limits: { vtxoTxsAllowed: () => false, utxoTxsAllowed: () => false } })
 
     expect(await screen.findByText('No valid payment methods available for this amount')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Copy' })).toBeDisabled()
+    expectNoCopyFormatsOrShare()
   })
 
-  it('disables Copy while the address error shows, though addresses from an earlier load remain', async () => {
+  it('renders no copy button, and disables Share, while the address error shows, though addresses from an earlier load remain', async () => {
     const fixture = tapFixture()
-    renderReceiveQrCode({ ...fixture, flow: { recvInfo: { ...fixture.flow!.recvInfo!, addressError: 'offline' } } })
+    const { rerender } = renderReceiveQrCode(fixture)
+    await screen.findByRole('button', { name: 'Copy QR code' })
+
+    rerender(buildTree({ ...fixture, flow: { recvInfo: { ...fixture.flow!.recvInfo!, addressError: 'offline' } } }))
 
     expect(await screen.findByText('Failed to get address: offline')).toBeInTheDocument()
-    await act(async () => {})
-    expect(screen.getByRole('button', { name: 'Copy' })).toBeDisabled()
+    expectNoCopyFormatsOrShare()
   })
 
   // Regression for the switched-QR path: new recvInfo addresses re-derive the QR through the BIP21
@@ -292,8 +297,26 @@ describe('Receive QR Code screen', () => {
     expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).toContain('lightning=')
   })
 
-  describe('payment method selector', () => {
-    const amountFixture = (invoice: string, receiveQrForm: Record<string, string> = {}): RenderOverrides => ({
+  it('renders no copy button, and disables Share, while the invoice generates', async () => {
+    let fail: (reason: Error) => void = () => {}
+    const receiveLightning = () => new Promise((_, reject) => (fail = reject))
+    const { container } = render(
+      <SwapsContext.Provider value={{ receiveLightning, outcomeOf: () => undefined, errorOf: () => undefined } as any}>
+        {buildTree(afterMount({}))}
+      </SwapsContext.Provider>,
+    )
+
+    await waitFor(() => expect(container.querySelector('[data-generating="true"]')).not.toBeNull())
+    expect(screen.queryByTestId(/-address-copy$/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Share' })).toBeDisabled()
+
+    await act(async () => fail(new Error('no solver')))
+    expect(await screen.findByTestId('bip21-address-copy')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Share' })).toBeEnabled()
+  })
+
+  describe('other formats', () => {
+    const amountFixture = (invoice: string): RenderOverrides => ({
       flow: {
         recvInfo: {
           ...mockFlowContextValue.recvInfo,
@@ -304,347 +327,184 @@ describe('Receive QR Code screen', () => {
         },
       },
       wallet: { svcWallet: mockSvcWallet as any },
-      config: withQrForm(receiveQrForm),
     })
-    const clickQr = async () => {
-      const qr = await screen.findByRole('button', { name: 'Copy QR code' })
+    const tap = async (element: HTMLElement) => {
+      copyToClipboardMock.mockClear()
       await act(async () => {
-        fireEvent.click(qr)
+        fireEvent.click(element)
       })
       return copyToClipboardMock.mock.calls.at(-1)?.[0]
     }
+    const clickQr = async () => tap(await screen.findByRole('button', { name: 'Copy QR code' }))
+    const copyFrom = async (testId: string) => tap(await screen.findByTestId(testId))
+    const openFormats = async () => fireEvent.click(await screen.findByRole('button', { name: /^Other formats/ }))
+    const pickFormat = async (name: RegExp) => {
+      await openFormats()
+      fireEvent.click(screen.getByRole('radio', { name }))
+    }
+    const activeFormat = () => screen.getByRole('radio', { checked: true })
 
     it('defaults to the unified URI when a Lightning invoice exists', async () => {
       renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
 
-      await screen.findByTestId('invoice-address-copy')
+      await screen.findByTestId('bip21-address-copy')
       const copied = await clickQr()
       expect(copied).toContain('bitcoin:')
       expect(copied).toContain('lnbc10u1ptest')
     })
 
-    it('remembers the invoice row when it is put in the QR', async () => {
-      renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
+    it('makes Any wallet the active radio on every mount, remembering no pick', async () => {
+      const { unmount } = renderReceiveQrCode(tapFixture())
 
-      fireEvent.click(await screen.findByRole('radio', { name: /Lightning invoice/ }))
+      await openFormats()
+      expect(screen.getByRole('radiogroup', { name: 'Other formats' })).toContainElement(activeFormat())
+      expect(activeFormat()).toHaveAccessibleName(/^Any wallet/)
+      expect(within(activeFormat()).getByText('Default')).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('radio', { name: /^Arkade address/ }))
+      expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
+      await openFormats()
+      expect(activeFormat()).toHaveAccessibleName(/^Arkade address/)
 
-      expect(updateConfig).toHaveBeenLastCalledWith(expect.objectContaining({ receiveQrForm: { full: 'invoice' } }))
-      expect(copyToClipboardMock).not.toHaveBeenCalled()
+      unmount()
+      renderReceiveQrCode(tapFixture())
+      await openFormats()
+      expect(activeFormat()).toHaveAccessibleName(/^Any wallet/)
+      expect(updateConfig).not.toHaveBeenCalled()
+      expect(backupConfig).not.toHaveBeenCalled()
+      expect(backupAndUpdateConfig).not.toHaveBeenCalled()
     })
 
-    it('keeps each copy button beside its radio row, where assistive tech still reaches it', async () => {
-      renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
+    it.each([
+      ['bare with no amount', tapFixture(), 'ark1testaddr', 'bc1testaddr'],
+      [
+        'as a bitcoin: link once an amount is set',
+        amountFixture(''),
+        'bitcoin:?ark=ark1testaddr&amount=0.0005',
+        'bitcoin:bc1testaddr?amount=0.0005',
+      ],
+    ])('puts the picked Arkade, then Bitcoin, address in the QR and its copy %s', async (_, fixture, ark, btc) => {
+      renderReceiveQrCode(fixture)
 
-      const copy = await screen.findByTestId('invoice-address-copy')
-      expect(screen.getByRole('radio', { name: /Lightning invoice/ })).not.toContainElement(copy)
+      await pickFormat(/^Arkade address/)
+      expect(await clickQr()).toBe(ark)
+      expect(await copyFrom('ark-address-copy')).toBe(ark)
+
+      await pickFormat(/^Bitcoin address/)
+      expect(await clickQr()).toBe(btc)
+      expect(await copyFrom('btc-address-copy')).toBe(btc)
     })
 
-    it('copies the raw invoice when the invoice row is in the QR', async () => {
-      renderReceiveQrCode(amountFixture('lnbc10u1ptest', { full: 'invoice' }))
+    it('puts the raw invoice in the QR and its copy once Lightning invoice is picked', async () => {
+      renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
 
+      await pickFormat(/^Lightning invoice/)
       expect(await clickQr()).toBe('lnbc10u1ptest')
+      expect(await copyFrom('invoice-address-copy')).toBe('lnbc10u1ptest')
     })
 
     it('offers no Lightning invoice row before the corridor minimum is met', async () => {
       renderReceiveQrCode(amountFixture(''))
 
-      await screen.findByTestId('bip21-address-copy')
-      expect(screen.queryByTestId('invoice-address-copy')).not.toBeInTheDocument()
+      await openFormats()
+      expect(screen.getAllByRole('radio')).toHaveLength(3)
+      expect(screen.queryByRole('radio', { name: /^Lightning/ })).not.toBeInTheDocument()
     })
 
-    // Regression: the selector used to be a child of .receive-invoice-stage,
-    // whose `> *` rule assigns grid-area: 1 / 1, so the QR painted over it and
-    // ate its taps. jsdom does no layout, so only containment is assertable.
-    it('renders the selector and part rows outside the QR stage, not stacked under it', async () => {
-      const { container } = renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
+    it('moves focus among the format radios with the arrow keys, without picking', async () => {
+      renderReceiveQrCode(tapFixture())
+      await openFormats()
+      const radios = within(screen.getByRole('radiogroup', { name: 'Other formats' })).getAllByRole('radio')
+      const press = (key: string) => fireEvent.keyDown(document.activeElement!, { key })
 
-      const selector = await screen.findByRole('button', { name: /Showing/ })
-      const stage = container.querySelector('.receive-invoice-stage')
-      expect(stage).not.toBeNull()
-      expect(stage?.contains(selector)).toBe(false)
-      for (const row of screen.getAllByRole('radio')) expect(stage?.contains(row)).toBe(false)
-    })
-
-    it('floats the method list over the rows, leaving the QR its size, and closes it on Escape', async () => {
-      const { container } = renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
-      const selector = await screen.findByRole('button', { name: /Showing/ })
-      const stage = () => container.querySelector('.receive-invoice-stage')!
-      const closed = stage().className
-
-      fireEvent.click(selector)
-      expect(selector).toHaveAttribute('aria-expanded', 'true')
-      expect(screen.getByRole('radio', { name: 'Arkade' })).toBeInTheDocument()
-      expect(stage().className).toBe(closed)
-
-      fireEvent.keyDown(document, { key: 'Escape' })
-      expect(selector).toHaveAttribute('aria-expanded', 'false')
-      expect(selector).toHaveFocus()
-      await waitFor(() => expect(screen.queryByRole('radio', { name: 'Arkade' })).not.toBeInTheDocument())
-      expect(stage().className).toBe(closed)
-    })
-
-    it('closes the method list on a tap outside it, back on the button', async () => {
-      renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
-      const selector = await screen.findByRole('button', { name: /Showing/ })
-
-      fireEvent.click(selector)
-      expect(screen.getByRole('radio', { name: 'Unified · Full details' })).toHaveFocus()
-      fireEvent.click(screen.getByTestId('receive-selector-backdrop'))
-
-      expect(selector).toHaveAttribute('aria-expanded', 'false')
-      expect(selector).toHaveFocus()
-    })
-
-    it('closes the method list when keyboard focus leaves it, leaving focus where it went', async () => {
-      renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
-      const selector = await screen.findByRole('button', { name: /Showing/ })
-      fireEvent.click(selector)
-
-      const outside = screen.getByRole('button', { name: 'Copy QR code' })
-      act(() => outside.focus())
-
-      expect(selector).toHaveAttribute('aria-expanded', 'false')
-      expect(outside).toHaveFocus()
+      expect(radios.map((r) => r.tabIndex)).toEqual([0, -1, -1])
+      act(() => radios[0].focus())
+      press('ArrowDown')
+      expect(radios[1]).toHaveFocus()
+      press('ArrowUp')
+      press('ArrowUp')
+      expect(radios[2]).toHaveFocus()
+      press('Home')
+      expect(radios[0]).toHaveFocus()
+      press('End')
+      expect(radios[2]).toHaveFocus()
+      expect(activeFormat()).toBe(radios[0])
     })
 
     it.each([
-      [false, true],
-      [true, false],
-    ])('returns focus to the button after a pick unless it opened a sheet (%s)', (opensSheet, focused) => {
-      function Harness() {
-        const [open, setOpen] = useState(true)
-        const close = () => setOpen(false)
-        const pick = () => {
-          close()
-          return opensSheet
-        }
-        const rows = [{ id: 'ark', title: 'Arkade' }]
-        return (
-          <ReceiveSelector
-            label='Arkade'
-            rows={rows}
-            active='ark'
-            open={open}
-            onToggle={close}
-            onClose={close}
-            onPick={pick}
-          />
-        )
-      }
-      render(<Harness />)
+      [
+        'Spanish',
+        Language.Spanish,
+        'Otros formatos',
+        ['Cualquier billetera', 'Factura Lightning', 'Dirección Arkade', 'Dirección Bitcoin'],
+      ],
+      [
+        'Portuguese',
+        Language.Portuguese,
+        'Outros formatos',
+        ['Qualquer carteira', 'Fatura Lightning', 'Endereço Arkade', 'Endereço Bitcoin'],
+      ],
+    ])('translates the formats like the rest of the screen to %s', async (_, language, card, rows) => {
+      renderReceiveQrCode({ ...amountFixture('lnbc10u1ptest'), language })
 
-      fireEvent.click(screen.getByRole('radio', { name: 'Arkade' }))
-
-      expect(screen.getByRole('button', { name: /Showing/ }) === document.activeElement).toBe(focused)
-    })
-
-    it('moves focus through the methods with the arrow keys, without picking', () => {
-      const onPick = vi.fn()
-      const rows = ['Unified', 'Arkade', 'Bitcoin'].map((title) => ({ id: title, title }))
-      render(
-        <ReceiveSelector
-          label='Arkade'
-          rows={rows}
-          active='Arkade'
-          open
-          onToggle={vi.fn()}
-          onClose={vi.fn()}
-          onPick={onPick}
-        />,
-      )
-      const radio = (name: string) => screen.getByRole('radio', { name })
-      const press = (key: string) => fireEvent.keyDown(document.activeElement!, { key })
-
-      expect(radio('Arkade')).toHaveFocus()
-      expect(rows.map((r) => radio(r.title).tabIndex)).toEqual([-1, 0, -1])
-      press('ArrowDown')
-      expect(radio('Bitcoin')).toHaveFocus()
-      press('ArrowDown')
-      expect(radio('Unified')).toHaveFocus()
-      press('ArrowUp')
-      expect(radio('Bitcoin')).toHaveFocus()
-      press('Home')
-      expect(radio('Unified')).toHaveFocus()
-      press('End')
-      expect(radio('Bitcoin')).toHaveFocus()
-      expect(onPick).not.toHaveBeenCalled()
-    })
-
-    it('keeps the open method list under its button when anything scrolls', () => {
-      let bottom = 100
-      const rect = vi
-        .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
-        .mockImplementation(() => ({ bottom, left: 0, width: 200 }) as DOMRect)
-      onTestFinished(() => {
-        rect.mockRestore()
-      })
-      render(
-        <ReceiveSelector
-          label='Arkade'
-          rows={[{ id: 'ark', title: 'Arkade' }]}
-          active='ark'
-          open
-          onToggle={vi.fn()}
-          onClose={vi.fn()}
-          onPick={vi.fn()}
-        />,
-      )
-      const list = screen.getByRole('radiogroup')
-      expect(list.style.top).toBe('104px')
-
-      bottom = 40
-      act(() => {
-        document.body.dispatchEvent(new Event('scroll'))
-      })
-      expect(list.style.top).toBe('44px')
-    })
-
-    it('moves the QR through the parts with the arrow keys, and only from a row', () => {
-      const onShow = vi.fn()
-      const parts: ReceivePart[] = [
-        { id: 'amount', value: '1000', selectable: false },
-        { id: 'link', value: 'bitcoin:x', selectable: true },
-        { id: 'ark', value: 'ark1x', selectable: true },
-        { id: 'btc', value: 'bc1x', selectable: true },
-      ]
-      const renderParts = (inQr?: PartId) => (
-        <ReceiveParts
-          method='full'
-          label='Parts'
-          parts={parts}
-          titleOf={(x) => x.id}
-          inQr={inQr}
-          copied=''
-          onShow={onShow}
-          onCopy={vi.fn()}
-        />
-      )
-      const { rerender } = render(renderParts())
-      expect(screen.getAllByRole('radio').map((r) => r.tabIndex)).toEqual([0, -1, -1])
-
-      rerender(renderParts('ark'))
-      const radios = screen.getAllByRole('radio')
-      expect(radios.map((r) => r.tabIndex)).toEqual([-1, 0, -1])
-      const press = (key: string) => fireEvent.keyDown(document.activeElement!, { key })
-      act(() => radios[1].focus())
-      press('ArrowDown')
-      expect(radios[2]).toHaveFocus()
-      expect(onShow).toHaveBeenLastCalledWith('btc')
-      press('ArrowDown')
-      expect(radios[0]).toHaveFocus()
-      expect(onShow).toHaveBeenLastCalledWith('link')
-      press('End')
-      expect(onShow).toHaveBeenLastCalledWith('btc')
-      press('Home')
-      expect(onShow).toHaveBeenLastCalledWith('link')
-
-      onShow.mockClear()
-      fireEvent.keyDown(screen.getByTestId('ark-address-copy'), { key: 'ArrowDown' })
-      expect(onShow).not.toHaveBeenCalled()
-    })
-
-    it('translates the method labels like the rest of the screen to Spanish', async () => {
-      renderReceiveQrCode({ ...amountFixture('lnbc10u1ptest'), language: Language.Spanish })
-
-      fireEvent.click(await screen.findByRole('button', { name: /Mostrando.*Unificado · Todos los detalles/ }))
-      for (const label of ['Unificado · Todos los detalles', 'Arkade', 'Bitcoin']) {
-        expect(screen.getByRole('radio', { name: label })).toBeInTheDocument()
+      fireEvent.click(await screen.findByRole('button', { name: new RegExp(`^${card}`) }))
+      const group = screen.getByRole('radiogroup', { name: card })
+      for (const row of rows) {
+        expect(within(group).getByRole('radio', { name: new RegExp(`^${row}`) })).toBeInTheDocument()
       }
     })
 
-    it('translates the method labels like the rest of the screen to Portuguese', async () => {
-      renderReceiveQrCode({ ...amountFixture('lnbc10u1ptest'), language: Language.Portuguese })
-
-      fireEvent.click(await screen.findByRole('button', { name: /Unificado · Todos os detalhes/ }))
-      for (const label of ['Unificado · Todos os detalhes', 'Arkade', 'Bitcoin']) {
-        expect(screen.getByRole('radio', { name: label })).toBeInTheDocument()
-      }
-    })
-
-    it('keeps Lightning selected when a different invoice arrives', async () => {
+    it('keeps Lightning invoice picked when a different invoice arrives', async () => {
       const { rerender } = renderReceiveQrCode(amountFixture('lnbcOLD'))
-      fireEvent.click(await screen.findByRole('button', { name: /Showing/ }))
-      fireEvent.click(screen.getByRole('radio', { name: 'Lightning' }))
+      await pickFormat(/^Lightning invoice/)
       expect(await clickQr()).toBe('lnbcOLD')
 
       rerender(buildTree(amountFixture('lnbcNEW')))
 
-      expect(await screen.findByRole('button', { name: /Showing Lightning/ })).toBeInTheDocument()
       expect(await clickQr()).toBe('lnbcNEW')
+      await openFormats()
+      expect(activeFormat()).toHaveAccessibleName(/^Lightning invoice/)
     })
 
-    it('keeps the invoice in the QR when a different invoice arrives', async () => {
-      const { rerender } = renderReceiveQrCode(amountFixture('lnbcOLD', { full: 'invoice' }))
-      expect(await clickQr()).toBe('lnbcOLD')
-
-      rerender(buildTree(amountFixture('lnbcNEW', { full: 'invoice' })))
-
-      expect(await clickQr()).toBe('lnbcNEW')
-    })
-
-    it('never marks a part in the QR it has no value for', async () => {
-      const { rerender } = renderReceiveQrCode(amountFixture('lnbc10u1ptest', { full: 'invoice' }))
+    it('falls back to Any wallet when the picked Lightning invoice goes', async () => {
+      const { rerender } = renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
+      await pickFormat(/^Lightning invoice/)
       expect(await clickQr()).toBe('lnbc10u1ptest')
 
-      rerender(buildTree(amountFixture('', { full: 'invoice' })))
+      rerender(buildTree(amountFixture('')))
 
       await waitFor(() => expect(screen.queryByTestId('invoice-address-copy')).not.toBeInTheDocument())
-      expect(screen.getByRole('radio', { name: /Payment link/ })).toHaveAttribute('aria-checked', 'true')
       expect(await clickQr()).toMatch(/^bitcoin:/)
+      await openFormats()
+      expect(activeFormat()).toHaveAccessibleName(/^Any wallet/)
+      expect(screen.queryByRole('radio', { name: /^Lightning/ })).not.toBeInTheDocument()
     })
 
     it.each([
-      [Unit.BTC, 'Amount (BTC)', '0.0005'],
-      [Unit.SATS, 'Amount (sats)', '50000'],
-    ])('titles the amount row with its unit in %s and copies the bare value', async (unit, title, value) => {
+      [Unit.BTC, '0.00050000 BTC'],
+      [Unit.SATS, '50,000 sats'],
+    ])('shows the requested amount in %s', async (unit, headline) => {
       renderReceiveQrCode({
         ...amountFixture('lnbc10u1ptest'),
-        config: { config: { ...mockConfigContextValue.config, unit } },
+        config: { useFiat: false, config: { ...mockConfigContextValue.config, unit } },
       })
 
-      expect(await screen.findByText(title)).toBeInTheDocument()
-      await act(async () => fireEvent.click(screen.getByTestId('amount-address-copy')))
-      expect(copyToClipboardMock).toHaveBeenLastCalledWith(value)
+      expect(await screen.findByTestId('receive-amount')).toHaveTextContent(headline)
     })
 
-    it('groups the part rows as a radiogroup named for the method', async () => {
-      renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
-
-      const group = await screen.findByRole('radiogroup', { name: 'Unified · Full details' })
-      expect(group).toContainElement(screen.getByRole('radio', { name: /Lightning invoice/ }))
-    })
-
-    it('keeps assetid= in the asset QR whatever form plain Arkade receives remember', async () => {
+    it('keeps assetid= in the asset QR and its copy, offering no other formats', async () => {
       const assetId = 'ab'.repeat(32)
       renderReceiveQrCode({
-        config: withQrForm({ ark: 'ark' }),
         flow: { recvInfo: { ...tapFixture().flow!.recvInfo!, assetId } },
         wallet: {
           svcWallet: mockSvcWallet as any,
           assetMetadataCache: new Map([[assetId, { metadata: { decimals: 2, ticker: 'TKN' } }]]) as any,
         },
       })
-      await screen.findByTestId('ark-address-copy')
 
       expect(await clickQr()).toContain(`assetid=${assetId}`)
-      expect(screen.queryByRole('radio')).not.toBeInTheDocument()
-      fireEvent.click(screen.getByText('Arkade address'))
-      expect(backupAndUpdateConfig).not.toHaveBeenCalled()
-    })
-
-    it('asset receive shows the link and the Arkade address with no selector', async () => {
-      const assetId = 'ab'.repeat(32)
-      renderReceiveQrCode({
-        ...tapFixture(),
-        flow: { recvInfo: { ...tapFixture().flow!.recvInfo!, assetId } },
-        wallet: {
-          svcWallet: mockSvcWallet as any,
-          assetMetadataCache: new Map([[assetId, { metadata: { decimals: 2, ticker: 'TKN' } }]]) as any,
-        },
-      })
-      expect(await screen.findByTestId('bip21-address-copy')).toBeInTheDocument()
-      expect(screen.getByTestId('ark-address-copy')).toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: /Showing/ })).not.toBeInTheDocument()
+      expect(await copyFrom('bip21-address-copy')).toContain(`assetid=${assetId}`)
+      expect(screen.getAllByTestId(/-address-copy$/)).toHaveLength(1)
+      expect(screen.queryByRole('button', { name: /^Other formats/ })).not.toBeInTheDocument()
     })
   })
 })
@@ -779,7 +639,7 @@ describe('Receive QR Code screen — copy feedback', () => {
     })
   }
 
-  it('marks the copied row after a successful copy', async () => {
+  it('marks the copy button after a successful copy', async () => {
     renderReceiveQrCode(tapFixture())
 
     await clickQr()
@@ -798,7 +658,7 @@ describe('Receive QR Code screen — copy feedback', () => {
     })
   })
 
-  it('leaves the rows unmarked after a refused copy', async () => {
+  it('leaves the copy button unmarked after a refused copy', async () => {
     copyToClipboardMock.mockResolvedValue(false)
     renderReceiveQrCode(tapFixture())
 
@@ -807,27 +667,27 @@ describe('Receive QR Code screen — copy feedback', () => {
     expect(screen.queryByText('MARKER-COPIED')).not.toBeInTheDocument()
   })
 
-  it('reports a refused row copy', async () => {
+  it('reports a refused copy from the copy button', async () => {
     copyToClipboardMock.mockResolvedValue(false)
     renderReceiveQrCode(tapFixture())
 
     await act(async () => {})
-    const row = await screen.findByTestId('ark-address-copy')
+    const button = await screen.findByTestId('bip21-address-copy')
     await act(async () => {
-      fireEvent.click(row)
+      fireEvent.click(button)
     })
 
     expect(await screen.findByText('Failed to copy')).toBeInTheDocument()
-    expect(screen.getByTestId('ark-address-copy')).not.toHaveTextContent('MARKER-COPIED')
+    expect(screen.getByTestId('bip21-address-copy')).not.toHaveTextContent('MARKER-COPIED')
   })
 
-  it('copies what the QR shows from the Copy button', async () => {
+  it('copies what the QR shows from the copy button under it', async () => {
     renderReceiveQrCode(tapFixture())
 
     await clickQr()
     const shown = copyToClipboardMock.mock.calls.at(-1)?.[0]
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+      fireEvent.click(screen.getByTestId('bip21-address-copy'))
     })
 
     expect(copyToClipboardMock).toHaveBeenCalledTimes(2)

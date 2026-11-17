@@ -189,9 +189,15 @@ export async function createWalletAndGetBIP21(page: Page, isMobile?: boolean, sa
     }
   }
 
-  await page.getByTestId('bip21-address-copy').click()
+  // The QR always holds the unified link; the copy beside it copies the Lightning address when there is one.
+  await page.getByTestId('receive-qr').click()
   const bip21 = await readClipboard(page)
   return bip21
+}
+
+export async function pickReceiveFormat(page: Page, format: string): Promise<void> {
+  await page.getByRole('button', { name: new RegExp(tr.receive.otherFormats) }).click()
+  await page.getByRole('radio', { name: new RegExp(format) }).click()
 }
 
 export async function addInvoiceFromLND(amount: number): Promise<{ invoice: string; hash: string }> {
@@ -253,7 +259,8 @@ async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = f
     }
   }
 
-  // copy address/invoice
+  const format = { btc: tr.receive.bitcoinAddress, ark: tr.receive.arkadeAddress, invoice: tr.receive.lightningInvoice }
+  await pickReceiveFormat(page, format[type])
   await page.getByTestId(`${type}-address-copy`).click()
   return await readClipboard(page)
 }

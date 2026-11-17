@@ -53,6 +53,11 @@ vi.mock('../../../components/QrCode', () => ({
     return null
   },
 }))
+// A closed sheet leaves the DOM at once, so the titles it shares with the screen stay unique.
+vi.mock('../../../components/SheetModal', () => ({
+  default: ({ isOpen, children }: { isOpen: boolean; children?: ReactNode }) =>
+    isOpen ? <div data-testid='sheet-modal'>{children}</div> : null,
+}))
 const copyToClipboard = vi.fn<(value: string) => Promise<void>>(async () => {})
 vi.mock('../../../lib/clipboard', () => ({ copyToClipboard: (v: string) => copyToClipboard(v) }))
 const share = vi.hoisted(() => ({ can: false, shareData: vi.fn() }))
@@ -111,7 +116,6 @@ const receiveTree = (
   recv: object = {},
   statefulFlow = false,
   wallet = svcWallet,
-  backup = backupConfig,
 ) => (
   <ToastProvider>
     <NavigationContext.Provider value={mockNavigationContextValue}>
@@ -147,7 +151,7 @@ const receiveTree = (
                     <SwapsContext.Provider
                       value={{ receiveLightning, outcomeOf: () => undefined, errorOf: () => undefined } as never}
                     >
-                      <BackupContext.Provider value={{ backupAndUpdateConfig, backupConfig: backup } as never}>
+                      <BackupContext.Provider value={{ backupAndUpdateConfig, backupConfig } as never}>
                         {statefulFlow ? (
                           <ReceiveFlow satoshis={satoshis} recv={recv}>
                             <ReceiveQRCode />
@@ -176,19 +180,19 @@ function LiveAmount({ initial, config }: { initial: number; config: Partial<Conf
     setSatoshis((typeof info === 'function' ? info({ ...mockFlowContextValue.recvInfo, satoshis }) : info).satoshis),
   )
 }
-const pickMethod = async (label: string | RegExp) => {
-  fireEvent.click(await screen.findByRole('button', { name: /Showing/ }))
-  fireEvent.click(await screen.findByRole('radio', { name: label }))
+const openFormats = async () => {
+  fireEvent.click(await screen.findByRole('button', { name: /^Other formats/ }))
+  return screen.getByTestId('sheet-modal')
 }
-// A named receiver's address previews the Lightning address and Lightning rows in the open selector.
-const selectorShows = async (address: string) => {
-  await act(async () => {})
-  fireEvent.click(await screen.findByRole('button', { name: /Showing/ }))
-  return (await screen.findAllByText(address))[0]
+// A row's name is its title, then its badge and subtitle.
+const pickMethod = async (title: string) => {
+  fireEvent.click(await within(await openFormats()).findByRole('radio', { name: new RegExp(`^${title}`) }))
 }
 const copyPart = async (testId: string) => {
   // Found outside act: inside it, the state updates that reveal the row are held back.
   const button = await screen.findByTestId(`${testId}-address-copy`)
+  // So a QR copy of the same value cannot pass for this button's.
+  copyToClipboard.mockClear()
   await act(async () => fireEvent.click(button))
 }
 
@@ -264,7 +268,7 @@ describe('Receive screen, rail composition', () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
     const config = { receiveViaTokens: true }
     const { rerender } = renderReceive(20_000, config)
-    await pickMethod('Arkade')
+    await pickMethod('Arkade address')
     await screen.findByTestId('ark-address-copy')
     expect(screen.getByRole('button', { name: 'Share' })).toBeEnabled()
     let release!: () => void
@@ -299,7 +303,7 @@ describe('Receive screen, rail composition', () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
     renderReceive(10_000)
 
-    expect(await selectorShows('alice@lnurl.test')).toBeInTheDocument()
+    await waitFor(async () => expect(await qrLightning()).toBe(fakeInvoice(10_000_000)))
     expect(receiveLightning).not.toHaveBeenCalled()
   })
 
@@ -359,55 +363,57 @@ describe('Receive screen, rail composition', () => {
     expect(receiveLightning).not.toHaveBeenCalled()
   })
 
-  it('links the lightning address in the QR, and remembers the mode, when Lightning address is picked', async () => {
+  it('opens every visit on Any wallet, remembering and backing up no picked format', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    const { unmount } = renderReceive()
+    await pickMethod('Lightning')
+    expect(await copiedQr()).toBe('alice@lnurl.test')
+    unmount()
+
+    renderReceive()
+    await copyPart('lnaddress')
+    expect(copyToClipboard).toHaveBeenLastCalledWith('alice@lnurl.test')
+    expect(await qrLightning()).toMatch(/^lnurl1/i)
+    expect(updateConfig).not.toHaveBeenCalled()
+    expect(backupConfig).not.toHaveBeenCalled()
+    expect(backupAndUpdateConfig).not.toHaveBeenCalled()
+  })
+
+  it('copies the whole link for a nameless receiver, which has no Lightning address', async () => {
+    serve({ modes: ['session'], addresses: [namelessAddress()] })
     renderReceive()
 
-    await pickMethod(/Lightning address/)
-
-    expect(await copiedQr()).toBe('bitcoin:?lightning=alice@lnurl.test')
-    expect(backupAndUpdateConfig).toHaveBeenLastCalledWith(expect.objectContaining({ receiveUnifiedMode: 'lnaddress' }))
-  })
-
-  it('opens in the remembered Lightning address mode with the bare address in the QR', async () => {
-    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
-    renderReceive(0, { receiveUnifiedMode: 'lnaddress', receiveQrForm: { lnaddress: 'lnaddress' } })
-
-    await screen.findByRole('button', { name: /Showing.*Lightning address/ })
-    expect(await copiedQr()).toBe('alice@lnurl.test')
-    expect(screen.getByText('Reusable · the payer picks the amount')).toBeInTheDocument()
-  })
-
-  it('shows a nameless receiver its LNURL when that part is picked', async () => {
-    serve({ modes: ['session'], addresses: [namelessAddress()] })
-    renderReceive(0, { receiveQrForm: { full: 'lnurl' } })
-
-    await waitFor(async () => expect(await copiedQr()).toMatch(/^lnurl1/i))
-    fireEvent.click(screen.getByRole('button', { name: /Showing/ }))
-    expect(screen.queryByRole('radio', { name: /Lightning address/ })).not.toBeInTheDocument()
+    await waitFor(async () => expect(await qrLightning()).toMatch(/^lnurl1/i))
+    const qr = copyToClipboard.mock.calls.at(-1)![0]
+    await copyPart('bip21')
+    expect(copyToClipboard).toHaveBeenLastCalledWith(qr)
+    expect(screen.queryByTestId('lnaddress-address-copy')).not.toBeInTheDocument()
   })
 
   it('offers a nameless receiver Lightning, which puts its raw LNURL in the QR', async () => {
     serve({ modes: ['session'], addresses: [namelessAddress()] })
     renderReceive()
 
-    await pickMethod(/^Lightning\s*LNURL$/)
+    await pickMethod('Lightning')
 
-    expect(await copiedQr()).toMatch(/^lnurl1/i)
+    const qr = await copiedQr()
+    expect(qr).toMatch(/^lnurl1/i)
     expect(screen.getByText('Reusable · the payer picks the amount')).toBeInTheDocument()
+    await copyPart('lnurl')
+    expect(copyToClipboard).toHaveBeenLastCalledWith(qr)
   })
 
-  it('puts the raw invoice in the QR for Lightning with an amount, and its lightning: link in a row', async () => {
+  it('puts the raw invoice in the QR and on the copy for Lightning with an amount', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
     renderReceive(10_000)
     await waitFor(() => expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled())
 
-    await pickMethod(/^Lightning/)
+    await pickMethod('Lightning invoice')
 
     const invoice = fakeInvoice(10_000_000)
     await waitFor(async () => expect(await copiedQr()).toBe(invoice))
-    await copyPart('bip21')
-    expect(copyToClipboard).toHaveBeenLastCalledWith(`lightning:${invoice}`)
+    await copyPart('invoice')
+    expect(copyToClipboard).toHaveBeenLastCalledWith(invoice)
   })
 
   it.each([
@@ -420,9 +426,22 @@ describe('Receive screen, rail composition', () => {
     await waitFor(() => expect(callbacks()).toHaveLength(1))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled())
     expect(await qrLightning()).toBe(fakeInvoice(10_000_000))
-    await copyPart('invoice')
-    expect(copyToClipboard).toHaveBeenLastCalledWith(fakeInvoice(10_000_000))
+    const qr = copyToClipboard.mock.calls.at(-1)![0]
+    await copyPart('bip21')
+    expect(copyToClipboard).toHaveBeenLastCalledWith(qr)
     expect(callbacks()[0].searchParams.get('paymentOption')).toBe('lightning')
+  })
+
+  it('offers nothing to copy while the invoice for an amount is generating', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    const pending = holdQuotes(server, 'lightning')
+    renderReceive(10_000)
+
+    await waitFor(() => expect(pending.held).toHaveLength(1))
+    expect(screen.getByLabelText('Copy QR code')).toBeDisabled()
+    expect(screen.queryByTestId('bip21-address-copy')).not.toBeInTheDocument()
+    pending.release()
+    expect(await screen.findByTestId('bip21-address-copy')).toBeEnabled()
   })
 
   it('asks its LNURL for no further invoice once the payment arrives', async () => {
@@ -450,112 +469,25 @@ describe('Receive screen, rail composition', () => {
     await waitFor(async () => expect(await qrLightning()).toBe(fakeInvoice(10_000_000)))
   })
 
-  it('shows Full details, and says why, when no invoice comes back', async () => {
+  it('falls back to Any wallet, and says why, when no invoice comes back', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], invoiceError: 'below the corridor minimum' })
     renderReceive(10_000)
 
     expect(await screen.findByText(/below the corridor minimum/)).toBeInTheDocument()
-    await pickMethod(/Lightning invoice/)
-    expect(screen.getByRole('button', { name: /Showing.*Full details/ })).toBeInTheDocument()
+    await pickMethod('Lightning invoice')
     expect(await qrLightning()).toBeNull()
+    expect(screen.queryByTestId('invoice-address-copy')).not.toBeInTheDocument()
+    expect(screen.getByTestId('bip21-address-copy')).toBeInTheDocument()
+    await openFormats()
+    expect(screen.getByRole('radio', { name: /^Any wallet/ })).toBeChecked()
   })
   it('shows the bare Arkade address with no amount', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
     renderReceive()
 
-    await pickMethod('Arkade')
+    await pickMethod('Arkade address')
 
     expect(await copiedQr()).toBe(DECODABLE_ARK)
-  })
-
-  it('copies any part without changing the QR', async () => {
-    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
-    renderReceive(10_000)
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled())
-    await pickMethod('Arkade')
-    const inQrBefore = await copiedQr()
-    await copyPart('ark')
-    expect(copyToClipboard).toHaveBeenLastCalledWith(DECODABLE_ARK)
-    expect(await copiedQr()).toBe(inQrBefore)
-  })
-
-  it('puts the tapped part in the QR and remembers it', async () => {
-    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
-    renderReceive(10_000)
-    await pickMethod('Arkade')
-    fireEvent.click(await screen.findByRole('radio', { name: /Arkade address/ }))
-    await waitFor(() =>
-      expect(updateConfig).toHaveBeenLastCalledWith(expect.objectContaining({ receiveQrForm: { ark: 'ark' } })),
-    )
-  })
-
-  it('backs a run of part picks up once, with the last one', async () => {
-    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
-    renderReceive(10_000)
-    await pickMethod('Arkade')
-    fireEvent.click(await screen.findByRole('radio', { name: /Arkade address/ }))
-    fireEvent.click(screen.getByRole('radio', { name: /Payment link/ }))
-    fireEvent.click(screen.getByRole('radio', { name: /Arkade address/ }))
-
-    expect(updateConfig).toHaveBeenCalledTimes(3)
-    expect(backupConfig).not.toHaveBeenCalled()
-    await waitFor(() => expect(backupConfig).toHaveBeenCalledTimes(1), { timeout: 2000 })
-    expect(backupConfig).toHaveBeenLastCalledWith(expect.objectContaining({ receiveQrForm: { ark: 'ark' } }))
-  })
-
-  it('flushes a pending part backup on leaving through the backup function current then', async () => {
-    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
-    const replaced = vi.fn<(config: Config) => Promise<void>>(async () => {})
-    const { rerender, unmount } = render(receiveTree(10_000))
-    await pickMethod('Arkade')
-    fireEvent.click(await screen.findByRole('radio', { name: /Arkade address/ }))
-    const picked = { receiveQrForm: { ark: 'ark' } } as Partial<Config>
-    rerender(receiveTree(10_000, picked, vi.fn(), {}, false, svcWallet, replaced))
-    unmount()
-
-    expect(backupConfig).not.toHaveBeenCalled()
-    expect(replaced).toHaveBeenCalledExactlyOnceWith(expect.objectContaining(picked))
-  })
-
-  it('backs up the config as it is when the picks settle, keeping a mode picked meanwhile', async () => {
-    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
-    function LiveConfig() {
-      const [config, setConfig] = useState<Partial<Config>>({})
-      updateConfig.mockImplementation(setConfig)
-      backupAndUpdateConfig.mockImplementation(setConfig)
-      return receiveTree(0, config)
-    }
-    try {
-      render(<LiveConfig />)
-      await selectorShows('alice@lnurl.test')
-      fireEvent.click(screen.getByRole('radio', { name: 'Arkade' }))
-      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-      fireEvent.click(screen.getByRole('radio', { name: /Arkade address/ }))
-      fireEvent.click(screen.getByRole('button', { name: /Showing/ }))
-      fireEvent.click(screen.getByRole('radio', { name: /Lightning address/ }))
-
-      expect(backupConfig).not.toHaveBeenCalled()
-      act(() => vi.advanceTimersByTime(800))
-      expect(backupConfig).toHaveBeenCalledTimes(1)
-      expect(backupConfig).toHaveBeenLastCalledWith(
-        expect.objectContaining({ receiveUnifiedMode: 'lnaddress', receiveQrForm: { ark: 'ark' } }),
-      )
-    } finally {
-      vi.useRealTimers()
-      updateConfig.mockReset()
-      backupAndUpdateConfig.mockReset()
-    }
-  })
-
-  it('gives the LNURL and the Lightning address rows their own copy buttons', async () => {
-    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
-    renderReceive()
-    await pickMethod(/^Lightning/)
-
-    await copyPart('lnaddress')
-    expect(copyToClipboard).toHaveBeenLastCalledWith('alice@lnurl.test')
-    await copyPart('lnurl')
-    expect(copyToClipboard.mock.calls.at(-1)![0]).toMatch(/^lnurl1/i)
   })
 })
 
@@ -626,7 +558,7 @@ describe('Receive screen, lnurl onboarding', () => {
     fireEvent.change(await screen.findByPlaceholderText('Choose a name'), { target: { value: 'alice' } })
     fireEvent.click(screen.getByRole('button', { name: 'Claim name' }))
 
-    expect(await selectorShows('alice@lnurl.test')).toBeInTheDocument()
+    expect(await screen.findByText('alice@lnurl.test')).toBeInTheDocument()
     expect((await qrLightning())?.toLowerCase()).toBe(
       encodeLnurl(`${LNURL_BASE}/.well-known/lnurlp/alice`).toLowerCase(),
     )
@@ -638,14 +570,14 @@ describe('Receive screen, lnurl onboarding', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Pick one for me' }))
 
-    expect(await selectorShows('brave-otter@lnurl.test')).toBeInTheDocument()
+    expect(await screen.findByText('brave-otter@lnurl.test')).toBeInTheDocument()
   })
 
   it('shows the name when a nameless claim finds the identity already upgraded', async () => {
     serve({ modes: ['session'], sessionRow: namedAddress('erin', 'LNURL1SESSIONERIN') })
     renderReceive()
 
-    expect(await selectorShows('erin@lnurl.test')).toBeInTheDocument()
+    expect(await screen.findByText('erin@lnurl.test')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Add a name' })).not.toBeInTheDocument()
   })
 
@@ -672,7 +604,7 @@ describe('Receive screen, naming a nameless receiver', () => {
     fireEvent.change(screen.getByPlaceholderText('Choose a name'), { target: { value: 'dave' } })
     fireEvent.click(screen.getByRole('button', { name: 'Claim name' }))
 
-    expect(await selectorShows('dave@lnurl.test')).toBeInTheDocument()
+    expect(await screen.findByText('dave@lnurl.test')).toBeInTheDocument()
     expect(await qrLightning()).toBe(before)
     expect(server.calls('PATCH', '/lnurl/address/sess1')).toHaveLength(1)
   })
@@ -703,27 +635,25 @@ describe('Receive screen, token rails', () => {
   const tokensOn = { receiveViaTokens: true }
   const payRequests = () => server.calls('GET', '/.well-known/lnurlp/alice')
   const tokenQuotes = () => callbacks().filter((url) => url.searchParams.get('paymentOption')?.startsWith('ff-'))
-  const tokenSelect = async () => {
-    fireEvent.click(await screen.findByRole('button', { name: /Showing/ }))
-    return screen.queryByRole('radio', { name: /Stablecoins/ })
+  const pick = async (rail: string) => {
+    fireEvent.click(await within(await openFormats()).findByRole('button', { name: new RegExp(`^${rail}`) }))
   }
-  const openTokenSheet = async () => {
-    await pickMethod('Stablecoins')
-    return (await screen.findByTestId('select-option-0')).closest<HTMLElement>('[role="radiogroup"]')!
-  }
-  const pick = async (label: string) => {
-    fireEvent.click(within(await openTokenSheet()).getByText(label))
+  // Anchored on a format row, so a sheet not yet filled cannot pass for one without stablecoins.
+  const stablecoinRows = async () => {
+    const sheet = await openFormats()
+    expect(within(sheet).getByRole('radio', { name: /^Any wallet/ })).toBeInTheDocument()
+    return within(sheet).queryAllByText(/Stablecoins|USDT/)
   }
 
   it('renders a USDT (Arbitrum One) method with an EIP-681 value', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
     renderReceive(20_000, tokensOn)
 
-    await pick('USDT (Arbitrum One)')
+    await pick('USDT on Arbitrum One')
 
     expect(await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')).toBeInTheDocument()
     expect(screen.getByText(/^Quote by FixedFloat, valid for \d+:\d\d$/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Showing.*USDT on Arbitrum One/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy USDT (Arbitrum One) deposit address' })).toBeInTheDocument()
     expect(await copiedQr()).toBe(arbitrumUri(20_000_000))
   })
 
@@ -734,7 +664,7 @@ describe('Receive screen, token rails', () => {
     })
     serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
     renderReceive(20_000, tokensOn)
-    await pick('USDT (Arbitrum One)')
+    await pick('USDT on Arbitrum One')
     await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')
     expect(screen.getByRole('button', { name: 'Share' })).toBeEnabled()
     const deposit = TOKEN_DEPOSITS['ff-usdtarbitrum']
@@ -759,6 +689,7 @@ describe('Receive screen, token rails', () => {
     await waitFor(() => expect(pending.held).toHaveLength(1))
     expect(screen.queryByText('Quote expired')).not.toBeInTheDocument()
     expect(screen.getByText('Getting quote…')).toBeInTheDocument()
+    expect(screen.queryByTestId('token-address-copy')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Share' })).toBeDisabled()
     expect(qrValues.slice(from).filter((v) => v.includes(deposit))).toEqual([])
 
@@ -771,7 +702,7 @@ describe('Receive screen, token rails', () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
     renderReceive(20_000, tokensOn)
 
-    await pick('USDT (Tron)')
+    await pick('USDT on Tron')
 
     expect(await screen.findByText('Send exactly 17.156 USDT on Tron')).toBeInTheDocument()
     expect(await copiedQr()).toBe(TOKEN_DEPOSITS['ff-usdttrc'])
@@ -780,7 +711,7 @@ describe('Receive screen, token rails', () => {
   it('copies the deposit address and the exact amount from their rows', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
     renderReceive(20_000, tokensOn)
-    await pick('USDT (Arbitrum One)')
+    await pick('USDT on Arbitrum One')
     await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')
 
     await copyPart('token')
@@ -797,7 +728,7 @@ describe('Receive screen, token rails', () => {
     it('opens the payment URI in the installed wallet', async () => {
       serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
       renderReceive(20_000, tokensOn)
-      await pick('USDT (Arbitrum One)')
+      await pick('USDT on Arbitrum One')
 
       expect(await screen.findByRole('link', { name: 'Open in wallet' })).toHaveAttribute(
         'href',
@@ -807,18 +738,42 @@ describe('Receive screen, token rails', () => {
 
     it('asks for an amount on the keypad before offering stablecoins', async () => {
       serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
-      renderReceive(0, tokensOn)
-      await pickMethod(/Stablecoins/)
+      render(<LiveAmount initial={0} config={tokensOn} />)
+      await pick('Stablecoins')
 
       expect(await screen.findByText('Set an amount first')).toBeInTheDocument()
       expect(screen.getByText(/Stablecoin payments are quoted for an exact amount/)).toBeInTheDocument()
       expect(screen.getByTestId('keyboard-amount')).toBeInTheDocument()
+      for (const key of '2000000') fireEvent.click(screen.getByTestId(`keyboard-${key}`))
+      fireEvent.click(screen.getByTestId('save-amount'))
+
+      const sheet = await screen.findByTestId('sheet-modal')
+      expect(await within(sheet).findByRole('button', { name: /^USDT on Arbitrum One/ })).toBeInTheDocument()
+      expect(tokenQuotes()).toHaveLength(0)
+    })
+
+    it('places no quote order when a stablecoin pick made without an amount is cancelled', async () => {
+      serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+      render(<LiveAmount initial={0} config={tokensOn} />)
+      await pick('Stablecoins')
+      await screen.findByTestId('keyboard-amount')
+      expect(screen.getByText('Set an amount first')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByTestId('header-back-btn'))
+      fireEvent.click(await screen.findByRole('button', { name: 'Add amount' }))
+      expect(screen.queryByText('Set an amount first')).not.toBeInTheDocument()
+      for (const key of '2000000') fireEvent.click(await screen.findByTestId(`keyboard-${key}`))
+      fireEvent.click(screen.getByTestId('save-amount'))
+
+      await waitFor(async () => expect(await qrLightning()).toBe(fakeInvoice(20_000_000)))
+      expect(screen.queryByTestId('sheet-modal')).not.toBeInTheDocument()
+      expect(tokenQuotes()).toHaveLength(0)
     })
 
     it('preserves an amount draft when the token quote expires while the keypad is open', async () => {
       serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
       renderReceive(20_000, tokensOn)
-      await pick('USDT (Arbitrum One)')
+      await pick('USDT on Arbitrum One')
       await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')
 
       fireEvent.click(screen.getByRole('button', { name: 'Edit amount' }))
@@ -840,7 +795,7 @@ describe('Receive screen, token rails', () => {
     it('drops a token pick when the amount is cleared, so a new amount places no order', async () => {
       serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
       render(<LiveAmount initial={20_000} config={tokensOn} />)
-      await pick('USDT (Arbitrum One)')
+      await pick('USDT on Arbitrum One')
       await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')
 
       fireEvent.click(screen.getByRole('button', { name: 'Edit amount' }))
@@ -849,7 +804,7 @@ describe('Receive screen, token rails', () => {
       for (const key of '3000000') fireEvent.click(await screen.findByTestId(`keyboard-${key}`))
       fireEvent.click(screen.getByTestId('save-amount'))
 
-      expect(await screen.findByRole('button', { name: /Showing.*Unified · Full details/ })).toBeInTheDocument()
+      expect(await screen.findByTestId('bip21-address-copy')).toBeInTheDocument()
       await waitFor(async () => expect(await qrLightning()).toBe(fakeInvoice(30_000_000)))
       expect(tokenQuotes()).toHaveLength(1)
       expect(screen.queryByText(/Send exactly/)).not.toBeInTheDocument()
@@ -858,7 +813,7 @@ describe('Receive screen, token rails', () => {
     it('offers no wallet link for a bare Tron address', async () => {
       serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
       renderReceive(20_000, tokensOn)
-      await pick('USDT (Tron)')
+      await pick('USDT on Tron')
 
       await screen.findByText('Send exactly 17.156 USDT on Tron')
       expect(screen.queryByRole('link', { name: 'Open in wallet' })).not.toBeInTheDocument()
@@ -869,7 +824,7 @@ describe('Receive screen, token rails', () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], simulated: true })
     renderReceive(20_000, tokensOn)
 
-    await pick('USDT (Solana Devnet)')
+    await pick('USDT on Solana Devnet')
 
     expect(await screen.findByText('Send exactly 17.156 USDT on Solana Devnet')).toBeInTheDocument()
     expect(screen.getByText(/^Quote by Simulated, valid for \d+:\d\d$/)).toBeInTheDocument()
@@ -885,7 +840,7 @@ describe('Receive screen, token rails', () => {
       share.can = false
     })
     renderReceive(20_000, tokensOn)
-    await pick('USDT (Arbitrum One)')
+    await pick('USDT on Arbitrum One')
     await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')
     expect(screen.getByRole('link', { name: 'Open in wallet' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Share' })).toBeEnabled()
@@ -921,7 +876,7 @@ describe('Receive screen, token rails', () => {
     })
     renderReceive(20_000, tokensOn)
     const from = qrValues.length
-    await pick('USDT (Solana Devnet)')
+    await pick('USDT on Solana Devnet')
 
     expect(await screen.findByText(/No quote for this token: .*memo/)).toBeInTheDocument()
     expect(screen.queryByText(/Send exactly/)).not.toBeInTheDocument()
@@ -933,7 +888,7 @@ describe('Receive screen, token rails', () => {
   it('shows no QR for the old amount while the new amount is quoted', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
     const { rerender } = renderReceive(20_000, tokensOn)
-    await pick('USDT (Arbitrum One)')
+    await pick('USDT on Arbitrum One')
     expect(await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')).toBeInTheDocument()
     const pending = holdQuotes(server, 'ff-usdtarbitrum')
     const from = qrValues.length
@@ -943,6 +898,7 @@ describe('Receive screen, token rails', () => {
 
     expect(qrValues.slice(from)).not.toContain(arbitrumUri(20_000_000))
     expect(screen.queryByText(/Send exactly/)).not.toBeInTheDocument()
+    expect(screen.queryByTestId('token-address-copy')).not.toBeInTheDocument()
     pending.release()
     expect(await screen.findByText('Send exactly 25.734 USDT on Arbitrum One')).toBeInTheDocument()
     expect(await copiedQr()).toBe(arbitrumUri(30_000_000))
@@ -955,15 +911,15 @@ describe('Receive screen, token rails', () => {
     // One fetch: both rail hooks share the receiver's memoised payRequest (client 0.5.2).
     await waitFor(() => expect(payRequests()).toHaveLength(1))
     await waitFor(() => expect(callbacks()).toHaveLength(1))
-    expect(await tokenSelect()).not.toBeInTheDocument()
+    expect(await stablecoinRows()).toEqual([])
   })
 
   it('asks for no token quote until a token method is picked', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
     renderReceive(20_000, tokensOn)
 
-    fireEvent.click(await screen.findByRole('button', { name: /Showing/ }))
-    expect(await screen.findByRole('radio', { name: 'Stablecoins' })).toBeInTheDocument()
+    const sheet = await openFormats()
+    expect(await within(sheet).findByRole('button', { name: /^USDT on Arbitrum One/ })).toBeInTheDocument()
     await waitFor(() => expect(callbacks()).toHaveLength(1))
     expect(tokenQuotes()).toHaveLength(0)
   })
@@ -972,19 +928,19 @@ describe('Receive screen, token rails', () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
     renderReceive(5_000, tokensOn)
 
-    const sheet = await openTokenSheet()
-    expect(
-      within(sheet)
-        .getAllByRole('radio')
-        .map((o) => o.closest('label')?.textContent),
-    ).toEqual(['USDT (Arbitrum One)'])
+    const sheet = await openFormats()
+    await within(sheet).findByRole('button', { name: /^USDT on Arbitrum One/ })
+    const rails = within(sheet).getAllByRole('button')
+    expect(rails).toHaveLength(1)
+    expect(rails[0]).toHaveTextContent('About 4.29 USDT')
   })
 
   it('asks for an amount before offering stablecoins', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
     renderReceive(0, tokensOn)
-    await pickMethod(/Stablecoins/)
+    await pick('Stablecoins')
     expect(await screen.findByText('Set an amount first')).toBeInTheDocument()
+    expect(screen.getByText(/Stablecoin payments are quoted for an exact amount/)).toBeInTheDocument()
     expect(tokenQuotes()).toHaveLength(0)
   })
 
@@ -996,7 +952,7 @@ describe('Receive screen, token rails', () => {
       share.can = false
     })
     renderReceive(20_000, tokensOn)
-    await pick('USDT (Arbitrum One)')
+    await pick('USDT on Arbitrum One')
     await screen.findByText(/No quote for this token: .*provider is busy/)
     expect(tokenQuotes()).toHaveLength(1)
 
@@ -1007,7 +963,6 @@ describe('Receive screen, token rails', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Get a new quote' }))
     await waitFor(() => expect(pending.held).toHaveLength(1))
 
-    expect(screen.getByRole('button', { name: /Showing.*USDT on Arbitrum One/ })).toBeInTheDocument()
     expect(screen.getByText('Getting quote…')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Get a new quote' })).not.toBeInTheDocument()
     expect(screen.queryByText(/No quote for this token/)).not.toBeInTheDocument()
@@ -1037,7 +992,7 @@ describe('Receive screen, token rails', () => {
     })
     const { container } = renderReceive(20_000, tokensOn)
 
-    await pick('USDT (Arbitrum One)')
+    await pick('USDT on Arbitrum One')
 
     const stage = container.querySelector('.receive-invoice-stage') as HTMLElement
     expect(await within(stage).findByText(/No quote for this token: .*busy/)).toBeInTheDocument()
@@ -1052,7 +1007,7 @@ describe('Receive screen, token rails', () => {
     renderReceive(20_000)
 
     await waitFor(() => expect(callbacks()).toHaveLength(1))
-    expect(await tokenSelect()).not.toBeInTheDocument()
+    expect(await stablecoinRows()).toEqual([])
     expect(payRequests()).toHaveLength(1)
   })
 
@@ -1060,19 +1015,19 @@ describe('Receive screen, token rails', () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
     renderReceive(20_000, { receiveViaTokens: true })
 
-    await pick('USDT (Arbitrum One)')
+    await pick('USDT on Arbitrum One')
     expect(await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')).toBeInTheDocument()
     expect(await copiedQr()).toBe(arbitrumUri(20_000_000))
     expect(tokenQuotes()).toHaveLength(1)
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy' })))
+    await copyPart('token')
     expect(copyToClipboard).toHaveBeenLastCalledWith(TOKEN_DEPOSITS['ff-usdtarbitrum'])
 
-    await pickMethod('Arkade')
+    await pickMethod('Arkade address')
     await copyPart('ark')
-    expect(copyToClipboard).toHaveBeenLastCalledWith(DECODABLE_ARK)
-    await pickMethod('Bitcoin')
+    expect(copyToClipboard).toHaveBeenLastCalledWith(`bitcoin:?ark=${DECODABLE_ARK}&amount=0.0002`)
+    await pickMethod('Bitcoin address')
     await copyPart('btc')
-    expect(copyToClipboard).toHaveBeenLastCalledWith(WALLET_BOARDING_ADDRESS)
+    expect(copyToClipboard).toHaveBeenLastCalledWith(`bitcoin:${WALLET_BOARDING_ADDRESS}?amount=0.0002`)
     expect(
       callbacks()
         .map((url) => url.searchParams.get('paymentOption'))
