@@ -1,6 +1,6 @@
 import { hex } from '@scure/base'
 import { Delegate } from './types'
-import { NetworkName } from '@arkade-os/sdk'
+import { NetworkName, type DelegationOptions } from '@arkade-os/sdk'
 import { registryIndexUrl, type Network } from '@arkade-os/solver-discovery'
 
 export const arknoteHRP = 'arknote'
@@ -158,6 +158,20 @@ export const getDelegateForNetwork = (network: NetworkName): Delegate | undefine
     name: 'Arkade Default',
   }
 }
+
+// Opt-in: with an Executor, deposits to the boarding address are boarded while the wallet is offline.
+export const executorUrl = (): string | undefined => fromRuntimeEnv(import.meta.env.VITE_EXECUTOR_URL)
+
+// The watch's address commits to these: changing them registers a new watch with a new boarding address.
+// The window must be shorter than the operator's VTXO expiry, or the SDK refuses the registration.
+// A 1-day window renews inside mutinynet's fee-free range (expiry - now <= 518656s). Regtest's
+// ARKD_VTXO_TREE_EXPIRY is itself 1 day (.env.regtest), so there it is half of that.
+const EXECUTOR_RENEWAL_WINDOW: Partial<Record<NetworkName, number>> = { regtest: 43_200 }
+
+export const getExecutorBoardingParams = (network: NetworkName): DelegationOptions => ({
+  renewalWindow: EXECUTOR_RENEWAL_WINDOW[network] ?? 86_400,
+  maxFee: 1_000,
+})
 
 // covclaimd — the service that could claim a Lightning-receive lockup for an OFFLINE wallet
 

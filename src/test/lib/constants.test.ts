@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect, vi } from 'vitest'
-import { getSolverRegistryUrl, isMainnet } from '../../lib/constants'
+import { getExecutorBoardingParams, getSolverRegistryUrl, isMainnet } from '../../lib/constants'
 
 describe('isMainnet', () => {
   it('returns true for bitcoin and unrecognized networks', () => {
@@ -42,5 +42,16 @@ describe('getSolverRegistryUrl', () => {
   it('reads an unsubstituted runtime placeholder as no override, not a URL', () => {
     vi.stubEnv('VITE_SOLVER_REGISTRY_URL', '__VITE_SOLVER_REGISTRY_URL__')
     expect(getSolverRegistryUrl('bitcoin')).toBe('https://arkade-os.github.io/solver-registry/bitcoin.json')
+  })
+})
+
+describe('getExecutorBoardingParams', () => {
+  it('keeps the window shorter than the VTXO expiry, which regtest sets to a day', () => {
+    expect(getExecutorBoardingParams('regtest').renewalWindow).toBeLessThan(86_400)
+  })
+
+  it('renews a day before expiry elsewhere', () => {
+    expect(getExecutorBoardingParams('mutinynet')).toEqual({ renewalWindow: 86_400, maxFee: 1_000 })
+    expect(getExecutorBoardingParams('bitcoin')).toEqual({ renewalWindow: 86_400, maxFee: 1_000 })
   })
 })

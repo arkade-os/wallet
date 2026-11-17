@@ -10,9 +10,12 @@ import { mockAspContextValue, mockConfigContextValue } from '../screens/mocks'
 // not count toward the next test's reloads.
 const makeService = () => {
   const sync: { state: { lastSyncedAt?: number } } = { state: {} }
+  const executor = { registerBoarding: vi.fn() }
   return {
     sync,
+    executor,
     activity: { use: vi.fn() },
+    getExecutorManager: vi.fn(async () => executor),
     getVtxoManager: vi.fn().mockResolvedValue({ renewVtxos: async () => {} }),
     getStatus: vi.fn().mockResolvedValue({ walletInitialized: true }),
     getVtxos: vi.fn().mockResolvedValue([]),
@@ -65,7 +68,10 @@ beforeEach(() => {
     serviceWorker: { getRegistration: async () => undefined, addEventListener: vi.fn(), removeEventListener: vi.fn() },
   })
 })
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
+})
 
 it('starts the worker without holding the boot on contract sync', async () => {
   await startWallet()
@@ -95,4 +101,55 @@ it.each(['vtxo_received', 'vtxo_spent'])('reloads when a contract event reports 
   onMessage({ data: { type: 'CONTRACT_EVENT', payload: { event: { type: eventType } } } } as MessageEvent)
 
   await vi.waitFor(() => expect(reloads()).toBe(before + 1), { timeout: 3000 })
+})
+
+it('registers the boarding watch with a configured Executor, then reloads', async () => {
+  vi.stubEnv('VITE_EXECUTOR_URL', 'https://executor.example')
+  let registered!: () => void
+  mocks.current.service.executor.registerBoarding.mockReturnValue(new Promise<void>((r) => (registered = r)))
+  await startWallet()
+
+  expect(mocks.setup).toHaveBeenCalledWith(expect.objectContaining({ executorUrl: 'https://executor.example' }))
+  // the mocked Ark server is on regtest, whose VTXOs expire after a day
+  await vi.waitFor(() =>
+    expect(mocks.current.service.executor.registerBoarding).toHaveBeenCalledWith(
+      { renewalWindow: 43_200, maxFee: 1_000 },
+      { emulatorPubkey: '02999413c46fa10ada5cbc4bcc79a1d09160c2ba3cfc812705d7a13e5e545fb2a9' },
+    ),
+  )
+  const before = reloads()
+  registered()
+
+  await vi.waitFor(() => expect(reloads()).toBe(before + 1), { timeout: 3000 })
+})
+
+it('registers against the configured emulator key', async () => {
+  const emulator = '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798'
+  vi.stubEnv('VITE_EXECUTOR_URL', 'https://executor.example')
+  vi.stubEnv('VITE_EMULATOR_PUBKEY', emulator)
+  await startWallet()
+
+  await vi.waitFor(() =>
+    expect(mocks.current.service.executor.registerBoarding).toHaveBeenCalledWith(expect.anything(), {
+      emulatorPubkey: emulator,
+    }),
+  )
+})
+
+it('starts the wallet when the Executor refuses the registration', async () => {
+  vi.stubEnv('VITE_EXECUTOR_URL', 'https://executor.example')
+  mocks.current.service.executor.registerBoarding.mockRejectedValue(new Error('unreachable'))
+  await startWallet()
+
+  await vi.waitFor(() => expect(mocks.current.service.executor.registerBoarding).toHaveBeenCalled())
+  expect(wallet.svcWallet).toBe(mocks.current.service)
+})
+
+it('leaves the Executor alone when none is configured', async () => {
+  // blank, not unset: a developer's .env.local may name one
+  vi.stubEnv('VITE_EXECUTOR_URL', '')
+  await startWallet()
+
+  expect(mocks.setup).toHaveBeenCalledWith(expect.objectContaining({ executorUrl: undefined }))
+  expect(mocks.current.service.getExecutorManager).not.toHaveBeenCalled()
 })

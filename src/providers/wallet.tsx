@@ -53,7 +53,15 @@ import { setLoadingStatus } from '../lib/loadingStatus'
 import { hex } from '@scure/base'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { ConfigContext } from './config'
-import { defaultPassword, getDelegateUrlForNetwork, isMainnet, maxPercentage } from '../lib/constants'
+import {
+  defaultPassword,
+  executorUrl,
+  getDelegateUrlForNetwork,
+  getEmulatorPubkeyOverrideForNetwork,
+  getExecutorBoardingParams,
+  isMainnet,
+  maxPercentage,
+} from '../lib/constants'
 import { AssetIconApprovalManager } from '../lib/assetIconApproval'
 import { BackupContext } from './backup'
 import { getAssetSwaps } from '@arkade-os/swap/protocol'
@@ -674,6 +682,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         identity,
         arkServer: { url: arkServerUrl },
         delegateUrl,
+        executorUrl: executorUrl(),
         walletMode: walletMode ?? config.walletMode ?? 'static',
         // Contract sync finishes in the background; the coin-event reload below repaints. Not lazyBoarding: its
         // refresh is never retried, and its UTXO_UPDATE carries every stored coin, which the receive screen reads as a payment.
@@ -741,6 +750,22 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
       // Safe on every unlock: watches are keyed by txid and the confirmation queue ignores a key it already holds.
       resumeLnurlConfirmations()
+      // Idempotent on the Executor. Not awaited: an unreachable Executor leaves the wallet's own boarding address.
+      if (executorUrl()) {
+        const network = aspInfo.network as NetworkName
+        svcWallet
+          .getExecutorManager()
+          .then((executor) =>
+            executor?.registerBoarding(getExecutorBoardingParams(network), {
+              // the emulator key swaps already trust; undefined keeps the SDK's pinned one
+              emulatorPubkey: getEmulatorPubkeyOverrideForNetwork(network),
+            }),
+          )
+          .then(() => {
+            if (!signal.aborted) reloadWallet(svcWallet).catch(consoleError)
+          })
+          .catch((err) => consoleError(err, 'Executor boarding registration failed'))
+      }
       // Receives that completed while the wallet was closed are the ones it can
       // never witness first-hand, so pull them once the wallet is usable.
       // Deliberately not awaited: an unreachable lnurl-server must cost the
