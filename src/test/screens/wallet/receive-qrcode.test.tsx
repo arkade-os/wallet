@@ -730,6 +730,14 @@ describe('Receive QR Code screen — asset pill', () => {
     expect(pill).toHaveTextContent('Bitcoin')
   })
 
+  it('leaves out a held asset it cannot name yet', async () => {
+    renderReceiveQrCode({
+      ...tapFixture(),
+      wallet: { svcWallet: mockSvcWallet as any, assetBalances: [{ assetId, amount: 5 }] as any },
+    })
+    expect((await screen.findByTestId('receive-asset-pill')).tagName).toBe('SPAN')
+  })
+
   it('switches to a held asset, dropping the amount and invoice asked for in bitcoin', async () => {
     const setRecvInfo = vi.fn()
     const fixture = tapFixture()

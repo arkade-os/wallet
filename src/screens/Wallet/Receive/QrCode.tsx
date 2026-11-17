@@ -623,8 +623,10 @@ export default function ReceiveQRCode() {
       ),
     }
   }
-  // An asset opened from its detail screen is listed even when the wallet holds none of it yet.
-  const assetIds = new Set([assetId ?? '', ...assetBalances.filter((a) => a.amount > 0).map((a) => a.assetId)])
+  // An asset opened from its detail screen is listed even when the wallet holds none of it yet. A held one waits
+  // for its metadata: without it this screen would read an amount typed for it as sats.
+  const held = assetBalances.filter((a) => a.amount > 0 && assetMetadataCache.has(a.assetId)).map((a) => a.assetId)
+  const assetIds = new Set([assetId ?? '', ...held])
   const assetRows = ['', ...[...assetIds].filter(Boolean)].map(assetRow)
   const current = assetRows.find((r) => r.id === (assetId ?? '')) ?? assetRows[0]
   const pill = (
