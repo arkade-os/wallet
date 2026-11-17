@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { PasskeyCancelled } from '@arkade-os/sdk'
 import Unlock from '../../screens/Wallet/Unlock'
 import { NavigationContext } from '../../providers/navigation'
 import { FlowContext } from '../../providers/flow'
@@ -12,9 +13,8 @@ import {
   mockDevModeContextValue,
 } from './mocks'
 
-function renderUnlock(wallet: Record<string, unknown>) {
+function renderUnlock(wallet: Record<string, unknown>, unlockWithPasskey = vi.fn(() => Promise.resolve())) {
   const unlockWallet = vi.fn(() => Promise.resolve())
-  const unlockWithPasskey = vi.fn(() => Promise.resolve())
   render(
     <DevModeContext.Provider value={mockDevModeContextValue}>
       <NavigationContext.Provider value={mockNavigationContextValue as any}>
@@ -45,5 +45,27 @@ describe('Unlock screen — passkey wallets', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Unlock wallet' }))
     await waitFor(() => expect(unlockWithPasskey).toHaveBeenCalled())
     expect(unlockWallet).not.toHaveBeenCalled()
+  })
+
+  it('tells the user when the passkey unlock fails', async () => {
+    const { unlockWithPasskey } = renderUnlock(
+      { passkeyPrf: true, passkeyId: 'ab' },
+      vi.fn(() => Promise.reject(new Error('authenticator unavailable'))),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock wallet' }))
+    await waitFor(() => expect(unlockWithPasskey).toHaveBeenCalled())
+
+    expect(await screen.findByTestId('error-message')).toHaveTextContent("Couldn't unlock with that passkey")
+  })
+
+  it('says nothing when the user dismisses the passkey prompt', async () => {
+    const { unlockWithPasskey } = renderUnlock(
+      { passkeyPrf: true, passkeyId: 'ab' },
+      vi.fn(() => Promise.reject(new PasskeyCancelled())),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock wallet' }))
+    await waitFor(() => expect(unlockWithPasskey).toHaveBeenCalled())
+
+    expect(screen.queryByTestId('error-message')).toBeNull()
   })
 })

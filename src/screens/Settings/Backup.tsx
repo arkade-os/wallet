@@ -51,6 +51,8 @@ export default function Backup() {
   const enteredPassword = useRef('')
 
   useEffect(() => {
+    // A PRF wallet's words come from its passkey, so anything stored belongs to another wallet.
+    if (wallet.passkeyPrf) return
     verifyPassword(defaultPassword).then(setSecret)
   }, [])
 

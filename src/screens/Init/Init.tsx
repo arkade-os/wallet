@@ -76,6 +76,15 @@ export default function Init() {
   const [contentReady, setContentReady] = useState(prefersReduced)
   const [sunriseVisible, setSunriseVisible] = useState(prefersReduced)
   const logoTargetRef = useRef<HTMLDivElement>(null)
+  const passkeyAttempt = useRef(0)
+
+  // A passkey result that lands after Init unmounted belongs to an abandoned attempt, and Connect's PRF
+  // branch drops any stored secret, so acting on it could delete another setup's words. Closing the
+  // options sheet does not count: a drawer that closes under the OS prompt would drop a real login.
+  const abandonPasskeyAttempt = () => {
+    passkeyAttempt.current += 1
+  }
+  useEffect(() => abandonPasskeyAttempt, [])
 
   const handleFlyStart = useCallback(() => {
     setSunriseVisible(true)
@@ -136,12 +145,15 @@ export default function Init() {
   const handlePasskeyWallet = async () => {
     setPasskeyError('')
     setPasskeyStep('waiting')
+    const attempt = ++passkeyAttempt.current
     try {
       const made = await createPasskeyWallet(isMainnet(aspInfo.network))
+      if (attempt !== passkeyAttempt.current) return
       if (made.prf) return finishPasskeyWallet(made)
       // Never fall back silently: this passkey can't restore the wallet anywhere else.
       setPasskeyStep(made)
     } catch (err) {
+      if (attempt !== passkeyAttempt.current) return
       setPasskeyStep(null)
       passkeyFailure(err)
     }
@@ -155,8 +167,10 @@ export default function Init() {
 
   const handlePasskeyLogin = async () => {
     setPasskeyError('')
+    const attempt = ++passkeyAttempt.current
     try {
       const found = await loginWithPasskey(isMainnet(aspInfo.network))
+      if (attempt !== passkeyAttempt.current) return
       const { passkeyId, passkeyRpId } = found
       setInitInfo({
         mnemonic: found.mnemonic,
@@ -167,6 +181,7 @@ export default function Init() {
       })
       navigate(Pages.InitConnect)
     } catch (err) {
+      if (attempt !== passkeyAttempt.current) return
       setShowOptions(false)
       passkeyFailure(err)
     }

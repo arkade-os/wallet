@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Init from '../../screens/Init/Init'
 import { AspContext } from '../../providers/asp'
@@ -7,7 +7,7 @@ import { NavigationContext, Pages } from '../../providers/navigation'
 import { WalletContext } from '../../providers/wallet'
 import { DevModeProvider } from '../../providers/devMode'
 import { mockAspContextValue, mockFlowContextValue, mockNavigationContextValue, mockWalletContextValue } from './mocks'
-import { createPasskeyWallet, loginWithPasskey, PasskeyNotConfirmed } from '../../lib/passkey'
+import { createPasskeyWallet, loginWithPasskey, PasskeyNotConfirmed, type PasskeyWallet } from '../../lib/passkey'
 
 vi.mock('../../lib/passkey', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/passkey')>()),
@@ -63,7 +63,7 @@ describe('Init screen — passkey wallets', () => {
     const navigate = vi.fn()
     const setInitInfo = vi.fn()
     const updateWallet = vi.fn()
-    render(
+    const { unmount } = render(
       <DevModeProvider>
         <AspContext.Provider value={mockAspContextValue as any}>
           <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate } as any}>
@@ -76,7 +76,7 @@ describe('Init screen — passkey wallets', () => {
         </AspContext.Provider>
       </DevModeProvider>,
     )
-    return { navigate, setInitInfo, updateWallet }
+    return { navigate, setInitInfo, updateWallet, unmount }
   }
 
   beforeEach(() => {
@@ -172,6 +172,35 @@ describe('Init screen — passkey wallets', () => {
         passkeyUnlock: { passkeyPrf: true, passkeyId: 'cd', passkeyRpId: 'localhost', lockedByBiometrics: false },
       }),
     )
+  })
+
+  it('ignores a passkey login that lands after the screen is gone', async () => {
+    let settle: (found: { mnemonic: string; passkeyId: string; passkeyRpId: string }) => void = () => {}
+    vi.mocked(loginWithPasskey).mockReturnValue(new Promise((resolve) => (settle = resolve)))
+    const { navigate, setInitInfo, unmount } = renderWithSpies()
+    fireEvent.click(screen.getAllByText('Other login options')[0])
+    fireEvent.click(await screen.findByText('Log in with passkey'))
+
+    unmount()
+    await act(async () => settle({ mnemonic: words, passkeyId: 'cd', passkeyRpId: 'localhost' }))
+
+    expect(setInitInfo).not.toHaveBeenCalled()
+    expect(navigate).not.toHaveBeenCalled()
+  })
+
+  it('ignores a passkey wallet that lands after the screen is gone', async () => {
+    let settle: (made: PasskeyWallet) => void = () => {}
+    vi.mocked(createPasskeyWallet).mockReturnValue(new Promise((resolve) => (settle = resolve)))
+    const { navigate, setInitInfo, unmount } = renderWithSpies()
+    await startPasskeyWallet()
+
+    unmount()
+    await act(async () =>
+      settle({ prf: true, mnemonic: words, passkeyId: 'ab', passkeyRpId: 'localhost', passkeyName: 'Arkade wallet' }),
+    )
+
+    expect(setInitInfo).not.toHaveBeenCalled()
+    expect(navigate).not.toHaveBeenCalled()
   })
 
   it('creates nothing when the new passkey fails its confirming use, and names it', async () => {

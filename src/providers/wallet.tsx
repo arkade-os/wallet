@@ -90,6 +90,7 @@ interface WalletContextProps {
     privateKey?: Uint8Array
     walletMode?: ServiceWorkerWalletMode
     restoring?: boolean
+    /** Onboarding sets this; the unlock paths omit it and keep the flags already stored. */
     passkeyUnlock?: InitInfo['passkeyUnlock']
   }) => Promise<void>
   lockWallet: () => Promise<void>
