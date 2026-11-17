@@ -808,12 +808,12 @@ describe('a changed recipient', () => {
     return fetchMocker
   }
 
-  const renderStateful = () => {
+  const renderStateful = (walletValue = walletContext) => {
     const sendRouter = vi.fn(async () => createSendRouter({ wallet: svcWallet }))
     const navigate = vi.fn()
     const { container } = render(
       <StatefulForm
-        walletContext={walletContext}
+        walletContext={walletValue}
         swapsContext={{ sendRouter }}
         navigationContext={{ ...mockNavigationContextValue, navigate }}
       />,
@@ -918,6 +918,33 @@ describe('a changed recipient', () => {
     await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), settle)
     expect(current.pendingLnSend?.railId).toBe(LNURL_ARKADE_RAIL)
     fetchMocker.disableMocks()
+  })
+
+  it('keeps the Ark route selected until the receiving address is available', async () => {
+    let releaseAddress: (address: string) => void = () => {}
+    const receivingAddress = new Promise<string>((resolve) => (releaseAddress = resolve))
+    const body = { ...payRequest, paymentOptions: undefined, transferAmounts: [{ method: 'Ark', available: true }] }
+    const fetchMocker = lnurlServer(undefined, { body })
+    const walletValue = {
+      ...walletContext,
+      svcWallet: { ...svcWallet, getAddress: () => receivingAddress },
+    }
+    try {
+      const { sendRouter, type } = renderStateful(walletValue)
+      type(LNURL)
+      await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
+
+      expect(continueButton()).toBeDisabled()
+      expect(sendRouter).not.toHaveBeenCalled()
+
+      releaseAddress(ARK)
+      await waitFor(() => expect(continueButton()).toBeEnabled(), settle)
+      await clickContinue()
+      await waitFor(() => expect(fetchMocker.requests().some((r) => r.url.includes('method=ark'))).toBe(true), settle)
+      expect(sendRouter).not.toHaveBeenCalled()
+    } finally {
+      fetchMocker.disableMocks()
+    }
   })
 
   it('ignores an LNURL that resolves after the recipient changed', async () => {

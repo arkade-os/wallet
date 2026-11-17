@@ -868,6 +868,10 @@ export default function SendForm() {
     timeoutRef.current = setTimeout(() => setReadyToParse(true), RECIPIENT_DEBOUNCE_MS)
   }
 
+  const lnUrlArkMethodAvailable = Boolean(
+    lnUrlResponse?.transferAmounts?.some((method) => method.method === 'Ark' && method.available),
+  )
+
   const handleContinue = async () => {
     setProcessing(true)
     const satoshis = sendInfo.satoshis ?? 0
@@ -877,9 +881,8 @@ export default function SendForm() {
     try {
       if (sendInfo.lnUrl && lnUrlResponse) {
         // ?method=ark wins over the router's rails; it pays a plain Arkade send, so no receiver confirmation.
-        const arkMethod = lnUrlResponse.transferAmounts?.find((method) => method.method === 'Ark' && method.available)
-
-        if (arkMethod && receivingAddresses?.offchainAddr) {
+        if (lnUrlArkMethodAvailable) {
+          if (!receivingAddresses?.offchainAddr) return setProcessing(false)
           // Fetch Ark address instead of Lightning invoice
           const { address: arkAddress } = await fetchArkAddress(sendInfo.lnUrl)
           if (stale()) return setProcessing(false)
@@ -1029,6 +1032,7 @@ export default function SendForm() {
     : !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
       // Unresolved conditions would strand Continue on a locked recipient field.
       (lnUrl && !arkAddress && !address && !invoice && !lnUrlResponse) ||
+      (lnUrlArkMethodAvailable && !receivingAddresses?.offchainAddr) ||
       Boolean(recipientError) ||
       lnurlAmountUnavailable ||
       amountIsAboveMaxLimit(satoshis) ||
