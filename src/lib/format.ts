@@ -152,13 +152,24 @@ export const prettyCurrencyAssetAmount = (
 }
 
 export const isUnixTimestamp = (value: number): boolean => {
-  return value >= 500_000_000
+  return value >= 500_000_000 && value < 8_640_000_000_000
+}
+
+const dateFromTimestamp = (timestamp: number): Date | undefined => {
+  if (typeof timestamp !== 'number') return undefined
+  const date = new Date(timestamp * 1000)
+  if (Number.isNaN(date.getTime())) {
+    console.error('Timestamp is not a valid number', timestamp)
+    return undefined
+  }
+  return date
 }
 
 export const prettyDate = (unixTs: number, lang: Language = Language.English): string => {
-  if (!unixTs) return ''
+  if (unixTs === 0) return ''
+  const date = dateFromTimestamp(unixTs)
+  if (!date) return ''
   if (!isUnixTimestamp(unixTs)) return '' // block height, not a valid timestamp
-  const date = new Date(unixTs * 1000)
   return new Intl.DateTimeFormat(getLocale(lang), {
     day: 'numeric',
     month: 'short',
@@ -177,8 +188,9 @@ const chartDateTimeFormatter = new Intl.DateTimeFormat('en', {
 })
 
 export const prettyChartDateTime = (timestamp: number): string => {
-  if (!timestamp) return ''
-  return chartDateTimeFormatter.format(new Date(timestamp * 1000))
+  if (timestamp === 0) return ''
+  const date = dateFromTimestamp(timestamp)
+  return date ? chartDateTimeFormatter.format(date) : ''
 }
 
 const hideDots = (): string => '·'.repeat(8)
