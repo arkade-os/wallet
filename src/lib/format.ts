@@ -4,7 +4,6 @@ import { fiatDecimalsFor, FIAT_SYMBOLS } from './fiat'
 import { Currencies, Language, Tx, Unit } from './types'
 import { Decimal } from 'decimal.js'
 import { getLocale } from './language'
-import { consoleError } from './logs'
 
 export { prettyDelta, localizedAgo, localizedDelta } from './deltas'
 
@@ -153,13 +152,14 @@ export const prettyCurrencyAssetAmount = (
 }
 
 export const isUnixTimestamp = (value: number): boolean => {
-  return value >= 500_000_000
+  return value >= 500_000_000 && value < 8_640_000_000_000
 }
 
 const dateFromTimestamp = (timestamp: number): Date | undefined => {
+  if (typeof timestamp !== 'number') return undefined
   const date = new Date(timestamp * 1000)
   if (Number.isNaN(date.getTime())) {
-    consoleError(new RangeError('Timestamp is outside the supported date range'), 'Failed to format date')
+    console.error('Timestamp is not a valid number', timestamp)
     return undefined
   }
   return date

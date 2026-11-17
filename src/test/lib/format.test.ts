@@ -1,5 +1,4 @@
 import { describe, it, expect, vi } from 'vitest'
-import * as logs from '../../lib/logs'
 import {
   prettyAmount,
   prettyAgo,
@@ -206,13 +205,21 @@ describe('format utilities', () => {
       expect(prettyDate(tsSec)).toBe(prettyDate(tsSec, Language.English))
     })
 
+    it('falls back to English for an invalid runtime language value', () => {
+      const timestamp = Math.floor(new Date('2023-12-25T10:30:00Z').getTime() / 1000)
+      expect(prettyDate(timestamp, Number.NaN as unknown as Language)).toBe(prettyDate(timestamp, Language.English))
+      expect(prettyDate(timestamp, null as unknown as Language)).toBe(prettyDate(timestamp, Language.English))
+    })
+
     it('handles invalid timestamps without throwing and preserves valid boundaries', () => {
-      const log = vi.spyOn(logs, 'consoleError').mockImplementation(() => {})
+      const log = vi.spyOn(console, 'error').mockImplementation(() => {})
       try {
         expect(prettyDate(0)).toBe('')
+        expect(prettyDate(null as unknown as number)).toBe('')
         expect(prettyDate(499_999_999)).toBe('')
         expect(prettyDate(500_000_000)).not.toBe('')
-        expect(prettyDate(8_640_000_000_000)).not.toBe('')
+        expect(prettyDate(8_639_999_999_999)).not.toBe('')
+        expect(prettyDate(8_640_000_000_000)).toBe('')
         for (const timestamp of [8_640_000_000_001, Infinity, -Infinity, NaN]) {
           expect(prettyDate(timestamp)).toBe('')
         }
@@ -230,9 +237,10 @@ describe('format utilities', () => {
     })
 
     it('handles invalid timestamps without rejecting valid pre-epoch dates', () => {
-      const log = vi.spyOn(logs, 'consoleError').mockImplementation(() => {})
+      const log = vi.spyOn(console, 'error').mockImplementation(() => {})
       try {
         expect(prettyChartDateTime(0)).toBe('')
+        expect(prettyChartDateTime(null as unknown as number)).toBe('')
         for (const timestamp of [-1, -8_640_000_000_000, 8_640_000_000_000]) {
           expect(prettyChartDateTime(timestamp)).not.toBe('')
         }
