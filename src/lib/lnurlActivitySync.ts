@@ -1,8 +1,31 @@
-import type { PaymentSyncStore } from '@arkade-os/lnurl-client'
+import { createLnurlClient, syncPayments, type FetchImpl, type PaymentSyncStore } from '@arkade-os/lnurl-client'
 import type { ArkadeSigner } from '@arkade-os/lnurl-client/arkade'
 import { consoleError } from './logs'
-import { lnurlReceiver } from './receive/lnurlRail'
+import { configuredLnurlServer, lnurlReceiver } from './receive/lnurlRail'
 import { lnurlPaymentSyncStore } from './lnurlPaymentRepository'
+
+const SYNC_REQUEST_TIMEOUT_MS = 10_000
+
+const activityFetch =
+  (signal?: AbortSignal): FetchImpl =>
+  async (input, init) => {
+    const controller = new AbortController()
+    const abort = () => controller.abort(signal?.reason)
+    signal?.addEventListener('abort', abort, { once: true })
+    if (signal?.aborted) abort()
+    const timer = setTimeout(
+      () => controller.abort(new DOMException('LNURL activity request timed out', 'TimeoutError')),
+      SYNC_REQUEST_TIMEOUT_MS,
+    )
+    try {
+      const response = await fetch(input, { ...init, signal: controller.signal })
+      const body = await response.arrayBuffer()
+      return new Response(body.byteLength ? body : null, response)
+    } finally {
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', abort)
+    }
+  }
 
 /**
  * Pulls payment activity for the identity's address owned at the configured
@@ -19,18 +42,27 @@ export async function syncLnurlActivity(
 ) {
   const { signal } = opts
   if (signal?.aborted) return { synced: 0, failures: [] }
-  const receiver = await lnurlReceiver({
+  const server = configuredLnurlServer()
+  if (!server) return { synced: 0, failures: [] }
+  const store = opts.store ?? lnurlPaymentSyncStore
+  const client = createLnurlClient({ baseUrl: server.baseUrl, fetchImpl: activityFetch(signal) })
+  const facade = lnurlReceiver({
     identity,
     arkadeAddress,
     boardingAddress: opts.boardingAddress,
-    store: opts.store ?? lnurlPaymentSyncStore,
+    store,
+    client,
   })
-    ?.owned({ signal, refresh: true })
-    .catch((err) => {
-      if (!signal?.aborted) throw err
-    })
-  if (signal?.aborted) return { synced: 0, failures: [] }
-  return (await receiver?.sync({ signal })) ?? { synced: 0, failures: [] }
+  const receiver = await facade?.owned({ signal, refresh: true }).catch((err) => {
+    if (!signal?.aborted) throw err
+  })
+  if (signal?.aborted || !receiver || !facade) return { synced: 0, failures: [] }
+  // Receiver.sync creates an unbounded client instead of retaining the facade's transport.
+  return syncPayments([{ ...server, token: await facade.token(), handle: receiver.handle }], {
+    client: () => client,
+    store,
+    signal,
+  })
 }
 
 const RESYNC_DELAYS_MS = [3_000, 20_000]

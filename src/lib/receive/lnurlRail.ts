@@ -16,6 +16,7 @@ import {
   type AddressListEntry,
   type DomainCapabilities,
   type LnurlAddressErrorCode,
+  type LnurlClient,
   type PaymentSyncStore,
 } from '@arkade-os/lnurl-client'
 import { consoleError } from '../logs'
@@ -54,6 +55,7 @@ export function lnurlReceiver(deps: {
   arkadeAddress: string
   boardingAddress?: string
   store?: PaymentSyncStore
+  client?: LnurlClient
 }): ArkadeLnurl | undefined {
   const server = configuredLnurlServer()
   return server && arkadeLnurl({ ...deps, ...server })
