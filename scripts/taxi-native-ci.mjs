@@ -737,7 +737,10 @@ async function main() {
     'native-funding-proof',
     process.execPath,
     ['--experimental-eventsource', 'scripts/taxi-native-funding.mjs'],
-    { timeout: 480_000 },
+    {
+      timeout: 480_000,
+      env: { ...env, NODE_EXTRA_CA_CERTS: resolve(root, 'cert.pem'), NODE_TLS_REJECT_UNAUTHORIZED: '1' },
+    },
   )
   if (manual) await manualSession()
   await run('playwright-terminal', 'pnpm', [

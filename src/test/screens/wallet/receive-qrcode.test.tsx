@@ -553,6 +553,47 @@ describe('Receive QR Code screen — copy feedback', () => {
     copyToClipboardMock.mockImplementation((v) => Promise.resolve(v))
   })
 
+  it('keeps Copy disabled until addresses arrive, then copies the ready address', async () => {
+    let provideAddresses!: (value: { offchainAddr: string; boardingAddr: string }) => void
+    const pending = new Promise<{ offchainAddr: string; boardingAddr: string }>((resolve) => {
+      provideAddresses = resolve
+    })
+    const service = {
+      ...mockSvcWallet,
+      getAddress: () => pending.then((addresses) => addresses.offchainAddr),
+      getBoardingAddress: () => pending.then((addresses) => addresses.boardingAddr),
+    }
+    const setRecvInfo = vi.fn()
+    const initial = {
+      ...tapFixture({ off: '', bd: '' }),
+      wallet: { svcWallet: service as any },
+    }
+    const view = renderReceiveQrCode({ ...initial, flow: { ...initial.flow, setRecvInfo } })
+    const copyButton = screen.getByRole('button', { name: 'Copy' })
+    expect(copyButton).toBeDisabled()
+    fireEvent.click(copyButton)
+    expect(copyToClipboardMock).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('sheet-modal')).not.toBeInTheDocument()
+
+    await act(async () => {
+      provideAddresses({ offchainAddr: 'ark1ready', boardingAddr: 'bc1ready' })
+    })
+    const readyInfo = setRecvInfo.mock.calls.find(([info]) => info.offchainAddr === 'ark1ready')?.[0]
+    expect(readyInfo).toEqual(expect.objectContaining({ offchainAddr: 'ark1ready', boardingAddr: 'bc1ready' }))
+    view.rerender(buildTree({ ...initial, flow: { recvInfo: readyInfo, setRecvInfo } }))
+    await waitFor(() => expect(copyButton).toBeEnabled())
+    await act(async () => {
+      fireEvent.click(copyButton)
+    })
+    expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).toContain('ark1ready')
+    expect(screen.getByTestId('ark-address-copy')).toBeVisible()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('ark-address-copy'))
+    })
+    expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).toBe('ark1ready')
+    expect(screen.queryByTestId('sheet-modal')).not.toBeInTheDocument()
+  })
+
   it('reports a refused clipboard write instead of claiming success', async () => {
     copyToClipboardMock.mockResolvedValue(false)
     renderReceiveQrCode(tapFixture())

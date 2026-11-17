@@ -299,6 +299,10 @@ export default function ReceiveQRCode() {
             ? [invoice ? rows.invoice : rows.lnaddress]
             : [rows.bip21, rows.ark, rows.btc, rows.invoice, rows.lnaddress]
   ).filter((row) => row.value)
+  // A token's QR value is a payment URI, which a wallet's address field rejects.
+  const copyValue = tokenQuote?.destination ?? qrCodeValue
+  const copyReady =
+    addressesLoaded && !hasError && !noPaymentMethods && !generating && copyRows.length > 0 && Boolean(copyValue)
 
   // Payment listener
   useEffect(() => {
@@ -374,15 +378,13 @@ export default function ReceiveQRCode() {
   }
 
   const handleCopyButton = async () => {
-    if (generating) return
+    if (!copyReady) return
     if (!prefersReducedMotion) hapticSubtle()
     // One relevant value is copied outright; the toast confirms it, so a one-row sheet adds nothing.
     if (copyRows.length > 1) setShowCopySheet(true)
-    // A token's QR value is a payment URI, which a wallet's address field rejects.
-    const value = tokenQuote?.destination ?? qrCodeValue
-    if (value && copied !== value) {
-      const written = await copyToClipboard(value)
-      if (written) setCopied(value)
+    if (copied !== copyValue) {
+      const written = await copyToClipboard(copyValue)
+      if (written) setCopied(copyValue)
     }
   }
 
@@ -664,12 +666,7 @@ export default function ReceiveQRCode() {
             onClick={() => (isMobileBrowser ? setShowKeys(true) : setShowAmountSheet(true))}
             secondary
           />
-          <Button
-            label={t('receive.copy')}
-            onClick={handleCopyButton}
-            secondary
-            disabled={generating || Boolean(activeToken && !tokenQuote)}
-          />
+          <Button label={t('receive.copy')} onClick={handleCopyButton} secondary disabled={!copyReady} />
         </FlexRow>
         <Button label={t('receive.share')} onClick={handleShare} disabled={shareDisabled} />
       </ButtonsOnBottom>

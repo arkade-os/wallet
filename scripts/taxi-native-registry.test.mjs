@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict'
-import { it as test } from 'vitest'
+import { it as test, vi } from 'vitest'
+import { createSwapClient } from '@arkade-os/swap'
 import { stableStringify, validateCard } from '@arkade-os/solver-discovery'
 import { schnorr } from '@noble/curves/secp256k1.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { hex } from '@scure/base'
 import { nativeRegistry } from './taxi-native-registry.mjs'
 import { endpoint, sanitizedError } from './taxi-native-env.mjs'
+import { nativeFundingDiscovery } from './taxi-native-funding.mjs'
 
 const key = new Uint8Array(32).fill(3)
 const assetId = 'ab'.repeat(34)
@@ -47,6 +49,81 @@ function signedCard(update = {}) {
     ) + '\n'
   )
 }
+
+test('prepares the real public discovery snapshot before funding, without registry or wallet effects', async () => {
+  const card = JSON.parse(signedCard())
+  const fetchImpl = vi.fn(() => {
+    throw new Error('Unexpected registry fetch')
+  })
+  const send = vi.fn(() => {
+    throw new Error('Unexpected wallet spend')
+  })
+  const reader = vi.fn(() => {
+    throw new Error('Unexpected chain read')
+  })
+  const broadcaster = vi.fn(() => {
+    throw new Error('Unexpected chain submission')
+  })
+  const wallet = {
+    getArkadeInfo: async () => ({ network: 'regtest', signerPubkey: options.discoveryPubkey, deprecatedSigners: [] }),
+    send,
+    getArkadeReader: reader,
+    getArkadeBroadcaster: broadcaster,
+  }
+  const unavailable = createSwapClient({
+    wallet,
+    fetchImpl,
+    discovery: {
+      registryUrl: null,
+      localCards: [{ card, network: 'regtest' }],
+      network: 'regtest',
+      transportCards: null,
+    },
+  })
+  await assert.rejects(unavailable.markets(), (error) => error.name === 'DiscoverySnapshotUnavailable')
+  await unavailable[Symbol.asyncDispose]()
+  const discovery = await nativeFundingDiscovery(card, assetId, options.feedUrl, fetchImpl)
+  const client = createSwapClient({ wallet, fetchImpl, discovery })
+  try {
+    const markets = await client.markets()
+    assert.equal(markets.length, 1)
+    assert.equal(markets[0].backend, 'rfq')
+    assert.equal(markets[0].solver, 'wallet-native')
+    const resolution = await client.resolve({
+      give: 'arkade:regtest/slip44:1',
+      take: `arkade:regtest/asset:${assetId}`,
+      amount: 3000n,
+      amountOn: 'give',
+    })
+    assert.equal(resolution.eligible, 1)
+    assert.equal(resolution.market.backend, 'rfq')
+    assert.deepEqual(discovery.snapshot[0].transports, card.transports)
+    assert.equal(discovery.snapshot[0].discovery_pubkey, card.discovery_pubkey)
+    assert.equal(resolution.snapshot.source, 'injected')
+    for (const effect of [fetchImpl, send, reader, broadcaster]) assert.equal(effect.mock.calls.length, 0)
+  } finally {
+    await client[Symbol.asyncDispose]()
+  }
+})
+
+test('refuses invalid, wrong-asset and wrong-feed funding snapshots before any provider effects', async () => {
+  const fetchImpl = vi.fn(() => {
+    throw new Error('Unexpected registry fetch')
+  })
+  await assert.rejects(
+    nativeFundingDiscovery(JSON.parse(signedCard({ version: 99 })), assetId, options.feedUrl, fetchImpl),
+    /discovery failed/,
+  )
+  await assert.rejects(
+    nativeFundingDiscovery(JSON.parse(signedCard()), 'cd'.repeat(34), options.feedUrl, fetchImpl),
+    /does not serve/,
+  )
+  await assert.rejects(
+    nativeFundingDiscovery(JSON.parse(signedCard()), assetId, 'http://127.0.0.1:19999/price', fetchImpl),
+    /does not serve/,
+  )
+  assert.equal(fetchImpl.mock.calls.length, 0)
+})
 
 test('preserves the original signed card and enriches every flat market with authentic rendezvous', () => {
   const raw = signedCard()

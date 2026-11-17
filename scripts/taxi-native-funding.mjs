@@ -18,9 +18,9 @@ const poll = async (read, accept, label) => {
   }
   throw new Error(`Timed out: ${label}`)
 }
-const loopback = (value) => {
+const loopback = (value, protocol = 'http:') => {
   const url = new URL(value)
-  assert.equal(url.protocol, 'http:')
+  assert.equal(url.protocol, protocol)
   assert(['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname))
   assert(!url.username && !url.password && !url.search && !url.hash)
   return url.href.replace(/\/$/, '')
@@ -49,6 +49,33 @@ export function fundingFailure(error) {
     }
   }
   return result
+}
+
+export async function nativeFundingDiscovery(card, assetId, feedUrl, fetchImpl = globalThis.fetch) {
+  const { discover } = await import('@arkade-os/solver-discovery')
+  const { markets, sources } = await discover({
+    registries: [],
+    localCards: [{ card, network: 'regtest' }],
+    network: 'regtest',
+    fetchImpl,
+  })
+  assert(
+    sources.some((source) => source.source === 'local:wallet-native' && source.sourceType === 'local' && source.ok),
+    'Native solver card discovery failed',
+  )
+  assert(
+    markets.some(
+      (market) =>
+        market.solver === 'wallet-native' &&
+        market.sourceType === 'local' &&
+        market.base_asset.id === 'arkade:regtest/slip44:1' &&
+        market.quote_asset.id === `arkade:regtest/asset:${assetId}` &&
+        market.price_feed === feedUrl &&
+        market.discovery_pubkey === card.discovery_pubkey,
+    ),
+    'Native solver snapshot does not serve the funded asset and exact feed',
+  )
+  return { registryUrl: null, snapshot: markets, network: 'regtest', transportCards: null }
 }
 
 export async function assertNativeFundingOwnership(
@@ -189,12 +216,17 @@ export async function runFundingProof(
   let failed = false
   const card = await json(resolve(walletRoot, 'public/solver-registry/wallet-native.card.json'))
   assert.equal(card.name, 'wallet-native')
+  const relayUrl = loopback(env.TAXI_NATIVE_ADVERTISED_RELAY_URL, 'wss:')
+  assert.deepEqual(card.transports?.nostr?.relays, [relayUrl])
+  assert.equal(process.env.NODE_EXTRA_CA_CERTS, resolve(root, 'cert.pem'))
+  assert.notEqual(process.env.NODE_TLS_REJECT_UNAUTHORIZED, '0')
   const feedUrl = loopback(env.TAXI_NATIVE_PRICE_FEED_URL)
   const nativeMarket = card.markets.find(
     (market) =>
       market.base_asset.id === 'arkade:regtest/slip44:1' && market.quote_asset.id === `arkade:regtest/asset:${assetId}`,
   )
   assert.equal(nativeMarket?.price_feed, feedUrl)
+  const discovery = await nativeFundingDiscovery(card, assetId, feedUrl)
   const operator = new RestOperatorProvider(operatorUrl)
   const provider = new Proxy(operator, {
     get(target, name) {
@@ -327,17 +359,9 @@ export async function runFundingProof(
       createSwapClient({
         wallet: wrapped,
         repository,
-        discovery: {
-          registryUrl: null,
-          localCards: [{ card, network: 'regtest' }],
-          network: 'regtest',
-          transportCards: null,
-        },
+        discovery,
         emulatorPubkey: env.VITE_EMULATOR_PUBKEY,
-        policy: {
-          drive: 'manual',
-          selectMarket: (markets) => markets.find((market) => market.backend === 'feed'),
-        },
+        policy: { drive: 'manual' },
       })
     repository = nodeSwapRepository({ network: 'regtest', path: database })
     assert.equal(repository.version, 6)
