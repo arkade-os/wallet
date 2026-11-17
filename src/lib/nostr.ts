@@ -63,7 +63,7 @@ export class NostrStorage {
 
     try {
       await Promise.race([
-        this.pool.publish(this.relays, signedEvent),
+        Promise.any(this.pool.publish(this.relays, signedEvent)),
         new Promise((_, reject) => {
           setTimeout(() => reject(new Error('Publish timeout')), 10000)
         }),
