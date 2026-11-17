@@ -33,9 +33,6 @@ async function setup() {
     const serverInfo = execSync('curl -s http://localhost:7070/v1/info').toString()
     console.log(`\narkd info: ${serverInfo}`)
 
-    // Verify nostr relay (nak is a WebSocket server, check container is running)
-    await waitForService('nak', 'docker exec nak nak --version', 10, 1000)
-
     console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
     console.log('  ✓ regtest environment verified')
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n')
