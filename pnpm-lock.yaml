@@ -5,6 +5,8 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  '@arkade-os/sdk': file:../ts-sdk/packages/sdk
+  '@arkade-os/swap': file:../ts-sdk/packages/swap
   '@babel/core': '>=7.29.6 <8.0.0'
   js-yaml@<4: '>=3.15.0 <4.0.0'
   js-yaml@>=4: '>=4.2.0 <5.0.0'
@@ -17,16 +19,16 @@ importers:
     dependencies:
       '@arkade-os/lnurl-client':
         specifier: 0.9.2
-        version: 0.9.2(@arkade-os/sdk@0.5.5)
+        version: 0.9.2(@arkade-os/sdk@file:../ts-sdk/packages/sdk)
       '@arkade-os/sdk':
-        specifier: 0.5.5
-        version: 0.5.5
+        specifier: file:../ts-sdk/packages/sdk
+        version: file:../ts-sdk/packages/sdk
       '@arkade-os/solver-discovery':
         specifier: 0.3.0
         version: 0.3.0
       '@arkade-os/swap':
-        specifier: 0.1.5
-        version: 0.1.5(nostr-tools@2.24.1(typescript@5.9.3))
+        specifier: file:../ts-sdk/packages/swap
+        version: file:../ts-sdk/packages/swap(nostr-tools@2.24.1(typescript@5.9.3))
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -234,6 +236,7 @@ packages:
 
   '@arkade-os/lnurl-client@0.9.2':
     resolution: {integrity: sha512-rpjU67hJUZHyhh7NsgMjVjUVSE4XQA8nPJ4JMYfKQGcX0KS/Q1os1E0KmWozR5OjI3wppCpRwAWG5v6k7FXgBw==}
+    version: 0.9.2
     engines: {node: '>=22.12.0'}
     peerDependencies:
       '@arkade-os/sdk': '>=0.5.0-rc.0'
@@ -241,8 +244,8 @@ packages:
       '@arkade-os/sdk':
         optional: true
 
-  '@arkade-os/sdk@0.5.5':
-    resolution: {integrity: sha512-RVOKdYWm+tsz7RaMpmXOzr1sjF7dUtmfvT3jc5sj0+J/b/VrRyCq2bael8ZNncNXulG7aZkpCKfpbNql7ih6Rg==}
+  '@arkade-os/sdk@file:../ts-sdk/packages/sdk':
+    resolution: {directory: ../ts-sdk/packages/sdk, type: directory}
     engines: {node: '>=22.13.0 <27'}
     peerDependencies:
       '@arkade-os/compiler': ^0.1.0-rc.1
@@ -269,8 +272,8 @@ packages:
     resolution: {integrity: sha512-FMAhWG3vZrKIlCP1U8E5iAgB6O1wc6O1CMk+HlQ4xUf066p/S8PuRgmHtkHcL1YrGsdWhKfP/SSFwgLIbGTQjg==}
     engines: {node: '>=20.19'}
 
-  '@arkade-os/swap@0.1.5':
-    resolution: {integrity: sha512-ZMs8m9heb099pxALb7EpvoKAQu6VjMPfTZqZCCbzz7B6k0Y9txpD9IxrjPoon8ydfS8HLEsMGqsukj4B4HqOIA==}
+  '@arkade-os/swap@file:../ts-sdk/packages/swap':
+    resolution: {directory: ../ts-sdk/packages/swap, type: directory}
     engines: {node: '>=22.13.0'}
     peerDependencies:
       nostr-tools: 2.24.1
@@ -462,8 +465,8 @@ packages:
       '@ledgerhq/ledger-bitcoin':
         optional: true
 
-  '@bitcoinerlab/miniscript@2.0.0':
-    resolution: {integrity: sha512-P8yyubPf6lphmIZfyD/ZbhT/umJX7zH1mKjGql7z0Qt+xuffnz2AueQqq2/01VE2rTIq80VM0oRFdJClGBYx/g==}
+  '@bitcoinerlab/miniscript@2.0.1':
+    resolution: {integrity: sha512-6HW8S9DvObqetkaP7gt8mxXFXQ9Og5d4lLAw5yUB6ykr97zXElC7GLPPsOQJg+PGBzc/NX/G0OMv0EwJ71Xksg==}
 
   '@branta-ops/branta@4.0.5':
     resolution: {integrity: sha512-oD443iG3bQwULQju3hwO806MA+3UJGfXFFImyqb2T8C7DN2rV4GiJlOoFr2wcLMhC7gCQ90PXsrbH8fgx1E/Jw==}
@@ -1017,9 +1020,6 @@ packages:
 
   '@scure/bip32@2.0.1':
     resolution: {integrity: sha512-4Md1NI5BzoVP+bhyJaY3K6yMesEFzNS1sE/cP+9nuvE7p/b0kx9XbpDHHFl8dHtufcbdHRUUQdRqLIPHN/s7yA==}
-
-  '@scure/bip32@2.4.0':
-    resolution: {integrity: sha512-i3DS0CptAocyvqE4n3SUkpzeQK4vJMFwWLofTwRiiKo2aWojBOfyMCgfKw9HVpO6fSY5AK86sHS/Uzn8kK9Few==}
 
   '@scure/bip39@2.0.0':
     resolution: {integrity: sha512-F2Tza4KyTSFO/13JymY6a6UHfSLzx0YGbkQGz7wjGx2BYJLyG/qXELKnFFsDfeIK+WfV2v2+5XOQftvL4d8RBA==}
@@ -3025,8 +3025,8 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
-  uint8array-tools@0.0.8:
-    resolution: {integrity: sha512-xS6+s8e0Xbx++5/0L+yyexukU7pz//Yg6IHg3BKhXotg1JcYtgxVcUctQ0HxLByiJzpAkNFawz1Nz5Xadzo82g==}
+  uint8array-tools@0.0.10:
+    resolution: {integrity: sha512-sSbrZqlr04w4p8KKpHw0ME/R4JzQaadum+BWhMlk2M7LrDyXWTfJOco3d1jNMdQNxgk5DDm88R3IWYH0nR+tzQ==}
     engines: {node: '>=14.0.0'}
 
   uint8array-tools@0.0.9:
@@ -3074,8 +3074,8 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
-  varuint-bitcoin@2.0.0:
-    resolution: {integrity: sha512-6QZbU/rHO2ZQYpWFDALCDSRsXbAs1VOEmXAxtbtjLtKuMJ/FQ8YbhfxlaiKv5nklci0M6lZtlZyxo9Q+qNnyog==}
+  varuint-bitcoin@2.0.1:
+    resolution: {integrity: sha512-TTl5qSPJ3FzjuTHo0Ex9WUE3jTxnUsQHR38vIDhHApoVstzJK4gE20WqmTWOT5oo7ilvOSNejXt4CJrfDcqm5A==}
 
   vaul-base@1.0.0:
     resolution: {integrity: sha512-M7B3EV8HzN24+QOqobZThl/S/weVizURcAsIZxdP9RYRjY20t9S/P1oNMTkLpFEh2oyLvVEH4vc5a3oJsr+eFA==}
@@ -3310,15 +3310,15 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/lnurl-client@0.9.2(@arkade-os/sdk@0.5.5)':
+  '@arkade-os/lnurl-client@0.9.2(@arkade-os/sdk@file:../ts-sdk/packages/sdk)':
     dependencies:
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
       '@scure/base': 2.0.0
     optionalDependencies:
-      '@arkade-os/sdk': 0.5.5
+      '@arkade-os/sdk': file:../ts-sdk/packages/sdk
 
-  '@arkade-os/sdk@0.5.5':
+  '@arkade-os/sdk@file:../ts-sdk/packages/sdk':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 8.0.0
@@ -3343,9 +3343,9 @@ snapshots:
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
 
-  '@arkade-os/swap@0.1.5(nostr-tools@2.24.1(typescript@5.9.3))':
+  '@arkade-os/swap@file:../ts-sdk/packages/swap(nostr-tools@2.24.1(typescript@5.9.3))':
     dependencies:
-      '@arkade-os/sdk': 0.5.5
+      '@arkade-os/sdk': file:../ts-sdk/packages/sdk
       '@arkade-os/solver-discovery': 0.3.0
       '@noble/ciphers': 2.1.1
       '@noble/curves': 2.4.0
@@ -3533,33 +3533,33 @@ snapshots:
     optionalDependencies:
       '@types/react': 18.3.26
 
-  '@bitcoinerlab/descriptors-core@3.1.7(@noble/curves@2.4.0)(@noble/hashes@2.4.0)(@scure/base@2.0.0)(@scure/bip32@2.4.0)(@scure/btc-signer@2.4.1)':
+  '@bitcoinerlab/descriptors-core@3.1.7(@noble/curves@2.4.0)(@noble/hashes@2.4.0)(@scure/base@2.0.0)(@scure/bip32@2.0.1)(@scure/btc-signer@2.4.1)':
     dependencies:
-      '@bitcoinerlab/miniscript': 2.0.0
+      '@bitcoinerlab/miniscript': 2.0.1
       lodash.memoize: 4.1.2
       uint8array-tools: 0.0.9
-      varuint-bitcoin: 2.0.0
+      varuint-bitcoin: 2.0.1
     optionalDependencies:
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
       '@scure/base': 2.0.0
-      '@scure/bip32': 2.4.0
+      '@scure/bip32': 2.0.1
       '@scure/btc-signer': 2.4.1
 
   '@bitcoinerlab/descriptors-scure@3.1.7':
     dependencies:
-      '@bitcoinerlab/descriptors-core': 3.1.7(@noble/curves@2.4.0)(@noble/hashes@2.4.0)(@scure/base@2.0.0)(@scure/bip32@2.4.0)(@scure/btc-signer@2.4.1)
+      '@bitcoinerlab/descriptors-core': 3.1.7(@noble/curves@2.4.0)(@noble/hashes@2.4.0)(@scure/base@2.0.0)(@scure/bip32@2.0.1)(@scure/btc-signer@2.4.1)
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
       '@scure/base': 2.0.0
-      '@scure/bip32': 2.4.0
+      '@scure/bip32': 2.0.1
       '@scure/btc-signer': 2.4.1
     transitivePeerDependencies:
       - bip32
       - bitcoinjs-lib
       - ecpair
 
-  '@bitcoinerlab/miniscript@2.0.0':
+  '@bitcoinerlab/miniscript@2.0.1':
     dependencies:
       bip68: 1.0.4
 
@@ -3973,12 +3973,6 @@ snapshots:
       '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
-
-  '@scure/bip32@2.4.0':
-    dependencies:
-      '@noble/curves': 2.4.0
-      '@noble/hashes': 2.4.0
-      '@scure/base': 2.4.0
 
   '@scure/bip39@2.0.0':
     dependencies:
@@ -6255,7 +6249,7 @@ snapshots:
 
   typescript@5.9.3: {}
 
-  uint8array-tools@0.0.8: {}
+  uint8array-tools@0.0.10: {}
 
   uint8array-tools@0.0.9: {}
 
@@ -6299,9 +6293,9 @@ snapshots:
     dependencies:
       react: 18.3.1
 
-  varuint-bitcoin@2.0.0:
+  varuint-bitcoin@2.0.1:
     dependencies:
-      uint8array-tools: 0.0.8
+      uint8array-tools: 0.0.10
 
   vaul-base@1.0.0(@base-ui/react@1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
