@@ -188,6 +188,21 @@ describe('Init screen — passkey wallets', () => {
     expect(navigate).not.toHaveBeenCalled()
   })
 
+  it('ignores a passkey login that lands after the user chose to restore instead', async () => {
+    let settle: (found: { mnemonic: string; passkeyId: string; passkeyRpId: string }) => void = () => {}
+    vi.mocked(loginWithPasskey).mockReturnValue(new Promise((resolve) => (settle = resolve)))
+    const { navigate, setInitInfo } = renderWithSpies()
+    fireEvent.click(screen.getAllByText('Other login options')[0])
+    fireEvent.click(await screen.findByText('Log in with passkey'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restore wallet' }))
+    await act(async () => settle({ mnemonic: words, passkeyId: 'cd', passkeyRpId: 'localhost' }))
+
+    expect(navigate).toHaveBeenCalledWith(Pages.InitRestore)
+    expect(navigate).not.toHaveBeenCalledWith(Pages.InitConnect)
+    expect(setInitInfo).not.toHaveBeenCalled()
+  })
+
   it('ignores a passkey wallet that lands after the screen is gone', async () => {
     let settle: (made: PasskeyWallet) => void = () => {}
     vi.mocked(createPasskeyWallet).mockReturnValue(new Promise((resolve) => (settle = resolve)))

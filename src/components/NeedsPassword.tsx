@@ -39,11 +39,13 @@ export default function NeedsPassword({ error, onPassword, onPasskey }: NeedsPas
       <Content>
         <Padded>
           {usesPasskey ? (
-            <CenterScreen onClick={handleBiometrics}>
-              <LockIcon big />
-              <Text centered>{t('unlock.unlockWithPasskey')}</Text>
+            <>
               <ErrorMessage text={error} error={Boolean(error)} />
-            </CenterScreen>
+              <CenterScreen onClick={handleBiometrics}>
+                <LockIcon big />
+                <Text centered>{t('unlock.unlockWithPasskey')}</Text>
+              </CenterScreen>
+            </>
           ) : (
             <FlexCol gap='1rem' testId='password'>
               <InputPassword

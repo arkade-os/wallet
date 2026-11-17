@@ -58,6 +58,17 @@ describe('Unlock screen — passkey wallets', () => {
     expect(await screen.findByTestId('error-message')).toHaveTextContent("Couldn't unlock with that passkey")
   })
 
+  it('does not retry the passkey when the user taps its error', async () => {
+    const { unlockWithPasskey } = renderUnlock(
+      { passkeyPrf: true, passkeyId: 'ab' },
+      vi.fn(() => Promise.reject(new Error('authenticator unavailable'))),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock wallet' }))
+    fireEvent.click(await screen.findByTestId('error-message'))
+
+    expect(unlockWithPasskey).toHaveBeenCalledTimes(1)
+  })
+
   it('says nothing when the user dismisses the passkey prompt', async () => {
     const { unlockWithPasskey } = renderUnlock(
       { passkeyPrf: true, passkeyId: 'ab' },
@@ -66,6 +77,7 @@ describe('Unlock screen — passkey wallets', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Unlock wallet' }))
     await waitFor(() => expect(unlockWithPasskey).toHaveBeenCalled())
 
+    expect(await screen.findByRole('button', { name: 'Unlock wallet' })).toBeInTheDocument()
     expect(screen.queryByTestId('error-message')).toBeNull()
   })
 })

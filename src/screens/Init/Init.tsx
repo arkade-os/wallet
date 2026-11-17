@@ -78,9 +78,9 @@ export default function Init() {
   const logoTargetRef = useRef<HTMLDivElement>(null)
   const passkeyAttempt = useRef(0)
 
-  // A passkey result that lands after Init unmounted belongs to an abandoned attempt, and Connect's PRF
-  // branch drops any stored secret, so acting on it could delete another setup's words. Closing the
-  // options sheet does not count: a drawer that closes under the OS prompt would drop a real login.
+  // A passkey result that lands after another setup started, or after Init unmounted, belongs to an abandoned
+  // attempt; Connect's PRF branch drops any stored secret, so acting on it could delete that setup's words.
+  // Closing the options sheet does not count: a drawer that closes under the OS prompt would drop a real login.
   const abandonPasskeyAttempt = () => {
     passkeyAttempt.current += 1
   }
@@ -101,6 +101,7 @@ export default function Init() {
   }, [aspInfo.unreachable])
 
   const createWallet = (mode: ServiceWorkerWalletMode) => {
+    abandonPasskeyAttempt()
     const mnemonic = generateMnemonic(wordlist)
     setInitInfo({ mnemonic, password: defaultPassword, restoring: false, walletMode: mode })
     navigate(Pages.InitConnect)
@@ -111,7 +112,10 @@ export default function Init() {
     createWallet('static')
   }
 
-  const handleOldWallet = () => navigate(Pages.InitRestore)
+  const handleOldWallet = () => {
+    abandonPasskeyAttempt()
+    navigate(Pages.InitRestore)
+  }
 
   const passkeyFailure = (err: unknown) => {
     if (err instanceof PasskeyNotConfirmed) return setPasskeyError(t('init.passkeyNotUsed', { name: err.passkeyName }))
