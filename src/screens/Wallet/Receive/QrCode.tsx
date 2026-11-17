@@ -2,7 +2,7 @@ import { useContext, useEffect, useState } from 'react'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
-import { FlowContext } from '../../../providers/flow'
+import { FlowContext, emptyRecvInfo } from '../../../providers/flow'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import { NotificationsContext } from '../../../providers/notifications'
@@ -72,6 +72,7 @@ import BoltOutlineIcon from '../../../icons/BoltOutline'
 import CheckMarkIcon from '../../../icons/CheckMark'
 import CopyIcon from '../../../icons/Copy'
 import ScanIcon from '../../../icons/Scan'
+import ChevronDownIcon from '../../../icons/ChevronDown'
 
 const railLogo = (rail: LnurlTokenRail, ring: string) => (
   <TokenOnChainLogo ticker={rail.unit.code} chainId={rail.asset?.chainId ?? ''} ring={ring} />
@@ -112,7 +113,7 @@ export default function ReceiveQRCode() {
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
-  const { assetMetadataCache, svcWallet } = useContext(WalletContext)
+  const { assetBalances, assetMetadataCache, svcWallet } = useContext(WalletContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { t } = useTranslation()
 
@@ -155,6 +156,7 @@ export default function ReceiveQRCode() {
     return () => clearTimeout(timer)
   }, [copied])
   const [formatsOpen, setFormatsOpen] = useState(false)
+  const [assetsOpen, setAssetsOpen] = useState(false)
 
   const prefersReducedMotion = useReducedMotion()
 
@@ -325,7 +327,7 @@ export default function ReceiveQRCode() {
       }
 
       if (sats || receivedAssets.length > 0) {
-        setRecvInfo({ ...recvInfo, received: true, satoshis: sats, receivedAssets })
+        setRecvInfo((prev) => ({ ...prev, received: true, satoshis: sats, receivedAssets }))
         if (!isAssetReceive) notifyPaymentReceived(sats)
         navigate(Pages.ReceiveSuccess)
       }
@@ -333,7 +335,8 @@ export default function ReceiveQRCode() {
 
     navigator.serviceWorker.addEventListener('message', listenForPayments)
     return () => navigator.serviceWorker.removeEventListener('message', listenForPayments)
-  }, [svcWallet])
+    // The asset pill switches what this screen receives without remounting it.
+  }, [svcWallet, isAssetReceive])
 
   // Handlers
   const handleShare = () => {
@@ -429,6 +432,23 @@ export default function ReceiveQRCode() {
     }
     setTokenId(id)
     setMethod('token')
+  }
+
+  // The screen stays mounted, so an amount, format or token typed for the last asset must not carry over.
+  const switchAsset = (id: string) => {
+    setAssetsOpen(false)
+    if (id === (assetId ?? '')) return
+    setAssetAmount(BigInt(0))
+    setAmountTextValue('')
+    setSheetSats(0)
+    setMethod('full')
+    setTokenId(undefined)
+    setRecvInfo((prev) => ({
+      ...emptyRecvInfo,
+      boardingAddr: prev.boardingAddr,
+      offchainAddr: prev.offchainAddr,
+      ...(id ? { assetId: id } : {}),
+    }))
   }
 
   const assetPresentation = walletAssetPresentationForId(
@@ -586,11 +606,35 @@ export default function ReceiveQRCode() {
         btc: t('receive.bitcoinSub'),
         token: '',
       }[shown]
-  const pillLogo = !isAssetReceive
-    ? 'BTC'
-    : assetOption.trusted
-      ? tokenLogoTickerForTicker(assetOption.ticker)
-      : undefined
+  // Only a registered asset gets an official logo: a self-reported ticker could claim any.
+  const assetRow = (id: string): FormatRow => {
+    const p = id
+      ? walletAssetPresentationForId(aspInfo.network, id, isRegistered, assetMetadataCache.get(id)?.metadata, '')
+      : { name: t('send.bitcoin'), ticker: 'BTC' }
+    const logo = !id ? 'BTC' : isRegistered(id) ? tokenLogoTickerForTicker(p.ticker) : undefined
+    return {
+      id,
+      title: p.name || p.ticker,
+      subtitle: p.ticker,
+      icon: (
+        <span className='flex size-7 shrink-0 [&>svg]:size-full'>
+          {logo ? <TokenLogo ticker={logo} /> : <AssetAvatar name={p.name} ticker={p.ticker} size={28} />}
+        </span>
+      ),
+    }
+  }
+  // An asset opened from its detail screen is listed even when the wallet holds none of it yet.
+  const assetIds = new Set([assetId ?? '', ...assetBalances.filter((a) => a.amount > 0).map((a) => a.assetId)])
+  const assetRows = ['', ...[...assetIds].filter(Boolean)].map(assetRow)
+  const current = assetRows.find((r) => r.id === (assetId ?? '')) ?? assetRows[0]
+  const pill = (
+    <>
+      {current.icon}
+      <span className='truncate'>{current.title}</span>
+      {assetRows.length > 1 ? <ChevronDownIcon /> : null}
+    </>
+  )
+  const pillClass = 'flex min-w-0 items-center gap-2 rounded-full bg-neutral-50 py-1.5 pr-4 pl-1.5 font-semibold'
   const showingQr = addressesCurrent && !hasError && !noPaymentMethods && Boolean(bip21Uri)
 
   return (
@@ -605,18 +649,21 @@ export default function ReceiveQRCode() {
         >
           <CloseIcon />
         </button>
-        <span className='flex min-w-0 items-center gap-2 rounded-full bg-neutral-50 py-1.5 pr-4 pl-1.5 font-semibold'>
-          <span className='flex size-7 shrink-0 [&>svg]:size-full'>
-            {pillLogo ? (
-              <TokenLogo ticker={pillLogo} />
-            ) : (
-              <AssetAvatar name={assetOption.name} ticker={assetOption.ticker} size={28} />
-            )}
+        {assetRows.length > 1 ? (
+          <button
+            type='button'
+            onClick={() => setAssetsOpen(true)}
+            aria-haspopup='dialog'
+            data-testid='receive-asset-pill'
+            className={pillClass}
+          >
+            {pill}
+          </button>
+        ) : (
+          <span className={pillClass} data-testid='receive-asset-pill'>
+            {pill}
           </span>
-          <span className='truncate'>
-            {isAssetReceive ? assetOption.name || assetOption.ticker : t('send.bitcoin')}
-          </span>
-        </span>
+        )}
       </div>
       <Content noFade>
         <Padded>
@@ -806,6 +853,14 @@ export default function ReceiveQRCode() {
         onPick={pickFormat}
         tokens={tokenRows}
         onPickToken={pickToken}
+      />
+      <ReceiveFormats
+        open={assetsOpen}
+        onClose={() => setAssetsOpen(false)}
+        title={t('swap.chooseAssetToReceive')}
+        formats={assetRows}
+        active={current.id}
+        onPick={switchAsset}
       />
     </>
   )

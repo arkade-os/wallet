@@ -1,6 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, act, fireEvent, waitFor, within } from '@testing-library/react'
-import { FlowContext } from '../../../providers/flow'
+import { FlowContext, emptyRecvInfo } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import {
   mockAspContextValue,
@@ -692,5 +692,62 @@ describe('Receive QR Code screen — copy feedback', () => {
 
     expect(copyToClipboardMock).toHaveBeenCalledTimes(2)
     expect(copyToClipboardMock).toHaveBeenLastCalledWith(shown)
+  })
+})
+
+describe('Receive QR Code screen — asset pill', () => {
+  const assetId = 'ab'.repeat(32)
+  const assetMetadataCache = new Map([[assetId, { metadata: { decimals: 0, ticker: 'TKN', name: 'Token' } }]]) as any
+  const prev = {
+    ...mockFlowContextValue.recvInfo,
+    satoshis: 50_000,
+    invoice: 'lnbc1x',
+    offchainAddr: 'ark1testaddr',
+    boardingAddr: 'bc1testaddr',
+  }
+  const pickAsset = async (name: RegExp) => {
+    fireEvent.click(await screen.findByTestId('receive-asset-pill'))
+    fireEvent.click(screen.getByRole('radio', { name }))
+  }
+
+  it('stays a label while the wallet holds no assets', async () => {
+    renderReceiveQrCode(tapFixture())
+    const pill = await screen.findByTestId('receive-asset-pill')
+    expect(pill.tagName).toBe('SPAN')
+    expect(pill).toHaveTextContent('Bitcoin')
+  })
+
+  it('switches to a held asset, dropping the amount and invoice asked for in bitcoin', async () => {
+    const setRecvInfo = vi.fn()
+    const fixture = tapFixture()
+    renderReceiveQrCode({
+      flow: { ...fixture.flow, setRecvInfo },
+      wallet: { svcWallet: mockSvcWallet as any, assetBalances: [{ assetId, amount: 5 }] as any, assetMetadataCache },
+    })
+    await pickAsset(/^Token/)
+
+    expect(setRecvInfo.mock.calls.at(-1)![0](prev)).toEqual({
+      ...emptyRecvInfo,
+      offchainAddr: 'ark1testaddr',
+      boardingAddr: 'bc1testaddr',
+      assetId,
+    })
+  })
+
+  it('lists the asset it was opened for even with no balance, and switches back to Bitcoin', async () => {
+    const setRecvInfo = vi.fn()
+    renderReceiveQrCode({
+      flow: { recvInfo: { ...tapFixture().flow!.recvInfo!, assetId }, setRecvInfo },
+      wallet: { svcWallet: mockSvcWallet as any, assetMetadataCache },
+    })
+    fireEvent.click(await screen.findByTestId('receive-asset-pill'))
+    expect(screen.getByRole('radio', { name: /^Token/ })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(screen.getByRole('radio', { name: /^Bitcoin/ }))
+
+    expect(setRecvInfo.mock.calls.at(-1)![0]({ ...prev, assetId })).toEqual({
+      ...emptyRecvInfo,
+      offchainAddr: 'ark1testaddr',
+      boardingAddr: 'bc1testaddr',
+    })
   })
 })

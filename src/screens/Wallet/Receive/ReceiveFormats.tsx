@@ -22,22 +22,25 @@ export default function ReceiveFormats(p: {
   formats: FormatRow[]
   active: string
   onPick: (id: string) => void
-  tokens: FormatRow[]
-  onPickToken: (id: string) => void
+  tokens?: FormatRow[]
+  onPickToken?: (id: string) => void
+  /** Replaces the formats heading and its hint, for the asset list. */
+  title?: string
 }) {
   const { t } = useTranslation()
+  const title = p.title ?? t('receive.otherFormats')
   const tabStop = p.formats.some((f) => f.id === p.active) ? p.active : p.formats[0]?.id
   return (
     <SheetModal isOpen={p.open} onClose={p.onClose}>
       <FlexCol gap='1.25rem' padding='0.5rem 0'>
         <FlexCol gap='0.25rem'>
           <Text big bold>
-            {t('receive.otherFormats')}
+            {title}
           </Text>
-          <TextSecondary>{t('receive.otherFormatsHint')}</TextSecondary>
+          {p.title ? null : <TextSecondary>{t('receive.otherFormatsHint')}</TextSecondary>}
         </FlexCol>
         {/* Arrows move focus only, as in a menu: a pick closes the sheet. */}
-        <div role='radiogroup' aria-label={t('receive.otherFormats')} onKeyDown={moveRadioFocus} className={CARD}>
+        <div role='radiogroup' aria-label={title} onKeyDown={moveRadioFocus} className={CARD}>
           {p.formats.map((f) => (
             <Row
               key={f.id}
@@ -50,7 +53,7 @@ export default function ReceiveFormats(p: {
             />
           ))}
         </div>
-        {p.tokens.length ? (
+        {p.tokens?.length ? (
           <FlexCol gap='0.75rem'>
             <FlexCol gap='0.25rem'>
               <Text bold>{t('receive.methodStablecoins')}</Text>
@@ -58,7 +61,7 @@ export default function ReceiveFormats(p: {
             </FlexCol>
             <div className={CARD}>
               {p.tokens.map((r) => (
-                <Row key={r.id} row={r} onClick={() => p.onPickToken(r.id)} trailing={<Chevron />} />
+                <Row key={r.id} row={r} onClick={() => p.onPickToken?.(r.id)} trailing={<Chevron />} />
               ))}
             </div>
           </FlexCol>
