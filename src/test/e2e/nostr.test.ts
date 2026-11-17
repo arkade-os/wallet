@@ -1,5 +1,6 @@
 import { test, expect, createWallet, resetAndRestoreWallet, navigateToSettings, mockSolverCard } from './utils'
 import { translations } from '../../lib/i18n'
+import { sleep } from '@/lib/sleep'
 
 const tr = translations.en
 
@@ -87,6 +88,7 @@ test('should save solver cards to nostr', async ({ page }) => {
   const message = tr.solvers.storedSingular.replace('{count}', '1')
   await expect(page.getByText(message)).toBeVisible()
   await expect(page.getByText(mockSolverCard.name)).toBeVisible()
+  await sleep(2100)
 
   // restore wallet
   await resetAndRestoreWallet(page)

@@ -238,7 +238,7 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
 // wants to send 2000 sats onchain,
 // wallet will deliver 2000 sats on final UTXO,
 // which means user must pay more for chain swap fees
-test.skip('should send sats (some and max) to onchain address with chain swap', async ({ page, isMobile }) => {
+test('should send sats (some and max) to onchain address with chain swap', async ({ page, isMobile }) => {
   // create wallet
   await createWallet(page)
   await fundWallet(page, 5000)
@@ -249,7 +249,7 @@ test.skip('should send sats (some and max) to onchain address with chain swap', 
   await prePay(page, someOnchainAddress, isMobile, 2000)
 
   // details page
-  await expect(page.getByTestId('Amount')).toContainText('2,000 sats')
+  await expect(page.getByTestId('primary-amount')).toContainText('2,000 sats')
   const fees = await page.getByTestId('Network fees').textContent()
   expect(fees).not.toBeNull()
   const feesNumber = parseInt(fees!.replace(/[^0-9]/g, ''), 10)
