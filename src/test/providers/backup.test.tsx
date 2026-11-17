@@ -118,7 +118,7 @@ describe('BackupProvider restore', () => {
     expect(updateConfig.mock.calls[0][0]).toMatchObject({
       aspUrl: 'https://local.server',
       showBalance: false,
-      delegate: true,
+      executor: true,
     })
   })
 

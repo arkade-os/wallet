@@ -18,7 +18,7 @@ import Theme from './Theme'
 import Currency from './Currency'
 import BitcoinUnit from './BitcoinUnit'
 import Password from './Password'
-import Delegates from './Delegates'
+import Executor from './Executor'
 import SettingsPageTransition from '../../components/SettingsPageTransition'
 import Haptics from './Haptics'
 import Contracts from './Contracts'
@@ -38,8 +38,8 @@ function settingsContent(option: SettingsOptions): JSX.Element {
       return <Backup />
     case SettingsOptions.Contracts:
       return <Contracts />
-    case SettingsOptions.Delegates:
-      return <Delegates />
+    case SettingsOptions.Executor:
+      return <Executor />
     case SettingsOptions.BitcoinUnit:
       return <BitcoinUnit />
     case SettingsOptions.Display:

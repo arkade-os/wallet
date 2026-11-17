@@ -11,12 +11,14 @@ import { mockAspContextValue, mockConfigContextValue } from '../screens/mocks'
 const makeService = () => {
   const sync: { state: { lastSyncedAt?: number } } = { state: {} }
   const executor = { registerBoarding: vi.fn() }
+  const vtxoManager = { renewVtxos: vi.fn(async () => {}) }
   return {
     sync,
     executor,
     activity: { use: vi.fn() },
     getExecutorManager: vi.fn(async () => executor),
-    getVtxoManager: vi.fn().mockResolvedValue({ renewVtxos: async () => {} }),
+    vtxoManager,
+    getVtxoManager: vi.fn(async () => vtxoManager),
     getStatus: vi.fn().mockResolvedValue({ walletInitialized: true }),
     getVtxos: vi.fn().mockResolvedValue([]),
     getContractManager: vi.fn(async () => ({ getSyncState: () => sync.state })),
@@ -45,10 +47,10 @@ function Capture() {
   return null
 }
 
-const startWallet = async () => {
+const startWallet = async (config = mockConfigContextValue.config) => {
   render(
     <AspContext.Provider value={mockAspContextValue}>
-      <ConfigContext.Provider value={mockConfigContextValue}>
+      <ConfigContext.Provider value={{ ...mockConfigContextValue, config }}>
         <WalletProvider>
           <Capture />
         </WalletProvider>
@@ -145,11 +147,23 @@ it('starts the wallet when the Executor refuses the registration', async () => {
   expect(wallet.svcWallet).toBe(mocks.current.service)
 })
 
-it('leaves the Executor alone when none is configured', async () => {
+it("uses the network's Executor unless the URL is overridden", async () => {
   // blank, not unset: a developer's .env.local may name one
   vi.stubEnv('VITE_EXECUTOR_URL', '')
   await startWallet()
 
+  expect(mocks.setup).toHaveBeenCalledWith(expect.objectContaining({ executorUrl: 'http://localhost:7280' }))
+})
+
+it('leaves the Executor alone when the user turned it off', async () => {
+  await startWallet({ ...mockConfigContextValue.config, executor: false })
+
   expect(mocks.setup).toHaveBeenCalledWith(expect.objectContaining({ executorUrl: undefined }))
   expect(mocks.current.service.getExecutorManager).not.toHaveBeenCalled()
+})
+
+it.each([true, false])('renews its own coins at startup (Executor %s)', async (executor) => {
+  await startWallet({ ...mockConfigContextValue.config, executor })
+
+  await vi.waitFor(() => expect(mocks.current.service.vtxoManager.renewVtxos).toHaveBeenCalled())
 })

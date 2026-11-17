@@ -105,8 +105,9 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
 
     const data = (await loadData(provider)) as NostrStorageData
 
-    // we enforce delegates on restore, and the server stays the locally configured one
-    if (data?.config) updateConfig({ ...data.config, aspUrl: configRef.current.aspUrl, delegate: true })
+    // a restored wallet registers with the Executor again, which re-watches its boarded coins;
+    // the server stays the locally configured one
+    if (data?.config) updateConfig({ ...data.config, aspUrl: configRef.current.aspUrl, executor: true })
 
     // last, and non-fatal: a quota error writing cards must not fail a restore
     // whose config already landed, and a missing card is re-addable by hand

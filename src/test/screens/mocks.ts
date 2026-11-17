@@ -60,7 +60,7 @@ export const mockConfigContextValue = {
     apps: { assets: { enabled: true } },
     aspUrl: 'http://asp.local',
     dismissedBanners: [],
-    delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
+    executor: import.meta.env.VITE_EXECUTOR_ENABLED !== 'false',
     currency: Currencies.EUR,
     importedAssets: [],
     haptics: true,

@@ -14,7 +14,8 @@ export type Config = {
   }
   aspUrl: string
   currency: Currencies
-  delegate: boolean
+  /** Board deposits through the network's Executor while the wallet is offline. */
+  executor: boolean
   importedAssets: string[]
   language?: Language
   haptics: boolean
@@ -32,14 +33,6 @@ export type Config = {
   // deprecated
   currencyDisplay?: string
   fiat?: Currencies
-}
-
-export type Delegate = {
-  fee: number
-  url: string
-  name: string
-  pubkey: string
-  address: string
 }
 
 export enum Currencies {
@@ -75,8 +68,8 @@ export enum SettingsOptions {
   BitcoinUnit = 'bitcoin unit',
   Contracts = 'contracts',
   Currency = 'Currency',
-  Delegates = 'delegates',
   Display = 'display',
+  Executor = 'executor',
   General = 'general',
   Haptics = 'haptic feedback',
   Lock = 'lock wallet',

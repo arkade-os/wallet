@@ -12,7 +12,7 @@ const defaultConfig: Config = {
   apps: { assets: { enabled: false } },
   aspUrl: defaultArkServer(),
   dismissedBanners: [],
-  delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
+  executor: import.meta.env.VITE_EXECUTOR_ENABLED !== 'false',
   currency: getCurrency(navigator.language),
   importedAssets: [],
   language: detectLanguage(navigator.language),

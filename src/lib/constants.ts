@@ -1,5 +1,4 @@
 import { hex } from '@scure/base'
-import { Delegate } from './types'
 import { NetworkName, type DelegationOptions } from '@arkade-os/sdk'
 import { registryIndexUrl, type Network } from '@arkade-os/solver-discovery'
 
@@ -35,11 +34,12 @@ export const defaultArkServer = () => {
 export const isMainnet = (network: NetworkName | string): boolean =>
   !!network && network !== 'testnet' && network !== 'mutinynet' && network !== 'signet' && network !== 'regtest'
 
-const DELEGATE_URL: Record<NetworkName, string | null> = {
-  bitcoin: 'https://delegate.arkade.money',
-  mutinynet: `https://delegator.mutinynet.arkade.sh`,
+// regtest: arkade-regtest's `executor` profile
+const EXECUTOR_URL: Record<NetworkName, string | null> = {
+  bitcoin: null,
+  mutinynet: 'https://executor.mutinynet.arkade.sh',
   signet: null,
-  regtest: 'http://localhost:7012',
+  regtest: 'http://localhost:7280',
   testnet: null,
 }
 
@@ -143,24 +143,9 @@ export const getEmulatorPubkeyOverrideForNetwork = (network: NetworkName): strin
   return configured && COMPRESSED_PUBKEY_HEX.test(configured) ? configured : undefined
 }
 
-export const getDelegateUrlForNetwork = (network: NetworkName): string | undefined => {
-  return DELEGATE_URL[network] ?? undefined
-}
-
-export const getDelegateForNetwork = (network: NetworkName): Delegate | undefined => {
-  const url = getDelegateUrlForNetwork(network)
-  if (!url) return undefined
-  return {
-    url,
-    fee: 0,
-    pubkey: '', // Placeholder, as the actual pubkey should be fetched from the delegate server
-    address: '', // Placeholder, as the actual address should be fetched from the delegate server
-    name: 'Arkade Default',
-  }
-}
-
-// Opt-in: with an Executor, deposits to the boarding address are boarded while the wallet is offline.
-export const executorUrl = (): string | undefined => fromRuntimeEnv(import.meta.env.VITE_EXECUTOR_URL)
+// With an Executor, deposits to the boarding address are boarded while the wallet is offline.
+export const getExecutorUrlForNetwork = (network: NetworkName): string | undefined =>
+  serviceUrlForNetwork(import.meta.env.VITE_EXECUTOR_URL, EXECUTOR_URL, network)
 
 // The watch's address commits to these: changing them registers a new watch with a new boarding address.
 // The window must be shorter than the operator's VTXO expiry, or the SDK refuses the registration.

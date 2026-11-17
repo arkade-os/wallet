@@ -25,7 +25,7 @@ export default defineConfig({
   },
   webServer: {
     command:
-      'VITE_NOSTR_RELAY_URL=ws://localhost:10547 VITE_DELEGATE_ENABLED=false pnpm start',
+      'VITE_NOSTR_RELAY_URL=ws://localhost:10547 VITE_EXECUTOR_ENABLED=false pnpm start',
     port: 3002,
   },
   projects: [

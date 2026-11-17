@@ -55,10 +55,9 @@ import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { ConfigContext } from './config'
 import {
   defaultPassword,
-  executorUrl,
-  getDelegateUrlForNetwork,
   getEmulatorPubkeyOverrideForNetwork,
   getExecutorBoardingParams,
+  getExecutorUrlForNetwork,
   isMainnet,
   maxPercentage,
 } from '../lib/constants'
@@ -79,7 +78,7 @@ interface InitSvcWorkerWalletParams {
   identity: Identity
   retryCount?: number
   maxRetries?: number
-  delegateUrl?: string
+  executorUrl?: string
   walletMode?: ServiceWorkerWalletMode
   restoring?: boolean
 }
@@ -105,7 +104,7 @@ interface WalletContextProps {
   updateWallet: (w: Wallet | ((prev: Wallet) => Wallet)) => void
   isLocked: () => Promise<boolean>
   reloadWallet: (svcWallet?: ServiceWorkerWallet) => Promise<void>
-  restartWallet: (delegateEnabled?: boolean) => Promise<void>
+  restartWallet: (executorEnabled?: boolean) => Promise<void>
   wallet: Wallet
   walletLoaded: boolean
   svcWallet: ServiceWorkerWallet | undefined
@@ -642,7 +641,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     identity: Identity,
     params: InitSvcWorkerWalletParams,
   ): Promise<boolean> => {
-    const { arkServerUrl, retryCount = 0, maxRetries = 2, delegateUrl, walletMode, restoring = false } = params
+    const { arkServerUrl, retryCount = 0, maxRetries = 2, executorUrl, walletMode, restoring = false } = params
     try {
       setLoadingStatus(t('loading.startingWallet'))
       const walletRepository = new IndexedDBWalletRepository()
@@ -681,8 +680,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         serviceWorkerPath: '/wallet-service-worker.mjs',
         identity,
         arkServer: { url: arkServerUrl },
-        delegateUrl,
-        executorUrl: executorUrl(),
+        executorUrl,
         walletMode: walletMode ?? config.walletMode ?? 'static',
         // Contract sync finishes in the background; the coin-event reload below repaints. Not lazyBoarding: its
         // refresh is never retried, and its UTXO_UPDATE carries every stored coin, which the receive screen reads as a payment.
@@ -751,20 +749,17 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // Safe on every unlock: watches are keyed by txid and the confirmation queue ignores a key it already holds.
       resumeLnurlConfirmations()
       // Idempotent on the Executor. Not awaited: an unreachable Executor leaves the wallet's own boarding address.
-      if (executorUrl()) {
+      if (executorUrl) {
         const network = aspInfo.network as NetworkName
-        svcWallet
-          .getExecutorManager()
-          .then((executor) =>
-            executor?.registerBoarding(getExecutorBoardingParams(network), {
-              // the emulator key swaps already trust; undefined keeps the SDK's pinned one
-              emulatorPubkey: getEmulatorPubkeyOverrideForNetwork(network),
-            }),
-          )
-          .then(() => {
-            if (!signal.aborted) reloadWallet(svcWallet).catch(consoleError)
+        // async, so that even a synchronous throw lands in the catch rather than failing the startup
+        ;(async () => {
+          const executor = await svcWallet.getExecutorManager()
+          await executor?.registerBoarding(getExecutorBoardingParams(network), {
+            // the emulator key swaps already trust; undefined keeps the SDK's pinned one
+            emulatorPubkey: getEmulatorPubkeyOverrideForNetwork(network),
           })
-          .catch((err) => consoleError(err, 'Executor boarding registration failed'))
+          if (!signal.aborted) reloadWallet(svcWallet).catch(consoleError)
+        })().catch((err) => consoleError(err, 'Executor boarding registration failed'))
       }
       // Receives that completed while the wallet was closed are the ones it can
       // never witness first-hand, so pull them once the wallet is usable.
@@ -864,12 +859,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         }
       }, 1_000)
 
-      // Renew expiring coins on startup (non-delegate mode only).
-      // When delegation is enabled, the SDK's VtxoManager auto-delegates
-      // via onContractEvent, so no wallet-side call is needed.
-      if (!config.delegate) {
-        vtxoMgr.renewVtxos().catch(() => {})
-      }
+      // Renew expiring coins on startup: the Executor only boards deposits, the wallet renews its own
+      // coins, including those still at a contract of the retired delegator.
+      vtxoMgr.renewVtxos().catch(() => {})
       return true
     } catch (err) {
       if (signal.aborted) return false
@@ -924,7 +916,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     let pubkey: string
     let walletMode: ServiceWorkerWalletMode
 
-    const delegateUrl = config.delegate ? getDelegateUrlForNetwork(network) : undefined
+    const executorUrl = config.executor ? getExecutorUrlForNetwork(network) : undefined
 
     if (credentials.mnemonic) {
       const mnemonicIdentity = MnemonicIdentity.fromMnemonic(credentials.mnemonic, { isMainnet: isMainnet(network) })
@@ -951,7 +943,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const didInit = await initSvcWorkerWallet({
       identity,
       arkServerUrl,
-      delegateUrl,
+      executorUrl,
       walletMode,
       restoring: credentials.restoring,
     })
@@ -980,19 +972,19 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   /**
    * Reinitialize the service-worker wallet in-place so runtime config changes
-   * (e.g., delegate on/off) take effect without forcing a lock/unlock cycle.
+   * (e.g., Executor on/off) take effect without forcing a lock/unlock cycle.
    * Keeps local tx/balance state; just rebuilds the SW wallet with the current
-   * delegateUrl flag.
+   * executorUrl flag.
    */
-  const restartWallet = async (delegateEnabled = config.delegate) => {
+  const restartWallet = async (executorEnabled = config.executor) => {
     if (!svcWallet) return
     const identity = svcWallet.identity as Identity
     const arkServerUrl = aspInfo.url
-    const delegateUrl = delegateEnabled ? getDelegateUrlForNetwork(aspInfo.network as NetworkName) : undefined
+    const executorUrl = executorEnabled ? getExecutorUrlForNetwork(aspInfo.network as NetworkName) : undefined
     await initSvcWorkerWallet({
       identity,
       arkServerUrl,
-      delegateUrl,
+      executorUrl,
     })
   }
 
@@ -1007,11 +999,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     reinitInProgress.current = true
     try {
       const arkServerUrl = aspInfo.url
-      const delegateUrl = config.delegate ? getDelegateUrlForNetwork(aspInfo.network as NetworkName) : undefined
+      const executorUrl = config.executor ? getExecutorUrlForNetwork(aspInfo.network as NetworkName) : undefined
       const initialized = await initSvcWorkerWallet({
         identity,
         arkServerUrl,
-        delegateUrl,
+        executorUrl,
       })
       if (!initialized) return
     } catch (err) {

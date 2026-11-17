@@ -49,7 +49,7 @@ export const options: Option[] = [
   },
   {
     icon: <ServerIcon />,
-    option: SettingsOptions.Delegates,
+    option: SettingsOptions.Executor,
     section: SettingsSections.Advanced,
   },
   {
