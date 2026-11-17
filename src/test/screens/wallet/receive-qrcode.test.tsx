@@ -24,6 +24,7 @@ import { ToastProvider } from '../../../components/Toast'
 import { LanguageContext, translate } from '../../../providers/language'
 import { Currencies, Language, Unit } from '../../../lib/types'
 import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
+import fixtures from '../../fixtures.json'
 
 // Mock qr module used by QrCode component
 vi.mock('qr', () => ({
@@ -351,6 +352,18 @@ describe('Receive QR Code screen', () => {
       const copied = await clickQr()
       expect(copied).toContain('bitcoin:')
       expect(copied).toContain('lnbc10u1ptest')
+    })
+
+    it("names the Lightning invoice's minutes left in its row", async () => {
+      // The fixture invoice was issued at 1734606755 with a 12 h expiry; ten minutes in, 710 remain.
+      const now = vi.spyOn(Date, 'now').mockReturnValue((1734606755 + 600) * 1000)
+      try {
+        renderReceiveQrCode(amountFixture(fixtures.lib.bolt11.invoice))
+        await openFormats()
+        expect(screen.getByRole('radio', { name: /^Lightning invoice/ })).toHaveAccessibleName(/expires in 710 min/)
+      } finally {
+        now.mockRestore()
+      }
     })
 
     it('makes Any wallet the active radio on every mount, remembering no pick', async () => {
