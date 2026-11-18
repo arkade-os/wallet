@@ -1,8 +1,7 @@
-import { useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { useContext, useEffect, useMemo, useState } from 'react'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
-import SegmentedControl from '../../../components/SegmentedControl'
 import { FlowContext } from '../../../providers/flow'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
@@ -26,7 +25,7 @@ import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
 import SheetModal from '../../../components/SheetModal'
 import Text, { TextSecondary } from '../../../components/Text'
 import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard'
-import { prettyLongText, prettyNumber, toSatoshis } from '../../../lib/format'
+import { prettyAmount, prettyFiatAmount, prettyLongText, prettyNumber, toSatoshis } from '../../../lib/format'
 import CopyIcon from '../../../icons/Copy'
 import CheckMarkIcon from '../../../icons/CheckMark'
 import { hapticSubtle } from '../../../lib/haptics'
@@ -47,12 +46,19 @@ import { configuredLnurlServer, useLnurlRail, useLnurlRails } from '../../../lib
 import { useLnurlTokenRails, type LnurlTokenQuote, type LnurlTokenRail } from '../../../lib/receive/lnurlTokenRails'
 import LnurlRailPanel from './LnurlRail'
 import { useTranslation } from '../../../providers/language'
-import Select from '../../../components/Select'
-import { TokenLogoStack, TokenOnChainLogo } from '../../../components/ChainLogo'
-import ChevronDownIcon from '../../../icons/ChevronDown'
-import XIcon from '../../../icons/X'
+import { TokenOnChainLogo } from '../../../components/ChainLogo'
+import Figure from '../../../components/Figure'
+import Glyph, { type GlyphName } from '../../../icons/Glyph'
 
 const TOKEN = 'token:'
+
+const FORMAT_GLYPHS: Record<string, GlyphName> = { unified: 'qr', lightning: 'bolt', ark: 'layers', bitcoin: 'link' }
+const FORMAT_SUBS: Record<string, string> = {
+  unified: 'receive.formatUnifiedSub',
+  lightning: 'receive.formatLightningSub',
+  ark: 'receive.formatArkadeSub',
+  bitcoin: 'receive.formatBitcoinSub',
+}
 
 const railLogo = (rail: LnurlTokenRail, ring: string) => (
   <TokenOnChainLogo ticker={rail.unit.code} chainId={rail.asset?.chainId ?? ''} ring={ring} />
@@ -62,7 +68,7 @@ export default function ReceiveQRCode() {
   const { aspInfo } = useContext(AspContext)
   const { isRegistered } = useContext(AssetsContext)
   const { config, useFiat } = useContext(ConfigContext)
-  const { fromFiat } = useContext(FiatContext)
+  const { fromFiat, toFiat } = useContext(FiatContext)
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
@@ -86,7 +92,7 @@ export default function ReceiveQRCode() {
   // Copy address sheet state
   const [showCopySheet, setShowCopySheet] = useState(false)
   const [copied, setCopied] = useState('')
-  const [showTokenSheet, setShowTokenSheet] = useState(false)
+  const [showFormats, setShowFormats] = useState(false)
 
   const prefersReducedMotion = useReducedMotion()
 
@@ -104,7 +110,6 @@ export default function ReceiveQRCode() {
   // value-keyed selection would be dropped and never come back. Keying on the
   // method id lets the choice survive the invoice being briefly absent.
   const [selectedMethod, setSelectedMethod] = useState('unified')
-  const lastSegment = useRef('unified')
   const [bip21Uri, setBip21Uri] = useState('')
 
   // Fetch addresses on mount
@@ -242,7 +247,6 @@ export default function ReceiveQRCode() {
   const segments = paymentMethods.filter((m) => !m.id.startsWith(TOKEN))
   const tokenMethods = paymentMethods.filter((m) => m.id.startsWith(TOKEN))
   const showSelector = segments.length > 1 || tokenMethods.length > 0
-  const backTo = segments.find((m) => m.id === lastSegment.current) ?? segments[0]
   const quoteProblem = activeToken && !tokenRails.quoting && (tokenRails.expired || Boolean(tokenRails.error))
 
   // The copy sheet offers what the shown method carries: the unified URI and the addresses inside it, or one value.
@@ -428,9 +432,23 @@ export default function ReceiveQRCode() {
    */
   const handleMethodChange = (id: string) => {
     if (!paymentMethods.some((m) => m.id === id)) return
-    if (!id.startsWith(TOKEN)) lastSegment.current = id
     setSelectedMethod(id)
   }
+
+  const pickFormat = (id: string) => {
+    if (!prefersReducedMotion) hapticSubtle()
+    handleMethodChange(id)
+    setShowFormats(false)
+  }
+
+  const defaultMethod = segments[0]?.id ?? ''
+  // The requested amount leads the screen, in the unit the wallet is set to show.
+  const amountFigure =
+    assetMeta || satoshis <= 0
+      ? ''
+      : useFiat
+        ? prettyFiatAmount(toFiat(satoshis), config.currency)
+        : prettyAmount(satoshis)
 
   // Mobile keyboard — bypass sheet on save, go straight to QR
   if (showKeys) {
@@ -468,56 +486,19 @@ export default function ReceiveQRCode() {
           ) : noPaymentMethods ? (
             <p>{t('receive.noPaymentMethods')}</p>
           ) : (
-            <FlexCol gap='0.5rem' centered>
+            <div className='receive'>
               <SwapRailStatus rail={swapRail} />
               {lnurlRails.errors.lightning ? (
                 <TextSecondary>{t('receive.noInvoiceForAmount', { error: lnurlRails.errors.lightning })}</TextSecondary>
               ) : null}
-              {showSelector ? (
-                <div className='mt-4 mb-3 flex w-full max-w-85 flex-col gap-2'>
-                  <SegmentedControl
-                    options={segments.map((m) => m.id)}
-                    selected={activeMethod}
-                    onChange={handleMethodChange}
-                    getLabel={(id) => paymentMethods.find((m) => m.id === id)?.label ?? id}
-                  />
-                  {tokenMethods.length ? (
-                    <div className='flex w-full items-center gap-2'>
-                      <button
-                        type='button'
-                        aria-haspopup='dialog'
-                        onClick={() => setShowTokenSheet(true)}
-                        className={`flex flex-1 cursor-pointer items-center gap-3 rounded-lg border border-neutral-100 px-3 py-3 text-left text-sm ${activeToken ? 'bg-neutral-100 font-semibold' : 'text-neutral-500'}`}
-                      >
-                        {activeToken ? (
-                          <span className='flex size-5 shrink-0'>{railLogo(activeToken, 'var(--neutral-100)')}</span>
-                        ) : (
-                          <TokenLogoStack tickers={['USDT', 'USDC']} ring='var(--background-color)' />
-                        )}
-                        <span className='flex-1'>
-                          {activeToken
-                            ? paymentMethods.find((m) => m.id === activeMethod)?.label
-                            : t('receive.payWithStablecoins')}
-                        </span>
-                        <ChevronDownIcon />
-                      </button>
-                      {activeToken && backTo ? (
-                        <button
-                          type='button'
-                          aria-label={t('receive.backToMethod', { method: backTo.label })}
-                          onClick={() => handleMethodChange(backTo.id)}
-                          className='flex shrink-0 cursor-pointer items-center justify-center self-stretch rounded-lg border border-neutral-100 px-3 text-neutral-500'
-                        >
-                          <XIcon />
-                        </button>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
+              {amountFigure ? (
+                <p className='receive__figure' data-testid='receive-amount'>
+                  <Figure value={amountFigure} />
+                </p>
               ) : null}
               <div
                 // Height-capped so the whole code sits above the bottom buttons on a short phone.
-                className={`receive-invoice-stage aspect-square w-full max-w-[min(21.25rem,calc(100dvh-26rem))] ${showSelector ? '' : 'mt-20'}`}
+                className='receive-invoice-stage aspect-square w-full max-w-[min(19rem,calc(100dvh-27rem))]'
                 data-generating={generating}
               >
                 <div
@@ -528,7 +509,7 @@ export default function ReceiveQRCode() {
                     {Array.from({ length: 16 }, (_, index) => (
                       <span
                         key={index}
-                        className='size-3 rounded-xs bg-purple-700 dark:bg-purple-300'
+                        className='size-3 bg-brand-text'
                         style={{ animationDelay: `${index * 75}ms` }}
                       />
                     ))}
@@ -606,7 +587,29 @@ export default function ReceiveQRCode() {
                 rail={lnurlRail}
                 showAddress={activeMethod === 'unified' || activeMethod === 'lightning'}
               />
-            </FlexCol>
+              {showSelector ? (
+                <button
+                  type='button'
+                  className='receive__formats'
+                  aria-haspopup='dialog'
+                  data-testid='receive-formats'
+                  onClick={() => setShowFormats(true)}
+                >
+                  <Glyph name='lines' size={20} />
+                  <span className='receive__formats-text'>
+                    <span className='receive__formats-title'>{t('receive.otherFormats')}</span>
+                    <span className='receive__formats-sub'>
+                      {activeMethod === defaultMethod
+                        ? t('receive.otherFormatsSub')
+                        : t('receive.formatShowing', {
+                            format: paymentMethods.find((m) => m.id === activeMethod)?.label ?? '',
+                          })}
+                    </span>
+                  </span>
+                  <Glyph name='chevronRight' size={16} strokeWidth={2.25} className='text-ink-3' />
+                </button>
+              ) : null}
+            </div>
           )}
         </Padded>
       </Content>
@@ -650,27 +653,50 @@ export default function ReceiveQRCode() {
         </FlexCol>
       </SheetModal>
 
-      <SheetModal isOpen={showTokenSheet} onClose={() => setShowTokenSheet(false)}>
-        <FlexCol gap='1rem' padding='0.5rem 0'>
-          <Text big bold>
-            {t('receive.payWithStablecoins')}
-          </Text>
-          <div className='hide-scrollbar max-h-[60vh] w-full overflow-y-auto'>
-            <Select
-              options={tokenMethods.map((m) => m.id)}
-              labels={tokenMethods.map((m) => m.label)}
-              selected={activeToken ? activeMethod : ''}
-              renderStart={(id) => {
-                const rail = tokenRails.rails.find((r) => TOKEN + r.id === id)
-                return rail ? railLogo(rail, 'var(--popover)') : null
-              }}
-              onChange={(id) => {
-                setShowTokenSheet(false)
-                handleMethodChange(id)
-              }}
-            />
+      <SheetModal isOpen={showFormats} onClose={() => setShowFormats(false)}>
+        <div className='formats'>
+          <h2 className='formats__title' id='receive-formats-title'>
+            {t('receive.otherFormats')}
+          </h2>
+          <p className='formats__intro'>{t('receive.otherFormatsIntro')}</p>
+          <div role='radiogroup' aria-labelledby='receive-formats-title' className='formats__groups'>
+            <div className='formats__group'>
+              {segments.map((m) => (
+                <FormatRow
+                  key={m.id}
+                  checked={m.id === activeMethod}
+                  icon={<Glyph name={FORMAT_GLYPHS[m.id] ?? 'scan'} size={18} />}
+                  title={m.label}
+                  badge={m.id === defaultMethod ? t('receive.formatDefault') : undefined}
+                  sub={FORMAT_SUBS[m.id] ? t(FORMAT_SUBS[m.id]) : undefined}
+                  onPick={() => pickFormat(m.id)}
+                />
+              ))}
+            </div>
+            {tokenMethods.length ? (
+              <>
+                <h3 className='formats__subtitle' id='receive-formats-tokens'>
+                  {t('receive.payWithStablecoins')}
+                </h3>
+                <p className='formats__intro'>{t('receive.stablecoinsSub')}</p>
+                <div className='formats__group' role='group' aria-labelledby='receive-formats-tokens'>
+                  {tokenMethods.map((m) => {
+                    const rail = tokenRails.rails.find((r) => TOKEN + r.id === m.id)
+                    return (
+                      <FormatRow
+                        key={m.id}
+                        checked={m.id === activeMethod}
+                        icon={rail ? <span className='flex size-5'>{railLogo(rail, 'var(--bg)')}</span> : null}
+                        title={m.label}
+                        onPick={() => pickFormat(m.id)}
+                      />
+                    )
+                  })}
+                </div>
+              </>
+            ) : null}
           </div>
-        </FlexCol>
+        </div>
       </SheetModal>
 
       {/* Copy address bottom sheet */}
@@ -696,6 +722,40 @@ export default function ReceiveQRCode() {
         </FlexCol>
       </SheetModal>
     </>
+  )
+}
+
+function FormatRow({
+  checked,
+  icon,
+  title,
+  badge,
+  sub,
+  onPick,
+}: {
+  checked: boolean
+  icon: React.ReactNode
+  title: string
+  badge?: string
+  sub?: string
+  onPick: () => void
+}) {
+  return (
+    <button type='button' role='radio' aria-checked={checked} className='formats__row' onClick={onPick}>
+      <span className='formats__well' aria-hidden='true'>
+        {icon}
+      </span>
+      <span className='formats__text'>
+        <span className='formats__name'>
+          {title}
+          {badge ? <span className='formats__badge'>{badge}</span> : null}
+        </span>
+        {sub ? <span className='formats__sub'>{sub}</span> : null}
+      </span>
+      <span className='formats__radio' aria-hidden='true'>
+        {checked ? <Glyph name='check' size={12} strokeWidth={3} /> : null}
+      </span>
+    </button>
   )
 }
 
@@ -762,7 +822,7 @@ function TokenQuoteNote({ rail, quote }: { rail: LnurlTokenRail; quote: LnurlTok
       </Text>
       {isMobileBrowser && quote.value !== quote.destination ? (
         <Text small color='neutral-500' wrap centered>
-          <a href={quote.value} className='font-semibold text-purple-700 dark:text-purple-300'>
+          <a href={quote.value} className='font-semibold text-brand-text'>
             {t('receive.openInWallet')}
           </a>
         </Text>

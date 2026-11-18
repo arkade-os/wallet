@@ -252,6 +252,15 @@ describe('Receive QR Code screen', () => {
   // in its `lightning=` parameter. So the method has to be selectable without
   // going through the Copy sheet.
   describe('payment method selector', () => {
+    // Formats sit in a sheet behind the "Other formats" row, so the rails stay
+    // out of the way until a sender's wallet asks for one. Open it to read them.
+    const openFormats = async (name = /Other formats/) => {
+      const row = await screen.findByRole('button', { name })
+      await act(async () => {
+        fireEvent.click(row)
+      })
+    }
+
     const amountFixture = (invoice: string): RenderOverrides => ({
       flow: {
         recvInfo: {
@@ -268,6 +277,7 @@ describe('Receive QR Code screen', () => {
     it('defaults to the unified URI when a Lightning invoice exists', async () => {
       renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
 
+      await openFormats()
       await screen.findByText('Lightning')
       const qrButton = await screen.findByRole('button', { name: 'Copy QR code' })
       await act(async () => {
@@ -282,6 +292,7 @@ describe('Receive QR Code screen', () => {
     it('copies the raw invoice after selecting Lightning, not the unified URI', async () => {
       renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
 
+      await openFormats()
       const option = await screen.findByText('Lightning')
       await act(async () => {
         fireEvent.click(option)
@@ -299,6 +310,7 @@ describe('Receive QR Code screen', () => {
     it('does not copy anything just because a method was selected', async () => {
       renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
 
+      await openFormats()
       const option = await screen.findByText('Lightning')
       await act(async () => {
         fireEvent.click(option)
@@ -312,6 +324,7 @@ describe('Receive QR Code screen', () => {
     it('offers no Lightning option before the corridor minimum is met', async () => {
       renderReceiveQrCode(amountFixture(''))
 
+      await openFormats()
       await screen.findByText('Unified')
       expect(screen.queryByText('Lightning')).not.toBeInTheDocument()
     })
@@ -324,6 +337,7 @@ describe('Receive QR Code screen', () => {
     it('renders the selector outside the QR stage, not stacked under it', async () => {
       const { container } = renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
 
+      await openFormats()
       await screen.findByText('Lightning')
       const stage = container.querySelector('.receive-invoice-stage')
       expect(stage).toBeInTheDocument()
@@ -340,6 +354,7 @@ describe('Receive QR Code screen', () => {
     it('translates the method labels like the rest of the screen to Spanish', async () => {
       renderReceiveQrCode({ ...amountFixture('lnbc10u1ptest'), language: Language.Spanish })
 
+      await openFormats(/Otros formatos/)
       await screen.findByText('Unificado')
       // The other three keep their name in both languages, so only 'Unified'
       // differs; the point is that it is translated at all.
@@ -354,6 +369,7 @@ describe('Receive QR Code screen', () => {
     it('translates the method labels like the rest of the screen to Portuguese', async () => {
       renderReceiveQrCode({ ...amountFixture('lnbc10u1ptest'), language: Language.Portuguese })
 
+      await openFormats(/Outros formatos/)
       await screen.findByText('Unificado')
       // The other three keep their name in both languages, so only 'Unified'
       // differs; the point is that it is translated at all.
@@ -369,6 +385,7 @@ describe('Receive QR Code screen', () => {
     // flow where Lightning is what they picked in the first place.
     it('restores the Lightning selection when a different invoice arrives', async () => {
       const { rerender } = renderReceiveQrCode(amountFixture('lnbcOLD'))
+      await openFormats()
       await act(async () => {
         fireEvent.click(await screen.findByText('Lightning'))
       })
@@ -386,18 +403,20 @@ describe('Receive QR Code screen', () => {
 
     it('never highlights a method it has no value for', async () => {
       const { rerender } = renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
+      await openFormats()
       await act(async () => {
         fireEvent.click(await screen.findByText('Lightning'))
       })
 
       rerender(buildTree(amountFixture('')))
+      await openFormats()
       // The Lightning entry is absent while there is no invoice, so the
       // highlight has to move somewhere true — a lit option with no value
       // behind it is what the user just asked to be handed.
       await waitFor(() => {
         expect(screen.queryByText('Lightning')).not.toBeInTheDocument()
       })
-      expect(screen.getByText('Unified')).toBeInTheDocument()
+      expect(screen.getByRole('radio', { name: /Unified/ })).toHaveAttribute('aria-checked', 'true')
     })
   })
 })

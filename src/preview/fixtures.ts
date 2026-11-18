@@ -107,7 +107,13 @@ export function buildFixtures(theme: Themes, variant: string) {
         satoshis: 21000,
         total: 21021,
       },
-      recvInfo: { ...mockFlowContextValue.recvInfo, satoshis: 25000 },
+      recvInfo: {
+        ...mockFlowContextValue.recvInfo,
+        satoshis: 25000,
+        boardingAddr: 'bc1p5d7rjq7g6rdk2yhzks9smlaqtedr4dekq08ge8ztwac72sfr9rusxg3297',
+        offchainAddr:
+          'ark1qq4hfssprtcgnjzf8qlw2f78yvjau5kldfugg29k34y7j96q2w4t567uy9ukgfl2ntulzvlzj7swsprfs4wy4h47m7z48khygt7qsyazckttpz',
+      },
     },
     limits: mockLimitsContextValue,
     swaps: { ...((SwapsContext as any)._currentValue ?? {}), swapAvailable: true, swaps: [], markets: [] },

@@ -5,7 +5,7 @@ import { useReducedMotion } from '../hooks/useReducedMotion'
 
 interface QrCodeProps {
   value: string
-  /** Replaces the Arkade mark in the centre; drawn over the white clearing, which stays unencoded either way. */
+  /** Drawn over a clearing in the centre. Without one the code keeps every module, which scans best. */
   logo?: ReactNode
 }
 
@@ -96,7 +96,6 @@ export default function QrCode({ value, logo }: QrCodeProps) {
     // Hardcoded for scanner reliability — QR must always be dark-on-white regardless of theme
     const fgColor = '#040404'
     const bgColor = '#ffffff'
-    const logoColor = '#391998'
 
     const logoModules = Math.ceil(size * 0.2)
     const logoZoneSize = logoModules % 2 === 0 ? logoModules + 1 : logoModules
@@ -119,7 +118,7 @@ export default function QrCode({ value, logo }: QrCodeProps) {
     for (let row = 0; row < size; row++) {
       for (let col = 0; col < size; col++) {
         if (isFinderPattern(row, col, size)) continue
-        if (isLogoZone(row, col, size, logoZoneSize)) continue
+        if (hasLogo && isLogoZone(row, col, size, logoZoneSize)) continue
         if (!matrix[row][col]) continue
 
         const cx = quietZone + col * moduleSize + moduleSize / 2
@@ -169,23 +168,7 @@ export default function QrCode({ value, logo }: QrCodeProps) {
     const centerY = quietZone + (size * moduleSize) / 2
     const logoCircleR = logoZoneSize * moduleSize * 0.52
 
-    elements.push(<circle key='logo-bg' cx={centerX} cy={centerY} r={logoCircleR} fill={bgColor} />)
-
-    const logoInnerSize = logoCircleR * 1.2
-    const logoOffsetX = centerX - logoInnerSize / 2
-    const logoOffsetY = centerY - logoInnerSize / 2
-    const scale = logoInnerSize / 35
-
-    if (!hasLogo) {
-      elements.push(
-        <g key='logo' transform={`translate(${logoOffsetX}, ${logoOffsetY}) scale(${scale})`}>
-          <path d='M0 8.75L8.75 0H26.25L35 8.75V17.5H26.25V8.75H8.75V17.5H2.45431e-07L0 8.75Z' fill={logoColor} />
-          <path d='M8.75 26.25V17.5H26.25V26.25H8.75Z' fill={logoColor} />
-          <path d='M8.75 26.25H2.45431e-07V35H8.75V26.25Z' fill={logoColor} />
-          <path d='M26.25 26.25V35H35V26.25H26.25Z' fill={logoColor} />
-        </g>,
-      )
-    }
+    if (hasLogo) elements.push(<circle key='logo-bg' cx={centerX} cy={centerY} r={logoCircleR} fill={bgColor} />)
 
     return {
       // 1.25x the clearing's radius keeps a corner badge (TokenOnChainLogo) inside the white circle.
@@ -218,7 +201,7 @@ export default function QrCode({ value, logo }: QrCodeProps) {
       {svgContent ? (
         <div
           style={{
-            borderRadius: '1rem',
+            borderRadius: '1.75rem',
             maxWidth: '340px',
             overflow: 'hidden',
             position: 'relative',
