@@ -18,30 +18,76 @@ export const STAGGER_DURATION = 0.3
 // Slide distance (% of container)
 const SLIDE_OFFSET = '20%'
 
-// Dynamic page transition variants — direction is passed via Framer Motion's `custom` prop.
-// AnimatePresence's `custom` overrides the child's `custom` for exiting elements,
-// ensuring exit animations always use the CURRENT direction, not the stale one from mount time.
+// Cover: a task rising over Home. A spring with no bounce, about 380ms to settle.
+export const COVER_SPRING = { type: 'spring' as const, visualDuration: 0.36, bounce: 0 }
+
+/**
+ * Page transition variants. The motion is chosen by the relationship between
+ * the two screens, passed through Framer Motion's `custom` prop as
+ * `forward`, `back` or `none`, with `:cover` appended when the page entering
+ * or leaving is a cover:
+ *
+ * - Drill (`forward` / `back`): the new screen slides in sideways by 20% and
+ *   fades in; the old one leaves the other way.
+ * - Cover (`forward:cover` / `back:cover`): the task rises from the bottom
+ *   over a still Home, and drops away to reveal it.
+ *
+ * AnimatePresence's `custom` overrides the child's `custom` for exiting
+ * elements, so exits always use the CURRENT motion, not the one from mount.
+ */
 export const pageTransitionVariants: Variants = {
-  initial: (direction: string) => {
-    if (direction === 'forward') return { x: SLIDE_OFFSET, opacity: 0 }
-    if (direction === 'back') return { x: `-${SLIDE_OFFSET}`, opacity: 0 }
+  initial: (motion: string) => {
+    if (motion === 'forward:cover') return { y: '100%', opacity: 1, zIndex: 2 }
+    if (motion === 'back:cover') return { opacity: 0.6, scale: 0.97, zIndex: 0 }
+    if (motion === 'forward') return { x: SLIDE_OFFSET, opacity: 0 }
+    if (motion === 'back') return { x: `-${SLIDE_OFFSET}`, opacity: 0 }
     return { opacity: 1 }
   },
-  animate: (direction: string) => ({
-    x: '0%',
-    opacity: 1,
-    transition:
-      direction === 'none' ? { duration: 0 } : { duration: PAGE_TRANSITION_DURATION, ease: EASE_OUT_QUINT_TUPLE },
-  }),
-  exit: (direction: string) => {
-    if (direction === 'forward')
+  animate: (motion: string) => {
+    if (motion === 'forward:cover') return { y: '0%', opacity: 1, zIndex: 2, transition: COVER_SPRING }
+    if (motion === 'back:cover')
+      return {
+        x: '0%',
+        y: '0%',
+        opacity: 1,
+        scale: 1,
+        zIndex: 0,
+        transition: { duration: PAGE_TRANSITION_DURATION, ease: EASE_OUT_QUINT_TUPLE },
+      }
+    return {
+      x: '0%',
+      y: '0%',
+      opacity: 1,
+      scale: 1,
+      transition:
+        motion === 'none' ? { duration: 0 } : { duration: PAGE_TRANSITION_DURATION, ease: EASE_OUT_QUINT_TUPLE },
+    }
+  },
+  exit: (motion: string) => {
+    if (motion === 'forward:cover')
+      // Home recedes a little underneath while the cover lands on it
+      return {
+        opacity: 0.6,
+        scale: 0.97,
+        zIndex: 0,
+        pointerEvents: 'none' as const,
+        transition: { duration: 0.4, ease: EASE_OUT_QUINT_TUPLE },
+      }
+    if (motion === 'back:cover')
+      return {
+        y: '100%',
+        zIndex: 2,
+        pointerEvents: 'none' as const,
+        transition: { duration: PAGE_TRANSITION_DURATION, ease: EASE_OUT_QUINT_TUPLE },
+      }
+    if (motion === 'forward')
       return {
         x: `-${SLIDE_OFFSET}`,
         opacity: 0,
         pointerEvents: 'none' as const,
         transition: { duration: PAGE_TRANSITION_EXIT_DURATION, ease: EASE_OUT_QUINT_TUPLE },
       }
-    if (direction === 'back')
+    if (motion === 'back')
       return {
         x: SLIDE_OFFSET,
         opacity: 0,

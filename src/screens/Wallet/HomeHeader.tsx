@@ -21,14 +21,14 @@ interface HomeHeaderProps {
  */
 export default function HomeHeader({
   balance,
-  balanceProgress = 0,
+  balanceProgress,
   balanceUnit,
   maskedBalance = maskedFiat(),
 }: HomeHeaderProps) {
   const { navigate } = useContext(NavigationContext)
   const { setOption } = useContext(OptionsContext)
   const { t } = useTranslation()
-  const progress = Math.max(0, Math.min(1, balanceProgress))
+  const progress = balanceProgress === undefined ? undefined : Math.max(0, Math.min(1, balanceProgress))
 
   const handleScan = () => {
     hapticLight()
@@ -47,16 +47,21 @@ export default function HomeHeader({
         {balance ? (
           <div
             className='absolute inset-y-0 left-5 flex items-center'
-            aria-hidden={progress < 0.5}
+            aria-hidden={progress === undefined ? true : progress < 0.5}
             data-testid='sticky-balance'
           >
             <div
-              className='flex max-w-[12rem] items-baseline gap-1'
-              style={{
-                opacity: progress,
-                transform: `translate3d(0, ${10 * (1 - progress)}px, 0)`,
-                willChange: progress > 0 && progress < 1 ? 'transform, opacity' : 'auto',
-              }}
+              className='home-header__balance flex max-w-[12rem] items-baseline gap-1'
+              style={
+                progress === undefined
+                  ? undefined
+                  : {
+                      animation: 'none',
+                      opacity: progress,
+                      transform: `translate3d(0, ${10 * (1 - progress)}px, 0)`,
+                      willChange: progress > 0 && progress < 1 ? 'transform, opacity' : 'auto',
+                    }
+              }
             >
               <PrivacyAmount className='truncate text-heading-sm' masked={maskedBalance}>
                 {balance}

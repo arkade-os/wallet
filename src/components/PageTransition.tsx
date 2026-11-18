@@ -1,12 +1,12 @@
 import { motion } from 'framer-motion'
 import { ReactNode } from 'react'
-import { NavigationDirection } from '../providers/navigation'
 import { pageTransitionVariants } from '../lib/animations'
 import { useReducedMotion } from '../hooks/useReducedMotion'
 
 interface PageTransitionProps {
   children: ReactNode
-  direction: NavigationDirection
+  /** `forward`, `back` or `none`, with `:cover` appended for cover pages. */
+  direction: string
   pageKey: string
 }
 
@@ -15,7 +15,7 @@ const style = {
   inset: 0,
   display: 'flex',
   flexDirection: 'column' as const,
-  willChange: 'transform, opacity',
+  background: 'var(--bg)',
   // permanent transform: removing it when the animation lands re-rasters the
   // promoted sticky home header at a stale scale (one-frame giant-header flash)
   transform: 'translateZ(0)',

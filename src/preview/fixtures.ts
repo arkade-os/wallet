@@ -97,7 +97,18 @@ export function buildFixtures(theme: Themes, variant: string) {
       systemTheme: theme,
     },
     fiat,
-    flow: { ...mockFlowContextValue, txInfo: txs[0] },
+    flow: {
+      ...mockFlowContextValue,
+      txInfo: txs[0],
+      sendInfo: {
+        ...mockFlowContextValue.sendInfo,
+        arkAddress: OFFCHAIN,
+        recipient: OFFCHAIN,
+        satoshis: 21000,
+        total: 21021,
+      },
+      recvInfo: { ...mockFlowContextValue.recvInfo, satoshis: 25000 },
+    },
     limits: mockLimitsContextValue,
     swaps: { ...((SwapsContext as any)._currentValue ?? {}), swapAvailable: true, swaps: [], markets: [] },
     wallet: {

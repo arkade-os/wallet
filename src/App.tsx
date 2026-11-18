@@ -1,6 +1,6 @@
 import { AnimatePresence } from 'framer-motion'
 import { ConfigContext } from './providers/config'
-import { NavigationContext, pageComponent, Pages, type NavigationDirection } from './providers/navigation'
+import { NavigationContext, pageComponent, Pages } from './providers/navigation'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { isInAppBrowser } from './lib/browser'
 import { detectJSCapabilities } from './lib/jsCapabilities'
@@ -61,7 +61,7 @@ function PageAnimWrapper({
 }: {
   children: ReactNode
   animated: boolean
-  direction: NavigationDirection | 'none'
+  direction: string
 }) {
   if (!animated) return <>{children}</>
   return (
@@ -74,7 +74,7 @@ function PageAnimWrapper({
 export default function App() {
   const { aspInfo } = useContext(AspContext)
   const { configLoaded } = useContext(ConfigContext)
-  const { direction, navigate, screen } = useContext(NavigationContext)
+  const { cover, direction, navigate, screen } = useContext(NavigationContext)
   const { appIntent, initInfo, resetFlow, sendInfo, setAppIntent, setSendInfo } = useContext(FlowContext)
   const { option } = useContext(OptionsContext)
   const { authState, unlockWallet, walletLoaded, initialized, wallet, dataReady, loadError, devAutoInitFailed } =
@@ -174,6 +174,8 @@ export default function App() {
 
   const prefersReduced = useReducedMotion()
   const effectiveDirection = prefersReduced ? 'none' : direction
+  // which motion plays: a sideways drill, or a cover rising over Home
+  const pageMotion = cover && effectiveDirection !== 'none' ? `${effectiveDirection}:cover` : effectiveDirection
   const shouldAnimatePage = !prefersReduced && !hasDevAutoInit
   const isDevAutoInitializing = hasDevAutoInit && !initialized
 
@@ -327,8 +329,8 @@ export default function App() {
   const isDesktopRoot =
     page === Pages.Wallet || page === Pages.Activity || (page === Pages.Settings && option === SettingsOptions.Menu)
   const animatedPage = (
-    <PageAnimWrapper animated={shouldAnimatePage} direction={effectiveDirection}>
-      <PageTransition key={String(page)} direction={direction} pageKey={String(page)}>
+    <PageAnimWrapper animated={shouldAnimatePage} direction={pageMotion}>
+      <PageTransition key={String(page)} direction={pageMotion} pageKey={String(page)}>
         {comp}
       </PageTransition>
     </PageAnimWrapper>

@@ -5,7 +5,7 @@
  * It is not an entry of the production build.
  */
 import ReactDOM from 'react-dom/client'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import '../tokens.css'
 import '../app.css'
@@ -25,6 +25,7 @@ import { ToastProvider } from '../components/Toast'
 import { PageTransition } from '../components/PageTransition'
 import { Themes } from '../lib/types'
 import { buildFixtures } from './fixtures'
+import { specials } from './specials'
 
 const params = new URLSearchParams(window.location.search)
 const theme = params.get('theme') === 'dark' ? Themes.Dark : Themes.Light
@@ -33,30 +34,35 @@ const variant = params.get('state') ?? ''
 
 document.documentElement.classList.toggle('palette-dark', theme === Themes.Dark)
 
+const COVERS = new Set([Pages.SendForm, Pages.ReceiveQRCode, Pages.WalletScan])
+const SHEETS = new Set([Pages.SendDetails, Pages.SendSuccess, Pages.ReceiveSuccess])
+
 function Harness() {
   const [screen, setScreen] = useState<Pages>(Pages[initialScreen] ?? Pages.Wallet)
   const [direction, setDirection] = useState<NavigationDirection>('none')
-  const [stack, setStack] = useState<Pages[]>([])
+  const stack = useRef<Pages[]>([])
+  const [cover, setCover] = useState(false)
+  const motion = cover && direction !== 'none' ? `${direction}:cover` : direction
   const fixtures = useMemo(() => buildFixtures(theme, variant), [])
+  const special = specials[initialScreen as string]
   const [flow, setFlow] = useState(fixtures.flow)
   const [config, setConfig] = useState(fixtures.config.config)
 
   const navigate = useCallback(
     (page: Pages) => {
-      setDirection(page === Pages.Wallet ? 'back' : 'forward')
-      setStack((s) => (page === Pages.Wallet ? [] : [...s, screen]))
+      setCover(COVERS.has(page) || (page === Pages.Wallet && COVERS.has(screen)))
+      setDirection(page === Pages.Wallet ? 'back' : SHEETS.has(page) ? 'none' : 'forward')
+      stack.current = page === Pages.Wallet ? [] : [...stack.current, screen]
       setScreen(page)
     },
     [screen],
   )
   const goBack = useCallback(() => {
-    setDirection('back')
-    setStack((s) => {
-      const prev = s.at(-1) ?? Pages.Wallet
-      setScreen(prev)
-      return s.slice(0, -1)
-    })
-  }, [])
+    setCover(COVERS.has(screen))
+    setDirection(SHEETS.has(screen) ? 'none' : 'back')
+    setScreen(stack.current.at(-1) ?? Pages.Wallet)
+    stack.current = stack.current.slice(0, -1)
+  }, [screen])
   const replace = useCallback((page: Pages) => {
     setDirection('none')
     setScreen(page)
@@ -81,7 +87,7 @@ function Harness() {
   }
 
   return (
-    <NavigationContext.Provider value={{ direction, goBack, isInitialLoad: false, navigate, replace, screen }}>
+    <NavigationContext.Provider value={{ cover, direction, goBack, isInitialLoad: false, navigate, replace, screen }}>
       <ConfigContext.Provider value={configValue as any}>
         <LanguageProvider>
           <AspContext.Provider value={fixtures.asp as any}>
@@ -94,9 +100,9 @@ function Harness() {
                         <OptionsProvider>
                           <ToastProvider>
                             <div className='page' data-testid='app'>
-                              <AnimatePresence mode='sync' initial={false} custom={direction}>
-                                <PageTransition key={String(screen)} direction={direction} pageKey={String(screen)}>
-                                  {pageComponent(screen)}
+                              <AnimatePresence mode='sync' initial={false} custom={motion}>
+                                <PageTransition key={String(screen)} direction={motion} pageKey={String(screen)}>
+                                  {special ? special() : pageComponent(screen)}
                                 </PageTransition>
                               </AnimatePresence>
                             </div>

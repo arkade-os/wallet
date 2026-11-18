@@ -19,10 +19,7 @@ interface PortfolioHeroProps {
  * Fiat-primary total balance across BTC and every account, left aligned,
  * with the month's change and a chart of what today's holdings were worth.
  */
-const PortfolioHero = forwardRef<HTMLDivElement, PortfolioHeroProps>(function PortfolioHero(
-  { collapseProgress = 0 },
-  ref,
-) {
+const PortfolioHero = forwardRef<HTMLDivElement, PortfolioHeroProps>(function PortfolioHero({ collapseProgress }, ref) {
   const { balance, maskedBalance, unit, secondaryBalance, secondaryUnit, maskedSecondary, showSecondary } =
     usePortfolioBalanceDisplay()
   const { config } = useContext(ConfigContext)
@@ -30,7 +27,7 @@ const PortfolioHero = forwardRef<HTMLDivElement, PortfolioHeroProps>(function Po
   const { syncing } = useContext(WalletContext)
   const { t } = useTranslation()
   const history = usePortfolioHistory()
-  const progress = Math.max(0, Math.min(1, collapseProgress))
+  const progress = collapseProgress === undefined ? undefined : Math.max(0, Math.min(1, collapseProgress))
   const hasTrend = history.status === 'ready' && config.showBalance
   const up = history.delta >= 0
   const decimals = fiatDecimals()
@@ -45,13 +42,17 @@ const PortfolioHero = forwardRef<HTMLDivElement, PortfolioHeroProps>(function Po
     <div className='home-hero'>
       <div
         ref={ref}
-        className='flex flex-col items-start'
-        style={{
-          opacity: 1 - progress,
-          transform: `translate3d(0, ${-14 * progress}px, 0) scale(${1 - 0.2 * progress})`,
-          transformOrigin: 'left top',
-          willChange: progress > 0 && progress < 1 ? 'transform, opacity' : 'auto',
-        }}
+        className='home-hero__collapse flex flex-col items-start'
+        style={
+          progress === undefined
+            ? undefined
+            : {
+                animation: 'none',
+                opacity: 1 - progress,
+                transform: `translate3d(0, ${-14 * progress}px, 0) scale(${1 - 0.2 * progress})`,
+                willChange: progress > 0 && progress < 1 ? 'transform, opacity' : 'auto',
+              }
+        }
       >
         <div className='flex items-baseline gap-2'>
           <PrivacyAmount className='home-hero__balance' masked={maskedBalance} testId='main-balance' interactive>

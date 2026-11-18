@@ -1,17 +1,15 @@
-import Header from './Header'
-import Content from './Content'
 import { useContext, useEffect, useRef, useState, type ReactNode } from 'react'
-import Text, { TextSecondary } from './Text'
 import { FiatContext } from '../providers/fiat'
-import { fromSatoshis, prettyAmount, prettyFiatAmount, prettyNumber, toSatoshis } from '../lib/format'
+import { fromSatoshis, prettyAmount, prettyFiatAmount, prettyLongText, prettyNumber, toSatoshis } from '../lib/format'
+import Glyph from '../icons/Glyph'
+import Figure from './Figure'
+import AddressPattern from './AddressPattern'
+import { hapticSubtle } from '../lib/haptics'
 import { WalletContext } from '../providers/wallet'
 import { defaultFee } from '../lib/constants'
 import ErrorMessage from './Error'
 import Button from './Button'
-import ButtonsOnBottom from './ButtonsOnBottom'
 import { ConfigContext } from '../providers/config'
-import FlexCol from './FlexCol'
-import SwapIcon from '../icons/Swap'
 import { AssetOption, Currencies, Unit } from '../lib/types'
 import { atomicToUnits, prettyAssetAmount, unitsToAtomic } from '../lib/assets'
 import { useTranslation } from '../providers/language'
@@ -29,6 +27,10 @@ interface KeyboardProps {
   onSave: (value: string, inputMode: KeyboardInputMode) => void
   onClear?: () => void
   initialValue?: bigint | number
+  /** Who the amount is for, shown as a chip in the header. */
+  recipient?: string
+  /** Label of the main button; defaults to "Save". */
+  saveLabel?: string
 }
 
 export default function Keyboard({
@@ -39,6 +41,8 @@ export default function Keyboard({
   onClear,
   onSave,
   initialValue,
+  recipient,
+  saveLabel,
 }: KeyboardProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
@@ -213,83 +217,97 @@ export default function Keyboard({
 
   const disabled = !amountInSats && !assetInCents
 
-  const gridStyle = {
-    borderTop: '1px solid var(--neutral-500)',
-    marginTop: '0.5rem',
-    width: '100%',
-  }
-
-  const rowStyle = {
-    display: 'flex',
-    fontSize: '1.5rem',
-    padding: '1rem',
-  }
-
-  const keyStyle = {
-    flex: 1,
-    display: 'flex',
-    justifyContent: 'center',
-  }
-
-  const keys = [
-    ['1', '2', '3'],
-    ['4', '5', '6'],
-    ['7', '8', '9'],
-    ['', '0', 'x'],
-  ]
+  const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'x']
 
   const showSecondaryValue = !asset?.assetId && currencyConversionUseful
 
+  const pressKey = (key: string) => {
+    hapticSubtle()
+    handleKeyPress(key)
+  }
+
+  // the figure steps down as it grows so it never leaves the screen
+  const length = typeof amount.primary === 'string' ? amount.primary.length : (textValue || '0.00000000').length + 4
+  const figureSize = length <= 6 ? 84 : length <= 8 ? 72 : length <= 11 ? 56 : length <= 15 ? 42 : 32
+
   return (
-    <>
-      <Header
-        auxAriaLabel={showSecondaryValue ? t('components.toggleCurrency') : undefined}
-        auxFunc={showSecondaryValue ? handleToggleCurrency : undefined}
-        auxIcon={showSecondaryValue ? <SwapIcon /> : undefined}
-        back={back}
-        text={t('common.amount')}
-      />
-      <Content>
-        <FlexCol centered gap='0.5rem'>
-          <ErrorMessage error={Boolean(error)} text={error} />
-          <Text big centered heading color={overBalance ? 'red' : undefined} testId='keyboard-amount'>
-            {amount.primary}
-          </Text>
-          {showSecondaryValue ? <TextSecondary centered>≈ {amount.secondary}</TextSecondary> : null}
-          {hideBalance ? null : (
-            <div onClick={handleMaxPress}>
-              <TextSecondary centered>{amount.balance}</TextSecondary>
-            </div>
-          )}
-        </FlexCol>
-      </Content>
-      <div style={gridStyle}>
-        {keys.map((row) => (
-          <div style={rowStyle} key={row[0]}>
-            {row.map((key) =>
-              key ? (
-                <button
-                  key={key}
-                  type='button'
-                  style={keyStyle}
-                  onClick={() => handleKeyPress(key)}
-                  aria-label={key === 'x' ? t('swap.deleteDigit') : `key number ${key}`}
-                >
-                  <p data-testid={`keyboard-${key}`}>{key === 'x' ? <>&larr;</> : key}</p>
-                </button>
-              ) : (
-                <div style={keyStyle} key='blank' />
-              ),
-            )}
+    <div className='amount-screen'>
+      <header className='header'>
+        <div className='header__side'>
+          <button type='button' className='icon-button' onClick={back} aria-label={t('components.close')}>
+            <Glyph name='close' size={22} strokeWidth={2} />
+          </button>
+        </div>
+        {recipient ? (
+          <div className='amount-screen__chip'>
+            <AddressPattern value={recipient} size={28} />
+            <span>{prettyLongText(recipient, 8)}</span>
           </div>
-        ))}
-      </div>
-      <ButtonsOnBottom>
-        <Button label={t('common.save')} disabled={disabled} onClick={handleSave} testId='save-amount' />
-        {onClear ? (
-          <Button label={t('components.clearAmount')} onClick={onClear} secondary testId='clear-amount' />
+        ) : (
+          <h1 className='title'>{t('common.amount')}</h1>
+        )}
+        <div className='header__side header__side--end' />
+      </header>
+      <section className='amount-screen__figure' aria-label={t('common.amount')}>
+        <ErrorMessage error={Boolean(error)} text={error} />
+        <p
+          className='amount-screen__value'
+          style={{ fontSize: figureSize }}
+          aria-live='polite'
+          data-testid='keyboard-amount'
+        >
+          {typeof amount.primary === 'string' ? <Figure value={amount.primary} /> : amount.primary}
+          <span className='amount-screen__caret' aria-hidden='true' />
+        </p>
+        {showSecondaryValue ? (
+          <button
+            type='button'
+            className='amount-screen__toggle'
+            onClick={handleToggleCurrency}
+            aria-label={t('components.toggleCurrency')}
+            data-testid='header-aux-btn'
+          >
+            <Glyph name='arrowUpDown' size={15} strokeWidth={2.25} />
+            {amount.secondary}
+          </button>
         ) : null}
-      </ButtonsOnBottom>
-    </>
+        {overBalance ? (
+          <p className='amount-screen__warning' role='status'>
+            <Glyph name='info' size={16} strokeWidth={2} />
+            {t('components.moreThanBalance')}
+          </p>
+        ) : null}
+      </section>
+      {hideBalance ? null : (
+        <div className='amount-screen__available'>
+          <p>
+            {t('components.availableBalance')} <span>{amount.balance}</span>
+          </p>
+          <button type='button' onClick={handleMaxPress}>
+            {t('components.max')}
+          </button>
+        </div>
+      )}
+      <div className='keypad' role='group' aria-label={t('common.amount')}>
+        {keys.map((key) =>
+          key ? (
+            <button
+              key={key}
+              type='button'
+              onClick={() => pressKey(key)}
+              aria-label={key === 'x' ? t('swap.deleteDigit') : `key number ${key}`}
+            >
+              <p data-testid={`keyboard-${key}`}>{key === 'x' ? <Glyph name='arrowLeft' size={26} /> : key}</p>
+            </button>
+          ) : (
+            <span key='blank' />
+          ),
+        )}
+      </div>
+      <div className='amount-screen__actions'>
+        <Button label={saveLabel ?? t('common.save')} disabled={disabled} onClick={handleSave} testId='save-amount' />
+        {onClear ? <Button label={t('components.clearAmount')} onClick={onClear} clear testId='clear-amount' /> : null}
+      </div>
+    </div>
   )
 }

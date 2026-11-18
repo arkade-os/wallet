@@ -2,18 +2,17 @@ import { useContext, useEffect, useState } from 'react'
 import Button from '../../../components/Button'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext } from '../../../providers/flow'
-import Padded from '../../../components/Padded'
-import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Details, { DetailsProps } from '../../../components/Details'
 import ErrorMessage from '../../../components/Error'
 import { WalletContext } from '../../../providers/wallet'
 import { AspContext } from '../../../providers/asp'
 import { SwapsContext } from '../../../providers/swaps'
-import Header from '../../../components/Header'
 import { defaultFee } from '../../../lib/constants'
-import { prettyNumber } from '../../../lib/format'
-import Content from '../../../components/Content'
-import FlexCol from '../../../components/FlexCol'
+import { prettyLongText, prettyNumber } from '../../../lib/format'
+import SheetPage from '../../../components/SheetPage'
+import SendProgress from '../../../components/SendProgress'
+import AddressPattern from '../../../components/AddressPattern'
+import Figure from '../../../components/Figure'
 import { InsufficientFundsError, maxCollaborativeExit, sendOffChain } from '../../../lib/asp'
 import {
   ASSET_RAIL,
@@ -28,7 +27,6 @@ import {
   withinPricingBudget,
 } from '../../../lib/sendRouter'
 import { extractError } from '../../../lib/error'
-import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError, consoleLog } from '../../../lib/logs'
 import type { RouteQuote } from '@arkade-os/sdk'
 import { lnurlQuoteMeta } from '@arkade-os/lnurl-client/arkade'
@@ -43,7 +41,7 @@ import { useTranslation } from '../../../providers/language'
 
 export default function SendDetails() {
   const displayContext = useAmountDisplayContext()
-  const { navigate } = useContext(NavigationContext)
+  const { goBack, navigate } = useContext(NavigationContext)
   const { appIntent, sendInfo, setAppIntent, setSendInfo } = useContext(FlowContext)
   const { calcOnchainOutputFee, intentFee } = useContext(FeesContext)
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
@@ -390,44 +388,50 @@ export default function SendDetails() {
     }
   }
 
+  const progressText =
+    lnurlRoute && details?.destination === lnUrl
+      ? details?.direction || 'Paying'
+      : details?.destination === invoice
+        ? t('send.payingToLightning')
+        : details?.destination === arkAddress
+          ? t('send.payingInsideArkade')
+          : t('send.payingToMainnet')
+
   return (
-    <>
-      <Header text={t('send.signTransaction')} back />
-      <Content>
-        {sending ? (
-          <LoadingLogo
-            text={
-              lnurlRoute && details?.destination === lnUrl
-                ? details?.direction || 'Paying'
-                : details?.destination === invoice
-                  ? t('send.payingToLightning')
-                  : details?.destination === arkAddress
-                    ? t('send.payingInsideArkade')
-                    : t('send.payingToMainnet')
-            }
-            done={sendDone}
-            exitMode='fly-up'
-            onExitComplete={handleExitComplete}
-          />
-        ) : (
-          <Padded>
-            <FlexCol>
-              <ErrorMessage error={Boolean(error || notice)} text={error || notice} />
-              {details && amountDisplay ? (
-                <TransactionAmountSummary amount={amountDisplay} label={t('send.amountToSend')} />
-              ) : null}
-              <Details
-                details={
-                  details ? { ...details, amountDisplay, total: isAssetSend ? undefined : details.total } : undefined
-                }
-              />
-            </FlexCol>
-          </Padded>
-        )}
-      </Content>
-      <ButtonsOnBottom>
-        {sending ? null : <Button onClick={handleContinue} label={buttonLabel} disabled={Boolean(error) || pricing} />}
-      </ButtonsOnBottom>
-    </>
+    <SheetPage
+      label={t('send.signTransaction')}
+      backdrop={amountDisplay?.primary ? <Figure value={amountDisplay.primary.value} /> : undefined}
+      onDismiss={sending ? undefined : goBack}
+      dismissLabel={t('common.back')}
+    >
+      <h1 className='sr-only' data-testid='header-title-sign-transaction'>
+        {t('send.signTransaction')}
+      </h1>
+      <div className='review'>
+        {details?.destination ? (
+          <div className='review__who'>
+            <AddressPattern value={details.destination} size={56} />
+            <p className='review__destination'>{prettyLongText(details.destination, 12)}</p>
+          </div>
+        ) : null}
+        {details && amountDisplay ? (
+          <TransactionAmountSummary amount={amountDisplay} label={t('send.amountToSend')} />
+        ) : null}
+        <Details
+          details={details ? { ...details, amountDisplay, total: isAssetSend ? undefined : details.total } : undefined}
+        />
+        <ErrorMessage error={Boolean(error || notice)} text={error || notice} />
+        <div className='review__actions'>
+          {sending ? (
+            <SendProgress text={progressText} done={sendDone} onExitComplete={handleExitComplete} />
+          ) : (
+            <>
+              <Button onClick={handleContinue} label={buttonLabel} disabled={Boolean(error) || pricing} />
+              <Button onClick={goBack} label={t('common.cancel')} clear />
+            </>
+          )}
+        </div>
+      </div>
+    </SheetPage>
   )
 }

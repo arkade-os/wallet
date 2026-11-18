@@ -76,6 +76,7 @@ import {
   DropdownMenuTrigger,
 } from '../../../components/ui/dropdown-menu'
 import { hapticLight } from '../../../lib/haptics'
+import Glyph from '../../../icons/Glyph'
 import { testDomains } from '../../../lib/constants'
 import UnverifiedBadge from '../../../components/UnverifiedBadge'
 import { useTranslation } from '../../../providers/language'
@@ -229,8 +230,12 @@ export default function SendForm() {
   const [showReserveModal, setShowReserveModal] = useState(false)
   const [valueSats, setValueSats] = useState<number | undefined>(undefined)
   const [sendAll, setSendAll] = useState(false)
+  // set when the keypad saves an amount: the form continues to review by
+  // itself as soon as it validates, instead of asking for a second tap
+  const [advance, setAdvance] = useState(false)
 
   const timeoutRef = useRef<NodeJS.Timeout>()
+  const keypadOpenedFor = useRef<string>()
   const sendInfoRef = useRef(sendInfo)
   sendInfoRef.current = sendInfo
 
@@ -826,6 +831,7 @@ export default function SendForm() {
 
   const handleKeyboardAmountSave = (value: string, inputMode: KeyboardInputMode) => {
     setKeys(false)
+    setAdvance(true)
     if (inputMode === 'asset') return handleAmountChange(value)
     // the form field adopts whichever denomination the keyboard was last in,
     // so the saved text needs no re-expression — just its sats equivalent
@@ -858,6 +864,7 @@ export default function SendForm() {
   }
 
   const handleRecipientChange = (recipient: string) => {
+    setAdvance(false)
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
     setRecipient(recipient)
     // A new destination pins no amount until it is parsed.
@@ -1043,6 +1050,18 @@ export default function SendForm() {
       satoshis < 1 ||
       processing
 
+  // On a phone the amount is the next step: once the recipient resolves and
+  // no amount is set, the keypad opens by itself, once per recipient.
+  const recipientResolved =
+    Boolean(address || arkAddress || invoice || (lnUrl && lnUrlResponse)) && !recipientError && !error
+  const wantsKeypad =
+    isMobileBrowser && recipientResolved && !amountIsReadOnly && !satoshis && assetAmt === BigInt(0) && !processing
+  const openKeypadOnce = () => {
+    if (keypadOpenedFor.current === recipient) return
+    keypadOpenedFor.current = recipient
+    setKeys(true)
+  }
+
   // unverified assets are never offered in the picker; they can still arrive
   // preselected via sendInfo.assets from the Assets app detail screen
   const verifiedAssetOptions = assetOptions.filter((asset) => isVerifiedAsset(asset.assetId))
@@ -1059,7 +1078,6 @@ export default function SendForm() {
       })
     : t('send.available', { amount: prettyUnitBalance(liquidBalance) })
 
-  const overlayOpen = scan || (keys && !amountIsReadOnly)
   const sendOverlayStyle = { ...overlayStyle, position: 'fixed' as const, zIndex: 20 }
 
   const Keys = () => (
@@ -1068,6 +1086,8 @@ export default function SendForm() {
       back={() => setKeys(false)}
       defaultMode={fiatEntry ? 'fiat' : config.unit === Unit.BTC ? 'btc' : 'sats'}
       onSave={handleKeyboardAmountSave}
+      recipient={recipient || undefined}
+      saveLabel={t('send.continue')}
     />
   )
 
@@ -1128,13 +1148,18 @@ export default function SendForm() {
 
   return (
     <>
-      <div
-        /* @ts-expect-error inert is valid HTML but React types lag behind */
-        inert={overlayOpen || undefined}
-        className='send-form'
-        style={{ display: 'flex', flexDirection: 'column', height: '100%' }}
-      >
-        <Header text={t('send.title')} back={appIntent?.status === 'send' ? leaveAppSend : true} />
+      <When on={wantsKeypad} run={openKeypadOnce} />
+      <When
+        on={advance}
+        run={() => {
+          if (buttonDisabled) return
+          setAdvance(false)
+          handleContinue()
+        }}
+        watch={buttonDisabled}
+      />
+      <div className='send-form' style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <Header text={t('send.title')} back={appIntent?.status === 'send' ? leaveAppSend : true} close />
         <Content>
           <Padded>
             <FlexCol gap='1.25rem' className='send-form-stack'>
@@ -1232,7 +1257,7 @@ export default function SendForm() {
                         </span>
                       </span>
                       <span className='send-asset-trigger__chevron' aria-hidden='true'>
-                        {showAssetSelector ? '▲' : '▼'}
+                        <Glyph name={showAssetSelector ? 'chevronUp' : 'chevronDown'} size={18} strokeWidth={2} />
                       </span>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className='send-asset-menu' align='start' side='bottom' sideOffset={8}>
@@ -1320,4 +1345,14 @@ export default function SendForm() {
       </SheetModal>
     </>
   )
+}
+
+/** Runs `run` when `on` turns true, and again whenever `watch` changes while it stays true. */
+function When({ on, run, watch }: { on: boolean; run: () => void; watch?: unknown }) {
+  const latest = useRef(run)
+  latest.current = run
+  useEffect(() => {
+    if (on) latest.current()
+  }, [on, watch])
+  return null
 }

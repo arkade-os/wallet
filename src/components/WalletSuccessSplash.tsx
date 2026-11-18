@@ -1,98 +1,54 @@
-import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useLayoutEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
-import SuccessIcon from '../icons/Success'
-import { EASE_OUT_QUINT_TUPLE } from '../lib/animations'
-import { activateDocumentSurface } from '../lib/documentSurface'
-import { hapticLight } from '../lib/haptics'
-import { useReducedMotion } from '../hooks/useReducedMotion'
-
-const SUCCESS_SURFACE_CLASS = 'wallet-success-surface-active'
-const SUCCESS_THEME_COLOR = '#5528d4'
+import { ReactNode, useEffect } from 'react'
+import { hapticSuccess } from '../lib/haptics'
+import { useTranslation } from '../providers/language'
+import SheetPage from './SheetPage'
+import Button from './Button'
 
 interface WalletSuccessSplashProps {
   show?: boolean
   headline: string
   text?: string
-  ariaLabel: string
+  /** Kept for callers; the sheet is named by its headline. */
+  ariaLabel?: string
+  /** A figure to show behind the scrim, such as the amount just paid. */
+  backdrop?: ReactNode
   onDone: () => void
 }
 
+/**
+ * Success, shown in a sheet: a check that draws itself, what happened, and
+ * one button. It replaces the full-screen purple splash, so a payment ends
+ * where it was confirmed.
+ */
 export default function WalletSuccessSplash({
   show = true,
   headline,
   text,
-  ariaLabel,
+  backdrop,
   onDone,
 }: WalletSuccessSplashProps) {
-  const prefersReduced = useReducedMotion()
-  const releaseSurfaceRef = useRef<(() => void) | undefined>()
+  const { t } = useTranslation()
 
   useEffect(() => {
-    if (show) hapticLight()
+    if (show) hapticSuccess()
   }, [show])
 
-  useLayoutEffect(() => {
-    if (!show || releaseSurfaceRef.current) return
-    releaseSurfaceRef.current = activateDocumentSurface({
-      className: SUCCESS_SURFACE_CLASS,
-      themeColor: SUCCESS_THEME_COLOR,
-    })
-  }, [show])
+  if (!show) return null
 
-  useLayoutEffect(
-    () => () => {
-      releaseSurfaceRef.current?.()
-      releaseSurfaceRef.current = undefined
-    },
-    [],
-  )
-
-  const releaseSurface = () => {
-    releaseSurfaceRef.current?.()
-    releaseSurfaceRef.current = undefined
-  }
-
-  const handleDone = () => {
-    hapticLight()
-    onDone()
-  }
-
-  return createPortal(
-    <AnimatePresence onExitComplete={releaseSurface}>
-      {show ? (
-        <motion.button
-          type='button'
-          className='wallet-success-splash'
-          onClick={handleDone}
-          initial={prefersReduced ? false : { y: '100%' }}
-          animate={prefersReduced ? undefined : { y: '0%' }}
-          exit={prefersReduced ? undefined : { y: '100%' }}
-          transition={prefersReduced ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 30, mass: 0.95 }}
-          aria-label={ariaLabel}
-        >
-          <motion.span
-            className='wallet-success-splash__mark'
-            initial={prefersReduced ? false : { opacity: 0, scale: 0.9 }}
-            animate={prefersReduced ? undefined : { opacity: 1, scale: 1 }}
-            transition={
-              prefersReduced ? { duration: 0 } : { delay: 0.16, type: 'spring', duration: 0.42, bounce: 0.18 }
-            }
-          >
-            <SuccessIcon small />
-          </motion.span>
-          <motion.span
-            className='wallet-success-splash__copy'
-            initial={prefersReduced ? false : { opacity: 0, y: 10 }}
-            animate={prefersReduced ? undefined : { opacity: 1, y: 0 }}
-            transition={prefersReduced ? { duration: 0 } : { delay: 0.2, duration: 0.24, ease: EASE_OUT_QUINT_TUPLE }}
-          >
-            <strong>{headline}</strong>
-            {text ? <small>{text}</small> : null}
-          </motion.span>
-        </motion.button>
-      ) : null}
-    </AnimatePresence>,
-    document.body,
+  return (
+    <SheetPage label={headline} backdrop={backdrop} testId='success-sheet'>
+      <div className='success-sheet' aria-live='polite'>
+        <span className='success-sheet__mark' role='img' aria-label={t('transaction.success')}>
+          <svg width='30' height='30' viewBox='0 0 24 24' fill='none' aria-hidden='true'>
+            <path d='m5 12.5 4.5 4.500L19 7.500' pathLength='1' />
+          </svg>
+        </span>
+        <h1 className='success-sheet__headline'>{headline}</h1>
+        {text ? <p className='success-sheet__text'>{text}</p> : null}
+      </div>
+      <div className='review__actions'>
+        <Button onClick={onDone} label={t('transaction.soundsGood')} />
+      </div>
+    </SheetPage>
   )
 }

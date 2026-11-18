@@ -36,6 +36,7 @@ import InAppBrowser from '../screens/Wallet/InAppBrowser'
 import Unavailable from '../screens/Wallet/Unavailable'
 import AppIntentScreen from '../screens/AppIntent/Index'
 import WalletScan from '@/screens/Wallet/Scan'
+import { isIOS } from '../lib/browser'
 
 export type NavigationDirection = 'forward' | 'back' | 'none'
 
@@ -80,6 +81,14 @@ export enum Pages {
 
 // Root pages - switches between these get no animation
 const ROOT_PAGES = new Set([Pages.Wallet])
+
+// Sheet pages draw their own entrance (a sheet rising over a scrim), so the
+// page transition stays out of the way when one is entered or left.
+const SHEET_PAGES = new Set([Pages.SendDetails, Pages.SendSuccess, Pages.ReceiveSuccess])
+
+// Cover pages are tasks started from Home. They rise over it from the bottom
+// and close downward, instead of sliding in from the side like a detail.
+const COVER_PAGES = new Set([Pages.SendForm, Pages.ReceiveQRCode, Pages.WalletScan])
 
 // Boot pages: arriving home from one plays the wallet load-in stagger;
 // returning from an in-app page (Swap, Send, ...) must not replay it.
@@ -180,6 +189,8 @@ export const pageComponent = (page: Pages): JSX.Element => {
 }
 
 interface NavigationContextProps {
+  /** True while the page entering or leaving is a cover (Send, Receive, Scan). */
+  cover?: boolean
   direction: NavigationDirection
   goBack: () => void
   isInitialLoad: boolean
@@ -200,6 +211,7 @@ export const NavigationContext = createContext<NavigationContextProps>({
 export const NavigationProvider = ({ children }: { children: ReactNode }) => {
   const [screen, setScreen] = useState(Pages.Init)
   const [direction, setDirection] = useState<NavigationDirection>('none')
+  const [cover, setCover] = useState(false)
 
   const screenRef = useRef(Pages.Init)
   const backStack = useRef<Pages[]>([])
@@ -237,7 +249,12 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
 
     stack.pop()
     previousPage.current = screenRef.current
-    setDirection(fromButton ? 'back' : 'none')
+    // iOS draws its own swipe-back, so animating there would play twice.
+    // Everywhere else (Android's back gesture, a browser's back button) the
+    // screen would otherwise cut, so back animates.
+    const animateBack = fromButton || !isIOS()
+    setCover(COVER_PAGES.has(screenRef.current))
+    setDirection(SHEET_PAGES.has(screenRef.current) || !animateBack ? 'none' : 'back')
     screenRef.current = prevPage
     setScreen(prevPage)
   }, [])
@@ -273,12 +290,14 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
         history.go(-entriesToRemove)
       }
       const isFromRoot = ROOT_PAGES.has(screenRef.current)
+      setCover(COVER_PAGES.has(screenRef.current))
       setDirection(isFromRoot ? 'none' : 'back')
     } else {
       // forward navigation: push to back stack AND browser history
       backStack.current.push(screenRef.current)
       history.pushState({}, '', '')
-      setDirection('forward')
+      setCover(COVER_PAGES.has(page))
+      setDirection(SHEET_PAGES.has(page) ? 'none' : 'forward')
     }
 
     screenRef.current = page
@@ -297,6 +316,7 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
     }
 
     screenRef.current = page
+    setCover(false)
     setDirection('back')
     setScreen(page)
   }, [])
@@ -315,7 +335,7 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
   }, [navigate])
 
   return (
-    <NavigationContext.Provider value={{ direction, goBack, isInitialLoad, navigate, replace, screen }}>
+    <NavigationContext.Provider value={{ cover, direction, goBack, isInitialLoad, navigate, replace, screen }}>
       {children}
     </NavigationContext.Provider>
   )

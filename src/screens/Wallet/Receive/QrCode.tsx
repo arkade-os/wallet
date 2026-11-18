@@ -458,7 +458,7 @@ export default function ReceiveQRCode() {
 
   return (
     <>
-      <Header text={t('wallet.receive')} back={() => navigate(Pages.Wallet)} />
+      <Header text={t('wallet.receive')} back={() => navigate(Pages.Wallet)} close />
       <Content noFade>
         <Padded>
           {hasError ? (
