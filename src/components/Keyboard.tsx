@@ -31,6 +31,8 @@ interface KeyboardProps {
   recipient?: string
   /** Label of the main button; defaults to "Save". */
   saveLabel?: string
+  /** Lets the caller own Max. Send uses it so that the keypad and the form share one fee-aware Max. */
+  onMax?: () => void
 }
 
 export default function Keyboard({
@@ -43,6 +45,7 @@ export default function Keyboard({
   initialValue,
   recipient,
   saveLabel,
+  onMax,
 }: KeyboardProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
@@ -210,8 +213,10 @@ export default function Keyboard({
 
   // over-balance paints the amount red, matching the swap composer; the
   // available>0 gate avoids a false red before the wallet loads
-  const overBalance =
-    inputMode === 'asset'
+  // Only spending has a balance to exceed: a requested amount (hideBalance) can be any size.
+  const overBalance = hideBalance
+    ? false
+    : inputMode === 'asset'
       ? Boolean(asset) && assetInCents > (asset?.balance ?? BigInt(0))
       : available > 0 && amountInSats > available
 
@@ -283,7 +288,7 @@ export default function Keyboard({
           <p>
             {t('components.availableBalance')} <span>{amount.balance}</span>
           </p>
-          <button type='button' onClick={handleMaxPress}>
+          <button type='button' data-testid='keyboard-max' onClick={onMax ?? handleMaxPress}>
             {t('components.max')}
           </button>
         </div>

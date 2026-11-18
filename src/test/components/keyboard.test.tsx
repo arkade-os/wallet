@@ -72,6 +72,31 @@ describe('Keyboard, right-to-left entry', () => {
     expect(onSave).toHaveBeenCalledWith('1000000', 'sats')
   })
 
+  // Send owns Max: its form subtracts the rail's fee and keeps a reserve, which the keypad cannot know.
+  it('hands Max to the caller when one is given, and fills nothing itself', () => {
+    const onMax = vi.fn()
+    const onSave = renderKeyboard(Unit.SATS, vi.fn(), Currencies.BTC, { onMax })
+    fireEvent.click(screen.getByTestId('keyboard-max'))
+    expect(onMax).toHaveBeenCalledOnce()
+    expect(screen.getByTestId('keyboard-amount')).toHaveTextContent('0 sats')
+    expect(onSave).not.toHaveBeenCalled()
+  })
+
+  it('warns when a spend is more than the balance', () => {
+    renderKeyboard(Unit.SATS)
+    press(...'2000000')
+    expect(screen.getByRole('status')).toHaveTextContent('More than your balance')
+  })
+
+  // A request has no balance to exceed: someone can ask for more than they hold.
+  it('never warns about the balance on a requested amount', () => {
+    renderKeyboard(Unit.SATS, vi.fn(), Currencies.BTC, { hideBalance: true })
+    press(...'2000000')
+    expect(screen.queryByText('More than your balance')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('keyboard-max')).not.toBeInTheDocument()
+    expect(screen.getByTestId('save-amount')).toBeEnabled()
+  })
+
   it("enters Send's default BTC mode in a fiat wallet and saves a plain decimal string", () => {
     const onSave = renderKeyboard(Unit.BTC, vi.fn(), Currencies.USD, { defaultMode: 'btc' })
     press('2', '0', '0', '0', '0')

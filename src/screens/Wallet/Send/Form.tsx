@@ -975,6 +975,12 @@ export default function SendForm() {
     else applySendAll()
   }
 
+  /** Max on the keypad is the form's Max: same reserve check, same send-all flag for fee-aware quotes. */
+  const handleKeypadMax = () => {
+    setKeys(false)
+    handleSendAll()
+  }
+
   const confirmSendAll = () => {
     setShowReserveModal(false)
     applySendAll()
@@ -1080,7 +1086,9 @@ export default function SendForm() {
 
   const sendOverlayStyle = { ...overlayStyle, position: 'fixed' as const, zIndex: 20 }
 
-  const Keys = () => (
+  // An element, not an inner component: a component declared here would be a new type on every
+  // render, so React would remount the keypad and drop the digits already typed.
+  const keypad = (
     <Keyboard
       asset={activeAsset ?? undefined}
       back={() => setKeys(false)}
@@ -1088,14 +1096,13 @@ export default function SendForm() {
       onSave={handleKeyboardAmountSave}
       recipient={recipient || undefined}
       saveLabel={t('send.continue')}
+      onMax={handleKeypadMax}
     />
   )
 
   if (keys && !amountIsReadOnly) {
     return prefersReducedMotion ? (
-      <div style={sendOverlayStyle}>
-        <Keys />
-      </div>
+      <div style={sendOverlayStyle}>{keypad}</div>
     ) : (
       <AnimatePresence>
         <motion.div
@@ -1106,7 +1113,7 @@ export default function SendForm() {
           exit='exit'
           style={sendOverlayStyle}
         >
-          <Keys />
+          {keypad}
         </motion.div>
       </AnimatePresence>
     )
