@@ -65,9 +65,10 @@ Product strings were kept unless listed here.
 | New on Home and keypad: `this month`, `Available`, `Max`, `More than your balance`, `Close` | New controls need names |
 | `Buy or sell bitcoin` → `Buy or sell Bitcoin`, and Bitcoin capitalised in two error strings | House rule |
 | Portuguese `lnurlReceivedAt` / `lnurlSentTo` now include `{address}` | They dropped it; a bug fix |
+| `Welcome to Arkade` loses its emoji (en, es, pt) | Asked for |
 | Removed: `receive.backToMethod`, `upsells.title`, `wallet.viewRecentActivity` | No longer shown |
 
-Left alone and worth a decision: the welcome heading's emoji, `+ Create wallet`, `Tap to Sign`, `Sounds good`,
+Left alone and worth a decision: `+ Create wallet`, `Tap to Sign`, `Sounds good`,
 `No password, YOLO`, and `Unified` as the default format's name.
 
 ## Checked

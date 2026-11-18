@@ -35,4 +35,3 @@ a `pubkey`), onboarding does not come back, and the service worker registration 
 - Against the default test server the first boot can take 15 to 30 seconds. The driver waits up to two minutes.
 - Restore is not driven. It needs a recovery phrase, and this skill never handles one.
   `src/test/e2e/nostr.test.ts` and `mnemonic-autocomplete.test.ts` exercise it on regtest.
-- The welcome heading still carries an emoji from the existing copy. It is content, not a rendering fault.

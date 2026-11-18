@@ -104,7 +104,7 @@ export const translations = {
       stepBrowser: 'Open Safari, Chrome, or your browser',
       stepCopy: 'Copy the link below',
       stepPaste: 'Paste the link and go',
-      welcome: 'Welcome to Arkade 👾',
+      welcome: 'Welcome to Arkade',
     },
     common: {
       address: 'Address',
@@ -966,7 +966,7 @@ export const translations = {
       stepBrowser: 'Abre Safari, Chrome o tu navegador',
       stepCopy: 'Copia el enlace de abajo',
       stepPaste: 'Pega el enlace y ve',
-      welcome: 'Bienvenido a Arkade 👾',
+      welcome: 'Bienvenido a Arkade',
     },
     common: {
       address: 'Dirección',
@@ -1837,7 +1837,7 @@ export const translations = {
       stepBrowser: 'Abra o Safari, o Chrome ou seu navegador',
       stepCopy: 'Copie o link abaixo',
       stepPaste: 'Cole o link e acesse',
-      welcome: 'Boas-vindas à Arkade 👾',
+      welcome: 'Boas-vindas à Arkade',
     },
     common: {
       address: 'Endereço',
