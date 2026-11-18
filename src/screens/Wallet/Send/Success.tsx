@@ -10,7 +10,7 @@ import FlexCol from '../../../components/FlexCol'
 import Padded from '../../../components/Padded'
 import Text from '../../../components/Text'
 import WalletSuccessSplash from '../../../components/WalletSuccessSplash'
-import Figure from '../../../components/Figure'
+import { PrivateFigure } from '../../../components/Figure'
 import SuccessIcon from '../../../icons/Success'
 import { prettyAmount, prettyCurrencyAssetAmount, prettyFiatAmount } from '../../../lib/format'
 import { ConfigContext } from '../../../providers/config'
@@ -158,7 +158,7 @@ export default function SendSuccess() {
       headline={headline}
       text={detail}
       ariaLabel={`${headline}. ${t('wallet.tapToGoHome')}`}
-      backdrop={<Figure value={displayAmount} />}
+      backdrop={<PrivateFigure value={displayAmount} />}
       onDone={finish}
     />
   )

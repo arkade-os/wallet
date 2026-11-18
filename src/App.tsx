@@ -128,6 +128,8 @@ export default function App() {
       if (event.key !== 'Escape') return
       // A sheet or dialog on top takes Escape for itself; only a bare screen goes home.
       if (document.querySelector("[data-slot='drawer-content'], [data-modal-layer]")) return
+      // A payment being signed is not interruptible from the keyboard.
+      if (document.querySelector(".sheet-page[data-busy='true']")) return
       // Success already broadcast. Report sent. Anything earlier is a decline,
       // including connect. Read the txid before resetFlow clears it.
       if (appSendNeedsDriver(appIntent, sendInfo, outcomeOf)) {

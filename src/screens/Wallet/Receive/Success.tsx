@@ -13,7 +13,7 @@ import { walletAssetPresentationForId } from '../../../lib/accountAssets'
 import { AspContext } from '../../../providers/asp'
 import { AssetsContext } from '../../../providers/assets'
 import { useTranslation } from '../../../providers/language'
-import Figure from '../../../components/Figure'
+import { PrivateFigure } from '../../../components/Figure'
 
 function formatAssetLabel(
   a: { assetId: string; amount: bigint },
@@ -99,7 +99,7 @@ export default function ReceiveSuccess() {
       headline={t('transaction.paymentReceived')}
       text={displayText}
       ariaLabel={t('transaction.paymentReceivedAria')}
-      backdrop={isAssetReceive ? undefined : <Figure value={displayAmount} />}
+      backdrop={isAssetReceive ? undefined : <PrivateFigure value={displayAmount} />}
       onDone={() => navigate(Pages.Wallet)}
     />
   )

@@ -4249,6 +4249,12 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   letter-spacing: -0.05em;
   line-height: 1;
   white-space: nowrap;
+  container-type: inline-size;
+}
+
+/* A long figure (a BTC amount to eight places) shrinks to stay inside the screen. */
+.sheet-page__backdrop .figure-fit {
+  font-size: min(1em, calc(92cqw / (var(--amount-chars, 6) * 0.56)));
 }
 
 .sheet-page__scrim {

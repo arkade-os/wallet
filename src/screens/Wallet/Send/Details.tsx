@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import Button from '../../../components/Button'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { FlowContext } from '../../../providers/flow'
@@ -9,10 +9,11 @@ import { AspContext } from '../../../providers/asp'
 import { SwapsContext } from '../../../providers/swaps'
 import { defaultFee } from '../../../lib/constants'
 import { prettyLongText, prettyNumber } from '../../../lib/format'
+import { toast } from 'sonner'
 import SheetPage from '../../../components/SheetPage'
 import SendProgress from '../../../components/SendProgress'
 import AddressPattern from '../../../components/AddressPattern'
-import Figure from '../../../components/Figure'
+import { PrivateFigure } from '../../../components/Figure'
 import { InsufficientFundsError, maxCollaborativeExit, sendOffChain } from '../../../lib/asp'
 import {
   ASSET_RAIL,
@@ -202,6 +203,18 @@ export default function SendDetails() {
     }
   }, [pricing, details?.destination, details?.satoshis])
 
+  // A payment can outlive this screen: Back is how someone walks away from a slow one. What it
+  // records about itself is durable and always written. What it would write into the shared Send
+  // flow is not, because by then that state may describe a different payment; the result is
+  // announced instead, wherever the person went.
+  const onScreen = useRef(true)
+  useEffect(
+    () => () => {
+      onScreen.current = false
+    },
+    [],
+  )
+
   const handleTxid = (txid: string) => {
     if (!txid) return handleError(t('send.errorSendingTransaction'))
     saveTransactionActivityMetadata(txid, {
@@ -216,6 +229,7 @@ export default function SendDetails() {
     // back the txid, so its cache is already current — and the metadata saved
     // just above is what the refreshed history grafts onto this row.
     reloadWallet().catch(consoleError)
+    if (!onScreen.current) return void toast.success(t('send.paymentSent'))
     setSendInfo({ ...sendInfo, total: details?.total, txid })
     setSendDone(true)
   }
@@ -241,6 +255,7 @@ export default function SendDetails() {
     ) {
       setAppIntent({ ...appIntent, committedOnchain: { swapId, fundingTxid: txid } })
     }
+    if (!onScreen.current) return void toast.success(t('send.paymentSent'))
     setSendInfo({ ...sendInfo, total, txid, railId, swapId })
     setSendDone(true)
   }
@@ -252,6 +267,7 @@ export default function SendDetails() {
 
   const handleError = (err: any) => {
     consoleError(err, 'error sending payment')
+    if (!onScreen.current) return void toast.error(extractError(err))
     setError(extractError(err))
     setSendDone(true)
   }
@@ -400,8 +416,13 @@ export default function SendDetails() {
   return (
     <SheetPage
       label={t('send.signTransaction')}
-      backdrop={amountDisplay?.primary ? <Figure value={amountDisplay.primary.value} /> : undefined}
-      onDismiss={sending ? undefined : goBack}
+      backdrop={
+        amountDisplay?.primary ? (
+          <PrivateFigure value={amountDisplay.primary.value} masked={amountDisplay.primary.masked} />
+        ) : undefined
+      }
+      busy={sending}
+      onDismiss={goBack}
       dismissLabel={t('common.back')}
     >
       <h1 className='sr-only' data-testid='header-title-sign-transaction'>
