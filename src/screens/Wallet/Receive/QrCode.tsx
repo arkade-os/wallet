@@ -696,7 +696,7 @@ export default function ReceiveQRCode() {
                 ) : null}
                 <div
                   // svh, not dvh: a phone browser's toolbar covers the page, and dvh counts the space under it.
-                  className={`receive-invoice-stage w-full grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] overflow-hidden rounded-3xl border border-neutral-100 ${hasAmount ? 'max-w-[clamp(12rem,calc(100svh-28rem),20rem)]' : 'max-w-[clamp(12rem,calc(100svh-24rem),20rem)]'} aspect-square`}
+                  className={`receive-invoice-stage w-full grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] overflow-hidden rounded-3xl border border-neutral-100 ${shown === 'token' ? 'max-w-[clamp(11rem,calc(100svh-31rem),20rem)]' : hasAmount ? 'max-w-[clamp(12rem,calc(100svh-28rem),20rem)]' : 'max-w-[clamp(12rem,calc(100svh-24rem),20rem)]'} aspect-square`}
                   data-generating={generating}
                 >
                   <div
@@ -899,14 +899,15 @@ function TokenQuoteNote(p: {
       </div>
       <Text small color='neutral-500' wrap centered>
         {t('receive.tokenQuoteValid', { provider: rail.provider, time })}
+        {isMobileBrowser && quote.value !== quote.destination ? (
+          <>
+            {' · '}
+            <a href={quote.value} className='font-semibold text-purple-700 dark:text-purple-300'>
+              {t('receive.openInWallet')}
+            </a>
+          </>
+        ) : null}
       </Text>
-      {isMobileBrowser && quote.value !== quote.destination ? (
-        <Text small color='neutral-500' wrap centered>
-          <a href={quote.value} className='font-semibold text-purple-700 dark:text-purple-300'>
-            {t('receive.openInWallet')}
-          </a>
-        </Text>
-      ) : null}
     </FlexCol>
   )
 }
