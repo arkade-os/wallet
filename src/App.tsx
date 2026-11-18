@@ -126,6 +126,8 @@ export default function App() {
     if (!navigate) return
     const handleGlobalDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
+      // A sheet or dialog on top takes Escape for itself; only a bare screen goes home.
+      if (document.querySelector("[data-slot='drawer-content'], [data-modal-layer]")) return
       // Success already broadcast. Report sent. Anything earlier is a decline,
       // including connect. Read the txid before resetFlow clears it.
       if (appSendNeedsDriver(appIntent, sendInfo, outcomeOf)) {

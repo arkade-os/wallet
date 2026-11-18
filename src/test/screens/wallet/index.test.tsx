@@ -7,6 +7,7 @@ import {
   mockAspContextValue,
   mockConfigContextValue,
   mockNavigationContextValue,
+  mockTxInfo,
   mockWalletContextValue,
 } from '../mocks'
 import { ConfigContext } from '../../../providers/config'
@@ -37,13 +38,35 @@ describe('Wallet screen', () => {
     expect(screen.getByText('Accounts')).toBeInTheDocument()
     expect(screen.getByText('Bitcoin')).toBeInTheDocument()
     expect(screen.getByText('Recent activity')).toBeInTheDocument()
-    expect(screen.getByText('Do more with your money')).toBeInTheDocument()
+    // Home carries no promotions and no Apps entry; Buy or sell lives in Settings.
+    expect(screen.queryByText('Buy or sell Bitcoin')).not.toBeInTheDocument()
     expect(screen.queryByText('Borrow against your bitcoin')).not.toBeInTheDocument()
-    await user.click(screen.getByTestId('top-right-activity'))
-    expect(navigate).toHaveBeenCalledWith(Pages.Activity)
+    // Activity opens from the section itself; Scan and Settings are the only header actions.
+    expect(screen.queryByTestId('top-right-activity')).not.toBeInTheDocument()
+    // With no history there is nothing to view all of.
+    expect(screen.queryByTestId('activity-view-all')).not.toBeInTheDocument()
+    expect(screen.getByTestId('home-action-scan')).toBeInTheDocument()
 
     await user.click(screen.getByTestId('top-right-settings'))
     expect(navigate).toHaveBeenCalledWith(Pages.Settings)
+  })
+
+  it('opens Activity from the section once there is history to show', async () => {
+    const user = userEvent.setup()
+    const navigate = vi.fn()
+
+    render(
+      <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate }}>
+        <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [mockTxInfo] as any }}>
+          <SwapsContext.Provider value={{ swapAvailable: true, swaps: [] } as any}>
+            <Wallet />
+          </SwapsContext.Provider>
+        </WalletContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    await user.click(screen.getByTestId('activity-view-all'))
+    expect(navigate).toHaveBeenCalledWith(Pages.Activity)
   })
 
   it('does not use swap history to enter an unavailable swap composer', async () => {

@@ -4995,3 +4995,37 @@ html.palette-dark .settings-row__icon {
   color: var(--ink-3);
   font-weight: 500;
 }
+
+/* ── Receipts: plain rows on a hairline, no card ─────────── */
+
+.table--receipt {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.table--receipt .table-row {
+  min-height: 2.875rem;
+  border-top: 1px solid var(--hairline);
+  padding-inline: 0.125rem;
+}
+
+.table--receipt > :first-child .table-row,
+.table--receipt > .table-row:first-child {
+  border-top: 0;
+}
+
+.table--receipt .table-row__icon {
+  display: none;
+}
+
+.table--receipt .table-row__title {
+  color: var(--ink-3);
+}
+
+html.palette-dark .table--receipt,
+html.palette-dark .table--receipt .table-row {
+  background: transparent;
+}

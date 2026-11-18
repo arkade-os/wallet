@@ -686,7 +686,7 @@ describe('Send screen', () => {
         } as any,
       },
     })
-    fireEvent.click(screen.getByLabelText('Go back'))
+    fireEvent.click(screen.getByLabelText('Close'))
     if (outcome === 'funded') {
       expect(redirectToCallback).not.toHaveBeenCalled()
       expect(resetFlow).not.toHaveBeenCalled()
@@ -721,7 +721,7 @@ describe('Send screen', () => {
       },
     })
 
-    fireEvent.click(screen.getByLabelText('Go back'))
+    fireEvent.click(screen.getByLabelText('Close'))
     expect(resetFlow).toHaveBeenCalled()
     expect(redirectToCallback).toHaveBeenCalledWith(callback, { error: 'denied' })
   })
@@ -750,7 +750,7 @@ describe('Send screen', () => {
       },
     })
 
-    fireEvent.click(screen.getByLabelText('Go back'))
+    fireEvent.click(screen.getByLabelText('Close'))
     expect(resetFlow).toHaveBeenCalled()
     expect(redirectToCallback).not.toHaveBeenCalled()
     expect(navigate).toHaveBeenCalledWith(Pages.Wallet)

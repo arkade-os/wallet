@@ -65,7 +65,8 @@ describe('Keyboard, right-to-left entry', () => {
 
   it('fills Max from the available balance', () => {
     const onSave = renderKeyboard(Unit.SATS)
-    fireEvent.click(screen.getByText(/^1,000,000/))
+    expect(screen.getByText(/^1,000,000/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Max' }))
     expect(screen.getByTestId('keyboard-amount')).toHaveTextContent('1000000 sats')
     fireEvent.click(screen.getByTestId('save-amount'))
     expect(onSave).toHaveBeenCalledWith('1000000', 'sats')

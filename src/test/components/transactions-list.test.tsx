@@ -114,7 +114,7 @@ describe('TransactionsList', () => {
       </NavigationContext.Provider>,
     )
 
-    expect(screen.getByText('Received via arkade')).toBeInTheDocument()
+    expect(screen.getByText('Received')).toBeInTheDocument()
   })
 
   it('still reads a plain, unlabelled transfer as Sent or Received', () => {
@@ -389,7 +389,8 @@ describe('TransactionsList', () => {
     )
 
     expect(screen.getByText(/BTC to BET/)).toBeInTheDocument()
-    expect(container.querySelector('circle[fill="var(--orange-500)"]')).toBeInTheDocument()
+    // The Bitcoin mark is the one filled with the brand colour; every other asset sits in a neutral well.
+    expect(container.querySelector('circle[fill="var(--brand)"]')).toBeInTheDocument()
     expect(container.querySelectorAll('.swap-route-icon__fallback')).toHaveLength(1)
   })
 

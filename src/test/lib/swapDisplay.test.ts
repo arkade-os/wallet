@@ -235,9 +235,9 @@ describe('lnSwapLabel', () => {
   const row = (lnSwap?: Tx['lnSwap']) => ({ lnSwap }) as Tx
 
   it('names the outcome, and calls a refund a refund rather than a failure', () => {
-    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'refunded' }), t)).toBe('Lightning send refunded')
-    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'pending' }), t)).toBe('Lightning send pending')
-    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'failed' }), t)).toBe('Lightning send failed')
+    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'refunded' }), t)).toBe('Send refunded')
+    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'pending' }), t)).toBe('Sending')
+    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'failed' }), t)).toBe('Send failed')
   })
 
   it('calls a lost receive lost, which is the opposite of a refund', () => {
@@ -246,23 +246,23 @@ describe('lnSwapLabel', () => {
     // SOLVER's, so the lockup going back means the payment never arrived —
     // money gone, not money returned. Reading it as "refunded" would tell the
     // user the exact opposite of what happened.
-    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'lost' }), t)).toBe('Lightning receive lost')
+    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'lost' }), t)).toBe('Receive lost')
     expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'lost' }), t)).not.toContain('refunded')
   })
 
   it('still calls a SEND that came back refunded, on the same token set', () => {
     // The two legs read `refunded` in opposite directions, and the package is
     // what tells them apart — the wallet must not collapse the distinction.
-    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'refunded' }), t)).toBe('Lightning send refunded')
+    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'refunded' }), t)).toBe('Send refunded')
   })
 
   it('says nothing extra once the payment simply went through', () => {
-    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'settled' }), t)).toBe('Lightning send')
-    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'settled' }), t)).toBe('Lightning receive')
+    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'settled' }), t)).toBe('Sent')
+    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'settled' }), t)).toBe('Received')
   })
 
   it('falls back to the corridor name for an outcome token it does not know', () => {
-    expect(lnSwapLabel(row({ outcome: 'something-new' }), t)).toBe('Lightning send')
+    expect(lnSwapLabel(row({ outcome: 'something-new' }), t)).toBe('Sent')
   })
 
   it('localizes the corridor stem and outcome in all languages', () => {
@@ -285,8 +285,8 @@ describe('lnSwapLabel', () => {
 
   it('translates the labels it knows as whole phrases', () => {
     const es = (key: string) => translate(Language.Spanish, key)
-    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'refunded' }), es)).toBe('Envío Lightning reembolsado')
-    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'lost' }), es)).toBe('Recepción Lightning perdida')
+    expect(lnSwapLabel(row({ label: 'Lightning send', outcome: 'refunded' }), es)).toBe('Envío reembolsado')
+    expect(lnSwapLabel(row({ label: 'Lightning receive', outcome: 'lost' }), es)).toBe('Recepción perdida')
   })
 })
 
@@ -301,7 +301,7 @@ describe('lnurlLabel', () => {
   })
 
   it('names the rail for a nameless receive', () => {
-    expect(lnurlLabel(receive({ rail: 'arkade' }), t)).toBe('Received via arkade')
+    expect(lnurlLabel(receive({ rail: 'arkade' }), t)).toBe('Received')
   })
 
   it('names who a send paid', () => {
@@ -318,7 +318,7 @@ describe('lnurlLabel', () => {
   it('reads in the wallet language', () => {
     const es = (key: string, params?: Record<string, string | number>) => translate(Language.Spanish, key, params)
     expect(lnurlLabel(receive({ address: 'alice@lnurl.example' }), es)).toBe('Recibido en alice@lnurl.example')
-    expect(lnurlLabel(sent({ rail: 'arkade' }), es)).toBe('Enviado vía arkade')
+    expect(lnurlLabel(sent({ rail: 'arkade' }), es)).toBe('Enviado')
   })
 })
 

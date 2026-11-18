@@ -66,6 +66,7 @@ export default function Modal({ children, open = true, onOpenChange, onExitCompl
           <div
             role='dialog'
             aria-modal='true'
+            data-modal-layer=''
             tabIndex={-1}
             ref={panel}
             style={{

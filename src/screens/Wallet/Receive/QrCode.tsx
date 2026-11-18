@@ -53,12 +53,6 @@ import Glyph, { type GlyphName } from '../../../icons/Glyph'
 const TOKEN = 'token:'
 
 const FORMAT_GLYPHS: Record<string, GlyphName> = { unified: 'qr', lightning: 'bolt', ark: 'layers', bitcoin: 'link' }
-const FORMAT_SUBS: Record<string, string> = {
-  unified: 'receive.formatUnifiedSub',
-  lightning: 'receive.formatLightningSub',
-  ark: 'receive.formatArkadeSub',
-  bitcoin: 'receive.formatBitcoinSub',
-}
 
 const railLogo = (rail: LnurlTokenRail, ring: string) => (
   <TokenOnChainLogo ticker={rail.unit.code} chainId={rail.asset?.chainId ?? ''} ring={ring} />
@@ -435,6 +429,18 @@ export default function ReceiveQRCode() {
     setSelectedMethod(id)
   }
 
+  // Spelled out so every key is a literal the dictionary check can see.
+  const formatSub = (id: string) =>
+    id === 'unified'
+      ? t('receive.formatUnifiedSub')
+      : id === 'lightning'
+        ? t('receive.formatLightningSub')
+        : id === 'ark'
+          ? t('receive.formatArkadeSub')
+          : id === 'bitcoin'
+            ? t('receive.formatBitcoinSub')
+            : undefined
+
   const pickFormat = (id: string) => {
     if (!prefersReducedMotion) hapticSubtle()
     handleMethodChange(id)
@@ -668,7 +674,7 @@ export default function ReceiveQRCode() {
                   icon={<Glyph name={FORMAT_GLYPHS[m.id] ?? 'scan'} size={18} />}
                   title={m.label}
                   badge={m.id === defaultMethod ? t('receive.formatDefault') : undefined}
-                  sub={FORMAT_SUBS[m.id] ? t(FORMAT_SUBS[m.id]) : undefined}
+                  sub={formatSub(m.id)}
                   onPick={() => pickFormat(m.id)}
                 />
               ))}

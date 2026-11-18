@@ -143,6 +143,13 @@ const NO_ASSETS = { assetBalances: [] }
 const primaryAmount = () => screen.getByRole('button', { name: /^Swap amount,/ })
 const secondaryAmount = () => screen.getByRole('button', { name: /^Show .+ first/ })
 
+// Currency marks are drawn signs, not prices, so a "no prices on screen" check reads the page without them.
+const proseWithoutMarks = () => {
+  const prose = document.body.cloneNode(true) as HTMLElement
+  prose.querySelectorAll('svg').forEach((mark) => mark.remove())
+  return prose
+}
+
 describe('Wallet swap flow', () => {
   afterEach(() => vi.useRealTimers())
 
@@ -177,9 +184,8 @@ describe('Wallet swap flow', () => {
 
     expect(screen.getByText('BRL')).toBeInTheDocument()
     expect(screen.queryByText(/DePix|DEPIX/)).not.toBeInTheDocument()
-    // The flag's clip path id is unique per instance, so it is matched by
-    // prefix rather than by the literal id.
-    expect(document.querySelector('clipPath[id^="br-flag-circle"]')).not.toBeNull()
+    // The account keeps its drawn currency mark, the real sign rather than a flag.
+    expect(screen.getAllByText('R$').length).toBeGreaterThan(0)
   })
 
   it('finds Bitcoin when searching "btc", even though its swap-entry ticker is sats', async () => {
@@ -243,7 +249,7 @@ describe('Wallet swap flow', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled(), { timeout: 3_000 })
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
-    expect(document.body).not.toHaveTextContent(/[$€]/)
+    expect(proseWithoutMarks()).not.toHaveTextContent(/[$€]/)
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
     await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
     expect(exchange.mock.calls[0][2]).not.toHaveProperty('fromFiatAmount')
@@ -262,7 +268,7 @@ describe('Wallet swap flow', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled(), { timeout: 3_000 })
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
-    expect(document.body).not.toHaveTextContent(/[$€]/)
+    expect(proseWithoutMarks()).not.toHaveTextContent(/[$€]/)
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
     await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
     expect(exchange.mock.calls[0][2]).not.toHaveProperty('fromFiatAmount')
@@ -886,7 +892,7 @@ describe('Wallet swap flow', () => {
 
   it('shows the Bitcoin logo in the swap picker even when the display unit is sats', () => {
     const { container } = renderSwap({ config: { unit: Unit.SATS } })
-    expect(container.querySelector('circle[fill="var(--orange-500)"]')).toBeInTheDocument()
+    expect(container.querySelector('circle[fill="var(--brand)"]')).toBeInTheDocument()
   })
 
   it('shows the Bitcoin balance and quotes in whole BTC when the display unit is BTC, not sats', async () => {

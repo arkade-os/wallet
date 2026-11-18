@@ -312,7 +312,7 @@ describe('swapRecordResolver', () => {
     )
 
     expect(row.type).toBe('received')
-    expect(lnSwapLabel(row, t)).toBe('Lightning receive')
+    expect(lnSwapLabel(row, t)).toBe('Received')
   })
 
   it('carries a corridor spend into the same group, so a refund is not a stray row', async () => {
@@ -504,7 +504,7 @@ describe('lightning send activities', () => {
       historyKey: `swap:${RFQ_ID}`,
       lnSwap: { label: 'Lightning send', outcome: 'pending', fundingTxid: 'funding-txid' },
     })
-    expect(lnSwapLabel(row, t)).toBe('Lightning send pending')
+    expect(lnSwapLabel(row, t)).toBe('Sending')
   })
 
   it('shows an on-chain send in flight too — the corridor that needed it most', () => {
@@ -609,7 +609,7 @@ describe('lightning send activities', () => {
     })
 
     expect(row.lnSwap).toMatchObject({ outcome: 'refunded', spendTxid: 'refund-txid' })
-    expect(lnSwapLabel(row, t)).toBe('Lightning send refunded')
+    expect(lnSwapLabel(row, t)).toBe('Send refunded')
   })
 
   it('yields to the group once one exists, under the same key', () => {
@@ -678,7 +678,7 @@ describe('lightning receive activities', () => {
     )
 
     expect(row.lnSwap?.outcome).toBe('lost')
-    expect(lnSwapLabel(row, t)).toBe('Lightning receive lost')
+    expect(lnSwapLabel(row, t)).toBe('Receive lost')
   })
 
   it('falls back to plain member rows rather than dropping a group it cannot anchor', () => {
@@ -827,7 +827,7 @@ describe('lnurl resolvers, driven end to end from the vendored package', () => {
     const [row] = activitiesToTxs(await activityHistoryOf([claim], [namelessReceive()], []), empty)
 
     expect(row.lnurl).toEqual({ address: undefined, rail: 'arkade' })
-    expect(lnurlLabel(row, t)).toBe('Received via arkade')
+    expect(lnurlLabel(row, t)).toBe('Received')
   })
 
   it('carries a real send onto the row and its rendered label', async () => {

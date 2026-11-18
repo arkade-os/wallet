@@ -1,35 +1,20 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import WalletSuccessSplash from '../../components/WalletSuccessSplash'
+import { hapticSuccess } from '../../lib/haptics'
 import { setDocumentThemeColor } from '../../lib/documentSurface'
 
 vi.mock('../../lib/haptics', () => ({
   hapticLight: vi.fn(),
+  hapticSuccess: vi.fn(),
+  hapticTap: vi.fn(),
 }))
-
-const reducedMotionMatchMedia = (query: string): MediaQueryList =>
-  ({
-    matches: query === '(prefers-reduced-motion: reduce)',
-    media: query,
-    onchange: null,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  }) as unknown as MediaQueryList
-
-const regularMotionMatchMedia = (query: string): MediaQueryList =>
-  ({
-    ...reducedMotionMatchMedia(query),
-    matches: false,
-  }) as MediaQueryList
 
 describe('WalletSuccessSplash', () => {
   let themeColorMeta: HTMLMetaElement
 
   beforeEach(() => {
-    window.matchMedia = vi.fn(reducedMotionMatchMedia)
+    vi.mocked(hapticSuccess).mockClear()
     themeColorMeta = document.createElement('meta')
     themeColorMeta.name = 'theme-color'
     document.head.append(themeColorMeta)
@@ -38,58 +23,45 @@ describe('WalletSuccessSplash', () => {
 
   afterEach(() => {
     cleanup()
-    document.documentElement.classList.remove('wallet-success-surface-active')
     themeColorMeta.remove()
   })
 
-  it('portals the splash outside the page container and owns the document surface', () => {
-    const pageContainer = document.createElement('div')
-    document.body.append(pageContainer)
+  it('shows success in a sheet named by its headline, with what happened and one way out', () => {
+    const onDone = vi.fn()
+    render(<WalletSuccessSplash headline='Payment sent' text='1,000 sats sent successfully' onDone={onDone} />)
 
-    const { unmount } = render(
-      <WalletSuccessSplash
-        headline='Payment sent'
-        text='1,000 sats sent successfully'
-        ariaLabel='Payment sent successfully. Tap to go home.'
-        onDone={vi.fn()}
-      />,
-      { container: pageContainer },
-    )
+    const sheet = screen.getByRole('dialog', { name: 'Payment sent' })
+    expect(sheet).toContainElement(screen.getByRole('heading', { name: 'Payment sent' }))
+    expect(sheet).toHaveTextContent('1,000 sats sent successfully')
 
-    const splash = screen.getByRole('button', { name: 'Payment sent successfully. Tap to go home.' })
-    expect(splash.parentElement).toBe(document.body)
-    expect(pageContainer).not.toContainElement(splash)
-    expect(document.documentElement).toHaveClass('wallet-success-surface-active')
-    expect(themeColorMeta).toHaveAttribute('content', '#5528d4')
-
-    unmount()
-    expect(document.documentElement).not.toHaveClass('wallet-success-surface-active')
-    expect(themeColorMeta).toHaveAttribute('content', '#fff')
-    pageContainer.remove()
+    fireEvent.click(screen.getByRole('button', { name: 'Sounds good' }))
+    expect(onDone).toHaveBeenCalledOnce()
   })
 
-  it('keeps the document surface active through exit and releases it afterwards', async () => {
-    window.matchMedia = vi.fn(regularMotionMatchMedia)
-    const { rerender } = render(
-      <WalletSuccessSplash
-        show
-        headline='Payment received'
-        ariaLabel='Payment received successfully. Tap to go home.'
-        onDone={vi.fn()}
-      />,
-    )
+  // The old splash painted the whole document purple and retinted the browser
+  // chrome. Success now ends where the payment was confirmed, so neither moves.
+  it('leaves the document surface and the theme colour alone', () => {
+    const { unmount } = render(<WalletSuccessSplash headline='Payment received' onDone={vi.fn()} />)
 
-    rerender(
-      <WalletSuccessSplash
-        show={false}
-        headline='Payment received'
-        ariaLabel='Payment received successfully. Tap to go home.'
-        onDone={vi.fn()}
-      />,
-    )
-
-    expect(document.documentElement).toHaveClass('wallet-success-surface-active')
-    await waitFor(() => expect(document.documentElement).not.toHaveClass('wallet-success-surface-active'))
+    expect(document.documentElement).not.toHaveClass('wallet-success-surface-active')
     expect(themeColorMeta).toHaveAttribute('content', '#fff')
+
+    unmount()
+    expect(themeColorMeta).toHaveAttribute('content', '#fff')
+  })
+
+  it('shows the paid figure behind the scrim when one is given', () => {
+    render(<WalletSuccessSplash headline='Payment sent' backdrop={<span>$25.20</span>} onDone={vi.fn()} />)
+    expect(screen.getByText('$25.20')).toBeInTheDocument()
+  })
+
+  it('confirms with one success haptic, and only while shown', () => {
+    const { rerender } = render(<WalletSuccessSplash show={false} headline='Payment sent' onDone={vi.fn()} />)
+    expect(screen.queryByTestId('success-sheet')).not.toBeInTheDocument()
+    expect(hapticSuccess).not.toHaveBeenCalled()
+
+    rerender(<WalletSuccessSplash show headline='Payment sent' onDone={vi.fn()} />)
+    expect(screen.getByTestId('success-sheet')).toBeInTheDocument()
+    expect(hapticSuccess).toHaveBeenCalledOnce()
   })
 })
