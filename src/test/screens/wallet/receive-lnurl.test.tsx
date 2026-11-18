@@ -186,7 +186,12 @@ const openFormats = async () => {
 }
 // A row's name is its title, then its badge and subtitle.
 const pickMethod = async (title: string) => {
-  fireEvent.click(await within(await openFormats()).findByRole('radio', { name: new RegExp(`^${title}`) }))
+  fireEvent.click(await within(await openFormats()).findByRole('radio', { name: new RegExp(`^${title}(?! address)`) }))
+}
+// The Lightning address lives under Other formats; the default line shows the unified link.
+const addressShown = async (address: string) => {
+  await pickMethod('Lightning address')
+  return screen.findByText(address)
 }
 const copyPart = async (testId: string) => {
   // Found outside act: inside it, the state updates that reveal the row are held back.
@@ -366,14 +371,17 @@ describe('Receive screen, rail composition', () => {
   it('opens every visit on Any wallet, remembering and backing up no picked format', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
     const { unmount } = renderReceive()
-    await pickMethod('Lightning')
-    expect(await copiedQr()).toBe('alice@lnurl.test')
+    await pickMethod('Lightning address')
+    expect(await copiedQr()).toBe('bitcoin:?lightning=alice@lnurl.test')
+    await copyPart('lnaddress')
+    expect(copyToClipboard).toHaveBeenLastCalledWith('alice@lnurl.test')
     unmount()
 
     renderReceive()
-    await copyPart('lnaddress')
-    expect(copyToClipboard).toHaveBeenLastCalledWith('alice@lnurl.test')
-    expect(await qrLightning()).toMatch(/^lnurl1/i)
+    await waitFor(async () => expect(await qrLightning()).toMatch(/^lnurl1/i))
+    const qr = copyToClipboard.mock.calls.at(-1)![0]
+    await copyPart('bip21')
+    expect(copyToClipboard).toHaveBeenLastCalledWith(qr)
     expect(updateConfig).not.toHaveBeenCalled()
     expect(backupConfig).not.toHaveBeenCalled()
     expect(backupAndUpdateConfig).not.toHaveBeenCalled()
@@ -558,10 +566,12 @@ describe('Receive screen, lnurl onboarding', () => {
     fireEvent.change(await screen.findByPlaceholderText('Choose a name'), { target: { value: 'alice' } })
     fireEvent.click(screen.getByRole('button', { name: 'Claim name' }))
 
-    expect(await screen.findByText('alice@lnurl.test')).toBeInTheDocument()
-    expect((await qrLightning())?.toLowerCase()).toBe(
-      encodeLnurl(`${LNURL_BASE}/.well-known/lnurlp/alice`).toLowerCase(),
+    await waitFor(async () =>
+      expect((await qrLightning())?.toLowerCase()).toBe(
+        encodeLnurl(`${LNURL_BASE}/.well-known/lnurlp/alice`).toLowerCase(),
+      ),
     )
+    expect(await addressShown('alice@lnurl.test')).toBeInTheDocument()
   })
 
   it('claims a server-picked name', async () => {
@@ -570,14 +580,14 @@ describe('Receive screen, lnurl onboarding', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Pick one for me' }))
 
-    expect(await screen.findByText('brave-otter@lnurl.test')).toBeInTheDocument()
+    expect(await addressShown('brave-otter@lnurl.test')).toBeInTheDocument()
   })
 
   it('shows the name when a nameless claim finds the identity already upgraded', async () => {
     serve({ modes: ['session'], sessionRow: namedAddress('erin', 'LNURL1SESSIONERIN') })
     renderReceive()
 
-    expect(await screen.findByText('erin@lnurl.test')).toBeInTheDocument()
+    expect(await addressShown('erin@lnurl.test')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Add a name' })).not.toBeInTheDocument()
   })
 
@@ -604,9 +614,9 @@ describe('Receive screen, naming a nameless receiver', () => {
     fireEvent.change(screen.getByPlaceholderText('Choose a name'), { target: { value: 'dave' } })
     fireEvent.click(screen.getByRole('button', { name: 'Claim name' }))
 
-    expect(await screen.findByText('dave@lnurl.test')).toBeInTheDocument()
+    await waitFor(() => expect(server.calls('PATCH', '/lnurl/address/sess1')).toHaveLength(1))
     expect(await qrLightning()).toBe(before)
-    expect(server.calls('PATCH', '/lnurl/address/sess1')).toHaveLength(1)
+    expect(await addressShown('dave@lnurl.test')).toBeInTheDocument()
   })
 
   it('keeps the LNURL in the QR when the naming choices cannot be loaded', async () => {

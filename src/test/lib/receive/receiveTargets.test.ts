@@ -33,9 +33,9 @@ describe('encodeBitcoinLink', () => {
 })
 
 describe('receiveTarget', () => {
-  it('Any wallet links every rail and copies the Lightning address until an amount is set', () => {
+  it('Any wallet links every rail and copies that link', () => {
     const link = 'bitcoin:bc1x?ark=ark1x&lightning=LNURL1X'
-    expect(shows('full', base)).toEqual([link, 'alice@a.test', 'lnaddress'])
+    expect(shows('full', base)).toEqual([link, link, 'bip21'])
     expect(shows('full', { ...base, lightningAddress: '' })).toEqual([link, link, 'bip21'])
     const amounted = 'bitcoin:bc1x?ark=ark1x&lightning=lnbc1x&amount=0.0002'
     expect(shows('full', withAmount)).toEqual([amounted, amounted, 'bip21'])
@@ -45,9 +45,14 @@ describe('receiveTarget', () => {
     expect(receiveTarget('full', { ...base, ark: '', btc: '' })).toBeUndefined()
   })
 
-  it('Lightning shows the bare address, LNURL or invoice', () => {
-    expect(shows('lightning', base)).toEqual(['alice@a.test', 'alice@a.test', 'lnaddress'])
-    expect(shows('lightning', { ...base, lightningAddress: '' })).toEqual(['LNURL1X', 'LNURL1X', 'lnurl'])
+  it('Lightning address links the address alone, copies it bare, and gives way to an invoice', () => {
+    expect(shows('lnaddress', base)).toEqual(['bitcoin:?lightning=alice@a.test', 'alice@a.test', 'lnaddress'])
+    expect(receiveTarget('lnaddress', withAmount)).toBeUndefined()
+  })
+
+  it('Lightning shows the bare LNURL, address or invoice', () => {
+    expect(shows('lightning', base)).toEqual(['LNURL1X', 'LNURL1X', 'lnurl'])
+    expect(shows('lightning', { ...base, lnurl: '' })).toEqual(['alice@a.test', 'alice@a.test', 'lnaddress'])
     expect(shows('lightning', withAmount)).toEqual(['lnbc1x', 'lnbc1x', 'invoice'])
     expect(receiveTarget('lightning', { ...withAmount, invoice: '' })).toBeUndefined()
   })
@@ -73,7 +78,7 @@ describe('receiveTarget', () => {
 
 describe('receiveMethods', () => {
   it('offers every method with an lnurl-server and tokens on', () => {
-    expect(receiveMethods(base)).toEqual(['full', 'lightning', 'ark', 'btc', 'token'])
+    expect(receiveMethods(base)).toEqual(['full', 'lnaddress', 'lightning', 'ark', 'btc', 'token'])
   })
 
   it('offers Lightning for a nameless LNURL, and for an amount whose invoice came without one', () => {

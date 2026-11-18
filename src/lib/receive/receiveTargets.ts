@@ -1,6 +1,6 @@
 import { encodeBitcoinLink } from '../bip21'
 
-export type ReceiveMethod = 'full' | 'lightning' | 'ark' | 'btc' | 'token'
+export type ReceiveMethod = 'full' | 'lnaddress' | 'lightning' | 'ark' | 'btc' | 'token'
 /** Names what Copy puts on the clipboard; the copy button's test id is `${kind}-address-copy`. */
 export type CopyKind = 'bip21' | 'lnaddress' | 'lnurl' | 'invoice' | 'ark' | 'btc' | 'token'
 export interface TokenQuoteInput {
@@ -27,6 +27,7 @@ export interface ReceiveTarget {
 export function receiveMethods(i: ReceiveInputs): ReceiveMethod[] {
   return [
     i.ark || i.btc ? 'full' : undefined,
+    i.lightningAddress && !(i.sats > 0) ? 'lnaddress' : undefined,
     i.lnurl || i.lightningAddress || (i.sats > 0 && i.invoice) ? 'lightning' : undefined,
     i.ark ? 'ark' : undefined,
     i.btc ? 'btc' : undefined,
@@ -43,11 +44,16 @@ export function receiveTarget(method: ReceiveMethod, i: ReceiveInputs): ReceiveT
     case 'full': {
       if (!i.ark && !i.btc) return undefined
       const qr = encodeBitcoinLink({ address: i.btc, ark: i.ark, lightning: sats ? i.invoice : i.lnurl, sats })
-      return !sats && i.lightningAddress ? target(qr, 'lnaddress', i.lightningAddress) : target(qr, 'bip21')
+      return target(qr, 'bip21')
     }
+    // The newer unified form: one Lightning address whose server also pays out on Arkade and Bitcoin.
+    case 'lnaddress':
+      return sats
+        ? undefined
+        : target(encodeBitcoinLink({ lightning: i.lightningAddress }), 'lnaddress', i.lightningAddress)
     case 'lightning':
       if (sats) return target(i.invoice, 'invoice')
-      return i.lightningAddress ? target(i.lightningAddress, 'lnaddress') : target(i.lnurl, 'lnurl')
+      return i.lnurl ? target(i.lnurl, 'lnurl') : target(i.lightningAddress, 'lnaddress')
     case 'ark':
       return i.ark ? target(sats ? encodeBitcoinLink({ ark: i.ark, sats }) : i.ark, 'ark') : undefined
     case 'btc':

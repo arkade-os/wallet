@@ -531,6 +531,11 @@ export default function ReceiveQRCode() {
       badge: t('receive.defaultFormat'),
       subtitle: t('receive.anyWalletSub'),
     },
+    lnaddress: {
+      icon: <BoltOutlineIcon />,
+      title: t('settings.lightningAddress'),
+      subtitle: t('receive.lnAddressSub'),
+    },
     lightning: satoshis
       ? {
           icon: <BoltOutlineIcon />,
@@ -601,6 +606,7 @@ export default function ReceiveQRCode() {
     ? t('receive.arkadeSub')
     : {
         full: (satoshis ? invoice : lnurl) ? t('receive.anyWalletHint') : t('receive.bitcoinWalletHint'),
+        lnaddress: t('receive.lnAddressSub'),
         lightning: satoshis ? t('receive.lnInvoiceHint') : t('receive.hintLnAddress'),
         ark: t('receive.arkadeSub'),
         btc: t('receive.bitcoinSub'),
@@ -691,14 +697,14 @@ export default function ReceiveQRCode() {
                 ) : null}
                 <div
                   // Height-capped so the code, its actions and the formats card all fit on a short phone.
-                  className={`receive-invoice-stage w-full overflow-hidden rounded-3xl border border-neutral-100 ${hasAmount ? 'max-w-[min(20rem,calc(100dvh-29rem))]' : 'max-w-[min(20rem,calc(100dvh-25rem))]'} aspect-square`}
+                  className={`receive-invoice-stage w-full grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] overflow-hidden rounded-3xl border border-neutral-100 ${hasAmount ? 'max-w-[clamp(15rem,calc(100dvh-26rem),20rem)]' : 'max-w-[clamp(15rem,calc(100dvh-22rem),20rem)]'} aspect-square`}
                   data-generating={generating}
                 >
                   <div
-                    className='receive-invoice-loading flex flex-col items-center justify-center gap-2 text-center'
+                    className='receive-invoice-loading flex flex-col items-center justify-center gap-2 p-4 text-center'
                     aria-hidden={!generating}
                   >
-                    <div className='receive-invoice-pixels mb-5 grid-cols-4 gap-1.25' aria-hidden='true'>
+                    <div className='receive-invoice-pixels mb-3 grid-cols-4 gap-1.25' aria-hidden='true'>
                       {Array.from({ length: 16 }, (_, index) => (
                         <span
                           key={index}
@@ -708,11 +714,11 @@ export default function ReceiveQRCode() {
                       ))}
                     </div>
                     <div role='status' aria-live='polite'>
-                      <Text medium>
+                      <Text medium wrap>
                         {shown === 'token' ? t('receive.gettingQuote') : t('receive.generatingInvoice')}
                       </Text>
                     </div>
-                    <Text small color='neutral-500'>
+                    <Text small color='neutral-500' wrap>
                       {generating
                         ? t('receive.requestingAmount', { amount: prettyNumber(satoshis, 0), unit: unitLabel })
                         : '\u00a0'}
