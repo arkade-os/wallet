@@ -131,6 +131,15 @@ both loops follow the server's cursor. Source: `fix/vtxo-paging-clamped-page` in
 Checked on the test network with a 506-payment wallet: before, the wallet restored to 19,775 sats; with the
 patch, to 89,800 sats and the full history, which is what the indexer holds.
 
+The same mistake sat in two more places, fixed by the second commit on that branch (`2eb346a3`) and carried
+by the same patch. Address discovery looked only at the newest 100 coins of each batch of candidate scripts,
+so a restore could report a funded address as unused. The exit data source, which exit estimates read
+through, returned the first 100 entries of a coin's chain; for one coin of that wallet the chain has 1,406.
+It now asks for the whole chain in one request, because the server orders a chain differently on every
+request and a paged walk of one loses entries. The wallet's own unilateral exit already read the chain that
+way and was not affected. Checked on the test network: 1,406 entries and all 1,011 transactions, where the
+unpatched SDK returned 100.
+
 It costs time, because the wallet now reads every page: that wallet takes about 13 s to restore instead of 6.
 Making that fast is the performance work that follows; showing the wrong balance quickly was not an option.
 
