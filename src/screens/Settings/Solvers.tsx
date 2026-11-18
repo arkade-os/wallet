@@ -266,8 +266,8 @@ function BundledCardLine({ input }: { input: LocalCardInput }) {
 
   return (
     <Shadow>
-      <Modal open={showInfo} onOpenChange={setShowInfo}>
-        <div role='dialog' aria-modal='true' style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+      <Modal label={t('solvers.cardInfo')} open={showInfo} onOpenChange={setShowInfo}>
+        <div style={{ maxHeight: '80vh', overflowY: 'auto' }}>
           <FlexCol gap='1rem'>
             <CardDetails input={input} network={(input.network ?? 'bitcoin') as Network} />
             <FlexRow centered>
@@ -329,11 +329,11 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
 
   return (
     <Shadow>
-      <Modal open={confirmRemove} onOpenChange={setConfirmRemove}>
+      <Modal label={t('solvers.confirmRemove')} open={confirmRemove} onOpenChange={setConfirmRemove}>
         {error ? (
           <ErrorMessage error={Boolean(error)} text={error} />
         ) : (
-          <div role='dialog' aria-modal='true'>
+          <div>
             <FlexCol gap='1.5rem'>
               <FlexCol centered gap='0.5rem'>
                 <Text big bold>
@@ -351,8 +351,8 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
           </div>
         )}
       </Modal>
-      <Modal open={showInfo} onOpenChange={setShowInfo}>
-        <div role='dialog' aria-modal='true' style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+      <Modal label={t('solvers.cardInfo')} open={showInfo} onOpenChange={setShowInfo}>
+        <div style={{ maxHeight: '80vh', overflowY: 'auto' }}>
           <FlexCol gap='1rem'>
             <CardDetails input={input} network={(input.network ?? 'bitcoin') as Network} />
             <FlexRow centered>

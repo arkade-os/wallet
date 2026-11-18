@@ -20,7 +20,7 @@ import { FiatContext } from '../../../providers/fiat'
 import { NotificationsContext } from '../../../providers/notifications'
 import { ToastProvider } from '../../../components/Toast'
 import { LanguageContext, translate } from '../../../providers/language'
-import { Language } from '../../../lib/types'
+import { Currencies, Language, Unit } from '../../../lib/types'
 import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
 
 // Mock qr module used by QrCode component
@@ -42,10 +42,30 @@ vi.mock('../../../lib/haptics', () => ({
   setHapticsEnabled: vi.fn(),
 }))
 
-// IonModal does not render in jsdom; keep the sheet's open/closed contract.
+// A stand-in for the drawer that keeps the sheet's contract: present only while open, a named
+// dialog, and closed by Escape.
 vi.mock('../../../components/SheetModal', () => ({
-  default: ({ isOpen, children }: { isOpen: boolean; children?: React.ReactNode }) =>
-    isOpen ? <div data-testid='sheet-modal'>{children}</div> : null,
+  default: ({
+    isOpen,
+    onClose,
+    labelledBy,
+    children,
+  }: {
+    isOpen: boolean
+    onClose: () => void
+    labelledBy?: string
+    children?: React.ReactNode
+  }) =>
+    isOpen ? (
+      <div
+        data-testid='sheet-modal'
+        role='dialog'
+        aria-labelledby={labelledBy}
+        onKeyDown={(event) => (event.key === 'Escape' ? onClose() : undefined)}
+      >
+        {children}
+      </div>
+    ) : null,
 }))
 vi.mock('../../../icons/CheckMark', () => ({ default: () => <span>MARKER-COPIED</span> }))
 vi.mock('../../../icons/Copy', () => ({ default: () => <span>MARKER-IDLE</span> }))
@@ -79,6 +99,7 @@ type RenderOverrides = {
   flow?: Partial<typeof mockFlowContextValue>
   wallet?: Partial<typeof mockWalletContextValue>
   config?: Partial<typeof mockConfigContextValue>
+  fiat?: Partial<typeof mockFiatContextValue>
   language?: Language
 }
 
@@ -86,6 +107,7 @@ function buildTree(overrides?: RenderOverrides) {
   const flow = { ...mockFlowContextValue, ...overrides?.flow }
   const wallet = { ...mockWalletContextValue, ...overrides?.wallet }
   const config = { ...mockConfigContextValue, ...overrides?.config }
+  const fiat = { ...mockFiatContextValue, ...overrides?.fiat }
 
   const language = overrides?.language ?? Language.English
 
@@ -97,7 +119,7 @@ function buildTree(overrides?: RenderOverrides) {
         <NavigationContext.Provider value={mockNavigationContextValue}>
           <AspContext.Provider value={mockAspContextValue}>
             <ConfigContext.Provider value={config as any}>
-              <FiatContext.Provider value={mockFiatContextValue as any}>
+              <FiatContext.Provider value={fiat as any}>
                 <NotificationsContext.Provider value={mockNotificationsContextValue as any}>
                   <FlowContext.Provider value={flow as any}>
                     <WalletContext.Provider value={wallet as any}>
@@ -137,6 +159,49 @@ const tapFixture = (addrs = { off: 'ark1testaddr', bd: 'bc1testaddr' }): RenderO
 describe('Receive QR Code screen', () => {
   beforeEach(() => {
     copyToClipboardMock.mockClear()
+  })
+
+  // The requested amount leads the screen. It has to be a figure the sender could act on.
+  describe('requested amount', () => {
+    const requested = (
+      settings: Partial<typeof mockConfigContextValue.config>,
+      fiat?: RenderOverrides['fiat'],
+    ): RenderOverrides => ({
+      flow: {
+        recvInfo: {
+          ...mockFlowContextValue.recvInfo,
+          satoshis: 10_000,
+          offchainAddr: 'ark1testaddr',
+          boardingAddr: 'bc1testaddr',
+        },
+      },
+      wallet: { svcWallet: mockSvcWallet as any },
+      config: { config: { ...mockConfigContextValue.config, ...settings } },
+      fiat,
+    })
+    const noRate = { toFiat: () => 0, fromFiat: () => 0 }
+
+    it('is shown in the display currency when there is a rate for it', async () => {
+      renderReceiveQrCode(requested({ currency: Currencies.EUR }))
+      expect(await screen.findByTestId('receive-amount')).toHaveTextContent('€10,000.00')
+    })
+
+    // Without a rate the fiat figure would read as zero for a request that is not zero.
+    it('falls back to the exact Bitcoin amount while the rate is unavailable', async () => {
+      renderReceiveQrCode(requested({ currency: Currencies.EUR, unit: Unit.BTC }, noRate))
+      const amount = await screen.findByTestId('receive-amount')
+      expect(amount).toHaveTextContent('0.00010000 BTC')
+      expect(amount).not.toHaveTextContent('€')
+    })
+
+    it('uses the Bitcoin unit the wallet is set to, exactly', async () => {
+      const { unmount } = renderReceiveQrCode(requested({ currency: Currencies.BTC, unit: Unit.BTC }))
+      expect(await screen.findByTestId('receive-amount')).toHaveTextContent('0.00010000 BTC')
+      unmount()
+
+      renderReceiveQrCode(requested({ currency: Currencies.BTC, unit: Unit.SATS }))
+      expect(await screen.findByTestId('receive-amount')).toHaveTextContent('10,000 sats')
+    })
   })
 
   // Regression for the switched-QR path. We can't drive the Copy sheet in
@@ -277,8 +342,14 @@ describe('Receive QR Code screen', () => {
     it('defaults to the unified URI when a Lightning invoice exists', async () => {
       renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
 
+      // Lightning is on offer, and the sheet is closed again before copying: the copy has to come
+      // from the screen a person would actually be looking at, not from under an open sheet.
       await openFormats()
-      await screen.findByText('Lightning')
+      expect(await screen.findByRole('radio', { name: /Unified/ })).toHaveAttribute('aria-checked', 'true')
+      expect(screen.getByRole('radio', { name: /Lightning/ })).toHaveAttribute('aria-checked', 'false')
+      fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
       const qrButton = await screen.findByRole('button', { name: 'Copy QR code' })
       await act(async () => {
         fireEvent.click(qrButton)
@@ -334,18 +405,25 @@ describe('Receive QR Code screen', () => {
     // the QR, so the QR painted over it and ate the taps — selecting looked like
     // it copied, because the tap landed on the QR button. jsdom does no layout,
     // so only the containment itself is assertable here.
-    it('renders the selector outside the QR stage, not stacked under it', async () => {
+    //
+    // The selector is now a row that opens a sheet. The row is what could be
+    // stacked under the QR, so the row is what is checked; the options live in a
+    // portal and could never be inside the stage.
+    it('renders the formats row outside the QR stage, not stacked under it', async () => {
       const { container } = renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
 
-      await openFormats()
-      await screen.findByText('Lightning')
+      const row = await screen.findByRole('button', { name: /Other formats/ })
       const stage = container.querySelector('.receive-invoice-stage')
       expect(stage).toBeInTheDocument()
-      expect(stage).not.toBeNull()
+      expect(stage?.contains(row)).toBe(false)
+      expect(stage?.contains(screen.getByRole('button', { name: 'Copy QR code' }))).toBe(true)
+
+      // Tapping it opens the formats and copies nothing, which is what a tap landing on the QR did.
+      await openFormats()
       for (const label of ['Unified', 'Lightning', 'Arkade', 'Bitcoin']) {
-        const option = screen.getByText(label)
-        expect(stage?.contains(option)).toBe(false)
+        expect(await screen.findByRole('radio', { name: new RegExp(label) })).toBeInTheDocument()
       }
+      expect(copyToClipboardMock).not.toHaveBeenCalled()
     })
 
     // The selector is part of a fully translated screen, so its labels have to

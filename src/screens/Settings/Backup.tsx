@@ -160,7 +160,7 @@ export default function Backup() {
   return (
     <>
       <Header text={t('settings.backup')} back />
-      <Modal open={dialog} onOpenChange={setDialog}>
+      <Modal label={secretLabel} open={dialog} onOpenChange={setDialog}>
         <Dialog />
       </Modal>
       <Content>

@@ -25,7 +25,14 @@ import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
 import SheetModal from '../../../components/SheetModal'
 import Text, { TextSecondary } from '../../../components/Text'
 import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard'
-import { prettyAmount, prettyFiatAmount, prettyLongText, prettyNumber, toSatoshis } from '../../../lib/format'
+import {
+  canConvertCurrency,
+  prettyBitcoinAmount,
+  prettyFiatAmount,
+  prettyLongText,
+  prettyNumber,
+  toSatoshis,
+} from '../../../lib/format'
 import CopyIcon from '../../../icons/Copy'
 import CheckMarkIcon from '../../../icons/CheckMark'
 import { hapticSubtle } from '../../../lib/haptics'
@@ -447,14 +454,39 @@ export default function ReceiveQRCode() {
     setShowFormats(false)
   }
 
+  // One radio group: arrows move through formats and tokens alike and select as they go, the way
+  // native radios do. The sheet stays open until a row is clicked or confirmed with Enter or Space.
+  const formatIds = [...segments, ...tokenMethods].map((m) => m.id)
+  const formatStop = formatIds.includes(activeMethod) ? activeMethod : formatIds[0]
+  const handleFormatsKey = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const radios = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("[role='radio']"))
+    const at = radios.indexOf(document.activeElement as HTMLButtonElement)
+    if (at < 0) return
+    const to =
+      event.key === 'ArrowDown' || event.key === 'ArrowRight'
+        ? (at + 1) % radios.length
+        : event.key === 'ArrowUp' || event.key === 'ArrowLeft'
+          ? (at - 1 + radios.length) % radios.length
+          : event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+              ? radios.length - 1
+              : -1
+    if (to < 0) return
+    event.preventDefault()
+    radios[to].focus()
+    handleMethodChange(radios[to].dataset.format ?? '')
+  }
+
   const defaultMethod = segments[0]?.id ?? ''
-  // The requested amount leads the screen, in the unit the wallet is set to show.
+  // The requested amount leads the screen, in the unit the wallet is set to show. Without a rate
+  // there is no honest fiat figure, so it falls back to the exact Bitcoin amount.
   const amountFigure =
     assetMeta || satoshis <= 0
       ? ''
-      : useFiat
+      : canConvertCurrency(config.currency, toFiat, fromFiat)
         ? prettyFiatAmount(toFiat(satoshis), config.currency)
-        : prettyAmount(satoshis)
+        : prettyBitcoinAmount(satoshis, config.unit)
 
   // Mobile keyboard — bypass sheet on save, go straight to QR
   if (showKeys) {
@@ -653,18 +685,25 @@ export default function ReceiveQRCode() {
         </FlexCol>
       </SheetModal>
 
-      <SheetModal isOpen={showFormats} onClose={() => setShowFormats(false)}>
+      <SheetModal isOpen={showFormats} onClose={() => setShowFormats(false)} labelledBy='receive-formats-title'>
         <div className='formats'>
           <h2 className='formats__title' id='receive-formats-title'>
             {t('receive.otherFormats')}
           </h2>
           <p className='formats__intro'>{t('receive.otherFormatsIntro')}</p>
-          <div role='radiogroup' aria-labelledby='receive-formats-title' className='formats__groups'>
+          <div
+            role='radiogroup'
+            aria-labelledby='receive-formats-title'
+            className='formats__groups'
+            onKeyDown={handleFormatsKey}
+          >
             <div className='formats__group'>
               {segments.map((m) => (
                 <FormatRow
                   key={m.id}
+                  id={m.id}
                   checked={m.id === activeMethod}
+                  tabStop={m.id === formatStop}
                   icon={<Glyph name={FORMAT_GLYPHS[m.id] ?? 'scan'} size={18} />}
                   title={m.label}
                   badge={m.id === defaultMethod ? t('receive.formatDefault') : undefined}
@@ -685,7 +724,9 @@ export default function ReceiveQRCode() {
                     return (
                       <FormatRow
                         key={m.id}
+                        id={m.id}
                         checked={m.id === activeMethod}
+                        tabStop={m.id === formatStop}
                         icon={rail ? <span className='flex size-5'>{railLogo(rail, 'var(--bg)')}</span> : null}
                         title={m.label}
                         onPick={() => pickFormat(m.id)}
@@ -726,14 +767,19 @@ export default function ReceiveQRCode() {
 }
 
 function FormatRow({
+  id,
   checked,
+  tabStop,
   icon,
   title,
   badge,
   sub,
   onPick,
 }: {
+  id: string
   checked: boolean
+  /** The one row Tab lands on; arrows reach the rest. */
+  tabStop: boolean
   icon: React.ReactNode
   title: string
   badge?: string
@@ -741,7 +787,15 @@ function FormatRow({
   onPick: () => void
 }) {
   return (
-    <button type='button' role='radio' aria-checked={checked} className='formats__row' onClick={onPick}>
+    <button
+      type='button'
+      role='radio'
+      aria-checked={checked}
+      tabIndex={tabStop ? 0 : -1}
+      data-format={id}
+      className='formats__row'
+      onClick={onPick}
+    >
       <span className='formats__well' aria-hidden='true'>
         {icon}
       </span>

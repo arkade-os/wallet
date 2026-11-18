@@ -100,6 +100,19 @@ const BOOT_PAGES = new Set([Pages.Init, Pages.InitConnect, Pages.Loading, Pages.
 // Lets us distinguish back-button presses (animate) from swipe gestures (no animation)
 export const isButtonBack = { current: false }
 
+// Open sheets and dialogs register a close function here. Back closes the one on top and stays on
+// the screen, which is what Back means everywhere else on a phone.
+export const backLayers: (() => void)[] = []
+
+/** Registers an open layer; returns the function that removes it. */
+export const holdBackLayer = (close: () => void) => {
+  backLayers.push(close)
+  return () => {
+    const at = backLayers.lastIndexOf(close)
+    if (at >= 0) backLayers.splice(at, 1)
+  }
+}
+
 // Coordination point for sub-navigation (e.g., Settings options)
 export const subNavHandler = {
   canGoBack: () => false as boolean,
@@ -226,6 +239,14 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
 
     if (skipNextPopstate.current) {
       skipNextPopstate.current = false
+      return
+    }
+
+    // The entry the browser just left is put back, so the screen and its history stay in step.
+    const layer = backLayers[backLayers.length - 1]
+    if (layer) {
+      history.pushState({}, '', '')
+      layer()
       return
     }
 

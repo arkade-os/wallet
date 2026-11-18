@@ -7,7 +7,7 @@ import { FlowContext } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import { AspContext } from '../../../providers/asp'
 import { WalletContext } from '../../../providers/wallet'
-import { NavigationContext } from '../../../providers/navigation'
+import { backLayers, NavigationContext } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { NotificationsContext } from '../../../providers/notifications'
@@ -266,6 +266,58 @@ describe('Receive screen, rail composition', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy QR code' })))
 
     expect(copyToClipboard.mock.calls.at(-1)![0]).toBe('alice@lnurl.test')
+  })
+
+  // The formats sheet is a named dialog holding one radio group, and it behaves like both.
+  it('names the formats sheet and moves the selection with the arrow keys', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    renderReceive()
+    await screen.findByText('alice@lnurl.test')
+
+    const group = await openFormats()
+    expect(screen.getByRole('dialog', { name: 'Other formats' })).toContainElement(group)
+    const radios = within(group).getAllByRole('radio')
+    const labels = radios.map((radio) => radio.textContent)
+    expect(labels.length).toBeGreaterThan(2)
+    // One tab stop, on the checked format; arrows reach the rest.
+    expect(radios.map((radio) => radio.tabIndex)).toEqual(radios.map((_, i) => (i === 0 ? 0 : -1)))
+    expect(radios[0]).toHaveAttribute('aria-checked', 'true')
+
+    radios[0].focus()
+    fireEvent.keyDown(radios[0], { key: 'ArrowDown' })
+    expect(radios[1]).toHaveFocus()
+    expect(radios[1]).toHaveAttribute('aria-checked', 'true')
+    expect(radios[0]).toHaveAttribute('aria-checked', 'false')
+    expect(radios[1].tabIndex).toBe(0)
+
+    fireEvent.keyDown(radios[1], { key: 'ArrowUp' })
+    fireEvent.keyDown(radios[0], { key: 'ArrowUp' })
+    expect(radios.at(-1)).toHaveFocus()
+    expect(radios.at(-1)).toHaveAttribute('aria-checked', 'true')
+
+    fireEvent.keyDown(radios.at(-1)!, { key: 'Home' })
+    expect(radios[0]).toHaveFocus()
+    expect(radios[0]).toHaveAttribute('aria-checked', 'true')
+
+    // Arrowing through the formats does not close the sheet; choosing one does.
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    fireEvent.click(radios[1])
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('closes the formats sheet on Back and stays on Receive', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    renderReceive()
+    await screen.findByText('alice@lnurl.test')
+    await openFormats()
+
+    // What the navigation provider calls when Back arrives while a sheet is open.
+    expect(backLayers).toHaveLength(1)
+    act(() => backLayers[0]())
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(backLayers).toHaveLength(0)
+    expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeInTheDocument()
   })
 
   it('shows the lightning address on Unified and Lightning only, and copies it on tap', async () => {

@@ -111,7 +111,7 @@ export default function Announcement({
   }
 
   return (
-    <Modal open={open} onOpenChange={setOpen} onExitComplete={close}>
+    <Modal label={title} open={open} onOpenChange={setOpen} onExitComplete={close}>
       <div style={{ maxHeight: '85vh', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         {/* Note: the negative margin on the container is to offset the negative margin top of PrettyIcon class.*/}
         <div

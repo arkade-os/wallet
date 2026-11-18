@@ -1,30 +1,54 @@
 import { useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { EASE_OUT_QUINT_TUPLE } from '../lib/animations'
+import { holdBackLayer } from '../providers/navigation'
 
 interface ModalProps {
+  /** Accessible name of the dialog. */
+  label?: string
   children: React.ReactNode
   open?: boolean
   onOpenChange?: (open: boolean) => void
   onExitComplete?: () => void
 }
 
-export default function Modal({ children, open = true, onOpenChange, onExitComplete }: ModalProps) {
+export default function Modal({ label, children, open = true, onOpenChange, onExitComplete }: ModalProps) {
   const panel = useRef<HTMLDivElement>(null)
   const close = useRef(onOpenChange)
   close.current = onOpenChange
 
   useEffect(() => {
     if (!open) return
-    panel.current?.focus({ preventScroll: true })
-    // Escape closes the dialog, and focus returns to whatever opened it.
+    // Taken before focus moves into the panel, or there is nothing to return it to.
     const opener = document.activeElement as HTMLElement | null
+    panel.current?.focus({ preventScroll: true })
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close.current?.(false)
+      if (event.key === 'Escape') return close.current?.(false)
+      if (event.key !== 'Tab' || !panel.current) return
+      // Tab stays inside the dialog while it is open.
+      const stops = Array.from(
+        panel.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      )
+      if (!stops.length) return event.preventDefault()
+      const first = stops[0]
+      const last = stops[stops.length - 1]
+      const active = document.activeElement
+      if (event.shiftKey && (active === first || active === panel.current)) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault()
+        first.focus()
+      }
     }
     document.addEventListener('keydown', onKey)
+    // Back closes the dialog instead of leaving the screen underneath it.
+    const release = holdBackLayer(() => close.current?.(false))
     return () => {
       document.removeEventListener('keydown', onKey)
+      release()
       opener?.focus?.()
     }
   }, [open])
@@ -66,6 +90,7 @@ export default function Modal({ children, open = true, onOpenChange, onExitCompl
           <div
             role='dialog'
             aria-modal='true'
+            aria-label={label}
             data-modal-layer=''
             tabIndex={-1}
             ref={panel}

@@ -102,7 +102,12 @@ export default function AppAssetReissue() {
   return (
     <>
       <Header text={t('mint.reissueTitle', { ticker: ticker || name })} back />
-      <Modal open={showConfirm} onOpenChange={setShowConfirm} onExitComplete={handleConfirmExitComplete}>
+      <Modal
+        label={t('mint.confirmReissue')}
+        open={showConfirm}
+        onOpenChange={setShowConfirm}
+        onExitComplete={handleConfirmExitComplete}
+      >
         <FlexCol gap='1.5rem'>
           <FlexCol centered gap='0.5rem'>
             <Text big bold>
