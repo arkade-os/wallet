@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
@@ -9,9 +9,6 @@ import FlexCol from '../../components/FlexCol'
 import { OnboardStaggerChild } from '../../components/OnboardLoadIn'
 import { onboardStaggerContainer, EASE_OUT_QUINT_TUPLE } from '../../lib/animations'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
-import OnboardingLogo from '../../components/OnboardingLogo'
-import PixelSunrise from '../../components/PixelSunrise'
-import SmallLogo from '../../components/SmallLogo'
 import { copyToClipboard } from '../../lib/clipboard'
 import CopyIcon from '../../icons/Copy'
 import CheckMarkIcon from '../../icons/CheckMark'
@@ -88,23 +85,14 @@ export default function InAppBrowser() {
   const prefersReduced = useReducedMotion()
   const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
-  const [contentReady, setContentReady] = useState(prefersReduced)
-  const [sunriseVisible, setSunriseVisible] = useState(prefersReduced)
-  const logoTargetRef = useRef<HTMLDivElement>(null)
+  // No brand animation to wait for: the instructions are the first thing shown.
+  const contentReady = true
   const copyTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     return () => {
       if (copyTimeout.current) clearTimeout(copyTimeout.current)
     }
-  }, [])
-
-  const handleFlyStart = useCallback(() => {
-    setSunriseVisible(true)
-  }, [])
-
-  const handleLogoComplete = useCallback(() => {
-    setContentReady(true)
   }, [])
 
   const handleCopy = async () => {
@@ -115,24 +103,8 @@ export default function InAppBrowser() {
     copyTimeout.current = setTimeout(() => setCopied(false), 2000)
   }
 
-  const titleStyle = {
-    margin: 0,
-    fontFamily: 'var(--heading-font)',
-    fontSize: '24px',
-    fontWeight: 500,
-    letterSpacing: '-0.5px',
-    lineHeight: '1.2',
-  }
-
   return (
     <>
-      <OnboardingLogo
-        targetRef={logoTargetRef}
-        onComplete={handleLogoComplete}
-        onFlyStart={handleFlyStart}
-        reducedMotion={prefersReduced}
-      />
-      <PixelSunrise show={sunriseVisible} reducedMotion={prefersReduced} />
       <Content>
         <Padded>
           <FlexCol between>
@@ -155,19 +127,6 @@ export default function InAppBrowser() {
                   padding: '0 0 1.5rem 0',
                 }}
               >
-                <div
-                  ref={logoTargetRef}
-                  style={{
-                    width: 40,
-                    height: 28,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  {contentReady ? <SmallLogo /> : null}
-                </div>
                 <motion.div
                   initial={prefersReduced ? false : { opacity: 0, y: 6 }}
                   animate={
@@ -179,7 +138,7 @@ export default function InAppBrowser() {
                   }
                   transition={{ duration: 0.3, ease: EASE_OUT_QUINT_TUPLE }}
                 >
-                  <h1 style={{ ...titleStyle, paddingLeft: 4 }}>{t('browser.welcome')}</h1>
+                  <h1 className='onboard__title'>{t('browser.welcome')}</h1>
                   <Text color='neutral-500' thin wrap>
                     {t('browser.notSupported')}
                   </Text>

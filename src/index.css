@@ -4380,6 +4380,7 @@ button.sheet-page__scrim {
   text-align: center;
 }
 
+.success-mark,
 .success-sheet__mark {
   display: inline-flex;
   width: 3.5rem;
@@ -4392,6 +4393,7 @@ button.sheet-page__scrim {
   color: var(--brand-text);
 }
 
+.success-mark path,
 .success-sheet__mark path {
   stroke: currentColor;
   stroke-width: 2.25;
@@ -4432,6 +4434,7 @@ button.sheet-page__scrim {
 @media (prefers-reduced-motion: reduce) {
   .sheet-page__sheet,
   .sheet-page__scrim,
+  .success-mark path,
   .success-sheet__mark path {
     animation: none;
   }
@@ -4800,4 +4803,195 @@ html.palette-dark [data-slot='drawer-content'][data-vaul-drawer-direction='botto
 
 html.palette-dark [data-slot='drawer-content'][data-vaul-drawer-direction='bottom'] > div:first-child {
   background: var(--ink-4);
+}
+
+/* ── Boot and waiting ────────────────────────────────────── */
+
+.boot {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  color: var(--brand-text);
+  pointer-events: none;
+}
+
+.boot--cover {
+  background: var(--bg);
+  transition: opacity 200ms var(--ease-out);
+}
+
+.boot--leaving {
+  opacity: 0;
+}
+
+.boot__loader {
+  display: flex;
+  width: 3.5rem;
+  height: 3.5rem;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.boot__loader .pixel-loader {
+  transform: scale(1.75);
+}
+
+.boot__commit {
+  position: absolute;
+  right: 0;
+  bottom: 1rem;
+  left: 0;
+  color: var(--ink-4);
+  font-size: 0.65rem;
+  text-align: center;
+}
+
+/* ── Onboarding ──────────────────────────────────────────── */
+
+.onboard {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  padding-bottom: 2rem;
+}
+
+.onboard__title {
+  margin: 0 0 1.25rem;
+  color: var(--fg);
+  font-family: var(--font-family-heading);
+  font-size: clamp(2rem, 10vw, 2.75rem);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+
+.onboard__point {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.5rem 0;
+}
+
+.onboard__point p {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.success-mark {
+  margin-bottom: 0;
+}
+
+.success-mark--small {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+/* ── Inline problems ─────────────────────────────────────── */
+
+:root {
+  --danger: var(--red-700);
+  --danger-tint: var(--red-50);
+}
+
+html.palette-dark {
+  --danger: #ff9b93;
+  --danger-tint: #33191a;
+}
+
+.error-note {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 0.625rem;
+  border-radius: 1rem;
+  background: var(--danger-tint);
+  padding: 0.75rem 0.875rem;
+  color: var(--danger);
+}
+
+.error-note svg {
+  flex: none;
+  margin-top: 0.0625rem;
+}
+
+.error-note p {
+  min-width: 0;
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+/* ── Settings: flat groups on the surface colour ─────────── */
+
+.settings-row-group {
+  border-radius: 1.25rem;
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.settings-row-group--plain {
+  background: transparent;
+}
+
+.settings-row {
+  border-top: 1px solid var(--hairline);
+  padding-inline: 0.875rem;
+}
+
+.settings-row:active {
+  background: color-mix(in srgb, var(--fg) 4%, transparent);
+  transform: none;
+}
+
+.settings-row:focus-visible {
+  outline: 2px solid var(--brand-text);
+  outline-offset: -2px;
+  background: transparent;
+}
+
+.settings-row__icon {
+  background: var(--bg);
+  box-shadow: none;
+  color: var(--fg);
+}
+
+html.palette-dark .settings-row__icon {
+  background: var(--surface-strong);
+}
+
+.settings-row__label {
+  font-weight: 500;
+}
+
+.settings-row__text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
+  text-align: left;
+}
+
+.settings-row__hint {
+  color: var(--ink-3);
+  font-size: 0.875rem;
+  line-height: 1.3;
+}
+
+.settings-section-label {
+  color: var(--ink-3);
+  font-weight: 500;
 }

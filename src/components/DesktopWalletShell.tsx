@@ -1,11 +1,9 @@
-import { useCallback, useContext } from 'react'
+import { useContext } from 'react'
 import { useTranslation } from '../providers/language'
-import SmallLogo from './SmallLogo'
 import HomeIcon from '../icons/Home'
 import HistoryIcon from '../icons/History'
 import SettingsIcon from '../icons/Settings'
 import { hapticLight } from '../lib/haptics'
-import { setDesktopLogoAnchor } from '../lib/logoAnchor'
 import { SettingsOptions } from '../lib/types'
 import { NavigationContext, Pages } from '../providers/navigation'
 import { OptionsContext } from '../providers/options'
@@ -19,7 +17,6 @@ export default function DesktopWalletShell({ logoVisible, page }: DesktopWalletS
   const { navigate } = useContext(NavigationContext)
   const { setOption } = useContext(OptionsContext)
 
-  const logoRef = useCallback((element: HTMLDivElement | null) => setDesktopLogoAnchor(element), [])
   const { t } = useTranslation()
 
   const activityActive = page === Pages.Activity || page === Pages.Transaction
@@ -45,9 +42,6 @@ export default function DesktopWalletShell({ logoVisible, page }: DesktopWalletS
   return (
     <aside className='desktop-wallet-shell' aria-label='Wallet navigation'>
       <div className='desktop-wallet-brand' style={{ visibility: logoVisible ? 'visible' : 'hidden' }}>
-        <div ref={logoRef} className='desktop-wallet-brand__mark'>
-          <SmallLogo />
-        </div>
         <span>Arkade</span>
       </div>
       <nav className='desktop-wallet-nav' aria-label='Primary navigation'>

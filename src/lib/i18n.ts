@@ -501,7 +501,7 @@ export const translations = {
       missingTotalAmount: 'Missing total amount',
       onTheWay: '{amount} on the way',
       onTheWayKeepOpen: '{amount} on the way — keep the wallet open until it completes',
-      partialSendError: "You don't have enough bitcoin to do a partial send. Please send all or acquire some bitcoin.",
+      partialSendError: "You don't have enough Bitcoin to do a partial send. Please send all or acquire some Bitcoin.",
       payingInsideArkade: 'Paying inside Arkade',
       payingToLightning: 'Paying to Lightning',
       payingToMainnet: 'Paying to mainnet',
@@ -689,7 +689,7 @@ export const translations = {
       noAssetsMatch: 'No assets match this search',
       pairUnavailable: 'Swap unavailable for this pair',
       partialSwapNeedsBtc:
-        "You don't have enough bitcoin to do a partial swap. Please swap all or acquire some bitcoin.",
+        "You don't have enough Bitcoin to do a partial swap. Please swap all or acquire some Bitcoin.",
       pending: 'Pending',
       pickAssetForSide: 'Pick the asset for this side of the swap.',
       quoteUnavailable: 'Quote unavailable',
@@ -816,7 +816,7 @@ export const translations = {
     },
     upsells: {
       buySellDescription: 'Use a bank transfer in CHF or EUR via SEPA.',
-      buySellTitle: 'Buy or sell bitcoin',
+      buySellTitle: 'Buy or sell Bitcoin',
       title: 'Do more with your money',
     },
     vtxos: {
@@ -1690,7 +1690,7 @@ export const translations = {
     },
     upsells: {
       buySellDescription: 'Usa una transferencia bancaria en CHF o EUR vía SEPA.',
-      buySellTitle: 'Comprar o vender bitcoin',
+      buySellTitle: 'Comprar o vender Bitcoin',
       title: 'Haz más con tu dinero',
     },
     vtxos: {
@@ -2560,7 +2560,7 @@ export const translations = {
     },
     upsells: {
       buySellDescription: 'Use uma transferência bancária em CHF ou EUR via SEPA.',
-      buySellTitle: 'Comprar ou vender bitcoin',
+      buySellTitle: 'Comprar ou vender Bitcoin',
       title: 'Faça mais com seu dinheiro',
     },
     vtxos: {

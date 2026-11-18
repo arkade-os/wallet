@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { EASE_OUT_QUINT_TUPLE } from '../lib/animations'
 
@@ -10,18 +10,22 @@ interface ModalProps {
 }
 
 export default function Modal({ children, open = true, onOpenChange, onExitComplete }: ModalProps) {
+  const panel = useRef<HTMLDivElement>(null)
+  const close = useRef(onOpenChange)
+  close.current = onOpenChange
+
   useEffect(() => {
     if (!open) return
-    const rolesToBlur = ['banner', 'main', 'tablist']
-    for (const role of rolesToBlur) {
-      const element = document.querySelector(`[role="${role}"]`) as HTMLElement
-      if (element) element.style.filter = 'blur(10px)'
+    panel.current?.focus({ preventScroll: true })
+    // Escape closes the dialog, and focus returns to whatever opened it.
+    const opener = document.activeElement as HTMLElement | null
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close.current?.(false)
     }
+    document.addEventListener('keydown', onKey)
     return () => {
-      for (const role of rolesToBlur) {
-        const element = document.querySelector(`[role="${role}"]`) as HTMLElement
-        if (element) element.style.filter = 'none'
-      }
+      document.removeEventListener('keydown', onKey)
+      opener?.focus?.()
     }
   }, [open])
 
@@ -39,7 +43,7 @@ export default function Modal({ children, open = true, onOpenChange, onExitCompl
             position: 'fixed',
             inset: 0,
             zIndex: 50,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backgroundColor: 'var(--scrim)',
           }}
         />
       ) : null}
@@ -60,11 +64,16 @@ export default function Modal({ children, open = true, onOpenChange, onExitCompl
           }}
         >
           <div
+            role='dialog'
+            aria-modal='true'
+            tabIndex={-1}
+            ref={panel}
             style={{
               padding: '1.5rem',
-              borderRadius: '0.75rem',
-              border: '1px solid var(--neutral-100)',
-              backgroundColor: 'var(--background-color)',
+              borderRadius: '1.75rem',
+              backgroundColor: 'var(--sheet-bg)',
+              color: 'var(--fg)',
+              outline: 'none',
             }}
           >
             {children}
