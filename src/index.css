@@ -4861,7 +4861,7 @@ html.palette-dark [data-slot='drawer-content'][data-vaul-drawer-direction='botto
   flex-direction: column;
   justify-content: flex-end;
   gap: 0.25rem;
-  padding-bottom: 2rem;
+  padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
 }
 
 .onboard__title {
@@ -4873,20 +4873,6 @@ html.palette-dark [data-slot='drawer-content'][data-vaul-drawer-direction='botto
   letter-spacing: -0.04em;
   line-height: 1.05;
   text-wrap: balance;
-}
-
-.onboard__point {
-  display: flex;
-  align-items: center;
-  gap: 0.875rem;
-  padding: 0.5rem 0;
-}
-
-.onboard__point p {
-  margin: 0;
-  color: var(--ink-2);
-  font-size: 1rem;
-  line-height: 1.35;
 }
 
 .success-mark {
@@ -5031,10 +5017,6 @@ html.palette-dark .table--receipt .table-row {
   background: transparent;
 }
 
-.onboard__point svg {
-  flex: none;
-}
-
 .receive-invoice-loader {
   display: flex;
   width: 3.5rem;
@@ -5047,4 +5029,81 @@ html.palette-dark .table--receipt .table-row {
 
 .receive-invoice-loader .pixel-loader {
   transform: scale(1.75);
+}
+
+/* Onboarding: two ways in, each saying what it needs */
+
+.onboard__choices {
+  overflow: hidden;
+  border-radius: 1.25rem;
+  background: var(--surface);
+  padding: 0 0.875rem;
+}
+
+.onboard__choice {
+  display: flex;
+  width: 100%;
+  min-height: 4.25rem;
+  cursor: pointer;
+  align-items: center;
+  gap: 0.75rem;
+  border: 0;
+  background: none;
+  padding: 0.75rem 0;
+  color: var(--fg);
+  text-align: left;
+  transition: opacity 160ms var(--ease-out);
+}
+
+.onboard__choice + .onboard__choice {
+  border-top: 1px solid var(--hairline);
+}
+
+.onboard__choice:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.onboard__choice:focus-visible {
+  border-radius: 0.5rem;
+  outline: 2px solid var(--brand-text);
+  outline-offset: 2px;
+}
+
+.onboard__choice-well {
+  display: flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--bg);
+}
+
+html.palette-dark .onboard__choice-well {
+  background: var(--surface-strong);
+}
+
+.onboard__choice-text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.onboard__choice-title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.onboard__choice-hint {
+  color: var(--ink-3);
+  font-size: 0.875rem;
+  line-height: 1.3;
+}
+
+.onboard .error-note {
+  margin-top: 0.75rem;
 }

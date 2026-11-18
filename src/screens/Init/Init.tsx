@@ -3,7 +3,6 @@ import { generateMnemonic } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import type { ServiceWorkerWalletMode } from '@arkade-os/sdk'
 import Button from '../../components/Button'
-import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { AspContext } from '../../providers/asp'
 import { aspErrorText } from '../../lib/asp'
@@ -23,14 +22,36 @@ import { WalletContext } from '../../providers/wallet'
 import { DevModeContext } from '../../providers/devMode'
 import Toggle from '../../components/Toggle'
 import { useTranslation } from '../../providers/language'
-import { GlyphWell, type GlyphName } from '../../icons/Glyph'
+import Glyph, { type GlyphName } from '../../icons/Glyph'
+import { hapticSubtle } from '../../lib/haptics'
 
-function BulletPoint({ icon, text }: { icon: GlyphName; text: string }) {
+/** One way into the wallet: what it is, and the one thing to know before tapping. */
+function Choice({
+  icon,
+  title,
+  hint,
+  disabled,
+  onClick,
+  testId,
+}: {
+  icon: GlyphName
+  title: string
+  hint: string
+  disabled: boolean
+  onClick: () => void
+  testId: string
+}) {
   return (
-    <div className='onboard__point'>
-      <GlyphWell name={icon} />
-      <p>{text}</p>
-    </div>
+    <button type='button' className='onboard__choice' disabled={disabled} onClick={onClick} data-testid={testId}>
+      <span className='onboard__choice-well' aria-hidden='true'>
+        <Glyph name={icon} size={18} />
+      </span>
+      <span className='onboard__choice-text'>
+        <span className='onboard__choice-title'>{title}</span>
+        <span className='onboard__choice-hint'>{hint}</span>
+      </span>
+      <Glyph name='chevronRight' size={16} strokeWidth={2.25} className='text-ink-3' />
+    </button>
   )
 }
 
@@ -44,7 +65,6 @@ export default function Init() {
   const prefersReduced = useReducedMotion()
   const { t } = useTranslation()
   const [error, setError] = useState(false)
-  const [showOptions, setShowOptions] = useState(false)
   const [showCreateOptions, setShowCreateOptions] = useState(false)
   const [hdRotation, setHdRotation] = useState(false)
 
@@ -72,6 +92,12 @@ export default function Init() {
   const handleOldWallet = () => navigate(Pages.InitRestore)
 
   const stagger = prefersReduced ? undefined : onboardStaggerContainer
+  // Nothing can be created or restored until the Arkade server has answered.
+  const blocked = error || !aspReady
+  const choose = (action: () => void) => () => {
+    hapticSubtle()
+    action()
+  }
 
   return (
     <>
@@ -84,19 +110,30 @@ export default function Init() {
             animate={prefersReduced ? undefined : 'animate'}
           >
             <OnboardStaggerChild>
-              {/* Triple-tap the welcome heading to toggle devMode (hidden gesture) */}
+              {/* Triple-tap the heading to toggle devMode (hidden gesture) */}
               <h1 className='onboard__title' onClick={handleTap} data-testid='onboarding-devmode-tap'>
-                {t('browser.welcome')}
+                {t('init.setUpWallet')}
               </h1>
             </OnboardStaggerChild>
             <OnboardStaggerChild>
-              <BulletPoint icon='bolt' text={t('init.tagline1')} />
-            </OnboardStaggerChild>
-            <OnboardStaggerChild>
-              <BulletPoint icon='globe' text={t('init.tagline2')} />
-            </OnboardStaggerChild>
-            <OnboardStaggerChild>
-              <BulletPoint icon='shield' text={t('init.tagline3')} />
+              <div className='onboard__choices'>
+                <Choice
+                  icon='plus'
+                  title={t('init.createChoice')}
+                  hint={t('init.createChoiceHint')}
+                  disabled={blocked}
+                  onClick={choose(handleNewWallet)}
+                  testId='onboarding-create'
+                />
+                <Choice
+                  icon='restore'
+                  title={t('init.restoreChoice')}
+                  hint={t('init.restoreChoiceHint')}
+                  disabled={blocked}
+                  onClick={choose(handleOldWallet)}
+                  testId='onboarding-restore'
+                />
+              </div>
             </OnboardStaggerChild>
             <OnboardStaggerChild>
               <ErrorMessage
@@ -107,21 +144,6 @@ export default function Init() {
           </motion.div>
         </Padded>
       </Content>
-      <ButtonsOnBottom>
-        <Button disabled={error || !aspReady} onClick={handleNewWallet} label={`+ ${t('init.createWallet')}`} />
-        <Button
-          disabled={error || !aspReady}
-          onClick={() => setShowOptions(true)}
-          label={t('init.otherLoginOptions')}
-          clear
-        />
-      </ButtonsOnBottom>
-      <SheetModal isOpen={showOptions} onClose={() => setShowOptions(false)}>
-        <FlexCol gap='1rem'>
-          <Text>{t('init.otherLoginOptions')}</Text>
-          <Button fancy disabled={error} onClick={handleOldWallet} label={t('init.restoreWallet')} secondary />
-        </FlexCol>
-      </SheetModal>
       <SheetModal isOpen={showCreateOptions} onClose={() => setShowCreateOptions(false)}>
         <FlexCol gap='1rem'>
           <Text>{t('init.createWallet')}</Text>

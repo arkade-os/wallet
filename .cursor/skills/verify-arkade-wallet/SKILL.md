@@ -73,8 +73,9 @@ Handles are stable ones from this repo, in this order of preference:
 - `data-testid`: `home-action-receive`, `home-action-send`, `home-action-scan`, `home-action-swap`,
   `top-right-settings`, `activity-view-all`, `header-back-btn`, `header-title-<screen-name>`,
   `receive-formats`, `receive-amount`, `keyboard-0`…`keyboard-9`, `save-amount`, `success-sheet`,
-  `settings-buy-sell`, `select-option-<n>`, `desktop-nav-home|activity|settings`, `onboarding-devmode-tap`.
-- Roles and names: `button "+ Create wallet"`, `button "Copy QR code"`, `button "Add amount"` / `"Edit amount"`,
+  `settings-buy-sell`, `select-option-<n>`, `desktop-nav-home|activity|settings`, `onboarding-create`,
+  `onboarding-restore`, `onboarding-devmode-tap`.
+- Roles and names: `button "Copy QR code"`, `button "Add amount"` / `"Edit amount"`,
   `button "Tap to Sign"`, `button "Sounds good"`, `radiogroup` with `radio` rows in the formats sheet.
 - Field names: `[name="send-address"]`, `[name="send-amount"]`.
 

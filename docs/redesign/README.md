@@ -45,7 +45,8 @@ sender's wallet asks for it. Copy and Share are unchanged.
 
 **Everything else.** Every drawer is a floating panel on a scrim. `Modal` is a real dialog with Escape and
 focus return, and an open sheet takes Escape before the app goes Home. Inline errors are a tinted note with
-`role="alert"`. Boot and onboarding carry no logo or intro animation. Settings groups sit flat and gain a Buy
+`role="alert"`. Boot and onboarding carry no logo or intro animation, and onboarding is two
+explained choices, Create and Restore, with Restore on the screen instead of behind a sheet. Settings groups sit flat and gain a Buy
 or sell row, which replaces the Home promotion. Receipts are plain rows. Charts use the one accent.
 
 **Motion.** Screens drill sideways. Send, Receive and Scan rise as covers on a spring while Home recedes.
@@ -65,10 +66,11 @@ Product strings were kept unless listed here.
 | New on Home and keypad: `this month`, `Available`, `Max`, `More than your balance`, `Close` | New controls need names |
 | `Buy or sell bitcoin` → `Buy or sell Bitcoin`, and Bitcoin capitalised in two error strings | House rule |
 | Portuguese `lnurlReceivedAt` / `lnurlSentTo` now include `{address}` | They dropped it; a bug fix |
-| `Welcome to Arkade` loses its emoji (en, es, pt) | Asked for |
+| `Welcome to Arkade` loses its emoji (en, es, pt); it now shows only on the in-app-browser screen | Asked for |
+| Onboarding is `Set up your wallet` with two choices: `Create a new wallet` / `No account needed` and `Restore a wallet` / `With your recovery phrase or private key`. The three taglines and `Other login options` are removed | Chosen direction for a more direct welcome |
 | Removed: `receive.backToMethod`, `upsells.title`, `wallet.viewRecentActivity` | No longer shown |
 
-Left alone and worth a decision: `+ Create wallet`, `Tap to Sign`, `Sounds good`,
+Left alone and worth a decision: `Tap to Sign`, `Sounds good`,
 `No password, YOLO`, and `Unified` as the default format's name.
 
 ## Checked

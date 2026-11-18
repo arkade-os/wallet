@@ -6,8 +6,7 @@ const tr = translations.en
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
-  await page.getByText(tr.init.otherLoginOptions).click()
-  await page.getByText(tr.init.restoreWallet).click()
+  await page.getByTestId('onboarding-restore').click()
 })
 
 test('suggests recovery words without rewriting typed prefixes or showing premature errors', async ({ page }) => {

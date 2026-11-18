@@ -147,8 +147,8 @@ describe('App startup routing', () => {
     renderApp({ authState: 'authenticated', initialized: true })
 
     await waitFor(() => expect(screen.getByTestId('app')).toBeInTheDocument())
-    expect(screen.queryByText(/Welcome to Arkade/i)).toBeNull()
-    expect(screen.queryByText(/Create wallet/i)).toBeNull()
+    expect(screen.queryByText(/Set up your wallet/i)).toBeNull()
+    expect(screen.queryByText(/Create a new wallet/i)).toBeNull()
   })
 
   it('holds on loading during dev auto-init from VITE_DEV_MNEMONIC instead of redirecting', async () => {

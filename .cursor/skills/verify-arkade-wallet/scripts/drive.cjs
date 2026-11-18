@@ -132,6 +132,7 @@ async function backToHome(page) {
   await onHome(page).waitFor({ state: 'visible' })
 }
 const welcome = (page) => page.getByTestId('onboarding-devmode-tap')
+const createChoice = (page) => page.getByTestId('onboarding-create')
 
 /** Public facts only. The wallet record holds no secret, and nothing here reads one. */
 const persisted = (page) =>
@@ -166,7 +167,7 @@ async function openHome({ page, base, step }) {
   })
   if (await welcome(page).isVisible()) {
     await step('create-wallet', async () => {
-      await page.getByRole('button', { name: '+ Create wallet' }).click()
+      await createChoice(page).click()
       await waitForHome(page)
       return persisted(page)
     })
@@ -184,23 +185,30 @@ const JOURNEYS = {
       if (await onHome(page).isVisible()) {
         throw new Precondition('this profile already holds a wallet; onboarding needs a fresh run (cleanup.sh, launch.sh)')
       }
-      const create = page.getByRole('button', { name: '+ Create wallet' })
-      await create.waitFor({ state: 'visible' })
-      // The button only enables once the Arkade server has answered.
-      await page.waitForFunction(
-        () => ![...document.querySelectorAll('button')].find((b) => b.textContent?.includes('Create wallet'))?.disabled,
-        null,
-        { timeout: 60_000 },
-      )
+      await createChoice(page).waitFor({ state: 'visible' })
+      // Both choices only enable once the Arkade server has answered.
+      await page.waitForFunction(() => !document.querySelector('[data-testid="onboarding-create"]')?.disabled, null, {
+        timeout: 60_000,
+      })
       return {
         heading: await welcome(page).textContent(),
-        points: await page.locator('.onboard__point p').allTextContents(),
-        actions: await page.getByRole('button').allTextContents(),
+        choices: (await page.locator('.onboard__choice').allInnerTexts()).map((t) => t.replace(/\s+/g, ' ')),
         brandMarkOnScreen: await page.locator('svg path[fill="#391998"], [class*="logo" i]').count(),
       }
     })
+    await step('restore-is-one-tap-away', async () => {
+      // The second way in. Only reached, never filled: this skill does not handle recovery phrases.
+      await page.getByTestId('onboarding-restore').click()
+      await page.getByTestId('header-title-restore-wallet').waitFor({ state: 'visible' })
+      return 'Restore wallet opened straight from the screen'
+    })
+    await step('back-to-the-choices', async () => {
+      await page.getByTestId('header-back-btn').click()
+      await createChoice(page).waitFor({ state: 'visible' })
+      return { heading: await welcome(page).textContent() }
+    })
     await step('create-wallet', async () => {
-      await page.getByRole('button', { name: '+ Create wallet' }).click()
+      await createChoice(page).click()
       await waitForHome(page)
       const state = await persisted(page)
       if (!state.hasWallet) throw new Error('Home is showing but no wallet was persisted')
