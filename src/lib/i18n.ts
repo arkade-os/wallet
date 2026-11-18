@@ -1369,7 +1369,7 @@ export const translations = {
       onTheWay: '{amount} en camino',
       onTheWayKeepOpen: '{amount} en camino — mantén la wallet abierta hasta que se complete',
       partialSendError:
-        'No tienes suficiente bitcoin para hacer un envío parcial. Por favor envía todo o adquiere algo de bitcoin.',
+        'No tienes suficiente Bitcoin para hacer un envío parcial. Por favor envía todo o adquiere algo de Bitcoin.',
       payingInsideArkade: 'Pagando dentro de Arkade',
       payingToLightning: 'Pagando a Lightning',
       payingToMainnet: 'Pagando a mainnet',
@@ -1402,7 +1402,7 @@ export const translations = {
       arkadeMint: 'Arkade Mint',
       auto: 'Auto',
       backup: 'Respaldo',
-      bitcoinUnit: 'Unidad de bitcoin',
+      bitcoinUnit: 'Unidad de Bitcoin',
       boardingExitDelay: 'Retraso de salida de boarding',
       bugReports: 'Reportes de errores',
       bugReportsText:
@@ -1558,7 +1558,7 @@ export const translations = {
       noAssetsMatch: 'Ningún activo coincide con esta búsqueda',
       pairUnavailable: 'Swap no disponible para este par',
       partialSwapNeedsBtc:
-        'No tienes suficiente bitcoin para hacer un intercambio parcial. Intercambia todo o consigue algo de bitcoin.',
+        'No tienes suficiente Bitcoin para hacer un intercambio parcial. Intercambia todo o consigue algo de Bitcoin.',
       pending: 'Pendiente',
       pickAssetForSide: 'Elige el activo para este lado del swap.',
       quoteUnavailable: 'Cotización no disponible',
@@ -2240,7 +2240,7 @@ export const translations = {
       onTheWay: '{amount} a caminho',
       onTheWayKeepOpen: '{amount} a caminho — mantenha a carteira aberta até que seja concluído',
       partialSendError:
-        'Você não tem bitcoin suficiente para fazer um envio parcial. Por favor, envie tudo ou adquira algum bitcoin.',
+        'Você não tem Bitcoin suficiente para fazer um envio parcial. Por favor, envie tudo ou adquira algum Bitcoin.',
       payingInsideArkade: 'Pagando dentro da Arkade',
       payingToLightning: 'Pagando via Lightning',
       payingToMainnet: 'Pagando na mainnet',
@@ -2273,7 +2273,7 @@ export const translations = {
       arkadeMint: 'Arkade Mint',
       auto: 'Automático',
       backup: 'Backup',
-      bitcoinUnit: 'Unidade do bitcoin',
+      bitcoinUnit: 'Unidade do Bitcoin',
       boardingExitDelay: 'Atraso para saída de boarding',
       bugReports: 'Relatos de erros',
       bugReportsText:
@@ -2427,7 +2427,7 @@ export const translations = {
       noAssetsMatch: 'Nenhum ativo corresponde a esta busca',
       pairUnavailable: 'Swap indisponível para este par',
       partialSwapNeedsBtc:
-        'Você não tem bitcoin suficiente para fazer uma troca parcial. Troque o valor total ou obtenha bitcoin.',
+        'Você não tem Bitcoin suficiente para fazer uma troca parcial. Troque o valor total ou obtenha Bitcoin.',
       pending: 'Pendente',
       pickAssetForSide: 'Escolha o ativo para este lado do swap.',
       quoteUnavailable: 'Cotação indisponível',

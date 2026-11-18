@@ -348,7 +348,7 @@ export default function Vtxos() {
           <FlexCol className='scroll-fade'>
             <ErrorMessage error={Boolean(error)} text={error} />
             {rollingover ? (
-              <Info color='purple' icon={<LoadingIcon small />} title={t('vtxos.renewing')}>
+              <Info color='purple' icon={<LoadingIcon />} title={t('vtxos.renewing')}>
                 <Text wrap>{t('loading.renewing')}</Text>
               </Info>
             ) : null}

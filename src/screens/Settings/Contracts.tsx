@@ -370,7 +370,8 @@ export default function Contracts() {
                 border: '1px solid var(--neutral-100)',
                 background: 'transparent',
                 color: 'var(--text)',
-                fontSize: 14,
+                // 16px keeps iOS from zooming the page when the field takes focus.
+                fontSize: 16,
                 outline: 'none',
               }}
             />

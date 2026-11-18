@@ -110,7 +110,8 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose?: () => void
   const cssStyle = {
     width: '100%',
     padding: '8px',
-    fontSize: '14px',
+    // 16px keeps iOS from zooming the page when the field takes focus.
+    fontSize: '16px',
     borderRadius: '4px',
     fontFamily: 'monospace',
     border: '1px solid #ccc',

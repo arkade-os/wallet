@@ -54,7 +54,7 @@ export default function DesktopWalletShell({ logoVisible, page }: DesktopWalletS
           data-testid='desktop-nav-home'
           onClick={goHome}
         >
-          <HomeIcon />
+          <HomeIcon size={20} strokeWidth={1.8} />
           <span>{t('common.home')}</span>
         </button>
         <button

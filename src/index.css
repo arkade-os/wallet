@@ -1569,14 +1569,6 @@ button {
     gap: 1.75rem;
   }
 
-  .home-quick-actions {
-    gap: 0.75rem;
-  }
-
-  .home-quick-action {
-    min-height: 4.75rem;
-  }
-
   @media (hover: hover) and (pointer: fine) {
     .desktop-wallet-nav__item:not(.desktop-wallet-nav__item--active):hover {
       background: color-mix(in srgb, var(--fg) 3%, transparent);
@@ -1707,8 +1699,9 @@ button {
   font-weight: 400;
 }
 
+/* Placeholders are read, so they take the muted ink that passes 4.5:1 on the field. */
 .send-form .input::placeholder {
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 
 .send-form .input-shell p {
@@ -3684,7 +3677,7 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
 }
 
 .swap-search-field input::placeholder {
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 
 .swap-search-field:focus-within {
