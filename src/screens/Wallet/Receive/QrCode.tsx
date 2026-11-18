@@ -689,7 +689,8 @@ export default function ReceiveQRCode() {
                   </p>
                 ) : null}
                 <SwapRailStatus rail={swapRail} />
-                {lnurlRails.errors.lightning ? (
+                {/* Only where Lightning is in play: a stablecoin, Arkade or Bitcoin code never carried the invoice. */}
+                {lnurlRails.errors.lightning && (shown === 'full' || shown === 'lightning') ? (
                   <TextSecondary>
                     {t('receive.noInvoiceForAmount', { error: lnurlRails.errors.lightning })}
                   </TextSecondary>

@@ -500,7 +500,10 @@ describe('Receive screen, rail composition', () => {
     const sheet = await openFormats()
     expect(within(sheet).getByRole('radio', { name: /^Any wallet/ })).toBeChecked()
     expect(within(sheet).queryByRole('radio', { name: /^Lightning/ })).not.toBeInTheDocument()
+    fireEvent.click(within(sheet).getByRole('radio', { name: /^Arkade address/ }))
+    expect(screen.queryByText(/below the corridor minimum/)).not.toBeInTheDocument()
   })
+
   it('shows the bare Arkade address with no amount', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
     renderReceive()
