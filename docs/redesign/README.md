@@ -117,6 +117,26 @@ on `master`.
 
 Not changed, on purpose: Home's month label (a copy decision, see above).
 
+## SDK patch
+
+`patches/@arkade-os__sdk@0.5.6.patch` changes the installed SDK build, and pnpm applies it at install
+(`patchedDependencies` in `pnpm-workspace.yaml`). It carries one fix until an SDK release includes it.
+
+The SDK asks the indexer for coins 500 to a page and read a shorter page as the last one. The server caps a
+page at 100, so a wallet synced from scratch (restore, new device, cleared storage) kept only its newest 100
+coins, spent ones included, and showed part of its balance and at most 100 rows of history. The patch makes
+both loops follow the server's cursor. Source: `fix/vtxo-paging-clamped-page` in the SDK fork, commit
+`00388ab1`, which carries the tests.
+
+Checked on the test network with a 506-payment wallet: before, the wallet restored to 19,775 sats; with the
+patch, to 89,800 sats and the full history, which is what the indexer holds.
+
+It costs time, because the wallet now reads every page: that wallet takes about 13 s to restore instead of 6.
+Making that fast is the performance work that follows; showing the wrong balance quickly was not an option.
+
+Remove the patch file and its `patchedDependencies` entry when the wallet moves to an SDK version with the
+fix. pnpm refuses to install if the entry is left behind for a version that is no longer used.
+
 ## Not checked, not done
 
 - **Playwright e2e (`pnpm test:e2e`) has not run here.** It needs the regtest Docker stack. The reviewer ran

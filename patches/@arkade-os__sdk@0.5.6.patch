@@ -1,0 +1,80 @@
+diff --git a/dist/chunk-C7NY6WSA.js b/dist/chunk-C7NY6WSA.js
+index 757897da44c7df0201e453568e275b87c91ac9a2..7bd72c554ee475c21d32f08a64f2ab2162451992 100644
+--- a/dist/chunk-C7NY6WSA.js
++++ b/dist/chunk-C7NY6WSA.js
+@@ -1603,7 +1603,7 @@ var RestIndexerProvider = class {
+           pageSize: DEFAULT_VTXO_PAGE_SIZE
+         });
+         all.push(...vtxos);
+-        if (!page || page.current >= page.total || vtxos.length < DEFAULT_VTXO_PAGE_SIZE) {
++        if (!page || page.current >= page.total || vtxos.length === 0) {
+           break;
+         }
+         pageIndex = page.next;
+diff --git a/dist/chunk-HKEPJBTY.cjs b/dist/chunk-HKEPJBTY.cjs
+index 6164d3ff2f7d63ed87448f3f14974671fb7b56c1..b4f3290b79609c18567cfafdcfaecd40649a4f37 100644
+--- a/dist/chunk-HKEPJBTY.cjs
++++ b/dist/chunk-HKEPJBTY.cjs
+@@ -1605,7 +1605,7 @@ var RestIndexerProvider = class {
+           pageSize: DEFAULT_VTXO_PAGE_SIZE
+         });
+         all.push(...vtxos);
+-        if (!page || page.current >= page.total || vtxos.length < DEFAULT_VTXO_PAGE_SIZE) {
++        if (!page || page.current >= page.total || vtxos.length === 0) {
+           break;
+         }
+         pageIndex = page.next;
+diff --git a/dist/chunk-LZAINCGU.cjs b/dist/chunk-LZAINCGU.cjs
+index e3b029b5fb509f9c08cbe9fa43d62dea588a39d4..5b7a2cadc4bc3f7d61a113ed9cdc2c2dd5735048 100644
+--- a/dist/chunk-LZAINCGU.cjs
++++ b/dist/chunk-LZAINCGU.cjs
+@@ -1756,8 +1756,7 @@ async function getAllNormalizedVtxos(provider, scripts, opts = {}) {
+   const fetchChunk = async (chunk) => {
+     const result = [];
+     let pageIndex = 0;
+-    let hasMore = true;
+-    while (hasMore) {
++    for (; ; ) {
+       const { vtxos, page } = await getNormalizedVtxos(provider, {
+         ...filters,
+         scripts: chunk,
+@@ -1765,9 +1764,9 @@ async function getAllNormalizedVtxos(provider, scripts, opts = {}) {
+         pageSize
+       });
+       result.push(...vtxos);
+-      hasMore = page ? vtxos.length === pageSize : false;
+-      pageIndex++;
+-      if (hasMore) await new Promise((r) => setTimeout(r, 500));
++      if (!page || page.current >= page.total || vtxos.length === 0) break;
++      pageIndex = page.next;
++      await new Promise((r) => setTimeout(r, 500));
+     }
+     return result;
+   };
+diff --git a/dist/chunk-QTMK34TP.js b/dist/chunk-QTMK34TP.js
+index 51c8d78dc9a93d9a6f62e803871874f97c6241df..c150c29a82f40b498f7b3f8c1d24f8b73f0549e8 100644
+--- a/dist/chunk-QTMK34TP.js
++++ b/dist/chunk-QTMK34TP.js
+@@ -1754,8 +1754,7 @@ async function getAllNormalizedVtxos(provider, scripts, opts = {}) {
+   const fetchChunk = async (chunk) => {
+     const result = [];
+     let pageIndex = 0;
+-    let hasMore = true;
+-    while (hasMore) {
++    for (; ; ) {
+       const { vtxos, page } = await getNormalizedVtxos(provider, {
+         ...filters,
+         scripts: chunk,
+@@ -1763,9 +1762,9 @@ async function getAllNormalizedVtxos(provider, scripts, opts = {}) {
+         pageSize
+       });
+       result.push(...vtxos);
+-      hasMore = page ? vtxos.length === pageSize : false;
+-      pageIndex++;
+-      if (hasMore) await new Promise((r) => setTimeout(r, 500));
++      if (!page || page.current >= page.total || vtxos.length === 0) break;
++      pageIndex = page.next;
++      await new Promise((r) => setTimeout(r, 500));
+     }
+     return result;
+   };
