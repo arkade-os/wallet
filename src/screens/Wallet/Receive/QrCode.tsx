@@ -511,15 +511,9 @@ export default function ReceiveQRCode() {
                   className='receive-invoice-loading flex flex-col items-center justify-center gap-2 text-center'
                   aria-hidden={!generating}
                 >
-                  <div className='receive-invoice-pixels mb-5 grid-cols-4 gap-1.25' aria-hidden='true'>
-                    {Array.from({ length: 16 }, (_, index) => (
-                      <span
-                        key={index}
-                        className='size-3 bg-brand-text'
-                        style={{ animationDelay: `${index * 75}ms` }}
-                      />
-                    ))}
-                  </div>
+                  <span className='receive-invoice-loader' aria-hidden='true'>
+                    <span className='pixel-loader' />
+                  </span>
                   <div role='status' aria-live='polite'>
                     <Text medium>{activeToken ? t('receive.gettingQuote') : t('receive.generatingInvoice')}</Text>
                   </div>

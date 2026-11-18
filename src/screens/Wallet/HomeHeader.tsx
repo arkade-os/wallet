@@ -42,7 +42,7 @@ export default function HomeHeader({
   }
 
   return (
-    <div className='home-header sticky top-0 z-50 -mx-4'>
+    <header className='home-header sticky top-0 z-50 -mx-4'>
       <div className='relative flex h-14 w-full items-center justify-end px-2'>
         {balance ? (
           <div
@@ -91,6 +91,6 @@ export default function HomeHeader({
           </button>
         </div>
       </div>
-    </div>
+    </header>
   )
 }

@@ -1,5 +1,5 @@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { GreenStatusIcon } from '../icons/Status'
+import Glyph from '../icons/Glyph'
 import { useEffect, type ReactNode } from 'react'
 import { hapticSubtle } from '../lib/haptics'
 import { cn } from '@/lib/utils'
@@ -57,7 +57,9 @@ export default function Select({ labels, onChange, options, renderStart, selecte
             {renderStart ? <span className='settings-select-row__icon'>{renderStart(option)}</span> : null}
             <p className='settings-row__label'>{labels?.[index] ?? option}</p>
           </span>
-          {option === selected && <GreenStatusIcon small />}
+          <span className='formats__radio' data-checked={option === selected} aria-hidden='true'>
+            {option === selected ? <Glyph name='check' size={12} strokeWidth={3} /> : null}
+          </span>
         </label>
       ))}
     </RadioGroup>

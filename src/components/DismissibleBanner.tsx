@@ -19,9 +19,6 @@ interface DismissibleBannerProps {
   visible: boolean
 }
 
-const BANNER_SHADOW =
-  '0px 0px 0px 1px rgba(0, 0, 0, 0.06), 0px 1px 2px -1px rgba(0, 0, 0, 0.06), 0px 2px 4px 0px rgba(0, 0, 0, 0.04)'
-
 function TextButton({ onClick, label, testId }: { onClick: () => void; label: string; testId?: string }) {
   const handleClick = () => {
     hapticSubtle()
@@ -58,19 +55,24 @@ const baseStyle: React.CSSProperties = {
 }
 
 const containerStyle: React.CSSProperties = {
-  backgroundColor: 'var(--purple10)',
-  borderRadius: '0.75rem',
-  boxShadow: BANNER_SHADOW,
-  padding: '0.75rem 0.75rem 0.25rem 0.75rem',
+  backgroundColor: 'var(--surface)',
+  borderRadius: '1.25rem',
+  padding: '0.875rem 0.875rem 0.375rem 0.875rem',
   width: '100%',
 }
 
+// A round well, the same shape every other icon on Home sits in.
 const iconStyle: React.CSSProperties = {
-  backgroundColor: 'var(--purple)',
-  borderRadius: '6px',
-  padding: '5px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: '2.25rem',
+  height: '2.25rem',
+  backgroundColor: 'var(--bg)',
+  borderRadius: '999px',
   flexShrink: 0,
-  color: 'var(--white)',
+  color: 'var(--fg)',
+  overflow: 'hidden',
 }
 
 function BannerContent({ icon, title, description, descriptionTestId, action, onDismiss }: DismissibleBannerProps) {

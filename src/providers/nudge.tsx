@@ -6,7 +6,7 @@ import { NavigationContext, Pages } from './navigation'
 import { OptionsContext } from './options'
 import { SettingsOptions } from '../lib/types'
 import DismissibleBanner from '../components/DismissibleBanner'
-import { GlyphWell } from '../icons/Glyph'
+import Glyph from '../icons/Glyph'
 import { useTranslation } from './language'
 
 type NudgeContextProps = {
@@ -71,7 +71,7 @@ export const NudgeProvider = ({ children }: { children: ReactNode }) => {
   const nudge = (
     <DismissibleBanner
       id='password-nudge'
-      icon={<GlyphWell name='lock' />}
+      icon={<Glyph name='lock' size={18} />}
       title={t('components.protectWalletWithPassword')}
       action={{ label: t('settings.setPassword'), onClick: navigateToSettings }}
       onDismiss={dismissNudge}

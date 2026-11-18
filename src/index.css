@@ -4764,6 +4764,7 @@ button.sheet-page__scrim {
     border-color 160ms var(--ease-out);
 }
 
+.formats__radio[data-checked='true'],
 .formats__row[aria-checked='true'] .formats__radio {
   border-color: var(--brand);
   background: var(--brand);
@@ -5028,4 +5029,22 @@ html.palette-dark .settings-row__icon {
 html.palette-dark .table--receipt,
 html.palette-dark .table--receipt .table-row {
   background: transparent;
+}
+
+.onboard__point svg {
+  flex: none;
+}
+
+.receive-invoice-loader {
+  display: flex;
+  width: 3.5rem;
+  height: 3.5rem;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+  color: var(--brand-text);
+}
+
+.receive-invoice-loader .pixel-loader {
+  transform: scale(1.75);
 }
