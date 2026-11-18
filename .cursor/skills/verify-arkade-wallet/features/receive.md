@@ -27,13 +27,16 @@ Home → **Receive**. The screen rises from the bottom and closes with the X at 
 
 - Open: `home-action-receive`, then `header-title-receive`. Close: `header-back-btn` (labelled "Close").
 - Code: `getByRole('button', { name: 'Copy QR code' })`. Wait until it is enabled.
-- Formats: `getByTestId('receive-formats')`, then `getByRole('radiogroup')` and its `radio` rows. Stablecoins
-  sit in `getByRole('group', { name: 'Pay with stablecoins' })`.
+- Formats: `getByTestId('receive-formats')`, then `getByRole('dialog', { name: 'Other formats' })`, its
+  `radiogroup` and `radio` rows. Arrow keys move the selection and leave the sheet open; a click, Enter or
+  Space picks and closes; browser Back closes the sheet and stays on Receive. Stablecoins sit in
+  `getByRole('group', { name: 'Pay with stablecoins' })`.
 - Amount: `getByRole('button', { name: 'Add amount' })`, keys `keyboard-0`…`keyboard-9`, `save-amount`; on
   desktop `input[name="receive-amount-sheet"]` and `button "Set amount"`. Result: `receive-amount`.
 
 Proof is the clipboard. After tapping the code on Unified it holds a `bitcoin:` URI with an `ark=` parameter.
-After picking Arkade it holds a bare `tark1…` (test networks) or `ark1…` address, and the row says so.
+After picking Arkade it holds a bare `tark1…` (test networks) or `ark1…` address, and the row says so. The
+journey also fails if the keypad warns "More than your balance" on a requested amount.
 
 ## Gotchas
 

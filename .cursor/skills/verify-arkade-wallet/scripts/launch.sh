@@ -7,7 +7,7 @@ source "$(dirname "$0")/common.sh"
 export VITE_ARK_SERVER="${VITE_ARK_SERVER:-https://mutinynet.arkade.sh}"
 
 mkdir -p "$RUN_DIR" "$EVIDENCE_DIR"
-if [ -f "$RUN_DIR/server.pid" ] && kill -0 "$(cat "$RUN_DIR/server.pid")" 2>/dev/null; then
+if [ -f "$RUN_DIR/server.pid" ] && same_server "$(cat "$RUN_DIR/server.pid")"; then
   echo "launch: an instance from an earlier run is still up (pid $(cat "$RUN_DIR/server.pid")). Run cleanup.sh first." >&2
   exit 1
 fi
@@ -24,12 +24,13 @@ pnpm build:worker >> "$RUN_DIR/prepare.log" 2>&1
 # vite is started directly so the recorded pid is the server itself, not a wrapper shell.
 nohup node node_modules/vite/bin/vite.js --port "$PORT" --strictPort > "$RUN_DIR/server.log" 2>&1 &
 echo $! > "$RUN_DIR/server.pid"
+proc_started "$!" > "$RUN_DIR/server.start"
 echo "$PORT" > "$RUN_DIR/port"
 echo "$VITE_ARK_SERVER" > "$RUN_DIR/ark-server"
 
 # Ready means usable: the shell is served AND its entry module compiles.
 for _ in $(seq 1 90); do
-  if ! kill -0 "$(cat "$RUN_DIR/server.pid")" 2>/dev/null; then
+  if ! same_server "$(cat "$RUN_DIR/server.pid")"; then
     echo "launch: the dev server exited. Last lines of $RUN_DIR/server.log:" >&2
     tail -n 20 "$RUN_DIR/server.log" >&2
     exit 1

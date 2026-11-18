@@ -72,11 +72,12 @@ Handles are stable ones from this repo, in this order of preference:
 
 - `data-testid`: `home-action-receive`, `home-action-send`, `home-action-scan`, `home-action-swap`,
   `top-right-settings`, `activity-view-all`, `header-back-btn`, `header-title-<screen-name>`,
-  `receive-formats`, `receive-amount`, `keyboard-0`…`keyboard-9`, `save-amount`, `success-sheet`,
+  `receive-formats`, `receive-amount`, `keyboard-0`…`keyboard-9`, `keyboard-max`, `save-amount`, `success-sheet`,
   `settings-buy-sell`, `select-option-<n>`, `desktop-nav-home|activity|settings`, `onboarding-create`,
   `onboarding-restore`, `onboarding-devmode-tap`.
 - Roles and names: `button "Copy QR code"`, `button "Add amount"` / `"Edit amount"`,
-  `button "Tap to Sign"`, `button "Sounds good"`, `radiogroup` with `radio` rows in the formats sheet.
+  `button "Tap to Sign"`, `button "Sounds good"`, `dialog "Other formats"` holding a `radiogroup` with
+  `radio` rows.
 - Field names: `[name="send-address"]`, `[name="send-amount"]`.
 
 To add a journey, add a function to `JOURNEYS` in `scripts/drive.cjs`, wrap each user action in `step()`, and
@@ -110,9 +111,11 @@ What counts as proof here:
 bash .cursor/skills/verify-arkade-wallet/scripts/cleanup.sh
 ```
 
-Stops the one process whose pid `launch.sh` recorded, after checking it is still that Vite, and removes
-`.verify/arkade-wallet/run/` (logs and the browser profile holding the throwaway wallet's key). It never kills
-by name or by port, so a person's own dev server is untouched. `.verify/arkade-wallet/evidence/` is kept; the
+Stops the one process whose pid `launch.sh` recorded, and removes `.verify/arkade-wallet/run/` (logs and the
+browser profile holding the throwaway wallet's key). A pid is not an identity, because the system reuses the
+number once the server exits: `launch.sh` also records when the server started, and before every signal
+`cleanup.sh` checks that the process with that pid has the same start time and the same launch arguments. If
+it does not, nothing is signalled. It never kills by name or by port, so a person's own dev server is untouched. `.verify/arkade-wallet/evidence/` is kept; the
 script ends by listing it. `.verify/` is git-ignored. Run cleanup after a failed attempt too, so nothing is
 left holding the port.
 
@@ -141,7 +144,10 @@ bash $S/cleanup.sh
 
 Proven end to end on 2026-11-18 (launch, doctor, `onboarding`, evidence, cleanup, evidence still present)
 against the real app and the public mutinynet server. `home`, `receive` and `settings-theme` have since
-passed on a phone viewport in light and dark, and `home` and `settings-theme` on desktop.
+passed on a phone viewport in light and dark and on desktop. `home` now also opens Activity from an empty
+wallet and comes back with browser Back, and checks Scan at desktop width; `receive` checks the formats
+sheet's name, its arrow keys and that Back closes it. Cleanup was run against a pid file pointing at an
+unrelated live process and left it alone.
 
 That run was in a Linux container. What it did that another machine may not, unverified until run there:
 

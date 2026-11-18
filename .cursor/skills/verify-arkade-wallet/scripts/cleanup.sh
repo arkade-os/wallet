@@ -5,14 +5,15 @@ source "$(dirname "$0")/common.sh"
 
 if [ -f "$RUN_DIR/server.pid" ]; then
   PID="$(cat "$RUN_DIR/server.pid")"
-  # Only ever the recorded pid, and only if it is still the vite we started.
-  if kill -0 "$PID" 2>/dev/null && ps -p "$PID" -o args= 2>/dev/null | grep -q "vite"; then
+  # Only ever the recorded pid, and only while it is still the server launch.sh started. That is
+  # checked again before every signal, because the number can be reused the moment the server exits.
+  if same_server "$PID"; then
     kill "$PID" 2>/dev/null
-    for _ in $(seq 1 20); do kill -0 "$PID" 2>/dev/null || break; sleep 0.25; done
-    kill -0 "$PID" 2>/dev/null && kill -9 "$PID" 2>/dev/null
+    for _ in $(seq 1 20); do same_server "$PID" || break; sleep 0.25; done
+    if same_server "$PID"; then kill -9 "$PID" 2>/dev/null; fi
     echo "cleanup: stopped server $PID"
   else
-    echo "cleanup: server $PID was not running"
+    echo "cleanup: server $PID is not running, or that pid now belongs to something else; nothing signalled"
   fi
 fi
 

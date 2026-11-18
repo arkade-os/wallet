@@ -125,10 +125,17 @@ const settingsEntry = (page) => page.getByTestId(isDesktop(page) ? 'desktop-nav-
 /** Leave a settings screen for Home: the sidebar on desktop, Back until Home on a phone. */
 async function backToHome(page) {
   if (isDesktop(page)) await page.getByTestId('desktop-nav-home').click()
-  for (let i = 0; i < 6 && !(await onHome(page).isVisible().catch(() => false)); i++) {
-    await page.getByTestId('header-back-btn').click()
-    await sleep(350)
+  // Home stays in the DOM while the next screen slides over it, so "Send is visible" is not
+  // enough: Home is where we are only once no screen with a Back button is on top of it.
+  const back = page.getByTestId('header-back-btn')
+  const atHome = async () =>
+    (await onHome(page).isVisible().catch(() => false)) && !(await back.isVisible().catch(() => false))
+  await sleep(450)
+  for (let i = 0; i < 6 && !(await atHome()); i++) {
+    await back.click()
+    await sleep(450)
   }
+  await back.waitFor({ state: 'hidden' })
   await onHome(page).waitFor({ state: 'visible' })
 }
 const welcome = (page) => page.getByTestId('onboarding-devmode-tap')
@@ -230,8 +237,9 @@ const JOURNEYS = {
     const { page, step } = ctx
     await openHome(ctx)
     await step('home', async () => {
+      // Scan is on Home at every width: it is the only way to scan, including redeeming a note.
       const expected = isDesktop(page)
-        ? ['home-action-receive', 'home-action-send', 'desktop-nav-home', 'desktop-nav-activity', 'desktop-nav-settings']
+        ? ['home-action-receive', 'home-action-send', 'home-action-scan', 'desktop-nav-home', 'desktop-nav-activity', 'desktop-nav-settings']
         : ['home-action-receive', 'home-action-send', 'home-action-scan', 'top-right-settings']
       for (const id of expected) await page.getByTestId(id).waitFor({ state: 'visible' })
       const gone = {}
@@ -257,6 +265,15 @@ const JOURNEYS = {
       await page.getByTestId('header-title-settings').waitFor({ state: 'visible' })
       await backToHome(page)
       return 'Settings opened and Home came back'
+    })
+    // View all is there with or without history: on a phone it is the only way into Activity.
+    await step('activity-and-back', async () => {
+      await page.getByTestId('activity-view-all').click()
+      await page.getByTestId('header-title-activity').waitFor({ state: 'visible' })
+      const empty = await page.getByText('No transactions yet').count()
+      await page.goBack()
+      await onHome(page).waitFor({ state: 'visible' })
+      return { opened: 'Activity', emptyState: Boolean(empty), back: 'browser Back returned to Home' }
     })
   },
 
@@ -287,6 +304,28 @@ const JOURNEYS = {
       )
       return { options }
     })
+    // The sheet is a named dialog around one radio group: arrows move the selection without
+    // closing it, and Back closes the sheet and stays on Receive.
+    await step('formats-sheet-keyboard-and-back', async () => {
+      const dialog = page.getByRole('dialog', { name: 'Other formats' })
+      await dialog.waitFor({ state: 'visible' })
+      const radios = dialog.getByRole('radio')
+      const checked = () => radios.evaluateAll((els) => els.findIndex((e) => e.getAttribute('aria-checked') === 'true'))
+      const before = await checked()
+      await radios.nth(before).focus()
+      await page.keyboard.press('ArrowDown')
+      const after = await checked()
+      if (after === before) throw new Error('ArrowDown left the checked format unchanged')
+      await page.keyboard.press('ArrowUp')
+      if ((await checked()) !== before) throw new Error('ArrowUp did not move the selection back')
+      if (!(await dialog.isVisible())) throw new Error('arrow keys closed the sheet')
+      await page.goBack()
+      await dialog.waitFor({ state: 'hidden' })
+      await page.getByTestId('header-title-receive').waitFor({ state: 'visible' })
+      await page.getByTestId('receive-formats').click()
+      await page.getByRole('radiogroup').waitFor({ state: 'visible' })
+      return { dialogName: 'Other formats', arrowDown: `${before} -> ${after}`, back: 'closed the sheet, still on Receive' }
+    })
     await step('pick-arkade', async () => {
       await page.getByRole('radiogroup').getByRole('radio', { name: /Arkade/ }).click()
       await page.getByRole('radiogroup').waitFor({ state: 'hidden' })
@@ -304,6 +343,8 @@ const JOURNEYS = {
       await keypad.or(field).first().waitFor({ state: 'visible' })
       if (await keypad.isVisible()) {
         for (const key of ['1', '0', '0', '0']) await page.getByTestId(`keyboard-${key}`).click()
+        // A request can be any size: an empty wallet asking for 1,000 is not "more than your balance".
+        if (await page.getByText('More than your balance').count()) throw new Error('balance warning shown on a requested amount')
         await page.getByTestId('save-amount').click()
       } else {
         await field.fill('1000')
@@ -405,6 +446,8 @@ const JOURNEYS = {
       await keypad.or(field).first().waitFor({ state: 'visible', timeout: 30_000 })
       if (await keypad.isVisible()) {
         for (const key of ['1', '0', '0', '0']) await page.getByTestId(`keyboard-${key}`).click()
+        // A request can be any size: an empty wallet asking for 1,000 is not "more than your balance".
+        if (await page.getByText('More than your balance').count()) throw new Error('balance warning shown on a requested amount')
         await page.getByTestId('save-amount').click()
       } else {
         await field.fill('1000')

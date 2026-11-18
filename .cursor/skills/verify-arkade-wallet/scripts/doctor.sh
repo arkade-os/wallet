@@ -14,7 +14,7 @@ PID="$(cat "$RUN_DIR/server.pid")"
 PORT="$(cat "$RUN_DIR/port")"
 ARK="$(cat "$RUN_DIR/ark-server")"
 
-if kill -0 "$PID" 2>/dev/null; then ok "server process $PID is running"; else bad "server process $PID is gone (see $RUN_DIR/server.log)"; fi
+if same_server "$PID"; then ok "server process $PID is running"; else bad "server process $PID is gone, or the pid was reused (see $RUN_DIR/server.log)"; fi
 
 # The port must be held by the process this run started, not by someone else's server.
 owner=""

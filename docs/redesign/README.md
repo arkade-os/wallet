@@ -17,8 +17,8 @@ Dark theme: Settings → Display → Theme, or leave it on Auto and switch the s
 Two ways to look at it without a funded wallet:
 
 - **Preview harness** (layout only, mock data): `http://localhost:3002/preview.html?screen=Wallet&theme=dark`.
-  `screen` is any name from the `Pages` enum, or `_Keypad`, `_KeypadReceive`, `_Received`. `state=empty` and
-  `state=hidden` change the fixtures. `node scripts/preview-shots.cjs out.png both Wallet SendForm` tiles
+  `screen` is any name from the `Pages` enum, or `_Keypad`, `_KeypadReceive`, `_Received`. `state=empty`,
+  `state=hidden` and `state=btc` (a Bitcoin-only wallet set to BTC) change the fixtures. `node scripts/preview-shots.cjs out.png both Wallet SendForm` tiles
   screenshots. It is dev-only and is not part of the production build.
 - **Verification skill** (the real app, driven like a user): `.cursor/skills/verify-arkade-wallet/SKILL.md`.
 
@@ -31,20 +31,26 @@ components now draw through it. Waiting is always the nine-cell pixel loader. Mo
 with grey minor units (`Figure`). Flags and token logos give way to drawn currency marks. Recipients get a
 3×3 pattern derived from their address (`AddressPattern`). Pinch zoom is no longer disabled.
 
-**Home.** No logo, no bottom bar, no Apps entry, no promotions. Scan and Settings sit at the top right. The
-balance leads, with the month's change and a value line when there is history. Receive and Send are the two
-primary actions. Scrolling collapses the balance into the header. Activity opens from View all.
+**Home.** No logo, no bottom bar, no Apps entry, no promotions. Scan and Settings sit at the top right; on
+desktop Settings moves to the sidebar and Scan stays. The balance leads, with the month's change and a value
+line when there is history. Receive and Send are the two primary actions. Scrolling collapses the balance
+into the header. Activity opens from View all, which is there on an empty wallet too.
 
 **Send.** Close instead of Back. On phones the keypad opens once the recipient resolves and its Continue goes
-straight to review. Review is a sheet over the amount; signing turns the button into progress in place; success
-is the same sheet with a drawn check. Nothing full-screen and purple.
+straight to review; its Max is the form's Max, so fees and the reserve are handled in one place. Review is a
+sheet over the amount; signing turns the button into progress in place; success is the same sheet with a
+drawn check. Nothing full-screen and purple. While a payment is being signed the sheet cannot be dismissed,
+Escape does nothing and the desktop sidebar is inert. Back still leaves, as it does on `master`: the payment
+carries on, records itself, refreshes the wallet and reports its result in a toast, and writes nothing into
+the Send flow it no longer owns.
 
 **Receive.** The requested amount leads, above a plain QR card with no logo. Rails move into an Other formats
 sheet, one radio group covering formats and stablecoins, so Lightning stays in the background until a
 sender's wallet asks for it. Copy and Share are unchanged.
 
-**Everything else.** Every drawer is a floating panel on a scrim. `Modal` is a real dialog with Escape and
-focus return, and an open sheet takes Escape before the app goes Home. Inline errors are a tinted note with
+**Everything else.** Every drawer is a floating panel on a scrim. `Modal` is a real dialog: named, Tab stays
+inside it, Escape closes it and focus returns to what opened it. An open sheet or dialog takes Escape before
+the app goes Home, and takes Back before the screen under it does. Inline errors are a tinted note with
 `role="alert"`. Boot and onboarding carry no logo or intro animation, and onboarding is two
 explained choices, Create and Restore, with Restore on the screen instead of behind a sheet. Settings groups sit flat and gain a Buy
 or sell row, which replaces the Home promotion. Receipts are plain rows. Charts use the one accent.
@@ -64,7 +70,7 @@ Product strings were kept unless listed here.
 | `Received via {rail}` / `Sent via {rail}` become `Received` / `Sent` | Same |
 | New on Receive: `Other formats`, its intro and row descriptions, `Default`, `Showing {format}`, `A third party swaps them to Bitcoin for you` | From the approved design |
 | New on Home and keypad: `this month`, `Available`, `Max`, `More than your balance`, `Close` | New controls need names |
-| `Buy or sell bitcoin` → `Buy or sell Bitcoin`, and Bitcoin capitalised in two error strings | House rule |
+| `Buy or sell bitcoin` → `Buy or sell Bitcoin`, and Bitcoin capitalised in two error strings (en) and in six Spanish and Portuguese strings | House rule |
 | Portuguese `lnurlReceivedAt` / `lnurlSentTo` now include `{address}` | They dropped it; a bug fix |
 | `Welcome to Arkade` loses its emoji (en, es, pt); it now shows only on the in-app-browser screen | Asked for |
 | Onboarding is `Set up your wallet` with two choices: `Create a new wallet` / `No account needed` and `Restore a wallet` / `With your recovery phrase or private key`. The three taglines and `Other login options` are removed | Chosen direction for a more direct welcome |
@@ -73,22 +79,54 @@ Product strings were kept unless listed here.
 Left alone and worth a decision: `Tap to Sign`, `Sounds good`,
 `No password, YOLO`, and `Unified` as the default format's name.
 
+Also open: Home's `this month` and the chart's `Value of your holdings over the past month`. The figures
+re-price what the wallet holds today at past Bitcoin prices over 30 days; they are not the wallet's own
+history, so a deposit made today still shows a month of change. The wording should say so.
+
 ## Checked
 
-- `pnpm test:unit`: 125 files, 1383 tests pass. Tests that described the old UI were rewritten to describe the
+- `pnpm test:unit`: 129 files, 1417 tests pass. Tests that described the old UI were rewritten to describe the
   new one, not deleted: Receive's method selector, the success sheet, Home, activity labels, currency marks.
 - `pnpm lint`, `pnpm format:check`, `pnpm csp:check`, `tsc --noEmit`, `pnpm build`: clean.
 - Real app against the public mutinynet server, through the verification skill: onboarding, Home, Receive and
   Settings/theme pass on a phone viewport in light and dark and on desktop. Evidence is under
   `.verify/arkade-wallet/evidence/` (git-ignored).
 
+## Review fixes
+
+An outside review of `f13a3f2` found one blocker, four majors and nine minors. Each was checked against the
+code before it was changed; two of the majors (the keypad losing digits, keypad Max skipping the fee) are also
+on `master`.
+
+| Finding | Fix | Proven by |
+| --- | --- | --- |
+| A pending Send could lose its progress and result | Sheet is not dismissable while signing, Escape is ignored, the desktop sidebar is inert, and a payment that outlives its screen records itself and reports by toast without touching the Send flow | `send-details.test.tsx`, `SheetPage.test.tsx` |
+| Review backdrop showed the amount with balances hidden | `PrivateFigure` behind review and both success sheets | `send-details.test.tsx`, `PrivateFigure.test.tsx` |
+| Keypad lost typed digits when the form re-rendered | The keypad is an element, not a component declared inside the form | `send-keypad.test.tsx` (fails on the old code) |
+| Keypad Max skipped the fee-aware Max | Keypad Max calls the form's Max | `send-keypad.test.tsx` (fails on the old code), `keyboard.test.tsx` |
+| No Scan on desktop Home | Only Settings hides at desktop widths | driver `home --viewport=desktop` |
+| Formats sheet: no name, no arrow keys, Back left Receive | Named dialog, roving radio group, sheets and dialogs take Back | `receive-lnurl.test.tsx`, `navigation.test.tsx`, driver `receive` |
+| Dialogs lost focus on close | `Modal` records the opener first, traps Tab, is named; nested dialog roles removed | `Modal.test.tsx` |
+| Receive amount: zero fiat without a rate, unit ignored, balance warning | Falls back to the exact amount in the configured unit; the warning is for spending only | `receive-qrcode.test.tsx`, `keyboard.test.tsx` |
+| Buy or sell Back skipped Settings | Header uses the navigation Back | driven on the real app, provider blocked |
+| Cleanup could stop another process on pid reuse | Start time and launch arguments are recorded and checked before every signal | run against a reused pid |
+| Receive tests lost their overlap coverage | Copy with the sheet closed; the formats row itself is checked against the QR stage | `receive-qrcode.test.tsx` |
+| Review amount truncated at 375px | The figure scales to its length and wraps past its smallest size | measured at 320, 375 and 412px in the preview harness |
+| Leftover spinners, icon, 14px fields, placeholder contrast, lowercase Bitcoin, dead selectors | Shared loader, `Glyph` home, 16px, `--ink-3`, six strings, removed | lint, unit tests |
+| Empty Home had no way into Activity on a phone | View all is always there | `index.test.tsx`, driver `home` |
+
+Not changed, on purpose: Home's month label (a copy decision, see above).
+
 ## Not checked, not done
 
-- **Playwright e2e (`pnpm test:e2e`) has not run.** It needs the regtest Docker stack. The shared helpers in
-  `src/test/e2e/utils.ts` were updated for the new Activity entry, Close buttons and keypad, unverified.
-  `keyboard.test.ts` drives the keypad closely and is the most likely to need work.
-- **A completed Send has never been driven on this branch.** It needs funds. The `send` journey in the
-  verification skill is written and fails on its precondition, as it should on an empty wallet.
+- **Playwright e2e (`pnpm test:e2e`) has not run here.** It needs the regtest Docker stack. The reviewer ran
+  42 regtest cases against `f13a3f2`: 34 passed, seven desktop skips, one mobile onboarding failure, since
+  fixed in `init.test.ts`. The Send specs and `prePay` were then rewritten for the phone flow (`openSendKeypad`,
+  `sendMax` in `src/test/e2e/utils.ts`: wait for the keypad to open by itself, use its Max and Continue).
+  Those rewrites have not been run.
+- **A completed Send has not been driven on a phone on this branch.** The reviewer paid 5,000 sats on desktop
+  regtest; the phone attempt hit the keypad bug fixed above. The `send` journey in the verification skill is
+  written and fails on its precondition, as it should on an empty wallet.
 - **No real devices.** Safe areas, haptics, the iOS back gesture, the install flow and camera scanning were
   not exercised on a phone.
 - **Secondary screens were restyled through shared tokens and components, not individually.** The 21 Settings
