@@ -1184,6 +1184,7 @@ button {
   gap: 0.25rem;
   padding: 1.125rem 0 1.25rem;
   text-align: center;
+  container-type: inline-size;
 }
 
 .transaction-amount-summary__label {
@@ -1199,10 +1200,21 @@ button {
   color: var(--fg);
   font-family: var(--font-family-heading);
   font-size: clamp(2.5rem, 13vw, 3.5rem);
+  /* A long amount (0.00010000 BTC on a narrow phone) shrinks to fit its line; 0.56em is the
+     average advance of a character in this face at this tracking. */
+  font-size: max(1.5rem, min(clamp(2.5rem, 13vw, 3.5rem), calc(100cqw / (var(--amount-chars, 6) * 0.56))));
   font-weight: 500;
   letter-spacing: -0.05em;
-  line-height: 1;
+  line-height: 1.05;
   font-variant-numeric: tabular-nums;
+}
+
+/* Past the smallest size it wraps instead of ending in an ellipsis: an amount is never cut. */
+.transaction-amount-summary__value .privacy-amount__value {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .swap-transaction-summary {

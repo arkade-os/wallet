@@ -14,7 +14,12 @@ export default function TransactionAmountSummary({
   const showUnverifiedBadge = !amount.configured && amount.raw[0]?.unverified
 
   return (
-    <section className='transaction-amount-summary' aria-label={label}>
+    <section
+      className='transaction-amount-summary'
+      aria-label={label}
+      // The figure scales down to fit its own length, so a long amount keeps every digit and its unit.
+      style={{ '--amount-chars': Math.max(primary.value.length, 1) } as React.CSSProperties}
+    >
       <span className='transaction-amount-summary__label'>{label}</span>
       <PrivacyAmount
         className='transaction-amount-summary__value text-heading-xl'

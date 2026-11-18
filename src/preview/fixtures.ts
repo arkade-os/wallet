@@ -88,8 +88,9 @@ export function buildFixtures(theme: Themes, variant: string) {
       ...mockConfigContextValue,
       config: {
         ...mockConfigContextValue.config,
-        currency: Currencies.USD,
-        unit: Unit.SATS,
+        // state=btc: a Bitcoin-only wallet set to BTC, whose amounts are the longest the UI shows.
+        currency: variant === 'btc' ? Currencies.BTC : Currencies.USD,
+        unit: variant === 'btc' ? Unit.BTC : Unit.SATS,
         theme,
         showBalance: variant !== 'hidden',
       },
@@ -104,8 +105,8 @@ export function buildFixtures(theme: Themes, variant: string) {
         ...mockFlowContextValue.sendInfo,
         arkAddress: OFFCHAIN,
         recipient: OFFCHAIN,
-        satoshis: 21000,
-        total: 21021,
+        satoshis: variant === 'btc' ? 10_000 : 21000,
+        total: variant === 'btc' ? 10_021 : 21021,
       },
       recvInfo: {
         ...mockFlowContextValue.recvInfo,
