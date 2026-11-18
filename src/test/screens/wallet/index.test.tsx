@@ -43,15 +43,16 @@ describe('Wallet screen', () => {
     expect(screen.queryByText('Borrow against your bitcoin')).not.toBeInTheDocument()
     // Activity opens from the section itself; Scan and Settings are the only header actions.
     expect(screen.queryByTestId('top-right-activity')).not.toBeInTheDocument()
-    // With no history there is nothing to view all of.
-    expect(screen.queryByTestId('activity-view-all')).not.toBeInTheDocument()
+    // It is there with no history too: on a phone it is the only way into Activity.
+    await user.click(screen.getByTestId('activity-view-all'))
+    expect(navigate).toHaveBeenCalledWith(Pages.Activity)
     expect(screen.getByTestId('home-action-scan')).toBeInTheDocument()
 
     await user.click(screen.getByTestId('top-right-settings'))
     expect(navigate).toHaveBeenCalledWith(Pages.Settings)
   })
 
-  it('opens Activity from the section once there is history to show', async () => {
+  it('opens Activity from the section when there is history to show', async () => {
     const user = userEvent.setup()
     const navigate = vi.fn()
 

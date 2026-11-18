@@ -21,19 +21,10 @@ export default function RecentActivitySection() {
     navigate(Pages.Activity)
   }
 
-  if (!txs || txs.length === 0) {
-    return (
-      <section className='home-section'>
-        <div className='home-section__header'>
-          <h2 className='home-section-label'>{t('wallet.recentActivity')}</h2>
-        </div>
-        <div className='home-section__content'>
-          <EmptyTxList />
-        </div>
-      </section>
-    )
-  }
+  const empty = !txs || txs.length === 0
 
+  // View all stays in the empty state too: it is the only way into Activity on a phone, and
+  // Activity can hold swaps that have not produced a transaction yet.
   return (
     <section className='home-section'>
       <div className='home-section__header'>
@@ -50,7 +41,7 @@ export default function RecentActivitySection() {
         </button>
       </div>
       <div className='home-section__content'>
-        <TransactionsList mode='static' limit={3} />
+        {empty ? <EmptyTxList /> : <TransactionsList mode='static' limit={3} />}
       </div>
     </section>
   )

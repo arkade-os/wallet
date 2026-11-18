@@ -1538,8 +1538,9 @@ button {
     overflow: hidden;
   }
 
+  /* The sidebar carries Settings on desktop. Scan has no other home, so it stays in the header. */
   .home-header__mobile-brand,
-  .home-header__mobile-actions {
+  .home-header__settings {
     display: none;
   }
 

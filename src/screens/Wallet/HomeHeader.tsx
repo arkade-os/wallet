@@ -70,7 +70,7 @@ export default function HomeHeader({
             </div>
           </div>
         ) : null}
-        <div className='home-header__mobile-actions flex items-center'>
+        <div className='home-header__actions flex items-center'>
           <button
             type='button'
             onClick={handleScan}
@@ -85,7 +85,7 @@ export default function HomeHeader({
             onClick={handleSettings}
             aria-label={t('wallet.openSettings')}
             data-testid='top-right-settings'
-            className='icon-button'
+            className='icon-button home-header__settings'
           >
             <Glyph name='settings' size={22} />
           </button>
