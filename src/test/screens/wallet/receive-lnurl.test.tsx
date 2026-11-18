@@ -368,7 +368,7 @@ describe('Receive screen, rail composition', () => {
     expect(receiveLightning).not.toHaveBeenCalled()
   })
 
-  it('opens every visit on Any wallet, remembering and backing up no picked format', async () => {
+  it('opens every visit on Unified address, remembering and backing up no picked format', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
     const { unmount } = renderReceive()
     await pickMethod('Lightning address')
@@ -477,17 +477,17 @@ describe('Receive screen, rail composition', () => {
     await waitFor(async () => expect(await qrLightning()).toBe(fakeInvoice(10_000_000)))
   })
 
-  it('falls back to Any wallet, and says why, when no invoice comes back', async () => {
+  it('falls back to Unified address, and says why, when no invoice comes back', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], invoiceError: 'below the corridor minimum' })
     renderReceive(10_000)
 
     expect(await screen.findByText(/below the corridor minimum/)).toBeInTheDocument()
-    await pickMethod('Lightning invoice')
     expect(await qrLightning()).toBeNull()
     expect(screen.queryByTestId('invoice-address-copy')).not.toBeInTheDocument()
     expect(screen.getByTestId('bip21-address-copy')).toBeInTheDocument()
-    await openFormats()
-    expect(screen.getByRole('radio', { name: /^Any wallet/ })).toBeChecked()
+    const sheet = await openFormats()
+    expect(within(sheet).getByRole('radio', { name: /^Unified address/ })).toBeChecked()
+    expect(within(sheet).queryByRole('radio', { name: /^Lightning/ })).not.toBeInTheDocument()
   })
   it('shows the bare Arkade address with no amount', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
@@ -651,7 +651,7 @@ describe('Receive screen, token rails', () => {
   // Anchored on a format row, so a sheet not yet filled cannot pass for one without stablecoins.
   const stablecoinRows = async () => {
     const sheet = await openFormats()
-    expect(within(sheet).getByRole('radio', { name: /^Any wallet/ })).toBeInTheDocument()
+    expect(within(sheet).getByRole('radio', { name: /^Unified address/ })).toBeInTheDocument()
     return within(sheet).queryAllByText(/Stablecoins|USDT/)
   }
 

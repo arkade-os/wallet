@@ -37,7 +37,6 @@ import {
 import { hapticSubtle } from '../../../lib/haptics'
 import { isMobileBrowser } from '../../../lib/browser'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
-import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { AssetOption, Currencies, Unit } from '../../../lib/types'
 import { EASE_OUT_QUINT } from '../../../lib/animations'
 import { walletAssetPresentationForId } from '../../../lib/accountAssets'
@@ -817,15 +816,11 @@ export default function ReceiveQRCode() {
               <Button label={t('receive.share')} onClick={handleShare} disabled={shareDisabled} />
             </FlexRow>
             {showingQr ? <LnurlRailPanel rail={lnurlRail} /> : null}
+            {/* In the flow, not a fixed footer: pinned, it covered the buttons on short phones. */}
+            {showingQr && !isAssetReceive ? <FormatsCard onClick={() => setFormatsOpen(true)} /> : null}
           </FlexCol>
         </Padded>
       </Content>
-
-      {showingQr && !isAssetReceive ? (
-        <ButtonsOnBottom>
-          <FormatsCard onClick={() => setFormatsOpen(true)} />
-        </ButtonsOnBottom>
-      ) : null}
 
       {/* Amount bottom sheet */}
       <SheetModal isOpen={showAmountSheet} onClose={closeAmountEntry}>

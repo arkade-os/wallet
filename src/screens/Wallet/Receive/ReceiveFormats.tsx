@@ -32,41 +32,43 @@ export default function ReceiveFormats(p: {
   const tabStop = p.formats.some((f) => f.id === p.active) ? p.active : p.formats[0]?.id
   return (
     <SheetModal isOpen={p.open} onClose={p.onClose}>
-      <FlexCol gap='1.25rem' padding='0.5rem 0'>
-        <FlexCol gap='0.25rem'>
-          <Text big bold>
-            {title}
-          </Text>
-          {p.title ? null : <TextSecondary>{t('receive.otherFormatsHint')}</TextSecondary>}
-        </FlexCol>
-        {/* Arrows move focus only, as in a menu: a pick closes the sheet. */}
-        <div role='radiogroup' aria-label={title} onKeyDown={moveRadioFocus} className={CARD}>
-          {p.formats.map((f) => (
-            <Row
-              key={f.id}
-              row={f}
-              role='radio'
-              aria-checked={f.id === p.active}
-              tabIndex={f.id === tabStop ? 0 : -1}
-              onClick={() => p.onPick(f.id)}
-              trailing={<Check on={f.id === p.active} />}
-            />
-          ))}
-        </div>
-        {p.tokens?.length ? (
-          <FlexCol gap='0.75rem'>
-            <FlexCol gap='0.25rem'>
-              <Text bold>{t('receive.methodStablecoins')}</Text>
-              <TextSecondary>{t('receive.stablecoinsSub')}</TextSecondary>
-            </FlexCol>
-            <div className={CARD}>
-              {p.tokens.map((r) => (
-                <Row key={r.id} row={r} onClick={() => p.onPickToken?.(r.id)} trailing={<Chevron />} />
-              ))}
-            </div>
+      <div className='hide-scrollbar -mx-1 max-h-[70dvh] overflow-y-auto px-1'>
+        <FlexCol gap='1.25rem' padding='0.5rem 0'>
+          <FlexCol gap='0.25rem'>
+            <Text big bold>
+              {title}
+            </Text>
+            {p.title ? null : <TextSecondary>{t('receive.otherFormatsHint')}</TextSecondary>}
           </FlexCol>
-        ) : null}
-      </FlexCol>
+          {/* Arrows move focus only, as in a menu: a pick closes the sheet. */}
+          <div role='radiogroup' aria-label={title} onKeyDown={moveRadioFocus} className={CARD}>
+            {p.formats.map((f) => (
+              <Row
+                key={f.id}
+                row={f}
+                role='radio'
+                aria-checked={f.id === p.active}
+                tabIndex={f.id === tabStop ? 0 : -1}
+                onClick={() => p.onPick(f.id)}
+                trailing={<Check on={f.id === p.active} />}
+              />
+            ))}
+          </div>
+          {p.tokens?.length ? (
+            <FlexCol gap='0.75rem'>
+              <FlexCol gap='0.25rem'>
+                <Text bold>{t('receive.methodStablecoins')}</Text>
+                <TextSecondary>{t('receive.stablecoinsSub')}</TextSecondary>
+              </FlexCol>
+              <div className={CARD}>
+                {p.tokens.map((r) => (
+                  <Row key={r.id} row={r} onClick={() => p.onPickToken?.(r.id)} trailing={<Chevron />} />
+                ))}
+              </div>
+            </FlexCol>
+          ) : null}
+        </FlexCol>
+      </div>
     </SheetModal>
   )
 }

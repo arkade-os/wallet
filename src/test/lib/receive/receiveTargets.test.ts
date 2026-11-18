@@ -33,7 +33,7 @@ describe('encodeBitcoinLink', () => {
 })
 
 describe('receiveTarget', () => {
-  it('Any wallet links every rail and copies that link', () => {
+  it('Unified address links every rail and copies that link', () => {
     const link = 'bitcoin:bc1x?ark=ark1x&lightning=LNURL1X'
     expect(shows('full', base)).toEqual([link, link, 'bip21'])
     expect(shows('full', { ...base, lightningAddress: '' })).toEqual([link, link, 'bip21'])
@@ -41,7 +41,7 @@ describe('receiveTarget', () => {
     expect(shows('full', withAmount)).toEqual([amounted, amounted, 'bip21'])
   })
 
-  it('Any wallet has nothing to show when neither Arkade nor Bitcoin is allowed', () => {
+  it('Unified address has nothing to show when neither Arkade nor Bitcoin is allowed', () => {
     expect(receiveTarget('full', { ...base, ark: '', btc: '' })).toBeUndefined()
   })
 
@@ -78,7 +78,8 @@ describe('receiveTarget', () => {
 
 describe('receiveMethods', () => {
   it('offers every method with an lnurl-server and tokens on', () => {
-    expect(receiveMethods(base)).toEqual(['full', 'lnaddress', 'lightning', 'ark', 'btc', 'token'])
+    expect(receiveMethods(base)).toEqual(['full', 'lnaddress', 'ark', 'btc', 'token'])
+    expect(receiveMethods(withAmount)).toEqual(['full', 'lightning', 'ark', 'btc', 'token'])
   })
 
   it('offers Lightning for a nameless LNURL, and for an amount whose invoice came without one', () => {

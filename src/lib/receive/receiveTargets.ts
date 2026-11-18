@@ -27,8 +27,9 @@ export interface ReceiveTarget {
 export function receiveMethods(i: ReceiveInputs): ReceiveMethod[] {
   return [
     i.ark || i.btc ? 'full' : undefined,
+    // One Lightning row: the address when there is one and no amount, else the invoice or the bare LNURL.
     i.lightningAddress && !(i.sats > 0) ? 'lnaddress' : undefined,
-    i.lnurl || i.lightningAddress || (i.sats > 0 && i.invoice) ? 'lightning' : undefined,
+    (i.sats > 0 ? i.invoice : !i.lightningAddress && i.lnurl) ? 'lightning' : undefined,
     i.ark ? 'ark' : undefined,
     i.btc ? 'btc' : undefined,
     i.tokensOffered ? 'token' : undefined,
