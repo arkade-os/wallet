@@ -1,4 +1,8 @@
-import { useContext } from 'react'
+import { SwapsContext } from '../../providers/swaps'
+import SwapComingSoonSheet from '../../components/SwapComingSoonSheet'
+import { hapticLight } from '../../lib/haptics'
+import Glyph from '../../icons/Glyph'
+import { useContext, useState } from 'react'
 import AssetCard from '../../components/AssetCard'
 import { usePortfolioFiat, type PortfolioRow } from '../../hooks/usePortfolioFiat'
 import { ConfigContext } from '../../providers/config'
@@ -10,6 +14,8 @@ import { WalletContext } from '../../providers/wallet'
 import { useTranslation } from '../../providers/language'
 
 export default function AssetsSection() {
+  const { swapAvailable } = useContext(SwapsContext)
+  const [swapSheetOpen, setSwapSheetOpen] = useState(false)
   const { config } = useContext(ConfigContext)
   const { fiatDecimals } = useContext(FiatContext)
   const { setAssetInfo } = useContext(FlowContext)
@@ -43,10 +49,20 @@ export default function AssetsSection() {
     }
   }
 
+  const handleSwap = () => {
+    hapticLight()
+    if (swapAvailable) navigate(Pages.WalletSwap)
+    else setSwapSheetOpen(true)
+  }
+
   return (
     <section className='home-section'>
-      <div className='flex w-full items-center justify-between px-1'>
-        <span className='home-section-label'>{t('wallet.accounts')}</span>
+      <div className='home-section__header'>
+        <h2 className='home-section-label'>{t('wallet.accounts')}</h2>
+        <button type='button' onClick={handleSwap} data-testid='home-action-swap' className='home-section-action'>
+          <Glyph name='swap' size={17} strokeWidth={2} />
+          {t('wallet.swap')}
+        </button>
       </div>
       <div className='home-section__content'>
         {accountRows.map((row) => (
@@ -63,6 +79,7 @@ export default function AssetsSection() {
           />
         ))}
       </div>
+      <SwapComingSoonSheet isOpen={swapSheetOpen} onClose={() => setSwapSheetOpen(false)} />
     </section>
   )
 }

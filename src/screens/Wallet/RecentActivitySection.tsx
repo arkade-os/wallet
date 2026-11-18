@@ -24,8 +24,8 @@ export default function RecentActivitySection() {
   if (!txs || txs.length === 0) {
     return (
       <section className='home-section'>
-        <div className='flex w-full items-center justify-between px-1'>
-          <span className='home-section-label'>{t('wallet.recentActivity')}</span>
+        <div className='home-section__header'>
+          <h2 className='home-section-label'>{t('wallet.recentActivity')}</h2>
         </div>
         <div className='home-section__content'>
           <EmptyTxList />
@@ -36,15 +36,14 @@ export default function RecentActivitySection() {
 
   return (
     <section className='home-section'>
-      <div className='flex w-full items-center justify-between px-1'>
-        <span className='home-section-label'>{t('wallet.recentActivity')}</span>
+      <div className='home-section__header'>
+        <h2 className='home-section-label'>{t('wallet.recentActivity')}</h2>
         <button
           type='button'
           onClick={handleViewAll}
           aria-label={t('wallet.viewAllActivity')}
           data-testid='activity-view-all'
-          className='home-section-action'
-          style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
+          className='home-section-action home-section-action--quiet'
         >
           {t('wallet.viewAll')}
           <ArrowIcon small />

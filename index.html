@@ -5,7 +5,7 @@
     <meta charset="utf-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
     <meta name="theme-color" content="#fff" />
     <!-- Both metas are required for iOS to run the true fullscreen standalone
@@ -26,7 +26,7 @@
         var t = c.theme
         var dark = t === 'Dark' || (t !== 'Light' && window.matchMedia('(prefers-color-scheme: dark)').matches)
         if (dark) {
-          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#101010')
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0e0c12')
           document.documentElement.classList.add('palette-dark')
         }
       } catch (e) {

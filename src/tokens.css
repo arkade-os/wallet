@@ -7,8 +7,28 @@
 :root {
   /* Background & foreground */
   --bg: #fff;
-  --fg: #040404;
-  --fg-rgb: 4, 4, 4;
+  --fg: #151219;
+  --fg-rgb: 21, 18, 25;
+
+  /* Redesign surfaces and ink. One accent (brand), ink for everything else.
+     Each token has a dark value in html.palette-dark below. */
+  --surface: #f1eff4; /* wells, chips, grouped panels, fields */
+  --surface-strong: #e8e5ee; /* pressed wells, tracks */
+  --control: #f1eff4; /* secondary button face */
+  --control-ledge: #ddd9e3; /* the edge a secondary button presses into */
+  --ink-2: #3d3846; /* secondary text */
+  --ink-3: #6b6673; /* muted text, 5.6:1 on white */
+  --ink-4: #8a8592; /* cents and display-size hints only */
+  --hairline: rgb(21 18 25 / 0.08);
+  --brand: #391998; /* the single accent: actions, live state, Bitcoin */
+  --brand-pressed: #2f1585;
+  --brand-ledge: #23105f;
+  --brand-text: #391998; /* accent used as text or icon colour */
+  --brand-tint: #eeeafb; /* quiet accent background */
+  --on-brand: #fffdf8;
+  --pattern: #6851ad; /* address patterns */
+  --scrim: rgb(21 18 25 / 0.4);
+  --ledge-depth: 3px;
 
   /* Purple ramp — built from brand primary #391998 (placed at 700) */
   --purple-50: #f5f3ff;
@@ -110,7 +130,7 @@
   --success: var(--green-500);
 
   /* Named colors */
-  --black: #040404;
+  --black: #151219;
   --white: #fbfbfb;
   --cream: var(--purple-700);
   --logo-color: var(--purple-700);
@@ -230,11 +250,28 @@
 }
 
 html.palette-dark {
-  --bg: #101010;
-  --fg: #fbfbfb;
-  --fg-rgb: 251, 251, 251;
+  --bg: #0e0c12;
+  --fg: #f3f1f6;
+  --fg-rgb: 243, 241, 246;
 
-  --black: #fbfbfb;
+  --surface: #1c1922;
+  --surface-strong: #2a2631;
+  --control: #2a2631;
+  --control-ledge: #17141c;
+  --ink-2: #cfcbd6;
+  --ink-3: #a6a1ae;
+  --ink-4: #7d7887;
+  --hairline: rgb(255 255 255 / 0.08);
+  --brand: #5a36d6;
+  --brand-pressed: #4c2bbd;
+  --brand-ledge: #331a8f;
+  --brand-text: #b9adf2;
+  --brand-tint: #241a45;
+  --on-brand: #fffdf8;
+  --pattern: #9987e5;
+  --scrim: rgb(0 0 0 / 0.6);
+
+  --black: #f3f1f6;
   --cream: #d9d9d9;
   --greenbg: var(--green-950);
   --orange: var(--orange-400);
@@ -245,7 +282,7 @@ html.palette-dark {
   --redbg: var(--red-950);
   --yellow: var(--yellow-400);
   --yellowoutlier: #ffdd46;
-  --fade-rgb: 16, 16, 16;
+  --fade-rgb: 14, 12, 18;
   --logo-color: #fbfbfb;
   --toggle-background: #ddd;
   --danger: var(--red-400);

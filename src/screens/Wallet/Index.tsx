@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import DismissibleBanner from '../../components/DismissibleBanner'
 import ErrorMessage from '../../components/Error'
 import { AspContext } from '../../providers/asp'
@@ -14,12 +14,11 @@ import { AnnouncementContext } from '../../providers/announcements'
 import { WalletStaggerContainer, WalletStaggerChild } from '../../components/WalletLoadIn'
 import { pwaCanInstall, usePwaInstalled, canPromptInstall, promptPwaInstall } from '../../lib/pwa'
 import { isIOS, isAndroid } from '../../lib/browser'
-import { setLogoAnchor, getBootAnimActive, subscribeBootAnim } from '../../lib/logoAnchor'
+import { getBootAnimActive, subscribeBootAnim } from '../../lib/logoAnchor'
 import HomeHeader from './HomeHeader'
 import PortfolioHero from './PortfolioHero'
 import HomeQuickActions from './HomeQuickActions'
 import AssetsSection from './AssetsSection'
-import UpsellsSection from './UpsellsSection'
 import RecentActivitySection from './RecentActivitySection'
 import { usePortfolioBalanceDisplay } from '../../hooks/usePortfolioBalanceDisplay'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
@@ -49,11 +48,7 @@ export default function Wallet() {
   // which would switch the stagger container from motion.div to plain div
   const shouldStagger = useRef(isInitialLoad).current
 
-  const logoRef = useCallback((el: HTMLDivElement | null) => {
-    setLogoAnchor(el)
-  }, [])
   const balanceRef = useRef<HTMLDivElement | null>(null)
-  useEffect(() => () => setLogoAnchor(null), [])
 
   const pwaInstalled = usePwaInstalled()
   const dismissed = (config?.dismissedBanners ?? []).includes('pwa-install')
@@ -116,11 +111,9 @@ export default function Wallet() {
       <Padded>
         {announcement}
         <HomeHeader
-          ref={logoRef}
           balance={portfolioBalance}
           balanceProgress={balanceCollapseProgress}
           balanceUnit={portfolioBalanceUnit}
-          logoVisible={!bootAnimActive}
           maskedBalance={maskedPortfolioBalance}
         />
         <WalletStaggerContainer animate={shouldStagger} className='home-stack' hold={bootAnimActive}>
@@ -166,9 +159,6 @@ export default function Wallet() {
           ) : null}
           <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
             <AssetsSection />
-          </WalletStaggerChild>
-          <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
-            <UpsellsSection />
           </WalletStaggerChild>
           <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
             <RecentActivitySection />

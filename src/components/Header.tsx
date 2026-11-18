@@ -1,9 +1,6 @@
-import React, { useContext } from 'react'
+import { useContext } from 'react'
 import { NavigationContext } from '../providers/navigation'
 import BackIcon from '../icons/Back'
-import Shadow from './Shadow'
-import Text from './Text'
-import FlexRow from './FlexRow'
 import { hapticLight } from '../lib/haptics'
 import { useTranslation } from '../providers/language'
 
@@ -31,48 +28,37 @@ export default function Header({ auxAriaLabel, auxFunc, auxText, back, text, aux
       }
     : undefined
 
-  const SideButton = (text: string) => (
-    <Shadow>
-      <Text color='neutral-800' centered tiny wrap>
-        {text}
-      </Text>
-    </Shadow>
-  )
-
-  const style: React.CSSProperties = {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    minWidth: '4rem',
-    paddingRight: '1rem',
-  }
-
   return (
-    <div className='header'>
-      <FlexRow between>
-        <div style={{ minWidth: '4rem', marginLeft: '0.5rem' }}>
-          {handleBack ? (
-            <button type='button' onClick={handleBack} aria-label={t('common.back')} data-testid='header-back-btn'>
-              <BackIcon />
-            </button>
-          ) : (
-            '\u00A0'
-          )}
-        </div>
-        <p className='title' data-testid={testId}>
-          {text}
-        </p>
-        <button type='button' style={style} onClick={auxFunc} aria-label={auxAriaLabel} data-testid='header-aux-btn'>
-          {auxText || auxIcon ? (
-            auxText ? (
-              SideButton(auxText)
-            ) : (
-              <div style={{ padding: '0.5rem' }}>{auxIcon}</div>
-            )
-          ) : (
-            '\u00A0'
-          )}
-        </button>
-      </FlexRow>
-    </div>
+    <header className='header'>
+      <div className='header__side'>
+        {handleBack ? (
+          <button
+            type='button'
+            className='icon-button'
+            onClick={handleBack}
+            aria-label={t('common.back')}
+            data-testid='header-back-btn'
+          >
+            <BackIcon />
+          </button>
+        ) : null}
+      </div>
+      <h1 className='title' data-testid={testId}>
+        {text}
+      </h1>
+      <div className='header__side header__side--end'>
+        {auxText || auxIcon ? (
+          <button
+            type='button'
+            className={auxText ? 'header__aux' : 'icon-button'}
+            onClick={auxFunc}
+            aria-label={auxAriaLabel ?? auxText}
+            data-testid='header-aux-btn'
+          >
+            {auxText ?? auxIcon}
+          </button>
+        ) : null}
+      </div>
+    </header>
   )
 }

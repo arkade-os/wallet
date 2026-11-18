@@ -106,7 +106,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     if (resolved === Themes.Dark) root.classList.add(darkPalette)
     else root.classList.remove(darkPalette)
 
-    const themeColor = resolved === Themes.Dark ? '#101010' : '#fff'
+    const themeColor = resolved === Themes.Dark ? '#0e0c12' : '#fff'
     setDocumentThemeColor(themeColor)
   }
 

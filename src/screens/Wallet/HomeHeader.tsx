@@ -1,37 +1,38 @@
-import { forwardRef, useContext } from 'react'
-import LogoIcon from '../../icons/Logo'
-import SettingsIcon from '../../icons/Settings'
-import HistoryIcon from '../../icons/History'
+import { useContext } from 'react'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { OptionsContext } from '../../providers/options'
 import { SettingsOptions } from '../../lib/types'
+import { useTranslation } from '../../providers/language'
 import { hapticLight } from '../../lib/haptics'
 import { PrivacyAmount, maskedFiat } from '../../components/PrivacyAmount'
-import { useTranslation } from '../../providers/language'
+import Glyph from '../../icons/Glyph'
 
 interface HomeHeaderProps {
   balance?: string
   balanceProgress?: number
   balanceUnit?: string
-  logoVisible?: boolean
   maskedBalance?: string
 }
 
 /**
- * Mobile home header. Desktop navigation lives in the persistent wallet shell.
+ * Mobile home header: Scan and Settings at the top right, and the balance
+ * sliding in at the top left once the hero has scrolled away. There is no tab
+ * bar and no logo. Desktop navigation lives in the persistent wallet shell.
  */
-const HomeHeader = forwardRef<HTMLDivElement, HomeHeaderProps>(function HomeHeader(
-  { balance, balanceProgress = 0, balanceUnit, logoVisible = true, maskedBalance = maskedFiat() },
-  ref,
-) {
+export default function HomeHeader({
+  balance,
+  balanceProgress = 0,
+  balanceUnit,
+  maskedBalance = maskedFiat(),
+}: HomeHeaderProps) {
   const { navigate } = useContext(NavigationContext)
   const { setOption } = useContext(OptionsContext)
   const { t } = useTranslation()
-  const clampedBalanceProgress = Math.max(0, Math.min(1, balanceProgress))
+  const progress = Math.max(0, Math.min(1, balanceProgress))
 
-  const handleActivity = () => {
+  const handleScan = () => {
     hapticLight()
-    navigate(Pages.Activity)
+    navigate(Pages.WalletScan)
   }
 
   const handleSettings = () => {
@@ -40,66 +41,51 @@ const HomeHeader = forwardRef<HTMLDivElement, HomeHeaderProps>(function HomeHead
     navigate(Pages.Settings)
   }
 
-  const actionClassName =
-    'inline-flex size-11 cursor-pointer touch-manipulation items-center justify-center rounded-lg border-none bg-transparent text-neutral-700 transition-transform duration-150 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500'
-
   return (
     <div className='home-header sticky top-0 z-50 -mx-4'>
-      <div className='relative flex h-18 w-full items-center justify-between px-5'>
-        <div
-          ref={ref}
-          className='home-header__mobile-brand flex size-11 items-center justify-center'
-          style={{ visibility: logoVisible ? 'visible' : 'hidden' }}
-        >
-          <LogoIcon small />
-        </div>
-        <div className='home-header__mobile-actions flex items-center gap-1'>
+      <div className='relative flex h-14 w-full items-center justify-end px-2'>
+        {balance ? (
+          <div
+            className='absolute inset-y-0 left-5 flex items-center'
+            aria-hidden={progress < 0.5}
+            data-testid='sticky-balance'
+          >
+            <div
+              className='flex max-w-[12rem] items-baseline gap-1'
+              style={{
+                opacity: progress,
+                transform: `translate3d(0, ${10 * (1 - progress)}px, 0)`,
+                willChange: progress > 0 && progress < 1 ? 'transform, opacity' : 'auto',
+              }}
+            >
+              <PrivacyAmount className='truncate text-heading-sm' masked={maskedBalance}>
+                {balance}
+              </PrivacyAmount>
+              {balanceUnit ? <span className='text-sm text-ink-3'>{balanceUnit}</span> : null}
+            </div>
+          </div>
+        ) : null}
+        <div className='home-header__mobile-actions flex items-center'>
           <button
             type='button'
-            onClick={handleActivity}
-            aria-label={t('wallet.viewRecentActivity')}
-            data-testid='top-right-activity'
-            className={actionClassName}
-            style={{ WebkitTapHighlightColor: 'transparent' }}
+            onClick={handleScan}
+            aria-label={t('wallet.scan')}
+            data-testid='home-action-scan'
+            className='icon-button'
           >
-            <HistoryIcon size={22} strokeWidth={1.8} />
+            <Glyph name='scan' size={22} />
           </button>
           <button
             type='button'
             onClick={handleSettings}
             aria-label={t('wallet.openSettings')}
             data-testid='top-right-settings'
-            className={actionClassName}
-            style={{ WebkitTapHighlightColor: 'transparent' }}
+            className='icon-button'
           >
-            <SettingsIcon size={20} />
+            <Glyph name='settings' size={22} />
           </button>
         </div>
-        {balance ? (
-          <div
-            className='absolute inset-y-0 left-1/2 flex -translate-x-1/2 items-center justify-center text-center'
-            aria-hidden={clampedBalanceProgress < 0.5}
-            data-testid='sticky-balance'
-          >
-            <div
-              className='flex max-w-[12rem] items-baseline gap-1'
-              style={{
-                opacity: clampedBalanceProgress,
-                transform: `translate3d(0, ${10 * (1 - clampedBalanceProgress)}px, 0) scale(${0.94 + 0.06 * clampedBalanceProgress})`,
-                transformOrigin: 'center center',
-                willChange: clampedBalanceProgress > 0 && clampedBalanceProgress < 1 ? 'transform, opacity' : 'auto',
-              }}
-            >
-              <PrivacyAmount className='truncate text-heading-sm' masked={maskedBalance}>
-                {balance}
-              </PrivacyAmount>
-              {balanceUnit ? <span className='text-sm text-neutral-500'>{balanceUnit}</span> : null}
-            </div>
-          </div>
-        ) : null}
       </div>
     </div>
   )
-})
-
-export default HomeHeader
+}

@@ -1,4 +1,4 @@
-import { ReactElement, ReactNode, useCallback, useState } from 'react'
+import { ReactElement, ReactNode, useCallback } from 'react'
 import { cva, type VariantProps } from 'class-variance-authority'
 import FlexRow from './FlexRow'
 import ArrowIcon from '../icons/Arrow'
@@ -63,21 +63,10 @@ export default function Button({
   testId,
   variant,
 }: ButtonProps) {
-  const [pressed, setPressed] = useState(false)
-
   // Support both old boolean props and new variant prop
   const resolvedVariant =
     variant ??
     (red ? 'destructive' : secondary ? 'secondary' : clear ? 'ghost' : outline ? 'outline' : copy ? 'copy' : 'default')
-
-  const handlePressStart = useCallback(() => {
-    if (disabled || loading) return
-    setPressed(true)
-  }, [disabled, loading])
-
-  const handlePressEnd = useCallback(() => {
-    setPressed(false)
-  }, [])
 
   const handleClick = useCallback(
     (event: any) => {
@@ -92,23 +81,18 @@ export default function Button({
     <button
       aria-label={ariaLabel || label}
       type='button'
-      className={cn(buttonVariants({ variant: resolvedVariant }), pressed && 'pressed', className)}
+      className={cn(buttonVariants({ variant: resolvedVariant }), className)}
       disabled={disabled}
       aria-busy={loading || undefined}
       aria-disabled={loading || undefined}
       onClick={handleClick}
-      onMouseDown={handlePressStart}
-      onMouseUp={handlePressEnd}
       data-testid={testId}
-      onMouseLeave={handlePressEnd}
-      onTouchStart={handlePressStart}
-      onTouchEnd={handlePressEnd}
-      onTouchCancel={handlePressEnd}
       style={{ margin: '4px 0' }}
     >
       {loading ? (
-        <FlexRow centered>
-          <div className='spinner' />
+        <FlexRow centered gap='0.75rem'>
+          <span className='pixel-loader' aria-hidden='true' />
+          {children ?? (label ? <Label label={label} /> : null)}
         </FlexRow>
       ) : fancy ? (
         <FlexRow between padding='0 0.5rem'>

@@ -1,3 +1,4 @@
+import AddressPattern from './AddressPattern'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useContext, useLayoutEffect, useRef, useState } from 'react'
 import { WalletContext } from '../providers/wallet'
@@ -28,8 +29,6 @@ import {
 import UnverifiedBadge from './UnverifiedBadge'
 import { useTransactionAmountDisplay } from '../hooks/useTransactionAmountDisplay'
 import { useTranslation } from '../providers/language'
-
-const border = '1px solid color-mix(in srgb, var(--fg) 6%, transparent)'
 
 const TransactionLine = ({
   tx,
@@ -94,6 +93,8 @@ const TransactionLine = ({
           ticker: tx.assetSwap?.toTicker,
         }}
       />
+    ) : tx.type === 'sent' && tx.lnurl?.address ? (
+      <AddressPattern value={tx.lnurl.address} />
     ) : issuance ? (
       <ReceivedIcon />
     ) : burn || exit ? (
@@ -185,7 +186,7 @@ const TransactionLine = ({
       ) : amountDisplay?.primary ? (
         <>
           <span
-            className={`activity-row__amount${tx.preconfirmed && tx.boardingTxid ? ' activity-row__amount--pending' : ''}`}
+            className={`activity-row__amount${tx.preconfirmed && tx.boardingTxid ? ' activity-row__amount--pending' : prefix === '+' ? ' activity-row__amount--in' : ''}`}
           >
             <PrivacyAmount masked={`${prefix} ${amountDisplay.primary.masked}`}>
               {`${prefix} ${amountDisplay.primary.value}`}
@@ -199,11 +200,7 @@ const TransactionLine = ({
   )
 
   return (
-    <div
-      className={`activity-row ${isFirst ? 'activity-row--first' : ''} activity-row--${mode}`}
-      style={{ borderTop: isFirst ? 'none' : border }}
-      onClick={onClick}
-    >
+    <div className={`activity-row ${isFirst ? 'activity-row--first' : ''} activity-row--${mode}`} onClick={onClick}>
       <Left />
       <Right />
     </div>
@@ -383,7 +380,6 @@ export default function TransactionsList({
         onKeyDown={handleListKeyDown}
         className='activity-list activity-list--full hide-scrollbar scroll-fade'
         style={{
-          borderBottom: border,
           minHeight: '200px',
         }}
       >

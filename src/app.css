@@ -75,6 +75,25 @@
   --color-yellow-900: var(--yellow-900);
   --color-yellow-950: var(--yellow-950);
 
+  /* Redesign surfaces, ink and the single accent */
+  --color-surface: var(--surface);
+  --color-surface-strong: var(--surface-strong);
+  --color-control: var(--control);
+  --color-control-ledge: var(--control-ledge);
+  --color-ink: var(--fg);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-4: var(--ink-4);
+  --color-hairline: var(--hairline);
+  --color-brand: var(--brand);
+  --color-brand-pressed: var(--brand-pressed);
+  --color-brand-ledge: var(--brand-ledge);
+  --color-brand-text: var(--brand-text);
+  --color-brand-tint: var(--brand-tint);
+  --color-on-brand: var(--on-brand);
+  --color-pattern: var(--pattern);
+  --color-scrim: var(--scrim);
+
   /* Background, foreground, named */
   --color-bg: var(--bg);
   --color-fg: var(--fg);
