@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
-import type { Contract } from '@arkade-os/sdk'
+import { ExecutorContractHandler, getNetwork, type Contract } from '@arkade-os/sdk'
+import { hex } from '@scure/base'
 import Executor from '../../../screens/Settings/Executor'
 import { AspContext } from '../../../providers/asp'
 import { BackupContext } from '../../../providers/backup'
@@ -20,7 +21,6 @@ if (!window.PointerEvent) {
 const SERVER = '02e35799157be4b37565bb5afe4d04e6a0fa0a4b6a4f4e48b0d904685d253cdbdb'
 const COSIGNER = '03b7b369269133f17056e659f8f62b1a3adeb6217cabff6c216a9042d8de58eefb'
 const EMULATOR = '02999413c46fa10ada5cbc4bcc79a1d09160c2ba3cfc812705d7a13e5e545fb2a9'
-const BOARDING = 'bcrt1pexecutorboardingaddress'
 
 const info = {
   version: 'test',
@@ -30,19 +30,35 @@ const info = {
   emulatorPubkey: EMULATOR,
 }
 
-const contract = (template: string, metadata: Record<string, unknown>): Contract => ({
+const contractParams = (template: 'boarding' | 'renewal') =>
+  ExecutorContractHandler.serializeParams({
+    template,
+    owner: hex.decode(EMULATOR),
+    exitDelay: 4194305,
+    renewalWindow: 86400,
+    maxFee: 1000,
+    ...(template === 'boarding' ? { boardingExitDelay: 4194305 } : {}),
+    cosignerPubKey: hex.decode(COSIGNER),
+    serverPubKey: hex.decode(SERVER),
+    emulatorPubKey: hex.decode(EMULATOR),
+  })
+
+// the SDK records no address: the screen derives it from the contract's params
+const BOARDING = ExecutorContractHandler.createScript(contractParams('boarding')).onchainAddress(getNetwork('regtest'))
+
+const contract = (template: 'boarding' | 'renewal', metadata: Record<string, unknown>): Contract => ({
   type: 'executor',
   state: 'active',
   address: 'tark1qexecutor',
   script: `${template}-script`,
   createdAt: 1717000000000,
-  params: { template },
+  params: contractParams(template),
   metadata,
 })
 
 // the boarding watch the SDK registered, and the renewal contract it boards into
 const registered = [
-  contract('boarding', { delegationStatus: 'active', delegationAddress: BOARDING }),
+  contract('boarding', { delegationStatus: 'active' }),
   contract('renewal', { delegationStatus: 'local' }),
 ]
 

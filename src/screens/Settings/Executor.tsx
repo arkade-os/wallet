@@ -20,10 +20,11 @@ import { getExecutorUrlForNetwork } from '../../lib/constants'
 import { consoleError } from '../../lib/logs'
 import { useContext, useEffect, useState } from 'react'
 import {
-  DELEGATION_ADDRESS_KEY,
   DELEGATION_EXPIRES_KEY,
   DELEGATION_STATUS_KEY,
+  ExecutorContractHandler,
   RestExecutorProvider,
+  getNetwork,
   type NetworkName,
   type ServiceWorkerWallet,
 } from '@arkade-os/sdk'
@@ -33,16 +34,20 @@ type BoardingWatch = { address: string; status: string; expiresAt?: number }
 
 const xOnly = (key: string) => (key.length === 66 ? key.slice(2) : key).toLowerCase()
 
-// The newest boarding contract the Executor answered for: its renewal companion records no address.
-const readBoardingWatch = async (svcWallet: ServiceWorkerWallet): Promise<BoardingWatch | undefined> => {
+// The newest boarding contract: its renewal companion is not an onchain address. The SDK records no address
+// on the row, so it derives from the contract's params.
+const readBoardingWatch = async (
+  svcWallet: ServiceWorkerWallet,
+  network: NetworkName,
+): Promise<BoardingWatch | undefined> => {
   const cm = await svcWallet.getContractManager()
   const [row] = (await cm.getContracts({ type: 'executor' }))
-    .filter((c) => c.params.template === 'boarding' && typeof c.metadata?.[DELEGATION_ADDRESS_KEY] === 'string')
+    .filter((c) => c.params.template === 'boarding')
     .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
   if (!row?.metadata) return undefined
   const expiresAt = Number(row.metadata[DELEGATION_EXPIRES_KEY] ?? 0)
   return {
-    address: String(row.metadata[DELEGATION_ADDRESS_KEY]),
+    address: ExecutorContractHandler.createScript(row.params).onchainAddress(getNetwork(network)),
     status: String(row.metadata[DELEGATION_STATUS_KEY] ?? ''),
     expiresAt: expiresAt > 0 ? expiresAt : undefined,
   }
@@ -107,13 +112,13 @@ function ExecutorCard({ url }: { url: string }) {
   useEffect(() => {
     if (!svcWallet) return
     let cancelled = false
-    readBoardingWatch(svcWallet)
+    readBoardingWatch(svcWallet, network as NetworkName)
       .then((w) => !cancelled && setWatch(w))
       .catch((error) => !cancelled && consoleError(error, 'Error reading the Executor watch:'))
     return () => {
       cancelled = true
     }
-  }, [svcWallet])
+  }, [svcWallet, network])
 
   return (
     <Shadow lighter fat testId='executor-card'>
