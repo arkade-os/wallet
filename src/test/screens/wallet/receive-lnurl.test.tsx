@@ -188,11 +188,9 @@ const openFormats = async () => {
 const pickMethod = async (title: string) => {
   fireEvent.click(await within(await openFormats()).findByRole('radio', { name: new RegExp(`^${title}(?! address)`) }))
 }
-// The Lightning address lives under Other formats; the default line shows the unified link.
-const addressShown = async (address: string) => {
-  await pickMethod('Lightning address')
-  return screen.findByText(address)
-}
+// A named receiver opens on Unified address, whose line is the address itself.
+const addressShown = (address: string) => screen.findByText(address)
+const unifiedQr = (name: string) => `bitcoin:?lightning=${name}@lnurl.test`
 const copyPart = async (testId: string) => {
   // Found outside act: inside it, the state updates that reveal the row are held back.
   const button = await screen.findByTestId(`${testId}-address-copy`)
@@ -371,20 +369,34 @@ describe('Receive screen, rail composition', () => {
   it('opens every visit on Unified address, remembering and backing up no picked format', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
     const { unmount } = renderReceive()
-    await pickMethod('Lightning address')
-    expect(await copiedQr()).toBe('bitcoin:?lightning=alice@lnurl.test')
+    await waitFor(async () => expect(await copiedQr()).toBe(unifiedQr('alice')))
     await copyPart('lnaddress')
     expect(copyToClipboard).toHaveBeenLastCalledWith('alice@lnurl.test')
-    unmount()
-
-    renderReceive()
-    await waitFor(async () => expect(await qrLightning()).toMatch(/^lnurl1/i))
+    await pickMethod('Any wallet')
+    expect(await qrLightning()).toMatch(/^lnurl1/i)
     const qr = copyToClipboard.mock.calls.at(-1)![0]
     await copyPart('bip21')
     expect(copyToClipboard).toHaveBeenLastCalledWith(qr)
+    unmount()
+
+    renderReceive()
+    await waitFor(async () => expect(await copiedQr()).toBe(unifiedQr('alice')))
     expect(updateConfig).not.toHaveBeenCalled()
     expect(backupConfig).not.toHaveBeenCalled()
     expect(backupAndUpdateConfig).not.toHaveBeenCalled()
+  })
+
+  it('lists Unified address first, checked and marked Default, for a named receiver', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')] })
+    renderReceive()
+
+    await screen.findByTestId('lnaddress-address-copy')
+    const [first, second] = within(await openFormats()).getAllByRole('radio')
+    expect(first).toHaveAccessibleName(/^Unified address/)
+    expect(first).toBeChecked()
+    expect(within(first).getByText('Default')).toBeInTheDocument()
+    expect(second).toHaveAccessibleName(/^Any wallet/)
+    expect(within(second).queryByText('Default')).not.toBeInTheDocument()
   })
 
   it('copies the whole link for a nameless receiver, which has no Lightning address', async () => {
@@ -477,7 +489,7 @@ describe('Receive screen, rail composition', () => {
     await waitFor(async () => expect(await qrLightning()).toBe(fakeInvoice(10_000_000)))
   })
 
-  it('falls back to Unified address, and says why, when no invoice comes back', async () => {
+  it('falls back to Any wallet, and says why, when no invoice comes back', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], invoiceError: 'below the corridor minimum' })
     renderReceive(10_000)
 
@@ -486,7 +498,7 @@ describe('Receive screen, rail composition', () => {
     expect(screen.queryByTestId('invoice-address-copy')).not.toBeInTheDocument()
     expect(screen.getByTestId('bip21-address-copy')).toBeInTheDocument()
     const sheet = await openFormats()
-    expect(within(sheet).getByRole('radio', { name: /^Unified address/ })).toBeChecked()
+    expect(within(sheet).getByRole('radio', { name: /^Any wallet/ })).toBeChecked()
     expect(within(sheet).queryByRole('radio', { name: /^Lightning/ })).not.toBeInTheDocument()
   })
   it('shows the bare Arkade address with no amount', async () => {
@@ -559,19 +571,19 @@ describe('Receive screen, lnurl onboarding', () => {
     expect(claims()).toHaveLength(0)
   })
 
-  it('claims a chosen name and puts its LNURL in the QR', async () => {
+  it('claims a chosen name, shows it as the Unified address, and puts its LNURL in Any wallet', async () => {
     serve({ modes: ['self'] })
     renderReceive()
 
     fireEvent.change(await screen.findByPlaceholderText('Choose a name'), { target: { value: 'alice' } })
     fireEvent.click(screen.getByRole('button', { name: 'Claim name' }))
 
-    await waitFor(async () =>
-      expect((await qrLightning())?.toLowerCase()).toBe(
-        encodeLnurl(`${LNURL_BASE}/.well-known/lnurlp/alice`).toLowerCase(),
-      ),
-    )
+    await waitFor(async () => expect(await copiedQr()).toBe(unifiedQr('alice')))
     expect(await addressShown('alice@lnurl.test')).toBeInTheDocument()
+    await pickMethod('Any wallet')
+    expect((await qrLightning())?.toLowerCase()).toBe(
+      encodeLnurl(`${LNURL_BASE}/.well-known/lnurlp/alice`).toLowerCase(),
+    )
   })
 
   it('claims a server-picked name', async () => {
@@ -615,8 +627,9 @@ describe('Receive screen, naming a nameless receiver', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Claim name' }))
 
     await waitFor(() => expect(server.calls('PATCH', '/lnurl/address/sess1')).toHaveLength(1))
-    expect(await qrLightning()).toBe(before)
     expect(await addressShown('dave@lnurl.test')).toBeInTheDocument()
+    await pickMethod('Any wallet')
+    expect(await qrLightning()).toBe(before)
   })
 
   it('keeps the LNURL in the QR when the naming choices cannot be loaded', async () => {
@@ -651,7 +664,7 @@ describe('Receive screen, token rails', () => {
   // Anchored on a format row, so a sheet not yet filled cannot pass for one without stablecoins.
   const stablecoinRows = async () => {
     const sheet = await openFormats()
-    expect(within(sheet).getByRole('radio', { name: /^Unified address/ })).toBeInTheDocument()
+    expect(within(sheet).getByRole('radio', { name: /^Any wallet/ })).toBeInTheDocument()
     return within(sheet).queryAllByText(/Stablecoins|USDT/)
   }
 
@@ -746,26 +759,44 @@ describe('Receive screen, token rails', () => {
       )
     })
 
-    it('asks for an amount on the keypad before offering stablecoins', async () => {
+    it('asks for an amount on the keypad, then quotes the rail picked without one directly', async () => {
       serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
       render(<LiveAmount initial={0} config={tokensOn} />)
-      await pick('Stablecoins')
+      await pick('USDT on Arbitrum One')
 
       expect(await screen.findByText('Set an amount first')).toBeInTheDocument()
       expect(screen.getByText(/Stablecoin payments are quoted for an exact amount/)).toBeInTheDocument()
       expect(screen.getByTestId('keyboard-amount')).toBeInTheDocument()
       for (const key of '2000000') fireEvent.click(screen.getByTestId(`keyboard-${key}`))
+      expect(tokenQuotes()).toHaveLength(0)
+      fireEvent.click(screen.getByTestId('save-amount'))
+
+      expect(await screen.findByText('Send exactly 17.156 USDT on Arbitrum One')).toBeInTheDocument()
+      expect(await copiedQr()).toBe(arbitrumUri(20_000_000))
+      expect(screen.queryByTestId('sheet-modal')).not.toBeInTheDocument()
+      expect(tokenQuotes()).toHaveLength(1)
+    })
+
+    it('reopens the formats when the rail picked without an amount rejects the amount entered', async () => {
+      serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
+      render(<LiveAmount initial={0} config={tokensOn} />)
+      await pick('USDT on Tron')
+      await screen.findByTestId('keyboard-amount')
+      for (const key of '500000') fireEvent.click(screen.getByTestId(`keyboard-${key}`))
       fireEvent.click(screen.getByTestId('save-amount'))
 
       const sheet = await screen.findByTestId('sheet-modal')
-      expect(await within(sheet).findByRole('button', { name: /^USDT on Arbitrum One/ })).toBeInTheDocument()
+      expect(await within(sheet).findByRole('button', { name: /^USDT on Arbitrum One/ })).toHaveTextContent(
+        'About 4.29 USDT',
+      )
+      expect(within(sheet).queryByRole('button', { name: /^USDT on Tron/ })).not.toBeInTheDocument()
       expect(tokenQuotes()).toHaveLength(0)
     })
 
     it('places no quote order when a stablecoin pick made without an amount is cancelled', async () => {
       serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
       render(<LiveAmount initial={0} config={tokensOn} />)
-      await pick('Stablecoins')
+      await pick('USDT on Arbitrum One')
       await screen.findByTestId('keyboard-amount')
       expect(screen.getByText('Set an amount first')).toBeInTheDocument()
 
@@ -914,13 +945,14 @@ describe('Receive screen, token rails', () => {
     expect(await copiedQr()).toBe(arbitrumUri(30_000_000))
   })
 
-  it('renders nothing when no token option is advertised', async () => {
+  it.each([20_000, 0])('renders nothing when no token option is advertised, at %i sats', async (sats) => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
-    renderReceive(20_000, tokensOn)
+    renderReceive(sats, tokensOn)
 
     // One fetch: both rail hooks share the receiver's memoised payRequest (client 0.5.2).
     await waitFor(() => expect(payRequests()).toHaveLength(1))
-    await waitFor(() => expect(callbacks()).toHaveLength(1))
+    await waitFor(() => expect(callbacks()).toHaveLength(sats ? 1 : 0))
+    await act(async () => {})
     expect(await stablecoinRows()).toEqual([])
   })
 
@@ -945,11 +977,18 @@ describe('Receive screen, token rails', () => {
     expect(rails[0]).toHaveTextContent('About 4.29 USDT')
   })
 
-  it('asks for an amount before offering stablecoins', async () => {
+  it('lists every advertised rail before an amount is set, and asks for one when a rail is picked', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')], tokens: true })
     renderReceive(0, tokensOn)
-    await pick('Stablecoins')
+    const sheet = await openFormats()
+    const arbitrum = await within(sheet).findByRole('button', { name: /^USDT on Arbitrum One/ })
+    const rails = within(sheet).getAllByRole('button')
+    expect(rails).toEqual([arbitrum, within(sheet).getByRole('button', { name: /^USDT on Tron/ })])
+    for (const rail of rails) expect(rail).toHaveTextContent('Set an amount first')
+
+    fireEvent.click(arbitrum)
     expect(await screen.findByText('Set an amount first')).toBeInTheDocument()
+    expect(document.querySelector('input[name="receive-amount-sheet"]')).toBeInTheDocument()
     expect(screen.getByText(/Stablecoin payments are quoted for an exact amount/)).toBeInTheDocument()
     expect(tokenQuotes()).toHaveLength(0)
   })

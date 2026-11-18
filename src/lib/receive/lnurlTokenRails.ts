@@ -99,6 +99,8 @@ export function useLnurlTokenRails(
     () => (payRequest && amountSat > 0 ? lnurlTokenRails(payRequest, amountSat) : []),
     [payRequest, amountSat],
   )
+  // Every advertised option whatever the amount, so one can be picked before the amount is typed.
+  const options = useMemo(() => (payRequest ? lnurlTokenRails(payRequest) : []), [payRequest])
   const rail = rails.find((r) => r.id === selected)
 
   useEffect(() => {
@@ -156,6 +158,7 @@ export function useLnurlTokenRails(
   const regenerate = useCallback(() => setRound((n) => n + 1), [])
   return {
     rails,
+    options,
     quote: expired ? undefined : current?.quote,
     quoting: Boolean(rail) && !current,
     error: current?.error ?? '',

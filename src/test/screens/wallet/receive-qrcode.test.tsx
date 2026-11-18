@@ -366,12 +366,12 @@ describe('Receive QR Code screen', () => {
       }
     })
 
-    it('makes Unified address the active radio on every mount, remembering no pick', async () => {
+    it('makes Any wallet the active radio on every mount, remembering no pick', async () => {
       const { unmount } = renderReceiveQrCode(tapFixture())
 
       await openFormats()
       expect(screen.getByRole('radiogroup', { name: 'Other formats' })).toContainElement(activeFormat())
-      expect(activeFormat()).toHaveAccessibleName(/^Unified address/)
+      expect(activeFormat()).toHaveAccessibleName(/^Any wallet/)
       expect(within(activeFormat()).getByText('Default')).toBeInTheDocument()
       fireEvent.click(screen.getByRole('radio', { name: /^Arkade address/ }))
       expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
@@ -381,7 +381,7 @@ describe('Receive QR Code screen', () => {
       unmount()
       renderReceiveQrCode(tapFixture())
       await openFormats()
-      expect(activeFormat()).toHaveAccessibleName(/^Unified address/)
+      expect(activeFormat()).toHaveAccessibleName(/^Any wallet/)
       expect(updateConfig).not.toHaveBeenCalled()
       expect(backupConfig).not.toHaveBeenCalled()
       expect(backupAndUpdateConfig).not.toHaveBeenCalled()
@@ -448,13 +448,13 @@ describe('Receive QR Code screen', () => {
         'Spanish',
         Language.Spanish,
         'Otros formatos',
-        ['Dirección unificada', 'Factura Lightning', 'Dirección Arkade', 'Dirección Bitcoin'],
+        ['Cualquier billetera', 'Factura Lightning', 'Dirección Arkade', 'Dirección Bitcoin'],
       ],
       [
         'Portuguese',
         Language.Portuguese,
         'Outros formatos',
-        ['Endereço unificado', 'Fatura Lightning', 'Endereço Arkade', 'Endereço Bitcoin'],
+        ['Qualquer carteira', 'Fatura Lightning', 'Endereço Arkade', 'Endereço Bitcoin'],
       ],
     ])('translates the formats like the rest of the screen to %s', async (_, language, card, rows) => {
       renderReceiveQrCode({ ...amountFixture('lnbc10u1ptest'), language })
@@ -478,7 +478,7 @@ describe('Receive QR Code screen', () => {
       expect(activeFormat()).toHaveAccessibleName(/^Lightning invoice/)
     })
 
-    it('falls back to Unified address when the picked Lightning invoice goes', async () => {
+    it('falls back to Any wallet when the picked Lightning invoice goes', async () => {
       const { rerender } = renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
       await pickFormat(/^Lightning invoice/)
       expect(await clickQr()).toBe('lnbc10u1ptest')
@@ -488,7 +488,7 @@ describe('Receive QR Code screen', () => {
       await waitFor(() => expect(screen.queryByTestId('invoice-address-copy')).not.toBeInTheDocument())
       expect(await clickQr()).toMatch(/^bitcoin:/)
       await openFormats()
-      expect(activeFormat()).toHaveAccessibleName(/^Unified address/)
+      expect(activeFormat()).toHaveAccessibleName(/^Any wallet/)
       expect(screen.queryByRole('radio', { name: /^Lightning/ })).not.toBeInTheDocument()
     })
 

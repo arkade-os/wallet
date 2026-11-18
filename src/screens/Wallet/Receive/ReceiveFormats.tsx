@@ -12,6 +12,7 @@ export interface FormatRow {
   title: string
   subtitle?: string
   badge?: string
+  compact?: boolean
 }
 
 const CARD = 'w-full rounded-3xl bg-neutral-50 px-4'
@@ -80,6 +81,7 @@ export function FormatsCard({ onClick }: { onClick: () => void }) {
     icon: <LinesIcon />,
     title: t('receive.otherFormats'),
     subtitle: t('receive.otherFormatsSub'),
+    compact: true,
   }
   return (
     <div className={CARD}>
@@ -109,7 +111,9 @@ function Row({
             <span className='rounded-full bg-background px-2 py-0.5 text-xs font-medium'>{row.badge}</span>
           ) : null}
         </span>
-        {row.subtitle ? <span className='text-sm text-neutral-500'>{row.subtitle}</span> : null}
+        {row.subtitle ? (
+          <span className={`text-sm text-neutral-500 ${row.compact ? 'truncate' : ''}`}>{row.subtitle}</span>
+        ) : null}
       </span>
       {trailing}
     </button>

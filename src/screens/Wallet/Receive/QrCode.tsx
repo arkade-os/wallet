@@ -63,7 +63,7 @@ import { decodeInvoice } from '../../../lib/bolt11'
 import LnurlRailPanel from './LnurlRail'
 import ReceiveFormats, { FormatsCard, type FormatRow } from './ReceiveFormats'
 import { useTranslation } from '../../../providers/language'
-import { TokenLogoStack, TokenOnChainLogo } from '../../../components/ChainLogo'
+import { TokenOnChainLogo } from '../../../components/ChainLogo'
 import TokenLogo, { tokenLogoTickerForTicker } from '../../../components/TokenLogo'
 import AssetAvatar from '../../../components/AssetAvatar'
 import SmallLogo from '../../../components/SmallLogo'
@@ -227,9 +227,11 @@ export default function ReceiveQRCode() {
   const generatingInvoice = swapRail.generatingInvoice || lnurlRails.generating
 
   // Not remembered: the sheet says to pick another format only when the payer's wallet asks for it.
-  const [method, setMethod] = useState<ReceiveMethod>('full')
+  const [method, setMethod] = useState<ReceiveMethod>('lnaddress')
   const [tokenId, setTokenId] = useState<string>()
-  const [amountForTokens, setAmountForTokens] = useState(false)
+  // A rail picked before any amount was typed; it is quoted once the amount lands.
+  const [pendingToken, setPendingToken] = useState<string>()
+  const amountForTokens = Boolean(pendingToken)
   const tokenRails = useLnurlTokenRails(
     receiver,
     requestedSats,
@@ -245,17 +247,19 @@ export default function ReceiveQRCode() {
     lightningAddress,
     sats: satoshis,
     quote: tokenRails.quote,
-    // With an amount the advertised options are known, and none means no method; without one,
-    // picking it is what asks for the amount.
     tokensOffered:
-      addressesCurrent && lnurlConfigured && config.receiveViaTokens && (!satoshis || tokenRails.rails.length > 0),
+      addressesCurrent &&
+      lnurlConfigured &&
+      config.receiveViaTokens &&
+      (satoshis ? tokenRails.rails : tokenRails.options).length > 0,
   }
   const methods = receiveMethods(inputs)
   // A method with nothing to put in the QR (its invoice failed, its token left the amount's bounds) shows Any wallet;
   // a token's quote error keeps the token, which says why.
   const holdsQr =
     method === 'token' ? Boolean(activeToken) : generatingInvoice || Boolean(receiveTarget(method, inputs))
-  const shown: ReceiveMethod = methods.includes(method) && holdsQr ? method : 'full'
+  const shown: ReceiveMethod =
+    methods.includes(method) && holdsQr ? method : methods[0] === 'lnaddress' ? 'lnaddress' : 'full'
   // The bare Arkade address would drop assetid= and have the payer send BTC, so the asset QR is always its link.
   const target = isAssetReceive
     ? bip21Uri
@@ -380,12 +384,15 @@ export default function ReceiveQRCode() {
       else setRecvInfo({ ...recvInfo, satoshis: sats, invoice: undefined, pendingLnReceive: undefined })
       // Dropped here, not in an effect, so no render pairs the new amount with the old pick and orders a quote.
       if (method === 'token' && !tokenRails.offers(sats, tokenId)) {
-        setMethod('full')
+        setMethod('lnaddress')
         setTokenId(undefined)
       }
-      if (amountForTokens) {
-        setAmountForTokens(false)
-        if (sats > 0) setFormatsOpen(true)
+      if (pendingToken) {
+        setPendingToken(undefined)
+        if (sats > 0 && tokenRails.offers(sats, pendingToken)) {
+          setTokenId(pendingToken)
+          setMethod('token')
+        } else if (sats > 0) setFormatsOpen(true)
       }
     }
   }
@@ -412,7 +419,7 @@ export default function ReceiveQRCode() {
   const closeAmountEntry = () => {
     setShowKeys(false)
     setShowAmountSheet(false)
-    setAmountForTokens(false)
+    setPendingToken(undefined)
   }
 
   const pickFormat = (id: string) => {
@@ -421,11 +428,11 @@ export default function ReceiveQRCode() {
     setTokenId(undefined)
   }
 
-  // A stablecoin is quoted for an exact amount, so without one the row asks for it, then reopens the formats.
+  // A stablecoin is quoted for an exact amount, so without one the row asks for it first.
   const pickToken = (id: string) => {
     setFormatsOpen(false)
     if (!satoshis) {
-      setAmountForTokens(true)
+      setPendingToken(id)
       openAmountEntry()
       return
     }
@@ -440,7 +447,7 @@ export default function ReceiveQRCode() {
     setAssetAmount(BigInt(0))
     setAmountTextValue('')
     setSheetSats(0)
-    setMethod('full')
+    setMethod('lnaddress')
     setTokenId(undefined)
     setRecvInfo((prev) => ({
       ...emptyRecvInfo,
@@ -527,12 +534,11 @@ export default function ReceiveQRCode() {
     full: {
       icon: <ScanIcon />,
       title: t('receive.anyWallet'),
-      badge: t('receive.defaultFormat'),
       subtitle: t('receive.anyWalletSub'),
     },
     lnaddress: {
       icon: <BoltOutlineIcon />,
-      title: t('settings.lightningAddress'),
+      title: t('receive.unifiedAddress'),
       subtitle: t('receive.lnAddressSub'),
     },
     lightning: satoshis
@@ -564,34 +570,28 @@ export default function ReceiveQRCode() {
       subtitle: t('receive.bitcoinSub'),
     },
   }
-  const formatRows: FormatRow[] = methods.flatMap((m) => (m === 'token' ? [] : [{ id: m, ...formatInfo[m] }]))
+  const formatRows: FormatRow[] = methods.flatMap((m, i) =>
+    m === 'token' ? [] : [{ id: m, ...formatInfo[m], ...(i ? {} : { badge: t('receive.defaultFormat') }) }],
+  )
   const usd = toFiatAmount(satoshis, Currencies.USD)
   const tokenRows: FormatRow[] = !inputs.tokensOffered
     ? []
-    : satoshis
-      ? tokenRails.rails.map((r) => ({
-          id: r.id,
-          icon: <span className='flex size-7'>{railLogo(r, 'var(--background-color)')}</span>,
-          title: t('receive.methodToken', { unit: r.unit.code, chain: r.chain }),
-          // The wallet's own price, so every row reads the same and the provider's spread shows in the quote.
-          subtitle:
-            isUsdStablecoin(r.unit.code) && usd > 0
-              ? t('receive.tokenAbout', { amount: prettyNumber(usd, 2, true, 2), unit: r.unit.code })
-              : t('receive.tokenVia', { provider: r.provider }),
-        }))
-      : [
-          {
-            id: 'stablecoins',
-            icon: <TokenLogoStack tickers={['USDT', 'USDC']} ring='var(--background-color)' small />,
-            title: t('receive.methodStablecoins'),
-            subtitle: t('receive.setAmountFirst'),
-          },
-        ]
+    : (satoshis ? tokenRails.rails : tokenRails.options).map((r) => ({
+        id: r.id,
+        icon: <span className='flex size-7'>{railLogo(r, 'var(--background-color)')}</span>,
+        title: t('receive.methodToken', { unit: r.unit.code, chain: r.chain }),
+        // The wallet's own price, so every row reads the same and the provider's spread shows in the quote.
+        subtitle: !satoshis
+          ? t('receive.setAmountFirst')
+          : isUsdStablecoin(r.unit.code) && usd > 0
+            ? t('receive.tokenAbout', { amount: prettyNumber(usd, 2, true, 2), unit: r.unit.code })
+            : t('receive.tokenVia', { provider: r.provider }),
+      }))
 
   const copyLabel = target
     ? {
         bip21: t('receive.partLink'),
-        lnaddress: t('settings.lightningAddress'),
+        lnaddress: t('receive.unifiedAddress'),
         lnurl: t('receive.partLnurl'),
         invoice: t('receive.lightningInvoice'),
         ark: t('receive.arkadeAddress'),
@@ -605,7 +605,7 @@ export default function ReceiveQRCode() {
     ? t('receive.arkadeSub')
     : {
         full: (satoshis ? invoice : lnurl) ? t('receive.anyWalletHint') : t('receive.bitcoinWalletHint'),
-        lnaddress: t('receive.lnAddressSub'),
+        lnaddress: t('receive.anyWalletHint'),
         lightning: satoshis ? t('receive.lnInvoiceHint') : t('receive.hintLnAddress'),
         ark: t('receive.arkadeSub'),
         btc: t('receive.bitcoinSub'),
@@ -695,8 +695,8 @@ export default function ReceiveQRCode() {
                   </TextSecondary>
                 ) : null}
                 <div
-                  // Height-capped so the code, its actions and the formats card all fit on a short phone.
-                  className={`receive-invoice-stage w-full grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] overflow-hidden rounded-3xl border border-neutral-100 ${hasAmount ? 'max-w-[clamp(15rem,calc(100dvh-26rem),20rem)]' : 'max-w-[clamp(15rem,calc(100dvh-22rem),20rem)]'} aspect-square`}
+                  // svh, not dvh: a phone browser's toolbar covers the page, and dvh counts the space under it.
+                  className={`receive-invoice-stage w-full grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] overflow-hidden rounded-3xl border border-neutral-100 ${hasAmount ? 'max-w-[clamp(12rem,calc(100svh-28rem),20rem)]' : 'max-w-[clamp(12rem,calc(100svh-24rem),20rem)]'} aspect-square`}
                   data-generating={generating}
                 >
                   <div

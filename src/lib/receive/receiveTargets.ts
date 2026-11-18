@@ -26,9 +26,9 @@ export interface ReceiveTarget {
 
 export function receiveMethods(i: ReceiveInputs): ReceiveMethod[] {
   return [
-    i.ark || i.btc ? 'full' : undefined,
     // One Lightning row: the address when there is one and no amount, else the invoice or the bare LNURL.
     i.lightningAddress && !(i.sats > 0) ? 'lnaddress' : undefined,
+    i.ark || i.btc ? 'full' : undefined,
     (i.sats > 0 ? i.invoice : !i.lightningAddress && i.lnurl) ? 'lightning' : undefined,
     i.ark ? 'ark' : undefined,
     i.btc ? 'btc' : undefined,
@@ -47,7 +47,7 @@ export function receiveTarget(method: ReceiveMethod, i: ReceiveInputs): ReceiveT
       const qr = encodeBitcoinLink({ address: i.btc, ark: i.ark, lightning: sats ? i.invoice : i.lnurl, sats })
       return target(qr, 'bip21')
     }
-    // The newer unified form: one Lightning address whose server also pays out on Arkade and Bitcoin.
+    // The unified address: one Lightning address whose server also pays out on Arkade and Bitcoin.
     case 'lnaddress':
       return sats
         ? undefined
