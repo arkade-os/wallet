@@ -9,6 +9,8 @@ import {
   enableAssets,
   mintAsset,
   handleKeyboardInput,
+  openSendKeypad,
+  sendMax,
   createWalletWithFiat,
   navigateHome,
   navigateToAssets,
@@ -18,7 +20,6 @@ import { translations } from '../../lib/i18n'
 
 const tr = translations.en
 
-const availableMessage = (amount: string) => tr.send.available.replace('{amount}', amount)
 const successMessage = (amount: string) => tr.send.sentSuccessfully.replace('{amount}', amount)
 
 test('should send sats (some and max) to ark address', async ({ page, isMobile }) => {
@@ -57,8 +58,7 @@ test('should send sats (some and max) to ark address', async ({ page, isMobile }
   await page.locator('input[name="send-address"]').fill(someArkAddress)
 
   // click max
-  await page.waitForSelector(`text=${availableMessage('3,000 sats')}`, { timeout: 2100 })
-  await page.getByTestId('input-amount-max').click()
+  await sendMax(page, isMobile, '3,000 sats')
 
   // continue to details page
   await page.getByText(tr.common.continue).click()
@@ -116,10 +116,14 @@ test('should send usds (some and max) to ark address', async ({ page, isMobile }
   // Within a cent: the $2 is spent in rounded sats and what is left is shown rounded to cents.
   const expectedCents = Math.round((usdsReceived - usdsToSend) * 100)
   const nearExpected = [-1, 0, 1].map((d) => ((expectedCents + d) / 100).toFixed(2).replace('.', '\\.')).join('|')
-  const available = page.getByText(new RegExp(`\\$(${nearExpected}) available`)).first()
+  // On a phone the keypad covers the form, so the balance is read from it and Max is pressed there.
+  if (isMobile) await openSendKeypad(page)
+  const available = isMobile
+    ? page.locator('.amount-screen__available').getByText(new RegExp(`\\$(${nearExpected})`))
+    : page.getByText(new RegExp(`\\$(${nearExpected}) available`)).first()
   await available.waitFor({ timeout: 2100 })
   const usdsRemaining = (await available.innerText()).match(/\d+\.\d{2}/)![0]
-  await page.getByTestId('input-amount-max').click()
+  await sendMax(page, isMobile)
   const inputAmount = await page.locator('input[name="send-amount"]').inputValue()
   expect(Number(inputAmount).toFixed(2)).toBe(usdsRemaining)
 
@@ -176,16 +180,14 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
   // fill address
   await page.locator('input[name="send-address"]').fill(someArkAddress)
 
-  // fill amount
+  // fill amount and continue to details page: on a phone the keypad's own Continue goes there
   if (isMobile) {
-    await page.locator('input[name="send-amount"]').click()
+    await openSendKeypad(page)
     await handleKeyboardInput(page, sendAmount, 2)
   } else {
     await page.locator('input[name="send-amount"]').fill(sendAmount.toString())
+    await page.getByText(tr.common.continue).click()
   }
-
-  // continue to details page
-  await page.getByText(tr.common.continue).click()
 
   // details page
   await expect(page.getByTestId('primary-amount')).toHaveText(`${sendAmount} TST`)
@@ -211,7 +213,7 @@ test('should send assets (some and max) to ark address', async ({ page, isMobile
   await page.locator('input[name="send-address"]').fill(someArkAddress)
 
   // click max
-  await page.getByTestId('input-amount-max').click()
+  await sendMax(page, isMobile)
   const inputAmount = await page.locator('input[name="send-amount"]').inputValue()
   expect(inputAmount).toBe(sendAmountMax.toString())
 
@@ -272,8 +274,7 @@ test.skip('should send sats (some and max) to onchain address with chain swap', 
   await page.locator('input[name="send-address"]').fill(someOnchainAddress)
 
   // click max
-  await page.waitForSelector(`text=${availableMessage(`${prettyNumber(balance)} sats`)}`, { timeout: 2100 })
-  await page.getByTestId('input-amount-max').click()
+  await sendMax(page, isMobile, `${prettyNumber(balance)} sats`)
   await page.waitForSelector(`text=${tr.send.feesDeductedFromAmount}`, { timeout: 2000 })
   const inputAmount = await page.locator('input[name="send-amount"]').inputValue()
   expect(inputAmount).toBe(balance.toString())
@@ -337,9 +338,13 @@ test.skip('should send usds (some and max) to onchain address with chain swap', 
   await page.locator('input[name="send-address"]').fill(someOnchainAddress)
 
   // switch entry to the display currency, then click max
-  await page.waitForSelector(`text=$${balance.toFixed(2)} available`, { timeout: 2100 })
-  await page.getByTestId('input-amount-switch').click()
-  await page.getByTestId('input-amount-max').click()
+  if (isMobile) {
+    await sendMax(page, isMobile, `$${balance.toFixed(2)}`)
+  } else {
+    await page.waitForSelector(`text=$${balance.toFixed(2)} available`, { timeout: 2100 })
+    await page.getByTestId('input-amount-switch').click()
+    await page.getByTestId('input-amount-max').click()
+  }
   await page.waitForSelector(`text=${tr.send.feesDeductedFromAmount}`, { timeout: 2000 })
 
   // continue to send
@@ -405,8 +410,7 @@ test('should send sats (some and max) to onchain address with collaborative exit
     await page.locator('input[name="send-address"]').fill(someOnchainAddress)
 
     // click max
-    await page.waitForSelector(`text=${availableMessage(`${prettyNumber(balance)} sats`)}`, { timeout: 2100 })
-    await page.getByTestId('input-amount-max').click()
+    await sendMax(page, isMobile, `${prettyNumber(balance)} sats`)
     await page.waitForSelector(`text=${tr.send.feesDeductedFromAmount}`, { timeout: 2000 })
     const inputAmount = await page.locator('input[name="send-amount"]').inputValue()
     expect(inputAmount).toBe(balance.toString())

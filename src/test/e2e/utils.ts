@@ -1,4 +1,4 @@
-import { test as base, type Page } from '@playwright/test'
+import { test as base, expect, type Page } from '@playwright/test'
 import { faucetOffchain } from './fundedWallet'
 import { sleep } from '../../lib/sleep'
 import { exec } from 'child_process'
@@ -27,7 +27,7 @@ export const test = base.extend({
   },
 })
 
-export { expect } from '@playwright/test'
+export { expect }
 
 /**
  * Wait for the wallet main page to be ready.
@@ -209,6 +209,37 @@ export async function getInvoiceFromLND(amount = 2100): Promise<string> {
   return invoice
 }
 
+/** The Send keypad on a phone. It opens by itself once the recipient has resolved, so that is
+ * what is waited for: tapping the field first would open it before the form knows who is being
+ * paid. The field is the fallback for a recipient the keypad was already offered for. */
+export async function openSendKeypad(page: Page): Promise<void> {
+  const keypad = page.getByTestId('save-amount')
+  try {
+    await keypad.waitFor({ state: 'visible', timeout: 5000 })
+  } catch {
+    await page.locator('input[name="send-amount"]').click()
+    await keypad.waitFor({ state: 'visible' })
+  }
+}
+
+/** Max on Send, with the balance it should be offering. On a phone the keypad covers the form, so
+ * Max is pressed there; it hands over to the form's fee-aware Max and closes, leaving the form
+ * with the amount filled in and its own Continue to press. */
+export async function sendMax(page: Page, isMobile: boolean, available?: string | RegExp): Promise<void> {
+  if (isMobile) {
+    await openSendKeypad(page)
+    if (available) await expect(page.locator('.amount-screen__available')).toContainText(available)
+    await page.getByTestId('keyboard-max').click()
+    await page.getByTestId('save-amount').waitFor({ state: 'hidden' })
+    return
+  }
+  if (available) {
+    const text = typeof available === 'string' ? tr.send.available.replace('{amount}', available) : available
+    await page.getByText(text).first().waitFor({ timeout: 2100 })
+  }
+  await page.getByTestId('input-amount-max').click()
+}
+
 export async function prePay(page: Page, address: string, isMobile = false, amount = 0, decimals = 0): Promise<void> {
   // go to send page
   await navigateHome(page)
@@ -221,11 +252,7 @@ export async function prePay(page: Page, address: string, isMobile = false, amou
   // to display-currency entry first (desktop switch pill / keyboard toggle)
   if (amount) {
     if (isMobile) {
-      // The keypad opens by itself once the recipient resolves; tap the field only if it has not.
-      const keypad = page.getByTestId('save-amount')
-      const field = page.locator('input[name="send-amount"]')
-      await keypad.or(field).first().waitFor({ state: 'visible' })
-      if (!(await keypad.isVisible())) await field.click()
+      await openSendKeypad(page)
       await handleKeyboardInput(page, amount, decimals)
       // The keypad's own Continue carries a valid amount straight to review.
       return
