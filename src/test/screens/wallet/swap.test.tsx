@@ -173,6 +173,7 @@ const openSmartRoutingReview = async (button = screen.getByRole('button', { name
     timeout: 3_000,
   })
   fireEvent.click(screen.getByRole('button', { name: 'Use smart routing' }))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Confirm swap' })).toBeEnabled())
 }
 
 describe('Wallet swap flow', () => {
@@ -338,7 +339,6 @@ describe('Wallet swap flow', () => {
   it('confirms a live firm quote while the estimate is unavailable', async () => {
     quoteExchange.mockImplementationOnce(async (plan: OfferPlan) => firmQuote(plan, plan.receive.atomic - 1n))
     const view = await reviewSatsToBrl()
-    confirm()
     await waitFor(() => expect(screen.getByText(/lower than the estimate/)).toBeInTheDocument())
 
     // the market the estimate came from is gone; the firm quote it produced is not
@@ -350,15 +350,14 @@ describe('Wallet swap flow', () => {
     expect(quoteExchange).toHaveBeenCalledOnce()
   })
 
-  it('shows a firm quote below the estimate and funds it only on a second confirm', async () => {
+  it('quotes firmly as the review opens and funds that quote on one confirm', async () => {
     quoteExchange.mockImplementationOnce(async (plan: OfferPlan) => firmQuote(plan, plan.receive.atomic - 1n))
     await reviewSatsToBrl()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
     await waitFor(() => expect(screen.getByText(/lower than the estimate/)).toBeInTheDocument())
     expect(acceptSwapQuote).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+    confirm()
     await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
     const plan = quoteExchange.mock.calls[0][0]
     expect(acceptSwapQuote.mock.calls[0][0].take.amount).toBe(plan.receive.atomic - 1n)
@@ -381,7 +380,6 @@ describe('Wallet swap flow', () => {
   it('keeps a firm quote below the estimate when the review is reopened', async () => {
     quoteExchange.mockImplementationOnce(async (plan: OfferPlan) => firmQuote(plan, plan.receive.atomic - 1n))
     await reviewSatsToBrl()
-    confirm()
     await waitFor(() => expect(screen.getByText(/lower than the estimate/)).toBeInTheDocument())
 
     await userEvent.keyboard('{Escape}')

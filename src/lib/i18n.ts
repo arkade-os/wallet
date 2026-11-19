@@ -741,7 +741,7 @@ export const translations = {
         "You don't have enough bitcoin to do a partial swap. Please swap all or acquire some bitcoin.",
       pending: 'Pending',
       pickAssetForSide: 'Pick the asset for this side of the swap.',
-      quoteBelowEstimate: 'The solver’s firm quote is lower than the estimate. Check the new amount and confirm again.',
+      quoteBelowEstimate: 'The solver’s final quote is lower than the estimate. Check the amount before you confirm.',
       quoteUnavailable: 'Quote unavailable',
       receive: 'Receive',
       reviewSwap: 'Review swap',
@@ -1663,7 +1663,7 @@ export const translations = {
       pending: 'Pendiente',
       pickAssetForSide: 'Elige el activo para este lado del swap.',
       quoteBelowEstimate:
-        'La cotización firme del solver es menor que la estimación. Revisa el nuevo importe y confirma de nuevo.',
+        'La cotización final del solver es menor que la estimación. Revisa el importe antes de confirmar.',
       quoteUnavailable: 'Cotización no disponible',
       receive: 'Recibir',
       reviewSwap: 'Revisar swap',
@@ -2582,8 +2582,7 @@ export const translations = {
         'Você não tem bitcoin suficiente para fazer uma troca parcial. Troque o valor total ou obtenha bitcoin.',
       pending: 'Pendente',
       pickAssetForSide: 'Escolha o ativo para este lado do swap.',
-      quoteBelowEstimate:
-        'A cotação firme do solver é menor que a estimativa. Confira o novo valor e confirme novamente.',
+      quoteBelowEstimate: 'A cotação final do solver é menor que a estimativa. Confira o valor antes de confirmar.',
       quoteUnavailable: 'Cotação indisponível',
       receive: 'Receber',
       reviewSwap: 'Revisar swap',
