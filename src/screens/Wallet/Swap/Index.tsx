@@ -256,13 +256,15 @@ export default function WalletSwap() {
   const [successQuote, setSuccessQuote] = useState<SwapQuote>()
   const [selectedOffer, setSelectedOffer] = useState<{
     quote: Quote
-    /** Absent for smart routing's firm quote that came in below its estimate. */
+    /** A chosen open offer carries the offer; smart routing's firm quote carries the estimate it answers. */
     offer?: OpenRfqOffer
+    plan?: OfferPlan
     inputKey: string
     destination?: string
   }>()
   const [rememberSolver, setRememberSolver] = useState(false)
-  const [firmQuoting, setFirmQuoting] = useState(false)
+  const [firmQuoting, setFirmQuoting] = useState<string>()
+  const inputEpoch = useRef(0)
   const [quoteClock, setQuoteClock] = useState(() => Math.floor(Date.now() / 1000))
   const submitting = useRef(false)
 
@@ -367,8 +369,10 @@ export default function WalletSwap() {
   const inputKey = `${aspInfo.network}:${fromAsset.assetId}:${fromAsset.decimals}:${toAsset?.assetId}:${toAsset?.decimals}:${amountAtomic}:${destination}`
   const selected = selectedOffer?.inputKey === inputKey ? selectedOffer : undefined
   const selectedExpired = Boolean(selected && selected.quote.expiresAt <= quoteClock)
+  const quotingFirm = firmQuoting === inputKey
 
   useEffect(() => {
+    inputEpoch.current += 1
     setSelectedOffer(undefined)
     setRememberSolver(false)
     setConfirmError('')
@@ -461,11 +465,30 @@ export default function WalletSwap() {
   const searchOpenByDefault = Boolean(
     discoveryReady && canViewQuotes && (!hasSavedSolver || (currentPlan && solvable === false)),
   )
-  // A firm quote on the estimate's exact terms keeps the estimate's pre-fee rate and itemized fee.
-  const firmIsEstimate = Boolean(
-    selected && !selected.offer && currentPlan && selected.quote.take.amount === currentPlan.receive.atomic,
-  )
-  const reviewQuote = selected && !firmIsEstimate ? selectedQuoteDisplay(quote, selected.quote) : quote
+  // The estimate's pre-fee rate and itemized fee, at the firm amount.
+  const firmDisplay = (estimate: OfferPlan, firm: Quote): SwapQuote =>
+    buildQuoteFromPlan(
+      {
+        ...estimate,
+        receive: {
+          ...estimate.receive,
+          atomic: firm.take.amount,
+          display: fromAtomic(firm.take.amount, estimate.receive.asset.decimals),
+        },
+      },
+      assetAmount,
+      preservedAmounts?.entryMode ?? amountMode,
+      fromAsset,
+      toAsset,
+      unitOfAccountUsd,
+      config.currency,
+      config.unit,
+    )
+  const reviewQuote = !selected
+    ? quote
+    : selected.plan
+      ? firmDisplay(selected.plan, selected.quote)
+      : selectedQuoteDisplay(quote, selected.quote)
 
   const stageTransition = prefersReduced ? { duration: 0 } : { duration: 0.28, ease: EASE_IN_OUT_QUINT_TUPLE }
 
@@ -638,26 +661,27 @@ export default function WalletSwap() {
 
   // Fetched as the review opens so Confirm is one tap; keyed to the input it was asked for.
   const requestFirmQuote = async () => {
-    if (!plan || !canContinue || firmQuoting) return
+    if (!plan || !canContinue || quotingFirm) return
     if (!planMatchesPair()) {
       setConfirmError(t('swap.quoteUnavailable'))
       return
     }
     const requested = inputKey
-    setFirmQuoting(true)
+    const epoch = inputEpoch.current
+    setFirmQuoting(requested)
     setConfirmError('')
     try {
       const firm = await quoteExchange(plan)
-      setSelectedOffer({ quote: firm, inputKey: requested })
+      setSelectedOffer({ quote: firm, inputKey: requested, plan })
     } catch (error) {
-      setConfirmError(extractError(error))
+      if (epoch === inputEpoch.current) setConfirmError(extractError(error))
     } finally {
-      setFirmQuoting(false)
+      setFirmQuoting((current) => (current === requested ? undefined : current))
     }
   }
 
   const confirmSwap = async () => {
-    if (submitting.current || !toAsset || confirming || firmQuoting) return
+    if (submitting.current || !toAsset || confirming || quotingFirm) return
     const lapsed = selected && (selectedExpired || selected.quote.expiresAt <= Math.floor(Date.now() / 1000))
     if (selected?.offer && lapsed) {
       setConfirmError(t('swap.offerExpired'))
@@ -673,14 +697,14 @@ export default function WalletSwap() {
       try {
         await acceptSwapQuote(
           selected.quote,
-          offer || !plan
-            ? {
+          selected.plan
+            ? buildQuoteSnapshot(selected.plan, reviewQuote, config.currency)
+            : {
                 fromTicker: fromAsset.ticker,
                 fromDecimals: fromAsset.decimals,
                 toTicker: toAsset.ticker,
                 toDecimals: toAsset.decimals,
-              }
-            : buildQuoteSnapshot(plan, quote, config.currency),
+              },
         )
         setDrawer(null)
         setSuccessQuote(reviewQuote)
@@ -716,18 +740,20 @@ export default function WalletSwap() {
       return
     }
 
+    // Never fund below the amount the review shows: show the new firm terms instead.
+    const shown = selected?.plan ? selected.quote.take.amount : plan.receive.atomic
     setConfirmError('')
     submitting.current = true
     setConfirming(true)
     try {
       const firm = await quoteExchange(plan)
       // Kept before funding: a retry must accept this quote, not ask for its terms again.
-      setSelectedOffer({ quote: firm, inputKey })
-      // Never fund below what the review showed: show the firm terms instead.
-      if (firm.take.amount < plan.receive.atomic) return
-      await acceptSwapQuote(firm, buildQuoteSnapshot(plan, quote, config.currency))
+      setSelectedOffer({ quote: firm, inputKey, plan })
+      if (firm.take.amount < shown) return
+      const funded = firmDisplay(plan, firm)
+      await acceptSwapQuote(firm, buildQuoteSnapshot(plan, funded, config.currency))
       setDrawer(null)
-      setSuccessQuote(quote)
+      setSuccessQuote(funded)
       hapticLight()
     } catch (error) {
       setConfirmError(extractError(error))
@@ -896,15 +922,15 @@ export default function WalletSwap() {
         destination={selected?.destination}
         rememberSolver={rememberSolver}
         onRememberSolverChange={selected?.offer && solverNetwork ? setRememberSolver : undefined}
-        canConfirm={!firmQuoting && (selected && !selectedExpired ? true : !selected?.offer && canContinue)}
+        canConfirm={!quotingFirm && (selected && !selectedExpired ? true : !selected?.offer && canContinue)}
         confirming={confirming}
         error={selected?.offer && selectedExpired ? t('swap.offerExpired') : confirmError}
         note={
-          selected && !selected.offer && plan && selected.quote.take.amount < plan.receive.atomic
+          selected?.plan && selected.quote.take.amount < selected.plan.receive.atomic
             ? t('swap.quoteBelowEstimate')
             : undefined
         }
-        quoteLoading={firmQuoting || (selected ? false : quoteLoading)}
+        quoteLoading={quotingFirm || (selected ? false : quoteLoading)}
         onOpenChange={(open) => {
           // keep the drawer up while the swap is being created so a late
           // failure still has a surface to report on

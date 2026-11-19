@@ -391,6 +391,36 @@ describe('Wallet swap flow', () => {
     expect(quoteExchange).toHaveBeenCalledOnce()
   })
 
+  it('quotes again at confirm after the review quote fails, and never funds below the estimate', async () => {
+    quoteExchange
+      .mockImplementationOnce(async () => {
+        throw new Error('solver busy')
+      })
+      .mockImplementationOnce(async (plan: OfferPlan) => firmQuote(plan, plan.receive.atomic - 1n))
+    await reviewSatsToBrl()
+    await waitFor(() => expect(screen.getByText('solver busy')).toBeInTheDocument())
+
+    confirm()
+    await waitFor(() => expect(screen.getByText(/lower than the estimate/)).toBeInTheDocument())
+    expect(quoteExchange).toHaveBeenCalledTimes(2)
+    expect(acceptSwapQuote).not.toHaveBeenCalled()
+  })
+
+  it('funds a lapsed firm quote re-quoted on the terms shown in one confirm', async () => {
+    quoteExchange
+      .mockImplementationOnce(
+        async (plan: OfferPlan) => ({ ...firmQuote(plan, plan.receive.atomic - 1n), expiresAt: 0 }) as Quote,
+      )
+      .mockImplementationOnce(async (plan: OfferPlan) => firmQuote(plan, plan.receive.atomic - 1n))
+    await reviewSatsToBrl()
+    await waitFor(() => expect(screen.getByText(/lower than the estimate/)).toBeInTheDocument())
+
+    confirm()
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    expect(quoteExchange).toHaveBeenCalledTimes(2)
+    expect(acceptSwapQuote.mock.calls[0][0].expiresAt).toBeGreaterThan(0)
+  })
+
   it('keeps the priced receive conversion when only the give asset is unpriced', async () => {
     renderSwap({
       flow: { swapFromAssetId: DEPIX_ID, setSwapFromAssetId: vi.fn() },
@@ -1108,6 +1138,23 @@ describe('Wallet swap flow', () => {
     expect(plan.receive.atomic).toBe(BigInt(997))
     // the persisted quote snapshot must carry the same correct fiat value
     expect(acceptSwapQuote.mock.calls[0][1]).toMatchObject({ fromFiatAmount: 10 })
+  })
+
+  it('shows a firm quote below the estimate at the market rate and fee, with its own amount', async () => {
+    quoteExchange.mockImplementationOnce(async (plan: OfferPlan) => firmQuote(plan, plan.receive.atomic - 1n))
+    renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+    for (const key of ['1', '0', '0', '0', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
+    const continueButton = screen.getByRole('button', { name: 'View quotes' })
+    await waitFor(() => expect(continueButton).toBeEnabled(), { timeout: 3_000 })
+    await openSmartRoutingReview(continueButton)
+
+    expect(screen.getByText(/lower than the estimate/)).toBeInTheDocument()
+    expect(screen.getByText('9.96 USD')).toBeInTheDocument()
+    expect(screen.getByText('1 BTC = 100,000 USD')).toBeInTheDocument()
+    expect(screen.getByText('0.03 USD')).toBeInTheDocument()
   })
 
   it.each(['pair', 'orientation'])('refuses a hook plan with a mismatched %s at confirmation', async (mismatch) => {
