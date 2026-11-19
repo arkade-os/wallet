@@ -1175,7 +1175,9 @@ export default function SendForm() {
               <InputAddress
                 disabled={processing}
                 error={recipientError}
-                focus={focus === 'recipient'}
+                // Not on a phone: the system keyboard would cover the screen before the
+                // user has chosen between typing, pasting and scanning. Amount is the same.
+                focus={focus === 'recipient' && !isMobileBrowser}
                 label={t('send.recipientAddress')}
                 name='send-address'
                 onChange={handleRecipientChange}

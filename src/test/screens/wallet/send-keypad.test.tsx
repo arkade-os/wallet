@@ -117,6 +117,26 @@ describe('Send on a phone, the keypad', () => {
   })
 })
 
+describe('Send on a phone, the recipient field', () => {
+  // Focusing it would bring up the system keyboard the moment Send opens, before the user has
+  // chosen between typing, pasting and scanning.
+  it('does not take focus when the screen opens', () => {
+    const { container } = render(<StatefulForm balance={100_000} />)
+
+    expect(container.querySelector('input[name="send-address"]')).not.toHaveFocus()
+  })
+
+  it('offers no autofill and changes nothing that is typed into it', () => {
+    const { container } = render(<StatefulForm balance={100_000} />)
+    const input = container.querySelector('input[name="send-address"]')!
+
+    expect(input).toHaveAttribute('autocomplete', 'off')
+    expect(input).toHaveAttribute('autocapitalize', 'none')
+    expect(input).toHaveAttribute('autocorrect', 'off')
+    expect(input).toHaveAttribute('spellcheck', 'false')
+  })
+})
+
 describe('Send on a phone, Max to an LNURL whose rail charges a fee', () => {
   const LNURL = 'alice@pay.example'
   const BALANCE = 995

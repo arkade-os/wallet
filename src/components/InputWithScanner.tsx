@@ -68,6 +68,12 @@ export default function InputWithScanner({
           value={value}
           disabled={disabled}
           className='input'
+          // An address, invoice or code, never prose or a postal address: no AutoFill Contact on
+          // iOS, and no capital letter or correction that would change what was typed.
+          autoComplete='off'
+          autoCorrect='off'
+          autoCapitalize='none'
+          spellCheck={false}
           onChange={handleChange}
           placeholder={placeholder}
           onKeyUp={(ev) => ev.key === 'Enter' && onEnter && onEnter()}
