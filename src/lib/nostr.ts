@@ -9,6 +9,8 @@ const nostrAppName = 'arkade_backup'
 const defaultRelays = ['wss://relay.damus.io', 'wss://relay.primal.net', 'wss://nostr.arkade.sh']
 const relays = import.meta.env.VITE_NOSTR_RELAY_URL ? [import.meta.env.VITE_NOSTR_RELAY_URL] : defaultRelays
 
+export const publishSuccessMessage = 'Message published to Nostr successfully'
+
 let sharedPool: SimplePool | undefined
 
 /**
@@ -70,7 +72,7 @@ export class NostrStorage {
             if (this.pool.allowConnectingToRelay?.(url, ['write', signedEvent]) === false) {
               throw new Error(`Connection to ${url} was denied`)
             }
-            const relay = await this.pool.ensureRelay(url, { connectionTimeout: this.pool.maxWaitForConnection })
+            const relay = await this.pool.ensureRelay(url, { connectionTimeout: 10_000 })
             return relay.publish(signedEvent)
           }),
         ),
@@ -78,7 +80,7 @@ export class NostrStorage {
           timeout = setTimeout(() => reject(new Error('Publish timeout')), 10000)
         }),
       ])
-      console.log('Message published to Nostr successfully')
+      console.log(publishSuccessMessage)
     } catch (error) {
       console.error('Failed to publish to Nostr:', error)
       throw error

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { finalizeEvent, generateSecretKey, getPublicKey, nip44, type Event, type SimplePool } from 'nostr-tools'
 import { EncryptedDirectMessage } from 'nostr-tools/kinds'
-import { NostrStorage } from '../../lib/nostr'
+import { NostrStorage, publishSuccessMessage } from '../../lib/nostr'
 
 // jsdom's TextEncoder returns a cross-realm Uint8Array that @noble/hashes rejects
 const encode = TextEncoder.prototype.encode
@@ -55,7 +55,7 @@ const asDelivered = (event: Event): Event => JSON.parse(JSON.stringify(event))
 
 describe('NostrStorage.save', () => {
   const storageWithRelays = (ensureRelay: ReturnType<typeof vi.fn>) => {
-    const pool = { ensureRelay, maxWaitForConnection: 3000 } as unknown as SimplePool
+    const pool = { ensureRelay } as unknown as SimplePool
     const storage = new NostrStorage(seckey, pool)
     Object.defineProperty(storage, 'relays', { value: ['wss://failed.example', 'wss://connected.example'] })
     return storage
@@ -96,7 +96,7 @@ describe('NostrStorage.save', () => {
 
       acknowledge('connection failure: this is an accepted relay message')
       await saving
-      expect(success).toHaveBeenCalledWith('Message published to Nostr successfully')
+      expect(success).toHaveBeenCalledWith(publishSuccessMessage)
     } finally {
       success.mockRestore()
     }
