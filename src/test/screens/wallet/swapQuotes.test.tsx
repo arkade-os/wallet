@@ -265,6 +265,16 @@ describe('Open swap quote choices', () => {
     expect(onChoose).not.toHaveBeenCalled()
   })
 
+  it('refuses a verified quote that takes more than the offer that was chosen', async () => {
+    chooseSwapQuote.mockResolvedValue({ ...quote, give: { ...quote.give, amount: 10_001n } })
+    show()
+    fireEvent.click(screen.getByRole('button', { name: 'Find open offers' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Select Solver b' }))
+
+    await screen.findByText(/changed this offer/)
+    expect(onChoose).not.toHaveBeenCalled()
+  })
+
   it('shows a chosen provider failure without silently using smart routing', async () => {
     chooseSwapQuote.mockRejectedValue(new Error('Selected offer changed'))
     show()
