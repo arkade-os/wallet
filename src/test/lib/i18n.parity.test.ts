@@ -73,6 +73,7 @@ function collectUsedKeys(): Set<string> {
     if (!content) continue
     // ex: t('common.total')
     for (const match of content.matchAll(/\bt\(\s*['"]([A-Za-z0-9_.]+)['"]/g)) used.add(match[1])
+    for (const match of content.matchAll(/['"](transaction\.[A-Za-z0-9]+)['"]/g)) used.add(match[1])
     // ex: translate(language, 'common.total')
     for (const match of content.matchAll(/translate\([^)]*?,\s*['"]([A-Za-z0-9_.]+)['"]/g)) used.add(match[1])
     // ex: t(condition ? 'common.total' : 'common.amount')

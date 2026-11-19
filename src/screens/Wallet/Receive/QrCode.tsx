@@ -14,9 +14,9 @@ import { canBrowserShareData, shareData } from '../../../lib/share'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
 import { LimitsContext } from '../../../providers/limits'
-import { Asset, Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
+import { Asset, Coin, ExtendedVirtualCoin, type WalletUpdate } from '@arkade-os/sdk'
 import LoadingLogo from '../../../components/LoadingLogo'
-import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
+import { encodeBip21, encodeBip21Asset, type Bip21Taxi } from '../../../lib/bip21'
 import { unitsToAtomic } from '../../../lib/assets'
 import ErrorMessage from '../../../components/Error'
 import { getReceivingAddresses } from '../../../lib/asp'
@@ -46,6 +46,8 @@ import SwapRailStatus from './SwapRail'
 import { configuredLnurlServer, useLnurlRail, useLnurlRails } from '../../../lib/receive/lnurlRail'
 import { useLnurlTokenRails, type LnurlTokenQuote, type LnurlTokenRail } from '../../../lib/receive/lnurlTokenRails'
 import LnurlRailPanel from './LnurlRail'
+import { ReceiverClaimsContext } from '../../../providers/receiverClaims'
+import TaxiChoice from './TaxiChoice'
 import { useTranslation } from '../../../providers/language'
 import Select from '../../../components/Select'
 import { TokenLogoStack, TokenOnChainLogo } from '../../../components/ChainLogo'
@@ -67,12 +69,16 @@ export default function ReceiveQRCode() {
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { assetMetadataCache, svcWallet } = useContext(WalletContext)
+  const renderedSvcWallet = useRef(svcWallet)
+  renderedSvcWallet.current = svcWallet
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
+  const { remember } = useContext(ReceiverClaimsContext)
   const { t } = useTranslation()
 
   const copyToClipboard = useCopyToClipboard()
 
   const [assetAmount, setAssetAmount] = useState(BigInt(0))
+  const [taxiSelection, setTaxiSelection] = useState<{ requestId: string; value: Bip21Taxi }>()
   const [amountTextValue, setAmountTextValue] = useState('')
 
   const [sharing, setSharing] = useState(false)
@@ -94,6 +100,10 @@ export default function ReceiveQRCode() {
   const { boardingAddr, offchainAddr, satoshis, assetId, addressError } = recvInfo
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
   const isAssetReceive = assetId && assetId !== ''
+  const bitcoinTaxiRequest = !isAssetReceive && (satoshis ?? 0) >= 0 && (satoshis ?? 0) < Number(aspInfo.dust)
+  const taxiRequestId = `${aspInfo.network}:${assetId ?? ''}:${satoshis}:${offchainAddr}`
+  const taxi = taxiSelection?.requestId === taxiRequestId ? taxiSelection.value : undefined
+  const setTaxi = (value?: Bip21Taxi) => setTaxiSelection(value ? { requestId: taxiRequestId, value } : undefined)
   const hasError = Boolean(addressError)
 
   const [noPaymentMethods, setNoPaymentMethods] = useState(false)
@@ -163,33 +173,14 @@ export default function ReceiveQRCode() {
   const createBip21 = (): { ark: string; btc: string; bip21: string } => {
     const ark = vtxoTxsAllowed() ? recvInfo.offchainAddr : ''
     const btc = utxoTxsAllowed() ? recvInfo.boardingAddr : ''
+    const requestTaxi =
+      activeMethod === 'unified' && taxi ? { url: taxi.url, fareId: taxi.fareId, payer: taxi.payer } : undefined
     const bip21 = isAssetReceive
-      ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals)
-      : encodeBip21(btc, ark, invoice, satoshis, lnurl)
+      ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals, ark ? requestTaxi : undefined)
+      : encodeBip21(btc, ark, invoice, satoshis, lnurl, ark && bitcoinTaxiRequest ? requestTaxi : undefined)
 
     return { ark, btc, bip21 }
   }
-
-  // Build BIP21 URI
-  useEffect(() => {
-    if (!addressesLoaded) return
-
-    const { ark, btc, bip21 } = createBip21()
-
-    setNoPaymentMethods(!ark && !btc && !isAssetReceive)
-    setArkAddress(ark)
-    setBtcAddress(btc)
-    setBip21Uri(bip21)
-  }, [
-    assetAmount,
-    addressesLoaded,
-    isAssetReceive,
-    recvInfo.offchainAddr,
-    recvInfo.boardingAddr,
-    recvInfo.satoshis,
-    invoice,
-    lnurl,
-  ])
 
   /**
    * The payment methods we can render right now, in display order.
@@ -234,6 +225,33 @@ export default function ReceiveQRCode() {
     if (paymentMethods.some((m) => m.id === 'unified')) return 'unified'
     return paymentMethods[0]?.id ?? ''
   }, [paymentMethods, selectedMethod])
+
+  // Build BIP21 URI
+  useEffect(() => {
+    if (!addressesLoaded) return
+
+    const { ark, btc, bip21 } = createBip21()
+
+    if (activeMethod === 'unified' && (isAssetReceive || bitcoinTaxiRequest) && ark && taxi?.operatorKey) {
+      remember({ network: aspInfo.network, url: taxi.url, operatorKey: taxi.operatorKey })
+    }
+
+    setNoPaymentMethods(!ark && !btc && !isAssetReceive)
+    setArkAddress(ark)
+    setBtcAddress(btc)
+    setBip21Uri(bip21)
+  }, [
+    activeMethod,
+    taxi,
+    assetAmount,
+    addressesLoaded,
+    isAssetReceive,
+    recvInfo.offchainAddr,
+    recvInfo.boardingAddr,
+    recvInfo.satoshis,
+    invoice,
+    lnurl,
+  ])
 
   const qrCodeValue = paymentMethods.find((m) => m.id === activeMethod)?.value ?? ''
   const activeToken = tokenRails.rails.find((r) => TOKEN + r.id === activeMethod)
@@ -281,24 +299,30 @@ export default function ReceiveQRCode() {
             ? [invoice ? rows.invoice : rows.lnaddress]
             : [rows.bip21, rows.ark, rows.btc, rows.invoice, rows.lnaddress]
   ).filter((row) => row.value)
+  // A token's QR value is a payment URI, which a wallet's address field rejects.
+  const copyValue = tokenQuote?.destination ?? qrCodeValue
+  const copyReady =
+    addressesLoaded && !hasError && !noPaymentMethods && !generating && copyRows.length > 0 && Boolean(copyValue)
 
   // Payment listener
   useEffect(() => {
     if (!svcWallet) return
+    let listening = true
 
-    const listenForPayments = (event: MessageEvent) => {
+    const listenForPayments = (update: WalletUpdate) => {
+      if (!listening || renderedSvcWallet.current !== svcWallet) return
       let sats = 0
       let receivedAssets: Asset[] = []
 
-      if (event.data && event.data.type === 'VTXO_UPDATE') {
-        const newVtxos = event.data.payload?.newVtxos
+      if (update.type === 'VTXO_UPDATE') {
+        const newVtxos = update.payload?.newVtxos
         if (Array.isArray(newVtxos)) {
           sats = (newVtxos as ExtendedVirtualCoin[]).reduce((acc, v) => acc + v.value, 0)
           for (const v of newVtxos as ExtendedVirtualCoin[]) {
             receivedAssets.push(...(v.assets ?? []))
           }
         } else {
-          consoleError('VTXO_UPDATE message has unexpected payload shape:', event.data.payload)
+          consoleError(update.payload, 'VTXO_UPDATE message has unexpected payload shape')
         }
       }
 
@@ -312,12 +336,12 @@ export default function ReceiveQRCode() {
         return acc
       }, [] as Asset[])
 
-      if (event.data && event.data.type === 'UTXO_UPDATE') {
-        const coins = event.data.payload?.coins
+      if (update.type === 'UTXO_UPDATE') {
+        const coins = update.payload?.coins
         if (Array.isArray(coins)) {
           sats = (coins as Coin[]).reduce((acc, v) => acc + v.value, 0)
         } else {
-          consoleError('UTXO_UPDATE message has unexpected payload shape:', event.data.payload)
+          consoleError(update.payload, 'UTXO_UPDATE message has unexpected payload shape')
         }
       }
 
@@ -328,8 +352,11 @@ export default function ReceiveQRCode() {
       }
     }
 
-    navigator.serviceWorker.addEventListener('message', listenForPayments)
-    return () => navigator.serviceWorker.removeEventListener('message', listenForPayments)
+    const unsubscribe = svcWallet.onWalletUpdate(listenForPayments)
+    return () => {
+      listening = false
+      unsubscribe()
+    }
   }, [svcWallet])
 
   // Handlers
@@ -351,15 +378,13 @@ export default function ReceiveQRCode() {
   }
 
   const handleCopyButton = async () => {
-    if (generating) return
+    if (!copyReady) return
     if (!prefersReducedMotion) hapticSubtle()
     // One relevant value is copied outright; the toast confirms it, so a one-row sheet adds nothing.
     if (copyRows.length > 1) setShowCopySheet(true)
-    // A token's QR value is a payment URI, which a wallet's address field rejects.
-    const value = tokenQuote?.destination ?? qrCodeValue
-    if (value && copied !== value) {
-      const written = await copyToClipboard(value)
-      if (written) setCopied(value)
+    if (copied !== copyValue) {
+      const written = await copyToClipboard(copyValue)
+      if (written) setCopied(copyValue)
     }
   }
 
@@ -606,6 +631,29 @@ export default function ReceiveQRCode() {
                 rail={lnurlRail}
                 showAddress={activeMethod === 'unified' || activeMethod === 'lightning'}
               />
+              {(assetId || bitcoinTaxiRequest) && arkAddress ? (
+                <div hidden={activeMethod !== 'unified'}>
+                  {assetId ? (
+                    <TaxiChoice
+                      key={taxiRequestId}
+                      assetId={assetId}
+                      receiverAddress={arkAddress}
+                      ticker={assetPresentation.ticker}
+                      decimals={assetMeta?.metadata?.decimals}
+                      value={taxi}
+                      onChange={setTaxi}
+                    />
+                  ) : (
+                    <TaxiChoice
+                      key={taxiRequestId}
+                      satoshis={satoshis}
+                      receiverAddress={arkAddress}
+                      value={taxi}
+                      onChange={setTaxi}
+                    />
+                  )}
+                </div>
+              ) : null}
             </FlexCol>
           )}
         </Padded>
@@ -618,12 +666,7 @@ export default function ReceiveQRCode() {
             onClick={() => (isMobileBrowser ? setShowKeys(true) : setShowAmountSheet(true))}
             secondary
           />
-          <Button
-            label={t('receive.copy')}
-            onClick={handleCopyButton}
-            secondary
-            disabled={generating || Boolean(activeToken && !tokenQuote)}
-          />
+          <Button label={t('receive.copy')} onClick={handleCopyButton} secondary disabled={!copyReady} />
         </FlexRow>
         <Button label={t('receive.share')} onClick={handleShare} disabled={shareDisabled} />
       </ButtonsOnBottom>

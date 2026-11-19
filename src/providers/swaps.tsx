@@ -47,9 +47,13 @@ import {
 } from 'react'
 import { asset, type Asset, type IntentFeeConfig, type NetworkName, type PaymentRouter } from '@arkade-os/sdk'
 import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
+import { fundingWasNotSubmitted } from '@arkade-os/swap/advanced'
 import {
   arkadeAsset,
+  assetSwapIdOf,
   btcOn,
+  parseAssetId,
+  InsufficientFunds,
   type AssetId,
   type AssetSwapId,
   type Outcome,
@@ -61,8 +65,12 @@ import { isRfqMarket, sideLimits, type DiscoveredMarket, type OfferPlan, type Si
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import { discoverMarkets, watchSwapMarkets } from '../lib/swapMarkets'
-import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
 import { createSendRouter, isLightningMarket } from '../lib/sendRouter'
+import type { AssetPayment, AssetPaymentRequest } from '../lib/assetRfqWorkflow'
+import { withTaxiPaymentLock, getPendingDirectTaxi } from '../lib/directTaxiSend'
+import { hex } from '@scure/base'
+import { readAssetPayment, storeAssetPayment, clearAssetPayment } from '../lib/pendingAssetPayment'
+import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
 import { claimFeeRate } from '../lib/claimFee'
 import { onchainClaimEndpoint } from '../lib/onchainPayout'
 import { toInvoiceFacts } from '../lib/lnSwap'
@@ -71,11 +79,16 @@ import {
   DriverPromoted,
   DriverUnavailable,
   openDriverChannel,
-  type DriverChannel,
   type DriverOp,
   type DriverUpdate,
 } from '../lib/swapDriverChannel'
-import { saveQuoteSnapshot, type AssetSwapQuoteSnapshot, type WalletAssetSwap } from '../lib/swapRepository'
+import {
+  assetSwapRepository,
+  quoteSnapshotOf,
+  saveQuoteSnapshot,
+  type AssetSwapQuoteSnapshot,
+  type WalletAssetSwap,
+} from '../lib/swapRepository'
 import { displayAssetOf, offerSwaps } from '../lib/swapRecords'
 import { verifiedDesignatedCurrency } from '../lib/accountAssets'
 import { getEmulatorPubkeyForNetwork } from '../lib/constants'
@@ -103,8 +116,8 @@ interface SwapsContextProps {
   swapAvailable: boolean
   swaps: WalletAssetSwap[]
   runDiscovery: (useCache?: boolean) => void
-  /** Fund an arkade↔arkade asset swap for the plan the composer quoted. */
-  exchange: (market: DiscoveredMarket, plan: OfferPlan, quote?: AssetSwapQuoteSnapshot) => Promise<Swap>
+  quoteExchange: (plan: OfferPlan) => Promise<Quote>
+  exchange: (quote: Quote, snapshot?: AssetSwapQuoteSnapshot) => Promise<Swap>
   cancelSwap: (id: string) => Promise<void>
   /** Run a recovery round for a swept offer deposit. Resolves with whether THIS
    * deposit went home; throws `SwapDriveRefusedError` (by `name` across tabs) or
@@ -114,6 +127,9 @@ interface SwapsContextProps {
   quotePay: (destination: string) => Promise<Quote>
   /** Fund it — which IS the acceptance. Resolves with the funding txid. */
   acceptPay: (quote: Quote) => Promise<string>
+  quoteAssetPayment: (request: AssetPaymentRequest, payment: AssetPayment) => Promise<Quote>
+  acceptAssetPayment: (quote: Quote) => Promise<Swap>
+  checkAssetPayment: () => Promise<Swap>
   /** Negotiate a Lightning receive and begin driving it, in that order. */
   receiveLightning: (amountSats: number) => Promise<AcceptedLnReceive>
   /** The send path's router. Throws `SwapsHeldElsewhere` rather than dropping
@@ -143,11 +159,15 @@ export const SwapsContext = createContext<SwapsContextProps>({
   runDiscovery: () => {
     throw new Error('swaps not initialized')
   },
+  quoteExchange: notInitialized,
   exchange: notInitialized,
   cancelSwap: notInitialized,
   recoverSwap: notInitialized,
   quotePay: notInitialized,
   acceptPay: notInitialized,
+  quoteAssetPayment: notInitialized,
+  acceptAssetPayment: notInitialized,
+  checkAssetPayment: notInitialized,
   receiveLightning: notInitialized,
   sendRouter: notInitialized,
   outcomeOf: () => undefined,
@@ -231,16 +251,13 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   // Assigned only once the Web Lock is HELD, which is what lets an action tell
   // "another tab owns this" from "the client is not running" — see `driving`.
   const held = useRef<Promise<SwapClient>>()
+  type DriverContext = { wallet: typeof svcWallet; url: string; network: string; cardsVersion: number; scope?: string }
+  const heldContext = useRef<DriverContext>()
+  const renderContext = useRef<typeof heldContext.current>()
+  const [identifiedContext, setIdentifiedContext] = useState<DriverContext>()
   // Resolves when this tab's own request is granted, so an action can wait out
   // the grant rather than mistake it for a lock held elsewhere.
   const granted = useRef<Promise<void>>()
-
-  // One channel per provider, not per module: a BroadcastChannel never delivers
-  // to the instance that posted, so two providers standing in for two tabs need
-  // two of them. Lazily built, and closed with the provider.
-  const channelRef = useRef<DriverChannel>()
-  const channel = (channelRef.current ??= openDriverChannel())
-  useEffect(() => () => channel.close(), [channel])
 
   /**
    * Quotes this tab has issued, for the accept that follows.
@@ -332,6 +349,45 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   // serving the pre-card entry for its whole TTL. So a card write re-reads past
   // the cache, which also rewrites it for the watch's next tick.
   const cardsVersion = useSyncExternalStore(subscribeSolverCards, getSolverCardsVersion, getSolverCardsVersion)
+  const scope =
+    identifiedContext &&
+    identifiedContext.wallet === svcWallet &&
+    identifiedContext.url === aspInfo.url &&
+    identifiedContext.network === aspInfo.network &&
+    identifiedContext.cardsVersion === cardsVersion
+      ? identifiedContext.scope
+      : undefined
+  renderContext.current = { wallet: svcWallet, url: aspInfo.url, network: aspInfo.network, cardsVersion, scope }
+  const channel = useMemo(() => openDriverChannel(scope), [scope])
+  useEffect(() => () => channel.close(), [channel])
+  useEffect(() => {
+    if (!svcWallet || !aspInfo.url || !aspInfo.network) return
+    let cancelled = false
+    void (async () => {
+      const pubkey = await svcWallet.identity.xOnlyPublicKey()
+      const current = renderContext.current
+      if (
+        cancelled ||
+        !current ||
+        current.wallet !== svcWallet ||
+        current.url !== aspInfo.url ||
+        current.network !== aspInfo.network ||
+        current.cardsVersion !== cardsVersion
+      )
+        return
+      if (pubkey.length !== 32) throw new Error('The swap wallet identity is unavailable')
+      const url = new URL(aspInfo.url)
+      setIdentifiedContext({
+        ...current,
+        scope: JSON.stringify([aspInfo.network, `${url.origin}${url.pathname.replace(/\/$/, '')}`, hex.encode(pubkey)]),
+      })
+    })().catch((error) => {
+      if (!cancelled) consoleError(extractError(error), 'could not identify swap wallet')
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [svcWallet, aspInfo.url, aspInfo.network, cardsVersion])
   const seenCardsVersion = useRef(cardsVersion)
   useEffect(() => {
     if (seenCardsVersion.current === cardsVersion) return
@@ -435,7 +491,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   // ------------------------------------------------------------ the client
 
   useEffect(() => {
-    if (!svcWallet || !aspInfo.url || !aspInfo.network) return
+    if (!svcWallet || !aspInfo.url || !aspInfo.network || !scope) return
     const network = aspInfo.network as NetworkName
     let stopped = false
     // The lock is released by RETURNING from the callback, never by aborting:
@@ -470,6 +526,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       const started = (async () => {
         const client = makeSwapClient(svcWallet, network)
         client.onUpdate(({ swap, outcome }) => {
+          if (stopped || renderContext.current?.scope !== scope) return
           const replay = !restoredRef.current
           applyRef.current({ swap, outcome, replay })
           // Only the holder has a client, so this is the only place the other
@@ -483,14 +540,15 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         // so a failed restore cannot pin the app on the loading screen.
         try {
           await client.ready
-          restoredRef.current = true
+          if (!stopped && renderContext.current?.scope === scope) restoredRef.current = true
         } finally {
-          await reloadRef.current().catch(consoleError)
+          if (!stopped && renderContext.current?.scope === scope) await reloadRef.current().catch(consoleError)
         }
         return client
       })()
 
       held.current = started
+      heldContext.current = { wallet: svcWallet, url: aspInfo.url, network: aspInfo.network, cardsVersion, scope }
       grant()
       started.catch((err) => consoleError(extractError(err), 'error starting the swap client'))
 
@@ -499,7 +557,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       // exists, and it must not be gated on how long this tab takes to restore
       // its records. The action itself still awaits the client through
       // `driving()`, so an early request waits rather than races.
-      stopServing = channel.serve((op, args) => serveRef.current(op, args))
+      stopServing = channel.serve((op, args, requestScope) => serveRef.current(op, args, requestScope))
 
       await holding
       // Terminal cleanup: drops timers, streams, listeners and loop state while
@@ -527,6 +585,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       stopped = true
       clearTimeout(firstLoad)
       held.current = undefined
+      heldContext.current = undefined
+      issued.current.clear()
       granted.current = undefined
       // Stop answering BEFORE the lock is released, so the window where this
       // tab has given up the client but would still ack for a new request does
@@ -543,7 +603,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     // and its cache writes overwrite the entry the market read above serves
     // from. Rebuilding is the same stop and restore an unlock goes through.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [svcWallet, aspInfo.url, aspInfo.network, cardsVersion])
+  }, [svcWallet, aspInfo.url, aspInfo.network, cardsVersion, channel, scope])
 
   /**
    * The client, for the tab that holds it.
@@ -558,6 +618,21 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     if (!pending) throw new Error('the swap client is not running')
     return pending
   }, [])
+
+  const currentDriverContext = () => {
+    const context = heldContext.current
+    const current = renderContext.current
+    return Boolean(
+      context &&
+        current &&
+        context.wallet === current.wallet &&
+        context.url === current.url &&
+        context.network === current.network &&
+        context.cardsVersion === current.cardsVersion &&
+        Boolean(context.scope) &&
+        context.scope === current.scope,
+    )
+  }
 
   // ------------------------------------------------------- who runs an action
 
@@ -584,16 +659,26 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
    * does not. Everything else runs from `args` either way.
    */
   const runOnDriver = async <T,>(op: DriverOp, args: unknown[], here?: () => Promise<T>): Promise<T> => {
-    const locally = () => (here ? here() : (runHere(op, args) as Promise<T>))
+    const requestScope = assertScope(scope)
+    const locally = async () => {
+      assertScope(requestScope)
+      const result = await (here ? here() : (runHere(op, args, requestScope) as Promise<T>))
+      assertScope(requestScope)
+      return result
+    }
     if (!navigator.locks) return locally()
     if (!held.current && granted.current) {
       await Promise.race([granted.current, new Promise((resolve) => setTimeout(resolve, LOCK_GRACE_MS))])
     }
+    assertScope(requestScope)
     if (held.current) return locally()
     if (!granted.current) throw new Error('the swap client is not running')
     try {
-      return await channel.ask<T>(op, args, granted.current)
+      const result = await channel.ask<T>(op, args, granted.current)
+      assertScope(requestScope)
+      return result
     } catch (err) {
+      assertScope(requestScope)
       if (err instanceof DriverPromoted) return locally()
       // The one case left: no tab answered at all. Nothing is driving these
       // swaps, which is the only thing `SwapsHeldElsewhere` still means.
@@ -604,10 +689,12 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
   /** The other side of the same seam: what the holder does with a request,
    * whether it came from this tab or over the channel. */
-  const runHere = (op: DriverOp, args: unknown[]): Promise<unknown> => {
+  const dispatch = (op: DriverOp, args: unknown[]): Promise<unknown> => {
     switch (op) {
+      case 'quoteExchange':
+        return quoteExchangeHere(args[0] as OfferPlan)
       case 'exchange':
-        return exchangeHere(args[0] as OfferPlan, args[1] as AssetSwapQuoteSnapshot | undefined)
+        return exchangeHere(args[0] as string, args[1] as AssetSwapQuoteSnapshot | undefined)
       case 'cancelSwap':
         return cancelSwapHere(args[0] as string)
       case 'recoverSwap':
@@ -616,6 +703,12 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         return quotePayHere(args[0] as string)
       case 'acceptPay':
         return acceptPayHere(args[0] as string)
+      case 'quoteAssetPayment':
+        return quoteAssetPaymentHere(args[0] as AssetPaymentRequest, args[1] as AssetPayment)
+      case 'acceptAssetPayment':
+        return acceptAssetPaymentHere(args[0] as string)
+      case 'checkAssetPayment':
+        return checkAssetPaymentHere()
       case 'receiveLightning':
         return receiveLightningHere(args[0] as number)
       default:
@@ -627,6 +720,19 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
+  const assertScope = (expected: string | undefined): string => {
+    if (!expected || expected !== renderContext.current?.scope)
+      throw new Error('The swap wallet changed — reload and try again')
+    return expected
+  }
+
+  const runHere = async (op: DriverOp, args: unknown[], requestScope: string): Promise<unknown> => {
+    assertScope(requestScope)
+    const result = await dispatch(op, args)
+    assertScope(requestScope)
+    return result
+  }
+
   // The serving handler is installed once, inside the lock, and must reach the
   // current actions rather than the ones the first render closed over.
   const serveRef = useRef(runHere)
@@ -634,44 +740,58 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
   // ----------------------------------------------------------- asset swaps
 
-  /** The composer's asset ids are discovery's; the client's are CAIP-19. */
-  const assetIdFor = (network: NetworkName, discoveryId: string): AssetId =>
-    discoveryId === BTC_ASSET_ID
+  /** Keep canonical market identities; translate legacy wallet asset ids at this boundary. */
+  const assetIdFor = (network: NetworkName, discoveryId: string): AssetId => {
+    if (discoveryId.includes('/')) {
+      const parsed = parseAssetId(discoveryId)
+      if (parsed.rail !== 'arkade' || parsed.reference !== network)
+        throw new Error('Swap asset belongs to a different network or rail')
+      return discoveryId as AssetId
+    }
+    return discoveryId === BTC_ASSET_ID
       ? btcOn('arkade', network)
       : arkadeAsset(network, asset.AssetId.fromString(discoveryId))
+  }
 
-  /** The market is the client's to select, so only the plan and the snapshot
-   * need to reach the tab that will fund this. */
-  const exchange = (_market: DiscoveredMarket, plan: OfferPlan, quote?: AssetSwapQuoteSnapshot): Promise<Swap> =>
-    runOnDriver('exchange', [plan, quote])
+  const quoteExchange = (plan: OfferPlan): Promise<Quote> => runOnDriver('quoteExchange', [plan])
 
-  const exchangeHere = async (plan: OfferPlan, quote?: AssetSwapQuoteSnapshot): Promise<Swap> => {
+  const quoteExchangeHere = async (plan: OfferPlan): Promise<Quote> => {
     if (!emulatorPubkey) throw new Error('swap service unavailable')
     const network = aspInfo.network as NetworkName
+    const owner = held.current
     const client = await driving()
+    if (!owner || owner !== held.current || !currentDriverContext())
+      throw new Error('The swap wallet changed — try again')
     const give = assetIdFor(network, plan.deposit.asset.id)
     const take = assetIdFor(network, plan.receive.asset.id)
-    // Quote and accept rather than `client.exchange`, for one reason: the
-    // composer has been pricing this plan live and the user confirmed a number.
-    // `exchange` re-quotes internally and would fund whatever came back.
-    // Quoting here lets the confirmed amount be a floor — the swap is refused
-    // rather than funded at a worse rate than the one on screen. The market is
-    // the client's to select; it is taken here only so the caller's own
-    // pair lookup and the client's cannot silently disagree about the pair.
     const quoted = await client.quote({ give, take, amount: plan.deposit.atomic, amountOn: 'give' })
+    if (owner !== held.current || !currentDriverContext()) throw new Error('The swap wallet changed — try again')
     if (quoted.take.amount < plan.receive.atomic) {
       throw new Error('The rate moved while you were confirming — go back and try again')
     }
-    const swap = await client.accept(quoted)
+    remember(quoted)
+    return quoted
+  }
+
+  const exchange = (quote: Quote, snapshot?: AssetSwapQuoteSnapshot): Promise<Swap> =>
+    runOnDriver('exchange', [quote.id, snapshot])
+
+  const exchangeHere = async (id: string, snapshot?: AssetSwapQuoteSnapshot): Promise<Swap> => {
+    const owner = held.current
+    const client = await driving()
+    const quoted = issued.current.get(id)
+    if (!owner || owner !== held.current || !currentDriverContext() || !quoted)
+      throw new Error('This quote is no longer available — go back and try again')
+    const swap = await client.accept(quoted, { validUntil: quoted.expiresAt })
     // The one fact the client does not persist, because it does not own it:
     // tickers, decimals, the fee rate and the fiat amount frozen at quote time,
     // which is all the activity row has to render a swap whose market card may
     // have changed since.
     // Best effort: the swap is funded either way, and a lost snapshot costs
     // the row its tickers, never its money.
-    if (quote) {
+    if (snapshot) {
       try {
-        saveQuoteSnapshot(swap.id, quote)
+        saveQuoteSnapshot(quoted.id, snapshot)
       } catch (err) {
         consoleError(err, 'failed to store the swap quote snapshot')
       }
@@ -811,6 +931,102 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     return swap.fundingTxid
   }
 
+  const assetPaymentRequests = useRef(new Map<string, AssetPaymentRequest>())
+  const quoteAssetPayment = (request: AssetPaymentRequest, payment: AssetPayment): Promise<Quote> =>
+    runOnDriver('quoteAssetPayment', [request, payment])
+
+  const quoteAssetPaymentHere = async (request: AssetPaymentRequest, payment: AssetPayment): Promise<Quote> =>
+    withTaxiPaymentLock(svcWallet!, aspInfo.network, async (sender) => {
+      if (readAssetPayment(sender, aspInfo.network)) throw new Error('Check asset payment before starting another')
+      if (await getPendingDirectTaxi(svcWallet!, aspInfo.network, aspInfo.url))
+        throw new Error('Check Taxi payment before starting another')
+      const client = await driving()
+      const network = aspInfo.network as NetworkName
+      const quote = await client.quote({
+        give: assetIdFor(network, BTC_ASSET_ID),
+        take: assetIdFor(network, request.assetId),
+        amount: request.amount,
+        amountOn: 'take',
+        assetPayment: payment,
+      })
+      assetPaymentRequests.current.set(quote.id, { ...request })
+      remember(quote)
+      try {
+        saveQuoteSnapshot(quote.id, { ...quoteSnapshotOf(quote.id), payee: request.arkAddress })
+      } catch (err) {
+        consoleError(err, 'failed to store the asset payment payee')
+      }
+      return quote
+    })
+
+  const acceptAssetPayment = (quote: Quote): Promise<Swap> =>
+    runOnDriver('acceptAssetPayment', [quote.id], () => acceptAssetPaymentHere(quote))
+
+  const fundedAssetPayment = async (client: SwapClient, sender: string): Promise<Swap> => {
+    const pending = readAssetPayment(sender, aspInfo.network)
+    if (!pending) throw new Error('No asset payment to check')
+    const swap = (await client.swaps()).find((swap) => swap.id === assetSwapIdOf('offer', pending.quoteId))
+    if (!swap?.fundingTxid) {
+      const record = await assetSwapRepository.getSwapRecord(pending.quoteId)
+      if (record?.id === pending.quoteId && record.family === 'offer' && fundingWasNotSubmitted(record)) {
+        clearAssetPayment(sender, aspInfo.network, pending.quoteId)
+        throw new Error('The payment was not sent. Please try again.')
+      }
+      throw new Error('Check asset payment: its funding is still unresolved')
+    }
+    announceHere(swap)
+    await refreshSwaps()
+    clearAssetPayment(sender, aspInfo.network, pending.quoteId)
+    reloadRef.current().catch(consoleError)
+    return swap
+  }
+
+  const checkAssetPayment = (): Promise<Swap> => runOnDriver('checkAssetPayment', [])
+  const checkAssetPaymentHere = async (): Promise<Swap> =>
+    withTaxiPaymentLock(svcWallet!, aspInfo.network, async (sender) => fundedAssetPayment(await driving(), sender))
+
+  const acceptAssetPaymentHere = async (ref: Quote | string): Promise<Swap> =>
+    withTaxiPaymentLock(svcWallet!, aspInfo.network, async (sender) => {
+      const client = await driving()
+      const pending = readAssetPayment(sender, aspInfo.network)
+      const id = typeof ref === 'string' ? ref : ref.id
+      if (pending) {
+        if (pending.quoteId !== id) throw new Error('Check asset payment before starting another')
+        return fundedAssetPayment(client, sender)
+      }
+      const quote = typeof ref === 'string' ? issued.current.get(ref) : ref
+      const request = assetPaymentRequests.current.get(id)
+      if (!quote || !request) throw new Error('This quote is no longer available — go back and try again')
+      if (await getPendingDirectTaxi(svcWallet!, aspInfo.network, aspInfo.url))
+        throw new Error('Check Taxi payment before starting another')
+      storeAssetPayment(sender, aspInfo.network, {
+        quoteId: quote.id,
+        arkAddress: request.arkAddress,
+        assetId: request.assetId,
+        amount: request.amount.toString(),
+        payAmountSats: quote.give.amount.toString(),
+      })
+      let swap: Swap
+      try {
+        swap = await client.accept(quote)
+      } catch (error) {
+        if (
+          error instanceof InsufficientFunds &&
+          error.asset === quote.give.asset &&
+          error.required === quote.give.amount
+        )
+          clearAssetPayment(sender, aspInfo.network, quote.id)
+        throw error
+      }
+      if (!swap.fundingTxid || swap.id !== assetSwapIdOf('offer', quote.id))
+        throw new Error('Check asset payment: its funding is still unresolved')
+      announceHere(swap)
+      await refreshSwaps()
+      clearAssetPayment(sender, aspInfo.network, quote.id)
+      reloadRef.current().catch(consoleError)
+      return swap
+    })
+
   const receiveLightning = (amountSats: number): Promise<AcceptedLnReceive> => {
     assertWithinBounds(amountSats, 'base')
     return runOnDriver('receiveLightning', [amountSats])
@@ -870,18 +1086,22 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const outcomeOf = useCallback((id: string) => outcomes.get(id), [outcomes])
   const errorOf = useCallback((id: string) => errors.get(id), [errors])
 
-  const swapAvailable = markets.length > 0 && Boolean(emulatorPubkey)
+  const swapAvailable = markets.length > 0 && Boolean(emulatorPubkey) && Boolean(scope)
   const value = useMemo(
     () => ({
       markets,
       swapAvailable,
       swaps,
       runDiscovery,
+      quoteExchange,
       exchange,
       cancelSwap,
       recoverSwap,
       quotePay,
       acceptPay,
+      quoteAssetPayment,
+      acceptAssetPayment,
+      checkAssetPayment,
       receiveLightning,
       sendRouter,
       outcomeOf,
@@ -894,6 +1114,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       swapAvailable,
       swaps,
       svcWallet,
+      scope,
+      channel,
       emulatorPubkey,
       aspInfo.url,
       aspInfo.network,

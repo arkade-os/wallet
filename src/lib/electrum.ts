@@ -8,7 +8,9 @@ const providers = new Map<NetworkName, ElectrumOnchainProvider>()
 export const electrumProvider = (network: NetworkName): ElectrumOnchainProvider => {
   let provider = providers.get(network)
   if (!provider) {
-    provider = new ElectrumOnchainProvider(new ElectrumWS(ELECTRUM_WS_URL[network]), getNetwork(network))
+    const endpoint =
+      network === 'regtest' ? import.meta.env.VITE_ELECTRUM_URL || ELECTRUM_WS_URL.regtest : ELECTRUM_WS_URL[network]
+    provider = new ElectrumOnchainProvider(new ElectrumWS(endpoint), getNetwork(network))
     providers.set(network, provider)
   }
   return provider

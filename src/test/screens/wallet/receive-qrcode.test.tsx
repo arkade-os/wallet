@@ -1,5 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, act, fireEvent, waitFor } from '@testing-library/react'
+import { useLayoutEffect } from 'react'
 import { FlowContext } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import {
@@ -14,7 +15,7 @@ import {
 } from '../mocks'
 import { AspContext } from '../../../providers/asp'
 import { WalletContext } from '../../../providers/wallet'
-import { NavigationContext } from '../../../providers/navigation'
+import { NavigationContext, Pages } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { NotificationsContext } from '../../../providers/notifications'
@@ -22,6 +23,23 @@ import { ToastProvider } from '../../../components/Toast'
 import { LanguageContext, translate } from '../../../providers/language'
 import { Language } from '../../../lib/types'
 import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
+
+vi.mock('../../../screens/Wallet/Receive/TaxiChoice', () => ({
+  default: ({ onChange }: { onChange: (taxi: unknown) => void }) => (
+    <button
+      onClick={() =>
+        onChange({
+          url: 'http://localhost:3001',
+          fareId: 'free',
+          payer: 'receiver',
+          operatorKey: 'ab'.repeat(32),
+        })
+      }
+    >
+      Choose Taxi
+    </button>
+  ),
+}))
 
 // Mock qr module used by QrCode component
 vi.mock('qr', () => ({
@@ -80,6 +98,16 @@ type RenderOverrides = {
   wallet?: Partial<typeof mockWalletContextValue>
   config?: Partial<typeof mockConfigContextValue>
   language?: Language
+  navigation?: Partial<typeof mockNavigationContextValue>
+  notifications?: Partial<typeof mockNotificationsContextValue>
+  onLayout?: () => void
+}
+
+function LayoutEvent({ run }: { run?: () => void }) {
+  useLayoutEffect(() => {
+    run?.()
+  }, [run])
+  return null
 }
 
 function buildTree(overrides?: RenderOverrides) {
@@ -94,15 +122,18 @@ function buildTree(overrides?: RenderOverrides) {
       value={{ language, t: (k: string, p?: Record<string, string | number>) => translate(language, k, p) }}
     >
       <ToastProvider>
-        <NavigationContext.Provider value={mockNavigationContextValue}>
+        <NavigationContext.Provider value={{ ...mockNavigationContextValue, ...overrides?.navigation }}>
           <AspContext.Provider value={mockAspContextValue}>
             <ConfigContext.Provider value={config as any}>
               <FiatContext.Provider value={mockFiatContextValue as any}>
-                <NotificationsContext.Provider value={mockNotificationsContextValue as any}>
+                <NotificationsContext.Provider
+                  value={{ ...mockNotificationsContextValue, ...overrides?.notifications } as any}
+                >
                   <FlowContext.Provider value={flow as any}>
                     <WalletContext.Provider value={wallet as any}>
                       <LimitsContext.Provider value={mockLimitsContextValue}>
                         <ReceiveQRCode />
+                        <LayoutEvent run={overrides?.onLayout} />
                       </LimitsContext.Provider>
                     </WalletContext.Provider>
                   </FlowContext.Provider>
@@ -137,6 +168,119 @@ const tapFixture = (addrs = { off: 'ark1testaddr', bd: 'bc1testaddr' }): RenderO
 describe('Receive QR Code screen', () => {
   beforeEach(() => {
     copyToClipboardMock.mockClear()
+  })
+
+  it.each(['VTXO_UPDATE', 'UTXO_UPDATE'])(
+    'ignores a foreign wallet raw %s without reporting a payment',
+    async (type) => {
+      const navigate = vi.fn()
+      const setRecvInfo = vi.fn()
+      const notifyPaymentReceived = vi.fn()
+      const onWalletUpdate = vi.fn(() => () => {})
+      const add = vi.mocked(navigator.serviceWorker.addEventListener)
+      add.mockClear()
+      renderReceiveQrCode({
+        ...tapFixture(),
+        wallet: { svcWallet: { ...mockSvcWallet, onWalletUpdate } as any },
+        flow: { ...tapFixture().flow, setRecvInfo },
+        navigation: { navigate },
+        notifications: { notifyPaymentReceived },
+      })
+      const event = {
+        data: {
+          type,
+          broadcast: true,
+          walletRequestBinding: { scope: 'b'.repeat(64), network: 'regtest' },
+          payload: type === 'VTXO_UPDATE' ? { newVtxos: [{ value: 500 }] } : { coins: [{ value: 500 }] },
+        },
+      } as MessageEvent
+      await act(async () => {
+        for (const [name, listener] of add.mock.calls)
+          if (name === 'message') (listener as (event: MessageEvent) => void)(event)
+      })
+      expect(navigate).not.toHaveBeenCalledWith(Pages.ReceiveSuccess)
+      expect(setRecvInfo).not.toHaveBeenCalledWith(expect.objectContaining({ received: true }))
+      expect(notifyPaymentReceived).not.toHaveBeenCalled()
+      expect(onWalletUpdate).toHaveBeenCalledOnce()
+    },
+  )
+
+  it.each(['VTXO_UPDATE', 'UTXO_UPDATE'])('reports a legitimate captured-wallet %s', async (type) => {
+    let update!: (value: unknown) => void
+    const onWalletUpdate = vi.fn((callback: (value: unknown) => void) => {
+      update = callback
+      return () => {}
+    })
+    const navigate = vi.fn()
+    const setRecvInfo = vi.fn()
+    const notifyPaymentReceived = vi.fn()
+    renderReceiveQrCode({
+      ...tapFixture(),
+      wallet: { svcWallet: { ...mockSvcWallet, onWalletUpdate } as any },
+      flow: { ...tapFixture().flow, setRecvInfo },
+      navigation: { navigate },
+      notifications: { notifyPaymentReceived },
+    })
+    await act(async () =>
+      update({ type, payload: type === 'VTXO_UPDATE' ? { newVtxos: [{ value: 500 }] } : { coins: [{ value: 500 }] } }),
+    )
+    expect(setRecvInfo).toHaveBeenCalledWith(expect.objectContaining({ received: true, satoshis: 500 }))
+    expect(notifyPaymentReceived).toHaveBeenCalledWith(500)
+    expect(navigate).toHaveBeenCalledWith(Pages.ReceiveSuccess)
+  })
+
+  it('ignores a valid old-wallet update during the next wallet render before listener cleanup', async () => {
+    let firstUpdate!: (value: unknown) => void
+    let secondUpdate!: (value: unknown) => void
+    const stopFirst = vi.fn()
+    const stopSecond = vi.fn()
+    const first = {
+      ...mockSvcWallet,
+      onWalletUpdate: (callback: (value: unknown) => void) => {
+        firstUpdate = callback
+        return stopFirst
+      },
+    }
+    const second = {
+      ...mockSvcWallet,
+      onWalletUpdate: (callback: (value: unknown) => void) => {
+        secondUpdate = callback
+        return stopSecond
+      },
+    }
+    const navigate = vi.fn()
+    const notifyPaymentReceived = vi.fn()
+    const setRecvInfo = vi.fn()
+    const view = renderReceiveQrCode({
+      ...tapFixture(),
+      wallet: { svcWallet: first as any },
+      navigation: { navigate },
+      notifications: { notifyPaymentReceived },
+    })
+    const payment = { type: 'VTXO_UPDATE', payload: { newVtxos: [{ value: 500 }] } }
+    view.rerender(
+      buildTree({
+        ...tapFixture({ off: 'ark1walletB', bd: 'bc1walletB' }),
+        wallet: { svcWallet: second as any },
+        flow: { ...tapFixture().flow, setRecvInfo },
+        navigation: { navigate },
+        notifications: { notifyPaymentReceived },
+        onLayout: () => {
+          expect(stopFirst).not.toHaveBeenCalled()
+          firstUpdate(payment)
+        },
+      }),
+    )
+    expect(navigate).not.toHaveBeenCalledWith(Pages.ReceiveSuccess)
+    expect(notifyPaymentReceived).not.toHaveBeenCalled()
+    expect(stopFirst).toHaveBeenCalledOnce()
+    await act(async () => secondUpdate(payment))
+    expect(setRecvInfo).toHaveBeenCalledWith(expect.objectContaining({ received: true, satoshis: 500 }))
+    expect(navigate).toHaveBeenCalledExactlyOnceWith(Pages.ReceiveSuccess)
+    view.unmount()
+    await act(async () => secondUpdate(payment))
+    expect(navigate).toHaveBeenCalledOnce()
+    expect(stopSecond).toHaveBeenCalledOnce()
   })
 
   // Regression for the switched-QR path. We can't drive the Copy sheet in
@@ -409,6 +553,47 @@ describe('Receive QR Code screen — copy feedback', () => {
     copyToClipboardMock.mockImplementation((v) => Promise.resolve(v))
   })
 
+  it('keeps Copy disabled until addresses arrive, then copies the ready address', async () => {
+    let provideAddresses!: (value: { offchainAddr: string; boardingAddr: string }) => void
+    const pending = new Promise<{ offchainAddr: string; boardingAddr: string }>((resolve) => {
+      provideAddresses = resolve
+    })
+    const service = {
+      ...mockSvcWallet,
+      getAddress: () => pending.then((addresses) => addresses.offchainAddr),
+      getBoardingAddress: () => pending.then((addresses) => addresses.boardingAddr),
+    }
+    const setRecvInfo = vi.fn()
+    const initial = {
+      ...tapFixture({ off: '', bd: '' }),
+      wallet: { svcWallet: service as any },
+    }
+    const view = renderReceiveQrCode({ ...initial, flow: { ...initial.flow, setRecvInfo } })
+    const copyButton = screen.getByRole('button', { name: 'Copy' })
+    expect(copyButton).toBeDisabled()
+    fireEvent.click(copyButton)
+    expect(copyToClipboardMock).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('sheet-modal')).not.toBeInTheDocument()
+
+    await act(async () => {
+      provideAddresses({ offchainAddr: 'ark1ready', boardingAddr: 'bc1ready' })
+    })
+    const readyInfo = setRecvInfo.mock.calls.find(([info]) => info.offchainAddr === 'ark1ready')?.[0]
+    expect(readyInfo).toEqual(expect.objectContaining({ offchainAddr: 'ark1ready', boardingAddr: 'bc1ready' }))
+    view.rerender(buildTree({ ...initial, flow: { recvInfo: readyInfo, setRecvInfo } }))
+    await waitFor(() => expect(copyButton).toBeEnabled())
+    await act(async () => {
+      fireEvent.click(copyButton)
+    })
+    expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).toContain('ark1ready')
+    expect(screen.getByTestId('ark-address-copy')).toBeVisible()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('ark-address-copy'))
+    })
+    expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).toBe('ark1ready')
+    expect(screen.queryByTestId('sheet-modal')).not.toBeInTheDocument()
+  })
+
   it('reports a refused clipboard write instead of claiming success', async () => {
     copyToClipboardMock.mockResolvedValue(false)
     renderReceiveQrCode(tapFixture())
@@ -478,5 +663,27 @@ describe('Receive QR Code screen — copy feedback', () => {
     })
 
     expect(await screen.findByText('Failed to copy')).toBeInTheDocument()
+  })
+})
+
+describe('Receive QR Taxi selection', () => {
+  it('encodes the verified Taxi only in the unified request, without its local operator pin', async () => {
+    renderReceiveQrCode(tapFixture())
+    fireEvent.click(await screen.findByText('Choose Taxi'))
+    fireEvent.click(screen.getByRole('button', { name: 'Copy QR code' }))
+    await waitFor(() => expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).toContain('taxi='))
+    expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).not.toContain('ab'.repeat(32))
+    fireEvent.click(screen.getByText('Arkade'))
+    fireEvent.click(screen.getByRole('button', { name: 'Copy QR code' }))
+    await waitFor(() => expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).toBe('ark1testaddr'))
+  })
+
+  it('drops the prior Taxi choice when the receive address changes', async () => {
+    const view = renderReceiveQrCode(tapFixture())
+    fireEvent.click(await screen.findByText('Choose Taxi'))
+    view.rerender(buildTree(tapFixture({ off: 'ark1newaddr', bd: 'bc1newaddr' })))
+    fireEvent.click(screen.getByRole('button', { name: 'Copy QR code' }))
+    await waitFor(() => expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).toContain('ark1newaddr'))
+    expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).not.toContain('taxi=')
   })
 })

@@ -4,6 +4,7 @@ import type { AppIntentState } from '../../lib/appIntent'
 import { emptyInitInfo, emptyNoteInfo, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
 import { AspInfo } from '../../providers/asp'
 import { SingleKey, IVtxoManager } from '@arkade-os/sdk'
+import { vi } from 'vitest'
 import { Currencies, SettingsOptions, Themes, Unit } from '../../lib/types'
 import { AssetIconApprovalManager } from '../../lib/assetIconApproval'
 
@@ -182,6 +183,7 @@ export const mockLimitsContextValue = {
 }
 
 export const mockSvcWallet = {
+  onWalletUpdate: vi.fn<(callback: (update: unknown) => void) => () => void>().mockReturnValue(() => {}),
   identity: SingleKey.fromRandomBytes(),
   getArkadeInfo: () => Promise.resolve({}),
   getArkadeReader: () => Promise.resolve({}),
