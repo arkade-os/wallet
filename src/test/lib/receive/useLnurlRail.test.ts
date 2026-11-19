@@ -128,6 +128,8 @@ describe('useLnurlRail', () => {
     expect(server.bindings.get('sess1')).toMatchObject({ arkadeAddress: DECODABLE_ARK })
     expect(server.bindings.has('revoked')).toBe(false)
     expect(server.bindings.has('foreign')).toBe(false)
+    expect(server.calls('POST', '/lnurl/address/revoked/arkade')).toHaveLength(0)
+    expect(server.calls('POST', '/lnurl/address/foreign/arkade')).toHaveLength(0)
     const read = server.calls('GET', '/lnurl/address')[0][1]!
     const write = server.calls('POST', '/lnurl/address/alice/arkade')[0][1]!
     expect(write.headers).toMatchObject({ Authorization: (read.headers as Record<string, string>).Authorization })

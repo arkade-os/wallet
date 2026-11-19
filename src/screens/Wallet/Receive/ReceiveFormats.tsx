@@ -32,7 +32,7 @@ export default function ReceiveFormats(p: {
   const title = p.title ?? t('receive.otherFormats')
   const tabStop = p.formats.some((f) => f.id === p.active) ? p.active : p.formats[0]?.id
   return (
-    <SheetModal isOpen={p.open} onClose={p.onClose}>
+    <SheetModal ariaLabel={title} isOpen={p.open} onClose={p.onClose}>
       <div className='hide-scrollbar -mx-1 max-h-[70dvh] overflow-y-auto px-1'>
         <FlexCol gap='1.25rem' padding='0.5rem 0'>
           <FlexCol gap='0.25rem'>

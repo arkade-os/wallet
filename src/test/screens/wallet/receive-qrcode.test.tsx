@@ -752,6 +752,24 @@ describe('Receive QR Code screen — asset pill', () => {
     })
   })
 
+  it('re-links the QR when one asset is swapped for another with no amount', async () => {
+    const other = 'cd'.repeat(32)
+    const cache = new Map([...assetMetadataCache, [other, { metadata: { decimals: 0, ticker: 'OTH', name: 'Other' } }]])
+    const flowFor = (id: string) => ({ recvInfo: { ...tapFixture().flow!.recvInfo!, assetId: id } })
+    const wallet = { svcWallet: mockSvcWallet as any, assetMetadataCache: cache as any }
+    const { rerender } = renderReceiveQrCode({ flow: flowFor(assetId), wallet })
+    const qr = async () => {
+      copyToClipboardMock.mockClear()
+      const button = await screen.findByRole('button', { name: 'Copy QR code' })
+      await act(async () => fireEvent.click(button))
+      return copyToClipboardMock.mock.calls.at(-1)?.[0]
+    }
+    expect(await qr()).toContain(`assetid=${assetId}`)
+
+    await act(async () => rerender(buildTree({ flow: flowFor(other), wallet })))
+    await waitFor(async () => expect(await qr()).toContain(`assetid=${other}`))
+  })
+
   it('lists the asset it was opened for even with no balance, and switches back to Bitcoin', async () => {
     const setRecvInfo = vi.fn()
     renderReceiveQrCode({

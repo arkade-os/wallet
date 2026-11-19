@@ -288,7 +288,18 @@ export default function ReceiveQRCode() {
     setArkAddress(ark)
     setBtcAddress(btc)
     setBip21Uri(bip21)
-  }, [assetAmount, addressesLoaded, isAssetReceive, ownAddresses, recvInfo.satoshis, invoice, lnurl])
+    // assetId, not just isAssetReceive: switching one asset for another must re-link the QR to the new one.
+  }, [
+    assetAmount,
+    addressesLoaded,
+    isAssetReceive,
+    assetId,
+    assetMeta?.metadata?.decimals,
+    ownAddresses,
+    recvInfo.satoshis,
+    invoice,
+    lnurl,
+  ])
 
   // Payment listener
   useEffect(() => {
