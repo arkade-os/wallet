@@ -126,7 +126,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: arkade-os/intent-solver
-          ref: 4c5d77e6a2b6e0f4c03341144f70db2c584a1fd7
+          ref: 70784a39bf55ddfd1e086a4094879dc4bd5338f7
           path: .local-tests/native-solver
           persist-credentials: false
       - uses: actions/checkout@v4
