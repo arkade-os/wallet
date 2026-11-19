@@ -51,7 +51,14 @@ export const previewSolverQuote = async (
   const hasNegotiatedSolver = enabled.some(
     ({ card }) => typeof card.discovery_pubkey === 'string' && (card.transports?.nostr?.relays?.length ?? 0) > 0,
   )
-  const usage = prefs.mode === 'usage' ? await solverUsage(network, direction).catch(() => undefined) : undefined
+  const usage =
+    prefs.mode === 'usage'
+      ? await solverUsage(
+          network,
+          direction,
+          enabled.map(({ card }) => card),
+        ).catch(() => undefined)
+      : undefined
   const decimals = (enabled[0].give === 'base' ? enabled[0].card.base_asset : enabled[0].card.quote_asset).decimals
   const ordered = await rankSolverMarkets(enabled, {
     network,

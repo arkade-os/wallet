@@ -85,9 +85,10 @@ function DirectionRouting({
   const [usageError, setUsageError] = useState(false)
   const listId = useId()
   const orderRef = useRef<HTMLSelectElement>(null)
+  const cardsKey = JSON.stringify(candidates.map(({ card }) => card))
   useEffect(() => {
     let active = true
-    void solverUsage(network, direction).then(
+    void solverUsage(network, direction, JSON.parse(cardsKey) as DiscoveredMarket[]).then(
       (next) => {
         if (active) {
           setUsage(next)
@@ -101,7 +102,7 @@ function DirectionRouting({
     return () => {
       active = false
     }
-  }, [network, direction, swaps])
+  }, [network, direction, swaps, cardsKey])
   const prefs = readSolverRouting(network, direction)
   const ordered = orderSolverMarkets(candidates, {
     network,

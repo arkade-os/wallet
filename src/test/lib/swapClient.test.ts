@@ -69,14 +69,21 @@ describe('wallet solver routing policy', () => {
   })
 
   it('adds completed usage only when the current saved mode requests it', async () => {
-    const preferences = preferencesCallback()
+    const card = { ...btcUsdt, solver: 'solver', source: 'registry', sourceType: 'registry' as const }
+    const id = solverId({ ...card, discovery_pubkey: undefined }, 'regtest')
+    const preferences = preferencesCallback([
+      {
+        card: { ...card, discovery_pubkey: undefined },
+        give: 'base',
+        backend: 'feed',
+        key: 'market',
+        solverId: id,
+        direction,
+      },
+    ])
     saveSolverRouting('regtest', direction, { mode: 'usage', priority })
     mocks.history.mockResolvedValue([completed, completed, { ...completed, id: 'rfq:pending', outcome: 'funded' }])
-    await expect(preferences()).resolves.toEqual({
-      mode: 'usage',
-      priority,
-      usage: { [solverId({ solver: 'solver', source: 'registry', sourceType: 'registry' }, 'regtest')]: 1 },
-    })
+    await expect(preferences()).resolves.toEqual({ mode: 'usage', priority, usage: { [id]: 1 } })
     expect(mocks.history).toHaveBeenCalledOnce()
   })
 

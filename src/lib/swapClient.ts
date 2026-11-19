@@ -28,7 +28,7 @@
  * rendezvous, which is the only shipped transport that can attest who answered.
  */
 import type { NetworkName } from '@arkade-os/sdk'
-import { completedSolverUsage, createSwapClient, type SwapClient, type SwapClientConfig } from '@arkade-os/swap'
+import { createSwapClient, type SwapClient, type SwapClientConfig } from '@arkade-os/swap'
 // `./advanced` is not a compatibility promise — see the note in `swapRecords.ts`.
 import { corridorRecordStore, type OnchainClaim } from '@arkade-os/swap/advanced'
 import { chainSourceFrom, claimOnchainFill, preimageForSwapRecord, rfqClaimSecretOf } from '@arkade-os/swap/protocol'
@@ -38,6 +38,7 @@ import { electrumProvider } from './electrum'
 import { toInvoiceFacts } from './lnSwap'
 import { l1NetworkOf, onchainClaimEndpoint } from './onchainPayout'
 import { discoveryOptions } from './swapMarkets'
+import { candidateUsage } from './swapRecords'
 import { assetSwapRepository } from './swapRepository'
 import { effectiveSolverRouting } from './solverRouting'
 import { solverHealth } from './solverHealth'
@@ -111,7 +112,8 @@ export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: Netw
           const preferences = effectiveSolverRouting(network, direction, candidates)
           if (preferences.mode !== 'usage') return preferences
           try {
-            return { ...preferences, usage: completedSolverUsage(await client.swaps(), network, direction) }
+            const cards = candidates.map(({ card }) => card)
+            return { ...preferences, usage: candidateUsage(await client.swaps(), cards, network, direction) }
           } catch {
             // Usage stays advisory even if an eager callback reads client before assignment.
             return preferences
