@@ -1,7 +1,6 @@
 import { finalizeEvent, getPublicKey, nip44, SimplePool, UnsignedEvent, Event, verifyEvent } from 'nostr-tools'
 import { EncryptedDirectMessage } from 'nostr-tools/kinds'
 import { consoleError } from './logs'
-import { publishSuccessMessage } from './constants'
 
 /** A loaded event, with the local time it arrived at (seconds). */
 export type BackupEvent = Event & { receivedAt: number }
@@ -79,7 +78,7 @@ export class NostrStorage {
           timeout = setTimeout(() => reject(new Error('Publish timeout')), 10000)
         }),
       ])
-      console.log(publishSuccessMessage)
+      console.log('Message published to Nostr successfully')
     } catch (error) {
       console.error('Failed to publish to Nostr:', error)
       throw error

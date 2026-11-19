@@ -13,7 +13,6 @@ export const defaultPassword = 'noah'
 export const minSatsToNudge = 100_000
 export const maxPercentage = import.meta.env.VITE_MAX_PERCENTAGE ?? 10
 export const enableChainSwapsReceive = import.meta.env.VITE_CHAIN_SWAPS_RECEIVE_ENABLED === 'true'
-export const publishSuccessMessage = 'Message published to Nostr successfully'
 
 export const fromRuntimeEnv = (value: string | undefined): string | undefined =>
   value && !value.startsWith('__VITE_') ? value : undefined

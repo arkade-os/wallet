@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { finalizeEvent, generateSecretKey, getPublicKey, nip44, type Event, type SimplePool } from 'nostr-tools'
-import { publishSuccessMessage } from '../../lib/constants'
 import { EncryptedDirectMessage } from 'nostr-tools/kinds'
 import { NostrStorage } from '../../lib/nostr'
 
@@ -97,7 +96,7 @@ describe('NostrStorage.save', () => {
 
       acknowledge('connection failure: this is an accepted relay message')
       await saving
-      expect(success).toHaveBeenCalledWith(publishSuccessMessage)
+      expect(success).toHaveBeenCalledWith('Message published to Nostr successfully')
     } finally {
       success.mockRestore()
     }
