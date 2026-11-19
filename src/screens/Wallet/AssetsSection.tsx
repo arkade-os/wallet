@@ -56,7 +56,7 @@ export default function AssetsSection() {
   }
 
   return (
-    <section className='home-section'>
+    <section className='home-section home-section--ruled'>
       <div className='home-section__header'>
         <h2 className='home-section-label'>{t('wallet.accounts')}</h2>
         <button type='button' onClick={handleSwap} data-testid='home-action-swap' className='home-section-action'>

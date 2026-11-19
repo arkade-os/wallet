@@ -26,7 +26,7 @@ export default function RecentActivitySection() {
   // View all stays in the empty state too: it is the only way into Activity on a phone, and
   // Activity can hold swaps that have not produced a transaction yet.
   return (
-    <section className='home-section'>
+    <section className='home-section home-section--ruled'>
       <div className='home-section__header'>
         <h2 className='home-section-label'>{t('wallet.recentActivity')}</h2>
         <button
