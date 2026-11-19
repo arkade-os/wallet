@@ -57,12 +57,16 @@ const pendingSwap: AssetSwap = {
 }
 
 // the solver's firm terms for a plan: the estimate itself unless a test lowers them
-const firmQuote = (plan: OfferPlan, take = plan.receive.atomic) =>
+const firmQuote = (
+  plan: OfferPlan,
+  take = plan.receive.atomic,
+  fee = (plan.receive.atomic * BigInt(plan.market.fee_bps)) / BigInt(10_000 - plan.market.fee_bps),
+) =>
   ({
     id: 'firm',
     give: { asset: plan.deposit.asset.id, amount: plan.deposit.atomic },
     take: { asset: plan.receive.asset.id, amount: take },
-    fee: { asset: plan.deposit.asset.id, amount: 0n },
+    fee: { asset: plan.receive.asset.id, amount: fee },
     expiresAt: Math.floor(Date.now() / 1000) + 30,
   }) as unknown as Quote
 const quoteExchange = vi.fn(async (plan: OfferPlan) => firmQuote(plan))
@@ -1140,8 +1144,9 @@ describe('Wallet swap flow', () => {
     expect(acceptSwapQuote.mock.calls[0][1]).toMatchObject({ fromFiatAmount: 10 })
   })
 
-  it('shows a firm quote below the estimate at the market rate and fee, with its own amount', async () => {
-    quoteExchange.mockImplementationOnce(async (plan: OfferPlan) => firmQuote(plan, plan.receive.atomic - 1n))
+  it('shows a firm quote below the estimate at the market rate, with its own fee and amount', async () => {
+    // a 21-cent delivered carrier the estimate did not price: the 3-cent spread becomes a 24-cent fee
+    quoteExchange.mockImplementationOnce(async (plan: OfferPlan) => firmQuote(plan, plan.receive.atomic - 21n, 24n))
     renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
     fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
     fireEvent.click(screen.getByRole('button', { name: /USD/i }))
@@ -1152,9 +1157,9 @@ describe('Wallet swap flow', () => {
     await openSmartRoutingReview(continueButton)
 
     expect(screen.getByText(/lower than the estimate/)).toBeInTheDocument()
-    expect(screen.getByText('9.96 USD')).toBeInTheDocument()
+    expect(screen.getByText('9.76 USD')).toBeInTheDocument()
     expect(screen.getByText('1 BTC = 100,000 USD')).toBeInTheDocument()
-    expect(screen.getByText('0.03 USD')).toBeInTheDocument()
+    expect(screen.getByText('0.24 USD')).toBeInTheDocument()
   })
 
   it.each(['pair', 'orientation'])('refuses a hook plan with a mismatched %s at confirmation', async (mismatch) => {

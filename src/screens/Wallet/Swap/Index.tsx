@@ -465,9 +465,9 @@ export default function WalletSwap() {
   const searchOpenByDefault = Boolean(
     discoveryReady && canViewQuotes && (!hasSavedSolver || (currentPlan && solvable === false)),
   )
-  // The estimate's pre-fee rate and itemized fee, at the firm amount.
-  const firmDisplay = (estimate: OfferPlan, firm: Quote): SwapQuote =>
-    buildQuoteFromPlan(
+  // The market's pre-fee rate beside the firm fee (spread plus any unreturned carrier) and amount.
+  const firmDisplay = (estimate: OfferPlan, firm: Quote): SwapQuote => {
+    const display = buildQuoteFromPlan(
       {
         ...estimate,
         receive: {
@@ -484,6 +484,8 @@ export default function WalletSwap() {
       config.currency,
       config.unit,
     )
+    return { ...display, feeLabel: quoteFeeLabel(display, firm) }
+  }
   const reviewQuote = !selected
     ? quote
     : selected.plan
@@ -1721,17 +1723,21 @@ function selectedQuoteDisplay(display: SwapQuote, quote: Quote): SwapQuote {
   const rate = new Decimal(quote.take.amount.toString())
     .div(new Decimal(10).pow(toDecimals))
     .div(new Decimal(quote.give.amount.toString()).div(new Decimal(10).pow(fromDecimals)))
-  const feeAsset = quote.fee.asset === quote.give.asset ? from : to
   return {
     ...display,
     fromAmount: formatQuoteAmount(quote.give.amount, from.decimals),
     toAmount: formatQuoteAmount(quote.take.amount, to.decimals),
     toCurrency: '',
     toCurrencyValue: 0,
-    feeLabel: `${formatQuoteAmount(quote.fee.amount, feeAsset.decimals)} ${feeAsset.ticker}`,
+    feeLabel: quoteFeeLabel(display, quote),
     rateLabel: rate.toSignificantDigits(10).toFixed(),
     rateToTicker: to.external ? 'BTC' : display.rateToTicker,
   }
+}
+
+function quoteFeeLabel(display: SwapQuote, quote: Quote): string {
+  const feeAsset = quote.fee.asset === quote.give.asset ? display.fromAsset : display.toAsset
+  return feeAsset ? `${formatQuoteAmount(quote.fee.amount, feeAsset.decimals)} ${feeAsset.ticker}` : display.feeLabel
 }
 
 function buildQuoteFromPlan(
