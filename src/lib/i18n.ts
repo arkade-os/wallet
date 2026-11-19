@@ -704,6 +704,7 @@ export const translations = {
       noOpenOffers: 'No open offers arrived. Refresh to try again.',
       noSavedSolverOffers: 'No saved solver supports this swap. Viewing quotes will search open offers publicly.',
       offerExpired: 'Offer expired. Refresh quotes to continue.',
+      offerTermsChanged: 'The solver changed this offer’s terms. Choose another offer or refresh.',
       offerExpiresIn: 'Expires in {seconds}s',
       openOffers: 'Open offers',
       openOffersDisclosure:
@@ -1624,6 +1625,7 @@ export const translations = {
       noSavedSolverOffers:
         'Ningún solver guardado admite este intercambio. Ver cotizaciones buscará ofertas abiertas públicamente.',
       offerExpired: 'Oferta caducada. Actualiza las cotizaciones para continuar.',
+      offerTermsChanged: 'El solver cambió las condiciones de esta oferta. Elige otra oferta o actualiza.',
       offerExpiresIn: 'Caduca en {seconds}s',
       openOffers: 'Ofertas abiertas',
       openOffersDisclosure:
@@ -2543,6 +2545,7 @@ export const translations = {
       noOpenOffers: 'Nenhuma oferta aberta chegou. Atualize para tentar novamente.',
       noSavedSolverOffers: 'Nenhum solver salvo atende esta troca. Ver cotações buscará ofertas abertas publicamente.',
       offerExpired: 'Oferta expirada. Atualize as cotações para continuar.',
+      offerTermsChanged: 'O solver alterou as condições desta oferta. Escolha outra oferta ou atualize.',
       offerExpiresIn: 'Expira em {seconds}s',
       openOffers: 'Ofertas abertas',
       openOffersDisclosure:

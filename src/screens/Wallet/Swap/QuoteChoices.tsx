@@ -132,6 +132,9 @@ export default function QuoteChoices({
       const quote = await api.current.chooseSwapQuote(auction.id, offer.id)
       if (!isCurrent(started)) return
       if (quote.expiresAt <= Math.floor(Date.now() / 1000)) throw new Error(t('swap.offerExpired'))
+      // `quoteBid` refuses this too; the screen still enforces the terms it showed.
+      if (quote.take.amount < offer.toAmount || quote.give.amount > offer.fromAmount)
+        throw new Error(t('swap.offerTermsChanged'))
       onChoose(quote, offer)
     } catch (cause) {
       if (isCurrent(started)) setError(extractError(cause))
