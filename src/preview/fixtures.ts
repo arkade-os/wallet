@@ -11,6 +11,7 @@ import {
 import { MUTINYNET_USDT_ASSET_ID } from '../lib/accountAssets'
 import { Currencies, Themes, Unit } from '../lib/types'
 import { SwapsContext } from '../providers/swaps'
+import { btcUsdt } from '../test/lib/swapFixtures'
 
 const BTC_PRICE = 120_000
 const OFFCHAIN =
@@ -117,7 +118,14 @@ export function buildFixtures(theme: Themes, variant: string) {
       },
     },
     limits: mockLimitsContextValue,
-    swaps: { ...((SwapsContext as any)._currentValue ?? {}), swapAvailable: true, swaps: [], markets: [] },
+    swaps: {
+      ...((SwapsContext as any)._currentValue ?? {}),
+      swapAvailable: true,
+      swaps: [],
+      // one registry market, so Swap can be composed and reviewed; its quote reads the market's price feed
+      markets: [btcUsdt],
+      exchange: () => Promise.resolve({}),
+    },
     wallet: {
       ...mockWalletContextValue,
       walletLoaded: true,
