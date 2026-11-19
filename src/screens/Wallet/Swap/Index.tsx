@@ -867,7 +867,7 @@ export default function WalletSwap() {
         destination={selected?.destination}
         rememberSolver={rememberSolver}
         onRememberSolverChange={selected?.offer && solverNetwork ? setRememberSolver : undefined}
-        canConfirm={selected?.offer ? !selectedExpired : canContinue}
+        canConfirm={selected && !selectedExpired ? true : !selected?.offer && canContinue}
         confirming={confirming}
         error={selected?.offer && selectedExpired ? t('swap.offerExpired') : confirmError}
         quoteLoading={selected ? false : quoteLoading}

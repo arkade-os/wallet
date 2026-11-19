@@ -321,7 +321,7 @@ describe('Wallet swap flow', () => {
   })
 
   const reviewSatsToBrl = async () => {
-    renderSwap({
+    const view = renderSwap({
       config: { currency: Currencies.USD, unit: Unit.SATS },
       fiat: { toFiat: () => 0, fromFiat: () => 0, fromFiatAmount: () => 0, toFiatAmount: () => 0 },
       flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
@@ -331,8 +331,24 @@ describe('Wallet swap flow', () => {
     for (const key of ['1', '0', '0', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'View quotes' })).toBeEnabled(), { timeout: 3_000 })
     await openSmartRoutingReview()
+    return view
   }
   const confirm = () => fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+
+  it('confirms a live firm quote while the estimate is unavailable', async () => {
+    quoteExchange.mockImplementationOnce(async (plan: OfferPlan) => firmQuote(plan, plan.receive.atomic - 1n))
+    const view = await reviewSatsToBrl()
+    confirm()
+    await waitFor(() => expect(screen.getByText(/lower than the estimate/)).toBeInTheDocument())
+
+    // the market the estimate came from is gone; the firm quote it produced is not
+    view.rerenderSwap({ markets: [btcUsdt] })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Confirm swap' })).toBeEnabled())
+    confirm()
+
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    expect(quoteExchange).toHaveBeenCalledOnce()
+  })
 
   it('shows a firm quote below the estimate and funds it only on a second confirm', async () => {
     quoteExchange.mockImplementationOnce(async (plan: OfferPlan) => firmQuote(plan, plan.receive.atomic - 1n))
