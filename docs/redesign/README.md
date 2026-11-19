@@ -35,7 +35,7 @@ with grey minor units (`Figure`). Flags and token logos give way to drawn curren
 desktop Settings moves to the sidebar and Scan stays. The balance leads, with the month's change and a value
 line when there is history. Receive and Send are the two primary actions, set like the buttons on arkadeos.com:
 the label in Geist Mono capitals and a pixel arrow at the end (`PixelArrow`, a 5×5 grid), Receive outlined in ink and
-Send solid. Accounts and Recent activity open under a 2px rule, and accounts are a ruled list with amounts in mono. Scrolling collapses the balance
+Send solid. Accounts are a ruled list, a hairline under each row, with amounts in mono. Scrolling collapses the balance
 into the header. Activity opens from View all, which is there on an empty wallet too.
 
 **Send.** Close instead of Back. On phones the keypad opens once the recipient resolves and its Continue goes

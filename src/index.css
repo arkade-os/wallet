@@ -691,12 +691,6 @@ button {
   justify-content: space-between;
 }
 
-/* A section opens with a 2px rule above its heading row */
-.home-section--ruled .home-section__header {
-  border-top: 2px solid var(--fg);
-  padding-top: 0.625rem;
-}
-
 /* Accounts are a ruled list: a hairline under each row, amounts in mono */
 .home-section--ruled .asset-card {
   min-height: 4.25rem;
