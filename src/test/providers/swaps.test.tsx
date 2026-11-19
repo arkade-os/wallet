@@ -409,6 +409,22 @@ describe('SwapsProvider', () => {
     expect(mocks.quote).not.toHaveBeenCalled()
   })
 
+  it('drops a malformed card relay instead of failing the public request', async () => {
+    mocks.watchSwapMarkets.mockImplementation((_network: string, onMarkets: (markets: unknown[]) => void) => {
+      onMarkets([market({ transports: { nostr: { relays: ['not a relay', 'wss://relay.example'] } } })])
+      return () => {}
+    })
+    mocks.openRfq.mockResolvedValue({ id: 'auction-1', bids: [] })
+    renderProvider({}, <OpenQuoteProbe />)
+    await waitFor(() => expect(mocks.created).toHaveBeenCalled())
+
+    fireEvent.click(screen.getByText('open offers'))
+
+    await waitFor(() => expect(mocks.openRfq).toHaveBeenCalledOnce())
+    expect(mocks.openRfq.mock.calls[0][1].relays).toContain('wss://relay.example/')
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+  })
+
   it('aborts an outstanding public request without funding', async () => {
     mocks.openRfq.mockImplementation(
       (_input, options) =>

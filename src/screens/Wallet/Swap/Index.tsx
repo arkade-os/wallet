@@ -661,7 +661,10 @@ export default function WalletSwap() {
                 (input.card as { discovery_pubkey?: string }).discovery_pubkey === offer.solverPubkey,
             )
             if (!duplicate)
-              saveSolverCards([...cards, { network: solverNetwork, label: offer.solverName, card: offer.signedCard }])
+              saveSolverCards([
+                ...cards,
+                { network: solverNetwork, label: offer.solverName.slice(0, 64), card: offer.signedCard },
+              ])
           } catch (cause) {
             toast.error(extractError(cause))
           }

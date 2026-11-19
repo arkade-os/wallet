@@ -773,14 +773,20 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       const network = aspInfo.network as NetworkName
       const relays = [
         ...new Set(
-          [...nostrRelayUrls, ...allMarketsRef.current.flatMap((market) => market.transports?.nostr?.relays ?? [])].map(
-            (value) => {
+          [
+            ...nostrRelayUrls,
+            ...allMarketsRef.current.flatMap((market) => market.transports?.nostr?.relays ?? []),
+          ].flatMap((value) => {
+            // Cards are solver-written: one malformed relay must not cancel the request.
+            try {
               const url = new URL(value)
               if (url.protocol === 'http:') url.protocol = 'ws:'
               if (url.protocol === 'https:') url.protocol = 'wss:'
-              return url.href
-            },
-          ),
+              return [url.href]
+            } catch {
+              return []
+            }
+          }),
         ),
       ].slice(0, 16)
       const auction = await client.openRfq(
@@ -825,6 +831,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const acceptSwapQuoteHere = async (id: string, snapshot?: AssetSwapQuoteSnapshot): Promise<Swap> => {
     const client = await driving()
     const quote = issued.current.get(id)
+    // Deliberate: a quote lives only in the client that derived it, which refuses to accept
+    // another's. After a lock handoff the user quotes again; it is short-lived, so little is lost.
     if (!quote) throw new Error('This quote is no longer available — refresh to try again')
     const swap = await client.accept(quote, { validUntil: quote.expiresAt })
     issued.current.delete(id)
