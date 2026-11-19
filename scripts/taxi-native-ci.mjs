@@ -641,6 +641,16 @@ async function main() {
     amount: 1_000_000n,
     metadata: { ticker: 'ARFQ', name: 'Native Taxi RFQ', decimals: 0 },
   })
+  await waitFor('spendable issued solver ARFQ', async () =>
+    (
+      await context.wallet.getSpendableVtxos({
+        withRecoverable: true,
+        genericallySpendableOnly: true,
+        maxSyncAgeMs: 0,
+        requireSynced: true,
+      })
+    ).some((coin) => coin.assets?.some((entry) => entry.assetId === assetId && BigInt(entry.amount) > 0n)),
+  )
   await context.wallet.settle()
   await waitFor(
     'minted solver ARFQ',

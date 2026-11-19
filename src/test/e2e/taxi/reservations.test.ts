@@ -146,7 +146,10 @@ test('Ambiguous Taxi claim keeps its unspent input reserved across tab and worke
     await next.getByText(tr.unlock.unlockWallet, { exact: true }).click()
     await expect(next.getByText(tr.wallet.receive, { exact: true })).toBeVisible()
     const unlocked = await assertHeldAcrossLock()
-    if (await dismiss.isVisible()) await dismiss.click()
+    const claimSheet = next.getByRole('dialog').filter({ hasText: 'Claim your Taxi delivery' })
+    await next.addLocatorHandler(claimSheet, async (sheet) => {
+      await sheet.getByRole('button', { name: 'Not now', exact: true }).click()
+    })
     await navigateHome(next)
     await next.getByText(tr.wallet.send, { exact: true }).click()
     await next.locator('input[name="send-address"]').fill(charlie.address)
@@ -155,7 +158,6 @@ test('Ambiguous Taxi claim keeps its unspent input reserved across tab and worke
       await amount.click()
       await handleKeyboardInput(next, 500)
     } else await amount.fill('500')
-    if (await dismiss.isVisible()) await dismiss.click()
     await expect(next.getByTestId('taxi-send-mode')).not.toBeVisible()
     await expect(next.getByRole('button', { name: tr.send.insufficientFunds, exact: true })).toBeDisabled()
     await expect(next.getByText('0 sats available', { exact: true })).toBeVisible()
@@ -166,6 +168,7 @@ test('Ambiguous Taxi claim keeps its unspent input reserved across tab and worke
       body: await next.screenshot(),
       contentType: 'image/png',
     })
+    await next.removeLocatorHandler(claimSheet)
     await testInfo.attach('Persistent unspent Taxi hold financial evidence', {
       body: JSON.stringify({
         injected: 'emulator submit connection reset before forwarding; provider acceptance is not asserted',
