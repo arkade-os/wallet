@@ -132,12 +132,15 @@ it('prefetches newly referenced assets after overlapping wallet reloads', async 
     return { assetId, metadata: { name: `Asset ${assetId[0]}`, ticker: assetId[0].toUpperCase(), decimals: 0 } }
   })
   let assets = [{ assetId: first, amount: 1n }]
-  const service = {
-    ...mocks.current.service,
-    getActivityHistory: vi.fn().mockResolvedValue([]),
-    getBalance: vi.fn(async () => ({ total: 0, available: 0, unrolled: 0, assets, availableAssets: assets })),
-    assetManager: { getAssetDetails },
-  }
+  const service = mocks.current.service
+  service.getBalance.mockImplementation(async () => ({
+    total: 0,
+    available: 0,
+    unrolled: 0,
+    assets,
+    availableAssets: assets,
+  }))
+  service.assetManager.getAssetDetails.mockImplementation(getAssetDetails)
 
   await act(() => wallet.reloadWallet(service as never))
   await waitFor(() => expect(getAssetDetails).toHaveBeenCalledWith(first))
@@ -155,6 +158,80 @@ it('prefetches newly referenced assets after overlapping wallet reloads', async 
   await waitFor(() => expect(wallet.assetMetadataCache.get(second)?.metadata?.name).toBe('Asset b'))
   await waitFor(() => expect(wallet.assetMetadataCache.get(third)?.metadata?.name).toBe('Asset c'))
   expect(getAssetDetails).toHaveBeenCalledTimes(3)
+})
+
+it.each(['resolve', 'reject'])(
+  'discards obsolete metadata %s and fetches the current wallet metadata',
+  async (outcome) => {
+    localStorage.clear()
+    await startWallet()
+    const assetId = 'd'.repeat(68)
+    const assets = [{ assetId, amount: 1n }]
+    const first = mocks.current.service
+    let finish!: () => void
+    first.assetManager.getAssetDetails.mockImplementationOnce(
+      () =>
+        new Promise((resolve, reject) => {
+          finish = () =>
+            outcome === 'resolve'
+              ? resolve({ assetId, supply: 1n, metadata: { name: 'Old wallet asset' } })
+              : reject(new Error('obsolete metadata request'))
+        }),
+    )
+    first.getBalance.mockResolvedValue({ total: 100, available: 100, unrolled: 0, assets, availableAssets: assets })
+    await act(() => wallet.reloadWallet(wallet.svcWallet))
+    await waitFor(() => expect(first.assetManager.getAssetDetails).toHaveBeenCalledWith(assetId))
+
+    const second = makeService()
+    second.getBalance.mockResolvedValue({ total: 200, available: 200, unrolled: 0, assets, availableAssets: assets })
+    second.assetManager.getAssetDetails.mockResolvedValue({
+      assetId,
+      supply: 1n,
+      metadata: { name: 'Current wallet asset' },
+    })
+    mocks.current.service = second
+    await act(() => wallet.initWallet({ privateKey: new Uint8Array(32).fill(2) }))
+    await act(() => wallet.reloadWallet(second as unknown as NonNullable<typeof wallet.svcWallet>))
+    expect(wallet.balance).toBe(200)
+
+    await act(async () => finish())
+    await waitFor(() => expect(wallet.assetMetadataCache.get(assetId)?.metadata?.name).toBe('Current wallet asset'))
+    expect(second.assetManager.getAssetDetails).toHaveBeenCalledWith(assetId)
+    expect(localStorage.getItem('assetMetadataCache')).toContain('Current wallet asset')
+    expect(localStorage.getItem('assetMetadataCache')).not.toContain('Old wallet asset')
+    expect(localStorage.getItem('assetMetadataFailures') ?? '{}').not.toContain(assetId)
+  },
+)
+
+it('releases queued metadata lookups when the wallet changes', async () => {
+  localStorage.clear()
+  await startWallet()
+  const assets = Array.from({ length: 6 }, (_, i) => ({ assetId: i.toString().repeat(68), amount: 1n }))
+  const first = mocks.current.service
+  const finish: (() => void)[] = []
+  first.assetManager.getAssetDetails.mockImplementation(
+    () => new Promise((resolve) => finish.push(() => resolve(undefined))),
+  )
+  first.getBalance.mockResolvedValue({ total: 100, available: 100, unrolled: 0, assets, availableAssets: assets })
+  await act(() => wallet.reloadWallet(wallet.svcWallet))
+  await waitFor(() => expect(first.assetManager.getAssetDetails).toHaveBeenCalledTimes(4))
+
+  const second = makeService()
+  second.getBalance.mockResolvedValue({ total: 200, available: 200, unrolled: 0, assets, availableAssets: assets })
+  second.assetManager.getAssetDetails.mockImplementation(async (assetId: string) => ({
+    assetId,
+    supply: 1n,
+    metadata: { name: 'Current wallet asset' },
+  }))
+  mocks.current.service = second
+  await act(() => wallet.initWallet({ privateKey: new Uint8Array(32).fill(2) }))
+  await act(() => wallet.reloadWallet(second as unknown as NonNullable<typeof wallet.svcWallet>))
+  await act(async () => finish.forEach((resolve) => resolve()))
+
+  await waitFor(() => expect(second.assetManager.getAssetDetails).toHaveBeenCalledTimes(assets.length))
+  expect(first.assetManager.getAssetDetails).toHaveBeenCalledTimes(4)
+  for (const { assetId } of assets)
+    expect(wallet.assetMetadataCache.get(assetId)?.metadata?.name).toBe('Current wallet asset')
 })
 
 it.each(['CONTRACT_EVENT', 'VTXO_UPDATE', 'UTXO_UPDATE'])('ignores raw foreign %s wakeups', async (type) => {

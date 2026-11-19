@@ -14,7 +14,7 @@ import {
   taxiUrl,
   type Policy,
 } from './helpers'
-import { handleKeyboardInput, navigateHome } from '../utils'
+import { handleKeyboardInput, navigateHome, navigateToSettings } from '../utils'
 import { durableHolds, journal } from './reservationEvidence'
 
 test('Ambiguous Taxi claim keeps its unspent input reserved across tab and worker restart', async ({
@@ -114,6 +114,39 @@ test('Ambiguous Taxi claim keeps its unspent input reserved across tab and worke
     await expect(dismiss).toBeVisible()
     await dismiss.click()
     await expect(dismiss).not.toBeVisible()
+    const assertHeldAcrossLock = async () => {
+      const stored = (await journal(next)).filter((hold) => hold.id === id)
+      const durable = (await durableHolds(next))
+        .filter((hold) => hold.id === id)
+        .map(({ id, outpoints }) => ({ id, outpoints }))
+      const unspent = await heldInput()
+      const balances = await ledger(parties)
+      const transferIds = (await fresh(known)).map(({ id }) => id)
+      expect(stored).toEqual([recorded])
+      expect(durable).toEqual([{ id, outpoints: recorded.outpoints }])
+      expect(unspent).toEqual(unspentBefore)
+      expect(balances).toEqual(before)
+      expect(transferIds).toEqual([transfer.id])
+      expect(interrupted).toBe(1)
+      return { journal: stored, durable, unspent, balances, transferIds, claimSubmissions: interrupted }
+    }
+    const password = 'taxi-lock-regtest-only'
+    await navigateToSettings(next)
+    await next.getByText(tr.settings.lock, { exact: true }).click()
+    await next.getByText(tr.settings.setPassword, { exact: true }).click()
+    await next.locator('div[data-testid="new-password"] input').fill(password)
+    await next.locator('div[data-testid="confirm-password"] input').fill(password)
+    await next.getByText(tr.components.savePassword, { exact: true }).click()
+    await navigateToSettings(next)
+    await next.getByText(tr.settings.lock, { exact: true }).click()
+    await next.getByText(tr.settings.lockWallet, { exact: true }).click()
+    await expect(next.getByText(tr.unlock.insertPassword, { exact: true })).toBeVisible()
+    const locked = await assertHeldAcrossLock()
+    await next.locator('div[data-testid="password"] input').fill(password)
+    await next.getByText(tr.unlock.unlockWallet, { exact: true }).click()
+    await expect(next.getByText(tr.wallet.receive, { exact: true })).toBeVisible()
+    const unlocked = await assertHeldAcrossLock()
+    if (await dismiss.isVisible()) await dismiss.click()
     await navigateHome(next)
     await next.getByText(tr.wallet.send, { exact: true }).click()
     await next.locator('input[name="send-address"]').fill(charlie.address)
@@ -128,6 +161,7 @@ test('Ambiguous Taxi claim keeps its unspent input reserved across tab and worke
     await expect(next.getByText('0 sats available', { exact: true })).toBeVisible()
     expect(await ledger(parties)).toEqual(before)
     expect(await durableHolds(next)).toContainEqual({ id, outpoints: recorded.outpoints })
+    expect(interrupted).toBe(1)
     await testInfo.attach('Ordinary send excludes the reserved input', {
       body: await next.screenshot(),
       contentType: 'image/png',
@@ -141,6 +175,7 @@ test('Ambiguous Taxi claim keeps its unspent input reserved across tab and worke
         unspentAfter: await heldInput(),
         durable: await durableHolds(next),
         workerTransitions: transitions,
+        lockCycle: { locked, unlocked },
         before,
         after: await ledger(parties),
       }),

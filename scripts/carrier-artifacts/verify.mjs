@@ -181,7 +181,9 @@ if (entry) {
   for (const [name, symbol, requiredMethod] of [
     ['@arkade-os/sdk', CANDIDATE_SDK_SYMBOL, 'reserveVtxos'],
     ['@arkade-os/sdk', CANDIDATE_SDK_SYMBOL, 'onWalletUpdate'],
+    ['@arkade-os/sdk', CANDIDATE_SDK_SYMBOL, 'dispose'],
     ['@arkade-os/sdk', 'ServiceWorkerReadonlyWallet', 'onWalletUpdate'],
+    ['@arkade-os/sdk', 'ServiceWorkerReadonlyWallet', 'dispose'],
     ['@arkade-os/swap', CANDIDATE_SWAP_SYMBOL],
     ['@arkade-os/swap', 'InMemoryAssetSwapRepository', 'createSwapRecordIfAbsent'],
   ]) {

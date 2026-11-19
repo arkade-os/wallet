@@ -309,12 +309,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     activeWalletRef.current = undefined
   }
 
-  const clearIfLockReset = async (svcWallet: ServiceWorkerWallet, signal: AbortSignal) => {
+  const disposeIfLockReset = async (svcWallet: ServiceWorkerWallet, signal: AbortSignal) => {
     if (!signal.aborted || signal.reason !== 'lock-reset') return
     try {
-      await svcWallet.clear()
+      await svcWallet.dispose()
     } catch (err) {
-      consoleError(err, 'Error clearing stale service worker wallet')
+      consoleError(err, 'Error disposing stale service worker wallet')
     }
   }
 
@@ -368,6 +368,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const prefetchAssetMetadata = async (swWallet: ServiceWorkerWallet, assetIds: Set<string>) => {
+    const owner = activeWalletRef.current
+    if (owner?.wallet !== swWallet) return
+    const ownsPrefetch = () => walletMounted.current && activeWalletRef.current === owner && !owner.signal.aborted
+    if (!ownsPrefetch()) return
     if (assetMetadataPrefetchRunning.current) {
       // The latest reload is authoritative; coalesce overlapping requests into one follow-up.
       assetMetadataPrefetchRunning.current.pending = { wallet: swWallet, assetIds }
@@ -375,6 +379,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
     const run: { pending?: { wallet: ServiceWorkerWallet; assetIds: Set<string> } } = {}
     assetMetadataPrefetchRunning.current = run
+    const fetches = assetMetadataFetches.current
+    let ids: string[] = []
     try {
       const now = Date.now()
       let failuresChanged = false
@@ -384,12 +390,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           failuresChanged = true
         }
       }
-      const ids = [...assetIds].filter((assetId) => {
+      ids = [...assetIds].filter((assetId) => {
         const cached = assetMetadataCache.current.get(assetId)
         if (cached && now - cached.cachedAt < ASSET_METADATA_TTL_MS) return false
         if ((assetMetadataFailures.current.get(assetId) ?? 0) > now) return false
-        if (assetMetadataFetches.current.has(assetId)) return false
-        assetMetadataFetches.current.add(assetId)
+        if (fetches.has(assetId)) return false
+        fetches.add(assetId)
         return true
       })
       let nextIndex = 0
@@ -397,12 +403,15 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
       const fetchNext = async () => {
         while (nextIndex < ids.length) {
+          if (!ownsPrefetch()) return
           const assetId = ids[nextIndex++]
           let timeout: ReturnType<typeof setTimeout> | undefined
           let request: Promise<AssetDetails | undefined> | undefined
           let timedOut = false
           try {
-            request = Promise.resolve().then(() => swWallet.assetManager.getAssetDetails(assetId))
+            request = Promise.resolve().then(() =>
+              ownsPrefetch() ? swWallet.assetManager.getAssetDetails(assetId) : undefined,
+            )
             const meta = await Promise.race([
               request,
               new Promise<never>((_, reject) => {
@@ -412,6 +421,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
                 }, ASSET_METADATA_FETCH_TIMEOUT_MS)
               }),
             ])
+            if (!ownsPrefetch()) return
             if (meta) {
               cacheAssetDetails(assetId, meta)
               cacheChanged = true
@@ -421,6 +431,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
               failuresChanged = true
             }
           } catch (err) {
+            if (!ownsPrefetch()) return
             assetMetadataFailures.current.set(assetId, Date.now() + ASSET_METADATA_FAILURE_TTL_MS)
             failuresChanged = true
             if (timedOut) {
@@ -431,9 +442,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           } finally {
             if (timeout) clearTimeout(timeout)
             if (timedOut && request) await request.catch(() => undefined)
-            assetMetadataFetches.current.delete(assetId)
+            fetches.delete(assetId)
           }
         }
+        if (!ownsPrefetch()) return
         if (cacheChanged) {
           saveAssetMetadataToStorage(assetMetadataCache.current, referencedAssetIdsRef.current)
           cacheChanged = false
@@ -446,6 +458,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
       await Promise.all(Array.from({ length: Math.min(ASSET_METADATA_FETCH_CONCURRENCY, ids.length) }, fetchNext))
     } finally {
+      for (const assetId of ids) fetches.delete(assetId)
       if (assetMetadataPrefetchRunning.current === run) {
         assetMetadataPrefetchRunning.current = null
         if (run.pending) {
@@ -859,7 +872,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // getVtxoManager/getStatus are side-effect-free w.r.t. React/DOM, so
       // running them after an abort is wasteful but safe.
       if (signal.aborted || !walletMounted.current) {
-        await clearIfLockReset(svcWallet, signal)
+        await disposeIfLockReset(svcWallet, signal)
         return false
       }
 
@@ -1150,7 +1163,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     reloadTimerRef.current = undefined
     lnurlResyncRef.current?.cancel()
     unsubscribeWalletUpdates()
-    await svcWallet.clear()
+    await svcWallet.dispose()
     setAuthState('locked')
     setInitialized(false)
     setDataReady(false)

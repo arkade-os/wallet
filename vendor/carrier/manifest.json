@@ -1,76 +1,80 @@
 {
-  "note": "Canonical unpublished review archives. All consumers must use these exact bytes; validation status is tracked separately. No registry publication.",
-  "packedAtUtc": "2026-11-16T17:44:27.0307282Z",
+  "note": "Canonical unpublished vendor-refresh archives. Use these exact bytes together; funded consumer qualification is recorded separately. No registry publication.",
+  "assembledAtUtc": "2026-11-19T10:24:13.9221309Z",
+  "sourceTreeMeaning": "source.tree and directoryTree identify the package directory; repositoryTree identifies the complete source commit tree.",
   "artifacts": [
     {
-      "file": "arkade-os-sdk-0.5.7-taxi.2-8c428b36.tgz",
+      "file": "arkade-os-sdk-0.5.9-taxi.0-9b3a8fcf.tgz",
       "package": "@arkade-os/sdk",
-      "version": "0.5.7-taxi.2",
+      "version": "0.5.9-taxi.0",
       "license": "MIT",
       "licenseFrom": "archive package manifest",
-      "sha256": "0964b40ca54d4573426ab1a63fadf4661a8e7fa56a442ef0231a1467d10e1237",
-      "bytes": 2960521,
+      "sha256": "6cb4605bd57806edfcf447859ffd6573c302ee601aeb313af48835ef318aa94e",
+      "integrity": "sha512-nez6PTdANtd4K1EMEXelEDCD3IpJlOd969aOiHfzFCoCnObp9X61XnvgDeR3mnXoaXIu/SGFX6xgTDQrOaczbw==",
+      "bytes": 2984735,
       "source": {
         "repository": "https://github.com/arkade-os/ts-sdk.git",
-        "commit": "8c428b36d33f5c19584b652bdd98243f15900db1",
+        "commit": "9b3a8fcf2dbcde47d1a0efe2b229efc57f289014",
         "directory": "packages/sdk",
-        "tree": "23364344b67aacb1dbd9059c26edffed1b28ad16",
-        "directoryTree": "23364344b67aacb1dbd9059c26edffed1b28ad16",
-        "repositoryTree": "3cacd34f7f8bab9481dcd04be4f7f219fb45ebb6"
+        "tree": "2d97c05c4179d60b386e761687dd68bf163b77b1",
+        "directoryTree": "2d97c05c4179d60b386e761687dd68bf163b77b1",
+        "repositoryTree": "18b2abfabea02b56ec26973833dfa3f869807201"
       },
       "toolchain": {
         "node": "v24.22.1",
         "pnpm": "10.25.0",
         "typescript": "Version 5.9.2",
-        "command": "pnpm -C packages/sdk pack --pack-destination C:/Git/outputs/arkade-taxi/bundles-20261116",
+        "command": "pnpm -C packages/sdk pack --pack-destination C:/Git/outputs/arkade-taxi/bundles-20261119",
         "platform": "win32-x64"
       }
     },
     {
-      "file": "arkade-os-swap-0.2.0-taxi.0-37aa317a.tgz",
+      "file": "arkade-os-swap-0.2.0-taxi.2-fdf784fb.tgz",
       "package": "@arkade-os/swap",
-      "version": "0.2.0-taxi.0",
+      "version": "0.2.0-taxi.2",
       "license": "MIT",
       "licenseFrom": "archive package manifest",
-      "sha256": "faa05b0abb38570bebf603e2c79f94c2fb3c2d8087e43d59d11b4790d9e0f7da",
-      "bytes": 676360,
+      "sha256": "5860499a2f4962ce2749bd81a789e3ffb1e729a436db1d7c4191b6679778071e",
+      "integrity": "sha512-W4el3BcY/SWOJkgTQ6TPvbRIc9xWNlCaazgL6AvSVXvEPwQXcGdk8WjWpLT538yhuMGq9m/oCRO0zLp3k/j47w==",
+      "bytes": 687606,
       "source": {
         "repository": "https://github.com/arkade-os/ts-sdk.git",
-        "commit": "37aa317a08750dd39b5a9f639f4d0452d46655fa",
+        "commit": "fdf784fbb8d1e8a4ddf50ac7d5e239bcbe2e681f",
         "directory": "packages/swap",
-        "tree": "86f474277188acda7ec3969acb4d5f2d31f11404",
-        "directoryTree": "86f474277188acda7ec3969acb4d5f2d31f11404",
-        "repositoryTree": "e501340fb5478c818695705857ddf7a97f50c01e"
+        "tree": "d6982efa2b71307e7ef4d3de04b30abd3e88652f",
+        "directoryTree": "d6982efa2b71307e7ef4d3de04b30abd3e88652f",
+        "repositoryTree": "9de2c493e39f51ba0953aed3072583f60bbd8f23"
       },
       "toolchain": {
         "node": "v24.22.1",
         "pnpm": "10.25.0",
         "typescript": "Version 5.9.2",
-        "command": "pnpm -C packages/swap pack --out C:/Git/outputs/arkade-taxi/bundles-20261116/arkade-os-swap-0.2.0-taxi.0-37aa317a.tgz",
+        "command": "pnpm -C packages/swap pack --out C:/Git/outputs/arkade-taxi/bundles-20261119/arkade-os-swap-0.2.0-taxi.2-fdf784fb.tgz",
         "platform": "win32-x64"
       }
     },
     {
-      "file": "arkade-taxi-client-0.2.0-taxi.0-e6f4b274.tgz",
+      "file": "arkade-taxi-client-0.2.0-taxi.1-435c9303.tgz",
       "package": "@arkade-taxi/client",
-      "version": "0.2.0-taxi.0",
+      "version": "0.2.0-taxi.1",
       "license": "MIT",
-      "licenseFrom": "archive manifest and bundled LICENSE",
-      "sha256": "8b9084f377750f0eb6f2dcf52c998f44b7d1ddb156466038aa3a5c022091e244",
-      "bytes": 84037,
+      "licenseFrom": "archive package manifest",
+      "sha256": "0503479cada254b69c1d489092dda3432b276f60780394a4139768245d7e3a00",
+      "integrity": "sha512-Yc3in7yYQlFa6xWPpEkUg11r6uBGgNc4gCahNIuKJCZ43ctvqBk5H0KBIRasmy0Sp6Dgpmcg2j9TVyRGi04CSA==",
+      "bytes": 84036,
       "source": {
         "repository": "https://github.com/ArkLabsHQ/arkade-taxi.git",
-        "commit": "e6f4b274c8eadb8bf1bdfec512132aeebc27d2ad",
+        "commit": "435c93031b4d0d37e53899e4969e1421ecf0be69",
         "directory": "packages/client",
-        "tree": "7d01e821c351b0afd8599618cc23911a6b0d902e",
-        "directoryTree": "7d01e821c351b0afd8599618cc23911a6b0d902e",
-        "repositoryTree": "f65fcd92bcd396ee0d5ebfb8547abeb357fa89f2"
+        "tree": "6704c17f3e3ba891ad3a694ab7178d0ee584c30c",
+        "directoryTree": "6704c17f3e3ba891ad3a694ab7178d0ee584c30c",
+        "repositoryTree": "9a4dc38516b913befb772fa9e25f584768f1579b"
       },
       "toolchain": {
         "node": "v24.22.1",
         "pnpm": "10.34.5",
         "typescript": "Version 5.9.3",
-        "command": "pnpm --filter @arkade-taxi/client pack --json --pack-destination <canonical-bundle-folder>",
+        "command": "pnpm -C packages/client pack --out C:/Git/outputs/arkade-taxi/bundles-20261119/arkade-taxi-client-0.2.0-taxi.1-435c9303.tgz",
         "platform": "win32-x64"
       }
     },
@@ -122,7 +126,5 @@
         "platform": "win32-x64"
       }
     }
-  ],
-  "updatedAtUtc": "2026-11-16T22:17:56.7835187Z",
-  "sourceTreeMeaning": "source.tree and directoryTree identify the package directory; repositoryTree identifies the complete source commit tree."
+  ]
 }

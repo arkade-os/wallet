@@ -215,7 +215,7 @@ its actual signed discovery card through a local WSS relay. The exact-out case
 checks the single fill, receiver recycle and all four parties' final balances.
 Swap-screen cases trade in both directions and verify the compiled programs and
 exact balances. The interrupted-claim case checks that an unspent input stays
-reserved through a tab close and service worker restart.
+reserved through a tab close, service worker restart and ordinary wallet lock/unlock.
 Each native job also runs the public SDK's same-quote funding regression: one real
 send loses its reply, empty deposit reads and a reopened database cannot fund it
 again, and restored indexer proof adopts the original transaction. It verifies
