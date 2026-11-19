@@ -282,7 +282,7 @@ function BundledCardLine({ input }: { input: LocalCardInput }) {
             <Text>{input.label ?? card.name}</Text>
             <TextSecondary>{pairs}</TextSecondary>
           </FlexCol>
-          <FlexRow end minWidth='64px'>
+          <FlexRow end minWidth='10rem'>
             <Button onClick={() => setShowInfo(true)} text={t('solvers.viewInfo')} />
             <Text small color='neutral-500'>
               {t('solvers.builtIn')}
@@ -410,19 +410,34 @@ export default function Solvers() {
   const bundledCards = BUNDLED_CARDS.filter((c) => (c.network ?? 'bitcoin') === aspInfo.network)
 
   const storedCount = localCards?.length ?? 0
-  const title =
-    bundledCards.length > 0
-      ? storedCount > 0
-        ? t(bundledCards.length > 1 ? 'solvers.builtInPlusOwnPlural' : 'solvers.builtInPlusOwnSingular', {
-            builtIn: bundledCards.length,
-            own: storedCount,
-          })
-        : t(bundledCards.length > 1 ? 'solvers.buildShipsPlural' : 'solvers.buildShipsSingular', {
-            count: bundledCards.length,
-          })
-      : storedCount > 0
-        ? t(storedCount > 1 ? 'solvers.storedPlural' : 'solvers.storedSingular', { count: storedCount })
-        : t('solvers.noStoredCards')
+
+  let title = ''
+
+  if (bundledCards.length === 0) {
+    if (storedCount === 0) {
+      title = t('solvers.noStoredCards')
+    } else if (storedCount === 1) {
+      title = t('solvers.storedSingular', { count: storedCount })
+    } else {
+      title = t('solvers.storedPlural', { count: storedCount })
+    }
+  } else if (bundledCards.length === 1) {
+    if (storedCount === 0) {
+      title = t('solvers.buildShipsSingular', { count: bundledCards.length })
+    } else if (storedCount === 1) {
+      title = t('solvers.builtInSingularPlusOwnSingular', { builtIn: bundledCards.length, own: storedCount })
+    } else {
+      title = t('solvers.builtInSingularPlusOwnPlural', { builtIn: bundledCards.length, own: storedCount })
+    }
+  } else {
+    if (storedCount === 0) {
+      title = t('solvers.buildShipsPlural', { count: bundledCards.length })
+    } else if (storedCount === 1) {
+      title = t('solvers.builtInPluralPlusOwnSingular', { builtIn: bundledCards.length, own: storedCount })
+    } else {
+      title = t('solvers.builtInPluralPlusOwnPlural', { builtIn: bundledCards.length, own: storedCount })
+    }
+  }
 
   return (
     <>

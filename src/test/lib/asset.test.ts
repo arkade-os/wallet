@@ -309,6 +309,17 @@ describe('asset utilities', () => {
       expect(prettyAssetAmount(BigInt(-987_654_321), 0, true)).toBe('-987M')
     })
 
+    it('formats huge compact amounts without overflow or floating-point rounding', () => {
+      const huge = BigInt(10) ** BigInt(400)
+      const expected = `10${',000'.repeat(129)}T`
+      expect(prettyAssetAmount(huge, 0, true)).toBe(expected)
+      expect(prettyAssetAmount(-huge, 0, true)).toBe(`-${expected}`)
+      expect(prettyAssetAmount(huge, 8, true)).toBe(`100${',000'.repeat(126)}T`)
+      const justBelowTrillion = BigInt('999999999999999999999999')
+      expect(prettyAssetAmount(justBelowTrillion, 12, true)).toBe('999B')
+      expect(prettyAssetAmount(-justBelowTrillion, 12, true)).toBe('-999B')
+    })
+
     it('handles tiny negative fractional amounts when tidy=true', () => {
       // atomicToUnits → Number() produces -8e-8; prettyAssetNumber must convert it before regex-stripping 'e'
       expect(prettyAssetAmount(BigInt(-8), 8, true)).toBe('-0.00000008')
