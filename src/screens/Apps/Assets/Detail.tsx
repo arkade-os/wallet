@@ -213,8 +213,8 @@ export default function AppAssetDetail() {
       </Content>
       <ButtonsOnBottom>
         <FlexRow gap='0.75rem'>
+          <Button label={t('mint.receive')} onClick={handleReceive} secondary />
           <Button label={t('mint.send')} onClick={handleSend} disabled={balance === BigInt(0)} />
-          <Button label={t('mint.receive')} onClick={handleReceive} />
         </FlexRow>
         <FlexRow gap='0.75rem'>
           <Button label={t('mint.reissue')} onClick={handleReissue} secondary disabled={!holdsControlAsset} />

@@ -20,6 +20,10 @@ import {
   mockWalletContextValue,
 } from '../mocks'
 
+/** The price is one figure drawn in two spans (its cents in grey), so it is matched by its whole text. */
+const price = (text: string) =>
+  screen.getByText((_, el) => Boolean(el?.classList.contains('asset-detail-price')) && el?.textContent === text)
+
 vi.mock('liveline', () => ({
   Liveline: ({ data }: { data: unknown[] }) => <div data-testid='liveline-chart' data-point-count={data.length} />,
 }))
@@ -180,7 +184,7 @@ describe('Account detail screen', () => {
     )
 
     expect(screen.getByRole('heading', { name: 'USD' })).toBeInTheDocument()
-    expect(screen.getByText('$1.00')).toBeInTheDocument()
+    expect(price('$1.00')).toBeInTheDocument()
     expect(screen.getByText('100.00 USD')).toBeInTheDocument()
     expect(screen.getByText('$100.00')).toBeInTheDocument()
     expect(screen.getByText('+ $25.00')).toBeInTheDocument()

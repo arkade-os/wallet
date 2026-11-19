@@ -15,6 +15,10 @@ import {
 } from '../mocks'
 import { Currencies, Unit } from '../../../lib/types'
 
+/** The price is one figure drawn in two spans (its cents in grey), so it is matched by its whole text. */
+const price = (text: string) =>
+  screen.getByText((_, el) => Boolean(el?.classList.contains('asset-detail-price')) && el?.textContent === text)
+
 vi.mock('liveline', () => ({
   Liveline: () => <div data-testid='liveline-chart' />,
 }))
@@ -93,7 +97,7 @@ describe('Bitcoin detail screen', () => {
     )
 
     expect(screen.getByRole('heading', { name: 'Bitcoin' })).toBeInTheDocument()
-    expect(screen.getByText('$64,000.00')).toBeInTheDocument()
+    expect(price('$64,000.00')).toBeInTheDocument()
     expect(screen.getByText('₿14,511')).toBeInTheDocument()
     expect(screen.getByText('$9.29')).toBeInTheDocument()
   })
@@ -156,17 +160,44 @@ describe('Bitcoin detail screen', () => {
 
     await waitFor(() => {
       expect(fetch).toHaveBeenCalled()
-      expect(screen.getByText('$64,000.00')).toBeInTheDocument()
+      expect(price('$64,000.00')).toBeInTheDocument()
     })
 
     fireEvent.click(screen.getByRole('tab', { name: '1Y' }))
 
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledTimes(2)
-      expect(screen.getByText('$64,000.00')).toBeInTheDocument()
+      expect(price('$64,000.00')).toBeInTheDocument()
     })
 
     expect(screen.queryByText('$40,000.00')).not.toBeInTheDocument()
+  })
+
+  it('offers Home’s Receive and Send, with Swap beside them and Scan left to Home', async () => {
+    vi.stubGlobal('ResizeObserver', vi.fn())
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('feed unavailable')))
+
+    render(
+      <ConfigContext.Provider value={mockConfigContextValue}>
+        <FiatContext.Provider value={mockFiatContextValue}>
+          <FlowContext.Provider value={mockFlowContextValue}>
+            <NavigationContext.Provider value={mockNavigationContextValue}>
+              <WalletContext.Provider value={mockWalletContextValue}>
+                <BitcoinDetail />
+              </WalletContext.Provider>
+            </NavigationContext.Provider>
+          </FlowContext.Provider>
+        </FiatContext.Provider>
+      </ConfigContext.Provider>,
+    )
+
+    const toolbar = await screen.findByRole('toolbar')
+    expect([...toolbar.querySelectorAll('button')].map((b) => b.dataset.testid)).toEqual([
+      'home-action-receive',
+      'home-action-send',
+    ])
+    expect(screen.getByRole('button', { name: /swap/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /scan/i })).not.toBeInTheDocument()
   })
 
   it('shows an unavailable state instead of inventing chart data', async () => {

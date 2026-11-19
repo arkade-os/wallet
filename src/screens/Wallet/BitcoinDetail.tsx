@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { Liveline, type HoverPoint, type LivelinePoint } from 'liveline'
-import { ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import AssetAvatar from '../../components/AssetAvatar'
 import ActivityFilter, { type ActivityFilterValue } from '../../components/ActivityFilter'
 import Content from '../../components/Content'
@@ -8,13 +8,12 @@ import Header from '../../components/Header'
 import Padded from '../../components/Padded'
 import { PrivacyAmount } from '../../components/PrivacyAmount'
 import SwapComingSoonSheet from '../../components/SwapComingSoonSheet'
+import HomeQuickActions from './HomeQuickActions'
+import Glyph from '../../icons/Glyph'
+import Figure from '../../components/Figure'
 import TokenLogo, { accountTickerForAssetTicker, tokenLogoTickerForTicker } from '../../components/TokenLogo'
 import TransactionsList, { matchesAssetFilter, shouldHideDevAssetTx } from '../../components/TransactionsList'
 import { usePortfolioFiat, type PortfolioRow } from '../../hooks/usePortfolioFiat'
-import ReceiveIcon from '../../icons/Receive'
-import ScanIcon from '../../icons/Scan'
-import SendIcon from '../../icons/Send'
-import SwapIcon from '../../icons/Swap'
 import { EASE_OUT_QUINT_TUPLE, walletLoadInChild, walletLoadInContainer } from '../../lib/animations'
 import {
   prettyBitcoinAmount,
@@ -204,18 +203,6 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
     navigate(Pages.ReceiveQRCode)
   }
 
-  const handleScan = () => {
-    hapticLight()
-    setSendInfo(
-      sendAccount
-        ? { ...emptySendInfo, account: sendAccount, scan: true }
-        : isBitcoin || !sourceAssetId
-          ? { ...emptySendInfo, scan: true }
-          : { ...emptySendInfo, assets: [{ assetId: sourceAssetId, amount: BigInt(0) }], scan: true },
-    )
-    navigate(Pages.SendForm)
-  }
-
   const handleSwap = () => {
     hapticLight()
     if (swapAvailable) {
@@ -307,7 +294,7 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
                     exit={prefersReduced ? undefined : { opacity: 0, y: -8, filter: 'blur(2px)' }}
                     transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
                   >
-                    {priceText}
+                    <Figure value={priceText} />
                   </motion.div>
                 </AnimatePresence>
                 {marketChart.status === 'ready' && marketChart.data.length >= 2 ? (
@@ -317,25 +304,16 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
             </motion.section>
 
             <motion.div className='asset-detail-actions' variants={prefersReduced ? undefined : walletLoadInChild}>
-              <AssetAction
-                icon={<ReceiveIcon />}
-                label={t('wallet.receive')}
-                onClick={handleReceive}
-                disabled={!isBitcoin && !sourceAssetId}
+              <HomeQuickActions
+                onReceive={handleReceive}
+                onSend={handleSend}
+                receiveDisabled={!isBitcoin && !sourceAssetId}
+                sendDisabled={rawBalance === BigInt(0) || (!isBitcoin && !sendAccount && !sourceAssetId)}
               />
-              <AssetAction
-                icon={<SendIcon />}
-                label={t('wallet.send')}
-                onClick={handleSend}
-                disabled={rawBalance === BigInt(0) || (!isBitcoin && !sendAccount && !sourceAssetId)}
-              />
-              <AssetAction icon={<SwapIcon />} label={t('wallet.swap')} onClick={handleSwap} />
-              <AssetAction
-                icon={<ScanIcon />}
-                label={t('wallet.scan')}
-                onClick={handleScan}
-                disabled={!isBitcoin && !sourceAssetId}
-              />
+              <button type='button' onClick={handleSwap} className='home-section-action asset-detail-swap'>
+                <Glyph name='swap' size={17} strokeWidth={2} />
+                {t('wallet.swap')}
+              </button>
             </motion.div>
 
             <motion.section
@@ -370,15 +348,15 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
                     formatTime={prettyChartDateTime}
                     grid={false}
                     paused={chartInteracting}
-                    pulse={!prefersReduced}
+                    pulse={false}
                     scrub={!prefersReduced}
                     momentum={false}
-                    fill
+                    fill={false}
                     showValue={false}
                     valueMomentumColor={false}
                     degen={false}
                     exaggerate={false}
-                    lineWidth={4}
+                    lineWidth={2}
                     tooltipY={-18}
                     padding={{ top: 28, right: 32, bottom: 8, left: 12 }}
                     lerpSpeed={prefersReduced ? 1 : 0.1}
@@ -467,42 +445,6 @@ export default function BitcoinDetail({ assetId = 'btc' }: { assetId?: string })
       </Content>
       <SwapComingSoonSheet isOpen={swapSheetOpen} onClose={() => setSwapSheetOpen(false)} />
     </>
-  )
-}
-
-function AssetAction({
-  disabled,
-  icon,
-  label,
-  onClick,
-}: {
-  disabled?: boolean
-  icon: ReactNode
-  label: string
-  onClick: () => void
-}) {
-  const prefersReduced = useReducedMotion()
-  const props = {
-    type: 'button' as const,
-    className: 'asset-detail-action',
-    disabled,
-    onClick,
-  }
-
-  if (prefersReduced) {
-    return (
-      <button {...props}>
-        <span>{icon}</span>
-        <small>{label}</small>
-      </button>
-    )
-  }
-
-  return (
-    <motion.button {...props} whileTap={{ scale: disabled ? 1 : 0.97 }} transition={{ duration: 0.16 }}>
-      <span>{icon}</span>
-      <small>{label}</small>
-    </motion.button>
   )
 }
 
