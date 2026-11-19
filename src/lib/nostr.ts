@@ -1,6 +1,7 @@
 import { finalizeEvent, getPublicKey, nip44, SimplePool, UnsignedEvent, Event, verifyEvent } from 'nostr-tools'
 import { EncryptedDirectMessage } from 'nostr-tools/kinds'
 import { consoleError } from './logs'
+import { publishSuccessMessage } from './constants'
 
 /** A loaded event, with the local time it arrived at (seconds). */
 export type BackupEvent = Event & { receivedAt: number }
@@ -8,8 +9,6 @@ export type BackupEvent = Event & { receivedAt: number }
 const nostrAppName = 'arkade_backup'
 const defaultRelays = ['wss://relay.damus.io', 'wss://relay.primal.net', 'wss://nostr.arkade.sh']
 const relays = import.meta.env.VITE_NOSTR_RELAY_URL ? [import.meta.env.VITE_NOSTR_RELAY_URL] : defaultRelays
-
-export const publishSuccessMessage = 'Message published to Nostr successfully'
 
 let sharedPool: SimplePool | undefined
 
