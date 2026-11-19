@@ -154,6 +154,7 @@ node regtest/regtest.mjs faucet <bcrt-address> <btc> --confirm
 
 > note: e2e tests require a regtest environment to be running.
 > `pnpm run regtest:start` to start and setup the regtest environment.
+> `pnpm run regtest:setup` verifies that arkd and the Nostr relay are reachable.
 
 > note: e2e tests use playwright for ui testing, you may need to run
 > `pnpm exec playwright install` once to download new browsers.

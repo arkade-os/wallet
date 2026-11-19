@@ -30,6 +30,9 @@ async function setup() {
     // Verify arkd is serving
     await waitForService('arkd', 'curl -sf http://localhost:7070/v1/info')
 
+    // A relay may return HTTP 400 or 426 without a WebSocket upgrade.
+    await waitForService('nostr relay', 'curl -sS -o /dev/null --max-time 2 http://localhost:7777')
+
     const serverInfo = execSync('curl -s http://localhost:7070/v1/info').toString()
     console.log(`\narkd info: ${serverInfo}`)
 
