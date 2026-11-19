@@ -28,7 +28,8 @@ const mocks = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
 }))
 
-vi.mock('../../lib/swapMarkets', () => ({
+vi.mock('../../lib/swapMarkets', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/swapMarkets')>()),
   discoverMarkets: mocks.discoverMarkets,
   watchSwapMarkets: mocks.watchSwapMarkets,
 }))
@@ -146,7 +147,7 @@ function Harness() {
     runDiscovery,
     quotePay,
     receiveLightning,
-    exchange,
+    quoteExchange,
     cancelSwap,
   } = useContext(SwapsContext)
   return (
@@ -161,20 +162,24 @@ function Harness() {
       <button onClick={() => void cancelSwap('swap-1')}>cancel</button>
       <button
         onClick={() =>
-          void exchange(
-            market() as never,
-            {
-              deposit: { asset: { id: 'btc', decimals: 0 }, atomic: BigInt(1000) },
-              receive: { asset: { id: ASSET_ID, decimals: 0 }, atomic: BigInt(1000) },
-            } as never,
-          ).catch((error: Error) => {
-            const node = document.querySelector('[data-testid="exchange-error"]')
-            if (node) node.textContent = error.message
-          })
+          void quoteExchange({
+            deposit: { asset: { id: 'btc', decimals: 0 }, atomic: BigInt(1000) },
+            receive: { asset: { id: ASSET_ID, decimals: 0 }, atomic: BigInt(1000) },
+          } as never).then(
+            (quote) => {
+              const node = document.querySelector('[data-testid="exchange-take"]')
+              if (node) node.textContent = String(quote.take.amount)
+            },
+            (error: Error) => {
+              const node = document.querySelector('[data-testid="exchange-error"]')
+              if (node) node.textContent = error.message
+            },
+          )
         }
       >
         exchange
       </button>
+      <output data-testid='exchange-take' />
       <output data-testid='exchange-error' />
     </>
   )
@@ -610,6 +615,21 @@ describe('SwapsProvider', () => {
     expect(setAssetSwaps).toHaveBeenCalledWith([swap])
   })
 
+  it('reads arkd metadata for a market asset the wallet has never held', async () => {
+    const details = { assetId: ASSET_ID, metadata: { name: 'Tether', ticker: 'USDT' } }
+    const getAssetDetails = vi.fn().mockResolvedValue(details)
+    const setCacheEntry = vi.fn()
+    mocks.watchSwapMarkets.mockImplementation((_network: string, onMarkets: (markets: unknown[]) => void) => {
+      onMarkets([market({ quote_asset: { id: ASSET_ID, ticker: 'aaaaaaaa', decimals: 2 } })])
+      return () => {}
+    })
+
+    renderProvider({ svcWallet: { identity: {}, assetManager: { getAssetDetails } }, setCacheEntry })
+
+    await waitFor(() => expect(setCacheEntry).toHaveBeenCalledWith(ASSET_ID, details))
+    expect(getAssetDetails).toHaveBeenCalledTimes(1)
+  })
+
   it('hides a canonical corridor market that names the rail on the asset id', async () => {
     mocks.watchSwapMarkets.mockImplementation((_network: string, onMarkets: (markets: unknown[]) => void) => {
       onMarkets([
@@ -673,18 +693,15 @@ describe('SwapsProvider', () => {
     await waitFor(() => expect(mocks.receive).toHaveBeenCalledWith({ amount: BigInt(1000), via: 'lightning' }))
   })
 
-  it('refuses to fund a re-quote worse than the price on screen', async () => {
+  it('returns a firm quote below the estimate without funding it', async () => {
     mocks.discoverMarkets.mockResolvedValue([market()])
-    mocks.quote.mockResolvedValue({ take: { amount: BigInt(999) } })
+    mocks.quote.mockResolvedValue({ id: 'firm', take: { amount: BigInt(999) } })
     renderProvider()
 
     screen.getByText('exchange').click()
 
-    await waitFor(() =>
-      expect(screen.getByTestId('exchange-error')).toHaveTextContent(
-        'The rate moved while you were confirming — go back and try again',
-      ),
-    )
+    await waitFor(() => expect(screen.getByTestId('exchange-take')).toHaveTextContent('999'))
+    expect(screen.getByTestId('exchange-error')).toBeEmptyDOMElement()
     expect(mocks.accept).not.toHaveBeenCalled()
   })
 

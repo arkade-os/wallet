@@ -2,7 +2,7 @@ import userEvent from '@testing-library/user-event'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import createFetchMock from 'vitest-fetch-mock'
-import { quoteOffer, solverDirectionKey, solverId } from '@arkade-os/solver-discovery'
+import { quoteOffer, solverDirectionKey, solverId, type OfferPlan } from '@arkade-os/solver-discovery'
 import { QUOTE_OPTIONS } from '@arkade-os/swap/protocol'
 import type { OpenRfqOffer, Quote } from '@arkade-os/swap'
 import * as solverQuoteHook from '../../../hooks/useSolverQuote'
@@ -56,7 +56,17 @@ const pendingSwap: AssetSwap = {
   },
 }
 
-const exchange = vi.fn().mockResolvedValue(pendingSwap)
+// the solver's firm terms for a plan: the estimate itself unless a test lowers them
+const firmQuote = (plan: OfferPlan, take = plan.receive.atomic) =>
+  ({
+    id: 'firm',
+    give: { asset: plan.deposit.asset.id, amount: plan.deposit.atomic },
+    take: { asset: plan.receive.asset.id, amount: take },
+    fee: { asset: plan.deposit.asset.id, amount: 0n },
+    expiresAt: Math.floor(Date.now() / 1000) + 30,
+  }) as unknown as Quote
+const quoteExchange = vi.fn(async (plan: OfferPlan) => firmQuote(plan))
+const acceptSwapQuote = vi.fn().mockResolvedValue(pendingSwap)
 const cancelSwap = vi.fn().mockResolvedValue(undefined)
 
 function renderSwap({
@@ -122,7 +132,8 @@ function renderSwap({
                         discoveryReady: true,
                         swapAvailable: true,
                         swaps: [],
-                        exchange,
+                        quoteExchange,
+                        acceptSwapQuote,
                         cancelSwap,
                         openSwapQuotes: vi.fn().mockResolvedValue({ id: 'empty-offers', bids: [] }),
                         cancelOpenSwapQuotes: vi.fn(),
@@ -168,7 +179,8 @@ describe('Wallet swap flow', () => {
   afterEach(() => vi.useRealTimers())
 
   beforeEach(() => {
-    exchange.mockClear()
+    quoteExchange.mockReset().mockImplementation(async (plan: OfferPlan) => firmQuote(plan))
+    acceptSwapQuote.mockReset().mockResolvedValue(pendingSwap)
     cancelSwap.mockClear()
     fetchMocker.resetMocks()
     fetchMocker.mockResponse(JSON.stringify({ bitcoin: { usd: 100_000 }, price: '500000' }))
@@ -186,6 +198,24 @@ describe('Wallet swap flow', () => {
     expect(screen.getByText('BRL')).toBeInTheDocument()
     expect(screen.queryByText('USDT')).not.toBeInTheDocument()
     expect(screen.queryByText('DEPIX')).not.toBeInTheDocument()
+  })
+
+  it('lists an asset once when a pinned card names it by its CAIP-19 id', () => {
+    const pinned = {
+      ...btcUsdt,
+      solver: 'ln-solver',
+      base_asset: { id: 'arkade:mutinynet/slip44:1', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+      quote_asset: {
+        id: `arkade:mutinynet/asset:${USDT_ID}`,
+        name: 'Arkade asset f121ac9b',
+        ticker: 'f121ac9b',
+        decimals: 2,
+      },
+    }
+    renderSwap({ swap: { markets: [btcUsdt, pinned] } })
+
+    expect(screen.getAllByText('USD')).toHaveLength(1)
+    expect(screen.queryByText(/f121ac9b/)).not.toBeInTheDocument()
   })
 
   it('keeps the BRL identity and flag after spending the full DePix balance', () => {
@@ -266,11 +296,12 @@ describe('Wallet swap flow', () => {
     await openSmartRoutingReview()
     expect(document.body).not.toHaveTextContent(/[$€]/)
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
-    await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][2]).not.toHaveProperty('fromFiatAmount')
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    expect(acceptSwapQuote.mock.calls[0][1]).not.toHaveProperty('fromFiatAmount')
 
     first.unmount()
-    exchange.mockClear()
+    quoteExchange.mockClear()
+    acceptSwapQuote.mockClear()
 
     renderSwap({
       ...common,
@@ -285,8 +316,65 @@ describe('Wallet swap flow', () => {
     await openSmartRoutingReview()
     expect(document.body).not.toHaveTextContent(/[$€]/)
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
-    await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][2]).not.toHaveProperty('fromFiatAmount')
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    expect(acceptSwapQuote.mock.calls[0][1]).not.toHaveProperty('fromFiatAmount')
+  })
+
+  const reviewSatsToBrl = async () => {
+    renderSwap({
+      config: { currency: Currencies.USD, unit: Unit.SATS },
+      fiat: { toFiat: () => 0, fromFiat: () => 0, fromFiatAmount: () => 0, toFiatAmount: () => 0 },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /BRL/i }))
+    for (const key of ['1', '0', '0', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'View quotes' })).toBeEnabled(), { timeout: 3_000 })
+    await openSmartRoutingReview()
+  }
+  const confirm = () => fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+
+  it('shows a firm quote below the estimate and funds it only on a second confirm', async () => {
+    quoteExchange.mockImplementationOnce(async (plan: OfferPlan) => firmQuote(plan, plan.receive.atomic - 1n))
+    await reviewSatsToBrl()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+    await waitFor(() => expect(screen.getByText(/lower than the estimate/)).toBeInTheDocument())
+    expect(acceptSwapQuote).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    const plan = quoteExchange.mock.calls[0][0]
+    expect(acceptSwapQuote.mock.calls[0][0].take.amount).toBe(plan.receive.atomic - 1n)
+    expect(quoteExchange).toHaveBeenCalledOnce()
+  })
+
+  it('funds the same firm quote on a retry instead of asking for its terms again', async () => {
+    acceptSwapQuote.mockRejectedValueOnce(new Error('network down'))
+    await reviewSatsToBrl()
+
+    confirm()
+    await waitFor(() => expect(screen.getByText('network down')).toBeInTheDocument())
+    confirm()
+
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledTimes(2))
+    expect(acceptSwapQuote.mock.calls[1][0]).toBe(acceptSwapQuote.mock.calls[0][0])
+    expect(quoteExchange).toHaveBeenCalledOnce()
+  })
+
+  it('keeps a firm quote below the estimate when the review is reopened', async () => {
+    quoteExchange.mockImplementationOnce(async (plan: OfferPlan) => firmQuote(plan, plan.receive.atomic - 1n))
+    await reviewSatsToBrl()
+    confirm()
+    await waitFor(() => expect(screen.getByText(/lower than the estimate/)).toBeInTheDocument())
+
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Confirm swap' })).not.toBeInTheDocument())
+    await openSmartRoutingReview()
+    confirm()
+
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    expect(quoteExchange).toHaveBeenCalledOnce()
   })
 
   it('keeps the priced receive conversion when only the give asset is unpriced', async () => {
@@ -309,8 +397,8 @@ describe('Wallet swap flow', () => {
     await openSmartRoutingReview(continueButton)
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
-    await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][2]).not.toHaveProperty('fromFiatAmount')
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    expect(acceptSwapQuote.mock.calls[0][1]).not.toHaveProperty('fromFiatAmount')
   })
 
   it('hides identity conversion for a BTC-currency sats swap and preserves the exact amount', async () => {
@@ -330,8 +418,8 @@ describe('Wallet swap flow', () => {
     await openSmartRoutingReview(continueButton)
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
-    await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][1].deposit.atomic).toBe(BigInt(1_000))
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    expect(quoteExchange.mock.calls[0][0].deposit.atomic).toBe(BigInt(1_000))
   })
 
   it('hides identity conversion for a BRL-currency BRL swap and preserves the exact amount', async () => {
@@ -352,8 +440,8 @@ describe('Wallet swap flow', () => {
     await openSmartRoutingReview(continueButton)
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
-    await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][1].deposit.atomic).toBe(BigInt(100_000_000_000))
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    expect(quoteExchange.mock.calls[0][0].deposit.atomic).toBe(BigInt(100_000_000_000))
   })
 
   it('clears a currency amount when its price conversion becomes unavailable', async () => {
@@ -431,7 +519,7 @@ describe('Wallet swap flow', () => {
       fireEvent.click(screen.getByRole('button', { name: 'View quotes' }))
       expect(screen.queryByRole('button', { name: 'Use smart routing' })).not.toBeInTheDocument()
       expect(await screen.findByRole('button', { name: 'Refresh offers' })).toBeEnabled()
-      expect(exchange).not.toHaveBeenCalled()
+      expect(quoteExchange).not.toHaveBeenCalled()
 
       act(() => saveSolverRouting('mutinynet', direction, { disabled: [solverId(btcUsdt, 'mutinynet')] }))
       await waitFor(() => expect(screen.getByRole('button', { name: 'Use smart routing' })).toBeEnabled())
@@ -539,7 +627,7 @@ describe('Wallet swap flow', () => {
         expect(screen.getByRole('button', { name: 'Find open offers' })).toBeEnabled()
       } else await waitFor(() => expect(openSwapQuotes).toHaveBeenCalledOnce(), { timeout: 3_000 })
       expect(screen.queryByRole('button', { name: 'Use smart routing' })).not.toBeInTheDocument()
-      expect(exchange).not.toHaveBeenCalled()
+      expect(quoteExchange).not.toHaveBeenCalled()
     },
   )
 
@@ -592,7 +680,7 @@ describe('Wallet swap flow', () => {
     await waitFor(() =>
       expect(openSwapQuotes).toHaveBeenCalledWith(MARAT_ID, 'btc', 100n, expect.any(String), undefined),
     )
-    expect(exchange).not.toHaveBeenCalled()
+    expect(quoteExchange).not.toHaveBeenCalled()
   })
 
   it('previews the next solver when the first card disagrees with authoritative source precision', async () => {
@@ -607,9 +695,9 @@ describe('Wallet swap flow', () => {
     for (const key of ['1', '0']) fireEvent.click(screen.getByRole('button', { name: key }))
     await openSmartRoutingReview()
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
-    await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][0].source).toBe('precision-good')
-    expect(exchange.mock.calls[0][1].deposit.atomic).toBe(1_000n)
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    expect((quoteExchange.mock.calls[0][0].market as { source?: string }).source).toBe('precision-good')
+    expect(quoteExchange.mock.calls[0][0].deposit.atomic).toBe(1_000n)
   })
 
   it('refuses target precision disagreement even when the source atomic amount matches', async () => {
@@ -638,7 +726,7 @@ describe('Wallet swap flow', () => {
       fireEvent.click(screen.getByRole('button', { name: 'View quotes' }))
       expect(screen.queryByRole('button', { name: 'Use smart routing' })).not.toBeInTheDocument()
       expect(await screen.findByRole('button', { name: 'Refresh offers' })).toBeEnabled()
-      expect(exchange).not.toHaveBeenCalled()
+      expect(quoteExchange).not.toHaveBeenCalled()
     } finally {
       view.unmount()
       hook.mockRestore()
@@ -663,7 +751,7 @@ describe('Wallet swap flow', () => {
       fireEvent.click(screen.getByRole('button', { name: 'View quotes' }))
       expect(screen.queryByRole('button', { name: 'Use smart routing' })).not.toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Find open offers' })).toBeEnabled()
-      expect(exchange).not.toHaveBeenCalled()
+      expect(quoteExchange).not.toHaveBeenCalled()
     } finally {
       view.unmount()
       hook.mockRestore()
@@ -696,7 +784,7 @@ describe('Wallet swap flow', () => {
     await waitFor(() =>
       expect(openSwapQuotes).toHaveBeenCalledWith('btc', USDT_ID, 10_000n, expect.any(String), undefined),
     )
-    expect(exchange).not.toHaveBeenCalled()
+    expect(quoteExchange).not.toHaveBeenCalled()
   })
 
   it('does not list cached unheld tokens as sources without a market or balance', () => {
@@ -784,7 +872,7 @@ describe('Wallet swap flow', () => {
         ),
       )
       expect(openSwapQuotes).toHaveBeenCalledOnce()
-      expect(exchange).not.toHaveBeenCalled()
+      expect(quoteExchange).not.toHaveBeenCalled()
     },
   )
 
@@ -942,7 +1030,7 @@ describe('Wallet swap flow', () => {
       ),
     )
     expect(chooseSwapQuote).toHaveBeenCalledWith('auction', 'second')
-    expect(exchange).not.toHaveBeenCalled()
+    expect(quoteExchange).not.toHaveBeenCalled()
     saveCard.mockRestore()
   })
 
@@ -959,14 +1047,14 @@ describe('Wallet swap flow', () => {
     await openSmartRoutingReview(continueButton)
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
-    await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][1].deposit.atomic).toBe(BigInt(50_000))
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    expect(quoteExchange.mock.calls[0][0].deposit.atomic).toBe(BigInt(50_000))
     // the default display unit is BTC (mockConfigContextValue) — the swap
     // entry/ticker/decimals follow it, same as the rest of the wallet
-    expect(exchange.mock.calls[0][2]).toMatchObject({ fromTicker: 'BTC', toTicker: 'USD', feeBps: 30 })
+    expect(acceptSwapQuote.mock.calls[0][1]).toMatchObject({ fromTicker: 'BTC', toTicker: 'USD', feeBps: 30 })
     // fromDecimals must pair with fromTicker ('BTC' -> 8), the solver's real
     // protocol decimals — otherwise the persisted receipt mislabels the scale
-    expect(exchange.mock.calls[0][2]).toMatchObject({ fromDecimals: 8 })
+    expect(acceptSwapQuote.mock.calls[0][1]).toMatchObject({ fromDecimals: 8 })
   })
 
   it('quotes the covenant floor with the market fee conceded', async () => {
@@ -998,14 +1086,14 @@ describe('Wallet swap flow', () => {
     expect(screen.getByText('0.03 USD')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
-    await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
     expect(screen.getByText('BTC to USD · Waiting for fill')).toBeInTheDocument()
-    const plan = exchange.mock.calls[0][1]
+    const plan = quoteExchange.mock.calls[0][0]
     expect(plan.deposit.atomic).toBe(BigInt(10_000))
     // 10_000 sats * 0.1 cents/sat * (10000 - 30)bps = 997 cents
     expect(plan.receive.atomic).toBe(BigInt(997))
     // the persisted quote snapshot must carry the same correct fiat value
-    expect(exchange.mock.calls[0][2]).toMatchObject({ fromFiatAmount: 10 })
+    expect(acceptSwapQuote.mock.calls[0][1]).toMatchObject({ fromFiatAmount: 10 })
   })
 
   it.each(['pair', 'orientation'])('refuses a hook plan with a mismatched %s at confirmation', async (mismatch) => {
@@ -1051,7 +1139,7 @@ describe('Wallet swap flow', () => {
       expect(continueButton).toBeEnabled()
       await openSmartRoutingReview(continueButton)
       fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
-      expect(exchange).not.toHaveBeenCalled()
+      expect(quoteExchange).not.toHaveBeenCalled()
       expect(screen.getByText('Quote unavailable')).toBeInTheDocument()
     } finally {
       view.unmount()
@@ -1080,9 +1168,9 @@ describe('Wallet swap flow', () => {
       for (const key of ['1', '0', '0', '0', '0']) fireEvent.click(screen.getByRole('button', { name: key }))
       await openSmartRoutingReview()
       fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
-      await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-      expect(exchange.mock.calls[0][0]).toEqual(alternate)
-      expect(exchange.mock.calls[0][1]).toBe(plan)
+      await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+      expect(quoteExchange.mock.calls[0][0].market).toEqual(alternate)
+      expect(quoteExchange.mock.calls[0][0]).toBe(plan)
     } finally {
       view.unmount()
       hook.mockRestore()
@@ -1143,8 +1231,8 @@ describe('Wallet swap flow', () => {
     await openSmartRoutingReview(continueButton)
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
-    await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][2].fromFiatAmount).toBeCloseTo(4.99, 2)
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    expect(acceptSwapQuote.mock.calls[0][1].fromFiatAmount).toBeCloseTo(4.99, 2)
   })
 
   it('snapshots a fiat entry at the rate the entry was converted with, not the solver-rate reconstruction', async () => {
@@ -1166,8 +1254,8 @@ describe('Wallet swap flow', () => {
     await openSmartRoutingReview(continueButton)
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
-    await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][2].fromFiatAmount).toBeCloseTo(50, 2)
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    expect(acceptSwapQuote.mock.calls[0][1].fromFiatAmount).toBeCloseTo(50, 2)
   })
 
   it('promotes the converted value when toggling denominations, not the raw digits (#839)', async () => {
@@ -1191,8 +1279,8 @@ describe('Wallet swap flow', () => {
     await openSmartRoutingReview(continueButton)
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
-    await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][2].fromFiatAmount).toBeCloseTo(50, 2)
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    expect(acceptSwapQuote.mock.calls[0][1].fromFiatAmount).toBeCloseTo(50, 2)
   })
 
   it('keeps the visible fiat amount in sync with the keypad after changing denominations', async () => {
@@ -1279,8 +1367,8 @@ describe('Wallet swap flow', () => {
     await openSmartRoutingReview(continueButton)
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
-    await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][1].deposit.atomic).toBe(BigInt(100_000))
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    expect(quoteExchange.mock.calls[0][0].deposit.atomic).toBe(BigInt(100_000))
   })
 
   it('offers only the spendable part of an asset held partly in swap escrow', async () => {
@@ -1307,8 +1395,8 @@ describe('Wallet swap flow', () => {
     await openSmartRoutingReview(continueButton)
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
-    await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][1].deposit.atomic).toBe(BigInt(10_000))
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    expect(quoteExchange.mock.calls[0][0].deposit.atomic).toBe(BigInt(10_000))
   })
 
   it('hides Use max when the selected asset has no balance', () => {
@@ -1342,8 +1430,8 @@ describe('Wallet swap flow', () => {
     await openSmartRoutingReview(continueButton)
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
-    await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][1].deposit.atomic).toBe(BigInt(1_093_180))
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    expect(quoteExchange.mock.calls[0][0].deposit.atomic).toBe(BigInt(1_093_180))
   })
 
   it('reuses one cached feed value across quotes instead of refetching per keystroke', async () => {
@@ -1385,8 +1473,8 @@ describe('Wallet swap flow', () => {
     await openSmartRoutingReview(continueButton)
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
-    await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    const plan = exchange.mock.calls[0][1]
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    const plan = quoteExchange.mock.calls[0][0]
     expect(plan.deposit.atomic).toBe(BigInt(1_000))
     expect(plan.receive.atomic).toBe(BigInt(99))
   })
@@ -1410,8 +1498,8 @@ describe('Wallet swap flow', () => {
     await openSmartRoutingReview(continueButton)
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
-    await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    const plan = exchange.mock.calls[0][1]
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    const plan = quoteExchange.mock.calls[0][0]
     // $100 at $100,000/BTC = 0.001 BTC = 100,000 sats, not "0" (rounded to
     // whole BTC) and not a comma-grouped string the solver can't parse
     expect(plan.deposit.atomic).toBe(BigInt(100_000))
@@ -1455,9 +1543,9 @@ describe('Wallet swap flow', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'View quotes' })).toBeEnabled(), { timeout: 5_000 })
     await openSmartRoutingReview()
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
-    await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    expect(exchange.mock.calls[0][1].deposit.atomic).toBe(BigInt(minSats))
-    expect(exchange.mock.calls[0][1].receive.atomic).toBe(BigInt(99))
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    expect(quoteExchange.mock.calls[0][0].deposit.atomic).toBe(BigInt(minSats))
+    expect(quoteExchange.mock.calls[0][0].receive.atomic).toBe(BigInt(99))
   })
 
   it('quotes the minimum in the asset being sent (USD), not the asset being received (sats) — vice versa', async () => {
@@ -1525,11 +1613,11 @@ describe('Wallet swap flow', () => {
     await openSmartRoutingReview(continueButton)
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
-    await waitFor(() => expect(exchange).toHaveBeenCalledOnce())
-    const plan = exchange.mock.calls[0][1]
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    const plan = quoteExchange.mock.calls[0][0]
     // 0.001 BTC = 100,000 sats
     expect(plan.deposit.atomic).toBe(BigInt(100_000))
-    expect(exchange.mock.calls[0][2]).toMatchObject({ fromTicker: 'BTC', fromDecimals: 8 })
+    expect(acceptSwapQuote.mock.calls[0][1]).toMatchObject({ fromTicker: 'BTC', fromDecimals: 8 })
   })
 
   it('follows the wallet bitcoin-unit setting for the swap amount, including when the currency-of-account is BTC', async () => {

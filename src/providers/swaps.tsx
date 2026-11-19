@@ -68,7 +68,7 @@ import {
 } from '@arkade-os/solver-discovery'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
-import { discoverMarkets, watchSwapMarkets } from '../lib/swapMarkets'
+import { discoverMarkets, marketAssetDisplay, marketLegId, watchSwapMarkets } from '../lib/swapMarkets'
 import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
 import { createSendRouter, isLightningMarket } from '../lib/sendRouter'
 import { claimFeeRate } from '../lib/claimFee'
@@ -87,7 +87,7 @@ import {
 } from '../lib/swapDriverChannel'
 import { saveQuoteSnapshot, type AssetSwapQuoteSnapshot, type WalletAssetSwap } from '../lib/swapRepository'
 import { displayAssetOf, offerSwaps } from '../lib/swapRecords'
-import { verifiedDesignatedCurrency } from '../lib/accountAssets'
+import { isValidAssetId } from '../lib/assets'
 import { getEmulatorPubkeyForNetwork } from '../lib/constants'
 import { consoleError } from '../lib/logs'
 import { extractError } from '../lib/error'
@@ -115,8 +115,8 @@ interface SwapsContextProps {
   swapAvailable: boolean
   swaps: WalletAssetSwap[]
   runDiscovery: (useCache?: boolean) => void
-  /** Fund an arkade↔arkade asset swap for the plan the composer quoted. */
-  exchange: (market: DiscoveredMarket, plan: OfferPlan, quote?: AssetSwapQuoteSnapshot) => Promise<Swap>
+  /** The solver's firm quote for the plan the composer estimated; fund it with `acceptSwapQuote`. */
+  quoteExchange: (plan: OfferPlan) => Promise<Quote>
   openSwapQuotes: (
     from: string,
     to: string,
@@ -167,7 +167,7 @@ export const SwapsContext = createContext<SwapsContextProps>({
   runDiscovery: () => {
     throw new Error('swaps not initialized')
   },
-  exchange: notInitialized,
+  quoteExchange: notInitialized,
   openSwapQuotes: notInitialized,
   cancelOpenSwapQuotes: notInitialized,
   chooseSwapQuote: notInitialized,
@@ -236,6 +236,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     isVerifiedAsset,
     availableAssetBalances,
     availableBalance,
+    assetMetadataCache,
+    setCacheEntry,
   } = useContext(WalletContext)
 
   const [markets, setMarkets] = useState<DiscoveredMarket[]>([])
@@ -351,7 +353,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const discoveryNetworkRef = useRef<string>()
   const setAllMarkets = (all: DiscoveredMarket[]) => {
     allMarketsRef.current = all
-    // Corridor (RFQ) markets are hidden from the offer composer: `exchange`
+    // Corridor (RFQ) markets are hidden from the offer composer: `quoteExchange`
     // builds offers, and a corridor is negotiated with a solver instead.
     // Keeping them here would let one Lightning card turn the whole swap
     // surface on with nothing behind it. `isRfqMarket` reads the rail off the
@@ -400,20 +402,40 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [discoveryScope])
 
+  // Reload names the assets the wallet holds or has traded; a market can offer
+  // one it has never seen, and its card's own name for it is solver-written.
+  // ponytail: one request per leg per session, no retry; master's bounded prefetch (#1152) should own this on merge.
+  const metadataRequested = useRef(new Set<string>())
+  useEffect(() => {
+    const assets = svcWallet?.assetManager
+    if (!assets) return
+    const legs = new Set(markets.flatMap((market) => [market.base_asset, market.quote_asset].map(marketLegId)))
+    for (const id of legs) {
+      if (!isValidAssetId(id) || assetMetadataCache.get(id) || metadataRequested.current.has(id)) continue
+      metadataRequested.current.add(id)
+      assets.getAssetDetails(id).then(
+        (details) => details && setCacheEntry(id, details),
+        (err) => consoleError(err, `error fetching metadata for ${id}`),
+      )
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [svcWallet, markets])
+
   // ------------------------------------------------------------- the announcer
 
   const tickerFor = (assetId: AssetId): string => {
     const display = displayAssetOf(assetId)
     if (display === BTC_ASSET_ID) return 'sats'
-    // Outranks the card's ticker, as every other surface reads it. Verified
-    // only, or a lookalike mint could claim the currency.
-    const designated = verifiedDesignatedCurrency(aspInfo.network, display, isVerifiedAsset)
-    if (designated) return designated
-    for (const market of allMarketsRef.current) {
-      if (market.quote_asset.id === display) return market.quote_asset.ticker
-      if (market.base_asset.id === display) return market.base_asset.ticker
-    }
-    return display.slice(0, 8)
+    const leg = allMarketsRef.current
+      .flatMap((market) => [market.base_asset, market.quote_asset])
+      .find((asset) => marketLegId(asset) === display)
+    const unknown = { id: display, name: display.slice(0, 8), ticker: display.slice(0, 8), decimals: 0 }
+    return marketAssetDisplay(
+      leg ?? unknown,
+      aspInfo.network,
+      (id) => assetMetadataCache.get(id)?.metadata,
+      isVerifiedAsset,
+    ).ticker
   }
 
   /**
@@ -670,8 +692,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
    * whether it came from this tab or over the channel. */
   const runHere = (op: DriverOp, args: unknown[]): Promise<unknown> => {
     switch (op) {
-      case 'exchange':
-        return exchangeHere(args[0] as OfferPlan, args[1] as AssetSwapQuoteSnapshot | undefined)
+      case 'quoteExchange':
+        return quoteExchangeHere(args[0] as OfferPlan)
       case 'openSwapQuotes':
         return openSwapQuotesHere(
           args[0] as string,
@@ -721,10 +743,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         ? btcOn('arkade', network)
         : arkadeAsset(network, asset.AssetId.fromString(discoveryId))
 
-  /** The market is the client's to select, so only the plan and the snapshot
-   * need to reach the tab that will fund this. */
-  const exchange = (_market: DiscoveredMarket, plan: OfferPlan, quote?: AssetSwapQuoteSnapshot): Promise<Swap> =>
-    runOnDriver('exchange', [plan, quote])
+  /** The market is the client's to select, so only the plan reaches the tab that will fund this. */
+  const quoteExchange = (plan: OfferPlan): Promise<Quote> => runOnDriver('quoteExchange', [plan])
 
   const openSwapQuotes = (
     from: string,
@@ -821,41 +841,21 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     return swap
   }
 
-  const exchangeHere = async (plan: OfferPlan, quote?: AssetSwapQuoteSnapshot): Promise<Swap> => {
+  // Not `client.exchange`, which re-quotes and funds whatever comes back. The
+  // estimate and this firm quote are priced independently — a carrier the card
+  // omits, a rounding unit — so the composer compares them and decides what the
+  // user confirms; `acceptSwapQuote` then funds exactly this quote, fenced to its
+  // deadline. Never re-quote these terms while it lives: the same terms derive
+  // the same offer script, which the solver refuses as a duplicate.
+  const quoteExchangeHere = async (plan: OfferPlan): Promise<Quote> => {
     if (!emulatorPubkey) throw new Error('swap service unavailable')
     const network = aspInfo.network as NetworkName
     const client = await driving()
     const give = assetIdFor(network, plan.deposit.asset.id)
     const take = assetIdFor(network, plan.receive.asset.id)
-    // Quote and accept rather than `client.exchange`, for one reason: the
-    // composer has been pricing this plan live and the user confirmed a number.
-    // `exchange` re-quotes internally and would fund whatever came back.
-    // Quoting here lets the confirmed amount be a floor — the swap is refused
-    // rather than funded at a worse rate than the one on screen. The market is
-    // the client's to select; it is taken here only so the caller's own
-    // pair lookup and the client's cannot silently disagree about the pair.
     const quoted = await client.quote({ give, take, amount: plan.deposit.atomic, amountOn: 'give' })
-    if (quoted.take.amount < plan.receive.atomic) {
-      throw new Error('The rate moved while you were confirming — go back and try again')
-    }
-    const swap = await client.accept(quoted)
-    // The one fact the client does not persist, because it does not own it:
-    // tickers, decimals, the fee rate and the fiat amount frozen at quote time,
-    // which is all the activity row has to render a swap whose market card may
-    // have changed since.
-    // Best effort: the swap is funded either way, and a lost snapshot costs
-    // the row its tickers, never its money.
-    if (quote) {
-      try {
-        saveQuoteSnapshot(swap.id, quote)
-      } catch (err) {
-        consoleError(err, 'failed to store the swap quote snapshot')
-      }
-    }
-    announceHere(swap)
-    await refreshSwaps()
-    reloadRef.current().catch(consoleError)
-    return swap
+    remember(quoted)
+    return quoted
   }
 
   /**
@@ -1064,7 +1064,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       swapAvailable,
       swaps,
       runDiscovery,
-      exchange,
+      quoteExchange,
       openSwapQuotes,
       cancelOpenSwapQuotes,
       chooseSwapQuote,

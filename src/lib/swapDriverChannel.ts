@@ -52,7 +52,7 @@ const RESULT_MS = 120_000
 
 /** The actions the swap client owns, and so the ones only the holder can run. */
 export type DriverOp =
-  | 'exchange'
+  | 'quoteExchange'
   | 'cancelSwap'
   | 'recoverSwap'
   | 'quotePay'

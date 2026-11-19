@@ -52,7 +52,7 @@ vi.mock('../../lib/swapClient', async (importOriginal) => ({
     quoteBid,
     receive,
     pay: vi.fn(),
-    exchange: vi.fn(),
+    quoteExchange: vi.fn(),
     resolve: vi.fn(),
     recover,
     swaps: async () => [],

@@ -25,7 +25,7 @@ import { formatFiatAmountParts, normalizeBitcoinUnit, prettyFiatAmount, prettyNu
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
 import { swapRouteTicker } from '../../../lib/swapDisplay'
 import { BTC_ASSET_ID, findMarket, l1ScriptForAddress, validatePlan } from '@arkade-os/swap/protocol'
-import { preFeeDisplayRate } from '../../../lib/swapMarkets'
+import { marketLegId, preFeeDisplayRate } from '../../../lib/swapMarkets'
 import { type AssetSwapQuoteSnapshot } from '../../../lib/swapRepository'
 import { Currencies, Unit } from '../../../lib/types'
 import { AspContext } from '../../../providers/asp'
@@ -98,7 +98,7 @@ const validAssetDecimals = (value: unknown): value is number =>
 export default function WalletSwap() {
   const { aspInfo } = useContext(AspContext)
   const {
-    exchange,
+    quoteExchange,
     acceptSwapQuote,
     markets,
     allMarkets = [],
@@ -117,7 +117,9 @@ export default function WalletSwap() {
 
   const btcUnit = normalizeBitcoinUnit(config.unit)
   const swapAssets = useMemo<SwapAsset[]>(() => {
-    const marketAssets = markets.flatMap((market) => [market.base_asset, market.quote_asset])
+    const marketAssets = markets
+      .flatMap((market) => [market.base_asset, market.quote_asset])
+      .map((asset) => ({ ...asset, id: marketLegId(asset) }))
     const ownedAssets = rows.flatMap((row) => {
       const id = row.sourceAsset?.assetId ?? row.assetId
       const decimals = row.sourceAsset?.decimals ?? row.decimals
@@ -127,7 +129,7 @@ export default function WalletSwap() {
     })
     const uniqueAssets = new Map(ownedAssets.map((asset) => [asset.id, asset]))
     for (const asset of marketAssets) {
-      if (!asset.id.includes('slip44:') && !uniqueAssets.has(asset.id)) uniqueAssets.set(asset.id, asset)
+      if (asset.id !== BTC_ASSET_ID && !uniqueAssets.has(asset.id)) uniqueAssets.set(asset.id, asset)
     }
     uniqueAssets.set(BTC_ASSET_ID, {
       id: BTC_ASSET_ID,
@@ -254,7 +256,8 @@ export default function WalletSwap() {
   const [successQuote, setSuccessQuote] = useState<SwapQuote>()
   const [selectedOffer, setSelectedOffer] = useState<{
     quote: Quote
-    offer: OpenRfqOffer
+    /** Absent for smart routing's firm quote that came in below its estimate. */
+    offer?: OpenRfqOffer
     inputKey: string
     destination?: string
   }>()
@@ -623,37 +626,42 @@ export default function WalletSwap() {
 
   const confirmSwap = async () => {
     if (submitting.current || !toAsset || confirming) return
-    if (selected) {
-      if (selectedExpired || selected.quote.expiresAt <= Math.floor(Date.now() / 1000)) {
-        setConfirmError(t('swap.offerExpired'))
-        return
-      }
+    const lapsed = selected && (selectedExpired || selected.quote.expiresAt <= Math.floor(Date.now() / 1000))
+    if (selected?.offer && lapsed) {
+      setConfirmError(t('swap.offerExpired'))
+      return
+    }
+    // A lapsed firm quote falls through to smart routing, which quotes again.
+    if (selected && !lapsed) {
       if (selected.quote.give.amount !== amountAtomic || selected.quote.take.amount <= 0n) return
+      const offer = selected.offer
       submitting.current = true
       setConfirming(true)
       setConfirmError('')
       try {
-        await acceptSwapQuote(selected.quote, {
-          fromTicker: fromAsset.ticker,
-          fromDecimals: fromAsset.decimals,
-          toTicker: toAsset.ticker,
-          toDecimals: toAsset.decimals,
-        })
+        await acceptSwapQuote(
+          selected.quote,
+          offer || !plan
+            ? {
+                fromTicker: fromAsset.ticker,
+                fromDecimals: fromAsset.decimals,
+                toTicker: toAsset.ticker,
+                toDecimals: toAsset.decimals,
+              }
+            : buildQuoteSnapshot(plan, quote, config.currency),
+        )
         setDrawer(null)
         setSuccessQuote(reviewQuote)
-        if (rememberSolver && solverNetwork) {
+        if (offer && rememberSolver && solverNetwork) {
           try {
             const cards = readSolverCards()
             const duplicate = cards.some(
               (input) =>
                 input.network === solverNetwork &&
-                (input.card as { discovery_pubkey?: string }).discovery_pubkey === selected.offer.solverPubkey,
+                (input.card as { discovery_pubkey?: string }).discovery_pubkey === offer.solverPubkey,
             )
             if (!duplicate)
-              saveSolverCards([
-                ...cards,
-                { network: solverNetwork, label: selected.offer.solverName, card: selected.offer.signedCard },
-              ])
+              saveSolverCards([...cards, { network: solverNetwork, label: offer.solverName, card: offer.signedCard }])
           } catch (cause) {
             toast.error(extractError(cause))
           }
@@ -678,10 +686,15 @@ export default function WalletSwap() {
     submitting.current = true
     setConfirming(true)
     try {
-      // The market the plan was quoted against, not one re-looked-up at confirm
-      // time: `accept` funds the plan the user just read, and a second lookup
-      // could name a different card.
-      await exchange(verifiedPair.market, plan, buildQuoteSnapshot(plan, quote, config.currency))
+      const firm = await quoteExchange(plan)
+      // Kept before funding: a retry must accept this quote, not ask for its terms again.
+      setSelectedOffer({ quote: firm, inputKey })
+      if (firm.take.amount < plan.receive.atomic) {
+        // Never fund below what the review showed: show the firm terms instead.
+        setConfirmError(t('swap.quoteBelowEstimate'))
+        return
+      }
+      await acceptSwapQuote(firm, buildQuoteSnapshot(plan, quote, config.currency))
       setDrawer(null)
       setSuccessQuote(quote)
       hapticLight()
@@ -814,7 +827,7 @@ export default function WalletSwap() {
             if (!open) setDrawer(null)
           }}
           onSmartRouting={() => {
-            setSelectedOffer(undefined)
+            setSelectedOffer((current) => (current?.offer ? undefined : current))
             openDrawer('review')
           }}
           onChoose={(verifiedQuote, offer) => {
@@ -847,13 +860,13 @@ export default function WalletSwap() {
       <ReviewDrawer
         open={drawer === 'review'}
         quote={reviewQuote}
-        provider={selected?.offer.solverName}
+        provider={selected?.offer?.solverName}
         destination={selected?.destination}
         rememberSolver={rememberSolver}
-        onRememberSolverChange={selected && solverNetwork ? setRememberSolver : undefined}
-        canConfirm={selected ? !selectedExpired : canContinue}
+        onRememberSolverChange={selected?.offer && solverNetwork ? setRememberSolver : undefined}
+        canConfirm={selected?.offer ? !selectedExpired : canContinue}
         confirming={confirming}
-        error={selectedExpired ? t('swap.offerExpired') : confirmError}
+        error={selected?.offer && selectedExpired ? t('swap.offerExpired') : confirmError}
         quoteLoading={selected ? false : quoteLoading}
         onOpenChange={(open) => {
           // keep the drawer up while the swap is being created so a late

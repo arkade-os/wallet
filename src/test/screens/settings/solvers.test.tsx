@@ -3,11 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Solvers from '../../../screens/Settings/Solvers'
 import { AspContext } from '../../../providers/asp'
 import { BackupContext } from '../../../providers/backup'
-import { mockAspContextValue } from '../mocks'
+import { mockAspContextValue, mockWalletContextValue } from '../mocks'
+import { WalletContext } from '../../../providers/wallet'
 import { readSolverCards } from '../../../lib/solverCards'
 import { prettyLongText } from '../../../lib/format'
 import { SwapsContext } from '../../../providers/swaps'
-import { btcUsdt } from '../../lib/swapFixtures'
+import { btcUsdt, USDT_ID } from '../../lib/swapFixtures'
 import { isSolverCardEnabled, readSolverRouting, saveSolverRouting } from '../../../lib/solverRouting'
 import { solverDirectionKey, solverId, type DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { solverHealth } from '../../../lib/solverHealth'
@@ -23,7 +24,7 @@ const ReactSwapsDefault = {
   swapAvailable: false,
   discoveryReady: true,
   runDiscovery: vi.fn(),
-  exchange: vi.fn(),
+  quoteExchange: vi.fn(),
   openSwapQuotes: vi.fn(),
   cancelOpenSwapQuotes: vi.fn(),
   chooseSwapQuote: vi.fn(),
@@ -60,10 +61,32 @@ vi.mock('@arkade-os/solver-discovery', async () => {
   }
 })
 
+// as the mutinynet solver publishes it: CAIP-19 legs, and a ticker cut from the asset id
+const pinnedUsdt = {
+  base_asset: { id: 'arkade:mutinynet/slip44:1', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+  quote_asset: {
+    id: `arkade:mutinynet/asset:${USDT_ID}`,
+    name: 'Arkade asset f121ac9b',
+    ticker: 'f121ac9b',
+    decimals: 2,
+  },
+  fee_bps: 10,
+  price_feed: btcUsdt.price_feed,
+  price_feed_schema: btcUsdt.price_feed_schema,
+  price_decimals: 6,
+  min_base_amount: '1000',
+  max_base_amount: '100000000',
+  min_quote_amount: '100',
+  max_quote_amount: '63000',
+}
+const pinnedSource = { solver: 'ln-solver', source: 'ln-solver', sourceType: 'local' as const }
+const usdtMetadata = new Map([[USDT_ID, { metadata: { name: 'USDT', ticker: 'USDT', decimals: 2 } }]])
+
 function renderSolvers(
   network: string = 'regtest',
   allMarkets: DiscoveredMarket[] = [],
   view: 'priority' | 'cards' = 'cards',
+  wallet: Record<string, unknown> = {},
 ) {
   const backupContextValue = {
     backupAndUpdateConfig: vi.fn(),
@@ -81,9 +104,11 @@ function renderSolvers(
       value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network } } as any}
     >
       <BackupContext.Provider value={backupContextValue as any}>
-        <SwapsContext.Provider value={{ ...ReactSwapsDefault, allMarkets }}>
-          <Solvers />
-        </SwapsContext.Provider>
+        <WalletContext.Provider value={{ ...mockWalletContextValue, ...wallet } as any}>
+          <SwapsContext.Provider value={{ ...ReactSwapsDefault, allMarkets }}>
+            <Solvers />
+          </SwapsContext.Provider>
+        </WalletContext.Provider>
       </BackupContext.Provider>
     </AspContext.Provider>,
   )
@@ -506,10 +531,10 @@ describe('Solvers screen', () => {
     expect(screen.getByRole('tab', { name: 'Current' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('tab', { name: 'Current' }))
-    await waitFor(() => expect(screen.getByText(/99999/)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText(/99,999/)).toBeInTheDocument())
 
     fireEvent.click(screen.getByRole('tab', { name: 'Original' }))
-    await waitFor(() => expect(screen.queryByText(/99999/)).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByText(/99,999/)).not.toBeInTheDocument())
   })
 
   it('shows only the pinned card when no current card is available', async () => {
@@ -524,6 +549,55 @@ describe('Solvers screen', () => {
     await waitFor(() => expect(screen.getByText('Solver card info')).toBeInTheDocument())
     expect(within(screen.getByRole('dialog')).queryByRole('tab')).not.toBeInTheDocument()
     expect(screen.getByText(/no Nostr relays/)).toBeInTheDocument()
+  })
+
+  it('names a pinned card’s asset legs from the asset’s metadata, not the card’s text', () => {
+    renderSolvers('mutinynet', [{ ...pinnedUsdt, ...pinnedSource }], 'priority', { assetMetadataCache: usdtMetadata })
+
+    expect(screen.getByRole('button', { name: 'Arkade BTC → Arkade USDT' })).toBeInTheDocument()
+    expect(screen.queryByText(/f121ac9b/)).not.toBeInTheDocument()
+  })
+
+  it('lists registry solvers read-only on the Cards tab', () => {
+    renderSolvers('mutinynet', [btcUsdt])
+
+    expect(screen.getByText('frenchman')).toBeInTheDocument()
+    expect(screen.getByText('Registry')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
+  })
+
+  it('states card limits in each leg’s units and leaves out a side the solver does not serve', async () => {
+    const onchain = {
+      base_asset: pinnedUsdt.base_asset,
+      quote_asset: { id: 'bitcoin:mutinynet/slip44:1', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+      fee_bps: 25,
+      fee_flat: '500',
+      min_base_amount: '0',
+      max_base_amount: '0',
+      min_quote_amount: '330',
+      max_quote_amount: '10000000',
+    }
+    localStorage.setItem(
+      'solverCards',
+      JSON.stringify([
+        {
+          network: 'mutinynet',
+          label: 'ln-solver',
+          card: { version: 0, name: 'ln-solver', markets: [pinnedUsdt, onchain] },
+        },
+      ]),
+    )
+    renderSolvers('mutinynet', [], 'cards', { assetMetadataCache: usdtMetadata })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Info' }))
+    const info = await screen.findByRole('dialog')
+    expect(within(info).getByText('1 – 630 USDT')).toBeInTheDocument()
+    expect(within(info).getByText('1,000 – 100,000,000 sats')).toBeInTheDocument()
+    expect(within(info).getByText('330 – 10,000,000 sats')).toBeInTheDocument()
+    expect(within(info).getByText('25 bps + 500 sats')).toBeInTheDocument()
+    expect(within(info).queryByText('Bitcoin BTC → Arkade BTC')).not.toBeInTheDocument()
+    expect(within(info).queryByText(/63,?000/)).not.toBeInTheDocument()
   })
 
   it('shows the raw card JSON in the detail view', async () => {
