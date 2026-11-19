@@ -47,6 +47,9 @@ export async function waitForWalletPage(page: Page, timeout = 60000): Promise<vo
     await continueBtn.click()
     await sendBtn.waitFor({ state: 'visible', timeout: 30000 })
   }
+  // On a returning visit Home is drawn from the last visit's figures before the wallet has
+  // loaded, and the app is marked busy until it has. The page is ready when that mark is gone.
+  await page.locator('[data-testid="app"][aria-busy="true"]').waitFor({ state: 'detached', timeout })
   const dismissButton = page.getByText(tr.common.dismiss)
   if (await dismissButton.isVisible().catch(() => false)) {
     await dismissButton.click()

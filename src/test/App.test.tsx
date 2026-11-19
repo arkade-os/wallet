@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App, { appReloader } from '../App'
 import { AspContext } from '../providers/asp'
 import { ConfigContext } from '../providers/config'
+import { FiatContext } from '../providers/fiat'
 import { FlowContext } from '../providers/flow'
 import { NavigationContext, Pages } from '../providers/navigation'
 import { OptionsContext } from '../providers/options'
@@ -10,6 +11,7 @@ import { WalletContext, type WalletAuthState } from '../providers/wallet'
 import {
   mockAspContextValue,
   mockConfigContextValue,
+  mockFiatContextValue,
   mockFlowContextValue,
   mockNavigationContextValue,
   mockOptionsContextValue,
@@ -42,6 +44,10 @@ function renderApp({
   flow = {},
   outcomeOf = () => undefined,
   dataReady,
+  storedHome,
+  fiatReady,
+  loadError = null,
+  asp = {},
 }: {
   authState: WalletAuthState
   initialized: boolean
@@ -51,12 +57,18 @@ function renderApp({
   flow?: Partial<typeof mockFlowContextValue>
   outcomeOf?: (id: string) => Outcome | undefined
   dataReady?: boolean
+  storedHome?: boolean
+  fiatReady?: boolean
+  loadError?: string | null
+  asp?: Partial<typeof mockAspContextValue.aspInfo>
 }) {
   const navigate = vi.fn()
 
   render(
     <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate, screen: screenOverride }}>
-      <AspContext.Provider value={mockAspContextValue as any}>
+      <AspContext.Provider
+        value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, ...asp } } as any}
+      >
         <ConfigContext.Provider value={{ ...mockConfigContextValue, configLoaded: true } as any}>
           <FlowContext.Provider value={{ ...mockFlowContextValue, ...flow } as any}>
             <OptionsContext.Provider
@@ -68,13 +80,17 @@ function renderApp({
                   authState,
                   initialized,
                   dataReady: dataReady ?? initialized,
+                  storedHome,
+                  loadError,
                   unlockWallet,
                   walletLoaded: true,
                   wallet: { nextRollover: 0, pubkey: 'stored-pubkey' },
                 }}
               >
                 <SwapsContext.Provider value={{ outcomeOf } as never}>
-                  <App />
+                  <FiatContext.Provider value={{ ...mockFiatContextValue, fiatReady }}>
+                    <App />
+                  </FiatContext.Provider>
                 </SwapsContext.Provider>
               </WalletContext.Provider>
             </OptionsContext.Provider>
@@ -189,6 +205,144 @@ describe('App startup routing', () => {
     expect(unlockWallet).toHaveBeenCalledWith(defaultPassword)
     await vi.advanceTimersByTimeAsync(1000)
     expect(reloadSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('Home from what it showed last time', () => {
+  beforeEach(() => {
+    setupTestEnvironment()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  // A returning wallet whose worker has not started: the provider is serving the stored figures.
+  const returning = { initialized: false, storedHome: true, fiatReady: true } as const
+  const home = () => screen.findByTestId('home-action-send')
+  const noHome = async () => {
+    await screen.findByTestId('app')
+    await act(async () => {})
+    expect(screen.queryByTestId('home-action-send')).toBeNull()
+  }
+
+  it('draws Home for a passwordless wallet while it boots in the background', async () => {
+    const { unlockWallet } = renderApp({ ...returning, authState: 'passwordless' })
+
+    expect(await home()).toBeInTheDocument()
+    expect(screen.getByTestId('app')).toHaveAttribute('aria-busy', 'true')
+    await waitFor(() => expect(unlockWallet).toHaveBeenCalledWith(defaultPassword))
+  })
+
+  it('draws Home once a password has been accepted, before the wallet has loaded', async () => {
+    renderApp({ ...returning, authState: 'authenticated', screen: Pages.Unlock })
+
+    expect(await home()).toBeInTheDocument()
+  })
+
+  it('shows nothing of a locked wallet', async () => {
+    renderApp({ ...returning, authState: 'locked' })
+
+    expect(await screen.findByText('Unlock')).toBeInTheDocument()
+    expect(screen.queryByTestId('home-action-send')).toBeNull()
+  })
+
+  it('keeps Home up when a tap navigates before the wallet has loaded', async () => {
+    // The tap is kept in `screen`. The screen it names needs the wallet, so it opens once
+    // the load lands, not on the stored figures.
+    renderApp({ ...returning, authState: 'authenticated', screen: Pages.SendForm })
+
+    expect(await home()).toBeInTheDocument()
+    expect(document.querySelector('[name="send-address"]')).toBeNull()
+  })
+
+  it('waits for a price rather than drawing the balance as zero', async () => {
+    renderApp({ ...returning, authState: 'authenticated', fiatReady: false })
+
+    await noHome()
+  })
+
+  it('gives way to an app request', async () => {
+    renderApp({
+      ...returning,
+      authState: 'authenticated',
+      flow: { appIntent: { status: 'connect', callback: 'https://example.com/cb' } },
+    })
+
+    await noHome()
+  })
+
+  it('gives way to an unreachable server', async () => {
+    const { navigate } = renderApp({ ...returning, authState: 'authenticated', asp: { unreachable: true } })
+
+    await noHome()
+    expect(navigate).toHaveBeenCalledWith(Pages.Unavailable)
+  })
+
+  it('gives way to a first load that failed', async () => {
+    renderApp({ ...returning, authState: 'authenticated', loadError: 'Unable to load wallet data.' })
+
+    await noHome()
+    expect((await screen.findAllByText('Unable to load wallet data.')).length).toBeGreaterThan(0)
+  })
+
+  it('puts up no loading cover ahead of it, unless it does not come', async () => {
+    vi.useFakeTimers()
+    try {
+      // The password state is still being read, so Home cannot be drawn yet.
+      renderApp({ ...returning, authState: 'unknown' })
+      await act(async () => {})
+      expect(screen.queryByTestId('loading-logo')).toBeNull()
+
+      await act(() => vi.advanceTimersByTimeAsync(400))
+      expect(screen.getByTestId('loading-logo')).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('covers at once when there is nothing stored to draw', async () => {
+    renderApp({ authState: 'unknown', initialized: false, storedHome: false, fiatReady: true })
+
+    expect(await screen.findByTestId('loading-logo')).toBeInTheDocument()
+  })
+
+  it('is not used once the wallet has loaded', async () => {
+    renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      storedHome: false,
+      fiatReady: true,
+      screen: Pages.Wallet,
+    })
+
+    expect(await home()).toBeInTheDocument()
+    expect(screen.getByTestId('app')).not.toHaveAttribute('aria-busy')
+  })
+})
+
+describe('leaving the unlock screen', () => {
+  beforeEach(() => {
+    setupTestEnvironment()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('sends the wallet home as soon as the password is accepted', async () => {
+    // Not when the wallet has loaded: Home may be on screen by then, and a redirect that late
+    // would undo a tap made on it.
+    const { navigate } = renderApp({ authState: 'authenticated', initialized: false, screen: Pages.Unlock })
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.Wallet))
+  })
+
+  it('stays on unlock while the wallet is locked', async () => {
+    const { navigate } = renderApp({ authState: 'locked', initialized: false, screen: Pages.Unlock })
+
+    await screen.findByText('Unlock')
+    expect(navigate).not.toHaveBeenCalledWith(Pages.Wallet)
   })
 })
 

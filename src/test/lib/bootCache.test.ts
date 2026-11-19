@@ -1,15 +1,47 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   FIAT_PRICES_MAX_AGE_MS,
+  HOME_SNAPSHOT_TXS,
   readAspInfoSnapshot,
   readFiatPricesSnapshot,
+  readHomeSnapshot,
   saveAspInfoSnapshot,
   saveFiatPricesSnapshot,
+  saveHomeSnapshot,
+  type HomeSnapshot,
 } from '../../lib/bootCache'
+import { clearStorage } from '../../lib/storage'
 import { emptyAspInfo } from '../../lib/asp'
+import type { Tx } from '../../lib/types'
 
 const URL = 'https://server.example'
 const info = { ...emptyAspInfo, url: URL, network: 'mutinynet', signerPubkey: '02'.repeat(33), dust: 330n }
+
+const tx = (n: number): Tx =>
+  ({
+    amount: 1000 + n,
+    boardingTxid: '',
+    createdAt: 1_700_000_000 + n,
+    explorable: undefined,
+    preconfirmed: false,
+    redeemTxid: `redeem-${n}`,
+    roundTxid: '',
+    settled: true,
+    type: 'received',
+  }) as Tx
+
+const home = (over: Partial<HomeSnapshot> = {}): HomeSnapshot => ({
+  build: 'build-1',
+  pubkey: 'pubkey-1',
+  aspUrl: URL,
+  savedAt: 1,
+  balance: 148_000,
+  availableBalance: 140_000,
+  assetBalances: [{ assetId: 'aa'.repeat(34), amount: 5n }],
+  availableAssetBalances: [{ assetId: 'aa'.repeat(34), amount: 2n }],
+  txs: [tx(1), tx(2)],
+  ...over,
+})
 
 beforeEach(() => localStorage.clear())
 
@@ -71,5 +103,55 @@ describe('fiat prices snapshot', () => {
     saveFiatPricesSnapshot({ ...prices, usd: undefined as unknown as number }, 1_000)
 
     expect(readFiatPricesSnapshot(1_000)).toBeUndefined()
+  })
+})
+
+describe('Home snapshot', () => {
+  it('gives back what was saved for this wallet and build, bigints intact', () => {
+    saveHomeSnapshot(home())
+
+    const read = readHomeSnapshot('pubkey-1', 'build-1')
+
+    expect(read?.balance).toBe(148_000)
+    expect(read?.assetBalances).toEqual([{ assetId: 'aa'.repeat(34), amount: 5n }])
+    expect(read?.txs.map((row) => row.redeemTxid)).toEqual(['redeem-1', 'redeem-2'])
+  })
+
+  it('has nothing for another wallet', () => {
+    saveHomeSnapshot(home())
+
+    expect(readHomeSnapshot('pubkey-2', 'build-1')).toBeUndefined()
+    expect(readHomeSnapshot(undefined, 'build-1')).toBeUndefined()
+  })
+
+  it('has nothing for another build, whose rows may not have the same shape', () => {
+    saveHomeSnapshot(home())
+
+    expect(readHomeSnapshot('pubkey-1', 'build-2')).toBeUndefined()
+  })
+
+  it('keeps only the rows Home can use', () => {
+    saveHomeSnapshot(home({ txs: Array.from({ length: 40 }, (_, n) => tx(n)) }))
+
+    expect(readHomeSnapshot('pubkey-1', 'build-1')?.txs).toHaveLength(HOME_SNAPSHOT_TXS)
+  })
+
+  it('reads a damaged entry as nothing rather than handing a screen a broken row', () => {
+    saveHomeSnapshot(home())
+    const stored = JSON.parse(localStorage.getItem('homeSnapshot')!)
+    stored.txs[0] = { amount: 'lots' }
+    localStorage.setItem('homeSnapshot', JSON.stringify(stored))
+
+    expect(readHomeSnapshot('pubkey-1', 'build-1')).toBeUndefined()
+  })
+
+  it('goes with everything else when the wallet is reset', async () => {
+    saveHomeSnapshot(home())
+    saveAspInfoSnapshot(info, 'build-1')
+
+    await clearStorage()
+
+    expect(readHomeSnapshot('pubkey-1', 'build-1')).toBeUndefined()
+    expect(readAspInfoSnapshot(URL, 'build-1')).toBeUndefined()
   })
 })

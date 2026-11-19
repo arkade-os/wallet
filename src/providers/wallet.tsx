@@ -28,6 +28,8 @@ import {
   saveAssetMetadataFailuresToStorage,
   type TransactionActivityMetadata,
 } from '../lib/storage'
+import { readHomeSnapshot, saveHomeSnapshot } from '../lib/bootCache'
+import { gitCommit } from '../_gitCommit'
 import { NavigationContext, Pages } from './navigation'
 import { getBalance, getUnrolledVtxos, getVtxos, settleVtxos } from '../lib/asp'
 import { resolveExits, subtractExitedAssets, type ExitRecord } from '../lib/exitHistory'
@@ -134,6 +136,9 @@ interface WalletContextProps {
   dataReady: boolean
   /** The worker's first contract sync since setup has not landed: balances and history are stored data. */
   syncing?: boolean
+  /** The wallet has not loaded yet, and `balance`, the asset balances and `txs` are what Home showed on
+   * the last visit. For drawing Home only: nothing may be spent, signed or navigated to on these. */
+  storedHome?: boolean
   loadError: string | null
   dismissLoadError: () => void
   authState: WalletAuthState
@@ -165,6 +170,7 @@ export const WalletContext = createContext<WalletContextProps>({
   isVerifiedAsset: () => false,
   dataReady: false,
   syncing: false,
+  storedHome: false,
   loadError: null,
   dismissLoadError: () => {},
   authState: 'unknown',
@@ -196,7 +202,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { isRegistered } = useContext(AssetsContext)
   const { initialiseNostrBackup } = useContext(BackupContext)
-  const { config, updateConfig } = useContext(ConfigContext)
+  const { config, configLoaded, updateConfig } = useContext(ConfigContext)
   const { navigate } = useContext(NavigationContext)
   const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo } = useContext(FlowContext)
   const { notifyTxSettled } = useContext(NotificationsContext)
@@ -211,8 +217,15 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     exits: ExitRecord[]
   }>({ activities: [], metadata: {}, lnSends: [], exits: [] })
   const [assetSwaps, setAssetSwaps] = useState<WalletAssetSwap[]>([])
-  const [balance, setBalance] = useState(0)
-  const [availableBalance, setAvailableBalance] = useState(0)
+  // What Home showed on the last visit, for this wallet. The figures below start from it, so Home
+  // can be drawn while the worker starts and the first load runs; that load replaces all of it.
+  const lastHome = useMemo(() => readHomeSnapshot(readWalletFromStorage()?.pubkey, gitCommit), [])
+  const [lastHomeShown, setLastHomeShown] = useState(Boolean(lastHome))
+  // Held from the moment a reset starts until the next wallet's first load, so nothing redraws
+  // the wiped wallet into storage in between.
+  const homeSnapshotPaused = useRef(false)
+  const [balance, setBalance] = useState(lastHome?.balance ?? 0)
+  const [availableBalance, setAvailableBalance] = useState(lastHome?.availableBalance ?? 0)
   const [wallet, setWallet] = useState(() => readWalletFromStorage() ?? defaultWallet)
   const walletLoaded = true
   const [initialized, setInitialized] = useState<boolean>(false)
@@ -222,8 +235,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [authState, setAuthState] = useState<WalletAuthState>('unknown')
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
-  const [assetBalances, setAssetBalances] = useState<WalletBalance['assets']>([])
-  const [availableAssetBalances, setAvailableAssetBalances] = useState<WalletBalance['availableAssets']>([])
+  const [assetBalances, setAssetBalances] = useState<WalletBalance['assets']>(lastHome?.assetBalances ?? [])
+  const [availableAssetBalances, setAvailableAssetBalances] = useState<WalletBalance['availableAssets']>(
+    lastHome?.availableAssetBalances ?? [],
+  )
 
   const [vtxoManager, setVtxoManager] = useState<IVtxoManager>()
 
@@ -251,7 +266,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // Derived rather than merged once at load: the swap records are read from
   // IndexedDB, so they can arrive after the first history load — recomputing on
   // either input is what keeps a cold start from flashing bare funding rows.
-  const txs = useMemo(
+  const loadedTxs = useMemo(
     () =>
       activitiesToTxs(history.activities, {
         swaps: assetSwaps,
@@ -264,6 +279,38 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [history, assetSwaps, aspInfo.network, assetDisplayVersion],
   )
+  // A snapshot is for the server it was taken on. Before the config has loaded there is no
+  // server to compare with, and nothing is drawn that early either.
+  const storedHome = lastHomeShown && Boolean(lastHome) && (!configLoaded || lastHome?.aspUrl === config.aspUrl)
+  const txs = storedHome && lastHome ? lastHome.txs : loadedTxs
+
+  // Keep what Home shows for the next visit to start from.
+  useEffect(() => {
+    if (!initialized || !dataReady || homeSnapshotPaused.current) return
+    if (!wallet.pubkey || !configLoaded) return
+    saveHomeSnapshot({
+      build: gitCommit,
+      pubkey: wallet.pubkey,
+      aspUrl: config.aspUrl,
+      savedAt: Date.now(),
+      balance,
+      availableBalance,
+      assetBalances,
+      availableAssetBalances,
+      txs: loadedTxs,
+    })
+  }, [
+    initialized,
+    dataReady,
+    wallet.pubkey,
+    configLoaded,
+    config.aspUrl,
+    balance,
+    availableBalance,
+    assetBalances,
+    availableAssetBalances,
+    loadedTxs,
+  ])
 
   const ungroupedTxs = useMemo(
     () => history.activities.flatMap((activity) => activity.txs).map((tx) => arkTransactionToTx(tx)),
@@ -703,6 +750,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       setHistory({ activities, metadata, lnSends, exits })
       if (!hasLoadedOnce.current) {
         hasLoadedOnce.current = true
+        homeSnapshotPaused.current = false
+        setLastHomeShown(false)
         setDataReady(true)
       }
       prefetchAssetMetadata(swWallet, referenced).catch((err) => consoleError(err, 'Error prefetching asset metadata'))
@@ -717,6 +766,15 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const dismissLoadError = () => {
     setLoadError(null)
     hasLoadedOnce.current = true
+    // Going on without a load means going on with nothing, as it always has: the stored figures
+    // were only ever a stand-in for the load that failed.
+    if (lastHomeShown) {
+      setLastHomeShown(false)
+      setBalance(0)
+      setAvailableBalance(0)
+      setAssetBalances([])
+      setAvailableAssetBalances([])
+    }
     setDataReady(true)
   }
 
@@ -1112,6 +1170,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setAuthState('locked')
     setInitialized(false)
     setDataReady(false)
+    setLastHomeShown(false)
     hasLoadedOnce.current = false
     assetMetadataFailures.current = new Map()
     assetMetadataFetches.current = new Set()
@@ -1134,6 +1193,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     reloadTimerRef.current = undefined
     removeServiceWorkerMessageHandler()
     forgetLnurlSends()
+    // From here the wallet is being wiped: nothing may write its figures back.
+    homeSnapshotPaused.current = true
+    setLastHomeShown(false)
     await clearStorage()
     // swap records outlive localStorage now: without this a reset leaves the
     // previous wallet's swaps in the activity list. Never fatal — a reset that
@@ -1204,7 +1266,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         iconApprovalManager,
         isVerifiedAsset,
         dataReady,
-        syncing,
+        // The stored figures are by definition not synced yet.
+        syncing: syncing || storedHome,
+        storedHome,
         loadError,
         dismissLoadError,
         reloadWallet,

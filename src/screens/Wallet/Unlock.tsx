@@ -3,11 +3,9 @@ import { WalletContext } from '../../providers/wallet'
 import { consoleError } from '../../lib/logs'
 import NeedsPassword from '../../components/NeedsPassword'
 import Header from '../../components/Header'
-import { NavigationContext, Pages } from '../../providers/navigation'
 import { useTranslation } from '../../providers/language'
 
 export default function Unlock() {
-  const { navigate } = useContext(NavigationContext)
   const { unlockWallet } = useContext(WalletContext)
   const { t } = useTranslation()
 
@@ -18,8 +16,8 @@ export default function Unlock() {
     setError('')
     setUnlocking(true)
     try {
+      // App sends the wallet home once the password is accepted; nothing to navigate to here.
       await unlockWallet(password)
-      navigate(Pages.Wallet)
     } catch (err) {
       setUnlocking(false)
       if (err instanceof Error && err.message === 'Invalid password') {
