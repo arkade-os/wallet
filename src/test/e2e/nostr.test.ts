@@ -1,5 +1,5 @@
 import { test, expect, createWallet, resetAndRestoreWallet, navigateToSettings, mockSolverCard } from './utils'
-import { publishSuccessMessage } from '../../lib/nostr'
+import { publishSuccessMessage } from '../../lib/constants'
 import { translations } from '../../lib/i18n'
 
 const tr = translations.en

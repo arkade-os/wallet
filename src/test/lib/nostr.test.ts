@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { finalizeEvent, generateSecretKey, getPublicKey, nip44, type Event, type SimplePool } from 'nostr-tools'
+import { publishSuccessMessage } from '../../lib/constants'
 import { EncryptedDirectMessage } from 'nostr-tools/kinds'
-import { NostrStorage, publishSuccessMessage } from '../../lib/nostr'
+import { NostrStorage } from '../../lib/nostr'
 
 // jsdom's TextEncoder returns a cross-realm Uint8Array that @noble/hashes rejects
 const encode = TextEncoder.prototype.encode

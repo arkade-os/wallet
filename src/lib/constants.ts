@@ -13,11 +13,8 @@ export const defaultPassword = 'noah'
 export const minSatsToNudge = 100_000
 export const maxPercentage = import.meta.env.VITE_MAX_PERCENTAGE ?? 10
 export const enableChainSwapsReceive = import.meta.env.VITE_CHAIN_SWAPS_RECEIVE_ENABLED === 'true'
-// Vite bakes __VITE_FOO__ placeholders into the bundle at build time; the
-// Docker entrypoint substitutes them with real values at container startup.
-// A deployment that doesn't set a given var leaves the literal placeholder,
-// which must be treated as "unset" rather than used as a real value (e.g. a
-// truthy "__VITE_ARK_SERVER__" string being used as a server URL).
+export const publishSuccessMessage = 'Message published to Nostr successfully'
+
 export const fromRuntimeEnv = (value: string | undefined): string | undefined =>
   value && !value.startsWith('__VITE_') ? value : undefined
 
