@@ -102,14 +102,6 @@ beforeAll(() => {
       copyFileSync(join(repo, path), join(root, path))
     }
   const taxiEntry = createRequire(join(repo, 'package.json')).resolve('@arkade-taxi/client')
-  if (!candidates.has('@arkade-os/swap')) {
-    const originalSwap = packageRootFrom(join(repo, 'package.json'), '@arkade-os/swap')
-    const installedSwap = join(root, 'node_modules/@arkade-os/swap')
-    mkdirSync(installedSwap, { recursive: true })
-    for (const name of readdirSync(originalSwap).filter((name) => name !== 'node_modules'))
-      cpSync(join(originalSwap, name), join(installedSwap, name), { recursive: true })
-    installDependencies(originalSwap, installedSwap)
-  }
   for (const artifact of manifest.artifacts) {
     const installed = join(root, 'node_modules', artifact.package)
     mkdirSync(installed, { recursive: true })
@@ -140,6 +132,22 @@ afterAll(() => {
 it('accepts an unchanged installation extracted from the frozen archives', () => {
   const result = run()
   expect(result.status, result.stderr).toBe(0)
+})
+
+it('requires the Swap archive in the manifest before importing installed packages', () => {
+  const restoreEntry = markEntry()
+  const path = join(root, MANIFEST_PATH)
+  const original = readFileSync(path, 'utf8')
+  const incomplete = JSON.parse(original)
+  incomplete.artifacts = incomplete.artifacts.filter(({ package: name }) => name !== '@arkade-os/swap')
+  writeFileSync(path, JSON.stringify(incomplete))
+  try {
+    rejectedBeforeImport(run(), 'expected exactly @arkade-os/sdk, @arkade-os/swap')
+  } finally {
+    writeFileSync(path, original)
+    restoreEntry()
+    rmSync(marker, { force: true })
+  }
 })
 
 it('rejects changed installed code with the same package version and exports before importing it', () => {

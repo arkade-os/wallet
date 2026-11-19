@@ -11,7 +11,7 @@ import {
   CANDIDATE_TAXI_FILL_SYMBOL,
   DIRECT_DEPENDENCIES,
   MANIFEST_PATH,
-  PINNED_PACKAGES as REQUIRED_PACKAGES,
+  PINNED_PACKAGES,
   VENDOR_DIR,
   archiveManifest,
   assertCandidateExport,
@@ -42,7 +42,6 @@ if (!existsSync(at(VENDOR_DIR))) fail(`${VENDOR_DIR} is missing; the frozen arch
 
 const manifest = readJson(at(MANIFEST_PATH))
 const byPackage = new Map(manifest.artifacts?.map((artifact) => [artifact.package, artifact]) ?? [])
-const PINNED_PACKAGES = [...REQUIRED_PACKAGES, ...(byPackage.has('@arkade-os/swap') ? ['@arkade-os/swap'] : [])]
 check(
   JSON.stringify([...byPackage.keys()].sort()) === JSON.stringify([...PINNED_PACKAGES].sort()),
   `${MANIFEST_PATH} covers ${[...byPackage.keys()].join(', ')}, expected exactly ${PINNED_PACKAGES.join(', ')}`,
@@ -89,11 +88,9 @@ for (const name of PINNED_PACKAGES) {
   )
 }
 const root = readJson(at('package.json'))
-if (!byPackage.has('@arkade-os/swap'))
-  check(root.dependencies?.['@arkade-os/swap'] === '0.1.6', 'wallet swap dependency is not the stable 0.1.6 release')
 check(root.pnpm?.overrides === undefined, 'package.json declares pnpm.overrides, which pnpm-workspace.yaml overrules')
 
-for (const name of [...DIRECT_DEPENDENCIES, ...(byPackage.has('@arkade-os/swap') ? ['@arkade-os/swap'] : [])]) {
+for (const name of DIRECT_DEPENDENCIES) {
   const spec = root.dependencies?.[name]
   check(
     spec === fileSpec('./vendor/carrier', byPackage.get(name)?.file),

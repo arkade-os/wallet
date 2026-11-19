@@ -1,7 +1,7 @@
 import { expect, test, type TestInfo } from '@playwright/test'
 import { ArkAddress, RestIndexerProvider } from '@arkade-os/sdk'
 import type { OfferSwapRecord } from '@arkade-os/swap'
-import { ASSET_CARRIER_SATS, decodeOffer, offerContract } from '@arkade-os/swap/protocol'
+import { ASSET_CARRIER_SATS, ASSET_SWAP_V2, ASSET_SWAP_V3, decodeOffer, offerContract } from '@arkade-os/swap/protocol'
 import { hex } from '@scure/base'
 import { navigateHome, navigateToSwaps } from '../utils'
 import { actor, admin, advances, importAsset, ledger, nativeOffers, shift, tr, type Actor } from './helpers'
@@ -88,6 +88,7 @@ async function swap(
   await expect.poll(async () => (await fresh()).length, { timeout: 60_000 }).toBe(1)
   await expect.poll(async () => (await fresh())[0]?.status, { timeout: 90_000 }).toBe('fulfilled')
   const record = (await fresh())[0]
+  expect(record.market).toMatchObject({ kind: 'card', backend: 'rfq' })
   expect(record.assetPayment).toBeUndefined()
   expect(record.give.amount).toBe(amount)
   expect(BigInt(record.take.amount)).toBe(quotedReceive)
@@ -99,9 +100,11 @@ async function swap(
   expect(Boolean(decoded.wantAsset)).toBe(forward)
   expect((forward ? decoded.wantAsset : decoded.offerAsset)?.toString()).toBe(assetId)
   const { swapPkScript, ...binding } = decoded
-  const compiled = offerContract(binding, ArkAddress.decode(trader.address).serverPubKey)
+  const serverPubKey = ArkAddress.decode(trader.address).serverPubKey
+  const compiled = offerContract(binding, serverPubKey, ASSET_SWAP_V3)
   expect(hex.encode(compiled.pkScript)).toBe(hex.encode(swapPkScript))
   expect(record.swapPkScript).toBe(hex.encode(compiled.pkScript))
+  expect(record.swapPkScript).not.toBe(hex.encode(offerContract(binding, serverPubKey, ASSET_SWAP_V2).pkScript))
   const given = BigInt(record.give.amount)
   const taken = BigInt(record.take.amount)
   const carrier = forward ? ASSET_CARRIER_SATS : BigInt(record.carrierSats ?? ASSET_CARRIER_SATS)
@@ -123,6 +126,8 @@ async function swap(
     body: JSON.stringify(
       {
         program: forward ? 'wantAsset' : 'wantBtc',
+        contractVersion: ASSET_SWAP_V3,
+        backend: record.market.backend,
         review: {
           receive: quotedReceive.toString(),
           fee: quotedFee.toString(),

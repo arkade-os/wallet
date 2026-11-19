@@ -9,6 +9,33 @@ import { expect, it } from 'vitest'
 const scripts = dirname(fileURLToPath(import.meta.url))
 const manifestText = readFileSync(join(scripts, '../../vendor/carrier/manifest.json'), 'utf8')
 
+it('rejects a bundle without Swap before touching vendor files', () => {
+  const root = mkdtempSync(join(tmpdir(), 'wallet-pack-missing-swap-'))
+  try {
+    const scriptDir = join(root, 'scripts', 'carrier-artifacts')
+    const bundle = join(root, 'bundle')
+    const vendor = join(root, 'vendor', 'carrier')
+    mkdirSync(scriptDir, { recursive: true })
+    mkdirSync(bundle)
+    mkdirSync(vendor, { recursive: true })
+    for (const script of ['pack.mjs', 'lib.mjs']) copyFileSync(join(scripts, script), join(scriptDir, script))
+    writeFileSync(join(vendor, 'manifest.json'), 'existing manifest')
+    const manifest = JSON.parse(manifestText)
+    manifest.artifacts = manifest.artifacts.filter(({ package: name }) => name !== '@arkade-os/swap')
+    writeFileSync(join(bundle, 'manifest.json'), JSON.stringify(manifest))
+    const result = spawnSync(process.execPath, [join(scriptDir, 'pack.mjs'), '--bundle', bundle], {
+      encoding: 'utf8',
+    })
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('bundle must contain exactly the pinned packages')
+    expect(readdirSync(vendor)).toEqual(['manifest.json'])
+    expect(readFileSync(join(vendor, 'manifest.json'), 'utf8')).toBe('existing manifest')
+  } finally {
+    if (!root.startsWith(join(tmpdir(), 'wallet-pack-missing-swap-'))) throw new Error('invalid temporary fixture')
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
 it.each([undefined, null, 42, {}, '', '.', '..', 'manifest.json', '../archive.tgz', '..\\archive.tgz', 'archive.tar'])(
   'rejects invalid archive filename %j before touching vendor files',
   (file) => {

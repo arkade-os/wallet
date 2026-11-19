@@ -20,11 +20,7 @@ if (bundleFlag < 0 || !process.argv[bundleFlag + 1])
 const bundle = resolve(process.argv[bundleFlag + 1])
 const manifest = readJson(join(bundle, 'manifest.json'))
 const artifacts = manifest.artifacts ?? []
-const packages = [
-  ...PINNED_PACKAGES,
-  ...(artifacts.some(({ package: name }) => name === '@arkade-os/swap') ? ['@arkade-os/swap'] : []),
-]
-if (JSON.stringify(artifacts.map(({ package: name }) => name).sort()) !== JSON.stringify(packages.sort()))
+if (JSON.stringify(artifacts.map(({ package: name }) => name).sort()) !== JSON.stringify([...PINNED_PACKAGES].sort()))
   throw new Error('bundle must contain exactly the pinned packages')
 for (const artifact of artifacts) {
   if (

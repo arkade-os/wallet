@@ -20,9 +20,9 @@ export const PINNED_SOURCES = {
   '@arkade-taxi/client': { repository: ARKADE_TAXI, directory: 'packages/client' },
 }
 
-export const PINNED_PACKAGES = Object.keys(PINNED_SOURCES).filter((name) => name !== '@arkade-os/swap')
+export const PINNED_PACKAGES = Object.keys(PINNED_SOURCES)
 
-export const DIRECT_DEPENDENCIES = ['@arkade-os/sdk', '@arkade-taxi/client']
+export const DIRECT_DEPENDENCIES = ['@arkade-os/sdk', '@arkade-os/swap', '@arkade-taxi/client']
 
 export function pinnedSourceMismatch(artifact) {
   const pinned = PINNED_SOURCES[artifact?.package]
