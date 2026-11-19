@@ -1,3 +1,4 @@
+import { isMobileBrowser } from '../lib/browser'
 import InputWithScanner from './InputWithScanner'
 
 interface InputNoteProps {
@@ -9,5 +10,15 @@ interface InputNoteProps {
 }
 
 export default function InputNote({ error, label, onChange, openScan, value }: InputNoteProps) {
-  return <InputWithScanner error={error} focus label={label} onChange={onChange} openScan={openScan} value={value} />
+  // Not on a phone: the system keyboard would cover the screen before paste or scan is chosen.
+  return (
+    <InputWithScanner
+      error={error}
+      focus={!isMobileBrowser}
+      label={label}
+      onChange={onChange}
+      openScan={openScan}
+      value={value}
+    />
+  )
 }

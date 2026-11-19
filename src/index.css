@@ -3258,6 +3258,42 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   font-weight: var(--asset-detail-support-weight);
 }
 
+/* Facts about an asset, ruled like the rows of a transaction rather than boxed */
+.asset-facts {
+  width: 100%;
+}
+
+.asset-facts > * {
+  width: 100%;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+/* A choice between a few options, drawn like the chart's range tabs */
+.segmented {
+  display: flex;
+  width: 100%;
+  gap: 0.25rem;
+}
+
+.segmented .segmented__tab {
+  flex: 1;
+  min-height: 2.5rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-4);
+  font: inherit;
+  font-size: 0.875rem;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.segmented .segmented__tab[aria-selected='true'] {
+  background: color-mix(in srgb, var(--neutral-100) 74%, var(--bg));
+  color: var(--fg);
+}
+
 .asset-detail-range-tabs {
   display: flex;
   align-items: center;

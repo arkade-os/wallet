@@ -7,7 +7,6 @@ import FlexRow from '../../../components/FlexRow'
 import Header from '../../../components/Header'
 import LoadingLogo from '../../../components/LoadingLogo'
 import Padded from '../../../components/Padded'
-import Shadow from '../../../components/Shadow'
 import Text, { TextSecondary } from '../../../components/Text'
 import AssetAvatar from '../../../components/AssetAvatar'
 import { NavigationContext, Pages } from '../../../providers/navigation'
@@ -144,56 +143,54 @@ export default function AppAssetDetail() {
               </FlexRow>
             </FlexCol>
 
-            <Shadow lighter>
-              <FlexCol gap='0.5rem' padding='0.75rem'>
-                {name !== t('mint.unknownAsset') ? (
-                  <FlexRow between>
-                    <TextSecondary>{t('mint.nameLabel')}</TextSecondary>
-                    <Text bold>{name}</Text>
-                  </FlexRow>
-                ) : null}
-                {ticker ? (
-                  <FlexRow between>
-                    <TextSecondary>{t('mint.tickerLabel')}</TextSecondary>
-                    <Text bold>{ticker}</Text>
-                  </FlexRow>
-                ) : null}
+            <div className='asset-facts'>
+              {name !== t('mint.unknownAsset') ? (
                 <FlexRow between>
-                  <TextSecondary>{t('mint.supply')}</TextSecondary>
-                  <Text bold>{prettyAssetAmount(supply, decimals) ?? t('mint.unknown')}</Text>
+                  <TextSecondary>{t('mint.nameLabel')}</TextSecondary>
+                  <Text bold>{name}</Text>
                 </FlexRow>
+              ) : null}
+              {ticker ? (
                 <FlexRow between>
-                  <TextSecondary>{t('mint.decimals')}</TextSecondary>
-                  <Text bold>{decimals}</Text>
+                  <TextSecondary>{t('mint.tickerLabel')}</TextSecondary>
+                  <Text bold>{ticker}</Text>
                 </FlexRow>
-                {controlAssetId ? (
-                  <FlexRow between>
-                    <TextSecondary>{t('mint.controlAsset')}</TextSecondary>
-                    <FlexRow gap='0.25rem' end>
-                      {(() => {
-                        const ctrl = assetMetadataCache.get(controlAssetId)?.metadata
-                        const ctrlName = ctrl?.name ?? `${controlAssetId.slice(0, 8)}...${controlAssetId.slice(-8)}`
-                        const label = ctrl?.ticker ? `${ctrlName} (${ctrl.ticker})` : ctrlName
-                        return (
-                          <>
-                            <AssetAvatar
-                              icon={ctrl?.icon}
-                              ticker={ctrl?.ticker}
-                              size={20}
-                              assetId={controlAssetId}
-                              clickable
-                            />
-                            <Text bold copy={controlAssetId}>
-                              {label}
-                            </Text>
-                          </>
-                        )
-                      })()}
-                    </FlexRow>
+              ) : null}
+              <FlexRow between>
+                <TextSecondary>{t('mint.supply')}</TextSecondary>
+                <Text bold>{prettyAssetAmount(supply, decimals) ?? t('mint.unknown')}</Text>
+              </FlexRow>
+              <FlexRow between>
+                <TextSecondary>{t('mint.decimals')}</TextSecondary>
+                <Text bold>{decimals}</Text>
+              </FlexRow>
+              {controlAssetId ? (
+                <FlexRow between>
+                  <TextSecondary>{t('mint.controlAsset')}</TextSecondary>
+                  <FlexRow gap='0.25rem' end>
+                    {(() => {
+                      const ctrl = assetMetadataCache.get(controlAssetId)?.metadata
+                      const ctrlName = ctrl?.name ?? `${controlAssetId.slice(0, 8)}...${controlAssetId.slice(-8)}`
+                      const label = ctrl?.ticker ? `${ctrlName} (${ctrl.ticker})` : ctrlName
+                      return (
+                        <>
+                          <AssetAvatar
+                            icon={ctrl?.icon}
+                            ticker={ctrl?.ticker}
+                            size={20}
+                            assetId={controlAssetId}
+                            clickable
+                          />
+                          <Text bold copy={controlAssetId}>
+                            {label}
+                          </Text>
+                        </>
+                      )
+                    })()}
                   </FlexRow>
-                ) : null}
-              </FlexCol>
-            </Shadow>
+                </FlexRow>
+              ) : null}
+            </div>
             {hasIcon && !iconApprovalManager.isVerified(assetInfo.assetId) ? (
               <Button
                 label={iconApprovalManager.isApproved(assetInfo.assetId) ? t('mint.hideIcon') : t('mint.showIcon')}
