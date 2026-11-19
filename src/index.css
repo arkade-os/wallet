@@ -676,13 +676,16 @@ button {
 }
 
 /* Accounts are a ruled list: a hairline under each row, amounts in mono */
-.home-section--ruled .asset-card {
+.home-section--ruled .asset-card,
+.swap-token-row {
   min-height: 4.25rem;
   border-bottom: 1px solid var(--hairline);
   border-radius: 0;
 }
 
-.home-section--ruled .asset-card__value {
+/* Amounts in lists are set in mono: accounts, the swap picker and activity */
+.home-section--ruled .asset-card__value,
+.swap-token-row__value {
   font-family: var(--font-family-mono);
   font-size: 0.9375rem;
   letter-spacing: 0;
@@ -1132,10 +1135,10 @@ button {
   justify-content: flex-end;
   overflow: hidden;
   color: var(--fg);
-  font-family: var(--font-family-heading);
-  font-size: 1.0625rem;
+  font-family: var(--font-family-mono);
+  font-size: 0.9375rem;
   font-weight: 500;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   line-height: var(--text-base-line);
   text-overflow: ellipsis;
   white-space: nowrap;

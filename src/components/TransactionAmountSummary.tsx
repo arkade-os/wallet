@@ -1,6 +1,7 @@
 import type { TransactionAmountDisplay } from '../lib/transactionAmountDisplay'
 import { PrivacyAmount } from './PrivacyAmount'
 import UnverifiedBadge from './UnverifiedBadge'
+import Figure from './Figure'
 
 export default function TransactionAmountSummary({
   amount,
@@ -26,7 +27,7 @@ export default function TransactionAmountSummary({
         masked={primary.masked}
         testId='primary-amount'
       >
-        {primary.value}
+        <Figure value={primary.value} />
       </PrivacyAmount>
       {showUnverifiedBadge ? <UnverifiedBadge /> : null}
     </section>

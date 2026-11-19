@@ -1021,7 +1021,7 @@ function SwapAssetRow({ asset, active, onClick }: { asset: SwapAsset; active?: b
         <span>{asset.name}</span>
         <small>{formatAssetBalance(asset)}</small>
       </span>
-      {asset.fiatText ? <strong>{asset.fiatText}</strong> : null}
+      {asset.fiatText ? <strong className='swap-token-row__value'>{asset.fiatText}</strong> : null}
     </button>
   )
 }
