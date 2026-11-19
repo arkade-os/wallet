@@ -52,8 +52,9 @@ sender's wallet asks for it. Copy and Share are unchanged.
 
 **Swap.** The composer reads like the Send keypad: the figure leads, at the keypad's sizes with grey cents and
 thousands separators, over the keypad's unit chip; a balance limit is said under it, as Send says one. The two
-sides of the trade are flat rows, the asset with its available balance and Max, and the asset to receive with its
-estimate; the flip button sits on the seam between them. The keypad is the shared one, with no point key for
+sides of the trade are flat rows, the asset with its balance and Max, and the asset to receive with its estimate
+(and its value, when that is in another currency); the flip button sits on a 12px seam between them, clear of
+their text. Below 700px tall the composer tightens; below 600px it scrolls rather than crowd. The keypad is the shared one, with no point key for
 whole units. Review is laid out like Send's (the route, what arrives, then Swap, Fees and Rate as rows with
 icons), with an inline error and a Cancel; its title stays as the sheet's accessible name. Success shows what
 was given behind the sheet. The asset list and the receive picker keep their layout; their fields and rows now

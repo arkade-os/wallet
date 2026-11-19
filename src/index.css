@@ -2421,7 +2421,8 @@ html.palette-dark .send-asset-menu {
   align-items: center;
   justify-content: center;
   align-self: center;
-  margin: -1.375rem 0;
+  /* leaves a 12px seam between the rows: (2 × 0.5rem gap + 2.25rem − 0.75rem) / 2 */
+  margin: -1.25rem 0;
   border-radius: 999px;
   background: var(--surface);
   color: var(--brand-text);
@@ -2453,8 +2454,9 @@ html.palette-dark .send-asset-menu {
   }
 }
 
-/* Short phones: the figure, the rows and the keys give up height in steps so
- * the composer, keypad and Continue all stay on one screen. */
+/* Short phones: the figure, the rows and the keys give up some height so the
+ * composer, keypad and Continue stay on one screen. Below 600px there is not
+ * enough of it to share out without crowding, so the screen scrolls instead. */
 @media (max-height: 700px) {
   .swap-composer {
     gap: 0.5rem;
@@ -2470,12 +2472,15 @@ html.palette-dark .send-asset-menu {
   }
 
   .swap-pair__row {
-    min-height: 4rem;
-    padding-block: 0.5rem;
+    min-height: 4.25rem;
+    padding-block: 0.625rem;
   }
 
   .swap-flip-button {
-    margin: -1.25rem 0;
+    width: 2rem;
+    height: 2rem;
+    margin: -1.125rem 0;
+    box-shadow: 0 0 0 3px var(--bg);
   }
 
   .keypad.swap-keypad button {
@@ -2484,36 +2489,15 @@ html.palette-dark .send-asset-menu {
 }
 
 @media (max-height: 600px) {
+  /* scoped to the lab: the stage rules further down would otherwise win */
+  .asset-swap-lab .swap-flow-stage--compose,
+  .asset-swap-lab .swap-flow-stage--compose .swap-composer,
+  .asset-swap-lab .swap-figure {
+    flex: none;
+  }
+
   .swap-figure {
-    gap: 0.375rem;
-  }
-
-  .swap-amount-value {
-    font-size: calc(2.75rem * var(--swap-amount-scale, 1));
-  }
-
-  .swap-amount-secondary {
-    min-height: 2rem;
-  }
-
-  .swap-figure__note {
-    min-height: 1.25rem;
-  }
-
-  .swap-pair__row {
-    min-height: 3.25rem;
-    padding-block: 0.25rem;
-  }
-
-  /* rows this low leave no room under their text, so the flip button moves to
-     the end of the seam, under Max */
-  .swap-flip-button {
-    align-self: flex-end;
-    margin-right: 0.875rem;
-  }
-
-  .keypad.swap-keypad button {
-    height: 2.625rem;
+    padding-block: 0.5rem;
   }
 }
 

@@ -812,9 +812,7 @@ function SwapComposer({
           <TokenAvatar asset={fromAsset} size={40} />
           <div className='swap-pair__copy'>
             <span>{fromAsset.name}</span>
-            <small>
-              {t('components.availableBalance')} {formatAssetBalance(fromAsset)}
-            </small>
+            <small>{formatAssetBalance(fromAsset)}</small>
           </div>
           <button
             type='button'
@@ -850,7 +848,8 @@ function SwapComposer({
                   {quoteLoading ? <SwapSkeletonText width='5.75rem' /> : `${quote.toAmount} ${toAsset.ticker}`}
                 </small>
               </div>
-              {quote.toCurrency ? (
+              {/* the value only adds something when it is in another currency than the estimate */}
+              {quote.toCurrency && toAsset.currency !== currency ? (
                 <strong>{quoteLoading ? <SwapSkeletonText width='3.75rem' /> : quote.toCurrency}</strong>
               ) : null}
               <Glyph name='chevronDown' size={18} strokeWidth={2} className='swap-pair__chevron' />

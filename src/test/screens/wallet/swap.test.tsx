@@ -370,7 +370,7 @@ describe('Wallet swap flow', () => {
     const useMaxButton = screen.getByRole('button', { name: /^Use maximum/ })
     expect(useMaxButton).toHaveAccessibleName('Use maximum 0.00100000 BTC')
     expect(useMaxButton).toHaveTextContent('Max')
-    expect(screen.getByText('Available 0.00100000 BTC')).toBeInTheDocument()
+    expect(screen.getByText('0.00100000 BTC')).toBeInTheDocument()
 
     for (const key of ['9', '9', '9']) {
       await userEvent.click(screen.getByRole('button', { name: key }))
@@ -398,7 +398,7 @@ describe('Wallet swap flow', () => {
 
     await waitFor(() => expect(screen.getByText('Quote unavailable')).toBeInTheDocument(), { timeout: 3_000 })
     expect(screen.getByText('Quote unavailable').closest('[data-sonner-toast]')).not.toBeNull()
-    expect(screen.getByText('Available 0.00100000 BTC')).toBeInTheDocument()
+    expect(screen.getByText('0.00100000 BTC')).toBeInTheDocument()
   })
 
   it('stops a partial asset swap that cannot fund its change carrier', async () => {
@@ -953,8 +953,8 @@ describe('Wallet swap flow', () => {
 
     // the mocked wallet balance (100,000 sats) is shown in whole-BTC terms, at
     // BTC's full 8-decimal precision — 0.00100000 BTC, not 0.001 BTC
-    const balanceText = screen.getByText('Available 0.00100000 BTC').textContent
-    expect(balanceText).toBe('Available 0.00100000 BTC')
+    const balanceText = screen.getByText('0.00100000 BTC').textContent
+    expect(balanceText).toBe('0.00100000 BTC')
     expect(balanceText).not.toMatch(/sats/)
 
     fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
@@ -1142,6 +1142,28 @@ describe('Wallet swap flow', () => {
     expect(primaryAmount()).toHaveAccessibleName('Swap amount, €2.50')
     const minor = [...primaryAmount().querySelectorAll('.figure__minor')].map((slot) => slot.textContent).join('')
     expect(minor).toBe('.50')
+  })
+
+  it('shows the receive value only when it is in another currency than the estimate', async () => {
+    const { unmount } = renderSwap({
+      config: { currency: Currencies.USD },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    for (const key of ['5', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled(), { timeout: 3_000 })
+    // receiving USD with the wallet in USD: "$49.85" beside "49.85 USD" says nothing new
+    expect(screen.getByRole('button', { name: /Receive USD/ }).querySelector('strong')).toBeNull()
+    unmount()
+
+    renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    for (const key of ['5', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled(), { timeout: 3_000 })
+    // in a euro wallet the USD estimate gets its euro value
+    expect(screen.getByRole('button', { name: /Receive USD/ }).querySelector('strong')).toHaveTextContent('€')
   })
 
   it('keeps swap history out of the swap composer', () => {
