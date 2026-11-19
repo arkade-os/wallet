@@ -1008,7 +1008,7 @@ describe('Wallet swap flow', () => {
     }
   })
 
-  it('reviews and accepts the explicitly selected open offer without using automatic exchange', async () => {
+  const openOffers = () => {
     const expiresAt = Math.floor(Date.now() / 1000) + 60
     const bids = ['first', 'second'].map((id, index) => ({
       id,
@@ -1041,8 +1041,50 @@ describe('Wallet swap flow', () => {
       },
       expiresAt,
     }
-    const openSwapQuotes = vi.fn().mockResolvedValue({ id: 'auction', bids })
-    const chooseSwapQuote = vi.fn().mockResolvedValue(verified)
+    return {
+      verified,
+      openSwapQuotes: vi.fn().mockResolvedValue({ id: 'auction', bids }),
+      chooseSwapQuote: vi.fn().mockResolvedValue(verified),
+      cancelOpenSwapQuotes: vi.fn(),
+    }
+  }
+
+  it('keeps a chosen open offer when an earlier firm quote lands after it', async () => {
+    const { verified, ...offers } = openOffers()
+    let landFirm!: () => void
+    quoteExchange.mockImplementationOnce(
+      (plan: OfferPlan) => new Promise<Quote>((resolve) => (landFirm = () => resolve(firmQuote(plan)))),
+    )
+    renderSwap({
+      config: { currency: Currencies.BTC, unit: Unit.SATS },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      swap: offers,
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    for (const key of ['1', '0', '0', '0', '0']) fireEvent.click(screen.getByRole('button', { name: key }))
+    fireEvent.click(screen.getByRole('button', { name: 'View quotes' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Use smart routing' })).toBeEnabled(), {
+      timeout: 3_000,
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Use smart routing' }))
+    await waitFor(() => expect(quoteExchange).toHaveBeenCalledOnce())
+
+    await userEvent.keyboard('{Escape}')
+    fireEvent.click(await screen.findByRole('button', { name: 'View quotes' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Find open offers' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Select second solver' }))
+    expect(await screen.findByText('Provider')).toBeInTheDocument()
+    await act(async () => landFirm())
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Confirm swap' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    expect(acceptSwapQuote.mock.calls[0][0]).toBe(verified)
+  })
+
+  it('reviews and accepts the explicitly selected open offer without using automatic exchange', async () => {
+    const { verified, openSwapQuotes, chooseSwapQuote } = openOffers()
     let completeAcceptance!: (value: typeof pendingSwap) => void
     const acceptSwapQuote = vi.fn().mockReturnValue(
       new Promise<typeof pendingSwap>((resolve) => {

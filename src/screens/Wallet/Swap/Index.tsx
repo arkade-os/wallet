@@ -256,15 +256,16 @@ export default function WalletSwap() {
   const [successQuote, setSuccessQuote] = useState<SwapQuote>()
   const [selectedOffer, setSelectedOffer] = useState<{
     quote: Quote
-    /** A chosen open offer carries the offer; smart routing's firm quote carries the estimate it answers. */
-    offer?: OpenRfqOffer
-    plan?: OfferPlan
+    offer: OpenRfqOffer
     inputKey: string
     destination?: string
   }>()
+  // Smart routing's firm quote per input, apart from a chosen offer so a late one never replaces it.
+  const [firmQuotes, setFirmQuotes] = useState<Record<string, { quote: Quote; plan: OfferPlan } | { error: string }>>(
+    {},
+  )
   const [rememberSolver, setRememberSolver] = useState(false)
   const [firmQuoting, setFirmQuoting] = useState<string>()
-  const inputEpoch = useRef(0)
   const [quoteClock, setQuoteClock] = useState(() => Math.floor(Date.now() / 1000))
   const submitting = useRef(false)
 
@@ -367,12 +368,15 @@ export default function WalletSwap() {
   const quoteStale = Boolean(toAsset && Number(assetAmount) > 0 && !currentPlan)
   const planError = currentPlan ? validatePlan(currentPlan, assetBalanceAtomic(fromAsset), aspInfo.dust) : undefined
   const inputKey = `${aspInfo.network}:${fromAsset.assetId}:${fromAsset.decimals}:${toAsset?.assetId}:${toAsset?.decimals}:${amountAtomic}:${destination}`
-  const selected = selectedOffer?.inputKey === inputKey ? selectedOffer : undefined
+  const chosen = selectedOffer?.inputKey === inputKey ? selectedOffer : undefined
+  const firmHere = firmQuotes[inputKey]
+  const selected: { quote: Quote; offer?: OpenRfqOffer; plan?: OfferPlan; destination?: string } | undefined =
+    chosen ?? (firmHere && 'quote' in firmHere ? firmHere : undefined)
   const selectedExpired = Boolean(selected && selected.quote.expiresAt <= quoteClock)
-  const quotingFirm = firmQuoting === inputKey
+  const awaitingFirm = firmQuoting === inputKey && !chosen
+  const firmError = !chosen && !awaitingFirm && firmHere && 'error' in firmHere ? firmHere.error : ''
 
   useEffect(() => {
-    inputEpoch.current += 1
     setSelectedOffer(undefined)
     setRememberSolver(false)
     setConfirmError('')
@@ -663,27 +667,26 @@ export default function WalletSwap() {
 
   // Fetched as the review opens so Confirm is one tap; keyed to the input it was asked for.
   const requestFirmQuote = async () => {
-    if (!plan || !canContinue || quotingFirm) return
+    if (!plan || !canContinue || firmQuoting === inputKey) return
     if (!planMatchesPair()) {
       setConfirmError(t('swap.quoteUnavailable'))
       return
     }
     const requested = inputKey
-    const epoch = inputEpoch.current
     setFirmQuoting(requested)
     setConfirmError('')
+    let firm: { quote: Quote; plan: OfferPlan } | { error: string }
     try {
-      const firm = await quoteExchange(plan)
-      setSelectedOffer({ quote: firm, inputKey: requested, plan })
+      firm = { quote: await quoteExchange(plan), plan }
     } catch (error) {
-      if (epoch === inputEpoch.current) setConfirmError(extractError(error))
-    } finally {
-      setFirmQuoting((current) => (current === requested ? undefined : current))
+      firm = { error: extractError(error) }
     }
+    setFirmQuotes((current) => ({ ...current, [requested]: firm }))
+    setFirmQuoting((current) => (current === requested ? undefined : current))
   }
 
   const confirmSwap = async () => {
-    if (submitting.current || !toAsset || confirming || quotingFirm) return
+    if (submitting.current || !toAsset || confirming || awaitingFirm) return
     const lapsed = selected && (selectedExpired || selected.quote.expiresAt <= Math.floor(Date.now() / 1000))
     if (selected?.offer && lapsed) {
       setConfirmError(t('swap.offerExpired'))
@@ -750,7 +753,7 @@ export default function WalletSwap() {
     try {
       const firm = await quoteExchange(plan)
       // Kept before funding: a retry must accept this quote, not ask for its terms again.
-      setSelectedOffer({ quote: firm, inputKey, plan })
+      setFirmQuotes((current) => ({ ...current, [inputKey]: { quote: firm, plan } }))
       if (firm.take.amount < shown) return
       const funded = firmDisplay(plan, firm)
       await acceptSwapQuote(firm, buildQuoteSnapshot(plan, funded, config.currency))
@@ -886,9 +889,10 @@ export default function WalletSwap() {
             if (!open) setDrawer(null)
           }}
           onSmartRouting={() => {
-            setSelectedOffer((current) => (current?.offer ? undefined : current))
+            setSelectedOffer(undefined)
             openDrawer('review')
-            if (!selected || selected.offer || selectedExpired) void requestFirmQuote()
+            if (!firmHere || !('quote' in firmHere) || firmHere.quote.expiresAt <= Math.floor(Date.now() / 1000))
+              void requestFirmQuote()
           }}
           onChoose={(verifiedQuote, offer) => {
             let verifiedDestination: string | undefined
@@ -924,15 +928,15 @@ export default function WalletSwap() {
         destination={selected?.destination}
         rememberSolver={rememberSolver}
         onRememberSolverChange={selected?.offer && solverNetwork ? setRememberSolver : undefined}
-        canConfirm={!quotingFirm && (selected && !selectedExpired ? true : !selected?.offer && canContinue)}
+        canConfirm={!awaitingFirm && (selected && !selectedExpired ? true : !selected?.offer && canContinue)}
         confirming={confirming}
-        error={selected?.offer && selectedExpired ? t('swap.offerExpired') : confirmError}
+        error={selected?.offer && selectedExpired ? t('swap.offerExpired') : confirmError || firmError}
         note={
           selected?.plan && selected.quote.take.amount < selected.plan.receive.atomic
             ? t('swap.quoteBelowEstimate')
             : undefined
         }
-        quoteLoading={quotingFirm || (selected ? false : quoteLoading)}
+        quoteLoading={awaitingFirm || (selected ? false : quoteLoading)}
         onOpenChange={(open) => {
           // keep the drawer up while the swap is being created so a late
           // failure still has a surface to report on
