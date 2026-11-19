@@ -58,11 +58,6 @@ jobs:
       run: pnpm exec playwright install chrome chromium --with-deps
     - name: Start regtest environment
       run: node regtest/regtest.mjs start --env .env.regtest
-    # The cert is what makes wss://localhost:10548 exist, and a solver card's
-    # relays must be wss:// — `regtest:start` generates it, these open-coded
-    # steps did not, so relay-tls has been serving nothing.
-    - name: Start nostr relay
-      run: node scripts/gen-relay-tls-cert.mjs && docker compose -f docker-compose.nak.yml up -d --build
     - name: Verify environment
       run: pnpm regtest:setup
     - name: Run Playwright tests
@@ -74,12 +69,15 @@ jobs:
       run: |
         echo "=== docker ps ==="
         docker ps --format "table {{.Names}}\t{{.Status}}" || true
-        echo "=== boltz logs (last 50) ==="
-        docker logs boltz 2>&1 | tail -50 || true
         echo "=== arkd logs (last 50) ==="
         docker logs arkd 2>&1 | tail -50 || true
+        echo "=== mempool_api logs (last 50) ==="
+        docker logs --tail 50 mempool_api || true
+        echo "=== mempool_mariadb logs (last 50) ==="
+        docker logs --tail 50 mempool_mariadb || true
+        echo "=== fulcrum logs (last 50) ==="
+        docker logs --tail 50 fulcrum || true
     - name: Cleanup
       if: always()
       run: |
-        docker compose -f docker-compose.nak.yml down -v 2>/dev/null || true
         node regtest/regtest.mjs clean --env .env.regtest
