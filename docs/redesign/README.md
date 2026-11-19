@@ -50,6 +50,15 @@ the Send flow it no longer owns.
 sheet, one radio group covering formats and stablecoins, so Lightning stays in the background until a
 sender's wallet asks for it. Copy and Share are unchanged.
 
+**Swap.** The composer reads like the Send keypad: the figure leads, at the keypad's sizes with grey cents and
+thousands separators, over the keypad's unit chip; a balance limit is said under it, as Send says one. The two
+sides of the trade are flat rows, the asset with its available balance and Max, and the asset to receive with its
+estimate; the flip button sits on the seam between them. The keypad is the shared one, with no point key for
+whole units. Review is laid out like Send's (the route, what arrives, then Swap, Fees and Rate as rows with
+icons), with an inline error and a Cancel; its title stays as the sheet's accessible name. Success shows what
+was given behind the sheet. The asset list and the receive picker keep their layout; their fields and rows now
+use the sheet's well, so they match the other sheets in dark.
+
 **Everything else.** Every drawer is a floating panel on a scrim. `Modal` is a real dialog: named, Tab stays
 inside it, Escape closes it and focus returns to what opened it. An open sheet or dialog takes Escape before
 the app goes Home, and takes Back before the screen under it does. Inline errors are a tinted note with
@@ -161,7 +170,7 @@ fix. pnpm refuses to install if the entry is left behind for a version that is n
 - **No real devices.** Safe areas, haptics, the iOS back gesture, the install flow and camera scanning were
   not exercised on a phone.
 - **Secondary screens were restyled through shared tokens and components, not individually.** The 21 Settings
-  screens, Swap, Notes, the Assets app, Buy or sell and restore inherit the new look; only the Settings menu
+  screens, Notes, the Assets app, Buy or sell and restore inherit the new look; only the Settings menu
   and Theme were reviewed closely in both themes. Expect leftovers there.
 - **Dead styles remain** in `src/index.css` for components that no longer exist.
 - From the migration plan, not started: font preload, manifest shortcuts, deferring the service-worker update

@@ -1,5 +1,5 @@
 import userEvent from '@testing-library/user-event'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import createFetchMock from 'vitest-fetch-mock'
 import WalletSwap from '../../../screens/Wallet/Swap/Index'
@@ -457,6 +457,49 @@ describe('Wallet swap flow', () => {
     // fromDecimals must pair with fromTicker ('BTC' -> 8), the solver's real
     // protocol decimals — otherwise the persisted receipt mislabels the scale
     expect(exchange.mock.calls[0][2]).toMatchObject({ fromDecimals: 8 })
+  })
+
+  it('reviews like Send: the route, what arrives, then the rows, with Cancel and an inline error', async () => {
+    renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    for (const key of ['5', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
+    const continueButton = screen.getByRole('button', { name: 'Continue' })
+    await waitFor(() => expect(continueButton).toBeEnabled(), { timeout: 3_000 })
+    fireEvent.click(continueButton)
+
+    const sheet = await screen.findByRole('dialog', { name: 'Review swap' })
+    expect(within(sheet).getByRole('heading', { name: 'BTC to USD' })).toBeInTheDocument()
+    const arriving = within(sheet).getByRole('region', { name: 'Receive' })
+    expect(arriving).toHaveTextContent(/USD$/)
+    const rows = [...sheet.querySelectorAll('.swap-metric-row__label')].map((label) => label.textContent)
+    expect(rows).toEqual(['Swap', 'Fees', 'Rate'])
+    // every row carries its icon, as the rows of Send's review do
+    for (const label of sheet.querySelectorAll('.swap-metric-row__label'))
+      expect(label.querySelector('svg')).not.toBeNull()
+
+    exchange.mockRejectedValueOnce(new Error('solver went away'))
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Confirm swap' }))
+    expect(await within(sheet).findByRole('alert')).toHaveTextContent('solver went away')
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Review swap' })).not.toBeInTheDocument())
+  })
+
+  it('shows what was given behind the success sheet, as typed', async () => {
+    renderSwap({ flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    for (const key of ['5', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
+    const continueButton = screen.getByRole('button', { name: 'Continue' })
+    await waitFor(() => expect(continueButton).toBeEnabled(), { timeout: 3_000 })
+    fireEvent.click(continueButton)
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm swap' }))
+
+    await screen.findByTestId('success-sheet')
+    expect(document.querySelector('.sheet-page__backdrop')).toHaveTextContent('€50.00')
   })
 
   it('quotes the covenant floor with the market fee conceded', async () => {

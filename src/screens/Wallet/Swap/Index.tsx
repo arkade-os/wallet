@@ -6,12 +6,17 @@ import { type ReactNode, useCallback, useContext, useEffect, useId, useMemo, use
 import AssetAvatar from '../../../components/AssetAvatar'
 import Button from '../../../components/Button'
 import Content from '../../../components/Content'
+import ErrorMessage from '../../../components/Error'
+import { PrivateFigure } from '../../../components/Figure'
 import Header from '../../../components/Header'
 import Padded from '../../../components/Padded'
 import TokenLogo, { tokenLogoTickerForAsset } from '../../../components/TokenLogo'
 import { toast } from '../../../components/Toast'
 import WalletSuccessSplash from '../../../components/WalletSuccessSplash'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../../../components/ui/drawer'
+import AmountIcon from '../../../icons/Amount'
+import ArrowUpDownIcon from '../../../icons/ArrowUpDown'
+import FeesIcon from '../../../icons/Fees'
 import Glyph from '../../../icons/Glyph'
 import InfoIcon from '../../../icons/Info'
 import SwapIcon from '../../../icons/Swap'
@@ -1150,40 +1155,28 @@ function ReviewDrawer({
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
 }) {
-  const prefersReduced = useReducedMotion()
   const { t } = useTranslation()
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className='swap-drawer-content'>
-        <DrawerHeader className='swap-review-header'>
+        {/* The sheet is named for assistive tech; on screen the route says what it is, as Send's review does. */}
+        <DrawerHeader className='sr-only'>
           <DrawerTitle>{t('swap.reviewSwap')}</DrawerTitle>
           <DrawerDescription>{t('swap.reviewSwapDescription')}</DrawerDescription>
         </DrawerHeader>
         <div className='swap-review-drawer-body'>
           <ReviewSummary quote={quote} loading={quoteLoading} />
-          <QuoteDetails quote={quote} loading={quoteLoading} />
         </div>
         <div className='swap-review-action'>
-          <AnimatePresence initial={false}>
-            {error ? (
-              <motion.p
-                className='swap-confirm-error'
-                initial={prefersReduced ? false : { opacity: 0, y: 6 }}
-                animate={prefersReduced ? undefined : { opacity: 1, y: 0 }}
-                exit={prefersReduced ? undefined : { opacity: 0, y: 6 }}
-                transition={prefersReduced ? { duration: 0 } : { duration: 0.2, ease: EASE_OUT_QUINT_TUPLE }}
-              >
-                {error}
-              </motion.p>
-            ) : null}
-          </AnimatePresence>
+          <ErrorMessage error={Boolean(error)} text={error} />
           <Button
             label={t('swap.confirmSwap')}
             disabled={!canConfirm || confirming}
             loading={confirming}
             onClick={onConfirm}
           />
+          <Button label={t('common.cancel')} clear disabled={confirming} onClick={() => onOpenChange(false)} />
         </div>
       </DrawerContent>
     </Drawer>
@@ -1192,6 +1185,14 @@ function ReviewDrawer({
 
 function SwapSuccessOverlay({ quote, onDone }: { quote?: SwapQuote; onDone: () => void }) {
   const { t } = useTranslation()
+  const { config } = useContext(ConfigContext)
+  // behind the sheet: what was given, valued as the receipt records it (the
+  // typed figure for a currency entry), or the amount itself without a price
+  const given = quote
+    ? quote.giveCurrencyValue > 0
+      ? prettyFiatAmount(quote.giveCurrencyValue, config.currency, { bitcoinUnit: config.unit })
+      : `${quote.fromAmount} ${quote.fromAsset.ticker}`
+    : undefined
   return (
     <WalletSuccessSplash
       show={Boolean(quote)}
@@ -1202,6 +1203,7 @@ function SwapSuccessOverlay({ quote, onDone }: { quote?: SwapQuote; onDone: () =
           : undefined
       }
       ariaLabel={t('swap.createdTapHome')}
+      backdrop={given ? <PrivateFigure value={given} /> : undefined}
       onDone={onDone}
     />
   )
@@ -1209,43 +1211,46 @@ function SwapSuccessOverlay({ quote, onDone }: { quote?: SwapQuote; onDone: () =
 
 function ReviewSummary({ quote, loading }: { quote: SwapQuote; loading: boolean }) {
   const { t } = useTranslation()
+  const received = quote.toAsset ? `${quote.toAmount} ${quote.toAsset.ticker}` : t('swap.chooseAsset')
   return (
-    <div className='swap-review-card'>
-      <div className='swap-review-hero'>
+    <div className='swap-review'>
+      <section className='swap-review__route' aria-label={t('swap.swapRoute')}>
         <div className='swap-review-avatars'>
           <TokenAvatar asset={quote.fromAsset} size={48} />
           {quote.toAsset ? <TokenAvatar asset={quote.toAsset} size={48} /> : null}
         </div>
-        <div>
-          <span>{t('swap.swapRoute')}</span>
-          <h3 className='text-heading-sm'>
-            {swapRouteTicker(quote.fromAsset.assetId, quote.fromAsset.ticker)} {t('swap.routeConnector')}{' '}
-            {swapRouteTicker(quote.toAsset?.assetId, quote.toAsset?.ticker) ?? t('swap.asset')}
-          </h3>
-        </div>
+        <h3 className='swap-review__pair'>
+          {swapRouteTicker(quote.fromAsset.assetId, quote.fromAsset.ticker)} {t('swap.routeConnector')}{' '}
+          {swapRouteTicker(quote.toAsset?.assetId, quote.toAsset?.ticker) ?? t('swap.asset')}
+        </h3>
+      </section>
+      <section
+        className='transaction-amount-summary'
+        aria-label={t('swap.receive')}
+        style={{ '--amount-chars': Math.max(received.length, 1) } as React.CSSProperties}
+      >
+        <span className='transaction-amount-summary__label'>{t('swap.receive')}</span>
+        <span className='transaction-amount-summary__value text-heading-xl'>
+          {loading ? <SwapSkeletonText width='9rem' /> : received}
+        </span>
+      </section>
+      <div className='swap-review__rows'>
+        <MetricRow
+          icon={<AmountIcon />}
+          label={t('swap.title')}
+          value={`${quote.fromAmount} ${quote.fromAsset.ticker}`}
+          loading={loading}
+        />
+        <MetricRow icon={<FeesIcon />} label={t('swap.fees')} value={quote.feeLabel} loading={loading} />
+        <MetricRow
+          icon={<ArrowUpDownIcon />}
+          label={<RateLabel />}
+          value={
+            quote.toAsset ? `1 ${quote.rateFromTicker} = ${quote.rateLabel} ${quote.rateToTicker}` : t('swap.pending')
+          }
+          loading={loading}
+        />
       </div>
-      <MetricRow label={t('swap.title')} value={`${quote.fromAmount} ${quote.fromAsset.ticker}`} loading={loading} />
-      <MetricRow
-        label={t('swap.receive')}
-        value={quote.toAsset ? `${quote.toAmount} ${quote.toAsset.ticker}` : t('swap.chooseAsset')}
-        loading={loading}
-      />
-      <MetricRow label={t('swap.fees')} value={quote.feeLabel} loading={loading} />
-    </div>
-  )
-}
-
-function QuoteDetails({ quote, loading }: { quote: SwapQuote; loading: boolean }) {
-  const { t } = useTranslation()
-  return (
-    <div className='swap-detail-card'>
-      <MetricRow
-        label={<RateLabel />}
-        value={
-          quote.toAsset ? `1 ${quote.rateFromTicker} = ${quote.rateLabel} ${quote.rateToTicker}` : t('swap.pending')
-        }
-        loading={loading}
-      />
     </div>
   )
 }
@@ -1323,11 +1328,24 @@ function RateLabel() {
   )
 }
 
-function MetricRow({ label, value, loading }: { label: ReactNode; value: string; loading?: boolean }) {
+function MetricRow({
+  icon,
+  label,
+  value,
+  loading,
+}: {
+  icon: ReactNode
+  label: ReactNode
+  value: string
+  loading?: boolean
+}) {
   return (
     <div className='swap-metric-row'>
-      <span>{label}</span>
-      <span>{loading ? <SwapSkeletonText width='7rem' /> : value}</span>
+      <span className='swap-metric-row__label'>
+        {icon}
+        {label}
+      </span>
+      <span className='swap-metric-row__value'>{loading ? <SwapSkeletonText width='7rem' /> : value}</span>
     </div>
   )
 }
