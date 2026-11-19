@@ -492,16 +492,13 @@ describe('Receive QR Code screen', () => {
       expect(screen.queryByRole('radio', { name: /^Lightning/ })).not.toBeInTheDocument()
     })
 
-    it.each([
-      [Unit.BTC, '0.00050000 BTC'],
-      [Unit.SATS, '50,000 sats'],
-    ])('shows the requested amount in %s', async (unit, headline) => {
+    it.each([Unit.BTC, Unit.SATS])('shows the requested amount in sats, as typed, with the %s unit', async (unit) => {
       renderReceiveQrCode({
         ...amountFixture('lnbc10u1ptest'),
         config: { useFiat: false, config: { ...mockConfigContextValue.config, unit } },
       })
 
-      expect(await screen.findByTestId('receive-amount')).toHaveTextContent(headline)
+      expect(await screen.findByTestId('receive-amount')).toHaveTextContent('50,000 sats')
     })
 
     it('keeps assetid= in the asset QR and its copy, offering no other formats', async () => {

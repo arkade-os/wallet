@@ -26,7 +26,7 @@ import Text, { TextSecondary } from '../../../components/Text'
 import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard'
 import {
   canConvertCurrency,
-  prettyBitcoinAmount,
+  prettyAmount,
   prettyFiatAmount,
   prettyLongText,
   prettyNumber,
@@ -497,7 +497,7 @@ export default function ReceiveQRCode() {
       ? `${atomicToUnits(assetAmount, assetOption.decimals)} ${assetPresentation.ticker}`
       : useFiat && currencyConversionUseful
         ? prettyFiatAmount(toFiat(satoshis), config.currency, { bitcoinUnit: config.unit })
-        : prettyBitcoinAmount(satoshis, config.unit)
+        : prettyAmount(satoshis)
 
   // Mobile keyboard — bypass sheet on save, go straight to QR
   if (showKeys) {
