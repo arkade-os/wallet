@@ -25,8 +25,8 @@ Two ways to look at it without a funded wallet:
 ## What changed
 
 **Foundations.** `src/tokens.css` gains the surface, ink, brand and scrim tokens for light and
-`html.palette-dark`; `src/app.css` exposes them to Tailwind. Buttons are 52px with a 3px ledge and press in
-90ms. `src/icons/Glyph.tsx` is the one icon set (24 grid, 1.75 stroke, round caps), and the existing icon
+`html.palette-dark`; `src/app.css` exposes them to Tailwind. Every button is set like the buttons on arkadeos.com:
+56px, the label in Geist Mono capitals, a 3px ledge, pressing in 90ms; a secondary action is outlined in ink. `src/icons/Glyph.tsx` is the one icon set (24 grid, 1.75 stroke, round caps), and the existing icon
 components now draw through it. Waiting is always the nine-cell pixel loader. Money is set in TT Firs Neue
 with grey minor units (`Figure`). Flags and token logos give way to drawn currency marks. Recipients get a
 3×3 pattern derived from their address (`AddressPattern`). Pinch zoom is no longer disabled.
@@ -35,7 +35,9 @@ with grey minor units (`Figure`). Flags and token logos give way to drawn curren
 desktop Settings moves to the sidebar and Scan stays. The balance leads, with the month's change and a value
 line when there is history. Receive and Send are the two primary actions, set like the buttons on arkadeos.com:
 the label in Geist Mono capitals and a pixel arrow at the end (`PixelArrow`, a 5×5 grid), Receive outlined in ink and
-Send solid. Accounts are a ruled list, a hairline under each row, with amounts in mono. Scrolling collapses the balance
+Send solid. Accounts are a ruled list, a hairline under each row, with amounts in mono. Every list of accounts or
+assets elsewhere is ruled the same way, and every amount in a list, activity included, is in mono. An account's
+own page offers the same Receive and Send, in the same order, with Swap as a link beside them. Scrolling collapses the balance
 into the header. Activity opens from View all, which is there on an empty wallet too.
 
 **Send.** Close instead of Back. On phones the keypad opens once the recipient resolves and its Continue goes
