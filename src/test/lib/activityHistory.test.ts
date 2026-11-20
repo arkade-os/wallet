@@ -830,11 +830,11 @@ describe('lnurl resolvers, driven end to end from the vendored package', () => {
     expect(lnurlLabel(row, t)).toBe('Received')
   })
 
-  it('carries a real send onto the row and its rendered label', async () => {
+  it('carries a real send onto the row, which reads as a plain send', async () => {
     const paid = arkTx('send-txid', { type: 'SENT' as ArkTransaction['type'], amount: 2_000, createdAt: 2_000 })
     const [row] = activitiesToTxs(await activityHistoryOf([paid], [], [sentPayment()]), empty)
 
     expect(row.lnurl).toEqual({ address: 'bob@pay.example', rail: 'lnurl-arkade' })
-    expect(lnurlLabel(row, t)).toBe('Sent to bob@pay.example')
+    expect(lnurlLabel(row, t)).toBeUndefined()
   })
 })

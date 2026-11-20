@@ -1,6 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { renderToStaticMarkup } from 'react-dom/server'
 import TransactionsList from '../../components/TransactionsList'
+import SentIcon from '../../icons/Sent'
 import { ConfigContext } from '../../providers/config'
 import { FiatContext } from '../../providers/fiat'
 import { FlowContext } from '../../providers/flow'
@@ -42,7 +44,8 @@ describe('TransactionsList', () => {
     expect(screen.queryByText('Sent')).not.toBeInTheDocument()
   })
 
-  it('shows the address an LNURL receive arrived at, and who a send paid', () => {
+  // A send to an LNURL is a send like any other: the address it paid is on its detail page.
+  it('shows the address an LNURL receive arrived at, and reads an LNURL send as a plain send', () => {
     const receivedTx: Tx = {
       amount: 1_000,
       boardingTxid: '',
@@ -83,7 +86,10 @@ describe('TransactionsList', () => {
     )
 
     expect(screen.getByText('Received at alice@lnurl.example')).toBeInTheDocument()
-    expect(screen.getByText('Sent to bob@pay.example')).toBeInTheDocument()
+    expect(screen.queryByText(/bob@pay\.example/)).not.toBeInTheDocument()
+    // The send's own icon, not a pattern drawn from the address.
+    const sentRow = screen.getByText('Sent').closest('.activity-row')
+    expect(sentRow?.querySelector('.activity-row__icon')?.innerHTML).toBe(renderToStaticMarkup(<SentIcon />))
   })
 
   it('reads a nameless LNURL receive by its rail', () => {

@@ -86,10 +86,11 @@ Product strings were kept unless listed here.
 | New on Receive: `Other formats`, its intro and row descriptions, `Default`, `Showing {format}`, `A third party swaps them to Bitcoin for you` | From the approved design |
 | New on Home and keypad: `this month`, `Available`, `Max`, `More than your balance`, `Close` | New controls need names |
 | `Buy or sell bitcoin` → `Buy or sell Bitcoin`, and Bitcoin capitalised in two error strings (en) and in six Spanish and Portuguese strings | House rule |
-| Portuguese `lnurlReceivedAt` / `lnurlSentTo` now include `{address}` | They dropped it; a bug fix |
+| Portuguese `lnurlReceivedAt` now includes `{address}` | It dropped it; a bug fix |
 | `Welcome to Arkade` loses its emoji (en, es, pt); it now shows only on the in-app-browser screen | Asked for |
 | Onboarding is `Set up your wallet` with two choices: `Create a new wallet` / `No account needed` and `Restore a wallet` / `With your recovery phrase or private key`. The three taglines and `Other login options` are removed | Chosen direction for a more direct welcome |
 | Removed: `receive.backToMethod`, `upsells.title`, `wallet.viewRecentActivity` | No longer shown |
+| A send to a Lightning address reads `Sent` with the send icon, like any send; `transaction.lnurlSentTo` and `transaction.lnurlSentVia` are removed. The address stays on its detail page | Asked for |
 
 Left alone and worth a decision: `Tap to Sign`, `Sounds good`,
 `No password, YOLO`, and `Unified` as the default format's name.

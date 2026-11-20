@@ -304,10 +304,10 @@ describe('lnurlLabel', () => {
     expect(lnurlLabel(receive({ rail: 'arkade' }), t)).toBe('Received')
   })
 
-  it('names who a send paid', () => {
-    expect(lnurlLabel(sent({ address: 'alice@pay.example', rail: 'lnurl-arkade' }), t)).toBe(
-      'Sent to alice@pay.example',
-    )
+  // A send reads like any other send; the address it paid is its destination, on its detail page.
+  it('leaves a send to read as a plain send', () => {
+    expect(lnurlLabel(sent({ address: 'alice@pay.example', rail: 'lnurl-arkade' }), t)).toBeUndefined()
+    expect(lnurlLabel(sent({ rail: 'arkade' }), t)).toBeUndefined()
   })
 
   it('leaves a row no lnurl resolver tagged alone', () => {
@@ -318,7 +318,7 @@ describe('lnurlLabel', () => {
   it('reads in the wallet language', () => {
     const es = (key: string, params?: Record<string, string | number>) => translate(Language.Spanish, key, params)
     expect(lnurlLabel(receive({ address: 'alice@lnurl.example' }), es)).toBe('Recibido en alice@lnurl.example')
-    expect(lnurlLabel(sent({ rail: 'arkade' }), es)).toBe('Enviado')
+    expect(lnurlLabel(receive({ rail: 'arkade' }), es)).toBe('Recibido')
   })
 })
 

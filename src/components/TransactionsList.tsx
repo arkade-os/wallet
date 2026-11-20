@@ -1,4 +1,3 @@
-import AddressPattern from './AddressPattern'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useContext, useLayoutEffect, useRef, useState } from 'react'
 import { WalletContext } from '../providers/wallet'
@@ -93,8 +92,6 @@ const TransactionLine = ({
           ticker: tx.assetSwap?.toTicker,
         }}
       />
-    ) : tx.type === 'sent' && tx.lnurl?.address ? (
-      <AddressPattern value={tx.lnurl.address} />
     ) : issuance ? (
       <ReceivedIcon />
     ) : burn || exit ? (

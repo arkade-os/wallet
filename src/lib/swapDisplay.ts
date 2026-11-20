@@ -101,16 +101,15 @@ export function lnSwapLabel(tx: Tx, t: Translate): string | undefined {
   return stem
 }
 
-/** How an lnurl-tagged row reads: the address (a receive's is our own, so "at") when the resolver named
- * one, else the rail it went over. Distinct from `lnSwapLabel` — this is a
- * plain payment, not a corridor swap with its own outcome vocabulary. */
+/** How an lnurl-tagged receive reads: the address it arrived at (our own, so "at") when the resolver
+ * named one, else the rail it came over. Distinct from `lnSwapLabel` — this is a plain payment, not
+ * a corridor swap with its own outcome vocabulary. A send reads like any other send: the address it
+ * paid is its destination, which its detail page shows. */
 export function lnurlLabel(tx: Tx, t: Translate): string | undefined {
   const lnurl = tx.lnurl
-  if (!lnurl) return undefined
-  const sent = tx.type === 'sent'
-  if (lnurl.address)
-    return t(sent ? 'transaction.lnurlSentTo' : 'transaction.lnurlReceivedAt', { address: lnurl.address })
-  if (lnurl.rail) return t(sent ? 'transaction.lnurlSentVia' : 'transaction.lnurlReceivedVia', { rail: lnurl.rail })
+  if (!lnurl || tx.type === 'sent') return undefined
+  if (lnurl.address) return t('transaction.lnurlReceivedAt', { address: lnurl.address })
+  if (lnurl.rail) return t('transaction.lnurlReceivedVia', { rail: lnurl.rail })
   return undefined
 }
 

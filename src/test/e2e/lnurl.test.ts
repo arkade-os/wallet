@@ -95,7 +95,8 @@ test('should pay a lightning address over its arkade option', async ({ page, bro
     await expect(page.getByText('2,000 sats sent successfully')).toBeVisible()
 
     await dismissPaymentSuccess(page)
-    await expect(page.getByText(`Sent to ${LN_ADDRESS}`, { exact: true })).toBeVisible({ timeout: 15_000 })
+    // The newest row is the send, and it reads like any send: the address is on its detail page.
+    await expect(page.locator('.activity-row__kind').first()).toHaveText('Sent', { timeout: 15_000 })
     await expect.poll(() => balanceOf(page), { timeout: 30_000 }).toBe(3000)
 
     await waitForPaymentReceived(payee)
