@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { useContext, useEffect, useMemo, useState } from 'react'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
@@ -94,8 +94,6 @@ export default function ReceiveQRCode() {
   const [showCopySheet, setShowCopySheet] = useState(false)
   const [copied, setCopied] = useState('')
   const [showFormats, setShowFormats] = useState(false)
-  // The formats and copy sheets stop under the code, so it stays in view and scannable.
-  const qrStage = useRef<HTMLDivElement>(null)
 
   const prefersReducedMotion = useReducedMotion()
 
@@ -537,7 +535,6 @@ export default function ReceiveQRCode() {
                 </p>
               ) : null}
               <div
-                ref={qrStage}
                 // Height-capped so the whole code sits above the bottom buttons on a short phone.
                 className='receive-invoice-stage aspect-square w-full max-w-[min(19rem,calc(100dvh-27rem))]'
                 data-generating={generating}
@@ -688,12 +685,7 @@ export default function ReceiveQRCode() {
         </FlexCol>
       </SheetModal>
 
-      <SheetModal
-        isOpen={showFormats}
-        onClose={() => setShowFormats(false)}
-        labelledBy='receive-formats-title'
-        below={qrStage}
-      >
+      <SheetModal isOpen={showFormats} onClose={() => setShowFormats(false)} labelledBy='receive-formats-title'>
         <div className='formats'>
           <h2 className='formats__title' id='receive-formats-title'>
             {t('receive.otherFormats')}
@@ -749,7 +741,7 @@ export default function ReceiveQRCode() {
       </SheetModal>
 
       {/* Copy address bottom sheet */}
-      <SheetModal isOpen={showCopySheet} onClose={() => setShowCopySheet(false)} below={qrStage}>
+      <SheetModal isOpen={showCopySheet} onClose={() => setShowCopySheet(false)}>
         <FlexCol gap='1rem' padding='0.5rem 0'>
           <Text big bold>
             {t('receive.copyAddress')}

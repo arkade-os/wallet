@@ -50,8 +50,7 @@ the Send flow it no longer owns.
 
 **Receive.** The requested amount leads, above a plain QR card with no logo. Rails move into an Other formats
 sheet, one radio group covering formats and stablecoins, so Lightning stays in the background until a
-sender's wallet asks for it. That sheet and the Copy sheet stop just under the code, so it stays whole and
-scannable while they are up, and their content scrolls when it does not fit. Copy and Share are unchanged.
+sender's wallet asks for it. Copy and Share are unchanged.
 
 **Swap.** The composer reads like the Send keypad: the figure leads, at the keypad's sizes with grey cents and
 thousands separators, over the keypad's unit chip; a balance limit is said under it, as Send says one. The two
