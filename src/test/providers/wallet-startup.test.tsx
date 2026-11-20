@@ -66,6 +66,8 @@ const reloads = () => mocks.current.service.getVtxos.mock.calls.filter((args) =>
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.current.service = makeService()
+  // blank, not unset: a developer's .env.local may set one
+  vi.stubEnv('VITE_EXECUTOR_RENEWAL_WINDOW', '')
   vi.stubGlobal('navigator', {
     serviceWorker: { getRegistration: async () => undefined, addEventListener: vi.fn(), removeEventListener: vi.fn() },
   })

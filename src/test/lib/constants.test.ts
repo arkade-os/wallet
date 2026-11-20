@@ -54,4 +54,24 @@ describe('getExecutorParams', () => {
     expect(getExecutorParams('mutinynet')).toEqual({ renewalWindow: 1_800, maxFee: 1_000 })
     expect(getExecutorParams('bitcoin')).toEqual({ renewalWindow: 1_800, maxFee: 1_000 })
   })
+
+  describe('with VITE_EXECUTOR_RENEWAL_WINDOW', () => {
+    afterEach(() => vi.unstubAllEnvs())
+
+    it('takes the window on regtest', () => {
+      vi.stubEnv('VITE_EXECUTOR_RENEWAL_WINDOW', '85800')
+      expect(getExecutorParams('regtest')).toEqual({ renewalWindow: 85_800, maxFee: 1_000 })
+    })
+
+    it('never changes another network', () => {
+      vi.stubEnv('VITE_EXECUTOR_RENEWAL_WINDOW', '85800')
+      expect(getExecutorParams('mutinynet').renewalWindow).toBe(1_800)
+      expect(getExecutorParams('bitcoin').renewalWindow).toBe(1_800)
+    })
+
+    it.each(['', 'abc', '0', '-60', '1.5', '__VITE_EXECUTOR_RENEWAL_WINDOW__'])('ignores %j', (value) => {
+      vi.stubEnv('VITE_EXECUTOR_RENEWAL_WINDOW', value)
+      expect(getExecutorParams('regtest').renewalWindow).toBe(43_200)
+    })
+  })
 })

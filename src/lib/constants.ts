@@ -149,8 +149,16 @@ export const getExecutorUrlForNetwork = (network: NetworkName): string | undefin
 
 const EXECUTOR_RENEWAL_WINDOW: Partial<Record<NetworkName, number>> = { regtest: 43_200 }
 
+// Regtest only, to watch a renewal: the Executor renews a coin once its remaining life is within the window,
+// so one just short of the expiry (85800 = 1 day - 10 min) renews each coin minutes after it is created.
+const regtestRenewalWindowOverride = (): number | undefined => {
+  const value = Number(fromRuntimeEnv(import.meta.env.VITE_EXECUTOR_RENEWAL_WINDOW))
+  return Number.isInteger(value) && value > 0 ? value : undefined
+}
+
 export const getExecutorParams = (network: NetworkName): DelegationOptions => ({
-  renewalWindow: EXECUTOR_RENEWAL_WINDOW[network] ?? 30 * 60,
+  renewalWindow:
+    (network === 'regtest' ? regtestRenewalWindowOverride() : undefined) ?? EXECUTOR_RENEWAL_WINDOW[network] ?? 30 * 60,
   maxFee: 1_000,
 })
 
