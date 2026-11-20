@@ -10,7 +10,7 @@ import { mockAspContextValue, mockConfigContextValue } from '../screens/mocks'
 // not count toward the next test's reloads.
 const makeService = () => {
   const sync: { state: { lastSyncedAt?: number } } = { state: {} }
-  const executor = { registerBoarding: vi.fn() }
+  const executor = { registerBoarding: vi.fn(), registerRenewal: vi.fn() }
   const vtxoManager = { renewVtxos: vi.fn(async () => {}) }
   return {
     sync,
@@ -125,6 +125,40 @@ it('registers the boarding watch with a configured Executor, then reloads', asyn
   await vi.waitFor(() => expect(reloads()).toBe(before + 1), { timeout: 3000 })
 })
 
+it('registers the renewal watch after boarding, with the same params', async () => {
+  vi.stubEnv('VITE_EXECUTOR_URL', 'https://executor.example')
+  let registered!: () => void
+  const { executor } = mocks.current.service
+  executor.registerBoarding.mockReturnValue(new Promise<void>((r) => (registered = r)))
+  await startWallet()
+
+  await vi.waitFor(() => expect(executor.registerBoarding).toHaveBeenCalled())
+  // renewal also covers the keys that hold a live boarding watch, so it waits for boarding
+  expect(executor.registerRenewal).not.toHaveBeenCalled()
+  registered()
+
+  await vi.waitFor(() =>
+    expect(executor.registerRenewal).toHaveBeenCalledWith(...executor.registerBoarding.mock.calls[0]),
+  )
+})
+
+it('reloads after boarding when the Executor refuses the renewal', async () => {
+  vi.stubEnv('VITE_EXECUTOR_URL', 'https://executor.example')
+  const { executor } = mocks.current.service
+  let registered!: () => void
+  executor.registerBoarding.mockReturnValue(new Promise<void>((r) => (registered = r)))
+  executor.registerRenewal.mockRejectedValue(new Error('parameters differ'))
+  await startWallet()
+
+  await vi.waitFor(() => expect(executor.registerBoarding).toHaveBeenCalled())
+  const before = reloads()
+  registered()
+
+  await vi.waitFor(() => expect(executor.registerRenewal).toHaveBeenCalled())
+  await vi.waitFor(() => expect(reloads()).toBe(before + 1), { timeout: 3000 })
+  expect(wallet.svcWallet).toBe(mocks.current.service)
+})
+
 it('registers against the configured emulator key', async () => {
   const emulator = '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798'
   vi.stubEnv('VITE_EXECUTOR_URL', 'https://executor.example')
@@ -136,6 +170,11 @@ it('registers against the configured emulator key', async () => {
       emulatorPubkey: emulator,
     }),
   )
+  await vi.waitFor(() =>
+    expect(mocks.current.service.executor.registerRenewal).toHaveBeenCalledWith(expect.anything(), {
+      emulatorPubkey: emulator,
+    }),
+  )
 })
 
 it('starts the wallet when the Executor refuses the registration', async () => {
@@ -144,6 +183,8 @@ it('starts the wallet when the Executor refuses the registration', async () => {
   await startWallet()
 
   await vi.waitFor(() => expect(mocks.current.service.executor.registerBoarding).toHaveBeenCalled())
+  // the renewal of the displayed key needs no boarding watch, so it is still tried
+  await vi.waitFor(() => expect(mocks.current.service.executor.registerRenewal).toHaveBeenCalled())
   expect(wallet.svcWallet).toBe(mocks.current.service)
 })
 
@@ -162,6 +203,7 @@ it('leaves the Executor alone when the user turned it off', async () => {
   expect(mocks.current.service.getExecutorManager).not.toHaveBeenCalled()
 })
 
+// the SDK leaves the coins under a live renewal watch to the Executor
 it.each([true, false])('renews its own coins at startup (Executor %s)', async (executor) => {
   await startWallet({ ...mockConfigContextValue.config, executor })
 

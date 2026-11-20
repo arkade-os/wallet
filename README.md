@@ -37,7 +37,7 @@ Recovery records are stored in this browser, not in the Nostr backup; use the sa
 | `VITE_CHATWOOT_WEBSITE_TOKEN` | ChatWoot website token for customer support integration             | `VITE_CHATWOOT_WEBSITE_TOKEN=your-token`                                             |
 | `VITE_CHATWOOT_BASE_URL`      | ChatWoot server base URL for customer support integration           | `VITE_CHATWOOT_BASE_URL=https://app.chatwoot.com`                                    |
 | `VITE_EXECUTOR_ENABLED`       | Set to `false` to turn the Executor off by default                  | `VITE_EXECUTOR_ENABLED=false`                                                        |
-| `VITE_EXECUTOR_URL`           | Override the network's Executor, which boards deposits offline      | `VITE_EXECUTOR_URL=http://localhost:7280`                                            |
+| `VITE_EXECUTOR_URL`           | Override the network's Executor, which boards and renews offline    | `VITE_EXECUTOR_URL=http://localhost:7280`                                            |
 | `VITE_MAX_PERCENTAGE`         | Override the max fee percentage (default 10)                        | `VITE_MAX_PERCENTAGE=5`                                                              |
 | `VITE_NOSTR_RELAY_URL`        | Override the default Nostr relay URLs for backup                    | `VITE_NOSTR_RELAY_URL=wss://relay.example.com`                                       |
 | `VITE_SENTRY_DSN`             | Enable Sentry error tracking (only in production, not on localhost) | `VITE_SENTRY_DSN=your-sentry-dsn`                                                    |

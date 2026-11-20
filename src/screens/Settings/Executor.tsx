@@ -25,32 +25,58 @@ import {
   ExecutorContractHandler,
   RestExecutorProvider,
   getNetwork,
+  type Contract,
   type NetworkName,
   type ServiceWorkerWallet,
 } from '@arkade-os/sdk'
 
-/** The boarding watch the Executor registered, as the SDK records it on the contract. */
-type BoardingWatch = { address: string; status: string; expiresAt?: number }
+/** A watch the Executor registered, as the SDK records it on the contract. */
+type Watch = { status: string; expiresAt?: number }
+
+/** The displayed boarding watch, and the renewal watch of the contract it boards into. */
+type Watches = { boarding: Watch & { address: string }; renewal?: Watch }
 
 const xOnly = (key: string) => (key.length === 66 ? key.slice(2) : key).toLowerCase()
 
-// The newest boarding contract: its renewal companion is not an onchain address. The SDK records no address
-// on the row, so it derives from the contract's params.
-const readBoardingWatch = async (
-  svcWallet: ServiceWorkerWallet,
-  network: NetworkName,
-): Promise<BoardingWatch | undefined> => {
-  const cm = await svcWallet.getContractManager()
-  const [row] = (await cm.getContracts({ type: 'executor' }))
-    .filter((c) => c.params.template === 'boarding')
-    .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
-  if (!row?.metadata) return undefined
-  const expiresAt = Number(row.metadata[DELEGATION_EXPIRES_KEY] ?? 0)
+const watchOf = (row: Contract): Watch => {
+  const expiresAt = Number(row.metadata?.[DELEGATION_EXPIRES_KEY] ?? 0)
   return {
-    address: ExecutorContractHandler.createScript(row.params).onchainAddress(getNetwork(network)),
-    status: String(row.metadata[DELEGATION_STATUS_KEY] ?? ''),
+    status: String(row.metadata?.[DELEGATION_STATUS_KEY] ?? ''),
     expiresAt: expiresAt > 0 ? expiresAt : undefined,
   }
+}
+
+// The newest boarding contract: its renewal companion is not an onchain address. The SDK records no address
+// on the row, so it derives from the contract's params. The renewal row is the same key's.
+const readWatches = async (svcWallet: ServiceWorkerWallet, network: NetworkName): Promise<Watches | undefined> => {
+  const cm = await svcWallet.getContractManager()
+  const rows = await cm.getContracts({ type: 'executor' })
+  const [boarding] = rows
+    .filter((c) => c.params.template === 'boarding')
+    .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
+  if (!boarding?.metadata) return undefined
+  const renewal = rows
+    .filter((c) => c.params.template === 'renewal' && c.params.owner === boarding.params.owner)
+    .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))[0]
+  return {
+    boarding: {
+      ...watchOf(boarding),
+      address: ExecutorContractHandler.createScript(boarding.params).onchainAddress(getNetwork(network)),
+    },
+    renewal: renewal?.metadata ? watchOf(renewal) : undefined,
+  }
+}
+
+function WatchStatus({ label, watch }: { label: string; watch: Watch }) {
+  const { t } = useTranslation()
+  return (
+    <>
+      <TextSecondary>{label}</TextSecondary>
+      {watch.expiresAt ? (
+        <TextSecondary>{t('executor.watchExpires', { time: localizedAgo(watch.expiresAt, t) })}</TextSecondary>
+      ) : null}
+    </>
+  )
 }
 
 function Hero() {
@@ -88,7 +114,7 @@ function ExecutorCard({ url }: { url: string }) {
 
   const [active, setActive] = useState(false)
   const [cosignerPubkey, setCosignerPubkey] = useState('')
-  const [watch, setWatch] = useState<BoardingWatch>()
+  const [watches, setWatches] = useState<Watches>()
 
   const { network, signerPubkey } = aspInfo
 
@@ -112,8 +138,8 @@ function ExecutorCard({ url }: { url: string }) {
   useEffect(() => {
     if (!svcWallet) return
     let cancelled = false
-    readBoardingWatch(svcWallet, network as NetworkName)
-      .then((w) => !cancelled && setWatch(w))
+    readWatches(svcWallet, network as NetworkName)
+      .then((w) => !cancelled && setWatches(w))
       .catch((error) => !cancelled && consoleError(error, 'Error reading the Executor watch:'))
     return () => {
       cancelled = true
@@ -141,16 +167,22 @@ function ExecutorCard({ url }: { url: string }) {
               </TextSecondary>
             </FlexRow>
           ) : null}
-          {watch ? (
+          {watches ? (
             <>
-              <FlexRow onClick={() => copyToClipboard(watch.address)}>
+              <FlexRow onClick={() => copyToClipboard(watches.boarding.address)}>
                 <TextSecondary>
-                  {t('executor.boardingAddressLabel', { value: prettyLongText(watch.address, 14) })}
+                  {t('executor.boardingAddressLabel', { value: prettyLongText(watches.boarding.address, 14) })}
                 </TextSecondary>
               </FlexRow>
-              <TextSecondary>{t('executor.watchStatusLabel', { status: watch.status })}</TextSecondary>
-              {watch.expiresAt ? (
-                <TextSecondary>{t('executor.watchExpires', { time: localizedAgo(watch.expiresAt, t) })}</TextSecondary>
+              <WatchStatus
+                label={t('executor.boardingWatchLabel', { status: watches.boarding.status })}
+                watch={watches.boarding}
+              />
+              {watches.renewal ? (
+                <WatchStatus
+                  label={t('executor.renewalWatchLabel', { status: watches.renewal.status })}
+                  watch={watches.renewal}
+                />
               ) : null}
             </>
           ) : (

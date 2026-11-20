@@ -200,17 +200,20 @@ export const translations = {
     executor: {
       active: 'Active',
       boardingAddressLabel: 'boarding address: {value}',
-      cannotSpend: 'The Executor can only board your deposits: it cannot spend your funds or control your wallet.',
+      boardingWatchLabel: 'boarding watch: {status}',
+      cannotSpend:
+        'The Executor can only board your deposits and renew those coins: it cannot spend your funds or control your wallet.',
       cosignerKeyLabel: 'Executor key: {value}',
-      description: 'The Executor moves bitcoin you deposit on-chain into Arkade, even while your wallet is closed.',
+      description:
+        'The Executor moves bitcoin you deposit on-chain into Arkade and renews those coins before they expire, even while your wallet is closed.',
       inactive: 'Inactive',
       noExecutorFound: 'No Executor found for this network.',
       notRegistered: "Not registered yet: deposits go to the wallet's own boarding address.",
+      renewalWatchLabel: 'renewal watch: {status}',
       useExecutor: 'Use the Arkade Executor',
-      useExecutorSubtext: 'Board on-chain deposits while the wallet is closed',
+      useExecutorSubtext: 'Board on-chain deposits and renew them while the wallet is closed',
       walletReloadToApply: 'The wallet will reload to apply the change.',
       watchExpires: 'expires {time}',
-      watchStatusLabel: 'watch: {status}',
       whatIsTheExecutor: 'What is the Executor?',
     },
     formatting: {
@@ -1048,18 +1051,20 @@ export const translations = {
     executor: {
       active: 'Activo',
       boardingAddressLabel: 'dirección de boarding: {value}',
+      boardingWatchLabel: 'vigilancia de boarding: {status}',
       cannotSpend:
-        'El Executor solo puede incorporar tus depósitos: no puede gastar tus fondos ni controlar tu wallet.',
+        'El Executor solo puede incorporar tus depósitos y renovar esas monedas: no puede gastar tus fondos ni controlar tu wallet.',
       cosignerKeyLabel: 'clave del Executor: {value}',
-      description: 'El Executor lleva a Arkade el bitcoin que depositas on-chain, incluso con tu wallet cerrada.',
+      description:
+        'El Executor lleva a Arkade el bitcoin que depositas on-chain y renueva esas monedas antes de que expiren, incluso con tu wallet cerrada.',
       inactive: 'Inactivo',
       noExecutorFound: 'No se encontró ningún Executor para esta red.',
       notRegistered: 'Aún sin registrar: los depósitos van a la dirección de boarding propia de la wallet.',
+      renewalWatchLabel: 'vigilancia de renovación: {status}',
       useExecutor: 'Usar el Executor de Arkade',
-      useExecutorSubtext: 'Incorpora depósitos on-chain con la wallet cerrada',
+      useExecutorSubtext: 'Incorpora depósitos on-chain y los renueva con la wallet cerrada',
       walletReloadToApply: 'La wallet se recargará para aplicar el cambio.',
       watchExpires: 'expira {time}',
-      watchStatusLabel: 'vigilancia: {status}',
       whatIsTheExecutor: '¿Qué es el Executor?',
     },
     formatting: {
@@ -1903,18 +1908,20 @@ export const translations = {
     executor: {
       active: 'Ativo',
       boardingAddressLabel: 'endereço de boarding: {value}',
+      boardingWatchLabel: 'monitoramento de boarding: {status}',
       cannotSpend:
-        'O Executor só pode incorporar seus depósitos: não pode gastar seus fundos nem controlar sua carteira.',
+        'O Executor só pode incorporar seus depósitos e renovar essas moedas: não pode gastar seus fundos nem controlar sua carteira.',
       cosignerKeyLabel: 'chave do Executor: {value}',
-      description: 'O Executor leva ao Arkade o bitcoin que você deposita on-chain, mesmo com a carteira fechada.',
+      description:
+        'O Executor leva ao Arkade o bitcoin que você deposita on-chain e renova essas moedas antes que expirem, mesmo com a carteira fechada.',
       inactive: 'Inativo',
       noExecutorFound: 'Nenhum Executor encontrado para esta rede.',
       notRegistered: 'Ainda não registrado: os depósitos vão para o endereço de boarding da própria carteira.',
+      renewalWatchLabel: 'monitoramento de renovação: {status}',
       useExecutor: 'Usar o Executor da Arkade',
-      useExecutorSubtext: 'Incorpora depósitos on-chain com a carteira fechada',
+      useExecutorSubtext: 'Incorpora depósitos on-chain e os renova com a carteira fechada',
       walletReloadToApply: 'A carteira será recarregada para aplicar a alteração.',
       watchExpires: 'expira {time}',
-      watchStatusLabel: 'monitoramento: {status}',
       whatIsTheExecutor: 'O que é o Executor?',
     },
     formatting: {

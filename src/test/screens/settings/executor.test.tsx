@@ -120,7 +120,33 @@ describe('Executor screen', () => {
     expect(await screen.findByText('Active')).toBeInTheDocument()
     expect(screen.getByText(/^Executor key:/)).toBeInTheDocument()
     expect(await screen.findByText(/^boarding address:/)).toBeInTheDocument()
-    expect(screen.getByText('watch: active')).toBeInTheDocument()
+    expect(screen.getByText('boarding watch: active')).toBeInTheDocument()
+    // the renewal contract is watched locally until the Executor registers it
+    expect(screen.getByText('renewal watch: local')).toBeInTheDocument()
+  })
+
+  it('shows the renewal watch the Executor registered, with its expiry', async () => {
+    const expiresAt = Math.floor(Date.now() / 1000) + 7 * 86_400
+    renderScreen({
+      contracts: [
+        contract('boarding', { delegationStatus: 'active' }),
+        contract('renewal', { delegationStatus: 'active', delegationExpiresAt: expiresAt }),
+      ],
+    })
+
+    expect(await screen.findByText('renewal watch: active')).toBeInTheDocument()
+    expect(screen.getByText(/^expires in/)).toBeInTheDocument()
+  })
+
+  it("leaves out another key's renewal watch", async () => {
+    const other = {
+      ...contract('renewal', { delegationStatus: 'active' }),
+      params: { ...contractParams('renewal'), owner: COSIGNER },
+    }
+    renderScreen({ contracts: [contract('boarding', { delegationStatus: 'active' }), other] })
+
+    expect(await screen.findByText('boarding watch: active')).toBeInTheDocument()
+    expect(screen.queryByText(/^renewal watch:/)).not.toBeInTheDocument()
   })
 
   it('reads as inactive when the Executor serves another Ark server', async () => {

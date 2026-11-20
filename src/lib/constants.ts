@@ -143,17 +143,18 @@ export const getEmulatorPubkeyOverrideForNetwork = (network: NetworkName): strin
   return configured && COMPRESSED_PUBKEY_HEX.test(configured) ? configured : undefined
 }
 
-// With an Executor, deposits to the boarding address are boarded while the wallet is offline.
+// With an Executor, deposits to the boarding address are boarded, and the coins renewed, while the wallet is offline.
 export const getExecutorUrlForNetwork = (network: NetworkName): string | undefined =>
   serviceUrlForNetwork(import.meta.env.VITE_EXECUTOR_URL, EXECUTOR_URL, network)
 
-// The watch's address commits to these: changing them registers a new watch with a new boarding address.
+// The boarding and renewal watches share these. Fixed per key once registered: the SDK refuses a registration
+// whose params differ from the key's existing rows, so changing them fails every existing wallet's registration.
 // The window must be shorter than the operator's VTXO expiry, or the SDK refuses the registration.
 // A 1-day window renews inside mutinynet's fee-free range (expiry - now <= 518656s). Regtest's
 // ARKD_VTXO_TREE_EXPIRY is itself 1 day (.env.regtest), so there it is half of that.
 const EXECUTOR_RENEWAL_WINDOW: Partial<Record<NetworkName, number>> = { regtest: 43_200 }
 
-export const getExecutorBoardingParams = (network: NetworkName): DelegationOptions => ({
+export const getExecutorParams = (network: NetworkName): DelegationOptions => ({
   renewalWindow: EXECUTOR_RENEWAL_WINDOW[network] ?? 86_400,
   maxFee: 1_000,
 })

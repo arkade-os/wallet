@@ -56,7 +56,7 @@ import { ConfigContext } from './config'
 import {
   defaultPassword,
   getEmulatorPubkeyOverrideForNetwork,
-  getExecutorBoardingParams,
+  getExecutorParams,
   getExecutorUrlForNetwork,
   isMainnet,
   maxPercentage,
@@ -748,18 +748,31 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
       // Safe on every unlock: watches are keyed by txid and the confirmation queue ignores a key it already holds.
       resumeLnurlConfirmations()
-      // Idempotent on the Executor. Not awaited: an unreachable Executor leaves the wallet's own boarding address.
+      // Idempotent on the Executor. Not awaited: an unreachable Executor leaves the wallet's own boarding address,
+      // and the wallet renews its coins itself.
       if (executorUrl) {
         const network = aspInfo.network as NetworkName
         // async, so that even a synchronous throw lands in the catch rather than failing the startup
         ;(async () => {
           const executor = await svcWallet.getExecutorManager()
-          await executor?.registerBoarding(getExecutorBoardingParams(network), {
-            // the emulator key swaps already trust; undefined keeps the SDK's pinned one
-            emulatorPubkey: getEmulatorPubkeyOverrideForNetwork(network),
-          })
-          if (!signal.aborted) reloadWallet(svcWallet).catch(consoleError)
-        })().catch((err) => consoleError(err, 'Executor boarding registration failed'))
+          if (!executor) return
+          const params = getExecutorParams(network)
+          // the emulator key swaps already trust; undefined keeps the SDK's pinned one
+          const options = { emulatorPubkey: getEmulatorPubkeyOverrideForNetwork(network) }
+          // Boarding first: renewal also covers every key that holds a live boarding watch. Each failure
+          // is its own, so a refused renewal neither hides a registered boarding nor skips its reload.
+          try {
+            await executor.registerBoarding(params, options)
+            if (!signal.aborted) reloadWallet(svcWallet).catch(consoleError)
+          } catch (err) {
+            consoleError(err, 'Executor boarding registration failed')
+          }
+          try {
+            await executor.registerRenewal(params, options)
+          } catch (err) {
+            consoleError(err, 'Executor renewal registration failed')
+          }
+        })().catch((err) => consoleError(err, 'Executor registration failed'))
       }
       // Receives that completed while the wallet was closed are the ones it can
       // never witness first-hand, so pull them once the wallet is usable.
@@ -859,8 +872,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         }
       }, 1_000)
 
-      // Renew expiring coins on startup: the Executor only boards deposits, the wallet renews its own
-      // coins, including those still at a contract of the retired delegator.
+      // Renew expiring coins on startup. The SDK leaves coins under a live Executor renewal watch to the
+      // Executor until half its window before expiry; the rest are the wallet's to renew: coins at its own
+      // address, those still at a contract of the retired delegator, and the Executor's if it never came.
       vtxoMgr.renewVtxos().catch(() => {})
       return true
     } catch (err) {
