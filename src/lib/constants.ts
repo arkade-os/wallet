@@ -36,7 +36,7 @@ export const isMainnet = (network: NetworkName | string): boolean =>
 
 // regtest: arkade-regtest's `executor` profile
 const EXECUTOR_URL: Record<NetworkName, string | null> = {
-  bitcoin: null,
+  bitcoin: 'https://executor.arkade.sh',
   mutinynet: 'https://executor.mutinynet.arkade.sh',
   signet: null,
   regtest: 'http://localhost:7280',
