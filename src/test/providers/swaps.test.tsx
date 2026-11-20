@@ -365,7 +365,7 @@ describe('SwapsProvider', () => {
         amount: 1000n,
         amountOn: 'give',
       },
-      pair: `arkade:regtest/slip44:1~arkade:regtest/asset:${ASSET_ID}`,
+      pair: `arkade:regtest/slip44:1->arkade:regtest/asset:${ASSET_ID}`,
       closedAt: 123,
       bids: ['first', 'second'].map(
         (id, index) =>
