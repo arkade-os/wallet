@@ -1223,6 +1223,33 @@ describe('Wallet swap flow', () => {
     expect(screen.getByText('0.24 USD')).toBeInTheDocument()
   })
 
+  it.each([18, 24])('shows a firm receive amount to the last atomic unit of a %i-decimal token', async (decimals) => {
+    const market = {
+      ...btcUsdt,
+      pair: `BTC/P${decimals}`,
+      quote_asset: { id: 'e8'.repeat(34), name: 'Precise token', ticker: `P${decimals}`, decimals },
+      price_decimals: 0,
+      min_quote_amount: `1${'0'.repeat(decimals)}`,
+      max_quote_amount: `1${'0'.repeat(decimals + 5)}`,
+    }
+    // 10,000 sats buy ten whole tokens before the 30 bps fee
+    fetchMocker.mockResponse(JSON.stringify({ bitcoin: { usd: `1${'0'.repeat(decimals - 3)}` } }))
+    quoteExchange.mockImplementationOnce(async (plan: OfferPlan) => firmQuote(plan, plan.receive.atomic + 1n))
+    renderSwap({
+      config: { currency: Currencies.BTC, unit: Unit.SATS },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      wallet: NO_ASSETS,
+      swap: { markets: [market] },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Precise token/i }))
+    for (const key of ['1', '0', '0', '0', '0']) fireEvent.click(screen.getByRole('button', { name: key }))
+    await openSmartRoutingReview()
+
+    expect(quoteExchange.mock.calls[0][0].receive.atomic).toBe(997n * 10n ** BigInt(decimals - 2))
+    expect(screen.getByText(`9.97${'0'.repeat(decimals - 3)}1 P${decimals}`)).toBeInTheDocument()
+  })
+
   it.each(['pair', 'orientation'])('refuses a hook plan with a mismatched %s at confirmation', async (mismatch) => {
     const market =
       mismatch === 'pair'

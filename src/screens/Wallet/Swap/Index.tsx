@@ -1807,7 +1807,10 @@ function buildQuoteFromPlan(
     toAsset,
     fromAmount: formatAssetQuantity(fromUnits, fromAsset.decimals),
     fromCurrency: fromCurrencyAvailable ? prettyFiatAmount(selectedCurrencyAmount, currency, formatOptions) : '',
-    toAmount: toAsset ? formatAssetQuantity(received, toAsset.decimals) : '0',
+    // from the atomic amount: Number() drops the last digits of an 18-decimal token
+    toAmount: toAsset
+      ? formatAssetQuantity(plan ? formatQuoteAmount(plan.receive.atomic, toAsset.decimals) : 0, toAsset.decimals)
+      : '0',
     toCurrency: toCurrencyAvailable ? prettyFiatAmount(receivedCurrencyAmount, currency, formatOptions) : '',
     feeLabel: toAsset ? `${formatAssetQuantity(feeReceived, toAsset.decimals)} ${toAsset.ticker}` : '',
     // the rate is always quoted per whole BTC even though amounts display in
