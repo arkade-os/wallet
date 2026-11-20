@@ -1,6 +1,7 @@
 import { useContext, ReactNode } from 'react'
 import CoinsIcon from '../../icons/Coins'
 import { NavigationContext, Pages } from '../../providers/navigation'
+import { WalletContext } from '../../providers/wallet'
 import { hapticLight } from '../../lib/haptics'
 import { useTranslation } from '../../providers/language'
 
@@ -40,9 +41,11 @@ function UpsellCard({ icon, title, description, testId, onClick }: UpsellCardPro
  */
 export default function UpsellsSection() {
   const { navigate } = useContext(NavigationContext)
+  const { booting, dataReady } = useContext(WalletContext)
   const { t } = useTranslation()
 
   const handleBuySell = () => {
+    if (Boolean(booting) && !dataReady) return
     navigate(Pages.AppDfx)
   }
 

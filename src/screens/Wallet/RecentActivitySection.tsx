@@ -12,11 +12,12 @@ import { useTranslation } from '../../providers/language'
  * Shows the most recent transactions with a View all link.
  */
 export default function RecentActivitySection() {
-  const { txs } = useContext(WalletContext)
+  const { booting, dataReady, txs } = useContext(WalletContext)
   const { navigate } = useContext(NavigationContext)
   const { t } = useTranslation()
 
   const handleViewAll = () => {
+    if (Boolean(booting) && !dataReady) return
     hapticLight()
     navigate(Pages.Activity)
   }

@@ -18,6 +18,8 @@ import {
   clearStorage,
   readWalletFromStorage,
   saveWalletToStorage,
+  readLastSats,
+  saveLastSats,
   saveAssetMetadataToStorage,
   readAssetMetadataFromStorage,
   readAllTransactionActivityMetadata,
@@ -134,6 +136,8 @@ interface WalletContextProps {
   dataReady: boolean
   /** The worker's first contract sync since setup has not landed: balances and history are stored data. */
   syncing?: boolean
+  satsPreview?: number
+  booting?: boolean
   loadError: string | null
   dismissLoadError: () => void
   authState: WalletAuthState
@@ -211,14 +215,17 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     exits: ExitRecord[]
   }>({ activities: [], metadata: {}, lnSends: [], exits: [] })
   const [assetSwaps, setAssetSwaps] = useState<WalletAssetSwap[]>([])
-  const [balance, setBalance] = useState(0)
+  const storedWallet = readWalletFromStorage()
+  const [satsPreview] = useState(() => readLastSats(storedWallet?.pubkey))
+  const [balance, setBalance] = useState(satsPreview ?? 0)
   const [availableBalance, setAvailableBalance] = useState(0)
-  const [wallet, setWallet] = useState(() => readWalletFromStorage() ?? defaultWallet)
+  const [wallet, setWallet] = useState(() => storedWallet ?? defaultWallet)
   const walletLoaded = true
   const [initialized, setInitialized] = useState<boolean>(false)
   const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
   const [dataReady, setDataReady] = useState(false)
-  const [syncing, setSyncing] = useState(false)
+  const [syncing, setSyncing] = useState(Boolean(storedWallet?.pubkey))
+  const [booting, setBooting] = useState(Boolean(storedWallet?.pubkey))
   const [loadError, setLoadError] = useState<string | null>(null)
   const [authState, setAuthState] = useState<WalletAuthState>('unknown')
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
@@ -566,6 +573,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       consoleError(new Error('Dev initial wallet data load timed out'), 'Dev initial data watchdog')
       hasLoadedOnce.current = true
       setDataReady(true)
+      setBooting(false)
     }, DEV_INITIAL_DATA_TIMEOUT_MS)
 
     return () => window.clearTimeout(timer)
@@ -691,7 +699,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       })
       referencedAssetIdsRef.current = referenced
       if (isFirstLoad && referenced.size > 0) setLoadingStatus(t('loading.loadingAssetMetadata'))
-      setBalance(total - unrolled)
+      const sats = total - unrolled
+      setBalance(sats)
+      if (wallet.pubkey) saveLastSats(wallet.pubkey, sats)
       setAvailableBalance(available)
       setAssetBalances(ownedAssets)
       setAvailableAssetBalances(availableAssets)
@@ -704,6 +714,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (!hasLoadedOnce.current) {
         hasLoadedOnce.current = true
         setDataReady(true)
+        setBooting(false)
       }
       prefetchAssetMetadata(swWallet, referenced).catch((err) => consoleError(err, 'Error prefetching asset metadata'))
     } catch (err) {
@@ -718,6 +729,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setLoadError(null)
     hasLoadedOnce.current = true
     setDataReady(true)
+    setBooting(false)
   }
 
   const initSvcWorkerWallet = async (params: InitSvcWorkerWalletParams): Promise<boolean> => {
@@ -1112,6 +1124,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setAuthState('locked')
     setInitialized(false)
     setDataReady(false)
+    setBooting(true)
     hasLoadedOnce.current = false
     assetMetadataFailures.current = new Map()
     assetMetadataFetches.current = new Set()
@@ -1145,6 +1158,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     await svcWallet.walletRepository.clear()
     await svcWallet.contractRepository.clear()
     setDataReady(false)
+    setBooting(false)
     hasLoadedOnce.current = false
     assetMetadataFailures.current = new Map()
     assetMetadataFetches.current = new Set()
@@ -1204,6 +1218,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         iconApprovalManager,
         isVerifiedAsset,
         dataReady,
+        satsPreview,
+        booting,
         syncing,
         loadError,
         dismissLoadError,
