@@ -1,5 +1,6 @@
-import { ReactNode, createContext, useContext, useEffect, useRef, useState } from 'react'
+import { ReactNode, createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { fiatDecimalsFor, FiatPrices, getPriceFeed } from '../lib/fiat'
+import { readFiatPricesSnapshot, saveFiatPricesSnapshot } from '../lib/bootCache'
 import { fromSatoshis, toSatoshis } from '../lib/format'
 import Decimal from 'decimal.js'
 import { Currencies, Unit } from '../lib/types'
@@ -11,6 +12,8 @@ type FiatContextProps = {
   fromFiat: (fiat?: number) => number
   fromFiatAmount: (amount: number, currency: Currencies) => number
   fiatDecimals: () => number
+  /** There is a price for the configured currency, so a fiat figure is a figure and not a zero. */
+  fiatReady?: boolean
   updateFiatPrices: () => void
 }
 
@@ -22,6 +25,7 @@ export const FiatContext = createContext<FiatContextProps>({
   fromFiat: () => 0,
   fromFiatAmount: () => 0,
   fiatDecimals: () => 2,
+  fiatReady: false,
   updateFiatPrices: () => {},
 })
 
@@ -30,7 +34,10 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
 
   const [loading, setLoading] = useState(false)
 
-  const prices = useRef<FiatPrices>(emptyFiatPrices)
+  // The last known prices, if recent, until the feed answers: a returning wallet can then show
+  // its balance in fiat on the first frame instead of a zero. Read once, not on every render.
+  const storedPrices = useMemo(() => readFiatPricesSnapshot() ?? emptyFiatPrices, [])
+  const prices = useRef<FiatPrices>(storedPrices)
   const selectedBitcoinUnit = config.unit
 
   const fromEUR = (fiat = 0) => (prices.current.eur ? toSatoshis(Decimal.div(fiat, prices.current.eur).toNumber()) : 0)
@@ -74,13 +81,20 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
   const toFiat = (sats = 0) => toFiatAmount(sats, config.currency)
 
   const fiatDecimals = () => fiatDecimalsFor(config.currency, config.unit)
+  const fiatReady = config.currency === Currencies.BTC || toFiat(100_000_000) > 0
 
   const updateFiatPrices = async () => {
     if (loading) return
     setLoading(true)
     const pf = await getPriceFeed()
-    if (pf) prices.current = pf
-    else updateConfig({ ...config, currency: Currencies.BTC }, false) // fallback to BTC if price feed fails
+    if (pf) {
+      prices.current = pf
+      saveFiatPricesSnapshot(pf)
+    } else if (!readFiatPricesSnapshot()) {
+      // The feed failed and there are no prices from the last day: fall back to BTC. With recent
+      // prices in hand the currency stays; they are what the wallet already shows.
+      updateConfig({ ...config, currency: Currencies.BTC }, false)
+    }
     setLoading(false)
   }
 
@@ -89,7 +103,9 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
   }, [])
 
   return (
-    <FiatContext.Provider value={{ fromFiat, fromFiatAmount, toFiat, toFiatAmount, fiatDecimals, updateFiatPrices }}>
+    <FiatContext.Provider
+      value={{ fromFiat, fromFiatAmount, toFiat, toFiatAmount, fiatDecimals, fiatReady, updateFiatPrices }}
+    >
       {children}
     </FiatContext.Provider>
   )

@@ -1,6 +1,8 @@
 import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
 import { ArkadeInfo, ScheduledSession } from '@arkade-os/sdk'
 import { emptyAspInfo, getAspInfo } from '../lib/asp'
+import { readAspInfoSnapshot, sameAspInfo, saveAspInfoSnapshot } from '../lib/bootCache'
+import { gitCommit } from '../_gitCommit'
 import { ConfigContext } from './config'
 
 export type AspInfo = ArkadeInfo & {
@@ -34,8 +36,18 @@ export const AspProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!config.aspUrl || !configLoaded) return
+    // Start from this server's last answer, so a returning wallet does not wait a round trip
+    // before it can begin to load. The live answer replaces it, and a failed one still reads as
+    // unreachable. Nothing is signed against it: the worker asks the server itself.
+    const last = readAspInfoSnapshot(config.aspUrl, gitCommit)
+    if (last) setAspInfo(last)
     getAspInfo(config.aspUrl)
-      .then(setAspInfo)
+      .then((info) => {
+        // An answer that matches the cached one keeps its object, so nothing that depends on
+        // `aspInfo` runs again for a change that did not happen.
+        setAspInfo((current) => (sameAspInfo(current, info) ? current : info))
+        saveAspInfoSnapshot(info, gitCommit)
+      })
       .catch(() => {
         setAspInfo({ ...emptyAspInfo, unreachable: true })
       })

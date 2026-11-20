@@ -28,6 +28,7 @@ import {
   saveAssetMetadataFailuresToStorage,
   type TransactionActivityMetadata,
 } from '../lib/storage'
+import { loadedCopyOf, readHomeSnapshot, saveHomeSnapshot, HOME_SNAPSHOT_SHAPE } from '../lib/bootCache'
 import { NavigationContext, Pages } from './navigation'
 import { getBalance, getUnrolledVtxos, getVtxos, settleVtxos } from '../lib/asp'
 import { resolveExits, subtractExitedAssets, type ExitRecord } from '../lib/exitHistory'
@@ -99,6 +100,9 @@ interface WalletContextProps {
   resetWallet: () => Promise<void>
   settlePreconfirmed: () => Promise<void>
   unlockWallet: (password: string) => Promise<void>
+  /** The last unlock took the password and then failed to start the wallet. The Unlock screen that
+   * sent it has given way to Home by then, so the one that comes back reads this to say why. */
+  unlockFailure?: 'connection' | null
   updateWallet: (w: Wallet | ((prev: Wallet) => Wallet)) => void
   isLocked: () => Promise<boolean>
   reloadWallet: (svcWallet?: ServiceWorkerWallet) => Promise<void>
@@ -134,6 +138,9 @@ interface WalletContextProps {
   dataReady: boolean
   /** The worker's first contract sync since setup has not landed: balances and history are stored data. */
   syncing?: boolean
+  /** The wallet has not loaded yet, and `balance`, the asset balances and `txs` are what Home showed on
+   * the last visit. For drawing Home only: nothing may be spent, signed or navigated to on these. */
+  storedHome?: boolean
   loadError: string | null
   dismissLoadError: () => void
   authState: WalletAuthState
@@ -147,6 +154,7 @@ export const WalletContext = createContext<WalletContextProps>({
   resetWallet: () => Promise.resolve(),
   settlePreconfirmed: () => Promise.resolve(),
   unlockWallet: () => Promise.resolve(),
+  unlockFailure: null,
   updateWallet: () => {},
   reloadWallet: () => Promise.resolve(),
   restartWallet: () => Promise.resolve(),
@@ -165,6 +173,7 @@ export const WalletContext = createContext<WalletContextProps>({
   isVerifiedAsset: () => false,
   dataReady: false,
   syncing: false,
+  storedHome: false,
   loadError: null,
   dismissLoadError: () => {},
   authState: 'unknown',
@@ -196,9 +205,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
   const { isRegistered } = useContext(AssetsContext)
   const { initialiseNostrBackup } = useContext(BackupContext)
-  const { config, updateConfig } = useContext(ConfigContext)
+  const { config, configLoaded, updateConfig } = useContext(ConfigContext)
   const { navigate } = useContext(NavigationContext)
-  const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo } = useContext(FlowContext)
+  const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo, txInfo, setTxInfo } = useContext(FlowContext)
   const { notifyTxSettled } = useContext(NotificationsContext)
   const { t } = useTranslation()
 
@@ -211,9 +220,23 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     exits: ExitRecord[]
   }>({ activities: [], metadata: {}, lnSends: [], exits: [] })
   const [assetSwaps, setAssetSwaps] = useState<WalletAssetSwap[]>([])
+  const storedWallet = useMemo(() => readWalletFromStorage(), [])
+  // What Home showed on the last visit, for this wallet. It is shown in place of the live figures
+  // while the worker starts and the first load runs (see `storedHome`), and never copied into them.
+  const lastHome = useMemo(() => readHomeSnapshot(storedWallet?.pubkey, HOME_SNAPSHOT_SHAPE), [storedWallet])
+  const [lastHomeShown, setLastHomeShown] = useState(Boolean(lastHome))
+  // A load has completed for the wallet in hand: only then is there something to keep for the next
+  // visit. A dismissed failed load, a lock and a reset all leave it false.
+  const loadCompleted = useRef(false)
+  // Bumped by a lock or a reset. A reload that started under an earlier generation drops its result,
+  // so one still in flight cannot draw, or save, the wallet that was just locked or wiped.
+  const walletGeneration = useRef(0)
+  // From the moment a reset starts until the next wallet is set up, every reload is dropped, whenever
+  // it started: nothing may redraw the wiped wallet, or write it back into storage.
+  const walletWiped = useRef(false)
   const [balance, setBalance] = useState(0)
   const [availableBalance, setAvailableBalance] = useState(0)
-  const [wallet, setWallet] = useState(() => readWalletFromStorage() ?? defaultWallet)
+  const [wallet, setWallet] = useState(() => storedWallet ?? defaultWallet)
   const walletLoaded = true
   const [initialized, setInitialized] = useState<boolean>(false)
   const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
@@ -221,6 +244,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [syncing, setSyncing] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [authState, setAuthState] = useState<WalletAuthState>('unknown')
+  const [unlockFailure, setUnlockFailure] = useState<'connection' | null>(null)
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
   const [assetBalances, setAssetBalances] = useState<WalletBalance['assets']>([])
   const [availableAssetBalances, setAvailableAssetBalances] = useState<WalletBalance['availableAssets']>([])
@@ -251,7 +275,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // Derived rather than merged once at load: the swap records are read from
   // IndexedDB, so they can arrive after the first history load — recomputing on
   // either input is what keeps a cold start from flashing bare funding rows.
-  const txs = useMemo(
+  const loadedTxs = useMemo(
     () =>
       activitiesToTxs(history.activities, {
         swaps: assetSwaps,
@@ -264,6 +288,48 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [history, assetSwaps, aspInfo.network, assetDisplayVersion],
   )
+  // A snapshot is for the server it was taken on. Before the config has loaded there is no
+  // server to compare with, and nothing is drawn that early either.
+  const storedHome = lastHomeShown && Boolean(lastHome) && (!configLoaded || lastHome?.aspUrl === config.aspUrl)
+  const shownHome = storedHome ? lastHome : undefined
+  const txs = shownHome ? shownHome.txs : loadedTxs
+
+  // A payment row tapped on stored Home holds the stored copy of that payment, and its details open
+  // once the load lands. By then the payment may have settled, so the details get the loaded copy.
+  useEffect(() => {
+    if (storedHome || !lastHome || !txInfo || !lastHome.txs.includes(txInfo)) return
+    const loaded = loadedCopyOf(txInfo, loadedTxs)
+    if (loaded) setTxInfo(loaded)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storedHome, loadedTxs])
+
+  // Keep what Home shows for the next visit to start from: the live figures, after a load.
+  useEffect(() => {
+    if (!initialized || !dataReady || !loadCompleted.current) return
+    if (!wallet.pubkey || !configLoaded) return
+    saveHomeSnapshot({
+      build: HOME_SNAPSHOT_SHAPE,
+      pubkey: wallet.pubkey,
+      aspUrl: config.aspUrl,
+      savedAt: Date.now(),
+      balance,
+      availableBalance,
+      assetBalances,
+      availableAssetBalances,
+      txs: loadedTxs,
+    })
+  }, [
+    initialized,
+    dataReady,
+    wallet.pubkey,
+    configLoaded,
+    config.aspUrl,
+    balance,
+    availableBalance,
+    assetBalances,
+    availableAssetBalances,
+    loadedTxs,
+  ])
 
   const ungroupedTxs = useMemo(
     () => history.activities.flatMap((activity) => activity.txs).map((tx) => arkTransactionToTx(tx)),
@@ -645,6 +711,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const reloadWallet = async (swWallet = svcWallet) => {
     if (!swWallet) return
+    const generation = walletGeneration.current
     const isFirstLoad = !hasLoadedOnce.current
     if (isFirstLoad) setLoadError(null)
     try {
@@ -691,6 +758,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       })
       referencedAssetIdsRef.current = referenced
       if (isFirstLoad && referenced.size > 0) setLoadingStatus(t('loading.loadingAssetMetadata'))
+      // Locked or wiped while this ran: what it read belongs to a wallet that is no longer here.
+      if (generation !== walletGeneration.current || walletWiped.current) return
       setBalance(total - unrolled)
       setAvailableBalance(available)
       setAssetBalances(ownedAssets)
@@ -701,13 +770,16 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
       setVtxos(vtxos)
       setHistory({ activities, metadata, lnSends, exits })
+      loadCompleted.current = true
       if (!hasLoadedOnce.current) {
         hasLoadedOnce.current = true
+        setLastHomeShown(false)
         setDataReady(true)
       }
       prefetchAssetMetadata(swWallet, referenced).catch((err) => consoleError(err, 'Error prefetching asset metadata'))
     } catch (err) {
       consoleError(err, 'Error reloading wallet')
+      if (generation !== walletGeneration.current || walletWiped.current) return
       if (!hasLoadedOnce.current) {
         setLoadError('Unable to load wallet data. Check your connection and try again.')
       }
@@ -717,6 +789,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const dismissLoadError = () => {
     setLoadError(null)
     hasLoadedOnce.current = true
+    // Going on without a load means going on with nothing, as it always has: the stored figures
+    // were only ever a stand-in for the load that failed, and they stay stored for the next visit.
+    setLastHomeShown(false)
     setDataReady(true)
   }
 
@@ -990,6 +1065,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     walletMode?: ServiceWorkerWalletMode
     restoring?: boolean
   }) => {
+    walletWiped.current = false
     const arkServerUrl = aspInfo.url
     const network = aspInfo.network as NetworkName
 
@@ -1034,18 +1110,25 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const unlockWallet = async (password: string) => {
+    setUnlockFailure(null)
+    let accepted = false
     try {
       if (hasMnemonic()) {
         const mnemonic = await getMnemonic(password)
+        accepted = true
         setAuthState('authenticated')
         await initWallet({ mnemonic })
       } else {
         const privateKey = await getPrivateKey(password)
+        accepted = true
         setAuthState('authenticated')
         await initWallet({ privateKey })
       }
     } catch (err) {
       setAuthState('locked')
+      // The password was right and the wallet then failed to start. App has already left Unlock for
+      // Home, so the Unlock screen that comes back must still be able to say why.
+      if (accepted) setUnlockFailure('connection')
       if (err instanceof DOMException) throw new Error('Invalid password')
       throw err instanceof Error ? err : new Error('Invalid password')
     }
@@ -1101,6 +1184,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const lockWallet = async () => {
     abortInitSession()
+    // Before anything awaits: a reload finishing while the worker is cleared must not draw this wallet.
+    walletGeneration.current++
     if (!svcWallet) throw new Error('Service worker not initialized')
     if (statusPingInterval.current) clearInterval(statusPingInterval.current)
     statusPingInterval.current = undefined
@@ -1112,6 +1197,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setAuthState('locked')
     setInitialized(false)
     setDataReady(false)
+    setLastHomeShown(false)
+    loadCompleted.current = false
     hasLoadedOnce.current = false
     assetMetadataFailures.current = new Map()
     assetMetadataFetches.current = new Set()
@@ -1134,6 +1221,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     reloadTimerRef.current = undefined
     removeServiceWorkerMessageHandler()
     forgetLnurlSends()
+    // From here the wallet is being wiped: nothing may draw or write its figures back, including a
+    // reload that is already in flight.
+    walletGeneration.current++
+    walletWiped.current = true
+    loadCompleted.current = false
+    setLastHomeShown(false)
     await clearStorage()
     // swap records outlive localStorage now: without this a reset leaves the
     // previous wallet's swaps in the activity list. Never fatal — a reset that
@@ -1185,6 +1278,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         resetWallet,
         settlePreconfirmed,
         unlockWallet,
+        unlockFailure,
         updateWallet,
         wallet,
         walletLoaded,
@@ -1195,16 +1289,18 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         txs,
         ungroupedTxs,
         setAssetSwaps,
-        balance,
-        availableBalance,
-        assetBalances,
-        availableAssetBalances,
+        balance: shownHome ? shownHome.balance : balance,
+        availableBalance: shownHome ? shownHome.availableBalance : availableBalance,
+        assetBalances: shownHome ? shownHome.assetBalances : assetBalances,
+        availableAssetBalances: shownHome ? shownHome.availableAssetBalances : availableAssetBalances,
         assetMetadataCache: assetMetadataCache.current,
         setCacheEntry,
         iconApprovalManager,
         isVerifiedAsset,
         dataReady,
-        syncing,
+        // The stored figures are by definition not synced yet.
+        syncing: syncing || storedHome,
+        storedHome,
         loadError,
         dismissLoadError,
         reloadWallet,

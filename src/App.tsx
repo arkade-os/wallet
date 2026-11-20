@@ -15,6 +15,7 @@ import { useReducedMotion } from './hooks/useReducedMotion'
 import { useLoadingStatus } from './hooks/useLoadingStatus'
 import { appSendNeedsDriver } from './lib/sendRouter'
 import { SwapsContext } from './providers/swaps'
+import { FiatContext } from './providers/fiat'
 import { appIntentHandoff, nextAppIntentNavigation, redirectToCallback } from './lib/appIntent'
 import { defaultPassword } from './lib/constants'
 import { consoleError } from './lib/logs'
@@ -71,16 +72,29 @@ function PageAnimWrapper({
   )
 }
 
+/** How long a returning wallet's stored Home may take to appear before the loading cover is shown after all. */
+const STORED_HOME_GRACE_MS = 400
+
 export default function App() {
   const { aspInfo } = useContext(AspContext)
   const { configLoaded } = useContext(ConfigContext)
   const { direction, navigate, screen } = useContext(NavigationContext)
   const { appIntent, initInfo, resetFlow, sendInfo, setAppIntent, setSendInfo } = useContext(FlowContext)
   const { option } = useContext(OptionsContext)
-  const { authState, unlockWallet, walletLoaded, initialized, wallet, dataReady, loadError, devAutoInitFailed } =
-    useContext(WalletContext)
+  const {
+    authState,
+    unlockWallet,
+    walletLoaded,
+    initialized,
+    wallet,
+    dataReady,
+    storedHome,
+    loadError,
+    devAutoInitFailed,
+  } = useContext(WalletContext)
 
   const { outcomeOf } = useContext(SwapsContext)
+  const { fiatReady } = useContext(FiatContext)
   const loadingStatus = useLoadingStatus()
   const isIAB = useMemo(() => isInAppBrowser(), [])
   const [isCapable, setIsCapable] = useState(false)
@@ -158,8 +172,12 @@ export default function App() {
     if (!wallet.pubkey) return navigate(Pages.Init)
     if (authState === 'locked') return navigate(Pages.Unlock)
     // boot a ready wallet home from Init — do not list `screen` as a dep:
-    // that retriggers the no-pubkey → Init redirect and bounces Restore/Create
-    if (screen === Pages.Init && authState === 'authenticated') return navigate(Pages.Wallet)
+    // that retriggers the no-pubkey → Init redirect and bounces Restore/Create.
+    // From Unlock too, and as soon as the password is accepted rather than when the wallet has
+    // loaded: Home may already be on screen by then, and a later redirect would undo a tap on it.
+    if ((screen === Pages.Init || screen === Pages.Unlock) && authState === 'authenticated') {
+      return navigate(Pages.Wallet)
+    }
   }, [
     walletLoaded,
     wallet.pubkey,
@@ -190,6 +208,24 @@ export default function App() {
   // page is showing so it can run swap recovery before navigating.
   const isConnectIntent = appIntent?.status === 'connect'
   const isInInitFlow = !!(initInfo.password || initInfo.privateKey)
+  // A returning wallet draws Home from what it showed on the last visit while the worker starts
+  // and the first load runs, instead of a loading screen. Not when something else has to be
+  // dealt with first: an app request, an unreachable server, a failed load.
+  const storedHomeAhead =
+    Boolean(storedHome) &&
+    hasStoredWallet &&
+    // Without a price the balance would be drawn as a zero.
+    fiatReady &&
+    !appIntent &&
+    !isInInitFlow &&
+    !loadError &&
+    !isIAB &&
+    !aspInfo.unreachable &&
+    screen !== Pages.Unavailable &&
+    screen !== Pages.InAppBrowser
+  // Until the load lands, Home is the only wallet screen shown, whatever `screen` says: a tap
+  // that navigates is kept and takes effect then, so no screen opens on a wallet that is not there.
+  const showStoredHome = storedHomeAhead && isCapable && (authState === 'passwordless' || authState === 'authenticated')
   const shouldHoldOnLoading =
     hasStoredWallet &&
     (!initialized || (!dataReady && !(isConnectIntent && screen === Pages.AppIntent))) &&
@@ -273,13 +309,15 @@ export default function App() {
   const page =
     isDevAutoInitializing || !(allChecksReady || isNewUser)
       ? Pages.Loading
-      : shouldHoldOnLoading
-        ? Pages.Loading
-        : shouldShowUnlock
-          ? Pages.Unlock
-          : onboardingIsMoot
-            ? Pages.Wallet
-            : screen
+      : showStoredHome
+        ? Pages.Wallet
+        : shouldHoldOnLoading
+          ? Pages.Loading
+          : shouldShowUnlock
+            ? Pages.Unlock
+            : onboardingIsMoot
+              ? Pages.Wallet
+              : screen
 
   // Boot animation: persists on Loading, then flies to the LogoIcon position when
   // Wallet is reached. For any other destination (Unlock, Init, etc.), exits with fly-up.
@@ -288,10 +326,16 @@ export default function App() {
     if (import.meta.env.DEV && (import.meta.env.VITE_DEV_NSEC || import.meta.env.VITE_DEV_MNEMONIC)) return
 
     if (page === Pages.Loading && !bootAnimActive) {
-      setBootAnimDone(false)
-      setBootExitMode('fly-up')
-      updateBootAnim(true)
-      return
+      const cover = () => {
+        setBootAnimDone(false)
+        setBootExitMode('fly-up')
+        updateBootAnim(true)
+      }
+      if (!storedHomeAhead) return cover()
+      // Stored Home is about to be drawn, and a cover would be up for a few frames only to take
+      // its fade over a screen that is already there. If Home has not come after all, cover.
+      const late = setTimeout(cover, STORED_HOME_GRACE_MS)
+      return () => clearTimeout(late)
     }
 
     if (!bootAnimActive || bootAnimDone) return
@@ -306,7 +350,7 @@ export default function App() {
       setBootExitMode('fly-up')
       setBootAnimDone(true)
     }
-  }, [page, bootAnimActive, bootAnimDone, hasDevAutoInit])
+  }, [page, bootAnimActive, bootAnimDone, hasDevAutoInit, storedHomeAhead])
 
   const handleBootAnimComplete = useCallback(() => {
     updateBootAnim(false)
@@ -335,7 +379,8 @@ export default function App() {
   )
 
   return (
-    <div className='page' data-testid='app'>
+    // Busy while Home shows the stored figures: what is on screen is not yet the loaded wallet.
+    <div className='page' data-testid='app' aria-busy={showStoredHome || undefined}>
       {usesDesktopWalletShell ? (
         <>
           <DesktopWalletShell page={page} logoVisible={!bootAnimActive} />
