@@ -6,8 +6,11 @@ import { Drawer as DrawerPrimitive } from 'vaul-base'
 import { cn } from '@/lib/utils'
 import { dimScreenEdges } from '@/lib/documentSurface'
 
-function Drawer({ ...props }: React.ComponentProps<typeof DrawerPrimitive.Root>) {
-  return <DrawerPrimitive.Root data-slot='drawer' {...props} />
+function Drawer({ open, ...props }: React.ComponentProps<typeof DrawerPrimitive.Root>) {
+  // The screen's edges dim as the drawer starts to open and come back as it starts to close, in
+  // step with the scrim's fade. Every drawer here is controlled, so `open` is what says when.
+  React.useLayoutEffect(() => (open ? dimScreenEdges() : undefined), [open])
+  return <DrawerPrimitive.Root data-slot='drawer' open={open} {...props} />
 }
 
 function DrawerPortal({ ...props }: React.ComponentProps<typeof DrawerPrimitive.Portal>) {
@@ -15,8 +18,6 @@ function DrawerPortal({ ...props }: React.ComponentProps<typeof DrawerPrimitive.
 }
 
 function DrawerOverlay({ className, ...props }: React.ComponentProps<typeof DrawerPrimitive.Overlay>) {
-  // Mounted only while the drawer is open, so it is what tells the screen's edges to dim.
-  React.useEffect(() => dimScreenEdges(), [])
   return (
     <DrawerPrimitive.Overlay
       data-slot='drawer-overlay'

@@ -61,12 +61,47 @@ export const activateDocumentSurface = ({ className, themeColor }: DocumentSurfa
   }
 }
 
+/** How a sheet's scrim fades: its duration in milliseconds and its CSS easing. */
+export interface ScrimFade {
+  duration: number
+  easing: string
+}
+
+/** The drawer's scrim (vaul): half a second on vaul's own curve. */
+export const DRAWER_SCRIM_FADE: ScrimFade = { duration: 500, easing: 'cubic-bezier(0.32, 0.72, 0, 1)' }
+
+let edgeFadeTimer: ReturnType<typeof setTimeout> | undefined
+
 /**
  * While a sheet is up: the status bar, and any edge the app does not reach, take the scrim's colour
- * (`--scrim-over-bg`), so the dimming is not cut short by white bands. Returns the undo.
+ * (`--scrim-over-bg`), so the dimming is not cut short by white bands. The scrim cannot cover those
+ * edges, so they fade with it instead, on the same timing in both directions: call this as the
+ * sheet starts opening, and the returned undo as it starts closing.
  */
-export const dimScreenEdges = () => {
+export const dimScreenEdges = (fade: ScrimFade = DRAWER_SCRIM_FADE) => {
   if (typeof document === 'undefined') return () => {}
-  const themeColor = getComputedStyle(document.documentElement).getPropertyValue('--scrim-over-bg').trim()
-  return activateDocumentSurface({ className: 'sheet-open', themeColor: themeColor || undefined })
+  const root = document.documentElement
+  const themeColor = getComputedStyle(root).getPropertyValue('--scrim-over-bg').trim()
+
+  clearTimeout(edgeFadeTimer)
+  root.style.setProperty('--edge-fade-duration', `${fade.duration}ms`)
+  root.style.setProperty('--edge-fade-easing', fade.easing)
+  root.classList.add('edges-fading')
+  const release = activateDocumentSurface({ className: 'sheet-open', themeColor: themeColor || undefined })
+
+  let active = true
+  return () => {
+    if (!active) return
+    active = false
+    release()
+    if (root.classList.contains('sheet-open')) return
+    // Keep the transition on until the edges are back, so a theme change later still snaps.
+    clearTimeout(edgeFadeTimer)
+    edgeFadeTimer = setTimeout(() => {
+      if (root.classList.contains('sheet-open')) return
+      root.classList.remove('edges-fading')
+      root.style.removeProperty('--edge-fade-duration')
+      root.style.removeProperty('--edge-fade-easing')
+    }, fade.duration)
+  }
 }

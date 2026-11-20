@@ -1,5 +1,8 @@
-import { ReactNode, useEffect, useRef } from 'react'
-import { dimScreenEdges } from '../lib/documentSurface'
+import { ReactNode, useEffect, useLayoutEffect, useRef } from 'react'
+import { dimScreenEdges, ScrimFade } from '../lib/documentSurface'
+
+/** The scrim's `scrim-in` animation in index.css: 200ms on --ease-out. The screen's edges match it. */
+const SCRIM_FADE: ScrimFade = { duration: 200, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' }
 
 interface SheetPageProps {
   /** Accessible name of the sheet. */
@@ -35,7 +38,7 @@ export default function SheetPage({
 
   // The sheet is modal, so the chrome around the page goes inert with it. On desktop that is the
   // sidebar, which would otherwise navigate away from a payment that is being signed.
-  useEffect(() => dimScreenEdges(), [])
+  useLayoutEffect(() => dimScreenEdges(SCRIM_FADE), [])
 
   useEffect(() => {
     const chrome = Array.from(document.querySelectorAll<HTMLElement>('.desktop-wallet-shell'))

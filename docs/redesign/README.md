@@ -62,7 +62,8 @@ icons), with an inline error and a Cancel; its title stays as the sheet's access
 was given behind the sheet. The asset list and the receive picker keep their layout; their fields and rows now
 use the sheet's well, so they match the other sheets in dark.
 
-**Everything else.** Every drawer is a floating panel on a scrim. `Modal` is a real dialog: named, Tab stays
+**Everything else.** Every drawer is a floating panel on a scrim, and the status bar and the band under the
+app, which the scrim cannot reach, fade with it on its timing in both directions. `Modal` is a real dialog: named, Tab stays
 inside it, Escape closes it and focus returns to what opened it. An open sheet or dialog takes Escape before
 the app goes Home, and takes Back before the screen under it does. Inline errors are a tinted note with
 `role="alert"`. Boot and onboarding carry no logo or intro animation, and onboarding is two

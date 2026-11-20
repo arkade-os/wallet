@@ -125,6 +125,14 @@ html.sheet-open body::before {
   background-color: var(--scrim-over-bg);
 }
 
+/* They fade with the scrim, on its timing (set by dimScreenEdges), rather than switching at once. */
+html.edges-fading,
+html.edges-fading body,
+html.edges-fading #root,
+html.edges-fading body::before {
+  transition: background-color var(--edge-fade-duration) var(--edge-fade-easing);
+}
+
 body {
   margin: 0;
   font-family:
