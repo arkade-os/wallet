@@ -96,7 +96,10 @@ function DirectionRouting({
         }
       },
       () => {
-        if (active) setUsageError(true)
+        if (active) {
+          setUsage({})
+          setUsageError(true)
+        }
       },
     )
     return () => {

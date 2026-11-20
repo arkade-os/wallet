@@ -99,21 +99,22 @@ function renderSolvers(
     restore: vi.fn().mockResolvedValue(undefined),
   }
 
-  const result = render(
+  const tree = (swaps = ReactSwapsDefault.swaps) => (
     <AspContext.Provider
       value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network } } as any}
     >
       <BackupContext.Provider value={backupContextValue as any}>
         <WalletContext.Provider value={{ ...mockWalletContextValue, ...wallet } as any}>
-          <SwapsContext.Provider value={{ ...ReactSwapsDefault, allMarkets }}>
+          <SwapsContext.Provider value={{ ...ReactSwapsDefault, allMarkets, swaps }}>
             <Solvers />
           </SwapsContext.Provider>
         </WalletContext.Provider>
       </BackupContext.Provider>
-    </AspContext.Provider>,
+    </AspContext.Provider>
   )
+  const result = render(tree())
   if (view === 'cards') fireEvent.click(screen.getByRole('tab', { name: 'Cards' }))
-  return result
+  return { ...result, updateSwaps: () => result.rerender(tree([])) }
 }
 
 describe('Solvers screen', () => {
@@ -256,6 +257,22 @@ describe('Solvers screen', () => {
     expect(mockSolverUsage).not.toHaveBeenCalled()
     fireEvent.click(screen.getAllByRole('button', { name: /^Arkade .+ → Arkade/ })[0])
     expect(await screen.findByText('Unable to load completed swap usage.')).toBeInTheDocument()
+  })
+
+  it('stops ranking by stale usage when a later refresh fails', async () => {
+    const first = { ...btcUsdt, solver: 'First', source: 'first' }
+    const popular = { ...btcUsdt, solver: 'Popular', source: 'popular' }
+    saveSolverRouting('mutinynet', solverDirectionKey(first, 'base', 'mutinynet'), { mode: 'usage' })
+    mockSolverUsage.mockResolvedValue({ [solverId(popular, 'mutinynet')]: 5 })
+    const view = renderSolvers('mutinynet', [first, popular], 'priority')
+    fireEvent.click(screen.getByRole('button', { name: 'Arkade BTC → Arkade USDT' }))
+    const rows = () => within(screen.getByRole('dialog')).getAllByRole('listitem')
+    await waitFor(() => expect(rows()[0]).toHaveTextContent('Popular'))
+    mockSolverUsage.mockRejectedValue(new Error('storage unavailable'))
+    view.updateSwaps()
+    expect(await screen.findByText('Unable to load completed swap usage.')).toBeInTheDocument()
+    expect(rows()[0]).toHaveTextContent('First')
+    expect(screen.queryByText(/5 completed swaps/)).not.toBeInTheDocument()
   })
 
   it('keeps paused direction candidates visible and preserves their priority across mode changes', () => {
