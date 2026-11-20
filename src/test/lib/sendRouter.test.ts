@@ -497,7 +497,10 @@ describe('lnSendRefusal only names a cause it has checked', () => {
       min_base_amount: '30000',
       max_base_amount: '50000',
     })
-    expect(lnSendRefusal([admits, reversed], 40000)).not.toContain('outside solver bounds')
+    expect(lnSendRefusal([admits], 40000)).toBe('Amount outside solver bounds (1,000-25,000 sats)')
+    expect(lnSendRefusal([admits, reversed], 40000)).toContain(
+      'No Lightning solver took this payment (solvers take 1,000-50,000 sats)',
+    )
   })
 
   it('excludes unrelated Lightning asset legs and non-Arkade counterparties', () => {
