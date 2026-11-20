@@ -42,6 +42,9 @@ vi.mock('../../../lib/haptics', () => ({
   setHapticsEnabled: vi.fn(),
 }))
 
+// What the open sheet was asked to keep in view above it.
+const sheetBelow = vi.hoisted(() => ({ current: null as HTMLElement | null }))
+
 // A stand-in for the drawer that keeps the sheet's contract: present only while open, a named
 // dialog, and closed by Escape.
 vi.mock('../../../components/SheetModal', () => ({
@@ -49,14 +52,17 @@ vi.mock('../../../components/SheetModal', () => ({
     isOpen,
     onClose,
     labelledBy,
+    below,
     children,
   }: {
     isOpen: boolean
     onClose: () => void
     labelledBy?: string
+    below?: React.RefObject<HTMLElement | null>
     children?: React.ReactNode
-  }) =>
-    isOpen ? (
+  }) => {
+    if (isOpen) sheetBelow.current = below?.current ?? null
+    return isOpen ? (
       <div
         data-testid='sheet-modal'
         role='dialog'
@@ -65,7 +71,8 @@ vi.mock('../../../components/SheetModal', () => ({
       >
         {children}
       </div>
-    ) : null,
+    ) : null
+  },
 }))
 vi.mock('../../../icons/CheckMark', () => ({ default: () => <span>MARKER-COPIED</span> }))
 vi.mock('../../../icons/Copy', () => ({ default: () => <span>MARKER-IDLE</span> }))
@@ -426,6 +433,16 @@ describe('Receive QR Code screen', () => {
       expect(copyToClipboardMock).not.toHaveBeenCalled()
     })
 
+    // The sheet used to rise over half the code. It stops under the code instead, so the code
+    // stays whole and scannable while the formats are up.
+    it('keeps the code in view above the formats sheet', async () => {
+      sheetBelow.current = null
+      const { container } = renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
+
+      await openFormats()
+      expect(sheetBelow.current).toBe(container.querySelector('.receive-invoice-stage'))
+    })
+
     // The selector is part of a fully translated screen, so its labels have to
     // come from the dictionary rather than being baked in. Without the three
     // receive.method* keys this renders English labels inside the Spanish UI.
@@ -540,6 +557,14 @@ describe('Receive QR Code screen — copy feedback', () => {
 
     expect(copyToClipboardMock).toHaveBeenCalledTimes(1)
     expect(screen.getByTestId('sheet-modal')).toHaveTextContent('MARKER-COPIED')
+  })
+
+  it('keeps the code in view above the copy sheet', async () => {
+    sheetBelow.current = null
+    const { container } = renderReceiveQrCode(tapFixture())
+
+    await openCopySheet()
+    expect(sheetBelow.current).toBe(container.querySelector('.receive-invoice-stage'))
   })
 
   it('leaves the sheet unmarked after a refused copy', async () => {
