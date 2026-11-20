@@ -132,11 +132,11 @@ const migrateUnnamed = (unnamed: Contact[]): boolean => {
     }
   }
   const recentsSaved = writeList(RECENTS_KEY, merged)
-  const contactsSaved = writeList(
+  if (!recentsSaved) return false // don't remove from contacts if recents didn't land
+  return writeList(
     CONTACTS_KEY,
-    readList(CONTACTS_KEY).filter((contact) => contact.name?.trim()),
+    readList(CONTACTS_KEY).filter((c) => c.name?.trim()),
   )
-  return recentsSaved && contactsSaved
 }
 
 export function readRecents(): Recent[] {
