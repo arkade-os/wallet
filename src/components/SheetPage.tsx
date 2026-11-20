@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useRef } from 'react'
+import { dimScreenEdges } from '../lib/documentSurface'
 
 interface SheetPageProps {
   /** Accessible name of the sheet. */
@@ -34,6 +35,8 @@ export default function SheetPage({
 
   // The sheet is modal, so the chrome around the page goes inert with it. On desktop that is the
   // sidebar, which would otherwise navigate away from a payment that is being signed.
+  useEffect(() => dimScreenEdges(), [])
+
   useEffect(() => {
     const chrome = Array.from(document.querySelectorAll<HTMLElement>('.desktop-wallet-shell'))
     chrome.forEach((el) => el.setAttribute('inert', ''))

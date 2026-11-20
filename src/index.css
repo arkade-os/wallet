@@ -115,6 +115,16 @@ body::before {
   pointer-events: none;
 }
 
+/* While a sheet is up its scrim covers the app, which stops short of the status bar and, in some
+   browsers, of the bottom edge. Those take the scrim's colour too, so the dimming reaches every
+   edge instead of leaving white bands above and below. */
+html.sheet-open,
+html.sheet-open body,
+html.sheet-open #root,
+html.sheet-open body::before {
+  background-color: var(--scrim-over-bg);
+}
+
 body {
   margin: 0;
   font-family:

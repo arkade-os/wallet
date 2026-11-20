@@ -28,6 +28,8 @@
   --on-brand: #fffdf8;
   --pattern: #6851ad; /* address patterns */
   --scrim: rgb(21 18 25 / 0.4);
+  /* The scrim laid over --bg, as one colour: the status bar and the screen's edges while a sheet is up. */
+  --scrim-over-bg: #a1a0a3;
   --ledge-depth: 3px;
 
   /* Purple ramp — built from brand primary #391998 (placed at 700) */
@@ -270,6 +272,7 @@ html.palette-dark {
   --on-brand: #fffdf8;
   --pattern: #9987e5;
   --scrim: rgb(0 0 0 / 0.6);
+  --scrim-over-bg: #060507;
 
   --black: #f3f1f6;
   --cream: #d9d9d9;

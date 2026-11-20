@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { activateDocumentSurface, setDocumentThemeColor } from '../../lib/documentSurface'
+import { activateDocumentSurface, dimScreenEdges, setDocumentThemeColor } from '../../lib/documentSurface'
 
 describe('document surface', () => {
   let themeColorMeta: HTMLMetaElement
@@ -46,5 +46,33 @@ describe('document surface', () => {
     releaseSecond()
     expect(document.documentElement).not.toHaveClass('second-surface')
     expect(themeColorMeta).toHaveAttribute('content', '#fff')
+  })
+
+  describe('while a sheet is up', () => {
+    afterEach(() => document.documentElement.style.removeProperty('--scrim-over-bg'))
+
+    it('gives the status bar and the screen edges the scrim colour, and takes it back after', () => {
+      document.documentElement.style.setProperty('--scrim-over-bg', '#a1a0a3')
+
+      const release = dimScreenEdges()
+      expect(document.documentElement).toHaveClass('sheet-open')
+      expect(themeColorMeta).toHaveAttribute('content', '#a1a0a3')
+
+      release()
+      expect(document.documentElement).not.toHaveClass('sheet-open')
+      expect(themeColorMeta).toHaveAttribute('content', '#fff')
+    })
+
+    it('keeps them dimmed until the last of two sheets closes', () => {
+      document.documentElement.style.setProperty('--scrim-over-bg', '#a1a0a3')
+
+      const first = dimScreenEdges()
+      const second = dimScreenEdges()
+      first()
+      expect(document.documentElement).toHaveClass('sheet-open')
+
+      second()
+      expect(document.documentElement).not.toHaveClass('sheet-open')
+    })
   })
 })

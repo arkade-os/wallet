@@ -60,3 +60,13 @@ export const activateDocumentSurface = ({ className, themeColor }: DocumentSurfa
     applyThemeColor()
   }
 }
+
+/**
+ * While a sheet is up: the status bar, and any edge the app does not reach, take the scrim's colour
+ * (`--scrim-over-bg`), so the dimming is not cut short by white bands. Returns the undo.
+ */
+export const dimScreenEdges = () => {
+  if (typeof document === 'undefined') return () => {}
+  const themeColor = getComputedStyle(document.documentElement).getPropertyValue('--scrim-over-bg').trim()
+  return activateDocumentSurface({ className: 'sheet-open', themeColor: themeColor || undefined })
+}

@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Drawer as DrawerPrimitive } from 'vaul-base'
 
 import { cn } from '@/lib/utils'
+import { dimScreenEdges } from '@/lib/documentSurface'
 
 function Drawer({ ...props }: React.ComponentProps<typeof DrawerPrimitive.Root>) {
   return <DrawerPrimitive.Root data-slot='drawer' {...props} />
@@ -14,6 +15,8 @@ function DrawerPortal({ ...props }: React.ComponentProps<typeof DrawerPrimitive.
 }
 
 function DrawerOverlay({ className, ...props }: React.ComponentProps<typeof DrawerPrimitive.Overlay>) {
+  // Mounted only while the drawer is open, so it is what tells the screen's edges to dim.
+  React.useEffect(() => dimScreenEdges(), [])
   return (
     <DrawerPrimitive.Overlay
       data-slot='drawer-overlay'
