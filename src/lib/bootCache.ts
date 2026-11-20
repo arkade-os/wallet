@@ -76,13 +76,12 @@ export const readAspInfoSnapshot = (url: string, build: string): AspInfo | undef
     return info as unknown as AspInfo
   })
 
-/** Keep the last prices, so the next visit can show a fiat figure before the feed has answered. False when the feed is not one to keep or to show. */
-export const saveFiatPricesSnapshot = (prices: FiatPrices, now = Date.now()): boolean => {
+/** Keep the last prices, so the next visit can show a fiat figure before the feed has answered. */
+export const saveFiatPricesSnapshot = (prices: FiatPrices, now = Date.now()): void => {
   // A feed that left a currency out, or answered with nothing, is not one to start the next visit from.
   const values = Object.values(prices)
-  if (values.length === 0 || !values.every((value) => typeof value === 'number' && value > 0)) return false
+  if (values.length === 0 || !values.every((value) => typeof value === 'number' && value > 0)) return
   setStorageItemSafely(FIAT_PRICES_KEY, JSON.stringify({ at: now, prices }), 'Failed to save fiat prices snapshot')
-  return true
 }
 
 /** The last prices, if they are recent enough to show. */
@@ -151,3 +150,17 @@ export const readHomeSnapshot = (pubkey: string | undefined, build: string): Hom
     if (!Array.isArray(snapshot.txs) || !snapshot.txs.every(isTx)) return undefined
     return snapshot as unknown as HomeSnapshot
   })
+
+/**
+ * The loaded copy of a history row that came from the snapshot, if the load has it. A row tapped on
+ * stored Home holds the stored copy until the load lands, and the payment may have settled since.
+ */
+export const loadedCopyOf = (row: Tx, loaded: Tx[]): Tx | undefined =>
+  loaded.find((tx) =>
+    row.historyKey && tx.historyKey
+      ? tx.historyKey === row.historyKey
+      : tx.type === row.type &&
+        tx.roundTxid === row.roundTxid &&
+        tx.redeemTxid === row.redeemTxid &&
+        tx.boardingTxid === row.boardingTxid,
+  )

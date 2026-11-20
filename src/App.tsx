@@ -223,19 +223,14 @@ export default function App() {
     !aspInfo.unreachable &&
     screen !== Pages.Unavailable &&
     screen !== Pages.InAppBrowser
-  // Until the load lands, Home is the only wallet screen shown. A tap is dropped, not kept:
-  // the screen it opens would be built from figures that are not the wallet's yet.
+  // Until the load lands, Home is the only wallet screen shown, whatever `screen` says: a tap
+  // that navigates is kept and takes effect then, so no screen opens on a wallet that is not there.
   const showStoredHome = storedHomeAhead && isCapable && (authState === 'passwordless' || authState === 'authenticated')
   const shouldHoldOnLoading =
     hasStoredWallet &&
     (!initialized || (!dataReady && !(isConnectIntent && screen === Pages.AppIntent))) &&
     authState !== 'locked' &&
     !isInInitFlow
-
-  useEffect(() => {
-    if (!showStoredHome || screen === Pages.Wallet) return
-    navigate(Pages.Wallet)
-  }, [showStoredHome, screen, navigate])
 
   useEffect(() => {
     passwordlessBootAttempted.current = false

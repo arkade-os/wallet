@@ -28,7 +28,7 @@ import {
   saveAssetMetadataFailuresToStorage,
   type TransactionActivityMetadata,
 } from '../lib/storage'
-import { readHomeSnapshot, saveHomeSnapshot, HOME_SNAPSHOT_SHAPE } from '../lib/bootCache'
+import { loadedCopyOf, readHomeSnapshot, saveHomeSnapshot, HOME_SNAPSHOT_SHAPE } from '../lib/bootCache'
 import { NavigationContext, Pages } from './navigation'
 import { getBalance, getUnrolledVtxos, getVtxos, settleVtxos } from '../lib/asp'
 import { resolveExits, subtractExitedAssets, type ExitRecord } from '../lib/exitHistory'
@@ -202,12 +202,12 @@ const readSwapRecordAssets = async (): Promise<string[]> => {
 }
 
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
-  const { aspInfo, liveAspInfo } = useContext(AspContext)
+  const { aspInfo } = useContext(AspContext)
   const { isRegistered } = useContext(AssetsContext)
   const { initialiseNostrBackup } = useContext(BackupContext)
   const { config, configLoaded, updateConfig } = useContext(ConfigContext)
   const { navigate } = useContext(NavigationContext)
-  const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo } = useContext(FlowContext)
+  const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo, txInfo, setTxInfo } = useContext(FlowContext)
   const { notifyTxSettled } = useContext(NotificationsContext)
   const { t } = useTranslation()
 
@@ -234,8 +234,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // From the moment a reset starts until the next wallet is set up, every reload is dropped, whenever
   // it started: nothing may redraw the wiped wallet, or write it back into storage.
   const walletWiped = useRef(false)
-  // True from lock until the next successful init. Drops reloads the swap client starts after the lock.
-  const walletLocked = useRef(false)
   const [balance, setBalance] = useState(0)
   const [availableBalance, setAvailableBalance] = useState(0)
   const [wallet, setWallet] = useState(() => storedWallet ?? defaultWallet)
@@ -295,6 +293,15 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const storedHome = lastHomeShown && Boolean(lastHome) && (!configLoaded || lastHome?.aspUrl === config.aspUrl)
   const shownHome = storedHome ? lastHome : undefined
   const txs = shownHome ? shownHome.txs : loadedTxs
+
+  // A payment row tapped on stored Home holds the stored copy of that payment, and its details open
+  // once the load lands. By then the payment may have settled, so the details get the loaded copy.
+  useEffect(() => {
+    if (storedHome || !lastHome || !txInfo || !lastHome.txs.includes(txInfo)) return
+    const loaded = loadedCopyOf(txInfo, loadedTxs)
+    if (loaded) setTxInfo(loaded)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storedHome, loadedTxs])
 
   // Keep what Home shows for the next visit to start from: the live figures, after a load.
   useEffect(() => {
@@ -703,7 +710,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }, [initialized, dataReady, noteInfo.satoshis, deepLinkInfo])
 
   const reloadWallet = async (swWallet = svcWallet) => {
-    if (!swWallet || walletLocked.current || walletWiped.current) return
+    if (!swWallet) return
     const generation = walletGeneration.current
     const isFirstLoad = !hasLoadedOnce.current
     if (isFirstLoad) setLoadError(null)
@@ -752,7 +759,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       referencedAssetIdsRef.current = referenced
       if (isFirstLoad && referenced.size > 0) setLoadingStatus(t('loading.loadingAssetMetadata'))
       // Locked or wiped while this ran: what it read belongs to a wallet that is no longer here.
-      if (generation !== walletGeneration.current || walletWiped.current || walletLocked.current) return
+      if (generation !== walletGeneration.current || walletWiped.current) return
       setBalance(total - unrolled)
       setAvailableBalance(available)
       setAssetBalances(ownedAssets)
@@ -772,7 +779,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       prefetchAssetMetadata(swWallet, referenced).catch((err) => consoleError(err, 'Error prefetching asset metadata'))
     } catch (err) {
       consoleError(err, 'Error reloading wallet')
-      if (generation !== walletGeneration.current || walletWiped.current || walletLocked.current) return
+      if (generation !== walletGeneration.current || walletWiped.current) return
       if (!hasLoadedOnce.current) {
         setLoadError('Unable to load wallet data. Check your connection and try again.')
       }
@@ -1059,13 +1066,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     restoring?: boolean
   }) => {
     walletWiped.current = false
-    const generation = walletGeneration.current
-    // Home can paint from the cached server info. Keys and the delegate wait for the live answer.
-    const live = liveAspInfo ? await liveAspInfo() : aspInfo
-    if (generation !== walletGeneration.current) return
-    if (!live.url || !live.network || live.unreachable) throw new Error('Unable to reach the server')
-    const arkServerUrl = live.url
-    const network = live.network as NetworkName
+    const arkServerUrl = aspInfo.url
+    const network = aspInfo.network as NetworkName
 
     let identity: Identity
     let pubkey: string
@@ -1102,8 +1104,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       walletMode,
       restoring: credentials.restoring,
     })
-    if (!didInit || generation !== walletGeneration.current) return
-    walletLocked.current = false
+    if (!didInit) return
     updateWallet({ ...wallet, network, pubkey })
     setInitialized(true)
   }
@@ -1183,7 +1184,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const lockWallet = async () => {
     abortInitSession()
-    walletLocked.current = true
+    // Before anything awaits: a reload finishing while the worker is cleared must not draw this wallet.
     walletGeneration.current++
     if (!svcWallet) throw new Error('Service worker not initialized')
     if (statusPingInterval.current) clearInterval(statusPingInterval.current)

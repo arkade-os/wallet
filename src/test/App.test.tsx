@@ -247,13 +247,13 @@ describe('Home from what it showed last time', () => {
     expect(screen.queryByTestId('home-action-send')).toBeNull()
   })
 
-  it('drops a tap made before the wallet has loaded', async () => {
-    // The tap is not kept. The screen it names would open on figures that are not the wallet's yet.
-    const { navigate } = renderApp({ ...returning, authState: 'authenticated', screen: Pages.SendForm })
+  it('keeps Home up when a tap navigates before the wallet has loaded', async () => {
+    // The tap is kept in `screen`. The screen it names needs the wallet, so it opens once
+    // the load lands, not on the stored figures.
+    renderApp({ ...returning, authState: 'authenticated', screen: Pages.SendForm })
 
     expect(await home()).toBeInTheDocument()
     expect(document.querySelector('[name="send-address"]')).toBeNull()
-    expect(navigate).toHaveBeenCalledWith(Pages.Wallet)
   })
 
   it('waits for a price rather than drawing the balance as zero', async () => {

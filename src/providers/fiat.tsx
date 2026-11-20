@@ -87,9 +87,10 @@ export const FiatProvider = ({ children }: { children: ReactNode }) => {
     if (loading) return
     setLoading(true)
     const pf = await getPriceFeed()
-    // A partial feed is still truthy, and Decimal throws when a currency is missing.
-    if (pf && saveFiatPricesSnapshot(pf)) prices.current = pf
-    else if (!readFiatPricesSnapshot()) {
+    if (pf) {
+      prices.current = pf
+      saveFiatPricesSnapshot(pf)
+    } else if (!readFiatPricesSnapshot()) {
       // The feed failed and there are no prices from the last day: fall back to BTC. With recent
       // prices in hand the currency stays; they are what the wallet already shows.
       updateConfig({ ...config, currency: Currencies.BTC }, false)
