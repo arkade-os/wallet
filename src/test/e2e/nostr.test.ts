@@ -90,6 +90,12 @@ test('should save solver cards to nostr', async ({ page }) => {
   await expect(storedCard).toHaveCount(1)
   await expect(storedCard.getByText(mockSolverCard.name, { exact: true })).toBeVisible()
 
+  const publishAck = page.waitForEvent(
+    'console',
+    (log) => log.type() === 'log' && log.text() === 'Message published to Nostr successfully',
+  )
+  await page.getByLabel(tr.common.back).click()
+  await publishAck
   // restore wallet
   await resetAndRestoreWallet(page)
 

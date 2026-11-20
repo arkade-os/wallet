@@ -62,17 +62,29 @@ export class NostrStorage {
 
     const signedEvent = finalizeEvent(event, sk)
 
+    let timeout: ReturnType<typeof setTimeout> | undefined
     try {
       await Promise.race([
-        this.pool.publish(this.relays, signedEvent),
+        // pool.publish fulfills connection failures as strings, indistinguishable from relay OK messages.
+        Promise.any(
+          this.relays.map(async (url) => {
+            if (this.pool.allowConnectingToRelay?.(url, ['write', signedEvent]) === false) {
+              throw new Error(`Connection to ${url} was denied`)
+            }
+            const relay = await this.pool.ensureRelay(url, { connectionTimeout: 10_000 })
+            return relay.publish(signedEvent)
+          }),
+        ),
         new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Publish timeout')), 10000)
+          timeout = setTimeout(() => reject(new Error('Publish timeout')), 10000)
         }),
       ])
       console.log('Message published to Nostr successfully')
     } catch (error) {
       console.error('Failed to publish to Nostr:', error)
       throw error
+    } finally {
+      if (timeout) clearTimeout(timeout)
     }
   }
 

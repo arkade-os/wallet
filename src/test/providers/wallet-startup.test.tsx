@@ -1,4 +1,4 @@
-import { act, render } from '@testing-library/react'
+import { act, render, waitFor } from '@testing-library/react'
 import { useContext } from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { WalletContext, WalletProvider } from '../../providers/wallet'
@@ -95,4 +95,43 @@ it.each(['vtxo_received', 'vtxo_spent'])('reloads when a contract event reports 
   onMessage({ data: { type: 'CONTRACT_EVENT', payload: { event: { type: eventType } } } } as MessageEvent)
 
   await vi.waitFor(() => expect(reloads()).toBe(before + 1), { timeout: 3000 })
+})
+
+it('prefetches newly referenced assets after overlapping wallet reloads', async () => {
+  localStorage.clear()
+  await startWallet()
+
+  const first = 'a'.repeat(68)
+  const second = 'b'.repeat(68)
+  const third = 'c'.repeat(68)
+  let releaseFirst: () => void = () => {}
+  const firstRequest = new Promise<void>((resolve) => (releaseFirst = resolve))
+  const getAssetDetails = vi.fn(async (assetId: string) => {
+    if (assetId === first) await firstRequest
+    return { assetId, metadata: { name: `Asset ${assetId[0]}`, ticker: assetId[0].toUpperCase(), decimals: 0 } }
+  })
+  let assets = [{ assetId: first, amount: 1n }]
+  const service = {
+    ...mocks.current.service,
+    getActivityHistory: vi.fn().mockResolvedValue([]),
+    getBalance: vi.fn(async () => ({ total: 0, available: 0, unrolled: 0, assets, availableAssets: assets })),
+    assetManager: { getAssetDetails },
+  }
+
+  await act(() => wallet.reloadWallet(service as never))
+  await waitFor(() => expect(getAssetDetails).toHaveBeenCalledWith(first))
+
+  assets = [{ assetId: second, amount: 1n }]
+  await act(() => wallet.reloadWallet(service as never))
+  assets = [
+    { assetId: second, amount: 1n },
+    { assetId: third, amount: 1n },
+  ]
+  await act(() => wallet.reloadWallet(service as never))
+  expect(getAssetDetails).toHaveBeenCalledTimes(1)
+
+  await act(async () => releaseFirst())
+  await waitFor(() => expect(wallet.assetMetadataCache.get(second)?.metadata?.name).toBe('Asset b'))
+  await waitFor(() => expect(wallet.assetMetadataCache.get(third)?.metadata?.name).toBe('Asset c'))
+  expect(getAssetDetails).toHaveBeenCalledTimes(3)
 })

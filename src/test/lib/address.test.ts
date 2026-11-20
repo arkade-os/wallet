@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   decodeArkAddress,
+  haveSameServerPubKey,
   isBTCAddress,
   isEmailAddress,
   isLightningInvoice,
@@ -8,7 +9,8 @@ import {
 } from '../../lib/address'
 import fixtures from '../fixtures.json'
 import { isValidLnUrl } from '@arkade-os/lnurl-client'
-import { isValidArkAddress } from '@arkade-os/sdk'
+import { ArkAddress, isValidArkAddress } from '@arkade-os/sdk'
+import { hex } from '@scure/base'
 
 describe('address utilities', () => {
   describe('decodeAddress', () => {
@@ -20,6 +22,28 @@ describe('address utilities', () => {
 
     it('should throw an error for an invalid address', () => {
       expect(() => decodeArkAddress('invalidAddress')).toThrow('Invalid address')
+    })
+  })
+
+  describe('haveSameServerPubKey', () => {
+    const [first, second] = fixtures.lib.address.ark
+
+    it('should return true for two addresses on the same server', () => {
+      const sameServer = new ArkAddress(
+        hex.decode(first.serverPubKey),
+        hex.decode(second.vtxoTaprootKey),
+        'tark',
+      ).encode()
+      expect(haveSameServerPubKey(first.address, sameServer)).toBe(true)
+    })
+
+    it('should return false for addresses on different servers', () => {
+      expect(haveSameServerPubKey(first.address, second.address)).toBe(false)
+    })
+
+    it('should return false when either address does not decode', () => {
+      expect(haveSameServerPubKey('invalidAddress', first.address)).toBe(false)
+      expect(haveSameServerPubKey(first.address, 'invalidAddress')).toBe(false)
     })
   })
 
