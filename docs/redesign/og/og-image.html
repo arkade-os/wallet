@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Arkade Wallet OG</title>
+<style>
+  @font-face { font-family: 'TT Firs Neue'; src: url('firs.woff2') format('woff2'); font-weight: 500; }
+  @font-face { font-family: 'Geist'; src: url('geist.woff2') format('woff2'); font-weight: 100 900; }
+  @font-face { font-family: 'Geist Mono'; src: url('geist_mono.woff2') format('woff2'); font-weight: 100 900; }
+
+  :root {
+    --white: #ffffff;
+    --cream: #fffdf8;
+    --purple: #381993;
+    --purple-screen: #23105f;
+    --lavender: #d9d2ff;
+    --mauve: #9987e5;
+    --coral: #eb583c;
+    --ink: #151219;
+    --ink-3: #6b6673;
+    --surface: #f1eff4;
+    --hairline: rgb(21 18 25 / 0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; background: var(--white); }
+  body { position: relative; color: var(--ink); font-family: 'Geist', sans-serif; -webkit-font-smoothing: antialiased; }
+
+  /* Logo: the stepped A on its 4x4 grid, then the wordmark. */
+  .logo { position: absolute; left: 72px; top: 64px; display: flex; align-items: center; gap: 11px; }
+  .logo svg { width: 30px; height: 30px; display: block; }
+  .logo span { font-family: 'TT Firs Neue'; font-weight: 500; font-size: 31px; letter-spacing: -0.03em; line-height: 1; }
+
+  .headline {
+    position: absolute; left: 72px; bottom: 76px; width: 520px;
+    font-family: 'TT Firs Neue'; font-weight: 500; font-size: 84px; line-height: 0.94; letter-spacing: -0.04em;
+    text-wrap: balance;
+  }
+
+  /* The specimen: the wallet's Home, on the stack. */
+  .stack { position: absolute; left: 674px; top: 92px; width: 432px; height: 620px; }
+  .layer, .card { position: absolute; inset: 0; border-radius: 24px; }
+  .layer--lavender { transform: translate(7px, 7px); background: var(--lavender); }
+  .layer--mauve { transform: translate(14px, 14px); background: var(--mauve); }
+  .layer--coral { transform: translate(22px, 22px); background: var(--coral); }
+  .card { background: var(--white); box-shadow: inset 0 0 0 1px var(--hairline); padding: 34px 28px; }
+
+  .figure { display: flex; align-items: baseline; font-family: 'TT Firs Neue'; font-weight: 500; font-size: 64px; line-height: 1; letter-spacing: -0.045em; }
+  .figure .cents { color: rgb(21 18 25 / 0.42); }
+  .secondary { margin-top: 12px; font-size: 18px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+  .actions { display: flex; gap: 11px; margin-top: 30px; }
+  .button {
+    flex: 1 1 0; display: flex; align-items: center; justify-content: space-between;
+    height: 58px; padding: 0 18px; border-radius: 14px;
+    font-family: 'Geist Mono'; font-weight: 500; font-size: 15px; letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .button svg { width: 15px; height: 15px; display: block; }
+  .button--outline { box-shadow: inset 0 0 0 1.5px var(--ink); color: var(--ink); }
+  .button--primary { background: var(--purple); color: var(--cream); box-shadow: 0 3px 0 0 var(--purple-screen); }
+
+  .section { margin-top: 34px; }
+  .section__head { display: flex; justify-content: space-between; align-items: center; }
+  .section__title { font-size: 19px; font-weight: 600; }
+  .section__action { font-size: 16px; color: var(--ink-3); font-weight: 500; }
+  .contacts { display: flex; gap: 14px; margin-top: 14px; }
+  .contact { width: 72px; display: flex; flex-direction: column; align-items: center; gap: 9px; }
+  .avatar {
+    width: 56px; height: 56px; border-radius: 999px; display: flex; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--ink) 5%, var(--white));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 6%, transparent);
+    color: color-mix(in srgb, #391998 78%, var(--ink));
+    font-family: 'Geist'; font-weight: 600; font-size: 20px;
+  }
+  .contact span { font-size: 14px; }
+  .account { display: flex; align-items: center; gap: 14px; margin-top: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--hairline); }
+  .account svg { width: 46px; height: 46px; display: block; }
+  .account__copy { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  .account__name { font-size: 18px; font-weight: 500; }
+  .account__sub { font-size: 15px; color: var(--ink-3); }
+  .account__value { font-family: 'Geist Mono'; font-size: 16px; font-weight: 500; }
+</style>
+</head>
+<body>
+  <div class="logo">
+    <svg viewBox="0 0 4 4" shape-rendering="crispEdges" aria-hidden="true">
+      <g fill="#381993">
+        <rect x="1" y="0" width="2" height="1" />
+        <path d="M1 0 L0 1 H1 Z" /><path d="M3 0 L4 1 H3 Z" />
+        <rect x="0" y="1" width="1" height="1" /><rect x="3" y="1" width="1" height="1" />
+        <rect x="1" y="2" width="2" height="1" />
+        <rect x="0" y="3" width="1" height="1" /><rect x="3" y="3" width="1" height="1" />
+      </g>
+    </svg>
+    <span>Arkade</span>
+  </div>
+
+  <h1 class="headline">Your Bitcoin, supercharged</h1>
+
+  <div class="stack" aria-hidden="true">
+    <div class="layer layer--coral"></div>
+    <div class="layer layer--mauve"></div>
+    <div class="layer layer--lavender"></div>
+    <div class="card">
+      <div class="figure">$1,240<span class="cents">.00</span></div>
+      <div class="secondary">1,240,000 sats</div>
+      <div class="actions">
+        <div class="button button--outline">Receive
+          <svg viewBox="0 0 5 5" shape-rendering="crispEdges" fill="currentColor"><rect x="4" y="0" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="2" y="4" width="1" height="1"/></svg>
+        </div>
+        <div class="button button--primary">Send
+          <svg viewBox="0 0 5 5" shape-rendering="crispEdges" fill="currentColor"><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="4" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/></svg>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section__head"><span class="section__title">Contacts</span><span class="section__action">View all</span></div>
+        <div class="contacts">
+          <div class="contact"><div class="avatar">M</div><span>Maya</span></div>
+          <div class="contact"><div class="avatar">L</div><span>Leo</span></div>
+          <div class="contact"><div class="avatar">N</div><span>Nora</span></div>
+          <div class="contact"><div class="avatar">S</div><span>Sam</span></div>
+          <div class="contact"><div class="avatar">J</div><span>Jules</span></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section__head"><span class="section__title">Accounts</span></div>
+        <div class="account">
+          <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#381993"/><path d="M8.500 5v14M6.500 5h7a3.500 3.500 0 0 1 0 7h-5M8.500 12h6a3.500 3.500 0 0 1 0 7h-8M10 3v2M13 3v2M10 19v2M13 19v2" transform="translate(6.4 6.4) scale(0.8)" fill="none" stroke="#fffdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div class="account__copy"><span class="account__name">Bitcoin</span><span class="account__sub">1,240,000 sats</span></div>
+          <span class="account__value">$1,240.00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
