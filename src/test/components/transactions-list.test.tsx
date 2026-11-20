@@ -26,6 +26,40 @@ import { saveContact } from '../../lib/contacts'
 describe('TransactionsList', () => {
   beforeEach(() => localStorage.clear())
 
+  // A contact saved without a name must not bring the address back into the row.
+  it('reads a send to a contact saved without a name as a plain send', () => {
+    const address = 'bob@pay.example'
+    saveContact(address, '')
+    const tx = {
+      amount: 500,
+      boardingTxid: '',
+      createdAt: 1_700_000_100,
+      destination: address,
+      lnurl: { address },
+      explorable: undefined,
+      preconfirmed: false,
+      redeemTxid: 'lnurl-send-unnamed',
+      roundTxid: '',
+      settled: true,
+      type: 'sent',
+    } satisfies Tx
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <FlowContext.Provider value={mockFlowContextValue}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [tx] } as any}>
+                <TransactionsList mode='static' />
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+    expect(screen.getByText('Sent')).toBeInTheDocument()
+    expect(screen.queryByText(/bob@pay\.example/)).not.toBeInTheDocument()
+  })
+
   it('labels a saved contact without turning the row into a contact link', () => {
     const address = 'alice@pay.example'
     saveContact(address, 'Alice')

@@ -28,7 +28,7 @@ import {
 import UnverifiedBadge from './UnverifiedBadge'
 import { useTransactionAmountDisplay } from '../hooks/useTransactionAmountDisplay'
 import { useTranslation } from '../providers/language'
-import { contactAddressForActivity, contactDisplayNameForAddress } from '../lib/contacts'
+import { contactAddressForActivity, contactForAddress } from '../lib/contacts'
 
 const TransactionLine = ({
   tx,
@@ -45,8 +45,8 @@ const TransactionLine = ({
   const { toFiatAmount } = useContext(FiatContext)
   const { assetMetadataCache } = useContext(WalletContext)
   const { language, t } = useTranslation()
-  const contactAddress = contactAddressForActivity(tx)
-  const contactName = contactDisplayNameForAddress(contactAddress)
+  // Only a name the user gave: a contact saved without one reads as a plain send, never as its address.
+  const contactName = contactForAddress(contactAddressForActivity(tx))?.name?.trim() || undefined
 
   const date = tx.createdAt
     ? prettyDate(tx.createdAt, language)
