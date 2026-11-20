@@ -387,3 +387,10 @@ export const mockSolverCard = {
     },
   ],
 }
+
+export const mockContact = {
+  address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
+  name: 'Alice onchain address',
+  sendCount: 0,
+  lastSentAt: 0,
+}
