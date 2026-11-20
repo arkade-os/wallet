@@ -32,8 +32,11 @@ with grey minor units (`Figure`). Flags and token logos give way to drawn curren
 3×3 pattern derived from their address (`AddressPattern`). Pinch zoom is no longer disabled.
 
 **Home.** No logo, no bottom bar, no Apps entry, no promotions. Scan and Settings sit at the top right; on
-desktop Settings moves to the sidebar and Scan stays. The balance leads, with the month's change and a value
-line when there is history. Receive and Send are the two primary actions, set like the buttons on arkadeos.com:
+desktop Settings moves to the sidebar and Scan stays. The balance leads, with the same total in the other unit
+under it: a tap puts Bitcoin first or the currency back, and holding the balance hides or shows it (keyboard and
+screen reader users get a Hide balances button). The value chart and its monthly change are gone: they re-priced
+today's holdings at past Bitcoin prices, a price chart rather than the wallet's own history. Saved contacts follow
+the actions as a row; tapping one opens Send to them. Receive and Send are the two primary actions, set like the buttons on arkadeos.com:
 the label in Geist Mono capitals and a pixel arrow at the end (`PixelArrow`, a 5×5 grid), Receive outlined in ink and
 Send solid. Accounts are a ruled list, a hairline under each row, with amounts in mono. Every list of accounts or
 assets elsewhere is ruled the same way, and every amount in a list, activity included, is in mono. An account's
@@ -84,7 +87,7 @@ Product strings were kept unless listed here.
 | Activity labels `Lightning receive` / `Lightning send` and their states become `Received`, `Receiving`, `Receive failed`, `Receive lost`, `Receive refunded`, `Sent`, `Sending`, `Send failed`, `Send lost`, `Send refunded` (en, es, pt) | Keep Lightning in the background |
 | `Received via {rail}` / `Sent via {rail}` become `Received` / `Sent` | Same |
 | New on Receive: `Other formats`, its intro and row descriptions, `Default`, `Showing {format}`, `A third party swaps them to Bitcoin for you` | From the approved design |
-| New on Home and keypad: `this month`, `Available`, `Max`, `More than your balance`, `Close` | New controls need names |
+| New on Home and keypad: `Available`, `Max`, `More than your balance`, `Close` | New controls need names |
 | `Buy or sell bitcoin` → `Buy or sell Bitcoin`, and Bitcoin capitalised in two error strings (en) and in six Spanish and Portuguese strings | House rule |
 | Portuguese `lnurlReceivedAt` now includes `{address}` | It dropped it; a bug fix |
 | `Welcome to Arkade` loses its emoji (en, es, pt); it now shows only on the in-app-browser screen | Asked for |
@@ -95,9 +98,7 @@ Product strings were kept unless listed here.
 Left alone and worth a decision: `Tap to Sign`, `Sounds good`,
 `No password, YOLO`, and `Unified` as the default format's name.
 
-Also open: Home's `this month` and the chart's `Value of your holdings over the past month`. The figures
-re-price what the wallet holds today at past Bitcoin prices over 30 days; they are not the wallet's own
-history, so a deposit made today still shows a month of change. The wording should say so.
+Home's `this month` and `Value of your holdings over the past month` left with the chart.
 
 ## Checked
 
@@ -131,7 +132,6 @@ on `master`.
 | Leftover spinners, icon, 14px fields, placeholder contrast, lowercase Bitcoin, dead selectors | Shared loader, `Glyph` home, 16px, `--ink-3`, six strings, removed | lint, unit tests |
 | Empty Home had no way into Activity on a phone | View all is always there | `index.test.tsx`, driver `home` |
 
-Not changed, on purpose: Home's month label (a copy decision, see above).
 
 ## SDK patch
 

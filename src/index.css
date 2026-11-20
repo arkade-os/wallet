@@ -454,6 +454,31 @@ button {
   margin-top: 0.75rem;
 }
 
+/* The balance is a button: a tap switches units, a hold hides or shows it. */
+.home-hero__figure {
+  display: inline-flex;
+  max-width: 100%;
+  cursor: pointer;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.home-hero__figure .privacy-amount__value {
+  transition: transform var(--press-up) var(--ease-out);
+}
+
+.home-hero__figure:active .privacy-amount__value {
+  transform: scale(var(--active-transform-scale));
+  transition-duration: var(--press-down);
+}
+
 .home-hero__balance {
   font-family: var(--font-family-heading);
   font-size: clamp(2.75rem, 15.4vw, 3.75rem);
@@ -477,58 +502,6 @@ button {
   font-size: 0.9375rem;
   line-height: 1.5rem;
   font-variant-numeric: tabular-nums;
-}
-
-.home-hero__change {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  color: var(--fg);
-  font-weight: 500;
-}
-
-.home-hero__change--up {
-  color: var(--brand-text);
-}
-
-.home-hero__period {
-  margin-left: 0.25rem;
-  color: var(--ink-3);
-  font-weight: 400;
-}
-
-.home-hero__chart {
-  margin: 0.875rem -1rem 0;
-}
-
-.value-chart {
-  position: relative;
-  width: 100%;
-}
-
-.value-chart svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.value-chart path {
-  fill: none;
-  stroke: var(--brand-text);
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-/* The pixel: a square marking "now", with a quiet halo */
-.value-chart__now {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  margin: -4px 0 0 -4px;
-  background: var(--brand-text);
-  box-shadow: 0 0 0 5px color-mix(in srgb, var(--brand-text) 14%, transparent);
 }
 
 .home-actions {

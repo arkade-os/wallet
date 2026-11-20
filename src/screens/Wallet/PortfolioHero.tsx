@@ -1,42 +1,78 @@
-import { forwardRef, useContext } from 'react'
+import { PointerEvent, forwardRef, useContext, useEffect, useRef } from 'react'
 import { PrivacyAmount } from '../../components/PrivacyAmount'
 import { usePortfolioBalanceDisplay } from '../../hooks/usePortfolioBalanceDisplay'
-import { usePortfolioHistory } from '../../hooks/usePortfolioHistory'
+import { toggleBalanceLead } from '../../lib/balanceLead'
+import { hapticLight } from '../../lib/haptics'
+import { BackupContext } from '../../providers/backup'
 import { ConfigContext } from '../../providers/config'
-import { FiatContext } from '../../providers/fiat'
 import { WalletContext } from '../../providers/wallet'
 import { useTranslation } from '../../providers/language'
-import { prettyFiatAmount } from '../../lib/format'
-import ValueChart from '../../components/ValueChart'
 import Figure from '../../components/Figure'
-import Glyph from '../../icons/Glyph'
+
+/** How long a press on the balance must last to hide or show it instead of switching units. */
+export const HOLD_TO_HIDE_MS = 500
+/** A press that travels further than this is a scroll, not a hold. */
+const HOLD_SLOP_PX = 10
 
 interface PortfolioHeroProps {
   collapseProgress?: number
 }
 
 /**
- * Fiat-primary total balance across BTC and every account, left aligned,
- * with the month's change and a chart of what today's holdings were worth.
+ * The total balance across Bitcoin and every account, left aligned, with the same total in the other
+ * unit underneath. A tap swaps which of the two leads; holding the balance hides or shows it.
  */
 const PortfolioHero = forwardRef<HTMLDivElement, PortfolioHeroProps>(function PortfolioHero({ collapseProgress }, ref) {
-  const { balance, maskedBalance, unit, secondaryBalance, secondaryUnit, maskedSecondary, showSecondary } =
+  const { balance, maskedBalance, unit, secondaryBalance, secondaryUnit, maskedSecondary, showSecondary, canSwitch } =
     usePortfolioBalanceDisplay()
   const { config } = useContext(ConfigContext)
-  const { fiatDecimals } = useContext(FiatContext)
+  const { backupAndUpdateConfig } = useContext(BackupContext)
   const { syncing } = useContext(WalletContext)
   const { t } = useTranslation()
-  const history = usePortfolioHistory()
   const progress = collapseProgress === undefined ? undefined : Math.max(0, Math.min(1, collapseProgress))
-  const hasTrend = history.status === 'ready' && config.showBalance
-  const up = history.delta >= 0
-  const decimals = fiatDecimals()
-  const deltaText = prettyFiatAmount(Math.abs(history.delta), config.currency, {
-    bitcoinUnit: config.unit,
-    maximumFractionDigits: decimals,
-    minimumFractionDigits: decimals,
+
+  const press = useRef<{ timer?: ReturnType<typeof setTimeout>; x: number; y: number; held: boolean }>({
+    x: 0,
+    y: 0,
+    held: false,
   })
-  const percentText = `${(Math.abs(history.ratio) * 100).toFixed(1)}%`
+  useEffect(() => () => clearTimeout(press.current.timer), [])
+
+  const toggleHidden = () => {
+    hapticLight()
+    backupAndUpdateConfig({ ...config, showBalance: !config.showBalance })
+  }
+
+  const startPress = (event: PointerEvent<HTMLButtonElement>) => {
+    clearTimeout(press.current.timer)
+    press.current = {
+      x: event.clientX,
+      y: event.clientY,
+      held: false,
+      timer: setTimeout(() => {
+        press.current.held = true
+        toggleHidden()
+      }, HOLD_TO_HIDE_MS),
+    }
+  }
+
+  const movePress = (event: PointerEvent<HTMLButtonElement>) => {
+    const { x, y } = press.current
+    if (Math.hypot(event.clientX - x, event.clientY - y) > HOLD_SLOP_PX) clearTimeout(press.current.timer)
+  }
+
+  const endPress = () => clearTimeout(press.current.timer)
+
+  const handleClick = () => {
+    // The click that ends a hold already did its job.
+    if (press.current.held) {
+      press.current.held = false
+      return
+    }
+    if (!canSwitch) return
+    hapticLight()
+    toggleBalanceLead()
+  }
 
   return (
     <div className='home-hero'>
@@ -54,21 +90,32 @@ const PortfolioHero = forwardRef<HTMLDivElement, PortfolioHeroProps>(function Po
               }
         }
       >
-        <div className='flex items-baseline gap-2'>
-          <PrivacyAmount className='home-hero__balance' masked={maskedBalance} testId='main-balance' interactive>
-            <Figure value={balance} />
-          </PrivacyAmount>
-          {unit ? <span className='text-xl text-ink-3'>{unit}</span> : null}
-        </div>
+        <button
+          type='button'
+          className='home-hero__figure'
+          aria-label={canSwitch ? t('components.toggleCurrency') : undefined}
+          data-testid='main-balance-button'
+          onClick={handleClick}
+          onPointerDown={startPress}
+          onPointerMove={movePress}
+          onPointerUp={endPress}
+          onPointerLeave={endPress}
+          onPointerCancel={endPress}
+          onContextMenu={(event) => event.preventDefault()}
+        >
+          <span className='flex items-baseline gap-2'>
+            <PrivacyAmount className='home-hero__balance' masked={maskedBalance} testId='main-balance'>
+              <Figure value={balance} />
+            </PrivacyAmount>
+            {unit ? <span className='text-xl text-ink-3'>{unit}</span> : null}
+          </span>
+        </button>
+        {/* Holding is a pointer gesture; keyboard and screen reader users hide the balance here. */}
+        <button type='button' className='home-hero__hide sr-only focus-visible:not-sr-only' onClick={toggleHidden}>
+          {config.showBalance ? t('components.hideBalances') : t('components.showBalances')}
+        </button>
         <div className='home-hero__meta'>
-          {hasTrend ? (
-            <span className={up ? 'home-hero__change home-hero__change--up' : 'home-hero__change'}>
-              <Glyph name={up ? 'arrowUp' : 'arrowDown'} size={14} strokeWidth={2.5} />
-              <span className='sr-only'>{up ? '+' : '-'}</span>
-              {deltaText} · {percentText}
-              <span className='home-hero__period'>{t('wallet.thisMonth')}</span>
-            </span>
-          ) : showSecondary ? (
+          {showSecondary ? (
             <span className='flex items-baseline gap-1'>
               <PrivacyAmount masked={maskedSecondary} testId='secondary-balance'>
                 {secondaryBalance}
@@ -79,11 +126,6 @@ const PortfolioHero = forwardRef<HTMLDivElement, PortfolioHeroProps>(function Po
           {syncing ? <p role='status'>{t('wallet.syncing')}</p> : null}
         </div>
       </div>
-      {hasTrend ? (
-        <div className='home-hero__chart'>
-          <ValueChart points={history.points} label={t('wallet.valueChart')} />
-        </div>
-      ) : null}
     </div>
   )
 })

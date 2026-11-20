@@ -6,6 +6,7 @@ import { usePortfolioFiat } from './usePortfolioFiat'
 import { FIAT_SYMBOLS } from '../lib/fiat'
 import { maskedFiat } from '../components/PrivacyAmount'
 import { Currencies, Unit } from '../lib/types'
+import { useBalanceLead } from '../lib/balanceLead'
 
 export function usePortfolioBalanceDisplay() {
   const { config } = useContext(ConfigContext)
@@ -43,13 +44,31 @@ export function usePortfolioBalanceDisplay() {
   // redundant secondary line.
   const showSecondary = config.currency !== Currencies.BTC
 
-  return {
-    balance,
-    maskedBalance,
-    unit,
-    secondaryBalance: secondary.amount,
-    secondaryUnit: secondary.unit,
-    maskedSecondary,
-    showSecondary,
-  }
+  // A tap on the Home balance can put Bitcoin first; the currency then takes the secondary line.
+  // With BTC as the currency both lines are Bitcoin already, so there is nothing to switch.
+  const lead = useBalanceLead()
+  const canSwitch = showSecondary
+  const bitcoinFirst = canSwitch && lead === 'bitcoin'
+
+  return bitcoinFirst
+    ? {
+        balance: secondary.amount,
+        maskedBalance: maskedSecondary,
+        unit: secondary.unit,
+        secondaryBalance: balance,
+        secondaryUnit: unit,
+        maskedSecondary: maskedBalance,
+        showSecondary,
+        canSwitch,
+      }
+    : {
+        balance,
+        maskedBalance,
+        unit,
+        secondaryBalance: secondary.amount,
+        secondaryUnit: secondary.unit,
+        maskedSecondary,
+        showSecondary,
+        canSwitch,
+      }
 }
