@@ -41,6 +41,7 @@ import { lnurlSends, subscribeLnurlSends } from '../../lib/lnurlSends'
 import TransactionAmountSummary from '../../components/TransactionAmountSummary'
 import { useTranslation } from '../../providers/language'
 import { contactForAddress, readContacts, savableActivityAddress, saveContact } from '../../lib/contacts'
+import { consoleError } from '../../lib/logs'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -229,7 +230,7 @@ export default function Transaction() {
   const handleSaveContact = () => {
     if (!destinationAddress) return
     if (!saveContact(destinationAddress, saveContactName)) return setError(t('contacts.saveFailed'))
-    backupContacts(readContacts())
+    backupContacts(readContacts()).catch((err) => consoleError(err, 'failed to backup contacts'))
     setSavedContact(true)
     setSaveContactOpen(false)
     setSaveContactName('')

@@ -21,6 +21,7 @@ import {
   readRecents,
   saveContact,
 } from '../../lib/contacts'
+import { consoleError } from '../../lib/logs'
 import { emptySendInfo, FlowContext } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { useTranslation } from '../../providers/language'
@@ -99,7 +100,7 @@ export default function Contacts() {
       return setError(t('contacts.addressTaken'))
     }
     if (!saveContact(target, name, editTarget)) return setError(t('contacts.saveFailed'))
-    backupContacts(readContacts())
+    backupContacts(readContacts()).catch((err) => consoleError(err, 'failed to backup contacts'))
     refresh()
     setSelected(target)
     closeEditor()
@@ -107,7 +108,7 @@ export default function Contacts() {
 
   const remove = () => {
     if (!selected || !forgetContact(selected)) return setError(t('contacts.saveFailed'))
-    backupContacts(readContacts())
+    backupContacts(readContacts()).catch((err) => consoleError(err, 'failed to backup contacts'))
     refresh()
     setSelected(undefined)
     setDeleting(false)

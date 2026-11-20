@@ -8,7 +8,8 @@ import { FlowContext, emptySendInfo } from '../../../providers/flow'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { OptionsContext } from '../../../providers/options'
 import { WalletContext } from '../../../providers/wallet'
-import { recordSentRecent, saveContact, saveRecentAsContact } from '../../../lib/contacts'
+import { BackupContext } from '../../../providers/backup'
+import { readContacts, recordSentRecent, saveContact, saveRecentAsContact, type Contact } from '../../../lib/contacts'
 import type { Tx } from '../../../lib/types'
 import {
   mockConfigContextValue,
@@ -17,6 +18,7 @@ import {
   mockNavigationContextValue,
   mockOptionsContextValue,
   mockWalletContextValue,
+  mockBackupContextValue,
 } from '../mocks'
 
 vi.mock('../../../components/SheetModal', () => ({
@@ -31,25 +33,29 @@ const renderPage = ({
   txs = [],
   setSendInfo = vi.fn(),
   navigate = vi.fn(),
+  backupContacts = mockBackupContextValue.backupContacts,
 }: {
   txs?: Tx[]
   setSendInfo?: (info: unknown) => void
   navigate?: (page: Pages) => void
+  backupContacts?: (contacts: Contact[]) => Promise<void>
 } = {}) =>
   render(
-    <OptionsContext.Provider value={{ ...mockOptionsContextValue, setOption: vi.fn() } as any}>
-      <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate }}>
-        <ConfigContext.Provider value={mockConfigContextValue}>
-          <FiatContext.Provider value={mockFiatContextValue}>
-            <FlowContext.Provider value={{ ...mockFlowContextValue, setSendInfo }}>
-              <WalletContext.Provider value={{ ...mockWalletContextValue, txs } as any}>
-                <Contacts />
-              </WalletContext.Provider>
-            </FlowContext.Provider>
-          </FiatContext.Provider>
-        </ConfigContext.Provider>
-      </NavigationContext.Provider>
-    </OptionsContext.Provider>,
+    <BackupContext.Provider value={{ ...mockBackupContextValue, backupContacts }}>
+      <OptionsContext.Provider value={{ ...mockOptionsContextValue, setOption: vi.fn() } as any}>
+        <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate }}>
+          <ConfigContext.Provider value={mockConfigContextValue}>
+            <FiatContext.Provider value={mockFiatContextValue}>
+              <FlowContext.Provider value={{ ...mockFlowContextValue, setSendInfo }}>
+                <WalletContext.Provider value={{ ...mockWalletContextValue, txs } as any}>
+                  <Contacts />
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </FiatContext.Provider>
+          </ConfigContext.Provider>
+        </NavigationContext.Provider>
+      </OptionsContext.Provider>
+    </BackupContext.Provider>,
   )
 
 describe('Contacts', () => {
@@ -93,6 +99,33 @@ describe('Contacts', () => {
     fireEvent.change(screen.getByLabelText('Address'), { target: { value: 'wrong' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save contact' }))
     await waitFor(() => expect(screen.getByText('Enter a valid address')).toBeInTheDocument())
+  })
+
+  it('reports backup failures while saving and deleting contacts locally', async () => {
+    const backupContacts = vi.fn().mockRejectedValue(new Error('Relay unavailable'))
+    renderPage({ backupContacts })
+
+    fireEvent.click(screen.getByRole('button', { name: 'New contact' }))
+    fireEvent.change(screen.getByLabelText('Address'), { target: { value: alice } })
+    fireEvent.change(screen.getByLabelText('Name (optional)'), { target: { value: 'Alice' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save contact' }))
+
+    await waitFor(() => expect(console.error).toHaveBeenCalledWith('failed to backup contacts: Relay unavailable'))
+    expect(backupContacts).toHaveBeenNthCalledWith(
+      1,
+      expect.arrayContaining([expect.objectContaining({ address: alice })]),
+    )
+    expect(readContacts()).toMatchObject([{ address: alice, name: 'Alice' }])
+    expect(screen.queryByTestId('sheet-modal')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Alice' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete contact' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm delete' }))
+
+    await waitFor(() => expect(console.error).toHaveBeenCalledTimes(2))
+    expect(backupContacts).toHaveBeenNthCalledWith(2, [])
+    expect(readContacts()).toEqual([])
+    expect(screen.getByText('No contacts yet')).toBeInTheDocument()
   })
 
   it('keeps the contact sheet mounted while typing a name', async () => {
