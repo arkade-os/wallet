@@ -71,8 +71,22 @@ const txs = [
   },
 ]
 
+// `?state=history-5000` (any count): a long history, for checking that nothing scales with it.
+const longHistory = (count: number) =>
+  Array.from({ length: count }, (_, i) => ({
+    ...txs[i % txs.length],
+    redeemTxid: `${mockTxId.slice(0, -8)}${i.toString(16).padStart(8, '0')}`,
+    boardingTxid: '',
+    preconfirmed: false,
+    settled: true,
+    createdAt: now - 60 * 60 * (3 + i * 7),
+    historyKey: `history-${i}`,
+  }))
+
 export function buildFixtures(theme: Themes, variant: string) {
   const empty = variant === 'empty'
+  const historyCount = Number(/^history-(\d+)$/.exec(variant)?.[1] ?? 0)
+  const history = historyCount ? longHistory(historyCount) : txs
   const balance = empty ? 0 : 3_512_500
   const fiat = {
     ...mockFiatContextValue,
@@ -138,8 +152,8 @@ export function buildFixtures(theme: Themes, variant: string) {
       wallet: { ...mockWalletContextValue.wallet, pubkey: '02'.padEnd(66, 'a') },
       balance,
       availableBalance: balance,
-      txs: empty ? [] : txs,
-      ungroupedTxs: empty ? [] : txs,
+      txs: empty ? [] : history,
+      ungroupedTxs: empty ? [] : history,
       isVerifiedAsset: (assetId: string) => assetId === MUTINYNET_USDT_ASSET_ID,
       assetBalances: empty ? [] : [{ assetId: MUTINYNET_USDT_ASSET_ID, amount: BigInt(17_000) }],
       availableAssetBalances: empty ? [] : [{ assetId: MUTINYNET_USDT_ASSET_ID, amount: BigInt(17_000) }],
