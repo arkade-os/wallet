@@ -209,6 +209,14 @@ const LOCK_GRACE_MS = 500
  */
 const FIRST_LOAD_GRACE_MS = 3_000
 
+/** Matched by `name`, the part that crosses tabs, so the swap screen re-quotes instead of retrying it. */
+class QuoteUnavailable extends Error {
+  constructor() {
+    super('This quote is no longer available — refresh to try again')
+    this.name = 'QuoteUnavailable'
+  }
+}
+
 /** Whether the trader is paying OUT. `paid` and `claimed` are how BOTH
  *  directions succeed, so every send announced itself as money received; only a
  *  receive takes delivery inside Arkade. Optional so `announce` cannot throw. */
@@ -819,11 +827,13 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     runOnDriver('chooseSwapQuote', [auctionId, bidId])
 
   const chooseSwapQuoteHere = async (auctionId: string, bidId: string): Promise<Quote> => {
+    const issuer = held.current
     const client = await driving()
     const auction = auctions.current.get(auctionId)
     const bid = auction?.bids.find((offer) => offer.id === bidId)
     if (!auction || !bid) throw new Error('These offers are no longer available — refresh to try again')
     const quote = await client.quoteBid(auction, bid)
+    if (held.current !== issuer) throw new QuoteUnavailable()
     remember(quote)
     return quote
   }
@@ -836,7 +846,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     const quote = issued.current.get(id)
     // Deliberate: a quote lives only in the client that derived it, which refuses to accept
     // another's. After a lock handoff the user quotes again; it is short-lived, so little is lost.
-    if (!quote) throw new Error('This quote is no longer available — refresh to try again')
+    if (!quote) throw new QuoteUnavailable()
     const swap = await client.accept(quote, { validUntil: quote.expiresAt })
     issued.current.delete(id)
     if (snapshot) {
@@ -861,10 +871,13 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const quoteExchangeHere = async (plan: OfferPlan): Promise<Quote> => {
     if (!emulatorPubkey) throw new Error('swap service unavailable')
     const network = aspInfo.network as NetworkName
+    const issuer = held.current
     const client = await driving()
     const give = assetIdFor(network, plan.deposit.asset.id)
     const take = assetIdFor(network, plan.receive.asset.id)
     const quoted = await client.quote({ give, take, amount: plan.deposit.atomic, amountOn: 'give' })
+    // A client replaced mid-quote was disposed with this quote's preparation.
+    if (held.current !== issuer) throw new QuoteUnavailable()
     remember(quoted)
     return quoted
   }

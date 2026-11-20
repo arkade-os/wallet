@@ -138,6 +138,30 @@ function OpenQuoteProbe() {
   )
 }
 
+function FirmQuoteProbe() {
+  const { quoteExchange, acceptSwapQuote } = useContext(SwapsContext)
+  const [quote, setQuote] = useState<Quote>()
+  const [failure, setFailure] = useState('')
+  const plan = {
+    deposit: { asset: { id: 'btc', decimals: 0 }, atomic: 1000n },
+    receive: { asset: { id: ASSET_ID, decimals: 0 }, atomic: 1000n },
+  } as never
+  return (
+    <>
+      <button onClick={() => void quoteExchange(plan).then(setQuote, (err: Error) => setFailure(err.name))}>
+        firm quote
+      </button>
+      <button
+        disabled={!quote}
+        onClick={() => void acceptSwapQuote(quote!).catch((err: Error) => setFailure(err.name))}
+      >
+        accept firm
+      </button>
+      <output>{failure}</output>
+    </>
+  )
+}
+
 function Harness() {
   const {
     markets,
@@ -730,6 +754,37 @@ describe('SwapsProvider', () => {
 
     await waitFor(() => expect(mocks.created).toHaveBeenCalledTimes(2))
     await waitFor(() => expect(mocks.dispose).toHaveBeenCalledOnce())
+  })
+
+  it('refuses by name a firm quote that a rebuilt client never prepared', async () => {
+    mocks.quote.mockResolvedValue({ id: 'firm-1', expiresAt: 9999999999 } as Quote)
+    renderProvider({}, <FirmQuoteProbe />)
+    await waitFor(() => expect(mocks.created).toHaveBeenCalledOnce())
+    fireEvent.click(screen.getByText('firm quote'))
+    await waitFor(() => expect(screen.getByText('accept firm')).toBeEnabled())
+
+    act(() => saveSolverCards([]))
+    await waitFor(() => expect(mocks.created).toHaveBeenCalledTimes(2))
+    fireEvent.click(screen.getByText('accept firm'))
+
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('QuoteUnavailable'))
+    expect(mocks.accept).not.toHaveBeenCalled()
+  })
+
+  it('refuses a firm quote that lands after its client was rebuilt', async () => {
+    let finish!: (quote: Quote) => void
+    mocks.quote.mockReturnValue(new Promise<Quote>((resolve) => (finish = resolve)))
+    renderProvider({}, <FirmQuoteProbe />)
+    await waitFor(() => expect(mocks.created).toHaveBeenCalledOnce())
+    fireEvent.click(screen.getByText('firm quote'))
+    await waitFor(() => expect(mocks.quote).toHaveBeenCalledOnce())
+
+    act(() => saveSolverCards([]))
+    await waitFor(() => expect(mocks.created).toHaveBeenCalledTimes(2))
+    await act(async () => finish({ id: 'late', expiresAt: 9999999999 } as Quote))
+
+    expect(screen.getByRole('status')).toHaveTextContent('QuoteUnavailable')
+    expect(screen.getByText('accept firm')).toBeDisabled()
   })
 
   it('quotes destinations through the swap client', async () => {

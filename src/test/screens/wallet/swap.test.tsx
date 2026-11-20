@@ -381,6 +381,25 @@ describe('Wallet swap flow', () => {
     expect(quoteExchange).toHaveBeenCalledOnce()
   })
 
+  it('quotes again on reopen when the driver no longer holds the firm quote', async () => {
+    const lost = Object.assign(new Error('This quote is no longer available — refresh to try again'), {
+      name: 'QuoteUnavailable',
+    })
+    acceptSwapQuote.mockRejectedValueOnce(lost)
+    await reviewSatsToBrl()
+
+    confirm()
+    await waitFor(() => expect(screen.getByText(/no longer available/)).toBeInTheDocument())
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Confirm swap' })).not.toBeInTheDocument())
+    await openSmartRoutingReview()
+    confirm()
+
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledTimes(2))
+    expect(quoteExchange).toHaveBeenCalledTimes(2)
+    expect(acceptSwapQuote.mock.calls[1][0]).not.toBe(acceptSwapQuote.mock.calls[0][0])
+  })
+
   it('keeps a firm quote below the estimate when the review is reopened', async () => {
     quoteExchange.mockImplementationOnce(async (plan: OfferPlan) => firmQuote(plan, plan.receive.atomic - 1n))
     await reviewSatsToBrl()

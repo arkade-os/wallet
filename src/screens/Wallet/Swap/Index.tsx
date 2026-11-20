@@ -685,6 +685,12 @@ export default function WalletSwap() {
     setFirmQuoting((current) => (current === requested ? undefined : current))
   }
 
+  // The driver no longer holds this input's firm quote; keeping its error makes the review quote again.
+  const forgetLostFirmQuote = (error: unknown) => {
+    if ((error as Error)?.name === 'QuoteUnavailable')
+      setFirmQuotes((current) => ({ ...current, [inputKey]: { error: extractError(error) } }))
+  }
+
   const confirmSwap = async () => {
     if (submitting.current || !toAsset || confirming || awaitingFirm) return
     const lapsed = selected && (selectedExpired || selected.quote.expiresAt <= Math.floor(Date.now() / 1000))
@@ -732,6 +738,7 @@ export default function WalletSwap() {
         }
         hapticLight()
       } catch (error) {
+        if (!offer) forgetLostFirmQuote(error)
         setConfirmError(extractError(error))
       } finally {
         submitting.current = false
@@ -761,6 +768,7 @@ export default function WalletSwap() {
       setSuccessQuote(funded)
       hapticLight()
     } catch (error) {
+      forgetLostFirmQuote(error)
       setConfirmError(extractError(error))
     } finally {
       submitting.current = false
