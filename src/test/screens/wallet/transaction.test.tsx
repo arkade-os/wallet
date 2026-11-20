@@ -15,10 +15,12 @@ import {
   mockNavigationContextValue,
   mockTxInfo,
   mockWalletContextValue,
+  mockBackupContextValue,
 } from '../mocks'
 import { AspContext } from '../../../providers/asp'
 import { WalletContext } from '../../../providers/wallet'
 import { NavigationContext } from '../../../providers/navigation'
+import { BackupContext } from '../../../providers/backup'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { Currencies } from '../../../lib/types'
@@ -88,17 +90,19 @@ function CancellationHarness({
     <NavigationContext.Provider value={mockNavigationContextValue}>
       <ConfigContext.Provider value={mockConfigContextValue}>
         <FiatContext.Provider value={mockFiatContextValue}>
-          <AspContext.Provider value={mockAspContextValue}>
-            <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: pendingSwapTx }}>
-              <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [pendingSwapTx] } as any}>
-                <SwapsContext.Provider value={{ swaps: reconciled ? [cancelledSwap] : swaps, cancelSwap } as any}>
-                  <LimitsContext.Provider value={mockLimitsContextValue}>
-                    <Transaction />
-                  </LimitsContext.Provider>
-                </SwapsContext.Provider>
-              </WalletContext.Provider>
-            </FlowContext.Provider>
-          </AspContext.Provider>
+          <BackupContext.Provider value={mockBackupContextValue}>
+            <AspContext.Provider value={mockAspContextValue}>
+              <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: pendingSwapTx }}>
+                <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [pendingSwapTx] } as any}>
+                  <SwapsContext.Provider value={{ swaps: reconciled ? [cancelledSwap] : swaps, cancelSwap } as any}>
+                    <LimitsContext.Provider value={mockLimitsContextValue}>
+                      <Transaction />
+                    </LimitsContext.Provider>
+                  </SwapsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </AspContext.Provider>
+          </BackupContext.Provider>
         </FiatContext.Provider>
       </ConfigContext.Provider>
     </NavigationContext.Provider>
@@ -120,17 +124,19 @@ function RecoveryHarness({ recover }: { recover: (id: string) => Promise<boolean
     <NavigationContext.Provider value={mockNavigationContextValue}>
       <ConfigContext.Provider value={mockConfigContextValue}>
         <FiatContext.Provider value={mockFiatContextValue}>
-          <AspContext.Provider value={mockAspContextValue}>
-            <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: pendingSwapTx }}>
-              <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [pendingSwapTx] } as any}>
-                <SwapsContext.Provider value={{ swaps, cancelSwap: vi.fn(), recoverSwap } as any}>
-                  <LimitsContext.Provider value={mockLimitsContextValue}>
-                    <Transaction />
-                  </LimitsContext.Provider>
-                </SwapsContext.Provider>
-              </WalletContext.Provider>
-            </FlowContext.Provider>
-          </AspContext.Provider>
+          <BackupContext.Provider value={mockBackupContextValue}>
+            <AspContext.Provider value={mockAspContextValue}>
+              <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: pendingSwapTx }}>
+                <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [pendingSwapTx] } as any}>
+                  <SwapsContext.Provider value={{ swaps, cancelSwap: vi.fn(), recoverSwap } as any}>
+                    <LimitsContext.Provider value={mockLimitsContextValue}>
+                      <Transaction />
+                    </LimitsContext.Provider>
+                  </SwapsContext.Provider>
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </AspContext.Provider>
+          </BackupContext.Provider>
         </FiatContext.Provider>
       </ConfigContext.Provider>
     </NavigationContext.Provider>

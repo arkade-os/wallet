@@ -1,4 +1,5 @@
-import { Config } from '../lib/types'
+import { Config } from '@/lib/types'
+import { Contact, readContacts, saveContacts } from '@/lib/contacts'
 import { ConfigContext } from './config'
 import { consoleError } from '@/lib/logs'
 import { BackupEvent, NostrStorage } from '@/lib/nostr'
@@ -14,12 +15,14 @@ import { ReactNode, createContext, useContext, useEffect, useRef } from 'react'
  */
 type NostrStorageData = {
   config?: Config
+  contacts?: Contact[]
   solverCards?: LocalCardInput[]
 }
 
 type BackupContextProps = {
   backupAndUpdateConfig: (config: Config) => void
   backupConfig: (config: Config, force?: boolean) => Promise<void>
+  backupContacts: (contacts: Contact[], configOverride?: Config) => Promise<void>
   backupSolverCards: (solverCards: LocalCardInput[], configOverride?: Config) => Promise<void>
   fullBackup: (config: Config) => Promise<void>
   initialiseNostrBackup: (secKey: Uint8Array) => void
@@ -27,11 +30,12 @@ type BackupContextProps = {
 }
 
 export const BackupContext = createContext<BackupContextProps>({
-  backupConfig: async () => {},
   backupAndUpdateConfig: () => {},
+  backupConfig: async () => {},
+  backupContacts: async () => {},
   backupSolverCards: async () => {},
-  initialiseNostrBackup: () => {},
   fullBackup: async () => {},
+  initialiseNostrBackup: () => {},
   restore: async () => {},
 })
 
@@ -75,6 +79,17 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
   }
 
   /**
+   * backup contacts to Nostr
+   * @param contacts Contact[] to backup
+   */
+  const backupContacts = async (contacts: Contact[], configOverride?: Config) => {
+    const effectiveConfig = configOverride ?? config
+    if (!effectiveConfig.nostrBackup) return
+    const data: NostrStorageData = { contacts }
+    await nostrStorage.current?.save(JSON.stringify(data))
+  }
+
+  /**
    * backup solver cards to Nostr
    * @param solverCards LocalCardInput[] to backup
    */
@@ -90,10 +105,9 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
    * @param config
    */
   const fullBackup = async (config: Config) => {
-    const solverCards = readSolverCards()
-    if (!solverCards.length) return backupConfig(config)
     await backupConfig(config)
-    await backupSolverCards(solverCards, config)
+    await backupContacts(readContacts(), config)
+    await backupSolverCards(readSolverCards(), config)
   }
 
   /**
@@ -108,8 +122,14 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
     // we enforce delegates on restore, and the server stays the locally configured one
     if (data?.config) updateConfig({ ...data.config, aspUrl: configRef.current.aspUrl, delegate: true })
 
-    // last, and non-fatal: a quota error writing cards must not fail a restore
-    // whose config already landed, and a missing card is re-addable by hand
+    if (data?.contacts) {
+      try {
+        saveContacts(data.contacts)
+      } catch (err) {
+        consoleError(err, 'failed to restore contacts')
+      }
+    }
+
     if (data?.solverCards) {
       try {
         saveSolverCards(data.solverCards)
@@ -129,9 +149,10 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
   const loadData = async (provider?: NostrStorage): Promise<NostrStorageData> => {
     const nostrProvider = provider ?? nostrStorage.current
 
-    if (!nostrProvider) return { config: undefined, solverCards: [] }
+    if (!nostrProvider) return { config: undefined, solverCards: [], contacts: [] }
 
     const loaded = {
+      contacts: [] as Contact[],
       config: null as Config | null,
       solverCards: [] as LocalCardInput[],
     }
@@ -156,17 +177,18 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
       if (!data) continue
 
       if (data.config) loaded.config = data.config
-
+      if (data.contacts) loaded.contacts = data.contacts
       if (data.solverCards) loaded.solverCards = data.solverCards
     }
 
-    return { config: loaded.config ?? undefined, solverCards: loaded.solverCards }
+    return { config: loaded.config ?? undefined, solverCards: loaded.solverCards, contacts: loaded.contacts }
   }
 
   return (
     <BackupContext.Provider
       value={{
         backupConfig,
+        backupContacts,
         backupSolverCards,
         backupAndUpdateConfig,
         initialiseNostrBackup,

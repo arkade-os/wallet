@@ -7,6 +7,7 @@ import { mockConfigContextValue } from '../screens/mocks'
 import { saveSolverCards } from '../../lib/solverCards'
 import type { Config } from '../../lib/types'
 import type { BackupEvent } from '../../lib/nostr'
+import { saveContacts } from '@/lib/contacts'
 
 const mocks = vi.hoisted(() => ({
   events: [] as BackupEvent[],
@@ -100,9 +101,33 @@ describe('BackupProvider restore', () => {
 
     await fullBackup(updatedConfig)
 
-    expect(mocks.save).toHaveBeenCalledTimes(2)
+    expect(mocks.save).toHaveBeenCalledTimes(3)
     expect(mocks.save).toHaveBeenNthCalledWith(1, JSON.stringify({ config: updatedConfig }))
-    expect(mocks.save).toHaveBeenNthCalledWith(2, JSON.stringify({ solverCards: cards }))
+    expect(mocks.save).toHaveBeenNthCalledWith(2, JSON.stringify({ contacts: [] }))
+    expect(mocks.save).toHaveBeenNthCalledWith(3, JSON.stringify({ solverCards: cards }))
+  })
+
+  it('backs up existing contacts when enabling Nostr backups before fullBackup', async () => {
+    const contacts = [
+      {
+        address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
+        name: 'Alice onchain address',
+        sendCount: 0,
+        lastSentAt: 0,
+      },
+    ] as any
+    saveContacts(contacts)
+
+    const updatedConfig = { ...localConfig, nostrBackup: true }
+    renderProvider(() => undefined)
+    initialiseNostrBackup(new Uint8Array(32))
+
+    await fullBackup(updatedConfig)
+
+    expect(mocks.save).toHaveBeenCalledTimes(3)
+    expect(mocks.save).toHaveBeenNthCalledWith(1, JSON.stringify({ config: updatedConfig }))
+    expect(mocks.save).toHaveBeenNthCalledWith(2, JSON.stringify({ contacts }))
+    expect(mocks.save).toHaveBeenNthCalledWith(3, JSON.stringify({ solverCards: [] }))
   })
 
   it('keeps the local server and applies the rest of the restored config', async () => {

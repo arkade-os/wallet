@@ -1,4 +1,12 @@
-import { test, expect, createWallet, resetAndRestoreWallet, navigateToSettings, mockSolverCard } from './utils'
+import {
+  test,
+  expect,
+  createWallet,
+  resetAndRestoreWallet,
+  navigateToSettings,
+  mockSolverCard,
+  mockContact,
+} from './utils'
 import { translations } from '../../lib/i18n'
 
 const tr = translations.en
@@ -97,10 +105,50 @@ test('should save solver cards to nostr', async ({ page }) => {
   // restore wallet
   await resetAndRestoreWallet(page)
 
-  // verify currency is euro
+  // verify solver card is restored
   await navigateToSettings(page)
   await page.getByText(tr.settings.advanced, { exact: true }).click()
   await page.getByText(tr.settings.solvers, { exact: true }).click()
   await expect(page.getByText(message)).toBeVisible()
   await expect(page.getByText(mockSolverCard.name)).toBeVisible()
+})
+
+test('should save contacts to nostr', async ({ page }) => {
+  test.setTimeout(60000)
+  // create wallet
+  await createWallet(page)
+
+  // enable nostr backups
+  await navigateToSettings(page)
+  await page.getByText(tr.settings.backup, { exact: true }).click()
+  await page.getByTestId('toggle-backup').click()
+
+  // navigate to contacts
+  await page.getByLabel(tr.common.back).click()
+  await page.getByRole('main').getByRole('button', { name: 'Contacts' }).click()
+
+  // add a contact
+  await page.getByRole('button', { name: tr.contacts.addNew }).click()
+  await page.getByTestId('contact-name').fill(mockContact.name)
+  await page.getByTestId('contact-address').fill(mockContact.address)
+  await page.getByRole('button', { name: tr.common.save }).click()
+
+  await page.waitForEvent(
+    'console',
+    (log) => log.type() === 'log' && log.text() === 'Message published to Nostr successfully',
+  )
+
+  // verify contact is added
+  await expect(page.getByRole('heading', { name: mockContact.name })).toBeVisible()
+  await expect(page.getByText(mockContact.address)).toBeVisible()
+  await expect(page.getByText(tr.contacts.edit)).toBeVisible()
+
+  // restore wallet
+  await resetAndRestoreWallet(page)
+
+  // verify contact is restored
+  await navigateToSettings(page)
+  await page.getByRole('main').getByRole('button', { name: 'Contacts' }).click()
+  await expect(page.getByText(tr.contacts.countOne)).toBeVisible()
+  await expect(page.getByText(mockContact.name)).toBeVisible()
 })

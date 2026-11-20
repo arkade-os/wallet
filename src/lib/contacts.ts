@@ -89,6 +89,10 @@ export function readContacts(): Contact[] {
   return readList(CONTACTS_KEY)
 }
 
+export function saveContacts(contacts: Contact[]): boolean {
+  return writeList(CONTACTS_KEY, contacts)
+}
+
 const splitMigrated = (): boolean => {
   try {
     return localStorage.getItem(SPLIT_KEY) === '1'
