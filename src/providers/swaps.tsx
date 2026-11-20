@@ -75,6 +75,7 @@ import { claimFeeRate } from '../lib/claimFee'
 import { onchainClaimEndpoint } from '../lib/onchainPayout'
 import { toInvoiceFacts } from '../lib/lnSwap'
 import { nostrRelayUrls } from '../lib/nostr'
+import { newRequestId } from '../lib/requestId'
 import { makeSwapClient, SwapsHeldElsewhere } from '../lib/swapClient'
 import { isSolverEnabled } from '../lib/solverRouting'
 import {
@@ -750,7 +751,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     from: string,
     to: string,
     amount: bigint,
-    requestId: string = crypto.randomUUID(),
+    requestId: string = newRequestId(),
     destination?: string,
   ): Promise<OpenRfqAuction> => runOnDriver('openSwapQuotes', [from, to, amount, requestId, destination])
 

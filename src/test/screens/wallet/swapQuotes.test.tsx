@@ -128,6 +128,18 @@ describe('Open swap quote choices', () => {
     await waitFor(() => expect(openSwapQuotes).toHaveBeenCalledTimes(2))
   })
 
+  it('searches on an origin without crypto.randomUUID', async () => {
+    vi.stubGlobal('crypto', { getRandomValues: crypto.getRandomValues.bind(crypto) })
+    try {
+      show()
+      fireEvent.click(screen.getByRole('button', { name: 'Find open offers' }))
+      await screen.findByText('Solver b')
+      expect(openSwapQuotes.mock.calls[0][3]).toMatch(/^[0-9a-f]{32}$/)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('waits for the quote drawer before automatically searching and cancels on close', async () => {
     openSwapQuotes.mockReturnValue(new Promise(() => undefined))
     const view = show({ autoSearch: true, open: false })

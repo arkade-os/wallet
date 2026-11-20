@@ -5,6 +5,7 @@ import ArrowIcon from '../../../icons/Arrow'
 import XIcon from '../../../icons/X'
 import { extractError } from '../../../lib/error'
 import { hapticTap } from '../../../lib/haptics'
+import { newRequestId } from '../../../lib/requestId'
 import { SwapsContext } from '../../../providers/swaps'
 import { useTranslation } from '../../../providers/language'
 
@@ -100,12 +101,12 @@ export default function QuoteChoices({
     if (loading || selecting || request.current) return
     searched.current = true
     const started = ++epoch.current
-    const requestId = crypto.randomUUID()
-    request.current = requestId
     setLoading(true)
     setAuction(undefined)
     setError('')
     try {
+      const requestId = newRequestId()
+      request.current = requestId
       const result = await api.current.openSwapQuotes(from.assetId, to.assetId, amount, requestId, destination)
       if (isCurrent(started)) setAuction(result)
     } catch (cause) {
