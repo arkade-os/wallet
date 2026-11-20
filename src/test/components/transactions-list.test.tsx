@@ -100,6 +100,34 @@ describe('TransactionsList', () => {
     expect(setTxInfo).toHaveBeenCalledWith(tx)
     expect(navigate).toHaveBeenCalledWith(Pages.Transaction)
   })
+  // Each row's pieces used to be components defined inside its render, so any re-render rebuilt every
+  // visible row's DOM from scratch. On a long history that made scrolling Activity stutter.
+  it("keeps a row's DOM when the row re-renders", () => {
+    const sentTx = { ...mockWalletContextValue.txs[0], roundTxid: 'kept-tx', type: 'sent' }
+    const tree = (config: typeof mockConfigContextValue) => (
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={config}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <FlowContext.Provider value={mockFlowContextValue}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [sentTx] } as any}>
+                <TransactionsList mode='static' />
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>
+    )
+    const { container, rerender } = render(tree(mockConfigContextValue))
+    const left = container.querySelector('.activity-row__left')
+    const amount = container.querySelector('.activity-row__amount')
+
+    // A new config object re-renders every row that reads it.
+    rerender(tree({ ...mockConfigContextValue }))
+
+    expect(container.querySelector('.activity-row__left')).toBe(left)
+    expect(container.querySelector('.activity-row__amount')).toBe(amount)
+  })
+
   it('filters the list by transaction type', () => {
     const swapTx = { ...mockWalletContextValue.txs[0], roundTxid: 'swap-tx', type: 'swap' }
     const sentTx = { ...mockWalletContextValue.txs[0], roundTxid: 'sent-tx', type: 'sent' }

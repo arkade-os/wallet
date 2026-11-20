@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useContext, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { WalletContext } from '../providers/wallet'
 import { Currencies, Tx } from '../lib/types'
 import { isBurn, isIssuance, prettyDate } from '../lib/format'
@@ -30,20 +30,24 @@ import { useTransactionAmountDisplay } from '../hooks/useTransactionAmountDispla
 import { useTranslation } from '../providers/language'
 import { contactAddressForActivity, readContacts } from '../lib/contacts'
 
-const TransactionLine = ({
+// The row's pieces below (Icon, Kind, Left and so on) are called as functions, never mounted as
+// <Left />: a component defined inside a render is a new type on every render, so React would tear down
+// and rebuild every visible row's DOM each time the list re-rendered, which it does on every scroll step.
+// The row is memoised for the same reason: rows already on screen skip the list's re-renders.
+const TransactionLine = memo(function TransactionLine({
   tx,
-  onClick,
+  onSelect,
   isFirst,
   mode,
   contactNames,
 }: {
   tx: Tx
-  onClick: () => void
+  onSelect: (tx: Tx) => void
   isFirst?: boolean
   mode: 'virtual' | 'static'
   /** Saved contacts that have a name, by address; read once by the list rather than by every row. */
   contactNames: ReadonlyMap<string, string>
-}) => {
+}) {
   const { config } = useContext(ConfigContext)
   const { toFiatAmount } = useContext(FiatContext)
   const { assetMetadataCache } = useContext(WalletContext)
@@ -176,10 +180,10 @@ const TransactionLine = ({
 
   const Left = () => (
     <div className='activity-row__left'>
-      <Icon />
+      {Icon()}
       <div className='activity-row__copy'>
-        <Kind />
-        <When />
+        {Kind()}
+        {When()}
       </div>
     </div>
   )
@@ -198,19 +202,22 @@ const TransactionLine = ({
             </PrivacyAmount>
             {!amountDisplay.configured && amountDisplay.raw[0]?.unverified ? <UnverifiedBadge /> : null}
           </span>
-          <RawAmounts />
+          {RawAmounts()}
         </>
       ) : null}
     </div>
   )
 
   return (
-    <div className={`activity-row ${isFirst ? 'activity-row--first' : ''} activity-row--${mode}`} onClick={onClick}>
-      <Left />
-      <Right />
+    <div
+      className={`activity-row ${isFirst ? 'activity-row--first' : ''} activity-row--${mode}`}
+      onClick={() => onSelect(tx)}
+    >
+      {Left()}
+      {Right()}
     </div>
   )
-}
+})
 
 function SwapAmountInfo({
   configFiat,
@@ -362,11 +369,14 @@ export default function TransactionsList({
     return t('transaction.keyboardNavAria', { type: typeLabel, amount: String(tx.amount) })
   }
 
-  const handleClick = (tx: Tx) => {
-    hapticSubtle()
-    setTxInfo(tx)
-    navigate(Pages.Transaction)
-  }
+  const handleClick = useCallback(
+    (tx: Tx) => {
+      hapticSubtle()
+      setTxInfo(tx)
+      navigate(Pages.Transaction)
+    },
+    [setTxInfo, navigate],
+  )
 
   // Static mode: render a simple list without virtualization
   if (mode === 'static') {
@@ -380,7 +390,7 @@ export default function TransactionsList({
             ariaLabel={ariaLabel(tx)}
           >
             <TransactionLine
-              onClick={() => handleClick(tx)}
+              onSelect={handleClick}
               tx={tx}
               isFirst={index === 0}
               mode={mode}
@@ -433,7 +443,7 @@ export default function TransactionsList({
                   ariaLabel={ariaLabel(tx)}
                 >
                   <TransactionLine
-                    onClick={() => handleClick(tx)}
+                    onSelect={handleClick}
                     tx={tx}
                     isFirst={virtualItem.index === 0}
                     mode={mode}
