@@ -57,6 +57,35 @@ jobs:
         run: pnpm install
       - name: Install Playwright Browsers
         run: pnpm exec playwright install chrome chromium --with-deps
+      - name: Set up mock pools server
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/mock-pools
+
+          cat << 'EOF' > /tmp/mock-pools/pools-v2.json
+          {
+            "coinbase_tags": {},
+            "payout_addresses": {},
+            "slugs": {}
+          }
+          EOF
+
+          cat << 'EOF' > /tmp/mock-pools/tree.json
+          {
+            "sha": "0000000000000000000000000000000000000000",
+            "tree": [
+              {
+                "path": "pools-v2.json",
+                "sha": "1111111111111111111111111111111111111111"
+              }
+            ]
+          }
+          EOF
+
+          # Start HTTP server in the background
+          python3 -m http.server 8123 --directory /tmp/mock-pools &
+          sleep 2
+          echo "Mock pools server started on http://127.0.0.1:8123"
       - name: Start regtest environment
         run: node regtest/regtest.mjs start --env .env.regtest
       - name: Verify environment
