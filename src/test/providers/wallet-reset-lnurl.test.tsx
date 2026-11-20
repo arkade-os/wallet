@@ -11,11 +11,15 @@ import { mockAspContextValue, mockConfigContextValue } from '../screens/mocks'
 
 const mocks = vi.hoisted(() => ({
   purge: vi.fn(),
+  syncLnurl: vi.fn(),
+  resync: undefined as (() => Promise<number>) | undefined,
   service: {
     activity: { use: vi.fn() },
     getVtxoManager: vi.fn().mockResolvedValue({ renewVtxos: async () => {} }),
     getStatus: vi.fn().mockResolvedValue({ walletInitialized: true }),
     getVtxos: vi.fn().mockResolvedValue([]),
+    getAddress: vi.fn().mockResolvedValue('ark1current'),
+    getBoardingAddress: vi.fn().mockResolvedValue('bc1current'),
     clear: vi.fn().mockResolvedValue(undefined),
     walletRepository: { clear: vi.fn().mockResolvedValue(undefined) },
     contractRepository: { clear: vi.fn().mockResolvedValue(undefined) },
@@ -37,6 +41,13 @@ vi.mock('../../lib/lnurlPaymentRepository', async (importOriginal) => ({
   clearLnurlPaymentsForReset: (...args: unknown[]) => mocks.purge(...args),
 }))
 vi.mock('../../lib/swapRepository', () => ({ assetSwapRepository: { clear: async () => {} } }))
+vi.mock('../../lib/lnurlActivitySync', () => ({
+  syncLnurlActivity: (...args: unknown[]) => mocks.syncLnurl(...args),
+  lnurlResyncOnPayment: (sync: () => Promise<number>) => {
+    mocks.resync = sync
+    return { onPayment: vi.fn(), cancel: vi.fn() }
+  },
+}))
 
 let wallet: React.ContextType<typeof WalletContext>
 function Capture() {
@@ -64,12 +75,60 @@ beforeEach(() => {
   mocks.service.getStatus.mockResolvedValue({ walletInitialized: true })
   mocks.service.getVtxoManager.mockResolvedValue({ renewVtxos: async () => {} })
   mocks.service.getVtxos.mockResolvedValue([])
+  mocks.service.getAddress.mockReset().mockResolvedValue('ark1current')
+  mocks.service.getBoardingAddress.mockReset().mockResolvedValue('bc1current')
+  mocks.syncLnurl.mockResolvedValue({ synced: 0, failures: [] })
   forgetLnurlSends()
   vi.stubGlobal('navigator', {
     serviceWorker: { getRegistration: async () => undefined, addEventListener: vi.fn(), removeEventListener: vi.fn() },
   })
 })
 afterEach(() => vi.unstubAllGlobals())
+
+describe('wallet LNURL destination refresh', () => {
+  it('reads current destinations in order when another sync starts during a held address read', async () => {
+    let release!: (address: string) => void
+    mocks.service.getAddress.mockImplementationOnce(() => new Promise<string>((resolve) => (release = resolve)))
+    await renderWallet()
+    expect(mocks.service.getAddress).toHaveBeenCalledTimes(1)
+
+    let next!: Promise<number>
+    await act(async () => {
+      next = mocks.resync!()
+    })
+    expect(mocks.service.getAddress).toHaveBeenCalledTimes(1)
+    expect(mocks.syncLnurl).not.toHaveBeenCalled()
+    await act(async () => {
+      release('ark1previous')
+      await next
+    })
+
+    expect(mocks.syncLnurl.mock.calls.map(([, address]) => address)).toEqual(['ark1previous', 'ark1current'])
+    expect(mocks.syncLnurl.mock.calls.map(([, , options]) => options.boardingAddress)).toEqual([
+      'bc1current',
+      'bc1current',
+    ])
+  })
+
+  it('does not refresh destinations or start a queued read after the wallet locks', async () => {
+    let release!: (address: string) => void
+    mocks.service.getAddress.mockImplementationOnce(() => new Promise<string>((resolve) => (release = resolve)))
+    await renderWallet()
+    let next!: Promise<number>
+    await act(async () => {
+      next = mocks.resync!()
+      await wallet.lockWallet()
+    })
+    await act(async () => {
+      release('ark1previous')
+      await next
+    })
+
+    expect(mocks.service.getAddress).toHaveBeenCalledTimes(1)
+    expect(mocks.service.getBoardingAddress).not.toHaveBeenCalled()
+    expect(mocks.syncLnurl).not.toHaveBeenCalled()
+  })
+})
 
 describe('wallet reset LNURL boundary', () => {
   it('leaves persisted wallet and service repositories intact when the preimage purge fails', async () => {
