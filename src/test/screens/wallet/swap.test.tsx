@@ -400,6 +400,48 @@ describe('Wallet swap flow', () => {
     expect(acceptSwapQuote.mock.calls[1][0]).not.toBe(acceptSwapQuote.mock.calls[0][0])
   })
 
+  it('waits for an input’s firm quote in flight instead of asking for the same terms again', async () => {
+    const land: (() => void)[] = []
+    quoteExchange.mockImplementation(
+      (plan: OfferPlan) => new Promise<Quote>((resolve) => land.push(() => resolve(firmQuote(plan)))),
+    )
+    renderSwap({
+      config: { currency: Currencies.USD, unit: Unit.SATS },
+      fiat: { toFiat: () => 0, fromFiat: () => 0, fromFiatAmount: () => 0, toFiatAmount: () => 0 },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /BRL/i }))
+    const review = async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'View quotes' }))
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Use smart routing' })).toBeEnabled(), {
+        timeout: 3_000,
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Use smart routing' }))
+      await screen.findByRole('button', { name: 'Confirm swap' })
+    }
+    const close = async () => {
+      await userEvent.keyboard('{Escape}')
+      await waitFor(() => expect(screen.queryByRole('button', { name: 'Confirm swap' })).not.toBeInTheDocument())
+    }
+    for (const key of ['1', '0', '0', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
+    await review()
+    await close()
+    await userEvent.click(screen.getByRole('button', { name: '0' }))
+    await review()
+    await close()
+    await userEvent.click(screen.getByRole('button', { name: 'Delete digit' }))
+    await review()
+
+    expect(quoteExchange).toHaveBeenCalledTimes(2)
+    expect(screen.getByRole('button', { name: 'Confirm swap' })).toBeDisabled()
+    await act(async () => land[0]())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Confirm swap' })).toBeEnabled())
+    confirm()
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    expect(acceptSwapQuote.mock.calls[0][0].give.amount).toBe(1_000n)
+  })
+
   it('keeps a firm quote below the estimate when the review is reopened', async () => {
     quoteExchange.mockImplementationOnce(async (plan: OfferPlan) => firmQuote(plan, plan.receive.atomic - 1n))
     await reviewSatsToBrl()

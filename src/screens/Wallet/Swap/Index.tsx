@@ -265,7 +265,8 @@ export default function WalletSwap() {
     {},
   )
   const [rememberSolver, setRememberSolver] = useState(false)
-  const [firmQuoting, setFirmQuoting] = useState<string>()
+  // Inputs with a firm quote in flight; the solver refuses the same terms again while one lives.
+  const [firmQuoting, setFirmQuoting] = useState<ReadonlySet<string>>(() => new Set())
   const [quoteClock, setQuoteClock] = useState(() => Math.floor(Date.now() / 1000))
   const submitting = useRef(false)
 
@@ -373,7 +374,7 @@ export default function WalletSwap() {
   const selected: { quote: Quote; offer?: OpenRfqOffer; plan?: OfferPlan; destination?: string } | undefined =
     chosen ?? (firmHere && 'quote' in firmHere ? firmHere : undefined)
   const selectedExpired = Boolean(selected && selected.quote.expiresAt <= quoteClock)
-  const awaitingFirm = firmQuoting === inputKey && !chosen
+  const awaitingFirm = firmQuoting.has(inputKey) && !chosen
   const firmError = !chosen && !awaitingFirm && firmHere && 'error' in firmHere ? firmHere.error : ''
 
   useEffect(() => {
@@ -667,13 +668,13 @@ export default function WalletSwap() {
 
   // Fetched as the review opens so Confirm is one tap; keyed to the input it was asked for.
   const requestFirmQuote = async () => {
-    if (!plan || !canContinue || firmQuoting === inputKey) return
+    if (!plan || !canContinue || firmQuoting.has(inputKey)) return
     if (!planMatchesPair()) {
       setConfirmError(t('swap.quoteUnavailable'))
       return
     }
     const requested = inputKey
-    setFirmQuoting(requested)
+    setFirmQuoting((current) => new Set(current).add(requested))
     setConfirmError('')
     let firm: { quote: Quote; plan: OfferPlan } | { error: string }
     try {
@@ -682,7 +683,11 @@ export default function WalletSwap() {
       firm = { error: extractError(error) }
     }
     setFirmQuotes((current) => ({ ...current, [requested]: firm }))
-    setFirmQuoting((current) => (current === requested ? undefined : current))
+    setFirmQuoting((current) => {
+      const next = new Set(current)
+      next.delete(requested)
+      return next
+    })
   }
 
   // The driver no longer holds this input's firm quote; keeping its error makes the review quote again.
