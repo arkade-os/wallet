@@ -78,6 +78,25 @@ const saveCardEnabled = (network: string, id: string, enabled: boolean): void =>
 export const saveSolverCardEnabled = (input: LocalCardInput, enabled: boolean): void =>
   saveCardEnabled(input.network ?? 'bitcoin', inputPreferenceId(input), enabled)
 
+const inputSolverId = (input: LocalCardInput): string => {
+  const card = input.card as Card
+  const source = input.label ?? `local:${card.name}`
+  return solverId(
+    { sourceType: 'local', source, solver: card.name, discovery_pubkey: card.discovery_pubkey },
+    input.network ?? 'bitcoin',
+  )
+}
+
+/** Direction pauses are keyed by solver id, which a local card's name is part of. */
+export const carrySolverDirectionPauses = (from: LocalCardInput, to: LocalCardInput): void => {
+  const [fromId, toId] = [inputSolverId(from), inputSolverId(to)]
+  if (fromId === toId) return
+  for (const [key, value] of Object.entries(read())) {
+    const prefs = clean(value)
+    if (prefs.disabled?.includes(fromId)) write(key, clean({ ...prefs, disabled: [...prefs.disabled, toId] }))
+  }
+}
+
 const marketCardPreferenceId = (card: DiscoveredMarket, network: string): string | undefined =>
   // Pauses follow a declared key across sources; keyless cards stay local.
   card.discovery_pubkey || card.sourceType === 'local'

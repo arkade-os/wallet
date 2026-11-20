@@ -9,7 +9,7 @@ import { readSolverCards } from '../../../lib/solverCards'
 import { prettyLongText } from '../../../lib/format'
 import { SwapsContext } from '../../../providers/swaps'
 import { btcUsdt, USDT_ID } from '../../lib/swapFixtures'
-import { isSolverCardEnabled, readSolverRouting, saveSolverRouting } from '../../../lib/solverRouting'
+import { isSolverCardEnabled, isSolverEnabled, readSolverRouting, saveSolverRouting } from '../../../lib/solverRouting'
 import { solverDirectionKey, solverId, type DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { solverHealth } from '../../../lib/solverHealth'
 
@@ -444,6 +444,34 @@ describe('Solvers screen', () => {
     expect(isSolverCardEnabled(readSolverCards().find(({ label }) => label === 'New')!)).toBe(false)
     expect(screen.getByRole('switch', { name: 'Enable New for new swaps' })).not.toBeChecked()
     await waitFor(() => expect(screen.getByRole('button', { name: '+ Add new' })).toHaveFocus())
+  })
+
+  it.each([
+    ['keyless', 'Edit', undefined],
+    ['keyed', 'Edit', 'a'.repeat(64)],
+    ['keyed', '+ Add new', 'a'.repeat(64)],
+  ])('keeps a direction pause when a %s card is saved under a new name via %s', async (_, button, key) => {
+    const card = (name: string) => ({ version: 0, name, discovery_pubkey: key, markets: [pinnedUsdt] })
+    const market = (name: string) => ({
+      ...pinnedUsdt,
+      solver: name,
+      source: name,
+      sourceType: 'local' as const,
+      discovery_pubkey: key,
+    })
+    localStorage.setItem('solverCards', JSON.stringify([{ network: 'mutinynet', label: 'Old', card: card('Old') }]))
+    saveSolverRouting('mutinynet', solverDirectionKey(market('Old'), 'base', 'mutinynet'), {
+      disabled: [solverId(market('Old'), 'mutinynet')],
+    })
+    renderSolvers('mutinynet')
+    fireEvent.click(screen.getByRole('button', { name: button }))
+    fireEvent.change(screen.getByPlaceholderText('{ version: 0, name: "My Card", markets: [...] }'), {
+      target: { value: JSON.stringify(card('New')) },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(readSolverCards().map(({ label }) => label)).toEqual(['New']))
+    expect(isSolverEnabled(market('New'), 'base', 'mutinynet')).toBe(false)
+    expect(isSolverEnabled(market('New'), 'quote', 'mutinynet')).toBe(true)
   })
 
   it('shows readable rails and display-unit flat fees', () => {

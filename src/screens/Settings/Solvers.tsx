@@ -36,6 +36,7 @@ import SolverRouting, { directionLabelOf, feeLabelOf, useMarketTicker, type Tick
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer'
 import { Switch } from '@/components/ui/switch'
 import {
+  carrySolverDirectionPauses,
   isSolverCardEnabled,
   saveSolverCardEnabled,
   subscribeSolverRouting,
@@ -48,10 +49,12 @@ const cardIdentity = (input: LocalCardInput): string => {
 }
 
 const putSolverCard = (input: LocalCardInput, replacing?: LocalCardInput) => {
-  const others = readSolverCards().filter(
+  const cards = readSolverCards()
+  const others = cards.filter(
     (card) =>
       cardIdentity(card) !== cardIdentity(input) && (!replacing || cardIdentity(card) !== cardIdentity(replacing)),
   )
+  for (const displaced of cards.filter((card) => !others.includes(card))) carrySolverDirectionPauses(displaced, input)
   if (replacing && cardIdentity(input) !== cardIdentity(replacing) && !isSolverCardEnabled(replacing))
     saveSolverCardEnabled(input, false)
   saveSolverCards([...others, input])
