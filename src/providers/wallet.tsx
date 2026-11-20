@@ -28,8 +28,7 @@ import {
   saveAssetMetadataFailuresToStorage,
   type TransactionActivityMetadata,
 } from '../lib/storage'
-import { readHomeSnapshot, saveHomeSnapshot } from '../lib/bootCache'
-import { gitCommit } from '../_gitCommit'
+import { readHomeSnapshot, saveHomeSnapshot, HOME_SNAPSHOT_SHAPE } from '../lib/bootCache'
 import { NavigationContext, Pages } from './navigation'
 import { getBalance, getUnrolledVtxos, getVtxos, settleVtxos } from '../lib/asp'
 import { resolveExits, subtractExitedAssets, type ExitRecord } from '../lib/exitHistory'
@@ -219,7 +218,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [assetSwaps, setAssetSwaps] = useState<WalletAssetSwap[]>([])
   // What Home showed on the last visit, for this wallet. The figures below start from it, so Home
   // can be drawn while the worker starts and the first load runs; that load replaces all of it.
-  const lastHome = useMemo(() => readHomeSnapshot(readWalletFromStorage()?.pubkey, gitCommit), [])
+  const lastHome = useMemo(() => readHomeSnapshot(readWalletFromStorage()?.pubkey, HOME_SNAPSHOT_SHAPE), [])
   const [lastHomeShown, setLastHomeShown] = useState(Boolean(lastHome))
   // Held from the moment a reset starts until the next wallet's first load, so nothing redraws
   // the wiped wallet into storage in between.
@@ -289,7 +288,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (!initialized || !dataReady || homeSnapshotPaused.current) return
     if (!wallet.pubkey || !configLoaded) return
     saveHomeSnapshot({
-      build: gitCommit,
+      build: HOME_SNAPSHOT_SHAPE,
       pubkey: wallet.pubkey,
       aspUrl: config.aspUrl,
       savedAt: Date.now(),

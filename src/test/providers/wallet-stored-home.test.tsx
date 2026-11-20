@@ -6,8 +6,7 @@ import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { WalletContext, WalletProvider } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
 import { ConfigContext } from '../../providers/config'
-import { readHomeSnapshot, saveHomeSnapshot, type HomeSnapshot } from '../../lib/bootCache'
-import { gitCommit } from '../../_gitCommit'
+import { HOME_SNAPSHOT_SHAPE, readHomeSnapshot, saveHomeSnapshot, type HomeSnapshot } from '../../lib/bootCache'
 import type { Tx } from '../../lib/types'
 import { mockAspContextValue, mockConfigContextValue } from '../screens/mocks'
 
@@ -61,7 +60,7 @@ const row = (n: number): Tx =>
   }) as Tx
 
 const stored = (over: Partial<HomeSnapshot> = {}): HomeSnapshot => ({
-  build: gitCommit,
+  build: HOME_SNAPSHOT_SHAPE,
   pubkey: PUBKEY,
   aspUrl: SERVER,
   savedAt: 1,
@@ -130,6 +129,23 @@ describe('Home from what it showed last time', () => {
     expect(wallet.txs.map((tx) => tx.redeemTxid)).toEqual(['stored-1', 'stored-2'])
   })
 
+  // Keyed on its shape, not on the build: the first visit after a deploy still opens on Home.
+  it('starts from a snapshot an earlier build wrote in the same shape', () => {
+    returning(stored({ build: HOME_SNAPSHOT_SHAPE, savedAt: 1 }))
+
+    mount()
+
+    expect(wallet.balance).toBe(148_000)
+  })
+
+  it('does not start from a snapshot written in another shape', () => {
+    returning(stored({ build: 'home-0' }))
+
+    mount()
+
+    expect(wallet.balance).toBe(0)
+  })
+
   it('has nothing to start from on a first visit', () => {
     localStorage.setItem('wallet', JSON.stringify({ nextRollover: 0, pubkey: PUBKEY }))
 
@@ -168,7 +184,7 @@ describe('Home from what it showed last time', () => {
     expect(wallet.dataReady).toBe(true)
     expect(wallet.balance).toBe(99_000)
     expect(wallet.txs).toEqual([])
-    expect(readHomeSnapshot(PUBKEY, gitCommit)).toMatchObject({ balance: 99_000, aspUrl: SERVER, txs: [] })
+    expect(readHomeSnapshot(PUBKEY, HOME_SNAPSHOT_SHAPE)).toMatchObject({ balance: 99_000, aspUrl: SERVER, txs: [] })
   })
 
   it('saves nothing while it is still showing the stored figures', async () => {
@@ -178,7 +194,7 @@ describe('Home from what it showed last time', () => {
     await act(() => wallet.initWallet({ privateKey: KEY }))
 
     expect(wallet.storedHome).toBe(true)
-    expect(readHomeSnapshot(PUBKEY, gitCommit)?.balance).toBe(148_000)
+    expect(readHomeSnapshot(PUBKEY, HOME_SNAPSHOT_SHAPE)?.balance).toBe(148_000)
   })
 
   it('goes on with nothing, as before, when the first load fails and is dismissed', async () => {
@@ -212,7 +228,7 @@ describe('Home from what it showed last time', () => {
     returning()
     mount()
     await load()
-    expect(readHomeSnapshot(PUBKEY, gitCommit)).toBeDefined()
+    expect(readHomeSnapshot(PUBKEY, HOME_SNAPSHOT_SHAPE)).toBeDefined()
 
     // A balance that lands in the middle of the wipe must not be written back after it.
     let release: () => void = () => {}

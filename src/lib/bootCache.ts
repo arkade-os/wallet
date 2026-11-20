@@ -23,6 +23,13 @@ const HOME_KEY = 'homeSnapshot'
 /** How old the last prices may be and still price the first frame. Past a day the figure they give is no longer close. */
 export const FIAT_PRICES_MAX_AGE_MS = 24 * 60 * 60 * 1000
 
+/**
+ * The shape of the Home snapshot this code writes and reads. A snapshot is keyed by it rather than by
+ * the build, so it outlives a deploy and the first visit after one still opens on Home. Bump it
+ * whenever `HomeSnapshot` or a `Tx` row changes shape: an older snapshot is then left unread.
+ */
+export const HOME_SNAPSHOT_SHAPE = 'home-1'
+
 /** How many history rows the Home snapshot keeps. Home draws three; the rest is headroom for rows its list hides. */
 export const HOME_SNAPSHOT_TXS = 12
 
@@ -79,8 +86,8 @@ export const readFiatPricesSnapshot = (now = Date.now()): FiatPrices | undefined
   })
 
 export type HomeSnapshot = {
-  /** The build that wrote it, for the same reason as the server info above: a row whose shape an
-   * update changed is never handed to a screen that does not expect it. */
+  /** The shape it was written in (`HOME_SNAPSHOT_SHAPE`): a row whose shape an update changed is
+   * never handed to a screen that does not expect it. */
   build: string
   /** The wallet these figures belong to. A snapshot is only ever shown for its own wallet on its own server. */
   pubkey: string
