@@ -5,6 +5,12 @@ export { toast }
 
 export const useToast = () => ({ toast })
 
+// Sonner's top offsets (24px, and 16px on phones) ignore the safe area, so on an iPhone a toast sat
+// under the status bar and the notch, where it cannot be read. Keep it at least 8px below the safe
+// area, and no closer to the top than before where there is none.
+const OFFSET = { top: 'max(24px, calc(env(safe-area-inset-top, 0px) + 8px))' }
+const MOBILE_OFFSET = { top: 'max(16px, calc(env(safe-area-inset-top, 0px) + 8px))' }
+
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <>
@@ -13,6 +19,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         visibleToasts={1}
         className='arkade-toast-toaster'
         position='top-center'
+        offset={OFFSET}
+        mobileOffset={MOBILE_OFFSET}
         richColors
         toastOptions={{
           classNames: {
