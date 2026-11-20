@@ -54,12 +54,12 @@ describe('OptionsProvider back navigation', () => {
     expect(currentOption()).toBe(SettingsOptions.Advanced)
   })
 
-  it('returns to the originating option for same-section jumps (Executor → Vtxos)', () => {
+  it('returns to the originating option for same-section jumps (Contracts → Vtxos)', () => {
     renderProvider()
-    visit(SettingsOptions.Advanced, SettingsOptions.Executor, SettingsOptions.Vtxos)
+    visit(SettingsOptions.Advanced, SettingsOptions.Contracts, SettingsOptions.Vtxos)
 
     back()
-    expect(currentOption()).toBe(SettingsOptions.Executor)
+    expect(currentOption()).toBe(SettingsOptions.Contracts)
 
     back()
     expect(currentOption()).toBe(SettingsOptions.Advanced)
@@ -76,7 +76,7 @@ describe('OptionsProvider back navigation', () => {
 
   it('forgets the visited options after a reset', () => {
     renderProvider()
-    visit(SettingsOptions.Advanced, SettingsOptions.Executor)
+    visit(SettingsOptions.Advanced, SettingsOptions.Contracts)
     act(() => subNavHandler.reset())
     visit(SettingsOptions.Password)
 
@@ -90,13 +90,13 @@ describe('OptionsProvider back navigation', () => {
 
   it('forgets the visited options after returning to Menu', () => {
     renderProvider()
-    visit(SettingsOptions.Advanced, SettingsOptions.Executor, SettingsOptions.Menu)
+    visit(SettingsOptions.Advanced, SettingsOptions.Contracts, SettingsOptions.Menu)
     visit(SettingsOptions.Password)
 
     back()
     expect(currentOption()).toBe(SettingsOptions.Menu)
 
-    // a stale stack would bring back Executor here
+    // a stale stack would bring back Contracts here
     back()
     expect(currentOption()).toBe(SettingsOptions.Menu)
   })

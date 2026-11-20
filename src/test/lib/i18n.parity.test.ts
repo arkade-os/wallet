@@ -31,7 +31,6 @@ const keepEnglishTermAllowList = new Set([
   'settings.auto',
   'settings.backup',
   'settings.dust',
-  'settings.executor',
   'settings.feedback',
   'settings.general',
   'settings.solvers',

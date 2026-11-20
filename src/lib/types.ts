@@ -14,7 +14,7 @@ export type Config = {
   }
   aspUrl: string
   currency: Currencies
-  /** Board deposits through the network's Executor while the wallet is offline. */
+  /** Board deposits and renew them through the network's Executor while the wallet is offline. Not exposed in the UI: VITE_EXECUTOR_ENABLED sets it. */
   executor: boolean
   importedAssets: string[]
   language?: Language
@@ -69,7 +69,6 @@ export enum SettingsOptions {
   Contracts = 'contracts',
   Currency = 'Currency',
   Display = 'display',
-  Executor = 'executor',
   General = 'general',
   Haptics = 'haptic feedback',
   Lock = 'lock wallet',
