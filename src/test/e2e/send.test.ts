@@ -249,7 +249,7 @@ test.skip('should send sats (some and max) to onchain address with chain swap', 
   await prePay(page, someOnchainAddress, isMobile, 2000)
 
   // details page
-  await expect(page.getByTestId('Amount')).toContainText('2,000 sats')
+  await expect(page.getByTestId('primary-amount')).toContainText('2,000 sats')
   const fees = await page.getByTestId('Network fees').textContent()
   expect(fees).not.toBeNull()
   const feesNumber = parseInt(fees!.replace(/[^0-9]/g, ''), 10)
