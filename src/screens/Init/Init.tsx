@@ -1,7 +1,7 @@
 import { ReactElement, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { generateMnemonic } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
-import type { ServiceWorkerWalletMode } from '@arkade-os/sdk'
+import { PasskeyCancelled, PrfUnavailable, type ServiceWorkerWalletMode } from '@arkade-os/sdk'
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../providers/navigation'
@@ -14,7 +14,10 @@ import Padded from '../../components/Padded'
 import Text from '../../components/Text'
 import FlexCol from '../../components/FlexCol'
 import SheetModal from '../../components/SheetModal'
-import { defaultPassword } from '../../lib/constants'
+import { defaultPassword, isMainnet } from '../../lib/constants'
+import { isBiometricsSupported } from '../../lib/biometrics'
+import { createPasskeyWallet, loginWithPasskey, PasskeyNotConfirmed, type PasskeyWallet } from '../../lib/passkey'
+import { consoleError } from '../../lib/logs'
 import { OnboardStaggerChild } from '../../components/OnboardLoadIn'
 import { motion } from 'framer-motion'
 import { onboardStaggerContainer, EASE_OUT_QUINT_TUPLE } from '../../lib/animations'
@@ -67,10 +70,21 @@ export default function Init() {
   const [error, setError] = useState(false)
   const [showOptions, setShowOptions] = useState(false)
   const [showCreateOptions, setShowCreateOptions] = useState(false)
+  const [passkeyError, setPasskeyError] = useState('')
+  const [passkeyStep, setPasskeyStep] = useState<'intro' | 'waiting' | PasskeyWallet | null>(null)
   const [hdRotation, setHdRotation] = useState(false)
   const [contentReady, setContentReady] = useState(prefersReduced)
   const [sunriseVisible, setSunriseVisible] = useState(prefersReduced)
   const logoTargetRef = useRef<HTMLDivElement>(null)
+  const passkeyAttempt = useRef(0)
+
+  // A passkey result that lands after another setup started, or after Init unmounted, belongs to an abandoned
+  // attempt; Connect's PRF branch drops any stored secret, so acting on it could delete that setup's words.
+  // Closing the options sheet does not count: a drawer that closes under the OS prompt would drop a real login.
+  const abandonPasskeyAttempt = () => {
+    passkeyAttempt.current += 1
+  }
+  useEffect(() => abandonPasskeyAttempt, [])
 
   const handleFlyStart = useCallback(() => {
     setSunriseVisible(true)
@@ -87,6 +101,7 @@ export default function Init() {
   }, [aspInfo.unreachable])
 
   const createWallet = (mode: ServiceWorkerWalletMode) => {
+    abandonPasskeyAttempt()
     const mnemonic = generateMnemonic(wordlist)
     setInitInfo({ mnemonic, password: defaultPassword, restoring: false, walletMode: mode })
     navigate(Pages.InitConnect)
@@ -97,7 +112,84 @@ export default function Init() {
     createWallet('static')
   }
 
-  const handleOldWallet = () => navigate(Pages.InitRestore)
+  const handleOldWallet = () => {
+    abandonPasskeyAttempt()
+    navigate(Pages.InitRestore)
+  }
+
+  const passkeyFailure = (err: unknown) => {
+    if (err instanceof PasskeyNotConfirmed) return setPasskeyError(t('init.passkeyNotUsed', { name: err.passkeyName }))
+    if (err instanceof PasskeyCancelled) return
+    consoleError(err, 'passkey wallet failed')
+    setPasskeyError(err instanceof PrfUnavailable ? t('init.passkeyHasNoWords') : t('init.passkeyFailed'))
+  }
+
+  const finishPasskeyWallet = (made: PasskeyWallet) => {
+    const { passkeyId, passkeyRpId } = made
+    if (made.prf) {
+      setInitInfo({
+        mnemonic: made.mnemonic,
+        passkeyPrf: true,
+        restoring: false,
+        walletMode: 'static',
+        passkeyUnlock: { passkeyPrf: true, passkeyId, passkeyRpId, lockedByBiometrics: false },
+      })
+    } else {
+      setInitInfo({
+        mnemonic: made.mnemonic,
+        password: made.password,
+        restoring: false,
+        walletMode: 'static',
+        passkeyUnlock: { lockedByBiometrics: true, passkeyId, passkeyRpId },
+      })
+    }
+    navigate(Pages.InitConnect)
+  }
+
+  const handlePasskeyWallet = async () => {
+    setPasskeyError('')
+    setPasskeyStep('waiting')
+    const attempt = ++passkeyAttempt.current
+    try {
+      const made = await createPasskeyWallet(isMainnet(aspInfo.network))
+      if (attempt !== passkeyAttempt.current) return
+      if (made.prf) return finishPasskeyWallet(made)
+      // Never fall back silently: this passkey can't restore the wallet anywhere else.
+      setPasskeyStep(made)
+    } catch (err) {
+      if (attempt !== passkeyAttempt.current) return
+      setPasskeyStep(null)
+      passkeyFailure(err)
+    }
+  }
+
+  const declinePasskeyFallback = (made: PasskeyWallet) => {
+    setPasskeyStep(null)
+    setPasskeyError(t('init.passkeyNotUsed', { name: made.passkeyName }))
+  }
+  const fallbackWallet = typeof passkeyStep === 'object' ? passkeyStep : null
+
+  const handlePasskeyLogin = async () => {
+    setPasskeyError('')
+    const attempt = ++passkeyAttempt.current
+    try {
+      const found = await loginWithPasskey(isMainnet(aspInfo.network))
+      if (attempt !== passkeyAttempt.current) return
+      const { passkeyId, passkeyRpId } = found
+      setInitInfo({
+        mnemonic: found.mnemonic,
+        passkeyPrf: true,
+        restoring: true,
+        walletMode: 'static',
+        passkeyUnlock: { passkeyPrf: true, passkeyId, passkeyRpId, lockedByBiometrics: false },
+      })
+      navigate(Pages.InitConnect)
+    } catch (err) {
+      if (attempt !== passkeyAttempt.current) return
+      setShowOptions(false)
+      passkeyFailure(err)
+    }
+  }
 
   const handleLogoComplete = useCallback(() => {
     setContentReady(true)
@@ -232,6 +324,15 @@ export default function Init() {
           }}
         >
           <Button disabled={error || !aspReady} onClick={handleNewWallet} label={`+ ${t('init.createWallet')}`} />
+          {isBiometricsSupported() ? (
+            <Button
+              disabled={error || !aspReady}
+              onClick={() => setPasskeyStep('intro')}
+              label={t('init.createWithPasskey')}
+              secondary
+            />
+          ) : null}
+          <ErrorMessage text={passkeyError} error={Boolean(passkeyError)} />
           <Button
             disabled={error || !aspReady}
             onClick={() => setShowOptions(true)}
@@ -244,7 +345,34 @@ export default function Init() {
         <FlexCol gap='1rem'>
           <Text>{t('init.otherLoginOptions')}</Text>
           <Button fancy disabled={error} onClick={handleOldWallet} label={t('init.restoreWallet')} secondary />
+          {isBiometricsSupported() ? (
+            <Button disabled={error} onClick={handlePasskeyLogin} label={t('init.logInWithPasskey')} secondary />
+          ) : null}
         </FlexCol>
+      </SheetModal>
+      <SheetModal
+        isOpen={passkeyStep === 'intro' || passkeyStep === 'waiting'}
+        onClose={() => passkeyStep === 'intro' && setPasskeyStep(null)}
+      >
+        <FlexCol gap='1rem'>
+          <Text>{t('init.createWithPasskey')}</Text>
+          <Text color='neutral-800' thin wrap>
+            {passkeyStep === 'waiting' ? t('init.waitingForPasskey') : t('init.passkeyIntro')}
+          </Text>
+          <Button loading={passkeyStep === 'waiting'} onClick={handlePasskeyWallet} label={t('init.createPasskey')} />
+        </FlexCol>
+      </SheetModal>
+      <SheetModal isOpen={!!fallbackWallet} onClose={() => fallbackWallet && declinePasskeyFallback(fallbackWallet)}>
+        {fallbackWallet ? (
+          <FlexCol gap='1rem'>
+            <Text wrap>{t('init.passkeyNoKeysTitle')}</Text>
+            <Text color='neutral-800' thin wrap>
+              {t('init.passkeyNoKeys')}
+            </Text>
+            <Button onClick={() => finishPasskeyWallet(fallbackWallet)} label={t('init.continueWithPasskey')} />
+            <Button onClick={() => declinePasskeyFallback(fallbackWallet)} label={t('common.cancel')} secondary />
+          </FlexCol>
+        ) : null}
       </SheetModal>
       <SheetModal isOpen={showCreateOptions} onClose={() => setShowCreateOptions(false)}>
         <FlexCol gap='1rem'>

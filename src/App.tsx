@@ -145,12 +145,15 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleGlobalDown)
   }, [navigate, appIntent, screen, sendInfo, outcomeOf])
 
+  // A passkey wallet is set up without a password, so it needs its own mark here: the screen must
+  // stay on Connect until it finishes, both before its pubkey exists and once that pubkey lands.
+  const isSettingUpWallet = !!(initInfo.password || initInfo.privateKey || initInfo.passkeyPrf)
+
   useEffect(() => {
     if (isIAB) return navigate(Pages.InAppBrowser)
     if (aspInfo.unreachable) return navigate(Pages.Unavailable)
     if (jsCapabilitiesChecked && !isCapable) return navigate(Pages.Unavailable)
-    // avoid redirect if the user is still setting up the wallet
-    if (initInfo.password || initInfo.privateKey) return
+    if (isSettingUpWallet) return
     if (!walletLoaded) return navigate(Pages.Loading)
     // dev auto-init: stay on loading screen while VITE_DEV_NSEC/MNEMONIC initializes the wallet
     if (import.meta.env.DEV && (import.meta.env.VITE_DEV_NSEC || import.meta.env.VITE_DEV_MNEMONIC) && !initialized)
@@ -189,12 +192,11 @@ export default function App() {
   // Hold the loading screen until wallet data is ready, except while the connect
   // page is showing so it can run swap recovery before navigating.
   const isConnectIntent = appIntent?.status === 'connect'
-  const isInInitFlow = !!(initInfo.password || initInfo.privateKey)
   const shouldHoldOnLoading =
     hasStoredWallet &&
     (!initialized || (!dataReady && !(isConnectIntent && screen === Pages.AppIntent))) &&
     authState !== 'locked' &&
-    !isInInitFlow
+    !isSettingUpWallet
 
   useEffect(() => {
     passwordlessBootAttempted.current = false
@@ -246,8 +248,7 @@ export default function App() {
       (dataReady || isConnectIntent) &&
       !aspInfo.unreachable &&
       !isIAB &&
-      !initInfo.password &&
-      !initInfo.privateKey &&
+      !isSettingUpWallet &&
       jsCapabilitiesChecked &&
       isCapable,
   )

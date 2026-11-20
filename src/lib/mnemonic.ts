@@ -13,6 +13,12 @@ export const setMnemonic = async (mnemonic: string, password: string): Promise<v
   localStorage.removeItem(NSEC_STORAGE_KEY)
 }
 
+/** Drops whatever secret an abandoned attempt left behind, so it cannot be read back as another wallet's. */
+export const forgetStoredSecret = (): void => {
+  localStorage.removeItem(MNEMONIC_STORAGE_KEY)
+  localStorage.removeItem(NSEC_STORAGE_KEY)
+}
+
 export const getMnemonic = async (password: string): Promise<string> => {
   const encrypted = localStorage.getItem(MNEMONIC_STORAGE_KEY)
   if (!encrypted) throw new Error('No encrypted mnemonic found')

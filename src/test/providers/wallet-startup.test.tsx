@@ -42,7 +42,7 @@ function Capture() {
   return null
 }
 
-const startWallet = async () => {
+const renderWallet = () =>
   render(
     <AspContext.Provider value={mockAspContextValue}>
       <ConfigContext.Provider value={mockConfigContextValue}>
@@ -52,7 +52,12 @@ const startWallet = async () => {
       </ConfigContext.Provider>
     </AspContext.Provider>,
   )
-  await act(() => wallet.initWallet({ privateKey: new Uint8Array(32).fill(1) }))
+
+type Credentials = Parameters<typeof wallet.initWallet>[0]
+
+const startWallet = async (credentials: Credentials = { privateKey: new Uint8Array(32).fill(1) }) => {
+  renderWallet()
+  await act(() => wallet.initWallet(credentials))
 }
 
 // reloadWallet is the only caller of an unfiltered getVtxos()
@@ -82,6 +87,26 @@ it('reports syncing until the worker finishes its first sync, then reloads', asy
 
   await vi.waitFor(() => expect(wallet.syncing).toBe(false), { timeout: 3000 })
   await vi.waitFor(() => expect(reloads()).toBe(before + 1), { timeout: 3000 })
+})
+
+const words = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
+const passkeyUnlock = { passkeyPrf: true, passkeyId: 'ab', passkeyRpId: 'localhost', lockedByBiometrics: false }
+
+it('saves how a passkey wallet unlocks in the same write as its pubkey', async () => {
+  localStorage.clear()
+  await startWallet({ mnemonic: words, passkeyUnlock })
+
+  expect(wallet.wallet).toMatchObject({ pubkey: expect.any(String), ...passkeyUnlock })
+})
+
+it('saves nothing about the passkey when the init fails', async () => {
+  localStorage.clear()
+  mocks.setup.mockRejectedValueOnce(new Error('worker is gone'))
+  renderWallet()
+
+  await expect(act(() => wallet.initWallet({ mnemonic: words, passkeyUnlock }))).rejects.toThrow()
+  expect(wallet.wallet.passkeyPrf).toBeUndefined()
+  expect(wallet.wallet.pubkey).toBeUndefined()
 })
 
 it.each(['vtxo_received', 'vtxo_spent'])('reloads when a contract event reports %s', async (eventType) => {

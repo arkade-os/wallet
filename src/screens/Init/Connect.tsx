@@ -5,7 +5,7 @@ import { WalletContext } from '../../providers/wallet'
 import LoadingLogo from '../../components/LoadingLogo'
 import Header from '../../components/Header'
 import { setPrivateKey } from '../../lib/privateKey'
-import { setMnemonic } from '../../lib/mnemonic'
+import { forgetStoredSecret, setMnemonic } from '../../lib/mnemonic'
 import { consoleError } from '../../lib/logs'
 import { useLoadingStatus } from '../../hooks/useLoadingStatus'
 import { setLoadingStatus } from '../../lib/loadingStatus'
@@ -23,16 +23,24 @@ export default function InitConnect() {
   const [initialized, setInitialized] = useState(false)
   const [connectDone, setConnectDone] = useState(false)
 
-  const { password, privateKey, mnemonic, walletMode } = initInfo
+  const { password, privateKey, mnemonic, walletMode, passkeyPrf, passkeyUnlock } = initInfo
 
   useEffect(() => {
+    if (passkeyPrf && mnemonic) {
+      // A passkey wallet stores no secret, and an abandoned attempt's would be decrypted as its words.
+      forgetStoredSecret()
+      initWallet({ mnemonic, walletMode, restoring: initInfo.restoring, passkeyUnlock })
+        .then(() => setInitialized(true))
+        .catch(abortConnectionWithError)
+      return
+    }
     if (!password || (!mnemonic && !privateKey)) {
       abortConnectionWithError(new Error('Missing credentials'))
       return
     }
     if (mnemonic) {
       setMnemonic(mnemonic, password)
-        .then(() => initWallet({ mnemonic, walletMode, restoring: initInfo.restoring }))
+        .then(() => initWallet({ mnemonic, walletMode, restoring: initInfo.restoring, passkeyUnlock }))
         .then(() => setInitialized(true))
         .catch(abortConnectionWithError)
     } else if (privateKey) {
@@ -48,7 +56,15 @@ export default function InitConnect() {
   }, [initialized])
 
   const handleExitComplete = () => {
-    setInitInfo({ ...initInfo, password: undefined, privateKey: undefined, mnemonic: undefined, walletMode: undefined })
+    setInitInfo({
+      ...initInfo,
+      password: undefined,
+      privateKey: undefined,
+      mnemonic: undefined,
+      walletMode: undefined,
+      passkeyPrf: undefined,
+      passkeyUnlock: undefined,
+    })
     navigate(error ? Pages.Init : Pages.Wallet)
   }
 
