@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import userEvent from '@testing-library/user-event'
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import Transaction from '../../../screens/Wallet/Transaction'
 import { FlowContext } from '../../../providers/flow'
@@ -26,6 +26,12 @@ import { AssetsContext } from '../../../providers/assets'
 import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
 import { SwapsContext } from '../../../providers/swaps'
 import type { WalletAssetSwap as AssetSwap } from '../../../lib/swapRepository'
+import { readContacts, saveContact } from '../../../lib/contacts'
+
+vi.mock('../../../components/SheetModal', () => ({
+  default: ({ isOpen, children }: { isOpen: boolean; children?: React.ReactNode }) =>
+    isOpen ? <div data-testid='sheet-modal'>{children}</div> : null,
+}))
 
 const pendingSwapTx = {
   ...mockTxInfo,
@@ -290,6 +296,102 @@ describe('Transaction screen', () => {
     expect(screen.getByText('Amount issued')).toBeInTheDocument()
     expect(screen.queryByText('Direction')).not.toBeInTheDocument()
     expect(screen.getByTestId('Total')).toHaveTextContent('10,000')
+  })
+
+  it('asks for an optional name before saving a sent destination as a contact', () => {
+    const address = 'alice@pay.example'
+    const sentTx = {
+      ...mockTxInfo,
+      boardingTxid: '',
+      destination: address,
+      redeemTxid: 'send-destination',
+      type: 'sent' as const,
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: sentTx }}>
+            <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [sentTx] } as any}>
+              <LimitsContext.Provider value={mockLimitsContextValue}>
+                <Transaction />
+              </LimitsContext.Provider>
+            </WalletContext.Provider>
+          </FlowContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save as contact' }))
+    fireEvent.change(screen.getByLabelText('Name (optional)'), { target: { value: 'Alice' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save contact' }))
+
+    expect(readContacts()).toMatchObject([{ address, name: 'Alice' }])
+    expect(screen.queryByRole('button', { name: 'Save as contact' })).not.toBeInTheDocument()
+    expect(screen.getByText('Alice')).toBeInTheDocument()
+  })
+
+  it('badges a destination that is already a saved contact', () => {
+    const address = 'bob@pay.example'
+    saveContact(address, 'Bob')
+    const sentTx = {
+      ...mockTxInfo,
+      boardingTxid: '',
+      destination: address,
+      redeemTxid: 'send-contact',
+      type: 'sent' as const,
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: sentTx }}>
+            <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [sentTx] } as any}>
+              <LimitsContext.Provider value={mockLimitsContextValue}>
+                <Transaction />
+              </LimitsContext.Provider>
+            </WalletContext.Provider>
+          </FlowContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByText('Bob')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save as contact' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the save-contact sheet mounted while typing a name', async () => {
+    const user = userEvent.setup()
+    const sentTx = {
+      ...mockTxInfo,
+      boardingTxid: '',
+      destination: 'carol@pay.example',
+      redeemTxid: 'send-typing',
+      type: 'sent' as const,
+    }
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: sentTx }}>
+            <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [sentTx] } as any}>
+              <LimitsContext.Provider value={mockLimitsContextValue}>
+                <Transaction />
+              </LimitsContext.Provider>
+            </WalletContext.Provider>
+          </FlowContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save as contact' }))
+    const input = screen.getByLabelText('Name (optional)')
+    await user.type(input, 'Carol')
+
+    expect(screen.getByLabelText('Name (optional)')).toBe(input)
+    expect(input).toHaveValue('Carol')
+    expect(document.activeElement).toBe(input)
+    expect(screen.getByTestId('sheet-modal')).toBeInTheDocument()
   })
 
   it('labels a unilateral exit and links it to the block explorer, not to Arkade', async () => {

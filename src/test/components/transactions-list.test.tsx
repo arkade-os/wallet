@@ -1,12 +1,12 @@
-import { render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import TransactionsList from '../../components/TransactionsList'
 import SentIcon from '../../icons/Sent'
 import { ConfigContext } from '../../providers/config'
 import { FiatContext } from '../../providers/fiat'
 import { FlowContext } from '../../providers/flow'
-import { NavigationContext } from '../../providers/navigation'
+import { NavigationContext, Pages } from '../../providers/navigation'
 import { WalletContext } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
 import { AssetsContext } from '../../providers/assets'
@@ -20,8 +20,52 @@ import {
   mockNavigationContextValue,
   mockWalletContextValue,
 } from '../screens/mocks'
+import { OptionsContext } from '../../providers/options'
+import { saveContact } from '../../lib/contacts'
 
 describe('TransactionsList', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('labels a saved contact without turning the row into a contact link', () => {
+    const address = 'alice@pay.example'
+    saveContact(address, 'Alice')
+    const tx = {
+      amount: 500,
+      boardingTxid: '',
+      createdAt: 1_700_000_100,
+      destination: address,
+      lnurl: { address },
+      explorable: undefined,
+      preconfirmed: false,
+      redeemTxid: 'lnurl-send',
+      roundTxid: '',
+      settled: true,
+      type: 'sent',
+    } satisfies Tx
+    const setOption = vi.fn()
+    const setTxInfo = vi.fn()
+    const navigate = vi.fn()
+    render(
+      <OptionsContext.Provider value={{ setOption } as any}>
+        <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate }}>
+          <ConfigContext.Provider value={mockConfigContextValue}>
+            <FiatContext.Provider value={mockFiatContextValue}>
+              <FlowContext.Provider value={{ ...mockFlowContextValue, setTxInfo }}>
+                <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [tx] } as any}>
+                  <TransactionsList mode='static' />
+                </WalletContext.Provider>
+              </FlowContext.Provider>
+            </FiatContext.Provider>
+          </ConfigContext.Provider>
+        </NavigationContext.Provider>
+      </OptionsContext.Provider>,
+    )
+    expect(screen.getByText('Sent to Alice')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Alice' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('Sent to Alice'))
+    expect(setTxInfo).toHaveBeenCalledWith(tx)
+    expect(navigate).toHaveBeenCalledWith(Pages.Transaction)
+  })
   it('filters the list by transaction type', () => {
     const swapTx = { ...mockWalletContextValue.txs[0], roundTxid: 'swap-tx', type: 'swap' }
     const sentTx = { ...mockWalletContextValue.txs[0], roundTxid: 'sent-tx', type: 'sent' }
