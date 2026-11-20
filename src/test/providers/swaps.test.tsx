@@ -302,6 +302,18 @@ describe('SwapsProvider', () => {
     expect(screen.getByTestId('market-count')).toHaveTextContent('0')
   })
 
+  it('publishes only the latest of overlapping manual discovery refreshes', async () => {
+    const finish: ((markets: DiscoveredMarket[]) => void)[] = []
+    mocks.discoverMarkets.mockImplementation(() => new Promise<DiscoveredMarket[]>((resolve) => finish.push(resolve)))
+    renderProvider()
+    fireEvent.click(screen.getByText('refresh discovery'))
+    fireEvent.click(screen.getByText('refresh discovery'))
+    await act(async () => finish[1]([]))
+    expect(screen.getByTestId('discovery-ready')).toHaveTextContent('true')
+    await act(async () => finish[0]([btcUsdt]))
+    expect(screen.getByTestId('market-count')).toHaveTextContent('0')
+  })
+
   it('refreshes the current card scope while discovery remains unready', async () => {
     // Decoding a fresh key would accidentally refresh the stale context memo.
     const emulatorPubkey = vi.spyOn(constants, 'getEmulatorPubkeyForNetwork').mockReturnValue(new Uint8Array(32))

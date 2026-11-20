@@ -352,6 +352,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
   const allMarketsRef = useRef<DiscoveredMarket[]>([])
   const discoveryNetworkRef = useRef<string>()
+  const discoveryRequest = useRef(0)
   const setAllMarkets = (all: DiscoveredMarket[]) => {
     allMarketsRef.current = all
     // Corridor (RFQ) markets are hidden from the offer composer: `quoteExchange`
@@ -369,10 +370,11 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     if (!aspInfo.network) return
     const network = aspInfo.network as NetworkName
     const scope = discoveryScope
+    const request = ++discoveryRequest.current
     setSettledDiscoveryScope(undefined)
     discoverMarkets(network, useCache)
       .then((all) => {
-        if (discoveryScopeRef.current !== scope) return
+        if (discoveryScopeRef.current !== scope || discoveryRequest.current !== request) return
         setAllMarkets(all)
         setSettledDiscoveryScope(scope)
       })
