@@ -106,7 +106,7 @@ export default function Support() {
       sdk_version: sdkVersion,
       git_commit: gitCommit,
     })
-  }, [addresses, wallet.pubkey, supportChatLoaded])
+  }, [addresses, wallet.pubkey, supportChatLoaded, aspInfo])
 
   const handleOpenChat = () => {
     if (window.$chatwoot) window.$chatwoot.toggle('open')

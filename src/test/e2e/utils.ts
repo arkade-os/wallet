@@ -42,14 +42,19 @@ export { expect } from '@playwright/test'
 export async function waitForWalletPage(page: Page, timeout = 60000): Promise<void> {
   const sendBtn = page.getByText(tr.wallet.send, { exact: true })
   const continueBtn = page.getByText('Continue anyway')
-  await sendBtn.or(continueBtn).first().waitFor({ state: 'visible', timeout })
-  if (await continueBtn.isVisible()) {
-    await continueBtn.click()
-    await sendBtn.waitFor({ state: 'visible', timeout: 30000 })
+  const homeOrError = async () => {
+    await sendBtn.or(continueBtn).first().waitFor({ state: 'visible', timeout })
+    if (await continueBtn.isVisible()) {
+      await continueBtn.click()
+      await sendBtn.waitFor({ state: 'visible', timeout: 30000 })
+    }
   }
+  await homeOrError()
   // On a returning visit Home is drawn from the last visit's figures before the wallet has
-  // loaded, and the app is marked busy until it has. The page is ready when that mark is gone.
+  // loaded, and the app is marked busy until it has. The page is ready when that mark is gone,
+  // and if the load failed behind stored Home, the error it left is handled as above.
   await page.locator('[data-testid="app"][aria-busy="true"]').waitFor({ state: 'detached', timeout })
+  await homeOrError()
   const dismissButton = page.getByText(tr.common.dismiss)
   if (await dismissButton.isVisible().catch(() => false)) {
     await dismissButton.click()

@@ -57,6 +57,11 @@ export const saveAspInfoSnapshot = (info: AspInfo, build: string): void => {
 /** Whether two server answers say the same thing, so a live answer can keep the cached object. */
 export const sameAspInfo = (a: AspInfo, b: AspInfo): boolean => encode(a) === encode(b)
 
+// The session times are bigints and are added to one another; a number among them would throw.
+const isScheduledSession = (value: unknown): boolean =>
+  isRecord(value) &&
+  ['nextStartTime', 'nextEndTime', 'duration', 'period'].every((field) => typeof value[field] === 'bigint')
+
 /** The server's last answer for `url`, if this build saved one. */
 export const readAspInfoSnapshot = (url: string, build: string): AspInfo | undefined =>
   getStorageItem<AspInfo | undefined>(ASP_INFO_KEY, undefined, (text) => {
@@ -67,6 +72,7 @@ export const readAspInfoSnapshot = (url: string, build: string): AspInfo | undef
     if (typeof info.network !== 'string' || !info.network) return undefined
     if (typeof info.signerPubkey !== 'string' || !info.signerPubkey) return undefined
     if (typeof info.dust !== 'bigint' || !isRecord(info.fees)) return undefined
+    if (info.scheduledSession !== undefined && !isScheduledSession(info.scheduledSession)) return undefined
     return info as unknown as AspInfo
   })
 
@@ -117,6 +123,8 @@ export const saveHomeSnapshot = (snapshot: HomeSnapshot): void => {
 const isAssetBalance = (value: unknown): boolean =>
   isRecord(value) && typeof value.assetId === 'string' && ['bigint', 'number'].includes(typeof value.amount)
 
+// Checks the fields that draw a row's figure, against a damaged entry. The other fields are as this code
+// wrote them, which `HOME_SNAPSHOT_SHAPE` guarantees; a row tapped on stored Home opens on its loaded copy.
 const isTx = (value: unknown): boolean =>
   isRecord(value) &&
   typeof value.amount === 'number' &&

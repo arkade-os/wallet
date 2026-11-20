@@ -84,6 +84,21 @@ describe('server info snapshot', () => {
     localStorage.setItem('aspInfoSnapshot', JSON.stringify({ build: 'build-1', info: partial }))
     expect(readAspInfoSnapshot(URL, 'build-1')).toBeUndefined()
   })
+
+  it('reads a session whose times are not bigints as nothing', () => {
+    saveAspInfoSnapshot(info, 'build-1')
+    const stored = JSON.parse(localStorage.getItem('aspInfoSnapshot')!)
+    stored.info.scheduledSession.period = 3600
+    localStorage.setItem('aspInfoSnapshot', JSON.stringify(stored))
+
+    expect(readAspInfoSnapshot(URL, 'build-1')).toBeUndefined()
+  })
+
+  it('keeps the session times as bigints', () => {
+    saveAspInfoSnapshot(info, 'build-1')
+
+    expect(typeof readAspInfoSnapshot(URL, 'build-1')?.scheduledSession?.period).toBe('bigint')
+  })
 })
 
 describe('fiat prices snapshot', () => {
