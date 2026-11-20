@@ -2,12 +2,14 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import {
   FIAT_PRICES_MAX_AGE_MS,
   HOME_SNAPSHOT_TXS,
+  loadedCopyOf,
   readAspInfoSnapshot,
   readFiatPricesSnapshot,
   readHomeSnapshot,
   saveAspInfoSnapshot,
   saveFiatPricesSnapshot,
   saveHomeSnapshot,
+  sameAspInfo,
   type HomeSnapshot,
 } from '../../lib/bootCache'
 import { clearStorage } from '../../lib/storage'
@@ -104,6 +106,21 @@ describe('fiat prices snapshot', () => {
 
     expect(readFiatPricesSnapshot(1_000)).toBeUndefined()
   })
+
+  // An empty answer passed the check, and overwrote good prices with ones that read back as nothing.
+  it('keeps the last good prices when the feed answers with nothing', () => {
+    saveFiatPricesSnapshot(prices, 1_000)
+    saveFiatPricesSnapshot({} as typeof prices, 2_000)
+
+    expect(readFiatPricesSnapshot(2_000)?.eur).toBe(prices.eur)
+  })
+})
+
+describe('comparing server answers', () => {
+  it('finds two answers alike when every field is, bigints included', () => {
+    expect(sameAspInfo(info, { ...info })).toBe(true)
+    expect(sameAspInfo(info, { ...info, dust: 500n })).toBe(false)
+  })
 })
 
 describe('Home snapshot', () => {
@@ -115,6 +132,12 @@ describe('Home snapshot', () => {
     expect(read?.balance).toBe(148_000)
     expect(read?.assetBalances).toEqual([{ assetId: 'aa'.repeat(34), amount: 5n }])
     expect(read?.txs.map((row) => row.redeemTxid)).toEqual(['redeem-1', 'redeem-2'])
+  })
+
+  it('reads an entry without a save time as nothing', () => {
+    saveHomeSnapshot({ ...home(), savedAt: 'yesterday' as unknown as number })
+
+    expect(readHomeSnapshot('pubkey-1', 'build-1')).toBeUndefined()
   })
 
   it('has nothing for another wallet', () => {
@@ -153,5 +176,23 @@ describe('Home snapshot', () => {
 
     expect(readHomeSnapshot('pubkey-1', 'build-1')).toBeUndefined()
     expect(readAspInfoSnapshot(URL, 'build-1')).toBeUndefined()
+  })
+})
+
+describe('the loaded copy of a stored row', () => {
+  const stored = { ...tx(1), settled: false }
+
+  it('is the loaded row for the same payment, which may have settled since', () => {
+    const loaded = [tx(2), { ...tx(1), settled: true }]
+    expect(loadedCopyOf(stored, loaded)).toEqual({ ...tx(1), settled: true })
+  })
+
+  it('goes by the history key when both rows have one', () => {
+    const keyed = { ...stored, historyKey: 'activity-7' }
+    expect(loadedCopyOf(keyed, [{ ...tx(9), historyKey: 'activity-7' }])?.redeemTxid).toBe('redeem-9')
+  })
+
+  it('is nothing when the load does not have the payment', () => {
+    expect(loadedCopyOf(stored, [tx(2)])).toBeUndefined()
   })
 })

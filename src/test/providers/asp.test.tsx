@@ -94,4 +94,25 @@ describe('server info at boot', () => {
     // The last good answer stays for a later visit; an outage is not an answer.
     expect(readAspInfoSnapshot(SERVER, gitCommit)?.dust).toBe(330n)
   })
+
+  // Effects keyed on the whole object (the rollover thresholds) ran again for every returning visit,
+  // asking the worker for every coin, though the live answer said nothing new.
+  it('keeps the cached object when the live answer says the same thing', async () => {
+    saveAspInfoSnapshot(answer(330n), gitCommit)
+    const respond = pending()
+    mount()
+    const cached = asp.aspInfo
+
+    await respond(answer(330n))
+    expect(asp.aspInfo).toBe(cached)
+  })
+
+  it('takes the live answer when it differs from the cached one', async () => {
+    saveAspInfoSnapshot(answer(330n), gitCommit)
+    const respond = pending()
+    mount()
+
+    await respond(answer(500n))
+    expect(asp.aspInfo.dust).toBe(500n)
+  })
 })

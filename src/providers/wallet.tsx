@@ -28,7 +28,7 @@ import {
   saveAssetMetadataFailuresToStorage,
   type TransactionActivityMetadata,
 } from '../lib/storage'
-import { readHomeSnapshot, saveHomeSnapshot, HOME_SNAPSHOT_SHAPE } from '../lib/bootCache'
+import { loadedCopyOf, readHomeSnapshot, saveHomeSnapshot, HOME_SNAPSHOT_SHAPE } from '../lib/bootCache'
 import { NavigationContext, Pages } from './navigation'
 import { getBalance, getUnrolledVtxos, getVtxos, settleVtxos } from '../lib/asp'
 import { resolveExits, subtractExitedAssets, type ExitRecord } from '../lib/exitHistory'
@@ -207,7 +207,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { initialiseNostrBackup } = useContext(BackupContext)
   const { config, configLoaded, updateConfig } = useContext(ConfigContext)
   const { navigate } = useContext(NavigationContext)
-  const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo } = useContext(FlowContext)
+  const { setNoteInfo, noteInfo, setDeepLinkInfo, deepLinkInfo, txInfo, setTxInfo } = useContext(FlowContext)
   const { notifyTxSettled } = useContext(NotificationsContext)
   const { t } = useTranslation()
 
@@ -293,6 +293,15 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const storedHome = lastHomeShown && Boolean(lastHome) && (!configLoaded || lastHome?.aspUrl === config.aspUrl)
   const shownHome = storedHome ? lastHome : undefined
   const txs = shownHome ? shownHome.txs : loadedTxs
+
+  // A payment row tapped on stored Home holds the stored copy of that payment, and its details open
+  // once the load lands. By then the payment may have settled, so the details get the loaded copy.
+  useEffect(() => {
+    if (storedHome || !lastHome || !txInfo || !lastHome.txs.includes(txInfo)) return
+    const loaded = loadedCopyOf(txInfo, loadedTxs)
+    if (loaded) setTxInfo(loaded)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storedHome, loadedTxs])
 
   // Keep what Home shows for the next visit to start from: the live figures, after a load.
   useEffect(() => {

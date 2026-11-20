@@ -54,6 +54,9 @@ export const saveAspInfoSnapshot = (info: AspInfo, build: string): void => {
   setStorageItemSafely(ASP_INFO_KEY, encode({ build, info }), 'Failed to save server info snapshot')
 }
 
+/** Whether two server answers say the same thing, so a live answer can keep the cached object. */
+export const sameAspInfo = (a: AspInfo, b: AspInfo): boolean => encode(a) === encode(b)
+
 /** The server's last answer for `url`, if this build saved one. */
 export const readAspInfoSnapshot = (url: string, build: string): AspInfo | undefined =>
   getStorageItem<AspInfo | undefined>(ASP_INFO_KEY, undefined, (text) => {
@@ -69,8 +72,9 @@ export const readAspInfoSnapshot = (url: string, build: string): AspInfo | undef
 
 /** Keep the last prices, so the next visit can show a fiat figure before the feed has answered. */
 export const saveFiatPricesSnapshot = (prices: FiatPrices, now = Date.now()): void => {
-  // A feed that left a currency out is not one to start the next visit from.
-  if (!Object.values(prices).every((value) => typeof value === 'number' && value > 0)) return
+  // A feed that left a currency out, or answered with nothing, is not one to start the next visit from.
+  const values = Object.values(prices)
+  if (values.length === 0 || !values.every((value) => typeof value === 'number' && value > 0)) return
   setStorageItemSafely(FIAT_PRICES_KEY, JSON.stringify({ at: now, prices }), 'Failed to save fiat prices snapshot')
 }
 
@@ -127,6 +131,9 @@ export const readHomeSnapshot = (pubkey: string | undefined, build: string): Hom
     const snapshot = decode(text)
     if (!pubkey || !isRecord(snapshot) || snapshot.pubkey !== pubkey || snapshot.build !== build) return undefined
     if (typeof snapshot.aspUrl !== 'string' || !snapshot.aspUrl) return undefined
+    // No age limit, on purpose: a snapshot is only ever drawn with the syncing line beside it, and
+    // the first load replaces it. `savedAt` is kept for diagnosis, and checked only for its type.
+    if (typeof snapshot.savedAt !== 'number') return undefined
     if (typeof snapshot.balance !== 'number' || typeof snapshot.availableBalance !== 'number') return undefined
     if (!Array.isArray(snapshot.assetBalances) || !snapshot.assetBalances.every(isAssetBalance)) return undefined
     if (!Array.isArray(snapshot.availableAssetBalances) || !snapshot.availableAssetBalances.every(isAssetBalance)) {
@@ -135,3 +142,17 @@ export const readHomeSnapshot = (pubkey: string | undefined, build: string): Hom
     if (!Array.isArray(snapshot.txs) || !snapshot.txs.every(isTx)) return undefined
     return snapshot as unknown as HomeSnapshot
   })
+
+/**
+ * The loaded copy of a history row that came from the snapshot, if the load has it. A row tapped on
+ * stored Home holds the stored copy until the load lands, and the payment may have settled since.
+ */
+export const loadedCopyOf = (row: Tx, loaded: Tx[]): Tx | undefined =>
+  loaded.find((tx) =>
+    row.historyKey && tx.historyKey
+      ? tx.historyKey === row.historyKey
+      : tx.type === row.type &&
+        tx.roundTxid === row.roundTxid &&
+        tx.redeemTxid === row.redeemTxid &&
+        tx.boardingTxid === row.boardingTxid,
+  )

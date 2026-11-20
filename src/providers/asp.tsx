@@ -1,7 +1,7 @@
 import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
 import { ArkadeInfo, ScheduledSession } from '@arkade-os/sdk'
 import { emptyAspInfo, getAspInfo } from '../lib/asp'
-import { readAspInfoSnapshot, saveAspInfoSnapshot } from '../lib/bootCache'
+import { readAspInfoSnapshot, sameAspInfo, saveAspInfoSnapshot } from '../lib/bootCache'
 import { gitCommit } from '../_gitCommit'
 import { ConfigContext } from './config'
 
@@ -43,7 +43,9 @@ export const AspProvider = ({ children }: { children: ReactNode }) => {
     if (last) setAspInfo(last)
     getAspInfo(config.aspUrl)
       .then((info) => {
-        setAspInfo(info)
+        // An answer that matches the cached one keeps its object, so nothing that depends on
+        // `aspInfo` runs again for a change that did not happen.
+        setAspInfo((current) => (sameAspInfo(current, info) ? current : info))
         saveAspInfoSnapshot(info, gitCommit)
       })
       .catch(() => {

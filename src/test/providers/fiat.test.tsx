@@ -28,16 +28,17 @@ function Capture() {
   fiat = useContext(FiatContext)
   return null
 }
-const mount = (currency = Currencies.EUR) =>
-  render(
-    <ConfigContext.Provider
-      value={{ ...mockConfigContextValue, config: { ...mockConfigContextValue.config, currency } }}
-    >
-      <FiatProvider>
-        <Capture />
-      </FiatProvider>
-    </ConfigContext.Provider>,
-  )
+const updateConfig = vi.fn()
+const tree = (currency = Currencies.EUR) => (
+  <ConfigContext.Provider
+    value={{ ...mockConfigContextValue, updateConfig, config: { ...mockConfigContextValue.config, currency } }}
+  >
+    <FiatProvider>
+      <Capture />
+    </FiatProvider>
+  </ConfigContext.Provider>
+)
+const mount = (currency = Currencies.EUR) => render(tree(currency))
 
 const pendingFeed = () => {
   let resolve: (feed: FiatPrices | undefined) => void = () => {}
@@ -82,5 +83,40 @@ describe('fiat prices at boot', () => {
     mount(Currencies.BTC)
 
     expect(fiat.fiatReady).toBe(true)
+  })
+
+  it('reads the stored prices once, not on every render', async () => {
+    saveFiatPricesSnapshot(prices(60_000))
+    pendingFeed()
+    const getItem = vi.spyOn(Storage.prototype, 'getItem')
+
+    const { rerender } = mount()
+    rerender(tree())
+    rerender(tree())
+
+    expect(getItem.mock.calls.filter(([key]) => key === 'fiatPricesSnapshot')).toHaveLength(1)
+    getItem.mockRestore()
+  })
+
+  // Offline with prices from the last day, the wallet already shows them; switching the currency to
+  // BTC only took them away.
+  it('keeps the currency when the feed fails and recent prices are in hand', async () => {
+    saveFiatPricesSnapshot(prices(60_000))
+    const respond = pendingFeed()
+    mount()
+
+    await respond(undefined)
+
+    expect(updateConfig).not.toHaveBeenCalled()
+    expect(fiat.toFiat(100_000_000)).toBe(60_000)
+  })
+
+  it('falls back to BTC when the feed fails and there are no recent prices', async () => {
+    const respond = pendingFeed()
+    mount()
+
+    await respond(undefined)
+
+    expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({ currency: Currencies.BTC }), false)
   })
 })
