@@ -50,8 +50,8 @@ describe('getExecutorParams', () => {
     expect(getExecutorParams('regtest').renewalWindow).toBeLessThan(86_400)
   })
 
-  it('renews a day before expiry elsewhere', () => {
-    expect(getExecutorParams('mutinynet')).toEqual({ renewalWindow: 86_400, maxFee: 1_000 })
-    expect(getExecutorParams('bitcoin')).toEqual({ renewalWindow: 86_400, maxFee: 1_000 })
+  it('renews half an hour before expiry elsewhere', () => {
+    expect(getExecutorParams('mutinynet')).toEqual({ renewalWindow: 1_800, maxFee: 1_000 })
+    expect(getExecutorParams('bitcoin')).toEqual({ renewalWindow: 1_800, maxFee: 1_000 })
   })
 })
