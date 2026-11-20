@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import DismissibleBanner from '../../components/DismissibleBanner'
 import ErrorMessage from '../../components/Error'
 import { AspContext } from '../../providers/asp'
@@ -20,6 +20,8 @@ import PortfolioHero from './PortfolioHero'
 import HomeQuickActions from './HomeQuickActions'
 import AssetsSection from './AssetsSection'
 import RecentActivitySection from './RecentActivitySection'
+import ContactsSection from './ContactsSection'
+import { readContacts } from '../../lib/contacts'
 import { usePortfolioBalanceDisplay } from '../../hooks/usePortfolioBalanceDisplay'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { BackupContext } from '@/providers/backup'
@@ -118,6 +120,8 @@ export default function Wallet() {
 
   // undefined hands the collapse to CSS; a number drives it from here
   const collapseProgress = SCROLL_DRIVEN && !prefersReducedMotion ? undefined : balanceCollapseProgress
+  // Read once per visit: Home re-renders while it scrolls, and contacts only change on other screens.
+  const contacts = useMemo(readContacts, [])
 
   return (
     <Content className={homeScrolled ? 'wallet-home-content wallet-home-content--scrolled' : 'wallet-home-content'}>
@@ -168,6 +172,11 @@ export default function Wallet() {
                 error={error}
                 text={aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))}
               />
+            </WalletStaggerChild>
+          ) : null}
+          {contacts.length ? (
+            <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
+              <ContactsSection contacts={contacts} />
             </WalletStaggerChild>
           ) : null}
           <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
