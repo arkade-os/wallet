@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useContext, useLayoutEffect, useRef, useState } from 'react'
+import { useContext, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { WalletContext } from '../providers/wallet'
 import { Currencies, Tx } from '../lib/types'
 import { isBurn, isIssuance, prettyDate } from '../lib/format'
@@ -28,25 +28,29 @@ import {
 import UnverifiedBadge from './UnverifiedBadge'
 import { useTransactionAmountDisplay } from '../hooks/useTransactionAmountDisplay'
 import { useTranslation } from '../providers/language'
-import { contactAddressForActivity, contactForAddress } from '../lib/contacts'
+import { contactAddressForActivity, readContacts } from '../lib/contacts'
 
 const TransactionLine = ({
   tx,
   onClick,
   isFirst,
   mode,
+  contactNames,
 }: {
   tx: Tx
   onClick: () => void
   isFirst?: boolean
   mode: 'virtual' | 'static'
+  /** Saved contacts that have a name, by address; read once by the list rather than by every row. */
+  contactNames: ReadonlyMap<string, string>
 }) => {
   const { config } = useContext(ConfigContext)
   const { toFiatAmount } = useContext(FiatContext)
   const { assetMetadataCache } = useContext(WalletContext)
   const { language, t } = useTranslation()
   // Only a name the user gave: a contact saved without one reads as a plain send, never as its address.
-  const contactName = contactForAddress(contactAddressForActivity(tx))?.name?.trim() || undefined
+  const contactAddress = contactAddressForActivity(tx)
+  const contactName = contactAddress ? contactNames.get(contactAddress) : undefined
 
   const date = tx.createdAt
     ? prettyDate(tx.createdAt, language)
@@ -264,6 +268,11 @@ export default function TransactionsList({
   const { navigate } = useContext(NavigationContext)
   const { assetMetadataCache, txs: allTxs } = useContext(WalletContext)
   const { t } = useTranslation()
+  // Contacts change on other screens, and the list mounts afresh when it is shown again.
+  const contactNames = useMemo(
+    () => new Map(readContacts().flatMap((c) => (c.name?.trim() ? [[c.address, c.name.trim()] as const] : []))),
+    [],
+  )
   const visibleTxs = allTxs
     .filter((tx) => !shouldHideDevAssetTx(tx, assetMetadataCache))
     .filter((tx) => !addressFilter || contactAddressForActivity(tx) === addressFilter)
@@ -370,7 +379,13 @@ export default function TransactionsList({
             onEnter={() => handleClick(tx)}
             ariaLabel={ariaLabel(tx)}
           >
-            <TransactionLine onClick={() => handleClick(tx)} tx={tx} isFirst={index === 0} mode={mode} />
+            <TransactionLine
+              onClick={() => handleClick(tx)}
+              tx={tx}
+              isFirst={index === 0}
+              mode={mode}
+              contactNames={contactNames}
+            />
           </Focusable>
         ))}
       </div>
@@ -422,6 +437,7 @@ export default function TransactionsList({
                     tx={tx}
                     isFirst={virtualItem.index === 0}
                     mode={mode}
+                    contactNames={contactNames}
                   />
                 </Focusable>
               </div>

@@ -165,18 +165,28 @@ const dateFromTimestamp = (timestamp: number): Date | undefined => {
   return date
 }
 
+// Building an Intl formatter costs far more than using one, and every activity row formats a date and
+// several amounts on each render, so formatters are built once per set of options and reused.
+const dateFormatters = new Map<string, Intl.DateTimeFormat>()
+
 export const prettyDate = (unixTs: number, lang: Language = Language.English): string => {
   if (unixTs === 0) return ''
   const date = dateFromTimestamp(unixTs)
   if (!date) return ''
   if (!isUnixTimestamp(unixTs)) return '' // block height, not a valid timestamp
-  return new Intl.DateTimeFormat(getLocale(lang), {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    minute: '2-digit',
-    hour: '2-digit',
-  }).format(date)
+  const locale = getLocale(lang)
+  let formatter = dateFormatters.get(locale)
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(locale, {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      minute: '2-digit',
+      hour: '2-digit',
+    })
+    dateFormatters.set(locale, formatter)
+  }
+  return formatter.format(date)
 }
 
 const chartDateTimeFormatter = new Intl.DateTimeFormat('en', {
@@ -228,6 +238,23 @@ export const prettyLongText = (str?: string, showChars = 11): string => {
 
 type PrettyNumberInput = number | string | bigint | Decimal
 
+const numberFormatters = new Map<string, Intl.NumberFormat>()
+
+const numberFormatter = (maximumFractionDigits: number, useGrouping: boolean, minimumFractionDigits?: number) => {
+  const key = `${maximumFractionDigits}|${minimumFractionDigits}|${useGrouping}`
+  let formatter = numberFormatters.get(key)
+  if (!formatter) {
+    formatter = new Intl.NumberFormat('en', {
+      style: 'decimal',
+      maximumFractionDigits,
+      minimumFractionDigits,
+      useGrouping,
+    })
+    numberFormatters.set(key, formatter)
+  }
+  return formatter
+}
+
 export const prettyNumber = (
   num?: PrettyNumberInput,
   maximumFractionDigits = 8,
@@ -237,12 +264,7 @@ export const prettyNumber = (
   if (num === undefined || num === null) return '0'
   if (typeof num === 'number') {
     if (Number.isNaN(num)) return '0'
-    return new Intl.NumberFormat('en', {
-      style: 'decimal',
-      maximumFractionDigits,
-      minimumFractionDigits,
-      useGrouping,
-    }).format(num)
+    return numberFormatter(maximumFractionDigits, useGrouping, minimumFractionDigits).format(num)
   }
 
   return formatDecimalText(num, maximumFractionDigits, useGrouping, minimumFractionDigits)

@@ -315,6 +315,14 @@ describe('format utilities', () => {
   })
 
   describe('prettyNumber', () => {
+    // Formatters are reused per set of options; two sets must never share one.
+    it('keeps each set of options to its own formatter', () => {
+      expect(prettyNumber(1234.5678, 2)).toBe('1,234.57')
+      expect(prettyNumber(1234.5678, 2, false)).toBe('1234.57')
+      expect(prettyNumber(1234.5, 2, true, 2)).toBe('1,234.50')
+      expect(prettyNumber(1234.5678, 2)).toBe('1,234.57')
+    })
+
     it('should format numbers correctly', () => {
       expect(prettyNumber(0)).toBe('0')
       expect(prettyNumber(1000)).toBe('1,000')
