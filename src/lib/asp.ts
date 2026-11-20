@@ -327,6 +327,40 @@ export const getReceivingAddresses = async (wallet: IWallet): Promise<Addresses>
   }
 }
 
+/** How long Receive waits for the unlock-time Executor registration. The SDK's own request deadline is 30 s. */
+export const EXECUTOR_SETTLE_TIMEOUT_MS = 5_000
+
+/** What the user is shown to receive on. `ownAddr` is the wallet's own Ark address (`getAddress()`) and what every
+ * other use keeps; `displayOffchainAddr` is the Executor renewal contract when one is recorded, else `ownAddr`. */
+export type DisplayAddresses = {
+  boardingAddr: string
+  ownAddr: string
+  displayOffchainAddr: string
+}
+
+/** Addresses for screens that show them to the user. Waits (bounded) for the Executor registration first: until it
+ * settles the SDK answers `getBoardingAddress()` with an address the Executor does not watch. Never throws on a
+ * failed or slow registration — the fallback is the SDK's own addresses. Does not change `getReceivingAddresses`. */
+export const getDisplayAddresses = async (
+  wallet: IWallet,
+  executor?: { settled: () => Promise<{ status?: string; renewalAddress?: string }>; timeoutMs?: number },
+): Promise<DisplayAddresses> => {
+  let renewalAddress: string | undefined
+  if (executor) {
+    let timer: number | undefined
+    const timeout = new Promise<undefined>((resolve) => {
+      timer = window.setTimeout(resolve, executor.timeoutMs ?? EXECUTOR_SETTLE_TIMEOUT_MS)
+    })
+    try {
+      renewalAddress = (await Promise.race([executor.settled().catch(() => undefined), timeout]))?.renewalAddress
+    } finally {
+      window.clearTimeout(timer)
+    }
+  }
+  const { offchainAddr, boardingAddr } = await getReceivingAddresses(wallet)
+  return { boardingAddr, ownAddr: offchainAddr, displayOffchainAddr: renewalAddress || offchainAddr }
+}
+
 export const redeemNotes = async (wallet: IWallet, notes: string[]): Promise<void> => {
   const inputs = notes.map((note) => ArkNote.fromString(note))
   const amount = inputs.reduce((acc, curr) => acc + BigInt(curr.value), BigInt(0))

@@ -19,7 +19,7 @@ import LoadingLogo from '../../../components/LoadingLogo'
 import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
 import { unitsToAtomic } from '../../../lib/assets'
 import ErrorMessage from '../../../components/Error'
-import { getReceivingAddresses } from '../../../lib/asp'
+import { getDisplayAddresses } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
 import InputAmount from '../../../components/InputAmount'
 import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
@@ -66,7 +66,7 @@ export default function ReceiveQRCode() {
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
-  const { assetMetadataCache, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, svcWallet, executorSettled, executorSettledCount } = useContext(WalletContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { t } = useTranslation()
 
@@ -91,7 +91,7 @@ export default function ReceiveQRCode() {
   const prefersReducedMotion = useReducedMotion()
 
   // Receive methods
-  const { boardingAddr, offchainAddr, satoshis, assetId, addressError } = recvInfo
+  const { boardingAddr, offchainAddr, ownAddr, satoshis, assetId, addressError } = recvInfo
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
   const isAssetReceive = assetId && assetId !== ''
   const hasError = Boolean(addressError)
@@ -107,34 +107,45 @@ export default function ReceiveQRCode() {
   const lastSegment = useRef('unified')
   const [bip21Uri, setBip21Uri] = useState('')
 
-  // Fetch addresses on mount
+  // Fetch addresses on mount, and again once the Executor registration settles: until then the SDK may answer with
+  // the wallet's own boarding address, which the Executor does not watch. The read waits (bounded) for it.
   useEffect(() => {
     if (!svcWallet) return
-    if (boardingAddr && offchainAddr) {
-      setAddressesLoaded(true)
-      return
-    }
-    getReceivingAddresses(svcWallet)
-      .then(({ offchainAddr, boardingAddr }) => {
-        if (!offchainAddr) throw 'Unable to get offchain address'
+    let stale = false
+    getDisplayAddresses(svcWallet, { settled: executorSettled })
+      .then(({ ownAddr, displayOffchainAddr, boardingAddr }) => {
+        if (stale) return
+        if (!displayOffchainAddr) throw 'Unable to get offchain address'
         if (!boardingAddr) throw 'Unable to get boarding address'
-        setRecvInfo({ ...recvInfo, boardingAddr, offchainAddr, satoshis: 0, addressError: undefined })
+        // Functional: a late settle must not wipe an amount or invoice entered while the read was running
+        setRecvInfo((prev) => ({
+          ...prev,
+          boardingAddr,
+          offchainAddr: displayOffchainAddr,
+          ownAddr,
+          addressError: undefined,
+        }))
         setAddressesLoaded(true)
       })
       .catch((err) => {
+        if (stale) return
         const error = extractError(err)
         consoleError(error, 'error getting addresses')
-        setRecvInfo({ ...recvInfo, addressError: error })
+        setRecvInfo((prev) => ({ ...prev, addressError: error }))
         setAddressesLoaded(true)
       })
-  }, [svcWallet])
+    return () => {
+      stale = true
+    }
+  }, [svcWallet, executorSettled, executorSettledCount])
 
   // A pending Receive-screen claim must not leave a swap invoice taking the QR's lightning= from the LNURL.
   const lnurlConfigured = Boolean(configuredLnurlServer())
   const lnurlRail = useLnurlRail({
     enabled: lnurlConfigured && !isAssetReceive,
     identity: svcWallet?.identity,
-    arkadeAddress: recvInfo.offchainAddr,
+    // The wallet's own address, never the display renewal address: the bound arkadeAddress must not change
+    arkadeAddress: ownAddr || recvInfo.offchainAddr,
     boardingAddress: recvInfo.boardingAddr || undefined,
     primary: config.lnurlPrimary,
   })
@@ -148,7 +159,7 @@ export default function ReceiveQRCode() {
   // The payment listener writes the paid amount into `satoshis`; re-quoting it would mint an invoice nobody pays.
   const requestedSats = recvInfo.received ? 0 : satoshis
   const lnurlRails = useLnurlRails(lnurlRail.receiver, requestedSats, false, {
-    arkade: recvInfo.offchainAddr,
+    arkade: ownAddr || recvInfo.offchainAddr,
     onchain: recvInfo.boardingAddr,
   })
   const tokenRails = useLnurlTokenRails(

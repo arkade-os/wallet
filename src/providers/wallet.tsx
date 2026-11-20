@@ -90,6 +90,19 @@ const defaultWallet: Wallet = {
 
 export type WalletAuthState = 'unknown' | 'passwordless' | 'locked' | 'authenticated'
 
+/** Where the Executor registration started at unlock stands. `no-executor` covers both "not configured" and "the
+ * service worker has no executor manager"; `failure` means at least one of the two registrations threw. */
+export type ExecutorStatus = 'no-executor' | 'pending' | 'success' | 'failure'
+
+/** What `executorSettled` resolves with. `renewalAddress` is the Executor renewal contract (an Ark address) and is
+ * only ever set on static wallets: on an HD wallet a coin there would rotate the boarding address. */
+export interface ExecutorSettlement {
+  status: Exclude<ExecutorStatus, 'pending'>
+  renewalAddress?: string
+}
+
+const noExecutorSettlement: ExecutorSettlement = { status: 'no-executor' }
+
 interface WalletContextProps {
   initWallet: (credentials: {
     mnemonic?: string
@@ -134,6 +147,15 @@ interface WalletContextProps {
   iconApprovalManager: AssetIconApprovalManager
   isVerifiedAsset: (assetId: string) => boolean
   dataReady: boolean
+  /** Resolves once the unlock-time Executor registration has finished, on success or failure, and on lock, reset
+   * and restart. Never rejects; callers that must not wait forever bound it themselves. */
+  executorSettled: () => Promise<ExecutorSettlement>
+  /** Bumped when a registration settles, for consumers that stopped waiting and need to read again. */
+  executorSettledCount: number
+  executorStatus: ExecutorStatus
+  /** The Executor renewal contract of a static wallet, once registered. Display only: it is not the wallet's own
+   * address, and every other Ark-address use stays on `getAddress()`. */
+  executorRenewalAddress?: string
   /** The worker's first contract sync since setup has not landed: balances and history are stored data. */
   syncing?: boolean
   loadError: string | null
@@ -166,6 +188,9 @@ export const WalletContext = createContext<WalletContextProps>({
   iconApprovalManager: new AssetIconApprovalManager(),
   isVerifiedAsset: () => false,
   dataReady: false,
+  executorSettled: () => Promise.resolve(noExecutorSettlement),
+  executorSettledCount: 0,
+  executorStatus: 'no-executor',
   syncing: false,
   loadError: null,
   dismissLoadError: () => {},
@@ -274,6 +299,20 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const swMessageHandlerRef = useRef<(event: MessageEvent) => void>()
   const reinitInProgress = useRef(false)
   const initAbortRef = useRef<AbortController | null>(null)
+  // One per init session; a session that no longer owns it cannot settle, store an address or reload for the next.
+  const executorSessionRef = useRef<{
+    signal: AbortSignal
+    promise: Promise<ExecutorSettlement>
+    resolve: (settlement: ExecutorSettlement) => void
+  } | null>(null)
+  const [executorStatus, setExecutorStatus] = useState<ExecutorStatus>('no-executor')
+  const [executorRenewalAddress, setExecutorRenewalAddress] = useState<string>()
+  const [executorSettledCount, setExecutorSettledCount] = useState(0)
+  // Stable identity: consumers put it in effect dependencies. Reads the live session, so a promise created after
+  // the consumer rendered is still the one it gets.
+  const executorSettled = useRef(
+    (): Promise<ExecutorSettlement> => executorSessionRef.current?.promise ?? Promise.resolve(noExecutorSettlement),
+  ).current
   const reinitSvcWalletRef = useRef<((identity: Identity) => Promise<void>) | null>(null)
   // reloadWallet runs from long-lived listeners (service-worker messages, the
   // swap SSE monitor) whose closures captured an early `config` — theme still
@@ -300,6 +339,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // A new init aborts the previous with 'init', which means "abandon, don't clear".
   const startInitSession = (): AbortSignal => {
     initAbortRef.current?.abort('init')
+    endExecutorSession()
     initAbortRef.current = new AbortController()
     return initAbortRef.current.signal
   }
@@ -307,6 +347,25 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const abortInitSession = () => {
     initAbortRef.current?.abort('lock-reset')
     initAbortRef.current = null
+    endExecutorSession()
+  }
+
+  // Lock, reset and a restarting init: nobody should keep waiting on, or read the address of, the session that ended.
+  const endExecutorSession = () => {
+    executorSessionRef.current?.resolve(noExecutorSettlement)
+    executorSessionRef.current = null
+    setExecutorStatus('no-executor')
+    setExecutorRenewalAddress(undefined)
+  }
+
+  const beginExecutorSession = (signal: AbortSignal) => {
+    let resolve!: (settlement: ExecutorSettlement) => void
+    const promise = new Promise<ExecutorSettlement>((r) => (resolve = r))
+    const session = { signal, promise, resolve }
+    executorSessionRef.current = session
+    setExecutorStatus('pending')
+    setExecutorRenewalAddress(undefined)
+    return session
   }
 
   const clearIfLockReset = async (svcWallet: ServiceWorkerWallet, signal: AbortSignal) => {
@@ -644,6 +703,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const { arkServerUrl, retryCount = 0, maxRetries = 2, executorUrl, walletMode, restoring = false } = params
     try {
       setLoadingStatus(t('loading.startingWallet'))
+      const mode = walletMode ?? config.walletMode ?? 'static'
       const walletRepository = new IndexedDBWalletRepository()
       const contractRepository = new IndexedDBContractRepository()
 
@@ -681,7 +741,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         identity,
         arkServer: { url: arkServerUrl },
         executorUrl,
-        walletMode: walletMode ?? config.walletMode ?? 'static',
+        walletMode: mode,
         // Contract sync finishes in the background; the coin-event reload below repaints. Not lazyBoarding: its
         // refresh is never retried, and its UTXO_UPDATE carries every stored coin, which the receive screen reads as a payment.
         lazyInitialization: true,
@@ -749,30 +809,54 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // Safe on every unlock: watches are keyed by txid and the confirmation queue ignores a key it already holds.
       resumeLnurlConfirmations()
       // Idempotent on the Executor. Not awaited: an unreachable Executor leaves the wallet's own boarding address,
-      // and the wallet renews its coins itself.
+      // and the wallet renews its coins itself. The session lets Receive wait (bounded) for the outcome, because the
+      // SDK answers `getBoardingAddress()` with the wallet's own address until the watch is registered.
       if (executorUrl) {
         const network = aspInfo.network as NetworkName
+        const session = beginExecutorSession(signal)
+        const isCurrent = () => executorSessionRef.current === session && !signal.aborted
+        const settle = (settlement: ExecutorSettlement) => {
+          if (!isCurrent()) return
+          setExecutorStatus(settlement.status)
+          setExecutorRenewalAddress(settlement.renewalAddress)
+          setExecutorSettledCount((n) => n + 1)
+          session.resolve(settlement)
+        }
         // async, so that even a synchronous throw lands in the catch rather than failing the startup
         ;(async () => {
           const executor = await svcWallet.getExecutorManager()
-          if (!executor) return
+          if (!executor) return settle(noExecutorSettlement)
           const params = getExecutorParams(network)
           // the emulator key swaps already trust; undefined keeps the SDK's pinned one
           const options = { emulatorPubkey: getEmulatorPubkeyOverrideForNetwork(network) }
+          let failed = false
           // Boarding first: renewal also covers every key that holds a live boarding watch. Each failure
           // is its own, so a refused renewal neither hides a registered boarding nor skips its reload.
           try {
             await executor.registerBoarding(params, options)
-            if (!signal.aborted) reloadWallet(svcWallet).catch(consoleError)
+            if (isCurrent()) reloadWallet(svcWallet).catch(consoleError)
           } catch (err) {
+            failed = true
             consoleError(err, 'Executor boarding registration failed')
           }
+          // Only a static wallet shows the renewal contract as its Ark address. On an HD wallet a coin there
+          // rotates the boarding address, and `registerRenewal().address` is exactly that contract.
+          let renewalAddress: string | undefined
           try {
-            await executor.registerRenewal(params, options)
+            const renewal = await executor.registerRenewal(params, options)
+            if (mode === 'static') renewalAddress = renewal?.address || undefined
+            if (isCurrent()) reloadWallet(svcWallet).catch(consoleError)
           } catch (err) {
+            // It can throw after registering the displayed key (an older key's renewal failing), without
+            // returning its address: the wallet then keeps showing its own, until an unlock where it succeeds.
+            failed = true
             consoleError(err, 'Executor renewal registration failed')
           }
-        })().catch((err) => consoleError(err, 'Executor registration failed'))
+          settle({ status: failed ? 'failure' : 'success', renewalAddress })
+        })().catch((err) => {
+          consoleError(err, 'Executor registration failed')
+          settle({ status: 'failure' })
+        })
       }
       // Receives that completed while the wallet was closed are the ones it can
       // never witness first-hand, so pull them once the wallet is usable.
@@ -1131,6 +1215,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         iconApprovalManager,
         isVerifiedAsset,
         dataReady,
+        executorSettled,
+        executorSettledCount,
+        executorStatus,
+        executorRenewalAddress,
         syncing,
         loadError,
         dismissLoadError,

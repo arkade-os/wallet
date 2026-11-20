@@ -145,6 +145,9 @@ export const mockWalletContextValue = {
   iconApprovalManager: new AssetIconApprovalManager(),
   isVerifiedAsset: () => false,
   dataReady: false,
+  executorSettled: () => Promise.resolve({ status: 'no-executor' as const }),
+  executorSettledCount: 0,
+  executorStatus: 'no-executor' as const,
   loadError: null,
   dismissLoadError: () => {},
   setAssetSwaps: () => {},
@@ -234,3 +237,13 @@ export const mockSvcWallet = {
   getStatus: undefined,
   reload: undefined,
 }
+
+/** A wallet that answers the receive addresses a test pre-fills in `recvInfo`, since Receive reads them on every mount. */
+export const svcWalletWithAddresses = <T extends object>(
+  base: T,
+  { offchainAddr, boardingAddr }: { offchainAddr: string; boardingAddr: string },
+) => ({
+  ...base,
+  getAddress: () => Promise.resolve(offchainAddr),
+  getBoardingAddress: () => Promise.resolve(boardingAddr),
+})

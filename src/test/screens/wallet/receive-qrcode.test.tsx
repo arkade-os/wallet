@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, act, fireEvent, waitFor } from '@testing-library/react'
 import { FlowContext } from '../../../providers/flow'
@@ -10,6 +11,7 @@ import {
   mockLimitsContextValue,
   mockNavigationContextValue,
   mockSvcWallet,
+  svcWalletWithAddresses,
   mockWalletContextValue,
 } from '../mocks'
 import { AspContext } from '../../../providers/asp'
@@ -120,6 +122,12 @@ function renderReceiveQrCode(overrides?: RenderOverrides) {
   return render(buildTree(overrides))
 }
 
+// Stable identity: Receive reads the addresses again when `svcWallet` changes.
+const defaultSvcWallet = svcWalletWithAddresses(mockSvcWallet, {
+  offchainAddr: 'ark1testaddr',
+  boardingAddr: 'bc1testaddr',
+})
+
 // Shared fixture for the tap-to-copy tests: no amount,
 // both addresses populated so the screen renders the QR immediately.
 const tapFixture = (addrs = { off: 'ark1testaddr', bd: 'bc1testaddr' }): RenderOverrides => ({
@@ -131,7 +139,9 @@ const tapFixture = (addrs = { off: 'ark1testaddr', bd: 'bc1testaddr' }): RenderO
       boardingAddr: addrs.bd,
     },
   },
-  wallet: { svcWallet: mockSvcWallet as any },
+  wallet: {
+    svcWallet: svcWalletWithAddresses(mockSvcWallet, { offchainAddr: addrs.off, boardingAddr: addrs.bd }) as any,
+  },
 })
 
 describe('Receive QR Code screen', () => {
@@ -179,7 +189,7 @@ describe('Receive QR Code screen', () => {
           boardingAddr: 'bc1testaddr',
         },
       },
-      wallet: { svcWallet: mockSvcWallet as any },
+      wallet: { svcWallet: defaultSvcWallet as any },
     })
 
     const qrButton = await screen.findByRole('button', { name: 'Copy QR code' })
@@ -208,7 +218,7 @@ describe('Receive QR Code screen', () => {
         ...extra,
       },
     },
-    wallet: { svcWallet: mockSvcWallet as any },
+    wallet: { svcWallet: defaultSvcWallet as any },
   })
 
   it('re-derives the QR with the amount when the amount is set after mount', async () => {
@@ -262,7 +272,7 @@ describe('Receive QR Code screen', () => {
           invoice,
         },
       },
-      wallet: { svcWallet: mockSvcWallet as any },
+      wallet: { svcWallet: defaultSvcWallet as any },
     })
 
     it('defaults to the unified URI when a Lightning invoice exists', async () => {
@@ -369,8 +379,9 @@ describe('Receive QR Code screen', () => {
     // flow where Lightning is what they picked in the first place.
     it('restores the Lightning selection when a different invoice arrives', async () => {
       const { rerender } = renderReceiveQrCode(amountFixture('lnbcOLD'))
+      const lightning = await screen.findByText('Lightning')
       await act(async () => {
-        fireEvent.click(await screen.findByText('Lightning'))
+        fireEvent.click(lightning)
       })
 
       rerender(buildTree(amountFixture('lnbcNEW')))
@@ -386,8 +397,9 @@ describe('Receive QR Code screen', () => {
 
     it('never highlights a method it has no value for', async () => {
       const { rerender } = renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
+      const lightning = await screen.findByText('Lightning')
       await act(async () => {
-        fireEvent.click(await screen.findByText('Lightning'))
+        fireEvent.click(lightning)
       })
 
       rerender(buildTree(amountFixture('')))
@@ -459,9 +471,12 @@ describe('Receive QR Code screen — copy feedback', () => {
     copyToClipboardMock.mockResolvedValue(false)
     renderReceiveQrCode(tapFixture())
 
+    // the QR (and with it the copy sheet's rows) appears once the addresses have been read
+    await screen.findByRole('button', { name: 'Copy QR code' })
     await openCopySheet()
+    const arkCopy = await screen.findByTestId('ark-address-copy')
     await act(async () => {
-      fireEvent.click(screen.getByTestId('ark-address-copy'))
+      fireEvent.click(arkCopy)
     })
 
     expect(await screen.findAllByText('Failed to copy')).not.toHaveLength(0)
@@ -478,5 +493,99 @@ describe('Receive QR Code screen — copy feedback', () => {
     })
 
     expect(await screen.findByText('Failed to copy')).toBeInTheDocument()
+  })
+})
+
+// The addresses are read from the wallet on every mount, and the Executor registration decides which ones.
+describe('Receive QR Code screen — Executor addresses', () => {
+  type Settlement = { status: 'success' | 'failure' | 'no-executor'; renewalAddress?: string }
+  const OWN = 'ark1ownaddr'
+  const RENEWAL = 'ark1renewalcontract'
+  const OWN_BOARDING = 'bc1ownboarding'
+  const DELEGATED = 'bc1delegatedboarding'
+
+  type Recv = typeof mockFlowContextValue.recvInfo
+  let setFlow: (update: (prev: Recv) => Recv) => void
+  function Harness({ wallet }: { wallet: Partial<typeof mockWalletContextValue> }) {
+    const [recvInfo, setRecvInfo] = useState<Recv>(mockFlowContextValue.recvInfo)
+    setFlow = setRecvInfo
+    return buildTree({ flow: { recvInfo, setRecvInfo } as any, wallet })
+  }
+  const walletOf = (boarding: () => Promise<string>) =>
+    ({ ...mockSvcWallet, getAddress: async () => OWN, getBoardingAddress: boarding }) as any
+  const copied = async () => {
+    const button = await screen.findByRole('button', { name: 'Copy QR code' })
+    await act(async () => {
+      fireEvent.click(button)
+    })
+    return copyToClipboardMock.mock.calls.at(-1)?.[0] as string
+  }
+
+  beforeEach(() => copyToClipboardMock.mockClear())
+
+  it('shows the renewal contract as the Ark address of a registered static wallet', async () => {
+    const svcWallet = walletOf(async () => DELEGATED)
+    const executorSettled = async (): Promise<Settlement> => ({ status: 'success', renewalAddress: RENEWAL })
+    render(<Harness wallet={{ svcWallet, executorSettled } as any} />)
+
+    await screen.findByRole('button', { name: 'Copy QR code' })
+    const uri = await copied()
+    expect(uri).toContain(RENEWAL)
+    expect(uri).toContain(DELEGATED)
+    expect(uri).not.toContain(OWN)
+  })
+
+  it.each<[string, Settlement]>([
+    ['no renewal address is recorded (HD wallet or failed registration)', { status: 'failure' }],
+    ['there is no Executor', { status: 'no-executor' }],
+  ])('shows getAddress() when %s', async (_name, settlement) => {
+    const svcWallet = walletOf(async () => OWN_BOARDING)
+    render(<Harness wallet={{ svcWallet, executorSettled: async () => settlement } as any} />)
+
+    const uri = await copied()
+    expect(uri).toContain(OWN)
+    expect(uri).toContain(OWN_BOARDING)
+  })
+
+  it('reads the boarding address only once the registration has settled', async () => {
+    // the SDK answers with the wallet's own address until the watch is registered
+    let registered = false
+    let settle!: (s: Settlement) => void
+    const gate = new Promise<Settlement>((r) => (settle = r))
+    const svcWallet = walletOf(async () => (registered ? DELEGATED : OWN_BOARDING))
+    render(<Harness wallet={{ svcWallet, executorSettled: () => gate } as any} />)
+
+    expect(screen.queryByRole('button', { name: 'Copy QR code' })).not.toBeInTheDocument()
+    registered = true
+    await act(async () => settle({ status: 'success', renewalAddress: RENEWAL }))
+
+    const uri = await copied()
+    expect(uri).toContain(DELEGATED)
+    expect(uri).not.toContain(OWN_BOARDING)
+  })
+
+  it('reads again when a registration settles after the screen gave up waiting', async () => {
+    let registered = false
+    const svcWallet = walletOf(async () => (registered ? DELEGATED : OWN_BOARDING))
+    const executorSettled = async (): Promise<Settlement> => ({ status: 'failure' })
+    const { rerender } = render(<Harness wallet={{ svcWallet, executorSettled, executorSettledCount: 0 } as any} />)
+    expect(await copied()).toContain(OWN_BOARDING)
+
+    registered = true
+    rerender(<Harness wallet={{ svcWallet, executorSettled, executorSettledCount: 1 } as any} />)
+
+    await waitFor(async () => expect(await copied()).toContain(DELEGATED))
+  })
+
+  it('keeps an amount entered while the addresses were still being read', async () => {
+    let release!: () => void
+    const svcWallet = walletOf(() => new Promise<string>((r) => (release = () => r(DELEGATED))))
+    render(<Harness wallet={{ svcWallet } as any} />)
+    await waitFor(() => expect(release).toBeDefined())
+
+    await act(async () => setFlow((prev) => ({ ...prev, satoshis: 50_000 })))
+    await act(async () => release())
+
+    expect(await copied()).toContain('amount=')
   })
 })

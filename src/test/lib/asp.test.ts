@@ -30,7 +30,10 @@ vi.mock('@arkade-os/sdk', async (importOriginal) => {
 
 import { ArkNote } from '@arkade-os/sdk'
 import {
+  EXECUTOR_SETTLE_TIMEOUT_MS,
   getAspInfo,
+  getDisplayAddresses,
+  getReceivingAddresses,
   aspErrorText,
   emptyAspInfo,
   byExpiryAsc,
@@ -413,5 +416,74 @@ describe('getUnrolledVtxos', () => {
     const getVtxos = vi.fn().mockRejectedValue(new Error('worker unreachable'))
 
     await expect(getUnrolledVtxos({ getVtxos } as any)).rejects.toThrow('worker unreachable')
+  })
+})
+
+describe('receive addresses', () => {
+  const wallet = (boarding = 'bc1-boarding') =>
+    ({ getAddress: vi.fn(async () => 'ark1own'), getBoardingAddress: vi.fn(async () => boarding) }) as any
+  const settled = (renewalAddress?: string) => vi.fn(async () => ({ status: 'success' as const, renewalAddress }))
+
+  it('keeps the wallet own address in getReceivingAddresses', async () => {
+    await expect(getReceivingAddresses(wallet())).resolves.toEqual({
+      boardingAddr: 'bc1-boarding',
+      offchainAddr: 'ark1own',
+    })
+  })
+
+  it('reads the boarding address only after the registration settled', async () => {
+    const w = wallet()
+    let settle!: () => void
+    const gate = new Promise<{ status: 'success' }>((r) => (settle = () => r({ status: 'success' })))
+    const pending = getDisplayAddresses(w, { settled: () => gate })
+
+    await Promise.resolve()
+    expect(w.getBoardingAddress).not.toHaveBeenCalled()
+    settle()
+    await pending
+    expect(w.getBoardingAddress).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows the renewal contract as the Ark address and keeps the own one apart', async () => {
+    await expect(getDisplayAddresses(wallet(), { settled: settled('ark1renewal') })).resolves.toEqual({
+      boardingAddr: 'bc1-boarding',
+      ownAddr: 'ark1own',
+      displayOffchainAddr: 'ark1renewal',
+    })
+  })
+
+  it('shows getAddress() when no renewal address is recorded, or no registration is passed', async () => {
+    const expected = { boardingAddr: 'bc1-boarding', ownAddr: 'ark1own', displayOffchainAddr: 'ark1own' }
+    await expect(getDisplayAddresses(wallet(), { settled: settled() })).resolves.toEqual(expected)
+    await expect(getDisplayAddresses(wallet())).resolves.toEqual(expected)
+  })
+
+  it('does not throw on a rejected registration wait', async () => {
+    const settledFails = vi.fn().mockRejectedValue(new Error('boom'))
+    await expect(getDisplayAddresses(wallet(), { settled: settledFails })).resolves.toMatchObject({
+      displayOffchainAddr: 'ark1own',
+    })
+  })
+
+  it('stops waiting after the timeout', async () => {
+    vi.useFakeTimers()
+    try {
+      const w = wallet()
+      const pending = getDisplayAddresses(w, { settled: () => new Promise(() => {}) })
+      await vi.advanceTimersByTimeAsync(EXECUTOR_SETTLE_TIMEOUT_MS - 1)
+      expect(w.getBoardingAddress).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(1)
+      await expect(pending).resolves.toMatchObject({ ownAddr: 'ark1own', displayOffchainAddr: 'ark1own' })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('still rejects when the wallet cannot answer', async () => {
+    const w = {
+      getAddress: vi.fn(async () => 'ark1own'),
+      getBoardingAddress: vi.fn().mockRejectedValue(new Error('down')),
+    }
+    await expect(getDisplayAddresses(w as any, { settled: settled() })).rejects.toThrow('down')
   })
 })

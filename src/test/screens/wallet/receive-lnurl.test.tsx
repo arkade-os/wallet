@@ -22,6 +22,7 @@ import {
   mockLimitsContextValue,
   mockNavigationContextValue,
   mockSvcWallet,
+  svcWalletWithAddresses,
   mockWalletContextValue,
 } from '../mocks'
 import type { Config } from '../../../lib/types'
@@ -76,7 +77,10 @@ beforeAll(() => {
 })
 
 const receiveLightning = vi.fn()
-const svcWallet = { ...mockSvcWallet, identity: SingleKey.fromHex('03'.repeat(32)) }
+const svcWallet = svcWalletWithAddresses(
+  { ...mockSvcWallet, identity: SingleKey.fromHex('03'.repeat(32)) },
+  { offchainAddr: DECODABLE_ARK, boardingAddr: WALLET_BOARDING_ADDRESS },
+)
 const atMarket = (sats: number) => (sats * BTC_USD) / 1e8
 
 function ReceiveFlow({ children, satoshis, recv }: { children: ReactNode; satoshis: number; recv: object }) {
@@ -94,7 +98,13 @@ function ReceiveFlow({ children, satoshis, recv }: { children: ReactNode; satosh
   )
 }
 
-const receiveTree = (satoshis = 0, config: Partial<Config> = {}, recv: object = {}, statefulFlow = false) => (
+const receiveTree = (
+  satoshis = 0,
+  config: Partial<Config> = {},
+  recv: object = {},
+  statefulFlow = false,
+  wallet: object = {},
+) => (
   <ToastProvider>
     <NavigationContext.Provider value={mockNavigationContextValue}>
       <AspContext.Provider value={mockAspContextValue as never}>
@@ -118,7 +128,7 @@ const receiveTree = (satoshis = 0, config: Partial<Config> = {}, recv: object = 
                   } as never
                 }
               >
-                <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet } as never}>
+                <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet, ...wallet } as never}>
                   <LimitsContext.Provider value={mockLimitsContextValue}>
                     <SwapsContext.Provider
                       value={{ receiveLightning, outcomeOf: () => undefined, errorOf: () => undefined } as never}
@@ -141,8 +151,13 @@ const receiveTree = (satoshis = 0, config: Partial<Config> = {}, recv: object = 
     </NavigationContext.Provider>
   </ToastProvider>
 )
-const renderReceive = (satoshis = 0, config: Partial<Config> = {}, recv: object = {}, statefulFlow = false) =>
-  render(receiveTree(satoshis, config, recv, statefulFlow))
+const renderReceive = (
+  satoshis = 0,
+  config: Partial<Config> = {},
+  recv: object = {},
+  statefulFlow = false,
+  wallet: object = {},
+) => render(receiveTree(satoshis, config, recv, statefulFlow, wallet))
 
 let server: ReturnType<typeof fakeLnurlServer>
 const serve = (opts: Parameters<typeof fakeLnurlServer>[0]) => {
@@ -238,6 +253,7 @@ describe('Receive screen, rail composition', () => {
     renderReceive(10_000)
 
     try {
+      await screen.findByRole('button', { name: 'Copy QR code' })
       await waitFor(async () => expect(await qrLightning()).toMatch(/^lnurl1/i))
       expect(receiveLightning).not.toHaveBeenCalled()
     } finally {
@@ -360,6 +376,23 @@ describe('Receive screen, lnurl onboarding', () => {
     expect(JSON.parse(claims()[0][1]!.body as string)).toMatchObject({ nameless: true })
     expect(screen.queryByText(/@lnurl\.test/)).not.toBeInTheDocument()
     expect(await qrLightning()).toMatch(/^lnurl1/i)
+  })
+
+  it('binds the wallet own Ark address, not the displayed renewal contract', async () => {
+    serve({ modes: ['self', 'session'] })
+    const executorSettled = async () => ({ status: 'success' as const, renewalAddress: 'tark1renewalcontract' })
+    // the screen reads the addresses from the wallet, as it does at runtime
+    renderReceive(0, {}, { offchainAddr: '', boardingAddr: '' }, true, { executorSettled })
+
+    await screen.findByRole('button', { name: 'Add a name' })
+    fireEvent.click(screen.getByText('Arkade'))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy QR code' })))
+    expect(copyToClipboard).toHaveBeenLastCalledWith('tark1renewalcontract')
+    const binds = server
+      .calls('POST', '/lnurl/address/sess1/arkade')
+      .map(([, init]) => JSON.parse(init!.body as string))
+    expect(binds.length).toBeGreaterThan(0)
+    for (const bind of binds) expect(bind.arkadeAddress).toBe(DECODABLE_ARK)
   })
 
   it('offers a name, never a claim code, when the server has no nameless mode', async () => {

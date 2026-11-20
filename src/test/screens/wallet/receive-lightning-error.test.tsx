@@ -21,6 +21,7 @@ import {
   mockLimitsContextValue,
   mockNavigationContextValue,
   mockSvcWallet,
+  svcWalletWithAddresses,
   mockWalletContextValue,
 } from '../mocks'
 
@@ -49,6 +50,7 @@ beforeAll(() => {
 
 const receiveLightning = vi.fn()
 const setRecvInfo = vi.fn()
+const svcWallet = svcWalletWithAddresses(mockSvcWallet, { offchainAddr: 'ark1testaddr', boardingAddr: 'bc1testaddr' })
 const copyToClipboard = vi.fn()
 const shareData = vi.fn()
 vi.mock('../../../lib/clipboard', () => ({ copyToClipboard: (...args: unknown[]) => copyToClipboard(...args) }))
@@ -86,7 +88,7 @@ const tree = (satoshis: number) => (
                   } as never
                 }
               >
-                <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet: mockSvcWallet } as never}>
+                <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet } as never}>
                   <LimitsContext.Provider value={mockLimitsContextValue}>
                     <SwapsContext.Provider
                       value={{ receiveLightning, lnStatus: () => undefined, lnError: () => undefined } as never}
@@ -233,6 +235,8 @@ describe('Receive screen, invoice generation', () => {
     )
     const { rerender } = renderWithTrack()
     await waitFor(() => expect(receiveLightning).toHaveBeenCalledWith(10_000))
+    // the address read on mount is not what this test is about
+    setRecvInfo.mockClear()
     rerender(tree(0))
     expect(screen.getByRole('button', { name: 'Copy QR code' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Copy' })).toBeEnabled()

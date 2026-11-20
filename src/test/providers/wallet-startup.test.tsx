@@ -1,6 +1,6 @@
 import { act, render } from '@testing-library/react'
 import { useContext } from 'react'
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WalletContext, WalletProvider } from '../../providers/wallet'
 import { AspContext } from '../../providers/asp'
 import { ConfigContext } from '../../providers/config'
@@ -47,7 +47,10 @@ function Capture() {
   return null
 }
 
-const startWallet = async (config = mockConfigContextValue.config) => {
+const startWallet = async (
+  config = mockConfigContextValue.config,
+  credentials: Parameters<typeof wallet.initWallet>[0] = { privateKey: new Uint8Array(32).fill(1) },
+) => {
   render(
     <AspContext.Provider value={mockAspContextValue}>
       <ConfigContext.Provider value={{ ...mockConfigContextValue, config }}>
@@ -57,7 +60,7 @@ const startWallet = async (config = mockConfigContextValue.config) => {
       </ConfigContext.Provider>
     </AspContext.Provider>,
   )
-  await act(() => wallet.initWallet({ privateKey: new Uint8Array(32).fill(1) }))
+  await act(() => wallet.initWallet(credentials))
 }
 
 // reloadWallet is the only caller of an unfiltered getVtxos()
@@ -124,7 +127,8 @@ it('registers the boarding watch with a configured Executor, then reloads', asyn
   const before = reloads()
   registered()
 
-  await vi.waitFor(() => expect(reloads()).toBe(before + 1), { timeout: 3000 })
+  // one after the boarding registration, one after the renewal
+  await vi.waitFor(() => expect(reloads()).toBe(before + 2), { timeout: 3000 })
 })
 
 it('registers the renewal watch after boarding, with the same params', async () => {
@@ -210,4 +214,125 @@ it.each([true, false])('renews its own coins at startup (Executor %s)', async (e
   await startWallet({ ...mockConfigContextValue.config, executor })
 
   await vi.waitFor(() => expect(mocks.current.service.vtxoManager.renewVtxos).toHaveBeenCalled())
+})
+
+describe('Executor registration state', () => {
+  const RENEWAL = 'tark1renewalcontract'
+  const registration = (address: string) => ({ address, templateId: 't', variables: {}, keys: [], params: {} })
+  const withExecutor = () => vi.stubEnv('VITE_EXECUTOR_URL', 'https://executor.example')
+  // a promise's state, without waiting on it
+  const isPending = async (p: Promise<unknown>) =>
+    (await Promise.race([p.then(() => false), Promise.resolve(true)])) as boolean
+
+  it('settles after both registrations and records the renewal address of a static wallet', async () => {
+    withExecutor()
+    mocks.current.service.executor.registerRenewal.mockResolvedValue(registration(RENEWAL))
+    await startWallet()
+
+    await expect(wallet.executorSettled()).resolves.toEqual({ status: 'success', renewalAddress: RENEWAL })
+    await vi.waitFor(() => expect(wallet.executorRenewalAddress).toBe(RENEWAL))
+    expect(wallet.executorStatus).toBe('success')
+    expect(wallet.executorSettledCount).toBe(1)
+  })
+
+  it('waits for the renewal before settling', async () => {
+    withExecutor()
+    let renewed!: (r: unknown) => void
+    mocks.current.service.executor.registerRenewal.mockReturnValue(new Promise((r) => (renewed = r)))
+    await startWallet()
+
+    await vi.waitFor(() => expect(mocks.current.service.executor.registerRenewal).toHaveBeenCalled())
+    expect(wallet.executorStatus).toBe('pending')
+    expect(await isPending(wallet.executorSettled())).toBe(true)
+    await act(async () => renewed(registration(RENEWAL)))
+    await expect(wallet.executorSettled()).resolves.toMatchObject({ status: 'success' })
+  })
+
+  it('does not record a renewal address on an HD wallet', async () => {
+    withExecutor()
+    mocks.current.service.executor.registerRenewal.mockResolvedValue(registration(RENEWAL))
+    await startWallet(mockConfigContextValue.config, {
+      mnemonic: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
+      walletMode: 'hd',
+    })
+
+    await expect(wallet.executorSettled()).resolves.toEqual({ status: 'success', renewalAddress: undefined })
+    expect(wallet.executorRenewalAddress).toBeUndefined()
+  })
+
+  it('settles as a failure when the boarding registration fails, keeping a renewal address it did get', async () => {
+    withExecutor()
+    mocks.current.service.executor.registerBoarding.mockRejectedValue(new Error('unreachable'))
+    mocks.current.service.executor.registerRenewal.mockResolvedValue(registration(RENEWAL))
+    await startWallet()
+
+    await expect(wallet.executorSettled()).resolves.toEqual({ status: 'failure', renewalAddress: RENEWAL })
+  })
+
+  it('settles as a failure, without an address, when the renewal registration fails', async () => {
+    withExecutor()
+    mocks.current.service.executor.registerRenewal.mockRejectedValue(new Error('parameters differ'))
+    await startWallet()
+
+    await expect(wallet.executorSettled()).resolves.toEqual({ status: 'failure' })
+    expect(wallet.executorRenewalAddress).toBeUndefined()
+  })
+
+  it('settles at once without an Executor URL', async () => {
+    await startWallet({ ...mockConfigContextValue.config, executor: false })
+
+    await expect(wallet.executorSettled()).resolves.toEqual({ status: 'no-executor' })
+    expect(wallet.executorStatus).toBe('no-executor')
+  })
+
+  it('settles when the worker has no executor manager', async () => {
+    withExecutor()
+    mocks.current.service.getExecutorManager.mockResolvedValue(undefined as never)
+    await startWallet()
+
+    await expect(wallet.executorSettled()).resolves.toEqual({ status: 'no-executor' })
+    await vi.waitFor(() => expect(wallet.executorSettledCount).toBe(1))
+  })
+
+  it('settles, and forgets the address, on lock', async () => {
+    withExecutor()
+    let renewed!: (r: unknown) => void
+    mocks.current.service.executor.registerRenewal.mockReturnValue(new Promise((r) => (renewed = r)))
+    Object.assign(mocks.current.service, { clear: vi.fn(async () => {}) })
+    await startWallet()
+    await vi.waitFor(() => expect(mocks.current.service.executor.registerRenewal).toHaveBeenCalled())
+    const pending = wallet.executorSettled()
+
+    await act(() => wallet.lockWallet())
+
+    await expect(pending).resolves.toEqual({ status: 'no-executor' })
+    // the aborted session cannot come back with its late answer
+    await act(async () => renewed(registration(RENEWAL)))
+    expect(wallet.executorRenewalAddress).toBeUndefined()
+    expect(wallet.executorStatus).toBe('no-executor')
+    expect(wallet.executorSettledCount).toBe(0)
+  })
+
+  it('does not let an old session settle a new one', async () => {
+    withExecutor()
+    const { executor } = mocks.current.service
+    let first!: (r: unknown) => void
+    executor.registerRenewal.mockReturnValueOnce(new Promise((r) => (first = r)))
+    await startWallet()
+    await vi.waitFor(() => expect(executor.registerRenewal).toHaveBeenCalledTimes(1))
+
+    let second!: (r: unknown) => void
+    executor.registerRenewal.mockReturnValueOnce(new Promise((r) => (second = r)))
+    await act(() => wallet.initWallet({ privateKey: new Uint8Array(32).fill(1) }))
+    await vi.waitFor(() => expect(executor.registerRenewal).toHaveBeenCalledTimes(2))
+    const pending = wallet.executorSettled()
+
+    await act(async () => first(registration('tark1old')))
+    expect(await isPending(pending)).toBe(true)
+    expect(wallet.executorRenewalAddress).toBeUndefined()
+    expect(wallet.executorSettledCount).toBe(0)
+
+    await act(async () => second(registration(RENEWAL)))
+    await expect(pending).resolves.toEqual({ status: 'success', renewalAddress: RENEWAL })
+  })
 })
