@@ -76,7 +76,7 @@ export const readAspInfoSnapshot = (url: string, build: string): AspInfo | undef
     return info as unknown as AspInfo
   })
 
-/** Keep the last prices, so the next visit can show a fiat figure before the feed has answered. */
+/** Keep the last prices, so the next visit can show a fiat figure before the feed has answered. False when the feed is not one to keep or to show. */
 export const saveFiatPricesSnapshot = (prices: FiatPrices, now = Date.now()): boolean => {
   // A feed that left a currency out, or answered with nothing, is not one to start the next visit from.
   const values = Object.values(prices)

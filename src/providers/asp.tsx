@@ -20,6 +20,7 @@ interface AspContextProps {
   calcBestMarketHour: (nextRollOver: number) => ScheduledSession | undefined
   calcNextMarketHour: (nextRollOver: number) => ScheduledSession | undefined
   setAspInfo: (info: AspInfo) => void
+  /** The in-flight `/v1/info`. Cached `aspInfo` is for the first paint only. */
   liveAspInfo?: () => Promise<AspInfo>
 }
 
@@ -35,6 +36,8 @@ export const AspProvider = ({ children }: { children: ReactNode }) => {
   const { config, configLoaded } = useContext(ConfigContext)
 
   const [aspInfo, setAspInfo] = useState(emptyAspInfo)
+  // Assigned in the effect before the cached answer is shown, so a wallet that starts on the
+  // next frame waits on this fetch instead of building keys from the cache.
   const liveAsp = useRef<Promise<AspInfo>>(Promise.resolve(emptyAspInfo))
 
   useEffect(() => {
@@ -43,6 +46,7 @@ export const AspProvider = ({ children }: { children: ReactNode }) => {
     const last = readAspInfoSnapshot(config.aspUrl, gitCommit)
     if (last) setAspInfo(last)
     const failed = { ...emptyAspInfo, unreachable: true, url: config.aspUrl }
+    // Cached answer paints Home. `liveAspInfo` is this fetch; the worker waits on it.
     liveAsp.current = getAspInfo(config.aspUrl)
       .then((info) => {
         if (!cancelled) {
