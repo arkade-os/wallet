@@ -163,6 +163,9 @@ describe('Home from what it showed last time', () => {
 
     expect(wallet.storedHome).toBe(false)
     expect(wallet.txs).toEqual([])
+    // Not drawn, and not held either: the live figures start empty.
+    expect(wallet.balance).toBe(0)
+    expect(wallet.availableBalance).toBe(0)
   })
 
   it('does not draw figures that belong to another wallet', () => {
@@ -212,6 +215,8 @@ describe('Home from what it showed last time', () => {
     expect(wallet.dataReady).toBe(true)
     expect(wallet.balance).toBe(0)
     expect(wallet.txs).toEqual([])
+    // Going on with nothing saves nothing: the next visit still starts from the last real figures.
+    expect(readHomeSnapshot(PUBKEY, HOME_SNAPSHOT_SHAPE)?.balance).toBe(148_000)
   })
 
   it('stops showing them when the wallet is locked', async () => {
@@ -222,6 +227,51 @@ describe('Home from what it showed last time', () => {
     await act(() => wallet.lockWallet())
 
     expect(wallet.storedHome).toBe(false)
+    expect(wallet.balance).toBe(0)
+  })
+
+  it('drops a reload that was in flight when the wallet was locked', async () => {
+    returning()
+    mount()
+    await act(() => wallet.initWallet({ privateKey: KEY }))
+    let release: (value: unknown) => void = () => {}
+    mocks.service.getVtxos.mockImplementationOnce(() => new Promise((resolve) => (release = resolve)))
+    let inFlight: Promise<void> = Promise.resolve()
+    act(() => {
+      inFlight = wallet.reloadWallet(mocks.service as never)
+    })
+
+    await act(() => wallet.lockWallet())
+    await act(async () => {
+      release([])
+      await inFlight
+    })
+
+    expect(wallet.dataReady).toBe(false)
+    expect(wallet.balance).toBe(0)
+  })
+
+  // A reload already running when the reset starts finishes after it, as a first load: the wipe had
+  // set the wallet back to unloaded. It must not write the wiped wallet back into storage.
+  it('leaves nothing behind when a reload in flight finishes after the reset', async () => {
+    returning()
+    mount()
+    await load()
+    let release: (value: unknown) => void = () => {}
+    mocks.service.getVtxos.mockImplementationOnce(() => new Promise((resolve) => (release = resolve)))
+    let inFlight: Promise<void> = Promise.resolve()
+    act(() => {
+      inFlight = wallet.reloadWallet(mocks.service as never)
+    })
+
+    await act(() => wallet.resetWallet())
+    await act(async () => {
+      release([])
+      await inFlight
+    })
+
+    expect(localStorage.getItem('homeSnapshot')).toBeNull()
+    expect(wallet.dataReady).toBe(false)
   })
 
   it('leaves nothing behind after a reset, even if the figures change while it runs', async () => {
