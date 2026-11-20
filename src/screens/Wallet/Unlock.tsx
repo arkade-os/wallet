@@ -6,10 +6,12 @@ import Header from '../../components/Header'
 import { useTranslation } from '../../providers/language'
 
 export default function Unlock() {
-  const { unlockWallet } = useContext(WalletContext)
+  const { unlockWallet, unlockFailure } = useContext(WalletContext)
   const { t } = useTranslation()
 
-  const [error, setError] = useState('')
+  // A password that was accepted, followed by a wallet that failed to start, comes back to a new
+  // Unlock screen: the one that submitted it gave way to Home in between.
+  const [error, setError] = useState(() => (unlockFailure === 'connection' ? t('unlock.connectionFailed') : ''))
   const [unlocking, setUnlocking] = useState(false)
 
   const handleUnlock = async (password: string) => {

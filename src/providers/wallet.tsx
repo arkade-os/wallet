@@ -100,6 +100,9 @@ interface WalletContextProps {
   resetWallet: () => Promise<void>
   settlePreconfirmed: () => Promise<void>
   unlockWallet: (password: string) => Promise<void>
+  /** The last unlock took the password and then failed to start the wallet. The Unlock screen that
+   * sent it has given way to Home by then, so the one that comes back reads this to say why. */
+  unlockFailure?: 'connection' | null
   updateWallet: (w: Wallet | ((prev: Wallet) => Wallet)) => void
   isLocked: () => Promise<boolean>
   reloadWallet: (svcWallet?: ServiceWorkerWallet) => Promise<void>
@@ -151,6 +154,7 @@ export const WalletContext = createContext<WalletContextProps>({
   resetWallet: () => Promise.resolve(),
   settlePreconfirmed: () => Promise.resolve(),
   unlockWallet: () => Promise.resolve(),
+  unlockFailure: null,
   updateWallet: () => {},
   reloadWallet: () => Promise.resolve(),
   restartWallet: () => Promise.resolve(),
@@ -240,6 +244,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [syncing, setSyncing] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [authState, setAuthState] = useState<WalletAuthState>('unknown')
+  const [unlockFailure, setUnlockFailure] = useState<'connection' | null>(null)
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
   const [assetBalances, setAssetBalances] = useState<WalletBalance['assets']>([])
   const [availableAssetBalances, setAvailableAssetBalances] = useState<WalletBalance['availableAssets']>([])
@@ -1096,18 +1101,25 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const unlockWallet = async (password: string) => {
+    setUnlockFailure(null)
+    let accepted = false
     try {
       if (hasMnemonic()) {
         const mnemonic = await getMnemonic(password)
+        accepted = true
         setAuthState('authenticated')
         await initWallet({ mnemonic })
       } else {
         const privateKey = await getPrivateKey(password)
+        accepted = true
         setAuthState('authenticated')
         await initWallet({ privateKey })
       }
     } catch (err) {
       setAuthState('locked')
+      // The password was right and the wallet then failed to start. App has already left Unlock for
+      // Home, so the Unlock screen that comes back must still be able to say why.
+      if (accepted) setUnlockFailure('connection')
       if (err instanceof DOMException) throw new Error('Invalid password')
       throw err instanceof Error ? err : new Error('Invalid password')
     }
@@ -1257,6 +1269,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         resetWallet,
         settlePreconfirmed,
         unlockWallet,
+        unlockFailure,
         updateWallet,
         wallet,
         walletLoaded,
