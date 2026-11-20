@@ -7,11 +7,11 @@ import { ConfigContext } from '../../providers/config'
 import { FiatContext } from '../../providers/fiat'
 import { mockConfigContextValue, mockFiatContextValue } from '../screens/mocks'
 
-function wrapper({ currency, unit }: { currency: Currencies; unit: Unit }) {
+function wrapper({ currency, unit, showBalance = true }: { currency: Currencies; unit: Unit; showBalance?: boolean }) {
   const config = {
     currency,
     unit,
-    showBalance: true,
+    showBalance,
   } as any
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
@@ -47,5 +47,16 @@ describe('usePortfolioBalanceDisplay', () => {
     })
 
     expect(result.current.showSecondary).toBe(false)
+  })
+
+  // The masked figure already says its unit; showing the unit beside it read "•••• BTC BTC".
+  it('leaves the unit out beside a hidden figure, which already carries it', () => {
+    const { result } = renderHook(() => usePortfolioBalanceDisplay(), {
+      wrapper: wrapper({ currency: Currencies.USD, unit: Unit.BTC, showBalance: false }),
+    })
+
+    expect(result.current.maskedSecondary).toBe('•••• BTC')
+    expect(result.current.secondaryUnit).toBe('')
+    expect(result.current.unit).toBe('')
   })
 })

@@ -50,13 +50,17 @@ export function usePortfolioBalanceDisplay() {
   const canSwitch = showSecondary
   const bitcoinFirst = canSwitch && lead === 'bitcoin'
 
+  // A masked figure already carries its unit ("•••• BTC"), so while balances are hidden the separate
+  // unit is left out; otherwise the line reads "•••• BTC BTC".
+  const unitShown = (value: string) => (config.showBalance ? value : '')
+
   return bitcoinFirst
     ? {
         balance: secondary.amount,
         maskedBalance: maskedSecondary,
-        unit: secondary.unit,
+        unit: unitShown(secondary.unit),
         secondaryBalance: balance,
-        secondaryUnit: unit,
+        secondaryUnit: unitShown(unit),
         maskedSecondary: maskedBalance,
         showSecondary,
         canSwitch,
@@ -64,9 +68,9 @@ export function usePortfolioBalanceDisplay() {
     : {
         balance,
         maskedBalance,
-        unit,
+        unit: unitShown(unit),
         secondaryBalance: secondary.amount,
-        secondaryUnit: secondary.unit,
+        secondaryUnit: unitShown(secondary.unit),
         maskedSecondary,
         showSecondary,
         canSwitch,
