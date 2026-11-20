@@ -7,7 +7,7 @@ import { mockConfigContextValue } from '../screens/mocks'
 import { saveSolverCards } from '../../lib/solverCards'
 import type { Config } from '../../lib/types'
 import type { BackupEvent } from '../../lib/nostr'
-import { saveContacts } from '@/lib/contacts'
+import { readContacts, readRecents, saveContacts } from '@/lib/contacts'
 
 const mocks = vi.hoisted(() => ({
   events: [] as BackupEvent[],
@@ -105,7 +105,7 @@ describe('BackupProvider restore', () => {
 
     expect(mocks.save).toHaveBeenCalledTimes(3)
     expect(mocks.save).toHaveBeenNthCalledWith(1, JSON.stringify({ config: updatedConfig }))
-    expect(mocks.save).toHaveBeenNthCalledWith(2, JSON.stringify({ contacts: [] }))
+    expect(mocks.save).toHaveBeenNthCalledWith(2, JSON.stringify({ contacts: [], contactsSplitVersion: 1 }))
     expect(mocks.save).toHaveBeenNthCalledWith(3, JSON.stringify({ solverCards: cards }))
   })
 
@@ -128,7 +128,7 @@ describe('BackupProvider restore', () => {
 
     expect(mocks.save).toHaveBeenCalledTimes(3)
     expect(mocks.save).toHaveBeenNthCalledWith(1, JSON.stringify({ config: updatedConfig }))
-    expect(mocks.save).toHaveBeenNthCalledWith(2, JSON.stringify({ contacts }))
+    expect(mocks.save).toHaveBeenNthCalledWith(2, JSON.stringify({ contacts, contactsSplitVersion: 1 }))
     expect(mocks.save).toHaveBeenNthCalledWith(3, JSON.stringify({ solverCards: [] }))
   })
 
@@ -147,6 +147,69 @@ describe('BackupProvider restore', () => {
       showBalance: false,
       delegate: true,
     })
+  })
+
+  it('keeps unnamed contacts from a split backup on a fresh install', async () => {
+    const contacts = [{ address: 'alice@pay.example', sendCount: 1, lastSentAt: 50 }]
+    mocks.events = [makeEvent({ contacts, contactsSplitVersion: 1 }, 100, 100)]
+
+    renderProvider(() => undefined)
+    await restore(new Uint8Array(32))
+
+    expect(readContacts()).toEqual(contacts)
+    expect(readRecents()).toEqual([])
+  })
+
+  it('migrates unnamed contacts from a legacy backup even when the local split is complete', async () => {
+    const unnamed = { address: 'alice@pay.example', sendCount: 1, lastSentAt: 50 }
+    const named = { address: 'bob@pay.example', name: 'Bob', sendCount: 0, lastSentAt: 0 }
+    readContacts()
+    mocks.events = [makeEvent({ contacts: [unnamed, named] }, 100, 100)]
+
+    renderProvider(() => undefined)
+    await restore(new Uint8Array(32))
+
+    expect(readContacts()).toEqual([named])
+    expect(readRecents()).toEqual([unnamed])
+  })
+
+  it('uses the split version belonging to the latest contacts snapshot', async () => {
+    const unnamed = { address: 'alice@pay.example', sendCount: 1, lastSentAt: 50 }
+    mocks.events = [
+      makeEvent({ contacts: [unnamed], contactsSplitVersion: 1 }, 100, 100),
+      makeEvent({ contacts: [unnamed] }, 101, 101),
+    ]
+
+    renderProvider(() => undefined)
+    await restore(new Uint8Array(32))
+
+    expect(readContacts()).toEqual([])
+    expect(readRecents()).toEqual([unnamed])
+  })
+
+  it('migrates existing legacy contacts before restoring a split backup', async () => {
+    const legacy = { address: 'alice@pay.example', sendCount: 1, lastSentAt: 50 }
+    const restored = { address: 'bob@pay.example', sendCount: 0, lastSentAt: 0 }
+    localStorage.setItem('contacts', JSON.stringify([legacy]))
+    mocks.events = [makeEvent({ contacts: [restored], contactsSplitVersion: 1 }, 100, 100)]
+
+    renderProvider(() => undefined)
+    await restore(new Uint8Array(32))
+
+    expect(readContacts()).toEqual([restored])
+    expect(readRecents()).toEqual([legacy])
+  })
+
+  it('leaves local contacts intact when a backup contains no contacts', async () => {
+    const legacy = { address: 'alice@pay.example', sendCount: 1, lastSentAt: 50 }
+    localStorage.setItem('contacts', JSON.stringify([legacy]))
+    mocks.events = [makeEvent({ config: localConfig }, 100, 100)]
+
+    renderProvider(() => undefined)
+    await restore(new Uint8Array(32))
+
+    expect(readContacts()).toEqual([])
+    expect(readRecents()).toEqual([legacy])
   })
 
   it('reports a failed contact write and still restores solver cards', async () => {
