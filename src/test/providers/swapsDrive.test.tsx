@@ -138,6 +138,7 @@ function Harness({ tab = 'a' }: { tab?: string }) {
   const [router, setRouter] = useState('')
   const [auction, setAuction] = useState<OpenRfqAuction>()
   const [chosen, setChosen] = useState<Quote>()
+  const [accepted, setAccepted] = useState('')
   return (
     <div data-testid={`tab-${tab}`}>
       <button
@@ -157,8 +158,13 @@ function Harness({ tab = 'a' }: { tab?: string }) {
       >{`Choose ${tab}`}</button>
       <button
         disabled={!chosen}
-        onClick={() => void acceptSwapQuote(chosen!).catch((err: Error) => setRejected(err.message))}
+        onClick={() =>
+          void acceptSwapQuote(chosen!)
+            .then((swap) => setAccepted(swap.id))
+            .catch((err: Error) => setRejected(err.message))
+        }
       >{`Accept offer ${tab}`}</button>
+      <span data-testid='accepted'>{accepted || 'none'}</span>
       <button onClick={() => acceptPay(quote).catch((err: Error) => setRejected(err.name))}>{`Pay ${tab}`}</button>
       <button
         onClick={() =>
@@ -354,7 +360,8 @@ describe('SwapsProvider single-driver rule', () => {
     expect(quoteBid.mock.calls[0][0]).toBe(auction)
     expect(quoteBid.mock.calls[0][1]).toBe(auction.bids[1])
     await userEvent.click(follower.getByText('Accept offer b'))
-    await waitFor(() => expect(accept).toHaveBeenCalledWith(selected, { validUntil: selected.expiresAt }))
+    await waitFor(() => expect(follower.getByTestId('accepted')).toHaveTextContent(SWAP_ID))
+    expect(accept).toHaveBeenCalledWith(selected, { validUntil: selected.expiresAt })
     expect(accept.mock.calls[0][0]).toBe(selected)
     expect(clientQuote).not.toHaveBeenCalled()
     expect(ready).toHaveBeenCalledTimes(1)
