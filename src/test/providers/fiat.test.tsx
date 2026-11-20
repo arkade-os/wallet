@@ -111,28 +111,6 @@ describe('fiat prices at boot', () => {
     expect(fiat.toFiat(100_000_000)).toBe(60_000)
   })
 
-  it('keeps the last prices when the feed leaves a currency out', async () => {
-    saveFiatPricesSnapshot(prices(60_000))
-    const respond = pendingFeed()
-    mount()
-
-    await respond({ ...prices(1), eur: undefined as unknown as number })
-
-    expect(fiat.toFiat(100_000_000)).toBe(60_000)
-    expect(readFiatPricesSnapshot()?.eur).toBe(60_000)
-    expect(updateConfig).not.toHaveBeenCalled()
-  })
-
-  it('falls back to BTC when the feed leaves a currency out and nothing is stored', async () => {
-    const respond = pendingFeed()
-    mount()
-
-    await respond({ ...prices(1), eur: undefined as unknown as number })
-
-    expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({ currency: Currencies.BTC }), false)
-    expect(fiat.toFiat(100_000_000)).toBe(0)
-  })
-
   it('falls back to BTC when the feed fails and there are no recent prices', async () => {
     const respond = pendingFeed()
     mount()

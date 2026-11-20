@@ -223,8 +223,6 @@ export default function App() {
     !aspInfo.unreachable &&
     screen !== Pages.Unavailable &&
     screen !== Pages.InAppBrowser
-  // Until the load lands, Home is the only wallet screen shown. A tap is dropped, not kept:
-  // the screen it opens would be built from figures that are not the wallet's yet.
   const showStoredHome = storedHomeAhead && isCapable && (authState === 'passwordless' || authState === 'authenticated')
   const shouldHoldOnLoading =
     hasStoredWallet &&

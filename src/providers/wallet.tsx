@@ -234,7 +234,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // From the moment a reset starts until the next wallet is set up, every reload is dropped, whenever
   // it started: nothing may redraw the wiped wallet, or write it back into storage.
   const walletWiped = useRef(false)
-  // True from lock until the next successful init. Drops reloads the swap client starts after the lock.
   const walletLocked = useRef(false)
   const [balance, setBalance] = useState(0)
   const [availableBalance, setAvailableBalance] = useState(0)
@@ -1060,7 +1059,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }) => {
     walletWiped.current = false
     const generation = walletGeneration.current
-    // Home can paint from the cached server info. Keys and the delegate wait for the live answer.
     const live = liveAspInfo ? await liveAspInfo() : aspInfo
     if (generation !== walletGeneration.current) return
     if (!live.url || !live.network || live.unreachable) throw new Error('Unable to reach the server')

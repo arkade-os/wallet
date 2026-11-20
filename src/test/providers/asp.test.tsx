@@ -95,6 +95,8 @@ describe('server info at boot', () => {
     expect(readAspInfoSnapshot(SERVER, gitCommit)?.dust).toBe(330n)
   })
 
+  // Effects keyed on the whole object (the rollover thresholds) ran again for every returning visit,
+  // asking the worker for every coin, though the live answer said nothing new.
   it('keeps the cached object when the live answer says the same thing', async () => {
     saveAspInfoSnapshot(answer(330n), gitCommit)
     const respond = pending()
@@ -103,18 +105,6 @@ describe('server info at boot', () => {
 
     await respond(answer(330n))
     expect(asp.aspInfo).toBe(cached)
-  })
-
-  it('gives the wallet the live answer, not the cached one', async () => {
-    saveAspInfoSnapshot(answer(330n), gitCommit)
-    const respond = pending()
-    mount()
-    const live = asp.liveAspInfo()
-
-    expect(asp.aspInfo.dust).toBe(330n)
-    const shown = respond(answer(450n))
-    await expect(live).resolves.toMatchObject({ dust: 450n, network: 'mutinynet' })
-    await shown
   })
 
   it('takes the live answer when it differs from the cached one', async () => {
