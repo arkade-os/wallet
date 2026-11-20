@@ -722,6 +722,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       consoleError(err, 'Error reloading wallet')
       if (!hasLoadedOnce.current) {
+        setBooting(false)
         setLoadError('Unable to load wallet data. Check your connection and try again.')
       }
     }
