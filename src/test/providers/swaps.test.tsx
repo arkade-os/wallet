@@ -437,6 +437,33 @@ describe('SwapsProvider', () => {
     expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 
+  it('keeps a relay slot for the requested pair and skips non-websocket relays', async () => {
+    const crowded = Array.from({ length: 16 }, (_, index) => `wss://other-${index}.example`)
+    mocks.watchSwapMarkets.mockImplementation((_network: string, onMarkets: (markets: unknown[]) => void) => {
+      onMarkets([
+        market({ transports: { nostr: { relays: ['nostr:relay.example'] } } }),
+        market({ transports: { nostr: { relays: crowded } } }),
+        {
+          ...btcUsdt,
+          quote_asset: { ...btcUsdt.quote_asset, id: ASSET_ID },
+          transports: { nostr: { relays: ['wss://pair.example'] } },
+        },
+      ])
+      return () => {}
+    })
+    mocks.openRfq.mockResolvedValue({ id: 'auction-1', bids: [] })
+    renderProvider({}, <OpenQuoteProbe />)
+    await waitFor(() => expect(mocks.created).toHaveBeenCalled())
+
+    fireEvent.click(screen.getByText('open offers'))
+
+    await waitFor(() => expect(mocks.openRfq).toHaveBeenCalledOnce())
+    const relays = mocks.openRfq.mock.calls[0][1].relays as string[]
+    expect(relays).toHaveLength(16)
+    expect(relays).toContain('wss://pair.example/')
+    expect(relays.every((relay) => /^wss?:/.test(relay))).toBe(true)
+  })
+
   it('aborts an outstanding public request without funding', async () => {
     mocks.openRfq.mockImplementation(
       (_input, options) =>

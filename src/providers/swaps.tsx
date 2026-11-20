@@ -774,18 +774,18 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       const client = await driving()
       controller.signal.throwIfAborted()
       const network = aspInfo.network as NetworkName
+      const serves = (market: DiscoveredMarket) => Boolean(findMarket([market], from, to)?.market)
+      // The pair's own cards go first so unrelated ones cannot use up the 16 slots.
+      const cards = [...allMarketsRef.current.filter(serves), ...allMarketsRef.current.filter((m) => !serves(m))]
       const relays = [
         ...new Set(
-          [
-            ...nostrRelayUrls,
-            ...allMarketsRef.current.flatMap((market) => market.transports?.nostr?.relays ?? []),
-          ].flatMap((value) => {
+          [...nostrRelayUrls, ...cards.flatMap((market) => market.transports?.nostr?.relays ?? [])].flatMap((value) => {
             // Cards are solver-written: one malformed relay must not cancel the request.
             try {
               const url = new URL(value)
               if (url.protocol === 'http:') url.protocol = 'ws:'
               if (url.protocol === 'https:') url.protocol = 'wss:'
-              return [url.href]
+              return url.protocol === 'ws:' || url.protocol === 'wss:' ? [url.href] : []
             } catch {
               return []
             }
