@@ -142,14 +142,17 @@ export default function Transaction() {
     }
   }, [wallet.nextRollover])
 
+  // Only an unsettled payment can offer to settle. Asking the worker for every expiring coin and every
+  // deposit on each open made opening a settled payment slow on a wallet with a long history.
+  const mayOfferSettle = Boolean(tx && !tx.settled)
   useEffect(() => {
-    if (!aspInfo || !svcWallet || !vtxoManager) return
+    if (!mayOfferSettle || !aspInfo || !svcWallet || !vtxoManager) return
     getInputsToSettle(svcWallet, vtxoManager, wallet.thresholdMs).then(({ inputs }) => {
       setHasInputsToSettle(inputs.length > 0)
       const totalAmount = inputs.reduce((a, v) => a + v.value, 0) || 0
       setAmountAboveDust(totalAmount > aspInfo.dust)
     })
-  }, [aspInfo, vtxos, svcWallet, vtxoManager, wallet.thresholdMs])
+  }, [mayOfferSettle, aspInfo, vtxos, svcWallet, vtxoManager, wallet.thresholdMs])
 
   const handleSettle = async () => {
     setError('')
