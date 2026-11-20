@@ -123,11 +123,7 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
     if (data?.config) updateConfig({ ...data.config, aspUrl: configRef.current.aspUrl, delegate: true })
 
     if (data?.contacts) {
-      try {
-        saveContacts(data.contacts)
-      } catch (err) {
-        consoleError(err, 'failed to restore contacts')
-      }
+      if (!saveContacts(data.contacts)) consoleError(new Error('Failed to save contacts'), 'failed to restore contacts')
     }
 
     if (data?.solverCards) {

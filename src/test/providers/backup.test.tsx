@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, waitFor } from '@testing-library/react'
 import { useContext } from 'react'
 import { BackupContext, BackupProvider } from '../../providers/backup'
@@ -66,6 +66,8 @@ describe('BackupProvider restore', () => {
     localStorage.clear()
     localConfig = { ...mockConfigContextValue.config, aspUrl: 'https://local.server' }
   })
+
+  afterEach(() => vi.restoreAllMocks())
 
   it('backs up existing solver cards when enabling Nostr backups before fullBackup', async () => {
     const cards = [
@@ -145,6 +147,40 @@ describe('BackupProvider restore', () => {
       showBalance: false,
       delegate: true,
     })
+  })
+
+  it('reports a failed contact write and still restores solver cards', async () => {
+    const contacts = [{ address: 'alice@pay.example', name: 'Alice', sendCount: 0, lastSentAt: 0 }]
+    mocks.events = [makeEvent({ contacts, solverCards: [] }, 100, 100)]
+    const getItem = Storage.prototype.getItem
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(function (this: Storage, key) {
+      if (key === 'contacts') throw new Error('Contact storage unavailable')
+      return getItem.call(this, key)
+    })
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    renderProvider(() => undefined)
+    await expect(restore(new Uint8Array(32))).resolves.toBeUndefined()
+
+    expect(log).toHaveBeenCalledWith('failed to restore contacts: Failed to save contacts')
+    expect(localStorage.getItem('solverCards')).toBe('[]')
+  })
+
+  it('keeps solver-card storage failures non-fatal', async () => {
+    const contacts = [{ address: 'alice@pay.example', name: 'Alice', sendCount: 0, lastSentAt: 0 }]
+    mocks.events = [makeEvent({ contacts, solverCards: [] }, 100, 100)]
+    const setItem = Storage.prototype.setItem
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+      if (key === 'solverCards') throw new Error('Solver storage unavailable')
+      return setItem.call(this, key, value)
+    })
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    renderProvider(() => undefined)
+    await expect(restore(new Uint8Array(32))).resolves.toBeUndefined()
+
+    expect(log).toHaveBeenCalledWith('failed to restore solver cards: Solver storage unavailable')
+    expect(JSON.parse(localStorage.getItem('contacts') ?? 'null')).toEqual(contacts)
   })
 
   it('ranks an event by its arrival when that precedes its timestamp', async () => {
