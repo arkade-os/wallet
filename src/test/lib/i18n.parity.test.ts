@@ -16,7 +16,6 @@ const keepEnglishTermAllowList = new Set([
   'common.sat',
   'common.sats',
   'common.total',
-  'components.lnurlAddress',
   'contracts.script',
   'formatting.unit',
   'mint.arkadeMint',
