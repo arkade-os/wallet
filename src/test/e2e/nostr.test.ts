@@ -131,12 +131,12 @@ test('should save contacts to nostr', async ({ page }) => {
   await page.getByRole('button', { name: tr.contacts.addNew }).click()
   await page.getByTestId('contact-name').fill(mockContact.name)
   await page.getByTestId('contact-address').fill(mockContact.address)
-  await page.getByRole('button', { name: tr.common.save }).click()
-
-  await page.waitForEvent(
+  const publishAck = page.waitForEvent(
     'console',
     (log) => log.type() === 'log' && log.text() === 'Message published to Nostr successfully',
   )
+  await page.getByRole('button', { name: tr.common.save }).click()
+  await publishAck
 
   // verify contact is added
   await expect(page.getByRole('heading', { name: mockContact.name })).toBeVisible()
