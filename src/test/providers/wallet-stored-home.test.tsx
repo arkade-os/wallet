@@ -230,6 +230,20 @@ describe('Home from what it showed last time', () => {
     expect(wallet.balance).toBe(0)
   })
 
+  it('drops a reload that starts after the wallet is locked', async () => {
+    returning()
+    mount()
+    await load()
+    await act(() => wallet.lockWallet())
+    const calls = mocks.service.getVtxos.mock.calls.length
+
+    await act(() => wallet.reloadWallet(mocks.service as never))
+
+    expect(mocks.service.getVtxos).toHaveBeenCalledTimes(calls)
+    expect(wallet.loadError).toBeNull()
+    expect(wallet.dataReady).toBe(false)
+  })
+
   it('drops a reload that was in flight when the wallet was locked', async () => {
     returning()
     mount()

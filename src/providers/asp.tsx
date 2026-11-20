@@ -1,4 +1,4 @@
-import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
+import { ReactNode, createContext, useContext, useEffect, useRef, useState } from 'react'
 import { ArkadeInfo, ScheduledSession } from '@arkade-os/sdk'
 import { emptyAspInfo, getAspInfo } from '../lib/asp'
 import { readAspInfoSnapshot, sameAspInfo, saveAspInfoSnapshot } from '../lib/bootCache'
@@ -20,6 +20,8 @@ interface AspContextProps {
   calcBestMarketHour: (nextRollOver: number) => ScheduledSession | undefined
   calcNextMarketHour: (nextRollOver: number) => ScheduledSession | undefined
   setAspInfo: (info: AspInfo) => void
+  /** The in-flight `/v1/info`. Cached `aspInfo` is for the first paint only. */
+  liveAspInfo?: () => Promise<AspInfo>
 }
 
 export const AspContext = createContext<AspContextProps>({
@@ -27,30 +29,39 @@ export const AspContext = createContext<AspContextProps>({
   calcBestMarketHour: () => undefined,
   calcNextMarketHour: () => undefined,
   setAspInfo: () => {},
+  liveAspInfo: () => Promise.resolve(emptyAspInfo),
 })
 
 export const AspProvider = ({ children }: { children: ReactNode }) => {
   const { config, configLoaded } = useContext(ConfigContext)
 
   const [aspInfo, setAspInfo] = useState(emptyAspInfo)
+  // Assigned in the effect before the cached answer is shown, so a wallet that starts on the
+  // next frame waits on this fetch instead of building keys from the cache.
+  const liveAsp = useRef<Promise<AspInfo>>(Promise.resolve(emptyAspInfo))
 
   useEffect(() => {
     if (!config.aspUrl || !configLoaded) return
-    // Start from this server's last answer, so a returning wallet does not wait a round trip
-    // before it can begin to load. The live answer replaces it, and a failed one still reads as
-    // unreachable. Nothing is signed against it: the worker asks the server itself.
+    let cancelled = false
     const last = readAspInfoSnapshot(config.aspUrl, gitCommit)
     if (last) setAspInfo(last)
-    getAspInfo(config.aspUrl)
+    const failed = { ...emptyAspInfo, unreachable: true, url: config.aspUrl }
+    // Cached answer paints Home. `liveAspInfo` is this fetch; the worker waits on it.
+    liveAsp.current = getAspInfo(config.aspUrl)
       .then((info) => {
-        // An answer that matches the cached one keeps its object, so nothing that depends on
-        // `aspInfo` runs again for a change that did not happen.
-        setAspInfo((current) => (sameAspInfo(current, info) ? current : info))
-        saveAspInfoSnapshot(info, gitCommit)
+        if (!cancelled) {
+          setAspInfo((current) => (sameAspInfo(current, info) ? current : info))
+          saveAspInfoSnapshot(info, gitCommit)
+        }
+        return info
       })
       .catch(() => {
-        setAspInfo({ ...emptyAspInfo, unreachable: true })
+        if (!cancelled) setAspInfo(failed)
+        return failed
       })
+    return () => {
+      cancelled = true
+    }
   }, [config.aspUrl, configLoaded])
 
   /**
@@ -102,6 +113,7 @@ export const AspProvider = ({ children }: { children: ReactNode }) => {
         calcBestMarketHour,
         calcNextMarketHour,
         setAspInfo,
+        liveAspInfo: () => liveAsp.current,
       }}
     >
       {children}

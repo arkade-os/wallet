@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import {
   FIAT_PRICES_MAX_AGE_MS,
   HOME_SNAPSHOT_TXS,
-  loadedCopyOf,
   readAspInfoSnapshot,
   readFiatPricesSnapshot,
   readHomeSnapshot,
@@ -191,23 +190,5 @@ describe('Home snapshot', () => {
 
     expect(readHomeSnapshot('pubkey-1', 'build-1')).toBeUndefined()
     expect(readAspInfoSnapshot(URL, 'build-1')).toBeUndefined()
-  })
-})
-
-describe('the loaded copy of a stored row', () => {
-  const stored = { ...tx(1), settled: false }
-
-  it('is the loaded row for the same payment, which may have settled since', () => {
-    const loaded = [tx(2), { ...tx(1), settled: true }]
-    expect(loadedCopyOf(stored, loaded)).toEqual({ ...tx(1), settled: true })
-  })
-
-  it('goes by the history key when both rows have one', () => {
-    const keyed = { ...stored, historyKey: 'activity-7' }
-    expect(loadedCopyOf(keyed, [{ ...tx(9), historyKey: 'activity-7' }])?.redeemTxid).toBe('redeem-9')
-  })
-
-  it('is nothing when the load does not have the payment', () => {
-    expect(loadedCopyOf(stored, [tx(2)])).toBeUndefined()
   })
 })
