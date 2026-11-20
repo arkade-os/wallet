@@ -39,7 +39,13 @@ export default function ContactPicker({
             >
               <strong>{contactDisplayName(contact) || contact.address}</strong>
               <span>{contact.address}</span>
-              {contact.name ? <span>{t('contacts.sentTimes', { count: contact.sendCount })}</span> : null}
+              {contact.name ? (
+                <span>
+                  {contact.sendCount === 1
+                    ? t('contacts.sentTimesOne')
+                    : t('contacts.sentTimes', { count: contact.sendCount })}
+                </span>
+              ) : null}
             </button>
           ))}
         </div>
