@@ -291,6 +291,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // user's saved theme (applyTheme(Auto) then falls back to the OS palette).
   const configRef = useRef(config)
   configRef.current = config
+  const walletRef = useRef(wallet)
+  walletRef.current = wallet
   // Same hazard: a listener that captured an early `aspInfo` captured it before
   // the server answered, when the network was still unset. The exit timestamp
   // lookup needs the live one to pick an explorer. Synced after commit rather
@@ -700,7 +702,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (isFirstLoad && referenced.size > 0) setLoadingStatus(t('loading.loadingAssetMetadata'))
       const sats = total - unrolled
       setBalance(sats)
-      if (wallet.pubkey) saveLastSats(wallet.pubkey, sats)
+      const pubkey = walletRef.current.pubkey
+      if (pubkey) saveLastSats(pubkey, sats)
       setAvailableBalance(available)
       setAssetBalances(ownedAssets)
       setAvailableAssetBalances(availableAssets)

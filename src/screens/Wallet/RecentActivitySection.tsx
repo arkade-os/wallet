@@ -16,21 +16,25 @@ export default function RecentActivitySection() {
   const { navigate } = useContext(NavigationContext)
   const { t } = useTranslation()
 
+  const homeBusy = Boolean(booting) && !dataReady
+
   const handleViewAll = () => {
-    if (Boolean(booting) && !dataReady) return
+    if (homeBusy) return
     hapticLight()
     navigate(Pages.Activity)
   }
 
-  if (!txs || txs.length === 0) {
+  if (homeBusy || !txs || txs.length === 0) {
     return (
       <section className='home-section'>
         <div className='flex w-full items-center justify-between px-1'>
           <span className='home-section-label'>{t('wallet.recentActivity')}</span>
         </div>
-        <div className='home-section__content'>
-          <EmptyTxList />
-        </div>
+        {homeBusy ? null : (
+          <div className='home-section__content'>
+            <EmptyTxList />
+          </div>
+        )}
       </section>
     )
   }

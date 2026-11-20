@@ -288,13 +288,15 @@ export default function App() {
       ? Pages.Loading
       : showReturningHome
         ? Pages.Wallet
-        : shouldHoldOnLoading
+        : authState === 'locked' && !aspReady
           ? Pages.Loading
-          : shouldShowUnlock
-            ? Pages.Unlock
-            : onboardingIsMoot
-              ? Pages.Wallet
-              : screen
+          : shouldHoldOnLoading
+            ? Pages.Loading
+            : shouldShowUnlock
+              ? Pages.Unlock
+              : onboardingIsMoot
+                ? Pages.Wallet
+                : screen
 
   // Boot animation: persists on Loading, then flies to the LogoIcon position when
   // Wallet is reached. For any other destination (Unlock, Init, etc.), exits with fly-up.

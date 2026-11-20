@@ -11,14 +11,13 @@ import { Currencies, Unit } from '../lib/types'
 export function usePortfolioBalanceDisplay() {
   const { config } = useContext(ConfigContext)
   const { fiatDecimals, toFiat } = useContext(FiatContext)
-  const { dataReady, satsPreview } = useContext(WalletContext)
+  const { booting, dataReady, satsPreview } = useContext(WalletContext)
   const { totalFiat, totalSats } = usePortfolioFiat()
   const decimals = fiatDecimals()
   const priceReady = config.currency === Currencies.BTC || toFiat(100_000_000) > 0
-  const sats = dataReady ? totalSats : satsPreview
   const maskedBtc = config.unit === Unit.BIP177 ? `${config.unit}••••` : `•••• ${config.unit}`
 
-  if (!dataReady && satsPreview === undefined && totalSats === 0) {
+  if (booting && !dataReady && satsPreview === undefined && totalSats === 0) {
     return {
       balance: '',
       maskedBalance: '••••',
@@ -31,7 +30,7 @@ export function usePortfolioBalanceDisplay() {
   }
 
   if (!priceReady) {
-    const bitcoin = formatBitcoinAmountParts(sats ?? totalSats, config.unit, {
+    const bitcoin = formatBitcoinAmountParts(totalSats, config.unit, {
       maximumFractionDigits: config.unit === Unit.SATS ? 0 : 8,
       minimumFractionDigits: config.unit === Unit.SATS ? 0 : 8,
     })
