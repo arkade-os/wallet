@@ -212,6 +212,31 @@ describe('BackupProvider restore', () => {
     expect(readRecents()).toEqual([legacy])
   })
 
+  it('keeps saved contacts when no backup events are found', async () => {
+    const contact = { address: 'alice@pay.example', name: 'Alice', sendCount: 0, lastSentAt: 0 }
+    saveContacts([contact])
+
+    renderProvider(() => undefined)
+    await restore(new Uint8Array(32))
+
+    expect(readContacts()).toEqual([contact])
+  })
+
+  it('restores an explicit empty contacts snapshot even when a later event has no contacts', async () => {
+    const contact = { address: 'alice@pay.example', name: 'Alice', sendCount: 0, lastSentAt: 0 }
+    saveContacts([contact])
+    mocks.events = [
+      makeEvent({ contacts: [contact] }, 100, 100),
+      makeEvent({ contacts: [], contactsSplitVersion: 1 }, 101, 101),
+      makeEvent({ config: localConfig }, 102, 102),
+    ]
+
+    renderProvider(() => undefined)
+    await restore(new Uint8Array(32))
+
+    expect(readContacts()).toEqual([])
+  })
+
   it('reports a failed contact write and still restores solver cards', async () => {
     const contacts = [{ address: 'alice@pay.example', name: 'Alice', sendCount: 0, lastSentAt: 0 }]
     mocks.events = [makeEvent({ contacts, solverCards: [] }, 100, 100)]
