@@ -397,6 +397,8 @@ export default function WalletSwap() {
     fromAsset.assetId !== BTC_ASSET_ID &&
     amountAtomic < assetBalanceAtomic(fromAsset) &&
     availableBalance < 2 * Number(aspInfo.dust)
+  // Not keyed by input: another tab can spend these funds while a cached quote is in review.
+  const fundsShort = exceedsBalance || lacksChangeCarrier
   const validationMessage = swapValidationMessage({
     amount,
     exceedsBalance,
@@ -697,7 +699,7 @@ export default function WalletSwap() {
   }
 
   const confirmSwap = async () => {
-    if (submitting.current || !toAsset || confirming || awaitingFirm) return
+    if (submitting.current || !toAsset || confirming || awaitingFirm || fundsShort) return
     const lapsed = selected && (selectedExpired || selected.quote.expiresAt <= Math.floor(Date.now() / 1000))
     if (selected?.offer && lapsed) {
       setConfirmError(t('swap.offerExpired'))
@@ -941,9 +943,17 @@ export default function WalletSwap() {
         destination={selected?.destination}
         rememberSolver={rememberSolver}
         onRememberSolverChange={selected?.offer && solverNetwork ? setRememberSolver : undefined}
-        canConfirm={!awaitingFirm && (selected && !selectedExpired ? true : !selected?.offer && canContinue)}
+        canConfirm={
+          !awaitingFirm && !fundsShort && (selected && !selectedExpired ? true : !selected?.offer && canContinue)
+        }
         confirming={confirming}
-        error={selected?.offer && selectedExpired ? t('swap.offerExpired') : confirmError || firmError}
+        error={
+          fundsShort && !swapCommitted
+            ? swapValidationText(validationMessage, t)
+            : selected?.offer && selectedExpired
+              ? t('swap.offerExpired')
+              : confirmError || firmError
+        }
         note={
           selected?.plan && selected.quote.take.amount < selected.plan.receive.atomic
             ? t('swap.quoteBelowEstimate')

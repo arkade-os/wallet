@@ -1,5 +1,5 @@
 import userEvent from '@testing-library/user-event'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import createFetchMock from 'vitest-fetch-mock'
 import { quoteOffer, solverDirectionKey, solverId, type OfferPlan } from '@arkade-os/solver-discovery'
@@ -107,7 +107,7 @@ function renderSwap({
   // nothing escrowed unless a test says so, so every owned unit is spendable
   if (!('availableAssetBalances' in wallet)) walletValue.availableAssetBalances = walletValue.assetBalances
 
-  const contents = (nextSwap = swap) => (
+  const contents = (nextSwap = swap, nextWallet = walletValue) => (
     <AspContext.Provider
       value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet' } } as any}
     >
@@ -128,7 +128,7 @@ function renderSwap({
               }
             >
               <FlowContext.Provider value={{ ...mockFlowContextValue, ...flow } as any}>
-                <WalletContext.Provider value={walletValue as any}>
+                <WalletContext.Provider value={nextWallet as any}>
                   <SwapsContext.Provider
                     value={
                       {
@@ -163,6 +163,8 @@ function renderSwap({
     goBack,
     navigate,
     rerenderSwap: (nextSwap: Record<string, unknown>) => view.rerender(contents(nextSwap)),
+    rerenderWallet: (nextWallet: Record<string, unknown>) =>
+      view.rerender(contents(swap, { ...walletValue, ...nextWallet })),
   }
 }
 
@@ -671,6 +673,26 @@ describe('Wallet swap flow', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'View quotes' })).toBeEnabled(), { timeout: 3_000 })
     expect(screen.queryByText(/partial swap/)).not.toBeInTheDocument()
+  })
+
+  it('refuses to fund a cached quote once the change carrier is spent elsewhere', async () => {
+    const view = renderSwap({
+      config: { currency: Currencies.BRL, unit: Unit.SATS },
+      flow: { swapFromAssetId: DEPIX_ID, setSwapFromAssetId: vi.fn() },
+      wallet: { availableBalance: 666, assetBalances: [{ assetId: DEPIX_ID, amount: BigInt(200_000_000_000) }] },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Bitcoin/i }))
+    for (const key of ['1', '0', '0', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
+    await openSmartRoutingReview()
+
+    view.rerenderWallet({ availableBalance: 333 })
+
+    const confirmButton = screen.getByRole('button', { name: 'Confirm swap' })
+    await waitFor(() => expect(confirmButton).toBeDisabled())
+    expect(within(screen.getByRole('dialog')).getByText(/partial swap/)).toBeInTheDocument()
+    fireEvent.click(confirmButton)
+    expect(acceptSwapQuote).not.toHaveBeenCalled()
   })
 
   it.each([false, true])(
