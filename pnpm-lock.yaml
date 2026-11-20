@@ -27,8 +27,8 @@ importers:
         specifier: file:vendor/arkade-os-solver-discovery-0.3.0-routing-6e9b577.tgz
         version: file:vendor/arkade-os-solver-discovery-0.3.0-routing-6e9b577.tgz
       '@arkade-os/swap':
-        specifier: file:vendor/arkade-os-swap-0.1.6-open-rfq-3596cda643cf.tgz
-        version: file:vendor/arkade-os-swap-0.1.6-open-rfq-3596cda643cf.tgz(nostr-tools@2.24.1(typescript@5.9.3))
+        specifier: file:vendor/arkade-os-swap-0.1.6-open-rfq-1cb4f3de55d2.tgz
+        version: file:vendor/arkade-os-swap-0.1.6-open-rfq-1cb4f3de55d2.tgz(nostr-tools@2.24.1(typescript@5.9.3))
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -272,8 +272,8 @@ packages:
     version: 0.3.0
     engines: {node: '>=20.19'}
 
-  '@arkade-os/swap@file:vendor/arkade-os-swap-0.1.6-open-rfq-3596cda643cf.tgz':
-    resolution: {integrity: sha512-ZGs6p6spFdQ8OxGJa4V/rEDsmFlqXc1utrxBJa9b4tUcB4qKPWCvUNI7V1IRTaNrqlseEj+hbhypO2sOvpzxHQ==, tarball: file:vendor/arkade-os-swap-0.1.6-open-rfq-3596cda643cf.tgz}
+  '@arkade-os/swap@file:vendor/arkade-os-swap-0.1.6-open-rfq-1cb4f3de55d2.tgz':
+    resolution: {integrity: sha512-VyDPSCy8HYKkeGc0LXIlLly7pvMyGrOgUJgUzpKpLKN+pifxw9s4f/EqStvdXtiQzsro/xD5nlkTkduaFPYMew==, tarball: file:vendor/arkade-os-swap-0.1.6-open-rfq-1cb4f3de55d2.tgz}
     version: 0.1.6
     engines: {node: '>=22.13.0'}
     peerDependencies:
@@ -3347,7 +3347,7 @@ snapshots:
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
 
-  '@arkade-os/swap@file:vendor/arkade-os-swap-0.1.6-open-rfq-3596cda643cf.tgz(nostr-tools@2.24.1(typescript@5.9.3))':
+  '@arkade-os/swap@file:vendor/arkade-os-swap-0.1.6-open-rfq-1cb4f3de55d2.tgz(nostr-tools@2.24.1(typescript@5.9.3))':
     dependencies:
       '@arkade-os/sdk': 0.5.6
       '@arkade-os/solver-discovery': file:vendor/arkade-os-solver-discovery-0.3.0-routing-6e9b577.tgz

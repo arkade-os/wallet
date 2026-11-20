@@ -37,7 +37,7 @@ const auction = (bids: OpenRfqOffer[]): OpenRfqAuction => ({
     amount: 10_000n,
     amountOn: 'give',
   },
-  pair: `arkade:mutinynet/slip44:1~arkade:mutinynet/asset:${USDT_ID}`,
+  pair: `arkade:mutinynet/slip44:1->arkade:mutinynet/asset:${USDT_ID}`,
   closedAt: Math.floor(Date.now() / 1000),
   bids,
 })
