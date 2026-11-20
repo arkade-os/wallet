@@ -230,6 +230,35 @@ Repeated quote failures temporarily move a solver behind healthy alternatives, i
 
 Priorities are local to this wallet, scoped by network and ordered direction, and cleared on wallet reset. Solvers with different discovery public keys stay distinct even when names match. Quote preparation can try the next eligible solver; accepting a quote keeps that solver and the confirmed terms throughout funding and recovery.
 
+## Open offers
+
+Swap > View quotes uses saved solver routing when an enabled solver supports the requested swap.
+After saved-solver discovery settles, it automatically searches open offers if no eligible solver
+supports the pair/direction. It also falls back when every eligible solver uses fixed feed pricing
+and their calculated quotes all exclude the amount. A negotiated solver's indicative feed price,
+loading discovery and temporary quote/feed failures do not trigger a public search. The composer explains an automatic
+search before View quotes; a supported route still offers a manual Find open offers action.
+Public searches share the selected pair and amount on the configured Nostr relays; the recipient
+address, invoice and wallet identity are not broadcast. Held Arkade assets remain selectable when
+no known solver advertises their pair. Searches start only in the quote view, and failed searches
+require a manual retry.
+
+Open discovery uses the wallet's Nostr bootstrap relays (`VITE_NOSTR_RELAY_URL` overrides
+them), together with known cards' relays. A solver must listen on a shared relay to reply;
+an empty search does not prove that no solver exists.
+
+Open responses carry signed solver cards, exact atomic price amounts and an expiry. The user
+can choose any eligible offer. Selection requests a verified quote from that solver; worse
+terms require a new choice. Confirmation accepts the retained quote, including when another
+tab owns the swap driver. Settings pauses and trust restrictions continue to apply. Saving a
+newly discovered solver is an optional action after a successful swap.
+
+The composer supports swaps between Arkade assets. Bitcoin onchain payouts use native BTC
+from Arkade. Onchain review
+shows the prepared recipient and network; the receive amount is before the Bitcoin claim fee.
+External EVM settlement and Lightning invoice targets are not exposed by this composer.
+Existing Lightning send and receive flows continue to use their existing screens.
+
 ## Troubleshooting
 
 ### `address already in use` (Port 5000) on macOS

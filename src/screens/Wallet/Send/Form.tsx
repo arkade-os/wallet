@@ -44,14 +44,7 @@ import { lnurlPayableRanges } from '@arkade-os/lnurl-client/arkade'
 import { fetchArkAddress } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
 import { decodeInvoice } from '../../../lib/bolt11'
-import {
-  appSendNeedsDriver,
-  isLightningMarket,
-  LIGHTNING_RAIL,
-  lnSendRefusal,
-  lnSendRequest,
-  quoteLnurl,
-} from '../../../lib/sendRouter'
+import { appSendNeedsDriver, LIGHTNING_RAIL, lnSendRefusal, lnSendRequest, quoteLnurl } from '../../../lib/sendRouter'
 import { marketCorridor } from '@arkade-os/solver-discovery'
 import { isSolverEnabled } from '../../../lib/solverRouting'
 import { SwapsContext } from '../../../providers/swaps'

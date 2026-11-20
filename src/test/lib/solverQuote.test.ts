@@ -19,7 +19,7 @@ describe('solver quote preview', () => {
     for (let i = 0; i < 2; i++) {
       const pending = previewSolverQuote([market], 'btc', btcUsdt.quote_asset.id, '0.0001', 'mutinynet', fetchImpl)
       if (reason === 'cancel') await expect(pending).rejects.toBe(error)
-      else await pending
+      else await expect(pending).rejects.toMatchObject({ name: 'SolverAmountUnavailable' })
     }
     expect(
       await solverHealth.deprioritized({
@@ -29,6 +29,58 @@ describe('solver quote preview', () => {
     ).toEqual([])
     expect(localStorage.getItem('solverHealth')).toBeNull()
   })
+
+  it('reports definitive amount exclusion only after all saved solvers produced invalid plans', async () => {
+    const first = { ...btcUsdt, source: 'first', max_base_amount: '1' }
+    const second = { ...btcUsdt, source: 'second', max_base_amount: '5000' }
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ bitcoin: { usd: 100000 } }))) as typeof fetch
+
+    await expect(
+      previewSolverQuote([first, second], 'btc', btcUsdt.quote_asset.id, '0.0001', 'mutinynet', fetchImpl),
+    ).rejects.toMatchObject({
+      name: 'SolverAmountUnavailable',
+      plan: { market: first, deposit: { atomic: 10_000n } },
+    })
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not infer negotiated solver incapability from an invalid indicative feed plan', async () => {
+    const market = {
+      ...btcUsdt,
+      max_base_amount: '5000',
+      discovery_pubkey: 'ab'.repeat(32),
+      transports: { nostr: { relays: ['wss://solver.test'] } },
+    }
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ bitcoin: { usd: 100000 } }))) as typeof fetch
+    const plan = await previewSolverQuote([market], 'btc', btcUsdt.quote_asset.id, '0.0001', 'mutinynet', fetchImpl)
+    expect(plan.market).toEqual(market)
+    expect(plan.deposit.atomic).toBe(10_000n)
+  })
+
+  it.each([true, false])(
+    'preserves amount uncertainty when a saved feed also fails (invalid first: %s)',
+    async (invalidFirst) => {
+      const invalid = { ...btcUsdt, source: 'invalid', max_base_amount: '1' }
+      const unknown = { ...btcUsdt, source: 'unknown', price_feed: 'https://unknown.example/price' }
+      const fetchImpl = vi.fn(async (url: string | URL | Request) => {
+        if (String(url) === unknown.price_feed) throw new Error('offline')
+        return new Response(JSON.stringify({ bitcoin: { usd: 100000 } }))
+      }) as typeof fetch
+      const plan = await previewSolverQuote(
+        invalidFirst ? [invalid, unknown] : [unknown, invalid],
+        'btc',
+        btcUsdt.quote_asset.id,
+        '0.0001',
+        'mutinynet',
+        fetchImpl,
+      )
+
+      expect(plan.market).toEqual(invalid)
+      expect(plan.deposit.atomic).toBe(10_000n)
+      expect(fetchImpl).toHaveBeenCalledTimes(2)
+    },
+  )
+
   it('stops preferring a repeatedly unavailable feed and retains the saved preference', async () => {
     const dead = { ...btcUsdt, source: 'dead', price_feed: 'https://dead.example/price' }
     const live = { ...btcUsdt, source: 'live' }

@@ -36,7 +36,6 @@ const keepEnglishTermAllowList = new Set([
   'settings.feedback',
   'settings.general',
   'settings.solvers',
-  'solvers.fieldBase',
   'solvers.fieldRelays',
   'solvers.originalLabel',
   'solvers.solverCountPlural',

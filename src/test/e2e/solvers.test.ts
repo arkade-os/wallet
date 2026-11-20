@@ -77,6 +77,6 @@ test('should show solver card info in the detail view', async ({ page }) => {
   await page.getByRole('button', { name: 'Save' }).click()
 
   await expect(page.getByTestId('stored-solver-card').getByText(mockSolverCard.name, { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Info' }).click()
+  await page.getByTestId('stored-solver-card').getByRole('button', { name: 'Info' }).click()
   await expect(page.getByText(tr.solvers.cardInfo)).toBeVisible()
 })

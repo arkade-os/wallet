@@ -73,3 +73,29 @@ it('refreshes on preference changes and discards both displayed and late plans',
   expect(result.current.plan).toBe(current)
   expect(result.current.status).toBe('success')
 })
+
+it('retains the amount violation plan while marking confirmed saved-solver amount exclusion', async () => {
+  const actual = await vi.importActual<typeof import('../../lib/solverQuote')>('../../lib/solverQuote')
+  const market = { ...btcUsdt, max_base_amount: '1' }
+  const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ bitcoin: { usd: 100000 } }))) as typeof fetch
+  vi.mocked(previewSolverQuote).mockImplementation(() =>
+    actual.previewSolverQuote([market], 'btc', btcUsdt.quote_asset.id, '0.0001', 'mutinynet', fetchImpl),
+  )
+  const { result } = renderHook(() => useSolverQuote([market], 'btc', btcUsdt.quote_asset.id, 'mutinynet'))
+
+  act(() => result.current.setGiveAmount('0.0001'))
+  await waitFor(() => expect(result.current.status).toBe('success'))
+  expect(result.current.plan?.market).toEqual(market)
+  expect(result.current.plan?.deposit.atomic).toBe(10_000n)
+  expect(result.current.solvable).toBe(false)
+})
+
+it('leaves capability unknown after a transient quote failure', async () => {
+  vi.mocked(previewSolverQuote).mockRejectedValue(new Error('feed unavailable'))
+  const { result } = renderHook(() => useSolverQuote([btcUsdt], 'btc', btcUsdt.quote_asset.id, 'mutinynet'))
+
+  act(() => result.current.setGiveAmount('0.0001'))
+  await waitFor(() => expect(result.current.status).toBe('error'))
+  expect(result.current.plan).toBeNull()
+  expect(result.current.solvable).toBeUndefined()
+})

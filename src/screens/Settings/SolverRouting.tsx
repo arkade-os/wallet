@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState, useSyncExternalStore, useId, useRef } from 'react'
+import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
 import {
-  assetIdOf,
   fromAtomic,
   marketCorridor,
   orderSolverMarkets,
@@ -12,7 +12,9 @@ import {
   type SolverRoutingPreferences,
 } from '@arkade-os/solver-discovery'
 import { SwapsContext } from '@/providers/swaps'
+import { WalletContext } from '@/providers/wallet'
 import { useTranslation } from '@/providers/language'
+import { marketAssetDisplay, marketLegId } from '@/lib/swapMarkets'
 import { solverUsage } from '@/lib/swapRecords'
 import {
   readSolverRouting,
@@ -37,11 +39,32 @@ import { Switch } from '@/components/ui/switch'
 const railNames = { arkade: 'Arkade', bolt11: 'Lightning', bitcoin: 'Bitcoin', eip155: 'EVM' }
 
 type Candidate = { card: DiscoveredMarket; give: Side }
-const directionLabelOf = ({ card, give }: Candidate): string => {
+export type TickerOf = (asset: DiscoveredMarket['base_asset']) => string
+
+/** Names legs through the wallet's asset metadata, not the ticker the card's solver wrote. */
+export const useMarketTicker = (network: string): TickerOf => {
+  const { assetMetadataCache, isVerifiedAsset } = useContext(WalletContext)
+  return (asset) =>
+    marketAssetDisplay(asset, network, (id) => assetMetadataCache.get(id)?.metadata, isVerifiedAsset).ticker
+}
+
+export const directionLabelOf = ({ card, give }: Candidate, tickerOf: TickerOf): string => {
   const take = give === 'base' ? 'quote' : 'base'
   const giveAsset = give === 'base' ? card.base_asset : card.quote_asset
   const takeAsset = take === 'base' ? card.base_asset : card.quote_asset
-  return `${railNames[marketCorridor(card, give)]} ${giveAsset.ticker} → ${railNames[marketCorridor(card, take)]} ${takeAsset.ticker}`
+  return `${railNames[marketCorridor(card, give)]} ${tickerOf(giveAsset)} → ${railNames[marketCorridor(card, take)]} ${tickerOf(takeAsset)}`
+}
+
+/** The fee a direction pays: its spread, and the flat part in the leg it is charged on. */
+export const feeLabelOf = ({ card, give }: Candidate, tickerOf: TickerOf): string => {
+  const fee = card.solver_fee?.[give]
+  const flat = fee?.flat ?? (!card.solver_fee ? card.fee_flat : undefined)
+  const flatAsset = fee ? (give === 'base' ? card.base_asset : card.quote_asset) : card.quote_asset
+  const flatIsBtc = marketLegId(flatAsset) === BTC_ASSET_ID
+  const flatLabel = flat
+    ? `${fromAtomic(BigInt(flat), flatIsBtc ? 0 : flatAsset.decimals)} ${flatIsBtc ? 'sats' : tickerOf(flatAsset)}`
+    : undefined
+  return `${fee?.bps ?? card.fee_bps} bps${flatLabel ? ` + ${flatLabel}` : ''}`
 }
 
 function DirectionRouting({
@@ -62,9 +85,10 @@ function DirectionRouting({
   const [usageError, setUsageError] = useState(false)
   const listId = useId()
   const orderRef = useRef<HTMLSelectElement>(null)
+  const cardsKey = JSON.stringify(candidates.map(({ card }) => card))
   useEffect(() => {
     let active = true
-    void solverUsage(network, direction).then(
+    void solverUsage(network, direction, JSON.parse(cardsKey) as DiscoveredMarket[]).then(
       (next) => {
         if (active) {
           setUsage(next)
@@ -78,7 +102,7 @@ function DirectionRouting({
     return () => {
       active = false
     }
-  }, [network, direction, swaps])
+  }, [network, direction, swaps, cardsKey])
   const prefs = readSolverRouting(network, direction)
   const ordered = orderSolverMarkets(candidates, {
     network,
@@ -116,7 +140,8 @@ function DirectionRouting({
     ;[ids[index], ids[index + delta]] = [ids[index + delta], ids[index]]
     save({ ...prefs, mode: 'manual', priority: ids })
   }
-  const directionLabel = directionLabelOf(candidates[0])
+  const tickerOf = useMarketTicker(network)
+  const directionLabel = directionLabelOf(candidates[0], tickerOf)
   const orderLabel = t(prefs.preferFirst ? 'solvers.remainingOrder' : 'solvers.orderBy')
   return (
     <FlexCol gap='12px'>
@@ -173,13 +198,6 @@ function DirectionRouting({
           const id = solverId(card, network)
           const globallyEnabled = isSolverGloballyEnabled(card, network)
           const enabled = enabledIds.has(id)
-          const fee = card.solver_fee?.[give]
-          const flat = fee?.flat ?? (!card.solver_fee ? card.fee_flat : undefined)
-          const flatAsset = fee ? (give === 'base' ? card.base_asset : card.quote_asset) : card.quote_asset
-          const flatIsBtc = flatAsset.id === 'btc' || /\/slip44:[01]$/.test(assetIdOf(flatAsset) ?? '')
-          const flatLabel = flat
-            ? `${fromAtomic(BigInt(flat), flatIsBtc ? 0 : flatAsset.decimals)} ${flatIsBtc ? 'sats' : flatAsset.ticker}`
-            : undefined
           return (
             <li key={id} className='flex items-center gap-3 py-3'>
               {(prefs.mode ?? 'manual') === 'manual' ? (
@@ -215,8 +233,7 @@ function DirectionRouting({
                   {card.discovery_pubkey ? prettyLongText(card.discovery_pubkey) : card.source} · {card.sourceType}
                 </TextSecondary>
                 <TextSecondary>
-                  {fee?.bps ?? card.fee_bps} bps
-                  {flatLabel ? ` + ${flatLabel}` : ''} · {t('solvers.completedCount', { count: usage[id] ?? 0 })}
+                  {feeLabelOf({ card, give }, tickerOf)} · {t('solvers.completedCount', { count: usage[id] ?? 0 })}
                 </TextSecondary>
               </div>
               <div className='flex shrink-0 items-center gap-3'>
@@ -270,6 +287,7 @@ function DirectionRouting({
 export default function SolverRouting({ network }: { network: string }) {
   const { allMarkets = [] } = useContext(SwapsContext)
   const { t } = useTranslation()
+  const tickerOf = useMarketTicker(network)
   const version = useSyncExternalStore(subscribeSolverRouting, getSolverRoutingVersion, getSolverRoutingVersion)
   const [cooling, setCooling] = useState<Record<string, string[]>>({})
   const [activeDirection, setActiveDirection] = useState<string>()
@@ -316,7 +334,7 @@ export default function SolverRouting({ network }: { network: string }) {
         <Shadow>
           <div className='divide-y divide-[var(--neutral-200)]'>
             {[...directions].map(([direction, candidates]) => {
-              const label = directionLabelOf(candidates[0])
+              const label = directionLabelOf(candidates[0], tickerOf)
               const prefs = readSolverRouting(network, direction)
               const mode = prefs.mode
               const enabled = orderSolverMarkets(candidates, {
@@ -369,7 +387,7 @@ export default function SolverRouting({ network }: { network: string }) {
       {selected && activeDirection ? (
         <DrawerContent>
           <DrawerHeader className='shrink-0 text-left'>
-            <DrawerTitle>{directionLabelOf(selected[0])}</DrawerTitle>
+            <DrawerTitle>{directionLabelOf(selected[0], tickerOf)}</DrawerTitle>
             <DrawerDescription>{network}</DrawerDescription>
           </DrawerHeader>
           <div className='min-h-0 overflow-y-auto overscroll-contain px-4 pb-4'>

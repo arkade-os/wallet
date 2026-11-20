@@ -3804,6 +3804,22 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   overflow: hidden;
 }
 
+.swap-quotes [data-slot='drawer-title'] {
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.swap-quotes button:focus-visible,
+.swap-quotes summary:focus-visible {
+  outline: 2px solid var(--purpletext);
+  outline-offset: 2px;
+}
+
+.swap-quotes article button:focus-visible {
+  outline-offset: -2px;
+}
+
 .swap-review-header {
   align-items: flex-start !important;
   gap: 0.25rem !important;
