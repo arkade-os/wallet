@@ -16,7 +16,14 @@ import { FlowContext, emptyRecvInfo, emptySendInfo } from '../../../providers/fl
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import type { AssetDetails } from '@arkade-os/sdk'
+import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
 import { prettyAssetAmount } from '../../../lib/assets'
+import { pairKeyOf, type BookRow, type OrderTerms } from '../../../lib/book'
+import BookLadder from '../../../components/BookLadder'
+import TradeSheet, { type TradePrefill } from '../../../components/TradeSheet'
+import { toast } from '../../../components/Toast'
+import { extractError } from '../../../lib/error'
+import { OrderBookContext } from '../../../providers/orderBook'
 import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '../../../providers/language'
 
@@ -25,16 +32,27 @@ export default function AppAssetDetail() {
   const { backupAndUpdateConfig } = useContext(BackupContext)
   const { navigate, replace } = useContext(NavigationContext)
   const { assetInfo, setAssetInfo, setRecvInfo, setSendInfo } = useContext(FlowContext)
-  const { assetBalances, svcWallet, assetMetadataCache, setCacheEntry, iconApprovalManager } = useContext(WalletContext)
+  const {
+    assetBalances,
+    balance: sats,
+    svcWallet,
+    assetMetadataCache,
+    setCacheEntry,
+    iconApprovalManager,
+  } = useContext(WalletContext)
+  const { bookFor, pull, takeable, trade } = useContext(OrderBookContext)
   const { t } = useTranslation()
 
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [cancellingId, setCancellingId] = useState<string>()
+  const [sheet, setSheet] = useState<{ id: number; side: 'buy' | 'sell'; prefill?: TradePrefill } | null>(null)
 
   const cachedEntry = assetMetadataCache.get(assetInfo.assetId)
   const hasIcon = cachedEntry?.hasIcon ?? false
 
   const balance = assetBalances.find((a) => a.assetId === assetInfo.assetId)?.amount ?? BigInt(0)
+  const book = bookFor(pairKeyOf(assetInfo.assetId, BTC_ASSET_ID))
 
   const fetchDetails = async (forceRefresh = false) => {
     if (!svcWallet || !assetInfo.assetId) return
@@ -102,6 +120,35 @@ export default function AppAssetDetail() {
     navigate(Pages.AppAssetBurn)
   }
 
+  const openTrade = (side: 'buy' | 'sell', prefill?: TradePrefill) => setSheet({ id: Date.now(), side, prefill })
+
+  const selectOrder = (row: BookRow) => {
+    const buying = row.side === 'ask'
+    openTrade(buying ? 'buy' : 'sell', {
+      side: buying ? 'buy' : 'sell',
+      baseAtoms: buying ? row.give.amount : row.want.amount,
+      quoteAtoms: buying ? row.want.amount : row.give.amount,
+    })
+  }
+
+  const cancelOrder = async (row: BookRow) => {
+    setCancellingId(row.id)
+    try {
+      await pull(row.id)
+      toast(t('book.orderCancelled'))
+    } catch (err) {
+      toast(extractError(err))
+    } finally {
+      setCancellingId(undefined)
+    }
+  }
+
+  const submitTrade = async (terms: OrderTerms) => {
+    const outcome = await trade(terms)
+    toast(outcome.kind === 'filled' ? t('book.orderFilled') : t('book.orderPlaced'))
+    setSheet(null)
+  }
+
   const handleRemove = () => {
     const updated = config.importedAssets.filter((id) => id !== assetInfo.assetId)
     backupAndUpdateConfig({ ...config, importedAssets: updated })
@@ -122,6 +169,14 @@ export default function AppAssetDetail() {
               </Text>
               <TextSecondary centered>{name}</TextSecondary>
             </FlexCol>
+
+            <BookLadder
+              book={book}
+              decimals={decimals}
+              cancellingId={cancellingId}
+              onCancel={cancelOrder}
+              onSelect={selectOrder}
+            />
 
             <FlexCol gap='0.25rem' centered>
               <Text copy={assetInfo.assetId} color='neutral-500' smaller centered>
@@ -211,7 +266,26 @@ export default function AppAssetDetail() {
           </FlexCol>
         </Padded>
       </Content>
+      {sheet ? (
+        <TradeSheet
+          key={sheet.id}
+          open
+          ticker={ticker || name}
+          decimals={decimals}
+          book={book}
+          takeable={takeable}
+          sats={sats}
+          assetAtoms={balance}
+          prefill={sheet.prefill}
+          onClose={() => setSheet(null)}
+          onSubmit={submitTrade}
+        />
+      ) : null}
       <ButtonsOnBottom>
+        <FlexRow gap='0.75rem'>
+          <Button label={t('book.buy')} onClick={() => openTrade('buy')} />
+          <Button label={t('book.sell')} onClick={() => openTrade('sell')} />
+        </FlexRow>
         <FlexRow gap='0.75rem'>
           <Button label={t('mint.send')} onClick={handleSend} disabled={balance === BigInt(0)} />
           <Button label={t('mint.receive')} onClick={handleReceive} />

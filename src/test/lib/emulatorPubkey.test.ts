@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { hex } from '@scure/base'
-import { getEmulatorPubkeyForNetwork, getEmulatorPubkeyOverrideForNetwork } from '../../lib/constants'
+import {
+  getEmulatorPubkeyForNetwork,
+  getEmulatorPubkeyOverrideForNetwork,
+  getEmulatorUrlForNetwork,
+} from '../../lib/constants'
 
 /**
  * The covenant co-signer's key is caller-supplied config, never fetched
@@ -38,6 +42,13 @@ describe('getEmulatorPubkeyForNetwork', () => {
   it('reports no key for networks with none pinned, so swaps stay off', () => {
     expect(getEmulatorPubkeyForNetwork('signet')).toBeUndefined()
     expect(getEmulatorPubkeyForNetwork('testnet')).toBeUndefined()
+  })
+
+  it('points a fill at the emulator for that network', () => {
+    expect(getEmulatorUrlForNetwork('mutinynet')).toBe('https://emulator.mutinynet.arkade.sh')
+    expect(getEmulatorUrlForNetwork('bitcoin')).toBe('https://emulator.arkade.computer')
+    expect(getEmulatorUrlForNetwork('regtest')).toBe('http://localhost:7073')
+    expect(getEmulatorUrlForNetwork('signet')).toBeUndefined()
   })
 
   describe('VITE_EMULATOR_PUBKEY override', () => {
