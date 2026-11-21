@@ -45,7 +45,7 @@ import { isSolverEnabled } from '../../../lib/solverRouting'
 import QuoteChoices, { formatQuoteAmount } from './QuoteChoices'
 
 type AssetTarget = 'from' | 'to'
-type DrawerState = 'to' | 'quotes' | 'review' | null
+type DrawerState = 'to' | 'quotes' | 'refresh-quotes' | 'review' | null
 type SwapStep = 'select-from' | 'compose'
 type AmountMode = 'asset' | 'fiat'
 type SwapValidationState = 'idle' | 'insufficient-balance' | 'quote-unavailable'
@@ -236,7 +236,6 @@ export default function WalletSwap() {
   const initialFromAssetId = resolveInitialFromAssetId(swapAssets, swapFromAssetId)
   const openedWithPreselectedAsset = useRef(Boolean(swapFromAssetId))
   const [step, setStep] = useState<SwapStep>(swapFromAssetId && initialFromAssetId ? 'compose' : 'select-from')
-  const [search, setSearch] = useState('')
   const [amount, setAmount] = useState('0')
   const [selectedAmountMode, setSelectedAmountMode] = useState<AmountMode>('fiat')
   // Any path that changes the effective give amount must clear this pair.
@@ -374,7 +373,8 @@ export default function WalletSwap() {
   const firmHere = firmQuotes[inputKey]
   const selected: { quote: Quote; offer?: OpenRfqOffer; plan?: OfferPlan; destination?: string } | undefined =
     chosen ?? (firmHere && 'quote' in firmHere ? firmHere : undefined)
-  const selectedExpired = Boolean(selected && selected.quote.expiresAt <= quoteClock)
+  const quoteNow = Math.max(quoteClock, Math.floor(Date.now() / 1000))
+  const selectedExpired = Boolean(selected && selected.quote.expiresAt <= quoteNow)
   const awaitingFirm = firmQuoting.has(inputKey) && !chosen
   const firmError = !chosen && !awaitingFirm && firmHere && 'error' in firmHere ? firmHere.error : ''
 
@@ -382,7 +382,7 @@ export default function WalletSwap() {
     setSelectedOffer(undefined)
     setRememberSolver(false)
     setConfirmError('')
-    setDrawer((current) => (current === 'review' || current === 'quotes' ? null : current))
+    setDrawer((current) => (current === 'to' ? current : null))
   }, [inputKey])
 
   useEffect(() => {
@@ -458,6 +458,9 @@ export default function WalletSwap() {
   const canViewQuotes = Boolean(
     toAsset && amountAtomic > 0n && !exceedsBalance && !lacksChangeCarrier && destinationValid,
   )
+  const reviewNeedsQuotes =
+    !awaitingFirm &&
+    Boolean(chosen?.lost || (selectedExpired && selected?.offer) || ((!selected || selectedExpired) && !canContinue))
   const hasSavedSolver = Boolean(
     toAsset &&
       (toAsset.external ? allMarkets : quoteMarkets).some((market) => {
@@ -502,7 +505,8 @@ export default function WalletSwap() {
 
   const stageTransition = prefersReduced ? { duration: 0 } : { duration: 0.28, ease: EASE_IN_OUT_QUINT_TUPLE }
 
-  const filteredAssets = useMemo(() => filterAssets(swapAssets, search), [search, swapAssets])
+  const isVerifiedPickerAsset = (asset: SwapAsset) =>
+    asset.assetId === BTC_ASSET_ID || asset.external === true || isVerifiedAsset(asset.assetId)
 
   useEffect(() => {
     if (swapAssets.length === 0) return
@@ -514,7 +518,6 @@ export default function WalletSwap() {
   const focusFromAsset = useCallback((assetId: string) => {
     setFromAssetId(assetId)
     setToAssetId((current) => (current && current !== assetId ? current : undefined))
-    setSearch('')
     setStep('compose')
   }, [])
 
@@ -693,11 +696,16 @@ export default function WalletSwap() {
     })
   }
 
-  // The driver no longer holds this quote: a chosen offer must be chosen again, a firm quote asked for again.
-  const forgetLostQuote = (error: unknown, offer?: OpenRfqOffer) => {
-    if ((error as Error)?.name !== 'QuoteUnavailable') return
-    if (offer) setSelectedOffer((current) => (current?.offer === offer ? { ...current, lost: true } : current))
-    else setFirmQuotes((current) => ({ ...current, [inputKey]: { error: extractError(error) } }))
+  const reportConfirmError = (error: unknown, offer?: OpenRfqOffer) => {
+    const name = (error as Error)?.name
+    const expired = name === 'QuoteExpired' || name === 'SendDeadlineExceededError'
+    const unavailable = name === 'QuoteUnavailable'
+    const message = expired ? t('swap.offerExpired') : extractError(error)
+    if (offer && (expired || unavailable))
+      setSelectedOffer((current) => (current?.offer === offer ? { ...current, lost: true } : current))
+    if (!offer && unavailable) setFirmQuotes((current) => ({ ...current, [inputKey]: { error: message } }))
+    if (expired) setQuoteClock(Math.floor(Date.now() / 1000))
+    setConfirmError(message)
   }
 
   const confirmSwap = async () => {
@@ -747,8 +755,7 @@ export default function WalletSwap() {
         }
         hapticLight()
       } catch (error) {
-        forgetLostQuote(error, offer)
-        setConfirmError(extractError(error))
+        reportConfirmError(error, offer)
       } finally {
         submitting.current = false
         setConfirming(false)
@@ -770,15 +777,17 @@ export default function WalletSwap() {
       const firm = await quoteExchange(plan)
       // Kept before funding: a retry must accept this quote, not ask for its terms again.
       setFirmQuotes((current) => ({ ...current, [inputKey]: { quote: firm, plan } }))
-      if (firm.take.amount < shown) return
+      if (firm.take.amount < shown) {
+        setConfirmError(t('swap.quoteTermsUpdated'))
+        return
+      }
       const funded = firmDisplay(plan, firm)
       await acceptSwapQuote(firm, buildQuoteSnapshot(plan, funded, config.currency))
       setDrawer(null)
       setSuccessQuote(funded)
       hapticLight()
     } catch (error) {
-      forgetLostQuote(error)
-      setConfirmError(extractError(error))
+      reportConfirmError(error)
     } finally {
       submitting.current = false
       setConfirming(false)
@@ -806,10 +815,8 @@ export default function WalletSwap() {
                   {swapAvailable ? (
                     <SwapAssetList
                       title={t('swap.chooseAssetToSwap')}
-                      search={search}
-                      assets={filteredAssets}
-                      empty={filteredAssets.length === 0}
-                      onSearch={setSearch}
+                      assets={swapAssets}
+                      isVerified={isVerifiedPickerAsset}
                       onSelect={selectFromAsset}
                     />
                   ) : (
@@ -884,6 +891,7 @@ export default function WalletSwap() {
         open={drawer === 'to'}
         target='to'
         assets={receiveAssets}
+        isVerified={isVerifiedPickerAsset}
         selectedId={toAsset?.assetId}
         onOpenChange={(open) => {
           if (!open) setDrawer(null)
@@ -893,14 +901,14 @@ export default function WalletSwap() {
 
       {toAsset ? (
         <QuoteChoices
-          open={drawer === 'quotes'}
+          open={drawer === 'quotes' || drawer === 'refresh-quotes'}
           network={aspInfo.network}
           from={fromAsset}
           to={toAsset}
           amount={amountAtomic}
           destination={toAsset.external ? destination.trim() : undefined}
           automaticAmount={canContinue ? currentPlan?.receive.atomic : undefined}
-          autoSearch={searchOpenByDefault}
+          autoSearch={drawer === 'quotes' && searchOpenByDefault}
           allowSmartRouting={!toAsset.external}
           onOpenChange={(open) => {
             if (!open) setDrawer(null)
@@ -945,19 +953,14 @@ export default function WalletSwap() {
         destination={selected?.destination}
         rememberSolver={rememberSolver}
         onRememberSolverChange={selected?.offer && solverNetwork ? setRememberSolver : undefined}
-        canConfirm={
-          !awaitingFirm &&
-          !fundsShort &&
-          !chosen?.lost &&
-          (selected && !selectedExpired ? true : !selected?.offer && canContinue)
-        }
+        canConfirm={!awaitingFirm && !fundsShort && !reviewNeedsQuotes}
         confirming={confirming}
         error={
           fundsShort && !swapCommitted
             ? swapValidationText(validationMessage, t)
-            : selected?.offer && selectedExpired
+            : reviewNeedsQuotes && selectedExpired
               ? t('swap.offerExpired')
-              : confirmError || firmError
+              : confirmError || firmError || (reviewNeedsQuotes ? t('swap.quoteUnavailable') : '')
         }
         note={
           selected?.plan && selected.quote.take.amount < selected.plan.receive.atomic
@@ -965,6 +968,10 @@ export default function WalletSwap() {
             : undefined
         }
         quoteLoading={awaitingFirm || (selected ? false : quoteLoading)}
+        expiresIn={selected && !selectedExpired && !chosen?.lost ? selected.quote.expiresAt - quoteNow : undefined}
+        onViewQuotes={
+          reviewNeedsQuotes && canViewQuotes && !confirming ? () => openDrawer('refresh-quotes') : undefined
+        }
         onOpenChange={(open) => {
           // keep the drawer up while the swap is being created so a late
           // failure still has a surface to report on
@@ -994,23 +1001,24 @@ function SwapUnavailableState() {
 
 function SwapAssetList({
   title,
-  search,
   assets,
-  empty,
+  isVerified,
   selectedId,
-  onSearch,
   onSelect,
 }: {
   title: string
-  search: string
   assets: SwapAsset[]
-  empty: boolean
+  isVerified: (asset: SwapAsset) => boolean
   selectedId?: string
-  onSearch: (value: string) => void
   onSelect: (asset: SwapAsset) => void
 }) {
   const prefersReduced = useReducedMotion()
   const { t } = useTranslation()
+  const [search, setSearch] = useState('')
+  const [showUnverified, setShowUnverified] = useState(false)
+  const listId = useId()
+  const verified = assets.filter(isVerified)
+  const filteredAssets = filterAssets(showUnverified ? assets : verified, search)
 
   return (
     <div className='swap-asset-list-panel'>
@@ -1026,14 +1034,17 @@ function SwapAssetList({
           placeholder={t('swap.searchAssets')}
           autoComplete='off'
           spellCheck={false}
-          onChange={(event) => onSearch(event.target.value)}
+          onChange={(event) => setSearch(event.target.value)}
         />
       </label>
-      <div className='swap-token-list swap-token-list--page'>
-        {empty ? (
+      {verified.length < assets.length ? (
+        <UnverifiedAssetsToggle expanded={showUnverified} controls={listId} onToggle={setShowUnverified} />
+      ) : null}
+      <div id={listId} className='swap-token-list swap-token-list--page'>
+        {filteredAssets.length === 0 ? (
           <div className='swap-empty-state'>{t('swap.noAssetsMatch')}</div>
         ) : (
-          assets.map((asset, index) => (
+          filteredAssets.map((asset, index) => (
             <motion.div
               key={asset.assetId}
               initial={prefersReduced ? false : { opacity: 0, y: 8 }}
@@ -1454,6 +1465,7 @@ function AssetPickerDrawer({
   open,
   target,
   assets,
+  isVerified,
   selectedId,
   onOpenChange,
   onSelect,
@@ -1461,12 +1473,16 @@ function AssetPickerDrawer({
   open: boolean
   target: AssetTarget
   assets: SwapAsset[]
+  isVerified: (asset: SwapAsset) => boolean
   selectedId?: string
   onOpenChange: (open: boolean) => void
   onSelect: (target: AssetTarget, asset: SwapAsset) => void
 }) {
   const [query, setQuery] = useState('')
-  const filteredAssets = useMemo(() => filterAssets(assets, query), [assets, query])
+  const [showUnverified, setShowUnverified] = useState(false)
+  const listId = useId()
+  const verified = assets.filter(isVerified)
+  const filteredAssets = filterAssets(showUnverified ? assets : verified, query)
   const { t } = useTranslation()
 
   return (
@@ -1492,7 +1508,10 @@ function AssetPickerDrawer({
               onChange={(event) => setQuery(event.target.value)}
             />
           </label>
-          <div className='swap-token-list'>
+          {verified.length < assets.length ? (
+            <UnverifiedAssetsToggle expanded={showUnverified} controls={listId} onToggle={setShowUnverified} />
+          ) : null}
+          <div id={listId} className='swap-token-list'>
             {filteredAssets.map((asset) => (
               <SwapAssetRow
                 key={asset.assetId}
@@ -1508,6 +1527,30 @@ function AssetPickerDrawer({
   )
 }
 
+function UnverifiedAssetsToggle({
+  expanded,
+  controls,
+  onToggle,
+}: {
+  expanded: boolean
+  controls: string
+  onToggle: (expanded: boolean) => void
+}) {
+  const { t } = useTranslation()
+
+  return (
+    <button
+      type='button'
+      className='min-h-6 self-start rounded-sm px-1 text-xs text-muted-foreground underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring'
+      aria-expanded={expanded}
+      aria-controls={controls}
+      onClick={() => onToggle(!expanded)}
+    >
+      {t(expanded ? 'swap.hideUnverifiedAssets' : 'swap.showUnverifiedAssets')}
+    </button>
+  )
+}
+
 function ReviewDrawer({
   open,
   quote,
@@ -1520,6 +1563,8 @@ function ReviewDrawer({
   error,
   note,
   quoteLoading,
+  expiresIn,
+  onViewQuotes,
   onOpenChange,
   onConfirm,
 }: {
@@ -1534,6 +1579,8 @@ function ReviewDrawer({
   error: string
   note?: string
   quoteLoading: boolean
+  expiresIn?: number
+  onViewQuotes?: () => void
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
 }) {
@@ -1571,10 +1618,16 @@ function ReviewDrawer({
           {note ? <p className='px-1 py-2 text-xs text-muted-foreground'>{note}</p> : null}
         </div>
         <div className='swap-review-action'>
+          {expiresIn !== undefined && !confirming ? (
+            <p className='pb-1 text-center text-xs text-muted-foreground'>
+              {t('swap.offerExpiresIn', { seconds: expiresIn })}
+            </p>
+          ) : null}
           <AnimatePresence initial={false}>
             {error ? (
               <motion.p
                 className='swap-confirm-error'
+                role='alert'
                 initial={prefersReduced ? false : { opacity: 0, y: 6 }}
                 animate={prefersReduced ? undefined : { opacity: 1, y: 0 }}
                 exit={prefersReduced ? undefined : { opacity: 0, y: 6 }}
@@ -1585,10 +1638,10 @@ function ReviewDrawer({
             ) : null}
           </AnimatePresence>
           <Button
-            label={t('swap.confirmSwap')}
-            disabled={!canConfirm || confirming}
+            label={t(onViewQuotes ? 'swap.viewQuotes' : 'swap.confirmSwap')}
+            disabled={(!onViewQuotes && !canConfirm) || confirming}
             loading={confirming}
-            onClick={onConfirm}
+            onClick={onViewQuotes ?? onConfirm}
           />
         </div>
       </DrawerContent>

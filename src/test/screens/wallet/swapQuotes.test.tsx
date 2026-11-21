@@ -232,6 +232,19 @@ describe('Open swap quote choices', () => {
     expect(chooseSwapQuote).not.toHaveBeenCalled()
   })
 
+  it('offers refresh when an offer expires during verification', async () => {
+    chooseSwapQuote.mockRejectedValue(
+      Object.assign(new Error('quote a expired at 1795251495, 0 ago'), { name: 'QuoteExpired' }),
+    )
+    show()
+    fireEvent.click(screen.getByRole('button', { name: 'Find open offers' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Select Solver a' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Offer expired. Refresh quotes to continue.')
+    expect(screen.getByRole('button', { name: 'Refresh offers' })).toBeEnabled()
+    expect(onChoose).not.toHaveBeenCalled()
+  })
+
   it('ranks fresh offers ahead of a higher expired offer', async () => {
     openSwapQuotes.mockResolvedValue(
       auction([offer('a', 2_000n, Math.floor(Date.now() / 1000) - 1), offer('b', 1_000n)]),
