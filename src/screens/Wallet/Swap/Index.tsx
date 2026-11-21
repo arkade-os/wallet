@@ -259,6 +259,7 @@ export default function WalletSwap() {
     offer: OpenRfqOffer
     inputKey: string
     destination?: string
+    lost?: boolean
   }>()
   // Smart routing's firm quote per input, apart from a chosen offer so a late one never replaces it.
   const [firmQuotes, setFirmQuotes] = useState<Record<string, { quote: Quote; plan: OfferPlan } | { error: string }>>(
@@ -692,14 +693,15 @@ export default function WalletSwap() {
     })
   }
 
-  // The driver no longer holds this input's firm quote; keeping its error makes the review quote again.
-  const forgetLostFirmQuote = (error: unknown) => {
-    if ((error as Error)?.name === 'QuoteUnavailable')
-      setFirmQuotes((current) => ({ ...current, [inputKey]: { error: extractError(error) } }))
+  // The driver no longer holds this quote: a chosen offer must be chosen again, a firm quote asked for again.
+  const forgetLostQuote = (error: unknown, offer?: OpenRfqOffer) => {
+    if ((error as Error)?.name !== 'QuoteUnavailable') return
+    if (offer) setSelectedOffer((current) => (current?.offer === offer ? { ...current, lost: true } : current))
+    else setFirmQuotes((current) => ({ ...current, [inputKey]: { error: extractError(error) } }))
   }
 
   const confirmSwap = async () => {
-    if (submitting.current || !toAsset || confirming || awaitingFirm || fundsShort) return
+    if (submitting.current || !toAsset || confirming || awaitingFirm || fundsShort || chosen?.lost) return
     const lapsed = selected && (selectedExpired || selected.quote.expiresAt <= Math.floor(Date.now() / 1000))
     if (selected?.offer && lapsed) {
       setConfirmError(t('swap.offerExpired'))
@@ -745,7 +747,7 @@ export default function WalletSwap() {
         }
         hapticLight()
       } catch (error) {
-        if (!offer) forgetLostFirmQuote(error)
+        forgetLostQuote(error, offer)
         setConfirmError(extractError(error))
       } finally {
         submitting.current = false
@@ -775,7 +777,7 @@ export default function WalletSwap() {
       setSuccessQuote(funded)
       hapticLight()
     } catch (error) {
-      forgetLostFirmQuote(error)
+      forgetLostQuote(error)
       setConfirmError(extractError(error))
     } finally {
       submitting.current = false
@@ -944,7 +946,10 @@ export default function WalletSwap() {
         rememberSolver={rememberSolver}
         onRememberSolverChange={selected?.offer && solverNetwork ? setRememberSolver : undefined}
         canConfirm={
-          !awaitingFirm && !fundsShort && (selected && !selectedExpired ? true : !selected?.offer && canContinue)
+          !awaitingFirm &&
+          !fundsShort &&
+          !chosen?.lost &&
+          (selected && !selectedExpired ? true : !selected?.offer && canContinue)
         }
         confirming={confirming}
         error={

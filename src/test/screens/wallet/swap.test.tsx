@@ -1166,6 +1166,38 @@ describe('Wallet swap flow', () => {
     expect(acceptSwapQuote.mock.calls[0][0]).toBe(verified)
   })
 
+  it('asks for a new choice when the driver no longer holds a chosen offer, without falling back', async () => {
+    const { verified, ...offers } = openOffers()
+    acceptSwapQuote.mockRejectedValueOnce(
+      Object.assign(new Error('This quote is no longer available — refresh to try again'), {
+        name: 'QuoteUnavailable',
+      }),
+    )
+    renderSwap({
+      config: { currency: Currencies.BTC, unit: Unit.SATS },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      swap: offers,
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    for (const key of ['1', '0', '0', '0', '0']) fireEvent.click(screen.getByRole('button', { name: key }))
+    await openSmartRoutingReview()
+    await userEvent.keyboard('{Escape}')
+    fireEvent.click(await screen.findByRole('button', { name: 'View quotes' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Find open offers' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Select second solver' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Confirm swap' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+
+    expect(await screen.findByText(/no longer available/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirm swap' })).toBeDisabled()
+    expect(screen.getByText('Provider')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+    expect(acceptSwapQuote).toHaveBeenCalledOnce()
+    expect(acceptSwapQuote.mock.calls[0][0]).toBe(verified)
+    expect(quoteExchange).toHaveBeenCalledOnce()
+  })
+
   it('reviews and accepts the explicitly selected open offer without using automatic exchange', async () => {
     const { verified, openSwapQuotes, chooseSwapQuote } = openOffers()
     let completeAcceptance!: (value: typeof pendingSwap) => void
