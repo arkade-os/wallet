@@ -10,6 +10,7 @@ import { SettingsOptions } from '../lib/types'
 import { NavigationContext, Pages } from '../providers/navigation'
 import { WalletContext } from '../providers/wallet'
 import { OptionsContext } from '../providers/options'
+import UsersRound from '../icons/UsersRound'
 
 interface DesktopWalletShellProps {
   logoVisible: boolean
@@ -20,7 +21,7 @@ export default function DesktopWalletShell({ logoVisible, page }: DesktopWalletS
   const { navigate } = useContext(NavigationContext)
   const { booting, dataReady } = useContext(WalletContext)
   const homeBusy = Boolean(booting) && !dataReady
-  const { setOption } = useContext(OptionsContext)
+  const { setOption, option } = useContext(OptionsContext)
 
   const logoRef = useCallback((element: HTMLDivElement | null) => setDesktopLogoAnchor(element), [])
   const { t } = useTranslation()
@@ -46,6 +47,8 @@ export default function DesktopWalletShell({ logoVisible, page }: DesktopWalletS
     setOption(SettingsOptions.Menu)
     navigate(Pages.Settings)
   }
+
+  const contactsActive = page === Pages.Settings && option === SettingsOptions.Contacts
 
   return (
     <aside className='desktop-wallet-shell' aria-label='Wallet navigation'>
@@ -84,9 +87,29 @@ export default function DesktopWalletShell({ logoVisible, page }: DesktopWalletS
         <button
           type='button'
           className={
-            settingsActive ? 'desktop-wallet-nav__item desktop-wallet-nav__item--active' : 'desktop-wallet-nav__item'
+            contactsActive ? 'desktop-wallet-nav__item desktop-wallet-nav__item--active' : 'desktop-wallet-nav__item'
           }
-          aria-current={settingsActive ? 'page' : undefined}
+          aria-current={contactsActive ? 'page' : undefined}
+          data-testid='desktop-nav-contacts'
+          disabled={homeBusy}
+          onClick={() => {
+            if (homeBusy) return
+            hapticLight()
+            setOption(SettingsOptions.Contacts)
+            navigate(Pages.Settings)
+          }}
+        >
+          <UsersRound />
+          <span>{t('contacts.title')}</span>
+        </button>
+        <button
+          type='button'
+          className={
+            settingsActive && !contactsActive
+              ? 'desktop-wallet-nav__item desktop-wallet-nav__item--active'
+              : 'desktop-wallet-nav__item'
+          }
+          aria-current={settingsActive && !contactsActive ? 'page' : undefined}
           data-testid='desktop-nav-settings'
           disabled={homeBusy}
           onClick={goToSettings}
