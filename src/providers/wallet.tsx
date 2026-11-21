@@ -654,8 +654,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const reloadWallet = async (swWallet = svcWallet) => {
     if (!swWallet) return
+    const pubkeyAtStart = walletRef.current.pubkey
+    const stillThisWallet = () => walletRef.current.pubkey === pubkeyAtStart
     const isFirstLoad = !hasLoadedOnce.current
-    if (isFirstLoad) setLoadError(null)
+    if (isFirstLoad && stillThisWallet()) {
+      setLoadError(null)
+      setBooting(true)
+    }
     try {
       if (isFirstLoad) setLoadingStatus(t('loading.fetchingCoins'))
       const vtxos = await getVtxos(swWallet)
@@ -698,12 +703,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         ),
         swaps: await readSwapRecordAssets(),
       })
+      if (!stillThisWallet()) return
       referencedAssetIdsRef.current = referenced
       if (isFirstLoad && referenced.size > 0) setLoadingStatus(t('loading.loadingAssetMetadata'))
       const sats = total - unrolled
       setBalance(sats)
-      const pubkey = walletRef.current.pubkey
-      if (pubkey) saveLastSats(pubkey, sats)
+      if (pubkeyAtStart) saveLastSats(pubkeyAtStart, sats)
       setAvailableBalance(available)
       setAssetBalances(ownedAssets)
       setAvailableAssetBalances(availableAssets)
@@ -720,6 +725,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
       prefetchAssetMetadata(swWallet, referenced).catch((err) => consoleError(err, 'Error prefetching asset metadata'))
     } catch (err) {
+      if (!stillThisWallet()) return
       consoleError(err, 'Error reloading wallet')
       if (!hasLoadedOnce.current) {
         setBooting(false)
