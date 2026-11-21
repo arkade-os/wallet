@@ -866,8 +866,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   // estimate and this firm quote are priced independently — a carrier the card
   // omits, a rounding unit — so the composer compares them and decides what the
   // user confirms; `acceptSwapQuote` then funds exactly this quote, fenced to its
-  // deadline. Never re-quote these terms while it lives: the same terms derive
-  // the same offer script, which the solver refuses as a duplicate.
+  // deadline. Reuse live quotes because older solvers can refuse duplicate terms.
   const quoteExchangeHere = async (plan: OfferPlan): Promise<Quote> => {
     if (!emulatorPubkey) throw new Error('swap service unavailable')
     const network = aspInfo.network as NetworkName
