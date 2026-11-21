@@ -210,6 +210,56 @@ describe('Wallet swap flow', () => {
     expect(screen.queryByText('DEPIX')).not.toBeInTheDocument()
   })
 
+  it.each(['source', 'receive'])('lets users reveal unverified assets in the %s picker', async (picker) => {
+    renderSwap({
+      flow: picker === 'receive' ? { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } : {},
+      wallet: {
+        isVerifiedAsset: (assetId: string) => assetId === USDT_ID,
+        assetBalances: [{ assetId: MARAT_ID, amount: 10_000n }],
+        assetMetadataCache: new Map([
+          [MARAT_ID, { metadata: { name: 'JP Marat', ticker: 'MARAT', decimals: 2 } }],
+          ['ab'.repeat(34), { metadata: { name: 'Cached token', ticker: 'CACHE', decimals: 2 } }],
+        ]),
+      },
+      swap: { markets: [btcUsdt, { ...btcUsdt, quote_asset: maratNapo.quote_asset }] },
+    })
+
+    if (picker === 'receive') {
+      await userEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+      expect(screen.getByRole('button', { name: /Bitcoin onchain/i })).toBeInTheDocument()
+    } else {
+      expect(screen.getByRole('button', { name: /Bitcoin/i })).toBeInTheDocument()
+    }
+    expect(screen.getByRole('button', { name: /USD/i })).toBeInTheDocument()
+    const unverifiedAssets = () => screen.queryAllByRole('button', { name: /JP Marat|Napoleon|Cached token/i })
+    const show = screen.getByRole('button', { name: 'Show unverified assets' })
+    expect(show).toHaveAttribute('aria-expanded', 'false')
+    expect(unverifiedAssets()).toHaveLength(0)
+
+    const search = screen.getByPlaceholderText('Search assets')
+    fireEvent.change(search, { target: { value: 'marat' } })
+    expect(unverifiedAssets()).toHaveLength(0)
+    fireEvent.click(show)
+    const hide = screen.getByRole('button', { name: 'Hide unverified assets' })
+    expect(hide).toHaveAttribute('aria-expanded', 'true')
+    expect(unverifiedAssets()).toEqual([screen.getByRole('button', { name: /JP Marat/i })])
+
+    fireEvent.change(search, { target: { value: '' } })
+    expect(unverifiedAssets()).toHaveLength(picker === 'receive' ? 3 : 2)
+    fireEvent.click(hide)
+    expect(unverifiedAssets()).toHaveLength(0)
+    expect(screen.getByRole('button', { name: 'Show unverified assets' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it.each(['source', 'receive'])('omits the unverified asset toggle from an all-verified %s picker', (picker) => {
+    renderSwap({ flow: picker === 'receive' ? { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } : {} })
+
+    if (picker === 'receive') fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+
+    expect(screen.getByRole('button', { name: /USD/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /unverified assets/i })).not.toBeInTheDocument()
+  })
+
   it('lists an asset once when a pinned card names it by its CAIP-19 id', () => {
     const pinned = {
       ...btcUsdt,
@@ -359,6 +409,27 @@ describe('Wallet swap flow', () => {
     expect(quoteExchange).toHaveBeenCalledOnce()
   })
 
+  it('lets the user find another quote after the firm quote and its estimate become unavailable', async () => {
+    const view = await reviewSatsToBrl()
+    const openSwapQuotes = vi.fn().mockResolvedValue({ id: 'empty-offers', bids: [] })
+    const issued = await quoteExchange.mock.results[0].value
+    const now = vi.spyOn(Date, 'now').mockReturnValue(issued.expiresAt * 1000)
+    try {
+      view.rerenderSwap({ markets: [btcUsdt], openSwapQuotes })
+      const review = screen.getByRole('dialog', { name: 'Review swap' })
+      await within(review).findByText('Offer expired. Refresh quotes to continue.', {}, { timeout: 2000 })
+      fireEvent.click(within(review).getByRole('button', { name: 'View quotes' }))
+
+      const quotes = await screen.findByRole('dialog', { name: 'Select a quote' })
+      expect(within(quotes).getByRole('button', { name: 'Find open offers' })).toBeEnabled()
+      expect(openSwapQuotes).not.toHaveBeenCalled()
+      expect(quoteExchange).toHaveBeenCalledOnce()
+      expect(acceptSwapQuote).not.toHaveBeenCalled()
+    } finally {
+      now.mockRestore()
+    }
+  })
+
   it('quotes firmly as the review opens and funds that quote on one confirm', async () => {
     quoteExchange.mockImplementationOnce(async (plan: OfferPlan) => firmQuote(plan, plan.receive.atomic - 1n))
     await reviewSatsToBrl()
@@ -434,6 +505,7 @@ describe('Wallet swap flow', () => {
 
     await waitFor(() => expect(screen.getByText(/lower than the estimate/)).toBeInTheDocument())
     expect(screen.getByText('9.76 USD')).toBeInTheDocument()
+    expect(screen.getByText('The receive amount changed. Review it and confirm again.')).toBeInTheDocument()
     expect(screen.getByText('0.24 USD')).toBeInTheDocument()
     expect(acceptSwapQuote).toHaveBeenCalledOnce()
     confirm()
@@ -1205,9 +1277,13 @@ describe('Wallet swap flow', () => {
     expect(acceptSwapQuote.mock.calls[0][0]).toBe(verified)
   })
 
-  it('asks for a new choice when the driver no longer holds a chosen offer, without falling back', async () => {
+  it.each([
+    { name: 'QuoteUnavailable', message: lostQuote().message, expected: /no longer available/ },
+    { name: 'QuoteExpired', message: 'quote expired at 1795251495, 0 ago', expected: /Offer expired/ },
+    { name: 'SendDeadlineExceededError', message: 'send deadline exceeded', expected: /Offer expired/ },
+  ])('asks for a new choice after $name without falling back', async ({ name, message, expected }) => {
     const { verified, ...offers } = openOffers()
-    acceptSwapQuote.mockRejectedValueOnce(lostQuote())
+    acceptSwapQuote.mockRejectedValueOnce(Object.assign(new Error(message), { name }))
     renderSwap({
       config: { currency: Currencies.BTC, unit: Unit.SATS },
       flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
@@ -1224,10 +1300,11 @@ describe('Wallet swap flow', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Confirm swap' })).toBeEnabled())
     fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
 
-    expect(await screen.findByText(/no longer available/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Confirm swap' })).toBeDisabled()
+    const review = screen.getByRole('dialog', { name: 'Review swap' })
+    expect(await within(review).findByText(expected)).toBeInTheDocument()
     expect(screen.getByText('Provider')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+    fireEvent.click(within(review).getByRole('button', { name: 'View quotes' }))
+    await screen.findByRole('dialog', { name: 'Select a quote' })
     expect(acceptSwapQuote).toHaveBeenCalledOnce()
     expect(acceptSwapQuote.mock.calls[0][0]).toBe(verified)
     expect(quoteExchange).toHaveBeenCalledOnce()

@@ -138,7 +138,8 @@ export default function QuoteChoices({
         throw new Error(t('swap.offerTermsChanged'))
       onChoose(quote, offer)
     } catch (cause) {
-      if (isCurrent(started)) setError(extractError(cause))
+      if (isCurrent(started))
+        setError((cause as Error)?.name === 'QuoteExpired' ? t('swap.offerExpired') : extractError(cause))
     } finally {
       if (isCurrent(started)) {
         selection.current = undefined
