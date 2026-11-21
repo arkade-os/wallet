@@ -1,11 +1,12 @@
 # Swap SDK snapshot
 
-`arkade-os-swap-0.1.12-repeat-asset-rfq-5ca2e1c28303.tgz` was built from
-[`arkade-os/ts-sdk` at `131e5b4e`](https://github.com/arkade-os/ts-sdk/commit/131e5b4e425a68e8a0a658a356d1cf73c3f237c5).
+`arkade-os-swap-0.1.12-directed-nonce-ark-9d7636e7e545.tgz` was built from
+[`arkade-os/ts-sdk` at `a9d6ab62`](https://github.com/arkade-os/ts-sdk/commit/a9d6ab62adbae431bc45310fd5dce34a331e94d3),
+including the dedicated Arkade contract sources and compiled artifacts.
 
 - SDK base commit `bd6057c069a512e2ec4d60073e5349abc045a2c4`
-- Source patch SHA-256 `5ca2e1c283031be685e1fc27c43a333991fc984a9c62a79cb7d389dfe472f68d`
-- Archive SHA-256 `f4fc5f37c185b2c4b6327f53445fe15f258347dbc47830ca15d7a3ab2ffb2d76`
+- Source patch SHA-256 `9d7636e7e545dc69fd590ac63f71da7c29a534957a1d5b2acc7656e4789d2afd`
+- Archive SHA-256 `2750e0c8a5d0053da5d011484832dbc256fdec6ea5120323d8e53fba2ecda001`
 
 When the fix is published to npm, update the dependency and lockfile, remove
 this snapshot, and remove the vendor copy from the Dockerfile.
