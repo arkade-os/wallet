@@ -69,6 +69,9 @@ const firmQuote = (
     fee: { asset: plan.receive.asset.id, amount: fee },
     expiresAt: Math.floor(Date.now() / 1000) + 30,
   }) as unknown as Quote
+// what the driver channel delivers when the holder no longer has the quote
+const lostQuote = () =>
+  Object.assign(new Error('This quote is no longer available — refresh to try again'), { name: 'QuoteUnavailable' })
 const quoteExchange = vi.fn(async (plan: OfferPlan) => firmQuote(plan))
 const acceptSwapQuote = vi.fn().mockResolvedValue(pendingSwap)
 const cancelSwap = vi.fn().mockResolvedValue(undefined)
@@ -384,10 +387,7 @@ describe('Wallet swap flow', () => {
   })
 
   it('quotes again on reopen when the driver no longer holds the firm quote', async () => {
-    const lost = Object.assign(new Error('This quote is no longer available — refresh to try again'), {
-      name: 'QuoteUnavailable',
-    })
-    acceptSwapQuote.mockRejectedValueOnce(lost)
+    acceptSwapQuote.mockRejectedValueOnce(lostQuote())
     await reviewSatsToBrl()
 
     confirm()
@@ -400,6 +400,45 @@ describe('Wallet swap flow', () => {
     await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledTimes(2))
     expect(quoteExchange).toHaveBeenCalledTimes(2)
     expect(acceptSwapQuote.mock.calls[1][0]).not.toBe(acceptSwapQuote.mock.calls[0][0])
+  })
+
+  const reviewSatsToUsd = async () => {
+    renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+    for (const key of ['1', '0', '0', '0', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
+    await openSmartRoutingReview()
+  }
+
+  it('funds a fresh quote when Confirm is pressed again right after the driver lost the first', async () => {
+    acceptSwapQuote.mockRejectedValueOnce(lostQuote())
+    await reviewSatsToUsd()
+    confirm()
+    await waitFor(() => expect(screen.getByText(/no longer available/)).toBeInTheDocument())
+    confirm()
+
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledTimes(2))
+    expect(quoteExchange).toHaveBeenCalledTimes(2)
+    expect(acceptSwapQuote.mock.calls[1][0]).toBe(await quoteExchange.mock.results[1].value)
+    expect(acceptSwapQuote.mock.calls[1][0]).not.toBe(acceptSwapQuote.mock.calls[0][0])
+  })
+
+  it('shows a lower replacement for its own confirm after the driver lost the first quote', async () => {
+    acceptSwapQuote.mockRejectedValueOnce(lostQuote())
+    await reviewSatsToUsd()
+    quoteExchange.mockImplementationOnce(async (plan: OfferPlan) => firmQuote(plan, plan.receive.atomic - 21n, 24n))
+    confirm()
+    await waitFor(() => expect(screen.getByText(/no longer available/)).toBeInTheDocument())
+    confirm()
+
+    await waitFor(() => expect(screen.getByText(/lower than the estimate/)).toBeInTheDocument())
+    expect(screen.getByText('9.76 USD')).toBeInTheDocument()
+    expect(screen.getByText('0.24 USD')).toBeInTheDocument()
+    expect(acceptSwapQuote).toHaveBeenCalledOnce()
+    confirm()
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledTimes(2))
+    expect(acceptSwapQuote.mock.calls[1][0].take.amount).toBe(976n)
   })
 
   it('waits for an input’s firm quote in flight instead of asking for the same terms again', async () => {
@@ -1168,11 +1207,7 @@ describe('Wallet swap flow', () => {
 
   it('asks for a new choice when the driver no longer holds a chosen offer, without falling back', async () => {
     const { verified, ...offers } = openOffers()
-    acceptSwapQuote.mockRejectedValueOnce(
-      Object.assign(new Error('This quote is no longer available — refresh to try again'), {
-        name: 'QuoteUnavailable',
-      }),
-    )
+    acceptSwapQuote.mockRejectedValueOnce(lostQuote())
     renderSwap({
       config: { currency: Currencies.BTC, unit: Unit.SATS },
       flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
