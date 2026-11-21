@@ -8,6 +8,7 @@ import { hapticLight } from '../lib/haptics'
 import { setDesktopLogoAnchor } from '../lib/logoAnchor'
 import { SettingsOptions } from '../lib/types'
 import { NavigationContext, Pages } from '../providers/navigation'
+import { WalletContext } from '../providers/wallet'
 import { OptionsContext } from '../providers/options'
 import UsersRound from '../icons/UsersRound'
 
@@ -18,6 +19,8 @@ interface DesktopWalletShellProps {
 
 export default function DesktopWalletShell({ logoVisible, page }: DesktopWalletShellProps) {
   const { navigate } = useContext(NavigationContext)
+  const { booting, dataReady } = useContext(WalletContext)
+  const homeBusy = Boolean(booting) && !dataReady
   const { setOption, option } = useContext(OptionsContext)
 
   const logoRef = useCallback((element: HTMLDivElement | null) => setDesktopLogoAnchor(element), [])
@@ -33,11 +36,13 @@ export default function DesktopWalletShell({ logoVisible, page }: DesktopWalletS
   }
 
   const goToActivity = () => {
+    if (homeBusy) return
     hapticLight()
     navigate(Pages.Activity)
   }
 
   const goToSettings = () => {
+    if (homeBusy) return
     hapticLight()
     setOption(SettingsOptions.Menu)
     navigate(Pages.Settings)
@@ -73,6 +78,7 @@ export default function DesktopWalletShell({ logoVisible, page }: DesktopWalletS
           }
           aria-current={activityActive ? 'page' : undefined}
           data-testid='desktop-nav-activity'
+          disabled={homeBusy}
           onClick={goToActivity}
         >
           <HistoryIcon size={20} strokeWidth={1.8} />
@@ -85,7 +91,9 @@ export default function DesktopWalletShell({ logoVisible, page }: DesktopWalletS
           }
           aria-current={contactsActive ? 'page' : undefined}
           data-testid='desktop-nav-contacts'
+          disabled={homeBusy}
           onClick={() => {
+            if (homeBusy) return
             hapticLight()
             setOption(SettingsOptions.Contacts)
             navigate(Pages.Settings)
@@ -103,6 +111,7 @@ export default function DesktopWalletShell({ logoVisible, page }: DesktopWalletS
           }
           aria-current={settingsActive && !contactsActive ? 'page' : undefined}
           data-testid='desktop-nav-settings'
+          disabled={homeBusy}
           onClick={goToSettings}
         >
           <SettingsIcon size={19} strokeWidth={1.8} />

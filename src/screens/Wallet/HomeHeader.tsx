@@ -3,6 +3,7 @@ import LogoIcon from '../../icons/Logo'
 import SettingsIcon from '../../icons/Settings'
 import HistoryIcon from '../../icons/History'
 import { NavigationContext, Pages } from '../../providers/navigation'
+import { WalletContext } from '../../providers/wallet'
 import { OptionsContext } from '../../providers/options'
 import { SettingsOptions } from '../../lib/types'
 import { hapticLight } from '../../lib/haptics'
@@ -25,16 +26,20 @@ const HomeHeader = forwardRef<HTMLDivElement, HomeHeaderProps>(function HomeHead
   ref,
 ) {
   const { navigate } = useContext(NavigationContext)
+  const { booting, dataReady } = useContext(WalletContext)
+  const homeBusy = Boolean(booting) && !dataReady
   const { setOption } = useContext(OptionsContext)
   const { t } = useTranslation()
   const clampedBalanceProgress = Math.max(0, Math.min(1, balanceProgress))
 
   const handleActivity = () => {
+    if (homeBusy) return
     hapticLight()
     navigate(Pages.Activity)
   }
 
   const handleSettings = () => {
+    if (homeBusy) return
     hapticLight()
     setOption(SettingsOptions.Menu)
     navigate(Pages.Settings)
@@ -59,6 +64,7 @@ const HomeHeader = forwardRef<HTMLDivElement, HomeHeaderProps>(function HomeHead
             onClick={handleActivity}
             aria-label={t('wallet.viewRecentActivity')}
             data-testid='top-right-activity'
+            disabled={homeBusy}
             className={actionClassName}
             style={{ WebkitTapHighlightColor: 'transparent' }}
           >
@@ -69,6 +75,7 @@ const HomeHeader = forwardRef<HTMLDivElement, HomeHeaderProps>(function HomeHead
             onClick={handleSettings}
             aria-label={t('wallet.openSettings')}
             data-testid='top-right-settings'
+            disabled={homeBusy}
             className={actionClassName}
             style={{ WebkitTapHighlightColor: 'transparent' }}
           >
