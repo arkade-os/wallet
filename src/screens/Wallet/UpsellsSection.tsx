@@ -1,6 +1,7 @@
 import { useContext, ReactNode } from 'react'
 import CoinsIcon from '../../icons/Coins'
 import { NavigationContext, Pages } from '../../providers/navigation'
+import { WalletContext } from '../../providers/wallet'
 import { hapticLight } from '../../lib/haptics'
 import { useTranslation } from '../../providers/language'
 
@@ -9,11 +10,13 @@ interface UpsellCardProps {
   title: string
   description: string
   testId: string
+  disabled?: boolean
   onClick: () => void
 }
 
-function UpsellCard({ icon, title, description, testId, onClick }: UpsellCardProps) {
+function UpsellCard({ icon, title, description, testId, disabled, onClick }: UpsellCardProps) {
   const handleClick = () => {
+    if (disabled) return
     hapticLight()
     onClick()
   }
@@ -22,6 +25,7 @@ function UpsellCard({ icon, title, description, testId, onClick }: UpsellCardPro
     <button
       type='button'
       onClick={handleClick}
+      disabled={disabled}
       data-testid={testId}
       className='home-upsell-card'
       style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
@@ -40,9 +44,12 @@ function UpsellCard({ icon, title, description, testId, onClick }: UpsellCardPro
  */
 export default function UpsellsSection() {
   const { navigate } = useContext(NavigationContext)
+  const { booting, dataReady } = useContext(WalletContext)
   const { t } = useTranslation()
+  const homeBusy = Boolean(booting) && !dataReady
 
   const handleBuySell = () => {
+    if (homeBusy) return
     navigate(Pages.AppDfx)
   }
 
@@ -57,6 +64,7 @@ export default function UpsellsSection() {
           title={t('upsells.buySellTitle')}
           description={t('upsells.buySellDescription')}
           testId='upsell-buy-sell'
+          disabled={homeBusy}
           onClick={handleBuySell}
         />
       </div>
