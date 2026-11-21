@@ -50,6 +50,8 @@ import { fetchArkAddress } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
 import { decodeInvoice } from '../../../lib/bolt11'
 import { appSendNeedsDriver, LIGHTNING_RAIL, lnSendRefusal, lnSendRequest, quoteLnurl } from '../../../lib/sendRouter'
+import { marketCorridor } from '@arkade-os/solver-discovery'
+import { isSolverEnabled } from '../../../lib/solverRouting'
 import { SwapsContext } from '../../../providers/swaps'
 import { discoverMarkets } from '../../../lib/swapMarkets'
 import { appIntentHandoff, redirectToCallback } from '../../../lib/appIntent'
@@ -760,7 +762,15 @@ export default function SendForm() {
       const router = await sendRouter()
       const options = await router.options(lnSendRequest(sendInfo.invoice!, sendInfo.satoshis))
       const route = options.find((option) => option.railId === LIGHTNING_RAIL)
-      if (!route) return handleError(lnSendRefusal(markets, sendInfo.satoshis))
+      if (!route)
+        return handleError(
+          lnSendRefusal(
+            markets.filter((market) =>
+              isSolverEnabled(market, marketCorridor(market, 'base') === 'arkade' ? 'base' : 'quote', aspInfo.network),
+            ),
+            sendInfo.satoshis,
+          ),
+        )
       // Unguarded: a quote that throws names an unpayable invoice or a
       // covenant that did not match, and neither reads as "no route".
       const pendingLnSend = await route.quote()

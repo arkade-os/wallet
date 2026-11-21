@@ -38,7 +38,10 @@ import { electrumProvider } from './electrum'
 import { toInvoiceFacts } from './lnSwap'
 import { l1NetworkOf, onchainClaimEndpoint } from './onchainPayout'
 import { discoveryOptions } from './swapMarkets'
+import { candidateUsage } from './swapRecords'
 import { assetSwapRepository } from './swapRepository'
+import { effectiveSolverRouting } from './solverRouting'
+import { solverHealth } from './solverHealth'
 
 /**
  * A swap action that reached no driver at all.
@@ -95,11 +98,29 @@ const onchainClaim = (wallet: SwapClientConfig['wallet'], network: NetworkName):
   }
 }
 
-export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: NetworkName): SwapClient =>
-  createSwapClient({
+export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: NetworkName): SwapClient => {
+  // createSwapClient is inert; preference callbacks run lazily after this assignment.
+  const client: SwapClient = createSwapClient({
     wallet,
     repository: assetSwapRepository,
     discovery: discoveryOptions(network),
+    policy: {
+      solverRouting: {
+        health: solverHealth,
+        failover: true,
+        preferences: async ({ network, direction, candidates }) => {
+          const preferences = effectiveSolverRouting(network, direction, candidates)
+          if (preferences.mode !== 'usage') return preferences
+          try {
+            const cards = candidates.map(({ card }) => card)
+            return { ...preferences, usage: candidateUsage(await client.swaps(), cards, network, direction) }
+          } catch {
+            // Usage stays advisory even if an eager callback reads client before assignment.
+            return preferences
+          }
+        },
+      },
+    },
     corridors: {
       onchain: {
         chain: { provider: electrumProvider(network) },
@@ -124,3 +145,6 @@ export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: Netw
     // live swaps exist or on the first accept. The Web Lock in `providers/swaps`
     // is what keeps a second tab from arming a second drive over one repository.
   })
+
+  return client
+}

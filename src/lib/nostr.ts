@@ -8,6 +8,7 @@ export type BackupEvent = Event & { receivedAt: number }
 const nostrAppName = 'arkade_backup'
 const defaultRelays = ['wss://relay.damus.io', 'wss://relay.primal.net', 'wss://nostr.arkade.sh']
 const relays = import.meta.env.VITE_NOSTR_RELAY_URL ? [import.meta.env.VITE_NOSTR_RELAY_URL] : defaultRelays
+export const nostrRelayUrls: readonly string[] = relays
 
 let sharedPool: SimplePool | undefined
 
