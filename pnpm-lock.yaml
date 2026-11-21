@@ -25,8 +25,8 @@ importers:
         specifier: 0.4.0
         version: 0.4.0
       '@arkade-os/swap':
-        specifier: 0.1.12
-        version: 0.1.12(nostr-tools@2.24.1(typescript@5.9.3))
+        specifier: 0.1.13
+        version: 0.1.13(nostr-tools@2.24.1(typescript@5.9.3))
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -269,8 +269,8 @@ packages:
     resolution: {integrity: sha512-oIKsS4lt8yXbUDKzo2uLd4cbZZLEN6/iGQlaOaW72mA7dvtLCznylVEpUTvpdIggQIIRd6DpvFzN/DlJXecBRg==}
     engines: {node: '>=20.19'}
 
-  '@arkade-os/swap@0.1.12':
-    resolution: {integrity: sha512-JCOLfEAWPO+nRwBNDY9o6ZCzmWtjYDpwq7ooCsDB17etHSPrWbCYrlW/8qthM+5F5Zyv+4+1+AY/03XfJKwDMA==}
+  '@arkade-os/swap@0.1.13':
+    resolution: {integrity: sha512-ahvonEpj7RkQVYvmBWvfwm0wodzcmNUyEk6lTt+POM2/Jj+RnkZl/vAwrqFZUuB69tehCoL07W0r1X+WTOU10w==}
     engines: {node: '>=22.13.0'}
     peerDependencies:
       nostr-tools: 2.24.1
@@ -3343,7 +3343,7 @@ snapshots:
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
 
-  '@arkade-os/swap@0.1.12(nostr-tools@2.24.1(typescript@5.9.3))':
+  '@arkade-os/swap@0.1.13(nostr-tools@2.24.1(typescript@5.9.3))':
     dependencies:
       '@arkade-os/sdk': 0.5.11
       '@arkade-os/solver-discovery': 0.4.0
