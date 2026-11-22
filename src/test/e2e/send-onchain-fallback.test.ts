@@ -85,14 +85,15 @@ test.describe('on-chain send when the solver rail fails', () => {
 
   test('pays through the collaborative exit when the solver cannot be reached', async ({ page, isMobile }) => {
     test.setTimeout(180_000)
-    await pinSolver(page, [UNREACHABLE_RELAY])
-    await Promise.all([
-      page.waitForEvent('websocket', {
-        predicate: (socket) => socket.url() === UNREACHABLE_RELAY,
-        timeout: 60_000,
-      }),
-      fundedWalletOnDetails(page, isMobile),
-    ])
+    const refusedRelay = `${RELAY}/unreachable-solver`
+    let refusedConnections = 0
+    await page.routeWebSocket(refusedRelay, (socket) => {
+      refusedConnections++
+      void socket.close({ code: 1011, reason: 'Solver relay unavailable' })
+    })
+    await pinSolver(page, [refusedRelay])
+    await fundedWalletOnDetails(page, isMobile)
+    expect(refusedConnections).toBeGreaterThan(0)
 
     await page.getByRole('button', { name: tr.send.tapToSign }).click()
     await dismissPaymentSuccess(page)
