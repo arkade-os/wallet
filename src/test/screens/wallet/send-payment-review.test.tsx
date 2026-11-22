@@ -320,7 +320,13 @@ describe('reviewing a solver payment', () => {
   })
 
   it('pays a fixed BIP21 amount through a prepared exit and keeps solver discovery out of the flow', async () => {
-    const send = vi.fn(async () => makeHandle('onchain', async () => ({ railId: 'onchain', txid: 'exit-funding' })))
+    const send = vi.fn(async () =>
+      makeHandle('onchain', async (emit) => {
+        const result = { railId: 'onchain', txid: 'exit-funding' }
+        emit({ status: 'settled', result })
+        return result
+      }),
+    )
     let resolveQuote!: (quote: RouteQuote) => void
     const exit = vi.fn(() => new Promise<RouteQuote>((resolve) => (resolveQuote = resolve)))
     const solver = vi.fn()
@@ -336,6 +342,7 @@ describe('reviewing a solver payment', () => {
     expect(loading).toBeDisabled()
     fireEvent.click(loading)
     expect(acceptPaymentQuote).not.toHaveBeenCalled()
+    await waitFor(() => expect(exit).toHaveBeenCalledTimes(1))
     expect(sendRouter).toHaveBeenCalledWith(expect.objectContaining({ exitOnly: true }))
     expect(solver).not.toHaveBeenCalled()
     expect(quotePaymentRoute).not.toHaveBeenCalled()
