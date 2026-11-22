@@ -1,4 +1,3 @@
-/** The one success mark: a check that draws itself inside a round well. */
 export default function SuccessIcon({ small }: { small?: boolean }) {
   const size = small ? 20 : 30
   return (

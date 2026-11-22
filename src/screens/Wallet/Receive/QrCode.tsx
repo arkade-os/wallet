@@ -436,7 +436,6 @@ export default function ReceiveQRCode() {
     setSelectedMethod(id)
   }
 
-  // Spelled out so every key is a literal the dictionary check can see.
   const formatSub = (id: string) =>
     id === 'unified'
       ? t('receive.formatUnifiedSub')
@@ -454,8 +453,6 @@ export default function ReceiveQRCode() {
     setShowFormats(false)
   }
 
-  // One radio group: arrows move through formats and tokens alike and select as they go, the way
-  // native radios do. The sheet stays open until a row is clicked or confirmed with Enter or Space.
   const formatIds = [...segments, ...tokenMethods].map((m) => m.id)
   const formatStop = formatIds.includes(activeMethod) ? activeMethod : formatIds[0]
   const handleFormatsKey = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -479,8 +476,6 @@ export default function ReceiveQRCode() {
   }
 
   const defaultMethod = segments[0]?.id ?? ''
-  // The requested amount leads the screen, in the unit the wallet is set to show. Without a rate
-  // there is no honest fiat figure, so it falls back to the exact Bitcoin amount.
   const amountFigure =
     assetMeta || satoshis <= 0
       ? ''
@@ -535,7 +530,6 @@ export default function ReceiveQRCode() {
                 </p>
               ) : null}
               <div
-                // Height-capped so the whole code sits above the bottom buttons on a short phone.
                 className='receive-invoice-stage aspect-square w-full max-w-[min(19rem,calc(100dvh-27rem))]'
                 data-generating={generating}
               >
@@ -778,7 +772,6 @@ function FormatRow({
 }: {
   id: string
   checked: boolean
-  /** The one row Tab lands on; arrows reach the rest. */
   tabStop: boolean
   icon: React.ReactNode
   title: string

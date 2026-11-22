@@ -63,11 +63,6 @@ const CURRENCY_SIGNS: Record<Exclude<TokenLogoTicker, 'BTC' | 'USD' | 'USDT' | '
   JPY: '¥',
 }
 
-/**
- * An asset mark: the currency's own sign drawn in the wallet's line, in a
- * round well. Bitcoin sits on the accent; everything else on the surface
- * colour, or on `--well` when a parent panel sets it.
- */
 function Mark({ glyph, text, brand }: { glyph?: GlyphName; text?: string; brand?: boolean }) {
   const ink = brand ? 'var(--on-brand)' : 'var(--fg)'
   return (
@@ -101,7 +96,6 @@ function Mark({ glyph, text, brand }: { glyph?: GlyphName; text?: string; brand?
   )
 }
 
-/** Kept for callers that ask for Bitcoin's mark directly. */
 export function BitcoinLogo() {
   return <Mark glyph='bitcoin' brand />
 }

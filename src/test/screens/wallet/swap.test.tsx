@@ -143,7 +143,6 @@ const NO_ASSETS = { assetBalances: [] }
 const primaryAmount = () => screen.getByRole('button', { name: /^Swap amount,/ })
 const secondaryAmount = () => screen.getByRole('button', { name: /^Show .+ first/ })
 
-// Currency marks are drawn signs, not prices, so a "no prices on screen" check reads the page without them.
 const proseWithoutMarks = () => {
   const prose = document.body.cloneNode(true) as HTMLElement
   prose.querySelectorAll('svg').forEach((mark) => mark.remove())
@@ -184,7 +183,6 @@ describe('Wallet swap flow', () => {
 
     expect(screen.getByText('BRL')).toBeInTheDocument()
     expect(screen.queryByText(/DePix|DEPIX/)).not.toBeInTheDocument()
-    // The account keeps its drawn currency mark, the real sign rather than a flag.
     expect(screen.getAllByText('R$').length).toBeGreaterThan(0)
   })
 
@@ -378,7 +376,6 @@ describe('Wallet swap flow', () => {
 
     expect(primaryAmount().className).toContain('swap-amount-display--invalid')
     const warning = await screen.findByText('Insufficient balance')
-    // a balance limit is said on the screen, not in a toast
     expect(warning.closest('[data-sonner-toast]')).toBeNull()
     expect(warning.closest('.swap-figure')).not.toBeNull()
     expect(secondaryAmount()).toBeInTheDocument()
@@ -475,7 +472,6 @@ describe('Wallet swap flow', () => {
     expect(arriving).toHaveTextContent(/USD$/)
     const rows = [...sheet.querySelectorAll('.swap-metric-row__label')].map((label) => label.textContent)
     expect(rows).toEqual(['Swap', 'Fees', 'Rate'])
-    // every row carries its icon, as the rows of Send's review do
     for (const label of sheet.querySelectorAll('.swap-metric-row__label'))
       expect(label.querySelector('svg')).not.toBeNull()
 
@@ -1129,7 +1125,6 @@ describe('Wallet swap flow', () => {
       config: { currency: Currencies.BTC, unit: Unit.SATS },
       flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
     })
-    // sats are whole: no point key, the delete key stays where it was
     expect(screen.queryByRole('button', { name: '.' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Delete digit' })).toBeInTheDocument()
   })
@@ -1153,7 +1148,6 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /USD/i }))
     for (const key of ['5', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled(), { timeout: 3_000 })
-    // receiving USD with the wallet in USD: "$49.85" beside "49.85 USD" says nothing new
     expect(screen.getByRole('button', { name: /Receive USD/ }).querySelector('strong')).toBeNull()
     unmount()
 
@@ -1162,7 +1156,6 @@ describe('Wallet swap flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /USD/i }))
     for (const key of ['5', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled(), { timeout: 3_000 })
-    // in a euro wallet the USD estimate gets its euro value
     expect(screen.getByRole('button', { name: /Receive USD/ }).querySelector('strong')).toHaveTextContent('€')
   })
 

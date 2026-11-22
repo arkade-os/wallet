@@ -5,18 +5,12 @@ import { useTranslation } from '../../providers/language'
 import { hapticLight } from '../../lib/haptics'
 import PixelArrow from '../../icons/PixelArrow'
 
-/**
- * The two things a wallet is for, side by side under the balance, set like
- * the buttons on arkadeos.com: the label in mono capitals and a pixel arrow at
- * the end. Swap sits with the assets it acts on and Scan sits in the header.
- */
 export default function HomeQuickActions({
   onReceive,
   onSend,
   receiveDisabled,
   sendDisabled,
 }: {
-  /** An account or asset page passes its own, which open Receive and Send for that account. */
   onReceive?: () => void
   onSend?: () => void
   receiveDisabled?: boolean

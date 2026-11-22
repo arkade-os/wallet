@@ -27,11 +27,8 @@ interface KeyboardProps {
   onSave: (value: string, inputMode: KeyboardInputMode) => void
   onClear?: () => void
   initialValue?: bigint | number
-  /** Who the amount is for, shown as a chip in the header. */
   recipient?: string
-  /** Label of the main button; defaults to "Save". */
   saveLabel?: string
-  /** Lets the caller own Max. Send uses it so that the keypad and the form share one fee-aware Max. */
   onMax?: () => void
 }
 
@@ -211,9 +208,6 @@ export default function Keyboard({
           : prettyBitcoinAmount(available),
   }
 
-  // over-balance paints the amount red, matching the swap composer; the
-  // available>0 gate avoids a false red before the wallet loads
-  // Only spending has a balance to exceed: a requested amount (hideBalance) can be any size.
   const overBalance = hideBalance
     ? false
     : inputMode === 'asset'
@@ -231,7 +225,6 @@ export default function Keyboard({
     handleKeyPress(key)
   }
 
-  // the figure steps down as it grows so it never leaves the screen
   const length = typeof amount.primary === 'string' ? amount.primary.length : (textValue || '0.00000000').length + 4
   const figureSize = length <= 6 ? 84 : length <= 8 ? 72 : length <= 11 ? 56 : length <= 15 ? 42 : 32
 

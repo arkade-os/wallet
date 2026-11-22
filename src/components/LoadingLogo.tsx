@@ -6,24 +6,15 @@ import { gitCommit } from '../_gitCommit'
 import { DevModeContext } from '../providers/devMode'
 import { useTranslation } from '../providers/language'
 
-/** How long the cover takes to clear once the app behind it is ready. */
 const EXIT_MS = 200
 
 interface LoadingLogoProps {
   text?: string
   done?: boolean
-  /** Anything but 'none' covers the page until `done`, then clears and reports back. */
   exitMode?: 'fly-to-target' | 'fly-up' | 'none'
   onExitComplete?: () => void
 }
 
-/**
- * The wallet's one waiting state: the nine-cell pixel loader, centred.
- *
- * It carries no brand mark. Used inline it floats over whatever is behind it;
- * as the boot cover it paints the page background and fades once the wallet is
- * ready, so the first thing seen after it is Home rather than an animation.
- */
 export default function LoadingLogo({ text, done, exitMode = 'none', onExitComplete }: LoadingLogoProps) {
   const { devMode, handleTap } = useContext(DevModeContext)
   const { t } = useTranslation()

@@ -40,18 +40,12 @@ export function usePortfolioBalanceDisplay() {
       ? `${BITCOIN_SYMBOL}••••`
       : `•••• ${config.unit === Unit.SATS ? (totalSats === 1 ? 'sat' : 'sats') : config.unit}`
 
-  // When the currency is BTC both lines show the same total; hide the
-  // redundant secondary line.
   const showSecondary = config.currency !== Currencies.BTC
-
-  // A tap on the Home balance can put Bitcoin first; the currency then takes the secondary line.
-  // With BTC as the currency both lines are Bitcoin already, so there is nothing to switch.
   const lead = useBalanceLead()
   const canSwitch = showSecondary
   const bitcoinFirst = canSwitch && lead === 'bitcoin'
 
-  // A masked figure already carries its unit ("•••• BTC"), so while balances are hidden the separate
-  // unit is left out; otherwise the line reads "•••• BTC BTC".
+  // Masked values already include their unit, so omit the separate unit span while hidden.
   const unitShown = (value: string) => (config.showBalance ? value : '')
 
   return bitcoinFirst

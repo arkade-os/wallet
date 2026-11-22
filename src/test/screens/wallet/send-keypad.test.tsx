@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-// A phone: the keypad opens by itself once the recipient resolves, and covers the form.
 vi.mock('../../../lib/browser', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../lib/browser')>()),
   isMobileBrowser: true,
@@ -94,15 +93,11 @@ describe('Send on a phone, the keypad', () => {
     expect(await screen.findByTestId('save-amount')).toBeInTheDocument()
   })
 
-  // The keypad used to be a component declared inside the form, so every render of the form made
-  // a new component type and React remounted it: digits typed while anything else updated (a
-  // recipient check finishing, a balance refresh) were thrown away and Continue stayed disabled.
   it('keeps the digits already typed when the form renders again underneath it', async () => {
     const { container, rerender } = render(<StatefulForm balance={100_000} />)
     typeRecipient(container, ARK)
     await screen.findByTestId('save-amount')
 
-    // The mock wallet enters amounts in euros, two decimals, filled from the right.
     press('5', '0')
     expect(screen.getByTestId('keyboard-amount')).toHaveTextContent('€0.50')
     rerender(<StatefulForm balance={100_001} />)
@@ -118,8 +113,6 @@ describe('Send on a phone, the keypad', () => {
 })
 
 describe('Send on a phone, the recipient field', () => {
-  // Focusing it would bring up the system keyboard the moment Send opens, before the user has
-  // chosen between typing, pasting and scanning.
   it('does not take focus when the screen opens', () => {
     const { container } = render(<StatefulForm balance={100_000} />)
 
@@ -181,7 +174,6 @@ describe('Send on a phone, Max to an LNURL whose rail charges a fee', () => {
 
     fireEvent.click(await screen.findByTestId('keyboard-max', undefined, { timeout: 3_000 }))
 
-    // Max closes the keypad and hands over to the form, which knows about fees and the reserve.
     await waitFor(() => expect(screen.queryByTestId('save-amount')).not.toBeInTheDocument())
     const button = await waitFor(() => screen.getByText('Continue').closest('button')!, { timeout: 3_000 })
     await waitFor(() => expect(button).toBeEnabled(), { timeout: 3_000 })

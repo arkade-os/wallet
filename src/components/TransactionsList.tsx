@@ -30,10 +30,7 @@ import { useTransactionAmountDisplay } from '../hooks/useTransactionAmountDispla
 import { useTranslation } from '../providers/language'
 import { contactAddressForActivity, readContacts } from '../lib/contacts'
 
-// The row's pieces below (Icon, Kind, Left and so on) are called as functions, never mounted as
-// <Left />: a component defined inside a render is a new type on every render, so React would tear down
-// and rebuild every visible row's DOM each time the list re-rendered, which it does on every scroll step.
-// The row is memoised for the same reason: rows already on screen skip the list's re-renders.
+// Row sub-helpers are called as functions (not JSX components) so re-renders preserve DOM nodes.
 const TransactionLine = memo(function TransactionLine({
   tx,
   onSelect,
@@ -45,14 +42,12 @@ const TransactionLine = memo(function TransactionLine({
   onSelect: (tx: Tx) => void
   isFirst?: boolean
   mode: 'virtual' | 'static'
-  /** Saved contacts that have a name, by address; read once by the list rather than by every row. */
   contactNames: ReadonlyMap<string, string>
 }) {
   const { config } = useContext(ConfigContext)
   const { toFiatAmount } = useContext(FiatContext)
   const { assetMetadataCache } = useContext(WalletContext)
   const { language, t } = useTranslation()
-  // Only a name the user gave: a contact saved without one reads as a plain send, never as its address.
   const contactAddress = contactAddressForActivity(tx)
   const contactName = contactAddress ? contactNames.get(contactAddress) : undefined
 
@@ -275,7 +270,6 @@ export default function TransactionsList({
   const { navigate } = useContext(NavigationContext)
   const { assetMetadataCache, txs: allTxs } = useContext(WalletContext)
   const { t } = useTranslation()
-  // Contacts change on other screens, and the list mounts afresh when it is shown again.
   const contactNames = useMemo(
     () => new Map(readContacts().flatMap((c) => (c.name?.trim() ? [[c.address, c.name.trim()] as const] : []))),
     [],

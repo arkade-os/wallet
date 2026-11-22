@@ -12,7 +12,6 @@
   --sheet-bg: var(--bg);
   --toast-bg: #151219;
   --toast-color: #fffdf8;
-  /* Motion: one curve for anything entering or leaving, one for moves */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.86, 0, 0.07, 1);
   --press-down: 90ms;
@@ -115,22 +114,11 @@ body::before {
   pointer-events: none;
 }
 
-/* While a sheet is up its scrim covers the app, which stops short of the status bar and, in some
-   browsers, of the bottom edge. Those take the scrim's colour too, so the dimming reaches every
-   edge instead of leaving white bands above and below. */
 html.sheet-open,
 html.sheet-open body,
 html.sheet-open #root,
 html.sheet-open body::before {
   background-color: var(--scrim-over-bg);
-}
-
-/* They fade with the scrim, on its timing (set by dimScreenEdges), rather than switching at once. */
-html.edges-fading,
-html.edges-fading body,
-html.edges-fading #root,
-html.edges-fading body::before {
-  transition: background-color var(--edge-fade-duration) var(--edge-fade-easing);
 }
 
 body {
@@ -174,9 +162,6 @@ iframe {
   border: none;
 }
 
-/* Buttons: a rectangle resting on a ledge. The face drops 2px onto the ledge
-   on touch-down (90ms) and lifts on release (180ms). Variants only set the
-   three colours. */
 .button {
   --btn-face: var(--brand);
   --btn-press: var(--brand-pressed);
@@ -232,7 +217,6 @@ iframe {
     --btn-ledge: var(--brand-ledge);
     --btn-ink: var(--on-brand);
   }
-  /* Secondary is drawn in ink, as the site draws its secondary button */
   &.secondary,
   &.outline {
     --btn-face: transparent;
@@ -446,7 +430,6 @@ button {
   text-wrap: pretty;
 }
 
-/* Home: balance, change and chart, then the two actions */
 .home-hero {
   display: flex;
   flex-direction: column;
@@ -454,7 +437,6 @@ button {
   margin-top: 0.75rem;
 }
 
-/* The balance is a button: a tap switches units, a hold hides or shows it. */
 .home-hero__figure {
   display: inline-flex;
   max-width: 100%;
@@ -523,9 +505,6 @@ button {
   gap: 0.5rem;
 }
 
-/* Collapse: the balance shrinks into the header as Home scrolls. Tied to the
-   scroll position in CSS where the browser supports it; Index.tsx drives the
-   same values from a scroll listener where it does not. */
 .home-hero__collapse {
   transform-origin: left top;
 }
@@ -534,43 +513,6 @@ button {
   opacity: 0;
 }
 
-@supports (animation-timeline: scroll()) {
-  .wallet-home-content {
-    scroll-timeline: --home-scroll y;
-  }
-
-  .home-hero__collapse {
-    animation: home-hero-collapse linear both;
-    animation-timeline: --home-scroll;
-    animation-range: 8px 96px;
-  }
-
-  .home-header__balance {
-    animation: home-header-balance linear both;
-    animation-timeline: --home-scroll;
-    animation-range: 56px 104px;
-  }
-}
-
-@keyframes home-hero-collapse {
-  to {
-    opacity: 0;
-    transform: translate3d(0, -14px, 0) scale(0.8);
-  }
-}
-
-@keyframes home-header-balance {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 10px, 0);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-/* Icon-only control with a full 44px target */
 .icon-button {
   display: inline-flex;
   width: 2.75rem;
@@ -666,7 +608,6 @@ button {
   justify-content: space-between;
 }
 
-/* Accounts are a ruled list: a hairline under each row, amounts in mono */
 .home-section--ruled .asset-card,
 .swap-token-row {
   min-height: 4.25rem;
@@ -674,7 +615,6 @@ button {
   border-radius: 0;
 }
 
-/* Amounts in lists are set in mono: accounts, the swap picker and activity */
 .home-section--ruled .asset-card__value,
 .swap-token-row__value {
   font-family: var(--font-family-mono);
@@ -729,7 +669,6 @@ button {
   opacity: 0.6;
 }
 
-/* Contacts on Home: a row that scrolls sideways out to the screen's edges, past the page gutter. */
 .home-contacts__list {
   display: flex;
   gap: 0.75rem;
@@ -787,7 +726,6 @@ button {
   -webkit-line-clamp: 2;
 }
 
-/* An address has no word to break at: one line, cut short. */
 .home-contact__name--address {
   -webkit-line-clamp: 1;
 }
@@ -797,26 +735,20 @@ button {
   outline-offset: 3px;
 }
 
-/* Asset rows are flat: a round well, a name and a balance, the value at
-   the right. No card, no border. */
-.asset-card,
-.home-upsell-card {
+.asset-card {
   display: flex;
   width: 100%;
   align-items: center;
+  justify-content: space-between;
+  gap: 0.875rem;
+  min-height: 3.75rem;
+  padding: 0.5rem 0;
   border: 0;
   border-radius: 0.875rem;
   background: transparent;
   color: inherit;
   font: inherit;
   text-align: left;
-}
-
-.asset-card {
-  justify-content: space-between;
-  gap: 0.875rem;
-  min-height: 3.75rem;
-  padding: 0.5rem 0;
 }
 
 .asset-card--interactive {
@@ -826,14 +758,12 @@ button {
   transition: opacity var(--press-up) var(--ease-out);
 }
 
-.asset-card--interactive:active,
-.home-upsell-card:active {
+.asset-card--interactive:active {
   opacity: 0.6;
   transition-duration: var(--press-down);
 }
 
-.asset-card--interactive:focus-visible,
-.home-upsell-card:focus-visible {
+.asset-card--interactive:focus-visible {
   outline: 2px solid var(--brand-text);
   outline-offset: 3px;
 }
@@ -1199,7 +1129,6 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
-/* Money coming in is the one amount that takes the accent */
 .activity-row__amount--in {
   color: var(--brand-text);
 }
@@ -1213,7 +1142,6 @@ button {
   line-height: var(--text-sm-line);
 }
 
-/* Pending is quiet: a muted amount, nothing that asks for attention */
 .activity-row__amount--pending {
   color: var(--ink-3);
 }
@@ -1268,8 +1196,6 @@ button {
   color: var(--fg);
   font-family: var(--font-family-heading);
   font-size: clamp(2.5rem, 13vw, 3.5rem);
-  /* A long amount (0.00010000 BTC on a narrow phone) shrinks to fit its line; 0.56em is the
-     average advance of a character in this face at this tracking. */
   font-size: max(1.5rem, min(clamp(2.5rem, 13vw, 3.5rem), calc(100cqw / (var(--amount-chars, 6) * 0.56))));
   font-weight: 500;
   letter-spacing: -0.05em;
@@ -1277,7 +1203,6 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
-/* Past the smallest size it wraps instead of ending in an ellipsis: an amount is never cut. */
 .transaction-amount-summary__value .privacy-amount__value {
   overflow: visible;
   overflow-wrap: anywhere;
@@ -1560,17 +1485,6 @@ button {
     letter-spacing: var(--heading-sm-tracking);
   }
 
-  .desktop-wallet-brand__mark,
-  .desktop-wallet-brand__mark svg {
-    width: 1.375rem;
-    height: 1.375rem;
-  }
-
-  .desktop-wallet-brand__mark {
-    display: flex;
-    flex: none;
-  }
-
   .desktop-wallet-brand > span {
     transform: translateY(1px);
   }
@@ -1648,8 +1562,6 @@ button {
     overflow: hidden;
   }
 
-  /* The sidebar carries Settings on desktop. Scan has no other home, so it stays in the header. */
-  .home-header__mobile-brand,
   .home-header__settings {
     display: none;
   }
@@ -1797,7 +1709,6 @@ button {
   font-weight: 400;
 }
 
-/* Placeholders are read, so they take the muted ink that passes 4.5:1 on the field. */
 .send-form .input::placeholder {
   color: var(--ink-3);
 }
@@ -2055,8 +1966,6 @@ html.palette-dark .send-asset-menu {
   }
 }
 
-/* The loader: a 3x3 pixel field with one bright cell walking the ring.
-   Drawn from a single element so every existing spinner picks it up. */
 .spinner,
 .pixel-loader {
   color: inherit;
@@ -2253,8 +2162,6 @@ html.palette-dark .send-asset-menu {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* The composer follows the Send keypad: the figure leads, the two sides of the
- * trade sit as flat rows under it, then the keypad. */
 .swap-composer {
   display: flex;
   min-height: 0;
@@ -2355,7 +2262,6 @@ html.palette-dark .send-asset-menu {
   color: var(--ink-2);
 }
 
-/* The unit toggle is the Send keypad's chip */
 .swap-amount-secondary {
   display: inline-flex;
   min-height: 2.25rem;
@@ -2476,7 +2382,6 @@ html.palette-dark .send-asset-menu {
   color: var(--ink-2);
 }
 
-/* Sits on the seam between the two rows, cut out of them by a ring of page colour */
 .swap-flip-button {
   position: relative;
   z-index: 1;
@@ -2486,7 +2391,6 @@ html.palette-dark .send-asset-menu {
   align-items: center;
   justify-content: center;
   align-self: center;
-  /* leaves a 12px seam between the rows: (2 × 0.5rem gap + 2.25rem − 0.75rem) / 2 */
   margin: -1.25rem 0;
   border-radius: 999px;
   background: var(--surface);
@@ -2519,9 +2423,6 @@ html.palette-dark .send-asset-menu {
   }
 }
 
-/* Short phones: the figure, the rows and the keys give up some height so the
- * composer, keypad and Continue stay on one screen. Below 600px there is not
- * enough of it to share out without crowding, so the screen scrolls instead. */
 @media (max-height: 700px) {
   .swap-composer {
     gap: 0.5rem;
@@ -2657,42 +2558,6 @@ hr {
   ::view-transition-new(theme-ripple) {
     animation: none !important;
   }
-}
-
-/* Tab icon animation wrapper */
-.tab-icon-animated {
-  display: inline-flex;
-}
-
-/* Tab icon pop animation */
-@keyframes tab-pop {
-  0% {
-    transform: scale(1);
-  }
-  40% {
-    transform: scale(1.18);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-.tab-anim-pop {
-  animation: tab-pop 250ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-
-/* Respect reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  .tab-icon-animated {
-    animation: none !important;
-  }
-  [class*='tab-anim-'] {
-    animation: none !important;
-  }
-}
-
-/* Hide inactive tabs so content doesn't bleed through */
-.tab-hidden {
-  display: none !important;
 }
 
 /* Hide scrollbar while keeping scroll functionality */
@@ -3342,7 +3207,6 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   font-weight: var(--asset-detail-support-weight);
 }
 
-/* Facts about an asset, ruled like the rows of a transaction rather than boxed */
 .asset-facts {
   width: 100%;
 }
@@ -3353,7 +3217,6 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   border-bottom: 1px solid var(--hairline);
 }
 
-/* A choice between a few options, drawn like the chart's range tabs */
 .segmented {
   display: flex;
   width: 100%;
@@ -3566,9 +3429,6 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   padding-bottom: 0.5rem;
 }
 
-/* The compose stage must fit the viewport with no scrolling: the figure is
- * the flexible part. It grows on tall screens and gives way on short ones, so
- * the keypad and Continue stay on screen. */
 .swap-flow-stage--compose {
   flex: 1;
   min-height: 0;
@@ -3671,7 +3531,6 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   align-items: center;
   min-height: var(--size-touch-lg);
   border-radius: var(--radius-xl);
-  /* a well: the surface on the page, one step up on a sheet */
   background: var(--well, var(--surface));
 }
 
@@ -3846,7 +3705,6 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   transform-origin: left bottom;
 }
 
-/* Review reads like Send's: who, how much, then the rows */
 .swap-review {
   display: flex;
   flex-direction: column;
@@ -3969,27 +3827,8 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   background: var(--well, var(--surface));
 }
 
-/* press feedback only — the persistent selected state must not stay scaled */
 .swap-token-row:active {
   transform: scale(var(--active-transform-scale));
-}
-
-.swap-direction-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  padding: 0.25rem;
-  background: none;
-  color: inherit;
-  cursor: pointer;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.swap-direction-button:disabled {
-  opacity: 0.4;
-  cursor: default;
 }
 
 .swap-token-row__copy {
@@ -4029,7 +3868,6 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   line-height: var(--text-sm-line);
 }
 
-/* The amount screen: who it is for, the figure, and the keypad under it */
 .amount-screen {
   display: flex;
   height: 100%;
@@ -4213,7 +4051,6 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   }
 }
 
-/* A screen presented as a sheet: review, sending and sent share it */
 .sheet-page {
   position: absolute;
   inset: 0;
@@ -4240,7 +4077,6 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   container-type: inline-size;
 }
 
-/* A long figure (a BTC amount to eight places) shrinks to stay inside the screen. */
 .sheet-page__backdrop .figure-fit {
   font-size: min(1em, calc(92cqw / (var(--amount-chars, 6) * 0.56)));
 }
@@ -4302,7 +4138,6 @@ button.sheet-page__scrim {
   min-height: 6.75rem;
 }
 
-/* On a dark sheet the surface colour is the sheet itself, so wells step up */
 .palette-dark .sheet-page__sheet,
 .palette-dark [data-slot='drawer-content'] {
   --well: var(--surface-strong);
@@ -4356,13 +4191,6 @@ button.sheet-page__scrim {
 
 .send-progress__row .pixel-loader {
   color: var(--brand-text);
-}
-
-.send-progress__note {
-  color: var(--ink-3);
-  font-size: 0.875rem;
-  line-height: 1.25rem;
-  text-align: center;
 }
 
 .success-sheet {
@@ -4509,40 +4337,10 @@ button.sheet-page__scrim {
   transition-delay: 0s, 0s, var(--invoice-exit);
 }
 
-.receive-invoice-pixels {
-  display: grid;
-  opacity: 0;
-  transition: opacity 160ms var(--invoice-ease);
-}
-
-.receive-invoice-stage[data-generating='true'] .receive-invoice-pixels {
-  opacity: 1;
-  transition-delay: 300ms;
-}
-
-.receive-invoice-pixels span {
-  opacity: 0.18;
-}
-
-.receive-invoice-stage[data-generating='true'] .receive-invoice-pixels span {
-  animation: invoice-pixel 1.6s cubic-bezier(0.645, 0.045, 0.355, 1) infinite;
-}
-
-@keyframes invoice-pixel {
-  50% {
-    opacity: 1;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .receive-invoice-stage > *,
   .receive-invoice-stage[data-generating='true'] .receive-invoice-qr {
     transform: none;
-  }
-
-  .receive-invoice-stage[data-generating='true'] .receive-invoice-pixels span {
-    animation: none;
-    opacity: 0.65;
   }
 }
 
@@ -5024,8 +4822,6 @@ html.palette-dark .table--receipt .table-row {
 .receive-invoice-loader .pixel-loader {
   transform: scale(1.75);
 }
-
-/* Onboarding: two ways in, each saying what it needs */
 
 .onboard__choices {
   overflow: hidden;

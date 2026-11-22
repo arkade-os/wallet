@@ -9,16 +9,10 @@ import { OptionsContext } from '../../providers/options'
 import { useTranslation } from '../../providers/language'
 import '../Settings/Contacts.css'
 
-/** How many contacts the row holds before View all takes over. */
 export const HOME_CONTACTS_LIMIT = 12
 
 const initialFor = (label: string): string => label.trim().charAt(0).toUpperCase() || '?'
 
-/**
- * Saved contacts on Home, most recently paid first. Tapping one opens Send with that contact as the
- * recipient, as a scanned code does. Home passes the contacts in and leaves the row out when there
- * are none.
- */
 export default function ContactsSection({ contacts }: { contacts: Contact[] }) {
   const { setSendInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)

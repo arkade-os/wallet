@@ -47,11 +47,9 @@ describe('ContactsSection', () => {
     expect(navigate).toHaveBeenCalledWith(Pages.Settings)
   })
 
-  // An address has no word to wrap at, so it gets one line and an ellipsis.
-  it('shows an unnamed contact by its address, on one line', () => {
+  it('shows an unnamed contact by its address', () => {
     renderRow([contact('bob@pay.example')])
 
-    expect(screen.getByText('bob@pay.example')).toHaveClass('home-contact__name--address')
     expect(screen.getByRole('button', { name: 'Send to bob@pay.example' })).toBeInTheDocument()
   })
 

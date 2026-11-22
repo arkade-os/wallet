@@ -4,7 +4,6 @@ import { EASE_OUT_QUINT_TUPLE } from '../lib/animations'
 import { holdBackLayer } from '../providers/navigation'
 
 interface ModalProps {
-  /** Accessible name of the dialog. */
   label?: string
   children: React.ReactNode
   open?: boolean
@@ -19,13 +18,11 @@ export default function Modal({ label, children, open = true, onOpenChange, onEx
 
   useEffect(() => {
     if (!open) return
-    // Taken before focus moves into the panel, or there is nothing to return it to.
     const opener = document.activeElement as HTMLElement | null
     panel.current?.focus({ preventScroll: true })
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') return close.current?.(false)
       if (event.key !== 'Tab' || !panel.current) return
-      // Tab stays inside the dialog while it is open.
       const stops = Array.from(
         panel.current.querySelectorAll<HTMLElement>(
           'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
@@ -44,7 +41,6 @@ export default function Modal({ label, children, open = true, onOpenChange, onEx
       }
     }
     document.addEventListener('keydown', onKey)
-    // Back closes the dialog instead of leaving the screen underneath it.
     const release = holdBackLayer(() => close.current?.(false))
     return () => {
       document.removeEventListener('keydown', onKey)

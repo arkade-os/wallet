@@ -79,7 +79,6 @@ describe('Init screen — the two ways in', () => {
     const restore = screen.getByRole('button', { name: /Restore a wallet/ })
     expect(create).toHaveTextContent('No account needed')
     expect(restore).toHaveTextContent('With your recovery phrase or private key')
-    // No selling points and no emoji in the way of the two choices.
     expect(screen.queryByText(/and more/)).not.toBeInTheDocument()
     expect(document.body.textContent).not.toContain('👾')
   })
@@ -90,7 +89,6 @@ describe('Init screen — the two ways in', () => {
     expect(navigate).toHaveBeenCalledWith(Pages.InitConnect)
   })
 
-  // Restore used to sit behind an "Other login options" sheet that held nothing else.
   it('opens Restore straight from the screen', () => {
     const navigate = renderInit()
     expect(screen.queryByText('Other login options')).not.toBeInTheDocument()

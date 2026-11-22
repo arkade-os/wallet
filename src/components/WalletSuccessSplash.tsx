@@ -8,18 +8,10 @@ interface WalletSuccessSplashProps {
   show?: boolean
   headline: string
   text?: string
-  /** Kept for callers; the sheet is named by its headline. */
-  ariaLabel?: string
-  /** A figure to show behind the scrim, such as the amount just paid. */
   backdrop?: ReactNode
   onDone: () => void
 }
 
-/**
- * Success, shown in a sheet: a check that draws itself, what happened, and
- * one button. It replaces the full-screen purple splash, so a payment ends
- * where it was confirmed.
- */
 export default function WalletSuccessSplash({
   show = true,
   headline,

@@ -962,10 +962,6 @@ function AnimatedAmountValue({
   )
 }
 
-/** Long amounts (a full-precision balance plus ticker) shrink in steps so
- * they stay on screen. The steps match the Send keypad's figure (84, 72, 56,
- * 42 and 32px); stepped rather than fit-to-width so the per-character
- * animation keeps stable metrics while typing. */
 function amountFontScale(length: number): number {
   if (length <= 6) return 1
   if (length <= 8) return 72 / 84
@@ -974,15 +970,10 @@ function amountFontScale(length: number): number {
   return 32 / 84
 }
 
-/** Thousands separators for an amount being typed, keeping a trailing point
- * and the decimals exactly as entered: "20825" reads "20,825", "1000." stays
- * "1,000.". For display only; the entry string itself stays ungrouped. */
 function groupTypedDigits(value: string): string {
   return value.replace(/^\d+/, (whole) => whole.replace(/\B(?=(\d{3})+(?!\d))/g, ','))
 }
 
-/** Where a figure's minor units start ("$4,215.00" → 6), or -1. Same rule as
- * `Figure`: a two-digit fraction, then only a unit. */
 function minorUnitsStart(value: string): number {
   const match = /^(.*\d)([.,]\d{2})(\D*)$/.exec(value)
   return match ? match[1].length : -1
@@ -1159,7 +1150,6 @@ function ReviewDrawer({
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className='swap-drawer-content'>
-        {/* The sheet is named for assistive tech; on screen the route says what it is, as Send's review does. */}
         <DrawerHeader className='sr-only'>
           <DrawerTitle>{t('swap.reviewSwap')}</DrawerTitle>
           <DrawerDescription>{t('swap.reviewSwapDescription')}</DrawerDescription>
@@ -1185,8 +1175,6 @@ function ReviewDrawer({
 function SwapSuccessOverlay({ quote, onDone }: { quote?: SwapQuote; onDone: () => void }) {
   const { t } = useTranslation()
   const { config } = useContext(ConfigContext)
-  // behind the sheet: what was given, valued as the receipt records it (the
-  // typed figure for a currency entry), or the amount itself without a price
   const given = quote
     ? quote.giveCurrencyValue > 0
       ? prettyFiatAmount(quote.giveCurrencyValue, config.currency, { bitcoinUnit: config.unit })
@@ -1201,7 +1189,6 @@ function SwapSuccessOverlay({ quote, onDone }: { quote?: SwapQuote; onDone: () =
           ? `${swapRouteTicker(quote.fromAsset.assetId, quote.fromAsset.ticker)} ${t('swap.routeConnector')} ${swapRouteTicker(quote.toAsset?.assetId, quote.toAsset?.ticker)} · ${t('swap.waitingForFill')}`
           : undefined
       }
-      ariaLabel={t('swap.createdTapHome')}
       backdrop={given ? <PrivateFigure value={given} /> : undefined}
       onDone={onDone}
     />

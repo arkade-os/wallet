@@ -165,8 +165,6 @@ const dateFromTimestamp = (timestamp: number): Date | undefined => {
   return date
 }
 
-// Building an Intl formatter costs far more than using one, and every activity row formats a date and
-// several amounts on each render, so formatters are built once per set of options and reused.
 const dateFormatters = new Map<string, Intl.DateTimeFormat>()
 
 export const prettyDate = (unixTs: number, lang: Language = Language.English): string => {

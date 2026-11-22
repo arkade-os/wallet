@@ -157,7 +157,6 @@ export default function SendSuccess() {
     <WalletSuccessSplash
       headline={headline}
       text={detail}
-      ariaLabel={`${headline}. ${t('wallet.tapToGoHome')}`}
       backdrop={<PrivateFigure value={displayAmount} />}
       onDone={finish}
     />

@@ -1,8 +1,3 @@
-/**
- * The wallet's icon set: familiar shapes on a 24px grid, drawn with a 1.75
- * stroke and round ends. Every icon component in this folder that has been
- * redrawn renders through Glyph so the set stays one family.
- */
 export const glyphs = {
   arrowDown: 'M12 4v16M5 13l7 7 7-7',
   arrowLeft: 'M19 12H5M11 6l-6 6 6 6',
@@ -79,7 +74,6 @@ export default function Glyph({ name, size = 24, strokeWidth = 1.75, className, 
   )
 }
 
-/** A 40px round well holding a glyph, used by activity rows. */
 export function GlyphWell({ name, dashed }: { name: GlyphName; dashed?: boolean }) {
   return (
     <svg width='40' height='40' viewBox='0 0 40 40' fill='none' xmlns='http://www.w3.org/2000/svg' aria-hidden='true'>

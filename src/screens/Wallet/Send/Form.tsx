@@ -233,8 +233,6 @@ export default function SendForm() {
   const [showReserveModal, setShowReserveModal] = useState(false)
   const [valueSats, setValueSats] = useState<number | undefined>(undefined)
   const [sendAll, setSendAll] = useState(false)
-  // set when the keypad saves an amount: the form continues to review by
-  // itself as soon as it validates, instead of asking for a second tap
   const [advance, setAdvance] = useState(false)
 
   const timeoutRef = useRef<NodeJS.Timeout>()
@@ -998,7 +996,6 @@ export default function SendForm() {
     else applySendAll()
   }
 
-  /** Max on the keypad is the form's Max: same reserve check, same send-all flag for fee-aware quotes. */
   const handleKeypadMax = () => {
     setKeys(false)
     handleSendAll()
@@ -1079,8 +1076,6 @@ export default function SendForm() {
       satoshis < 1 ||
       processing
 
-  // On a phone the amount is the next step: once the recipient resolves and
-  // no amount is set, the keypad opens by itself, once per recipient.
   const recipientResolved =
     Boolean(address || arkAddress || invoice || (lnUrl && lnUrlResponse)) && !recipientError && !error
   const wantsKeypad =
@@ -1109,8 +1104,7 @@ export default function SendForm() {
 
   const sendOverlayStyle = { ...overlayStyle, position: 'fixed' as const, zIndex: 20 }
 
-  // An element, not an inner component: a component declared here would be a new type on every
-  // render, so React would remount the keypad and drop the digits already typed.
+  // Element (not an inline component) so form re-renders don't remount the keypad and wipe digits.
   const keypad = (
     <Keyboard
       asset={activeAsset ?? undefined}
@@ -1198,8 +1192,6 @@ export default function SendForm() {
               <InputAddress
                 disabled={processing}
                 error={recipientError}
-                // Not on a phone: the system keyboard would cover the screen before the
-                // user has chosen between typing, pasting and scanning. Amount is the same.
                 focus={focus === 'recipient' && !isMobileBrowser}
                 label={t('send.recipientAddress')}
                 name='send-address'
@@ -1387,7 +1379,6 @@ export default function SendForm() {
   )
 }
 
-/** Runs `run` when `on` turns true, and again whenever `watch` changes while it stays true. */
 function When({ on, run, watch }: { on: boolean; run: () => void; watch?: unknown }) {
   const latest = useRef(run)
   latest.current = run

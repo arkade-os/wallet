@@ -175,13 +175,11 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-// Formats sit in a sheet behind the "Other formats" row: open it, then pick.
 const openFormats = async () => {
   fireEvent.click(await screen.findByRole('button', { name: /Other formats/ }))
   return screen.findByRole('radiogroup')
 }
 const pickFormat = async (label: string) => {
-  // Token rails arrive after the sheet can already be opened, so wait for the row.
   fireEvent.click(await within(await openFormats()).findByText(label))
 }
 
@@ -268,7 +266,6 @@ describe('Receive screen, rail composition', () => {
     expect(copyToClipboard.mock.calls.at(-1)![0]).toBe('alice@lnurl.test')
   })
 
-  // The formats sheet is a named dialog holding one radio group, and it behaves like both.
   it('names the formats sheet and moves the selection with the arrow keys', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
     renderReceive()
@@ -279,7 +276,6 @@ describe('Receive screen, rail composition', () => {
     const radios = within(group).getAllByRole('radio')
     const labels = radios.map((radio) => radio.textContent)
     expect(labels.length).toBeGreaterThan(2)
-    // One tab stop, on the checked format; arrows reach the rest.
     expect(radios.map((radio) => radio.tabIndex)).toEqual(radios.map((_, i) => (i === 0 ? 0 : -1)))
     expect(radios[0]).toHaveAttribute('aria-checked', 'true')
 
@@ -299,7 +295,6 @@ describe('Receive screen, rail composition', () => {
     expect(radios[0]).toHaveFocus()
     expect(radios[0]).toHaveAttribute('aria-checked', 'true')
 
-    // Arrowing through the formats does not close the sheet; choosing one does.
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     fireEvent.click(radios[1])
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -311,7 +306,6 @@ describe('Receive screen, rail composition', () => {
     await screen.findByText('alice@lnurl.test')
     await openFormats()
 
-    // What the navigation provider calls when Back arrives while a sheet is open.
     expect(backLayers).toHaveLength(1)
     act(() => backLayers[0]())
 
@@ -550,7 +544,6 @@ describe('Receive screen, token rails', () => {
   const tokensOn = { receiveViaTokens: true }
   const payRequests = () => server.calls('GET', '/.well-known/lnurlp/alice')
   const tokenQuotes = () => callbacks().filter((url) => url.searchParams.get('paymentOption')?.startsWith('ff-'))
-  // Stablecoins are a section of the formats sheet; with none on offer the section is not there.
   const tokenSelect = async () => {
     const row = screen.queryByRole('button', { name: /Other formats/ })
     if (row) await openFormats()

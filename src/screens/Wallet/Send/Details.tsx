@@ -204,10 +204,7 @@ export default function SendDetails() {
     }
   }, [pricing, details?.destination, details?.satoshis])
 
-  // A payment can outlive this screen: Back is how someone walks away from a slow one. What it
-  // records about itself is durable and always written. What it would write into the shared Send
-  // flow is not, because by then that state may describe a different payment; the result is
-  // announced instead, wherever the person went.
+  // Payment may resolve after navigating away; avoid writing back into shared Send flow state.
   const onScreen = useRef(true)
   useEffect(
     () => () => {

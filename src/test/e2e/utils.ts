@@ -77,7 +77,6 @@ export function navLocator(page: Page, item: string) {
 export async function navigateToActivity(page: Page): Promise<void> {
   if (isDesktop(page)) return navLocator(page, 'activity').click()
   await navigateHome(page)
-  // Activity opens from Home's "View all"; the header keeps only Scan and Settings.
   await page.getByTestId('activity-view-all').click()
   await page.getByTestId('header-title-activity').waitFor({ state: 'visible', timeout: 30000 })
 }
@@ -95,7 +94,6 @@ export async function navigateHome(page: Page): Promise<void> {
   const homeReceive = page.getByTestId('home-action-receive')
   if (await homeReceive.isVisible().catch(() => false)) return
 
-  // Send, Receive and Scan are covers that close with an X; everything else goes back.
   const backBtn = page.getByLabel(tr.common.back).or(page.getByLabel(tr.components.close)).first()
   for (let i = 0; i < 8; i++) {
     if (await homeReceive.isVisible().catch(() => false)) return
@@ -209,9 +207,6 @@ export async function getInvoiceFromLND(amount = 2100): Promise<string> {
   return invoice
 }
 
-/** The Send keypad on a phone. It opens by itself once the recipient has resolved, so that is
- * what is waited for: tapping the field first would open it before the form knows who is being
- * paid. The field is the fallback for a recipient the keypad was already offered for. */
 export async function openSendKeypad(page: Page): Promise<void> {
   const keypad = page.getByTestId('save-amount')
   try {
@@ -222,9 +217,6 @@ export async function openSendKeypad(page: Page): Promise<void> {
   }
 }
 
-/** Max on Send, with the balance it should be offering. On a phone the keypad covers the form, so
- * Max is pressed there; it hands over to the form's fee-aware Max and closes, leaving the form
- * with the amount filled in and its own Continue to press. */
 export async function sendMax(page: Page, isMobile: boolean, available?: string | RegExp): Promise<void> {
   if (isMobile) {
     await openSendKeypad(page)
@@ -254,7 +246,6 @@ export async function prePay(page: Page, address: string, isMobile = false, amou
     if (isMobile) {
       await openSendKeypad(page)
       await handleKeyboardInput(page, amount, decimals)
-      // The keypad's own Continue carries a valid amount straight to review.
       return
     }
     await page.locator('input[name="send-amount"]').fill(amount.toString())
@@ -381,7 +372,6 @@ export async function waitForPaymentReceived(page: Page): Promise<void> {
 /** Types `value` on the right-to-left keypad, which has no decimal point: pass the mode's decimals
  * (2 for USD, an asset's own) so 2 becomes $2.00 rather than $0.02. */
 export async function handleKeyboardInput(page: Page, value: number, decimals = 0): Promise<void> {
-  // The confirm button reads "Save" on Receive and "Continue" on Send, so it is found by id.
   await page.getByTestId('save-amount').waitFor({ state: 'visible' })
   const digits = value.toFixed(decimals).replace('.', '').replace(/^0+/, '').split('')
   for (const digit of digits) {

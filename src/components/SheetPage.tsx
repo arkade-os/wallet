@@ -1,29 +1,16 @@
 import { ReactNode, useEffect, useLayoutEffect, useRef } from 'react'
-import { dimScreenEdges, ScrimFade } from '../lib/documentSurface'
-
-/** The scrim's `scrim-in` animation in index.css: 200ms on --ease-out. The screen's edges match it. */
-const SCRIM_FADE: ScrimFade = { duration: 200, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' }
+import { dimScreenEdges } from '../lib/documentSurface'
 
 interface SheetPageProps {
-  /** Accessible name of the sheet. */
   label: string
-  /** A figure shown large behind the scrim, as the screen the sheet sits over. */
   backdrop?: ReactNode
-  /** Called when the scrim is tapped. Omit to make the scrim inert. */
   onDismiss?: () => void
   dismissLabel?: string
-  /** Work is in flight: the scrim and Escape stop dismissing until it clears. Back still leaves,
-   *  which is how someone walks away from a slow payment without cancelling it. */
   busy?: boolean
   children: ReactNode
   testId?: string
 }
 
-/**
- * A screen presented as a sheet: a dimmed backdrop and a floating panel
- * anchored to the bottom edge. Review, sending and sent all use it, so a
- * payment is confirmed in one place instead of across three screens.
- */
 export default function SheetPage({
   label,
   backdrop,
@@ -36,9 +23,7 @@ export default function SheetPage({
   const dismiss = useRef(onDismiss)
   dismiss.current = busy ? undefined : onDismiss
 
-  // The sheet is modal, so the chrome around the page goes inert with it. On desktop that is the
-  // sidebar, which would otherwise navigate away from a payment that is being signed.
-  useLayoutEffect(() => dimScreenEdges(SCRIM_FADE), [])
+  useLayoutEffect(() => dimScreenEdges(), [])
 
   useEffect(() => {
     const chrome = Array.from(document.querySelectorAll<HTMLElement>('.desktop-wallet-shell'))
@@ -46,7 +31,6 @@ export default function SheetPage({
     return () => chrome.forEach((el) => el.removeAttribute('inert'))
   }, [])
 
-  // Escape belongs to the sheet: it dismisses where dismissal is offered and does nothing while busy.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return

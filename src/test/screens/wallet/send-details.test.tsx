@@ -158,8 +158,6 @@ describe('Send details refresh', () => {
   })
 })
 
-// A slow payment can be walked away from with Back. It still completes, and by then the shared
-// Send state may belong to another payment.
 describe('Send details, a payment that outlives the screen', () => {
   const deferred = <T,>() => {
     let resolve!: (value: T) => void
@@ -268,7 +266,6 @@ describe('Send details, a payment that outlives the screen', () => {
     expect(setSendInfo).not.toHaveBeenCalled()
   })
 
-  // The figure behind the scrim is the same amount as the summary, so it follows the same setting.
   it('hides the amount behind the sheet when balances are hidden', async () => {
     const { container } = await start(false)
     await screen.findByText('Tap to Sign')

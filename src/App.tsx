@@ -126,10 +126,8 @@ export default function App() {
     if (!navigate) return
     const handleGlobalDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
-      // A sheet or dialog on top takes Escape for itself; only a bare screen goes home.
-      if (document.querySelector("[data-slot='drawer-content'], [data-modal-layer]")) return
-      // A payment being signed is not interruptible from the keyboard.
-      if (document.querySelector(".sheet-page[data-busy='true']")) return
+      if (document.querySelector("[data-slot='drawer-content'], [data-modal-layer], .sheet-page[data-busy='true']"))
+        return
       // Success already broadcast. Report sent. Anything earlier is a decline,
       // including connect. Read the txid before resetFlow clears it.
       if (appSendNeedsDriver(appIntent, sendInfo, outcomeOf)) {
@@ -178,7 +176,6 @@ export default function App() {
 
   const prefersReduced = useReducedMotion()
   const effectiveDirection = prefersReduced ? 'none' : direction
-  // which motion plays: a sideways drill, or a cover rising over Home
   const pageMotion = cover && effectiveDirection !== 'none' ? `${effectiveDirection}:cover` : effectiveDirection
   const shouldAnimatePage = !prefersReduced && !hasDevAutoInit
   const isDevAutoInitializing = hasDevAutoInit && !initialized

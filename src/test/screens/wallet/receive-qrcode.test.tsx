@@ -42,8 +42,6 @@ vi.mock('../../../lib/haptics', () => ({
   setHapticsEnabled: vi.fn(),
 }))
 
-// A stand-in for the drawer that keeps the sheet's contract: present only while open, a named
-// dialog, and closed by Escape.
 vi.mock('../../../components/SheetModal', () => ({
   default: ({
     isOpen,
@@ -161,7 +159,6 @@ describe('Receive QR Code screen', () => {
     copyToClipboardMock.mockClear()
   })
 
-  // The requested amount leads the screen. It has to be a figure the sender could act on.
   describe('requested amount', () => {
     const requested = (
       settings: Partial<typeof mockConfigContextValue.config>,
@@ -186,7 +183,6 @@ describe('Receive QR Code screen', () => {
       expect(await screen.findByTestId('receive-amount')).toHaveTextContent('€10,000.00')
     })
 
-    // Without a rate the fiat figure would read as zero for a request that is not zero.
     it('falls back to the exact Bitcoin amount while the rate is unavailable', async () => {
       renderReceiveQrCode(requested({ currency: Currencies.EUR, unit: Unit.BTC }, noRate))
       const amount = await screen.findByTestId('receive-amount')
@@ -317,8 +313,6 @@ describe('Receive QR Code screen', () => {
   // in its `lightning=` parameter. So the method has to be selectable without
   // going through the Copy sheet.
   describe('payment method selector', () => {
-    // Formats sit in a sheet behind the "Other formats" row, so the rails stay
-    // out of the way until a sender's wallet asks for one. Open it to read them.
     const openFormats = async (name = /Other formats/) => {
       const row = await screen.findByRole('button', { name })
       await act(async () => {
@@ -342,8 +336,6 @@ describe('Receive QR Code screen', () => {
     it('defaults to the unified URI when a Lightning invoice exists', async () => {
       renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
 
-      // Lightning is on offer, and the sheet is closed again before copying: the copy has to come
-      // from the screen a person would actually be looking at, not from under an open sheet.
       await openFormats()
       expect(await screen.findByRole('radio', { name: /Unified/ })).toHaveAttribute('aria-checked', 'true')
       expect(screen.getByRole('radio', { name: /Lightning/ })).toHaveAttribute('aria-checked', 'false')
@@ -405,10 +397,6 @@ describe('Receive QR Code screen', () => {
     // the QR, so the QR painted over it and ate the taps — selecting looked like
     // it copied, because the tap landed on the QR button. jsdom does no layout,
     // so only the containment itself is assertable here.
-    //
-    // The selector is now a row that opens a sheet. The row is what could be
-    // stacked under the QR, so the row is what is checked; the options live in a
-    // portal and could never be inside the stage.
     it('renders the formats row outside the QR stage, not stacked under it', async () => {
       const { container } = renderReceiveQrCode(amountFixture('lnbc10u1ptest'))
 
@@ -418,7 +406,6 @@ describe('Receive QR Code screen', () => {
       expect(stage?.contains(row)).toBe(false)
       expect(stage?.contains(screen.getByRole('button', { name: 'Copy QR code' }))).toBe(true)
 
-      // Tapping it opens the formats and copies nothing, which is what a tap landing on the QR did.
       await openFormats()
       for (const label of ['Unified', 'Lightning', 'Arkade', 'Bitcoin']) {
         expect(await screen.findByRole('radio', { name: new RegExp(label) })).toBeInTheDocument()

@@ -7,8 +7,6 @@ import { cn } from '@/lib/utils'
 import { dimScreenEdges } from '@/lib/documentSurface'
 
 function Drawer({ open, ...props }: React.ComponentProps<typeof DrawerPrimitive.Root>) {
-  // The screen's edges dim as the drawer starts to open and come back as it starts to close, in
-  // step with the scrim's fade. Every drawer here is controlled, so `open` is what says when.
   React.useLayoutEffect(() => (open ? dimScreenEdges() : undefined), [open])
   return <DrawerPrimitive.Root data-slot='drawer' open={open} {...props} />
 }

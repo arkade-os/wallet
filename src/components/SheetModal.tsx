@@ -7,7 +7,6 @@ interface SheetModalProps {
   children?: React.ReactNode
   isOpen: boolean
   onClose: () => void
-  /** Id of the heading inside the sheet that names it for assistive technology. */
   labelledBy?: string
 }
 
@@ -15,7 +14,6 @@ export default function SheetModal({ children, isOpen, onClose, labelledBy }: Sh
   const close = useRef(onClose)
   close.current = onClose
 
-  // Back closes the sheet instead of leaving the screen underneath it.
   useEffect(() => {
     if (!isOpen) return
     return holdBackLayer(() => close.current())

@@ -1,13 +1,11 @@
 import { useMemo } from 'react'
 
 interface AddressPatternProps {
-  /** The address, handle or key the pattern is drawn from. */
   value: string
   size?: number
   className?: string
 }
 
-/** FNV-1a: small, stable, and good enough to spread addresses over 2^9 patterns. */
 const hash = (value: string): number => {
   let h = 2166136261
   for (let i = 0; i < value.length; i++) {
@@ -17,11 +15,6 @@ const hash = (value: string): number => {
   return h
 }
 
-/**
- * A small symmetric pattern drawn from an address, shown in place of
- * initials. The same address always gives the same pattern, so a pasted
- * address that is not the one paid last time looks different at a glance.
- */
 export default function AddressPattern({ value, size = 40, className }: AddressPatternProps) {
   const cells = useMemo(() => {
     const h = hash(value.trim().toLowerCase())

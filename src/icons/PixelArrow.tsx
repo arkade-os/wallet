@@ -1,23 +1,9 @@
-/**
- * Arrows drawn on a 5×5 grid of square pixels, the geometry of the Arkade
- * mark and of the arrows on arkadeos.com buttons. Used where an action is set
- * like the site's buttons; the line icons in Glyph stay the wallet's default.
- */
-const cells = {
-  // a corner and a tail: the head points up and right
-  upRight: ['..XXX', '...XX', '..X.X', '.X...', 'X....'],
-  downLeft: ['....X', '...X.', 'X.X..', 'XX...', 'XXX..'],
+const PATHS = {
+  upRight: 'M2 0h3v1H2ZM3 1h2v1H3ZM2 2h1v1H2ZM4 2h1v1H4ZM1 3h1v1H1ZM0 4h1v1H0Z',
+  downLeft: 'M4 0h1v1H4ZM3 1h1v1H3ZM0 2h1v1H0ZM2 2h1v1H2ZM0 3h2v1H0ZM0 4h3v1H0Z',
 } as const
 
-export type PixelArrowDirection = keyof typeof cells
-
-/** Each lit cell as "x y", read once from the grids above. */
-const pixels = Object.fromEntries(
-  Object.entries(cells).map(([direction, rows]) => [
-    direction,
-    rows.flatMap((row, y) => [...row].flatMap((cell, x) => (cell === 'X' ? [`${x} ${y}`] : []))),
-  ]),
-) as Record<PixelArrowDirection, string[]>
+export type PixelArrowDirection = keyof typeof PATHS
 
 export default function PixelArrow({ direction, size = 15 }: { direction: PixelArrowDirection; size?: number }) {
   return (
@@ -30,10 +16,7 @@ export default function PixelArrow({ direction, size = 15 }: { direction: PixelA
       aria-hidden='true'
       xmlns='http://www.w3.org/2000/svg'
     >
-      {pixels[direction].map((pixel) => {
-        const [x, y] = pixel.split(' ')
-        return <rect key={pixel} x={x} y={y} width='1' height='1' />
-      })}
+      <path d={PATHS[direction]} />
     </svg>
   )
 }

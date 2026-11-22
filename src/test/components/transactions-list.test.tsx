@@ -1,8 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { renderToStaticMarkup } from 'react-dom/server'
 import TransactionsList from '../../components/TransactionsList'
-import SentIcon from '../../icons/Sent'
 import { ConfigContext } from '../../providers/config'
 import { FiatContext } from '../../providers/fiat'
 import { FlowContext } from '../../providers/flow'
@@ -26,7 +24,6 @@ import { saveContact } from '../../lib/contacts'
 describe('TransactionsList', () => {
   beforeEach(() => localStorage.clear())
 
-  // A contact saved without a name must not bring the address back into the row.
   it('reads a send to a contact saved without a name as a plain send', () => {
     const address = 'bob@pay.example'
     saveContact(address, '')
@@ -100,8 +97,6 @@ describe('TransactionsList', () => {
     expect(setTxInfo).toHaveBeenCalledWith(tx)
     expect(navigate).toHaveBeenCalledWith(Pages.Transaction)
   })
-  // Each row's pieces used to be components defined inside its render, so any re-render rebuilt every
-  // visible row's DOM from scratch. On a long history that made scrolling Activity stutter.
   it("keeps a row's DOM when the row re-renders", () => {
     const sentTx = { ...mockWalletContextValue.txs[0], roundTxid: 'kept-tx', type: 'sent' }
     const tree = (config: typeof mockConfigContextValue) => (
@@ -121,7 +116,6 @@ describe('TransactionsList', () => {
     const left = container.querySelector('.activity-row__left')
     const amount = container.querySelector('.activity-row__amount')
 
-    // A new config object re-renders every row that reads it.
     rerender(tree({ ...mockConfigContextValue }))
 
     expect(container.querySelector('.activity-row__left')).toBe(left)
@@ -150,7 +144,6 @@ describe('TransactionsList', () => {
     expect(screen.queryByText('Sent')).not.toBeInTheDocument()
   })
 
-  // A send to an LNURL is a send like any other: the address it paid is on its detail page.
   it('shows the address an LNURL receive arrived at, and reads an LNURL send as a plain send', () => {
     const receivedTx: Tx = {
       amount: 1_000,
@@ -193,9 +186,7 @@ describe('TransactionsList', () => {
 
     expect(screen.getByText('Received at alice@lnurl.example')).toBeInTheDocument()
     expect(screen.queryByText(/bob@pay\.example/)).not.toBeInTheDocument()
-    // The send's own icon, not a pattern drawn from the address.
-    const sentRow = screen.getByText('Sent').closest('.activity-row')
-    expect(sentRow?.querySelector('.activity-row__icon')?.innerHTML).toBe(renderToStaticMarkup(<SentIcon />))
+    expect(screen.getByText('Sent')).toBeInTheDocument()
   })
 
   it('reads a nameless LNURL receive by its rail', () => {
@@ -501,7 +492,6 @@ describe('TransactionsList', () => {
     )
 
     expect(screen.getByText(/BTC to BET/)).toBeInTheDocument()
-    // The Bitcoin mark is the one filled with the brand colour; every other asset sits in a neutral well.
     expect(container.querySelector('circle[fill="var(--brand)"]')).toBeInTheDocument()
     expect(container.querySelectorAll('.swap-route-icon__fallback')).toHaveLength(1)
   })

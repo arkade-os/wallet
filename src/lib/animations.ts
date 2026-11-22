@@ -18,23 +18,8 @@ export const STAGGER_DURATION = 0.3
 // Slide distance (% of container)
 const SLIDE_OFFSET = '20%'
 
-// Cover: a task rising over Home. A spring with no bounce, about 380ms to settle.
 export const COVER_SPRING = { type: 'spring' as const, visualDuration: 0.36, bounce: 0 }
 
-/**
- * Page transition variants. The motion is chosen by the relationship between
- * the two screens, passed through Framer Motion's `custom` prop as
- * `forward`, `back` or `none`, with `:cover` appended when the page entering
- * or leaving is a cover:
- *
- * - Drill (`forward` / `back`): the new screen slides in sideways by 20% and
- *   fades in; the old one leaves the other way.
- * - Cover (`forward:cover` / `back:cover`): the task rises from the bottom
- *   over a still Home, and drops away to reveal it.
- *
- * AnimatePresence's `custom` overrides the child's `custom` for exiting
- * elements, so exits always use the CURRENT motion, not the one from mount.
- */
 export const pageTransitionVariants: Variants = {
   initial: (motion: string) => {
     if (motion === 'forward:cover') return { y: '100%', opacity: 1, zIndex: 2 }
@@ -65,7 +50,6 @@ export const pageTransitionVariants: Variants = {
   },
   exit: (motion: string) => {
     if (motion === 'forward:cover')
-      // Home recedes a little underneath while the cover lands on it
       return {
         opacity: 0.6,
         scale: 0.97,
@@ -124,7 +108,6 @@ export const overlaySlideUp: Variants = {
 export const walletLoadInContainer: Variants = {
   initial: {},
   animate: {
-    // Five sections settle within half a second: a short rise, tightly staggered.
     transition: { delayChildren: 0.03, staggerChildren: 0.045 },
   },
 }

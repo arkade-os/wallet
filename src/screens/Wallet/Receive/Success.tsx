@@ -98,7 +98,6 @@ export default function ReceiveSuccess() {
     <WalletSuccessSplash
       headline={t('transaction.paymentReceived')}
       text={displayText}
-      ariaLabel={t('transaction.paymentReceivedAria')}
       backdrop={isAssetReceive ? undefined : <PrivateFigure value={displayAmount} />}
       onDone={() => navigate(Pages.Wallet)}
     />

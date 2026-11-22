@@ -14,11 +14,6 @@ interface HomeHeaderProps {
   maskedBalance?: string
 }
 
-/**
- * Mobile home header: Scan and Settings at the top right, and the balance
- * sliding in at the top left once the hero has scrolled away. There is no tab
- * bar and no logo. Desktop navigation lives in the persistent wallet shell.
- */
 export default function HomeHeader({
   balance,
   balanceProgress,
@@ -56,7 +51,6 @@ export default function HomeHeader({
                 progress === undefined
                   ? undefined
                   : {
-                      animation: 'none',
                       opacity: progress,
                       transform: `translate3d(0, ${10 * (1 - progress)}px, 0)`,
                       willChange: progress > 0 && progress < 1 ? 'transform, opacity' : 'auto',

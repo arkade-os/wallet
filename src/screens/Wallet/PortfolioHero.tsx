@@ -9,19 +9,13 @@ import { WalletContext } from '../../providers/wallet'
 import { useTranslation } from '../../providers/language'
 import Figure from '../../components/Figure'
 
-/** How long a press on the balance must last to hide or show it instead of switching units. */
 export const HOLD_TO_HIDE_MS = 500
-/** A press that travels further than this is a scroll, not a hold. */
 const HOLD_SLOP_PX = 10
 
 interface PortfolioHeroProps {
   collapseProgress?: number
 }
 
-/**
- * The total balance across Bitcoin and every account, left aligned, with the same total in the other
- * unit underneath. A tap swaps which of the two leads; holding the balance hides or shows it.
- */
 const PortfolioHero = forwardRef<HTMLDivElement, PortfolioHeroProps>(function PortfolioHero({ collapseProgress }, ref) {
   const { balance, maskedBalance, unit, secondaryBalance, secondaryUnit, maskedSecondary, showSecondary, canSwitch } =
     usePortfolioBalanceDisplay()
@@ -64,7 +58,6 @@ const PortfolioHero = forwardRef<HTMLDivElement, PortfolioHeroProps>(function Po
   const endPress = () => clearTimeout(press.current.timer)
 
   const handleClick = () => {
-    // The click that ends a hold already did its job.
     if (press.current.held) {
       press.current.held = false
       return
@@ -83,7 +76,6 @@ const PortfolioHero = forwardRef<HTMLDivElement, PortfolioHeroProps>(function Po
           progress === undefined
             ? undefined
             : {
-                animation: 'none',
                 opacity: 1 - progress,
                 transform: `translate3d(0, ${-14 * progress}px, 0) scale(${1 - 0.2 * progress})`,
                 willChange: progress > 0 && progress < 1 ? 'transform, opacity' : 'auto',
@@ -110,7 +102,6 @@ const PortfolioHero = forwardRef<HTMLDivElement, PortfolioHeroProps>(function Po
             {unit ? <span className='text-xl text-ink-3'>{unit}</span> : null}
           </span>
         </button>
-        {/* Holding is a pointer gesture; keyboard and screen reader users hide the balance here. */}
         <button type='button' className='home-hero__hide sr-only focus-visible:not-sr-only' onClick={toggleHidden}>
           {config.showBalance ? t('components.hideBalances') : t('components.showBalances')}
         </button>

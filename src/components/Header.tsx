@@ -11,7 +11,6 @@ interface HeaderProps {
   auxText?: string
   auxIcon?: JSX.Element
   back?: (() => void) | boolean
-  /** Show a close mark instead of the back arrow, for covers and sheets. */
   close?: boolean
   heading?: boolean
   text: string

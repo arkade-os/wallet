@@ -27,10 +27,6 @@ import { useReducedMotion } from '../../hooks/useReducedMotion'
 import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '../../providers/language'
 
-// CSS scroll-driven animations: in every major browser since October 2026
-const SCROLL_DRIVEN =
-  typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports('animation-timeline: scroll()')
-
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
   const { announcement } = useContext(AnnouncementContext)
@@ -82,9 +78,6 @@ export default function Wallet() {
     const updateScrolled = () => {
       frame = 0
       setHomeScrolled(scrollEl.scrollTop > 2)
-      // Where the browser can tie the collapse to scroll in CSS, it does, and
-      // nothing here re-renders while scrolling. This is the fallback.
-      if (SCROLL_DRIVEN && !prefersReducedMotion) return
 
       const balanceEl = balanceRef.current
       if (!balanceEl) {
@@ -92,8 +85,7 @@ export default function Wallet() {
         return
       }
 
-      // positions relative to the scroller, so a page transform in flight
-      // (the cover transition scales Home) cannot skew the measurement
+      // Measure relative to the scroller so cover scale transforms don't skew it.
       const origin = scrollEl.getBoundingClientRect().top
       const balanceTop = balanceEl.getBoundingClientRect().top - origin
       const headerBottom = (document.querySelector('.home-header')?.getBoundingClientRect().bottom ?? 56) - origin
@@ -118,9 +110,6 @@ export default function Wallet() {
     }
   }, [prefersReducedMotion])
 
-  // undefined hands the collapse to CSS; a number drives it from here
-  const collapseProgress = SCROLL_DRIVEN && !prefersReducedMotion ? undefined : balanceCollapseProgress
-  // Read once per visit: Home re-renders while it scrolls, and contacts only change on other screens.
   const contacts = useMemo(readContacts, [])
 
   return (
@@ -129,13 +118,13 @@ export default function Wallet() {
         {announcement}
         <HomeHeader
           balance={portfolioBalance}
-          balanceProgress={collapseProgress}
+          balanceProgress={balanceCollapseProgress}
           balanceUnit={portfolioBalanceUnit}
           maskedBalance={maskedPortfolioBalance}
         />
         <WalletStaggerContainer animate={shouldStagger} className='home-stack' hold={bootAnimActive}>
           <WalletStaggerChild animate={shouldStagger} className='home-stack__hero'>
-            <PortfolioHero ref={balanceRef} collapseProgress={collapseProgress} />
+            <PortfolioHero ref={balanceRef} collapseProgress={balanceCollapseProgress} />
           </WalletStaggerChild>
           <WalletStaggerChild animate={shouldStagger} className='home-stack__actions'>
             <HomeQuickActions />

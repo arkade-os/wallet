@@ -25,7 +25,6 @@ import { useTranslation } from '../../providers/language'
 import Glyph, { type GlyphName } from '../../icons/Glyph'
 import { hapticSubtle } from '../../lib/haptics'
 
-/** One way into the wallet: what it is, and the one thing to know before tapping. */
 function Choice({
   icon,
   title,
@@ -92,7 +91,6 @@ export default function Init() {
   const handleOldWallet = () => navigate(Pages.InitRestore)
 
   const stagger = prefersReduced ? undefined : onboardStaggerContainer
-  // Nothing can be created or restored until the Arkade server has answered.
   const blocked = error || !aspReady
   const choose = (action: () => void) => () => {
     hapticSubtle()

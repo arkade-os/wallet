@@ -79,32 +79,15 @@ export enum Pages {
   WalletSwap,
 }
 
-// Root pages - switches between these get no animation
 const ROOT_PAGES = new Set([Pages.Wallet])
-
-// Sheet pages draw their own entrance (a sheet rising over a scrim), so the
-// page transition stays out of the way when one is entered or left.
 const SHEET_PAGES = new Set([Pages.SendDetails, Pages.SendSuccess, Pages.ReceiveSuccess])
-
-// Cover pages are tasks started from Home. They rise over it from the bottom
-// and close downward, instead of sliding in from the side like a detail.
 const COVER_PAGES = new Set([Pages.SendForm, Pages.ReceiveQRCode, Pages.WalletScan])
-
-// Boot pages: arriving home from one plays the wallet load-in stagger;
-// returning from an in-app page (Swap, Send, ...) must not replay it.
 const BOOT_PAGES = new Set([Pages.Init, Pages.InitConnect, Pages.Loading, Pages.Unavailable, Pages.Unlock])
 
-// Coordination point for sub-navigation (e.g., Settings options)
-// Sub-navigation providers register here so the main popstate handler can delegate
-// Shared flag: set by goBack() before calling history.back(), read by popstate handler
-// Lets us distinguish back-button presses (animate) from swipe gestures (no animation)
 export const isButtonBack = { current: false }
 
-// Open sheets and dialogs register a close function here. Back closes the one on top and stays on
-// the screen, which is what Back means everywhere else on a phone.
 export const backLayers: (() => void)[] = []
 
-/** Registers an open layer; returns the function that removes it. */
 export const holdBackLayer = (close: () => void) => {
   backLayers.push(close)
   return () => {
@@ -202,7 +185,6 @@ export const pageComponent = (page: Pages): JSX.Element => {
 }
 
 interface NavigationContextProps {
-  /** True while the page entering or leaving is a cover (Send, Receive, Scan). */
   cover?: boolean
   direction: NavigationDirection
   goBack: () => void
@@ -242,7 +224,6 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
       return
     }
 
-    // The entry the browser just left is put back, so the screen and its history stay in step.
     const layer = backLayers[backLayers.length - 1]
     if (layer) {
       history.pushState({}, '', '')
@@ -270,9 +251,7 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
 
     stack.pop()
     previousPage.current = screenRef.current
-    // iOS draws its own swipe-back, so animating there would play twice.
-    // Everywhere else (Android's back gesture, a browser's back button) the
-    // screen would otherwise cut, so back animates.
+    // Skip swipe-back animation on iOS where the OS already animates the gesture.
     const animateBack = fromButton || !isIOS()
     setCover(COVER_PAGES.has(screenRef.current))
     setDirection(SHEET_PAGES.has(screenRef.current) || !animateBack ? 'none' : 'back')

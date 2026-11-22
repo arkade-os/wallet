@@ -10,7 +10,6 @@ interface InputNoteProps {
 }
 
 export default function InputNote({ error, label, onChange, openScan, value }: InputNoteProps) {
-  // Not on a phone: the system keyboard would cover the screen before paste or scan is chosen.
   return (
     <InputWithScanner
       error={error}

@@ -56,8 +56,6 @@ describe('opening a payment', () => {
     getInputsToSettle.mockResolvedValue({ inputs: [], vtxos: [], boardingUtxos: [] })
   })
 
-  // Only an unsettled payment can offer to settle. Asking the worker for every expiring coin and
-  // every deposit on each open was a cost a wallet with a long history paid on every tap.
   it('does not look for coins to settle when the payment is settled', async () => {
     renderDetails({ ...mockTxInfo, settled: true, preconfirmed: false } as Tx)
     await new Promise((resolve) => setTimeout(resolve, 0))

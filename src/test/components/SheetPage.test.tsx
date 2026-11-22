@@ -23,7 +23,6 @@ describe('SheetPage', () => {
     expect(onDismiss).toHaveBeenCalledTimes(2)
   })
 
-  // A payment being signed: nothing on the sheet or the keyboard may take the progress away.
   it('offers no way to dismiss it while busy', () => {
     const onDismiss = vi.fn()
     const { container } = render(
@@ -35,7 +34,6 @@ describe('SheetPage', () => {
     expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument()
     escape()
     expect(onDismiss).not.toHaveBeenCalled()
-    // What the app-wide Escape handler looks for before it sends anyone Home.
     expect(container.querySelector(".sheet-page[data-busy='true']")).toBeInTheDocument()
   })
 
@@ -66,7 +64,6 @@ describe('SheetPage', () => {
     expect(onDismiss).not.toHaveBeenCalled()
   })
 
-  // On desktop the sheet sits inside the content pane, next to a sidebar that navigates.
   it('makes the surrounding chrome inert for as long as it is open', () => {
     const sidebar = document.createElement('aside')
     sidebar.className = 'desktop-wallet-shell'

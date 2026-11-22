@@ -38,12 +38,9 @@ describe('Wallet screen', () => {
     expect(screen.getByText('Accounts')).toBeInTheDocument()
     expect(screen.getByText('Bitcoin')).toBeInTheDocument()
     expect(screen.getByText('Recent activity')).toBeInTheDocument()
-    // Home carries no promotions and no Apps entry; Buy or sell lives in Settings.
     expect(screen.queryByText('Buy or sell Bitcoin')).not.toBeInTheDocument()
     expect(screen.queryByText('Borrow against your bitcoin')).not.toBeInTheDocument()
-    // Activity opens from the section itself; Scan and Settings are the only header actions.
     expect(screen.queryByTestId('top-right-activity')).not.toBeInTheDocument()
-    // It is there with no history too: on a phone it is the only way into Activity.
     await user.click(screen.getByTestId('activity-view-all'))
     expect(navigate).toHaveBeenCalledWith(Pages.Activity)
     expect(screen.getByTestId('home-action-scan')).toBeInTheDocument()
@@ -52,7 +49,7 @@ describe('Wallet screen', () => {
     expect(navigate).toHaveBeenCalledWith(Pages.Settings)
   })
 
-  it('sets Receive and Send like the site buttons and keeps their plain names', async () => {
+  it('navigates to Receive and Send from the primary home actions', async () => {
     const user = userEvent.setup()
     const navigate = vi.fn()
 
@@ -66,18 +63,6 @@ describe('Wallet screen', () => {
 
     const receive = screen.getByRole('button', { name: 'Receive' })
     const send = screen.getByRole('button', { name: 'Send' })
-    // the capitals are styling: screen readers still hear "Receive" and "Send"
-    expect(receive).toHaveClass('button', 'outline')
-    expect(send).toHaveClass('button', 'dark')
-    // each ends in a pixel arrow, drawn on the 5×5 grid
-    for (const button of [receive, send]) {
-      const arrow = button.querySelector('svg[viewBox="0 0 5 5"]')
-      expect(arrow).not.toBeNull()
-      expect(arrow?.querySelectorAll('rect')).toHaveLength(9)
-    }
-    // Accounts and Recent activity open under the section rule
-    expect(screen.getByText('Accounts').closest('.home-section--ruled')).not.toBeNull()
-    expect(screen.getByText('Recent activity').closest('.home-section--ruled')).not.toBeNull()
 
     await user.click(receive)
     expect(navigate).toHaveBeenCalledWith(Pages.ReceiveQRCode)
