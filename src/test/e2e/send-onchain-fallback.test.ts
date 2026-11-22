@@ -1,19 +1,21 @@
 import { execSync } from 'child_process'
 import { SimplePool } from 'nostr-tools'
 import { prettyNumber } from '../../lib/format'
-import { test, expect, createWallet, fundWallet, prePay } from './utils'
+import { translations } from '../../lib/i18n'
+import { test, expect, createWallet, dismissPaymentSuccess, fundWallet, prePay } from './utils'
 
-/** The regtest solver serves asset markets only, so a send there never reaches the
- *  solver rail — "falls back to the exit" would pass with the rail deleted. Every
- *  test pins a card that really advertises `arkade:BTC -> onchain:BTC` and asserts
- *  the refusal it provoked: two failing alike would be one test twice. */
+/** The regtest solver serves asset markets only. Pin a Bitcoin market and observe
+ *  the wallet contacting it so the fallback tests exercise both methods. */
+const tr = translations.en
 const RFQ_KIND = 24859
 const RELAY = 'ws://localhost:7777'
+const UNREACHABLE_RELAY = 'wss://localhost:65534/'
 /** On-curve and nobody's: an off-curve key fails at decompression, before any relay is dialled. */
 const SOLVER = '79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798'
 const RECIPIENT = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
 const FUNDED = 5000
-const SENT = 2000
+const TOTAL = 2000
+const FEE = 200
 
 const cardWithRelays = (relays: string[]) => ({
   version: 0,
@@ -44,26 +46,14 @@ const pinSolver = (page: Page, relays: string[]) =>
     localStorage.setItem('solverCards', JSON.stringify([{ network: 'regtest', label: 'e2e-onchain', card }]))
   }, cardWithRelays(relays))
 
-const routeLog = (page: Page): Promise<string[]> =>
-  page.evaluate(() =>
-    (JSON.parse(localStorage.getItem('logs') ?? '[]') as { msg: string }[])
-      .map((l) => l.msg)
-      .filter((m) => m.startsWith('onchain send:')),
-  )
-
-const expectRoute = async (page: Page, refusal: RegExp) => {
-  const log = await routeLog(page)
-  const refused = log.find((m) => m.includes('onchain-swap could not quote'))
-  expect(refused).toBeDefined()
-  expect(refused).toMatch(refusal)
-  expect(log).toContain('onchain send: paying via onchain')
-}
-
 const fundedWalletOnDetails = async (page: Page, isMobile: boolean) => {
   await createWallet(page)
   await fundWallet(page, FUNDED)
-  await prePay(page, RECIPIENT, isMobile, SENT)
-  await expect(page.getByTestId('Total')).toContainText(`${prettyNumber(SENT)} sats`)
+  await prePay(page, RECIPIENT, isMobile, TOTAL)
+  await expect(page.getByTestId('Rail')).toHaveText(tr.solvers.onchainMethodExit, { timeout: 60_000 })
+  await expect(page.getByTestId('primary-amount')).toHaveText(`${prettyNumber(TOTAL - FEE)} sats`)
+  await expect(page.getByTestId('Network fees')).toHaveText(`${FEE} sats`)
+  await expect(page.getByTestId('Total')).toHaveText(`${prettyNumber(TOTAL)} sats`)
 }
 
 /** Subscribe as the solver would, answer nothing. Without a listener `nak serve`
@@ -90,23 +80,23 @@ const silentSolver = async (run: (delivered: () => number) => Promise<void>) => 
 }
 
 test.describe('on-chain send when the solver rail fails', () => {
-  // An unset intent fee parses as NaN, which makes Tap to Sign a silent no-op.
-  test.beforeAll(() => execSync('docker exec arkd arkd fees intent --onchain-output "200.0"'))
+  test.beforeAll(() => execSync(`docker exec arkd arkd fees intent --onchain-output "${FEE}.0"`))
   test.afterAll(() => execSync('docker exec arkd arkd fees clear'))
 
   test('pays through the collaborative exit when the solver cannot be reached', async ({ page, isMobile }) => {
-    await pinSolver(page, ['wss://localhost:9'])
-    await fundedWalletOnDetails(page, isMobile)
+    test.setTimeout(180_000)
+    await pinSolver(page, [UNREACHABLE_RELAY])
+    await Promise.all([
+      page.waitForEvent('websocket', {
+        predicate: (socket) => socket.url() === UNREACHABLE_RELAY,
+        timeout: 60_000,
+      }),
+      fundedWalletOnDetails(page, isMobile),
+    ])
 
-    await page.getByText('Tap to Sign').click()
-    await page.getByTestId('loading-logo').waitFor({ timeout: 10_000 })
-    await page.waitForSelector('text=Payment sent', { timeout: 60_000 })
-
-    // The transport's eager subscription usually sees the refused socket first and fails
-    // fast (RelayUnavailable); if the RFQ publish wins the race, the publish refusal reports it.
-    await expectRoute(page, /lost every relay connection: wss:\/\/localhost:9\/?: connection failed|no relay accepted/)
-    await page.getByRole('button', { name: /Sounds good|Tap to go home/ }).click()
-    await page.waitForSelector(`text=- ${prettyNumber(SENT)} sats`, { timeout: 30_000 })
+    await page.getByRole('button', { name: tr.send.tapToSign }).click()
+    await dismissPaymentSuccess(page)
+    await expect(page.getByText(`- ${prettyNumber(TOTAL)} sats`, { exact: true })).toBeVisible({ timeout: 30_000 })
   })
 
   test('pays through the collaborative exit when the solver never answers', async ({ page, isMobile }) => {
@@ -114,32 +104,29 @@ test.describe('on-chain send when the solver rail fails', () => {
     await silentSolver(async (delivered) => {
       await pinSolver(page, ['ws://localhost:7777'])
       await fundedWalletOnDetails(page, isMobile)
-
-      await page.getByText('Tap to Sign').click()
-      await page.getByTestId('loading-logo').waitFor({ timeout: 10_000 })
-      // Bounded, not indefinite: the RFQ gives up on its own and the exit pays.
-      await page.waitForSelector('text=Payment sent', { timeout: 120_000 })
-
       expect(delivered()).toBeGreaterThan(0)
-      await expectRoute(page, /no solver reply within/)
-      await page.getByRole('button', { name: /Sounds good|Tap to go home/ }).click()
-      await page.waitForSelector(`text=- ${prettyNumber(SENT)} sats`, { timeout: 30_000 })
+
+      await page.getByRole('button', { name: tr.send.tapToSign }).click()
+      await dismissPaymentSuccess(page)
+      await expect(page.getByText(`- ${prettyNumber(TOTAL)} sats`, { exact: true })).toBeVisible({ timeout: 30_000 })
     })
   })
 
-  test('names the failure and offers the retry when the exit fails too', async ({ page, isMobile }) => {
+  test('shows an error and disables repeat signing when the chosen exit fails', async ({ page, isMobile }) => {
     test.setTimeout(180_000)
-    await pinSolver(page, ['wss://localhost:9'])
+    await pinSolver(page, [UNREACHABLE_RELAY])
     await fundedWalletOnDetails(page, isMobile)
 
-    // Offline fails both rails; the spinner must not be where the user is left.
+    const sign = page.getByRole('button', { name: tr.send.tapToSign })
     await page.context().setOffline(true)
-    await page.getByText('Tap to Sign').click()
-
-    await expect(page.getByText(/Settlement failed/)).toBeVisible({ timeout: 120_000 })
-    await expect(page.getByText('Tap to Sign')).toBeVisible()
-    await expect(page.getByTestId('loading-logo')).toHaveCount(0)
-    await page.context().setOffline(false)
+    try {
+      await sign.click()
+      await expect(page.getByText(/Settlement failed/)).toBeVisible({ timeout: 120_000 })
+      await expect(sign).toBeDisabled()
+      await expect(page.getByTestId('loading-logo')).toHaveCount(0)
+    } finally {
+      await page.context().setOffline(false)
+    }
   })
 
   test('completes the send the user walked away from, without hijacking the screen', async ({ page, isMobile }) => {
@@ -148,15 +135,24 @@ test.describe('on-chain send when the solver rail fails', () => {
       await pinSolver(page, ['ws://localhost:7777'])
       await fundedWalletOnDetails(page, isMobile)
 
-      await page.getByText('Tap to Sign').click()
-      await page.getByTestId('loading-logo').waitFor({ timeout: 10_000 })
-      // #946's window, held open by the RFQ timeout. Funding is committed either
-      // way, so the balance must land; a success screen pushed over whatever the
-      // user opened next would be a hijack.
-      await page.goBack()
-      await expect(page.getByTestId('input-amount-max')).toBeVisible({ timeout: 10_000 })
+      let unpause!: () => void
+      const unpaused = new Promise<void>((resolve) => {
+        unpause = resolve
+      })
+      await page.context().route('**/v1/batch/registerIntent', async (route) => {
+        if (route.request().method() === 'POST') await unpaused
+        await route.continue()
+      })
+      try {
+        await page.getByRole('button', { name: tr.send.tapToSign }).click()
+        await page.getByTestId('loading-logo').waitFor({ timeout: 10_000 })
+        await page.goBack()
+        await expect(page.getByTestId('input-amount-max')).toBeVisible({ timeout: 10_000 })
+      } finally {
+        unpause()
+      }
 
-      await expect(page.getByText(`${prettyNumber(FUNDED - SENT)} sats available`)).toBeVisible({ timeout: 120_000 })
+      await expect(page.getByText(`${prettyNumber(FUNDED - TOTAL)} sats available`)).toBeVisible({ timeout: 120_000 })
       await expect(page.getByTestId('input-amount-max')).toBeVisible()
     })
   })

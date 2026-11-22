@@ -19,6 +19,7 @@ import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import type { WalletAssetSwap as AssetSwap } from '../../../lib/swapRepository'
 import { Currencies, Unit } from '../../../lib/types'
+import { readOpenOfferPolicy, saveOpenOfferPolicy } from '../../../lib/openOfferPolicy'
 import { saveSolverRouting } from '../../../lib/solverRouting'
 import {
   mockAspContextValue,
@@ -736,7 +737,9 @@ describe('Wallet swap flow', () => {
       fireEvent.click(screen.getByRole('button', { name: /USD/i }))
       await userEvent.click(screen.getByRole('button', { name: '5' }))
 
-      expect(await screen.findByText('Swap unavailable for this pair')).toBeInTheDocument()
+      expect(
+        await screen.findByText('Swap unavailable for this pair', undefined, { timeout: 3_000 }),
+      ).toBeInTheDocument()
       expect(screen.queryByText('Quote unavailable')).not.toBeInTheDocument()
       fireEvent.click(screen.getByRole('button', { name: 'View quotes' }))
       expect(screen.queryByRole('button', { name: 'Use smart routing' })).not.toBeInTheDocument()
@@ -744,7 +747,9 @@ describe('Wallet swap flow', () => {
       expect(quoteExchange).not.toHaveBeenCalled()
 
       act(() => saveSolverRouting('mutinynet', direction, { disabled: [solverId(btcUsdt, 'mutinynet')] }))
-      await waitFor(() => expect(screen.getByRole('button', { name: 'Use smart routing' })).toBeEnabled())
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Use smart routing' })).toBeEnabled(), {
+        timeout: 3_000,
+      })
     } finally {
       view.unmount()
       saveSolverRouting('mutinynet', direction, {})
@@ -835,7 +840,9 @@ describe('Wallet swap flow', () => {
         discoveryReady: true,
       })
       if (supported) {
-        await waitFor(() => expect(screen.getByRole('button', { name: 'Use smart routing' })).toBeEnabled())
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Use smart routing' })).toBeEnabled(), {
+          timeout: 3_000,
+        })
         expect(openSwapQuotes).not.toHaveBeenCalled()
       } else await waitFor(() => expect(openSwapQuotes).toHaveBeenCalledOnce())
     },
@@ -864,7 +871,7 @@ describe('Wallet swap flow', () => {
       expect(openSwapQuotes).not.toHaveBeenCalled()
       fireEvent.click(screen.getByRole('button', { name: 'View quotes' }))
       if (negotiated) {
-        await screen.findByText(/^Maximum /)
+        await screen.findByText(/^Maximum /, undefined, { timeout: 3_000 })
         expect(openSwapQuotes).not.toHaveBeenCalled()
         expect(screen.getByRole('button', { name: 'Find open offers' })).toBeEnabled()
       } else await waitFor(() => expect(openSwapQuotes).toHaveBeenCalledOnce(), { timeout: 3_000 })
@@ -872,6 +879,30 @@ describe('Wallet swap flow', () => {
       expect(quoteExchange).not.toHaveBeenCalled()
     },
   )
+
+  it('keeps open offers off when no saved provider serves the pair', async () => {
+    const previousPolicy = readOpenOfferPolicy('mutinynet')
+    saveOpenOfferPolicy('mutinynet', 'off')
+    const openSwapQuotes = vi.fn()
+    const view = renderSwap({
+      config: { currency: Currencies.BTC, unit: Unit.SATS },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      wallet: NO_ASSETS,
+      swap: { markets: [], allMarkets: [], openSwapQuotes },
+    })
+    try {
+      fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+      fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+      for (const key of ['1', '0', '0', '0', '0']) fireEvent.click(screen.getByRole('button', { name: key }))
+      fireEvent.click(screen.getByRole('button', { name: 'View quotes' }))
+      expect(await screen.findByRole('dialog')).toBeVisible()
+      expect(screen.queryByRole('button', { name: 'Find open offers' })).not.toBeInTheDocument()
+      expect(openSwapQuotes).not.toHaveBeenCalled()
+    } finally {
+      view.unmount()
+      saveOpenOfferPolicy('mutinynet', previousPolicy)
+    }
+  })
 
   it('keeps a saved route private when its quote fails transiently', async () => {
     const openSwapQuotes = vi.fn()

@@ -1,12 +1,10 @@
-import { asset, btcTarget, invoiceTarget, type NetworkName } from '@arkade-os/sdk'
+import { asset, invoiceTarget, type NetworkName } from '@arkade-os/sdk'
 import { arkadeAsset, btcOn, type Quote, type QuoteInput } from '@arkade-os/swap'
 import type { DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { toInvoiceFacts } from './lnSwap'
 import { isValidAssetId } from './assets'
 
-export type OpenPaymentRequest =
-  | { kind: 'lightning'; invoice: string; amount?: number }
-  | { kind: 'bitcoin'; address: string; amount: number }
+export type OpenPaymentRequest = { kind: 'lightning'; invoice: string; amount?: number }
 
 export interface AssetPaymentRequest {
   address: string
@@ -16,7 +14,7 @@ export interface AssetPaymentRequest {
 
 export type PaymentQuoteRequest = OpenPaymentRequest | ({ kind: 'asset' } & AssetPaymentRequest)
 
-function invoiceFacts(request: Extract<OpenPaymentRequest, { kind: 'lightning' }>, network: NetworkName) {
+function invoiceFacts(request: OpenPaymentRequest, network: NetworkName) {
   const invoice = invoiceTarget(request.invoice)
   if (!invoice) throw new Error('Enter a valid Lightning invoice')
   const facts = toInvoiceFacts(invoice, network)
@@ -27,12 +25,7 @@ function invoiceFacts(request: Extract<OpenPaymentRequest, { kind: 'lightning' }
 }
 
 export function openPaymentQuoteInput(request: OpenPaymentRequest, network: NetworkName): QuoteInput {
-  if (request.kind === 'lightning') return { to: invoiceFacts(request, network).raw }
-  const address = btcTarget(request.address)
-  if (!address || !Number.isSafeInteger(request.amount) || request.amount <= 0) {
-    throw new Error('Enter a valid Bitcoin address and amount')
-  }
-  return { to: address, amount: BigInt(request.amount), amountOn: 'take' }
+  return { to: invoiceFacts(request, network).raw }
 }
 
 export function assetPaymentQuoteInput(request: AssetPaymentRequest, network: NetworkName): QuoteInput {
@@ -74,9 +67,15 @@ export function paymentAttemptKey(
   if (typeof reviewId !== 'string' || !reviewId) throw new Error('The payment review is unavailable')
   // A review can reopen after editing the composer. Only the same payment
   // details can resume its existing attempt.
-  const target = request.kind === 'bitcoin' ? btcTarget(request.address) : request.address
-  const assetId = request.kind === 'asset' ? request.assetId : undefined
-  return JSON.stringify([network, walletPubkey, request.kind, reviewId, target, assetId, String(request.amount)])
+  return JSON.stringify([
+    network,
+    walletPubkey,
+    request.kind,
+    reviewId,
+    request.address,
+    request.assetId,
+    String(request.amount),
+  ])
 }
 
 function assertWalletPaymentQuote(quote: Quote, network: NetworkName) {
@@ -102,25 +101,14 @@ function assertWalletPaymentQuote(quote: Quote, network: NetworkName) {
 export function assertOpenPaymentQuote(quote: Quote, request: OpenPaymentRequest, network: NetworkName): void {
   assertWalletPaymentQuote(quote, network)
   const receiver = quote.route.take.instrument
-  if (request.kind === 'lightning') {
-    const invoice = invoiceFacts(request, network)
-    if (
-      quote.route.take.corridor === 'lightning' &&
-      quote.take.asset === btcOn('bolt11', network) &&
-      receiver.kind === 'invoice' &&
-      receiver.paymentHash.toLowerCase() === invoice.paymentHash.toLowerCase() &&
-      receiver.bolt11.toLowerCase() === invoice.raw.toLowerCase() &&
-      quote.take.amount === BigInt(invoice.amountSats)
-    )
-      return
-  } else if (
-    quote.route.take.corridor === 'onchain' &&
-    quote.take.asset === btcOn('bitcoin', network) &&
-    receiver.kind === 'address' &&
-    receiver.address === btcTarget(request.address) &&
-    quote.take.amount === BigInt(request.amount) &&
-    typeof quote.onchainClaimFee === 'bigint' &&
-    quote.onchainClaimFee > 0n
+  const invoice = invoiceFacts(request, network)
+  if (
+    quote.route.take.corridor === 'lightning' &&
+    quote.take.asset === btcOn('bolt11', network) &&
+    receiver.kind === 'invoice' &&
+    receiver.paymentHash.toLowerCase() === invoice.paymentHash.toLowerCase() &&
+    receiver.bolt11.toLowerCase() === invoice.raw.toLowerCase() &&
+    quote.take.amount === BigInt(invoice.amountSats)
   )
     return
   throw new Error('This quote does not match the recipient and amount')

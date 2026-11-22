@@ -503,7 +503,10 @@ export default function SendForm() {
             pendingLnSend: invoice && invoice === prev.invoice ? prev.pendingLnSend : undefined,
           }
         })
-        if (satoshis) setAmountTextValue(getTextValue(satoshis))
+        if (satoshis) {
+          setAmountTextValue(getTextValue(satoshis))
+          if (address && !arkAddress && !invoice && !lnUrl) setAmountIsReadOnly(true)
+        }
         return
       }
       if (isValidArkAddress(lowerCaseData)) {
@@ -972,7 +975,7 @@ export default function SendForm() {
             arkAddress: undefined,
             assetPayment: undefined,
             invoice: result.pr,
-            lnurlInvoice: result,
+            lnurlInvoice: { pr: result.pr },
             pendingLnSend: undefined,
             reviewId: prev.reviewId ?? newRequestId(),
             openOffer: undefined,

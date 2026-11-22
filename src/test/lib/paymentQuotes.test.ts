@@ -110,25 +110,6 @@ describe('payment quotes', () => {
     expect(() => assertAssetPaymentQuote(quote, assetRequest, network)).toThrow('This quote has expired')
   })
 
-  it('requires a reserved claim fee before confirming an exact Bitcoin payout', () => {
-    const address = 'bcrt1qw508d6qejxtdg4y5r3zarvary0c5xw7kygt080'
-    const request = { kind: 'bitcoin', address, amount: 50_000 } as const
-    const source = btcOn('arkade', 'regtest')
-    const payout = btcOn('bitcoin', 'regtest')
-    const quote: Quote = {
-      ...lnQuote(),
-      route: {
-        give: { corridor: 'arkade', asset: source, instrument: { kind: 'wallet' } },
-        take: { corridor: 'onchain', asset: payout, instrument: { kind: 'address', address } },
-      },
-      give: { asset: source, amount: 51_000n },
-      take: { asset: payout, amount: 50_000n },
-      fee: { asset: source, amount: 1_000n },
-    }
-    expect(() => assertOpenPaymentQuote(quote, request, 'regtest')).toThrow('does not match the recipient and amount')
-    expect(() => assertOpenPaymentQuote({ ...quote, onchainClaimFee: 152n }, request, 'regtest')).not.toThrow()
-  })
-
   it('fences duplicate invoice attempts across reviews and scopes reusable destinations to each review', () => {
     const key = (request: PaymentQuoteRequest, reviewId: string, walletPubkey = 'wallet') =>
       paymentAttemptKey(request, network, walletPubkey, reviewId)

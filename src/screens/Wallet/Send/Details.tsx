@@ -55,6 +55,7 @@ import {
   subscribeSolverRouting,
 } from '../../../lib/solverRouting'
 import { paymentQuoteExpiry, quoteProviderMarket, type PaymentQuoteRequest } from '../../../lib/paymentQuotes'
+import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import QuoteChoices from '../Swap/QuoteChoices'
 import usePaymentQuoteReview from './usePaymentQuoteReview'
 
@@ -90,39 +91,29 @@ export default function SendDetails() {
   const [overrideMethod, setOverrideMethod] = useState<string>()
   const commitStarted = useRef(false)
   const automaticDiscovery = useRef(false)
-  const exitAttempted = useRef(false)
 
   const { address, arkAddress, invoice, lnUrl, pendingLnSend, satoshis, saveAsContact } = sendInfo
+  const lnurlTarget = sendInfo.lnurlInvoice && sendInfo.lnurlInvoice.pr === invoice ? lnUrl : undefined
   const lnurlRoute = Boolean(lnUrl && pendingLnSend && isLnurlRail(pendingLnSend.railId))
   const { acceptPaymentQuote } = useContext(SwapsContext)
   const network = aspInfo.network as NetworkName
   const allowOffchain = vtxoTxsAllowed()
-  const allowOnchain = utxoTxsAllowed()
   const onchainDraft = Boolean(address && !arkAddress && !invoice && !lnurlRoute && !isAssetSend && sendInfo.reviewId)
-  const shouldQuoteBitcoin = onchainDraft && allowOffchain && allowOnchain && (satoshis ?? 0) < availableBalance
-  const exitFirst = useRef(readOnchainSendPreference(network) === 'exit').current
+  const exactOnchainAmount = useMemo(() => {
+    const recipient = sendInfo.recipient
+    if (!address || !recipient || !isBip21(recipient)) return
+    const payment = decodeBip21(recipient)
+    if (payment.address === address && payment.satoshis && payment.satoshis > 0) return payment.satoshis
+  }, [address, sendInfo.recipient])
+  const exactOnchainRequest = exactOnchainAmount !== undefined
   const firmRequest = useMemo<PaymentQuoteRequest | undefined>(() => {
     if (!allowOffchain) return
     if (sendInfo.assetPayment) return { kind: 'asset', ...sendInfo.assetPayment }
     if (!arkAddress && !lnurlRoute && invoice && sendInfo.reviewId)
       return { kind: 'lightning', invoice, amount: satoshis }
-    if (shouldQuoteBitcoin && address && satoshis && satoshis > 0) return { kind: 'bitcoin', address, amount: satoshis }
-  }, [
-    allowOffchain,
-    arkAddress,
-    invoice,
-    lnurlRoute,
-    satoshis,
-    sendInfo.assetPayment,
-    sendInfo.reviewId,
-    shouldQuoteBitcoin,
-    address,
-  ])
-  const bitcoinRequest = firmRequest?.kind === 'bitcoin' ? firmRequest : undefined
-  const review = usePaymentQuoteReview(firmRequest, network, !bitcoinRequest || !exitFirst)
-  const usingExit = Boolean(bitcoinRequest && (onchainQuote || overrideMethod === WALLET_EXIT_RAIL))
-  const reviewedPayment = usingExit ? undefined : firmRequest
-  const firm = usingExit ? undefined : review.reviewed?.quote
+  }, [allowOffchain, arkAddress, invoice, lnurlRoute, satoshis, sendInfo.assetPayment, sendInfo.reviewId])
+  const review = usePaymentQuoteReview(firmRequest, network)
+  const firm = review.reviewed?.quote
   const firmMarket = firm && quoteProviderMarket(firm)
   const firmTotal = firm ? Number(firm.give.amount) : undefined
   const firmFee = firm && firm.fee.asset === firm.give.asset ? Number(firm.fee.amount) : undefined
@@ -132,27 +123,12 @@ export default function SendDetails() {
   const enableDiscovery = Boolean(discoveryRequest && openOfferPolicy !== 'off')
 
   useEffect(() => {
-    if (!bitcoinRequest || exitAttempted.current || review.reviewed || !details || pricing) return
-    if (exitFirst || review.quoteError) {
-      exitAttempted.current = true
-      setButtonLabel(t('send.gettingQuote'))
-      setPricing(true)
-    }
-  }, [bitcoinRequest, details, exitFirst, pricing, review.quoteError, review.reviewed])
-
-  useEffect(() => {
-    if (
-      enableDiscovery &&
-      openOfferPolicy === 'when-needed' &&
-      review.quoteError &&
-      !automaticDiscovery.current &&
-      (!bitcoinRequest || (exitAttempted.current && error && !pricing && !onchainQuote))
-    ) {
+    if (enableDiscovery && openOfferPolicy === 'when-needed' && review.quoteError && !automaticDiscovery.current) {
       automaticDiscovery.current = true
       setSearchOnOpen('automatic')
       setRoutePicker(true)
     }
-  }, [bitcoinRequest, enableDiscovery, error, onchainQuote, openOfferPolicy, pricing, review.quoteError])
+  }, [enableDiscovery, openOfferPolicy, review.quoteError])
   const amountDisplay = buildTransactionAmountDisplay({
     ...displayContext,
     assets: sendInfo.assetPayment
@@ -177,9 +153,9 @@ export default function SendDetails() {
   }
 
   useEffect(() => {
-    if (firmRequest && firmRequest.kind !== 'bitcoin') {
+    if (firmRequest) {
       setDetails({
-        destination: firmRequest.kind === 'lightning' ? firmRequest.invoice : firmRequest.address,
+        destination: firmRequest.kind === 'lightning' ? (lnurlTarget ?? firmRequest.invoice) : firmRequest.address,
         direction: t(firmRequest.kind === 'lightning' ? 'send.payingToLightning' : 'send.payingInsideArkade'),
         satoshis: firmRequest.kind === 'lightning' ? firmRequest.amount : 0,
         ...(firmRequest.kind === 'asset' ? { assetId: firmRequest.assetId } : {}),
@@ -241,10 +217,7 @@ export default function SendDetails() {
     // The RFQ lockup carries exactly the invoice amount (exact-out, fee_bps
     // from the card; 0 today), so total == satoshis on the Lightning path.
     const total = pendingLnSend ? pendingLnSend.total : satoshis
-    const amount =
-      destinationType === 'mainnet' && (!onchainDraft || satoshis === availableBalance)
-        ? satoshis - calcOnchainOutputFee()
-        : satoshis
+    const amount = destinationType === 'mainnet' ? (exactOnchainAmount ?? satoshis - calcOnchainOutputFee()) : satoshis
     const fees = total - amount > 0 ? total - amount : 0
     setDetails({
       destination,
@@ -256,8 +229,7 @@ export default function SendDetails() {
     // Provisional on this path until the router settles it below.
     if (destinationType === 'mainnet' && amount > 0) {
       setButtonLabel(t('send.gettingQuote'))
-      if (!bitcoinRequest) setPricing(true)
-      return
+      return setPricing(true)
     }
     offerToSign(total)
   }, [sendInfo, firmRequest])
@@ -277,10 +249,6 @@ export default function SendDetails() {
       if (cost && cost.amount < asked) setNotice(t('send.feesDeductedFromAmount'))
       setPricing(false)
       if (!cost) {
-        if (bitcoinRequest && exitFirst && overrideMethod === undefined && !review.quoteError) {
-          void review.load()
-          return
-        }
         setError(t('send.noPaymentQuote'))
         return
       }
@@ -288,13 +256,16 @@ export default function SendDetails() {
       setButtonLabel(t('send.insufficientFunds'))
       setError(t('send.insufficientFundsMax', { max: prettyNumber(priced.most) }))
     }
+    // A claim can reduce the recipient output when relay fees rise. Fixed Bitcoin
+    // requests use the collaborative exit, which pays the requested amount.
+    const exitOnly = exactOnchainRequest || overrideMethod === WALLET_EXIT_RAIL || !allowOffchain
     const priced = sendRouter({
       outputFee: calcOnchainOutputFee,
       intentFee,
-      ...(onchainDraft ? { exitOnly: true } : {}),
+      ...(exitOnly ? { exitOnly: true } : {}),
     })
       .then(async (router): Promise<Priced | undefined> => {
-        const method = onchainDraft ? WALLET_EXIT_RAIL : overrideMethod
+        const method = exitOnly ? WALLET_EXIT_RAIL : overrideMethod
         const cost = await prepareOnchainSend(router, details.destination!, asked, method)
         if (cost || !svcWallet) return cost && { cost }
         if (overrideMethod) return undefined
@@ -303,7 +274,7 @@ export default function SendDetails() {
           most > 0 && most < asked ? await prepareOnchainSend(router, details.destination!, most, method) : undefined
         if (!atMost) return undefined
         // Max asks for the whole balance, so the fees can only come out of the amount, as the exit fee does.
-        if (satoshis === availableBalance) return { cost: atMost }
+        if (!exactOnchainRequest && satoshis === availableBalance) return { cost: atMost }
         // Any other amount stays as asked, at the fee of spending every coin: more than they hold.
         return { cost: { ...atMost, amount: asked, total: asked + atMost.fee }, most }
       })
@@ -314,7 +285,7 @@ export default function SendDetails() {
       })
     withinPricingBudget(priced)
       .then(async (result) => {
-        if (result || onchainDraft || overrideMethod || !live) return result
+        if (result || exitOnly || overrideMethod || !live) return result
         const exit = sendRouter({ outputFee: calcOnchainOutputFee, intentFee, exitOnly: true })
           .then((router) => prepareOnchainSend(router, details.destination!, asked, WALLET_EXIT_RAIL))
           .catch(() => undefined)
@@ -326,7 +297,7 @@ export default function SendDetails() {
     return () => {
       live = false
     }
-  }, [pricing, details?.destination, details?.satoshis, overrideMethod])
+  }, [pricing, details?.destination, details?.satoshis, overrideMethod, exactOnchainRequest, allowOffchain])
 
   const handleTxid = (txid: string) => {
     if (!txid) return handleError(t('send.errorSendingTransaction'))
@@ -368,7 +339,6 @@ export default function SendDetails() {
   ) => {
     rememberDestination()
     if (txid) {
-      const lnurlTarget = sendInfo.lnurlInvoice && sendInfo.lnurlInvoice.pr === invoice ? lnUrl : undefined
       saveTransactionActivityMetadata(txid, { destination: lnurlTarget ?? details?.destination, networkFee: fee })
     }
     reloadWallet().catch(consoleError)
@@ -417,22 +387,11 @@ export default function SendDetails() {
         consoleError(failure, 'could not save preferred payment provider')
       }
     }
-    if (reviewedSwap && rememberRoute && request.kind === 'bitcoin' && !review.reviewed?.offer) {
-      try {
-        saveOnchainSendPreference(network, 'solver')
-      } catch (failure) {
-        consoleError(failure, 'could not save payment method')
-      }
-    }
     handleSent(
       swap.fundingTxid,
       Number(swap.give.amount),
       swap.fee.asset === swap.give.asset ? Number(swap.fee.amount) : undefined,
-      request.kind === 'asset'
-        ? ASSET_SWAP_PAYMENT_RAIL
-        : request.kind === 'lightning'
-          ? LIGHTNING_RAIL
-          : ONCHAIN_SWAP_RAIL,
+      request.kind === 'asset' ? ASSET_SWAP_PAYMENT_RAIL : LIGHTNING_RAIL,
       swap.id,
       reviewedSwap ? review.reviewed?.offer : undefined,
     )
@@ -535,12 +494,12 @@ export default function SendDetails() {
 
   const handleContinue = async () => {
     if (!details || !svcWallet || pricing || commitStarted.current) return
-    if (reviewedPayment) {
+    if (firmRequest) {
       if (!firm || review.loading || review.expired || !firmTotal || firmTotal > availableBalance) return
       if (paymentQuoteExpiry(firm) * 1000 <= Date.now()) return
       commitStarted.current = true
       setSending(true)
-      void payReviewedQuote(firm, reviewedPayment).catch((failure) => {
+      void payReviewedQuote(firm, firmRequest).catch((failure) => {
         setSending(false)
         const reason = (failure as Error)?.name
         const pending = reason === 'PaymentSubmissionPending'
@@ -619,7 +578,7 @@ export default function SendDetails() {
             )
           })
           .catch(handleError)
-      } else if (!onchainDraft) {
+      } else if (!onchainDraft && !exactOnchainRequest) {
         payOnchain(address, details).catch(handleError)
       } else {
         setSending(false)
@@ -631,7 +590,7 @@ export default function SendDetails() {
   const verifiedQuoteReady = Boolean(
     firm && !review.loading && !review.expired && firmTotal !== undefined && firmTotal <= availableBalance,
   )
-  const statusMessage = reviewedPayment
+  const statusMessage = firmRequest
     ? error ||
       (review.loading
         ? ''
@@ -647,7 +606,8 @@ export default function SendDetails() {
     : error || notice
   const preferredProviderId = firmMarket ? solverId(firmMarket, network) : undefined
   const otherCandidates = review.candidates.filter(({ id }) => id !== preferredProviderId)
-  const hasRouteOptions = isOnchain || otherCandidates.length > 0 || enableDiscovery
+  const hasRouteOptions =
+    (isOnchain && !exactOnchainRequest && allowOffchain) || otherCandidates.length > 0 || enableDiscovery
   const findOffersDirectly = enableDiscovery && !firm && !onchainQuote && Boolean(review.quoteError)
   const togglePicker = (open: boolean) => {
     setRoutePicker(open)
@@ -668,14 +628,14 @@ export default function SendDetails() {
       onchainQuote &&
       overrideMethod &&
       (onchainQuote.railId === WALLET_EXIT_RAIL ? 'exit' : 'solver') !== readOnchainSendPreference(network)) ||
-      (firm && firmMarket && !review.reviewed?.offer && (review.reviewed?.solverId || (bitcoinRequest && exitFirst))),
+      (firm && firmMarket && !review.reviewed?.offer && review.reviewed?.solverId),
   )
 
   const displayedDetails = details && {
     ...details,
     amountDisplay,
-    ...(reviewedPayment ? { solver: firmMarket?.solver, swapFeeSats: firmFee, total: firmTotal, fees: undefined } : {}),
-    ...(isAssetSend && !reviewedPayment ? { total: undefined } : {}),
+    ...(firmRequest ? { solver: firmMarket?.solver, swapFeeSats: firmFee, total: firmTotal, fees: undefined } : {}),
+    ...(isAssetSend && !firmRequest ? { total: undefined } : {}),
     ...(isOnchain && onchainQuote
       ? {
           rail: t(
@@ -694,15 +654,7 @@ export default function SendDetails() {
       <Content>
         {sending ? (
           <LoadingLogo
-            text={
-              lnurlRoute && details?.destination === lnUrl
-                ? details?.direction || 'Paying'
-                : details?.destination === invoice
-                  ? t('send.payingToLightning')
-                  : details?.destination === arkAddress
-                    ? t('send.payingInsideArkade')
-                    : t('send.payingToMainnet')
-            }
+            text={details?.direction || t('send.payingInsideArkade')}
             done={sendDone}
             exitMode='fly-up'
             onExitComplete={handleExitComplete}
@@ -714,7 +666,11 @@ export default function SendDetails() {
               {details && amountDisplay ? (
                 <TransactionAmountSummary
                   amount={amountDisplay}
-                  label={t(firmRequest ? 'send.recipientGets' : 'send.amountToSend')}
+                  label={
+                    onchainQuote?.railId === ONCHAIN_SWAP_RAIL
+                      ? t('send.estimatedRecipientAmount')
+                      : t(firmRequest || exactOnchainRequest ? 'send.recipientGets' : 'send.amountToSend')
+                  }
                 />
               ) : null}
               <Details details={displayedDetails} />
@@ -733,14 +689,14 @@ export default function SendDetails() {
         )}
       </Content>
       <ButtonsOnBottom>
-        {sending ? null : reviewedPayment ? (
+        {sending ? null : firmRequest ? (
           <>
             <Button
               onClick={handleContinue}
               label={
                 review.loading || pricing
                   ? t('send.gettingQuote')
-                  : t(reviewedPayment.kind === 'asset' ? 'send.swapAndPay' : 'send.pay')
+                  : t(firmRequest.kind === 'asset' ? 'send.swapAndPay' : 'send.pay')
               }
               disabled={!verifiedQuoteReady || Boolean(error) || commitStarted.current}
             />
@@ -760,7 +716,10 @@ export default function SendDetails() {
             onClick={handleContinue}
             label={buttonLabel}
             disabled={
-              Boolean(error) || pricing || commitStarted.current || (onchainDraft && isOnchain && !onchainQuote)
+              Boolean(error) ||
+              pricing ||
+              commitStarted.current ||
+              ((onchainDraft || exactOnchainRequest) && isOnchain && !onchainQuote)
             }
           />
         )}
@@ -825,12 +784,12 @@ export default function SendDetails() {
                   {name}
                 </button>
               ))}
-              {isOnchain && !usingExit && onchainQuote?.railId !== WALLET_EXIT_RAIL ? (
+              {isOnchain && !exactOnchainRequest && onchainQuote?.railId !== WALLET_EXIT_RAIL ? (
                 <button type='button' className='settings-row' onClick={() => chooseOnchain(WALLET_EXIT_RAIL)}>
                   {t('solvers.onchainMethodExit')}
                 </button>
               ) : null}
-              {isOnchain && !onchainDraft && onchainQuote?.railId !== ONCHAIN_SWAP_RAIL ? (
+              {isOnchain && !exactOnchainRequest && onchainQuote?.railId !== ONCHAIN_SWAP_RAIL ? (
                 <button type='button' className='settings-row' onClick={() => chooseOnchain(ONCHAIN_SWAP_RAIL)}>
                   {t('solvers.onchainMethodSolver')}
                 </button>

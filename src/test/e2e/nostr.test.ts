@@ -85,6 +85,7 @@ test('should save solver cards to nostr', async ({ page }) => {
   await page.getByLabel(tr.common.back).click()
   await page.getByText(tr.settings.advanced, { exact: true }).click()
   await page.getByText(tr.settings.solvers, { exact: true }).click()
+  await page.getByRole('tab', { name: tr.solvers.cardsTab, exact: true }).click()
 
   // add a solver card
   await page.getByRole('button', { name: tr.solvers.addNew }).click()

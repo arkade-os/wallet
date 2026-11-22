@@ -71,7 +71,7 @@ export default function QuoteChoices({
   const epoch = useRef(0)
   const searched = useRef(false)
   const openingInput = useRef<string>()
-  const inputKey = `${network}:${from.assetId}:${from.decimals}:${to.assetId}:${to.decimals}:${amount}:${destination ?? ''}:${payment?.kind === 'lightning' ? payment.invoice : (payment?.address ?? '')}`
+  const inputKey = `${network}:${from.assetId}:${from.decimals}:${to.assetId}:${to.decimals}:${amount}:${destination ?? ''}:${payment?.invoice ?? ''}`
   const current = useRef({ inputKey, open })
   current.current = { inputKey, open }
 

@@ -69,7 +69,7 @@ export type SendInfo = {
   arkAddress?: string
   invoice?: string
   lnUrl?: string
-  lnurlInvoice?: { pr: string; verify?: string; verifyBatch?: string }
+  lnurlInvoice?: { pr: string }
   /** The negotiated Lightning route: quoted on the form so the fee is on screen
    *  before the user signs, and `send()` is what the sign screen calls. */
   pendingLnSend?: RouteQuote

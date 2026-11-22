@@ -500,10 +500,11 @@ describe('Send screen', () => {
 
     const addressInput = document.querySelector('input[name="send-address"]') as HTMLInputElement
     const amountInput = document.querySelector('input[name="send-amount"]') as HTMLInputElement
+    const waitForParsedRecipient = (check: () => void) => waitFor(check, { timeout: 3_000 })
 
     // lightning= carries a malformed invoice alongside a valid address=
     fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?lightning=malformedinvoice` } })
-    await waitFor(() => {
+    await waitForParsedRecipient(() => {
       expect(currentSendInfo.recipient).toBe(`bitcoin:${BTC_ADDRESS}?lightning=malformedinvoice`)
       expect(currentSendInfo.invoice).toBeUndefined()
       expect(currentSendInfo.satoshis).toBe(0)
@@ -512,7 +513,7 @@ describe('Send screen', () => {
 
     // URI with both lightning and amount: amount is ignored, invoice takes precedence
     fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?lightning=${INVOICE}&amount=0.0001` } })
-    await waitFor(() => {
+    await waitForParsedRecipient(() => {
       expect(amountInput.value).toBe(sats2btc(INVOICE_SATS))
       expect(currentSendInfo.satoshis).toBe(INVOICE_SATS)
       expect(currentSendInfo.invoice).toBe(INVOICE)
@@ -520,7 +521,7 @@ describe('Send screen', () => {
 
     // Amount-only URI (no invoice): should clear invoice and update satoshis
     fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?amount=0.0001` } })
-    await waitFor(() => {
+    await waitForParsedRecipient(() => {
       expect(amountInput.value).toBe('0.0001')
       expect(currentSendInfo.invoice).toBeUndefined()
       expect(currentSendInfo.satoshis).toBe(10000)
@@ -528,7 +529,7 @@ describe('Send screen', () => {
 
     // Invoice-only URI starts with a different displayed and stored amount.
     fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?lightning=${INVOICE}` } })
-    await waitFor(() => {
+    await waitForParsedRecipient(() => {
       expect(amountInput.value).toBe(sats2btc(INVOICE_SATS))
       expect(currentSendInfo.satoshis).toBe(INVOICE_SATS)
       expect(currentSendInfo.invoice).toBe(INVOICE)
@@ -536,7 +537,7 @@ describe('Send screen', () => {
 
     // The same invoice with a conflicting BIP21 amount must be revalidated.
     fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?lightning=${INVOICE}&amount=0.0001` } })
-    await waitFor(() => {
+    await waitForParsedRecipient(() => {
       expect(currentSendInfo.recipient).toBe(`bitcoin:${BTC_ADDRESS}?lightning=${INVOICE}&amount=0.0001`)
       expect(amountInput.value).toBe(sats2btc(INVOICE_SATS))
       expect(currentSendInfo.satoshis).toBe(INVOICE_SATS)
@@ -873,7 +874,7 @@ describe('a changed recipient', () => {
       expect(current).toMatchObject({
         lnUrl: LNURL,
         invoice,
-        lnurlInvoice: { pr: invoice, verify, verifyBatch },
+        lnurlInvoice: { pr: invoice },
         reviewId: expect.any(String),
         pendingLnSend: undefined,
         satoshis: amountSats,

@@ -16,12 +16,7 @@ const tr = translations.en
  * send. The solver then pays the BOLT11 across a real channel between the
  * stack's two LND nodes and claims the covenant with the preimage.
  *
- * That last part is why the final assertion is on LND rather than on the
- * wallet: the wallet says "on the way" the moment the covenant is funded,
- * because funding IS acceptance and the outcome resolves without it. Whether
- * the invoice was actually PAID is a fact only the receiving node holds, so
- * asserting the wallet's own screen would prove the swap started, not that it
- * worked.
+ * Check settlement on the receiving LND node and on the wallet receipt.
  *
  * Setup — see the header of `.env.regtest` and docs/e2e-lightning.md:
  *   1. `pnpm regtest:start` with ARKD_UNILATERAL_EXIT_DELAY=1024
@@ -67,18 +62,13 @@ test.describe('RFQ Lightning send', () => {
     // No amount: a BOLT11 fixes it, and the form makes the field read-only.
     await prePay(page, invoice)
 
-    // The quote is negotiated on Continue, before this screen renders — so
-    // reaching "Tap to Sign" already means the solver answered and the wallet
-    // accepted its lockup address as matching its own derivation.
-    await page.getByText(tr.send.tapToSign).click({ timeout: 60_000 })
-    await page.getByTestId('loading-logo').waitFor({ timeout: 30_000 })
-
-    // "on the way", not "sent": at this instant the covenant is funded and the
-    // invoice is not paid yet. The wording is load-bearing — see Success.tsx.
-    await page.waitForSelector(`text=${tr.send.paymentOnTheWay}`, { timeout: 60_000 })
+    await expect(page.getByTestId('primary-amount')).toHaveText('2,000 sats')
+    await page.getByRole('button', { name: tr.send.pay, exact: true }).click({ timeout: 60_000 })
+    await expect(page.getByRole('button', { name: tr.send.viewPaymentActivity })).toBeVisible({ timeout: 60_000 })
 
     // The solver still has to notice the funding, pay and claim. It took ~2.5s
     // by hand; poll so a slow round doesn't make this flaky.
     await expect.poll(() => invoiceState(hash), { timeout: 90_000, intervals: [1000] }).toBe('SETTLED')
+    await expect(page.getByRole('heading', { name: tr.send.paymentSent, exact: true })).toBeVisible({ timeout: 30_000 })
   })
 })

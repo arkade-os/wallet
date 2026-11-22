@@ -1,4 +1,4 @@
-import { asset, makeHandle } from '@arkade-os/sdk'
+import { asset, makeHandle, type RouteQuote } from '@arkade-os/sdk'
 import { solverId } from '@arkade-os/solver-discovery'
 import { arkadeAsset, assetSwapIdOf, btcOn, type OpenRfqAuction, type OpenRfqOffer, type Quote } from '@arkade-os/swap'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -35,9 +35,7 @@ const network = 'bitcoin'
 const { invoice, amountSats, paymentHash } = fixtures.lib.bolt11
 const bitcoin = btcOn('arkade', network)
 const lightning = btcOn('bolt11', network)
-const onchain = btcOn('bitcoin', network)
 const address = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4'
-const onchainRequest = { kind: 'bitcoin', address, amount: 10_000 } as const
 const reviewId = 'first-review'
 const lightningRequest = { kind: 'lightning', invoice, amount: amountSats } as const
 const sendInfo = { invoice, satoshis: amountSats, reviewId }
@@ -321,35 +319,34 @@ describe('reviewing a solver payment', () => {
     expect(openPaymentQuotes).not.toHaveBeenCalled()
   })
 
-  it('disables on-chain payment until it has a binding quote for the exact BTC amount', async () => {
-    const firm: Quote = {
-      ...lightningQuote('bitcoin-quote', 2_170),
-      route: {
-        give: { corridor: 'arkade', asset: bitcoin, instrument: { kind: 'wallet' } },
-        take: { corridor: 'onchain', asset: onchain, instrument: { kind: 'address', address } },
-      },
-      give: { asset: bitcoin, amount: 10_770n },
-      take: { asset: onchain, amount: 10_000n },
-      fee: { asset: bitcoin, amount: 770n },
-      onchainClaimFee: 500n,
-    }
-    let resolveQuote!: (quote: Quote) => void
-    quotePaymentRoute.mockReturnValueOnce(new Promise((resolve) => (resolveQuote = resolve)))
-    render(review({ address, satoshis: onchainRequest.amount, reviewId }))
+  it('pays a fixed BIP21 amount through a prepared exit and keeps solver discovery out of the flow', async () => {
+    const send = vi.fn(async () => makeHandle('onchain', async () => ({ railId: 'onchain', txid: 'exit-funding' })))
+    let resolveQuote!: (quote: RouteQuote) => void
+    const exit = vi.fn(() => new Promise<RouteQuote>((resolve) => (resolveQuote = resolve)))
+    const solver = vi.fn()
+    sendRouter.mockResolvedValue({
+      options: async () => [
+        { railId: 'onchain-swap', quote: solver },
+        { railId: 'onchain', quote: exit },
+      ],
+    })
+    render(review({ address, recipient: `bitcoin:${address}?amount=0.0001`, satoshis: 10_000, reviewId }))
 
     const loading = await screen.findByRole('button', { name: 'Getting quote' })
     expect(loading).toBeDisabled()
     fireEvent.click(loading)
     expect(acceptPaymentQuote).not.toHaveBeenCalled()
-    expect(sendRouter).not.toHaveBeenCalled()
-
-    await act(async () => resolveQuote(firm))
+    expect(sendRouter).toHaveBeenCalledWith(expect.objectContaining({ exitOnly: true }))
+    expect(solver).not.toHaveBeenCalled()
+    expect(quotePaymentRoute).not.toHaveBeenCalled()
+    await act(async () => resolveQuote({ railId: 'onchain', amount: 10_000, total: 10_770, fee: 770, send }))
     expect(screen.getByTestId('Total')).toHaveTextContent('10,770')
     expect(screen.getByRole('region', { name: 'Recipient gets' })).toHaveTextContent('10,000')
-    fireEvent.click(pay())
-    await waitFor(() => expect(acceptPaymentQuote).toHaveBeenCalledExactlyOnceWith(firm, onchainRequest, reviewId))
-    expect(quotePaymentRoute).toHaveBeenCalledTimes(1)
-    expect(sendRouter).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Change route' })).toBeNull()
+    fireEvent.click(button('Tap to Sign'))
+    await waitFor(() => expect(setSendInfo).toHaveBeenCalledWith(expect.objectContaining({ txid: 'exit-funding' })))
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(acceptPaymentQuote).not.toHaveBeenCalled()
   })
 
   it('prepares a collaborative exit when the on-chain solver cannot quote', async () => {
@@ -361,13 +358,21 @@ describe('reviewing a solver payment', () => {
       }),
     )
     const exit = vi.fn(async () => ({ railId: 'onchain', amount: 10_000, total: 10_500, fee: 500, send }))
-    quotePaymentRoute.mockRejectedValue(new Error('No saved on-chain route'))
-    sendRouter.mockResolvedValue({ options: async () => [{ railId: 'onchain', quote: exit }] })
-    render(review({ address, satoshis: 10_000, reviewId }))
+    const solver = vi.fn(async () => {
+      throw new Error('No saved on-chain route')
+    })
+    sendRouter.mockResolvedValue({
+      options: async () => [
+        { railId: 'onchain-swap', quote: solver },
+        { railId: 'onchain', quote: exit },
+      ],
+    })
+    render(review({ address, satoshis: 10_500, reviewId }))
 
     expect(await screen.findByText('Collaborative exit')).toBeVisible()
     expect(screen.getByTestId('Total')).toHaveTextContent('10,500')
     expect(send).not.toHaveBeenCalled()
+    expect(solver).toHaveBeenCalledTimes(1)
     expect(openPaymentQuotes).not.toHaveBeenCalled()
 
     fireEvent.click(button('Tap to Sign'))

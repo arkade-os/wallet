@@ -12,11 +12,7 @@ import { SwapsContext } from '../../../providers/swaps'
 
 export type ReviewedQuote = { quote: Quote; offer?: OpenRfqOffer; solverId?: string }
 
-export default function usePaymentQuoteReview(
-  request: PaymentQuoteRequest | undefined,
-  network: NetworkName,
-  quoteInitially = true,
-) {
+export default function usePaymentQuoteReview(request: PaymentQuoteRequest | undefined, network: NetworkName) {
   const { quotePaymentRoute, paymentRouteCandidates } = useContext(SwapsContext)
   const api = useRef({ quotePaymentRoute, paymentRouteCandidates })
   api.current = { quotePaymentRoute, paymentRouteCandidates }
@@ -24,7 +20,7 @@ export default function usePaymentQuoteReview(
   const previous = useRef<Quote>()
   const [reviewed, setReviewed] = useState<ReviewedQuote>()
   const [candidates, setCandidates] = useState<{ id: string; name: string }[]>([])
-  const [loading, setLoading] = useState(Boolean(request && quoteInitially))
+  const [loading, setLoading] = useState(Boolean(request))
   const [quoteError, setQuoteError] = useState('')
   const [termsChanged, setTermsChanged] = useState(false)
 
@@ -84,12 +80,12 @@ export default function usePaymentQuoteReview(
         if (active) setCandidates(routes)
       })
       .catch(() => undefined)
-    if (quoteInitially) void load()
+    void load()
     return () => {
       active = false
       generation.current += 1
     }
-  }, [request, load, quoteInitially])
+  }, [request, load])
 
   const chooseOpenQuote = (quote: Quote, offer: OpenRfqOffer) => {
     validate(quote)

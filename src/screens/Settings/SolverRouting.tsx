@@ -461,18 +461,17 @@ export default function SolverRouting({ network }: { network: string }) {
               const modeLabel = t(
                 mode === 'usage' ? 'solvers.mostUsed' : mode === 'cost' ? 'solvers.lowestCost' : 'solvers.manualOrder',
               )
-              const solverSummary = preferred
-                ? t(
-                    !preferredEnabled
-                      ? 'solvers.preferredPaused'
-                      : preferredCooling
-                        ? 'solvers.preferredCooling'
-                        : 'solvers.preferredSummary',
-                    { name: preferred.card.solver, mode: modeLabel },
-                  )
-                : prefs.preferFirst
-                  ? t('solvers.preferredUnavailableSummary', { mode: modeLabel })
-                  : modeLabel
+              let solverSummary = modeLabel
+              if (preferred) {
+                const values = { name: preferred.card.solver, mode: modeLabel }
+                solverSummary = !preferredEnabled
+                  ? t('solvers.preferredPaused', values)
+                  : preferredCooling
+                    ? t('solvers.preferredCooling', values)
+                    : t('solvers.preferredSummary', values)
+              } else if (prefs.preferFirst) {
+                solverSummary = t('solvers.preferredUnavailableSummary', { mode: modeLabel })
+              }
               const exitFirst = direction === onchainGroup?.[0] && readOnchainSendPreference(network) === 'exit'
               return (
                 <RouteRow

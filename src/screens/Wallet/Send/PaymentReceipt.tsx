@@ -15,15 +15,6 @@ import { paymentEndedWithoutDelivery } from '../../../lib/sendRouter'
 import { getSolverCardsVersion, readSolverCards, saveSolverCards, subscribeSolverCards } from '../../../lib/solverCards'
 import { useTranslation } from '../../../providers/language'
 
-const statusText: Partial<Record<Outcome, string>> = {
-  cancelled: 'transaction.cancelled',
-  refunding: 'send.paymentRefunding',
-  refunded: 'send.paymentRefunded',
-  lapsed: 'send.paymentNeedsAttention',
-  needs_recovery: 'send.paymentNeedsAttention',
-  failed: 'send.paymentNeedsAttention',
-}
-
 function SaveProvider({ offer, network }: { offer: OpenRfqOffer; network: string }) {
   const { t } = useTranslation()
   useSyncExternalStore(subscribeSolverCards, getSolverCardsVersion)
@@ -83,8 +74,16 @@ export default function PaymentReceipt({
   onDone,
 }: PaymentReceiptProps) {
   const { t } = useTranslation()
+  const statusText: Partial<Record<Outcome, string>> = {
+    cancelled: t('transaction.cancelled'),
+    refunding: t('send.paymentRefunding'),
+    refunded: t('send.paymentRefunded'),
+    lapsed: t('send.paymentNeedsAttention'),
+    needs_recovery: t('send.paymentNeedsAttention'),
+    failed: t('send.paymentNeedsAttention'),
+  }
   const status = outcome && statusText[outcome]
-  const headline = t(delivered ? 'send.paymentSent' : (status ?? 'send.paymentProcessing'))
+  const headline = delivered ? t('send.paymentSent') : (status ?? t('send.paymentProcessing'))
   const keepOpen = onchain && !delivered && !paymentEndedWithoutDelivery(outcome)
 
   return (

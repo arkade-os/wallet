@@ -52,7 +52,6 @@ import {
   arkadeAsset,
   assetSwapIdOf,
   btcOn,
-  claimFeeSats,
   isSwapError,
   type AssetId,
   type AssetSwapId,
@@ -861,22 +860,9 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       openPaymentQuoteInput(request, network),
       requestId,
       btcOn('arkade', network),
-      btcOn(request.kind === 'bitcoin' ? 'bitcoin' : 'bolt11', network),
+      btcOn('bolt11', network),
       consent,
-      request.kind === 'bitcoin',
     )
-  }
-
-  const paymentClaimFeeRate = async (network: NetworkName): Promise<number> => {
-    const rate = await claimFeeRate(onchainClaimEndpoint(network))
-    if (
-      !rate ||
-      !Number.isSafeInteger(rate) ||
-      claimFeeSats({ claimFeeRateSatVb: rate }) > BigInt(Number.MAX_SAFE_INTEGER)
-    ) {
-      throw new Error('A Bitcoin claim fee estimate is unavailable')
-    }
-    return rate
   }
 
   const openAuction = async (
@@ -885,7 +871,6 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     from: string,
     to: string,
     consent: boolean,
-    exactBitcoinPayout = false,
   ): Promise<OpenRfqAuction> => {
     const canSearch = () => {
       const policy = readOpenOfferPolicy(aspInfo.network)
@@ -900,7 +885,6 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     })
     try {
       const client = await driving()
-      if (exactBitcoinPayout) input.onchainClaimFeeRateSatVb = await paymentClaimFeeRate(aspInfo.network as NetworkName)
       controller.signal.throwIfAborted()
       if (!canSearch()) throw new Error('Allow open offers before searching')
       const serves = (market: DiscoveredMarket) => Boolean(findMarket([market], from, to)?.market)
@@ -1007,7 +991,6 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     const issuer = held.current
     const client = await driving()
     const input = paymentQuoteInput(request, network)
-    if (request.kind === 'bitcoin') input.onchainClaimFeeRateSatVb = await paymentClaimFeeRate(network)
     const quote = await (preferredId ? client.quote(input, { solverId: preferredId }) : client.quote(input))
     if (held.current !== issuer) throw new QuoteUnavailable()
     assertPaymentQuote(quote, request, network)
@@ -1036,12 +1019,6 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     if (!quote) throw new QuoteUnavailable()
     try {
       assertPaymentQuote(quote, request, network)
-      if (request.kind === 'bitcoin') {
-        const rate = await paymentClaimFeeRate(network)
-        if (quote.onchainClaimFee === undefined || quote.onchainClaimFee < claimFeeSats({ claimFeeRateSatVb: rate })) {
-          throw new Error('Bitcoin network fees increased. Refresh the quote to continue.')
-        }
-      }
     } catch (error) {
       throw new PaymentNotSubmitted(error)
     }
